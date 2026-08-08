@@ -280,7 +280,7 @@ public static class FirmamentV2Parser
     private static readonly Regex FillRegionHeaderRegex = new(@"\bregion\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex FillHeaderRegex = new(@"\bfill\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex CanonicalModelRegex = new(@"^\s*Model\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
-    private static readonly Regex CanonicalPrimitiveHeaderRegex = new(@"\b(?<type>Box|Cylinder|RoundedBox|Frustum|StandardPart)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
+    private static readonly Regex CanonicalPrimitiveHeaderRegex = new(@"\b(?<type>Box|Cylinder|RoundedBox|Frustum|StandardPart|ExactCoaxialPart)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex CanonicalInlineStepHeaderRegex = new(@"\bInlineStep\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex CanonicalModifyHeaderRegex = new(@"\bModify\s+(?<target>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     // Match the declaration-shaped header first; variant admission belongs in the
@@ -306,15 +306,9 @@ public static class FirmamentV2Parser
         var v2AdmissionCandidate = IsV2AdmissionCandidate(source);
         conceptCatalog ??= FirmamentV2ForgeConceptRegistry.Catalog;
 
-        var canonicalStaticExpansion = CanonicalStaticAuthoring.Expand(source, diagnostics);
-        if (canonicalStaticExpansion is null)
-        {
-            diagnostics.Add("firmament-v2-parse-failed");
-            return FirmamentV2ParseResult.Failure(diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray(),
-                v2AdmissionCandidate ? FirmamentV2ParseDisposition.RecognizedInvalid : FirmamentV2ParseDisposition.NotRecognized);
-        }
-        source = canonicalStaticExpansion.Source;
-
+        // Modern Template specialization owns typed Record binding.  Run it while
+        // Record and scalar Static declarations still exist, then let canonical
+        // static authoring erase those compile-time declarations before AIR.
         var templateExpansion = FirmamentV2TemplateExpansion.Expand(source, diagnostics);
         if (templateExpansion is null)
         {
@@ -324,6 +318,15 @@ public static class FirmamentV2Parser
                 v2AdmissionCandidate ? FirmamentV2ParseDisposition.RecognizedInvalid : FirmamentV2ParseDisposition.NotRecognized);
         }
         source = templateExpansion.Source;
+
+        var canonicalStaticExpansion = CanonicalStaticAuthoring.Expand(source, diagnostics);
+        if (canonicalStaticExpansion is null)
+        {
+            diagnostics.Add("firmament-v2-parse-failed");
+            return FirmamentV2ParseResult.Failure(diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray(),
+                v2AdmissionCandidate ? FirmamentV2ParseDisposition.RecognizedInvalid : FirmamentV2ParseDisposition.NotRecognized);
+        }
+        source = canonicalStaticExpansion.Source;
         v2AdmissionCandidate |= IsV2AdmissionCandidate(source);
 
         // Canonical V2 is parsed as one document, before compatibility adapters.  The
@@ -884,7 +887,7 @@ public static class FirmamentV2Parser
 
         var known = new HashSet<string>(StringComparer.Ordinal)
         {
-            "Box", "Cylinder", "RoundedBox", "Frustum", "StandardPart", "Concept", "Struct", "Construction", "Profile", "Compose", "EdgeFinish",
+            "Box", "Cylinder", "RoundedBox", "Frustum", "StandardPart", "ExactCoaxialPart", "Concept", "Struct", "Construction", "Profile", "Compose", "EdgeFinish",
             "Record", "Static", "Template", "Selection", "InlineStep", "Recognize", "Replace", "Pmi", "Modify", "Match", "Require", "Assert"
         };
         var compatibilityOnly = new HashSet<string>(StringComparer.Ordinal)
@@ -938,6 +941,9 @@ public static class FirmamentV2Parser
         if (Regex.IsMatch(body, @"\b(?!(?:InlineStep|Recognize|Replace)\b)(?:Inline[A-Za-z_][A-Za-z0-9_]*|Recogniz[A-Za-z_][A-Za-z0-9_]*|Replac[A-Za-z_][A-Za-z0-9_]*)\b", RegexOptions.CultureInvariant))
             return CanonicalFailure(diagnostics, CanonicalDeclarationUnrecognized);
         var adapterSource = Regex.Replace(body, @"(?m)^\s*Units\s*:\s*mm\s*$", string.Empty, RegexOptions.CultureInvariant);
+
+        if (TryParseExactCoaxialTemplateDocument(adapterSource, model.Groups["name"].Value, templateInstantiations, diagnostics, out var exactDocument))
+            return FirmamentV2ParseResult.Success(exactDocument!, diagnostics.Append("firmament-v2-exact-coaxial-template-parsed").Append("firmament-v2-parse-succeeded").Distinct(StringComparer.Ordinal).Order().ToArray());
 
         if (PrismaticProfileCompositionParser.IsCompositionSource(adapterSource))
         {
@@ -1051,6 +1057,59 @@ public static class FirmamentV2Parser
         diagnostics.Add("firmament-v2-unified-canonical-advanced-parsed");
         diagnostics.Sort(StringComparer.Ordinal);
         return FirmamentV2ParseResult.Success(normalized, diagnostics.Distinct(StringComparer.Ordinal).ToArray());
+    }
+
+    private static bool TryParseExactCoaxialTemplateDocument(string source, string modelName, IReadOnlyList<ConceptIrTemplateInstantiation>? templateInstantiations,
+        List<string> diagnostics, out FirmamentV2Document? document)
+    {
+        document = null;
+        var primitive = Regex.Match(source, @"\bExactCoaxialPart\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
+        if (!primitive.Success) return false;
+        var open = source.IndexOf('{', primitive.Index); var close = FindMatchingBrace(source, open);
+        var materialized = Regex.Match(source, @"\bStruct\s+(?<name>[A-Za-z_]\w*)\s*:\s*(?<concept>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
+        if (close < 0 || !materialized.Success) { diagnostics.Add(CanonicalPrimitiveMalformed); return false; }
+        if (ParseCanonicalPrimitive("ExactCoaxialPart", source[(open + 1)..close], diagnostics) is not FirmamentV2ExactCoaxialPartRecord recipe)
+        { diagnostics.Add(CanonicalPrimitiveMalformed); return false; }
+
+        static string TextValue(string value) => value.Length >= 2 && value[0] == '"' && value[^1] == '"' ? value[1..^1] : value;
+        var instanceName = materialized.Groups["name"].Value; var conceptName = materialized.Groups["concept"].Value;
+        var conceptSpan = new FirmamentV2SourceSpan(materialized.Index, 0);
+        var conceptHeader = Regex.Match(source, $@"\bConcept\s+{Regex.Escape(conceptName)}\s*\{{", RegexOptions.CultureInvariant);
+        var conceptOpen = conceptHeader.Success ? source.IndexOf('{', conceptHeader.Index) : -1;
+        var conceptClose = conceptOpen >= 0 ? FindMatchingBrace(source, conceptOpen) : -1;
+        if (conceptClose < 0) { diagnostics.Add(ConceptUnknownConcept); return false; }
+        var requirements = Regex.Matches(source[(conceptOpen + 1)..conceptClose], @"(?m)^\s*(?<name>[A-Za-z_]\w*)\s*:\s*(?<type>[A-Za-z_]\w*)\s*$", RegexOptions.CultureInvariant)
+            .Cast<Match>().ToDictionary(match => match.Groups["name"].Value,
+                match => new ConceptIrMemberRequirement(match.Groups["name"].Value, new(match.Groups["type"].Value), conceptSpan), StringComparer.Ordinal);
+        var materializedOpen = source.IndexOf('{', materialized.Index); var materializedClose = FindMatchingBrace(source, materializedOpen);
+        var materializedBody = source[(materializedOpen + 1)..materializedClose];
+        var expose = Regex.Match(materializedBody, @"\bExpose\s*\{(?<body>.*?)\}", RegexOptions.Singleline | RegexOptions.CultureInvariant);
+        if (!expose.Success) { diagnostics.Add(ConceptIrResolver.MissingMember + ":" + instanceName); return false; }
+        var exposedSources = Regex.Matches(expose.Groups["body"].Value, @"(?m)^\s*(?<name>[A-Za-z_]\w*)\s*:\s*(?<value>[^\r\n}]+?)\s*$", RegexOptions.CultureInvariant)
+            .Cast<Match>().ToDictionary(match => match.Groups["name"].Value, match => match.Groups["value"].Value.Trim(), StringComparer.Ordinal);
+        var values = new List<ConceptIrValue>(); var exposed = new List<ConceptIrSemanticMember>();
+        foreach (var requirement in requirements.Values)
+        {
+            if (!exposedSources.TryGetValue(requirement.Name, out var authored)) { diagnostics.Add(ConceptIrResolver.MissingMember + $":{instanceName}.{requirement.Name}"); return false; }
+            var stableId = $"template:{instanceName}.{requirement.Name}"; ConceptIrValue? value = requirement.Type.Name switch
+            {
+                "Length" when Regex.Match(authored, @"^(?<n>[-+]?\d+(?:\.\d+)?)mm$") is { Success: true } length => new ConceptIrLengthValue(stableId, double.Parse(length.Groups["n"].Value, CultureInfo.InvariantCulture), "mm", authored),
+                "Angle" when Regex.Match(authored, @"^(?<n>[-+]?\d+(?:\.\d+)?)deg$") is { Success: true } angle => new ConceptIrAngleValue(stableId, double.Parse(angle.Groups["n"].Value, CultureInfo.InvariantCulture), "deg", authored),
+                "String" when authored.Length >= 2 && authored[0] == '"' && authored[^1] == '"' => new ConceptIrStringValue(stableId, TextValue(authored), authored),
+                "Axis" when authored.EndsWith(".Axis", StringComparison.Ordinal) || authored == "+X" => new ConceptIrAxisValue(stableId, new(0d, 0d, 0d), new(1d, 0d, 0d), authored),
+                _ => null
+            };
+            if (value is null) { diagnostics.Add(ConceptIrResolver.TypeMismatch + $":{instanceName}.{requirement.Name}:expected-{requirement.Type}:actual-{authored}"); return false; }
+            values.Add(value);
+            exposed.Add(new(requirement.Name, requirement.Type, value, null, ConceptIrSemanticPhase.ConceptIr,
+                ConceptIrMaterializationCategory.CompileTimeValue, value.Provenance, conceptSpan, $"materialized:{instanceName}.exposed:{requirement.Name}"));
+        }
+        var ir = new ConceptIrDocument(
+            [new ConceptIrDefinition(conceptName, requirements, conceptSpan)], [], values,
+            new(instanceName, "Struct", [conceptName], new(materialized.Index, materializedClose - materialized.Index + 1), exposed, "Valid"), [],
+            TemplateInstantiations: templateInstantiations ?? []);
+        document = new FirmamentV2Document(modelName, "mm", [new FirmamentV2SolidBinding(primitive.Groups["name"].Value, "ExactCoaxialPart", recipe)], ConceptIr: ir);
+        return true;
     }
 
     private static IReadOnlyList<FirmamentV2SelectionDecl> ParseCanonicalSelections(string body, int offset, List<string> diagnostics)
@@ -1372,6 +1431,13 @@ public static class FirmamentV2Parser
             if (family.Length >= 2 && family[0] == '"' && family[^1] == '"') family = family[1..^1];
             return string.IsNullOrWhiteSpace(family) ? null : new FirmamentV2StandardPartRecord(family, fields);
         }
+        FirmamentV2ExactCoaxialPartRecord? ExactCoaxialPart()
+        {
+            var matches = Regex.Matches(body, "\\b(?<name>[A-Za-z_]\\w*)\\s*:\\s*(?<value>\"[^\"]*\"|[A-Za-z_]\\w*|[-+]?\\d+(?:\\.\\d+)?(?:mm|deg)?)", RegexOptions.CultureInvariant).Cast<Match>().ToArray();
+            var fields = matches.GroupBy(match => match.Groups["name"].Value, StringComparer.Ordinal).ToDictionary(group => group.Key, group => group.Last().Groups["value"].Value, StringComparer.Ordinal);
+            var required = new[] { "StableId", "Sides", "AcrossFlats", "AxialHeight", "FlatDiameter", "ConeAngle", "BlendRadius", "ShaftDiameter", "AxialLength", "EndChamferLength", "EndDiameter", "SemanticAxialRegionLength", "Designation", "Grade" };
+            return required.All(fields.ContainsKey) ? new(fields) : null;
+        }
         return type switch
         {
             "Box" when Size() is { } size => new FirmamentV2BoxRecord(size, []),
@@ -1379,6 +1445,7 @@ public static class FirmamentV2Parser
             "RoundedBox" when Size() is { } roundedSize && Number("CornerRadius") is var corner && double.IsFinite(corner) && corner < double.Min(roundedSize[0], roundedSize[1]) / 2d => new FirmamentV2RoundedBoxRecord(roundedSize, corner),
             "Frustum" when Number("BottomRadius") is var bottom && Number("TopRadius") is var top && Number("Height") is var frustumHeight && double.IsFinite(bottom) && double.IsFinite(top) && double.IsFinite(frustumHeight) && double.Abs(bottom - top) > 1e-12d => new FirmamentV2FrustumRecord(bottom, top, frustumHeight),
             "StandardPart" => StandardPart(),
+            "ExactCoaxialPart" => ExactCoaxialPart(),
             _ => null
         };
     }

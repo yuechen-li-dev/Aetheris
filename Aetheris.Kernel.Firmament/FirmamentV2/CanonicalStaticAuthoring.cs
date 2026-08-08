@@ -20,6 +20,7 @@ internal static class CanonicalStaticAuthoring
         var names = new HashSet<string>(StringComparer.Ordinal);
         var recordTypes = new List<FirmamentV2RecordTypeDecl>();
         var arrays = new List<FirmamentV2StaticArrayDecl>();
+        var staticRecords = new List<FirmamentV2StaticRecordDecl>();
         var templates = new List<Template>();
         var patterns = new List<FirmamentV2CanonicalPatternDecl>();
         var requires = new List<FirmamentV2RequireDecl>();
@@ -36,6 +37,22 @@ internal static class CanonicalStaticAuthoring
             changes.Add((header.Index, close - header.Index + 1, string.Empty));
         }
         var recordByName = recordTypes.ToDictionary(x => x.Name, StringComparer.Ordinal);
+
+        foreach (Match header in Regex.Matches(source, @"\bStatic\s+(?<name>[A-Za-z_]\w*)\s*:\s*(?<type>[A-Za-z_]\w*)\s*=\s*(?<literal>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant))
+        {
+            var open = source.IndexOf('{', header.Index); var close = MatchPair(source, open, '{', '}');
+            var name = header.Groups["name"].Value; var type = header.Groups["type"].Value; var literalType = header.Groups["literal"].Value;
+            if (close < 0 || !recordByName.TryGetValue(type, out var record)) { diagnostics.Add(Prefix + "record-type-invalid:" + name); continue; }
+            if (!string.Equals(type, literalType, StringComparison.Ordinal)) { diagnostics.Add(Prefix + "record-literal-type-mismatch:" + name); continue; }
+            if (!names.Add(name)) { diagnostics.Add(FirmamentV2Parser.DuplicateName + ":Static:" + name); continue; }
+            var values = Fields(source[(open + 1)..close]);
+            var missing = record.Fields.Keys.Where(field => !values.ContainsKey(field)).ToArray();
+            var extra = values.Keys.Where(field => !record.Fields.ContainsKey(field)).ToArray();
+            if (missing.Length > 0) diagnostics.Add(Prefix + "record-missing-field:" + name + ":" + string.Join(",", missing));
+            if (extra.Length > 0) diagnostics.Add(Prefix + "record-extra-field:" + name + ":" + string.Join(",", extra));
+            staticRecords.Add(new(name, type, values, new(header.Index, close - header.Index + 1)));
+            changes.Add((header.Index, close - header.Index + 1, string.Empty));
+        }
 
         foreach (Match header in Regex.Matches(source, @"\bStatic\s+(?<name>[A-Za-z_]\w*)\s*:\s*(?<type>[A-Za-z_]\w*)\[\]\s*=\s*\[", RegexOptions.CultureInvariant))
         {
@@ -155,7 +172,7 @@ internal static class CanonicalStaticAuthoring
             .Where(change => !erasures.Any(erase => erase.Start < change.Start && change.Start < erase.Start + erase.Length))
             .OrderByDescending(change => change.Start))
             source = source.Remove(change.Start, change.Length).Insert(change.Start, change.Text);
-        return new(source, new(recordTypes, arrays, templates.Select(t => new FirmamentV2CanonicalTemplateDecl(t.Name, t.Type, t.Parameter, t.Body, t.Span)).ToArray(), patterns, requires, semanticConstraints, projections));
+        return new(source, new(recordTypes, arrays, templates.Select(t => new FirmamentV2CanonicalTemplateDecl(t.Name, t.Type, t.Parameter, t.Body, t.Span)).ToArray(), patterns, requires, semanticConstraints, projections, staticRecords));
     }
 
     private static string? Instantiate(Template template, IReadOnlyDictionary<string, string> values, string id, bool patterned, List<string> diagnostics)

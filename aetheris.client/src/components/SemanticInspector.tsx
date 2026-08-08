@@ -1,4 +1,6 @@
 import { matchKind } from "machinalayout/match";
+import { Table } from "machinalayout/table";
+import { useMemo } from "react";
 import type { ReactNode } from "react";
 import { PropertyTable, type PropertyRecord } from "./PropertyTable";
 import { indexSemanticInspection, semanticTree, type SemanticTreeNode } from "../viewer/semanticInspection";
@@ -15,7 +17,21 @@ function BrepDetails({ entity, artifact }: { entity: CadmataEntity; artifact: Ca
 	const pmi = owners.flatMap((owner) => index.pmiByTarget.get(owner.stableId) ?? []).filter((item, position, all) => all.findIndex((candidate) => candidate.stableId === item.stableId) === position);
 	return <><PropertyTable id={`brep-${entity.stableId}`} rows={rows(entity)} /><p className="semantic-provenance"><strong>Semantic owner(s):</strong> {owners.length ? owners.map((owner) => `${owner.kind} ${owner.label}${owner.sourceSpan ? ` · ${owner.sourceSpan}` : ""}`).join("; ") : "None published"}<br /><strong>Associated PMI:</strong> {pmi.length ? pmi.map((item) => item.label).join(", ") : "None"}</p><p className="semantic-provenance">Advanced traceability: Aetheris topology IDs are shown above. STEP entity IDs are not yet published by this fixture channel.</p></>;
 }
-function GenericDetails({ entity }: { entity: CadmataEntity }) { return <PropertyTable id={`semantic-${entity.stableId}`} rows={rows(entity)} />; }
+function TemplateParameterTable({ entity }: { entity: CadmataEntity }) {
+	const records = useMemo(() => {
+		const metadata = entity.metadata ?? {};
+		const names = Object.keys(metadata).filter((key) => key.startsWith("parameter.")).map((key) => key.slice("parameter.".length)).sort();
+		return Table.toObjects(Table.define({ id: `template-parameters-${entity.stableId}`, columns: {
+			parameter: names,
+			type: names.map((name) => String(metadata[`parameterType.${name}`] ?? "Unknown")),
+			value: names.map((name) => String(metadata[`parameter.${name}`] ?? "")),
+			source: names.map((name) => `${String(metadata[`parameterSource.${name}`] ?? "Authored")} · ${String(metadata[`parameterStatus.${name}`] ?? "Bound")}`),
+		} }));
+	}, [entity]);
+	if (!records.length) return null;
+	return <><h4>Template parameters</h4><table className="property-table"><thead><tr><th>Parameter</th><th>Type</th><th>Value</th><th>Source</th></tr></thead><tbody>{records.map((record) => <tr key={String(record.parameter)}><th scope="row">{record.parameter}</th><td>{record.type}</td><td>{record.value}</td><td>{record.source}</td></tr>)}</tbody></table></>;
+}
+function GenericDetails({ entity }: { entity: CadmataEntity }) { return <><PropertyTable id={`semantic-${entity.stableId}`} rows={rows(entity).filter((row) => !row.property.startsWith("parameter"))} />{entity.kind === "TemplateInstance" ? <TemplateParameterTable entity={entity} /> : null}</>; }
 export function SemanticInspector({ artifact, selectedId, onSelect }: { artifact: CadmataVisualizationArtifact | null; selectedId: string | null; onSelect: (id: string) => void }) {
 	if (!artifact) return <p>Load a real Firmament fixture to inspect compiler-published semantic structure.</p>;
 	const entity = artifact.entities.find((candidate) => candidate.stableId === selectedId) ?? null;

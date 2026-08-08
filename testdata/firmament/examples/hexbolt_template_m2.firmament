@@ -1,0 +1,135 @@
+Model HexBoltTemplateM2 {
+    Units: mm
+
+    Concept BoltConcept {
+        NominalDiameter: Length
+        Length: Length
+        ThreadLength: Length
+        ThreadDesignation: String
+        Axis: Axis
+    }
+
+    Record HexBoltSpec {
+        StableId: String
+        NominalDiameter: Length
+        Length: Length
+        HeadAcrossFlats: Length
+        HeadHeight: Length
+        TopFlatDiameter: Length
+        TopChamferAngle: Angle
+        UnderHeadRadius: Length
+        TipChamferLength: Length
+        TipDiameter: Length
+        ThreadLength: Length
+        ThreadDesignation: String
+        PropertyClass: String
+    }
+
+    Static McMaster91180A151: HexBoltSpec = HexBoltSpec {
+        StableId: "McMaster91180A151"
+        NominalDiameter: 8mm
+        Length: 35mm
+        HeadAcrossFlats: 13mm
+        HeadHeight: 5.3mm
+        TopFlatDiameter: 12.35mm
+        TopChamferAngle: 25deg
+        UnderHeadRadius: 0.2mm
+        TipChamferLength: 0.9375mm
+        TipDiameter: 6.125mm
+        ThreadLength: 22mm
+        ThreadDesignation: "M8 x 1.25"
+        PropertyClass: "8.8"
+    }
+
+    Static M10x50: HexBoltSpec = HexBoltSpec {
+        StableId: "M10x50"
+        NominalDiameter: 10mm
+        Length: 50mm
+        HeadAcrossFlats: 17mm
+        HeadHeight: 6.4mm
+        TopFlatDiameter: 16mm
+        TopChamferAngle: 25deg
+        UnderHeadRadius: 0.2mm
+        TipChamferLength: 0.9375mm
+        TipDiameter: 8mm
+        ThreadLength: 26mm
+        ThreadDesignation: "M10 x 1.5"
+        PropertyClass: "8.8"
+    }
+
+    Static Nonstandard825x375: HexBoltSpec = HexBoltSpec {
+        StableId: "Nonstandard825x375"
+        NominalDiameter: 8.25mm
+        Length: 37.5mm
+        HeadAcrossFlats: 13.4mm
+        HeadHeight: 5.5mm
+        TopFlatDiameter: 12.7mm
+        TopChamferAngle: 25deg
+        UnderHeadRadius: 0.22mm
+        TipChamferLength: 1mm
+        TipDiameter: 6.3mm
+        ThreadLength: 23mm
+        ThreadDesignation: "M8.25 experimental"
+        PropertyClass: "8.8"
+    }
+
+    Template < Spec: HexBoltSpec >
+    Struct HexBolt: BoltConcept {
+        Require PositiveNominal => Spec.NominalDiameter > 0mm
+        Require HeadWiderThanShank => Spec.HeadAcrossFlats > Spec.NominalDiameter
+        Require TopFlatInsideHex => Spec.TopFlatDiameter < Spec.HeadAcrossFlats
+        Require PositiveHead => Spec.HeadHeight > 0mm
+        Require ConeAngleValid => Spec.TopChamferAngle > 0deg && Spec.TopChamferAngle < 90deg
+        Require BlendNonnegative => Spec.UnderHeadRadius >= 0mm
+        Require TipReducesDiameter => Spec.TipDiameter < Spec.NominalDiameter
+        Require TipFitsLength => Spec.TipChamferLength > 0mm && Spec.TipChamferLength < Spec.Length
+        Require ThreadFits => Spec.ThreadLength >= 0mm && Spec.ThreadLength <= Spec.Length
+
+        ExactCoaxialPart Body {
+            Axis: +X
+            RegularPolygonPrism Head {
+                Sides: 6
+                AcrossFlats: Spec.HeadAcrossFlats
+                AxialHeight: Spec.HeadHeight
+            }
+            CoaxialConeTrim TopTreatment {
+                FlatDiameter: Spec.TopFlatDiameter
+                ConeAngle: Spec.TopChamferAngle
+                IntersectionCurve: ExactConic
+            }
+            BoundedTorusBlend HeadToShaft {
+                BlendRadius: Spec.UnderHeadRadius
+                SplitPolicy: PeriodicHalfSupports
+            }
+            Cylinder Shaft {
+                ShaftDiameter: Spec.NominalDiameter
+                AxialLength: Spec.Length
+            }
+            CoaxialConeFrustum EndTreatment {
+                EndChamferLength: Spec.TipChamferLength
+                EndDiameter: Spec.TipDiameter
+            }
+            SemanticAxialRegion ThreadRegion {
+                SemanticAxialRegionLength: Spec.ThreadLength
+                Designation: Spec.ThreadDesignation
+                MaterialGeometry: Cylinder
+            }
+            Metadata {
+                StableId: Spec.StableId
+                Grade: Spec.PropertyClass
+            }
+        }
+
+        Expose {
+            NominalDiameter: Spec.NominalDiameter
+            Length: Spec.Length
+            ThreadLength: Spec.ThreadLength
+            ThreadDesignation: Spec.ThreadDesignation
+            Axis: Body.Axis
+        }
+    }
+
+    Struct ReferenceBolt = HexBolt <
+        Spec: McMaster91180A151
+    >
+}

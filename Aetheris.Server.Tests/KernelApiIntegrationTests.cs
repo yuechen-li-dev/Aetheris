@@ -892,6 +892,7 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
     [InlineData("ctc-01-x3", "profile:CentralHex.Outer.SouthEast")]
     [InlineData("ctc-01-x4", "hole:Ctc01PrismaticBlockoutX4.LeftTopMount")]
     [InlineData("hexbolt-m1", "McMaster91180A151.Head.TopChamfer")]
+    [InlineData("hexbolt-m2", "McMaster91180A151.Head.TopChamfer")]
     public async Task CadmataFixture_LoadsCompilerBodyAndPublishedCorrespondence(string fixtureId, string expectedEntityId)
     {
         var document = await CreateDocumentAsync("/api/v1/documents");
@@ -915,14 +916,20 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
     public async Task CadmataHexBoltV2Fixture_PublishesTemplateParametersAndGeneratedFaceOwnership()
     {
         var document = await CreateDocumentAsync("/api/v1/documents");
-        var response = await _client.PostAsync($"/api/v1/documents/{document.Data!.DocumentId}/cadmata/fixtures/hexbolt-m1", null);
+        var response = await _client.PostAsync($"/api/v1/documents/{document.Data!.DocumentId}/cadmata/fixtures/hexbolt-m2", null);
         response.EnsureSuccessStatusCode();
         var loaded = await response.Content.ReadFromJsonAsync<ApiResponseDto<CadmataFixtureLoadResponseDto>>();
         Assert.True(loaded!.Success);
         var entities = loaded.Data!.Visualization.Entities;
         var instance = Assert.Single(entities, entity => entity.Kind == "TemplateInstance");
         Assert.Equal("HexBolt", instance.Metadata!["template"]);
+        Assert.Equal("ReferenceBolt", instance.Metadata["instance"]);
+        Assert.Equal("HexBoltSpec", instance.Metadata["recordType"]);
+        Assert.Equal("McMaster91180A151", instance.Metadata["recordSource"]);
         Assert.Equal("35mm", instance.Metadata["parameter.Length"]);
+        Assert.Equal("Length", instance.Metadata["parameterType.Length"]);
+        Assert.Equal("BoundStaticRecord", instance.Metadata["parameterStatus.Length"]);
+        Assert.StartsWith("Passed:", instance.Metadata["require.ThreadFits"], StringComparison.Ordinal);
         var chamfer = Assert.Single(entities, entity => entity.StableId == "McMaster91180A151.Head.TopChamfer");
         Assert.Equal(6, chamfer.Topology!.FaceIds!.Count);
         Assert.All(chamfer.Topology.FaceIds!, faceId => Assert.Contains(entities, entity => entity.StableId == $"brep:face:{faceId}" && entity.ParentIds!.Any(parent => parent.StartsWith("McMaster91180A151.Head.TopChamfer.Face[", StringComparison.Ordinal))));

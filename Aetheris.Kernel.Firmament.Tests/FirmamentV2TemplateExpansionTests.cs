@@ -4,6 +4,49 @@ namespace Aetheris.Kernel.Firmament.Tests;
 
 public sealed class FirmamentV2TemplateExpansionTests
 {
+    [Fact]
+    public void TypedRecordParameter_BindsStaticRecordMembersAndRequireBeforeAir()
+    {
+        var first = FirmamentV2Parser.Parse(WidgetSource("WidgetA"));
+        var second = FirmamentV2Parser.Parse(WidgetSource("WidgetA"));
+
+        Assert.True(first.IsSuccess, string.Join(Environment.NewLine, first.Diagnostics));
+        Assert.True(second.IsSuccess, string.Join(Environment.NewLine, second.Diagnostics));
+        var expansion = Assert.Single(first.Document!.ConceptIr!.TemplateInstantiations!);
+        var record = Assert.Single(expansion.RecordArguments!);
+        Assert.Equal("Spec", record.Key);
+        Assert.Equal("WidgetSpec", record.Value.RecordType);
+        Assert.Equal("TallWidget", record.Value.StaticValue);
+        Assert.Equal("25mm", record.Value.Members["Height"]);
+        Assert.Equal("StaticRecord", record.Value.Provenance);
+        Assert.Equal("Passed:40mm > 0mm && 25mm > 0mm", expansion.RequireResults!["Positive"]);
+        Assert.Equal(expansion.SpecializationIdentity, Assert.Single(second.Document!.ConceptIr!.TemplateInstantiations!).SpecializationIdentity);
+        Assert.Equal([40d, 20d, 25d], first.Document.Solid.Box!.Size);
+        Assert.DoesNotContain("Static", first.Document.ConceptIr.MaterializedStruct.SourceSpelling, StringComparison.Ordinal);
+        Assert.DoesNotContain("Template", first.Document.ConceptIr.MaterializedStruct.SourceSpelling, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TypedRecordParameter_ReportsTypedBindingAndMemberDiagnostics()
+    {
+        var wrong = FirmamentV2Parser.Parse(WidgetSource("Bad").Replace("Spec: TallWidget", "Spec: OtherValue", StringComparison.Ordinal) + "\nRecord OtherSpec { Width: Length Height: Length Depth: Length }\nStatic OtherValue: OtherSpec = OtherSpec { Width: 1mm Height: 1mm Depth: 1mm }");
+        Assert.Contains(wrong.Diagnostics, d => d.StartsWith("firmament-template-record-argument-type-mismatch:Spec:expected-WidgetSpec:actual-OtherSpec", StringComparison.Ordinal));
+
+        var unknown = FirmamentV2Parser.Parse(WidgetSource("Bad").Replace("Spec: TallWidget", "Spec: Missing", StringComparison.Ordinal));
+        Assert.Contains(unknown.Diagnostics, d => d.StartsWith("firmament-template-unknown-static-record-value:Spec:Missing", StringComparison.Ordinal));
+
+        var collection = WidgetSource("Bad").Replace("Spec: TallWidget", "Spec: WidgetValues", StringComparison.Ordinal)
+            + "\nStatic WidgetValues: WidgetSpec[] = [WidgetSpec { Width: 40mm Height: 25mm Depth: 20mm }]";
+        var collectionParse = FirmamentV2Parser.Parse(collection);
+        Assert.Contains(collectionParse.Diagnostics, d => d.StartsWith("firmament-template-record-collection-scalar-mismatch:Spec", StringComparison.Ordinal));
+
+        var member = FirmamentV2Parser.Parse(WidgetSource("Bad").Replace("Spec.Height", "Spec.MissingHeight", StringComparison.Ordinal));
+        Assert.Contains(member.Diagnostics, d => d.StartsWith("firmament-template-unknown-record-member:Spec.MissingHeight", StringComparison.Ordinal));
+
+        var runtime = FirmamentV2Parser.Parse(WidgetSource("Bad").Replace("Spec: TallWidget", "Spec: RuntimeWidget", StringComparison.Ordinal) + "\nStruct RuntimeWidget { Box Runtime { Size: [1mm, 1mm, 1mm] } }");
+        Assert.Contains(runtime.Diagnostics, d => d.StartsWith("firmament-template-materialized-value-not-compile-time-record:Spec:RuntimeWidget", StringComparison.Ordinal));
+    }
+
     [Theory]
     [InlineData("CompactBracket", "60mm", "40mm", "20mm", "Compact", 60d, 40d, 20d)]
     [InlineData("StandardBracket", "80mm", "50mm", "25mm", "Standard", 80d, 50d, 25d)]
@@ -129,5 +172,51 @@ public sealed class FirmamentV2TemplateExpansionTests
             }
         }
         Struct {{instance}} = MountingBracket < TBody: Box, {{(width.Length == 0 ? string.Empty : "Width: " + width + ",")}} Depth: {{depth}}, Height: {{height}}, Variant: {{variant}} >
+        """;
+
+    private static string WidgetSource(string instance) => $$"""
+        Concept WidgetConcept {
+            Bounds: Box3
+            TopPlane: Plane
+            ChamferDistance: Length
+        }
+        Record WidgetSpec {
+            Width: Length
+            Height: Length
+            Depth: Length
+        }
+        Static TallWidget: WidgetSpec = WidgetSpec {
+            Width: 40mm
+            Height: 25mm
+            Depth: 20mm
+        }
+        Template < Spec: WidgetSpec >
+        Struct Widget: WidgetConcept {
+            Require Positive => Spec.Width > 0mm && Spec.Height > 0mm
+            Concept Struct Design: WidgetConcept {
+                Bounds: Box3 {
+                    Size: [Spec.Width, Spec.Depth, Spec.Height]
+                }
+                TopPlane: Bounds.Face(+Z)
+                ChamferDistance: 1mm
+            }
+            Box Body {
+                Bounds: Design.Bounds
+            }
+            Modify Body {
+                EdgeFinish TopBreak {
+                    Face: Design.TopPlane
+                    Target: Boundary
+                    Kind: Chamfer
+                    Distance: Design.ChamferDistance
+                }
+            }
+            Expose {
+                Bounds: Design.Bounds
+                TopPlane: Body.Top
+                ChamferDistance: Design.ChamferDistance
+            }
+        }
+        Struct {{instance}} = Widget < Spec: TallWidget >
         """;
 }

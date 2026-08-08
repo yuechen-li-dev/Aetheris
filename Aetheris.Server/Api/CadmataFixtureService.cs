@@ -27,6 +27,7 @@ internal static class CadmataFixtureService
         ["profile-compose-l-bracket-counterbore-pmi"] = "fixtures/FirmamentV2/Canonical/valid/profile-compose-l-bracket-counterbore-pmi.firmament",
         ["pmi-projected-hole-diameter"] = "fixtures/FirmamentV2/Canonical/valid/pmi-projected-hole-diameter.firmament",
         ["hexbolt-m1"] = "testdata/firmament/examples/mcmaster_91180a151_threadless_hex_bolt.firmament",
+        ["hexbolt-m2"] = "testdata/firmament/examples/hexbolt_template_m2.firmament",
     };
 
     public static bool TryLoad(string fixtureId, DocumentSession document, out CadmataFixtureLoadResponseDto? response, out string error)
@@ -38,7 +39,7 @@ internal static class CadmataFixtureService
         var source = File.ReadAllText(sourcePath);
         if (fixtureId == "pmi-projected-hole-diameter")
             return TryLoadProjectedPmiFixture(fixtureId, relative, sourcePath, source, document, out response, out error);
-        if (fixtureId == "hexbolt-m1")
+        if (fixtureId is "hexbolt-m1" or "hexbolt-m2")
             return TryLoadStandardPartFixture(fixtureId, relative, sourcePath, source, document, out response, out error);
         BrepBody? body = null; SemanticTopologyCorrespondence? correspondence = null; IReadOnlyList<ResolvedProfile2D> profiles = []; IReadOnlyList<PrismaticShaftHoleFeature> shaftHoles = []; IReadOnlyList<PrismaticCapsuleSlotFeature> capsuleSlots = []; IReadOnlyList<PrismaticRoundedRectangleSlotFeature> roundedRectangleSlots = [];
         var diagnostics = new List<string>(); SemanticHoleSourceInspectionEvidence? semanticHoleEvidence = null;
@@ -103,6 +104,8 @@ internal static class CadmataFixtureService
     {
         var entities = new List<CadmataVisualizationEntityDto>();
         var descendants = report.SemanticDescendants;
+        var instantiation = document.ConceptIr?.TemplateInstantiations?.SingleOrDefault();
+        var recordArgument = instantiation?.RecordArguments?.SingleOrDefault();
         foreach (var semantic in descendants)
         {
             var children = descendants.Where(candidate => candidate.ParentStableId == semantic.StableId).Select(candidate => candidate.StableId).ToArray();
@@ -114,9 +117,26 @@ internal static class CadmataFixtureService
                 ["semanticKind"] = semantic.Kind,
                 ["sourceForm"] = "FirmamentV2.Record/Static/Template"
             };
+            if (instantiation is not null)
+            {
+                metadata["instance"] = instantiation.Instance;
+                metadata["specializationIdentity"] = instantiation.SpecializationIdentity;
+                metadata["recordParameter"] = recordArgument?.Key ?? string.Empty;
+                metadata["recordType"] = recordArgument?.Value.RecordType ?? string.Empty;
+                metadata["recordSource"] = recordArgument?.Value.StaticValue ?? string.Empty;
+                foreach (var require in instantiation.RequireResults ?? new Dictionary<string, string>()) metadata["require." + require.Key] = require.Value;
+            }
             if (semantic.Metadata is not null) metadata["engineeringMetadata"] = semantic.Metadata;
             if (semantic.Kind == "Part")
-                foreach (var parameter in report.Parameters) metadata["parameter." + parameter.Key] = parameter.Value;
+                foreach (var parameter in report.Parameters)
+                {
+                    metadata["parameter." + parameter.Key] = parameter.Value;
+                    var recordType = recordArgument?.Value.RecordType;
+                    var declared = document.StaticAuthoring?.RecordTypes.SingleOrDefault(type => type.Name == recordType)?.Fields.GetValueOrDefault(parameter.Key);
+                    metadata["parameterType." + parameter.Key] = declared ?? "Unknown";
+                    metadata["parameterSource." + parameter.Key] = recordArgument?.Value.StaticValue ?? "Authored";
+                    metadata["parameterStatus." + parameter.Key] = instantiation?.DefaultedArguments.Contains(recordArgument?.Key ?? string.Empty) == true ? "Default" : "BoundStaticRecord";
+                }
             entities.Add(new(
                 semantic.StableId,
                 semantic.Kind == "Part" ? "TemplateInstance" : semantic.Kind == "Region" ? "PartRegion" : "GeneratedFace",
@@ -131,7 +151,7 @@ internal static class CadmataFixtureService
                 children,
                 materialFaces.Length == 0 ? null : new CadmataTopologyDto(materialFaces),
                 null,
-                "StandardLibrary.HexBoltBuilder",
+                report.Family == "ExactCoaxialPart" ? "Firmament.Template/ExactCoaxialPart" : "StandardLibrary.HexBoltBuilder",
                 null,
                 metadata));
         }
@@ -147,7 +167,7 @@ internal static class CadmataFixtureService
             ["entityCount"] = entities.Count,
             ["faceCount"] = body.Topology.Faces.Count(),
             ["semanticDescendantCount"] = descendants.Count,
-            ["templateCount"] = document.StaticAuthoring?.Templates.Count ?? 0
+            ["templateCount"] = document.ConceptIr?.TemplateInstantiations?.Count ?? document.StaticAuthoring?.Templates.Count ?? 0
         });
     }
 

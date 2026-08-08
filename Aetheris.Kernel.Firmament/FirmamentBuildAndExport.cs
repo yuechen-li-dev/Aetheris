@@ -98,7 +98,13 @@ public static class FirmamentBuildAndExport
         // parser admission alone is insufficient because the profile/composition
         // materializers read source declarations directly.
         var staticDiagnostics = new List<string>();
-        var staticExpansion = CanonicalStaticAuthoring.Expand(sourceText, staticDiagnostics);
+        var templateExpansion = FirmamentV2TemplateExpansion.Expand(sourceText, staticDiagnostics);
+        if (templateExpansion is null)
+        {
+            return KernelResult<FirmamentStepExportResult>.Failure(staticDiagnostics.Select(diagnostic => new Kernel.Core.Diagnostics.KernelDiagnostic(
+                Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, diagnostic, "FirmamentV2.TemplateExpansion")).ToArray());
+        }
+        var staticExpansion = CanonicalStaticAuthoring.Expand(templateExpansion.Source, staticDiagnostics);
         if (staticExpansion is null)
         {
             return KernelResult<FirmamentStepExportResult>.Failure(staticDiagnostics
@@ -191,6 +197,11 @@ public static class FirmamentBuildAndExport
             if (TryExportV2RoundedBoxBody(v2Parse.Document) is { } roundedBoxExport)
             {
                 return roundedBoxExport;
+            }
+
+            if (TryExportV2ExactCoaxialPart(v2Parse.Document) is { } exactCoaxialExport)
+            {
+                return exactCoaxialExport;
             }
 
             if (TryExportV2StandardPart(v2Parse.Document) is { } standardPartExport)
@@ -325,6 +336,25 @@ public static class FirmamentBuildAndExport
             authored.Family,
             ConceptIr: document.ConceptIr,
             StandardPart: report));
+    }
+
+    private static KernelResult<FirmamentStepExportResult>? TryExportV2ExactCoaxialPart(FirmamentV2Document document)
+    {
+        if (document.Solids.Count != 1 || document.Solid.ExactCoaxialPart is not { } authored) return null;
+        var recipe = ExactCoaxialPartBuilder.Bind(authored.Parameters);
+        if (!recipe.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(recipe.Diagnostics);
+        var built = ExactCoaxialPartBuilder.Create(recipe.Value);
+        if (!built.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(built.Diagnostics);
+        var step = Step242Exporter.ExportBody(built.Value.Body);
+        if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+        var instantiation = document.ConceptIr?.TemplateInstantiations?.SingleOrDefault();
+        var record = instantiation?.RecordArguments?.SingleOrDefault().Value;
+        var parameters = record?.Members ?? authored.Parameters;
+        var semantics = built.Value.Semantics.Descendants.Select(descendant => new FirmamentStandardPartSemanticReport(
+            descendant.StableId, descendant.Kind.ToString(), descendant.ParentStableId, descendant.Face?.Value, descendant.Metadata)).ToArray();
+        var report = new FirmamentStandardPartReport("ExactCoaxialPart", instantiation?.Template, built.Value.DeterministicSignature, parameters, semantics);
+        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, built.Value.Semantics.BodyStableId, 0,
+            "template-exact-construction", "ExactCoaxialPart", ConceptIr: document.ConceptIr, StandardPart: report));
     }
 
     private static KernelResult<FirmamentStepExportResult> ExportComposedSemanticTopBoundaryChamfer(

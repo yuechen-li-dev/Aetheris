@@ -106,6 +106,12 @@ public sealed record ConceptIrStaticSelection(
     FirmamentV2SourceSpan SourceSpan,
     string Provenance);
 public sealed record ConceptIrPatternExpansion(string Pattern, string Source, string ElementType, int Count, IReadOnlyList<string> GeneratedDeclarations, FirmamentV2SourceSpan SourceSpan, string Status = "ExpandedBeforeFeatureAir");
+public sealed record ConceptIrTemplateRecordArgument(
+    string RecordType,
+    string StaticValue,
+    IReadOnlyDictionary<string, string> Members,
+    FirmamentV2SourceSpan SourceSpan,
+    string Provenance);
 /// <summary>Source-map-only evidence for a compile-time template expansion.  This is deliberately not AIR.</summary>
 public sealed record ConceptIrTemplateInstantiation(
     string Template,
@@ -118,7 +124,9 @@ public sealed record ConceptIrTemplateInstantiation(
     FirmamentV2SourceSpan TemplateSourceSpan,
     FirmamentV2SourceSpan ApplicationSourceSpan,
     string Status = "ExpandedBeforeFeatureAir",
-    IReadOnlyDictionary<string, string>? SelectedMatchArms = null);
+    IReadOnlyDictionary<string, string>? SelectedMatchArms = null,
+    IReadOnlyDictionary<string, ConceptIrTemplateRecordArgument>? RecordArguments = null,
+    IReadOnlyDictionary<string, string>? RequireResults = null);
 public sealed record ConceptIrDocument(
     IReadOnlyList<ConceptIrDefinition> Concepts,
     IReadOnlyList<ConceptIrStructInstance> Structs,

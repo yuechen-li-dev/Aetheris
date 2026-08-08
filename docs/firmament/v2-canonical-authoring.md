@@ -159,6 +159,32 @@ selection result kind before materialization.
 
 The current canonical static route admits typed records, static record arrays,
 one typed Template parameter, Pattern expansion, and static Require checks.
+
+Templates may also consume a user-defined Record through a scalar Static value.
+This is the preferred pattern for parameter-rich engineering families:
+
+```firmament
+Record WidgetSpec { Width: Length Height: Length }
+Static StandardWidget: WidgetSpec = WidgetSpec { Width: 40mm Height: 25mm }
+
+Template < Spec: WidgetSpec >
+Struct Widget: WidgetConcept {
+    Require Positive => Spec.Width > 0mm && Spec.Height > 0mm
+    // construction uses Spec.Width and Spec.Height
+}
+
+Struct Example = Widget < Spec: StandardWidget >
+```
+
+Record member access and Require are resolved during deterministic
+specialization. The Record, Static value, Template, and Require are erased before
+Feature AIR, while TemplateInstance provenance remains inspectable. See
+[typed Record Template parameters](../preview2/firmament-template-record-parameters-m2.md)
+and the substantial [HexBolt Template](../preview2/hexbolt-template-m2.md).
+
+For new part families, prefer typed Record Templates plus generic construction
+capabilities. `StandardPart Family: HexBolt` remains the M1 compatibility and
+internal optimized/oracle route; it is no longer the preferred authoring model.
 They erase to ordinary admitted declarations before material lowering.
 
 ```firmament

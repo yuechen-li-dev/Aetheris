@@ -58,6 +58,7 @@ public sealed record FirmamentV2SolidBinding(string Name, string RecordType, Fir
     public FirmamentV2RoundedBoxRecord? RoundedBox => Primitive as FirmamentV2RoundedBoxRecord;
     public FirmamentV2InlineStepRecord? InlineStep => Primitive as FirmamentV2InlineStepRecord;
     public FirmamentV2StandardPartRecord? StandardPart => Primitive as FirmamentV2StandardPartRecord;
+    public FirmamentV2ExactCoaxialPartRecord? ExactCoaxialPart => Primitive as FirmamentV2ExactCoaxialPartRecord;
 }
 
 public abstract record FirmamentV2PrimitiveRecord;
@@ -76,6 +77,9 @@ public sealed record FirmamentV2AdvancedMaterialRecord(string Kind) : FirmamentV
 public sealed record FirmamentV2StandardPartRecord(
     string Family,
     IReadOnlyDictionary<string, string> Parameters) : FirmamentV2PrimitiveRecord;
+/// <summary>A bounded exact analytic construction recipe assembled from reusable
+/// regular-prism, coaxial cone, torus-blend, cylinder, and cone-frustum operations.</summary>
+public sealed record FirmamentV2ExactCoaxialPartRecord(IReadOnlyDictionary<string, string> Parameters) : FirmamentV2PrimitiveRecord;
 public sealed record FirmamentV2InlineStepRecord(string SourcePath, string NormalizedPath, string ContentHash, bool CanonicalInput, string CanonicalEvidence, ImportedStepTopologyMap TopologyMap) : FirmamentV2PrimitiveRecord;
 public sealed record ImportedStepTopologyMap(IReadOnlyDictionary<string, string> FaceEntityToFaceId, IReadOnlyDictionary<string, string> FaceIdToFaceEntity)
 {
@@ -222,9 +226,10 @@ public sealed record FirmamentV2ProfileDecl(string Name, string Frame, double Fr
 public sealed record FirmamentV2ComposeDecl(string Name, IReadOnlyList<string> Operations, FirmamentV2SourceSpan SourceSpan);
 public sealed record FirmamentV2SelectionDecl(string Name, string Target, string Source, string Requirement, FirmamentV2SourceSpan SourceSpan);
 /// <summary>Normalized, erased-before-materialization evidence for canonical static authoring.</summary>
-public sealed record FirmamentV2StaticAuthoringDocument(IReadOnlyList<FirmamentV2RecordTypeDecl> RecordTypes, IReadOnlyList<FirmamentV2StaticArrayDecl> Arrays, IReadOnlyList<FirmamentV2CanonicalTemplateDecl> Templates, IReadOnlyList<FirmamentV2CanonicalPatternDecl> Patterns, IReadOnlyList<FirmamentV2RequireDecl> Requires, IReadOnlyList<FirmamentV2SemanticConstraint>? SemanticConstraints = null, IReadOnlyDictionary<string, FirmamentV2PmiProjection>? PmiProjections = null);
+public sealed record FirmamentV2StaticAuthoringDocument(IReadOnlyList<FirmamentV2RecordTypeDecl> RecordTypes, IReadOnlyList<FirmamentV2StaticArrayDecl> Arrays, IReadOnlyList<FirmamentV2CanonicalTemplateDecl> Templates, IReadOnlyList<FirmamentV2CanonicalPatternDecl> Patterns, IReadOnlyList<FirmamentV2RequireDecl> Requires, IReadOnlyList<FirmamentV2SemanticConstraint>? SemanticConstraints = null, IReadOnlyDictionary<string, FirmamentV2PmiProjection>? PmiProjections = null, IReadOnlyList<FirmamentV2StaticRecordDecl>? StaticRecords = null);
 public sealed record FirmamentV2RecordTypeDecl(string Name, IReadOnlyDictionary<string, string> Fields, FirmamentV2SourceSpan SourceSpan);
 public sealed record FirmamentV2StaticArrayDecl(string Name, string ElementType, IReadOnlyList<IReadOnlyDictionary<string, string>> Elements, FirmamentV2SourceSpan SourceSpan);
+public sealed record FirmamentV2StaticRecordDecl(string Name, string RecordType, IReadOnlyDictionary<string, string> Fields, FirmamentV2SourceSpan SourceSpan);
 public sealed record FirmamentV2CanonicalTemplateDecl(string Name, string ParameterType, string ParameterName, string Body, FirmamentV2SourceSpan SourceSpan);
 public sealed record FirmamentV2CanonicalPatternDecl(string Name, string Source, string Template, int GeneratedCount, IReadOnlyList<string> GeneratedIds, FirmamentV2SourceSpan SourceSpan);
 public sealed record FirmamentV2RequireDecl(string Name, string Expression, bool Value, FirmamentV2SourceSpan SourceSpan, string? Provenance = null, string? Subject = null, string? Expected = null, string? ToleranceSource = null);

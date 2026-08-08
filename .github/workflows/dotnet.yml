@@ -112,6 +112,8 @@ jobs:
       - name: Authenticate to NuGet with trusted publishing
         id: nuget-login
         uses: NuGet/login@v1
+        with:
+          user: yuechen-li
       - name: Publish the tested NuGet package
         run: dotnet nuget push 'release/packages/*.nupkg' --source https://api.nuget.org/v3/index.json --api-key '${{ steps.nuget-login.outputs.NUGET_API_KEY }}' --skip-duplicate
       - name: Create prerelease and upload the tested assets

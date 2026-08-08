@@ -1,0 +1,70 @@
+{
+  "machine": {
+    "capturedAt": "2026-08-08",
+    "browserViewportCssPixels": "1440x900",
+    "devicePixelRatio": 1,
+    "frameRateNote": "The in-app browser ran near its 144 Hz presentation interval; frame values are requestAnimationFrame intervals, not a GPU timestamp query."
+  },
+  "legacyGridStructuralProfile": {
+    "worldSpans": [20, 200, 2000],
+    "logicalLines": 48,
+    "reactLineComponents": 192,
+    "geometryCount": 192,
+    "drawCalls": 192,
+    "regenerationPolicy": "camera move > 0.01 world units or zoom > 0.1%"
+  },
+  "adaptiveGridStructuralProfile": {
+    "worldSpans": [20, 200, 2000],
+    "logicalLines": 48,
+    "geometryCount": 4,
+    "drawCalls": 4,
+    "positionBufferBytes": 1152,
+    "regenerationPolicy": "camera move or zoom > 4% of visible scale"
+  },
+  "liveAfter": {
+    "empty": {
+      "averageFrameMs": 7.0472,
+      "frameSamples": 180,
+      "drawCalls": 10,
+      "triangles": 24,
+      "geometries": 10,
+      "textures": 1,
+      "gridLines": 60,
+      "gridDrawCalls": 4,
+      "gridPositionBufferBytes": 1440
+    },
+    "simplePlate": {
+      "averageFrameMs": 6.9615,
+      "frameSamples": 480,
+      "drawCalls": 26,
+      "triangles": 144,
+      "geometries": 26,
+      "textures": 2,
+      "gridLines": 78,
+      "gridDrawCalls": 4,
+      "gridPositionBufferBytes": 1872
+    },
+    "lBracket": {
+      "averageFrameMs": 7.0149,
+      "frameSamples": 570,
+      "drawCalls": 18,
+      "triangles": 44,
+      "geometries": 18,
+      "textures": 2,
+      "gridLines": 73,
+      "gridDrawCalls": 4,
+      "gridPositionBufferBytes": 1752
+    },
+    "ctc01X4": {
+      "averageFrameMs": 6.9919,
+      "frameSamples": 570,
+      "drawCalls": 191,
+      "triangles": 348796,
+      "geometries": 191,
+      "textures": 2,
+      "gridLines": 65,
+      "gridDrawCalls": 4,
+      "gridPositionBufferBytes": 1560
+    }
+  }
+}

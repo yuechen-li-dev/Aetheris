@@ -74,8 +74,10 @@ internal static class CadmataFixtureService
             var frame = profile.EffectiveConstructionPlane;
             var axes = new[] { frame.Origin, frame.Origin + frame.AxisX.ToVector() * 8, frame.Origin, frame.Origin + frame.AxisY.ToVector() * 8, frame.Origin, frame.Origin + frame.AxisZ.ToVector() * 8 }
                 .Select(p => new CadmataPointDto(p.X, p.Y, p.Z)).ToArray();
-            entities.Add(new(frame.StableId, "ConstructionPlane", profile.PlaneFrame, "constructionPlanes", "ConstructionFrame", new("polyline", axes), frame.SourceSpan, [frame.SourceConceptId], null, null, null, null, null, null, null, new Dictionary<string, string> { ["sourceConceptId"] = frame.SourceConceptId, ["handedness"] = frame.Handedness, ["determinant"] = frame.Determinant.ToString("R") }));
-            entities.Add(new(frame.SourceConceptId, "ConceptPlane", frame.SourceConceptId, "conceptPlanes", "ConceptGuide", new("polyline", axes), frame.SourceSpan, null, null, null, [frame.StableId], null, null, null, null, null));
+            if (!entities.Any(entity => entity.StableId == frame.StableId))
+                entities.Add(new(frame.StableId, "ConstructionPlane", profile.PlaneFrame, "constructionPlanes", "ConstructionFrame", new("polyline", axes), frame.SourceSpan, [frame.SourceConceptId], null, null, null, null, null, null, null, new Dictionary<string, string> { ["sourceConceptId"] = frame.SourceConceptId, ["handedness"] = frame.Handedness, ["determinant"] = frame.Determinant.ToString("R") }));
+            if (!entities.Any(entity => entity.StableId == frame.SourceConceptId))
+                entities.Add(new(frame.SourceConceptId, "ConceptPlane", frame.SourceConceptId, "conceptPlanes", "ConceptGuide", new("polyline", axes), frame.SourceSpan, null, null, null, [frame.StableId], null, null, null, null, null));
         foreach (var segment in profile.Loops.SelectMany(loop => loop.Segments))
         {
             var guideId = segment.Provenance.ConceptStableId;

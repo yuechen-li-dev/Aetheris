@@ -39,9 +39,14 @@ React Three Fiber rather than being forced through a layout library.
 ## Layers and interaction
 
 The artifact supports independently visible material, BRep edges, concept points,
-axes, regions, Profile guides, resolved Profile loops, compose regions,
+axes, concept planes, construction planes, regions, Profile guides, resolved Profile loops, compose regions,
 selections, and diagnostics. The current compact viewport control exposes Profile
 and semantic toggles; the inspector remains the source selection surface.
+
+The viewport now has an independent presentation-theme contract. Atelier is the
+default dark technical treatment; Monument is a lightweight pastel proof that
+materials, lights, background, fog, grid, edges, selection, tone mapping, and
+camera presentation can change without changing DisplayIR or compiler evidence.
 
 Selecting an entity traverses explicit parent/child/construction/materialized
 links, highlights all published face/edge descendants, and shows label, stable

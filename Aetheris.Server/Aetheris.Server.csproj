@@ -8,7 +8,7 @@
     <AssemblyName>Cadmata</AssemblyName>
     <SpaRoot>..\aetheris.client\</SpaRoot>
     <SpaProxyServerUrl>https://localhost:5173</SpaProxyServerUrl>
-    <SpaProxyLaunchCommand>npm run dev</SpaProxyLaunchCommand>
+    <SpaProxyLaunchCommand>tspack run dev</SpaProxyLaunchCommand>
     <SpaProxyWorkingDirectory>$(SpaRoot)</SpaProxyWorkingDirectory>
   </PropertyGroup>
 

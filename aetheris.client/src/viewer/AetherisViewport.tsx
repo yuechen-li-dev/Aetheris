@@ -1,675 +1,574 @@
-import { Line, OrbitControls, Text } from '@react-three/drei';
-import { Canvas } from '@react-three/fiber';
-import { useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useMemo, useState } from 'react';
-import type { ReactNode } from 'react';
-import { BufferAttribute, BufferGeometry, Color, DoubleSide, MeshStandardMaterial, OrthographicCamera, Raycaster, Vector2, Vector3 } from 'three';
-import type { DisplayScene } from './displayRenderables';
-import { computeDisplaySceneBounds, computeOrthographicCameraFit } from './displaySceneBounds';
-import { selectLogarithmicGridScales } from './logarithmicGrid';
-import { CadmataOverlay, type CadmataLayerVisibility } from './CadmataOverlay';
-import type { CadmataVisualizationArtifact } from './conceptVisualization';
+import { Line, OrbitControls, Text } from "@react-three/drei";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { matchKind } from "machinalayout/match";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+	ACESFilmicToneMapping,
+	BufferAttribute,
+	BufferGeometry,
+	DoubleSide,
+	Float32BufferAttribute,
+	LineBasicMaterial,
+	MeshStandardMaterial,
+	OrthographicCamera,
+	Raycaster,
+	SRGBColorSpace,
+	Vector2,
+	Vector3,
+} from "three";
+import type { DisplayScene } from "./displayRenderables";
+import { computeDisplaySceneBounds, computeOrthographicCameraFit } from "./displaySceneBounds";
+import { buildAdaptiveGridPlan, type GridBounds } from "./logarithmicGrid";
+import { CadmataOverlay, type CadmataLayerVisibility } from "./CadmataOverlay";
+import type { CadmataVisualizationArtifact } from "./conceptVisualization";
+import { ATELIER_VIEWPORT_THEME, type ViewportTheme } from "./viewportTheme";
 
-const VIEWPORT_THEME = {
-  surfaceColor: '#969ba1',
-  edgeColor: '#2e2e2e',
-  edgeWidth: 1.35,
-  gridMinorCoreColor: '#6b6a67',
-  gridMinorFadeColor: '#9a9894',
-  gridMajorCoreColor: '#555450',
-  gridMajorFadeColor: '#8a8782',
-  gridMinorCoreOpacity: 0.34,
-  gridMinorFadeOpacity: 0.2,
-  gridMajorCoreOpacity: 0.5,
-  gridMajorFadeOpacity: 0.28,
-  gridMinorCoreWidth: 0.7,
-  gridMinorFadeWidth: 2,
-  gridMajorCoreWidth: 1,
-  gridMajorFadeWidth: 2.8,
-  gridMajorStep: 5,
-  gridTargetCellCount: 14,
-  gridExtentScale: 2.2,
-  gridYOffset: 0.001,
-  ambientIntensity: 0.12,
-  directionalIntensity: 0.88,
-  axisLength: 2,
-  axisLineWidth: 1,
-  axisXColor: '#3f6f8f',
-  axisYColor: '#4d7a4d',
-  axisZColor: '#8c6a2c',
-  axisLabelColor: '#4a4a4a',
-  axisLabelSize: 0.16,
-  selectionFaceColor: '#f59e0b',
-  selectionEdgeColor: '#f59e0b',
-  selectionEdgeWidth: 3,
-} as const;
-
-const GRID_CORNER_DEFINITIONS = [
-  { label: 'top-left', ndc: new Vector2(-1, 1), color: '#ef4444' },
-  { label: 'top-right', ndc: new Vector2(1, 1), color: '#22c55e' },
-  { label: 'bottom-left', ndc: new Vector2(-1, -1), color: '#3b82f6' },
-  { label: 'bottom-right', ndc: new Vector2(1, -1), color: '#f59e0b' },
-] as const;
-
-interface GridCornerDiagnostic {
-  label: string;
-  ndc: { x: number; y: number };
-  rayOrigin: Vector3;
-  rayDirection: Vector3;
-  hitPoint: Vector3 | null;
-  intersectsPlane: boolean;
-  color: string;
+function intersectGround(origin: Vector3, direction: Vector3, y: number): Vector3 | null {
+	if (Math.abs(direction.y) < 1e-6) return null;
+	const distance = (y - origin.y) / direction.y;
+	return Number.isFinite(distance) ? origin.clone().addScaledVector(direction, distance) : null;
 }
 
-interface GridLayerEnvelope {
-  layer: string;
-  spacing: number;
-  weight: number;
-  xStart: number;
-  xEnd: number;
-  zStart: number;
-  zEnd: number;
-  xLineCount: number;
-  zLineCount: number;
-  firstVerticalLine: [[number, number, number], [number, number, number]] | null;
-  lastVerticalLine: [[number, number, number], [number, number, number]] | null;
-  firstHorizontalLine: [[number, number, number], [number, number, number]] | null;
-  lastHorizontalLine: [[number, number, number], [number, number, number]] | null;
-  skippedByWeight: boolean;
+function visibleGroundBounds(
+	camera: OrthographicCamera,
+	y: number,
+	extentScale: number,
+): GridBounds {
+	const zoom = Math.max(camera.zoom, 0.0001);
+	const halfWidth = Math.abs(camera.right - camera.left) / (2 * zoom);
+	const halfHeight = Math.abs(camera.top - camera.bottom) / (2 * zoom);
+	const right = new Vector3();
+	const up = new Vector3();
+	const forward = new Vector3();
+	camera.updateMatrixWorld(false);
+	camera.matrixWorld.extractBasis(right, up, forward);
+	const direction = forward.negate().normalize();
+	const hits = [-1, 1]
+		.flatMap((x) =>
+			[-1, 1].map((z) =>
+				intersectGround(
+					camera.position
+						.clone()
+						.addScaledVector(right, x * halfWidth)
+						.addScaledVector(up, z * halfHeight),
+					direction,
+					y,
+				),
+			),
+		)
+		.filter((hit): hit is Vector3 => hit !== null);
+
+	if (hits.length < 2) {
+		const extent = Math.max(12 / zoom, 4);
+		return {
+			minX: camera.position.x - extent,
+			maxX: camera.position.x + extent,
+			minZ: camera.position.z - extent,
+			maxZ: camera.position.z + extent,
+		};
+	}
+	const minX = Math.min(...hits.map((hit) => hit.x));
+	const maxX = Math.max(...hits.map((hit) => hit.x));
+	const minZ = Math.min(...hits.map((hit) => hit.z));
+	const maxZ = Math.max(...hits.map((hit) => hit.z));
+	const margin = Math.max(maxX - minX, maxZ - minZ) * Math.max(0, extentScale - 1) * 0.5;
+	return { minX: minX - margin, maxX: maxX + margin, minZ: minZ - margin, maxZ: maxZ + margin };
 }
 
-
-function parseGridDebugFlag(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
-  const debugParam = new URLSearchParams(window.location.search).get('gridDebug');
-  return debugParam === '1' || debugParam === 'true';
+function GridSegments({
+	positions,
+	color,
+	opacity,
+}: {
+	positions: Float32Array;
+	color: string;
+	opacity: number;
+}) {
+	const geometry = useMemo(() => {
+		const next = new BufferGeometry();
+		next.setAttribute("position", new Float32BufferAttribute(positions, 3));
+		return next;
+	}, [positions]);
+	const material = useMemo(
+		() => new LineBasicMaterial({ color, transparent: true, opacity, depthWrite: false }),
+		[color, opacity],
+	);
+	useEffect(
+		() => () => {
+			geometry.dispose();
+			material.dispose();
+		},
+		[geometry, material],
+	);
+	return <lineSegments geometry={geometry} material={material} frustumCulled={false} />;
 }
 
-function intersectRayWithHorizontalPlane(rayOrigin: Vector3, rayDirection: Vector3, planeY: number): Vector3 | null {
-  const epsilon = 1e-6;
-  if (Math.abs(rayDirection.y) < epsilon) {
-    return null;
-  }
+function AdaptiveLogGrid({ theme }: { theme: ViewportTheme }) {
+	const { camera, gl } = useThree();
+	const [revision, setRevision] = useState(0);
+	const last = useMemo(() => ({ x: Number.NaN, z: Number.NaN, zoom: Number.NaN }), []);
 
-  const t = (planeY - rayOrigin.y) / rayDirection.y;
-  if (!Number.isFinite(t)) {
-    return null;
-  }
+	useFrame(() => {
+		const orthographic = camera as OrthographicCamera;
+		const zoom = Math.max(orthographic.zoom, 0.0001);
+		const visibleSpan = Math.max(Math.abs(orthographic.right - orthographic.left) / zoom, 1);
+		const moved =
+			!Number.isFinite(last.x) ||
+			Math.hypot(camera.position.x - last.x, camera.position.z - last.z) > visibleSpan * 0.04;
+		const zoomed =
+			!Number.isFinite(last.zoom) ||
+			Math.abs(zoom - last.zoom) / Math.max(last.zoom, 0.0001) > 0.04;
+		if (moved || zoomed) {
+			last.x = camera.position.x;
+			last.z = camera.position.z;
+			last.zoom = zoom;
+			setRevision((value) => value + 1);
+		}
+	});
 
-  return rayOrigin.clone().addScaledVector(rayDirection, t);
+	const plan = useMemo(() => {
+		void revision;
+		const style = theme.gridStyle;
+		return buildAdaptiveGridPlan({
+			bounds: visibleGroundBounds(camera as OrthographicCamera, style.yOffset, style.extentScale),
+			targetCellCount: style.targetCellCount,
+			maxLinesPerAxis: style.maxLinesPerAxis,
+			majorStep: style.majorStep,
+			y: style.yOffset,
+		});
+	}, [camera, revision, theme]);
+	useEffect(() => {
+		if (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("perf")) {
+			publishPerformance(gl.domElement, {
+				...(window.__cadmataPerformance ?? {}),
+				gridLineCount: plan.lineCount,
+				gridDrawCalls: plan.drawCallCount,
+				gridAllocatedBytes: plan.allocatedBytes,
+			});
+		}
+	}, [gl, plan]);
+
+	return (
+		<group
+			name="adaptive-log-grid"
+			userData={{
+				lineCount: plan.lineCount,
+				drawCallCount: plan.drawCallCount,
+				allocatedBytes: plan.allocatedBytes,
+			}}
+		>
+			{plan.layers.map((layer, index) => (
+				<group key={`${layer.spacing}-${index}`}>
+					{layer.minorLineCount > 0 ? (
+						<GridSegments
+							positions={layer.minorPositions}
+							color={theme.gridStyle.minorColor}
+							opacity={theme.gridStyle.minorOpacity * layer.weight}
+						/>
+					) : null}
+					{layer.majorLineCount > 0 ? (
+						<GridSegments
+							positions={layer.majorPositions}
+							color={theme.gridStyle.majorColor}
+							opacity={theme.gridStyle.majorOpacity * layer.weight}
+						/>
+					) : null}
+				</group>
+			))}
+		</group>
+	);
 }
 
-function computeOrthographicFrustumCornerHits(
-  orthographicCamera: OrthographicCamera,
-  planeY: number,
-): { label: string; ndc: { x: number; y: number }; rayOrigin: Vector3; rayDirection: Vector3; hitPoint: Vector3 | null; intersectsPlane: boolean; color: string }[] {
-  const zoom = Math.max(orthographicCamera.zoom ?? 1, 0.0001);
-  const halfW = (orthographicCamera.right - orthographicCamera.left) / (2 * zoom);
-  const halfH = (orthographicCamera.top - orthographicCamera.bottom) / (2 * zoom);
-
-  const right = new Vector3();
-  const up = new Vector3();
-  const forward = new Vector3();
-  orthographicCamera.updateMatrixWorld(false);
-  orthographicCamera.matrixWorld.extractBasis(right, up, forward);
-  const rayDir = forward.clone().negate().normalize();
-
-
-  return GRID_CORNER_DEFINITIONS.map((def) => {
-    const rayOrigin = orthographicCamera.position.clone()
-      .addScaledVector(right, def.ndc.x * halfW)
-      .addScaledVector(up, def.ndc.y * halfH);
-
-    const hitPoint = intersectRayWithHorizontalPlane(rayOrigin, rayDir, planeY);
-
-
-    return {
-      label: def.label,
-      ndc: { x: def.ndc.x, y: def.ndc.y },
-      rayOrigin,
-      rayDirection: rayDir.clone(),
-      hitPoint,
-      intersectsPlane: hitPoint !== null,
-      color: def.color,
-    };
-  });
+function publishPerformance(
+	canvas: HTMLCanvasElement,
+	patch: NonNullable<Window["__cadmataPerformance"]>,
+) {
+	let current: NonNullable<Window["__cadmataPerformance"]> = {};
+	try {
+		current = JSON.parse(canvas.dataset.cadmataPerformance ?? "{}") as typeof current;
+	} catch {
+		current = {};
+	}
+	const next = { ...current, ...patch };
+	canvas.dataset.cadmataPerformance = JSON.stringify(next);
+	window.__cadmataPerformance = next;
 }
 
-function DraftingGrid() {
-  const { camera } = useThree();
-  const gridDebugEnabled = useMemo(() => parseGridDebugFlag(), []);
-  const [cameraSnapshot, setCameraSnapshot] = useState({
-    x: camera.position.x,
-    z: camera.position.z,
-    zoom: (camera as OrthographicCamera).zoom ?? 1,
-  });
+declare global {
+	interface Window {
+		__cadmataPerformance?: {
+			averageFrameMs?: number;
+			frameSamples?: number;
+			drawCalls?: number;
+			triangles?: number;
+			geometries?: number;
+			textures?: number;
+			gridLineCount?: number;
+			gridDrawCalls?: number;
+			gridAllocatedBytes?: number;
+		};
+	}
+}
 
-  useFrame(() => {
-    const orthographicCamera = camera as OrthographicCamera;
-    setCameraSnapshot((previousSnapshot) => {
-      const nextSnapshot = {
-        x: camera.position.x,
-        z: camera.position.z,
-        zoom: orthographicCamera.zoom ?? 1,
-      };
-      const changed = Math.abs(nextSnapshot.x - previousSnapshot.x) > 0.01
-        || Math.abs(nextSnapshot.z - previousSnapshot.z) > 0.01
-        || Math.abs(nextSnapshot.zoom - previousSnapshot.zoom) / previousSnapshot.zoom > 0.001;
+function ViewportPerformanceProbe({ resetKey }: { resetKey: unknown }) {
+	const { gl } = useThree();
+	const previousTime = useRef<number | null>(null);
+	const totalFrameTime = useRef(0);
+	const samples = useRef(0);
+	const enabled = useMemo(
+		() => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("perf"),
+		[],
+	);
+	useEffect(() => {
+		previousTime.current = null;
+		totalFrameTime.current = 0;
+		samples.current = 0;
+	}, [resetKey]);
 
-      return changed ? nextSnapshot : previousSnapshot;
-    });
-  });
+	useFrame(() => {
+		if (!enabled) return;
+		const now = performance.now();
+		if (previousTime.current !== null) {
+			const frameTime = now - previousTime.current;
+			if (frameTime < 250) {
+				totalFrameTime.current += frameTime;
+				samples.current += 1;
+			}
+		}
+		previousTime.current = now;
+		if (samples.current > 0 && samples.current % 30 === 0) {
+			publishPerformance(gl.domElement, {
+				averageFrameMs: totalFrameTime.current / samples.current,
+				frameSamples: samples.current,
+				drawCalls: gl.info.render.calls,
+				triangles: gl.info.render.triangles,
+				geometries: gl.info.memory.geometries,
+				textures: gl.info.memory.textures,
+			});
+		}
+	});
 
-  const {
-    minorLines,
-    majorLines,
-    cornerDiagnostics,
-    bounds,
-    layerEnvelopes,
-  } = useMemo(() => {
-    // The camera is mutable; this snapshot is the render-time invalidation key.
-    void cameraSnapshot;
-    const orthographicCamera = camera as OrthographicCamera;
-
-    // Use frustum-based corner projection instead of raycaster
-    const diagnostics: GridCornerDiagnostic[] = computeOrthographicFrustumCornerHits(
-      orthographicCamera,
-      VIEWPORT_THEME.gridYOffset,
-    );
-
-    const hitPoints = diagnostics
-      .map((diagnostic) => diagnostic.hitPoint)
-      .filter((point): point is Vector3 => point !== null);
-
-    let minX: number;
-    let maxX: number;
-    let minZ: number;
-    let maxZ: number;
-
-    if (hitPoints.length === 4) {
-      minX = Math.min(...hitPoints.map((point) => point.x));
-      maxX = Math.max(...hitPoints.map((point) => point.x));
-      minZ = Math.min(...hitPoints.map((point) => point.z));
-      maxZ = Math.max(...hitPoints.map((point) => point.z));
-    } else {
-      const fallbackExtent = Math.max(10 / Math.max(orthographicCamera.zoom ?? 1, 0.0001), 1);
-      minX = camera.position.x - fallbackExtent;
-      maxX = camera.position.x + fallbackExtent;
-      minZ = camera.position.z - fallbackExtent;
-      maxZ = camera.position.z + fallbackExtent;
-    }
-
-    const unclampedBaseSpan = Math.max(maxX - minX, maxZ - minZ);
-    const baseSpan = Math.max(unclampedBaseSpan, 1);
-    const margin = baseSpan * 0.2;
-    const expandedMinX = minX - margin;
-    const expandedMaxX = maxX + margin;
-    const expandedMinZ = minZ - margin;
-    const expandedMaxZ = maxZ + margin;
-    const worldSpan = Math.max(expandedMaxX - expandedMinX, expandedMaxZ - expandedMinZ);
-    const gridSelection = selectLogarithmicGridScales(worldSpan, VIEWPORT_THEME.gridTargetCellCount);
-
-    const minor: ReactNode[] = [];
-    const major: ReactNode[] = [];
-    const envelopes: GridLayerEnvelope[] = [];
-    const pushGridLayerLines = (spacing: number, weight: number, layerPrefix: string, gridY: number = VIEWPORT_THEME.gridYOffset) => {
-      const layerEnvelope: GridLayerEnvelope = {
-        layer: layerPrefix,
-        spacing,
-        weight,
-        xStart: 0,
-        xEnd: 0,
-        zStart: 0,
-        zEnd: 0,
-        xLineCount: 0,
-        zLineCount: 0,
-        firstVerticalLine: null,
-        lastVerticalLine: null,
-        firstHorizontalLine: null,
-        lastHorizontalLine: null,
-        skippedByWeight: weight <= 0.001,
-      };
-
-      if (weight <= 0.001) {
-        envelopes.push(layerEnvelope);
-        return;
-      }
-
-      const xStart = Math.floor(expandedMinX / spacing);
-      const xEnd = Math.ceil(expandedMaxX / spacing);
-      const zStart = Math.floor(expandedMinZ / spacing);
-      const zEnd = Math.ceil(expandedMaxZ / spacing);
-
-      layerEnvelope.xStart = xStart;
-      layerEnvelope.xEnd = xEnd;
-      layerEnvelope.zStart = zStart;
-      layerEnvelope.zEnd = zEnd;
-      layerEnvelope.xLineCount = xEnd - xStart + 1;
-      layerEnvelope.zLineCount = zEnd - zStart + 1;
-      // Each line extends 3x the worldSpan from center so shallow-angle views never see the endpoints.
-      const centerX = (expandedMinX + expandedMaxX) * 0.5;
-      const centerZ = (expandedMinZ + expandedMaxZ) * 0.5;
-      const lineReach = worldSpan * 3;
-
-      layerEnvelope.firstVerticalLine = [[xStart * spacing, gridY, centerZ - lineReach], [xStart * spacing, gridY, centerZ + lineReach]];
-      layerEnvelope.lastVerticalLine = [[xEnd * spacing, gridY, centerZ - lineReach], [xEnd * spacing, gridY, centerZ + lineReach]];
-      layerEnvelope.firstHorizontalLine = [[centerX - lineReach, gridY, zStart * spacing], [centerX + lineReach, gridY, zStart * spacing]];
-      layerEnvelope.lastHorizontalLine = [[centerX - lineReach, gridY, zEnd * spacing], [centerX + lineReach, gridY, zEnd * spacing]];
-
-      for (let xIndex = xStart; xIndex <= xEnd; xIndex += 1) {
-        const x = xIndex * spacing;
-        const points: [[number, number, number], [number, number, number]] = [
-          [x, gridY, centerZ - lineReach],
-          [x, gridY, centerZ + lineReach],
-        ];
-        const isMajor = xIndex % VIEWPORT_THEME.gridMajorStep === 0;
-        const target = isMajor ? major : minor;
-        const linePrefix = isMajor ? 'major' : 'minor';
-        const alphaWeight = Math.min(Math.max(weight, 0), 1);
-
-        target.push(
-          <Line
-            key={`${layerPrefix}-${linePrefix}-fade-x-${xIndex}-y${gridY}`}
-            points={points}
-            color={isMajor ? VIEWPORT_THEME.gridMajorFadeColor : VIEWPORT_THEME.gridMinorFadeColor}
-            transparent
-            opacity={(isMajor ? VIEWPORT_THEME.gridMajorFadeOpacity : VIEWPORT_THEME.gridMinorFadeOpacity) * alphaWeight}
-            lineWidth={isMajor ? VIEWPORT_THEME.gridMajorFadeWidth : VIEWPORT_THEME.gridMinorFadeWidth}
-          />,
-        );
-        target.push(
-          <Line
-            key={`${layerPrefix}-${linePrefix}-core-x-${xIndex}-y${gridY}`}
-            points={points}
-            color={isMajor ? VIEWPORT_THEME.gridMajorCoreColor : VIEWPORT_THEME.gridMinorCoreColor}
-            transparent
-            opacity={(isMajor ? VIEWPORT_THEME.gridMajorCoreOpacity : VIEWPORT_THEME.gridMinorCoreOpacity) * alphaWeight}
-            lineWidth={isMajor ? VIEWPORT_THEME.gridMajorCoreWidth : VIEWPORT_THEME.gridMinorCoreWidth}
-          />,
-        );
-      }
-
-      for (let zIndex = zStart; zIndex <= zEnd; zIndex += 1) {
-        const z = zIndex * spacing;
-        const points: [[number, number, number], [number, number, number]] = [
-          [centerX - lineReach, gridY, z],
-          [centerX + lineReach, gridY, z],
-        ];
-        const isMajor = zIndex % VIEWPORT_THEME.gridMajorStep === 0;
-        const target = isMajor ? major : minor;
-        const linePrefix = isMajor ? 'major' : 'minor';
-        const alphaWeight = Math.min(Math.max(weight, 0), 1);
-
-        target.push(
-          <Line
-            key={`${layerPrefix}-${linePrefix}-fade-z-${zIndex}-y${gridY}`}
-            points={points}
-            color={isMajor ? VIEWPORT_THEME.gridMajorFadeColor : VIEWPORT_THEME.gridMinorFadeColor}
-            transparent
-            opacity={(isMajor ? VIEWPORT_THEME.gridMajorFadeOpacity : VIEWPORT_THEME.gridMinorFadeOpacity) * alphaWeight}
-            lineWidth={isMajor ? VIEWPORT_THEME.gridMajorFadeWidth : VIEWPORT_THEME.gridMinorFadeWidth}
-          />,
-        );
-        target.push(
-          <Line
-            key={`${layerPrefix}-${linePrefix}-core-z-${zIndex}-y${gridY}`}
-            points={points}
-            color={isMajor ? VIEWPORT_THEME.gridMajorCoreColor : VIEWPORT_THEME.gridMinorCoreColor}
-            transparent
-            opacity={(isMajor ? VIEWPORT_THEME.gridMajorCoreOpacity : VIEWPORT_THEME.gridMinorCoreOpacity) * alphaWeight}
-            lineWidth={isMajor ? VIEWPORT_THEME.gridMajorCoreWidth : VIEWPORT_THEME.gridMinorCoreWidth}
-          />,
-        );
-      }
-
-      envelopes.push(layerEnvelope);
-    };
-
-    // Render grid on both sides of Y=0 so it's visible from any camera angle
-    pushGridLayerLines(gridSelection.primarySpacing, gridSelection.primaryWeight, 'primary', VIEWPORT_THEME.gridYOffset);
-    pushGridLayerLines(gridSelection.secondarySpacing, gridSelection.secondaryWeight, 'secondary', VIEWPORT_THEME.gridYOffset);
-    pushGridLayerLines(gridSelection.primarySpacing, gridSelection.primaryWeight, 'primary', -VIEWPORT_THEME.gridYOffset);
-    pushGridLayerLines(gridSelection.secondarySpacing, gridSelection.secondaryWeight, 'secondary', -VIEWPORT_THEME.gridYOffset);
-
-    return {
-      minorLines: minor,
-      majorLines: major,
-      cornerDiagnostics: diagnostics,
-      layerEnvelopes: envelopes,
-      bounds: {
-        minX: expandedMinX,
-        maxX: expandedMaxX,
-        minZ: expandedMinZ,
-        maxZ: expandedMaxZ,
-      },
-    };
-  }, [cameraSnapshot, camera]);
-
-
-  const generationEnvelopeMarkers = useMemo(() => {
-    if (!gridDebugEnabled) {
-      return null;
-    }
-
-    return layerEnvelopes
-      .filter((layer) => !layer.skippedByWeight)
-      .flatMap((layer) => {
-        const color = layer.layer === 'primary' ? '#14b8a6' : '#f97316';
-        const lines = [
-          { key: 'first-vertical', points: layer.firstVerticalLine },
-          { key: 'last-vertical', points: layer.lastVerticalLine },
-          { key: 'first-horizontal', points: layer.firstHorizontalLine },
-          { key: 'last-horizontal', points: layer.lastHorizontalLine },
-        ] as const;
-
-        return lines
-          .map((line) => {
-            if (line.points === null) {
-              return null;
-            }
-
-            return (
-              <Line
-                key={`grid-envelope-${layer.layer}-${line.key}`}
-                points={[
-                  [line.points[0][0], line.points[0][1] + 0.02, line.points[0][2]],
-                  [line.points[1][0], line.points[1][1] + 0.02, line.points[1][2]],
-                ]}
-                color={color}
-                lineWidth={4}
-              />
-            );
-          });
-      });
-  }, [gridDebugEnabled, layerEnvelopes]);
-
-  const debugMarkers = useMemo(() => {
-    if (!gridDebugEnabled) {
-      return null;
-    }
-
-    return cornerDiagnostics
-      .filter((diagnostic) => diagnostic.hitPoint !== null)
-      .map((diagnostic) => {
-        const hit = diagnostic.hitPoint as Vector3;
-        const markerSize = 0.22;
-        return (
-          <group key={`grid-corner-marker-${diagnostic.label}`}>
-            <Line
-              points={[[hit.x - markerSize, VIEWPORT_THEME.gridYOffset, hit.z], [hit.x + markerSize, VIEWPORT_THEME.gridYOffset, hit.z]]}
-              color={diagnostic.color}
-              lineWidth={3}
-            />
-            <Line
-              points={[[hit.x, VIEWPORT_THEME.gridYOffset, hit.z - markerSize], [hit.x, VIEWPORT_THEME.gridYOffset, hit.z + markerSize]]}
-              color={diagnostic.color}
-              lineWidth={3}
-            />
-            <Text
-              position={[hit.x, VIEWPORT_THEME.gridYOffset + 0.03, hit.z]}
-              color={diagnostic.color}
-              fontSize={0.15}
-              anchorX="center"
-              anchorY="bottom"
-            >
-              {diagnostic.label}
-            </Text>
-          </group>
-        );
-      });
-  }, [cornerDiagnostics, gridDebugEnabled]);
-
-  const debugBoundsOverlay = useMemo(() => {
-    if (!gridDebugEnabled) {
-      return null;
-    }
-
-    const outlineColor = new Color('#a855f7');
-    return (
-      <Line
-        points={[
-          [bounds.minX, VIEWPORT_THEME.gridYOffset + 0.01, bounds.minZ],
-          [bounds.maxX, VIEWPORT_THEME.gridYOffset + 0.01, bounds.minZ],
-          [bounds.maxX, VIEWPORT_THEME.gridYOffset + 0.01, bounds.maxZ],
-          [bounds.minX, VIEWPORT_THEME.gridYOffset + 0.01, bounds.maxZ],
-          [bounds.minX, VIEWPORT_THEME.gridYOffset + 0.01, bounds.minZ],
-        ]}
-        color={outlineColor}
-        lineWidth={2.6}
-      />
-    );
-  }, [bounds.maxX, bounds.maxZ, bounds.minX, bounds.minZ, gridDebugEnabled]);
-
-  return (
-    <group>
-      {minorLines}
-      {majorLines}
-      {debugMarkers}
-      {debugBoundsOverlay}
-      {generationEnvelopeMarkers}
-    </group>
-  );
+	return null;
 }
 
 export interface AetherisViewportProps {
-  displayScene?: DisplayScene | null;
-  highlightedFaceId?: number | null;
-  highlightedEdgeId?: number | null;
-  highlightedFaceIds?: Set<number>;
-  highlightedEdgeIds?: Set<number>;
-  showGrid?: boolean;
-  showAxisGuide?: boolean;
-  onPickRay?: (origin: { x: number; y: number; z: number }, direction: { x: number; y: number; z: number }) => void;
-  cadmataArtifact?: CadmataVisualizationArtifact | null;
-  cadmataLayers?: CadmataLayerVisibility;
-  selectedCadmataIds?: Set<string>;
-  onCadmataSelect?: (stableId: string) => void;
+	displayScene?: DisplayScene | null;
+	highlightedFaceId?: number | null;
+	highlightedEdgeId?: number | null;
+	highlightedFaceIds?: Set<number>;
+	highlightedEdgeIds?: Set<number>;
+	showGrid?: boolean;
+	showAxisGuide?: boolean;
+	theme?: ViewportTheme;
+	onPickRay?: (
+		origin: { x: number; y: number; z: number },
+		direction: { x: number; y: number; z: number },
+	) => void;
+	cadmataArtifact?: CadmataVisualizationArtifact | null;
+	cadmataLayers?: CadmataLayerVisibility;
+	selectedCadmataIds?: Set<string>;
+	onCadmataSelect?: (stableId: string) => void;
 }
 
-function FaceMesh({ positions, normals, indices, isHighlighted }: { positions: Float32Array; normals: Float32Array; indices: Uint32Array; isHighlighted: boolean }) {
-  const geometry = useMemo(() => {
-    const meshGeometry = new BufferGeometry();
-    meshGeometry.setAttribute('position', new BufferAttribute(positions, 3));
-    meshGeometry.setAttribute('normal', new BufferAttribute(normals, 3));
-    meshGeometry.setIndex(new BufferAttribute(indices, 1));
-    meshGeometry.computeBoundingSphere();
-    return meshGeometry;
-  }, [indices, normals, positions]);
-
-  const material = useMemo(
-    () => new MeshStandardMaterial({
-      color: isHighlighted ? VIEWPORT_THEME.selectionFaceColor : VIEWPORT_THEME.surfaceColor,
-      metalness: 0,
-      roughness: 0.95,
-      side: DoubleSide,
-    }),
-    [isHighlighted],
-  );
-
-  return <mesh geometry={geometry} material={material} />;
+function FaceMesh({
+	positions,
+	normals,
+	indices,
+	isHighlighted,
+	theme,
+}: {
+	positions: Float32Array;
+	normals: Float32Array;
+	indices: Uint32Array;
+	isHighlighted: boolean;
+	theme: ViewportTheme;
+}) {
+	const geometry = useMemo(() => {
+		const next = new BufferGeometry();
+		next.setAttribute("position", new BufferAttribute(positions, 3));
+		next.setAttribute("normal", new BufferAttribute(normals, 3));
+		next.setIndex(new BufferAttribute(indices, 1));
+		next.computeBoundingSphere();
+		return next;
+	}, [indices, normals, positions]);
+	const material = useMemo(
+		() =>
+			new MeshStandardMaterial({
+				color: isHighlighted ? theme.selectedMaterial.color : theme.objectMaterial.color,
+				emissive: isHighlighted ? theme.selectedMaterial.emissive : "#000000",
+				emissiveIntensity: isHighlighted ? theme.selectedMaterial.emissiveIntensity : 0,
+				metalness: theme.objectMaterial.metalness,
+				roughness: theme.objectMaterial.roughness,
+				side: DoubleSide,
+			}),
+		[isHighlighted, theme],
+	);
+	useEffect(
+		() => () => {
+			geometry.dispose();
+			material.dispose();
+		},
+		[geometry, material],
+	);
+	return (
+		<mesh
+			geometry={geometry}
+			material={material}
+			castShadow={theme.shadowStyle.enabled}
+			receiveShadow={theme.shadowStyle.enabled}
+		/>
+	);
 }
 
-function AxisGuide() {
-  const axisEnd = VIEWPORT_THEME.axisLength;
-  const labelOffset = 0.14;
-
-  return (
-    <group>
-      <Line points={[[0, 0, 0], [axisEnd, 0, 0]]} color={VIEWPORT_THEME.axisXColor} lineWidth={VIEWPORT_THEME.axisLineWidth} />
-      <Line points={[[0, 0, 0], [0, axisEnd, 0]]} color={VIEWPORT_THEME.axisYColor} lineWidth={VIEWPORT_THEME.axisLineWidth} />
-      <Line points={[[0, 0, 0], [0, 0, axisEnd]]} color={VIEWPORT_THEME.axisZColor} lineWidth={VIEWPORT_THEME.axisLineWidth} />
-      <Text
-        position={[axisEnd + labelOffset, 0, 0]}
-        fontSize={VIEWPORT_THEME.axisLabelSize}
-        color={VIEWPORT_THEME.axisLabelColor}
-        anchorX="left"
-        anchorY="middle"
-      >
-        X
-      </Text>
-      <Text
-        position={[0, axisEnd + labelOffset, 0]}
-        fontSize={VIEWPORT_THEME.axisLabelSize}
-        color={VIEWPORT_THEME.axisLabelColor}
-        anchorX="center"
-        anchorY="bottom"
-      >
-        Y
-      </Text>
-      <Text
-        position={[0, 0, axisEnd + labelOffset]}
-        fontSize={VIEWPORT_THEME.axisLabelSize}
-        color={VIEWPORT_THEME.axisLabelColor}
-        anchorX="center"
-        anchorY="middle"
-      >
-        Z
-      </Text>
-    </group>
-  );
+function AxisGuide({ theme }: { theme: ViewportTheme }) {
+	const end = 2;
+	return (
+		<group>
+			<Line
+				points={[
+					[0, 0, 0],
+					[end, 0, 0],
+				]}
+				color={theme.axis.x}
+				lineWidth={1}
+			/>
+			<Line
+				points={[
+					[0, 0, 0],
+					[0, end, 0],
+				]}
+				color={theme.axis.y}
+				lineWidth={1}
+			/>
+			<Line
+				points={[
+					[0, 0, 0],
+					[0, 0, end],
+				]}
+				color={theme.axis.z}
+				lineWidth={1}
+			/>
+			{(["X", "Y", "Z"] as const).map((label, index) => (
+				<Text
+					key={label}
+					position={index === 0 ? [2.14, 0, 0] : index === 1 ? [0, 2.14, 0] : [0, 0, 2.14]}
+					fontSize={0.16}
+					color={theme.axis.label}
+				>
+					{label}
+				</Text>
+			))}
+		</group>
+	);
 }
 
-function EdgeLine({ points, isHighlighted }: { points: Float32Array; isHighlighted: boolean }) {
-  const linePoints = useMemo(() => {
-    const vertices: [number, number, number][] = [];
-
-    for (let i = 0; i < points.length; i += 3) {
-      vertices.push([points[i], points[i + 1], points[i + 2]]);
-    }
-
-    return vertices;
-  }, [points]);
-
-  return (
-    <Line
-      points={linePoints}
-      color={isHighlighted ? VIEWPORT_THEME.selectionEdgeColor : VIEWPORT_THEME.edgeColor}
-      lineWidth={isHighlighted ? VIEWPORT_THEME.selectionEdgeWidth : VIEWPORT_THEME.edgeWidth}
-    />
-  );
+function EdgeLine({
+	points,
+	isHighlighted,
+	theme,
+}: {
+	points: Float32Array;
+	isHighlighted: boolean;
+	theme: ViewportTheme;
+}) {
+	const linePoints = useMemo(
+		() =>
+			Array.from(
+				{ length: points.length / 3 },
+				(_, index) =>
+					[points[index * 3], points[index * 3 + 1], points[index * 3 + 2]] as [
+						number,
+						number,
+						number,
+					],
+			),
+		[points],
+	);
+	return (
+		<Line
+			points={linePoints}
+			color={isHighlighted ? theme.edgeStyle.selectedColor : theme.edgeStyle.color}
+			lineWidth={isHighlighted ? theme.edgeStyle.selectedWidth : theme.edgeStyle.width}
+		/>
+	);
 }
 
-function PickRayCapture({ onPickRay }: { onPickRay?: AetherisViewportProps['onPickRay'] }) {
-  const { camera, gl } = useThree();
-
-  useEffect(() => {
-    if (!onPickRay) {
-      return;
-    }
-
-    const raycaster = new Raycaster();
-    const pointer = new Vector2();
-
-    const handleClick = (event: MouseEvent) => {
-      if (event.button !== 0) {
-        return;
-      }
-
-      const rect = gl.domElement.getBoundingClientRect();
-      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(pointer, camera);
-      onPickRay(
-        {
-          x: raycaster.ray.origin.x,
-          y: raycaster.ray.origin.y,
-          z: raycaster.ray.origin.z,
-        },
-        {
-          x: raycaster.ray.direction.x,
-          y: raycaster.ray.direction.y,
-          z: raycaster.ray.direction.z,
-        },
-      );
-    };
-
-    gl.domElement.addEventListener('click', handleClick);
-    return () => gl.domElement.removeEventListener('click', handleClick);
-  }, [camera, gl.domElement, onPickRay]);
-
-  return null;
+function PickRayCapture({ onPickRay }: { onPickRay?: AetherisViewportProps["onPickRay"] }) {
+	const { camera, gl } = useThree();
+	useEffect(() => {
+		if (!onPickRay) return;
+		const raycaster = new Raycaster();
+		const pointer = new Vector2();
+		const handleClick = (event: MouseEvent) => {
+			if (event.button !== 0) return;
+			const rect = gl.domElement.getBoundingClientRect();
+			pointer.set(
+				((event.clientX - rect.left) / rect.width) * 2 - 1,
+				-((event.clientY - rect.top) / rect.height) * 2 + 1,
+			);
+			raycaster.setFromCamera(pointer, camera);
+			onPickRay({ ...raycaster.ray.origin }, { ...raycaster.ray.direction });
+		};
+		gl.domElement.addEventListener("click", handleClick);
+		return () => gl.domElement.removeEventListener("click", handleClick);
+	}, [camera, gl.domElement, onPickRay]);
+	return null;
 }
 
 function FitCameraToScene({ displayScene }: { displayScene: DisplayScene | null }) {
-  const { camera, controls, size } = useThree();
-  const sceneBounds = useMemo(() => computeDisplaySceneBounds(displayScene), [displayScene]);
+	const { camera, controls, size } = useThree();
+	const bounds = useMemo(() => computeDisplaySceneBounds(displayScene), [displayScene]);
+	useEffect(() => {
+		if (!(camera instanceof OrthographicCamera) || !bounds.isValid) return;
+		const fit = computeOrthographicCameraFit(
+			bounds,
+			Math.abs(camera.right - camera.left) || size.width || 1,
+			Math.abs(camera.top - camera.bottom) || size.height || 1,
+		);
+		if (!fit) return;
+		camera.position.set(...fit.position);
+		camera.zoom = fit.zoom;
+		camera.near = fit.near;
+		camera.far = fit.far;
+		camera.lookAt(...fit.target);
+		camera.updateProjectionMatrix();
+		camera.updateMatrixWorld(false);
+		if (controls && typeof controls === "object" && "target" in controls) {
+			const orbit = controls as { target: Vector3; update?: () => void };
+			orbit.target.set(...fit.target);
+			orbit.update?.();
+		}
+	}, [bounds, camera, controls, size.height, size.width]);
+	return null;
+}
 
-  useEffect(() => {
-    if (!(camera instanceof OrthographicCamera) || !sceneBounds.isValid) {
-      return;
-    }
-
-    const frustumWidth = Math.abs(camera.right - camera.left) || size.width || 1;
-    const frustumHeight = Math.abs(camera.top - camera.bottom) || size.height || 1;
-    const fit = computeOrthographicCameraFit(sceneBounds, frustumWidth, frustumHeight);
-
-    if (!fit) {
-      return;
-    }
-
-    /* eslint-disable react-hooks/immutability -- Three.js cameras are imperative renderer-owned objects. */
-    camera.position.set(...fit.position);
-    camera.zoom = fit.zoom;
-    camera.near = fit.near;
-    camera.far = fit.far;
-    camera.lookAt(...fit.target);
-    camera.updateProjectionMatrix();
-    camera.updateMatrixWorld(false);
-    /* eslint-enable react-hooks/immutability */
-
-    if (controls && typeof controls === 'object' && 'target' in controls) {
-      const orbitControls = controls as { target: Vector3; update?: () => void };
-      orbitControls.target.set(...fit.target);
-      orbitControls.update?.();
-    }
-  }, [camera, controls, sceneBounds, size.height, size.width]);
-
-  return null;
+function RendererConfiguration({ theme }: { theme: ViewportTheme }) {
+	const { gl } = useThree();
+	useEffect(() => {
+		gl.outputColorSpace = SRGBColorSpace;
+		gl.toneMapping = ACESFilmicToneMapping;
+		gl.toneMappingExposure = theme.environment.toneMappingExposure;
+	}, [gl, theme]);
+	return null;
 }
 
 export function AetherisViewport({
-  displayScene = null,
-  highlightedFaceId = null,
-  highlightedEdgeId = null,
-  highlightedFaceIds,
-  highlightedEdgeIds,
-  showGrid = true,
-  showAxisGuide = true,
-  onPickRay,
-  cadmataArtifact = null,
-  cadmataLayers,
-  selectedCadmataIds = new Set(),
-  onCadmataSelect = () => undefined,
+	displayScene = null,
+	highlightedFaceId = null,
+	highlightedEdgeId = null,
+	highlightedFaceIds,
+	highlightedEdgeIds,
+	showGrid = true,
+	showAxisGuide = true,
+	theme = ATELIER_VIEWPORT_THEME,
+	onPickRay,
+	cadmataArtifact = null,
+	cadmataLayers,
+	selectedCadmataIds = new Set(),
+	onCadmataSelect = () => undefined,
 }: AetherisViewportProps) {
-  return (
-    <Canvas style={{ display: 'block', width: '100%', height: '100%' }} orthographic camera={{ position: [6, 6, 6], zoom: 90, near: -10000, far: 10000 }} gl={{ alpha: true }}>
-        {/*Negative near value is indeed correct in order to show negative value on grid. Documentation is wrong.*/}
-        <ambientLight intensity={VIEWPORT_THEME.ambientIntensity} />
-        <directionalLight position={[-5, 9, 6]} intensity={VIEWPORT_THEME.directionalIntensity} />
-        <FitCameraToScene displayScene={displayScene} />
-        {showGrid ? <DraftingGrid /> : null}
-        {showAxisGuide ? <AxisGuide /> : null}
-        {displayScene?.renderables.map((renderable) => {
-          if (renderable.kind === 'AnalyticPatch') {
-            return <FaceMesh key={`analytic-${renderable.faceId}`} positions={renderable.previewMesh.positions} normals={renderable.previewMesh.normals} indices={renderable.previewMesh.indices} isHighlighted={highlightedFaceIds?.has(renderable.faceId) ?? highlightedFaceId === renderable.faceId} />;
-          }
-
-          if (renderable.kind === 'MeshPatch') {
-            return <FaceMesh key={`mesh-${renderable.faceId}`} positions={renderable.mesh.positions} normals={renderable.mesh.normals} indices={renderable.mesh.indices} isHighlighted={highlightedFaceIds?.has(renderable.faceId) ?? highlightedFaceId === renderable.faceId} />;
-          }
-
-          if (renderable.kind === 'WirePatch') {
-            return renderable.wires.map((wire) => <EdgeLine key={`wire-${renderable.faceId}-${wire.edgeId}`} points={wire.points} isHighlighted={(highlightedFaceIds?.has(renderable.faceId) ?? highlightedFaceId === renderable.faceId) || (highlightedEdgeIds?.has(wire.edgeId) ?? highlightedEdgeId === wire.edgeId)} />);
-          }
-
-          return null;
-        })}
-        {cadmataLayers ? <CadmataOverlay artifact={cadmataArtifact} layers={cadmataLayers} selectedIds={selectedCadmataIds} onSelect={onCadmataSelect} /> : null}
-        <PickRayCapture onPickRay={onPickRay} />
-        <OrbitControls makeDefault enablePan enableZoom />
-      </Canvas>
-  );
+	return (
+		<Canvas
+			style={{ display: "block", width: "100%", height: "100%", background: theme.sceneBackground }}
+			orthographic
+			shadows={theme.shadowStyle.enabled}
+			camera={{
+				position: [...theme.cameraPresentation.position],
+				zoom: theme.cameraPresentation.zoom,
+				near: -10000,
+				far: 10000,
+			}}
+			gl={{ alpha: false, antialias: true }}
+			onCreated={({ gl }) => {
+				if (new URLSearchParams(window.location.search).has("perf")) {
+					publishPerformance(gl.domElement, {
+						drawCalls: gl.info.render.calls,
+						triangles: gl.info.render.triangles,
+						geometries: gl.info.memory.geometries,
+						textures: gl.info.memory.textures,
+					});
+				}
+			}}
+		>
+			<color attach="background" args={[theme.sceneBackground]} />
+			{theme.fog.enabled ? (
+				<fog attach="fog" args={[theme.fog.color, theme.fog.near, theme.fog.far]} />
+			) : null}
+			<RendererConfiguration theme={theme} />
+			<ViewportPerformanceProbe resetKey={displayScene} />
+			<ambientLight intensity={theme.lights.ambient} />
+			<hemisphereLight
+				args={[
+					theme.lights.hemisphereSky,
+					theme.lights.hemisphereGround,
+					theme.lights.hemisphereIntensity,
+				]}
+			/>
+			<directionalLight
+				position={[...theme.lights.keyPosition]}
+				color={theme.lights.keyColor}
+				intensity={theme.lights.keyIntensity}
+				castShadow={theme.shadowStyle.enabled}
+			/>
+			<directionalLight
+				position={[...theme.lights.fillPosition]}
+				color={theme.lights.fillColor}
+				intensity={theme.lights.fillIntensity}
+			/>
+			<FitCameraToScene displayScene={displayScene} />
+			{showGrid ? <AdaptiveLogGrid theme={theme} /> : null}
+			{showAxisGuide ? <AxisGuide theme={theme} /> : null}
+			{displayScene?.renderables.flatMap((renderable) =>
+				matchKind(renderable, {
+					AnalyticPatch: (patch) => [
+						<FaceMesh
+							key={`analytic-${patch.faceId}`}
+							positions={patch.previewMesh.positions}
+							normals={patch.previewMesh.normals}
+							indices={patch.previewMesh.indices}
+							isHighlighted={
+								highlightedFaceIds?.has(patch.faceId) ?? highlightedFaceId === patch.faceId
+							}
+							theme={theme}
+						/>,
+					],
+					MeshPatch: (patch) => [
+						<FaceMesh
+							key={`mesh-${patch.faceId}`}
+							positions={patch.mesh.positions}
+							normals={patch.mesh.normals}
+							indices={patch.mesh.indices}
+							isHighlighted={
+								highlightedFaceIds?.has(patch.faceId) ?? highlightedFaceId === patch.faceId
+							}
+							theme={theme}
+						/>,
+					],
+					WirePatch: (patch) =>
+						patch.wires.map((wire) => (
+							<EdgeLine
+								key={`wire-${patch.faceId}-${wire.edgeId}`}
+								points={wire.points}
+								isHighlighted={
+									(highlightedFaceIds?.has(patch.faceId) ?? highlightedFaceId === patch.faceId) ||
+									(highlightedEdgeIds?.has(wire.edgeId) ?? highlightedEdgeId === wire.edgeId)
+								}
+								theme={theme}
+							/>
+						)),
+					DiagnosticPatch: () => [],
+				}),
+			)}
+			{cadmataLayers ? (
+				<CadmataOverlay
+					artifact={cadmataArtifact}
+					layers={cadmataLayers}
+					selectedIds={selectedCadmataIds}
+					onSelect={onCadmataSelect}
+				/>
+			) : null}
+			<PickRayCapture onPickRay={onPickRay} />
+			<OrbitControls makeDefault enablePan enableZoom />
+		</Canvas>
+	);
 }

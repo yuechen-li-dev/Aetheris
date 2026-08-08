@@ -1,82 +1,84 @@
-import { fileURLToPath, URL } from 'node:url';
+import { fileURLToPath, URL } from "node:url";
 
-import { defineConfig } from 'vite';
-import plugin from '@vitejs/plugin-react';
-import fs from 'fs';
-import path from 'path';
-import child_process from 'child_process';
-import { env } from 'process';
+import { defineConfig } from "vite";
+import plugin from "@vitejs/plugin-react";
+import fs from "fs";
+import path from "path";
+import child_process from "child_process";
+import { env } from "process";
 
 function ensureCertificates() {
-    const baseFolder =
-        env.APPDATA !== undefined && env.APPDATA !== ''
-            ? `${env.APPDATA}/ASP.NET/https`
-            : `${env.HOME}/.aspnet/https`;
+	const baseFolder =
+		env.APPDATA !== undefined && env.APPDATA !== ""
+			? `${env.APPDATA}/ASP.NET/https`
+			: `${env.HOME}/.aspnet/https`;
 
-    const certificateName = 'aetheris.client';
-    const certFilePath = path.join(baseFolder, `${certificateName}.pem`);
-    const keyFilePath = path.join(baseFolder, `${certificateName}.key`);
+	const certificateName = "aetheris.client";
+	const certFilePath = path.join(baseFolder, `${certificateName}.pem`);
+	const keyFilePath = path.join(baseFolder, `${certificateName}.key`);
 
-    if (!fs.existsSync(baseFolder)) {
-        fs.mkdirSync(baseFolder, { recursive: true });
-    }
+	if (!fs.existsSync(baseFolder)) {
+		fs.mkdirSync(baseFolder, { recursive: true });
+	}
 
-    if (!fs.existsSync(certFilePath) || !fs.existsSync(keyFilePath)) {
-        const certificateResult = child_process.spawnSync('dotnet', [
-            'dev-certs',
-            'https',
-            '--export-path',
-            certFilePath,
-            '--format',
-            'Pem',
-            '--no-password',
-        ], { stdio: 'inherit' });
+	if (!fs.existsSync(certFilePath) || !fs.existsSync(keyFilePath)) {
+		const certificateResult = child_process.spawnSync(
+			"dotnet",
+			["dev-certs", "https", "--export-path", certFilePath, "--format", "Pem", "--no-password"],
+			{ stdio: "inherit" },
+		);
 
-        if (certificateResult.status !== 0) {
-            throw new Error('Could not create certificate.');
-        }
-    }
+		if (certificateResult.status !== 0) {
+			throw new Error("Could not create certificate.");
+		}
+	}
 
-    return {
-        key: fs.readFileSync(keyFilePath),
-        cert: fs.readFileSync(certFilePath),
-    };
+	return {
+		key: fs.readFileSync(keyFilePath),
+		cert: fs.readFileSync(certFilePath),
+	};
 }
 
-const target = env.ASPNETCORE_HTTPS_PORT ? `https://localhost:${env.ASPNETCORE_HTTPS_PORT}`
-    : env.ASPNETCORE_URLS ? env.ASPNETCORE_URLS.split(';')[0] : 'https://localhost:7145';
+const target = env.ASPNETCORE_HTTPS_PORT
+	? `https://localhost:${env.ASPNETCORE_HTTPS_PORT}`
+	: env.ASPNETCORE_URLS
+		? env.ASPNETCORE_URLS.split(";")[0]
+		: "https://localhost:7145";
 
 export default defineConfig(({ command }) => ({
-    plugins: [plugin()],
-    resolve: {
-        alias: {
-            '@': fileURLToPath(new URL('./src', import.meta.url)),
-        },
-    },
-    build: {
-        // The rendering core is intentionally a single cached vendor chunk. Its
-        // measured production size is 724 KB; retain a small budget above that
-        // rather than accepting Vite's generic 500 KB advisory.
-        chunkSizeWarningLimit: 750,
-        rollupOptions: {
-            output: {
-                manualChunks: {
-                    three: ['three'],
-                    'react-three-fiber': ['@react-three/fiber'],
-                    'react-three-drei': ['@react-three/drei'],
-                },
-            },
-        },
-    },
-    server: command === 'serve' && env.npm_lifecycle_event === 'dev' ? {
-        proxy: {
-            '^/api': {
-                target,
-                secure: false,
-            },
-        },
-        port: 5173,
-        strictPort: true,
-        https: ensureCertificates(),
-    } : undefined,
+	plugins: [plugin()],
+	resolve: {
+		alias: {
+			"@": fileURLToPath(new URL("./src", import.meta.url)),
+		},
+	},
+	build: {
+		// The rendering core is intentionally a single cached vendor chunk. Its
+		// measured production size is 724 KB; retain a small budget above that
+		// rather than accepting Vite's generic 500 KB advisory.
+		chunkSizeWarningLimit: 750,
+		rollupOptions: {
+			output: {
+				manualChunks: {
+					three: ["three"],
+					"react-three-fiber": ["@react-three/fiber"],
+					"react-three-drei": ["@react-three/drei"],
+				},
+			},
+		},
+	},
+	server:
+		command === "serve"
+			? {
+					proxy: {
+						"^/api": {
+							target,
+							secure: false,
+						},
+					},
+					port: 5173,
+					strictPort: true,
+					https: ensureCertificates(),
+				}
+			: undefined,
 }));

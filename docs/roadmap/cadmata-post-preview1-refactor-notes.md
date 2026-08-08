@@ -1,8 +1,23 @@
 # Cadmata post-Preview-1 refactor notes
 
 This document records concrete seams observed while hardening the Preview 1
-`aetheris view` path. It is intentionally a roadmap, not authorization to
-redesign Cadmata during the Preview 1 freeze.
+`aetheris view` path. P2-CADMATA-M1 consumed the application-shell, document
+machine, TSPack, theme, renderer-boundary, and grid items. Remaining work is
+marked below; the implementation report is
+[`docs/preview2/cadmata-refactor-m1.md`](../preview2/cadmata-refactor-m1.md).
+
+## Preview 2 M1 disposition
+
+| Roadmap seam | M1 disposition |
+| --- | --- |
+| First-class startup/browser document intent | Resolved with the Machina-authored document machine; cancellation/multi-document replacement remains deferred |
+| TSPack dependency/build/policy ownership | Resolved; Vite retained below TSPack |
+| Shell composition | Resolved for stable command/workspace/viewport/inspector geography; experimental modeling route extraction deferred |
+| Renderer boundary and fit helpers | Preserved and strengthened with theme input; no renderer rewrite |
+| Shell and viewport presentation | Resolved with independent token/config models and Atelier/Monument proof modes |
+| Logarithmic grid GPU/React cost | Resolved with bounded line segments and recorded structural/live evidence |
+| Native desktop/webview replacement | Deferred; browser host and WinExe compatibility remain intentionally intact |
+| Explicit frontend artifact in MSBuild package graph | Deferred to packaging; TSPack now produces the deterministic artifact |
 
 ## Current architecture snapshot
 

@@ -17,6 +17,7 @@ using Aetheris.Kernel.Core.Topology;
 using Aetheris.Kernel.Firmament.Execution;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Kernel.Firmament.Materializer;
+using Aetheris.Kernel.StandardLibrary;
 
 namespace Aetheris.Kernel.Firmament;
 
@@ -192,6 +193,11 @@ public static class FirmamentBuildAndExport
                 return roundedBoxExport;
             }
 
+            if (TryExportV2StandardPart(v2Parse.Document) is { } standardPartExport)
+            {
+                return standardPartExport;
+            }
+
             // Do not let the existing semantic-hole route silently export the unmodified host.
             // M9 has an explicit AIR/graph contract, but the authoritative single-body merge
             // (retained box-with-void plus analytic struts/nodes/bonds) is not yet materialized.
@@ -281,6 +287,44 @@ public static class FirmamentBuildAndExport
         }
 
         return FirmamentStepExporter.Export(new FirmamentCompileRequest(new FirmamentSourceDocument(sourceText)));
+    }
+
+    private static KernelResult<FirmamentStepExportResult>? TryExportV2StandardPart(FirmamentV2Document document)
+    {
+        if (document.Solids.Count != 1 || document.Solid.StandardPart is not { } authored) return null;
+        var definition = StandardLibraryReusableParts.TryCreate(authored.Family, authored.Parameters);
+        if (!definition.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(definition.Diagnostics);
+        if (definition.Value.HexBolt is not { } bolt)
+        {
+            return KernelResult<FirmamentStepExportResult>.Failure([new Kernel.Core.Diagnostics.KernelDiagnostic(
+                Kernel.Core.Diagnostics.KernelDiagnosticCode.NotImplemented,
+                Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+                $"Firmament V2 StandardPart family '{authored.Family}' does not publish a typed part definition.",
+                "FirmamentV2.StandardPart")]);
+        }
+
+        var step = Step242Exporter.ExportBody(definition.Value.Body);
+        if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+        var semantics = bolt.Semantics.Descendants.Select(descendant => new FirmamentStandardPartSemanticReport(
+            descendant.StableId,
+            descendant.Kind.ToString(),
+            descendant.ParentStableId,
+            descendant.Face?.Value,
+            descendant.Metadata)).ToArray();
+        var report = new FirmamentStandardPartReport(
+            authored.Family,
+            document.StaticAuthoring?.Templates.SingleOrDefault()?.Name,
+            bolt.DeterministicSignature,
+            authored.Parameters,
+            semantics);
+        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(
+            step.Value,
+            bolt.Semantics.BodyStableId,
+            0,
+            "standard-part",
+            authored.Family,
+            ConceptIr: document.ConceptIr,
+            StandardPart: report));
     }
 
     private static KernelResult<FirmamentStepExportResult> ExportComposedSemanticTopBoundaryChamfer(

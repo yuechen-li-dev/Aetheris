@@ -26,6 +26,7 @@ internal static class CadmataFixtureService
         ["semantic-capsule-slot"] = "fixtures/FirmamentV2/ProfileComposition/valid/semantic-capsule-slot-through.firmament",
         ["profile-compose-l-bracket-counterbore-pmi"] = "fixtures/FirmamentV2/Canonical/valid/profile-compose-l-bracket-counterbore-pmi.firmament",
         ["pmi-projected-hole-diameter"] = "fixtures/FirmamentV2/Canonical/valid/pmi-projected-hole-diameter.firmament",
+        ["hexbolt-m1"] = "testdata/firmament/examples/mcmaster_91180a151_threadless_hex_bolt.firmament",
     };
 
     public static bool TryLoad(string fixtureId, DocumentSession document, out CadmataFixtureLoadResponseDto? response, out string error)
@@ -37,6 +38,8 @@ internal static class CadmataFixtureService
         var source = File.ReadAllText(sourcePath);
         if (fixtureId == "pmi-projected-hole-diameter")
             return TryLoadProjectedPmiFixture(fixtureId, relative, sourcePath, source, document, out response, out error);
+        if (fixtureId == "hexbolt-m1")
+            return TryLoadStandardPartFixture(fixtureId, relative, sourcePath, source, document, out response, out error);
         BrepBody? body = null; SemanticTopologyCorrespondence? correspondence = null; IReadOnlyList<ResolvedProfile2D> profiles = []; IReadOnlyList<PrismaticShaftHoleFeature> shaftHoles = []; IReadOnlyList<PrismaticCapsuleSlotFeature> capsuleSlots = []; IReadOnlyList<PrismaticRoundedRectangleSlotFeature> roundedRectangleSlots = [];
         var diagnostics = new List<string>(); SemanticHoleSourceInspectionEvidence? semanticHoleEvidence = null;
         if (fixtureId is "semantic-shaft-hole" or "construction-plane-through-hole" or "construction-plane-blind-drillpoint")
@@ -73,6 +76,79 @@ internal static class CadmataFixtureService
         var artifact = BuildArtifact(fixtureId, relative, profiles, shaftHoles, capsuleSlots, roundedRectangleSlots, correspondence, diagnostics, body, semanticHoleEvidence, pmi);
         response = new(document.Id.ToString(), added.OccurrenceId.ToString(), added.DefinitionId.ToString(), fixtureId, artifact);
         return true;
+    }
+
+    private static bool TryLoadStandardPartFixture(string fixtureId, string sourcePath, string fullSourcePath, string source, DocumentSession document, out CadmataFixtureLoadResponseDto? response, out string error)
+    {
+        response = null; error = string.Empty;
+        var parsed = FirmamentV2Parser.Parse(source, Path.GetDirectoryName(fullSourcePath));
+        if (!parsed.IsSuccess || parsed.Document is null) { error = string.Join("; ", parsed.Diagnostics); return false; }
+        var output = Path.Combine(Path.GetTempPath(), $"aetheris-cadmata-{Guid.NewGuid():N}.step");
+        try
+        {
+            var built = FirmamentBuildAndExport.Run(fullSourcePath, output);
+            if (!built.IsSuccess || built.Value?.Export.StandardPart is not { } report) { error = string.Join("; ", built.Diagnostics.Select(item => item.Message)); return false; }
+            var imported = Step242Importer.ImportBody(built.Value.Export.StepText);
+            if (!imported.IsSuccess || imported.Value is null) { error = string.Join("; ", imported.Diagnostics.Select(item => item.Message)); return false; }
+            var body = imported.Value;
+            var added = document.AddBody(body, $"Cadmata: {fixtureId}");
+            var artifact = BuildStandardPartArtifact(fixtureId, sourcePath, parsed.Document, body, report);
+            response = new(document.Id.ToString(), added.OccurrenceId.ToString(), added.DefinitionId.ToString(), fixtureId, artifact);
+            return true;
+        }
+        finally { if (File.Exists(output)) File.Delete(output); }
+    }
+
+    private static CadmataVisualizationArtifactDto BuildStandardPartArtifact(string fixtureId, string sourcePath, FirmamentV2Document document, BrepBody body, FirmamentStandardPartReport report)
+    {
+        var entities = new List<CadmataVisualizationEntityDto>();
+        var descendants = report.SemanticDescendants;
+        foreach (var semantic in descendants)
+        {
+            var children = descendants.Where(candidate => candidate.ParentStableId == semantic.StableId).Select(candidate => candidate.StableId).ToArray();
+            var materialFaces = descendants.Where(candidate => candidate.FaceId is not null && (candidate.StableId == semantic.StableId || candidate.StableId.StartsWith(semantic.StableId + ".", StringComparison.Ordinal))).Select(candidate => candidate.FaceId!.Value).Distinct().Order().ToArray();
+            var metadata = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["family"] = report.Family,
+                ["template"] = report.Template ?? string.Empty,
+                ["semanticKind"] = semantic.Kind,
+                ["sourceForm"] = "FirmamentV2.Record/Static/Template"
+            };
+            if (semantic.Metadata is not null) metadata["engineeringMetadata"] = semantic.Metadata;
+            if (semantic.Kind == "Part")
+                foreach (var parameter in report.Parameters) metadata["parameter." + parameter.Key] = parameter.Value;
+            entities.Add(new(
+                semantic.StableId,
+                semantic.Kind == "Part" ? "TemplateInstance" : semantic.Kind == "Region" ? "PartRegion" : "GeneratedFace",
+                semantic.StableId[(semantic.StableId.LastIndexOf('.') + 1)..],
+                semantic.Kind == "Face" ? "selections" : "conceptAxes",
+                semantic.Kind,
+                null,
+                document.StaticAuthoring?.Templates.SingleOrDefault()?.SourceSpan.ToString(),
+                semantic.ParentStableId is null ? null : [semantic.ParentStableId],
+                children,
+                null,
+                children,
+                materialFaces.Length == 0 ? null : new CadmataTopologyDto(materialFaces),
+                null,
+                "StandardLibrary.HexBoltBuilder",
+                null,
+                metadata));
+        }
+        foreach (var face in body.Topology.Faces.OrderBy(item => item.Id.Value))
+        {
+            var owners = descendants.Where(item => item.FaceId == face.Id.Value).Select(item => item.StableId).ToArray();
+            entities.Add(new($"brep:face:{face.Id.Value}", "BRepFace", $"Face {face.Id.Value}", "brepFaces", "MaterialFace", null, null, owners, null, null, null, new CadmataTopologyDto([face.Id.Value]), null, null, null, null));
+        }
+        var regions = descendants.Where(item => item.Kind == "Region").Select(item => item.StableId).ToArray();
+        var selection = new CadmataVisualizationSelectionDto($"selection:{fixtureId}", "generated StandardLibrary regions", "SemanticRegionSet", regions, regions, false, []);
+        return new("cadmata-concept-viz-x1", fixtureId, sourcePath, entities, [selection], [], new Dictionary<string, double>
+        {
+            ["entityCount"] = entities.Count,
+            ["faceCount"] = body.Topology.Faces.Count(),
+            ["semanticDescendantCount"] = descendants.Count,
+            ["templateCount"] = document.StaticAuthoring?.Templates.Count ?? 0
+        });
     }
 
     private static bool TryLoadProjectedPmiFixture(string fixtureId, string sourcePath, string fullSourcePath, string source, DocumentSession document, out CadmataFixtureLoadResponseDto? response, out string error)

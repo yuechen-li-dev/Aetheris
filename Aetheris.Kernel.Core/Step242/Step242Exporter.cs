@@ -65,8 +65,9 @@ public static class Step242Exporter
         var bsplineIds = new Dictionary<EdgeId, string>();
         var ellipseIds = new Dictionary<EdgeId, string>();
         var hyperbolaIds = new Dictionary<EdgeId, string>();
+        var surfaceIds = new Dictionary<SurfaceGeometryId, string>();
 
-        var outerClosedShellId = BuildClosedShell(writer, body, model, shellRepresentation.OuterShellId, vertexPoints, cartesianPointIds, vertexPointIds, edgeCurveIds, orientedEdgeIds, lineIds, circleIds, bsplineIds, ellipseIds, hyperbolaIds, options.EmitFullCircleTrimmedCurves);
+        var outerClosedShellId = BuildClosedShell(writer, body, model, shellRepresentation.OuterShellId, vertexPoints, cartesianPointIds, vertexPointIds, edgeCurveIds, orientedEdgeIds, lineIds, circleIds, bsplineIds, ellipseIds, hyperbolaIds, surfaceIds, options.EmitFullCircleTrimmedCurves);
         EmitAuxiliaryVertexPointForVertexlessAnalyticBody(writer, body, model);
         if (outerClosedShellId is null)
         {
@@ -83,7 +84,7 @@ public static class Step242Exporter
             var orientedVoidShellIds = new List<string>();
             foreach (var innerShellId in shellRepresentation.InnerShellIds.OrderBy(id => id.Value))
             {
-                var innerClosedShellId = BuildClosedShell(writer, body, model, innerShellId, vertexPoints, cartesianPointIds, vertexPointIds, edgeCurveIds, orientedEdgeIds, lineIds, circleIds, bsplineIds, ellipseIds, hyperbolaIds, options.EmitFullCircleTrimmedCurves);
+                var innerClosedShellId = BuildClosedShell(writer, body, model, innerShellId, vertexPoints, cartesianPointIds, vertexPointIds, edgeCurveIds, orientedEdgeIds, lineIds, circleIds, bsplineIds, ellipseIds, hyperbolaIds, surfaceIds, options.EmitFullCircleTrimmedCurves);
                 if (innerClosedShellId is null)
                 {
                     return Failure($"Shell {innerShellId.Value} could not be exported.", $"Shell:{innerShellId.Value}");
@@ -161,6 +162,7 @@ public static class Step242Exporter
         Dictionary<EdgeId, string> bsplineIds,
         Dictionary<EdgeId, string> ellipseIds,
         Dictionary<EdgeId, string> hyperbolaIds,
+        Dictionary<SurfaceGeometryId, string> surfaceIds,
         bool emitFullCircleTrimmedCurves)
     {
         if (!model.TryGetShell(shellId, out var shell) || shell is null)
@@ -186,10 +188,12 @@ public static class Step242Exporter
                 return null;
             }
 
-            var surfaceIdResult = BuildSurface(writer, surface, face.Id);
-            if (!surfaceIdResult.IsSuccess)
+            if (!surfaceIds.TryGetValue(faceBinding.SurfaceGeometryId, out var surfaceEntityId))
             {
-                return null;
+                var surfaceIdResult = BuildSurface(writer, surface, face.Id);
+                if (!surfaceIdResult.IsSuccess) return null;
+                surfaceEntityId = surfaceIdResult.Value;
+                surfaceIds[faceBinding.SurfaceGeometryId] = surfaceEntityId;
             }
 
             var loopBoundIds = new List<string>();
@@ -238,7 +242,7 @@ public static class Step242Exporter
                 "ADVANCED_FACE",
                 Step242TextWriter.String(string.Empty),
                 Step242TextWriter.List(loopBoundIds.ToArray()),
-                Step242TextWriter.Ref(surfaceIdResult.Value),
+                Step242TextWriter.Ref(surfaceEntityId),
                 Step242TextWriter.BooleanLogical(faceBinding.SameSense));
 
             faceIds.Add(advancedFaceId);

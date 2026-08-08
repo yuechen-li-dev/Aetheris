@@ -57,6 +57,7 @@ public sealed record FirmamentV2SolidBinding(string Name, string RecordType, Fir
     public FirmamentV2TorusRecord? Torus => Primitive as FirmamentV2TorusRecord;
     public FirmamentV2RoundedBoxRecord? RoundedBox => Primitive as FirmamentV2RoundedBoxRecord;
     public FirmamentV2InlineStepRecord? InlineStep => Primitive as FirmamentV2InlineStepRecord;
+    public FirmamentV2StandardPartRecord? StandardPart => Primitive as FirmamentV2StandardPartRecord;
 }
 
 public abstract record FirmamentV2PrimitiveRecord;
@@ -71,6 +72,10 @@ public sealed record FirmamentV2RoundedBoxRecord(IReadOnlyList<double> Size, dou
 public sealed record FirmamentV2FrustumRecord(double BottomRadius, double TopRadius, double Height) : FirmamentV2PrimitiveRecord;
 /// <summary>Resolved by the profile/composition materialization routes rather than primitive lowering.</summary>
 public sealed record FirmamentV2AdvancedMaterialRecord(string Kind) : FirmamentV2PrimitiveRecord;
+/// <summary>Record-shaped V2 invocation of a reusable StandardLibrary part family.</summary>
+public sealed record FirmamentV2StandardPartRecord(
+    string Family,
+    IReadOnlyDictionary<string, string> Parameters) : FirmamentV2PrimitiveRecord;
 public sealed record FirmamentV2InlineStepRecord(string SourcePath, string NormalizedPath, string ContentHash, bool CanonicalInput, string CanonicalEvidence, ImportedStepTopologyMap TopologyMap) : FirmamentV2PrimitiveRecord;
 public sealed record ImportedStepTopologyMap(IReadOnlyDictionary<string, string> FaceEntityToFaceId, IReadOnlyDictionary<string, string> FaceIdToFaceEntity)
 {

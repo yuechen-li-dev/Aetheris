@@ -422,6 +422,7 @@ public static class CliRunner
                 hollow = build.Value.Export.Hollow,
                 lattice = build.Value.Export.Lattice,
                 combined = build.Value.Export.Combined,
+                standardPart = build.Value.Export.StandardPart,
                 assertions = build.Value.Export.Assertions,
                 features = build.Value.Export.Features,
                 inlineStepMigration = build.Value.Export.InlineStepMigration,
@@ -438,6 +439,8 @@ public static class CliRunner
             stdout.WriteLine($"Built {Path.GetFileName(build.Value.SourcePath)}");
             stdout.WriteLine($"STEP: {build.Value.OutputPath}");
             stdout.WriteLine($"Model: {build.Value.Export.ExportedFeatureId}");
+            if (build.Value.Export.StandardPart is { } standardPart)
+                stdout.WriteLine($"Standard part: {standardPart.Family} via {standardPart.Template ?? "direct record"} ({standardPart.SemanticDescendants.Count} semantic descendants)");
         }
 
         return 0;

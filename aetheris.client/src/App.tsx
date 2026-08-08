@@ -1009,6 +1009,7 @@ function App() {
 										"ctc-01-x4",
 										"profile-compose-l-bracket-counterbore-pmi",
 										"pmi-projected-hole-diameter",
+										"hexbolt-m1",
 									].map((fixtureId) => (
 										<Button
 											key={fixtureId}

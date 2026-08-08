@@ -280,7 +280,7 @@ public static class FirmamentV2Parser
     private static readonly Regex FillRegionHeaderRegex = new(@"\bregion\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex FillHeaderRegex = new(@"\bfill\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex CanonicalModelRegex = new(@"^\s*Model\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
-    private static readonly Regex CanonicalPrimitiveHeaderRegex = new(@"\b(?<type>Box|Cylinder|RoundedBox|Frustum)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
+    private static readonly Regex CanonicalPrimitiveHeaderRegex = new(@"\b(?<type>Box|Cylinder|RoundedBox|Frustum|StandardPart)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex CanonicalInlineStepHeaderRegex = new(@"\bInlineStep\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex CanonicalModifyHeaderRegex = new(@"\bModify\s+(?<target>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     // Match the declaration-shaped header first; variant admission belongs in the
@@ -884,7 +884,7 @@ public static class FirmamentV2Parser
 
         var known = new HashSet<string>(StringComparer.Ordinal)
         {
-            "Box", "Cylinder", "RoundedBox", "Frustum", "Concept", "Struct", "Construction", "Profile", "Compose", "EdgeFinish",
+            "Box", "Cylinder", "RoundedBox", "Frustum", "StandardPart", "Concept", "Struct", "Construction", "Profile", "Compose", "EdgeFinish",
             "Record", "Static", "Template", "Selection", "InlineStep", "Recognize", "Replace", "Pmi", "Modify", "Match", "Require", "Assert"
         };
         var compatibilityOnly = new HashSet<string>(StringComparer.Ordinal)
@@ -1361,12 +1361,24 @@ public static class FirmamentV2Parser
             var parsed = values.Select(ParsePhase3Length).ToArray();
             return parsed.Length == 3 && parsed.All(v => double.IsFinite(v) && v > 0d) ? parsed : null;
         }
+        FirmamentV2StandardPartRecord? StandardPart()
+        {
+            var matches = Regex.Matches(body, "\\b(?<name>[A-Za-z_]\\w*)\\s*:\\s*(?<value>\"[^\"]*\"|[A-Za-z_]\\w*|[-+]?\\d+(?:\\.\\d+)?(?:mm|deg)?)", RegexOptions.CultureInvariant).Cast<Match>().ToArray();
+            if (matches.Length == 0 || matches.Select(match => match.Groups["name"].Value).Distinct(StringComparer.Ordinal).Count() != matches.Length)
+                return null;
+            var fields = matches.ToDictionary(match => match.Groups["name"].Value, match => match.Groups["value"].Value, StringComparer.Ordinal);
+            if (!fields.Remove("Family", out var family)) return null;
+            family = family.Trim();
+            if (family.Length >= 2 && family[0] == '"' && family[^1] == '"') family = family[1..^1];
+            return string.IsNullOrWhiteSpace(family) ? null : new FirmamentV2StandardPartRecord(family, fields);
+        }
         return type switch
         {
             "Box" when Size() is { } size => new FirmamentV2BoxRecord(size, []),
             "Cylinder" when Number("Radius") is var radius && Number("Height") is var height && double.IsFinite(radius) && double.IsFinite(height) => new FirmamentV2CylinderRecord(radius, height),
             "RoundedBox" when Size() is { } roundedSize && Number("CornerRadius") is var corner && double.IsFinite(corner) && corner < double.Min(roundedSize[0], roundedSize[1]) / 2d => new FirmamentV2RoundedBoxRecord(roundedSize, corner),
             "Frustum" when Number("BottomRadius") is var bottom && Number("TopRadius") is var top && Number("Height") is var frustumHeight && double.IsFinite(bottom) && double.IsFinite(top) && double.IsFinite(frustumHeight) && double.Abs(bottom - top) > 1e-12d => new FirmamentV2FrustumRecord(bottom, top, frustumHeight),
+            "StandardPart" => StandardPart(),
             _ => null
         };
     }

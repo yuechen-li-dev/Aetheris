@@ -160,7 +160,7 @@ internal static class CanonicalStaticAuthoring
 
     private static string? Instantiate(Template template, IReadOnlyDictionary<string, string> values, string id, bool patterned, List<string> diagnostics)
     {
-        var declaration = Regex.Match(template.Body, @"\b(?<kind>Hole\s*<\s*Shaft\s*>|Slot\s*<\s*(?:Capsule|RoundedRectangle)\s*>|Profile)\s+(?<name>[A-Za-z_]\w*)(?<tail>\s+Using\s+[A-Za-z_]\w*)?\s*\{", RegexOptions.CultureInvariant);
+        var declaration = Regex.Match(template.Body, @"\b(?<kind>Hole\s*<\s*Shaft\s*>|Slot\s*<\s*(?:Capsule|RoundedRectangle)\s*>|Profile|StandardPart)\s+(?<name>[A-Za-z_]\w*)(?<tail>\s+Using\s+[A-Za-z_]\w*)?\s*\{", RegexOptions.CultureInvariant);
         if (!declaration.Success) { diagnostics.Add(Prefix + "template-output-unsupported:" + template.Name); return null; }
         var kind = declaration.Groups["kind"].Value;
         if (patterned && string.Equals(kind, "Profile", StringComparison.Ordinal))
@@ -177,7 +177,7 @@ internal static class CanonicalStaticAuthoring
             : id.Replace("[", "_", StringComparison.Ordinal).Replace("]", string.Empty, StringComparison.Ordinal);
         return $"{kind} {outputName}{declaration.Groups["tail"].Value} {{{body}}}";
     }
-    private static Dictionary<string, string> Fields(string body) => Regex.Matches(body, @"\b(?<name>[A-Za-z_]\w*)\s*:\s*(?<value>(?:Point2|Vector2|PlusMinus)\s*\([^)]*\)|[-+]?\d+(?:\.\d+)?(?:mm|deg)?)", RegexOptions.CultureInvariant)
+    private static Dictionary<string, string> Fields(string body) => Regex.Matches(body, "\\b(?<name>[A-Za-z_]\\w*)\\s*:\\s*(?<value>\"[^\"]*\"|(?:Point2|Vector2|PlusMinus)\\s*\\([^)]*\\)|[A-Za-z_]\\w*|[-+]?\\d+(?:\\.\\d+)?(?:mm|deg)?)", RegexOptions.CultureInvariant)
         .Cast<Match>().ToDictionary(m => m.Groups["name"].Value, m => m.Groups["value"].Value, StringComparer.Ordinal);
     private static Dictionary<string, string> RequireFields(string body) => Regex.Matches(body, @"(?<name>[A-Za-z_]\w*)\s*:\s*(?<value>.*?)(?=\s+[A-Za-z_]\w*\s*:|$)", RegexOptions.CultureInvariant | RegexOptions.Singleline)
         .Cast<Match>().ToDictionary(m => m.Groups["name"].Value, m => m.Groups["value"].Value.Trim(), StringComparer.Ordinal);

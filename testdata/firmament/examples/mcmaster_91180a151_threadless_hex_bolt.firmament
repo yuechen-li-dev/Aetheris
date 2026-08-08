@@ -1,0 +1,58 @@
+Model McMaster91180A151ThreadlessHexBolt {
+    Units: mm
+
+    Record HexBoltSpec {
+        StableId: String
+        NominalDiameter: Length
+        Length: Length
+        HeadAcrossFlats: Length
+        HeadHeight: Length
+        TopFlatDiameter: Length
+        TopChamferAngle: Angle
+        TipChamferLength: Length
+        TipDiameter: Length
+        ThreadLength: Length
+        ThreadDesignation: String
+        PropertyClass: String
+        UnderHeadRadius: Length
+    }
+
+    Static Bolts: HexBoltSpec[] = [
+        HexBoltSpec {
+            StableId: "McMaster91180A151"
+            NominalDiameter: 8mm
+            Length: 35mm
+            HeadAcrossFlats: 13mm
+            HeadHeight: 5.3mm
+            TopFlatDiameter: 12.35mm
+            TopChamferAngle: 25deg
+            TipChamferLength: 0.9375mm
+            TipDiameter: 6.125mm
+            ThreadLength: 22mm
+            ThreadDesignation: "M8 x 1.25"
+            PropertyClass: "8.8"
+            UnderHeadRadius: 0.2mm
+        }
+    ]
+
+    Template HexBolt(HexBoltSpec spec) {
+        StandardPart Bolt {
+            Family: HexBolt
+            StableId: spec.StableId
+            NominalDiameter: spec.NominalDiameter
+            Length: spec.Length
+            HeadAcrossFlats: spec.HeadAcrossFlats
+            HeadHeight: spec.HeadHeight
+            TopFlatDiameter: spec.TopFlatDiameter
+            TopChamferAngle: spec.TopChamferAngle
+            TipChamferLength: spec.TipChamferLength
+            TipDiameter: spec.TipDiameter
+            ThreadLength: spec.ThreadLength
+            ThreadDesignation: spec.ThreadDesignation
+            PropertyClass: spec.PropertyClass
+            UnderHeadRadius: spec.UnderHeadRadius
+        }
+    }
+
+    HexBolt(Bolts[0])
+}

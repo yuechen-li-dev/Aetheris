@@ -891,6 +891,7 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
     [InlineData("split-compose-chamfer", "profile:BaseProfile.Outer.South")]
     [InlineData("ctc-01-x3", "profile:CentralHex.Outer.SouthEast")]
     [InlineData("ctc-01-x4", "hole:Ctc01PrismaticBlockoutX4.LeftTopMount")]
+    [InlineData("hexbolt-m1", "McMaster91180A151.Head.TopChamfer")]
     public async Task CadmataFixture_LoadsCompilerBodyAndPublishedCorrespondence(string fixtureId, string expectedEntityId)
     {
         var document = await CreateDocumentAsync("/api/v1/documents");
@@ -908,6 +909,24 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
             loaded.Data.Visualization.Entities.Select(entity => entity.StableId).Distinct(StringComparer.Ordinal).Count());
         Assert.True(loaded.Data.Visualization.Metrics["faceCount"] > 0);
         Assert.True(Guid.TryParse(loaded.Data.BodyId, out _));
+    }
+
+    [Fact]
+    public async Task CadmataHexBoltV2Fixture_PublishesTemplateParametersAndGeneratedFaceOwnership()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var response = await _client.PostAsync($"/api/v1/documents/{document.Data!.DocumentId}/cadmata/fixtures/hexbolt-m1", null);
+        response.EnsureSuccessStatusCode();
+        var loaded = await response.Content.ReadFromJsonAsync<ApiResponseDto<CadmataFixtureLoadResponseDto>>();
+        Assert.True(loaded!.Success);
+        var entities = loaded.Data!.Visualization.Entities;
+        var instance = Assert.Single(entities, entity => entity.Kind == "TemplateInstance");
+        Assert.Equal("HexBolt", instance.Metadata!["template"]);
+        Assert.Equal("35mm", instance.Metadata["parameter.Length"]);
+        var chamfer = Assert.Single(entities, entity => entity.StableId == "McMaster91180A151.Head.TopChamfer");
+        Assert.Equal(6, chamfer.Topology!.FaceIds!.Count);
+        Assert.All(chamfer.Topology.FaceIds!, faceId => Assert.Contains(entities, entity => entity.StableId == $"brep:face:{faceId}" && entity.ParentIds!.Any(parent => parent.StartsWith("McMaster91180A151.Head.TopChamfer.Face[", StringComparison.Ordinal))));
+        Assert.Equal(1, loaded.Data.Visualization.Metrics["templateCount"]);
     }
 
     [Fact]

@@ -19,7 +19,22 @@ public sealed record FirmamentStepExportResult(
     FirmamentHollowBodyReport? Hollow = null,
     FirmamentStandaloneLatticeReport? Lattice = null,
     FirmamentCombinedFeaturePlanReport? Combined = null,
-    IReadOnlyList<Aetheris.Kernel.Firmament.FirmamentV2.FirmamentV2VolumeAssertionResult>? Assertions = null);
+    IReadOnlyList<Aetheris.Kernel.Firmament.FirmamentV2.FirmamentV2VolumeAssertionResult>? Assertions = null,
+    FirmamentStandardPartReport? StandardPart = null);
+
+public sealed record FirmamentStandardPartReport(
+    string Family,
+    string? Template,
+    string DeterministicSignature,
+    IReadOnlyDictionary<string, string> Parameters,
+    IReadOnlyList<FirmamentStandardPartSemanticReport> SemanticDescendants);
+
+public sealed record FirmamentStandardPartSemanticReport(
+    string StableId,
+    string Kind,
+    string? ParentStableId,
+    int? FaceId,
+    string? Metadata);
 
 /// <summary>Compact inspection evidence for the bounded X1 composed feature route.</summary>
 public sealed record FirmamentCombinedFeaturePlanReport(

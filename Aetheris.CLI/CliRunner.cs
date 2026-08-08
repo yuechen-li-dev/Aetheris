@@ -114,8 +114,8 @@ public static class CliRunner
         string? Error,
         string? Classification = null,
         int? RigidRootCount = null);
-    private const string TopLevelUsage = "Usage: aetheris <build|validate|inspect-profile|inspect-compose|inspect-selections|sections|analyze|verify|match|trace|canon|asm|experimental> <path> [options]";
-    private const string BuildUsage = "Usage: aetheris build <file.firmament> [--out <path>] [--json]";
+    private const string TopLevelUsage = "Usage: aetheris <command> [options]";
+    private const string BuildUsage = "Usage: aetheris build <file.firmament> [--output <path>] [--json]";
     private const string ValidateUsage = "Usage: aetheris validate <file.firmament|file.firmfixture> [--forge-pack <path>] [--json]";
     private const string InspectProfileUsage = "Usage: aetheris inspect-profile <file.firmament> [--json]";
     private const string InspectComposeUsage = "Usage: aetheris inspect-compose <file.firmament> --json [--materialize]";
@@ -126,7 +126,9 @@ public static class CliRunner
     private const string AnalyzeVolumeUsage = "Usage: aetheris analyze volume <file.step> [--approximate --resolution <N>] [--json]";
     private const string AnalyzeCompareUsage = "Usage: aetheris analyze compare <reference.step> <candidate.step> [--approximate-volume --resolution <N>] [--json]";
     private const string SectionsUsage = "Usage: aetheris sections <artifact.step> --axis Z --levels <z,...> [--epsilon <mm>] --json";
-    private const string VerifyUsage = "Usage: aetheris verify <artifact.step> [--expected-volume <value>] [--cad-assistant] [--cad-assistant-path <path>] [--timeout <seconds>] [--evidence-dir <path>] [--require-external] [--json]";
+    private const string VerifyUsage = "Usage: aetheris verify <file.firmament|file.step> [--expected-volume <value>] [--cad-assistant] [--cad-assistant-path <path>] [--timeout <seconds>] [--evidence-dir <path>] [--require-external] [--json]";
+    private const string InspectUsage = "Usage: aetheris inspect <file.firmament|file.step> [--json]";
+    private const string ViewUsage = "Usage: aetheris view <file.firmament|file.step> [--cad-assistant-path <path>] [--json]";
     private const string MatchUsage = "Usage: aetheris match <file.step> <concept.firmament> [--linear-tolerance <mm>] [--angular-tolerance <deg>] [--json]";
     private const string TraceUsage = "Usage: aetheris trace (--case <name>|--fixture <path>) [--out-dir <dir>] [--json]";
     private const string CanonUsage = "Usage: aetheris canon <file.step> --out <canonical.step> [--mode deterministic|production] [--json]";
@@ -177,12 +179,14 @@ public static class CliRunner
             {
                 "build" => RunBuild(args.Skip(1).ToArray(), stdout, stderr),
                 "validate" => RunValidate(args.Skip(1).ToArray(), stdout, stderr),
+                "inspect" => RunInspect(args.Skip(1).ToArray(), stdout, stderr),
                 "inspect-profile" => RunInspectProfile(args.Skip(1).ToArray(), stdout, stderr),
                 "inspect-compose" => RunInspectCompose(args.Skip(1).ToArray(), stdout, stderr),
                 "inspect-selections" => RunInspectSelections(args.Skip(1).ToArray(), stdout, stderr),
                 "sections" => RunSections(args.Skip(1).ToArray(), stdout, stderr),
                 "analyze" => RunAnalyze(args.Skip(1).ToArray(), stdout, stderr),
                 "verify" => RunVerify(args.Skip(1).ToArray(), stdout, stderr),
+                "view" => RunView(args.Skip(1).ToArray(), stdout, stderr),
                 "match" => RunMatch(args.Skip(1).ToArray(), stdout, stderr),
                 "trace" => RunTrace(args.Skip(1).ToArray(), stdout, stderr),
                 "canon" => RunCanon(args.Skip(1).ToArray(), stdout, stderr),
@@ -222,6 +226,22 @@ public static class CliRunner
                 case "--json": json = true; break;
                 default: stderr.WriteLine($"Unknown verify option '{args[i]}'."); stderr.WriteLine(VerifyUsage); return 1;
             }
+        }
+        if (string.Equals(Path.GetExtension(stepPath), ".firmament", StringComparison.OrdinalIgnoreCase))
+        {
+            var build = FirmamentBuildAndExport.Run(stepPath);
+            if (!build.IsSuccess)
+            {
+                if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "verify", success = false, input = Path.GetFullPath(stepPath), diagnostics = build.Diagnostics.Select(d => new { d.Source, d.Message, severity = d.Severity.ToString() }) }, JsonOptions));
+                else { stderr.WriteLine("Verification stopped because build failed."); foreach (var diagnostic in build.Diagnostics) stderr.WriteLine($"error: {diagnostic.Message}"); }
+                return 1;
+            }
+            stepPath = build.Value.OutputPath;
+        }
+        else if (!string.Equals(Path.GetExtension(stepPath), ".step", StringComparison.OrdinalIgnoreCase) && !string.Equals(Path.GetExtension(stepPath), ".stp", StringComparison.OrdinalIgnoreCase))
+        {
+            stderr.WriteLine("Verify expects Firmament (.firmament) or STEP (.step, .stp) input.");
+            return 1;
         }
         if (!File.Exists(stepPath)) { stderr.WriteLine($"STEP artifact '{stepPath}' does not exist."); return 1; }
         var fullPath = Path.GetFullPath(stepPath);
@@ -335,11 +355,13 @@ public static class CliRunner
         {
             switch (args[i])
             {
-                case "--out" when i + 1 < args.Length:
+                case "--output" when i + 1 < args.Length:
+                case "--out" when i + 1 < args.Length: // Compatibility alias; prefer --output in public help.
                     outPath = args[++i];
                     break;
+                case "--output":
                 case "--out":
-                    stderr.WriteLine("Build option --out requires a path value.");
+                    stderr.WriteLine("Build option --output requires a path value.");
                     stderr.WriteLine(BuildUsage);
                     return 1;
                 case "--json":
@@ -363,7 +385,9 @@ public static class CliRunner
             {
                 stdout.WriteLine(JsonSerializer.Serialize(new
                 {
+                    command = "build",
                     success = false,
+                    input = Path.GetFullPath(sourcePath),
                     diagnostics = build.Diagnostics.Select(d => new { d.Source, d.Message, severity = d.Severity.ToString() })
                 }, JsonOptions));
             }
@@ -383,7 +407,10 @@ public static class CliRunner
         {
             stdout.WriteLine(JsonSerializer.Serialize(new
             {
+                command = "build",
                 success = true,
+                input = build.Value.SourcePath,
+                output = build.Value.OutputPath,
                 sourcePath = build.Value.SourcePath,
                 outputPath = build.Value.OutputPath,
                 conceptIr = build.Value.Export.ConceptIr,
@@ -405,9 +432,120 @@ public static class CliRunner
         }
         else
         {
-            stdout.WriteLine($"Build succeeded: {build.Value.OutputPath}");
+            stdout.WriteLine($"Built {Path.GetFileName(build.Value.SourcePath)}");
+            stdout.WriteLine($"STEP: {build.Value.OutputPath}");
+            stdout.WriteLine($"Model: {build.Value.Export.ExportedFeatureId}");
         }
 
+        return 0;
+    }
+
+    private static int RunInspect(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0 || IsHelpFlag(args[0]))
+        {
+            WriteInspectHelp(stdout);
+            return args.Length == 0 ? 1 : 0;
+        }
+
+        var input = args[0];
+        var json = args.Skip(1).SequenceEqual(["--json"]);
+        if (!json && args.Length > 1) { stderr.WriteLine($"Unknown inspect option '{args[1]}'."); stderr.WriteLine(InspectUsage); return 1; }
+        if (!File.Exists(input)) { stderr.WriteLine($"Inspect input was not found: {input}"); return 1; }
+
+        var fullPath = Path.GetFullPath(input);
+        var extension = Path.GetExtension(fullPath);
+        if (string.Equals(extension, ".step", StringComparison.OrdinalIgnoreCase) || string.Equals(extension, ".stp", StringComparison.OrdinalIgnoreCase))
+            return RunAnalyze([fullPath, .. args.Skip(1)], stdout, stderr);
+        if (!string.Equals(extension, ".firmament", StringComparison.OrdinalIgnoreCase))
+        {
+            stderr.WriteLine("Inspect expects Firmament (.firmament) or STEP (.step, .stp) input.");
+            return 1;
+        }
+
+        var parse = FirmamentV2Parser.Parse(File.ReadAllText(fullPath), Path.GetDirectoryName(fullPath));
+        var document = parse.Document;
+        var success = parse.IsSuccess && document is not null;
+        var features = document?.ModifyBlocks?.SelectMany(block =>
+            block.SemanticHoles.Select(hole => $"Hole<{hole.Variant}> {hole.Name}")
+            .Concat((block.EdgeFinishes ?? []).Select(finish => $"{finish.Kind} {finish.Name}"))) ?? [];
+        var report = new
+        {
+            command = "inspect",
+            success,
+            input = fullPath,
+            model = document?.ModelName,
+            units = document?.Units,
+            bodies = document?.Solids.Select(solid => new { name = solid.Name, kind = solid.RecordType }).ToArray() ?? [],
+            features,
+            pmi = document?.Pmi?.Select(item => new { item.Kind, item.Name, item.Target }).ToArray() ?? [],
+            assertions = document?.VolumeAssertions?.Select(assertion => new { assertion.Id, assertion.TargetBodyId, assertion.ExpectedMm3, assertion.ToleranceMm3 }).ToArray() ?? [],
+            diagnostics = parse.Diagnostics.Order(StringComparer.Ordinal).ToArray()
+        };
+        if (json) stdout.WriteLine(JsonSerializer.Serialize(report, JsonOptions));
+        else if (!success)
+        {
+            stderr.WriteLine($"Inspect failed for {fullPath}.");
+            foreach (var diagnostic in parse.Diagnostics.Order(StringComparer.Ordinal)) stderr.WriteLine($"error: {diagnostic}");
+        }
+        else
+        {
+            stdout.WriteLine($"Model: {document!.ModelName}");
+            stdout.WriteLine($"Bodies: {document.Solids.Count}");
+            foreach (var feature in features) stdout.WriteLine($"Feature: {feature}");
+            foreach (var item in document.Pmi ?? []) stdout.WriteLine($"PMI: {item.Kind} {item.Name}");
+            foreach (var assertion in document.VolumeAssertions ?? []) stdout.WriteLine($"Assertion: Volume {assertion.TargetBodyId}");
+        }
+        return success ? 0 : 1;
+    }
+
+    private static int RunView(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0 || IsHelpFlag(args[0])) { WriteViewHelp(stdout); return args.Length == 0 ? 1 : 0; }
+        var input = args[0];
+        string? executable = null;
+        var json = false;
+        for (var i = 1; i < args.Length; i++)
+        {
+            if (args[i] == "--cad-assistant-path" && i + 1 < args.Length) { executable = args[++i]; continue; }
+            if (args[i] == "--json") { json = true; continue; }
+            stderr.WriteLine($"Unknown view option '{args[i]}'."); stderr.WriteLine(ViewUsage); return 1;
+        }
+        if (!File.Exists(input)) { stderr.WriteLine($"View input was not found: {input}"); return 1; }
+        var fullInput = Path.GetFullPath(input);
+        var extension = Path.GetExtension(fullInput);
+        string stepPath;
+        if (string.Equals(extension, ".firmament", StringComparison.OrdinalIgnoreCase))
+        {
+            var build = FirmamentBuildAndExport.Run(fullInput);
+            if (!build.IsSuccess)
+            {
+                if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "view", success = false, input = fullInput, diagnostics = build.Diagnostics.Select(d => new { d.Source, d.Message, severity = d.Severity.ToString() }) }, JsonOptions));
+                else { stderr.WriteLine("View stopped because build failed."); foreach (var diagnostic in build.Diagnostics) stderr.WriteLine($"error: {diagnostic.Message}"); }
+                return 1;
+            }
+            stepPath = build.Value.OutputPath;
+        }
+        else if (string.Equals(extension, ".step", StringComparison.OrdinalIgnoreCase) || string.Equals(extension, ".stp", StringComparison.OrdinalIgnoreCase)) stepPath = fullInput;
+        else { stderr.WriteLine("View expects Firmament (.firmament) or STEP (.step, .stp) input."); return 1; }
+
+        var resolvedExecutable = CadAssistantInspection.ResolveExecutable(executable);
+        if (resolvedExecutable is null)
+        {
+            const string message = "Cadmata/CAD Assistant was not found. Set --cad-assistant-path or AETHERIS_CAD_ASSISTANT_PATH.";
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "view", success = false, input = fullInput, output = stepPath, diagnostics = new[] { message } }, JsonOptions));
+            else stderr.WriteLine(message);
+            return 1;
+        }
+        try
+        {
+            var startInfo = new ProcessStartInfo(resolvedExecutable) { UseShellExecute = true };
+            startInfo.ArgumentList.Add(stepPath);
+            if (Process.Start(startInfo) is null) throw new InvalidOperationException("Process.Start returned no process.");
+        }
+        catch (Exception ex) { stderr.WriteLine($"Could not open '{stepPath}' in Cadmata/CAD Assistant: {ex.Message}"); return 1; }
+        if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "view", success = true, input = fullInput, output = stepPath, launcher = resolvedExecutable }, JsonOptions));
+        else stdout.WriteLine($"Opened {stepPath} in Cadmata/CAD Assistant.");
         return 0;
     }
 
@@ -1388,6 +1526,17 @@ public static class CliRunner
         if (detailCount > 1)
         {
             stderr.WriteLine("Specify at most one detail selector: --face, --edge, or --vertex.");
+            return 1;
+        }
+
+        if (string.Equals(Path.GetExtension(stepPath), ".firmament", StringComparison.OrdinalIgnoreCase))
+        {
+            stderr.WriteLine("Analyze expects STEP; use `aetheris build <file.firmament>` first.");
+            return 1;
+        }
+        if (!string.Equals(Path.GetExtension(stepPath), ".step", StringComparison.OrdinalIgnoreCase) && !string.Equals(Path.GetExtension(stepPath), ".stp", StringComparison.OrdinalIgnoreCase))
+        {
+            stderr.WriteLine("Analyze expects STEP (.step or .stp) input.");
             return 1;
         }
 
@@ -2761,7 +2910,7 @@ public static class CliRunner
 
     private static int UnknownCommand(string command, TextWriter stderr)
     {
-        stderr.WriteLine($"Unknown command '{command}'. Expected one of: build, validate, analyze, trace, canon, asm, experimental.");
+        stderr.WriteLine($"Unknown command '{command}'. Expected one of: validate, build, inspect, analyze, verify, view.");
         stderr.WriteLine("Run 'aetheris --help' for usage and examples.");
         return 1;
     }
@@ -2807,52 +2956,27 @@ public static class CliRunner
 
     private static void WriteTopLevelHelp(TextWriter stdout)
     {
-        stdout.WriteLine("aetheris - firmament build and STEP analysis CLI");
+        stdout.WriteLine("Aetheris — exact code-first CAD");
         stdout.WriteLine();
         stdout.WriteLine(TopLevelUsage);
-        // Keep this stable discovery string while the longer usage line above
-        // advertises the newer inspection commands.
-        stdout.WriteLine("Usage: aetheris <build|analyze|trace|canon|asm|experimental> <path> [options]");
         stdout.WriteLine();
         stdout.WriteLine("Commands:");
-        stdout.WriteLine("  build      Build a .firmament source file into STEP.");
-        stdout.WriteLine("  validate   Validate Firmament V2 manufacturing intent and emit report JSON.");
-        stdout.WriteLine("  inspect-profile  Resolve and validate a scaffold-referenced Profile.");
-        stdout.WriteLine("  inspect-compose  Normalize and inspect a profile-composition section stack.");
-        stdout.WriteLine("  inspect-selections  Resolve source-grounded topology selections without STEP analysis.");
-        stdout.WriteLine("  sections   Normalize exact horizontal STEP section fragments.");
-        stdout.WriteLine("  analyze    Analyze STEP topology, geometry, map, and sections.");
-        stdout.WriteLine("  verify     Reimport STEP and emit independent B-rep/external-display evidence.");
-        stdout.WriteLine("  match      Match a compile-time Concept Struct against observed STEP geometry.");
-        stdout.WriteLine("  trace      Trace built-in AIR lowering cases through route, BRepPlan, STEP smoke, and CIR mirror.");
-        stdout.WriteLine("  canon      Import and re-export STEP/AP242 as canonical STEP.");
-        stdout.WriteLine("  asm        Execute/export .firmasm assembly IR using rigid world-space composition.");
-        stdout.WriteLine("  experimental  Experimental/lab-only artifact export and generated-source inspection commands.");
+        stdout.WriteLine("  validate   Check Firmament source without materializing geometry.");
+        stdout.WriteLine("  build      Compile Firmament to exact STEP AP242.");
+        stdout.WriteLine("  view       Build/open a model in Cadmata or CAD Assistant.");
+        stdout.WriteLine("  inspect    Inspect Firmament semantics or STEP topology.");
+        stdout.WriteLine("  analyze    Analyze STEP topology and analytic surfaces.");
+        stdout.WriteLine("  verify     Build/reimport and verify a model.");
         stdout.WriteLine();
         stdout.WriteLine("Global options:");
         stdout.WriteLine("  -h, --help       Show help.");
         stdout.WriteLine("  -v, --version    Show CLI version.");
         stdout.WriteLine();
         stdout.WriteLine("Examples:");
-        stdout.WriteLine("  aetheris build model.firmament --out model.step");
-        stdout.WriteLine("  aetheris validate fixtures/FirmamentV2/Language/valid/v2-phase1-validation-report.valid.firmfixture --json");
-        stdout.WriteLine("  aetheris inspect-profile fixtures/FirmamentV2/Profile/valid/scaffold-rectangle.firmament --json");
-        stdout.WriteLine("  aetheris analyze model.step");
-        stdout.WriteLine("  aetheris analyze model.step --json");
-        stdout.WriteLine("  aetheris match model.step concept.firmament --json");
-        stdout.WriteLine("  aetheris trace --case top-face-loop-chamfer");
-        stdout.WriteLine("  aetheris trace --fixture fixtures/Firmament/Chamfer/valid/top-face-loop-chamfer.valid.firmfixture");
-        stdout.WriteLine("  aetheris trace --case prismatic-section-transition --json");
-        stdout.WriteLine("  aetheris canon input.step --out canonical.step --mode production --json");
-        stdout.WriteLine("  aetheris asm exec assembly.firmasm --json");
-        stdout.WriteLine("  aetheris asm export assembly.firmasm --out out/assembly-roundtrip --json");
-        stdout.WriteLine("  aetheris experimental airchamfer-cube --out edge-x10-airchamfer-cube-one-edge.step --json");
-        stdout.WriteLine("  aetheris experimental prismatic-map --case rectangle-inset --rows 16 --cols 16 --json");
-        stdout.WriteLine("  aetheris analyze map model.step --top --rows 40 --cols 60 --json");
-        stdout.WriteLine("  aetheris analyze section model.step --xy --offset 2.5 --json");
-        stdout.WriteLine("  aetheris sections model.step --axis Z --levels -100,-60,-50,0,5,50 --json");
-        stdout.WriteLine("  aetheris analyze volume model.step --json");
-        stdout.WriteLine("  aetheris verify model.step --json");
+        stdout.WriteLine("  aetheris validate bracket.firmament");
+        stdout.WriteLine("  aetheris build bracket.firmament");
+        stdout.WriteLine("  aetheris view bracket.firmament");
+        stdout.WriteLine("  aetheris analyze imported.step --json");
         stdout.WriteLine();
         stdout.WriteLine("Run 'aetheris <command> --help' for command-specific usage.");
     }
@@ -2864,12 +2988,13 @@ public static class CliRunner
         stdout.WriteLine(BuildUsage);
         stdout.WriteLine();
         stdout.WriteLine("Options:");
-        stdout.WriteLine("  --out <path>   Optional output STEP path.");
+        stdout.WriteLine("  --output <path> Optional output STEP path; defaults to a .step file beside the source.");
         stdout.WriteLine("  --json         Emit machine-readable success/failure JSON.");
         stdout.WriteLine("  -h, --help     Show this help.");
         stdout.WriteLine();
         stdout.WriteLine("Example:");
-        stdout.WriteLine("  aetheris build part.firmament --out part.step --json");
+        stdout.WriteLine("  aetheris build part.firmament");
+        stdout.WriteLine("  aetheris build part.firmament --output out/part.step --json");
     }
 
     private static void WriteMatchHelp(TextWriter stdout)
@@ -2886,9 +3011,30 @@ public static class CliRunner
 
     private static void WriteValidateHelp(TextWriter stdout)
     {
+        stdout.WriteLine("Check syntax, binding, dimensions, and static semantics without materializing geometry.");
+        stdout.WriteLine("Use build for materialization, STEP generation, and build-time assertions.");
+        stdout.WriteLine();
         stdout.WriteLine(ValidateUsage);
         stdout.WriteLine("  --json                Emit Firmament V2 validation report JSON.");
         stdout.WriteLine("  --forge-pack <path>   Load a trusted local .NET assembly containing IForgeConceptPack implementations. This executes local code; Aetheris does not sandbox external packs. Do not load untrusted packs.");
+    }
+
+    private static void WriteInspectHelp(TextWriter stdout)
+    {
+        stdout.WriteLine("Inspect what Aetheris understands a model to mean.");
+        stdout.WriteLine("Firmament input reports semantic declarations; STEP input reports topology through analyze.");
+        stdout.WriteLine();
+        stdout.WriteLine(InspectUsage);
+        stdout.WriteLine("Example: aetheris inspect part.firmament --json");
+    }
+
+    private static void WriteViewHelp(TextWriter stdout)
+    {
+        stdout.WriteLine("Open a STEP model in Cadmata/CAD Assistant.");
+        stdout.WriteLine("Firmament input is built to its adjacent .step artifact before launch; STEP input opens directly.");
+        stdout.WriteLine();
+        stdout.WriteLine(ViewUsage);
+        stdout.WriteLine("Example: aetheris view part.firmament");
     }
 
     private static void WriteTraceHelp(TextWriter stdout)
@@ -3013,7 +3159,7 @@ public static class CliRunner
     {
         stdout.WriteLine(VerifyUsage);
         stdout.WriteLine();
-        stdout.WriteLine("Reimport a STEP artifact, evaluate independent B-rep mass properties, and optionally run bounded external CAD display inspection.");
+        stdout.WriteLine("Firmament input is built first; STEP input is reimported directly for independent B-rep mass properties and optional external display inspection.");
         stdout.WriteLine("The report is hash-tied to artifacts/verification/<fixture>/<sha256>/ by default.");
         stdout.WriteLine();
         stdout.WriteLine("Options:");

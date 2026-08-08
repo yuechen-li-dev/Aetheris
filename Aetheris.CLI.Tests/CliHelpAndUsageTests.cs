@@ -20,14 +20,14 @@ public sealed class CliHelpAndUsageTests
         Assert.Equal(0, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()));
         var text = stdout.ToString();
-        Assert.Contains("Usage: aetheris <build|analyze|trace|canon|asm|experimental>", text, StringComparison.Ordinal);
+        Assert.Contains("Usage: aetheris <command> [options]", text, StringComparison.Ordinal);
         Assert.Contains("Commands:", text, StringComparison.Ordinal);
         Assert.Contains("build", text, StringComparison.Ordinal);
         Assert.Contains("analyze", text, StringComparison.Ordinal);
-        Assert.Contains("trace", text, StringComparison.Ordinal);
-        Assert.Contains("canon", text, StringComparison.Ordinal);
-        Assert.Contains("asm", text, StringComparison.Ordinal);
-        Assert.Contains("experimental", text, StringComparison.Ordinal);
+        Assert.Contains("validate", text, StringComparison.Ordinal);
+        Assert.Contains("inspect", text, StringComparison.Ordinal);
+        Assert.Contains("verify", text, StringComparison.Ordinal);
+        Assert.Contains("view", text, StringComparison.Ordinal);
     }
 
     [Theory]

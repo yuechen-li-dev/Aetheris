@@ -9,7 +9,7 @@ public sealed class AirTraceCommandTests
     {
         var stdout = new StringWriter(); var stderr = new StringWriter();
         Assert.Equal(0, Aetheris.CLI.CliRunner.Run(["--help"], stdout, stderr));
-        Assert.Contains("trace", stdout.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("trace", stdout.ToString(), StringComparison.Ordinal);
 
         stdout = new StringWriter(); stderr = new StringWriter();
         Assert.Equal(0, Aetheris.CLI.CliRunner.Run(["trace", "--help"], stdout, stderr));

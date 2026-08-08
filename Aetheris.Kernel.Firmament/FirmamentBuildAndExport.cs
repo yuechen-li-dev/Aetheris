@@ -1723,25 +1723,10 @@ public static class FirmamentBuildAndExport
 
     private static string ResolveDefaultOutputPath(string fullSourcePath)
     {
-        var root = FindRepositoryRoot(Path.GetDirectoryName(fullSourcePath)!);
-        var sourceFileName = Path.GetFileNameWithoutExtension(fullSourcePath);
-        return Path.Combine(root, "testdata", "firmament", "exports", sourceFileName + ".step");
-    }
-
-    private static string FindRepositoryRoot(string startDirectory)
-    {
-        var directory = new DirectoryInfo(startDirectory);
-        while (directory is not null)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "Aetheris.slnx")))
-            {
-                return directory.FullName;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new InvalidOperationException("Unable to locate repository root for Firmament export output.");
+        // A source file is the only project boundary Preview 1 needs. Keeping the
+        // generated artifact adjacent to it is deterministic, discoverable, and
+        // works identically from a checkout, a package, or a user directory.
+        return Path.ChangeExtension(fullSourcePath, ".step");
     }
 
     private static string NormalizeLf(string value) =>

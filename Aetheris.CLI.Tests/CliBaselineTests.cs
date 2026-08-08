@@ -28,7 +28,7 @@ public sealed class CliBaselineTests
 
         Assert.Equal(0, exitCode);
         Assert.True(File.Exists(outputPath), stderr.ToString());
-        Assert.Contains("Build succeeded", stdout.ToString());
+        Assert.Contains("Built box_basic.firmament", stdout.ToString());
 
         File.Delete(outputPath);
     }

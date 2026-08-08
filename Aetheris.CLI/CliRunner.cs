@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Aetheris.Forge.Abstractions.FirmamentInterop;
 using Aetheris.Kernel.Core.Brep.Verification;
+using Aetheris.Kernel.Core.Brep.Tessellation;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament;
@@ -116,6 +117,7 @@ public static class CliRunner
         int? RigidRootCount = null);
     private const string TopLevelUsage = "Usage: aetheris <command> [options]";
     private const string BuildUsage = "Usage: aetheris build <file.firmament> [--output <path>] [--json]";
+    private const string MeshUsage = "Usage: aetheris mesh <file.firmament|file.firmfixture|file.step> [--format stl] [--output <path>] [--debug-ir <path>] [--json]";
     private const string ValidateUsage = "Usage: aetheris validate <file.firmament|file.firmfixture> [--forge-pack <path>] [--json]";
     private const string InspectProfileUsage = "Usage: aetheris inspect-profile <file.firmament> [--json]";
     private const string InspectComposeUsage = "Usage: aetheris inspect-compose <file.firmament> --json [--materialize]";
@@ -181,6 +183,7 @@ public static class CliRunner
             return args[0] switch
             {
                 "build" => RunBuild(args.Skip(1).ToArray(), stdout, stderr),
+                "mesh" => RunMesh(args.Skip(1).ToArray(), stdout, stderr),
                 "validate" => RunValidate(args.Skip(1).ToArray(), stdout, stderr),
                 "inspect" => RunInspect(args.Skip(1).ToArray(), stdout, stderr),
                 "inspect-profile" => RunInspectProfile(args.Skip(1).ToArray(), stdout, stderr),
@@ -444,6 +447,62 @@ public static class CliRunner
         }
 
         return 0;
+    }
+
+    private static int RunMesh(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0 || IsHelpFlag(args[0])) { stdout.WriteLine(MeshUsage); return args.Length == 0 ? 1 : 0; }
+        var input = args[0]; var format = "stl"; string? output = null; string? debugIr = null; var json = false;
+        for (var i = 1; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--format" when i + 1 < args.Length: format = args[++i]; break;
+                case "--output" when i + 1 < args.Length: output = args[++i]; break;
+                case "--debug-ir" when i + 1 < args.Length: debugIr = args[++i]; break;
+                case "--json": json = true; break;
+                default: stderr.WriteLine($"Unknown mesh option '{args[i]}'."); stderr.WriteLine(MeshUsage); return 1;
+            }
+        }
+        if (!string.Equals(format, "stl", StringComparison.OrdinalIgnoreCase)) { stderr.WriteLine("Mesh currently supports only binary STL."); return 1; }
+        var fullInput = Path.GetFullPath(input);
+        string stepText;
+        if (string.Equals(Path.GetExtension(fullInput), ".firmament", StringComparison.OrdinalIgnoreCase) || string.Equals(Path.GetExtension(fullInput), ".firmfixture", StringComparison.OrdinalIgnoreCase))
+        {
+            var build = FirmamentBuildAndExport.Run(fullInput);
+            if (!build.IsSuccess) return WriteMeshFailure(build.Diagnostics.Select(d => d.Message), json, fullInput, stdout, stderr);
+            stepText = build.Value.Export.StepText;
+        }
+        else if (string.Equals(Path.GetExtension(fullInput), ".step", StringComparison.OrdinalIgnoreCase) || string.Equals(Path.GetExtension(fullInput), ".stp", StringComparison.OrdinalIgnoreCase)) stepText = File.ReadAllText(fullInput);
+        else { stderr.WriteLine("Mesh expects Firmament (.firmament, .firmfixture) or STEP (.step, .stp) input."); return 1; }
+        var imported = Step242Importer.ImportBody(stepText);
+        if (!imported.IsSuccess || imported.Value is null) return WriteMeshFailure(imported.Diagnostics.Select(d => d.Message), json, fullInput, stdout, stderr);
+        string? irFailure = null;
+        if (!SurfaceMeshIrTessellator.TryBuild(imported.Value, SurfaceMeshPolicy.FromDisplayOptions(DisplayTessellationOptions.Default), out var document)
+            || !SurfaceMeshIrValidator.TryValidate(document, out irFailure)
+            || !SurfaceMeshIrTessellator.TryLowerToTriangleMesh(document, out var mesh, out var topology))
+            return WriteMeshFailure([irFailure ?? "SurfaceMeshIR does not support this B-rep family or its topology did not validate."], json, fullInput, stdout, stderr);
+        if (!string.IsNullOrWhiteSpace(debugIr))
+        {
+            var debugPath = Path.GetFullPath(debugIr);
+            Directory.CreateDirectory(Path.GetDirectoryName(debugPath)!);
+            File.WriteAllText(debugPath, SurfaceMeshIrDebug.ToJson(document));
+        }
+        var outputPath = Path.GetFullPath(output ?? Path.ChangeExtension(fullInput, ".stl"));
+        Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
+        BinaryStlExporter.Export(outputPath, mesh);
+        var bytes = new FileInfo(outputPath).Length;
+        if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "mesh", success = true, pipeline = "SurfaceMeshIR", input = fullInput, outputPath, format = "binary-stl", triangleCount = topology.TriangleCount, vertexCount = topology.VertexCount, watertight = topology.IsWatertight, maxChordalDeviation = document.Metrics.MaxChordalDeviation, normalDeviation = document.Metrics.MaxNormalDeviation, deterministicHash = mesh.DeterministicHash, bytes }, JsonOptions));
+        else stdout.WriteLine($"SurfaceMeshIR STL: {outputPath}\nTriangles: {topology.TriangleCount}; watertight: {topology.IsWatertight}; max chordal error: {document.Metrics.MaxChordalDeviation:R}");
+        return 0;
+    }
+
+    private static int WriteMeshFailure(IEnumerable<string> diagnostics, bool json, string input, TextWriter stdout, TextWriter stderr)
+    {
+        var messages = diagnostics.ToArray();
+        if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "mesh", success = false, input, diagnostics = messages }, JsonOptions));
+        else foreach (var message in messages) stderr.WriteLine($"Mesh failed: {message}");
+        return 1;
     }
 
     private static int RunInspect(string[] args, TextWriter stdout, TextWriter stderr)

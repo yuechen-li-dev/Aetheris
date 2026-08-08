@@ -1,0 +1,32 @@
+{
+  "fixture": "fixtures/FirmamentV2/Hole/valid/hole-x4-shaft-through.valid.firmfixture",
+  "pipeline": "SurfaceMeshIR",
+  "patchCount": 7,
+  "irVertexCount": 258,
+  "cellCount": 184,
+  "quadCount": 180,
+  "boundaryPolygonCount": 4,
+  "circleSampleCount": 36,
+  "cylinderAxialRows": 1,
+  "finalTriangleCount": 504,
+  "finalVertexCount": 262,
+  "maxChordalDeviation": 0.01522120763301782,
+  "maxNormalDeviation": 0.0,
+  "watertight": true,
+  "crackCount": 0,
+  "nonManifoldEdgeCount": 0,
+  "deterministicMeshHash": "f505aa921fc9d890caaf309670672e92ffb329834ffadb4538f622effcea8663",
+  "stlBytes": 25284,
+  "stlSha256": "fcc034d64252bc4f275c9c02f8039b645ac17e886d421fec3342f7a31d3e1a5a",
+  "externalFreeCad": {
+    "version": "1.0.2",
+    "facets": 504,
+    "points": 252,
+    "solid": true,
+    "capFacetCount": 288,
+    "minimumCapCentroidRadiusMm": 7.509616287,
+    "trimClear": true,
+    "boundsMm": [100.0, 60.0, 12.0],
+    "volumeMm3": 72200.078125
+  }
+}

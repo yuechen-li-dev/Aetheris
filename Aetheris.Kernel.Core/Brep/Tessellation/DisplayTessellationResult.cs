@@ -6,12 +6,21 @@ namespace Aetheris.Kernel.Core.Brep.Tessellation;
 public sealed record DisplayTessellationResult(
     IReadOnlyList<DisplayFaceMeshPatch> FacePatches,
     IReadOnlyList<DisplayEdgePolyline> EdgePolylines,
-    IReadOnlyList<DisplayFaceMaterializationDiagnostic>? FaceDiagnostics = null);
+    IReadOnlyList<DisplayFaceMaterializationDiagnostic>? FaceDiagnostics = null,
+    DisplayMeshPipeline MeshPipeline = DisplayMeshPipeline.LegacyTessellator,
+    SurfaceMeshMetrics? SurfaceMeshMetrics = null);
+
+public enum DisplayMeshPipeline
+{
+    LegacyTessellator,
+    SurfaceMeshIr,
+}
 
 public enum DisplayFaceMeshSource
 {
     Tessellator,
     BsplineUvScaffold,
+    SurfaceMeshIr,
 }
 
 public sealed record DisplayFaceMeshPatch(

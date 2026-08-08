@@ -415,16 +415,37 @@ public static class BrepMassProperties
             }
             case CurveGeometryKind.Circle3 when curve.Circle3 is { } circle && System.Math.Abs(circle.Normal.ToVector().Z) > 1d - 1e-8d:
             {
-                var sign = circle.Normal.ToVector().Z >= 0d ? 1d : -1d;
-                var a = start * sign; var b = end * sign;
-                areaTwice = (circle.Center.X * circle.Radius * (System.Math.Sin(b) - System.Math.Sin(a)))
-                    - (circle.Center.Y * circle.Radius * (System.Math.Cos(b) - System.Math.Cos(a)))
-                    + (circle.Radius * circle.Radius * (b - a));
+                areaTwice = IntegrateConicAreaTwice(
+                    circle.Center,
+                    circle.XAxis.ToVector() * circle.Radius,
+                    circle.YAxis.ToVector() * circle.Radius,
+                    start,
+                    end);
+                return true;
+            }
+            case CurveGeometryKind.Ellipse3 when curve.Ellipse3 is { } ellipse && System.Math.Abs(ellipse.Normal.ToVector().Z) > 1d - 1e-8d:
+            {
+                areaTwice = IntegrateConicAreaTwice(
+                    ellipse.Center,
+                    ellipse.XAxis.ToVector() * ellipse.MajorRadius,
+                    ellipse.YAxis.ToVector() * ellipse.MinorRadius,
+                    start,
+                    end);
                 return true;
             }
             default:
                 return false;
         }
+    }
+
+    private static double IntegrateConicAreaTwice(Point3D center, Vector3D cosineAxis, Vector3D sineAxis, double start, double end)
+    {
+        static double Primitive(Point3D c, Vector3D a, Vector3D b, double t)
+            => (c.X * ((a.Y * System.Math.Sin(t)) - (b.Y * System.Math.Cos(t))))
+                - (c.Y * ((a.X * System.Math.Sin(t)) - (b.X * System.Math.Cos(t))))
+                + (((a.X * b.Y) - (a.Y * b.X)) * t);
+
+        return Primitive(center, cosineAxis, sineAxis, end) - Primitive(center, cosineAxis, sineAxis, start);
     }
 
     private static bool TryEvaluateExactAxisAlignedBoxQuarterCylinderFillet(
@@ -732,6 +753,7 @@ public static class BrepMassProperties
         {
             var faceVolume = 0d;
             var faceArea = 0d;
+            var faceMoment = Vector3D.Zero;
             var coherent = true;
             var senseAvailable = body.Bindings.TryGetFaceBinding(patch.FaceId, out var binding);
             if (!senseAvailable) return new(0d, 0d, Vector3D.Zero, [], $"Face {patch.FaceId.Value} has no face-sense binding.");
@@ -763,14 +785,69 @@ public static class BrepMassProperties
                 var tetraVolume = av.Dot(bv.Cross(cv)) / 6d;
                 faceArea += triangleArea;
                 faceVolume += tetraVolume;
-                moment += (av + bv + cv) * (tetraVolume / 4d);
+                faceMoment += (av + bv + cv) * (tetraVolume / 4d);
+            }
+            // Horizontal analytic faces are common cap faces whose trims may
+            // contain exact circular or elliptical arcs.  Integrating their
+            // boundary with Green's theorem avoids assigning the area of the
+            // chordal display polygon to the authoritative boundary integral.
+            // Curved supports remain on the numerical path below; this is a
+            // deliberately narrow exact lane, not a claim that the whole body
+            // has become analytic.
+            if (TryEvaluateHorizontalPlanarFace(body, patch.FaceId, out var exactPlanarArea, out var exactPlanarVolume))
+            {
+                var meshVolume = faceVolume;
+                faceVolume = exactPlanarVolume;
+                faceArea = exactPlanarArea;
+                if (System.Math.Abs(meshVolume) > 1e-18d)
+                {
+                    faceMoment *= faceVolume / meshVolume;
+                }
             }
             volume += faceVolume;
             area += faceArea;
+            moment += faceMoment;
             body.TryGetFaceSurfaceGeometry(patch.FaceId, out var surface);
             contributions.Add(new(patch.FaceId, surface?.Kind, faceVolume, faceArea, patch.TriangleIndices.Count / 3, senseAvailable, binding.SameSense, coherent));
         }
         return new(volume, area, moment, contributions, null);
+    }
+
+    private static bool TryEvaluateHorizontalPlanarFace(BrepBody body, FaceId faceId, out double area, out double signedVolume)
+    {
+        area = 0d;
+        signedVolume = 0d;
+        if (!body.TryGetFaceSurfaceGeometry(faceId, out var surface)
+            || surface?.Kind != SurfaceGeometryKind.Plane
+            || surface.Plane is not { } plane
+            || System.Math.Abs(plane.Normal.ToVector().Z) < 1d - 1e-10d)
+            return false;
+
+        var loops = body.GetLoopIds(faceId);
+        // Multi-loop planar faces require geometric containment classification;
+        // leave them on the established path until that role is explicit.
+        if (loops.Count != 1)
+            return false;
+
+        var signedArea = 0d;
+        foreach (var loopId in loops)
+        {
+            var loopAreaTwice = 0d;
+            foreach (var coedgeId in body.GetCoedgeIds(loopId))
+            {
+                var coedge = body.Topology.GetCoedge(coedgeId);
+                var edge = body.Topology.GetEdge(coedge.EdgeId);
+                var from = DirectedEdgeUse.Resolve(edge, coedge).StartVertexId;
+                if (!TrySignedPlanarCurveAreaTwice(body, edge.Id, from, out var contribution))
+                    return false;
+                loopAreaTwice += contribution;
+            }
+            signedArea += loopAreaTwice / 2d;
+        }
+
+        area = System.Math.Abs(signedArea);
+        signedVolume = plane.Origin.Z * plane.Normal.ToVector().Z * area / 3d;
+        return double.IsFinite(area) && area > 0d && double.IsFinite(signedVolume);
     }
 
     private static BrepMassPropertiesTopologyDiagnostics ValidateTopology(BrepBody body)

@@ -2,6 +2,7 @@ using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Kernel.Firmament.Materializer;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Step242;
+using Aetheris.Kernel.Core.Brep.Verification;
 
 namespace Aetheris.Kernel.Firmament.Tests.Integration;
 
@@ -167,6 +168,28 @@ public sealed class ProfileEdgeFinishMixedShellPlanTests
         Assert.Equal(tori, body.Geometry.Surfaces.Count(surface => surface.Value.Kind == SurfaceGeometryKind.Torus));
         Assert.Equal(6, body.Geometry.Curves.Count(curve => curve.Value.Kind == CurveGeometryKind.Ellipse3));
         Assert.Equal(0, body.Geometry.Surfaces.Count(surface => surface.Value.Kind == SurfaceGeometryKind.BSplineSurfaceWithKnots));
+    }
+
+    [Theory]
+    [InlineData("profile-edgefinish-chimera-fillet.firmament", 34224.362848131015)]
+    [InlineData("profile-edgefinish-chimera-reflex-sphere-compat.firmament", 34460.92921874538)]
+    public void SevenStationFillet_ReimportedHorizontalCapUsesExactCurvedBoundaryArea(string fixture, double expectedTopArea)
+    {
+        var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/FirmamentV2/Canonical/valid/{fixture}");
+        var built = FirmamentBuildAndExport.Run(source, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
+        Assert.True(built.IsSuccess, string.Join(Environment.NewLine, built.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        var imported = Step242Importer.ImportBody(built.Value.Export.StepText);
+        Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(diagnostic => diagnostic.Message)));
+
+        var mass = BrepMassProperties.Evaluate(Assert.IsType<Aetheris.Kernel.Core.Brep.BrepBody>(imported.Value));
+        var top = Assert.Single(mass.FaceContributions, contribution =>
+            contribution.SurfaceKind == SurfaceGeometryKind.Plane
+            && contribution.SurfaceArea > 30_000d
+            && contribution.SignedVolume > 200_000d
+            && contribution.SignedVolume < 300_000d);
+
+        Assert.Equal(expectedTopArea, top.SurfaceArea, 8);
+        Assert.Equal(expectedTopArea * 8d, top.SignedVolume, 8);
     }
 
     private static (ResolvedProfile2D Profile, ProfileBoundaryChamferTarget Target) ReleaseCard(string fixture, ProfileEdgeFinishKind kind)

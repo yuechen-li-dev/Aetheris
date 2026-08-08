@@ -28,7 +28,7 @@ and SHA-256 values are in the manifest rather than duplicated here.
 | RoundedRectangle slot | `slot-rounded-rectangle.step` | pass | pass, no healing | not selected | Plane, Cylinder | pass |
 | Concept Path L-bracket | `profile-l-bracket.step` | pass | pass, no healing | manual smoke pending | Plane; conventional prismatic topology | pass |
 | Four-hole Pattern | `pattern-four-hole.step` | pass | pass, no healing | not selected | Plane, Cylinder | pass |
-| Mixed supported Chamfer | `edgefinish-chamfer.step` | pass | pass, no healing | manual smoke pending | Plane, Cone, Cylinder | pass |
+| Mixed supported Chamfer | `edgefinish-chamfer.step` | pass | pass, no healing | imports, but Parasolid materialization defect observed | Plane, Cone, Cylinder | pass in Aetheris/OCCT/ACIS; see known limitation |
 | Bounded reflex Fillet | `edgefinish-fillet-bounded.step` | pass | pass, no healing | manual smoke pending | Plane, Cylinder | pass |
 | Projected HoleDiameter PMI | `pmi-projected-hole.step` | pass | pass, no healing | manual smoke pending | semantic PMI emitted; downstream display not asserted | pass |
 | Whole-loop Fillet chimera | `experimental-edgefinish-fillet-chimera.step` | pass | pass, no healing | manual smoke pending | Plane/Cylinder/Sphere; **Experimental** | evidence only |
@@ -38,6 +38,17 @@ FreeCAD's queried surface class counts are retained in `freecad-smoke.json`.
 Aetheris's importer reports zero B-spline surfaces in this corpus. The
 experimental entries remain Experimental: successful import does not close the
 separate curved-trim mass-verification blocker.
+
+### Known downstream limitation: Parasolid chamfer materialization
+
+Manual evidence shows the generated chamfer artifact renders correctly in
+ACIS-based Fusion 360 and OCCT-based CAD Assistant/FreeCAD, while a
+Parasolid-based downstream importer does not materialize the chamfer correctly.
+The exported STEP remains valid in Aetheris and OCCT and needs no healing.
+Classify this as an `INTEROP` limitation in the downstream Parasolid import
+path, not as a reason to silently alter or heal Aetheris geometry. Users
+targeting Parasolid-based CAD should visually inspect supported chamfers after
+import.
 
 ## Existing-model route
 
@@ -69,7 +80,7 @@ manual-reader evidence.
 | --- | --- | --- |
 | Firmament -> STEP -> Aetheris | Supported | 17 release artifacts self-reimported cleanly. |
 | Firmament -> STEP -> FreeCAD/OCCT | Supported | 17/17 valid, closed imports; no explicit healing. |
-| Firmament -> STEP -> SolidWorks | Smoke-tested subset pending | SolidWorks is installed; manual visual/import evidence remains required. |
+| Firmament -> STEP -> SolidWorks / Parasolid | Smoke-tested with limitation | General subset works as manually checked; supported chamfers may not materialize correctly in Parasolid import. |
 | Existing canonical analytic STEP -> Analyze | SupportedBounded | Sequential semantic face IDs and traceability. |
 | Existing canonical STEP -> Hole recognition/replacement | SupportedBounded | HoleShaft / DatumPlane recognition; ThroughAll Shaft replacement. |
 | Arbitrary spline-heavy foreign STEP | Unsupported/limited | Clear bounded failure is required; no general healing/decompilation. |

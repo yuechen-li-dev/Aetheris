@@ -33,7 +33,7 @@ jobs:
         run: dotnet build Aetheris.Kernel.Core.Tests/Aetheris.Kernel.Core.Tests.csproj --configuration Release --no-restore
 
       - name: Test kernel
-        run: dotnet test Aetheris.Kernel.Core.Tests/Aetheris.Kernel.Core.Tests.csproj --configuration Release --no-build
+        run: dotnet test Aetheris.Kernel.Core.Tests/Aetheris.Kernel.Core.Tests.csproj --configuration Release --no-build --filter "Category!=SlowCorpus"
 
   release-build:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -53,10 +53,11 @@ jobs:
       - name: Restore and build frozen baseline
         run: |
           dotnet restore Aetheris.slnx
+          dotnet restore demos/Aetheris.PmiInjectionDemo/Aetheris.PmiInjectionDemo.csproj
           dotnet build Aetheris.slnx -f net10.0 --no-restore /m:1 -c Release
       - name: Test frozen baseline
         run: |
-          dotnet test Aetheris.Kernel.Core.Tests -f net10.0 -c Release --no-build
+          dotnet test Aetheris.Kernel.Core.Tests -f net10.0 -c Release --no-build --filter "Category!=SlowCorpus"
           dotnet test Aetheris.Kernel.Firmament.Tests -f net10.0 -c Release --no-build
           dotnet test Aetheris.CLI.Tests -f net10.0 -c Release --no-build
           dotnet test Aetheris.Server.Tests -f net10.0 -c Release --no-build

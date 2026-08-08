@@ -41,9 +41,15 @@ public sealed record SharedEdgeSamplePlan(
     bool IsClosed,
     double MaxChordalDeviation);
 
-public enum SurfaceMeshSupportKind { Plane, Cylinder }
+public enum SurfaceMeshSupportKind { Plane, Cylinder, Cone, Sphere, Torus }
 public enum SurfaceMeshCellKind { Quad, Triangle, BoundaryPolygon, Singular }
-public sealed record SurfaceMeshSupport(SurfaceMeshSupportKind Kind, PlaneSurface? Plane = null, CylinderSurface? Cylinder = null);
+public sealed record SurfaceMeshSupport(
+    SurfaceMeshSupportKind Kind,
+    PlaneSurface? Plane = null,
+    CylinderSurface? Cylinder = null,
+    ConeSurface? Cone = null,
+    SphereSurface? Sphere = null,
+    TorusSurface? Torus = null);
 
 public abstract record SurfaceMeshCell(SurfaceMeshCellKind Kind, IReadOnlyList<int> VertexIds, int RefinementLevel = 0, int? ParentCellId = null);
 public sealed record QuadCell(IReadOnlyList<int> VertexIds, int RefinementLevel = 0, int? ParentCellId = null)
@@ -63,8 +69,10 @@ public sealed record SurfacePatch(
     bool SameSense,
     string? SemanticOwner = null,
     bool HasPeriodicUSeam = false,
+    bool HasPeriodicVSeam = false,
     int MaxRefinementLevel = 0,
-    IReadOnlyList<SurfaceMeshTrimLoop>? TrimLoopData = null);
+    IReadOnlyList<SurfaceMeshTrimLoop>? TrimLoopData = null,
+    string? ChartId = null);
 
 public enum SurfaceMeshDownstreamIntent { Presentation, Manufacturing, Fea }
 
@@ -98,9 +106,9 @@ public static class SurfaceMeshIrDebug
 }
 
 /// <summary>
-/// M1 planner/lowerer for closed Plane/Cylinder solids with line/circle trims.
-/// It intentionally returns false for more general trimming so the named legacy
-/// display tessellator remains a visible migration fallback.
+/// Planner/lowerer for the analytic surface subset with explicit support topology.
+/// General trim remeshing remains a visible legacy fallback; supported patches retain
+/// quads until the final deterministic triangle lowering step.
 /// </summary>
 public static class SurfaceMeshIrTessellator
 {
@@ -174,7 +182,11 @@ public static class SurfaceMeshIrTessellator
 
     private static IReadOnlySet<(int A, int B)> BuildHardEdges(SurfaceMeshDocument document, IReadOnlyDictionary<int, int> indexById)
     {
-        var supportByFace = document.Patches.ToDictionary(p => p.FaceId, p => p.Support.Kind);
+        // Multi-chart supports such as a sphere legitimately contribute several
+        // patches for one B-rep face; all charts share the same smooth support.
+        var supportByFace = document.Patches
+            .GroupBy(patch => patch.FaceId)
+            .ToDictionary(group => group.Key, group => group.First().Support.Kind);
         var hard = new HashSet<(int A, int B)>();
         foreach (var boundary in document.SharedBoundaries)
         {
@@ -209,13 +221,35 @@ public static class SurfaceMeshIrTessellator
         foreach (var face in body.Topology.Faces.OrderBy(f => f.Id.Value))
         {
             if (!body.TryGetFaceSurfaceGeometry(face.Id, out var surface) || surface is null ||
-                surface.Kind is not (SurfaceGeometryKind.Plane or SurfaceGeometryKind.Cylinder) ||
+                surface.Kind is not (SurfaceGeometryKind.Plane or SurfaceGeometryKind.Cylinder or SurfaceGeometryKind.Cone or SurfaceGeometryKind.Sphere or SurfaceGeometryKind.Torus) ||
                 !body.Bindings.TryGetFaceBinding(face.Id, out var faceBinding)) return false;
-            var patch = surface.Kind == SurfaceGeometryKind.Plane
-                ? TryBuildPlanePatch(body, face.Id, faceBinding.SameSense, surface.Plane!.Value, byEdge, vertices, ref nextVertexId)
-                : TryBuildCylinderPatch(body, face.Id, faceBinding.SameSense, surface.Cylinder!.Value, byEdge);
-            if (patch is null) return false;
-            patches.Add(patch);
+            switch (surface.Kind)
+            {
+                case SurfaceGeometryKind.Plane:
+                    var planePatch = TryBuildPlanePatch(body, face.Id, faceBinding.SameSense, surface.Plane!.Value, byEdge, vertices, ref nextVertexId);
+                    if (planePatch is null) return false;
+                    patches.Add(planePatch);
+                    break;
+                case SurfaceGeometryKind.Cylinder:
+                    var cylinderPatch = TryBuildCylinderPatch(body, face.Id, faceBinding.SameSense, surface.Cylinder!.Value, byEdge);
+                    if (cylinderPatch is null) return false;
+                    patches.Add(cylinderPatch);
+                    break;
+                case SurfaceGeometryKind.Cone:
+                    var conePatch = TryBuildConePatch(body, face.Id, faceBinding.SameSense, surface.Cone!.Value, byEdge);
+                    if (conePatch is null) return false;
+                    patches.Add(conePatch);
+                    break;
+                case SurfaceGeometryKind.Sphere:
+                    if (!TryBuildSphereCharts(body, face.Id, faceBinding.SameSense, surface.Sphere!.Value, vertices, ref nextVertexId, out var spherePatches)) return false;
+                    patches.AddRange(spherePatches);
+                    break;
+                case SurfaceGeometryKind.Torus:
+                    var torusPatch = TryBuildTorusPatch(body, face.Id, faceBinding.SameSense, surface.Torus!.Value, byEdge, policy, vertices, ref nextVertexId);
+                    if (torusPatch is null) return false;
+                    patches.Add(torusPatch);
+                    break;
+            }
         }
 
         vertices = vertices.GroupBy(v => v.Id).Select(g => g.First()).OrderBy(v => v.Id).ToList();
@@ -256,6 +290,11 @@ public static class SurfaceMeshIrTessellator
                 closed = double.Abs(double.Abs(span) - (2d * double.Pi)) <= Epsilon;
                 chordError = circle.Radius * (1d - double.Cos(double.Abs(span) / (2d * segments)));
                 break;
+            case CurveGeometryKind.Hyperbola3 when curve.Hyperbola3 is { } hyperbola:
+                sampled = SampleHyperbola(hyperbola, interval, policy);
+                closed = false;
+                chordError = ComputePolylineChordDeviation(hyperbola.Evaluate, sampled);
+                break;
             default: return false;
         }
         if (!body.TryGetEdgeVertices(edgeId, out var startVertex, out var endVertex)) return false;
@@ -288,6 +327,53 @@ public static class SurfaceMeshIrTessellator
         // dedicated edge-density knob; legacy display callers historically receive 36.
         var baseline = double.Abs(double.Abs(span) - (2d * double.Pi)) <= Epsilon ? 36 : 1;
         return int.Max(baseline, int.Max(1, int.Max(chord, normal)));
+    }
+
+    private static List<(double Parameter, Point3D Point)> SampleHyperbola(Hyperbola3Curve hyperbola, ParameterInterval interval, SurfaceMeshPolicy policy)
+    {
+        var samples = new List<(double Parameter, Point3D Point)> { (interval.Start, hyperbola.Evaluate(interval.Start)) };
+        AppendHyperbolaSegment(hyperbola, interval.Start, interval.End, samples[0].Point, hyperbola.Evaluate(interval.End), policy, samples, 0);
+        return samples;
+    }
+
+    private static void AppendHyperbolaSegment(
+        Hyperbola3Curve hyperbola,
+        double start,
+        double end,
+        Point3D startPoint,
+        Point3D endPoint,
+        SurfaceMeshPolicy policy,
+        List<(double Parameter, Point3D Point)> samples,
+        int depth)
+    {
+        var middle = (start + end) * 0.5d;
+        var middlePoint = hyperbola.Evaluate(middle);
+        var chordMidpoint = new Point3D((startPoint.X + endPoint.X) * 0.5d, (startPoint.Y + endPoint.Y) * 0.5d, (startPoint.Z + endPoint.Z) * 0.5d);
+        var deviation = (middlePoint - chordMidpoint).Length;
+        if (depth >= policy.MaxRefinementDepth || samples.Count + 1 >= policy.MaxBoundarySamples || deviation <= policy.TargetChordalError)
+        {
+            samples.Add((end, endPoint));
+            return;
+        }
+
+        AppendHyperbolaSegment(hyperbola, start, middle, startPoint, middlePoint, policy, samples, depth + 1);
+        AppendHyperbolaSegment(hyperbola, middle, end, middlePoint, endPoint, policy, samples, depth + 1);
+    }
+
+    private static double ComputePolylineChordDeviation(Func<double, Point3D> evaluate, IReadOnlyList<(double Parameter, Point3D Point)> samples)
+    {
+        var worst = 0d;
+        for (var index = 0; index + 1 < samples.Count; index++)
+        {
+            var middle = (samples[index].Parameter + samples[index + 1].Parameter) * 0.5d;
+            var midpoint = evaluate(middle);
+            var chordMidpoint = new Point3D(
+                (samples[index].Point.X + samples[index + 1].Point.X) * 0.5d,
+                (samples[index].Point.Y + samples[index + 1].Point.Y) * 0.5d,
+                (samples[index].Point.Z + samples[index + 1].Point.Z) * 0.5d);
+            worst = double.Max(worst, (midpoint - chordMidpoint).Length);
+        }
+        return worst;
     }
 
     private static SurfacePatch? TryBuildPlanePatch(BrepBody body, FaceId faceId, bool sameSense, PlaneSurface plane, IReadOnlyDictionary<EdgeId, SharedEdgeSamplePlan> plans, List<SurfaceMeshVertex> vertices, ref int nextVertexId)
@@ -373,6 +459,251 @@ public static class SurfaceMeshIrTessellator
         }
         return new SurfacePatch(faceId, new SurfaceMeshSupport(SurfaceMeshSupportKind.Cylinder, Cylinder: cylinder), loops, cells, sameSense, HasPeriodicUSeam: true);
     }
+
+    private static SurfacePatch? TryBuildConePatch(BrepBody body, FaceId faceId, bool sameSense, ConeSurface cone, IReadOnlyDictionary<EdgeId, SharedEdgeSamplePlan> plans)
+    {
+        var loops = body.GetLoopIds(faceId);
+        var circles = loops
+            .SelectMany(loop => body.GetCoedgeIds(loop).Select(body.Topology.GetCoedge))
+            .Select(coedge => plans[coedge.EdgeId])
+            .Where(plan => plan.CurveKind == CurveGeometryKind.Circle3 && plan.IsClosed)
+            .DistinctBy(plan => plan.EdgeId)
+            .ToArray();
+        if (circles.Length != 2 || circles[0].Samples.Count != circles[1].Samples.Count)
+        {
+            return null;
+        }
+
+        var rings = circles.Select(plan => plan.Samples.Take(plan.Samples.Count - 1).ToArray()).ToArray();
+        if (rings[0].Length < 3)
+        {
+            return null;
+        }
+
+        var v0 = cone.AxialParameterFromPoint(rings[0][0].Position);
+        var v1 = cone.AxialParameterFromPoint(rings[1][0].Position);
+        if (!double.IsFinite(v0) || !double.IsFinite(v1) || double.Abs(v1 - v0) <= Epsilon)
+        {
+            return null;
+        }
+
+        var lower = v0 <= v1 ? rings[0] : rings[1];
+        var upper = v0 <= v1 ? rings[1] : rings[0];
+        var cells = new List<SurfaceMeshCell>(lower.Length);
+        for (var i = 0; i < lower.Length; i++)
+        {
+            var next = (i + 1) % lower.Length;
+            cells.Add(new QuadCell(Orient([lower[i].Id, lower[next].Id, upper[next].Id, upper[i].Id], sameSense)));
+        }
+
+        return new SurfacePatch(
+            faceId,
+            new SurfaceMeshSupport(SurfaceMeshSupportKind.Cone, Cone: cone),
+            loops,
+            cells,
+            sameSense,
+            HasPeriodicUSeam: true);
+    }
+
+    private static bool TryBuildSphereCharts(
+        BrepBody body,
+        FaceId faceId,
+        bool sameSense,
+        SphereSurface sphere,
+        List<SurfaceMeshVertex> vertices,
+        ref int nextVertexId,
+        out IReadOnlyList<SurfacePatch> patches)
+    {
+        // A six-chart cube sphere has no pole fan.  Integer cube-grid coordinates
+        // are the seam identity: neighboring charts literally reuse vertex IDs.
+        if (body.GetLoopIds(faceId).Count != 0)
+        {
+            patches = [];
+            return false;
+        }
+
+        const int subdivisions = 6;
+        var seamVertices = new Dictionary<(int X, int Y, int Z), int>();
+        var byId = vertices.ToDictionary(vertex => vertex.Id);
+        var chartDefinitions = new[]
+        {
+            new CubeChart("+X", (1, 0, 0), (0, 1, 0), (0, 0, 1)),
+            new CubeChart("-X", (-1, 0, 0), (0, 0, 1), (0, 1, 0)),
+            new CubeChart("+Y", (0, 1, 0), (0, 0, 1), (1, 0, 0)),
+            new CubeChart("-Y", (0, -1, 0), (1, 0, 0), (0, 0, 1)),
+            new CubeChart("+Z", (0, 0, 1), (1, 0, 0), (0, 1, 0)),
+            new CubeChart("-Z", (0, 0, -1), (0, 1, 0), (1, 0, 0)),
+        };
+        var result = new List<SurfacePatch>(chartDefinitions.Length);
+        foreach (var chart in chartDefinitions)
+        {
+            var grid = new int[subdivisions + 1, subdivisions + 1];
+            for (var row = 0; row <= subdivisions; row++)
+            {
+                for (var column = 0; column <= subdivisions; column++)
+                {
+                    var numeratorX = (chart.Normal.X * subdivisions) + (chart.U.X * ((2 * column) - subdivisions)) + (chart.V.X * ((2 * row) - subdivisions));
+                    var numeratorY = (chart.Normal.Y * subdivisions) + (chart.U.Y * ((2 * column) - subdivisions)) + (chart.V.Y * ((2 * row) - subdivisions));
+                    var numeratorZ = (chart.Normal.Z * subdivisions) + (chart.U.Z * ((2 * column) - subdivisions)) + (chart.V.Z * ((2 * row) - subdivisions));
+                    var key = (numeratorX, numeratorY, numeratorZ);
+                    if (!seamVertices.TryGetValue(key, out var id))
+                    {
+                        var cube = new Vector3D(numeratorX, numeratorY, numeratorZ);
+                        var unit = cube / cube.Length;
+                        var position = sphere.Center
+                            + (sphere.XAxis.ToVector() * (sphere.Radius * unit.X))
+                            + (sphere.YAxis.ToVector() * (sphere.Radius * unit.Y))
+                            + (sphere.Axis.ToVector() * (sphere.Radius * unit.Z));
+                        id = nextVertexId++;
+                        var vertex = new SurfaceMeshVertex(id, position, column / (double)subdivisions, row / (double)subdivisions);
+                        vertices.Add(vertex);
+                        byId.Add(id, vertex);
+                        seamVertices.Add(key, id);
+                    }
+                    grid[row, column] = id;
+                }
+            }
+
+            var cells = new List<SurfaceMeshCell>(subdivisions * subdivisions);
+            for (var row = 0; row < subdivisions; row++)
+            {
+                for (var column = 0; column < subdivisions; column++)
+                {
+                    cells.Add(new QuadCell(Orient([grid[row, column], grid[row, column + 1], grid[row + 1, column + 1], grid[row + 1, column]], sameSense)));
+                }
+            }
+            result.Add(new SurfacePatch(faceId, new SurfaceMeshSupport(SurfaceMeshSupportKind.Sphere, Sphere: sphere), [], cells, sameSense, ChartId: chart.Name));
+        }
+
+        patches = result;
+        return true;
+    }
+
+    private static SurfacePatch? TryBuildTorusPatch(
+        BrepBody body,
+        FaceId faceId,
+        bool sameSense,
+        TorusSurface torus,
+        IReadOnlyDictionary<EdgeId, SharedEdgeSamplePlan> plans,
+        SurfaceMeshPolicy policy,
+        List<SurfaceMeshVertex> vertices,
+        ref int nextVertexId)
+    {
+        if (body.GetLoopIds(faceId).Count != 1)
+        {
+            return null;
+        }
+
+        var seamPlans = body.GetCoedgeIds(body.GetLoopIds(faceId)[0])
+            .Select(body.Topology.GetCoedge)
+            .Select(coedge => plans[coedge.EdgeId])
+            .Where(plan => plan.CurveKind == CurveGeometryKind.Circle3 && plan.IsClosed)
+            .DistinctBy(plan => plan.EdgeId)
+            .ToArray();
+        if (seamPlans.Length != 2)
+        {
+            return null;
+        }
+
+        var parameters = seamPlans
+            .Select(plan => (Plan: plan, Samples: plan.Samples.Take(plan.Samples.Count - 1).Select(sample => (Sample: sample, Uv: TryProjectPointToTorusUv(torus, sample.Position))).ToArray()))
+            .ToArray();
+        if (parameters.Any(entry => entry.Samples.Any(sample => sample.Uv is null)))
+        {
+            return null;
+        }
+
+        var major = parameters.OrderByDescending(entry => CircularSpan(entry.Samples.Select(sample => sample.Uv!.Value.U))).First();
+        var minor = parameters.Single(entry => entry.Plan.EdgeId != major.Plan.EdgeId);
+        var uSegments = System.Math.Max(major.Samples.Length, ResolveCircleSegments(torus.MajorRadius + torus.MinorRadius, 2d * double.Pi, policy));
+        var vSegments = System.Math.Max(minor.Samples.Length, ResolveCircleSegments(torus.MinorRadius, 2d * double.Pi, policy));
+        var seamIds = new Dictionary<(int U, int V), SurfaceMeshVertex>();
+        AddTorusSeamSamples(major.Samples, uSegments, vSegments, seamIds);
+        AddTorusSeamSamples(minor.Samples, uSegments, vSegments, seamIds);
+
+        var grid = new int[uSegments, vSegments];
+        for (var uIndex = 0; uIndex < uSegments; uIndex++)
+        {
+            for (var vIndex = 0; vIndex < vSegments; vIndex++)
+            {
+                if (seamIds.TryGetValue((uIndex, vIndex), out var sampled))
+                {
+                    grid[uIndex, vIndex] = sampled.Id;
+                    continue;
+                }
+
+                var u = (2d * double.Pi * uIndex) / uSegments;
+                var v = (2d * double.Pi * vIndex) / vSegments;
+                var vertex = new SurfaceMeshVertex(nextVertexId++, torus.Evaluate(u, v), u, v);
+                vertices.Add(vertex);
+                grid[uIndex, vIndex] = vertex.Id;
+            }
+        }
+
+        var cells = new List<SurfaceMeshCell>(uSegments * vSegments);
+        for (var uIndex = 0; uIndex < uSegments; uIndex++)
+        {
+            for (var vIndex = 0; vIndex < vSegments; vIndex++)
+            {
+                var nextU = (uIndex + 1) % uSegments;
+                var nextV = (vIndex + 1) % vSegments;
+                cells.Add(new QuadCell(Orient([grid[uIndex, vIndex], grid[nextU, vIndex], grid[nextU, nextV], grid[uIndex, nextV]], sameSense)));
+            }
+        }
+        return new SurfacePatch(faceId, new SurfaceMeshSupport(SurfaceMeshSupportKind.Torus, Torus: torus), body.GetLoopIds(faceId), cells, sameSense, HasPeriodicUSeam: true, HasPeriodicVSeam: true);
+    }
+
+    private static void AddTorusSeamSamples(
+        IReadOnlyList<(SurfaceMeshVertex Sample, (double U, double V)? Uv)> samples,
+        int uSegments,
+        int vSegments,
+        IDictionary<(int U, int V), SurfaceMeshVertex> seamIds)
+    {
+        foreach (var (sample, uv) in samples)
+        {
+            if (uv is not { } value)
+            {
+                continue;
+            }
+            var u = ((int)System.Math.Round(value.U / (2d * double.Pi) * uSegments)) % uSegments;
+            var v = ((int)System.Math.Round(value.V / (2d * double.Pi) * vSegments)) % vSegments;
+            seamIds.TryAdd((U: u, V: v), sample);
+        }
+    }
+
+    private static (double U, double V)? TryProjectPointToTorusUv(TorusSurface torus, Point3D point)
+    {
+        var axis = torus.Axis.ToVector();
+        var offset = point - torus.Center;
+        var axial = offset.Dot(axis);
+        var planar = offset - (axis * axial);
+        var planarLength = planar.Length;
+        if (planarLength <= Epsilon)
+        {
+            return null;
+        }
+        var u = NormalizeAngle(double.Atan2(planar.Dot(torus.YAxis.ToVector()), planar.Dot(torus.XAxis.ToVector())));
+        var v = NormalizeAngle(double.Atan2(axial, planarLength - torus.MajorRadius));
+        return (u, v);
+    }
+
+    private static double CircularSpan(IEnumerable<double> angles)
+    {
+        var values = angles.OrderBy(value => value).ToArray();
+        if (values.Length < 2)
+        {
+            return 0d;
+        }
+        return values.Zip(values.Skip(1), (a, b) => b - a).DefaultIfEmpty().Max();
+    }
+
+    private static double NormalizeAngle(double angle)
+    {
+        var normalized = angle % (2d * double.Pi);
+        return normalized < 0d ? normalized + (2d * double.Pi) : normalized;
+    }
+
+    private readonly record struct CubeChart(string Name, (int X, int Y, int Z) Normal, (int X, int Y, int Z) U, (int X, int Y, int Z) V);
 
     private static IReadOnlyList<int> FlattenLoop(IReadOnlyList<Coedge> coedges, IReadOnlyDictionary<EdgeId, SharedEdgeSamplePlan> plans)
     {
@@ -479,6 +810,29 @@ public static class SurfaceMeshIrTessellator
                 var offset = p - cylinder.Origin;
                 var angle = double.Atan2(offset.Dot(cylinder.YAxis.ToVector()), offset.Dot(cylinder.XAxis.ToVector()));
                 var exact = cylinder.Normal(angle).ToVector();
+                return patch.SameSense ? exact : -exact;
+            },
+            SurfaceMeshSupportKind.Cone when patch.Support.Cone is { } cone => p =>
+            {
+                var offset = p - cone.Apex;
+                var axis = cone.Axis.ToVector();
+                var radial = offset - (axis * offset.Dot(axis));
+                var reference = cone.ReferenceAxis.ToVector();
+                var xAxis = reference - (axis * reference.Dot(axis));
+                var yAxis = axis.Cross(xAxis);
+                var angle = radial.Length <= Epsilon ? 0d : double.Atan2(radial.Dot(yAxis), radial.Dot(xAxis));
+                var exact = cone.Normal(angle).ToVector();
+                return patch.SameSense ? exact : -exact;
+            },
+            SurfaceMeshSupportKind.Sphere when patch.Support.Sphere is { } sphere => p =>
+            {
+                var exact = Direction3D.Create(p - sphere.Center).ToVector();
+                return patch.SameSense ? exact : -exact;
+            },
+            SurfaceMeshSupportKind.Torus when patch.Support.Torus is { } torus => p =>
+            {
+                var uv = TryProjectPointToTorusUv(torus, p) ?? throw new InvalidOperationException("Torus mesh vertex is not on its exact support.");
+                var exact = torus.Normal(uv.U, uv.V).ToVector();
                 return patch.SameSense ? exact : -exact;
             },
             _ => throw new InvalidOperationException($"Patch {patch.FaceId.Value} has no exact support evaluator."),

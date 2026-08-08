@@ -571,7 +571,13 @@ export function AetherisViewport({
 					onSelect={onCadmataSelect}
 				/>
 			) : null}
-			<PmiAnnotationLayer artifact={cadmataArtifact} visible={showPmi} selectedIds={selectedCadmataIds} onSelect={onCadmataSelect} theme={theme} />
+			<PmiAnnotationLayer
+				artifact={cadmataArtifact}
+				visible={showPmi}
+				selectedIds={selectedCadmataIds}
+				onSelect={onCadmataSelect}
+				theme={theme}
+			/>
 			<PickRayCapture onPickRay={onPickRay} />
 			<OrbitControls makeDefault enablePan enableZoom />
 		</Canvas>

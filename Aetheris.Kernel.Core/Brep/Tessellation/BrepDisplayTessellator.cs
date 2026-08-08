@@ -41,13 +41,13 @@ public static class BrepDisplayTessellator
     internal static KernelResult<DisplayTessellationResult> TessellateLegacyForComparison(BrepBody body, DisplayTessellationOptions? options = null)
         => TessellateCore(body, options, null);
 
-    /// <summary>Explicit M2 SurfaceMeshIR route; unsupported trim families are reported rather than silently downgraded.</summary>
+    /// <summary>Explicit M3 SurfaceMeshIR route; unsupported trim families are reported rather than silently downgraded.</summary>
     public static KernelResult<DisplayTessellationResult> TessellateSurfaceMeshIr(BrepBody body, DisplayTessellationOptions? options = null)
     {
         var effectiveOptions = options ?? DisplayTessellationOptions.Default;
         return SurfaceMeshIrTessellator.TryTessellate(body, effectiveOptions, out var result)
             ? KernelResult<DisplayTessellationResult>.Success(result)
-            : KernelResult<DisplayTessellationResult>.Failure([CreateNotImplemented("SurfaceMeshIR M2 supports Plane/Cylinder faces including bounded rectangular through-hole trims; use the legacy route for remaining families.", "Viewer.SurfaceMeshIr.Unsupported")]);
+            : KernelResult<DisplayTessellationResult>.Failure([CreateNotImplemented("SurfaceMeshIR M3 supports Plane/Cylinder, full circular-trim Cone strips, closed cube-chart Spheres, and doubly-periodic Toruses. General conic and arbitrary trimmed-patch remeshing remains on the explicit legacy route.", "Viewer.SurfaceMeshIr.Unsupported")]);
     }
 
     public static KernelResult<DisplayTessellationResult> TessellateBounded(

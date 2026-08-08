@@ -62,4 +62,7 @@ The trim rings are cyclically phase-aligned before band construction. Orientatio
 - Cadmata has not yet been migrated to render the validated final mesh directly; its established STEP display route remains intact.
 - No runtime LOD, streaming refinement, mesh repair, glTF, 3MF, or volumetric meshing was introduced.
 
-Recommended next tooling milestone: **P2-TSPACK-STABILIZE-M1**, before returning to **P2-SURFACE-MESH-IR-M3** (Cone, Sphere, Torus, and harder trims).
+M3 has now added full circular-trim Cone strips, cube-chart Sphere primitives,
+and doubly-periodic Torus primitives to the common IR. See
+[surface-mesh-ir-m3.md](surface-mesh-ir-m3.md) for the supported boundary and
+trim subset; general conic trim bands and HexBolt remain explicit follow-up work.

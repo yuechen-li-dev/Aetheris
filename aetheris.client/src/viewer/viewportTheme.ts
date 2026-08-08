@@ -34,7 +34,14 @@ export interface ViewportTheme {
 	postProcess: { outline: boolean; colorGrade: "neutral" | "pastel" };
 	cameraPresentation: { position: readonly [number, number, number]; zoom: number };
 	axis: { x: string; y: string; z: string; label: string };
-	annotation: { text: string; background: string; leader: string; datum: string; dimension: string; selected: string };
+	annotation: {
+		text: string;
+		background: string;
+		leader: string;
+		datum: string;
+		dimension: string;
+		selected: string;
+	};
 }
 
 export const ATELIER_VIEWPORT_THEME: ViewportTheme = {
@@ -73,7 +80,14 @@ export const ATELIER_VIEWPORT_THEME: ViewportTheme = {
 	postProcess: { outline: false, colorGrade: "neutral" },
 	cameraPresentation: { position: [6, 6, 6], zoom: 90 },
 	axis: { x: "#a46757", y: "#6f8b64", z: "#b39b62", label: "#cbc7ba" },
-	annotation: { text: "#fff9e8", background: "#1b1d1b", leader: "#e8d8a2", datum: "#8ec8d2", dimension: "#f0cf68", selected: "#ffffff" },
+	annotation: {
+		text: "#fff9e8",
+		background: "#1b1d1b",
+		leader: "#e8d8a2",
+		datum: "#8ec8d2",
+		dimension: "#f0cf68",
+		selected: "#ffffff",
+	},
 };
 
 export const MONUMENT_VIEWPORT_THEME: ViewportTheme = {
@@ -105,7 +119,14 @@ export const MONUMENT_VIEWPORT_THEME: ViewportTheme = {
 	fog: { enabled: true, color: "#d9cfbd", near: 34, far: 115 },
 	postProcess: { outline: false, colorGrade: "pastel" },
 	axis: { x: "#a2535c", y: "#528378", z: "#9e7d45", label: "#5f554c" },
-	annotation: { text: "#302b26", background: "#fff6df", leader: "#5d6d6c", datum: "#246e79", dimension: "#915642", selected: "#000000" },
+	annotation: {
+		text: "#302b26",
+		background: "#fff6df",
+		leader: "#5d6d6c",
+		datum: "#246e79",
+		dimension: "#915642",
+		selected: "#000000",
+	},
 };
 
 export const VIEWPORT_THEMES = [ATELIER_VIEWPORT_THEME, MONUMENT_VIEWPORT_THEME] as const;

@@ -686,7 +686,11 @@ function App() {
 				setPickHits(pickResponse.hits);
 				const hit = pickResponse.hits[0];
 				if (hit && cadmataArtifact) {
-					const published = resolvePublishedBrepEntity(cadmataArtifact, hit.entityKind, hit.entityKind === "Face" ? hit.faceId! : hit.edgeId!);
+					const published = resolvePublishedBrepEntity(
+						cadmataArtifact,
+						hit.entityKind,
+						hit.entityKind === "Face" ? hit.faceId! : hit.edgeId!,
+					);
 					if (published) setSelectedCadmataId(published.stableId);
 				}
 				setPickMessage(
@@ -941,7 +945,18 @@ function App() {
 							>
 								SEMANTIC
 							</button>
-							<button type="button" className={isPmiVisible ? "viewport-segmented__button is-active" : "viewport-segmented__button"} onClick={() => setIsPmiVisible((value) => !value)} aria-pressed={isPmiVisible}>PMI</button>
+							<button
+								type="button"
+								className={
+									isPmiVisible
+										? "viewport-segmented__button is-active"
+										: "viewport-segmented__button"
+								}
+								onClick={() => setIsPmiVisible((value) => !value)}
+								aria-pressed={isPmiVisible}
+							>
+								PMI
+							</button>
 							<button
 								type="button"
 								className={
@@ -1024,7 +1039,11 @@ function App() {
 								</div>
 								{cadmataArtifact ? (
 									<>
-										<SemanticInspector artifact={cadmataArtifact} selectedId={selectedCadmataId} onSelect={setSelectedCadmataId} />
+										<SemanticInspector
+											artifact={cadmataArtifact}
+											selectedId={selectedCadmataId}
+											onSelect={setSelectedCadmataId}
+										/>
 										<p>
 											<strong>{cadmataArtifact.fixtureId}</strong> ·{" "}
 											{cadmataArtifact.metrics?.entityCount ?? 0} evidence entities
@@ -1078,7 +1097,11 @@ function App() {
 											: null}
 									</>
 								) : (
-									<SemanticInspector artifact={cadmataArtifact} selectedId={selectedCadmataId} onSelect={setSelectedCadmataId} />
+									<SemanticInspector
+										artifact={cadmataArtifact}
+										selectedId={selectedCadmataId}
+										onSelect={setSelectedCadmataId}
+									/>
 								)}
 							</section>
 							<section className="tool-section tool-section--import">

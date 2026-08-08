@@ -1,7 +1,9 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Boolean;
+using Aetheris.Kernel.Core.Brep.Features;
 using Aetheris.Kernel.Core.Brep.Tessellation;
 using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Math;
 
 namespace Aetheris.Kernel.Core.Tests.Brep.Tessellation;
 
@@ -68,6 +70,72 @@ public sealed class SurfaceMeshIrTests
             Assert.True(double.Abs(cylindrical.Normals[i].X - (position.X / radialLength)) < 1e-9d);
             Assert.True(double.Abs(cylindrical.Normals[i].Y - (position.Y / radialLength)) < 1e-9d);
         }
+    }
+
+    [Fact]
+    public void Cone_UsesSharedCircularRings_AndAngularGeneratorQuadStrip()
+    {
+        var body = BrepRevolve.Create(
+            [new ProfilePoint2D(4d, -2d), new ProfilePoint2D(2d, 2d)],
+            new ExtrudeFrame3D(Point3D.Origin, Direction3D.Create(new Vector3D(0d, 0d, 1d)), Direction3D.Create(new Vector3D(1d, 0d, 0d))),
+            new RevolveAxis3D(Point3D.Origin, new Vector3D(0d, 0d, 1d))).Value;
+
+        Assert.True(SurfaceMeshIrTessellator.TryBuild(body, SurfaceMeshPolicy.FromDisplayOptions(DisplayTessellationOptions.Default), out var document));
+        var side = Assert.Single(document.Patches, patch => patch.Support.Kind == SurfaceMeshSupportKind.Cone);
+        Assert.True(side.HasPeriodicUSeam);
+        Assert.All(side.Cells, cell => Assert.IsType<QuadCell>(cell));
+        Assert.Equal(36, side.Cells.Count);
+        Assert.True(SurfaceMeshIrTessellator.TryLowerToTriangleMesh(document, out _, out var topology));
+        Assert.True(topology.IsWatertight);
+    }
+
+    [Fact]
+    public void Sphere_UsesSixStructuredCharts_WithSharedSeamVertices_AndExactNormals()
+    {
+        var body = BrepPrimitives.CreateSphere(3d).Value;
+        Assert.True(SurfaceMeshIrTessellator.TryBuild(body, SurfaceMeshPolicy.FromDisplayOptions(DisplayTessellationOptions.Default), out var document));
+        var charts = document.Patches.Where(patch => patch.Support.Kind == SurfaceMeshSupportKind.Sphere).ToArray();
+        Assert.Equal(6, charts.Length);
+        Assert.All(charts, chart => Assert.All(chart.Cells, cell => Assert.IsType<QuadCell>(cell)));
+        Assert.Contains(charts.SelectMany(chart => chart.Cells).SelectMany(cell => cell.VertexIds).GroupBy(id => id), group => group.Count() >= 4);
+        Assert.True(SurfaceMeshIrTessellator.TryLowerToTriangleMesh(document, out var mesh, out var topology));
+        Assert.True(topology.IsWatertight);
+        Assert.All(mesh.Normals, normal => Assert.True(double.Abs(normal.Length - 1d) < 1e-9d));
+    }
+
+    [Fact]
+    public void Torus_UsesDoublyPeriodicStructuredQuads_AndReusesBrepSeamSamples()
+    {
+        var body = BrepPrimitives.CreateTorus(6d, 1.5d).Value;
+        Assert.True(SurfaceMeshIrTessellator.TryBuild(body, SurfaceMeshPolicy.FromDisplayOptions(DisplayTessellationOptions.Default), out var document));
+        var patch = Assert.Single(document.Patches, candidate => candidate.Support.Kind == SurfaceMeshSupportKind.Torus);
+        Assert.True(patch.HasPeriodicUSeam);
+        Assert.True(patch.HasPeriodicVSeam);
+        Assert.All(patch.Cells, cell => Assert.IsType<QuadCell>(cell));
+        var patchIds = patch.Cells.SelectMany(cell => cell.VertexIds).ToHashSet();
+        Assert.All(document.SharedBoundaries.SelectMany(boundary => boundary.Samples), sample => Assert.Contains(sample.Id, patchIds));
+        Assert.True(SurfaceMeshIrTessellator.TryLowerToTriangleMesh(document, out _, out var topology));
+        Assert.True(topology.IsWatertight);
+    }
+
+    [Theory]
+    [InlineData("sphere")]
+    [InlineData("torus")]
+    public void M3Primitive_DisplayRoute_IsSurfaceMeshIr_AndDeterministic(string fixture)
+    {
+        var body = fixture == "sphere"
+            ? BrepPrimitives.CreateSphere(2d).Value
+            : BrepPrimitives.CreateTorus(5d, 1d).Value;
+        var first = BrepDisplayTessellator.TessellateSurfaceMeshIr(body);
+        var second = BrepDisplayTessellator.TessellateSurfaceMeshIr(body);
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Equal(DisplayMeshPipeline.SurfaceMeshIr, first.Value.MeshPipeline);
+        Assert.Equal(first.Value.SurfaceMeshMetrics!.DeterministicHash, second.Value.SurfaceMeshMetrics!.DeterministicHash);
+        Assert.Equal(
+            first.Value.FacePatches.SelectMany(patch => patch.TriangleIndices),
+            second.Value.FacePatches.SelectMany(patch => patch.TriangleIndices));
     }
 
     [Fact]

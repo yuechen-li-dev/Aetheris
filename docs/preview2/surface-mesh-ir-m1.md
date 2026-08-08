@@ -41,3 +41,12 @@ On the Debug `net10.0` build, a 100-iteration in-process comparison (not a bench
 Multi-loop planar trims (including the through-hole plate fixture), arbitrary clipped boundary cells, Cone, Sphere, Torus, and B-spline patches remain on `LegacyTessellator`. That fallback is intentional and observable through `meshPipeline`; it is not a new mesh authority. Therefore this M1 slice should be treated as an architectural migration baseline, not a global replacement or an FEA/printing certification. Cadmata remains triangle-facing and receives the lowered `DisplayFaceMeshPatch` contract unchanged.
 
 Recommended next milestone: **P2-SURFACE-MESH-IR-M2 — Cone/Sphere/Torus and harder trimmed analytic patches**, beginning with multi-loop planar clipping/through-hole ownership and true deterministic quad subdivision.
+
+## Migration status update
+
+M2 subsequently added the multi-loop through-hole plate and validated STL path.
+M3 now extends the common IR to full circular-trim Cone strips, six-chart Sphere
+primitives, and doubly-periodic Torus primitives. See
+[surface-mesh-ir-m2.md](surface-mesh-ir-m2.md) and
+[surface-mesh-ir-m3.md](surface-mesh-ir-m3.md); general conic trim bands and
+arbitrary trimmed curved patches remain deliberate legacy fallbacks.

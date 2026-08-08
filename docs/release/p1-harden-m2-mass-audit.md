@@ -9,7 +9,6 @@
 | Plane/cylinder vertical line-arc prism | exact section-area integration; circles and lines |
 | Axis-aligned finite quarter-cylinder box fillet | exact recognized volume |
 | Sphere/cylinder seam lattice family | exact recognized caps and cylinders |
-| Single-loop horizontal Plane with line/circle/ellipse trims | exact Green-boundary area and planar divergence contribution (M2 narrow fix) |
 | Other Plane, Cylinder, Cone, Sphere, Torus trims | deterministic display tessellation at two resolutions |
 | B-spline or a face the tessellator cannot fill | unavailable; partial volume is rejected |
 
@@ -28,9 +27,9 @@ The defect is both value and bound, not bound alone. Before M2 code changes, aut
 | ExactRolling | 913725.7396023329 | 881896.8785532190 | -31828.8610491139 | -3.4834% | 41238.3782898643 |
 | SphereSeamCompatibility | 913733.5792146825 | 879274.5010217372 | -34459.0781929452 | -3.7712% | 41262.7733089027 |
 
-The two-resolution delta was only 6.1364 mm³ for ExactRolling while its absolute bias was 31,828.8610 mm³. Refinement convergence therefore did not detect systematic trim-domain error. Face evidence localized a major part to the horizontal trimmed cap: its chordal display-domain area was 33,556.4996 mm². Exact Green integration of its reimported line/circle boundary gives 34,224.3628 mm². The compatibility cap similarly gives 34,460.9292 mm².
+The two-resolution delta was only 6.1364 mm³ for ExactRolling while its absolute bias was 31,828.8610 mm³. Refinement convergence therefore did not detect systematic trim-domain error. Face evidence localized a major part to the horizontal trimmed cap: its chordal display-domain area was 33,556.4996 mm².
 
-The narrow exact planar lane improves the remaining volume deltas to 26,485.9554 mm³ and 16,468.6089 mm³ respectively. It deliberately does not tighten the reported whole-shell bound or claim promotion: cylinder/ellipse, sphere, ring-torus, and horn-torus trim-domain integrals remain on the mesh route.
+M2's attempted Green-boundary replacement produced apparently improved chimera values but M3 full-corpus validation exposed shared curve-orientation regressions up to 4,000,000 mm³ on established prismatic fixtures. That attempt was therefore reverted rather than retained as a brittle special case. Cylinder/ellipse, sphere, ring-torus, horn-torus, and general trim-domain integrals remain on the non-authoritative mesh route.
 
 ## Orientation and trim findings
 

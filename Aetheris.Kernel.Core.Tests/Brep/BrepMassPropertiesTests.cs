@@ -30,6 +30,8 @@ public sealed class BrepMassPropertiesTests
         Assert.True(result.Status != BrepMassPropertiesStatus.Unavailable, string.Join(" | ", result.Diagnostics));
         Assert.True(result.AbsoluteVolume > 0d);
         Assert.Contains(result.FaceContributions, item => item.SurfaceKind is not null);
+        Assert.False(result.IsAuthoritativeForVolumeAssertion);
+        Assert.True(result.IsTessellatedSanityEstimate);
     }
 
     [Fact]

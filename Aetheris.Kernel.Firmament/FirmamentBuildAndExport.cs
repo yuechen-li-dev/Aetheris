@@ -75,7 +75,11 @@ public static class FirmamentBuildAndExport
         }
         var mass = BrepMassProperties.Evaluate(imported.Value);
         var results = assertions.Select(assertion => FirmamentV2VolumeAssertionComparer.Compare(assertion, mass)).ToArray();
-        var failures = results.Where(result => !result.Passed).Select(result => new Kernel.Core.Diagnostics.KernelDiagnostic(
+        // Display-tessellation estimates remain useful evidence, but they do
+        // not gate a production build as the definition of occupied volume.
+        // Analytic B-rep recognizers retain their existing bounded gate until
+        // the post-Preview-1 CIR authority path is implemented.
+        var failures = results.Where(result => result.MeasurementAuthoritative && !result.Passed).Select(result => new Kernel.Core.Diagnostics.KernelDiagnostic(
             Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
             result.Diagnostic ?? "firmament-v2-assert-volume-failed", "FirmamentV2.AssertVolume")).ToArray();
         return failures.Length == 0

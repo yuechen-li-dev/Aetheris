@@ -24,6 +24,7 @@ public sealed record FirmamentV2VolumeAssertionResult(
     string? Note,
     string MeasurementMethod,
     double? MeasurementErrorBoundMm3,
+    bool MeasurementAuthoritative,
     string? Diagnostic,
     FirmamentV2SourceSpan SourceSpan,
     string Provenance);
@@ -37,7 +38,7 @@ public static class FirmamentV2VolumeAssertionComparer
         if (mass.Status == BrepMassPropertiesStatus.Unavailable)
         {
             return new(assertion.Id, assertion.TargetBodyId, assertion.ExpectedMm3, null, null, null, assertion.ToleranceMm3, false,
-                assertion.Note, mass.EvaluationMethod, mass.ErrorBound,
+                assertion.Note, mass.EvaluationMethod, mass.ErrorBound, mass.IsAuthoritativeForVolumeAssertion,
                 $"firmament-v2-assert-volume-measurement-unavailable:{assertion.TargetBodyId}:{assertion.Id}", assertion.SourceSpan, assertion.Provenance);
         }
 
@@ -46,6 +47,6 @@ public static class FirmamentV2VolumeAssertionComparer
         var passed = absoluteDelta <= assertion.ToleranceMm3;
         var diagnostic = passed ? null : $"firmament-v2-assert-volume-failed:target={assertion.TargetBodyId}:expectedMm3={assertion.ExpectedMm3:G17}:measuredMm3={mass.AbsoluteVolume:G17}:deltaMm3={delta:G17}:toleranceMm3={assertion.ToleranceMm3:G17}:method={mass.EvaluationMethod}:errorBoundMm3={mass.ErrorBound?.ToString("G17", System.Globalization.CultureInfo.InvariantCulture) ?? "unavailable"}";
         return new(assertion.Id, assertion.TargetBodyId, assertion.ExpectedMm3, mass.AbsoluteVolume, delta, absoluteDelta, assertion.ToleranceMm3,
-            passed, assertion.Note, mass.EvaluationMethod, mass.ErrorBound, diagnostic, assertion.SourceSpan, assertion.Provenance);
+            passed, assertion.Note, mass.EvaluationMethod, mass.ErrorBound, mass.IsAuthoritativeForVolumeAssertion, diagnostic, assertion.SourceSpan, assertion.Provenance);
     }
 }

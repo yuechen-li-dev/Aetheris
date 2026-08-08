@@ -17,12 +17,15 @@ bind to one canonical material-body symbol. Lengths, areas, angles, scalars,
 unknown targets, duplicate/unknown fields, and malformed notes are rejected at
 parse/bind time.
 
-Builds materialize normally, reimport the just-produced STEP, and evaluate its
-body through `BrepMassProperties.Evaluate`. The shared
+Builds materialize normally and reimport the just-produced STEP. Bounded
+analytic BRep recognizers can gate assertions for their explicitly admitted
+families. The generic display-tessellation mass result is recorded only as a
+non-authoritative sanity estimate and never gates the build. The shared
 `FirmamentV2VolumeAssertionComparer` records expected, measured, signed and
-absolute deltas, tolerance, note, source provenance, method, and error bound.
-It passes only when `abs(measured - expected) <= tolerance`; unavailable mass
-properties are a distinct failure. Failed assertions fail `build`; `validate`
+absolute deltas, tolerance, note, source provenance, method, error bound, and
+whether the measurement is authoritative. An authoritative measurement passes
+only when `abs(measured - expected) <= tolerance`; unavailable mass properties
+are a distinct failure. Failed authoritative assertions fail `build`; `validate`
 only performs source checks. `build --json` exposes successful records under
 `assertions`. Artifact-only `verify` cannot recover source contracts from a
 STEP file and deliberately does not infer them.

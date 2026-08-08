@@ -171,9 +171,9 @@ public sealed class ProfileEdgeFinishMixedShellPlanTests
     }
 
     [Theory]
-    [InlineData("profile-edgefinish-chimera-fillet.firmament", 34224.362848131015)]
-    [InlineData("profile-edgefinish-chimera-reflex-sphere-compat.firmament", 34460.92921874538)]
-    public void SevenStationFillet_ReimportedHorizontalCapUsesExactCurvedBoundaryArea(string fixture, double expectedTopArea)
+    [InlineData("profile-edgefinish-chimera-fillet.firmament")]
+    [InlineData("profile-edgefinish-chimera-reflex-sphere-compat.firmament")]
+    public void SevenStationFillet_ReimportedMassIsNonAuthoritativeSanityEvidence(string fixture)
     {
         var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/FirmamentV2/Canonical/valid/{fixture}");
         var built = FirmamentBuildAndExport.Run(source, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
@@ -182,14 +182,13 @@ public sealed class ProfileEdgeFinishMixedShellPlanTests
         Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(diagnostic => diagnostic.Message)));
 
         var mass = BrepMassProperties.Evaluate(Assert.IsType<Aetheris.Kernel.Core.Brep.BrepBody>(imported.Value));
-        var top = Assert.Single(mass.FaceContributions, contribution =>
-            contribution.SurfaceKind == SurfaceGeometryKind.Plane
-            && contribution.SurfaceArea > 30_000d
-            && contribution.SignedVolume > 200_000d
-            && contribution.SignedVolume < 300_000d);
-
-        Assert.Equal(expectedTopArea, top.SurfaceArea, 8);
-        Assert.Equal(expectedTopArea * 8d, top.SignedVolume, 8);
+        Assert.False(mass.IsAuthoritativeForVolumeAssertion);
+        Assert.True(mass.IsTessellatedSanityEstimate);
+        var sanityComparison = FirmamentV2VolumeAssertionComparer.Compare(
+            new FirmamentV2VolumeAssertion("sanity", "Body", 1d, 0d, null, new FirmamentV2SourceSpan(0, 0)),
+            mass);
+        Assert.False(sanityComparison.MeasurementAuthoritative);
+        Assert.False(sanityComparison.Passed);
     }
 
     private static (ResolvedProfile2D Profile, ProfileBoundaryChamferTarget Target) ReleaseCard(string fixture, ProfileEdgeFinishKind kind)

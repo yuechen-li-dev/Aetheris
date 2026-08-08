@@ -23,6 +23,7 @@ import {
 } from "./api/aetherisApi";
 import { StepImportDropzone } from "./components/StepImportDropzone";
 import { PropertyTable, type PropertyRecord } from "./components/PropertyTable";
+import { SemanticInspector } from "./components/SemanticInspector";
 import { Button } from "./components/ui/button";
 import { AetherisViewport } from "./viewer/AetherisViewport";
 import { buildDisplaySceneData } from "./viewer/displaySceneBuilder";
@@ -37,6 +38,7 @@ import {
 	resolveCadmataSelection,
 	type CadmataVisualizationArtifact,
 } from "./viewer/conceptVisualization";
+import { resolvePublishedBrepEntity } from "./viewer/semanticInspection";
 import { documentMachine, documentPhase } from "./application/documentMachine";
 import { shellThemeCssVariables } from "./theme/shellTheme";
 import { viewportThemeById, VIEWPORT_THEMES, type ViewportTheme } from "./viewer/viewportTheme";
@@ -162,6 +164,7 @@ function App() {
 	const [cadmataLayers, setCadmataLayers] =
 		useState<CadmataLayerVisibility>(DEFAULT_CADMATA_LAYERS);
 	const [selectedCadmataId, setSelectedCadmataId] = useState<string | null>(null);
+	const [isPmiVisible, setIsPmiVisible] = useState(true);
 	const startupStepClaimed = useRef(false);
 	const viewportTheme = useMemo(() => viewportThemeById(viewportThemeId), [viewportThemeId]);
 	const shellThemeVariables = useMemo(() => shellThemeCssVariables() as CSSProperties, []);
@@ -188,6 +191,7 @@ function App() {
 		setDiagnostics([]);
 		setCadmataArtifact(null);
 		setSelectedCadmataId(null);
+		setIsPmiVisible(true);
 		setImportStatusMessage("Preparing workspace…");
 	}, [dispatchDocumentEvent]);
 
@@ -680,6 +684,11 @@ function App() {
 
 				setPickStatus("success");
 				setPickHits(pickResponse.hits);
+				const hit = pickResponse.hits[0];
+				if (hit && cadmataArtifact) {
+					const published = resolvePublishedBrepEntity(cadmataArtifact, hit.entityKind, hit.entityKind === "Face" ? hit.faceId! : hit.edgeId!);
+					if (published) setSelectedCadmataId(published.stableId);
+				}
 				setPickMessage(
 					pickResponse.hits.length === 0
 						? "No hit for current click ray."
@@ -696,7 +705,7 @@ function App() {
 				setPickHits([]);
 			}
 		},
-		[activeBodyId, documentId],
+		[activeBodyId, cadmataArtifact, documentId],
 	);
 
 	const handleLoadCadmataFixture = useCallback(
@@ -932,6 +941,7 @@ function App() {
 							>
 								SEMANTIC
 							</button>
+							<button type="button" className={isPmiVisible ? "viewport-segmented__button is-active" : "viewport-segmented__button"} onClick={() => setIsPmiVisible((value) => !value)} aria-pressed={isPmiVisible}>PMI</button>
 							<button
 								type="button"
 								className={
@@ -979,6 +989,7 @@ function App() {
 							cadmataLayers={cadmataLayers}
 							selectedCadmataIds={cadmataSelection?.entityIds}
 							onCadmataSelect={setSelectedCadmataId}
+							showPmi={isPmiVisible}
 						/>
 					</div>
 				</section>
@@ -987,7 +998,7 @@ function App() {
 					{activeTab === "viewer" ? (
 						<>
 							<section className="tool-section cadmata-inspector">
-								<h2 className="section-title">Cadmata compiler evidence</h2>
+								<h2 className="section-title">Semantic inspector</h2>
 								<div className="stack-row">
 									{[
 										"direct-profile",
@@ -996,6 +1007,8 @@ function App() {
 										"construction-plane-blind-drillpoint",
 										"ctc-01-x3",
 										"ctc-01-x4",
+										"profile-compose-l-bracket-counterbore-pmi",
+										"pmi-projected-hole-diameter",
 									].map((fixtureId) => (
 										<Button
 											key={fixtureId}
@@ -1010,6 +1023,7 @@ function App() {
 								</div>
 								{cadmataArtifact ? (
 									<>
+										<SemanticInspector artifact={cadmataArtifact} selectedId={selectedCadmataId} onSelect={setSelectedCadmataId} />
 										<p>
 											<strong>{cadmataArtifact.fixtureId}</strong> ·{" "}
 											{cadmataArtifact.metrics?.entityCount ?? 0} evidence entities
@@ -1063,7 +1077,7 @@ function App() {
 											: null}
 									</>
 								) : (
-									<p>Load a real Firmament fixture to inspect its compiler correspondence.</p>
+									<SemanticInspector artifact={cadmataArtifact} selectedId={selectedCadmataId} onSelect={setSelectedCadmataId} />
 								)}
 							</section>
 							<section className="tool-section tool-section--import">

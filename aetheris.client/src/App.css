@@ -478,6 +478,13 @@ strong {
 	vertical-align: top;
 }
 
+.semantic-tree { max-height: 300px; overflow: auto; border: 1px solid color-mix(in srgb, var(--shell-border) 60%, transparent); padding: 4px; }
+.semantic-tree ul { list-style: none; padding-left: 0; margin: 0; }
+.semantic-tree__item { width: 100%; min-height: 28px; text-align: left; border: 0; background: transparent; font-size: var(--ui-small); }
+.semantic-provenance { margin-top: 8px !important; padding: 7px; border-left: 2px solid var(--shell-accent); background: color-mix(in srgb, var(--shell-panel) 75%, transparent); font-size: var(--ui-small); }
+.pmi-callout { display: grid; gap: 2px; min-width: 66px; padding: 4px 7px; border: 1px solid; border-radius: 3px; box-shadow: 0 2px 8px rgb(0 0 0 / 35%); font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 13px; line-height: 1.1; white-space: nowrap; cursor: pointer; }
+.pmi-callout small { font-size: 10px; opacity: .85; }
+
 .property-table th {
 	width: 46%;
 	color: var(--shell-text-secondary);

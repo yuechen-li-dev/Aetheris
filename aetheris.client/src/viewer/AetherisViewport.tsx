@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/immutability -- Three.js cameras/renderers are intentionally configured through their imperative mutable API. */
 import { Line, OrbitControls, Text } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { matchKind } from "machinalayout/match";
@@ -22,6 +23,7 @@ import { buildAdaptiveGridPlan, type GridBounds } from "./logarithmicGrid";
 import { CadmataOverlay, type CadmataLayerVisibility } from "./CadmataOverlay";
 import type { CadmataVisualizationArtifact } from "./conceptVisualization";
 import { ATELIER_VIEWPORT_THEME, type ViewportTheme } from "./viewportTheme";
+import { PmiAnnotationLayer } from "./PmiAnnotationLayer";
 
 function intersectGround(origin: Vector3, direction: Vector3, y: number): Vector3 | null {
 	if (Math.abs(direction.y) < 1e-6) return null;
@@ -268,6 +270,7 @@ export interface AetherisViewportProps {
 	cadmataLayers?: CadmataLayerVisibility;
 	selectedCadmataIds?: Set<string>;
 	onCadmataSelect?: (stableId: string) => void;
+	showPmi?: boolean;
 }
 
 function FaceMesh({
@@ -466,6 +469,7 @@ export function AetherisViewport({
 	cadmataLayers,
 	selectedCadmataIds = new Set(),
 	onCadmataSelect = () => undefined,
+	showPmi = true,
 }: AetherisViewportProps) {
 	return (
 		<Canvas
@@ -567,6 +571,7 @@ export function AetherisViewport({
 					onSelect={onCadmataSelect}
 				/>
 			) : null}
+			<PmiAnnotationLayer artifact={cadmataArtifact} visible={showPmi} selectedIds={selectedCadmataIds} onSelect={onCadmataSelect} theme={theme} />
 			<PickRayCapture onPickRay={onPickRay} />
 			<OrbitControls makeDefault enablePan enableZoom />
 		</Canvas>

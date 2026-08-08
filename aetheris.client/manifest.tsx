@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- TSPack manifests export a declarative workspace value, not a React component. */
 import {
 	CompatFiles,
 	JsonFile,

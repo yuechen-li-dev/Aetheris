@@ -1,6 +1,10 @@
 using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Geometry.Surfaces;
+using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Kernel.Firmament.Materializer;
+using Aetheris.Kernel.Firmament;
 using Aetheris.Server.Contracts;
 using Aetheris.Server.Documents;
 
@@ -20,6 +24,8 @@ internal static class CadmataFixtureService
         ["ctc-01-x3"] = "testdata/firmament/reconstructions/nist_ctc_01/ctc01_prismatic_blockout_x3.firmament",
         ["ctc-01-x4"] = "testdata/firmament/reconstructions/nist_ctc_01/ctc01_prismatic_blockout_x4.firmament",
         ["semantic-capsule-slot"] = "fixtures/FirmamentV2/ProfileComposition/valid/semantic-capsule-slot-through.firmament",
+        ["profile-compose-l-bracket-counterbore-pmi"] = "fixtures/FirmamentV2/Canonical/valid/profile-compose-l-bracket-counterbore-pmi.firmament",
+        ["pmi-projected-hole-diameter"] = "fixtures/FirmamentV2/Canonical/valid/pmi-projected-hole-diameter.firmament",
     };
 
     public static bool TryLoad(string fixtureId, DocumentSession document, out CadmataFixtureLoadResponseDto? response, out string error)
@@ -29,6 +35,8 @@ internal static class CadmataFixtureService
         var sourcePath = Path.Combine(FindRepositoryRoot(), relative);
         if (!File.Exists(sourcePath)) { error = $"Cadmata fixture source is unavailable: {relative}."; return false; }
         var source = File.ReadAllText(sourcePath);
+        if (fixtureId == "pmi-projected-hole-diameter")
+            return TryLoadProjectedPmiFixture(fixtureId, relative, sourcePath, source, document, out response, out error);
         BrepBody? body = null; SemanticTopologyCorrespondence? correspondence = null; IReadOnlyList<ResolvedProfile2D> profiles = []; IReadOnlyList<PrismaticShaftHoleFeature> shaftHoles = []; IReadOnlyList<PrismaticCapsuleSlotFeature> capsuleSlots = []; IReadOnlyList<PrismaticRoundedRectangleSlotFeature> roundedRectangleSlots = [];
         var diagnostics = new List<string>(); SemanticHoleSourceInspectionEvidence? semanticHoleEvidence = null;
         if (fixtureId is "semantic-shaft-hole" or "construction-plane-through-hole" or "construction-plane-blind-drillpoint")
@@ -61,12 +69,79 @@ internal static class CadmataFixtureService
         }
         if (body is null) { error = "The compiler did not materialize a body for this Cadmata fixture."; return false; }
         var added = document.AddBody(body, $"Cadmata: {fixtureId}");
-        var artifact = BuildArtifact(fixtureId, relative, profiles, shaftHoles, capsuleSlots, roundedRectangleSlots, correspondence, diagnostics, body, semanticHoleEvidence);
+        var pmi = FirmamentV2Parser.Parse(source, Path.GetDirectoryName(sourcePath)).Document?.BoundPmi;
+        var artifact = BuildArtifact(fixtureId, relative, profiles, shaftHoles, capsuleSlots, roundedRectangleSlots, correspondence, diagnostics, body, semanticHoleEvidence, pmi);
         response = new(document.Id.ToString(), added.OccurrenceId.ToString(), added.DefinitionId.ToString(), fixtureId, artifact);
         return true;
     }
 
-    private static CadmataVisualizationArtifactDto BuildArtifact(string fixtureId, string sourcePath, IReadOnlyList<ResolvedProfile2D> profiles, IReadOnlyList<PrismaticShaftHoleFeature> shaftHoles, IReadOnlyList<PrismaticCapsuleSlotFeature> capsuleSlots, IReadOnlyList<PrismaticRoundedRectangleSlotFeature> roundedRectangleSlots, SemanticTopologyCorrespondence? correspondence, IReadOnlyList<string> diagnostics, BrepBody body, SemanticHoleSourceInspectionEvidence? semanticHoleEvidence = null)
+    private static bool TryLoadProjectedPmiFixture(string fixtureId, string sourcePath, string fullSourcePath, string source, DocumentSession document, out CadmataFixtureLoadResponseDto? response, out string error)
+    {
+        response = null; error = string.Empty;
+        var parsed = FirmamentV2Parser.Parse(source, Path.GetDirectoryName(fullSourcePath));
+        if (!parsed.IsSuccess || parsed.Document is null) { error = string.Join("; ", parsed.Diagnostics); return false; }
+        var output = Path.Combine(Path.GetTempPath(), $"aetheris-cadmata-{Guid.NewGuid():N}.step");
+        try
+        {
+            var built = FirmamentBuildAndExport.Run(fullSourcePath, output);
+            if (!built.IsSuccess || built.Value is null) { error = string.Join("; ", built.Diagnostics.Select(item => item.Message)); return false; }
+            var imported = Step242Importer.ImportBody(built.Value.Export.StepText);
+            if (!imported.IsSuccess || imported.Value is null) { error = string.Join("; ", imported.Diagnostics.Select(item => item.Message)); return false; }
+            var body = imported.Value;
+            var feature = built.Value.Export.Features?.Single(item => item.Name == "Mount");
+            if (feature is null) { error = "Projected PMI fixture did not publish its Mount semantic feature report."; return false; }
+            var added = document.AddBody(body, $"Cadmata: {fixtureId}");
+            var artifact = BuildProjectedPmiArtifact(fixtureId, sourcePath, parsed.Document, body, feature);
+            response = new(document.Id.ToString(), added.OccurrenceId.ToString(), added.DefinitionId.ToString(), fixtureId, artifact);
+            return true;
+        }
+        finally { if (File.Exists(output)) File.Delete(output); }
+    }
+
+    private static CadmataVisualizationArtifactDto BuildProjectedPmiArtifact(string fixtureId, string sourcePath, FirmamentV2Document document, BrepBody body, FirmamentHoleFeatureReport feature)
+    {
+        var entities = new List<CadmataVisualizationEntityDto>();
+        var bodyId = $"body:{document.ModelName}.Base";
+        var holeId = $"hole:{feature.FeatureId}";
+        var radius = feature.Diameter / 2d;
+        var center = feature.ResolvedPoint3 is { Count: 3 } point ? new CadmataPointDto(point[0], point[1], point[2]) : new(feature.LocalU, feature.LocalV, 6d);
+        var holeFaces = body.Topology.Faces.Where(face => body.TryGetFaceSurfaceGeometry(face.Id, out var surface) && surface?.Kind == SurfaceGeometryKind.Cylinder && surface.Cylinder is { } cylinder && Math.Abs(cylinder.Radius - radius) < 1e-7).Select(face => face.Id.Value).Order().ToArray();
+        var topFaces = body.Topology.Faces.Where(face => body.TryGetFaceSurfaceGeometry(face.Id, out var surface) && surface?.Kind == SurfaceGeometryKind.Plane && surface.Plane is { } plane && plane.Normal.ToVector().Z > 0.999).Select(face => face.Id.Value).Order().ToArray();
+        var sourceSpan = feature.SourceSpan;
+        entities.Add(new(bodyId, "Body", "Base", "material", "Body", null, null, null, [holeId], null, null, new(topFaces.Concat(holeFaces).Distinct().ToArray()), null, null, null, new Dictionary<string, string> { ["model"] = document.ModelName }));
+        entities.Add(new(holeId, "HoleFeature", feature.Name, "conceptAxes", "SemanticHole", new("circle", Center: center, Radius: radius), sourceSpan, [bodyId], null, null, null, new(holeFaces), null, feature.MaterializationRoute, null, new Dictionary<string, string> { ["kind"] = "Hole<Shaft>", ["diameter"] = $"{feature.Diameter:R} mm", ["endCondition"] = "ThroughAll", ["sourceIdentity"] = feature.FeatureId }));
+        foreach (var face in body.Topology.Faces.OrderBy(item => item.Id.Value))
+        {
+            var faceId = face.Id.Value;
+            var isHoleFace = holeFaces.Contains(faceId);
+            entities.Add(new($"brep:face:{faceId}", "BRepFace", $"Face {faceId}", "selections", isHoleFace ? "HoleShaftWall" : topFaces.Contains(faceId) ? "TopDatumRegion" : "BodyFace", null, null, [isHoleFace ? holeId : bodyId], null, null, null, new([faceId]), null, null, null, null));
+        }
+
+        var records = document.PmiBlock?.Records ?? [];
+        var bound = (document.BoundPmi?.Datums ?? []).Concat(document.BoundPmi?.Dimensions ?? []).ToDictionary(item => item.Name, StringComparer.Ordinal);
+        foreach (var record in records.Where(item => item.Kind is FirmamentV2PmiKind.DatumPlane or FirmamentV2PmiKind.HoleDiameter))
+        {
+            if (!bound.TryGetValue(record.Name, out var item)) continue;
+            var isDatum = record.Kind == FirmamentV2PmiKind.DatumPlane;
+            var id = isDatum ? $"pmi:datum:{record.Name}" : $"pmi:dimension:{record.Name}";
+            var constraint = record.Projection is null ? null : (document.StaticAuthoring?.SemanticConstraints ?? []).SingleOrDefault(value => value.Id == record.Projection.SourceRequireId);
+            var require = constraint is null ? null : document.StaticAuthoring?.Requires.SingleOrDefault(value => value.Name == constraint.Id);
+            var tolerance = item.DimensionTolerance;
+            var targetId = isDatum ? bodyId : holeId;
+            var metadata = new Dictionary<string, string> {
+                ["target"] = string.Join(", ", item.Targets), ["targetSemanticId"] = targetId,
+                ["nominal"] = item.DimensionValue is { } nominal ? $"{nominal.NumericValue:R} {nominal.Unit}" : "",
+                ["tolerancePlus"] = tolerance?.Plus is { } plus ? $"{plus:R} mm" : "", ["toleranceMinus"] = tolerance?.Minus is { } minus ? $"{minus:R} mm" : "",
+                ["datumRefs"] = string.Join(", ", item.DatumRefs), ["projection"] = item.ProjectionSource ?? "manual",
+                ["require"] = constraint?.Id ?? "", ["subject"] = constraint is null ? "" : $"{constraint.Subject}.{constraint.Property}",
+                ["expected"] = require?.Expected ?? "", ["expectedProvenance"] = constraint?.ExpectedProvenance ?? require?.Provenance ?? "", ["toleranceSource"] = require?.ToleranceSource ?? ""
+            };
+            entities.Add(new(id, isDatum ? "Datum" : "HoleDiameter", record.Name, isDatum ? "conceptPlanes" : "conceptPoints", isDatum ? "Datum" : "HoleDiameter", new("circle", Center: center, Radius: isDatum ? radius * 1.5 : radius), record.SourceSpan.ToString(), [targetId], null, null, null, new(isDatum ? topFaces : holeFaces), null, null, null, metadata));
+        }
+        return new("cadmata-concept-viz-x1", fixtureId, sourcePath, entities, [], [], new Dictionary<string, double> { ["entityCount"] = entities.Count, ["faceCount"] = body.Topology.Faces.Count(), ["pmiCount"] = entities.Count(item => item.Kind is "Datum" or "HoleDiameter") });
+    }
+
+    private static CadmataVisualizationArtifactDto BuildArtifact(string fixtureId, string sourcePath, IReadOnlyList<ResolvedProfile2D> profiles, IReadOnlyList<PrismaticShaftHoleFeature> shaftHoles, IReadOnlyList<PrismaticCapsuleSlotFeature> capsuleSlots, IReadOnlyList<PrismaticRoundedRectangleSlotFeature> roundedRectangleSlots, SemanticTopologyCorrespondence? correspondence, IReadOnlyList<string> diagnostics, BrepBody body, SemanticHoleSourceInspectionEvidence? semanticHoleEvidence = null, FirmamentV2BoundPmiBlock? pmi = null)
     {
         var entities = new List<CadmataVisualizationEntityDto>();
         foreach (var profile in profiles)
@@ -146,6 +221,20 @@ internal static class CadmataFixtureService
         foreach (var descendant in correspondence?.Descendants ?? [])
         {
             entities.Add(new(descendant.StableId, $"BRep{descendant.Kind}", descendant.Role.ToString(), descendant.Kind == "Face" ? "selections" : "brepEdges", descendant.Role.ToString(), null, null, [descendant.SourceStableId], null, null, null, new(descendant.Face is { } face ? [face.Value] : null, descendant.Edge is { } edge ? [edge.Value] : null, descendant.Loop is { } loop ? [loop.Value] : null, descendant.Vertex is { } vertex ? [vertex.Value] : null), null, null, null, null));
+        }
+        // PMI is published as an inspectable semantic entity, not a renderer-specific decoration.
+        // This fixture's counterbore mouth is part of its authored source and provides a stable initial anchor.
+        if (fixtureId == "profile-compose-l-bracket-counterbore-pmi" && pmi is not null)
+        {
+            var anchor = new CadmataGeometryDto("circle", Center: new(-30, -10, 12), Radius: 4);
+            foreach (var datum in pmi.Datums)
+                entities.Add(new($"pmi:datum:{datum.Name}", "Datum", datum.Name, "conceptPlanes", "Datum", anchor, datum.SourceSpan.ToString(), null, null, null, null, null, null, null, null, new Dictionary<string, string> { ["target"] = string.Join(", ", datum.Targets), ["pmiKind"] = "Datum" }));
+            foreach (var dimension in pmi.Dimensions.Where(item => item.Kind == FirmamentV2PmiKind.HoleDiameter))
+            {
+                var tolerance = dimension.DimensionTolerance;
+                entities.Add(new($"pmi:dimension:{dimension.Name}", "HoleDiameter", dimension.Name, "conceptPoints", "HoleDiameter", anchor, dimension.SourceSpan.ToString(), null, null, null, null, null, null, null, null, new Dictionary<string, string> {
+                    ["target"] = string.Join(", ", dimension.Targets), ["nominal"] = $"{dimension.DimensionValue?.NumericValue:R} mm", ["tolerancePlus"] = tolerance?.Plus is { } plus ? $"{plus:R} mm" : "", ["toleranceMinus"] = tolerance?.Minus is { } minus ? $"{minus:R} mm" : "", ["datumRefs"] = string.Join(", ", dimension.DatumRefs), ["projection"] = dimension.ProjectionSource ?? "manual" }));
+            }
         }
         var hasSemanticFeatures = fixtureId is "semantic-shaft-hole" or "construction-plane-through-hole" or "construction-plane-blind-drillpoint" || shaftHoles.Count > 0 || capsuleSlots.Count > 0 || roundedRectangleSlots.Count > 0;
         var selectionSourceIds = fixtureId == "semantic-shaft-hole" ? new[] { "hole:base.mount" } : (fixtureId is "construction-plane-through-hole" or "construction-plane-blind-drillpoint") && semanticHoleEvidence is not null ? new[] { "hole:" + semanticHoleEvidence.FeatureId } : capsuleSlots.Count > 0 ? capsuleSlots.Select(slot => slot.StableId).ToArray() : roundedRectangleSlots.Count > 0 ? roundedRectangleSlots.Select(slot => slot.StableId).ToArray() : shaftHoles.Count > 0 ? shaftHoles.Select(hole => hole.StableId).ToArray() : entities.Where(e => e.Kind == "ProfileSegment").Select(e => e.StableId).ToArray();

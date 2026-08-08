@@ -910,6 +910,31 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         Assert.True(Guid.TryParse(loaded.Data.BodyId, out _));
     }
 
+    [Fact]
+    public async Task CadmataProjectedPmiFixture_PublishesConstraintProvenanceAndFaceOwnership()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var response = await _client.PostAsync($"/api/v1/documents/{document.Data!.DocumentId}/cadmata/fixtures/pmi-projected-hole-diameter", null);
+        response.EnsureSuccessStatusCode();
+        var loaded = await response.Content.ReadFromJsonAsync<ApiResponseDto<CadmataFixtureLoadResponseDto>>();
+        Assert.True(loaded!.Success);
+        var entities = loaded.Data!.Visualization.Entities;
+        var hole = Assert.Single(entities, entity => entity.Kind == "HoleFeature");
+        Assert.NotEmpty(hole.Topology!.FaceIds!);
+        Assert.All(hole.Topology.FaceIds!, faceId => Assert.Contains(entities, entity => entity.Kind == "BRepFace" && entity.Topology!.FaceIds!.Contains(faceId) && entity.ParentIds!.Contains(hole.StableId)));
+        Assert.Equal(loaded.Data.Visualization.Metrics["faceCount"], entities.Count(entity => entity.Kind == "BRepFace"));
+        var datum = Assert.Single(entities, entity => entity.Kind == "Datum");
+        Assert.Equal("A", datum.Label);
+        var pmi = Assert.Single(entities, entity => entity.Kind == "HoleDiameter");
+        Assert.Equal(hole.StableId, pmi.Metadata!["targetSemanticId"]);
+        Assert.Equal("MountDiameterConstraint", pmi.Metadata["require"]);
+        Assert.Equal("Mount.Diameter", pmi.Metadata["subject"]);
+        Assert.Contains("8", pmi.Metadata["nominal"]);
+        Assert.Contains("0.05", pmi.Metadata["tolerancePlus"]);
+        Assert.Contains("0.02", pmi.Metadata["toleranceMinus"]);
+        Assert.Equal("A", pmi.Metadata["datumRefs"]);
+    }
+
     private static string GetRepositoryPath(string relativePath)
         => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", relativePath));
 

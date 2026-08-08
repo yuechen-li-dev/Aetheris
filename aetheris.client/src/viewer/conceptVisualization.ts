@@ -121,7 +121,13 @@ export function parseCadmataVisualizationArtifact(value: unknown): CadmataVisual
 export function indexCadmataArtifact(artifact: CadmataVisualizationArtifact) {
 	const byId = new Map(artifact.entities.map((entity) => [entity.stableId, entity]));
 	const reverse = new Map<string, Set<string>>();
+	const ownedChildren = new Map<string, Set<string>>();
 	for (const entity of artifact.entities) {
+		for (const parentId of entity.parentIds ?? []) {
+			const children = ownedChildren.get(parentId) ?? new Set<string>();
+			children.add(entity.stableId);
+			ownedChildren.set(parentId, children);
+		}
 		for (const id of [
 			...(entity.parentIds ?? []),
 			...(entity.childIds ?? []),
@@ -133,7 +139,7 @@ export function indexCadmataArtifact(artifact: CadmataVisualizationArtifact) {
 			reverse.set(id, related);
 		}
 	}
-	return { byId, reverse };
+	return { byId, reverse, ownedChildren };
 }
 
 /** Traverses only compiler-published relation fields; it never tries to infer BRep correspondence in the browser. */
@@ -143,7 +149,7 @@ export function resolveCadmataSelection(
 ): CadmataSelectionState {
 	if (!stableId)
 		return { entityIds: new Set(), faceIds: new Set(), edgeIds: new Set(), diagnostics: [] };
-	const { byId, reverse } = indexCadmataArtifact(artifact);
+	const { byId, ownedChildren } = indexCadmataArtifact(artifact);
 	const pending = [stableId];
 	const entityIds = new Set<string>();
 	const diagnostics: CadmataDiagnostic[] = [];
@@ -160,12 +166,14 @@ export function resolveCadmataSelection(
 			continue;
 		}
 		entityIds.add(id);
+		// A low-level pick highlights exactly the published BRep entity. Semantic
+		// ownership remains inspector data and must not broaden the face highlight.
+		if (entity.kind.startsWith("BRep")) continue;
 		pending.push(
-			...(entity.parentIds ?? []),
 			...(entity.childIds ?? []),
 			...(entity.constructionDescendantIds ?? []),
 			...(entity.materializedDescendantIds ?? []),
-			...(reverse.get(id) ?? []),
+			...(ownedChildren.get(id) ?? []),
 		);
 	}
 	const faceIds = new Set<number>();

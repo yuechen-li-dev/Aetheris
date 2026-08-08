@@ -6,6 +6,7 @@ import { STEP_UPLOAD_LIMIT_BYTES } from '../config/stepUpload';
 
 const apiMocks = vi.hoisted(() => ({
     createDocument: vi.fn(),
+    claimStartupStep: vi.fn(),
     createBox: vi.fn(),
     executeBoolean: vi.fn(),
     exportDefinitionStep: vi.fn(),
@@ -23,6 +24,7 @@ vi.mock('../api/aetherisApi', async () => {
     return {
         ...actual,
         createDocument: apiMocks.createDocument,
+        claimStartupStep: apiMocks.claimStartupStep,
         createBox: apiMocks.createBox,
         executeBoolean: apiMocks.executeBoolean,
         exportDefinitionStep: apiMocks.exportDefinitionStep,
@@ -41,6 +43,7 @@ vi.mock('../viewer/AetherisViewport', () => ({
 
 function setupDocumentApiMocks(): void {
     apiMocks.createDocument.mockResolvedValue({ documentId: 'doc-1', name: 'Test', volatile: true });
+    apiMocks.claimStartupStep.mockResolvedValue(null);
     apiMocks.createBox.mockResolvedValue({
         documentId: 'doc-1',
         bodyId: 'occ-2',
@@ -108,6 +111,39 @@ describe('App STEP file upload flow', () => {
         await screen.findByText('Server: Connected');
         await screen.findByText('Document: Ready');
         expect(apiMocks.createDocument).toHaveBeenCalledTimes(1);
+    });
+
+    it('claims and imports a startup STEP only after the workspace is ready', async () => {
+        apiMocks.claimStartupStep.mockResolvedValue({ path: 'C:\\Models\\startup.step', fileName: 'startup.step', stepText: 'ISO-10303-21;' });
+        apiMocks.importStep.mockResolvedValue({ documentId: 'doc-1', definitionId: 'def-2', occurrenceId: 'occ-2', name: 'startup.step', diagnostics: [] });
+        apiMocks.exportDefinitionStep.mockResolvedValue({ documentId: 'doc-1', definitionId: 'def-2', stepText: 'ISO-10303-21;', canonicalHash: 'startup-hash', diagnostics: [] });
+
+        render(<App />);
+
+        await waitFor(() => expect(apiMocks.claimStartupStep).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(apiMocks.importStep).toHaveBeenCalledTimes(1));
+        expect(apiMocks.createDocument.mock.invocationCallOrder[0]).toBeLessThan(apiMocks.claimStartupStep.mock.invocationCallOrder[0]);
+        expect(apiMocks.importStep).toHaveBeenCalledWith('doc-1', 'ISO-10303-21;', 'startup.step');
+        expect(apiMocks.claimStartupStep).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows a readable startup STEP load failure', async () => {
+        apiMocks.claimStartupStep.mockResolvedValue({ path: 'C:\\Models\\bad.step', fileName: 'bad.step', stepText: 'BAD' });
+        apiMocks.importStep.mockRejectedValue(new ApiError('STEP payload could not be imported.', []));
+
+        render(<App />);
+
+        await waitFor(() => expect(apiMocks.importStep).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(screen.getAllByText('STEP payload could not be imported.').length).toBeGreaterThan(0));
+        expect(apiMocks.prepareBodyDisplay).not.toHaveBeenCalled();
+    });
+
+    it('keeps the ordinary empty viewer when no startup STEP exists', async () => {
+        render(<App />);
+
+        await screen.findByText('Ready. Select a file to import.');
+        expect(apiMocks.claimStartupStep).toHaveBeenCalledTimes(1);
+        expect(apiMocks.importStep).not.toHaveBeenCalled();
     });
 
     it('keeps canonical hash visible from viewer inspector', async () => {
@@ -275,7 +311,7 @@ describe('App STEP file upload flow', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Import STEP 242' }));
 
         await waitFor(() => {
-            expect(apiMocks.importStep).toHaveBeenCalledWith('doc-1', 'ISO-10303-21;DATA;');
+            expect(apiMocks.importStep).toHaveBeenCalledWith('doc-1', 'ISO-10303-21;DATA;', 'part.stp');
         });
         expect(apiMocks.exportDefinitionStep).toHaveBeenCalledWith('doc-1', 'def-2');
         await screen.findByText('hash-123');

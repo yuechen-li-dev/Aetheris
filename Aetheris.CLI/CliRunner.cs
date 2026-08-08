@@ -128,7 +128,7 @@ public static class CliRunner
     private const string SectionsUsage = "Usage: aetheris sections <artifact.step> --axis Z --levels <z,...> [--epsilon <mm>] --json";
     private const string VerifyUsage = "Usage: aetheris verify <file.firmament|file.step> [--expected-volume <value>] [--cad-assistant] [--cad-assistant-path <path>] [--timeout <seconds>] [--evidence-dir <path>] [--require-external] [--json]";
     private const string InspectUsage = "Usage: aetheris inspect <file.firmament|file.step> [--json]";
-    private const string ViewUsage = "Usage: aetheris view <file.firmament|file.step> [--cad-assistant-path <path>] [--json]";
+    private const string ViewUsage = "Usage: aetheris view <file.firmament|file.step> [--cadmata-path <path>] [--json]";
     private const string MatchUsage = "Usage: aetheris match <file.step> <concept.firmament> [--linear-tolerance <mm>] [--angular-tolerance <deg>] [--json]";
     private const string TraceUsage = "Usage: aetheris trace (--case <name>|--fixture <path>) [--out-dir <dir>] [--json]";
     private const string CanonUsage = "Usage: aetheris canon <file.step> --out <canonical.step> [--mode deterministic|production] [--json]";
@@ -153,6 +153,9 @@ public static class CliRunner
     }
 
     public static int Run(string[] args, TextWriter stdout, TextWriter stderr)
+        => Run(args, stdout, stderr, new SystemCadmataProcessLauncher(), AppContext.BaseDirectory);
+
+    internal static int Run(string[] args, TextWriter stdout, TextWriter stderr, ICadmataProcessLauncher cadmataLauncher, string cliBaseDirectory)
     {
         if (args.Length == 0)
         {
@@ -186,7 +189,7 @@ public static class CliRunner
                 "sections" => RunSections(args.Skip(1).ToArray(), stdout, stderr),
                 "analyze" => RunAnalyze(args.Skip(1).ToArray(), stdout, stderr),
                 "verify" => RunVerify(args.Skip(1).ToArray(), stdout, stderr),
-                "view" => RunView(args.Skip(1).ToArray(), stdout, stderr),
+                "view" => RunView(args.Skip(1).ToArray(), stdout, stderr, cadmataLauncher, cliBaseDirectory),
                 "match" => RunMatch(args.Skip(1).ToArray(), stdout, stderr),
                 "trace" => RunTrace(args.Skip(1).ToArray(), stdout, stderr),
                 "canon" => RunCanon(args.Skip(1).ToArray(), stdout, stderr),
@@ -499,7 +502,7 @@ public static class CliRunner
         return success ? 0 : 1;
     }
 
-    private static int RunView(string[] args, TextWriter stdout, TextWriter stderr)
+    private static int RunView(string[] args, TextWriter stdout, TextWriter stderr, ICadmataProcessLauncher launcher, string cliBaseDirectory)
     {
         if (args.Length == 0 || IsHelpFlag(args[0])) { WriteViewHelp(stdout); return args.Length == 0 ? 1 : 0; }
         var input = args[0];
@@ -507,7 +510,7 @@ public static class CliRunner
         var json = false;
         for (var i = 1; i < args.Length; i++)
         {
-            if (args[i] == "--cad-assistant-path" && i + 1 < args.Length) { executable = args[++i]; continue; }
+            if ((args[i] == "--cadmata-path" || args[i] == "--cad-assistant-path") && i + 1 < args.Length) { executable = args[++i]; continue; }
             if (args[i] == "--json") { json = true; continue; }
             stderr.WriteLine($"Unknown view option '{args[i]}'."); stderr.WriteLine(ViewUsage); return 1;
         }
@@ -525,27 +528,39 @@ public static class CliRunner
                 return 1;
             }
             stepPath = build.Value.OutputPath;
+            if (!json)
+            {
+                stdout.WriteLine($"✓ Built {Path.GetFileName(fullInput)}");
+                stdout.WriteLine($"  STEP: {stepPath}");
+                stdout.WriteLine();
+            }
         }
         else if (string.Equals(extension, ".step", StringComparison.OrdinalIgnoreCase) || string.Equals(extension, ".stp", StringComparison.OrdinalIgnoreCase)) stepPath = fullInput;
         else { stderr.WriteLine("View expects Firmament (.firmament) or STEP (.step, .stp) input."); return 1; }
 
-        var resolvedExecutable = CadAssistantInspection.ResolveExecutable(executable);
-        if (resolvedExecutable is null)
+        var discovery = CadmataDiscovery.Resolve(executable, cliBaseDirectory);
+        if (discovery is null)
         {
-            const string message = "Cadmata/CAD Assistant was not found. Set --cad-assistant-path or AETHERIS_CAD_ASSISTANT_PATH.";
-            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "view", success = false, input = fullInput, output = stepPath, diagnostics = new[] { message } }, JsonOptions));
+            const string message = "Cadmata was not found. Install the packaged Cadmata host beside Aetheris, put it on PATH, or set --cadmata-path (AETHERIS_CADMATA_PATH; legacy AETHERIS_CAD_ASSISTANT_PATH is also supported).";
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "view", success = false, source = string.Equals(extension, ".firmament", StringComparison.OrdinalIgnoreCase) ? fullInput : null, stepPath, cadmataPath = (string?)null, launched = false, diagnostics = new[] { message } }, JsonOptions));
             else stderr.WriteLine(message);
             return 1;
         }
+        Process? process;
         try
         {
-            var startInfo = new ProcessStartInfo(resolvedExecutable) { UseShellExecute = true };
-            startInfo.ArgumentList.Add(stepPath);
-            if (Process.Start(startInfo) is null) throw new InvalidOperationException("Process.Start returned no process.");
+            process = launcher.Launch(discovery.Path, stepPath);
+            if (process is null) throw new InvalidOperationException("Process.Start returned no process.");
         }
-        catch (Exception ex) { stderr.WriteLine($"Could not open '{stepPath}' in Cadmata/CAD Assistant: {ex.Message}"); return 1; }
-        if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "view", success = true, input = fullInput, output = stepPath, launcher = resolvedExecutable }, JsonOptions));
-        else stdout.WriteLine($"Opened {stepPath} in Cadmata/CAD Assistant.");
+        catch (Exception ex)
+        {
+            var message = $"Could not open '{stepPath}' in Cadmata: {ex.Message}";
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "view", success = false, source = string.Equals(extension, ".firmament", StringComparison.OrdinalIgnoreCase) ? fullInput : null, stepPath, cadmataPath = discovery.Path, launched = false, diagnostics = new[] { message } }, JsonOptions));
+            else stderr.WriteLine(message);
+            return 1;
+        }
+        if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "view", success = true, source = string.Equals(extension, ".firmament", StringComparison.OrdinalIgnoreCase) ? fullInput : null, stepPath, cadmataPath = discovery.Path, launched = true, processId = process.Id, diagnostics = Array.Empty<string>() }, JsonOptions));
+        else stdout.WriteLine($"✓ Opened {Path.GetFileName(stepPath)} in Cadmata");
         return 0;
     }
 
@@ -2963,7 +2978,7 @@ public static class CliRunner
         stdout.WriteLine("Commands:");
         stdout.WriteLine("  validate   Check Firmament source without materializing geometry.");
         stdout.WriteLine("  build      Compile Firmament to exact STEP AP242.");
-        stdout.WriteLine("  view       Build/open a model in Cadmata or CAD Assistant.");
+        stdout.WriteLine("  view       Build/open a model in Cadmata.");
         stdout.WriteLine("  inspect    Inspect Firmament semantics or STEP topology.");
         stdout.WriteLine("  analyze    Analyze STEP topology and analytic surfaces.");
         stdout.WriteLine("  verify     Build/reimport and verify a model.");
@@ -3030,10 +3045,12 @@ public static class CliRunner
 
     private static void WriteViewHelp(TextWriter stdout)
     {
-        stdout.WriteLine("Open a STEP model in Cadmata/CAD Assistant.");
+        stdout.WriteLine("Open a STEP model in Cadmata.");
         stdout.WriteLine("Firmament input is built to its adjacent .step artifact before launch; STEP input opens directly.");
         stdout.WriteLine();
         stdout.WriteLine(ViewUsage);
+        stdout.WriteLine("  --cadmata-path <path>  Explicit Cadmata executable (legacy --cad-assistant-path is accepted). Otherwise packaged siblings, environment compatibility settings, PATH, and a development build are checked.");
+        stdout.WriteLine("  --json                 Emit launch details without waiting for Cadmata to exit.");
         stdout.WriteLine("Example: aetheris view part.firmament");
     }
 

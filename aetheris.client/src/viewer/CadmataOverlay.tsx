@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- layer contracts and the overlay intentionally share one small module. */
 import { Line } from '@react-three/drei';
 import { useMemo } from 'react';
 import { DoubleSide, Vector3 } from 'three';

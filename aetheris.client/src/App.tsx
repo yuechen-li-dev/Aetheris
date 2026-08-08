@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 import {
     ApiError,
+    claimStartupStep,
     createBox,
     createDocument,
     executeBoolean,
@@ -129,6 +130,7 @@ function App() {
     const [cadmataArtifact, setCadmataArtifact] = useState<CadmataVisualizationArtifact | null>(null);
     const [cadmataLayers, setCadmataLayers] = useState<CadmataLayerVisibility>(DEFAULT_CADMATA_LAYERS);
     const [selectedCadmataId, setSelectedCadmataId] = useState<string | null>(null);
+    const startupStepClaimed = useRef(false);
 
     const resetSessionState = useCallback(() => {
         setBodyIds([]);
@@ -249,6 +251,8 @@ function App() {
     }, [createFreshDocument, resetSessionState]);
 
     useEffect(() => {
+        // Document creation is the startup synchronization with the server.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         void handleCreateDocument();
     }, [handleCreateDocument]);
 
@@ -391,32 +395,10 @@ function App() {
         }
     }, [stepCanonicalHash]);
 
-    const handleImportStep = useCallback(async () => {
-        if (!documentId || !stepImportFile || documentStatus !== 'ready' || serverStatus !== 'connected') {
-            return;
-        }
-
-        if (stepImportFile.size <= 0) {
-            setStatus('error');
-            setStatusMessage('Selected STEP file is empty.');
-            setDiagnostics([]);
-            setImportStatus('error');
-            setImportStatusMessage('Import error: Selected STEP file is empty.');
-            return;
-        }
-
-        if (stepImportFile.size > STEP_UPLOAD_LIMIT_BYTES) {
-            const limitMessage = `Selected STEP file is too large (${formatMegabytes(stepImportFile.size)}). Limit is ${STEP_UPLOAD_LIMIT_MB} MB.`;
-            setStatus('error');
-            setStatusMessage(limitMessage);
-            setDiagnostics([]);
-            setImportStatus('error');
-            setImportStatusMessage(`Import error: ${limitMessage}`);
-            return;
-        }
-
+    const importStepText = useCallback(async (stepText: string, fileName: string) => {
+        if (!documentId || documentStatus !== 'ready' || serverStatus !== 'connected') return;
         setImportStatus('importing');
-        setImportStatusMessage('Importing STEP…');
+        setImportStatusMessage(`Importing ${fileName}…`);
         setIsImporting(true);
         setDiagnostics([]);
 
@@ -424,12 +406,11 @@ function App() {
             setStatus('loading');
             setStatusMessage('Import STEP...');
 
-            const stepText = await stepImportFile.text();
             if (stepText.trim().length === 0) {
                 throw new ApiError('Selected STEP file is empty.', []);
             }
 
-            const imported = await importStep(documentId, stepText);
+            const imported = await importStep(documentId, stepText, fileName);
             setStepExportText('');
             const displayRefresh = await refreshSummaryAndActiveTessellation(imported.occurrenceId, true);
             const exported = await exportDefinitionStep(documentId, imported.definitionId);
@@ -464,13 +445,56 @@ function App() {
         } finally {
             setIsImporting(false);
         }
-    }, [documentId, documentStatus, refreshSummaryAndActiveTessellation, serverStatus, stepImportFile]);
+    }, [documentId, documentStatus, refreshSummaryAndActiveTessellation, serverStatus]);
+
+    const handleImportStep = useCallback(async () => {
+        if (!stepImportFile) return;
+
+        if (stepImportFile.size <= 0) {
+            setStatus('error');
+            setStatusMessage('Selected STEP file is empty.');
+            setDiagnostics([]);
+            setImportStatus('error');
+            setImportStatusMessage('Import error: Selected STEP file is empty.');
+            return;
+        }
+
+        if (stepImportFile.size > STEP_UPLOAD_LIMIT_BYTES) {
+            const limitMessage = `Selected STEP file is too large (${formatMegabytes(stepImportFile.size)}). Limit is ${STEP_UPLOAD_LIMIT_MB} MB.`;
+            setStatus('error');
+            setStatusMessage(limitMessage);
+            setDiagnostics([]);
+            setImportStatus('error');
+            setImportStatusMessage(`Import error: ${limitMessage}`);
+            return;
+        }
+
+        await importStepText(await stepImportFile.text(), stepImportFile.name);
+    }, [importStepText, stepImportFile]);
+
+    useEffect(() => {
+        if (startupStepClaimed.current || !documentId || documentStatus !== 'ready' || serverStatus !== 'connected') return;
+        startupStepClaimed.current = true;
+
+        void (async () => {
+            try {
+                const startupStep = await claimStartupStep();
+                if (startupStep) await importStepText(startupStep.stepText, startupStep.fileName);
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Startup STEP could not be loaded.';
+                setStatus('error');
+                setStatusMessage(message);
+                setImportStatus('error');
+                setImportStatusMessage(`Import error: ${message}`);
+            }
+        })();
+    }, [documentId, documentStatus, importStepText, serverStatus]);
 
     const handleStepFileAccepted = useCallback((selected: File) => {
         setStepImportFile(selected);
     }, []);
 
-    const handleStepFileValidationError = useCallback((_message: string) => {
+    const handleStepFileValidationError = useCallback(() => {
         setStepImportFile(null);
     }, []);
 

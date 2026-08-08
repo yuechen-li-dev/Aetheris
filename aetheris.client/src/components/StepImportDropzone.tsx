@@ -146,6 +146,8 @@ export function StepImportDropzone({ resetToken, onFileAccepted, onValidationErr
     const inputRef = useRef<HTMLInputElement | null>(null);
 
     useEffect(() => {
+        // The parent token deliberately resets this component's local selection.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelectionMetadata(null);
         setSelectionError(null);
     }, [resetToken]);

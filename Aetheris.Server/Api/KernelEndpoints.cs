@@ -310,8 +310,10 @@ public static class KernelEndpoints
                 TessellationResponseDto? tessellationFallback = null;
                 DisplayTessellationResult? boundedMeshResult = null;
                 var displayDiagnostics = new List<DisplayDiagnosticDto>();
+                var needsTrimmedAnalyticFallback = analyticDto.AnalyticFaces.Any(face =>
+                    face.SurfaceKind == "Plane" && face.LoopCount > 1);
 
-                if (lane is not "analytic-only")
+                if (lane is not "analytic-only" || needsTrimmedAnalyticFallback)
                 {
                     var options = ApiMappings.BuildTessellationOptions(request?.TessellationOptions);
                     var completeBoundedMesh = DisplayPreparationFallbackBuilder.Build(body, options);

@@ -87,7 +87,7 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
     }
 
     [Fact]
-    public async Task DisplayPrepare_BoxCylinderThroughHole_UsesAnalyticLaneWithoutTessellationFallback()
+    public async Task DisplayPrepare_BoxCylinderThroughHole_SuppliesTrimmedPlanarFallbacks()
     {
         var document = await CreateDocumentAsync("/api/v1/documents");
         var box = await CreateBoxAsync("/api/v1/documents", document.Data!.DocumentId, 40, 30, 12);
@@ -119,7 +119,17 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         Assert.NotEmpty(prepared.Data.AnalyticPacket.AnalyticFaces);
         Assert.Contains(prepared.Data.AnalyticPacket.AnalyticFaces, face => face.SurfaceKind == "Cylinder");
         Assert.Empty(prepared.Data.AnalyticPacket.FallbackFaces);
-        Assert.Null(prepared.Data.TessellationFallback);
+        Assert.NotNull(prepared.Data.TessellationFallback);
+        var trimmedPlanes = prepared.Data.AnalyticPacket.AnalyticFaces
+            .Where(face => face.SurfaceKind == "Plane" && face.LoopCount > 1)
+            .ToArray();
+        Assert.Equal(2, trimmedPlanes.Length);
+        foreach (var face in trimmedPlanes)
+        {
+            var fallback = Assert.Single(prepared.Data.TessellationFallback!.FacePatches, patch => patch.FaceId == face.FaceId);
+            Assert.NotEmpty(fallback.Positions);
+            Assert.NotEmpty(fallback.TriangleIndices);
+        }
     }
 
     [Fact]

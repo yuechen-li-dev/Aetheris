@@ -110,6 +110,12 @@ export interface AnalyticDisplayFaceDomainHintDto {
     maxV: number | null;
 }
 
+export interface StartupStepDto {
+    path: string;
+    fileName: string;
+    stepText: string;
+}
+
 export interface AnalyticDisplayPlaneGeometryDto {
     origin: Point3Dto;
     normal: Vector3Dto;
@@ -394,6 +400,15 @@ export async function importStep(documentId: string, stepText: string, name?: st
         method: 'POST',
         body: JSON.stringify({ stepText, name: name ?? null }),
     });
+}
+
+export async function claimStartupStep(): Promise<StartupStepDto | null> {
+    const response = await fetch('/api/v1/startup/step', { method: 'POST' });
+    if (response.status === 204) {
+        return null;
+    }
+
+    return parseEnvelope<StartupStepDto>(response);
 }
 
 export { parseEnvelope };

@@ -170,6 +170,8 @@ function DraftingGrid() {
     bounds,
     layerEnvelopes,
   } = useMemo(() => {
+    // The camera is mutable; this snapshot is the render-time invalidation key.
+    void cameraSnapshot;
     const orthographicCamera = camera as OrthographicCamera;
 
     // Use frustum-based corner projection instead of raycaster
@@ -608,6 +610,7 @@ function FitCameraToScene({ displayScene }: { displayScene: DisplayScene | null 
       return;
     }
 
+    /* eslint-disable react-hooks/immutability -- Three.js cameras are imperative renderer-owned objects. */
     camera.position.set(...fit.position);
     camera.zoom = fit.zoom;
     camera.near = fit.near;
@@ -615,6 +618,7 @@ function FitCameraToScene({ displayScene }: { displayScene: DisplayScene | null 
     camera.lookAt(...fit.target);
     camera.updateProjectionMatrix();
     camera.updateMatrixWorld(false);
+    /* eslint-enable react-hooks/immutability */
 
     if (controls && typeof controls === 'object' && 'target' in controls) {
       const orbitControls = controls as { target: Vector3; update?: () => void };

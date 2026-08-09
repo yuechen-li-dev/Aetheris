@@ -236,7 +236,16 @@ public sealed class BrepTorusBoundarySupport : IAnalyticBoundarySupport
         var scale=double.Max(1d,(_region.Bounds.Max-_region.Bounds.Min).Length);
         var evidence=MaterialSideClassifier.ClassifyMaterialSide(Query.FaceId,boundaryPoint,supportNormal,_region,scale,
             Query.Body.Bindings.GetFaceBinding(Query.FaceId).SameSense);
-        return evidence.MaterialSideNormal??throw new InvalidOperationException($"CIR did not resolve material side for torus face {Query.FaceId.Value}.");
+        if(evidence.MaterialSideNormal is { } material)return material;
+        // Projection to the full analytic torus can put a local-map halo point outside this face's
+        // bounded minor sector. Resolve the orientation at the same major parameter in the interior
+        // of the exact BRep sector, then transport only that sign to the requested support normal.
+        var referencePoint=Query.Evaluate(parameters.U,.5d*(_minimumMinorParameter+_maximumMinorParameter));
+        var referenceNormal=Query.ExactSupportNormal(parameters.U,.5d*(_minimumMinorParameter+_maximumMinorParameter));
+        var referenceEvidence=MaterialSideClassifier.ClassifyMaterialSide(Query.FaceId,referencePoint,referenceNormal,_region,scale,
+            Query.Body.Bindings.GetFaceBinding(Query.FaceId).SameSense);
+        if(referenceEvidence.MaterialSideNormal is not { } referenceMaterial)throw new InvalidOperationException($"CIR did not resolve material side for torus face {Query.FaceId.Value}.");
+        return referenceMaterial.Dot(referenceNormal)>=0d?supportNormal:-supportNormal;
     }
 
     public IBoundaryOffsetMap CreateOffsetMap(CellIndex cellIndex, BoundingBox3D cellBounds, int resolution, BoundaryOffsetMapErrorPolicy policy, BoundaryEvaluationCache? cache = null) =>
@@ -332,7 +341,13 @@ public sealed class BrepTorusBoundarySupport : IAnalyticBoundarySupport
         // experiment classifies that contact cell separately and does not attribute halo area to the trim.
         if (minor < _minimumMinorParameter - 3d || minor > _maximumMinorParameter + 3d)
             throw new InvalidOperationException("Local map queried outside the bounded root-fillet torus sector.");
-        return new(w, MaterialSideNormal(boundary));
+        // The frame origin has already resolved material side from CIR. Map samples may lie in the
+        // small analytic halo outside the bounded trim, where probing complete-solid occupancy is
+        // intentionally ambiguous. Preserve the resolved branch by orienting the exact differential
+        // continuously against that frame normal instead of reclassifying halo points.
+        var exactNormal=Query.ExactSupportNormal(parameters.U,parameters.V);
+        if(exactNormal.Dot(frame.Normal)<0d)exactNormal=-exactNormal;
+        return new(w, exactNormal);
     }
 
     private BoundaryLocalFrame CreateFrame(Point3D nearPoint)

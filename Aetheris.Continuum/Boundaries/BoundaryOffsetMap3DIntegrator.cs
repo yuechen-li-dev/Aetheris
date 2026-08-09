@@ -108,6 +108,21 @@ public static class BoundaryOffsetMap3DIntegrator
         return new(estimate, footprint, diagnostics);
     }
 
+    /// <summary>
+    /// Integrates only the face-owned surface patch. Whole-part composition keeps volume with CIR,
+    /// so it must not pay for an unused tangent-graph thickness integral for every contributor.
+    /// </summary>
+    public static StructuredBoundaryMapCellEstimate IntegrateSurfacePatch(IBoundaryOffsetMap map, BoundingBox3D bounds)
+    {
+        var footprint=CreateFootprint(map,bounds);var counters=new Counters();
+        var uNodes=map.Samples.Select(s=>s.U).Distinct().Order().ToArray();var vNodes=map.Samples.Select(s=>s.V).Distinct().Order().ToArray();
+        var (area,moment,normal)=IntegrateSurface(map,bounds,uNodes,vNodes,counters);
+        var estimate=new BoundaryMapCellEstimate(0d,area,moment,normal);
+        var diagnostics=new BoundaryIntegrationDiagnostics("structured-map-surface-patch",footprint.Vertices.Count,0,0,0,0,0,0,counters.SurfaceTriangles,
+            (footprint.Vertices.Count*16L)+((uNodes.Length+vNodes.Length)*8L)+512L);
+        return new(estimate,footprint,diagnostics);
+    }
+
     /// <summary>Dense M2 control/oracle retained for regression and independent cost comparison.</summary>
     public static BoundaryMapCellEstimate IntegrateDenseOracle(IBoundaryOffsetMap map, BoundingBox3D bounds,
         int volumeSamplesPerAxis = 64, int areaSubdivisionsPerMapInterval = 6)

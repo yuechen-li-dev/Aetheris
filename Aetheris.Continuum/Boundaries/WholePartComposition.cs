@@ -60,7 +60,15 @@ public sealed record LocalBoundaryIntegration(
     double BoundaryArea,
     IReadOnlyDictionary<string, double> BoundaryAreaByFace,
     string Method,
-    int CirQueries);
+    int CirQueries,
+    int ExactSupportQueries = 0,
+    int BoundaryMapEvaluations = 0,
+    int AdaptiveSubdivisions = 0,
+    int MsaaFallbackSamples = 0,
+    double RuntimeMilliseconds = 0d,
+    IReadOnlyDictionary<string, string>? StrategyProvenance = null,
+    double? EstimatedAbsoluteVolumeError = null,
+    double? EstimatedAbsoluteAreaError = null);
 
 public sealed record CutCellBoundarySet(
     CellIndex CellIndex,
@@ -124,13 +132,21 @@ public sealed class WholePartCutCellComposer
     private readonly IContinuumRegion _region;
     private readonly WholeShellBoundaryQuery _shell;
     private readonly IReadOnlyDictionary<FaceId, MaterialSideEvidence> _materialSides;
+    private readonly bool _useUtilityScoredIntegrationPlans;
     private readonly JudgmentEngine<CompositionContext> _engine = new();
     private int _judgmentCalls;
     private double _judgmentMilliseconds;
+    private readonly BoundaryEvaluationCache _mapCache = new();
+    private int _integrationJudgmentCalls;
+    private double _mapConstructionMilliseconds;
+    private double _integrationPlanningMilliseconds;
+    private double _compositeIntegrationMilliseconds;
+    private double _fallbackSamplingMilliseconds;
 
-    public WholePartCutCellComposer(IContinuumRegion region, WholeShellBoundaryQuery shell)
+    public WholePartCutCellComposer(IContinuumRegion region, WholeShellBoundaryQuery shell,bool useUtilityScoredIntegrationPlans=true)
     {
         _region = region ?? throw new ArgumentNullException(nameof(region)); _shell = shell ?? throw new ArgumentNullException(nameof(shell));
+        _useUtilityScoredIntegrationPlans=useUtilityScoredIntegrationPlans;
         if (region.Id != shell.Association.ContinuumRegionId) throw new ArgumentException("CIR/BRep association does not name the supplied region.", nameof(shell));
         var consistency = BrepCirConsistencyChecker.Check(region, shell);
         if (!consistency.Passed) throw new InvalidOperationException(consistency.Summary);
@@ -143,10 +159,17 @@ public sealed class WholePartCutCellComposer
     public BrepCirConsistencyResult Consistency { get; }
     public int JudgmentCallCount => _judgmentCalls;
     public double JudgmentRuntimeMilliseconds => _judgmentMilliseconds;
+    public BoundaryEvaluationCache MapCache => _mapCache;
+    public int IntegrationJudgmentCallCount => _integrationJudgmentCalls;
+    public double MapConstructionMilliseconds => _mapConstructionMilliseconds;
+    public double IntegrationPlanningMilliseconds => _integrationPlanningMilliseconds;
+    public double CompositeIntegrationMilliseconds => _compositeIntegrationMilliseconds;
+    public double FallbackSamplingMilliseconds => _fallbackSamplingMilliseconds;
     public IReadOnlyDictionary<FaceId,MaterialSideEvidence> MaterialSides => _materialSides;
 
     public CutCellBoundarySet Compose(CellIndex index, BoundingBox3D bounds)
     {
+        var integrationStart=Stopwatch.GetTimestamp();
         var candidates = _shell.Query(bounds);
         if (candidates.Count == 0) throw new InvalidOperationException($"Cut cell {index} has no bounded exact BRep face candidate.");
         var kind = Classify(candidates);
@@ -154,11 +177,49 @@ public sealed class WholePartCutCellComposer
         var ambiguous = candidates.Any(c => _materialSides[c.FaceId].Status != MaterialSideStatus.Resolved)
             || kind is CutCellCompositionKind.MultiFaceTrimJunction or CutCellCompositionKind.GeneralBoundedMultiFace;
         if (ambiguous) (kind, trace) = Judge(candidates, kind);
+        var maps=new Dictionary<FaceId,(SampledBoundaryOffsetMap Map,StructuredBoundaryMapCellEstimate Estimate)>();
+        var provenance=new Dictionary<string,string>(StringComparer.Ordinal);var exactQueries=0;var mapEvaluations=0;var subdivisions=0;
+        var mapStart=Stopwatch.GetTimestamp();
+        foreach(var candidate in candidates.Where(c=>c.SupportKind!=SurfaceGeometryKind.Plane).OrderBy(c=>c.FaceId.Value))
+        {
+            if(WholePartBoundaryMapFactory.TryBuild(index,bounds,_region,_shell,candidate,_materialSides[candidate.FaceId],_mapCache,out var map,out var rejection)&&map is not null)
+            {
+                var estimate=BoundaryOffsetMap3DIntegrator.IntegrateSurfacePatch(map,bounds);
+                maps[candidate.FaceId]=(map,estimate);exactQueries+=map.Samples.Count;mapEvaluations+=map.Samples.Count;
+                subdivisions+=estimate.Diagnostics.AdaptiveSubdivisions;provenance[candidate.FaceId.Value.ToString()]=$"{candidate.SupportKind}-local-map:{map.Approximation.ResolutionU}x{map.Approximation.ResolutionV}";
+            }
+            else provenance[candidate.FaceId.Value.ToString()]=$"map-rejected:{rejection}";
+        }
+        _mapConstructionMilliseconds+=Stopwatch.GetElapsedTime(mapStart).TotalMilliseconds;
         var contributors = candidates.Select(c => new CutCellBoundaryContributor(c.Reference, c.SupportKind, c.EdgeIds, c.VertexIds,
-            c.AdjacentFaceIds, _materialSides[c.FaceId])).ToArray();
-        var integration = candidates.All(c => c.SupportKind == SurfaceGeometryKind.Plane)
-            ? ConvexPlanarCellIntegrator.Integrate(bounds, _shell, _materialSides)
-            : SampleFallback(bounds, candidates, 12);
+            c.AdjacentFaceIds, _materialSides[c.FaceId],maps.TryGetValue(c.FaceId,out var row)?row.Map:null)).ToArray();
+        LocalBoundaryIntegration integration;
+        if(candidates.All(c=>c.SupportKind==SurfaceGeometryKind.Plane))integration=ConvexPlanarCellIntegrator.Integrate(bounds,_shell,_materialSides,candidates);
+        else
+        {
+            if(ExactSupportCompositeIntegrator.TryIntegrate(bounds,_region,_shell,candidates,_useUtilityScoredIntegrationPlans,out var composite,out var compositeRejection)&&composite is not null)
+            {
+                if(composite.UsedJudgmentEngine)_integrationJudgmentCalls++;
+                _integrationPlanningMilliseconds+=composite.PlanningMilliseconds;
+                _compositeIntegrationMilliseconds+=composite.IntegrationMilliseconds;
+                foreach(var axis in composite.AxisCandidates)provenance[$"plan:{axis.Plan}"]=$"admissible={axis.Admissible};utility={axis.UtilityScore:R};conditioning={axis.Conditioning:R};cost={axis.EstimatedCost:R};selected={axis.Selected};rejection={axis.RejectionReason}";
+                integration=new(composite.OccupancyFraction,composite.BoundaryArea,composite.BoundaryAreaByFace,composite.Method,
+                    composite.CirQueries,exactQueries+composite.ExactSupportQueries,mapEvaluations,subdivisions+composite.AdaptiveSubdivisions,0,0d,provenance,
+                    composite.EstimatedAbsoluteVolumeError,composite.EstimatedAbsoluteAreaError);
+            }
+            else
+            {
+                var fallbackStart=Stopwatch.GetTimestamp();provenance["composite-rejection"]=compositeRejection;var fallback=SampleFallback(bounds,candidates,12);var areaByFace=new Dictionary<string,double>(StringComparer.Ordinal);var planeQueries=0;
+                foreach(var candidate in candidates.OrderBy(c=>c.FaceId.Value))
+                {
+                    if(maps.TryGetValue(candidate.FaceId,out var mapped))areaByFace[candidate.FaceId.Value.ToString()]=mapped.Estimate.Estimate.BoundaryArea;
+                    else if(candidate.SupportKind==SurfaceGeometryKind.Plane){var planar=WholePartPlanarPatchIntegrator.Integrate(bounds,_region,_shell,candidate);areaByFace[candidate.FaceId.Value.ToString()]=planar.Area;planeQueries+=planar.CirQueries;}
+                }
+                _fallbackSamplingMilliseconds+=Stopwatch.GetElapsedTime(fallbackStart).TotalMilliseconds;
+                integration=new(fallback.OccupancyFraction,areaByFace.Values.Sum(),areaByFace,"bounded-MSAA-after-composite-rejection",fallback.CirQueries+planeQueries,exactQueries,mapEvaluations,subdivisions,fallback.CirQueries,0d,provenance);
+            }
+        }
+        integration=integration with{RuntimeMilliseconds=Stopwatch.GetElapsedTime(integrationStart).TotalMilliseconds};
         var center = new Point3D((bounds.Min.X + bounds.Max.X) * .5d, (bounds.Min.Y + bounds.Max.Y) * .5d, (bounds.Min.Z + bounds.Max.Z) * .5d);
         return new(index, _region.Id, contributors, kind, _region.Classify(center), trace, integration);
     }
@@ -219,7 +280,7 @@ public sealed class WholePartCutCellComposer
         for(var k=0;k<n;k++)for(var j=0;j<n;j++)for(var i=0;i<n;i++)
         {var p=Sample(i,j,k);if(i+1<n&&occupied[i,j,k]!=occupied[i+1,j,k])area+=dy*dz*Correct(new Point3D(p.X+dx*.5,p.Y,p.Z));if(j+1<n&&occupied[i,j,k]!=occupied[i,j+1,k])area+=dx*dz*Correct(new Point3D(p.X,p.Y+dy*.5,p.Z));if(k+1<n&&occupied[i,j,k]!=occupied[i,j,k+1])area+=dx*dy*Correct(new Point3D(p.X,p.Y,p.Z+dz*.5));}
         var share=candidates.Count==0?0d:area/candidates.Count;var byFace=candidates.ToDictionary(c=>c.FaceId.Value.ToString(),_=>share);
-        return new(inside/(double)(n*n*n),area,byFace,"bounded-CIR-MSAA-volume-and-gradient-corrected-Crofton-area",n*n*n);
+        return new(inside/(double)(n*n*n),area,byFace,"bounded-CIR-MSAA-volume-and-gradient-corrected-Crofton-area",n*n*n,MsaaFallbackSamples:n*n*n);
     }
     private static double Lerp(double a,double b,double t)=>a+(b-a)*t;
     private static Point3D Centroid(IEnumerable<Point3D> points) { var a=points.ToArray(); return new(a.Average(p=>p.X),a.Average(p=>p.Y),a.Average(p=>p.Z)); }

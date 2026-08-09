@@ -10,10 +10,14 @@ internal static class ConvexPlanarCellIntegrator
     private sealed record Polygon(IReadOnlyList<Point3D> Vertices, FaceId? BoundaryFace);
 
     public static LocalBoundaryIntegration Integrate(BoundingBox3D cell, WholeShellBoundaryQuery shell,
-        IReadOnlyDictionary<FaceId, MaterialSideEvidence> materialSides)
+        IReadOnlyDictionary<FaceId, MaterialSideEvidence> materialSides,
+        IReadOnlyList<WholeShellBoundaryCandidate> localCandidates)
     {
         var polygons = CellPolygons(cell).ToList();
-        foreach (var face in shell.Faces.OrderBy(f => f.FaceId.Value))
+        // A Cut cell is clipped only by support patches that intersect that cell.  Clipping by every
+        // planar face in the shell incorrectly treats a non-convex whole part as one global half-space
+        // intersection (most visibly for grid-aligned prism faces in M4B).
+        foreach (var face in localCandidates.OrderBy(f => f.FaceId.Value))
         {
             var evidence = materialSides[face.FaceId];
             if (evidence.MaterialSideNormal is not Vector3D inward)

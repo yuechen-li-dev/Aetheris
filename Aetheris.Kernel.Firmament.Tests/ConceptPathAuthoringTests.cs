@@ -70,6 +70,90 @@ public sealed class ConceptPathAuthoringTests
         Assert.True(ResolvedProfile2DValidator.Validate(profile).IsValid);
     }
 
+    [Fact]
+    public void ProfileFromPath_IsAnOrdinaryComposeOperand_WithPathProvenance()
+    {
+        var source = Rectangle("""
+            Profile Plate From Outline
+            Compose Body {
+                Base Stock { Profile: Plate; From: 0mm; To: 2mm; Role: Stock }
+            }
+            """);
+
+        var parsed = PrismaticProfileCompositionParser.Parse(source);
+
+        Assert.Empty(parsed.Diagnostics);
+        var feature = Assert.IsType<PrismaticProfileCompositionFeature>(parsed.Feature);
+        Assert.Equal("Plate", Assert.Single(feature.Operations).ProfileReference);
+        var profile = Assert.IsType<ResolvedProfile2D>(parsed.Profiles["Plate"]);
+        Assert.All(profile.Loops.Single().Segments, segment =>
+            Assert.StartsWith("concept-path:Outline.", segment.Provenance.ConceptStableId, StringComparison.Ordinal));
+        var construction = Assert.IsType<PrismaticSectionStackConstruction>(
+            PrismaticSectionStackCompiler.Normalize(parsed, out var diagnostics));
+        Assert.Empty(diagnostics);
+        Assert.Equal(100d, construction.AnalyticVolume, 9);
+    }
+
+    [Fact]
+    public void ComposePathProfile_MissingPath_ReportsSpecificCapabilityDiagnostic()
+    {
+        var parsed = PrismaticProfileCompositionParser.Parse("""
+            Profile Plate From MissingOutline
+            Compose Body {
+                Base Stock { Profile: Plate; From: 0mm; To: 2mm; Role: Stock }
+            }
+            """);
+
+        Assert.Null(parsed.Feature);
+        Assert.Contains("profile-path-missing:Plate:MissingOutline", parsed.Diagnostics);
+        Assert.Contains("compose-operation-unresolved-profile:Stock:Plate", parsed.Diagnostics);
+    }
+
+    [Fact]
+    public void Inspection_ReportsExposedMembersCapabilitiesConsumersAndProvenance()
+    {
+        var inspection = Assert.Single(ProfileAuthoringParser.InspectConceptPaths(Rectangle("""
+            Profile Plate From Outline
+            Compose Body {
+                Base Stock { Profile: Plate; From: 0mm; To: 2mm; Role: Stock }
+            }
+            """)));
+
+        Assert.Equal("concept-path:Outline", inspection.Provenance);
+        Assert.Equal(["OrderedPlanarGeometry", "ProfileSource", "ComposeProfileOperand"], inspection.Capabilities);
+        Assert.Contains(inspection.ExposedMembers!, member => member.Name == "South" && member.Capability == "ProfileGuide");
+        Assert.Contains(inspection.ExposedMembers!, member => member.Name == "South.End" && member.Capability == "ProfileEndpoint");
+        Assert.Contains(inspection.Consumers!, consumer => consumer.Kind == "Profile" && consumer.Name == "Plate");
+        Assert.Contains(inspection.Consumers!, consumer => consumer.Kind == "ComposeOperation" && consumer.Name == "Stock");
+    }
+
+    [Fact]
+    public void TableRecordTemplatePathCompose_PreservesInputAndSpecializationProvenance()
+    {
+        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/FirmamentV2/Canonical/valid/table-template-concept-path-compose.firmament");
+
+        var parsed = FirmamentV2Parser.Parse(source);
+
+        Assert.True(parsed.IsSuccess, string.Join(Environment.NewLine, parsed.Diagnostics));
+        var instance = Assert.Single(parsed.Document!.TemplateInstantiations!);
+        Assert.Equal("PlateTemplate", instance.Template);
+        Assert.Equal("Plate", instance.Instance);
+        var record = Assert.Single(instance.RecordArguments!).Value;
+        Assert.Equal("ThickSmall", record.StaticValue);
+        Assert.Contains("Table:PlateStandards row:0 key:Small", record.Provenance, StringComparison.Ordinal);
+        Assert.Contains("derivedFrom:BaseSpec", record.Provenance, StringComparison.Ordinal);
+        Assert.Equal("10mm", record.Members["Thickness"]);
+        var expansionDiagnostics = new List<string>();
+        var expanded = Assert.IsType<FirmamentV2TemplateExpansion.Result>(
+            FirmamentV2TemplateExpansion.Expand(source, expansionDiagnostics));
+        var composition = PrismaticProfileCompositionParser.Parse(expanded.Source);
+        Assert.Empty(expansionDiagnostics);
+        Assert.Empty(composition.Diagnostics);
+        var construction = Assert.IsType<PrismaticSectionStackConstruction>(
+            PrismaticSectionStackCompiler.Normalize(composition, out _));
+        Assert.Equal(8000d, construction.AnalyticVolume, 9);
+    }
+
     private static string Rectangle(string profile) => """
         Concept Path Outline {
             Start: Point2(0mm, 0mm)

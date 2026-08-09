@@ -6,6 +6,32 @@ Ordered guide adjacency removes repeated endpoint declarations for ordinary outl
 
 The lowering emits `Path.Start`, `Path.Step`, and `Path.Step.End` identities into the same maps consumed by normal profile authoring. No path-specific resolved profile, materializer, STEP route, role-Match map, or automatic winding correction is introduced. Branches, cursor moves, arbitrary arc constructions, and role inference remain deferred.
 
+## Preview 2 consolidation contract
+
+`Concept Path` is the typed, ordered planar construction described above. It is
+not general object-member navigation, raw BRep traversal, mesh selection,
+reflection, or a string lookup API. Its exposed semantic members are the start
+point plus each named guide and endpoint. A consuming `Profile` proves closure,
+winding, and region validity and normalizes the path to `ResolvedProfile2D`.
+
+That resolved Profile is the capability boundary. Extrude and Compose consume
+the same representation, and Selection may consume its named profile segments.
+No downstream BRep/section-stack backend receives Concept Path syntax. Segment
+provenance retains `concept-path:<Path>.<Step>` together with the Profile stable
+ID and source span. `aetheris inspect <file> --json` reports path capabilities,
+exposed members, consumers, and provenance.
+
+Template expansion occurs before path binding. Consequently a Template-authored
+Concept Path remains ordinary path source after scalar or typed Record/Table
+substitution. The document retains Template specialization and Record/Table
+provenance even when the result takes the Profile/Compose adapter route.
+
+Firmament's bounded `Instance.Member` Concept IR expressions, recognized STEP
+regions, Forge capability output descriptors, and FEA `SemanticRegionBinding`
+are distinct contracts. They are not silently treated as Concept Paths. See
+`docs/preview2/consolidation-gap-inventory.md` for the admitted and deferred
+matrix.
+
 The matched rectangle comparison is materially shorter without concealing connectivity:
 
 | Measure | Low-level rectangle | Concept Path rectangle |

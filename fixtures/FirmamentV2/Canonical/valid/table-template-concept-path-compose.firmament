@@ -1,0 +1,48 @@
+Model TableTemplateConceptPathCompose {
+    Units: mm
+    Enum PlateKind { Small Large }
+    Record PlateStandard {
+        Kind: PlateKind
+        Width: Length
+        Height: Length
+    }
+    Record PlateSpec {
+        Standard: PlateStandard
+        Thickness: Length
+    }
+    Static Table PlateStandards: PlateStandard Key: Kind {
+        Kind: [Small, Large]
+        Width: [40mm, 80mm]
+        Height: [20mm, 30mm]
+    }
+    Static SmallStandard = PlateStandards[Small]
+    Static BaseSpec: PlateSpec = PlateSpec {
+        Standard: SmallStandard
+        Thickness: 8mm
+    }
+    Static ThickSmall = BaseSpec with {
+        Thickness: 10mm
+    }
+    Template < Spec: PlateSpec >
+    Struct PlateTemplate {
+        Require Positive => Spec.Standard.Width > 0mm && Spec.Standard.Height > 0mm && Spec.Thickness > 0mm
+        Concept Path Outline {
+            Start: Point2(0mm, 0mm)
+            Heading: 0deg
+            Line South { Length: Spec.Standard.Width }
+            Line East { Turn: 90deg; Length: Spec.Standard.Height }
+            Line North { Turn: 90deg; Length: Spec.Standard.Width }
+            Close West
+        }
+        Profile PlateProfile From Outline
+        Compose Body {
+            Base Stock { Profile: PlateProfile; From: 0mm; To: Spec.Thickness; Role: Stock }
+        }
+        Selection TopBoundary {
+            Target: TopBoundary
+            Source: PlateProfile.ProfileSegments([South, East, North, West])
+            Require: ClosedLoop
+        }
+    }
+    Struct Plate = PlateTemplate < Spec: ThickSmall >
+}

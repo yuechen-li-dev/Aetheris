@@ -22,6 +22,12 @@ Struct Part {
 
 `Base` is mandatory and unique. `Add` and `Remove` retain operation name, referenced scaffold-backed `Profile`, interval, role, and source span. The parser resolves every named profile independently using the existing `Point2`/`Line2`/`Circle2` profile route.
 
+P2-CONSOLIDATION-M1 also admits `Profile Name From Path`. The canonical Profile
+binder first erases Concept Path syntax into the same `ResolvedProfile2D`
+dictionary used by low-level `Profile ... Using ...` declarations. Compose has
+no path-specific operation or section-stack lowering branch, and the path/step
+stable IDs remain attached to every resolved segment.
+
 `Placement` makes the positional contract explicit. X1 accepts the current production world placement only: anchor `[0,0,0]`, profile plane `XY`, extrusion axis `+Z`, and in-plane reference direction `+X`. Other anchors/orientations reject rather than being silently ignored. Older fixtures retain a labeled legacy implicit placement; reconstruction artifacts should declare it.
 
 The Feature AIR is `PrismaticProfileCompositionFeature`; lowering creates `PrismaticSectionStackConstruction` with sorted critical levels, open slabs, explicit material regions, transition regions, provenance, and analytic volume. The emitter owns one `PrismaticSectionStackBrepPlan` and preserves deterministic slab partitions rather than aggressively merging faces.

@@ -1,4 +1,4 @@
-Model ConceptPathComposeUnresolvedProfile {
+Model ConceptPathComposeProfile {
     Units: mm
 
     Concept Path PlateOutline {
@@ -15,5 +15,10 @@ Model ConceptPathComposeUnresolvedProfile {
         Compose PlateBody {
             Base Stock { Profile: PlateProfile; From: 0mm; To: 10mm; Role: Stock }
         }
+    }
+    Selection PlateTopBoundary {
+        Target: TopBoundary
+        Source: PlateProfile.ProfileSegments([South, East, North, West])
+        Require: ClosedLoop
     }
 }

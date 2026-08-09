@@ -14,5 +14,16 @@ public sealed record AbsoluteHeading(double Degrees) : ConceptPathDirection;
 public sealed record ToPoint(string Reference) : ConceptPathDirection;
 
 /// <summary>Compact resolved view used by the existing profile inspection JSON.</summary>
-public sealed record ConceptPathInspection(string Name, double StartX, double StartY, double InitialHeadingDegrees, IReadOnlyList<ConceptPathEntryInspection> Entries);
+public sealed record ConceptPathInspection(
+    string Name,
+    double StartX,
+    double StartY,
+    double InitialHeadingDegrees,
+    IReadOnlyList<ConceptPathEntryInspection> Entries,
+    IReadOnlyList<string>? Capabilities = null,
+    IReadOnlyList<ConceptPathExposedMemberInspection>? ExposedMembers = null,
+    IReadOnlyList<ConceptPathConsumerInspection>? Consumers = null,
+    string? Provenance = null);
 public sealed record ConceptPathEntryInspection(string Name, string Kind, double StartX, double StartY, double EndX, double EndY, double HeadingDegrees, double? Radius, double? SweepDegrees, string GuideId, string EndpointId);
+public sealed record ConceptPathExposedMemberInspection(string Name, string Kind, string Capability, string StableId);
+public sealed record ConceptPathConsumerInspection(string Kind, string Name, string RequiredCapability, string Provenance);

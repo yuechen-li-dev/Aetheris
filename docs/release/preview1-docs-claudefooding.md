@@ -1,5 +1,8 @@
 # Preview 1 documentation-only authoring review
 
+> Historical Preview 1 evidence. P2-CONSOLIDATION-M1 later closed the
+> Concept Path-derived Profile -> Compose limitation recorded below.
+
 Date: 2026-08-07
 
 Context boundary: public manual content plus ordinary `aetheris --help` output.

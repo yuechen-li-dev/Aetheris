@@ -180,6 +180,15 @@ public static class PrismaticProfileCompositionParser
             if (validation.IsValid) profiles.Add(profile.Name, profile);
         }
 
+        // Profile is the capability boundary. Concept Path is normalized by the
+        // canonical profile binder before Compose resolves its operands, so the
+        // section-stack compiler never needs a path-specific lowering branch.
+        foreach (var pathProfile in ProfileAuthoringParser.BindPathDerivedProfiles(source, diagnostics))
+        {
+            if (!profiles.TryAdd(pathProfile.Key, pathProfile.Value))
+                diagnostics.Add($"compose-profile-duplicate:{pathProfile.Key}");
+        }
+
         var compose = ComposeHead.Match(source);
         if (!compose.Success) return new(null, profiles, diagnostics.Append("compose-source-missing-compose").ToArray());
         var composeBody = Block(source, compose.Index + compose.Length - 1);

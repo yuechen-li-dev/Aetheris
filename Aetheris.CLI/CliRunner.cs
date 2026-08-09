@@ -649,7 +649,8 @@ public static class CliRunner
             return 1;
         }
 
-        var parse = FirmamentV2Parser.Parse(File.ReadAllText(fullPath), Path.GetDirectoryName(fullPath));
+        var source = File.ReadAllText(fullPath);
+        var parse = FirmamentV2Parser.Parse(source, Path.GetDirectoryName(fullPath));
         var document = parse.Document;
         var success = parse.IsSuccess && document is not null;
         var features = document?.ModifyBlocks?.SelectMany(block =>
@@ -672,12 +673,23 @@ public static class CliRunner
                 columns = table.Columns,
                 table.SourceSpan
             }).ToArray() ?? [],
-            templateInstances = document?.ConceptIr?.TemplateInstantiations?.Select(instance => new
+            templateInstances = (document?.TemplateInstantiations ?? document?.ConceptIr?.TemplateInstantiations)?.Select(instance => new
             {
                 instance.Template,
                 instance.Instance,
                 instance.SpecializationIdentity,
                 records = instance.RecordArguments?.ToDictionary(pair => pair.Key, pair => new { pair.Value.RecordType, pair.Value.StaticValue, pair.Value.Provenance, members = pair.Value.Members })
+            }).ToArray() ?? [],
+            conceptPaths = ProfileAuthoringParser.InspectConceptPaths(source),
+            recognizedRegions = document?.RecognizedRegions?.Select(region => new
+            {
+                region.BodyName,
+                region.RegionName,
+                region.Kind,
+                region.FaceRefs,
+                region.Confidence,
+                region.Evidence,
+                region.Proposal
             }).ToArray() ?? [],
             features,
             pmi = document?.Pmi?.Select(item => new { item.Kind, item.Name, item.Target }).ToArray() ?? [],

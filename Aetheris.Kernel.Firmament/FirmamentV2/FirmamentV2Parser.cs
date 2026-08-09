@@ -985,7 +985,8 @@ public static class FirmamentV2Parser
                 Pmi: compositionPmi,
                 PmiBlock: compositionPmiBlock,
                 BoundPmi: compositionBoundPmi,
-                Selections: compositionSelections);
+                Selections: compositionSelections,
+                TemplateInstantiations: templateInstantiations);
             diagnostics.Add("firmament-v2-unified-canonical-advanced-parsed");
             diagnostics.Add("firmament-v2-profile-compose-adapted");
             diagnostics.Add("firmament-v2-parse-succeeded");
@@ -1031,7 +1032,8 @@ public static class FirmamentV2Parser
                 Pmi: profilePmi,
                 PmiBlock: profilePmiBlock,
                 BoundPmi: profileBoundPmi,
-                Selections: profileSelections);
+                Selections: profileSelections,
+                TemplateInstantiations: templateInstantiations);
             diagnostics.Add("firmament-v2-unified-canonical-advanced-parsed");
             diagnostics.Add("firmament-v2-profile-adapted");
             diagnostics.Add("firmament-v2-parse-succeeded");

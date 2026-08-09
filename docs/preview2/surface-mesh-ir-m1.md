@@ -50,3 +50,11 @@ primitives, and doubly-periodic Torus primitives. See
 [surface-mesh-ir-m2.md](surface-mesh-ir-m2.md) and
 [surface-mesh-ir-m3.md](surface-mesh-ir-m3.md); general conic trim bands and
 arbitrary trimmed curved patches remain deliberate legacy fallbacks.
+
+P2-CONSOLIDATION-M1 status: the paragraph above is M1-era history, not the
+current public mesh matrix. M2 closed planar holes, M3 added Cone/Sphere/Torus,
+M4 added bounded Hyperbola and torus trim bands, M5 added sampled non-rational
+B-spline trims on analytic supports, M6/M7 added planar decomposition and
+feature bands, and the CLI exports topology-preserving OBJ. Rational spline
+trims, spline/NURBS support surfaces, and arbitrary trimmed-support meshing
+remain explicitly bounded or unsupported; see the consolidation inventory.

@@ -1,5 +1,8 @@
 # Preview 1 feature freeze
 
+> Historical freeze. P2-CONSOLIDATION-M1 later admitted Concept Path-derived
+> Profiles to Compose; the table below remains the Preview 1 snapshot.
+
 ## Purpose
 
 This is the authoritative Preview 1 support contract.  It freezes the

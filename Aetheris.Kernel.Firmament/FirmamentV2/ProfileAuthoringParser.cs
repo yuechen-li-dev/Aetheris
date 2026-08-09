@@ -26,13 +26,40 @@ public static class ProfileAuthoringParser
     public static IReadOnlyList<ConceptPathInspection> InspectConceptPaths(string source)
     {
         var diagnostics = new List<string>();
+        var expansion = FirmamentV2TemplateExpansion.Expand(source, diagnostics);
+        if (expansion is not null) source = expansion.Source;
         var points = new Dictionary<string, (double X, double Y)>(StringComparer.Ordinal);
         var guides = new Dictionary<string, LineArcProfileCurve2D>(StringComparer.Ordinal);
         AddOrdinaryGuides(source, points, guides, diagnostics);
-        return BindPaths(source, points, guides, diagnostics).Values.Select(path => new ConceptPathInspection(
-            path.Name, path.Start.X, path.Start.Y, path.InitialHeading,
-            path.Steps.Select(step => new ConceptPathEntryInspection(step.Name, step.Geometry is LineArcCircularArc2D ? "Arc" : "Line", step.Start.X, step.Start.Y, step.End.X, step.End.Y, step.Heading,
-                step.Geometry is LineArcCircularArc2D arc ? arc.Radius : null, step.Geometry is LineArcCircularArc2D arc2 ? arc2.SweepAngleRadians * 180d / Math.PI : null, step.GuideName, step.EndpointName)).ToArray())).ToArray();
+        var profiles = FindProfiles(source).Where(profile => profile.FromPath is not null).ToArray();
+        var operations = Regex.Matches(source, @"\b(?:Base|Add|Remove)\s+(?<name>[A-Za-z_]\w*)\s*\{[\s\S]*?\bProfile\s*:\s*(?<profile>[A-Za-z_]\w*)", RegexOptions.CultureInvariant)
+            .Cast<Match>().Select(match => (Name: match.Groups["name"].Value, Profile: match.Groups["profile"].Value, Offset: match.Index)).ToArray();
+        return BindPaths(source, points, guides, diagnostics).Values.Select(path =>
+        {
+            var pathProfiles = profiles.Where(profile => profile.FromPath == path.Name).ToArray();
+            var profileNames = pathProfiles.Select(profile => profile.Name).ToHashSet(StringComparer.Ordinal);
+            var composeOperations = operations.Where(operation => profileNames.Contains(operation.Profile)).ToArray();
+            var capabilities = new List<string> { "OrderedPlanarGeometry" };
+            if (pathProfiles.Length > 0) capabilities.Add("ProfileSource");
+            if (composeOperations.Length > 0) capabilities.Add("ComposeProfileOperand");
+            var exposed = new List<ConceptPathExposedMemberInspection>
+            {
+                new("Start", "Point2", "ProfileEndpoint", $"{path.Name}.Start")
+            };
+            exposed.AddRange(path.Steps.SelectMany(step => new[]
+            {
+                new ConceptPathExposedMemberInspection(step.Name, step.Geometry is LineArcCircularArc2D ? "Arc2" : "Line2", "ProfileGuide", step.GuideName),
+                new ConceptPathExposedMemberInspection(step.Name + ".End", "Point2", "ProfileEndpoint", step.EndpointName)
+            }));
+            var consumers = pathProfiles.Select(profile => new ConceptPathConsumerInspection("Profile", profile.Name, "ProfileSource", profile.SourceSpan))
+                .Concat(composeOperations.Select(operation => new ConceptPathConsumerInspection("ComposeOperation", operation.Name, "ComposeProfileOperand", $"offset:{operation.Offset}")))
+                .ToArray();
+            return new ConceptPathInspection(
+                path.Name, path.Start.X, path.Start.Y, path.InitialHeading,
+                path.Steps.Select(step => new ConceptPathEntryInspection(step.Name, step.Geometry is LineArcCircularArc2D ? "Arc" : "Line", step.Start.X, step.Start.Y, step.End.X, step.End.Y, step.Heading,
+                    step.Geometry is LineArcCircularArc2D arc ? arc.Radius : null, step.Geometry is LineArcCircularArc2D arc2 ? arc2.SweepAngleRadians * 180d / Math.PI : null, step.GuideName, step.EndpointName)).ToArray(),
+                capabilities, exposed, consumers, $"concept-path:{path.Name}");
+        }).ToArray();
     }
 
     public static (ResolvedProfile2D? Profile, double Height, IReadOnlyList<string> Diagnostics) Parse(string source)
@@ -53,6 +80,35 @@ public static class ProfileAuthoringParser
         if (diagnostics.Count != 0)
             return (null, height, diagnostics);
         return (new ResolvedProfile2D(profile.Name, profile.Frame ?? "XY", loops, plane ?? ConstructionPlane.WorldXY, start, end), height, diagnostics);
+    }
+
+    /// <summary>
+    /// Resolves every Profile whose source is a Concept Path into the ordinary
+    /// resolved-profile representation consumed by extrusion and composition.
+    /// Concept Path syntax is intentionally erased at this boundary; segment
+    /// provenance retains the authored path and step identities.
+    /// </summary>
+    internal static IReadOnlyDictionary<string, ResolvedProfile2D> BindPathDerivedProfiles(string source, List<string> diagnostics)
+    {
+        var authoredProfiles = FindProfiles(source).Where(candidate => candidate.FromPath is not null).ToArray();
+        if (authoredProfiles.Length == 0) return new Dictionary<string, ResolvedProfile2D>();
+        var points = new Dictionary<string, (double X, double Y)>(StringComparer.Ordinal);
+        var guides = new Dictionary<string, LineArcProfileCurve2D>(StringComparer.Ordinal);
+        AddOrdinaryGuides(source, points, guides, diagnostics);
+        var paths = BindPaths(source, points, guides, diagnostics);
+        var profiles = new Dictionary<string, ResolvedProfile2D>(StringComparer.Ordinal);
+        foreach (var profile in authoredProfiles)
+        {
+            var plane = ResolveConstructionPlane(source, profile.Frame, diagnostics);
+            var loops = BindProfileLoops(profile, paths, points, guides, diagnostics);
+            if (plane is null || loops.Count == 0) continue;
+            var resolved = new ResolvedProfile2D(profile.Name, profile.Frame ?? "XY", loops, plane);
+            var validation = ResolvedProfile2DValidator.Validate(resolved);
+            diagnostics.AddRange(validation.Diagnostics);
+            if (validation.IsValid && !profiles.TryAdd(profile.Name, resolved))
+                diagnostics.Add($"profile-duplicate:{profile.Name}");
+        }
+        return profiles;
     }
 
     private static void AddOrdinaryGuides(string source, Dictionary<string, (double X, double Y)> points, Dictionary<string, LineArcProfileCurve2D> guides, List<string> diagnostics)

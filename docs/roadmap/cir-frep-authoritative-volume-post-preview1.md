@@ -1,5 +1,13 @@
 # CIR/FRep authoritative volume after Preview 1
 
+> **Superseded architecture note (Preview 2):** this proposal is retained as
+> historical design context. CIR is now occupied-continuum authority, SDF is a
+> CIR backend, and BRep remains exact boundary/topology authority. Generated
+> dual representations lower independently from shared constructive intent;
+> bounded SDF-to-BRep routes are decompilation/intent recovery, not topology
+> ownership. See `docs/continuum/architecture.md`. The still-open certified
+> volume work below does not transfer exact-topology authority to CIR.
+
 ## Target
 
 Make `Assert Volume` consume a deterministic CIR/FRep occupied-volume result with an explicit absolute error interval, while independently requiring exact-BRep STEP reimport and topology validation.

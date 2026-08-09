@@ -1,0 +1,23 @@
+{
+  "version": "Preview 2 consolidation M1",
+  "generatedAt": "2026-08-09",
+  "statuses": ["Supported", "Experimental", "Bounded", "Unsupported"],
+  "features": [
+    {"id":"concept-path-planar-construction","status":"Supported","reason":"Typed ordered Line/Arc/Close construction with stable guide and endpoint identities."},
+    {"id":"concept-path-profile","status":"Supported","reason":"Normalizes to validated ResolvedProfile2D without flattening or backend syntax branches."},
+    {"id":"concept-path-profile-compose","status":"Supported","reason":"Path-derived Profiles use the ordinary Compose operand dictionary and exact section-stack path."},
+    {"id":"concept-path-profile-selection","status":"Bounded","reason":"Named ProfileSegments/Loop selection is supported; selection is not arbitrary path traversal."},
+    {"id":"template-record-table-path-compose","status":"Supported","reason":"Expansion precedes binding; fixture retains specialization and input provenance."},
+    {"id":"general-semantic-member-path","status":"Unsupported","reason":"No common typed semantic-reference value spans Concept IR, Recognize, Forge, Modify, and AnalysisIR."},
+    {"id":"inline-step-recognize-semantic-path","status":"Bounded","reason":"Recognize exposes exact face refs for replacement/inspection, not Profile-capable semantic values."},
+    {"id":"fea-linear-elasticity","status":"Supported","reason":"Native and canonical imported bounded domains, exact planar constraints, traction, force, and pressure work."},
+    {"id":"fea-curved-nonlinear-contact-dynamics","status":"Unsupported","reason":"Curved weak constraints, nonlinear mechanics, contact, and dynamics are future formulations."},
+    {"id":"surface-mesh-ir","status":"Bounded","reason":"Analytic supports, planar holes/bands, Hyperbola and sampled non-rational B-spline trims, STL and OBJ; no NURBS support surfaces."},
+    {"id":"continuum-authority","status":"Supported","reason":"BRep exact topology and CIR occupancy dual-lower from shared constructive intent; SDF is a CIR backend."},
+    {"id":"arbitrary-representation-recovery","status":"Unsupported","reason":"Arbitrary BRep-to-CIR and CIR/SDF-to-exact-BRep are not assumed."},
+    {"id":"forge-template-hosting","status":"Supported","reason":"Typed Template invocation, artifact validation, imported resources, and deterministic provenance."},
+    {"id":"forge-construction-extension","status":"Bounded","reason":"Trusted explicitly registered capabilities, one construct output, bounded standard prism or validated ExactBrep."},
+    {"id":"forge-general-assembly-loft-sourcegen","status":"Unsupported","reason":"Multi-body/general loft/nested host Record/source generator/plugin discovery are not production features."},
+    {"id":"mixed-profile-whole-loop-fillet","status":"Experimental","reason":"Exact shell executes but curved-trim certified volume envelopes remain release-loose."}
+  ]
+}

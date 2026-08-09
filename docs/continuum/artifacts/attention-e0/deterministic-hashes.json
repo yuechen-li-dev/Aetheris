@@ -1,0 +1,8 @@
+{
+  "schema": "aetheris-continuum-attention-e0-determinism-v1",
+  "algorithm": "SHA-256",
+  "excludes": [
+    "setup and runtime measurements"
+  ],
+  "deterministicResultsSha256": "f0152819fac61768acbe8b65206a1970fe97efab49549e8779171965833b5d57"
+}

@@ -1,0 +1,54 @@
+{
+  "schema": "aetheris-continuum-attention-e0-operators-v1",
+  "exactOperator": "matrix-free symmetric seven-point -Laplacian; no experimental approximation in residual",
+  "token": [
+    "interior lattice position",
+    "scalar iterate",
+    "residual",
+    "forcing",
+    "Dirichlet boundary proximity",
+    "constant stencil coefficients"
+  ],
+  "operators": [
+    {
+      "name": "compact symmetric",
+      "kernel": "delta \u002B 0.12 six-neighbor adjacency",
+      "support": "one lattice edge",
+      "spd": "|beta| \u003C 1/6"
+    },
+    {
+      "name": "screened symmetric",
+      "kernel": "exp(-Manhattan lattice distance / 2), separable",
+      "support": "global, O(N) recurrence",
+      "spd": "positive definite kernel plus positive Jacobi term"
+    },
+    {
+      "name": "truncated Green",
+      "kernel": "eight analytic Dirichlet sine eigenfunctions",
+      "support": "global rank 8, O(8N)",
+      "spd": "positive spectral inverse coefficients"
+    },
+    {
+      "name": "hierarchical screened",
+      "kernel": "2x2x2 average -\u003E screened macro interaction -\u003E constant scatter",
+      "support": "global at N/8",
+      "spd": "R=(1/8)P^T and SPD macro kernel"
+    },
+    {
+      "name": "two-level control",
+      "kernel": "same transfers plus eight weighted-Jacobi coarse steps",
+      "support": "coarse stencil",
+      "spd": "positive polynomial coarse inverse"
+    }
+  ],
+  "rejected": [
+    {
+      "name": "softmax",
+      "reason": "row normalization is generally asymmetric, removes inverse-response scale, and has no CG-compatible SPD guarantee"
+    },
+    {
+      "name": "dense inverse distance",
+      "reason": "O(N^2) application is excluded from production-shaped scaling; screened separable distance is the scalable control"
+    }
+  ]
+}

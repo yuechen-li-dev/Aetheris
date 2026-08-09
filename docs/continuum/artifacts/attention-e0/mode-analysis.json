@@ -1,0 +1,74 @@
+[
+  {
+    "method": "Jacobi-CG",
+    "mode": "low-(1,1,1)",
+    "errorNormAfterUnitCorrection": 0.9954719225730867,
+    "reductionFactor": 0.9954719225730867
+  },
+  {
+    "method": "Jacobi-CG",
+    "mode": "high-(n,n,n)",
+    "errorNormAfterUnitCorrection": 0.9954719225730844,
+    "reductionFactor": 0.9954719225730844
+  },
+  {
+    "method": "Compact-symmetric(beta=0.12)",
+    "mode": "low-(1,1,1)",
+    "errorNormAfterUnitCorrection": 0.9922264693350393,
+    "reductionFactor": 0.9922264693350393
+  },
+  {
+    "method": "Compact-symmetric(beta=0.12)",
+    "mode": "high-(n,n,n)",
+    "errorNormAfterUnitCorrection": 0.43476219269412203,
+    "reductionFactor": 0.43476219269412203
+  },
+  {
+    "method": "Screened-symmetric(length=2)",
+    "mode": "low-(1,1,1)",
+    "errorNormAfterUnitCorrection": 0.04105051580687302,
+    "reductionFactor": 0.04105051580687302
+  },
+  {
+    "method": "Screened-symmetric(length=2)",
+    "mode": "high-(n,n,n)",
+    "errorNormAfterUnitCorrection": 1.1001078556462525,
+    "reductionFactor": 1.1001078556462525
+  },
+  {
+    "method": "Truncated-Green(rank=8)",
+    "mode": "low-(1,1,1)",
+    "errorNormAfterUnitCorrection": 1.9231737505393275E-14,
+    "reductionFactor": 1.9231737505393275E-14
+  },
+  {
+    "method": "Truncated-Green(rank=8)",
+    "mode": "high-(n,n,n)",
+    "errorNormAfterUnitCorrection": 0.9954719225730837,
+    "reductionFactor": 0.9954719225730837
+  },
+  {
+    "method": "Hierarchical-screened(2x2x2,length=2)",
+    "mode": "low-(1,1,1)",
+    "errorNormAfterUnitCorrection": 0.47856370133132087,
+    "reductionFactor": 0.47856370133132087
+  },
+  {
+    "method": "Hierarchical-screened(2x2x2,length=2)",
+    "mode": "high-(n,n,n)",
+    "errorNormAfterUnitCorrection": 0.995529530874683,
+    "reductionFactor": 0.995529530874683
+  },
+  {
+    "method": "Two-level-control(Jacobi-8)",
+    "mode": "low-(1,1,1)",
+    "errorNormAfterUnitCorrection": 0.9493701079070468,
+    "reductionFactor": 0.9493701079070468
+  },
+  {
+    "method": "Two-level-control(Jacobi-8)",
+    "mode": "high-(n,n,n)",
+    "errorNormAfterUnitCorrection": 0.9954733432147854,
+    "reductionFactor": 0.9954733432147854
+  }
+]

@@ -2,6 +2,9 @@ using Aetheris.Continuum.Boundaries;
 using Aetheris.Forge.Abstractions;
 using Aetheris.Forge.Extensions;
 using Aetheris.Kernel.Core.Brep;
+using Aetheris.FEA.Abaqus;
+using Aetheris.FEA.Analysis;
+using Aetheris.FEA.Mechanics;
 
 namespace Aetheris.Forge.Sdk;
 
@@ -58,4 +61,16 @@ public sealed record ForgeCompilationResult(
     TimeSpan CompilerLoweringTime)
 {
     public bool IsSuccess => Artifact is not null && Diagnostics.All(diagnostic => diagnostic.Severity != ForgeDiagnosticSeverity.Error);
+}
+
+public sealed record ForgeAnalysisInvocationResult(
+    LinearElasticAnalysisIr? AnalysisIr,
+    LinearElasticAnalysisResult? NativeResult,
+    AbaqusExportArtifact? Abaqus,
+    IReadOnlyList<ForgeDiagnostic> Diagnostics,
+    TimeSpan TemplateInvocationTime,
+    TimeSpan AnalysisCompilationTime)
+{
+    public bool IsSuccess => AnalysisIr is not null && NativeResult?.IsSuccess == true && Abaqus is not null
+        && Diagnostics.All(item => item.Severity != ForgeDiagnosticSeverity.Error);
 }

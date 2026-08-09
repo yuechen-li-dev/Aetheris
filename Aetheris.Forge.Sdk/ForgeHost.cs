@@ -13,6 +13,9 @@ using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament;
 using Aetheris.Kernel.Firmament.FirmamentV2;
+using Aetheris.FEA.Abaqus;
+using Aetheris.FEA.Firmament;
+using Aetheris.FEA.Mechanics;
 
 namespace Aetheris.Forge.Sdk;
 
@@ -209,6 +212,45 @@ public sealed class ForgeHost
             invocationTime,
             extensionTime,
             compilerTime);
+    }
+
+    internal ForgeAnalysisInvocationResult Analyze(ForgeInvocation invocation, MechanicsSolveOptions? options)
+    {
+        var diagnostics = new List<ForgeDiagnostic>();
+        diagnostics.AddRange(invocation.Module.LoadDiagnostics);
+        diagnostics.AddRange(registrationDiagnostics);
+        diagnostics.AddRange(ValidateTemplateBindings(invocation));
+        foreach (var binding in invocation.Bindings.Where(item => item.Value is ForgeImportedStep step
+            && (!invocation.Resources.TryGetValue(step.ResourceName, out var value) || value is not ImportedStepResource)))
+            diagnostics.Add(Error("forge-analysis-resource-missing", $"Template parameter '{binding.Key}' refers to a missing ImportedStep resource.", invocation.Module.SourcePath));
+        if (diagnostics.Any(item => item.Severity == ForgeDiagnosticSeverity.Error))
+            return new(null, null, null, diagnostics, TimeSpan.Zero, TimeSpan.Zero);
+        var hostArguments = invocation.Bindings.ToDictionary(
+            pair => pair.Key,
+            pair => pair.Value is ForgeRecord record
+                ? new FirmamentHostArgument(record.RecordType, record.RecordType, record.Fields.ToDictionary(field => field.Key, field => field.Value.CanonicalLiteral, StringComparer.Ordinal))
+                : new FirmamentHostArgument(pair.Value.CanonicalLiteral), StringComparer.Ordinal);
+        var started = Stopwatch.GetTimestamp();
+        var expansion = FirmamentTemplateHostBridge.Expand(invocation.Module.Source, invocation.Template.Metadata.Name, invocation.InstanceName, hostArguments, out var expansionDiagnostics);
+        var invocationTime = Stopwatch.GetElapsedTime(started);
+        diagnostics.AddRange(expansionDiagnostics.Select(code => Error(code, code, invocation.Module.SourcePath)));
+        if (expansion is null) return new(null, null, null, diagnostics, invocationTime, TimeSpan.Zero);
+        var resources = invocation.Resources.Values.OfType<ImportedStepResource>().ToDictionary(
+            item => item.Name, item => new FirmamentAnalysisResource(item.Name, item.ContentHash, item.Body), StringComparer.Ordinal);
+        var compiled = FirmamentAnalysisCompiler.Compile(expansion.ExpandedSource, invocation.Module.SourcePath,
+            invocation.Module.SourcePath is null ? null : Path.GetDirectoryName(invocation.Module.SourcePath), resources);
+        diagnostics.AddRange(compiled.Diagnostics.Select(item => new ForgeDiagnostic(item.Code,
+            item.Severity == Aetheris.FEA.Analysis.AnalysisDiagnosticSeverity.Error ? ForgeDiagnosticSeverity.Error : ForgeDiagnosticSeverity.Warning,
+            item.Message, item.Provenance?.Source)));
+        if (!compiled.IsSuccess || compiled.Analysis is null) return new(null, null, null, diagnostics, invocationTime, compiled.CompilationTime);
+        var native = LinearElasticSolver.Solve(compiled.Analysis, options);
+        diagnostics.AddRange(native.Diagnostics.Where(item => item.Severity == Aetheris.FEA.Analysis.AnalysisDiagnosticSeverity.Error).Select(item =>
+            new ForgeDiagnostic(item.Code, ForgeDiagnosticSeverity.Error, item.Message, item.Provenance?.Source)));
+        if (!native.IsSuccess) return new(compiled.Analysis, native, null, diagnostics, invocationTime, compiled.CompilationTime);
+        var abaqus = AbaqusInpExporter.Export(compiled.Analysis);
+        var validation = AbaqusInpValidator.Validate(abaqus.Text);
+        if (!validation.IsValid) diagnostics.Add(Error("forge-analysis-abaqus-validation-failed", string.Join("; ", validation.Diagnostics), invocation.Module.SourcePath));
+        return new(compiled.Analysis, native, abaqus, diagnostics, invocationTime, compiled.CompilationTime);
     }
 
     private ForgeCompilationResult CompileNative(
@@ -430,6 +472,7 @@ public sealed class ForgeInvocation
     public ForgeInvocation AddResource(ForgeResource resource) { ArgumentNullException.ThrowIfNull(resource); resources[resource.Name] = resource; return this; }
     public ForgeInvocation WithTargets(params ForgeLoweringTarget[] targets) { RequestedTargets = targets.ToHashSet(); return this; }
     public ForgeCompilationResult Compile() => Host.Compile(this);
+    public ForgeAnalysisInvocationResult Analyze(MechanicsSolveOptions? options = null) => Host.Analyze(this, options);
 }
 
 public static class ForgeGeneratedNames

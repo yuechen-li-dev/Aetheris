@@ -396,13 +396,14 @@ internal static class FirmamentV2TemplateExpansion
         "Length" => Regex.IsMatch(value, @"^[-+]?[0-9]+(?:\.[0-9]+)?mm$", RegexOptions.CultureInvariant),
         "Angle" => Regex.IsMatch(value, @"^[-+]?[0-9]+(?:\.[0-9]+)?deg$", RegexOptions.CultureInvariant),
         "String" => Regex.IsMatch(value, "^\"[^\"]*\"$", RegexOptions.CultureInvariant),
+        "ImportedStep" => Regex.IsMatch(value, @"^\$[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant),
         "int" => long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _), "float" => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out _), "bool" => value is "true" or "false",
         _ when enums.TryGetValue(type, out var variants) => variants.Contains(value),
         _ when recordTypes?.ContainsKey(type) == true && staticRecords?.TryGetValue(value, out var record) == true => record.TypeName == type,
         _ => false
     };
     private static bool IsBuiltInValueType(string type, IReadOnlyDictionary<string, ImmutableHashSet<string>> enums) =>
-        type is "Length" or "Angle" or "String" or "int" or "float" or "bool" || enums.ContainsKey(type);
+        type is "Length" or "Angle" or "String" or "ImportedStep" or "int" or "float" or "bool" || enums.ContainsKey(type);
 
     private static IReadOnlyDictionary<string, TemplateRecordTypeIr> ParseRecordTypes(string source, List<string> diagnostics)
     {

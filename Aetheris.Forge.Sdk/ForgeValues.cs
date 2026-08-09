@@ -17,17 +17,17 @@ public sealed record ForgeAngle(double Degrees) : ForgeValue("Angle")
     internal override string CanonicalLiteral => Degrees.ToString("R", CultureInfo.InvariantCulture) + "deg";
 }
 
-public sealed record ForgeInteger(int Value) : ForgeValue("Int")
+public sealed record ForgeInteger(int Value) : ForgeValue("int")
 {
     internal override string CanonicalLiteral => Value.ToString(CultureInfo.InvariantCulture);
 }
 
-public sealed record ForgeReal(double Value) : ForgeValue("Float")
+public sealed record ForgeReal(double Value) : ForgeValue("float")
 {
     internal override string CanonicalLiteral => Value.ToString("R", CultureInfo.InvariantCulture);
 }
 
-public sealed record ForgeBoolean(bool Value) : ForgeValue("Bool")
+public sealed record ForgeBoolean(bool Value) : ForgeValue("bool")
 {
     internal override string CanonicalLiteral => Value ? "true" : "false";
 }
@@ -40,6 +40,12 @@ public sealed record ForgeString(string Value) : ForgeValue("String")
 public sealed record ForgeType(string Name) : ForgeValue("Type")
 {
     internal override string CanonicalLiteral => Name;
+}
+
+/// <summary>Typed seam from a Template parameter to an ImportedStepResource on the invocation.</summary>
+public sealed record ForgeImportedStep(string ResourceName) : ForgeValue("ImportedStep")
+{
+    internal override string CanonicalLiteral => "$" + ResourceName;
 }
 
 public sealed record ForgeRecord(string RecordType, IReadOnlyDictionary<string, ForgeValue> Fields) : ForgeValue(RecordType)

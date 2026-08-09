@@ -12,6 +12,9 @@ using Aetheris.Kernel.Firmament.Assembly;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Kernel.Firmament.Materializer;
 using Aetheris.Firmament.FrictionLab.CIRLab;
+using Aetheris.FEA.Abaqus;
+using Aetheris.FEA.Firmament;
+using Aetheris.FEA.Mechanics;
 
 namespace Aetheris.CLI;
 
@@ -141,6 +144,7 @@ public static class CliRunner
     private const string ExperimentalAirChamferCorpusUsage = "Usage: aetheris experimental airchamfer-corpus --out-dir <dir> [--json]";
     private const string ExperimentalPrismaticCorpusUsage = "Usage: aetheris experimental prismatic-corpus --out-dir <dir> [--json]";
     private const string ExperimentalPrismaticMapUsage = "Usage: aetheris experimental prismatic-map --case <case> --rows <N> --cols <N> --json";
+    private const string FeaUsage = "Usage: aetheris fea <analysis.firmament> [--out-dir <directory>] [--json]";
     private const string ExperimentalLoopChamferCorpusUsage = "Usage: aetheris experimental loop-chamfer-corpus --out-dir <dir> [--json]";
 
     internal static readonly JsonSerializerOptions JsonOptions = new()
@@ -191,6 +195,7 @@ public static class CliRunner
                 "inspect-selections" => RunInspectSelections(args.Skip(1).ToArray(), stdout, stderr),
                 "sections" => RunSections(args.Skip(1).ToArray(), stdout, stderr),
                 "analyze" => RunAnalyze(args.Skip(1).ToArray(), stdout, stderr),
+                "fea" => RunFea(args.Skip(1).ToArray(), stdout, stderr),
                 "verify" => RunVerify(args.Skip(1).ToArray(), stdout, stderr),
                 "view" => RunView(args.Skip(1).ToArray(), stdout, stderr, cadmataLauncher, cliBaseDirectory),
                 "match" => RunMatch(args.Skip(1).ToArray(), stdout, stderr),
@@ -447,6 +452,55 @@ public static class CliRunner
         }
 
         return 0;
+    }
+
+    private static int RunFea(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0 || IsHelpFlag(args[0])) { stdout.WriteLine(FeaUsage); return args.Length == 0 ? 1 : 0; }
+        var input = Path.GetFullPath(args[0]); string? outDir = null; var json = false;
+        for (var index = 1; index < args.Length; index++)
+        {
+            if (args[index] == "--json") json = true;
+            else if (args[index] == "--out-dir" && index + 1 < args.Length) outDir = Path.GetFullPath(args[++index]);
+            else { stderr.WriteLine(FeaUsage); return 1; }
+        }
+        if (!File.Exists(input)) { stderr.WriteLine($"Analysis source was not found: {input}"); return 1; }
+        var compiled = FirmamentAnalysisCompiler.Compile(File.ReadAllText(input), input, Path.GetDirectoryName(input));
+        if (!compiled.IsSuccess || compiled.Analysis is null)
+        {
+            foreach (var diagnostic in compiled.Diagnostics) stderr.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
+            return 1;
+        }
+        var result = LinearElasticSolver.Solve(compiled.Analysis);
+        if (!result.IsSuccess)
+        {
+            foreach (var diagnostic in result.Diagnostics.Where(item => item.Severity == Aetheris.FEA.Analysis.AnalysisDiagnosticSeverity.Error)) stderr.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
+            return 1;
+        }
+        var abaqus = AbaqusInpExporter.Export(compiled.Analysis); var validation = AbaqusInpValidator.Validate(abaqus.Text);
+        var report = new
+        {
+            analysis = new { compiled.Analysis.Id, kind = compiled.Analysis.Kind.ToString(), body = compiled.Analysis.Body.Id, compiled.Analysis.Body.SourceKind,
+                material = compiled.Analysis.Materials.Select(item => new { item.Id, item.YoungsModulusPascal, item.PoissonRatio, item.DensityKilogramsPerCubicMeter }),
+                constraints = compiled.Analysis.Constraints.Select(item => new { item.Id, region = item.Region.Path, components = item.Components }),
+                loads = compiled.Analysis.Loads.Select(item => new { item.Id, kind = item.Kind.ToString(), region = item.Region.Path, item.VectorSi, item.PressurePascal }),
+                lattice = new { compiled.Analysis.Lattice.CountX, compiled.Analysis.Lattice.CountY, compiled.Analysis.Lattice.CountZ } },
+            result.System, result.Solver, result.Equilibrium, result.TinyCells, result.Performance,
+            maximumDisplacementMeters = result.MaximumDisplacementMeters, maximumVonMisesPascal = result.MaximumVonMisesPascal,
+            abaqus = new { abaqus.Sha256, abaqus.NodeCount, abaqus.ElementCount, validation.IsValid, validation.Diagnostics }
+        };
+        if (outDir is not null)
+        {
+            Directory.CreateDirectory(outDir);
+            File.WriteAllText(Path.Combine(outDir, "analysis-ir.json"), JsonSerializer.Serialize(report.analysis, JsonOptions));
+            File.WriteAllText(Path.Combine(outDir, "native-results.json"), JsonSerializer.Serialize(report, JsonOptions));
+            File.WriteAllText(Path.Combine(outDir, "sparse-system-metrics.json"), JsonSerializer.Serialize(result.System, JsonOptions));
+            File.WriteAllText(Path.Combine(outDir, "residual-history.json"), JsonSerializer.Serialize(result.Solver.ResidualHistory, JsonOptions));
+            File.WriteAllText(Path.Combine(outDir, "displacement-stress-summary.json"), JsonSerializer.Serialize(new { maximumDisplacementMeters = result.MaximumDisplacementMeters, maximumVonMisesPascal = result.MaximumVonMisesPascal, result.Equilibrium }, JsonOptions));
+            File.WriteAllText(Path.Combine(outDir, "verification.inp"), abaqus.Text);
+        }
+        stdout.WriteLine(json ? JsonSerializer.Serialize(report, JsonOptions) : $"{compiled.Analysis.Id}: converged in {result.Solver.Iterations} iterations; max |u|={result.MaximumDisplacementMeters:R} m; max von Mises={result.MaximumVonMisesPascal:R} Pa; Abaqus SHA-256={abaqus.Sha256}");
+        return validation.IsValid ? 0 : 1;
     }
 
     private static int RunMesh(string[] args, TextWriter stdout, TextWriter stderr)
@@ -3128,6 +3182,7 @@ public static class CliRunner
         stdout.WriteLine("  view       Build/open a model in Cadmata.");
         stdout.WriteLine("  inspect    Inspect Firmament semantics or STEP topology.");
         stdout.WriteLine("  analyze    Analyze STEP topology and analytic surfaces.");
+        stdout.WriteLine("  fea        Compile and solve a Firmament linear-elastic analysis and export Abaqus verification input.");
         stdout.WriteLine("  verify     Build/reimport and verify a model.");
         stdout.WriteLine();
         stdout.WriteLine("Global options:");
@@ -3139,6 +3194,7 @@ public static class CliRunner
         stdout.WriteLine("  aetheris build bracket.firmament");
         stdout.WriteLine("  aetheris view bracket.firmament");
         stdout.WriteLine("  aetheris analyze imported.step --json");
+        stdout.WriteLine("  aetheris fea plate-with-hole.firmament --out-dir artifacts --json");
         stdout.WriteLine();
         stdout.WriteLine("Run 'aetheris <command> --help' for command-specific usage.");
     }

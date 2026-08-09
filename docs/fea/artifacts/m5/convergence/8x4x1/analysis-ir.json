@@ -1,0 +1,45 @@
+{
+  "id": "PlateHoleCoarseAnalysis",
+  "kind": "LinearStaticElasticity",
+  "body": "plate",
+  "sourceKind": "FirmamentNative",
+  "material": [
+    {
+      "id": "Steel",
+      "youngsModulusPascal": 200000000000,
+      "poissonRatio": 0.3,
+      "densityKilogramsPerCubicMeter": null
+    }
+  ],
+  "constraints": [
+    {
+      "id": "Clamp",
+      "region": "plate.face(-X)",
+      "components": [
+        "X",
+        "Y",
+        "Z"
+      ]
+    }
+  ],
+  "loads": [
+    {
+      "id": "Tension",
+      "kind": "ResultantForce",
+      "region": "plate.face(\u002BX)",
+      "vectorSi": {
+        "x": 10000,
+        "y": 0,
+        "z": 0,
+        "lengthSquared": 100000000,
+        "length": 10000
+      },
+      "pressurePascal": 0
+    }
+  ],
+  "lattice": {
+    "countX": 8,
+    "countY": 4,
+    "countZ": 1
+  }
+}

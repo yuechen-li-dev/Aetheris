@@ -3,6 +3,8 @@
   <Project Path="Aetheris.Server.Tests/Aetheris.Server.Tests.csproj" />
   <Project Path="Aetheris.Kernel.Core/Aetheris.Kernel.Core.csproj" />
   <Project Path="Aetheris.Continuum/Aetheris.Continuum.csproj" />
+  <Project Path="Aetheris.FEA/Aetheris.FEA.csproj" />
+  <Project Path="Aetheris.FEA.Tests/Aetheris.FEA.Tests.csproj" />
   <Project Path="Aetheris.Continuum.Tests/Aetheris.Continuum.Tests.csproj" />
   <Project Path="tools/Aetheris.Continuum.M1/Aetheris.Continuum.M1.csproj" />
   <Project Path="tools/Aetheris.Continuum.M2/Aetheris.Continuum.M2.csproj" />

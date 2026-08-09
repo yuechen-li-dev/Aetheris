@@ -1,0 +1,16 @@
+model PlateHoleFine {
+ units mm
+ solid plate: Box { size: [200, 100, 10] }
+ modify plate { region hole on face(+Z) { cut Cylinder { radius: 10 through: face(-Z) } } }
+ analysis LinearElastic PlateHoleFineAnalysis {
+  body: plate
+  material Steel { youngsModulus: 200GPa
+   poissonRatio: 0.3 }
+  fixed Clamp { region: plate.face(-X)
+   components: [X, Y, Z] }
+  force Tension { region: plate.face(+X)
+   vector: [10000N, 0N, 0N] }
+  lattice: [24, 12, 2]
+  results: [Displacement, Strain, Stress, ReactionForce]
+ }
+}

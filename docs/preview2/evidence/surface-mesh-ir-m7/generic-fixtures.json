@@ -1,0 +1,33 @@
+{
+  "throughHolePlate": {
+    "m2PlanarCapCells": 144,
+    "m6PlanarCapCells": 144,
+    "m7PlanarCapCells": 90,
+    "authoritativeCircularSamplesPerCap": 36,
+    "watertight": true,
+    "outward": true
+  },
+  "multiHole": {
+    "features": ["CircularHole", "CircularHole"],
+    "differentDiameters": true,
+    "dedicatedBands": true,
+    "deterministic": true
+  },
+  "slot": {
+    "classification": "Slot",
+    "basis": "two straight chains plus two circular end chains",
+    "axisDerivedInPlane": true,
+    "dedicatedBand": true
+  },
+  "mixedHoleSlot": {
+    "features": ["CircularHole", "Slot"],
+    "bandsCoexist": true,
+    "coarseRemainderPresent": true
+  },
+  "closeFeatures": {
+    "features": ["CircularHole", "CircularHole"],
+    "resolution": "ClearanceClamped",
+    "overlap": false,
+    "repeatedCellPlanIdentical": true
+  }
+}

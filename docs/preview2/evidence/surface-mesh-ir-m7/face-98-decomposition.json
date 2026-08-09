@@ -1,0 +1,6552 @@
+{
+  "faceId": 98,
+  "audit": {
+    "faceId": 98,
+    "area": 222976.20699131262,
+    "outerLoopEdgeCount": 475,
+    "innerLoopCount": 11,
+    "innerLoopTypes": [
+      "CircularHole (Circle3)",
+      "CircularHole (Circle3)",
+      "CircularHole (Circle3)",
+      "CircularHole (Circle3)",
+      "CircularHole (Circle3)",
+      "CircularHole (Circle3)",
+      "CircularHole (Circle3)",
+      "CircularHole (Circle3)",
+      "GeneralConvexInnerLoop (Line3)",
+      "RoundedSlot (Line3+Circle3)",
+      "Slot (Line3+Circle3)"
+    ],
+    "concavityCount": 116,
+    "cellCount": 397,
+    "quadCount": 61,
+    "triangleCount": 77,
+    "ngonCount": 259,
+    "longestInternalEdge": 271.66612535051473,
+    "shortestInternalEdge": 0.32413005699720543,
+    "totalInternalEdgeLength": 22426.6556919747,
+    "worstAspectRatio": 355.0754642613085,
+    "skinnyCellCount": 98,
+    "triangleFanCount": 3,
+    "featureBandCellCount": 234,
+    "bridgeCellCount": 27,
+    "coarseRemainderCellCount": 59,
+    "residualTransitionCellCount": 77,
+    "featureBandCount": 12,
+    "bridgeCount": 11,
+    "maximumTopologyLocality": 13.030353926766153,
+    "usedM6Fallback": false,
+    "fallbackReason": null,
+    "plannerPath": "PlanarDomain.FeatureBandsAndStructuredBridges"
+  },
+  "featurePlan": {
+    "Bands": [
+      {
+        "LoopId": 110,
+        "FeatureKind": 5,
+        "InnerBoundarySamples": 475,
+        "OuterGuideSamples": 92,
+        "BandWidth": 1.3425366096694786,
+        "Rows": 2,
+        "CellCount": 92,
+        "TransitionPorts": [
+          {
+            "VertexA": 10519,
+            "VertexB": 10520,
+            "U": 150.1650664156248,
+            "V": 368.85815264126757,
+            "DirectionU": -0.8658229778763498,
+            "DirectionV": 0.5003504481674119
+          },
+          {
+            "VertexA": 10513,
+            "VertexB": 10514,
+            "U": 206.15746339033052,
+            "V": 336.6336893695001,
+            "DirectionU": -0.8655577220277042,
+            "DirectionV": 0.5008091750739114
+          },
+          {
+            "VertexA": 10498,
+            "VertexB": 10499,
+            "U": 560.8663106304999,
+            "V": 323.6574633903305,
+            "DirectionU": 0.8668409472138809,
+            "DirectionV": 0.4985847693555645
+          },
+          {
+            "VertexA": 10516,
+            "VertexB": 10517,
+            "U": 184.00749418881708,
+            "V": 348.6574633903305,
+            "DirectionU": -0.8669703376307683,
+            "DirectionV": 0.49835974322610743
+          }
+        ],
+        "TopologyLocality": 1.3425366096694786,
+        "CollisionResolution": "ShrunkForDomainOrNeighbor"
+      },
+      {
+        "LoopId": 111,
+        "FeatureKind": 3,
+        "InnerBoundarySamples": 54,
+        "OuterGuideSamples": 12,
+        "BandWidth": 12.429743054185804,
+        "Rows": 2,
+        "CellCount": 12,
+        "TransitionPorts": [
+          {
+            "VertexA": 10530,
+            "VertexB": 10531,
+            "U": 452.1000850684171,
+            "V": 177.21881061264753,
+            "DirectionU": 0.7369938108170137,
+            "DirectionV": -0.6758994916534676
+          },
+          {
+            "VertexA": 10536,
+            "VertexB": 10537,
+            "U": 347.8999149315829,
+            "V": 272.7811355494273,
+            "DirectionU": -0.736993810817014,
+            "DirectionV": 0.6758994916534671
+          },
+          {
+            "VertexA": 10528,
+            "VertexB": 10529,
+            "U": 467.4297430541858,
+            "V": 246.22938905542208,
+            "DirectionU": 0.9538430355853977,
+            "DirectionV": 0.3003056167727034
+          },
+          {
+            "VertexA": 10534,
+            "VertexB": 10535,
+            "U": 332.57025694581415,
+            "V": 203.77055710665286,
+            "DirectionU": -0.953843035585398,
+            "DirectionV": -0.3003056167727024
+          }
+        ],
+        "TopologyLocality": 12.429743054185804,
+        "CollisionResolution": "ClearanceClamped"
+      },
+      {
+        "LoopId": 112,
+        "FeatureKind": 0,
+        "InnerBoundarySamples": 36,
+        "OuterGuideSamples": 12,
+        "BandWidth": 8.50137800928444,
+        "Rows": 2,
+        "CellCount": 12,
+        "TransitionPorts": [
+          {
+            "VertexA": 10538,
+            "VertexB": 10539,
+            "U": 254.70138556115575,
+            "V": 255.97660983894318,
+            "DirectionU": 0.723595201131544,
+            "DirectionV": -0.6902245901874261
+          },
+          {
+            "VertexA": 10544,
+            "VertexB": 10545,
+            "U": 225.2986144388443,
+            "V": 284.0233901610567,
+            "DirectionU": -0.723595201131549,
+            "DirectionV": 0.690224590187421
+          },
+          {
+            "VertexA": 10543,
+            "VertexB": 10544,
+            "U": 220.2565315526811,
+            "V": 274.79391934607804,
+            "DirectionU": -0.9717641213301419,
+            "DirectionV": 0.23595442885323734
+          },
+          {
+            "VertexA": 10542,
+            "VertexB": 10543,
+            "U": 220.50469509276635,
+            "V": 264.2799217137379,
+            "DirectionU": -0.9595496299847858,
+            "DirectionV": -0.2815395311427162
+          }
+        ],
+        "TopologyLocality": 8.50137800928444,
+        "CollisionResolution": "ClearanceClamped"
+      },
+      {
+        "LoopId": 113,
+        "FeatureKind": 0,
+        "InnerBoundarySamples": 42,
+        "OuterGuideSamples": 12,
+        "BandWidth": 6.518156806163657,
+        "Rows": 2,
+        "CellCount": 12,
+        "TransitionPorts": [
+          {
+            "VertexA": 10550,
+            "VertexB": 10551,
+            "U": 92.54950743903936,
+            "V": 34.47075913105918,
+            "DirectionU": 0.7488975162182356,
+            "DirectionV": -0.6626858306936686
+          },
+          {
+            "VertexA": 10556,
+            "VertexB": 10557,
+            "U": 57.45049256096098,
+            "V": 65.52924086894063,
+            "DirectionU": -0.7488975162182343,
+            "DirectionV": 0.66268583069367
+          },
+          {
+            "VertexA": 10560,
+            "VertexB": 10561,
+            "U": 97.22347081350962,
+            "V": 57.433698831641465,
+            "DirectionU": 0.9483515222178283,
+            "DirectionV": 0.3172213585292262
+          },
+          {
+            "VertexA": 10554,
+            "VertexB": 10555,
+            "U": 52.77652918649038,
+            "V": 42.566301168358535,
+            "DirectionU": -0.9483515222178298,
+            "DirectionV": -0.31722135852922173
+          }
+        ],
+        "TopologyLocality": 6.518156806163657,
+        "CollisionResolution": "ClearanceClamped"
+      },
+      {
+        "LoopId": 114,
+        "FeatureKind": 2,
+        "InnerBoundarySamples": 68,
+        "OuterGuideSamples": 20,
+        "BandWidth": 13.030353926766153,
+        "Rows": 2,
+        "CellCount": 20,
+        "TransitionPorts": [
+          {
+            "VertexA": 10581,
+            "VertexB": 10562,
+            "U": 635.0791987775888,
+            "V": 257.9301803944875,
+            "DirectionU": -0.8347442841026542,
+            "DirectionV": 0.5506377939788981
+          },
+          {
+            "VertexA": 10571,
+            "VertexB": 10572,
+            "U": 734.9208012224112,
+            "V": 192.0698196055127,
+            "DirectionU": 0.8347442841026534,
+            "DirectionV": -0.5506377939788992
+          },
+          {
+            "VertexA": 10578,
+            "VertexB": 10579,
+            "U": 621.9696460732339,
+            "V": 230,
+            "DirectionU": -0.9968683967911364,
+            "DirectionV": 0.07907843877486136
+          },
+          {
+            "VertexA": 10568,
+            "VertexB": 10569,
+            "U": 748.0303539267661,
+            "V": 220,
+            "DirectionU": 0.9968683967911361,
+            "DirectionV": -0.07907843877486342
+          }
+        ],
+        "TopologyLocality": 13.030353926766153,
+        "CollisionResolution": "ClearanceClamped"
+      },
+      {
+        "LoopId": 115,
+        "FeatureKind": 1,
+        "InnerBoundarySamples": 64,
+        "OuterGuideSamples": 14,
+        "BandWidth": 11.502331226318448,
+        "Rows": 2,
+        "CellCount": 14,
+        "TransitionPorts": [
+          {
+            "VertexA": 10588,
+            "VertexB": 10589,
+            "U": 166.7178054524099,
+            "V": 198.48865421385239,
+            "DirectionU": 0.889891548778909,
+            "DirectionV": -0.4561721510700481
+          },
+          {
+            "VertexA": 10595,
+            "VertexB": 10582,
+            "U": 63.28219454759015,
+            "V": 251.51134578614761,
+            "DirectionU": -0.8898915487789085,
+            "DirectionV": 0.456172151070049
+          },
+          {
+            "VertexA": 10585,
+            "VertexB": 10586,
+            "U": 170.025820369333,
+            "V": 249.70890891050897,
+            "DirectionU": 0.912248231664146,
+            "DirectionV": 0.4096378447185254
+          },
+          {
+            "VertexA": 10592,
+            "VertexB": 10593,
+            "U": 59.974179630667024,
+            "V": 200.29109108949103,
+            "DirectionU": -0.9122482316641464,
+            "DirectionV": -0.4096378447185245
+          }
+        ],
+        "TopologyLocality": 11.502331226318448,
+        "CollisionResolution": "ClearanceClamped"
+      },
+      {
+        "LoopId": 116,
+        "FeatureKind": 0,
+        "InnerBoundarySamples": 42,
+        "OuterGuideSamples": 12,
+        "BandWidth": 6.518156806163453,
+        "Rows": 2,
+        "CellCount": 12,
+        "TransitionPorts": [
+          {
+            "VertexA": 10596,
+            "VertexB": 10597,
+            "U": 707.4504925609615,
+            "V": 65.52924086893992,
+            "DirectionU": -0.7488975162182276,
+            "DirectionV": 0.6626858306936776
+          },
+          {
+            "VertexA": 10602,
+            "VertexB": 10603,
+            "U": 742.5495074390395,
+            "V": 34.470759131059275,
+            "DirectionU": 0.748897516218253,
+            "DirectionV": -0.6626858306936491
+          },
+          {
+            "VertexA": 10601,
+            "VertexB": 10602,
+            "U": 747.5070596960105,
+            "V": 45.418828161469655,
+            "DirectionU": 0.9799071892228997,
+            "DirectionV": -0.19945400599957006
+          },
+          {
+            "VertexA": 10600,
+            "VertexB": 10601,
+            "U": 747.2234708135093,
+            "V": 57.43369883164111,
+            "DirectionU": 0.9483515222178232,
+            "DirectionV": 0.31722135852924116
+          }
+        ],
+        "TopologyLocality": 6.518156806163453,
+        "CollisionResolution": "ClearanceClamped"
+      },
+      {
+        "LoopId": 117,
+        "FeatureKind": 0,
+        "InnerBoundarySamples": 42,
+        "OuterGuideSamples": 12,
+        "BandWidth": 6.51815680616366,
+        "Rows": 2,
+        "CellCount": 12,
+        "TransitionPorts": [
+          {
+            "VertexA": 10608,
+            "VertexB": 10609,
+            "U": 57.45049256096132,
+            "V": 415.52924086894114,
+            "DirectionU": -0.7488975162182238,
+            "DirectionV": 0.662685830693682
+          },
+          {
+            "VertexA": 10614,
+            "VertexB": 10615,
+            "U": 92.54950743903944,
+            "V": 384.4707591310597,
+            "DirectionU": 0.7488975162182416,
+            "DirectionV": -0.6626858306936616
+          },
+          {
+            "VertexA": 10613,
+            "VertexB": 10614,
+            "U": 97.50705969601071,
+            "V": 395.41882816147006,
+            "DirectionU": 0.9799071892228959,
+            "DirectionV": -0.19945400599958807
+          },
+          {
+            "VertexA": 10612,
+            "VertexB": 10613,
+            "U": 97.2234708135096,
+            "V": 407.43369883164166,
+            "DirectionU": 0.9483515222178288,
+            "DirectionV": 0.31722135852922473
+          }
+        ],
+        "TopologyLocality": 6.51815680616366,
+        "CollisionResolution": "ClearanceClamped"
+      },
+      {
+        "LoopId": 118,
+        "FeatureKind": 0,
+        "InnerBoundarySamples": 42,
+        "OuterGuideSamples": 12,
+        "BandWidth": 6.518156806163851,
+        "Rows": 2,
+        "CellCount": 12,
+        "TransitionPorts": [
+          {
+            "VertexA": 10620,
+            "VertexB": 10621,
+            "U": 707.4504925609612,
+            "V": 415.5292408689402,
+            "DirectionU": -0.7488975162182309,
+            "DirectionV": 0.6626858306936738
+          },
+          {
+            "VertexA": 10626,
+            "VertexB": 10627,
+            "U": 742.5495074390399,
+            "V": 384.470759131059,
+            "DirectionU": 0.7488975162182517,
+            "DirectionV": -0.6626858306936504
+          },
+          {
+            "VertexA": 10625,
+            "VertexB": 10626,
+            "U": 747.5070596960109,
+            "V": 395.4188281614696,
+            "DirectionU": 0.9799071892229002,
+            "DirectionV": -0.1994540059995673
+          },
+          {
+            "VertexA": 10624,
+            "VertexB": 10625,
+            "U": 747.2234708135095,
+            "V": 407.4336988316412,
+            "DirectionU": 0.9483515222178207,
+            "DirectionV": 0.3172213585292485
+          }
+        ],
+        "TopologyLocality": 6.518156806163851,
+        "CollisionResolution": "ClearanceClamped"
+      },
+      {
+        "LoopId": 119,
+        "FeatureKind": 0,
+        "InnerBoundarySamples": 36,
+        "OuterGuideSamples": 12,
+        "BandWidth": 8.503690710444376,
+        "Rows": 2,
+        "CellCount": 12,
+        "TransitionPorts": [
+          {
+            "VertexA": 10638,
+            "VertexB": 10639,
+            "U": 574.7030081733976,
+            "V": 255.9750620579899,
+            "DirectionU": 0.7235952011315405,
+            "DirectionV": -0.6902245901874299
+          },
+          {
+            "VertexA": 10632,
+            "VertexB": 10633,
+            "U": 545.2969918266023,
+            "V": 284.02493794200916,
+            "DirectionU": -0.7235952011315413,
+            "DirectionV": 0.690224590187429
+          },
+          {
+            "VertexA": 10636,
+            "VertexB": 10637,
+            "U": 579.4974566309793,
+            "V": 275.72070961920747,
+            "DirectionU": 0.9595496299847869,
+            "DirectionV": 0.28153953114271296
+          },
+          {
+            "VertexA": 10642,
+            "VertexB": 10643,
+            "U": 540.5025433690207,
+            "V": 264.27929038079185,
+            "DirectionU": -0.9595496299847874,
+            "DirectionV": -0.2815395311427108
+          }
+        ],
+        "TopologyLocality": 8.503690710444376,
+        "CollisionResolution": "ClearanceClamped"
+      },
+      {
+        "LoopId": 120,
+        "FeatureKind": 0,
+        "InnerBoundarySamples": 36,
+        "OuterGuideSamples": 12,
+        "BandWidth": 9.65231055522211,
+        "Rows": 2,
+        "CellCount": 12,
+        "TransitionPorts": [
+          {
+            "VertexA": 10644,
+            "VertexB": 10645,
+            "U": 224.4911096599359,
+            "V": 194.79365460480244,
+            "DirectionU": -0.7235952011315399,
+            "DirectionV": 0.6902245901874307
+          },
+          {
+            "VertexA": 10650,
+            "VertexB": 10651,
+            "U": 255.50889034006428,
+            "V": 165.2063453951975,
+            "DirectionU": 0.7235952011315423,
+            "DirectionV": -0.6902245901874279
+          },
+          {
+            "VertexA": 10648,
+            "VertexB": 10649,
+            "U": 260.5661258726036,
+            "V": 186.03426571660134,
+            "DirectionU": 0.9595496299847883,
+            "DirectionV": 0.2815395311427084
+          },
+          {
+            "VertexA": 10649,
+            "VertexB": 10650,
+            "U": 260.827920321404,
+            "V": 174.94276446746045,
+            "DirectionU": 0.9717641213301392,
+            "DirectionV": -0.23595442885324772
+          }
+        ],
+        "TopologyLocality": 9.65231055522211,
+        "CollisionResolution": "ClearanceClamped"
+      },
+      {
+        "LoopId": 121,
+        "FeatureKind": 0,
+        "InnerBoundarySamples": 36,
+        "OuterGuideSamples": 12,
+        "BandWidth": 9.657011841739612,
+        "Rows": 2,
+        "CellCount": 12,
+        "TransitionPorts": [
+          {
+            "VertexA": 10656,
+            "VertexB": 10657,
+            "U": 544.487811194406,
+            "V": 194.79680095239374,
+            "DirectionU": -0.723595201131543,
+            "DirectionV": 0.6902245901874273
+          },
+          {
+            "VertexA": 10662,
+            "VertexB": 10663,
+            "U": 575.512188805594,
+            "V": 165.2031990476052,
+            "DirectionU": 0.7235952011315395,
+            "DirectionV": -0.6902245901874308
+          },
+          {
+            "VertexA": 10660,
+            "VertexB": 10661,
+            "U": 580.5704999223121,
+            "V": 186.03554909774746,
+            "DirectionU": 0.9595496299847861,
+            "DirectionV": 0.28153953114271546
+          },
+          {
+            "VertexA": 10666,
+            "VertexB": 10667,
+            "U": 539.4295000776879,
+            "V": 173.96445090225168,
+            "DirectionU": -0.9595496299847868,
+            "DirectionV": -0.281539531142713
+          }
+        ],
+        "TopologyLocality": 9.657011841739612,
+        "CollisionResolution": "ClearanceClamped"
+      }
+    ],
+    "Bridges": [
+      {
+        "FeatureLoopId": 116,
+        "SourcePortIndex": 7,
+        "TargetOuterEdgeIndex": 43,
+        "DirectionU": 0.4117696440806034,
+        "DirectionV": -0.9112879677762311,
+        "Width": 6.518156806163453,
+        "Rows": 3,
+        "CellCount": 3,
+        "Cost": 31.66389286718415,
+        "TargetRule": "nearest valid outer-guide edge with dominant-direction, crossing, and skew penalties"
+      },
+      {
+        "FeatureLoopId": 118,
+        "SourcePortIndex": 1,
+        "TargetOuterEdgeIndex": 51,
+        "DirectionU": -0.2380884070867275,
+        "DirectionV": 0.9712434866761809,
+        "Width": 6.518156806163851,
+        "Rows": 2,
+        "CellCount": 2,
+        "Cost": 31.798017912185564,
+        "TargetRule": "nearest valid outer-guide edge with dominant-direction, crossing, and skew penalties"
+      },
+      {
+        "FeatureLoopId": 113,
+        "SourcePortIndex": 2,
+        "TargetOuterEdgeIndex": 7,
+        "DirectionU": 0.07416251941445157,
+        "DirectionV": -0.9972461685632596,
+        "Width": 6.518156806163657,
+        "Rows": 1,
+        "CellCount": 1,
+        "Cost": 36.91836737271384,
+        "TargetRule": "nearest valid outer-guide edge with dominant-direction, crossing, and skew penalties"
+      },
+      {
+        "FeatureLoopId": 117,
+        "SourcePortIndex": 2,
+        "TargetOuterEdgeIndex": 90,
+        "DirectionU": 0.6958393462004672,
+        "DirectionV": 0.7181974688616678,
+        "Width": 6.51815680616366,
+        "Rows": 4,
+        "CellCount": 4,
+        "Cost": 37.15639855335149,
+        "TargetRule": "nearest valid outer-guide edge with dominant-direction, crossing, and skew penalties"
+      },
+      {
+        "FeatureLoopId": 121,
+        "SourcePortIndex": 9,
+        "TargetOuterEdgeIndex": 30,
+        "DirectionU": -0.7534721912415349,
+        "DirectionV": -0.6574797768948334,
+        "Width": 9.657011841739612,
+        "Rows": 3,
+        "CellCount": 3,
+        "Cost": 40.746503886069746,
+        "TargetRule": "nearest valid outer-guide edge with dominant-direction, crossing, and skew penalties"
+      },
+      {
+        "FeatureLoopId": 112,
+        "SourcePortIndex": 7,
+        "TargetOuterEdgeIndex": 76,
+        "DirectionU": -0.3604651377738233,
+        "DirectionV": 0.9327726863763212,
+        "Width": 8.50137800928444,
+        "Rows": 3,
+        "CellCount": 3,
+        "Cost": 40.97665576272342,
+        "TargetRule": "nearest valid outer-guide edge with dominant-direction, crossing, and skew penalties"
+      },
+      {
+        "FeatureLoopId": 120,
+        "SourcePortIndex": 6,
+        "TargetOuterEdgeIndex": 20,
+        "DirectionU": 0.7031370340809364,
+        "DirectionV": -0.7110543659270113,
+        "Width": 9.65231055522211,
+        "Rows": 3,
+        "CellCount": 3,
+        "Cost": 44.14195573269436,
+        "TargetRule": "nearest valid outer-guide edge with dominant-direction, crossing, and skew penalties"
+      },
+      {
+        "FeatureLoopId": 119,
+        "SourcePortIndex": 2,
+        "TargetOuterEdgeIndex": 63,
+        "DirectionU": 0.5247405111309524,
+        "DirectionV": 0.8512622369035447,
+        "Width": 8.503690710444376,
+        "Rows": 4,
+        "CellCount": 4,
+        "Cost": 44.53353916653235,
+        "TargetRule": "nearest valid outer-guide edge with dominant-direction, crossing, and skew penalties"
+      },
+      {
+        "FeatureLoopId": 111,
+        "SourcePortIndex": 4,
+        "TargetOuterEdgeIndex": 27,
+        "DirectionU": 0.5453737294615623,
+        "DirectionV": -0.8381929940134233,
+        "Width": 12.429743054185804,
+        "Rows": 2,
+        "CellCount": 2,
+        "Cost": 71.89310982146294,
+        "TargetRule": "nearest valid outer-guide edge with dominant-direction, crossing, and skew penalties"
+      },
+      {
+        "FeatureLoopId": 114,
+        "SourcePortIndex": 4,
+        "TargetOuterEdgeIndex": 47,
+        "DirectionU": 0.971125779113856,
+        "DirectionV": 0.23856806395765973,
+        "Width": 13.030353926766153,
+        "Rows": 1,
+        "CellCount": 1,
+        "Cost": 91.1287764127085,
+        "TargetRule": "nearest valid outer-guide edge with dominant-direction, crossing, and skew penalties"
+      },
+      {
+        "FeatureLoopId": 115,
+        "SourcePortIndex": 10,
+        "TargetOuterEdgeIndex": 3,
+        "DirectionU": -0.8675668071953079,
+        "DirectionV": -0.49732065616957777,
+        "Width": 11.502331226318448,
+        "Rows": 1,
+        "CellCount": 1,
+        "Cost": 93.21563104684363,
+        "TargetRule": "nearest valid outer-guide edge with dominant-direction, crossing, and skew penalties"
+      }
+    ],
+    "Clusters": [],
+    "FeatureBandCellCount": 234,
+    "BridgeCellCount": 27,
+    "CoarseRemainderCellCount": 59,
+    "ResidualTransitionCellCount": 77,
+    "MaximumTopologyLocality": 13.030353926766153,
+    "UsedM6Fallback": false,
+    "FallbackReason": null,
+    "Timings": {
+      "ClassificationMilliseconds": 0.0006,
+      "BandConstructionMilliseconds": 74.3289,
+      "CollisionResolutionMilliseconds": 0,
+      "BridgeSelectionMilliseconds": 8.7985,
+      "RemainderDecompositionMilliseconds": 208.3516,
+      "TotalMilliseconds": 291.6559
+    }
+  },
+  "trimLoops": [
+    {
+      "LoopId": {
+        "Value": 110,
+        "IsValid": true
+      },
+      "VertexIds": [
+        668,
+        669,
+        670,
+        671,
+        672,
+        673,
+        674,
+        675,
+        676,
+        677,
+        678,
+        679,
+        680,
+        681,
+        682,
+        683,
+        684,
+        685,
+        659,
+        737,
+        738,
+        739,
+        740,
+        741,
+        742,
+        743,
+        744,
+        728,
+        789,
+        790,
+        791,
+        792,
+        793,
+        794,
+        795,
+        796,
+        797,
+        798,
+        799,
+        800,
+        801,
+        802,
+        803,
+        804,
+        805,
+        780,
+        824,
+        825,
+        826,
+        827,
+        828,
+        829,
+        830,
+        831,
+        815,
+        859,
+        860,
+        861,
+        862,
+        863,
+        864,
+        865,
+        866,
+        867,
+        868,
+        869,
+        870,
+        871,
+        872,
+        873,
+        874,
+        875,
+        850,
+        886,
+        887,
+        888,
+        889,
+        890,
+        891,
+        892,
+        893,
+        885,
+        940,
+        941,
+        942,
+        943,
+        944,
+        945,
+        946,
+        947,
+        948,
+        949,
+        950,
+        951,
+        931,
+        961,
+        962,
+        963,
+        964,
+        965,
+        966,
+        967,
+        968,
+        952,
+        978,
+        979,
+        980,
+        981,
+        982,
+        983,
+        984,
+        985,
+        969,
+        995,
+        996,
+        997,
+        998,
+        999,
+        1000,
+        1001,
+        1002,
+        1003,
+        1004,
+        986,
+        1014,
+        1015,
+        1016,
+        1017,
+        1018,
+        1019,
+        1020,
+        1021,
+        1005,
+        1031,
+        1032,
+        1033,
+        1034,
+        1035,
+        1036,
+        1037,
+        1038,
+        1022,
+        1112,
+        1113,
+        1114,
+        1115,
+        1116,
+        1117,
+        1118,
+        1119,
+        1103,
+        1129,
+        1130,
+        1131,
+        1132,
+        1133,
+        1134,
+        1135,
+        1136,
+        1137,
+        1138,
+        1120,
+        1148,
+        1149,
+        1150,
+        1151,
+        1152,
+        1153,
+        1154,
+        1155,
+        1139,
+        1165,
+        1166,
+        1167,
+        1168,
+        1169,
+        1170,
+        1171,
+        1172,
+        1156,
+        1194,
+        1195,
+        1196,
+        1197,
+        1198,
+        1199,
+        1200,
+        1201,
+        1202,
+        1203,
+        1204,
+        1205,
+        1185,
+        1234,
+        1235,
+        1236,
+        1237,
+        1238,
+        1239,
+        1240,
+        1241,
+        1225,
+        1277,
+        1278,
+        1279,
+        1280,
+        1281,
+        1282,
+        1283,
+        1284,
+        1285,
+        1286,
+        1287,
+        1288,
+        1289,
+        1290,
+        1291,
+        1292,
+        1293,
+        1268,
+        1312,
+        1313,
+        1314,
+        1315,
+        1316,
+        1317,
+        1318,
+        1319,
+        1303,
+        1347,
+        1348,
+        1349,
+        1350,
+        1351,
+        1352,
+        1353,
+        1354,
+        1355,
+        1356,
+        1357,
+        1358,
+        1359,
+        1360,
+        1361,
+        1362,
+        1363,
+        1338,
+        1407,
+        1408,
+        1409,
+        1410,
+        1411,
+        1412,
+        1413,
+        1414,
+        1398,
+        1450,
+        1451,
+        1452,
+        1453,
+        1454,
+        1455,
+        1456,
+        1457,
+        1441,
+        1476,
+        1477,
+        1478,
+        1479,
+        1480,
+        1481,
+        1482,
+        1483,
+        1467,
+        1511,
+        1512,
+        1513,
+        1514,
+        1515,
+        1516,
+        1517,
+        1518,
+        1519,
+        1520,
+        1521,
+        1522,
+        1523,
+        1524,
+        1525,
+        1526,
+        1527,
+        1502,
+        1528,
+        1529,
+        1530,
+        1531,
+        1532,
+        1533,
+        1534,
+        1535,
+        1536,
+        1592,
+        1593,
+        1594,
+        1595,
+        1596,
+        1597,
+        1598,
+        1599,
+        1600,
+        1601,
+        1602,
+        1603,
+        1583,
+        1613,
+        1614,
+        1615,
+        1616,
+        1617,
+        1618,
+        1619,
+        1620,
+        1604,
+        1630,
+        1631,
+        1632,
+        1633,
+        1634,
+        1635,
+        1636,
+        1637,
+        1621,
+        1647,
+        1648,
+        1649,
+        1650,
+        1651,
+        1652,
+        1653,
+        1638,
+        1663,
+        1664,
+        1665,
+        1666,
+        1667,
+        1668,
+        1669,
+        1670,
+        1654,
+        1680,
+        1681,
+        1682,
+        1683,
+        1684,
+        1685,
+        1686,
+        1671,
+        1696,
+        1697,
+        1698,
+        1699,
+        1700,
+        1701,
+        1702,
+        1703,
+        1687,
+        1713,
+        1714,
+        1715,
+        1716,
+        1717,
+        1718,
+        1719,
+        1720,
+        1704,
+        1730,
+        1731,
+        1732,
+        1733,
+        1734,
+        1735,
+        1736,
+        1737,
+        1721,
+        1747,
+        1748,
+        1749,
+        1750,
+        1751,
+        1752,
+        1753,
+        1738,
+        1763,
+        1764,
+        1765,
+        1766,
+        1767,
+        1768,
+        1769,
+        1770,
+        1754,
+        1780,
+        1781,
+        1782,
+        1783,
+        1784,
+        1785,
+        1786,
+        1771,
+        1796,
+        1797,
+        1798,
+        1799,
+        1800,
+        1801,
+        1802,
+        1803,
+        1787,
+        1813,
+        1814,
+        1815,
+        1816,
+        1817,
+        1818,
+        1819,
+        1820,
+        1804,
+        1842,
+        1843,
+        1844,
+        1845,
+        1846,
+        1847,
+        1848,
+        1849,
+        1850,
+        1851,
+        1852,
+        1853,
+        1833,
+        1882,
+        1883,
+        1884,
+        1885,
+        1886,
+        1887,
+        1888,
+        1889,
+        1873,
+        1925,
+        1926,
+        1927,
+        1928,
+        1929,
+        1930,
+        1931,
+        1932,
+        1933,
+        1934,
+        1935,
+        1936,
+        1937,
+        1938,
+        1939,
+        1940,
+        1941,
+        1916,
+        1950,
+        1951,
+        1952,
+        1953,
+        1954,
+        1955,
+        1956,
+        1957
+      ],
+      "LocalCoordinates": [
+        {
+          "Item1": 50,
+          "Item2": 449.9999999999999
+        },
+        {
+          "Item1": 45.6422128626171,
+          "Item2": 449.8097349045872
+        },
+        {
+          "Item1": 41.31759111665349,
+          "Item2": 449.2403876506103
+        },
+        {
+          "Item1": 37.059047744873965,
+          "Item2": 448.29629131445336
+        },
+        {
+          "Item1": 32.89899283371659,
+          "Item2": 446.9846310392953
+        },
+        {
+          "Item1": 28.869086912965088,
+          "Item2": 445.31538935183244
+        },
+        {
+          "Item1": 25.000000000000057,
+          "Item2": 443.30127018922184
+        },
+        {
+          "Item1": 21.32117818244774,
+          "Item2": 440.9576022144495
+        },
+        {
+          "Item1": 17.86061951567308,
+          "Item2": 438.3022221559488
+        },
+        {
+          "Item1": 14.64466094067268,
+          "Item2": 435.3553390593273
+        },
+        {
+          "Item1": 11.697777844051188,
+          "Item2": 432.1393804843269
+        },
+        {
+          "Item1": 9.04239778555052,
+          "Item2": 428.67882181755226
+        },
+        {
+          "Item1": 6.698729810778161,
+          "Item2": 424.99999999999994
+        },
+        {
+          "Item1": 4.684610648167563,
+          "Item2": 421.13091308703497
+        },
+        {
+          "Item1": 3.015368960704677,
+          "Item2": 417.1010071662834
+        },
+        {
+          "Item1": 1.703708685546701,
+          "Item2": 412.94095225512604
+        },
+        {
+          "Item1": 0.7596123493897267,
+          "Item2": 408.6824088833465
+        },
+        {
+          "Item1": 0.1902650954128262,
+          "Item2": 404.3577871373829
+        },
+        {
+          "Item1": 0,
+          "Item2": 400
+        },
+        {
+          "Item1": 0,
+          "Item2": 361.1111111111111
+        },
+        {
+          "Item1": 0,
+          "Item2": 322.22222222222223
+        },
+        {
+          "Item1": 0,
+          "Item2": 283.3333333333333
+        },
+        {
+          "Item1": 0,
+          "Item2": 244.44444444444446
+        },
+        {
+          "Item1": 0,
+          "Item2": 205.55555555555554
+        },
+        {
+          "Item1": 0,
+          "Item2": 166.66666666666666
+        },
+        {
+          "Item1": 0,
+          "Item2": 127.77777777777777
+        },
+        {
+          "Item1": 0,
+          "Item2": 88.88888888888891
+        },
+        {
+          "Item1": 0,
+          "Item2": 50
+        },
+        {
+          "Item1": 0.190265095412542,
+          "Item2": 45.64221286261707
+        },
+        {
+          "Item1": 0.7596123493893856,
+          "Item2": 41.31759111665346
+        },
+        {
+          "Item1": 1.7037086855464167,
+          "Item2": 37.05904774487391
+        },
+        {
+          "Item1": 3.015368960704393,
+          "Item2": 32.898992833716505
+        },
+        {
+          "Item1": 4.684610648167336,
+          "Item2": 28.869086912964946
+        },
+        {
+          "Item1": 6.698729810777877,
+          "Item2": 24.999999999999915
+        },
+        {
+          "Item1": 9.042397785550236,
+          "Item2": 21.321178182447568
+        },
+        {
+          "Item1": 11.697777844050961,
+          "Item2": 17.86061951567291
+        },
+        {
+          "Item1": 14.644660940672452,
+          "Item2": 14.64466094067248
+        },
+        {
+          "Item1": 17.86061951567291,
+          "Item2": 11.697777844050961
+        },
+        {
+          "Item1": 21.321178182447568,
+          "Item2": 9.042397785550236
+        },
+        {
+          "Item1": 24.999999999999886,
+          "Item2": 6.698729810777905
+        },
+        {
+          "Item1": 28.869086912964917,
+          "Item2": 4.684610648167336
+        },
+        {
+          "Item1": 32.89899283371648,
+          "Item2": 3.015368960704393
+        },
+        {
+          "Item1": 37.05904774487391,
+          "Item2": 1.7037086855463883
+        },
+        {
+          "Item1": 41.31759111665343,
+          "Item2": 0.7596123493893856
+        },
+        {
+          "Item1": 45.6422128626171,
+          "Item2": 0.190265095412542
+        },
+        {
+          "Item1": 50,
+          "Item2": 0
+        },
+        {
+          "Item1": 55.55555555555554,
+          "Item2": 0
+        },
+        {
+          "Item1": 61.111111111111086,
+          "Item2": 0
+        },
+        {
+          "Item1": 66.66666666666669,
+          "Item2": 0
+        },
+        {
+          "Item1": 72.22222222222223,
+          "Item2": 0
+        },
+        {
+          "Item1": 77.77777777777777,
+          "Item2": 0
+        },
+        {
+          "Item1": 83.33333333333331,
+          "Item2": 0
+        },
+        {
+          "Item1": 88.88888888888891,
+          "Item2": 0
+        },
+        {
+          "Item1": 94.44444444444446,
+          "Item2": 0
+        },
+        {
+          "Item1": 100,
+          "Item2": 0
+        },
+        {
+          "Item1": 104.3577871373829,
+          "Item2": 0.19026509541291148
+        },
+        {
+          "Item1": 108.68240888334651,
+          "Item2": 0.7596123493897835
+        },
+        {
+          "Item1": 112.94095225512598,
+          "Item2": 1.7037086855467862
+        },
+        {
+          "Item1": 117.10100716628335,
+          "Item2": 3.0153689607047625
+        },
+        {
+          "Item1": 121.13091308703491,
+          "Item2": 4.684610648167677
+        },
+        {
+          "Item1": 124.99999999999989,
+          "Item2": 6.6987298107782465
+        },
+        {
+          "Item1": 128.6788218175522,
+          "Item2": 9.042397785550577
+        },
+        {
+          "Item1": 132.1393804843268,
+          "Item2": 11.697777844051245
+        },
+        {
+          "Item1": 135.3553390593272,
+          "Item2": 14.644660940672765
+        },
+        {
+          "Item1": 138.30222215594875,
+          "Item2": 17.860619515673164
+        },
+        {
+          "Item1": 140.95760221444942,
+          "Item2": 21.321178182447795
+        },
+        {
+          "Item1": 143.30127018922178,
+          "Item2": 25.000000000000085
+        },
+        {
+          "Item1": 145.31538935183232,
+          "Item2": 28.869086912965116
+        },
+        {
+          "Item1": 146.98463103929524,
+          "Item2": 32.89899283371662
+        },
+        {
+          "Item1": 148.2962913144532,
+          "Item2": 37.05904774487399
+        },
+        {
+          "Item1": 149.24038765061022,
+          "Item2": 41.31759111665352
+        },
+        {
+          "Item1": 149.8097349045871,
+          "Item2": 45.6422128626171
+        },
+        {
+          "Item1": 150,
+          "Item2": 50
+        },
+        {
+          "Item1": 150,
+          "Item2": 52.77777777777777
+        },
+        {
+          "Item1": 150,
+          "Item2": 55.55555555555554
+        },
+        {
+          "Item1": 150,
+          "Item2": 58.33333333333334
+        },
+        {
+          "Item1": 150,
+          "Item2": 61.111111111111114
+        },
+        {
+          "Item1": 150,
+          "Item2": 63.888888888888886
+        },
+        {
+          "Item1": 150,
+          "Item2": 66.66666666666666
+        },
+        {
+          "Item1": 150,
+          "Item2": 69.44444444444446
+        },
+        {
+          "Item1": 150,
+          "Item2": 72.22222222222223
+        },
+        {
+          "Item1": 150,
+          "Item2": 75
+        },
+        {
+          "Item1": 150.18227814754866,
+          "Item2": 78.01341700638307
+        },
+        {
+          "Item1": 150.7264545643487,
+          "Item2": 80.98289160718895
+        },
+        {
+          "Item1": 151.62459393286463,
+          "Item2": 83.86512217606338
+        },
+        {
+          "Item1": 152.86359935866975,
+          "Item2": 86.61807930109421
+        },
+        {
+          "Item1": 154.42540335265858,
+          "Item2": 89.20161866827888
+        },
+        {
+          "Item1": 156.28723129572248,
+          "Item2": 91.57806645601988
+        },
+        {
+          "Item1": 158.42193354398012,
+          "Item2": 93.71276870427752
+        },
+        {
+          "Item1": 160.7983813317211,
+          "Item2": 95.57459664734142
+        },
+        {
+          "Item1": 163.3819206989058,
+          "Item2": 97.13640064133025
+        },
+        {
+          "Item1": 166.13487782393662,
+          "Item2": 98.37540606713537
+        },
+        {
+          "Item1": 169.01710839281105,
+          "Item2": 99.2735454356513
+        },
+        {
+          "Item1": 171.98658299361693,
+          "Item2": 99.81772185245134
+        },
+        {
+          "Item1": 175,
+          "Item2": 100
+        },
+        {
+          "Item1": 184.57027628227988,
+          "Item2": 100
+        },
+        {
+          "Item1": 194.14055256455978,
+          "Item2": 100
+        },
+        {
+          "Item1": 203.71082884683966,
+          "Item2": 100
+        },
+        {
+          "Item1": 213.28110512911957,
+          "Item2": 100
+        },
+        {
+          "Item1": 222.85138141139944,
+          "Item2": 100
+        },
+        {
+          "Item1": 232.42165769367932,
+          "Item2": 100
+        },
+        {
+          "Item1": 241.99193397595923,
+          "Item2": 100
+        },
+        {
+          "Item1": 251.56221025823913,
+          "Item2": 100
+        },
+        {
+          "Item1": 261.13248654051904,
+          "Item2": 100
+        },
+        {
+          "Item1": 263.37773758736756,
+          "Item2": 103.8888888888889
+        },
+        {
+          "Item1": 265.6229886342161,
+          "Item2": 107.77777777777779
+        },
+        {
+          "Item1": 267.86823968106467,
+          "Item2": 111.66666666666669
+        },
+        {
+          "Item1": 270.1134907279132,
+          "Item2": 115.55555555555557
+        },
+        {
+          "Item1": 272.3587417747617,
+          "Item2": 119.44444444444447
+        },
+        {
+          "Item1": 274.6039928216103,
+          "Item2": 123.33333333333337
+        },
+        {
+          "Item1": 276.84924386845887,
+          "Item2": 127.22222222222226
+        },
+        {
+          "Item1": 279.0944949153074,
+          "Item2": 131.11111111111114
+        },
+        {
+          "Item1": 281.33974596215603,
+          "Item2": 135
+        },
+        {
+          "Item1": 282.44250425645754,
+          "Item2": 136.54860733945299
+        },
+        {
+          "Item1": 283.81841013779405,
+          "Item2": 137.86053094742795
+        },
+        {
+          "Item1": 285.417734782726,
+          "Item2": 138.8883544865493
+        },
+        {
+          "Item1": 287.1826744315857,
+          "Item2": 139.594929736145
+        },
+        {
+          "Item1": 289.0494395669582,
+          "Item2": 139.95471922573086
+        },
+        {
+          "Item1": 290.9505604330418,
+          "Item2": 139.95471922573086
+        },
+        {
+          "Item1": 292.8173255684143,
+          "Item2": 139.594929736145
+        },
+        {
+          "Item1": 294.582265217274,
+          "Item2": 138.8883544865493
+        },
+        {
+          "Item1": 296.18158986220595,
+          "Item2": 137.86053094742795
+        },
+        {
+          "Item1": 297.55749574354246,
+          "Item2": 136.54860733945296
+        },
+        {
+          "Item1": 298.66025403784397,
+          "Item2": 135
+        },
+        {
+          "Item1": 300.90550508469255,
+          "Item2": 131.1111111111111
+        },
+        {
+          "Item1": 303.15075613154113,
+          "Item2": 127.22222222222219
+        },
+        {
+          "Item1": 305.39600717838965,
+          "Item2": 123.33333333333327
+        },
+        {
+          "Item1": 307.64125822523823,
+          "Item2": 119.44444444444436
+        },
+        {
+          "Item1": 309.88650927208676,
+          "Item2": 115.55555555555546
+        },
+        {
+          "Item1": 312.13176031893533,
+          "Item2": 111.66666666666654
+        },
+        {
+          "Item1": 314.3770113657839,
+          "Item2": 107.77777777777763
+        },
+        {
+          "Item1": 316.62226241263244,
+          "Item2": 103.88888888888872
+        },
+        {
+          "Item1": 318.8675134594813,
+          "Item2": 100
+        },
+        {
+          "Item1": 336.8969549129299,
+          "Item2": 100
+        },
+        {
+          "Item1": 354.92639636637847,
+          "Item2": 100
+        },
+        {
+          "Item1": 372.9558378198271,
+          "Item2": 100
+        },
+        {
+          "Item1": 390.98527927327564,
+          "Item2": 100
+        },
+        {
+          "Item1": 409.01472072672425,
+          "Item2": 100
+        },
+        {
+          "Item1": 427.0441621801728,
+          "Item2": 100
+        },
+        {
+          "Item1": 445.0736036336214,
+          "Item2": 100
+        },
+        {
+          "Item1": 463.10304508707,
+          "Item2": 100
+        },
+        {
+          "Item1": 481.1324865405186,
+          "Item2": 100
+        },
+        {
+          "Item1": 483.37773758736716,
+          "Item2": 103.88888888888893
+        },
+        {
+          "Item1": 485.62298863421574,
+          "Item2": 107.77777777777784
+        },
+        {
+          "Item1": 487.86823968106427,
+          "Item2": 111.66666666666677
+        },
+        {
+          "Item1": 490.11349072791285,
+          "Item2": 115.55555555555569
+        },
+        {
+          "Item1": 492.3587417747614,
+          "Item2": 119.44444444444461
+        },
+        {
+          "Item1": 494.60399282160995,
+          "Item2": 123.33333333333354
+        },
+        {
+          "Item1": 496.84924386845853,
+          "Item2": 127.22222222222246
+        },
+        {
+          "Item1": 499.0944949153071,
+          "Item2": 131.11111111111137
+        },
+        {
+          "Item1": 501.33974596215603,
+          "Item2": 135.0000000000001
+        },
+        {
+          "Item1": 502.4425042564576,
+          "Item2": 136.54860733945304
+        },
+        {
+          "Item1": 503.8184101377941,
+          "Item2": 137.860530947428
+        },
+        {
+          "Item1": 505.41773478272603,
+          "Item2": 138.8883544865493
+        },
+        {
+          "Item1": 507.18267443158584,
+          "Item2": 139.594929736145
+        },
+        {
+          "Item1": 509.04943956695826,
+          "Item2": 139.95471922573086
+        },
+        {
+          "Item1": 510.95056043304186,
+          "Item2": 139.95471922573086
+        },
+        {
+          "Item1": 512.8173255684143,
+          "Item2": 139.594929736145
+        },
+        {
+          "Item1": 514.5822652172741,
+          "Item2": 138.88835448654925
+        },
+        {
+          "Item1": 516.181589862206,
+          "Item2": 137.86053094742795
+        },
+        {
+          "Item1": 517.5574957435425,
+          "Item2": 136.54860733945296
+        },
+        {
+          "Item1": 518.660254037844,
+          "Item2": 135
+        },
+        {
+          "Item1": 520.9055050846925,
+          "Item2": 131.1111111111111
+        },
+        {
+          "Item1": 523.1507561315411,
+          "Item2": 127.22222222222221
+        },
+        {
+          "Item1": 525.3960071783896,
+          "Item2": 123.33333333333331
+        },
+        {
+          "Item1": 527.6412582252382,
+          "Item2": 119.44444444444443
+        },
+        {
+          "Item1": 529.8865092720868,
+          "Item2": 115.55555555555553
+        },
+        {
+          "Item1": 532.1317603189352,
+          "Item2": 111.66666666666663
+        },
+        {
+          "Item1": 534.3770113657838,
+          "Item2": 107.77777777777774
+        },
+        {
+          "Item1": 536.6222624126324,
+          "Item2": 103.88888888888884
+        },
+        {
+          "Item1": 538.867513459481,
+          "Item2": 100
+        },
+        {
+          "Item1": 548.4377897417609,
+          "Item2": 100
+        },
+        {
+          "Item1": 558.0080660240408,
+          "Item2": 100
+        },
+        {
+          "Item1": 567.5783423063207,
+          "Item2": 100
+        },
+        {
+          "Item1": 577.1486185886006,
+          "Item2": 100
+        },
+        {
+          "Item1": 586.7188948708804,
+          "Item2": 100
+        },
+        {
+          "Item1": 596.2891711531604,
+          "Item2": 100
+        },
+        {
+          "Item1": 605.8594474354402,
+          "Item2": 100
+        },
+        {
+          "Item1": 615.4297237177201,
+          "Item2": 100
+        },
+        {
+          "Item1": 625,
+          "Item2": 100
+        },
+        {
+          "Item1": 628.0134170063831,
+          "Item2": 99.81772185245134
+        },
+        {
+          "Item1": 630.982891607189,
+          "Item2": 99.2735454356513
+        },
+        {
+          "Item1": 633.8651221760633,
+          "Item2": 98.37540606713537
+        },
+        {
+          "Item1": 636.6180793010942,
+          "Item2": 97.13640064133025
+        },
+        {
+          "Item1": 639.2016186682789,
+          "Item2": 95.57459664734142
+        },
+        {
+          "Item1": 641.5780664560199,
+          "Item2": 93.71276870427752
+        },
+        {
+          "Item1": 643.7127687042776,
+          "Item2": 91.57806645601988
+        },
+        {
+          "Item1": 645.5745966473414,
+          "Item2": 89.20161866827891
+        },
+        {
+          "Item1": 647.1364006413303,
+          "Item2": 86.61807930109421
+        },
+        {
+          "Item1": 648.3754060671354,
+          "Item2": 83.86512217606338
+        },
+        {
+          "Item1": 649.2735454356513,
+          "Item2": 80.98289160718895
+        },
+        {
+          "Item1": 649.8177218524513,
+          "Item2": 78.01341700638307
+        },
+        {
+          "Item1": 650,
+          "Item2": 75
+        },
+        {
+          "Item1": 650,
+          "Item2": 72.22222222222223
+        },
+        {
+          "Item1": 650,
+          "Item2": 69.44444444444446
+        },
+        {
+          "Item1": 650,
+          "Item2": 66.66666666666666
+        },
+        {
+          "Item1": 650,
+          "Item2": 63.888888888888886
+        },
+        {
+          "Item1": 650,
+          "Item2": 61.111111111111114
+        },
+        {
+          "Item1": 650,
+          "Item2": 58.33333333333334
+        },
+        {
+          "Item1": 650,
+          "Item2": 55.55555555555554
+        },
+        {
+          "Item1": 650,
+          "Item2": 52.77777777777777
+        },
+        {
+          "Item1": 650,
+          "Item2": 50
+        },
+        {
+          "Item1": 650.1902650954127,
+          "Item2": 45.64221286261707
+        },
+        {
+          "Item1": 650.7596123493895,
+          "Item2": 41.31759111665346
+        },
+        {
+          "Item1": 651.7037086855464,
+          "Item2": 37.059047744873936
+        },
+        {
+          "Item1": 653.0153689607044,
+          "Item2": 32.898992833716534
+        },
+        {
+          "Item1": 654.6846106481674,
+          "Item2": 28.869086912964974
+        },
+        {
+          "Item1": 656.698729810778,
+          "Item2": 24.999999999999943
+        },
+        {
+          "Item1": 659.0423977855503,
+          "Item2": 21.321178182447625
+        },
+        {
+          "Item1": 661.697777844051,
+          "Item2": 17.860619515672965
+        },
+        {
+          "Item1": 664.6446609406726,
+          "Item2": 14.644660940672566
+        },
+        {
+          "Item1": 667.860619515673,
+          "Item2": 11.697777844051018
+        },
+        {
+          "Item1": 671.3211781824476,
+          "Item2": 9.04239778555035
+        },
+        {
+          "Item1": 675,
+          "Item2": 6.698729810777991
+        },
+        {
+          "Item1": 678.869086912965,
+          "Item2": 4.684610648167421
+        },
+        {
+          "Item1": 682.8989928337165,
+          "Item2": 3.0153689607045067
+        },
+        {
+          "Item1": 687.0590477448739,
+          "Item2": 1.703708685546502
+        },
+        {
+          "Item1": 691.3175911166535,
+          "Item2": 0.7596123493894993
+        },
+        {
+          "Item1": 695.642212862617,
+          "Item2": 0.19026509541262726
+        },
+        {
+          "Item1": 700,
+          "Item2": 0
+        },
+        {
+          "Item1": 705.5555555555555,
+          "Item2": 0
+        },
+        {
+          "Item1": 711.1111111111111,
+          "Item2": 0
+        },
+        {
+          "Item1": 716.6666666666667,
+          "Item2": 0
+        },
+        {
+          "Item1": 722.2222222222222,
+          "Item2": 0
+        },
+        {
+          "Item1": 727.7777777777778,
+          "Item2": 0
+        },
+        {
+          "Item1": 733.3333333333333,
+          "Item2": 0
+        },
+        {
+          "Item1": 738.8888888888889,
+          "Item2": 0
+        },
+        {
+          "Item1": 744.4444444444445,
+          "Item2": 0
+        },
+        {
+          "Item1": 750,
+          "Item2": 0
+        },
+        {
+          "Item1": 754.357787137383,
+          "Item2": 0.1902650954128262
+        },
+        {
+          "Item1": 758.6824088833465,
+          "Item2": 0.7596123493896982
+        },
+        {
+          "Item1": 762.940952255126,
+          "Item2": 1.7037086855466725
+        },
+        {
+          "Item1": 767.1010071662834,
+          "Item2": 3.015368960704677
+        },
+        {
+          "Item1": 771.130913087035,
+          "Item2": 4.684610648167592
+        },
+        {
+          "Item1": 775,
+          "Item2": 6.698729810778161
+        },
+        {
+          "Item1": 778.6788218175523,
+          "Item2": 9.042397785550492
+        },
+        {
+          "Item1": 782.1393804843269,
+          "Item2": 11.697777844051188
+        },
+        {
+          "Item1": 785.3553390593273,
+          "Item2": 14.64466094067268
+        },
+        {
+          "Item1": 788.3022221559488,
+          "Item2": 17.86061951567308
+        },
+        {
+          "Item1": 790.9576022144495,
+          "Item2": 21.32117818244774
+        },
+        {
+          "Item1": 793.3012701892219,
+          "Item2": 25.000000000000057
+        },
+        {
+          "Item1": 795.3153893518324,
+          "Item2": 28.86908691296506
+        },
+        {
+          "Item1": 796.9846310392953,
+          "Item2": 32.89899283371659
+        },
+        {
+          "Item1": 798.2962913144534,
+          "Item2": 37.059047744873965
+        },
+        {
+          "Item1": 799.2403876506103,
+          "Item2": 41.31759111665349
+        },
+        {
+          "Item1": 799.8097349045872,
+          "Item2": 45.6422128626171
+        },
+        {
+          "Item1": 800,
+          "Item2": 50
+        },
+        {
+          "Item1": 800,
+          "Item2": 88.88888888888889
+        },
+        {
+          "Item1": 800,
+          "Item2": 127.77777777777777
+        },
+        {
+          "Item1": 800,
+          "Item2": 166.66666666666669
+        },
+        {
+          "Item1": 800,
+          "Item2": 205.55555555555554
+        },
+        {
+          "Item1": 800,
+          "Item2": 244.44444444444446
+        },
+        {
+          "Item1": 800,
+          "Item2": 283.33333333333337
+        },
+        {
+          "Item1": 800,
+          "Item2": 322.22222222222223
+        },
+        {
+          "Item1": 800,
+          "Item2": 361.1111111111111
+        },
+        {
+          "Item1": 800,
+          "Item2": 400
+        },
+        {
+          "Item1": 794.4444444444445,
+          "Item2": 405.55555555555554
+        },
+        {
+          "Item1": 788.8888888888889,
+          "Item2": 411.11111111111114
+        },
+        {
+          "Item1": 783.3333333333334,
+          "Item2": 416.66666666666674
+        },
+        {
+          "Item1": 777.7777777777778,
+          "Item2": 422.2222222222223
+        },
+        {
+          "Item1": 772.2222222222223,
+          "Item2": 427.7777777777778
+        },
+        {
+          "Item1": 766.6666666666667,
+          "Item2": 433.33333333333337
+        },
+        {
+          "Item1": 761.1111111111112,
+          "Item2": 438.88888888888897
+        },
+        {
+          "Item1": 755.5555555555557,
+          "Item2": 444.44444444444457
+        },
+        {
+          "Item1": 750,
+          "Item2": 450
+        },
+        {
+          "Item1": 744.4444444444445,
+          "Item2": 450
+        },
+        {
+          "Item1": 738.8888888888889,
+          "Item2": 450
+        },
+        {
+          "Item1": 733.3333333333333,
+          "Item2": 450
+        },
+        {
+          "Item1": 727.7777777777778,
+          "Item2": 450
+        },
+        {
+          "Item1": 722.2222222222222,
+          "Item2": 450
+        },
+        {
+          "Item1": 716.6666666666667,
+          "Item2": 450
+        },
+        {
+          "Item1": 711.1111111111111,
+          "Item2": 450
+        },
+        {
+          "Item1": 705.5555555555555,
+          "Item2": 450
+        },
+        {
+          "Item1": 700,
+          "Item2": 450
+        },
+        {
+          "Item1": 695.642212862617,
+          "Item2": 449.8097349045873
+        },
+        {
+          "Item1": 691.3175911166535,
+          "Item2": 449.2403876506104
+        },
+        {
+          "Item1": 687.059047744874,
+          "Item2": 448.2962913144534
+        },
+        {
+          "Item1": 682.8989928337166,
+          "Item2": 446.98463103929544
+        },
+        {
+          "Item1": 678.869086912965,
+          "Item2": 445.3153893518325
+        },
+        {
+          "Item1": 675,
+          "Item2": 443.30127018922195
+        },
+        {
+          "Item1": 671.3211781824477,
+          "Item2": 440.9576022144496
+        },
+        {
+          "Item1": 667.8606195156731,
+          "Item2": 438.3022221559489
+        },
+        {
+          "Item1": 664.6446609406726,
+          "Item2": 435.3553390593274
+        },
+        {
+          "Item1": 661.6977778440511,
+          "Item2": 432.139380484327
+        },
+        {
+          "Item1": 659.0423977855504,
+          "Item2": 428.6788218175523
+        },
+        {
+          "Item1": 656.6987298107781,
+          "Item2": 425
+        },
+        {
+          "Item1": 654.6846106481676,
+          "Item2": 421.13091308703497
+        },
+        {
+          "Item1": 653.0153689607046,
+          "Item2": 417.10100716628347
+        },
+        {
+          "Item1": 651.7037086855466,
+          "Item2": 412.94095225512604
+        },
+        {
+          "Item1": 650.7596123493896,
+          "Item2": 408.6824088833465
+        },
+        {
+          "Item1": 650.1902650954128,
+          "Item2": 404.3577871373829
+        },
+        {
+          "Item1": 650,
+          "Item2": 400
+        },
+        {
+          "Item1": 650,
+          "Item2": 397.22222222222223
+        },
+        {
+          "Item1": 650,
+          "Item2": 394.44444444444446
+        },
+        {
+          "Item1": 650,
+          "Item2": 391.66666666666663
+        },
+        {
+          "Item1": 650,
+          "Item2": 388.8888888888889
+        },
+        {
+          "Item1": 650,
+          "Item2": 386.1111111111111
+        },
+        {
+          "Item1": 650,
+          "Item2": 383.33333333333337
+        },
+        {
+          "Item1": 650,
+          "Item2": 380.55555555555554
+        },
+        {
+          "Item1": 650,
+          "Item2": 377.77777777777777
+        },
+        {
+          "Item1": 650,
+          "Item2": 375
+        },
+        {
+          "Item1": 649.8177218524513,
+          "Item2": 371.98658299361693
+        },
+        {
+          "Item1": 649.2735454356513,
+          "Item2": 369.01710839281105
+        },
+        {
+          "Item1": 648.3754060671354,
+          "Item2": 366.1348778239366
+        },
+        {
+          "Item1": 647.1364006413303,
+          "Item2": 363.3819206989058
+        },
+        {
+          "Item1": 645.5745966473414,
+          "Item2": 360.7983813317211
+        },
+        {
+          "Item1": 643.7127687042776,
+          "Item2": 358.4219335439801
+        },
+        {
+          "Item1": 641.5780664560199,
+          "Item2": 356.28723129572245
+        },
+        {
+          "Item1": 639.2016186682789,
+          "Item2": 354.4254033526586
+        },
+        {
+          "Item1": 636.6180793010942,
+          "Item2": 352.8635993586697
+        },
+        {
+          "Item1": 633.8651221760633,
+          "Item2": 351.6245939328646
+        },
+        {
+          "Item1": 630.982891607189,
+          "Item2": 350.7264545643487
+        },
+        {
+          "Item1": 628.0134170063831,
+          "Item2": 350.1822781475487
+        },
+        {
+          "Item1": 625,
+          "Item2": 350
+        },
+        {
+          "Item1": 621.3888888888889,
+          "Item2": 350
+        },
+        {
+          "Item1": 617.7777777777778,
+          "Item2": 350
+        },
+        {
+          "Item1": 614.1666666666666,
+          "Item2": 350
+        },
+        {
+          "Item1": 610.5555555555555,
+          "Item2": 350
+        },
+        {
+          "Item1": 606.9444444444445,
+          "Item2": 350
+        },
+        {
+          "Item1": 603.3333333333334,
+          "Item2": 350
+        },
+        {
+          "Item1": 599.7222222222222,
+          "Item2": 350
+        },
+        {
+          "Item1": 596.1111111111111,
+          "Item2": 350
+        },
+        {
+          "Item1": 592.5,
+          "Item2": 350
+        },
+        {
+          "Item1": 592.5,
+          "Item2": 348.3333333333333
+        },
+        {
+          "Item1": 592.5,
+          "Item2": 346.6666666666667
+        },
+        {
+          "Item1": 592.5,
+          "Item2": 345
+        },
+        {
+          "Item1": 592.5,
+          "Item2": 343.3333333333333
+        },
+        {
+          "Item1": 592.5,
+          "Item2": 341.6666666666667
+        },
+        {
+          "Item1": 592.5,
+          "Item2": 340
+        },
+        {
+          "Item1": 592.5,
+          "Item2": 338.3333333333333
+        },
+        {
+          "Item1": 592.5,
+          "Item2": 336.6666666666667
+        },
+        {
+          "Item1": 592.5,
+          "Item2": 335
+        },
+        {
+          "Item1": 592.3078528040323,
+          "Item2": 333.0490967798387
+        },
+        {
+          "Item1": 591.738795325113,
+          "Item2": 331.1731656763491
+        },
+        {
+          "Item1": 590.8146961230256,
+          "Item2": 329.4442976698039
+        },
+        {
+          "Item1": 589.5710678118655,
+          "Item2": 327.92893218813447
+        },
+        {
+          "Item1": 588.055702330196,
+          "Item2": 326.68530387697444
+        },
+        {
+          "Item1": 586.3268343236509,
+          "Item2": 325.76120467488704
+        },
+        {
+          "Item1": 584.4509032201613,
+          "Item2": 325.1921471959676
+        },
+        {
+          "Item1": 582.5,
+          "Item2": 325
+        },
+        {
+          "Item1": 575.2777777777778,
+          "Item2": 325
+        },
+        {
+          "Item1": 568.0555555555555,
+          "Item2": 325
+        },
+        {
+          "Item1": 560.8333333333334,
+          "Item2": 325
+        },
+        {
+          "Item1": 553.6111111111111,
+          "Item2": 325
+        },
+        {
+          "Item1": 546.3888888888889,
+          "Item2": 325
+        },
+        {
+          "Item1": 539.1666666666666,
+          "Item2": 325
+        },
+        {
+          "Item1": 531.9444444444445,
+          "Item2": 325
+        },
+        {
+          "Item1": 524.7222222222222,
+          "Item2": 325
+        },
+        {
+          "Item1": 517.5,
+          "Item2": 324.9999999999999
+        },
+        {
+          "Item1": 515.5490967798387,
+          "Item2": 325.1921471959677
+        },
+        {
+          "Item1": 513.6731656763491,
+          "Item2": 325.76120467488715
+        },
+        {
+          "Item1": 511.944297669804,
+          "Item2": 326.68530387697456
+        },
+        {
+          "Item1": 510.4289321881346,
+          "Item2": 327.9289321881346
+        },
+        {
+          "Item1": 509.18530387697456,
+          "Item2": 329.444297669804
+        },
+        {
+          "Item1": 508.26120467488715,
+          "Item2": 331.17316567634913
+        },
+        {
+          "Item1": 507.6921471959677,
+          "Item2": 333.0490967798387
+        },
+        {
+          "Item1": 507.5,
+          "Item2": 335
+        },
+        {
+          "Item1": 507.5,
+          "Item2": 336.6666666666667
+        },
+        {
+          "Item1": 507.5,
+          "Item2": 338.3333333333333
+        },
+        {
+          "Item1": 507.5,
+          "Item2": 340
+        },
+        {
+          "Item1": 507.5,
+          "Item2": 341.6666666666667
+        },
+        {
+          "Item1": 507.5,
+          "Item2": 343.3333333333333
+        },
+        {
+          "Item1": 507.5,
+          "Item2": 345
+        },
+        {
+          "Item1": 507.5,
+          "Item2": 346.6666666666667
+        },
+        {
+          "Item1": 507.5,
+          "Item2": 348.3333333333333
+        },
+        {
+          "Item1": 507.5,
+          "Item2": 350
+        },
+        {
+          "Item1": 483.6111111111111,
+          "Item2": 350
+        },
+        {
+          "Item1": 459.72222222222223,
+          "Item2": 350
+        },
+        {
+          "Item1": 435.8333333333333,
+          "Item2": 350
+        },
+        {
+          "Item1": 411.94444444444446,
+          "Item2": 350
+        },
+        {
+          "Item1": 388.05555555555554,
+          "Item2": 350
+        },
+        {
+          "Item1": 364.16666666666663,
+          "Item2": 350
+        },
+        {
+          "Item1": 340.27777777777777,
+          "Item2": 350
+        },
+        {
+          "Item1": 316.3888888888889,
+          "Item2": 350
+        },
+        {
+          "Item1": 292.5,
+          "Item2": 350
+        },
+        {
+          "Item1": 292.5,
+          "Item2": 348.3333333333333
+        },
+        {
+          "Item1": 292.5,
+          "Item2": 346.6666666666667
+        },
+        {
+          "Item1": 292.5,
+          "Item2": 345
+        },
+        {
+          "Item1": 292.5,
+          "Item2": 343.3333333333333
+        },
+        {
+          "Item1": 292.5,
+          "Item2": 341.6666666666667
+        },
+        {
+          "Item1": 292.5,
+          "Item2": 340
+        },
+        {
+          "Item1": 292.5,
+          "Item2": 338.3333333333333
+        },
+        {
+          "Item1": 292.5,
+          "Item2": 336.6666666666667
+        },
+        {
+          "Item1": 292.5,
+          "Item2": 335
+        },
+        {
+          "Item1": 292.3078528040323,
+          "Item2": 333.0490967798387
+        },
+        {
+          "Item1": 291.73879532511285,
+          "Item2": 331.17316567634913
+        },
+        {
+          "Item1": 290.81469612302544,
+          "Item2": 329.444297669804
+        },
+        {
+          "Item1": 289.5710678118654,
+          "Item2": 327.9289321881346
+        },
+        {
+          "Item1": 288.055702330196,
+          "Item2": 326.68530387697456
+        },
+        {
+          "Item1": 286.32683432365087,
+          "Item2": 325.76120467488715
+        },
+        {
+          "Item1": 284.4509032201613,
+          "Item2": 325.1921471959677
+        },
+        {
+          "Item1": 282.5,
+          "Item2": 325
+        },
+        {
+          "Item1": 275.27777777777777,
+          "Item2": 325
+        },
+        {
+          "Item1": 268.05555555555554,
+          "Item2": 325
+        },
+        {
+          "Item1": 260.83333333333337,
+          "Item2": 325
+        },
+        {
+          "Item1": 253.61111111111111,
+          "Item2": 325
+        },
+        {
+          "Item1": 246.38888888888889,
+          "Item2": 325
+        },
+        {
+          "Item1": 239.16666666666666,
+          "Item2": 325
+        },
+        {
+          "Item1": 231.94444444444446,
+          "Item2": 325
+        },
+        {
+          "Item1": 224.72222222222223,
+          "Item2": 325
+        },
+        {
+          "Item1": 217.5,
+          "Item2": 324.9999999999999
+        },
+        {
+          "Item1": 215.5490967798387,
+          "Item2": 325.1921471959676
+        },
+        {
+          "Item1": 213.67316567634907,
+          "Item2": 325.76120467488704
+        },
+        {
+          "Item1": 211.94429766980392,
+          "Item2": 326.68530387697444
+        },
+        {
+          "Item1": 210.42893218813447,
+          "Item2": 327.92893218813447
+        },
+        {
+          "Item1": 209.18530387697447,
+          "Item2": 329.4442976698039
+        },
+        {
+          "Item1": 208.26120467488704,
+          "Item2": 331.1731656763491
+        },
+        {
+          "Item1": 207.6921471959676,
+          "Item2": 333.0490967798387
+        },
+        {
+          "Item1": 207.5,
+          "Item2": 335
+        },
+        {
+          "Item1": 207.5,
+          "Item2": 336.6666666666667
+        },
+        {
+          "Item1": 207.5,
+          "Item2": 338.3333333333333
+        },
+        {
+          "Item1": 207.5,
+          "Item2": 340
+        },
+        {
+          "Item1": 207.5,
+          "Item2": 341.6666666666667
+        },
+        {
+          "Item1": 207.5,
+          "Item2": 343.3333333333333
+        },
+        {
+          "Item1": 207.5,
+          "Item2": 345
+        },
+        {
+          "Item1": 207.5,
+          "Item2": 346.6666666666667
+        },
+        {
+          "Item1": 207.5,
+          "Item2": 348.3333333333333
+        },
+        {
+          "Item1": 207.5,
+          "Item2": 350
+        },
+        {
+          "Item1": 203.88888888888889,
+          "Item2": 350
+        },
+        {
+          "Item1": 200.27777777777777,
+          "Item2": 350
+        },
+        {
+          "Item1": 196.66666666666666,
+          "Item2": 350
+        },
+        {
+          "Item1": 193.05555555555554,
+          "Item2": 350
+        },
+        {
+          "Item1": 189.44444444444446,
+          "Item2": 350
+        },
+        {
+          "Item1": 185.83333333333334,
+          "Item2": 350
+        },
+        {
+          "Item1": 182.22222222222223,
+          "Item2": 350
+        },
+        {
+          "Item1": 178.61111111111111,
+          "Item2": 350
+        },
+        {
+          "Item1": 175,
+          "Item2": 350
+        },
+        {
+          "Item1": 171.98658299361693,
+          "Item2": 350.1822781475487
+        },
+        {
+          "Item1": 169.01710839281105,
+          "Item2": 350.7264545643487
+        },
+        {
+          "Item1": 166.13487782393662,
+          "Item2": 351.6245939328646
+        },
+        {
+          "Item1": 163.3819206989058,
+          "Item2": 352.8635993586697
+        },
+        {
+          "Item1": 160.79838133172112,
+          "Item2": 354.4254033526586
+        },
+        {
+          "Item1": 158.42193354398012,
+          "Item2": 356.28723129572245
+        },
+        {
+          "Item1": 156.28723129572248,
+          "Item2": 358.4219335439801
+        },
+        {
+          "Item1": 154.42540335265858,
+          "Item2": 360.7983813317211
+        },
+        {
+          "Item1": 152.86359935866975,
+          "Item2": 363.3819206989058
+        },
+        {
+          "Item1": 151.62459393286463,
+          "Item2": 366.1348778239366
+        },
+        {
+          "Item1": 150.7264545643487,
+          "Item2": 369.01710839281105
+        },
+        {
+          "Item1": 150.18227814754866,
+          "Item2": 371.98658299361693
+        },
+        {
+          "Item1": 150,
+          "Item2": 375
+        },
+        {
+          "Item1": 150,
+          "Item2": 377.77777777777777
+        },
+        {
+          "Item1": 150,
+          "Item2": 380.55555555555554
+        },
+        {
+          "Item1": 150,
+          "Item2": 383.33333333333337
+        },
+        {
+          "Item1": 150,
+          "Item2": 386.1111111111111
+        },
+        {
+          "Item1": 150,
+          "Item2": 388.8888888888889
+        },
+        {
+          "Item1": 150,
+          "Item2": 391.66666666666663
+        },
+        {
+          "Item1": 150,
+          "Item2": 394.44444444444446
+        },
+        {
+          "Item1": 150,
+          "Item2": 397.22222222222223
+        },
+        {
+          "Item1": 150,
+          "Item2": 400
+        },
+        {
+          "Item1": 149.8097349045873,
+          "Item2": 404.3577871373829
+        },
+        {
+          "Item1": 149.2403876506104,
+          "Item2": 408.6824088833465
+        },
+        {
+          "Item1": 148.2962913144534,
+          "Item2": 412.94095225512604
+        },
+        {
+          "Item1": 146.98463103929544,
+          "Item2": 417.10100716628347
+        },
+        {
+          "Item1": 145.3153893518325,
+          "Item2": 421.13091308703497
+        },
+        {
+          "Item1": 143.30127018922195,
+          "Item2": 425
+        },
+        {
+          "Item1": 140.9576022144496,
+          "Item2": 428.6788218175523
+        },
+        {
+          "Item1": 138.30222215594893,
+          "Item2": 432.139380484327
+        },
+        {
+          "Item1": 135.35533905932738,
+          "Item2": 435.3553390593274
+        },
+        {
+          "Item1": 132.13938048432698,
+          "Item2": 438.3022221559489
+        },
+        {
+          "Item1": 128.67882181755232,
+          "Item2": 440.9576022144496
+        },
+        {
+          "Item1": 125,
+          "Item2": 443.3012701892219
+        },
+        {
+          "Item1": 121.13091308703497,
+          "Item2": 445.3153893518325
+        },
+        {
+          "Item1": 117.10100716628347,
+          "Item2": 446.98463103929544
+        },
+        {
+          "Item1": 112.94095225512604,
+          "Item2": 448.2962913144534
+        },
+        {
+          "Item1": 108.68240888334651,
+          "Item2": 449.2403876506104
+        },
+        {
+          "Item1": 104.3577871373829,
+          "Item2": 449.8097349045873
+        },
+        {
+          "Item1": 100,
+          "Item2": 450
+        },
+        {
+          "Item1": 94.44444444444446,
+          "Item2": 450
+        },
+        {
+          "Item1": 88.88888888888891,
+          "Item2": 450
+        },
+        {
+          "Item1": 83.33333333333331,
+          "Item2": 450
+        },
+        {
+          "Item1": 77.77777777777777,
+          "Item2": 450
+        },
+        {
+          "Item1": 72.22222222222223,
+          "Item2": 450
+        },
+        {
+          "Item1": 66.66666666666669,
+          "Item2": 450
+        },
+        {
+          "Item1": 61.111111111111086,
+          "Item2": 450
+        },
+        {
+          "Item1": 55.55555555555554,
+          "Item2": 450
+        }
+      ],
+      "IsInner": false,
+      "SignedArea": 248607.64636015054,
+      "BoundarySpans": [
+        {
+          "SourceEdgeId": {
+            "Value": 63,
+            "IsValid": true
+          },
+          "StartVertexId": 668,
+          "EndVertexId": 659,
+          "SourceCurveKind": 1,
+          "SampleCount": 19
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 70,
+            "IsValid": true
+          },
+          "StartVertexId": 659,
+          "EndVertexId": 728,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 75,
+            "IsValid": true
+          },
+          "StartVertexId": 728,
+          "EndVertexId": 780,
+          "SourceCurveKind": 1,
+          "SampleCount": 19
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 78,
+            "IsValid": true
+          },
+          "StartVertexId": 780,
+          "EndVertexId": 815,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 81,
+            "IsValid": true
+          },
+          "StartVertexId": 815,
+          "EndVertexId": 850,
+          "SourceCurveKind": 1,
+          "SampleCount": 19
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 83,
+            "IsValid": true
+          },
+          "StartVertexId": 850,
+          "EndVertexId": 885,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 89,
+            "IsValid": true
+          },
+          "StartVertexId": 885,
+          "EndVertexId": 931,
+          "SourceCurveKind": 1,
+          "SampleCount": 14
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 91,
+            "IsValid": true
+          },
+          "StartVertexId": 931,
+          "EndVertexId": 952,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 93,
+            "IsValid": true
+          },
+          "StartVertexId": 952,
+          "EndVertexId": 969,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 95,
+            "IsValid": true
+          },
+          "StartVertexId": 969,
+          "EndVertexId": 986,
+          "SourceCurveKind": 1,
+          "SampleCount": 12
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 97,
+            "IsValid": true
+          },
+          "StartVertexId": 986,
+          "EndVertexId": 1005,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 99,
+            "IsValid": true
+          },
+          "StartVertexId": 1005,
+          "EndVertexId": 1022,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 105,
+            "IsValid": true
+          },
+          "StartVertexId": 1022,
+          "EndVertexId": 1103,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 107,
+            "IsValid": true
+          },
+          "StartVertexId": 1103,
+          "EndVertexId": 1120,
+          "SourceCurveKind": 1,
+          "SampleCount": 12
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 109,
+            "IsValid": true
+          },
+          "StartVertexId": 1120,
+          "EndVertexId": 1139,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 111,
+            "IsValid": true
+          },
+          "StartVertexId": 1139,
+          "EndVertexId": 1156,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 114,
+            "IsValid": true
+          },
+          "StartVertexId": 1156,
+          "EndVertexId": 1185,
+          "SourceCurveKind": 1,
+          "SampleCount": 14
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 118,
+            "IsValid": true
+          },
+          "StartVertexId": 1185,
+          "EndVertexId": 1225,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 122,
+            "IsValid": true
+          },
+          "StartVertexId": 1225,
+          "EndVertexId": 1268,
+          "SourceCurveKind": 1,
+          "SampleCount": 19
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 125,
+            "IsValid": true
+          },
+          "StartVertexId": 1268,
+          "EndVertexId": 1303,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 128,
+            "IsValid": true
+          },
+          "StartVertexId": 1303,
+          "EndVertexId": 1338,
+          "SourceCurveKind": 1,
+          "SampleCount": 19
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 134,
+            "IsValid": true
+          },
+          "StartVertexId": 1338,
+          "EndVertexId": 1398,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 139,
+            "IsValid": true
+          },
+          "StartVertexId": 1398,
+          "EndVertexId": 1441,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 142,
+            "IsValid": true
+          },
+          "StartVertexId": 1441,
+          "EndVertexId": 1467,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 145,
+            "IsValid": true
+          },
+          "StartVertexId": 1467,
+          "EndVertexId": 1502,
+          "SourceCurveKind": 1,
+          "SampleCount": 19
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 146,
+            "IsValid": true
+          },
+          "StartVertexId": 1502,
+          "EndVertexId": 1536,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 153,
+            "IsValid": true
+          },
+          "StartVertexId": 1536,
+          "EndVertexId": 1583,
+          "SourceCurveKind": 1,
+          "SampleCount": 14
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 155,
+            "IsValid": true
+          },
+          "StartVertexId": 1583,
+          "EndVertexId": 1604,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 157,
+            "IsValid": true
+          },
+          "StartVertexId": 1604,
+          "EndVertexId": 1621,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 159,
+            "IsValid": true
+          },
+          "StartVertexId": 1621,
+          "EndVertexId": 1638,
+          "SourceCurveKind": 1,
+          "SampleCount": 9
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 161,
+            "IsValid": true
+          },
+          "StartVertexId": 1638,
+          "EndVertexId": 1654,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 163,
+            "IsValid": true
+          },
+          "StartVertexId": 1654,
+          "EndVertexId": 1671,
+          "SourceCurveKind": 1,
+          "SampleCount": 9
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 165,
+            "IsValid": true
+          },
+          "StartVertexId": 1671,
+          "EndVertexId": 1687,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 167,
+            "IsValid": true
+          },
+          "StartVertexId": 1687,
+          "EndVertexId": 1704,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 169,
+            "IsValid": true
+          },
+          "StartVertexId": 1704,
+          "EndVertexId": 1721,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 171,
+            "IsValid": true
+          },
+          "StartVertexId": 1721,
+          "EndVertexId": 1738,
+          "SourceCurveKind": 1,
+          "SampleCount": 9
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 173,
+            "IsValid": true
+          },
+          "StartVertexId": 1738,
+          "EndVertexId": 1754,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 175,
+            "IsValid": true
+          },
+          "StartVertexId": 1754,
+          "EndVertexId": 1771,
+          "SourceCurveKind": 1,
+          "SampleCount": 9
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 177,
+            "IsValid": true
+          },
+          "StartVertexId": 1771,
+          "EndVertexId": 1787,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 179,
+            "IsValid": true
+          },
+          "StartVertexId": 1787,
+          "EndVertexId": 1804,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 182,
+            "IsValid": true
+          },
+          "StartVertexId": 1804,
+          "EndVertexId": 1833,
+          "SourceCurveKind": 1,
+          "SampleCount": 14
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 186,
+            "IsValid": true
+          },
+          "StartVertexId": 1833,
+          "EndVertexId": 1873,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 190,
+            "IsValid": true
+          },
+          "StartVertexId": 1873,
+          "EndVertexId": 1916,
+          "SourceCurveKind": 1,
+          "SampleCount": 19
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 192,
+            "IsValid": true
+          },
+          "StartVertexId": 1916,
+          "EndVertexId": 668,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        }
+      ]
+    },
+    {
+      "LoopId": {
+        "Value": 111,
+        "IsValid": true
+      },
+      "VertexIds": [
+        2980,
+        2981,
+        2982,
+        2983,
+        2984,
+        2985,
+        2986,
+        2987,
+        2988,
+        2989,
+        2990,
+        2991,
+        2992,
+        2993,
+        2994,
+        2995,
+        2996,
+        2997,
+        2998,
+        2999,
+        3000,
+        3001,
+        3002,
+        3003,
+        3004,
+        3005,
+        3006,
+        3007,
+        3008,
+        3009,
+        3010,
+        3011,
+        3012,
+        3013,
+        3014,
+        3015,
+        3016,
+        3017,
+        3018,
+        3019,
+        3020,
+        3021,
+        3022,
+        3023,
+        3024,
+        3025,
+        3026,
+        3027,
+        3028,
+        3029,
+        3030,
+        3031,
+        3032,
+        3033
+      ],
+      "LocalCoordinates": [
+        {
+          "Item1": 400.00000000000006,
+          "Item2": 288.5085026918963
+        },
+        {
+          "Item1": 406.11111111111114,
+          "Item2": 284.9802510468486
+        },
+        {
+          "Item1": 412.2222222222223,
+          "Item2": 281.4519994018009
+        },
+        {
+          "Item1": 418.33333333333337,
+          "Item2": 277.9237477567532
+        },
+        {
+          "Item1": 424.44444444444446,
+          "Item2": 274.3954961117055
+        },
+        {
+          "Item1": 430.5555555555556,
+          "Item2": 270.8672444666577
+        },
+        {
+          "Item1": 436.6666666666667,
+          "Item2": 267.33899282161
+        },
+        {
+          "Item1": 442.7777777777778,
+          "Item2": 263.8107411765623
+        },
+        {
+          "Item1": 448.8888888888889,
+          "Item2": 260.2824895315146
+        },
+        {
+          "Item1": 455,
+          "Item2": 256.7542378864669
+        },
+        {
+          "Item1": 455,
+          "Item2": 249.69773459637148
+        },
+        {
+          "Item1": 455,
+          "Item2": 242.64123130627604
+        },
+        {
+          "Item1": 455,
+          "Item2": 235.5847280161806
+        },
+        {
+          "Item1": 455,
+          "Item2": 228.52822472608517
+        },
+        {
+          "Item1": 455,
+          "Item2": 221.47172143598974
+        },
+        {
+          "Item1": 455,
+          "Item2": 214.4152181458943
+        },
+        {
+          "Item1": 455,
+          "Item2": 207.35871485579887
+        },
+        {
+          "Item1": 455,
+          "Item2": 200.30221156570343
+        },
+        {
+          "Item1": 455,
+          "Item2": 193.245708275608
+        },
+        {
+          "Item1": 448.8888888888889,
+          "Item2": 189.7174566305603
+        },
+        {
+          "Item1": 442.77777777777777,
+          "Item2": 186.1892049855126
+        },
+        {
+          "Item1": 436.6666666666667,
+          "Item2": 182.66095334046489
+        },
+        {
+          "Item1": 430.5555555555556,
+          "Item2": 179.13270169541715
+        },
+        {
+          "Item1": 424.44444444444446,
+          "Item2": 175.60445005036945
+        },
+        {
+          "Item1": 418.33333333333337,
+          "Item2": 172.07619840532175
+        },
+        {
+          "Item1": 412.2222222222223,
+          "Item2": 168.54794676027404
+        },
+        {
+          "Item1": 406.1111111111112,
+          "Item2": 165.01969511522634
+        },
+        {
+          "Item1": 400.00000000000006,
+          "Item2": 161.49144347017864
+        },
+        {
+          "Item1": 393.88888888888897,
+          "Item2": 165.0196951152263
+        },
+        {
+          "Item1": 387.7777777777778,
+          "Item2": 168.54794676027404
+        },
+        {
+          "Item1": 381.66666666666674,
+          "Item2": 172.07619840532175
+        },
+        {
+          "Item1": 375.5555555555556,
+          "Item2": 175.60445005036945
+        },
+        {
+          "Item1": 369.44444444444446,
+          "Item2": 179.13270169541715
+        },
+        {
+          "Item1": 363.3333333333333,
+          "Item2": 182.66095334046489
+        },
+        {
+          "Item1": 357.2222222222222,
+          "Item2": 186.18920498551262
+        },
+        {
+          "Item1": 351.1111111111111,
+          "Item2": 189.71745663056032
+        },
+        {
+          "Item1": 344.99999999999994,
+          "Item2": 193.24570827560802
+        },
+        {
+          "Item1": 345,
+          "Item2": 200.30221156570352
+        },
+        {
+          "Item1": 345,
+          "Item2": 207.35871485579892
+        },
+        {
+          "Item1": 345,
+          "Item2": 214.41521814589433
+        },
+        {
+          "Item1": 345,
+          "Item2": 221.47172143598974
+        },
+        {
+          "Item1": 345,
+          "Item2": 228.52822472608517
+        },
+        {
+          "Item1": 345,
+          "Item2": 235.58472801618058
+        },
+        {
+          "Item1": 345,
+          "Item2": 242.64123130627598
+        },
+        {
+          "Item1": 345,
+          "Item2": 249.6977345963714
+        },
+        {
+          "Item1": 345,
+          "Item2": 256.7542378864668
+        },
+        {
+          "Item1": 351.11111111111114,
+          "Item2": 260.2824895315145
+        },
+        {
+          "Item1": 357.22222222222223,
+          "Item2": 263.81074117656226
+        },
+        {
+          "Item1": 363.33333333333337,
+          "Item2": 267.33899282160996
+        },
+        {
+          "Item1": 369.44444444444446,
+          "Item2": 270.86724446665767
+        },
+        {
+          "Item1": 375.5555555555556,
+          "Item2": 274.39549611170537
+        },
+        {
+          "Item1": 381.66666666666674,
+          "Item2": 277.9237477567531
+        },
+        {
+          "Item1": 387.7777777777778,
+          "Item2": 281.45199940180083
+        },
+        {
+          "Item1": 393.88888888888897,
+          "Item2": 284.98025104684854
+        }
+      ],
+      "IsInner": true,
+      "SignedArea": -10478.907385791706,
+      "BoundarySpans": [
+        {
+          "SourceEdgeId": {
+            "Value": 277,
+            "IsValid": true
+          },
+          "StartVertexId": 2980,
+          "EndVertexId": 2989,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 278,
+            "IsValid": true
+          },
+          "StartVertexId": 2989,
+          "EndVertexId": 2998,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 279,
+            "IsValid": true
+          },
+          "StartVertexId": 2998,
+          "EndVertexId": 3007,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 280,
+            "IsValid": true
+          },
+          "StartVertexId": 3007,
+          "EndVertexId": 3016,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 281,
+            "IsValid": true
+          },
+          "StartVertexId": 3016,
+          "EndVertexId": 3025,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 282,
+            "IsValid": true
+          },
+          "StartVertexId": 3025,
+          "EndVertexId": 2980,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        }
+      ]
+    },
+    {
+      "LoopId": {
+        "Value": 112,
+        "IsValid": true
+      },
+      "VertexIds": [
+        9,
+        70,
+        69,
+        68,
+        67,
+        66,
+        65,
+        64,
+        63,
+        62,
+        61,
+        60,
+        59,
+        58,
+        57,
+        56,
+        55,
+        54,
+        27,
+        26,
+        25,
+        24,
+        23,
+        22,
+        21,
+        20,
+        19,
+        18,
+        17,
+        16,
+        15,
+        14,
+        13,
+        12,
+        11,
+        10
+      ],
+      "LocalCoordinates": [
+        {
+          "Item1": 250.96978202363,
+          "Item2": 264.0071807674475
+        },
+        {
+          "Item1": 249.76248424690442,
+          "Item2": 262.193342499575
+        },
+        {
+          "Item1": 248.25855832639235,
+          "Item2": 260.61670556949355
+        },
+        {
+          "Item1": 246.503700290165,
+          "Item2": 259.32517529250686
+        },
+        {
+          "Item1": 244.55123061165213,
+          "Item2": 258.3579941625355
+        },
+        {
+          "Item1": 242.460474094038,
+          "Item2": 257.7445494887962
+        },
+        {
+          "Item1": 240.29495731613653,
+          "Item2": 257.50348047728266
+        },
+        {
+          "Item1": 238.12047840943984,
+          "Item2": 257.6421118879229
+        },
+        {
+          "Item1": 236.0031078151885,
+          "Item2": 258.1562314754555
+        },
+        {
+          "Item1": 234.00718076744764,
+          "Item2": 259.03021797637035
+        },
+        {
+          "Item1": 232.193342499575,
+          "Item2": 260.23751575309564
+        },
+        {
+          "Item1": 230.6167055694935,
+          "Item2": 261.7414416736077
+        },
+        {
+          "Item1": 229.32517529250683,
+          "Item2": 263.49629970983506
+        },
+        {
+          "Item1": 228.3579941625354,
+          "Item2": 265.4487693883479
+        },
+        {
+          "Item1": 227.7445494887961,
+          "Item2": 267.539525905962
+        },
+        {
+          "Item1": 227.50348047728258,
+          "Item2": 269.7050426838635
+        },
+        {
+          "Item1": 227.64211188792282,
+          "Item2": 271.87952159056016
+        },
+        {
+          "Item1": 228.1562314754554,
+          "Item2": 273.9968921848115
+        },
+        {
+          "Item1": 229.0302179763702,
+          "Item2": 275.9928192325524
+        },
+        {
+          "Item1": 230.23751575309547,
+          "Item2": 277.80665750042505
+        },
+        {
+          "Item1": 231.74144167360754,
+          "Item2": 279.38329443050657
+        },
+        {
+          "Item1": 233.4962997098349,
+          "Item2": 280.67482470749326
+        },
+        {
+          "Item1": 235.44876938834778,
+          "Item2": 281.6420058374647
+        },
+        {
+          "Item1": 237.5395259059619,
+          "Item2": 282.255450511204
+        },
+        {
+          "Item1": 239.7050426838634,
+          "Item2": 282.4965195227175
+        },
+        {
+          "Item1": 241.87952159056013,
+          "Item2": 282.35788811207726
+        },
+        {
+          "Item1": 243.9968921848115,
+          "Item2": 281.84376852454466
+        },
+        {
+          "Item1": 245.99281923255236,
+          "Item2": 280.9697820236298
+        },
+        {
+          "Item1": 247.80665750042502,
+          "Item2": 279.7624842469046
+        },
+        {
+          "Item1": 249.38329443050654,
+          "Item2": 278.2585583263925
+        },
+        {
+          "Item1": 250.6748247074932,
+          "Item2": 276.5037002901651
+        },
+        {
+          "Item1": 251.64200583746464,
+          "Item2": 274.5512306116522
+        },
+        {
+          "Item1": 252.2554505112039,
+          "Item2": 272.4604740940381
+        },
+        {
+          "Item1": 252.49651952271742,
+          "Item2": 270.2949573161366
+        },
+        {
+          "Item1": 252.35788811207718,
+          "Item2": 268.1204784094399
+        },
+        {
+          "Item1": 251.84376852454454,
+          "Item2": 266.0031078151885
+        }
+      ],
+      "IsInner": true,
+      "SignedArea": -488.38549968822554,
+      "BoundarySpans": [
+        {
+          "SourceEdgeId": {
+            "Value": 5,
+            "IsValid": true
+          },
+          "StartVertexId": 9,
+          "EndVertexId": 27,
+          "SourceCurveKind": 1,
+          "SampleCount": 19
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 2,
+            "IsValid": true
+          },
+          "StartVertexId": 27,
+          "EndVertexId": 9,
+          "SourceCurveKind": 1,
+          "SampleCount": 19
+        }
+      ]
+    },
+    {
+      "LoopId": {
+        "Value": 113,
+        "IsValid": true
+      },
+      "VertexIds": [
+        2774,
+        2823,
+        2822,
+        2821,
+        2820,
+        2819,
+        2818,
+        2817,
+        2816,
+        2815,
+        2814,
+        2813,
+        2812,
+        2811,
+        2810,
+        2809,
+        2808,
+        2807,
+        2806,
+        2805,
+        2804,
+        2795,
+        2794,
+        2793,
+        2792,
+        2791,
+        2790,
+        2789,
+        2788,
+        2787,
+        2786,
+        2785,
+        2784,
+        2783,
+        2782,
+        2781,
+        2780,
+        2779,
+        2778,
+        2777,
+        2776,
+        2775
+      ],
+      "LocalCoordinates": [
+        {
+          "Item1": 90.35769483308201,
+          "Item2": 41.61005307442599
+        },
+        {
+          "Item1": 88.93570536782397,
+          "Item2": 39.41481620843541
+        },
+        {
+          "Item1": 87.20241527270923,
+          "Item2": 37.456034856858366
+        },
+        {
+          "Item1": 85.19654338428643,
+          "Item2": 35.7774649583007
+        },
+        {
+          "Item1": 82.96289756593939,
+          "Item2": 34.416602990542884
+        },
+        {
+          "Item1": 80.55137377426144,
+          "Item2": 33.40384836118798
+        },
+        {
+          "Item1": 78.01584146583542,
+          "Item2": 32.76182433512909
+        },
+        {
+          "Item1": 75.41294024259076,
+          "Item2": 32.50487266819562
+        },
+        {
+          "Item1": 72.80081461668976,
+          "Item2": 32.63873323602698
+        },
+        {
+          "Item1": 70.23781515820747,
+          "Item2": 33.16041581473576
+        },
+        {
+          "Item1": 67.78119503981725,
+          "Item2": 34.058266877568144
+        },
+        {
+          "Item1": 65.4858310955214,
+          "Item2": 35.31222991543464
+        },
+        {
+          "Item1": 63.40299796286075,
+          "Item2": 36.8942934661809
+        },
+        {
+          "Item1": 61.57922269224082,
+          "Item2": 38.76911684436453
+        },
+        {
+          "Item1": 60.055245409509325,
+          "Item2": 40.89481959376931
+        },
+        {
+          "Item1": 58.86510924886579,
+          "Item2": 43.22391702759157
+        },
+        {
+          "Item1": 58.03539988549824,
+          "Item2": 45.70438095787739
+        },
+        {
+          "Item1": 57.58465165553082,
+          "Item2": 48.28080191926745
+        },
+        {
+          "Item1": 57.52293352958202,
+          "Item2": 50.89562692489176
+        },
+        {
+          "Item1": 57.85162418859932,
+          "Item2": 53.490445104992915
+        },
+        {
+          "Item1": 58.56338122640534,
+          "Item2": 56.00729250923544
+        },
+        {
+          "Item1": 59.64230516691856,
+          "Item2": 58.389946925573696
+        },
+        {
+          "Item1": 61.06429463217603,
+          "Item2": 60.58518379156462
+        },
+        {
+          "Item1": 62.79758472729077,
+          "Item2": 62.543965143141634
+        },
+        {
+          "Item1": 64.80345661571357,
+          "Item2": 64.2225350416993
+        },
+        {
+          "Item1": 67.03710243406061,
+          "Item2": 65.58339700945709
+        },
+        {
+          "Item1": 69.44862622573856,
+          "Item2": 66.59615163881202
+        },
+        {
+          "Item1": 71.98415853416452,
+          "Item2": 67.23817566487091
+        },
+        {
+          "Item1": 74.58705975740929,
+          "Item2": 67.49512733180438
+        },
+        {
+          "Item1": 77.19918538331024,
+          "Item2": 67.36126676397305
+        },
+        {
+          "Item1": 79.76218484179253,
+          "Item2": 66.83958418526424
+        },
+        {
+          "Item1": 82.21880496018275,
+          "Item2": 65.94173312243186
+        },
+        {
+          "Item1": 84.5141689044786,
+          "Item2": 64.68777008456536
+        },
+        {
+          "Item1": 86.59700203713925,
+          "Item2": 63.1057065338191
+        },
+        {
+          "Item1": 88.42077730775918,
+          "Item2": 61.23088315563547
+        },
+        {
+          "Item1": 89.94475459049067,
+          "Item2": 59.10518040623069
+        },
+        {
+          "Item1": 91.13489075113421,
+          "Item2": 56.77608297240843
+        },
+        {
+          "Item1": 91.96460011450176,
+          "Item2": 54.29561904212261
+        },
+        {
+          "Item1": 92.41534834446918,
+          "Item2": 51.71919808073255
+        },
+        {
+          "Item1": 92.47706647041798,
+          "Item2": 49.10437307510824
+        },
+        {
+          "Item1": 92.14837581140068,
+          "Item2": 46.509554895007085
+        },
+        {
+          "Item1": 91.43661877359466,
+          "Item2": 43.99270749076456
+        }
+      ],
+      "IsInner": true,
+      "SignedArea": -958.5280743455239,
+      "BoundarySpans": [
+        {
+          "SourceEdgeId": {
+            "Value": 264,
+            "IsValid": true
+          },
+          "StartVertexId": 2774,
+          "EndVertexId": 2795,
+          "SourceCurveKind": 1,
+          "SampleCount": 22
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 262,
+            "IsValid": true
+          },
+          "StartVertexId": 2795,
+          "EndVertexId": 2774,
+          "SourceCurveKind": 1,
+          "SampleCount": 22
+        }
+      ]
+    },
+    {
+      "LoopId": {
+        "Value": 114,
+        "IsValid": true
+      },
+      "VertexIds": [
+        2643,
+        2765,
+        2764,
+        2763,
+        2762,
+        2761,
+        2760,
+        2759,
+        2758,
+        2742,
+        2757,
+        2756,
+        2755,
+        2754,
+        2753,
+        2752,
+        2751,
+        2733,
+        2732,
+        2731,
+        2730,
+        2729,
+        2728,
+        2727,
+        2726,
+        2725,
+        2709,
+        2724,
+        2723,
+        2722,
+        2721,
+        2720,
+        2719,
+        2718,
+        2692,
+        2708,
+        2707,
+        2706,
+        2705,
+        2704,
+        2703,
+        2702,
+        2701,
+        2676,
+        2691,
+        2690,
+        2689,
+        2688,
+        2687,
+        2686,
+        2685,
+        2667,
+        2666,
+        2665,
+        2664,
+        2663,
+        2662,
+        2661,
+        2660,
+        2659,
+        2634,
+        2658,
+        2657,
+        2656,
+        2655,
+        2654,
+        2653,
+        2652
+      ],
+      "LocalCoordinates": [
+        {
+          "Item1": 645,
+          "Item2": 250
+        },
+        {
+          "Item1": 653.8888888888889,
+          "Item2": 250
+        },
+        {
+          "Item1": 662.7777777777778,
+          "Item2": 250
+        },
+        {
+          "Item1": 671.6666666666667,
+          "Item2": 250
+        },
+        {
+          "Item1": 680.5555555555555,
+          "Item2": 250
+        },
+        {
+          "Item1": 689.4444444444445,
+          "Item2": 250
+        },
+        {
+          "Item1": 698.3333333333333,
+          "Item2": 250
+        },
+        {
+          "Item1": 707.2222222222222,
+          "Item2": 250
+        },
+        {
+          "Item1": 716.1111111111111,
+          "Item2": 250
+        },
+        {
+          "Item1": 725,
+          "Item2": 250
+        },
+        {
+          "Item1": 726.9509032201613,
+          "Item2": 249.8078528040323
+        },
+        {
+          "Item1": 728.8268343236509,
+          "Item2": 249.23879532511287
+        },
+        {
+          "Item1": 730.555702330196,
+          "Item2": 248.31469612302544
+        },
+        {
+          "Item1": 732.0710678118655,
+          "Item2": 247.07106781186548
+        },
+        {
+          "Item1": 733.3146961230254,
+          "Item2": 245.55570233019603
+        },
+        {
+          "Item1": 734.2387953251128,
+          "Item2": 243.8268343236509
+        },
+        {
+          "Item1": 734.8078528040323,
+          "Item2": 241.95090322016128
+        },
+        {
+          "Item1": 735,
+          "Item2": 240
+        },
+        {
+          "Item1": 735,
+          "Item2": 236.66666666666666
+        },
+        {
+          "Item1": 735,
+          "Item2": 233.33333333333334
+        },
+        {
+          "Item1": 735,
+          "Item2": 230
+        },
+        {
+          "Item1": 735,
+          "Item2": 226.66666666666666
+        },
+        {
+          "Item1": 735,
+          "Item2": 223.33333333333334
+        },
+        {
+          "Item1": 735,
+          "Item2": 220
+        },
+        {
+          "Item1": 735,
+          "Item2": 216.66666666666666
+        },
+        {
+          "Item1": 735,
+          "Item2": 213.33333333333334
+        },
+        {
+          "Item1": 735,
+          "Item2": 210
+        },
+        {
+          "Item1": 734.8078528040323,
+          "Item2": 208.04909677983872
+        },
+        {
+          "Item1": 734.2387953251128,
+          "Item2": 206.1731656763491
+        },
+        {
+          "Item1": 733.3146961230254,
+          "Item2": 204.44429766980397
+        },
+        {
+          "Item1": 732.0710678118655,
+          "Item2": 202.9289321881345
+        },
+        {
+          "Item1": 730.555702330196,
+          "Item2": 201.68530387697453
+        },
+        {
+          "Item1": 728.8268343236509,
+          "Item2": 200.7612046748871
+        },
+        {
+          "Item1": 726.9509032201613,
+          "Item2": 200.19214719596766
+        },
+        {
+          "Item1": 725,
+          "Item2": 200
+        },
+        {
+          "Item1": 716.1111111111111,
+          "Item2": 200
+        },
+        {
+          "Item1": 707.2222222222222,
+          "Item2": 200
+        },
+        {
+          "Item1": 698.3333333333333,
+          "Item2": 200
+        },
+        {
+          "Item1": 689.4444444444445,
+          "Item2": 200
+        },
+        {
+          "Item1": 680.5555555555555,
+          "Item2": 200
+        },
+        {
+          "Item1": 671.6666666666667,
+          "Item2": 200
+        },
+        {
+          "Item1": 662.7777777777778,
+          "Item2": 200
+        },
+        {
+          "Item1": 653.8888888888889,
+          "Item2": 200
+        },
+        {
+          "Item1": 645,
+          "Item2": 200
+        },
+        {
+          "Item1": 643.0490967798387,
+          "Item2": 200.19214719596764
+        },
+        {
+          "Item1": 641.1731656763491,
+          "Item2": 200.76120467488707
+        },
+        {
+          "Item1": 639.444297669804,
+          "Item2": 201.6853038769745
+        },
+        {
+          "Item1": 637.9289321881345,
+          "Item2": 202.92893218813447
+        },
+        {
+          "Item1": 636.6853038769746,
+          "Item2": 204.44429766980394
+        },
+        {
+          "Item1": 635.7612046748872,
+          "Item2": 206.17316567634907
+        },
+        {
+          "Item1": 635.1921471959677,
+          "Item2": 208.04909677983872
+        },
+        {
+          "Item1": 635,
+          "Item2": 210
+        },
+        {
+          "Item1": 635,
+          "Item2": 213.33333333333334
+        },
+        {
+          "Item1": 635,
+          "Item2": 216.66666666666666
+        },
+        {
+          "Item1": 635,
+          "Item2": 220
+        },
+        {
+          "Item1": 635,
+          "Item2": 223.33333333333334
+        },
+        {
+          "Item1": 635,
+          "Item2": 226.66666666666666
+        },
+        {
+          "Item1": 635,
+          "Item2": 230
+        },
+        {
+          "Item1": 635,
+          "Item2": 233.33333333333334
+        },
+        {
+          "Item1": 635,
+          "Item2": 236.66666666666666
+        },
+        {
+          "Item1": 635,
+          "Item2": 240
+        },
+        {
+          "Item1": 635.1921471959678,
+          "Item2": 241.95090322016128
+        },
+        {
+          "Item1": 635.7612046748872,
+          "Item2": 243.82683432365087
+        },
+        {
+          "Item1": 636.6853038769746,
+          "Item2": 245.555702330196
+        },
+        {
+          "Item1": 637.9289321881346,
+          "Item2": 247.07106781186545
+        },
+        {
+          "Item1": 639.444297669804,
+          "Item2": 248.3146961230254
+        },
+        {
+          "Item1": 641.1731656763491,
+          "Item2": 249.23879532511285
+        },
+        {
+          "Item1": 643.0490967798387,
+          "Item2": 249.80785280403228
+        }
+      ],
+      "IsInner": true,
+      "SignedArea": -4912.144515225729,
+      "BoundarySpans": [
+        {
+          "SourceEdgeId": {
+            "Value": 260,
+            "IsValid": true
+          },
+          "StartVertexId": 2643,
+          "EndVertexId": 2742,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 259,
+            "IsValid": true
+          },
+          "StartVertexId": 2742,
+          "EndVertexId": 2733,
+          "SourceCurveKind": 1,
+          "SampleCount": 9
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 256,
+            "IsValid": true
+          },
+          "StartVertexId": 2733,
+          "EndVertexId": 2709,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 255,
+            "IsValid": true
+          },
+          "StartVertexId": 2709,
+          "EndVertexId": 2692,
+          "SourceCurveKind": 1,
+          "SampleCount": 9
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 253,
+            "IsValid": true
+          },
+          "StartVertexId": 2692,
+          "EndVertexId": 2676,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 251,
+            "IsValid": true
+          },
+          "StartVertexId": 2676,
+          "EndVertexId": 2667,
+          "SourceCurveKind": 1,
+          "SampleCount": 9
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 248,
+            "IsValid": true
+          },
+          "StartVertexId": 2667,
+          "EndVertexId": 2634,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 247,
+            "IsValid": true
+          },
+          "StartVertexId": 2634,
+          "EndVertexId": 2643,
+          "SourceCurveKind": 1,
+          "SampleCount": 9
+        }
+      ]
+    },
+    {
+      "LoopId": {
+        "Value": 115,
+        "IsValid": true
+      },
+      "VertexIds": [
+        2547,
+        2633,
+        2632,
+        2631,
+        2630,
+        2629,
+        2628,
+        2627,
+        2626,
+        2595,
+        2625,
+        2624,
+        2623,
+        2622,
+        2621,
+        2620,
+        2619,
+        2618,
+        2617,
+        2616,
+        2615,
+        2614,
+        2613,
+        2612,
+        2611,
+        2610,
+        2609,
+        2608,
+        2607,
+        2606,
+        2605,
+        2604,
+        2578,
+        2594,
+        2593,
+        2592,
+        2591,
+        2590,
+        2589,
+        2588,
+        2587,
+        2538,
+        2577,
+        2576,
+        2575,
+        2574,
+        2573,
+        2572,
+        2571,
+        2570,
+        2569,
+        2568,
+        2567,
+        2566,
+        2565,
+        2564,
+        2563,
+        2562,
+        2561,
+        2560,
+        2559,
+        2558,
+        2557,
+        2556
+      ],
+      "LocalCoordinates": [
+        {
+          "Item1": 75,
+          "Item2": 245
+        },
+        {
+          "Item1": 83.88888888888891,
+          "Item2": 245
+        },
+        {
+          "Item1": 92.77777777777777,
+          "Item2": 245
+        },
+        {
+          "Item1": 101.66666666666669,
+          "Item2": 245
+        },
+        {
+          "Item1": 110.55555555555554,
+          "Item2": 245
+        },
+        {
+          "Item1": 119.44444444444446,
+          "Item2": 245
+        },
+        {
+          "Item1": 128.33333333333331,
+          "Item2": 245
+        },
+        {
+          "Item1": 137.22222222222223,
+          "Item2": 245
+        },
+        {
+          "Item1": 146.11111111111111,
+          "Item2": 245
+        },
+        {
+          "Item1": 155,
+          "Item2": 245
+        },
+        {
+          "Item1": 157.72333298192495,
+          "Item2": 244.81371892072661
+        },
+        {
+          "Item1": 160.3959354231405,
+          "Item2": 244.25834574695597
+        },
+        {
+          "Item1": 162.96802179692483,
+          "Item2": 243.34422603010904
+        },
+        {
+          "Item1": 165.39167900070868,
+          "Item2": 242.08838809092975
+        },
+        {
+          "Item1": 167.62175888652106,
+          "Item2": 240.51422581408838
+        },
+        {
+          "Item1": 169.61671928556248,
+          "Item2": 238.65106286437307
+        },
+        {
+          "Item1": 171.33939786020883,
+          "Item2": 236.53360644229733
+        },
+        {
+          "Item1": 172.7577043680475,
+          "Item2": 234.20130075462302
+        },
+        {
+          "Item1": 173.84521844237642,
+          "Item2": 231.6975922434197
+        },
+        {
+          "Item1": 174.58168175364645,
+          "Item2": 229.06912026105266
+        },
+        {
+          "Item1": 174.9533753838108,
+          "Item2": 226.3648482672934
+        },
+        {
+          "Item1": 174.9533753838108,
+          "Item2": 223.63515173270656
+        },
+        {
+          "Item1": 174.58168175364645,
+          "Item2": 220.9308797389473
+        },
+        {
+          "Item1": 173.8452184423764,
+          "Item2": 218.30240775658027
+        },
+        {
+          "Item1": 172.7577043680475,
+          "Item2": 215.79869924537695
+        },
+        {
+          "Item1": 171.33939786020883,
+          "Item2": 213.46639355770265
+        },
+        {
+          "Item1": 169.61671928556248,
+          "Item2": 211.3489371356269
+        },
+        {
+          "Item1": 167.62175888652106,
+          "Item2": 209.4857741859116
+        },
+        {
+          "Item1": 165.39167900070868,
+          "Item2": 207.91161190907022
+        },
+        {
+          "Item1": 162.96802179692483,
+          "Item2": 206.65577396989093
+        },
+        {
+          "Item1": 160.3959354231405,
+          "Item2": 205.741654253044
+        },
+        {
+          "Item1": 157.72333298192493,
+          "Item2": 205.18628107927339
+        },
+        {
+          "Item1": 155,
+          "Item2": 205
+        },
+        {
+          "Item1": 146.11111111111111,
+          "Item2": 205
+        },
+        {
+          "Item1": 137.22222222222223,
+          "Item2": 205
+        },
+        {
+          "Item1": 128.33333333333331,
+          "Item2": 205
+        },
+        {
+          "Item1": 119.44444444444446,
+          "Item2": 205
+        },
+        {
+          "Item1": 110.55555555555554,
+          "Item2": 205
+        },
+        {
+          "Item1": 101.66666666666669,
+          "Item2": 205
+        },
+        {
+          "Item1": 92.77777777777777,
+          "Item2": 205
+        },
+        {
+          "Item1": 83.88888888888891,
+          "Item2": 205
+        },
+        {
+          "Item1": 75,
+          "Item2": 205
+        },
+        {
+          "Item1": 72.27666701807505,
+          "Item2": 205.18628107927339
+        },
+        {
+          "Item1": 69.60406457685951,
+          "Item2": 205.741654253044
+        },
+        {
+          "Item1": 67.0319782030752,
+          "Item2": 206.65577396989093
+        },
+        {
+          "Item1": 64.60832099929132,
+          "Item2": 207.91161190907022
+        },
+        {
+          "Item1": 62.378241113478964,
+          "Item2": 209.4857741859116
+        },
+        {
+          "Item1": 60.38328071443755,
+          "Item2": 211.3489371356269
+        },
+        {
+          "Item1": 58.66060213979114,
+          "Item2": 213.46639355770265
+        },
+        {
+          "Item1": 57.242295631952516,
+          "Item2": 215.79869924537695
+        },
+        {
+          "Item1": 56.15478155762361,
+          "Item2": 218.30240775658027
+        },
+        {
+          "Item1": 55.41831824635352,
+          "Item2": 220.9308797389473
+        },
+        {
+          "Item1": 55.046624616189206,
+          "Item2": 223.63515173270656
+        },
+        {
+          "Item1": 55.046624616189206,
+          "Item2": 226.3648482672934
+        },
+        {
+          "Item1": 55.41831824635352,
+          "Item2": 229.06912026105266
+        },
+        {
+          "Item1": 56.15478155762361,
+          "Item2": 231.6975922434197
+        },
+        {
+          "Item1": 57.242295631952516,
+          "Item2": 234.20130075462302
+        },
+        {
+          "Item1": 58.66060213979114,
+          "Item2": 236.53360644229733
+        },
+        {
+          "Item1": 60.38328071443755,
+          "Item2": 238.65106286437307
+        },
+        {
+          "Item1": 62.378241113478964,
+          "Item2": 240.51422581408838
+        },
+        {
+          "Item1": 64.60832099929132,
+          "Item2": 242.08838809092975
+        },
+        {
+          "Item1": 67.0319782030752,
+          "Item2": 243.34422603010904
+        },
+        {
+          "Item1": 69.60406457685951,
+          "Item2": 244.25834574695597
+        },
+        {
+          "Item1": 72.27666701807505,
+          "Item2": 244.81371892072661
+        }
+      ],
+      "IsInner": true,
+      "SignedArea": -4452.733171685478,
+      "BoundarySpans": [
+        {
+          "SourceEdgeId": {
+            "Value": 244,
+            "IsValid": true
+          },
+          "StartVertexId": 2547,
+          "EndVertexId": 2595,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 243,
+            "IsValid": true
+          },
+          "StartVertexId": 2595,
+          "EndVertexId": 2578,
+          "SourceCurveKind": 1,
+          "SampleCount": 24
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 241,
+            "IsValid": true
+          },
+          "StartVertexId": 2578,
+          "EndVertexId": 2538,
+          "SourceCurveKind": 0,
+          "SampleCount": 10
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 239,
+            "IsValid": true
+          },
+          "StartVertexId": 2538,
+          "EndVertexId": 2547,
+          "SourceCurveKind": 1,
+          "SampleCount": 24
+        }
+      ]
+    },
+    {
+      "LoopId": {
+        "Value": 116,
+        "IsValid": true
+      },
+      "VertexIds": [
+        2480,
+        2537,
+        2536,
+        2535,
+        2534,
+        2533,
+        2532,
+        2531,
+        2530,
+        2529,
+        2528,
+        2527,
+        2526,
+        2525,
+        2524,
+        2523,
+        2522,
+        2521,
+        2520,
+        2519,
+        2518,
+        2501,
+        2500,
+        2499,
+        2498,
+        2497,
+        2496,
+        2495,
+        2494,
+        2493,
+        2492,
+        2491,
+        2490,
+        2489,
+        2488,
+        2487,
+        2486,
+        2485,
+        2484,
+        2483,
+        2482,
+        2481
+      ],
+      "LocalCoordinates": [
+        {
+          "Item1": 709.6423051669187,
+          "Item2": 58.389946925573156
+        },
+        {
+          "Item1": 711.0642946321763,
+          "Item2": 60.58518379156396
+        },
+        {
+          "Item1": 712.797584727291,
+          "Item2": 62.543965143140895
+        },
+        {
+          "Item1": 714.8034566157138,
+          "Item2": 64.22253504169848
+        },
+        {
+          "Item1": 717.0371024340608,
+          "Item2": 65.5833970094562
+        },
+        {
+          "Item1": 719.4486262257387,
+          "Item2": 66.59615163881108
+        },
+        {
+          "Item1": 721.9841585341646,
+          "Item2": 67.23817566486991
+        },
+        {
+          "Item1": 724.5870597574093,
+          "Item2": 67.49512733180342
+        },
+        {
+          "Item1": 727.1991853833102,
+          "Item2": 67.36126676397203
+        },
+        {
+          "Item1": 729.7621848417924,
+          "Item2": 66.83958418526328
+        },
+        {
+          "Item1": 732.2188049601825,
+          "Item2": 65.94173312243095
+        },
+        {
+          "Item1": 734.5141689044784,
+          "Item2": 64.68777008456448
+        },
+        {
+          "Item1": 736.597002037139,
+          "Item2": 63.10570653381831
+        },
+        {
+          "Item1": 738.420777307759,
+          "Item2": 61.23088315563473
+        },
+        {
+          "Item1": 739.9447545904904,
+          "Item2": 59.10518040623006
+        },
+        {
+          "Item1": 741.134890751134,
+          "Item2": 56.77608297240789
+        },
+        {
+          "Item1": 741.9646001145016,
+          "Item2": 54.295619042122155
+        },
+        {
+          "Item1": 742.4153483444691,
+          "Item2": 51.719198080732184
+        },
+        {
+          "Item1": 742.4770664704181,
+          "Item2": 49.10437307510793
+        },
+        {
+          "Item1": 742.1483758114008,
+          "Item2": 46.50955489500683
+        },
+        {
+          "Item1": 741.436618773595,
+          "Item2": 43.99270749076433
+        },
+        {
+          "Item1": 740.3576948330818,
+          "Item2": 41.61005307442605
+        },
+        {
+          "Item1": 738.9357053678244,
+          "Item2": 39.41481620843501
+        },
+        {
+          "Item1": 737.2024152727097,
+          "Item2": 37.456034856857855
+        },
+        {
+          "Item1": 735.196543384287,
+          "Item2": 35.7774649583001
+        },
+        {
+          "Item1": 732.96289756594,
+          "Item2": 34.416602990542174
+        },
+        {
+          "Item1": 730.551373774262,
+          "Item2": 33.40384836118716
+        },
+        {
+          "Item1": 728.0158414658359,
+          "Item2": 32.76182433512818
+        },
+        {
+          "Item1": 725.4129402425912,
+          "Item2": 32.50487266819462
+        },
+        {
+          "Item1": 722.8008146166901,
+          "Item2": 32.63873323602593
+        },
+        {
+          "Item1": 720.2378151582077,
+          "Item2": 33.160415814734705
+        },
+        {
+          "Item1": 717.7811950398175,
+          "Item2": 34.058266877567064
+        },
+        {
+          "Item1": 715.4858310955215,
+          "Item2": 35.31222991543359
+        },
+        {
+          "Item1": 713.4029979628608,
+          "Item2": 36.894293466179846
+        },
+        {
+          "Item1": 711.5792226922408,
+          "Item2": 38.76911684436354
+        },
+        {
+          "Item1": 710.0552454095093,
+          "Item2": 40.894819593768375
+        },
+        {
+          "Item1": 708.8651092488658,
+          "Item2": 43.22391702759069
+        },
+        {
+          "Item1": 708.0353998854982,
+          "Item2": 45.704380957876566
+        },
+        {
+          "Item1": 707.5846516555308,
+          "Item2": 48.28080191926668
+        },
+        {
+          "Item1": 707.522933529582,
+          "Item2": 50.89562692489105
+        },
+        {
+          "Item1": 707.8516241885994,
+          "Item2": 53.49044510499226
+        },
+        {
+          "Item1": 708.5633812264055,
+          "Item2": 56.00729250923487
+        }
+      ],
+      "IsInner": true,
+      "SignedArea": -958.528074345515,
+      "BoundarySpans": [
+        {
+          "SourceEdgeId": {
+            "Value": 236,
+            "IsValid": true
+          },
+          "StartVertexId": 2480,
+          "EndVertexId": 2501,
+          "SourceCurveKind": 1,
+          "SampleCount": 22
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 233,
+            "IsValid": true
+          },
+          "StartVertexId": 2501,
+          "EndVertexId": 2480,
+          "SourceCurveKind": 1,
+          "SampleCount": 22
+        }
+      ]
+    },
+    {
+      "LoopId": {
+        "Value": 117,
+        "IsValid": true
+      },
+      "VertexIds": [
+        2422,
+        2479,
+        2478,
+        2477,
+        2476,
+        2475,
+        2474,
+        2473,
+        2472,
+        2471,
+        2470,
+        2469,
+        2468,
+        2467,
+        2466,
+        2465,
+        2464,
+        2463,
+        2462,
+        2461,
+        2460,
+        2443,
+        2442,
+        2441,
+        2440,
+        2439,
+        2438,
+        2437,
+        2436,
+        2435,
+        2434,
+        2433,
+        2432,
+        2431,
+        2430,
+        2429,
+        2428,
+        2427,
+        2426,
+        2425,
+        2424,
+        2423
+      ],
+      "LocalCoordinates": [
+        {
+          "Item1": 59.64230516691873,
+          "Item2": 408.3899469255742
+        },
+        {
+          "Item1": 61.06429463217631,
+          "Item2": 410.585183791565
+        },
+        {
+          "Item1": 62.79758472729105,
+          "Item2": 412.5439651431419
+        },
+        {
+          "Item1": 64.80345661571386,
+          "Item2": 414.22253504169953
+        },
+        {
+          "Item1": 67.0371024340609,
+          "Item2": 415.58339700945726
+        },
+        {
+          "Item1": 69.44862622573885,
+          "Item2": 416.5961516388121
+        },
+        {
+          "Item1": 71.98415853416475,
+          "Item2": 417.23817566487094
+        },
+        {
+          "Item1": 74.58705975740946,
+          "Item2": 417.4951273318044
+        },
+        {
+          "Item1": 77.19918538331041,
+          "Item2": 417.36126676397305
+        },
+        {
+          "Item1": 79.76218484179265,
+          "Item2": 416.83958418526424
+        },
+        {
+          "Item1": 82.21880496018281,
+          "Item2": 415.94173312243186
+        },
+        {
+          "Item1": 84.5141689044786,
+          "Item2": 414.68777008456533
+        },
+        {
+          "Item1": 86.59700203713919,
+          "Item2": 413.1057065338191
+        },
+        {
+          "Item1": 88.42077730775912,
+          "Item2": 411.2308831556355
+        },
+        {
+          "Item1": 89.94475459049067,
+          "Item2": 409.1051804062308
+        },
+        {
+          "Item1": 91.13489075113415,
+          "Item2": 406.7760829724085
+        },
+        {
+          "Item1": 91.96460011450176,
+          "Item2": 404.2956190421228
+        },
+        {
+          "Item1": 92.41534834446918,
+          "Item2": 401.7191980807328
+        },
+        {
+          "Item1": 92.47706647041804,
+          "Item2": 399.1043730751085
+        },
+        {
+          "Item1": 92.14837581140074,
+          "Item2": 396.5095548950074
+        },
+        {
+          "Item1": 91.43661877359477,
+          "Item2": 393.9927074907649
+        },
+        {
+          "Item1": 90.35769483308172,
+          "Item2": 391.61005307442656
+        },
+        {
+          "Item1": 88.93570536782426,
+          "Item2": 389.4148162084356
+        },
+        {
+          "Item1": 87.20241527270952,
+          "Item2": 387.45603485685854
+        },
+        {
+          "Item1": 85.19654338428671,
+          "Item2": 385.7774649583008
+        },
+        {
+          "Item1": 82.96289756593967,
+          "Item2": 384.4166029905429
+        },
+        {
+          "Item1": 80.5513737742616,
+          "Item2": 383.40384836118795
+        },
+        {
+          "Item1": 78.01584146583559,
+          "Item2": 382.761824335129
+        },
+        {
+          "Item1": 75.41294024259082,
+          "Item2": 382.5048726681955
+        },
+        {
+          "Item1": 72.80081461668982,
+          "Item2": 382.63873323602684
+        },
+        {
+          "Item1": 70.23781515820747,
+          "Item2": 383.16041581473564
+        },
+        {
+          "Item1": 67.78119503981719,
+          "Item2": 384.05826687756803
+        },
+        {
+          "Item1": 65.48583109552129,
+          "Item2": 385.3122299154346
+        },
+        {
+          "Item1": 63.40299796286064,
+          "Item2": 386.8942934661809
+        },
+        {
+          "Item1": 61.57922269224065,
+          "Item2": 388.7691168443646
+        },
+        {
+          "Item1": 60.0552454095091,
+          "Item2": 390.8948195937694
+        },
+        {
+          "Item1": 58.86510924886562,
+          "Item2": 393.2239170275917
+        },
+        {
+          "Item1": 58.035399885498066,
+          "Item2": 395.7043809578777
+        },
+        {
+          "Item1": 57.584651655530706,
+          "Item2": 398.2808019192678
+        },
+        {
+          "Item1": 57.522933529581906,
+          "Item2": 400.8956269248921
+        },
+        {
+          "Item1": 57.85162418859932,
+          "Item2": 403.49044510499334
+        },
+        {
+          "Item1": 58.5633812264054,
+          "Item2": 406.00729250923587
+        }
+      ],
+      "IsInner": true,
+      "SignedArea": -958.5280743455278,
+      "BoundarySpans": [
+        {
+          "SourceEdgeId": {
+            "Value": 232,
+            "IsValid": true
+          },
+          "StartVertexId": 2422,
+          "EndVertexId": 2443,
+          "SourceCurveKind": 1,
+          "SampleCount": 22
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 229,
+            "IsValid": true
+          },
+          "StartVertexId": 2443,
+          "EndVertexId": 2422,
+          "SourceCurveKind": 1,
+          "SampleCount": 22
+        }
+      ]
+    },
+    {
+      "LoopId": {
+        "Value": 118,
+        "IsValid": true
+      },
+      "VertexIds": [
+        2364,
+        2421,
+        2420,
+        2419,
+        2418,
+        2417,
+        2416,
+        2415,
+        2414,
+        2413,
+        2412,
+        2411,
+        2410,
+        2409,
+        2408,
+        2407,
+        2406,
+        2405,
+        2404,
+        2403,
+        2402,
+        2385,
+        2384,
+        2383,
+        2382,
+        2381,
+        2380,
+        2379,
+        2378,
+        2377,
+        2376,
+        2375,
+        2374,
+        2373,
+        2372,
+        2371,
+        2370,
+        2369,
+        2368,
+        2367,
+        2366,
+        2365
+      ],
+      "LocalCoordinates": [
+        {
+          "Item1": 709.6423051669187,
+          "Item2": 408.38994692557316
+        },
+        {
+          "Item1": 711.0642946321763,
+          "Item2": 410.58518379156396
+        },
+        {
+          "Item1": 712.797584727291,
+          "Item2": 412.5439651431409
+        },
+        {
+          "Item1": 714.8034566157138,
+          "Item2": 414.2225350416985
+        },
+        {
+          "Item1": 717.0371024340608,
+          "Item2": 415.58339700945623
+        },
+        {
+          "Item1": 719.4486262257387,
+          "Item2": 416.5961516388111
+        },
+        {
+          "Item1": 721.9841585341646,
+          "Item2": 417.2381756648699
+        },
+        {
+          "Item1": 724.5870597574093,
+          "Item2": 417.4951273318034
+        },
+        {
+          "Item1": 727.1991853833102,
+          "Item2": 417.361266763972
+        },
+        {
+          "Item1": 729.7621848417924,
+          "Item2": 416.8395841852633
+        },
+        {
+          "Item1": 732.2188049601825,
+          "Item2": 415.94173312243095
+        },
+        {
+          "Item1": 734.5141689044784,
+          "Item2": 414.6877700845645
+        },
+        {
+          "Item1": 736.597002037139,
+          "Item2": 413.1057065338183
+        },
+        {
+          "Item1": 738.420777307759,
+          "Item2": 411.23088315563473
+        },
+        {
+          "Item1": 739.9447545904904,
+          "Item2": 409.10518040623003
+        },
+        {
+          "Item1": 741.134890751134,
+          "Item2": 406.7760829724079
+        },
+        {
+          "Item1": 741.9646001145016,
+          "Item2": 404.29561904212215
+        },
+        {
+          "Item1": 742.4153483444691,
+          "Item2": 401.7191980807322
+        },
+        {
+          "Item1": 742.4770664704181,
+          "Item2": 399.1043730751079
+        },
+        {
+          "Item1": 742.1483758114008,
+          "Item2": 396.50955489500683
+        },
+        {
+          "Item1": 741.436618773595,
+          "Item2": 393.99270749076436
+        },
+        {
+          "Item1": 740.3576948330818,
+          "Item2": 391.61005307442605
+        },
+        {
+          "Item1": 738.9357053678244,
+          "Item2": 389.414816208435
+        },
+        {
+          "Item1": 737.2024152727097,
+          "Item2": 387.45603485685785
+        },
+        {
+          "Item1": 735.196543384287,
+          "Item2": 385.77746495830013
+        },
+        {
+          "Item1": 732.96289756594,
+          "Item2": 384.4166029905422
+        },
+        {
+          "Item1": 730.551373774262,
+          "Item2": 383.40384836118716
+        },
+        {
+          "Item1": 728.0158414658359,
+          "Item2": 382.76182433512815
+        },
+        {
+          "Item1": 725.4129402425912,
+          "Item2": 382.5048726681946
+        },
+        {
+          "Item1": 722.8008146166901,
+          "Item2": 382.6387332360259
+        },
+        {
+          "Item1": 720.2378151582077,
+          "Item2": 383.16041581473473
+        },
+        {
+          "Item1": 717.7811950398175,
+          "Item2": 384.05826687756706
+        },
+        {
+          "Item1": 715.4858310955215,
+          "Item2": 385.3122299154336
+        },
+        {
+          "Item1": 713.4029979628608,
+          "Item2": 386.8942934661799
+        },
+        {
+          "Item1": 711.5792226922408,
+          "Item2": 388.76911684436357
+        },
+        {
+          "Item1": 710.0552454095093,
+          "Item2": 390.8948195937684
+        },
+        {
+          "Item1": 708.8651092488658,
+          "Item2": 393.2239170275907
+        },
+        {
+          "Item1": 708.0353998854982,
+          "Item2": 395.70438095787654
+        },
+        {
+          "Item1": 707.5846516555308,
+          "Item2": 398.28080191926665
+        },
+        {
+          "Item1": 707.522933529582,
+          "Item2": 400.8956269248911
+        },
+        {
+          "Item1": 707.8516241885994,
+          "Item2": 403.49044510499226
+        },
+        {
+          "Item1": 708.5633812264055,
+          "Item2": 406.00729250923484
+        }
+      ],
+      "IsInner": true,
+      "SignedArea": -958.528074345435,
+      "BoundarySpans": [
+        {
+          "SourceEdgeId": {
+            "Value": 228,
+            "IsValid": true
+          },
+          "StartVertexId": 2364,
+          "EndVertexId": 2385,
+          "SourceCurveKind": 1,
+          "SampleCount": 22
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 225,
+            "IsValid": true
+          },
+          "StartVertexId": 2385,
+          "EndVertexId": 2364,
+          "SourceCurveKind": 1,
+          "SampleCount": 22
+        }
+      ]
+    },
+    {
+      "LoopId": {
+        "Value": 119,
+        "IsValid": true
+      },
+      "VertexIds": [
+        2850,
+        2849,
+        2848,
+        2847,
+        2846,
+        2845,
+        2844,
+        2843,
+        2842,
+        2841,
+        2840,
+        2839,
+        2838,
+        2837,
+        2836,
+        2835,
+        2834,
+        2833,
+        2832,
+        2875,
+        2874,
+        2873,
+        2872,
+        2871,
+        2870,
+        2869,
+        2868,
+        2867,
+        2866,
+        2865,
+        2864,
+        2863,
+        2862,
+        2861,
+        2860,
+        2859
+      ],
+      "LocalCoordinates": [
+        {
+          "Item1": 549.0302179763702,
+          "Item2": 275.992819232552
+        },
+        {
+          "Item1": 550.2375157530955,
+          "Item2": 277.80665750042465
+        },
+        {
+          "Item1": 551.7414416736076,
+          "Item2": 279.38329443050617
+        },
+        {
+          "Item1": 553.496299709835,
+          "Item2": 280.67482470749286
+        },
+        {
+          "Item1": 555.4487693883478,
+          "Item2": 281.6420058374643
+        },
+        {
+          "Item1": 557.5395259059619,
+          "Item2": 282.2554505112036
+        },
+        {
+          "Item1": 559.7050426838634,
+          "Item2": 282.4965195227171
+        },
+        {
+          "Item1": 561.8795215905602,
+          "Item2": 282.35788811207686
+        },
+        {
+          "Item1": 563.9968921848115,
+          "Item2": 281.84376852454426
+        },
+        {
+          "Item1": 565.9928192325524,
+          "Item2": 280.9697820236294
+        },
+        {
+          "Item1": 567.806657500425,
+          "Item2": 279.76248424690414
+        },
+        {
+          "Item1": 569.3832944305066,
+          "Item2": 278.25855832639206
+        },
+        {
+          "Item1": 570.6748247074933,
+          "Item2": 276.50370029016466
+        },
+        {
+          "Item1": 571.6420058374647,
+          "Item2": 274.55123061165176
+        },
+        {
+          "Item1": 572.2554505112039,
+          "Item2": 272.46047409403764
+        },
+        {
+          "Item1": 572.4965195227174,
+          "Item2": 270.2949573161361
+        },
+        {
+          "Item1": 572.3578881120771,
+          "Item2": 268.12047840943944
+        },
+        {
+          "Item1": 571.8437685245445,
+          "Item2": 266.00310781518806
+        },
+        {
+          "Item1": 570.9697820236299,
+          "Item2": 264.007180767447
+        },
+        {
+          "Item1": 569.7624842469044,
+          "Item2": 262.19334249957456
+        },
+        {
+          "Item1": 568.2585583263923,
+          "Item2": 260.6167055694931
+        },
+        {
+          "Item1": 566.5037002901649,
+          "Item2": 259.32517529250646
+        },
+        {
+          "Item1": 564.551230611652,
+          "Item2": 258.357994162535
+        },
+        {
+          "Item1": 562.460474094038,
+          "Item2": 257.74454948879577
+        },
+        {
+          "Item1": 560.2949573161364,
+          "Item2": 257.50348047728227
+        },
+        {
+          "Item1": 558.1204784094398,
+          "Item2": 257.6421118879225
+        },
+        {
+          "Item1": 556.0031078151885,
+          "Item2": 258.1562314754551
+        },
+        {
+          "Item1": 554.0071807674476,
+          "Item2": 259.03021797636995
+        },
+        {
+          "Item1": 552.193342499575,
+          "Item2": 260.23751575309524
+        },
+        {
+          "Item1": 550.6167055694934,
+          "Item2": 261.7414416736073
+        },
+        {
+          "Item1": 549.3251752925069,
+          "Item2": 263.49629970983466
+        },
+        {
+          "Item1": 548.3579941625354,
+          "Item2": 265.4487693883475
+        },
+        {
+          "Item1": 547.7445494887961,
+          "Item2": 267.5395259059616
+        },
+        {
+          "Item1": 547.5034804772826,
+          "Item2": 269.7050426838631
+        },
+        {
+          "Item1": 547.6421118879229,
+          "Item2": 271.87952159055976
+        },
+        {
+          "Item1": 548.1562314754553,
+          "Item2": 273.99689218481114
+        }
+      ],
+      "IsInner": true,
+      "SignedArea": -488.38549968830193,
+      "BoundarySpans": [
+        {
+          "SourceEdgeId": {
+            "Value": 266,
+            "IsValid": true
+          },
+          "StartVertexId": 2850,
+          "EndVertexId": 2832,
+          "SourceCurveKind": 1,
+          "SampleCount": 19
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 268,
+            "IsValid": true
+          },
+          "StartVertexId": 2832,
+          "EndVertexId": 2850,
+          "SourceCurveKind": 1,
+          "SampleCount": 19
+        }
+      ]
+    },
+    {
+      "LoopId": {
+        "Value": 120,
+        "IsValid": true
+      },
+      "VertexIds": [
+        2902,
+        2901,
+        2900,
+        2899,
+        2898,
+        2897,
+        2896,
+        2895,
+        2894,
+        2893,
+        2892,
+        2891,
+        2890,
+        2889,
+        2888,
+        2887,
+        2886,
+        2885,
+        2884,
+        2927,
+        2926,
+        2925,
+        2924,
+        2923,
+        2922,
+        2921,
+        2920,
+        2919,
+        2918,
+        2917,
+        2916,
+        2915,
+        2914,
+        2913,
+        2912,
+        2911
+      ],
+      "LocalCoordinates": [
+        {
+          "Item1": 229.0302179763703,
+          "Item2": 185.99281923255245
+        },
+        {
+          "Item1": 230.23751575309558,
+          "Item2": 187.80665750042508
+        },
+        {
+          "Item1": 231.74144167360765,
+          "Item2": 189.38329443050657
+        },
+        {
+          "Item1": 233.49629970983503,
+          "Item2": 190.67482470749326
+        },
+        {
+          "Item1": 235.4487693883479,
+          "Item2": 191.64200583746464
+        },
+        {
+          "Item1": 237.53952590596202,
+          "Item2": 192.2554505112039
+        },
+        {
+          "Item1": 239.70504268386352,
+          "Item2": 192.49651952271742
+        },
+        {
+          "Item1": 241.87952159056022,
+          "Item2": 192.35788811207715
+        },
+        {
+          "Item1": 243.99689218481157,
+          "Item2": 191.84376852454454
+        },
+        {
+          "Item1": 245.99281923255245,
+          "Item2": 190.9697820236297
+        },
+        {
+          "Item1": 247.80665750042508,
+          "Item2": 189.76248424690442
+        },
+        {
+          "Item1": 249.3832944305066,
+          "Item2": 188.25855832639235
+        },
+        {
+          "Item1": 250.67482470749323,
+          "Item2": 186.50370029016497
+        },
+        {
+          "Item1": 251.64200583746464,
+          "Item2": 184.5512306116521
+        },
+        {
+          "Item1": 252.25545051120392,
+          "Item2": 182.46047409403798
+        },
+        {
+          "Item1": 252.49651952271742,
+          "Item2": 180.29495731613648
+        },
+        {
+          "Item1": 252.35788811207715,
+          "Item2": 178.12047840943978
+        },
+        {
+          "Item1": 251.84376852454454,
+          "Item2": 176.00310781518843
+        },
+        {
+          "Item1": 250.96978202363,
+          "Item2": 174.0071807674475
+        },
+        {
+          "Item1": 249.76248424690442,
+          "Item2": 172.19334249957492
+        },
+        {
+          "Item1": 248.25855832639235,
+          "Item2": 170.6167055694934
+        },
+        {
+          "Item1": 246.50370029016497,
+          "Item2": 169.32517529250677
+        },
+        {
+          "Item1": 244.55123061165207,
+          "Item2": 168.35799416253536
+        },
+        {
+          "Item1": 242.46047409403798,
+          "Item2": 167.7445494887961
+        },
+        {
+          "Item1": 240.29495731613648,
+          "Item2": 167.50348047728258
+        },
+        {
+          "Item1": 238.12047840943978,
+          "Item2": 167.64211188792285
+        },
+        {
+          "Item1": 236.00310781518843,
+          "Item2": 168.15623147545546
+        },
+        {
+          "Item1": 234.00718076744755,
+          "Item2": 169.0302179763703
+        },
+        {
+          "Item1": 232.19334249957492,
+          "Item2": 170.23751575309558
+        },
+        {
+          "Item1": 230.6167055694934,
+          "Item2": 171.74144167360765
+        },
+        {
+          "Item1": 229.32517529250677,
+          "Item2": 173.49629970983503
+        },
+        {
+          "Item1": 228.35799416253536,
+          "Item2": 175.4487693883479
+        },
+        {
+          "Item1": 227.74454948879608,
+          "Item2": 177.53952590596202
+        },
+        {
+          "Item1": 227.50348047728258,
+          "Item2": 179.70504268386352
+        },
+        {
+          "Item1": 227.64211188792285,
+          "Item2": 181.87952159056022
+        },
+        {
+          "Item1": 228.15623147545546,
+          "Item2": 183.99689218481157
+        }
+      ],
+      "IsInner": true,
+      "SignedArea": -488.38549968824736,
+      "BoundarySpans": [
+        {
+          "SourceEdgeId": {
+            "Value": 270,
+            "IsValid": true
+          },
+          "StartVertexId": 2902,
+          "EndVertexId": 2884,
+          "SourceCurveKind": 1,
+          "SampleCount": 19
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 272,
+            "IsValid": true
+          },
+          "StartVertexId": 2884,
+          "EndVertexId": 2902,
+          "SourceCurveKind": 1,
+          "SampleCount": 19
+        }
+      ]
+    },
+    {
+      "LoopId": {
+        "Value": 121,
+        "IsValid": true
+      },
+      "VertexIds": [
+        2954,
+        2953,
+        2952,
+        2951,
+        2950,
+        2949,
+        2948,
+        2947,
+        2946,
+        2945,
+        2944,
+        2943,
+        2942,
+        2941,
+        2940,
+        2939,
+        2938,
+        2937,
+        2936,
+        2979,
+        2978,
+        2977,
+        2976,
+        2975,
+        2974,
+        2973,
+        2972,
+        2971,
+        2970,
+        2969,
+        2968,
+        2967,
+        2966,
+        2965,
+        2964,
+        2963
+      ],
+      "LocalCoordinates": [
+        {
+          "Item1": 549.0302179763703,
+          "Item2": 185.99281923255197
+        },
+        {
+          "Item1": 550.2375157530955,
+          "Item2": 187.80665750042462
+        },
+        {
+          "Item1": 551.7414416736076,
+          "Item2": 189.38329443050614
+        },
+        {
+          "Item1": 553.496299709835,
+          "Item2": 190.6748247074928
+        },
+        {
+          "Item1": 555.4487693883478,
+          "Item2": 191.64200583746424
+        },
+        {
+          "Item1": 557.5395259059619,
+          "Item2": 192.2554505112035
+        },
+        {
+          "Item1": 559.7050426838634,
+          "Item2": 192.49651952271702
+        },
+        {
+          "Item1": 561.8795215905602,
+          "Item2": 192.35788811207678
+        },
+        {
+          "Item1": 563.9968921848115,
+          "Item2": 191.84376852454417
+        },
+        {
+          "Item1": 565.9928192325524,
+          "Item2": 190.96978202362934
+        },
+        {
+          "Item1": 567.806657500425,
+          "Item2": 189.76248424690405
+        },
+        {
+          "Item1": 569.3832944305066,
+          "Item2": 188.25855832639195
+        },
+        {
+          "Item1": 570.6748247074933,
+          "Item2": 186.5037002901646
+        },
+        {
+          "Item1": 571.6420058374647,
+          "Item2": 184.5512306116517
+        },
+        {
+          "Item1": 572.2554505112039,
+          "Item2": 182.46047409403758
+        },
+        {
+          "Item1": 572.4965195227174,
+          "Item2": 180.29495731613608
+        },
+        {
+          "Item1": 572.3578881120771,
+          "Item2": 178.1204784094394
+        },
+        {
+          "Item1": 571.8437685245445,
+          "Item2": 176.00310781518803
+        },
+        {
+          "Item1": 570.9697820236299,
+          "Item2": 174.00718076744698
+        },
+        {
+          "Item1": 569.7624842469045,
+          "Item2": 172.19334249957453
+        },
+        {
+          "Item1": 568.2585583263924,
+          "Item2": 170.61670556949304
+        },
+        {
+          "Item1": 566.5037002901649,
+          "Item2": 169.32517529250637
+        },
+        {
+          "Item1": 564.551230611652,
+          "Item2": 168.35799416253496
+        },
+        {
+          "Item1": 562.460474094038,
+          "Item2": 167.7445494887957
+        },
+        {
+          "Item1": 560.2949573161366,
+          "Item2": 167.50348047728218
+        },
+        {
+          "Item1": 558.1204784094398,
+          "Item2": 167.64211188792245
+        },
+        {
+          "Item1": 556.0031078151885,
+          "Item2": 168.15623147545506
+        },
+        {
+          "Item1": 554.0071807674476,
+          "Item2": 169.03021797636987
+        },
+        {
+          "Item1": 552.193342499575,
+          "Item2": 170.23751575309515
+        },
+        {
+          "Item1": 550.6167055694934,
+          "Item2": 171.74144167360723
+        },
+        {
+          "Item1": 549.3251752925069,
+          "Item2": 173.49629970983457
+        },
+        {
+          "Item1": 548.3579941625353,
+          "Item2": 175.44876938834744
+        },
+        {
+          "Item1": 547.7445494887961,
+          "Item2": 177.53952590596157
+        },
+        {
+          "Item1": 547.5034804772826,
+          "Item2": 179.70504268386304
+        },
+        {
+          "Item1": 547.6421118879229,
+          "Item2": 181.87952159055976
+        },
+        {
+          "Item1": 548.1562314754555,
+          "Item2": 183.9968921848111
+        }
+      ],
+      "IsInner": true,
+      "SignedArea": -488.38549968823645,
+      "BoundarySpans": [
+        {
+          "SourceEdgeId": {
+            "Value": 274,
+            "IsValid": true
+          },
+          "StartVertexId": 2954,
+          "EndVertexId": 2936,
+          "SourceCurveKind": 1,
+          "SampleCount": 19
+        },
+        {
+          "SourceEdgeId": {
+            "Value": 276,
+            "IsValid": true
+          },
+          "StartVertexId": 2936,
+          "EndVertexId": 2954,
+          "SourceCurveKind": 1,
+          "SampleCount": 19
+        }
+      ]
+    }
+  ]
+}

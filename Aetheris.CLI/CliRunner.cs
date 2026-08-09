@@ -515,6 +515,7 @@ public static class CliRunner
             {
                 command = "mesh", success = true, pipeline = "SurfaceMeshIR", input = fullInput, outputPath, format = "obj",
                 coverage = SurfaceMeshIrTessellator.Audit(imported.Value),
+                planarAudit = SurfaceMeshIrPlanarAudit.Analyze(document),
                 patchCount = document.Metrics.PatchCount, cellCount = document.Metrics.CellCount, polygonCount = obj.PolygonCount,
                 quadCount = obj.QuadCount, triangleCount = obj.TriangleCount, boundaryPolygonCount = obj.BoundaryPolygonCount,
                 quadPercentage = obj.PolygonCount == 0 ? 0d : (double)obj.QuadCount / obj.PolygonCount * 100d,

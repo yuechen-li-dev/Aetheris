@@ -20,8 +20,8 @@ public sealed class MeshObjCommandTests
             Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()));
             using var result = JsonDocument.Parse(stdout.ToString());
             Assert.Equal("obj", result.RootElement.GetProperty("format").GetString());
-            Assert.Equal(896, result.RootElement.GetProperty("quadCount").GetInt32());
-            Assert.Equal(77, result.RootElement.GetProperty("triangleCount").GetInt32());
+            Assert.Equal(905, result.RootElement.GetProperty("quadCount").GetInt32());
+            Assert.Equal(7, result.RootElement.GetProperty("triangleCount").GetInt32());
             Assert.True(result.RootElement.GetProperty("quadPercentage").GetDouble() > 90d);
             var obj = File.ReadAllText(output);
             Assert.Contains("vt ", obj);
@@ -56,10 +56,17 @@ public sealed class MeshObjCommandTests
             Assert.True(result.RootElement.GetProperty("watertight").GetBoolean());
             Assert.Equal(0, result.RootElement.GetProperty("crackCount").GetInt32());
             Assert.Equal(0, result.RootElement.GetProperty("nonManifoldEdgeCount").GetInt32());
-            // Concave spline-trim fallbacks are deliberately constrained
-            // triangles; structured four-sided regions still retain quads.
-            Assert.True(result.RootElement.GetProperty("quadCount").GetInt32() > 8300);
-            Assert.Equal(2766, result.RootElement.GetProperty("triangleCount").GetInt32());
+            // M7 confines dense authoritative trims to local bands and bridges
+            // while retaining the structured curved-support quads.
+            Assert.Equal(8416, result.RootElement.GetProperty("quadCount").GetInt32());
+            Assert.Equal(505, result.RootElement.GetProperty("triangleCount").GetInt32());
+            var planar = result.RootElement.GetProperty("planarAudit");
+            Assert.Equal(56, planar.GetProperty("faceCount").GetInt32());
+            Assert.Equal(181, planar.GetProperty("triangleCount").GetInt32());
+            Assert.Equal(702, planar.GetProperty("ngonCount").GetInt32());
+            Assert.Equal(552, planar.GetProperty("featureBandCellCount").GetInt32());
+            Assert.Equal(52, planar.GetProperty("bridgeCellCount").GetInt32());
+            Assert.Equal(0, planar.GetProperty("m6FallbackFaceCount").GetInt32());
             Assert.True(File.Exists(output));
         }
         finally

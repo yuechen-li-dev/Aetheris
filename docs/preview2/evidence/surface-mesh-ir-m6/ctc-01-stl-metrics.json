@@ -1,0 +1,23 @@
+{
+  "command": "mesh",
+  "success": true,
+  "pipeline": "SurfaceMeshIR",
+  "input": "C:\\Users\\yuech\\source\\repos\\Aetheris\\testdata\\step242\\nist\\CTC\\nist_ctc_01_asme1_ap242-e1.stp",
+  "outputPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\.tmp\\m6final\\ctc-01.stl",
+  "format": "binary-stl",
+  "patchCount": 117,
+  "cellCount": 9762,
+  "quadCount": 8363,
+  "triangleCount": 20888,
+  "vertexCount": 10426,
+  "watertight": true,
+  "maxChordalDeviation": 0.04893354932934996,
+  "normalDeviation": 0,
+  "timingsMilliseconds": {
+    "brepImport": 124.373,
+    "surfaceMeshIr": 2317.8366,
+    "triangleLoweringAndStlSerialization": 154.8677
+  },
+  "deterministicHash": "194ac8cd2bd203d4c9ab5515f4e1265c8639b29d55c8200e10b0b389c60869d7",
+  "bytes": 1044484
+}

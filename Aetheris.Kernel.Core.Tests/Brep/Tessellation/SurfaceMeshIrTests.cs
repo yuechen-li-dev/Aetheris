@@ -149,7 +149,23 @@ public sealed class SurfaceMeshIrTests
         Assert.True(SurfaceMeshIrTessellator.TryBuild(body.Value, SurfaceMeshPolicy.FromDisplayOptions(DisplayTessellationOptions.Default), out var document));
         var caps = document.Patches.Where(patch => patch.Support.Kind == SurfaceMeshSupportKind.Plane && patch.TrimLoops.Count == 2).ToArray();
         Assert.Equal(2, caps.Length);
-        Assert.All(caps, cap => Assert.All(cap.Cells, cell => Assert.IsType<QuadCell>(cell)));
+        Assert.Equal(90, caps.Sum(cap => cap.Cells.Count));
+        Assert.All(caps, cap =>
+        {
+            var plan = Assert.IsType<PlanarFeatureDecompositionPlan>(cap.PlanarFeaturePlan);
+            Assert.False(plan.UsedM6Fallback, plan.FallbackReason);
+            Assert.Contains(cap.Cells, cell => cell.Provenance == SurfaceMeshCellProvenance.FeatureBand);
+            Assert.Contains(cap.Cells, cell => cell.Provenance == SurfaceMeshCellProvenance.CoarseRemainder);
+            var incidence = cap.Cells.SelectMany(cell => Enumerable.Range(0, cell.VertexIds.Count)
+                .Select(index => (A: int.Min(cell.VertexIds[index], cell.VertexIds[(index + 1) % cell.VertexIds.Count]), B: int.Max(cell.VertexIds[index], cell.VertexIds[(index + 1) % cell.VertexIds.Count]))))
+                .GroupBy(edge => edge).ToDictionary(group => group.Key, group => group.Count());
+            var invalid = incidence.Where(pair => pair.Value is not (1 or 2)).ToArray();
+            Assert.Empty(invalid);
+            var boundary = cap.TrimLoopData!.SelectMany(loop => Enumerable.Range(0, loop.VertexIds.Count)
+                .Select(index => (A: int.Min(loop.VertexIds[index], loop.VertexIds[(index + 1) % loop.VertexIds.Count]), B: int.Max(loop.VertexIds[index], loop.VertexIds[(index + 1) % loop.VertexIds.Count])))).ToHashSet();
+            var wrongBoundary = incidence.Where(pair => (pair.Value == 1) != boundary.Contains(pair.Key)).ToArray();
+            Assert.Empty(wrongBoundary);
+        });
         var wall = Assert.Single(document.Patches, patch => patch.Support.Kind == SurfaceMeshSupportKind.Cylinder);
         Assert.Equal(36, wall.Cells.Count); // angular refinement only; one axial row
         var rings = document.SharedBoundaries.Where(boundary => boundary.CurveKind == CurveGeometryKind.Circle3 && boundary.Uses.Count == 2).ToArray();
@@ -246,6 +262,13 @@ public sealed class SurfaceMeshIrTests
             var holes = loops.Where(loop => loop.LoopId != outer.LoopId).ToArray();
             var localById = loops.SelectMany(loop => loop.VertexIds.Select((id, index) => (id, local: loop.LocalCoordinates[index])))
                 .GroupBy(item => item.id).ToDictionary(group => group.Key, group => group.First().local);
+            foreach (var vertexId in patch.Cells.SelectMany(cell => cell.VertexIds).Distinct().Where(id => !localById.ContainsKey(id)))
+            {
+                var vertex = document.Vertices.Single(item => item.Id == vertexId);
+                Assert.NotNull(vertex.U);
+                Assert.NotNull(vertex.V);
+                localById[vertexId] = (vertex.U!.Value, vertex.V!.Value);
+            }
             Assert.All(patch.Cells, cell =>
             {
                 var centroid = (

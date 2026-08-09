@@ -28,7 +28,16 @@ public sealed record SurfaceMeshTrimLoop(
     IReadOnlyList<int> VertexIds,
     IReadOnlyList<(double U, double V)> LocalCoordinates,
     bool IsInner,
-    double SignedArea);
+    double SignedArea,
+    IReadOnlyList<SurfaceMeshBoundarySpan>? BoundarySpans = null);
+
+/// <summary>Source-B-rep provenance for an ordered planar boundary span.</summary>
+public sealed record SurfaceMeshBoundarySpan(
+    EdgeId SourceEdgeId,
+    int StartVertexId,
+    int EndVertexId,
+    CurveGeometryKind SourceCurveKind,
+    int SampleCount);
 
 public sealed record FaceBoundaryUse(FaceId FaceId, LoopId LoopId, CoedgeId CoedgeId, bool IsReversed);
 
@@ -62,6 +71,7 @@ public sealed record ForeignTrimResolution(
 
 public enum SurfaceMeshSupportKind { Plane, Cylinder, Cone, Sphere, Torus }
 public enum SurfaceMeshCellKind { Quad, Triangle, BoundaryPolygon, Singular }
+public enum SurfaceMeshCellProvenance { Unclassified, FeatureBand, Bridge, CoarseRemainder, ResidualTransition }
 public sealed record SurfaceMeshSupport(
     SurfaceMeshSupportKind Kind,
     PlaneSurface? Plane = null,
@@ -70,7 +80,11 @@ public sealed record SurfaceMeshSupport(
     SphereSurface? Sphere = null,
     TorusSurface? Torus = null);
 
-public abstract record SurfaceMeshCell(SurfaceMeshCellKind Kind, IReadOnlyList<int> VertexIds, int RefinementLevel = 0, int? ParentCellId = null);
+public abstract record SurfaceMeshCell(SurfaceMeshCellKind Kind, IReadOnlyList<int> VertexIds, int RefinementLevel = 0, int? ParentCellId = null)
+{
+    public SurfaceMeshCellProvenance Provenance { get; init; } = SurfaceMeshCellProvenance.Unclassified;
+    public string? ExceptionalReason { get; init; }
+}
 public sealed record QuadCell(IReadOnlyList<int> VertexIds, int RefinementLevel = 0, int? ParentCellId = null)
     : SurfaceMeshCell(SurfaceMeshCellKind.Quad, VertexIds, RefinementLevel, ParentCellId);
 public sealed record TriangleCell(IReadOnlyList<int> VertexIds, int RefinementLevel = 0, int? ParentCellId = null)
@@ -91,7 +105,9 @@ public sealed record SurfacePatch(
     bool HasPeriodicVSeam = false,
     int MaxRefinementLevel = 0,
     IReadOnlyList<SurfaceMeshTrimLoop>? TrimLoopData = null,
-    string? ChartId = null);
+    string? ChartId = null,
+    string? PlanarPlannerPath = null,
+    PlanarFeatureDecompositionPlan? PlanarFeaturePlan = null);
 
 public enum SurfaceMeshDownstreamIntent { Presentation, Manufacturing, Fea }
 
@@ -249,7 +265,9 @@ public static class SurfaceMeshIrTessellator
                 {
                     var a = indexById[ids[0]]; var b = indexById[ids[1]]; var c = indexById[ids[2]]; var d = indexById[ids[3]];
                     var ac = (positions[a] - positions[c]).Length; var bd = (positions[b] - positions[d]).Length;
-                    if (ac <= bd) indices.AddRange([a, b, c, a, c, d]); else indices.AddRange([a, b, d, b, c, d]);
+                    var acValid = TriangleAreaMagnitude(positions[a], positions[b], positions[c]) > Epsilon && TriangleAreaMagnitude(positions[a], positions[c], positions[d]) > Epsilon;
+                    var bdValid = TriangleAreaMagnitude(positions[a], positions[b], positions[d]) > Epsilon && TriangleAreaMagnitude(positions[b], positions[c], positions[d]) > Epsilon;
+                    if (acValid && (!bdValid || ac <= bd)) indices.AddRange([a, b, c, a, c, d]); else indices.AddRange([a, b, d, b, c, d]);
                     normals[a] = exactNormal(positions[a]); normals[b] = exactNormal(positions[b]); normals[c] = exactNormal(positions[c]); normals[d] = exactNormal(positions[d]);
                 }
                 else if (cell.Kind == SurfaceMeshCellKind.Triangle)
@@ -259,14 +277,23 @@ public static class SurfaceMeshIrTessellator
                 }
                 else
                 {
-                    var center = patch.Support.Plane is { } plane
-                        ? ResolvePlanarPolygonCentroid(ids, vertexById, plane)
-                        : new Point3D(ids.Average(id => vertexById[id].Position.X), ids.Average(id => vertexById[id].Position.Y), ids.Average(id => vertexById[id].Position.Z));
-                    var centerIndex = positions.Count; positions.Add(center); normals.Add(exactNormal(center));
-                    for (var i = 0; i < ids.Count; i++)
+                    if (patch.Support.Plane is { } plane && PlanarPolygonTriangulator.TryTriangulate(ids.Select(id => vertexById[id].Position).ToArray(), plane.Normal.ToVector(), out var localIndices, out _))
                     {
-                        var a = indexById[ids[i]]; var b = indexById[ids[(i + 1) % ids.Count]];
-                        indices.AddRange([centerIndex, a, b]); normals[a] = exactNormal(positions[a]); normals[b] = exactNormal(positions[b]);
+                        for (var i = 0; i < localIndices.Count; i += 3)
+                        {
+                            var a = indexById[ids[localIndices[i]]]; var b = indexById[ids[localIndices[i + 1]]]; var c = indexById[ids[localIndices[i + 2]]];
+                            indices.AddRange([a, b, c]); normals[a] = exactNormal(positions[a]); normals[b] = exactNormal(positions[b]); normals[c] = exactNormal(positions[c]);
+                        }
+                    }
+                    else
+                    {
+                        var center = new Point3D(ids.Average(id => vertexById[id].Position.X), ids.Average(id => vertexById[id].Position.Y), ids.Average(id => vertexById[id].Position.Z));
+                        var centerIndex = positions.Count; positions.Add(center); normals.Add(exactNormal(center));
+                        for (var i = 0; i < ids.Count; i++)
+                        {
+                            var a = indexById[ids[i]]; var b = indexById[ids[(i + 1) % ids.Count]];
+                            indices.AddRange([centerIndex, a, b]); normals[a] = exactNormal(positions[a]); normals[b] = exactNormal(positions[b]);
+                        }
                     }
                 }
             }
@@ -634,12 +661,10 @@ public static class SurfaceMeshIrTessellator
             var ids = FlattenLoop(coedges, plans);
             if (ids.Count < 3) return null;
             var local = ids.Select(id => ToPlaneLocal(plane, vertices.First(v => v.Id == id).Position)).ToArray();
-            loopData.Add(new SurfaceMeshTrimLoop(loop, ids, local, false, SignedArea(local)));
+            var spans = BuildBoundarySpans(coedges, plans);
+            loopData.Add(new SurfaceMeshTrimLoop(loop, ids, local, false, SignedArea(local), spans));
         }
 
-        // M2 deliberately covers the common bounded topology: a rectangular
-        // outer boundary plus circular inner trims.  It is not a general
-        // polygon mesher; unsupported trims retain the explicit legacy route.
         var outer = loopData.OrderByDescending(loop => double.Abs(loop.SignedArea)).First();
         var inners = loopData.Where(loop => loop.LoopId != outer.LoopId).ToArray();
         var annotatedLoops = loopData.Select(loop => loop with { IsInner = loop.LoopId != outer.LoopId }).ToArray();
@@ -648,46 +673,41 @@ public static class SurfaceMeshIrTessellator
             var coedges = body.GetCoedgeIds(outer.LoopId).Select(body.Topology.GetCoedge).ToArray();
             if (coedges.Length == 4 && coedges.All(c => plans[c.EdgeId].CurveKind == CurveGeometryKind.Line3) && outer.VertexIds.Count == 4)
                 return new SurfacePatch(faceId, new SurfaceMeshSupport(SurfaceMeshSupportKind.Plane, Plane: plane), loops,
-                    [new QuadCell(Orient(outer.VertexIds, sameSense))], sameSense, TrimLoopData: annotatedLoops);
-            if (IsConvex(outer.LocalCoordinates))
-                return new SurfacePatch(faceId, new SurfaceMeshSupport(SurfaceMeshSupportKind.Plane, Plane: plane), loops,
-                    [new BoundaryPolygonCell(Orient(outer.VertexIds, sameSense))], sameSense, TrimLoopData: annotatedLoops);
-            var flatBoundary = outer.LocalCoordinates.Select(value => new Point3D(value.U, value.V, 0d)).ToArray();
-            var idByPoint = flatBoundary.Select((point, index) => (point, index)).GroupBy(item => item.point)
-                .ToDictionary(group => group.Key, group => outer.VertexIds[group.First().index]);
-            if (!PlanarPolygonTriangulator.TryTriangulateWithHoles(flatBoundary, [], new Vector3D(0d, 0d, 1d), out var points, out var indices, out _)
-                || !points.All(idByPoint.ContainsKey)) return null;
-            var triangles = new List<SurfaceMeshCell>(indices.Count / 3);
-            for (var index = 0; index < indices.Count; index += 3)
-                triangles.Add(new TriangleCell(Orient([idByPoint[points[indices[index]]], idByPoint[points[indices[index + 1]]], idByPoint[points[indices[index + 2]]]], sameSense)));
-            var conforming = PreserveBoundaryVerticesInParameterSpace(triangles, annotatedLoops);
-            return new SurfacePatch(faceId, new SurfaceMeshSupport(SurfaceMeshSupportKind.Plane, Plane: plane), loops, conforming, sameSense, TrimLoopData: annotatedLoops);
+                    [new QuadCell(Orient(outer.VertexIds, sameSense))], sameSense, TrimLoopData: annotatedLoops, PlanarPlannerPath: "PlanarDomain.RectangleQuad");
+        }
+        PlanarFeatureDecompositionPlan? failedFeaturePlan = null;
+        if (inners.Length > 0)
+        {
+            var featureDomain = PlanarDomainPlanner.Create(annotatedLoops);
+            var originalVertexCount = vertices.Count;
+            var originalNextVertexId = nextVertexId;
+            if (PlanarFeatureBandPlanner.TryPlan(featureDomain, plane, vertices, ref nextVertexId, sameSense, out var featureCells, out var featurePlan, out _))
+                return new SurfacePatch(faceId, new SurfaceMeshSupport(SurfaceMeshSupportKind.Plane, Plane: plane), loops, featureCells, sameSense,
+                    TrimLoopData: annotatedLoops, PlanarPlannerPath: "PlanarDomain.FeatureBandsAndStructuredBridges", PlanarFeaturePlan: featurePlan);
+            failedFeaturePlan = featurePlan;
+            if (vertices.Count > originalVertexCount) vertices.RemoveRange(originalVertexCount, vertices.Count - originalVertexCount);
+            nextVertexId = originalNextVertexId;
         }
         // The rectangular annulus is retained as the economical all-quad path.
-        // Other bounded planar holes (notably the HexBolt underside's hex/circle
-        // contact) use the existing deterministic planar triangulator while still
-        // consuming the exact shared boundary vertices.
+        // It is now a bounded fallback when a dedicated local feature plan cannot
+        // be proved valid, rather than the preferred through-hole topology.
         if (inners.Length != 1 || !IsRectangle(outer.LocalCoordinates) || inners[0].VertexIds.Count != outer.VertexIds.Count)
         {
-            if (inners.Length == 1)
+            var domainVertices = vertices.ToDictionary(vertex => vertex.Id);
+            var domain = PlanarDomainPlanner.Create(annotatedLoops);
+            if (inners.Length > 0)
             {
-                var stitched = TryBuildConvexAnnularStitch(outer, inners[0], sameSense);
-                if (stitched is not null)
-                    return new SurfacePatch(faceId, new SurfaceMeshSupport(SurfaceMeshSupportKind.Plane, Plane: plane), loops, stitched, sameSense, TrimLoopData: annotatedLoops);
+                if (!PlanarDomainPlanner.TryDecompose(domain, plane, domainVertices, sameSense, out var fallbackCells, out var fallbackPath)) return null;
+                var fallbackConforming = PreserveBoundaryVerticesInParameterSpace(fallbackCells, annotatedLoops);
+                var fallbackCompact = PlanarDomainPlanner.MergeConformingCells(fallbackConforming, domain.BoundaryVertices, sameSense);
+                return new SurfacePatch(faceId, new SurfaceMeshSupport(SurfaceMeshSupportKind.Plane, Plane: plane), loops, fallbackCompact, sameSense,
+                    TrimLoopData: annotatedLoops, PlanarPlannerPath: fallbackPath + ".M7Fallback", PlanarFeaturePlan: failedFeaturePlan);
             }
-            var vertexByPosition = vertices.GroupBy(vertex => vertex.Position).ToDictionary(group => group.Key, group => group.First().Id);
-            var outerPoints = outer.VertexIds.Select(id => vertices.First(vertex => vertex.Id == id).Position).ToArray();
-            var innerPoints = inners.Select(inner => (IReadOnlyList<Point3D>)inner.VertexIds.Select(id => vertices.First(vertex => vertex.Id == id).Position).ToArray()).ToArray();
-            if (PlanarPolygonTriangulator.TryTriangulateWithHoles(outerPoints, innerPoints, plane.Normal.ToVector(), out var points, out var indices, out _)
-                && points.All(point => vertexByPosition.ContainsKey(point)))
-            {
-                var triangulatedCells = new List<SurfaceMeshCell>(indices.Count / 3);
-                for (var index = 0; index < indices.Count; index += 3)
-                    triangulatedCells.Add(new TriangleCell(Orient([vertexByPosition[points[indices[index]]], vertexByPosition[points[indices[index + 1]]], vertexByPosition[points[indices[index + 2]]]], sameSense)));
-                var conformingCells = PreserveBoundaryVerticesInParameterSpace(triangulatedCells, annotatedLoops);
-                return new SurfacePatch(faceId, new SurfaceMeshSupport(SurfaceMeshSupportKind.Plane, Plane: plane), loops, conformingCells, sameSense, TrimLoopData: annotatedLoops);
-            }
-            return null;
+            if (!PlanarDomainPlanner.TryDecompose(domain, plane, domainVertices, sameSense, out var rawCells, out var plannerPath)) return null;
+            var conformingCells = PreserveBoundaryVerticesInParameterSpace(rawCells, annotatedLoops);
+            var compactCells = PlanarDomainPlanner.MergeConformingCells(conformingCells, domain.BoundaryVertices, sameSense);
+            return new SurfacePatch(faceId, new SurfaceMeshSupport(SurfaceMeshSupportKind.Plane, Plane: plane), loops, compactCells, sameSense,
+                TrimLoopData: annotatedLoops, PlanarPlannerPath: plannerPath);
         }
         var inner = inners[0];
         var vertexById = vertices.ToDictionary(v => v.Id);
@@ -718,10 +738,11 @@ public static class SurfaceMeshIrTessellator
             cells.Add(new QuadCell(Orient([outerIds[i], outerIds[next], middle[next], middle[i]], sameSense), 0));
             cells.Add(new QuadCell(Orient([middle[i], middle[next], innerIds[next], innerIds[i]], sameSense), 1));
         }
-        return new SurfacePatch(faceId, new SurfaceMeshSupport(SurfaceMeshSupportKind.Plane, Plane: plane), loops, cells, sameSense, MaxRefinementLevel: 1, TrimLoopData: annotatedLoops);
+        return new SurfacePatch(faceId, new SurfaceMeshSupport(SurfaceMeshSupportKind.Plane, Plane: plane), loops, cells, sameSense, MaxRefinementLevel: 1,
+            TrimLoopData: annotatedLoops, PlanarPlannerPath: "PlanarDomain.EqualCountAnnularBand.M7Fallback", PlanarFeaturePlan: failedFeaturePlan);
     }
 
-    private static IReadOnlyList<SurfaceMeshCell> PreserveBoundaryVerticesInParameterSpace(
+    internal static IReadOnlyList<SurfaceMeshCell> PreserveBoundaryVerticesInParameterSpace(
         IReadOnlyList<SurfaceMeshCell> source,
         IReadOnlyList<SurfaceMeshTrimLoop> loops)
     {
@@ -1529,6 +1550,20 @@ public static class SurfaceMeshIrTessellator
         return output;
     }
 
+    private static IReadOnlyList<SurfaceMeshBoundarySpan> BuildBoundarySpans(IReadOnlyList<Coedge> coedges, IReadOnlyDictionary<EdgeId, SharedEdgeSamplePlan> plans)
+    {
+        var spans = new List<SurfaceMeshBoundarySpan>(coedges.Count);
+        foreach (var coedge in coedges)
+        {
+            var samples = plans[coedge.EdgeId].Samples.Select(sample => sample.Id).ToArray();
+            if (coedge.IsReversed) Array.Reverse(samples);
+            if (plans[coedge.EdgeId].IsClosed) samples = samples[..^1];
+            if (samples.Length >= 2)
+                spans.Add(new SurfaceMeshBoundarySpan(coedge.EdgeId, samples[0], samples[^1], plans[coedge.EdgeId].CurveKind, samples.Length));
+        }
+        return spans;
+    }
+
     private static (double U, double V) ToPlaneLocal(PlaneSurface plane, Point3D point)
     {
         var offset = point - plane.Origin;
@@ -1683,14 +1718,24 @@ public static class SurfaceMeshIrTessellator
             {
                 var a = Add(ids[0]); var b = Add(ids[1]); var c = Add(ids[2]); var d = Add(ids[3]);
                 var ac = (positions[a] - positions[c]).Length; var bd = (positions[b] - positions[d]).Length;
-                if (ac <= bd) { indices.AddRange([a, b, c, a, c, d]); } else { indices.AddRange([a, b, d, b, c, d]); }
+                var acValid = TriangleAreaMagnitude(positions[a], positions[b], positions[c]) > Epsilon && TriangleAreaMagnitude(positions[a], positions[c], positions[d]) > Epsilon;
+                var bdValid = TriangleAreaMagnitude(positions[a], positions[b], positions[d]) > Epsilon && TriangleAreaMagnitude(positions[b], positions[c], positions[d]) > Epsilon;
+                if (acValid && (!bdValid || ac <= bd)) { indices.AddRange([a, b, c, a, c, d]); } else { indices.AddRange([a, b, d, b, c, d]); }
             }
             else if (cell.Kind == SurfaceMeshCellKind.Triangle) indices.AddRange([Add(ids[0]), Add(ids[1]), Add(ids[2])]);
             else if (ids.Count >= 3)
             {
-                var center = new Point3D(ids.Average(id => vertexById[id].Position.X), ids.Average(id => vertexById[id].Position.Y), ids.Average(id => vertexById[id].Position.Z));
-                var centerIndex = positions.Count; positions.Add(center); normals.Add(normal(center));
-                for (var i = 0; i < ids.Count; i++) indices.AddRange([centerIndex, Add(ids[i]), Add(ids[(i + 1) % ids.Count])]);
+                if (patch.Support.Plane is { } plane && PlanarPolygonTriangulator.TryTriangulate(ids.Select(id => vertexById[id].Position).ToArray(), plane.Normal.ToVector(), out var localIndices, out _))
+                {
+                    for (var i = 0; i < localIndices.Count; i += 3)
+                        indices.AddRange([Add(ids[localIndices[i]]), Add(ids[localIndices[i + 1]]), Add(ids[localIndices[i + 2]])]);
+                }
+                else
+                {
+                    var center = new Point3D(ids.Average(id => vertexById[id].Position.X), ids.Average(id => vertexById[id].Position.Y), ids.Average(id => vertexById[id].Position.Z));
+                    var centerIndex = positions.Count; positions.Add(center); normals.Add(normal(center));
+                    for (var i = 0; i < ids.Count; i++) indices.AddRange([centerIndex, Add(ids[i]), Add(ids[(i + 1) % ids.Count])]);
+                }
             }
         }
         return new DisplayFaceMeshPatch(patch.FaceId, positions, normals, indices, DisplayFaceMeshSource.SurfaceMeshIr);
@@ -1735,7 +1780,8 @@ public static class SurfaceMeshIrTessellator
         };
     }
 
-    private static int CountLoweredTriangles(SurfaceMeshDocument document, SurfacePatch patch) => patch.Cells.Sum(c => c.Kind switch { SurfaceMeshCellKind.Quad => 2, SurfaceMeshCellKind.Triangle => 1, _ => c.VertexIds.Count >= 3 ? c.VertexIds.Count : 0 });
+    private static int CountLoweredTriangles(SurfaceMeshDocument document, SurfacePatch patch) => patch.Cells.Sum(c => c.Kind switch { SurfaceMeshCellKind.Quad => 2, SurfaceMeshCellKind.Triangle => 1, _ => c.VertexIds.Count >= 3 ? c.VertexIds.Count - 2 : 0 });
+    private static double TriangleAreaMagnitude(Point3D a, Point3D b, Point3D c) => (b - a).Cross(c - a).Length * 0.5d;
     private static SurfaceMeshMetrics ComputeMetrics(IReadOnlyList<SurfaceMeshVertex> vertices, IReadOnlyList<SurfacePatch> patches, IReadOnlyList<SharedEdgeSamplePlan> plans, int triangleCount)
     {
         var lengths = plans.SelectMany(p => p.Samples.Zip(p.Samples.Skip(1), (a, b) => (a.Position - b.Position).Length)).ToArray();

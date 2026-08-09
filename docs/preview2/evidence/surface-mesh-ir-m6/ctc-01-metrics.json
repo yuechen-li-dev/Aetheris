@@ -1,0 +1,2593 @@
+{
+  "command": "mesh",
+  "success": true,
+  "pipeline": "SurfaceMeshIR",
+  "input": "C:\\Users\\yuech\\source\\repos\\Aetheris\\testdata\\step242\\nist\\CTC\\nist_ctc_01_asme1_ap242-e1.stp",
+  "outputPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\.tmp\\m6final\\ctc-01.obj",
+  "format": "obj",
+  "coverage": {
+    "faceCount": 117,
+    "analyticSupportFaceCount": 117,
+    "unsupportedSupportFaceCount": 0,
+    "edgeCurveFamilies": {
+      "BSpline3": 14,
+      "Circle3": 90,
+      "Line3": 214
+    },
+    "boundaryBlockers": [],
+    "foreignSplineTrims": [
+      {
+        "edgeId": 87,
+        "curveFamily": "BSpline3",
+        "faceIds": [
+          10,
+          67
+        ],
+        "faceSupportFamilies": [
+          "Cylinder",
+          "Cylinder"
+        ],
+        "degree": 3,
+        "knotMultiplicities": [
+          4,
+          1,
+          1,
+          4
+        ],
+        "knotValues": [
+          0,
+          0.494450686602824,
+          0.747637917224231,
+          1
+        ],
+        "controlPoints": [
+          {
+            "x": -250,
+            "y": -150,
+            "z": -60
+          },
+          {
+            "x": -249.999999999994,
+            "y": -146.458603419578,
+            "z": -57.7602241415851
+          },
+          {
+            "x": -248.861730817485,
+            "y": -141.012520006499,
+            "z": -54.2984713516197
+          },
+          {
+            "x": -244.801697118556,
+            "y": -134.322428953436,
+            "z": -50.8784131409305
+          },
+          {
+            "x": -241.710919937343,
+            "y": -131.283189953008,
+            "z": -49.9999999999999
+          },
+          {
+            "x": -240,
+            "y": -130,
+            "z": -50
+          }
+        ],
+        "parameterInterval": {
+          "start": 0,
+          "end": 1
+        },
+        "closed": false,
+        "knotSpecification": "UNSPECIFIED",
+        "startPoint": {
+          "x": -250,
+          "y": -150,
+          "z": -60
+        },
+        "endPoint": {
+          "x": -240,
+          "y": -130,
+          "z": -50
+        },
+        "startTangent": {
+          "x": 3.638571561717189E-11,
+          "y": 21.48685405669195,
+          "z": 13.58947971416636,
+          "lengthSquared": 646.3588561553183,
+          "length": 25.423588577447486
+        },
+        "endTangent": {
+          "x": 20.338870861949513,
+          "y": 15.254153146471003,
+          "z": -1.1825387781586978E-12,
+          "lengthSquared": 646.3588561550501,
+          "length": 25.423588577442214
+        }
+      },
+      {
+        "edgeId": 112,
+        "curveFamily": "BSpline3",
+        "faceIds": [
+          20,
+          68
+        ],
+        "faceSupportFamilies": [
+          "Cylinder",
+          "Cylinder"
+        ],
+        "degree": 3,
+        "knotMultiplicities": [
+          4,
+          1,
+          1,
+          4
+        ],
+        "knotValues": [
+          0,
+          0.252361985840666,
+          0.505549118477766,
+          1
+        ],
+        "controlPoints": [
+          {
+            "x": 240,
+            "y": -130,
+            "z": -50
+          },
+          {
+            "x": 241.710919277121,
+            "y": -131.283189457842,
+            "z": -49.9999999999998
+          },
+          {
+            "x": 244.801695411694,
+            "y": -134.322427100839,
+            "z": -50.8784124698594
+          },
+          {
+            "x": 248.861730224896,
+            "y": -141.012517809551,
+            "z": -54.2984699217583
+          },
+          {
+            "x": 250.000000000003,
+            "y": -146.458602029797,
+            "z": -57.7602232626138
+          },
+          {
+            "x": 250,
+            "y": -150,
+            "z": -60
+          }
+        ],
+        "parameterInterval": {
+          "start": 0,
+          "end": 1
+        },
+        "closed": false,
+        "knotSpecification": "UNSPECIFIED",
+        "startPoint": {
+          "x": 240,
+          "y": -130,
+          "z": -50
+        },
+        "endPoint": {
+          "x": 250,
+          "y": -150,
+          "z": -60
+        },
+        "startTangent": {
+          "x": 20.33887082582912,
+          "y": -15.25415311938679,
+          "z": 2.3650784647705286E-12,
+          "lengthSquared": 646.3588538594606,
+          "length": 25.42358853229537
+        },
+        "endTangent": {
+          "x": -1.8279072677640796E-11,
+          "y": -21.48685401854478,
+          "z": -13.589479690019429,
+          "lengthSquared": 646.3588538597045,
+          "length": 25.423588532300165
+        }
+      },
+      {
+        "edgeId": 151,
+        "curveFamily": "BSpline3",
+        "faceIds": [
+          30,
+          71
+        ],
+        "faceSupportFamilies": [
+          "Cylinder",
+          "Cylinder"
+        ],
+        "degree": 3,
+        "knotMultiplicities": [
+          4,
+          1,
+          1,
+          4
+        ],
+        "knotValues": [
+          0,
+          0.494450325420886,
+          0.747637737596475,
+          1
+        ],
+        "controlPoints": [
+          {
+            "x": 250,
+            "y": 150,
+            "z": -60
+          },
+          {
+            "x": 250,
+            "y": 146.458605994813,
+            "z": -57.7602257703072
+          },
+          {
+            "x": 248.861731915555,
+            "y": 141.012524077459,
+            "z": -54.2984740011651
+          },
+          {
+            "x": 244.801700281386,
+            "y": 134.322432386323,
+            "z": -50.8784143844457
+          },
+          {
+            "x": 241.710921160782,
+            "y": 131.283190870586,
+            "z": -49.9999999999998
+          },
+          {
+            "x": 240,
+            "y": 130,
+            "z": -50
+          }
+        ],
+        "parameterInterval": {
+          "start": 0,
+          "end": 1
+        },
+        "closed": false,
+        "knotSpecification": "UNSPECIFIED",
+        "startPoint": {
+          "x": 250,
+          "y": 150,
+          "z": -60
+        },
+        "endPoint": {
+          "x": 240,
+          "y": 130,
+          "z": -50
+        },
+        "startTangent": {
+          "x": 0,
+          "y": -21.48685412739378,
+          "z": 13.589479758879266,
+          "lengthSquared": 646.3588604088884,
+          "length": 25.423588661101494
+        },
+        "endTangent": {
+          "x": -20.33887092888213,
+          "y": -15.254153196655686,
+          "z": -2.3650758728898892E-12,
+          "lengthSquared": 646.3588604087674,
+          "length": 25.423588661099114
+        }
+      },
+      {
+        "edgeId": 180,
+        "curveFamily": "BSpline3",
+        "faceIds": [
+          44,
+          64
+        ],
+        "faceSupportFamilies": [
+          "Cylinder",
+          "Cylinder"
+        ],
+        "degree": 3,
+        "knotMultiplicities": [
+          4,
+          1,
+          1,
+          4
+        ],
+        "knotValues": [
+          0,
+          0.25236198584455,
+          0.505549118484588,
+          1
+        ],
+        "controlPoints": [
+          {
+            "x": -240,
+            "y": 130,
+            "z": -50
+          },
+          {
+            "x": -241.710919277148,
+            "y": 131.283189457861,
+            "z": -49.9999999999998
+          },
+          {
+            "x": -244.801695411756,
+            "y": 134.322427100907,
+            "z": -50.8784124698851
+          },
+          {
+            "x": -248.861730224916,
+            "y": 141.012517809632,
+            "z": -54.2984699218083
+          },
+          {
+            "x": -250.00000000001,
+            "y": 146.458602029849,
+            "z": -57.7602232626386
+          },
+          {
+            "x": -250,
+            "y": 150,
+            "z": -60
+          }
+        ],
+        "parameterInterval": {
+          "start": 0,
+          "end": 1
+        },
+        "closed": false,
+        "knotSpecification": "UNSPECIFIED",
+        "startPoint": {
+          "x": -240,
+          "y": 130,
+          "z": -50
+        },
+        "endPoint": {
+          "x": -250,
+          "y": 150,
+          "z": -60
+        },
+        "startTangent": {
+          "x": -20.338870825837066,
+          "y": 15.254153119377715,
+          "z": 2.3650784647341286E-12,
+          "lengthSquared": 646.358853859507,
+          "length": 25.423588532296282
+        },
+        "endTangent": {
+          "x": 6.07003168171541E-11,
+          "y": 21.486854018525662,
+          "z": -13.589479690056468,
+          "lengthSquared": 646.3588538598897,
+          "length": 25.423588532303807
+        }
+      },
+      {
+        "edgeId": 221,
+        "curveFamily": "BSpline3",
+        "faceIds": [
+          64,
+          65
+        ],
+        "faceSupportFamilies": [
+          "Cylinder",
+          "Cylinder"
+        ],
+        "degree": 3,
+        "knotMultiplicities": [
+          4,
+          1,
+          1,
+          1,
+          1,
+          4
+        ],
+        "knotValues": [
+          0,
+          0.124941483033185,
+          0.25006254578417,
+          0.499470336348543,
+          0.749578874442126,
+          1
+        ],
+        "controlPoints": [
+          {
+            "x": -250,
+            "y": 125,
+            "z": -60
+          },
+          {
+            "x": -250,
+            "y": 125,
+            "z": -59.2079247008802
+          },
+          {
+            "x": -249.805090487295,
+            "y": 124.805090651736,
+            "z": -57.6112983243165
+          },
+          {
+            "x": -248.746253921255,
+            "y": 123.74625353808,
+            "z": -54.7757551650507
+          },
+          {
+            "x": -246.543305043926,
+            "y": 121.543309234922,
+            "z": -52.1243670185448
+          },
+          {
+            "x": -243.37697903698,
+            "y": 118.37697045747,
+            "z": -50.3779618906811
+          },
+          {
+            "x": -241.122575683736,
+            "y": 116.122576449349,
+            "z": -49.9999999999996
+          },
+          {
+            "x": -240,
+            "y": 115,
+            "z": -50
+          }
+        ],
+        "parameterInterval": {
+          "start": 0,
+          "end": 1
+        },
+        "closed": false,
+        "knotSpecification": "UNSPECIFIED",
+        "startPoint": {
+          "x": -250,
+          "y": 125,
+          "z": -60
+        },
+        "endPoint": {
+          "x": -240,
+          "y": 115,
+          "z": -50
+        },
+        "startTangent": {
+          "x": 0,
+          "y": 0,
+          "z": 19.018710516892682,
+          "lengthSquared": 361.7113497253643,
+          "length": 19.018710516892682
+        },
+        "endTangent": {
+          "x": 13.448254589965336,
+          "y": -13.448263761871353,
+          "z": -4.766817469643126E-12,
+          "lengthSquared": 361.71134972538596,
+          "length": 19.01871051689325
+        }
+      },
+      {
+        "edgeId": 222,
+        "curveFamily": "BSpline3",
+        "faceIds": [
+          66,
+          67
+        ],
+        "faceSupportFamilies": [
+          "Cylinder",
+          "Cylinder"
+        ],
+        "degree": 3,
+        "knotMultiplicities": [
+          4,
+          1,
+          1,
+          1,
+          1,
+          4
+        ],
+        "knotValues": [
+          0,
+          0.124941483037724,
+          0.25006254578809,
+          0.499470336347843,
+          0.749578874445053,
+          1
+        ],
+        "controlPoints": [
+          {
+            "x": -250,
+            "y": -125,
+            "z": -60
+          },
+          {
+            "x": -250,
+            "y": -125,
+            "z": -59.2079247008515
+          },
+          {
+            "x": -249.80509065172,
+            "y": -124.805090487277,
+            "z": -57.6112983242642
+          },
+          {
+            "x": -248.746253538052,
+            "y": -123.746253921233,
+            "z": -54.7757551650127
+          },
+          {
+            "x": -246.543309234913,
+            "y": -121.543305043884,
+            "z": -52.1243670185289
+          },
+          {
+            "x": -243.376970457386,
+            "y": -118.376979037042,
+            "z": -50.3779618906779
+          },
+          {
+            "x": -241.122576449482,
+            "y": -116.122575683576,
+            "z": -50
+          },
+          {
+            "x": -240,
+            "y": -115,
+            "z": -50
+          }
+        ],
+        "parameterInterval": {
+          "start": 0,
+          "end": 1
+        },
+        "closed": false,
+        "knotSpecification": "UNSPECIFIED",
+        "startPoint": {
+          "x": -250,
+          "y": -125,
+          "z": -60
+        },
+        "endPoint": {
+          "x": -240,
+          "y": -115,
+          "z": -50
+        },
+        "startTangent": {
+          "x": 0,
+          "y": 0,
+          "z": 19.01871051689085,
+          "lengthSquared": 361.71134972529455,
+          "length": 19.01871051689085
+        },
+        "endTangent": {
+          "x": 13.448263763622018,
+          "y": 13.448254588205922,
+          "z": 0,
+          "lengthSquared": 361.7113497251507,
+          "length": 19.018710516887065
+        }
+      },
+      {
+        "edgeId": 223,
+        "curveFamily": "BSpline3",
+        "faceIds": [
+          68,
+          69
+        ],
+        "faceSupportFamilies": [
+          "Cylinder",
+          "Cylinder"
+        ],
+        "degree": 3,
+        "knotMultiplicities": [
+          4,
+          1,
+          1,
+          1,
+          1,
+          4
+        ],
+        "knotValues": [
+          0,
+          0.124941483036379,
+          0.250062545788059,
+          0.499470336352212,
+          0.749578874443057,
+          1
+        ],
+        "controlPoints": [
+          {
+            "x": 250,
+            "y": -125,
+            "z": -60
+          },
+          {
+            "x": 250,
+            "y": -125,
+            "z": -59.20792470086
+          },
+          {
+            "x": 249.805090487246,
+            "y": -124.805090651762,
+            "z": -57.6112983242717
+          },
+          {
+            "x": 248.746253921409,
+            "y": -123.746253537863,
+            "z": -54.7757551649952
+          },
+          {
+            "x": 246.543305042412,
+            "y": -121.543309236364,
+            "z": -52.1243670185206
+          },
+          {
+            "x": 243.376979042373,
+            "y": -118.376970452035,
+            "z": -50.3779618906767
+          },
+          {
+            "x": 241.122575672077,
+            "y": -116.122576460999,
+            "z": -49.9999999999999
+          },
+          {
+            "x": 240,
+            "y": -115,
+            "z": -50
+          }
+        ],
+        "parameterInterval": {
+          "start": 0,
+          "end": 1
+        },
+        "closed": false,
+        "knotSpecification": "UNSPECIFIED",
+        "startPoint": {
+          "x": 250,
+          "y": -125,
+          "z": -60
+        },
+        "endPoint": {
+          "x": 240,
+          "y": -115,
+          "z": -50
+        },
+        "startTangent": {
+          "x": 0,
+          "y": 0,
+          "z": 19.018710516891534,
+          "lengthSquared": 361.71134972532064,
+          "length": 19.018710516891534
+        },
+        "endTangent": {
+          "x": -13.448254450342816,
+          "y": 13.448263901486277,
+          "z": -1.191704367415212E-12,
+          "lengthSquared": 361.7113497251843,
+          "length": 19.01871051688795
+        }
+      },
+      {
+        "edgeId": 224,
+        "curveFamily": "BSpline3",
+        "faceIds": [
+          70,
+          71
+        ],
+        "faceSupportFamilies": [
+          "Cylinder",
+          "Cylinder"
+        ],
+        "degree": 3,
+        "knotMultiplicities": [
+          4,
+          1,
+          1,
+          1,
+          1,
+          4
+        ],
+        "knotValues": [
+          0,
+          0.124941483039381,
+          0.250062545791137,
+          0.499470336352046,
+          0.749578874443733,
+          1
+        ],
+        "controlPoints": [
+          {
+            "x": 250,
+            "y": 125,
+            "z": -60
+          },
+          {
+            "x": 249.999999999999,
+            "y": 125,
+            "z": -59.2079247008409
+          },
+          {
+            "x": 249.80509065175,
+            "y": 124.805090487235,
+            "z": -57.611298324234
+          },
+          {
+            "x": 248.74625353785,
+            "y": 123.746253921387,
+            "z": -54.7757551649649
+          },
+          {
+            "x": 246.543309236318,
+            "y": 121.543305042427,
+            "z": -52.124367018513
+          },
+          {
+            "x": 243.376970452142,
+            "y": 118.376979042262,
+            "z": -50.3779618906753
+          },
+          {
+            "x": 241.122576460764,
+            "y": 116.122575672306,
+            "z": -50.0000000000002
+          },
+          {
+            "x": 240,
+            "y": 115,
+            "z": -50
+          }
+        ],
+        "parameterInterval": {
+          "start": 0,
+          "end": 1
+        },
+        "closed": false,
+        "knotSpecification": "UNSPECIFIED",
+        "startPoint": {
+          "x": 250,
+          "y": 125,
+          "z": -60
+        },
+        "endPoint": {
+          "x": 240,
+          "y": 115,
+          "z": -50
+        },
+        "startTangent": {
+          "x": -2.3885417537838807E-11,
+          "y": 0,
+          "z": 19.01871051689317,
+          "lengthSquared": 361.71134972538283,
+          "length": 19.01871051689317
+        },
+        "endTangent": {
+          "x": -13.448263898707427,
+          "y": -13.448254453122416,
+          "z": 2.3834087348368568E-12,
+          "lengthSquared": 361.7113497252044,
+          "length": 19.01871051688848
+        }
+      },
+      {
+        "edgeId": 283,
+        "curveFamily": "BSpline3",
+        "faceIds": [
+          99,
+          104
+        ],
+        "faceSupportFamilies": [
+          "Cylinder",
+          "Cylinder"
+        ],
+        "degree": 3,
+        "knotMultiplicities": [
+          4,
+          1,
+          1,
+          1,
+          4
+        ],
+        "knotValues": [
+          0,
+          0.250654912242731,
+          0.501158735879705,
+          0.75086719298306,
+          1
+        ],
+        "controlPoints": [
+          {
+            "x": 55,
+            "y": 31.7542378864669,
+            "z": 0
+          },
+          {
+            "x": 54.3909750752432,
+            "y": 31.4026177880702,
+            "z": -3.65884555934468E-17
+          },
+          {
+            "x": 53.164038494506,
+            "y": 30.6942470429859,
+            "z": 0.224047701633404
+          },
+          {
+            "x": 51.5214314564421,
+            "y": 29.7458856169342,
+            "z": 1.23376829009627
+          },
+          {
+            "x": 50.3099554841015,
+            "y": 29.0464358665898,
+            "z": 2.88164448502427
+          },
+          {
+            "x": 50.0000000000001,
+            "y": 28.8674865405188,
+            "z": 4.30102933521549
+          },
+          {
+            "x": 50,
+            "y": 28.8674865405187,
+            "z": 5
+          }
+        ],
+        "parameterInterval": {
+          "start": 0,
+          "end": 1
+        },
+        "closed": false,
+        "knotSpecification": "UNSPECIFIED",
+        "startPoint": {
+          "x": 55,
+          "y": 31.7542378864669,
+          "z": 0
+        },
+        "endPoint": {
+          "x": 50,
+          "y": 28.8674865405187,
+          "z": 5
+        },
+        "startTangent": {
+          "x": -7.289203941477483,
+          "y": -4.208416606527902,
+          "z": -4.379142854142233E-16,
+          "lengthSquared": 70.8432644345507,
+          "length": 8.416844089951454
+        },
+        "endTangent": {
+          "x": -1.197866923238858E-12,
+          "y": -1.197866923238858E-12,
+          "z": 8.416844089951386,
+          "lengthSquared": 70.84326443454958,
+          "length": 8.416844089951386
+        }
+      },
+      {
+        "edgeId": 284,
+        "curveFamily": "BSpline3",
+        "faceIds": [
+          99,
+          100
+        ],
+        "faceSupportFamilies": [
+          "Cylinder",
+          "Cylinder"
+        ],
+        "degree": 3,
+        "knotMultiplicities": [
+          4,
+          1,
+          1,
+          1,
+          4
+        ],
+        "knotValues": [
+          0,
+          0.250654911983381,
+          0.501158735865721,
+          0.75086719297748,
+          1
+        ],
+        "controlPoints": [
+          {
+            "x": 4.2632564145606E-14,
+            "y": 63.5085026918963,
+            "z": 0
+          },
+          {
+            "x": -5.09072080177239E-07,
+            "y": 62.8052615870689,
+            "z": 4.65671240118747E-17
+          },
+          {
+            "x": -1.76472271125219E-06,
+            "y": 61.388517967198,
+            "z": 0.224047702659154
+          },
+          {
+            "x": -1.83878955604567E-07,
+            "y": 59.491797829888,
+            "z": 1.23376828925416
+          },
+          {
+            "x": 3.07890900608669E-06,
+            "y": 58.092903986352,
+            "z": 2.88164448512408
+          },
+          {
+            "x": 2.89153210948469E-14,
+            "y": 57.7350000000007,
+            "z": 4.30102933522037
+          },
+          {
+            "x": 1.20282118347429E-13,
+            "y": 57.735,
+            "z": 5
+          }
+        ],
+        "parameterInterval": {
+          "start": 0,
+          "end": 1
+        },
+        "closed": false,
+        "knotSpecification": "UNSPECIFIED",
+        "startPoint": {
+          "x": 4.2632564145606E-14,
+          "y": 63.5085026918963,
+          "z": 0
+        },
+        "endPoint": {
+          "x": 1.20282118347429E-13,
+          "y": 57.735,
+          "z": 5
+        },
+        "startTangent": {
+          "x": -6.092904209795287E-06,
+          "y": -8.4168440897024,
+          "z": 5.573454393141381E-16,
+          "lengthSquared": 70.84326443039534,
+          "length": 8.416844089704604
+        },
+        "endTangent": {
+          "x": 1.1002179722278382E-12,
+          "y": -8.470630385570771E-12,
+          "z": 8.416844089704096,
+          "lengthSquared": 70.84326443038677,
+          "length": 8.416844089704096
+        }
+      },
+      {
+        "edgeId": 286,
+        "curveFamily": "BSpline3",
+        "faceIds": [
+          100,
+          101
+        ],
+        "faceSupportFamilies": [
+          "Cylinder",
+          "Cylinder"
+        ],
+        "degree": 3,
+        "knotMultiplicities": [
+          4,
+          1,
+          1,
+          1,
+          4
+        ],
+        "knotValues": [
+          0,
+          0.250654912147312,
+          0.501158735874161,
+          0.750867192981403,
+          1
+        ],
+        "controlPoints": [
+          {
+            "x": -55,
+            "y": 31.7542378864668,
+            "z": 0
+          },
+          {
+            "x": -54.390975593755,
+            "y": 31.4026168905361,
+            "z": -4.91041291595992E-17
+          },
+          {
+            "x": -53.1640402534833,
+            "y": 30.6942439972846,
+            "z": 0.224047702140691
+          },
+          {
+            "x": -51.5214316420383,
+            "y": 29.745885295634,
+            "z": 1.23376828976227
+          },
+          {
+            "x": -50.309952404742,
+            "y": 29.0464412002317,
+            "z": 2.88164448507685
+          },
+          {
+            "x": -50.0000000000007,
+            "y": 28.8674865405188,
+            "z": 4.30102933522048
+          },
+          {
+            "x": -50.0000000000001,
+            "y": 28.8674865405186,
+            "z": 5
+          }
+        ],
+        "parameterInterval": {
+          "start": 0,
+          "end": 1
+        },
+        "closed": false,
+        "knotSpecification": "UNSPECIFIED",
+        "startPoint": {
+          "x": -55,
+          "y": 31.7542378864668,
+          "z": 0
+        },
+        "endPoint": {
+          "x": -50.0000000000001,
+          "y": 28.8674865405186,
+          "z": 5
+        },
+        "startTangent": {
+          "x": 7.289197738367914,
+          "y": -4.208427350397003,
+          "z": -5.877099563571325E-16,
+          "lengthSquared": 70.84326443259746,
+          "length": 8.416844089835422
+        },
+        "endTangent": {
+          "x": 7.272763462473267E-12,
+          "y": -2.4385148080057426E-12,
+          "z": 8.41684408983532,
+          "lengthSquared": 70.84326443259577,
+          "length": 8.41684408983532
+        }
+      },
+      {
+        "edgeId": 288,
+        "curveFamily": "BSpline3",
+        "faceIds": [
+          101,
+          102
+        ],
+        "faceSupportFamilies": [
+          "Cylinder",
+          "Cylinder"
+        ],
+        "degree": 3,
+        "knotMultiplicities": [
+          4,
+          1,
+          1,
+          1,
+          4
+        ],
+        "knotValues": [
+          0,
+          0.250654912252231,
+          0.501158735879757,
+          0.750867192983929,
+          1
+        ],
+        "controlPoints": [
+          {
+            "x": -55,
+            "y": -31.7542917243919,
+            "z": 0
+          },
+          {
+            "x": -54.3909750763885,
+            "y": -31.4026716239599,
+            "z": -1.00575916395191E-16
+          },
+          {
+            "x": -53.1640384934893,
+            "y": -30.6943008826434,
+            "z": 0.224047701691856
+          },
+          {
+            "x": -51.5214314566875,
+            "y": -29.7459394543772,
+            "z": 1.23376829010927
+          },
+          {
+            "x": -50.3099554840256,
+            "y": -29.0464897046464,
+            "z": 2.88164448503322
+          },
+          {
+            "x": -50,
+            "y": -28.8675403784436,
+            "z": 4.30102933521873
+          },
+          {
+            "x": -50,
+            "y": -28.8675403784438,
+            "z": 5
+          }
+        ],
+        "parameterInterval": {
+          "start": 0,
+          "end": 1
+        },
+        "closed": false,
+        "knotSpecification": "UNSPECIFIED",
+        "startPoint": {
+          "x": -55,
+          "y": -31.7542917243919,
+          "z": 0
+        },
+        "endPoint": {
+          "x": -50,
+          "y": -28.8675403784438,
+          "z": 5
+        },
+        "startTangent": {
+          "x": 7.289203927493495,
+          "y": 4.208416630728185,
+          "z": -1.2037575744055157E-15,
+          "lengthSquared": 70.84326443437617,
+          "length": 8.416844089941085
+        },
+        "endTangent": {
+          "x": 0,
+          "y": -2.3957338464860727E-12,
+          "z": 8.416844089941728,
+          "lengthSquared": 70.843264434387,
+          "length": 8.416844089941728
+        }
+      },
+      {
+        "edgeId": 290,
+        "curveFamily": "BSpline3",
+        "faceIds": [
+          102,
+          103
+        ],
+        "faceSupportFamilies": [
+          "Cylinder",
+          "Cylinder"
+        ],
+        "degree": 3,
+        "knotMultiplicities": [
+          4,
+          1,
+          1,
+          1,
+          4
+        ],
+        "knotValues": [
+          0,
+          0.250654912140037,
+          0.501158735875214,
+          0.750867192982513,
+          1
+        ],
+        "controlPoints": [
+          {
+            "x": 9.9475983006414E-14,
+            "y": -63.5085565298214,
+            "z": 0
+          },
+          {
+            "x": 5.1116846427868E-07,
+            "y": -62.80531542454,
+            "z": 7.42536991299397E-16
+          },
+          {
+            "x": 1.76434179078138E-06,
+            "y": -61.3885718043767,
+            "z": 0.224047701909931
+          },
+          {
+            "x": 1.83983327588449E-07,
+            "y": -59.491851667658,
+            "z": 1.23376828979068
+          },
+          {
+            "x": -3.07893711566149E-06,
+            "y": -58.0929578242471,
+            "z": 2.88164448505633
+          },
+          {
+            "x": 1.05052126813891E-13,
+            "y": -57.7350538379255,
+            "z": 4.30102933522006
+          },
+          {
+            "x": 7.105427357601E-14,
+            "y": -57.7350538379252,
+            "z": 5
+          }
+        ],
+        "parameterInterval": {
+          "start": 0,
+          "end": 1
+        },
+        "closed": false,
+        "knotSpecification": "UNSPECIFIED",
+        "startPoint": {
+          "x": 9.9475983006414E-14,
+          "y": -63.5085565298214,
+          "z": 0
+        },
+        "endPoint": {
+          "x": 7.105427357601E-14,
+          "y": -57.7350538379252,
+          "z": 5
+        },
+        "startTangent": {
+          "x": 6.1179933850701705E-06,
+          "y": 8.416844089875765,
+          "z": 8.887162652745698E-15,
+          "lengthSquared": 70.84326443331402,
+          "length": 8.416844089877989
+        },
+        "endTangent": {
+          "x": -4.093943344301656E-13,
+          "y": 3.593600769708684E-12,
+          "z": 8.41684408987787,
+          "lengthSquared": 70.84326443331203,
+          "length": 8.41684408987787
+        }
+      },
+      {
+        "edgeId": 292,
+        "curveFamily": "BSpline3",
+        "faceIds": [
+          103,
+          104
+        ],
+        "faceSupportFamilies": [
+          "Cylinder",
+          "Cylinder"
+        ],
+        "degree": 3,
+        "knotMultiplicities": [
+          4,
+          1,
+          1,
+          1,
+          4
+        ],
+        "knotValues": [
+          0,
+          0.250654911940521,
+          0.501158735859928,
+          0.750867192974648,
+          1
+        ],
+        "controlPoints": [
+          {
+            "x": 55,
+            "y": -31.754291724392,
+            "z": 0
+          },
+          {
+            "x": 54.3909755914049,
+            "y": -31.4026707337218,
+            "z": 2.4552063464846E-17
+          },
+          {
+            "x": 53.1640402559465,
+            "y": -30.6942978327693,
+            "z": 0.224047702855172
+          },
+          {
+            "x": 51.5214316418155,
+            "y": -29.7459391344641,
+            "z": 1.23376828910102
+          },
+          {
+            "x": 50.3099524049012,
+            "y": -29.0464950379559,
+            "z": 2.88164448512812
+          },
+          {
+            "x": 49.9999999999998,
+            "y": -28.8675403784441,
+            "z": 4.3010293352163
+          },
+          {
+            "x": 50,
+            "y": -28.8675403784439,
+            "z": 5
+          }
+        ],
+        "parameterInterval": {
+          "start": 0,
+          "end": 1
+        },
+        "closed": false,
+        "knotSpecification": "UNSPECIFIED",
+        "startPoint": {
+          "x": 55,
+          "y": -31.754291724392,
+          "z": 0
+        },
+        "endPoint": {
+          "x": 50,
+          "y": -28.8675403784439,
+          "z": 5
+        },
+        "startTangent": {
+          "x": -7.2891977725090245,
+          "y": 4.208427290907909,
+          "z": 2.9385496507651204E-16,
+          "lengthSquared": 70.84326442960901,
+          "length": 8.416844089657893
+        },
+        "endTangent": {
+          "x": 2.3957338463968236E-12,
+          "y": 2.438514807939624E-12,
+          "z": 8.416844089657436,
+          "lengthSquared": 70.84326442960132,
+          "length": 8.416844089657436
+        }
+      }
+    ]
+  },
+  "planarAudit": {
+    "faceCount": 56,
+    "cellCount": 1156,
+    "quadCount": 81,
+    "triangleCount": 796,
+    "ngonCount": 279,
+    "averageCellsPerFace": 20.642857142857142,
+    "maximumCellsOnFace": 494,
+    "totalInternalEdgeLength": 110255.6389767777,
+    "longestInternalDiagonal": 442.318378749654,
+    "skinnyCellCount": 1055,
+    "triangleFanCount": 75,
+    "faces": [
+      {
+        "faceId": 3,
+        "area": 175468.08304349563,
+        "outerLoopEdgeCount": 312,
+        "innerLoopCount": 6,
+        "innerLoopTypes": [
+          "Circle3",
+          "Circle3",
+          "Circle3",
+          "Circle3",
+          "Line3\u002BCircle3",
+          "Line3\u002BCircle3"
+        ],
+        "concavityCount": 88,
+        "cellCount": 290,
+        "quadCount": 24,
+        "triangleCount": 213,
+        "ngonCount": 53,
+        "longestInternalEdge": 323.9823057885221,
+        "shortestInternalEdge": 5.63470977903606,
+        "worstAspectRatio": 165.0807219039728,
+        "triangleFanCount": 21,
+        "plannerPath": "PlanarDomain.FeatureLoops.ConvexPartition"
+      },
+      {
+        "faceId": 5,
+        "area": 22543.927742387084,
+        "outerLoopEdgeCount": 88,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 18,
+        "cellCount": 23,
+        "quadCount": 6,
+        "triangleCount": 4,
+        "ngonCount": 13,
+        "longestInternalEdge": 292.59587433696385,
+        "shortestInternalEdge": 35.98696609044811,
+        "worstAspectRatio": 149.2575040208151,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.Concave.ConvexPartition"
+      },
+      {
+        "faceId": 7,
+        "area": 5000,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 2.0000000000000053,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 9,
+        "area": 3500.000000000001,
+        "outerLoopEdgeCount": 54,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 1,
+        "cellCount": 7,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 7,
+        "longestInternalEdge": 63.0720732159098,
+        "shortestInternalEdge": 22.66230894930127,
+        "worstAspectRatio": 22.70594635772758,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.Concave.ConvexPartition"
+      },
+      {
+        "faceId": 11,
+        "area": 4306.624327025949,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 1.7226497308103847,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 12,
+        "area": 2020.7259421636927,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 1.2371791482634877,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 14,
+        "area": 2020.7259421637002,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 1.2371791482634817,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 15,
+        "area": 7488.959623600255,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 2,
+        "innerLoopTypes": [
+          "Circle3",
+          "Circle3"
+        ],
+        "concavityCount": 0,
+        "cellCount": 61,
+        "quadCount": 3,
+        "triangleCount": 49,
+        "ngonCount": 9,
+        "longestInternalEdge": 107.56878375909592,
+        "shortestInternalEdge": 23.77456009446556,
+        "worstAspectRatio": 54.872435268678586,
+        "triangleFanCount": 5,
+        "plannerPath": "PlanarDomain.FeatureLoops.ConvexPartition"
+      },
+      {
+        "faceId": 16,
+        "area": 2020.7259421637073,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 1.2371791482634777,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 18,
+        "area": 2020.725942163693,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 1.2371791482634877,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 19,
+        "area": 4306.624327025948,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 1.7226497308104134,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 21,
+        "area": 3500.000000000002,
+        "outerLoopEdgeCount": 54,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 1,
+        "cellCount": 7,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 7,
+        "longestInternalEdge": 66.8977476599572,
+        "shortestInternalEdge": 25.873624493766705,
+        "worstAspectRatio": 24.08318915758465,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.Concave.ConvexPartition"
+      },
+      {
+        "faceId": 23,
+        "area": 5000,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 2.0000000000000053,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 25,
+        "area": 22543.927742387084,
+        "outerLoopEdgeCount": 88,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 18,
+        "cellCount": 23,
+        "quadCount": 6,
+        "triangleCount": 4,
+        "ngonCount": 13,
+        "longestInternalEdge": 292.59587433696385,
+        "shortestInternalEdge": 35.98696609044811,
+        "worstAspectRatio": 149.2575040208151,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.Concave.ConvexPartition"
+      },
+      {
+        "faceId": 26,
+        "area": 7071.067811865478,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 1.4142135623730987,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 27,
+        "area": 5000.000000000001,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 2.0000000000000053,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 29,
+        "area": 3500,
+        "outerLoopEdgeCount": 54,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 1,
+        "cellCount": 7,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 7,
+        "longestInternalEdge": 94.36107431392996,
+        "shortestInternalEdge": 25.873624493766705,
+        "worstAspectRatio": 16.984993376507433,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.Concave.ConvexPartition"
+      },
+      {
+        "faceId": 31,
+        "area": 1625,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 1.5384615384615496,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 32,
+        "area": 749.9999999999999,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 3.333333333333353,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 34,
+        "area": 3250,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 1.3000000000000025,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 36,
+        "area": 749.9999999999999,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 3.333333333333353,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 37,
+        "area": 10750.000000000002,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 4.300000000000006,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 38,
+        "area": 749.9999999999999,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 3.333333333333353,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 40,
+        "area": 3250,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 1.3000000000000025,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 42,
+        "area": 749.9999999999999,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 3.333333333333353,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 43,
+        "area": 1625,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 1.5384615384615496,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 45,
+        "area": 3500.000000000002,
+        "outerLoopEdgeCount": 54,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 1,
+        "cellCount": 7,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 7,
+        "longestInternalEdge": 66.8977476599572,
+        "shortestInternalEdge": 25.873624493766705,
+        "worstAspectRatio": 24.08318915758465,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.Concave.ConvexPartition"
+      },
+      {
+        "faceId": 47,
+        "area": 5000,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 2.0000000000000053,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 48,
+        "area": 12963.480349299083,
+        "outerLoopEdgeCount": 72,
+        "innerLoopCount": 1,
+        "innerLoopTypes": [
+          "Circle3"
+        ],
+        "concavityCount": 0,
+        "cellCount": 49,
+        "quadCount": 0,
+        "triangleCount": 38,
+        "ngonCount": 11,
+        "longestInternalEdge": 158.11388300841887,
+        "shortestInternalEdge": 35.51209742723798,
+        "worstAspectRatio": 36.24853363577296,
+        "triangleFanCount": 3,
+        "plannerPath": "PlanarDomain.FeatureLoops.ConvexPartition"
+      },
+      {
+        "faceId": 49,
+        "area": 6000,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 3.7500000000000058,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 50,
+        "area": 12963.480349299098,
+        "outerLoopEdgeCount": 72,
+        "innerLoopCount": 1,
+        "innerLoopTypes": [
+          "Circle3"
+        ],
+        "concavityCount": 0,
+        "cellCount": 49,
+        "quadCount": 0,
+        "triangleCount": 39,
+        "ngonCount": 10,
+        "longestInternalEdge": 111.80339887498948,
+        "shortestInternalEdge": 38.26834323650915,
+        "worstAspectRatio": 33.885771757679876,
+        "triangleFanCount": 3,
+        "plannerPath": "PlanarDomain.FeatureLoops.ConvexPartition"
+      },
+      {
+        "faceId": 55,
+        "area": 12963.480349299096,
+        "outerLoopEdgeCount": 72,
+        "innerLoopCount": 1,
+        "innerLoopTypes": [
+          "Circle3"
+        ],
+        "concavityCount": 0,
+        "cellCount": 49,
+        "quadCount": 0,
+        "triangleCount": 39,
+        "ngonCount": 10,
+        "longestInternalEdge": 111.80339887498948,
+        "shortestInternalEdge": 38.268343236509054,
+        "worstAspectRatio": 33.88577175767926,
+        "triangleFanCount": 3,
+        "plannerPath": "PlanarDomain.FeatureLoops.ConvexPartition"
+      },
+      {
+        "faceId": 56,
+        "area": 12252.476137476793,
+        "outerLoopEdgeCount": 63,
+        "innerLoopCount": 1,
+        "innerLoopTypes": [
+          "Circle3"
+        ],
+        "concavityCount": 0,
+        "cellCount": 47,
+        "quadCount": 0,
+        "triangleCount": 38,
+        "ngonCount": 9,
+        "longestInternalEdge": 158.11388300841898,
+        "shortestInternalEdge": 35.51209742723897,
+        "worstAspectRatio": 36.248533635772986,
+        "triangleFanCount": 3,
+        "plannerPath": "PlanarDomain.FeatureLoops.ConvexPartition"
+      },
+      {
+        "faceId": 61,
+        "area": 6000,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 3.7500000000000058,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 62,
+        "area": 6000,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 3.7500000000000058,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 63,
+        "area": 6000,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 3.7500000000000058,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 79,
+        "area": 3999.9999999999995,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 1.600000000000006,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 81,
+        "area": 3999.9999999999995,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 1.600000000000006,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 83,
+        "area": 1499.9999999999998,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 1.6666666666666676,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 85,
+        "area": 3999.9999999999995,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 1.600000000000006,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 87,
+        "area": 1500.0000000000005,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 1.6666666666666676,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 89,
+        "area": 3999.9999999999995,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 1.600000000000006,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 98,
+        "area": 222976.20699131262,
+        "outerLoopEdgeCount": 475,
+        "innerLoopCount": 11,
+        "innerLoopTypes": [
+          "Circle3",
+          "Circle3",
+          "Circle3",
+          "Circle3",
+          "Circle3",
+          "Circle3",
+          "Circle3",
+          "Circle3",
+          "Line3",
+          "Line3\u002BCircle3",
+          "Line3\u002BCircle3"
+        ],
+        "concavityCount": 116,
+        "cellCount": 494,
+        "quadCount": 42,
+        "triangleCount": 372,
+        "ngonCount": 80,
+        "longestInternalEdge": 442.318378749654,
+        "shortestInternalEdge": 15.42854897444313,
+        "worstAspectRatio": 177.01471161749205,
+        "triangleFanCount": 37,
+        "plannerPath": "PlanarDomain.FeatureLoops.ConvexPartition"
+      },
+      {
+        "faceId": 105,
+        "area": 7014.805770653953,
+        "outerLoopEdgeCount": 54,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 1.000000000000019,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 106,
+        "area": 2309.401076758499,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 1.443375672974068,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 107,
+        "area": 2309.401076758513,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 1.4433756729740834,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 108,
+        "area": 2309.401076758496,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 1.4433756729740623,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 109,
+        "area": 2309.401076758508,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 1.443375672974082,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 110,
+        "area": 2309.401076758502,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 1.4433756729740683,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 111,
+        "area": 2309.401076758504,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 1.4433756729740657,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 112,
+        "area": 387.83587594067103,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 7.559289460184621,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 113,
+        "area": 387.83587594066853,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 7.55928946018538,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 114,
+        "area": 387.83587594066887,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 7.559289460185271,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 115,
+        "area": 387.835875940669,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 7.559289460184714,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 116,
+        "area": 387.8358759406701,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 7.559289460184629,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      },
+      {
+        "faceId": 117,
+        "area": 387.83587594067,
+        "outerLoopEdgeCount": 36,
+        "innerLoopCount": 0,
+        "innerLoopTypes": [],
+        "concavityCount": 0,
+        "cellCount": 1,
+        "quadCount": 0,
+        "triangleCount": 0,
+        "ngonCount": 1,
+        "longestInternalEdge": 0,
+        "shortestInternalEdge": 0,
+        "worstAspectRatio": 7.559289460184614,
+        "triangleFanCount": 0,
+        "plannerPath": "PlanarDomain.ConvexPolygon"
+      }
+    ]
+  },
+  "patchCount": 117,
+  "cellCount": 9762,
+  "polygonCount": 9762,
+  "quadCount": 8363,
+  "triangleCount": 1120,
+  "boundaryPolygonCount": 279,
+  "quadPercentage": 85.66892030321655,
+  "vertexCount": 10426,
+  "normalCount": 2713,
+  "textureCoordinateCount": 11191,
+  "finalTriangleCount": 20888,
+  "watertight": true,
+  "crackCount": 0,
+  "nonManifoldEdgeCount": 0,
+  "duplicateTriangleCount": 0,
+  "zeroAreaTriangleCount": 0,
+  "connected": true,
+  "outwardOriented": true,
+  "foreignTrimResolutionCount": 14,
+  "sampledBSplineTrimCount": 14,
+  "trimResolutions": [
+    {
+      "edgeId": 87,
+      "sourceCurveKind": "BSpline3",
+      "resolutionKind": "SampledBSpline",
+      "adjacentSupportFamilies": [
+        "Cylinder",
+        "Cylinder"
+      ],
+      "sampleCount": 13,
+      "maxChordalDeviation": 0.04229385628003768,
+      "maxTangentDeviationRadians": 0.05964340440546316,
+      "recognitionCandidate": "Line3",
+      "maxRecognitionDeviation": 3.097443330481666,
+      "recognitionTolerance": 0.05,
+      "provenance": "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."
+    },
+    {
+      "edgeId": 112,
+      "sourceCurveKind": "BSpline3",
+      "resolutionKind": "SampledBSpline",
+      "adjacentSupportFamilies": [
+        "Cylinder",
+        "Cylinder"
+      ],
+      "sampleCount": 13,
+      "maxChordalDeviation": 0.042293896427971475,
+      "maxTangentDeviationRadians": 0.05964338190676899,
+      "recognitionCandidate": "Line3",
+      "maxRecognitionDeviation": 3.0974433234231755,
+      "recognitionTolerance": 0.05,
+      "provenance": "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."
+    },
+    {
+      "edgeId": 151,
+      "sourceCurveKind": "BSpline3",
+      "resolutionKind": "SampledBSpline",
+      "adjacentSupportFamilies": [
+        "Cylinder",
+        "Cylinder"
+      ],
+      "sampleCount": 13,
+      "maxChordalDeviation": 0.04229378188668285,
+      "maxTangentDeviationRadians": 0.0596434460972561,
+      "recognitionCandidate": "Line3",
+      "maxRecognitionDeviation": 3.097443343563645,
+      "recognitionTolerance": 0.05,
+      "provenance": "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."
+    },
+    {
+      "edgeId": 180,
+      "sourceCurveKind": "BSpline3",
+      "resolutionKind": "SampledBSpline",
+      "adjacentSupportFamilies": [
+        "Cylinder",
+        "Cylinder"
+      ],
+      "sampleCount": 13,
+      "maxChordalDeviation": 0.04229389642650534,
+      "maxTangentDeviationRadians": 0.05964338190778407,
+      "recognitionCandidate": "Line3",
+      "maxRecognitionDeviation": 3.097443323423656,
+      "recognitionTolerance": 0.05,
+      "provenance": "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."
+    },
+    {
+      "edgeId": 221,
+      "sourceCurveKind": "BSpline3",
+      "resolutionKind": "SampledBSpline",
+      "adjacentSupportFamilies": [
+        "Cylinder",
+        "Cylinder"
+      ],
+      "sampleCount": 13,
+      "maxChordalDeviation": 0.04721923634254414,
+      "maxTangentDeviationRadians": 0.08523224617999864,
+      "recognitionCandidate": "Line3",
+      "maxRecognitionDeviation": 3.380054931357463,
+      "recognitionTolerance": 0.05,
+      "provenance": "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."
+    },
+    {
+      "edgeId": 222,
+      "sourceCurveKind": "BSpline3",
+      "resolutionKind": "SampledBSpline",
+      "adjacentSupportFamilies": [
+        "Cylinder",
+        "Cylinder"
+      ],
+      "sampleCount": 13,
+      "maxChordalDeviation": 0.04721923634358721,
+      "maxTangentDeviationRadians": 0.08523224618538613,
+      "recognitionCandidate": "Line3",
+      "maxRecognitionDeviation": 3.3800549313572015,
+      "recognitionTolerance": 0.05,
+      "provenance": "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."
+    },
+    {
+      "edgeId": 223,
+      "sourceCurveKind": "BSpline3",
+      "resolutionKind": "SampledBSpline",
+      "adjacentSupportFamilies": [
+        "Cylinder",
+        "Cylinder"
+      ],
+      "sampleCount": 13,
+      "maxChordalDeviation": 0.04721923634123526,
+      "maxTangentDeviationRadians": 0.08523224618332687,
+      "recognitionCandidate": "Line3",
+      "maxRecognitionDeviation": 3.3800549313580026,
+      "recognitionTolerance": 0.05,
+      "provenance": "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."
+    },
+    {
+      "edgeId": 224,
+      "sourceCurveKind": "BSpline3",
+      "resolutionKind": "SampledBSpline",
+      "adjacentSupportFamilies": [
+        "Cylinder",
+        "Cylinder"
+      ],
+      "sampleCount": 13,
+      "maxChordalDeviation": 0.047219236341299584,
+      "maxTangentDeviationRadians": 0.08523224618625211,
+      "recognitionCandidate": "Line3",
+      "maxRecognitionDeviation": 3.380054931358966,
+      "recognitionTolerance": 0.05,
+      "provenance": "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."
+    },
+    {
+      "edgeId": 283,
+      "sourceCurveKind": "BSpline3",
+      "resolutionKind": "SampledBSpline",
+      "adjacentSupportFamilies": [
+        "Cylinder",
+        "Cylinder"
+      ],
+      "sampleCount": 9,
+      "maxChordalDeviation": 0.03188984409186585,
+      "maxTangentDeviationRadians": 0.12414955019979648,
+      "recognitionCandidate": "Line3",
+      "maxRecognitionDeviation": 1.5651806876328203,
+      "recognitionTolerance": 0.05,
+      "provenance": "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."
+    },
+    {
+      "edgeId": 284,
+      "sourceCurveKind": "BSpline3",
+      "resolutionKind": "SampledBSpline",
+      "adjacentSupportFamilies": [
+        "Cylinder",
+        "Cylinder"
+      ],
+      "sampleCount": 9,
+      "maxChordalDeviation": 0.03188984409266438,
+      "maxTangentDeviationRadians": 0.12414955021104118,
+      "recognitionCandidate": "Line3",
+      "maxRecognitionDeviation": 1.5651806876880532,
+      "recognitionTolerance": 0.05,
+      "provenance": "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."
+    },
+    {
+      "edgeId": 286,
+      "sourceCurveKind": "BSpline3",
+      "resolutionKind": "SampledBSpline",
+      "adjacentSupportFamilies": [
+        "Cylinder",
+        "Cylinder"
+      ],
+      "sampleCount": 9,
+      "maxChordalDeviation": 0.03188984409195063,
+      "maxTangentDeviationRadians": 0.1241495502043322,
+      "recognitionCandidate": "Line3",
+      "maxRecognitionDeviation": 1.5651806876581458,
+      "recognitionTolerance": 0.05,
+      "provenance": "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."
+    },
+    {
+      "edgeId": 288,
+      "sourceCurveKind": "BSpline3",
+      "resolutionKind": "SampledBSpline",
+      "adjacentSupportFamilies": [
+        "Cylinder",
+        "Cylinder"
+      ],
+      "sampleCount": 9,
+      "maxChordalDeviation": 0.03188984409170331,
+      "maxTangentDeviationRadians": 0.12414955020007441,
+      "recognitionCandidate": "Line3",
+      "maxRecognitionDeviation": 1.5651806876343706,
+      "recognitionTolerance": 0.05,
+      "provenance": "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."
+    },
+    {
+      "edgeId": 290,
+      "sourceCurveKind": "BSpline3",
+      "resolutionKind": "SampledBSpline",
+      "adjacentSupportFamilies": [
+        "Cylinder",
+        "Cylinder"
+      ],
+      "sampleCount": 9,
+      "maxChordalDeviation": 0.031889844091863025,
+      "maxTangentDeviationRadians": 0.12414955020285914,
+      "recognitionCandidate": "Line3",
+      "maxRecognitionDeviation": 1.5651806876495806,
+      "recognitionTolerance": 0.05,
+      "provenance": "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."
+    },
+    {
+      "edgeId": 292,
+      "sourceCurveKind": "BSpline3",
+      "resolutionKind": "SampledBSpline",
+      "adjacentSupportFamilies": [
+        "Cylinder",
+        "Cylinder"
+      ],
+      "sampleCount": 9,
+      "maxChordalDeviation": 0.031889844093434566,
+      "maxTangentDeviationRadians": 0.12414955021475654,
+      "recognitionCandidate": "Line3",
+      "maxRecognitionDeviation": 1.5651806876981287,
+      "recognitionTolerance": 0.05,
+      "provenance": "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."
+    }
+  ],
+  "timingsMilliseconds": {
+    "brepImport": 124.3831,
+    "surfaceMeshIr": 2407.0805,
+    "objSerialization": 1673.1212
+  },
+  "maxChordalDeviation": 0.04893354932934996,
+  "normalDeviation": 0,
+  "minEdgeLength": 0.8486251286954429,
+  "maxEdgeLength": 38.888888888888914,
+  "worstAspectRatio": 0,
+  "approximateStructuredBufferBytes": 453576,
+  "deterministicHash": "341d7f22bb1fb2abc0c88f5bb9c1f24e98763f51fcaa6bdef752a96926435b6d",
+  "bytes": 1716280
+}

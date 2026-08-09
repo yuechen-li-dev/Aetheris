@@ -1,0 +1,7 @@
+{
+  "fixedCells": 4096,
+  "fineCells": 32768,
+  "fixedVolumeError": 0.00017900116895113398,
+  "fineVolumeError": 0.0016620704887141294,
+  "fixedBeatsFine": true
+}

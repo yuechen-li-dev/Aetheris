@@ -1,0 +1,7 @@
+{
+  "footprintAllocatedBytesInDenseAudit": 556048,
+  "mapNodes": 45568,
+  "mapLogicalScalarPayloadBytes": 2187264,
+  "structuredWorkBufferEstimatedBytes": 148480,
+  "note": "Logical payload excludes CLR array/object headers; allocation audit uses per-thread measured bytes."
+}

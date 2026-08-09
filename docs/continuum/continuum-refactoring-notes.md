@@ -91,3 +91,10 @@ These items were discovered during AETHERIS-CONTINUUM-M0 and intentionally not e
 - **Proposed direction:** integrate clipped piecewise-bilinear graph patches analytically or with a conservative adaptive error estimate; preserve the current dense path as the experimental oracle. Do not introduce AMR or make triangles geometry authority.
 - **Blocks M2:** no; M2's intended exact-BRep identity, arbitrary-frame, fidelity, area/volume, orientation, and certification proofs all execute on the real path.
 - **Suggested future milestone:** CONTINUUM-M3 torus plus cheap local graph integration.
+# Exact face-normal semantic naming
+
+- **Issue:** `ExactBrepBoundaryQuery.OutwardNormal` historically encoded the sphere assumption that the bound face normal is outward. The production `ConcaveFilletConstruction` torus support is deliberately oriented into material, so `FaceGeometryBinding.SameSense` alone does not establish a universal material/outward convention across construction families.
+- **Impact:** Continuum must not silently negate a concave face normal. Doing so reversed the root-fillet material-side probe during M3 bring-up.
+- **Proposed direction:** introduce a kernel-level oriented-shell query that returns both exact support normal and shell material-side classification. Until that exists, Continuum fixtures must state the construction contract explicitly and verify it against CIR with deterministic two-sided probes.
+- **Blocker status:** not an M3 blocker; M3 records `exactFaceNormalIsMaterialSide` explicitly and fails on CIR disagreement.
+- **Recommended future milestone:** multi-face whole-part Cut-cell composition, where oriented-shell authority can replace per-fixture declarations.

@@ -32,6 +32,9 @@ public interface IBoundaryOffsetMap
     BoundaryApproximationMetadata Approximation { get; }
 
     BoundaryMapEvaluation Evaluate(double u, double v);
+
+    /// <summary>Positive on the owning BRep trim, negative outside; infinity means unbounded support.</summary>
+    double SourceTrimSignedDistance(Point3D position) => double.PositiveInfinity;
 }
 
 public readonly record struct BoundaryLocalFrame(Point3D Origin, Vector3D Normal, Vector3D TangentU, Vector3D TangentV);

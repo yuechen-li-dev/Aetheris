@@ -94,7 +94,7 @@ Two complete repeated experiment runs produced identical timing-free JSON. SHA-2
 
 ## Limitations and M3
 
-- The exact query bridge intentionally supports sphere faces only in M2. Torus is the recommended M3 mechanical fixture because its unequal principal curvatures will test truly curvature-driven directional resolution rather than footprint-driven anisotropy.
+- M2 originally limited the exact query bridge to sphere faces. M3 extends the same bridge to exact torus faces; the historical M2 experiment and artifacts remain sphere-only.
 - The sphere orientation matrix rotates its exact parameter frame, but rotational symmetry means it cannot expose all shape/grid alignment effects. Torus should provide that stronger test.
 - Interpolated exact normal samples are the runtime default. The gradient-derived alternative was not added because exact-normal interpolation error was already below 0.0005 degrees and was not limiting.
 - The projected-footprint integrator uses dense deterministic CPU quadrature to make the evidence trustworthy. Its 400+ ms integration cost dominates production-like timing and is the clearest M3 optimization target. Analytic integration of piecewise-bilinear graph patches clipped by a box should replace dense evidence quadrature before claiming a setup-time performance win.

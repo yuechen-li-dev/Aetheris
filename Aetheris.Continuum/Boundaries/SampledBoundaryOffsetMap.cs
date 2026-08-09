@@ -7,6 +7,7 @@ namespace Aetheris.Continuum.Boundaries;
 public sealed class SampledBoundaryOffsetMap : IBoundaryOffsetMap
 {
     private readonly BoundaryOffsetSample[,] _grid;
+    private readonly Func<Point3D, double>? _trimSignedDistance;
 
     public SampledBoundaryOffsetMap(
         CellIndex cellIndex,
@@ -14,7 +15,8 @@ public sealed class SampledBoundaryOffsetMap : IBoundaryOffsetMap
         BoundaryLocalFrame localFrame,
         BoundaryMapDomain domain,
         BoundaryOffsetSample[,] grid,
-        BoundaryApproximationMetadata approximation)
+        BoundaryApproximationMetadata approximation,
+        Func<Point3D, double>? trimSignedDistance = null)
     {
         CellIndex = cellIndex;
         SourceBoundary = sourceBoundary;
@@ -22,6 +24,7 @@ public sealed class SampledBoundaryOffsetMap : IBoundaryOffsetMap
         Domain = domain;
         _grid = grid ?? throw new ArgumentNullException(nameof(grid));
         Approximation = approximation;
+        _trimSignedDistance = trimSignedDistance;
         Samples = Flatten(grid);
         Validate();
     }
@@ -32,6 +35,7 @@ public sealed class SampledBoundaryOffsetMap : IBoundaryOffsetMap
     public IReadOnlyList<BoundaryOffsetSample> Samples { get; }
     public BoundaryMapDomain Domain { get; }
     public BoundaryApproximationMetadata Approximation { get; }
+    public double SourceTrimSignedDistance(Point3D position) => _trimSignedDistance?.Invoke(position) ?? double.PositiveInfinity;
 
     public BoundaryMapEvaluation Evaluate(double u, double v)
     {
@@ -57,7 +61,7 @@ public sealed class SampledBoundaryOffsetMap : IBoundaryOffsetMap
     }
 
     internal SampledBoundaryOffsetMap WithApproximation(BoundaryApproximationMetadata approximation) =>
-        new(CellIndex, SourceBoundary, LocalFrame, Domain, _grid, approximation);
+        new(CellIndex, SourceBoundary, LocalFrame, Domain, _grid, approximation, _trimSignedDistance);
 
     private void Validate()
     {

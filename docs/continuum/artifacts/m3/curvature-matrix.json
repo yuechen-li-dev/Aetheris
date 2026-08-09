@@ -1,0 +1,43 @@
+[
+  {
+    "minorRadius": 0.35,
+    "curvatureRatio": 3.2857142857142856,
+    "cutCells": 1122,
+    "torusCutCells": 109,
+    "mapResolutionDistribution": {
+      "16x24": 19,
+      "24x24": 85,
+      "4x24": 1,
+      "8x24": 4
+    },
+    "relativeVolumeError": 2.7939008024398926E-05,
+    "relativeRootAreaError": 0.00014334600023011774,
+    "productionMilliseconds": 160.83140000000003
+  },
+  {
+    "minorRadius": 0.3,
+    "curvatureRatio": 3.666666666666667,
+    "cutCells": 1118,
+    "torusCutCells": 98,
+    "mapResolutionDistribution": {
+      "16x24": 7,
+      "24x24": 91
+    },
+    "relativeVolumeError": 2.065195346131679E-05,
+    "relativeRootAreaError": 5.573698684031457E-05,
+    "productionMilliseconds": 175.74249999999995
+  },
+  {
+    "minorRadius": 0.25,
+    "curvatureRatio": 4.2,
+    "cutCells": 1120,
+    "torusCutCells": 87,
+    "mapResolutionDistribution": {
+      "16x24": 1,
+      "24x24": 86
+    },
+    "relativeVolumeError": 9.266806985126325E-06,
+    "relativeRootAreaError": 2.3975371870424455E-05,
+    "productionMilliseconds": 162.9833
+  }
+]

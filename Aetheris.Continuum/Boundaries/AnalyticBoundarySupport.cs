@@ -101,7 +101,8 @@ public static class RuntimeBoundaryMapBuild
         Func<double, double, BoundaryEvaluationKey> key,
         BoundaryEvaluationCache? cache,
         EngineeringBoundaryMapCertificate? certificate,
-        BoundaryMapBuildCosts? costs = null)
+        BoundaryMapBuildCosts? costs = null,
+        Func<Point3D, double>? trimSignedDistance = null)
     {
         if (resolutionU < 2 || resolutionV < 2 || resolutionU > policy.MaximumResolution || resolutionV > policy.MaximumResolution)
         {
@@ -124,7 +125,7 @@ public static class RuntimeBoundaryMapBuild
         var accepted = certificate?.Decision == BoundaryMapCertificateDecision.Acceptable;
         var metadata = new BoundaryApproximationMetadata(0d, 0d, 0d, 0d, 0d,
             "bilinear-offset-linear-normal", resolutionU, resolutionV, 0, accepted, 2, certificate);
-        var map = new SampledBoundaryOffsetMap(cellIndex, reference, frame, domain, grid, metadata);
+        var map = new SampledBoundaryOffsetMap(cellIndex, reference, frame, domain, grid, metadata, trimSignedDistance);
         if (costs is not null) costs.MapConstructionMilliseconds += Stopwatch.GetElapsedTime(mapStart).TotalMilliseconds;
         return map;
     }

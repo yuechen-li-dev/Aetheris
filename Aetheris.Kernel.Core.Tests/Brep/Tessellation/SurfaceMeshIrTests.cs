@@ -4,6 +4,7 @@ using Aetheris.Kernel.Core.Brep.Features;
 using Aetheris.Kernel.Core.Brep.Tessellation;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Core.Step242;
 
 namespace Aetheris.Kernel.Core.Tests.Brep.Tessellation;
 
@@ -183,6 +184,84 @@ public sealed class SurfaceMeshIrTests
     }
 
     [Fact]
+    public void Ctc01_SplineBoundedCylinderPatches_FollowTheExactSupportWithoutLongChords()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "Aetheris.slnx"))) root = root.Parent;
+        Assert.NotNull(root);
+        var step = File.ReadAllText(Path.Combine(root!.FullName, "testdata", "step242", "nist", "CTC", "nist_ctc_01_asme1_ap242-e1.stp"));
+        var imported = Step242Importer.ImportBody(step);
+        Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        Assert.True(SurfaceMeshIrTessellator.TryBuild(imported.Value, SurfaceMeshPolicy.FromDisplayOptions(DisplayTessellationOptions.Default), out var document, out var failure), failure);
+
+        var affectedFaces = new HashSet<int> { 10, 20, 30, 44, 65, 66, 69, 70 };
+        var patches = document.Patches.Where(patch => affectedFaces.Contains(patch.FaceId.Value)).ToArray();
+        Assert.Equal(affectedFaces.Count, patches.Length);
+        foreach (var patch in patches)
+        {
+            var trim = Assert.Single(patch.TrimLoopData!);
+            var authoritativeBoundary = trim.VertexIds.ToHashSet();
+            var cylinder = patch.Support.Cylinder!.Value;
+            var vertexById = document.Vertices.ToDictionary(vertex => vertex.Id);
+            var localById = trim.VertexIds.Select((id, index) => (id, local: trim.LocalCoordinates[index]))
+                .ToDictionary(item => item.id, item => item.local);
+            foreach (var vertexId in patch.Cells.SelectMany(cell => cell.VertexIds).Distinct())
+            {
+                var vertex = vertexById[vertexId];
+                if (!localById.ContainsKey(vertexId))
+                {
+                    Assert.NotNull(vertex.U);
+                    Assert.NotNull(vertex.V);
+                    localById[vertexId] = (vertex.U!.Value, vertex.V!.Value);
+                }
+                var projected = cylinder.Evaluate(localById[vertexId].U, localById[vertexId].V);
+                var supportError = (projected - vertex.Position).Length;
+                var tolerance = authoritativeBoundary.Contains(vertexId) ? DisplayTessellationOptions.Default.ChordTolerance : 1e-9d;
+                Assert.True(supportError <= tolerance, $"Face {patch.FaceId.Value} vertex {vertexId} is {supportError:R} off its exact cylinder.");
+            }
+
+            Assert.Contains(patch.Cells, cell => cell is QuadCell);
+            Assert.Contains(patch.Cells.SelectMany(cell => cell.VertexIds), id => !authoritativeBoundary.Contains(id));
+            Assert.True(authoritativeBoundary.IsSubsetOf(patch.Cells.SelectMany(cell => cell.VertexIds)));
+            Assert.All(patch.Cells, cell =>
+            {
+                var uSpan = cell.VertexIds.Max(id => localById[id].U) - cell.VertexIds.Min(id => localById[id].U);
+                Assert.True(uSpan < 0.2d, $"Face {patch.FaceId.Value} still contains a long cylindrical chord spanning {uSpan:R} radians.");
+                var a = vertexById[cell.VertexIds[0]].Position;
+                var b = vertexById[cell.VertexIds[1]].Position;
+                var c = vertexById[cell.VertexIds[2]].Position;
+                var centroid = new Point3D((a.X + b.X + c.X) / 3d, (a.Y + b.Y + c.Y) / 3d, (a.Z + b.Z + c.Z) / 3d);
+                var offset = centroid - cylinder.Origin;
+                var angle = double.Atan2(offset.Dot(cylinder.YAxis.ToVector()), offset.Dot(cylinder.XAxis.ToVector()));
+                var exactNormal = cylinder.Normal(angle).ToVector();
+                if (!patch.SameSense) exactNormal = -exactNormal;
+                Assert.True((b - a).Cross(c - a).Dot(exactNormal) > 0d, $"Face {patch.FaceId.Value} contains a reversed trim cell.");
+            });
+        }
+
+        foreach (var patch in document.Patches.Where(patch => patch.FaceId.Value is 48 or 50 or 55 or 56))
+        {
+            var loops = patch.TrimLoopData!;
+            var outer = loops.MaxBy(loop => double.Abs(loop.SignedArea))!;
+            var holes = loops.Where(loop => loop.LoopId != outer.LoopId).ToArray();
+            var localById = loops.SelectMany(loop => loop.VertexIds.Select((id, index) => (id, local: loop.LocalCoordinates[index])))
+                .GroupBy(item => item.id).ToDictionary(group => group.Key, group => group.First().local);
+            Assert.All(patch.Cells, cell =>
+            {
+                var centroid = (
+                    U: cell.VertexIds.Average(id => localById[id].U),
+                    V: cell.VertexIds.Average(id => localById[id].V));
+                Assert.True(IsInside(centroid, outer.LocalCoordinates), $"Face {patch.FaceId.Value} cell crossed its outer trim.");
+                Assert.DoesNotContain(holes, hole => IsInside(centroid, hole.LocalCoordinates));
+            });
+        }
+
+        Assert.True(SurfaceMeshIrTessellator.TryLowerToTriangleMesh(document, out _, out var topology));
+        Assert.True(topology.IsWatertight);
+        Assert.Equal(0, topology.ZeroAreaTriangleCount);
+    }
+
+    [Fact]
     public void BinaryStlExporter_WritesExactTriangleRecordCount()
     {
         var body = BrepBoolean.Subtract(BrepPrimitives.CreateBox(20d, 20d, 2d).Value, BrepPrimitives.CreateCylinder(2d, 6d).Value).Value;
@@ -195,5 +274,19 @@ public sealed class SurfaceMeshIrTests
             Assert.Equal(84L + (50L * mesh.TriangleIndices.Count / 3), new FileInfo(path).Length);
         }
         finally { if (File.Exists(path)) File.Delete(path); }
+    }
+
+    private static bool IsInside((double U, double V) point, IReadOnlyList<(double U, double V)> polygon)
+    {
+        var inside = false;
+        for (int current = 0, previous = polygon.Count - 1; current < polygon.Count; previous = current++)
+        {
+            var a = polygon[current];
+            var b = polygon[previous];
+            if ((a.V > point.V) != (b.V > point.V)
+                && point.U < ((b.U - a.U) * (point.V - a.V) / (b.V - a.V)) + a.U)
+                inside = !inside;
+        }
+        return inside;
     }
 }

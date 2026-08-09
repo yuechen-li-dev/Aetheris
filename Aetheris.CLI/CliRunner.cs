@@ -479,9 +479,12 @@ public static class CliRunner
         }
         else if (string.Equals(Path.GetExtension(fullInput), ".step", StringComparison.OrdinalIgnoreCase) || string.Equals(Path.GetExtension(fullInput), ".stp", StringComparison.OrdinalIgnoreCase)) stepText = File.ReadAllText(fullInput);
         else { stderr.WriteLine("Mesh expects Firmament (.firmament, .firmfixture) or STEP (.step, .stp) input."); return 1; }
+        var importWatch = System.Diagnostics.Stopwatch.StartNew();
         var imported = Step242Importer.ImportBody(stepText);
+        importWatch.Stop();
         if (!imported.IsSuccess || imported.Value is null) return WriteMeshFailure(imported.Diagnostics.Select(d => d.Message), json, fullInput, stdout, stderr);
         string? irFailure = null;
+        var meshIrWatch = System.Diagnostics.Stopwatch.StartNew();
         if (!SurfaceMeshIrTessellator.TryBuild(imported.Value, SurfaceMeshPolicy.FromDisplayOptions(DisplayTessellationOptions.Default), out var document, out irFailure)
             || !SurfaceMeshIrValidator.TryValidate(document, out irFailure))
         {
@@ -491,6 +494,7 @@ public static class CliRunner
             else stderr.WriteLine($"Mesh failed: {diagnostic}");
             return 1;
         }
+        meshIrWatch.Stop();
         if (!string.IsNullOrWhiteSpace(debugIr))
         {
             var debugPath = Path.GetFullPath(debugIr);
@@ -501,28 +505,56 @@ public static class CliRunner
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
         if (string.Equals(format, "obj", StringComparison.OrdinalIgnoreCase))
         {
+            var serializationWatch = System.Diagnostics.Stopwatch.StartNew();
             var obj = SurfaceMeshObjExporter.Export(document, Path.GetFileNameWithoutExtension(outputPath));
             File.WriteAllText(outputPath, obj.Text);
+            serializationWatch.Stop();
             var objBytes = new FileInfo(outputPath).Length;
             var watertight = SurfaceMeshIrTessellator.TryLowerToTriangleMesh(document, out _, out var objTopology) && objTopology.IsWatertight;
             if (json) stdout.WriteLine(JsonSerializer.Serialize(new
             {
                 command = "mesh", success = true, pipeline = "SurfaceMeshIR", input = fullInput, outputPath, format = "obj",
+                coverage = SurfaceMeshIrTessellator.Audit(imported.Value),
                 patchCount = document.Metrics.PatchCount, cellCount = document.Metrics.CellCount, polygonCount = obj.PolygonCount,
                 quadCount = obj.QuadCount, triangleCount = obj.TriangleCount, boundaryPolygonCount = obj.BoundaryPolygonCount,
                 quadPercentage = obj.PolygonCount == 0 ? 0d : (double)obj.QuadCount / obj.PolygonCount * 100d,
                 vertexCount = obj.VertexCount, normalCount = obj.NormalCount, textureCoordinateCount = obj.TextureCoordinateCount,
-                finalTriangleCount = objTopology.TriangleCount, watertight, maxChordalDeviation = document.Metrics.MaxChordalDeviation, normalDeviation = document.Metrics.MaxNormalDeviation,
+                finalTriangleCount = objTopology.TriangleCount, watertight,
+                crackCount = objTopology.CrackCount, nonManifoldEdgeCount = objTopology.NonManifoldEdgeCount,
+                duplicateTriangleCount = objTopology.DuplicateTriangleCount, zeroAreaTriangleCount = objTopology.ZeroAreaTriangleCount,
+                connected = objTopology.IsConnected, outwardOriented = objTopology.IsOutwardOriented,
+                foreignTrimResolutionCount = document.ForeignTrimResolutions?.Count ?? 0,
+                sampledBSplineTrimCount = document.ForeignTrimResolutions?.Count(item => item.ResolutionKind == ForeignTrimResolutionKind.SampledBSpline) ?? 0,
+                trimResolutions = document.ForeignTrimResolutions?.Select(item => new
+                {
+                    edgeId = item.SourceEdgeId.Value,
+                    sourceCurveKind = item.SourceCurveKind.ToString(),
+                    resolutionKind = item.ResolutionKind.ToString(),
+                    adjacentSupportFamilies = item.AdjacentSupportFamilies,
+                    sampleCount = item.SharedSamplePlan.Samples.Count,
+                    maxChordalDeviation = item.SharedSamplePlan.MaxChordalDeviation,
+                    maxTangentDeviationRadians = item.SharedSamplePlan.MaxTangentDeviationRadians,
+                    recognitionCandidate = item.RecognitionCandidate,
+                    maxRecognitionDeviation = item.MaxRecognitionDeviation,
+                    recognitionTolerance = item.RecognitionTolerance,
+                    provenance = item.Provenance
+                }),
+                timingsMilliseconds = new { brepImport = importWatch.Elapsed.TotalMilliseconds, surfaceMeshIr = meshIrWatch.Elapsed.TotalMilliseconds, objSerialization = serializationWatch.Elapsed.TotalMilliseconds },
+                maxChordalDeviation = document.Metrics.MaxChordalDeviation, normalDeviation = document.Metrics.MaxNormalDeviation,
+                minEdgeLength = document.Metrics.MinEdgeLength, maxEdgeLength = document.Metrics.MaxEdgeLength,
+                worstAspectRatio = document.Metrics.WorstAspectRatio, approximateStructuredBufferBytes = document.Metrics.ApproximateBufferBytes,
                 deterministicHash = obj.DeterministicHash, bytes = objBytes
             }, JsonOptions));
             else stdout.WriteLine($"SurfaceMeshIR OBJ: {outputPath}\nPatches: {document.Metrics.PatchCount}; polygons: {obj.PolygonCount}; quads: {obj.QuadCount}; triangles: {obj.TriangleCount}; max chordal error: {document.Metrics.MaxChordalDeviation:R}");
             return 0;
         }
+        var loweringWatch = System.Diagnostics.Stopwatch.StartNew();
         if (!SurfaceMeshIrTessellator.TryLowerToTriangleMesh(document, out var mesh, out var topology))
-            return WriteMeshFailure(["SurfaceMeshIR could not lower the validated document to a watertight TriangleMesh for STL."], json, fullInput, stdout, stderr);
+            return WriteMeshFailure([$"SurfaceMeshIR could not lower the validated document to a watertight TriangleMesh for STL: cracks={topology.CrackCount}, nonmanifold={topology.NonManifoldEdgeCount}, duplicates={topology.DuplicateTriangleCount}, zeroArea={topology.ZeroAreaTriangleCount}, connected={topology.IsConnected}, outward={topology.IsOutwardOriented}."], json, fullInput, stdout, stderr);
         BinaryStlExporter.Export(outputPath, mesh);
+        loweringWatch.Stop();
         var stlBytes = new FileInfo(outputPath).Length;
-        if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "mesh", success = true, pipeline = "SurfaceMeshIR", input = fullInput, outputPath, format = "binary-stl", patchCount = document.Metrics.PatchCount, cellCount = document.Metrics.CellCount, quadCount = document.Metrics.QuadCount, triangleCount = topology.TriangleCount, vertexCount = topology.VertexCount, watertight = topology.IsWatertight, maxChordalDeviation = document.Metrics.MaxChordalDeviation, normalDeviation = document.Metrics.MaxNormalDeviation, deterministicHash = mesh.DeterministicHash, bytes = stlBytes }, JsonOptions));
+        if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "mesh", success = true, pipeline = "SurfaceMeshIR", input = fullInput, outputPath, format = "binary-stl", patchCount = document.Metrics.PatchCount, cellCount = document.Metrics.CellCount, quadCount = document.Metrics.QuadCount, triangleCount = topology.TriangleCount, vertexCount = topology.VertexCount, watertight = topology.IsWatertight, maxChordalDeviation = document.Metrics.MaxChordalDeviation, normalDeviation = document.Metrics.MaxNormalDeviation, timingsMilliseconds = new { brepImport = importWatch.Elapsed.TotalMilliseconds, surfaceMeshIr = meshIrWatch.Elapsed.TotalMilliseconds, triangleLoweringAndStlSerialization = loweringWatch.Elapsed.TotalMilliseconds }, deterministicHash = mesh.DeterministicHash, bytes = stlBytes }, JsonOptions));
         else stdout.WriteLine($"SurfaceMeshIR STL: {outputPath}\nTriangles: {topology.TriangleCount}; watertight: {topology.IsWatertight}; max chordal error: {document.Metrics.MaxChordalDeviation:R}");
         return 0;
     }

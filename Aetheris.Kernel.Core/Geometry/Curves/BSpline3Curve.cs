@@ -121,6 +121,63 @@ public readonly record struct BSpline3Curve
         return d[p];
     }
 
+    /// <summary>Evaluates the exact polynomial derivative of this non-rational B-spline.</summary>
+    public Vector3D EvaluateTangent(double parameter)
+    {
+        if (!double.IsFinite(parameter)) throw new ArgumentOutOfRangeException(nameof(parameter), "Parameter must be finite.");
+        var derivativeDegree = Degree - 1;
+        var derivativePoints = new Vector3D[ControlPoints.Count - 1];
+        for (var index = 0; index < derivativePoints.Length; index++)
+        {
+            var denominator = FullKnots[index + Degree + 1] - FullKnots[index + 1];
+            derivativePoints[index] = double.Abs(denominator) <= 1e-15d
+                ? new Vector3D(0d, 0d, 0d)
+                : (ControlPoints[index + 1] - ControlPoints[index]) * (Degree / denominator);
+        }
+
+        var knots = FullKnots.Skip(1).SkipLast(1).ToArray();
+        var u = ClampToDomain(parameter);
+        if (derivativeDegree == 0)
+        {
+            var span = FindSpan(derivativePoints.Length, derivativeDegree, knots, u);
+            return derivativePoints[span];
+        }
+        if (double.Abs(u - DomainEnd) <= 1e-12d) return derivativePoints[^1];
+        var derivativeSpan = FindSpan(derivativePoints.Length, derivativeDegree, knots, u);
+        var d = new Vector3D[derivativeDegree + 1];
+        for (var j = 0; j <= derivativeDegree; j++) d[j] = derivativePoints[derivativeSpan - derivativeDegree + j];
+        for (var r = 1; r <= derivativeDegree; r++)
+        {
+            for (var j = derivativeDegree; j >= r; j--)
+            {
+                var leftKnot = knots[derivativeSpan - derivativeDegree + j];
+                var rightKnot = knots[derivativeSpan + 1 + j - r];
+                var denominator = rightKnot - leftKnot;
+                var alpha = double.Abs(denominator) <= 1e-15d ? 0d : (u - leftKnot) / denominator;
+                d[j] = d[j - 1] + ((d[j] - d[j - 1]) * alpha);
+            }
+        }
+        return d[derivativeDegree];
+    }
+
+    public IReadOnlyList<ParameterInterval> GetNonZeroKnotSpans(ParameterInterval interval)
+    {
+        var start = double.Max(DomainStart, double.Min(interval.Start, interval.End));
+        var end = double.Min(DomainEnd, double.Max(interval.Start, interval.End));
+        if (end <= start) return [];
+        var spans = new List<ParameterInterval>();
+        for (var index = Degree; index < FullKnots.Count - Degree - 1; index++)
+        {
+            var spanStart = double.Max(start, FullKnots[index]);
+            var spanEnd = double.Min(end, FullKnots[index + 1]);
+            if (spanEnd > spanStart) spans.Add(new ParameterInterval(spanStart, spanEnd));
+        }
+        if (interval.End < interval.Start) spans.Reverse();
+        return interval.End < interval.Start
+            ? spans.Select(span => new ParameterInterval(span.End, span.Start)).ToArray()
+            : spans;
+    }
+
     private double ClampToDomain(double parameter)
     {
         if (parameter <= DomainStart)
@@ -161,6 +218,21 @@ public readonly record struct BSpline3Curve
             mid = (low + high) / 2;
         }
 
+        return mid;
+    }
+
+    private static int FindSpan(int controlPointCount, int degree, IReadOnlyList<double> knots, double u)
+    {
+        var n = controlPointCount - 1;
+        if (u >= knots[n + 1]) return n;
+        var low = degree;
+        var high = n + 1;
+        var mid = (low + high) / 2;
+        while (u < knots[mid] || u >= knots[mid + 1])
+        {
+            if (u < knots[mid]) high = mid; else low = mid;
+            mid = (low + high) / 2;
+        }
         return mid;
     }
 

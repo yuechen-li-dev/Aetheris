@@ -1,0 +1,226 @@
+[
+  {
+    "edgeId": 87,
+    "sourceCurveKind": "BSpline3",
+    "resolutionKind": "SampledBSpline",
+    "adjacentSupportFamilies": [
+      "Cylinder",
+      "Cylinder"
+    ],
+    "sampleCount": 13,
+    "maxChordalDeviation": 0.04229385628003768,
+    "maxTangentDeviationRadians": 0.05964340440546316,
+    "recognitionCandidate": "Line3",
+    "maxRecognitionDeviation": 3.097443330481666,
+    "recognitionTolerance": 0.05,
+    "provenance": "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."
+  },
+  {
+    "edgeId": 112,
+    "sourceCurveKind": "BSpline3",
+    "resolutionKind": "SampledBSpline",
+    "adjacentSupportFamilies": [
+      "Cylinder",
+      "Cylinder"
+    ],
+    "sampleCount": 13,
+    "maxChordalDeviation": 0.042293896427971475,
+    "maxTangentDeviationRadians": 0.05964338190676899,
+    "recognitionCandidate": "Line3",
+    "maxRecognitionDeviation": 3.0974433234231755,
+    "recognitionTolerance": 0.05,
+    "provenance": "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."
+  },
+  {
+    "edgeId": 151,
+    "sourceCurveKind": "BSpline3",
+    "resolutionKind": "SampledBSpline",
+    "adjacentSupportFamilies": [
+      "Cylinder",
+      "Cylinder"
+    ],
+    "sampleCount": 13,
+    "maxChordalDeviation": 0.04229378188668285,
+    "maxTangentDeviationRadians": 0.0596434460972561,
+    "recognitionCandidate": "Line3",
+    "maxRecognitionDeviation": 3.097443343563645,
+    "recognitionTolerance": 0.05,
+    "provenance": "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."
+  },
+  {
+    "edgeId": 180,
+    "sourceCurveKind": "BSpline3",
+    "resolutionKind": "SampledBSpline",
+    "adjacentSupportFamilies": [
+      "Cylinder",
+      "Cylinder"
+    ],
+    "sampleCount": 13,
+    "maxChordalDeviation": 0.04229389642650534,
+    "maxTangentDeviationRadians": 0.05964338190778407,
+    "recognitionCandidate": "Line3",
+    "maxRecognitionDeviation": 3.097443323423656,
+    "recognitionTolerance": 0.05,
+    "provenance": "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."
+  },
+  {
+    "edgeId": 221,
+    "sourceCurveKind": "BSpline3",
+    "resolutionKind": "SampledBSpline",
+    "adjacentSupportFamilies": [
+      "Cylinder",
+      "Cylinder"
+    ],
+    "sampleCount": 13,
+    "maxChordalDeviation": 0.04721923634254414,
+    "maxTangentDeviationRadians": 0.08523224617999864,
+    "recognitionCandidate": "Line3",
+    "maxRecognitionDeviation": 3.380054931357463,
+    "recognitionTolerance": 0.05,
+    "provenance": "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."
+  },
+  {
+    "edgeId": 222,
+    "sourceCurveKind": "BSpline3",
+    "resolutionKind": "SampledBSpline",
+    "adjacentSupportFamilies": [
+      "Cylinder",
+      "Cylinder"
+    ],
+    "sampleCount": 13,
+    "maxChordalDeviation": 0.04721923634358721,
+    "maxTangentDeviationRadians": 0.08523224618538613,
+    "recognitionCandidate": "Line3",
+    "maxRecognitionDeviation": 3.3800549313572015,
+    "recognitionTolerance": 0.05,
+    "provenance": "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."
+  },
+  {
+    "edgeId": 223,
+    "sourceCurveKind": "BSpline3",
+    "resolutionKind": "SampledBSpline",
+    "adjacentSupportFamilies": [
+      "Cylinder",
+      "Cylinder"
+    ],
+    "sampleCount": 13,
+    "maxChordalDeviation": 0.04721923634123526,
+    "maxTangentDeviationRadians": 0.08523224618332687,
+    "recognitionCandidate": "Line3",
+    "maxRecognitionDeviation": 3.3800549313580026,
+    "recognitionTolerance": 0.05,
+    "provenance": "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."
+  },
+  {
+    "edgeId": 224,
+    "sourceCurveKind": "BSpline3",
+    "resolutionKind": "SampledBSpline",
+    "adjacentSupportFamilies": [
+      "Cylinder",
+      "Cylinder"
+    ],
+    "sampleCount": 13,
+    "maxChordalDeviation": 0.047219236341299584,
+    "maxTangentDeviationRadians": 0.08523224618625211,
+    "recognitionCandidate": "Line3",
+    "maxRecognitionDeviation": 3.380054931358966,
+    "recognitionTolerance": 0.05,
+    "provenance": "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."
+  },
+  {
+    "edgeId": 283,
+    "sourceCurveKind": "BSpline3",
+    "resolutionKind": "SampledBSpline",
+    "adjacentSupportFamilies": [
+      "Cylinder",
+      "Cylinder"
+    ],
+    "sampleCount": 9,
+    "maxChordalDeviation": 0.03188984409186585,
+    "maxTangentDeviationRadians": 0.12414955019979648,
+    "recognitionCandidate": "Line3",
+    "maxRecognitionDeviation": 1.5651806876328203,
+    "recognitionTolerance": 0.05,
+    "provenance": "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."
+  },
+  {
+    "edgeId": 284,
+    "sourceCurveKind": "BSpline3",
+    "resolutionKind": "SampledBSpline",
+    "adjacentSupportFamilies": [
+      "Cylinder",
+      "Cylinder"
+    ],
+    "sampleCount": 9,
+    "maxChordalDeviation": 0.03188984409266438,
+    "maxTangentDeviationRadians": 0.12414955021104118,
+    "recognitionCandidate": "Line3",
+    "maxRecognitionDeviation": 1.5651806876880532,
+    "recognitionTolerance": 0.05,
+    "provenance": "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."
+  },
+  {
+    "edgeId": 286,
+    "sourceCurveKind": "BSpline3",
+    "resolutionKind": "SampledBSpline",
+    "adjacentSupportFamilies": [
+      "Cylinder",
+      "Cylinder"
+    ],
+    "sampleCount": 9,
+    "maxChordalDeviation": 0.03188984409195063,
+    "maxTangentDeviationRadians": 0.1241495502043322,
+    "recognitionCandidate": "Line3",
+    "maxRecognitionDeviation": 1.5651806876581458,
+    "recognitionTolerance": 0.05,
+    "provenance": "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."
+  },
+  {
+    "edgeId": 288,
+    "sourceCurveKind": "BSpline3",
+    "resolutionKind": "SampledBSpline",
+    "adjacentSupportFamilies": [
+      "Cylinder",
+      "Cylinder"
+    ],
+    "sampleCount": 9,
+    "maxChordalDeviation": 0.03188984409170331,
+    "maxTangentDeviationRadians": 0.12414955020007441,
+    "recognitionCandidate": "Line3",
+    "maxRecognitionDeviation": 1.5651806876343706,
+    "recognitionTolerance": 0.05,
+    "provenance": "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."
+  },
+  {
+    "edgeId": 290,
+    "sourceCurveKind": "BSpline3",
+    "resolutionKind": "SampledBSpline",
+    "adjacentSupportFamilies": [
+      "Cylinder",
+      "Cylinder"
+    ],
+    "sampleCount": 9,
+    "maxChordalDeviation": 0.031889844091863025,
+    "maxTangentDeviationRadians": 0.12414955020285914,
+    "recognitionCandidate": "Line3",
+    "maxRecognitionDeviation": 1.5651806876495806,
+    "recognitionTolerance": 0.05,
+    "provenance": "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."
+  },
+  {
+    "edgeId": 292,
+    "sourceCurveKind": "BSpline3",
+    "resolutionKind": "SampledBSpline",
+    "adjacentSupportFamilies": [
+      "Cylinder",
+      "Cylinder"
+    ],
+    "sampleCount": 9,
+    "maxChordalDeviation": 0.031889844093434566,
+    "maxTangentDeviationRadians": 0.12414955021475654,
+    "recognitionCandidate": "Line3",
+    "maxRecognitionDeviation": 1.5651806876981287,
+    "recognitionTolerance": 0.05,
+    "provenance": "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."
+  }
+]

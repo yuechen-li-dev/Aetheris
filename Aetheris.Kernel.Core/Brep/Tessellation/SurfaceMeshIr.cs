@@ -17,7 +17,8 @@ public sealed record SurfaceMeshDocument(
     IReadOnlyList<SurfaceMeshVertex> Vertices,
     IReadOnlyList<SurfacePatch> Patches,
     IReadOnlyList<SharedEdgeSamplePlan> SharedBoundaries,
-    SurfaceMeshMetrics Metrics);
+    SurfaceMeshMetrics Metrics,
+    IReadOnlyList<ForeignTrimResolution>? ForeignTrimResolutions = null);
 
 public sealed record SurfaceMeshVertex(int Id, Point3D Position, double? U = null, double? V = null);
 
@@ -39,7 +40,25 @@ public sealed record SharedEdgeSamplePlan(
     IReadOnlyList<SurfaceMeshVertex> Samples,
     IReadOnlyList<FaceBoundaryUse> Uses,
     bool IsClosed,
-    double MaxChordalDeviation);
+    double MaxChordalDeviation,
+    double MaxTangentDeviationRadians = 0d);
+
+public enum ForeignTrimResolutionKind { ExistingAnalytic, RecoveredAnalytic, SampledBSpline }
+
+/// <summary>
+/// Meshing-only interpretation of a foreign trim. It never replaces the source
+/// B-rep curve and therefore does not make spline geometry kernel-authoritative.
+/// </summary>
+public sealed record ForeignTrimResolution(
+    EdgeId SourceEdgeId,
+    CurveGeometryKind SourceCurveKind,
+    ForeignTrimResolutionKind ResolutionKind,
+    SharedEdgeSamplePlan SharedSamplePlan,
+    IReadOnlyList<string> AdjacentSupportFamilies,
+    string? RecognitionCandidate,
+    double? MaxRecognitionDeviation,
+    double RecognitionTolerance,
+    string Provenance);
 
 public enum SurfaceMeshSupportKind { Plane, Cylinder, Cone, Sphere, Torus }
 public enum SurfaceMeshCellKind { Quad, Triangle, BoundaryPolygon, Singular }
@@ -120,14 +139,30 @@ public sealed record SurfaceMeshIrCoverageAudit(
     int AnalyticSupportFaceCount,
     int UnsupportedSupportFaceCount,
     IReadOnlyDictionary<string, int> EdgeCurveFamilies,
-    IReadOnlyList<SurfaceMeshIrCoverageBlocker> BoundaryBlockers);
+    IReadOnlyList<SurfaceMeshIrCoverageBlocker> BoundaryBlockers,
+    IReadOnlyList<SurfaceMeshIrCoverageBlocker>? ForeignSplineTrims = null);
 
-public sealed record SurfaceMeshIrCoverageBlocker(int EdgeId, string CurveFamily, IReadOnlyList<int> FaceIds);
+public sealed record SurfaceMeshIrCoverageBlocker(
+    int EdgeId,
+    string CurveFamily,
+    IReadOnlyList<int> FaceIds,
+    IReadOnlyList<string>? FaceSupportFamilies = null,
+    int? Degree = null,
+    IReadOnlyList<int>? KnotMultiplicities = null,
+    IReadOnlyList<double>? KnotValues = null,
+    IReadOnlyList<Point3D>? ControlPoints = null,
+    ParameterInterval? ParameterInterval = null,
+    bool? Closed = null,
+    string? KnotSpecification = null,
+    Point3D? StartPoint = null,
+    Point3D? EndPoint = null,
+    Vector3D? StartTangent = null,
+    Vector3D? EndTangent = null);
 
 public static class SurfaceMeshIrDebug
 {
     public static string ToJson(SurfaceMeshDocument document)
-        => JsonSerializer.Serialize(document, new JsonSerializerOptions { WriteIndented = true });
+        => JsonSerializer.Serialize(document, new JsonSerializerOptions { WriteIndented = true, IncludeFields = true });
 }
 
 /// <summary>
@@ -162,6 +197,7 @@ public static class SurfaceMeshIrTessellator
     {
         var families = new SortedDictionary<string, int>(StringComparer.Ordinal);
         var blockers = new List<SurfaceMeshIrCoverageBlocker>();
+        var foreignSplineTrims = new List<SurfaceMeshIrCoverageBlocker>();
         var analytic = 0;
         var unsupportedSupports = 0;
         foreach (var face in body.Topology.Faces)
@@ -174,12 +210,25 @@ public static class SurfaceMeshIrTessellator
             var family = body.TryGetEdgeCurveGeometry(edge.Id, out var curve) && curve is not null ? curve.Kind.ToString() : "Unbound";
             families[family] = families.GetValueOrDefault(family) + 1;
             if (family is "Line3" or "Circle3" or "Hyperbola3") continue;
-            var uses = body.Topology.Faces
+            var usedFaces = body.Topology.Faces
                 .Where(face => body.GetLoopIds(face.Id).SelectMany(body.GetCoedgeIds).Any(coedgeId => body.Topology.GetCoedge(coedgeId).EdgeId == edge.Id))
-                .Select(face => face.Id.Value).OrderBy(id => id).ToArray();
-            blockers.Add(new SurfaceMeshIrCoverageBlocker(edge.Id.Value, family, uses));
+                .OrderBy(face => face.Id.Value).ToArray();
+            var faceIds = usedFaces.Select(face => face.Id.Value).ToArray();
+            var supports = usedFaces.Select(face => body.TryGetFaceSurfaceGeometry(face.Id, out var support) && support is not null ? support.Kind.ToString() : "Unbound").ToArray();
+            var spline = curve?.BSpline3;
+            var interval = body.Bindings.TryGetEdgeBinding(edge.Id, out var binding) ? binding.TrimInterval : null;
+            var audit = new SurfaceMeshIrCoverageBlocker(
+                edge.Id.Value, family, faceIds, supports,
+                spline?.Degree, spline?.KnotMultiplicities, spline?.KnotValues, spline?.ControlPoints,
+                interval, spline?.ClosedCurve, spline?.KnotSpec,
+                spline is { } value ? value.Evaluate(interval?.Start ?? value.DomainStart) : null,
+                spline is { } value2 ? value2.Evaluate(interval?.End ?? value2.DomainEnd) : null,
+                spline is { } value3 ? value3.EvaluateTangent(interval?.Start ?? value3.DomainStart) : null,
+                spline is { } value4 ? value4.EvaluateTangent(interval?.End ?? value4.DomainEnd) : null);
+            if (curve?.Kind == CurveGeometryKind.BSpline3 && spline is not null) foreignSplineTrims.Add(audit);
+            else blockers.Add(audit);
         }
-        return new SurfaceMeshIrCoverageAudit(body.Topology.Faces.Count(), analytic, unsupportedSupports, families, blockers);
+        return new SurfaceMeshIrCoverageAudit(body.Topology.Faces.Count(), analytic, unsupportedSupports, families, blockers, foreignSplineTrims);
     }
 
     /// <summary>Final deterministic lowering seam used by export.  Consumers only see triangles.</summary>
@@ -210,7 +259,9 @@ public static class SurfaceMeshIrTessellator
                 }
                 else
                 {
-                    var center = new Point3D(ids.Average(id => vertexById[id].Position.X), ids.Average(id => vertexById[id].Position.Y), ids.Average(id => vertexById[id].Position.Z));
+                    var center = patch.Support.Plane is { } plane
+                        ? ResolvePlanarPolygonCentroid(ids, vertexById, plane)
+                        : new Point3D(ids.Average(id => vertexById[id].Position.X), ids.Average(id => vertexById[id].Position.Y), ids.Average(id => vertexById[id].Position.Z));
                     var centerIndex = positions.Count; positions.Add(center); normals.Add(exactNormal(center));
                     for (var i = 0; i < ids.Count; i++)
                     {
@@ -232,6 +283,28 @@ public static class SurfaceMeshIrTessellator
             mesh = mesh with { TriangleIndices = indices };
         }
         return TriangleMeshValidator.TryValidateClosed(mesh, out report, out _);
+    }
+
+    private static Point3D ResolvePlanarPolygonCentroid(
+        IReadOnlyList<int> ids,
+        IReadOnlyDictionary<int, SurfaceMeshVertex> vertices,
+        PlaneSurface plane)
+    {
+        var local = ids.Select(id => ToPlaneLocal(plane, vertices[id].Position)).ToArray();
+        var twiceArea = 0d;
+        var weightedU = 0d;
+        var weightedV = 0d;
+        for (var index = 0; index < local.Length; index++)
+        {
+            var next = local[(index + 1) % local.Length];
+            var cross = (local[index].U * next.V) - (next.U * local[index].V);
+            twiceArea += cross;
+            weightedU += (local[index].U + next.U) * cross;
+            weightedV += (local[index].V + next.V) * cross;
+        }
+        if (double.Abs(twiceArea) <= Epsilon)
+            return new Point3D(ids.Average(id => vertices[id].Position.X), ids.Average(id => vertices[id].Position.Y), ids.Average(id => vertices[id].Position.Z));
+        return plane.Evaluate(weightedU / (3d * twiceArea), weightedV / (3d * twiceArea));
     }
 
     private static IReadOnlySet<(int A, int B)> BuildHardEdges(SurfaceMeshDocument document, IReadOnlyDictionary<int, int> indexById)
@@ -304,12 +377,12 @@ public static class SurfaceMeshIrTessellator
                     patches.Add(planePatch);
                     break;
                 case SurfaceGeometryKind.Cylinder:
-                    var cylinderPatch = TryBuildCylinderPatch(body, face.Id, faceBinding.SameSense, surface.Cylinder!.Value, byEdge, vertices, ref nextVertexId);
+                    var cylinderPatch = TryBuildCylinderPatch(body, face.Id, faceBinding.SameSense, surface.Cylinder!.Value, byEdge, policy, vertices, ref nextVertexId);
                     if (cylinderPatch is null) { failure = $"SurfaceMeshIR does not support trim topology on cylindrical face {face.Id.Value}."; return false; }
                     patches.Add(cylinderPatch);
                     break;
                 case SurfaceGeometryKind.Cone:
-                    var conePatch = TryBuildConePatch(body, face.Id, faceBinding.SameSense, surface.Cone!.Value, byEdge, vertices, ref nextVertexId);
+                    var conePatch = TryBuildConePatch(body, face.Id, faceBinding.SameSense, surface.Cone!.Value, byEdge, policy, vertices, ref nextVertexId);
                     if (conePatch is null) { failure = $"SurfaceMeshIR does not support trim topology on conical face {face.Id.Value}."; return false; }
                     patches.Add(conePatch);
                     break;
@@ -331,10 +404,52 @@ public static class SurfaceMeshIrTessellator
         // mesh boundary contract, so keep them out of the SurfaceMeshIR document.
         var sharedPlans = plans.Where(plan => plan.Uses.Count > 0).ToArray();
         var preMetrics = ComputeMetrics(vertices, patches, sharedPlans, triangleCount: 0);
-        var builtDocument = new SurfaceMeshDocument(vertices, patches, sharedPlans, preMetrics);
+        var foreignTrimResolutions = BuildForeignTrimResolutions(body, sharedPlans, policy);
+        var builtDocument = new SurfaceMeshDocument(vertices, patches, sharedPlans, preMetrics, foreignTrimResolutions);
         var triangleCount = builtDocument.Patches.Sum(p => CountLoweredTriangles(builtDocument, p));
         document = builtDocument with { Metrics = ComputeMetrics(vertices, patches, sharedPlans, triangleCount) };
         return true;
+    }
+
+    private static IReadOnlyList<ForeignTrimResolution> BuildForeignTrimResolutions(
+        BrepBody body,
+        IReadOnlyList<SharedEdgeSamplePlan> plans,
+        SurfaceMeshPolicy policy)
+    {
+        var resolutions = new List<ForeignTrimResolution>();
+        foreach (var plan in plans.Where(plan => plan.CurveKind == CurveGeometryKind.BSpline3).OrderBy(plan => plan.EdgeId.Value))
+        {
+            if (!body.TryGetEdgeCurveGeometry(plan.EdgeId, out var geometry) || geometry?.BSpline3 is not { } spline) continue;
+            var start = spline.Evaluate(plan.Interval.Start);
+            var end = spline.Evaluate(plan.Interval.End);
+            var chord = end - start;
+            var maxLineDeviation = Enumerable.Range(0, 33).Max(index =>
+            {
+                var parameter = plan.Interval.Start + ((plan.Interval.End - plan.Interval.Start) * index / 32d);
+                var point = spline.Evaluate(parameter);
+                if (chord.LengthSquared <= 1e-24d) return (point - start).Length;
+                var fraction = double.Clamp((point - start).Dot(chord) / chord.LengthSquared, 0d, 1d);
+                return (point - (start + (chord * fraction))).Length;
+            });
+            var supportFamilies = plan.Uses.Select(use =>
+            {
+                if (!body.TryGetFaceSurfaceGeometry(use.FaceId, out var surface) || surface is null) return "Unbound";
+                return surface.Kind.ToString();
+            }).Order(StringComparer.Ordinal).ToArray();
+            resolutions.Add(new ForeignTrimResolution(
+                plan.EdgeId,
+                CurveGeometryKind.BSpline3,
+                ForeignTrimResolutionKind.SampledBSpline,
+                plan,
+                supportFamilies,
+                "Line3",
+                maxLineDeviation,
+                policy.TargetChordalError,
+                maxLineDeviation <= policy.TargetChordalError
+                    ? "Line proximity passed position tolerance but exact tangent/span equivalence was not proven; retained as sampled source spline."
+                    : "Adjacent analytic supports did not imply a bounded supported curve family; strict direct line recognition failed, so the imported non-rational spline was sampled without mutating the B-rep."));
+        }
+        return resolutions;
     }
 
     private static bool TryPlanEdge(BrepBody body, EdgeId edgeId, SurfaceMeshPolicy policy, Dictionary<VertexId, SurfaceMeshVertex> endpointVertices, ref int nextVertexId, int? forcedSegments, out SharedEdgeSamplePlan plan)
@@ -345,6 +460,7 @@ public static class SurfaceMeshIrTessellator
         List<(double Parameter, Point3D Point)> sampled;
         bool closed;
         double chordError;
+        var tangentError = 0d;
         switch (curve.Kind)
         {
             case CurveGeometryKind.Line3 when curve.Line3 is { } line:
@@ -376,6 +492,14 @@ public static class SurfaceMeshIrTessellator
                 closed = false;
                 chordError = ComputePolylineChordDeviation(hyperbola.Evaluate, sampled);
                 break;
+            case CurveGeometryKind.BSpline3 when curve.BSpline3 is { } spline:
+                var splineSampling = BSplineTrimSampler.Sample(spline, interval, policy);
+                if (!splineSampling.IsSuccess) return false;
+                sampled = splineSampling.Samples.Select(sample => (sample.Parameter, sample.Point)).ToList();
+                closed = spline.ClosedCurve || (sampled[0].Point - sampled[^1].Point).Length <= policy.TargetChordalError;
+                chordError = splineSampling.MaxChordalDeviation;
+                tangentError = splineSampling.MaxTangentDeviationRadians;
+                break;
             default: return false;
         }
         if (!body.TryGetEdgeVertices(edgeId, out var startVertex, out var endVertex)) return false;
@@ -396,7 +520,7 @@ public static class SurfaceMeshIrTessellator
         var uses = body.Topology.Faces.OrderBy(f => f.Id.Value).SelectMany(face => body.GetLoopIds(face.Id).SelectMany(loop => body.GetCoedgeIds(loop)
             .Select(coedgeId => body.Topology.GetCoedge(coedgeId)).Where(c => c.EdgeId == edgeId)
             .Select(c => new FaceBoundaryUse(face.Id, loop, c.Id, c.IsReversed)))).ToArray();
-        plan = new SharedEdgeSamplePlan(edgeId, curve.Kind, interval, samples, uses, closed, chordError);
+        plan = new SharedEdgeSamplePlan(edgeId, curve.Kind, interval, samples, uses, closed, chordError, tangentError);
         return true;
     }
 
@@ -522,10 +646,22 @@ public static class SurfaceMeshIrTessellator
         if (inners.Length == 0)
         {
             var coedges = body.GetCoedgeIds(outer.LoopId).Select(body.Topology.GetCoedge).ToArray();
-            var cell = coedges.Length == 4 && coedges.All(c => plans[c.EdgeId].CurveKind == CurveGeometryKind.Line3) && outer.VertexIds.Count == 4
-                ? (SurfaceMeshCell)new QuadCell(Orient(outer.VertexIds, sameSense))
-                : new BoundaryPolygonCell(Orient(outer.VertexIds, sameSense));
-            return new SurfacePatch(faceId, new SurfaceMeshSupport(SurfaceMeshSupportKind.Plane, Plane: plane), loops, [cell], sameSense, TrimLoopData: annotatedLoops);
+            if (coedges.Length == 4 && coedges.All(c => plans[c.EdgeId].CurveKind == CurveGeometryKind.Line3) && outer.VertexIds.Count == 4)
+                return new SurfacePatch(faceId, new SurfaceMeshSupport(SurfaceMeshSupportKind.Plane, Plane: plane), loops,
+                    [new QuadCell(Orient(outer.VertexIds, sameSense))], sameSense, TrimLoopData: annotatedLoops);
+            if (IsConvex(outer.LocalCoordinates))
+                return new SurfacePatch(faceId, new SurfaceMeshSupport(SurfaceMeshSupportKind.Plane, Plane: plane), loops,
+                    [new BoundaryPolygonCell(Orient(outer.VertexIds, sameSense))], sameSense, TrimLoopData: annotatedLoops);
+            var flatBoundary = outer.LocalCoordinates.Select(value => new Point3D(value.U, value.V, 0d)).ToArray();
+            var idByPoint = flatBoundary.Select((point, index) => (point, index)).GroupBy(item => item.point)
+                .ToDictionary(group => group.Key, group => outer.VertexIds[group.First().index]);
+            if (!PlanarPolygonTriangulator.TryTriangulateWithHoles(flatBoundary, [], new Vector3D(0d, 0d, 1d), out var points, out var indices, out _)
+                || !points.All(idByPoint.ContainsKey)) return null;
+            var triangles = new List<SurfaceMeshCell>(indices.Count / 3);
+            for (var index = 0; index < indices.Count; index += 3)
+                triangles.Add(new TriangleCell(Orient([idByPoint[points[indices[index]]], idByPoint[points[indices[index + 1]]], idByPoint[points[indices[index + 2]]]], sameSense)));
+            var conforming = PreserveBoundaryVerticesInParameterSpace(triangles, annotatedLoops);
+            return new SurfacePatch(faceId, new SurfaceMeshSupport(SurfaceMeshSupportKind.Plane, Plane: plane), loops, conforming, sameSense, TrimLoopData: annotatedLoops);
         }
         // The rectangular annulus is retained as the economical all-quad path.
         // Other bounded planar holes (notably the HexBolt underside's hex/circle
@@ -548,7 +684,8 @@ public static class SurfaceMeshIrTessellator
                 var triangulatedCells = new List<SurfaceMeshCell>(indices.Count / 3);
                 for (var index = 0; index < indices.Count; index += 3)
                     triangulatedCells.Add(new TriangleCell(Orient([vertexByPosition[points[indices[index]]], vertexByPosition[points[indices[index + 1]]], vertexByPosition[points[indices[index + 2]]]], sameSense)));
-                return new SurfacePatch(faceId, new SurfaceMeshSupport(SurfaceMeshSupportKind.Plane, Plane: plane), loops, triangulatedCells, sameSense, TrimLoopData: annotatedLoops);
+                var conformingCells = PreserveBoundaryVerticesInParameterSpace(triangulatedCells, annotatedLoops);
+                return new SurfacePatch(faceId, new SurfaceMeshSupport(SurfaceMeshSupportKind.Plane, Plane: plane), loops, conformingCells, sameSense, TrimLoopData: annotatedLoops);
             }
             return null;
         }
@@ -584,7 +721,88 @@ public static class SurfaceMeshIrTessellator
         return new SurfacePatch(faceId, new SurfaceMeshSupport(SurfaceMeshSupportKind.Plane, Plane: plane), loops, cells, sameSense, MaxRefinementLevel: 1, TrimLoopData: annotatedLoops);
     }
 
-    private static SurfacePatch? TryBuildCylinderPatch(BrepBody body, FaceId faceId, bool sameSense, CylinderSurface cylinder, IReadOnlyDictionary<EdgeId, SharedEdgeSamplePlan> plans, List<SurfaceMeshVertex> vertices, ref int nextVertexId)
+    private static IReadOnlyList<SurfaceMeshCell> PreserveBoundaryVerticesInParameterSpace(
+        IReadOnlyList<SurfaceMeshCell> source,
+        IReadOnlyList<SurfaceMeshTrimLoop> loops)
+    {
+        var pending = new Queue<SurfaceMeshCell>(source);
+        var result = new List<SurfaceMeshCell>(source.Count);
+        while (pending.Count > 0)
+        {
+            var cell = pending.Dequeue();
+            if (cell is not TriangleCell triangle)
+            {
+                result.Add(cell);
+                continue;
+            }
+
+            var ids = triangle.VertexIds;
+            IReadOnlyList<int>? splitPath = null;
+            var splitEdge = -1;
+            for (var edge = 0; edge < 3 && splitPath is null; edge++)
+            {
+                splitPath = FindCollinearLoopPath(ids[edge], ids[(edge + 1) % 3], loops);
+                if (splitPath is not null) splitEdge = edge;
+            }
+            if (splitPath is null)
+            {
+                result.Add(cell);
+                continue;
+            }
+
+            var opposite = ids[(splitEdge + 2) % 3];
+            for (var index = 0; index + 1 < splitPath.Count; index++)
+                pending.Enqueue(new TriangleCell([splitPath[index], splitPath[index + 1], opposite], triangle.RefinementLevel, triangle.ParentCellId));
+        }
+        return result;
+    }
+
+    private static IReadOnlyList<int>? FindCollinearLoopPath(
+        int start,
+        int end,
+        IReadOnlyList<SurfaceMeshTrimLoop> loops)
+    {
+        foreach (var loop in loops)
+        {
+            var ids = loop.VertexIds;
+            var startIndex = Enumerable.Range(0, ids.Count).FirstOrDefault(index => ids[index] == start, -1);
+            var endIndex = Enumerable.Range(0, ids.Count).FirstOrDefault(index => ids[index] == end, -1);
+            if (startIndex < 0 || endIndex < 0) continue;
+            foreach (var direction in new[] { 1, -1 })
+            {
+                var path = new List<int> { start };
+                var index = startIndex;
+                while (path.Count <= ids.Count)
+                {
+                    index = (index + direction + ids.Count) % ids.Count;
+                    path.Add(ids[index]);
+                    if (index == endIndex) break;
+                }
+                if (path.Count <= 2 || path[^1] != end) continue;
+                var a = loop.LocalCoordinates[startIndex];
+                var b = loop.LocalCoordinates[endIndex];
+                var chordU = b.U - a.U;
+                var chordV = b.V - a.V;
+                var chordLengthSquared = (chordU * chordU) + (chordV * chordV);
+                if (chordLengthSquared <= Epsilon) continue;
+                var isOnSegment = path.Skip(1).SkipLast(1).All(id =>
+                {
+                    var localIndex = Enumerable.Range(0, ids.Count).First(index => ids[index] == id);
+                    var point = loop.LocalCoordinates[localIndex];
+                    var offsetU = point.U - a.U;
+                    var offsetV = point.V - a.V;
+                    var t = ((offsetU * chordU) + (offsetV * chordV)) / chordLengthSquared;
+                    var residualU = point.U - (a.U + (chordU * t));
+                    var residualV = point.V - (a.V + (chordV * t));
+                    return t > 0d && t < 1d && double.Sqrt((residualU * residualU) + (residualV * residualV)) <= 1e-8d;
+                });
+                if (isOnSegment) return path;
+            }
+        }
+        return null;
+    }
+
+    private static SurfacePatch? TryBuildCylinderPatch(BrepBody body, FaceId faceId, bool sameSense, CylinderSurface cylinder, IReadOnlyDictionary<EdgeId, SharedEdgeSamplePlan> plans, SurfaceMeshPolicy policy, List<SurfaceMeshVertex> vertices, ref int nextVertexId)
     {
         var bounded = TryBuildFourSidedCylinderPatch(body, faceId, sameSense, cylinder, plans, vertices, ref nextVertexId);
         if (bounded is not null) return bounded;
@@ -592,7 +810,10 @@ public static class SurfaceMeshIrTessellator
         if (loops.Count != 1) return null;
         var coedges = body.GetCoedgeIds(loops[0]).Select(body.Topology.GetCoedge).ToArray();
         var circles = coedges.Where(c => plans[c.EdgeId].CurveKind == CurveGeometryKind.Circle3).Select(c => plans[c.EdgeId]).ToArray();
-        if (circles.Length != 2 || circles[0].Samples.Count != circles[1].Samples.Count || !circles.All(p => p.IsClosed)) return null;
+        if (circles.Length != 2 || circles[0].Samples.Count != circles[1].Samples.Count || !circles.All(p => p.IsClosed))
+            return TryBuildSampledBoundaryBand(body, faceId, sameSense,
+                new SurfaceMeshSupport(SurfaceMeshSupportKind.Cylinder, Cylinder: cylinder), plans, policy,
+                point => TryProjectPointToCylinderUv(cylinder, point), vertices, ref nextVertexId);
         var rings = circles.Select(p => p.Samples.Take(p.Samples.Count - 1).ToArray()).ToArray();
         if (rings[0].Length < 3) return null;
         var v0 = (rings[0][0].Position - cylinder.Origin).Dot(cylinder.Axis.ToVector());
@@ -608,10 +829,12 @@ public static class SurfaceMeshIrTessellator
         return new SurfacePatch(faceId, new SurfaceMeshSupport(SurfaceMeshSupportKind.Cylinder, Cylinder: cylinder), loops, cells, sameSense, HasPeriodicUSeam: true);
     }
 
-    private static SurfacePatch? TryBuildConePatch(BrepBody body, FaceId faceId, bool sameSense, ConeSurface cone, IReadOnlyDictionary<EdgeId, SharedEdgeSamplePlan> plans, List<SurfaceMeshVertex> vertices, ref int nextVertexId)
+    private static SurfacePatch? TryBuildConePatch(BrepBody body, FaceId faceId, bool sameSense, ConeSurface cone, IReadOnlyDictionary<EdgeId, SharedEdgeSamplePlan> plans, SurfaceMeshPolicy policy, List<SurfaceMeshVertex> vertices, ref int nextVertexId)
     {
         var bounded = TryBuildFourSidedConePatch(body, faceId, sameSense, cone, plans, vertices, ref nextVertexId);
         if (bounded is not null) return bounded;
+        var apexPatch = TryBuildConeApexPatch(body, faceId, sameSense, cone, plans, vertices, ref nextVertexId);
+        if (apexPatch is not null) return apexPatch;
         var loops = body.GetLoopIds(faceId);
         var circles = loops
             .SelectMany(loop => body.GetCoedgeIds(loop).Select(body.Topology.GetCoedge))
@@ -621,7 +844,9 @@ public static class SurfaceMeshIrTessellator
             .ToArray();
         if (circles.Length != 2 || circles[0].Samples.Count != circles[1].Samples.Count)
         {
-            return null;
+            return TryBuildSampledBoundaryBand(body, faceId, sameSense,
+                new SurfaceMeshSupport(SurfaceMeshSupportKind.Cone, Cone: cone), plans, policy,
+                point => TryProjectPointToConeUv(cone, point), vertices, ref nextVertexId);
         }
 
         var rings = circles.Select(plan => plan.Samples.Take(plan.Samples.Count - 1).ToArray()).ToArray();
@@ -655,27 +880,331 @@ public static class SurfaceMeshIrTessellator
             HasPeriodicUSeam: true);
     }
 
+    private static SurfacePatch? TryBuildConeApexPatch(
+        BrepBody body,
+        FaceId faceId,
+        bool sameSense,
+        ConeSurface cone,
+        IReadOnlyDictionary<EdgeId, SharedEdgeSamplePlan> plans,
+        List<SurfaceMeshVertex> vertices,
+        ref int nextVertexId)
+    {
+        var loops = body.GetLoopIds(faceId);
+        if (loops.Count != 1) return null;
+        var coedges = body.GetCoedgeIds(loops[0]).Select(body.Topology.GetCoedge).ToArray();
+        if (coedges.Length != 3) return null;
+        var edgePlans = coedges.Select(coedge => plans[coedge.EdgeId]).ToArray();
+        if (edgePlans.Count(plan => plan.CurveKind == CurveGeometryKind.Circle3) != 1
+            || edgePlans.Count(plan => plan.CurveKind == CurveGeometryKind.Line3) != 2)
+            return null;
+
+        var boundary = FlattenLoop(coedges, plans).ToArray();
+        var vertexById = vertices.ToDictionary(vertex => vertex.Id);
+        var apexIndex = Array.FindIndex(boundary,
+            id => (vertexById[id].Position - cone.Apex).Length <= Epsilon);
+        if (apexIndex < 0) return null;
+        var ordered = Enumerable.Range(0, boundary.Length)
+            .Select(offset => boundary[(apexIndex + offset) % boundary.Length])
+            .ToArray();
+        var projected = ordered.Skip(1)
+            .Select(id => TryProjectPointToConeUv(cone, vertexById[id].Position))
+            .ToArray();
+        if (projected.Any(value => value is null)) return null;
+        var chainUv = UnwrapPeriodicU(projected.Select(value => value!.Value).ToArray());
+        var apexV = cone.AxialParameterFromPoint(cone.Apex);
+        var uv = new (double U, double V)[ordered.Length];
+        uv[0] = ((chainUv[0].U + chainUv[^1].U) * 0.5d, apexV);
+        for (var index = 1; index < uv.Length; index++) uv[index] = chainUv[index - 1];
+        if (double.Abs(SignedArea(uv)) <= Epsilon) return null;
+
+        var center = (U: uv.Average(value => value.U), V: uv.Average(value => value.V));
+        const double boundaryBandFraction = 0.18d;
+        var innerIds = new int[ordered.Length];
+        for (var index = 0; index < ordered.Length; index++)
+        {
+            var innerUv = (
+                U: uv[index].U + ((center.U - uv[index].U) * boundaryBandFraction),
+                V: uv[index].V + ((center.V - uv[index].V) * boundaryBandFraction));
+            innerIds[index] = nextVertexId++;
+            vertices.Add(new SurfaceMeshVertex(innerIds[index], cone.Evaluate(innerUv.U, innerUv.V), innerUv.U, innerUv.V));
+        }
+
+        var cells = new List<SurfaceMeshCell>((ordered.Length * 2) + 1);
+        for (var index = 0; index < ordered.Length; index++)
+        {
+            var next = (index + 1) % ordered.Length;
+            cells.Add(new QuadCell(Orient([ordered[index], ordered[next], innerIds[next], innerIds[index]], sameSense), 1));
+        }
+        var centerId = nextVertexId++;
+        vertices.Add(new SurfaceMeshVertex(centerId, cone.Evaluate(center.U, center.V), center.U, center.V));
+        for (var index = 0; index < innerIds.Length; index++)
+            cells.Add(new TriangleCell(Orient([centerId, innerIds[index], innerIds[(index + 1) % innerIds.Length]], sameSense), 1));
+
+        return new SurfacePatch(
+            faceId,
+            new SurfaceMeshSupport(SurfaceMeshSupportKind.Cone, Cone: cone),
+            loops,
+            cells,
+            sameSense,
+            MaxRefinementLevel: 1,
+            HasPeriodicUSeam: false,
+            TrimLoopData: [new SurfaceMeshTrimLoop(loops[0], ordered, uv, false, SignedArea(uv))]);
+    }
+
+    private static SurfacePatch? TryBuildSampledBoundaryBand(
+        BrepBody body,
+        FaceId faceId,
+        bool sameSense,
+        SurfaceMeshSupport support,
+        IReadOnlyDictionary<EdgeId, SharedEdgeSamplePlan> plans,
+        SurfaceMeshPolicy policy,
+        Func<Point3D, (double U, double V)?> project,
+        List<SurfaceMeshVertex> vertices,
+        ref int nextVertexId)
+    {
+        var loops = body.GetLoopIds(faceId);
+        if (loops.Count != 1) return null;
+        var coedges = body.GetCoedgeIds(loops[0]).Select(body.Topology.GetCoedge).ToArray();
+        if (coedges.Length < 3) return null;
+        var outerIds = FlattenLoop(coedges, plans).ToArray();
+        if (outerIds.Length < 3) return null;
+        var vertexById = plans.SelectMany(plan => plan.Value.Samples).DistinctBy(vertex => vertex.Id).ToDictionary(vertex => vertex.Id);
+        var rawUv = outerIds.Select(id => project(vertexById[id].Position)).ToArray();
+        if (rawUv.Any(uv => uv is null)) return null;
+        var uv = UnwrapPeriodicU(rawUv.Select(value => value!.Value).ToArray());
+        for (var index = 0; index < outerIds.Length; index++)
+        {
+            var reconstructed = support.Kind switch
+            {
+                SurfaceMeshSupportKind.Cylinder when support.Cylinder is { } supportCylinder => supportCylinder.Evaluate(uv[index].U, uv[index].V),
+                SurfaceMeshSupportKind.Cone when support.Cone is { } cone => cone.Evaluate(uv[index].U, uv[index].V),
+                _ => throw new InvalidOperationException("Sampled boundary triangulation requires an evaluable analytic support.")
+            };
+            if ((reconstructed - vertexById[outerIds[index]].Position).Length > policy.TargetChordalError) return null;
+        }
+        if (double.Abs(SignedArea(uv)) <= Epsilon) return null;
+        var trimLoop = new SurfaceMeshTrimLoop(loops[0], outerIds, uv, false, SignedArea(uv));
+        if (support.Cylinder is { } cylinder
+            && TryBuildMonotoneCylinderStrip(faceId, sameSense, support, loops, trimLoop, cylinder, vertices, ref nextVertexId, out var structured))
+            return structured;
+        var flatBoundary = uv.Select(value => new Point3D(value.U, value.V, 0d)).ToArray();
+        var idByFlatPoint = flatBoundary.Select((point, index) => (point, index))
+            .GroupBy(item => item.point)
+            .ToDictionary(group => group.Key, group => outerIds[group.First().index]);
+        if (!PlanarPolygonTriangulator.TryTriangulateWithHoles(flatBoundary, [], new Vector3D(0d, 0d, 1d), out var flatPoints, out var triangleIndices, out _)
+            || !flatPoints.All(idByFlatPoint.ContainsKey)) return null;
+        var triangulated = new List<SurfaceMeshCell>(triangleIndices.Count / 3);
+        for (var index = 0; index < triangleIndices.Count; index += 3)
+            triangulated.Add(new TriangleCell(Orient([
+                idByFlatPoint[flatPoints[triangleIndices[index]]],
+                idByFlatPoint[flatPoints[triangleIndices[index + 1]]],
+                idByFlatPoint[flatPoints[triangleIndices[index + 2]]]], sameSense), 1));
+        var cells = PreserveBoundaryVerticesInParameterSpace(triangulated, [trimLoop]);
+        return new SurfacePatch(faceId, support, loops, cells, sameSense, MaxRefinementLevel: 1, TrimLoopData: [trimLoop]);
+    }
+
+    private static bool TryBuildMonotoneCylinderStrip(
+        FaceId faceId,
+        bool sameSense,
+        SurfaceMeshSupport support,
+        IReadOnlyList<LoopId> loops,
+        SurfaceMeshTrimLoop trimLoop,
+        CylinderSurface cylinder,
+        List<SurfaceMeshVertex> vertices,
+        ref int nextVertexId,
+        out SurfacePatch patch)
+    {
+        patch = default!;
+        var ids = trimLoop.VertexIds;
+        var uv = trimLoop.LocalCoordinates;
+        var minU = uv.Min(point => point.U);
+        var maxU = uv.Max(point => point.U);
+        var spanU = maxU - minU;
+        if (spanU <= Epsilon) return false;
+        var uTolerance = double.Max(Epsilon, spanU * 1e-8d);
+        var leftIndices = Enumerable.Range(0, uv.Count).Where(index => double.Abs(uv[index].U - minU) <= uTolerance).ToArray();
+        var rightIndices = Enumerable.Range(0, uv.Count).Where(index => double.Abs(uv[index].U - maxU) <= uTolerance).ToArray();
+        if (leftIndices.Length < 2 || rightIndices.Length < 2) return false;
+        var lowerLeft = leftIndices.MinBy(index => uv[index].V);
+        var upperLeft = leftIndices.MaxBy(index => uv[index].V);
+        var lowerRight = rightIndices.MinBy(index => uv[index].V);
+        var upperRight = rightIndices.MaxBy(index => uv[index].V);
+        var lower = SelectLowerPath(ids, uv, lowerLeft, lowerRight);
+        var upper = SelectUpperPath(ids, uv, upperLeft, upperRight);
+        if (lower is null || upper is null) return false;
+        var leftSide = leftIndices.OrderBy(index => uv[index].V).Select(index => (Id: ids[index], Uv: uv[index])).ToArray();
+        var rightSide = rightIndices.OrderBy(index => uv[index].V).Select(index => (Id: ids[index], Uv: uv[index])).ToArray();
+        if (leftSide.Length != rightSide.Length || leftSide.Length < 2) return false;
+        for (var row = 0; row < leftSide.Length; row++)
+        {
+            var leftFraction = (leftSide[row].Uv.V - leftSide[0].Uv.V) / (leftSide[^1].Uv.V - leftSide[0].Uv.V);
+            var rightFraction = (rightSide[row].Uv.V - rightSide[0].Uv.V) / (rightSide[^1].Uv.V - rightSide[0].Uv.V);
+            if (double.Abs(leftFraction - rightFraction) > 1e-7d) return false;
+        }
+
+        var progress = lower.Select(item => NormalizeProgress(item.Uv.U, minU, spanU))
+            .Concat(upper.Select(item => NormalizeProgress(item.Uv.U, minU, spanU)))
+            .Append(0d).Append(1d)
+            .Order().Aggregate(new List<double>(), (result, value) =>
+            {
+                if (result.Count == 0 || double.Abs(result[^1] - value) > 1e-10d) result.Add(value);
+                return result;
+            });
+        var rows = new List<StripRow>(leftSide.Length) { new(lower.Select(item => item.Id).ToArray(), lower.Select(item => NormalizeProgress(item.Uv.U, minU, spanU)).ToArray()) };
+        for (var row = 1; row + 1 < leftSide.Length; row++)
+        {
+            var fraction = (leftSide[row].Uv.V - leftSide[0].Uv.V) / (leftSide[^1].Uv.V - leftSide[0].Uv.V);
+            var rowIds = new int[progress.Count];
+            for (var column = 0; column < progress.Count; column++)
+            {
+                if (column == 0) rowIds[column] = leftSide[row].Id;
+                else if (column == progress.Count - 1) rowIds[column] = rightSide[row].Id;
+                else
+                {
+                    var u = minU + (spanU * progress[column]);
+                    var lowerV = InterpolateStripV(lower, u);
+                    var upperV = InterpolateStripV(upper, u);
+                    var v = lowerV + ((upperV - lowerV) * fraction);
+                    rowIds[column] = nextVertexId++;
+                    vertices.Add(new SurfaceMeshVertex(rowIds[column], cylinder.Evaluate(u, v), u, v));
+                }
+            }
+            rows.Add(new StripRow(rowIds, progress));
+        }
+        rows.Add(new StripRow(upper.Select(item => item.Id).ToArray(), upper.Select(item => NormalizeProgress(item.Uv.U, minU, spanU)).ToArray()));
+
+        var cells = new List<SurfaceMeshCell>();
+        for (var row = 0; row + 1 < rows.Count; row++)
+            ConnectStripRows(rows[row], rows[row + 1], sameSense, cells);
+        patch = new SurfacePatch(faceId, support, loops, cells, sameSense, MaxRefinementLevel: 1, TrimLoopData: [trimLoop]);
+        return true;
+    }
+
+    private sealed record StripRow(IReadOnlyList<int> Ids, IReadOnlyList<double> Progress);
+
+    private static IReadOnlyList<(int Id, (double U, double V) Uv)>? SelectLowerPath(
+        IReadOnlyList<int> ids, IReadOnlyList<(double U, double V)> uv, int start, int end)
+        => SelectMonotonePath(ids, uv, start, end, chooseLower: true);
+
+    private static IReadOnlyList<(int Id, (double U, double V) Uv)>? SelectUpperPath(
+        IReadOnlyList<int> ids, IReadOnlyList<(double U, double V)> uv, int start, int end)
+        => SelectMonotonePath(ids, uv, start, end, chooseLower: false);
+
+    private static IReadOnlyList<(int Id, (double U, double V) Uv)>? SelectMonotonePath(
+        IReadOnlyList<int> ids, IReadOnlyList<(double U, double V)> uv, int start, int end, bool chooseLower)
+    {
+        var candidates = new List<IReadOnlyList<(int Id, (double U, double V) Uv)>>();
+        foreach (var direction in new[] { 1, -1 })
+        {
+            var path = new List<(int Id, (double U, double V) Uv)> { (ids[start], uv[start]) };
+            var index = start;
+            while (path.Count <= ids.Count)
+            {
+                index = (index + direction + ids.Count) % ids.Count;
+                path.Add((ids[index], uv[index]));
+                if (index == end) break;
+            }
+            if (path[^1].Id != ids[end]) continue;
+            if (path[0].Uv.U > path[^1].Uv.U) path.Reverse();
+            if (path.Zip(path.Skip(1), (a, b) => b.Uv.U + 1e-9d >= a.Uv.U).All(value => value)) candidates.Add(path);
+        }
+        if (candidates.Count == 0) return null;
+        return chooseLower
+            ? candidates.OrderBy(path => path.Average(item => item.Uv.V)).First()
+            : candidates.OrderByDescending(path => path.Average(item => item.Uv.V)).First();
+    }
+
+    private static double NormalizeProgress(double u, double minU, double spanU)
+        => double.Clamp((u - minU) / spanU, 0d, 1d);
+
+    private static double InterpolateStripV(IReadOnlyList<(int Id, (double U, double V) Uv)> chain, double u)
+    {
+        for (var index = 0; index + 1 < chain.Count; index++)
+        {
+            var a = chain[index].Uv;
+            var b = chain[index + 1].Uv;
+            if (u < a.U - Epsilon || u > b.U + Epsilon) continue;
+            if (double.Abs(b.U - a.U) <= Epsilon) return (a.V + b.V) * 0.5d;
+            var fraction = (u - a.U) / (b.U - a.U);
+            return a.V + ((b.V - a.V) * fraction);
+        }
+        return u <= chain[0].Uv.U ? chain[0].Uv.V : chain[^1].Uv.V;
+    }
+
+    private static void ConnectStripRows(StripRow lower, StripRow upper, bool sameSense, ICollection<SurfaceMeshCell> cells)
+    {
+        var lowerIndex = 0;
+        var upperIndex = 0;
+        while (lowerIndex + 1 < lower.Ids.Count || upperIndex + 1 < upper.Ids.Count)
+        {
+            var nextLower = lowerIndex + 1 < lower.Progress.Count ? lower.Progress[lowerIndex + 1] : double.PositiveInfinity;
+            var nextUpper = upperIndex + 1 < upper.Progress.Count ? upper.Progress[upperIndex + 1] : double.PositiveInfinity;
+            if (double.Abs(nextLower - nextUpper) <= 1e-10d)
+            {
+                var oldLower = lowerIndex++;
+                var oldUpper = upperIndex++;
+                cells.Add(new QuadCell(Orient([lower.Ids[oldLower], lower.Ids[lowerIndex], upper.Ids[upperIndex], upper.Ids[oldUpper]], sameSense), 1));
+            }
+            else if (nextLower < nextUpper)
+            {
+                var oldLower = lowerIndex++;
+                cells.Add(new TriangleCell(Orient([lower.Ids[oldLower], lower.Ids[lowerIndex], upper.Ids[upperIndex]], sameSense), 1));
+            }
+            else
+            {
+                var oldUpper = upperIndex++;
+                cells.Add(new TriangleCell(Orient([lower.Ids[lowerIndex], upper.Ids[upperIndex], upper.Ids[oldUpper]], sameSense), 1));
+            }
+        }
+    }
+
+    private static IReadOnlyList<(double U, double V)> UnwrapPeriodicU(IReadOnlyList<(double U, double V)> values)
+    {
+        if (values.Count == 0) return [];
+        var result = new (double U, double V)[values.Count];
+        result[0] = values[0];
+        for (var index = 1; index < values.Count; index++)
+        {
+            var u = values[index].U;
+            while (u - result[index - 1].U > double.Pi) u -= 2d * double.Pi;
+            while (u - result[index - 1].U < -double.Pi) u += 2d * double.Pi;
+            result[index] = (u, values[index].V);
+        }
+        return result;
+    }
+
     private static SurfacePatch? TryBuildFourSidedCylinderPatch(BrepBody body, FaceId faceId, bool sameSense, CylinderSurface cylinder, IReadOnlyDictionary<EdgeId, SharedEdgeSamplePlan> plans, List<SurfaceMeshVertex> vertices, ref int nextVertexId)
     {
-        if (!TryGetFourSidedBoundary(body, faceId, plans, out var boundary)) return null;
-        if (boundary.TopKind != CurveGeometryKind.Circle3 || boundary.BottomKind != CurveGeometryKind.Circle3 ||
-            boundary.LeftKind != CurveGeometryKind.Line3 || boundary.RightKind != CurveGeometryKind.Line3) return null;
-        return BuildFourSidedPatch(faceId, sameSense, new SurfaceMeshSupport(SurfaceMeshSupportKind.Cylinder, Cylinder: cylinder), body.GetLoopIds(faceId), boundary,
-            point => TryProjectPointToCylinderUv(cylinder, point),
-            (u, v) => cylinder.Evaluate(u, v), vertices, ref nextVertexId,
-            hasPeriodicUSeam: false);
+        for (var offset = 0; offset < 4; offset++)
+        {
+            if (!TryGetFourSidedBoundary(body, faceId, plans, out var boundary, offset)) continue;
+            if (boundary.TopKind is not (CurveGeometryKind.Circle3 or CurveGeometryKind.BSpline3)
+                || boundary.BottomKind is not (CurveGeometryKind.Circle3 or CurveGeometryKind.BSpline3)
+                || boundary.LeftKind != CurveGeometryKind.Line3 || boundary.RightKind != CurveGeometryKind.Line3) continue;
+            var patch = BuildFourSidedPatch(faceId, sameSense, new SurfaceMeshSupport(SurfaceMeshSupportKind.Cylinder, Cylinder: cylinder), body.GetLoopIds(faceId), boundary,
+                point => TryProjectPointToCylinderUv(cylinder, point),
+                (u, v) => cylinder.Evaluate(u, v), vertices, ref nextVertexId,
+                hasPeriodicUSeam: false);
+            if (patch is not null) return patch;
+        }
+        return null;
     }
 
     private static SurfacePatch? TryBuildFourSidedConePatch(BrepBody body, FaceId faceId, bool sameSense, ConeSurface cone, IReadOnlyDictionary<EdgeId, SharedEdgeSamplePlan> plans, List<SurfaceMeshVertex> vertices, ref int nextVertexId)
     {
-        if (!TryGetFourSidedBoundary(body, faceId, plans, out var boundary)) return null;
-        if (boundary.TopKind != CurveGeometryKind.Circle3 ||
-            boundary.BottomKind is not (CurveGeometryKind.Circle3 or CurveGeometryKind.Hyperbola3) ||
-            boundary.LeftKind != CurveGeometryKind.Line3 || boundary.RightKind != CurveGeometryKind.Line3) return null;
-        return BuildFourSidedPatch(faceId, sameSense, new SurfaceMeshSupport(SurfaceMeshSupportKind.Cone, Cone: cone), body.GetLoopIds(faceId), boundary,
-            point => TryProjectPointToConeUv(cone, point),
-            (u, v) => cone.Evaluate(u, v), vertices, ref nextVertexId,
-            hasPeriodicUSeam: false);
+        for (var offset = 0; offset < 4; offset++)
+        {
+            if (!TryGetFourSidedBoundary(body, faceId, plans, out var boundary, offset)) continue;
+            if (boundary.TopKind is not (CurveGeometryKind.Circle3 or CurveGeometryKind.BSpline3)
+                || boundary.BottomKind is not (CurveGeometryKind.Circle3 or CurveGeometryKind.Hyperbola3 or CurveGeometryKind.BSpline3)
+                || boundary.LeftKind != CurveGeometryKind.Line3 || boundary.RightKind != CurveGeometryKind.Line3) continue;
+            var patch = BuildFourSidedPatch(faceId, sameSense, new SurfaceMeshSupport(SurfaceMeshSupportKind.Cone, Cone: cone), body.GetLoopIds(faceId), boundary,
+                point => TryProjectPointToConeUv(cone, point),
+                (u, v) => cone.Evaluate(u, v), vertices, ref nextVertexId,
+                hasPeriodicUSeam: false);
+            if (patch is not null) return patch;
+        }
+        return null;
     }
 
     private sealed record FourSidedBoundary(
@@ -688,12 +1217,15 @@ public static class SurfaceMeshIrTessellator
         public CurveGeometryKind RightKind => RightPlan.CurveKind;
     }
 
-    private static bool TryGetFourSidedBoundary(BrepBody body, FaceId faceId, IReadOnlyDictionary<EdgeId, SharedEdgeSamplePlan> plans, out FourSidedBoundary boundary)
+    private static bool TryGetFourSidedBoundary(BrepBody body, FaceId faceId, IReadOnlyDictionary<EdgeId, SharedEdgeSamplePlan> plans, out FourSidedBoundary boundary, int startOffset = 0)
     {
         boundary = default!;
         var loops = body.GetLoopIds(faceId);
         if (loops.Count != 1) return false;
-        var coedges = body.GetCoedgeIds(loops[0]).Select(body.Topology.GetCoedge).ToArray();
+        var sourceCoedges = body.GetCoedgeIds(loops[0]).Select(body.Topology.GetCoedge).ToArray();
+        var coedges = sourceCoedges.Length == 4
+            ? Enumerable.Range(0, 4).Select(index => sourceCoedges[(index + startOffset) % 4]).ToArray()
+            : sourceCoedges;
         if (coedges.Length != 4 || coedges.Any(coedge => plans[coedge.EdgeId].IsClosed)) return false;
         IReadOnlyList<SurfaceMeshVertex> Samples(Coedge coedge)
         {
@@ -1052,6 +1584,7 @@ public static class SurfaceMeshIrTessellator
         var outerIds = EnsureCounterClockwise(outer.VertexIds, outer.LocalCoordinates).ToArray();
         var innerIds = EnsureCounterClockwise(inner.VertexIds, inner.LocalCoordinates).ToArray();
         if (outerIds.Length < 3 || innerIds.Length < 3) return null;
+        innerIds = AlignUnequalRingInParameterSpace(outer, inner, outerIds, innerIds);
         var cells = new List<SurfaceMeshCell>(outerIds.Length + innerIds.Length);
         var outerIndex = 0; var innerIndex = 0;
         while (outerIndex < outerIds.Length || innerIndex < innerIds.Length)
@@ -1077,6 +1610,39 @@ public static class SurfaceMeshIrTessellator
             }
         }
         return cells;
+    }
+
+    private static int[] AlignUnequalRingInParameterSpace(
+        SurfaceMeshTrimLoop outer,
+        SurfaceMeshTrimLoop inner,
+        IReadOnlyList<int> outerIds,
+        IReadOnlyList<int> innerIds)
+    {
+        var outerLocal = outer.VertexIds.Select((id, index) => (id, local: outer.LocalCoordinates[index]))
+            .ToDictionary(item => item.id, item => item.local);
+        var innerLocal = inner.VertexIds.Select((id, index) => (id, local: inner.LocalCoordinates[index]))
+            .ToDictionary(item => item.id, item => item.local);
+        var bestShift = 0;
+        var bestCost = double.PositiveInfinity;
+        for (var shift = 0; shift < innerIds.Count; shift++)
+        {
+            var cost = 0d;
+            for (var outerIndex = 0; outerIndex < outerIds.Count; outerIndex++)
+            {
+                var innerIndex = (int)double.Floor((double)outerIndex * innerIds.Count / outerIds.Count);
+                var a = outerLocal[outerIds[outerIndex]];
+                var b = innerLocal[innerIds[(innerIndex + shift) % innerIds.Count]];
+                var du = a.U - b.U;
+                var dv = a.V - b.V;
+                cost += (du * du) + (dv * dv);
+            }
+            if (cost < bestCost - Epsilon)
+            {
+                bestCost = cost;
+                bestShift = shift;
+            }
+        }
+        return Enumerable.Range(0, innerIds.Count).Select(index => innerIds[(index + bestShift) % innerIds.Count]).ToArray();
     }
 
     private static bool IsConvex(IReadOnlyList<(double U, double V)> points)

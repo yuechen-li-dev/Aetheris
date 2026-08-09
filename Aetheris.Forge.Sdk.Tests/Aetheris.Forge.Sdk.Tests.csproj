@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Aetheris.Forge.Sdk\Aetheris.Forge.Sdk.csproj" />
+    <ProjectReference Include="..\Aetheris.Forge.SampleExtension\Aetheris.Forge.SampleExtension.csproj" />
+    <ProjectReference Include="..\Aetheris.Forge.SampleExtension.Bindings\Aetheris.Forge.SampleExtension.Bindings.csproj" />
+    <ProjectReference Include="..\Aetheris.Forge.Testing\Aetheris.Forge.Testing.csproj" />
+  </ItemGroup>
+</Project>

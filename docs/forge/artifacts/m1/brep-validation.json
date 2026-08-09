@@ -1,0 +1,9 @@
+{
+  "bindingValidation": "passed",
+  "stepExport": "passed",
+  "stepReimport": "passed",
+  "vertices": 8,
+  "edges": 12,
+  "faces": 6,
+  "shells": 1
+}

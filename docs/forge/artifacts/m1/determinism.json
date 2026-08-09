@@ -1,0 +1,18 @@
+{
+  "repeatedRuns": 2,
+  "sameArtifactHash": true,
+  "sameStepText": true,
+  "artifactHash": "7282965B703FEB85478AC8B651B6F6255D3BC922D3B2A7EBE73726C611CB4D36",
+  "capability": {
+    "CapabilityId": "MyCompany.SecretGeometry.SecretCoupon",
+    "CapabilityVersion": "1.0.0",
+    "ExtensionId": "MyCompany.SecretGeometry",
+    "ExtensionVersion": "1.0.0",
+    "OutputClassification": "ConstructionIr",
+    "LoweringTargets": [
+      "ConstructionIr",
+      "Brep",
+      "Cir"
+    ]
+  }
+}

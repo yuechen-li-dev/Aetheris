@@ -1,0 +1,17 @@
+[
+  {
+    "ModuleName": "SecretGeometry",
+    "Name": "SecretCoupon",
+    "TargetKind": "Struct",
+    "Parameters": [
+      {
+        "Name": "Spec",
+        "TypeName": "SecretCouponSpec",
+        "IsTypeParameter": false,
+        "DefaultValue": null,
+        "ConstraintConcept": null
+      }
+    ],
+    "GeneratedBindingName": "SecretCoupon"
+  }
+]

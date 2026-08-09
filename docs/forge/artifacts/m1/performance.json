@@ -1,0 +1,18 @@
+{
+  "units": "milliseconds",
+  "first": {
+    "registration": 4.5488,
+    "capabilityResolution": 0.0795,
+    "templateInvocation": 37.5553,
+    "extensionLowering": 6.6124,
+    "compilerAndValidation": 201.7962
+  },
+  "warm": {
+    "registration": 4.5488,
+    "capabilityResolution": 0.0017,
+    "templateInvocation": 0.4954,
+    "extensionLowering": 0.0333,
+    "compilerAndValidation": 1.2135
+  },
+  "note": "Developer-machine wall-clock evidence; not a benchmark or release gate."
+}

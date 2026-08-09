@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Aetheris.Forge.Sdk\Aetheris.Forge.Sdk.csproj" />
+    <ProjectReference Include="..\Aetheris.Forge.SampleExtension\Aetheris.Forge.SampleExtension.csproj" />
+  </ItemGroup>
+</Project>

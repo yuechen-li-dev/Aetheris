@@ -63,6 +63,24 @@ public static class FirmamentBuildAndExport
                 export));
     }
 
+    /// <summary>
+    /// Compiles an already-resolved in-memory module through the same materialization and
+    /// validation path as file builds. Forge uses this after typed Template specialization.
+    /// </summary>
+    public static KernelResult<FirmamentStepExportResult> CompileSource(
+        string sourceText,
+        string? sourceDirectory = null)
+    {
+        ArgumentNullException.ThrowIfNull(sourceText);
+        var normalized = NormalizeLf(sourceText);
+        var export = ExportSource(normalized, sourceDirectory);
+        if (!export.IsSuccess) return export;
+        var assertions = EvaluateVolumeAssertions(normalized, sourceDirectory, export.Value);
+        return assertions.IsSuccess
+            ? KernelResult<FirmamentStepExportResult>.Success(export.Value with { Assertions = assertions.Value }, export.Diagnostics)
+            : KernelResult<FirmamentStepExportResult>.Failure(assertions.Diagnostics);
+    }
+
     private static KernelResult<IReadOnlyList<FirmamentV2VolumeAssertionResult>> EvaluateVolumeAssertions(string source, string? sourceDirectory, FirmamentStepExportResult export)
     {
         var parsed = FirmamentV2Parser.Parse(source, sourceDirectory);

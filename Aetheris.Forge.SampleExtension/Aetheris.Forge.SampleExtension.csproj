@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Aetheris.Forge\Aetheris.Forge.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Templates\SecretGeometry.firmament" Pack="true" PackagePath="contentFiles\any\any\Templates" />
+  </ItemGroup>
+</Project>

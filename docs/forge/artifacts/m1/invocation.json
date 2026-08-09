@@ -1,0 +1,20 @@
+{
+  "module": "SecretGeometry",
+  "template": "SecretCoupon",
+  "instance": "PrivateCoupon",
+  "generatedBinding": "ForgeTemplates.SecretCoupon(module, new SecretCouponSpec(24, 16, 6))",
+  "parameters": {
+    "Spec": {
+      "type": "SecretCouponSpec",
+      "Width": "24mm",
+      "Depth": "16mm",
+      "Height": "6mm"
+    }
+  },
+  "targets": [
+    "Brep",
+    "Cir"
+  ],
+  "success": true,
+  "diagnostics": []
+}

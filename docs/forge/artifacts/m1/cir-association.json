@@ -1,0 +1,392 @@
+{
+  "Association": {
+    "ContinuumRegionId": {
+      "Value": "SecretBody:cir"
+    },
+    "BrepBodyId": "SecretBody",
+    "OuterShellId": "1",
+    "SemanticModelId": "SecretBody",
+    "ConstructionSourceIdentity": "MyCompany.SecretGeometry.SecretCoupon@1.0.0:24x16x6"
+  },
+  "Consistency": {
+    "Passed": true,
+    "Probes": [
+      {
+        "Kind": "face",
+        "EntityId": "1",
+        "Point": {
+          "X": -12,
+          "Y": -8,
+          "Z": -3
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "face",
+        "EntityId": "2",
+        "Point": {
+          "X": -12,
+          "Y": 8,
+          "Z": 3
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "face",
+        "EntityId": "3",
+        "Point": {
+          "X": -12,
+          "Y": -8,
+          "Z": -3
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "face",
+        "EntityId": "4",
+        "Point": {
+          "X": 12,
+          "Y": -8,
+          "Z": -3
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "face",
+        "EntityId": "5",
+        "Point": {
+          "X": 12,
+          "Y": 8,
+          "Z": -3
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "face",
+        "EntityId": "6",
+        "Point": {
+          "X": -12,
+          "Y": 8,
+          "Z": -3
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "edge",
+        "EntityId": "1",
+        "Point": {
+          "X": 0,
+          "Y": -8,
+          "Z": -3
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "edge",
+        "EntityId": "2",
+        "Point": {
+          "X": 0,
+          "Y": -8,
+          "Z": 3
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "edge",
+        "EntityId": "3",
+        "Point": {
+          "X": -12,
+          "Y": -8,
+          "Z": 0
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "edge",
+        "EntityId": "4",
+        "Point": {
+          "X": 12,
+          "Y": 0,
+          "Z": -3
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "edge",
+        "EntityId": "5",
+        "Point": {
+          "X": 12,
+          "Y": 0,
+          "Z": 3
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "edge",
+        "EntityId": "6",
+        "Point": {
+          "X": 12,
+          "Y": -8,
+          "Z": 0
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "edge",
+        "EntityId": "7",
+        "Point": {
+          "X": 0,
+          "Y": 8,
+          "Z": -3
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "edge",
+        "EntityId": "8",
+        "Point": {
+          "X": 0,
+          "Y": 8,
+          "Z": 3
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "edge",
+        "EntityId": "9",
+        "Point": {
+          "X": 12,
+          "Y": 8,
+          "Z": 0
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "edge",
+        "EntityId": "10",
+        "Point": {
+          "X": -12,
+          "Y": 0,
+          "Z": -3
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "edge",
+        "EntityId": "11",
+        "Point": {
+          "X": -12,
+          "Y": 0,
+          "Z": 3
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "edge",
+        "EntityId": "12",
+        "Point": {
+          "X": -12,
+          "Y": 8,
+          "Z": 0
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "vertex",
+        "EntityId": "1",
+        "Point": {
+          "X": -12,
+          "Y": -8,
+          "Z": -3
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "vertex",
+        "EntityId": "2",
+        "Point": {
+          "X": 12,
+          "Y": -8,
+          "Z": -3
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "vertex",
+        "EntityId": "3",
+        "Point": {
+          "X": 12,
+          "Y": 8,
+          "Z": -3
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "vertex",
+        "EntityId": "4",
+        "Point": {
+          "X": -12,
+          "Y": 8,
+          "Z": -3
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "vertex",
+        "EntityId": "5",
+        "Point": {
+          "X": -12,
+          "Y": -8,
+          "Z": 3
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "vertex",
+        "EntityId": "6",
+        "Point": {
+          "X": 12,
+          "Y": -8,
+          "Z": 3
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "vertex",
+        "EntityId": "7",
+        "Point": {
+          "X": 12,
+          "Y": 8,
+          "Z": 3
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "vertex",
+        "EntityId": "8",
+        "Point": {
+          "X": -12,
+          "Y": 8,
+          "Z": 3
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "known-interior",
+        "EntityId": "region-center",
+        "Point": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "Classification": "Inside",
+        "Passed": true
+      },
+      {
+        "Kind": "known-exterior",
+        "EntityId": "expanded-max",
+        "Point": {
+          "X": 36,
+          "Y": 24,
+          "Z": 9
+        },
+        "Classification": "Outside",
+        "Passed": true
+      },
+      {
+        "Kind": "extent-conservative-containment",
+        "EntityId": "min-x",
+        "Point": {
+          "X": -12,
+          "Y": -12,
+          "Z": 0
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "extent-conservative-containment",
+        "EntityId": "min-y",
+        "Point": {
+          "X": -8,
+          "Y": -8,
+          "Z": 0
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "extent-conservative-containment",
+        "EntityId": "min-z",
+        "Point": {
+          "X": -3,
+          "Y": -3,
+          "Z": 0
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "extent-conservative-containment",
+        "EntityId": "max-x",
+        "Point": {
+          "X": 12,
+          "Y": 12,
+          "Z": 0
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "extent-conservative-containment",
+        "EntityId": "max-y",
+        "Point": {
+          "X": 8,
+          "Y": 8,
+          "Z": 0
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      },
+      {
+        "Kind": "extent-conservative-containment",
+        "EntityId": "max-z",
+        "Point": {
+          "X": 3,
+          "Y": 3,
+          "Z": 0
+        },
+        "Classification": "Boundary",
+        "Passed": true
+      }
+    ],
+    "Summary": "BRep/CIR agreement passed for 34 deterministic probes; conservative extent residual=0.",
+    "MaximumExtentResidual": 0
+  }
+}

@@ -65,6 +65,149 @@ internal static class FirmamentV2TemplateExpansion
 
     internal sealed record Result(string Source, IReadOnlyList<ConceptIrTemplateInstantiation> Instantiations);
 
+    internal sealed record HostArgument(
+        string Expression,
+        string? RecordType = null,
+        IReadOnlyDictionary<string, string>? RecordFields = null);
+
+    internal sealed record HostParameter(
+        string Name,
+        string Kind,
+        string TypeName,
+        string? DefaultExpression,
+        string? ConstraintConcept);
+
+    internal sealed record HostTemplate(
+        string Name,
+        string TargetKind,
+        IReadOnlyList<HostParameter> Parameters);
+
+    internal static IReadOnlyList<HostTemplate> Inspect(string source, List<string> diagnostics) =>
+        ParseDeclarations(source, diagnostics)
+            .Select(template => new HostTemplate(
+                template.Name,
+                template.TargetKind,
+                template.Parameters.Select(parameter => parameter switch
+                {
+                    TemplateTypeParameterIr type => new HostParameter(type.Name, "Type", type.Name, null, type.ConstraintConcept),
+                    TemplateValueParameterIr value => new HostParameter(value.Name, "Value", value.TypeName, value.DefaultExpression, null),
+                    _ => throw new InvalidOperationException($"Unknown Template parameter IR '{parameter.GetType().Name}'."),
+                }).ToArray()))
+            .OrderBy(template => template.Name, StringComparer.Ordinal)
+            .ToArray();
+
+    /// <summary>
+    /// Expands one host-supplied Template invocation from typed arguments. The invocation is
+    /// admitted directly as binder IR; callers never need to manufacture Firmament application
+    /// source, and host Record values are supplied as immutable synthetic static records.
+    /// </summary>
+    internal static Result? ExpandHostInvocation(
+        string source,
+        string templateName,
+        string instanceName,
+        IReadOnlyDictionary<string, HostArgument> hostArguments,
+        List<string> diagnostics)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(templateName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(instanceName);
+        ArgumentNullException.ThrowIfNull(hostArguments);
+
+        var declarations = ParseDeclarations(source, diagnostics);
+        var byName = declarations.ToDictionary(declaration => declaration.Name, StringComparer.Ordinal);
+        DetectTemplateCycles(declarations, byName, diagnostics);
+        if (!byName.TryGetValue(templateName, out var template))
+        {
+            diagnostics.Add(Prefix + "not-found:" + templateName);
+            return null;
+        }
+
+        if (!Regex.IsMatch(instanceName, @"^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant))
+        {
+            diagnostics.Add(Prefix + "invalid-instance-name:" + instanceName);
+            return null;
+        }
+
+        var enums = ParseEnums(source);
+        var recordTypes = ParseRecordTypes(source, diagnostics);
+        var tables = ParseStaticTables(source, recordTypes, enums, diagnostics);
+        var staticRecords = ParseStaticRecords(source, recordTypes, enums, tables, diagnostics).ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+        var arguments = ImmutableArray.CreateBuilder<TemplateArgumentIr>();
+        foreach (var pair in hostArguments.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+        {
+            var expression = pair.Value.Expression;
+            if (pair.Value.RecordFields is not null)
+            {
+                var recordName = $"__forge_{instanceName}_{pair.Key}";
+                var recordType = pair.Value.RecordType ?? string.Empty;
+                staticRecords[recordName] = new TemplateStaticRecordIr(
+                    recordName,
+                    recordType,
+                    pair.Value.RecordFields.ToImmutableDictionary(StringComparer.Ordinal),
+                    new FirmamentV2SourceSpan(source.Length, 0),
+                    "ForgeHostRecord");
+                expression = recordName;
+            }
+            arguments.Add(new TemplateArgumentIr(pair.Key, expression, new FirmamentV2SourceSpan(source.Length, 0)));
+        }
+
+        var application = new TemplateApplicationIr(
+            template.TargetKind,
+            instanceName,
+            templateName,
+            arguments.ToImmutable(),
+            new FirmamentV2SourceSpan(source.Length, 0));
+        var bound = Bind(template, application, source, enums, recordTypes, staticRecords, diagnostics);
+        if (bound is null || HasErrors(diagnostics)) return null;
+
+        var body = ResolveTemplateMatches(template.Body, bound, diagnostics, out var selectedMatches);
+        if (body is null || !ValidateRecordMembers(body, bound, diagnostics)) return null;
+        body = Substitute(body, bound);
+        if (!EvaluateRequires(body, application.InstanceName, diagnostics, out var requireResults)) return null;
+        body = RemoveRequires(body);
+
+        var specialization = new TemplateSpecializationIr(
+            template,
+            application,
+            bound,
+            Identity(template, application, bound),
+            GeneratedPaths(template.Body, application.InstanceName));
+        var recordArguments = bound.RecordArguments.ToDictionary(
+            pair => pair.Key,
+            pair => new ConceptIrTemplateRecordArgument(
+                pair.Value.TypeName,
+                pair.Value.StaticName,
+                pair.Value.Fields,
+                pair.Value.SourceSpan,
+                pair.Value.Provenance),
+            StringComparer.Ordinal);
+        var instantiation = new ConceptIrTemplateInstantiation(
+            template.Name,
+            application.InstanceName,
+            bound.TypeArguments,
+            bound.ValueArguments,
+            bound.DefaultedArguments,
+            specialization.SpecializationIdentity,
+            specialization.GeneratedDeclarationPaths,
+            template.SourceSpan,
+            application.SourceSpan,
+            SelectedMatchArms: selectedMatches,
+            RecordArguments: recordArguments,
+            RequireResults: requireResults);
+
+        var changes = declarations
+            .Select(declaration => (
+                Start: declaration.SourceSpan.Start,
+                Length: declaration.SourceSpan.Length,
+                Text: string.Equals(declaration.Name, template.Name, StringComparison.Ordinal)
+                    ? $"{template.TargetKind} {instanceName}{template.HeaderTail} {{{body}}}"
+                    : string.Empty))
+            .OrderByDescending(change => change.Start)
+            .ToArray();
+        foreach (var change in changes)
+            source = source.Remove(change.Start, change.Length).Insert(change.Start, change.Text);
+        return HasErrors(diagnostics) ? null : new Result(source, [instantiation]);
+    }
+
     public static Result? Expand(string source, List<string> diagnostics)
     {
         var declarations = ParseDeclarations(source, diagnostics);

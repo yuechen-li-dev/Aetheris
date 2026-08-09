@@ -1,0 +1,27 @@
+[
+  {
+    "Stage": "host",
+    "Identity": "C:\\Users\\yuech\\source\\repos\\Aetheris\\Aetheris.Forge.SampleExtension\\Templates\\SecretGeometry.firmament",
+    "Evidence": "PrivateCoupon"
+  },
+  {
+    "Stage": "template",
+    "Identity": "SecretCoupon",
+    "Evidence": "template:b95fb6d42442bd41;record-arguments=Spec"
+  },
+  {
+    "Stage": "capability",
+    "Identity": "MyCompany.SecretGeometry.SecretCoupon",
+    "Evidence": "MyCompany.SecretGeometry@1.0.0;MyCompany.SecretGeometry/SecretCoupon/v1"
+  },
+  {
+    "Stage": "construction",
+    "Identity": "MyCompany.SecretGeometry.SecretCoupon@1.0.0:24x16x6",
+    "Evidence": "SecretBody"
+  },
+  {
+    "Stage": "artifact",
+    "Identity": "SecretBody",
+    "Evidence": "STEP AP242 export and reimport validated"
+  }
+]

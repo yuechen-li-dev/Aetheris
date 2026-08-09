@@ -1,0 +1,44 @@
+[
+  {
+    "Id": {
+      "Value": "MyCompany.SecretGeometry.SecretCoupon"
+    },
+    "Version": "1.0.0",
+    "ExtensionId": "MyCompany.SecretGeometry",
+    "ExtensionVersion": "1.0.0",
+    "Description": "Private coupon sizing policy lowered to Aetheris standard prismatic ConstructionIR.",
+    "Inputs": [
+      {
+        "Name": "Width",
+        "Type": "Length",
+        "Required": true,
+        "DefaultValue": null,
+        "Description": "Finished coupon width."
+      },
+      {
+        "Name": "Depth",
+        "Type": "Length",
+        "Required": true,
+        "DefaultValue": null,
+        "Description": "Finished coupon depth."
+      },
+      {
+        "Name": "Height",
+        "Type": "Length",
+        "Required": true,
+        "DefaultValue": null,
+        "Description": "Finished coupon height."
+      }
+    ],
+    "OutputClassification": "ConstructionIr",
+    "SupportedTargets": [
+      "ConstructionIr",
+      "Brep",
+      "Cir"
+    ],
+    "Determinism": "Deterministic",
+    "ExactnessContract": "Exact planar, linear, closed manifold prism; no mesh-derived geometry.",
+    "AdmissionContract": "Width, Depth, and Height must be finite positive millimetre values.",
+    "ProvenanceIdentity": "MyCompany.SecretGeometry/SecretCoupon/v1"
+  }
+]

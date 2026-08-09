@@ -1,0 +1,41 @@
+{
+  "name": "hex-baseline",
+  "constructionSourceIdentity": "M4B-HexBolt:b2e86e279016f55625e074153f76561144dc7c3c85cbc943c3e3492a7e19acda",
+  "associationPassed": true,
+  "consistencyProbeCount": 100,
+  "maximumConsistencyResidual": 3.552713678800501E-15,
+  "totalCells": 1728,
+  "inside": 216,
+  "outside": 936,
+  "cut": 576,
+  "supportFamilyCounts": {
+    "Cone": 8,
+    "Cylinder": 2,
+    "Plane": 9,
+    "Torus": 2
+  },
+  "compositionCounts": {
+    "FilletContact": 64,
+    "MultiFaceTrimJunction": 36,
+    "SingleFace": 272,
+    "ThreeFaceCorner": 32,
+    "TwoFaceEdge": 164
+  },
+  "judgmentEngineCalls": 36,
+  "exactVolume": 2520.0469401890387,
+  "estimatedVolume": 2494.577446853513,
+  "absoluteVolumeError": 25.46949333552584,
+  "relativeVolumeError": 0.010106753540715902,
+  "exactBoundaryArea": 1382.6322807982408,
+  "estimatedBoundaryArea": 1406.2650956053524,
+  "relativeBoundaryAreaError": 0.01709262479642638,
+  "fineEstimatedVolume": 2531.626330827626,
+  "fineRelativeVolumeError": 0.004594910695480485,
+  "brepAndCirMaterializationMilliseconds": 0.5555,
+  "associationValidationMilliseconds": 0.9598,
+  "candidateDiscoveryMilliseconds": 1.015,
+  "classificationMilliseconds": 22.2435,
+  "cutCellIntegrationMilliseconds": 569.1681,
+  "fineControlMilliseconds": 105.6187,
+  "totalMilliseconds": 1425.6714
+}

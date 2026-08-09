@@ -293,7 +293,7 @@ public sealed class FirmamentCirDifferentialAnalysisTests
             };
             entries[^1] = entry;
 
-            var cirVolume = CirAnalyzer.EstimateVolume(lower.Value.Root, cirVolumeResolution);
+            var cirVolume = SdfAnalyzer.EstimateVolume(lower.Value.Root, cirVolumeResolution);
             var brepVolume = EstimateBrepVolume(rootBody, brepVolumeResolution, out var unknownCount, out var sampleCount);
             var unknownRatio = sampleCount == 0 ? 1d : unknownCount / (double)sampleCount;
             entry = entry with
@@ -351,7 +351,7 @@ public sealed class FirmamentCirDifferentialAnalysisTests
             {
                 probeCount++;
                 var resolvedPoint = ResolveProbePoint(probe.Location, cirBounds);
-                var cirClass = CirAnalyzer.ClassifyPoint(lower.Value.Root, resolvedPoint).Classification;
+                var cirClass = SdfAnalyzer.ClassifyPoint(lower.Value.Root, resolvedPoint).Classification;
                 var brepResult = BrepSpatialQueries.ClassifyPoint(rootBody, resolvedPoint);
                 if (!brepResult.IsSuccess || brepResult.Value == PointContainment.Unknown)
                 {
@@ -369,7 +369,7 @@ public sealed class FirmamentCirDifferentialAnalysisTests
                 }
 
                 var brepInside = brepResult.Value == PointContainment.Inside;
-                var cirInside = cirClass == CirPointClassification.Inside;
+                var cirInside = cirClass == SdfPointClassification.Inside;
                 if (brepInside != cirInside)
                 {
                     probeMismatches.Add(new ProbeMismatchMetric(probe.Label, resolvedPoint.ToString(), DescribeProbeLocation(probe.Location), cirClass.ToString(), brepResult.Value.ToString(), false, "primitive convention drift or boolean semantic drift or placement drift"));
@@ -426,7 +426,7 @@ public sealed class FirmamentCirDifferentialAnalysisTests
     private static BrepBody ResolveComparisonBody(FirmamentPrimitiveExecutionResult execution)
         => execution.ExecutedBooleans.Count > 0 ? execution.ExecutedBooleans.MaxBy(b => b.OpIndex)!.Body : execution.ExecutedPrimitives.MaxBy(p => p.OpIndex)!.Body;
 
-    private static string? FindBoundsMismatch(CirBrepDifferentialCase @case, CirBounds cirBounds, BoundingBox3D brepBounds)
+    private static string? FindBoundsMismatch(CirBrepDifferentialCase @case, SdfBounds cirBounds, BoundingBox3D brepBounds)
     {
         var cirExtent = cirBounds.Max - cirBounds.Min;
         var brepExtent = brepBounds.Max - brepBounds.Min;
@@ -459,7 +459,7 @@ public sealed class FirmamentCirDifferentialAnalysisTests
         return null;
     }
 
-    private static double ComputeBoundsMaxAbsDelta(CirBounds cirBounds, BoundingBox3D brepBounds)
+    private static double ComputeBoundsMaxAbsDelta(SdfBounds cirBounds, BoundingBox3D brepBounds)
     {
         var cirExtent = cirBounds.Max - cirBounds.Min;
         var brepExtent = brepBounds.Max - brepBounds.Min;
@@ -547,7 +547,7 @@ public sealed class FirmamentCirDifferentialAnalysisTests
 
     private sealed record DifferentialProbePoint(string Label, ProbeLocation Location, ProbeExpectation Expectation);
 
-    private static Point3D ResolveProbePoint(ProbeLocation location, CirBounds bounds)
+    private static Point3D ResolveProbePoint(ProbeLocation location, SdfBounds bounds)
         => location switch
         {
             AbsoluteProbeLocation absolute => absolute.Point,
@@ -578,7 +578,7 @@ public sealed class FirmamentCirDifferentialAnalysisTests
     private sealed record BoundsCentreOffsetProbeLocation(Vector3D Offset) : ProbeLocation;
 
 
-    private static BoundsMetric ToBounds(CirBounds bounds) => new(new PointMetric(bounds.Min.X, bounds.Min.Y, bounds.Min.Z), new PointMetric(bounds.Max.X, bounds.Max.Y, bounds.Max.Z));
+    private static BoundsMetric ToBounds(SdfBounds bounds) => new(new PointMetric(bounds.Min.X, bounds.Min.Y, bounds.Min.Z), new PointMetric(bounds.Max.X, bounds.Max.Y, bounds.Max.Z));
 
     private static BoundsMetric ToBounds(BoundingBox3D bounds) => new(new PointMetric(bounds.Min.X, bounds.Min.Y, bounds.Min.Z), new PointMetric(bounds.Max.X, bounds.Max.Y, bounds.Max.Z));
     private enum ProbeExpectation

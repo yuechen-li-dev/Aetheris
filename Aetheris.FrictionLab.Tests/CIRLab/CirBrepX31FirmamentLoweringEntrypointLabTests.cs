@@ -28,11 +28,11 @@ public sealed class CirBrepX31FirmamentLoweringEntrypointLabTests
         var compile = CompileFixture("testdata/firmament/examples/boolean_box_cylinder_hole.firmament");
         var lower = LowerViaReflection(compile.PrimitiveLoweringPlan!);
 
-        var subtract = Assert.IsType<CirSubtractNode>(lower.Root);
-        var leftTx = Assert.IsType<CirTransformNode>(subtract.Left);
-        var rightTx = Assert.IsType<CirTransformNode>(subtract.Right);
-        Assert.IsType<CirBoxNode>(leftTx.Child);
-        Assert.IsType<CirCylinderNode>(rightTx.Child);
+        var subtract = Assert.IsType<SdfSubtractNode>(lower.Root);
+        var leftTx = Assert.IsType<SdfTransformNode>(subtract.Left);
+        var rightTx = Assert.IsType<SdfTransformNode>(subtract.Right);
+        Assert.IsType<SdfBoxNode>(leftTx.Child);
+        Assert.IsType<SdfCylinderNode>(rightTx.Child);
 
         var labRecognition = CirBoxCylinderRecognitionLab.Recognize(lower.Root);
         Assert.True(labRecognition.Success, $"Expected normalization to accept real lowered shape, got {labRecognition.Reason}: {labRecognition.Diagnostic}");

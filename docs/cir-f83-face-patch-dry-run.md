@@ -13,7 +13,7 @@ This milestone intentionally **does not emit BRep topology**.
 
 ## New dry-run artifact
 
-`FacePatchCandidateGenerator.Generate(CirNode root, NativeGeometryReplayLog? replayLog = null)` returns a `FacePatchCandidateGenerationResult` containing:
+`FacePatchCandidateGenerator.Generate(SdfNode root, NativeGeometryReplayLog? replayLog = null)` returns a `FacePatchCandidateGenerationResult` containing:
 
 - extracted source surfaces,
 - dry-run face patch candidates,

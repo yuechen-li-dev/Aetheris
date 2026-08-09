@@ -24,7 +24,7 @@ public sealed class BlindHoleVariantAndExecutorTests
     [Fact]
     public void BlindHoleVariant_RejectsThroughHole()
     {
-        var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(new CirSubtractNode(new CirBoxNode(20, 10, 8), new CirCylinderNode(2, 20))));
+        var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(new SdfSubtractNode(new SdfBoxNode(20, 10, 8), new SdfCylinderNode(2, 20))));
         Assert.Contains("selected-variant:ThroughHoleVariant", eval.Evidence);
         Assert.DoesNotContain("selected-variant:BlindHoleVariant", eval.Evidence);
     }
@@ -32,7 +32,7 @@ public sealed class BlindHoleVariantAndExecutorTests
     [Fact]
     public void BlindHoleVariant_RejectsMissOrOutside()
     {
-        var miss = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirTransformNode(new CirCylinderNode(2, 6), Transform3D.CreateTranslation(new Vector3D(0, 0, 0))));
+        var miss = new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfTransformNode(new SdfCylinderNode(2, 6), Transform3D.CreateTranslation(new Vector3D(0, 0, 0))));
         var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(miss));
         Assert.False(eval.Admissible);
         Assert.Contains("UnsupportedMissingEntryFace", string.Join("|", eval.RejectionReasons), StringComparison.Ordinal);
@@ -76,12 +76,12 @@ public sealed class BlindHoleVariantAndExecutorTests
     [Fact]
     public void BlindHole_Unsupported_DoesNotFalseSucceed()
     {
-        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(6, 4));
+        var root = new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(6, 4));
         var result = FrepSemanticRecoveryRematerializer.TryRecover(root);
         Assert.False(result.Succeeded);
         Assert.Null(result.Body);
     }
 
-    private static CirNode BuildCanonicalBlindHole()
-        => new CirSubtractNode(new CirBoxNode(20d, 20d, 10d), new CirTransformNode(new CirCylinderNode(2d, 4d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, 3d))));
+    private static SdfNode BuildCanonicalBlindHole()
+        => new SdfSubtractNode(new SdfBoxNode(20d, 20d, 10d), new SdfTransformNode(new SdfCylinderNode(2d, 4d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, 3d))));
 }

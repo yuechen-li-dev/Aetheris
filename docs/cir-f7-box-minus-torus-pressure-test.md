@@ -9,8 +9,8 @@
 ## Layer audit
 
 - **Firmament:** torus primitive/tool support already existed in parsing, validation, lowering plan, selector contracts, and primitive execution paths.
-- **CIR (before F7):** torus was missing from `CirNode`/tape lowering and therefore blocked CIR fallback for torus families.
-- **CIR (F7):** added bounded `CirTorusNode` + tape opcode/payload lowering/evaluation so `subtract(box,torus)` is representable and analyzable in CIR.
+- **CIR (before F7):** torus was missing from `SdfNode`/tape lowering and therefore blocked CIR fallback for torus families.
+- **CIR (F7):** added bounded `SdfTorusNode` + tape opcode/payload lowering/evaluation so `subtract(box,torus)` is representable and analyzable in CIR.
 - **BRep primitives / STEP:** torus primitive and torus surface export already exist.
 - **Boolean subtract:** no safe exact `box - torus` path is currently available in the bounded subtract-family materializers.
 - **Replay-guided materializer registry (F6):** extended with named strategy `subtract_box_torus` that recognizes the replay/CIR family and emits precise unsupported diagnostics.

@@ -13,7 +13,7 @@ Because of the readiness rule (**no readiness, no emission**) and anti-fabricati
 - Added `PlanarPatchPayloadBuilder.TryBuildRectanglePayload(SourceSurfaceDescriptor, out string? payload, out string diagnostic)`.
 - Builder accepts existing bounded payload (`rect3d:...`) and returns success.
 - Builder rejects real F8 extractor role payloads (`top`, `bottom`, etc.) with a precise blocker diagnostic.
-- Added focused tests against real `SourceSurfaceExtractor.Extract(new CirBoxNode(...))` descriptors and readiness-gated emission refusal.
+- Added focused tests against real `SourceSurfaceExtractor.Extract(new SdfBoxNode(...))` descriptors and readiness-gated emission refusal.
 
 ## Supported behavior in this milestone
 

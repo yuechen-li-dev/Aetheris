@@ -9,7 +9,7 @@ We added `CountersinkVariant` to the `HoleRecoveryPolicy` JudgmentEngine lane an
 ## Blocker isolated
 
 - Current CIR primitives are `Box`, `Cylinder`, `Sphere`, `Torus` (+ boolean and transform nodes).
-- There is no `CirConeNode` / conical primitive available to represent the countersink entry tool in semantic recovery input.
+- There is no `SdfConeNode` / conical primitive available to represent the countersink entry tool in semantic recovery input.
 - Because of that, V10 cannot safely implement bounded countersink recognition/execution from CIR without scope expansion into CIR primitive surface area.
 
 ## What landed now
@@ -33,7 +33,7 @@ We added `CountersinkVariant` to the `HoleRecoveryPolicy` JudgmentEngine lane an
 
 ## Recommended V11
 
-1. Introduce bounded CIR cone primitive support (`CirConeNode`) with translation-only transform conventions matching existing primitive lowering patterns.
+1. Introduce bounded CIR cone primitive support (`SdfConeNode`) with translation-only transform conventions matching existing primitive lowering patterns.
 2. Add `CountersinkVariant` bounded recognition for `Subtract(Subtract(Box,Cylinder),Cone)` with strict coaxial/entry/depth/radius checks.
 3. Extend `HoleRecoveryExecutor` with cone subtract path using existing `BrepPrimitives.CreateCone` + `BrepBoolean.Subtract`.
 4. Add countersink STEP smoke asserting `CONICAL_SURFACE`, `CYLINDRICAL_SURFACE`, and no `BREP_WITH_VOIDS`.

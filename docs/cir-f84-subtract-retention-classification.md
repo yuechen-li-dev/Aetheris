@@ -31,7 +31,7 @@ Each dry-run `FacePatchCandidate` now includes:
 
 ## Subtract-only behavior
 
-Retention classification applies only to `CirSubtractNode` roots in CIR-F8.4.
+Retention classification applies only to `SdfSubtractNode` roots in CIR-F8.4.
 
 - subtract root: base/tool candidates receive explicit subtract retention roles.
 - non-subtract root: candidates are marked `NotApplicable` + deferred retention diagnostic.

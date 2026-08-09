@@ -15,8 +15,8 @@ Primary admitted shape:
 
 With constraints:
 
-- host is `CirBoxNode` (translation wrappers allowed),
-- both tools are `CirCylinderNode` (translation wrappers allowed),
+- host is `SdfBoxNode` (translation wrappers allowed),
+- both tools are `SdfCylinderNode` (translation wrappers allowed),
 - cylinders are coaxial in XY,
 - `Large.Radius > Small.Radius`,
 - small cylinder is through-hole relative to host depth,

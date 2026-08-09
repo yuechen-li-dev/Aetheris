@@ -48,7 +48,7 @@ public sealed class CounterboreRecoveryStepSmokeTests
     [Fact]
     public void CounterboreStepSmoke_ThroughHoleRegressionStillExports()
     {
-        var pipeline = RecoverAndExport(new CirSubtractNode(new CirBoxNode(20d, 10d, 8d), new CirCylinderNode(2d, 20d)), "v7c-through-hole-regression");
+        var pipeline = RecoverAndExport(new SdfSubtractNode(new SdfBoxNode(20d, 10d, 8d), new SdfCylinderNode(2d, 20d)), "v7c-through-hole-regression");
 
         Assert.Equal(FrepMaterializerDecisionStatus.Selected, pipeline.Decision.Status);
         Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, pipeline.Execution.Status);
@@ -79,7 +79,7 @@ public sealed class CounterboreRecoveryStepSmokeTests
         Assert.Contains("CYLINDRICAL_SURFACE", pipeline.StepResult.Value, StringComparison.Ordinal);
     }
 
-    private static CounterboreRecoveryStepPipelineResult RecoverAndExport(CirNode root, string productName)
+    private static CounterboreRecoveryStepPipelineResult RecoverAndExport(SdfNode root, string productName)
     {
         var diagnostics = new List<string>();
         var decision = FrepMaterializerPlanner.Decide(new FrepMaterializerContext(root), [Policy]);
@@ -117,22 +117,22 @@ public sealed class CounterboreRecoveryStepSmokeTests
         return new(decision, plan, execution, stepResult, diagnostics);
     }
 
-    private static CirNode BuildCanonicalCounterbore()
-        => new CirSubtractNode(
-            new CirSubtractNode(new CirBoxNode(20d, 20d, 10d), new CirCylinderNode(2d, 20d)),
-            new CirTransformNode(new CirCylinderNode(4d, 4d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, -3d))));
+    private static SdfNode BuildCanonicalCounterbore()
+        => new SdfSubtractNode(
+            new SdfSubtractNode(new SdfBoxNode(20d, 20d, 10d), new SdfCylinderNode(2d, 20d)),
+            new SdfTransformNode(new SdfCylinderNode(4d, 4d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, -3d))));
 
-    private static CirNode BuildTranslatedCounterbore()
-        => new CirSubtractNode(
-            new CirSubtractNode(
-                new CirTransformNode(new CirBoxNode(24d, 24d, 12d), Transform3D.CreateTranslation(new Vector3D(5d, 1d, 6d))),
-                new CirTransformNode(new CirCylinderNode(3d, 20d), Transform3D.CreateTranslation(new Vector3D(5d, 1d, 6d)))),
-            new CirTransformNode(new CirCylinderNode(5d, 4d), Transform3D.CreateTranslation(new Vector3D(5d, 1d, 2d))));
+    private static SdfNode BuildTranslatedCounterbore()
+        => new SdfSubtractNode(
+            new SdfSubtractNode(
+                new SdfTransformNode(new SdfBoxNode(24d, 24d, 12d), Transform3D.CreateTranslation(new Vector3D(5d, 1d, 6d))),
+                new SdfTransformNode(new SdfCylinderNode(3d, 20d), Transform3D.CreateTranslation(new Vector3D(5d, 1d, 6d)))),
+            new SdfTransformNode(new SdfCylinderNode(5d, 4d), Transform3D.CreateTranslation(new Vector3D(5d, 1d, 2d))));
 
-    private static CirNode BuildNonCoaxialCounterbore()
-        => new CirSubtractNode(
-            new CirSubtractNode(new CirBoxNode(20d, 20d, 10d), new CirCylinderNode(2d, 20d)),
-            new CirTransformNode(new CirCylinderNode(4d, 4d), Transform3D.CreateTranslation(new Vector3D(1d, 0d, -3d))));
+    private static SdfNode BuildNonCoaxialCounterbore()
+        => new SdfSubtractNode(
+            new SdfSubtractNode(new SdfBoxNode(20d, 20d, 10d), new SdfCylinderNode(2d, 20d)),
+            new SdfTransformNode(new SdfCylinderNode(4d, 4d), Transform3D.CreateTranslation(new Vector3D(1d, 0d, -3d))));
 
     private sealed record CounterboreRecoveryStepPipelineResult(
         FrepMaterializerDecision Decision,

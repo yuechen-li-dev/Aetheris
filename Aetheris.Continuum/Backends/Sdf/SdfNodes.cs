@@ -3,9 +3,9 @@ using Aetheris.Kernel.Core.Math;
 
 namespace Aetheris.Continuum.Backends.Sdf;
 
-public sealed record CirBoxNode(double Width, double Height, double Depth) : CirNode(CirNodeKind.Box)
+public sealed record SdfBoxNode(double Width, double Height, double Depth) : SdfNode(SdfNodeKind.Box)
 {
-    public override CirBounds Bounds => new(new Point3D(-Width * 0.5d, -Height * 0.5d, -Depth * 0.5d), new Point3D(Width * 0.5d, Height * 0.5d, Depth * 0.5d));
+    public override SdfBounds Bounds => new(new Point3D(-Width * 0.5d, -Height * 0.5d, -Depth * 0.5d), new Point3D(Width * 0.5d, Height * 0.5d, Depth * 0.5d));
 
     public override double Evaluate(Point3D point)
     {
@@ -24,9 +24,9 @@ public sealed record CirBoxNode(double Width, double Height, double Depth) : Cir
     }
 }
 
-public sealed record CirCylinderNode(double Radius, double Height) : CirNode(CirNodeKind.Cylinder)
+public sealed record SdfCylinderNode(double Radius, double Height) : SdfNode(SdfNodeKind.Cylinder)
 {
-    public override CirBounds Bounds => new(new Point3D(-Radius, -Radius, -Height * 0.5d), new Point3D(Radius, Radius, Height * 0.5d));
+    public override SdfBounds Bounds => new(new Point3D(-Radius, -Radius, -Height * 0.5d), new Point3D(Radius, Radius, Height * 0.5d));
 
     public override double Evaluate(Point3D point)
     {
@@ -43,9 +43,9 @@ public sealed record CirCylinderNode(double Radius, double Height) : CirNode(Cir
 
 
 
-public sealed record CirConeNode : CirNode
+public sealed record SdfConeNode : SdfNode
 {
-    public CirConeNode(double bottomRadius, double topRadius, double height) : base(CirNodeKind.Cone)
+    public SdfConeNode(double bottomRadius, double topRadius, double height) : base(SdfNodeKind.Cone)
     {
         if (height <= 0d || double.IsNaN(height) || double.IsInfinity(height))
         {
@@ -76,13 +76,13 @@ public sealed record CirConeNode : CirNode
     public double TopRadius { get; }
     public double Height { get; }
 
-    public override CirBounds Bounds
+    public override SdfBounds Bounds
     {
         get
         {
             var r = double.Max(BottomRadius, TopRadius);
             var hz = Height * 0.5d;
-            return new CirBounds(new Point3D(-r, -r, -hz), new Point3D(r, r, hz));
+            return new SdfBounds(new Point3D(-r, -r, -hz), new Point3D(r, r, hz));
         }
     }
 
@@ -115,16 +115,16 @@ public sealed record CirConeNode : CirNode
 
     private static double Clamp(double value, double min, double max) => value < min ? min : value > max ? max : value;
 }
-public sealed record CirSphereNode(double Radius) : CirNode(CirNodeKind.Sphere)
+public sealed record SdfSphereNode(double Radius) : SdfNode(SdfNodeKind.Sphere)
 {
-    public override CirBounds Bounds => new(new Point3D(-Radius, -Radius, -Radius), new Point3D(Radius, Radius, Radius));
+    public override SdfBounds Bounds => new(new Point3D(-Radius, -Radius, -Radius), new Point3D(Radius, Radius, Radius));
 
     public override double Evaluate(Point3D point) => double.Sqrt((point.X * point.X) + (point.Y * point.Y) + (point.Z * point.Z)) - Radius;
 }
 
-public sealed record CirTorusNode(double MajorRadius, double MinorRadius) : CirNode(CirNodeKind.Torus)
+public sealed record SdfTorusNode(double MajorRadius, double MinorRadius) : SdfNode(SdfNodeKind.Torus)
 {
-    public override CirBounds Bounds => new(
+    public override SdfBounds Bounds => new(
         new Point3D(-(MajorRadius + MinorRadius), -(MajorRadius + MinorRadius), -MinorRadius),
         new Point3D(MajorRadius + MinorRadius, MajorRadius + MinorRadius, MinorRadius));
 
@@ -135,27 +135,27 @@ public sealed record CirTorusNode(double MajorRadius, double MinorRadius) : CirN
     }
 }
 
-public sealed record CirUnionNode(CirNode Left, CirNode Right) : CirNode(CirNodeKind.Union)
+public sealed record SdfUnionNode(SdfNode Left, SdfNode Right) : SdfNode(SdfNodeKind.Union)
 {
-    public override CirBounds Bounds => CirBounds.Union(Left.Bounds, Right.Bounds);
+    public override SdfBounds Bounds => SdfBounds.Union(Left.Bounds, Right.Bounds);
     public override double Evaluate(Point3D point) => double.Min(Left.Evaluate(point), Right.Evaluate(point));
 }
 
-public sealed record CirSubtractNode(CirNode Left, CirNode Right) : CirNode(CirNodeKind.Subtract)
+public sealed record SdfSubtractNode(SdfNode Left, SdfNode Right) : SdfNode(SdfNodeKind.Subtract)
 {
-    public override CirBounds Bounds => Left.Bounds;
+    public override SdfBounds Bounds => Left.Bounds;
     public override double Evaluate(Point3D point) => double.Max(Left.Evaluate(point), -Right.Evaluate(point));
 }
 
-public sealed record CirIntersectNode(CirNode Left, CirNode Right) : CirNode(CirNodeKind.Intersect)
+public sealed record SdfIntersectNode(SdfNode Left, SdfNode Right) : SdfNode(SdfNodeKind.Intersect)
 {
-    public override CirBounds Bounds => CirBounds.Union(Left.Bounds, Right.Bounds);
+    public override SdfBounds Bounds => SdfBounds.Union(Left.Bounds, Right.Bounds);
     public override double Evaluate(Point3D point) => double.Max(Left.Evaluate(point), Right.Evaluate(point));
 }
 
-public sealed record CirTransformNode(CirNode Child, Transform3D Transform) : CirNode(CirNodeKind.Transform)
+public sealed record SdfTransformNode(SdfNode Child, Transform3D Transform) : SdfNode(SdfNodeKind.Transform)
 {
-    public override CirBounds Bounds
+    public override SdfBounds Bounds
     {
         get
         {
@@ -173,7 +173,7 @@ public sealed record CirTransformNode(CirNode Child, Transform3D Transform) : Ci
             };
 
             var transformed = corners.Select(TransformPoint).ToArray();
-            return new CirBounds(
+            return new SdfBounds(
                 new Point3D(transformed.Min(p => p.X), transformed.Min(p => p.Y), transformed.Min(p => p.Z)),
                 new Point3D(transformed.Max(p => p.X), transformed.Max(p => p.Y), transformed.Max(p => p.Z)));
         }
@@ -188,9 +188,9 @@ public sealed record CirTransformNode(CirNode Child, Transform3D Transform) : Ci
     private Point3D TransformPoint(Point3D p) => Transform.Apply(p);
 }
 
-public static class CirVolumeEstimator
+public static class SdfVolumeEstimator
 {
-    public static double EstimateVolume(CirNode node, int resolution)
+    public static double EstimateVolume(SdfNode node, int resolution)
     {
         var bounds = node.Bounds;
         var dx = bounds.SizeX / resolution;

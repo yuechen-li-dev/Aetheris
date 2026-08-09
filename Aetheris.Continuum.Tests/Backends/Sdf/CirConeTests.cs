@@ -8,7 +8,7 @@ public sealed class CirConeTests
     [Fact]
     public void CirCone_EvaluatesInsideOutsideForFrustum()
     {
-        var cone = new CirConeNode(bottomRadius: 4d, topRadius: 2d, height: 8d);
+        var cone = new SdfConeNode(bottomRadius: 4d, topRadius: 2d, height: 8d);
 
         Assert.True(cone.Evaluate(new Point3D(0d, 0d, 0d)) < 0d);
         Assert.True(cone.Evaluate(new Point3D(5d, 0d, 0d)) > 0d);
@@ -18,7 +18,7 @@ public sealed class CirConeTests
     [Fact]
     public void CirCone_EvaluatesPointConeApexBehavior()
     {
-        var cone = new CirConeNode(bottomRadius: 4d, topRadius: 0d, height: 8d);
+        var cone = new SdfConeNode(bottomRadius: 4d, topRadius: 0d, height: 8d);
 
         var apex = cone.Evaluate(new Point3D(0d, 0d, 4d));
         var nearApex = cone.Evaluate(new Point3D(0.01d, 0d, 3.99d));
@@ -34,18 +34,18 @@ public sealed class CirConeTests
     [Fact]
     public void CirCone_RejectsInvalidParameters()
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => new CirConeNode(-1d, 1d, 2d));
-        Assert.Throws<ArgumentOutOfRangeException>(() => new CirConeNode(1d, -1d, 2d));
-        Assert.Throws<ArgumentOutOfRangeException>(() => new CirConeNode(0d, 0d, 2d));
-        Assert.Throws<ArgumentOutOfRangeException>(() => new CirConeNode(1d, 1d, 0d));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new SdfConeNode(-1d, 1d, 2d));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new SdfConeNode(1d, -1d, 2d));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new SdfConeNode(0d, 0d, 2d));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new SdfConeNode(1d, 1d, 0d));
     }
 
     [Fact]
     public void CirCone_TapeLowering_EvaluatesDeterministically()
     {
-        var node = new CirTransformNode(new CirConeNode(5d, 2d, 10d), Transform3D.CreateTranslation(new Vector3D(1d, -2d, 3d)));
-        var tapeA = CirTapeLowerer.Lower(node);
-        var tapeB = CirTapeLowerer.Lower(node);
+        var node = new SdfTransformNode(new SdfConeNode(5d, 2d, 10d), Transform3D.CreateTranslation(new Vector3D(1d, -2d, 3d)));
+        var tapeA = SdfTapeLowerer.Lower(node);
+        var tapeB = SdfTapeLowerer.Lower(node);
 
         Assert.Equal(tapeA.Instructions, tapeB.Instructions);
         Assert.Equal(tapeA.ConePayloads, tapeB.ConePayloads);

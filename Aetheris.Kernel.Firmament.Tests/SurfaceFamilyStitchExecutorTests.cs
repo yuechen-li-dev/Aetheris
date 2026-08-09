@@ -10,7 +10,7 @@ public sealed class SurfaceFamilyStitchExecutorTests
     [Fact]
     public void StitchExecutor_BoxCylinder_AppliesOneSharedEdgeRewriteOrPreciseBlocker()
     {
-        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var root = new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(2, 8));
         var planar = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
         var cylindrical = EmitCylinder(root);
         var maps = planar.Entries.Where(e => e.Emitted).Select(e => e.IdentityMap ?? EmittedTopologyIdentityMap.Empty)
@@ -47,7 +47,7 @@ public sealed class SurfaceFamilyStitchExecutorTests
     [Fact]
     public void StitchExecutor_RequiresRemappedRefs()
     {
-        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var root = new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(2, 8));
         var planar = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
         var candidate = new SurfaceFamilyStitchCandidate(
             "c1",
@@ -78,7 +78,7 @@ public sealed class SurfaceFamilyStitchExecutorTests
             "orientation-compatible", [], "a");
         var plan = new SurfaceFamilyStitchPlanResult(true, [candidate], [], [], [], false);
 
-        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var root = new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(2, 8));
         var result = SurfaceFamilyStitchExecutor.TryExecute(plan, new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root), null);
         Assert.Contains(result.Operations.SelectMany(o => o.Diagnostics), d => d.Contains("token-mismatch", StringComparison.Ordinal));
     }
@@ -86,7 +86,7 @@ public sealed class SurfaceFamilyStitchExecutorTests
     [Fact]
     public void StitchExecutor_DoesNotMergeVerticesYet()
     {
-        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var root = new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(2, 8));
         var result = SurfaceFamilyStitchExecutor.TryExecute(
             SurfaceFamilyStitchCandidatePlanner.PlanBoxCylinder(root),
             new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root),
@@ -98,7 +98,7 @@ public sealed class SurfaceFamilyStitchExecutorTests
     [Fact]
     public void StitchExecutor_NoFullShellClaim()
     {
-        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var root = new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(2, 8));
         var result = SurfaceFamilyStitchExecutor.TryExecute(
             SurfaceFamilyStitchCandidatePlanner.PlanBoxCylinder(root),
             new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root),
@@ -110,7 +110,7 @@ public sealed class SurfaceFamilyStitchExecutorTests
     [Fact]
     public void StitchExecutor_NoStepExport()
     {
-        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var root = new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(2, 8));
         var result = SurfaceFamilyStitchExecutor.TryExecute(
             SurfaceFamilyStitchCandidatePlanner.PlanBoxCylinder(root),
             new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root),
@@ -119,7 +119,7 @@ public sealed class SurfaceFamilyStitchExecutorTests
         Assert.False(result.StepExportAttempted);
     }
 
-    private static SurfaceMaterializationResult? EmitCylinder(CirNode root)
+    private static SurfaceMaterializationResult? EmitCylinder(SdfNode root)
     {
         var gen = FacePatchCandidateGenerator.Generate(root);
         var candidate = gen.Candidates.SingleOrDefault(c => c.SourceSurface.Family == SurfacePatchFamily.Cylindrical

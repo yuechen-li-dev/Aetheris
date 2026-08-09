@@ -24,7 +24,7 @@ The lab dispatcher types are internal to the test assembly:
 - `CirMapDispatchPrototype` — policy entry point;
 - `CirMapDispatchResult` — selected backend, mirror admission result, optional map result, optional BRep comparison, diagnostics, and recommendation;
 - `CirMapBackendCandidate` — candidate backend/admissibility/reason record;
-- `CirMapBackendKind` — `CirTape`, `CirNode`, `BrepRaycastBaseline`, or `Unsupported`;
+- `CirMapBackendKind` — `SdfTape`, `SdfNode`, `BrepRaycastBaseline`, or `Unsupported`;
 - `CirMapAnalyzerUse` — requested analyzer use such as `MapOccupancy`, `FaceIdentity`, `TopologyParity`, `PointContainment`, and `SectionSampling`;
 - `CirMapBaselineComparison` — stable summary comparison between CIR and BRep maps.
 
@@ -32,7 +32,7 @@ Inputs are deliberately explicit:
 
 - a `CirMirrorAdmission` source descriptor;
 - the requested analyzer use;
-- the `CirNode` primitive when a CIR map is potentially allowed;
+- the `SdfNode` primitive when a CIR map is potentially allowed;
 - a `CirMapPrototypeRequest` containing view, rows, cols, bounds, sample count, root iterations, and tolerance;
 - an optional `BrepBody` baseline for primitive parity comparison.
 
@@ -50,13 +50,13 @@ Outputs include:
 The dispatcher applies this policy:
 
 1. Convert the requested analyzer use to a `CirMirrorCapability` and ask `CirMirrorAdmissionService`.
-2. If admission is `mirror-admitted-exact`, the requested use is map occupancy, and the admitted capabilities include `MapOccupancy`, select `CirTape`.
+2. If admission is `mirror-admitted-exact`, the requested use is map occupancy, and the admitted capabilities include `MapOccupancy`, select `SdfTape`.
 3. If the request asks for face identity or topology parity, reject CIR as lossy for the request and select `Unsupported`.
 4. If the source is prismatic/profile-chamfer and mirror admission is unavailable or unsupported, select `Unsupported` and emit no prismatic-mirror-used diagnostics.
 5. If an optional BRep primitive baseline is provided, evaluate the existing BRep raycast baseline over the same request and compare bounded summaries.
 6. Never route production CLI/analyzer calls through this dispatcher.
 
-`CirNode` is kept only as a semantic primitive source for lowering to tape; the selected successful backend is `CirTape`.
+`SdfNode` is kept only as a semantic primitive source for lowering to tape; the selected successful backend is `SdfTape`.
 
 ## 5. Mirror-admitted primitive cases
 
@@ -72,7 +72,7 @@ The X2 proof cases are:
 For each case:
 
 - mirror admission status is `mirror-admitted-exact`;
-- selected backend is `CirTape`;
+- selected backend is `SdfTape`;
 - map occupancy is produced by the CIR tape evaluator;
 - the BRep raycast baseline is compared over stable summaries;
 - diagnostics include backend selection, baseline comparison, parity success, no prismatic mirror use, and no production analyzer behavior change.

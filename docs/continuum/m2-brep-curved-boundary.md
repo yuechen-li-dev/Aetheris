@@ -29,7 +29,7 @@ The sphere runtime certificate uses a conservative local Hessian estimate for `h
 
 ## Exact boundary authority and query bridge
 
-The primary fixture is the existing `BrepPrimitives.CreateSphere` body: one closed periodic exact `SphereSurface` face. No new convenience geometry was added. `BrepSphereContinuumRegion` owns a `CirTransformNode(CirSphereNode)` for classification and separately owns the BRep body/face reference. A deterministic five-direction consistency probe verifies that the CIR inside/outside result agrees with the BRep material-side normal; disagreement throws explicitly.
+The primary fixture is the existing `BrepPrimitives.CreateSphere` body: one closed periodic exact `SphereSurface` face. No new convenience geometry was added. `BrepSphereContinuumRegion` owns a `SdfTransformNode(SdfSphereNode)` for classification and separately owns the BRep body/face reference. A deterministic five-direction consistency probe verifies that the CIR inside/outside result agrees with the BRep material-side normal; disagreement throws explicitly.
 
 `ExactBrepBoundaryQuery` is the bounded M2 bridge. For an exact referenced sphere face it supports exact point and face-normal evaluation, nearest support projection, parameter recovery, transformed center/radius access, and exact-surface frame construction. Unsupported surface families fail explicitly. It does not inspect tessellation or `SurfaceMeshIR`, and it does not admit NURBS.
 

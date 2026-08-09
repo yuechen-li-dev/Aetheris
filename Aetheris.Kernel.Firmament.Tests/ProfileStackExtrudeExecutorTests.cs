@@ -52,5 +52,5 @@ public sealed class ProfileStackExtrudeExecutorTests
         Assert.DoesNotContain(result.Diagnostics, d => d.Contains("repeated-subtract", StringComparison.Ordinal));
     }
 
-    private static CirNode BuildStepped() => new CirSubtractNode(new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20,20,10), new CirCylinderNode(2,20)), new CirTransformNode(new CirCylinderNode(3,6), Transform3D.CreateTranslation(new Vector3D(0,0,2)))), new CirTransformNode(new CirCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,3))));
+    private static SdfNode BuildStepped() => new SdfSubtractNode(new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20,20,10), new SdfCylinderNode(2,20)), new SdfTransformNode(new SdfCylinderNode(3,6), Transform3D.CreateTranslation(new Vector3D(0,0,2)))), new SdfTransformNode(new SdfCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,3))));
 }

@@ -10,7 +10,7 @@ public sealed class RestrictedContourSnapAnalyzerTests
     [Fact]
     public void Snap_BoxFaceVsCylinder_ProducesCircleCandidate()
     {
-        var stitched = BuildStitched(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 20)), 65);
+        var stitched = BuildStitched(new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(2, 20)), 65);
         var result = RestrictedContourSnapAnalyzer.Analyze(stitched, new RestrictedContourSnapOptions(0.06d, 0.02d, 8));
         var candidate = Assert.Single(result.Candidates, c => c.Kind == RestrictedContourSnapKind.Circle && c.Status == RestrictedContourSnapStatus.Candidate);
         var p = Assert.IsType<CircleSnapParameters2D>(candidate.Parameters);
@@ -22,7 +22,7 @@ public sealed class RestrictedContourSnapAnalyzerTests
     [Fact]
     public void Snap_BoxFaceVsSphere_ProducesCircleCandidate()
     {
-        var stitched = BuildStitched(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirSphereNode(6)), 65);
+        var stitched = BuildStitched(new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfSphereNode(6)), 65);
         var result = RestrictedContourSnapAnalyzer.Analyze(stitched, new RestrictedContourSnapOptions(0.06d, 0.02d, 8));
         Assert.Contains(result.Candidates, c => c.Kind == RestrictedContourSnapKind.Circle && c.Status == RestrictedContourSnapStatus.Candidate);
     }
@@ -30,7 +30,7 @@ public sealed class RestrictedContourSnapAnalyzerTests
     [Fact]
     public void Snap_BoxFaceVsTorus_RejectsOrDefersNonCircularCandidate()
     {
-        var stitched = BuildStitched(new CirSubtractNode(new CirBoxNode(12, 12, 12), new CirTorusNode(4, 1)), 65);
+        var stitched = BuildStitched(new SdfSubtractNode(new SdfBoxNode(12, 12, 12), new SdfTorusNode(4, 1)), 65);
         var result = RestrictedContourSnapAnalyzer.Analyze(stitched, new RestrictedContourSnapOptions(0.01d, 0.01d, 8));
         var circles = result.Candidates.Where(c => c.Kind == RestrictedContourSnapKind.Circle).ToArray();
         Assert.True(circles.Length == 0 || circles.All(c => c.Status != RestrictedContourSnapStatus.Candidate || c.Diagnostics.Contains("snap-candidate-only:not-exact-trim")));
@@ -53,7 +53,7 @@ public sealed class RestrictedContourSnapAnalyzerTests
     [Fact]
     public void Snap_DeterministicResults()
     {
-        var stitched = BuildStitched(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirSphereNode(6)), 65);
+        var stitched = BuildStitched(new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfSphereNode(6)), 65);
         var options = new RestrictedContourSnapOptions(0.06d, 0.02d, 8);
         var a = RestrictedContourSnapAnalyzer.Analyze(stitched, options);
         var b = RestrictedContourSnapAnalyzer.Analyze(stitched, options);
@@ -70,7 +70,7 @@ public sealed class RestrictedContourSnapAnalyzerTests
         Assert.Contains(result.Candidates, c => c.Status == RestrictedContourSnapStatus.Rejected && c.Diagnostics.Any(d => d.StartsWith("snap-rejected-too-few-points:")));
     }
 
-    private static SurfaceTrimContourStitchResult BuildStitched(CirSubtractNode root, int resolution)
+    private static SurfaceTrimContourStitchResult BuildStitched(SdfSubtractNode root, int resolution)
     {
         var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors, d => d.ParameterPayloadReference == "top");
         var field = SurfaceRestrictedFieldFactory.ForSubtractSource(root, source, SubtractOperandSide.Left);

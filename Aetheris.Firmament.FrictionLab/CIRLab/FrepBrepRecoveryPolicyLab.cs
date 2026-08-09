@@ -14,7 +14,7 @@ public enum FrepBrepRecoveryCapability
 }
 
 public sealed record FrepBrepRecoveryContext(
-    CirNode Root,
+    SdfNode Root,
     NativeGeometryReplayLog? ReplayLog = null,
     IReadOnlyList<string>? UpstreamDiagnostics = null,
     bool TrimOracleAgreementAvailable = false,

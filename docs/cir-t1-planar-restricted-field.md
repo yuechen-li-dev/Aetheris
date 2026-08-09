@@ -23,12 +23,12 @@ It rejects non-planar, missing bounded geometry, non-rectangle bounded geometry,
 
 ## Subtract opposite operand selection
 
-For `CirSubtractNode(left,right)`, T1 uses explicit source side:
+For `SdfSubtractNode(left,right)`, T1 uses explicit source side:
 
 - source side `Left` => opposite node `right`
 - source side `Right` => opposite node `left`
 
-Opposite node is lowered via `CirTapeLowerer.Lower` and sampled via `CirTape.Evaluate`.
+Opposite node is lowered via `SdfTapeLowerer.Lower` and sampled via `SdfTape.Evaluate`.
 
 ## Evaluation behavior
 

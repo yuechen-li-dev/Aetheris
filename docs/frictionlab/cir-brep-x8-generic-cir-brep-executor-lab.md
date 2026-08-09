@@ -1,10 +1,10 @@
 # CIR-BREP-X8 generic CIR tree → BRep executor feasibility lab
 
 ## Purpose and scope
-FrictionLab-only feasibility probe for recursive `CirNode -> BrepBody` execution; no production wiring changes.
+FrictionLab-only feasibility probe for recursive `SdfNode -> BrepBody` execution; no production wiring changes.
 
 ## Code inspected
-`CirNode` / all node types, `BrepPrimitives`, `BrepBoolean` + safe composition/coaxial families, `HoleRecoveryPolicy` variants, `HoleRecoveryExecutor`, STEP exporter.
+`SdfNode` / all node types, `BrepPrimitives`, `BrepBoolean` + safe composition/coaxial families, `HoleRecoveryPolicy` variants, `HoleRecoveryExecutor`, STEP exporter.
 
 ## Prototype shape
 `GenericCirBrepExecutorLab` recursively maps CIR primitives/booleans/transforms into BRep constructors + `BrepBoolean` calls and emits structured per-scenario diagnostics.

@@ -25,7 +25,7 @@ Make `Assert Volume` consume a deterministic CIR/FRep occupied-volume result wit
 ## Existing oracles
 
 - primitive and hole analytic formulas;
-- `CirAdaptiveVolumeEstimatorTests` and calibration tests;
+- `SdfAdaptiveVolumeEstimatorTests` and calibration tests;
 - M2 frozen STEP hashes and per-face forensic evidence;
 - independent whole-loop values 913725.7396023329 and 913733.5792146825 mm³;
 - FreeCAD/OCCT validity and matching volume evidence;

@@ -36,9 +36,22 @@ public interface IContinuumRegion
         Classify(point, tolerance) != ContinuumPointClassification.Outside;
 }
 
-public interface ISignedDistanceCapability
+/// <summary>Optional identity shared by independently lowered representations from one typed construction source.</summary>
+public interface IConstructiveLineageRegion
 {
-    double SignedDistance(Point3D point);
+    string ConstructionSourceIdentity { get; }
+}
+
+/// <summary>A sign-correct scalar field: negative is occupied, positive is outside. Magnitude is not promised to be distance.</summary>
+public interface IImplicitFieldCapability
+{
+    double FieldValue(Point3D point);
+}
+
+/// <summary>Optional exact Euclidean signed-distance capability. Implementers must not expose this for non-isometric transforms or general CSG composition.</summary>
+public interface IExactEuclideanSignedDistanceCapability : IImplicitFieldCapability
+{
+    double SignedDistance(Point3D point) => FieldValue(point);
 }
 
 public interface IGradientCapability

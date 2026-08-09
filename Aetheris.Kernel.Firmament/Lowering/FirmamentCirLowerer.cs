@@ -10,14 +10,14 @@ using Aetheris.Kernel.Firmament.Diagnostics;
 namespace Aetheris.Kernel.Firmament.Lowering;
 
 public sealed record CirLoweringDiagnostic(int OpIndex, string FeatureId, string Message);
-public sealed record CirLoweringResult(CirNode Root, IReadOnlyList<CirLoweringDiagnostic> Diagnostics);
+public sealed record CirLoweringResult(SdfNode Root, IReadOnlyList<CirLoweringDiagnostic> Diagnostics);
 
 internal static class FirmamentCirLowerer
 {
     public static KernelResult<CirLoweringResult> Lower(FirmamentPrimitiveLoweringPlan plan)
     {
         ArgumentNullException.ThrowIfNull(plan);
-        var nodesByFeature = new Dictionary<string, CirNode>(StringComparer.Ordinal);
+        var nodesByFeature = new Dictionary<string, SdfNode>(StringComparer.Ordinal);
         var diagnostics = new List<CirLoweringDiagnostic>();
 
         foreach (var primitive in plan.Primitives.OrderBy(p => p.OpIndex))
@@ -56,9 +56,9 @@ internal static class FirmamentCirLowerer
             rhs = ApplyPlacement(rhs, boolean.Placement, boolean.OpIndex, boolean.FeatureId, nodesByFeature, diagnostics);
             var composed = boolean.Kind switch
             {
-                FirmamentLoweredBooleanKind.Add => new CirUnionNode(lhs, rhs),
-                FirmamentLoweredBooleanKind.Subtract => new CirSubtractNode(lhs, rhs),
-                FirmamentLoweredBooleanKind.Intersect => new CirIntersectNode(lhs, rhs),
+                FirmamentLoweredBooleanKind.Add => new SdfUnionNode(lhs, rhs),
+                FirmamentLoweredBooleanKind.Subtract => new SdfSubtractNode(lhs, rhs),
+                FirmamentLoweredBooleanKind.Intersect => new SdfIntersectNode(lhs, rhs),
                 _ => lhs
             };
 
@@ -90,7 +90,7 @@ internal static class FirmamentCirLowerer
         return KernelResult<CirLoweringResult>.Success(new CirLoweringResult(root, diagnostics));
     }
 
-    private static CirNode? LowerTool(FirmamentLoweredBoolean boolean, List<CirLoweringDiagnostic> diagnostics)
+    private static SdfNode? LowerTool(FirmamentLoweredBoolean boolean, List<CirLoweringDiagnostic> diagnostics)
     {
         if (!boolean.Tool.RawFields.TryGetValue("op", out var op))
         {
@@ -102,40 +102,40 @@ internal static class FirmamentCirLowerer
         {
             "box" when boolean.Tool.RawFields.TryGetValue("size", out var size) => BuildBox(size),
             "cylinder" when boolean.Tool.RawFields.TryGetValue("radius", out var radius) && boolean.Tool.RawFields.TryGetValue("height", out var height)
-                => new CirCylinderNode(double.Parse(radius), double.Parse(height)),
-            "sphere" when boolean.Tool.RawFields.TryGetValue("radius", out var sr) => new CirSphereNode(double.Parse(sr)),
+                => new SdfCylinderNode(double.Parse(radius), double.Parse(height)),
+            "sphere" when boolean.Tool.RawFields.TryGetValue("radius", out var sr) => new SdfSphereNode(double.Parse(sr)),
             "torus" when boolean.Tool.RawFields.TryGetValue("major_radius", out var major) && boolean.Tool.RawFields.TryGetValue("minor_radius", out var minor)
-                => new CirTorusNode(double.Parse(major), double.Parse(minor)),
+                => new SdfTorusNode(double.Parse(major), double.Parse(minor)),
             "cone" when boolean.Tool.RawFields.TryGetValue("bottom_radius", out var br) && boolean.Tool.RawFields.TryGetValue("top_radius", out var tr) && boolean.Tool.RawFields.TryGetValue("height", out var ch)
-                => new CirConeNode(double.Parse(br), double.Parse(tr), double.Parse(ch)),
+                => new SdfConeNode(double.Parse(br), double.Parse(tr), double.Parse(ch)),
             _ => UnsupportedTool(boolean, diagnostics)
         };
     }
 
-    private static CirNode? UnsupportedTool(FirmamentLoweredBoolean boolean, List<CirLoweringDiagnostic> diagnostics)
+    private static SdfNode? UnsupportedTool(FirmamentLoweredBoolean boolean, List<CirLoweringDiagnostic> diagnostics)
     {
         diagnostics.Add(new(boolean.OpIndex, boolean.FeatureId, $"Unsupported boolean tool op for CIR-M1: {boolean.Tool.OpName}."));
         return null;
     }
 
-    private static CirNode? LowerPrimitive(FirmamentLoweredPrimitive primitive, List<CirLoweringDiagnostic> diagnostics) => primitive switch
+    private static SdfNode? LowerPrimitive(FirmamentLoweredPrimitive primitive, List<CirLoweringDiagnostic> diagnostics) => primitive switch
     {
-        { Kind: FirmamentLoweredPrimitiveKind.Box, Parameters: FirmamentLoweredBoxParameters box } => new CirBoxNode(box.SizeX, box.SizeY, box.SizeZ),
-        { Kind: FirmamentLoweredPrimitiveKind.Cylinder, Parameters: FirmamentLoweredCylinderParameters cylinder } => new CirCylinderNode(cylinder.Radius, cylinder.Height),
-        { Kind: FirmamentLoweredPrimitiveKind.Sphere, Parameters: FirmamentLoweredSphereParameters sphere } => new CirSphereNode(sphere.Radius),
-        { Kind: FirmamentLoweredPrimitiveKind.Torus, Parameters: FirmamentLoweredTorusParameters torus } => new CirTorusNode(torus.MajorRadius, torus.MinorRadius),
-        { Kind: FirmamentLoweredPrimitiveKind.Cone, Parameters: FirmamentLoweredConeParameters cone } => new CirConeNode(cone.BottomRadius, cone.TopRadius, cone.Height),
+        { Kind: FirmamentLoweredPrimitiveKind.Box, Parameters: FirmamentLoweredBoxParameters box } => new SdfBoxNode(box.SizeX, box.SizeY, box.SizeZ),
+        { Kind: FirmamentLoweredPrimitiveKind.Cylinder, Parameters: FirmamentLoweredCylinderParameters cylinder } => new SdfCylinderNode(cylinder.Radius, cylinder.Height),
+        { Kind: FirmamentLoweredPrimitiveKind.Sphere, Parameters: FirmamentLoweredSphereParameters sphere } => new SdfSphereNode(sphere.Radius),
+        { Kind: FirmamentLoweredPrimitiveKind.Torus, Parameters: FirmamentLoweredTorusParameters torus } => new SdfTorusNode(torus.MajorRadius, torus.MinorRadius),
+        { Kind: FirmamentLoweredPrimitiveKind.Cone, Parameters: FirmamentLoweredConeParameters cone } => new SdfConeNode(cone.BottomRadius, cone.TopRadius, cone.Height),
         _ => UnsupportedPrimitive(primitive, diagnostics)
     };
 
-    private static CirNode? UnsupportedPrimitive(FirmamentLoweredPrimitive primitive, List<CirLoweringDiagnostic> diagnostics)
+    private static SdfNode? UnsupportedPrimitive(FirmamentLoweredPrimitive primitive, List<CirLoweringDiagnostic> diagnostics)
     {
         diagnostics.Add(new(primitive.OpIndex, primitive.FeatureId, $"Unsupported primitive for CIR-M1: {primitive.Kind}."));
         return null;
     }
 
 
-    private static CirNode ApplyDefaultPrimitiveLocalFrame(FirmamentLoweredPrimitive primitive, CirNode node)
+    private static SdfNode ApplyDefaultPrimitiveLocalFrame(FirmamentLoweredPrimitive primitive, SdfNode node)
     {
         var zShift = primitive switch
         {
@@ -155,16 +155,16 @@ internal static class FirmamentCirLowerer
             return node;
         }
 
-        return new CirTransformNode(node, Transform3D.CreateTranslation(new Vector3D(0d, 0d, zShift)));
+        return new SdfTransformNode(node, Transform3D.CreateTranslation(new Vector3D(0d, 0d, zShift)));
     }
 
-    private static CirNode BuildBox(string sizeRaw)
+    private static SdfNode BuildBox(string sizeRaw)
     {
         var parts = sizeRaw.Trim('[', ']').Split(',').Select(p => double.Parse(p.Trim())).ToArray();
-        return new CirBoxNode(parts[0], parts[1], parts[2]);
+        return new SdfBoxNode(parts[0], parts[1], parts[2]);
     }
 
-    private static CirNode ApplyDefaultToolLocalFrame(FirmamentLoweredToolOp tool, CirNode node)
+    private static SdfNode ApplyDefaultToolLocalFrame(FirmamentLoweredToolOp tool, SdfNode node)
     {
         var zShift = ResolveDefaultToolFrameZShift(tool);
         if (!zShift.HasValue || Math.Abs(zShift.Value) <= 1e-12d)
@@ -172,7 +172,7 @@ internal static class FirmamentCirLowerer
             return node;
         }
 
-        return new CirTransformNode(node, Transform3D.CreateTranslation(new Vector3D(0d, 0d, zShift.Value)));
+        return new SdfTransformNode(node, Transform3D.CreateTranslation(new Vector3D(0d, 0d, zShift.Value)));
     }
 
     private static double? ResolveDefaultToolFrameZShift(FirmamentLoweredToolOp tool)
@@ -202,7 +202,7 @@ internal static class FirmamentCirLowerer
         return null;
     }
 
-    private static CirNode ApplyPlacement(CirNode node, FirmamentLoweredPlacement? placement, int opIndex, string featureId, IReadOnlyDictionary<string, CirNode> loweredFeatures, List<CirLoweringDiagnostic> diagnostics)
+    private static SdfNode ApplyPlacement(SdfNode node, FirmamentLoweredPlacement? placement, int opIndex, string featureId, IReadOnlyDictionary<string, SdfNode> loweredFeatures, List<CirLoweringDiagnostic> diagnostics)
     {
         if (placement is null)
         {
@@ -228,11 +228,11 @@ internal static class FirmamentCirLowerer
             return node;
         }
 
-        return new CirTransformNode(node, Transform3D.CreateTranslation(translation));
+        return new SdfTransformNode(node, Transform3D.CreateTranslation(translation));
     }
 
 
-    private static Point3D? ResolvePlacementAnchor(FirmamentLoweredPlacement placement, IReadOnlyDictionary<string, CirNode> loweredFeatures, int opIndex, string featureId, List<CirLoweringDiagnostic> diagnostics)
+    private static Point3D? ResolvePlacementAnchor(FirmamentLoweredPlacement placement, IReadOnlyDictionary<string, SdfNode> loweredFeatures, int opIndex, string featureId, List<CirLoweringDiagnostic> diagnostics)
     {
         if (placement.On is null || placement.On is FirmamentLoweredPlacementOriginAnchor)
         {

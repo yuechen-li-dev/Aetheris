@@ -28,7 +28,7 @@ internal enum CirBoxCylinderAxisKind
 }
 
 internal sealed record CirBoxCylinderRecognizerInput(
-    CirNode Root,
+    SdfNode Root,
     NativeGeometryReplayLog? ReplayLog = null,
     string? SourceLabel = null);
 
@@ -62,12 +62,12 @@ internal static class CirBoxCylinderRecognizer
         var diagnostics = new List<string>();
         var tol = ToleranceContext.Default.Linear;
 
-        if (input.Root is not CirSubtractNode subtract)
+        if (input.Root is not SdfSubtractNode subtract)
         {
-            return Fail(CirBoxCylinderRecognitionReason.UnsupportedRootNotSubtract, "Root must be CirSubtractNode.", diagnostics);
+            return Fail(CirBoxCylinderRecognitionReason.UnsupportedRootNotSubtract, "Root must be SdfSubtractNode.", diagnostics);
         }
 
-        if (subtract.Left is CirSubtractNode or CirUnionNode or CirIntersectNode || subtract.Right is CirSubtractNode or CirUnionNode or CirIntersectNode)
+        if (subtract.Left is SdfSubtractNode or SdfUnionNode or SdfIntersectNode || subtract.Right is SdfSubtractNode or SdfUnionNode or SdfIntersectNode)
         {
             return Fail(CirBoxCylinderRecognitionReason.UnsupportedNestedOrComposite, "Nested/composite booleans are unsupported in CIR-STEP-V1.", diagnostics);
         }
@@ -82,14 +82,14 @@ internal static class CirBoxCylinderRecognizer
             return Fail(CirBoxCylinderRecognitionReason.UnsupportedTransform, "Subtract right operand has unsupported transform wrapper.", diagnostics);
         }
 
-        if (leftNode is not CirBoxNode box)
+        if (leftNode is not SdfBoxNode box)
         {
-            return Fail(CirBoxCylinderRecognitionReason.UnsupportedLeftNotBox, "Subtract left operand must normalize to CirBoxNode.", diagnostics);
+            return Fail(CirBoxCylinderRecognitionReason.UnsupportedLeftNotBox, "Subtract left operand must normalize to SdfBoxNode.", diagnostics);
         }
 
-        if (rightNode is not CirCylinderNode cylinder)
+        if (rightNode is not SdfCylinderNode cylinder)
         {
-            return Fail(CirBoxCylinderRecognitionReason.UnsupportedRightNotCylinder, "Subtract right operand must normalize to CirCylinderNode.", diagnostics);
+            return Fail(CirBoxCylinderRecognitionReason.UnsupportedRightNotCylinder, "Subtract right operand must normalize to SdfCylinderNode.", diagnostics);
         }
 
         if (box.Width <= 0d || box.Height <= 0d || box.Depth <= 0d || !double.IsFinite(box.Width) || !double.IsFinite(box.Height) || !double.IsFinite(box.Depth))
@@ -106,7 +106,11 @@ internal static class CirBoxCylinderRecognizer
         var boxMaxZ = boxTranslation.Z + (box.Depth * 0.5d);
         var cylinderMinZ = cylinderTranslation.Z - (cylinder.Height * 0.5d);
         var cylinderMaxZ = cylinderTranslation.Z + (cylinder.Height * 0.5d);
-        if (cylinderMinZ > boxMinZ + tol || cylinderMaxZ < boxMaxZ - tol)
+        // Intent decompilation must not promote a geometrically short tool to an exact through-hole.
+        // Use only a roundoff allowance here; the model-space tolerance is an admissibility band,
+        // not permission to change recovered topology.
+        var spanRoundoff = double.Max(1e-12d, box.Depth * Aetheris.Kernel.Core.Numerics.ToleranceContext.Default.Relative);
+        if (cylinderMinZ > boxMinZ + spanRoundoff || cylinderMaxZ < boxMaxZ - spanRoundoff)
         {
             return Fail(CirBoxCylinderRecognitionReason.UnsupportedNotThroughHole, "Cylinder does not span full box depth.", diagnostics);
         }
@@ -179,11 +183,11 @@ internal static class CirBoxCylinderRecognizer
         diagnostics.Add($"Replay context: opIndex={cylinderSubtract.OpIndex}, feature='{cylinderSubtract.FeatureId}', source='{cylinderSubtract.SourceFeatureId}', toolKind='{cylinderSubtract.ToolKind}'.");
     }
 
-    private static bool TryUnwrapTranslation(CirNode node, out CirNode unwrapped, out Vector3D translation)
+    private static bool TryUnwrapTranslation(SdfNode node, out SdfNode unwrapped, out Vector3D translation)
     {
         unwrapped = node;
         translation = Vector3D.Zero;
-        while (unwrapped is CirTransformNode transformNode)
+        while (unwrapped is SdfTransformNode transformNode)
         {
             if (!TryExtractPureTranslation(transformNode.Transform, out var step))
             {

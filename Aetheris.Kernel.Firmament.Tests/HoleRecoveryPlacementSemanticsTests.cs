@@ -20,7 +20,7 @@ public sealed class HoleRecoveryPlacementSemanticsTests
 
     [Theory]
     [MemberData(nameof(Cases))]
-    public void PlacementSemantics_AllSupportedVariants_PopulateExplicitPlacement(string _, CirNode root, HoleKind kind)
+    public void PlacementSemantics_AllSupportedVariants_PopulateExplicitPlacement(string _, SdfNode root, HoleKind kind)
     {
         var plan = Assert.IsType<HoleRecoveryPlan>(new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(root)).Plan);
         Assert.Equal(kind, plan.HoleKind);
@@ -74,12 +74,12 @@ public sealed class HoleRecoveryPlacementSemanticsTests
         }
     }
 
-    private static CirNode BuildThrough() => new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20));
-    private static CirNode BuildCounterbore() => new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)), new CirTransformNode(new CirCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))));
-    private static CirNode BuildBlindTop() => new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirTransformNode(new CirCylinderNode(2, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, 3))));
-    private static CirNode BuildBlindBottom() => new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirTransformNode(new CirCylinderNode(2, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))));
-    private static CirNode BuildCountersink() => new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20d, 20d, 10d), new CirCylinderNode(2d, 20d)), new CirTransformNode(new CirConeNode(2d, 4d, 4d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, 3d))));
-    private static CirNode BuildChamferTop() => new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20d,20d,10d), new CirCylinderNode(2d,20d)), new CirTransformNode(new CirConeNode(2d, 2.8d, 1d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, 4.5d))));
-    private static CirNode BuildChamferBottom() => new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20d,20d,10d), new CirCylinderNode(2d,20d)), new CirTransformNode(new CirConeNode(2.8d, 2d, 1d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, -4.5d))));
-    private static CirNode BuildStepped() => new CirSubtractNode(new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20,20,10), new CirCylinderNode(2,20)), new CirTransformNode(new CirCylinderNode(3,6), Transform3D.CreateTranslation(new Vector3D(0,0,-2)))), new CirTransformNode(new CirCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,-3))));
+    private static SdfNode BuildThrough() => new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfCylinderNode(2, 20));
+    private static SdfNode BuildCounterbore() => new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfCylinderNode(2, 20)), new SdfTransformNode(new SdfCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))));
+    private static SdfNode BuildBlindTop() => new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfTransformNode(new SdfCylinderNode(2, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, 3))));
+    private static SdfNode BuildBlindBottom() => new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfTransformNode(new SdfCylinderNode(2, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))));
+    private static SdfNode BuildCountersink() => new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20d, 20d, 10d), new SdfCylinderNode(2d, 20d)), new SdfTransformNode(new SdfConeNode(2d, 4d, 4d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, 3d))));
+    private static SdfNode BuildChamferTop() => new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20d,20d,10d), new SdfCylinderNode(2d,20d)), new SdfTransformNode(new SdfConeNode(2d, 2.8d, 1d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, 4.5d))));
+    private static SdfNode BuildChamferBottom() => new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20d,20d,10d), new SdfCylinderNode(2d,20d)), new SdfTransformNode(new SdfConeNode(2.8d, 2d, 1d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, -4.5d))));
+    private static SdfNode BuildStepped() => new SdfSubtractNode(new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20,20,10), new SdfCylinderNode(2,20)), new SdfTransformNode(new SdfCylinderNode(3,6), Transform3D.CreateTranslation(new Vector3D(0,0,-2)))), new SdfTransformNode(new SdfCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,-3))));
 }

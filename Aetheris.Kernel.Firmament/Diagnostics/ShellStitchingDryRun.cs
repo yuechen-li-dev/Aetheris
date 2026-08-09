@@ -86,7 +86,7 @@ internal sealed record ShellStitchingDryRunResult(
 
 internal static class ShellStitchingDryRunPlanner
 {
-    internal static ShellStitchingDryRunResult Generate(CirNode root)
+    internal static ShellStitchingDryRunResult Generate(SdfNode root)
     {
         var planar = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
         var generation = FacePatchCandidateGenerator.Generate(root);

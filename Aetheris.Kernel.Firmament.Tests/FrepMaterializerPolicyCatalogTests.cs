@@ -23,7 +23,7 @@ public sealed class FrepMaterializerPolicyCatalogTests
     [Fact]
     public void Planner_WithDefaultCatalog_SelectsThroughHoleForBoxCylinder()
     {
-        var context = new FrepMaterializerContext(new CirSubtractNode(new CirBoxNode(20, 10, 8), new CirCylinderNode(2, 20)));
+        var context = new FrepMaterializerContext(new SdfSubtractNode(new SdfBoxNode(20, 10, 8), new SdfCylinderNode(2, 20)));
         var decision = FrepMaterializerPlanner.Decide(context, FrepMaterializerPolicyCatalog.Default());
 
         Assert.Equal(FrepMaterializerDecisionStatus.Selected, decision.Status);
@@ -33,7 +33,7 @@ public sealed class FrepMaterializerPolicyCatalogTests
     [Fact]
     public void Planner_WithDefaultCatalog_UsesFallbackForUnsupported()
     {
-        var context = new FrepMaterializerContext(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirSphereNode(2)));
+        var context = new FrepMaterializerContext(new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfSphereNode(2)));
         var decision = FrepMaterializerPlanner.Decide(context, FrepMaterializerPolicyCatalog.Default());
 
         Assert.Equal(FrepMaterializerDecisionStatus.Selected, decision.Status);

@@ -3,7 +3,7 @@ using Aetheris.Kernel.Core.Numerics;
 
 namespace Aetheris.Continuum.Backends.Sdf;
 
-public enum CirTapeOpCode
+public enum SdfTapeOpCode
 {
     EvalBox,
     EvalCylinder,
@@ -15,20 +15,20 @@ public enum CirTapeOpCode
     Neg,
 }
 
-public readonly record struct CirTapeInstruction(
-    CirTapeOpCode OpCode,
+public readonly record struct SdfTapeInstruction(
+    SdfTapeOpCode OpCode,
     int DestSlot,
     int InputA,
     int InputB,
     int PayloadIndex,
-    CirNodeKind SourceKind,
+    SdfNodeKind SourceKind,
     int LoweringIndex);
 
-public readonly record struct CirTapeBoxPayload(double Width, double Height, double Depth, Transform3D InverseTransform);
-public readonly record struct CirTapeCylinderPayload(double Radius, double Height, Transform3D InverseTransform);
-public readonly record struct CirTapeSpherePayload(double Radius, Transform3D InverseTransform);
-public readonly record struct CirTapeTorusPayload(double MajorRadius, double MinorRadius, Transform3D InverseTransform);
-public readonly record struct CirTapeConePayload(double BottomRadius, double TopRadius, double Height, Transform3D InverseTransform);
+public readonly record struct SdfTapeBoxPayload(double Width, double Height, double Depth, Transform3D InverseTransform);
+public readonly record struct SdfTapeCylinderPayload(double Radius, double Height, Transform3D InverseTransform);
+public readonly record struct SdfTapeSpherePayload(double Radius, Transform3D InverseTransform);
+public readonly record struct SdfTapeTorusPayload(double MajorRadius, double MinorRadius, Transform3D InverseTransform);
+public readonly record struct SdfTapeConePayload(double BottomRadius, double TopRadius, double Height, Transform3D InverseTransform);
 
 public readonly record struct FieldInterval(double MinValue, double MaxValue)
 {
@@ -37,7 +37,7 @@ public readonly record struct FieldInterval(double MinValue, double MaxValue)
     public bool IsMixed(ToleranceContext tolerance) => !IsDefinitelyInside(tolerance) && !IsDefinitelyOutside(tolerance);
 }
 
-public enum CirRegionClassification
+public enum SdfRegionClassification
 {
     Inside,
     Outside,
@@ -46,17 +46,17 @@ public enum CirRegionClassification
 
 /// <summary>
 /// Linear MIR/runtime representation for CIR point evaluation.
-/// During transition, this is the intended execution form while <see cref="CirNode"/> remains the semantic builder/oracle.
+/// During transition, this is the intended execution form while <see cref="SdfNode"/> remains the semantic builder/oracle.
 /// </summary>
-public sealed class CirTape
+public sealed class SdfTape
 {
-    public CirTape(
-        IReadOnlyList<CirTapeInstruction> instructions,
-        IReadOnlyList<CirTapeBoxPayload> boxes,
-        IReadOnlyList<CirTapeCylinderPayload> cylinders,
-        IReadOnlyList<CirTapeSpherePayload> spheres,
-        IReadOnlyList<CirTapeTorusPayload> toruses,
-        IReadOnlyList<CirTapeConePayload> cones,
+    public SdfTape(
+        IReadOnlyList<SdfTapeInstruction> instructions,
+        IReadOnlyList<SdfTapeBoxPayload> boxes,
+        IReadOnlyList<SdfTapeCylinderPayload> cylinders,
+        IReadOnlyList<SdfTapeSpherePayload> spheres,
+        IReadOnlyList<SdfTapeTorusPayload> toruses,
+        IReadOnlyList<SdfTapeConePayload> cones,
         int outputSlot,
         int slotCount)
     {
@@ -70,12 +70,12 @@ public sealed class CirTape
         SlotCount = slotCount;
     }
 
-    public IReadOnlyList<CirTapeInstruction> Instructions { get; }
-    public IReadOnlyList<CirTapeBoxPayload> BoxPayloads { get; }
-    public IReadOnlyList<CirTapeCylinderPayload> CylinderPayloads { get; }
-    public IReadOnlyList<CirTapeSpherePayload> SpherePayloads { get; }
-    public IReadOnlyList<CirTapeTorusPayload> TorusPayloads { get; }
-    public IReadOnlyList<CirTapeConePayload> ConePayloads { get; }
+    public IReadOnlyList<SdfTapeInstruction> Instructions { get; }
+    public IReadOnlyList<SdfTapeBoxPayload> BoxPayloads { get; }
+    public IReadOnlyList<SdfTapeCylinderPayload> CylinderPayloads { get; }
+    public IReadOnlyList<SdfTapeSpherePayload> SpherePayloads { get; }
+    public IReadOnlyList<SdfTapeTorusPayload> TorusPayloads { get; }
+    public IReadOnlyList<SdfTapeConePayload> ConePayloads { get; }
     public int OutputSlot { get; }
     public int SlotCount { get; }
 
@@ -87,43 +87,43 @@ public sealed class CirTape
         {
             switch (instruction.OpCode)
             {
-                case CirTapeOpCode.EvalBox:
+                case SdfTapeOpCode.EvalBox:
                 {
                     var payload = BoxPayloads[instruction.PayloadIndex];
                     slots[instruction.DestSlot] = EvaluateBox(point, payload);
                     break;
                 }
-                case CirTapeOpCode.EvalCylinder:
+                case SdfTapeOpCode.EvalCylinder:
                 {
                     var payload = CylinderPayloads[instruction.PayloadIndex];
                     slots[instruction.DestSlot] = EvaluateCylinder(point, payload);
                     break;
                 }
-                case CirTapeOpCode.EvalSphere:
+                case SdfTapeOpCode.EvalSphere:
                 {
                     var payload = SpherePayloads[instruction.PayloadIndex];
                     slots[instruction.DestSlot] = EvaluateSphere(point, payload);
                     break;
                 }
-                case CirTapeOpCode.EvalTorus:
+                case SdfTapeOpCode.EvalTorus:
                 {
                     var payload = TorusPayloads[instruction.PayloadIndex];
                     slots[instruction.DestSlot] = EvaluateTorus(point, payload);
                     break;
                 }
-                case CirTapeOpCode.EvalCone:
+                case SdfTapeOpCode.EvalCone:
                 {
                     var payload = ConePayloads[instruction.PayloadIndex];
                     slots[instruction.DestSlot] = EvaluateCone(point, payload);
                     break;
                 }
-                case CirTapeOpCode.Min:
+                case SdfTapeOpCode.Min:
                     slots[instruction.DestSlot] = double.Min(slots[instruction.InputA], slots[instruction.InputB]);
                     break;
-                case CirTapeOpCode.Max:
+                case SdfTapeOpCode.Max:
                     slots[instruction.DestSlot] = double.Max(slots[instruction.InputA], slots[instruction.InputB]);
                     break;
-                case CirTapeOpCode.Neg:
+                case SdfTapeOpCode.Neg:
                     slots[instruction.DestSlot] = -slots[instruction.InputA];
                     break;
                 default:
@@ -134,7 +134,7 @@ public sealed class CirTape
         return slots[OutputSlot];
     }
 
-    public FieldInterval EvaluateInterval(CirBounds region)
+    public FieldInterval EvaluateInterval(SdfBounds region)
     {
         var slots = new FieldInterval[SlotCount];
 
@@ -142,36 +142,36 @@ public sealed class CirTape
         {
             switch (instruction.OpCode)
             {
-                case CirTapeOpCode.EvalBox:
+                case SdfTapeOpCode.EvalBox:
                     slots[instruction.DestSlot] = EvaluateBoxInterval(region, BoxPayloads[instruction.PayloadIndex]);
                     break;
-                case CirTapeOpCode.EvalCylinder:
+                case SdfTapeOpCode.EvalCylinder:
                     slots[instruction.DestSlot] = EvaluateCylinderInterval(region, CylinderPayloads[instruction.PayloadIndex]);
                     break;
-                case CirTapeOpCode.EvalSphere:
+                case SdfTapeOpCode.EvalSphere:
                     slots[instruction.DestSlot] = EvaluateSphereInterval(region, SpherePayloads[instruction.PayloadIndex]);
                     break;
-                case CirTapeOpCode.EvalTorus:
+                case SdfTapeOpCode.EvalTorus:
                     slots[instruction.DestSlot] = EvaluateTorusInterval(region, TorusPayloads[instruction.PayloadIndex]);
                     break;
-                case CirTapeOpCode.EvalCone:
+                case SdfTapeOpCode.EvalCone:
                     slots[instruction.DestSlot] = EvaluateConeInterval(region, ConePayloads[instruction.PayloadIndex]);
                     break;
-                case CirTapeOpCode.Min:
+                case SdfTapeOpCode.Min:
                 {
                     var a = slots[instruction.InputA];
                     var b = slots[instruction.InputB];
                     slots[instruction.DestSlot] = new FieldInterval(double.Min(a.MinValue, b.MinValue), double.Min(a.MaxValue, b.MaxValue));
                     break;
                 }
-                case CirTapeOpCode.Max:
+                case SdfTapeOpCode.Max:
                 {
                     var a = slots[instruction.InputA];
                     var b = slots[instruction.InputB];
                     slots[instruction.DestSlot] = new FieldInterval(double.Max(a.MinValue, b.MinValue), double.Max(a.MaxValue, b.MaxValue));
                     break;
                 }
-                case CirTapeOpCode.Neg:
+                case SdfTapeOpCode.Neg:
                 {
                     var a = slots[instruction.InputA];
                     slots[instruction.DestSlot] = new FieldInterval(-a.MaxValue, -a.MinValue);
@@ -185,23 +185,23 @@ public sealed class CirTape
         return slots[OutputSlot];
     }
 
-    public CirRegionClassification ClassifyRegion(CirBounds region, ToleranceContext tolerance)
+    public SdfRegionClassification ClassifyRegion(SdfBounds region, ToleranceContext tolerance)
     {
         var interval = EvaluateInterval(region);
         if (interval.IsDefinitelyInside(tolerance))
         {
-            return CirRegionClassification.Inside;
+            return SdfRegionClassification.Inside;
         }
 
         if (interval.IsDefinitelyOutside(tolerance))
         {
-            return CirRegionClassification.Outside;
+            return SdfRegionClassification.Outside;
         }
 
-        return CirRegionClassification.Mixed;
+        return SdfRegionClassification.Mixed;
     }
 
-    private static double EvaluateBox(Point3D point, CirTapeBoxPayload payload)
+    private static double EvaluateBox(Point3D point, SdfTapeBoxPayload payload)
     {
         point = payload.InverseTransform.Apply(point);
         var hx = payload.Width * 0.5d;
@@ -218,7 +218,7 @@ public sealed class CirTape
         return outside + inside;
     }
 
-    private static double EvaluateCylinder(Point3D point, CirTapeCylinderPayload payload)
+    private static double EvaluateCylinder(Point3D point, SdfTapeCylinderPayload payload)
     {
         point = payload.InverseTransform.Apply(point);
         var radial = double.Sqrt((point.X * point.X) + (point.Y * point.Y));
@@ -231,13 +231,13 @@ public sealed class CirTape
         return outside + inside;
     }
 
-    private static double EvaluateSphere(Point3D point, CirTapeSpherePayload payload)
+    private static double EvaluateSphere(Point3D point, SdfTapeSpherePayload payload)
     {
         point = payload.InverseTransform.Apply(point);
         return double.Sqrt((point.X * point.X) + (point.Y * point.Y) + (point.Z * point.Z)) - payload.Radius;
     }
 
-    private static double EvaluateTorus(Point3D point, CirTapeTorusPayload payload)
+    private static double EvaluateTorus(Point3D point, SdfTapeTorusPayload payload)
     {
         point = payload.InverseTransform.Apply(point);
         var radial = double.Sqrt((point.X * point.X) + (point.Y * point.Y));
@@ -245,13 +245,13 @@ public sealed class CirTape
         return double.Sqrt((qx * qx) + (point.Z * point.Z)) - payload.MinorRadius;
     }
 
-    private static double EvaluateCone(Point3D point, CirTapeConePayload payload)
+    private static double EvaluateCone(Point3D point, SdfTapeConePayload payload)
     {
         point = payload.InverseTransform.Apply(point);
-        return CirConeNode.EvaluateFiniteCone(point, payload.BottomRadius, payload.TopRadius, payload.Height);
+        return SdfConeNode.EvaluateFiniteCone(point, payload.BottomRadius, payload.TopRadius, payload.Height);
     }
 
-    private static FieldInterval EvaluateBoxInterval(CirBounds region, CirTapeBoxPayload payload)
+    private static FieldInterval EvaluateBoxInterval(SdfBounds region, SdfTapeBoxPayload payload)
     {
         var local = TransformBounds(region, payload.InverseTransform);
         var hx = payload.Width * 0.5d;
@@ -260,7 +260,7 @@ public sealed class CirTape
         return EvaluateBoundedBoxSdfInterval(local, hx, hy, hz);
     }
 
-    private static FieldInterval EvaluateCylinderInterval(CirBounds region, CirTapeCylinderPayload payload)
+    private static FieldInterval EvaluateCylinderInterval(SdfBounds region, SdfTapeCylinderPayload payload)
     {
         var local = TransformBounds(region, payload.InverseTransform);
         var dr = RadiusInterval(local, payload.Radius);
@@ -268,7 +268,7 @@ public sealed class CirTape
         return CombineExtrudedSdf(dr, dz);
     }
 
-    private static FieldInterval EvaluateSphereInterval(CirBounds region, CirTapeSpherePayload payload)
+    private static FieldInterval EvaluateSphereInterval(SdfBounds region, SdfTapeSpherePayload payload)
     {
         var local = TransformBounds(region, payload.InverseTransform);
         var distanceMin = MinDistanceToAabbOrigin(local);
@@ -276,7 +276,7 @@ public sealed class CirTape
         return new FieldInterval(distanceMin - payload.Radius, distanceMax - payload.Radius);
     }
 
-    private static FieldInterval EvaluateTorusInterval(CirBounds region, CirTapeTorusPayload payload)
+    private static FieldInterval EvaluateTorusInterval(SdfBounds region, SdfTapeTorusPayload payload)
     {
         var local = TransformBounds(region, payload.InverseTransform);
         var radial = RadiusInterval(local, payload.MajorRadius);
@@ -289,7 +289,7 @@ public sealed class CirTape
         return new FieldInterval(minD - payload.MinorRadius, maxD - payload.MinorRadius);
     }
 
-    private static FieldInterval EvaluateConeInterval(CirBounds region, CirTapeConePayload payload)
+    private static FieldInterval EvaluateConeInterval(SdfBounds region, SdfTapeConePayload payload)
     {
         var local = TransformBounds(region, payload.InverseTransform);
         var corners = GetCorners(local);
@@ -297,7 +297,7 @@ public sealed class CirTape
         var max = double.NegativeInfinity;
         foreach (var c in corners)
         {
-            var value = CirConeNode.EvaluateFiniteCone(c, payload.BottomRadius, payload.TopRadius, payload.Height);
+            var value = SdfConeNode.EvaluateFiniteCone(c, payload.BottomRadius, payload.TopRadius, payload.Height);
             min = double.Min(min, value);
             max = double.Max(max, value);
         }
@@ -305,16 +305,16 @@ public sealed class CirTape
         return new FieldInterval(min, max);
     }
 
-    private static CirBounds TransformBounds(CirBounds bounds, Transform3D transform)
+    private static SdfBounds TransformBounds(SdfBounds bounds, Transform3D transform)
     {
         var corners = GetCorners(bounds);
         var transformed = corners.Select(transform.Apply).ToArray();
-        return new CirBounds(
+        return new SdfBounds(
             new Point3D(transformed.Min(p => p.X), transformed.Min(p => p.Y), transformed.Min(p => p.Z)),
             new Point3D(transformed.Max(p => p.X), transformed.Max(p => p.Y), transformed.Max(p => p.Z)));
     }
 
-    private static Point3D[] GetCorners(CirBounds b) =>
+    private static Point3D[] GetCorners(SdfBounds b) =>
     [
         new Point3D(b.Min.X, b.Min.Y, b.Min.Z),
         new Point3D(b.Min.X, b.Min.Y, b.Max.Z),
@@ -326,7 +326,7 @@ public sealed class CirTape
         new Point3D(b.Max.X, b.Max.Y, b.Max.Z),
     ];
 
-    private static FieldInterval EvaluateBoundedBoxSdfInterval(CirBounds local, double hx, double hy, double hz)
+    private static FieldInterval EvaluateBoundedBoxSdfInterval(SdfBounds local, double hx, double hy, double hz)
     {
         var dx = AxisAbsDistanceInterval(local.Min.X, local.Max.X, hx);
         var dy = AxisAbsDistanceInterval(local.Min.Y, local.Max.Y, hy);
@@ -344,7 +344,7 @@ public sealed class CirTape
         return new FieldInterval(outsideMin + insideMin, outsideMax + insideMax);
     }
 
-    private static FieldInterval RadiusInterval(CirBounds bounds, double radius)
+    private static FieldInterval RadiusInterval(SdfBounds bounds, double radius)
     {
         var minR = MinDistanceToRectOrigin(bounds.Min.X, bounds.Max.X, bounds.Min.Y, bounds.Max.Y);
         var maxR = MaxDistanceToRectOrigin(bounds.Min.X, bounds.Max.X, bounds.Min.Y, bounds.Max.Y);
@@ -364,12 +364,12 @@ public sealed class CirTape
     private static double MaxAbsInInterval(double min, double max)
         => double.Max(double.Abs(min), double.Abs(max));
 
-    private static double MinDistanceToAabbOrigin(CirBounds bounds)
+    private static double MinDistanceToAabbOrigin(SdfBounds bounds)
         => double.Sqrt((MinAbsInInterval(bounds.Min.X, bounds.Max.X) * MinAbsInInterval(bounds.Min.X, bounds.Max.X))
             + (MinAbsInInterval(bounds.Min.Y, bounds.Max.Y) * MinAbsInInterval(bounds.Min.Y, bounds.Max.Y))
             + (MinAbsInInterval(bounds.Min.Z, bounds.Max.Z) * MinAbsInInterval(bounds.Min.Z, bounds.Max.Z)));
 
-    private static double MaxDistanceToAabbOrigin(CirBounds bounds)
+    private static double MaxDistanceToAabbOrigin(SdfBounds bounds)
         => double.Sqrt((MaxAbsInInterval(bounds.Min.X, bounds.Max.X) * MaxAbsInInterval(bounds.Min.X, bounds.Max.X))
             + (MaxAbsInInterval(bounds.Min.Y, bounds.Max.Y) * MaxAbsInInterval(bounds.Min.Y, bounds.Max.Y))
             + (MaxAbsInInterval(bounds.Min.Z, bounds.Max.Z) * MaxAbsInInterval(bounds.Min.Z, bounds.Max.Z)));
@@ -389,19 +389,19 @@ public sealed class CirTape
     }
 }
 
-public static class CirTapeLowerer
+public static class SdfTapeLowerer
 {
     /// <summary>
-    /// Deterministically lowers semantic <see cref="CirNode"/> trees into runtime <see cref="CirTape"/>.
+    /// Deterministically lowers semantic <see cref="SdfNode"/> trees into runtime <see cref="SdfTape"/>.
     /// </summary>
-    public static CirTape Lower(CirNode node)
+    public static SdfTape Lower(SdfNode node)
     {
         ArgumentNullException.ThrowIfNull(node);
 
         var state = new LoweringState();
         var outputSlot = LowerNode(node, Transform3D.Identity, state);
 
-        return new CirTape(
+        return new SdfTape(
             state.Instructions,
             state.BoxPayloads,
             state.CylinderPayloads,
@@ -412,60 +412,60 @@ public static class CirTapeLowerer
             state.NextSlot);
     }
 
-    private static int LowerNode(CirNode node, Transform3D accumulatedInverse, LoweringState state)
+    private static int LowerNode(SdfNode node, Transform3D accumulatedInverse, LoweringState state)
     {
         switch (node)
         {
-            case CirBoxNode box:
+            case SdfBoxNode box:
             {
                 var payloadIndex = state.BoxPayloads.Count;
-                state.BoxPayloads.Add(new CirTapeBoxPayload(box.Width, box.Height, box.Depth, accumulatedInverse));
-                return state.Emit(CirTapeOpCode.EvalBox, -1, -1, payloadIndex, node.Kind);
+                state.BoxPayloads.Add(new SdfTapeBoxPayload(box.Width, box.Height, box.Depth, accumulatedInverse));
+                return state.Emit(SdfTapeOpCode.EvalBox, -1, -1, payloadIndex, node.Kind);
             }
-            case CirCylinderNode cylinder:
+            case SdfCylinderNode cylinder:
             {
                 var payloadIndex = state.CylinderPayloads.Count;
-                state.CylinderPayloads.Add(new CirTapeCylinderPayload(cylinder.Radius, cylinder.Height, accumulatedInverse));
-                return state.Emit(CirTapeOpCode.EvalCylinder, -1, -1, payloadIndex, node.Kind);
+                state.CylinderPayloads.Add(new SdfTapeCylinderPayload(cylinder.Radius, cylinder.Height, accumulatedInverse));
+                return state.Emit(SdfTapeOpCode.EvalCylinder, -1, -1, payloadIndex, node.Kind);
             }
-            case CirSphereNode sphere:
+            case SdfSphereNode sphere:
             {
                 var payloadIndex = state.SpherePayloads.Count;
-                state.SpherePayloads.Add(new CirTapeSpherePayload(sphere.Radius, accumulatedInverse));
-                return state.Emit(CirTapeOpCode.EvalSphere, -1, -1, payloadIndex, node.Kind);
+                state.SpherePayloads.Add(new SdfTapeSpherePayload(sphere.Radius, accumulatedInverse));
+                return state.Emit(SdfTapeOpCode.EvalSphere, -1, -1, payloadIndex, node.Kind);
             }
-            case CirTorusNode torus:
+            case SdfTorusNode torus:
             {
                 var payloadIndex = state.TorusPayloads.Count;
-                state.TorusPayloads.Add(new CirTapeTorusPayload(torus.MajorRadius, torus.MinorRadius, accumulatedInverse));
-                return state.Emit(CirTapeOpCode.EvalTorus, -1, -1, payloadIndex, node.Kind);
+                state.TorusPayloads.Add(new SdfTapeTorusPayload(torus.MajorRadius, torus.MinorRadius, accumulatedInverse));
+                return state.Emit(SdfTapeOpCode.EvalTorus, -1, -1, payloadIndex, node.Kind);
             }
-            case CirConeNode cone:
+            case SdfConeNode cone:
             {
                 var payloadIndex = state.ConePayloads.Count;
-                state.ConePayloads.Add(new CirTapeConePayload(cone.BottomRadius, cone.TopRadius, cone.Height, accumulatedInverse));
-                return state.Emit(CirTapeOpCode.EvalCone, -1, -1, payloadIndex, node.Kind);
+                state.ConePayloads.Add(new SdfTapeConePayload(cone.BottomRadius, cone.TopRadius, cone.Height, accumulatedInverse));
+                return state.Emit(SdfTapeOpCode.EvalCone, -1, -1, payloadIndex, node.Kind);
             }
-            case CirUnionNode union:
+            case SdfUnionNode union:
             {
                 var left = LowerNode(union.Left, accumulatedInverse, state);
                 var right = LowerNode(union.Right, accumulatedInverse, state);
-                return state.Emit(CirTapeOpCode.Min, left, right, -1, node.Kind);
+                return state.Emit(SdfTapeOpCode.Min, left, right, -1, node.Kind);
             }
-            case CirSubtractNode subtract:
+            case SdfSubtractNode subtract:
             {
                 var left = LowerNode(subtract.Left, accumulatedInverse, state);
                 var right = LowerNode(subtract.Right, accumulatedInverse, state);
-                var negRight = state.Emit(CirTapeOpCode.Neg, right, -1, -1, node.Kind);
-                return state.Emit(CirTapeOpCode.Max, left, negRight, -1, node.Kind);
+                var negRight = state.Emit(SdfTapeOpCode.Neg, right, -1, -1, node.Kind);
+                return state.Emit(SdfTapeOpCode.Max, left, negRight, -1, node.Kind);
             }
-            case CirIntersectNode intersect:
+            case SdfIntersectNode intersect:
             {
                 var left = LowerNode(intersect.Left, accumulatedInverse, state);
                 var right = LowerNode(intersect.Right, accumulatedInverse, state);
-                return state.Emit(CirTapeOpCode.Max, left, right, -1, node.Kind);
+                return state.Emit(SdfTapeOpCode.Max, left, right, -1, node.Kind);
             }
-            case CirTransformNode transform:
+            case SdfTransformNode transform:
             {
                 var nextAccumulatedInverse = accumulatedInverse * transform.Transform.Inverse();
                 return LowerNode(transform.Child, nextAccumulatedInverse, state);
@@ -477,18 +477,18 @@ public static class CirTapeLowerer
 
     private sealed class LoweringState
     {
-        public List<CirTapeInstruction> Instructions { get; } = new();
-        public List<CirTapeBoxPayload> BoxPayloads { get; } = new();
-        public List<CirTapeCylinderPayload> CylinderPayloads { get; } = new();
-        public List<CirTapeSpherePayload> SpherePayloads { get; } = new();
-        public List<CirTapeTorusPayload> TorusPayloads { get; } = new();
-        public List<CirTapeConePayload> ConePayloads { get; } = new();
+        public List<SdfTapeInstruction> Instructions { get; } = new();
+        public List<SdfTapeBoxPayload> BoxPayloads { get; } = new();
+        public List<SdfTapeCylinderPayload> CylinderPayloads { get; } = new();
+        public List<SdfTapeSpherePayload> SpherePayloads { get; } = new();
+        public List<SdfTapeTorusPayload> TorusPayloads { get; } = new();
+        public List<SdfTapeConePayload> ConePayloads { get; } = new();
         public int NextSlot { get; private set; }
 
-        public int Emit(CirTapeOpCode opCode, int inputA, int inputB, int payloadIndex, CirNodeKind sourceKind)
+        public int Emit(SdfTapeOpCode opCode, int inputA, int inputB, int payloadIndex, SdfNodeKind sourceKind)
         {
             var destSlot = NextSlot++;
-            Instructions.Add(new CirTapeInstruction(opCode, destSlot, inputA, inputB, payloadIndex, sourceKind, Instructions.Count));
+            Instructions.Add(new SdfTapeInstruction(opCode, destSlot, inputA, inputB, payloadIndex, sourceKind, Instructions.Count));
             return destSlot;
         }
     }

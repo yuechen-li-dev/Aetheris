@@ -11,24 +11,24 @@ public sealed class CirMapDispatchPrototypeTests
     private const int Cols = 19;
     private const double ThicknessTolerance = 0.075d;
 
-    public static TheoryData<string, int, CirNode, BrepBody, CirMapPrototypeView> PrimitiveViews => new()
+    public static TheoryData<string, int, SdfNode, BrepBody, CirMapPrototypeView> PrimitiveViews => new()
     {
-        { "box", (int)CirMirrorAtomKind.BoxPrimitive, new CirBoxNode(10d, 6d, 4d), BrepPrimitives.CreateBox(10d, 6d, 4d).Value, CirMapPrototypeView.Top },
-        { "box", (int)CirMirrorAtomKind.BoxPrimitive, new CirBoxNode(10d, 6d, 4d), BrepPrimitives.CreateBox(10d, 6d, 4d).Value, CirMapPrototypeView.Front },
-        { "cylinder", (int)CirMirrorAtomKind.CylinderPrimitive, new CirCylinderNode(3d, 8d), BrepPrimitives.CreateCylinder(3d, 8d).Value, CirMapPrototypeView.Top },
-        { "cylinder", (int)CirMirrorAtomKind.CylinderPrimitive, new CirCylinderNode(3d, 8d), BrepPrimitives.CreateCylinder(3d, 8d).Value, CirMapPrototypeView.Front },
-        { "sphere", (int)CirMirrorAtomKind.SpherePrimitive, new CirSphereNode(3d), BrepPrimitives.CreateSphere(3d).Value, CirMapPrototypeView.Top },
-        { "sphere", (int)CirMirrorAtomKind.SpherePrimitive, new CirSphereNode(3d), BrepPrimitives.CreateSphere(3d).Value, CirMapPrototypeView.Front },
+        { "box", (int)CirMirrorAtomKind.BoxPrimitive, new SdfBoxNode(10d, 6d, 4d), BrepPrimitives.CreateBox(10d, 6d, 4d).Value, CirMapPrototypeView.Top },
+        { "box", (int)CirMirrorAtomKind.BoxPrimitive, new SdfBoxNode(10d, 6d, 4d), BrepPrimitives.CreateBox(10d, 6d, 4d).Value, CirMapPrototypeView.Front },
+        { "cylinder", (int)CirMirrorAtomKind.CylinderPrimitive, new SdfCylinderNode(3d, 8d), BrepPrimitives.CreateCylinder(3d, 8d).Value, CirMapPrototypeView.Top },
+        { "cylinder", (int)CirMirrorAtomKind.CylinderPrimitive, new SdfCylinderNode(3d, 8d), BrepPrimitives.CreateCylinder(3d, 8d).Value, CirMapPrototypeView.Front },
+        { "sphere", (int)CirMirrorAtomKind.SpherePrimitive, new SdfSphereNode(3d), BrepPrimitives.CreateSphere(3d).Value, CirMapPrototypeView.Top },
+        { "sphere", (int)CirMirrorAtomKind.SpherePrimitive, new SdfSphereNode(3d), BrepPrimitives.CreateSphere(3d).Value, CirMapPrototypeView.Front },
     };
 
     [Theory]
     [MemberData(nameof(PrimitiveViews))]
-    public void CirMapX2_PrimitiveMapOccupancy_SelectsCirTapeAndComparesBrepBaseline(string source, int atomKindValue, CirNode node, BrepBody body, CirMapPrototypeView view)
+    public void CirMapX2_PrimitiveMapOccupancy_SelectsSdfTapeAndComparesBrepBaseline(string source, int atomKindValue, SdfNode node, BrepBody body, CirMapPrototypeView view)
     {
         var request = new CirMapPrototypeRequest(view, Rows, Cols, node.Bounds, SamplesPerRay: 384, RootRefinementIterations: 32, Tolerance: 1e-7d);
         var dispatch = CirMapDispatchPrototype.Dispatch(CreateRequest(source, (CirMirrorAtomKind)atomKindValue, CirMapAnalyzerUse.MapOccupancy), CirMapAnalyzerUse.MapOccupancy, node, request, body, ThicknessTolerance);
 
-        Assert.Equal(CirMapBackendKind.CirTape, dispatch.SelectedBackend);
+        Assert.Equal(CirMapBackendKind.SdfTape, dispatch.SelectedBackend);
         Assert.Equal(CirMirrorStatus.MirrorAdmittedExact, dispatch.MirrorAdmission.Status);
         Assert.Equal("cir-map-dispatch-ready-for-primitive-lab", dispatch.Recommendation);
         Assert.NotNull(dispatch.MapResult);
@@ -51,7 +51,7 @@ public sealed class CirMapDispatchPrototypeTests
     [Fact]
     public void CirMapX2_BoxFaceIdentityRequest_RejectsCirAsLossy()
     {
-        var node = new CirBoxNode(10d, 6d, 4d);
+        var node = new SdfBoxNode(10d, 6d, 4d);
         var request = new CirMapPrototypeRequest(CirMapPrototypeView.Top, Rows, Cols, node.Bounds, SamplesPerRay: 128, RootRefinementIterations: 24, Tolerance: 1e-7d);
 
         var dispatch = CirMapDispatchPrototype.Dispatch(CreateRequest("box", CirMirrorAtomKind.BoxPrimitive, CirMapAnalyzerUse.FaceIdentity), CirMapAnalyzerUse.FaceIdentity, node, request);
@@ -67,7 +67,7 @@ public sealed class CirMapDispatchPrototypeTests
     [Fact]
     public void CirMapX2_BoxTopologyParityRequest_RejectsCirAsLossy()
     {
-        var node = new CirBoxNode(10d, 6d, 4d);
+        var node = new SdfBoxNode(10d, 6d, 4d);
         var request = new CirMapPrototypeRequest(CirMapPrototypeView.Top, Rows, Cols, node.Bounds, SamplesPerRay: 128, RootRefinementIterations: 24, Tolerance: 1e-7d);
 
         var dispatch = CirMapDispatchPrototype.Dispatch(CreateRequest("box", CirMirrorAtomKind.BoxPrimitive, CirMapAnalyzerUse.TopologyParity), CirMapAnalyzerUse.TopologyParity, node, request);
@@ -85,7 +85,7 @@ public sealed class CirMapDispatchPrototypeTests
     [InlineData("profile-authored-chamfer", (int)CirMirrorAtomKind.ProfileAuthoredVerticalChamfer, (int)CirMirrorStatus.MirrorUnavailable)]
     public void CirMapX2_UnavailableSources_DoNotSelectCir(string source, int atomKindValue, int expectedStatusValue)
     {
-        var bounds = new CirBounds(new Point3D(-1d, -1d, -1d), new Point3D(1d, 1d, 1d));
+        var bounds = new SdfBounds(new Point3D(-1d, -1d, -1d), new Point3D(1d, 1d, 1d));
         var request = new CirMapPrototypeRequest(CirMapPrototypeView.Top, Rows, Cols, bounds, SamplesPerRay: 128, RootRefinementIterations: 24, Tolerance: 1e-7d);
 
         var dispatch = CirMapDispatchPrototype.Dispatch(CreateRequest(source, (CirMirrorAtomKind)atomKindValue, CirMapAnalyzerUse.MapOccupancy), CirMapAnalyzerUse.MapOccupancy, node: null, request);
@@ -102,7 +102,7 @@ public sealed class CirMapDispatchPrototypeTests
     [Fact]
     public void CirMapX2_RepeatedDispatchesProduceStableProjection()
     {
-        var node = new CirSphereNode(3d);
+        var node = new SdfSphereNode(3d);
         var request = new CirMapPrototypeRequest(CirMapPrototypeView.Front, Rows, Cols, node.Bounds, SamplesPerRay: 384, RootRefinementIterations: 32, Tolerance: 1e-7d);
 
         var first = CirMapDispatchPrototype.Dispatch(CreateRequest("sphere", CirMirrorAtomKind.SpherePrimitive, CirMapAnalyzerUse.MapOccupancy), CirMapAnalyzerUse.MapOccupancy, node, request, BrepPrimitives.CreateSphere(3d).Value, ThicknessTolerance);
@@ -132,8 +132,8 @@ internal enum CirMapAnalyzerUse
 
 internal enum CirMapBackendKind
 {
-    CirTape,
-    CirNode,
+    SdfTape,
+    SdfNode,
     BrepRaycastBaseline,
     Unsupported,
 }
@@ -173,7 +173,7 @@ internal static class CirMapDispatchPrototype
     public static CirMapDispatchResult Dispatch(
         CirMirrorAdmission mirrorRequest,
         CirMapAnalyzerUse requestedUse,
-        CirNode? node,
+        SdfNode? node,
         CirMapPrototypeRequest mapRequest,
         BrepBody? brepBaselineBody = null,
         double summaryTolerance = 0.075d)
@@ -197,7 +197,7 @@ internal static class CirMapDispatchPrototype
             return new CirMapDispatchResult(
                 CirMapBackendKind.Unsupported,
                 admission,
-                [new CirMapBackendCandidate(CirMapBackendKind.CirTape, false, "lossy-request-rejected")],
+                [new CirMapBackendCandidate(CirMapBackendKind.SdfTape, false, "lossy-request-rejected")],
                 null,
                 null,
                 diagnostics,
@@ -208,7 +208,7 @@ internal static class CirMapDispatchPrototype
         {
             diagnostics.Add($"cir-map-x2-mirror-admitted-exact:{source}");
             diagnostics.Add("cir-map-x2-backend-selected:cir-tape");
-            var map = CirMapPrototype.Evaluate(CirTapeLowerer.Lower(node), node.Bounds, source, mapRequest);
+            var map = CirMapPrototype.Evaluate(SdfTapeLowerer.Lower(node), node.Bounds, source, mapRequest);
             CirMapBaselineComparison? comparison = null;
             var recommendation = "cir-map-dispatch-ready-for-primitive-lab";
 
@@ -231,9 +231,9 @@ internal static class CirMapDispatchPrototype
             diagnostics.Add("cir-map-x2-no-prismatic-mirror-used");
             diagnostics.Add("cir-map-x2-no-production-analyzer-behavior-changed");
             return new CirMapDispatchResult(
-                CirMapBackendKind.CirTape,
+                CirMapBackendKind.SdfTape,
                 admission,
-                [new CirMapBackendCandidate(CirMapBackendKind.CirTape, true, "mirror-admitted-exact-map-occupancy")],
+                [new CirMapBackendCandidate(CirMapBackendKind.SdfTape, true, "mirror-admitted-exact-map-occupancy")],
                 map,
                 comparison,
                 diagnostics,
@@ -247,7 +247,7 @@ internal static class CirMapDispatchPrototype
         return new CirMapDispatchResult(
             CirMapBackendKind.Unsupported,
             admission,
-            [new CirMapBackendCandidate(CirMapBackendKind.CirTape, false, admission.StatusText)],
+            [new CirMapBackendCandidate(CirMapBackendKind.SdfTape, false, admission.StatusText)],
             null,
             null,
             diagnostics,

@@ -9,7 +9,7 @@ public sealed class HoleRecoveryPolicyCoverageMatrixTests
 {
     private readonly HoleRecoveryPolicy _policy = new();
 
-    public static TheoryData<string, CirNode, string, HoleKind, HoleDepthKind, FrepMaterializerCapability> SupportedRows =>
+    public static TheoryData<string, SdfNode, string, HoleKind, HoleDepthKind, FrepMaterializerCapability> SupportedRows =>
         new()
         {
             { "ThroughHole", BuildThroughHole(), nameof(ThroughHoleVariant), HoleKind.Through, HoleDepthKind.Through, FrepMaterializerCapability.ExactBRep },
@@ -22,18 +22,18 @@ public sealed class HoleRecoveryPolicyCoverageMatrixTests
             { "SteppedHole", BuildSteppedHole(), nameof(SteppedHoleVariant), HoleKind.Stepped, HoleDepthKind.ThroughWithEntryRelief, FrepMaterializerCapability.ExactBRep }
         };
 
-    public static TheoryData<string, CirNode> UnsupportedRows =>
+    public static TheoryData<string, SdfNode> UnsupportedRows =>
         new()
         {
-            { "BoxSphere", new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirSphereNode(3)) },
-            { "TangentCylinder", new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirTransformNode(new CirCylinderNode(10, 20), Transform3D.CreateTranslation(new Vector3D(0,0,0)))) },
-            { "UnsupportedTransform", new CirSubtractNode(new CirTransformNode(new CirBoxNode(20, 20, 10), Transform3D.CreateRotationX(Math.PI / 6d)), new CirCylinderNode(2, 20)) },
-            { "NonCoaxialCounterboreOrCountersink", new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20,20,10), new CirCylinderNode(2,20)), new CirTransformNode(new CirCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(2,0,-3)))) }
+            { "BoxSphere", new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfSphereNode(3)) },
+            { "TangentCylinder", new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfTransformNode(new SdfCylinderNode(10, 20), Transform3D.CreateTranslation(new Vector3D(0,0,0)))) },
+            { "UnsupportedTransform", new SdfSubtractNode(new SdfTransformNode(new SdfBoxNode(20, 20, 10), Transform3D.CreateRotationX(Math.PI / 6d)), new SdfCylinderNode(2, 20)) },
+            { "NonCoaxialCounterboreOrCountersink", new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20,20,10), new SdfCylinderNode(2,20)), new SdfTransformNode(new SdfCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(2,0,-3)))) }
         };
 
     [Theory]
     [MemberData(nameof(SupportedRows))]
-    public void HoleCoverageMatrix_SelectsExpectedVariantForSupportedCases(string _, CirNode root, string expectedVariant, HoleKind kind, HoleDepthKind depth, FrepMaterializerCapability capability)
+    public void HoleCoverageMatrix_SelectsExpectedVariantForSupportedCases(string _, SdfNode root, string expectedVariant, HoleKind kind, HoleDepthKind depth, FrepMaterializerCapability capability)
     {
         var eval = _policy.Evaluate(new FrepMaterializerContext(root));
         Assert.True(eval.Admissible);
@@ -47,7 +47,7 @@ public sealed class HoleRecoveryPolicyCoverageMatrixTests
 
     [Theory]
     [MemberData(nameof(UnsupportedRows))]
-    public void HoleCoverageMatrix_UnsupportedCasesFallBackOrReject(string _, CirNode root)
+    public void HoleCoverageMatrix_UnsupportedCasesFallBackOrReject(string _, SdfNode root)
     {
         var eval = _policy.Evaluate(new FrepMaterializerContext(root));
         Assert.False(eval.Admissible);
@@ -58,7 +58,7 @@ public sealed class HoleRecoveryPolicyCoverageMatrixTests
 
     [Theory]
     [MemberData(nameof(SupportedRows))]
-    public void HoleCoverageMatrix_WrongVariantsRejectSupportedCases(string rowName, CirNode root, string expectedVariant, HoleKind expectedHoleKind, HoleDepthKind expectedDepthKind, FrepMaterializerCapability expectedCapability)
+    public void HoleCoverageMatrix_WrongVariantsRejectSupportedCases(string rowName, SdfNode root, string expectedVariant, HoleKind expectedHoleKind, HoleDepthKind expectedDepthKind, FrepMaterializerCapability expectedCapability)
     {
         var eval = _policy.Evaluate(new FrepMaterializerContext(root));
         Assert.True(eval.Admissible);
@@ -97,7 +97,7 @@ public sealed class HoleRecoveryPolicyCoverageMatrixTests
 
     [Theory]
     [MemberData(nameof(SupportedRows))]
-    public void HoleCoverageMatrix_ExecutableVariantsProduceBRep(string rowName, CirNode root, string expectedVariant, HoleKind expectedHoleKind, HoleDepthKind expectedDepthKind, FrepMaterializerCapability expectedCapability)
+    public void HoleCoverageMatrix_ExecutableVariantsProduceBRep(string rowName, SdfNode root, string expectedVariant, HoleKind expectedHoleKind, HoleDepthKind expectedDepthKind, FrepMaterializerCapability expectedCapability)
     {
         Assert.False(string.IsNullOrWhiteSpace(rowName));
         var eval = _policy.Evaluate(new FrepMaterializerContext(root));
@@ -125,7 +125,7 @@ public sealed class HoleRecoveryPolicyCoverageMatrixTests
 
     [Theory]
     [MemberData(nameof(SupportedRows))]
-    public void HoleCoverageMatrix_CurrentHoleVariantsAreManifoldNotVoids(string rowName, CirNode root, string expectedVariant, HoleKind expectedHoleKind, HoleDepthKind expectedDepthKind, FrepMaterializerCapability expectedCapability)
+    public void HoleCoverageMatrix_CurrentHoleVariantsAreManifoldNotVoids(string rowName, SdfNode root, string expectedVariant, HoleKind expectedHoleKind, HoleDepthKind expectedDepthKind, FrepMaterializerCapability expectedCapability)
     {
         Assert.False(string.IsNullOrWhiteSpace(rowName));
         var eval = _policy.Evaluate(new FrepMaterializerContext(root));
@@ -155,12 +155,12 @@ public sealed class HoleRecoveryPolicyCoverageMatrixTests
         Assert.DoesNotContain("BREP_WITH_VOIDS", step.Value, StringComparison.Ordinal);
     }
 
-    private static CirNode BuildThroughHole() => new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20));
-    private static CirNode BuildBlindHoleTop() => new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirTransformNode(new CirCylinderNode(2, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, 3))));
-    private static CirNode BuildBlindHoleBottom() => new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirTransformNode(new CirCylinderNode(2, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))));
-    private static CirNode BuildCounterbore() => new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)), new CirTransformNode(new CirCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))));
-    private static CirNode BuildCountersink() => new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)), new CirTransformNode(new CirConeNode(2, 4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, 3))));
-    private static CirNode BuildChamferedEntry() => new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)), new CirTransformNode(new CirConeNode(2, 2.8, 1), Transform3D.CreateTranslation(new Vector3D(0, 0, 4.5))));
-    private static CirNode BuildChamferedEntryBottom() => new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)), new CirTransformNode(new CirConeNode(2.8, 2, 1), Transform3D.CreateTranslation(new Vector3D(0, 0, -4.5))));
-    private static CirNode BuildSteppedHole() => new CirSubtractNode(new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20,20,10), new CirCylinderNode(2,20)), new CirTransformNode(new CirCylinderNode(3,6), Transform3D.CreateTranslation(new Vector3D(0,0,2)))), new CirTransformNode(new CirCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,3))));
+    private static SdfNode BuildThroughHole() => new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfCylinderNode(2, 20));
+    private static SdfNode BuildBlindHoleTop() => new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfTransformNode(new SdfCylinderNode(2, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, 3))));
+    private static SdfNode BuildBlindHoleBottom() => new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfTransformNode(new SdfCylinderNode(2, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))));
+    private static SdfNode BuildCounterbore() => new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfCylinderNode(2, 20)), new SdfTransformNode(new SdfCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))));
+    private static SdfNode BuildCountersink() => new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfCylinderNode(2, 20)), new SdfTransformNode(new SdfConeNode(2, 4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, 3))));
+    private static SdfNode BuildChamferedEntry() => new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfCylinderNode(2, 20)), new SdfTransformNode(new SdfConeNode(2, 2.8, 1), Transform3D.CreateTranslation(new Vector3D(0, 0, 4.5))));
+    private static SdfNode BuildChamferedEntryBottom() => new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfCylinderNode(2, 20)), new SdfTransformNode(new SdfConeNode(2.8, 2, 1), Transform3D.CreateTranslation(new Vector3D(0, 0, -4.5))));
+    private static SdfNode BuildSteppedHole() => new SdfSubtractNode(new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20,20,10), new SdfCylinderNode(2,20)), new SdfTransformNode(new SdfCylinderNode(3,6), Transform3D.CreateTranslation(new Vector3D(0,0,2)))), new SdfTransformNode(new SdfCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,3))));
 }

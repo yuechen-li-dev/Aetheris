@@ -51,7 +51,7 @@ internal sealed record RestrictedFieldSample(
 internal sealed record SurfaceRestrictedField(
     SourceSurfaceDescriptor SourceSurface,
     PlanarRectangleParameterization? Parameterization,
-    CirTape? OppositeTape,
+    SdfTape? OppositeTape,
     SurfaceRestrictedFieldStatus Status,
     IReadOnlyList<string> Diagnostics)
 {
@@ -84,14 +84,14 @@ internal sealed record SurfaceRestrictedField(
 
 internal static class SurfaceRestrictedFieldFactory
 {
-    internal static SurfaceRestrictedField ForSubtractSource(CirSubtractNode root, SourceSurfaceDescriptor source, SubtractOperandSide side)
+    internal static SurfaceRestrictedField ForSubtractSource(SdfSubtractNode root, SourceSurfaceDescriptor source, SubtractOperandSide side)
     {
         var opposite = side == SubtractOperandSide.Left ? root.Right : root.Left;
         var routing = side == SubtractOperandSide.Left ? "opposite-operand-selected:right" : "opposite-operand-selected:left";
         return ForSourceAndOpposite(source, opposite, routing);
     }
 
-    internal static SurfaceRestrictedField ForSourceAndOpposite(SourceSurfaceDescriptor source, CirNode opposite, string routingDiagnostic)
+    internal static SurfaceRestrictedField ForSourceAndOpposite(SourceSurfaceDescriptor source, SdfNode opposite, string routingDiagnostic)
     {
         var diagnostics = new List<string>();
         if (!TryBuildPlanarRectangle(source, out var parameterization, out var parameterizationDiagnostic))
@@ -107,7 +107,7 @@ internal static class SurfaceRestrictedFieldFactory
 
         try
         {
-            var tape = CirTapeLowerer.Lower(opposite);
+            var tape = SdfTapeLowerer.Lower(opposite);
             diagnostics.Add("opposite-tape-lowered");
             diagnostics.Add("evaluation-available");
             diagnostics.Add("contour-extraction-not-implemented");

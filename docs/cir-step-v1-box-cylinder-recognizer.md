@@ -2,14 +2,14 @@
 
 ## Scope
 Production recognizer for canonical CIR shape:
-- `CirSubtractNode(Box, Cylinder)`
-- optional identity/pure-translation wrappers (`CirTransformNode`) around operands.
+- `SdfSubtractNode(Box, Cylinder)`
+- optional identity/pure-translation wrappers (`SdfTransformNode`) around operands.
 
 This milestone does **not** build BRep, export STEP, or wire rematerializer behavior.
 
 ## Inputs
 `CirBoxCylinderRecognizerInput`:
-- required: `CirNode Root` (authoritative geometry)
+- required: `SdfNode Root` (authoritative geometry)
 - optional: `NativeGeometryReplayLog ReplayLog` for provenance diagnostics
 - optional: `SourceLabel`
 
@@ -18,7 +18,7 @@ This milestone does **not** build BRep, export STEP, or wire rematerializer beha
 ## Accepted shape
 Accepted only when all are true:
 1. root is subtract,
-2. lhs normalizes to `CirBoxNode`, rhs normalizes to `CirCylinderNode`,
+2. lhs normalizes to `SdfBoxNode`, rhs normalizes to `SdfCylinderNode`,
 3. wrappers (if any) are identity/pure-translation only,
 4. dimensions finite positive,
 5. cylinder is canonical Z-axis (no rotation allowed),

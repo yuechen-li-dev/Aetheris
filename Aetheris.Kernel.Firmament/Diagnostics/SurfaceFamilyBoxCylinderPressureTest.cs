@@ -34,7 +34,7 @@ internal static class SurfaceFamilyBoxCylinderPressureTest
 {
     private static readonly string[] RequiredStages = ["InputValidation","PlanarPatchEmission","CylindricalWallEmission","TokenPairingAnalysis","StitchCandidatePlanning","CombinedBodyRemap","SharedEdgeRewrite","DuplicateEdgeCleanup","VertexMergePlanning","LoopClosureValidation","ShellClosureValidation","BrepBodyValidation","StepExportSmoke"];
 
-    internal static SurfaceFamilyBoxCylinderPressureTestResult Run(CirNode root, SurfaceFamilyBoxCylinderPressureTestOptions? options = null)
+    internal static SurfaceFamilyBoxCylinderPressureTestResult Run(SdfNode root, SurfaceFamilyBoxCylinderPressureTestOptions? options = null)
     {
         options ??= new();
         var stages = new List<SurfaceFamilyPressureStageResult>();
@@ -45,7 +45,7 @@ internal static class SurfaceFamilyBoxCylinderPressureTest
         var edgeUse = new Dictionary<string, int>(StringComparer.Ordinal);
         var reached = "InputValidation";
 
-        if (root is not CirSubtractNode { Left: CirBoxNode, Right: CirCylinderNode })
+        if (root is not SdfSubtractNode { Left: SdfBoxNode, Right: SdfCylinderNode })
         {
             stages.Add(new("InputValidation", SurfaceFamilyPressureStageStatus.Failed, ["canonical-input-required: subtract(box,cylinder)"], new Dictionary<string, int>()));
             blockers.Add(Block("InputValidation", "unsupported-input-noncanonical", "Only canonical Subtract(Box,Cylinder) is supported.", "Provide a canonical subtract node with box base and cylinder tool."));

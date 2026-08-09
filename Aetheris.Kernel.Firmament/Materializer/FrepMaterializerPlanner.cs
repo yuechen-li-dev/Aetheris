@@ -12,9 +12,17 @@ public interface IFrepMaterializerPolicy
 }
 
 public sealed record FrepMaterializerContext(
-    CirNode Root,
+    SdfNode Root,
     NativeGeometryReplayLog? ReplayLog = null,
     string? SourceLabel = null);
+
+/// <summary>Declares a bounded SDF decompiler/reverse-engineering contract. This is intent recovery, not CIR authority or a general inverse.</summary>
+public sealed record SdfDecompilationContract(
+    string AdmittedInputFamily,
+    string Purpose,
+    string TopologyRecovery,
+    bool ExactWithinAdmittedFamily,
+    string LossAndAdmissibility);
 
 public enum FrepMaterializerCapability
 {

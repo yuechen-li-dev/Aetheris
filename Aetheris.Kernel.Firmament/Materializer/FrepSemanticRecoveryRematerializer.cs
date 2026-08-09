@@ -18,7 +18,7 @@ internal static class FrepSemanticRecoveryRematerializer
 {
 
     internal static FrepSemanticRecoveryResult TryRecover(
-        CirNode root,
+        SdfNode root,
         NativeGeometryReplayLog? replayLog = null,
         string? sourceLabel = null)
     {

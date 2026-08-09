@@ -2,7 +2,7 @@ using Aetheris.Kernel.Core.Math;
 
 namespace Aetheris.Continuum.Backends.Sdf;
 
-public enum CirNodeKind
+public enum SdfNodeKind
 {
     Box,
     Cylinder,
@@ -15,21 +15,21 @@ public enum CirNodeKind
     Transform,
 }
 
-public readonly record struct CirBounds(Point3D Min, Point3D Max)
+public readonly record struct SdfBounds(Point3D Min, Point3D Max)
 {
     public double SizeX => Max.X - Min.X;
     public double SizeY => Max.Y - Min.Y;
     public double SizeZ => Max.Z - Min.Z;
 
-    public static CirBounds Union(CirBounds left, CirBounds right) =>
+    public static SdfBounds Union(SdfBounds left, SdfBounds right) =>
         new(
             new Point3D(double.Min(left.Min.X, right.Min.X), double.Min(left.Min.Y, right.Min.Y), double.Min(left.Min.Z, right.Min.Z)),
             new Point3D(double.Max(left.Max.X, right.Max.X), double.Max(left.Max.Y, right.Max.Y), double.Max(left.Max.Z, right.Max.Z)));
 }
 
-public abstract record CirNode(CirNodeKind Kind)
+public abstract record SdfNode(SdfNodeKind Kind)
 {
-    public abstract CirBounds Bounds { get; }
+    public abstract SdfBounds Bounds { get; }
 
     /// <summary>
     /// Semantic/oracle evaluator retained during the CIR-E1 transition while tape-first runtime paths mature.

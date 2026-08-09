@@ -103,18 +103,18 @@ public sealed class SteppedHoleVariantAndExecutorTests
     }
 
     [Fact] public void SteppedHoleVariant_DoesNotStealCounterbore() => Assert.Contains("selected-variant:CounterboreVariant", new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(BuildCounterbore())).Evidence);
-    [Fact] public void SteppedHoleVariant_DoesNotStealThroughOrBlind() { Assert.Contains("selected-variant:ThroughHoleVariant", new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(new CirSubtractNode(new CirBoxNode(20,20,10), new CirCylinderNode(2,20)))).Evidence); Assert.Contains("selected-variant:BlindHoleVariant", new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(new CirSubtractNode(new CirBoxNode(20,20,10), new CirTransformNode(new CirCylinderNode(2,4), Transform3D.CreateTranslation(new Vector3D(0,0,3)))))).Evidence); }
+    [Fact] public void SteppedHoleVariant_DoesNotStealThroughOrBlind() { Assert.Contains("selected-variant:ThroughHoleVariant", new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(new SdfSubtractNode(new SdfBoxNode(20,20,10), new SdfCylinderNode(2,20)))).Evidence); Assert.Contains("selected-variant:BlindHoleVariant", new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(new SdfSubtractNode(new SdfBoxNode(20,20,10), new SdfTransformNode(new SdfCylinderNode(2,4), Transform3D.CreateTranslation(new Vector3D(0,0,3)))))).Evidence); }
     [Fact] public void SteppedHoleVariant_RejectsNonCoaxialCylinders() => Assert.False(new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(BuildStepped(new Vector3D(1,0,-2)))).Admissible);
     [Fact] public void SteppedHoleVariant_RejectsInvalidRadiusOrdering() => Assert.False(new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(BuildStepped(mediumRadius:5))).Admissible);
     [Fact] public void SteppedHoleVariant_RejectsInvalidDepthOrdering() => Assert.False(new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(BuildStepped(mediumHeight:2))).Admissible);
 
-    private static CirNode BuildCounterbore() => new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)), new CirTransformNode(new CirCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))));
-    private static CirNode BuildStepped(Vector3D? mediumTranslation = null, double mediumRadius = 3, double mediumHeight = 6)
+    private static SdfNode BuildCounterbore() => new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfCylinderNode(2, 20)), new SdfTransformNode(new SdfCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))));
+    private static SdfNode BuildStepped(Vector3D? mediumTranslation = null, double mediumRadius = 3, double mediumHeight = 6)
     {
-        var host = new CirBoxNode(20,20,10);
-        var small = new CirCylinderNode(2,20);
-        var medium = new CirTransformNode(new CirCylinderNode(mediumRadius, mediumHeight), Transform3D.CreateTranslation(mediumTranslation ?? new Vector3D(0,0,2)));
-        var large = new CirTransformNode(new CirCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,3)));
-        return new CirSubtractNode(new CirSubtractNode(new CirSubtractNode(host, small), medium), large);
+        var host = new SdfBoxNode(20,20,10);
+        var small = new SdfCylinderNode(2,20);
+        var medium = new SdfTransformNode(new SdfCylinderNode(mediumRadius, mediumHeight), Transform3D.CreateTranslation(mediumTranslation ?? new Vector3D(0,0,2)));
+        var large = new SdfTransformNode(new SdfCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,3)));
+        return new SdfSubtractNode(new SdfSubtractNode(new SdfSubtractNode(host, small), medium), large);
     }
 }

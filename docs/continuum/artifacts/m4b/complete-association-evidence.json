@@ -1,0 +1,24 @@
+{
+  "associationPassed": true,
+  "hexBolt": true,
+  "rows": [
+    {
+      "name": "hex-baseline",
+      "associationPassed": true,
+      "maximumConsistencyResidual": 3.552713678800501E-15,
+      "consistencyProbeCount": 100
+    },
+    {
+      "name": "hex-rotate-y-29",
+      "associationPassed": true,
+      "maximumConsistencyResidual": 3.520535194044623,
+      "consistencyProbeCount": 100
+    },
+    {
+      "name": "hex-compound-17-31-13",
+      "associationPassed": true,
+      "maximumConsistencyResidual": 4.835562698158373,
+      "consistencyProbeCount": 100
+    }
+  ]
+}

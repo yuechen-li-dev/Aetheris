@@ -12,7 +12,7 @@ public sealed class ProfileStackExtrudeHoleFamilyMigrationTests
     [Fact]
     public void ProfileStack_ThroughHole_UsesProfileHoleExtrudeRoute()
     {
-        var plan = (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)))).Plan!;
+        var plan = (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfCylinderNode(2, 20)))).Plan!;
         var result = HoleRecoveryExecutor.Execute(plan);
         Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, result.Status);
         Assert.Contains("v2-v2-profile-hole-extrude-attempted", result.Diagnostics);
@@ -41,7 +41,7 @@ public sealed class ProfileStackExtrudeHoleFamilyMigrationTests
     [Fact]
     public void ProfileStack_ThroughHole_OffCenter_UsesProfileHoleExtrudeRoute()
     {
-        var root = new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirTransformNode(new CirCylinderNode(2, 20), Transform3D.CreateTranslation(new Vector3D(3, -2, 0))));
+        var root = new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfTransformNode(new SdfCylinderNode(2, 20), Transform3D.CreateTranslation(new Vector3D(3, -2, 0))));
         var plan = (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(root)).Plan!;
         var result = HoleRecoveryExecutor.Execute(plan);
         Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, result.Status);
@@ -52,7 +52,7 @@ public sealed class ProfileStackExtrudeHoleFamilyMigrationTests
     [Fact]
     public void ProfileStack_BlindHole_UsesProfileStackExecutorOrReportsPreciseBlocker()
     {
-        var root = new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirTransformNode(new CirCylinderNode(2, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, 3))));
+        var root = new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfTransformNode(new SdfCylinderNode(2, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, 3))));
         var plan = (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(root)).Plan!;
         var result = HoleRecoveryExecutor.Execute(plan);
         Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, result.Status);
@@ -65,7 +65,7 @@ public sealed class ProfileStackExtrudeHoleFamilyMigrationTests
     [Fact]
     public void ProfileStack_Counterbore_UsesProfileStackExecutor()
     {
-        var root = new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)), new CirTransformNode(new CirCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))));
+        var root = new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfCylinderNode(2, 20)), new SdfTransformNode(new SdfCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))));
         var plan = (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(root)).Plan!;
         var result = HoleRecoveryExecutor.Execute(plan);
         Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, result.Status);
@@ -76,7 +76,7 @@ public sealed class ProfileStackExtrudeHoleFamilyMigrationTests
     [Fact]
     public void ProfileStack_Countersink_RemainsConeBooleanRoute()
     {
-        var root = new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20,20,10), new CirCylinderNode(2,20)), new CirTransformNode(new CirConeNode(2, 4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, 3))));
+        var root = new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20,20,10), new SdfCylinderNode(2,20)), new SdfTransformNode(new SdfConeNode(2, 4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, 3))));
         var plan = (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(root)).Plan!;
         var result = HoleRecoveryExecutor.Execute(plan);
         Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, result.Status);

@@ -13,7 +13,7 @@ public sealed class ThroughHoleRecoveryExecutorTests
     [Fact]
     public void ThroughHoleExecutor_BoxCylinderPlan_ProducesBrepBody()
     {
-        var root = new CirSubtractNode(new CirBoxNode(20d, 10d, 8d), new CirCylinderNode(2d, 20d));
+        var root = new SdfSubtractNode(new SdfBoxNode(20d, 10d, 8d), new SdfCylinderNode(2d, 20d));
         var plan = BuildPlanFromPlanner(root);
 
         var result = ThroughHoleRecoveryExecutor.Execute(plan);
@@ -28,9 +28,9 @@ public sealed class ThroughHoleRecoveryExecutorTests
     [Fact]
     public void ThroughHoleExecutor_TranslatedBoxCylinderPlan_ProducesBrepBody()
     {
-        var root = new CirSubtractNode(
-            new CirTransformNode(new CirBoxNode(20, 20, 10), Transform3D.CreateTranslation(new Vector3D(5, 2, 4))),
-            new CirTransformNode(new CirCylinderNode(3, 16), Transform3D.CreateTranslation(new Vector3D(4, 1, 4))));
+        var root = new SdfSubtractNode(
+            new SdfTransformNode(new SdfBoxNode(20, 20, 10), Transform3D.CreateTranslation(new Vector3D(5, 2, 4))),
+            new SdfTransformNode(new SdfCylinderNode(3, 16), Transform3D.CreateTranslation(new Vector3D(4, 1, 4))));
         var plan = BuildPlanFromPlanner(root);
 
         var result = ThroughHoleRecoveryExecutor.Execute(plan);
@@ -71,7 +71,7 @@ public sealed class ThroughHoleRecoveryExecutorTests
     [Fact]
     public void ThroughHoleExecutor_BodyHasExpectedSurfaceFamiliesOrTopologySummary()
     {
-        var root = new CirSubtractNode(new CirBoxNode(30d, 20d, 12d), new CirCylinderNode(4d, 24d));
+        var root = new SdfSubtractNode(new SdfBoxNode(30d, 20d, 12d), new SdfCylinderNode(4d, 24d));
         var plan = BuildPlanFromPlanner(root);
 
         var result = ThroughHoleRecoveryExecutor.Execute(plan);
@@ -98,7 +98,7 @@ public sealed class ThroughHoleRecoveryExecutorTests
     [Fact]
     public void ThroughHoleExecutor_DoesNotExportStep()
     {
-        var root = new CirSubtractNode(new CirBoxNode(20d, 10d, 8d), new CirCylinderNode(2d, 20d));
+        var root = new SdfSubtractNode(new SdfBoxNode(20d, 10d, 8d), new SdfCylinderNode(2d, 20d));
         var plan = BuildPlanFromPlanner(root);
 
         var result = ThroughHoleRecoveryExecutor.Execute(plan);
@@ -107,7 +107,7 @@ public sealed class ThroughHoleRecoveryExecutorTests
         Assert.Contains("No STEP export attempted in CIR-RECOVERY-V2.", result.Diagnostics);
     }
 
-    private static ThroughHoleRecoveryPlan BuildPlanFromPlanner(CirNode root)
+    private static ThroughHoleRecoveryPlan BuildPlanFromPlanner(SdfNode root)
     {
         var decision = FrepMaterializerPlanner.Decide(new FrepMaterializerContext(root), [Policy]);
         var evaluation = Assert.Single(decision.Evaluations);

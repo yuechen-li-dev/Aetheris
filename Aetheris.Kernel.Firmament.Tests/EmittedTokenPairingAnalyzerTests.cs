@@ -59,7 +59,7 @@ public sealed class EmittedTokenPairingAnalyzerTests
     [Fact]
     public void TokenPairingAnalyzer_RealBoxCylinderPath_ReportsSafeOrPreciseMissing()
     {
-        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var root = new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(2, 8));
         var planar = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
         var gen = FacePatchCandidateGenerator.Generate(root);
         var cylCandidate = gen.Candidates.First(c => c.SourceSurface.Family == SurfacePatchFamily.Cylindrical && c.RetentionRole == FacePatchRetentionRole.ToolBoundaryRetainedInsideBase);

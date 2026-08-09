@@ -7,10 +7,10 @@ CIR-F5 adds exactly one new pattern: `subtract(box,box)` (box minus box), while 
 ## Supported shape
 
 Supported:
-- root `CirSubtractNode`
-- lhs: translated/untranslated `CirBoxNode`
-- rhs: translated/untranslated `CirBoxNode` or `CirCylinderNode`
-- pure-translation `CirTransformNode` wrappers only
+- root `SdfSubtractNode`
+- lhs: translated/untranslated `SdfBoxNode`
+- rhs: translated/untranslated `SdfBoxNode` or `SdfCylinderNode`
+- pure-translation `SdfTransformNode` wrappers only
 
 ## Explicitly unsupported
 

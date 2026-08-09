@@ -24,9 +24,9 @@
 Fixture: `testdata/firmament/examples/boolean_box_cylinder_hole.firmament`.
 
 Result:
-- Lowered CIR root is `CirSubtractNode`.
-- Both operands are `CirTransformNode` wrappers (not raw primitive direct children).
-- Wrapped children are `CirBoxNode` (lhs) and `CirCylinderNode` (rhs).
+- Lowered CIR root is `SdfSubtractNode`.
+- Both operands are `SdfTransformNode` wrappers (not raw primitive direct children).
+- Wrapped children are `SdfBoxNode` (lhs) and `SdfCylinderNode` (rhs).
 - Replay operation for `hole` is `boolean:subtract`, source `base`, tool kind `cylinder`.
 
 Recommendation:
@@ -44,7 +44,7 @@ Recommendation:
 
 | Source | Detect subtract box-cylinder | Recover dimensions/translation | Unsupported transform handling | Notes |
 |---|---|---|---|---|
-| Raw `CirNode` lowered tree | Yes | Yes | Yes (by transform inspection) | Most direct for geometric-shape recognition. |
+| Raw `SdfNode` lowered tree | Yes | Yes | Yes (by transform inspection) | Most direct for geometric-shape recognition. |
 | `FirmamentPrimitiveLoweringPlan` | Yes (feature/op semantics) | Partial (placement fields, not final composed CIR tree) | Semantic placement validation available | Good companion context; less direct for shape matching. |
 | `NativeGeometryReplayLog` | Yes (`boolean:subtract`, tool kind) | Placement translation available in resolved form | Yes (resolved placement kind/diagnostic) | Strong diagnostics and provenance; not full CSG shape alone. |
 
@@ -101,12 +101,12 @@ Updated finding: **High confidence** that real `boolean_box_cylinder_hole` lower
 
 ## 11) Updated answer for item 7
 
-Updated finding: **High confidence** that canonical v1 production recognizer should be **raw lowered `CirNode` tree entrypoint first**; plan/replay/native-state adapters are optional support layers, not primary entrypoints.
+Updated finding: **High confidence** that canonical v1 production recognizer should be **raw lowered `SdfNode` tree entrypoint first**; plan/replay/native-state adapters are optional support layers, not primary entrypoints.
 
 ## 12) Final production recommendation
 
 - Entrypoint: lowered CIR node tree.
-- Accepted shapes: `CirSubtractNode` with lhs box and rhs cylinder after translation-wrapper normalization.
+- Accepted shapes: `SdfSubtractNode` with lhs box and rhs cylinder after translation-wrapper normalization.
 - Wrappers: required for translation wrappers; reject rotation/non-translation in v1 canonical path.
 - Adapters: replay and native-state optional diagnostics now; plan/replay adapter as v2 hardening.
 

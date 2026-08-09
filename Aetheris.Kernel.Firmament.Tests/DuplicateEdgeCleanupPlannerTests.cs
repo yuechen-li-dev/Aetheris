@@ -54,7 +54,7 @@ public sealed class DuplicateEdgeCleanupPlannerTests
     [Fact]
     public void PressureTest_ReportsDuplicateCleanupCandidates()
     {
-        var result = SurfaceFamilyBoxCylinderPressureTest.Run(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8)));
+        var result = SurfaceFamilyBoxCylinderPressureTest.Run(new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(2, 8)));
         var stage = result.Stages.Single(s => s.Stage == "DuplicateEdgeCleanup");
         Assert.True(stage.Counts.ContainsKey("DuplicateCleanupCandidateCount"));
         Assert.Contains(stage.Diagnostics, d => d.Contains("cleanup-mutation-not-implemented", StringComparison.Ordinal));
@@ -63,13 +63,13 @@ public sealed class DuplicateEdgeCleanupPlannerTests
     [Fact]
     public void PressureTest_ShellStillNotClaimedAfterCleanupPlanning()
     {
-        var result = SurfaceFamilyBoxCylinderPressureTest.Run(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8)));
+        var result = SurfaceFamilyBoxCylinderPressureTest.Run(new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(2, 8)));
         Assert.False(result.ShellClosureValidated);
     }
 
     private static (SurfaceFamilyStitchExecutionResult exec, Aetheris.Kernel.Core.Brep.BrepBody body) RunBoxCylinder()
     {
-        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var root = new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(2, 8));
         var planar = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
         var cylindrical = EmitCylinder(root);
         var maps = planar.Entries.Where(e => e.Emitted).Select(e => e.IdentityMap ?? EmittedTopologyIdentityMap.Empty)
@@ -83,7 +83,7 @@ public sealed class DuplicateEdgeCleanupPlannerTests
         return (exec, exec.Body ?? remap.CombinedBody!);
     }
 
-    private static SurfaceMaterializationResult? EmitCylinder(CirNode root)
+    private static SurfaceMaterializationResult? EmitCylinder(SdfNode root)
     {
         var gen = FacePatchCandidateGenerator.Generate(root);
         var candidate = gen.Candidates.SingleOrDefault(c => c.SourceSurface.Family == SurfacePatchFamily.Cylindrical

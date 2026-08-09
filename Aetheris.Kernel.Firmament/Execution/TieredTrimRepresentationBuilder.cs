@@ -147,7 +147,7 @@ internal static class TieredTrimRepresentationBuilder
         var sourceKey = field?.SourceSurface.ParameterPayloadReference;
         var sourceFamily = field?.SourceSurface.Family;
         if (string.IsNullOrWhiteSpace(sourceKey)) d.Add("tiered-trim-provenance-missing-source-surface-key");
-        var oppositeKind = field?.OppositeTape is null ? null : "CirTape";
+        var oppositeKind = field?.OppositeTape is null ? null : "SdfTape";
         if (oppositeKind is null) d.Add("tiered-trim-provenance-missing-opposite-field-kind");
 
         var side = field?.Diagnostics.FirstOrDefault(x => x.StartsWith("opposite-operand-selected:", StringComparison.Ordinal));

@@ -1,0 +1,11 @@
+{
+  "constructionSourceIdentity": "M4B-GenericCoaxial:58b5e0f8b1972acb34cc1fb270d01a17a7d6ef75f30136ef532e65207411ed25",
+  "associationPassed": true,
+  "consistencyProbeCount": 120,
+  "supportFamilyCounts": {
+    "Cone": 10,
+    "Cylinder": 2,
+    "Plane": 11,
+    "Torus": 2
+  }
+}

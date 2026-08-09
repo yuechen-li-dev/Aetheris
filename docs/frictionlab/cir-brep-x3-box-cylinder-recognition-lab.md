@@ -4,7 +4,7 @@
 Lab-only experiments in `Aetheris.Firmament.FrictionLab/CIRLab` and `Aetheris.FrictionLab.Tests/CIRLab`.
 
 ## 1) Exact CIR shape
-- Hypothesis: recognize `CirSubtractNode(CirBoxNode, CirCylinderNode)` with optional pure translations.
+- Hypothesis: recognize `SdfSubtractNode(SdfBoxNode, SdfCylinderNode)` with optional pure translations.
 - Experiments: direct node + translated wrappers tests.
 - Evidence: direct and translated cases pass; non-subtract rejected.
 - Conclusion: first production recognizer should require subtract(box,cylinder) after optional translation-unwrapping.
@@ -26,7 +26,7 @@ Lab-only experiments in `Aetheris.Firmament.FrictionLab/CIRLab` and `Aetheris.Fr
 - Confidence: High.
 
 ## 4) Allowed axes
-- Evidence: `CirCylinderNode` encodes only canonical Z axis; no intrinsic arbitrary-axis field.
+- Evidence: `SdfCylinderNode` encodes only canonical Z axis; no intrinsic arbitrary-axis field.
 - Conclusion: axis variation must come from transforms.
 - Recommendation: v1 supports only native Z-axis cases (plus translation).
 - Confidence: High.
@@ -39,7 +39,7 @@ Lab-only experiments in `Aetheris.Firmament.FrictionLab/CIRLab` and `Aetheris.Fr
 - Confidence: High.
 
 ## 6) Firmament lowering shape for `boolean_box_cylinder_hole`
-- Evidence (source inspection): lowerer always emits primitive local-frame + placement via `CirTransformNode`, then boolean `CirSubtractNode`.
+- Evidence (source inspection): lowerer always emits primitive local-frame + placement via `SdfTransformNode`, then boolean `SdfSubtractNode`.
 - Conclusion: real path is frequently subtract of transformed operands, not always literal raw primitives.
 - Recommendation: recognizer should include wrapper normalization.
 - Confidence: Medium-High.
@@ -51,13 +51,13 @@ Lab-only experiments in `Aetheris.Firmament.FrictionLab/CIRLab` and `Aetheris.Fr
 - Confidence: Medium.
 
 ## 8) What counts as box
-- Evidence: accepted only `CirBoxNode`; non-box lhs rejected in tests.
-- Recommendation: strict `CirBoxNode` for v1.
+- Evidence: accepted only `SdfBoxNode`; non-box lhs rejected in tests.
+- Recommendation: strict `SdfBoxNode` for v1.
 - Confidence: High.
 
 ## 9) What counts as cylinder
-- Evidence: accepted only `CirCylinderNode`; sphere tool rejected.
-- Recommendation: strict finite circular `CirCylinderNode` only.
+- Evidence: accepted only `SdfCylinderNode`; sphere tool rejected.
+- Recommendation: strict finite circular `SdfCylinderNode` only.
 - Confidence: High.
 
 ## 10) Hole position constraints

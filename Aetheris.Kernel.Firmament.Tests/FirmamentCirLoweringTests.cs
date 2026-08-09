@@ -13,7 +13,7 @@ public sealed class FirmamentCirLoweringTests
         var lower = FirmamentCirLowerer.Lower(compile.Compilation.Value.PrimitiveLoweringPlan!);
         Assert.True(lower.IsSuccess);
 
-        var estimate = CirAnalyzer.EstimateVolume(lower.Value.Root, 40);
+        var estimate = SdfAnalyzer.EstimateVolume(lower.Value.Root, 40);
         Assert.InRange(estimate, 13950d, 14850d);
     }
 
@@ -30,8 +30,8 @@ public sealed class FirmamentCirLoweringTests
             (bounds.Min.Y + bounds.Max.Y) * 0.5d,
             (bounds.Min.Z + bounds.Max.Z) * 0.5d);
 
-        Assert.Equal(CirPointClassification.Inside, CirAnalyzer.ClassifyPoint(lower.Value.Root, center).Classification);
-        Assert.Equal(CirPointClassification.Outside, CirAnalyzer.ClassifyPoint(lower.Value.Root, new Point3D(100d, 0d, 0d)).Classification);
+        Assert.Equal(SdfPointClassification.Inside, SdfAnalyzer.ClassifyPoint(lower.Value.Root, center).Classification);
+        Assert.Equal(SdfPointClassification.Outside, SdfAnalyzer.ClassifyPoint(lower.Value.Root, new Point3D(100d, 0d, 0d)).Classification);
     }
 
     [Fact]
@@ -41,7 +41,7 @@ public sealed class FirmamentCirLoweringTests
         var lower = FirmamentCirLowerer.Lower(compile.Compilation.Value.PrimitiveLoweringPlan!);
         Assert.True(lower.IsSuccess);
 
-        var estimate = CirAnalyzer.EstimateVolume(lower.Value.Root, 48);
+        var estimate = SdfAnalyzer.EstimateVolume(lower.Value.Root, 48);
         Assert.InRange(estimate, 200d, 400d);
     }
 

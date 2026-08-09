@@ -12,7 +12,7 @@ public sealed class CirBoxCylinderRecognizerTests
     [Fact]
     public void Recognizes_DirectSubtract_BoxCylinder()
     {
-        var input = new CirBoxCylinderRecognizerInput(new CirSubtractNode(new CirBoxNode(20, 10, 8), new CirCylinderNode(2, 20)));
+        var input = new CirBoxCylinderRecognizerInput(new SdfSubtractNode(new SdfBoxNode(20, 10, 8), new SdfCylinderNode(2, 20)));
         var result = CirBoxCylinderRecognizer.Recognize(input);
         Assert.True(result.Success);
         Assert.Equal(CirBoxCylinderRecognitionReason.Recognized, result.Reason);
@@ -23,9 +23,9 @@ public sealed class CirBoxCylinderRecognizerTests
     [Fact]
     public void Recognizes_TranslationWrapped_Subtract_BoxCylinder()
     {
-        var root = new CirSubtractNode(
-            new CirTransformNode(new CirBoxNode(20, 20, 10), Transform3D.CreateTranslation(new Vector3D(5, 2, 4))),
-            new CirTransformNode(new CirCylinderNode(3, 16), Transform3D.CreateTranslation(new Vector3D(4, 1, 4))));
+        var root = new SdfSubtractNode(
+            new SdfTransformNode(new SdfBoxNode(20, 20, 10), Transform3D.CreateTranslation(new Vector3D(5, 2, 4))),
+            new SdfTransformNode(new SdfCylinderNode(3, 16), Transform3D.CreateTranslation(new Vector3D(4, 1, 4))));
         var result = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(root));
         Assert.True(result.Success);
         Assert.Equal(8d, result.Value!.ClearanceXPlus, 6);
@@ -34,7 +34,7 @@ public sealed class CirBoxCylinderRecognizerTests
     [Fact]
     public void Rejects_NonSubtractRoot()
     {
-        var result = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(new CirBoxNode(2,2,2)));
+        var result = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(new SdfBoxNode(2,2,2)));
         Assert.False(result.Success);
         Assert.Equal(CirBoxCylinderRecognitionReason.UnsupportedRootNotSubtract, result.Reason);
     }
@@ -42,7 +42,7 @@ public sealed class CirBoxCylinderRecognizerTests
     [Fact]
     public void Rejects_LeftNotBox()
     {
-        var result = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(new CirSubtractNode(new CirSphereNode(3), new CirCylinderNode(1, 10))));
+        var result = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(new SdfSubtractNode(new SdfSphereNode(3), new SdfCylinderNode(1, 10))));
         Assert.False(result.Success);
         Assert.Equal(CirBoxCylinderRecognitionReason.UnsupportedLeftNotBox, result.Reason);
     }
@@ -50,7 +50,7 @@ public sealed class CirBoxCylinderRecognizerTests
     [Fact]
     public void Rejects_RightNotCylinder()
     {
-        var result = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(new CirSubtractNode(new CirBoxNode(10,10,10), new CirSphereNode(2))));
+        var result = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(new SdfSubtractNode(new SdfBoxNode(10,10,10), new SdfSphereNode(2))));
         Assert.False(result.Success);
         Assert.Equal(CirBoxCylinderRecognitionReason.UnsupportedRightNotCylinder, result.Reason);
     }
@@ -58,7 +58,7 @@ public sealed class CirBoxCylinderRecognizerTests
     [Fact]
     public void Rejects_UnsupportedTransform()
     {
-        var rotated = new CirSubtractNode(new CirBoxNode(10,10,10), new CirTransformNode(new CirCylinderNode(2, 20), Transform3D.CreateRotationX(0.2)));
+        var rotated = new SdfSubtractNode(new SdfBoxNode(10,10,10), new SdfTransformNode(new SdfCylinderNode(2, 20), Transform3D.CreateRotationX(0.2)));
         var result = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(rotated));
         Assert.False(result.Success);
         Assert.Equal(CirBoxCylinderRecognitionReason.UnsupportedTransform, result.Reason);
@@ -67,7 +67,7 @@ public sealed class CirBoxCylinderRecognizerTests
     [Fact]
     public void Rejects_BlindCylinder()
     {
-        var root = new CirSubtractNode(new CirBoxNode(10,10,10), new CirCylinderNode(2, 8));
+        var root = new SdfSubtractNode(new SdfBoxNode(10,10,10), new SdfCylinderNode(2, 8));
         var result = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(root));
         Assert.False(result.Success);
         Assert.Equal(CirBoxCylinderRecognitionReason.UnsupportedNotThroughHole, result.Reason);
@@ -76,11 +76,11 @@ public sealed class CirBoxCylinderRecognizerTests
     [Fact]
     public void Rejects_Tangent_And_Outside()
     {
-        var tangent = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(new CirSubtractNode(new CirBoxNode(10,10,10), new CirTransformNode(new CirCylinderNode(2, 20), Transform3D.CreateTranslation(new Vector3D(3, 0, 0))))));
+        var tangent = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(new SdfSubtractNode(new SdfBoxNode(10,10,10), new SdfTransformNode(new SdfCylinderNode(2, 20), Transform3D.CreateTranslation(new Vector3D(3, 0, 0))))));
         Assert.False(tangent.Success);
         Assert.Equal(CirBoxCylinderRecognitionReason.UnsupportedTangentOrGrazing, tangent.Reason);
 
-        var outside = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(new CirSubtractNode(new CirBoxNode(10,10,10), new CirTransformNode(new CirCylinderNode(2, 20), Transform3D.CreateTranslation(new Vector3D(3.001 + ToleranceContext.Default.Linear, 0, 0))))));
+        var outside = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(new SdfSubtractNode(new SdfBoxNode(10,10,10), new SdfTransformNode(new SdfCylinderNode(2, 20), Transform3D.CreateTranslation(new Vector3D(3.001 + ToleranceContext.Default.Linear, 0, 0))))));
         Assert.False(outside.Success);
         Assert.Equal(CirBoxCylinderRecognitionReason.UnsupportedCylinderOutsideBox, outside.Reason);
     }
@@ -88,7 +88,7 @@ public sealed class CirBoxCylinderRecognizerTests
     [Fact]
     public void Allows_Offset_ThroughHole_WithStrictClearance()
     {
-        var root = new CirSubtractNode(new CirBoxNode(12, 12, 10), new CirTransformNode(new CirCylinderNode(2, 20), Transform3D.CreateTranslation(new Vector3D(1, -1, 0))));
+        var root = new SdfSubtractNode(new SdfBoxNode(12, 12, 10), new SdfTransformNode(new SdfCylinderNode(2, 20), Transform3D.CreateTranslation(new Vector3D(1, -1, 0))));
         var result = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(root));
         Assert.True(result.Success);
     }
@@ -96,7 +96,7 @@ public sealed class CirBoxCylinderRecognizerTests
     [Fact]
     public void Replay_IsOptional_AndMismatchIsDiagnosticOnly()
     {
-        var root = new CirSubtractNode(new CirBoxNode(12, 12, 10), new CirCylinderNode(2, 20));
+        var root = new SdfSubtractNode(new SdfBoxNode(12, 12, 10), new SdfCylinderNode(2, 20));
         var noReplay = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(root));
         Assert.True(noReplay.Success);
 

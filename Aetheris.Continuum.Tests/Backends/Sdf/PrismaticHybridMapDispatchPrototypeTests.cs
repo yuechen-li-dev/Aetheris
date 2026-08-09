@@ -69,14 +69,14 @@ public sealed class PrismaticHybridMapDispatchPrototypeTests
     }
 
     [Fact]
-    public void EdgePrismaticX8_PrimitiveBoxDispatch_ReusesCirTapeAndComparesBrepBaseline()
+    public void EdgePrismaticX8_PrimitiveBoxDispatch_ReusesSdfTapeAndComparesBrepBaseline()
     {
-        var node = new CirBoxNode(10d, 6d, 4d);
+        var node = new SdfBoxNode(10d, 6d, 4d);
         var mapRequest = new CirMapPrototypeRequest(CirMapPrototypeView.Top, Rows, Cols, node.Bounds, SamplesPerRay: 384, RootRefinementIterations: 32, Tolerance: 1e-7d);
 
         var dispatch = PrismaticHybridMapDispatchLab.DispatchPrimitiveBox(node, mapRequest, BrepPrimitives.CreateBox(10d, 6d, 4d).Value);
 
-        Assert.Equal(HybridMapBackendKind.CirTape, dispatch.SelectedBackend);
+        Assert.Equal(HybridMapBackendKind.SdfTape, dispatch.SelectedBackend);
         Assert.Equal(CirMirrorStatus.MirrorAdmittedExact, dispatch.MirrorAdmission.Status);
         Assert.NotNull(dispatch.MapSummary);
         Assert.Equal("cir-tape", dispatch.MapSummary.BackendSelected);
@@ -152,7 +152,7 @@ public sealed class PrismaticHybridMapDispatchPrototypeTests
 internal enum HybridMapBackendKind
 {
     CirConvexPolyhedron,
-    CirTape,
+    SdfTape,
     BrepRaycast,
     Unsupported,
 }
@@ -174,7 +174,7 @@ internal sealed record HybridMapSummary(
     double? ThicknessMin,
     double? ThicknessMax,
     double? ThicknessAverage,
-    CirBounds Bounds,
+    SdfBounds Bounds,
     IReadOnlyList<string> Diagnostics,
     IReadOnlyList<string> KnownLosses);
 
@@ -312,7 +312,7 @@ internal static class PrismaticHybridMapDispatchLab
             "prismatic-hybrid-map-mirror-unavailable");
     }
 
-    public static HybridMapDispatchResult DispatchPrimitiveBox(CirBoxNode node, CirMapPrototypeRequest request, BrepBody? brepBaseline = null)
+    public static HybridMapDispatchResult DispatchPrimitiveBox(SdfBoxNode node, CirMapPrototypeRequest request, BrepBody? brepBaseline = null)
     {
         var diagnostics = StartDiagnostics();
         diagnostics.Add("edge-prismatic-x8-cir-mirror-admission-requested:box");
@@ -356,7 +356,7 @@ internal static class PrismaticHybridMapDispatchLab
             StableDiagnostics(diagnostics),
             KnownLossDescriptions);
         return new HybridMapDispatchResult(
-            HybridMapBackendKind.CirTape,
+            HybridMapBackendKind.SdfTape,
             dispatch.MirrorAdmission,
             CirMapAnalyzerUse.MapOccupancy,
             summary,

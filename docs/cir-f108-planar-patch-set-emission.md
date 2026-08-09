@@ -13,7 +13,7 @@ This milestone is intentionally bounded:
 
 ## API and result semantics
 
-`PlanarSurfaceMaterializer.EmitSupportedPlanarPatches(CirNode root, NativeGeometryReplayLog? replayLog = null)` returns a planar patch-set result with:
+`PlanarSurfaceMaterializer.EmitSupportedPlanarPatches(SdfNode root, NativeGeometryReplayLog? replayLog = null)` returns a planar patch-set result with:
 
 - success flag,
 - emitted standalone planar patch bodies,

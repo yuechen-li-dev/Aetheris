@@ -59,7 +59,7 @@ internal sealed record SourceSurfaceDescriptor(
     CylindricalSurfaceGeometryEvidence? CylindricalGeometryEvidence,
     Transform3D Transform,
     string Provenance,
-    string? OwningCirNodeKind,
+    string? OwningSdfNodeKind,
     int? ReplayOpIndex,
     FacePatchOrientationRole OrientationRole);
 
@@ -387,7 +387,7 @@ internal sealed class PlanarSurfaceMaterializer : ISurfaceFamilyMaterializer
         return emission with { Diagnostics = emission.Diagnostics.Concat(diagnostics).Distinct().ToArray() };
     }
 
-    internal PlanarPatchSetMaterializationResult EmitSupportedPlanarPatches(CirNode root, NativeGeometryReplayLog? replayLog = null)
+    internal PlanarPatchSetMaterializationResult EmitSupportedPlanarPatches(SdfNode root, NativeGeometryReplayLog? replayLog = null)
     {
         var generation = FacePatchCandidateGenerator.Generate(root, replayLog);
         var entries = new List<PlanarPatchSetEntry>();

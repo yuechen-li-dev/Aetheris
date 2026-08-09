@@ -10,7 +10,7 @@ public sealed class TopologyPairingEvidenceTests
     [Fact]
     public void PairingEvidence_BoxMinusCylinder_CreatesEdgeUses()
     {
-        var result = TopologyPairingEvidenceGenerator.Generate(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8)));
+        var result = TopologyPairingEvidenceGenerator.Generate(new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(2, 8)));
 
         Assert.True(result.IsSuccess);
         Assert.NotEmpty(result.PlannedEdgeUses);
@@ -23,7 +23,7 @@ public sealed class TopologyPairingEvidenceTests
     [Fact]
     public void PairingEvidence_BoxMinusSphere_CircularLoopsHaveClosureEvidence()
     {
-        var result = TopologyPairingEvidenceGenerator.Generate(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirSphereNode(3)));
+        var result = TopologyPairingEvidenceGenerator.Generate(new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfSphereNode(3)));
 
         Assert.Contains(result.PlannedEdgeUses, e => e.TrimCurveFamily == TrimCurveFamily.Circle);
         Assert.Contains(result.PlannedEdgeUses, e => e.TrimCurveFamily == TrimCurveFamily.Circle && e.IdentityToken is not null);
@@ -34,7 +34,7 @@ public sealed class TopologyPairingEvidenceTests
     [Fact]
     public void PairingEvidence_BoxMinusTorus_DefersClosureAndPairing()
     {
-        var result = TopologyPairingEvidenceGenerator.Generate(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirTorusNode(4, 1)));
+        var result = TopologyPairingEvidenceGenerator.Generate(new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfTorusNode(4, 1)));
 
         Assert.Equal(TopologyPairingReadiness.Deferred, result.Readiness);
         Assert.DoesNotContain(result.PlannedCoedgePairings, p => p.PairingKind == PlannedCoedgePairingKind.SharedTrimIdentity);
@@ -45,7 +45,7 @@ public sealed class TopologyPairingEvidenceTests
     [Fact]
     public void PairingEvidence_CoedgePairingDeferredWhenIdentityMissing()
     {
-        var result = TopologyPairingEvidenceGenerator.Generate(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirSphereNode(3)));
+        var result = TopologyPairingEvidenceGenerator.Generate(new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfSphereNode(3)));
 
         Assert.Contains(result.PlannedCoedgePairings, p => p.PairingKind == PlannedCoedgePairingKind.Deferred);
         Assert.Contains(result.Diagnostics, d => d.Contains("missing-identity", StringComparison.OrdinalIgnoreCase) || d.Contains("token-mismatch", StringComparison.OrdinalIgnoreCase) || d.Contains("ambiguous-token", StringComparison.OrdinalIgnoreCase));
@@ -54,7 +54,7 @@ public sealed class TopologyPairingEvidenceTests
     [Fact]
     public void PairingIdentity_TokensAreDeterministic()
     {
-        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirSphereNode(3));
+        var root = new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfSphereNode(3));
         var first = TopologyPairingEvidenceGenerator.Generate(root);
         var second = TopologyPairingEvidenceGenerator.Generate(root);
         Assert.Equal(first.PlannedEdgeUses.Select(e => e.IdentityToken?.OrderingKey), second.PlannedEdgeUses.Select(e => e.IdentityToken?.OrderingKey));
@@ -63,7 +63,7 @@ public sealed class TopologyPairingEvidenceTests
     [Fact]
     public void PairingEvidence_NonSubtract_NotApplicable()
     {
-        var result = TopologyPairingEvidenceGenerator.Generate(new CirUnionNode(new CirBoxNode(10, 10, 10), new CirSphereNode(2)));
+        var result = TopologyPairingEvidenceGenerator.Generate(new SdfUnionNode(new SdfBoxNode(10, 10, 10), new SdfSphereNode(2)));
 
         Assert.False(result.IsSuccess);
         Assert.Equal(TopologyPairingReadiness.NotApplicable, result.Readiness);
@@ -73,7 +73,7 @@ public sealed class TopologyPairingEvidenceTests
     [Fact]
     public void PairingEvidence_DeterministicOrdering()
     {
-        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var root = new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(2, 8));
         var first = TopologyPairingEvidenceGenerator.Generate(root);
         var second = TopologyPairingEvidenceGenerator.Generate(root);
 

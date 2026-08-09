@@ -9,6 +9,7 @@ public sealed record WholeShellBoundaryCandidate(
     FaceId FaceId,
     SurfaceGeometryKind SupportKind,
     BoundingBox3D Bounds,
+    IReadOnlyList<Point3D> ExactBoundarySamples,
     IReadOnlyList<EdgeId> EdgeIds,
     IReadOnlyList<VertexId> VertexIds,
     IReadOnlyList<Point3D> OuterTrimVertices,
@@ -40,7 +41,7 @@ public sealed class WholeShellBoundaryQuery
         {
             var edges = faceEdges[face.Id];
             var vertices = edges.SelectMany(body.GetVertices).Distinct().OrderBy(id => id.Value).ToArray();
-            var points = vertices.Select(id => transform.Apply(ResolveVertex(body, id))).ToArray();
+            var points = ExactTrimSamples(body, face.Id).Select(transform.Apply).ToArray();
             if (points.Length == 0) throw new InvalidOperationException($"BRep face {face.Id.Value} has no bounded trim vertices.");
             var bounds = BoundsOf(points);
             var adjacent = edges.SelectMany(edge => edgeFaces[edge]).Where(id => id != face.Id).Distinct().OrderBy(id => id.Value).ToArray();
@@ -51,21 +52,36 @@ public sealed class WholeShellBoundaryQuery
             semanticIdentities?.TryGetValue(face.Id, out semantic);
             var reference = new BoundaryReference("BRep", $"face:{face.Id.Value}", face.Id.Value.ToString(), semantic,
                 association.ContinuumRegionId.Value, association.BrepBodyId, association.OuterShellId);
-            rows.Add(new(face.Id, surface.Kind, bounds, edges, vertices, trim, adjacent, binding.SameSense, semantic, reference));
+            var candidates=new List<Point3D>(points);
+            var centroid=new Point3D(points.Average(p=>p.X),points.Average(p=>p.Y),points.Average(p=>p.Z));
+            candidates.Add(ExactSupportBoundaryQuery.ProjectToSupport(body,face.Id,centroid,transform));
+            for(var i=0;i<points.Length;i+=int.Max(1,points.Length/8))
+                candidates.Add(ExactSupportBoundaryQuery.ProjectToSupport(body,face.Id,new Point3D((points[i].X+centroid.X)*.5d,(points[i].Y+centroid.Y)*.5d,(points[i].Z+centroid.Z)*.5d),transform));
+            rows.Add(new(face.Id, surface.Kind, bounds, candidates, edges, vertices, trim, adjacent, binding.SameSense, semantic, reference));
         }
         _faces = rows;
+        Bounds = BoundsOf(rows.SelectMany(row=>new[]{row.Bounds.Min,row.Bounds.Max}).ToArray());
     }
 
     public BrepBody Body { get; }
     public CirBrepAssociation Association { get; }
     public Transform3D Transform { get; }
     public IReadOnlyList<WholeShellBoundaryCandidate> Faces => _faces;
+    public BoundingBox3D Bounds { get; }
 
     public IReadOnlyList<WholeShellBoundaryCandidate> Query(BoundingBox3D cellBounds, double tolerance = 1e-9d) =>
         _faces.Where(face => Intersects(face.Bounds, cellBounds, tolerance)
             && (face.SupportKind != SurfaceGeometryKind.Plane || ClippedPlanarTrimIsNonEmpty(face.OuterTrimVertices, cellBounds, tolerance))).ToArray();
 
     public Point3D TransformPoint(VertexId id) => Transform.Apply(ResolveVertex(Body, id));
+    public Point3D TransformEdgeMidpoint(EdgeId edgeId)
+    {
+        if(!Body.TryGetEdgeCurveGeometry(edgeId,out var curve)||curve is null||!Body.Bindings.TryGetEdgeBinding(edgeId,out var binding))
+        {var edge=Body.Topology.GetEdge(edgeId);return new Point3D((TransformPoint(edge.StartVertexId).X+TransformPoint(edge.EndVertexId).X)*.5d,(TransformPoint(edge.StartVertexId).Y+TransformPoint(edge.EndVertexId).Y)*.5d,(TransformPoint(edge.StartVertexId).Z+TransformPoint(edge.EndVertexId).Z)*.5d);}
+        var interval=binding.TrimInterval??new ParameterInterval(0d,1d);var t=(interval.Start+interval.End)*.5d;
+        var p=curve.Kind switch{CurveGeometryKind.Line3=>curve.Line3!.Value.Evaluate(t),CurveGeometryKind.Circle3=>curve.Circle3!.Value.Evaluate(t),CurveGeometryKind.BSpline3=>curve.BSpline3!.Value.Evaluate(t),CurveGeometryKind.Ellipse3=>curve.Ellipse3!.Value.Evaluate(t),CurveGeometryKind.Hyperbola3=>curve.Hyperbola3!.Value.Evaluate(t),_=>throw new NotSupportedException($"Exact edge midpoint does not support {curve.Kind}.")};
+        return Transform.Apply(p);
+    }
 
     private static BoundingBox3D BoundsOf(IReadOnlyList<Point3D> points) => new(
         new(points.Min(p => p.X), points.Min(p => p.Y), points.Min(p => p.Z)),
@@ -86,6 +102,31 @@ public sealed class WholeShellBoundaryQuery
             points.Add(ResolveVertex(body, vertex));
         }
         return points;
+    }
+
+    private static IReadOnlyList<Point3D> ExactTrimSamples(BrepBody body, FaceId faceId)
+    {
+        var values=new List<Point3D>();
+        foreach(var edgeId in body.GetEdges(faceId).Distinct())
+        {
+            if(!body.TryGetEdgeCurveGeometry(edgeId,out var curve)||curve is null||!body.Bindings.TryGetEdgeBinding(edgeId,out var binding)) continue;
+            var interval=binding.TrimInterval??new ParameterInterval(0d,1d);
+            var count=curve.Kind==CurveGeometryKind.Line3?2:33;
+            for(var i=0;i<count;i++)
+            {
+                var t=interval.Start+((interval.End-interval.Start)*i/(count-1d));
+                values.Add(curve.Kind switch
+                {
+                    CurveGeometryKind.Line3=>curve.Line3!.Value.Evaluate(t),
+                    CurveGeometryKind.Circle3=>curve.Circle3!.Value.Evaluate(t),
+                    CurveGeometryKind.BSpline3=>curve.BSpline3!.Value.Evaluate(t),
+                    CurveGeometryKind.Ellipse3=>curve.Ellipse3!.Value.Evaluate(t),
+                    CurveGeometryKind.Hyperbola3=>curve.Hyperbola3!.Value.Evaluate(t),
+                    _=>throw new NotSupportedException($"Exact trim sampling does not support {curve.Kind}.")
+                });
+            }
+        }
+        return values.Count>0?values:OrderedOuterTrim(body,faceId);
     }
 
     private static bool ClippedPlanarTrimIsNonEmpty(IReadOnlyList<Point3D> trim, BoundingBox3D box, double tolerance)

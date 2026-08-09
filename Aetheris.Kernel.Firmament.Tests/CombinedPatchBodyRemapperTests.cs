@@ -56,7 +56,7 @@ public sealed class CombinedPatchBodyRemapperTests
 
     private static (PlanarSurfaceMaterializer.PlanarPatchSetMaterializationResult planar, SurfaceMaterializationResult? cyl) BuildRealPath()
     {
-        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var root = new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(2, 8));
         var planar = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
         var gen = FacePatchCandidateGenerator.Generate(root);
         var c = gen.Candidates.SingleOrDefault(x => x.SourceSurface.Family == SurfacePatchFamily.Cylindrical && x.RetentionRole == FacePatchRetentionRole.ToolBoundaryRetainedInsideBase);

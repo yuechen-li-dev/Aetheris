@@ -8,6 +8,7 @@
   <Project Path="tools/Aetheris.Continuum.M2/Aetheris.Continuum.M2.csproj" />
   <Project Path="tools/Aetheris.Continuum.M3/Aetheris.Continuum.M3.csproj" />
   <Project Path="tools/Aetheris.Continuum.M4/Aetheris.Continuum.M4.csproj" />
+  <Project Path="tools/Aetheris.Continuum.M4B/Aetheris.Continuum.M4B.csproj" />
   <Project Path="tools/Aetheris.Continuum.AttentionE0/Aetheris.Continuum.AttentionE0.csproj" />
   <Project Path="tools/Aetheris.Continuum.AttentionE1/Aetheris.Continuum.AttentionE1.csproj" />
   <Project Path="Aetheris.Forge/Aetheris.Forge.csproj" />

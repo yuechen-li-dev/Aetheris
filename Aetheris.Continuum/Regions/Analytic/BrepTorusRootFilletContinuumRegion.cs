@@ -44,9 +44,7 @@ public sealed class BrepTorusRootFilletContinuumRegion : IContinuumRegion, IBoun
         _supports = torusFaces.OrderBy(face => face.Value).Select(face =>
         {
             var reference = new BoundaryReference("brep", $"{id}:root-fillet-face-{face.Value}", face.Value.ToString(), "concave-root-fillet");
-            // ConcaveFilletConstruction deliberately orients this torus support normal into material.
-            return new BrepTorusBoundarySupport(reference, new ExactBrepBoundaryQuery(body, face, transform), double.Pi, 1.5d * double.Pi,
-                exactFaceNormalIsMaterialSide: true);
+            return new BrepTorusBoundarySupport(reference, new ExactBrepBoundaryQuery(body, face, transform), double.Pi, 1.5d * double.Pi,this);
         }).ToArray();
         ContactValidation = ValidateContacts(body, torusFaces);
         ValidateMaterialSide();
@@ -218,13 +216,13 @@ public sealed class BrepTorusBoundarySupport : IAnalyticBoundarySupport
     private static readonly int[] AdmittedResolutions = [4, 8, 16, 24];
     private readonly double _minimumMinorParameter;
     private readonly double _maximumMinorParameter;
-    private readonly bool _exactFaceNormalIsMaterialSide;
+    private readonly IContinuumRegion _region;
 
     public BrepTorusBoundarySupport(BoundaryReference reference, ExactBrepBoundaryQuery query, double minimumMinorParameter, double maximumMinorParameter,
-        bool exactFaceNormalIsMaterialSide)
+        IContinuumRegion region)
     {
         Reference = reference; Query = query; _minimumMinorParameter = minimumMinorParameter; _maximumMinorParameter = maximumMinorParameter;
-        _exactFaceNormalIsMaterialSide = exactFaceNormalIsMaterialSide;
+        _region=region;
     }
     public BoundaryReference Reference { get; }
     public ExactBrepBoundaryQuery Query { get; }
@@ -234,8 +232,11 @@ public sealed class BrepTorusBoundarySupport : IAnalyticBoundarySupport
     public Vector3D MaterialSideNormal(Point3D boundaryPoint)
     {
         var parameters = Query.RecoverParameters(boundaryPoint);
-        var faceNormal = Query.ExactFaceNormal(parameters.U, parameters.V);
-        return _exactFaceNormalIsMaterialSide ? faceNormal : -faceNormal;
+        var supportNormal = Query.ExactSupportNormal(parameters.U, parameters.V);
+        var scale=double.Max(1d,(_region.Bounds.Max-_region.Bounds.Min).Length);
+        var evidence=MaterialSideClassifier.ClassifyMaterialSide(Query.FaceId,boundaryPoint,supportNormal,_region,scale,
+            Query.Body.Bindings.GetFaceBinding(Query.FaceId).SameSense);
+        return evidence.MaterialSideNormal??throw new InvalidOperationException($"CIR did not resolve material side for torus face {Query.FaceId.Value}.");
     }
 
     public IBoundaryOffsetMap CreateOffsetMap(CellIndex cellIndex, BoundingBox3D cellBounds, int resolution, BoundaryOffsetMapErrorPolicy policy, BoundaryEvaluationCache? cache = null) =>

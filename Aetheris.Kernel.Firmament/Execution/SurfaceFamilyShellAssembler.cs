@@ -16,7 +16,7 @@ internal sealed record SurfaceFamilyShellAssemblyResult(
 internal static class SurfaceFamilyShellAssembler
 {
     internal static SurfaceFamilyShellAssemblyResult TryAssembleBoxMinusCylinder(
-        CirNode root,
+        SdfNode root,
         NativeGeometryReplayLog? replayLog = null)
     {
         _ = replayLog;

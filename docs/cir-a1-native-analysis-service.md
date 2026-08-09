@@ -11,8 +11,8 @@
 ## Supported inputs
 
 - `FirmamentPrimitiveLoweringPlan` via `AnalyzeFirmamentPlan`.
-- `CirTape` + bounds via `AnalyzeTape`.
-- `CirNode` via `AnalyzeNode` (lowered to tape internally).
+- `SdfTape` + bounds via `AnalyzeTape`.
+- `SdfNode` via `AnalyzeNode` (lowered to tape internally).
 
 ## Result contract overview
 

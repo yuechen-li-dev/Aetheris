@@ -6,7 +6,7 @@
 - Kept all experiment code within FrictionLab-only folders.
 
 ## 2) Source APIs inspected
-- CIR nodes: `CirNode`, `CirSubtractNode`, `CirTransformNode`, `CirBoxNode`, `CirCylinderNode`.
+- CIR nodes: `SdfNode`, `SdfSubtractNode`, `SdfTransformNode`, `SdfBoxNode`, `SdfCylinderNode`.
 - Lowering/execution: `FirmamentPrimitiveLoweringPlan`, `FirmamentPrimitiveExecutor`, `FirmamentPrimitiveExecutionResult`, `FirmamentCirLowerer`.
 - Native state: `NativeGeometryState`, `NativeGeometryReplayLog`, `NativeGeometryReplayOperation`, `NativeGeometryCirMirrorState`.
 - Analysis/readiness: `CirNativeAnalysisService`, `MaterializationReadinessAnalyzer`.
@@ -16,7 +16,7 @@ Fixture: `testdata/firmament/examples/boolean_box_cylinder_hole.firmament`.
 
 | Source | Available at recognizer call site | Geometry tree | Dimensions/transforms | Provenance ids/tool/source | Sufficient alone | Diagnostic value |
 |---|---|---:|---:|---:|---:|---:|
-| Raw lowered `CirNode` root | Yes (via lowering) | Yes | Yes | No | Yes (v1 geometry) | Medium |
+| Raw lowered `SdfNode` root | Yes (via lowering) | Yes | Yes | No | Yes (v1 geometry) | Medium |
 | `FirmamentPrimitiveLoweringPlan` | Yes | Indirect (needs lower) | Yes (parametric intent) | Feature-level intent | No | Medium |
 | `FirmamentPrimitiveExecutionResult` | Yes | Indirect (via state only) | Partial | Yes | No | High |
 | `NativeGeometryState` | Yes | No traversable root (only root reference string) | No direct tree | Yes | No | High |
@@ -24,13 +24,13 @@ Fixture: `testdata/firmament/examples/boolean_box_cylinder_hole.firmament`.
 | `CirMirror` summary | Yes | No | Bounds + approximate volume only | No | No | Low/Medium |
 
 ## 4) Experiment 2 node-only envelope findings
-- `FromNode(CirNode)` successfully recognizes canonical direct and translation-wrapped forms.
+- `FromNode(SdfNode)` successfully recognizes canonical direct and translation-wrapped forms.
 - Unsupported transforms still reject via existing recognizer behavior.
 - Missing provenance is explicit: no op/feature/tool diagnostics without replay.
 - Conclusion: node-only is sufficient for v1 **geometry classification**, not sufficient for richer diagnostics.
 
 ## 5) Experiment 3 node+replay findings
-- `FromNode(CirNode, NativeGeometryReplayLog?)` preserves recognition parity with node-only.
+- `FromNode(SdfNode, NativeGeometryReplayLog?)` preserves recognition parity with node-only.
 - When replay exists, diagnostics can include subtract op / feature / source feature / tool kind context.
 - Recognition still works when replay is absent.
 - Mismatch policy validated: replay contradiction is surfaced as mismatch diagnostic; it does not override node geometry.
@@ -39,15 +39,15 @@ Fixture: `testdata/firmament/examples/boolean_box_cylinder_hole.firmament`.
 ## 6) Experiment 4 NativeGeometryState findings
 - `NativeGeometryState` alone cannot provide traversable CIR root; only `CirIntentRootReference` string is available.
 - Therefore state-alone recognition is insufficient.
-- A convenience adapter can accept `NativeGeometryState` only when caller also provides explicit `CirNode root`.
+- A convenience adapter can accept `NativeGeometryState` only when caller also provides explicit `SdfNode root`.
 
 ## 7) Experiment 5 lowering plan / execution result findings
 - Plan/execution expose strong intent/provenance context and are stable upstream entrypoints.
 - Neither is a direct substitute for geometric root inspection.
-- Recommended usage: higher layer extracts/retains lowered `CirNode`, then attaches plan/result-derived diagnostics.
+- Recommended usage: higher layer extracts/retains lowered `SdfNode`, then attaches plan/result-derived diagnostics.
 
 ## 8) Experiment 6 mismatch / precedence policy
-- Authoritative geometry source: lowered `CirNode`.
+- Authoritative geometry source: lowered `SdfNode`.
 - Diagnostic-only sources: replay log, native state, plan, execution result.
 - Precedence:
   1. Node geometry decides recognition success/failure.
@@ -59,7 +59,7 @@ Lab prototype:
 
 ```csharp
 public sealed record CirBoxCylinderRecognizerInput(
-    CirNode Root,
+    SdfNode Root,
     NativeGeometryReplayLog? ReplayLog = null,
     NativeGeometryState? NativeState = null,
     FirmamentPrimitiveLoweringPlan? LoweringPlan = null,
@@ -74,10 +74,10 @@ Constructors/adapters validated:
 
 ## 10) Final v1 recognizer source contract
 **Recommended v1 production contract:**
-- Required: `CirNode Root`
+- Required: `SdfNode Root`
 - Optional: `NativeGeometryReplayLog? ReplayLog`
 
-Rationale: `CirNode` is only source that consistently carries exact subtract topology + primitive dimensions + transform wrappers needed for canonical recognition. Replay is a high-value optional provenance channel.
+Rationale: `SdfNode` is only source that consistently carries exact subtract topology + primitive dimensions + transform wrappers needed for canonical recognition. Replay is a high-value optional provenance channel.
 
 ## 11) Recommended v2 adapters
 - Adapter from `FirmamentPrimitiveExecutionResult` -> `CirBoxCylinderRecognizerInput` requiring explicit root retention.

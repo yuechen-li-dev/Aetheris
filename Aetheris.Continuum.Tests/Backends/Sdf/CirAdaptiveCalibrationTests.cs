@@ -3,7 +3,7 @@ using Aetheris.Kernel.Core.Math;
 
 namespace Aetheris.Continuum.Tests.Backends.Sdf;
 
-public sealed record CirAdaptiveCalibrationPolicy(string Name, CirAdaptiveVolumeOptions AdaptiveOptions, int DenseResolution);
+public sealed record CirAdaptiveCalibrationPolicy(string Name, SdfAdaptiveVolumeOptions AdaptiveOptions, int DenseResolution);
 
 public sealed record CirAdaptiveCalibrationMetrics(
     string ShapeName,
@@ -27,7 +27,7 @@ public sealed record CirAdaptiveCalibrationMetrics(
     int MaxDepthReached,
     IReadOnlyDictionary<CirRegionPlanAction, int> ActionCounts,
     IReadOnlyDictionary<string, int> CandidateCounts,
-    IReadOnlyList<CirAdaptiveTraceEvent> TraceHead);
+    IReadOnlyList<SdfAdaptiveTraceEvent> TraceHead);
 
 public sealed record CirAdaptiveCalibrationCase(
     string ShapeName,
@@ -39,17 +39,17 @@ public sealed record CirAdaptiveCalibrationReport(IReadOnlyList<CirAdaptiveCalib
 
 internal static class CirAdaptiveCalibrationHarness
 {
-    public static CirAdaptiveCalibrationReport Run(IEnumerable<(string ShapeName, CirNode Node, double? ExpectedVolume)> shapes, IEnumerable<CirAdaptiveCalibrationPolicy> policies)
+    public static CirAdaptiveCalibrationReport Run(IEnumerable<(string ShapeName, SdfNode Node, double? ExpectedVolume)> shapes, IEnumerable<CirAdaptiveCalibrationPolicy> policies)
     {
         var cases = new List<CirAdaptiveCalibrationCase>();
 
         foreach (var (shapeName, node, expectedVolume) in shapes)
         {
-            var tape = CirTapeLowerer.Lower(node);
+            var tape = SdfTapeLowerer.Lower(node);
             foreach (var policy in policies)
             {
-                var dense = CirVolumeEstimator.EstimateVolume(node, policy.DenseResolution);
-                var adaptive = CirAdaptiveVolumeEstimator.EstimateVolume(tape, node.Bounds, policy.AdaptiveOptions);
+                var dense = SdfVolumeEstimator.EstimateVolume(node, policy.DenseResolution);
+                var adaptive = SdfAdaptiveVolumeEstimator.EstimateVolume(tape, node.Bounds, policy.AdaptiveOptions);
                 var denseSamples = policy.DenseResolution * policy.DenseResolution * policy.DenseResolution;
                 var adaptiveSamplePoints = adaptive.RegionsSampledDirectly * policy.AdaptiveOptions.DirectSampleGrid * policy.AdaptiveOptions.DirectSampleGrid * policy.AdaptiveOptions.DirectSampleGrid;
 
@@ -103,7 +103,7 @@ public sealed class CirAdaptiveCalibrationTests
     [Fact]
     public void AdaptiveCalibration_Box_ReportIsDeterministic()
     {
-        var shape = ("box", (CirNode)new CirBoxNode(6d, 4d, 2d), 48d as double?);
+        var shape = ("box", (SdfNode)new SdfBoxNode(6d, 4d, 2d), 48d as double?);
         var policy = ConservativePolicy();
 
         var first = CirAdaptiveCalibrationHarness.Run([shape], [policy]);
@@ -182,26 +182,26 @@ public sealed class CirAdaptiveCalibrationTests
         Assert.NotEmpty(metrics.CandidateCounts);
     }
 
-    private static IEnumerable<(string ShapeName, CirNode Node, double? ExpectedVolume)> BuildShapes()
+    private static IEnumerable<(string ShapeName, SdfNode Node, double? ExpectedVolume)> BuildShapes()
     {
-        yield return ("box", new CirBoxNode(6d, 4d, 2d), 48d);
+        yield return ("box", new SdfBoxNode(6d, 4d, 2d), 48d);
         yield return BuildBoxMinusCylinder();
-        yield return ("sphere", new CirSphereNode(2d), (4d / 3d) * System.Math.PI * 8d);
-        var transformedSphere = new CirTransformNode(new CirSphereNode(2d), Transform3D.CreateTranslation(new Vector3D(3d, -1d, 2d)));
+        yield return ("sphere", new SdfSphereNode(2d), (4d / 3d) * System.Math.PI * 8d);
+        var transformedSphere = new SdfTransformNode(new SdfSphereNode(2d), Transform3D.CreateTranslation(new Vector3D(3d, -1d, 2d)));
         yield return ("transformed_sphere", transformedSphere, (4d / 3d) * System.Math.PI * 8d);
     }
 
-    private static (string ShapeName, CirNode Node, double? ExpectedVolume) BuildBoxMinusCylinder()
+    private static (string ShapeName, SdfNode Node, double? ExpectedVolume) BuildBoxMinusCylinder()
     {
-        var box = new CirBoxNode(8d, 8d, 8d);
-        var cut = new CirSubtractNode(box, new CirCylinderNode(2d, 8d));
+        var box = new SdfBoxNode(8d, 8d, 8d);
+        var cut = new SdfSubtractNode(box, new SdfCylinderNode(2d, 8d));
         var expected = (8d * 8d * 8d) - (System.Math.PI * 4d * 8d);
         return ("box_minus_cylinder", cut, expected);
     }
 
     private static CirAdaptiveCalibrationPolicy ConservativePolicy()
-        => new("conservative", new CirAdaptiveVolumeOptions(MaxDepth: 8, DirectSampleGrid: 2, MaxTraceEvents: 80, MinimumRegionExtent: 0.04d), DenseResolution: 32);
+        => new("conservative", new SdfAdaptiveVolumeOptions(MaxDepth: 8, DirectSampleGrid: 2, MaxTraceEvents: 80, MinimumRegionExtent: 0.04d), DenseResolution: 32);
 
     private static CirAdaptiveCalibrationPolicy CoarsePolicy()
-        => new("coarse", new CirAdaptiveVolumeOptions(MaxDepth: 4, DirectSampleGrid: 3, MaxTraceEvents: 80, MinimumRegionExtent: 0.08d), DenseResolution: 32);
+        => new("coarse", new SdfAdaptiveVolumeOptions(MaxDepth: 4, DirectSampleGrid: 3, MaxTraceEvents: 80, MinimumRegionExtent: 0.08d), DenseResolution: 32);
 }

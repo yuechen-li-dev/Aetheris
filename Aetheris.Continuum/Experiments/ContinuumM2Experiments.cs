@@ -298,7 +298,7 @@ public static class ContinuumM2Experiments
         {
             raw.TryNormalize(out var direction);
             var boundary = region.ExactQuery.Center + (direction * region.ExactQuery.Radius);
-            var materialNormal = -region.ExactQuery.OutwardNormal(boundary);
+            var materialNormal = -region.ExactQuery.SupportNormalAt(boundary);
             if (region.Classify(boundary + (materialNormal * 1e-6d)) == ContinuumPointClassification.Outside
                 || region.Classify(boundary - (materialNormal * 1e-6d)) != ContinuumPointClassification.Outside)
                 throw new InvalidOperationException($"CIR/BRep material-side disagreement on face {region.FaceId.Value}.");

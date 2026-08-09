@@ -53,10 +53,10 @@ internal sealed record MaterializationReadinessReport(
 
 internal static class MaterializationReadinessAnalyzer
 {
-    internal static MaterializationReadinessReport Analyze(CirNode root, NativeGeometryReplayLog? replayLog = null)
+    internal static MaterializationReadinessReport Analyze(SdfNode root, NativeGeometryReplayLog? replayLog = null)
     {
         var source = SourceSurfaceExtractor.Extract(root, replayLog);
-        var nonSubtract = root is not CirSubtractNode;
+        var nonSubtract = root is not SdfSubtractNode;
 
         var candidates = FacePatchCandidateGenerator.Generate(root, replayLog);
         var topology = TopologyAssemblyDryRunPlanner.Generate(candidates);

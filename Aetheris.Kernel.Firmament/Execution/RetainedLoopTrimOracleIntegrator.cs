@@ -4,9 +4,9 @@ namespace Aetheris.Kernel.Firmament.Execution;
 
 internal static class RetainedLoopTrimOracleIntegrator
 {
-    internal static List<FacePatchCandidate> Attach(CirNode root, List<FacePatchCandidate> candidates, List<string> globalDiagnostics)
+    internal static List<FacePatchCandidate> Attach(SdfNode root, List<FacePatchCandidate> candidates, List<string> globalDiagnostics)
     {
-        if (root is not CirSubtractNode subtract) return candidates;
+        if (root is not SdfSubtractNode subtract) return candidates;
 
         var leftDescriptors = SourceSurfaceExtractor.Extract(subtract.Left).Descriptors;
         var rightDescriptors = SourceSurfaceExtractor.Extract(subtract.Right).Descriptors;
@@ -82,7 +82,7 @@ internal static class RetainedLoopTrimOracleIntegrator
         return next;
     }
 
-    private static TieredTrimCurveRepresentation BuildLoopRepresentation(SourceSurfaceDescriptor source, CirNode opposite, string routing)
+    private static TieredTrimCurveRepresentation BuildLoopRepresentation(SourceSurfaceDescriptor source, SdfNode opposite, string routing)
     {
         var field = SurfaceRestrictedFieldFactory.ForSourceAndOpposite(source, opposite, routing);
         var grid = RestrictedFieldGridSampler.Sample(field, new RestrictedFieldGridOptions(65, 65));

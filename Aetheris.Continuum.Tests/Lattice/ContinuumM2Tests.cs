@@ -21,7 +21,7 @@ public sealed class ContinuumM2Tests
         Assert.Equal(region.FaceId.Value.ToString(), region.BoundaryReference.ExactBrepFaceId);
         Assert.Equal(SurfaceGeometryKind.Sphere, region.BrepBody.GetFaceSurface(region.FaceId).Kind);
         var boundary = region.ExactQuery.Project(new Point3D(2d, 0.2d, -0.1d));
-        var inward = -region.ExactQuery.OutwardNormal(boundary);
+        var inward = -region.ExactQuery.SupportNormalAt(boundary);
         Assert.NotEqual(ContinuumPointClassification.Outside, region.Classify(boundary + (inward * 1e-6d)));
         Assert.Equal(ContinuumPointClassification.Outside, region.Classify(boundary - (inward * 1e-6d)));
     }
@@ -66,6 +66,6 @@ public sealed class ContinuumM2Tests
         var roundTrip = region.ExactQuery.Evaluate(recovered.U, recovered.V);
 
         Assert.InRange((roundTrip - point).Length, 0d, 2e-7d);
-        Assert.InRange(region.ExactQuery.ExactFaceNormal(u, v).Length, 0.999999d, 1.000001d);
+        Assert.InRange(region.ExactQuery.ExactSupportNormal(u, v).Length, 0.999999d, 1.000001d);
     }
 }

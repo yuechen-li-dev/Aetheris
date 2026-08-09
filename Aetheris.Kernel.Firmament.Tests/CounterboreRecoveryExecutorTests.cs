@@ -43,7 +43,7 @@ public sealed class CounterboreRecoveryExecutorTests
     [Fact]
     public void CounterboreExecutor_ThroughHoleStillWorks()
     {
-        var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(3, 20))));
+        var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfCylinderNode(3, 20))));
         var plan = Assert.IsType<HoleRecoveryPlan>(eval.Plan);
         var result = HoleRecoveryExecutor.Execute(plan);
         Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, result.Status);
@@ -72,8 +72,8 @@ public sealed class CounterboreRecoveryExecutorTests
         Assert.Contains(result.Diagnostics, d => d.Contains("No STEP export attempted", StringComparison.Ordinal));
     }
 
-    private static CirNode BuildCanonicalCounterbore()
-        => new CirSubtractNode(
-            new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)),
-            new CirTransformNode(new CirCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))));
+    private static SdfNode BuildCanonicalCounterbore()
+        => new SdfSubtractNode(
+            new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfCylinderNode(2, 20)),
+            new SdfTransformNode(new SdfCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))));
 }

@@ -9,7 +9,8 @@ public enum FrepMaterializerPolicyCategory
 public sealed record FrepMaterializerPolicyRegistration(
     IFrepMaterializerPolicy Policy,
     FrepMaterializerPolicyCategory Category,
-    string Description);
+    string Description,
+    SdfDecompilationContract? DecompilationContract = null);
 
 public sealed record FrepMaterializerPolicyCatalogSnapshot(
     IReadOnlyList<string> PolicyNames,
@@ -19,7 +20,8 @@ public static class FrepMaterializerPolicyCatalog
 {
     private static readonly IReadOnlyList<FrepMaterializerPolicyRegistration> DefaultRegistrationsValue =
     [
-        new(new HoleRecoveryPolicy(), FrepMaterializerPolicyCategory.SemanticExact, "Composable semantic hole-family policy with through-hole variant exact BRep recovery."),
+        new(new HoleRecoveryPolicy(), FrepMaterializerPolicyCategory.SemanticExact, "Bounded SDF decompilation for recognized box/cylinder hole intent.",
+            new("recognized orthogonal box minus admitted cylindrical through/blind/counterbore/countersink families","recover editable hole intent","predetermined family topology populated from recognized parameters",true,"rejects transforms, tangencies, and compositions outside the named family; no arbitrary topology inversion")),
         new(new CirOnlyFallbackPolicy(), FrepMaterializerPolicyCategory.CirOnlyFallback, "Intent-preserving fallback when no exact semantic BRep policy is admissible.")
     ];
 

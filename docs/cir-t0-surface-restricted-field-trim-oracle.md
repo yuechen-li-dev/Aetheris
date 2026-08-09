@@ -28,7 +28,7 @@ SurfaceRestrictedField
   ParameterizationContract (IRestrictedSurfaceParameterization)
   Domain2D (uMin,uMax,vMin,vMax + seam flags)
   OppositeSelection (operand role + source/opposite subtree ids)
-  OppositeField (CirTape preferred; CirNode fallback for diagnostics)
+  OppositeField (SdfTape preferred; SdfNode fallback for diagnostics)
   ToleranceContext
   OrientationPolicy
   Evaluate(u,v) -> RestrictedFieldSample
@@ -36,10 +36,10 @@ SurfaceRestrictedField
   Diagnostics (construction + sampling provenance)
 ```
 
-### Why `CirTape` first, `CirNode` second
+### Why `SdfTape` first, `SdfNode` second
 
-- `CirTape` is already the runtime execution form with primitive payload transforms and point evaluation, and has interval classification infrastructure that can be adapted conceptually to 2D cells after mapping into world-space bounds.
-- `CirNode` should remain available as semantic oracle and for debugging parity checks, but the restricted-field runtime should execute tape-first to stay aligned with CIR-E architecture.
+- `SdfTape` is already the runtime execution form with primitive payload transforms and point evaluation, and has interval classification infrastructure that can be adapted conceptually to 2D cells after mapping into world-space bounds.
+- `SdfNode` should remain available as semantic oracle and for debugging parity checks, but the restricted-field runtime should execute tape-first to stay aligned with CIR-E architecture.
 
 ### How “opposite” is encoded
 
@@ -62,11 +62,11 @@ In subtract roots, opposite is role-dependent:
 
 ### CIR evaluation runtime
 
-- `CirNode` and concrete nodes (box/cylinder/sphere/torus/transform/union/subtract/intersect) provide semantic SDF evaluation and bounds.
-- `CirTapeLowerer` composes transforms into inverse payload transforms and lowers booleans to `Min/Max/Neg` instruction sequences.
-- `CirTape.Evaluate` provides pointwise field values; `EvaluateInterval` provides conservative 3D AABB intervals.
+- `SdfNode` and concrete nodes (box/cylinder/sphere/torus/transform/union/subtract/intersect) provide semantic SDF evaluation and bounds.
+- `SdfTapeLowerer` composes transforms into inverse payload transforms and lowers booleans to `Min/Max/Neg` instruction sequences.
+- `SdfTape.Evaluate` provides pointwise field values; `EvaluateInterval` provides conservative 3D AABB intervals.
 - `CirRegionPlanner` already uses `JudgmentEngine` for admissibility/utility-based decision among classify/subdivide/sample options.
-- `CirAdaptiveVolumeEstimator` already operationalizes planner decisions, adaptive splitting, direct sampling, and trace diagnostics.
+- `SdfAdaptiveVolumeEstimator` already operationalizes planner decisions, adaptive splitting, direct sampling, and trace diagnostics.
 
 ### Surface descriptor/readiness infrastructure
 
@@ -143,7 +143,7 @@ Current torus descriptors are family/provenance only plus deferred diagnostics; 
 
 ### Subtract semantics (first contract)
 
-For `CirSubtractNode(A,B)`:
+For `SdfSubtractNode(A,B)`:
 
 - for descriptors originating from `A`: opposite field is `Lower(B)`;
 - for descriptors originating from `B`: opposite field is `Lower(A)`.
@@ -152,7 +152,7 @@ For `CirSubtractNode(A,B)`:
 
 Partially:
 
-- current code uses `IsFromNode` by comparing `SourceSurfaceDescriptor.OwningCirNodeKind` to `node.GetType().Name`; this is not robust when both sides share primitive type (e.g., cylinder minus cylinder).
+- current code uses `IsFromNode` by comparing `SourceSurfaceDescriptor.OwningSdfNodeKind` to `node.GetType().Name`; this is not robust when both sides share primitive type (e.g., cylinder minus cylinder).
 
 Missing for robust trim-oracle routing:
 
@@ -197,9 +197,9 @@ Impact on torus cases:
 
 Reusable immediately:
 
-- opposite field evaluation via `CirTape.Evaluate`,
+- opposite field evaluation via `SdfTape.Evaluate`,
 - tolerance semantics (`ToleranceContext`) and sign classification idioms,
-- planner pattern from `CirRegionPlanner`/`CirAdaptiveVolumeEstimator`.
+- planner pattern from `CirRegionPlanner`/`SdfAdaptiveVolumeEstimator`.
 
 Needs 2D equivalents/new components:
 

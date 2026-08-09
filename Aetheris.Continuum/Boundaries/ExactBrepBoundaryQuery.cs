@@ -61,12 +61,14 @@ public sealed class ExactBrepBoundaryQuery
     public Point3D Evaluate(double u, double v) => _transform.Apply(
         _sphere is { } sphere ? sphere.Evaluate(u, v) : _torus!.Value.Evaluate(u, v));
 
-    public Vector3D ExactFaceNormal(double u, double v)
+    public Vector3D ExactSupportNormal(double u, double v)
     {
         var source = _sphere is { } sphere ? sphere.Normal(u, v) : _torus!.Value.Normal(u, v);
-        var normal = TransformDirection(source);
-        return _sameSense ? normal : -normal;
+        return TransformDirection(source);
     }
+
+    /// <summary>Support normal adjusted only for BRep parameterization orientation; this is not a material-side answer.</summary>
+    public Vector3D ParameterizationNormal(double u,double v) => _sameSense?ExactSupportNormal(u,v):-ExactSupportNormal(u,v);
 
     public BoundarySurfaceParameters RecoverParameters(Point3D point)
     {
@@ -103,10 +105,10 @@ public sealed class ExactBrepBoundaryQuery
         return Evaluate(parameters.U, parameters.V);
     }
 
-    public Vector3D OutwardNormal(Point3D boundaryPoint)
+    public Vector3D SupportNormalAt(Point3D boundaryPoint)
     {
         var parameters = RecoverParameters(boundaryPoint);
-        return ExactFaceNormal(parameters.U, parameters.V);
+        return ExactSupportNormal(parameters.U, parameters.V);
     }
 
     public PrincipalCurvatureData PrincipalCurvatures(double u, double v)
@@ -114,7 +116,7 @@ public sealed class ExactBrepBoundaryQuery
         if (_sphere is { } sphere)
         {
             var sphereDirectionU = TransformDirection(Direction3D.Create((-sphere.XAxis.ToVector() * double.Sin(u)) + (sphere.YAxis.ToVector() * double.Cos(u))));
-            var faceNormal = ExactFaceNormal(u, v);
+            var faceNormal = ParameterizationNormal(u, v);
             var sphereDirectionV = faceNormal.Cross(sphereDirectionU);
             sphereDirectionV.TryNormalize(out sphereDirectionV);
             var sphereSign = _sameSense ? 1d : -1d;
@@ -138,8 +140,8 @@ public sealed class ExactBrepBoundaryQuery
     {
         var origin = Project(nearPoint);
         var parameters = RecoverParameters(origin);
-        var outward = ExactFaceNormal(parameters.U, parameters.V);
-        var normal = materialInside ? -outward : outward;
+        var supportNormal = ExactSupportNormal(parameters.U, parameters.V);
+        var normal = materialInside ? -supportNormal : supportNormal;
         if (_sphere is { } sphere)
         {
             var seeds = new[] { TransformDirection(sphere.XAxis), TransformDirection(sphere.YAxis), TransformDirection(sphere.Axis) };

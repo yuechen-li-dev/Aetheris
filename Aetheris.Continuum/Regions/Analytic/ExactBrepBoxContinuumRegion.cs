@@ -4,7 +4,7 @@ using Aetheris.Kernel.Core.Math;
 namespace Aetheris.Continuum.Regions.Analytic;
 
 /// <summary>An exact oriented-box CIR used with the corresponding exact BRep shell.</summary>
-public sealed class ExactBrepBoxContinuumRegion : IContinuumRegion, ISignedDistanceCapability, IBoundsClassificationCapability
+public sealed class ExactBrepBoxContinuumRegion : IContinuumRegion, IExactEuclideanSignedDistanceCapability, IBoundsClassificationCapability
 {
     private readonly Transform3D _inverse;
     private readonly Vector3D _half;
@@ -43,6 +43,8 @@ public sealed class ExactBrepBoxContinuumRegion : IContinuumRegion, ISignedDista
         var outside=new Vector3D(double.Max(q.X,0d),double.Max(q.Y,0d),double.Max(q.Z,0d)).Length;
         return outside+double.Min(double.Max(q.X,double.Max(q.Y,q.Z)),0d);
     }
+
+    public double FieldValue(Point3D point) => SignedDistance(point);
 
     public ContinuumBoundsClassification ClassifyBounds(BoundingBox3D bounds,double tolerance=1e-9d)
     {

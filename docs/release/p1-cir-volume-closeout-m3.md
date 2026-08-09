@@ -8,9 +8,9 @@ Outcome B: intentional defer. Correct post-STEP CIR/FRep occupied-volume verific
 
 | Layer | Implemented responsibility | Relevant limits |
 | --- | --- | --- |
-| Firmament primitive lowering | Boxes, cylinders, cones, spheres, tori and basic Boolean composition lower to `CirNode` | canonical Profile/Compose whole-loop Fillet does not lower to CIR; `Fillet` is explicitly rejected by `FirmamentCirLowerer` |
+| Firmament primitive lowering | Boxes, cylinders, cones, spheres, tori and basic Boolean composition lower to `SdfNode` | canonical Profile/Compose whole-loop Fillet does not lower to CIR; `Fillet` is explicitly rejected by `FirmamentCirLowerer` |
 | CIR semantic field | Primitive signed-distance evaluators, transforms, union, subtraction and intersection | no node describing a trimmed Profile Fillet or its ExactRolling/compatibility policy |
-| CIR runtime | `CirTape` point and interval evaluation | primitive/Boolean instruction set only |
+| CIR runtime | `SdfTape` point and interval evaluation | primitive/Boolean instruction set only |
 | CIR volume | dense regular-cell center sampling and adaptive region subdivision/direct sampling | deterministic and approximate, but no returned absolute error bound or convergence certificate |
 | CIR to BRep | narrow rematerializers for box-minus-cylinder and box-minus-box; torus subtraction recognized but unsupported | direction is opposite the required bridge |
 | BRep to CIR | none | reconstructing occupied material from arbitrary imported trimmed analytic faces requires topology/domain interpretation |

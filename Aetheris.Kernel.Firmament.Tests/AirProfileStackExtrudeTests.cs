@@ -20,7 +20,7 @@ public sealed class AirProfileStackExtrudeTests
     [Fact]
     public void AirProfileStack_FromHolePlan_ThroughHole_ConvertsAndExecutes()
     {
-        var plan = (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(new CirSubtractNode(new CirBoxNode(20,20,10), new CirCylinderNode(2,20)))).Plan!;
+        var plan = (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(new SdfSubtractNode(new SdfBoxNode(20,20,10), new SdfCylinderNode(2,20)))).Plan!;
         Assert.True(AirProfileStackExtrudeAdapter.TryFromHoleRecoveryPlan(plan, out _, out var d));
         var exec = HoleRecoveryExecutor.Execute(plan);
         Assert.Equal(HoleRecoveryExecutionStatus.Succeeded, exec.Status);
@@ -34,7 +34,7 @@ public sealed class AirProfileStackExtrudeTests
     [Fact]
     public void ThroughAndStepped_AirRoutesRemainGreen()
     {
-        var through = (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(new CirSubtractNode(new CirBoxNode(20,20,10), new CirCylinderNode(2,20)))).Plan!;
+        var through = (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(new SdfSubtractNode(new SdfBoxNode(20,20,10), new SdfCylinderNode(2,20)))).Plan!;
         var stepped = (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(BuildStepped())).Plan!;
         Assert.True(AirProfileStackExtrudeAdapter.TryFromHoleRecoveryPlan(through, out _, out _));
         Assert.True(AirProfileStackExtrudeAdapter.TryFromHoleRecoveryPlan(stepped, out _, out _));
@@ -45,7 +45,7 @@ public sealed class AirProfileStackExtrudeTests
     [Fact]
     public void BlindHole_AirV2B_FinalRouteStatus()
     {
-        var plan = (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(new CirSubtractNode(new CirBoxNode(20,20,10), new CirTransformNode(new CirCylinderNode(2,4), Transform3D.CreateTranslation(new Vector3D(0,0,3)))))).Plan!;
+        var plan = (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(new SdfSubtractNode(new SdfBoxNode(20,20,10), new SdfTransformNode(new SdfCylinderNode(2,4), Transform3D.CreateTranslation(new Vector3D(0,0,3)))))).Plan!;
         Assert.False(AirProfileStackExtrudeAdapter.TryFromHoleRecoveryPlan(plan, out _, out var d));
         Assert.Contains(d, x => x.Contains("air-profile-stack-v2b-blind-solid-interval-recognized", StringComparison.Ordinal));
         Assert.Contains(d, x => x.Contains("air-profile-stack-v2b-blind-emitter-deferred", StringComparison.Ordinal));
@@ -58,7 +58,7 @@ public sealed class AirProfileStackExtrudeTests
     [Fact]
     public void Counterbore_AirV2B_FinalRouteStatus()
     {
-        var root = new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20,20,10), new CirCylinderNode(2,20)), new CirTransformNode(new CirCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,3))));
+        var root = new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20,20,10), new SdfCylinderNode(2,20)), new SdfTransformNode(new SdfCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,3))));
         var plan = (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(root)).Plan!;
         Assert.True(AirProfileStackExtrudeAdapter.TryFromHoleRecoveryPlan(plan, out _, out var d));
         Assert.Contains(d, x => x.Contains("air-profile-stack-v2b-counterbore-contiguous-accepted", StringComparison.Ordinal));
@@ -70,7 +70,7 @@ public sealed class AirProfileStackExtrudeTests
     [Fact]
     public void ConicalRoutesRemainConical()
     {
-        var root = new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20,20,10), new CirCylinderNode(2,20)), new CirTransformNode(new CirConeNode(2, 4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, 3))));
+        var root = new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20,20,10), new SdfCylinderNode(2,20)), new SdfTransformNode(new SdfConeNode(2, 4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, 3))));
         var plan = (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(root)).Plan!;
         Assert.False(AirProfileStackExtrudeAdapter.TryFromHoleRecoveryPlan(plan, out _, out var d));
         Assert.Contains(d, x => x.Contains("air-profile-stack-v1-conical-deferred", StringComparison.Ordinal));
@@ -97,5 +97,5 @@ public sealed class AirProfileStackExtrudeTests
         Assert.Contains(d, x => x.Contains("air-validation-failed-solid-interval-has-inner-loop", StringComparison.Ordinal));
     }
 
-    private static CirNode BuildStepped() => new CirSubtractNode(new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20,20,10), new CirCylinderNode(2,20)), new CirTransformNode(new CirCylinderNode(3,6), Transform3D.CreateTranslation(new Vector3D(0,0,2)))), new CirTransformNode(new CirCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,3))));
+    private static SdfNode BuildStepped() => new SdfSubtractNode(new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20,20,10), new SdfCylinderNode(2,20)), new SdfTransformNode(new SdfCylinderNode(3,6), Transform3D.CreateTranslation(new Vector3D(0,0,2)))), new SdfTransformNode(new SdfCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,3))));
 }

@@ -22,8 +22,8 @@ public sealed class CountersinkVariantAndExecutorTests
     [Fact]
     public void CountersinkVariant_RejectsNonCoaxialConeCylinder()
     {
-        var cone = new CirTransformNode(new CirConeNode(2d, 4d, 4d), Transform3D.CreateTranslation(new Vector3D(3d, 0d, 3d)));
-        var root = new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20,20,10), new CirCylinderNode(2,20)), cone);
+        var cone = new SdfTransformNode(new SdfConeNode(2d, 4d, 4d), Transform3D.CreateTranslation(new Vector3D(3d, 0d, 3d)));
+        var root = new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20,20,10), new SdfCylinderNode(2,20)), cone);
         var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(root));
         Assert.Contains(eval.EvaluationsFor(nameof(CountersinkVariant)), d => d.Contains("not coaxial", StringComparison.OrdinalIgnoreCase));
     }
@@ -54,9 +54,9 @@ public sealed class CountersinkVariantAndExecutorTests
         Assert.DoesNotContain("BREP_WITH_VOIDS", step.Value);
     }
 
-    private static CirNode BuildCanonical()
+    private static SdfNode BuildCanonical()
     {
-        var cone = new CirTransformNode(new CirConeNode(2d, 4d, 4d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, 3d)));
-        return new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20d, 20d, 10d), new CirCylinderNode(2d, 20d)), cone);
+        var cone = new SdfTransformNode(new SdfConeNode(2d, 4d, 4d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, 3d)));
+        return new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20d, 20d, 10d), new SdfCylinderNode(2d, 20d)), cone);
     }
 }

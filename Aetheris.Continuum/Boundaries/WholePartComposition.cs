@@ -10,7 +10,8 @@ using Aetheris.Kernel.Core.Topology;
 
 namespace Aetheris.Continuum.Boundaries;
 
-public sealed record CirBrepAssociation(RegionId ContinuumRegionId, string BrepBodyId, string OuterShellId, string? SemanticModelId = null);
+public sealed record CirBrepAssociation(RegionId ContinuumRegionId, string BrepBodyId, string OuterShellId,
+    string? SemanticModelId = null, string? ConstructionSourceIdentity = null);
 
 public enum CutCellCompositionKind
 {
@@ -27,7 +28,7 @@ public enum MaterialSideStatus { Resolved, Ambiguous, Inconsistent }
 public sealed record MaterialSideEvidence(
     FaceId FaceId,
     Point3D BoundaryPoint,
-    Vector3D BrepOrientedNormal,
+    Vector3D ExactSupportNormal,
     double ProbeDistance,
     ContinuumPointClassification PlusClassification,
     ContinuumPointClassification MinusClassification,
@@ -74,7 +75,7 @@ public sealed record CutCellBoundarySet(
 }
 
 public sealed record BrepCirConsistencyProbe(string Kind, string EntityId, Point3D Point, ContinuumPointClassification Classification, bool Passed);
-public sealed record BrepCirConsistencyResult(bool Passed, IReadOnlyList<BrepCirConsistencyProbe> Probes, string Summary);
+public sealed record BrepCirConsistencyResult(bool Passed, IReadOnlyList<BrepCirConsistencyProbe> Probes, string Summary,double MaximumExtentResidual = 0d);
 
 public static class BrepCirConsistencyChecker
 {
@@ -83,14 +84,13 @@ public static class BrepCirConsistencyChecker
         var probes = new List<BrepCirConsistencyProbe>();
         foreach (var face in shell.Faces)
         {
-            var point = Centroid(face.VertexIds.Select(shell.TransformPoint));
+            var point = face.ExactBoundarySamples.FirstOrDefault(p=>region.Classify(p,tolerance)==ContinuumPointClassification.Boundary);
             var c = region.Classify(point, tolerance);
             probes.Add(new("face", face.FaceId.Value.ToString(), point, c, c == ContinuumPointClassification.Boundary));
         }
         foreach (var edge in shell.Faces.SelectMany(f => f.EdgeIds).Distinct().OrderBy(e => e.Value))
         {
-            var topology = shell.Body.Topology.GetEdge(edge);
-            var point = Midpoint(shell.TransformPoint(topology.StartVertexId), shell.TransformPoint(topology.EndVertexId));
+            var point = shell.TransformEdgeMidpoint(edge);
             var c = region.Classify(point, tolerance);
             probes.Add(new("edge", edge.Value.ToString(), point, c, c == ContinuumPointClassification.Boundary));
         }
@@ -104,9 +104,15 @@ public static class BrepCirConsistencyChecker
         var diagonal = region.Bounds.Max - region.Bounds.Min;
         var outsidePoint = region.Bounds.Max + diagonal; var outside = region.Classify(outsidePoint, tolerance);
         probes.Add(new("known-exterior", "expanded-max", outsidePoint, outside, outside == ContinuumPointClassification.Outside));
+        var extentRows=new[]{("min-x",region.Bounds.Min.X,shell.Bounds.Min.X,true),("min-y",region.Bounds.Min.Y,shell.Bounds.Min.Y,true),("min-z",region.Bounds.Min.Z,shell.Bounds.Min.Z,true),("max-x",region.Bounds.Max.X,shell.Bounds.Max.X,false),("max-y",region.Bounds.Max.Y,shell.Bounds.Max.Y,false),("max-z",region.Bounds.Max.Z,shell.Bounds.Max.Z,false)};
+        foreach(var (name,a,b,isMinimum) in extentRows)
+        {var ok=isMinimum?b>=a-tolerance:b<=a+tolerance;probes.Add(new("extent-conservative-containment",name,new Point3D(a,b,0d),ok?ContinuumPointClassification.Boundary:ContinuumPointClassification.Outside,ok));}
+        if(region is IConstructiveLineageRegion lineage&&shell.Association.ConstructionSourceIdentity is { } associated)
+        {var ok=string.Equals(lineage.ConstructionSourceIdentity,associated,StringComparison.Ordinal);probes.Add(new("lineage",associated,region.Bounds.Min,ok?ContinuumPointClassification.Boundary:ContinuumPointClassification.Outside,ok));}
         var passed = probes.All(p => p.Passed);
-        return new(passed, probes, passed ? $"BRep/CIR agreement passed for {probes.Count} deterministic probes."
-            : $"BRep/CIR disagreement in {probes.Count(p => !p.Passed)} of {probes.Count} deterministic probes.");
+        var residual=extentRows.Max(row=>double.Abs(row.Item2-row.Item3));
+        return new(passed, probes, passed ? $"BRep/CIR agreement passed for {probes.Count} deterministic probes; conservative extent residual={residual:R}."
+            : $"BRep/CIR disagreement in {probes.Count(p => !p.Passed)} of {probes.Count} deterministic probes.",residual);
     }
 
     private static Point3D Centroid(IEnumerable<Point3D> points) { var a = points.ToArray(); return new(a.Average(p => p.X), a.Average(p => p.Y), a.Average(p => p.Z)); }
@@ -137,6 +143,7 @@ public sealed class WholePartCutCellComposer
     public BrepCirConsistencyResult Consistency { get; }
     public int JudgmentCallCount => _judgmentCalls;
     public double JudgmentRuntimeMilliseconds => _judgmentMilliseconds;
+    public IReadOnlyDictionary<FaceId,MaterialSideEvidence> MaterialSides => _materialSides;
 
     public CutCellBoundarySet Compose(CellIndex index, BoundingBox3D bounds)
     {
@@ -151,31 +158,23 @@ public sealed class WholePartCutCellComposer
             c.AdjacentFaceIds, _materialSides[c.FaceId])).ToArray();
         var integration = candidates.All(c => c.SupportKind == SurfaceGeometryKind.Plane)
             ? ConvexPlanarCellIntegrator.Integrate(bounds, _shell, _materialSides)
-            : SampleFallback(bounds, 12);
+            : SampleFallback(bounds, candidates, 12);
         var center = new Point3D((bounds.Min.X + bounds.Max.X) * .5d, (bounds.Min.Y + bounds.Max.Y) * .5d, (bounds.Min.Z + bounds.Max.Z) * .5d);
         return new(index, _region.Id, contributors, kind, _region.Classify(center), trace, integration);
     }
 
     private MaterialSideEvidence ResolveMaterialSide(WholeShellBoundaryCandidate face)
     {
-        if (_shell.Body.GetFaceSurface(face.FaceId).Plane is not PlaneSurface plane)
-            return new(face.FaceId, Centroid(face.VertexIds.Select(_shell.TransformPoint)), default, 0d,
-                ContinuumPointClassification.Boundary, ContinuumPointClassification.Boundary, null, null, null,
-                MaterialSideStatus.Ambiguous, "Non-planar support requires local exact projection; deferred to its BoundaryOffsetMap support.");
-        var point = Centroid(face.VertexIds.Select(_shell.TransformPoint));
-        var normal = _shell.Transform.Apply(plane.Normal).ToVector(); normal.TryNormalize(out normal);
-        if (!face.SameSense) normal = -normal;
         var scale = double.Max(1d, (_region.Bounds.Max - _region.Bounds.Min).Length);
-        var epsilon = double.Clamp(scale * 1e-6d, 1e-8d, scale * 1e-3d);
-        var plus = _region.Classify(point + normal * epsilon, epsilon * .1d);
-        var minus = _region.Classify(point - normal * epsilon, epsilon * .1d);
-        var plusInside = plus == ContinuumPointClassification.Inside; var minusInside = minus == ContinuumPointClassification.Inside;
-        var status = plusInside ^ minusInside ? MaterialSideStatus.Resolved : MaterialSideStatus.Inconsistent;
-        Vector3D? material = plusInside ^ minusInside ? (plusInside ? normal : -normal) : null;
-        double? plusSdf = _region is ISignedDistanceCapability sdf ? sdf.SignedDistance(point + normal * epsilon) : null;
-        double? minusSdf = _region is ISignedDistanceCapability sdf2 ? sdf2.SignedDistance(point - normal * epsilon) : null;
-        return new(face.FaceId, point, normal, epsilon, plus, minus, plusSdf, minusSdf, material, status,
-            "Occupied side selected exclusively from CIR probes; SameSense only orients the probe axis.");
+        foreach(var point in face.ExactBoundarySamples)
+        {
+            if(_region.Classify(point,scale*1e-7d)!=ContinuumPointClassification.Boundary)continue;
+            var normal=ExactSupportBoundaryQuery.ExactSupportNormal(_shell.Body,face.FaceId,point,_shell.Transform);
+            var evidence=MaterialSideClassifier.ClassifyMaterialSide(face.FaceId,point,normal,_region,scale,face.SameSense);
+            if(evidence.Status==MaterialSideStatus.Resolved)return evidence;
+        }
+        var fallback=face.ExactBoundarySamples[0];var fallbackNormal=ExactSupportBoundaryQuery.ExactSupportNormal(_shell.Body,face.FaceId,fallback,_shell.Transform);
+        return MaterialSideClassifier.ClassifyMaterialSide(face.FaceId,fallback,fallbackNormal,_region,scale,face.SameSense);
     }
 
     private CutCellCompositionKind Classify(IReadOnlyList<WholeShellBoundaryCandidate> faces)
@@ -204,11 +203,23 @@ public sealed class WholePartCutCellComposer
             selected.ToString(), decision.Rejections, elapsed));
     }
 
-    private LocalBoundaryIntegration SampleFallback(BoundingBox3D bounds, int n)
+    private LocalBoundaryIntegration SampleFallback(BoundingBox3D bounds,IReadOnlyList<WholeShellBoundaryCandidate> candidates,int n)
     {
-        var inside = 0; for (var k=0;k<n;k++) for (var j=0;j<n;j++) for (var i=0;i<n;i++)
-        { var p = new Point3D(Lerp(bounds.Min.X,bounds.Max.X,(i+.5)/n),Lerp(bounds.Min.Y,bounds.Max.Y,(j+.5)/n),Lerp(bounds.Min.Z,bounds.Max.Z,(k+.5)/n)); if (_region.Classify(p) != ContinuumPointClassification.Outside) inside++; }
-        return new(inside/(double)(n*n*n), 0d, new Dictionary<string,double>(), "bounded-CIR-MSAA-fallback", n*n*n);
+        var occupied=new bool[n,n,n];var inside=0;
+        for (var k=0;k<n;k++) for (var j=0;j<n;j++) for (var i=0;i<n;i++)
+        {var p=new Point3D(Lerp(bounds.Min.X,bounds.Max.X,(i+.5)/n),Lerp(bounds.Min.Y,bounds.Max.Y,(j+.5)/n),Lerp(bounds.Min.Z,bounds.Max.Z,(k+.5)/n));occupied[i,j,k]=_region.Classify(p)!=ContinuumPointClassification.Outside;if(occupied[i,j,k])inside++;}
+        var dx=(bounds.Max.X-bounds.Min.X)/n;var dy=(bounds.Max.Y-bounds.Min.Y)/n;var dz=(bounds.Max.Z-bounds.Min.Z)/n;var area=0d;
+        Point3D Sample(int i,int j,int k)=>new(Lerp(bounds.Min.X,bounds.Max.X,(i+.5)/n),Lerp(bounds.Min.Y,bounds.Max.Y,(j+.5)/n),Lerp(bounds.Min.Z,bounds.Max.Z,(k+.5)/n));
+        double Correct(Point3D p)
+        {
+            if(_region is not IImplicitFieldCapability field)return 2d/3d;var h=double.Min(dx,double.Min(dy,dz))*.25d;
+            var g=new Vector3D((field.FieldValue(p+new Vector3D(h,0,0))-field.FieldValue(p-new Vector3D(h,0,0)))/(2*h),(field.FieldValue(p+new Vector3D(0,h,0))-field.FieldValue(p-new Vector3D(0,h,0)))/(2*h),(field.FieldValue(p+new Vector3D(0,0,h))-field.FieldValue(p-new Vector3D(0,0,h)))/(2*h));
+            if(!g.TryNormalize(out g))return 2d/3d;return 1d/double.Max(1d,double.Abs(g.X)+double.Abs(g.Y)+double.Abs(g.Z));
+        }
+        for(var k=0;k<n;k++)for(var j=0;j<n;j++)for(var i=0;i<n;i++)
+        {var p=Sample(i,j,k);if(i+1<n&&occupied[i,j,k]!=occupied[i+1,j,k])area+=dy*dz*Correct(new Point3D(p.X+dx*.5,p.Y,p.Z));if(j+1<n&&occupied[i,j,k]!=occupied[i,j+1,k])area+=dx*dz*Correct(new Point3D(p.X,p.Y+dy*.5,p.Z));if(k+1<n&&occupied[i,j,k]!=occupied[i,j,k+1])area+=dx*dy*Correct(new Point3D(p.X,p.Y,p.Z+dz*.5));}
+        var share=candidates.Count==0?0d:area/candidates.Count;var byFace=candidates.ToDictionary(c=>c.FaceId.Value.ToString(),_=>share);
+        return new(inside/(double)(n*n*n),area,byFace,"bounded-CIR-MSAA-volume-and-gradient-corrected-Crofton-area",n*n*n);
     }
     private static double Lerp(double a,double b,double t)=>a+(b-a)*t;
     private static Point3D Centroid(IEnumerable<Point3D> points) { var a=points.ToArray(); return new(a.Average(p=>p.X),a.Average(p=>p.Y),a.Average(p=>p.Z)); }

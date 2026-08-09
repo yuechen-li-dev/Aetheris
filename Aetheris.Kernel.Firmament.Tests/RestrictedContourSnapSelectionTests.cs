@@ -10,7 +10,7 @@ public sealed class RestrictedContourSnapSelectionTests
     [Fact]
     public void SnapSelection_BoxFaceVsCylinder_SelectsCircleCandidate()
     {
-        var stitched = BuildStitched(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 20)), 65);
+        var stitched = BuildStitched(new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(2, 20)), 65);
         var options = new RestrictedContourSnapOptions(0.06d, 0.02d, 8);
         var analysis = RestrictedContourSnapAnalyzer.Analyze(stitched, options);
         var selected = RestrictedContourSnapSelector.Select(stitched, analysis, options);
@@ -25,7 +25,7 @@ public sealed class RestrictedContourSnapSelectionTests
     [Fact]
     public void SnapSelection_BoxFaceVsSphere_SelectsCircleCandidate()
     {
-        var stitched = BuildStitched(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirSphereNode(6)), 65);
+        var stitched = BuildStitched(new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfSphereNode(6)), 65);
         var options = new RestrictedContourSnapOptions(0.06d, 0.02d, 8);
         var selected = RestrictedContourSnapSelector.Select(stitched, RestrictedContourSnapAnalyzer.Analyze(stitched, options), options);
         Assert.Equal(RestrictedContourSnapRouteKind.AnalyticCircle, selected.SelectedRoute);
@@ -51,7 +51,7 @@ public sealed class RestrictedContourSnapSelectionTests
     [Fact]
     public void SnapSelection_Torus_DoesNotClaimGenericExactness()
     {
-        var stitched = BuildStitched(new CirSubtractNode(new CirBoxNode(12, 12, 12), new CirTorusNode(4, 1)), 65);
+        var stitched = BuildStitched(new SdfSubtractNode(new SdfBoxNode(12, 12, 12), new SdfTorusNode(4, 1)), 65);
         var options = new RestrictedContourSnapOptions(0.01d, 0.01d, 8);
         var selected = RestrictedContourSnapSelector.Select(stitched, RestrictedContourSnapAnalyzer.Analyze(stitched, options), options);
         Assert.Contains(selected.Diagnostics, d => d == "snap-selection-torus-generic-exactness-not-implied");
@@ -94,7 +94,7 @@ public sealed class RestrictedContourSnapSelectionTests
         Assert.Contains(selected.CandidateTraces, t => !t.Admissible && !string.IsNullOrWhiteSpace(t.RejectionReason));
     }
 
-    private static SurfaceTrimContourStitchResult BuildStitched(CirSubtractNode root, int resolution)
+    private static SurfaceTrimContourStitchResult BuildStitched(SdfSubtractNode root, int resolution)
     {
         var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors, d => d.ParameterPayloadReference == "top");
         var field = SurfaceRestrictedFieldFactory.ForSubtractSource(root, source, SubtractOperandSide.Left);

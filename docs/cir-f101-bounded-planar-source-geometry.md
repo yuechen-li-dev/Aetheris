@@ -18,7 +18,7 @@ Corner ordering is deterministic and explicitly defines the rectangle perimeter 
 
 ## Supported scope
 
-Implemented only for planar faces extracted from `CirBoxNode`.
+Implemented only for planar faces extracted from `SdfBoxNode`.
 
 - all six box faces now include bounded planar geometry,
 - corners are transformed to world-space during extraction,

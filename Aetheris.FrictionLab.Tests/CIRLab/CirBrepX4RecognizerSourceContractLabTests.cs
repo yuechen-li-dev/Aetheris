@@ -19,7 +19,7 @@ public sealed class CirBrepX4RecognizerSourceContractLabTests
 
         var inventory = CirBrepX4RecognizerSourceContractLab.BuildInventory(compile, lowered.Root);
 
-        Assert.True(inventory.HasRootNode, "Lowered CirNode root must be available for direct geometric recognition.");
+        Assert.True(inventory.HasRootNode, "Lowered SdfNode root must be available for direct geometric recognition.");
         Assert.True(inventory.HasLoweringPlan, "Lowering plan should be available in Firmament compilation artifact.");
         Assert.True(inventory.HasExecutionResult, "Execution result should be available after successful compile.");
         Assert.True(inventory.HasNativeGeometryState, "NativeGeometryState should be available from execution result.");
@@ -30,8 +30,8 @@ public sealed class CirBrepX4RecognizerSourceContractLabTests
     [Fact]
     public void Experiment2_NodeOnlyEnvelope_RecognizesDirectAndTransformWrappedSubtract_ButLacksProvenance()
     {
-        var direct = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 12));
-        var wrapped = new CirTransformNode(direct, Transform3D.CreateTranslation(new Vector3D(3, 0, 0)));
+        var direct = new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(2, 12));
+        var wrapped = new SdfTransformNode(direct, Transform3D.CreateTranslation(new Vector3D(3, 0, 0)));
 
         var directResult = CirBrepX4RecognizerSourceContractLab.Recognize(CirBoxCylinderRecognizerInput.FromNode(direct));
         var wrappedResult = CirBrepX4RecognizerSourceContractLab.Recognize(CirBoxCylinderRecognizerInput.FromNode(wrapped));
@@ -62,7 +62,7 @@ public sealed class CirBrepX4RecognizerSourceContractLabTests
         var nativeState = compile.PrimitiveExecutionResult!.NativeGeometryState;
 
         var ex = Assert.Throws<InvalidOperationException>(() => CirBoxCylinderRecognizerInput.FromNativeState(nativeState));
-        Assert.Contains("explicit CirNode root is required", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("explicit SdfNode root is required", ex.Message, StringComparison.Ordinal);
 
         var lowered = CirBrepX4RecognizerSourceContractLab.LowerViaReflection(compile.PrimitiveLoweringPlan!);
         var input = CirBoxCylinderRecognizerInput.FromNativeState(nativeState, lowered.Root);
@@ -85,7 +85,7 @@ public sealed class CirBrepX4RecognizerSourceContractLabTests
     [Fact]
     public void Experiment6_MismatchPolicy_NodeGeometryIsAuthoritative_ReplayIsDiagnosticOnly()
     {
-        var geometry = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirSphereNode(2));
+        var geometry = new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfSphereNode(2));
         var replay = new NativeGeometryReplayLog([
             new NativeGeometryReplayOperation(2, "hole", "boolean:subtract", "base", "cylinder", "tool", null, default, "ref")
         ]);
@@ -99,7 +99,7 @@ public sealed class CirBrepX4RecognizerSourceContractLabTests
     [Fact]
     public void Experiment7_RecommendedInputShape_SupportsNodeOnlyAndNodePlusReplayConstruction()
     {
-        var nodeInput = CirBoxCylinderRecognizerInput.FromNode(new CirSubtractNode(new CirBoxNode(8, 8, 8), new CirCylinderNode(1, 10)));
+        var nodeInput = CirBoxCylinderRecognizerInput.FromNode(new SdfSubtractNode(new SdfBoxNode(8, 8, 8), new SdfCylinderNode(1, 10)));
         Assert.NotNull(nodeInput.Root);
         Assert.Null(nodeInput.ReplayLog);
 

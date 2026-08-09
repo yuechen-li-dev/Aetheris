@@ -11,7 +11,7 @@ public sealed class SourceSurfaceAndTrimCapabilityTests
     [Fact]
     public void SourceSurfaceExtractor_Box_ProducesSixPlanarDescriptors()
     {
-        var result = SourceSurfaceExtractor.Extract(new CirBoxNode(10, 20, 30));
+        var result = SourceSurfaceExtractor.Extract(new SdfBoxNode(10, 20, 30));
         Assert.Equal(6, result.Descriptors.Count);
         Assert.All(result.Descriptors, d => Assert.Equal(SurfacePatchFamily.Planar, d.Family));
         Assert.Contains(result.Descriptors, d => d.ParameterPayloadReference == "top");
@@ -21,7 +21,7 @@ public sealed class SourceSurfaceAndTrimCapabilityTests
     [Fact]
     public void SourceSurfaceExtractor_Cylinder_ProducesSideAndCaps()
     {
-        var result = SourceSurfaceExtractor.Extract(new CirCylinderNode(5, 20));
+        var result = SourceSurfaceExtractor.Extract(new SdfCylinderNode(5, 20));
         Assert.Single(result.Descriptors, d => d.Family == SurfacePatchFamily.Cylindrical);
         Assert.Equal(2, result.Descriptors.Count(d => d.Family == SurfacePatchFamily.Planar));
     }
@@ -29,7 +29,7 @@ public sealed class SourceSurfaceAndTrimCapabilityTests
     [Fact]
     public void SourceSurfaceExtractor_Sphere_ProducesSpherical()
     {
-        var result = SourceSurfaceExtractor.Extract(new CirSphereNode(5));
+        var result = SourceSurfaceExtractor.Extract(new SdfSphereNode(5));
         var descriptor = Assert.Single(result.Descriptors);
         Assert.Equal(SurfacePatchFamily.Spherical, descriptor.Family);
     }
@@ -37,7 +37,7 @@ public sealed class SourceSurfaceAndTrimCapabilityTests
     [Fact]
     public void SourceSurfaceExtractor_Torus_ProducesToroidalDeferredMaterialization()
     {
-        var result = SourceSurfaceExtractor.Extract(new CirTorusNode(10, 2));
+        var result = SourceSurfaceExtractor.Extract(new SdfTorusNode(10, 2));
         var descriptor = Assert.Single(result.Descriptors);
         Assert.Equal(SurfacePatchFamily.Toroidal, descriptor.Family);
         Assert.Contains(result.Diagnostics, d => d.Code == "torus-materialization-deferred");
@@ -46,7 +46,7 @@ public sealed class SourceSurfaceAndTrimCapabilityTests
     [Fact]
     public void SourceSurfaceExtractor_BooleanTree_ExtractsPrimitiveSourceSurfaces()
     {
-        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 10));
+        var root = new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(2, 10));
         var result = SourceSurfaceExtractor.Extract(root);
         Assert.Equal(9, result.Descriptors.Count);
         Assert.Contains(result.Diagnostics, d => d.Code == "retention-deferred");
@@ -55,7 +55,7 @@ public sealed class SourceSurfaceAndTrimCapabilityTests
     [Fact]
     public void SourceSurfaceExtractor_Transform_ComposesIntoDescriptors()
     {
-        var root = new CirTransformNode(new CirSphereNode(5), Transform3D.CreateTranslation(new Vector3D(1, 2, 3)));
+        var root = new SdfTransformNode(new SdfSphereNode(5), Transform3D.CreateTranslation(new Vector3D(1, 2, 3)));
         var result = SourceSurfaceExtractor.Extract(root);
         var descriptor = Assert.Single(result.Descriptors);
         Assert.Equal(new Point3D(1, 2, 3), descriptor.Transform.Apply(Point3D.Origin));

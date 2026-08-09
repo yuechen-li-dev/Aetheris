@@ -42,6 +42,8 @@ demo-output/
 # be added deliberately with `git add -f <path>` after a size/content review.
 docs/continuum/artifacts/*.json
 docs/continuum/artifacts/**/*.json
+!docs/continuum/artifacts/m4b/
+!docs/continuum/artifacts/m4b/*.json
 docs/preview2/evidence/**/*.json
 docs/reports/artifacts/**/*.json
 Aetheris.Firmament.FrictionLab/Reports/*.json

@@ -206,7 +206,7 @@ public static class ExperimentalPrismaticMapLab
         diagnostics.Add("edge-prismatic-x9-no-topology-identity-claim");
     }
 
-    private static ExperimentalPrismaticMapBounds ToBounds(CirBounds bounds) =>
+    private static ExperimentalPrismaticMapBounds ToBounds(SdfBounds bounds) =>
         new(ToPoint(bounds.Min), ToPoint(bounds.Max), bounds.SizeX, bounds.SizeY, bounds.SizeZ);
 
     private static ExperimentalPrismaticMapPoint ToPoint(Point3D point) => new(point.X, point.Y, point.Z);

@@ -16,7 +16,7 @@ internal static class CirBrepMaterializer
     private static readonly JudgmentEngine<CirBrepMaterializerContext> Engine = new();
     private static readonly ICirBrepMaterializerStrategy[] Registry = [new SubtractBoxCylinderStrategy(), new SubtractBoxBoxStrategy(), new SubtractBoxTorusUnsupportedStrategy()];
 
-    internal static CirBrepMaterializationResult TryMaterialize(CirNode root) => TryMaterialize(new CirBrepMaterializerContext(root, null));
+    internal static CirBrepMaterializationResult TryMaterialize(SdfNode root) => TryMaterialize(new CirBrepMaterializerContext(root, null));
 
     internal static CirBrepMaterializationResult TryMaterialize(CirBrepMaterializerContext context)
     {
@@ -33,7 +33,7 @@ internal static class CirBrepMaterializer
         return result with { SelectedStrategy = selected, StrategyRejections = judgment.Rejections };
     }
 
-    internal sealed record CirBrepMaterializerContext(CirNode Root, NativeGeometryReplayLog? ReplayLog)
+    internal sealed record CirBrepMaterializerContext(SdfNode Root, NativeGeometryReplayLog? ReplayLog)
     {
         internal NativeGeometryReplayOperation? LatestOperation => ReplayLog?.Operations.LastOrDefault(op => op.OperationKind.StartsWith("boolean:subtract", StringComparison.OrdinalIgnoreCase)) ?? ReplayLog?.Operations.LastOrDefault();
     }
@@ -97,16 +97,16 @@ internal static class CirBrepMaterializer
         }
     }
 
-    private sealed record Match(CirBoxNode LeftBox, Vector3D LeftTranslation, Vector3D RightTranslation, CirCylinderNode? Cylinder, CirBoxNode? RightBox);
+    private sealed record Match(SdfBoxNode LeftBox, Vector3D LeftTranslation, Vector3D RightTranslation, SdfCylinderNode? Cylinder, SdfBoxNode? RightBox);
     private static bool TryMatch(CirBrepMaterializerContext context, bool cylinder, out Match? match, out string reason)
     {
         match = null;
-        if (context.Root is not CirSubtractNode s) { reason = "CIR root is not subtract."; return false; }
-        if (!TryUnwrapTranslation(s.Left, out var lnode, out var lt) || lnode is not CirBoxNode lb) { reason = "Subtract lhs must be translated/untranslated box with translation-only transforms."; return false; }
+        if (context.Root is not SdfSubtractNode s) { reason = "CIR root is not subtract."; return false; }
+        if (!TryUnwrapTranslation(s.Left, out var lnode, out var lt) || lnode is not SdfBoxNode lb) { reason = "Subtract lhs must be translated/untranslated box with translation-only transforms."; return false; }
         if (!TryUnwrapTranslation(s.Right, out var rnode, out var rt)) { reason = "Subtract rhs contains unsupported non-translation transform."; return false; }
         if (!ReplayMatches(context, cylinder ? "cylinder" : "box", out reason)) return false;
-        if (cylinder && rnode is CirCylinderNode rc) { match = new(lb, lt, rt, rc, null); reason = "matched"; return true; }
-        if (!cylinder && rnode is CirBoxNode rb) { match = new(lb, lt, rt, null, rb); reason = "matched"; return true; }
+        if (cylinder && rnode is SdfCylinderNode rc) { match = new(lb, lt, rt, rc, null); reason = "matched"; return true; }
+        if (!cylinder && rnode is SdfBoxNode rb) { match = new(lb, lt, rt, null, rb); reason = "matched"; return true; }
         reason = cylinder ? "Subtract rhs must be translated/untranslated cylinder." : "Subtract rhs must be translated/untranslated box.";
         return false;
     }
@@ -123,15 +123,15 @@ internal static class CirBrepMaterializer
 
     private static bool TryMatchTorus(CirBrepMaterializerContext context, out string reason)
     {
-        if (context.Root is not CirSubtractNode s) { reason = "CIR root is not subtract."; return false; }
-        if (!TryUnwrapTranslation(s.Left, out var lnode, out _) || lnode is not CirBoxNode) { reason = "Subtract lhs must be translated/untranslated box with translation-only transforms."; return false; }
-        if (!TryUnwrapTranslation(s.Right, out var rnode, out _) || rnode is not CirTorusNode) { reason = "Subtract rhs must be translated/untranslated torus."; return false; }
+        if (context.Root is not SdfSubtractNode s) { reason = "CIR root is not subtract."; return false; }
+        if (!TryUnwrapTranslation(s.Left, out var lnode, out _) || lnode is not SdfBoxNode) { reason = "Subtract lhs must be translated/untranslated box with translation-only transforms."; return false; }
+        if (!TryUnwrapTranslation(s.Right, out var rnode, out _) || rnode is not SdfTorusNode) { reason = "Subtract rhs must be translated/untranslated torus."; return false; }
         return ReplayMatches(context, "torus", out reason);
     }
 
     private static CirBrepMaterializationResult Failed(string pattern, string message, IReadOnlyList<KernelDiagnostic> d) => new(false, null, pattern, "materialize-failed", d, message, null, []);
     private static BrepBody TranslateBody(BrepBody body, Vector3D t) => t == Vector3D.Zero ? body : FirmamentPrimitiveExecutionTranslation.TranslateBody(body, t);
-    private static bool TryUnwrapTranslation(CirNode node, out CirNode unwrapped, out Vector3D translation) { var total = Vector3D.Zero; var cur = node; while (cur is CirTransformNode tr) { if (!TryExtractPureTranslation(tr.Transform, out var local)) { unwrapped = node; translation = Vector3D.Zero; return false; } total += local; cur = tr.Child; } unwrapped = cur; translation = total; return true; }
+    private static bool TryUnwrapTranslation(SdfNode node, out SdfNode unwrapped, out Vector3D translation) { var total = Vector3D.Zero; var cur = node; while (cur is SdfTransformNode tr) { if (!TryExtractPureTranslation(tr.Transform, out var local)) { unwrapped = node; translation = Vector3D.Zero; return false; } total += local; cur = tr.Child; } unwrapped = cur; translation = total; return true; }
     private static bool TryExtractPureTranslation(Transform3D transform, out Vector3D translation) { var o = transform.Apply(Point3D.Origin); var x = transform.Apply(new Point3D(1,0,0)); var y = transform.Apply(new Point3D(0,1,0)); var z = transform.Apply(new Point3D(0,0,1)); var eps=1e-9d; if(!NearlyEqual(x-o,new Vector3D(1,0,0),eps)||!NearlyEqual(y-o,new Vector3D(0,1,0),eps)||!NearlyEqual(z-o,new Vector3D(0,0,1),eps)){ translation=Vector3D.Zero; return false;} translation=o-Point3D.Origin; return true; }
     private static bool NearlyEqual(Vector3D l, Vector3D r, double eps) => double.Abs(l.X-r.X)<=eps && double.Abs(l.Y-r.Y)<=eps && double.Abs(l.Z-r.Z)<=eps;
 }

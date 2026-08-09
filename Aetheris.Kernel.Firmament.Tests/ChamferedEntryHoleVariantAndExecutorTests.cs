@@ -49,8 +49,8 @@ public sealed class ChamferedEntryHoleVariantAndExecutorTests
     [Fact]
     public void ChamferedEntryVariant_RejectsNonCoaxialConeCylinder()
     {
-        var cone = new CirTransformNode(new CirConeNode(2d, 2.8d, 1d), Transform3D.CreateTranslation(new Vector3D(1d, 0d, 4.5d)));
-        var root = new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20d,20d,10d), new CirCylinderNode(2d,20d)), cone);
+        var cone = new SdfTransformNode(new SdfConeNode(2d, 2.8d, 1d), Transform3D.CreateTranslation(new Vector3D(1d, 0d, 4.5d)));
+        var root = new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20d,20d,10d), new SdfCylinderNode(2d,20d)), cone);
         var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(root));
         Assert.Contains(eval.EvaluationsFor(nameof(ChamferedEntryHoleVariant)), d => d.Contains("not coaxial", StringComparison.OrdinalIgnoreCase));
     }
@@ -136,8 +136,8 @@ public sealed class ChamferedEntryHoleVariantAndExecutorTests
     [Fact]
     public void ChamferedEntry_RejectsInvalidBottomConeOrientation()
     {
-        var cone = new CirTransformNode(new CirConeNode(2d, 2.8d, 1d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, -4.5d)));
-        var root = new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20d, 20d, 10d), new CirCylinderNode(2d, 20d)), cone);
+        var cone = new SdfTransformNode(new SdfConeNode(2d, 2.8d, 1d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, -4.5d)));
+        var root = new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20d, 20d, 10d), new SdfCylinderNode(2d, 20d)), cone);
         var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(root));
         Assert.Contains(eval.EvaluationsFor(nameof(ChamferedEntryHoleVariant)), d => d.Contains("radius ordering invalid", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain("selected-variant:ChamferedEntryHoleVariant", eval.Evidence);
@@ -146,20 +146,20 @@ public sealed class ChamferedEntryHoleVariantAndExecutorTests
     [Fact]
     public void ChamferedEntry_Unsupported_DoesNotFalseSucceed()
     {
-        var cone = new CirTransformNode(new CirConeNode(2d, 2.8d, 1d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, 1.5d)));
-        var root = new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20d,20d,10d), new CirCylinderNode(2d,20d)), cone);
+        var cone = new SdfTransformNode(new SdfConeNode(2d, 2.8d, 1d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, 1.5d)));
+        var root = new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20d,20d,10d), new SdfCylinderNode(2d,20d)), cone);
         var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(root));
         Assert.False(eval.Admissible);
     }
 
-    private static CirNode BuildChamfered()
-        => new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20d,20d,10d), new CirCylinderNode(2d,20d)), new CirTransformNode(new CirConeNode(2d, 2.8d, 1d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, 4.5d))));
-    private static CirNode BuildCountersink()
-        => new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20d,20d,10d), new CirCylinderNode(2d,20d)), new CirTransformNode(new CirConeNode(2d, 4d, 4d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, 3d))));
-    private static CirNode BuildChamferedBottom()
-        => new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20d,20d,10d), new CirCylinderNode(2d,20d)), new CirTransformNode(new CirConeNode(2.8d, 2d, 1d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, -4.5d))));
-    private static CirNode BuildCountersinkBottom()
-        => new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20d,20d,10d), new CirCylinderNode(2d,20d)), new CirTransformNode(new CirConeNode(4d, 2d, 4d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, -3d))));
+    private static SdfNode BuildChamfered()
+        => new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20d,20d,10d), new SdfCylinderNode(2d,20d)), new SdfTransformNode(new SdfConeNode(2d, 2.8d, 1d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, 4.5d))));
+    private static SdfNode BuildCountersink()
+        => new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20d,20d,10d), new SdfCylinderNode(2d,20d)), new SdfTransformNode(new SdfConeNode(2d, 4d, 4d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, 3d))));
+    private static SdfNode BuildChamferedBottom()
+        => new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20d,20d,10d), new SdfCylinderNode(2d,20d)), new SdfTransformNode(new SdfConeNode(2.8d, 2d, 1d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, -4.5d))));
+    private static SdfNode BuildCountersinkBottom()
+        => new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20d,20d,10d), new SdfCylinderNode(2d,20d)), new SdfTransformNode(new SdfConeNode(4d, 2d, 4d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, -3d))));
 
     private static void AssertAllFaceLoopsAreTopologicallyClosed(Aetheris.Kernel.Core.Brep.BrepBody body)
     {

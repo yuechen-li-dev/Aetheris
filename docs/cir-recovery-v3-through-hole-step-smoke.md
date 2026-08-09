@@ -10,7 +10,7 @@ This milestone only proves that executor-produced BRep for canonical/translated 
 
 ## Pipeline exercised
 
-1. Build CIR root (`CirSubtractNode` with box host and cylinder tool).
+1. Build CIR root (`SdfSubtractNode` with box host and cylinder tool).
 2. Run `FrepMaterializerPlanner.Decide(..., [ThroughHoleRecoveryPolicy])`.
 3. Extract `ThroughHoleRecoveryPlan` from selected policy evaluation.
 4. Execute `ThroughHoleRecoveryExecutor.Execute(plan)` to produce exact `BrepBody`.

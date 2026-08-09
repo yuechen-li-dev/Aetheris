@@ -32,7 +32,7 @@ Current notable entries:
 
 ## Source-surface extraction behavior
 
-`SourceSurfaceExtractor.Extract(CirNode, NativeGeometryReplayLog?)` traverses CIR including booleans and transform nodes.
+`SourceSurfaceExtractor.Extract(SdfNode, NativeGeometryReplayLog?)` traverses CIR including booleans and transform nodes.
 
 - Box: 6 planar descriptors (`top/bottom/left/right/front/back`)
 - Cylinder: 1 cylindrical side + 2 planar caps

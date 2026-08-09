@@ -12,9 +12,9 @@ public sealed class HoleRecoveryExecutorPlacementDrivenTests
     {
         var plan = (HoleRecoveryPlan)new HoleRecoveryPolicy()
             .Evaluate(new FrepMaterializerContext(
-                new CirSubtractNode(
-                    new CirBoxNode(20, 20, 10),
-                    new CirTransformNode(new CirCylinderNode(2, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, 3))))))
+                new SdfSubtractNode(
+                    new SdfBoxNode(20, 20, 10),
+                    new SdfTransformNode(new SdfCylinderNode(2, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, 3))))))
             .Plan!;
 
         var result = HoleRecoveryExecutor.Execute(plan);
@@ -29,9 +29,9 @@ public sealed class HoleRecoveryExecutorPlacementDrivenTests
     {
         var plan = (HoleRecoveryPlan)new HoleRecoveryPolicy()
             .Evaluate(new FrepMaterializerContext(
-                new CirSubtractNode(
-                    new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)),
-                    new CirTransformNode(new CirCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))))))
+                new SdfSubtractNode(
+                    new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfCylinderNode(2, 20)),
+                    new SdfTransformNode(new SdfCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))))))
             .Plan!;
 
         var result = HoleRecoveryExecutor.Execute(plan);
@@ -44,11 +44,11 @@ public sealed class HoleRecoveryExecutorPlacementDrivenTests
     [Fact]
     public void PlacementDriven_Countersink_UsesConeSegmentZSpan()
     {
-        var cone = new CirTransformNode(new CirConeNode(2, 4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, 3)));
+        var cone = new SdfTransformNode(new SdfConeNode(2, 4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, 3)));
         var plan = (HoleRecoveryPlan)new HoleRecoveryPolicy()
             .Evaluate(new FrepMaterializerContext(
-                new CirSubtractNode(
-                    new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)),
+                new SdfSubtractNode(
+                    new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfCylinderNode(2, 20)),
                     cone)))
             .Plan!;
 
@@ -63,13 +63,13 @@ public sealed class HoleRecoveryExecutorPlacementDrivenTests
     [Fact]
     public void PlacementDriven_ChamferedEntryTopBottom_UsesConeSegmentZSpan()
     {
-        var top = new CirSubtractNode(
-            new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)),
-            new CirTransformNode(new CirConeNode(2, 2.8, 1), Transform3D.CreateTranslation(new Vector3D(0, 0, 4.5))));
+        var top = new SdfSubtractNode(
+            new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfCylinderNode(2, 20)),
+            new SdfTransformNode(new SdfConeNode(2, 2.8, 1), Transform3D.CreateTranslation(new Vector3D(0, 0, 4.5))));
 
-        var bottom = new CirSubtractNode(
-            new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)),
-            new CirTransformNode(new CirConeNode(2.8, 2, 1), Transform3D.CreateTranslation(new Vector3D(0, 0, -4.5))));
+        var bottom = new SdfSubtractNode(
+            new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfCylinderNode(2, 20)),
+            new SdfTransformNode(new SdfConeNode(2.8, 2, 1), Transform3D.CreateTranslation(new Vector3D(0, 0, -4.5))));
 
         var topResult = HoleRecoveryExecutor.Execute((HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(top)).Plan!);
         var bottomResult = HoleRecoveryExecutor.Execute((HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(bottom)).Plan!);
@@ -113,13 +113,13 @@ public sealed class HoleRecoveryExecutorPlacementDrivenTests
     public void PlacementDriven_SteppedPlacementValidatedAndExecutionSucceeds()
     {
         var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(
-            new CirSubtractNode(
-                new CirSubtractNode(
-                    new CirSubtractNode(
-                        new CirBoxNode(20, 20, 10),
-                        new CirCylinderNode(2, 20)),
-                    new CirTransformNode(new CirCylinderNode(3, 6), Transform3D.CreateTranslation(new Vector3D(0, 0, -2)))),
-                new CirTransformNode(new CirCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))))));
+            new SdfSubtractNode(
+                new SdfSubtractNode(
+                    new SdfSubtractNode(
+                        new SdfBoxNode(20, 20, 10),
+                        new SdfCylinderNode(2, 20)),
+                    new SdfTransformNode(new SdfCylinderNode(3, 6), Transform3D.CreateTranslation(new Vector3D(0, 0, -2)))),
+                new SdfTransformNode(new SdfCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))))));
 
         var result = HoleRecoveryExecutor.Execute((HoleRecoveryPlan)eval.Plan!);
 

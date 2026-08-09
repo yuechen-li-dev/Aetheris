@@ -73,7 +73,7 @@ The existing analytic primitives (box, cylinder, cone, sphere, torus), CSG-style
 
 `SdfContinuumRegion` is the adapter from the historical node/tape model to CIR occupancy plus optional signed-distance, gradient, and bounds-classification capabilities. This makes the direction explicit: the SDF backend implements CIR; CIR does not inherit an SDF requirement.
 
-The historical public type names (`CirNode`, `CirTape`, and related records) remain inside the SDF backend for source migration economy. There is no old-namespace shim and no second CIR API. A later narrow rename is documented as debt.
+The historical public type names (`SdfNode`, `SdfTape`, and related records) remain inside the SDF backend for source migration economy. There is no old-namespace shim and no second CIR API. A later narrow rename is documented as debt.
 
 ## Core cleanup and ownership
 

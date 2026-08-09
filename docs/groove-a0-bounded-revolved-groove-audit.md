@@ -29,7 +29,7 @@ Current known operation vocabulary includes `torus`, `straight_slot`, `slot_cut`
 
 ### CIR + materializer state
 
-- CIR has `CirTorusNode` representation and tape lowering payload for torus.
+- CIR has `SdfTorusNode` representation and tape lowering payload for torus.
 - Replay-guided materializer registry intentionally recognizes `subtract(box,torus)` then returns explicit unsupported materialization diagnostic.
 - Source surface extraction and dry-run scaffolds include toroidal descriptors; downstream trim/materialization for toroidal subtract interactions remains deferred.
 
@@ -100,7 +100,7 @@ Why:
 
 ### Preferred shape: dedicated `CirRevolvedGrooveNode` (or equivalent intent node)
 
-Preferred over plain `CirSubtractNode(CirTorusNode)` for this feature family.
+Preferred over plain `SdfSubtractNode(SdfTorusNode)` for this feature family.
 
 - Preserves explicit feature intent and constraints for analysis/materialization.
 - Keeps fallback path analyzable even when materialization unavailable.
@@ -209,7 +209,7 @@ Recommended descriptor fields:
 
 Preferred: `CirRevolvedGrooveNode` carrying descriptor + provenance handles.
 
-Alternative (transitional): annotated `CirSubtractNode(CirTorusNode)` with groove-intent metadata sidecar; acceptable short-term but weaker long-term.
+Alternative (transitional): annotated `SdfSubtractNode(SdfTorusNode)` with groove-intent metadata sidecar; acceptable short-term but weaker long-term.
 
 ## Materializer strategy
 

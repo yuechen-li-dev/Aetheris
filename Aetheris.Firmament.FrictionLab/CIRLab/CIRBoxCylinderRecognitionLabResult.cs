@@ -7,10 +7,10 @@ public sealed record CirBoxCylinderRecognitionLabResult(
     bool Success,
     CirLabRecognitionReason Reason,
     string Diagnostic,
-    CirBoxNode? Box,
+    SdfBoxNode? Box,
     Vector3D BoxTranslation,
-    CirCylinderNode? Cylinder,
+    SdfCylinderNode? Cylinder,
     Vector3D CylinderTranslation,
     string? Axis,
     double ThroughLength,
-    CirNode? NormalizedRoot);
+    SdfNode? NormalizedRoot);

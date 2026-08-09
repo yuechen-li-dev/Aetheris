@@ -13,7 +13,7 @@ public sealed class ThroughHoleRecoveryStepSmokeTests
     [Fact]
     public void ThroughHoleRecoveryStepSmoke_CanonicalBoxCylinder_ExportsStep()
     {
-        var root = new CirSubtractNode(new CirBoxNode(20d, 10d, 8d), new CirCylinderNode(2d, 20d));
+        var root = new SdfSubtractNode(new SdfBoxNode(20d, 10d, 8d), new SdfCylinderNode(2d, 20d));
 
         var pipeline = RecoverAndExport(root, "v3-canonical");
 
@@ -35,9 +35,9 @@ public sealed class ThroughHoleRecoveryStepSmokeTests
     [Fact]
     public void ThroughHoleRecoveryStepSmoke_TranslatedBoxCylinder_ExportsStep()
     {
-        var root = new CirSubtractNode(
-            new CirTransformNode(new CirBoxNode(20d, 20d, 10d), Transform3D.CreateTranslation(new Vector3D(5d, 2d, 4d))),
-            new CirTransformNode(new CirCylinderNode(3d, 16d), Transform3D.CreateTranslation(new Vector3D(4d, 1d, 4d))));
+        var root = new SdfSubtractNode(
+            new SdfTransformNode(new SdfBoxNode(20d, 20d, 10d), Transform3D.CreateTranslation(new Vector3D(5d, 2d, 4d))),
+            new SdfTransformNode(new SdfCylinderNode(3d, 16d), Transform3D.CreateTranslation(new Vector3D(4d, 1d, 4d))));
 
         var pipeline = RecoverAndExport(root, "v3-translated");
 
@@ -51,7 +51,7 @@ public sealed class ThroughHoleRecoveryStepSmokeTests
     [Fact]
     public void ThroughHoleRecoveryStepSmoke_RejectsUnsupportedBeforeExport()
     {
-        var root = new CirSubtractNode(new CirBoxNode(20d, 10d, 8d), new CirSphereNode(3d));
+        var root = new SdfSubtractNode(new SdfBoxNode(20d, 10d, 8d), new SdfSphereNode(3d));
 
         var pipeline = RecoverAndExport(root, "v3-unsupported");
 
@@ -66,7 +66,7 @@ public sealed class ThroughHoleRecoveryStepSmokeTests
     [Fact]
     public void ThroughHoleRecoveryStepSmoke_DoesNotChangeExporterBehavior()
     {
-        var root = new CirSubtractNode(new CirBoxNode(12d, 12d, 12d), new CirCylinderNode(2d, 20d));
+        var root = new SdfSubtractNode(new SdfBoxNode(12d, 12d, 12d), new SdfCylinderNode(2d, 20d));
 
         var pipeline = RecoverAndExport(root, "v3-exporter-behavior");
 
@@ -77,7 +77,7 @@ public sealed class ThroughHoleRecoveryStepSmokeTests
         Assert.Contains("no rematerializer wiring", pipeline.Diagnostics, StringComparer.Ordinal);
     }
 
-    private static RecoveryStepPipelineResult RecoverAndExport(CirNode root, string productName)
+    private static RecoveryStepPipelineResult RecoverAndExport(SdfNode root, string productName)
     {
         var diagnostics = new List<string>();
         var decision = FrepMaterializerPlanner.Decide(new FrepMaterializerContext(root), [Policy]);

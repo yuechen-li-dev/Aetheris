@@ -9,8 +9,8 @@ public sealed class CirAnalysisServiceTests
     [Fact]
     public void CirAnalysisService_TapeInput_VolumeAndPoints()
     {
-        var node = new CirBoxNode(4d, 4d, 4d);
-        var tape = CirTapeLowerer.Lower(node);
+        var node = new SdfBoxNode(4d, 4d, 4d);
+        var tape = SdfTapeLowerer.Lower(node);
 
         var result = CirNativeAnalysisService.AnalyzeTape(
             tape,
@@ -20,13 +20,13 @@ public sealed class CirAnalysisServiceTests
 
         Assert.True(result.Success);
         Assert.Equal("cir", result.Backend);
-        Assert.Equal(CirNativeAnalysisInputKind.CirTape, result.InputKind);
+        Assert.Equal(CirNativeAnalysisInputKind.SdfTape, result.InputKind);
         Assert.Equal(CirNativeAnalysisResultKind.Approximate, result.ResultKind);
         Assert.NotNull(result.Volume);
         Assert.Equal(CirNativeEstimatorKind.Dense, result.Volume!.Estimator);
         Assert.Equal(2, result.PointClassifications.Count);
-        Assert.Contains(result.PointClassifications, p => p.Classification == CirPointClassification.Inside);
-        Assert.Contains(result.PointClassifications, p => p.Classification == CirPointClassification.Outside);
+        Assert.Contains(result.PointClassifications, p => p.Classification == SdfPointClassification.Inside);
+        Assert.Contains(result.PointClassifications, p => p.Classification == SdfPointClassification.Outside);
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public sealed class CirAnalysisServiceTests
     public void AdaptiveVolume_MetadataPresent()
     {
         var plan = CompilePlan("testdata/firmament/examples/boolean_box_cylinder_hole.firmament");
-        var options = new CirAdaptiveVolumeOptions(MaxDepth: 6, DirectSampleGrid: 2, MaxTraceEvents: 20);
+        var options = new SdfAdaptiveVolumeOptions(MaxDepth: 6, DirectSampleGrid: 2, MaxTraceEvents: 20);
 
         var result = CirNativeAnalysisService.AnalyzeFirmamentPlan(plan, adaptiveOptions: options);
 

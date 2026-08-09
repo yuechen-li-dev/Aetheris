@@ -27,7 +27,7 @@ Subtract(
 Where:
 - `Box` is rectangular host.
 - `HoleCylinder` is coaxial Z-axis cylindrical base hole.
-- `ChamferCone` is `CirConeNode`.
+- `ChamferCone` is `SdfConeNode`.
 - direct or identity/pure-translation wrappers are allowed.
 - no rotation/non-translation transforms.
 

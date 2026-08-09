@@ -21,7 +21,7 @@ For each supported fixture case:
 1. **Lowering status**: CIR lower success/failure and diagnostics.
 2. **Bounds**: CIR AABB vs BRep vertex-derived AABB (`min/max/extents` deltas).
 3. **Approximate volume**:
-   - CIR: `CirAnalyzer.EstimateVolume(root, resolution)`
+   - CIR: `SdfAnalyzer.EstimateVolume(root, resolution)`
    - BRep: voxel estimate using `BrepSpatialQueries.ClassifyPoint` over BRep AABB at identical resolution.
 4. **Probe classifications**: fixed semantic probe points compared between CIR and BRep point classification.
 

@@ -19,7 +19,7 @@ This evidence is internal-only dry-run geometry evidence and does not introduce 
 
 ## Extractor behavior
 
-For `CirCylinderNode` side descriptors:
+For `SdfCylinderNode` side descriptors:
 
 - canonical cylindrical evidence is populated from real cylinder semantics,
 - identity and translation transforms preserve evidence,

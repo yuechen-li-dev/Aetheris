@@ -11,7 +11,7 @@ public sealed class SurfaceTrimContourStitcherTests
     [Fact]
     public void ContourStitch_BoxFaceVsCylinder_ProducesClosedLoop()
     {
-        var (field, grid) = CreateGrid(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 20)), 65);
+        var (field, grid) = CreateGrid(new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(2, 20)), 65);
         var extraction = RestrictedFieldMarchingSquaresExtractor.Extract(grid, field.Parameterization);
         var stitched = SurfaceTrimContourStitcher.Stitch(extraction);
         Assert.Contains(stitched.Chains, c => c.Status == SurfaceTrimContourChainStatus.ClosedLoop || c.Status == SurfaceTrimContourChainStatus.BoundaryTouching);
@@ -23,7 +23,7 @@ public sealed class SurfaceTrimContourStitcherTests
     [Fact]
     public void ContourStitch_BoxFaceVsSphere_ProducesClosedLoop()
     {
-        var (field, grid) = CreateGrid(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirSphereNode(6)), 65);
+        var (field, grid) = CreateGrid(new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfSphereNode(6)), 65);
         var extraction = RestrictedFieldMarchingSquaresExtractor.Extract(grid, field.Parameterization);
         var stitched = SurfaceTrimContourStitcher.Stitch(extraction);
         Assert.Contains(stitched.Chains, c => c.Status == SurfaceTrimContourChainStatus.ClosedLoop || c.Status == SurfaceTrimContourChainStatus.BoundaryTouching);
@@ -32,7 +32,7 @@ public sealed class SurfaceTrimContourStitcherTests
     [Fact]
     public void ContourStitch_BoxFaceVsTorus_StitchesOrReportsPrecisely()
     {
-        var (field, grid) = CreateGrid(new CirSubtractNode(new CirBoxNode(12, 12, 12), new CirTorusNode(4, 1)), 65);
+        var (field, grid) = CreateGrid(new SdfSubtractNode(new SdfBoxNode(12, 12, 12), new SdfTorusNode(4, 1)), 65);
         var extraction = RestrictedFieldMarchingSquaresExtractor.Extract(grid, field.Parameterization);
         var stitched = SurfaceTrimContourStitcher.Stitch(extraction);
         if (extraction.SegmentCount == 0) Assert.Contains("contour-stitching-empty-input", stitched.Diagnostics);
@@ -67,7 +67,7 @@ public sealed class SurfaceTrimContourStitcherTests
     [Fact]
     public void ContourStitch_DeterministicOrdering()
     {
-        var (field, grid) = CreateGrid(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirSphereNode(6)), 33);
+        var (field, grid) = CreateGrid(new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfSphereNode(6)), 33);
         var extraction = RestrictedFieldMarchingSquaresExtractor.Extract(grid, field.Parameterization);
         var a = SurfaceTrimContourStitcher.Stitch(extraction);
         var b = SurfaceTrimContourStitcher.Stitch(extraction);
@@ -75,7 +75,7 @@ public sealed class SurfaceTrimContourStitcherTests
         Assert.Equal(a.Chains.Select(c => (c.Status, c.OrderingKey, c.Points.Count)), b.Chains.Select(c => (c.Status, c.OrderingKey, c.Points.Count)));
     }
 
-    private static (SurfaceRestrictedField field, RestrictedFieldSampleGrid grid) CreateGrid(CirSubtractNode root, int resolution)
+    private static (SurfaceRestrictedField field, RestrictedFieldSampleGrid grid) CreateGrid(SdfSubtractNode root, int resolution)
     {
         var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors, d => d.ParameterPayloadReference == "top");
         var field = SurfaceRestrictedFieldFactory.ForSubtractSource(root, source, SubtractOperandSide.Left);

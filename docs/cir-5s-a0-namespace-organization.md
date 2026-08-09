@@ -14,12 +14,12 @@ No algorithms were rewritten and no behavior changes were intended.
 
 | Current file | Current namespace | Proposed area | Proposed namespace | Reason | Risk | Notes |
 |---|---|---|---|---|---|---|
-| `Aetheris.Kernel.Core/Cir/CirNode.cs` | `Aetheris.Kernel.Core.Cir` | LeaveInPlace (CirCore already) | `Aetheris.Kernel.Core.Cir` | Core CIR model. | Low | CirCore concept already represented by `Core/Cir` folder. |
-| `Aetheris.Kernel.Core/Cir/CirNodes.cs` | `Aetheris.Kernel.Core.Cir` | LeaveInPlace (CirCore already) | `Aetheris.Kernel.Core.Cir` | Core CIR operations. | Low | No move needed in A0. |
-| `Aetheris.Kernel.Core/Cir/CirTape.cs` | `Aetheris.Kernel.Core.Cir` | LeaveInPlace (CirCore already) | `Aetheris.Kernel.Core.Cir` | Tape representation/eval. | Low | No move needed in A0. |
+| `Aetheris.Kernel.Core/Cir/SdfNode.cs` | `Aetheris.Kernel.Core.Cir` | LeaveInPlace (CirCore already) | `Aetheris.Kernel.Core.Cir` | Core CIR model. | Low | CirCore concept already represented by `Core/Cir` folder. |
+| `Aetheris.Kernel.Core/Cir/SdfNodes.cs` | `Aetheris.Kernel.Core.Cir` | LeaveInPlace (CirCore already) | `Aetheris.Kernel.Core.Cir` | Core CIR operations. | Low | No move needed in A0. |
+| `Aetheris.Kernel.Core/Cir/SdfTape.cs` | `Aetheris.Kernel.Core.Cir` | LeaveInPlace (CirCore already) | `Aetheris.Kernel.Core.Cir` | Tape representation/eval. | Low | No move needed in A0. |
 | `Aetheris.Kernel.Core/Cir/CirAnalysis.cs` | `Aetheris.Kernel.Core.Cir` | LeaveInPlace (CirCore already) | `Aetheris.Kernel.Core.Cir` | CIR evaluation/interval analysis. | Low | No move needed in A0. |
 | `Aetheris.Kernel.Core/Cir/CirRegionPlanner.cs` | `Aetheris.Kernel.Core.Cir` | LeaveInPlace (CirCore already) | `Aetheris.Kernel.Core.Cir` | Region planning core. | Low | No move needed in A0. |
-| `Aetheris.Kernel.Core/Cir/CirAdaptiveVolumeEstimator.cs` | `Aetheris.Kernel.Core.Cir` | LeaveInPlace (CirCore already) | `Aetheris.Kernel.Core.Cir` | Core adaptive evaluation. | Low | No move needed in A0. |
+| `Aetheris.Kernel.Core/Cir/SdfAdaptiveVolumeEstimator.cs` | `Aetheris.Kernel.Core.Cir` | LeaveInPlace (CirCore already) | `Aetheris.Kernel.Core.Cir` | Core adaptive evaluation. | Low | No move needed in A0. |
 | `Aetheris.Kernel.Firmament/Execution/CirBrepMaterializer.cs` | `Aetheris.Kernel.Firmament.Execution` | Materializer | `Aetheris.Kernel.Firmament.Materializer` | Primary CIR→BRep recovery/materialization path. | Low | Moved in A0. |
 | `Aetheris.Kernel.Firmament/Execution/CirBoxCylinderRecognizer.cs` | `Aetheris.Kernel.Firmament.Execution` | Materializer | `Aetheris.Kernel.Firmament.Materializer` | Recovery recognizer/policy signal. | Low | Moved in A0. |
 | `Aetheris.Kernel.Firmament/Execution/NativeGeometryRematerializer.cs` | `Aetheris.Kernel.Firmament.Execution` | Materializer | `Aetheris.Kernel.Firmament.Materializer` | Rematerialization entrypoint. | Low | Moved in A0. |

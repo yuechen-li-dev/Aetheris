@@ -11,9 +11,9 @@ It reuses existing trusted BRep primitive constructors and bounded boolean subtr
 ## Boundaries
 
 Supported:
-- root `CirSubtractNode`
+- root `SdfSubtractNode`
 - lhs box, rhs cylinder
-- optional pure-translation `CirTransformNode` wrappers
+- optional pure-translation `SdfTransformNode` wrappers
 
 Unsupported:
 - non-translation transforms

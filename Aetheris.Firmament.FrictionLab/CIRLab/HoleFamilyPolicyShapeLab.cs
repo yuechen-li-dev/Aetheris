@@ -8,7 +8,7 @@ public enum HoleFamilyScenarioExpectation { ExactHoleFamily, FutureHoleFamily, D
 public enum HoleFamilyArchitectureKind { SeparatePolicySet, MonolithicHolePolicy, CompositionalHolePolicy, ProfileStackPolicy }
 public enum HoleFeatureKind { Through, Blind, Counterbore, Countersink, Stepped, ChamferedEntry, Threaded, Unknown }
 
-public sealed record HoleFamilyScenario(string Id, string Group, string Description, CirNode? Root, HoleFeatureKind FeatureKind, HoleFamilyScenarioExpectation Expectation);
+public sealed record HoleFamilyScenario(string Id, string Group, string Description, SdfNode? Root, HoleFeatureKind FeatureKind, HoleFamilyScenarioExpectation Expectation);
 public sealed record HoleFamilyArchitectureScore(string Architecture, bool AdmitsScenario, bool CorrectlyRejectsScenario, int PolicyCountGrowth, int BranchComplexity, int LocalityOfChangeScore, int DiagnosticClarityScore, int FutureScalabilityScore, int RiskOfOverAdmission, int RiskOfUnderAdmission, int PlanShapeQuality, int ExecutorReusability, IReadOnlyList<string> Diagnostics);
 public sealed record HoleFamilyDecision(string Winner, IReadOnlyList<HoleFamilyArchitectureScore> Scores, IReadOnlyList<string> Diagnostics);
 
@@ -16,10 +16,10 @@ public static class HoleFamilyPolicyShapeLab
 {
     public static IReadOnlyList<HoleFamilyScenario> BuildScenarioMatrix() =>
     [
-        new("A1","A","box + cylindrical through-hole",new CirSubtractNode(new CirBoxNode(10,8,6),new CirCylinderNode(2,8)),HoleFeatureKind.Through,HoleFamilyScenarioExpectation.ExactHoleFamily),
-        new("A2","A","translated box + translated cylindrical through-hole",new CirSubtractNode(new CirTransformNode(new CirBoxNode(10,8,6),Transform3D.CreateTranslation(new(2,1,3))),new CirTransformNode(new CirCylinderNode(2,8),Transform3D.CreateTranslation(new(2.5,1,3)))),HoleFeatureKind.Through,HoleFamilyScenarioExpectation.ExactHoleFamily),
-        new("A3","A","offset cylindrical through-hole",new CirSubtractNode(new CirBoxNode(10,8,6),new CirTransformNode(new CirCylinderNode(1.5,8),Transform3D.CreateTranslation(new(1,1,0)))),HoleFeatureKind.Through,HoleFamilyScenarioExpectation.ExactHoleFamily),
-        new("B1","B","box + blind hole",new CirSubtractNode(new CirBoxNode(10,8,6),new CirCylinderNode(2,3)),HoleFeatureKind.Blind,HoleFamilyScenarioExpectation.FutureHoleFamily),
+        new("A1","A","box + cylindrical through-hole",new SdfSubtractNode(new SdfBoxNode(10,8,6),new SdfCylinderNode(2,8)),HoleFeatureKind.Through,HoleFamilyScenarioExpectation.ExactHoleFamily),
+        new("A2","A","translated box + translated cylindrical through-hole",new SdfSubtractNode(new SdfTransformNode(new SdfBoxNode(10,8,6),Transform3D.CreateTranslation(new(2,1,3))),new SdfTransformNode(new SdfCylinderNode(2,8),Transform3D.CreateTranslation(new(2.5,1,3)))),HoleFeatureKind.Through,HoleFamilyScenarioExpectation.ExactHoleFamily),
+        new("A3","A","offset cylindrical through-hole",new SdfSubtractNode(new SdfBoxNode(10,8,6),new SdfTransformNode(new SdfCylinderNode(1.5,8),Transform3D.CreateTranslation(new(1,1,0)))),HoleFeatureKind.Through,HoleFamilyScenarioExpectation.ExactHoleFamily),
+        new("B1","B","box + blind hole",new SdfSubtractNode(new SdfBoxNode(10,8,6),new SdfCylinderNode(2,3)),HoleFeatureKind.Blind,HoleFamilyScenarioExpectation.FutureHoleFamily),
         new("B2","B","box + counterbore",null,HoleFeatureKind.Counterbore,HoleFamilyScenarioExpectation.FutureHoleFamily),
         new("B3","B","box + countersink",null,HoleFeatureKind.Countersink,HoleFamilyScenarioExpectation.FutureHoleFamily),
         new("B4","B","box + stepped through-hole",null,HoleFeatureKind.Stepped,HoleFamilyScenarioExpectation.FutureHoleFamily),
@@ -34,8 +34,8 @@ public static class HoleFamilyPolicyShapeLab
         new("D4","D","freeform projected emboss/deboss",null,HoleFeatureKind.Unknown,HoleFamilyScenarioExpectation.DeferredForge),
         new("E1","E","round groove",null,HoleFeatureKind.Unknown,HoleFamilyScenarioExpectation.NotHoleFamily),
         new("E2","E","keyway/slot",null,HoleFeatureKind.Unknown,HoleFamilyScenarioExpectation.NotHoleFamily),
-        new("E3","E","side notch",new CirSubtractNode(new CirBoxNode(10,8,6),new CirTransformNode(new CirCylinderNode(2,8),Transform3D.CreateTranslation(new(4,0,0)))),HoleFeatureKind.Unknown,HoleFamilyScenarioExpectation.NotHoleFamily),
-        new("E4","E","box - sphere cavity",new CirSubtractNode(new CirBoxNode(10,8,6),new CirSphereNode(2)),HoleFeatureKind.Unknown,HoleFamilyScenarioExpectation.NotHoleFamily),
+        new("E3","E","side notch",new SdfSubtractNode(new SdfBoxNode(10,8,6),new SdfTransformNode(new SdfCylinderNode(2,8),Transform3D.CreateTranslation(new(4,0,0)))),HoleFeatureKind.Unknown,HoleFamilyScenarioExpectation.NotHoleFamily),
+        new("E4","E","box - sphere cavity",new SdfSubtractNode(new SdfBoxNode(10,8,6),new SdfSphereNode(2)),HoleFeatureKind.Unknown,HoleFamilyScenarioExpectation.NotHoleFamily),
         new("E5","E","generic torus subtract",null,HoleFeatureKind.Unknown,HoleFamilyScenarioExpectation.NotHoleFamily)
     ];
 

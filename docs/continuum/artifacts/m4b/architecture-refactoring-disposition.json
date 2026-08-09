@@ -1,0 +1,7 @@
+{
+  "milestone": "AETHERIS-CONTINUUM-M4B",
+  "authority": "typed construction -\u003E BRep \u002B CIR",
+  "sdfNames": "source-broken to Sdf*",
+  "genericBrepToCir": "not implemented",
+  "serialization": "deferred; diagnostics JSON is not interchange"
+}

@@ -125,10 +125,10 @@ public sealed class SteppedHoleCorpusHardeningTests
     public void SteppedHole_DoesNotStealCounterboreBlindThroughCountersink()
     {
         var policy = new HoleRecoveryPolicy();
-        Assert.Contains("selected-variant:ThroughHoleVariant", policy.Evaluate(new FrepMaterializerContext(new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)))).Evidence);
-        Assert.Contains("selected-variant:BlindHoleVariant", policy.Evaluate(new FrepMaterializerContext(new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirTransformNode(new CirCylinderNode(2, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, 3)))))).Evidence);
-        Assert.Contains("selected-variant:CounterboreVariant", policy.Evaluate(new FrepMaterializerContext(new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)), new CirTransformNode(new CirCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3)))))).Evidence);
-        Assert.Contains("selected-variant:CountersinkVariant", policy.Evaluate(new FrepMaterializerContext(new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)), new CirTransformNode(new CirConeNode(2, 4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, 3)))))).Evidence);
+        Assert.Contains("selected-variant:ThroughHoleVariant", policy.Evaluate(new FrepMaterializerContext(new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfCylinderNode(2, 20)))).Evidence);
+        Assert.Contains("selected-variant:BlindHoleVariant", policy.Evaluate(new FrepMaterializerContext(new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfTransformNode(new SdfCylinderNode(2, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, 3)))))).Evidence);
+        Assert.Contains("selected-variant:CounterboreVariant", policy.Evaluate(new FrepMaterializerContext(new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfCylinderNode(2, 20)), new SdfTransformNode(new SdfCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3)))))).Evidence);
+        Assert.Contains("selected-variant:CountersinkVariant", policy.Evaluate(new FrepMaterializerContext(new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfCylinderNode(2, 20)), new SdfTransformNode(new SdfConeNode(2, 4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, 3)))))).Evidence);
     }
 
     private static HoleRecoveryPlan GetPlan() => (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(BuildStepped(true))).Plan!;
@@ -150,18 +150,18 @@ public sealed class SteppedHoleCorpusHardeningTests
         Assert.DoesNotContain(exec.Diagnostics, d => d.Contains("Stepped subtract", StringComparison.Ordinal));
     }
 
-    private static CirNode BuildStepped(bool topEntry, Vector3D? hostTranslation = null, Vector3D? toolTranslation = null, double mediumRadius = 3, double mediumHeight = 6, double largeRadius = 4, double largeHeight = 4)
+    private static SdfNode BuildStepped(bool topEntry, Vector3D? hostTranslation = null, Vector3D? toolTranslation = null, double mediumRadius = 3, double mediumHeight = 6, double largeRadius = 4, double largeHeight = 4)
     {
         var ht = hostTranslation ?? Vector3D.Zero;
         var tt = toolTranslation ?? ht;
-        var host = new CirTransformNode(new CirBoxNode(20, 20, 10), Transform3D.CreateTranslation(ht));
-        var small = new CirTransformNode(new CirCylinderNode(2, 20), Transform3D.CreateTranslation(tt));
+        var host = new SdfTransformNode(new SdfBoxNode(20, 20, 10), Transform3D.CreateTranslation(ht));
+        var small = new SdfTransformNode(new SdfCylinderNode(2, 20), Transform3D.CreateTranslation(tt));
 
         var sign = topEntry ? 1d : -1d;
         var mediumZ = tt.Z + sign * (10d - mediumHeight) * 0.5d;
         var largeZ = tt.Z + sign * (10d - largeHeight) * 0.5d;
-        var medium = new CirTransformNode(new CirCylinderNode(mediumRadius, mediumHeight), Transform3D.CreateTranslation(new Vector3D(tt.X, tt.Y, mediumZ)));
-        var large = new CirTransformNode(new CirCylinderNode(largeRadius, largeHeight), Transform3D.CreateTranslation(new Vector3D(tt.X, tt.Y, largeZ)));
-        return new CirSubtractNode(new CirSubtractNode(new CirSubtractNode(host, small), medium), large);
+        var medium = new SdfTransformNode(new SdfCylinderNode(mediumRadius, mediumHeight), Transform3D.CreateTranslation(new Vector3D(tt.X, tt.Y, mediumZ)));
+        var large = new SdfTransformNode(new SdfCylinderNode(largeRadius, largeHeight), Transform3D.CreateTranslation(new Vector3D(tt.X, tt.Y, largeZ)));
+        return new SdfSubtractNode(new SdfSubtractNode(new SdfSubtractNode(host, small), medium), large);
     }
 }

@@ -10,11 +10,11 @@ Aetheris already has broad analytic *surface* representation across Firmament/CI
 
 | Family | Firmament primitive/tool | CIR node/tape | BRep primitive | BRep surface kind | STEP AP242 export | Boolean/materializer support |
 |---|---|---|---|---|---|---|
-| Plane / box | Yes (`box`) | Yes (`CirBoxNode`, `EvalBox`) | Yes | Plane | Yes (`PLANE`) | Strong: `subtract(box,box)`, many safe composition paths |
-| Cylinder | Yes (`cylinder`) | Yes (`CirCylinderNode`, `EvalCylinder`) | Yes | Cylinder | Yes (`CYLINDRICAL_SURFACE`) | Strong: `subtract(box,cylinder)` plus safe-family boolean builders |
-| Sphere | Yes (`sphere`) | Yes (`CirSphereNode`, `EvalSphere`) | Yes | Sphere | Yes (`SPHERICAL_SURFACE`) | No dedicated CIR rematerializer strategy yet |
+| Plane / box | Yes (`box`) | Yes (`SdfBoxNode`, `EvalBox`) | Yes | Plane | Yes (`PLANE`) | Strong: `subtract(box,box)`, many safe composition paths |
+| Cylinder | Yes (`cylinder`) | Yes (`SdfCylinderNode`, `EvalCylinder`) | Yes | Cylinder | Yes (`CYLINDRICAL_SURFACE`) | Strong: `subtract(box,cylinder)` plus safe-family boolean builders |
+| Sphere | Yes (`sphere`) | Yes (`SdfSphereNode`, `EvalSphere`) | Yes | Sphere | Yes (`SPHERICAL_SURFACE`) | No dedicated CIR rematerializer strategy yet |
 | Cone | Yes (`cone`) | **Partial**: local-frame shift exists, but no cone CIR primitive/tool lowering path | Yes | Cone | Yes (`CONICAL_SURFACE`) | No dedicated CIR rematerializer strategy |
-| Torus | Yes (`torus`) | Yes (`CirTorusNode`, `EvalTorus`) | Yes | Torus | Yes (`TOROIDAL_SURFACE`) | Explicitly recognized unsupported strategy: `subtract(box,torus)` |
+| Torus | Yes (`torus`) | Yes (`SdfTorusNode`, `EvalTorus`) | Yes | Torus | Yes (`TOROIDAL_SURFACE`) | Explicitly recognized unsupported strategy: `subtract(box,torus)` |
 | Prismatic/extrusion | Yes (`triangular_prism`, `hexagonal_prism`, `straight_slot`, `slot_cut`) | No general extrusion CIR node family | Yes (`BrepExtrude`-backed primitives) | Mostly planar side/cap surfaces | Exported through bound topology + line/arc/spline edges | Safe boolean families exist for polygonal/prismatic through-cuts |
 | BSpline/NURBS | Not central in Firmament primitives | Not central in CIR booleans | Present in geometry model | `BSplineSurfaceWithKnots` | Yes (`B_SPLINE_SURFACE_WITH_KNOTS`) | Not in current CIR rematerializer families |
 
@@ -101,7 +101,7 @@ family
 parameters
 transform
 provenance
-owningCirNodeId / replayOpIndex / featureId
+owningSdfNodeId / replayOpIndex / featureId
 orientationRole (base/tool/cap/side/seam)
 ```
 

@@ -48,16 +48,16 @@ This path is authoritative for materialized geometry/export and must remain unch
 From the current kernel/tests/docs state:
 
 - Firmament-to-CIR lowering exists but is subset-bounded (`FirmamentCirLowerer`), with explicit failures for unsupported primitives/booleans/placement semantics.
-- Point classification exists (`CirAnalyzer.ClassifyPoint` over signed-distance evaluate).
-- Dense grid volume estimate exists (`CirVolumeEstimator`).
-- Adaptive/tape interval-assisted volume estimation exists (`CirAdaptiveVolumeEstimator` + region planning).
+- Point classification exists (`SdfAnalyzer.ClassifyPoint` over signed-distance evaluate).
+- Dense grid volume estimate exists (`SdfVolumeEstimator`).
+- Adaptive/tape interval-assisted volume estimation exists (`SdfAdaptiveVolumeEstimator` + region planning).
 - CIR-vs-BRep differential matrix/reporting exists in tests/artifacts.
 - Calibration harness exists (currently test-internal) and reports policy/work/error metrics.
 
 ### Current limitations
 
 - Lowering subset is intentionally incomplete.
-- CIR analysis API shape is primitive-level (`CirNode`, `CirTape`) and not yet integrated into CLI contracts.
+- CIR analysis API shape is primitive-level (`SdfNode`, `SdfTape`) and not yet integrated into CLI contracts.
 - No user-facing analyzer output schema yet communicates CIR uncertainty and lowering coverage.
 
 ---

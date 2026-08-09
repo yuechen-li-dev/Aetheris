@@ -27,7 +27,7 @@ The test-only prototype introduces these internal test types:
 - `GeneratedPrismaticMapSource` — generated prismatic source sections plus optional correspondence.
 - `HybridMapDispatchResult` — selected backend, admission status, requested use, summary, known losses, diagnostics, and recommendation.
 - `HybridMapSummary` — stable map summary fields.
-- `HybridMapBackendKind` — `CirConvexPolyhedron`, `CirTape`, `BrepRaycast`, or `Unsupported`.
+- `HybridMapBackendKind` — `CirConvexPolyhedron`, `SdfTape`, `BrepRaycast`, or `Unsupported`.
 
 The summary reports:
 

@@ -12,9 +12,9 @@ public sealed class CirBrepMaterializerTests
     [Fact]
     public void MaterializerRegistry_Selects_BoxMinusCylinder()
     {
-        var root = new CirSubtractNode(
-            new CirTransformNode(new CirBoxNode(20, 20, 10), Transform3D.CreateTranslation(new Vector3D(0, 0, 5))),
-            new CirTransformNode(new CirCylinderNode(3, 20), Transform3D.CreateTranslation(new Vector3D(0, 0, 5))));
+        var root = new SdfSubtractNode(
+            new SdfTransformNode(new SdfBoxNode(20, 20, 10), Transform3D.CreateTranslation(new Vector3D(0, 0, 5))),
+            new SdfTransformNode(new SdfCylinderNode(3, 20), Transform3D.CreateTranslation(new Vector3D(0, 0, 5))));
         var replay = BuildReplay("cylinder");
 
         var result = CirBrepMaterializer.TryMaterialize(new CirBrepMaterializer.CirBrepMaterializerContext(root, replay));
@@ -27,9 +27,9 @@ public sealed class CirBrepMaterializerTests
     [Fact]
     public void MaterializerRegistry_Selects_BoxMinusBox()
     {
-        var root = new CirSubtractNode(
-            new CirTransformNode(new CirBoxNode(20, 20, 10), Transform3D.CreateTranslation(new Vector3D(0, 0, 5))),
-            new CirTransformNode(new CirBoxNode(6, 20, 10), Transform3D.CreateTranslation(new Vector3D(7, 0, 5))));
+        var root = new SdfSubtractNode(
+            new SdfTransformNode(new SdfBoxNode(20, 20, 10), Transform3D.CreateTranslation(new Vector3D(0, 0, 5))),
+            new SdfTransformNode(new SdfBoxNode(6, 20, 10), Transform3D.CreateTranslation(new Vector3D(7, 0, 5))));
 
         var result = CirBrepMaterializer.TryMaterialize(new CirBrepMaterializer.CirBrepMaterializerContext(root, BuildReplay("box")));
 
@@ -41,7 +41,7 @@ public sealed class CirBrepMaterializerTests
     [Fact]
     public void MaterializerRegistry_RejectionDiagnostics_ListRejectedStrategies()
     {
-        var result = CirBrepMaterializer.TryMaterialize(new CirBrepMaterializer.CirBrepMaterializerContext(new CirUnionNode(new CirBoxNode(1, 1, 1), new CirBoxNode(1, 1, 1)), null));
+        var result = CirBrepMaterializer.TryMaterialize(new CirBrepMaterializer.CirBrepMaterializerContext(new SdfUnionNode(new SdfBoxNode(1, 1, 1), new SdfBoxNode(1, 1, 1)), null));
 
         Assert.False(result.IsSuccess);
         Assert.Equal("no-strategy-matched", result.UnsupportedReason);
@@ -52,7 +52,7 @@ public sealed class CirBrepMaterializerTests
     [Fact]
     public void ReplayGuided_Mismatch_IsDiagnosed()
     {
-        var root = new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirBoxNode(6, 20, 10));
+        var root = new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfBoxNode(6, 20, 10));
         var mismatchReplay = BuildReplay("cylinder");
 
         var result = CirBrepMaterializer.TryMaterialize(new CirBrepMaterializer.CirBrepMaterializerContext(root, mismatchReplay));
@@ -64,7 +64,7 @@ public sealed class CirBrepMaterializerTests
     [Fact]
     public void CirMaterializer_BoxMinusTorus_FailsWithPreciseUnsupported()
     {
-        var root = new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirTorusNode(8, 2));
+        var root = new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfTorusNode(8, 2));
         var replay = BuildReplay("torus");
         var result = CirBrepMaterializer.TryMaterialize(new CirBrepMaterializer.CirBrepMaterializerContext(root, replay));
         Assert.False(result.IsSuccess);

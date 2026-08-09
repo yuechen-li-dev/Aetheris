@@ -1,0 +1,41 @@
+{
+  "name": "generic-coaxial",
+  "constructionSourceIdentity": "M4B-GenericCoaxial:58b5e0f8b1972acb34cc1fb270d01a17a7d6ef75f30136ef532e65207411ed25",
+  "associationPassed": true,
+  "consistencyProbeCount": 120,
+  "maximumConsistencyResidual": 1.7763568394002505E-15,
+  "totalCells": 1728,
+  "inside": 288,
+  "outside": 848,
+  "cut": 592,
+  "supportFamilyCounts": {
+    "Cone": 10,
+    "Cylinder": 2,
+    "Plane": 11,
+    "Torus": 2
+  },
+  "compositionCounts": {
+    "FilletContact": 64,
+    "MultiFaceTrimJunction": 48,
+    "SingleFace": 312,
+    "ThreeFaceCorner": 8,
+    "TwoFaceEdge": 152
+  },
+  "judgmentEngineCalls": 48,
+  "exactVolume": 2488.71307899376,
+  "estimatedVolume": 2465.577846498851,
+  "absoluteVolumeError": 23.135232494908905,
+  "relativeVolumeError": 0.009296062567510987,
+  "exactBoundaryArea": 1362.8012697394363,
+  "estimatedBoundaryArea": 1381.5656601187748,
+  "relativeBoundaryAreaError": 0.013768985101493311,
+  "fineEstimatedVolume": 2503.913899287576,
+  "fineRelativeVolumeError": 0.006107903889009954,
+  "brepAndCirMaterializationMilliseconds": 0.6641,
+  "associationValidationMilliseconds": 1.1955,
+  "candidateDiscoveryMilliseconds": 1.8721,
+  "classificationMilliseconds": 27.3905,
+  "cutCellIntegrationMilliseconds": 594.0203,
+  "fineControlMilliseconds": 148.5957,
+  "totalMilliseconds": 1595.5125
+}

@@ -10,7 +10,7 @@ public sealed class TieredTrimRepresentationBuilderTests
     [Fact]
     public void TieredTrim_CylinderCircleSelection_BuildsAnalyticCircleRepresentation()
     {
-        var (field, stitched, selection) = BuildSelection(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 20)), 65, new RestrictedContourSnapOptions(0.06d, 0.02d, 8));
+        var (field, stitched, selection) = BuildSelection(new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(2, 20)), 65, new RestrictedContourSnapOptions(0.06d, 0.02d, 8));
         var result = TieredTrimRepresentationBuilder.Build(selection, stitched, field);
 
         Assert.Equal(TieredTrimRepresentationKind.AnalyticCircle, result.Representation.Kind);
@@ -24,7 +24,7 @@ public sealed class TieredTrimRepresentationBuilderTests
     [Fact]
     public void TieredTrim_SphereCircleSelection_BuildsAnalyticCircleRepresentation()
     {
-        var (field, stitched, selection) = BuildSelection(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirSphereNode(6)), 65, new RestrictedContourSnapOptions(0.06d, 0.02d, 8));
+        var (field, stitched, selection) = BuildSelection(new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfSphereNode(6)), 65, new RestrictedContourSnapOptions(0.06d, 0.02d, 8));
         var result = TieredTrimRepresentationBuilder.Build(selection, stitched, field);
         Assert.Equal(TieredTrimRepresentationKind.AnalyticCircle, result.Representation.Kind);
         Assert.NotNull(result.Representation.Circle);
@@ -50,7 +50,7 @@ public sealed class TieredTrimRepresentationBuilderTests
     [Fact]
     public void TieredTrim_Torus_DoesNotClaimGenericExactness()
     {
-        var (field, stitched, selection) = BuildSelection(new CirSubtractNode(new CirBoxNode(12, 12, 12), new CirTorusNode(4, 1)), 65, new RestrictedContourSnapOptions(0.01d, 0.01d, 8));
+        var (field, stitched, selection) = BuildSelection(new SdfSubtractNode(new SdfBoxNode(12, 12, 12), new SdfTorusNode(4, 1)), 65, new RestrictedContourSnapOptions(0.01d, 0.01d, 8));
         var result = TieredTrimRepresentationBuilder.Build(selection, stitched, field);
         Assert.Contains(result.Diagnostics, d => d == "tiered-trim-torus-generic-exactness-not-claimed");
         Assert.False(result.Representation.ExactStepExported);
@@ -81,7 +81,7 @@ public sealed class TieredTrimRepresentationBuilderTests
         Assert.Contains(result.Representation.SurfaceIntersectionProvenance.Diagnostics, d => d.StartsWith("tiered-trim-provenance-missing", StringComparison.Ordinal));
     }
 
-    private static (SurfaceRestrictedField field, SurfaceTrimContourStitchResult stitched, RestrictedContourSnapSelectionResult selection) BuildSelection(CirSubtractNode root, int resolution, RestrictedContourSnapOptions options)
+    private static (SurfaceRestrictedField field, SurfaceTrimContourStitchResult stitched, RestrictedContourSnapSelectionResult selection) BuildSelection(SdfSubtractNode root, int resolution, RestrictedContourSnapOptions options)
     {
         var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors, d => d.ParameterPayloadReference == "top");
         var field = SurfaceRestrictedFieldFactory.ForSubtractSource(root, source, SubtractOperandSide.Left);

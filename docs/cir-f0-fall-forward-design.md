@@ -68,7 +68,7 @@ Introduce internal (non-public) `NativeGeometryState` per executed feature front
 
 - `ExecutionMode`: `BRepActive | CirOnly | Failed`
 - `MaterializedBody`: optional `BrepBody`
-- `ConstructiveIntentRoot`: optional `CirNode` (or tape handle)
+- `ConstructiveIntentRoot`: optional `SdfNode` (or tape handle)
 - `MaterializationAuthority`: `BRepAuthoritative | CirIntentOnly | PendingRematerialization`
 - `Provenance`: feature/op mapping, placement transform history, selector anchor provenance
 - `Diagnostics`: accumulated state diagnostics with transition events

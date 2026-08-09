@@ -24,7 +24,7 @@ public sealed class CounterboreVariantTests
     [Fact]
     public void CounterboreVariant_RejectsSimpleThroughHole()
     {
-        var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(new CirSubtractNode(new CirBoxNode(20, 10, 8), new CirCylinderNode(2, 20))));
+        var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(new SdfSubtractNode(new SdfBoxNode(20, 10, 8), new SdfCylinderNode(2, 20))));
         Assert.True(eval.Admissible);
         Assert.Contains("selected-variant:ThroughHoleVariant", eval.Evidence);
     }
@@ -32,9 +32,9 @@ public sealed class CounterboreVariantTests
     [Fact]
     public void CounterboreVariant_RejectsNonCoaxialCylinders()
     {
-        var root = new CirSubtractNode(
-            new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)),
-            new CirTransformNode(new CirCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(1, 0, -3))));
+        var root = new SdfSubtractNode(
+            new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfCylinderNode(2, 20)),
+            new SdfTransformNode(new SdfCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(1, 0, -3))));
         var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(root));
         Assert.DoesNotContain("selected-variant:CounterboreVariant", eval.Evidence);
         Assert.Contains("coaxial", string.Join("|", eval.EvaluationsFor(nameof(CounterboreVariant))).ToLowerInvariant());
@@ -55,7 +55,7 @@ public sealed class CounterboreVariantTests
     [Fact]
     public void CounterboreVariant_RejectsLargeRadiusNotGreaterThanSmall()
     {
-        var root = new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(3, 20)), new CirTransformNode(new CirCylinderNode(3, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))));
+        var root = new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfCylinderNode(3, 20)), new SdfTransformNode(new SdfCylinderNode(3, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))));
         var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(root));
         Assert.Contains("radius", string.Join("|", eval.EvaluationsFor(nameof(CounterboreVariant))).ToLowerInvariant());
     }
@@ -63,7 +63,7 @@ public sealed class CounterboreVariantTests
     [Fact]
     public void CounterboreVariant_RejectsLargeCylinderThroughFullDepth()
     {
-        var root = new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)), new CirCylinderNode(4, 20));
+        var root = new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfCylinderNode(2, 20)), new SdfCylinderNode(4, 20));
         var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(root));
         Assert.Contains("not a counterbore relief", string.Join("|", eval.EvaluationsFor(nameof(CounterboreVariant))).ToLowerInvariant());
     }
@@ -71,15 +71,15 @@ public sealed class CounterboreVariantTests
     [Fact]
     public void CounterboreVariant_RejectsSmallCylinderNotThrough()
     {
-        var root = new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 6)), new CirTransformNode(new CirCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))));
+        var root = new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfCylinderNode(2, 6)), new SdfTransformNode(new SdfCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))));
         var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(root));
         Assert.DoesNotContain("selected-variant:CounterboreVariant", eval.Evidence);
     }
 
-    private static CirNode BuildCanonicalCounterbore()
-        => new CirSubtractNode(
-            new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)),
-            new CirTransformNode(new CirCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))));
+    private static SdfNode BuildCanonicalCounterbore()
+        => new SdfSubtractNode(
+            new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfCylinderNode(2, 20)),
+            new SdfTransformNode(new SdfCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))));
 }
 
 internal static class HoleRecoveryPolicyEvalExtensions

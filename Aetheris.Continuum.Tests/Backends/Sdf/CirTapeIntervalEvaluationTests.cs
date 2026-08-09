@@ -4,70 +4,70 @@ using Aetheris.Kernel.Core.Numerics;
 
 namespace Aetheris.Continuum.Tests.Backends.Sdf;
 
-public sealed class CirTapeIntervalEvaluationTests
+public sealed class SdfTapeIntervalEvaluationTests
 {
     [Fact]
     public void Interval_Box_ContainsSampledEvaluations()
     {
-        AssertIntervalContainsSamples(new CirBoxNode(6d, 4d, 8d), new CirBounds(new Point3D(-4d, -3d, -5d), new Point3D(4d, 3d, 5d)));
+        AssertIntervalContainsSamples(new SdfBoxNode(6d, 4d, 8d), new SdfBounds(new Point3D(-4d, -3d, -5d), new Point3D(4d, 3d, 5d)));
     }
 
     [Fact]
     public void Interval_Cylinder_ContainsSampledEvaluations()
     {
-        AssertIntervalContainsSamples(new CirCylinderNode(3d, 7d), new CirBounds(new Point3D(-4d, -4d, -4d), new Point3D(4d, 4d, 4d)));
+        AssertIntervalContainsSamples(new SdfCylinderNode(3d, 7d), new SdfBounds(new Point3D(-4d, -4d, -4d), new Point3D(4d, 4d, 4d)));
     }
 
     [Fact]
     public void Interval_Sphere_ContainsSampledEvaluations()
     {
-        AssertIntervalContainsSamples(new CirSphereNode(2.5d), new CirBounds(new Point3D(-3d, -3d, -3d), new Point3D(3d, 3d, 3d)));
+        AssertIntervalContainsSamples(new SdfSphereNode(2.5d), new SdfBounds(new Point3D(-3d, -3d, -3d), new Point3D(3d, 3d, 3d)));
     }
 
     [Fact]
     public void Interval_BoxMinusCylinder_ContainsSampledEvaluations()
     {
-        var node = new CirSubtractNode(new CirBoxNode(8d, 8d, 8d), new CirCylinderNode(2d, 10d));
-        AssertIntervalContainsSamples(node, new CirBounds(new Point3D(-5d, -5d, -5d), new Point3D(5d, 5d, 5d)));
+        var node = new SdfSubtractNode(new SdfBoxNode(8d, 8d, 8d), new SdfCylinderNode(2d, 10d));
+        AssertIntervalContainsSamples(node, new SdfBounds(new Point3D(-5d, -5d, -5d), new Point3D(5d, 5d, 5d)));
     }
 
     [Fact]
     public void Interval_ClassifiesFullyInsideRegion()
     {
-        var tape = CirTapeLowerer.Lower(new CirBoxNode(10d, 10d, 10d));
-        var classification = tape.ClassifyRegion(new CirBounds(new Point3D(-1d, -1d, -1d), new Point3D(1d, 1d, 1d)), ToleranceContext.Default);
-        Assert.Equal(CirRegionClassification.Inside, classification);
+        var tape = SdfTapeLowerer.Lower(new SdfBoxNode(10d, 10d, 10d));
+        var classification = tape.ClassifyRegion(new SdfBounds(new Point3D(-1d, -1d, -1d), new Point3D(1d, 1d, 1d)), ToleranceContext.Default);
+        Assert.Equal(SdfRegionClassification.Inside, classification);
     }
 
     [Fact]
     public void Interval_ClassifiesFullyOutsideRegion()
     {
-        var tape = CirTapeLowerer.Lower(new CirBoxNode(2d, 2d, 2d));
-        var classification = tape.ClassifyRegion(new CirBounds(new Point3D(3d, 3d, 3d), new Point3D(4d, 4d, 4d)), ToleranceContext.Default);
-        Assert.Equal(CirRegionClassification.Outside, classification);
+        var tape = SdfTapeLowerer.Lower(new SdfBoxNode(2d, 2d, 2d));
+        var classification = tape.ClassifyRegion(new SdfBounds(new Point3D(3d, 3d, 3d), new Point3D(4d, 4d, 4d)), ToleranceContext.Default);
+        Assert.Equal(SdfRegionClassification.Outside, classification);
     }
 
     [Fact]
     public void Interval_ClassifiesMixedRegion()
     {
-        var tape = CirTapeLowerer.Lower(new CirBoxNode(4d, 4d, 4d));
-        var classification = tape.ClassifyRegion(new CirBounds(new Point3D(1d, -0.5d, -0.5d), new Point3D(3d, 0.5d, 0.5d)), ToleranceContext.Default);
-        Assert.Equal(CirRegionClassification.Mixed, classification);
+        var tape = SdfTapeLowerer.Lower(new SdfBoxNode(4d, 4d, 4d));
+        var classification = tape.ClassifyRegion(new SdfBounds(new Point3D(1d, -0.5d, -0.5d), new Point3D(3d, 0.5d, 0.5d)), ToleranceContext.Default);
+        Assert.Equal(SdfRegionClassification.Mixed, classification);
     }
 
     [Fact]
     public void Interval_TransformedPrimitive_IsConservative()
     {
-        var transformed = new CirTransformNode(
-            new CirCylinderNode(1.75d, 6d),
+        var transformed = new SdfTransformNode(
+            new SdfCylinderNode(1.75d, 6d),
             Transform3D.CreateTranslation(new Vector3D(1d, -2d, 0.5d)) * Transform3D.CreateRotationY(double.Pi / 7d) * Transform3D.CreateRotationX(double.Pi / 9d));
 
-        AssertIntervalContainsSamples(transformed, new CirBounds(new Point3D(-3d, -5d, -4d), new Point3D(5d, 2d, 4d)));
+        AssertIntervalContainsSamples(transformed, new SdfBounds(new Point3D(-3d, -5d, -4d), new Point3D(5d, 2d, 4d)));
     }
 
-    private static void AssertIntervalContainsSamples(CirNode node, CirBounds region)
+    private static void AssertIntervalContainsSamples(SdfNode node, SdfBounds region)
     {
-        var tape = CirTapeLowerer.Lower(node);
+        var tape = SdfTapeLowerer.Lower(node);
         var interval = tape.EvaluateInterval(region);
 
         foreach (var sample in SamplePoints(region))
@@ -78,7 +78,7 @@ public sealed class CirTapeIntervalEvaluationTests
         }
     }
 
-    private static IEnumerable<Point3D> SamplePoints(CirBounds region)
+    private static IEnumerable<Point3D> SamplePoints(SdfBounds region)
     {
         var xs = BuildSamples(region.Min.X, region.Max.X);
         var ys = BuildSamples(region.Min.Y, region.Max.Y);

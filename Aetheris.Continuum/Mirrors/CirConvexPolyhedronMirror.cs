@@ -34,7 +34,7 @@ internal sealed record CirPrismaticMirrorSummary(
     double? ThicknessMin,
     double? ThicknessMax,
     double? ThicknessAverage,
-    CirBounds Bounds,
+    SdfBounds Bounds,
     IReadOnlyList<string> Diagnostics);
 
 internal sealed record CirPrismaticMirrorResult(
@@ -54,7 +54,7 @@ internal sealed class CirConvexPolyhedronMirror
     public CirConvexPolyhedronMirror(
         string caseLabel,
         IReadOnlyList<CirHalfSpacePlane> HalfSpaces,
-        CirBounds bounds,
+        SdfBounds bounds,
         CirMirrorAdmissionResult admission,
         IReadOnlyList<string> diagnostics)
     {
@@ -69,7 +69,7 @@ internal sealed class CirConvexPolyhedronMirror
 
     public IReadOnlyList<CirHalfSpacePlane> HalfSpaces { get; }
 
-    public CirBounds Bounds { get; }
+    public SdfBounds Bounds { get; }
 
     public CirMirrorAdmissionResult Admission { get; }
 
@@ -399,7 +399,7 @@ internal static class CirPrismaticMirrorBuilder
     private static Point3D ToPoint(PrismaticSection section, int index) =>
         new(section.OuterLoop[index].X, section.OuterLoop[index].Y, section.Z);
 
-    private static CirBounds Bounds(IReadOnlyList<Point3D> vertices) =>
+    private static SdfBounds Bounds(IReadOnlyList<Point3D> vertices) =>
         new(
             new Point3D(vertices.Min(point => point.X), vertices.Min(point => point.Y), vertices.Min(point => point.Z)),
             new Point3D(vertices.Max(point => point.X), vertices.Max(point => point.Y), vertices.Max(point => point.Z)));

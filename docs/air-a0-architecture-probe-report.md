@@ -21,10 +21,10 @@ Best immediate next lab: **AIR-X1 minimal Profile IR + AirProfileStackExtrude sp
   - `ProfileStackExtrudePlanAdapter`
   - `FrepSemanticRecoveryRematerializer`
 - CIR/FRep:
-  - `CirNode` / `CirNodes`
+  - `SdfNode` / `SdfNodes`
   - primitive nodes: box, cylinder, cone, sphere, torus
   - boolean nodes: union/subtract/intersect
-  - `CirTape` and inline `CirTapeLowerer`
+  - `SdfTape` and inline `SdfTapeLowerer`
   - `FirmamentCirLowerer`
 - BRep:
   - `BrepPrimitives` (`CreateBox/CreateCylinder/CreateCone/CreateSphere/CreateTorus` and extrusion helper usage)

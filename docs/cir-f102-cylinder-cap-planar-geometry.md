@@ -2,9 +2,9 @@
 
 ## Purpose
 
-CIR-F10.1 added bounded planar **rectangular** geometry for `CirBoxNode` planar descriptors so real extracted box faces can deterministically derive `rect3d:` payloads.
+CIR-F10.1 added bounded planar **rectangular** geometry for `SdfBoxNode` planar descriptors so real extracted box faces can deterministically derive `rect3d:` payloads.
 
-CIR-F10.2 extends bounded planar **source evidence** for `CirCylinderNode` planar cap descriptors to include deterministic **circular** bounded geometry.
+CIR-F10.2 extends bounded planar **source evidence** for `SdfCylinderNode` planar cap descriptors to include deterministic **circular** bounded geometry.
 
 This milestone is evidence-enrichment only. It does not emit circular cap topology.
 
@@ -24,7 +24,7 @@ Factory helpers (`CreateRectangle`, `CreateCircle`) keep construction determinis
 
 ## Cylinder cap extraction behavior
 
-For `CirCylinderNode`, extraction now produces:
+For `SdfCylinderNode`, extraction now produces:
 
 - 1 cylindrical side descriptor (unchanged),
 - 2 planar cap descriptors (`cap-top`, `cap-bottom`) with circular bounded geometry when representable.

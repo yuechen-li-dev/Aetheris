@@ -81,7 +81,7 @@ internal sealed record TopologyPairingEvidenceResult(
 
 internal static class TopologyPairingEvidenceGenerator
 {
-    internal static TopologyPairingEvidenceResult Generate(CirNode root) => Generate(TopologyAssemblyDryRunPlanner.Generate(root));
+    internal static TopologyPairingEvidenceResult Generate(SdfNode root) => Generate(TopologyAssemblyDryRunPlanner.Generate(root));
 
     internal static TopologyPairingEvidenceResult Generate(TopologyAssemblyDryRunResult dryRun)
     {

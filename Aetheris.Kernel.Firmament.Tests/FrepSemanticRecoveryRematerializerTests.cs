@@ -11,7 +11,7 @@ public sealed class FrepSemanticRecoveryRematerializerTests
     [Fact]
     public void SemanticRecovery_BoxCylinder_ProducesBRepBody()
     {
-        var root = new CirSubtractNode(new CirBoxNode(20d, 10d, 8d), new CirCylinderNode(2d, 20d));
+        var root = new SdfSubtractNode(new SdfBoxNode(20d, 10d, 8d), new SdfCylinderNode(2d, 20d));
         var result = FrepSemanticRecoveryRematerializer.TryRecover(root);
 
         Assert.True(result.Succeeded);
@@ -24,9 +24,9 @@ public sealed class FrepSemanticRecoveryRematerializerTests
     [Fact]
     public void SemanticRecovery_TranslatedBoxCylinder_ProducesBRepBody()
     {
-        var root = new CirSubtractNode(
-            new CirTransformNode(new CirBoxNode(20d, 20d, 10d), Transform3D.CreateTranslation(new Vector3D(5d, 2d, 4d))),
-            new CirTransformNode(new CirCylinderNode(3d, 16d), Transform3D.CreateTranslation(new Vector3D(4d, 1d, 4d))));
+        var root = new SdfSubtractNode(
+            new SdfTransformNode(new SdfBoxNode(20d, 20d, 10d), Transform3D.CreateTranslation(new Vector3D(5d, 2d, 4d))),
+            new SdfTransformNode(new SdfCylinderNode(3d, 16d), Transform3D.CreateTranslation(new Vector3D(4d, 1d, 4d))));
 
         var result = FrepSemanticRecoveryRematerializer.TryRecover(root);
 
@@ -38,7 +38,7 @@ public sealed class FrepSemanticRecoveryRematerializerTests
     [Fact]
     public void SemanticRecovery_UnsupportedBoxSphere_FallsBackOrRejectsCleanly()
     {
-        var root = new CirSubtractNode(new CirBoxNode(20d, 10d, 8d), new CirSphereNode(2d));
+        var root = new SdfSubtractNode(new SdfBoxNode(20d, 10d, 8d), new SdfSphereNode(2d));
         var result = FrepSemanticRecoveryRematerializer.TryRecover(root);
 
         Assert.False(result.Succeeded);
@@ -52,7 +52,7 @@ public sealed class FrepSemanticRecoveryRematerializerTests
     [Fact]
     public void CirOnlyFallback_DoesNotProduceBrepSuccess()
     {
-        var root = new CirSubtractNode(new CirBoxNode(20d, 10d, 8d), new CirSphereNode(2d));
+        var root = new SdfSubtractNode(new SdfBoxNode(20d, 10d, 8d), new SdfSphereNode(2d));
         var result = FrepSemanticRecoveryRematerializer.TryRecover(root);
 
         Assert.False(result.Succeeded);
@@ -78,7 +78,7 @@ public sealed class FrepSemanticRecoveryRematerializerTests
     [Fact]
     public void SteppedHole_Rematerializer_ProducesBrepBody()
     {
-        var result = FrepSemanticRecoveryRematerializer.TryRecover(new CirSubtractNode(new CirSubtractNode(new CirSubtractNode(new CirBoxNode(20,20,10), new CirCylinderNode(2,20)), new CirTransformNode(new CirCylinderNode(3,6), Transform3D.CreateTranslation(new Vector3D(0,0,-2)))), new CirTransformNode(new CirCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,-3)))));
+        var result = FrepSemanticRecoveryRematerializer.TryRecover(new SdfSubtractNode(new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(20,20,10), new SdfCylinderNode(2,20)), new SdfTransformNode(new SdfCylinderNode(3,6), Transform3D.CreateTranslation(new Vector3D(0,0,-2)))), new SdfTransformNode(new SdfCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,-3)))));
         Assert.True(result.Succeeded);
         Assert.NotNull(result.Body);
         Assert.Contains(result.Diagnostics, d => d.Contains("executor succeeded", StringComparison.Ordinal));
@@ -88,9 +88,9 @@ public sealed class FrepSemanticRecoveryRematerializerTests
     public void ChamferedEntry_Rematerializer_ProducesBrepBody()
     {
         var result = FrepSemanticRecoveryRematerializer.TryRecover(
-            new CirSubtractNode(
-                new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)),
-                new CirTransformNode(new CirConeNode(2, 2.8, 1), Transform3D.CreateTranslation(new Vector3D(0, 0, 4.5)))));
+            new SdfSubtractNode(
+                new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfCylinderNode(2, 20)),
+                new SdfTransformNode(new SdfConeNode(2, 2.8, 1), Transform3D.CreateTranslation(new Vector3D(0, 0, 4.5)))));
         Assert.True(result.Succeeded);
         Assert.NotNull(result.Body);
     }

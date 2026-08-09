@@ -25,7 +25,7 @@ public sealed class BrepSphereContinuumRegion : IContinuumRegion, IBoundsClassif
         BrepBody = result.Value;
         FaceId = BrepBody.Topology.Faces.Single().Id;
         Transform = transform;
-        var root = new CirTransformNode(new CirSphereNode(radius), transform);
+        var root = new SdfTransformNode(new SdfSphereNode(radius), transform);
         _cir = new SdfContinuumRegion(id, root);
         Bounds = _cir.Bounds;
         BoundaryReference = new BoundaryReference("brep", $"{id}:sphere-face-{FaceId.Value}", FaceId.Value.ToString(), "closed-spherical-boundary");
@@ -80,7 +80,7 @@ public sealed class BrepSphereBoundarySupport : IAnalyticBoundarySupport
     public ExactBrepBoundaryQuery Query { get; }
     public double ExactArea => 4d * double.Pi * Query.Radius * Query.Radius;
     public Point3D Project(Point3D point) => Query.Project(point);
-    public Vector3D MaterialSideNormal(Point3D boundaryPoint) => -Query.OutwardNormal(boundaryPoint);
+    public Vector3D MaterialSideNormal(Point3D boundaryPoint) => -Query.SupportNormalAt(boundaryPoint);
 
     public IBoundaryOffsetMap CreateOffsetMap(CellIndex cellIndex, BoundingBox3D cellBounds, int resolution,
         BoundaryOffsetMapErrorPolicy policy, BoundaryEvaluationCache? cache = null) =>

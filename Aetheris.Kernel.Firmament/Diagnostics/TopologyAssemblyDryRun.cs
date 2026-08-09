@@ -47,7 +47,7 @@ internal sealed record TopologyAssemblyDryRunResult(
 
 internal static class TopologyAssemblyDryRunPlanner
 {
-    internal static TopologyAssemblyDryRunResult Generate(CirNode root)
+    internal static TopologyAssemblyDryRunResult Generate(SdfNode root)
         => Generate(FacePatchCandidateGenerator.Generate(root));
 
     internal static TopologyAssemblyDryRunResult Generate(FacePatchCandidateGenerationResult candidateResult)

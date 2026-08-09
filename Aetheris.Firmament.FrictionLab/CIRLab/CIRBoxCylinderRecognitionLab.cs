@@ -6,14 +6,14 @@ namespace Aetheris.FrictionLab;
 
 public static class CirBoxCylinderRecognitionLab
 {
-    public static CirBoxCylinderRecognitionLabResult Recognize(CirNode root, bool allowTranslationWrappers = true, double? linearTolerance = null)
+    public static CirBoxCylinderRecognitionLabResult Recognize(SdfNode root, bool allowTranslationWrappers = true, double? linearTolerance = null)
     {
         var tol = linearTolerance ?? ToleranceContext.Default.Linear;
         if (!TryUnwrap(root, allowTranslationWrappers, out var subtractNode, out _, out var reason))
         {
             return Fail(reason, "Expected root subtract of box and cylinder.");
         }
-        if (subtractNode is not CirSubtractNode subtract)
+        if (subtractNode is not SdfSubtractNode subtract)
         {
             return Fail(CirLabRecognitionReason.RootNotSubtract, "Expected root subtract of box and cylinder.");
         }
@@ -23,9 +23,9 @@ public static class CirBoxCylinderRecognitionLab
             return Fail(reason, "Subtract lhs transform normalization failed.");
         }
 
-        if (leftNode is not CirBoxNode box)
+        if (leftNode is not SdfBoxNode box)
         {
-            return Fail(CirLabRecognitionReason.BaseNotBox, "Subtract lhs must normalize to CirBoxNode.");
+            return Fail(CirLabRecognitionReason.BaseNotBox, "Subtract lhs must normalize to SdfBoxNode.");
         }
 
         if (!TryUnwrap(subtract.Right, allowTranslationWrappers, out var rightNode, out var rightTranslation, out reason))
@@ -33,9 +33,9 @@ public static class CirBoxCylinderRecognitionLab
             return Fail(reason, "Subtract rhs transform normalization failed.");
         }
 
-        if (rightNode is not CirCylinderNode cylinder)
+        if (rightNode is not SdfCylinderNode cylinder)
         {
-            return Fail(CirLabRecognitionReason.ToolNotCylinder, "Subtract rhs must normalize to CirCylinderNode.");
+            return Fail(CirLabRecognitionReason.ToolNotCylinder, "Subtract rhs must normalize to SdfCylinderNode.");
         }
 
         if (box.Width <= 0d || box.Height <= 0d || box.Depth <= 0d || cylinder.Radius <= 0d || cylinder.Height <= 0d)
@@ -43,7 +43,7 @@ public static class CirBoxCylinderRecognitionLab
             return Fail(CirLabRecognitionReason.InvalidDimensions, "All box/cylinder dimensions must be positive.");
         }
 
-        var axis = "Z"; // native CirCylinderNode axis convention
+        var axis = "Z"; // native SdfCylinderNode axis convention
         var dz = rightTranslation.Z - leftTranslation.Z;
         var through = cylinder.Height + (2d * tol) >= box.Depth &&
                       (rightTranslation.Z - (cylinder.Height * 0.5d)) <= (-box.Depth * 0.5d + leftTranslation.Z + tol) &&
@@ -62,16 +62,16 @@ public static class CirBoxCylinderRecognitionLab
             return Fail(CirLabRecognitionReason.TangentOrOutside, "Cylinder is tangent/grazing/outside XY clearance envelope.");
         }
 
-        return new(true, CirLabRecognitionReason.None, "Recognized canonical box-cylinder through-hole subtract.", box, leftTranslation, cylinder, rightTranslation, axis, dz + cylinder.Height, new CirSubtractNode(new CirTransformNode(box, Transform3D.CreateTranslation(leftTranslation)), new CirTransformNode(cylinder, Transform3D.CreateTranslation(rightTranslation))));
+        return new(true, CirLabRecognitionReason.None, "Recognized canonical box-cylinder through-hole subtract.", box, leftTranslation, cylinder, rightTranslation, axis, dz + cylinder.Height, new SdfSubtractNode(new SdfTransformNode(box, Transform3D.CreateTranslation(leftTranslation)), new SdfTransformNode(cylinder, Transform3D.CreateTranslation(rightTranslation))));
     }
 
-    private static bool TryUnwrap(CirNode node, bool allowTranslationWrappers, out CirNode unwrapped, out Vector3D translation, out CirLabRecognitionReason reason)
+    private static bool TryUnwrap(SdfNode node, bool allowTranslationWrappers, out SdfNode unwrapped, out Vector3D translation, out CirLabRecognitionReason reason)
     {
         unwrapped = node;
         translation = Vector3D.Zero;
         reason = CirLabRecognitionReason.None;
 
-        while (unwrapped is CirTransformNode t)
+        while (unwrapped is SdfTransformNode t)
         {
             if (!allowTranslationWrappers || !TryExtractPureTranslation(t.Transform, out var step))
             {
@@ -83,7 +83,7 @@ public static class CirBoxCylinderRecognitionLab
             unwrapped = t.Child;
         }
 
-        if (unwrapped is CirSubtractNode s)
+        if (unwrapped is SdfSubtractNode s)
         {
             reason = CirLabRecognitionReason.None;
             unwrapped = s;

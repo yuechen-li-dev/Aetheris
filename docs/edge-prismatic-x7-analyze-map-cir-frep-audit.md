@@ -133,19 +133,19 @@ CIR is Aetheris's constructive implicit/FRep evaluation representation. Current 
 - composition: `Union`, `Subtract`, `Intersect`;
 - placement: `Transform`.
 
-Every `CirNode` exposes:
+Every `SdfNode` exposes:
 
 ```csharp
 double Evaluate(Point3D point)
 ```
 
-where negative values classify as inside, positive values classify as outside, and near-zero values classify as boundary under a tolerance. `CirAnalyzer.ClassifyPoint` wraps that convention for point classification.
+where negative values classify as inside, positive values classify as outside, and near-zero values classify as boundary under a tolerance. `SdfAnalyzer.ClassifyPoint` wraps that convention for point classification.
 
-`CirTape` is the linear runtime direction for hot CIR evaluation paths. It lowers primitive and CSG node evaluation into instruction/payload arrays and supports:
+`SdfTape` is the linear runtime direction for hot CIR evaluation paths. It lowers primitive and CSG node evaluation into instruction/payload arrays and supports:
 
 - point evaluation via `Evaluate(Point3D)`;
-- interval evaluation via `EvaluateInterval(CirBounds)`;
-- region classification via `ClassifyRegion(CirBounds, tolerance)` returning inside/outside/mixed.
+- interval evaluation via `EvaluateInterval(SdfBounds)`;
+- region classification via `ClassifyRegion(SdfBounds, tolerance)` returning inside/outside/mixed.
 
 The current CIR runtime design already calls out `Analyze map` as a workload that can reuse per-tile interval culling, while dense volume and section sampling can also benefit from tape/interval evaluation.
 
@@ -343,7 +343,7 @@ Risks:
 - **Boundary/tolerance mismatch:** CIR field zero-crossings and BRep trimmed-face intersections may classify boundary samples differently.
 - **Topology lost in CIR path:** face IDs, trims, loop identity, shell identity, and explicit adjacency are not inherently available from a scalar field.
 - **Representation-dependent output:** the same model could report different visible face metadata or depths depending on backend.
-- **Performance illusions:** a recursive `CirNode.Evaluate` prototype may be slower or less robust than expected if tape/interval runtime is not used.
+- **Performance illusions:** a recursive `SdfNode.Evaluate` prototype may be slower or less robust than expected if tape/interval runtime is not used.
 - **Imported STEP ambiguity:** reconstructing CIR from BRep without an admitted recognizer can silently manufacture intent that was not preserved.
 
 Guardrails:

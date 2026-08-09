@@ -18,16 +18,18 @@ public sealed class LatticeAndFixtureTests
             new BoundingBox3D(new Point3D(-1d, -1d, -1d), new Point3D(1d, 1d, 1d)));
 
         Assert.True(region.Contains(Point3D.Origin));
-        Assert.False(region is ISignedDistanceCapability);
+        Assert.False(region is IExactEuclideanSignedDistanceCapability);
     }
 
     [Fact]
     public void SdfBackend_AdaptsPreservedNodeAndTapeToCirCapabilities()
     {
-        IContinuumRegion region = new SdfContinuumRegion(new RegionId("sphere"), new CirSphereNode(1d));
+        var sdfRegion = new SdfContinuumRegion(new RegionId("sphere"), new SdfSphereNode(1d));
+        IContinuumRegion region = sdfRegion;
 
         Assert.Equal(ContinuumPointClassification.Inside, region.Classify(Point3D.Origin));
-        Assert.IsAssignableFrom<ISignedDistanceCapability>(region);
+        Assert.IsAssignableFrom<IImplicitFieldCapability>(region);
+        Assert.True(sdfRegion.Capabilities.HasFlag(SdfFieldCapabilities.ExactEuclideanSignedDistance));
         Assert.IsAssignableFrom<IGradientCapability>(region);
         Assert.IsAssignableFrom<IBoundsClassificationCapability>(region);
     }

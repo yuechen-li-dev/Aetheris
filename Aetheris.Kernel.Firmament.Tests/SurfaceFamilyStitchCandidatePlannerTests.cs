@@ -10,7 +10,7 @@ public sealed class SurfaceFamilyStitchCandidatePlannerTests
     [Fact]
     public void StitchCandidate_BoxCylinder_GeneratesCandidateFromSafeTokenPair()
     {
-        var result = SurfaceFamilyStitchCandidatePlanner.PlanBoxCylinder(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8)));
+        var result = SurfaceFamilyStitchCandidatePlanner.PlanBoxCylinder(new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(2, 8)));
         Assert.True(result.Candidates.Count > 0 || result.Diagnostics.Any(d => d.Contains("missing-mate", StringComparison.OrdinalIgnoreCase) || d.Contains("ambiguous", StringComparison.OrdinalIgnoreCase) || d.Contains("incompatible", StringComparison.OrdinalIgnoreCase) || d.Contains("unmapped", StringComparison.OrdinalIgnoreCase)));
     }
 
@@ -89,7 +89,7 @@ public sealed class SurfaceFamilyStitchCandidatePlannerTests
     [Fact]
     public void StitchCandidate_NoExecution()
     {
-        var result = SurfaceFamilyStitchCandidatePlanner.PlanBoxCylinder(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8)));
+        var result = SurfaceFamilyStitchCandidatePlanner.PlanBoxCylinder(new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(2, 8)));
         Assert.False(result.StitchExecutionImplemented);
     }
 }

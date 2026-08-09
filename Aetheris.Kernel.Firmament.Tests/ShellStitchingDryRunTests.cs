@@ -10,7 +10,7 @@ public sealed class ShellStitchingDryRunTests
     [Fact]
     public void ShellStitching_BoxMinusCylinder_AccountsForCylindricalSeam()
     {
-        var result = ShellStitchingDryRunPlanner.Generate(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8)));
+        var result = ShellStitchingDryRunPlanner.Generate(new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(2, 8)));
 
         Assert.Contains(result.SeamClosureEvidence, e => e.SeamKind == SeamKind.CylindricalSelfSeam || e.SeamKind == SeamKind.SeamDeferred);
         Assert.True(result.SeamClosureEvidence.Any(e => e.SeamKind == SeamKind.CylindricalSelfSeam)
@@ -20,7 +20,7 @@ public sealed class ShellStitchingDryRunTests
     [Fact]
     public void ShellStitching_BoxMinusCylinder_ChecksOrientationCompatibility()
     {
-        var result = ShellStitchingDryRunPlanner.Generate(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8)));
+        var result = ShellStitchingDryRunPlanner.Generate(new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(2, 8)));
 
         Assert.NotEmpty(result.OrientationEvidence);
         Assert.All(result.OrientationEvidence, e => Assert.True(
@@ -30,7 +30,7 @@ public sealed class ShellStitchingDryRunTests
     [Fact]
     public void ShellStitching_BoxMinusCylinder_ReclassifiesExpectedSeamBoundaries()
     {
-        var result = ShellStitchingDryRunPlanner.Generate(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8)));
+        var result = ShellStitchingDryRunPlanner.Generate(new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(2, 8)));
 
         if (result.SeamClosureEvidence.Any(e => e.SeamKind == SeamKind.CylindricalSelfSeam))
         {
@@ -41,7 +41,7 @@ public sealed class ShellStitchingDryRunTests
     [Fact]
     public void ShellStitching_BoxMinusCylinder_ReadinessPromotionIsConservative()
     {
-        var result = ShellStitchingDryRunPlanner.Generate(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8)));
+        var result = ShellStitchingDryRunPlanner.Generate(new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(2, 8)));
 
         if (result.UnpairedBoundaries.Count == 0
             && result.SeamClosureEvidence.All(e => e.Readiness != ShellClosureReadiness.Deferred)
@@ -60,7 +60,7 @@ public sealed class ShellStitchingDryRunTests
     [Fact]
     public void ShellStitching_DeterministicEvidenceOrdering()
     {
-        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8));
+        var root = new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(2, 8));
         var first = ShellStitchingDryRunPlanner.Generate(root);
         var second = ShellStitchingDryRunPlanner.Generate(root);
 

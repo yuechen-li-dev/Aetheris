@@ -1,8 +1,8 @@
-# CIR-RECOVERY-V11: CountersinkVariant via CirConeNode + executor + STEP smoke
+# CIR-RECOVERY-V11: CountersinkVariant via SdfConeNode + executor + STEP smoke
 
 Bounded supported shape: `Subtract(Subtract(Box,Cylinder),Cone)` with translation-only wrappers.
 
-- `CountersinkVariant` now detects canonical countersink with `CirConeNode`.
+- `CountersinkVariant` now detects canonical countersink with `SdfConeNode`.
 - Coaxial XY, entry-face touch, cone ordering, transition radius compatibility, strict clearance, and non-through cone depth are enforced.
 - Produces `HoleRecoveryPlan` with conical + cylindrical profile stack and `HoleKind.Countersink`.
 - `HoleRecoveryExecutor` now executes countersink by subtracting through cylinder then cone.

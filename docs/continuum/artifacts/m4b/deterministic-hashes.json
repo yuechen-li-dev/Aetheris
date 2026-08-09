@@ -1,0 +1,7 @@
+{
+  "algorithm": "SHA-256",
+  "hash": "7e621e552448529d2e4862610b2dee93ac634c5c6d9ef3e5aa44433dc9633f33",
+  "repeatedIdentity": true,
+  "repeatedMetrics": true,
+  "excludesPerformanceTimings": true
+}

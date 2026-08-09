@@ -36,7 +36,7 @@ Prismatic mirrors are deliberately excluded from X1.
 
 ### 4.1 Backend choice: tape first, node as lowering source
 
-The lab evaluator accepts a `CirNode` by lowering it through `CirTapeLowerer.Lower(...)`, and also accepts an already-lowered `CirTape` with explicit bounds. X1 therefore exercises the tape runtime for map sampling while preserving `CirNode` as the semantic builder/oracle surface.
+The lab evaluator accepts a `SdfNode` by lowering it through `SdfTapeLowerer.Lower(...)`, and also accepts an already-lowered `SdfTape` with explicit bounds. X1 therefore exercises the tape runtime for map sampling while preserving `SdfNode` as the semantic builder/oracle surface.
 
 Diagnostic emitted by the test prototype:
 

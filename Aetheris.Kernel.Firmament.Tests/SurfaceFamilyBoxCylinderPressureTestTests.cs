@@ -71,11 +71,11 @@ public sealed class SurfaceFamilyBoxCylinderPressureTestTests
     [Fact]
     public void PressureTest_RejectsNonCanonicalInput()
     {
-        var r = SurfaceFamilyBoxCylinderPressureTest.Run(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirBoxNode(2, 2, 2)));
+        var r = SurfaceFamilyBoxCylinderPressureTest.Run(new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfBoxNode(2, 2, 2)));
         Assert.False(r.Success);
         Assert.Contains(r.Blockers, b => b.Code == "unsupported-input-noncanonical");
     }
 
     private static SurfaceFamilyBoxCylinderPressureTestResult RunCanonical()
-        => SurfaceFamilyBoxCylinderPressureTest.Run(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 8)));
+        => SurfaceFamilyBoxCylinderPressureTest.Run(new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(2, 8)));
 }

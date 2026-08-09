@@ -123,7 +123,7 @@ internal static class SurfaceFamilyStitchCandidatePlanner
             StitchExecutionImplemented: false);
     }
 
-    internal static SurfaceFamilyStitchPlanResult PlanBoxCylinder(CirNode root)
+    internal static SurfaceFamilyStitchPlanResult PlanBoxCylinder(SdfNode root)
     {
         var planar = new PlanarSurfaceMaterializer().EmitSupportedPlanarPatches(root);
         var gen = FacePatchCandidateGenerator.Generate(root);

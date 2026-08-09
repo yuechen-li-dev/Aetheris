@@ -8,8 +8,8 @@ Scope: design/audit only; no production behavior changes.
 
 ### Current authored families in Aetheris
 
-- **Volumetric primitives**: `box`, `cylinder`, `sphere`, `torus` in Firmament lowering map directly to CIR primitive nodes (`CirBoxNode`, `CirCylinderNode`, `CirSphereNode`, `CirTorusNode`).
-- **Boolean volume operations**: `add`, `subtract`, `intersect` lower to `CirUnionNode`, `CirSubtractNode`, `CirIntersectNode`.
+- **Volumetric primitives**: `box`, `cylinder`, `sphere`, `torus` in Firmament lowering map directly to CIR primitive nodes (`SdfBoxNode`, `SdfCylinderNode`, `SdfSphereNode`, `SdfTorusNode`).
+- **Boolean volume operations**: `add`, `subtract`, `intersect` lower to `SdfUnionNode`, `SdfSubtractNode`, `SdfIntersectNode`.
 - **Library/Forge-backed primitives**: `rounded_corner_box` and `slot_cut` are produced by `ForgeAtomics.RoundedRectangle(...)` + `ForgeAtomics.ExtrudeCentered(...)` in `StandardLibraryPrimitives`.
 - **Reusable library part**: `cube_with_cylindrical_hole` in `StandardLibraryReusableParts` is implemented as `BrepBoolean.Subtract(cube, cylinder)`.
 - **Edge features (bounded manufacturing style)**: chamfer/fillet are validated and preflighted as explicit bounded edge-finishing families (not generic freeform edge modification).

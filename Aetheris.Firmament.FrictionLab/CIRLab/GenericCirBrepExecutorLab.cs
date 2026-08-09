@@ -18,15 +18,15 @@ public static class GenericCirBrepExecutorLab
             Execute("C-Counterbore", BuildCounterbore()),
             Execute("D-Countersink", BuildCountersink()),
             Execute("E-SteppedHole", BuildStepped()),
-            Execute("F-BoxMinusSphere", new CirSubtractNode(new CirBoxNode(20,20,20), new CirSphereNode(4))),
-            Execute("F-BoxMinusTorus", new CirSubtractNode(new CirBoxNode(20,20,20), new CirTorusNode(5,2))),
-            Execute("F-UnsupportedTransform", new CirTransformNode(new CirBoxNode(10,10,10), Transform3D.CreateRotationZ(double.Pi/4d))),
+            Execute("F-BoxMinusSphere", new SdfSubtractNode(new SdfBoxNode(20,20,20), new SdfSphereNode(4))),
+            Execute("F-BoxMinusTorus", new SdfSubtractNode(new SdfBoxNode(20,20,20), new SdfTorusNode(5,2))),
+            Execute("F-UnsupportedTransform", new SdfTransformNode(new SdfBoxNode(10,10,10), Transform3D.CreateRotationZ(double.Pi/4d))),
         };
 
         return new GenericCirBrepScenarioReport(scenarios, ["CIR-BREP-X8 matrix executed."]);
     }
 
-    public static GenericCirBrepExecutorLabResult Execute(string scenario, CirNode node)
+    public static GenericCirBrepExecutorLabResult Execute(string scenario, SdfNode node)
     {
         var diagnostics = new List<string>();
         var bools = new List<string>();
@@ -50,42 +50,42 @@ public static class GenericCirBrepExecutorLab
         return new(scenario, GenericCirBrepLabStatus.Succeeded, result.Body, "none", diagnostics, bools, true, step.IsSuccess, markers, result.Body.SafeBooleanComposition is not null, stepText.Contains("MANIFOLD_SOLID_BREP", StringComparison.Ordinal) ? "MANIFOLD_SOLID_BREP" : "BREP_WITH_VOIDS", result.Body.Topology.Faces.Count());
     }
 
-    private static (bool IsSuccess, bool IsUnsupported, BrepBody? Body, string FailureCode) TryExecuteNode(CirNode node, List<string> diagnostics, List<string> bools)
+    private static (bool IsSuccess, bool IsUnsupported, BrepBody? Body, string FailureCode) TryExecuteNode(SdfNode node, List<string> diagnostics, List<string> bools)
     {
         switch (node)
         {
-            case CirBoxNode box:
+            case SdfBoxNode box:
                 var b = BrepPrimitives.CreateBox(box.Width, box.Height, box.Depth);
                 return b.IsSuccess ? (true, false, b.Value, "none") : (false, false, null, "primitive-box-failed");
-            case CirCylinderNode cyl:
+            case SdfCylinderNode cyl:
                 var c = BrepPrimitives.CreateCylinder(cyl.Radius, cyl.Height);
                 return c.IsSuccess ? (true, false, c.Value, "none") : (false, false, null, "primitive-cylinder-failed");
-            case CirConeNode cone:
+            case SdfConeNode cone:
                 diagnostics.Add("Cone primitive mapping unavailable via public BrepPrimitives API in lab scope.");
                 return (false, true, null, "primitive-cone-unsupported");
-            case CirSphereNode sph:
+            case SdfSphereNode sph:
                 var sp = BrepPrimitives.CreateSphere(sph.Radius);
                 return sp.IsSuccess ? (true, false, sp.Value, "none") : (false, true, null, "primitive-sphere-unsupported");
-            case CirTorusNode tor:
+            case SdfTorusNode tor:
                 var tr = BrepPrimitives.CreateTorus(tor.MajorRadius, tor.MinorRadius);
                 return tr.IsSuccess ? (true, false, tr.Value, "none") : (false, true, null, "primitive-torus-unsupported");
-            case CirTransformNode tx:
+            case SdfTransformNode tx:
                 if (!TryExtractTranslation(tx.Transform, out var t)) return (false, true, null, "transform-non-translation-unsupported");
                 var child = TryExecuteNode(tx.Child, diagnostics, bools);
                 if (!child.IsSuccess || child.Body is null) return child;
                 return (true, false, t == Vector3D.Zero ? child.Body : Translate(child.Body, t), "none");
-            case CirSubtractNode sub:
+            case SdfSubtractNode sub:
                 return ExecBool(sub.Left, sub.Right, BrepBoolean.Subtract, "Subtract", diagnostics, bools);
-            case CirUnionNode un:
+            case SdfUnionNode un:
                 return ExecBool(un.Left, un.Right, BrepBoolean.Union, "Union", diagnostics, bools);
-            case CirIntersectNode it:
+            case SdfIntersectNode it:
                 return ExecBool(it.Left, it.Right, BrepBoolean.Intersect, "Intersect", diagnostics, bools);
             default:
                 return (false, true, null, "node-kind-unsupported");
         }
     }
 
-    private static (bool IsSuccess, bool IsUnsupported, BrepBody? Body, string FailureCode) ExecBool(CirNode left, CirNode right, Func<BrepBody, BrepBody, Aetheris.Kernel.Core.Results.KernelResult<BrepBody>> op, string label, List<string> diagnostics, List<string> bools)
+    private static (bool IsSuccess, bool IsUnsupported, BrepBody? Body, string FailureCode) ExecBool(SdfNode left, SdfNode right, Func<BrepBody, BrepBody, Aetheris.Kernel.Core.Results.KernelResult<BrepBody>> op, string label, List<string> diagnostics, List<string> bools)
     {
         var l = TryExecuteNode(left, diagnostics, bools);
         if (!l.IsSuccess || l.Body is null) return l;
@@ -147,11 +147,11 @@ public static class GenericCirBrepExecutorLab
         return true;
     }
 
-    private static CirNode BuildThroughHole() => new CirSubtractNode(new CirBoxNode(30, 30, 20), new CirCylinderNode(4, 30));
-    private static CirNode BuildBlindHole() => new CirSubtractNode(new CirBoxNode(30, 30, 20), new CirTransformNode(new CirCylinderNode(4, 8), Transform3D.CreateTranslation(new Vector3D(0,0,6))));
-    private static CirNode BuildCounterbore() => new CirSubtractNode(new CirSubtractNode(new CirBoxNode(30,30,20), new CirCylinderNode(3,30)), new CirTransformNode(new CirCylinderNode(5,4), Transform3D.CreateTranslation(new Vector3D(0,0,8))));
-    private static CirNode BuildCountersink() => new CirSubtractNode(new CirSubtractNode(new CirBoxNode(30,30,20), new CirCylinderNode(3,30)), new CirTransformNode(new CirConeNode(5,3,4), Transform3D.CreateTranslation(new Vector3D(0,0,8))));
-    private static CirNode BuildStepped() => new CirSubtractNode(new CirSubtractNode(new CirSubtractNode(new CirBoxNode(30,30,20), new CirCylinderNode(2,30)), new CirTransformNode(new CirCylinderNode(3,8), Transform3D.CreateTranslation(new Vector3D(0,0,6)))), new CirTransformNode(new CirCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,8))));
+    private static SdfNode BuildThroughHole() => new SdfSubtractNode(new SdfBoxNode(30, 30, 20), new SdfCylinderNode(4, 30));
+    private static SdfNode BuildBlindHole() => new SdfSubtractNode(new SdfBoxNode(30, 30, 20), new SdfTransformNode(new SdfCylinderNode(4, 8), Transform3D.CreateTranslation(new Vector3D(0,0,6))));
+    private static SdfNode BuildCounterbore() => new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(30,30,20), new SdfCylinderNode(3,30)), new SdfTransformNode(new SdfCylinderNode(5,4), Transform3D.CreateTranslation(new Vector3D(0,0,8))));
+    private static SdfNode BuildCountersink() => new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(30,30,20), new SdfCylinderNode(3,30)), new SdfTransformNode(new SdfConeNode(5,3,4), Transform3D.CreateTranslation(new Vector3D(0,0,8))));
+    private static SdfNode BuildStepped() => new SdfSubtractNode(new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(30,30,20), new SdfCylinderNode(2,30)), new SdfTransformNode(new SdfCylinderNode(3,8), Transform3D.CreateTranslation(new Vector3D(0,0,6)))), new SdfTransformNode(new SdfCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,8))));
 
     public static HoleRecoveryExecutionResult RunSemantic(HoleRecoveryPlan plan) => HoleRecoveryExecutor.Execute(plan);
 }

@@ -2,11 +2,11 @@
 
 ## Scope outcome
 
-This milestone adds a bounded `CirConeNode` primitive to CIR semantic and tape evaluation paths, plus Firmament→CIR lowering for cone primitives/tools.
+This milestone adds a bounded `SdfConeNode` primitive to CIR semantic and tape evaluation paths, plus Firmament→CIR lowering for cone primitives/tools.
 
 ## Parameter convention
 
-`CirConeNode(bottomRadius, topRadius, height)`.
+`SdfConeNode(bottomRadius, topRadius, height)`.
 
 - Native frame is origin-centered on Z.
 - Bottom cap plane: `z = -height/2` with radius `bottomRadius`.
@@ -28,23 +28,23 @@ Validation:
 
 ## Transform policy
 
-- No axis/orientation fields in `CirConeNode`.
-- Arbitrary placement/orientation stays in `CirTransformNode` and tape inverse payload transforms, matching existing primitive conventions.
+- No axis/orientation fields in `SdfConeNode`.
+- Arbitrary placement/orientation stays in `SdfTransformNode` and tape inverse payload transforms, matching existing primitive conventions.
 
 ## Tape/lowering status
 
 Added:
-- `CirTapeOpCode.EvalCone`,
-- `CirTapeConePayload`,
+- `SdfTapeOpCode.EvalCone`,
+- `SdfTapeConePayload`,
 - point evaluation path,
 - conservative interval path (corner-sampled bound in local transformed AABB),
-- `CirTapeLowerer` support.
+- `SdfTapeLowerer` support.
 
 ## Firmament lowering status
 
 Firmament already has cone primitive syntax and lowered cone parameters. CIR lowering now maps:
-- primitive `cone` -> `CirConeNode`,
-- boolean tool `cone` -> `CirConeNode`.
+- primitive `cone` -> `SdfConeNode`,
+- boolean tool `cone` -> `SdfConeNode`.
 
 ## Source-surface extraction status
 
@@ -59,6 +59,6 @@ Inspected existing BRep cone/frustum path; no low-risk apex-topology cleanup was
 ## Next milestone suggestion
 
 CIR-RECOVERY-V11:
-1. update `CountersinkVariant` recognition to admit bounded cone tool patterns using `CirConeNode`,
+1. update `CountersinkVariant` recognition to admit bounded cone tool patterns using `SdfConeNode`,
 2. add strict coaxial/entry/depth/radius checks,
 3. wire executor cone subtract path and countersink STEP smoke in that milestone (not in V1).

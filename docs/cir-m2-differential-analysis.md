@@ -25,13 +25,13 @@ Unsupported forms fail with explicit lowering diagnostics.
 For shared Firmament fixtures, tests compare:
 
 1. Approximate volume
-   - CIR: `CirAnalyzer.EstimateVolume`.
+   - CIR: `SdfAnalyzer.EstimateVolume`.
    - BRep: voxelized `BrepSpatialQueries.ClassifyPoint` over body vertex bounds.
 2. Point classification
-   - CIR: `CirAnalyzer.ClassifyPoint`.
+   - CIR: `SdfAnalyzer.ClassifyPoint`.
    - BRep: `BrepSpatialQueries.ClassifyPoint` for selected probe points.
 3. Bounds
-   - CIR: `CirNode.Bounds`.
+   - CIR: `SdfNode.Bounds`.
    - BRep: bounds reconstructed from body vertices.
 
 ## What mismatches mean

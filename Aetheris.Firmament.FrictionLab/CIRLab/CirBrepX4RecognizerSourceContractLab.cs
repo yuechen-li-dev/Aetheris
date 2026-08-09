@@ -10,22 +10,22 @@ using Aetheris.Kernel.Firmament.Lowering;
 namespace Aetheris.FrictionLab;
 
 public sealed record CirBoxCylinderRecognizerInput(
-    CirNode Root,
+    SdfNode Root,
     NativeGeometryReplayLog? ReplayLog = null,
     NativeGeometryState? NativeState = null,
     FirmamentPrimitiveLoweringPlan? LoweringPlan = null,
     FirmamentPrimitiveExecutionResult? ExecutionResult = null,
     string? SourceLabel = null)
 {
-    public static CirBoxCylinderRecognizerInput FromNode(CirNode root, NativeGeometryReplayLog? replayLog = null, string? sourceLabel = null)
+    public static CirBoxCylinderRecognizerInput FromNode(SdfNode root, NativeGeometryReplayLog? replayLog = null, string? sourceLabel = null)
         => new(root, replayLog, null, null, null, sourceLabel);
 
-    public static CirBoxCylinderRecognizerInput FromNativeState(NativeGeometryState nativeState, CirNode? root = null, string? sourceLabel = null)
+    public static CirBoxCylinderRecognizerInput FromNativeState(NativeGeometryState nativeState, SdfNode? root = null, string? sourceLabel = null)
     {
         ArgumentNullException.ThrowIfNull(nativeState);
         if (root is null)
         {
-            throw new InvalidOperationException("NativeGeometryState does not contain a traversable CIR root; explicit CirNode root is required for geometric recognition.");
+            throw new InvalidOperationException("NativeGeometryState does not contain a traversable CIR root; explicit SdfNode root is required for geometric recognition.");
         }
 
         return new(root, nativeState.ReplayLog, nativeState, null, null, sourceLabel);
@@ -49,7 +49,7 @@ public sealed record CirBoxCylinderRecognitionWithDiagnostics(
 
 public static class CirBrepX4RecognizerSourceContractLab
 {
-    public static CirRecognizerSourceInventory BuildInventory(FirmamentCompilationArtifact compile, CirNode loweredRoot)
+    public static CirRecognizerSourceInventory BuildInventory(FirmamentCompilationArtifact compile, SdfNode loweredRoot)
     {
         var execution = compile.PrimitiveExecutionResult;
         var state = execution?.NativeGeometryState;
@@ -95,7 +95,7 @@ public static class CirBrepX4RecognizerSourceContractLab
 
             if (!recognition.Success && boxCylinderSubtract is not null)
             {
-                diagnostics.Add("Replay suggests subtract+cylinder provenance, but geometry was not recognized from CirNode.");
+                diagnostics.Add("Replay suggests subtract+cylinder provenance, but geometry was not recognized from SdfNode.");
                 mismatch = true;
             }
         }

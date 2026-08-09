@@ -74,12 +74,12 @@ public sealed class SteppedHolePlacementSemanticsTests
     private static HoleRecoveryPlan BuildPlan()
         => (HoleRecoveryPlan)new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(BuildStepped())).Plan!;
 
-    private static CirNode BuildStepped()
+    private static SdfNode BuildStepped()
     {
-        var host = new CirBoxNode(20, 20, 10);
-        var small = new CirCylinderNode(2, 20);
-        var medium = new CirTransformNode(new CirCylinderNode(3, 6), Transform3D.CreateTranslation(new Vector3D(0, 0, 2)));
-        var large = new CirTransformNode(new CirCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, 3)));
-        return new CirSubtractNode(new CirSubtractNode(new CirSubtractNode(host, small), medium), large);
+        var host = new SdfBoxNode(20, 20, 10);
+        var small = new SdfCylinderNode(2, 20);
+        var medium = new SdfTransformNode(new SdfCylinderNode(3, 6), Transform3D.CreateTranslation(new Vector3D(0, 0, 2)));
+        var large = new SdfTransformNode(new SdfCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, 3)));
+        return new SdfSubtractNode(new SdfSubtractNode(new SdfSubtractNode(host, small), medium), large);
     }
 }

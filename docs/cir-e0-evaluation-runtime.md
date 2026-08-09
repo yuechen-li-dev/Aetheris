@@ -3,19 +3,19 @@
 Status: **Design milestone only** (no production code changes).
 
 
-> CIR-MAP-X1 note (May 29, 2026): a lab/test-only primitive map prototype now lowers admitted box/cylinder/sphere `CirNode` mirrors to `CirTape` and samples deterministic orthographic rays for occupancy/thickness parity against the BRep raycast primitive baseline. This is evidence for tape-backed dense map evaluation, not a production analyzer dispatch change.
+> CIR-MAP-X1 note (May 29, 2026): a lab/test-only primitive map prototype now lowers admitted box/cylinder/sphere `SdfNode` mirrors to `SdfTape` and samples deterministic orthographic rays for occupancy/thickness parity against the BRep raycast primitive baseline. This is evidence for tape-backed dense map evaluation, not a production analyzer dispatch change.
 
-> CIR-E1.1 framing note (May 5, 2026): the linear `CirTape` introduced in E1 is now the intended runtime/MIR direction for serious CIR evaluation paths. `CirNode` remains intentionally in place as a semantic prototype/builder surface, a compatibility lowering source, and an oracle for parity tests while lowering/execution paths are still converging.
+> CIR-E1.1 framing note (May 5, 2026): the linear `SdfTape` introduced in E1 is now the intended runtime/MIR direction for serious CIR evaluation paths. `SdfNode` remains intentionally in place as a semantic prototype/builder surface, a compatibility lowering source, and an oracle for parity tests while lowering/execution paths are still converging.
 
 ## 1) Current CIR evaluation limitations
 
-Current CIR is intentionally a semantic tree with `CirNode.Evaluate(point)` dispatch per node kind and recursive composition (`min/max` for boolean ops). This is correct for representation but has runtime limits for dense sampling workloads. Specifically:
+Current CIR is intentionally a semantic tree with `SdfNode.Evaluate(point)` dispatch per node kind and recursive composition (`min/max` for boolean ops). This is correct for representation but has runtime limits for dense sampling workloads. Specifically:
 
 - Point evaluation is recursive and recomputes shared work for every sample; no linearized execution form exists today.
-- `CirVolumeEstimator.EstimateVolume` currently performs a dense triple loop and calls `node.Evaluate(p)` per cell center, so all tree recursion overhead appears in hot loops.
-- `CirAnalyzer` only provides point classification plus passthrough volume estimate; there is no region-level classification/early-out.
+- `SdfVolumeEstimator.EstimateVolume` currently performs a dense triple loop and calls `node.Evaluate(p)` per cell center, so all tree recursion overhead appears in hot loops.
+- `SdfAnalyzer` only provides point classification plus passthrough volume estimate; there is no region-level classification/early-out.
 - Current boolean composition follows implicit field algebra (`Union=min`, `Subtract=max(left,-right)`, `Intersect=max`), which is semantically useful but not guaranteed to preserve exact signed-distance behavior after composition.
-- Transform evaluation currently inverts transform per call path (`CirTransformNode.Evaluate`), so repeated region queries have no transform cache plan.
+- Transform evaluation currently inverts transform per call path (`SdfTransformNode.Evaluate`), so repeated region queries have no transform cache plan.
 
 Implication: CIR has a semantic kernel, but no dedicated evaluation runtime yet for map/section/volume-heavy analysis paths.
 
@@ -69,7 +69,7 @@ E0 recommendation: prefer explicit transform instructions for inspectability.
 ### 2.5 Output and provenance
 
 - Tape has one designated `OutputSlot`.
-- Every instruction should optionally retain source-node provenance (`CirNodeKind`, stable lowering index, and optional user-facing trace label) to support diagnostics.
+- Every instruction should optionally retain source-node provenance (`SdfNodeKind`, stable lowering index, and optional user-facing trace label) to support diagnostics.
 
 ## 3) Interval / region evaluation model
 
@@ -169,7 +169,7 @@ So analogy is useful at planner/orchestration level (deterministic inspectable p
 
 A staged model:
 
-1. **Tier A**: current recursive interpreter (`CirNode.Evaluate`) remains baseline oracle.
+1. **Tier A**: current recursive interpreter (`SdfNode.Evaluate`) remains baseline oracle.
 2. **Tier B**: tape interpreter (flat arrays/spans, no recursion for core primitives/booleans) for hot point loops and better tracing.
 3. **Tier C**: compiled delegate (`Func<Point3D,double>` or struct evaluator) emitted from tape via expression trees or generated methods; rely on .NET JIT.
 4. **Tier D**: region-specialized reduced tape (after interval pruning), interpreted first, optionally compiled if repeatedly reused.
@@ -250,7 +250,7 @@ Immediate next step: **CIR-E1 (tape lowering + tape point interpreter)**.
 
 Definition of done for CIR-E1:
 
-- deterministic lowering from existing `CirNode` tree to linear tape with provenance,
+- deterministic lowering from existing `SdfNode` tree to linear tape with provenance,
 - tape point evaluation parity checked against recursive evaluator on existing CIR fixtures,
 - no behavioral change required yet in external CLI paths,
 - first-pass trace output showing instruction execution and selected evaluation tier.
@@ -259,19 +259,19 @@ Definition of done for CIR-E1:
 
 ### 13.1 What changed in framing
 
-- M0/M1 used tree-first framing to prove semantics quickly (`CirNode` primitives/booleans/transforms).
-- After E1, runtime framing is tape-first: `CirTape` is the intended MIR/runtime substrate for evaluation-centric workloads.
+- M0/M1 used tree-first framing to prove semantics quickly (`SdfNode` primitives/booleans/transforms).
+- After E1, runtime framing is tape-first: `SdfTape` is the intended MIR/runtime substrate for evaluation-centric workloads.
 - Tree-to-tape lowering remains a first-class adapter during transition and for backward compatibility.
 
-### 13.2 `CirNode` role during transition
+### 13.2 `SdfNode` role during transition
 
-`CirNode` is retained deliberately for three roles:
+`SdfNode` is retained deliberately for three roles:
 
 1. convenience semantic builder/prototype surface,
 2. compatibility source for deterministic lowering to tape,
 3. recursive oracle used by parity/differential tests.
 
-This is not a deprecation notice for `CirNode`; it is an execution-path reframing.
+This is not a deprecation notice for `SdfNode`; it is an execution-path reframing.
 
 ### 13.3 Transform handling after CIR-E2
 
@@ -280,7 +280,7 @@ CIR-E2 removes the transitional recursive transform escape hatch from tape evalu
 Chosen strategy: **Option B (baked local inverse transform per primitive payload)**.
 
 - lowering carries an accumulated inverse transform while traversing the tree,
-- `CirTransformNode` composes that accumulator and lowers only its child (no emitted transform opcode),
+- `SdfTransformNode` composes that accumulator and lowers only its child (no emitted transform opcode),
 - primitive tape payloads (`EvalBox`/`EvalCylinder`/`EvalSphere`) now store the accumulated inverse transform,
 - tape execution applies that payload transform before primitive SDF evaluation.
 
@@ -288,7 +288,7 @@ Resulting runtime shape:
 
 - tape remains straight-line SSA for current node kinds,
 - transform evaluation is fully self-contained in tape data/instructions,
-- tape point evaluation no longer calls `CirNode.Evaluate` for supported nodes.
+- tape point evaluation no longer calls `SdfNode.Evaluate` for supported nodes.
 
 This preserves deterministic lowering and prepares interval evaluation and later bytecode/register compaction work by keeping execution ownership inside tape runtime data.
 

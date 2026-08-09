@@ -22,9 +22,9 @@ public sealed record CirRegionPlannerOptions(
 }
 
 public readonly record struct CirRegionPlanContext(
-    CirBounds Region,
+    SdfBounds Region,
     FieldInterval Interval,
-    CirRegionClassification Classification,
+    SdfRegionClassification Classification,
     int Depth,
     int MaxDepth,
     int EstimatedSampleCount,
@@ -38,8 +38,8 @@ public sealed record CirRegionPlanResult(
     CirRegionPlanAction Action,
     string SelectedCandidate,
     FieldInterval Interval,
-    CirRegionClassification Classification,
-    CirBounds Region,
+    SdfRegionClassification Classification,
+    SdfBounds Region,
     double? Score,
     IReadOnlyList<CirRegionPlanRejection> RejectedCandidates,
     int Depth,
@@ -88,7 +88,7 @@ public sealed class CirRegionPlanner
             note);
     }
 
-    public CirRegionPlanResult Plan(CirTape tape, CirBounds region, int depth, CirRegionPlannerOptions? options = null, ToleranceContext? tolerance = null)
+    public CirRegionPlanResult Plan(SdfTape tape, SdfBounds region, int depth, CirRegionPlannerOptions? options = null, ToleranceContext? tolerance = null)
     {
         ArgumentNullException.ThrowIfNull(tape);
 
@@ -101,9 +101,9 @@ public sealed class CirRegionPlanner
     }
 
     public static CirRegionPlanContext BuildContext(
-        CirBounds region,
+        SdfBounds region,
         FieldInterval interval,
-        CirRegionClassification classification,
+        SdfRegionClassification classification,
         int depth,
         CirRegionPlannerOptions options,
         ToleranceContext tolerance)
@@ -133,7 +133,7 @@ public sealed class CirRegionPlanner
             TieBreakerPriority: 1),
         new JudgmentCandidate<CirRegionPlanContext>(
             "subdivide_mixed",
-            IsAdmissible: context => context.Classification == CirRegionClassification.Mixed
+            IsAdmissible: context => context.Classification == SdfRegionClassification.Mixed
                                      && context.Depth < context.MaxDepth
                                      && MinExtent(context.Region) > 0d
                                      && MinExtent(context.Region) >= context.Tolerance.Linear,
@@ -142,7 +142,7 @@ public sealed class CirRegionPlanner
             TieBreakerPriority: 2),
         new JudgmentCandidate<CirRegionPlanContext>(
             "sample_directly",
-            IsAdmissible: context => context.Classification == CirRegionClassification.Mixed
+            IsAdmissible: context => context.Classification == SdfRegionClassification.Mixed
                                      && (context.Depth >= context.MaxDepth
                                          || MinExtent(context.Region) <= context.Tolerance.Linear
                                          || context.EstimatedSampleCount <= context.DirectSampleThreshold),
@@ -151,7 +151,7 @@ public sealed class CirRegionPlanner
             TieBreakerPriority: 3),
     ];
 
-    private static int EstimateSampleCount(CirBounds region, double minimumRegionExtent)
+    private static int EstimateSampleCount(SdfBounds region, double minimumRegionExtent)
     {
         var cell = double.Max(minimumRegionExtent, 1e-9d);
         var x = System.Math.Max(1, (int)double.Ceiling(region.SizeX / cell));
@@ -160,11 +160,11 @@ public sealed class CirRegionPlanner
         return x * y * z;
     }
 
-    private static double MinExtent(CirBounds bounds) => double.Min(bounds.SizeX, double.Min(bounds.SizeY, bounds.SizeZ));
+    private static double MinExtent(SdfBounds bounds) => double.Min(bounds.SizeX, double.Min(bounds.SizeY, bounds.SizeZ));
 
     private static string BuildSubdivideRejection(CirRegionPlanContext context)
     {
-        if (context.Classification != CirRegionClassification.Mixed)
+        if (context.Classification != SdfRegionClassification.Mixed)
         {
             return $"Classification is {context.Classification}, subdivision reserved for mixed regions.";
         }
@@ -184,7 +184,7 @@ public sealed class CirRegionPlanner
 
     private static string BuildSampleRejection(CirRegionPlanContext context)
     {
-        if (context.Classification != CirRegionClassification.Mixed)
+        if (context.Classification != SdfRegionClassification.Mixed)
         {
             return $"Classification is {context.Classification}, direct sampling reserved for mixed regions.";
         }

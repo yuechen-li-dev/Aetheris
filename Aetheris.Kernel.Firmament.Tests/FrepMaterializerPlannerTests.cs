@@ -58,7 +58,7 @@ public sealed class FrepMaterializerPlannerTests
     [Fact]
     public void Context_IsNodeFirstAndReplayOptional()
     {
-        var root = new CirBoxNode(1, 2, 3);
+        var root = new SdfBoxNode(1, 2, 3);
         var rootOnly = new FrepMaterializerContext(root);
         var replay = new NativeGeometryReplayLog([]);
         var withReplay = new FrepMaterializerContext(root, replay, "fixture");
@@ -84,7 +84,7 @@ public sealed class FrepMaterializerPlannerTests
         Assert.Contains("Selected policy: w.", decision.Diagnostics);
     }
 
-    private static FrepMaterializerContext BuildContext() => new(new CirBoxNode(2, 2, 2));
+    private static FrepMaterializerContext BuildContext() => new(new SdfBoxNode(2, 2, 2));
 
     private sealed class FakePolicy(string name, FrepMaterializerPolicyEvaluation evaluation) : IFrepMaterializerPolicy
     {

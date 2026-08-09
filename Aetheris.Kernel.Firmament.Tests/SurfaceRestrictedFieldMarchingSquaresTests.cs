@@ -10,7 +10,7 @@ public sealed class SurfaceRestrictedFieldMarchingSquaresTests
     [Fact]
     public void MarchingSquares_BoxFaceVsCylinder_ProducesSegments()
     {
-        var (field, grid) = CreateGrid(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirCylinderNode(2, 20)));
+        var (field, grid) = CreateGrid(new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfCylinderNode(2, 20)));
         var result = RestrictedFieldMarchingSquaresExtractor.Extract(grid, field.Parameterization);
 
         Assert.True(result.Success);
@@ -30,7 +30,7 @@ public sealed class SurfaceRestrictedFieldMarchingSquaresTests
     [Fact]
     public void MarchingSquares_BoxFaceVsSphere_ProducesSegments()
     {
-        var (field, grid) = CreateGrid(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirSphereNode(6)));
+        var (field, grid) = CreateGrid(new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfSphereNode(6)));
         var result = RestrictedFieldMarchingSquaresExtractor.Extract(grid, field.Parameterization);
 
         Assert.True(result.Success);
@@ -40,7 +40,7 @@ public sealed class SurfaceRestrictedFieldMarchingSquaresTests
     [Fact]
     public void MarchingSquares_BoxFaceVsTorus_ProducesSegmentsOrPreciseNoContour()
     {
-        var (field, grid) = CreateGrid(new CirSubtractNode(new CirBoxNode(12, 12, 12), new CirTorusNode(4, 1)));
+        var (field, grid) = CreateGrid(new SdfSubtractNode(new SdfBoxNode(12, 12, 12), new SdfTorusNode(4, 1)));
         var result = RestrictedFieldMarchingSquaresExtractor.Extract(grid, field.Parameterization);
 
         if (result.SegmentCount > 0)
@@ -56,7 +56,7 @@ public sealed class SurfaceRestrictedFieldMarchingSquaresTests
     [Fact]
     public void MarchingSquares_DeterministicOrdering()
     {
-        var (field, grid) = CreateGrid(new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirSphereNode(6)));
+        var (field, grid) = CreateGrid(new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfSphereNode(6)));
         var a = RestrictedFieldMarchingSquaresExtractor.Extract(grid, field.Parameterization);
         var b = RestrictedFieldMarchingSquaresExtractor.Extract(grid, field.Parameterization);
 
@@ -69,7 +69,7 @@ public sealed class SurfaceRestrictedFieldMarchingSquaresTests
     [Fact]
     public void MarchingSquares_SkipsInsideOutsideOnlyCells()
     {
-        var root = new CirSubtractNode(new CirBoxNode(10, 10, 10), new CirSphereNode(1));
+        var root = new SdfSubtractNode(new SdfBoxNode(10, 10, 10), new SdfSphereNode(1));
         var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors, d => d.ParameterPayloadReference == "top");
         var field = SurfaceRestrictedFieldFactory.ForSubtractSource(root, source, SubtractOperandSide.Left);
         var grid = RestrictedFieldGridSampler.Sample(field, new RestrictedFieldGridOptions(17, 17));
@@ -107,7 +107,7 @@ public sealed class SurfaceRestrictedFieldMarchingSquaresTests
         Assert.Contains(result.Segments.SelectMany(s => s.Diagnostics), d => d.StartsWith("ambiguous-cell", StringComparison.Ordinal));
     }
 
-    private static (SurfaceRestrictedField field, RestrictedFieldSampleGrid grid) CreateGrid(CirSubtractNode root)
+    private static (SurfaceRestrictedField field, RestrictedFieldSampleGrid grid) CreateGrid(SdfSubtractNode root)
     {
         var source = Assert.Single(SourceSurfaceExtractor.Extract(root.Left).Descriptors, d => d.ParameterPayloadReference == "top");
         var field = SurfaceRestrictedFieldFactory.ForSubtractSource(root, source, SubtractOperandSide.Left);

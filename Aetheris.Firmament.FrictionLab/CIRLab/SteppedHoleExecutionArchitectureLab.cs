@@ -62,7 +62,7 @@ public static class SteppedHoleExecutionArchitectureLab
 
     private static SteppedArchitectureStrategyResult ExecuteCounterboreBaseline()
     {
-        var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(new CirSubtractNode(new CirSubtractNode(new CirBoxNode(30,30,20), new CirCylinderNode(2,30)), new CirTransformNode(new CirCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,-8))))));
+        var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(30,30,20), new SdfCylinderNode(2,30)), new SdfTransformNode(new SdfCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,-8))))));
         var exec = HoleRecoveryExecutor.Execute((HoleRecoveryPlan)eval.Plan!);
         return exec.Body is null ? Failed("counterbore-baseline", "counterbore-baseline-failed", "baseline", exec.Diagnostics.ToList()) : Success("counterbore-baseline", exec.Body);
     }
@@ -139,6 +139,6 @@ public static class SteppedHoleExecutionArchitectureLab
     private static SteppedArchitectureStrategyResult Failed(string name, string code, string stage, IReadOnlyList<string> diagnostics)
         => new(name, SteppedArchitectureStrategyStatus.Failed, null, code, stage, diagnostics, true, true, false, false, [], false, false, false, 0, 0, 0, 0, 0, "investigate blocker");
 
-    private static CirNode BuildCanonicalStepped() => new CirSubtractNode(new CirSubtractNode(new CirSubtractNode(new CirBoxNode(30,30,20), new CirCylinderNode(2,30)), new CirTransformNode(new CirCylinderNode(3,8), Transform3D.CreateTranslation(new Vector3D(0,0,-6)))), new CirTransformNode(new CirCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,-8))));
-    private static CirNode BuildNonCoaxialStepped() => new CirSubtractNode(new CirSubtractNode(new CirSubtractNode(new CirBoxNode(30,30,20), new CirCylinderNode(2,30)), new CirTransformNode(new CirCylinderNode(3,8), Transform3D.CreateTranslation(new Vector3D(1,0,-6)))), new CirTransformNode(new CirCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,-8))));
+    private static SdfNode BuildCanonicalStepped() => new SdfSubtractNode(new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(30,30,20), new SdfCylinderNode(2,30)), new SdfTransformNode(new SdfCylinderNode(3,8), Transform3D.CreateTranslation(new Vector3D(0,0,-6)))), new SdfTransformNode(new SdfCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,-8))));
+    private static SdfNode BuildNonCoaxialStepped() => new SdfSubtractNode(new SdfSubtractNode(new SdfSubtractNode(new SdfBoxNode(30,30,20), new SdfCylinderNode(2,30)), new SdfTransformNode(new SdfCylinderNode(3,8), Transform3D.CreateTranslation(new Vector3D(1,0,-6)))), new SdfTransformNode(new SdfCylinderNode(4,4), Transform3D.CreateTranslation(new Vector3D(0,0,-8))));
 }

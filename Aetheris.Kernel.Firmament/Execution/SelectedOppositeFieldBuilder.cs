@@ -12,7 +12,7 @@ internal enum SelectedOppositeFieldBuildStatus
 
 internal sealed record SelectedOppositeFieldBuildResult(
     SelectedOppositeFieldBuildStatus Status,
-    CirNode? Node,
+    SdfNode? Node,
     string Diagnostic);
 
 internal static class SelectedOppositeFieldBuilder
@@ -38,7 +38,7 @@ internal static class SelectedOppositeFieldBuilder
                 return new(SelectedOppositeFieldBuildStatus.Deferred, null, "selected-opposite-field: cylinder-orientation-unsupported");
             }
 
-            var node = new CirTransformNode(new CirCylinderNode(cylinder.Radius, cylinder.Height), transform);
+            var node = new SdfTransformNode(new SdfCylinderNode(cylinder.Radius, cylinder.Height), transform);
             return new(SelectedOppositeFieldBuildStatus.Success, node, "selected-opposite-field: cylinder");
         }
 

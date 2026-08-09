@@ -3,17 +3,17 @@ using Aetheris.Kernel.Core.Numerics;
 
 namespace Aetheris.Continuum.Backends.Sdf;
 
-public sealed record CirAdaptiveVolumeOptions(
+public sealed record SdfAdaptiveVolumeOptions(
     int MaxDepth = 6,
     int DirectSampleGrid = 2,
     int MaxTraceEvents = 64,
     double MinimumRegionExtent = 0.05d,
     bool TreatRejectUnknownAsSample = true)
 {
-    public static CirAdaptiveVolumeOptions Default { get; } = new();
+    public static SdfAdaptiveVolumeOptions Default { get; } = new();
 }
 
-public readonly record struct CirAdaptiveTraceEvent(
+public readonly record struct SdfAdaptiveTraceEvent(
     int RegionId,
     int? ParentRegionId,
     int Depth,
@@ -22,9 +22,9 @@ public readonly record struct CirAdaptiveTraceEvent(
     FieldInterval Interval,
     string? Note);
 
-public sealed record CirAdaptiveVolumeResult(
+public sealed record SdfAdaptiveVolumeResult(
     double EstimatedVolume,
-    CirAdaptiveVolumeOptions Options,
+    SdfAdaptiveVolumeOptions Options,
     int TotalRegionsVisited,
     int RegionsClassifiedInside,
     int RegionsClassifiedOutside,
@@ -32,21 +32,21 @@ public sealed record CirAdaptiveVolumeResult(
     int RegionsSampledDirectly,
     int UnknownOrRejectedRegions,
     int MaxDepthReached,
-    IReadOnlyList<CirAdaptiveTraceEvent> TraceEvents,
+    IReadOnlyList<SdfAdaptiveTraceEvent> TraceEvents,
     IReadOnlyList<string> Notes);
 
-public static class CirAdaptiveVolumeEstimator
+public static class SdfAdaptiveVolumeEstimator
 {
-    public static CirAdaptiveVolumeResult EstimateVolume(CirTape tape, CirBounds bounds, CirAdaptiveVolumeOptions? options = null, ToleranceContext? tolerance = null)
+    public static SdfAdaptiveVolumeResult EstimateVolume(SdfTape tape, SdfBounds bounds, SdfAdaptiveVolumeOptions? options = null, ToleranceContext? tolerance = null)
     {
         ArgumentNullException.ThrowIfNull(tape);
 
-        var effectiveOptions = options ?? CirAdaptiveVolumeOptions.Default;
+        var effectiveOptions = options ?? SdfAdaptiveVolumeOptions.Default;
         var effectiveTolerance = tolerance ?? ToleranceContext.Default;
         var planner = new CirRegionPlanner();
         var plannerOptions = new CirRegionPlannerOptions(effectiveOptions.MaxDepth, DirectSampleThreshold: effectiveOptions.DirectSampleGrid * effectiveOptions.DirectSampleGrid * effectiveOptions.DirectSampleGrid, effectiveOptions.MinimumRegionExtent);
         var queue = new Queue<RegionWorkItem>();
-        var trace = new List<CirAdaptiveTraceEvent>(capacity: effectiveOptions.MaxTraceEvents);
+        var trace = new List<SdfAdaptiveTraceEvent>(capacity: effectiveOptions.MaxTraceEvents);
         var notes = new List<string>();
 
         queue.Enqueue(new RegionWorkItem(0, null, bounds, 0));
@@ -105,20 +105,20 @@ public static class CirAdaptiveVolumeEstimator
             }
         }
 
-        return new CirAdaptiveVolumeResult(totalVolume, effectiveOptions, totalVisited, inside, outside, subdivided, sampled, unknown, maxDepthReached, trace, notes);
+        return new SdfAdaptiveVolumeResult(totalVolume, effectiveOptions, totalVisited, inside, outside, subdivided, sampled, unknown, maxDepthReached, trace, notes);
     }
 
-    private static void TryRecordTrace(List<CirAdaptiveTraceEvent> trace, int maxTraceEvents, RegionWorkItem item, CirRegionPlanResult plan)
+    private static void TryRecordTrace(List<SdfAdaptiveTraceEvent> trace, int maxTraceEvents, RegionWorkItem item, CirRegionPlanResult plan)
     {
         if (trace.Count >= maxTraceEvents)
         {
             return;
         }
 
-        trace.Add(new CirAdaptiveTraceEvent(item.RegionId, item.ParentRegionId, item.Depth, plan.Action, plan.SelectedCandidate, plan.Interval, plan.Note));
+        trace.Add(new SdfAdaptiveTraceEvent(item.RegionId, item.ParentRegionId, item.Depth, plan.Action, plan.SelectedCandidate, plan.Interval, plan.Note));
     }
 
-    private static double SampleRegionVolume(CirTape tape, CirBounds region, int grid)
+    private static double SampleRegionVolume(SdfTape tape, SdfBounds region, int grid)
     {
         var sampleGrid = int.Max(grid, 1);
         var dx = region.SizeX / sampleGrid;
@@ -141,9 +141,9 @@ public static class CirAdaptiveVolumeEstimator
         return RegionVolume(region) * (insideCount / (double)totalSamples);
     }
 
-    private static double RegionVolume(CirBounds region) => double.Max(region.SizeX, 0d) * double.Max(region.SizeY, 0d) * double.Max(region.SizeZ, 0d);
+    private static double RegionVolume(SdfBounds region) => double.Max(region.SizeX, 0d) * double.Max(region.SizeY, 0d) * double.Max(region.SizeZ, 0d);
 
-    private static IReadOnlyList<CirBounds> SplitLongestAxis(CirBounds region)
+    private static IReadOnlyList<SdfBounds> SplitLongestAxis(SdfBounds region)
     {
         var sizeX = region.SizeX;
         var sizeY = region.SizeY;
@@ -154,8 +154,8 @@ public static class CirAdaptiveVolumeEstimator
             var mid = (region.Min.X + region.Max.X) * 0.5d;
             return
             [
-                new CirBounds(region.Min, new Point3D(mid, region.Max.Y, region.Max.Z)),
-                new CirBounds(new Point3D(mid, region.Min.Y, region.Min.Z), region.Max),
+                new SdfBounds(region.Min, new Point3D(mid, region.Max.Y, region.Max.Z)),
+                new SdfBounds(new Point3D(mid, region.Min.Y, region.Min.Z), region.Max),
             ];
         }
 
@@ -164,18 +164,18 @@ public static class CirAdaptiveVolumeEstimator
             var mid = (region.Min.Y + region.Max.Y) * 0.5d;
             return
             [
-                new CirBounds(region.Min, new Point3D(region.Max.X, mid, region.Max.Z)),
-                new CirBounds(new Point3D(region.Min.X, mid, region.Min.Z), region.Max),
+                new SdfBounds(region.Min, new Point3D(region.Max.X, mid, region.Max.Z)),
+                new SdfBounds(new Point3D(region.Min.X, mid, region.Min.Z), region.Max),
             ];
         }
 
         var midZ = (region.Min.Z + region.Max.Z) * 0.5d;
         return
         [
-            new CirBounds(region.Min, new Point3D(region.Max.X, region.Max.Y, midZ)),
-            new CirBounds(new Point3D(region.Min.X, region.Min.Y, midZ), region.Max),
+            new SdfBounds(region.Min, new Point3D(region.Max.X, region.Max.Y, midZ)),
+            new SdfBounds(new Point3D(region.Min.X, region.Min.Y, midZ), region.Max),
         ];
     }
 
-    private readonly record struct RegionWorkItem(int RegionId, int? ParentRegionId, CirBounds Region, int Depth);
+    private readonly record struct RegionWorkItem(int RegionId, int? ParentRegionId, SdfBounds Region, int Depth);
 }

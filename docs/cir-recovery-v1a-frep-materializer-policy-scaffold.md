@@ -22,7 +22,7 @@ The planner evaluates all policies, retains all evaluations (including rejected 
 
 The context is node-first and intentionally minimal:
 
-- `CirNode Root`
+- `SdfNode Root`
 - optional `NativeGeometryReplayLog`
 - optional `SourceLabel`
 

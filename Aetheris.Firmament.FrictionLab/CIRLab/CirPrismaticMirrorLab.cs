@@ -286,7 +286,7 @@ public static class CirPrismaticMirrorLab
         return insideCount * step;
     }
 
-    private static string FormatBounds(CirBounds bounds) => FormattableString.Invariant(
+    private static string FormatBounds(SdfBounds bounds) => FormattableString.Invariant(
         $"[{bounds.Min.X:0.###},{bounds.Min.Y:0.###},{bounds.Min.Z:0.###}]..[{bounds.Max.X:0.###},{bounds.Max.Y:0.###},{bounds.Max.Z:0.###}]");
 
     private static string LossesText() => "face-identity-lost,loop-identity-lost,split-face-lineage-lost,feature-role-labels-lost,topology-parity-unavailable";
@@ -326,7 +326,7 @@ public static class CirPrismaticMirrorLab
 
     private interface IPrismaticMirrorEvaluator
     {
-        CirBounds Bounds { get; }
+        SdfBounds Bounds { get; }
 
         double SignedDistance(Point3D point);
     }
@@ -340,13 +340,13 @@ public static class CirPrismaticMirrorLab
     {
         private readonly IReadOnlyList<Plane> _planes;
 
-        private HalfSpacePrismaticMirror(IReadOnlyList<Plane> planes, CirBounds bounds)
+        private HalfSpacePrismaticMirror(IReadOnlyList<Plane> planes, SdfBounds bounds)
         {
             _planes = planes;
             Bounds = bounds;
         }
 
-        public CirBounds Bounds { get; }
+        public SdfBounds Bounds { get; }
 
         public static HalfSpacePrismaticMirror Create(IReadOnlyList<PrismaticSection> sections, double tolerance)
         {
@@ -397,7 +397,7 @@ public static class CirPrismaticMirrorLab
             Bounds = BoundsFor(sections);
         }
 
-        public CirBounds Bounds { get; }
+        public SdfBounds Bounds { get; }
 
         public static SectionStackPrismaticMirror Create(IReadOnlyList<PrismaticSection> sections, double _) => new(sections);
 
@@ -453,7 +453,7 @@ public static class CirPrismaticMirrorLab
         (a.Z * b.X) - (a.X * b.Z),
         (a.X * b.Y) - (a.Y * b.X));
 
-    private static CirBounds BoundsFor(IReadOnlyList<PrismaticSection> sections)
+    private static SdfBounds BoundsFor(IReadOnlyList<PrismaticSection> sections)
     {
         var xs = sections.SelectMany(s => s.OuterLoop.Select(p => p.X)).ToArray();
         var ys = sections.SelectMany(s => s.OuterLoop.Select(p => p.Y)).ToArray();

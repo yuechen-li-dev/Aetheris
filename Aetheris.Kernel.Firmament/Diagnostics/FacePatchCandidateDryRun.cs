@@ -139,7 +139,7 @@ internal sealed record FacePatchCandidateGenerationResult(
 
 internal static class FacePatchCandidateGenerator
 {
-    internal static FacePatchCandidateGenerationResult Generate(CirNode root, NativeGeometryReplayLog? replayLog = null)
+    internal static FacePatchCandidateGenerationResult Generate(SdfNode root, NativeGeometryReplayLog? replayLog = null)
     {
         var extraction = SourceSurfaceExtractor.Extract(root, replayLog);
         var candidates = new List<FacePatchCandidate>();
@@ -153,7 +153,7 @@ internal static class FacePatchCandidateGenerator
             diagnostics.AddRange(extraction.UnsupportedNodeReasons.Select(r => $"source-surface-extraction-unsupported: {r}"));
         }
 
-        if (root is not CirSubtractNode subtract)
+        if (root is not SdfSubtractNode subtract)
         {
             foreach (var source in extraction.Descriptors)
             {
@@ -319,8 +319,8 @@ internal static class FacePatchCandidateGenerator
             _ => FacePatchCandidateReadiness.Unsupported
         };
 
-    private static bool IsFromNode(SourceSurfaceDescriptor source, CirNode node)
-        => source.OwningCirNodeKind == node.GetType().Name;
+    private static bool IsFromNode(SourceSurfaceDescriptor source, SdfNode node)
+        => source.OwningSdfNodeKind == node.GetType().Name;
 
     private static int Score(TrimCapabilityClassification c)
         => c switch

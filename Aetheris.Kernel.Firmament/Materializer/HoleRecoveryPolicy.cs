@@ -72,19 +72,19 @@ internal sealed class CountersinkVariant : IHoleRecoveryVariant
             "CountersinkVariant evaluated."
         };
 
-        if (context.Root is not CirSubtractNode outer || outer.Left is not CirSubtractNode inner)
+        if (context.Root is not SdfSubtractNode outer || outer.Left is not SdfSubtractNode inner)
         {
             diagnostics.Add("not countersink shape: requires Subtract(Subtract(Box,Cylinder),Cone). ");
             return new(Name, false, 0d, null, ["countersink", "rectangular-box-host"], ["UnsupportedCountersinkShape"], diagnostics);
         }
 
-        var hostRec = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(new CirSubtractNode(inner.Left, inner.Right), context.ReplayLog, context.SourceLabel));
+        var hostRec = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(new SdfSubtractNode(inner.Left, inner.Right), context.ReplayLog, context.SourceLabel));
         if (!hostRec.Success || hostRec.Value is null)
         {
             return new(Name, false, 0d, null, ["countersink", "rectangular-box-host"], [hostRec.Diagnostic, $"host-recognizer-reason:{hostRec.Reason}"], hostRec.Diagnostics);
         }
 
-        if (!CounterboreVariant.TryUnwrapTranslation(outer.Right, out var coneNode, out var coneTranslation) || coneNode is not CirConeNode cone)
+        if (!CounterboreVariant.TryUnwrapTranslation(outer.Right, out var coneNode, out var coneTranslation) || coneNode is not SdfConeNode cone)
         {
             diagnostics.Add("missing cone primitive / unexpected tool kind.");
             return new(Name, false, 0d, null, ["countersink", "rectangular-box-host"], ["UnsupportedMissingConePrimitiveOrTransform"], diagnostics);
@@ -192,19 +192,19 @@ internal sealed class ChamferedEntryHoleVariant : IHoleRecoveryVariant
     public HoleRecoveryVariantEvaluation Evaluate(FrepMaterializerContext context)
     {
         var diagnostics = new List<string> { "ChamferedEntryHoleVariant evaluated." };
-        if (context.Root is not CirSubtractNode outer || outer.Left is not CirSubtractNode inner)
+        if (context.Root is not SdfSubtractNode outer || outer.Left is not SdfSubtractNode inner)
         {
             diagnostics.Add("not chamfered-entry shape: requires Subtract(Subtract(Box,Cylinder),Cone).");
             return new(Name, false, 0d, null, ["chamfered-entry", "rectangular-box-host"], ["UnsupportedChamferedEntryShape"], diagnostics);
         }
 
-        var hostRec = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(new CirSubtractNode(inner.Left, inner.Right), context.ReplayLog, context.SourceLabel));
+        var hostRec = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(new SdfSubtractNode(inner.Left, inner.Right), context.ReplayLog, context.SourceLabel));
         if (!hostRec.Success || hostRec.Value is null)
         {
             return new(Name, false, 0d, null, ["chamfered-entry", "rectangular-box-host"], [hostRec.Diagnostic, $"host-recognizer-reason:{hostRec.Reason}"], hostRec.Diagnostics);
         }
 
-        if (!CounterboreVariant.TryUnwrapTranslation(outer.Right, out var coneNode, out var coneTranslation) || coneNode is not CirConeNode cone)
+        if (!CounterboreVariant.TryUnwrapTranslation(outer.Right, out var coneNode, out var coneTranslation) || coneNode is not SdfConeNode cone)
         {
             diagnostics.Add("missing cone primitive / unexpected tool kind.");
             return new(Name, false, 0d, null, ["chamfered-entry", "rectangular-box-host"], ["UnsupportedMissingConePrimitiveOrTransform"], diagnostics);
@@ -351,26 +351,26 @@ internal sealed class BlindHoleVariant : IHoleRecoveryVariant
         return new(Name, true, Score, plan, evidence, Array.Empty<string>(), diagnostics);
     }
 
-    private static bool TryBuildBlindPlan(CirNode root, out HoleRecoveryPlan plan, out List<string> diagnostics, out string rejection)
+    private static bool TryBuildBlindPlan(SdfNode root, out HoleRecoveryPlan plan, out List<string> diagnostics, out string rejection)
     {
         diagnostics = ["BlindHoleVariant evaluated."];
         rejection = string.Empty;
         plan = null!;
-        if (root is not CirSubtractNode subtract)
+        if (root is not SdfSubtractNode subtract)
         {
             rejection = "UnsupportedRootNotSubtract";
             diagnostics.Add("Blind-hole requires Subtract(Box, Cylinder). ");
             return false;
         }
 
-        if (subtract.Left is CirSubtractNode or CirUnionNode or CirIntersectNode || subtract.Right is CirSubtractNode or CirUnionNode or CirIntersectNode)
+        if (subtract.Left is SdfSubtractNode or SdfUnionNode or SdfIntersectNode || subtract.Right is SdfSubtractNode or SdfUnionNode or SdfIntersectNode)
         {
             rejection = "UnsupportedNestedOrComposite";
             diagnostics.Add("Nested/composite booleans are unsupported for blind-hole V8.");
             return false;
         }
 
-        if (!CounterboreVariant.TryUnwrapTranslation(subtract.Left, out var left, out var hostT) || left is not CirBoxNode box)
+        if (!CounterboreVariant.TryUnwrapTranslation(subtract.Left, out var left, out var hostT) || left is not SdfBoxNode box)
         {
             rejection = "UnsupportedHostNotBoxOrTransform";
             diagnostics.Add("Blind-hole host must be box with translation-only transform.");
@@ -378,7 +378,7 @@ internal sealed class BlindHoleVariant : IHoleRecoveryVariant
             return false;
         }
 
-        if (!CounterboreVariant.TryUnwrapTranslation(subtract.Right, out var right, out var toolT) || right is not CirCylinderNode cyl)
+        if (!CounterboreVariant.TryUnwrapTranslation(subtract.Right, out var right, out var toolT) || right is not SdfCylinderNode cyl)
         {
             rejection = "UnsupportedToolNotCylinderOrTransform";
             diagnostics.Add("Blind-hole tool must be cylinder with translation-only transform.");
@@ -464,23 +464,23 @@ internal sealed class CounterboreVariant : IHoleRecoveryVariant
 
     public HoleRecoveryVariantEvaluation Evaluate(FrepMaterializerContext context)
     {
-        if (context.Root is not CirSubtractNode outerSubtract)
+        if (context.Root is not SdfSubtractNode outerSubtract)
         {
             return new(Name, false, 0d, null, ["counterbore", "rectangular-box-host"], ["UnsupportedRootNotNestedSubtract"], ["Root must be nested subtract for counterbore."]);
         }
 
-        if (outerSubtract.Left is not CirSubtractNode innerSubtract)
+        if (outerSubtract.Left is not SdfSubtractNode innerSubtract)
         {
             return new(Name, false, 0d, null, ["counterbore", "rectangular-box-host"], ["UnsupportedCounterboreShape"], ["Counterbore requires Subtract(Subtract(host,small),large) structure."]);
         }
 
-        var hostRec = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(new CirSubtractNode(innerSubtract.Left, innerSubtract.Right), context.ReplayLog, context.SourceLabel));
+        var hostRec = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(new SdfSubtractNode(innerSubtract.Left, innerSubtract.Right), context.ReplayLog, context.SourceLabel));
         if (!hostRec.Success || hostRec.Value is null)
         {
             return new(Name, false, 0d, null, ["counterbore", "rectangular-box-host"], [hostRec.Diagnostic, $"small-recognizer-reason:{hostRec.Reason}"], hostRec.Diagnostics);
         }
 
-        var shallowRec = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(new CirSubtractNode(innerSubtract.Left, outerSubtract.Right), context.ReplayLog, context.SourceLabel));
+        var shallowRec = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(new SdfSubtractNode(innerSubtract.Left, outerSubtract.Right), context.ReplayLog, context.SourceLabel));
         if (shallowRec.Success)
         {
             return new(Name, false, 0d, null, ["counterbore", "rectangular-box-host"], ["UnsupportedLargeCylinderThroughFullDepth"], ["Large cylinder spans full host depth and is not a counterbore relief."]);
@@ -491,7 +491,7 @@ internal sealed class CounterboreVariant : IHoleRecoveryVariant
             return new(Name, false, 0d, null, ["counterbore", "rectangular-box-host"], [shallowRec.Diagnostic, $"large-recognizer-reason:{shallowRec.Reason}"], shallowRec.Diagnostics);
         }
 
-        if (!TryUnwrapTranslation(outerSubtract.Right, out var largeNode, out var largeTranslation) || largeNode is not CirCylinderNode largeCylinder)
+        if (!TryUnwrapTranslation(outerSubtract.Right, out var largeNode, out var largeTranslation) || largeNode is not SdfCylinderNode largeCylinder)
         {
             return new(Name, false, 0d, null, ["counterbore", "rectangular-box-host"], ["UnsupportedLargeTool"], ["Counterbore relief tool must be cylindrical with translation-only transform."]);
         }
@@ -550,11 +550,11 @@ internal sealed class CounterboreVariant : IHoleRecoveryVariant
         return new(Name, true, Score, plan, evidence, Array.Empty<string>(), ["CounterboreVariant admitted canonical nested subtract pattern."]);
     }
 
-    internal static bool TryUnwrapTranslation(Aetheris.Continuum.Backends.Sdf.CirNode node, out Aetheris.Continuum.Backends.Sdf.CirNode unwrapped, out Aetheris.Kernel.Core.Math.Vector3D translation)
+    internal static bool TryUnwrapTranslation(Aetheris.Continuum.Backends.Sdf.SdfNode node, out Aetheris.Continuum.Backends.Sdf.SdfNode unwrapped, out Aetheris.Kernel.Core.Math.Vector3D translation)
     {
         unwrapped = node;
         translation = Aetheris.Kernel.Core.Math.Vector3D.Zero;
-        while (unwrapped is Aetheris.Continuum.Backends.Sdf.CirTransformNode transformNode)
+        while (unwrapped is Aetheris.Continuum.Backends.Sdf.SdfTransformNode transformNode)
         {
             var origin = transformNode.Transform.Apply(Aetheris.Kernel.Core.Math.Point3D.Origin);
             var x = transformNode.Transform.Apply(new Aetheris.Kernel.Core.Math.Point3D(1d, 0d, 0d));
@@ -591,25 +591,25 @@ internal sealed class SteppedHoleVariant : IHoleRecoveryVariant
     public HoleRecoveryVariantEvaluation Evaluate(FrepMaterializerContext context)
     {
         var diagnostics = new List<string> { "SteppedHoleVariant evaluated." };
-        if (context.Root is not CirSubtractNode outer || outer.Left is not CirSubtractNode middle || middle.Left is not CirSubtractNode inner)
+        if (context.Root is not SdfSubtractNode outer || outer.Left is not SdfSubtractNode middle || middle.Left is not SdfSubtractNode inner)
         {
             diagnostics.Add("stepped shape requires Subtract(Subtract(Subtract(Box,Small),Medium),Large). ");
             return new(Name, false, 0d, null, ["stepped-hole", "rectangular-box-host"], ["UnsupportedSteppedShape"], diagnostics);
         }
 
-        var hostRec = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(new CirSubtractNode(inner.Left, inner.Right), context.ReplayLog, context.SourceLabel));
+        var hostRec = CirBoxCylinderRecognizer.Recognize(new CirBoxCylinderRecognizerInput(new SdfSubtractNode(inner.Left, inner.Right), context.ReplayLog, context.SourceLabel));
         if (!hostRec.Success || hostRec.Value is null)
         {
             return new(Name, false, 0d, null, ["stepped-hole", "rectangular-box-host"], [hostRec.Diagnostic, $"small-recognizer-reason:{hostRec.Reason}"], hostRec.Diagnostics);
         }
 
-        if (!CounterboreVariant.TryUnwrapTranslation(middle.Right, out var mediumNode, out var mediumT) || mediumNode is not CirCylinderNode medium)
+        if (!CounterboreVariant.TryUnwrapTranslation(middle.Right, out var mediumNode, out var mediumT) || mediumNode is not SdfCylinderNode medium)
         {
             diagnostics.Add("medium segment tool must be cylindrical with translation-only transform.");
             return new(Name, false, 0d, null, ["stepped-hole", "rectangular-box-host"], ["UnsupportedMediumTool"], diagnostics);
         }
 
-        if (!CounterboreVariant.TryUnwrapTranslation(outer.Right, out var largeNode, out var largeT) || largeNode is not CirCylinderNode large)
+        if (!CounterboreVariant.TryUnwrapTranslation(outer.Right, out var largeNode, out var largeT) || largeNode is not SdfCylinderNode large)
         {
             diagnostics.Add("large segment tool must be cylindrical with translation-only transform.");
             return new(Name, false, 0d, null, ["stepped-hole", "rectangular-box-host"], ["UnsupportedLargeTool"], diagnostics);

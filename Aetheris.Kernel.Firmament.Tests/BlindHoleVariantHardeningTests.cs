@@ -44,9 +44,9 @@ public sealed class BlindHoleVariantHardeningTests
     [Fact]
     public void BlindHole_TranslatedInput_AdmitsExecutesAndExports()
     {
-        var root = new CirSubtractNode(
-            new CirTransformNode(new CirBoxNode(20d, 20d, 10d), Transform3D.CreateTranslation(new Vector3D(7d, -4d, 5d))),
-            new CirTransformNode(new CirCylinderNode(2d, 4d), Transform3D.CreateTranslation(new Vector3D(8d, -3d, 8d))));
+        var root = new SdfSubtractNode(
+            new SdfTransformNode(new SdfBoxNode(20d, 20d, 10d), Transform3D.CreateTranslation(new Vector3D(7d, -4d, 5d))),
+            new SdfTransformNode(new SdfCylinderNode(2d, 4d), Transform3D.CreateTranslation(new Vector3D(8d, -3d, 8d))));
 
         var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(root));
         Assert.True(eval.Admissible);
@@ -64,7 +64,7 @@ public sealed class BlindHoleVariantHardeningTests
     [Fact]
     public void BlindHole_DoesNotStealThroughHole()
     {
-        var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(new CirSubtractNode(new CirBoxNode(20, 10, 8), new CirCylinderNode(2, 20))));
+        var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(new SdfSubtractNode(new SdfBoxNode(20, 10, 8), new SdfCylinderNode(2, 20))));
         Assert.Contains("selected-variant:ThroughHoleVariant", eval.Evidence);
         Assert.DoesNotContain("selected-variant:BlindHoleVariant", eval.Evidence);
         Assert.Contains(eval.EvaluationsFor(nameof(BlindHoleVariant)), d => d.Contains("through-hole rejected as not blind", StringComparison.OrdinalIgnoreCase));
@@ -86,7 +86,7 @@ public sealed class BlindHoleVariantHardeningTests
         var boxDepth = 10d;
         var cylHeight = boxDepth - (tol * 0.25d);
         var cylCenterZ = (boxDepth * 0.5d) - (cylHeight * 0.5d);
-        var root = new CirSubtractNode(new CirBoxNode(20d, 20d, boxDepth), new CirTransformNode(new CirCylinderNode(2d, cylHeight), Transform3D.CreateTranslation(new Vector3D(0d, 0d, cylCenterZ))));
+        var root = new SdfSubtractNode(new SdfBoxNode(20d, 20d, boxDepth), new SdfTransformNode(new SdfCylinderNode(2d, cylHeight), Transform3D.CreateTranslation(new Vector3D(0d, 0d, cylCenterZ))));
 
         var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(root));
         Assert.False(eval.Admissible);
@@ -96,7 +96,7 @@ public sealed class BlindHoleVariantHardeningTests
     [Fact]
     public void BlindHole_RejectsNoEntryOpening()
     {
-        var root = new CirSubtractNode(new CirBoxNode(20d, 20d, 10d), new CirCylinderNode(2d, 4d));
+        var root = new SdfSubtractNode(new SdfBoxNode(20d, 20d, 10d), new SdfCylinderNode(2d, 4d));
         var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(root));
         Assert.False(eval.Admissible);
         Assert.Contains("UnsupportedMissingEntryFace", string.Join("|", eval.RejectionReasons), StringComparison.Ordinal);
@@ -105,7 +105,7 @@ public sealed class BlindHoleVariantHardeningTests
     [Fact]
     public void BlindHole_RejectsTangentOrGrazingRadius()
     {
-        var root = new CirSubtractNode(new CirBoxNode(20d, 20d, 10d), new CirTransformNode(new CirCylinderNode(10d, 4d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, 3d))));
+        var root = new SdfSubtractNode(new SdfBoxNode(20d, 20d, 10d), new SdfTransformNode(new SdfCylinderNode(10d, 4d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, 3d))));
         var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(root));
         Assert.False(eval.Admissible);
         Assert.Contains("UnsupportedTangentOrOutsideClearance", string.Join("|", eval.RejectionReasons), StringComparison.Ordinal);
@@ -115,9 +115,9 @@ public sealed class BlindHoleVariantHardeningTests
     [Fact]
     public void BlindHole_RejectsUnsupportedTransform()
     {
-        var rotated = new CirSubtractNode(
-            new CirBoxNode(20d, 20d, 10d),
-            new CirTransformNode(new CirCylinderNode(2d, 4d), Transform3D.CreateRotationX(Math.PI / 6d) * Transform3D.CreateTranslation(new Vector3D(0d, 0d, 3d))));
+        var rotated = new SdfSubtractNode(
+            new SdfBoxNode(20d, 20d, 10d),
+            new SdfTransformNode(new SdfCylinderNode(2d, 4d), Transform3D.CreateRotationX(Math.PI / 6d) * Transform3D.CreateTranslation(new Vector3D(0d, 0d, 3d))));
 
         var eval = new HoleRecoveryPolicy().Evaluate(new FrepMaterializerContext(rotated));
         Assert.False(eval.Admissible);
@@ -126,14 +126,14 @@ public sealed class BlindHoleVariantHardeningTests
         Assert.Null(remat.Body);
     }
 
-    private static CirNode BuildTopEntryBlindHole()
-        => new CirSubtractNode(new CirBoxNode(20d, 20d, 10d), new CirTransformNode(new CirCylinderNode(2d, 4d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, 3d))));
+    private static SdfNode BuildTopEntryBlindHole()
+        => new SdfSubtractNode(new SdfBoxNode(20d, 20d, 10d), new SdfTransformNode(new SdfCylinderNode(2d, 4d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, 3d))));
 
-    private static CirNode BuildBottomEntryBlindHole()
-        => new CirSubtractNode(new CirBoxNode(20d, 20d, 10d), new CirTransformNode(new CirCylinderNode(2d, 4d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, -3d))));
+    private static SdfNode BuildBottomEntryBlindHole()
+        => new SdfSubtractNode(new SdfBoxNode(20d, 20d, 10d), new SdfTransformNode(new SdfCylinderNode(2d, 4d), Transform3D.CreateTranslation(new Vector3D(0d, 0d, -3d))));
 
-    private static CirNode BuildCounterbore()
-        => new CirSubtractNode(
-            new CirSubtractNode(new CirBoxNode(20, 20, 10), new CirCylinderNode(2, 20)),
-            new CirTransformNode(new CirCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))));
+    private static SdfNode BuildCounterbore()
+        => new SdfSubtractNode(
+            new SdfSubtractNode(new SdfBoxNode(20, 20, 10), new SdfCylinderNode(2, 20)),
+            new SdfTransformNode(new SdfCylinderNode(4, 4), Transform3D.CreateTranslation(new Vector3D(0, 0, -3))));
 }

@@ -11,24 +11,24 @@ public sealed class CirMapPrototypeTests
     private const int Cols = 19;
     private const double ThicknessTolerance = 0.075d;
 
-    public static TheoryData<string, CirNode, BrepBody, CirMapPrototypeView> PrimitiveViews => new()
+    public static TheoryData<string, SdfNode, BrepBody, CirMapPrototypeView> PrimitiveViews => new()
     {
-        { "box", new CirBoxNode(10d, 6d, 4d), BrepPrimitives.CreateBox(10d, 6d, 4d).Value, CirMapPrototypeView.Top },
-        { "box", new CirBoxNode(10d, 6d, 4d), BrepPrimitives.CreateBox(10d, 6d, 4d).Value, CirMapPrototypeView.Front },
-        { "cylinder", new CirCylinderNode(3d, 8d), BrepPrimitives.CreateCylinder(3d, 8d).Value, CirMapPrototypeView.Top },
-        { "cylinder", new CirCylinderNode(3d, 8d), BrepPrimitives.CreateCylinder(3d, 8d).Value, CirMapPrototypeView.Front },
-        { "sphere", new CirSphereNode(3d), BrepPrimitives.CreateSphere(3d).Value, CirMapPrototypeView.Top },
-        { "sphere", new CirSphereNode(3d), BrepPrimitives.CreateSphere(3d).Value, CirMapPrototypeView.Front },
+        { "box", new SdfBoxNode(10d, 6d, 4d), BrepPrimitives.CreateBox(10d, 6d, 4d).Value, CirMapPrototypeView.Top },
+        { "box", new SdfBoxNode(10d, 6d, 4d), BrepPrimitives.CreateBox(10d, 6d, 4d).Value, CirMapPrototypeView.Front },
+        { "cylinder", new SdfCylinderNode(3d, 8d), BrepPrimitives.CreateCylinder(3d, 8d).Value, CirMapPrototypeView.Top },
+        { "cylinder", new SdfCylinderNode(3d, 8d), BrepPrimitives.CreateCylinder(3d, 8d).Value, CirMapPrototypeView.Front },
+        { "sphere", new SdfSphereNode(3d), BrepPrimitives.CreateSphere(3d).Value, CirMapPrototypeView.Top },
+        { "sphere", new SdfSphereNode(3d), BrepPrimitives.CreateSphere(3d).Value, CirMapPrototypeView.Front },
     };
 
     [Theory]
     [MemberData(nameof(PrimitiveViews))]
-    public void CirMapX1_PrimitiveMirrors_CompareAgainstBrepRaycastBaseline(string primitive, CirNode node, BrepBody body, CirMapPrototypeView view)
+    public void CirMapX1_PrimitiveMirrors_CompareAgainstBrepRaycastBaseline(string primitive, SdfNode node, BrepBody body, CirMapPrototypeView view)
     {
         var request = new CirMapPrototypeRequest(view, Rows, Cols, node.Bounds, SamplesPerRay: 384, RootRefinementIterations: 32, Tolerance: 1e-7d);
 
         var first = CirMapPrototype.Evaluate(node, primitive, request);
-        var second = CirMapPrototype.Evaluate(CirTapeLowerer.Lower(node), node.Bounds, primitive, request);
+        var second = CirMapPrototype.Evaluate(SdfTapeLowerer.Lower(node), node.Bounds, primitive, request);
         var baseline = CirMapPrototype.EvaluateBrepBaseline(body, primitive, request);
 
         Assert.Equal(first.Grid.Select(row => string.Concat(row.Select(sample => sample.Hit ? '#' : '.'))),
@@ -60,7 +60,7 @@ public sealed class CirMapPrototypeTests
     [Fact]
     public void CirMapX1_BoxTop_ProducesFullOccupancyMask()
     {
-        var node = new CirBoxNode(10d, 6d, 4d);
+        var node = new SdfBoxNode(10d, 6d, 4d);
         var request = new CirMapPrototypeRequest(CirMapPrototypeView.Top, 6, 8, node.Bounds, SamplesPerRay: 128, RootRefinementIterations: 24, Tolerance: 1e-7d);
 
         var result = CirMapPrototype.Evaluate(node, "box", request);
@@ -96,7 +96,7 @@ internal sealed record CirMapPrototypeRequest(
     CirMapPrototypeView View,
     int Rows,
     int Cols,
-    CirBounds Bounds,
+    SdfBounds Bounds,
     int SamplesPerRay,
     int RootRefinementIterations,
     double Tolerance);
@@ -122,10 +122,10 @@ internal sealed record CirMapPrototypeResult(
 
 internal static class CirMapPrototype
 {
-    public static CirMapPrototypeResult Evaluate(CirNode node, string primitiveName, CirMapPrototypeRequest request) =>
-        Evaluate(CirTapeLowerer.Lower(node), node.Bounds, primitiveName, request);
+    public static CirMapPrototypeResult Evaluate(SdfNode node, string primitiveName, CirMapPrototypeRequest request) =>
+        Evaluate(SdfTapeLowerer.Lower(node), node.Bounds, primitiveName, request);
 
-    public static CirMapPrototypeResult Evaluate(CirTape tape, CirBounds bounds, string primitiveName, CirMapPrototypeRequest request)
+    public static CirMapPrototypeResult Evaluate(SdfTape tape, SdfBounds bounds, string primitiveName, CirMapPrototypeRequest request)
     {
         var diagnostics = BaseDiagnostics(primitiveName);
         diagnostics.Add("cir-map-x1-backend-selected:cir-tape");
@@ -311,7 +311,7 @@ internal readonly record struct CirMapPrototypeFrame(
     public double RangeU => MaxU - MinU;
     public double RangeV => MaxV - MinV;
 
-    public static CirMapPrototypeFrame Resolve(CirMapPrototypeView view, CirBounds bounds) => view switch
+    public static CirMapPrototypeFrame Resolve(CirMapPrototypeView view, SdfBounds bounds) => view switch
     {
         CirMapPrototypeView.Top => new(new Point3D(0d, 0d, bounds.Max.Z), new Vector3D(1d, 0d, 0d), new Vector3D(0d, 1d, 0d), new Vector3D(0d, 0d, -1d), bounds.Min.X, bounds.Max.X, bounds.Min.Y, bounds.Max.Y, bounds.SizeZ),
         CirMapPrototypeView.Bottom => new(new Point3D(0d, 0d, bounds.Min.Z), new Vector3D(1d, 0d, 0d), new Vector3D(0d, 1d, 0d), new Vector3D(0d, 0d, 1d), bounds.Min.X, bounds.Max.X, bounds.Min.Y, bounds.Max.Y, bounds.SizeZ),

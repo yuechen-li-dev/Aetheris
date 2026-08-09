@@ -1,0 +1,52 @@
+{
+  "schema": "aetheris-continuum-attention-e1-oct-source-review-v1",
+  "repository": "oct/Experiments/ContinuumComputabilityBoundary",
+  "sourcePaths": [
+    "REPORT.md (M14-M20)",
+    "M14/continuum_computability_boundary_m14_probe.oct",
+    "M15/continuum_computability_boundary_m15_probe.oct",
+    "M16/continuum_computability_boundary_m16_probe.oct",
+    "M17/REPORT.md and continuum_computability_boundary_m17_probe.oct",
+    "M18/REPORT.md and probe",
+    "M19/REPORT.md and continuum_computability_boundary_m19_probe.oct",
+    "M20/REPORT.md and continuum_computability_boundary_m20_probe.oct",
+    "M27/MechanicsContinuumM27Report.md",
+    "M28/MechanicsContinuumM28Report.md",
+    "M31/MechanicsContinuumM31Report.md",
+    "M34/MechanicsContinuumM34Report.md"
+  ],
+  "geometry": {
+    "fact": "Occupancy/coverage first, then cell-centred signed distance to a circle (negative inside), abs(SDF)\u003C=dx narrow-band proximity, and local SDF-gradient normals with perpendicular tangents. It was a fixed 6x6 Cartesian carrier, not CAD topology.",
+    "storage": "Float arrays for coverage/SDF and orientation components/strength on every lattice cell; edge fields were derived on implicit four-neighbor adjacency.",
+    "downstream": "Orientation-weighted one-step diffusion-like transfer and later local constitutive frames."
+  },
+  "material": {
+    "fact": "A separate interior orientation/direction carrier, initially constant, then region-tagged, then two seeded directions propagated by deterministic four-neighbor averaging for eight fixed sweeps.",
+    "storage": "Ox, Oy, Strength arrays plus a descriptive rule.",
+    "downstream": "Geometry/material orientation composition, anisotropic edge weights, and tangent/normal constitutive response."
+  },
+  "authority": {
+    "fact": "Local confidence/ownership for composing geometry-derived and material-derived carriers: geometry confidence came from SDF proximity (with a floor), material confidence from explicit strength or a heterogeneous left-high/right-low map. It was not load direction, source ownership, or a PDE boundary-condition field.",
+    "storage": "GeometryConfidence and MaterialConfidence scalar arrays, independently built in M20.",
+    "downstream": "Hard winner/tie blending, material usage scaling, optional transport feedback; later evidence supported narrow coupling-specific constitutive modulation, not whole-response scaling or iteration policy."
+  },
+  "supported": [
+    "SDF supplied proximity and deterministic orientation not identical to occupancy.",
+    "Explicit geometry orientation changed the same local downstream operator and improved circle-boundary tangential fidelity in that fixture.",
+    "Separate geometry and material carriers were computationally distinguishable; seeded fixed-pass material transport reduced a hand-created region seam.",
+    "Explicit heterogeneous confidence changed carrier coupling; coupling-specific authority perturbations preserved local constitutive semantics better than scalar whole-response attenuation.",
+    "Tiny fixed correction loops reduced the experiment\u0027s mismatch metric with diminishing returns."
+  ],
+  "speculative": [
+    "The 6x6 circle one-step metrics did not demonstrate a PDE solver or preconditioner advantage.",
+    "Seed transport was a hand-designed fixed-sweep organizer, not a physical material law.",
+    "Confidence maps were synthetic policies, not inferred or validated boundary-condition authority.",
+    "Later global-consistency loops explicitly avoided matrix assembly and generic convergence, so they do not establish scalable continuum solve behavior."
+  ],
+  "obsolete": [
+    "Coverage/SDF as the primary representation of exact boundary identity and normals is obsolete where Aetheris exact BRep\u002BCIR supplies analytic topology/geometry.",
+    "Inferring cut occupancy or interface orientation by sampling is obsolete for cut cells where exact cut metadata exists.",
+    "Fixed 6x6 implicit topology and circle-specific tangent construction are fixture assumptions, not production Continuum requirements.",
+    "What remains useful is the separation of geometry, material, and confidence/policy carriers and the demand that coupling stay explicit."
+  ]
+}

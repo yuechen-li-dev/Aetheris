@@ -1,0 +1,42 @@
+[
+  {
+    "method": "graph-coefficient-only-selection\u002Bweight-b8",
+    "mode": "low-global",
+    "reductionFactor": 0.915089266832586
+  },
+  {
+    "method": "graph-coefficient-only-selection\u002Bweight-b8",
+    "mode": "anisotropy-aligned",
+    "reductionFactor": 0.6662591656491063
+  },
+  {
+    "method": "graph-coefficient-only-selection\u002Bweight-b8",
+    "mode": "interface-localized",
+    "reductionFactor": 0.48011747731756976
+  },
+  {
+    "method": "graph-coefficient-only-selection\u002Bweight-b8",
+    "mode": "high-grid",
+    "reductionFactor": 0.5896124707996928
+  },
+  {
+    "method": "graph-Geometry\u002BMaterial\u002BAuthority-selection\u002Bweight-b8",
+    "mode": "low-global",
+    "reductionFactor": 0.9137303409122034
+  },
+  {
+    "method": "graph-Geometry\u002BMaterial\u002BAuthority-selection\u002Bweight-b8",
+    "mode": "anisotropy-aligned",
+    "reductionFactor": 0.6835014006794778
+  },
+  {
+    "method": "graph-Geometry\u002BMaterial\u002BAuthority-selection\u002Bweight-b8",
+    "mode": "interface-localized",
+    "reductionFactor": 0.6114847578658077
+  },
+  {
+    "method": "graph-Geometry\u002BMaterial\u002BAuthority-selection\u002Bweight-b8",
+    "mode": "high-grid",
+    "reductionFactor": 0.4220388988369929
+  }
+]

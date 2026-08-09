@@ -7,6 +7,7 @@
   <Project Path="tools/Aetheris.Continuum.M1/Aetheris.Continuum.M1.csproj" />
   <Project Path="tools/Aetheris.Continuum.M2/Aetheris.Continuum.M2.csproj" />
   <Project Path="tools/Aetheris.Continuum.AttentionE0/Aetheris.Continuum.AttentionE0.csproj" />
+  <Project Path="tools/Aetheris.Continuum.AttentionE1/Aetheris.Continuum.AttentionE1.csproj" />
   <Project Path="Aetheris.Forge/Aetheris.Forge.csproj" />
   <Project Path="Aetheris.Kernel.StandardLibrary/Aetheris.Kernel.StandardLibrary.csproj" />
   <Project Path="Aetheris.Kernel.Firmament/Aetheris.Kernel.Firmament.csproj" />

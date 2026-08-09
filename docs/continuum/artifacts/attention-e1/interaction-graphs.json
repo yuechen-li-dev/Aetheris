@@ -1,0 +1,401 @@
+[
+  {
+    "cellKind": "homogeneous-interior",
+    "cell": 2180,
+    "i": 4,
+    "j": 8,
+    "k": 8,
+    "fields": {
+      "materialId": 0,
+      "interfaceSignedDistance": -0.19614556468231306,
+      "interfaceNormalX": 0.9438583563660174,
+      "interfaceNormalY": 0.3303504247281061,
+      "interfaceNormalZ": 0,
+      "materialAxisX": 0.8944271909999159,
+      "materialAxisY": 0.4472135954999579,
+      "materialAxisZ": 0,
+      "geometryConfidence": 0.15,
+      "materialConfidence": 0.9
+    },
+    "neighbors": [
+      {
+        "cell": 2198,
+        "i": 6,
+        "j": 9,
+        "k": 8,
+        "weight": 0.2216299260833335,
+        "operatorScore": 0.21704425575265493,
+        "reason": "operator=0.21704; fields=Geometry, Material, Authority; geometry=0.5076; material=1.85; authority=1.148"
+      },
+      {
+        "cell": 2162,
+        "i": 2,
+        "j": 7,
+        "k": 8,
+        "weight": 0.21983353995526095,
+        "operatorScore": 0.25,
+        "reason": "operator=0.25; fields=Geometry, Material, Authority; geometry=0.5036; material=1.85; authority=1.25"
+      },
+      {
+        "cell": 2181,
+        "i": 5,
+        "j": 8,
+        "k": 8,
+        "weight": 0.07254271870663935,
+        "operatorScore": 0.07468363434965569,
+        "reason": "operator=0.074684; fields=Geometry, Material, Authority; geometry=0.5246; material=1.58; authority=1.25"
+      },
+      {
+        "cell": 2179,
+        "i": 3,
+        "j": 8,
+        "k": 8,
+        "weight": 0.06999869588071314,
+        "operatorScore": 0.08333333333333333,
+        "reason": "operator=0.083333; fields=Geometry, Material, Authority; geometry=0.5246; material=1.58; authority=1.25"
+      },
+      {
+        "cell": 2197,
+        "i": 5,
+        "j": 9,
+        "k": 8,
+        "weight": 0.06724297880536766,
+        "operatorScore": 0.06503980529982473,
+        "reason": "operator=0.06504; fields=Geometry, Material, Authority; geometry=0.5423; material=1.715; authority=1.25"
+      },
+      {
+        "cell": 2213,
+        "i": 5,
+        "j": 10,
+        "k": 8,
+        "weight": 0.06451054608584221,
+        "operatorScore": 0.057602335575994125,
+        "reason": "operator=0.057602; fields=Geometry, Material, Authority; geometry=0.6091; material=1.364; authority=1.25"
+      },
+      {
+        "cell": 2163,
+        "i": 3,
+        "j": 7,
+        "k": 8,
+        "weight": 0.06437980870060682,
+        "operatorScore": 0.07246376811594203,
+        "reason": "operator=0.072464; fields=Geometry, Material, Authority; geometry=0.5423; material=1.715; authority=1.25"
+      },
+      {
+        "cell": 2178,
+        "i": 2,
+        "j": 8,
+        "k": 8,
+        "weight": 0.060098904467829,
+        "operatorScore": 0.07246376811594203,
+        "reason": "operator=0.072464; fields=Geometry, Material, Authority; geometry=0.5246; material=1.58; authority=1.25"
+      },
+      {
+        "cell": 2182,
+        "i": 6,
+        "j": 8,
+        "k": 8,
+        "weight": 0.05994271605731084,
+        "operatorScore": 0.06147958802664484,
+        "reason": "operator=0.06148; fields=Geometry, Material, Authority; geometry=0.5361; material=1.58; authority=1.199"
+      },
+      {
+        "cell": 1941,
+        "i": 5,
+        "j": 9,
+        "k": 7,
+        "weight": 0.05489277425838044,
+        "operatorScore": 0.057602335575994125,
+        "reason": "operator=0.057602; fields=Geometry, Material, Authority; geometry=0.6032; material=1.31; authority=1.25"
+      },
+      {
+        "cell": 2147,
+        "i": 3,
+        "j": 6,
+        "k": 8,
+        "weight": 0.05323090060324418,
+        "operatorScore": 0.06410256410256411,
+        "reason": "operator=0.064103; fields=Geometry, Material, Authority; geometry=0.6091; material=1.364; authority=1.25"
+      },
+      {
+        "cell": 2419,
+        "i": 3,
+        "j": 7,
+        "k": 9,
+        "weight": 0.05249422711091786,
+        "operatorScore": 0.06410256410256411,
+        "reason": "operator=0.064103; fields=Geometry, Material, Authority; geometry=0.6032; material=1.31; authority=1.25"
+      }
+    ]
+  },
+  {
+    "cellKind": "material-interface",
+    "cell": 151,
+    "i": 7,
+    "j": 9,
+    "k": 0,
+    "fields": {
+      "materialId": 1,
+      "interfaceSignedDistance": 0.0014747786818218183,
+      "interfaceNormalX": 0.9438583563660174,
+      "interfaceNormalY": 0.3303504247281061,
+      "interfaceNormalZ": 0,
+      "materialAxisX": 0.8944271909999159,
+      "materialAxisY": 0.4472135954999579,
+      "materialAxisZ": 0,
+      "geometryConfidence": 0.9866286732848155,
+      "materialConfidence": 0.9
+    },
+    "neighbors": [
+      {
+        "cell": 169,
+        "i": 9,
+        "j": 10,
+        "k": 0,
+        "weight": 0.27795396153006513,
+        "operatorScore": 0.3250362065445226,
+        "reason": "operator=0.32504; fields=Geometry, Material, Authority; geometry=0.5137; material=1.362; authority=1.176"
+      },
+      {
+        "cell": 167,
+        "i": 7,
+        "j": 10,
+        "k": 0,
+        "weight": 0.10271669035237735,
+        "operatorScore": 0.13204340549502108,
+        "reason": "operator=0.13204; fields=Geometry, Material, Authority; geometry=1.693; material=0.77; authority=1.224"
+      },
+      {
+        "cell": 407,
+        "i": 7,
+        "j": 9,
+        "k": 1,
+        "weight": 0.09199291608325703,
+        "operatorScore": 0.1408647140864714,
+        "reason": "operator=0.14086; fields=Geometry, Material, Authority; geometry=1.98; material=0.5; authority=1.25"
+      },
+      {
+        "cell": 183,
+        "i": 7,
+        "j": 11,
+        "k": 0,
+        "weight": 0.0843822241950036,
+        "operatorScore": 0.11116706135213149,
+        "reason": "operator=0.11117; fields=Geometry, Material, Authority; geometry=1.568; material=0.77; authority=1.191"
+      },
+      {
+        "cell": 152,
+        "i": 8,
+        "j": 9,
+        "k": 0,
+        "weight": 0.08184181418148789,
+        "operatorScore": 0.12469563435434004,
+        "reason": "operator=0.1247; fields=Geometry, Material, Authority; geometry=0.6177; material=1.19; authority=1.19"
+      },
+      {
+        "cell": 153,
+        "i": 9,
+        "j": 9,
+        "k": 0,
+        "weight": 0.0810118728632547,
+        "operatorScore": 0.10201826280261256,
+        "reason": "operator=0.10202; fields=Geometry, Material, Authority; geometry=0.593; material=1.19; authority=1.176"
+      },
+      {
+        "cell": 423,
+        "i": 7,
+        "j": 10,
+        "k": 1,
+        "weight": 0.08073730992520933,
+        "operatorScore": 0.1148803817929195,
+        "reason": "operator=0.11488; fields=Geometry, Material, Authority; geometry=1.766; material=0.635; authority=1.224"
+      },
+      {
+        "cell": 663,
+        "i": 7,
+        "j": 9,
+        "k": 2,
+        "weight": 0.0792263200000642,
+        "operatorScore": 0.12249105572736643,
+        "reason": "operator=0.12249; fields=Geometry, Material, Authority; geometry=1.98; material=0.5; authority=1.25"
+      },
+      {
+        "cell": 168,
+        "i": 8,
+        "j": 10,
+        "k": 0,
+        "weight": 0.07891935499259001,
+        "operatorScore": 0.10502400895854187,
+        "reason": "operator=0.10502; fields=Geometry, Material, Authority; geometry=0.6766; material=1.276; authority=1.246"
+      },
+      {
+        "cell": 408,
+        "i": 8,
+        "j": 9,
+        "k": 1,
+        "weight": 0.07882608229607907,
+        "operatorScore": 0.10863253375897007,
+        "reason": "operator=0.10863; fields=Geometry, Material, Authority; geometry=1.098; material=0.845; authority=1.19"
+      },
+      {
+        "cell": 184,
+        "i": 8,
+        "j": 11,
+        "k": 0,
+        "weight": 0.0729046141409232,
+        "operatorScore": 0.09193915818850476,
+        "reason": "operator=0.091939; fields=Geometry, Material, Authority; geometry=0.9135; material=1.052; authority=1.176"
+      },
+      {
+        "cell": 424,
+        "i": 8,
+        "j": 10,
+        "k": 1,
+        "weight": 0.0725793920047544,
+        "operatorScore": 0.09404164506206177,
+        "reason": "operator=0.094042; fields=Geometry, Material, Authority; geometry=0.9305; material=1.018; authority=1.246"
+      }
+    ]
+  },
+  {
+    "cellKind": "authority-localized",
+    "cell": 0,
+    "i": 0,
+    "j": 0,
+    "k": 0,
+    "fields": {
+      "materialId": 0,
+      "interfaceSignedDistance": -0.5972853661378704,
+      "interfaceNormalX": 0.9438583563660174,
+      "interfaceNormalY": 0.3303504247281061,
+      "interfaceNormalZ": 0,
+      "materialAxisX": 0.8944271909999159,
+      "materialAxisY": 0.4472135954999579,
+      "materialAxisZ": 0,
+      "geometryConfidence": 0.15,
+      "materialConfidence": 0.9
+    },
+    "neighbors": [
+      {
+        "cell": 18,
+        "i": 2,
+        "j": 1,
+        "k": 0,
+        "weight": 0.26254029204284385,
+        "operatorScore": 0.25,
+        "reason": "operator=0.25; fields=Geometry, Material, Authority; geometry=0.5036; material=1.85; authority=1.25"
+      },
+      {
+        "cell": 1,
+        "i": 1,
+        "j": 0,
+        "k": 0,
+        "weight": 0.09716944925748537,
+        "operatorScore": 0.08333333333333333,
+        "reason": "operator=0.083333; fields=Geometry, Material, Authority; geometry=0.5246; material=1.58; authority=1.25"
+      },
+      {
+        "cell": 17,
+        "i": 1,
+        "j": 1,
+        "k": 0,
+        "weight": 0.08319264384209832,
+        "operatorScore": 0.07246376811594203,
+        "reason": "operator=0.072464; fields=Geometry, Material, Authority; geometry=0.5423; material=1.715; authority=1.25"
+      },
+      {
+        "cell": 2,
+        "i": 2,
+        "j": 0,
+        "k": 0,
+        "weight": 0.07910343386250104,
+        "operatorScore": 0.07246376811594203,
+        "reason": "operator=0.072464; fields=Geometry, Material, Authority; geometry=0.5246; material=1.58; authority=1.25"
+      },
+      {
+        "cell": 16,
+        "i": 0,
+        "j": 1,
+        "k": 0,
+        "weight": 0.07698994559257007,
+        "operatorScore": 0.08333333333333333,
+        "reason": "operator=0.083333; fields=Geometry, Material, Authority; geometry=0.7004; material=0.77; authority=1.25"
+      },
+      {
+        "cell": 257,
+        "i": 1,
+        "j": 0,
+        "k": 1,
+        "weight": 0.07016478266544511,
+        "operatorScore": 0.07246376811594203,
+        "reason": "operator=0.072464; fields=Geometry, Material, Authority; geometry=0.6248; material=1.04; authority=1.25"
+      },
+      {
+        "cell": 33,
+        "i": 1,
+        "j": 2,
+        "k": 0,
+        "weight": 0.06965769520057964,
+        "operatorScore": 0.06410256410256411,
+        "reason": "operator=0.064103; fields=Geometry, Material, Authority; geometry=0.6091; material=1.364; authority=1.25"
+      },
+      {
+        "cell": 32,
+        "i": 0,
+        "j": 2,
+        "k": 0,
+        "weight": 0.06922440496590893,
+        "operatorScore": 0.07246376811594203,
+        "reason": "operator=0.072464; fields=Geometry, Material, Authority; geometry=0.7004; material=0.77; authority=1.25"
+      },
+      {
+        "cell": 273,
+        "i": 1,
+        "j": 1,
+        "k": 1,
+        "weight": 0.06813632559003897,
+        "operatorScore": 0.06410256410256411,
+        "reason": "operator=0.064103; fields=Geometry, Material, Authority; geometry=0.6032; material=1.31; authority=1.25"
+      }
+    ]
+  },
+  {
+    "cellKind": "anisotropic-region",
+    "cell": 2188,
+    "i": 12,
+    "j": 8,
+    "k": 8,
+    "fields": {
+      "materialId": 1,
+      "interfaceSignedDistance": 0.27578361350069563,
+      "interfaceNormalX": 0.9438583563660174,
+      "interfaceNormalY": 0.3303504247281061,
+      "interfaceNormalZ": 0,
+      "materialAxisX": 0.8944271909999159,
+      "materialAxisY": 0.4472135954999579,
+      "materialAxisZ": 0,
+      "geometryConfidence": 0.15,
+      "materialConfidence": 0.25
+    },
+    "neighbors": [
+      {
+        "cell": 2206,
+        "i": 14,
+        "j": 9,
+        "k": 8,
+        "weight": 0.6818503085495148,
+        "operatorScore": 0.25,
+        "reason": "operator=0.25; fields=Geometry, Material, Authority; geometry=0.5036; material=0.875; authority=1.25"
+      },
+      {
+        "cell": 2170,
+        "i": 10,
+        "j": 7,
+        "k": 8,
+        "weight": 0.3830032647497886,
+        "operatorScore": 0.2877271020357687,
+        "reason": "operator=0.28773; fields=Geometry, Material, Authority; geometry=0.5036; material=0.875; authority=1.25"
+      }
+    ]
+  }
+]

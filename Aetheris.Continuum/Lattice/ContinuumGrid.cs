@@ -23,6 +23,9 @@ public sealed record CutCell(
 {
     /// <summary>Optional derived local boundary caches; source CIR/BRep remains authoritative.</summary>
     public IReadOnlyList<IBoundaryOffsetMap> BoundaryOffsetMaps { get; init; } = [];
+
+    /// <summary>Optional whole-shell composition. Each exact face remains an independent contributor.</summary>
+    public CutCellBoundarySet? BoundarySet { get; init; }
 }
 
 public readonly record struct ContinuumCell(CellIndex Index, BoundingBox3D Bounds, CellClassification Classification, double OccupancyEstimate);

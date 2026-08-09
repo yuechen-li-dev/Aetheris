@@ -53,3 +53,6 @@ dotnet run --project Aetheris.Firmament.FrictionLab/Aetheris.Firmament.FrictionL
 Outputs:
 - `Reports/summary.json`
 - `Reports/Artifacts/*.step` (only when export succeeds)
+
+Report JSON is reproducible local diagnostic output and is ignored by Git. Promote an individual
+small report only with `git add -f` after confirming that it is a durable review baseline.

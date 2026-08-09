@@ -98,3 +98,19 @@ These items were discovered during AETHERIS-CONTINUUM-M0 and intentionally not e
 - **Proposed direction:** introduce a kernel-level oriented-shell query that returns both exact support normal and shell material-side classification. Until that exists, Continuum fixtures must state the construction contract explicitly and verify it against CIR with deterministic two-sided probes.
 - **Blocker status:** not an M3 blocker; M3 records `exactFaceNormalIsMaterialSide` explicitly and fails on CIR disagreement.
 - **Recommended future milestone:** multi-face whole-part Cut-cell composition, where oriented-shell authority can replace per-fixture declarations.
+
+## Complete root-fillet BRep/CIR identity is missing
+
+- **Issue:** the M3 `BrepTorusRootFilletContinuumRegion` models a closed analytic shoulder/root/shaft envelope, but the exact construction body supplied to it also contains the upstream prism/cone and downstream frustum/end-cap. They share valid root-fillet faces but are not the same complete solid.
+- **Impact:** M4's deterministic face/edge/vertex consistency gate correctly rejects the pair for whole-shell composition. Using it anyway would attach unrelated exact faces to CIR occupancy and silently violate representation authority.
+- **Proposed direction:** create a complete CIR for the exact coaxial construction (preferably from its typed constructive recipe, not sampled BRep conversion), or materialize a bounded BRep containing exactly the current analytic shoulder/root/shaft envelope. Then add trimmed Plane/Cylinder/Cone/Torus whole-shell projection and integration incrementally.
+- **Blocker status:** blocks production non-planar whole-part M4, HexBolt, and root-fillet contact area accounting; does not block the convex planar closed-shell proof.
+- **Recommended future milestone:** AETHERIS-CONTINUUM-M4.1 non-planar whole-shell authority alignment.
+
+## Transform3D stores single-precision matrices
+
+- **Issue:** `Transform3D` converts geometry to `System.Numerics.Matrix4x4`, whose entries and operations are single precision.
+- **Impact:** rotated BRep/CIR consistency probes and otherwise exact planar volume/area accumulate errors around 1e-7, requiring a scale-aware consistency tolerance. Baseline unrotated integration remains near double-precision roundoff.
+- **Proposed direction:** introduce a double-precision rigid transform type or migrate `Transform3D` storage without changing public composition order semantics.
+- **Blocker status:** not a classification blocker; it limits the meaningful numerical tolerance for rotated exact-authority comparisons.
+- **Recommended future milestone:** kernel numeric-foundation cleanup before solver verification tolerances are standardized.

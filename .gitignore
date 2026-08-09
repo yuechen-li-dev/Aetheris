@@ -37,6 +37,15 @@ bld/
 .tmp/
 demo-output/
 
+# Generated diagnostic JSON stays local by default. These files are often tens or hundreds of
+# thousands of lines and are reproducible from the owning benchmark/tool. Curated JSON may still
+# be added deliberately with `git add -f <path>` after a size/content review.
+docs/continuum/artifacts/*.json
+docs/continuum/artifacts/**/*.json
+docs/preview2/evidence/**/*.json
+docs/reports/artifacts/**/*.json
+Aetheris.Firmament.FrictionLab/Reports/*.json
+
 # Package-manager caches are local even when a new JS workspace is added without a nested ignore file.
 .tspack/
 

@@ -132,7 +132,7 @@ Exact boundary areas are 24 for the box and 48 for the block-with-hole fixture. 
 
 ## Diagnostics, determinism, and performance
 
-`ContinuumGridDiagnostics.ToJson` emits lattice dimensions/cell size, aggregate counts, every cell state and occupancy, Cut indices, and boundary references with string enums and deterministic enumeration. A compact checked-in summary is at `docs/continuum/artifacts/m0-summary.json`.
+`ContinuumGridDiagnostics.ToJson` emits lattice dimensions/cell size, aggregate counts, every cell state and occupancy, Cut indices, and boundary references with string enums and deterministic enumeration. The locally generated summary is written to `docs/continuum/artifacts/m0-summary.json`; generated artifact JSON is ignored by Git unless deliberately promoted as a small review baseline.
 
 The full 8,192-cell fine fixture plus 30,720 boundary samples averaged 13.01 ms over 20 warmed runs on the validation machine. All patterns, cell ordering, strategy tie-breaking, boundary ids, and JSON order are deterministic; a regression test compares repeated JSON byte-for-byte.
 

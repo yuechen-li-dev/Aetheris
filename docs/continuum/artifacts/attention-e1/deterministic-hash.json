@@ -1,7 +1,0 @@
-{
-  "algorithm": "SHA-256",
-  "excludes": [
-    "runtime and setup timing"
-  ],
-  "sha256": "7444247d4e14675fa7ddc0d8bc275c83a170bf153f83a04d16f47142036c5383"
-}

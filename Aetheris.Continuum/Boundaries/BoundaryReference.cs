@@ -7,7 +7,10 @@ public sealed record BoundaryReference(
     string SourceRepresentation,
     string SourceId,
     string? ExactBrepFaceId = null,
-    string? SemanticRegion = null);
+    string? SemanticRegion = null,
+    string? ContinuumRegionId = null,
+    string? ExactBrepBodyId = null,
+    string? ExactBrepShellId = null);
 
 public interface IBoundaryReferenceCapability
 {

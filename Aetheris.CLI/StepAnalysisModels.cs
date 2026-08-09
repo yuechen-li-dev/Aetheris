@@ -18,6 +18,7 @@ public sealed record AnalyzeSummary(
     BoundingBox3D? BoundingBox,
     string StructuralAssessment,
     IReadOnlyDictionary<string, int> SurfaceFamilies,
+    IReadOnlyDictionary<string, int> CurveFamilies,
     string StructuralAssessmentBasis,
     string LengthUnit,
     string LengthUnitBasis,

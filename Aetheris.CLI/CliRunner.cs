@@ -117,7 +117,7 @@ public static class CliRunner
         int? RigidRootCount = null);
     private const string TopLevelUsage = "Usage: aetheris <command> [options]";
     private const string BuildUsage = "Usage: aetheris build <file.firmament> [--output <path>] [--json]";
-    private const string MeshUsage = "Usage: aetheris mesh <file.firmament|file.firmfixture|file.step> [--format stl] [--output <path>] [--debug-ir <path>] [--json]";
+    private const string MeshUsage = "Usage: aetheris mesh <file.firmament|file.firmfixture|file.step> [--format stl|obj] [--output <path>] [--debug-ir <path>] [--json]";
     private const string ValidateUsage = "Usage: aetheris validate <file.firmament|file.firmfixture> [--forge-pack <path>] [--json]";
     private const string InspectProfileUsage = "Usage: aetheris inspect-profile <file.firmament> [--json]";
     private const string InspectComposeUsage = "Usage: aetheris inspect-compose <file.firmament> --json [--materialize]";
@@ -464,7 +464,11 @@ public static class CliRunner
                 default: stderr.WriteLine($"Unknown mesh option '{args[i]}'."); stderr.WriteLine(MeshUsage); return 1;
             }
         }
-        if (!string.Equals(format, "stl", StringComparison.OrdinalIgnoreCase)) { stderr.WriteLine("Mesh currently supports only binary STL."); return 1; }
+        if (!string.Equals(format, "stl", StringComparison.OrdinalIgnoreCase) && !string.Equals(format, "obj", StringComparison.OrdinalIgnoreCase))
+        {
+            stderr.WriteLine("Mesh supports binary STL and topology-preserving OBJ.");
+            return 1;
+        }
         var fullInput = Path.GetFullPath(input);
         string stepText;
         if (string.Equals(Path.GetExtension(fullInput), ".firmament", StringComparison.OrdinalIgnoreCase) || string.Equals(Path.GetExtension(fullInput), ".firmfixture", StringComparison.OrdinalIgnoreCase))
@@ -478,21 +482,47 @@ public static class CliRunner
         var imported = Step242Importer.ImportBody(stepText);
         if (!imported.IsSuccess || imported.Value is null) return WriteMeshFailure(imported.Diagnostics.Select(d => d.Message), json, fullInput, stdout, stderr);
         string? irFailure = null;
-        if (!SurfaceMeshIrTessellator.TryBuild(imported.Value, SurfaceMeshPolicy.FromDisplayOptions(DisplayTessellationOptions.Default), out var document)
-            || !SurfaceMeshIrValidator.TryValidate(document, out irFailure)
-            || !SurfaceMeshIrTessellator.TryLowerToTriangleMesh(document, out var mesh, out var topology))
-            return WriteMeshFailure([irFailure ?? "SurfaceMeshIR does not support this B-rep family or its topology did not validate."], json, fullInput, stdout, stderr);
+        if (!SurfaceMeshIrTessellator.TryBuild(imported.Value, SurfaceMeshPolicy.FromDisplayOptions(DisplayTessellationOptions.Default), out var document, out irFailure)
+            || !SurfaceMeshIrValidator.TryValidate(document, out irFailure))
+        {
+            var diagnostic = irFailure ?? "SurfaceMeshIR does not support this B-rep family or its topology did not validate.";
+            var audit = SurfaceMeshIrTessellator.Audit(imported.Value);
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "mesh", success = false, input = fullInput, diagnostics = new[] { diagnostic }, coverage = audit }, JsonOptions));
+            else stderr.WriteLine($"Mesh failed: {diagnostic}");
+            return 1;
+        }
         if (!string.IsNullOrWhiteSpace(debugIr))
         {
             var debugPath = Path.GetFullPath(debugIr);
             Directory.CreateDirectory(Path.GetDirectoryName(debugPath)!);
             File.WriteAllText(debugPath, SurfaceMeshIrDebug.ToJson(document));
         }
-        var outputPath = Path.GetFullPath(output ?? Path.ChangeExtension(fullInput, ".stl"));
+        var outputPath = Path.GetFullPath(output ?? Path.ChangeExtension(fullInput, string.Equals(format, "obj", StringComparison.OrdinalIgnoreCase) ? ".obj" : ".stl"));
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
+        if (string.Equals(format, "obj", StringComparison.OrdinalIgnoreCase))
+        {
+            var obj = SurfaceMeshObjExporter.Export(document, Path.GetFileNameWithoutExtension(outputPath));
+            File.WriteAllText(outputPath, obj.Text);
+            var objBytes = new FileInfo(outputPath).Length;
+            var watertight = SurfaceMeshIrTessellator.TryLowerToTriangleMesh(document, out _, out var objTopology) && objTopology.IsWatertight;
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new
+            {
+                command = "mesh", success = true, pipeline = "SurfaceMeshIR", input = fullInput, outputPath, format = "obj",
+                patchCount = document.Metrics.PatchCount, cellCount = document.Metrics.CellCount, polygonCount = obj.PolygonCount,
+                quadCount = obj.QuadCount, triangleCount = obj.TriangleCount, boundaryPolygonCount = obj.BoundaryPolygonCount,
+                quadPercentage = obj.PolygonCount == 0 ? 0d : (double)obj.QuadCount / obj.PolygonCount * 100d,
+                vertexCount = obj.VertexCount, normalCount = obj.NormalCount, textureCoordinateCount = obj.TextureCoordinateCount,
+                finalTriangleCount = objTopology.TriangleCount, watertight, maxChordalDeviation = document.Metrics.MaxChordalDeviation, normalDeviation = document.Metrics.MaxNormalDeviation,
+                deterministicHash = obj.DeterministicHash, bytes = objBytes
+            }, JsonOptions));
+            else stdout.WriteLine($"SurfaceMeshIR OBJ: {outputPath}\nPatches: {document.Metrics.PatchCount}; polygons: {obj.PolygonCount}; quads: {obj.QuadCount}; triangles: {obj.TriangleCount}; max chordal error: {document.Metrics.MaxChordalDeviation:R}");
+            return 0;
+        }
+        if (!SurfaceMeshIrTessellator.TryLowerToTriangleMesh(document, out var mesh, out var topology))
+            return WriteMeshFailure(["SurfaceMeshIR could not lower the validated document to a watertight TriangleMesh for STL."], json, fullInput, stdout, stderr);
         BinaryStlExporter.Export(outputPath, mesh);
-        var bytes = new FileInfo(outputPath).Length;
-        if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "mesh", success = true, pipeline = "SurfaceMeshIR", input = fullInput, outputPath, format = "binary-stl", triangleCount = topology.TriangleCount, vertexCount = topology.VertexCount, watertight = topology.IsWatertight, maxChordalDeviation = document.Metrics.MaxChordalDeviation, normalDeviation = document.Metrics.MaxNormalDeviation, deterministicHash = mesh.DeterministicHash, bytes }, JsonOptions));
+        var stlBytes = new FileInfo(outputPath).Length;
+        if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "mesh", success = true, pipeline = "SurfaceMeshIR", input = fullInput, outputPath, format = "binary-stl", patchCount = document.Metrics.PatchCount, cellCount = document.Metrics.CellCount, quadCount = document.Metrics.QuadCount, triangleCount = topology.TriangleCount, vertexCount = topology.VertexCount, watertight = topology.IsWatertight, maxChordalDeviation = document.Metrics.MaxChordalDeviation, normalDeviation = document.Metrics.MaxNormalDeviation, deterministicHash = mesh.DeterministicHash, bytes = stlBytes }, JsonOptions));
         else stdout.WriteLine($"SurfaceMeshIR STL: {outputPath}\nTriangles: {topology.TriangleCount}; watertight: {topology.IsWatertight}; max chordal error: {document.Metrics.MaxChordalDeviation:R}");
         return 0;
     }
@@ -3061,6 +3091,7 @@ public static class CliRunner
         stdout.WriteLine("Commands:");
         stdout.WriteLine("  validate   Check Firmament source without materializing geometry.");
         stdout.WriteLine("  build      Compile Firmament to exact STEP AP242.");
+        stdout.WriteLine("  mesh       Export a supported exact B-rep as STL or topology-preserving OBJ.");
         stdout.WriteLine("  view       Build/open a model in Cadmata.");
         stdout.WriteLine("  inspect    Inspect Firmament semantics or STEP topology.");
         stdout.WriteLine("  analyze    Analyze STEP topology and analytic surfaces.");

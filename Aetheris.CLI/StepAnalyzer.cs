@@ -1536,6 +1536,30 @@ public sealed record VolumeAnalysisResult(
             ["surface-of-revolution"] = 0,
             ["other"] = 0
         };
+        var curveFamilies = new Dictionary<string, int>(StringComparer.Ordinal)
+        {
+            ["line"] = 0,
+            ["circle"] = 0,
+            ["hyperbola"] = 0,
+            ["ellipse"] = 0,
+            ["bspline"] = 0,
+            ["unsupported"] = 0
+        };
+
+        foreach (var edge in topology.Edges)
+        {
+            if (!body.TryGetEdgeCurveGeometry(edge.Id, out var curve) || curve is null) { curveFamilies["unsupported"]++; continue; }
+            var key = curve.Kind switch
+            {
+                CurveGeometryKind.Line3 => "line",
+                CurveGeometryKind.Circle3 => "circle",
+                CurveGeometryKind.Hyperbola3 => "hyperbola",
+                CurveGeometryKind.Ellipse3 => "ellipse",
+                CurveGeometryKind.BSpline3 => "bspline",
+                _ => "unsupported"
+            };
+            curveFamilies[key]++;
+        }
 
         foreach (var face in topology.Faces)
         {
@@ -1587,6 +1611,7 @@ public sealed record VolumeAnalysisResult(
             bbox,
             structural,
             surfaceFamilies,
+            curveFamilies,
             basis,
             "mm",
             "assumed; STEP import length units not yet preserved",

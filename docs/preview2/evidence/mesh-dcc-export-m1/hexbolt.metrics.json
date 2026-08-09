@@ -1,0 +1,20 @@
+{
+  "pipeline": "SurfaceMeshIR->OBJ (direct; no TriangleMesh reconstruction)",
+  "input": "testdata/firmament/examples/mcmaster_91180a151_threadless_hex_bolt.step",
+  "output": "hexbolt.obj",
+  "patchCount": 21,
+  "cellCount": 981,
+  "polygonCount": 981,
+  "quadCount": 896,
+  "triangleCount": 77,
+  "boundaryPolygonCount": 8,
+  "quadPercentage": 91.33537206931702,
+  "vertexCount": 1052,
+  "normalCount": 499,
+  "textureCoordinateCount": 1256,
+  "finalTriangleCount": 2116,
+  "watertight": true,
+  "maxChordalDeviation": 0.035931582229996394,
+  "objSha256": "048e4134128d2b486f1dc9af058afbd580cdabbb80c4e59a8dbd2bb40af3287c",
+  "bytes": 186099
+}

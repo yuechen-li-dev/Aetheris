@@ -114,6 +114,16 @@ public sealed record SurfaceMeshMetrics(
     double MaxNormalDeviation = 0d,
     long ApproximateBufferBytes = 0);
 
+/// <summary>Read-only coverage accounting for an imported B-rep before a structured build.</summary>
+public sealed record SurfaceMeshIrCoverageAudit(
+    int FaceCount,
+    int AnalyticSupportFaceCount,
+    int UnsupportedSupportFaceCount,
+    IReadOnlyDictionary<string, int> EdgeCurveFamilies,
+    IReadOnlyList<SurfaceMeshIrCoverageBlocker> BoundaryBlockers);
+
+public sealed record SurfaceMeshIrCoverageBlocker(int EdgeId, string CurveFamily, IReadOnlyList<int> FaceIds);
+
 public static class SurfaceMeshIrDebug
 {
     public static string ToJson(SurfaceMeshDocument document)
@@ -141,6 +151,35 @@ public static class SurfaceMeshIrTessellator
             .Select(p => new DisplayEdgePolyline(p.EdgeId, p.Samples.Select(s => s.Position).ToArray(), p.IsClosed)).ToArray();
         result = new DisplayTessellationResult(patches, edges, MeshPipeline: DisplayMeshPipeline.SurfaceMeshIr, SurfaceMeshMetrics: document.Metrics);
         return true;
+    }
+
+    /// <summary>
+    /// Reports generic support coverage without invoking a fallback or modifying
+    /// topology. It is intentionally conservative: an analytic support face is
+    /// counted separately from whether its bounded trim is currently plannable.
+    /// </summary>
+    public static SurfaceMeshIrCoverageAudit Audit(BrepBody body)
+    {
+        var families = new SortedDictionary<string, int>(StringComparer.Ordinal);
+        var blockers = new List<SurfaceMeshIrCoverageBlocker>();
+        var analytic = 0;
+        var unsupportedSupports = 0;
+        foreach (var face in body.Topology.Faces)
+        {
+            if (body.TryGetFaceSurfaceGeometry(face.Id, out var surface) && surface?.Kind is SurfaceGeometryKind.Plane or SurfaceGeometryKind.Cylinder or SurfaceGeometryKind.Cone or SurfaceGeometryKind.Sphere or SurfaceGeometryKind.Torus) analytic++;
+            else unsupportedSupports++;
+        }
+        foreach (var edge in body.Topology.Edges.OrderBy(edge => edge.Id.Value))
+        {
+            var family = body.TryGetEdgeCurveGeometry(edge.Id, out var curve) && curve is not null ? curve.Kind.ToString() : "Unbound";
+            families[family] = families.GetValueOrDefault(family) + 1;
+            if (family is "Line3" or "Circle3" or "Hyperbola3") continue;
+            var uses = body.Topology.Faces
+                .Where(face => body.GetLoopIds(face.Id).SelectMany(body.GetCoedgeIds).Any(coedgeId => body.Topology.GetCoedge(coedgeId).EdgeId == edge.Id))
+                .Select(face => face.Id.Value).OrderBy(id => id).ToArray();
+            blockers.Add(new SurfaceMeshIrCoverageBlocker(edge.Id.Value, family, uses));
+        }
+        return new SurfaceMeshIrCoverageAudit(body.Topology.Faces.Count(), analytic, unsupportedSupports, families, blockers);
     }
 
     /// <summary>Final deterministic lowering seam used by export.  Consumers only see triangles.</summary>
@@ -217,8 +256,12 @@ public static class SurfaceMeshIrTessellator
     }
 
     public static bool TryBuild(BrepBody body, SurfaceMeshPolicy policy, out SurfaceMeshDocument document)
+        => TryBuild(body, policy, out document, out _);
+
+    /// <summary>Builds the structured document and exposes the first generic unsupported contract.</summary>
+    public static bool TryBuild(BrepBody body, SurfaceMeshPolicy policy, out SurfaceMeshDocument document, out string? failure)
     {
-        document = default!;
+        document = default!; failure = null;
         var vertices = new List<SurfaceMeshVertex>();
         var plans = new List<SharedEdgeSamplePlan>();
         var endpointVertices = new Dictionary<VertexId, SurfaceMeshVertex>();
@@ -230,7 +273,13 @@ public static class SurfaceMeshIrTessellator
         var structuredSegments = BuildStructuredSegmentConstraints(body, policy);
         foreach (var edge in body.Topology.Edges.OrderBy(e => e.Id.Value))
         {
-            if (!TryPlanEdge(body, edge.Id, policy, endpointVertices, ref nextVertexId, structuredSegments.TryGetValue(edge.Id, out var forcedSegments) ? forcedSegments : null, out var plan)) return false;
+            if (!TryPlanEdge(body, edge.Id, policy, endpointVertices, ref nextVertexId, structuredSegments.TryGetValue(edge.Id, out var forcedSegments) ? forcedSegments : null, out var plan))
+            {
+                failure = body.TryGetEdgeCurveGeometry(edge.Id, out var curve) && curve is not null
+                    ? $"SurfaceMeshIR does not support edge {edge.Id.Value} with curve family {curve.Kind}."
+                    : $"SurfaceMeshIR could not resolve exact geometry for edge {edge.Id.Value}.";
+                return false;
+            }
             vertices.AddRange(plan.Samples);
             plans.Add(plan);
         }
@@ -242,31 +291,35 @@ public static class SurfaceMeshIrTessellator
         {
             if (!body.TryGetFaceSurfaceGeometry(face.Id, out var surface) || surface is null ||
                 surface.Kind is not (SurfaceGeometryKind.Plane or SurfaceGeometryKind.Cylinder or SurfaceGeometryKind.Cone or SurfaceGeometryKind.Sphere or SurfaceGeometryKind.Torus) ||
-                !body.Bindings.TryGetFaceBinding(face.Id, out var faceBinding)) return false;
+                !body.Bindings.TryGetFaceBinding(face.Id, out var faceBinding))
+            {
+                failure = $"SurfaceMeshIR does not support face {face.Id.Value}: the face has no bound Plane/Cylinder/Cone/Sphere/Torus support.";
+                return false;
+            }
             switch (surface.Kind)
             {
                 case SurfaceGeometryKind.Plane:
                     var planePatch = TryBuildPlanePatch(body, face.Id, faceBinding.SameSense, surface.Plane!.Value, byEdge, vertices, ref nextVertexId);
-                    if (planePatch is null) return false;
+                    if (planePatch is null) { failure = $"SurfaceMeshIR does not support trim topology on planar face {face.Id.Value}."; return false; }
                     patches.Add(planePatch);
                     break;
                 case SurfaceGeometryKind.Cylinder:
                     var cylinderPatch = TryBuildCylinderPatch(body, face.Id, faceBinding.SameSense, surface.Cylinder!.Value, byEdge, vertices, ref nextVertexId);
-                    if (cylinderPatch is null) return false;
+                    if (cylinderPatch is null) { failure = $"SurfaceMeshIR does not support trim topology on cylindrical face {face.Id.Value}."; return false; }
                     patches.Add(cylinderPatch);
                     break;
                 case SurfaceGeometryKind.Cone:
                     var conePatch = TryBuildConePatch(body, face.Id, faceBinding.SameSense, surface.Cone!.Value, byEdge, vertices, ref nextVertexId);
-                    if (conePatch is null) return false;
+                    if (conePatch is null) { failure = $"SurfaceMeshIR does not support trim topology on conical face {face.Id.Value}."; return false; }
                     patches.Add(conePatch);
                     break;
                 case SurfaceGeometryKind.Sphere:
-                    if (!TryBuildSphereCharts(body, face.Id, faceBinding.SameSense, surface.Sphere!.Value, vertices, ref nextVertexId, out var spherePatches)) return false;
+                    if (!TryBuildSphereCharts(body, face.Id, faceBinding.SameSense, surface.Sphere!.Value, vertices, ref nextVertexId, out var spherePatches)) { failure = $"SurfaceMeshIR does not support chart/trim topology on spherical face {face.Id.Value}."; return false; }
                     patches.AddRange(spherePatches);
                     break;
                 case SurfaceGeometryKind.Torus:
                     var torusPatch = TryBuildTorusPatch(body, face.Id, faceBinding.SameSense, surface.Torus!.Value, byEdge, policy, vertices, ref nextVertexId);
-                    if (torusPatch is null) return false;
+                    if (torusPatch is null) { failure = $"SurfaceMeshIR does not support trim topology on toroidal face {face.Id.Value}."; return false; }
                     patches.Add(torusPatch);
                     break;
             }

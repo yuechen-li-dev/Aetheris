@@ -1,4 +1,4 @@
-using Aetheris.Kernel.Core.Cir;
+using Aetheris.Continuum.Backends.Sdf;
 using Aetheris.Kernel.Core.Judgment;
 
 namespace Aetheris.Kernel.Firmament.Materializer;
@@ -550,11 +550,11 @@ internal sealed class CounterboreVariant : IHoleRecoveryVariant
         return new(Name, true, Score, plan, evidence, Array.Empty<string>(), ["CounterboreVariant admitted canonical nested subtract pattern."]);
     }
 
-    internal static bool TryUnwrapTranslation(Aetheris.Kernel.Core.Cir.CirNode node, out Aetheris.Kernel.Core.Cir.CirNode unwrapped, out Aetheris.Kernel.Core.Math.Vector3D translation)
+    internal static bool TryUnwrapTranslation(Aetheris.Continuum.Backends.Sdf.CirNode node, out Aetheris.Continuum.Backends.Sdf.CirNode unwrapped, out Aetheris.Kernel.Core.Math.Vector3D translation)
     {
         unwrapped = node;
         translation = Aetheris.Kernel.Core.Math.Vector3D.Zero;
-        while (unwrapped is Aetheris.Kernel.Core.Cir.CirTransformNode transformNode)
+        while (unwrapped is Aetheris.Continuum.Backends.Sdf.CirTransformNode transformNode)
         {
             var origin = transformNode.Transform.Apply(Aetheris.Kernel.Core.Math.Point3D.Origin);
             var x = transformNode.Transform.Apply(new Aetheris.Kernel.Core.Math.Point3D(1d, 0d, 0d));

@@ -6,3 +6,5 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("Aetheris.Kernel.Firmament")]
 [assembly: InternalsVisibleTo("Aetheris.Kernel.Firmament.Tests")]
 [assembly: InternalsVisibleTo("aetheris")]
+[assembly: InternalsVisibleTo("Aetheris.Continuum")]
+[assembly: InternalsVisibleTo("Aetheris.Continuum.Tests")]

@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using Aetheris.Kernel.Core.Air;
+using Aetheris.Continuum.Bridges.Air;
 using Aetheris.Kernel.Core.Air.BRepPlan;
 using Aetheris.Kernel.Core.Air.Regions;
 using Aetheris.Kernel.Core.Brep.Prismatic;

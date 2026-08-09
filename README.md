@@ -94,6 +94,7 @@ export PATH="$HOME/.dotnet:$PATH"
 dotnet test Aetheris.Kernel.Firmament.Tests/Aetheris.Kernel.Firmament.Tests.csproj --logger "console;verbosity=minimal"
 dotnet test Aetheris.Server.Tests/Aetheris.Server.Tests.csproj --logger "console;verbosity=minimal"
 dotnet test Aetheris.Kernel.Core.Tests/Aetheris.Kernel.Core.Tests.csproj --logger "console;verbosity=minimal"
+dotnet test Aetheris.Continuum.Tests/Aetheris.Continuum.Tests.csproj --logger "console;verbosity=minimal"
 ```
 
 If you want the same script with a narrower or broader explicit project list, pass the test projects as arguments:
@@ -122,6 +123,9 @@ Use `Aetheris.slnx` as the only solution entrypoint. For legacy Firmament V1/Fri
 
 ## Repo map
 
+- exact kernel math, geometry, and BRep: `Aetheris.Kernel.Core/`
+- occupied-region, SDF backend, and lattice experiments: `Aetheris.Continuum/`
+- Continuum architecture and M0 evidence: `docs/continuum/`
 - language/compiler/runtime: `Aetheris.Kernel.Firmament/`
 - examples: `testdata/firmament/examples/`
 - exported STEP artifacts: `testdata/firmament/exports/`

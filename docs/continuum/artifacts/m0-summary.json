@@ -1,0 +1,24 @@
+{
+  "schema": "aetheris-continuum-m0-summary-v1",
+  "sampling": {
+    "pattern": "SubcellCenters",
+    "cylindricalHoleSamplesPerAxis": 4,
+    "deterministic": true,
+    "solverQuadrature": false
+  },
+  "fixtures": [
+    { "name": "axis-aligned-box", "dimensions": [4, 4, 4], "totalCells": 64, "insideCells": 8, "outsideCells": 56, "cutCells": 0, "geometrySamples": 0, "exactVolume": 8.0, "estimatedVolume": 8.0, "relativeVolumeError": 0.0 },
+    { "name": "angled-plane", "dimensions": [8, 8, 8], "totalCells": 512, "insideCells": 224, "outsideCells": 224, "cutCells": 64, "geometrySamples": 512, "exactVolume": 4.0, "estimatedVolume": 4.0, "relativeVolumeError": 0.0 },
+    { "name": "cylindrical-hole-coarse", "dimensions": [8, 8, 2], "totalCells": 128, "insideCells": 96, "outsideCells": 8, "cutCells": 24, "geometrySamples": 1536, "exactVolume": 12.858407346410207, "estimatedVolume": 12.75, "relativeVolumeError": 0.008430853331184278 },
+    { "name": "cylindrical-hole-medium", "dimensions": [16, 16, 4], "totalCells": 1024, "insideCells": 784, "outsideCells": 128, "cutCells": 112, "geometrySamples": 7168, "exactVolume": 12.858407346410207, "estimatedVolume": 12.828125, "relativeVolumeError": 0.0023550619913018287 },
+    { "name": "cylindrical-hole-fine", "dimensions": [32, 32, 8], "totalCells": 8192, "insideCells": 6400, "outsideCells": 1312, "cutCells": 480, "geometrySamples": 30720, "exactVolume": 12.858407346410207, "estimatedVolume": 12.84765625, "relativeVolumeError": 0.0008361141563312163 }
+  ],
+  "coarseHoleCutCells": [
+    { "index": [2, 2, 0], "occupancy": 0.625 }, { "index": [3, 2, 0], "occupancy": 0.0625 }, { "index": [4, 2, 0], "occupancy": 0.0625 }, { "index": [5, 2, 0], "occupancy": 0.625 },
+    { "index": [2, 3, 0], "occupancy": 0.0625 }, { "index": [5, 3, 0], "occupancy": 0.0625 }, { "index": [2, 4, 0], "occupancy": 0.0625 }, { "index": [5, 4, 0], "occupancy": 0.0625 },
+    { "index": [2, 5, 0], "occupancy": 0.625 }, { "index": [3, 5, 0], "occupancy": 0.0625 }, { "index": [4, 5, 0], "occupancy": 0.0625 }, { "index": [5, 5, 0], "occupancy": 0.625 },
+    { "index": [2, 2, 1], "occupancy": 0.625 }, { "index": [3, 2, 1], "occupancy": 0.0625 }, { "index": [4, 2, 1], "occupancy": 0.0625 }, { "index": [5, 2, 1], "occupancy": 0.625 },
+    { "index": [2, 3, 1], "occupancy": 0.0625 }, { "index": [5, 3, 1], "occupancy": 0.0625 }, { "index": [2, 4, 1], "occupancy": 0.0625 }, { "index": [5, 4, 1], "occupancy": 0.0625 },
+    { "index": [2, 5, 1], "occupancy": 0.625 }, { "index": [3, 5, 1], "occupancy": 0.0625 }, { "index": [4, 5, 1], "occupancy": 0.0625 }, { "index": [5, 5, 1], "occupancy": 0.625 }
+  ]
+}

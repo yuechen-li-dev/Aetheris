@@ -1,6 +1,6 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Queries;
-using Aetheris.Kernel.Core.Cir;
+using Aetheris.Continuum.Backends.Sdf;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Firmament.Execution;
 using Aetheris.Kernel.Firmament.Materializer;

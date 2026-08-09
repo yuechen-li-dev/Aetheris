@@ -1,5 +1,5 @@
-using Aetheris.Kernel.Core.Cir;
-using Aetheris.Kernel.Core.Cir.Mirrors;
+using Aetheris.Continuum.Backends.Sdf;
+using Aetheris.Continuum.Mirrors;
 using Aetheris.Kernel.Core.Math;
 using CorePrismatic = Aetheris.Kernel.Core.Brep.Prismatic;
 

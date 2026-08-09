@@ -30,4 +30,4 @@ Exact arbitrary-oriented planar semantic-face traction, resultant, pressure, and
 
 The 8x4x1 constrained system now passes independent dense Cholesky. Stress remains cell-center recovery; the maximum depends on sample distance from the hole and is not an exact-boundary peak.
 
-General imported STEP CIR recognition, curved pressure, and a conforming Cut-cell control mesh remain. A generic compound tilt exposes tiny supports and strong nearest-support Dirichlet limitations. A simple stiffness floor was tested and rejected; principled basis aggregation/ghost stabilization plus embedded Dirichlet enforcement is the next task.
+General imported STEP CIR recognition, curved pressure, and a conforming Cut-cell control mesh remain. M5C closes the generic compound tiny-support failure with affine Q1 aggregation and adds symmetric Nitsche planar enforcement. The simple stiffness floor remains rejected. Exact-boundary errors, conditioning proxies, strain-energy consistency, stress probes, strategy provenance, and raw/effective DOF accounting are now normal native evidence.

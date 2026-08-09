@@ -30,8 +30,20 @@ public sealed record MechanicsPerformance(
     long SparseBytes,long ResultBytes,
     TimeSpan SemanticFaceResolution=default,TimeSpan LocalFaceProjectionAndClipping=default,TimeSpan LoadAssembly=default,TimeSpan ConstraintResolution=default);
 public sealed record TinyCellDiagnostics(double MinimumActiveFraction,int BelowOnePercent,int BelowFivePercent,int BelowTenPercent,IReadOnlyList<double> ActiveFractions);
-public sealed record SparseSystemMetrics(int DegreesOfFreedom, int Nonzeros, double MaximumAsymmetry, bool Finite, bool DeterministicStructure, double AppliedLoadNewton, double IntegratedLoadResidualNewton,int CutCells=0,bool? IndependentSpdCheck=null);
+public sealed record SparseSystemMetrics(int DegreesOfFreedom, int Nonzeros, double MaximumAsymmetry, bool Finite, bool DeterministicStructure, double AppliedLoadNewton, double IntegratedLoadResidualNewton,int CutCells=0,bool? IndependentSpdCheck=null,
+    int RawDegreesOfFreedom=0,int ConstrainedDegreesOfFreedom=0,int AggregatedDegreesOfFreedom=0,double MinimumDiagonal=0,double MaximumDiagonal=0,double DiagonalRatio=0,double MinimumRowNorm=0,double MaximumRowNorm=0,double RowNormRatio=0);
 public sealed record EquilibriumResult(Vector3D AppliedForceNewton, Vector3D ReactionForceNewton, Vector3D ResidualNewton);
+public sealed record StrainEnergyConsistency(double AlgebraicJoule,double IntegratedContinuumJoule,double AbsoluteResidualJoule,double RelativeResidual);
+public sealed record ExactStressProbe(string Label,Point3D Position,SymmetricTensor StressPascal,double HoopStressPascal,double KirschReferencePascal,double AbsoluteErrorPascal,string ReferenceAssumptions);
+
+public enum ImmersedBasisTreatmentKind { Ordinary, Aggregated }
+public enum BoundaryEnforcementKind { StrongNearestNode, SymmetricNitsche }
+public sealed record BasisSupportEvidence(int NodeId,Point3D Position,double PhysicalSupportMeasure,double NominalSupportMeasure,double NormalizedSupport,int ActiveIncidentCells);
+public sealed record BasisTreatmentEvidence(int SourceNodeId,ImmersedBasisTreatmentKind Treatment,double Utility,IReadOnlyDictionary<string,double> Features,IReadOnlyList<string> Rejections,CellIndex? RootCell,IReadOnlyDictionary<int,double> ExtensionWeights,IReadOnlyDictionary<string,double>? CandidateUtilities=null);
+public sealed record BoundaryEnforcementEvidence(string ConstraintId,string RegionPath,string? ExactBrepFaceId,BoundaryEnforcementKind Enforcement,double Utility,double MaximumNormalizedNodeOffset,double PenaltyScale,int SelectedNodes,IReadOnlyList<string> Rejections,double MaximumViolationMeters,double RmsViolationMeters,Vector3D ReactionNewton,IReadOnlyDictionary<string,double>? CandidateUtilities=null);
+public sealed record NumericalLoweringEvidence(
+    string PolicyId,string AuthorityMeaning,IReadOnlyList<BasisSupportEvidence> BasisSupports,IReadOnlyList<BasisTreatmentEvidence> BasisTreatments,IReadOnlyList<BoundaryEnforcementEvidence> BoundaryEnforcements,
+    int BasisJudgmentCalls,int BoundaryJudgmentCalls,int FixedThresholdAggregationCount,string DeterministicHash,TimeSpan AuthoritySetup,TimeSpan StrategyAdmissionAndScoring,TimeSpan ConstraintAndStabilizationSetup);
 
 public sealed record LinearElasticAnalysisResult(
     string AnalysisId,
@@ -45,7 +57,10 @@ public sealed record LinearElasticAnalysisResult(
     TinyCellDiagnostics TinyCells,
     MechanicsPerformance Performance,
     IReadOnlyList<AnalysisDiagnostic> Diagnostics,
-    IReadOnlyList<BoundaryLoadEvidence>? BoundaryLoads=null)
+    IReadOnlyList<BoundaryLoadEvidence>? BoundaryLoads=null,
+    NumericalLoweringEvidence? NumericalLowering=null,
+    StrainEnergyConsistency? StrainEnergy=null,
+    IReadOnlyList<ExactStressProbe>? StressProbes=null)
 {
     public double MaximumDisplacementMeters => Displacements.Count == 0 ? 0 : Displacements.Max(item => item.DisplacementMeters.Length);
     public double MaximumVonMisesPascal => CellFields.Count == 0 ? 0 : CellFields.Max(item => item.VonMisesPascal);

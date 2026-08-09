@@ -30,4 +30,4 @@ M5B generalizes this rule to arbitrary-oriented exact planar fragments. The back
 
 The architecture deliberately does **not** reconstruct an arbitrary BRep as one magical global FRep/SDF. BRep remains exact boundary/topology authority, CIR remains occupied-material authority, regular cells provide computational support, and only the local portion needed by a cell is represented. `SurfaceMeshIR` is not mechanics boundary authority.
 
-Curved-face pressure remains future work. Generic compound rotations can create extremely small supports; boundary integration stays exact, but robust immersed basis/Dirichlet treatment is the next mechanics blocker.
+Curved-face pressure remains future work. M5C treats generic compound-rotation support quality as numerical-lowering metadata. A bounded JudgmentEngine policy first admits ordinary Q1 or affine root-cell aggregation, then independently admits strong or symmetric-Nitsche planar Dirichlet enforcement. Assembly applies coefficient transformations before the conventional sparse solve; authority never scales physical stiffness. See `m5c-immersed-basis-robustness.md`.

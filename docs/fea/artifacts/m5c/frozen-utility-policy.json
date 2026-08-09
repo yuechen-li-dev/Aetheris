@@ -1,0 +1,21 @@
+{
+  "policyId": "m5c-v1-frozen",
+  "authorityMeaning": "compiler metadata governing independent numerical carriers; never physical stiffness",
+  "basis": {
+    "features": ["normalizedSupport", "wellSupportedRootAvailable", "estimatedSetupCost"],
+    "admission": "aggregate only with a deterministic >=50%-occupied root cell whose nodes remain independent",
+    "ordinaryUtility": "normalizedSupport",
+    "aggregateUtility": "0.03 - 0.01 = 0.02",
+    "fixedPolicyControl": "aggregate below 0.02",
+    "decision": "fixed control and score are equivalent; retain the simple crossing"
+  },
+  "boundary": {
+    "features": ["normalizedBoundaryOffset", "exactQuadrature", "completeVectorConstraint", "minimumActiveFraction"],
+    "strongUtility": "0.55 - normalizedBoundaryOffset",
+    "nitscheUtility": "0.64 + normalizedBoundaryOffset - 0.10 setupCost",
+    "nitscheAdmission": "complete vector constraint, exact planar quadrature, minimum active fraction >= 0.0001",
+    "penaltyTiers": {"lowRejected": 20, "nominal": 100},
+    "penaltyScale": "gamma * E / h"
+  }
+}
+

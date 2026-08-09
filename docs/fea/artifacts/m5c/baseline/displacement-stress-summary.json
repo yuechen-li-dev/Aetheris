@@ -1,0 +1,27 @@
+{
+  "maximumDisplacementMeters": 1.0187318949461127E-05,
+  "maximumVonMisesPascal": 16168210.826548755,
+  "equilibrium": {
+    "appliedForceNewton": {
+      "x": 10000.000000000002,
+      "y": 0,
+      "z": 0,
+      "lengthSquared": 100000000.00000003,
+      "length": 10000.000000000002
+    },
+    "reactionForceNewton": {
+      "x": -10000.000000356738,
+      "y": 8.100187187665142E-13,
+      "z": 1.3613714600069216E-09,
+      "lengthSquared": 100000000.00713477,
+      "length": 10000.000000356738
+    },
+    "residualNewton": {
+      "x": -3.567365638446063E-07,
+      "y": 8.100187187665142E-13,
+      "z": 1.3613714600069216E-09,
+      "lengthSquared": 1.272628293165651E-13,
+      "length": 3.5673916145632945E-07
+    }
+  }
+}

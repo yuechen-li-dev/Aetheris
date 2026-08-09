@@ -51,6 +51,8 @@ public sealed class LinearElasticM5Tests
         Assert.True(result.MaximumDisplacementMeters>0);
         Assert.True(result.MaximumVonMisesPascal>0);
         Assert.True(result.System.IndependentSpdCheck);
+        Assert.InRange(result.StrainEnergy!.RelativeResidual,0,1e-12);
+        Assert.Equal(2,result.StressProbes!.Count);Assert.All(result.StressProbes,probe=>Assert.True(double.IsFinite(probe.HoopStressPascal)));
     }
 
     [Fact]
@@ -148,6 +150,7 @@ public sealed class LinearElasticM5Tests
         var result=LinearElasticSolver.Solve(analysis,new(CutCellQuadraturePerAxis:6,RelativeResidualTolerance:1e-8,DomainTransform:rotation));
         Assert.True(result.IsSuccess,string.Join("; ",result.Diagnostics.Select(d=>d.Code+":"+d.Message)));
         var load=Assert.Single(result.BoundaryLoads!);Assert.InRange(double.Abs(load.IntegratedArea-load.ExactArea),0,1e-11);Assert.InRange(load.ResultantResidual,0,1e-8);Assert.InRange(load.MomentResidual,0,1e-9);
+        Assert.InRange(Assert.Single(result.NumericalLowering!.BoundaryEnforcements).MaximumViolationMeters,0,2e-6);
     }
 
     [Fact]
@@ -172,5 +175,34 @@ public sealed class LinearElasticM5Tests
         Assert.InRange(double.Abs(first.IntegratedArea-3),0,1e-12);
         Assert.Equal(first.Fragments.Select(f=>f.OwnershipKey),second.Fragments.Select(f=>f.OwnershipKey));
         Assert.Equal(first.Fragments.Count,first.Fragments.Select(f=>f.OwnershipKey).Distinct(StringComparer.Ordinal).Count());
+    }
+
+    [Fact]
+    public void CompoundTinySupport_UsesAffineAggregationAndRestoresUsableMechanics()
+    {
+        var original=FirmamentAnalysisCompiler.Compile(DirectSource).Analysis!;var source=original with{Lattice=new LatticeSpec(original.Body.ContinuumRegion.Bounds,16,8,2)};var bounds=source.Body.ContinuumRegion.Bounds;var center=new Vector3D((bounds.Min.X+bounds.Max.X)/2,(bounds.Min.Y+bounds.Max.Y)/2,(bounds.Min.Z+bounds.Max.Z)/2);
+        var rotation=Transform3D.CreateTranslation(-center)*Transform3D.CreateRotationX(15*double.Pi/180)*Transform3D.CreateRotationY(20*double.Pi/180)*Transform3D.CreateRotationZ(45*double.Pi/180)*Transform3D.CreateTranslation(center);
+        var result=LinearElasticSolver.Solve(source,new(CutCellQuadraturePerAxis:6,RelativeResidualTolerance:1e-9,DomainTransform:rotation,PreserveNominalCellVolumeUnderTransform:true));
+        Assert.True(result.IsSuccess,string.Join("; ",result.Diagnostics.Select(d=>d.Code+":"+d.Message)));Assert.True(result.TinyCells.MinimumActiveFraction<1e-4);
+        Assert.True(result.System.AggregatedDegreesOfFreedom>1000);Assert.True(result.System.DegreesOfFreedom<result.System.RawDegreesOfFreedom);Assert.InRange(result.System.DiagonalRatio,1,100);
+        Assert.InRange(result.MaximumDisplacementMeters,8e-6,3e-5);Assert.InRange(result.MaximumVonMisesPascal,10e6,100e6);Assert.InRange(result.Equilibrium.ResidualNewton.Length,0,1e-5);
+        Assert.InRange(result.StrainEnergy!.RelativeResidual,0,1e-12);
+        Assert.InRange(result.Solver.Iterations,1,700);Assert.Equal(result.NumericalLowering!.FixedThresholdAggregationCount,result.NumericalLowering.BasisTreatments.Count(t=>t.Treatment==ImmersedBasisTreatmentKind.Aggregated));
+        var nodes=result.Displacements.ToDictionary(item=>item.NodeId,item=>item.Position);
+        foreach(var treatment in result.NumericalLowering.BasisTreatments.Where(t=>t.Treatment==ImmersedBasisTreatmentKind.Aggregated))
+        {
+            Assert.InRange(double.Abs(treatment.ExtensionWeights.Values.Sum()-1),0,1e-12);var reproduced=new Vector3D(0,0,0);
+            foreach(var weight in treatment.ExtensionWeights){var p=nodes[weight.Key];reproduced+=new Vector3D(p.X,p.Y,p.Z)*weight.Value;}
+            var sourcePosition=nodes[treatment.SourceNodeId];Assert.InRange((reproduced-new Vector3D(sourcePosition.X,sourcePosition.Y,sourcePosition.Z)).Length,0,1e-12);
+        }
+    }
+
+    [Fact]
+    public void SafeImmersedPlanarTrace_UsesSymmetricNitscheOnExactBoundary()
+    {
+        var source=FirmamentAnalysisCompiler.Compile(DirectSource).Analysis!;var center=new Vector3D(.1,.05,.005);var rotation=Transform3D.CreateTranslation(-center)*Transform3D.CreateRotationZ(23*double.Pi/180)*Transform3D.CreateRotationY(11*double.Pi/180)*Transform3D.CreateTranslation(center);
+        var result=LinearElasticSolver.Solve(source,new(CutCellQuadraturePerAxis:6,RelativeResidualTolerance:1e-8,DomainTransform:rotation,PreserveNominalCellVolumeUnderTransform:true));
+        Assert.True(result.IsSuccess,string.Join("; ",result.Diagnostics.Select(d=>d.Code+":"+d.Message)));var enforcement=Assert.Single(result.NumericalLowering!.BoundaryEnforcements);
+        Assert.True(enforcement.Enforcement==BoundaryEnforcementKind.SymmetricNitsche,$"actual={enforcement.Enforcement}; utility={enforcement.Utility:R}; offset={enforcement.MaximumNormalizedNodeOffset:R}; min={result.TinyCells.MinimumActiveFraction:R}; rejections={string.Join("|",enforcement.Rejections)}");Assert.Equal(100,enforcement.PenaltyScale);Assert.InRange(enforcement.MaximumViolationMeters,0,2e-6);Assert.InRange(result.System.MaximumAsymmetry,0,1e-5);Assert.InRange(result.Equilibrium.ResidualNewton.Length,0,100);
     }
 }

@@ -487,7 +487,7 @@ public static class CliRunner
                 constraints = compiled.Analysis.Constraints.Select(item => new { item.Id, region = item.Region.Path, components = item.Components }),
                 loads = compiled.Analysis.Loads.Select(item => new { item.Id, kind = item.Kind.ToString(), region = item.Region.Path, item.VectorSi, item.PressurePascal }),
                 lattice = new { compiled.Analysis.Lattice.CountX, compiled.Analysis.Lattice.CountY, compiled.Analysis.Lattice.CountZ } },
-            orientationDegrees=rotationDegrees,result.System, result.Solver, result.Equilibrium, result.TinyCells, result.Performance,boundaryLoads=result.BoundaryLoads,
+            orientationDegrees=rotationDegrees,result.System, result.Solver, result.Equilibrium, result.TinyCells, result.Performance,boundaryLoads=result.BoundaryLoads,numericalLowering=result.NumericalLowering,strainEnergy=result.StrainEnergy,stressProbes=result.StressProbes,
             maximumDisplacementMeters = result.MaximumDisplacementMeters, maximumVonMisesPascal = result.MaximumVonMisesPascal,
             abaqus = new { abaqus.Sha256, abaqus.NodeCount, abaqus.ElementCount, validation.IsValid, validation.Diagnostics }
         };
@@ -500,6 +500,7 @@ public static class CliRunner
             File.WriteAllText(Path.Combine(outDir, "residual-history.json"), JsonSerializer.Serialize(result.Solver.ResidualHistory, JsonOptions));
             File.WriteAllText(Path.Combine(outDir, "displacement-stress-summary.json"), JsonSerializer.Serialize(new { maximumDisplacementMeters = result.MaximumDisplacementMeters, maximumVonMisesPascal = result.MaximumVonMisesPascal, result.Equilibrium }, JsonOptions));
             File.WriteAllText(Path.Combine(outDir,"boundary-quadrature.json"),JsonSerializer.Serialize(result.BoundaryLoads,JsonOptions));
+            File.WriteAllText(Path.Combine(outDir,"numerical-lowering-strategy-map.json"),JsonSerializer.Serialize(result.NumericalLowering,JsonOptions));
             File.WriteAllText(Path.Combine(outDir, "verification.inp"), abaqus.Text);
         }
         stdout.WriteLine(json ? JsonSerializer.Serialize(report, JsonOptions) : $"{compiled.Analysis.Id}: converged in {result.Solver.Iterations} iterations; max |u|={result.MaximumDisplacementMeters:R} m; max von Mises={result.MaximumVonMisesPascal:R} Pa; Abaqus SHA-256={abaqus.Sha256}");

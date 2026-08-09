@@ -82,4 +82,4 @@ Repeated plan construction preserves frame, fragments, ownership, area, and quad
 
 Curved-face pressure, general imported BRep-to-CIR admission, and conforming rotated native-plate Abaqus meshing remain out of scope. Generic compound orientation is not yet a trustworthy mechanics solve because M5's unstabilized basis and strong node constraint policy are not robust to very small supports.
 
-The first post-M5 milestone should implement deterministic small-support aggregation or a variationally justified ghost penalty, plus Nitsche or explicit multipoint enforcement for exact planar Dirichlet faces. The 15/20/45 probe is its motivating regression; the exact boundary force/moment path should remain unchanged.
+M5C implemented deterministic affine small-support aggregation plus symmetric Nitsche enforcement while leaving this exact force/moment path unchanged. The 15/20/45 regression now solves at 14.05 um maximum displacement and 34.72 MPa recovered stress; see `m5c-immersed-basis-robustness.md`.

@@ -42,6 +42,14 @@ public sealed class SparseSymmetricMatrix
 
     public bool IsFinite() => rows.All(row => row.Values.All(double.IsFinite));
 
+    public (double MinimumDiagonal,double MaximumDiagonal,double DiagonalRatio,double MinimumRowNorm,double MaximumRowNorm,double RowNormRatio) ConditioningProxy()
+    {
+        var diagonals=Enumerable.Range(0,Size).Select(i=>double.Abs(this[i,i])).Where(value=>value>0).ToArray();
+        var norms=rows.Select(row=>double.Sqrt(row.Values.Sum(value=>value*value))).Where(value=>value>0).ToArray();
+        var minD=diagonals.Length==0?0:diagonals.Min();var maxD=diagonals.Length==0?0:diagonals.Max();var minR=norms.Length==0?0:norms.Min();var maxR=norms.Length==0?0:norms.Max();
+        return(minD,maxD,minD==0?double.PositiveInfinity:maxD/minD,minR,maxR,minR==0?double.PositiveInfinity:maxR/minR);
+    }
+
     public bool IsPositiveDefiniteByDenseCholesky(double relativePivotTolerance=1e-12)
     {
         var lower=new double[Size,Size];var scale=Enumerable.Range(0,Size).Max(i=>double.Abs(this[i,i]));

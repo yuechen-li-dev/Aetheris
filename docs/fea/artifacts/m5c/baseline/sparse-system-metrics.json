@@ -1,0 +1,20 @@
+{
+  "degreesOfFreedom": 1377,
+  "nonzeros": 77175,
+  "maximumAsymmetry": 2.384185791015625E-07,
+  "finite": true,
+  "deterministicStructure": true,
+  "appliedLoadNewton": 10000.000000000002,
+  "integratedLoadResidualNewton": 1.8189894035458565E-12,
+  "cutCells": 8,
+  "independentSpdCheck": null,
+  "rawDegreesOfFreedom": 1377,
+  "constrainedDegreesOfFreedom": 81,
+  "aggregatedDegreesOfFreedom": 0,
+  "minimumDiagonal": 199549474.6326632,
+  "maximumDiagonal": 8162393162.393169,
+  "diagonalRatio": 40.90410750225604,
+  "minimumRowNorm": 385964317.1685674,
+  "maximumRowNorm": 10709235786.882904,
+  "rowNormRatio": 27.74669913904428
+}

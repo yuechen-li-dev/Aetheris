@@ -1,0 +1,43 @@
+[
+  {
+    "loadId": "Tension",
+    "regionPath": "plate.face(\u002BX)",
+    "boundaryId": "plate:cir:x-max",
+    "exactBrepFaceId": null,
+    "exactArea": 0.001,
+    "integratedArea": 0.0009999999999999998,
+    "expectedResultant": {
+      "x": 8571.673007021123,
+      "y": 5150.380749100542,
+      "z": 0,
+      "lengthSquared": 100000000,
+      "length": 10000
+    },
+    "integratedResultant": {
+      "x": 8571.673007021127,
+      "y": 5150.380749100543,
+      "z": 0,
+      "lengthSquared": 100000000.00000007,
+      "length": 10000.000000000004
+    },
+    "expectedMoment": {
+      "x": -25.75190374550271,
+      "y": 42.85836503510562,
+      "z": 86.45442455899797,
+      "lengthSquared": 9974.367525827472,
+      "length": 99.87175539574476
+    },
+    "integratedMoment": {
+      "x": -25.75190374550272,
+      "y": 42.85836503510563,
+      "z": 86.45442455899808,
+      "lengthSquared": 9974.367525827492,
+      "length": 99.87175539574486
+    },
+    "resultantResidual": 3.749942721349417E-12,
+    "momentResidual": 1.1440620673471796E-13,
+    "ownedFragments": 46,
+    "quadraturePoints": 360,
+    "materialSideEvidence": "CIR two-sided probe \u002BN=Outside, -N=Inside, epsilon=3.162277660168379E-08"
+  }
+]

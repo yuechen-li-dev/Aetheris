@@ -2,7 +2,9 @@ using System.Diagnostics;
 using Aetheris.Continuum.Cir;
 using Aetheris.Continuum.Boundaries;
 using Aetheris.Continuum.Lattice;
+using Aetheris.Continuum.Regions.Analytic;
 using Aetheris.FEA.Analysis;
+using Aetheris.Kernel.Core.Judgment;
 using Aetheris.Kernel.Core.Math;
 
 namespace Aetheris.FEA.Mechanics;
@@ -70,7 +72,11 @@ public static class LinearElasticSolver
         var nodeKeys = active.SelectMany(item => CellNodeKeys(item.Cell.Index)).Distinct().OrderBy(item => item.K).ThenBy(item => item.J).ThenBy(item => item.I).ToArray();
         var nodeId = nodeKeys.Select((key, id) => (key, id)).ToDictionary(item => item.key, item => item.id);
         var nodes = nodeKeys.Select((key, id) => new MechanicsNode(id, NodePosition(lattice, key))).ToArray();
-        var dofs = checked(nodes.Length * 3);
+        var authorityStart=Stopwatch.GetTimestamp();
+        var basisPlan=ImmersedNumericalLowering.PlanBasis(lattice,active,nodeId,nodes,NodeOffsets,NaturalSigns);
+        var authorityTime=Stopwatch.GetElapsedTime(authorityStart);
+        var rawDofs = checked(nodes.Length * 3);
+        var dofs = checked(basisPlan.EffectiveNodeCount * 3);
         var matrix = new SparseSymmetricMatrix(dofs);
         var load = new double[dofs];
         var assemblyStart = Stopwatch.GetTimestamp();
@@ -79,10 +85,10 @@ public static class LinearElasticSolver
         {
             var ids = CellNodeKeys(item.Cell.Index).Select(key => nodeId[key]).ToArray();
             var local = CellStiffness(item.Cell.Bounds, item.Plan, constitutive);
-            for (var a = 0; a < 24; a++)
-            for (var b = 0; b < 24; b++) matrix.Add((3 * ids[a / 3]) + (a % 3), (3 * ids[b / 3]) + (b % 3), local[a,b]);
+            AddTransformedMatrix(matrix,ids,local,basisPlan.NodeMappings);
         }
         var assemblyTime = Stopwatch.GetElapsedTime(assemblyStart);
+        var volumeMatrix=matrix.Copy();
 
         var boundaryStart = Stopwatch.GetTimestamp();
         var integratedByLoad = new Dictionary<string, Vector3D>(StringComparer.Ordinal);
@@ -110,9 +116,12 @@ public static class LinearElasticSolver
             var contributions = IntegrateLoad(boundaryLoad,plan,nodeId,nodes,options.DomainTransform);
             foreach (var contribution in contributions.Nodal)
             {
-                load[(3 * contribution.Key) + 0] += contribution.Value.X;
-                load[(3 * contribution.Key) + 1] += contribution.Value.Y;
-                load[(3 * contribution.Key) + 2] += contribution.Value.Z;
+                foreach(var mapped in basisPlan.NodeMappings[contribution.Key])
+                {
+                    load[(3*mapped.EffectiveNode)+0]+=mapped.Weight*contribution.Value.X;
+                    load[(3*mapped.EffectiveNode)+1]+=mapped.Weight*contribution.Value.Y;
+                    load[(3*mapped.EffectiveNode)+2]+=mapped.Weight*contribution.Value.Z;
+                }
             }
             integratedByLoad[boundaryLoad.Id] = contributions.Resultant;
             loadEvidence.Add(contributions.Evidence);
@@ -128,9 +137,16 @@ public static class LinearElasticSolver
         var loadAssemblyTime=Stopwatch.GetElapsedTime(loadAssemblyStart);
         var constraintStart=Stopwatch.GetTimestamp();
         var constraintPlans=analysis.Constraints.ToDictionary(item=>item.Id,item=>Plan(item.Region),StringComparer.Ordinal);
-        var prescribed = ResolveConstraints(analysis,constraintPlans,nodeId,nodes,diagnostics,out var constrainedNodes);
+        var boundaryChoices=SelectBoundaryEnforcement(analysis,constraintPlans,nodeId,nodes,lattice,basisPlan,active);
+        var prescribed = ResolveConstraints(analysis,constraintPlans,nodeId,nodes,basisPlan,boundaryChoices,diagnostics,out var constrainedNodes);
+        foreach(var constraint in analysis.Constraints)
+        {
+            var choice=boundaryChoices[constraint.Id];var plan=constraintPlans[constraint.Id];
+            if(choice.Kind==BoundaryEnforcementKind.SymmetricNitsche&&plan is not null)
+                AddSymmetricNitsche(matrix,load,constraint,plan,nodeId,active,basisPlan.NodeMappings,constitutive,material.YoungsModulusPascal,choice.PenaltyScale);
+        }
         var constraintTime=Stopwatch.GetElapsedTime(constraintStart);
-        if (prescribed.Count == 0)
+        if (prescribed.Count == 0&&boundaryChoices.Values.All(choice=>choice.Kind!=BoundaryEnforcementKind.SymmetricNitsche))
             diagnostics.Add(new("fea-rigid-body-mode", AnalysisDiagnosticSeverity.Error, "Constraints selected no admitted lattice DOFs.", analysis.Provenance));
         var boundaryTime = Stopwatch.GetElapsedTime(boundaryStart);
         if (diagnostics.Any(item => item.Severity == AnalysisDiagnosticSeverity.Error)) return Failure(analysis, diagnostics);
@@ -147,17 +163,25 @@ public static class LinearElasticSolver
         }
 
         var recoveryStart = Stopwatch.GetTimestamp();
-        var displacements = nodes.Select(node => new NodalDisplacement(node.Id, node.Position, new Vector3D(solution[3*node.Id], solution[(3*node.Id)+1], solution[(3*node.Id)+2]))).ToArray();
-        var fields = RecoverFields(active, nodeId, solution, constitutive);
+        var expandedSolution=ExpandSolution(solution,nodes.Length,basisPlan.NodeMappings);
+        var displacements = nodes.Select(node => new NodalDisplacement(node.Id, node.Position, new Vector3D(expandedSolution[3*node.Id], expandedSolution[(3*node.Id)+1], expandedSolution[(3*node.Id)+2]))).ToArray();
+        var fields = RecoverFields(active, nodeId, expandedSolution, constitutive);
+        var stressProbes=CreateValidationStressProbes(analysis.Body.ContinuumRegion,options.DomainTransform,active,nodeId,expandedSolution,constitutive,loadEvidence);
+        var algebraicEnergy=.5*Dot(solution,volumeMatrix.Multiply(solution));var integratedEnergy=IntegratedStrainEnergy(active,nodeId,expandedSolution,constitutive);var energyResidual=double.Abs(algebraicEnergy-integratedEnergy);
+        var energy=new StrainEnergyConsistency(algebraicEnergy,integratedEnergy,energyResidual,integratedEnergy==0?0:energyResidual/double.Abs(integratedEnergy));
         var residual = rawMatrix.Multiply(solution);
         for (var i = 0; i < residual.Length; i++) residual[i] -= rawLoad[i];
         var reactions = new List<ReactionResult>();
+        var boundaryEvidence=new List<BoundaryEnforcementEvidence>();
         foreach (var constraint in analysis.Constraints)
         {
-            var vector = Vector3D.Zero;
-            foreach (var id in constrainedNodes.GetValueOrDefault(constraint.Id,new HashSet<int>()))
-                vector += new Vector3D(residual[3*id], residual[(3*id)+1], residual[(3*id)+2]);
+            var choice=boundaryChoices[constraint.Id];var plan=constraintPlans[constraint.Id];
+            var vector=choice.Kind==BoundaryEnforcementKind.SymmetricNitsche&&plan is not null
+                ? IntegrateBoundaryReaction(plan,nodeId,active,expandedSolution,constitutive,constraint.ValueMeters,material.YoungsModulusPascal,choice.PenaltyScale)
+                : StrongReaction(residual,constrainedNodes.GetValueOrDefault(constraint.Id,new HashSet<int>()),basisPlan.NodeMappings);
             reactions.Add(new(constraint.Id, vector));
+            var error=plan is null?(0d,0d):BoundaryViolation(plan,nodeId,expandedSolution,constraint.ValueMeters);
+            boundaryEvidence.Add(new(constraint.Id,constraint.Region.Path,plan?.ExactBrepFaceId,choice.Kind,choice.Utility,choice.MaximumNormalizedOffset,choice.PenaltyScale,choice.SelectedNodes,choice.Rejections,error.Item1,error.Item2,vector,choice.CandidateUtilities));
         }
         var applied = integratedByLoad.Values.Aggregate(Vector3D.Zero, (sum, value) => sum + value);
         var reaction = reactions.Aggregate(Vector3D.Zero, (sum, value) => sum + value.ForceNewton);
@@ -167,11 +191,13 @@ public static class LinearElasticSolver
         var tiny = new TinyCellDiagnostics(fractions[0], fractions.Count(x => x < .01), fractions.Count(x => x < .05), fractions.Count(x => x < .10), fractions);
         var declared = loadEvidence.Sum(item=>item.ExpectedResultant.Length);
         var actual = integratedByLoad.Values.Sum(item => item.Length);
-        var system = new SparseSystemMetrics(dofs, rawMatrix.Nonzeros, rawMatrix.MaximumAsymmetry(), rawMatrix.IsFinite(), true, actual, declared == 0 ? 0 : double.Abs(actual - declared),grid.CutCellCount,spd);
+        var conditioning=rawMatrix.ConditioningProxy();
+        var system = new SparseSystemMetrics(dofs, rawMatrix.Nonzeros, rawMatrix.MaximumAsymmetry(), rawMatrix.IsFinite(), true, actual, declared == 0 ? 0 : double.Abs(actual - declared),grid.CutCellCount,spd,rawDofs,prescribed.Count,basisPlan.Extensions.Count*3,conditioning.MinimumDiagonal,conditioning.MaximumDiagonal,conditioning.DiagonalRatio,conditioning.MinimumRowNorm,conditioning.MaximumRowNorm,conditioning.RowNormRatio);
         var sparseBytes = (long)rawMatrix.Nonzeros * (sizeof(double) + sizeof(int)) + (long)(dofs + 1) * sizeof(int);
         var resultBytes = (long)displacements.Length * (sizeof(int) + 6*sizeof(double)) + (long)fields.Count * 16*sizeof(double);
+        var lowering=new NumericalLoweringEvidence("m5c-v1-frozen","Compiler metadata governing independent numerical carriers; never a physical stiffness multiplier.",basisPlan.Supports,basisPlan.Treatments,boundaryEvidence,basisPlan.JudgmentCalls,boundaryChoices.Count,basisPlan.FixedThresholdCount,ImmersedNumericalLowering.Hash(basisPlan,boundaryEvidence),authorityTime,TimeSpan.Zero,constraintTime);
         return new(analysis.Id, true, convergence, displacements, fields, reactions, equilibrium, system, tiny,
-            new(domainTime,quadratureTime,assemblyTime,boundaryTime,convergence.Runtime,recoveryTime,sparseBytes,resultBytes,semanticFaceTime,boundaryPlanTime,loadAssemblyTime,constraintTime),diagnostics,loadEvidence);
+            new(domainTime,quadratureTime,assemblyTime,boundaryTime,convergence.Runtime,recoveryTime,sparseBytes,resultBytes,semanticFaceTime,boundaryPlanTime,loadAssemblyTime,constraintTime),diagnostics,loadEvidence,lowering,energy,stressProbes);
     }
 
     public static MechanicsQuadraturePlan CreateQuadrature(IContinuumRegion region, ContinuumCell cell, int cutSamplesPerAxis)
@@ -196,6 +222,63 @@ public static class LinearElasticSolver
             if(region.Classify(point)!=ContinuumPointClassification.Outside) result.Add(new(point,weight,xi,eta,zeta));
         }
         return new($"Q1-occupied-subcell-midpoint-{n}x{n}x{n}",result,result.Count*weight,false);
+    }
+
+    private static void AddTransformedMatrix(SparseSymmetricMatrix matrix,IReadOnlyList<int> rawNodeIds,double[,] local,IReadOnlyDictionary<int,IReadOnlyList<(int EffectiveNode,double Weight)>> mappings)
+    {
+        for(var a=0;a<24;a++)foreach(var ma in mappings[rawNodeIds[a/3]])
+        for(var b=0;b<24;b++)foreach(var mb in mappings[rawNodeIds[b/3]])
+            matrix.Add(3*ma.EffectiveNode+a%3,3*mb.EffectiveNode+b%3,ma.Weight*local[a,b]*mb.Weight);
+    }
+
+    private static void AddTransformedLoad(double[] load,IReadOnlyList<int> rawNodeIds,IReadOnlyList<double> local,IReadOnlyDictionary<int,IReadOnlyList<(int EffectiveNode,double Weight)>> mappings)
+    {for(var a=0;a<24;a++)foreach(var mapped in mappings[rawNodeIds[a/3]])load[3*mapped.EffectiveNode+a%3]+=mapped.Weight*local[a];}
+
+    private static double[] ExpandSolution(IReadOnlyList<double> effective,int rawNodes,IReadOnlyDictionary<int,IReadOnlyList<(int EffectiveNode,double Weight)>> mappings)
+    {
+        var raw=new double[rawNodes*3];
+        for(var node=0;node<rawNodes;node++)foreach(var mapped in mappings[node])for(var component=0;component<3;component++)raw[3*node+component]+=mapped.Weight*effective[3*mapped.EffectiveNode+component];
+        return raw;
+    }
+
+    private static (double X,double Y,double Z) Natural(BoundingBox3D bounds,Point3D point)=>(2*(point.X-bounds.Min.X)/(bounds.Max.X-bounds.Min.X)-1,2*(point.Y-bounds.Min.Y)/(bounds.Max.Y-bounds.Min.Y)-1,2*(point.Z-bounds.Min.Z)/(bounds.Max.Z-bounds.Min.Z)-1);
+    private static double Component(Vector3D vector,int component)=>component switch{0=>vector.X,1=>vector.Y,_=>vector.Z};
+    private static double Dot(IReadOnlyList<double> left,IReadOnlyList<double> right){var value=0d;for(var i=0;i<left.Count;i++)value+=left[i]*right[i];return value;}
+
+    private static double IntegratedStrainEnergy(IReadOnlyList<(ContinuumCell Cell,MechanicsQuadraturePlan Plan)> active,IReadOnlyDictionary<(int I,int J,int K),int> nodeId,IReadOnlyList<double> solution,double[,] d)
+    {
+        var total=0d;
+        foreach(var item in active)
+        {
+            var ids=CellNodeKeys(item.Cell.Index).Select(key=>nodeId[key]).ToArray();
+            foreach(var point in item.Plan.Points)
+            {
+                var b=BMatrix(item.Cell.Bounds,point.Xi,point.Eta,point.Zeta);var strain=new double[6];for(var i=0;i<6;i++)for(var j=0;j<24;j++)strain[i]+=b[i,j]*solution[3*ids[j/3]+j%3];var stress=new double[6];for(var i=0;i<6;i++)for(var j=0;j<6;j++)stress[i]+=d[i,j]*strain[j];
+                total+=.5*strain.Select((value,index)=>value*stress[index]).Sum()*point.Weight;
+            }
+        }
+        return total;
+    }
+
+    private static IReadOnlyList<ExactStressProbe> CreateValidationStressProbes(IContinuumRegion source,Transform3D? transform,IReadOnlyList<(ContinuumCell Cell,MechanicsQuadraturePlan Plan)> active,IReadOnlyDictionary<(int I,int J,int K),int> nodeId,IReadOnlyList<double> solution,double[,] d,IReadOnlyList<BoundaryLoadEvidence> loads)
+    {
+        if(source is not BlockWithCylindricalHoleRegion hole||loads.Count==0)return [];
+        var map=transform??Transform3D.Identity;var center=hole.HoleCenter;var nominal=loads.Sum(load=>load.ExpectedResultant.Length)/(hole.Height*(hole.Bounds.Max.Y-hole.Bounds.Min.Y));
+        var definitions=new[]{("hole-top",new Point3D(center.X,center.Y+hole.HoleRadius,center.Z),new Vector3D(1,0,0),3*nominal),("hole-right",new Point3D(center.X+hole.HoleRadius,center.Y,center.Z),new Vector3D(0,1,0),-nominal)};
+        var probes=new List<ExactStressProbe>();
+        foreach(var definition in definitions)
+        {
+            var position=map.Apply(definition.Item2);var tangent=map.Apply(definition.Item3);tangent.TryNormalize(out tangent);var stress=StressAt(position,active,nodeId,solution,d);if(stress is null)continue;var s=stress.Value;
+            var hoop=s.XX*tangent.X*tangent.X+s.YY*tangent.Y*tangent.Y+s.ZZ*tangent.Z*tangent.Z+2*s.XY*tangent.X*tangent.Y+2*s.YZ*tangent.Y*tangent.Z+2*s.XZ*tangent.X*tangent.Z;
+            probes.Add(new(definition.Item1,position,s,hoop,definition.Item4,double.Abs(hoop-definition.Item4),"Infinite plate with a circular traction-free hole under remote uniaxial stress; finite-width comparison is validation-only."));
+        }
+        return probes;
+    }
+
+    private static SymmetricTensor? StressAt(Point3D point,IReadOnlyList<(ContinuumCell Cell,MechanicsQuadraturePlan Plan)> active,IReadOnlyDictionary<(int I,int J,int K),int> nodeId,IReadOnlyList<double> solution,double[,] d)
+    {
+        const double tolerance=1e-12;var item=active.Where(x=>point.X>=x.Cell.Bounds.Min.X-tolerance&&point.X<=x.Cell.Bounds.Max.X+tolerance&&point.Y>=x.Cell.Bounds.Min.Y-tolerance&&point.Y<=x.Cell.Bounds.Max.Y+tolerance&&point.Z>=x.Cell.Bounds.Min.Z-tolerance&&point.Z<=x.Cell.Bounds.Max.Z+tolerance).OrderBy(x=>x.Cell.Index.K).ThenBy(x=>x.Cell.Index.J).ThenBy(x=>x.Cell.Index.I).Cast<(ContinuumCell Cell,MechanicsQuadraturePlan Plan)?>().FirstOrDefault();
+        if(item is null)return null;var cell=item.Value.Cell;var natural=Natural(cell.Bounds,point);var b=BMatrix(cell.Bounds,natural.X,natural.Y,natural.Z);var ids=CellNodeKeys(cell.Index).Select(key=>nodeId[key]).ToArray();var strain=new double[6];for(var i=0;i<6;i++)for(var j=0;j<24;j++)strain[i]+=b[i,j]*solution[3*ids[j/3]+j%3];var stress=new double[6];for(var i=0;i<6;i++)for(var j=0;j<6;j++)stress[i]+=d[i,j]*strain[j];return new(stress[0],stress[1],stress[2],stress[3],stress[4],stress[5]);
     }
 
     private static double[,] CellStiffness(BoundingBox3D bounds, MechanicsQuadraturePlan plan, double[,] d)
@@ -263,19 +346,124 @@ public static class LinearElasticSolver
         return new(nodal,resultant,plan.IntegratedArea,evidence);
     }
 
-    private static Dictionary<int,double> ResolveConstraints(LinearElasticAnalysisIr analysis,IReadOnlyDictionary<string,MechanicsBoundaryQuadraturePlan?> plans,IReadOnlyDictionary<(int I,int J,int K),int> nodeId,IReadOnlyList<MechanicsNode> nodes,List<AnalysisDiagnostic> diagnostics,out Dictionary<string,IReadOnlySet<int>> constrainedNodes)
+    private sealed record BoundaryChoice(BoundaryEnforcementKind Kind,double Utility,double MaximumNormalizedOffset,double PenaltyScale,int SelectedNodes,IReadOnlyList<string> Rejections,IReadOnlyDictionary<string,double> CandidateUtilities);
+    private sealed record BoundaryContext(bool CompleteVectorConstraint,double MaximumNormalizedOffset,bool HasExactQuadrature,double MinimumTraceCellFraction);
+
+    private static Dictionary<string,BoundaryChoice> SelectBoundaryEnforcement(LinearElasticAnalysisIr analysis,IReadOnlyDictionary<string,MechanicsBoundaryQuadraturePlan?> plans,IReadOnlyDictionary<(int I,int J,int K),int> nodeId,IReadOnlyList<MechanicsNode> nodes,LatticeSpec lattice,BasisLoweringPlan basis,IReadOnlyList<(ContinuumCell Cell,MechanicsQuadraturePlan Plan)> active)
+    {
+        var result=new Dictionary<string,BoundaryChoice>(StringComparer.Ordinal);var cellSize=lattice.CellSize;var h=double.Min(cellSize.X,double.Min(cellSize.Y,cellSize.Z));
+        var fractions=active.ToDictionary(item=>item.Cell.Index,item=>item.Plan.IntegratedVolume/CellVolume(item.Cell.Bounds));var engine=new JudgmentEngine<BoundaryContext>();
+        foreach(var constraint in analysis.Constraints)
+        {
+            var plan=plans.GetValueOrDefault(constraint.Id);var selected=plan is null?new HashSet<int>():NearestBoundaryNodes(plan,nodeId,nodes);
+            var offset=plan is null||selected.Count==0?1:selected.Max(id=>double.Abs((nodes[id].Position-plan.Frame.Origin).Dot(plan.Frame.Normal)))/h;
+            var traceFraction=plan is null?0:double.Min(plan.Fragments.Min(fragment=>fractions[fragment.Cell]),fractions.Values.Min());var context=new BoundaryContext(constraint.Components.Count==3,offset,plan is not null&&plan.QuadraturePointCount>0,traceFraction);
+            var candidates=new[]
+            {
+                new JudgmentCandidate<BoundaryContext>("StrongNearestNode",c=>selected.Count>0,c=>.55-c.MaximumNormalizedOffset,_=>"No nearest active basis support was selected.",0),
+                new JudgmentCandidate<BoundaryContext>("SymmetricNitsche",c=>c.CompleteVectorConstraint&&c.HasExactQuadrature&&c.MinimumTraceCellFraction>=.0001,c=>.64+c.MaximumNormalizedOffset-.10,c=>!c.CompleteVectorConstraint?"The bounded M5C Nitsche path requires all displacement components.":!c.HasExactQuadrature?"Exact boundary quadrature is unavailable.":"Trace inverse bound exceeds the validated penalty tiers for a sub-0.01% cell.",1)
+            };
+            var judgment=engine.Evaluate(context,candidates);var chosen=judgment.Selection!.Value;var kind=chosen.Candidate.Name=="SymmetricNitsche"?BoundaryEnforcementKind.SymmetricNitsche:BoundaryEnforcementKind.StrongNearestNode;
+            // gamma=100 is the nominal prevalidated tier; dimensional scale is gamma E/h.
+            var utilities=new SortedDictionary<string,double>();var rejections=new List<string>();if(selected.Count>0)utilities["StrongNearestNode"]=.55-offset;else rejections.Add("StrongNearestNode: No nearest active basis support was selected.");
+            if(context.CompleteVectorConstraint&&context.HasExactQuadrature&&context.MinimumTraceCellFraction>=.0001)utilities["SymmetricNitsche"]=.54+offset;else rejections.Add("SymmetricNitsche: "+(!context.CompleteVectorConstraint?"The bounded path requires all displacement components.":!context.HasExactQuadrature?"Exact boundary quadrature is unavailable.":"Trace inverse bound exceeds the validated penalty tiers for a sub-0.01% cell."));
+            result[constraint.Id]=new(kind,chosen.Score,offset,kind==BoundaryEnforcementKind.SymmetricNitsche?100:0,selected.Count,rejections,utilities);
+        }
+        return result;
+    }
+
+    private static HashSet<int> NearestBoundaryNodes(MechanicsBoundaryQuadraturePlan plan,IReadOnlyDictionary<(int I,int J,int K),int> nodeId,IReadOnlyList<MechanicsNode> nodes)
+    {
+        var selected=new HashSet<int>();
+        foreach(var fragment in plan.Fragments)
+        {
+            var ids=CellNodeKeys(fragment.Cell).Where(nodeId.ContainsKey).Select(key=>nodeId[key]).ToArray();
+            var distances=ids.Select(id=>double.Abs((nodes[id].Position-plan.Frame.Origin).Dot(plan.Frame.Normal))).ToArray();var minimum=distances.Min();
+            for(var i=0;i<ids.Length;i++)if(distances[i]<=minimum+1e-12)selected.Add(ids[i]);
+        }
+        return selected;
+    }
+
+    private static void AddSymmetricNitsche(SparseSymmetricMatrix matrix,double[] load,DisplacementConstraintIr constraint,MechanicsBoundaryQuadraturePlan plan,IReadOnlyDictionary<(int I,int J,int K),int> nodeId,IReadOnlyList<(ContinuumCell Cell,MechanicsQuadraturePlan Plan)> active,IReadOnlyDictionary<int,IReadOnlyList<(int EffectiveNode,double Weight)>> mappings,double[,] d,double young,double gamma)
+    {
+        var cells=active.ToDictionary(item=>item.Cell.Index,item=>item.Cell.Bounds);var h=cells.Values.Min(b=>double.Min(b.Max.X-b.Min.X,double.Min(b.Max.Y-b.Min.Y,b.Max.Z-b.Min.Z)));
+        var penalty=gamma*young/h;
+        foreach(var fragment in plan.Fragments)
+        {
+            var bounds=cells[fragment.Cell];var ids=CellNodeKeys(fragment.Cell).Select(key=>nodeId[key]).ToArray();var local=new double[24,24];var localLoad=new double[24];
+            foreach(var point in fragment.Points)
+            {
+                var natural=Natural(bounds,point.Position);var b=BMatrix(bounds,natural.X,natural.Y,natural.Z);var tractions=TractionColumns(b,d,point.OutwardNormal);
+                for(var i=0;i<24;i++)
+                {
+                    var ni=point.ShapeFunctions[i/3];var ci=i%3;var consistencyI=tractions[i].Dot(constraint.ValueMeters);
+                    localLoad[i]+=(-consistencyI+penalty*ni*Component(constraint.ValueMeters,ci))*point.AreaWeight;
+                    for(var j=0;j<24;j++)
+                    {
+                        var nj=point.ShapeFunctions[j/3];var cj=j%3;
+                        local[i,j]+=(-ni*Component(tractions[j],ci)-nj*Component(tractions[i],cj)+(ci==cj?penalty*ni*nj:0))*point.AreaWeight;
+                    }
+                }
+            }
+            AddTransformedMatrix(matrix,ids,local,mappings);AddTransformedLoad(load,ids,localLoad,mappings);
+        }
+    }
+
+    private static Vector3D[] TractionColumns(double[,] b,double[,] d,Vector3D normal)
+    {
+        var result=new Vector3D[24];
+        for(var column=0;column<24;column++)
+        {
+            var s=new double[6];for(var i=0;i<6;i++)for(var j=0;j<6;j++)s[i]+=d[i,j]*b[j,column];
+            result[column]=new(s[0]*normal.X+s[3]*normal.Y+s[5]*normal.Z,s[3]*normal.X+s[1]*normal.Y+s[4]*normal.Z,s[5]*normal.X+s[4]*normal.Y+s[2]*normal.Z);
+        }
+        return result;
+    }
+
+    private static Vector3D IntegrateBoundaryReaction(MechanicsBoundaryQuadraturePlan plan,IReadOnlyDictionary<(int I,int J,int K),int> nodeId,IReadOnlyList<(ContinuumCell Cell,MechanicsQuadraturePlan Plan)> active,IReadOnlyList<double> solution,double[,] d,Vector3D prescribed,double young,double gamma)
+    {
+        var cells=active.ToDictionary(item=>item.Cell.Index,item=>item.Cell.Bounds);var h=cells.Values.Min(b=>double.Min(b.Max.X-b.Min.X,double.Min(b.Max.Y-b.Min.Y,b.Max.Z-b.Min.Z)));var penalty=gamma*young/h;var total=Vector3D.Zero;
+        foreach(var fragment in plan.Fragments)
+        {
+            var bounds=cells[fragment.Cell];var ids=CellNodeKeys(fragment.Cell).Select(key=>nodeId[key]).ToArray();
+            foreach(var point in fragment.Points)
+            {
+                var natural=Natural(bounds,point.Position);var b=BMatrix(bounds,natural.X,natural.Y,natural.Z);var strain=new double[6];
+                for(var i=0;i<6;i++)for(var j=0;j<24;j++)strain[i]+=b[i,j]*solution[3*ids[j/3]+j%3];
+                var stress=new double[6];for(var i=0;i<6;i++)for(var j=0;j<6;j++)stress[i]+=d[i,j]*strain[j];var n=point.OutwardNormal;var value=Vector3D.Zero;
+                for(var node=0;node<8;node++)value+=new Vector3D(solution[3*ids[node]],solution[3*ids[node]+1],solution[3*ids[node]+2])*point.ShapeFunctions[node];
+                var physical=new Vector3D(stress[0]*n.X+stress[3]*n.Y+stress[5]*n.Z,stress[3]*n.X+stress[1]*n.Y+stress[4]*n.Z,stress[5]*n.X+stress[4]*n.Y+stress[2]*n.Z);
+                total+=(physical-(value-prescribed)*penalty)*point.AreaWeight;
+            }
+        }
+        return total;
+    }
+
+    private static (double,double) BoundaryViolation(MechanicsBoundaryQuadraturePlan plan,IReadOnlyDictionary<(int I,int J,int K),int> nodeId,IReadOnlyList<double> solution,Vector3D prescribed)
+    {
+        var maximum=0d;var weighted=0d;var area=0d;
+        foreach(var fragment in plan.Fragments)
+        {
+            var ids=CellNodeKeys(fragment.Cell).Select(key=>nodeId[key]).ToArray();
+            foreach(var point in fragment.Points)
+            {
+                var value=Vector3D.Zero;for(var n=0;n<8;n++)value+=new Vector3D(solution[3*ids[n]],solution[3*ids[n]+1],solution[3*ids[n]+2])*point.ShapeFunctions[n];var error=(value-prescribed).Length;
+                maximum=double.Max(maximum,error);weighted+=error*error*point.AreaWeight;area+=point.AreaWeight;
+            }
+        }
+        return (maximum,area==0?0:double.Sqrt(weighted/area));
+    }
+
+    private static Vector3D StrongReaction(IReadOnlyList<double> residual,IReadOnlySet<int> effectiveNodes,IReadOnlyDictionary<int,IReadOnlyList<(int EffectiveNode,double Weight)>> mappings)
+    {var total=Vector3D.Zero;foreach(var id in effectiveNodes)total+=new Vector3D(residual[3*id],residual[3*id+1],residual[3*id+2]);return total;}
+
+    private static Dictionary<int,double> ResolveConstraints(LinearElasticAnalysisIr analysis,IReadOnlyDictionary<string,MechanicsBoundaryQuadraturePlan?> plans,IReadOnlyDictionary<(int I,int J,int K),int> nodeId,IReadOnlyList<MechanicsNode> nodes,BasisLoweringPlan basis,IReadOnlyDictionary<string,BoundaryChoice> choices,List<AnalysisDiagnostic> diagnostics,out Dictionary<string,IReadOnlySet<int>> constrainedNodes)
     {
         var result=new Dictionary<int,double>();constrainedNodes=new(StringComparer.Ordinal);
         foreach(var constraint in analysis.Constraints)
         {
-            var plan=plans.GetValueOrDefault(constraint.Id);var selected=new HashSet<int>();
-            if(plan is not null)foreach(var fragment in plan.Fragments)
-            {
-                var ids=CellNodeKeys(fragment.Cell).Where(nodeId.ContainsKey).Select(key=>nodeId[key]).ToArray();
-                var distances=ids.Select(id=>double.Abs((nodes[id].Position-plan.Frame.Origin).Dot(plan.Frame.Normal))).ToArray();var minimum=distances.Min();
-                for(var i=0;i<ids.Length;i++)if(distances[i]<=minimum+1e-12)selected.Add(ids[i]);
-            }
-            constrainedNodes[constraint.Id]=selected;
+            if(choices[constraint.Id].Kind==BoundaryEnforcementKind.SymmetricNitsche){constrainedNodes[constraint.Id]=new HashSet<int>();continue;}
+            var plan=plans.GetValueOrDefault(constraint.Id);var rawSelected=plan is null?new HashSet<int>():NearestBoundaryNodes(plan,nodeId,nodes);var selected=rawSelected.SelectMany(id=>basis.NodeMappings[id].Select(m=>m.EffectiveNode)).ToHashSet();constrainedNodes[constraint.Id]=selected;
             if(selected.Count==0){diagnostics.Add(new("fea-empty-region-selection",AnalysisDiagnosticSeverity.Error,$"Constraint region '{constraint.Region.Path}' selected no basis supports.",constraint.Provenance));continue;}
             foreach(var id in selected) foreach(var component in constraint.Components)
             {

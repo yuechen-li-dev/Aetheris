@@ -68,6 +68,8 @@ volume meshing. The structured surface patches are nevertheless a viable seam
 for future boundary-conforming/cut-cell FEA and DCC polygon export without
 making either future consumer the present mesh authority.
 
-Recommended next milestone: **P2-SURFACE-MESH-IR-M4** for bounded conic trim
-bands (Cone/Plane Hyperbola, root fillet, HexBolt), then
-**P2-MESH-DCC-EXPORT-M1** once quad/polygon metadata is complete.
+M4 now extends this base with bounded Cone/Plane Hyperbola trim bands, bounded
+root Torus patches, and a full SurfaceMeshIR HexBolt route; see
+[surface-mesh-ir-m4.md](surface-mesh-ir-m4.md). The remaining follow-up is
+viewer topology inspection and DCC polygon export rather than a generic trim
+remesher.

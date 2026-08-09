@@ -2,14 +2,14 @@ using Aetheris.Kernel.Core.Math;
 
 namespace Aetheris.Kernel.Core.Brep.Tessellation;
 
-internal enum PlanarPolygonTriangulationFailure
+public enum PlanarPolygonTriangulationFailure
 {
     Degenerate,
     NonSimple,
     TriangulationFailed
 }
 
-internal static class PlanarPolygonTriangulator
+public static class PlanarPolygonTriangulator
 {
     private const double Epsilon = 1e-9d;
 

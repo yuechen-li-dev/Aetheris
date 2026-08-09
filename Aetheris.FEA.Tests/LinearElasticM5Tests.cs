@@ -1,8 +1,12 @@
 using Aetheris.FEA.Abaqus;
 using Aetheris.FEA.Firmament;
 using Aetheris.FEA.Mechanics;
+using Aetheris.FEA.Analysis;
+using Aetheris.Continuum.Boundaries;
+using Aetheris.Continuum.Cir;
 using Aetheris.Continuum.Lattice;
 using Aetheris.Forge.Sdk;
+using Aetheris.Kernel.Core.Math;
 
 namespace Aetheris.FEA.Tests;
 
@@ -46,6 +50,7 @@ public sealed class LinearElasticM5Tests
         Assert.InRange(result.Equilibrium.ResidualNewton.Length,0,1e-3);
         Assert.True(result.MaximumDisplacementMeters>0);
         Assert.True(result.MaximumVonMisesPascal>0);
+        Assert.True(result.System.IndependentSpdCheck);
     }
 
     [Fact]
@@ -120,17 +125,52 @@ public sealed class LinearElasticM5Tests
                         components: [X, Y, Z] }
                     force Pull { region: imported.face(+X)
                         vector: [100N, 0N, 0N] }
-                    lattice: [4, 3, 2]
+                    lattice: [10, 8, 6]
                     results: [Displacement, Strain, Stress, ReactionForce]
                 }
             }
             """;
         var root=FindRoot();var resource=ImportedStepResource.Load("VendorPart",Path.Combine(root,"fixtures","FirmamentV2","InlineStep","testdata","canonical-box-10x8x6.step"));
         var template=new ForgeHost().LoadModule("ImportedM5",module).ResolveTemplate("ImportedBoxAnalysis");
-        var result=template.Invoke("ImportedPull").Bind("Part",new ForgeImportedStep(resource.Name)).AddResource(resource).Analyze(new(RelativeResidualTolerance:1e-8));
+        var center=new Vector3D(.005,.004,.003);var orientation=Transform3D.CreateTranslation(-center)*Transform3D.CreateRotationZ(17*double.Pi/180)*Transform3D.CreateRotationX(9*double.Pi/180)*Transform3D.CreateTranslation(center);
+        var result=template.Invoke("ImportedPull").Bind("Part",new ForgeImportedStep(resource.Name)).AddResource(resource).Analyze(new(CutCellQuadraturePerAxis:6,RelativeResidualTolerance:1e-8,DomainTransform:orientation));
         Assert.True(result.IsSuccess,string.Join("; ",result.Diagnostics.Select(d=>d.Code+":"+d.Message)));
-        Assert.Equal("InlineStep",result.AnalysisIr!.Body.SourceKind);Assert.Equal(resource.ContentHash,result.AnalysisIr.Body.ResourceHash);
+        Assert.Equal("InlineStep",result.AnalysisIr!.Body.SourceKind);Assert.Equal(resource.ContentHash,result.AnalysisIr.Body.ResourceHash);Assert.NotNull(result.NativeResult!.BoundaryLoads!.Single().ExactBrepFaceId);Assert.True(result.Abaqus!.ElementCount>0);
     }
 
     private static string FindRoot(){var d=new DirectoryInfo(AppContext.BaseDirectory);while(d is not null&&!File.Exists(Path.Combine(d.FullName,"Aetheris.slnx")))d=d.Parent;return d?.FullName??throw new DirectoryNotFoundException();}
+
+    [Fact]
+    public void RotatedPlanarBoundaryQuadrature_PreservesAreaResultantAndMoment()
+    {
+        var compiled=FirmamentAnalysisCompiler.Compile(DirectSource);var source=compiled.Analysis!;var analysis=source with{Lattice=new LatticeSpec(source.Body.ContinuumRegion.Bounds,16,10,4)};
+        var center=new Vector3D(.1,.05,.005);var rotation=Transform3D.CreateTranslation(-center)*Transform3D.CreateRotationZ(23*double.Pi/180)*Transform3D.CreateRotationY(11*double.Pi/180)*Transform3D.CreateTranslation(center);
+        var result=LinearElasticSolver.Solve(analysis,new(CutCellQuadraturePerAxis:6,RelativeResidualTolerance:1e-8,DomainTransform:rotation));
+        Assert.True(result.IsSuccess,string.Join("; ",result.Diagnostics.Select(d=>d.Code+":"+d.Message)));
+        var load=Assert.Single(result.BoundaryLoads!);Assert.InRange(double.Abs(load.IntegratedArea-load.ExactArea),0,1e-11);Assert.InRange(load.ResultantResidual,0,1e-8);Assert.InRange(load.MomentResidual,0,1e-9);
+    }
+
+    [Fact]
+    public void RotatedPressure_UsesExactMaterialOutwardNormal()
+    {
+        var source=FirmamentAnalysisCompiler.Compile(DirectSource).Analysis!;var pressure=source.Loads.Single() with{Kind=Aetheris.FEA.Analysis.BoundaryLoadKind.Pressure,VectorSi=Vector3D.Zero,PressurePascal=2e6};var analysis=source with{Loads=[pressure],Lattice=new LatticeSpec(source.Body.ContinuumRegion.Bounds,12,8,4)};
+        var center=new Vector3D(.1,.05,.005);var rotation=Transform3D.CreateTranslation(-center)*Transform3D.CreateRotationZ(31*double.Pi/180)*Transform3D.CreateTranslation(center);var result=LinearElasticSolver.Solve(analysis,new(CutCellQuadraturePerAxis:6,RelativeResidualTolerance:1e-8,DomainTransform:rotation));
+        Assert.True(result.IsSuccess,string.Join("; ",result.Diagnostics.Select(d=>d.Code+":"+d.Message)));var evidence=Assert.Single(result.BoundaryLoads!);var expectedDirection=rotation.Apply(new Vector3D(-1,0,0));expectedDirection.TryNormalize(out expectedDirection);var actual=evidence.IntegratedResultant/evidence.IntegratedResultant.Length;Assert.InRange((actual-expectedDirection).Length,0,1e-10);Assert.InRange(evidence.ResultantResidual,0,1e-8);Assert.InRange(evidence.MomentResidual,0,1e-9);
+    }
+
+    [Fact]
+    public void PlanarTrimWithHole_IsClippedOnceAndPreservesExactAreaDeterministically()
+    {
+        var domain=new PlanarBoundaryDomain(
+            new BoundaryReference("exact-brep","face:trimmed","42","selected"),new Point3D(0,0,0),
+            new Vector3D(1,0,0),new Vector3D(0,1,0),new Vector3D(0,0,1),
+            [(0d,0d),(2d,0d),(2d,2d),(0d,2d)],
+            [[(.5d,.5d),(.5d,1.5d),(1.5d,1.5d),(1.5d,.5d)]],"CIR inward probe");
+        var binding=new SemanticRegionBinding("body","body.selected","42");
+        var cells=new[] {new ContinuumCell(new CellIndex(0,0,0),new BoundingBox3D(new(0,0,0),new(2,2,1)),CellClassification.Cut,.75)};
+        var first=MechanicsBoundaryQuadrature.Create(domain,binding,cells);var second=MechanicsBoundaryQuadrature.Create(domain,binding,cells);
+        Assert.InRange(double.Abs(first.IntegratedArea-3),0,1e-12);
+        Assert.Equal(first.Fragments.Select(f=>f.OwnershipKey),second.Fragments.Select(f=>f.OwnershipKey));
+        Assert.Equal(first.Fragments.Count,first.Fragments.Select(f=>f.OwnershipKey).Distinct(StringComparer.Ordinal).Count());
+    }
 }

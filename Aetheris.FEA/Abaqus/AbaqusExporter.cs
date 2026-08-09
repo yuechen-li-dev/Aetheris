@@ -5,6 +5,8 @@ using System.Text.RegularExpressions;
 using Aetheris.Continuum.Lattice;
 using Aetheris.FEA.Analysis;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Continuum.Cir;
+using Aetheris.Continuum.Boundaries;
 
 namespace Aetheris.FEA.Abaqus;
 
@@ -17,9 +19,11 @@ public sealed record AbaqusExportArtifact(string Text, string Sha256, int NodeCo
 public static class AbaqusInpExporter
 {
     private static readonly (int X,int Y,int Z)[] Offsets=[(0,0,0),(1,0,0),(1,1,0),(0,1,0),(0,0,1),(1,0,1),(1,1,1),(0,1,1)];
-    public static AbaqusExportArtifact Export(LinearElasticAnalysisIr analysis)
+    public static AbaqusExportArtifact Export(LinearElasticAnalysisIr analysis,Transform3D? orientation=null)
     {
-        var grid=ContinuumGridClassifier.Classify(analysis.Body.ContinuumRegion,analysis.Lattice,2);
+        IContinuumRegion region=analysis.Body.ContinuumRegion;if(orientation is { } transform)region=new TransformedContinuumRegion(region,transform);
+        var lattice=orientation is null?analysis.Lattice:new LatticeSpec(region.Bounds,analysis.Lattice.CountX,analysis.Lattice.CountY,analysis.Lattice.CountZ);
+        var grid=ContinuumGridClassifier.Classify(region,lattice,2);
         var cells=grid.Cells.Where(cell=>cell.Classification==CellClassification.Inside).OrderBy(cell=>cell.Index.K).ThenBy(cell=>cell.Index.J).ThenBy(cell=>cell.Index.I).ToArray();
         var diagnostics=new List<string>();
         if(cells.Length==0)diagnostics.Add("abaqus-lowering-empty-full-cell-domain");
@@ -30,18 +34,18 @@ public static class AbaqusInpExporter
         sb.AppendLine("** Aetheris AETHERIS-FEA-M5 verification deck");
         sb.AppendLine("** Conventional C3D8 full-cell approximation; native Cut cells are omitted, never exported as full bricks.");
         sb.AppendLine("*HEADING"); sb.AppendLine(analysis.Id); sb.AppendLine("*NODE");
-        foreach(var key in keys){var p=Position(analysis.Lattice,key);sb.AppendLine(FormattableString.Invariant($"{ids[key]}, {p.X:R}, {p.Y:R}, {p.Z:R}"));}
+        foreach(var key in keys){var p=Position(lattice,key);sb.AppendLine(FormattableString.Invariant($"{ids[key]}, {p.X:R}, {p.Y:R}, {p.Z:R}"));}
         sb.AppendLine("*ELEMENT, TYPE=C3D8, ELSET=SOLID");
         for(var e=0;e<cells.Length;e++){var n=Offsets.Select(o=>ids[(cells[e].Index.I+o.X,cells[e].Index.J+o.Y,cells[e].Index.K+o.Z)]);sb.AppendLine($"{e+1}, {string.Join(", ",n)}");}
         WriteIds(sb,"*ELSET, ELSET=SOLID",Enumerable.Range(1,cells.Length));
         foreach(var constraint in analysis.Constraints)
         {
-            var name=SetName(constraint.Id);var selected=keys.Where(k=>Matches(Position(analysis.Lattice,k),constraint.Region.Path,analysis.Lattice.Bounds)).Select(k=>ids[k]).ToArray();
+            var name=SetName(constraint.Id);var selected=SelectNodes(keys,lattice,region,constraint.Region).Select(k=>ids[k]).ToArray();
             WriteIds(sb,$"*NSET, NSET={name}",selected);
         }
         foreach(var load in analysis.Loads)
         {
-            var name=SetName(load.Id);var selected=keys.Where(k=>Matches(Position(analysis.Lattice,k),load.Region.Path,analysis.Lattice.Bounds)).Select(k=>ids[k]).ToArray();
+            var name=SetName(load.Id);var selected=SelectNodes(keys,lattice,region,load.Region).Select(k=>ids[k]).ToArray();
             WriteIds(sb,$"*NSET, NSET={name}",selected);
         }
         var material=analysis.Materials.Single();
@@ -54,9 +58,10 @@ public static class AbaqusInpExporter
         sb.AppendLine("*STEP, NAME=LINEAR_STATIC, NLGEOM=NO");sb.AppendLine("*STATIC");sb.AppendLine("1., 1., 1e-05, 1.");
         foreach(var load in analysis.Loads)
         {
-            var set=SetName(load.Id);var count=keys.Count(k=>Matches(Position(analysis.Lattice,k),load.Region.Path,analysis.Lattice.Bounds));if(count==0)continue;
-            var total=load.Kind==BoundaryLoadKind.ResultantForce?load.VectorSi:load.VectorSi*ApproximateFaceArea(analysis.Lattice,load.Region.Path);
-            if(load.Kind==BoundaryLoadKind.Pressure){var normal=Outward(load.Region.Path);total=normal*(-load.PressurePascal*ApproximateFaceArea(analysis.Lattice,load.Region.Path));}
+            var set=SetName(load.Id);var count=SelectNodes(keys,lattice,region,load.Region).Count;if(count==0)continue;
+            var vector=orientation is { } t?t.Apply(load.VectorSi):load.VectorSi;var area=ExactArea(region,load.Region);
+            var total=load.Kind==BoundaryLoadKind.ResultantForce?vector:vector*area;
+            if(load.Kind==BoundaryLoadKind.Pressure){var normal=ExactNormal(region,load.Region);total=normal*(-load.PressurePascal*area);}
             sb.AppendLine("*CLOAD");if(total.X!=0)sb.AppendLine(FormattableString.Invariant($"{set}, 1, {total.X/count:R}"));if(total.Y!=0)sb.AppendLine(FormattableString.Invariant($"{set}, 2, {total.Y/count:R}"));if(total.Z!=0)sb.AppendLine(FormattableString.Invariant($"{set}, 3, {total.Z/count:R}"));
         }
         sb.AppendLine("*OUTPUT, FIELD");sb.AppendLine("*NODE OUTPUT");sb.AppendLine("U, RF");sb.AppendLine("*ELEMENT OUTPUT, DIRECTIONS=YES");sb.AppendLine("S, E");sb.AppendLine("*OUTPUT, HISTORY");sb.AppendLine("*ENERGY OUTPUT");sb.AppendLine("ALLSE");sb.AppendLine("*END STEP");
@@ -67,6 +72,13 @@ public static class AbaqusInpExporter
     private static void WriteIds(StringBuilder sb,string header,IEnumerable<int> values){sb.AppendLine(header);var list=values.ToArray();for(var i=0;i<list.Length;i+=16)sb.AppendLine(string.Join(", ",list.Skip(i).Take(16)));}
     private static string SetName(string value)=>Regex.Replace(value.ToUpperInvariant(),"[^A-Z0-9_]","_");
     private static Point3D Position(LatticeSpec l,(int,int,int) k)=>new(l.Bounds.Min.X+k.Item1*l.CellSize.X,l.Bounds.Min.Y+k.Item2*l.CellSize.Y,l.Bounds.Min.Z+k.Item3*l.CellSize.Z);
+    private static IReadOnlyList<(int,int,int)> SelectNodes(IReadOnlyList<(int,int,int)> keys,LatticeSpec lattice,IContinuumRegion region,SemanticRegionBinding binding)
+    {
+        if(region is not IPlanarBoundaryDomainCapability capability||!capability.TryResolvePlanarBoundary(binding.Path,binding.ExactBrepFaceId,out var face))return keys.Where(k=>Matches(Position(lattice,k),binding.Path,lattice.Bounds)).ToArray();
+        var rows=keys.Select(key=>(key,d:double.Abs((Position(lattice,key)-face.Origin).Dot(face.OutwardNormal)))).ToArray();if(rows.Length==0)return[];var projected=.51*(double.Abs(face.OutwardNormal.X)*lattice.CellSize.X+double.Abs(face.OutwardNormal.Y)*lattice.CellSize.Y+double.Abs(face.OutwardNormal.Z)*lattice.CellSize.Z);var selected=rows.Where(row=>row.d<=projected+1e-12).Select(row=>row.key).ToArray();return selected.Length>0?selected:rows.Where(row=>row.d<=rows.Min(x=>x.d)+1e-12).Select(row=>row.key).ToArray();
+    }
+    private static double ExactArea(IContinuumRegion region,SemanticRegionBinding binding)=>region is IPlanarBoundaryDomainCapability c&&c.TryResolvePlanarBoundary(binding.Path,binding.ExactBrepFaceId,out var face)?face.ExactArea:0;
+    private static Vector3D ExactNormal(IContinuumRegion region,SemanticRegionBinding binding)=>region is IPlanarBoundaryDomainCapability c&&c.TryResolvePlanarBoundary(binding.Path,binding.ExactBrepFaceId,out var face)?face.OutwardNormal:Outward(binding.Path);
     private static bool Matches(Point3D p,string path,BoundingBox3D b){var (d,pos)=Axis(path);var v=d==0?p.X:d==1?p.Y:p.Z;var t=d==0?(pos?b.Max.X:b.Min.X):d==1?(pos?b.Max.Y:b.Min.Y):(pos?b.Max.Z:b.Min.Z);return double.Abs(v-t)<1e-12;}
     private static (int,bool) Axis(string path){if(path.Contains("+X")||path.Contains("x-max",StringComparison.OrdinalIgnoreCase))return(0,true);if(path.Contains("-X")||path.Contains("x-min",StringComparison.OrdinalIgnoreCase))return(0,false);if(path.Contains("+Y")||path.Contains("y-max",StringComparison.OrdinalIgnoreCase))return(1,true);if(path.Contains("-Y")||path.Contains("y-min",StringComparison.OrdinalIgnoreCase))return(1,false);if(path.Contains("+Z")||path.Contains("z-max",StringComparison.OrdinalIgnoreCase))return(2,true);return(2,false);}
     private static Vector3D Outward(string path){var(a,p)=Axis(path);return a==0?new(p?1:-1,0,0):a==1?new(0,p?1:-1,0):new(0,0,p?1:-1);}

@@ -1,12 +1,18 @@
 using System.Diagnostics;
 using Aetheris.Continuum.Cir;
+using Aetheris.Continuum.Boundaries;
 using Aetheris.Continuum.Lattice;
 using Aetheris.FEA.Analysis;
 using Aetheris.Kernel.Core.Math;
 
 namespace Aetheris.FEA.Mechanics;
 
-public sealed record MechanicsSolveOptions(int CutCellQuadraturePerAxis = 4, double RelativeResidualTolerance = 1e-9, int? MaximumIterations = null);
+public sealed record MechanicsSolveOptions(
+    int CutCellQuadraturePerAxis = 4,
+    double RelativeResidualTolerance = 1e-9,
+    int? MaximumIterations = null,
+    Transform3D? DomainTransform = null,
+    bool PreserveNominalCellVolumeUnderTransform = false);
 
 public static class LinearElasticSolver
 {
@@ -25,15 +31,33 @@ public static class LinearElasticSolver
         var diagnostics = AnalysisIrValidator.Validate(analysis).ToList();
         if (diagnostics.Any(item => item.Severity == AnalysisDiagnosticSeverity.Error)) return Failure(analysis, diagnostics);
         var material = analysis.Materials.Single();
+        IContinuumRegion region=analysis.Body.ContinuumRegion;
+        var sourceBounds=region.Bounds;
+        if(options.DomainTransform is { } orientation)region=new TransformedContinuumRegion(region,orientation);
+        var counts=(X:analysis.Lattice.CountX,Y:analysis.Lattice.CountY,Z:analysis.Lattice.CountZ);
+        if(options.DomainTransform is not null&&options.PreserveNominalCellVolumeUnderTransform)
+        {
+            var sourceCellVolume=(sourceBounds.Max.X-sourceBounds.Min.X)*(sourceBounds.Max.Y-sourceBounds.Min.Y)*(sourceBounds.Max.Z-sourceBounds.Min.Z)/(counts.X*counts.Y*counts.Z);
+            var nominalEdge=double.Cbrt(sourceCellVolume);
+            counts=(
+                Math.Max(1,(int)Math.Ceiling((region.Bounds.Max.X-region.Bounds.Min.X)/nominalEdge)),
+                Math.Max(1,(int)Math.Ceiling((region.Bounds.Max.Y-region.Bounds.Min.Y)/nominalEdge)),
+                Math.Max(1,(int)Math.Ceiling((region.Bounds.Max.Z-region.Bounds.Min.Z)/nominalEdge)));
+        }
+        var lattice=new LatticeSpec(region.Bounds,counts.X,counts.Y,counts.Z);
         var domainStart = Stopwatch.GetTimestamp();
-        var grid = ContinuumGridClassifier.Classify(analysis.Body.ContinuumRegion, analysis.Lattice, 2);
+        var grid = ContinuumGridClassifier.Classify(region, lattice, 2);
         var domainTime = Stopwatch.GetElapsedTime(domainStart);
 
         var quadratureStart = Stopwatch.GetTimestamp();
         var active = new List<(ContinuumCell Cell, MechanicsQuadraturePlan Plan)>();
         foreach (var cell in grid.Cells.Where(item => item.Classification != CellClassification.Outside))
         {
-            var plan = CreateQuadrature(analysis.Body.ContinuumRegion, cell, options.CutCellQuadraturePerAxis);
+            var plan = CreateQuadrature(region, cell, options.CutCellQuadraturePerAxis);
+            if(plan.Points.Count==0&&cell.Classification==CellClassification.Cut)
+            {
+                for(var order=Math.Max(options.CutCellQuadraturePerAxis+1,8);order<=32&&plan.Points.Count==0;order*=2)plan=CreateQuadrature(region,cell,order);
+            }
             if (plan.Points.Count > 0) active.Add((cell, plan));
         }
         var quadratureTime = Stopwatch.GetElapsedTime(quadratureStart);
@@ -43,7 +67,6 @@ public static class LinearElasticSolver
             return Failure(analysis, diagnostics);
         }
 
-        var lattice = analysis.Lattice;
         var nodeKeys = active.SelectMany(item => CellNodeKeys(item.Cell.Index)).Distinct().OrderBy(item => item.K).ThenBy(item => item.J).ThenBy(item => item.I).ToArray();
         var nodeId = nodeKeys.Select((key, id) => (key, id)).ToDictionary(item => item.key, item => item.id);
         var nodes = nodeKeys.Select((key, id) => new MechanicsNode(id, NodePosition(lattice, key))).ToArray();
@@ -63,9 +86,28 @@ public static class LinearElasticSolver
 
         var boundaryStart = Stopwatch.GetTimestamp();
         var integratedByLoad = new Dictionary<string, Vector3D>(StringComparer.Ordinal);
+        var loadEvidence=new List<BoundaryLoadEvidence>();
+        var boundaryPlans=new Dictionary<string,MechanicsBoundaryQuadraturePlan>(StringComparer.Ordinal);
+        var semanticFaceTime=TimeSpan.Zero;var boundaryPlanTime=TimeSpan.Zero;
+        if(region is not IPlanarBoundaryDomainCapability planar)
+        {
+            diagnostics.Add(new("fea-selected-region-not-planar",AnalysisDiagnosticSeverity.Error,"The continuum body exposes no exact planar semantic-boundary contract.",analysis.Provenance));
+            return Failure(analysis,diagnostics);
+        }
+        MechanicsBoundaryQuadraturePlan? Plan(SemanticRegionBinding binding)
+        {
+            var key=binding.Path+"|"+binding.ExactBrepFaceId;if(boundaryPlans.TryGetValue(key,out var cached))return cached;
+            var semanticStart=Stopwatch.GetTimestamp();var resolved=planar.TryResolvePlanarBoundary(binding.Path,binding.ExactBrepFaceId,out var domain);semanticFaceTime+=Stopwatch.GetElapsedTime(semanticStart);
+            if(!resolved){diagnostics.Add(new("fea-boundary-region-unresolved",AnalysisDiagnosticSeverity.Error,$"Semantic region '{binding.Path}' did not resolve to an exact planar face.",binding.Provenance));return null;}
+            if(!domain.TryOrientFromMaterialSide(region,out domain)){diagnostics.Add(new("fea-material-side-ambiguity",AnalysisDiagnosticSeverity.Error,$"Semantic region '{binding.Path}' did not provide an unambiguous CIR material side.",binding.Provenance));return null;}
+            try{var planStart=Stopwatch.GetTimestamp();var created=MechanicsBoundaryQuadrature.Create(domain,binding,active.Select(item=>item.Cell).ToArray());boundaryPlanTime+=Stopwatch.GetElapsedTime(planStart);boundaryPlans[key]=created;return created;}
+            catch(MechanicsBoundaryLoweringException exception){diagnostics.Add(new(exception.Code,AnalysisDiagnosticSeverity.Error,exception.Message,binding.Provenance));return null;}
+        }
+        var loadAssemblyStart=Stopwatch.GetTimestamp();
         foreach (var boundaryLoad in analysis.Loads)
         {
-            var contributions = IntegrateLoad(analysis, boundaryLoad, active, nodeId);
+            var plan=Plan(boundaryLoad.Region);if(plan is null)continue;
+            var contributions = IntegrateLoad(boundaryLoad,plan,nodeId,nodes,options.DomainTransform);
             foreach (var contribution in contributions.Nodal)
             {
                 load[(3 * contribution.Key) + 0] += contribution.Value.X;
@@ -73,10 +115,21 @@ public static class LinearElasticSolver
                 load[(3 * contribution.Key) + 2] += contribution.Value.Z;
             }
             integratedByLoad[boundaryLoad.Id] = contributions.Resultant;
+            loadEvidence.Add(contributions.Evidence);
             if (contributions.Area <= 0)
                 diagnostics.Add(new("fea-empty-region-selection", AnalysisDiagnosticSeverity.Error, $"Region '{boundaryLoad.Region.Path}' selected no exact Continuum boundary fragments.", boundaryLoad.Provenance));
+            else if(double.Abs(plan.IntegratedArea-plan.ExactSelectedArea)>double.Max(1,plan.ExactSelectedArea)*1e-9)
+                diagnostics.Add(new("fea-boundary-area-mismatch",AnalysisDiagnosticSeverity.Error,$"Owned fragments integrate {plan.IntegratedArea:R} m^2 but exact face area is {plan.ExactSelectedArea:R} m^2.",boundaryLoad.Provenance));
+            if(contributions.Evidence.ResultantResidual>double.Max(1,contributions.Evidence.ExpectedResultant.Length)*1e-9)
+                diagnostics.Add(new("fea-load-resultant-mismatch",AnalysisDiagnosticSeverity.Error,$"Integrated load resultant residual is {contributions.Evidence.ResultantResidual:R} N.",boundaryLoad.Provenance));
+            if(contributions.Evidence.MomentResidual>double.Max(1,contributions.Evidence.ExpectedMoment.Length)*1e-9)
+                diagnostics.Add(new("fea-load-moment-mismatch",AnalysisDiagnosticSeverity.Error,$"Integrated load moment residual is {contributions.Evidence.MomentResidual:R} N m.",boundaryLoad.Provenance));
         }
-        var prescribed = ResolveConstraints(analysis, nodes, diagnostics);
+        var loadAssemblyTime=Stopwatch.GetElapsedTime(loadAssemblyStart);
+        var constraintStart=Stopwatch.GetTimestamp();
+        var constraintPlans=analysis.Constraints.ToDictionary(item=>item.Id,item=>Plan(item.Region),StringComparer.Ordinal);
+        var prescribed = ResolveConstraints(analysis,constraintPlans,nodeId,nodes,diagnostics,out var constrainedNodes);
+        var constraintTime=Stopwatch.GetElapsedTime(constraintStart);
         if (prescribed.Count == 0)
             diagnostics.Add(new("fea-rigid-body-mode", AnalysisDiagnosticSeverity.Error, "Constraints selected no admitted lattice DOFs.", analysis.Provenance));
         var boundaryTime = Stopwatch.GetElapsedTime(boundaryStart);
@@ -85,6 +138,7 @@ public static class LinearElasticSolver
         var rawMatrix = matrix.Copy();
         var rawLoad = (double[])load.Clone();
         matrix.ApplyDirichlet(prescribed, load);
+        bool? spd=dofs<=600?matrix.IsPositiveDefiniteByDenseCholesky():null;
         var (solution, convergence) = PreconditionedConjugateGradient.Solve(matrix, load, options.RelativeResidualTolerance, options.MaximumIterations);
         if (!convergence.Converged)
         {
@@ -101,8 +155,8 @@ public static class LinearElasticSolver
         foreach (var constraint in analysis.Constraints)
         {
             var vector = Vector3D.Zero;
-            foreach (var node in nodes.Where(node => MatchesRegion(node.Position, constraint.Region.Path, lattice.Bounds)))
-                vector += new Vector3D(residual[3*node.Id], residual[(3*node.Id)+1], residual[(3*node.Id)+2]);
+            foreach (var id in constrainedNodes.GetValueOrDefault(constraint.Id,new HashSet<int>()))
+                vector += new Vector3D(residual[3*id], residual[(3*id)+1], residual[(3*id)+2]);
             reactions.Add(new(constraint.Id, vector));
         }
         var applied = integratedByLoad.Values.Aggregate(Vector3D.Zero, (sum, value) => sum + value);
@@ -111,13 +165,13 @@ public static class LinearElasticSolver
         var recoveryTime = Stopwatch.GetElapsedTime(recoveryStart);
         var fractions = active.Select(item => item.Plan.IntegratedVolume / CellVolume(item.Cell.Bounds)).Order().ToArray();
         var tiny = new TinyCellDiagnostics(fractions[0], fractions.Count(x => x < .01), fractions.Count(x => x < .05), fractions.Count(x => x < .10), fractions);
-        var declared = analysis.Loads.Where(item => item.Kind == BoundaryLoadKind.ResultantForce).Sum(item => item.VectorSi.Length);
+        var declared = loadEvidence.Sum(item=>item.ExpectedResultant.Length);
         var actual = integratedByLoad.Values.Sum(item => item.Length);
-        var system = new SparseSystemMetrics(dofs, rawMatrix.Nonzeros, rawMatrix.MaximumAsymmetry(), rawMatrix.IsFinite(), true, actual, declared == 0 ? 0 : double.Abs(actual - declared));
+        var system = new SparseSystemMetrics(dofs, rawMatrix.Nonzeros, rawMatrix.MaximumAsymmetry(), rawMatrix.IsFinite(), true, actual, declared == 0 ? 0 : double.Abs(actual - declared),grid.CutCellCount,spd);
         var sparseBytes = (long)rawMatrix.Nonzeros * (sizeof(double) + sizeof(int)) + (long)(dofs + 1) * sizeof(int);
         var resultBytes = (long)displacements.Length * (sizeof(int) + 6*sizeof(double)) + (long)fields.Count * 16*sizeof(double);
         return new(analysis.Id, true, convergence, displacements, fields, reactions, equilibrium, system, tiny,
-            new(domainTime, quadratureTime, assemblyTime, boundaryTime, convergence.Runtime, recoveryTime, sparseBytes, resultBytes), diagnostics);
+            new(domainTime,quadratureTime,assemblyTime,boundaryTime,convergence.Runtime,recoveryTime,sparseBytes,resultBytes,semanticFaceTime,boundaryPlanTime,loadAssemblyTime,constraintTime),diagnostics,loadEvidence);
     }
 
     public static MechanicsQuadraturePlan CreateQuadrature(IContinuumRegion region, ContinuumCell cell, int cutSamplesPerAxis)
@@ -186,49 +240,46 @@ public static class LinearElasticSolver
         return d;
     }
 
-    private sealed record LoadIntegration(Dictionary<int,Vector3D> Nodal,Vector3D Resultant,double Area);
-    private static LoadIntegration IntegrateLoad(LinearElasticAnalysisIr analysis,BoundaryLoadIr load,IReadOnlyList<(ContinuumCell Cell,MechanicsQuadraturePlan Plan)> active,IReadOnlyDictionary<(int I,int J,int K),int> nodeId)
+    private sealed record LoadIntegration(Dictionary<int,Vector3D> Nodal,Vector3D Resultant,double Area,BoundaryLoadEvidence Evidence);
+    private static LoadIntegration IntegrateLoad(BoundaryLoadIr load,MechanicsBoundaryQuadraturePlan plan,IReadOnlyDictionary<(int I,int J,int K),int> nodeId,IReadOnlyList<MechanicsNode> nodes,Transform3D? orientation)
     {
-        var axis=RegionAxis(load.Region.Path); if(axis is null)return new([],Vector3D.Zero,0);
-        var (dimension,positive)=axis.Value; var bounds=analysis.Lattice.Bounds;
-        var selected=active.Where(item=>IsBoundaryCell(item.Cell.Index,analysis.Lattice,dimension,positive)).ToArray();
-        var points=new List<(int[] Nodes,double[] Shape,double Weight,Vector3D Normal)>();
-        var g=1/double.Sqrt(3);
-        foreach(var item in selected)
+        var declared=orientation is { } transform?transform.Apply(load.VectorSi):load.VectorSi;
+        var nodal=new Dictionary<int,Vector3D>();
+        foreach(var fragment in plan.Fragments)
         {
-            var ids=CellNodeKeys(item.Cell.Index).Select(key=>nodeId[key]).ToArray();
-            foreach(var a in new[]{-g,g}) foreach(var b in new[]{-g,g})
+            var ids=CellNodeKeys(fragment.Cell).Select(key=>nodeId[key]).ToArray();
+            foreach(var point in fragment.Points)
             {
-                var natural=dimension switch {0=>(positive?1d:-1d,a,b),1=>(a,positive?1d:-1d,b),_=>(a,b,positive?1d:-1d)};
-                var position=ToPhysical(item.Cell.Bounds,natural.Item1,natural.Item2,natural.Item3);
-                var inward=dimension switch {0=>new Vector3D(positive?-1:1,0,0),1=>new Vector3D(0,positive?-1:1,0),_=>new Vector3D(0,0,positive?-1:1)};
-                var epsilon=double.Min(analysis.Lattice.CellSize.X,double.Min(analysis.Lattice.CellSize.Y,analysis.Lattice.CellSize.Z))*1e-8;
-                if(analysis.Body.ContinuumRegion.Classify(position+(inward*epsilon))==ContinuumPointClassification.Outside)continue;
-                var area=FaceArea(item.Cell.Bounds,dimension)/4;
-                points.Add((ids,Shape(natural.Item1,natural.Item2,natural.Item3),area,-inward));
+                var traction=load.Kind switch {BoundaryLoadKind.ResultantForce=>declared/plan.ExactSelectedArea,BoundaryLoadKind.Pressure=>point.OutwardNormal*(-load.PressurePascal),_=>declared};
+                var force=traction*point.AreaWeight;
+                for(var n=0;n<8;n++)if(double.Abs(point.ShapeFunctions[n])>1e-15)nodal[ids[n]]=nodal.GetValueOrDefault(ids[n])+force*point.ShapeFunctions[n];
             }
         }
-        var totalArea=points.Sum(item=>item.Weight); if(totalArea<=0)return new([],Vector3D.Zero,0);
-        var nodal=new Dictionary<int,Vector3D>(); var resultant=Vector3D.Zero;
-        foreach(var point in points)
-        {
-            var traction=load.Kind switch {BoundaryLoadKind.ResultantForce=>load.VectorSi/totalArea,BoundaryLoadKind.Pressure=>point.Normal*(-load.PressurePascal),_=>load.VectorSi};
-            var force=traction*point.Weight; resultant+=force;
-            for(var n=0;n<8;n++) if(point.Shape[n]!=0) nodal[point.Nodes[n]]=nodal.GetValueOrDefault(point.Nodes[n])+force*point.Shape[n];
-        }
-        return new(nodal,resultant,totalArea);
+        var resultant=nodal.Values.Aggregate(Vector3D.Zero,(sum,value)=>sum+value);var moment=Vector3D.Zero;
+        foreach(var pair in nodal)moment+=new Vector3D(nodes[pair.Key].Position.X,nodes[pair.Key].Position.Y,nodes[pair.Key].Position.Z).Cross(pair.Value);
+        var expected=load.Kind switch{BoundaryLoadKind.ResultantForce=>declared,BoundaryLoadKind.Pressure=>plan.Fragments.SelectMany(f=>f.Points).Aggregate(Vector3D.Zero,(sum,p)=>sum+p.OutwardNormal*(-load.PressurePascal*p.AreaWeight)),_=>declared*plan.ExactSelectedArea};
+        var centroid=new Vector3D(plan.ExactCentroid.X,plan.ExactCentroid.Y,plan.ExactCentroid.Z);var expectedMoment=centroid.Cross(expected);
+        var evidence=new BoundaryLoadEvidence(load.Id,load.Region.Path,plan.BoundaryId,plan.ExactBrepFaceId,plan.ExactSelectedArea,plan.IntegratedArea,expected,resultant,expectedMoment,moment,(expected-resultant).Length,(expectedMoment-moment).Length,plan.Fragments.Count,plan.QuadraturePointCount,plan.MaterialSideEvidence);
+        return new(nodal,resultant,plan.IntegratedArea,evidence);
     }
 
-    private static Dictionary<int,double> ResolveConstraints(LinearElasticAnalysisIr analysis,IReadOnlyList<MechanicsNode> nodes,List<AnalysisDiagnostic> diagnostics)
+    private static Dictionary<int,double> ResolveConstraints(LinearElasticAnalysisIr analysis,IReadOnlyDictionary<string,MechanicsBoundaryQuadraturePlan?> plans,IReadOnlyDictionary<(int I,int J,int K),int> nodeId,IReadOnlyList<MechanicsNode> nodes,List<AnalysisDiagnostic> diagnostics,out Dictionary<string,IReadOnlySet<int>> constrainedNodes)
     {
-        var result=new Dictionary<int,double>();
+        var result=new Dictionary<int,double>();constrainedNodes=new(StringComparer.Ordinal);
         foreach(var constraint in analysis.Constraints)
         {
-            var selected=nodes.Where(node=>MatchesRegion(node.Position,constraint.Region.Path,analysis.Lattice.Bounds)).ToArray();
-            if(selected.Length==0){diagnostics.Add(new("fea-empty-region-selection",AnalysisDiagnosticSeverity.Error,$"Constraint region '{constraint.Region.Path}' selected no lattice nodes.",constraint.Provenance));continue;}
-            foreach(var node in selected) foreach(var component in constraint.Components)
+            var plan=plans.GetValueOrDefault(constraint.Id);var selected=new HashSet<int>();
+            if(plan is not null)foreach(var fragment in plan.Fragments)
             {
-                var index=(3*node.Id)+(int)component; var value=component switch{DisplacementComponent.X=>constraint.ValueMeters.X,DisplacementComponent.Y=>constraint.ValueMeters.Y,_=>constraint.ValueMeters.Z};
+                var ids=CellNodeKeys(fragment.Cell).Where(nodeId.ContainsKey).Select(key=>nodeId[key]).ToArray();
+                var distances=ids.Select(id=>double.Abs((nodes[id].Position-plan.Frame.Origin).Dot(plan.Frame.Normal))).ToArray();var minimum=distances.Min();
+                for(var i=0;i<ids.Length;i++)if(distances[i]<=minimum+1e-12)selected.Add(ids[i]);
+            }
+            constrainedNodes[constraint.Id]=selected;
+            if(selected.Count==0){diagnostics.Add(new("fea-empty-region-selection",AnalysisDiagnosticSeverity.Error,$"Constraint region '{constraint.Region.Path}' selected no basis supports.",constraint.Provenance));continue;}
+            foreach(var id in selected) foreach(var component in constraint.Components)
+            {
+                var index=(3*id)+(int)component; var value=component switch{DisplacementComponent.X=>constraint.ValueMeters.X,DisplacementComponent.Y=>constraint.ValueMeters.Y,_=>constraint.ValueMeters.Z};
                 if(result.TryGetValue(index,out var prior)&&double.Abs(prior-value)>1e-15) diagnostics.Add(new("fea-conflicting-constraints",AnalysisDiagnosticSeverity.Error,$"Conflicting values target DOF {index}.",constraint.Provenance)); else result[index]=value;
             }
         }
@@ -256,9 +307,4 @@ public static class LinearElasticSolver
     private static Point3D ToPhysical(BoundingBox3D b,double x,double y,double z)=>new(b.Min.X+(x+1)*(b.Max.X-b.Min.X)/2,b.Min.Y+(y+1)*(b.Max.Y-b.Min.Y)/2,b.Min.Z+(z+1)*(b.Max.Z-b.Min.Z)/2);
     private static Point3D Center(BoundingBox3D b)=>new((b.Min.X+b.Max.X)/2,(b.Min.Y+b.Max.Y)/2,(b.Min.Z+b.Max.Z)/2);
     private static double CellVolume(BoundingBox3D b)=>(b.Max.X-b.Min.X)*(b.Max.Y-b.Min.Y)*(b.Max.Z-b.Min.Z);
-    private static double FaceArea(BoundingBox3D b,int d)=>d switch{0=>(b.Max.Y-b.Min.Y)*(b.Max.Z-b.Min.Z),1=>(b.Max.X-b.Min.X)*(b.Max.Z-b.Min.Z),_=>(b.Max.X-b.Min.X)*(b.Max.Y-b.Min.Y)};
-    private static double[] Shape(double x,double y,double z)=>NaturalSigns.Select(s=>.125*(1+s.Xi*x)*(1+s.Eta*y)*(1+s.Zeta*z)).ToArray();
-    private static (int Dimension,bool Positive)? RegionAxis(string path){if(path.Contains("+X",StringComparison.OrdinalIgnoreCase)||path.Contains("x-max",StringComparison.OrdinalIgnoreCase))return(0,true);if(path.Contains("-X",StringComparison.OrdinalIgnoreCase)||path.Contains("x-min",StringComparison.OrdinalIgnoreCase))return(0,false);if(path.Contains("+Y",StringComparison.OrdinalIgnoreCase)||path.Contains("y-max",StringComparison.OrdinalIgnoreCase))return(1,true);if(path.Contains("-Y",StringComparison.OrdinalIgnoreCase)||path.Contains("y-min",StringComparison.OrdinalIgnoreCase))return(1,false);if(path.Contains("+Z",StringComparison.OrdinalIgnoreCase)||path.Contains("z-max",StringComparison.OrdinalIgnoreCase))return(2,true);if(path.Contains("-Z",StringComparison.OrdinalIgnoreCase)||path.Contains("z-min",StringComparison.OrdinalIgnoreCase))return(2,false);return null;}
-    private static bool MatchesRegion(Point3D p,string path,BoundingBox3D b){var a=RegionAxis(path);if(a is null)return false;var value=a.Value.Dimension switch{0=>p.X,1=>p.Y,_=>p.Z};var target=a.Value.Dimension switch{0=>a.Value.Positive?b.Max.X:b.Min.X,1=>a.Value.Positive?b.Max.Y:b.Min.Y,_=>a.Value.Positive?b.Max.Z:b.Min.Z};var scale=double.Max(1,(b.Max-b.Min).Length);return double.Abs(value-target)<=scale*1e-10;}
-    private static bool IsBoundaryCell(CellIndex c,LatticeSpec l,int d,bool positive)=>d switch{0=>c.I==(positive?l.CountX-1:0),1=>c.J==(positive?l.CountY-1:0),_=>c.K==(positive?l.CountZ-1:0)};
 }

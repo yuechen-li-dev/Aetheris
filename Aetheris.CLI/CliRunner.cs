@@ -144,7 +144,7 @@ public static class CliRunner
     private const string ExperimentalAirChamferCorpusUsage = "Usage: aetheris experimental airchamfer-corpus --out-dir <dir> [--json]";
     private const string ExperimentalPrismaticCorpusUsage = "Usage: aetheris experimental prismatic-corpus --out-dir <dir> [--json]";
     private const string ExperimentalPrismaticMapUsage = "Usage: aetheris experimental prismatic-map --case <case> --rows <N> --cols <N> --json";
-    private const string FeaUsage = "Usage: aetheris fea <analysis.firmament> [--out-dir <directory>] [--json]";
+    private const string FeaUsage = "Usage: aetheris fea <analysis.firmament> [--rotate <x,y,z-degrees>] [--out-dir <directory>] [--json]";
     private const string ExperimentalLoopChamferCorpusUsage = "Usage: aetheris experimental loop-chamfer-corpus --out-dir <dir> [--json]";
 
     internal static readonly JsonSerializerOptions JsonOptions = new()
@@ -457,11 +457,12 @@ public static class CliRunner
     private static int RunFea(string[] args, TextWriter stdout, TextWriter stderr)
     {
         if (args.Length == 0 || IsHelpFlag(args[0])) { stdout.WriteLine(FeaUsage); return args.Length == 0 ? 1 : 0; }
-        var input = Path.GetFullPath(args[0]); string? outDir = null; var json = false;
+        var input = Path.GetFullPath(args[0]); string? outDir = null; var json = false;Vector3D? rotationDegrees=null;
         for (var index = 1; index < args.Length; index++)
         {
             if (args[index] == "--json") json = true;
             else if (args[index] == "--out-dir" && index + 1 < args.Length) outDir = Path.GetFullPath(args[++index]);
+            else if(args[index]=="--rotate"&&index+1<args.Length){var values=args[++index].Split(',').Select(value=>double.Parse(value,System.Globalization.CultureInfo.InvariantCulture)).ToArray();if(values.Length!=3){stderr.WriteLine(FeaUsage);return 1;}rotationDegrees=new(values[0],values[1],values[2]);}
             else { stderr.WriteLine(FeaUsage); return 1; }
         }
         if (!File.Exists(input)) { stderr.WriteLine($"Analysis source was not found: {input}"); return 1; }
@@ -471,13 +472,14 @@ public static class CliRunner
             foreach (var diagnostic in compiled.Diagnostics) stderr.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
             return 1;
         }
-        var result = LinearElasticSolver.Solve(compiled.Analysis);
+        Transform3D? orientation=null;if(rotationDegrees is { } degrees){var b=compiled.Analysis.Body.ContinuumRegion.Bounds;var center=new Vector3D((b.Min.X+b.Max.X)/2,(b.Min.Y+b.Max.Y)/2,(b.Min.Z+b.Max.Z)/2);orientation=Transform3D.CreateTranslation(-center)*Transform3D.CreateRotationX(degrees.X*double.Pi/180)*Transform3D.CreateRotationY(degrees.Y*double.Pi/180)*Transform3D.CreateRotationZ(degrees.Z*double.Pi/180)*Transform3D.CreateTranslation(center);}
+        var solveOptions=new MechanicsSolveOptions(CutCellQuadraturePerAxis:6,DomainTransform:orientation,PreserveNominalCellVolumeUnderTransform:orientation is not null);var result = LinearElasticSolver.Solve(compiled.Analysis,solveOptions);
         if (!result.IsSuccess)
         {
             foreach (var diagnostic in result.Diagnostics.Where(item => item.Severity == Aetheris.FEA.Analysis.AnalysisDiagnosticSeverity.Error)) stderr.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
             return 1;
         }
-        var abaqus = AbaqusInpExporter.Export(compiled.Analysis); var validation = AbaqusInpValidator.Validate(abaqus.Text);
+        var abaqus = AbaqusInpExporter.Export(compiled.Analysis,orientation); var validation = AbaqusInpValidator.Validate(abaqus.Text);
         var report = new
         {
             analysis = new { compiled.Analysis.Id, kind = compiled.Analysis.Kind.ToString(), body = compiled.Analysis.Body.Id, compiled.Analysis.Body.SourceKind,
@@ -485,7 +487,7 @@ public static class CliRunner
                 constraints = compiled.Analysis.Constraints.Select(item => new { item.Id, region = item.Region.Path, components = item.Components }),
                 loads = compiled.Analysis.Loads.Select(item => new { item.Id, kind = item.Kind.ToString(), region = item.Region.Path, item.VectorSi, item.PressurePascal }),
                 lattice = new { compiled.Analysis.Lattice.CountX, compiled.Analysis.Lattice.CountY, compiled.Analysis.Lattice.CountZ } },
-            result.System, result.Solver, result.Equilibrium, result.TinyCells, result.Performance,
+            orientationDegrees=rotationDegrees,result.System, result.Solver, result.Equilibrium, result.TinyCells, result.Performance,boundaryLoads=result.BoundaryLoads,
             maximumDisplacementMeters = result.MaximumDisplacementMeters, maximumVonMisesPascal = result.MaximumVonMisesPascal,
             abaqus = new { abaqus.Sha256, abaqus.NodeCount, abaqus.ElementCount, validation.IsValid, validation.Diagnostics }
         };
@@ -497,6 +499,7 @@ public static class CliRunner
             File.WriteAllText(Path.Combine(outDir, "sparse-system-metrics.json"), JsonSerializer.Serialize(result.System, JsonOptions));
             File.WriteAllText(Path.Combine(outDir, "residual-history.json"), JsonSerializer.Serialize(result.Solver.ResidualHistory, JsonOptions));
             File.WriteAllText(Path.Combine(outDir, "displacement-stress-summary.json"), JsonSerializer.Serialize(new { maximumDisplacementMeters = result.MaximumDisplacementMeters, maximumVonMisesPascal = result.MaximumVonMisesPascal, result.Equilibrium }, JsonOptions));
+            File.WriteAllText(Path.Combine(outDir,"boundary-quadrature.json"),JsonSerializer.Serialize(result.BoundaryLoads,JsonOptions));
             File.WriteAllText(Path.Combine(outDir, "verification.inp"), abaqus.Text);
         }
         stdout.WriteLine(json ? JsonSerializer.Serialize(report, JsonOptions) : $"{compiled.Analysis.Id}: converged in {result.Solver.Iterations} iterations; max |u|={result.MaximumDisplacementMeters:R} m; max von Mises={result.MaximumVonMisesPascal:R} Pa; Abaqus SHA-256={abaqus.Sha256}");

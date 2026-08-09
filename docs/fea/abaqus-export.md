@@ -7,3 +7,5 @@ Native partial Cut cells are never represented as ordinary full C3D8 bricks. The
 The focused validator checks unique node/element IDs, connectivity references, positive brick volumes, and required material/section/boundary/step keywords. It does not replace Abaqus parsing or execution. Abaqus is not installed and no commercial-solver result is claimed.
 
 Run the generated deck in Abaqus/Standard, then compare maximum displacement, reaction equilibrium, and stress near the hole against `native-results.json`. Because the conventional deck omits Cut cells, refine its lattice before treating differences as mechanics-backend discrepancies.
+
+M5B keeps this policy under rotation. The same semantic AnalysisIR resolves exact planar node/load sets without global-axis assumptions. For a rotated native plate-with-hole all conventional candidates may be Cut, so export emits the deterministic documented omission deck rather than pretending partial cells are C3D8 bricks. The rotated six-planar-face InlineStep box admits full cells and has a nonempty validated deck through `ForgeInvocation.Analyze()`. No external solve validation is claimed.

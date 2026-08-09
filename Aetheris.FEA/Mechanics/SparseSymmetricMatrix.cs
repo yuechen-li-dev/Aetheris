@@ -42,6 +42,18 @@ public sealed class SparseSymmetricMatrix
 
     public bool IsFinite() => rows.All(row => row.Values.All(double.IsFinite));
 
+    public bool IsPositiveDefiniteByDenseCholesky(double relativePivotTolerance=1e-12)
+    {
+        var lower=new double[Size,Size];var scale=Enumerable.Range(0,Size).Max(i=>double.Abs(this[i,i]));
+        for(var i=0;i<Size;i++)for(var j=0;j<=i;j++)
+        {
+            var sum=this[i,j];for(var k=0;k<j;k++)sum-=lower[i,k]*lower[j,k];
+            if(i==j){if(!double.IsFinite(sum)||sum<=scale*relativePivotTolerance)return false;lower[i,j]=double.Sqrt(sum);}
+            else lower[i,j]=sum/lower[j,j];
+        }
+        return true;
+    }
+
     public SparseSymmetricMatrix Copy()
     {
         var copy = new SparseSymmetricMatrix(Size);

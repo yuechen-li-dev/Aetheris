@@ -25,7 +25,9 @@ analysis LinearElastic PlateWithHole {
 
 `youngsModulus` accepts `Pa`, `kPa`, `MPa`, or `GPa` and normalizes to Pa. Resultant force components require N. Traction components and pressure require Pa. Lengths from native Firmament bodies normalize to meters. Poisson ratio is dimensionless and must lie in `(-1, 0.5)`.
 
-`fixed` defaults to all three translation components; components may be selected individually. `traction` is force per area. `force` is a resultant distributed by boundary integration. `pressure` uses `-p n` but M5 currently admits it only on axis-aligned exterior semantic planes.
+`fixed` defaults to all three translation components; components may be selected individually. `traction` is force per area. `force` is a resultant distributed by the same exact-area traction integration. `pressure` uses `-p n_outward` on exact planar semantic faces; CIR material-side classification, not BRep `SameSense`, establishes outward direction.
+
+Orientation and lattice adaptation are backend solve options and do not appear in AnalysisIR.
 
 ## Forge invocation
 
@@ -55,4 +57,4 @@ Template < Part: ImportedStep > Model ImportedBoxAnalysis {
 
 Bind it with `ForgeImportedStep(resource.Name)` and `AddResource(resource)`. M5 validates canonical STEP evidence and six-face exact-box admission.
 
-Diagnostics include missing/invalid material, invalid Poisson ratio, empty selections, rigid-body modes, conflicting constraints, non-convergence, missing imported resources, unsupported imported CIR lowering, and invalid Abaqus output.
+Diagnostics include invalid material, unresolved/nonplanar faces, invalid local frames/trims, no owned fragments, material-side ambiguity, area/resultant/moment mismatch, rigid modes, conflicting constraints, non-convergence, missing imported resources, unsupported imported CIR lowering, and invalid Abaqus output.

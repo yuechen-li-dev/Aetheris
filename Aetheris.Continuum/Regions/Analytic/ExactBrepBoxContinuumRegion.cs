@@ -1,20 +1,21 @@
 using Aetheris.Continuum.Cir;
+using Aetheris.Continuum.Boundaries;
 using Aetheris.Kernel.Core.Math;
 
 namespace Aetheris.Continuum.Regions.Analytic;
 
 /// <summary>An exact oriented-box CIR used with the corresponding exact BRep shell.</summary>
-public sealed class ExactBrepBoxContinuumRegion : IContinuumRegion, IExactEuclideanSignedDistanceCapability, IBoundsClassificationCapability
+public sealed class ExactBrepBoxContinuumRegion : IContinuumRegion, IExactEuclideanSignedDistanceCapability, IBoundsClassificationCapability, IPlanarBoundaryDomainCapability
 {
     private readonly Transform3D _inverse;
     private readonly Vector3D _half;
     private readonly Point3D[] _worldCorners;
     private readonly Vector3D[] _axes;
 
-    public ExactBrepBoxContinuumRegion(RegionId id, double width, double height, double depth, Transform3D transform)
+    public ExactBrepBoxContinuumRegion(RegionId id, double width, double height, double depth, Transform3D transform,IReadOnlyDictionary<string,string>? faceIds=null)
     {
         if (!(width > 0d && height > 0d && depth > 0d)) throw new ArgumentOutOfRangeException(nameof(width));
-        Id=id; Width=width; Height=height; Depth=depth; Transform=transform; _inverse=transform.Inverse(); _half=new(width*.5d,height*.5d,depth*.5d);
+        Id=id; Width=width; Height=height; Depth=depth; Transform=transform; FaceIds=faceIds; _inverse=transform.Inverse(); _half=new(width*.5d,height*.5d,depth*.5d);
         _worldCorners=LocalCorners().Select(transform.Apply).ToArray();
         _axes=[Unit(transform.Apply(new Vector3D(1,0,0))),Unit(transform.Apply(new Vector3D(0,1,0))),Unit(transform.Apply(new Vector3D(0,0,1)))];
         Bounds=BoundsOf(_worldCorners);
@@ -25,6 +26,7 @@ public sealed class ExactBrepBoxContinuumRegion : IContinuumRegion, IExactEuclid
     public double Height { get; }
     public double Depth { get; }
     public Transform3D Transform { get; }
+    public IReadOnlyDictionary<string,string>? FaceIds { get; }
     public BoundingBox3D Bounds { get; }
     public double ExactVolume => Width*Height*Depth;
     public double ExactBoundaryArea => 2d*((Width*Height)+(Width*Depth)+(Height*Depth));
@@ -54,6 +56,14 @@ public sealed class ExactBrepBoxContinuumRegion : IContinuumRegion, IExactEuclid
         var local=world.Select(_inverse.Apply).ToArray();
         return local.All(p=>double.Abs(p.X)<_half.X-tolerance&&double.Abs(p.Y)<_half.Y-tolerance&&double.Abs(p.Z)<_half.Z-tolerance)
             ? ContinuumBoundsClassification.Inside : ContinuumBoundsClassification.Cut;
+    }
+
+    public bool TryResolvePlanarBoundary(string path,string? faceId,out PlanarBoundaryDomain domain)
+    {
+        var localBounds=new BoundingBox3D(new(-_half.X,-_half.Y,-_half.Z),new(_half.X,_half.Y,_half.Z));
+        if(!BoxPlanarBoundaryDomains.Resolve(BoxPlanarBoundaryDomains.Create(Id,localBounds,FaceIds),path,faceId,out var local)){domain=null!;return false;}
+        var u=Transform.Apply(local.U);var v=Transform.Apply(local.V);var n=Transform.Apply(local.OutwardNormal);u.TryNormalize(out u);v.TryNormalize(out v);n.TryNormalize(out n);
+        domain=local with{Origin=Transform.Apply(local.Origin),U=u,V=v,OutwardNormal=n,MaterialSideEvidence="Exact imported BRep plane; CIR probe inward=-outward"};return true;
     }
 
     private IEnumerable<Point3D> LocalCorners()=>Corners(new(new(-_half.X,-_half.Y,-_half.Z),new(_half.X,_half.Y,_half.Z)));

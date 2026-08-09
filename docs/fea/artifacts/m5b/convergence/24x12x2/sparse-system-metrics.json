@@ -1,0 +1,11 @@
+{
+  "degreesOfFreedom": 2925,
+  "nonzeros": 170163,
+  "maximumAsymmetry": 1.1920928955078125E-07,
+  "finite": true,
+  "deterministicStructure": true,
+  "appliedLoadNewton": 10000.000000000011,
+  "integratedLoadResidualNewton": 1.0913936421275139E-11,
+  "cutCells": 24,
+  "independentSpdCheck": null
+}

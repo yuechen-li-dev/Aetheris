@@ -26,4 +26,8 @@ M5 supports native Box and centered box-minus-through-cylinder material domains.
 
 An exterior exact fragment belongs to its sole material-side cell. If an exact fragment coincides with an interior lattice plane, the cell with the lexicographically smaller `(K,J,I)` index owns it. The comparison does not use the surface normal, so reversing orientation cannot change ownership. This provides one owner, no duplicate integration, and deterministic assembly.
 
-The current load integrator admits semantic axis-aligned exterior planes. Curved-face pressure and arbitrarily oriented exact faces remain explicit follow-on work.
+M5B generalizes this rule to arbitrary-oriented exact planar fragments. The backend obtains `PlanarBoundaryDomain`, establishes deterministic `(P0,U,V,N)` coordinates, checks material outward direction by CIR classification, decomposes concave/holed trims with the existing planar utility, and clips local pieces against regular cells. `MechanicsBoundaryQuadraturePlan` is distinct from geometry and volume sampling.
+
+The architecture deliberately does **not** reconstruct an arbitrary BRep as one magical global FRep/SDF. BRep remains exact boundary/topology authority, CIR remains occupied-material authority, regular cells provide computational support, and only the local portion needed by a cell is represented. `SurfaceMeshIR` is not mechanics boundary authority.
+
+Curved-face pressure remains future work. Generic compound rotations can create extremely small supports; boundary integration stays exact, but robust immersed basis/Dirichlet treatment is the next mechanics blocker.

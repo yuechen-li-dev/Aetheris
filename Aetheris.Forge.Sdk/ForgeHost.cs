@@ -247,7 +247,7 @@ public sealed class ForgeHost
         diagnostics.AddRange(native.Diagnostics.Where(item => item.Severity == Aetheris.FEA.Analysis.AnalysisDiagnosticSeverity.Error).Select(item =>
             new ForgeDiagnostic(item.Code, ForgeDiagnosticSeverity.Error, item.Message, item.Provenance?.Source)));
         if (!native.IsSuccess) return new(compiled.Analysis, native, null, diagnostics, invocationTime, compiled.CompilationTime);
-        var abaqus = AbaqusInpExporter.Export(compiled.Analysis);
+        var abaqus = AbaqusInpExporter.Export(compiled.Analysis,options?.DomainTransform);
         var validation = AbaqusInpValidator.Validate(abaqus.Text);
         if (!validation.IsValid) diagnostics.Add(Error("forge-analysis-abaqus-validation-failed", string.Join("; ", validation.Diagnostics), invocation.Module.SourcePath));
         return new(compiled.Analysis, native, abaqus, diagnostics, invocationTime, compiled.CompilationTime);

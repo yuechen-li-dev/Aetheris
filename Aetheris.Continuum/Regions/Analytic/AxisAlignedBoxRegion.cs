@@ -4,7 +4,7 @@ using Aetheris.Kernel.Core.Math;
 
 namespace Aetheris.Continuum.Regions.Analytic;
 
-public sealed class AxisAlignedBoxRegion : IContinuumRegion, IBoundsClassificationCapability, IBoundaryReferenceCapability
+public sealed class AxisAlignedBoxRegion : IContinuumRegion, IBoundsClassificationCapability, IBoundaryReferenceCapability, IPlanarBoundaryDomainCapability
 {
     public AxisAlignedBoxRegion(RegionId id, BoundingBox3D bounds)
     {
@@ -55,4 +55,6 @@ public sealed class AxisAlignedBoxRegion : IContinuumRegion, IBoundsClassificati
 
     public IReadOnlyList<BoundaryReference> BoundaryCandidates(BoundingBox3D cellBounds) =>
         AnalyticRegionMath.BoxBoundaryCandidates(Id, Bounds, cellBounds);
+
+    public bool TryResolvePlanarBoundary(string path,string? faceId,out PlanarBoundaryDomain domain)=>BoxPlanarBoundaryDomains.Resolve(BoxPlanarBoundaryDomains.Create(Id,Bounds),path,faceId,out domain);
 }

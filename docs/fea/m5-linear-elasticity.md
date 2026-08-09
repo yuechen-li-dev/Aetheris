@@ -24,6 +24,10 @@ Stress convergence is non-monotone at coarse resolution because center recovery 
 
 The current runtime separates domain setup, mechanics quadrature, assembly, boundary assembly, solve, and recovery. For 16×8×2 the measured sparse storage was 931,612 bytes and result storage 56,636 bytes. Timing values are persisted in `native-results.json` and are machine/run dependent.
 
-## Known limitations
+## M5B update and known limitations
 
-The requested rotated-lattice orientation study is not implemented: exact arbitrarily oriented boundary load integration is the next isolated blocker. The current semantic plane integrator is axis aligned. General imported STEP CIR recognition, curved pressure integration, stronger rigid-mode rank checks, proof of SPD beyond converged positive-curvature PCG behavior, boundary/quadrature-point stress reporting, and a trustworthy conventional conforming control mesh also remain.
+Exact arbitrary-oriented planar semantic-face traction, resultant, pressure, and fixed-region lowering is implemented. See [M5B semantic boundary quadrature](m5b-semantic-boundary-quadrature.md).
+
+The 8x4x1 constrained system now passes independent dense Cholesky. Stress remains cell-center recovery; the maximum depends on sample distance from the hole and is not an exact-boundary peak.
+
+General imported STEP CIR recognition, curved pressure, and a conforming Cut-cell control mesh remain. A generic compound tilt exposes tiny supports and strong nearest-support Dirichlet limitations. A simple stiffness floor was tested and rejected; principled basis aggregation/ghost stabilization plus embedded Dirichlet enforcement is the next task.

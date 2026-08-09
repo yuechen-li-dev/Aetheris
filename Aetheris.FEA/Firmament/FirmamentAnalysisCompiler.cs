@@ -6,6 +6,7 @@ using Aetheris.Continuum.Regions.Analytic;
 using Aetheris.FEA.Analysis;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.FEA.Firmament;
@@ -35,10 +36,16 @@ public static class FirmamentAnalysisCompiler
             if(resources is null||!resources.TryGetValue(resourceName,out var resource)){diagnostics.Add(Error("firmament-analysis-resource-missing",$"InlineStep analysis resource '${resourceName}' is not bound.",sourcePath));return Done(null,diagnostics,started);}
             var points=resource.Body.Topology.Vertices.Select(v=>resource.Body.TryGetVertexPoint(v.Id,out var point)?point:(Point3D?)null).Where(p=>p.HasValue).Select(p=>p!.Value).ToArray();
             if(points.Length==0){diagnostics.Add(Error("firmament-analysis-inline-step-bounds-unavailable","Imported STEP has no exact vertex positions for bounded M5 CIR recognition.",sourcePath));return Done(null,diagnostics,started);}
-            var min=new Point3D(points.Min(p=>p.X),points.Min(p=>p.Y),points.Min(p=>p.Z));var max=new Point3D(points.Max(p=>p.X),points.Max(p=>p.Y),points.Max(p=>p.Z));var size=max-min;var center=new Vector3D((min.X+max.X)/2,(min.Y+max.Y)/2,(min.Z+max.Z)/2);
+            var rawMin=new Point3D(points.Min(p=>p.X),points.Min(p=>p.Y),points.Min(p=>p.Z));var rawMax=new Point3D(points.Max(p=>p.X),points.Max(p=>p.Y),points.Max(p=>p.Z));const double stepMeters=0.001;var size=(rawMax-rawMin)*stepMeters;var center=new Vector3D((rawMin.X+rawMax.X)*stepMeters/2,(rawMin.Y+rawMax.Y)*stepMeters/2,(rawMin.Z+rawMax.Z)*stepMeters/2);
             // M5's InlineStep seam admits an exact six-planar-face box; other imported topology fails explicitly.
             if(resource.Body.Topology.Faces.Count()!=6){diagnostics.Add(Error("firmament-analysis-inline-step-cir-unsupported","M5 InlineStep mechanics admits exact planar boxes; this imported body needs a broader BRep-to-CIR recognizer.",sourcePath));return Done(null,diagnostics,started);}
-            region=new ExactBrepBoxContinuumRegion(new RegionId(bodyId+":inline-cir"),size.X,size.Y,size.Z,Transform3D.CreateTranslation(center));resourceHash=resource.ContentHash;brepBodyId=resource.Body.Topology.Bodies.Single().Id.Value.ToString(CultureInfo.InvariantCulture);
+            var faceIds=new Dictionary<string,string>(StringComparer.Ordinal);
+            foreach(var binding in resource.Body.Bindings.FaceBindings)
+            {
+                var surface=resource.Body.Geometry.GetSurface(binding.SurfaceGeometryId);if(surface.Kind!=SurfaceGeometryKind.Plane||surface.Plane is not { } plane)continue;
+                var n=plane.Normal.ToVector();string token=double.Abs(n.X)>0.9?(double.Abs(plane.Origin.X-rawMin.X)<double.Abs(plane.Origin.X-rawMax.X)?"x-min":"x-max"):double.Abs(n.Y)>0.9?(double.Abs(plane.Origin.Y-rawMin.Y)<double.Abs(plane.Origin.Y-rawMax.Y)?"y-min":"y-max"):(double.Abs(plane.Origin.Z-rawMin.Z)<double.Abs(plane.Origin.Z-rawMax.Z)?"z-min":"z-max");faceIds[token]=binding.FaceId.Value.ToString(CultureInfo.InvariantCulture);
+            }
+            region=new ExactBrepBoxContinuumRegion(new RegionId(bodyId+":inline-cir"),size.X,size.Y,size.Z,Transform3D.CreateTranslation(center),faceIds);resourceHash=resource.ContentHash;brepBodyId=resource.Body.Topology.Bodies.Single().Id.Value.ToString(CultureInfo.InvariantCulture);
         }
         else
         {

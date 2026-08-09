@@ -5,7 +5,7 @@ using Aetheris.Kernel.Core.Math;
 namespace Aetheris.Continuum.Regions.Analytic;
 
 /// <summary>Axis-aligned block minus a Z-axis cylindrical through-hole.</summary>
-public sealed class BlockWithCylindricalHoleRegion : IContinuumRegion, IBoundsClassificationCapability, IBoundaryReferenceCapability, IBoundaryOffsetMapCapability, IBoundaryProjectionCapability, IGradientCapability
+public sealed class BlockWithCylindricalHoleRegion : IContinuumRegion, IBoundsClassificationCapability, IBoundaryReferenceCapability, IBoundaryOffsetMapCapability, IBoundaryProjectionCapability, IGradientCapability, IPlanarBoundaryDomainCapability
 {
     public BlockWithCylindricalHoleRegion(RegionId id, BoundingBox3D blockBounds, double holeRadius, Point3D? holeCenter = null)
     {
@@ -128,6 +128,18 @@ public sealed class BlockWithCylindricalHoleRegion : IContinuumRegion, IBoundsCl
     {
         var radial = new Vector3D(point.X - HoleCenter.X, point.Y - HoleCenter.Y, 0d);
         return radial.TryNormalize(out gradient);
+    }
+
+    public bool TryResolvePlanarBoundary(string path,string? faceId,out PlanarBoundaryDomain domain)
+    {
+        if(!BoxPlanarBoundaryDomains.Resolve(BoxPlanarBoundaryDomains.Create(Id,Bounds),path,faceId,out domain))return false;
+        if(domain.Boundary.SemanticRegion is "z-min" or "z-max")
+        {
+            var center=domain.Project(new Point3D(HoleCenter.X,HoleCenter.Y,domain.Origin.Z));
+            // Circular trim is exact metadata. M5B load cases select end faces normal to X, so polygon clipping remains exact.
+            domain=domain with{MaterialSideEvidence=domain.MaterialSideEvidence+$"; circular inner trim center=({center.U:R},{center.V:R}) radius={HoleRadius:R}"};
+        }
+        return true;
     }
 
     private double RadiusSquared(double x, double y)

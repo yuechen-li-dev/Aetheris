@@ -5,7 +5,7 @@ using Aetheris.Kernel.Core.Math;
 namespace Aetheris.Continuum.Regions.Analytic;
 
 /// <summary>Axis-aligned block minus a Z-axis cylindrical through-hole.</summary>
-public sealed class BlockWithCylindricalHoleRegion : IContinuumRegion, IBoundsClassificationCapability, IBoundaryReferenceCapability
+public sealed class BlockWithCylindricalHoleRegion : IContinuumRegion, IBoundsClassificationCapability, IBoundaryReferenceCapability, IBoundaryOffsetMapCapability, IBoundaryProjectionCapability, IGradientCapability
 {
     public BlockWithCylindricalHoleRegion(RegionId id, BoundingBox3D blockBounds, double holeRadius, Point3D? holeCenter = null)
     {
@@ -28,6 +28,8 @@ public sealed class BlockWithCylindricalHoleRegion : IContinuumRegion, IBoundsCl
     public double HoleRadius { get; }
     public Point3D HoleCenter { get; }
     public double Height => Bounds.Max.Z - Bounds.Min.Z;
+    public BoundaryReference CylindricalWallReference => new("analytic", $"{Id}:cylindrical-hole", SemanticRegion: "cylindrical-hole-wall");
+    public double ExactCylindricalBoundaryArea => 2d * double.Pi * HoleRadius * Height;
     public double ExactVolume => ((Bounds.Max.X - Bounds.Min.X) * (Bounds.Max.Y - Bounds.Min.Y) * Height) - (double.Pi * HoleRadius * HoleRadius * Height);
     public double ExactBoundaryArea
     {
@@ -105,8 +107,27 @@ public sealed class BlockWithCylindricalHoleRegion : IContinuumRegion, IBoundsCl
     public IReadOnlyList<BoundaryReference> BoundaryCandidates(BoundingBox3D cellBounds)
     {
         var candidates = AnalyticRegionMath.BoxBoundaryCandidates(Id, Bounds, cellBounds).ToList();
-        candidates.Add(new BoundaryReference("analytic", $"{Id}:cylindrical-hole"));
+        candidates.Add(CylindricalWallReference);
         return candidates;
+    }
+
+    public IReadOnlyList<IAnalyticBoundarySupport> BoundarySupports(BoundingBox3D cellBounds) =>
+        ClassifyBounds(cellBounds) == ContinuumBoundsClassification.Cut
+            ? [new CylindricalWallBoundarySupport(CylindricalWallReference, HoleCenter, HoleRadius, Height)]
+            : [];
+
+    public bool TryProjectToBoundary(Point3D point, out BoundaryProjection projection)
+    {
+        var support = new CylindricalWallBoundarySupport(CylindricalWallReference, HoleCenter, HoleRadius, Height);
+        var projected = support.Project(point);
+        projection = new BoundaryProjection(projected, support.MaterialSideNormal(projected), (point - projected).Length, CylindricalWallReference.SourceId);
+        return true;
+    }
+
+    public bool TryGradient(Point3D point, out Vector3D gradient)
+    {
+        var radial = new Vector3D(point.X - HoleCenter.X, point.Y - HoleCenter.Y, 0d);
+        return radial.TryNormalize(out gradient);
     }
 
     private double RadiusSquared(double x, double y)

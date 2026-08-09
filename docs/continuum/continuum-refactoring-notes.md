@@ -64,3 +64,21 @@ These items were discovered during AETHERIS-CONTINUUM-M0 and intentionally not e
 - **Proposed direction:** make boundary-position and area error part of the first BoundaryOffsetMap experiment.
 - **Blocks M0:** no; volume convergence and Cut-cell localization are demonstrated.
 - **Recommended milestone:** CONTINUUM-M1 offset-surface/MSAA experiment.
+
+## BoundaryOffsetMap V1 integration is Z-extruded
+
+- **Current state:** M1 integrates sampled local graphs whose `V` tangent is the lattice Z axis. This covers the analytic through-cylinder and oblique-plane controls with one representation-neutral polygon clipper.
+- **Problem:** arbitrary oriented/trimmed surfaces need local-domain clipping and surface-area/first-moment integration that is not reducible to one extruded XY section.
+- **Impact:** the V1 map representation is general enough to carry such data, but its first occupancy/area estimator is intentionally bounded.
+- **Proposed fix:** add a local patch-domain integration contract and test it first on one non-extruded analytic sphere or torus patch; do not route through arbitrary triangles or a global atlas.
+- **Blocks M1:** no; both declared M1 fixtures are exact Z extrusions and fail explicitly otherwise.
+- **Suggested future milestone:** CONTINUUM-M2 local patch integration.
+
+## Independent offset-map validation dominates experimental query cost
+
+- **Current state:** every generated M1 map is checked at `(2*resolution+1)^2` independent half-stride points. The best cylinder run spends 32,192 of 45,120 raw requests on validation.
+- **Problem:** this is appropriate proof cost for M1 but too expensive as a default production cache policy.
+- **Impact:** fixed-lattice accuracy and runtime still improve, but exact-query counts make the validation/production distinction important.
+- **Proposed fix:** retain exhaustive mode for evidence and add a deterministic bounded validation policy or analytic error certificate capability for trusted supports.
+- **Blocks M1:** no; query accounting includes the cost rather than hiding it.
+- **Suggested future milestone:** CONTINUUM-M2 map certification and validation policy.

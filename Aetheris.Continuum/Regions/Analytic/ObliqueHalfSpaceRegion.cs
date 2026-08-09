@@ -5,7 +5,7 @@ using Aetheris.Kernel.Core.Math;
 namespace Aetheris.Continuum.Regions.Analytic;
 
 /// <summary>A bounded analytic half-space: points inside the support box with n·p &lt;= offset.</summary>
-public sealed class ObliqueHalfSpaceRegion : IContinuumRegion, IBoundsClassificationCapability, IBoundaryReferenceCapability, IGradientCapability
+public sealed class ObliqueHalfSpaceRegion : IContinuumRegion, IBoundsClassificationCapability, IBoundaryReferenceCapability, IGradientCapability, IBoundaryOffsetMapCapability, IBoundaryProjectionCapability
 {
     public ObliqueHalfSpaceRegion(RegionId id, BoundingBox3D bounds, Vector3D normal, double offset)
     {
@@ -24,6 +24,8 @@ public sealed class ObliqueHalfSpaceRegion : IContinuumRegion, IBoundsClassifica
     public BoundingBox3D Bounds { get; }
     public Vector3D Normal { get; }
     public double Offset { get; }
+    public BoundaryReference PlaneBoundaryReference => new("analytic", $"{Id}:oblique-plane", SemanticRegion: "oblique-plane");
+    public double ExactPlaneBoundaryArea => 4d * double.Sqrt(2d);
 
     public ContinuumPointClassification Classify(Point3D point, double tolerance = 1e-9d)
     {
@@ -79,10 +81,23 @@ public sealed class ObliqueHalfSpaceRegion : IContinuumRegion, IBoundsClassifica
         var range = PlaneRange(cellBounds);
         if (range.Minimum <= 0d && range.Maximum >= 0d)
         {
-            candidates.Add(new BoundaryReference("analytic", $"{Id}:oblique-plane"));
+            candidates.Add(PlaneBoundaryReference);
         }
 
         return candidates;
+    }
+
+    public IReadOnlyList<IAnalyticBoundarySupport> BoundarySupports(BoundingBox3D cellBounds) =>
+        ClassifyBounds(cellBounds) == ContinuumBoundsClassification.Cut
+            ? [new ObliquePlaneBoundarySupport(PlaneBoundaryReference, Normal, Offset, ExactPlaneBoundaryArea)]
+            : [];
+
+    public bool TryProjectToBoundary(Point3D point, out BoundaryProjection projection)
+    {
+        var support = new ObliquePlaneBoundarySupport(PlaneBoundaryReference, Normal, Offset, ExactPlaneBoundaryArea);
+        var projected = support.Project(point);
+        projection = new BoundaryProjection(projected, support.MaterialSideNormal(projected), (point - projected).Length, PlaneBoundaryReference.SourceId);
+        return true;
     }
 
     private double EvaluatePlane(Point3D point) => (Normal.X * point.X) + (Normal.Y * point.Y) + (Normal.Z * point.Z) - Offset;

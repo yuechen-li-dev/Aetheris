@@ -19,7 +19,11 @@ public sealed record CutCell(
     RegionId ContinuumRegionId,
     IReadOnlyList<BoundaryReference> BoundaryReferences,
     GeometrySamplePlan GeometrySamplePlan,
-    double OccupancyEstimate);
+    double OccupancyEstimate)
+{
+    /// <summary>Optional derived local boundary caches; source CIR/BRep remains authoritative.</summary>
+    public IReadOnlyList<IBoundaryOffsetMap> BoundaryOffsetMaps { get; init; } = [];
+}
 
 public readonly record struct ContinuumCell(CellIndex Index, BoundingBox3D Bounds, CellClassification Classification, double OccupancyEstimate);
 
@@ -95,7 +99,7 @@ public static class ContinuumGridClassifier
         return new ContinuumGridResult(lattice, region.Id, cells, cutCells, sampleCount, volume);
     }
 
-    private static CellClassification ClassifyCell(IContinuumRegion region, BoundingBox3D bounds)
+    public static CellClassification ClassifyCell(IContinuumRegion region, BoundingBox3D bounds)
     {
         var context = new StrategyContext(region, bounds);
         var selection = StrategyEngine.Evaluate(context, Strategies);

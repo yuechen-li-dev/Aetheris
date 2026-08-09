@@ -33,6 +33,13 @@ bld/
 [Ll]og/
 [Ll]ogs/
 
+# Repository-local generated/demo output (source fixtures and checked-in docs evidence live elsewhere).
+.tmp/
+demo-output/
+
+# Package-manager caches are local even when a new JS workspace is added without a nested ignore file.
+.tspack/
+
 # Visual Studio 2015/2017 cache/options directory
 .vs/
 # Uncomment if you have tasks that create the project's static files in wwwroot
@@ -94,6 +101,11 @@ StyleCopReport.xml
 *.iobj
 *.pch
 *.pdb
+*.dll
+*.exe
+*.so
+*.dylib
+*.dmp
 *.ipdb
 *.pgc
 *.pgd

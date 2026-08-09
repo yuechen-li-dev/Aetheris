@@ -1,0 +1,97 @@
+{
+  "schema": "aetheris-continuum-m1-fixed-vs-fine-v1",
+  "fixedMediumBest": {
+    "strategy": "offset-map-selective-msaa",
+    "totalCells": 1024,
+    "cutCells": 112,
+    "boundaryMapSamples": 6912,
+    "independentValidationSamples": 32192,
+    "geometrySamples": 6016,
+    "rawRequestedSamples": 45120,
+    "uniqueExactGeometryQueries": 37800,
+    "reusedSamples": 7320,
+    "reuseRatio": 0.1622340425531915,
+    "boundaryMapCacheHitRate": 0.9664351851851852,
+    "geometryCacheHitRate": 0.10638297872340426,
+    "selectivelyRefinedCells": 80,
+    "estimatedVolume": 12.860806680508007,
+    "exactVolume": 12.858407346410207,
+    "relativeVolumeError": 0.00018659652266113806,
+    "estimatedBoundaryArea": 6.281576134574912,
+    "exactBoundaryArea": 6.283185307179586,
+    "absoluteBoundaryAreaError": 0.0016091726046738586,
+    "relativeBoundaryAreaError": 0.000256107774321905,
+    "maximumPositionError": 0.0011267525815653384,
+    "rmsPositionError": 0.0003352768998357184,
+    "meanPositionError": 0.0002610761544080915,
+    "maximumNormalAngleDegrees": 0.006093437603879357,
+    "rmsNormalAngleDegrees": 0.0016950669194334947,
+    "boundaryCentroid": {
+      "x": -5.523210859225539E-19,
+      "y": 8.837137374760862E-18,
+      "z": -6.075531945148093E-18,
+      "lengthSquared": 1.1531214397886493E-34,
+      "length": 1.0738349220381358E-17
+    },
+    "aggregateNormal": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "lengthSquared": 0,
+      "length": 0
+    },
+    "timings": {
+      "classificationMilliseconds": 0.62058,
+      "boundaryMapConstructionMilliseconds": 2.948505,
+      "geometrySamplingMilliseconds": 1.0904250000000004,
+      "aggregationMilliseconds": 1.613755,
+      "totalMilliseconds": 6.274074999999998
+    }
+  },
+  "m0": [
+    {
+      "resolution": 8,
+      "dimensions": [
+        8,
+        8,
+        2
+      ],
+      "totalCells": 128,
+      "cutCells": 24,
+      "geometrySamples": 1536,
+      "estimatedVolume": 12.75,
+      "exactVolume": 12.858407346410207,
+      "relativeVolumeError": 0.008430853331184278
+    },
+    {
+      "resolution": 16,
+      "dimensions": [
+        16,
+        16,
+        4
+      ],
+      "totalCells": 1024,
+      "cutCells": 112,
+      "geometrySamples": 7168,
+      "estimatedVolume": 12.828125,
+      "exactVolume": 12.858407346410207,
+      "relativeVolumeError": 0.0023550619913018287
+    },
+    {
+      "resolution": 32,
+      "dimensions": [
+        32,
+        32,
+        8
+      ],
+      "totalCells": 8192,
+      "cutCells": 480,
+      "geometrySamples": 30720,
+      "estimatedVolume": 12.84765625,
+      "exactVolume": 12.858407346410207,
+      "relativeVolumeError": 0.0008361141563312163
+    }
+  ],
+  "fixedMediumUsesFractionOfFineCells": 0.125,
+  "fixedMediumBeatsFineVolumeError": true
+}

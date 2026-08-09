@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Continuum.Lattice;
 
 namespace Aetheris.Continuum.Boundaries;
 
@@ -18,17 +19,43 @@ public interface IBoundaryReferenceCapability
 /// </summary>
 public interface IBoundaryOffsetMap
 {
+    CellIndex CellIndex { get; }
+
     BoundaryReference SourceBoundary { get; }
 
     BoundaryLocalFrame LocalFrame { get; }
 
     IReadOnlyList<BoundaryOffsetSample> Samples { get; }
 
+    BoundaryMapDomain Domain { get; }
+
     BoundaryApproximationMetadata Approximation { get; }
+
+    BoundaryMapEvaluation Evaluate(double u, double v);
 }
 
 public readonly record struct BoundaryLocalFrame(Point3D Origin, Vector3D Normal, Vector3D TangentU, Vector3D TangentV);
 
 public readonly record struct BoundaryOffsetSample(double U, double V, double Offset, Vector3D? Normal = null);
 
-public sealed record BoundaryApproximationMetadata(double? MaximumError, string Method, int Version = 1);
+public readonly record struct BoundaryMapDomain(double MinimumU, double MaximumU, double MinimumV, double MaximumV);
+
+public readonly record struct BoundaryMapEvaluation(Point3D Position, Vector3D Normal, double Offset);
+
+public sealed record BoundaryApproximationMetadata(
+    double MaximumPositionError,
+    double RmsPositionError,
+    double MeanPositionError,
+    double MaximumNormalAngleDegrees,
+    double RmsNormalAngleDegrees,
+    string Method,
+    int ResolutionU,
+    int ResolutionV,
+    int IndependentValidationPointCount,
+    bool IsAccepted,
+    int Version = 1);
+
+public sealed record BoundaryOffsetMapErrorPolicy(
+    double MaximumPositionError = 0.005d,
+    double MaximumNormalAngleDegrees = 2d,
+    int MaximumResolution = 8);

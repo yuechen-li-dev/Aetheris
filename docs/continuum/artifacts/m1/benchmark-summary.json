@@ -1,0 +1,571 @@
+{
+  "schema": "aetheris-continuum-m1-v1",
+  "warmedRuns": 5,
+  "measuredRuns": 20,
+  "cylindricalHole": {
+    "fixture": "cylindrical-hole",
+    "lattice": {
+      "countX": 16,
+      "countY": 16,
+      "countZ": 4,
+      "totalCellCount": 1024,
+      "cellSize": {
+        "x": 0.25,
+        "y": 0.25,
+        "z": 0.25,
+        "lengthSquared": 0.1875,
+        "length": 0.4330127018922193
+      }
+    },
+    "insideCells": 784,
+    "outsideCells": 128,
+    "cutCells": 112,
+    "strategies": [
+      {
+        "strategy": "regular-2x2x2",
+        "totalCells": 1024,
+        "cutCells": 112,
+        "boundaryMapSamples": 0,
+        "independentValidationSamples": 0,
+        "geometrySamples": 896,
+        "rawRequestedSamples": 896,
+        "uniqueExactGeometryQueries": 896,
+        "reusedSamples": 0,
+        "reuseRatio": 0,
+        "boundaryMapCacheHitRate": 0,
+        "geometryCacheHitRate": 0,
+        "selectivelyRefinedCells": 0,
+        "estimatedVolume": 12.75,
+        "exactVolume": 12.858407346410207,
+        "relativeVolumeError": 0.008430853331184278,
+        "estimatedBoundaryArea": 6.68198051533946,
+        "exactBoundaryArea": 6.283185307179586,
+        "absoluteBoundaryAreaError": 0.398795208159874,
+        "relativeBoundaryAreaError": 0.0634702286600053,
+        "maximumPositionError": null,
+        "rmsPositionError": null,
+        "meanPositionError": null,
+        "maximumNormalAngleDegrees": null,
+        "rmsNormalAngleDegrees": null,
+        "boundaryCentroid": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "lengthSquared": 0,
+          "length": 0
+        },
+        "aggregateNormal": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "lengthSquared": 0,
+          "length": 0
+        },
+        "timings": {
+          "classificationMilliseconds": 0.62058,
+          "boundaryMapConstructionMilliseconds": 0,
+          "geometrySamplingMilliseconds": 0.22013,
+          "aggregationMilliseconds": 0.6219399999999999,
+          "totalMilliseconds": 1.462755
+        }
+      },
+      {
+        "strategy": "m0-baseline-4x4x4",
+        "totalCells": 1024,
+        "cutCells": 112,
+        "boundaryMapSamples": 0,
+        "independentValidationSamples": 0,
+        "geometrySamples": 7168,
+        "rawRequestedSamples": 7168,
+        "uniqueExactGeometryQueries": 7168,
+        "reusedSamples": 0,
+        "reuseRatio": 0,
+        "boundaryMapCacheHitRate": 0,
+        "geometryCacheHitRate": 0,
+        "selectivelyRefinedCells": 0,
+        "estimatedVolume": 12.828125,
+        "exactVolume": 12.858407346410207,
+        "relativeVolumeError": 0.0023550619913018287,
+        "estimatedBoundaryArea": 6.60875721063611,
+        "exactBoundaryArea": 6.283185307179586,
+        "absoluteBoundaryAreaError": 0.32557190345652387,
+        "relativeBoundaryAreaError": 0.0518163777669431,
+        "maximumPositionError": null,
+        "rmsPositionError": null,
+        "meanPositionError": null,
+        "maximumNormalAngleDegrees": null,
+        "rmsNormalAngleDegrees": null,
+        "boundaryCentroid": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "lengthSquared": 0,
+          "length": 0
+        },
+        "aggregateNormal": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "lengthSquared": 0,
+          "length": 0
+        },
+        "timings": {
+          "classificationMilliseconds": 0.62058,
+          "boundaryMapConstructionMilliseconds": 0,
+          "geometrySamplingMilliseconds": 0.5872149999999998,
+          "aggregationMilliseconds": 1.3615650000000001,
+          "totalMilliseconds": 2.56947
+        }
+      },
+      {
+        "strategy": "regular-4x4x4",
+        "totalCells": 1024,
+        "cutCells": 112,
+        "boundaryMapSamples": 0,
+        "independentValidationSamples": 0,
+        "geometrySamples": 7168,
+        "rawRequestedSamples": 7168,
+        "uniqueExactGeometryQueries": 7168,
+        "reusedSamples": 0,
+        "reuseRatio": 0,
+        "boundaryMapCacheHitRate": 0,
+        "geometryCacheHitRate": 0,
+        "selectivelyRefinedCells": 0,
+        "estimatedVolume": 12.828125,
+        "exactVolume": 12.858407346410207,
+        "relativeVolumeError": 0.0023550619913018287,
+        "estimatedBoundaryArea": 6.60875721063611,
+        "exactBoundaryArea": 6.283185307179586,
+        "absoluteBoundaryAreaError": 0.32557190345652387,
+        "relativeBoundaryAreaError": 0.0518163777669431,
+        "maximumPositionError": null,
+        "rmsPositionError": null,
+        "meanPositionError": null,
+        "maximumNormalAngleDegrees": null,
+        "rmsNormalAngleDegrees": null,
+        "boundaryCentroid": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "lengthSquared": 0,
+          "length": 0
+        },
+        "aggregateNormal": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "lengthSquared": 0,
+          "length": 0
+        },
+        "timings": {
+          "classificationMilliseconds": 0.62058,
+          "boundaryMapConstructionMilliseconds": 0,
+          "geometrySamplingMilliseconds": 0.5872149999999998,
+          "aggregationMilliseconds": 1.3615650000000001,
+          "totalMilliseconds": 2.56947
+        }
+      },
+      {
+        "strategy": "offset-map-2x2",
+        "totalCells": 1024,
+        "cutCells": 112,
+        "boundaryMapSamples": 448,
+        "independentValidationSamples": 2800,
+        "geometrySamples": 0,
+        "rawRequestedSamples": 3248,
+        "uniqueExactGeometryQueries": 2856,
+        "reusedSamples": 392,
+        "reuseRatio": 0.1206896551724138,
+        "boundaryMapCacheHitRate": 0.875,
+        "geometryCacheHitRate": 0,
+        "selectivelyRefinedCells": 0,
+        "estimatedVolume": 12.92473656211029,
+        "exactVolume": 12.858407346410207,
+        "relativeVolumeError": 0.005158431671446535,
+        "estimatedBoundaryArea": 6.2242669349061,
+        "exactBoundaryArea": 6.283185307179586,
+        "absoluteBoundaryAreaError": 0.058918372273486064,
+        "relativeBoundaryAreaError": 0.009377150186253779,
+        "maximumPositionError": 0.015749015748523606,
+        "rmsPositionError": 0.009920790680451635,
+        "meanPositionError": 0.00910740925630996,
+        "maximumNormalAngleDegrees": 0.054383214719585564,
+        "rmsNormalAngleDegrees": 0.036784370957213215,
+        "boundaryCentroid": {
+          "x": 0,
+          "y": 0,
+          "z": -8.918504269144954E-18,
+          "lengthSquared": 7.953971839875676E-35,
+          "length": 8.918504269144954E-18
+        },
+        "aggregateNormal": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "lengthSquared": 0,
+          "length": 0
+        },
+        "timings": {
+          "classificationMilliseconds": 0.62058,
+          "boundaryMapConstructionMilliseconds": 0.5722100000000001,
+          "geometrySamplingMilliseconds": 0.000825,
+          "aggregationMilliseconds": 0.83775,
+          "totalMilliseconds": 2.03152
+        }
+      },
+      {
+        "strategy": "offset-map-4x4",
+        "totalCells": 1024,
+        "cutCells": 112,
+        "boundaryMapSamples": 1792,
+        "independentValidationSamples": 9072,
+        "geometrySamples": 0,
+        "rawRequestedSamples": 10864,
+        "uniqueExactGeometryQueries": 9184,
+        "reusedSamples": 1680,
+        "reuseRatio": 0.15463917525773196,
+        "boundaryMapCacheHitRate": 0.9375,
+        "geometryCacheHitRate": 0,
+        "selectivelyRefinedCells": 0,
+        "estimatedVolume": 12.864441791292286,
+        "exactVolume": 12.858407346410207,
+        "relativeVolumeError": 0.0004692995578308506,
+        "estimatedBoundaryArea": 6.268489739360834,
+        "exactBoundaryArea": 6.283185307179586,
+        "absoluteBoundaryAreaError": 0.014695567818752586,
+        "relativeBoundaryAreaError": 0.0023388722598966564,
+        "maximumPositionError": 0.0017745922457215336,
+        "rmsPositionError": 0.0011135124806198305,
+        "meanPositionError": 0.001052303416751165,
+        "maximumNormalAngleDegrees": 0.01200386101547445,
+        "rmsNormalAngleDegrees": 0.006037713234613979,
+        "boundaryCentroid": {
+          "x": -1.1069482750106172E-18,
+          "y": 9.962534475095555E-18,
+          "z": -6.088215512558395E-18,
+          "lengthSquared": 1.3754379577837313E-34,
+          "length": 1.1727906709143501E-17
+        },
+        "aggregateNormal": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "lengthSquared": 0,
+          "length": 0
+        },
+        "timings": {
+          "classificationMilliseconds": 0.62058,
+          "boundaryMapConstructionMilliseconds": 0.7709349999999999,
+          "geometrySamplingMilliseconds": 0.00033,
+          "aggregationMilliseconds": 1.14419,
+          "totalMilliseconds": 2.5361650000000004
+        }
+      },
+      {
+        "strategy": "offset-map-selective-msaa",
+        "totalCells": 1024,
+        "cutCells": 112,
+        "boundaryMapSamples": 6912,
+        "independentValidationSamples": 32192,
+        "geometrySamples": 6016,
+        "rawRequestedSamples": 45120,
+        "uniqueExactGeometryQueries": 37800,
+        "reusedSamples": 7320,
+        "reuseRatio": 0.1622340425531915,
+        "boundaryMapCacheHitRate": 0.9664351851851852,
+        "geometryCacheHitRate": 0.10638297872340426,
+        "selectivelyRefinedCells": 80,
+        "estimatedVolume": 12.860806680508007,
+        "exactVolume": 12.858407346410207,
+        "relativeVolumeError": 0.00018659652266113806,
+        "estimatedBoundaryArea": 6.281576134574912,
+        "exactBoundaryArea": 6.283185307179586,
+        "absoluteBoundaryAreaError": 0.0016091726046738586,
+        "relativeBoundaryAreaError": 0.000256107774321905,
+        "maximumPositionError": 0.0011267525815653384,
+        "rmsPositionError": 0.0003352768998357184,
+        "meanPositionError": 0.0002610761544080915,
+        "maximumNormalAngleDegrees": 0.006093437603879357,
+        "rmsNormalAngleDegrees": 0.0016950669194334947,
+        "boundaryCentroid": {
+          "x": -5.523210859225539E-19,
+          "y": 8.837137374760862E-18,
+          "z": -6.075531945148093E-18,
+          "lengthSquared": 1.1531214397886493E-34,
+          "length": 1.0738349220381358E-17
+        },
+        "aggregateNormal": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "lengthSquared": 0,
+          "length": 0
+        },
+        "timings": {
+          "classificationMilliseconds": 0.62058,
+          "boundaryMapConstructionMilliseconds": 2.948505,
+          "geometrySamplingMilliseconds": 1.0904250000000004,
+          "aggregationMilliseconds": 1.613755,
+          "totalMilliseconds": 6.274074999999998
+        }
+      }
+    ]
+  },
+  "obliquePlane": {
+    "fixture": "oblique-plane-control",
+    "lattice": {
+      "countX": 8,
+      "countY": 8,
+      "countZ": 8,
+      "totalCellCount": 512,
+      "cellSize": {
+        "x": 0.25,
+        "y": 0.25,
+        "z": 0.25,
+        "lengthSquared": 0.1875,
+        "length": 0.4330127018922193
+      }
+    },
+    "insideCells": 224,
+    "outsideCells": 224,
+    "cutCells": 64,
+    "strategies": [
+      {
+        "strategy": "regular-2x2x2",
+        "totalCells": 512,
+        "cutCells": 64,
+        "boundaryMapSamples": 0,
+        "independentValidationSamples": 0,
+        "geometrySamples": 512,
+        "rawRequestedSamples": 512,
+        "uniqueExactGeometryQueries": 512,
+        "reusedSamples": 0,
+        "reuseRatio": 0,
+        "boundaryMapCacheHitRate": 0,
+        "geometryCacheHitRate": 0,
+        "selectivelyRefinedCells": 0,
+        "estimatedVolume": 4,
+        "exactVolume": 4,
+        "relativeVolumeError": 0,
+        "estimatedBoundaryArea": 5.126524163602469,
+        "exactBoundaryArea": 5.656854249492381,
+        "absoluteBoundaryAreaError": 0.5303300858899114,
+        "relativeBoundaryAreaError": 0.09375000000000012,
+        "maximumPositionError": null,
+        "rmsPositionError": null,
+        "meanPositionError": null,
+        "maximumNormalAngleDegrees": null,
+        "rmsNormalAngleDegrees": null,
+        "boundaryCentroid": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "lengthSquared": 0,
+          "length": 0
+        },
+        "aggregateNormal": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "lengthSquared": 0,
+          "length": 0
+        },
+        "timings": {
+          "classificationMilliseconds": 0.24896499999999996,
+          "boundaryMapConstructionMilliseconds": 0,
+          "geometrySamplingMilliseconds": 0.09192000000000003,
+          "aggregationMilliseconds": 0.02572,
+          "totalMilliseconds": 0.3666699999999999
+        }
+      },
+      {
+        "strategy": "regular-4x4x4",
+        "totalCells": 512,
+        "cutCells": 64,
+        "boundaryMapSamples": 0,
+        "independentValidationSamples": 0,
+        "geometrySamples": 4096,
+        "rawRequestedSamples": 4096,
+        "uniqueExactGeometryQueries": 4096,
+        "reusedSamples": 0,
+        "reuseRatio": 0,
+        "boundaryMapCacheHitRate": 0,
+        "geometryCacheHitRate": 0,
+        "selectivelyRefinedCells": 0,
+        "estimatedVolume": 4,
+        "exactVolume": 4,
+        "relativeVolumeError": 0,
+        "estimatedBoundaryArea": 5.39168920654742,
+        "exactBoundaryArea": 5.656854249492381,
+        "absoluteBoundaryAreaError": 0.265165042944961,
+        "relativeBoundaryAreaError": 0.046875000000001006,
+        "maximumPositionError": null,
+        "rmsPositionError": null,
+        "meanPositionError": null,
+        "maximumNormalAngleDegrees": null,
+        "rmsNormalAngleDegrees": null,
+        "boundaryCentroid": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "lengthSquared": 0,
+          "length": 0
+        },
+        "aggregateNormal": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "lengthSquared": 0,
+          "length": 0
+        },
+        "timings": {
+          "classificationMilliseconds": 0.24896499999999996,
+          "boundaryMapConstructionMilliseconds": 0,
+          "geometrySamplingMilliseconds": 0.5624549999999998,
+          "aggregationMilliseconds": 0.03857499999999999,
+          "totalMilliseconds": 0.85009
+        }
+      },
+      {
+        "strategy": "offset-map-2x2",
+        "totalCells": 512,
+        "cutCells": 64,
+        "boundaryMapSamples": 256,
+        "independentValidationSamples": 1600,
+        "geometrySamples": 0,
+        "rawRequestedSamples": 1856,
+        "uniqueExactGeometryQueries": 1602,
+        "reusedSamples": 254,
+        "reuseRatio": 0.13685344827586207,
+        "boundaryMapCacheHitRate": 0.9921875,
+        "geometryCacheHitRate": 0,
+        "selectivelyRefinedCells": 0,
+        "estimatedVolume": 4,
+        "exactVolume": 4,
+        "relativeVolumeError": 0,
+        "estimatedBoundaryArea": 5.6568542494923735,
+        "exactBoundaryArea": 5.656854249492381,
+        "absoluteBoundaryAreaError": 7.105427357601002E-15,
+        "relativeBoundaryAreaError": 1.25607396694702E-15,
+        "maximumPositionError": 0,
+        "rmsPositionError": 0,
+        "meanPositionError": 0,
+        "maximumNormalAngleDegrees": 0,
+        "rmsNormalAngleDegrees": 0,
+        "boundaryCentroid": {
+          "x": 0,
+          "y": 0,
+          "z": 1.962615573354721E-17,
+          "lengthSquared": 3.851859888774481E-34,
+          "length": 1.962615573354721E-17
+        },
+        "aggregateNormal": {
+          "x": -0.7071067811865475,
+          "y": -0.7071067811865475,
+          "z": 0,
+          "lengthSquared": 0.9999999999999998,
+          "length": 0.9999999999999999
+        },
+        "timings": {
+          "classificationMilliseconds": 0.24896499999999996,
+          "boundaryMapConstructionMilliseconds": 0.18154999999999996,
+          "geometrySamplingMilliseconds": 0.00046500000000000014,
+          "aggregationMilliseconds": 0.140145,
+          "totalMilliseconds": 0.5712850000000003
+        }
+      },
+      {
+        "strategy": "offset-map-selective-msaa",
+        "totalCells": 512,
+        "cutCells": 64,
+        "boundaryMapSamples": 1024,
+        "independentValidationSamples": 5184,
+        "geometrySamples": 512,
+        "rawRequestedSamples": 6720,
+        "uniqueExactGeometryQueries": 5700,
+        "reusedSamples": 1020,
+        "reuseRatio": 0.15178571428571427,
+        "boundaryMapCacheHitRate": 0.99609375,
+        "geometryCacheHitRate": 0,
+        "selectivelyRefinedCells": 0,
+        "estimatedVolume": 4,
+        "exactVolume": 4,
+        "relativeVolumeError": 0,
+        "estimatedBoundaryArea": 5.6568542494923735,
+        "exactBoundaryArea": 5.656854249492381,
+        "absoluteBoundaryAreaError": 7.105427357601002E-15,
+        "relativeBoundaryAreaError": 1.25607396694702E-15,
+        "maximumPositionError": 0,
+        "rmsPositionError": 0,
+        "meanPositionError": 0,
+        "maximumNormalAngleDegrees": 1.2074182697257333E-06,
+        "rmsNormalAngleDegrees": 3.549476077922443E-07,
+        "boundaryCentroid": {
+          "x": -3.679904200040102E-17,
+          "y": 3.679904200040102E-17,
+          "z": 1.962615573354721E-17,
+          "lengthSquared": 3.093524973172005E-33,
+          "length": 5.56194657756797E-17
+        },
+        "aggregateNormal": {
+          "x": -0.7071067811865475,
+          "y": -0.7071067811865475,
+          "z": 0,
+          "lengthSquared": 0.9999999999999998,
+          "length": 0.9999999999999999
+        },
+        "timings": {
+          "classificationMilliseconds": 0.24896499999999996,
+          "boundaryMapConstructionMilliseconds": 0.48344499999999985,
+          "geometrySamplingMilliseconds": 0.49318,
+          "aggregationMilliseconds": 0.299875,
+          "totalMilliseconds": 1.5260749999999998
+        }
+      }
+    ]
+  },
+  "m0CylindricalHoleBaselines": [
+    {
+      "resolution": 8,
+      "dimensions": [
+        8,
+        8,
+        2
+      ],
+      "totalCells": 128,
+      "cutCells": 24,
+      "geometrySamples": 1536,
+      "estimatedVolume": 12.75,
+      "exactVolume": 12.858407346410207,
+      "relativeVolumeError": 0.008430853331184278
+    },
+    {
+      "resolution": 16,
+      "dimensions": [
+        16,
+        16,
+        4
+      ],
+      "totalCells": 1024,
+      "cutCells": 112,
+      "geometrySamples": 7168,
+      "estimatedVolume": 12.828125,
+      "exactVolume": 12.858407346410207,
+      "relativeVolumeError": 0.0023550619913018287
+    },
+    {
+      "resolution": 32,
+      "dimensions": [
+        32,
+        32,
+        8
+      ],
+      "totalCells": 8192,
+      "cutCells": 480,
+      "geometrySamples": 30720,
+      "estimatedVolume": 12.84765625,
+      "exactVolume": 12.858407346410207,
+      "relativeVolumeError": 0.0008361141563312163
+    }
+  ]
+}

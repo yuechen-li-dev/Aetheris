@@ -84,6 +84,8 @@ Ideas that transfer cleanly:
 - M15's conclusion that coverage and signed-distance narrow bands are related but distinct capabilities;
 - explicit metrics and fixed ordering for reproducibility.
 
+M1 source review corrected an important nuance: M12's quarter-point 2x2 and eighth-offset 4x4 patterns were disjoint, so the Oct experiment recomputed its upgraded cells and did not demonstrate hierarchical sample reuse. Aetheris retains those regular layouts for comparison and adds a separate nested base whose coordinates are a subset of regular 4x4.
+
 Ideas redesigned for Aetheris:
 
 - Oct's site/cell masks become typed 3D `CellIndex`, bounds, and `Inside/Outside/Cut` records;

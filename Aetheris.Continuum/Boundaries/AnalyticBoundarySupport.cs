@@ -1,5 +1,6 @@
 using Aetheris.Continuum.Lattice;
 using Aetheris.Kernel.Core.Math;
+using System.Diagnostics;
 
 namespace Aetheris.Continuum.Boundaries;
 
@@ -31,6 +32,14 @@ public readonly record struct BoundaryEvaluationKey(
     long V);
 
 public readonly record struct ExactBoundaryEvaluation(double Offset, Vector3D Normal);
+
+public sealed class BoundaryMapBuildCosts
+{
+    public double LocalFrameMilliseconds { get; internal set; }
+    public double RuntimeCertificateMilliseconds { get; internal set; }
+    public double ExactQueryCacheMilliseconds { get; internal set; }
+    public double MapConstructionMilliseconds { get; internal set; }
+}
 
 /// <summary>Small deterministic cache for repeated exact support evaluations during map construction.</summary>
 public sealed class BoundaryEvaluationCache
@@ -71,25 +80,71 @@ internal static class BoundaryMapBuilder
         Func<double, double, BoundaryEvaluationKey> key,
         BoundaryEvaluationCache? cache)
     {
-        if (resolution < 2 || resolution > policy.MaximumResolution)
+        var map = RuntimeBoundaryMapBuild.Build(cellIndex, reference, frame, domain, resolution, resolution, policy,
+            exactSample, key, cache, certificate: null);
+        return CertifiedBoundaryMapValidation.Validate(map, exactValidation, policy);
+    }
+}
+
+/// <summary>Production-like map construction. Independent oracle evaluation is deliberately excluded.</summary>
+public static class RuntimeBoundaryMapBuild
+{
+    public static SampledBoundaryOffsetMap Build(
+        CellIndex cellIndex,
+        BoundaryReference reference,
+        BoundaryLocalFrame frame,
+        BoundaryMapDomain domain,
+        int resolutionU,
+        int resolutionV,
+        BoundaryOffsetMapErrorPolicy policy,
+        Func<double, double, ExactBoundaryEvaluation> exactSample,
+        Func<double, double, BoundaryEvaluationKey> key,
+        BoundaryEvaluationCache? cache,
+        EngineeringBoundaryMapCertificate? certificate,
+        BoundaryMapBuildCosts? costs = null)
+    {
+        if (resolutionU < 2 || resolutionV < 2 || resolutionU > policy.MaximumResolution || resolutionV > policy.MaximumResolution)
         {
-            throw new ArgumentOutOfRangeException(nameof(resolution));
+            throw new ArgumentOutOfRangeException(nameof(resolutionU));
         }
 
-        var grid = new BoundaryOffsetSample[resolution, resolution];
-        for (var j = 0; j < resolution; j++)
-        for (var i = 0; i < resolution; i++)
+        var mapStart = Stopwatch.GetTimestamp();
+        var grid = new BoundaryOffsetSample[resolutionU, resolutionV];
+        for (var j = 0; j < resolutionV; j++)
+        for (var i = 0; i < resolutionU; i++)
         {
-            var u = Lerp(domain.MinimumU, domain.MaximumU, i / (double)(resolution - 1));
-            var v = Lerp(domain.MinimumV, domain.MaximumV, j / (double)(resolution - 1));
+            var u = Lerp(domain.MinimumU, domain.MaximumU, i / (double)(resolutionU - 1));
+            var v = Lerp(domain.MinimumV, domain.MaximumV, j / (double)(resolutionV - 1));
+            var queryStart = Stopwatch.GetTimestamp();
             var evaluation = cache is null ? exactSample(u, v) : cache.GetOrAdd(key(u, v), () => exactSample(u, v));
+            if (costs is not null) costs.ExactQueryCacheMilliseconds += Stopwatch.GetElapsedTime(queryStart).TotalMilliseconds;
             grid[i, j] = new BoundaryOffsetSample(u, v, evaluation.Offset, evaluation.Normal);
         }
 
-        // Build once with provisional metadata so validation exercises interpolation, never sample nodes only.
-        var provisional = new BoundaryApproximationMetadata(0d, 0d, 0d, 0d, 0d, "bilinear-offset-linear-normal", resolution, resolution, 0, true);
-        var map = new SampledBoundaryOffsetMap(cellIndex, reference, frame, domain, grid, provisional);
-        var validation = ValidateIndependent(map, exactValidation, resolution);
+        var accepted = certificate?.Decision == BoundaryMapCertificateDecision.Acceptable;
+        var metadata = new BoundaryApproximationMetadata(0d, 0d, 0d, 0d, 0d,
+            "bilinear-offset-linear-normal", resolutionU, resolutionV, 0, accepted, 2, certificate);
+        var map = new SampledBoundaryOffsetMap(cellIndex, reference, frame, domain, grid, metadata);
+        if (costs is not null) costs.MapConstructionMilliseconds += Stopwatch.GetElapsedTime(mapStart).TotalMilliseconds;
+        return map;
+    }
+
+    private static double Lerp(double a, double b, double t) => a + ((b - a) * t);
+}
+
+/// <summary>Independent experimental/debug oracle. This is never required by runtime map construction.</summary>
+public static class CertifiedBoundaryMapValidation
+{
+    public static SampledBoundaryOffsetMap Validate(
+        SampledBoundaryOffsetMap map,
+        Func<double, double, ExactBoundaryEvaluation> exact,
+        BoundaryOffsetMapErrorPolicy policy,
+        int? countU = null,
+        int? countV = null)
+    {
+        var validation = ValidateIndependent(map, exact,
+            countU ?? ((map.Approximation.ResolutionU * 2) + 1),
+            countV ?? ((map.Approximation.ResolutionV * 2) + 1));
         var accepted = validation.MaximumPositionError <= policy.MaximumPositionError
             && validation.MaximumNormalAngleDegrees <= policy.MaximumNormalAngleDegrees;
         var metadata = new BoundaryApproximationMetadata(
@@ -99,31 +154,33 @@ internal static class BoundaryMapBuilder
             validation.MaximumNormalAngleDegrees,
             validation.RmsNormalAngleDegrees,
             "bilinear-offset-linear-normal",
-            resolution,
-            resolution,
+            map.Approximation.ResolutionU,
+            map.Approximation.ResolutionV,
             validation.Count,
-            accepted);
-        return new SampledBoundaryOffsetMap(cellIndex, reference, frame, domain, grid, metadata);
+            accepted,
+            2,
+            map.Approximation.RuntimeCertificate);
+        return map.WithApproximation(metadata);
     }
 
     private static ValidationMetrics ValidateIndependent(
         SampledBoundaryOffsetMap map,
         Func<double, double, ExactBoundaryEvaluation> exact,
-        int resolution)
+        int countU,
+        int countV)
     {
-        var countPerAxis = (resolution * 2) + 1;
         var positionSum = 0d;
         var positionSquareSum = 0d;
         var angleSquareSum = 0d;
         var maximumPosition = 0d;
         var maximumAngle = 0d;
         var count = 0;
-        for (var j = 0; j < countPerAxis; j++)
-        for (var i = 0; i < countPerAxis; i++)
+        for (var j = 0; j < countV; j++)
+        for (var i = 0; i < countU; i++)
         {
             // Half-stride locations are independent of the map's uniformly spaced nodes.
-            var u = Lerp(map.Domain.MinimumU, map.Domain.MaximumU, (i + 0.5d) / countPerAxis);
-            var v = Lerp(map.Domain.MinimumV, map.Domain.MaximumV, (j + 0.5d) / countPerAxis);
+            var u = Lerp(map.Domain.MinimumU, map.Domain.MaximumU, (i + 0.5d) / countU);
+            var v = Lerp(map.Domain.MinimumV, map.Domain.MaximumV, (j + 0.5d) / countV);
             var truth = exact(u, v);
             var approximate = map.Evaluate(u, v);
             var exactPosition = map.LocalFrame.Origin

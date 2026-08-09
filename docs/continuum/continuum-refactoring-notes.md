@@ -82,3 +82,12 @@ These items were discovered during AETHERIS-CONTINUUM-M0 and intentionally not e
 - **Proposed fix:** retain exhaustive mode for evidence and add a deterministic bounded validation policy or analytic error certificate capability for trusted supports.
 - **Blocks M1:** no; query accounting includes the cost rather than hiding it.
 - **Suggested future milestone:** CONTINUUM-M2 map certification and validation policy.
+
+## M2 projected-footprint integration is accuracy-oriented, not production-cheap
+
+- **Current state:** M2 removes the arbitrary-orientation blocker by projecting each Cut-cell box to the exact local frame, taking its convex footprint, and deterministically integrating material thickness and bilinear-map area. A dense bounded quadrature makes the sphere evidence stable.
+- **Problem:** the quadrature dominates the production-like M2 timing (roughly 400 ms of the 451 ms adaptive baseline) even though it performs no exact BRep queries.
+- **Impact:** fixed-lattice geometry beats the 32-cubed reference on volume error and the runtime certificate eliminates oracle queries, but the experiment does not yet establish an end-to-end setup-time win.
+- **Proposed direction:** integrate clipped piecewise-bilinear graph patches analytically or with a conservative adaptive error estimate; preserve the current dense path as the experimental oracle. Do not introduce AMR or make triangles geometry authority.
+- **Blocks M2:** no; M2's intended exact-BRep identity, arbitrary-frame, fidelity, area/volume, orientation, and certification proofs all execute on the real path.
+- **Suggested future milestone:** CONTINUUM-M3 torus plus cheap local graph integration.

@@ -56,6 +56,9 @@ public sealed class SampledBoundaryOffsetMap : IBoundaryOffsetMap
         return new BoundaryMapEvaluation(position, normal, offset);
     }
 
+    internal SampledBoundaryOffsetMap WithApproximation(BoundaryApproximationMetadata approximation) =>
+        new(CellIndex, SourceBoundary, LocalFrame, Domain, _grid, approximation);
+
     private void Validate()
     {
         if (string.IsNullOrWhiteSpace(SourceBoundary.SourceRepresentation) || string.IsNullOrWhiteSpace(SourceBoundary.SourceId))

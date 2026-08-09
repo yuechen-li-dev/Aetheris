@@ -1,0 +1,10 @@
+{
+  "schema": "aetheris-continuum-m2-determinism-v1",
+  "algorithm": "SHA-256",
+  "excludes": [
+    "runtime timings"
+  ],
+  "repeatedRunCount": 2,
+  "repeatedGeometryWasIdentical": true,
+  "deterministicGeometrySha256": "bf58e0aab5553fb3ff273ba616474980a97029c4bfbb6fd51d4fc51f2682d0c5"
+}

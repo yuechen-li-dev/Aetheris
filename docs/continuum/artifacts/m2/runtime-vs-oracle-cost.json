@@ -1,0 +1,68 @@
+[
+  {
+    "strategy": "OffsetMap 4x4",
+    "runtimeCertificateQueries": 0,
+    "oracleValidationQueries": 49734,
+    "certificateOracleAgreements": 614,
+    "falseAccepts": 0,
+    "falseRefines": 0,
+    "runtimeExcludingOracleMilliseconds": 386.5186,
+    "oracleValidationMilliseconds": 2.2533,
+    "experimentalIncludingOracleMilliseconds": 388.7719
+  },
+  {
+    "strategy": "OffsetMap 8x8",
+    "runtimeCertificateQueries": 0,
+    "oracleValidationQueries": 177446,
+    "certificateOracleAgreements": 614,
+    "falseAccepts": 0,
+    "falseRefines": 0,
+    "runtimeExcludingOracleMilliseconds": 405.59130000000005,
+    "oracleValidationMilliseconds": 8.1351,
+    "experimentalIncludingOracleMilliseconds": 413.72640000000007
+  },
+  {
+    "strategy": "OffsetMap 16x16",
+    "runtimeCertificateQueries": 0,
+    "oracleValidationQueries": 668646,
+    "certificateOracleAgreements": 606,
+    "falseAccepts": 0,
+    "falseRefines": 8,
+    "runtimeExcludingOracleMilliseconds": 445.89860000000004,
+    "oracleValidationMilliseconds": 34.6438,
+    "experimentalIncludingOracleMilliseconds": 480.54240000000004
+  },
+  {
+    "strategy": "OffsetMap 24x24",
+    "runtimeCertificateQueries": 0,
+    "oracleValidationQueries": 1474214,
+    "certificateOracleAgreements": 614,
+    "falseAccepts": 0,
+    "falseRefines": 0,
+    "runtimeExcludingOracleMilliseconds": 533.7954,
+    "oracleValidationMilliseconds": 74.8449,
+    "experimentalIncludingOracleMilliseconds": 608.6403
+  },
+  {
+    "strategy": "curvature-aware anisotropic map",
+    "runtimeCertificateQueries": 0,
+    "oracleValidationQueries": 880914,
+    "certificateOracleAgreements": 614,
+    "falseAccepts": 0,
+    "falseRefines": 0,
+    "runtimeExcludingOracleMilliseconds": 459.1241,
+    "oracleValidationMilliseconds": 43.5659,
+    "experimentalIncludingOracleMilliseconds": 502.69
+  },
+  {
+    "strategy": "anisotropic map \u002B selective MSAA",
+    "runtimeCertificateQueries": 0,
+    "oracleValidationQueries": 880914,
+    "certificateOracleAgreements": 614,
+    "falseAccepts": 0,
+    "falseRefines": 0,
+    "runtimeExcludingOracleMilliseconds": 699.6748,
+    "oracleValidationMilliseconds": 42.1077,
+    "experimentalIncludingOracleMilliseconds": 741.7825
+  }
+]

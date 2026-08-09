@@ -53,7 +53,25 @@ public sealed record BoundaryApproximationMetadata(
     int ResolutionV,
     int IndependentValidationPointCount,
     bool IsAccepted,
-    int Version = 1);
+    int Version = 1,
+    EngineeringBoundaryMapCertificate? RuntimeCertificate = null);
+
+public enum BoundaryMapCertificateDecision
+{
+    Acceptable,
+    RefineMap,
+    Invalid,
+}
+
+/// <summary>
+/// A deterministic conservative engineering estimate. It is not a formal proof for arbitrary surfaces.
+/// </summary>
+public sealed record EngineeringBoundaryMapCertificate(
+    BoundaryMapCertificateDecision Decision,
+    double PositionErrorBound,
+    double NormalAngleBoundDegrees,
+    int ExactQueryCount,
+    string Basis);
 
 public sealed record BoundaryOffsetMapErrorPolicy(
     double MaximumPositionError = 0.005d,

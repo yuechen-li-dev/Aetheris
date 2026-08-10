@@ -1,0 +1,8 @@
+{
+  "repeatedCompiles": 2,
+  "sameDrawingIrSha256": true,
+  "samePdfSha256": true,
+  "drawingIrSha256": "178a90949e110ba2e33aabeece55d484ef29528738bb5b9510fdb0964c320fda",
+  "pdfSha256": "0a0156463c70816462169977a1e5789d1285e2cfad179a420912552751b9b8c2",
+  "volatileTimingsExcludedFromSemanticHash": true
+}

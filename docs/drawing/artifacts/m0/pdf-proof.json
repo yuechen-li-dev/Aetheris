@@ -1,0 +1,13 @@
+{
+  "tool": "Poppler pdfinfo",
+  "pdfVersion": "1.4",
+  "pages": 2,
+  "pageSizePoints": [841.89, 595.276],
+  "isoSize": "A4 landscape",
+  "title": "Bearing block production drawing",
+  "subject": "BearingBlock",
+  "creator": "Aetheris Drawing M0",
+  "encrypted": false,
+  "forms": "none",
+  "rasterImageXObjects": 0
+}

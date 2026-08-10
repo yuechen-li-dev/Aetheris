@@ -1,0 +1,75 @@
+Model BearingBlock {
+    Units: mm
+
+    Enum BearingSize { BB080 BB100 BB120 }
+    Record BearingStandard {
+        Size: BearingSize
+        Width: Length
+        Height: Length
+        Depth: Length
+        BoreDiameter: Length
+    }
+    Static Table BearingStandards: BearingStandard Key: Size {
+        Size: [BB080, BB100, BB120]
+        Width: [80mm, 100mm, 120mm]
+        Height: [50mm, 60mm, 70mm]
+        Depth: [12mm, 16mm, 20mm]
+        BoreDiameter: [8mm, 10mm, 12mm]
+    }
+    Box Base { Size: [80mm, 50mm, 12mm] }
+    Modify Base {
+        Hole<Shaft> Mount {
+            On: +Z
+            Center: Point2(0mm, 0mm)
+            Diameter: 8mm
+            End: ThroughAll
+        }
+    }
+    Require MountDiameterConstraint {
+        Actual: Mount.Diameter
+        Expected: 8mm
+        Tolerance: PlusMinus(0.05mm, 0.02mm)
+    }
+    Pmi {
+        Datum A { Target: face(+Z) }
+        HoleDiameter MountDiameter {
+            From: MountDiameterConstraint
+            As: HoleDiameter
+            DatumRefs: [A]
+        }
+    }
+
+    Concept Drawing MachinedPartDrawing {
+        Require PrimaryView
+        Require ManufacturingPmi
+        Require Material
+        Require DesignTable
+        Require RevisionMetadata
+    }
+
+    Template < Item: Product >
+    Drawing StandardMachinedDrawing: MachinedPartDrawing {
+        Source: Item
+        Orientation: Landscape
+        Title: "Bearing block production drawing"
+        PartNumber: "BB-080"
+        Revision: "A"
+        Material: "6061-T6 aluminium"
+        Table: BearingStandards
+        Notes: ["DEBURR ALL EDGES", "DIMENSIONS AND TOLERANCES COME FROM THE SEMANTIC PRODUCT MODEL"]
+
+        View Front {
+            Direction: +Z
+            HiddenLines: VisibleOnly
+            PMI: [MountDiameter, A]
+        }
+        View Iso {
+            Direction: [1, 1, 1]
+            Projection: Isometric
+            HiddenLines: VisibleOnly
+            PMI: []
+        }
+    }
+
+    Drawing BearingBlockProduction = StandardMachinedDrawing<Product: BearingBlock>
+}

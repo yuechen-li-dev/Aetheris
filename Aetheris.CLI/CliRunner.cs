@@ -10,6 +10,7 @@ using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament;
 using Aetheris.Kernel.Firmament.Assembly;
+using Aetheris.Kernel.Firmament.Drawing;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Kernel.Firmament.Materializer;
 using Aetheris.Firmament.FrictionLab.CIRLab;
@@ -150,6 +151,7 @@ public static class CliRunner
     private const string ExperimentalPrismaticCorpusUsage = "Usage: aetheris experimental prismatic-corpus --out-dir <dir> [--json]";
     private const string ExperimentalPrismaticMapUsage = "Usage: aetheris experimental prismatic-map --case <case> --rows <N> --cols <N> --json";
     private const string FeaUsage = "Usage: aetheris fea <analysis.firmament> [--rotate <x,y,z-degrees>] [--out-dir <directory>] [--json]";
+    private const string DrawingUsage = "Usage: aetheris drawing compile <drawing.firmament> --out-dir <directory> [--json]";
     private const string ExperimentalLoopChamferCorpusUsage = "Usage: aetheris experimental loop-chamfer-corpus --out-dir <dir> [--json]";
 
     internal static readonly JsonSerializerOptions JsonOptions = new()
@@ -201,6 +203,7 @@ public static class CliRunner
                 "sections" => RunSections(args.Skip(1).ToArray(), stdout, stderr),
                 "analyze" => RunAnalyze(args.Skip(1).ToArray(), stdout, stderr),
                 "fea" => RunFea(args.Skip(1).ToArray(), stdout, stderr),
+                "drawing" => RunDrawing(args.Skip(1).ToArray(), stdout, stderr),
                 "verify" => RunVerify(args.Skip(1).ToArray(), stdout, stderr),
                 "view" => RunView(args.Skip(1).ToArray(), stdout, stderr, cadmataLauncher, cliBaseDirectory),
                 "match" => RunMatch(args.Skip(1).ToArray(), stdout, stderr),
@@ -456,6 +459,41 @@ public static class CliRunner
                 stdout.WriteLine($"Standard part: {standardPart.Family} via {standardPart.Template ?? "direct record"} ({standardPart.SemanticDescendants.Count} semantic descendants)");
         }
 
+        return 0;
+    }
+
+    private static int RunDrawing(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0 || IsHelpFlag(args[0]))
+        {
+            (args.Length == 0 ? stderr : stdout).WriteLine(DrawingUsage);
+            return args.Length == 0 ? 1 : 0;
+        }
+        if (!string.Equals(args[0], "compile", StringComparison.Ordinal) || args.Length < 2)
+        {
+            stderr.WriteLine(DrawingUsage);
+            return 1;
+        }
+        var source = args[1];
+        string? output = null;
+        var json = false;
+        for (var i = 2; i < args.Length; i++)
+        {
+            if (args[i] == "--out-dir" && i + 1 < args.Length) output = args[++i];
+            else if (args[i] == "--json") json = true;
+            else { stderr.WriteLine($"Unknown drawing option '{args[i]}'."); stderr.WriteLine(DrawingUsage); return 1; }
+        }
+        output ??= Path.Combine(Path.GetDirectoryName(Path.GetFullPath(source))!, "drawing-output");
+        var result = FirmamentDrawingCompiler.Compile(source, output);
+        if (!result.IsSuccess)
+        {
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { success = false, diagnostics = result.Diagnostics }, JsonOptions));
+            else foreach (var diagnostic in result.Diagnostics) stderr.WriteLine(diagnostic);
+            return 1;
+        }
+        var artifacts = result.Artifacts!;
+        if (json) stdout.WriteLine(JsonSerializer.Serialize(new { success = true, artifacts.DrawingIrPath, artifacts.SvgPath, artifacts.PdfPath, artifacts.ValidationPath, artifacts.PdfSha256, artifacts.DrawingIrSha256, pageCount = artifacts.Drawing.Pages.Count, layout = artifacts.Drawing.LayoutEvidence }, JsonOptions));
+        else stdout.WriteLine($"Compiled Drawing '{artifacts.Drawing.Identity}' to {artifacts.PdfPath} ({artifacts.Drawing.Pages.Count} A4 page(s)).");
         return 0;
     }
 
@@ -3271,7 +3309,7 @@ public static class CliRunner
 
     private static int UnknownCommand(string command, TextWriter stderr)
     {
-        stderr.WriteLine($"Unknown command '{command}'. Expected one of: validate, build, inspect, analyze, verify, view.");
+        stderr.WriteLine($"Unknown command '{command}'. Expected one of: validate, build, drawing, inspect, analyze, verify, view.");
         stderr.WriteLine("Run 'aetheris --help' for usage and examples.");
         return 1;
     }
@@ -3362,6 +3400,7 @@ public static class CliRunner
         stdout.WriteLine("  inspect    Inspect Firmament semantics or STEP topology.");
         stdout.WriteLine("  analyze    Analyze STEP topology and analytic surfaces.");
         stdout.WriteLine("  fea        Compile and solve a Firmament linear-elastic analysis and export Abaqus verification input.");
+        stdout.WriteLine("  drawing    Compile a Firmament Drawing Template to DrawingIR, SVG, and vector A4 PDF.");
         stdout.WriteLine("  verify     Build/reimport and verify a model.");
         stdout.WriteLine();
         stdout.WriteLine("Global options:");
@@ -3374,6 +3413,7 @@ public static class CliRunner
         stdout.WriteLine("  aetheris view bracket.firmament");
         stdout.WriteLine("  aetheris analyze imported.step --json");
         stdout.WriteLine("  aetheris fea plate-with-hole.firmament --out-dir artifacts --json");
+        stdout.WriteLine("  aetheris drawing compile bearing-block-drawing.firmament --out-dir artifacts/drawing --json");
         stdout.WriteLine();
         stdout.WriteLine("Run 'aetheris <command> --help' for command-specific usage.");
     }

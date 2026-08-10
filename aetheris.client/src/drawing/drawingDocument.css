@@ -1,0 +1,116 @@
+.drawing-document {
+	display: grid;
+	gap: 12mm;
+	justify-content: center;
+	background: #dbe2ea;
+	padding: 12mm;
+}
+.drawing-page {
+	box-sizing: border-box;
+	display: grid;
+	grid-template-rows: 12mm 1fr 8mm;
+	gap: 3mm;
+	padding: 10mm;
+	overflow: hidden;
+	background: white;
+	color: #111827;
+	font:
+		3mm / 1.25 Arial,
+		sans-serif;
+	box-shadow: 0 1mm 4mm #33415555;
+}
+.drawing-header {
+	display: flex;
+	align-items: start;
+	justify-content: space-between;
+	border-bottom: 0.25mm solid #475569;
+}
+.drawing-header h1 {
+	margin: 0;
+	font-size: 4mm;
+}
+.drawing-header dl {
+	display: flex;
+	gap: 4mm;
+	margin: 0;
+}
+.drawing-header dl div {
+	display: grid;
+	grid-template-columns: auto auto;
+	gap: 1mm;
+}
+.drawing-header dt {
+	font-weight: 700;
+}
+.drawing-header dd {
+	margin: 0;
+}
+.drawing-content {
+	position: relative;
+	min-height: 0;
+}
+.drawing-content svg {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+}
+.drawing-content svg polyline {
+	fill: none;
+	stroke: #111827;
+	stroke-width: 0.35;
+}
+.drawing-content svg .silhouette {
+	stroke-width: 0.5;
+}
+.drawing-content svg .hidden {
+	stroke-dasharray: 2 1;
+}
+.drawing-content svg .annotation-body {
+	fill: white;
+	stroke: #334155;
+	stroke-width: 0.18;
+}
+.drawing-content svg text {
+	font-size: 3.2px;
+}
+.drawing-content table {
+	width: 100%;
+	border-collapse: collapse;
+	margin-block: 5mm;
+	font-size: 3mm;
+}
+.drawing-content caption {
+	text-align: left;
+	font-size: 4mm;
+	font-weight: 700;
+	margin-bottom: 2mm;
+}
+.drawing-content th,
+.drawing-content td {
+	border: 0.2mm solid #64748b;
+	padding: 1.5mm 2mm;
+	text-align: left;
+}
+.drawing-content th {
+	background: #e2e8f0;
+}
+.drawing-content aside {
+	margin-top: auto;
+}
+.drawing-footer {
+	border-top: 0.2mm solid #64748b;
+	padding-top: 2mm;
+	font-size: 2.5mm;
+}
+@media print {
+	.drawing-document {
+		display: block;
+		padding: 0;
+		background: none;
+	}
+	.drawing-page {
+		break-after: page;
+		box-shadow: none;
+	}
+}

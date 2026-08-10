@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="297mm" height="428mm" viewBox="0 0 297 428" data-drawing-schema="aetheris-drawing-m0">
+<style>.sheet{fill:white;stroke:#aab2bd;stroke-width:.25}.visible,.silhouette{fill:none;stroke:#111827;stroke-width:.35;stroke-linecap:round;stroke-linejoin:round}.silhouette{stroke-width:.5}.hidden{fill:none;stroke:#64748b;stroke-width:.25;stroke-dasharray:2 1}.leader{fill:none;stroke:#374151;stroke-width:.22}.annotation{font:3.2px Arial,sans-serif;fill:#111827}.label{font:600 3.2px Arial,sans-serif;fill:#334155}.meta{font:2.8px Arial,sans-serif;fill:#334155}.table-header{font:600 3px Arial,sans-serif}.table-cell{font:2.8px Arial,sans-serif}</style>
+<g transform="translate(0 0)" data-page="1">
+<rect class="sheet" x="0" y="0" width="297" height="210"/>
+<text class="label" x="10" y="9">Bearing block production drawing</text>
+<text class="meta" x="287" y="9" text-anchor="end">BearingBlock · A · 1/2</text>
+<g data-view="Front">
+<text class="label" x="10" y="19.5">Front · scale ×1.381</text>
+<polyline class="silhouette" points="82.775,90.5 82.728,89.779 82.587,89.07 82.354,88.386 82.035,87.738 81.633,87.137 81.157,86.593 80.613,86.117 80.013,85.715 79.364,85.396 78.68,85.163 77.971,85.022 77.25,84.975 76.529,85.022 75.82,85.163 75.136,85.396 74.488,85.715 73.887,86.117 73.343,86.593 72.867,87.137 72.465,87.738 72.146,88.386 71.913,89.07 71.772,89.779 71.725,90.5 71.772,91.221 71.913,91.93 72.146,92.614 72.465,93.263 72.867,93.863 73.343,94.407 73.887,94.883 74.488,95.285 75.136,95.604 75.82,95.837 76.529,95.978 77.25,96.025 77.971,95.978 78.68,95.837 79.364,95.604 80.013,95.285 80.613,94.883 81.157,94.407 81.633,93.863 82.035,93.263 82.354,92.614 82.587,91.93 82.728,91.221 82.775,90.5" data-semantic-id="edge:10"/>
+<polyline class="visible" points="22,125.031 132.5,125.031" data-semantic-id="edge:6"/>
+<polyline class="visible" points="132.5,125.031 132.5,55.969" data-semantic-id="edge:7"/>
+<polyline class="visible" points="132.5,55.969 22,55.969" data-semantic-id="edge:8"/>
+<polyline class="visible" points="22,55.969 22,125.031" data-semantic-id="edge:9"/>
+<polyline class="visible" points="132.5,125.031 132.5,125.031" data-semantic-id="edge:11"/>
+<polyline class="visible" points="22,125.031 22,125.031" data-semantic-id="edge:12"/>
+<polyline class="visible" points="132.5,55.969 132.5,55.969" data-semantic-id="edge:13"/>
+<polyline class="visible" points="22,55.969 22,55.969" data-semantic-id="edge:14"/>
+<polyline class="visible" points="82.775,90.5 82.775,90.5" data-semantic-id="edge:15"/>
+</g>
+<g data-view="Iso">
+<text class="label" x="152.5" y="19.5">Iso · scale ×1.202</text>
+<polyline class="visible" points="207,128.288 207,116.51" data-semantic-id="edge:13"/>
+<polyline class="visible" points="164.5,91.972 207,116.51" data-semantic-id="edge:7"/>
+<polyline class="visible" points="164.5,103.75 207,128.288" data-semantic-id="edge:2"/>
+<polyline class="visible" points="207,116.51 275,77.25" data-semantic-id="edge:8"/>
+<polyline class="visible" points="207,128.288 275,89.028" data-semantic-id="edge:3"/>
+<polyline class="visible" points="164.5,103.75 164.5,91.972" data-semantic-id="edge:11"/>
+<polyline class="silhouette" points="216.35,86.574 216.823,86.813 217.346,87.015 217.91,87.176 218.506,87.293 219.122,87.363 219.75,87.387 220.378,87.363 220.994,87.293 221.59,87.176 222.154,87.015 222.677,86.813 223.15,86.574 223.565,86.301 223.914,85.999 224.192,85.673 224.394,85.33 224.517,84.973 224.558,84.611 224.517,84.249 224.394,83.893 224.192,83.549 223.914,83.223 223.565,82.921 223.15,82.648 222.677,82.409 222.154,82.207 221.59,82.046 220.994,81.93 220.378,81.859 219.75,81.835 219.122,81.859 218.506,81.93 217.91,82.046 217.346,82.207 216.823,82.409 216.35,82.648 215.935,82.921 215.586,83.223 215.308,83.549 215.106,83.893 214.983,84.249 214.942,84.611 214.983,84.973 215.106,85.33 215.308,85.673 215.586,85.999 215.935,86.301 216.35,86.574" data-semantic-id="edge:10"/>
+<polyline class="visible" points="216.35,86.574 216.35,98.352" data-semantic-id="edge:15"/>
+<polyline class="silhouette" points="216.35,98.352 216.823,98.591 217.346,98.793 217.91,98.954 218.506,99.07 219.122,99.141 219.75,99.165 220.378,99.141 220.994,99.07 221.59,98.954 222.154,98.793 222.677,98.591 223.15,98.352 223.565,98.079 223.914,97.777 224.192,97.451 224.394,97.107 224.517,96.751 224.558,96.389 224.517,96.027 224.394,95.67 224.192,95.327 223.914,95.001 223.565,94.699 223.15,94.426 222.677,94.187 222.154,93.985 221.59,93.824 220.994,93.707 220.378,93.637 219.75,93.613 219.122,93.637 218.506,93.707 217.91,93.824 217.346,93.985 216.823,94.187 216.35,94.426 215.935,94.699 215.586,95.001 215.308,95.327 215.106,95.67 214.983,96.027 214.942,96.389 214.983,96.751 215.106,97.107 215.308,97.451 215.586,97.777 215.935,98.079 216.35,98.352" data-semantic-id="edge:5"/>
+<polyline class="visible" points="275,89.028 275,77.25" data-semantic-id="edge:14"/>
+<polyline class="visible" points="232.5,52.712 164.5,91.972" data-semantic-id="edge:6"/>
+<polyline class="visible" points="232.5,64.49 164.5,103.75" data-semantic-id="edge:1"/>
+<polyline class="visible" points="275,77.25 232.5,52.712" data-semantic-id="edge:9"/>
+<polyline class="visible" points="275,89.028 232.5,64.49" data-semantic-id="edge:4"/>
+<polyline class="visible" points="232.5,64.49 232.5,52.712" data-semantic-id="edge:12"/>
+</g>
+<g data-annotation="annotation:Front:MountDiameter" data-semantic-reference="MountDiameter">
+<polyline class="leader" points="77.25,90.5 77.25,53.969"/>
+<rect x="59.8" y="47.969" width="34.9" height="6" fill="white" stroke="#374151" stroke-width=".18"/>
+<text class="annotation" x="61" y="51.969">Ø8 mm +0.05/-0.02</text>
+</g>
+<g data-annotation="annotation:Front:A" data-semantic-reference="A">
+<polyline class="leader" points="77.25,125.031 77.25,127.031"/>
+<rect x="68.25" y="127.031" width="18" height="6" fill="white" stroke="#374151" stroke-width=".18"/>
+<text class="annotation" x="69.45" y="131.031">A</text>
+</g>
+<text class="meta" x="10" y="195">DEBURR ALL EDGES</text>
+<text class="meta" x="10" y="199">DIMENSIONS AND TOLERANCES COME FROM THE SEMANTIC PRODUCT MODEL</text>
+<text class="meta" x="10" y="205">A4 Landscape · actual size · StandardMachinedDrawing · 2a731a10cc7aa3dd</text>
+</g>
+<g transform="translate(0 218)" data-page="2">
+<rect class="sheet" x="0" y="0" width="297" height="210"/>
+<text class="label" x="10" y="9">Bearing block production drawing</text>
+<text class="meta" x="287" y="9" text-anchor="end">BearingBlock · A · 2/2</text>
+<text class="label" x="10" y="23">BearingStandards</text>
+<rect x="10" y="26" width="55.4" height="7" fill="#e2e8f0" stroke="#64748b" stroke-width=".2"/>
+<text class="table-header" x="11" y="30.5">BoreDiameter</text>
+<rect x="65.4" y="26" width="55.4" height="7" fill="#e2e8f0" stroke="#64748b" stroke-width=".2"/>
+<text class="table-header" x="66.4" y="30.5">Depth</text>
+<rect x="120.8" y="26" width="55.4" height="7" fill="#e2e8f0" stroke="#64748b" stroke-width=".2"/>
+<text class="table-header" x="121.8" y="30.5">Height</text>
+<rect x="176.2" y="26" width="55.4" height="7" fill="#e2e8f0" stroke="#64748b" stroke-width=".2"/>
+<text class="table-header" x="177.2" y="30.5">Size</text>
+<rect x="231.6" y="26" width="55.4" height="7" fill="#e2e8f0" stroke="#64748b" stroke-width=".2"/>
+<text class="table-header" x="232.6" y="30.5">Width</text>
+<rect x="10" y="33" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="11" y="37.5">8mm</text>
+<rect x="65.4" y="33" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="66.4" y="37.5">12mm</text>
+<rect x="120.8" y="33" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="121.8" y="37.5">50mm</text>
+<rect x="176.2" y="33" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="177.2" y="37.5">BB080</text>
+<rect x="231.6" y="33" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="232.6" y="37.5">80mm</text>
+<rect x="10" y="40" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="11" y="44.5">10mm</text>
+<rect x="65.4" y="40" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="66.4" y="44.5">16mm</text>
+<rect x="120.8" y="40" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="121.8" y="44.5">60mm</text>
+<rect x="176.2" y="40" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="177.2" y="44.5">BB100</text>
+<rect x="231.6" y="40" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="232.6" y="44.5">100mm</text>
+<rect x="10" y="47" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="11" y="51.5">12mm</text>
+<rect x="65.4" y="47" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="66.4" y="51.5">20mm</text>
+<rect x="120.8" y="47" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="121.8" y="51.5">70mm</text>
+<rect x="176.2" y="47" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="177.2" y="51.5">BB120</text>
+<rect x="231.6" y="47" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="232.6" y="51.5">120mm</text>
+<text class="meta" x="10" y="205">A4 Landscape · actual size · StandardMachinedDrawing · 2a731a10cc7aa3dd</text>
+</g>
+</svg>

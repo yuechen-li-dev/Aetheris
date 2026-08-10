@@ -10,6 +10,8 @@ This is the canonical implementation-grounded reference for Firmament V2 as of A
 
 Firmament is a deterministic, statically evaluated CAD authoring language. Source declarations bind names, units, immutable values, semantic contracts, selections, and construction intent. Compile-time Records, Tables, `with`, Templates, Match, Pattern, and `Require` are erased before feature AIR. Exact geometry lowers through bounded AIR/materializers to BRep and STEP AP242. Tolerance is symbolic engineering intent and does not perturb nominal geometry.
 
+**The 3D semantic model is the product definition. A Drawing is a printable projection of that definition, not a parallel source of engineering truth.** Drawing M0 adds bounded `Concept Drawing`, Drawing-returning `Template`, and `Drawing` specialization declarations. The Drawing compiler follows the Analysis/Assembly split-compiler pattern, binds `Source` to the module's authoritative Product, manually selected `View` directions and semantic PMI names, and lowers to DrawingIR plus A4 vector output. See [Drawing concepts and templates](../drawing/templates.md).
+
 There are two current frontend lanes:
 
 1. the canonical `Model { Units: mm ... }` V2 parser/binder; and
@@ -167,7 +169,7 @@ retains its structured private contributor chain.
 
 | Status | Constructs |
 |---|---|
-| Supported | Model, Units, primitive literals/types, let, Record, Static Record/Table/array, indexing, with, Concept, Concept Struct, Struct, Expose, Concept Path, Profile, Compose, bounded Modify/Hole/Pattern/EdgeFinish/Selection, Template, Match, Require, InlineStep, bounded Recognize/Replace, PMI datum/diameter binding, Analysis declarations, SemanticValue, Interface/Role/Lower/Fit/Allow, Assembly/Part/Anchor/Mate/Relation/Dimension/tol, Assert Volume, Assert ToleranceStackup |
+| Supported | Model, Units, primitive literals/types, let, Record, Static Record/Table/array, indexing, with, Concept, Concept Struct, Struct, Expose, Concept Path, Profile, Compose, bounded Modify/Hole/Pattern/EdgeFinish/Selection, Template, Match, Require, InlineStep, bounded Recognize/Replace, PMI datum/diameter binding, Analysis declarations, bounded Drawing declaration/Concept/Template specialization, SemanticValue, Interface/Role/Lower/Fit/Allow, Assembly/Part/Anchor/Mate/Relation/Dimension/tol, Assert Volume, Assert ToleranceStackup |
 | Experimental | standalone/fill lattice routes, broader PMI controls/export, general Forge source invocation, some Slot/EdgeFinish/Boolean/placement routes, M1 Template Part syntax while the central grammar remains split |
 | Internal-only | AIR/CIR/BRep plans, topology IDs, semantic source maps, Template expansion artifacts, Judgment/route machinery |
 | Legacy/Deprecated | Firmament V1 TOON-style fixture syntax, `.firmasm`, transform-first assembly execution, legacy lowercase/alternate PMI spellings accepted for compatibility |

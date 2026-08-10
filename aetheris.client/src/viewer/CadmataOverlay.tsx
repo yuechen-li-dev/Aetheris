@@ -7,15 +7,8 @@ import type {
 	CadmataLayer,
 	CadmataVisualizationArtifact,
 } from "./conceptVisualization";
+import type { ViewportTheme } from "./viewportTheme";
 
-export const CADMATA_PALETTE = {
-	concept: "#6ea6b8",
-	profile: "#4db6ac",
-	compose: "#b48748",
-	selection: "#ffbf47",
-	ancestor: "#77a7d9",
-	diagnostic: "#e05d5d",
-} as const;
 export type CadmataLayerVisibility = Record<CadmataLayer, boolean>;
 export const DEFAULT_CADMATA_LAYERS: CadmataLayerVisibility = {
 	material: true,
@@ -32,25 +25,27 @@ export const DEFAULT_CADMATA_LAYERS: CadmataLayerVisibility = {
 	diagnostics: true,
 };
 
-function colorFor(entity: CadmataEntity, selected: boolean) {
-	if (selected) return CADMATA_PALETTE.selection;
+function colorFor(entity: CadmataEntity, selected: boolean, theme: ViewportTheme) {
+	if (selected) return theme.overlay.selection;
 	if (entity.layer === "profileGuides" || entity.layer === "profileLoops")
-		return CADMATA_PALETTE.profile;
-	if (entity.layer === "composeRegions") return CADMATA_PALETTE.compose;
-	if (entity.layer === "diagnostics") return CADMATA_PALETTE.diagnostic;
-	return CADMATA_PALETTE.concept;
+		return theme.overlay.profile;
+	if (entity.layer === "composeRegions") return theme.overlay.compose;
+	if (entity.layer === "diagnostics") return theme.overlay.diagnostic;
+	return theme.overlay.concept;
 }
 function OverlayEntity({
 	entity,
 	selected,
 	onSelect,
+	theme,
 }: {
 	entity: CadmataEntity;
 	selected: boolean;
 	onSelect: (id: string) => void;
+	theme: ViewportTheme;
 }) {
 	const geometry = entity.geometry;
-	const color = colorFor(entity, selected);
+	const color = colorFor(entity, selected, theme);
 	const points = useMemo(
 		() =>
 			geometry?.type === "polyline"
@@ -135,11 +130,13 @@ export function CadmataOverlay({
 	layers,
 	selectedIds,
 	onSelect,
+	theme,
 }: {
 	artifact: CadmataVisualizationArtifact | null;
 	layers: CadmataLayerVisibility;
 	selectedIds: Set<string>;
 	onSelect: (id: string) => void;
+	theme: ViewportTheme;
 }) {
 	if (!artifact) return null;
 	return (
@@ -152,6 +149,7 @@ export function CadmataOverlay({
 						entity={entity}
 						selected={selectedIds.has(entity.stableId)}
 						onSelect={onSelect}
+						theme={theme}
 					/>
 				))}
 		</group>

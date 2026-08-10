@@ -51,7 +51,11 @@ import {
 import { resolvePublishedBrepEntity } from "./viewer/semanticInspection";
 import { documentMachine, documentPhase } from "./application/documentMachine";
 import { shellThemeCssVariables } from "./theme/shellTheme";
-import { viewportThemeById, VIEWPORT_THEMES, type ViewportTheme } from "./viewer/viewportTheme";
+import { viewportThemeById, VIEWPORT_THEMES, type ViewportThemeId } from "./viewer/viewportTheme";
+import {
+	loadViewportThemePreference,
+	saveViewportThemePreference,
+} from "./viewer/viewportThemePreference";
 
 type RequestStatus = "idle" | "loading" | "success" | "error";
 type BooleanOperationUi = "Union" | "Subtract" | "Intersect";
@@ -170,7 +174,9 @@ function App() {
 		}),
 	);
 	const [activeTab, setActiveTab] = useState<TopLevelTab>("viewer");
-	const [viewportThemeId, setViewportThemeId] = useState<ViewportTheme["id"]>("atelier");
+	const [viewportThemeId, setViewportThemeId] = useState<ViewportThemeId>(
+		loadViewportThemePreference,
+	);
 	const [documentId, setDocumentId] = useState<string | null>(null);
 	const [bodyIds, setBodyIds] = useState<string[]>([]);
 	const [occurrences, setOccurrences] = useState<BodyOccurrenceSummaryDto[]>([]);
@@ -220,6 +226,7 @@ function App() {
 	const [isPmiVisible, setIsPmiVisible] = useState(true);
 	const startupStepClaimed = useRef(false);
 	const viewportTheme = useMemo(() => viewportThemeById(viewportThemeId), [viewportThemeId]);
+	useEffect(() => saveViewportThemePreference(viewportThemeId), [viewportThemeId]);
 	const shellThemeVariables = useMemo(() => shellThemeCssVariables() as CSSProperties, []);
 	const lifecyclePhase = documentPhase(documentLifecycleState);
 
@@ -1034,21 +1041,21 @@ function App() {
 								COORD
 							</button>
 							<span className="viewport-controls__divider" aria-hidden="true" />
-							{VIEWPORT_THEMES.map((candidate) => (
-								<button
-									key={candidate.id}
-									type="button"
-									className={
-										viewportThemeId === candidate.id
-											? "viewport-segmented__button is-active"
-											: "viewport-segmented__button"
-									}
-									onClick={() => setViewportThemeId(candidate.id)}
-									aria-pressed={viewportThemeId === candidate.id}
+							<label className="viewport-theme-select">
+								<span>THEME</span>
+								<select
+									aria-label="Viewport theme"
+									value={viewportThemeId}
+									onChange={(event) => setViewportThemeId(event.target.value as ViewportThemeId)}
+									title={viewportTheme.description}
 								>
-									{candidate.label.toUpperCase()}
-								</button>
-							))}
+									{VIEWPORT_THEMES.map((candidate) => (
+										<option key={candidate.id} value={candidate.id}>
+											{candidate.label}
+										</option>
+									))}
+								</select>
+							</label>
 						</div>
 						<AetherisViewport
 							displayScene={displayScene.displayScene}

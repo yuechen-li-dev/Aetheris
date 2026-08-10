@@ -31,6 +31,7 @@ import { CadmataOverlay, type CadmataLayerVisibility } from "./CadmataOverlay";
 import type { CadmataVisualizationArtifact } from "./conceptVisualization";
 import { ATELIER_VIEWPORT_THEME, type ViewportTheme } from "./viewportTheme";
 import { PmiAnnotationLayer } from "./PmiAnnotationLayer";
+import { ThemeBackground } from "./ThemeBackground";
 
 function intersectGround(origin: Vector3, direction: Vector3, y: number): Vector3 | null {
 	if (Math.abs(direction.y) < 1e-6) return null;
@@ -212,6 +213,8 @@ declare global {
 			triangles?: number;
 			geometries?: number;
 			textures?: number;
+			shaderPrograms?: number;
+			themeId?: string;
 			gridLineCount?: number;
 			gridDrawCalls?: number;
 			gridAllocatedBytes?: number;
@@ -253,6 +256,7 @@ function ViewportPerformanceProbe({ resetKey }: { resetKey: unknown }) {
 				triangles: gl.info.render.triangles,
 				geometries: gl.info.memory.geometries,
 				textures: gl.info.memory.textures,
+				shaderPrograms: gl.info.programs?.length ?? 0,
 			});
 		}
 	});
@@ -591,11 +595,12 @@ export function AetherisViewport({
 			}}
 		>
 			<color attach="background" args={[theme.sceneBackground]} />
+			<ThemeBackground theme={theme} />
 			{theme.fog.enabled ? (
 				<fog attach="fog" args={[theme.fog.color, theme.fog.near, theme.fog.far]} />
 			) : null}
 			<RendererConfiguration theme={theme} />
-			<ViewportPerformanceProbe resetKey={displayScene} />
+			<ViewportPerformanceProbe resetKey={`${theme.id}:${displayScene?.renderables.length ?? 0}`} />
 			<ambientLight intensity={theme.lights.ambient} />
 			<hemisphereLight
 				args={[
@@ -611,13 +616,18 @@ export function AetherisViewport({
 				castShadow={theme.shadowStyle.enabled}
 			/>
 			<directionalLight
+				position={[...theme.lights.rimPosition]}
+				color={theme.lights.rimColor}
+				intensity={theme.lights.rimIntensity}
+			/>
+			<directionalLight
 				position={[...theme.lights.fillPosition]}
 				color={theme.lights.fillColor}
 				intensity={theme.lights.fillIntensity}
 			/>
 			<FitCameraToScene displayScene={displayScene} />
 			<FitCameraToAssembly packet={assemblyPacket} />
-			{showGrid ? <AdaptiveLogGrid theme={theme} /> : null}
+			{showGrid && theme.gridStyle.enabled ? <AdaptiveLogGrid theme={theme} /> : null}
 			{showAxisGuide ? <AxisGuide theme={theme} /> : null}
 			{displayScene?.renderables.flatMap((renderable) =>
 				matchKind(renderable, {
@@ -674,6 +684,7 @@ export function AetherisViewport({
 					layers={cadmataLayers}
 					selectedIds={selectedCadmataIds}
 					onSelect={onCadmataSelect}
+					theme={theme}
 				/>
 			) : null}
 			<PmiAnnotationLayer

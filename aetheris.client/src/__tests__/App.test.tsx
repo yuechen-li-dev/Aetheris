@@ -124,7 +124,9 @@ describe("App STEP file upload flow", () => {
 	it("switches the complete viewport theme without changing shell geography", () => {
 		render(<App />);
 		expect(screen.getByTestId("viewer-viewport").getAttribute("data-theme")).toBe("atelier");
-		fireEvent.click(screen.getByRole("button", { name: "MONUMENT" }));
+		fireEvent.change(screen.getByRole("combobox", { name: "Viewport theme" }), {
+			target: { value: "monument" },
+		});
 		expect(screen.getByTestId("viewer-viewport").getAttribute("data-theme")).toBe("monument");
 		expect(screen.getByRole("tab", { name: /STEP 242 Viewer/i })).toBeTruthy();
 	});

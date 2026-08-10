@@ -1,0 +1,44 @@
+{
+  "drawingInfo": {
+    "record": "DrawingInfo",
+    "staticBase": "AsterDrawingDefaults",
+    "derivedWith": ["BearingBlockDrawingInfo", "MachineDrawingInfo"],
+    "company": "Aster Works",
+    "author": "CODEX",
+    "partRevision": "1.0.0",
+    "assemblyRevision": "1.1.0",
+    "date": "2026-08-10",
+    "negativeTests": ["leading-zero semver rejected", "invalid calendar date rejected"]
+  },
+  "assembly": {
+    "source": "Machine",
+    "leafOccurrences": 9,
+    "nestedModules": ["Machine.LeftModule", "Machine.RightModule"],
+    "bom": [
+      { "definition": "AssemblyBlock<Spec: HousingSpec>", "quantity": 3 },
+      { "definition": "AssemblyBlock<Spec: ShaftSpec>", "quantity": 2 },
+      { "definition": "AssemblyBlock<Spec: SpacerSpec>", "quantity": 4 }
+    ]
+  },
+  "hlr": {
+    "visibleSegments": 316,
+    "hiddenSegments": 251,
+    "splitPoints": 207,
+    "policy": "Exact B-rep edge intervals classified against deterministic admitted face tessellation; unsupported patches are conservative and explicit."
+  },
+  "zones": {
+    "scheme": "A-D x 1-6",
+    "visible": "perimeter border, ticks, and labels only",
+    "topBorderMillimetres": 15,
+    "header": "title left anchored; product, revision, and page right anchored",
+    "interiorRectangles": "DrawingIR semantic geometry only",
+    "locatedElements": ["View", "Annotation", "Table", "Note", "InformationBlock"]
+  },
+  "layout": {
+    "assemblyAnnotations": 1,
+    "partAnnotations": 2,
+    "textModelCollisionsAfter": 0,
+    "textTextCollisionsAfter": 0,
+    "failedAnnotations": 0
+  }
+}

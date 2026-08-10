@@ -1,31 +1,25 @@
-# Drawing M0
+# Drawing M0B
 
-Drawing M0 compiles one manually specified machined-part drawing into deterministic DrawingIR, SVG, and a vector A4 PDF.
+Drawing M0B compiles Part or AssemblyIR products into deterministic DrawingIR, SVG/React preview, and native vector A4 PDF.
 
 ```powershell
-aetheris drawing compile fixtures/DrawingM0/bearing-block-drawing.firmament --out-dir docs/drawing/artifacts/m0 --json
+aetheris drawing compile fixtures/DrawingM0B/machine-assembly-drawing.firmament --out-dir docs/drawing/artifacts/m0b --json
 ```
 
-The canonical fixture proves a single lifecycle: one Static Table describes a bearing-block family; the selected product compiles as exact BRep with semantic hole diameter and datum PMI; a normal Drawing Template specializes for that product; two manual views project the BRep; PMI is explicitly assigned to the front view; candidate layout finds collision-free exterior lanes; the table flows to a second A4 page; and the vector PDF retains text and paths.
+The canonical `Machine` fixture contains two occurrences of the reusable `BearingModule` subassembly. Drawing compilation uses AssemblyIR's resolved world transforms and projects each leaf Part body separately. Every projected primitive retains occurrence path, definition identity, and source edge identity; no Boolean flattening is performed.
 
-Supported in M0:
+Supported in M0B:
 
-- ISO A4 portrait or landscape only;
-- multiple A4 pages, with design tables flowing to their own readable page;
-- orthographic and isometric direction vectors;
-- `VisibleOnly` and parsed `VisibleAndHidden` policy metadata;
-- datum, diameter, linear, and existing feature-control PMI presentation;
-- bilateral/asymmetric tolerance formatting from bound PMI;
-- real Static Table data and React `<table>` rendering;
-- deterministic specialization, layout, DrawingIR, SVG, and PDF;
-- typed unknown-PMI, missing-view, failed-Concept, and impossible-layout diagnostics.
+- Part and nested AssemblyIR sources through their real compile paths;
+- flattened leaf-part BOM, aggregated by definition identity and deterministically ordered;
+- orthographic/isometric manual views and manual semantic PMI assignment;
+- `VisibleOnly` or `VisibleAndHidden` edge intervals, with deterministic face-mesh occlusion, transition splitting, and per-view evidence hashes;
+- A4 portrait/landscape pages with stable A-D / 1-6 semantic zones;
+- located views, annotations, notes, tables, BOM, and lower-right information block;
+- typed `DrawingInfo` Static Records, `with` derivation, semantic-version Revision, and ISO `yyyy-MM-dd` Date;
+- Inter text metrics for annotation layout and a searchable embedded Inter Type0 font in PDF;
+- sibling React/SVG and native PDF renderers consuming the same DrawingIR.
 
-Current boundaries:
+The occlusion oracle is bounded by the existing deterministic display tessellator. Exact B-rep edges remain drawing authority, but a face patch the tessellator cannot materialize is reported in `unsupportedFaceSupports` and conservatively does not hide an edge. This is not a claim of complete ISO/ASME HLR. Section/detail/exploded views, automated PMI/view selection, and unbounded table pagination remain future work.
 
-- exact face-occlusion HLR is not implemented; hidden-line policy is recorded but hidden segment classification is not yet complete;
-- AssemblyIR occurrence projection/BOM is not admitted by this first part-only compiler;
-- section/detail views, radius PMI, note-to-feature leaders, GD&T beyond existing Firmament records, and automatic view/PMI selection are not implemented;
-- the React/MachinaLayout preview and native vector PDF backend consume the same DrawingIR, but PDF is not produced by browser-printing the React tree;
-- table overflow currently allocates a dedicated page but does not yet split one very large table across several pages.
-
-These limits are explicit so M0 is not mistaken for a complete ISO/ASME drafting implementation.
+The BOM policy is explicit: include every AssemblyIR leaf `Part`, aggregate equal `DefinitionIdentity` values, and retain every occurrence path as evidence. Part number and revision cells remain `-` when the current AssemblyIR definition has no such metadata.

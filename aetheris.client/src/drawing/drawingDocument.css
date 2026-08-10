@@ -6,6 +6,8 @@
 	padding: 12mm;
 }
 .drawing-page {
+	font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+	position: relative;
 	box-sizing: border-box;
 	display: grid;
 	grid-template-rows: 12mm 1fr 8mm;
@@ -15,9 +17,58 @@
 	background: white;
 	color: #111827;
 	font:
-		3mm / 1.25 Arial,
+		3mm / 1.25 Inter,
+		ui-sans-serif,
+		system-ui,
 		sans-serif;
 	box-shadow: 0 1mm 4mm #33415555;
+}
+
+.drawing-zones {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+}
+.drawing-zones rect {
+	fill: none;
+	stroke: transparent;
+}
+.drawing-zones .zone-border {
+	stroke: #334155;
+	stroke-width: 0.25;
+}
+.drawing-zones line {
+	stroke: #334155;
+	stroke-width: 0.2;
+}
+.drawing-zones text {
+	fill: #475569;
+	font-size: 2.4px;
+	text-anchor: middle;
+}
+.drawing-information-block {
+	position: absolute;
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	margin: 0;
+	border: 0.3mm solid #334155;
+	background: white;
+	z-index: 3;
+}
+.drawing-information-block div {
+	border: 0.1mm solid #94a3b8;
+	padding: 0.6mm;
+}
+.drawing-information-block dt {
+	font-size: 2mm;
+	color: #64748b;
+	text-transform: uppercase;
+}
+.drawing-information-block dd {
+	margin: 0;
+	font-size: 2.6mm;
 }
 .drawing-header {
 	display: flex;
@@ -48,6 +99,11 @@
 .drawing-content {
 	position: relative;
 	min-height: 0;
+}
+.drawing-located-note {
+	position: absolute;
+	margin: 0;
+	font-size: 2.8mm;
 }
 .drawing-content svg {
 	position: absolute;

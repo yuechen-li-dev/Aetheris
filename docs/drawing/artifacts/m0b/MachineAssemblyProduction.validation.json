@@ -1,0 +1,30 @@
+{
+  "success": true,
+  "schema": "aetheris-drawing-m0b",
+  "authoritativeSource": "Machine",
+  "sourceKind": "Assembly",
+  "pageCount": 2,
+  "a4Only": true,
+  "vectorPdf": true,
+  "rasterImages": 0,
+  "embeddedFont": "Inter",
+  "searchableText": true,
+  "occurrenceCount": 9,
+  "bomRows": 3,
+  "visibleSegments": 316,
+  "hiddenSegments": 251,
+  "splitPoints": 207,
+  "textModelCollisionsAfter": 0,
+  "textTextCollisionsAfter": 0,
+  "failedAnnotationCount": 0,
+  "drawingIrSha256": "7814c3da0107b73487c3d4b31ea296e6612eacd47797828ec26af1f573d3f70f",
+  "pdfSha256": "c9e83bce29b6d8b8bfb9e8c69b9642743dccd1ce1174b0f236c8c5a1de79e079",
+  "measuredPerformance": {
+    "sourceCompileMilliseconds": 362.8338,
+    "projectionMilliseconds": 51.2806,
+    "layoutMilliseconds": 7.9835,
+    "renderMilliseconds": 6.8186,
+    "pdfMilliseconds": 18.9786,
+    "bomMilliseconds": 1.3535
+  }
+}

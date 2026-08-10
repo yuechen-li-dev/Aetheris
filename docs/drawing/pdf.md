@@ -1,6 +1,8 @@
 # Vector A4 PDF
 
-Drawing M0 uses a small deterministic PDF 1.4 backend. BRep projections, leaders, borders, and table rules remain PDF paths; metadata, labels, PMI, notes, and table values remain PDF text. No image XObjects or WebGL screenshots are emitted.
+M0B embeds a fixed Inter TrueType resource as a Type0 Identity-H font with `FontFile2` and `ToUnicode`. Output text is searchable, and annotation layout uses the same Inter advance widths. The font resource is internal to the compiler and is not delivered as a separate artifact.
+
+Drawing M0B uses a deterministic native PDF 1.4 backend. BRep projections, hidden intervals, leaders, A4 zone borders/ticks, information-block rules, and table rules remain PDF paths; metadata, labels, PMI, notes, BOM, and table values remain PDF text. No image XObjects, React rasterization, or WebGL screenshots are emitted.
 
 Every page has an explicit `/MediaBox`:
 

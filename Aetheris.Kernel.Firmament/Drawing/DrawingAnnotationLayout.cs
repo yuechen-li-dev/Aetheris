@@ -2,6 +2,7 @@ namespace Aetheris.Kernel.Firmament.Drawing;
 
 internal static class DrawingAnnotationLayout
 {
+    private static readonly Lazy<DrawingInterFont> Inter = new(DrawingInterFont.Load);
     internal sealed record Result(IReadOnlyList<DrawingPageIr> Pages, DrawingLayoutEvidenceIr Evidence, IReadOnlyList<string> Diagnostics);
 
     public static Result Layout(IReadOnlyList<DrawingPageIr> pages, IReadOnlyDictionary<string, FirmamentDrawingCompiler.PmiPresentation> pmi)
@@ -42,7 +43,7 @@ internal static class DrawingAnnotationLayout
                     if (selected is null)
                     {
                         failed++;
-                        diagnostics.Add($"{FirmamentDrawingCompiler.DrawingLayoutImpossible}: '{reference}' in view '{view.Identity}' has no collision-free bounded candidate.");
+                        diagnostics.Add($"{FirmamentDrawingCompiler.DrawingLayoutImpossible}: '{reference}' in view '{view.Identity}', page {page.PageNumber}, zone {view.Location?.Zone ?? "unknown"}, has no collision-free bounded candidate.");
                         continue;
                     }
                     occupied.Add(selected.Body);
@@ -62,7 +63,8 @@ internal static class DrawingAnnotationLayout
     private static IReadOnlyList<DrawingAnnotationCandidateIr> GenerateCandidates(
         DrawingViewIr view, FirmamentDrawingCompiler.PmiPresentation pmi, DrawingPoint2 anchor)
     {
-        var width = Math.Clamp(6 + pmi.Display.Length * 1.7, 18, 52);
+        // The same embedded Inter advance widths drive both layout and native PDF text.
+        var width = Math.Clamp(Inter.Value.MeasureMillimetres(pmi.Display, 3.2) + 3, 18, 58);
         const double height = 6;
         var bounds = view.GeometryBounds;
         var candidates = new List<DrawingAnnotationCandidateIr>();

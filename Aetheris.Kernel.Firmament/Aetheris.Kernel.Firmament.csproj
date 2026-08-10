@@ -12,4 +12,8 @@
     <ProjectReference Include="..\Aetheris.Kernel.StandardLibrary\Aetheris.Kernel.StandardLibrary.csproj" />
     <ProjectReference Include="..\Aetheris.Forge\Aetheris.Forge.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Inter-Regular.ttf" LogicalName="Aetheris.Drawing.Inter.ttf" />
+  </ItemGroup>
 </Project>

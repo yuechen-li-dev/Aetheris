@@ -10,7 +10,7 @@ This is the canonical implementation-grounded reference for Firmament V2 as of A
 
 Firmament is a deterministic, statically evaluated CAD authoring language. Source declarations bind names, units, immutable values, semantic contracts, selections, and construction intent. Compile-time Records, Tables, `with`, Templates, Match, Pattern, and `Require` are erased before feature AIR. Exact geometry lowers through bounded AIR/materializers to BRep and STEP AP242. Tolerance is symbolic engineering intent and does not perturb nominal geometry.
 
-**The 3D semantic model is the product definition. A Drawing is a printable projection of that definition, not a parallel source of engineering truth.** Drawing M0 adds bounded `Concept Drawing`, Drawing-returning `Template`, and `Drawing` specialization declarations. The Drawing compiler follows the Analysis/Assembly split-compiler pattern, binds `Source` to the module's authoritative Product, manually selected `View` directions and semantic PMI names, and lowers to DrawingIR plus A4 vector output. See [Drawing concepts and templates](../drawing/templates.md).
+**The 3D semantic model is the product definition. A Drawing is a printable projection of that definition, not a parallel source of engineering truth.** Drawing M0B binds `Source` to an authoritative Part or AssemblyIR Product, retains occurrence identity, derives BOM directly from leaf Part instances, and lowers manually selected views/PMI to zoned DrawingIR plus A4 vector output. See [Drawing concepts and templates](../drawing/templates.md).
 
 There are two current frontend lanes:
 
@@ -23,7 +23,7 @@ This split is implementation structure, not two languages. `.firmasm` is a Legac
 
 Identifiers start with a letter or underscore and continue with letters, digits, or underscore. Keywords are case-sensitive in canonical syntax. `//` starts a line comment. Blocks use braces. Lists use brackets and comma separators. Member/path access uses `.`. Named fields use `:`. Template application uses `<...>`. `=>` belongs to Match arms, Template `Require`, and selected canonical projections—not general lambda syntax.
 
-Numeric literals are invariant-culture decimal/scientific numbers. Implemented engineering suffixes include `mm` and `deg`; canonical Models declare `Units: mm`. Primitive compile-time types are `Int`, `Float`, `Length`, `Angle`, `String`, and `Bool`; Concept IR additionally carries Point/Vector/Axis/Plane/Box/Region/PointSet values.
+Numeric literals are invariant-culture decimal/scientific numbers. Implemented engineering suffixes include `mm` and `deg`; canonical Models declare `Units: mm`. Primitive compile-time types are `Int`, `Float`, `Length`, `Angle`, `String`, and `Bool`. Static Drawing metadata also admits strict `Version` (`major.minor.patch`) and ISO `Date` (`yyyy-MM-dd`) values. Concept IR additionally carries Point/Vector/Axis/Plane/Box/Region/PointSet values.
 
 ## Models, values, and tolerances
 

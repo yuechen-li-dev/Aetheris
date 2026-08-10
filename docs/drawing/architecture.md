@@ -2,15 +2,15 @@
 
 > **The 3D semantic model is the product definition. A Drawing is a printable projection of that definition, not a parallel source of engineering truth.**
 
-Drawing M0 is a bounded compiler lane over Firmament V2. `Concept Drawing`, `Template ... Drawing`, and `Drawing` specialization declarations are normalized and erased before the remaining module travels through the ordinary exact `FirmamentBuildAndExport` route. The resulting AP242 is reimported as BRep, so the drawing projector consumes the same exact body used by STEP rather than an independently authored outline.
+Drawing M0B is a bounded compiler lane over Firmament V2. Drawing declarations are normalized and erased before the remaining module travels through the ordinary Part or Assembly M1 route. Part drawings reimport canonical AP242 BRep. Assembly drawings consume AssemblyIR plus its world-transformed occurrence BReps, preserving the product tree instead of Boolean-flattening it.
 
 ```text
 Firmament module
   ├─ Drawing language normalization -> concept/template/source/provenance
-  └─ ordinary product compilation -> exact BRep + semantic PMI + Static Tables
+  └─ ordinary product compilation -> exact Part BRep or AssemblyIR occurrences
                                          │
                                          v
-DrawingIR -> projected edge polylines -> bounded PMI candidates -> A4 pages
+DrawingIR -> exact edge intervals + bounded occlusion -> PMI candidates -> zoned A4 pages
           -> React/MachinaLayout preview + SVG
           -> deterministic vector PDF
 ```
@@ -21,7 +21,11 @@ M0 supports literal drawings and ordinary Drawing-returning Templates through th
 
 ## Projection boundary
 
-Projection evaluates exact BRep vertices and analytic circle/ellipse curves, selects a stable view basis, and emits structured 2D polylines. Coincident projections and coplanar internal seams are removed. M0 does **not** implement exact face-occlusion hidden-line removal. `VisibleOnly` therefore means clean boundary/feature edge projection, not a full drafting HLR proof. Three.js is not used by the authoritative path; it remains available for future interactive preview only.
+Projection evaluates exact BRep edge geometry, selects a stable view basis, and splits each segment at occluding triangle boundaries. The existing bounded face tessellator supplies only the depth oracle; exact BRep edge identity remains authoritative. `VisibleOnly` omits classified hidden intervals and `VisibleAndHidden` emits dashed intervals. Each view records candidate, visible, hidden, split, triangle, unsupported-support, and hash evidence.
+
+Assembly projection iterates AssemblyIR leaf Part occurrences. World transforms come from Assembly M1 execution, and each primitive carries occurrence path plus definition identity. The BOM is derived from that same occurrence list, so geometry and quantity evidence cannot silently diverge.
+
+Text layout and PDF both use advance widths from the embedded fixed Inter resource. PDF uses Type0/Identity-H with `FontFile2` and `ToUnicode`; output remains searchable and contains no raster page images.
 
 ## Prior-art audit
 

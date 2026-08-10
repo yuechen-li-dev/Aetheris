@@ -1,0 +1,24 @@
+{
+  "tool": "pypdf and Poppler",
+  "assembly": {
+    "pages": 2,
+    "mediaBoxesPoints": [[841.89, 595.276], [841.89, 595.276]],
+    "imageXObjectsPerPage": [0, 0],
+    "searchableTextCharactersPerPage": [380, 458],
+    "bomTextExtracted": true
+  },
+  "part": {
+    "pages": 2,
+    "mediaBoxesPoints": [[841.89, 595.276], [841.89, 595.276]],
+    "imageXObjectsPerPage": [0, 0],
+    "searchableTextCharactersPerPage": [391, 386],
+    "designTableTextExtracted": true
+  },
+  "font": "Inter",
+  "fontSubtype": "Type0",
+  "fontFile2Embedded": true,
+  "toUnicode": true,
+  "revisionTextExtracted": true,
+  "author": "CODEX",
+  "visualQa": "All four Poppler-rendered A4 pages inspected; content is readable and unclipped, zone indexes clear the title header, identity/revision/page text is right anchored, ISO labels are uppercase, and information blocks/tables do not collide."
+}

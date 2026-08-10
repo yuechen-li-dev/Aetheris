@@ -29,7 +29,9 @@ public sealed class DrawingM0Tests
         Assert.Contains("/Count 2", pdf, StringComparison.Ordinal);
         Assert.Contains("/MediaBox [0 0 841.89 595.276]", pdf, StringComparison.Ordinal);
         Assert.DoesNotContain("/Subtype /Image", pdf, StringComparison.Ordinal);
-        Assert.Contains("Bearing block production drawing", pdf, StringComparison.Ordinal);
+        Assert.Contains("Bearing Block Production Drawing", pdf, StringComparison.Ordinal);
+        Assert.Contains(artifacts.Drawing.Pages.SelectMany(page => page.Views), view => view.Identity == "ISO");
+        Assert.Equal(15, artifacts.Drawing.Pages[0].ZoneScheme!.Zones[0].Bounds.Y);
     }
 
     [Fact]
@@ -67,7 +69,9 @@ public sealed class DrawingM0Tests
     public void ConceptRequire_FailsWhenDrawingDoesNotCommunicateMaterial()
     {
         using var temporary = new TemporaryDirectory();
-        var source = File.ReadAllText(Fixture()).Replace("Material: \"6061-T6 aluminium\"", "", StringComparison.Ordinal);
+        var source = File.ReadAllText(Fixture())
+            .Replace("Material: \"PER PRODUCT\"", "Material: \"\"", StringComparison.Ordinal)
+            .Replace("Material: \"6061-T6 aluminium\"", "Material: \"\"", StringComparison.Ordinal);
         var path = System.IO.Path.Combine(temporary.Path, "missing-material.firmament");
         File.WriteAllText(path, source);
 

@@ -1,0 +1,30 @@
+{
+  "success": true,
+  "schema": "aetheris-drawing-m0b",
+  "authoritativeSource": "BearingBlock",
+  "sourceKind": "Part",
+  "pageCount": 2,
+  "a4Only": true,
+  "vectorPdf": true,
+  "rasterImages": 0,
+  "embeddedFont": "Inter",
+  "searchableText": true,
+  "occurrenceCount": 1,
+  "bomRows": 0,
+  "visibleSegments": 793,
+  "hiddenSegments": 998,
+  "splitPoints": 1509,
+  "textModelCollisionsAfter": 0,
+  "textTextCollisionsAfter": 0,
+  "failedAnnotationCount": 0,
+  "drawingIrSha256": "002ee61873611de95ec2808d040fdac29f097bfc4d7ffdee63a265849193e38e",
+  "pdfSha256": "dce4e2a65e1057ffd7eeab9049d77821114af8d52a85740ee0c1c280f51cc3f0",
+  "measuredPerformance": {
+    "sourceCompileMilliseconds": 220.9878,
+    "projectionMilliseconds": 895.5701,
+    "layoutMilliseconds": 7.1701,
+    "renderMilliseconds": 7.573,
+    "pdfMilliseconds": 15.9316,
+    "bomMilliseconds": 0
+  }
+}

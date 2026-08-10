@@ -1,0 +1,15 @@
+{
+  "runsPerDrawing": 2,
+  "assembly": {
+    "source": "fixtures/DrawingM0B/machine-assembly-drawing.firmament",
+    "drawingIrSha256": "7814c3da0107b73487c3d4b31ea296e6612eacd47797828ec26af1f573d3f70f",
+    "pdfSha256": "c9e83bce29b6d8b8bfb9e8c69b9642743dccd1ce1174b0f236c8c5a1de79e079"
+  },
+  "part": {
+    "source": "fixtures/DrawingM0/bearing-block-drawing.firmament",
+    "drawingIrSha256": "002ee61873611de95ec2808d040fdac29f097bfc4d7ffdee63a265849193e38e",
+    "pdfSha256": "dce4e2a65e1057ffd7eeab9049d77821114af8d52a85740ee0c1c280f51cc3f0"
+  },
+  "drawingIrHashesMatch": true,
+  "pdfHashesMatch": true
+}

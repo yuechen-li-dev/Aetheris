@@ -40,6 +40,10 @@ public sealed record BSplineSurfaceWithKnots
             {
                 throw new ArgumentException("All control net rows must be non-null and have identical V cardinality.", nameof(controlPoints));
             }
+            if (controlPoints[i].Any(point => !double.IsFinite(point.X) || !double.IsFinite(point.Y) || !double.IsFinite(point.Z)))
+            {
+                throw new ArgumentException("Control net points must have finite coordinates.", nameof(controlPoints));
+            }
         }
 
         var fullKnotsU = ExpandKnots(knotMultiplicitiesU, knotValuesU);

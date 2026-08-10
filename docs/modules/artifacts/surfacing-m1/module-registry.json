@@ -1,0 +1,180 @@
+[
+  {
+    "id": "Aetheris.Core",
+    "version": "1.0.0",
+    "dependencies": [],
+    "capabilities": [],
+    "concepts": [],
+    "templates": []
+  },
+  {
+    "id": "Aetheris.Piping",
+    "version": "0.1.0",
+    "dependencies": [
+      {
+        "moduleId": {
+          "value": "Aetheris.Core"
+        },
+        "minimumVersion": {
+          "major": 1,
+          "minor": 0,
+          "patch": 0
+        }
+      }
+    ],
+    "capabilities": [
+      {
+        "id": "Piping.PathPipe",
+        "owningModule": {
+          "value": "Aetheris.Piping"
+        },
+        "sinceVersion": {
+          "major": 0,
+          "minor": 1,
+          "patch": 0
+        },
+        "description": "Circular pipe driven by an engineering centerline."
+      },
+      {
+        "id": "Piping.PipeRoute",
+        "owningModule": {
+          "value": "Aetheris.Piping"
+        },
+        "sinceVersion": {
+          "major": 0,
+          "minor": 1,
+          "patch": 0
+        },
+        "description": "Validated straight/planar-bend pipe route."
+      }
+    ],
+    "concepts": [
+      "Piping.PipeRoute",
+      "Piping.PipeSection"
+    ],
+    "templates": [
+      "Piping.StandardPipeElbow"
+    ]
+  },
+  {
+    "id": "Aetheris.Surfacing",
+    "version": "0.2.0",
+    "dependencies": [
+      {
+        "moduleId": {
+          "value": "Aetheris.Core"
+        },
+        "minimumVersion": {
+          "major": 1,
+          "minor": 0,
+          "patch": 0
+        }
+      }
+    ],
+    "capabilities": [
+      {
+        "id": "Surfacing.RuledSurface",
+        "owningModule": {
+          "value": "Aetheris.Surfacing"
+        },
+        "sinceVersion": {
+          "major": 0,
+          "minor": 2,
+          "patch": 0
+        },
+        "description": "Deterministically corresponded ruled surface between line, arc, circle, or non-rational B-spline boundaries."
+      },
+      {
+        "id": "Surfacing.RuledTransition",
+        "owningModule": {
+          "value": "Aetheris.Surfacing"
+        },
+        "sinceVersion": {
+          "major": 0,
+          "minor": 2,
+          "patch": 0
+        },
+        "description": "Ruled transition preserving section and boundary provenance."
+      },
+      {
+        "id": "Surfacing.ParametricSurface",
+        "owningModule": {
+          "value": "Aetheris.Surfacing"
+        },
+        "sinceVersion": {
+          "major": 0,
+          "minor": 2,
+          "patch": 0
+        },
+        "description": "Unit-aware bounded equation surface with automatic derivatives and normals."
+      },
+      {
+        "id": "Surfacing.SectionSurface",
+        "owningModule": {
+          "value": "Aetheris.Surfacing"
+        },
+        "sinceVersion": {
+          "major": 0,
+          "minor": 2,
+          "patch": 0
+        },
+        "description": "Ordered-section surface with explicit non-rational materialization evidence."
+      },
+      {
+        "id": "Surfacing.BoundaryPatch",
+        "owningModule": {
+          "value": "Aetheris.Surfacing"
+        },
+        "sinceVersion": {
+          "major": 0,
+          "minor": 2,
+          "patch": 0
+        },
+        "description": "Four-boundary G0 patch preserving boundary intent."
+      }
+    ],
+    "concepts": [
+      "Surfacing.RuledPanelConcept",
+      "Surfacing.SurfacePatchConcept"
+    ],
+    "templates": [
+      "Surfacing.RuledCanopy",
+      "Surfacing.HyperbolicParaboloid",
+      "Surfacing.ParabolicCylinder",
+      "Surfacing.EllipticParaboloid",
+      "Surfacing.Helicoid"
+    ]
+  },
+  {
+    "id": "Aetheris.SheetMetal",
+    "version": "0.1.0",
+    "dependencies": [
+      {
+        "moduleId": {
+          "value": "Aetheris.Core"
+        },
+        "minimumVersion": {
+          "major": 1,
+          "minor": 0,
+          "patch": 0
+        }
+      },
+      {
+        "moduleId": {
+          "value": "Aetheris.Surfacing"
+        },
+        "minimumVersion": {
+          "major": 0,
+          "minor": 1,
+          "patch": 0
+        }
+      }
+    ],
+    "capabilities": [],
+    "concepts": [
+      "SheetMetal.NeutralSurface (reserved)",
+      "SheetMetal.FormedState (reserved)"
+    ],
+    "templates": []
+  }
+]

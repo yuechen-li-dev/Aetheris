@@ -15,6 +15,6 @@ public sealed class ModulesCommandTests
     [Fact]
     public void ModulesTextMakesBuiltInNonPluginScopeExplicit()
     {
-        var stdout=new StringWriter();var stderr=new StringWriter();Assert.Equal(0,CliRunner.Run(["modules"],stdout,stderr));Assert.Contains("no dynamic plugins",stdout.ToString());Assert.Contains("Aetheris.Surfacing 0.1.0",stdout.ToString());
+        var stdout=new StringWriter();var stderr=new StringWriter();Assert.Equal(0,CliRunner.Run(["modules"],stdout,stderr));Assert.Contains("no dynamic plugins",stdout.ToString());Assert.Contains("Aetheris.Surfacing 0.2.0",stdout.ToString());
     }
 }

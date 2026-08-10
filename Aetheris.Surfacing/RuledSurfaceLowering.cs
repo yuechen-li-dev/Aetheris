@@ -11,7 +11,11 @@ public sealed record RuledSurfacePatch(
     RuledSurfaceIr Ir,
     SurfaceGeometry ExactSurface,
     Func<double, double, Point3D> Evaluate,
-    IReadOnlyList<BoundaryProvenance> BoundaryProvenance);
+    IReadOnlyList<BoundaryProvenance> BoundaryProvenance,
+    ParametricDomain Domain,
+    DevelopabilityEvidence Developability,
+    SurfaceMaterializationKind MaterializationKind,
+    ApproximationCertificate? ApproximationCertificate);
 
 public sealed record RuledSurfaceLoweringResult(RuledSurfacePatch? Patch, IReadOnlyList<SurfacingDiagnostic> Diagnostics)
 { public bool IsSuccess => Patch is not null && Diagnostics.All(d => !d.Code.EndsWith("invalid", StringComparison.Ordinal)); }
@@ -21,20 +25,24 @@ public static class RuledSurfaceLowering
     public static RuledSurfaceLoweringResult Lower(RuledSurfaceIr ir)
     {
         ArgumentNullException.ThrowIfNull(ir);
+        if (!TryBoundaryEvaluator(ir.BoundaryA, out var evaluateA, out var tangentA, out var diagnosticA)) return Failure("surfacing-boundary-invalid", diagnosticA!);
+        if (!TryBoundaryEvaluator(ir.BoundaryB, out var evaluateB, out var tangentB, out var diagnosticB)) return Failure("surfacing-boundary-invalid", diagnosticB!);
+        Point3D Evaluate(double u,double v)=>Lerp(evaluateA!(u),evaluateB!(u),v);
+        var developability=ClassifyDevelopability(evaluateA!,evaluateB!,tangentA!,tangentB!);
         if (ir.BoundaryA is RuledBoundary.Line a && ir.BoundaryB is RuledBoundary.Line b)
         {
-            if ((a.End - a.Start).Length <= 1e-12 || (b.End - b.Start).Length <= 1e-12)
-                return Failure("surfacing-boundary-invalid", "Ruled line boundaries must have non-zero length.");
             var surface = Bilinear(a.Start, a.End, b.Start, b.End);
-            return Success(ir, SurfaceGeometry.FromBSplineSurfaceWithKnots(surface), (u, v) => Lerp(Lerp(a.Start, a.End, u), Lerp(b.Start, b.End, u), v));
+            return Success(ir, SurfaceGeometry.FromBSplineSurfaceWithKnots(surface), Evaluate,developability,SurfaceMaterializationKind.ExactPolynomialBSpline,null);
         }
-        if (ir.BoundaryA is RuledBoundary.Circle c0 && ir.BoundaryB is RuledBoundary.Circle c1)
+        if (ir.BoundaryA is RuledBoundary.Circle c0 && ir.BoundaryB is RuledBoundary.Circle c1
+            && c0.Normal.ToVector().Cross(c1.Normal.ToVector()).Length <= 1e-10
+            && c0.Normal.ToVector().Cross(c1.Center-c0.Center).Length <= 1e-10
+            && double.Abs((c1.Center-c0.Center).Dot(c0.Normal.ToVector())) > 1e-12
+            && c0.ReferenceAxis.ToVector().Cross(c1.ReferenceAxis.ToVector()).Length <= 1e-10
+            && c0.ReferenceAxis.ToVector().Dot(c1.ReferenceAxis.ToVector()) > 0)
         {
             var axis = c0.Normal.ToVector();
             var separation = c1.Center - c0.Center;
-            if (c0.Radius <= 0 || c1.Radius <= 0 || axis.Cross(c1.Normal.ToVector()).Length > 1e-10
-                || axis.Cross(separation).Length > 1e-10 || double.Abs(separation.Dot(axis)) <= 1e-12)
-                return Failure("surfacing-boundary-incompatible", "M0 circle boundaries must be positive, coaxial, parallel, and separated.");
             SurfaceGeometry exact;
             if (double.Abs(c0.Radius - c1.Radius) <= 1e-12)
                 exact = SurfaceGeometry.FromCylinder(new CylinderSurface(c0.Center, c0.Normal, c0.Radius, c0.ReferenceAxis));
@@ -46,9 +54,11 @@ public static class RuledSurfaceLowering
                 var coneAxis = slope > 0 ? c0.Normal : Direction3D.Create(-axis);
                 exact = SurfaceGeometry.FromCone(new ConeSurface(apex, coneAxis, double.Atan(double.Abs(slope)), c0.ReferenceAxis));
             }
-            return Success(ir, exact, (u, v) => Lerp(c0.Center + CircleOffset(c0, u), c1.Center + CircleOffset(c1, u), v));
+            return Success(ir, exact, Evaluate,developability,SurfaceMaterializationKind.ExactAnalytic,null);
         }
-        return Failure("surfacing-boundary-incompatible", "M0 requires line-line or coaxial circle-circle boundary families.");
+        var approximation=MaterializeRuled(ir.StableId,Evaluate,9);
+        return Success(ir,SurfaceGeometry.FromBSplineSurfaceWithKnots(approximation.Surface),Evaluate,developability,
+            SurfaceMaterializationKind.ApproximatedNonRationalBSpline,approximation.Certificate);
     }
 
     public static RuledSurfaceIr Saddle(string stableId, double halfX, double halfY, double rise)
@@ -62,12 +72,53 @@ public static class RuledSurfaceLowering
 
     internal static BSplineSurfaceWithKnots Bilinear(Point3D a0, Point3D a1, Point3D b0, Point3D b1) =>
         new(1, 1, [[a0, b0], [a1, b1]], "RULED_SURFACE", false, false, false, [2, 2], [2, 2], [0, 1], [0, 1], "UNSPECIFIED");
-    private static Vector3D CircleOffset(RuledBoundary.Circle c, double u) =>
-        c.ReferenceAxis.ToVector() * (c.Radius * double.Cos(u * 2 * double.Pi)) + c.Normal.ToVector().Cross(c.ReferenceAxis.ToVector()) * (c.Radius * double.Sin(u * 2 * double.Pi));
-    private static Point3D Lerp(Point3D a, Point3D b, double t) => a + (b - a) * System.Math.Clamp(t, 0, 1);
-    private static RuledSurfaceLoweringResult Success(RuledSurfaceIr ir, SurfaceGeometry surface, Func<double,double,Point3D> evaluate) =>
-        new(new(ir, surface, evaluate, [ir.ProvenanceA, ir.ProvenanceB]), []);
+    private static Vector3D CircleOffset(RuledBoundary.Circle c, double u) => ArcOffset(c.Normal,c.ReferenceAxis,c.Radius,u*2d*double.Pi);
+    private static Vector3D ArcOffset(Direction3D normal,Direction3D reference,double radius,double angle) =>
+        reference.ToVector()*(radius*double.Cos(angle))+normal.ToVector().Cross(reference.ToVector())*(radius*double.Sin(angle));
+    internal static Point3D Lerp(Point3D a, Point3D b, double t) => a + (b - a) * System.Math.Clamp(t, 0, 1);
+    private static RuledSurfaceLoweringResult Success(RuledSurfaceIr ir, SurfaceGeometry surface, Func<double,double,Point3D> evaluate,
+        DevelopabilityEvidence developability,SurfaceMaterializationKind materialization,ApproximationCertificate? certificate) =>
+        new(new(ir, surface, evaluate, [ir.ProvenanceA, ir.ProvenanceB],new(new(0,1),new(0,1)),developability,materialization,certificate), []);
     private static RuledSurfaceLoweringResult Failure(string code, string message) => new(null, [new(code, message)]);
+
+    internal static bool TryBoundaryEvaluator(RuledBoundary boundary,out Func<double,Point3D>? evaluate,out Func<double,Vector3D>? tangent,out string? diagnostic)
+    {
+        evaluate=null;tangent=null;diagnostic=null;
+        switch(boundary)
+        {
+            case RuledBoundary.Line line when (line.End-line.Start).Length>1e-12:
+                evaluate=u=>Lerp(line.Start,line.End,u);tangent=_=>line.End-line.Start;return true;
+            case RuledBoundary.Arc arc when arc.Radius>0&&double.IsFinite(arc.Radius)&&double.IsFinite(arc.StartAngleRadians)&&double.IsFinite(arc.SweepAngleRadians)&&double.Abs(arc.SweepAngleRadians)>1e-12:
+                evaluate=u=>arc.Center+ArcOffset(arc.Normal,arc.ReferenceAxis,arc.Radius,arc.StartAngleRadians+u*arc.SweepAngleRadians);
+                tangent=u=>arc.Normal.ToVector().Cross(ArcOffset(arc.Normal,arc.ReferenceAxis,arc.Radius,arc.StartAngleRadians+u*arc.SweepAngleRadians))*arc.SweepAngleRadians;return true;
+            case RuledBoundary.Circle circle when circle.Radius>0&&double.IsFinite(circle.Radius):
+                evaluate=u=>circle.Center+CircleOffset(circle,u);tangent=u=>circle.Normal.ToVector().Cross(CircleOffset(circle,u))*(2d*double.Pi);return true;
+            case RuledBoundary.BSpline spline:
+                var span=spline.Curve.DomainEnd-spline.Curve.DomainStart;if(span<=1e-12){diagnostic="B-spline boundary domain must be non-empty.";return false;}
+                evaluate=u=>spline.Curve.Evaluate(spline.Curve.DomainStart+System.Math.Clamp(u,0,1)*span);tangent=u=>spline.Curve.EvaluateTangent(spline.Curve.DomainStart+System.Math.Clamp(u,0,1)*span)*span;return true;
+            default:diagnostic=$"Boundary '{boundary.StableId}' is degenerate or has non-finite parameters.";return false;
+        }
+    }
+
+    private static DevelopabilityEvidence ClassifyDevelopability(Func<double,Point3D> a,Func<double,Point3D> b,Func<double,Vector3D> da,Func<double,Vector3D> db)
+    {
+        var maximum=0d;const int count=17;
+        for(var i=0;i<count;i++){var u=i/(double)(count-1);var derivative=da(u);var ruling=b(u)-a(u);var deltaDerivative=db(u)-derivative;var scale=derivative.Length*ruling.Length*deltaDerivative.Length;var normalized=scale<=1e-15?0d:double.Abs(derivative.Dot(ruling.Cross(deltaDerivative)))/scale;maximum=double.Max(maximum,normalized);}
+        var kind=maximum<=1e-9?DevelopabilityKind.Developable:DevelopabilityKind.NonDevelopable;
+        return new(kind,"normalized scalar triple product C0'(u) · (ruling(u) × ruling'(u))",maximum,count,
+            kind==DevelopabilityKind.Developable?"Sampled rulings satisfy the ruled developability condition.":"Sampled rulings exhibit non-zero distribution parameter; ruled does not imply developable.");
+    }
+
+    private static ParametricMaterialization MaterializeRuled(string id,Func<double,double,Point3D> evaluate,int count)
+    {
+        var controls=new Point3D[count][];for(var i=0;i<count;i++){controls[i]=new Point3D[2];controls[i][0]=evaluate(i/(double)(count-1),0);controls[i][1]=evaluate(i/(double)(count-1),1);}
+        var values=Enumerable.Range(0,count).Select(i=>i/(double)(count-1)).ToArray();var mult=Enumerable.Repeat(1,count).ToArray();mult[0]=2;mult[^1]=2;
+        var spline=new BSplineSurfaceWithKnots(1,1,controls,"RULED_SURFACE",false,false,false,mult,[2,2],values,[0,1],"UNSPECIFIED");var residual=0d;
+        for(var i=0;i<count-1;i++){var u=(i+.5)/(count-1);for(var j=0;j<=4;j++){var v=j/4d;residual=double.Max(residual,(evaluate(u,v)-spline.Evaluate(u,v)).Length);}}
+        if(residual>0.1&&count<129)return MaterializeRuled(id,evaluate,System.Math.Min(129,count*2-1));
+        if(residual>0.1)throw new InvalidOperationException($"Ruled materialization did not meet 0.1 mm within the bounded 129-sample grid; sampled residual was {residual:G6} mm.");
+        return new(spline,new(0.1,residual,null,count,2,"adaptive uniform native-parameter samples; residuals at span midpoints; normal deviation not sampled",id),SurfaceMaterializationKind.ApproximatedNonRationalBSpline);
+    }
 }
 
 /// <summary>Closed exact panel materialization for line-line ruled patches; preserves the ruled support surfaces.</summary>

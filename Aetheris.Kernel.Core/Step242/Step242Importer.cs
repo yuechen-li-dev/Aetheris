@@ -96,7 +96,17 @@ public static class Step242Importer
                 "Importer.AssemblyLike.StepMultiRoot");
         }
 
-        var brepEntity = rigidRootClassification.SingleRigidRoot;
+        return ImportExactBrepCore(document, rigidRootClassification.SingleRigidRoot.Id, includeOrphanPlanarFaces: true);
+    }
+
+    internal static KernelResult<BrepBody> ImportExactBrepCore(Step242ParsedDocument document, int rigidRootEntityId, bool includeOrphanPlanarFaces = false)
+    {
+        var brepResult = document.TryGetEntity(rigidRootEntityId);
+        if (!brepResult.IsSuccess) return KernelResult<BrepBody>.Failure(brepResult.Diagnostics);
+        var brepEntity = brepResult.Value;
+        if (!string.Equals(brepEntity.Name, "MANIFOLD_SOLID_BREP", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(brepEntity.Name, "BREP_WITH_VOIDS", StringComparison.OrdinalIgnoreCase))
+            return Step242ImportSharedUtilities.NotImplementedFailure<BrepBody>($"Entity #{rigidRootEntityId} is not an exact rigid BRep root.", "Importer.Assembly.ProductDefinitionGeometry");
         var shellRoleDiagnostics = new List<KernelDiagnostic>();
         var shellFaceEntityIds = new List<IReadOnlyList<int>>();
 
@@ -141,7 +151,7 @@ public static class Step242Importer
         }
 
         var faceEntityIds = shellFaceEntityIds.SelectMany(ids => ids).ToList();
-        AppendSupportedOrphanPlanarFaces(document, faceEntityIds);
+        if (includeOrphanPlanarFaces) AppendSupportedOrphanPlanarFaces(document, faceEntityIds);
 
         var builder = new TopologyBuilder();
         var geometry = new BrepGeometryStore();

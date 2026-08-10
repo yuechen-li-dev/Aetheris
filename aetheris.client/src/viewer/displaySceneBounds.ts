@@ -134,6 +134,19 @@ export function computeDisplaySceneBounds(displayScene: DisplayScene | null): Sc
 	return finalizeBounds(bounds);
 }
 
+export function sceneBoundsFromExtents(minimum: number[], maximum: number[]): SceneBounds {
+	if (
+		minimum.length !== 3 ||
+		maximum.length !== 3 ||
+		[...minimum, ...maximum].some((value) => !Number.isFinite(value))
+	)
+		return EMPTY_BOUNDS;
+	const bounds = createBounds();
+	includePoint(bounds, minimum[0], minimum[1], minimum[2]);
+	includePoint(bounds, maximum[0], maximum[1], maximum[2]);
+	return finalizeBounds(bounds);
+}
+
 function normalize(vector: Vec3): Vec3 {
 	const length = Math.hypot(vector.x, vector.y, vector.z);
 	if (length <= 1e-9) {

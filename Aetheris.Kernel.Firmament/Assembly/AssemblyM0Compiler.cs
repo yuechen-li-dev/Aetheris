@@ -82,7 +82,7 @@ public sealed class AssemblyM0Compiler
             diagnostics.Add(new("assembly-instance-path-collision", "Assembly contains duplicate deterministic instance paths."));
         return flat.Select(x => new AssemblyInstanceIr(x.id, x.path, x.member.Kind, x.member.DefinitionIdentity, x.parent,
             flat.Where(c => c.parent == x.id).Select(c => c.id).Order(StringComparer.Ordinal).ToArray(), x.semantic,
-            null, null, x.member.Provenance ?? [])).ToArray();
+            x.member.ExplicitTransform, null, x.member.Provenance ?? [], x.member.PlacementAuthority)).ToArray();
     }
 
     private static SemanticValue InstanceScope(AssemblyMemberSource member, AssemblyPath path, string sourceIdentity)
@@ -173,6 +173,23 @@ public sealed class AssemblyM0Compiler
         var known = new Dictionary<string, AssemblyTransform>(StringComparer.Ordinal);
         var overconstrained = new HashSet<string>(StringComparer.Ordinal);
         if (anchor is not null) known[anchor.StableId] = AssemblyTransform.Identity;
+        var explicitPending = instances.Where(instance => instance.LocalTransform is not null).OrderBy(instance => instance.Path.Segments.Count).ToList();
+        var explicitProgress = true;
+        while (explicitProgress && explicitPending.Count > 0)
+        {
+            explicitProgress = false;
+            foreach (var instance in explicitPending.ToArray())
+            {
+                var parent = instance.ParentStableId is null ? null : instances.Single(candidate => candidate.StableId == instance.ParentStableId);
+                AssemblyTransform? parentWorld = null;
+                if (parent is not null && !known.TryGetValue(parent.StableId, out parentWorld)) continue;
+                var local = ToMatrix(instance.LocalTransform!);
+                var world = parent is null ? local : local * ToMatrix(parentWorld!);
+                known[instance.StableId] = FromMatrix(world);
+                explicitPending.Remove(instance);
+                explicitProgress = true;
+            }
+        }
         var progress = true;
         while (progress)
         {
@@ -217,7 +234,9 @@ public sealed class AssemblyM0Compiler
         foreach (var instance in instances)
         {
             if (anchor is not null && instance.StableId == anchor.StableId)
-            { results.Add(new(instance.StableId, PlacementStatus.Anchored, AssemblyTransform.Identity, [], [], [])); continue; }
+            { results.Add(new(instance.StableId, PlacementStatus.Anchored, AssemblyTransform.Identity, [], [], [], instance.PlacementAuthority)); continue; }
+            if (instance.LocalTransform is not null && known.TryGetValue(instance.StableId, out var explicitTransform))
+            { results.Add(new(instance.StableId, PlacementStatus.Resolved, explicitTransform, [], [], [], instance.PlacementAuthority)); continue; }
             var participantIds = Flatten([instance.SemanticRoot]).Select(x => x.StableIdentity).ToHashSet(StringComparer.Ordinal);
             var relevant = constraints.Where(x => participantIds.Contains(x.FirstSemanticValueId) || participantIds.Contains(x.SecondSemanticValueId)).ToArray();
             if (overconstrained.Contains(instance.StableId))
@@ -237,7 +256,7 @@ public sealed class AssemblyM0Compiler
             var status = unadmittedT.Length == 0 && unadmittedR.Length == 0 ? PlacementStatus.Resolved : PlacementStatus.Underconstrained;
             if (status == PlacementStatus.Underconstrained)
                 diagnostics.Add(new(Underconstrained, $"Instance '{instance.Path}' retains translations [{string.Join(",", unadmittedT)}] and rotations [{string.Join(",", unadmittedR)}].", AssemblyDiagnosticSeverity.Warning));
-            results.Add(new(instance.StableId, status, transform, unadmittedT, unadmittedR, relevant.Select(x => x.StableId).ToArray()));
+            results.Add(new(instance.StableId, status, transform, unadmittedT, unadmittedR, relevant.Select(x => x.StableId).ToArray(), PlacementAuthority.MateDerived));
         }
         return results;
     }
@@ -290,6 +309,12 @@ public sealed class AssemblyM0Compiler
         (float)transform.Matrix[4], (float)transform.Matrix[5], (float)transform.Matrix[6], (float)transform.Matrix[7],
         (float)transform.Matrix[8], (float)transform.Matrix[9], (float)transform.Matrix[10], (float)transform.Matrix[11],
         (float)transform.Matrix[12], (float)transform.Matrix[13], (float)transform.Matrix[14], (float)transform.Matrix[15]);
+
+    private static AssemblyTransform FromMatrix(Matrix4x4 matrix) => new([
+        matrix.M11, matrix.M12, matrix.M13, matrix.M14,
+        matrix.M21, matrix.M22, matrix.M23, matrix.M24,
+        matrix.M31, matrix.M32, matrix.M33, matrix.M34,
+        matrix.M41, matrix.M42, matrix.M43, matrix.M44]);
 
     private static IReadOnlyList<DimensionalRelationIr> BindDimensionalRelations(AssemblySource source,
         IReadOnlyList<AssemblyInstanceIr> instances, List<AssemblyDiagnostic> diagnostics)

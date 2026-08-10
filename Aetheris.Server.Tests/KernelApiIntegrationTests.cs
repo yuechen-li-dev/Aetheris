@@ -885,6 +885,63 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         return prepared;
     }
 
+    [Fact]
+    public async Task AssemblyDisplay_HistoricalOcctFirmasm_ReusesDefinitionsAndPublishesProductTree()
+    {
+        var path = Path.Combine(RepositoryRoot(), "testdata", "firmasm", "examples", "occt-as1", "as1-assembly.firmasm");
+        var response = await _client.PostAsJsonAsync("/api/v1/assemblies/display", new AssemblyDisplayRequestDto(path));
+        response.EnsureSuccessStatusCode();
+        var envelope = await response.Content.ReadFromJsonAsync<ApiResponseDto<AssemblyDisplayPacketDto>>();
+        Assert.True(envelope!.Success);
+        Assert.Equal(5, envelope.Data!.Definitions.Count);
+        Assert.Equal(19, envelope.Data.Occurrences.Count);
+        Assert.Equal(18, envelope.Data.Occurrences.Count(occurrence => occurrence.Kind == "Part"));
+        Assert.All(envelope.Data.Occurrences.Where(occurrence => occurrence.Kind == "Part"), occurrence => Assert.Equal("LegacyExplicit", occurrence.PlacementAuthority));
+        Assert.True(envelope.Data.Bounds.Maximum[0] > envelope.Data.Bounds.Minimum[0]);
+    }
+
+    [Fact]
+    public async Task AssemblyDisplay_CurrentOcctPackage_PreservesNestedImportedHierarchy()
+    {
+        var path = Path.Combine(RepositoryRoot(), "docs", "assembly", "artifacts", "m2", "occt-package", "as1.firmasm");
+        var response = await _client.PostAsJsonAsync("/api/v1/assemblies/display", new AssemblyDisplayRequestDto(path));
+        response.EnsureSuccessStatusCode();
+        var envelope = await response.Content.ReadFromJsonAsync<ApiResponseDto<AssemblyDisplayPacketDto>>();
+
+        Assert.True(envelope!.Success);
+        Assert.Equal(5, envelope.Data!.Definitions.Count);
+        Assert.Equal(28, envelope.Data.Occurrences.Count);
+        Assert.Equal(18, envelope.Data.Occurrences.Count(occurrence => occurrence.Kind == "Part"));
+        Assert.Equal(10, envelope.Data.Occurrences.Count(occurrence => occurrence.Kind == "Assembly"));
+        Assert.Equal(27, envelope.Data.Occurrences.Count(occurrence => occurrence.PlacementAuthority == "ImportedOccurrence"));
+        Assert.Empty(envelope.Data.Mates);
+        Assert.Equal(-10, envelope.Data.Bounds.Minimum[0], 8);
+        Assert.Equal(190, envelope.Data.Bounds.Maximum[0], 8);
+    }
+
+    [Fact]
+    public async Task AssemblyDisplay_NativeTemplateAssembly_PublishesMateAndToleranceEvidence()
+    {
+        var path = Path.Combine(RepositoryRoot(), "fixtures", "AssemblyM1", "template-block-pair.firmament");
+        var response = await _client.PostAsJsonAsync("/api/v1/assemblies/display", new AssemblyDisplayRequestDto(path));
+        response.EnsureSuccessStatusCode();
+        var envelope = await response.Content.ReadFromJsonAsync<ApiResponseDto<AssemblyDisplayPacketDto>>();
+
+        Assert.True(envelope!.Success);
+        Assert.Equal(2, envelope.Data!.Definitions.Count);
+        Assert.Equal(3, envelope.Data.Occurrences.Count);
+        Assert.Equal("valid", Assert.Single(envelope.Data.Mates).ValidationStatus);
+        Assert.True(Assert.Single(envelope.Data.ToleranceStackups).Passed);
+        Assert.All(envelope.Data.Occurrences, occurrence => Assert.Equal("MateDerived", occurrence.PlacementAuthority));
+    }
+
+    private static string RepositoryRoot()
+    {
+        var current = new DirectoryInfo(AppContext.BaseDirectory);
+        while (current is not null && !File.Exists(Path.Combine(current.FullName, "Aetheris.slnx"))) current = current.Parent;
+        return current?.FullName ?? throw new DirectoryNotFoundException();
+    }
+
     [Theory]
     [InlineData("semantic-shaft-hole", "hole:base.mount")]
     [InlineData("construction-plane-through-hole", "hole:Base.SideMount")]

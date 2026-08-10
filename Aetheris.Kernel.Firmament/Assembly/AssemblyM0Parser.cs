@@ -76,6 +76,8 @@ public sealed class AssemblyM0Parser
         public List<MutableNode> Children { get; } = [];
         public List<SemanticValue> Semantics { get; } = [];
         public MutableNode? Parent { get; set; }
+        public AssemblyTransform? ExplicitTransform { get; set; }
+        public PlacementAuthority PlacementAuthority { get; set; } = PlacementAuthority.MateDerived;
     }
 
     private static AssemblyMemberSource? ParseTree(string body, string sourceIdentity, List<AssemblyDiagnostic> diagnostics)
@@ -109,17 +111,33 @@ public sealed class AssemblyM0Parser
                 if (stack.Count == 0 || stack.Peek().node.Kind.ToString() != kind)
                 { diagnostics.Add(new("assembly-tree-unbalanced", $"Unexpected closing tag '{tag.Value}'.")); continue; }
                 var open = stack.Pop();
+                var nodeBody = body[open.bodyStart..tag.Index];
                 if (open.node.Kind == AssemblyInstanceKind.Part)
                 {
-                    var partBody = body[open.bodyStart..tag.Index];
-                    open.node.Semantics.AddRange(ParseSemantics(partBody, open.node.Definition, sourceIdentity, diagnostics));
+                    open.node.Semantics.AddRange(ParseSemantics(nodeBody, open.node.Definition, sourceIdentity, diagnostics));
+                }
+                var nestedTag = nodeBody.IndexOf('<');
+                var placementBody = open.node.Kind == AssemblyInstanceKind.Assembly && nestedTag >= 0 ? nodeBody[..nestedTag] : nodeBody;
+                var placement = Regex.Match(placementBody, @"\bPlacement\s+(?<authority>ImportedOccurrence|LegacyExplicit)\s*=\s*\[(?<matrix>[^]]+)\]\s*;", RegexOptions.CultureInvariant);
+                if (placement.Success)
+                {
+                    var matrix = placement.Groups["matrix"].Value.Split(',', StringSplitOptions.TrimEntries)
+                        .Select(value => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) ? number : double.NaN).ToArray();
+                    if (matrix.Length != 16 || matrix.Any(value => !double.IsFinite(value)))
+                        diagnostics.Add(new("assembly-placement-invalid-transform", $"Instance '{open.node.Name}' placement must contain 16 finite row-major matrix values."));
+                    else
+                    {
+                        open.node.ExplicitTransform = new(matrix);
+                        open.node.PlacementAuthority = Enum.Parse<PlacementAuthority>(placement.Groups["authority"].Value);
+                    }
                 }
             }
         }
         if (stack.Count > 0) diagnostics.Add(new("assembly-tree-unbalanced", $"Missing closing tag for '{stack.Peek().node.Name}'."));
         if (root is null) diagnostics.Add(new("assembly-tree-missing", "Assembly body requires a nested <Assembly Name> product tree."));
         AssemblyMemberSource Freeze(MutableNode node) => new(node.Name, node.Kind, node.Definition,
-            node.Children.Select(Freeze).ToArray(), node.Semantics, [], [new("assembly-source", node.Name, node.Definition, SemanticSourceSpan.Generated(sourceIdentity))]);
+            node.Children.Select(Freeze).ToArray(), node.Semantics, [], [new("assembly-source", node.Name, node.Definition, SemanticSourceSpan.Generated(sourceIdentity))],
+            node.ExplicitTransform, node.PlacementAuthority);
         return root is null ? null : Freeze(root);
     }
 

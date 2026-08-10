@@ -21,6 +21,10 @@ public static class KernelEndpoints
     {
         MapDocumentRoutes(app.MapGroup("/api/v1/documents"));
         MapDocumentRoutes(app.MapGroup("/api/documents"));
+        app.MapPost("/api/v1/assemblies/display", (AssemblyDisplayRequestDto request) =>
+            AssemblyDisplayService.TryBuild(request.Path, out var packet, out var error)
+                ? ApiMappings.Ok(packet!)
+                : ApiMappings.BadRequestFromMessage(error, "assemblies.display"));
     }
 
     private static void MapDocumentRoutes(RouteGroupBuilder documents)

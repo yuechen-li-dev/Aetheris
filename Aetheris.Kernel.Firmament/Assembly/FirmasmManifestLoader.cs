@@ -61,7 +61,7 @@ public sealed class FirmasmManifestLoader
                 Manifest: parseResult.Value,
                 LoadedParts: loadPartsResult.Value),
             [new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Warning,
-                "legacy-firmasm-deprecation: .firmasm is a transform-first compatibility format; migrate to typed Firmament Assembly/Interface/Mate source.", Source: "firmasm")]);
+                "legacy-firmasm-syntax: JSON-shaped .firmasm syntax is deprecated; the .firmasm extension remains the supported Firmament V2 Assembly document profile.", Source: "firmasm")]);
     }
 
     public KernelResult<FirmasmManifest> Parse(string sourceText)

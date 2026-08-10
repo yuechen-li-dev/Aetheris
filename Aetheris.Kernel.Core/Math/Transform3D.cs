@@ -121,5 +121,7 @@ public readonly struct Transform3D
             && double.Abs(x.Dot(y))<=tolerance && double.Abs(x.Dot(z))<=tolerance && double.Abs(y.Dot(z))<=tolerance;
     }
 
-    private double[] ToArray() => [_m11,_m12,_m13,_m14, _m21,_m22,_m23,_m24, _m31,_m32,_m33,_m34, _m41,_m42,_m43,_m44];
+    public double[] ToRowMajor() => [_m11,_m12,_m13,_m14, _m21,_m22,_m23,_m24, _m31,_m32,_m33,_m34, _m41,_m42,_m43,_m44];
+
+    private double[] ToArray() => ToRowMajor();
 }

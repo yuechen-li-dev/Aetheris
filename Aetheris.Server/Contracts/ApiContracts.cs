@@ -215,6 +215,14 @@ public sealed record DisplayDiagnosticDto(
     string? Phase,
     string? SuggestedNextAction);
 
+public sealed record AssemblyDisplayRequestDto(string Path);
+public sealed record AssemblyDisplayDefinitionDto(string StableId, string DefinitionIdentity, IReadOnlyList<FacePatchDto> FacePatches);
+public sealed record AssemblyDisplayOccurrenceDto(string StableId, string Name, string InstancePath, string? ParentStableId, string? DefinitionStableId, string Kind, IReadOnlyList<double> WorldTransform, string PlacementAuthority);
+public sealed record AssemblyDisplayMateDto(string StableId, string Name, string InterfaceStableId, IReadOnlyList<string> Participants, IReadOnlyList<string> ConstraintIds, string ValidationStatus);
+public sealed record AssemblyDisplayToleranceDto(string Name, bool Passed, double Nominal, double Minimum, double Maximum, string Unit, IReadOnlyList<string> Contributors);
+public sealed record AssemblyDisplayBoundsDto(IReadOnlyList<double> Minimum, IReadOnlyList<double> Maximum);
+public sealed record AssemblyDisplayPacketDto(string Schema, string Name, string RootOccurrenceStableId, IReadOnlyList<AssemblyDisplayDefinitionDto> Definitions, IReadOnlyList<AssemblyDisplayOccurrenceDto> Occurrences, IReadOnlyList<AssemblyDisplayMateDto> Mates, IReadOnlyList<AssemblyDisplayToleranceDto> ToleranceStackups, AssemblyDisplayBoundsDto Bounds, IReadOnlyList<DisplayDiagnosticDto> Diagnostics, IReadOnlyDictionary<string, double> Performance);
+
 public sealed record PickOptionsDto(bool? NearestOnly, bool? IncludeBackfaces, double? EdgeTolerance, double? SortTieTolerance, double? MaxDistance);
 
 public sealed record PickRequestDto(Point3Dto Origin, Vector3Dto Direction, TessellationOptionsDto? TessellationOptions, PickOptionsDto? PickOptions);

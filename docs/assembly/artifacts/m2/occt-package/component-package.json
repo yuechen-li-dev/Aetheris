@@ -1,0 +1,35 @@
+{
+  "schema": "aetheris/firmasm-component-package/m2",
+  "sourceStep": "as1.step",
+  "firmasm": "as1.firmasm",
+  "normalization": "explicit-ap242-occurrence-hierarchy",
+  "definitionCount": 5,
+  "occurrenceCount": 27,
+  "components": [
+    {
+      "DefinitionStableId": "bolt",
+      "RelativePath": "components/0001-bolt.step",
+      "Sha256": "11F8B8A6C306877EF17134E7726A7186569516695DCA123B95B4F988D2541EC3"
+    },
+    {
+      "DefinitionStableId": "l-bracket",
+      "RelativePath": "components/0002-l_bracket.step",
+      "Sha256": "EEE967883E1804AB21FB0F6954E5076082C86C9C5BA8B4A7646117F83C158BD2"
+    },
+    {
+      "DefinitionStableId": "nut",
+      "RelativePath": "components/0003-nut.step",
+      "Sha256": "6C0600EE4656DA527A55F61159F2444C59208EA4A7CCBC7176720159662BDBC4"
+    },
+    {
+      "DefinitionStableId": "plate",
+      "RelativePath": "components/0004-plate.step",
+      "Sha256": "1F363B5944AEF9DDC2842DB2D0FFB5018EDD913A7192A20DF60CA21DABA597CA"
+    },
+    {
+      "DefinitionStableId": "rod",
+      "RelativePath": "components/0005-rod.step",
+      "Sha256": "3036F0A51BC37A8E7885AD036F4736C7F40DE60F936793A2C9BCF3B9D1CC1E1E"
+    }
+  ]
+}

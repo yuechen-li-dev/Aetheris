@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Brep.Verification;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
@@ -40,6 +41,30 @@ internal static class AssemblyDefinitionMaterializer
 {
     public static MaterializedAssemblyDefinition? TryMaterialize(string definitionIdentity, string? definitionSource, string sourceIdentity, List<AssemblyDiagnostic> diagnostics)
     {
+        var externalStep = System.Text.RegularExpressions.Regex.Match(definitionIdentity, "^ExternalStep<\\\"(?<path>[^\\\"]+)\\\">$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        if (externalStep.Success)
+        {
+            var baseDirectory = Path.GetDirectoryName(Path.GetFullPath(sourceIdentity)) ?? Directory.GetCurrentDirectory();
+            var resolvedPath = Path.GetFullPath(Path.Combine(baseDirectory, externalStep.Groups["path"].Value.Replace('/', Path.DirectorySeparatorChar)));
+            if (!File.Exists(resolvedPath))
+            {
+                diagnostics.Add(new("assembly-profile-unresolved-resource", $"External STEP resource '{externalStep.Groups["path"].Value}' was not found at '{resolvedPath}'."));
+                return null;
+            }
+            var stepText = File.ReadAllText(resolvedPath);
+            var externalImport = Step242Importer.ImportBody(stepText);
+            if (!externalImport.IsSuccess || externalImport.Value is null)
+            {
+                foreach (var diagnostic in externalImport.Diagnostics)
+                    diagnostics.Add(new("assembly-definition-reimport-failed", $"External STEP definition '{definitionIdentity}' failed import: {diagnostic.Message}"));
+                return null;
+            }
+            var externalHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(stepText)));
+            var externalStableId = "assembly-definition:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(definitionIdentity)))[..16];
+            var externalProvenance = new[] { new SemanticProvenance("imported-step-definition", resolvedPath, externalHash, SemanticSourceSpan.Generated(sourceIdentity)) };
+            return new(definitionIdentity, "external-step:" + externalHash[..16], externalImport.Value, [],
+                new(externalStableId, definitionIdentity, "external-step:" + externalHash[..16], externalHash, Metrics(externalImport.Value), externalProvenance));
+        }
         if (string.IsNullOrWhiteSpace(definitionSource) || !definitionIdentity.Contains('<', StringComparison.Ordinal)) return null;
         // Assembly files keep reusable declarations beside relational assembly syntax.
         // Wrap that declaration catalog in the ordinary V2 Model root for the exact
@@ -199,12 +224,30 @@ public sealed class AssemblyM1Pipeline
             : constraint).ToArray();
         foreach (var residual in residuals.Where(item => !item.Passed))
             diagnostics.Add(new("assembly-mate-geometry-residual", $"Constraint '{residual.ConstraintStableId}' residual position={residual.PositionResidualMm:G6}mm angle={residual.AngularResidualRadians:G6}rad."));
+        ValidateSolidInterference(ir, instances, diagnostics);
         validatedIr = ir with { Schema = "aetheris/assembly-ir/m1", PlacementConstraints = constraints, Diagnostics = diagnostics };
         var definitionsIr = definitions.Values.Select(definition => definition.Artifact).OrderBy(definition => definition.StableId, StringComparer.Ordinal).ToArray();
         var canonical = JsonSerializer.Serialize(new { definitions = definitionsIr, instances = instanceArtifacts, residuals });
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
         var artifact = new AssemblyGeometryArtifactIr("aetheris/assembly-geometry/m1", definitionsIr, instanceArtifacts, residuals, hash);
         return new(artifact, definitions.ToDictionary(pair => pair.Key, pair => pair.Value.Body, StringComparer.Ordinal), instances);
+    }
+
+    private static void ValidateSolidInterference(AssemblyIr ir, IReadOnlyDictionary<string, BrepBody> instances, List<AssemblyDiagnostic> diagnostics)
+    {
+        var ordered = instances.OrderBy(pair => pair.Key, StringComparer.Ordinal).ToArray();
+        var paths = ir.Instances.ToDictionary(instance => instance.StableId, instance => instance.Path.ToString(), StringComparer.Ordinal);
+        for (var left = 0; left < ordered.Length - 1; left++)
+        for (var right = left + 1; right < ordered.Length; right++)
+        {
+            var result = BrepSolidInterference.Analyze(ordered[left].Value, ordered[right].Value);
+            if (result.Status != BrepSolidInterferenceStatus.Interfering) continue;
+            diagnostics.Add(new(
+                "assembly-solid-volume-interference",
+                $"Part occurrences '{paths[ordered[left].Key]}' and '{paths[ordered[right].Key]}' occupy overlapping solid volume. "
+                + $"The assembly is physically invalid and cannot be materialized (proof={result.Evidence}; penetration witness={result.PenetrationWitnessMm:G6}mm; "
+                + $"contained tetrahedron={result.WitnessTetrahedronVolumeMm3:G6}mm^3). Face/edge contact is allowed, but positive-volume overlap is not."));
+        }
     }
 }
 

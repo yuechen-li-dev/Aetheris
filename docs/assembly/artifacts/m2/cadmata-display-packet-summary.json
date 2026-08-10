@@ -1,0 +1,25 @@
+{
+  "schema": "aetheris/cadmata-assembly-display/m2",
+  "name": "ImportedAssembly",
+  "rootOccurrenceStableId": "assembly-instance:ImportedAssembly",
+  "definitionCount": 5,
+  "occurrenceCount": 28,
+  "partOccurrenceCount": 18,
+  "assemblyOccurrenceCount": 10,
+  "mateCount": 0,
+  "toleranceStackupCount": 0,
+  "bounds": {
+    "minimum": [-10.000000000000002, 0, -4],
+    "maximum": [190, 150, 80.00000000000003]
+  },
+  "placementAuthorities": [
+    {"authority": "ImportedOccurrence", "count": 27},
+    {"authority": "MateDerived", "count": 1}
+  ],
+  "performance": {
+    "packetMilliseconds": 208.9486,
+    "definitionCount": 5,
+    "occurrenceCount": 28
+  },
+  "note": "The MateDerived occurrence is the unplaced root identity; all 27 foreign child occurrences retain ImportedOccurrence authority. The full mesh packet is intentionally not checked in because it is about 10.4 MB."
+}

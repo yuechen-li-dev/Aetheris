@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	type CSSProperties,
+	type ReactNode,
+} from "react";
 import { useDeusMachine } from "machinalayout/react";
 import { machinaRegion } from "./application/shellLayout";
 import "./App.css";
@@ -14,12 +22,14 @@ import {
 	loadCadmataFixture,
 	pickBody,
 	prepareBodyDisplay,
+	prepareAssemblyDisplay,
 	translateBody,
 	type BooleanOperation,
 	type BodyOccurrenceSummaryDto,
 	type DiagnosticDto,
 	type PickHitDto,
 	type DisplayPreparationResponseDto,
+	type AssemblyDisplayPacketDto,
 } from "./api/aetherisApi";
 import { StepImportDropzone } from "./components/StepImportDropzone";
 import { PropertyTable, type PropertyRecord } from "./components/PropertyTable";
@@ -54,6 +64,45 @@ interface DisplayStatusSummary {
 	summary: string;
 	wireOnlyFaceCount: number;
 	diagnosticOnlyFaceCount: number;
+}
+
+function AssemblyProductTree({
+	packet,
+	selectedId,
+	onSelect,
+}: {
+	packet: AssemblyDisplayPacketDto;
+	selectedId: string | null;
+	onSelect: (stableId: string) => void;
+}) {
+	const children = new Map<string, typeof packet.occurrences>();
+	for (const occurrence of packet.occurrences) {
+		const key = occurrence.parentStableId ?? "";
+		children.set(key, [...(children.get(key) ?? []), occurrence]);
+	}
+	const render = (parent: string, depth: number): ReactNode =>
+		(children.get(parent) ?? []).map((occurrence) => (
+			<div key={occurrence.stableId}>
+				<button
+					type="button"
+					className={
+						selectedId === occurrence.stableId
+							? "semantic-tree__item active-row"
+							: "semantic-tree__item"
+					}
+					style={{ paddingLeft: `${depth * 14 + 6}px` }}
+					onClick={() => onSelect(occurrence.stableId)}
+				>
+					{occurrence.kind === "Assembly" ? "▾" : "◇"} {occurrence.name}
+				</button>
+				{render(occurrence.stableId, depth + 1)}
+			</div>
+		));
+	return (
+		<div className="semantic-tree" aria-label="Assembly product tree">
+			{render("", 0)}
+		</div>
+	);
 }
 
 interface RefreshDisplayResult {
@@ -128,6 +177,10 @@ function App() {
 	const [activeBodyId, setActiveBodyId] = useState<string | null>(null);
 	const [displayPreparation, setDisplayPreparation] =
 		useState<DisplayPreparationResponseDto | null>(null);
+	const [assemblyPacket, setAssemblyPacket] = useState<AssemblyDisplayPacketDto | null>(null);
+	const [selectedAssemblyOccurrenceId, setSelectedAssemblyOccurrenceId] = useState<string | null>(
+		null,
+	);
 	const [status, setStatus] = useState<RequestStatus>("idle");
 	const [statusMessage, setStatusMessage] = useState<string>("Ready. Create a document to begin.");
 	const [serverStatus, setServerStatus] = useState<ServerStatus>("connecting");
@@ -574,7 +627,18 @@ function App() {
 			try {
 				const startupStep = await claimStartupStep();
 				if (startupStep) {
-					await importStepText(startupStep.stepText, startupStep.fileName, "startup-file");
+					if (startupStep.kind === "assembly") {
+						const packet = await prepareAssemblyDisplay(startupStep.path);
+						setAssemblyPacket(packet);
+						setSelectedAssemblyOccurrenceId(packet.rootOccurrenceStableId);
+						setDisplayPreparation(null);
+						setStatus("success");
+						setStatusMessage(`Assembly loaded: ${packet.name}`);
+						setImportStatus("success");
+						setImportStatusMessage(
+							`Assembly ready: ${packet.occurrences.length - 1} occurrences, ${packet.definitions.length} definitions.`,
+						);
+					} else await importStepText(startupStep.stepText, startupStep.fileName, "startup-file");
 				}
 			} catch (error) {
 				const message =
@@ -1005,6 +1069,9 @@ function App() {
 							selectedCadmataIds={cadmataSelection?.entityIds}
 							onCadmataSelect={setSelectedCadmataId}
 							showPmi={isPmiVisible}
+							assemblyPacket={assemblyPacket}
+							selectedAssemblyOccurrenceId={selectedAssemblyOccurrenceId}
+							onAssemblyOccurrenceSelect={setSelectedAssemblyOccurrenceId}
 						/>
 					</div>
 				</section>
@@ -1014,6 +1081,63 @@ function App() {
 						<>
 							<section className="tool-section cadmata-inspector">
 								<h2 className="section-title">Semantic inspector</h2>
+								{assemblyPacket ? (
+									<>
+										<h3>Product tree</h3>
+										<AssemblyProductTree
+											packet={assemblyPacket}
+											selectedId={selectedAssemblyOccurrenceId}
+											onSelect={setSelectedAssemblyOccurrenceId}
+										/>
+										{selectedAssemblyOccurrenceId
+											? (() => {
+													const occurrence = assemblyPacket.occurrences.find(
+														(item) => item.stableId === selectedAssemblyOccurrenceId,
+													);
+													return occurrence ? (
+														<p className="semantic-provenance">
+															<strong>{occurrence.instancePath}</strong>
+															<br />
+															Placement:{" "}
+															{occurrence.placementAuthority === "MateDerived"
+																? "Derived from Mate(s)"
+																: occurrence.placementAuthority === "ImportedOccurrence"
+																	? "Imported occurrence"
+																	: "Legacy explicit transform"}
+														</p>
+													) : null;
+												})()
+											: null}
+										<h3>Mate / Interface relationships</h3>
+										{assemblyPacket.mates.length ? (
+											assemblyPacket.mates.map((mate) => (
+												<p key={mate.stableId}>
+													<strong>{mate.name}</strong> · {mate.interfaceStableId}
+													<br />
+													{mate.participants.join(" · ")}
+													<br />
+													Residual state: {mate.validationStatus}
+												</p>
+											))
+										) : (
+											<p>No semantic Mates were inferred from occurrence transforms.</p>
+										)}
+										{assemblyPacket.toleranceStackups.length ? (
+											<>
+												<h3>Tolerance stackups</h3>
+												{assemblyPacket.toleranceStackups.map((stack) => (
+													<p key={stack.name}>
+														<strong>
+															{stack.name}: {stack.passed ? "PASS" : "FAIL"}
+														</strong>
+														<br />
+														{stack.nominal} {stack.unit} [{stack.minimum}, {stack.maximum}]
+													</p>
+												))}
+											</>
+										) : null}
+									</>
+								) : null}
 								<div className="stack-row">
 									{[
 										"direct-profile",

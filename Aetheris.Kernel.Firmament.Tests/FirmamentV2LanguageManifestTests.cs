@@ -14,7 +14,7 @@ public sealed class FirmamentV2LanguageManifestTests
         Assert.True(features.Length >= 30);
         var admitted = new HashSet<string>(StringComparer.Ordinal)
         {
-            "Supported", "Experimental", "Internal-only", "Legacy", "Deprecated", "Parser-only / dead", "Future / incomplete"
+            "Supported", "Bounded", "Experimental", "Internal-only", "Legacy", "Deprecated", "Parser-only / dead", "Future / incomplete"
         };
         Assert.All(features, feature => Assert.Contains(feature.GetProperty("status").GetString()!, admitted));
         Assert.Equal(features.Length, features.Select(feature => feature.GetProperty("name").GetString()).Distinct(StringComparer.Ordinal).Count());

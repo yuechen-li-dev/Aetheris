@@ -14,6 +14,7 @@ const apiMocks = vi.hoisted(() => ({
 	importStep: vi.fn(),
 	pickBody: vi.fn(),
 	prepareBodyDisplay: vi.fn(),
+	prepareAssemblyDisplay: vi.fn(),
 	tessellateBody: vi.fn(),
 	translateBody: vi.fn(),
 }));
@@ -32,6 +33,7 @@ vi.mock("../api/aetherisApi", async () => {
 		importStep: apiMocks.importStep,
 		pickBody: apiMocks.pickBody,
 		prepareBodyDisplay: apiMocks.prepareBodyDisplay,
+		prepareAssemblyDisplay: apiMocks.prepareAssemblyDisplay,
 		tessellateBody: apiMocks.tessellateBody,
 		translateBody: apiMocks.translateBody,
 	};
@@ -157,6 +159,54 @@ describe("App STEP file upload flow", () => {
 		);
 		expect(apiMocks.importStep).toHaveBeenCalledWith("doc-1", "ISO-10303-21;", "startup.step");
 		expect(apiMocks.claimStartupStep).toHaveBeenCalledTimes(1);
+	});
+
+	it("loads a startup Firmament assembly into the product tree without treating transforms as Mates", async () => {
+		apiMocks.claimStartupStep.mockResolvedValue({
+			path: "C:\\Models\\assembly.firmasm",
+			fileName: "assembly.firmasm",
+			stepText: "Assembly A {}",
+			kind: "assembly",
+		});
+		apiMocks.prepareAssemblyDisplay.mockResolvedValue({
+			schema: "aetheris/cadmata-assembly-display/m2",
+			name: "A",
+			rootOccurrenceStableId: "root",
+			definitions: [],
+			occurrences: [
+				{
+					stableId: "root",
+					name: "A",
+					instancePath: "A",
+					parentStableId: null,
+					definitionStableId: null,
+					kind: "Assembly",
+					worldTransform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+					placementAuthority: "MateDerived",
+				},
+				{
+					stableId: "part",
+					name: "ImportedPart",
+					instancePath: "A.ImportedPart",
+					parentStableId: "root",
+					definitionStableId: "def",
+					kind: "Part",
+					worldTransform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 10, 0, 0, 1],
+					placementAuthority: "ImportedOccurrence",
+				},
+			],
+			mates: [],
+			toleranceStackups: [],
+			bounds: { minimum: [0, 0, 0], maximum: [11, 1, 1] },
+			diagnostics: [],
+			performance: { occurrenceCount: 2 },
+		});
+		render(<App />);
+		expect(await screen.findByText(/ImportedPart/)).toBeTruthy();
+		expect(
+			screen.getByText("No semantic Mates were inferred from occurrence transforms."),
+		).toBeTruthy();
+		expect(apiMocks.importStep).not.toHaveBeenCalled();
 	});
 
 	it("shows a readable startup STEP load failure", async () => {

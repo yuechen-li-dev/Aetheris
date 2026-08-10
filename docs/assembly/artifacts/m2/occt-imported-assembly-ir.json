@@ -1,0 +1,4662 @@
+{
+  "success": true,
+  "assemblyIr": {
+    "schema": "aetheris/assembly-ir/m1",
+    "stableId": "assembly:ImportedAssembly",
+    "name": "ImportedAssembly",
+    "rootInstanceStableId": "assembly-instance:ImportedAssembly",
+    "instances": [
+      {
+        "stableId": "assembly-instance:ImportedAssembly",
+        "path": {
+          "segments": [
+            "ImportedAssembly"
+          ]
+        },
+        "kind": "Assembly",
+        "definitionIdentity": "ImportedAssembly",
+        "parentStableId": null,
+        "childrenStableIds": [
+          "assembly-instance:ImportedAssembly._16",
+          "assembly-instance:ImportedAssembly._27",
+          "assembly-instance:ImportedAssembly._28",
+          "assembly-instance:ImportedAssembly._39"
+        ],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:ImportedAssembly",
+          "type": {
+            "name": "Assembly",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "ImportedAssembly",
+              "evidence": "ImportedAssembly",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": null,
+        "resolvedTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "ImportedAssembly",
+            "evidence": "ImportedAssembly",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ],
+        "placementAuthority": "MateDerived"
+      },
+      {
+        "stableId": "assembly-instance:ImportedAssembly._16",
+        "path": {
+          "segments": [
+            "ImportedAssembly",
+            "_16"
+          ]
+        },
+        "kind": "Assembly",
+        "definitionIdentity": "_16",
+        "parentStableId": "assembly-instance:ImportedAssembly",
+        "childrenStableIds": [
+          "assembly-instance:ImportedAssembly._16._13",
+          "assembly-instance:ImportedAssembly._16._14",
+          "assembly-instance:ImportedAssembly._16._15"
+        ],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:ImportedAssembly._16",
+          "type": {
+            "name": "Assembly",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "ImportedAssembly._16",
+              "evidence": "_16",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": {
+          "matrix": [
+            2.22044604925E-16,
+            0,
+            -1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            -0,
+            2.22044604925E-16,
+            0,
+            -10,
+            75,
+            60,
+            1
+          ]
+        },
+        "resolvedTransform": {
+          "matrix": [
+            2.220446049250313E-16,
+            0,
+            -1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            2.220446049250313E-16,
+            0,
+            -10,
+            75,
+            60,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "_16",
+            "evidence": "_16",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ],
+        "placementAuthority": "ImportedOccurrence"
+      },
+      {
+        "stableId": "assembly-instance:ImportedAssembly._27",
+        "path": {
+          "segments": [
+            "ImportedAssembly",
+            "_27"
+          ]
+        },
+        "kind": "Assembly",
+        "definitionIdentity": "_27",
+        "parentStableId": "assembly-instance:ImportedAssembly",
+        "childrenStableIds": [
+          "assembly-instance:ImportedAssembly._27._19",
+          "assembly-instance:ImportedAssembly._27._22",
+          "assembly-instance:ImportedAssembly._27._25",
+          "assembly-instance:ImportedAssembly._27._26"
+        ],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:ImportedAssembly._27",
+          "type": {
+            "name": "Assembly",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "ImportedAssembly._27",
+              "evidence": "_27",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            5,
+            125,
+            20,
+            1
+          ]
+        },
+        "resolvedTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            5,
+            125,
+            20,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "_27",
+            "evidence": "_27",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ],
+        "placementAuthority": "ImportedOccurrence"
+      },
+      {
+        "stableId": "assembly-instance:ImportedAssembly._28",
+        "path": {
+          "segments": [
+            "ImportedAssembly",
+            "_28"
+          ]
+        },
+        "kind": "Part",
+        "definitionIdentity": "ExternalStep\u003C\u0022components/0004-plate.step\u0022\u003E",
+        "parentStableId": "assembly-instance:ImportedAssembly",
+        "childrenStableIds": [],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:ImportedAssembly._28",
+          "type": {
+            "name": "Part",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "ImportedAssembly._28",
+              "evidence": "ExternalStep\u003C\u0022components/0004-plate.step\u0022\u003E",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "resolvedTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "_28",
+            "evidence": "ExternalStep\u003C\u0022components/0004-plate.step\u0022\u003E",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "imported-step-definition",
+            "identity": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\components\\0004-plate.step",
+            "evidence": "1F363B5944AEF9DDC2842DB2D0FFB5018EDD913A7192A20DF60CA21DABA597CA",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ],
+        "placementAuthority": "ImportedOccurrence"
+      },
+      {
+        "stableId": "assembly-instance:ImportedAssembly._39",
+        "path": {
+          "segments": [
+            "ImportedAssembly",
+            "_39"
+          ]
+        },
+        "kind": "Assembly",
+        "definitionIdentity": "_39",
+        "parentStableId": "assembly-instance:ImportedAssembly",
+        "childrenStableIds": [
+          "assembly-instance:ImportedAssembly._39._31",
+          "assembly-instance:ImportedAssembly._39._34",
+          "assembly-instance:ImportedAssembly._39._37",
+          "assembly-instance:ImportedAssembly._39._38"
+        ],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:ImportedAssembly._39",
+          "type": {
+            "name": "Assembly",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "ImportedAssembly._39",
+              "evidence": "_39",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": {
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            175,
+            25,
+            20,
+            1
+          ]
+        },
+        "resolvedTransform": {
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            175,
+            25,
+            20,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "_39",
+            "evidence": "_39",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ],
+        "placementAuthority": "ImportedOccurrence"
+      },
+      {
+        "stableId": "assembly-instance:ImportedAssembly._16._13",
+        "path": {
+          "segments": [
+            "ImportedAssembly",
+            "_16",
+            "_13"
+          ]
+        },
+        "kind": "Part",
+        "definitionIdentity": "ExternalStep\u003C\u0022components/0003-nut.step\u0022\u003E",
+        "parentStableId": "assembly-instance:ImportedAssembly._16",
+        "childrenStableIds": [],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:ImportedAssembly._16._13",
+          "type": {
+            "name": "Part",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "ImportedAssembly._16._13",
+              "evidence": "ExternalStep\u003C\u0022components/0003-nut.step\u0022\u003E",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            -10,
+            -7.5,
+            185,
+            1
+          ]
+        },
+        "resolvedTransform": {
+          "matrix": [
+            2.220446049250313E-16,
+            0,
+            -1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            2.220446049250313E-16,
+            0,
+            175,
+            67.5,
+            70,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "_13",
+            "evidence": "ExternalStep\u003C\u0022components/0003-nut.step\u0022\u003E",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "imported-step-definition",
+            "identity": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\components\\0003-nut.step",
+            "evidence": "6C0600EE4656DA527A55F61159F2444C59208EA4A7CCBC7176720159662BDBC4",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ],
+        "placementAuthority": "ImportedOccurrence"
+      },
+      {
+        "stableId": "assembly-instance:ImportedAssembly._16._14",
+        "path": {
+          "segments": [
+            "ImportedAssembly",
+            "_16",
+            "_14"
+          ]
+        },
+        "kind": "Part",
+        "definitionIdentity": "ExternalStep\u003C\u0022components/0003-nut.step\u0022\u003E",
+        "parentStableId": "assembly-instance:ImportedAssembly._16",
+        "childrenStableIds": [],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:ImportedAssembly._16._14",
+          "type": {
+            "name": "Part",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "ImportedAssembly._16._14",
+              "evidence": "ExternalStep\u003C\u0022components/0003-nut.step\u0022\u003E",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            -10,
+            -7.5,
+            12,
+            1
+          ]
+        },
+        "resolvedTransform": {
+          "matrix": [
+            2.220446049250313E-16,
+            0,
+            -1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            2.220446049250313E-16,
+            0,
+            2,
+            67.5,
+            70,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "_14",
+            "evidence": "ExternalStep\u003C\u0022components/0003-nut.step\u0022\u003E",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "imported-step-definition",
+            "identity": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\components\\0003-nut.step",
+            "evidence": "6C0600EE4656DA527A55F61159F2444C59208EA4A7CCBC7176720159662BDBC4",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ],
+        "placementAuthority": "ImportedOccurrence"
+      },
+      {
+        "stableId": "assembly-instance:ImportedAssembly._16._15",
+        "path": {
+          "segments": [
+            "ImportedAssembly",
+            "_16",
+            "_15"
+          ]
+        },
+        "kind": "Part",
+        "definitionIdentity": "ExternalStep\u003C\u0022components/0005-rod.step\u0022\u003E",
+        "parentStableId": "assembly-instance:ImportedAssembly._16",
+        "childrenStableIds": [],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:ImportedAssembly._16._15",
+          "type": {
+            "name": "Part",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "ImportedAssembly._16._15",
+              "evidence": "ExternalStep\u003C\u0022components/0005-rod.step\u0022\u003E",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "resolvedTransform": {
+          "matrix": [
+            2.220446049250313E-16,
+            0,
+            -1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            2.220446049250313E-16,
+            0,
+            -10,
+            75,
+            60,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "_15",
+            "evidence": "ExternalStep\u003C\u0022components/0005-rod.step\u0022\u003E",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "imported-step-definition",
+            "identity": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\components\\0005-rod.step",
+            "evidence": "3036F0A51BC37A8E7885AD036F4736C7F40DE60F936793A2C9BCF3B9D1CC1E1E",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ],
+        "placementAuthority": "ImportedOccurrence"
+      },
+      {
+        "stableId": "assembly-instance:ImportedAssembly._27._19",
+        "path": {
+          "segments": [
+            "ImportedAssembly",
+            "_27",
+            "_19"
+          ]
+        },
+        "kind": "Assembly",
+        "definitionIdentity": "_19",
+        "parentStableId": "assembly-instance:ImportedAssembly._27",
+        "childrenStableIds": [
+          "assembly-instance:ImportedAssembly._27._19._17",
+          "assembly-instance:ImportedAssembly._27._19._18"
+        ],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:ImportedAssembly._27._19",
+          "type": {
+            "name": "Assembly",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "ImportedAssembly._27._19",
+              "evidence": "_19",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            27.5,
+            -40,
+            0,
+            1
+          ]
+        },
+        "resolvedTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            32.5,
+            85,
+            20,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "_19",
+            "evidence": "_19",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ],
+        "placementAuthority": "ImportedOccurrence"
+      },
+      {
+        "stableId": "assembly-instance:ImportedAssembly._27._22",
+        "path": {
+          "segments": [
+            "ImportedAssembly",
+            "_27",
+            "_22"
+          ]
+        },
+        "kind": "Assembly",
+        "definitionIdentity": "_22",
+        "parentStableId": "assembly-instance:ImportedAssembly._27",
+        "childrenStableIds": [
+          "assembly-instance:ImportedAssembly._27._22._20",
+          "assembly-instance:ImportedAssembly._27._22._21"
+        ],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:ImportedAssembly._27._22",
+          "type": {
+            "name": "Assembly",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "ImportedAssembly._27._22",
+              "evidence": "_22",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            50,
+            -52.99038106,
+            0,
+            1
+          ]
+        },
+        "resolvedTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            55,
+            72.0096206665039,
+            20,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "_22",
+            "evidence": "_22",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ],
+        "placementAuthority": "ImportedOccurrence"
+      },
+      {
+        "stableId": "assembly-instance:ImportedAssembly._27._25",
+        "path": {
+          "segments": [
+            "ImportedAssembly",
+            "_27",
+            "_25"
+          ]
+        },
+        "kind": "Assembly",
+        "definitionIdentity": "_25",
+        "parentStableId": "assembly-instance:ImportedAssembly._27",
+        "childrenStableIds": [
+          "assembly-instance:ImportedAssembly._27._25._23",
+          "assembly-instance:ImportedAssembly._27._25._24"
+        ],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:ImportedAssembly._27._25",
+          "type": {
+            "name": "Assembly",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "ImportedAssembly._27._25",
+              "evidence": "_25",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            50,
+            -27.00961894,
+            0,
+            1
+          ]
+        },
+        "resolvedTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            55,
+            97.9903793334961,
+            20,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "_25",
+            "evidence": "_25",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ],
+        "placementAuthority": "ImportedOccurrence"
+      },
+      {
+        "stableId": "assembly-instance:ImportedAssembly._27._26",
+        "path": {
+          "segments": [
+            "ImportedAssembly",
+            "_27",
+            "_26"
+          ]
+        },
+        "kind": "Part",
+        "definitionIdentity": "ExternalStep\u003C\u0022components/0002-l_bracket.step\u0022\u003E",
+        "parentStableId": "assembly-instance:ImportedAssembly._27",
+        "childrenStableIds": [],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:ImportedAssembly._27._26",
+          "type": {
+            "name": "Part",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "ImportedAssembly._27._26",
+              "evidence": "ExternalStep\u003C\u0022components/0002-l_bracket.step\u0022\u003E",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            -0,
+            0,
+            1,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "resolvedTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            5,
+            125,
+            20,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "_26",
+            "evidence": "ExternalStep\u003C\u0022components/0002-l_bracket.step\u0022\u003E",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "imported-step-definition",
+            "identity": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\components\\0002-l_bracket.step",
+            "evidence": "EEE967883E1804AB21FB0F6954E5076082C86C9C5BA8B4A7646117F83C158BD2",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ],
+        "placementAuthority": "ImportedOccurrence"
+      },
+      {
+        "stableId": "assembly-instance:ImportedAssembly._39._31",
+        "path": {
+          "segments": [
+            "ImportedAssembly",
+            "_39",
+            "_31"
+          ]
+        },
+        "kind": "Assembly",
+        "definitionIdentity": "_31",
+        "parentStableId": "assembly-instance:ImportedAssembly._39",
+        "childrenStableIds": [
+          "assembly-instance:ImportedAssembly._39._31._29",
+          "assembly-instance:ImportedAssembly._39._31._30"
+        ],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:ImportedAssembly._39._31",
+          "type": {
+            "name": "Assembly",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "ImportedAssembly._39._31",
+              "evidence": "_31",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            27.5,
+            -40,
+            0,
+            1
+          ]
+        },
+        "resolvedTransform": {
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            147.5,
+            65,
+            20,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "_31",
+            "evidence": "_31",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ],
+        "placementAuthority": "ImportedOccurrence"
+      },
+      {
+        "stableId": "assembly-instance:ImportedAssembly._39._34",
+        "path": {
+          "segments": [
+            "ImportedAssembly",
+            "_39",
+            "_34"
+          ]
+        },
+        "kind": "Assembly",
+        "definitionIdentity": "_34",
+        "parentStableId": "assembly-instance:ImportedAssembly._39",
+        "childrenStableIds": [
+          "assembly-instance:ImportedAssembly._39._34._32",
+          "assembly-instance:ImportedAssembly._39._34._33"
+        ],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:ImportedAssembly._39._34",
+          "type": {
+            "name": "Assembly",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "ImportedAssembly._39._34",
+              "evidence": "_34",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            50,
+            -52.99038106,
+            0,
+            1
+          ]
+        },
+        "resolvedTransform": {
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            125,
+            77.9903793334961,
+            20,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "_34",
+            "evidence": "_34",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ],
+        "placementAuthority": "ImportedOccurrence"
+      },
+      {
+        "stableId": "assembly-instance:ImportedAssembly._39._37",
+        "path": {
+          "segments": [
+            "ImportedAssembly",
+            "_39",
+            "_37"
+          ]
+        },
+        "kind": "Assembly",
+        "definitionIdentity": "_37",
+        "parentStableId": "assembly-instance:ImportedAssembly._39",
+        "childrenStableIds": [
+          "assembly-instance:ImportedAssembly._39._37._35",
+          "assembly-instance:ImportedAssembly._39._37._36"
+        ],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:ImportedAssembly._39._37",
+          "type": {
+            "name": "Assembly",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "ImportedAssembly._39._37",
+              "evidence": "_37",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            50,
+            -27.00961894,
+            0,
+            1
+          ]
+        },
+        "resolvedTransform": {
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            125,
+            52.009620666503906,
+            20,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "_37",
+            "evidence": "_37",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ],
+        "placementAuthority": "ImportedOccurrence"
+      },
+      {
+        "stableId": "assembly-instance:ImportedAssembly._39._38",
+        "path": {
+          "segments": [
+            "ImportedAssembly",
+            "_39",
+            "_38"
+          ]
+        },
+        "kind": "Part",
+        "definitionIdentity": "ExternalStep\u003C\u0022components/0002-l_bracket.step\u0022\u003E",
+        "parentStableId": "assembly-instance:ImportedAssembly._39",
+        "childrenStableIds": [],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:ImportedAssembly._39._38",
+          "type": {
+            "name": "Part",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "ImportedAssembly._39._38",
+              "evidence": "ExternalStep\u003C\u0022components/0002-l_bracket.step\u0022\u003E",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            -0,
+            2.22044604925E-16,
+            1,
+            0,
+            0,
+            -1,
+            2.22044604925E-16,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "resolvedTransform": {
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            -2.220446049250313E-16,
+            1,
+            0,
+            0,
+            1,
+            2.220446049250313E-16,
+            0,
+            175,
+            25,
+            20,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "_38",
+            "evidence": "ExternalStep\u003C\u0022components/0002-l_bracket.step\u0022\u003E",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "imported-step-definition",
+            "identity": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\components\\0002-l_bracket.step",
+            "evidence": "EEE967883E1804AB21FB0F6954E5076082C86C9C5BA8B4A7646117F83C158BD2",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ],
+        "placementAuthority": "ImportedOccurrence"
+      },
+      {
+        "stableId": "assembly-instance:ImportedAssembly._27._19._17",
+        "path": {
+          "segments": [
+            "ImportedAssembly",
+            "_27",
+            "_19",
+            "_17"
+          ]
+        },
+        "kind": "Part",
+        "definitionIdentity": "ExternalStep\u003C\u0022components/0001-bolt.step\u0022\u003E",
+        "parentStableId": "assembly-instance:ImportedAssembly._27._19",
+        "childrenStableIds": [],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:ImportedAssembly._27._19._17",
+          "type": {
+            "name": "Part",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "ImportedAssembly._27._19._17",
+              "evidence": "ExternalStep\u003C\u0022components/0001-bolt.step\u0022\u003E",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": {
+          "matrix": [
+            2.22044604925E-16,
+            -1,
+            0,
+            0,
+            -1,
+            -2.22044604925E-16,
+            0,
+            0,
+            0,
+            -0,
+            -1,
+            0,
+            -7.5,
+            -10,
+            13,
+            1
+          ]
+        },
+        "resolvedTransform": {
+          "matrix": [
+            2.220446049250313E-16,
+            -1,
+            0,
+            0,
+            -1,
+            -2.220446049250313E-16,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            25,
+            75,
+            33,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "_17",
+            "evidence": "ExternalStep\u003C\u0022components/0001-bolt.step\u0022\u003E",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "imported-step-definition",
+            "identity": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\components\\0001-bolt.step",
+            "evidence": "11F8B8A6C306877EF17134E7726A7186569516695DCA123B95B4F988D2541EC3",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ],
+        "placementAuthority": "ImportedOccurrence"
+      },
+      {
+        "stableId": "assembly-instance:ImportedAssembly._27._19._18",
+        "path": {
+          "segments": [
+            "ImportedAssembly",
+            "_27",
+            "_19",
+            "_18"
+          ]
+        },
+        "kind": "Part",
+        "definitionIdentity": "ExternalStep\u003C\u0022components/0003-nut.step\u0022\u003E",
+        "parentStableId": "assembly-instance:ImportedAssembly._27._19",
+        "childrenStableIds": [],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:ImportedAssembly._27._19._18",
+          "type": {
+            "name": "Part",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "ImportedAssembly._27._19._18",
+              "evidence": "ExternalStep\u003C\u0022components/0003-nut.step\u0022\u003E",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": {
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            2.5,
+            -17.5,
+            -20,
+            1
+          ]
+        },
+        "resolvedTransform": {
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            35,
+            67.5,
+            0,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "_18",
+            "evidence": "ExternalStep\u003C\u0022components/0003-nut.step\u0022\u003E",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "imported-step-definition",
+            "identity": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\components\\0003-nut.step",
+            "evidence": "6C0600EE4656DA527A55F61159F2444C59208EA4A7CCBC7176720159662BDBC4",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ],
+        "placementAuthority": "ImportedOccurrence"
+      },
+      {
+        "stableId": "assembly-instance:ImportedAssembly._27._22._20",
+        "path": {
+          "segments": [
+            "ImportedAssembly",
+            "_27",
+            "_22",
+            "_20"
+          ]
+        },
+        "kind": "Part",
+        "definitionIdentity": "ExternalStep\u003C\u0022components/0001-bolt.step\u0022\u003E",
+        "parentStableId": "assembly-instance:ImportedAssembly._27._22",
+        "childrenStableIds": [],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:ImportedAssembly._27._22._20",
+          "type": {
+            "name": "Part",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "ImportedAssembly._27._22._20",
+              "evidence": "ExternalStep\u003C\u0022components/0001-bolt.step\u0022\u003E",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": {
+          "matrix": [
+            2.22044604925E-16,
+            -1,
+            0,
+            0,
+            -1,
+            -2.22044604925E-16,
+            0,
+            0,
+            0,
+            -0,
+            -1,
+            0,
+            -7.5,
+            -10,
+            13,
+            1
+          ]
+        },
+        "resolvedTransform": {
+          "matrix": [
+            2.220446049250313E-16,
+            -1,
+            0,
+            0,
+            -1,
+            -2.220446049250313E-16,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            47.5,
+            62.009620666503906,
+            33,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "_20",
+            "evidence": "ExternalStep\u003C\u0022components/0001-bolt.step\u0022\u003E",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "imported-step-definition",
+            "identity": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\components\\0001-bolt.step",
+            "evidence": "11F8B8A6C306877EF17134E7726A7186569516695DCA123B95B4F988D2541EC3",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ],
+        "placementAuthority": "ImportedOccurrence"
+      },
+      {
+        "stableId": "assembly-instance:ImportedAssembly._27._22._21",
+        "path": {
+          "segments": [
+            "ImportedAssembly",
+            "_27",
+            "_22",
+            "_21"
+          ]
+        },
+        "kind": "Part",
+        "definitionIdentity": "ExternalStep\u003C\u0022components/0003-nut.step\u0022\u003E",
+        "parentStableId": "assembly-instance:ImportedAssembly._27._22",
+        "childrenStableIds": [],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:ImportedAssembly._27._22._21",
+          "type": {
+            "name": "Part",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "ImportedAssembly._27._22._21",
+              "evidence": "ExternalStep\u003C\u0022components/0003-nut.step\u0022\u003E",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": {
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            2.5,
+            -17.5,
+            -20,
+            1
+          ]
+        },
+        "resolvedTransform": {
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            57.5,
+            54.509620666503906,
+            0,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "_21",
+            "evidence": "ExternalStep\u003C\u0022components/0003-nut.step\u0022\u003E",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "imported-step-definition",
+            "identity": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\components\\0003-nut.step",
+            "evidence": "6C0600EE4656DA527A55F61159F2444C59208EA4A7CCBC7176720159662BDBC4",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ],
+        "placementAuthority": "ImportedOccurrence"
+      },
+      {
+        "stableId": "assembly-instance:ImportedAssembly._27._25._23",
+        "path": {
+          "segments": [
+            "ImportedAssembly",
+            "_27",
+            "_25",
+            "_23"
+          ]
+        },
+        "kind": "Part",
+        "definitionIdentity": "ExternalStep\u003C\u0022components/0001-bolt.step\u0022\u003E",
+        "parentStableId": "assembly-instance:ImportedAssembly._27._25",
+        "childrenStableIds": [],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:ImportedAssembly._27._25._23",
+          "type": {
+            "name": "Part",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "ImportedAssembly._27._25._23",
+              "evidence": "ExternalStep\u003C\u0022components/0001-bolt.step\u0022\u003E",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": {
+          "matrix": [
+            2.22044604925E-16,
+            -1,
+            0,
+            0,
+            -1,
+            -2.22044604925E-16,
+            0,
+            0,
+            0,
+            -0,
+            -1,
+            0,
+            -7.5,
+            -10,
+            13,
+            1
+          ]
+        },
+        "resolvedTransform": {
+          "matrix": [
+            2.220446049250313E-16,
+            -1,
+            0,
+            0,
+            -1,
+            -2.220446049250313E-16,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            47.5,
+            87.9903793334961,
+            33,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "_23",
+            "evidence": "ExternalStep\u003C\u0022components/0001-bolt.step\u0022\u003E",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "imported-step-definition",
+            "identity": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\components\\0001-bolt.step",
+            "evidence": "11F8B8A6C306877EF17134E7726A7186569516695DCA123B95B4F988D2541EC3",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ],
+        "placementAuthority": "ImportedOccurrence"
+      },
+      {
+        "stableId": "assembly-instance:ImportedAssembly._27._25._24",
+        "path": {
+          "segments": [
+            "ImportedAssembly",
+            "_27",
+            "_25",
+            "_24"
+          ]
+        },
+        "kind": "Part",
+        "definitionIdentity": "ExternalStep\u003C\u0022components/0003-nut.step\u0022\u003E",
+        "parentStableId": "assembly-instance:ImportedAssembly._27._25",
+        "childrenStableIds": [],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:ImportedAssembly._27._25._24",
+          "type": {
+            "name": "Part",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "ImportedAssembly._27._25._24",
+              "evidence": "ExternalStep\u003C\u0022components/0003-nut.step\u0022\u003E",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": {
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            2.5,
+            -17.5,
+            -20,
+            1
+          ]
+        },
+        "resolvedTransform": {
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            57.5,
+            80.4903793334961,
+            0,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "_24",
+            "evidence": "ExternalStep\u003C\u0022components/0003-nut.step\u0022\u003E",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "imported-step-definition",
+            "identity": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\components\\0003-nut.step",
+            "evidence": "6C0600EE4656DA527A55F61159F2444C59208EA4A7CCBC7176720159662BDBC4",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ],
+        "placementAuthority": "ImportedOccurrence"
+      },
+      {
+        "stableId": "assembly-instance:ImportedAssembly._39._31._29",
+        "path": {
+          "segments": [
+            "ImportedAssembly",
+            "_39",
+            "_31",
+            "_29"
+          ]
+        },
+        "kind": "Part",
+        "definitionIdentity": "ExternalStep\u003C\u0022components/0001-bolt.step\u0022\u003E",
+        "parentStableId": "assembly-instance:ImportedAssembly._39._31",
+        "childrenStableIds": [],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:ImportedAssembly._39._31._29",
+          "type": {
+            "name": "Part",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "ImportedAssembly._39._31._29",
+              "evidence": "ExternalStep\u003C\u0022components/0001-bolt.step\u0022\u003E",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": {
+          "matrix": [
+            2.22044604925E-16,
+            -1,
+            0,
+            0,
+            -1,
+            -2.22044604925E-16,
+            0,
+            0,
+            0,
+            -0,
+            -1,
+            0,
+            -7.5,
+            -10,
+            13,
+            1
+          ]
+        },
+        "resolvedTransform": {
+          "matrix": [
+            -2.220446049250313E-16,
+            1,
+            0,
+            0,
+            1,
+            2.220446049250313E-16,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            155,
+            75,
+            33,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "_29",
+            "evidence": "ExternalStep\u003C\u0022components/0001-bolt.step\u0022\u003E",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "imported-step-definition",
+            "identity": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\components\\0001-bolt.step",
+            "evidence": "11F8B8A6C306877EF17134E7726A7186569516695DCA123B95B4F988D2541EC3",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ],
+        "placementAuthority": "ImportedOccurrence"
+      },
+      {
+        "stableId": "assembly-instance:ImportedAssembly._39._31._30",
+        "path": {
+          "segments": [
+            "ImportedAssembly",
+            "_39",
+            "_31",
+            "_30"
+          ]
+        },
+        "kind": "Part",
+        "definitionIdentity": "ExternalStep\u003C\u0022components/0003-nut.step\u0022\u003E",
+        "parentStableId": "assembly-instance:ImportedAssembly._39._31",
+        "childrenStableIds": [],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:ImportedAssembly._39._31._30",
+          "type": {
+            "name": "Part",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "ImportedAssembly._39._31._30",
+              "evidence": "ExternalStep\u003C\u0022components/0003-nut.step\u0022\u003E",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": {
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            2.5,
+            -17.5,
+            -20,
+            1
+          ]
+        },
+        "resolvedTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            145,
+            82.5,
+            0,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "_30",
+            "evidence": "ExternalStep\u003C\u0022components/0003-nut.step\u0022\u003E",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "imported-step-definition",
+            "identity": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\components\\0003-nut.step",
+            "evidence": "6C0600EE4656DA527A55F61159F2444C59208EA4A7CCBC7176720159662BDBC4",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ],
+        "placementAuthority": "ImportedOccurrence"
+      },
+      {
+        "stableId": "assembly-instance:ImportedAssembly._39._34._32",
+        "path": {
+          "segments": [
+            "ImportedAssembly",
+            "_39",
+            "_34",
+            "_32"
+          ]
+        },
+        "kind": "Part",
+        "definitionIdentity": "ExternalStep\u003C\u0022components/0001-bolt.step\u0022\u003E",
+        "parentStableId": "assembly-instance:ImportedAssembly._39._34",
+        "childrenStableIds": [],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:ImportedAssembly._39._34._32",
+          "type": {
+            "name": "Part",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "ImportedAssembly._39._34._32",
+              "evidence": "ExternalStep\u003C\u0022components/0001-bolt.step\u0022\u003E",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": {
+          "matrix": [
+            2.22044604925E-16,
+            -1,
+            0,
+            0,
+            -1,
+            -2.22044604925E-16,
+            0,
+            0,
+            0,
+            -0,
+            -1,
+            0,
+            -7.5,
+            -10,
+            13,
+            1
+          ]
+        },
+        "resolvedTransform": {
+          "matrix": [
+            -2.220446049250313E-16,
+            1,
+            0,
+            0,
+            1,
+            2.220446049250313E-16,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            132.5,
+            87.9903793334961,
+            33,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "_32",
+            "evidence": "ExternalStep\u003C\u0022components/0001-bolt.step\u0022\u003E",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "imported-step-definition",
+            "identity": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\components\\0001-bolt.step",
+            "evidence": "11F8B8A6C306877EF17134E7726A7186569516695DCA123B95B4F988D2541EC3",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ],
+        "placementAuthority": "ImportedOccurrence"
+      },
+      {
+        "stableId": "assembly-instance:ImportedAssembly._39._34._33",
+        "path": {
+          "segments": [
+            "ImportedAssembly",
+            "_39",
+            "_34",
+            "_33"
+          ]
+        },
+        "kind": "Part",
+        "definitionIdentity": "ExternalStep\u003C\u0022components/0003-nut.step\u0022\u003E",
+        "parentStableId": "assembly-instance:ImportedAssembly._39._34",
+        "childrenStableIds": [],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:ImportedAssembly._39._34._33",
+          "type": {
+            "name": "Part",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "ImportedAssembly._39._34._33",
+              "evidence": "ExternalStep\u003C\u0022components/0003-nut.step\u0022\u003E",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": {
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            2.5,
+            -17.5,
+            -20,
+            1
+          ]
+        },
+        "resolvedTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            122.5,
+            95.4903793334961,
+            0,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "_33",
+            "evidence": "ExternalStep\u003C\u0022components/0003-nut.step\u0022\u003E",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "imported-step-definition",
+            "identity": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\components\\0003-nut.step",
+            "evidence": "6C0600EE4656DA527A55F61159F2444C59208EA4A7CCBC7176720159662BDBC4",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ],
+        "placementAuthority": "ImportedOccurrence"
+      },
+      {
+        "stableId": "assembly-instance:ImportedAssembly._39._37._35",
+        "path": {
+          "segments": [
+            "ImportedAssembly",
+            "_39",
+            "_37",
+            "_35"
+          ]
+        },
+        "kind": "Part",
+        "definitionIdentity": "ExternalStep\u003C\u0022components/0001-bolt.step\u0022\u003E",
+        "parentStableId": "assembly-instance:ImportedAssembly._39._37",
+        "childrenStableIds": [],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:ImportedAssembly._39._37._35",
+          "type": {
+            "name": "Part",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "ImportedAssembly._39._37._35",
+              "evidence": "ExternalStep\u003C\u0022components/0001-bolt.step\u0022\u003E",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": {
+          "matrix": [
+            2.22044604925E-16,
+            -1,
+            0,
+            0,
+            -1,
+            -2.22044604925E-16,
+            0,
+            0,
+            0,
+            -0,
+            -1,
+            0,
+            -7.5,
+            -10,
+            13,
+            1
+          ]
+        },
+        "resolvedTransform": {
+          "matrix": [
+            -2.220446049250313E-16,
+            1,
+            0,
+            0,
+            1,
+            2.220446049250313E-16,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            132.5,
+            62.009620666503906,
+            33,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "_35",
+            "evidence": "ExternalStep\u003C\u0022components/0001-bolt.step\u0022\u003E",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "imported-step-definition",
+            "identity": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\components\\0001-bolt.step",
+            "evidence": "11F8B8A6C306877EF17134E7726A7186569516695DCA123B95B4F988D2541EC3",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ],
+        "placementAuthority": "ImportedOccurrence"
+      },
+      {
+        "stableId": "assembly-instance:ImportedAssembly._39._37._36",
+        "path": {
+          "segments": [
+            "ImportedAssembly",
+            "_39",
+            "_37",
+            "_36"
+          ]
+        },
+        "kind": "Part",
+        "definitionIdentity": "ExternalStep\u003C\u0022components/0003-nut.step\u0022\u003E",
+        "parentStableId": "assembly-instance:ImportedAssembly._39._37",
+        "childrenStableIds": [],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:ImportedAssembly._39._37._36",
+          "type": {
+            "name": "Part",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "ImportedAssembly._39._37._36",
+              "evidence": "ExternalStep\u003C\u0022components/0003-nut.step\u0022\u003E",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": {
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            2.5,
+            -17.5,
+            -20,
+            1
+          ]
+        },
+        "resolvedTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            122.5,
+            69.5096206665039,
+            0,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "_36",
+            "evidence": "ExternalStep\u003C\u0022components/0003-nut.step\u0022\u003E",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "imported-step-definition",
+            "identity": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\components\\0003-nut.step",
+            "evidence": "6C0600EE4656DA527A55F61159F2444C59208EA4A7CCBC7176720159662BDBC4",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ],
+        "placementAuthority": "ImportedOccurrence"
+      }
+    ],
+    "interfaces": [],
+    "mates": [],
+    "placementConstraints": [],
+    "placements": [
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly",
+        "status": "Anchored",
+        "transform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [],
+        "authority": "MateDerived"
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._16",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            2.220446049250313E-16,
+            0,
+            -1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            2.220446049250313E-16,
+            0,
+            -10,
+            75,
+            60,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [],
+        "authority": "ImportedOccurrence"
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._27",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            5,
+            125,
+            20,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [],
+        "authority": "ImportedOccurrence"
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._28",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [],
+        "authority": "ImportedOccurrence"
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._39",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            175,
+            25,
+            20,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [],
+        "authority": "ImportedOccurrence"
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._16._13",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            2.220446049250313E-16,
+            0,
+            -1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            2.220446049250313E-16,
+            0,
+            175,
+            67.5,
+            70,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [],
+        "authority": "ImportedOccurrence"
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._16._14",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            2.220446049250313E-16,
+            0,
+            -1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            2.220446049250313E-16,
+            0,
+            2,
+            67.5,
+            70,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [],
+        "authority": "ImportedOccurrence"
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._16._15",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            2.220446049250313E-16,
+            0,
+            -1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            2.220446049250313E-16,
+            0,
+            -10,
+            75,
+            60,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [],
+        "authority": "ImportedOccurrence"
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._27._19",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            32.5,
+            85,
+            20,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [],
+        "authority": "ImportedOccurrence"
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._27._22",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            55,
+            72.0096206665039,
+            20,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [],
+        "authority": "ImportedOccurrence"
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._27._25",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            55,
+            97.9903793334961,
+            20,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [],
+        "authority": "ImportedOccurrence"
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._27._26",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            5,
+            125,
+            20,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [],
+        "authority": "ImportedOccurrence"
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._39._31",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            147.5,
+            65,
+            20,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [],
+        "authority": "ImportedOccurrence"
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._39._34",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            125,
+            77.9903793334961,
+            20,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [],
+        "authority": "ImportedOccurrence"
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._39._37",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            125,
+            52.009620666503906,
+            20,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [],
+        "authority": "ImportedOccurrence"
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._39._38",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            -2.220446049250313E-16,
+            1,
+            0,
+            0,
+            1,
+            2.220446049250313E-16,
+            0,
+            175,
+            25,
+            20,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [],
+        "authority": "ImportedOccurrence"
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._27._19._17",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            2.220446049250313E-16,
+            -1,
+            0,
+            0,
+            -1,
+            -2.220446049250313E-16,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            25,
+            75,
+            33,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [],
+        "authority": "ImportedOccurrence"
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._27._19._18",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            35,
+            67.5,
+            0,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [],
+        "authority": "ImportedOccurrence"
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._27._22._20",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            2.220446049250313E-16,
+            -1,
+            0,
+            0,
+            -1,
+            -2.220446049250313E-16,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            47.5,
+            62.009620666503906,
+            33,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [],
+        "authority": "ImportedOccurrence"
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._27._22._21",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            57.5,
+            54.509620666503906,
+            0,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [],
+        "authority": "ImportedOccurrence"
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._27._25._23",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            2.220446049250313E-16,
+            -1,
+            0,
+            0,
+            -1,
+            -2.220446049250313E-16,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            47.5,
+            87.9903793334961,
+            33,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [],
+        "authority": "ImportedOccurrence"
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._27._25._24",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            57.5,
+            80.4903793334961,
+            0,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [],
+        "authority": "ImportedOccurrence"
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._39._31._29",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            -2.220446049250313E-16,
+            1,
+            0,
+            0,
+            1,
+            2.220446049250313E-16,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            155,
+            75,
+            33,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [],
+        "authority": "ImportedOccurrence"
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._39._31._30",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            145,
+            82.5,
+            0,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [],
+        "authority": "ImportedOccurrence"
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._39._34._32",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            -2.220446049250313E-16,
+            1,
+            0,
+            0,
+            1,
+            2.220446049250313E-16,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            132.5,
+            87.9903793334961,
+            33,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [],
+        "authority": "ImportedOccurrence"
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._39._34._33",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            122.5,
+            95.4903793334961,
+            0,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [],
+        "authority": "ImportedOccurrence"
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._39._37._35",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            -2.220446049250313E-16,
+            1,
+            0,
+            0,
+            1,
+            2.220446049250313E-16,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            132.5,
+            62.009620666503906,
+            33,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [],
+        "authority": "ImportedOccurrence"
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._39._37._36",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            122.5,
+            69.5096206665039,
+            0,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [],
+        "authority": "ImportedOccurrence"
+      }
+    ],
+    "dimensionalRelations": [],
+    "toleranceStackups": [],
+    "fitResults": [],
+    "diagnostics": []
+  },
+  "geometryArtifact": {
+    "schema": "aetheris/assembly-geometry/m1",
+    "definitions": [
+      {
+        "stableId": "assembly-definition:180A24AC608E73A9",
+        "definitionIdentity": "ExternalStep\u003C\u0022components/0001-bolt.step\u0022\u003E",
+        "specializationIdentity": "external-step:11F8B8A6C306877E",
+        "stepSha256": "11F8B8A6C306877EF17134E7726A7186569516695DCA123B95B4F988D2541EC3",
+        "metrics": {
+          "bodies": 1,
+          "faces": 7,
+          "edges": 12,
+          "vertices": 8,
+          "minimum": [
+            -7.5,
+            -1E-15,
+            0
+          ],
+          "maximum": [
+            7.5,
+            1E-15,
+            37
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "imported-step-definition",
+            "identity": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\components\\0001-bolt.step",
+            "evidence": "11F8B8A6C306877EF17134E7726A7186569516695DCA123B95B4F988D2541EC3",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ]
+      },
+      {
+        "stableId": "assembly-definition:3333DC1241C98D66",
+        "definitionIdentity": "ExternalStep\u003C\u0022components/0002-l_bracket.step\u0022\u003E",
+        "specializationIdentity": "external-step:EEE967883E1804AB",
+        "stepSha256": "EEE967883E1804AB21FB0F6954E5076082C86C9C5BA8B4A7646117F83C158BD2",
+        "metrics": {
+          "bodies": 1,
+          "faces": 16,
+          "edges": 42,
+          "vertices": 28,
+          "minimum": [
+            0,
+            0,
+            -0
+          ],
+          "maximum": [
+            50,
+            60,
+            100
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "imported-step-definition",
+            "identity": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\components\\0002-l_bracket.step",
+            "evidence": "EEE967883E1804AB21FB0F6954E5076082C86C9C5BA8B4A7646117F83C158BD2",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ]
+      },
+      {
+        "stableId": "assembly-definition:5E432EAC7E07FEB7",
+        "definitionIdentity": "ExternalStep\u003C\u0022components/0005-rod.step\u0022\u003E",
+        "specializationIdentity": "external-step:3036F0A51BC37A8E",
+        "stepSha256": "3036F0A51BC37A8E7885AD036F4736C7F40DE60F936793A2C9BCF3B9D1CC1E1E",
+        "metrics": {
+          "bodies": 1,
+          "faces": 4,
+          "edges": 6,
+          "vertices": 4,
+          "minimum": [
+            -5,
+            -1E-15,
+            0
+          ],
+          "maximum": [
+            5,
+            -0,
+            200
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "imported-step-definition",
+            "identity": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\components\\0005-rod.step",
+            "evidence": "3036F0A51BC37A8E7885AD036F4736C7F40DE60F936793A2C9BCF3B9D1CC1E1E",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ]
+      },
+      {
+        "stableId": "assembly-definition:C1CCCB62B6014292",
+        "definitionIdentity": "ExternalStep\u003C\u0022components/0003-nut.step\u0022\u003E",
+        "specializationIdentity": "external-step:6C0600EE4656DA52",
+        "stepSha256": "6C0600EE4656DA527A55F61159F2444C59208EA4A7CCBC7176720159662BDBC4",
+        "metrics": {
+          "bodies": 1,
+          "faces": 8,
+          "edges": 18,
+          "vertices": 12,
+          "minimum": [
+            -0,
+            0,
+            -0
+          ],
+          "maximum": [
+            20,
+            15,
+            3
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "imported-step-definition",
+            "identity": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\components\\0003-nut.step",
+            "evidence": "6C0600EE4656DA527A55F61159F2444C59208EA4A7CCBC7176720159662BDBC4",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ]
+      },
+      {
+        "stableId": "assembly-definition:E5C892945BE6754B",
+        "definitionIdentity": "ExternalStep\u003C\u0022components/0004-plate.step\u0022\u003E",
+        "specializationIdentity": "external-step:1F363B5944AEF9DD",
+        "stepSha256": "1F363B5944AEF9DDC2842DB2D0FFB5018EDD913A7192A20DF60CA21DABA597CA",
+        "metrics": {
+          "bodies": 1,
+          "faces": 18,
+          "edges": 48,
+          "vertices": 32,
+          "minimum": [
+            -0,
+            0,
+            -0
+          ],
+          "maximum": [
+            180,
+            150,
+            20
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "imported-step-definition",
+            "identity": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\components\\0004-plate.step",
+            "evidence": "1F363B5944AEF9DDC2842DB2D0FFB5018EDD913A7192A20DF60CA21DABA597CA",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\assembly\\artifacts\\m2\\occt-package\\as1.firmasm",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ]
+      }
+    ],
+    "instances": [
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._16._13",
+        "definitionArtifactStableId": "assembly-definition:C1CCCB62B6014292",
+        "worldTransform": {
+          "matrix": [
+            2.220446049250313E-16,
+            0,
+            -1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            2.220446049250313E-16,
+            0,
+            175,
+            67.5,
+            70,
+            1
+          ]
+        },
+        "metrics": {
+          "bodies": 1,
+          "faces": 8,
+          "edges": 18,
+          "vertices": 12,
+          "minimum": [
+            175,
+            67.5,
+            50
+          ],
+          "maximum": [
+            178,
+            82.5,
+            70
+          ]
+        }
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._16._14",
+        "definitionArtifactStableId": "assembly-definition:C1CCCB62B6014292",
+        "worldTransform": {
+          "matrix": [
+            2.220446049250313E-16,
+            0,
+            -1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            2.220446049250313E-16,
+            0,
+            2,
+            67.5,
+            70,
+            1
+          ]
+        },
+        "metrics": {
+          "bodies": 1,
+          "faces": 8,
+          "edges": 18,
+          "vertices": 12,
+          "minimum": [
+            2,
+            67.5,
+            50
+          ],
+          "maximum": [
+            5.000000000000004,
+            82.5,
+            70
+          ]
+        }
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._16._15",
+        "definitionArtifactStableId": "assembly-definition:5E432EAC7E07FEB7",
+        "worldTransform": {
+          "matrix": [
+            2.220446049250313E-16,
+            0,
+            -1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            2.220446049250313E-16,
+            0,
+            -10,
+            75,
+            60,
+            1
+          ]
+        },
+        "metrics": {
+          "bodies": 1,
+          "faces": 4,
+          "edges": 6,
+          "vertices": 4,
+          "minimum": [
+            -10.000000000000002,
+            75,
+            55
+          ],
+          "maximum": [
+            190,
+            75,
+            65.00000000000004
+          ]
+        }
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._27._19._17",
+        "definitionArtifactStableId": "assembly-definition:180A24AC608E73A9",
+        "worldTransform": {
+          "matrix": [
+            2.220446049250313E-16,
+            -1,
+            0,
+            0,
+            -1,
+            -2.220446049250313E-16,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            25,
+            75,
+            33,
+            1
+          ]
+        },
+        "metrics": {
+          "bodies": 1,
+          "faces": 7,
+          "edges": 12,
+          "vertices": 8,
+          "minimum": [
+            24.999999999999996,
+            67.5,
+            -4
+          ],
+          "maximum": [
+            25.000000000000004,
+            82.5,
+            33
+          ]
+        }
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._27._19._18",
+        "definitionArtifactStableId": "assembly-definition:C1CCCB62B6014292",
+        "worldTransform": {
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            35,
+            67.5,
+            0,
+            1
+          ]
+        },
+        "metrics": {
+          "bodies": 1,
+          "faces": 8,
+          "edges": 18,
+          "vertices": 12,
+          "minimum": [
+            15,
+            67.5,
+            -3
+          ],
+          "maximum": [
+            35,
+            82.5,
+            0
+          ]
+        }
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._27._22._20",
+        "definitionArtifactStableId": "assembly-definition:180A24AC608E73A9",
+        "worldTransform": {
+          "matrix": [
+            2.220446049250313E-16,
+            -1,
+            0,
+            0,
+            -1,
+            -2.220446049250313E-16,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            47.5,
+            62.009620666503906,
+            33,
+            1
+          ]
+        },
+        "metrics": {
+          "bodies": 1,
+          "faces": 7,
+          "edges": 12,
+          "vertices": 8,
+          "minimum": [
+            47.5,
+            54.509620666503906,
+            -4
+          ],
+          "maximum": [
+            47.5,
+            69.5096206665039,
+            33
+          ]
+        }
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._27._22._21",
+        "definitionArtifactStableId": "assembly-definition:C1CCCB62B6014292",
+        "worldTransform": {
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            57.5,
+            54.509620666503906,
+            0,
+            1
+          ]
+        },
+        "metrics": {
+          "bodies": 1,
+          "faces": 8,
+          "edges": 18,
+          "vertices": 12,
+          "minimum": [
+            37.5,
+            54.509620666503906,
+            -3
+          ],
+          "maximum": [
+            57.5,
+            69.5096206665039,
+            0
+          ]
+        }
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._27._25._23",
+        "definitionArtifactStableId": "assembly-definition:180A24AC608E73A9",
+        "worldTransform": {
+          "matrix": [
+            2.220446049250313E-16,
+            -1,
+            0,
+            0,
+            -1,
+            -2.220446049250313E-16,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            47.5,
+            87.9903793334961,
+            33,
+            1
+          ]
+        },
+        "metrics": {
+          "bodies": 1,
+          "faces": 7,
+          "edges": 12,
+          "vertices": 8,
+          "minimum": [
+            47.5,
+            80.4903793334961,
+            -4
+          ],
+          "maximum": [
+            47.5,
+            95.4903793334961,
+            33
+          ]
+        }
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._27._25._24",
+        "definitionArtifactStableId": "assembly-definition:C1CCCB62B6014292",
+        "worldTransform": {
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            57.5,
+            80.4903793334961,
+            0,
+            1
+          ]
+        },
+        "metrics": {
+          "bodies": 1,
+          "faces": 8,
+          "edges": 18,
+          "vertices": 12,
+          "minimum": [
+            37.5,
+            80.4903793334961,
+            -3
+          ],
+          "maximum": [
+            57.5,
+            95.4903793334961,
+            0
+          ]
+        }
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._27._26",
+        "definitionArtifactStableId": "assembly-definition:3333DC1241C98D66",
+        "worldTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            5,
+            125,
+            20,
+            1
+          ]
+        },
+        "metrics": {
+          "bodies": 1,
+          "faces": 16,
+          "edges": 42,
+          "vertices": 28,
+          "minimum": [
+            5,
+            25,
+            20
+          ],
+          "maximum": [
+            55,
+            125,
+            80
+          ]
+        }
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._28",
+        "definitionArtifactStableId": "assembly-definition:E5C892945BE6754B",
+        "worldTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "metrics": {
+          "bodies": 1,
+          "faces": 18,
+          "edges": 48,
+          "vertices": 32,
+          "minimum": [
+            0,
+            0,
+            0
+          ],
+          "maximum": [
+            180,
+            150,
+            20
+          ]
+        }
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._39._31._29",
+        "definitionArtifactStableId": "assembly-definition:180A24AC608E73A9",
+        "worldTransform": {
+          "matrix": [
+            -2.220446049250313E-16,
+            1,
+            0,
+            0,
+            1,
+            2.220446049250313E-16,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            155,
+            75,
+            33,
+            1
+          ]
+        },
+        "metrics": {
+          "bodies": 1,
+          "faces": 7,
+          "edges": 12,
+          "vertices": 8,
+          "minimum": [
+            155,
+            67.5,
+            -4
+          ],
+          "maximum": [
+            155,
+            82.5,
+            33
+          ]
+        }
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._39._31._30",
+        "definitionArtifactStableId": "assembly-definition:C1CCCB62B6014292",
+        "worldTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            145,
+            82.5,
+            0,
+            1
+          ]
+        },
+        "metrics": {
+          "bodies": 1,
+          "faces": 8,
+          "edges": 18,
+          "vertices": 12,
+          "minimum": [
+            145,
+            67.5,
+            -3
+          ],
+          "maximum": [
+            165,
+            82.5,
+            0
+          ]
+        }
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._39._34._32",
+        "definitionArtifactStableId": "assembly-definition:180A24AC608E73A9",
+        "worldTransform": {
+          "matrix": [
+            -2.220446049250313E-16,
+            1,
+            0,
+            0,
+            1,
+            2.220446049250313E-16,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            132.5,
+            87.9903793334961,
+            33,
+            1
+          ]
+        },
+        "metrics": {
+          "bodies": 1,
+          "faces": 7,
+          "edges": 12,
+          "vertices": 8,
+          "minimum": [
+            132.5,
+            80.4903793334961,
+            -4
+          ],
+          "maximum": [
+            132.5,
+            95.4903793334961,
+            33
+          ]
+        }
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._39._34._33",
+        "definitionArtifactStableId": "assembly-definition:C1CCCB62B6014292",
+        "worldTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            122.5,
+            95.4903793334961,
+            0,
+            1
+          ]
+        },
+        "metrics": {
+          "bodies": 1,
+          "faces": 8,
+          "edges": 18,
+          "vertices": 12,
+          "minimum": [
+            122.5,
+            80.4903793334961,
+            -3
+          ],
+          "maximum": [
+            142.5,
+            95.4903793334961,
+            0
+          ]
+        }
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._39._37._35",
+        "definitionArtifactStableId": "assembly-definition:180A24AC608E73A9",
+        "worldTransform": {
+          "matrix": [
+            -2.220446049250313E-16,
+            1,
+            0,
+            0,
+            1,
+            2.220446049250313E-16,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            132.5,
+            62.009620666503906,
+            33,
+            1
+          ]
+        },
+        "metrics": {
+          "bodies": 1,
+          "faces": 7,
+          "edges": 12,
+          "vertices": 8,
+          "minimum": [
+            132.5,
+            54.509620666503906,
+            -4
+          ],
+          "maximum": [
+            132.5,
+            69.5096206665039,
+            33
+          ]
+        }
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._39._37._36",
+        "definitionArtifactStableId": "assembly-definition:C1CCCB62B6014292",
+        "worldTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            0,
+            122.5,
+            69.5096206665039,
+            0,
+            1
+          ]
+        },
+        "metrics": {
+          "bodies": 1,
+          "faces": 8,
+          "edges": 18,
+          "vertices": 12,
+          "minimum": [
+            122.5,
+            54.509620666503906,
+            -3
+          ],
+          "maximum": [
+            142.5,
+            69.5096206665039,
+            0
+          ]
+        }
+      },
+      {
+        "instanceStableId": "assembly-instance:ImportedAssembly._39._38",
+        "definitionArtifactStableId": "assembly-definition:3333DC1241C98D66",
+        "worldTransform": {
+          "matrix": [
+            -1,
+            0,
+            0,
+            0,
+            0,
+            -2.220446049250313E-16,
+            1,
+            0,
+            0,
+            1,
+            2.220446049250313E-16,
+            0,
+            175,
+            25,
+            20,
+            1
+          ]
+        },
+        "metrics": {
+          "bodies": 1,
+          "faces": 16,
+          "edges": 42,
+          "vertices": 28,
+          "minimum": [
+            125,
+            24.999999999999986,
+            20
+          ],
+          "maximum": [
+            175,
+            125,
+            80.00000000000003
+          ]
+        }
+      }
+    ],
+    "mateResiduals": [],
+    "deterministicSha256": "89220BD8229894E8DD7AD35057827BA61E43A353FCC1321AA484592E7D18B856"
+  },
+  "diagnostics": [],
+  "performance": {
+    "parseMilliseconds": 54.9715,
+    "bindMilliseconds": 5.6092,
+    "mateValidationMilliseconds": 0.7542,
+    "placementMilliseconds": 4.6446,
+    "dimensionalGraphMilliseconds": 1.6541,
+    "toleranceAnalysisMilliseconds": 1.1968,
+    "definitionMaterializationMilliseconds": 108.1531,
+    "geometryExecutionMilliseconds": 43.6064
+  }
+}

@@ -11,6 +11,7 @@ import {
 	Float32BufferAttribute,
 	LineBasicMaterial,
 	MeshStandardMaterial,
+	Matrix4,
 	OrthographicCamera,
 	Raycaster,
 	SRGBColorSpace,
@@ -18,7 +19,13 @@ import {
 	Vector3,
 } from "three";
 import type { DisplayScene } from "./displayRenderables";
-import { computeDisplaySceneBounds, computeOrthographicCameraFit } from "./displaySceneBounds";
+import {
+	computeDisplaySceneBounds,
+	computeOrthographicCameraFit,
+	sceneBoundsFromExtents,
+} from "./displaySceneBounds";
+import type { AssemblyDisplayPacketDto } from "../api/aetherisApi";
+import { mapFacePatchToRenderFacePatch } from "./tessellationMapper";
 import { buildAdaptiveGridPlan, type GridBounds } from "./logarithmicGrid";
 import { CadmataOverlay, type CadmataLayerVisibility } from "./CadmataOverlay";
 import type { CadmataVisualizationArtifact } from "./conceptVisualization";
@@ -271,6 +278,9 @@ export interface AetherisViewportProps {
 	selectedCadmataIds?: Set<string>;
 	onCadmataSelect?: (stableId: string) => void;
 	showPmi?: boolean;
+	assemblyPacket?: AssemblyDisplayPacketDto | null;
+	selectedAssemblyOccurrenceId?: string | null;
+	onAssemblyOccurrenceSelect?: (stableId: string) => void;
 }
 
 function FaceMesh({
@@ -445,6 +455,89 @@ function FitCameraToScene({ displayScene }: { displayScene: DisplayScene | null 
 	return null;
 }
 
+function FitCameraToAssembly({ packet }: { packet: AssemblyDisplayPacketDto | null }) {
+	const { camera, controls, size } = useThree();
+	const bounds = useMemo(
+		() =>
+			packet
+				? sceneBoundsFromExtents(packet.bounds.minimum, packet.bounds.maximum)
+				: sceneBoundsFromExtents([], []),
+		[packet],
+	);
+	useEffect(() => {
+		if (!(camera instanceof OrthographicCamera) || !bounds.isValid) return;
+		const fit = computeOrthographicCameraFit(
+			bounds,
+			Math.abs(camera.right - camera.left) || size.width || 1,
+			Math.abs(camera.top - camera.bottom) || size.height || 1,
+		);
+		if (!fit) return;
+		camera.position.set(...fit.position);
+		camera.zoom = fit.zoom;
+		camera.near = fit.near;
+		camera.far = fit.far;
+		camera.lookAt(...fit.target);
+		camera.updateProjectionMatrix();
+		camera.updateMatrixWorld(false);
+		if (controls && typeof controls === "object" && "target" in controls) {
+			const orbit = controls as { target: Vector3; update?: () => void };
+			orbit.target.set(...fit.target);
+			orbit.update?.();
+		}
+	}, [bounds, camera, controls, size.height, size.width]);
+	return null;
+}
+
+function AssemblyMeshes({
+	packet,
+	selectedId,
+	onSelect,
+	theme,
+}: {
+	packet: AssemblyDisplayPacketDto;
+	selectedId: string | null;
+	onSelect: (stableId: string) => void;
+	theme: ViewportTheme;
+}) {
+	const definitions = useMemo(
+		() =>
+			new Map(
+				packet.definitions.map((definition) => [
+					definition.stableId,
+					definition.facePatches.map(mapFacePatchToRenderFacePatch),
+				]),
+			),
+		[packet],
+	);
+	return packet.occurrences
+		.filter((occurrence) => occurrence.kind === "Part" && occurrence.definitionStableId)
+		.map((occurrence) => {
+			const matrix = new Matrix4().fromArray(occurrence.worldTransform);
+			return (
+				<group
+					key={occurrence.stableId}
+					matrix={matrix}
+					matrixAutoUpdate={false}
+					onClick={(event) => {
+						event.stopPropagation();
+						onSelect(occurrence.stableId);
+					}}
+				>
+					{(definitions.get(occurrence.definitionStableId!) ?? []).map((patch) => (
+						<FaceMesh
+							key={`${occurrence.stableId}-${patch.faceId}`}
+							positions={patch.positions}
+							normals={patch.normals}
+							indices={patch.indices}
+							isHighlighted={selectedId === occurrence.stableId}
+							theme={theme}
+						/>
+					))}
+				</group>
+			);
+		});
+}
+
 function RendererConfiguration({ theme }: { theme: ViewportTheme }) {
 	const { gl } = useThree();
 	useEffect(() => {
@@ -470,6 +563,9 @@ export function AetherisViewport({
 	selectedCadmataIds = new Set(),
 	onCadmataSelect = () => undefined,
 	showPmi = true,
+	assemblyPacket = null,
+	selectedAssemblyOccurrenceId = null,
+	onAssemblyOccurrenceSelect = () => undefined,
 }: AetherisViewportProps) {
 	return (
 		<Canvas
@@ -520,6 +616,7 @@ export function AetherisViewport({
 				intensity={theme.lights.fillIntensity}
 			/>
 			<FitCameraToScene displayScene={displayScene} />
+			<FitCameraToAssembly packet={assemblyPacket} />
 			{showGrid ? <AdaptiveLogGrid theme={theme} /> : null}
 			{showAxisGuide ? <AxisGuide theme={theme} /> : null}
 			{displayScene?.renderables.flatMap((renderable) =>
@@ -563,6 +660,14 @@ export function AetherisViewport({
 					DiagnosticPatch: () => [],
 				}),
 			)}
+			{assemblyPacket ? (
+				<AssemblyMeshes
+					packet={assemblyPacket}
+					selectedId={selectedAssemblyOccurrenceId}
+					onSelect={onAssemblyOccurrenceSelect}
+					theme={theme}
+				/>
+			) : null}
 			{cadmataLayers ? (
 				<CadmataOverlay
 					artifact={cadmataArtifact}

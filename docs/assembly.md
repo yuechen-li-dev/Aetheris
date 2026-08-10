@@ -1,11 +1,11 @@
-# Aetheris legacy assembly model (ASM-A5 compatibility lane)
+# Historical JSON-shaped `.firmasm` model (legacy syntax)
 
-This document records the deprecated flat `.firmasm` compatibility lane. The canonical typed architecture is [assembly/architecture.md](assembly/architecture.md). AETHERIS-ASSEMBLY-M0 intentionally supersedes the authority claims below; they remain here to explain legacy fixtures and commands.
+This document records the deprecated JSON-shaped `.firmasm` syntax. The `.firmasm` extension itself is current: it is the Firmament V2 Assembly document profile described in [Assembly M2](assembly/assembly-m2.md). The historical details below remain only to explain legacy fixtures, migration, and compatibility commands.
 
 ## 1) Core philosophy
 
 - STEP/AP242 is a **foreign interchange format**.
-- `.firmasm` was Aetheris's authoritative v0 representation and is now legacy compatibility input.
+- JSON-shaped `.firmasm` was Aetheris's authoritative v0 representation and is now legacy compatibility input.
 - Aetheris does not adopt or normalize away STEP assembly ambiguity as native semantics.
 - Assembly behavior is defined by Aetheris contracts (`.firmasm`, executor, bounded exporter), not by importer guesswork.
 
@@ -67,7 +67,7 @@ Stage semantics:
 
 ## 4) `.firmasm` contract (ASM-A0)
 
-`.firmasm` is JSON by design.
+Historical `.firmasm` v0 syntax was JSON by design. Current `.firmasm` is Firmament V2 source.
 
 Why JSON:
 

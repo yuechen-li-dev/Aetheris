@@ -13,3 +13,5 @@ The compiler lowers source syntax before downstream work into `AssemblyIr` (`aet
 `Anchor: path;` fixes the containing part occurrence at identity. Axis coincidence is solved analytically with double-precision rigid rotation and translation. Axis-plus-plane seating removes axial translation. Remaining translations and rotations are reported; an Interface may explicitly admit a symmetry freedom such as `rotation:about-axis`. Multiple Mate-derived transforms for one instance are compared and conflicting translations produce `assembly-placement-overconstrained`; there is no last-mate-wins behavior.
 
 M0 intentionally does not implement general nonlinear solving, kinematics, contact, assembly FEA, auto-fastener selection, or random/statistical tolerancing.
+
+M2 records placement authority independently from the resolved transform: `MateDerived` is native engineering intent, `ImportedOccurrence` is trustworthy AP242 interchange evidence, and `LegacyExplicit` is compatibility evidence migrated from JSON-shaped `.firmasm`. Imported and legacy transforms never imply or synthesize a Mate.

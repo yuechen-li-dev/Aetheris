@@ -141,7 +141,9 @@ public static class CliRunner
     private const string CanonUsage = "Usage: aetheris canon <file.step> --out <canonical.step> [--mode deterministic|production] [--json]";
     private const string AsmExecUsage = "Usage: aetheris asm exec <file.firmasm> [--json]";
     private const string AsmExportUsage = "Usage: aetheris asm export <file.firmasm> --out <directory> [--json]";
-    private const string AsmInspectUsage = "Usage: aetheris asm inspect <assembly.firmament> [--json] [--profile] [--out <report.json>]";
+    private const string AsmInspectUsage = "Usage: aetheris asm inspect <assembly.firmament|assembly.firmasm> [--json] [--profile] [--out <report.json>]";
+    private const string AsmImportStepUsage = "Usage: aetheris asm import-step <assembly.step> --out <directory> [--json]";
+    private const string AsmExportAp242Usage = "Usage: aetheris asm export-ap242 <assembly.firmament|assembly.firmasm> --out <assembly.step> [--json]";
     private const string ExperimentalUsage = "Usage: aetheris experimental <airchamfer-cube|airchamfer-corpus|prismatic-corpus|prismatic-map|loop-chamfer-corpus> [options]";
     private const string ExperimentalAirChamferCubeUsage = "Usage: aetheris experimental airchamfer-cube --out <path> [--json]";
     private const string ExperimentalAirChamferCorpusUsage = "Usage: aetheris experimental airchamfer-corpus --out-dir <dir> [--json]";
@@ -2530,6 +2532,11 @@ public static class CliRunner
             return RunAsmExport(args.Skip(1).ToArray(), stdout, stderr);
         }
 
+        if (string.Equals(args[0], "import-step", StringComparison.Ordinal))
+            return RunAsmImportStep(args.Skip(1).ToArray(), stdout, stderr);
+        if (string.Equals(args[0], "export-ap242", StringComparison.Ordinal))
+            return RunAsmExportAp242(args.Skip(1).ToArray(), stdout, stderr);
+
         stderr.WriteLine($"Unknown asm subcommand '{args[0]}'.");
         stderr.WriteLine(AsmExecUsage);
         stderr.WriteLine(AsmExportUsage);
@@ -2544,6 +2551,7 @@ public static class CliRunner
             (args.Length == 0 ? stderr : stdout).WriteLine(AsmInspectUsage);
             return args.Length == 0 ? 1 : 0;
         }
+
         var path = args[0];
         var json = false;
         var profile = false;
@@ -2563,7 +2571,16 @@ public static class CliRunner
         IReadOnlyList<AssemblyDiagnostic> assemblyDiagnostics;
         AssemblyPerformanceIr? assemblyPerformance;
         bool success;
-        if (usesTemplateInstances)
+        if (string.Equals(Path.GetExtension(path), ".firmasm", StringComparison.OrdinalIgnoreCase))
+        {
+            var document = new FirmamentAssemblyDocumentCompiler().CompileFile(path);
+            assemblyIr = document.Compilation.Ir;
+            geometryArtifact = document.Compilation.Geometry?.Artifact;
+            assemblyDiagnostics = document.Compilation.Diagnostics;
+            assemblyPerformance = document.Compilation.Performance;
+            success = document.IsSuccess;
+        }
+        else if (usesTemplateInstances)
         {
             var m1 = new AssemblyM1Pipeline().CompileFile(path);
             assemblyIr = m1.Ir;
@@ -2597,7 +2614,7 @@ public static class CliRunner
             stdout.WriteLine($"Assembly: {ir.Name} ({ir.Schema})");
             stdout.WriteLine("Product tree:");
             foreach (var instance in ir.Instances.OrderBy(x => x.Path.Segments.Count).ThenBy(x => x.Path.ToString(), StringComparer.Ordinal))
-                stdout.WriteLine($"{new string(' ', (instance.Path.Segments.Count - 1) * 2)}- {instance.Path.Segments[^1]} [{instance.Kind}] = {instance.DefinitionIdentity}");
+                stdout.WriteLine($"{new string(' ', (instance.Path.Segments.Count - 1) * 2)}- {instance.Path.Segments[^1]} [{instance.Kind}] = {instance.DefinitionIdentity}; placement={instance.PlacementAuthority}");
             stdout.WriteLine("Mates:");
             foreach (var mate in ir.Mates)
                 stdout.WriteLine($"- {mate.Name}: {mate.InterfaceStableId} ({string.Join(", ", mate.Roles.Select(x => x.Role + "=" + x.ParticipantPath))})");
@@ -3259,6 +3276,34 @@ public static class CliRunner
         return 1;
     }
 
+    private static int RunAsmImportStep(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0 || IsHelpFlag(args[0])) { (args.Length == 0 ? stderr : stdout).WriteLine(AsmImportStepUsage); return args.Length == 0 ? 1 : 0; }
+        string? output = null; var json = false;
+        for (var i = 1; i < args.Length; i++) if (args[i] == "--out" && i + 1 < args.Length) output = args[++i]; else if (args[i] == "--json") json = true; else { stderr.WriteLine(AsmImportStepUsage); return 1; }
+        if (output is null || !File.Exists(args[0])) { stderr.WriteLine(AsmImportStepUsage); return 1; }
+        var result = Step242FirmasmPackageImporter.Import(args[0], output);
+        if (!result.IsSuccess) { foreach (var diagnostic in result.Diagnostics) stderr.WriteLine($"{diagnostic.Source}: {diagnostic.Message}"); return 1; }
+        var report = new { success = true, result.Value.FirmasmPath, result.Value.ManifestPath, definitionCount = result.Value.Components.Count, occurrenceCount = result.Value.ProductStructure.Occurrences.Count, result.Value.FirmasmSha256 };
+        stdout.WriteLine(json ? JsonSerializer.Serialize(report, JsonOptions) : $"Imported AP242 assembly to {result.Value.FirmasmPath} ({result.Value.Components.Count} definitions, {result.Value.ProductStructure.Occurrences.Count} occurrences).");
+        return 0;
+    }
+
+    private static int RunAsmExportAp242(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0 || IsHelpFlag(args[0])) { (args.Length == 0 ? stderr : stdout).WriteLine(AsmExportAp242Usage); return args.Length == 0 ? 1 : 0; }
+        string? output = null; var json = false;
+        for (var i = 1; i < args.Length; i++) if (args[i] == "--out" && i + 1 < args.Length) output = args[++i]; else if (args[i] == "--json") json = true; else { stderr.WriteLine(AsmExportAp242Usage); return 1; }
+        if (output is null || !File.Exists(args[0])) { stderr.WriteLine(AsmExportAp242Usage); return 1; }
+        var compilation = string.Equals(Path.GetExtension(args[0]), ".firmasm", StringComparison.OrdinalIgnoreCase) ? new FirmamentAssemblyDocumentCompiler().CompileFile(args[0]).Compilation : new AssemblyM1Pipeline().CompileFile(args[0]);
+        var export = AssemblyIrAp242Exporter.Export(compilation);
+        if (!export.IsSuccess) { foreach (var diagnostic in export.Diagnostics) stderr.WriteLine($"{diagnostic.Source}: {diagnostic.Message}"); return 1; }
+        var fullOutput = Path.GetFullPath(output); Directory.CreateDirectory(Path.GetDirectoryName(fullOutput)!); File.WriteAllText(fullOutput, export.Value);
+        var hash = Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(export.Value)));
+        stdout.WriteLine(json ? JsonSerializer.Serialize(new { success = true, output = fullOutput, sha256 = hash, occurrenceCount = compilation.Ir!.Instances.Count - 1, definitionCount = compilation.Geometry!.Artifact.Definitions.Count }, JsonOptions) : $"Exported native AP242 assembly: {fullOutput} sha256={hash}");
+        return 0;
+    }
+
     private static bool IsTopLevelHelpRequest(string value) =>
         IsHelpFlag(value)
         || string.Equals(value, "help", StringComparison.Ordinal);
@@ -3696,11 +3741,13 @@ public static class CliRunner
 
     private static void WriteAsmHelp(TextWriter stdout)
     {
-        stdout.WriteLine("Inspect typed Firmament assemblies, or use the deprecated flat .firmasm compatibility runtime/export lane.");
+        stdout.WriteLine("Inspect Firmament V2 assemblies. .firmasm is the supported Assembly document profile; only its historical JSON-shaped syntax is legacy.");
         stdout.WriteLine();
         stdout.WriteLine(AsmExecUsage);
         stdout.WriteLine($"   or: {AsmExportUsage[7..]}");
         stdout.WriteLine($"   or: {AsmInspectUsage[7..]}");
+        stdout.WriteLine($"   or: {AsmImportStepUsage[7..]}");
+        stdout.WriteLine($"   or: {AsmExportAp242Usage[7..]}");
         stdout.WriteLine();
         stdout.WriteLine("Options:");
         stdout.WriteLine("  --out <path>   Required for 'asm export'; output directory for package artifacts.");
@@ -3711,6 +3758,8 @@ public static class CliRunner
         stdout.WriteLine("  aetheris asm exec testdata/firmasm/examples/occt-as1/as1-assembly.firmasm --json");
         stdout.WriteLine("  aetheris asm export testdata/firmasm/examples/occt-nut-bolt/nut-bolt-assembly.firmasm --out tmp/nutbolt-export --json");
         stdout.WriteLine("  aetheris asm inspect fixtures/AssemblyM0/bearing-module.firmament --json");
+        stdout.WriteLine("  aetheris asm import-step testdata/step242/OCCT/as1.step --out tmp/as1-package --json");
+        stdout.WriteLine("  aetheris asm export-ap242 tmp/as1-package/as1.firmasm --out tmp/as1.step --json");
     }
 
     private static string FormatBox(Aetheris.Kernel.Core.Math.BoundingBox3D? box) =>

@@ -114,6 +114,52 @@ export interface StartupStepDto {
 	path: string;
 	fileName: string;
 	stepText: string;
+	kind?: "step" | "assembly";
+}
+
+export interface AssemblyDisplayDefinitionDto {
+	stableId: string;
+	definitionIdentity: string;
+	facePatches: FacePatchDto[];
+}
+export interface AssemblyDisplayOccurrenceDto {
+	stableId: string;
+	name: string;
+	instancePath: string;
+	parentStableId: string | null;
+	definitionStableId: string | null;
+	kind: "Assembly" | "Part";
+	worldTransform: number[];
+	placementAuthority: "MateDerived" | "ImportedOccurrence" | "LegacyExplicit";
+}
+export interface AssemblyDisplayMateDto {
+	stableId: string;
+	name: string;
+	interfaceStableId: string;
+	participants: string[];
+	constraintIds: string[];
+	validationStatus: string;
+}
+export interface AssemblyDisplayToleranceDto {
+	name: string;
+	passed: boolean;
+	nominal: number;
+	minimum: number;
+	maximum: number;
+	unit: string;
+	contributors: string[];
+}
+export interface AssemblyDisplayPacketDto {
+	schema: string;
+	name: string;
+	rootOccurrenceStableId: string;
+	definitions: AssemblyDisplayDefinitionDto[];
+	occurrences: AssemblyDisplayOccurrenceDto[];
+	mates: AssemblyDisplayMateDto[];
+	toleranceStackups: AssemblyDisplayToleranceDto[];
+	bounds: { minimum: number[]; maximum: number[] };
+	diagnostics: DisplayDiagnosticDto[];
+	performance: Record<string, number>;
 }
 
 export interface AnalyticDisplayPlaneGeometryDto {
@@ -495,6 +541,13 @@ export async function claimStartupStep(): Promise<StartupStepDto | null> {
 	}
 
 	return parseEnvelope<StartupStepDto>(response);
+}
+
+export async function prepareAssemblyDisplay(path: string): Promise<AssemblyDisplayPacketDto> {
+	return request<AssemblyDisplayPacketDto>("/api/v1/assemblies/display", {
+		method: "POST",
+		body: JSON.stringify({ path }),
+	});
 }
 
 export { parseEnvelope };

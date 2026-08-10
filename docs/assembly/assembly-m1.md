@@ -43,10 +43,12 @@ After both participant bodies exist, every admitted Axis/Plane/Point placement c
 
 An Interface `Fit` now lowers a typed clearance transition into AssemblyIR with Mate and Interface identities. Its source provenance includes the endpoint Template specialization and Static Record rows, and that evidence is copied into stackup contributions. The canonical M1 assertion proves the automatic transition from `MovingSpec` to `FixedSpec`; explicit `Relation` remains the bounded way to author other signed dimensional transitions. M0 tolerance paths remain unchanged and green.
 
+After exact definition materialization and occurrence placement, Assembly compilation rejects proven positive-volume interference between closed convex planar Part BReps with `assembly-solid-volume-interference`. Face, edge, and point contact remain legal. Bounding-box overlap is only a broad-phase rejection aid and is never sufficient to claim interference; curved or non-convex pairs outside the bounded proof subset remain unclaimed rather than guessed.
+
 ## Current boundary
 
 - Template-generated Parts are supported. Template-authored Assembly/subassembly definitions are designed for by definition identity and the retained tree, but are not parsed/materialized in M1.
 - Exact instance BReps are executable and inspectable. Cadmata has not yet gained an Assembly display endpoint.
 - Native AP242 product structure is not emitted. The current exporter creates one PRODUCT/PRODUCT_DEFINITION and one shape representation per body and has no NAUO, mapped-item, or representation-relationship-with-transformation writer. See `docs/assembly/artifacts/m1/ap242-audit.md`.
-- `.firmasm` remains a deprecated transform-first compatibility lane. Its executor/export package is preserved; raw transforms have no Interface meaning. Automated source migration is not implemented.
+- The historical JSON-shaped `.firmasm` syntax remains a transform-first compatibility input. The `.firmasm` extension is current as the Firmament V2 Assembly document profile; M2 adds automatic migration and explicit placement authority.
 - InlineStep/Recognize semantic regions remain exact BRep regions, but current recognizers do not produce AxisCapable, PlaneCapable, or DimensionalCapable values, so they cannot yet satisfy these Assembly Roles.

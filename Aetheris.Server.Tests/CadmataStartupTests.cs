@@ -47,9 +47,22 @@ public sealed class CadmataStartupTests
         try
         {
             var exception = Assert.Throws<CadmataLaunchException>(() => CadmataLaunchOptions.Parse([invalid]));
-            Assert.Contains(".step or .stp", exception.Message, StringComparison.Ordinal);
+            Assert.Contains(".step, .stp, .firmament, or .firmasm", exception.Message, StringComparison.Ordinal);
         }
         finally { File.Delete(invalid); }
+    }
+
+    [Fact]
+    public void Parse_AcceptsFirmasmAsAssemblyStartupDocument()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"assembly-{Guid.NewGuid():N}.firmasm");
+        File.WriteAllText(path, "Assembly A { <Assembly A></Assembly> }");
+        try
+        {
+            var options = CadmataLaunchOptions.Parse([path, "--no-browser"]);
+            Assert.Equal("assembly", options.Step!.Kind);
+        }
+        finally { File.Delete(path); }
     }
 
     [Fact]

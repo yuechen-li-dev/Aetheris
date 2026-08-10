@@ -1,0 +1,115 @@
+// Imported from as1.step; occurrence transforms are interchange evidence, not semantic Mates.
+// Multiplicity without trustworthy foreign hierarchy is intentionally normalized to a flat Assembly.
+Assembly ImportedAssembly {
+  <Assembly ImportedAssembly>
+    <Assembly _16>
+      // STEP occurrence #66; Placement authority: ImportedOccurrence.
+      Placement ImportedOccurrence = [2.22044604925E-16, 0, -1, 0, 0, 1, 0, 0, 1, -0, 2.22044604925E-16, 0, -10, 75, 60, 1];
+      <Part _13 = ExternalStep<"components/0003-nut.step">>
+        // STEP occurrence #355; Placement authority: ImportedOccurrence.
+        Placement ImportedOccurrence = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -10, -7.5, 185, 1];
+      </Part>
+      <Part _14 = ExternalStep<"components/0003-nut.step">>
+        // STEP occurrence #361; Placement authority: ImportedOccurrence.
+        Placement ImportedOccurrence = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -10, -7.5, 12, 1];
+      </Part>
+      <Part _15 = ExternalStep<"components/0005-rod.step">>
+        // STEP occurrence #513; Placement authority: ImportedOccurrence.
+        Placement ImportedOccurrence = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+      </Part>
+    </Assembly>
+    <Assembly _27>
+      // STEP occurrence #548; Placement authority: ImportedOccurrence.
+      Placement ImportedOccurrence = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 125, 20, 1];
+      <Assembly _19>
+        // STEP occurrence #575; Placement authority: ImportedOccurrence.
+        Placement ImportedOccurrence = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 27.5, -40, 0, 1];
+        <Part _17 = ExternalStep<"components/0001-bolt.step">>
+          // STEP occurrence #854; Placement authority: ImportedOccurrence.
+          Placement ImportedOccurrence = [2.22044604925E-16, -1, 0, 0, -1, -2.22044604925E-16, 0, 0, 0, -0, -1, 0, -7.5, -10, 13, 1];
+        </Part>
+        <Part _18 = ExternalStep<"components/0003-nut.step">>
+          // STEP occurrence #860; Placement authority: ImportedOccurrence.
+          Placement ImportedOccurrence = [-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 2.5, -17.5, -20, 1];
+        </Part>
+      </Assembly>
+      <Assembly _22>
+        // STEP occurrence #886; Placement authority: ImportedOccurrence.
+        Placement ImportedOccurrence = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 50, -52.99038106, 0, 1];
+        <Part _20 = ExternalStep<"components/0001-bolt.step">>
+          // STEP occurrence #892; Placement authority: ImportedOccurrence.
+          Placement ImportedOccurrence = [2.22044604925E-16, -1, 0, 0, -1, -2.22044604925E-16, 0, 0, 0, -0, -1, 0, -7.5, -10, 13, 1];
+        </Part>
+        <Part _21 = ExternalStep<"components/0003-nut.step">>
+          // STEP occurrence #897; Placement authority: ImportedOccurrence.
+          Placement ImportedOccurrence = [-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 2.5, -17.5, -20, 1];
+        </Part>
+      </Assembly>
+      <Assembly _25>
+        // STEP occurrence #923; Placement authority: ImportedOccurrence.
+        Placement ImportedOccurrence = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 50, -27.00961894, 0, 1];
+        <Part _23 = ExternalStep<"components/0001-bolt.step">>
+          // STEP occurrence #929; Placement authority: ImportedOccurrence.
+          Placement ImportedOccurrence = [2.22044604925E-16, -1, 0, 0, -1, -2.22044604925E-16, 0, 0, 0, -0, -1, 0, -7.5, -10, 13, 1];
+        </Part>
+        <Part _24 = ExternalStep<"components/0003-nut.step">>
+          // STEP occurrence #934; Placement authority: ImportedOccurrence.
+          Placement ImportedOccurrence = [-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 2.5, -17.5, -20, 1];
+        </Part>
+      </Assembly>
+      <Part _26 = ExternalStep<"components/0002-l_bracket.step">>
+        // STEP occurrence #1648; Placement authority: ImportedOccurrence.
+        Placement ImportedOccurrence = [1, 0, 0, 0, -0, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1];
+      </Part>
+    </Assembly>
+    <Part _28 = ExternalStep<"components/0004-plate.step">>
+      // STEP occurrence #2537; Placement authority: ImportedOccurrence.
+      Placement ImportedOccurrence = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+    </Part>
+    <Assembly _39>
+      // STEP occurrence #2572; Placement authority: ImportedOccurrence.
+      Placement ImportedOccurrence = [-1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 175, 25, 20, 1];
+      <Assembly _31>
+        // STEP occurrence #2599; Placement authority: ImportedOccurrence.
+        Placement ImportedOccurrence = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 27.5, -40, 0, 1];
+        <Part _29 = ExternalStep<"components/0001-bolt.step">>
+          // STEP occurrence #2605; Placement authority: ImportedOccurrence.
+          Placement ImportedOccurrence = [2.22044604925E-16, -1, 0, 0, -1, -2.22044604925E-16, 0, 0, 0, -0, -1, 0, -7.5, -10, 13, 1];
+        </Part>
+        <Part _30 = ExternalStep<"components/0003-nut.step">>
+          // STEP occurrence #2610; Placement authority: ImportedOccurrence.
+          Placement ImportedOccurrence = [-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 2.5, -17.5, -20, 1];
+        </Part>
+      </Assembly>
+      <Assembly _34>
+        // STEP occurrence #2636; Placement authority: ImportedOccurrence.
+        Placement ImportedOccurrence = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 50, -52.99038106, 0, 1];
+        <Part _32 = ExternalStep<"components/0001-bolt.step">>
+          // STEP occurrence #2642; Placement authority: ImportedOccurrence.
+          Placement ImportedOccurrence = [2.22044604925E-16, -1, 0, 0, -1, -2.22044604925E-16, 0, 0, 0, -0, -1, 0, -7.5, -10, 13, 1];
+        </Part>
+        <Part _33 = ExternalStep<"components/0003-nut.step">>
+          // STEP occurrence #2647; Placement authority: ImportedOccurrence.
+          Placement ImportedOccurrence = [-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 2.5, -17.5, -20, 1];
+        </Part>
+      </Assembly>
+      <Assembly _37>
+        // STEP occurrence #2673; Placement authority: ImportedOccurrence.
+        Placement ImportedOccurrence = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 50, -27.00961894, 0, 1];
+        <Part _35 = ExternalStep<"components/0001-bolt.step">>
+          // STEP occurrence #2679; Placement authority: ImportedOccurrence.
+          Placement ImportedOccurrence = [2.22044604925E-16, -1, 0, 0, -1, -2.22044604925E-16, 0, 0, 0, -0, -1, 0, -7.5, -10, 13, 1];
+        </Part>
+        <Part _36 = ExternalStep<"components/0003-nut.step">>
+          // STEP occurrence #2684; Placement authority: ImportedOccurrence.
+          Placement ImportedOccurrence = [-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 2.5, -17.5, -20, 1];
+        </Part>
+      </Assembly>
+      <Part _38 = ExternalStep<"components/0002-l_bracket.step">>
+        // STEP occurrence #2689; Placement authority: ImportedOccurrence.
+        Placement ImportedOccurrence = [1, 0, 0, 0, -0, 2.22044604925E-16, 1, 0, 0, -1, 2.22044604925E-16, 0, 0, 0, 0, 1];
+      </Part>
+    </Assembly>
+  </Assembly>
+  Anchor: ImportedAssembly;
+}

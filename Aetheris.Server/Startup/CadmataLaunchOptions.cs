@@ -2,7 +2,7 @@ namespace Aetheris.Server.Startup;
 
 public sealed class CadmataLaunchException(string message) : Exception(message);
 
-public sealed record CadmataStartupStepContent(string Path, string FileName, string StepText);
+public sealed record CadmataStartupStepContent(string Path, string FileName, string StepText, string Kind = "step");
 
 public sealed record CadmataLaunchOptions(CadmataStartupStepContent? Step, bool NoBrowser, bool HasExplicitUrls)
 {
@@ -70,10 +70,13 @@ public sealed record CadmataLaunchOptions(CadmataStartupStepContent? Step, bool 
 
         var fullPath = Path.GetFullPath(stepPath);
         var extension = Path.GetExtension(fullPath);
+        var isAssembly = string.Equals(extension, ".firmasm", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(extension, ".firmament", StringComparison.OrdinalIgnoreCase);
         if (!string.Equals(extension, ".step", StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(extension, ".stp", StringComparison.OrdinalIgnoreCase))
+            && !string.Equals(extension, ".stp", StringComparison.OrdinalIgnoreCase)
+            && !isAssembly)
         {
-            throw new CadmataLaunchException($"Startup file must use .step or .stp: {fullPath}");
+            throw new CadmataLaunchException($"Startup file must use .step, .stp, .firmament, or .firmasm: {fullPath}");
         }
 
         if (!File.Exists(fullPath))
@@ -97,7 +100,7 @@ public sealed record CadmataLaunchOptions(CadmataStartupStepContent? Step, bool 
         }
 
         return new CadmataLaunchOptions(
-            new CadmataStartupStepContent(fullPath, Path.GetFileName(fullPath), stepText),
+            new CadmataStartupStepContent(fullPath, Path.GetFileName(fullPath), stepText, isAssembly ? "assembly" : "step"),
             noBrowser,
             hasExplicitUrls);
     }

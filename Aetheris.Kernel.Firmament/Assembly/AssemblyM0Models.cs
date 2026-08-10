@@ -6,6 +6,7 @@ public enum AssemblyInstanceKind { Assembly, Part }
 public enum AssemblyDiagnosticSeverity { Warning, Error }
 public enum PlacementConstraintKind { AxisCoincident, AxisAligned, PlaneCoincident, PointCoincident, OffsetAlongAxis }
 public enum PlacementStatus { Anchored, Resolved, Underconstrained, Overconstrained, Unresolved }
+public enum PlacementAuthority { MateDerived, ImportedOccurrence, LegacyExplicit }
 
 public sealed record AssemblyDiagnostic(string Code, string Message, AssemblyDiagnosticSeverity Severity = AssemblyDiagnosticSeverity.Error);
 public sealed record AssemblyPath(IReadOnlyList<string> Segments)
@@ -30,7 +31,9 @@ public sealed record AssemblyMemberSource(
     IReadOnlyList<AssemblyMemberSource> Children,
     IReadOnlyList<SemanticValue> ExposedSemantics,
     IReadOnlyList<DimensionalRelationSource>? DimensionalRelations = null,
-    IReadOnlyList<SemanticProvenance>? Provenance = null);
+    IReadOnlyList<SemanticProvenance>? Provenance = null,
+    AssemblyTransform? ExplicitTransform = null,
+    PlacementAuthority PlacementAuthority = PlacementAuthority.MateDerived);
 
 public sealed record MateRoleAssignment(string Role, AssemblyPath Participant);
 public sealed record MateSource(string Name, string InterfaceName, IReadOnlyList<MateRoleAssignment> Roles, SemanticSourceSpan? SourceSpan = null);
@@ -53,7 +56,8 @@ public sealed record AssemblyInstanceIr(
     string StableId, AssemblyPath Path, AssemblyInstanceKind Kind, string DefinitionIdentity,
     string? ParentStableId, IReadOnlyList<string> ChildrenStableIds,
     SemanticValue SemanticRoot, AssemblyTransform? LocalTransform, AssemblyTransform? ResolvedTransform,
-    IReadOnlyList<SemanticProvenance> Provenance);
+    IReadOnlyList<SemanticProvenance> Provenance,
+    PlacementAuthority PlacementAuthority = PlacementAuthority.MateDerived);
 
 public sealed record MateEndpointIr(string Role, AssemblyPath ParticipantPath, string ParticipantSemanticValueId, IReadOnlyList<string> RequiredCapabilities);
 public sealed record MateIr(string StableId, string Name, string InterfaceStableId, IReadOnlyList<MateEndpointIr> Roles, IReadOnlyList<string> ConstraintIds, string ValidationStatus);
@@ -61,7 +65,7 @@ public sealed record PlacementConstraintIr(
     string StableId, PlacementConstraintKind Kind, string MateStableId,
     string FirstSemanticValueId, string SecondSemanticValueId, double OffsetMm,
     double Residual, string Status);
-public sealed record PlacementResultIr(string InstanceStableId, PlacementStatus Status, AssemblyTransform? Transform, IReadOnlyList<string> FreeTranslations, IReadOnlyList<string> FreeRotations, IReadOnlyList<string> ConstraintIds);
+public sealed record PlacementResultIr(string InstanceStableId, PlacementStatus Status, AssemblyTransform? Transform, IReadOnlyList<string> FreeTranslations, IReadOnlyList<string> FreeRotations, IReadOnlyList<string> ConstraintIds, PlacementAuthority Authority = PlacementAuthority.MateDerived);
 
 public sealed record DimensionalRelationIr(
     string StableId, string FromSemanticValueId, string ToSemanticValueId,

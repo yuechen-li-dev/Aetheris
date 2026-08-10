@@ -26,10 +26,10 @@ public sealed class AssemblyM1Tests
         var world = Assert.IsType<ExactAxisBinding>(AssemblyWorldQuery.Resolve(first.Ir, axis.StableIdentity));
         Assert.Equal(0, world.OriginX, 8);
         Assert.Equal(0, world.OriginY, 8);
-        Assert.Equal(2.5, world.OriginZ, 8); // local box center 7.5mm, Mate-derived seating transform -5mm
+        Assert.Equal(14, world.OriginZ, 8); // local center 4mm, with Moving.Base seated on Fixed.Seat at Z=10mm
 
         var automatic = Assert.Single(first.Ir.DimensionalRelations, relation => relation.Provenance == "Interface:SeatedAxis.Fit");
-        Assert.Equal(-5, automatic.Nominal, 8);
+        Assert.Equal(2, automatic.Nominal, 8);
         Assert.Equal("mate:TemplateBlockPair:Seat", automatic.MateStableId);
         Assert.Equal("interface:SeatedAxis", automatic.InterfaceStableId);
         Assert.Contains(automatic.SourceProvenance!, item => item.Stage == "static-record" && item.Identity == "MovingSpec");
@@ -37,5 +37,32 @@ public sealed class AssemblyM1Tests
         var stackup = Assert.Single(first.Ir.ToleranceStackups);
         Assert.True(stackup.Passed);
         Assert.Contains(Assert.Single(stackup.Contributions).SourceProvenance!, item => item.Stage == "static-record" && item.Identity == "FixedSpec");
+    }
+
+    [Fact]
+    public void PositiveVolumeOccurrenceOverlap_IsFatalAfterExactMaterialization()
+    {
+        var canonicalPath = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/AssemblyM1/template-block-pair.firmament");
+        var source = File.ReadAllText(canonicalPath).Replace(
+            "Lower PlaneCoincident Moving.Base Fixed.Seat;",
+            "Lower PlaneCoincident Moving.Seat Fixed.Seat;",
+            StringComparison.Ordinal);
+        var temporaryPath = Path.Combine(Path.GetTempPath(), "aetheris-overlap-" + Guid.NewGuid().ToString("N") + ".firmament");
+        try
+        {
+            File.WriteAllText(temporaryPath, source);
+            var result = new AssemblyM1Pipeline().CompileFile(temporaryPath);
+
+            Assert.False(result.IsSuccess);
+            var diagnostic = Assert.Single(result.Diagnostics, diagnostic => diagnostic.Code == "assembly-solid-volume-interference");
+            Assert.Equal(AssemblyDiagnosticSeverity.Error, diagnostic.Severity);
+            Assert.Contains("TemplateBlockPair.Fixed", diagnostic.Message, StringComparison.Ordinal);
+            Assert.Contains("TemplateBlockPair.Moving", diagnostic.Message, StringComparison.Ordinal);
+            Assert.Contains("positive-volume overlap is not", diagnostic.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
+        }
     }
 }

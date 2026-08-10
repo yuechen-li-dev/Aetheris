@@ -1,5 +1,9 @@
 # Firmament V2 language reference
 
+## Document profiles
+
+Firmament V2 is one language. `.firmament` is the general document profile and may contain assemblies. `.firmasm` is the Assembly/interchange profile: it uses the same lexer, parser, binder, declarations, Templates, diagnostics, `SemanticValue` model, and `AssemblyIR`, and requires exactly one exported/root `Assembly`. Supporting Record, Table, Template, Concept, Interface, semantic, part, and resource declarations remain valid. The historical JSON-shaped `.firmasm` syntax is legacy migration input; the `.firmasm` extension is supported and current.
+
 This is the canonical implementation-grounded reference for Firmament V2 as of Assembly M1. Parser acceptance alone is not support: each feature below is classified by binding, lowering, tests, and a real consumer. Older milestone documents are historical evidence when they disagree with this page.
 
 ## Language model
@@ -156,4 +160,3 @@ An `Assembly` body contains one XML-like product tree, an `Anchor`, independent 
 | Future/incomplete | Template-authored subassemblies, native AP242 product structure/import, recognizer-produced datum/dimension capabilities, unrestricted symbolic relations, general kinematics/contact/assembly FEA |
 
 The machine-readable status and source evidence are in `language-features.json` and `artifacts/language-audit-m1/`.
-

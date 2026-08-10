@@ -1,0 +1,1533 @@
+{
+  "success": true,
+  "assemblyIr": {
+    "schema": "aetheris/assembly-ir/m1",
+    "stableId": "assembly:TemplateBlockPair",
+    "name": "TemplateBlockPair",
+    "rootInstanceStableId": "assembly-instance:TemplateBlockPair",
+    "instances": [
+      {
+        "stableId": "assembly-instance:TemplateBlockPair",
+        "path": {
+          "segments": [
+            "TemplateBlockPair"
+          ]
+        },
+        "kind": "Assembly",
+        "definitionIdentity": "TemplateBlockPair",
+        "parentStableId": null,
+        "childrenStableIds": [
+          "assembly-instance:TemplateBlockPair.Fixed",
+          "assembly-instance:TemplateBlockPair.Moving"
+        ],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:TemplateBlockPair",
+          "type": {
+            "name": "Assembly",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "TemplateBlockPair",
+              "evidence": "TemplateBlockPair",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": null,
+        "resolvedTransform": null,
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "TemplateBlockPair",
+            "evidence": "TemplateBlockPair",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ]
+      },
+      {
+        "stableId": "assembly-instance:TemplateBlockPair.Fixed",
+        "path": {
+          "segments": [
+            "TemplateBlockPair",
+            "Fixed"
+          ]
+        },
+        "kind": "Part",
+        "definitionIdentity": "AssemblyBlock\u003CSpec: FixedSpec\u003E",
+        "parentStableId": "assembly-instance:TemplateBlockPair",
+        "childrenStableIds": [],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:TemplateBlockPair.Fixed",
+          "type": {
+            "name": "Part",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {
+            "Interface": {
+              "stableIdentity": "assembly-semantic:TemplateBlockPair.Fixed:Interface",
+              "type": {
+                "name": "Semantic",
+                "isCollection": false
+              },
+              "capabilities": {
+                "values": [
+                  {
+                    "name": "AxisCapable"
+                  },
+                  {
+                    "name": "DimensionalCapable"
+                  },
+                  {
+                    "name": "PlaneCapable"
+                  }
+                ]
+              },
+              "bindings": [],
+              "exposedMembers": {
+                "Axis": {
+                  "stableIdentity": "assembly-semantic:TemplateBlockPair.Fixed:Interface.Axis",
+                  "type": {
+                    "name": "Axis",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "AxisCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "ExactAxis",
+                      "stableBindingIdentity": "materialized:__AssemblyPart.exposed:Axis"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "Firmament-definition",
+                      "identity": "AssemblyBlock\u003CSpec: FixedSpec\u003E",
+                      "evidence": "ordinary Firmament build and canonical AP242 reimport",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    },
+                    {
+                      "stage": "template-specialization",
+                      "identity": "template:0a30ccff1bd91583",
+                      "evidence": "AssemblyBlock\u003CSpec: FixedSpec\u003E",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    },
+                    {
+                      "stage": "static-record",
+                      "identity": "FixedSpec",
+                      "evidence": "Spec:BlockSpec;StaticRecord",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    },
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "TemplateBlockPair.Fixed",
+                      "evidence": "materialized:__AssemblyPart.exposed:Axis",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                    "start": 607,
+                    "length": 25
+                  },
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Axis"
+                },
+                "Height": {
+                  "stableIdentity": "assembly-semantic:TemplateBlockPair.Fixed:Interface.Height",
+                  "type": {
+                    "name": "Length",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "DimensionalCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "TolerancedDimension",
+                      "stableBindingIdentity": "materialized:__AssemblyPart.exposed:Height"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "Firmament-definition",
+                      "identity": "AssemblyBlock\u003CSpec: FixedSpec\u003E",
+                      "evidence": "ordinary Firmament build and canonical AP242 reimport",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    },
+                    {
+                      "stage": "template-specialization",
+                      "identity": "template:0a30ccff1bd91583",
+                      "evidence": "AssemblyBlock\u003CSpec: FixedSpec\u003E",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    },
+                    {
+                      "stage": "static-record",
+                      "identity": "FixedSpec",
+                      "evidence": "Spec:BlockSpec;StaticRecord",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    },
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "TemplateBlockPair.Fixed",
+                      "evidence": "materialized:__AssemblyPart.exposed:Height",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                    "start": 659,
+                    "length": 34
+                  },
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Height"
+                },
+                "Seat": {
+                  "stableIdentity": "assembly-semantic:TemplateBlockPair.Fixed:Interface.Seat",
+                  "type": {
+                    "name": "Plane",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "PlaneCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "ExactPlane",
+                      "stableBindingIdentity": "materialized:__AssemblyPart.exposed:Seat"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "Firmament-definition",
+                      "identity": "AssemblyBlock\u003CSpec: FixedSpec\u003E",
+                      "evidence": "ordinary Firmament build and canonical AP242 reimport",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    },
+                    {
+                      "stage": "template-specialization",
+                      "identity": "template:0a30ccff1bd91583",
+                      "evidence": "AssemblyBlock\u003CSpec: FixedSpec\u003E",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    },
+                    {
+                      "stage": "static-record",
+                      "identity": "FixedSpec",
+                      "evidence": "Spec:BlockSpec;StaticRecord",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    },
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "TemplateBlockPair.Fixed",
+                      "evidence": "materialized:__AssemblyPart.exposed:Seat",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                    "start": 633,
+                    "length": 25
+                  },
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Seat"
+                }
+              },
+              "provenance": [
+                {
+                  "stage": "Firmament-definition",
+                  "identity": "AssemblyBlock\u003CSpec: FixedSpec\u003E",
+                  "evidence": "ordinary Firmament build and canonical AP242 reimport",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                },
+                {
+                  "stage": "template-specialization",
+                  "identity": "template:0a30ccff1bd91583",
+                  "evidence": "AssemblyBlock\u003CSpec: FixedSpec\u003E",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                },
+                {
+                  "stage": "static-record",
+                  "identity": "FixedSpec",
+                  "evidence": "Spec:BlockSpec;StaticRecord",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                },
+                {
+                  "stage": "assembly-instance",
+                  "identity": "TemplateBlockPair.Fixed",
+                  "evidence": "template-semantic:__AssemblyPart",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                }
+              ],
+              "authoredSourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                "start": 0,
+                "length": 0
+              },
+              "generatedSourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                "start": 0,
+                "length": 0
+              },
+              "exposedName": "Interface"
+            }
+          },
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "TemplateBlockPair.Fixed",
+              "evidence": "AssemblyBlock\u003CSpec: FixedSpec\u003E",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": null,
+        "resolvedTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "Fixed",
+            "evidence": "AssemblyBlock\u003CSpec: FixedSpec\u003E",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "Firmament-definition",
+            "identity": "AssemblyBlock\u003CSpec: FixedSpec\u003E",
+            "evidence": "ordinary Firmament build and canonical AP242 reimport",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "template-specialization",
+            "identity": "template:0a30ccff1bd91583",
+            "evidence": "AssemblyBlock\u003CSpec: FixedSpec\u003E",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "static-record",
+            "identity": "FixedSpec",
+            "evidence": "Spec:BlockSpec;StaticRecord",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ]
+      },
+      {
+        "stableId": "assembly-instance:TemplateBlockPair.Moving",
+        "path": {
+          "segments": [
+            "TemplateBlockPair",
+            "Moving"
+          ]
+        },
+        "kind": "Part",
+        "definitionIdentity": "AssemblyBlock\u003CSpec: MovingSpec\u003E",
+        "parentStableId": "assembly-instance:TemplateBlockPair",
+        "childrenStableIds": [],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:TemplateBlockPair.Moving",
+          "type": {
+            "name": "Part",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {
+            "Interface": {
+              "stableIdentity": "assembly-semantic:TemplateBlockPair.Moving:Interface",
+              "type": {
+                "name": "Semantic",
+                "isCollection": false
+              },
+              "capabilities": {
+                "values": [
+                  {
+                    "name": "AxisCapable"
+                  },
+                  {
+                    "name": "DimensionalCapable"
+                  },
+                  {
+                    "name": "PlaneCapable"
+                  }
+                ]
+              },
+              "bindings": [],
+              "exposedMembers": {
+                "Axis": {
+                  "stableIdentity": "assembly-semantic:TemplateBlockPair.Moving:Interface.Axis",
+                  "type": {
+                    "name": "Axis",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "AxisCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "ExactAxis",
+                      "stableBindingIdentity": "materialized:__AssemblyPart.exposed:Axis"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "Firmament-definition",
+                      "identity": "AssemblyBlock\u003CSpec: MovingSpec\u003E",
+                      "evidence": "ordinary Firmament build and canonical AP242 reimport",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    },
+                    {
+                      "stage": "template-specialization",
+                      "identity": "template:88509cacec6ff417",
+                      "evidence": "AssemblyBlock\u003CSpec: MovingSpec\u003E",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    },
+                    {
+                      "stage": "static-record",
+                      "identity": "MovingSpec",
+                      "evidence": "Spec:BlockSpec;StaticRecord",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    },
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "TemplateBlockPair.Moving",
+                      "evidence": "materialized:__AssemblyPart.exposed:Axis",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                    "start": 607,
+                    "length": 25
+                  },
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Axis"
+                },
+                "Height": {
+                  "stableIdentity": "assembly-semantic:TemplateBlockPair.Moving:Interface.Height",
+                  "type": {
+                    "name": "Length",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "DimensionalCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "TolerancedDimension",
+                      "stableBindingIdentity": "materialized:__AssemblyPart.exposed:Height"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "Firmament-definition",
+                      "identity": "AssemblyBlock\u003CSpec: MovingSpec\u003E",
+                      "evidence": "ordinary Firmament build and canonical AP242 reimport",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    },
+                    {
+                      "stage": "template-specialization",
+                      "identity": "template:88509cacec6ff417",
+                      "evidence": "AssemblyBlock\u003CSpec: MovingSpec\u003E",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    },
+                    {
+                      "stage": "static-record",
+                      "identity": "MovingSpec",
+                      "evidence": "Spec:BlockSpec;StaticRecord",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    },
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "TemplateBlockPair.Moving",
+                      "evidence": "materialized:__AssemblyPart.exposed:Height",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                    "start": 659,
+                    "length": 34
+                  },
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Height"
+                },
+                "Seat": {
+                  "stableIdentity": "assembly-semantic:TemplateBlockPair.Moving:Interface.Seat",
+                  "type": {
+                    "name": "Plane",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "PlaneCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "ExactPlane",
+                      "stableBindingIdentity": "materialized:__AssemblyPart.exposed:Seat"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "Firmament-definition",
+                      "identity": "AssemblyBlock\u003CSpec: MovingSpec\u003E",
+                      "evidence": "ordinary Firmament build and canonical AP242 reimport",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    },
+                    {
+                      "stage": "template-specialization",
+                      "identity": "template:88509cacec6ff417",
+                      "evidence": "AssemblyBlock\u003CSpec: MovingSpec\u003E",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    },
+                    {
+                      "stage": "static-record",
+                      "identity": "MovingSpec",
+                      "evidence": "Spec:BlockSpec;StaticRecord",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    },
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "TemplateBlockPair.Moving",
+                      "evidence": "materialized:__AssemblyPart.exposed:Seat",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                    "start": 633,
+                    "length": 25
+                  },
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Seat"
+                }
+              },
+              "provenance": [
+                {
+                  "stage": "Firmament-definition",
+                  "identity": "AssemblyBlock\u003CSpec: MovingSpec\u003E",
+                  "evidence": "ordinary Firmament build and canonical AP242 reimport",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                },
+                {
+                  "stage": "template-specialization",
+                  "identity": "template:88509cacec6ff417",
+                  "evidence": "AssemblyBlock\u003CSpec: MovingSpec\u003E",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                },
+                {
+                  "stage": "static-record",
+                  "identity": "MovingSpec",
+                  "evidence": "Spec:BlockSpec;StaticRecord",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                },
+                {
+                  "stage": "assembly-instance",
+                  "identity": "TemplateBlockPair.Moving",
+                  "evidence": "template-semantic:__AssemblyPart",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                }
+              ],
+              "authoredSourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                "start": 0,
+                "length": 0
+              },
+              "generatedSourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                "start": 0,
+                "length": 0
+              },
+              "exposedName": "Interface"
+            }
+          },
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "TemplateBlockPair.Moving",
+              "evidence": "AssemblyBlock\u003CSpec: MovingSpec\u003E",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": null,
+        "resolvedTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            -5,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "Moving",
+            "evidence": "AssemblyBlock\u003CSpec: MovingSpec\u003E",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "Firmament-definition",
+            "identity": "AssemblyBlock\u003CSpec: MovingSpec\u003E",
+            "evidence": "ordinary Firmament build and canonical AP242 reimport",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "template-specialization",
+            "identity": "template:88509cacec6ff417",
+            "evidence": "AssemblyBlock\u003CSpec: MovingSpec\u003E",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "static-record",
+            "identity": "MovingSpec",
+            "evidence": "Spec:BlockSpec;StaticRecord",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ]
+      }
+    ],
+    "interfaces": [
+      {
+        "stableId": "interface:SeatedAxis",
+        "name": "SeatedAxis",
+        "roles": [
+          {
+            "name": "Fixed",
+            "requiredCapabilities": [
+              "AxisCapable",
+              "PlaneCapable",
+              "DimensionalCapable"
+            ],
+            "minimum": 1,
+            "maximum": 1
+          },
+          {
+            "name": "Moving",
+            "requiredCapabilities": [
+              "AxisCapable",
+              "PlaneCapable",
+              "DimensionalCapable"
+            ],
+            "minimum": 1,
+            "maximum": 1
+          }
+        ],
+        "requirements": [
+          {
+            "kind": "AxisCoincident",
+            "firstRole": "Moving",
+            "firstMember": "Axis",
+            "secondRole": "Fixed",
+            "secondMember": "Axis",
+            "offsetMm": 0
+          },
+          {
+            "kind": "PlaneCoincident",
+            "firstRole": "Moving",
+            "firstMember": "Seat",
+            "secondRole": "Fixed",
+            "secondMember": "Seat",
+            "offsetMm": 0
+          }
+        ],
+        "fit": {
+          "shaftRole": "Moving",
+          "shaftDimension": "Height",
+          "boreRole": "Fixed",
+          "boreDimension": "Height"
+        },
+        "admittedFreeMotions": [
+          "rotation:about-axis"
+        ],
+        "sourceSpan": {
+          "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+          "start": 0,
+          "length": 0
+        }
+      }
+    ],
+    "mates": [
+      {
+        "stableId": "mate:TemplateBlockPair:Seat",
+        "name": "Seat",
+        "interfaceStableId": "interface:SeatedAxis",
+        "roles": [
+          {
+            "role": "Fixed",
+            "participantPath": {
+              "segments": [
+                "TemplateBlockPair",
+                "Fixed",
+                "Interface"
+              ]
+            },
+            "participantSemanticValueId": "assembly-semantic:TemplateBlockPair.Fixed:Interface",
+            "requiredCapabilities": [
+              "AxisCapable",
+              "PlaneCapable",
+              "DimensionalCapable"
+            ]
+          },
+          {
+            "role": "Moving",
+            "participantPath": {
+              "segments": [
+                "TemplateBlockPair",
+                "Moving",
+                "Interface"
+              ]
+            },
+            "participantSemanticValueId": "assembly-semantic:TemplateBlockPair.Moving:Interface",
+            "requiredCapabilities": [
+              "AxisCapable",
+              "PlaneCapable",
+              "DimensionalCapable"
+            ]
+          }
+        ],
+        "constraintIds": [
+          "constraint:mate:TemplateBlockPair:Seat:00",
+          "constraint:mate:TemplateBlockPair:Seat:01"
+        ],
+        "validationStatus": "valid"
+      }
+    ],
+    "placementConstraints": [
+      {
+        "stableId": "constraint:mate:TemplateBlockPair:Seat:00",
+        "kind": "AxisCoincident",
+        "mateStableId": "mate:TemplateBlockPair:Seat",
+        "firstSemanticValueId": "assembly-semantic:TemplateBlockPair.Moving:Interface.Axis",
+        "secondSemanticValueId": "assembly-semantic:TemplateBlockPair.Fixed:Interface.Axis",
+        "offsetMm": 0,
+        "residual": 0,
+        "status": "geometry-validated"
+      },
+      {
+        "stableId": "constraint:mate:TemplateBlockPair:Seat:01",
+        "kind": "PlaneCoincident",
+        "mateStableId": "mate:TemplateBlockPair:Seat",
+        "firstSemanticValueId": "assembly-semantic:TemplateBlockPair.Moving:Interface.Seat",
+        "secondSemanticValueId": "assembly-semantic:TemplateBlockPair.Fixed:Interface.Seat",
+        "offsetMm": 0,
+        "residual": 0,
+        "status": "geometry-validated"
+      }
+    ],
+    "placements": [
+      {
+        "instanceStableId": "assembly-instance:TemplateBlockPair",
+        "status": "Unresolved",
+        "transform": null,
+        "freeTranslations": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "freeRotations": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "constraintIds": []
+      },
+      {
+        "instanceStableId": "assembly-instance:TemplateBlockPair.Fixed",
+        "status": "Anchored",
+        "transform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": []
+      },
+      {
+        "instanceStableId": "assembly-instance:TemplateBlockPair.Moving",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            -5,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [
+          "constraint:mate:TemplateBlockPair:Seat:00",
+          "constraint:mate:TemplateBlockPair:Seat:01"
+        ]
+      }
+    ],
+    "dimensionalRelations": [
+      {
+        "stableId": "dimension-relation:mate:TemplateBlockPair:Seat:fit-clearance",
+        "fromSemanticValueId": "assembly-semantic:TemplateBlockPair.Moving:Interface.Height",
+        "toSemanticValueId": "assembly-semantic:TemplateBlockPair.Fixed:Interface.Height",
+        "nominal": -5,
+        "lowerTolerance": 0,
+        "upperTolerance": 0,
+        "unit": "mm",
+        "sign": 1,
+        "originInstancePath": "TemplateBlockPair.Moving",
+        "provenance": "Interface:SeatedAxis.Fit",
+        "mateStableId": "mate:TemplateBlockPair:Seat",
+        "interfaceStableId": "interface:SeatedAxis",
+        "sourceProvenance": [
+          {
+            "stage": "Firmament-definition",
+            "identity": "AssemblyBlock\u003CSpec: MovingSpec\u003E",
+            "evidence": "ordinary Firmament build and canonical AP242 reimport",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "template-specialization",
+            "identity": "template:88509cacec6ff417",
+            "evidence": "AssemblyBlock\u003CSpec: MovingSpec\u003E",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "static-record",
+            "identity": "MovingSpec",
+            "evidence": "Spec:BlockSpec;StaticRecord",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "assembly-instance",
+            "identity": "TemplateBlockPair.Moving",
+            "evidence": "materialized:__AssemblyPart.exposed:Height",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "Firmament-definition",
+            "identity": "AssemblyBlock\u003CSpec: FixedSpec\u003E",
+            "evidence": "ordinary Firmament build and canonical AP242 reimport",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "template-specialization",
+            "identity": "template:0a30ccff1bd91583",
+            "evidence": "AssemblyBlock\u003CSpec: FixedSpec\u003E",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "static-record",
+            "identity": "FixedSpec",
+            "evidence": "Spec:BlockSpec;StaticRecord",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "assembly-instance",
+            "identity": "TemplateBlockPair.Fixed",
+            "evidence": "materialized:__AssemblyPart.exposed:Height",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ]
+      }
+    ],
+    "toleranceStackups": [
+      {
+        "name": "TemplateFitTransition",
+        "startSemanticValueId": "assembly-semantic:TemplateBlockPair.Moving:Interface.Height",
+        "endSemanticValueId": "assembly-semantic:TemplateBlockPair.Fixed:Interface.Height",
+        "nominal": -5,
+        "worstCaseMinimum": -5,
+        "worstCaseMaximum": -5,
+        "requiredMinimum": -5,
+        "unit": "mm",
+        "passed": true,
+        "status": "passed",
+        "contributions": [
+          {
+            "relationStableId": "dimension-relation:mate:TemplateBlockPair:Seat:fit-clearance",
+            "sign": 1,
+            "nominal": -5,
+            "lowerTolerance": 0,
+            "upperTolerance": 0,
+            "unit": "mm",
+            "originInstancePath": "TemplateBlockPair.Moving",
+            "provenance": "Interface:SeatedAxis.Fit",
+            "mateStableId": "mate:TemplateBlockPair:Seat",
+            "interfaceStableId": "interface:SeatedAxis",
+            "sourceProvenance": [
+              {
+                "stage": "Firmament-definition",
+                "identity": "AssemblyBlock\u003CSpec: MovingSpec\u003E",
+                "evidence": "ordinary Firmament build and canonical AP242 reimport",
+                "sourceSpan": {
+                  "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                  "start": 0,
+                  "length": 0
+                }
+              },
+              {
+                "stage": "template-specialization",
+                "identity": "template:88509cacec6ff417",
+                "evidence": "AssemblyBlock\u003CSpec: MovingSpec\u003E",
+                "sourceSpan": {
+                  "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                  "start": 0,
+                  "length": 0
+                }
+              },
+              {
+                "stage": "static-record",
+                "identity": "MovingSpec",
+                "evidence": "Spec:BlockSpec;StaticRecord",
+                "sourceSpan": {
+                  "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                  "start": 0,
+                  "length": 0
+                }
+              },
+              {
+                "stage": "assembly-instance",
+                "identity": "TemplateBlockPair.Moving",
+                "evidence": "materialized:__AssemblyPart.exposed:Height",
+                "sourceSpan": {
+                  "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                  "start": 0,
+                  "length": 0
+                }
+              },
+              {
+                "stage": "Firmament-definition",
+                "identity": "AssemblyBlock\u003CSpec: FixedSpec\u003E",
+                "evidence": "ordinary Firmament build and canonical AP242 reimport",
+                "sourceSpan": {
+                  "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                  "start": 0,
+                  "length": 0
+                }
+              },
+              {
+                "stage": "template-specialization",
+                "identity": "template:0a30ccff1bd91583",
+                "evidence": "AssemblyBlock\u003CSpec: FixedSpec\u003E",
+                "sourceSpan": {
+                  "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                  "start": 0,
+                  "length": 0
+                }
+              },
+              {
+                "stage": "static-record",
+                "identity": "FixedSpec",
+                "evidence": "Spec:BlockSpec;StaticRecord",
+                "sourceSpan": {
+                  "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                  "start": 0,
+                  "length": 0
+                }
+              },
+              {
+                "stage": "assembly-instance",
+                "identity": "TemplateBlockPair.Fixed",
+                "evidence": "materialized:__AssemblyPart.exposed:Height",
+                "sourceSpan": {
+                  "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+                  "start": 0,
+                  "length": 0
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "fitResults": [
+      {
+        "mateStableId": "mate:TemplateBlockPair:Seat",
+        "nominalClearance": -5,
+        "worstCaseMinimum": -5,
+        "worstCaseMaximum": -5,
+        "unit": "mm",
+        "compatible": false
+      }
+    ],
+    "diagnostics": [
+      {
+        "code": "assembly-interface-incompatible-dimensions",
+        "message": "Mate \u0027Seat\u0027 fit ranges from -5 to -5 mm (nominal -5).",
+        "severity": "Warning"
+      }
+    ]
+  },
+  "geometryArtifact": {
+    "schema": "aetheris/assembly-geometry/m1",
+    "definitions": [
+      {
+        "stableId": "assembly-definition:ACEEA9A33404DBC3",
+        "definitionIdentity": "AssemblyBlock\u003CSpec: MovingSpec\u003E",
+        "specializationIdentity": "template:88509cacec6ff417",
+        "stepSha256": "5E6D828E9E9D8310848A9984EA1A9B5225A0D77ACB88B36414443D2B06FF9F30",
+        "metrics": {
+          "bodies": 1,
+          "faces": 10,
+          "edges": 20,
+          "vertices": 12,
+          "minimum": [
+            -6,
+            -6,
+            -0
+          ],
+          "maximum": [
+            6,
+            6,
+            15
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "Firmament-definition",
+            "identity": "AssemblyBlock\u003CSpec: MovingSpec\u003E",
+            "evidence": "ordinary Firmament build and canonical AP242 reimport",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "template-specialization",
+            "identity": "template:88509cacec6ff417",
+            "evidence": "AssemblyBlock\u003CSpec: MovingSpec\u003E",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "static-record",
+            "identity": "MovingSpec",
+            "evidence": "Spec:BlockSpec;StaticRecord",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ]
+      },
+      {
+        "stableId": "assembly-definition:BDBDA1A577822F80",
+        "definitionIdentity": "AssemblyBlock\u003CSpec: FixedSpec\u003E",
+        "specializationIdentity": "template:0a30ccff1bd91583",
+        "stepSha256": "7787F88FCB60744618A9785B2D972875128C23660656E785A8095A35EA03A99A",
+        "metrics": {
+          "bodies": 1,
+          "faces": 10,
+          "edges": 20,
+          "vertices": 12,
+          "minimum": [
+            -10,
+            -10,
+            -0
+          ],
+          "maximum": [
+            10,
+            10,
+            10
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "Firmament-definition",
+            "identity": "AssemblyBlock\u003CSpec: FixedSpec\u003E",
+            "evidence": "ordinary Firmament build and canonical AP242 reimport",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "template-specialization",
+            "identity": "template:0a30ccff1bd91583",
+            "evidence": "AssemblyBlock\u003CSpec: FixedSpec\u003E",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+              "start": 0,
+              "length": 0
+            }
+          },
+          {
+            "stage": "static-record",
+            "identity": "FixedSpec",
+            "evidence": "Spec:BlockSpec;StaticRecord",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM1\\template-block-pair.firmament",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ]
+      }
+    ],
+    "instances": [
+      {
+        "instanceStableId": "assembly-instance:TemplateBlockPair.Fixed",
+        "definitionArtifactStableId": "assembly-definition:BDBDA1A577822F80",
+        "worldTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "metrics": {
+          "bodies": 1,
+          "faces": 10,
+          "edges": 20,
+          "vertices": 12,
+          "minimum": [
+            -10,
+            -10,
+            0
+          ],
+          "maximum": [
+            10,
+            10,
+            10
+          ]
+        }
+      },
+      {
+        "instanceStableId": "assembly-instance:TemplateBlockPair.Moving",
+        "definitionArtifactStableId": "assembly-definition:ACEEA9A33404DBC3",
+        "worldTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            -5,
+            1
+          ]
+        },
+        "metrics": {
+          "bodies": 1,
+          "faces": 10,
+          "edges": 20,
+          "vertices": 12,
+          "minimum": [
+            -6,
+            -6,
+            -5
+          ],
+          "maximum": [
+            6,
+            6,
+            10
+          ]
+        }
+      }
+    ],
+    "mateResiduals": [
+      {
+        "constraintStableId": "constraint:mate:TemplateBlockPair:Seat:00",
+        "kind": "AxisCoincident",
+        "positionResidualMm": 0,
+        "angularResidualRadians": 0,
+        "passed": true,
+        "evidence": "world exact semantic binding over materialized BRep instance"
+      },
+      {
+        "constraintStableId": "constraint:mate:TemplateBlockPair:Seat:01",
+        "kind": "PlaneCoincident",
+        "positionResidualMm": 0,
+        "angularResidualRadians": 0,
+        "passed": true,
+        "evidence": "world exact semantic binding over materialized BRep instance"
+      }
+    ],
+    "deterministicSha256": "28CDA0D2A40F2CA2C41E3A99CCAB6543B43764412B679A25D9050B2B659F949E"
+  },
+  "diagnostics": [
+    {
+      "code": "assembly-interface-incompatible-dimensions",
+      "message": "Mate \u0027Seat\u0027 fit ranges from -5 to -5 mm (nominal -5).",
+      "severity": "Warning"
+    }
+  ],
+  "performance": null
+}

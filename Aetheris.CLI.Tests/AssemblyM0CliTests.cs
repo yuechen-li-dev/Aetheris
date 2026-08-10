@@ -35,6 +35,24 @@ public sealed class AssemblyM0CliTests
         Assert.Contains(json.RootElement.GetProperty("diagnostics").EnumerateArray(), x => x.GetProperty("code").GetString() == "assembly-tolerance-assertion-failure");
     }
 
+    [Fact]
+    public void AsmInspect_TemplateAssembly_EmitsExecutableGeometryResidualsAndDefinitionReuseSeam()
+    {
+        var root = FindRepoRoot();
+        var path = Path.Combine(root, "fixtures", "AssemblyM1", "template-block-pair.firmament");
+        var stdout = new StringWriter(); var stderr = new StringWriter();
+        var exit = Aetheris.CLI.CliRunner.Run(["asm", "inspect", path, "--json"], stdout, stderr);
+        Assert.Equal(0, exit);
+        using var json = JsonDocument.Parse(stdout.ToString());
+        Assert.Equal("aetheris/assembly-ir/m1", json.RootElement.GetProperty("assemblyIr").GetProperty("schema").GetString());
+        var geometry = json.RootElement.GetProperty("geometryArtifact");
+        Assert.Equal("aetheris/assembly-geometry/m1", geometry.GetProperty("schema").GetString());
+        Assert.Equal(2, geometry.GetProperty("definitions").GetArrayLength());
+        Assert.Equal(2, geometry.GetProperty("instances").GetArrayLength());
+        Assert.All(geometry.GetProperty("mateResiduals").EnumerateArray(), residual => Assert.True(residual.GetProperty("passed").GetBoolean()));
+        Assert.Empty(stderr.ToString());
+    }
+
     private static string FindRepoRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

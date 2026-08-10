@@ -92,7 +92,7 @@ public sealed class FirmasmAssemblyExecutor
         return world;
     }
 
-    private static BrepBody TransformBody(BrepBody sourceBody, Transform3D transform)
+    internal static BrepBody TransformBody(BrepBody sourceBody, Transform3D transform)
     {
         var transformedGeometry = new BrepGeometryStore();
         foreach (var (curveId, curve) in sourceBody.Geometry.Curves)

@@ -24,6 +24,16 @@ public readonly struct Transform3D
 
     public static Transform3D Identity { get; } = new([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]);
 
+    public static Transform3D FromRowMajor(IReadOnlyList<double> matrix)
+    {
+        ArgumentNullException.ThrowIfNull(matrix);
+        if (matrix.Count != 16 || matrix.Any(value => !double.IsFinite(value)))
+            throw new ArgumentException("A finite 4x4 row-major matrix is required.", nameof(matrix));
+        var transform = new Transform3D(matrix.ToArray());
+        if (!transform.IsRigid()) throw new ArgumentException("Assembly instance transforms must be rigid.", nameof(matrix));
+        return transform;
+    }
+
     public static Transform3D CreateTranslation(Vector3D t) =>
         new([1,0,0,0, 0,1,0,0, 0,0,1,0, t.X,t.Y,t.Z,1]);
 

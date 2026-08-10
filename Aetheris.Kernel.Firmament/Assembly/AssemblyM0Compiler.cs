@@ -44,7 +44,9 @@ public sealed class AssemblyM0Compiler
         placementWatch.Stop();
 
         var graphWatch = Stopwatch.StartNew();
-        var relations = BindDimensionalRelations(source, instances, diagnostics);
+        var relations = BindDimensionalRelations(source, instances, diagnostics)
+            .Concat(LowerInterfaceDimensionalRelations(mates, interfaces, instances, diagnostics))
+            .OrderBy(relation => relation.StableId, StringComparer.Ordinal).ToArray();
         graphWatch.Stop();
 
         var toleranceWatch = Stopwatch.StartNew();
@@ -333,6 +335,46 @@ public sealed class AssemblyM0Compiler
         return result;
     }
 
+    private static IReadOnlyList<DimensionalRelationIr> LowerInterfaceDimensionalRelations(
+        IReadOnlyList<MateIr> mates,
+        IReadOnlyDictionary<string, InterfaceDefinition> interfaces,
+        IReadOnlyList<AssemblyInstanceIr> instances,
+        List<AssemblyDiagnostic> diagnostics)
+    {
+        var values = Flatten(instances.Select(instance => instance.SemanticRoot)).ToDictionary(value => value.StableIdentity, StringComparer.Ordinal);
+        var result = new List<DimensionalRelationIr>();
+        foreach (var mate in mates.OrderBy(item => item.StableId, StringComparer.Ordinal))
+        {
+            var definition = interfaces.Values.Single(item => item.StableId == mate.InterfaceStableId);
+            if (definition.Fit is not { } fit) continue;
+            var shaft = mate.Roles.FirstOrDefault(role => role.Role == fit.ShaftRole);
+            var bore = mate.Roles.FirstOrDefault(role => role.Role == fit.BoreRole);
+            if (shaft is null || bore is null) continue;
+            var shaftId = ResolveRelativeSemantic(shaft.ParticipantSemanticValueId, fit.ShaftDimension, instances);
+            var boreId = ResolveRelativeSemantic(bore.ParticipantSemanticValueId, fit.BoreDimension, instances);
+            if (shaftId is null || boreId is null
+                || !values[shaftId].TryBinding<TolerancedDimensionBinding>(out var shaftDimension)
+                || !values[boreId].TryBinding<TolerancedDimensionBinding>(out var boreDimension)
+                || !string.Equals(shaftDimension.Unit, boreDimension.Unit, StringComparison.Ordinal)) continue;
+            result.Add(new(
+                $"dimension-relation:{mate.StableId}:fit-clearance",
+                shaftId,
+                boreId,
+                boreDimension.Nominal - shaftDimension.Nominal,
+                boreDimension.LowerTolerance - shaftDimension.UpperTolerance,
+                boreDimension.UpperTolerance - shaftDimension.LowerTolerance,
+                shaftDimension.Unit,
+                1,
+                OwnerPath(shaftId, instances),
+                $"Interface:{definition.Name}.Fit",
+                mate.StableId,
+                definition.StableId,
+                values[shaftId].Provenance.Concat(values[boreId].Provenance)
+                    .DistinctBy(item => (item.Stage, item.Identity, item.Evidence)).ToArray()));
+        }
+        return result;
+    }
+
     private static IReadOnlyList<ToleranceStackupResultIr> AnalyzeStackups(AssemblySource source,
         IReadOnlyList<DimensionalRelationIr> relations, IReadOnlyList<AssemblyInstanceIr> instances,
         List<AssemblyDiagnostic> diagnostics)
@@ -349,7 +391,7 @@ public sealed class AssemblyM0Compiler
                 step.sign * step.edge.Nominal,
                 step.sign > 0 ? step.edge.LowerTolerance : -step.edge.UpperTolerance,
                 step.sign > 0 ? step.edge.UpperTolerance : -step.edge.LowerTolerance,
-                step.edge.Unit, step.edge.OriginInstancePath, step.edge.Provenance, step.edge.MateStableId, step.edge.InterfaceStableId)).ToArray();
+                step.edge.Unit, step.edge.OriginInstancePath, step.edge.Provenance, step.edge.MateStableId, step.edge.InterfaceStableId, step.edge.SourceProvenance)).ToArray();
             if (contributions.Any(x => x.Unit != assertion.Unit))
             { diagnostics.Add(new("assembly-tolerance-unit-mismatch", $"Assert ToleranceStackup '{assertion.Name}' mixes units.")); continue; }
             var nominal = contributions.Sum(x => x.Nominal);

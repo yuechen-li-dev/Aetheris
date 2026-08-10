@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using Aetheris.Forge.Abstractions.FirmamentInterop;
 using Aetheris.Kernel.Core.Brep.Verification;
 using Aetheris.Kernel.Core.Brep.Tessellation;
@@ -2555,8 +2556,32 @@ public static class CliRunner
             else { stderr.WriteLine(AsmInspectUsage); return 1; }
         }
         if (!File.Exists(path)) { stderr.WriteLine($"Assembly source '{path}' was not found."); return 1; }
-        var result = new AssemblyM0Pipeline().CompileFile(path);
-        var reportJson = JsonSerializer.Serialize(new { success = result.IsSuccess, assemblyIr = result.Ir, diagnostics = result.Diagnostics, performance = profile ? result.Performance : null }, JsonOptions);
+        var sourceText = File.ReadAllText(path);
+        var usesTemplateInstances = Regex.IsMatch(sourceText, @"<Part\s+[A-Za-z_]\w*\s*=\s*[A-Za-z_]\w*\s*<", RegexOptions.CultureInvariant);
+        AssemblyIr? assemblyIr;
+        AssemblyGeometryArtifactIr? geometryArtifact;
+        IReadOnlyList<AssemblyDiagnostic> assemblyDiagnostics;
+        AssemblyPerformanceIr? assemblyPerformance;
+        bool success;
+        if (usesTemplateInstances)
+        {
+            var m1 = new AssemblyM1Pipeline().CompileFile(path);
+            assemblyIr = m1.Ir;
+            geometryArtifact = m1.Geometry?.Artifact;
+            assemblyDiagnostics = m1.Diagnostics;
+            assemblyPerformance = m1.Performance;
+            success = m1.IsSuccess;
+        }
+        else
+        {
+            var m0 = new AssemblyM0Pipeline().CompileFile(path);
+            assemblyIr = m0.Ir;
+            geometryArtifact = null;
+            assemblyDiagnostics = m0.Diagnostics;
+            assemblyPerformance = m0.Performance;
+            success = m0.IsSuccess;
+        }
+        var reportJson = JsonSerializer.Serialize(new { success, assemblyIr, geometryArtifact, diagnostics = assemblyDiagnostics, performance = profile ? assemblyPerformance : null }, JsonOptions);
         if (outputPath is not null)
         {
             var fullOutputPath = Path.GetFullPath(outputPath);
@@ -2567,7 +2592,7 @@ public static class CliRunner
         {
             stdout.WriteLine(reportJson);
         }
-        else if (result.Ir is { } ir)
+        else if (assemblyIr is { } ir)
         {
             stdout.WriteLine($"Assembly: {ir.Name} ({ir.Schema})");
             stdout.WriteLine("Product tree:");
@@ -2576,17 +2601,26 @@ public static class CliRunner
             stdout.WriteLine("Mates:");
             foreach (var mate in ir.Mates)
                 stdout.WriteLine($"- {mate.Name}: {mate.InterfaceStableId} ({string.Join(", ", mate.Roles.Select(x => x.Role + "=" + x.ParticipantPath))})");
+            if (geometryArtifact is not null)
+            {
+                stdout.WriteLine($"Executable geometry: {geometryArtifact.Instances.Count} instances, {geometryArtifact.Definitions.Count} definitions, sha256={geometryArtifact.DeterministicSha256}");
+                foreach (var residual in geometryArtifact.MateResiduals)
+                    stdout.WriteLine($"- residual {residual.ConstraintStableId}: position={residual.PositionResidualMm:G6}mm angle={residual.AngularResidualRadians:G6}rad {(residual.Passed ? "passed" : "failed")}");
+                stdout.WriteLine("BOM:");
+                foreach (var group in ir.Instances.Where(x => x.Kind == AssemblyInstanceKind.Part).GroupBy(x => x.DefinitionIdentity, StringComparer.Ordinal).OrderBy(x => x.Key, StringComparer.Ordinal))
+                    stdout.WriteLine($"- {group.Key}: quantity={group.Count()} instances=[{string.Join(",", group.Select(x => x.Path))}]");
+            }
             stdout.WriteLine("Tolerance stackups:");
             foreach (var stack in ir.ToleranceStackups)
                 stdout.WriteLine($"- {stack.Name}: nominal={stack.Nominal:G6} {stack.Unit}, worst=[{stack.WorstCaseMinimum:G6},{stack.WorstCaseMaximum:G6}], {stack.Status}, contributors={stack.Contributions.Count}");
-            foreach (var diagnostic in result.Diagnostics)
+            foreach (var diagnostic in assemblyDiagnostics)
                 (diagnostic.Severity == AssemblyDiagnosticSeverity.Error ? stderr : stdout).WriteLine($"{diagnostic.Severity}: {diagnostic.Code}: {diagnostic.Message}");
         }
         else
         {
-            foreach (var diagnostic in result.Diagnostics) stderr.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
+            foreach (var diagnostic in assemblyDiagnostics) stderr.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
         }
-        return result.IsSuccess ? 0 : 1;
+        return success ? 0 : 1;
     }
 
     private static int RunAsmExec(string[] args, TextWriter stdout, TextWriter stderr)

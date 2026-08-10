@@ -6,7 +6,7 @@ A part instance and a subassembly instance are distinct occurrences of a definit
 
 An `Interface` is a relational Concept. A normal Concept describes one semantic object; an Interface declares named Roles, structural capability requirements, relational requirements, and optional explicitly admitted rigid freedoms. A `Mate` instantiates one Interface by assigning actual `SemanticValue` participants to every Role. No origin-specific branch exists: native, Template/Table-derived, Forge-produced, and recognized values are admissible when their capabilities and exact bindings prove the contract.
 
-The compiler lowers source syntax before downstream work into `AssemblyIr` (`aetheris/assembly-ir/m0`): explicit tree nodes, Interface definitions, a Mate graph, typed placement constraints, placement results and residual/status data, dimensional relations, stackup results, provenance, diagnostics, and phase timings. Nominal geometry remains nominal; tolerance is symbolic engineering intent.
+The compiler lowers source syntax before downstream work into `AssemblyIr` (`aetheris/assembly-ir/m0`, or `aetheris/assembly-ir/m1` after geometry execution): explicit tree nodes, Interface definitions, a Mate graph, typed placement constraints, placement results and residual/status data, dimensional relations, stackup results, provenance, diagnostics, and phase timings. Nominal geometry remains nominal; tolerance is symbolic engineering intent. M1 specializes ordinary Firmament Templates, materializes each distinct definition once, applies Mate-derived transforms per instance, and records an `aetheris/assembly-geometry/m1` instance artifact without Boolean-flattening the product.
 
 ## Placement convention
 

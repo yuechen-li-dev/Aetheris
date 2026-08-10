@@ -41,7 +41,8 @@ public sealed record AssemblySource(
     IReadOnlyList<MateSource> Mates, AssemblyPath Anchor,
     IReadOnlyList<DimensionalRelationSource> DimensionalRelations,
     IReadOnlyList<ToleranceStackupAssertSource> StackupAsserts,
-    string SourceIdentity);
+    string SourceIdentity,
+    string? DefinitionSource = null);
 
 public sealed record AssemblyTransform(double[] Matrix)
 {
@@ -65,11 +66,13 @@ public sealed record PlacementResultIr(string InstanceStableId, PlacementStatus 
 public sealed record DimensionalRelationIr(
     string StableId, string FromSemanticValueId, string ToSemanticValueId,
     double Nominal, double LowerTolerance, double UpperTolerance, string Unit,
-    int Sign, string OriginInstancePath, string Provenance, string? MateStableId = null, string? InterfaceStableId = null);
+    int Sign, string OriginInstancePath, string Provenance, string? MateStableId = null, string? InterfaceStableId = null,
+    IReadOnlyList<SemanticProvenance>? SourceProvenance = null);
 
 public sealed record StackupContributionIr(
     string RelationStableId, int Sign, double Nominal, double LowerTolerance, double UpperTolerance,
-    string Unit, string OriginInstancePath, string Provenance, string? MateStableId, string? InterfaceStableId);
+    string Unit, string OriginInstancePath, string Provenance, string? MateStableId, string? InterfaceStableId,
+    IReadOnlyList<SemanticProvenance>? SourceProvenance = null);
 public sealed record ToleranceStackupResultIr(
     string Name, string StartSemanticValueId, string EndSemanticValueId,
     double Nominal, double WorstCaseMinimum, double WorstCaseMaximum,
@@ -78,7 +81,12 @@ public sealed record ToleranceStackupResultIr(
 public sealed record InterfaceFitResultIr(
     string MateStableId, double NominalClearance, double WorstCaseMinimum, double WorstCaseMaximum, string Unit, bool Compatible);
 
-public sealed record AssemblyPerformanceIr(double ParseMilliseconds, double BindMilliseconds, double MateValidationMilliseconds, double PlacementMilliseconds, double DimensionalGraphMilliseconds, double ToleranceAnalysisMilliseconds);
+public sealed record AssemblyPerformanceIr(double ParseMilliseconds, double BindMilliseconds, double MateValidationMilliseconds, double PlacementMilliseconds, double DimensionalGraphMilliseconds, double ToleranceAnalysisMilliseconds, double DefinitionMaterializationMilliseconds = 0, double GeometryExecutionMilliseconds = 0);
+public sealed record AssemblyGeometryMetricsIr(int Bodies, int Faces, int Edges, int Vertices, double[] Minimum, double[] Maximum);
+public sealed record AssemblyDefinitionArtifactIr(string StableId, string DefinitionIdentity, string SpecializationIdentity, string StepSha256, AssemblyGeometryMetricsIr Metrics, IReadOnlyList<SemanticProvenance> Provenance);
+public sealed record AssemblyInstanceGeometryIr(string InstanceStableId, string DefinitionArtifactStableId, AssemblyTransform WorldTransform, AssemblyGeometryMetricsIr Metrics);
+public sealed record AssemblyMateResidualIr(string ConstraintStableId, PlacementConstraintKind Kind, double PositionResidualMm, double AngularResidualRadians, bool Passed, string Evidence);
+public sealed record AssemblyGeometryArtifactIr(string Schema, IReadOnlyList<AssemblyDefinitionArtifactIr> Definitions, IReadOnlyList<AssemblyInstanceGeometryIr> Instances, IReadOnlyList<AssemblyMateResidualIr> MateResiduals, string DeterministicSha256);
 public sealed record AssemblyIr(
     string Schema, string StableId, string Name, string RootInstanceStableId,
     IReadOnlyList<AssemblyInstanceIr> Instances, IReadOnlyList<InterfaceDefinition> Interfaces,

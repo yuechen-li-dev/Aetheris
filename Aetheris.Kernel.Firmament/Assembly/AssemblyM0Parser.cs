@@ -31,7 +31,13 @@ public sealed class AssemblyM0Parser
         var asserts = ParseAsserts(body, sourceIdentity, diagnostics);
         var anchorMatch = Regex.Match(RemoveBlocks(body, "Mate", @"Assert\s+ToleranceStackup"), @"\bAnchor\s*:\s*(?<path>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*;", RegexOptions.CultureInvariant);
         var anchor = anchorMatch.Success ? AssemblyPath.Parse(anchorMatch.Groups["path"].Value) : new AssemblyPath([tree.Name]);
-        var result = new AssemblySource(assemblyHeader.Groups["name"].Value, tree, interfaces, mates, anchor, relations, asserts, sourceIdentity);
+        var definitionBoundary = new[]
+        {
+            Regex.Match(source, @"^[ \t]*Interface\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant | RegexOptions.Multiline),
+            Regex.Match(source, @"^[ \t]*Assembly\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant | RegexOptions.Multiline)
+        }.Where(match => match.Success).Select(match => match.Index).DefaultIfEmpty(0).Min();
+        var definitionSource = definitionBoundary > 0 ? source[..definitionBoundary].Trim() : null;
+        var result = new AssemblySource(assemblyHeader.Groups["name"].Value, tree, interfaces, mates, anchor, relations, asserts, sourceIdentity, definitionSource);
         return Done(result);
 
         ParseResult Done(AssemblySource? value) { watch.Stop(); return new(value, diagnostics, watch.Elapsed.TotalMilliseconds); }
@@ -74,7 +80,9 @@ public sealed class AssemblyM0Parser
 
     private static AssemblyMemberSource? ParseTree(string body, string sourceIdentity, List<AssemblyDiagnostic> diagnostics)
     {
-        var tagPattern = new Regex(@"<(?<close>/)?(?<kind>Assembly|Part)\s*(?<rest>[^>]*)>", RegexOptions.CultureInvariant);
+        // One bounded generic argument list is admitted in a Part definition. The
+        // inner '>' belongs to the Firmament Template application, not the XML-like tag.
+        var tagPattern = new Regex(@"<(?<close>/)?(?<kind>Assembly|Part)\s*(?<rest>[^<>]*(?:<[^<>]*>[^<>]*)?)>", RegexOptions.CultureInvariant);
         var matches = tagPattern.Matches(body).Cast<Match>().ToArray();
         MutableNode? root = null;
         var stack = new Stack<(MutableNode node, int bodyStart)>();
@@ -87,7 +95,7 @@ public sealed class AssemblyM0Parser
                 var rest = tag.Groups["rest"].Value.Trim();
                 var nodeMatch = kind == "Assembly"
                     ? Regex.Match(rest, @"^(?<name>[A-Za-z_]\w*)$")
-                    : Regex.Match(rest, @"^(?<name>[A-Za-z_]\w*)\s*=\s*(?<definition>[A-Za-z_]\w*)$");
+                    : Regex.Match(rest, @"^(?<name>[A-Za-z_]\w*)\s*=\s*(?<definition>[A-Za-z_]\w*(?:\s*<[^>]+>)?)$");
                 if (!nodeMatch.Success) { diagnostics.Add(new("assembly-tree-invalid-tag", $"Invalid <{kind}> tree tag '{tag.Value}'.")); continue; }
                 var node = new MutableNode(nodeMatch.Groups["name"].Value, kind == "Assembly" ? AssemblyInstanceKind.Assembly : AssemblyInstanceKind.Part,
                     kind == "Assembly" ? nodeMatch.Groups["name"].Value : nodeMatch.Groups["definition"].Value);

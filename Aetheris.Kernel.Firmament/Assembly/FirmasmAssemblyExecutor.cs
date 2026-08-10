@@ -34,7 +34,10 @@ public sealed class FirmasmAssemblyExecutor
             return KernelResult<FirmasmExecutionResult>.Failure(loadResult.Diagnostics);
         }
 
-        return Execute(loadResult.Value);
+        var execute = Execute(loadResult.Value);
+        return execute.IsSuccess
+            ? KernelResult<FirmasmExecutionResult>.Success(execute.Value, [.. loadResult.Diagnostics, .. execute.Diagnostics])
+            : execute;
     }
 
     public KernelResult<FirmasmExecutionResult> Execute(FirmasmLoadedAssembly loadedAssembly)

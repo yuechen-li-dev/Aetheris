@@ -1,11 +1,11 @@
-# Aetheris assembly model (ASM-A5 canonical)
+# Aetheris legacy assembly model (ASM-A5 compatibility lane)
 
-This document is the authoritative assembly contract for Aetheris v0.
+This document records the deprecated flat `.firmasm` compatibility lane. The canonical typed architecture is [assembly/architecture.md](assembly/architecture.md). AETHERIS-ASSEMBLY-M0 intentionally supersedes the authority claims below; they remain here to explain legacy fixtures and commands.
 
 ## 1) Core philosophy
 
 - STEP/AP242 is a **foreign interchange format**.
-- `.firmasm` is Aetheris's **authoritative internal assembly representation**.
+- `.firmasm` was Aetheris's authoritative v0 representation and is now legacy compatibility input.
 - Aetheris does not adopt or normalize away STEP assembly ambiguity as native semantics.
 - Assembly behavior is defined by Aetheris contracts (`.firmasm`, executor, bounded exporter), not by importer guesswork.
 
@@ -185,7 +185,7 @@ These commands are part of the current assembly-adjacent workflow:
 
 ## 8) Invariants (non-negotiable)
 
-- `.firmasm` is authoritative for Aetheris assemblies.
+- Typed Firmament Assembly source and normalized AssemblyIR are authoritative; `.firmasm` is legacy transform-first input.
 - STEP assembly is not native authority in Aetheris.
 - Multi-root STEP is assembly-like input, never native multi-body part.
 - Execution in v0 is flat + rigid only.

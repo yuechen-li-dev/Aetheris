@@ -140,6 +140,7 @@ public static class CliRunner
     private const string CanonUsage = "Usage: aetheris canon <file.step> --out <canonical.step> [--mode deterministic|production] [--json]";
     private const string AsmExecUsage = "Usage: aetheris asm exec <file.firmasm> [--json]";
     private const string AsmExportUsage = "Usage: aetheris asm export <file.firmasm> --out <directory> [--json]";
+    private const string AsmInspectUsage = "Usage: aetheris asm inspect <assembly.firmament> [--json] [--profile] [--out <report.json>]";
     private const string ExperimentalUsage = "Usage: aetheris experimental <airchamfer-cube|airchamfer-corpus|prismatic-corpus|prismatic-map|loop-chamfer-corpus> [options]";
     private const string ExperimentalAirChamferCubeUsage = "Usage: aetheris experimental airchamfer-cube --out <path> [--json]";
     private const string ExperimentalAirChamferCorpusUsage = "Usage: aetheris experimental airchamfer-corpus --out-dir <dir> [--json]";
@@ -2518,6 +2519,11 @@ public static class CliRunner
             return RunAsmExec(args.Skip(1).ToArray(), stdout, stderr);
         }
 
+        if (string.Equals(args[0], "inspect", StringComparison.Ordinal))
+        {
+            return RunAsmInspect(args.Skip(1).ToArray(), stdout, stderr);
+        }
+
         if (string.Equals(args[0], "export", StringComparison.Ordinal))
         {
             return RunAsmExport(args.Skip(1).ToArray(), stdout, stderr);
@@ -2526,7 +2532,61 @@ public static class CliRunner
         stderr.WriteLine($"Unknown asm subcommand '{args[0]}'.");
         stderr.WriteLine(AsmExecUsage);
         stderr.WriteLine(AsmExportUsage);
+        stderr.WriteLine(AsmInspectUsage);
         return 1;
+    }
+
+    private static int RunAsmInspect(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0 || IsHelpFlag(args[0]))
+        {
+            (args.Length == 0 ? stderr : stdout).WriteLine(AsmInspectUsage);
+            return args.Length == 0 ? 1 : 0;
+        }
+        var path = args[0];
+        var json = false;
+        var profile = false;
+        string? outputPath = null;
+        for (var i = 1; i < args.Length; i++)
+        {
+            if (args[i] == "--json") json = true;
+            else if (args[i] == "--profile") profile = true;
+            else if (args[i] == "--out" && i + 1 < args.Length) outputPath = args[++i];
+            else { stderr.WriteLine(AsmInspectUsage); return 1; }
+        }
+        if (!File.Exists(path)) { stderr.WriteLine($"Assembly source '{path}' was not found."); return 1; }
+        var result = new AssemblyM0Pipeline().CompileFile(path);
+        var reportJson = JsonSerializer.Serialize(new { success = result.IsSuccess, assemblyIr = result.Ir, diagnostics = result.Diagnostics, performance = profile ? result.Performance : null }, JsonOptions);
+        if (outputPath is not null)
+        {
+            var fullOutputPath = Path.GetFullPath(outputPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(fullOutputPath)!);
+            File.WriteAllText(fullOutputPath, reportJson + Environment.NewLine);
+        }
+        if (json)
+        {
+            stdout.WriteLine(reportJson);
+        }
+        else if (result.Ir is { } ir)
+        {
+            stdout.WriteLine($"Assembly: {ir.Name} ({ir.Schema})");
+            stdout.WriteLine("Product tree:");
+            foreach (var instance in ir.Instances.OrderBy(x => x.Path.Segments.Count).ThenBy(x => x.Path.ToString(), StringComparer.Ordinal))
+                stdout.WriteLine($"{new string(' ', (instance.Path.Segments.Count - 1) * 2)}- {instance.Path.Segments[^1]} [{instance.Kind}] = {instance.DefinitionIdentity}");
+            stdout.WriteLine("Mates:");
+            foreach (var mate in ir.Mates)
+                stdout.WriteLine($"- {mate.Name}: {mate.InterfaceStableId} ({string.Join(", ", mate.Roles.Select(x => x.Role + "=" + x.ParticipantPath))})");
+            stdout.WriteLine("Tolerance stackups:");
+            foreach (var stack in ir.ToleranceStackups)
+                stdout.WriteLine($"- {stack.Name}: nominal={stack.Nominal:G6} {stack.Unit}, worst=[{stack.WorstCaseMinimum:G6},{stack.WorstCaseMaximum:G6}], {stack.Status}, contributors={stack.Contributions.Count}");
+            foreach (var diagnostic in result.Diagnostics)
+                (diagnostic.Severity == AssemblyDiagnosticSeverity.Error ? stderr : stdout).WriteLine($"{diagnostic.Severity}: {diagnostic.Code}: {diagnostic.Message}");
+        }
+        else
+        {
+            foreach (var diagnostic in result.Diagnostics) stderr.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
+        }
+        return result.IsSuccess ? 0 : 1;
     }
 
     private static int RunAsmExec(string[] args, TextWriter stdout, TextWriter stderr)
@@ -2607,14 +2667,17 @@ public static class CliRunner
                 partCount = execute.Value.LoadedAssembly.LoadedParts.Count,
                 instanceCount = execute.Value.Instances.Count,
                 bodyCount = execute.Value.ComposedBody.Topology.Bodies.Count(),
-                shellCount = execute.Value.ComposedBody.Topology.Shells.Count(),
-                boundingBox = analysis.Summary.BoundingBox,
-                analysis
+                 shellCount = execute.Value.ComposedBody.Topology.Shells.Count(),
+                 boundingBox = analysis.Summary.BoundingBox,
+                 analysis,
+                 diagnostics = execute.Diagnostics.Select(d => new { d.Source, d.Message, severity = d.Severity.ToString() })
             }, JsonOptions));
             return 0;
         }
 
         stdout.WriteLine($"ASM execution succeeded: {execute.Value.LoadedAssembly.Manifest.Assembly.Name}");
+        foreach (var diagnostic in execute.Diagnostics)
+            stderr.WriteLine($"- [{diagnostic.Severity}] {diagnostic.Source}: {diagnostic.Message}");
         stdout.WriteLine($"Parts: {execute.Value.LoadedAssembly.LoadedParts.Count}");
         stdout.WriteLine($"Instances: {execute.Value.Instances.Count}");
         stdout.WriteLine($"Bodies: {execute.Value.ComposedBody.Topology.Bodies.Count()}");
@@ -3599,10 +3662,11 @@ public static class CliRunner
 
     private static void WriteAsmHelp(TextWriter stdout)
     {
-        stdout.WriteLine("Execute flattened .firmasm assemblies as rigidly placed body instances, or export STEP interop packages.");
+        stdout.WriteLine("Inspect typed Firmament assemblies, or use the deprecated flat .firmasm compatibility runtime/export lane.");
         stdout.WriteLine();
         stdout.WriteLine(AsmExecUsage);
         stdout.WriteLine($"   or: {AsmExportUsage[7..]}");
+        stdout.WriteLine($"   or: {AsmInspectUsage[7..]}");
         stdout.WriteLine();
         stdout.WriteLine("Options:");
         stdout.WriteLine("  --out <path>   Required for 'asm export'; output directory for package artifacts.");
@@ -3612,6 +3676,7 @@ public static class CliRunner
         stdout.WriteLine("Example:");
         stdout.WriteLine("  aetheris asm exec testdata/firmasm/examples/occt-as1/as1-assembly.firmasm --json");
         stdout.WriteLine("  aetheris asm export testdata/firmasm/examples/occt-nut-bolt/nut-bolt-assembly.firmasm --out tmp/nutbolt-export --json");
+        stdout.WriteLine("  aetheris asm inspect fixtures/AssemblyM0/bearing-module.firmament --json");
     }
 
     private static string FormatBox(Aetheris.Kernel.Core.Math.BoundingBox3D? box) =>

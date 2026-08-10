@@ -1,0 +1,2417 @@
+{
+  "success": true,
+  "assemblyIr": {
+    "schema": "aetheris/assembly-ir/m0",
+    "stableId": "assembly:BearingModule",
+    "name": "BearingModule",
+    "rootInstanceStableId": "assembly-instance:BearingModule",
+    "instances": [
+      {
+        "stableId": "assembly-instance:BearingModule",
+        "path": {
+          "segments": [
+            "BearingModule"
+          ]
+        },
+        "kind": "Assembly",
+        "definitionIdentity": "BearingModule",
+        "parentStableId": null,
+        "childrenStableIds": [
+          "assembly-instance:BearingModule.FixedSupport",
+          "assembly-instance:BearingModule.Rotor"
+        ],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:BearingModule",
+          "type": {
+            "name": "Assembly",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "BearingModule",
+              "evidence": "BearingModule",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": null,
+        "resolvedTransform": null,
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "BearingModule",
+            "evidence": "BearingModule",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ]
+      },
+      {
+        "stableId": "assembly-instance:BearingModule.FixedSupport",
+        "path": {
+          "segments": [
+            "BearingModule",
+            "FixedSupport"
+          ]
+        },
+        "kind": "Assembly",
+        "definitionIdentity": "FixedSupport",
+        "parentStableId": "assembly-instance:BearingModule",
+        "childrenStableIds": [
+          "assembly-instance:BearingModule.FixedSupport.Bearing",
+          "assembly-instance:BearingModule.FixedSupport.Housing"
+        ],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:BearingModule.FixedSupport",
+          "type": {
+            "name": "Assembly",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "BearingModule.FixedSupport",
+              "evidence": "FixedSupport",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": null,
+        "resolvedTransform": null,
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "FixedSupport",
+            "evidence": "FixedSupport",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ]
+      },
+      {
+        "stableId": "assembly-instance:BearingModule.Rotor",
+        "path": {
+          "segments": [
+            "BearingModule",
+            "Rotor"
+          ]
+        },
+        "kind": "Assembly",
+        "definitionIdentity": "Rotor",
+        "parentStableId": "assembly-instance:BearingModule",
+        "childrenStableIds": [
+          "assembly-instance:BearingModule.Rotor.Shaft",
+          "assembly-instance:BearingModule.Rotor.Spacer"
+        ],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:BearingModule.Rotor",
+          "type": {
+            "name": "Assembly",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "BearingModule.Rotor",
+              "evidence": "Rotor",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": null,
+        "resolvedTransform": null,
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "Rotor",
+            "evidence": "Rotor",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ]
+      },
+      {
+        "stableId": "assembly-instance:BearingModule.FixedSupport.Housing",
+        "path": {
+          "segments": [
+            "BearingModule",
+            "FixedSupport",
+            "Housing"
+          ]
+        },
+        "kind": "Part",
+        "definitionIdentity": "HousingPart",
+        "parentStableId": "assembly-instance:BearingModule.FixedSupport",
+        "childrenStableIds": [],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:BearingModule.FixedSupport.Housing",
+          "type": {
+            "name": "Part",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {
+            "Bore": {
+              "stableIdentity": "assembly-semantic:BearingModule.FixedSupport.Housing:Bore",
+              "type": {
+                "name": "Concept",
+                "isCollection": false
+              },
+              "capabilities": {
+                "values": [
+                  {
+                    "name": "AxisCapable"
+                  },
+                  {
+                    "name": "DimensionalCapable"
+                  }
+                ]
+              },
+              "bindings": [
+                {
+                  "kind": "ExactAxis",
+                  "stableBindingIdentity": "definition:HousingPart:Bore:Axis"
+                },
+                {
+                  "kind": "TolerancedDimension",
+                  "stableBindingIdentity": "definition:HousingPart:Bore:Diameter"
+                }
+              ],
+              "exposedMembers": {
+                "Axis": {
+                  "stableIdentity": "assembly-semantic:BearingModule.FixedSupport.Housing:Bore.Axis",
+                  "type": {
+                    "name": "Axis",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "AxisCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "ExactAxis",
+                      "stableBindingIdentity": "definition:HousingPart:Bore:Axis"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "BearingModule.FixedSupport.Housing",
+                      "evidence": "definition:HousingPart:Bore:Axis",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": null,
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Axis"
+                },
+                "Diameter": {
+                  "stableIdentity": "assembly-semantic:BearingModule.FixedSupport.Housing:Bore.Diameter",
+                  "type": {
+                    "name": "Length",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "DimensionalCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "TolerancedDimension",
+                      "stableBindingIdentity": "definition:HousingPart:Bore:Diameter"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "Firmament-tol",
+                      "identity": "Diameter",
+                      "evidence": "Dimension Diameter = 20.04mm tol \u002B0.02mm -0.01mm;",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    },
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "BearingModule.FixedSupport.Housing",
+                      "evidence": "definition:HousingPart:Bore:Diameter",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": null,
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Diameter"
+                }
+              },
+              "provenance": [
+                {
+                  "stage": "part-definition",
+                  "identity": "HousingPart",
+                  "evidence": "Bore",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                },
+                {
+                  "stage": "assembly-instance",
+                  "identity": "BearingModule.FixedSupport.Housing",
+                  "evidence": "definition:HousingPart:Bore",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                }
+              ],
+              "authoredSourceSpan": null,
+              "generatedSourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                "start": 0,
+                "length": 0
+              },
+              "exposedName": "Bore"
+            },
+            "Datum": {
+              "stableIdentity": "assembly-semantic:BearingModule.FixedSupport.Housing:Datum",
+              "type": {
+                "name": "Concept",
+                "isCollection": false
+              },
+              "capabilities": {
+                "values": [
+                  {
+                    "name": "PointCapable"
+                  }
+                ]
+              },
+              "bindings": [
+                {
+                  "kind": "ExactPoint",
+                  "stableBindingIdentity": "definition:HousingPart:Datum:Point"
+                }
+              ],
+              "exposedMembers": {
+                "Point": {
+                  "stableIdentity": "assembly-semantic:BearingModule.FixedSupport.Housing:Datum.Point",
+                  "type": {
+                    "name": "Point",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "PointCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "ExactPoint",
+                      "stableBindingIdentity": "definition:HousingPart:Datum:Point"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "BearingModule.FixedSupport.Housing",
+                      "evidence": "definition:HousingPart:Datum:Point",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": null,
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Point"
+                }
+              },
+              "provenance": [
+                {
+                  "stage": "part-definition",
+                  "identity": "HousingPart",
+                  "evidence": "Datum",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                },
+                {
+                  "stage": "assembly-instance",
+                  "identity": "BearingModule.FixedSupport.Housing",
+                  "evidence": "definition:HousingPart:Datum",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                }
+              ],
+              "authoredSourceSpan": null,
+              "generatedSourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                "start": 0,
+                "length": 0
+              },
+              "exposedName": "Datum"
+            },
+            "SeatDatum": {
+              "stableIdentity": "assembly-semantic:BearingModule.FixedSupport.Housing:SeatDatum",
+              "type": {
+                "name": "Concept",
+                "isCollection": false
+              },
+              "capabilities": {
+                "values": [
+                  {
+                    "name": "PointCapable"
+                  }
+                ]
+              },
+              "bindings": [
+                {
+                  "kind": "ExactPoint",
+                  "stableBindingIdentity": "definition:HousingPart:SeatDatum:Point"
+                }
+              ],
+              "exposedMembers": {
+                "Point": {
+                  "stableIdentity": "assembly-semantic:BearingModule.FixedSupport.Housing:SeatDatum.Point",
+                  "type": {
+                    "name": "Point",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "PointCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "ExactPoint",
+                      "stableBindingIdentity": "definition:HousingPart:SeatDatum:Point"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "BearingModule.FixedSupport.Housing",
+                      "evidence": "definition:HousingPart:SeatDatum:Point",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": null,
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Point"
+                }
+              },
+              "provenance": [
+                {
+                  "stage": "part-definition",
+                  "identity": "HousingPart",
+                  "evidence": "SeatDatum",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                },
+                {
+                  "stage": "assembly-instance",
+                  "identity": "BearingModule.FixedSupport.Housing",
+                  "evidence": "definition:HousingPart:SeatDatum",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                }
+              ],
+              "authoredSourceSpan": null,
+              "generatedSourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                "start": 0,
+                "length": 0
+              },
+              "exposedName": "SeatDatum"
+            },
+            "SeatInterface": {
+              "stableIdentity": "assembly-semantic:BearingModule.FixedSupport.Housing:SeatInterface",
+              "type": {
+                "name": "Concept",
+                "isCollection": false
+              },
+              "capabilities": {
+                "values": [
+                  {
+                    "name": "AxisCapable"
+                  },
+                  {
+                    "name": "PlaneCapable"
+                  }
+                ]
+              },
+              "bindings": [
+                {
+                  "kind": "ExactAxis",
+                  "stableBindingIdentity": "definition:HousingPart:SeatInterface:Axis"
+                },
+                {
+                  "kind": "ExactPlane",
+                  "stableBindingIdentity": "definition:HousingPart:SeatInterface:Seat"
+                }
+              ],
+              "exposedMembers": {
+                "Axis": {
+                  "stableIdentity": "assembly-semantic:BearingModule.FixedSupport.Housing:SeatInterface.Axis",
+                  "type": {
+                    "name": "Axis",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "AxisCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "ExactAxis",
+                      "stableBindingIdentity": "definition:HousingPart:SeatInterface:Axis"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "BearingModule.FixedSupport.Housing",
+                      "evidence": "definition:HousingPart:SeatInterface:Axis",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": null,
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Axis"
+                },
+                "Seat": {
+                  "stableIdentity": "assembly-semantic:BearingModule.FixedSupport.Housing:SeatInterface.Seat",
+                  "type": {
+                    "name": "Plane",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "PlaneCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "ExactPlane",
+                      "stableBindingIdentity": "definition:HousingPart:SeatInterface:Seat"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "BearingModule.FixedSupport.Housing",
+                      "evidence": "definition:HousingPart:SeatInterface:Seat",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": null,
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Seat"
+                }
+              },
+              "provenance": [
+                {
+                  "stage": "part-definition",
+                  "identity": "HousingPart",
+                  "evidence": "SeatInterface",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                },
+                {
+                  "stage": "assembly-instance",
+                  "identity": "BearingModule.FixedSupport.Housing",
+                  "evidence": "definition:HousingPart:SeatInterface",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                }
+              ],
+              "authoredSourceSpan": null,
+              "generatedSourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                "start": 0,
+                "length": 0
+              },
+              "exposedName": "SeatInterface"
+            }
+          },
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "BearingModule.FixedSupport.Housing",
+              "evidence": "HousingPart",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": null,
+        "resolvedTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "Housing",
+            "evidence": "HousingPart",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ]
+      },
+      {
+        "stableId": "assembly-instance:BearingModule.FixedSupport.Bearing",
+        "path": {
+          "segments": [
+            "BearingModule",
+            "FixedSupport",
+            "Bearing"
+          ]
+        },
+        "kind": "Part",
+        "definitionIdentity": "Bearing6204",
+        "parentStableId": "assembly-instance:BearingModule.FixedSupport",
+        "childrenStableIds": [],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:BearingModule.FixedSupport.Bearing",
+          "type": {
+            "name": "Part",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {
+            "Bore": {
+              "stableIdentity": "assembly-semantic:BearingModule.FixedSupport.Bearing:Bore",
+              "type": {
+                "name": "Concept",
+                "isCollection": false
+              },
+              "capabilities": {
+                "values": [
+                  {
+                    "name": "AxisCapable"
+                  },
+                  {
+                    "name": "DimensionalCapable"
+                  }
+                ]
+              },
+              "bindings": [
+                {
+                  "kind": "ExactAxis",
+                  "stableBindingIdentity": "definition:Bearing6204:Bore:Axis"
+                },
+                {
+                  "kind": "TolerancedDimension",
+                  "stableBindingIdentity": "definition:Bearing6204:Bore:Diameter"
+                }
+              ],
+              "exposedMembers": {
+                "Axis": {
+                  "stableIdentity": "assembly-semantic:BearingModule.FixedSupport.Bearing:Bore.Axis",
+                  "type": {
+                    "name": "Axis",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "AxisCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "ExactAxis",
+                      "stableBindingIdentity": "definition:Bearing6204:Bore:Axis"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "BearingModule.FixedSupport.Bearing",
+                      "evidence": "definition:Bearing6204:Bore:Axis",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": null,
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Axis"
+                },
+                "Diameter": {
+                  "stableIdentity": "assembly-semantic:BearingModule.FixedSupport.Bearing:Bore.Diameter",
+                  "type": {
+                    "name": "Length",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "DimensionalCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "TolerancedDimension",
+                      "stableBindingIdentity": "definition:Bearing6204:Bore:Diameter"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "Firmament-tol",
+                      "identity": "Diameter",
+                      "evidence": "Dimension Diameter = 20.00mm tol \u002B0.00mm -0.008mm;",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    },
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "BearingModule.FixedSupport.Bearing",
+                      "evidence": "definition:Bearing6204:Bore:Diameter",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": null,
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Diameter"
+                }
+              },
+              "provenance": [
+                {
+                  "stage": "part-definition",
+                  "identity": "Bearing6204",
+                  "evidence": "Bore",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                },
+                {
+                  "stage": "assembly-instance",
+                  "identity": "BearingModule.FixedSupport.Bearing",
+                  "evidence": "definition:Bearing6204:Bore",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                }
+              ],
+              "authoredSourceSpan": null,
+              "generatedSourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                "start": 0,
+                "length": 0
+              },
+              "exposedName": "Bore"
+            },
+            "Left": {
+              "stableIdentity": "assembly-semantic:BearingModule.FixedSupport.Bearing:Left",
+              "type": {
+                "name": "Concept",
+                "isCollection": false
+              },
+              "capabilities": {
+                "values": [
+                  {
+                    "name": "PointCapable"
+                  }
+                ]
+              },
+              "bindings": [
+                {
+                  "kind": "ExactPoint",
+                  "stableBindingIdentity": "definition:Bearing6204:Left:Point"
+                }
+              ],
+              "exposedMembers": {
+                "Point": {
+                  "stableIdentity": "assembly-semantic:BearingModule.FixedSupport.Bearing:Left.Point",
+                  "type": {
+                    "name": "Point",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "PointCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "ExactPoint",
+                      "stableBindingIdentity": "definition:Bearing6204:Left:Point"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "BearingModule.FixedSupport.Bearing",
+                      "evidence": "definition:Bearing6204:Left:Point",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": null,
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Point"
+                }
+              },
+              "provenance": [
+                {
+                  "stage": "part-definition",
+                  "identity": "Bearing6204",
+                  "evidence": "Left",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                },
+                {
+                  "stage": "assembly-instance",
+                  "identity": "BearingModule.FixedSupport.Bearing",
+                  "evidence": "definition:Bearing6204:Left",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                }
+              ],
+              "authoredSourceSpan": null,
+              "generatedSourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                "start": 0,
+                "length": 0
+              },
+              "exposedName": "Left"
+            },
+            "Right": {
+              "stableIdentity": "assembly-semantic:BearingModule.FixedSupport.Bearing:Right",
+              "type": {
+                "name": "Concept",
+                "isCollection": false
+              },
+              "capabilities": {
+                "values": [
+                  {
+                    "name": "PointCapable"
+                  }
+                ]
+              },
+              "bindings": [
+                {
+                  "kind": "ExactPoint",
+                  "stableBindingIdentity": "definition:Bearing6204:Right:Point"
+                }
+              ],
+              "exposedMembers": {
+                "Point": {
+                  "stableIdentity": "assembly-semantic:BearingModule.FixedSupport.Bearing:Right.Point",
+                  "type": {
+                    "name": "Point",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "PointCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "ExactPoint",
+                      "stableBindingIdentity": "definition:Bearing6204:Right:Point"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "BearingModule.FixedSupport.Bearing",
+                      "evidence": "definition:Bearing6204:Right:Point",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": null,
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Point"
+                }
+              },
+              "provenance": [
+                {
+                  "stage": "part-definition",
+                  "identity": "Bearing6204",
+                  "evidence": "Right",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                },
+                {
+                  "stage": "assembly-instance",
+                  "identity": "BearingModule.FixedSupport.Bearing",
+                  "evidence": "definition:Bearing6204:Right",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                }
+              ],
+              "authoredSourceSpan": null,
+              "generatedSourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                "start": 0,
+                "length": 0
+              },
+              "exposedName": "Right"
+            }
+          },
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "BearingModule.FixedSupport.Bearing",
+              "evidence": "Bearing6204",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": null,
+        "resolvedTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            -15,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "Bearing",
+            "evidence": "Bearing6204",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ]
+      },
+      {
+        "stableId": "assembly-instance:BearingModule.Rotor.Spacer",
+        "path": {
+          "segments": [
+            "BearingModule",
+            "Rotor",
+            "Spacer"
+          ]
+        },
+        "kind": "Part",
+        "definitionIdentity": "SpacerPart",
+        "parentStableId": "assembly-instance:BearingModule.Rotor",
+        "childrenStableIds": [],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:BearingModule.Rotor.Spacer",
+          "type": {
+            "name": "Part",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {
+            "Left": {
+              "stableIdentity": "assembly-semantic:BearingModule.Rotor.Spacer:Left",
+              "type": {
+                "name": "Concept",
+                "isCollection": false
+              },
+              "capabilities": {
+                "values": [
+                  {
+                    "name": "PointCapable"
+                  }
+                ]
+              },
+              "bindings": [
+                {
+                  "kind": "ExactPoint",
+                  "stableBindingIdentity": "definition:SpacerPart:Left:Point"
+                }
+              ],
+              "exposedMembers": {
+                "Point": {
+                  "stableIdentity": "assembly-semantic:BearingModule.Rotor.Spacer:Left.Point",
+                  "type": {
+                    "name": "Point",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "PointCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "ExactPoint",
+                      "stableBindingIdentity": "definition:SpacerPart:Left:Point"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "BearingModule.Rotor.Spacer",
+                      "evidence": "definition:SpacerPart:Left:Point",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": null,
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Point"
+                }
+              },
+              "provenance": [
+                {
+                  "stage": "part-definition",
+                  "identity": "SpacerPart",
+                  "evidence": "Left",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                },
+                {
+                  "stage": "assembly-instance",
+                  "identity": "BearingModule.Rotor.Spacer",
+                  "evidence": "definition:SpacerPart:Left",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                }
+              ],
+              "authoredSourceSpan": null,
+              "generatedSourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                "start": 0,
+                "length": 0
+              },
+              "exposedName": "Left"
+            },
+            "Right": {
+              "stableIdentity": "assembly-semantic:BearingModule.Rotor.Spacer:Right",
+              "type": {
+                "name": "Concept",
+                "isCollection": false
+              },
+              "capabilities": {
+                "values": [
+                  {
+                    "name": "PointCapable"
+                  }
+                ]
+              },
+              "bindings": [
+                {
+                  "kind": "ExactPoint",
+                  "stableBindingIdentity": "definition:SpacerPart:Right:Point"
+                }
+              ],
+              "exposedMembers": {
+                "Point": {
+                  "stableIdentity": "assembly-semantic:BearingModule.Rotor.Spacer:Right.Point",
+                  "type": {
+                    "name": "Point",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "PointCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "ExactPoint",
+                      "stableBindingIdentity": "definition:SpacerPart:Right:Point"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "BearingModule.Rotor.Spacer",
+                      "evidence": "definition:SpacerPart:Right:Point",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": null,
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Point"
+                }
+              },
+              "provenance": [
+                {
+                  "stage": "part-definition",
+                  "identity": "SpacerPart",
+                  "evidence": "Right",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                },
+                {
+                  "stage": "assembly-instance",
+                  "identity": "BearingModule.Rotor.Spacer",
+                  "evidence": "definition:SpacerPart:Right",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                }
+              ],
+              "authoredSourceSpan": null,
+              "generatedSourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                "start": 0,
+                "length": 0
+              },
+              "exposedName": "Right"
+            }
+          },
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "BearingModule.Rotor.Spacer",
+              "evidence": "SpacerPart",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": null,
+        "resolvedTransform": null,
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "Spacer",
+            "evidence": "SpacerPart",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ]
+      },
+      {
+        "stableId": "assembly-instance:BearingModule.Rotor.Shaft",
+        "path": {
+          "segments": [
+            "BearingModule",
+            "Rotor",
+            "Shaft"
+          ]
+        },
+        "kind": "Part",
+        "definitionIdentity": "ShaftPart",
+        "parentStableId": "assembly-instance:BearingModule.Rotor",
+        "childrenStableIds": [],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:BearingModule.Rotor.Shaft",
+          "type": {
+            "name": "Part",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {
+            "Journal": {
+              "stableIdentity": "assembly-semantic:BearingModule.Rotor.Shaft:Journal",
+              "type": {
+                "name": "Concept",
+                "isCollection": false
+              },
+              "capabilities": {
+                "values": [
+                  {
+                    "name": "AxisCapable"
+                  },
+                  {
+                    "name": "DimensionalCapable"
+                  }
+                ]
+              },
+              "bindings": [
+                {
+                  "kind": "ExactAxis",
+                  "stableBindingIdentity": "definition:ShaftPart:Journal:Axis"
+                },
+                {
+                  "kind": "TolerancedDimension",
+                  "stableBindingIdentity": "definition:ShaftPart:Journal:Diameter"
+                }
+              ],
+              "exposedMembers": {
+                "Axis": {
+                  "stableIdentity": "assembly-semantic:BearingModule.Rotor.Shaft:Journal.Axis",
+                  "type": {
+                    "name": "Axis",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "AxisCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "ExactAxis",
+                      "stableBindingIdentity": "definition:ShaftPart:Journal:Axis"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "BearingModule.Rotor.Shaft",
+                      "evidence": "definition:ShaftPart:Journal:Axis",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": null,
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Axis"
+                },
+                "Diameter": {
+                  "stableIdentity": "assembly-semantic:BearingModule.Rotor.Shaft:Journal.Diameter",
+                  "type": {
+                    "name": "Length",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "DimensionalCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "TolerancedDimension",
+                      "stableBindingIdentity": "definition:ShaftPart:Journal:Diameter"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "Firmament-tol",
+                      "identity": "Diameter",
+                      "evidence": "Dimension Diameter = 19.98mm tol \u002B0.01mm -0.01mm;",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    },
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "BearingModule.Rotor.Shaft",
+                      "evidence": "definition:ShaftPart:Journal:Diameter",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": null,
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Diameter"
+                }
+              },
+              "provenance": [
+                {
+                  "stage": "part-definition",
+                  "identity": "ShaftPart",
+                  "evidence": "Journal",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                },
+                {
+                  "stage": "assembly-instance",
+                  "identity": "BearingModule.Rotor.Shaft",
+                  "evidence": "definition:ShaftPart:Journal",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                }
+              ],
+              "authoredSourceSpan": null,
+              "generatedSourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                "start": 0,
+                "length": 0
+              },
+              "exposedName": "Journal"
+            },
+            "Shoulder": {
+              "stableIdentity": "assembly-semantic:BearingModule.Rotor.Shaft:Shoulder",
+              "type": {
+                "name": "Concept",
+                "isCollection": false
+              },
+              "capabilities": {
+                "values": [
+                  {
+                    "name": "PointCapable"
+                  }
+                ]
+              },
+              "bindings": [
+                {
+                  "kind": "ExactPoint",
+                  "stableBindingIdentity": "definition:ShaftPart:Shoulder:Point"
+                }
+              ],
+              "exposedMembers": {
+                "Point": {
+                  "stableIdentity": "assembly-semantic:BearingModule.Rotor.Shaft:Shoulder.Point",
+                  "type": {
+                    "name": "Point",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "PointCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "ExactPoint",
+                      "stableBindingIdentity": "definition:ShaftPart:Shoulder:Point"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "BearingModule.Rotor.Shaft",
+                      "evidence": "definition:ShaftPart:Shoulder:Point",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": null,
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Point"
+                }
+              },
+              "provenance": [
+                {
+                  "stage": "part-definition",
+                  "identity": "ShaftPart",
+                  "evidence": "Shoulder",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                },
+                {
+                  "stage": "assembly-instance",
+                  "identity": "BearingModule.Rotor.Shaft",
+                  "evidence": "definition:ShaftPart:Shoulder",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                }
+              ],
+              "authoredSourceSpan": null,
+              "generatedSourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                "start": 0,
+                "length": 0
+              },
+              "exposedName": "Shoulder"
+            },
+            "ShoulderInterface": {
+              "stableIdentity": "assembly-semantic:BearingModule.Rotor.Shaft:ShoulderInterface",
+              "type": {
+                "name": "Concept",
+                "isCollection": false
+              },
+              "capabilities": {
+                "values": [
+                  {
+                    "name": "AxisCapable"
+                  },
+                  {
+                    "name": "PlaneCapable"
+                  }
+                ]
+              },
+              "bindings": [
+                {
+                  "kind": "ExactAxis",
+                  "stableBindingIdentity": "definition:ShaftPart:ShoulderInterface:Axis"
+                },
+                {
+                  "kind": "ExactPlane",
+                  "stableBindingIdentity": "definition:ShaftPart:ShoulderInterface:Seat"
+                }
+              ],
+              "exposedMembers": {
+                "Axis": {
+                  "stableIdentity": "assembly-semantic:BearingModule.Rotor.Shaft:ShoulderInterface.Axis",
+                  "type": {
+                    "name": "Axis",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "AxisCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "ExactAxis",
+                      "stableBindingIdentity": "definition:ShaftPart:ShoulderInterface:Axis"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "BearingModule.Rotor.Shaft",
+                      "evidence": "definition:ShaftPart:ShoulderInterface:Axis",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": null,
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Axis"
+                },
+                "Seat": {
+                  "stableIdentity": "assembly-semantic:BearingModule.Rotor.Shaft:ShoulderInterface.Seat",
+                  "type": {
+                    "name": "Plane",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "PlaneCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "ExactPlane",
+                      "stableBindingIdentity": "definition:ShaftPart:ShoulderInterface:Seat"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "BearingModule.Rotor.Shaft",
+                      "evidence": "definition:ShaftPart:ShoulderInterface:Seat",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": null,
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Seat"
+                }
+              },
+              "provenance": [
+                {
+                  "stage": "part-definition",
+                  "identity": "ShaftPart",
+                  "evidence": "ShoulderInterface",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                },
+                {
+                  "stage": "assembly-instance",
+                  "identity": "BearingModule.Rotor.Shaft",
+                  "evidence": "definition:ShaftPart:ShoulderInterface",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                }
+              ],
+              "authoredSourceSpan": null,
+              "generatedSourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                "start": 0,
+                "length": 0
+              },
+              "exposedName": "ShoulderInterface"
+            }
+          },
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "BearingModule.Rotor.Shaft",
+              "evidence": "ShaftPart",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": null,
+        "resolvedTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            -15,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "Shaft",
+            "evidence": "ShaftPart",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ]
+      }
+    ],
+    "interfaces": [
+      {
+        "stableId": "interface:ShaftBore",
+        "name": "ShaftBore",
+        "roles": [
+          {
+            "name": "Shaft",
+            "requiredCapabilities": [
+              "AxisCapable",
+              "DimensionalCapable"
+            ],
+            "minimum": 1,
+            "maximum": 1
+          },
+          {
+            "name": "Bore",
+            "requiredCapabilities": [
+              "AxisCapable",
+              "DimensionalCapable"
+            ],
+            "minimum": 1,
+            "maximum": 1
+          }
+        ],
+        "requirements": [
+          {
+            "kind": "AxisCoincident",
+            "firstRole": "Shaft",
+            "firstMember": "Axis",
+            "secondRole": "Bore",
+            "secondMember": "Axis",
+            "offsetMm": 0
+          }
+        ],
+        "fit": {
+          "shaftRole": "Shaft",
+          "shaftDimension": "Diameter",
+          "boreRole": "Bore",
+          "boreDimension": "Diameter"
+        },
+        "admittedFreeMotions": [
+          "translation:along-axis",
+          "rotation:about-axis"
+        ],
+        "sourceSpan": {
+          "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+          "start": 0,
+          "length": 0
+        }
+      },
+      {
+        "stableId": "interface:ShoulderBearingSeat",
+        "name": "ShoulderBearingSeat",
+        "roles": [
+          {
+            "name": "Shoulder",
+            "requiredCapabilities": [
+              "AxisCapable",
+              "PlaneCapable"
+            ],
+            "minimum": 1,
+            "maximum": 1
+          },
+          {
+            "name": "Seat",
+            "requiredCapabilities": [
+              "AxisCapable",
+              "PlaneCapable"
+            ],
+            "minimum": 1,
+            "maximum": 1
+          }
+        ],
+        "requirements": [
+          {
+            "kind": "AxisCoincident",
+            "firstRole": "Shoulder",
+            "firstMember": "Axis",
+            "secondRole": "Seat",
+            "secondMember": "Axis",
+            "offsetMm": 0
+          },
+          {
+            "kind": "PlaneCoincident",
+            "firstRole": "Shoulder",
+            "firstMember": "Seat",
+            "secondRole": "Seat",
+            "secondMember": "Seat",
+            "offsetMm": 0
+          }
+        ],
+        "fit": null,
+        "admittedFreeMotions": [
+          "rotation:about-axis"
+        ],
+        "sourceSpan": {
+          "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module.firmament",
+          "start": 0,
+          "length": 0
+        }
+      }
+    ],
+    "mates": [
+      {
+        "stableId": "mate:BearingModule:ShaftInBearing",
+        "name": "ShaftInBearing",
+        "interfaceStableId": "interface:ShaftBore",
+        "roles": [
+          {
+            "role": "Shaft",
+            "participantPath": {
+              "segments": [
+                "BearingModule",
+                "Rotor",
+                "Shaft",
+                "Journal"
+              ]
+            },
+            "participantSemanticValueId": "assembly-semantic:BearingModule.Rotor.Shaft:Journal",
+            "requiredCapabilities": [
+              "AxisCapable",
+              "DimensionalCapable"
+            ]
+          },
+          {
+            "role": "Bore",
+            "participantPath": {
+              "segments": [
+                "BearingModule",
+                "FixedSupport",
+                "Bearing",
+                "Bore"
+              ]
+            },
+            "participantSemanticValueId": "assembly-semantic:BearingModule.FixedSupport.Bearing:Bore",
+            "requiredCapabilities": [
+              "AxisCapable",
+              "DimensionalCapable"
+            ]
+          }
+        ],
+        "constraintIds": [
+          "constraint:mate:BearingModule:ShaftInBearing:00"
+        ],
+        "validationStatus": "valid"
+      },
+      {
+        "stableId": "mate:BearingModule:ShaftShoulderAtHousing",
+        "name": "ShaftShoulderAtHousing",
+        "interfaceStableId": "interface:ShoulderBearingSeat",
+        "roles": [
+          {
+            "role": "Shoulder",
+            "participantPath": {
+              "segments": [
+                "BearingModule",
+                "Rotor",
+                "Shaft",
+                "ShoulderInterface"
+              ]
+            },
+            "participantSemanticValueId": "assembly-semantic:BearingModule.Rotor.Shaft:ShoulderInterface",
+            "requiredCapabilities": [
+              "AxisCapable",
+              "PlaneCapable"
+            ]
+          },
+          {
+            "role": "Seat",
+            "participantPath": {
+              "segments": [
+                "BearingModule",
+                "FixedSupport",
+                "Housing",
+                "SeatInterface"
+              ]
+            },
+            "participantSemanticValueId": "assembly-semantic:BearingModule.FixedSupport.Housing:SeatInterface",
+            "requiredCapabilities": [
+              "AxisCapable",
+              "PlaneCapable"
+            ]
+          }
+        ],
+        "constraintIds": [
+          "constraint:mate:BearingModule:ShaftShoulderAtHousing:00",
+          "constraint:mate:BearingModule:ShaftShoulderAtHousing:01"
+        ],
+        "validationStatus": "valid"
+      }
+    ],
+    "placementConstraints": [
+      {
+        "stableId": "constraint:mate:BearingModule:ShaftInBearing:00",
+        "kind": "AxisCoincident",
+        "mateStableId": "mate:BearingModule:ShaftInBearing",
+        "firstSemanticValueId": "assembly-semantic:BearingModule.Rotor.Shaft:Journal.Axis",
+        "secondSemanticValueId": "assembly-semantic:BearingModule.FixedSupport.Bearing:Bore.Axis",
+        "offsetMm": 0,
+        "residual": 0,
+        "status": "admitted"
+      },
+      {
+        "stableId": "constraint:mate:BearingModule:ShaftShoulderAtHousing:00",
+        "kind": "AxisCoincident",
+        "mateStableId": "mate:BearingModule:ShaftShoulderAtHousing",
+        "firstSemanticValueId": "assembly-semantic:BearingModule.Rotor.Shaft:ShoulderInterface.Axis",
+        "secondSemanticValueId": "assembly-semantic:BearingModule.FixedSupport.Housing:SeatInterface.Axis",
+        "offsetMm": 0,
+        "residual": 0,
+        "status": "admitted"
+      },
+      {
+        "stableId": "constraint:mate:BearingModule:ShaftShoulderAtHousing:01",
+        "kind": "PlaneCoincident",
+        "mateStableId": "mate:BearingModule:ShaftShoulderAtHousing",
+        "firstSemanticValueId": "assembly-semantic:BearingModule.Rotor.Shaft:ShoulderInterface.Seat",
+        "secondSemanticValueId": "assembly-semantic:BearingModule.FixedSupport.Housing:SeatInterface.Seat",
+        "offsetMm": 0,
+        "residual": 0,
+        "status": "admitted"
+      }
+    ],
+    "placements": [
+      {
+        "instanceStableId": "assembly-instance:BearingModule",
+        "status": "Unresolved",
+        "transform": null,
+        "freeTranslations": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "freeRotations": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "constraintIds": []
+      },
+      {
+        "instanceStableId": "assembly-instance:BearingModule.FixedSupport",
+        "status": "Unresolved",
+        "transform": null,
+        "freeTranslations": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "freeRotations": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "constraintIds": []
+      },
+      {
+        "instanceStableId": "assembly-instance:BearingModule.Rotor",
+        "status": "Unresolved",
+        "transform": null,
+        "freeTranslations": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "freeRotations": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "constraintIds": []
+      },
+      {
+        "instanceStableId": "assembly-instance:BearingModule.FixedSupport.Housing",
+        "status": "Anchored",
+        "transform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": []
+      },
+      {
+        "instanceStableId": "assembly-instance:BearingModule.FixedSupport.Bearing",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            -15,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [
+          "constraint:mate:BearingModule:ShaftInBearing:00"
+        ]
+      },
+      {
+        "instanceStableId": "assembly-instance:BearingModule.Rotor.Spacer",
+        "status": "Unresolved",
+        "transform": null,
+        "freeTranslations": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "freeRotations": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "constraintIds": []
+      },
+      {
+        "instanceStableId": "assembly-instance:BearingModule.Rotor.Shaft",
+        "status": "Resolved",
+        "transform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            -15,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": [
+          "constraint:mate:BearingModule:ShaftInBearing:00",
+          "constraint:mate:BearingModule:ShaftShoulderAtHousing:00",
+          "constraint:mate:BearingModule:ShaftShoulderAtHousing:01"
+        ]
+      }
+    ],
+    "dimensionalRelations": [
+      {
+        "stableId": "dimension-relation:BearingModule:HousingSeatDepth",
+        "fromSemanticValueId": "assembly-semantic:BearingModule.FixedSupport.Housing:Datum",
+        "toSemanticValueId": "assembly-semantic:BearingModule.FixedSupport.Housing:SeatDatum",
+        "nominal": 30,
+        "lowerTolerance": -0.04,
+        "upperTolerance": 0.05,
+        "unit": "mm",
+        "sign": 1,
+        "originInstancePath": "BearingModule.FixedSupport.Housing",
+        "provenance": "HousingTable.H6204.SeatDepth",
+        "mateStableId": null,
+        "interfaceStableId": null
+      },
+      {
+        "stableId": "dimension-relation:BearingModule:HousingToBearing",
+        "fromSemanticValueId": "assembly-semantic:BearingModule.FixedSupport.Housing:SeatDatum",
+        "toSemanticValueId": "assembly-semantic:BearingModule.FixedSupport.Bearing:Left",
+        "nominal": 0,
+        "lowerTolerance": -0,
+        "upperTolerance": 0,
+        "unit": "mm",
+        "sign": 1,
+        "originInstancePath": "BearingModule.FixedSupport.Housing",
+        "provenance": "Mate:HousingBearingSeat",
+        "mateStableId": "mate-reference:HousingBearingSeat",
+        "interfaceStableId": null
+      },
+      {
+        "stableId": "dimension-relation:BearingModule:BearingWidth",
+        "fromSemanticValueId": "assembly-semantic:BearingModule.FixedSupport.Bearing:Left",
+        "toSemanticValueId": "assembly-semantic:BearingModule.FixedSupport.Bearing:Right",
+        "nominal": 10,
+        "lowerTolerance": -0.02,
+        "upperTolerance": 0.02,
+        "unit": "mm",
+        "sign": 1,
+        "originInstancePath": "BearingModule.FixedSupport.Bearing",
+        "provenance": "BearingTable.6204.Width",
+        "mateStableId": null,
+        "interfaceStableId": null
+      },
+      {
+        "stableId": "dimension-relation:BearingModule:BearingToSpacer",
+        "fromSemanticValueId": "assembly-semantic:BearingModule.FixedSupport.Bearing:Right",
+        "toSemanticValueId": "assembly-semantic:BearingModule.Rotor.Spacer:Left",
+        "nominal": 0,
+        "lowerTolerance": -0,
+        "upperTolerance": 0,
+        "unit": "mm",
+        "sign": 1,
+        "originInstancePath": "BearingModule.FixedSupport.Bearing",
+        "provenance": "Mate:BearingSpacer",
+        "mateStableId": "mate-reference:BearingSpacer",
+        "interfaceStableId": null
+      },
+      {
+        "stableId": "dimension-relation:BearingModule:SpacerWidth",
+        "fromSemanticValueId": "assembly-semantic:BearingModule.Rotor.Spacer:Left",
+        "toSemanticValueId": "assembly-semantic:BearingModule.Rotor.Spacer:Right",
+        "nominal": 5,
+        "lowerTolerance": -0.02,
+        "upperTolerance": 0.03,
+        "unit": "mm",
+        "sign": 1,
+        "originInstancePath": "BearingModule.Rotor.Spacer",
+        "provenance": "SpacerTemplate.Width",
+        "mateStableId": null,
+        "interfaceStableId": null
+      },
+      {
+        "stableId": "dimension-relation:BearingModule:SpacerToShoulder",
+        "fromSemanticValueId": "assembly-semantic:BearingModule.Rotor.Spacer:Right",
+        "toSemanticValueId": "assembly-semantic:BearingModule.Rotor.Shaft:Shoulder",
+        "nominal": 0,
+        "lowerTolerance": -0,
+        "upperTolerance": 0,
+        "unit": "mm",
+        "sign": 1,
+        "originInstancePath": "BearingModule.Rotor.Spacer",
+        "provenance": "Mate:SpacerShoulder",
+        "mateStableId": "mate-reference:SpacerShoulder",
+        "interfaceStableId": null
+      }
+    ],
+    "toleranceStackups": [
+      {
+        "name": "AxialReach",
+        "startSemanticValueId": "assembly-semantic:BearingModule.FixedSupport.Housing:Datum",
+        "endSemanticValueId": "assembly-semantic:BearingModule.Rotor.Shaft:Shoulder",
+        "nominal": 45,
+        "worstCaseMinimum": 44.92,
+        "worstCaseMaximum": 45.1,
+        "requiredMinimum": 44.9,
+        "unit": "mm",
+        "passed": true,
+        "status": "passed",
+        "contributions": [
+          {
+            "relationStableId": "dimension-relation:BearingModule:HousingSeatDepth",
+            "sign": 1,
+            "nominal": 30,
+            "lowerTolerance": -0.04,
+            "upperTolerance": 0.05,
+            "unit": "mm",
+            "originInstancePath": "BearingModule.FixedSupport.Housing",
+            "provenance": "HousingTable.H6204.SeatDepth",
+            "mateStableId": null,
+            "interfaceStableId": null
+          },
+          {
+            "relationStableId": "dimension-relation:BearingModule:HousingToBearing",
+            "sign": 1,
+            "nominal": 0,
+            "lowerTolerance": -0,
+            "upperTolerance": 0,
+            "unit": "mm",
+            "originInstancePath": "BearingModule.FixedSupport.Housing",
+            "provenance": "Mate:HousingBearingSeat",
+            "mateStableId": "mate-reference:HousingBearingSeat",
+            "interfaceStableId": null
+          },
+          {
+            "relationStableId": "dimension-relation:BearingModule:BearingWidth",
+            "sign": 1,
+            "nominal": 10,
+            "lowerTolerance": -0.02,
+            "upperTolerance": 0.02,
+            "unit": "mm",
+            "originInstancePath": "BearingModule.FixedSupport.Bearing",
+            "provenance": "BearingTable.6204.Width",
+            "mateStableId": null,
+            "interfaceStableId": null
+          },
+          {
+            "relationStableId": "dimension-relation:BearingModule:BearingToSpacer",
+            "sign": 1,
+            "nominal": 0,
+            "lowerTolerance": -0,
+            "upperTolerance": 0,
+            "unit": "mm",
+            "originInstancePath": "BearingModule.FixedSupport.Bearing",
+            "provenance": "Mate:BearingSpacer",
+            "mateStableId": "mate-reference:BearingSpacer",
+            "interfaceStableId": null
+          },
+          {
+            "relationStableId": "dimension-relation:BearingModule:SpacerWidth",
+            "sign": 1,
+            "nominal": 5,
+            "lowerTolerance": -0.02,
+            "upperTolerance": 0.03,
+            "unit": "mm",
+            "originInstancePath": "BearingModule.Rotor.Spacer",
+            "provenance": "SpacerTemplate.Width",
+            "mateStableId": null,
+            "interfaceStableId": null
+          },
+          {
+            "relationStableId": "dimension-relation:BearingModule:SpacerToShoulder",
+            "sign": 1,
+            "nominal": 0,
+            "lowerTolerance": -0,
+            "upperTolerance": 0,
+            "unit": "mm",
+            "originInstancePath": "BearingModule.Rotor.Spacer",
+            "provenance": "Mate:SpacerShoulder",
+            "mateStableId": "mate-reference:SpacerShoulder",
+            "interfaceStableId": null
+          }
+        ]
+      }
+    ],
+    "fitResults": [
+      {
+        "mateStableId": "mate:BearingModule:ShaftInBearing",
+        "nominalClearance": 0.019999999999999574,
+        "worstCaseMinimum": 0.0019999999999988916,
+        "worstCaseMaximum": 0.030000000000001137,
+        "unit": "mm",
+        "compatible": true
+      }
+    ],
+    "diagnostics": []
+  },
+  "diagnostics": [],
+  "performance": {
+    "parseMilliseconds": 22.2195,
+    "bindMilliseconds": 9.8373,
+    "mateValidationMilliseconds": 2.5277,
+    "placementMilliseconds": 10.1998,
+    "dimensionalGraphMilliseconds": 0.8166,
+    "toleranceAnalysisMilliseconds": 4.1572
+  }
+}

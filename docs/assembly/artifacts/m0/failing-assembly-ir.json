@@ -1,0 +1,1058 @@
+{
+  "success": false,
+  "assemblyIr": {
+    "schema": "aetheris/assembly-ir/m0",
+    "stableId": "assembly:FailingBearingModule",
+    "name": "FailingBearingModule",
+    "rootInstanceStableId": "assembly-instance:FailingBearingModule",
+    "instances": [
+      {
+        "stableId": "assembly-instance:FailingBearingModule",
+        "path": {
+          "segments": [
+            "FailingBearingModule"
+          ]
+        },
+        "kind": "Assembly",
+        "definitionIdentity": "FailingBearingModule",
+        "parentStableId": null,
+        "childrenStableIds": [
+          "assembly-instance:FailingBearingModule.Bearing",
+          "assembly-instance:FailingBearingModule.Housing",
+          "assembly-instance:FailingBearingModule.Spacer"
+        ],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:FailingBearingModule",
+          "type": {
+            "name": "Assembly",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {},
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "FailingBearingModule",
+              "evidence": "FailingBearingModule",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": null,
+        "resolvedTransform": null,
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "FailingBearingModule",
+            "evidence": "FailingBearingModule",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ]
+      },
+      {
+        "stableId": "assembly-instance:FailingBearingModule.Housing",
+        "path": {
+          "segments": [
+            "FailingBearingModule",
+            "Housing"
+          ]
+        },
+        "kind": "Part",
+        "definitionIdentity": "HousingPart",
+        "parentStableId": "assembly-instance:FailingBearingModule",
+        "childrenStableIds": [],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:FailingBearingModule.Housing",
+          "type": {
+            "name": "Part",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {
+            "Datum": {
+              "stableIdentity": "assembly-semantic:FailingBearingModule.Housing:Datum",
+              "type": {
+                "name": "Concept",
+                "isCollection": false
+              },
+              "capabilities": {
+                "values": [
+                  {
+                    "name": "PointCapable"
+                  }
+                ]
+              },
+              "bindings": [
+                {
+                  "kind": "ExactPoint",
+                  "stableBindingIdentity": "definition:HousingPart:Datum:Point"
+                }
+              ],
+              "exposedMembers": {
+                "Point": {
+                  "stableIdentity": "assembly-semantic:FailingBearingModule.Housing:Datum.Point",
+                  "type": {
+                    "name": "Point",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "PointCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "ExactPoint",
+                      "stableBindingIdentity": "definition:HousingPart:Datum:Point"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "FailingBearingModule.Housing",
+                      "evidence": "definition:HousingPart:Datum:Point",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": null,
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Point"
+                }
+              },
+              "provenance": [
+                {
+                  "stage": "part-definition",
+                  "identity": "HousingPart",
+                  "evidence": "Datum",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                },
+                {
+                  "stage": "assembly-instance",
+                  "identity": "FailingBearingModule.Housing",
+                  "evidence": "definition:HousingPart:Datum",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                }
+              ],
+              "authoredSourceSpan": null,
+              "generatedSourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                "start": 0,
+                "length": 0
+              },
+              "exposedName": "Datum"
+            },
+            "Seat": {
+              "stableIdentity": "assembly-semantic:FailingBearingModule.Housing:Seat",
+              "type": {
+                "name": "Concept",
+                "isCollection": false
+              },
+              "capabilities": {
+                "values": [
+                  {
+                    "name": "PointCapable"
+                  }
+                ]
+              },
+              "bindings": [
+                {
+                  "kind": "ExactPoint",
+                  "stableBindingIdentity": "definition:HousingPart:Seat:Point"
+                }
+              ],
+              "exposedMembers": {
+                "Point": {
+                  "stableIdentity": "assembly-semantic:FailingBearingModule.Housing:Seat.Point",
+                  "type": {
+                    "name": "Point",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "PointCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "ExactPoint",
+                      "stableBindingIdentity": "definition:HousingPart:Seat:Point"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "FailingBearingModule.Housing",
+                      "evidence": "definition:HousingPart:Seat:Point",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": null,
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Point"
+                }
+              },
+              "provenance": [
+                {
+                  "stage": "part-definition",
+                  "identity": "HousingPart",
+                  "evidence": "Seat",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                },
+                {
+                  "stage": "assembly-instance",
+                  "identity": "FailingBearingModule.Housing",
+                  "evidence": "definition:HousingPart:Seat",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                }
+              ],
+              "authoredSourceSpan": null,
+              "generatedSourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                "start": 0,
+                "length": 0
+              },
+              "exposedName": "Seat"
+            }
+          },
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "FailingBearingModule.Housing",
+              "evidence": "HousingPart",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": null,
+        "resolvedTransform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "Housing",
+            "evidence": "HousingPart",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ]
+      },
+      {
+        "stableId": "assembly-instance:FailingBearingModule.Bearing",
+        "path": {
+          "segments": [
+            "FailingBearingModule",
+            "Bearing"
+          ]
+        },
+        "kind": "Part",
+        "definitionIdentity": "Bearing6204",
+        "parentStableId": "assembly-instance:FailingBearingModule",
+        "childrenStableIds": [],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:FailingBearingModule.Bearing",
+          "type": {
+            "name": "Part",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {
+            "Left": {
+              "stableIdentity": "assembly-semantic:FailingBearingModule.Bearing:Left",
+              "type": {
+                "name": "Concept",
+                "isCollection": false
+              },
+              "capabilities": {
+                "values": [
+                  {
+                    "name": "PointCapable"
+                  }
+                ]
+              },
+              "bindings": [
+                {
+                  "kind": "ExactPoint",
+                  "stableBindingIdentity": "definition:Bearing6204:Left:Point"
+                }
+              ],
+              "exposedMembers": {
+                "Point": {
+                  "stableIdentity": "assembly-semantic:FailingBearingModule.Bearing:Left.Point",
+                  "type": {
+                    "name": "Point",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "PointCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "ExactPoint",
+                      "stableBindingIdentity": "definition:Bearing6204:Left:Point"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "FailingBearingModule.Bearing",
+                      "evidence": "definition:Bearing6204:Left:Point",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": null,
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Point"
+                }
+              },
+              "provenance": [
+                {
+                  "stage": "part-definition",
+                  "identity": "Bearing6204",
+                  "evidence": "Left",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                },
+                {
+                  "stage": "assembly-instance",
+                  "identity": "FailingBearingModule.Bearing",
+                  "evidence": "definition:Bearing6204:Left",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                }
+              ],
+              "authoredSourceSpan": null,
+              "generatedSourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                "start": 0,
+                "length": 0
+              },
+              "exposedName": "Left"
+            },
+            "Right": {
+              "stableIdentity": "assembly-semantic:FailingBearingModule.Bearing:Right",
+              "type": {
+                "name": "Concept",
+                "isCollection": false
+              },
+              "capabilities": {
+                "values": [
+                  {
+                    "name": "PointCapable"
+                  }
+                ]
+              },
+              "bindings": [
+                {
+                  "kind": "ExactPoint",
+                  "stableBindingIdentity": "definition:Bearing6204:Right:Point"
+                }
+              ],
+              "exposedMembers": {
+                "Point": {
+                  "stableIdentity": "assembly-semantic:FailingBearingModule.Bearing:Right.Point",
+                  "type": {
+                    "name": "Point",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "PointCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "ExactPoint",
+                      "stableBindingIdentity": "definition:Bearing6204:Right:Point"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "FailingBearingModule.Bearing",
+                      "evidence": "definition:Bearing6204:Right:Point",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": null,
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Point"
+                }
+              },
+              "provenance": [
+                {
+                  "stage": "part-definition",
+                  "identity": "Bearing6204",
+                  "evidence": "Right",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                },
+                {
+                  "stage": "assembly-instance",
+                  "identity": "FailingBearingModule.Bearing",
+                  "evidence": "definition:Bearing6204:Right",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                }
+              ],
+              "authoredSourceSpan": null,
+              "generatedSourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                "start": 0,
+                "length": 0
+              },
+              "exposedName": "Right"
+            }
+          },
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "FailingBearingModule.Bearing",
+              "evidence": "Bearing6204",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": null,
+        "resolvedTransform": null,
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "Bearing",
+            "evidence": "Bearing6204",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ]
+      },
+      {
+        "stableId": "assembly-instance:FailingBearingModule.Spacer",
+        "path": {
+          "segments": [
+            "FailingBearingModule",
+            "Spacer"
+          ]
+        },
+        "kind": "Part",
+        "definitionIdentity": "SpacerPart",
+        "parentStableId": "assembly-instance:FailingBearingModule",
+        "childrenStableIds": [],
+        "semanticRoot": {
+          "stableIdentity": "assembly-semantic:FailingBearingModule.Spacer",
+          "type": {
+            "name": "Part",
+            "isCollection": false
+          },
+          "capabilities": {
+            "values": []
+          },
+          "bindings": [],
+          "exposedMembers": {
+            "Left": {
+              "stableIdentity": "assembly-semantic:FailingBearingModule.Spacer:Left",
+              "type": {
+                "name": "Concept",
+                "isCollection": false
+              },
+              "capabilities": {
+                "values": [
+                  {
+                    "name": "PointCapable"
+                  }
+                ]
+              },
+              "bindings": [
+                {
+                  "kind": "ExactPoint",
+                  "stableBindingIdentity": "definition:SpacerPart:Left:Point"
+                }
+              ],
+              "exposedMembers": {
+                "Point": {
+                  "stableIdentity": "assembly-semantic:FailingBearingModule.Spacer:Left.Point",
+                  "type": {
+                    "name": "Point",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "PointCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "ExactPoint",
+                      "stableBindingIdentity": "definition:SpacerPart:Left:Point"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "FailingBearingModule.Spacer",
+                      "evidence": "definition:SpacerPart:Left:Point",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": null,
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Point"
+                }
+              },
+              "provenance": [
+                {
+                  "stage": "part-definition",
+                  "identity": "SpacerPart",
+                  "evidence": "Left",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                },
+                {
+                  "stage": "assembly-instance",
+                  "identity": "FailingBearingModule.Spacer",
+                  "evidence": "definition:SpacerPart:Left",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                }
+              ],
+              "authoredSourceSpan": null,
+              "generatedSourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                "start": 0,
+                "length": 0
+              },
+              "exposedName": "Left"
+            },
+            "Right": {
+              "stableIdentity": "assembly-semantic:FailingBearingModule.Spacer:Right",
+              "type": {
+                "name": "Concept",
+                "isCollection": false
+              },
+              "capabilities": {
+                "values": [
+                  {
+                    "name": "PointCapable"
+                  }
+                ]
+              },
+              "bindings": [
+                {
+                  "kind": "ExactPoint",
+                  "stableBindingIdentity": "definition:SpacerPart:Right:Point"
+                }
+              ],
+              "exposedMembers": {
+                "Point": {
+                  "stableIdentity": "assembly-semantic:FailingBearingModule.Spacer:Right.Point",
+                  "type": {
+                    "name": "Point",
+                    "isCollection": false
+                  },
+                  "capabilities": {
+                    "values": [
+                      {
+                        "name": "PointCapable"
+                      }
+                    ]
+                  },
+                  "bindings": [
+                    {
+                      "kind": "ExactPoint",
+                      "stableBindingIdentity": "definition:SpacerPart:Right:Point"
+                    }
+                  ],
+                  "exposedMembers": {},
+                  "provenance": [
+                    {
+                      "stage": "assembly-instance",
+                      "identity": "FailingBearingModule.Spacer",
+                      "evidence": "definition:SpacerPart:Right:Point",
+                      "sourceSpan": {
+                        "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                        "start": 0,
+                        "length": 0
+                      }
+                    }
+                  ],
+                  "authoredSourceSpan": null,
+                  "generatedSourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                    "start": 0,
+                    "length": 0
+                  },
+                  "exposedName": "Point"
+                }
+              },
+              "provenance": [
+                {
+                  "stage": "part-definition",
+                  "identity": "SpacerPart",
+                  "evidence": "Right",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                },
+                {
+                  "stage": "assembly-instance",
+                  "identity": "FailingBearingModule.Spacer",
+                  "evidence": "definition:SpacerPart:Right",
+                  "sourceSpan": {
+                    "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                    "start": 0,
+                    "length": 0
+                  }
+                }
+              ],
+              "authoredSourceSpan": null,
+              "generatedSourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                "start": 0,
+                "length": 0
+              },
+              "exposedName": "Right"
+            }
+          },
+          "provenance": [
+            {
+              "stage": "assembly-instance",
+              "identity": "FailingBearingModule.Spacer",
+              "evidence": "SpacerPart",
+              "sourceSpan": {
+                "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+            "start": 0,
+            "length": 0
+          },
+          "exposedName": null
+        },
+        "localTransform": null,
+        "resolvedTransform": null,
+        "provenance": [
+          {
+            "stage": "assembly-source",
+            "identity": "Spacer",
+            "evidence": "SpacerPart",
+            "sourceSpan": {
+              "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\AssemblyM0\\bearing-module-failing.firmament",
+              "start": 0,
+              "length": 0
+            }
+          }
+        ]
+      }
+    ],
+    "interfaces": [],
+    "mates": [],
+    "placementConstraints": [],
+    "placements": [
+      {
+        "instanceStableId": "assembly-instance:FailingBearingModule",
+        "status": "Unresolved",
+        "transform": null,
+        "freeTranslations": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "freeRotations": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "constraintIds": []
+      },
+      {
+        "instanceStableId": "assembly-instance:FailingBearingModule.Housing",
+        "status": "Anchored",
+        "transform": {
+          "matrix": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "freeTranslations": [],
+        "freeRotations": [],
+        "constraintIds": []
+      },
+      {
+        "instanceStableId": "assembly-instance:FailingBearingModule.Bearing",
+        "status": "Unresolved",
+        "transform": null,
+        "freeTranslations": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "freeRotations": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "constraintIds": []
+      },
+      {
+        "instanceStableId": "assembly-instance:FailingBearingModule.Spacer",
+        "status": "Unresolved",
+        "transform": null,
+        "freeTranslations": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "freeRotations": [
+          "X",
+          "Y",
+          "Z"
+        ],
+        "constraintIds": []
+      }
+    ],
+    "dimensionalRelations": [
+      {
+        "stableId": "dimension-relation:FailingBearingModule:SeatDepth",
+        "fromSemanticValueId": "assembly-semantic:FailingBearingModule.Housing:Datum",
+        "toSemanticValueId": "assembly-semantic:FailingBearingModule.Housing:Seat",
+        "nominal": 30,
+        "lowerTolerance": -0.04,
+        "upperTolerance": 0.05,
+        "unit": "mm",
+        "sign": 1,
+        "originInstancePath": "FailingBearingModule.Housing",
+        "provenance": "HousingTable.H6204.SeatDepth",
+        "mateStableId": null,
+        "interfaceStableId": null
+      },
+      {
+        "stableId": "dimension-relation:FailingBearingModule:SeatTransition",
+        "fromSemanticValueId": "assembly-semantic:FailingBearingModule.Housing:Seat",
+        "toSemanticValueId": "assembly-semantic:FailingBearingModule.Bearing:Left",
+        "nominal": 0,
+        "lowerTolerance": -0,
+        "upperTolerance": 0,
+        "unit": "mm",
+        "sign": 1,
+        "originInstancePath": "FailingBearingModule.Housing",
+        "provenance": "Mate:Seat",
+        "mateStableId": "mate-reference:Seat",
+        "interfaceStableId": null
+      },
+      {
+        "stableId": "dimension-relation:FailingBearingModule:BearingWidth",
+        "fromSemanticValueId": "assembly-semantic:FailingBearingModule.Bearing:Left",
+        "toSemanticValueId": "assembly-semantic:FailingBearingModule.Bearing:Right",
+        "nominal": 10,
+        "lowerTolerance": -0.02,
+        "upperTolerance": 0.02,
+        "unit": "mm",
+        "sign": 1,
+        "originInstancePath": "FailingBearingModule.Bearing",
+        "provenance": "BearingTable.6204.Width",
+        "mateStableId": null,
+        "interfaceStableId": null
+      },
+      {
+        "stableId": "dimension-relation:FailingBearingModule:SpacerTransition",
+        "fromSemanticValueId": "assembly-semantic:FailingBearingModule.Bearing:Right",
+        "toSemanticValueId": "assembly-semantic:FailingBearingModule.Spacer:Left",
+        "nominal": 0,
+        "lowerTolerance": -0,
+        "upperTolerance": 0,
+        "unit": "mm",
+        "sign": 1,
+        "originInstancePath": "FailingBearingModule.Bearing",
+        "provenance": "Mate:Spacer",
+        "mateStableId": "mate-reference:Spacer",
+        "interfaceStableId": null
+      },
+      {
+        "stableId": "dimension-relation:FailingBearingModule:SpacerWidth",
+        "fromSemanticValueId": "assembly-semantic:FailingBearingModule.Spacer:Left",
+        "toSemanticValueId": "assembly-semantic:FailingBearingModule.Spacer:Right",
+        "nominal": 5,
+        "lowerTolerance": -0.02,
+        "upperTolerance": 0.03,
+        "unit": "mm",
+        "sign": 1,
+        "originInstancePath": "FailingBearingModule.Spacer",
+        "provenance": "SpacerTemplate.Width",
+        "mateStableId": null,
+        "interfaceStableId": null
+      }
+    ],
+    "toleranceStackups": [
+      {
+        "name": "ImpossibleClearance",
+        "startSemanticValueId": "assembly-semantic:FailingBearingModule.Housing:Datum",
+        "endSemanticValueId": "assembly-semantic:FailingBearingModule.Spacer:Right",
+        "nominal": 45,
+        "worstCaseMinimum": 44.92,
+        "worstCaseMaximum": 45.1,
+        "requiredMinimum": 44.95,
+        "unit": "mm",
+        "passed": false,
+        "status": "failed",
+        "contributions": [
+          {
+            "relationStableId": "dimension-relation:FailingBearingModule:SeatDepth",
+            "sign": 1,
+            "nominal": 30,
+            "lowerTolerance": -0.04,
+            "upperTolerance": 0.05,
+            "unit": "mm",
+            "originInstancePath": "FailingBearingModule.Housing",
+            "provenance": "HousingTable.H6204.SeatDepth",
+            "mateStableId": null,
+            "interfaceStableId": null
+          },
+          {
+            "relationStableId": "dimension-relation:FailingBearingModule:SeatTransition",
+            "sign": 1,
+            "nominal": 0,
+            "lowerTolerance": -0,
+            "upperTolerance": 0,
+            "unit": "mm",
+            "originInstancePath": "FailingBearingModule.Housing",
+            "provenance": "Mate:Seat",
+            "mateStableId": "mate-reference:Seat",
+            "interfaceStableId": null
+          },
+          {
+            "relationStableId": "dimension-relation:FailingBearingModule:BearingWidth",
+            "sign": 1,
+            "nominal": 10,
+            "lowerTolerance": -0.02,
+            "upperTolerance": 0.02,
+            "unit": "mm",
+            "originInstancePath": "FailingBearingModule.Bearing",
+            "provenance": "BearingTable.6204.Width",
+            "mateStableId": null,
+            "interfaceStableId": null
+          },
+          {
+            "relationStableId": "dimension-relation:FailingBearingModule:SpacerTransition",
+            "sign": 1,
+            "nominal": 0,
+            "lowerTolerance": -0,
+            "upperTolerance": 0,
+            "unit": "mm",
+            "originInstancePath": "FailingBearingModule.Bearing",
+            "provenance": "Mate:Spacer",
+            "mateStableId": "mate-reference:Spacer",
+            "interfaceStableId": null
+          },
+          {
+            "relationStableId": "dimension-relation:FailingBearingModule:SpacerWidth",
+            "sign": 1,
+            "nominal": 5,
+            "lowerTolerance": -0.02,
+            "upperTolerance": 0.03,
+            "unit": "mm",
+            "originInstancePath": "FailingBearingModule.Spacer",
+            "provenance": "SpacerTemplate.Width",
+            "mateStableId": null,
+            "interfaceStableId": null
+          }
+        ]
+      }
+    ],
+    "fitResults": [],
+    "diagnostics": [
+      {
+        "code": "assembly-tolerance-assertion-failure",
+        "message": "Assert ToleranceStackup \u0027ImpossibleClearance\u0027 failed: worst-case minimum 44.92 mm \u003C required 44.95 mm.",
+        "severity": "Error"
+      }
+    ]
+  },
+  "diagnostics": [
+    {
+      "code": "assembly-tolerance-assertion-failure",
+      "message": "Assert ToleranceStackup \u0027ImpossibleClearance\u0027 failed: worst-case minimum 44.92 mm \u003C required 44.95 mm.",
+      "severity": "Error"
+    }
+  ],
+  "performance": null
+}

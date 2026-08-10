@@ -51,7 +51,7 @@ limitations are at [yuechen-li-dev.github.io/aetheris](https://yuechen-li-dev.gi
 - schema-aware CNC minimum tool radius validation
 - deterministic canonical formatting for supported `.firmament` source
 - STEP AP242 export for the current single-body golden path
-- assembly runtime via `.firmasm` (`asm exec`) and bounded per-instance roundtrip export (`asm export`)
+- typed relational assembly inspection (`asm inspect`) plus legacy `.firmasm` execution/export compatibility
 
 ## 30-second demo
 
@@ -132,7 +132,7 @@ Use `Aetheris.slnx` as the only solution entrypoint. For legacy Firmament V1/Fri
 
 ## Docs
 
-- assembly model and contracts (canonical): `docs/assembly.md`
+- assembly model and contracts (canonical): `docs/assembly/architecture.md`
 - overview: `docs/firmament-overview.md`
 - build/export workflow: `docs/firmament-build-workflow.md`
 - selector contracts: `docs/firmament-selectors.md`
@@ -140,7 +140,7 @@ Use `Aetheris.slnx` as the only solution entrypoint. For legacy Firmament V1/Fri
 
 ## Assembly model snapshot
 
-- `.firmasm` is authoritative for assembly semantics in Aetheris.
+- Firmament Assembly source lowers to normalized AssemblyIR; `.firmasm` is a deprecated transform-first compatibility lane.
 - STEP is treated as foreign interop input/output.
 - Multi-root STEP is assembly-like input and must route through assembly extraction/import, not single-part import.
 - Current roundtrip export is intentionally bounded to per-instance STEP + `roundtrip.package.json`.

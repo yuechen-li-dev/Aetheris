@@ -29,6 +29,10 @@ public sealed record ComposeOperandCapability : ISemanticCapability { public str
 public sealed record BodyCapability : ISemanticCapability { public string Name => "BodyCapable"; }
 public sealed record MaterialRegionCapability : ISemanticCapability { public string Name => "MaterialRegionCapable"; }
 public sealed record AnalysisRegionCapability : ISemanticCapability { public string Name => "AnalysisRegionCapable"; }
+public sealed record AxisCapability : ISemanticCapability { public string Name => "AxisCapable"; }
+public sealed record PlaneCapability : ISemanticCapability { public string Name => "PlaneCapable"; }
+public sealed record PointCapability : ISemanticCapability { public string Name => "PointCapable"; }
+public sealed record DimensionalCapability : ISemanticCapability { public string Name => "DimensionalCapable"; }
 
 public sealed class SemanticCapabilitySet
 {
@@ -72,6 +76,30 @@ public sealed record ConstructionIdentityBinding(string ConstructionStableId)
 
 public sealed record ImportedEntityBinding(string ResourceIdentity, IReadOnlyList<string> EntityIds)
     : SemanticBinding("ImportedEntities", ResourceIdentity + ":" + string.Join(",", EntityIds.Order(StringComparer.Ordinal)));
+
+/// <summary>Exact analytic assembly datum. Coordinates are nominal millimetres in definition-local space.</summary>
+public sealed record ExactAxisBinding(
+    double OriginX, double OriginY, double OriginZ,
+    double DirectionX, double DirectionY, double DirectionZ,
+    string AxisStableId) : SemanticBinding("ExactAxis", AxisStableId);
+
+public sealed record ExactPlaneBinding(
+    double OriginX, double OriginY, double OriginZ,
+    double NormalX, double NormalY, double NormalZ,
+    string PlaneStableId) : SemanticBinding("ExactPlane", PlaneStableId);
+
+public sealed record ExactPointBinding(double X, double Y, double Z, string PointStableId)
+    : SemanticBinding("ExactPoint", PointStableId);
+
+/// <summary>Symbolic engineering dimension. Tolerance never perturbs nominal geometry.</summary>
+public sealed record TolerancedDimensionBinding(
+    double Nominal, double LowerTolerance, double UpperTolerance, string Unit,
+    string DimensionStableId, string? Direction = null)
+    : SemanticBinding("TolerancedDimension", DimensionStableId)
+{
+    public double Minimum => Nominal + LowerTolerance;
+    public double Maximum => Nominal + UpperTolerance;
+}
 
 /// <summary>Exact analytic/BRep boundary identity normalized before AnalysisIR; never a mesh identifier.</summary>
 public sealed record ExactAnalysisRegionBinding(string BodyStableId, string RegionPath, string? ExactBrepFaceId = null)
@@ -180,6 +208,10 @@ public static class SemanticValueValidator
             && !value.TryBinding<ExactAnalysisRegionBinding>(out _))
             diagnostics.Add(new(NoExactBinding, $"BoundaryRegionCapable on '{value.StableIdentity}' requires an exact BRep face or region binding.", value.AuthoredSourceSpan));
         RequireBinding<BodyCapability, ExactBrepBodyBinding>(value, diagnostics);
+        RequireBinding<AxisCapability, ExactAxisBinding>(value, diagnostics);
+        RequireBinding<PlaneCapability, ExactPlaneBinding>(value, diagnostics);
+        RequireBinding<PointCapability, ExactPointBinding>(value, diagnostics);
+        RequireBinding<DimensionalCapability, TolerancedDimensionBinding>(value, diagnostics);
         RequireAnyExactBinding<ExactGeometryCapability>(value, diagnostics);
         RequireAnyExactBinding<SelectableCapability>(value, diagnostics);
         RequireBinding<ComposeOperandCapability, ExactProfileBinding>(value, diagnostics);

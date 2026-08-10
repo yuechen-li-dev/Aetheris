@@ -1,0 +1,27 @@
+// Deliberately failing bounded worst-case stackup proof.
+Assembly FailingBearingModule {
+    <Assembly FailingBearingModule>
+        <Part Housing = HousingPart>
+            Semantic Datum { Point Point = [0,0,0]; }
+            Semantic Seat { Point Point = [0,0,30]; }
+        </Part>
+        <Part Bearing = Bearing6204>
+            Semantic Left { Point Point = [0,0,0]; }
+            Semantic Right { Point Point = [0,0,10]; }
+        </Part>
+        <Part Spacer = SpacerPart>
+            Semantic Left { Point Point = [0,0,0]; }
+            Semantic Right { Point Point = [0,0,5]; }
+        </Part>
+    </Assembly>
+    Anchor: FailingBearingModule.Housing.Datum;
+    Relation SeatDepth: FailingBearingModule.Housing.Datum -> FailingBearingModule.Housing.Seat = 30mm tol +0.05mm -0.04mm from "HousingTable.H6204.SeatDepth";
+    Relation SeatTransition: FailingBearingModule.Housing.Seat -> FailingBearingModule.Bearing.Left = 0mm from "Mate:Seat";
+    Relation BearingWidth: FailingBearingModule.Bearing.Left -> FailingBearingModule.Bearing.Right = 10mm tol 0.02mm from "BearingTable.6204.Width";
+    Relation SpacerTransition: FailingBearingModule.Bearing.Right -> FailingBearingModule.Spacer.Left = 0mm from "Mate:Spacer";
+    Relation SpacerWidth: FailingBearingModule.Spacer.Left -> FailingBearingModule.Spacer.Right = 5mm tol +0.03mm -0.02mm from "SpacerTemplate.Width";
+    Assert ToleranceStackup ImpossibleClearance {
+        Between: [FailingBearingModule.Housing.Datum, FailingBearingModule.Spacer.Right];
+        Require: Clearance >= 44.95mm;
+    }
+}

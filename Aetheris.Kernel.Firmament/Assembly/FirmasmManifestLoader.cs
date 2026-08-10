@@ -59,7 +59,9 @@ public sealed class FirmasmManifestLoader
             new FirmasmLoadedAssembly(
                 SourcePath: Path.GetFullPath(manifestPath),
                 Manifest: parseResult.Value,
-                LoadedParts: loadPartsResult.Value));
+                LoadedParts: loadPartsResult.Value),
+            [new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Warning,
+                "legacy-firmasm-deprecation: .firmasm is a transform-first compatibility format; migrate to typed Firmament Assembly/Interface/Mate source.", Source: "firmasm")]);
     }
 
     public KernelResult<FirmasmManifest> Parse(string sourceText)

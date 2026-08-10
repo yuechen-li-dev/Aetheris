@@ -1,0 +1,85 @@
+// AETHERIS-ASSEMBLY-M0: typed Interfaces plus a product tree and independent Mate graph.
+Interface ShaftBore {
+    Role Shaft requires AxisCapable, DimensionalCapable;
+    Role Bore requires AxisCapable, DimensionalCapable;
+    Lower AxisCoincident Shaft.Axis Bore.Axis;
+    Fit Shaft.Diameter inside Bore.Diameter;
+    Allow translation:along-axis;
+    Allow rotation:about-axis;
+}
+
+Interface ShoulderBearingSeat {
+    Role Shoulder requires AxisCapable, PlaneCapable;
+    Role Seat requires AxisCapable, PlaneCapable;
+    Lower AxisCoincident Shoulder.Axis Seat.Axis;
+    Lower PlaneCoincident Shoulder.Seat Seat.Seat;
+    Allow rotation:about-axis;
+}
+
+Assembly BearingModule {
+    <Assembly BearingModule>
+        <Assembly FixedSupport>
+            <Part Housing = HousingPart>
+                Semantic Bore {
+                    Axis Axis = [0,0,0] -> [0,0,1];
+                    Dimension Diameter = 20.04mm tol +0.02mm -0.01mm;
+                }
+                Semantic SeatInterface {
+                    Axis Axis = [0,0,0] -> [0,0,1];
+                    Plane Seat = [0,0,30] normal [0,0,1];
+                }
+                Semantic Datum { Point Point = [0,0,0]; }
+                Semantic SeatDatum { Point Point = [0,0,30]; }
+            </Part>
+            <Part Bearing = Bearing6204>
+                Semantic Bore {
+                    Axis Axis = [0,0,0] -> [0,0,1];
+                    Dimension Diameter = 20.00mm tol +0.00mm -0.008mm;
+                }
+                Semantic Left { Point Point = [0,0,0]; }
+                Semantic Right { Point Point = [0,0,10]; }
+            </Part>
+        </Assembly>
+        <Assembly Rotor>
+            <Part Spacer = SpacerPart>
+                Semantic Left { Point Point = [0,0,0]; }
+                Semantic Right { Point Point = [0,0,5]; }
+            </Part>
+            <Part Shaft = ShaftPart>
+                Semantic Journal {
+                    Axis Axis = [0,0,0] -> [0,0,1];
+                    Dimension Diameter = 19.98mm tol +0.01mm -0.01mm;
+                }
+                Semantic ShoulderInterface {
+                    Axis Axis = [0,0,0] -> [0,0,1];
+                    Plane Seat = [0,0,45] normal [0,0,1];
+                }
+                Semantic Shoulder { Point Point = [0,0,45]; }
+            </Part>
+        </Assembly>
+    </Assembly>
+
+    Anchor: BearingModule.FixedSupport.Housing.Bore;
+
+    Mate ShaftInBearing: ShaftBore {
+        Shaft: BearingModule.Rotor.Shaft.Journal;
+        Bore: BearingModule.FixedSupport.Bearing.Bore;
+    }
+
+    Mate ShaftShoulderAtHousing: ShoulderBearingSeat {
+        Shoulder: BearingModule.Rotor.Shaft.ShoulderInterface;
+        Seat: BearingModule.FixedSupport.Housing.SeatInterface;
+    }
+
+    Relation HousingSeatDepth: BearingModule.FixedSupport.Housing.Datum -> BearingModule.FixedSupport.Housing.SeatDatum = 30mm tol +0.05mm -0.04mm from "HousingTable.H6204.SeatDepth";
+    Relation HousingToBearing: BearingModule.FixedSupport.Housing.SeatDatum -> BearingModule.FixedSupport.Bearing.Left = 0mm from "Mate:HousingBearingSeat";
+    Relation BearingWidth: BearingModule.FixedSupport.Bearing.Left -> BearingModule.FixedSupport.Bearing.Right = 10mm tol 0.02mm from "BearingTable.6204.Width";
+    Relation BearingToSpacer: BearingModule.FixedSupport.Bearing.Right -> BearingModule.Rotor.Spacer.Left = 0mm from "Mate:BearingSpacer";
+    Relation SpacerWidth: BearingModule.Rotor.Spacer.Left -> BearingModule.Rotor.Spacer.Right = 5mm tol +0.03mm -0.02mm from "SpacerTemplate.Width";
+    Relation SpacerToShoulder: BearingModule.Rotor.Spacer.Right -> BearingModule.Rotor.Shaft.Shoulder = 0mm from "Mate:SpacerShoulder";
+
+    Assert ToleranceStackup AxialReach {
+        Between: [BearingModule.FixedSupport.Housing.Datum, BearingModule.Rotor.Shaft.Shoulder];
+        Require: Clearance >= 44.90mm;
+    }
+}

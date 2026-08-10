@@ -1,0 +1,140 @@
+[
+  {
+    "id": "Aetheris.Core",
+    "version": "1.0.0",
+    "dependencies": [],
+    "capabilities": [],
+    "concepts": [],
+    "templates": []
+  },
+  {
+    "id": "Aetheris.Piping",
+    "version": "0.1.0",
+    "dependencies": [
+      {
+        "moduleId": {
+          "value": "Aetheris.Core"
+        },
+        "minimumVersion": {
+          "major": 1,
+          "minor": 0,
+          "patch": 0
+        }
+      }
+    ],
+    "capabilities": [
+      {
+        "id": "Piping.PathPipe",
+        "owningModule": {
+          "value": "Aetheris.Piping"
+        },
+        "sinceVersion": {
+          "major": 0,
+          "minor": 1,
+          "patch": 0
+        },
+        "description": "Circular pipe driven by an engineering centerline."
+      },
+      {
+        "id": "Piping.PipeRoute",
+        "owningModule": {
+          "value": "Aetheris.Piping"
+        },
+        "sinceVersion": {
+          "major": 0,
+          "minor": 1,
+          "patch": 0
+        },
+        "description": "Validated straight/planar-bend pipe route."
+      }
+    ],
+    "concepts": [
+      "Piping.PipeRoute",
+      "Piping.PipeSection"
+    ],
+    "templates": [
+      "Piping.StandardPipeElbow"
+    ]
+  },
+  {
+    "id": "Aetheris.Surfacing",
+    "version": "0.1.0",
+    "dependencies": [
+      {
+        "moduleId": {
+          "value": "Aetheris.Core"
+        },
+        "minimumVersion": {
+          "major": 1,
+          "minor": 0,
+          "patch": 0
+        }
+      }
+    ],
+    "capabilities": [
+      {
+        "id": "Surfacing.RuledSurface",
+        "owningModule": {
+          "value": "Aetheris.Surfacing"
+        },
+        "sinceVersion": {
+          "major": 0,
+          "minor": 1,
+          "patch": 0
+        },
+        "description": "Exact ruled surface between compatible boundaries."
+      },
+      {
+        "id": "Surfacing.RuledTransition",
+        "owningModule": {
+          "value": "Aetheris.Surfacing"
+        },
+        "sinceVersion": {
+          "major": 0,
+          "minor": 1,
+          "patch": 0
+        },
+        "description": "Ruled transition preserving section and boundary provenance."
+      }
+    ],
+    "concepts": [
+      "Surfacing.RuledSurface",
+      "Surfacing.RuledTransition"
+    ],
+    "templates": [
+      "Surfacing.RuledCanopy"
+    ]
+  },
+  {
+    "id": "Aetheris.SheetMetal",
+    "version": "0.1.0",
+    "dependencies": [
+      {
+        "moduleId": {
+          "value": "Aetheris.Core"
+        },
+        "minimumVersion": {
+          "major": 1,
+          "minor": 0,
+          "patch": 0
+        }
+      },
+      {
+        "moduleId": {
+          "value": "Aetheris.Surfacing"
+        },
+        "minimumVersion": {
+          "major": 0,
+          "minor": 1,
+          "patch": 0
+        }
+      }
+    ],
+    "capabilities": [],
+    "concepts": [
+      "SheetMetal.NeutralSurface (reserved)",
+      "SheetMetal.FormedState (reserved)"
+    ],
+    "templates": []
+  }
+]

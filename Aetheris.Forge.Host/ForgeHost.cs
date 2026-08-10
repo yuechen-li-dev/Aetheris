@@ -16,6 +16,8 @@ using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.FEA.Abaqus;
 using Aetheris.FEA.Firmament;
 using Aetheris.FEA.Mechanics;
+using Aetheris.Modules;
+using Aetheris.Modules.BuiltIn;
 
 namespace Aetheris.Forge.Host;
 
@@ -47,6 +49,9 @@ public sealed class ForgeHost
     }
 
     public IReadOnlyList<ForgeCapabilityDescriptorV1> Capabilities => registry.InspectCapabilities();
+
+    /// <summary>Engineering-domain capabilities available to ordinary Host users; KernelSDK is not required.</summary>
+    public AetherisModuleCatalog EngineeringModules => BuiltInModules.Catalog;
 
     public ForgeModule LoadModule(string path)
     {

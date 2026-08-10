@@ -18,6 +18,9 @@ using Aetheris.FEA.Abaqus;
 using Aetheris.FEA.Firmament;
 using Aetheris.FEA.Mechanics;
 using Aetheris.Semantics;
+using Aetheris.Modules.BuiltIn;
+using Aetheris.Piping;
+using Aetheris.Surfacing;
 
 namespace Aetheris.CLI;
 
@@ -211,6 +214,7 @@ public static class CliRunner
                 "canon" => RunCanon(args.Skip(1).ToArray(), stdout, stderr),
                 "asm" => RunAsm(args.Skip(1).ToArray(), stdout, stderr),
                 "experimental" => RunExperimental(args.Skip(1).ToArray(), stdout, stderr),
+                "modules" => RunModules(args.Skip(1).ToArray(), stdout, stderr),
                 _ => UnknownCommand(args[0], stderr)
             };
         }
@@ -460,6 +464,38 @@ public static class CliRunner
         }
 
         return 0;
+    }
+
+    private static int RunModules(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length > 0 && args[0] == "showcase") return RunModuleShowcase(args.Skip(1).ToArray(), stdout, stderr);
+        var json = args.Contains("--json", StringComparer.Ordinal);
+        if (args.Any(a => a is not "--json" and not "--help" and not "-h")) { stderr.WriteLine("Usage: aetheris modules [--json] | modules showcase --out-dir <directory>"); return 1; }
+        var catalog = BuiltInModules.Catalog;
+        if (json)
+        {
+            stdout.WriteLine(JsonSerializer.Serialize(catalog.Modules.Select(m => new { id=m.Id.Value,name=m.Name,version=m.Version.ToString(),m.BuiltIn,dependencies=m.Dependencies.Select(d=>new{id=d.ModuleId.Value,minimumVersion=d.MinimumVersion.ToString()}),capabilities=m.Capabilities.Select(c=>c.Id),m.Concepts,m.Templates,m.Lowerings,m.Documentation }), JsonOptions));
+            return 0;
+        }
+        stdout.WriteLine("Built-in engineering Modules (explicit registration; no dynamic plugins)");
+        foreach (var module in catalog.Modules) stdout.WriteLine($"{module.Id.Value} {module.Version}  {(module.Capabilities.Count == 0 ? "(reserved)" : string.Join(", ", module.Capabilities.Select(c=>c.Id)))}");
+        return 0;
+    }
+
+    private static int RunModuleShowcase(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        var index=Array.IndexOf(args,"--out-dir");if(index<0||index+1>=args.Length){stderr.WriteLine("Usage: aetheris modules showcase --out-dir <directory>");return 1;}
+        var output=Path.GetFullPath(args[index+1]);Directory.CreateDirectory(output);var started=Stopwatch.GetTimestamp();var catalog=BuiltInModules.Catalog;var registryMs=Stopwatch.GetElapsedTime(started).TotalMilliseconds;started=Stopwatch.GetTimestamp();for(var i=0;i<10_000;i++)_ = BuiltInModules.Catalog.Capabilities.Count;var cachedRegistryLookupMicroseconds=Stopwatch.GetElapsedTime(started).TotalMicroseconds/10_000;
+        started=Stopwatch.GetTimestamp();var saddleIr=RuledCanopyTemplate.Create("m0:saddle",80,50,12);var saddlePatch=RuledSurfaceLowering.Lower(saddleIr);var saddlePanel=RuledSurfacePanelMaterializer.Materialize(saddleIr,2);var surfacingMs=Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+        if(!saddlePatch.IsSuccess||saddlePanel.Body is null){stderr.WriteLine(string.Join("; ",saddlePanel.Diagnostics.Select(d=>d.Message)));return 1;}
+        started=Stopwatch.GetTimestamp();var route=StandardPipeElbowTemplate.Create("m0:pipe-route",20,50,30);var pipe=PipeRouteLowering.Lower(route);var pipingMs=Stopwatch.GetElapsedTime(started).TotalMilliseconds;if(!pipe.IsSuccess){stderr.WriteLine(string.Join("; ",pipe.Diagnostics.Select(d=>d.Message)));return 1;}
+        var saddleStep=Step242Exporter.ExportBody(saddlePanel.Body);var pipeStep=Step242Exporter.ExportBody(pipe.Body!);if(!saddleStep.IsSuccess||!pipeStep.IsSuccess){stderr.WriteLine(string.Join("; ",saddleStep.Diagnostics.Concat(pipeStep.Diagnostics).Select(d=>d.Message)));return 1;}
+        var saddlePath=Path.Combine(output,"ruled-saddle.step");var pipePath=Path.Combine(output,"pipe-route.step");File.WriteAllText(saddlePath,saddleStep.Value);File.WriteAllText(pipePath,pipeStep.Value);
+        string Hash(string text)=>Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(text)));
+        var evidence=new{milestone="AETHERIS-MODULE-M0",registryMs,cachedRegistryLookupMicroseconds,surfacingMs,pipingMs,modules=catalog.Modules.Select(m=>new{module=m.Id.Value,version=m.Version.ToString(),capabilities=m.Capabilities.Select(c=>c.Id)}),surfacing=new{saddleIr.StableId,kind=saddleIr.Kind.ToString(),surface=saddlePatch.Patch!.ExactSurface.Kind.ToString(),boundaries=saddlePatch.Patch.BoundaryProvenance,saddleHash=Hash(saddleStep.Value),faces=saddlePanel.Body.Topology.Faces.Count()},piping=new{ir=new{pipe.Ir!.StableId,elements=pipe.Ir.Elements.Select(e=>e switch{PipeRouteElement.Straight s=>new{kind="Straight",start=s.Start,end=s.End,radius=(double?)null,angle=(double?)null},PipeRouteElement.PlanarCircularBend b=>new{kind="PlanarCircularBend",start=b.Center,end=b.Center,radius=(double?)b.Radius,angle=(double?)b.AngleRadians},_=>throw new InvalidOperationException()})},framePolicy=PipeRouteLowering.CircularFramePolicy,pipeHash=Hash(pipeStep.Value),faces=pipe.Body!.Topology.Faces.Count(),semantics=SemanticValueDescriptor.From(pipe.Semantics!)} };
+        File.WriteAllText(Path.Combine(output,"module-registry.json"),JsonSerializer.Serialize(catalog.Modules.Select(m=>new{id=m.Id.Value,version=m.Version.ToString(),dependencies=m.Dependencies,capabilities=m.Capabilities,concepts=m.Concepts,templates=m.Templates}),JsonOptions));
+        File.WriteAllText(Path.Combine(output,"semantic-inspection.json"),JsonSerializer.Serialize(SemanticValueDescriptor.From(pipe.Semantics!),JsonOptions));
+        File.WriteAllText(Path.Combine(output,"validation-report.json"),JsonSerializer.Serialize(evidence,JsonOptions));stdout.WriteLine(JsonSerializer.Serialize(new{output,saddleStep=saddlePath,pipeStep=pipePath,saddleHash=Hash(saddleStep.Value),pipeHash=Hash(pipeStep.Value)},JsonOptions));return 0;
     }
 
     private static int RunDrawing(string[] args, TextWriter stdout, TextWriter stderr)
@@ -3401,6 +3437,7 @@ public static class CliRunner
         stdout.WriteLine("  analyze    Analyze STEP topology and analytic surfaces.");
         stdout.WriteLine("  fea        Compile and solve a Firmament linear-elastic analysis and export Abaqus verification input.");
         stdout.WriteLine("  drawing    Compile a Firmament Drawing Template to DrawingIR, SVG, and vector A4 PDF.");
+        stdout.WriteLine("  modules    Inspect built-in engineering Modules and capabilities.");
         stdout.WriteLine("  verify     Build/reimport and verify a model.");
         stdout.WriteLine();
         stdout.WriteLine("Global options:");

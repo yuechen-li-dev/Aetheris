@@ -1,0 +1,380 @@
+{
+  "milestone": "AETHERIS-MODULE-M0",
+  "registryMs": 14.5044,
+  "cachedRegistryLookupMicroseconds": 0.46548,
+  "surfacingMs": 48.6315,
+  "pipingMs": 12.4235,
+  "modules": [
+    {
+      "module": "Aetheris.Core",
+      "version": "1.0.0",
+      "capabilities": []
+    },
+    {
+      "module": "Aetheris.Piping",
+      "version": "0.1.0",
+      "capabilities": [
+        "Piping.PathPipe",
+        "Piping.PipeRoute"
+      ]
+    },
+    {
+      "module": "Aetheris.Surfacing",
+      "version": "0.1.0",
+      "capabilities": [
+        "Surfacing.RuledSurface",
+        "Surfacing.RuledTransition"
+      ]
+    },
+    {
+      "module": "Aetheris.SheetMetal",
+      "version": "0.1.0",
+      "capabilities": []
+    }
+  ],
+  "surfacing": {
+    "stableId": "m0:saddle",
+    "kind": "RuledSurface",
+    "surface": "BSplineSurfaceWithKnots",
+    "boundaries": [
+      {
+        "boundaryStableId": "m0:saddle:y-",
+        "sourceIdentity": "m0:saddle",
+        "role": "boundary-a"
+      },
+      {
+        "boundaryStableId": "m0:saddle:y\u002B",
+        "sourceIdentity": "m0:saddle",
+        "role": "boundary-b"
+      }
+    ],
+    "saddleHash": "D0C7DB3488FB7D9C2294F6641FC49F387EDE323E1E31FFD512686514F086E451",
+    "faces": 6
+  },
+  "piping": {
+    "ir": {
+      "stableId": "m0:pipe-route",
+      "elements": [
+        {
+          "kind": "Straight",
+          "start": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "end": {
+            "x": 50,
+            "y": 0,
+            "z": 0
+          },
+          "radius": null,
+          "angle": null
+        },
+        {
+          "kind": "PlanarCircularBend",
+          "start": {
+            "x": 50,
+            "y": 30,
+            "z": 0
+          },
+          "end": {
+            "x": 50,
+            "y": 30,
+            "z": 0
+          },
+          "radius": 30,
+          "angle": 1.5707963267948966
+        },
+        {
+          "kind": "Straight",
+          "start": {
+            "x": 80,
+            "y": 30,
+            "z": 0
+          },
+          "end": {
+            "x": 80,
+            "y": 80,
+            "z": 0
+          },
+          "radius": null,
+          "angle": null
+        }
+      ]
+    },
+    "framePolicy": "Circular section: section phase is transported by the route plane normal; twist is immaterial and seam phase is deterministic.",
+    "pipeHash": "2F52517C5FFAF4C6F02814ABE870158C607346F3EC084B76ED097C6D29539A7D",
+    "faces": 5,
+    "semantics": {
+      "stableId": "m0:pipe-route",
+      "name": null,
+      "semanticType": "PipeRoute",
+      "capabilities": [
+        "BodyCapable",
+        "ExactGeometryCapable",
+        "Selectable"
+      ],
+      "bindingKinds": [
+        "ExactBrepBody"
+      ],
+      "members": [
+        {
+          "stableId": "m0:pipe-route:bendEnd",
+          "name": "bendEnd",
+          "semanticType": "Point3",
+          "capabilities": [
+            "PointCapable"
+          ],
+          "bindingKinds": [
+            "ExactPoint"
+          ],
+          "members": [],
+          "provenance": [
+            {
+              "stage": "PipingLowering",
+              "identity": "m0:pipe-route",
+              "evidence": "bendEnd",
+              "sourceSpan": {
+                "source": "Aetheris.Piping",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "Aetheris.Piping",
+            "start": 0,
+            "length": 0
+          }
+        },
+        {
+          "stableId": "m0:pipe-route:bendStart",
+          "name": "bendStart",
+          "semanticType": "Point3",
+          "capabilities": [
+            "PointCapable"
+          ],
+          "bindingKinds": [
+            "ExactPoint"
+          ],
+          "members": [],
+          "provenance": [
+            {
+              "stage": "PipingLowering",
+              "identity": "m0:pipe-route",
+              "evidence": "bendStart",
+              "sourceSpan": {
+                "source": "Aetheris.Piping",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "Aetheris.Piping",
+            "start": 0,
+            "length": 0
+          }
+        },
+        {
+          "stableId": "m0:pipe-route:centerline",
+          "name": "centerline",
+          "semanticType": "PipeCenterline",
+          "capabilities": [],
+          "bindingKinds": [
+            "ConstructionIdentity"
+          ],
+          "members": [],
+          "provenance": [
+            {
+              "stage": "PipingLowering",
+              "identity": "m0:pipe-route",
+              "evidence": "exact line-arc-line centerline",
+              "sourceSpan": {
+                "source": "Aetheris.Piping",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "Aetheris.Piping",
+            "start": 0,
+            "length": 0
+          }
+        },
+        {
+          "stableId": "m0:pipe-route:diameter",
+          "name": "diameter",
+          "semanticType": "Length",
+          "capabilities": [
+            "DimensionalCapable"
+          ],
+          "bindingKinds": [
+            "TolerancedDimension"
+          ],
+          "members": [],
+          "provenance": [
+            {
+              "stage": "PipingLowering",
+              "identity": "m0:pipe-route",
+              "evidence": "diameter",
+              "sourceSpan": {
+                "source": "Aetheris.Piping",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "Aetheris.Piping",
+            "start": 0,
+            "length": 0
+          }
+        },
+        {
+          "stableId": "m0:pipe-route:inlet",
+          "name": "inlet",
+          "semanticType": "Point3",
+          "capabilities": [
+            "PointCapable"
+          ],
+          "bindingKinds": [
+            "ExactPoint"
+          ],
+          "members": [],
+          "provenance": [
+            {
+              "stage": "PipingLowering",
+              "identity": "m0:pipe-route",
+              "evidence": "inlet",
+              "sourceSpan": {
+                "source": "Aetheris.Piping",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "Aetheris.Piping",
+            "start": 0,
+            "length": 0
+          }
+        },
+        {
+          "stableId": "m0:pipe-route:inletAxis",
+          "name": "inletAxis",
+          "semanticType": "Axis",
+          "capabilities": [
+            "AxisCapable"
+          ],
+          "bindingKinds": [
+            "ExactAxis"
+          ],
+          "members": [],
+          "provenance": [
+            {
+              "stage": "PipingLowering",
+              "identity": "m0:pipe-route",
+              "evidence": "inletAxis",
+              "sourceSpan": {
+                "source": "Aetheris.Piping",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "Aetheris.Piping",
+            "start": 0,
+            "length": 0
+          }
+        },
+        {
+          "stableId": "m0:pipe-route:outlet",
+          "name": "outlet",
+          "semanticType": "Point3",
+          "capabilities": [
+            "PointCapable"
+          ],
+          "bindingKinds": [
+            "ExactPoint"
+          ],
+          "members": [],
+          "provenance": [
+            {
+              "stage": "PipingLowering",
+              "identity": "m0:pipe-route",
+              "evidence": "outlet",
+              "sourceSpan": {
+                "source": "Aetheris.Piping",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "Aetheris.Piping",
+            "start": 0,
+            "length": 0
+          }
+        },
+        {
+          "stableId": "m0:pipe-route:outletAxis",
+          "name": "outletAxis",
+          "semanticType": "Axis",
+          "capabilities": [
+            "AxisCapable"
+          ],
+          "bindingKinds": [
+            "ExactAxis"
+          ],
+          "members": [],
+          "provenance": [
+            {
+              "stage": "PipingLowering",
+              "identity": "m0:pipe-route",
+              "evidence": "outletAxis",
+              "sourceSpan": {
+                "source": "Aetheris.Piping",
+                "start": 0,
+                "length": 0
+              }
+            }
+          ],
+          "authoredSourceSpan": null,
+          "generatedSourceSpan": {
+            "source": "Aetheris.Piping",
+            "start": 0,
+            "length": 0
+          }
+        }
+      ],
+      "provenance": [
+        {
+          "stage": "PipingLowering",
+          "identity": "m0:pipe-route",
+          "evidence": "Circular section: section phase is transported by the route plane normal; twist is immaterial and seam phase is deterministic.",
+          "sourceSpan": {
+            "source": "Aetheris.Piping",
+            "start": 0,
+            "length": 0
+          }
+        }
+      ],
+      "authoredSourceSpan": null,
+      "generatedSourceSpan": {
+        "source": "Aetheris.Piping",
+        "start": 0,
+        "length": 0
+      }
+    }
+  }
+}

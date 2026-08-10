@@ -9,5 +9,6 @@
     <ProjectReference Include="..\Aetheris.Kernel.Firmament\Aetheris.Kernel.Firmament.csproj" />
     <ProjectReference Include="..\Aetheris.Continuum\Aetheris.Continuum.csproj" />
     <ProjectReference Include="..\Aetheris.FEA\Aetheris.FEA.csproj" />
+    <ProjectReference Include="..\Aetheris.Modules.BuiltIn\Aetheris.Modules.BuiltIn.csproj" />
   </ItemGroup>
 </Project>

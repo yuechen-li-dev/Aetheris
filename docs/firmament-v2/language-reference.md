@@ -10,6 +10,10 @@ This is the canonical implementation-grounded reference for Firmament V2 as of A
 
 Firmament is a deterministic, statically evaluated CAD authoring language. Source declarations bind names, units, immutable values, semantic contracts, selections, and construction intent. Compile-time Records, Tables, `with`, Templates, Match, Pattern, and `Require` are erased before feature AIR. Exact geometry lowers through bounded AIR/materializers to BRep and STEP AP242. Tolerance is symbolic engineering intent and does not perturb nominal geometry.
 
+### Engineering Modules (M0)
+
+Engineering Modules own domain vocabulary and lowering above the shared language/kernel. M0 built-ins are `Aetheris.Surfacing`, `Aetheris.Piping`, and the reserved `Aetheris.SheetMetal`. Firmament adds no `Module`, `Use`, or import keyword in M0: module-owned Templates expand to ordinary canonical Firmament/Core construction, while Forge capability boundaries use catalog-qualified IDs such as `Piping.PipeRoute`. This avoids syntax with no native collision to resolve. Module identity, version, ownership, and docs/tooling inspection come from the deterministic built-in catalog, not runtime plug-in discovery. See [Engineering Modules](../modules/architecture.md).
+
 **The 3D semantic model is the product definition. A Drawing is a printable projection of that definition, not a parallel source of engineering truth.** Drawing M0B binds `Source` to an authoritative Part or AssemblyIR Product, retains occurrence identity, derives BOM directly from leaf Part instances, and lowers manually selected views/PMI to zoned DrawingIR plus A4 vector output. See [Drawing concepts and templates](../drawing/templates.md).
 
 There are two current frontend lanes:

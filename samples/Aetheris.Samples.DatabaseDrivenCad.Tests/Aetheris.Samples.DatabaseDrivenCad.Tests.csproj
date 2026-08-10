@@ -15,9 +15,6 @@
     <Using Include="Xunit" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Aetheris.Forge.Sdk\Aetheris.Forge.Sdk.csproj" />
-    <ProjectReference Include="..\Aetheris.Forge.SampleExtension\Aetheris.Forge.SampleExtension.csproj" />
-    <ProjectReference Include="..\Aetheris.Forge.SampleExtension.Bindings\Aetheris.Forge.SampleExtension.Bindings.csproj" />
-    <ProjectReference Include="..\Aetheris.Forge.Testing\Aetheris.Forge.Testing.csproj" />
+    <ProjectReference Include="..\Aetheris.Samples.DatabaseDrivenCad\Aetheris.Samples.DatabaseDrivenCad.csproj" />
   </ItemGroup>
 </Project>

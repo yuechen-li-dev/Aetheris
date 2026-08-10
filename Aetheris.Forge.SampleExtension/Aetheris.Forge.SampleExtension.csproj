@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Aetheris.Forge\Aetheris.Forge.csproj" />
+    <ProjectReference Include="..\Aetheris.Forge.KernelSDK\Aetheris.Forge.KernelSDK.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Templates\SecretGeometry.firmament" Pack="true" PackagePath="contentFiles\any\any\Templates" />

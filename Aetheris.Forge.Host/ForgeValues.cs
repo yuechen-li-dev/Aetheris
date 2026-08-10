@@ -1,11 +1,25 @@
 using System.Globalization;
 
-namespace Aetheris.Forge.Sdk;
+namespace Aetheris.Forge.Host;
 
 public abstract record ForgeValue(string TypeName)
 {
     internal abstract string CanonicalLiteral { get; }
+
+    public static ForgeValue From(int value) => new ForgeInteger(value);
+    public static ForgeValue From(double value) => new ForgeReal(value);
+    public static ForgeValue From(bool value) => new ForgeBoolean(value);
+    public static ForgeValue From(string value) => new ForgeString(value);
+    public static ForgeValue From(Length value) => new ForgeLength(value.Millimeters);
+    public static ForgeValue From(Angle value) => new ForgeAngle(value.Degrees);
+    public static ForgeValue From(Version value) => new ForgeVersion(value);
 }
+
+/// <summary>An application-side length expressed explicitly in millimetres.</summary>
+public readonly record struct Length(double Millimeters);
+
+/// <summary>An application-side angle expressed explicitly in degrees.</summary>
+public readonly record struct Angle(double Degrees);
 
 public sealed record ForgeLength(double Millimeters) : ForgeValue("Length")
 {
@@ -37,6 +51,11 @@ public sealed record ForgeString(string Value) : ForgeValue("String")
     internal override string CanonicalLiteral => "\"" + Value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";
 }
 
+public sealed record ForgeVersion(Version Value) : ForgeValue("Version")
+{
+    internal override string CanonicalLiteral => Value.ToString();
+}
+
 public sealed record ForgeType(string Name) : ForgeValue("Type")
 {
     internal override string CanonicalLiteral => Name;
@@ -51,6 +70,37 @@ public sealed record ForgeImportedStep(string ResourceName) : ForgeValue("Import
 public sealed record ForgeRecord(string RecordType, IReadOnlyDictionary<string, ForgeValue> Fields) : ForgeValue(RecordType)
 {
     internal override string CanonicalLiteral => RecordType;
+}
+
+/// <summary>
+/// Explicit, reflection-free mapping from an application record/DTO to a
+/// Firmament Record value. Field insertion is canonicalized by ordinal name.
+/// </summary>
+public sealed class ForgeRecordDescriptor<T>
+{
+    private readonly IReadOnlyDictionary<string, Func<T, ForgeValue>> fields;
+
+    public ForgeRecordDescriptor(string recordType, IReadOnlyDictionary<string, Func<T, ForgeValue>> fields)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(recordType);
+        ArgumentNullException.ThrowIfNull(fields);
+        if (fields.Count == 0) throw new ArgumentException("At least one Record field mapping is required.", nameof(fields));
+        if (fields.Keys.Any(string.IsNullOrWhiteSpace)) throw new ArgumentException("Record field names cannot be blank.", nameof(fields));
+        RecordType = recordType;
+        this.fields = fields.OrderBy(pair => pair.Key, StringComparer.Ordinal)
+            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+    }
+
+    public string RecordType { get; }
+
+    public ForgeRecord Map(T value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        return new ForgeRecord(RecordType, fields.ToDictionary(
+            pair => pair.Key,
+            pair => pair.Value(value) ?? throw new InvalidOperationException($"Mapper for field '{pair.Key}' returned null."),
+            StringComparer.Ordinal));
+    }
 }
 
 public abstract record ForgeResource(string Name, string ContentHash);

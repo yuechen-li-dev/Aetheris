@@ -1,0 +1,67 @@
+{
+  "stepPath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\forge\\artifacts\\host-m2\\run\\single\\AB-204\\AB-204.step",
+  "summary": {
+    "bodyCount": 1,
+    "shellCount": 1,
+    "faceCount": 7,
+    "edgeCount": 15,
+    "vertexCount": 12,
+    "boundingBox": {
+      "min": {
+        "x": -50,
+        "y": -30,
+        "z": -0
+      },
+      "max": {
+        "x": 50,
+        "y": 30,
+        "z": 16
+      }
+    },
+    "structuralAssessment": "enclosed-manifold",
+    "surfaceFamilies": {
+      "plane": 6,
+      "cylinder": 1,
+      "cone": 0,
+      "sphere": 0,
+      "torus": 0,
+      "bspline": 0,
+      "linear-extrusion": 0,
+      "surface-of-revolution": 0,
+      "other": 0
+    },
+    "curveFamilies": {
+      "line": 13,
+      "circle": 2,
+      "hyperbola": 0,
+      "ellipse": 0,
+      "bspline": 0,
+      "unsupported": 0
+    },
+    "structuralAssessmentBasis": "derived from ordered directed coedge traversal plus imported topology edge-to-face coedge incidence counts",
+    "lengthUnit": "mm",
+    "lengthUnitBasis": "assumed; STEP import length units not yet preserved",
+    "faceIds": {
+      "min": 1,
+      "max": 7,
+      "count": 7,
+      "contiguous": true
+    },
+    "edgeIds": {
+      "min": 1,
+      "max": 15,
+      "count": 15,
+      "contiguous": true
+    },
+    "vertexIds": {
+      "min": 1,
+      "max": 12,
+      "count": 12,
+      "contiguous": true
+    }
+  },
+  "face": null,
+  "edge": null,
+  "vertex": null,
+  "notes": []
+}

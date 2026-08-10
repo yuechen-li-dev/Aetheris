@@ -3,7 +3,7 @@ Firmament is statically evaluated compiler metaprogramming,docs/firmament-v2/lan
 tolerance does not perturb nominal geometry,docs/firmament-v2/language-reference.md,/aetheris/firmament/values-tolerances
 SemanticValue is origin-independent,docs/semantic/architecture.md + Aetheris.Semantics.Tests,/aetheris/firmament/semantics
 recognition is bounded and not arbitrary history recovery,language reference + InlineStep tests,/aetheris/firmament/inline-step
-Forge host performs typed Template invocation,docs/forge/invocation-sdk.md + Aetheris.Forge.Sdk.Tests,/aetheris/forge/host-sdk
+Forge host performs typed Template invocation,docs/forge/invocation-sdk.md + Aetheris.Forge.Host.Tests,/aetheris/forge/host-sdk
 Forge extension can return exact BRep CIR and semantic members,Aetheris.Forge.SampleExtension + Forge SDK tests,/aetheris/forge/extension-sdk
 SurfaceMeshIR precedes OBJ/STL triangulation,Preview 2 mesh evidence + current CLI run,/aetheris/geometry/surface-mesh-ir
 BRep and CIR dual-lower from shared intent,docs/preview2/feature-manifest.json,/aetheris/analysis/continuum

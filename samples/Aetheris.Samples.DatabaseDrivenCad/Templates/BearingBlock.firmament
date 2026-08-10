@@ -1,0 +1,64 @@
+Model DatabaseBearingBlock {
+    Units: mm
+
+    Concept BearingBlockConcept {
+        Bounds: Box3
+        TopPlane: Plane
+        BoreCenters: Point3[]
+        BoreDiameter: Length
+    }
+
+    Record BearingBlockSpec {
+        Width: Length
+        Height: Length
+        Depth: Length
+        BoreDiameter: Length
+        BoreRadius: Length
+        BoreTolerancePlus: Length
+        BoreToleranceMinus: Length
+        Material: String
+        PartNumber: String
+        Revision: Version
+        Company: String
+        Author: String
+        Description: String
+    }
+
+    Template < Spec: BearingBlockSpec >
+    Struct BearingBlock: BearingBlockConcept {
+        Require PositiveDimensions => Spec.Width > 0mm && Spec.Height > 0mm && Spec.Depth > 0mm
+        Require ValidBore => Spec.BoreDiameter > 0mm && Spec.BoreDiameter < Spec.Width && Spec.BoreDiameter < Spec.Height
+        Require ValidTolerance => Spec.BoreTolerancePlus >= 0mm && Spec.BoreToleranceMinus >= 0mm
+
+        Concept Struct Design: BearingBlockConcept {
+            Bounds: Box3 { Size: [Spec.Width, Spec.Height, Spec.Depth] }
+            TopPlane: Bounds.Face(+Z)
+            BoreCenters: Grid {
+                Within: Bounds.Face(+Z).Inset(Spec.BoreRadius)
+                Columns: 1
+                Rows: 1
+            }
+            BoreDiameter: Spec.BoreDiameter
+        }
+        Box Base { Bounds: Design.Bounds }
+        Modify Base {
+            Hole<Shaft> Bore {
+                On: Base.Top
+                Center: Design.BoreCenters[0]
+                Diameter: Spec.BoreDiameter
+                End: ThroughAll
+            }
+        }
+        Require BoreDiameterConstraint {
+            Actual: Bore.Diameter
+            Expected: Spec.BoreDiameter
+            Tolerance: PlusMinus(Spec.BoreTolerancePlus, Spec.BoreToleranceMinus)
+        }
+        Expose {
+            Bounds: Design.Bounds
+            TopPlane: Base.Top
+            BoreCenters: Design.BoreCenters
+            BoreDiameter: Design.BoreDiameter
+        }
+    }
+}

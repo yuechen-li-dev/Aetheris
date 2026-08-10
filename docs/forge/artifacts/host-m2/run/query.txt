@@ -1,0 +1,4 @@
+PartNumber  Width  Height  Depth  Bore  Material  Revision
+AB-204        100      60     16    24  6061-T6   2.1.0
+AB-305        120      70     20    30  6061-T6   3.0.1
+SQLite/LINQ: 225.53 ms; rows: 2

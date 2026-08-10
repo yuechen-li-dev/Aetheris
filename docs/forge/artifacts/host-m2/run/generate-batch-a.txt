@@ -1,0 +1,9 @@
+AB-204: template:1d2e995f2be2e479
+  STEP C:\Users\yuech\source\repos\Aetheris\docs\forge\artifacts\host-m2\run\batch-a\AB-204\AB-204.step
+  SHA256 3ACD9BEA0CE21C5FDF7699A27128D8B11F05F4719C939746742AE1FC7C3F7259
+  mapping 4.55 ms; compile+STEP 252.38 ms
+AB-305: template:eea80ba75fd5599f
+  STEP C:\Users\yuech\source\repos\Aetheris\docs\forge\artifacts\host-m2\run\batch-a\AB-305\AB-305.step
+  SHA256 5764A7273643806522A13864BAF28C331D10B40C6E82FE513FB7FDEBB90BD4AF
+  mapping 0.02 ms; compile+STEP 5.06 ms
+SQLite/LINQ: 249.97 ms; generated: 2

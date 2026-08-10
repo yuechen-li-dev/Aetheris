@@ -10,7 +10,7 @@ Firmament already depended on Forge for runtime Concept validation. The CLI coul
 
 Compiler invocation lived in `Aetheris.Kernel.Firmament` through file/source parsers and `FirmamentBuildAndExport`. Modern Template declarations were parsed into an internal immutable binder IR, specialized, and erased before AIR, but applications had to appear in Firmament source. InlineStep consumed canonical STEP through `Step242Importer` and preserved canonical hashes/topology maps.
 
-The accidental boundary pressure was that making the existing `Aetheris.Forge` assembly depend on the compiler would create a cycle (`Firmament -> Forge`). M1 therefore retained low-level contracts in `Aetheris.Forge`, exposed a narrow public Template-host bridge from Firmament, and added `Aetheris.Forge.Sdk` above the compiler. Existing Concept-pack behavior and legacy helpers remain compatible but are not the new construction-extension API.
+The accidental boundary pressure was that making the existing `Aetheris.Forge` assembly depend on the compiler would create a cycle (`Firmament -> Forge`). M1 therefore retained low-level contracts in `Aetheris.Forge`, exposed a narrow public Template-host bridge from Firmament, and added the then-named `Aetheris.Forge.Sdk` above the compiler. Host M2 subsequently split that surface into `Aetheris.Forge.Host` and `Aetheris.Forge.KernelSDK`. Existing Concept-pack behavior and legacy helpers remain compatible but are not the new construction-extension API.
 
 Baseline classification:
 

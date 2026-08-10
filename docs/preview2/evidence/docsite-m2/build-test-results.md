@@ -8,7 +8,7 @@ Validated 2026-08-09 on Windows with .NET SDK 10.0.203, TSPack 0.1.8, Vite 6.4.3
 - `dotnet build Aetheris.slnx -f net10.0 --no-restore /m:1`: passed, 0 warnings, 0 errors.
 - `Aetheris.Kernel.Firmament.Tests`: 1,077 passed.
 - `Aetheris.Semantics.Tests`: 9 passed.
-- `Aetheris.Forge.Sdk.Tests`: 8 passed.
+- `Aetheris.Forge.Host.Tests`: 8 passed.
 - `Aetheris.FEA.Tests`: 12 passed.
 - `Aetheris.CLI.Tests`: 355 passed.
 - Total targeted tests: 1,461 passed, 0 failed, 0 skipped.

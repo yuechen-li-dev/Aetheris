@@ -1,6 +1,6 @@
-# Forge invocation SDK
+# Forge Host invocation API
 
-`Aetheris.Forge.Sdk` exposes the host workflow `ForgeHost -> ForgeModule -> ForgeTemplate -> ForgeInvocation -> ForgeCompilationResult`.
+`Aetheris.Forge.Host` exposes the host workflow `ForgeHost -> ForgeModule -> ForgeTemplate -> ForgeInvocation -> ForgeCompilationResult`.
 
 ## Typed Template invocation
 

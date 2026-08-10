@@ -1,0 +1,21 @@
+Direct project dependency:
+  Aetheris.Samples.DatabaseDrivenCad -> Aetheris.Forge.Host
+
+Resolved Aetheris libraries:
+  Aetheris.Continuum/2.0.0-preview.1
+  Aetheris.FEA/2.0.0-preview.1
+  Aetheris.Forge.Host/2.0.0-preview.1
+  Aetheris.Forge/2.0.0-preview.1
+  Aetheris.Kernel.Core/2.0.0-preview.1
+  Aetheris.Kernel.Firmament/2.0.0-preview.1
+  Aetheris.Kernel.StandardLibrary/2.0.0-preview.1
+  Aetheris.Semantics/2.0.0-preview.1
+
+Aetheris.Forge.KernelSDK direct: NO
+Aetheris.Forge.KernelSDK transitive: NO
+
+SQLite stack:
+  Microsoft.EntityFrameworkCore.Sqlite/10.0.0
+  Microsoft.Data.Sqlite.Core/10.0.0
+  SQLitePCLRaw.bundle_e_sqlite3/3.0.5
+  SQLite/3.53.4

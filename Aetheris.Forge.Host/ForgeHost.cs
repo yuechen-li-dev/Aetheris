@@ -17,7 +17,7 @@ using Aetheris.FEA.Abaqus;
 using Aetheris.FEA.Firmament;
 using Aetheris.FEA.Mechanics;
 
-namespace Aetheris.Forge.Sdk;
+namespace Aetheris.Forge.Host;
 
 public sealed class ForgeHost
 {
@@ -92,15 +92,7 @@ public sealed class ForgeHost
         diagnostics.AddRange(bindDiagnostics);
         if (bindDiagnostics.Count > 0) return Failure(diagnostics);
 
-        var hostArguments = invocation.Bindings.ToDictionary(
-            pair => pair.Key,
-            pair => pair.Value is ForgeRecord record
-                ? new FirmamentHostArgument(
-                    record.RecordType,
-                    record.RecordType,
-                    record.Fields.ToDictionary(field => field.Key, field => field.Value.CanonicalLiteral, StringComparer.Ordinal))
-                : new FirmamentHostArgument(pair.Value.CanonicalLiteral),
-            StringComparer.Ordinal);
+        var hostArguments = invocation.Bindings.ToDictionary(pair => pair.Key, pair => ToHostArgument(pair.Value), StringComparer.Ordinal);
         var invocationStart = Stopwatch.GetTimestamp();
         var expansion = FirmamentTemplateHostBridge.Expand(
             invocation.Module.Source,
@@ -202,7 +194,7 @@ public sealed class ForgeHost
             new ForgeProvenanceEntry("capability", descriptor.Id.Value, $"{descriptor.ExtensionId}@{descriptor.ExtensionVersion};{descriptor.ProvenanceIdentity}"),
             new ForgeProvenanceEntry("construction", execution.Output.Construction?.SourceIdentity ?? "exact-brep", execution.Output.Construction?.SemanticRegionIdentity ?? construct.InstanceName),
             new ForgeProvenanceEntry("artifact", construct.InstanceName, "STEP AP242 export and reimport validated"),
-        };
+        }.Concat(invocation.Provenance).ToArray();
         var hash = ArtifactHash(exported.Value, expansion.SpecializationIdentity, [capabilityEvidence], provenance);
         return new ForgeCompilationResult(
             new ForgeCompilationArtifact(exported.Value, hash, body, cir, [capabilityEvidence], provenance,
@@ -212,7 +204,7 @@ public sealed class ForgeHost
             resolutionTime,
             invocationTime,
             extensionTime,
-            compilerTime);
+            compilerTime) { TemplateSpecializationIdentity = expansion.SpecializationIdentity };
     }
 
     internal ForgeAnalysisInvocationResult Analyze(ForgeInvocation invocation, MechanicsSolveOptions? options)
@@ -226,11 +218,7 @@ public sealed class ForgeHost
             diagnostics.Add(Error("forge-analysis-resource-missing", $"Template parameter '{binding.Key}' refers to a missing ImportedStep resource.", invocation.Module.SourcePath));
         if (diagnostics.Any(item => item.Severity == ForgeDiagnosticSeverity.Error))
             return new(null, null, null, diagnostics, TimeSpan.Zero, TimeSpan.Zero);
-        var hostArguments = invocation.Bindings.ToDictionary(
-            pair => pair.Key,
-            pair => pair.Value is ForgeRecord record
-                ? new FirmamentHostArgument(record.RecordType, record.RecordType, record.Fields.ToDictionary(field => field.Key, field => field.Value.CanonicalLiteral, StringComparer.Ordinal))
-                : new FirmamentHostArgument(pair.Value.CanonicalLiteral), StringComparer.Ordinal);
+        var hostArguments = invocation.Bindings.ToDictionary(pair => pair.Key, pair => ToHostArgument(pair.Value), StringComparer.Ordinal);
         var started = Stopwatch.GetTimestamp();
         var expansion = FirmamentTemplateHostBridge.Expand(invocation.Module.Source, invocation.Template.Metadata.Name, invocation.InstanceName, hostArguments, out var expansionDiagnostics);
         var invocationTime = Stopwatch.GetElapsedTime(started);
@@ -274,7 +262,7 @@ public sealed class ForgeHost
             new ForgeProvenanceEntry("host", invocation.Module.SourcePath ?? invocation.Module.Name, invocation.InstanceName),
             new ForgeProvenanceEntry("template", invocation.Template.Metadata.Name, expansion.SpecializationIdentity + ";record-arguments=" + string.Join(",", expansion.RecordArguments.Keys.Order(StringComparer.Ordinal))),
             new ForgeProvenanceEntry("artifact", result.Value.ExportedFeatureId, result.Value.ExportedFeatureKind ?? result.Value.ExportedBodyCategory),
-        };
+        }.Concat(invocation.Provenance).ToArray();
         var hash = ArtifactHash(result.Value.StepText, expansion.SpecializationIdentity, [], provenance);
         return new ForgeCompilationResult(
             new ForgeCompilationArtifact(result.Value.StepText, hash, null, null, [], provenance),
@@ -283,7 +271,7 @@ public sealed class ForgeHost
             TimeSpan.Zero,
             invocationTime,
             TimeSpan.Zero,
-            compilerTime);
+            compilerTime) { TemplateSpecializationIdentity = expansion.SpecializationIdentity };
     }
 
     private static IReadOnlyList<ForgeDiagnostic> ValidateTemplateBindings(ForgeInvocation invocation)
@@ -304,6 +292,28 @@ public sealed class ForgeHost
                 diagnostics.Add(Error("forge-template-parameter-mismatch", $"Template parameter '{binding.Key}' expects '{parameter.TypeName}' but received '{binding.Value.TypeName}'.", invocation.Module.SourcePath));
         }
         return diagnostics;
+    }
+
+    private static FirmamentHostArgument ToHostArgument(ForgeValue value)
+    {
+        if (value is not ForgeRecord record) return new FirmamentHostArgument(value.CanonicalLiteral);
+        var fields = new Dictionary<string, string>(StringComparer.Ordinal);
+        Add(record, string.Empty);
+        return new FirmamentHostArgument(record.RecordType, record.RecordType, fields);
+
+        void Add(ForgeRecord current, string prefix)
+        {
+            foreach (var field in current.Fields.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+            {
+                var path = prefix + field.Key;
+                if (field.Value is ForgeRecord nested)
+                {
+                    fields[path] = nested.RecordType;
+                    Add(nested, path + ".");
+                }
+                else fields[path] = field.Value.CanonicalLiteral;
+            }
+        }
     }
 
     private static ForgeCapabilityArguments? BindCapabilityArguments(
@@ -457,6 +467,7 @@ public sealed class ForgeInvocation
 {
     private readonly Dictionary<string, ForgeValue> bindings = new(StringComparer.Ordinal);
     private readonly Dictionary<string, ForgeResource> resources = new(StringComparer.Ordinal);
+    private readonly List<ForgeProvenanceEntry> provenance = [];
     internal ForgeInvocation(ForgeHost host, ForgeModule module, ForgeTemplate template, string instanceName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(instanceName);
@@ -468,9 +479,18 @@ public sealed class ForgeInvocation
     public string InstanceName { get; }
     internal IReadOnlyDictionary<string, ForgeValue> Bindings => bindings;
     internal IReadOnlyDictionary<string, ForgeResource> Resources => resources;
+    internal IReadOnlyList<ForgeProvenanceEntry> Provenance => provenance;
     internal IReadOnlySet<ForgeLoweringTarget> RequestedTargets { get; private set; } = new HashSet<ForgeLoweringTarget> { ForgeLoweringTarget.Brep };
     public ForgeInvocation Bind(string name, ForgeValue value) { ArgumentNullException.ThrowIfNull(value); bindings[name] = value; return this; }
     public ForgeInvocation AddResource(ForgeResource resource) { ArgumentNullException.ThrowIfNull(resource); resources[resource.Name] = resource; return this; }
+    public ForgeInvocation WithProvenance(string stage, string identity, string evidence)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(stage);
+        ArgumentException.ThrowIfNullOrWhiteSpace(identity);
+        ArgumentException.ThrowIfNullOrWhiteSpace(evidence);
+        provenance.Add(new ForgeProvenanceEntry(stage, identity, evidence));
+        return this;
+    }
     public ForgeInvocation WithTargets(params ForgeLoweringTarget[] targets) { RequestedTargets = targets.ToHashSet(); return this; }
     public ForgeCompilationResult Compile() => Host.Compile(this);
     public ForgeAnalysisInvocationResult Analyze(MechanicsSolveOptions? options = null) => Host.Analyze(this, options);

@@ -5,6 +5,6 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Aetheris.Forge.Sdk\Aetheris.Forge.Sdk.csproj" />
+    <ProjectReference Include="..\Aetheris.Forge.Host\Aetheris.Forge.Host.csproj" />
   </ItemGroup>
 </Project>

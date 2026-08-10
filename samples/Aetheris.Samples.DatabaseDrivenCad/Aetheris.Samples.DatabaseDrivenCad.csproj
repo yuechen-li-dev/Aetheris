@@ -6,9 +6,11 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.0" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
     <ProjectReference Include="..\..\Aetheris.Forge.Host\Aetheris.Forge.Host.csproj" />
-    <ProjectReference Include="..\..\Aetheris.Forge.SampleExtension\Aetheris.Forge.SampleExtension.csproj" />
-    <ProjectReference Include="..\..\Aetheris.Forge.SampleExtension.Bindings\Aetheris.Forge.SampleExtension.Bindings.csproj" />
-    <ProjectReference Include="..\..\Aetheris.Forge.Testing\Aetheris.Forge.Testing.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Templates\BearingBlock.firmament" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

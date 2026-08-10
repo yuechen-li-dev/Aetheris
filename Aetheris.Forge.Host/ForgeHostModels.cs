@@ -7,7 +7,7 @@ using Aetheris.FEA.Analysis;
 using Aetheris.FEA.Mechanics;
 using Aetheris.Semantics;
 
-namespace Aetheris.Forge.Sdk;
+namespace Aetheris.Forge.Host;
 
 public sealed record ForgeDiagnostic(
     string Code,
@@ -63,6 +63,7 @@ public sealed record ForgeCompilationResult(
     TimeSpan CompilerLoweringTime)
 {
     public bool IsSuccess => Artifact is not null && Diagnostics.All(diagnostic => diagnostic.Severity != ForgeDiagnosticSeverity.Error);
+    public string? TemplateSpecializationIdentity { get; init; }
 }
 
 public sealed record ForgeAnalysisInvocationResult(

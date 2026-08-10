@@ -28,4 +28,4 @@
 
 - `Aetheris.Forge.SampleExtension`: external/private capability and Firmament module.
 - `Aetheris.Forge.SampleExtension.Bindings`: deterministic generated binding proof using the same host path.
-- `Aetheris.Forge.Sdk.Tests`: native Template invocation, full extension stack, deterministic output, collision/version/missing diagnostics, resources, CIR association.
+- `Aetheris.Forge.Host.Tests`: native Template invocation, full extension stack, deterministic output, collision/version/missing diagnostics, resources, CIR association.

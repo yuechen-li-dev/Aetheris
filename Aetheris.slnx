@@ -18,11 +18,14 @@
   <Project Path="tools/Aetheris.Continuum.AttentionE0/Aetheris.Continuum.AttentionE0.csproj" />
   <Project Path="tools/Aetheris.Continuum.AttentionE1/Aetheris.Continuum.AttentionE1.csproj" />
   <Project Path="Aetheris.Forge/Aetheris.Forge.csproj" />
-  <Project Path="Aetheris.Forge.Sdk/Aetheris.Forge.Sdk.csproj" />
+  <Project Path="Aetheris.Forge.Host/Aetheris.Forge.Host.csproj" />
+  <Project Path="Aetheris.Forge.KernelSDK/Aetheris.Forge.KernelSDK.csproj" />
   <Project Path="Aetheris.Forge.SampleExtension/Aetheris.Forge.SampleExtension.csproj" />
   <Project Path="Aetheris.Forge.SampleExtension.Bindings/Aetheris.Forge.SampleExtension.Bindings.csproj" />
   <Project Path="Aetheris.Forge.Testing/Aetheris.Forge.Testing.csproj" />
-  <Project Path="Aetheris.Forge.Sdk.Tests/Aetheris.Forge.Sdk.Tests.csproj" />
+  <Project Path="Aetheris.Forge.Host.Tests/Aetheris.Forge.Host.Tests.csproj" />
+  <Project Path="samples/Aetheris.Samples.DatabaseDrivenCad/Aetheris.Samples.DatabaseDrivenCad.csproj" />
+  <Project Path="samples/Aetheris.Samples.DatabaseDrivenCad.Tests/Aetheris.Samples.DatabaseDrivenCad.Tests.csproj" />
   <Project Path="Aetheris.Kernel.StandardLibrary/Aetheris.Kernel.StandardLibrary.csproj" />
   <Project Path="Aetheris.Kernel.Firmament/Aetheris.Kernel.Firmament.csproj" />
   <Project Path="Aetheris.Kernel.Firmament.Tests/Aetheris.Kernel.Firmament.Tests.csproj" />

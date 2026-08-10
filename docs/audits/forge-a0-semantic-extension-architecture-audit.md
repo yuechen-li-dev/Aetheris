@@ -176,7 +176,7 @@ Aetheris.Forge.Abstractions
     package identity/version/host requirements
     examples/fixtures/LLM guidance metadata
 
-Aetheris.Forge.Sdk
+Aetheris.Forge.KernelSDK
   Authoring and conformance helpers:
     descriptor builders
     schema validation
@@ -212,7 +212,7 @@ Third-party Forge packages
 Important dependency direction:
 
 - `Aetheris.Forge.Abstractions` must be small and stable.
-- `Aetheris.Forge.Sdk` can depend on test/utilities but should not be required by the runtime kernel path.
+- `Aetheris.Forge.KernelSDK` can depend on test/utilities but should not be required by the runtime kernel path.
 - `Aetheris.StandardLibrary` should become a semantic pack over the abstractions, not a BRep helper project that depends on arbitrary Forge geometry helpers.
 - Runtime hosts should consume descriptors and declared capabilities, not discover and execute arbitrary package code by default.
 

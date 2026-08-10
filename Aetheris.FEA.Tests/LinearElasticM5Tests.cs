@@ -5,7 +5,7 @@ using Aetheris.FEA.Analysis;
 using Aetheris.Continuum.Boundaries;
 using Aetheris.Continuum.Cir;
 using Aetheris.Continuum.Lattice;
-using Aetheris.Forge.Sdk;
+using Aetheris.Forge.Host;
 using Aetheris.Kernel.Core.Math;
 
 namespace Aetheris.FEA.Tests;

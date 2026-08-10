@@ -1,14 +1,14 @@
 using Aetheris.Forge.Abstractions;
 using Aetheris.Forge.Extensions;
-using Aetheris.Forge.Sdk;
+using Aetheris.Forge.Host;
 using Aetheris.Forge.Testing;
 using MyCompany.SecretGeometry;
 using MyCompany.SecretGeometry.Generated;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 
-namespace Aetheris.Forge.Sdk.Tests;
+namespace Aetheris.Forge.Host.Tests;
 
-public sealed class ForgeSdkM1Tests
+public sealed class ForgeHostM1Tests
 {
     private static readonly string ModulePath = Path.Combine(
         FindRepositoryRoot(),

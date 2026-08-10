@@ -30,17 +30,22 @@ Aetheris.Forge                    extension contracts and standard ConstructionI
 Aetheris.Kernel.Firmament         typed Template binder and compiler
         ^
         |
-Aetheris.Forge.Sdk                C# host embedding, capability dispatch, artifact/provenance access
+Aetheris.Forge.Host               ordinary C# Template invocation and artifact/provenance access
         ^
         +-- Aetheris.Forge.Testing
         +-- generated binding packages / host applications
 
-Aetheris.Forge.SampleExtension --> Aetheris.Forge only
+Aetheris.Forge.KernelSDK           advanced extension-author dependency facade
+        ^
+        |
+Aetheris.Forge.SampleExtension
 ```
 
-The existing `Aetheris.Forge` assembly remains below Firmament because Firmament already consumes its concept contracts. Putting `ForgeHost` into that assembly would create a dependency cycle. `Aetheris.Forge.Sdk` is the sanctioned compiler-facing package while `Aetheris.Forge` remains the low-level extension-contract package.
+The existing `Aetheris.Forge` assembly remains below Firmament because Firmament already consumes its concept contracts. Putting `ForgeHost` into that assembly would create a dependency cycle. `Aetheris.Forge.Host` is the sanctioned compiler-facing package while `Aetheris.Forge` remains the low-level extension-contract package.
 
-The sample extension depends only on `Aetheris.Forge` and public Kernel contracts reached through it. It receives no `InternalsVisibleTo` access and contains no capability-specific Kernel code.
+`Aetheris.Forge.Host` is the supported dependency for ordinary applications that invoke existing Templates. `Aetheris.Forge.KernelSDK` is the explicit advanced dependency for packages that implement construction, semantic, or compiler capabilities. If you only want to invoke existing Templates or Concepts from C#, you should not depend on KernelSDK.
+
+The sample extension depends on `Aetheris.Forge.KernelSDK` and public contracts reached through it. It receives no `InternalsVisibleTo` access and contains no capability-specific Kernel code.
 
 ## Compilation model
 

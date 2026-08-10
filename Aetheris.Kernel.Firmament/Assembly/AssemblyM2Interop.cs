@@ -106,8 +106,11 @@ public static class AssemblyIrAp242Exporter
         var ir = compilation.Ir;
         var artifactByIdentity = compilation.Geometry.Artifact.Definitions.ToDictionary(item => item.DefinitionIdentity, item => item.StableId, StringComparer.Ordinal);
         var definitions = compilation.Geometry.DefinitionBodies.OrderBy(pair => pair.Key, StringComparer.Ordinal)
-            .Select(pair => new Step242AssemblyDefinition(artifactByIdentity[pair.Key], pair.Key, pair.Value)).ToArray();
+            .Select(pair => new Step242AssemblyDefinition(artifactByIdentity[pair.Key], pair.Key, pair.Value))
+            .Concat((ir.AssemblyDefinitions ?? []).Select(definition => new Step242AssemblyDefinition(definition.StableId, definition.DefinitionIdentity, null)))
+            .OrderBy(definition => definition.StableId, StringComparer.Ordinal).ToArray();
         var byId = ir.Instances.ToDictionary(item => item.StableId, StringComparer.Ordinal);
+        var assemblyDefinitionByIdentity = (ir.AssemblyDefinitions ?? []).ToDictionary(item => item.DefinitionIdentity, item => item.StableId, StringComparer.Ordinal);
         var occurrences = ir.Instances.OrderBy(item => item.Path.Segments.Count).ThenBy(item => item.StableId, StringComparer.Ordinal).Select(instance =>
         {
             var world = instance.ResolvedTransform ?? AssemblyTransform.Identity;
@@ -118,7 +121,8 @@ public static class AssemblyIrAp242Exporter
                 local = (Transform3D.FromRowMajor(world.Matrix) * parent.Inverse()).ToRowMajor();
             }
             return new Step242AssemblyOccurrence(instance.StableId, instance.Path.Segments.Last(), instance.ParentStableId,
-                instance.Kind == AssemblyInstanceKind.Part ? artifactByIdentity[instance.DefinitionIdentity] : null, local);
+                instance.Kind == AssemblyInstanceKind.Part ? artifactByIdentity[instance.DefinitionIdentity]
+                    : instance.IsEncapsulatedDefinition ? assemblyDefinitionByIdentity[instance.DefinitionIdentity] : null, local);
         }).ToArray();
         return Step242AssemblyExporter.Export(new(ir.Name, ir.RootInstanceStableId, definitions, occurrences));
     }

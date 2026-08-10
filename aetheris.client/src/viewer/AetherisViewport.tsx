@@ -513,6 +513,14 @@ function AssemblyMeshes({
 			),
 		[packet],
 	);
+	const selectedMembers = useMemo(
+		() =>
+			new Set(
+				packet.occurrences.find((item) => item.stableId === selectedId)?.selectionMembers ??
+					(selectedId ? [selectedId] : []),
+			),
+		[packet, selectedId],
+	);
 	return packet.occurrences
 		.filter((occurrence) => occurrence.kind === "Part" && occurrence.definitionStableId)
 		.map((occurrence) => {
@@ -533,7 +541,7 @@ function AssemblyMeshes({
 							positions={patch.positions}
 							normals={patch.normals}
 							indices={patch.indices}
-							isHighlighted={selectedId === occurrence.stableId}
+							isHighlighted={selectedMembers.has(occurrence.stableId)}
 							theme={theme}
 						/>
 					))}

@@ -131,6 +131,23 @@ export interface AssemblyDisplayOccurrenceDto {
 	kind: "Assembly" | "Part";
 	worldTransform: number[];
 	placementAuthority: "MateDerived" | "ImportedOccurrence" | "LegacyExplicit";
+	selectionMembers?: string[];
+}
+export interface AssemblyDisplayPublicSemanticDto {
+	name: string;
+	type: string;
+	capabilities: string[];
+	bindingKinds: string[];
+	internalImplementationPath: string | null;
+}
+export interface AssemblyDisplayModuleDefinitionDto {
+	stableId: string;
+	definitionIdentity: string;
+	templateName: string;
+	specializationIdentity: string;
+	provenance: string[];
+	publicSemantics: AssemblyDisplayPublicSemanticDto[];
+	localSolveMilliseconds: number;
 }
 export interface AssemblyDisplayMateDto {
 	stableId: string;
@@ -148,6 +165,7 @@ export interface AssemblyDisplayToleranceDto {
 	maximum: number;
 	unit: string;
 	contributors: string[];
+	expandedContributors?: string[];
 }
 export interface AssemblyDisplayPacketDto {
 	schema: string;
@@ -160,6 +178,7 @@ export interface AssemblyDisplayPacketDto {
 	bounds: { minimum: number[]; maximum: number[] };
 	diagnostics: DisplayDiagnosticDto[];
 	performance: Record<string, number>;
+	moduleDefinitions?: AssemblyDisplayModuleDefinitionDto[];
 }
 
 export interface AnalyticDisplayPlaneGeometryDto {

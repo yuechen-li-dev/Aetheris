@@ -7,6 +7,47 @@ namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 public sealed class AssemblyM0Tests
 {
     [Fact]
+    public void TemplateAssembly_ReusesDefinitionAndExposesOnlyIntentionalSurface()
+    {
+        const string source = """
+            Template < Spec: ModuleSpec >
+            Assembly BearingModule {
+              <Assembly BearingModule>
+                <Part Housing = HousingPart>
+                  Semantic Mount { Axis Axis = [0,0,0] -> [0,0,1]; Dimension Offset = 45mm tol +0.10mm -0.08mm; }
+                </Part>
+              </Assembly>
+              Anchor: BearingModule.Housing.Mount;
+              Expose { Semantic Mount = Housing.Mount; Dimension MountToDriveOffset = Housing.Mount.Offset; }
+            }
+            Interface MountPair { Role Module requires AxisCapable; Role Frame requires AxisCapable; }
+            Assembly Machine {
+              <Assembly Machine>
+                <Part Frame = FramePart> Semantic Mount { Axis Axis = [0,0,0] -> [0,0,1]; } </Part>
+                <Assembly Left = BearingModule<Spec: StandardSpec>></Assembly>
+                <Assembly Right = BearingModule<Spec: StandardSpec>></Assembly>
+              </Assembly>
+              Anchor: Machine.Frame.Mount;
+              Mate LeftMount: MountPair { Module: Machine.Left.Mount; Frame: Machine.Frame.Mount; }
+            }
+            """;
+        var parsed = new AssemblyM0Parser().Parse(source);
+        Assert.True(parsed.IsSuccess, string.Join(Environment.NewLine, parsed.Diagnostics.Select(x => x.Message)));
+        var result = new AssemblyM0Compiler().Compile(parsed.Source!);
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(x => x.Message)));
+        var left = result.Ir!.Instances.Single(instance => instance.Path.ToString() == "Machine.Left");
+        var right = result.Ir.Instances.Single(instance => instance.Path.ToString() == "Machine.Right");
+        Assert.True(left.IsEncapsulatedDefinition);
+        Assert.Equal(left.DefinitionIdentity, right.DefinitionIdentity);
+        Assert.NotEqual(left.SemanticRoot.ExposedMembers["Mount"].StableIdentity, right.SemanticRoot.ExposedMembers["Mount"].StableIdentity);
+        Assert.Equal("valid", Assert.Single(result.Ir.Mates).ValidationStatus);
+
+        var hidden = source.Replace("Machine.Left.Mount", "Machine.Left.Housing.Mount", StringComparison.Ordinal);
+        var hiddenResult = new AssemblyM0Compiler().Compile(new AssemblyM0Parser().Parse(hidden).Source!);
+        Assert.Contains(hiddenResult.Diagnostics, diagnostic => diagnostic.Code == "assembly-internal-member-hidden");
+    }
+
+    [Fact]
     public void BearingModule_CompilesTreeMatesPlacementFitAndAutomaticStackup()
     {
         var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/AssemblyM0/bearing-module.firmament");

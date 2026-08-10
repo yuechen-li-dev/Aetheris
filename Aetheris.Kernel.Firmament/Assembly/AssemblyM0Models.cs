@@ -33,7 +33,24 @@ public sealed record AssemblyMemberSource(
     IReadOnlyList<DimensionalRelationSource>? DimensionalRelations = null,
     IReadOnlyList<SemanticProvenance>? Provenance = null,
     AssemblyTransform? ExplicitTransform = null,
-    PlacementAuthority PlacementAuthority = PlacementAuthority.MateDerived);
+    PlacementAuthority PlacementAuthority = PlacementAuthority.MateDerived,
+    bool IsEncapsulatedDefinition = false,
+    AssemblyDefinitionIr? SolvedAssemblyDefinition = null);
+
+/// <summary>A reusable, locally-authored Assembly product definition.  Its children
+/// remain product-visible, while only <see cref="AssemblyMemberSource.ExposedSemantics"/>
+/// participates in references outside an occurrence boundary.</summary>
+public sealed record AssemblyDefinitionSource(
+    string Name, string ParameterName, string ParameterType, AssemblyMemberSource LocalRoot,
+    string DefinitionIdentity, IReadOnlyList<SemanticProvenance> Provenance,
+    AssemblyPath? LocalAnchor = null,
+    IReadOnlyList<MateSource>? LocalMates = null,
+    IReadOnlyList<DimensionalRelationSource>? LocalDimensionalRelations = null,
+    IReadOnlyList<ToleranceStackupAssertSource>? LocalStackupAsserts = null,
+    IReadOnlyList<AssemblyExposedRelationSource>? ExposedRelations = null);
+
+public sealed record AssemblyExposedRelationSource(
+    string Name, string PublicFrom, string PublicTo, AssemblyPath InternalFrom, AssemblyPath InternalTo);
 
 public sealed record MateRoleAssignment(string Role, AssemblyPath Participant);
 public sealed record MateSource(string Name, string InterfaceName, IReadOnlyList<MateRoleAssignment> Roles, SemanticSourceSpan? SourceSpan = null);
@@ -45,7 +62,8 @@ public sealed record AssemblySource(
     IReadOnlyList<DimensionalRelationSource> DimensionalRelations,
     IReadOnlyList<ToleranceStackupAssertSource> StackupAsserts,
     string SourceIdentity,
-    string? DefinitionSource = null);
+    string? DefinitionSource = null,
+    IReadOnlyList<AssemblyDefinitionSource>? AssemblyDefinitions = null);
 
 public sealed record AssemblyTransform(double[] Matrix)
 {
@@ -57,7 +75,8 @@ public sealed record AssemblyInstanceIr(
     string? ParentStableId, IReadOnlyList<string> ChildrenStableIds,
     SemanticValue SemanticRoot, AssemblyTransform? LocalTransform, AssemblyTransform? ResolvedTransform,
     IReadOnlyList<SemanticProvenance> Provenance,
-    PlacementAuthority PlacementAuthority = PlacementAuthority.MateDerived);
+    PlacementAuthority PlacementAuthority = PlacementAuthority.MateDerived,
+    bool IsEncapsulatedDefinition = false);
 
 public sealed record MateEndpointIr(string Role, AssemblyPath ParticipantPath, string ParticipantSemanticValueId, IReadOnlyList<string> RequiredCapabilities);
 public sealed record MateIr(string StableId, string Name, string InterfaceStableId, IReadOnlyList<MateEndpointIr> Roles, IReadOnlyList<string> ConstraintIds, string ValidationStatus);
@@ -71,12 +90,15 @@ public sealed record DimensionalRelationIr(
     string StableId, string FromSemanticValueId, string ToSemanticValueId,
     double Nominal, double LowerTolerance, double UpperTolerance, string Unit,
     int Sign, string OriginInstancePath, string Provenance, string? MateStableId = null, string? InterfaceStableId = null,
-    IReadOnlyList<SemanticProvenance>? SourceProvenance = null);
+    IReadOnlyList<SemanticProvenance>? SourceProvenance = null,
+    IReadOnlyList<StackupContributionIr>? ExpandedContributors = null,
+    string? AssemblyDefinitionStableId = null);
 
 public sealed record StackupContributionIr(
     string RelationStableId, int Sign, double Nominal, double LowerTolerance, double UpperTolerance,
     string Unit, string OriginInstancePath, string Provenance, string? MateStableId, string? InterfaceStableId,
-    IReadOnlyList<SemanticProvenance>? SourceProvenance = null);
+    IReadOnlyList<SemanticProvenance>? SourceProvenance = null,
+    IReadOnlyList<StackupContributionIr>? ExpandedContributors = null);
 public sealed record ToleranceStackupResultIr(
     string Name, string StartSemanticValueId, string EndSemanticValueId,
     double Nominal, double WorstCaseMinimum, double WorstCaseMaximum,
@@ -84,6 +106,15 @@ public sealed record ToleranceStackupResultIr(
     IReadOnlyList<StackupContributionIr> Contributions);
 public sealed record InterfaceFitResultIr(
     string MateStableId, double NominalClearance, double WorstCaseMinimum, double WorstCaseMaximum, string Unit, bool Compatible);
+
+public sealed record AssemblyDefinitionIr(
+    string StableId, string DefinitionIdentity, string TemplateName, string SpecializationIdentity,
+    IReadOnlyList<SemanticProvenance> Provenance, IReadOnlyList<AssemblyInstanceIr> LocalInstances,
+    IReadOnlyList<MateIr> LocalMates, IReadOnlyList<PlacementResultIr> LocalPlacements,
+    IReadOnlyList<DimensionalRelationIr> LocalDimensionalRelations,
+    IReadOnlyList<ToleranceStackupResultIr> LocalToleranceStackups,
+    IReadOnlyList<SemanticValue> PublicSemantics, IReadOnlyList<DimensionalRelationIr> PublicDimensionalRelations,
+    double SolveMilliseconds);
 
 public sealed record AssemblyPerformanceIr(double ParseMilliseconds, double BindMilliseconds, double MateValidationMilliseconds, double PlacementMilliseconds, double DimensionalGraphMilliseconds, double ToleranceAnalysisMilliseconds, double DefinitionMaterializationMilliseconds = 0, double GeometryExecutionMilliseconds = 0);
 public sealed record AssemblyGeometryMetricsIr(int Bodies, int Faces, int Edges, int Vertices, double[] Minimum, double[] Maximum);
@@ -97,7 +128,8 @@ public sealed record AssemblyIr(
     IReadOnlyList<MateIr> Mates, IReadOnlyList<PlacementConstraintIr> PlacementConstraints,
     IReadOnlyList<PlacementResultIr> Placements, IReadOnlyList<DimensionalRelationIr> DimensionalRelations,
     IReadOnlyList<ToleranceStackupResultIr> ToleranceStackups, IReadOnlyList<InterfaceFitResultIr> FitResults,
-    IReadOnlyList<AssemblyDiagnostic> Diagnostics);
+    IReadOnlyList<AssemblyDiagnostic> Diagnostics,
+    IReadOnlyList<AssemblyDefinitionIr>? AssemblyDefinitions = null);
 
 public sealed record AssemblyCompilationResult(AssemblyIr? Ir, IReadOnlyList<AssemblyDiagnostic> Diagnostics, AssemblyPerformanceIr? Performance = null)
 {

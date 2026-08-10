@@ -935,6 +935,30 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         Assert.All(envelope.Data.Occurrences, occurrence => Assert.Equal("MateDerived", occurrence.PlacementAuthority));
     }
 
+    [Fact]
+    public async Task AssemblyDisplay_TemplateSubassemblyPublishesNestedTreeSelectionAndPublicSurface()
+    {
+        var path = Path.Combine(RepositoryRoot(), "fixtures", "AssemblyM3", "bearing-module.firmament");
+        var response = await _client.PostAsJsonAsync("/api/v1/assemblies/display", new AssemblyDisplayRequestDto(path));
+        response.EnsureSuccessStatusCode();
+        var envelope = await response.Content.ReadFromJsonAsync<ApiResponseDto<AssemblyDisplayPacketDto>>();
+
+        Assert.True(envelope!.Success);
+        Assert.Equal("aetheris/cadmata-assembly-display/m3", envelope.Data!.Schema);
+        Assert.Equal(12, envelope.Data.Occurrences.Count);
+        var left = envelope.Data.Occurrences.Single(item => item.InstancePath == "Machine.LeftModule");
+        var right = envelope.Data.Occurrences.Single(item => item.InstancePath == "Machine.RightModule");
+        Assert.Equal(left.DefinitionStableId, right.DefinitionStableId);
+        Assert.Equal(5, left.SelectionMembers!.Count);
+        Assert.DoesNotContain(right.StableId, left.SelectionMembers);
+        Assert.Single(envelope.Data.ModuleDefinitions!);
+        var module = envelope.Data.ModuleDefinitions![0];
+        Assert.Contains(module.PublicSemantics, item => item.Name == "Mount" && item.InternalImplementationPath == "Housing.Mount");
+        Assert.Contains(module.PublicSemantics, item => item.Name == "DriveAxis" && item.Capabilities.Contains("AxisCapable"));
+        Assert.Contains(envelope.Data.Mates.Single(item => item.Name == "PlaceLeft").Participants, item => item.Contains("Machine.LeftModule.Mount", StringComparison.Ordinal));
+        Assert.Equal(3, Assert.Single(envelope.Data.ToleranceStackups).ExpandedContributors!.Count);
+    }
+
     private static string RepositoryRoot()
     {
         var current = new DirectoryInfo(AppContext.BaseDirectory);

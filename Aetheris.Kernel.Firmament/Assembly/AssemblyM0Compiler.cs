@@ -45,6 +45,7 @@ public sealed class AssemblyM0Compiler
 
         var graphWatch = Stopwatch.StartNew();
         var relations = BindDimensionalRelations(source, instances, diagnostics)
+            .Concat(LowerAssemblyDefinitionRelations(source, instances))
             .Concat(LowerInterfaceDimensionalRelations(mates, interfaces, instances, diagnostics))
             .OrderBy(relation => relation.StableId, StringComparer.Ordinal).ToArray();
         graphWatch.Stop();
@@ -58,9 +59,11 @@ public sealed class AssemblyM0Compiler
         var perf = new AssemblyPerformanceIr(parseMilliseconds, bindWatch.Elapsed.TotalMilliseconds,
             mateWatch.Elapsed.TotalMilliseconds, placementWatch.Elapsed.TotalMilliseconds,
             graphWatch.Elapsed.TotalMilliseconds, toleranceWatch.Elapsed.TotalMilliseconds);
+        var assemblyDefinitions = source.Root.Flatten().Select(member => member.SolvedAssemblyDefinition).Where(definition => definition is not null)
+            .Cast<AssemblyDefinitionIr>().DistinctBy(definition => definition.StableId).OrderBy(definition => definition.StableId, StringComparer.Ordinal).ToArray();
         var ir = new AssemblyIr("aetheris/assembly-ir/m0", $"assembly:{source.Name}", source.Name,
             instances.Single(x => x.ParentStableId is null).StableId, instances, source.Interfaces, mates,
-            constraints, placements, relations, stackups, fits, diagnostics);
+            constraints, placements, relations, stackups, fits, diagnostics, assemblyDefinitions);
         return new(ir, diagnostics, perf);
     }
 
@@ -82,7 +85,7 @@ public sealed class AssemblyM0Compiler
             diagnostics.Add(new("assembly-instance-path-collision", "Assembly contains duplicate deterministic instance paths."));
         return flat.Select(x => new AssemblyInstanceIr(x.id, x.path, x.member.Kind, x.member.DefinitionIdentity, x.parent,
             flat.Where(c => c.parent == x.id).Select(c => c.id).Order(StringComparer.Ordinal).ToArray(), x.semantic,
-            x.member.ExplicitTransform, null, x.member.Provenance ?? [], x.member.PlacementAuthority)).ToArray();
+            x.member.ExplicitTransform, null, x.member.Provenance ?? [], x.member.PlacementAuthority, x.member.IsEncapsulatedDefinition)).ToArray();
     }
 
     private static SemanticValue InstanceScope(AssemblyMemberSource member, AssemblyPath path, string sourceIdentity)
@@ -114,7 +117,13 @@ public sealed class AssemblyM0Compiler
                 var assignment = mate.Roles.FirstOrDefault(x => x.Role == role.Name);
                 if (assignment is null) { diagnostics.Add(new(MissingRole, $"Mate '{mate.Name}' is missing required Role '{role.Name}'.")); continue; }
                 if (!TryResolve(assignment.Participant, byPath.Values, out var reference))
-                { diagnostics.Add(new(OutsideScope, $"Mate '{mate.Name}' Role '{role.Name}' participant '{assignment.Participant}' is not reachable in the Assembly tree.")); continue; }
+                {
+                    var boundary = EncapsulationBoundary(assignment.Participant, byPath.Values);
+                    diagnostics.Add(boundary is null
+                        ? new(OutsideScope, $"Mate '{mate.Name}' Role '{role.Name}' participant '{assignment.Participant}' is not reachable in the Assembly tree.")
+                        : new("assembly-internal-member-hidden", $"'{assignment.Participant}' crosses the private boundary of Assembly '{boundary.Path}'. Expose a semantic member from the Assembly if parent assemblies must depend on it."));
+                    continue;
+                }
                 var missing = role.RequiredCapabilities.Where(c => !HasCapability(reference!.Value, c)).ToArray();
                 if (missing.Length > 0)
                     diagnostics.Add(new(CapabilityMismatch, $"Mate '{mate.Name}' Role '{role.Name}' participant '{assignment.Participant}' lacks: {string.Join(", ", missing)}."));
@@ -172,6 +181,8 @@ public sealed class AssemblyM0Compiler
         if (anchor is null) diagnostics.Add(new("assembly-anchor-invalid", $"Anchor '{source.Anchor}' is outside the Assembly tree."));
         var known = new Dictionary<string, AssemblyTransform>(StringComparer.Ordinal);
         var overconstrained = new HashSet<string>(StringComparer.Ordinal);
+        var root = instances.Single(instance => instance.ParentStableId is null);
+        known[root.StableId] = AssemblyTransform.Identity;
         if (anchor is not null) known[anchor.StableId] = AssemblyTransform.Identity;
         var explicitPending = instances.Where(instance => instance.LocalTransform is not null).OrderBy(instance => instance.Path.Segments.Count).ToList();
         var explicitProgress = true;
@@ -230,10 +241,27 @@ public sealed class AssemblyM0Compiler
             }
         }
 
+        // A parent Mate may have resolved a subassembly occurrence after the
+        // first explicit-local pass. Compose its already-solved definition
+        // children now; no internal Mate is evaluated in the parent scope.
+        explicitProgress = true;
+        while (explicitProgress && explicitPending.Count > 0)
+        {
+            explicitProgress = false;
+            foreach (var instance in explicitPending.ToArray())
+            {
+                var parent = instance.ParentStableId is null ? null : instances.Single(candidate => candidate.StableId == instance.ParentStableId);
+                AssemblyTransform? parentWorld = null;
+                if (parent is not null && !known.TryGetValue(parent.StableId, out parentWorld)) continue;
+                var world = parent is null ? ToMatrix(instance.LocalTransform!) : ToMatrix(instance.LocalTransform!) * ToMatrix(parentWorld!);
+                known[instance.StableId] = FromMatrix(world); explicitPending.Remove(instance); explicitProgress = true;
+            }
+        }
+
         var results = new List<PlacementResultIr>();
         foreach (var instance in instances)
         {
-            if (anchor is not null && instance.StableId == anchor.StableId)
+            if ((anchor is not null && instance.StableId == anchor.StableId) || instance.ParentStableId is null)
             { results.Add(new(instance.StableId, PlacementStatus.Anchored, AssemblyTransform.Identity, [], [], [], instance.PlacementAuthority)); continue; }
             if (instance.LocalTransform is not null && known.TryGetValue(instance.StableId, out var explicitTransform))
             { results.Add(new(instance.StableId, PlacementStatus.Resolved, explicitTransform, [], [], [], instance.PlacementAuthority)); continue; }
@@ -332,6 +360,32 @@ public sealed class AssemblyM0Compiler
         return result;
     }
 
+    private static IReadOnlyList<DimensionalRelationIr> LowerAssemblyDefinitionRelations(AssemblySource source, IReadOnlyList<AssemblyInstanceIr> instances)
+    {
+        var definitions = source.Root.Flatten().Where(member => member.SolvedAssemblyDefinition is not null)
+            .ToDictionary(member => member.Name, member => member.SolvedAssemblyDefinition!, StringComparer.Ordinal);
+        var result = new List<DimensionalRelationIr>();
+        foreach (var instance in instances.Where(item => item.IsEncapsulatedDefinition))
+        {
+            if (!definitions.TryGetValue(instance.Path.Segments.Last(), out var definition)) continue;
+            foreach (var relation in definition.PublicDimensionalRelations)
+            {
+                if (!instance.SemanticRoot.ExposedMembers.TryGetValue(relation.FromSemanticValueId, out var from)
+                    || !instance.SemanticRoot.ExposedMembers.TryGetValue(relation.ToSemanticValueId, out var to)) continue;
+                result.Add(relation with
+                {
+                    StableId = relation.StableId + ":occurrence:" + instance.StableId,
+                    FromSemanticValueId = from.StableIdentity,
+                    ToSemanticValueId = to.StableIdentity,
+                    OriginInstancePath = instance.Path.ToString(),
+                    AssemblyDefinitionStableId = definition.StableId,
+                    SourceProvenance = [.. relation.SourceProvenance ?? [], .. instance.Provenance]
+                });
+            }
+        }
+        return result;
+    }
+
     private static IReadOnlyList<InterfaceFitResultIr> AnalyzeFits(IReadOnlyList<MateIr> mates,
         IReadOnlyDictionary<string, InterfaceDefinition> interfaces, IReadOnlyList<AssemblyInstanceIr> instances,
         List<AssemblyDiagnostic> diagnostics)
@@ -416,7 +470,8 @@ public sealed class AssemblyM0Compiler
                 step.sign * step.edge.Nominal,
                 step.sign > 0 ? step.edge.LowerTolerance : -step.edge.UpperTolerance,
                 step.sign > 0 ? step.edge.UpperTolerance : -step.edge.LowerTolerance,
-                step.edge.Unit, step.edge.OriginInstancePath, step.edge.Provenance, step.edge.MateStableId, step.edge.InterfaceStableId, step.edge.SourceProvenance)).ToArray();
+                step.edge.Unit, step.edge.OriginInstancePath, step.edge.Provenance, step.edge.MateStableId, step.edge.InterfaceStableId, step.edge.SourceProvenance,
+                step.edge.ExpandedContributors)).ToArray();
             if (contributions.Any(x => x.Unit != assertion.Unit))
             { diagnostics.Add(new("assembly-tolerance-unit-mismatch", $"Assert ToleranceStackup '{assertion.Name}' mixes units.")); continue; }
             var nominal = contributions.Sum(x => x.Nominal);
@@ -455,6 +510,7 @@ public sealed class AssemblyM0Compiler
     {
         reference = null;
         var all = instances.ToArray();
+        if (EncapsulationBoundary(path, all) is not null) return false;
         var instance = all.Where(x => path.Segments.Count >= x.Path.Segments.Count && path.Segments.Take(x.Path.Segments.Count).SequenceEqual(x.Path.Segments))
             .OrderByDescending(x => x.Path.Segments.Count).FirstOrDefault();
         if (instance is null) return false;
@@ -467,6 +523,19 @@ public sealed class AssemblyM0Compiler
         }
         reference = new(current, resolved, SemanticSourceSpan.Generated(path.ToString()));
         return true;
+    }
+
+    private static AssemblyInstanceIr? EncapsulationBoundary(AssemblyPath path, IEnumerable<AssemblyInstanceIr> instances)
+    {
+        var all = instances.ToArray();
+        return all.Where(instance => instance.IsEncapsulatedDefinition
+                && path.Segments.Count > instance.Path.Segments.Count
+                && path.Segments.Take(instance.Path.Segments.Count).SequenceEqual(instance.Path.Segments)
+                // A direct next segment is a public semantic name.  Crossing into
+                // an actual child occurrence is the prohibited traversal.
+                && all.Any(child => child.ParentStableId == instance.StableId
+                    && child.Path.Segments.Last() == path.Segments[instance.Path.Segments.Count]))
+            .OrderByDescending(instance => instance.Path.Segments.Count).FirstOrDefault();
     }
 
     private static IEnumerable<SemanticValue> Flatten(IEnumerable<SemanticValue> roots)

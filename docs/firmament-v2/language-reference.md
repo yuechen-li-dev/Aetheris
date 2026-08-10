@@ -140,6 +140,21 @@ Interface SeatedAxis {
 
 An `Assembly` body contains one XML-like product tree, an `Anchor`, independent `Mate` declarations, optional explicit `Relation`s, and stackup assertions. Part definitions are named after `=`; M1 also admits one Template application, for example `<Part P = Block<Spec: Standard>></Part>`. `Anchor` selects the instance datum whose owning Part receives identity placement. A final transform is a lowered result from Anchor + Mates.
 
+`Template < Spec: T > Assembly Name { ... }` creates a reusable Assembly
+definition; `<Assembly Left = Name<Spec: Value>></Assembly>` creates an
+occurrence. The normalized Template application is the definition identity.
+Local Mates, relations, assertions, and child transforms are solved once per
+specialization. Identical occurrences reuse that result and compose child world
+transforms from the occurrence transform.
+
+Template Assembly internals are source-private. Existing `Expose` syntax forms
+the public module surface, so `Left.Mount` can participate in a parent Interface
+while `Left.Housing.Mount` is rejected. Exposed Point/Axis/Plane bindings are
+definition-local and become world bindings through occurrence composition.
+`Expose` may also publish a `Relation Public: From -> To = Internal.From ->
+Internal.To;`; the parent graph sees one summary edge while stackup evidence
+retains its structured private contributor chain.
+
 `Relation Name: A -> B = nominal tol ... from "provenance";` is a bounded directed dimensional edge, not an unrestricted equation graph. `Assert ToleranceStackup` finds one deterministic path, sums signed worst-case intervals, retains every contribution, and emits a typed compile failure if its clearance minimum is not met.
 
 ## Assertions

@@ -8,7 +8,7 @@ using Aetheris.Kernel.Core.Results;
 
 namespace Aetheris.Kernel.Core.Step242;
 
-public sealed record Step242AssemblyDefinition(string StableId, string Name, BrepBody Body);
+public sealed record Step242AssemblyDefinition(string StableId, string Name, BrepBody? Body);
 
 public sealed record Step242AssemblyOccurrence(
     string StableId,
@@ -55,9 +55,9 @@ public static class Step242AssemblyExporter
 
         var entities = new List<string>();
         var definitionRefs = new Dictionary<string, (int ProductDefinition, int Representation)>(StringComparer.Ordinal);
-        foreach (var definition in model.Definitions.OrderBy(item => item.StableId, StringComparer.Ordinal))
+        foreach (var definition in model.Definitions.Where(item => item.Body is not null).OrderBy(item => item.StableId, StringComparer.Ordinal))
         {
-            var exported = Step242Exporter.ExportBody(definition.Body, options: new Step242ExportOptions
+            var exported = Step242Exporter.ExportBody(definition.Body!, options: new Step242ExportOptions
             {
                 ProductId = definition.StableId,
                 ProductName = definition.Name,
@@ -97,6 +97,17 @@ public static class Step242AssemblyExporter
         var solidAngleUnit = AddRaw("(NAMED_UNIT(*)SI_UNIT($,.STERADIAN.)SOLID_ANGLE_UNIT())");
         var representationContext = AddRaw($"(GEOMETRIC_REPRESENTATION_CONTEXT(3)GLOBAL_UNIT_ASSIGNED_CONTEXT(({Ref(lengthUnit)},{Ref(angleUnit)},{Ref(solidAngleUnit)}))REPRESENTATION_CONTEXT('3','3D'))");
 
+        foreach (var definition in model.Definitions.Where(item => item.Body is null).OrderBy(item => item.StableId, StringComparer.Ordinal))
+        {
+            var product = Add("PRODUCT", Str(definition.StableId), Str(definition.Name), Str("Aetheris reusable assembly definition"), $"({Ref(productContext)})");
+            var formation = Add("PRODUCT_DEFINITION_FORMATION", Str(""), Str(""), Ref(product));
+            var productDefinition = Add("PRODUCT_DEFINITION", Str(definition.StableId), Str(""), Ref(formation), Ref(definitionContext));
+            var shape = Add("PRODUCT_DEFINITION_SHAPE", Str(""), Str(""), Ref(productDefinition));
+            var representation = Add("SHAPE_REPRESENTATION", Str(definition.Name), "()", Ref(representationContext));
+            Add("SHAPE_DEFINITION_REPRESENTATION", Ref(shape), Ref(representation));
+            definitionRefs[definition.StableId] = (productDefinition, representation);
+        }
+
         var assemblyRefs = new Dictionary<string, (int ProductDefinition, int Representation)>(StringComparer.Ordinal);
         foreach (var occurrence in model.Occurrences.Where(item => item.DefinitionStableId is null).OrderBy(item => item.StableId, StringComparer.Ordinal))
         {
@@ -111,19 +122,25 @@ public static class Step242AssemblyExporter
 
         var identityPoint = Add("CARTESIAN_POINT", Str(""), "(0.,0.,0.)");
         var identityAxis = Add("AXIS2_PLACEMENT_3D", Str(""), Ref(identityPoint), "$", "$" );
+        var emittedDefinitionLocalUsages = new HashSet<string>(StringComparer.Ordinal);
         foreach (var occurrence in model.Occurrences.Where(item => item.ParentStableId is not null).OrderBy(item => item.StableId, StringComparer.Ordinal))
         {
-            var parent = assemblyRefs[occurrence.ParentStableId!];
+            var parentOccurrence = model.Occurrences.Single(item => item.StableId == occurrence.ParentStableId);
+            var parent = parentOccurrence.DefinitionStableId is not null ? definitionRefs[parentOccurrence.DefinitionStableId] : assemblyRefs[parentOccurrence.StableId];
             var child = occurrence.DefinitionStableId is null ? assemblyRefs[occurrence.StableId] : definitionRefs[occurrence.DefinitionStableId];
-            var usage = Add("NEXT_ASSEMBLY_USAGE_OCCURRENCE", Str(occurrence.StableId), Str(occurrence.Name), Str(""), Ref(parent.ProductDefinition), Ref(child.ProductDefinition), "$" );
+            var definitionLocalKey = parentOccurrence.DefinitionStableId is null ? occurrence.StableId
+                : parentOccurrence.DefinitionStableId + "|" + occurrence.Name + "|" + (occurrence.DefinitionStableId ?? occurrence.StableId) + "|" + string.Join(",", occurrence.LocalTransform.Select(Num));
+            if (!emittedDefinitionLocalUsages.Add(definitionLocalKey)) continue;
+            var usageStableId = parentOccurrence.DefinitionStableId is null ? occurrence.StableId : "definition-usage:" + definitionLocalKey;
+            var usage = Add("NEXT_ASSEMBLY_USAGE_OCCURRENCE", Str(usageStableId), Str(occurrence.Name), Str(""), Ref(parent.ProductDefinition), Ref(child.ProductDefinition), "$" );
             var usageShape = Add("PRODUCT_DEFINITION_SHAPE", Str(""), Str(""), Ref(usage));
             var m = occurrence.LocalTransform;
             var point = Add("CARTESIAN_POINT", Str(""), $"({Num(m[12])},{Num(m[13])},{Num(m[14])})");
             var z = Add("DIRECTION", Str(""), $"({Num(m[8])},{Num(m[9])},{Num(m[10])})");
             var x = Add("DIRECTION", Str(""), $"({Num(m[0])},{Num(m[1])},{Num(m[2])})");
             var placement = Add("AXIS2_PLACEMENT_3D", Str(""), Ref(point), Ref(z), Ref(x));
-            var transformation = Add("ITEM_DEFINED_TRANSFORMATION", Str(occurrence.StableId), Str("Aetheris rigid occurrence transform"), Ref(identityAxis), Ref(placement));
-            var relationship = Add("REPRESENTATION_RELATIONSHIP_WITH_TRANSFORMATION", Str(occurrence.StableId), Str(""), Ref(parent.Representation), Ref(child.Representation), Ref(transformation));
+            var transformation = Add("ITEM_DEFINED_TRANSFORMATION", Str(usageStableId), Str("Aetheris rigid occurrence transform"), Ref(identityAxis), Ref(placement));
+            var relationship = Add("REPRESENTATION_RELATIONSHIP_WITH_TRANSFORMATION", Str(usageStableId), Str(""), Ref(parent.Representation), Ref(child.Representation), Ref(transformation));
             Add("CONTEXT_DEPENDENT_SHAPE_REPRESENTATION", Ref(relationship), Ref(usageShape));
         }
 
@@ -239,17 +256,23 @@ public static class Step242AssemblyImporter
             var transform = document.TryGetEntity(transformId.Value).Value;
             var placementId = Ref(transform, 3); if (placementId is not null) transformByUsage[usageId] = Placement(document, placementId.Value);
         }
-        var occurrences = usages.Select(usage =>
-        {
-            var parentPd = Ref(usage, 3)!.Value; var childPd = Ref(usage, 4)!.Value;
-            var parentUsage = usages.FirstOrDefault(candidate => Ref(candidate, 4) == parentPd);
-            return new Step242ImportedProductOccurrence(
-                occurrenceStableByUsage[usage.Id], Text(usage, 1) ?? occurrenceStableByUsage[usage.Id],
-                parentUsage is null ? null : occurrenceStableByUsage[parentUsage.Id], stableByPd[childPd],
-                transformByUsage.TryGetValue(usage.Id, out var matrix) ? matrix : Identity(), usage.Id);
-        }).ToArray();
         var childPds = usages.Select(usage => Ref(usage, 4)!.Value).ToHashSet();
         var rootPd = usages.Select(usage => Ref(usage, 3)!.Value).First(id => !childPds.Contains(id));
+        var usagesByParentDefinition = usages.GroupBy(usage => Ref(usage, 3)!.Value).ToDictionary(group => group.Key, group => group.OrderBy(item => item.Id).ToArray());
+        var occurrences = new List<Step242ImportedProductOccurrence>();
+        var usedOccurrenceStableIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var usage in usagesByParentDefinition.GetValueOrDefault(rootPd, [])) Expand(usage, null, 0);
+        void Expand(Step242ParsedEntity usage, string? parentStableId, int depth)
+        {
+            if (depth > usages.Length) throw new InvalidOperationException("AP242 assembly definition hierarchy is cyclic.");
+            var baseStableId = occurrenceStableByUsage[usage.Id];
+            var stableId = usedOccurrenceStableIds.Add(baseStableId) ? baseStableId : parentStableId + "/" + baseStableId;
+            usedOccurrenceStableIds.Add(stableId);
+            var childPd = Ref(usage, 4)!.Value;
+            occurrences.Add(new(stableId, Text(usage, 1) ?? baseStableId, parentStableId, stableByPd[childPd],
+                transformByUsage.TryGetValue(usage.Id, out var matrix) ? matrix : Identity(), usage.Id));
+            foreach (var childUsage in usagesByParentDefinition.GetValueOrDefault(childPd, [])) Expand(childUsage, stableId, depth + 1);
+        }
         return KernelResult<Step242ProductStructure>.Success(new(stableByPd[rootPd], importedDefinitions, occurrences));
     }
 

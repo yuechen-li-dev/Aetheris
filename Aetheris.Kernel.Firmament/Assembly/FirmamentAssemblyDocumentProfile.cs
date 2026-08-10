@@ -78,7 +78,11 @@ public sealed class FirmamentAssemblyDocumentCompiler
     public static IReadOnlyList<AssemblyDiagnostic> ValidateProfile(string source, FirmamentDocumentProfile profile)
     {
         if (profile == FirmamentDocumentProfile.General) return [];
-        var roots = Regex.Matches(source, @"(?m)^\s*Assembly\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant).Count;
+        var assemblies = Regex.Matches(source, @"(?m)^\s*Assembly\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant).Count;
+        // A Template-produced Assembly is a reusable definition, not an exported
+        // product root.  It intentionally shares the existing Template keyword.
+        var templateAssemblies = Regex.Matches(source, @"\bTemplate\s*<[^>]+>\s*Assembly\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant).Count;
+        var roots = assemblies - templateAssemblies;
         return roots switch
         {
             0 => [new("assembly-profile-no-root", ".firmasm requires exactly one exported/root Assembly product; none was found.")],

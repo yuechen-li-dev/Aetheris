@@ -1102,7 +1102,7 @@ function App() {
 														(item) => item.stableId === selectedAssemblyOccurrenceId,
 													);
 													return occurrence ? (
-														<p className="semantic-provenance">
+														<div className="semantic-provenance">
 															<strong>{occurrence.instancePath}</strong>
 															<br />
 															Placement:{" "}
@@ -1111,7 +1111,38 @@ function App() {
 																: occurrence.placementAuthority === "ImportedOccurrence"
 																	? "Imported occurrence"
 																	: "Legacy explicit transform"}
-														</p>
+															{(() => {
+																const definition = assemblyPacket.moduleDefinitions?.find(
+																	(item) => item.stableId === occurrence.definitionStableId,
+																);
+																return definition ? (
+																	<>
+																		<br />
+																		Definition: {definition.definitionIdentity}
+																		<br />
+																		Template: {definition.templateName}
+																		<br />
+																		Public surface:
+																		<ul>
+																			{definition.publicSemantics.map((semantic) => (
+																				<li key={semantic.name}>
+																					<strong>
+																						{occurrence.name}.{semantic.name}
+																					</strong>{" "}
+																					· {semantic.capabilities.join(", ")}
+																					{semantic.internalImplementationPath ? (
+																						<small>
+																							{" "}
+																							(implemented by {semantic.internalImplementationPath})
+																						</small>
+																					) : null}
+																				</li>
+																			))}
+																		</ul>
+																	</>
+																) : null;
+															})()}
+														</div>
 													) : null;
 												})()
 											: null}
@@ -1139,6 +1170,17 @@ function App() {
 														</strong>
 														<br />
 														{stack.nominal} {stack.unit} [{stack.minimum}, {stack.maximum}]
+														{stack.expandedContributors?.length ? (
+															<details>
+																<summary>Expanded internal contributors</summary>
+																{stack.expandedContributors.map((item) => (
+																	<span key={item}>
+																		{item}
+																		<br />
+																	</span>
+																))}
+															</details>
+														) : null}
 													</p>
 												))}
 											</>

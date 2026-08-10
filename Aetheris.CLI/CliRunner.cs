@@ -3300,7 +3300,7 @@ public static class CliRunner
         if (!export.IsSuccess) { foreach (var diagnostic in export.Diagnostics) stderr.WriteLine($"{diagnostic.Source}: {diagnostic.Message}"); return 1; }
         var fullOutput = Path.GetFullPath(output); Directory.CreateDirectory(Path.GetDirectoryName(fullOutput)!); File.WriteAllText(fullOutput, export.Value);
         var hash = Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(export.Value)));
-        stdout.WriteLine(json ? JsonSerializer.Serialize(new { success = true, output = fullOutput, sha256 = hash, occurrenceCount = compilation.Ir!.Instances.Count - 1, definitionCount = compilation.Geometry!.Artifact.Definitions.Count }, JsonOptions) : $"Exported native AP242 assembly: {fullOutput} sha256={hash}");
+        stdout.WriteLine(json ? JsonSerializer.Serialize(new { success = true, output = fullOutput, sha256 = hash, occurrenceCount = compilation.Ir!.Instances.Count - 1, definitionCount = compilation.Geometry!.Artifact.Definitions.Count + (compilation.Ir.AssemblyDefinitions?.Count ?? 0) }, JsonOptions) : $"Exported native AP242 assembly: {fullOutput} sha256={hash}");
         return 0;
     }
 

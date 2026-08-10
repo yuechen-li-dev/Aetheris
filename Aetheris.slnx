@@ -2,6 +2,8 @@
   <Project Path="Aetheris.Server/Aetheris.Server.csproj" />
   <Project Path="Aetheris.Server.Tests/Aetheris.Server.Tests.csproj" />
   <Project Path="Aetheris.Kernel.Core/Aetheris.Kernel.Core.csproj" />
+  <Project Path="Aetheris.Semantics/Aetheris.Semantics.csproj" />
+  <Project Path="Aetheris.Semantics.Tests/Aetheris.Semantics.Tests.csproj" />
   <Project Path="Aetheris.Continuum/Aetheris.Continuum.csproj" />
   <Project Path="Aetheris.FEA/Aetheris.FEA.csproj" />
   <Project Path="Aetheris.FEA.Tests/Aetheris.FEA.Tests.csproj" />

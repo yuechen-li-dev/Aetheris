@@ -17,6 +17,9 @@ manifest (`docs/preview2/feature-manifest.json`).
 | Stale Preview 1 guard/fixture | Invalid fixture promoted to valid; capability manifest and roadmap updated. |
 | CIR/FRep authority wording | Historical roadmap marked superseded and linked to settled architecture. |
 | SurfaceMeshIR M1-era status | Current M2-M7 capability progression called out explicitly. |
+| Typed semantic reference shared by Selection/FEA/Recognize | Closed by `Aetheris.Semantics`; consumers require structural capabilities and exact bindings. |
+| Exact recognized-region metadata in common binder | Closed for existing Recognize families; canonical STEP entity/FaceId association is preserved. |
+| Forge semantic output/exposure contract | Closed for validated compiler-owned roots/members; sample proves Selection and FEA. |
 
 ## Still Experimental
 
@@ -38,9 +41,6 @@ manifest (`docs/preview2/feature-manifest.json`).
 
 ## Deferred post-Preview2
 
-- One typed semantic-reference/value layer spanning Concept IR exposure,
-  recognized imported regions, Forge outputs, Selection, Modify, and AnalysisIR.
-- Profile-capable and boundary-region-capable semantic value kinds for that layer.
 - General imported exact-profile recognition (no new recognition was invented).
 - Curved FEA boundary constraints/loads, nonlinear mechanics, contact, dynamics,
   and higher-order recovery.
@@ -52,12 +52,9 @@ manifest (`docs/preview2/feature-manifest.json`).
 
 | Rank | Gap | Friction | Risk | Cost | Evidence | Preview 2 relevance |
 | ---: | --- | ---: | ---: | ---: | ---: | ---: |
-| 1 | Typed semantic reference shared by Selection/FEA/Recognize | 5 | 5 | 5 | 3 | 5 |
-| 2 | Preserve exact recognized-region capability metadata in common binder | 5 | 4 | 4 | 3 | 5 |
-| 3 | Compose/Profile source-span modernization | 3 | 3 | 3 | 4 | 4 |
-| 4 | Forge semantic output/exposure contract | 4 | 4 | 5 | 2 | 4 |
-| 5 | Curved-trim certified volume for mixed Fillet | 3 | 4 | 5 | 5 | 3 |
-| 6 | Forge production source generator | 2 | 2 | 3 | 3 | 2 |
+| 1 | Compose/Profile parser-wide source-span modernization beyond semantic references | 3 | 3 | 3 | 4 | 4 |
+| 2 | Curved-trim certified volume for mixed Fillet | 3 | 4 | 5 | 5 | 3 |
+| 3 | Forge production source generator | 2 | 2 | 3 | 3 | 2 |
 
 Scores are ordinal 1-5. No competing runtime strategy is selected here, so a
 JudgmentEngine integration would add machinery without improving the audit.

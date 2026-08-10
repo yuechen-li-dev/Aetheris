@@ -4,6 +4,7 @@ using Aetheris.Kernel.Core.Brep.Features;
 using Aetheris.Kernel.Core.Construction;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Semantics;
 
 namespace Aetheris.Forge.Extensions;
 
@@ -44,6 +45,22 @@ public static class ForgeCapabilityExecutor
             }
             if (result.Output?.Provenance is null || !result.Output.Provenance.ContainsKey("capability"))
                 return ForgeCapabilityExecutionResult.Failure(Error("forge-capability-provenance-missing", $"Capability '{id}' did not emit required capability provenance.", id, context));
+            if (result.Output.SemanticRoot is { } semanticRoot)
+            {
+                var semanticDiagnostics = SemanticValueValidator.Validate(semanticRoot);
+                if (semanticDiagnostics.Count > 0)
+                    return ForgeCapabilityExecutionResult.Failure(Error(SemanticValueValidator.ForgeOutputInvalid,
+                        string.Join("; ", semanticDiagnostics.Select(item => item.Code + ": " + item.Message)), id, context));
+                if (!semanticRoot.Provenance.Any(item => item.Stage == "forge-capability" && item.Identity.Contains(id.Value, StringComparison.Ordinal)))
+                    return ForgeCapabilityExecutionResult.Failure(Error(SemanticValueValidator.ForgeOutputInvalid,
+                        $"Forge semantic root '{semanticRoot.StableIdentity}' lacks capability/version provenance.", id, context));
+                var semanticBindings = Flatten(semanticRoot).SelectMany(value => value.Bindings).ToArray();
+                if (semanticBindings.OfType<ExactBrepBodyBinding>().Any(binding => result.Output.ExactBrep is null || !ReferenceEquals(binding.Body, result.Output.ExactBrep))
+                    || semanticBindings.OfType<ExactBrepFaceBinding>().Any(binding => result.Output.ExactBrep is null || !ReferenceEquals(binding.Body, result.Output.ExactBrep) || !binding.Body.Topology.TryGetFace(binding.Face, out _))
+                    || semanticBindings.OfType<ExactBrepRegionBinding>().Any(binding => result.Output.ExactBrep is null || !ReferenceEquals(binding.Body, result.Output.ExactBrep) || binding.Faces.Any(face => !binding.Body.Topology.TryGetFace(face, out _))))
+                    return ForgeCapabilityExecutionResult.Failure(Error(SemanticValueValidator.ForgeOutputInvalid,
+                        "Forge exact semantic BRep binding does not match the capability ExactBrep output/association.", id, context));
+            }
             return result;
         }
         catch (ForgeCapabilityAdmissionException exception)
@@ -113,4 +130,11 @@ public static class ForgeCapabilityExecutor
 
     private static ForgeExtensionDiagnostic Error(string code, string message, ForgeCapabilityId id, ForgeCapabilityInvocationContext context) =>
         new(code, ForgeDiagnosticSeverity.Error, message, id.Value, context.SourceIdentity);
+
+    private static IEnumerable<SemanticValue> Flatten(SemanticValue value)
+    {
+        yield return value;
+        foreach (var member in value.ExposedMembers.Values)
+            foreach (var nested in Flatten(member)) yield return nested;
+    }
 }

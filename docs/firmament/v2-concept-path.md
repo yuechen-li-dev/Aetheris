@@ -1,5 +1,12 @@
 # Firmament V2 Concept Path (M1)
 
+> Preview 2 Semantic Value M1: Concept Path is a producer of
+> `SemanticValue`. A path used by a named Profile carries `ProfileCapability`,
+> `ComposeOperandCapability`, and an exact validated `ResolvedProfile2D`
+> binding. Guides and endpoints are typed exposed members. Compose consumes the
+> common profile contract; no path-specific backend exists. See
+> `docs/semantic/architecture.md`.
+
 `Concept Path` is the concise frontend for an ordered, contiguous local-2D chain of line and tangent-arc guides. It lowers to the same named points, guides, ordinary `Profile` loops, and `ResolvedProfile2D` route as `Rect2`, `Line2`, `Circle2`, and explicit `Segment` declarations.
 
 It is a **Path**, not a Profile Loop: a Path may be open and has no opinion about closure, winding, material boundaries, or intersections. Those checks remain with `Profile`.

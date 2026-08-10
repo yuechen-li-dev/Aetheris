@@ -1,6 +1,8 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Topology;
 using System.Text.RegularExpressions;
+using Aetheris.Kernel.Firmament.FirmamentV2;
+using Aetheris.Semantics;
 
 namespace Aetheris.Kernel.Firmament.Materializer;
 
@@ -135,7 +137,15 @@ public static class SemanticSelectionSourceParser
 
     public static IReadOnlyList<SemanticSelectionRequest> Parse(string source, ResolvedProfile2D profile, string bodyStableId, out IReadOnlyList<string> diagnostics)
     {
+        var span = SemanticSourceSpan.Generated("Selection");
+        return Parse(source, new SemanticReference(FirmamentSemanticValues.FromProfile(profile, span), [], span), bodyStableId, out diagnostics);
+    }
+
+    public static IReadOnlyList<SemanticSelectionRequest> Parse(string source, SemanticReference semanticSource, string bodyStableId, out IReadOnlyList<string> diagnostics)
+    {
         var output = new List<SemanticSelectionRequest>(); var errors = new List<string>();
+        var capability = SemanticValueValidator.Require<SelectableCapability>(semanticSource);
+        if (capability is not null) { diagnostics = [capability.Code + ":" + capability.Message]; return []; }
         foreach (Match header in Header.Matches(source))
         {
             var body = Block(source, header.Index + header.Length - 1);

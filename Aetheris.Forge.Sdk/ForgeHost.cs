@@ -205,7 +205,8 @@ public sealed class ForgeHost
         };
         var hash = ArtifactHash(exported.Value, expansion.SpecializationIdentity, [capabilityEvidence], provenance);
         return new ForgeCompilationResult(
-            new ForgeCompilationArtifact(exported.Value, hash, body, cir, [capabilityEvidence], provenance),
+            new ForgeCompilationArtifact(exported.Value, hash, body, cir, [capabilityEvidence], provenance,
+                execution.Output.SemanticRoot is null ? null : Aetheris.Semantics.SemanticValueDescriptor.From(execution.Output.SemanticRoot)),
             diagnostics,
             registrationTime,
             resolutionTime,

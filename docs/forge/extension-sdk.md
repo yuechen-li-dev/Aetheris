@@ -1,5 +1,12 @@
 # Forge extension SDK
 
+> Semantic Value M1: `ForgeCapabilityOutput.SemanticRoot` may expose a
+> compiler-owned typed semantic tree. Claims are validated against exact
+> profile/BRep/analysis bindings, BRep associations, deterministic identities,
+> and extension/capability/version provenance. Arbitrary extension objects are
+> not accepted. ForgeHost exposes `SemanticValueDescriptor`, not kernel
+> internals or a permanent interchange schema.
+
 Extension packages implement `IForgeExtension` and register immutable `IForgeCapability` instances explicitly with `ForgeExtensionRegistry`.
 
 ```csharp

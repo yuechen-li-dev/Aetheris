@@ -15,6 +15,7 @@ using Aetheris.Firmament.FrictionLab.CIRLab;
 using Aetheris.FEA.Abaqus;
 using Aetheris.FEA.Firmament;
 using Aetheris.FEA.Mechanics;
+using Aetheris.Semantics;
 
 namespace Aetheris.CLI;
 
@@ -656,6 +657,19 @@ public static class CliRunner
         var features = document?.ModifyBlocks?.SelectMany(block =>
             block.SemanticHoles.Select(hole => $"Hole<{hole.Variant}> {hole.Name}")
             .Concat((block.EdgeFinishes ?? []).Select(finish => $"{finish.Kind} {finish.Name}"))) ?? [];
+        var semanticValues = FirmamentSemanticValues.FromProfilesAndConceptPaths(source, fullPath).ToList();
+        if (PrismaticProfileCompositionParser.IsCompositionSource(source))
+        {
+            var composition = PrismaticProfileCompositionParser.Parse(source);
+            semanticValues.AddRange(composition.Profiles.Values.OrderBy(profile => profile.Name, StringComparer.Ordinal).Select(profile =>
+                FirmamentSemanticValues.FromProfile(profile, SemanticSourceSpan.Generated(fullPath),
+                    [new("firmament-profile", profile.Name, "named Profile normalized before consumer")])));
+        }
+        else if (ProfileAuthoringParser.IsProfileSource(source) && ProfileAuthoringParser.Parse(source).Profile is { } directProfile)
+            semanticValues.Add(FirmamentSemanticValues.FromProfile(directProfile, SemanticSourceSpan.Generated(fullPath),
+                [new("firmament-profile", directProfile.Name, "named Profile normalized before consumer")]));
+        if (document?.ConceptIr is { } conceptIr) semanticValues.AddRange(FirmamentSemanticValues.FromConceptIr(conceptIr, fullPath));
+        if (document?.RecognizedRegions?.Count > 0) semanticValues.AddRange(FirmamentSemanticValues.FromRecognizedRegions(document, fullPath, source));
         var report = new
         {
             command = "inspect",
@@ -678,9 +692,16 @@ public static class CliRunner
                 instance.Template,
                 instance.Instance,
                 instance.SpecializationIdentity,
-                records = instance.RecordArguments?.ToDictionary(pair => pair.Key, pair => new { pair.Value.RecordType, pair.Value.StaticValue, pair.Value.Provenance, members = pair.Value.Members })
+                records = instance.RecordArguments?.OrderBy(pair => pair.Key, StringComparer.Ordinal).ToDictionary(pair => pair.Key, pair => new
+                {
+                    pair.Value.RecordType,
+                    pair.Value.StaticValue,
+                    pair.Value.Provenance,
+                    members = pair.Value.Members.OrderBy(member => member.Key, StringComparer.Ordinal).ToDictionary(member => member.Key, member => member.Value, StringComparer.Ordinal)
+                }, StringComparer.Ordinal)
             }).ToArray() ?? [],
             conceptPaths = ProfileAuthoringParser.InspectConceptPaths(source),
+            semanticValues = semanticValues.OrderBy(value => value.StableIdentity, StringComparer.Ordinal).Select(SemanticValueDescriptor.From).ToArray(),
             recognizedRegions = document?.RecognizedRegions?.Select(region => new
             {
                 region.BodyName,

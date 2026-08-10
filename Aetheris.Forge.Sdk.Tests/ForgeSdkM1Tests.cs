@@ -38,6 +38,17 @@ public sealed class ForgeSdkM1Tests
         Assert.Equal(SecretCouponCapability.CapabilityId.Value, first.Artifact.Capabilities[0].CapabilityId);
         Assert.Contains("record-arguments=Spec", first.Artifact.Provenance[1].Evidence, StringComparison.Ordinal);
         Assert.True(first.Artifact.Body!.Topology.Faces.Count() >= 6);
+        var semantic = Assert.IsType<Aetheris.Semantics.SemanticValueDescriptor>(first.Artifact.SemanticOutput);
+        Assert.Equal("Body", semantic.SemanticType);
+        Assert.Contains("BodyCapable", semantic.Capabilities);
+        Assert.Equal(new[] { "LoadRegion", "TopFace" }, semantic.Members.Select(member => member.StableId.Split('.').Last()).Order(StringComparer.Ordinal));
+        Assert.All(semantic.Members, member =>
+        {
+            Assert.Contains("BoundaryRegionCapable", member.Capabilities);
+            Assert.Contains("ExactBrepFace", member.BindingKinds);
+            Assert.Contains(member.Provenance, item => item.Stage == "forge-capability");
+        });
+        Assert.Equal(semantic.StableId, second.Artifact!.SemanticOutput!.StableId);
     }
 
     [Fact]

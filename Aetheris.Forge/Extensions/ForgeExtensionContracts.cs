@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using Aetheris.Forge.Abstractions;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Construction;
+using Aetheris.Semantics;
 
 namespace Aetheris.Forge.Extensions;
 
@@ -110,7 +111,8 @@ public sealed record ForgeCapabilityOutput(
     ContinuumConstructionDescriptor? Construction,
     BrepBody? ExactBrep = null,
     ContinuumConstructionDescriptor? ContinuumConstruction = null,
-    IReadOnlyDictionary<string, string>? Provenance = null);
+    IReadOnlyDictionary<string, string>? Provenance = null,
+    SemanticValue? SemanticRoot = null);
 
 public sealed record ForgeExtensionDiagnostic(
     string Code,

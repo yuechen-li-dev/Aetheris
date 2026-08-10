@@ -1,18 +1,18 @@
 {
   "units": "milliseconds",
   "first": {
-    "registration": 4.5488,
-    "capabilityResolution": 0.0795,
-    "templateInvocation": 37.5553,
-    "extensionLowering": 6.6124,
-    "compilerAndValidation": 201.7962
+    "registration": 4.6145,
+    "capabilityResolution": 0.0847,
+    "templateInvocation": 38.8736,
+    "extensionLowering": 6.9278,
+    "compilerAndValidation": 213.69
   },
   "warm": {
-    "registration": 4.5488,
-    "capabilityResolution": 0.0017,
-    "templateInvocation": 0.4954,
-    "extensionLowering": 0.0333,
-    "compilerAndValidation": 1.2135
+    "registration": 4.6145,
+    "capabilityResolution": 0.0025,
+    "templateInvocation": 0.5599,
+    "extensionLowering": 0.0405,
+    "compilerAndValidation": 1.3867
   },
   "note": "Developer-machine wall-clock evidence; not a benchmark or release gate."
 }

@@ -2,6 +2,8 @@ using System.Globalization;
 using Aetheris.Forge.Extensions;
 using Aetheris.Kernel.Core.Construction;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Semantics;
 
 namespace MyCompany.SecretGeometry;
 
@@ -57,8 +59,29 @@ public sealed class SecretCouponCapability : IForgeCapability
             [0, 1, 2, 3],
             ["PrismaticExtrude"],
             [context.SourceIdentity, context.TemplateIdentity, CapabilityId.Value, SecretGeometryExtension.ExtensionId + "@1.0.0"]);
+        var body = ForgeCapabilityExecutor.MaterializeConstruction(descriptor);
+        var planarFaces = body.Bindings.FaceBindings.Select(binding =>
+            (binding.FaceId, Plane: body.Geometry.GetSurface(binding.SurfaceGeometryId).Plane)).Where(item => item.Plane is not null).ToArray();
+        var topFace = planarFaces.Single(item => item.Plane!.Value.Normal.ToVector().Z > 0.9d).FaceId;
+        var loadFace = planarFaces.Single(item => item.Plane!.Value.Normal.ToVector().X > 0.9d).FaceId;
+        var semanticSpan = SemanticSourceSpan.Generated(context.SourceIdentity);
+        var semanticProvenance = new[]
+        {
+            new SemanticProvenance("template-specialization", context.TemplateIdentity, context.InvocationIdentity, semanticSpan),
+            new SemanticProvenance("forge-capability", CapabilityId.Value + "@1.0.0", SecretGeometryExtension.ExtensionId + "@1.0.0", semanticSpan),
+        };
+        SemanticValue Face(string name, Aetheris.Kernel.Core.Topology.FaceId face) => new(
+            $"forge:{sourceIdentity}.{name}", new("BoundaryRegion"),
+            [new BoundaryRegionCapability(), new SelectableCapability(), new ExactGeometryCapability(), new AnalysisRegionCapability(), new ModifyTargetCapability()],
+            [new ExactBrepFaceBinding(body, face, $"forge:{sourceIdentity}.{name}"), new ConstructionIdentityBinding(sourceIdentity)],
+            provenance: semanticProvenance, generatedSourceSpan: semanticSpan, exposedName: name);
+        var semanticRoot = new SemanticValue($"forge:{sourceIdentity}", new("Body"),
+            [new BodyCapability(), new SelectableCapability(), new ExactGeometryCapability(), new ModifyTargetCapability()],
+            [new ExactBrepBodyBinding(body, $"forge:{sourceIdentity}"), new ConstructionIdentityBinding(sourceIdentity)],
+            [Face("TopFace", topFace), Face("LoadRegion", loadFace)], semanticProvenance, generatedSourceSpan: semanticSpan);
         return ForgeCapabilityExecutionResult.Success(new ForgeCapabilityOutput(
             descriptor,
+            ExactBrep: body,
             ContinuumConstruction: descriptor,
             Provenance: new Dictionary<string, string>(StringComparer.Ordinal)
             {
@@ -67,7 +90,8 @@ public sealed class SecretCouponCapability : IForgeCapability
                 ["source"] = context.SourceIdentity,
                 ["template"] = context.TemplateIdentity,
                 ["construction"] = sourceIdentity,
-            }));
+            },
+            SemanticRoot: semanticRoot));
     }
 
     private static double Positive(double value, string name)

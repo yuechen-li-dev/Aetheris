@@ -1,5 +1,12 @@
 # Firmament linear-elastic analysis
 
+> Semantic Value M1: boundary syntax is structurally bound to a
+> `BoundaryRegionCapability` value and normalized to `SemanticRegionBinding`
+> before AnalysisIR. Native analytic faces, canonical InlineStep faces, and
+> exposed Recognize/Forge faces use the same normalizer. AnalysisIR retains
+> stable ID, capability/binding evidence, and provenance; solver/mesh code does
+> not receive the compiler semantic object or mesh IDs.
+
 The M5 analysis block is declarative and erases to AnalysisIR before mechanics execution:
 
 ```firmament

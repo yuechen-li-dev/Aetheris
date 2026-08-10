@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Firmament.FirmamentV2;
+using Aetheris.Semantics;
 
 namespace Aetheris.Kernel.Firmament.Materializer;
 
@@ -183,10 +184,13 @@ public static class PrismaticProfileCompositionParser
         // Profile is the capability boundary. Concept Path is normalized by the
         // canonical profile binder before Compose resolves its operands, so the
         // section-stack compiler never needs a path-specific lowering branch.
-        foreach (var pathProfile in ProfileAuthoringParser.BindPathDerivedProfiles(source, diagnostics))
+        foreach (var semantic in FirmamentSemanticValues.FromProfilesAndConceptPaths(source, reportedDiagnostics: diagnostics))
         {
-            if (!profiles.TryAdd(pathProfile.Key, pathProfile.Value))
-                diagnostics.Add($"compose-profile-duplicate:{pathProfile.Key}");
+            if (!semantic.Capabilities.Supports<ComposeOperandCapability>()) continue;
+            var consumed = ProfileSemanticConsumer.RequireProfile(new(semantic, [], SemanticSourceSpan.Generated("Compose")), "Compose");
+            if (!consumed.IsSuccess) { diagnostics.AddRange(consumed.Diagnostics.Select(item => item.Code + ":" + item.Message)); continue; }
+            if (!profiles.TryAdd(consumed.Value!.Name, consumed.Value))
+                diagnostics.Add($"compose-profile-duplicate:{consumed.Value.Name}");
         }
 
         var compose = ComposeHead.Match(source);

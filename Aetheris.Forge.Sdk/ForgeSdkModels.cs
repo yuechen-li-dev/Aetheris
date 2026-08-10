@@ -5,6 +5,7 @@ using Aetheris.Kernel.Core.Brep;
 using Aetheris.FEA.Abaqus;
 using Aetheris.FEA.Analysis;
 using Aetheris.FEA.Mechanics;
+using Aetheris.Semantics;
 
 namespace Aetheris.Forge.Sdk;
 
@@ -49,7 +50,8 @@ public sealed record ForgeCompilationArtifact(
     BrepBody? Body,
     ForgeCirEvidence? Cir,
     IReadOnlyList<ForgeCapabilityEvidence> Capabilities,
-    IReadOnlyList<ForgeProvenanceEntry> Provenance);
+    IReadOnlyList<ForgeProvenanceEntry> Provenance,
+    SemanticValueDescriptor? SemanticOutput = null);
 
 public sealed record ForgeCompilationResult(
     ForgeCompilationArtifact? Artifact,

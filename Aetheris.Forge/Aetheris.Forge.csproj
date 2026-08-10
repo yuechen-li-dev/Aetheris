@@ -7,5 +7,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Aetheris.Kernel.Core\Aetheris.Kernel.Core.csproj" />
+    <ProjectReference Include="..\Aetheris.Semantics\Aetheris.Semantics.csproj" />
   </ItemGroup>
 </Project>

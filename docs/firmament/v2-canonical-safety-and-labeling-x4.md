@@ -1,5 +1,10 @@
 # CANONICAL-SAFETY-AND-LABELING-X4
 
+> Semantic Value M1 preserves a successful canonical `Recognize` region as an
+> exposed `SemanticValue` member. Its existing STEP entity/FaceId association is
+> the proof for boundary, selection, exact-geometry, and analysis capabilities.
+> Recognition metadata alone never creates a profile capability or new geometry.
+
 Round 2 found two frontend integrity faults: canonical Counterbore/Countersink
 fields were omitted before lowering and an unknown `Hole<Variant>` could be
 ignored. Canonical Hole headers now bind any candidate identifier and reject

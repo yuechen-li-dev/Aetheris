@@ -140,6 +140,44 @@ public sealed class LinearElasticM5Tests
         Assert.Equal("InlineStep",result.AnalysisIr!.Body.SourceKind);Assert.Equal(resource.ContentHash,result.AnalysisIr.Body.ResourceHash);Assert.NotNull(result.NativeResult!.BoundaryLoads!.Single().ExactBrepFaceId);Assert.True(result.Abaqus!.ElementCount>0);
     }
 
+    [Fact]
+    public void InlineStepRecognizeMemberPath_NormalizesToBoundarySemanticValueBeforeAnalysisIr()
+    {
+        var root=FindRoot();var fixtureDirectory=Path.Combine(root,"fixtures","FirmamentV2","Canonical","valid");
+        const string source="""
+            Model ImportedRecognizedAnalysis {
+                Units: mm
+                InlineStep imported {
+                    Path: "../../InlineStep/testdata/canonical-box-10x8x6.step"
+                }
+                Recognize imported {
+                    Region MountFace {
+                        Kind: DatumPlane
+                        Confidence: High
+                        Faces: [1]
+                    }
+                }
+                analysis LinearElastic Pull {
+                    body: imported
+                    material Steel { youngsModulus: 200GPa
+                        poissonRatio: 0.3 }
+                    fixed Clamp { region: imported.MountFace
+                        components: [X, Y, Z] }
+                    force Pull { region: imported.face(+X)
+                        vector: [100N, 0N, 0N] }
+                    lattice: [6, 5, 4]
+                }
+            }
+            """;
+        var compiled=FirmamentAnalysisCompiler.Compile(source,"recognized-analysis.firmament",fixtureDirectory);
+        Assert.True(compiled.IsSuccess,string.Join("; ",compiled.Diagnostics.Select(item=>item.Code+":"+item.Message)));
+        var region=Assert.Single(compiled.Analysis!.Constraints).Region;
+        Assert.StartsWith("recognize:",region.SemanticStableId,StringComparison.Ordinal);
+        Assert.Contains("BoundaryRegionCapable",region.CapabilityEvidence!);
+        Assert.Equal("ExactBrepFace",region.ExactBindingKind);
+        Assert.NotNull(region.ExactBrepFaceId);
+    }
+
     private static string FindRoot(){var d=new DirectoryInfo(AppContext.BaseDirectory);while(d is not null&&!File.Exists(Path.Combine(d.FullName,"Aetheris.slnx")))d=d.Parent;return d?.FullName??throw new DirectoryNotFoundException();}
 
     [Fact]

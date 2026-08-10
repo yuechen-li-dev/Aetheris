@@ -24,7 +24,10 @@ public sealed record SemanticRegionBinding(
     string Path,
     string? ExactBrepFaceId = null,
     IReadOnlyList<string>? RecognizedFaceIds = null,
-    AnalysisProvenance? Provenance = null);
+    AnalysisProvenance? Provenance = null,
+    string? SemanticStableId = null,
+    IReadOnlyList<string>? CapabilityEvidence = null,
+    string? ExactBindingKind = null);
 
 public sealed record LinearElasticMaterialIr(
     string Id,

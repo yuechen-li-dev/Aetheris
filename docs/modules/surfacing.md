@@ -16,7 +16,7 @@ There is no rational weight in `BSplineSurfaceWithKnots`, no rational surface AP
 
 `ParametricSurfaceIr` owns a stable identity, rectangular `u/v` domain, construction kind, source provenance, and a `Point(u,v)` expression whose three outputs must have Length dimension. The deliberately small expression tree supports addition, subtraction, multiplication, division, integer powers, `sin`, and `cos`. `u` and `v` are dimensionless. Forward automatic differentiation evaluates `dP/du` and `dP/dv` from the same tree; oriented normals use `dP/du × dP/dv`, and a zero cross product produces an observable singular result.
 
-The runtime API is the implemented M1 authoring path. A representative explicit construction is:
+The runtime API remains the mathematical construction authority. A representative explicit construction is:
 
 ```csharp
 new ParametricSurfaceIr(
@@ -32,7 +32,7 @@ new ParametricSurfaceIr(
 
 Named constructors cover `HyperbolicParaboloid`, `ParabolicCylinder`, `EllipticParaboloid`, and `Helicoid`. The first three pressure-test polynomial evaluation; the helicoid proves that exact procedural authoring does not have to fit STEP's native analytic subset.
 
-The proposed Firmament surface-block syntax is intentionally not registered in the general Firmament parser yet. Doing so cleanly requires a shared surface semantic layer rather than making `Aetheris.Kernel.Firmament` depend back on a module. The runtime IR and materializer are ready for that compiler bridge; M1 does not claim that `aetheris build` accepts `Surface ... = Parametric { ... }` today.
+The Firmament V2 bridge now accepts these constructions inside an ordinary `Panel` declaration. Template expansion occurs first, then the bounded Surfacing compiler produces the same typed construction IR and wraps it as a Panel. The user-facing hierarchy is mathematical construction -> bounded Panel -> semantic edges -> Panel network. See [Panels](panels.md).
 
 ## Ruled surfaces and transitions
 
@@ -52,8 +52,8 @@ Two sections lower through `RuledTransition`. Three or more compatible line/arc/
 
 ## STEP and BRep
 
-`SurfacePatchBrepMaterializer` creates a thin closed panel: the authoritative patch and its translated mate are bounded by their exact non-rational B-spline boundary curves, and four ruled side faces close the shell. It validates topology/geometry bindings, exports AP242 `B_SPLINE_SURFACE_WITH_KNOTS`, and reimports through the production importer. Certificates retain requested tolerance, maximum sampled residual, optional sampled normal deviation, grid dimensions, sampling policy, and procedural source identity. The six gallery artifacts all export and reimport.
+`PanelIr` is the authoritative bounded engineering object. Because the current AP242 writer accepts closed manifold-solid roots only, `SurfacePatchBrepMaterializer` creates a thin closed **export envelope**: the authoritative patch and its translated mate are bounded by their exact non-rational B-spline boundary curves, and four ruled side faces close the shell. This envelope is not Panel identity. It validates topology/geometry bindings, exports AP242 `B_SPLINE_SURFACE_WITH_KNOTS`, and reimports through the production importer. Certificates retain requested tolerance, maximum sampled residual, optional sampled normal deviation, grid dimensions, sampling policy, and procedural source identity. The six gallery artifacts are first-class Panels and all export/reimport through this envelope.
 
-Raw local control-point refinement, BlendSurface, arbitrary trimming, G2, SurfaceMeshIR support surfaces, Drawing HLR, and direct Firmament grammar integration remain outside this bounded slice. A future `Refine Surface` operation should preserve its parent construction and append refinement provenance; no control-net editor has been added.
+Raw local control-point refinement, BlendSurface, arbitrary trimming, G2, non-rational B-spline SurfaceMeshIR support, and Panel-specific Drawing remain outside this bounded slice. A future `Refine Surface` operation should preserve its parent construction and append refinement provenance; no control-net editor has been added.
 
 Evidence is under [`docs/modules/artifacts/surfacing-m1`](artifacts/surfacing-m1/README.md).

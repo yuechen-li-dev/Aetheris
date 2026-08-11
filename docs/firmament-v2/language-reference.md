@@ -130,6 +130,52 @@ Forge concepts are registered typed capabilities with field descriptors. A Forge
 
 ## Interfaces, Mates, and Assemblies
 
+### Panels and Surfacing
+
+`Panel` is the supported engineering-level Surfacing declaration. Its `Surface` field selects one bounded construction; the result is a four-sided `PanelIr`, not a closed solid Part.
+
+```firmament
+Model Canopy {
+    Units: mm;
+    Panel Saddle {
+        Surface: ParametricSurface {
+            DomainU: [-1, 1];
+            DomainV: [-1, 1];
+            X: 40mm * u;
+            Y: 30mm * v;
+            Z: 12mm * u * v;
+        }
+        Orientation: Front;
+        Thickness: 1.2mm;
+        Material: "Aluminum";
+    }
+}
+```
+
+`u` and `v` are dimensionless. `X`, `Y`, and `Z` must have Length dimension. The bounded expression grammar admits numeric and `mm` constants, `u`, `v`, parentheses, `+`, `-`, `*`, `/`, integer `^`, `sin`, and `cos`. `DomainU` and `DomainV` must be finite increasing intervals.
+
+Named parameter constructions are `HyperbolicParaboloid { Width; Depth; Rise; }`, `ParabolicCylinder`, `EllipticParaboloid`, and `Helicoid { Radius; Rise; Turns; }`. `RuledSurface` and `RuledTransition` require explicit `BoundaryA`/`BoundaryB`. `BoundaryPatch` requires `South`, `North`, `West`, and `East`. `SectionSurface` requires at least two explicitly ordered sections. M0 Firmament boundaries admit `Line`, `Arc`, and `Circle`; arbitrary trim networks and authored non-rational B-spline control nets are not language syntax.
+
+```firmament
+Panel Strip {
+    Surface: RuledSurface {
+        BoundaryA: Line { Start: [-20mm,-10mm,0mm]; End: [20mm,-10mm,0mm]; }
+        BoundaryB: Line { Start: [-20mm, 10mm,5mm]; End: [20mm, 10mm,5mm]; }
+    }
+}
+```
+
+The Panel exposes `South`, `East`, `North`, `West` edges and `SW`, `SE`, `NE`, `NW` corners with deterministic semantic IDs. Edges have `BoundaryEdgeCapable`, `CurveCapable`, `ExactGeometryCapable`, and a directed exact curve binding; raw BRep edge IDs are not exposed. `Orientation: Back` reverses support normal and boundary winding. `Thickness` and `Material` are optional metadata.
+
+Templates may target `Panel`; ordinary Record/Static Record/Table binding and deterministic specialization occur before the Surfacing bridge:
+
+```firmament
+Template < Spec: CanopySpec > Panel RuledCanopy { /* one Surface field */ }
+Panel Roof = RuledCanopy < Spec: StandardCanopy >
+```
+
+Assembly product trees admit `<Panel Name = Definition>`. A Panel-edge Interface uses two Roles requiring `BoundaryEdgeCapable` (normally also `CurveCapable` and `ExactGeometryCapable`), plus `Continuity: G0;`, optional `Correspondence: OppositeDirections|SameDirection;`, and optional `GapTolerance: ...mm;`. It lowers through the existing Interface/Mate architecture and records deterministic endpoint/G0 residuals. `G1` is bound but diagnosed as unsupported. A Mate does not Boolean-join Panels.
+
 `Concept` is unary structural semantics; `Interface` is an independent relational contract over named Roles.
 
 ```firmament
@@ -173,11 +219,11 @@ retains its structured private contributor chain.
 
 | Status | Constructs |
 |---|---|
-| Supported | Model, Units, primitive literals/types, let, Record, Static Record/Table/array, indexing, with, Concept, Concept Struct, Struct, Expose, Concept Path, Profile, Compose, bounded Modify/Hole/Pattern/EdgeFinish/Selection, Template, Match, Require, InlineStep, bounded Recognize/Replace, PMI datum/diameter binding, Analysis declarations, bounded Drawing declaration/Concept/Template specialization, SemanticValue, Interface/Role/Lower/Fit/Allow, Assembly/Part/Anchor/Mate/Relation/Dimension/tol, Assert Volume, Assert ToleranceStackup |
+| Supported | Model, Units, primitive literals/types, let, Record, Static Record/Table/array, indexing, with, Concept, Concept Struct, Struct, Expose, Concept Path, Profile, Compose, bounded Modify/Hole/Pattern/EdgeFinish/Selection, Template, Match, Require, Panel with ParametricSurface/named/RuledSurface/RuledTransition/BoundaryPatch/SectionSurface construction, semantic Panel edges/corners, exact G0 Panel edge Mates, InlineStep, bounded Recognize/Replace, PMI datum/diameter binding, Analysis declarations, bounded Drawing declaration/Concept/Template specialization, SemanticValue, Interface/Role/Lower/Fit/Allow, Assembly/Part/Panel/Anchor/Mate/Relation/Dimension/tol, Assert Volume, Assert ToleranceStackup |
 | Experimental | standalone/fill lattice routes, broader PMI controls/export, general Forge source invocation, some Slot/EdgeFinish/Boolean/placement routes, M1 Template Part syntax while the central grammar remains split |
 | Internal-only | AIR/CIR/BRep plans, topology IDs, semantic source maps, Template expansion artifacts, Judgment/route machinery |
 | Legacy/Deprecated | Firmament V1 TOON-style fixture syntax, `.firmasm`, transform-first assembly execution, legacy lowercase/alternate PMI spellings accepted for compatibility |
 | Parser-only / dead | no syntax is promoted solely from an AST type; historical AST `FirmamentV2TemplateDecl` manufacturing-template representation and broad parser regex branches without binder/lowering evidence remain internal/legacy, not public Template syntax |
-| Future/incomplete | Template-authored subassemblies, native AP242 product structure/import, recognizer-produced datum/dimension capabilities, unrestricted symbolic relations, general kinematics/contact/assembly FEA |
+| Future/incomplete | Panel G1/G2 verification, arbitrary trim networks, SheetMetal flat patterns, SubD/SDF-backed Panels, native AP242 Panel semantics, recognizer-produced datum/dimension capabilities, unrestricted symbolic relations, general kinematics/contact/assembly FEA |
 
 The machine-readable status and source evidence are in `language-features.json` and `artifacts/language-audit-m1/`.

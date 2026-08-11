@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Topology;
 
 namespace Aetheris.Semantics;
@@ -33,6 +34,8 @@ public sealed record AxisCapability : ISemanticCapability { public string Name =
 public sealed record PlaneCapability : ISemanticCapability { public string Name => "PlaneCapable"; }
 public sealed record PointCapability : ISemanticCapability { public string Name => "PointCapable"; }
 public sealed record DimensionalCapability : ISemanticCapability { public string Name => "DimensionalCapable"; }
+public sealed record CurveCapability : ISemanticCapability { public string Name => "CurveCapable"; }
+public sealed record BoundaryEdgeCapability : ISemanticCapability { public string Name => "BoundaryEdgeCapable"; }
 
 public sealed class SemanticCapabilitySet
 {
@@ -59,6 +62,15 @@ public sealed record ExactBrepFaceBinding(BrepBody Body, FaceId Face, string Reg
 
 public sealed record ExactBrepRegionBinding(BrepBody Body, IReadOnlyList<FaceId> Faces, string RegionStableId)
     : SemanticBinding("ExactBrepRegion", RegionStableId);
+
+/// <summary>An authoring-stable directed curve. It deliberately does not expose a raw BRep EdgeId.</summary>
+public sealed record ExactCurveBinding(
+    CurveGeometry Curve,
+    double ParameterStart,
+    double ParameterEnd,
+    bool FollowsNativeParameter,
+    string CurveStableId)
+    : SemanticBinding("ExactCurve", CurveStableId);
 
 /// <summary>Implemented by a producer that owns an exact, validated profile representation.</summary>
 public abstract record ExactProfileBinding(string ProfileStableId)
@@ -212,6 +224,8 @@ public static class SemanticValueValidator
         RequireBinding<PlaneCapability, ExactPlaneBinding>(value, diagnostics);
         RequireBinding<PointCapability, ExactPointBinding>(value, diagnostics);
         RequireBinding<DimensionalCapability, TolerancedDimensionBinding>(value, diagnostics);
+        RequireBinding<CurveCapability, ExactCurveBinding>(value, diagnostics);
+        RequireBinding<BoundaryEdgeCapability, ExactCurveBinding>(value, diagnostics);
         RequireAnyExactBinding<ExactGeometryCapability>(value, diagnostics);
         RequireAnyExactBinding<SelectableCapability>(value, diagnostics);
         RequireBinding<ComposeOperandCapability, ExactProfileBinding>(value, diagnostics);
@@ -232,7 +246,7 @@ public static class SemanticValueValidator
         where TCapability : class, ISemanticCapability
     {
         if (!value.Capabilities.Supports<TCapability>()) return;
-        if (!value.Bindings.Any(binding => binding is ExactProfileBinding or ExactBrepBodyBinding or ExactBrepFaceBinding or ExactBrepRegionBinding or ExactSelectionBinding or ExactAnalysisRegionBinding))
+        if (!value.Bindings.Any(binding => binding is ExactProfileBinding or ExactBrepBodyBinding or ExactBrepFaceBinding or ExactBrepRegionBinding or ExactCurveBinding or ExactSelectionBinding or ExactAnalysisRegionBinding or ExactPointBinding or ExactAxisBinding or ExactPlaneBinding or TolerancedDimensionBinding))
             diagnostics.Add(new(NoExactBinding, $"{newCapabilityName<TCapability>()} on '{value.StableIdentity}' requires exact producer evidence.", value.AuthoredSourceSpan));
     }
 

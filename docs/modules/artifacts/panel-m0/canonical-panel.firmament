@@ -1,0 +1,10 @@
+Model CanonicalPanel {
+  Units: mm;
+  Panel Saddle {
+    Surface: ParametricSurface {
+      DomainU: [-1, 1]; DomainV: [-1, 1];
+      X: 40mm * u; Y: 30mm * v; Z: 12mm * u * v;
+    }
+    Orientation: Front; Thickness: 1.2mm; Material: "Aluminum";
+  }
+}

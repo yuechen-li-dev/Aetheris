@@ -19,6 +19,6 @@ The six generated AP242 files are:
 
 No artifact contains `RATIONAL_B_SPLINE_SURFACE`; all spline supports are non-rational `B_SPLINE_SURFACE_WITH_KNOTS`. Re-running the command regenerates hashes and makes determinism observable.
 
-Known boundary: the general Firmament parser does not yet consume surface declarations. The implemented authoring authority is the typed `Aetheris.Surfacing` IR/API, and the next compiler step is a dependency-safe Firmament-to-surface-IR bridge.
+Historical boundary at Surfacing M1: the general Firmament parser did not consume surface declarations. Panel M0 has now closed this gap with ordinary `Panel { Surface: ... }` source lowering to the same typed `Aetheris.Surfacing` construction IR; current proof lives in `../panel-m0/`.
 
 SurfaceMeshIR was exercised against `helicoid-panel.step`. It sees all 6 enclosed-manifold faces and the 8 non-rational spline boundary curves, then rejects the first face with: `SurfaceMeshIR does not support face 1: the face has no bound Plane/Cylinder/Cone/Sphere/Torus support.` This is the expected current support-matrix boundary; M1 does not add a competing spline-support mesher. Drawing HLR was not attempted for the same unsupported support family.

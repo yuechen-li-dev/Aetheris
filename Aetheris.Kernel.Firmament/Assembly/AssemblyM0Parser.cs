@@ -73,8 +73,14 @@ public sealed class AssemblyM0Parser
             InterfaceFitDefinition? fit = fitMatch.Success ? new(fitMatch.Groups["a"].Value, fitMatch.Groups["am"].Value, fitMatch.Groups["b"].Value, fitMatch.Groups["bm"].Value) : null;
             var free = Regex.Matches(body, @"\bAllow\s+(?<kind>rotation|translation):(?<axis>[A-Za-z-]+)\s*;", RegexOptions.CultureInvariant)
                 .Select(m => m.Groups["kind"].Value + ":" + m.Groups["axis"].Value).ToArray();
+            var continuity = Regex.Match(body,@"\bContinuity\s*:\s*(?<value>G0|G1)\s*;",RegexOptions.CultureInvariant);
+            var correspondence = Regex.Match(body,@"\bCorrespondence\s*:\s*(?<value>OppositeDirections|SameDirection)\s*;",RegexOptions.CultureInvariant);
+            var gap = Regex.Match(body,@"\bGapTolerance\s*:\s*(?<value>[-+]?[0-9.]+)mm\s*;",RegexOptions.CultureInvariant);
             if (roles.Length == 0) diagnostics.Add(new("assembly-interface-no-roles", $"Interface '{name}' must define at least one Role."));
-            result.Add(new($"interface:{name}", name, roles, requirements, fit, free, SemanticSourceSpan.Generated(sourceIdentity)));
+            result.Add(new($"interface:{name}", name, roles, requirements, fit, free, SemanticSourceSpan.Generated(sourceIdentity),
+                continuity.Success?continuity.Groups["value"].Value:null,
+                correspondence.Success?correspondence.Groups["value"].Value:"OppositeDirections",
+                gap.Success?Number(gap.Groups["value"].Value):1e-6));
         }
         return result.OrderBy(x => x.Name, StringComparer.Ordinal).ToArray();
     }
@@ -285,7 +291,7 @@ public sealed class AssemblyM0Parser
     {
         // One bounded generic argument list is admitted in a Part definition. The
         // inner '>' belongs to the Firmament Template application, not the XML-like tag.
-        var tagPattern = new Regex(@"<(?<close>/)?(?<kind>Assembly|Part)\s*(?<rest>[^<>]*(?:<[^<>]*>[^<>]*)?)>", RegexOptions.CultureInvariant);
+        var tagPattern = new Regex(@"<(?<close>/)?(?<kind>Assembly|Part|Panel)\s*(?<rest>[^<>]*(?:<[^<>]*>[^<>]*)?)>", RegexOptions.CultureInvariant);
         var matches = tagPattern.Matches(body).Cast<Match>().ToArray();
         MutableNode? root = null;
         var stack = new Stack<(MutableNode node, int bodyStart)>();
@@ -300,7 +306,7 @@ public sealed class AssemblyM0Parser
                     ? Regex.Match(rest, @"^(?<name>[A-Za-z_]\w*)(?:\s*=\s*(?<definition>[A-Za-z_]\w*(?:\s*<[^>]+>)?))?$")
                     : Regex.Match(rest, @"^(?<name>[A-Za-z_]\w*)\s*=\s*(?<definition>[A-Za-z_]\w*(?:\s*<[^>]+>)?)$");
                 if (!nodeMatch.Success) { diagnostics.Add(new("assembly-tree-invalid-tag", $"Invalid <{kind}> tree tag '{tag.Value}'.")); continue; }
-                var node = new MutableNode(nodeMatch.Groups["name"].Value, kind == "Assembly" ? AssemblyInstanceKind.Assembly : AssemblyInstanceKind.Part,
+                var node = new MutableNode(nodeMatch.Groups["name"].Value, kind == "Assembly" ? AssemblyInstanceKind.Assembly : kind == "Panel" ? AssemblyInstanceKind.Panel : AssemblyInstanceKind.Part,
                     kind == "Assembly" ? (nodeMatch.Groups["definition"].Success ? NormalizeIdentity(nodeMatch.Groups["definition"].Value) : nodeMatch.Groups["name"].Value) : nodeMatch.Groups["definition"].Value);
                 if (kind == "Assembly" && nodeMatch.Groups["definition"].Success)
                 {
@@ -326,7 +332,7 @@ public sealed class AssemblyM0Parser
                 { diagnostics.Add(new("assembly-tree-unbalanced", $"Unexpected closing tag '{tag.Value}'.")); continue; }
                 var open = stack.Pop();
                 var nodeBody = body[open.bodyStart..tag.Index];
-                if (open.node.Kind == AssemblyInstanceKind.Part)
+                if (open.node.Kind is AssemblyInstanceKind.Part or AssemblyInstanceKind.Panel)
                 {
                     open.node.Semantics.AddRange(ParseSemantics(nodeBody, open.node.Definition, sourceIdentity, diagnostics));
                 }

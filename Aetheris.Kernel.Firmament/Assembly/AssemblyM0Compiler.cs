@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Numerics;
+using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Semantics;
 
 namespace Aetheris.Kernel.Firmament.Assembly;
@@ -31,6 +32,7 @@ public sealed class AssemblyM0Compiler
 
         var mateWatch = Stopwatch.StartNew();
         var mates = BindMates(source, interfaces, byPath, diagnostics);
+        var panelMateEvidence = ValidatePanelEdgeMates(mates, interfaces, instances, diagnostics);
         mateWatch.Stop();
 
         var placementWatch = Stopwatch.StartNew();
@@ -63,7 +65,7 @@ public sealed class AssemblyM0Compiler
             .Cast<AssemblyDefinitionIr>().DistinctBy(definition => definition.StableId).OrderBy(definition => definition.StableId, StringComparer.Ordinal).ToArray();
         var ir = new AssemblyIr("aetheris/assembly-ir/m0", $"assembly:{source.Name}", source.Name,
             instances.Single(x => x.ParentStableId is null).StableId, instances, source.Interfaces, mates,
-            constraints, placements, relations, stackups, fits, diagnostics, assemblyDefinitions);
+            constraints, placements, relations, stackups, fits, diagnostics, assemblyDefinitions, panelMateEvidence);
         return new(ir, diagnostics, perf);
     }
 
@@ -137,6 +139,38 @@ public sealed class AssemblyM0Compiler
 
     private static bool HasCapability(SemanticValue value, string capability) =>
         value.Capabilities.Values.Any(x => string.Equals(x.Name, capability, StringComparison.Ordinal));
+
+    private static IReadOnlyList<PanelMateEvidenceIr> ValidatePanelEdgeMates(
+        IReadOnlyList<MateIr> mates,IReadOnlyDictionary<string,InterfaceDefinition> interfaces,
+        IReadOnlyList<AssemblyInstanceIr> instances,List<AssemblyDiagnostic> diagnostics)
+    {
+        var values=Flatten(instances.Select(instance=>instance.SemanticRoot)).ToDictionary(value=>value.StableIdentity,StringComparer.Ordinal);
+        var evidence=new List<PanelMateEvidenceIr>();var used=new HashSet<string>(StringComparer.Ordinal);
+        foreach(var mate in mates.OrderBy(item=>item.StableId,StringComparer.Ordinal))
+        {
+            var definition=interfaces.Values.Single(item=>item.StableId==mate.InterfaceStableId);
+            if(definition.Roles.Count!=2||definition.Roles.Any(role=>!role.RequiredCapabilities.Contains("BoundaryEdgeCapable",StringComparer.Ordinal)))continue;
+            if(mate.Roles.Count!=2)continue;
+            var first=values.GetValueOrDefault(mate.Roles[0].ParticipantSemanticValueId);var second=values.GetValueOrDefault(mate.Roles[1].ParticipantSemanticValueId);
+            if(first is null||second is null||!first.TryBinding<ExactCurveBinding>(out var a)||!second.TryBinding<ExactCurveBinding>(out var b))
+            {diagnostics.Add(new("assembly-panel-mate-missing-exact-edge-binding",$"Panel Mate '{mate.Name}' requires two exact directed curve bindings."));continue;}
+            foreach(var edge in new[]{first.StableIdentity,second.StableIdentity})if(!used.Add(edge))diagnostics.Add(new("assembly-panel-mate-edge-already-mated",$"Panel edge '{edge}' is already used by a one-to-one Mate."));
+            var opposite=definition.EdgeCorrespondence=="OppositeDirections";
+            var endpoint=Math.Max(Distance(Evaluate(a,0),Evaluate(b,opposite?1:0)),Distance(Evaluate(a,1),Evaluate(b,opposite?0:1)));
+            var residual=0d;for(var i=0;i<=16;i++){var t=i/16d;residual=Math.Max(residual,Distance(Evaluate(a,t),Evaluate(b,opposite?1-t:t)));}
+            if(endpoint>definition.GapToleranceMm)diagnostics.Add(new("assembly-panel-mate-endpoint-mismatch",$"Panel Mate '{mate.Name}' endpoint residual {endpoint:G6} mm exceeds {definition.GapToleranceMm:G6} mm."));
+            if(residual>definition.GapToleranceMm)
+            {diagnostics.Add(new("assembly-panel-mate-edge-shape-mismatch",$"Panel Mate '{mate.Name}' edge residual {residual:G6} mm exceeds {definition.GapToleranceMm:G6} mm."));diagnostics.Add(new("assembly-panel-mate-g0-failure",$"Panel Mate '{mate.Name}' failed G0 continuity."));}
+            if(definition.Continuity=="G1")diagnostics.Add(new("assembly-panel-mate-g1-unsupported",$"Panel Mate '{mate.Name}' requests G1; Panel M0 verifies G0 only."));
+            var valid=endpoint<=definition.GapToleranceMm&&residual<=definition.GapToleranceMm&&definition.Continuity!="G1";
+            evidence.Add(new(mate.StableId,first.StableIdentity,second.StableIdentity,definition.Continuity??"G0",definition.EdgeCorrespondence,endpoint,residual,valid?"valid":"invalid"));
+        }
+        return evidence;
+
+        static Aetheris.Kernel.Core.Math.Point3D Evaluate(ExactCurveBinding binding,double normalized)
+        {var parameter=binding.ParameterStart+Math.Clamp(normalized,0,1)*(binding.ParameterEnd-binding.ParameterStart);return binding.Curve.Kind switch{CurveGeometryKind.Line3=>binding.Curve.Line3!.Value.Evaluate(parameter),CurveGeometryKind.Circle3=>binding.Curve.Circle3!.Value.Evaluate(parameter),CurveGeometryKind.BSpline3=>binding.Curve.BSpline3!.Value.Evaluate(parameter),_=>throw new NotSupportedException($"Unsupported Panel edge family {binding.Curve.Kind}.")};}
+        static double Distance(Aetheris.Kernel.Core.Math.Point3D a,Aetheris.Kernel.Core.Math.Point3D b)=>(a-b).Length;
+    }
 
     private static IReadOnlyList<PlacementConstraintIr> LowerConstraints(IReadOnlyList<MateIr> mates,
         IReadOnlyDictionary<string, InterfaceDefinition> interfaces, IReadOnlyList<AssemblyInstanceIr> instances,

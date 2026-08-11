@@ -45,6 +45,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Aetheris.Kernel.Firmament\Aetheris.Kernel.Firmament.csproj" />
+    <ProjectReference Include="..\Aetheris.Surfacing\Aetheris.Surfacing.csproj" />
     <ProjectReference Include="..\Aetheris.Kernel.Core\Aetheris.Kernel.Core.csproj" />
     <ProjectReference Include="..\Aetheris.Firmament.FrictionLab\Aetheris.Firmament.FrictionLab.csproj" />
     <ProjectReference Include="..\tests\Aetheris.TestForgePack\Aetheris.TestForgePack.csproj" />

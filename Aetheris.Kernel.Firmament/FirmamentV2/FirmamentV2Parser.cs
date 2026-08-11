@@ -329,6 +329,18 @@ public static class FirmamentV2Parser
         source = canonicalStaticExpansion.Source;
         v2AdmissionCandidate |= IsV2AdmissionCandidate(source);
 
+        if (Regex.IsMatch(source, @"\bPanel\s+[A-Za-z_][A-Za-z0-9_]*\s*\{", RegexOptions.CultureInvariant))
+        {
+            var panelCompilation = FirmamentPanelCompiler.Compile(source, templateExpansion.Instantiations);
+            diagnostics.AddRange(panelCompilation.Diagnostics);
+            diagnostics.Add(panelCompilation.IsSuccess ? "firmament-v2-parse-succeeded" : "firmament-v2-parse-failed");
+            if (!panelCompilation.IsSuccess)
+                return FirmamentV2ParseResult.Failure(diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray());
+            var panelDocument = new FirmamentV2Document(panelCompilation.ModelName, "mm", [],
+                TemplateInstantiations: templateExpansion.Instantiations, Panels: panelCompilation.Panels);
+            return FirmamentV2ParseResult.Success(panelDocument, diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray());
+        }
+
         // Canonical V2 is parsed as one document, before compatibility adapters.  The
         // adapters below remain only for old fixtures and no longer define the language
         // an author must select for ordinary mechanical work.

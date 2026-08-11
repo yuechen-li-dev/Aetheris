@@ -2,7 +2,7 @@ using Aetheris.Semantics;
 
 namespace Aetheris.Kernel.Firmament.Assembly;
 
-public enum AssemblyInstanceKind { Assembly, Part }
+public enum AssemblyInstanceKind { Assembly, Part, Panel }
 public enum AssemblyDiagnosticSeverity { Warning, Error }
 public enum PlacementConstraintKind { AxisCoincident, AxisAligned, PlaneCoincident, PointCoincident, OffsetAlongAxis }
 public enum PlacementStatus { Anchored, Resolved, Underconstrained, Overconstrained, Unresolved }
@@ -24,7 +24,10 @@ public sealed record InterfaceDefinition(
     IReadOnlyList<InterfaceRequirementDefinition> Requirements,
     InterfaceFitDefinition? Fit = null,
     IReadOnlyList<string>? AdmittedFreeMotions = null,
-    SemanticSourceSpan? SourceSpan = null);
+    SemanticSourceSpan? SourceSpan = null,
+    string? Continuity = null,
+    string EdgeCorrespondence = "OppositeDirections",
+    double GapToleranceMm = 1e-6);
 
 public sealed record AssemblyMemberSource(
     string Name, AssemblyInstanceKind Kind, string DefinitionIdentity,
@@ -80,6 +83,7 @@ public sealed record AssemblyInstanceIr(
 
 public sealed record MateEndpointIr(string Role, AssemblyPath ParticipantPath, string ParticipantSemanticValueId, IReadOnlyList<string> RequiredCapabilities);
 public sealed record MateIr(string StableId, string Name, string InterfaceStableId, IReadOnlyList<MateEndpointIr> Roles, IReadOnlyList<string> ConstraintIds, string ValidationStatus);
+public sealed record PanelMateEvidenceIr(string MateStableId,string FirstEdgeStableId,string SecondEdgeStableId,string Continuity,string Correspondence,double EndpointResidualMm,double G0ResidualMm,string Status);
 public sealed record PlacementConstraintIr(
     string StableId, PlacementConstraintKind Kind, string MateStableId,
     string FirstSemanticValueId, string SecondSemanticValueId, double OffsetMm,
@@ -129,7 +133,8 @@ public sealed record AssemblyIr(
     IReadOnlyList<PlacementResultIr> Placements, IReadOnlyList<DimensionalRelationIr> DimensionalRelations,
     IReadOnlyList<ToleranceStackupResultIr> ToleranceStackups, IReadOnlyList<InterfaceFitResultIr> FitResults,
     IReadOnlyList<AssemblyDiagnostic> Diagnostics,
-    IReadOnlyList<AssemblyDefinitionIr>? AssemblyDefinitions = null);
+    IReadOnlyList<AssemblyDefinitionIr>? AssemblyDefinitions = null,
+    IReadOnlyList<PanelMateEvidenceIr>? PanelMateEvidence = null);
 
 public sealed record AssemblyCompilationResult(AssemblyIr? Ir, IReadOnlyList<AssemblyDiagnostic> Diagnostics, AssemblyPerformanceIr? Performance = null)
 {

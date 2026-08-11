@@ -1,0 +1,187 @@
+{
+  "stableId": "panel-showcase:developable-folded-canopy",
+  "panels": [
+    {
+      "stableId": "panel:folded-canopy:0",
+      "construction": "RuledSurface",
+      "developability": {
+        "kind": "Developable",
+        "method": "normalized scalar triple product C0\u0027(u) \u00B7 (ruling(u) \u00D7 ruling\u0027(u))",
+        "maximumTripleProduct": 0,
+        "sampleCount": 17,
+        "explanation": "Sampled rulings satisfy the ruled developability condition."
+      },
+      "edges": [
+        {
+          "name": "South",
+          "stableId": "panel:folded-canopy:0:edge:south"
+        },
+        {
+          "name": "East",
+          "stableId": "panel:folded-canopy:0:edge:east"
+        },
+        {
+          "name": "North",
+          "stableId": "panel:folded-canopy:0:edge:north"
+        },
+        {
+          "name": "West",
+          "stableId": "panel:folded-canopy:0:edge:west"
+        }
+      ]
+    },
+    {
+      "stableId": "panel:folded-canopy:1",
+      "construction": "RuledSurface",
+      "developability": {
+        "kind": "Developable",
+        "method": "normalized scalar triple product C0\u0027(u) \u00B7 (ruling(u) \u00D7 ruling\u0027(u))",
+        "maximumTripleProduct": 0,
+        "sampleCount": 17,
+        "explanation": "Sampled rulings satisfy the ruled developability condition."
+      },
+      "edges": [
+        {
+          "name": "South",
+          "stableId": "panel:folded-canopy:1:edge:south"
+        },
+        {
+          "name": "East",
+          "stableId": "panel:folded-canopy:1:edge:east"
+        },
+        {
+          "name": "North",
+          "stableId": "panel:folded-canopy:1:edge:north"
+        },
+        {
+          "name": "West",
+          "stableId": "panel:folded-canopy:1:edge:west"
+        }
+      ]
+    },
+    {
+      "stableId": "panel:folded-canopy:2",
+      "construction": "RuledSurface",
+      "developability": {
+        "kind": "Developable",
+        "method": "normalized scalar triple product C0\u0027(u) \u00B7 (ruling(u) \u00D7 ruling\u0027(u))",
+        "maximumTripleProduct": 0,
+        "sampleCount": 17,
+        "explanation": "Sampled rulings satisfy the ruled developability condition."
+      },
+      "edges": [
+        {
+          "name": "South",
+          "stableId": "panel:folded-canopy:2:edge:south"
+        },
+        {
+          "name": "East",
+          "stableId": "panel:folded-canopy:2:edge:east"
+        },
+        {
+          "name": "North",
+          "stableId": "panel:folded-canopy:2:edge:north"
+        },
+        {
+          "name": "West",
+          "stableId": "panel:folded-canopy:2:edge:west"
+        }
+      ]
+    },
+    {
+      "stableId": "panel:folded-canopy:3",
+      "construction": "RuledSurface",
+      "developability": {
+        "kind": "Developable",
+        "method": "normalized scalar triple product C0\u0027(u) \u00B7 (ruling(u) \u00D7 ruling\u0027(u))",
+        "maximumTripleProduct": 0,
+        "sampleCount": 17,
+        "explanation": "Sampled rulings satisfy the ruled developability condition."
+      },
+      "edges": [
+        {
+          "name": "South",
+          "stableId": "panel:folded-canopy:3:edge:south"
+        },
+        {
+          "name": "East",
+          "stableId": "panel:folded-canopy:3:edge:east"
+        },
+        {
+          "name": "North",
+          "stableId": "panel:folded-canopy:3:edge:north"
+        },
+        {
+          "name": "West",
+          "stableId": "panel:folded-canopy:3:edge:west"
+        }
+      ]
+    }
+  ],
+  "mates": [
+    {
+      "stableId": "folded-canopy:seam:0",
+      "edgeA": "panel:folded-canopy:0:edge:north",
+      "edgeB": "panel:folded-canopy:1:edge:south",
+      "continuity": "PositionG0",
+      "correspondence": "OppositeDirections",
+      "endpointResidual": 0,
+      "g0Residual": 0,
+      "status": "valid"
+    },
+    {
+      "stableId": "folded-canopy:seam:1",
+      "edgeA": "panel:folded-canopy:1:edge:north",
+      "edgeB": "panel:folded-canopy:2:edge:south",
+      "continuity": "PositionG0",
+      "correspondence": "OppositeDirections",
+      "endpointResidual": 0,
+      "g0Residual": 0,
+      "status": "valid"
+    },
+    {
+      "stableId": "folded-canopy:seam:2",
+      "edgeA": "panel:folded-canopy:2:edge:north",
+      "edgeB": "panel:folded-canopy:3:edge:south",
+      "continuity": "PositionG0",
+      "correspondence": "OppositeDirections",
+      "endpointResidual": 0,
+      "g0Residual": 0,
+      "status": "valid"
+    }
+  ],
+  "freeEdges": [
+    "panel:folded-canopy:0:edge:east",
+    "panel:folded-canopy:0:edge:south",
+    "panel:folded-canopy:0:edge:west",
+    "panel:folded-canopy:1:edge:east",
+    "panel:folded-canopy:1:edge:west",
+    "panel:folded-canopy:2:edge:east",
+    "panel:folded-canopy:2:edge:west",
+    "panel:folded-canopy:3:edge:east",
+    "panel:folded-canopy:3:edge:north",
+    "panel:folded-canopy:3:edge:west"
+  ],
+  "steps": [
+    {
+      "panel": "panel:folded-canopy:0",
+      "file": "developable-folded-canopy-0.step",
+      "sha256": "6297FFB25E34EC92C34BE02ACE286D85D793E2C1468C150408E54C244DEC32AA"
+    },
+    {
+      "panel": "panel:folded-canopy:1",
+      "file": "developable-folded-canopy-1.step",
+      "sha256": "71C1DD75B7ECAA1389A5B1DAF992FF3638E66FF42FAE1D73849B9ADE46D01BB0"
+    },
+    {
+      "panel": "panel:folded-canopy:2",
+      "file": "developable-folded-canopy-2.step",
+      "sha256": "988582CABF81533C73BADCC38B7EA498B0173E3FA41608620E9149308A9596B1"
+    },
+    {
+      "panel": "panel:folded-canopy:3",
+      "file": "developable-folded-canopy-3.step",
+      "sha256": "6BA383FFD23A9D60C4A906E43615371897293D2DE3266C8B6049E27C6AD60E0B"
+    }
+  ]
+}

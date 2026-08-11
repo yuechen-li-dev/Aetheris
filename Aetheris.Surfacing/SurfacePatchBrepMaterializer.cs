@@ -43,7 +43,7 @@ public static class SurfacePatchBrepMaterializer
 
 public sealed record SurfacingGalleryEntry(string StableId,SurfaceConstructionKind ConstructionKind,SurfaceGeometry Support,
     Func<double,double,Point3D> Evaluate,SurfaceMaterializationKind MaterializationKind,ApproximationCertificate? Approximation,
-    DevelopabilityEvidence Developability,int SourceDeclarations,string AuthoringSummary);
+    DevelopabilityEvidence Developability,int SourceDeclarations,string AuthoringSummary,PanelIr Panel);
 
 public static class SurfacingGallery
 {
@@ -51,19 +51,19 @@ public static class SurfacingGallery
     {
         var entries=new List<SurfacingGalleryEntry>();
         AddParametric(MathematicalSurfaces.HyperbolicParaboloid("pringles-saddle",40,30,12),9,9,4,"named HyperbolicParaboloid(width, depth, rise)");
-        var canopy=RuledSurfaceLowering.Lower(RuledSurfaceLowering.Saddle("twisted-ruled-canopy",40,25,12)).Patch!;AddRuled(canopy,4,"two authoritative lines and straight rulings");
+        var canopyIr=RuledSurfaceLowering.Saddle("twisted-ruled-canopy",40,25,12);var canopy=RuledSurfaceLowering.Lower(canopyIr).Patch!;AddRuled(canopyIr,canopy,4,"two authoritative lines and straight rulings");
         var conoidA=new RuledBoundary.Line("conoid:axis",new(-35,-20,0),new(35,-20,0));var conoidB=new RuledBoundary.Arc("conoid:arch",new(0,20,0),Direction3D.Create(new(0,-1,0)),35,Direction3D.Create(new(-1,0,0)),0,double.Pi);
-        var conoidIr=new RuledSurfaceIr("conoid-panel",RuledConstructionKind.RuledSurface,conoidA,conoidB,new(conoidA.StableId,"gallery","axis"),new(conoidB.StableId,"gallery","arch"));AddRuled(RuledSurfaceLowering.Lower(conoidIr).Patch!,5,"line-to-arc ruled conoid family");
+        var conoidIr=new RuledSurfaceIr("conoid-panel",RuledConstructionKind.RuledSurface,conoidA,conoidB,new(conoidA.StableId,"gallery","axis"),new(conoidB.StableId,"gallery","arch"));AddRuled(conoidIr,RuledSurfaceLowering.Lower(conoidIr).Patch!,5,"line-to-arc ruled conoid family");
         var south=new RuledBoundary.Line("panel:south",new(-30,-20,0),new(30,-20,0));var north=new RuledBoundary.Line("panel:north",new(-30,20,5),new(30,20,5));
         RuledBoundary west=SideArc("panel:west",-30);RuledBoundary east=SideArc("panel:east",30);
-        var boundaries=new RuledBoundary[]{south,north,west,east};var bp=boundaries.Select(b=>new BoundaryProvenance(b.StableId,"gallery:boundary-panel",b.StableId)).ToArray();var panel=BoundaryPatchLowering.Lower(new("four-boundary-panel",south,north,west,east,bp)).Patch!;AddConstructed(panel,8,"four boundary curves; no authored control net");
-        var sections=new RuledBoundary[]{Section("fairing:s0",0,0,26),Section("fairing:s1",20,12,34),Section("fairing:s2",40,4,22),Section("fairing:s3",60,0,14)};var sp=sections.Select((s,i)=>new BoundaryProvenance(s.StableId,"gallery:fairing",$"section-{i}")).ToArray();var fairing=SectionSurfaceLowering.Lower(new("section-fairing",sections,sp)).Patch!;AddConstructed(fairing,7,"four ordered semantic sections");
+        var boundaries=new RuledBoundary[]{south,north,west,east};var bp=boundaries.Select(b=>new BoundaryProvenance(b.StableId,"gallery:boundary-panel",b.StableId)).ToArray();var boundaryIr=new BoundaryPatchIr("four-boundary-panel",south,north,west,east,bp);var panel=BoundaryPatchLowering.Lower(boundaryIr).Patch!;AddConstructed(panel,PanelFactory.FromBoundaryPatch(boundaryIr).Panel!,8,"four boundary curves; no authored control net");
+        var sections=new RuledBoundary[]{Section("fairing:s0",0,0,26),Section("fairing:s1",20,12,34),Section("fairing:s2",40,4,22),Section("fairing:s3",60,0,14)};var sp=sections.Select((s,i)=>new BoundaryProvenance(s.StableId,"gallery:fairing",$"section-{i}")).ToArray();var sectionIr=new SectionSurfaceIr("section-fairing",sections,sp);var fairing=SectionSurfaceLowering.Lower(sectionIr).Patch!;AddConstructed(fairing,PanelFactory.FromSectionSurface(sectionIr).Panel!,7,"four ordered semantic sections");
         AddParametric(MathematicalSurfaces.Helicoid("helicoid-panel",32,18,.75),17,17,5,"named Helicoid(radius, rise, turns)");
         return entries;
 
-        void AddParametric(ParametricSurfaceIr source,int cu,int cv,int declarations,string summary){var mat=ParametricSurfaceMaterializer.Materialize(source,cu,cv,.1);entries.Add(new(source.StableId,source.ConstructionKind,SurfaceGeometry.FromBSplineSurfaceWithKnots(mat.Surface),(u,v)=>source.Evaluate(source.Domain.U.Map(u),source.Domain.V.Map(v)).Point,mat.Kind,mat.Certificate,new(DevelopabilityKind.Indeterminate,"parametric curvature classification",null,0,"Not assumed developable."),declarations,summary));}
-        void AddRuled(RuledSurfacePatch patch,int declarations,string summary)=>entries.Add(new(patch.Ir.StableId,patch.Ir.Kind==RuledConstructionKind.RuledTransition?SurfaceConstructionKind.RuledTransition:SurfaceConstructionKind.RuledSurface,patch.ExactSurface,patch.Evaluate,patch.MaterializationKind,patch.ApproximationCertificate,patch.Developability,declarations,summary));
-        void AddConstructed(ConstructedSurfacePatch patch,int declarations,string summary)=>entries.Add(new(patch.StableId,patch.ConstructionKind,patch.Support,patch.Evaluate,patch.MaterializationKind,patch.ApproximationCertificate,patch.Developability,declarations,summary));
+        void AddParametric(ParametricSurfaceIr source,int cu,int cv,int declarations,string summary){var mat=ParametricSurfaceMaterializer.Materialize(source,cu,cv,.1);var p=PanelFactory.FromParametric(source,controlCountU:cu,controlCountV:cv).Panel!;entries.Add(new(source.StableId,source.ConstructionKind,SurfaceGeometry.FromBSplineSurfaceWithKnots(mat.Surface),(u,v)=>source.Evaluate(source.Domain.U.Map(u),source.Domain.V.Map(v)).Point,mat.Kind,mat.Certificate,new(DevelopabilityKind.Indeterminate,"parametric curvature classification",null,0,"Not assumed developable."),declarations,summary,p));}
+        void AddRuled(RuledSurfaceIr source,RuledSurfacePatch patch,int declarations,string summary)=>entries.Add(new(patch.Ir.StableId,patch.Ir.Kind==RuledConstructionKind.RuledTransition?SurfaceConstructionKind.RuledTransition:SurfaceConstructionKind.RuledSurface,patch.ExactSurface,patch.Evaluate,patch.MaterializationKind,patch.ApproximationCertificate,patch.Developability,declarations,summary,PanelFactory.FromRuled(source).Panel!));
+        void AddConstructed(ConstructedSurfacePatch patch,PanelIr p,int declarations,string summary)=>entries.Add(new(patch.StableId,patch.ConstructionKind,patch.Support,patch.Evaluate,patch.MaterializationKind,patch.ApproximationCertificate,patch.Developability,declarations,summary,p));
     }
 
     private static RuledBoundary.BSpline SideArc(string id,double x)
@@ -75,5 +75,27 @@ public static class SurfacingGallery
     {
         var half=width/2;var points=new[]{new Point3D(-half,x,z),new Point3D(-half/3,x,z+4),new Point3D(half/3,x,z+4),new Point3D(half,x,z)};
         return new(id,new BSpline3Curve(3,points,[4,4],[0d,1d],"UNSPECIFIED",false,false,"UNSPECIFIED"));
+    }
+}
+
+public sealed record PanelShowcase(string StableId,IReadOnlyList<PanelIr> Panels,IReadOnlyList<PanelMateRequest> Mates,PanelNetworkReport Network);
+
+public static class PanelShowcases
+{
+    /// <summary>Four individually planar/developable strips joined into a deterministic folded canopy.</summary>
+    public static PanelShowcase DevelopableFoldedCanopy()
+    {
+        var stations=new[]{(-24d,0d),(-12d,7d),(0d,-2d),(12d,8d),(24d,0d)};
+        var panels=new List<PanelIr>();
+        for(var i=0;i<stations.Length-1;i++)
+        {
+            var a=new RuledBoundary.Line($"fold:{i}:south",new(-35,stations[i].Item1,stations[i].Item2),new(35,stations[i].Item1,stations[i].Item2));
+            var b=new RuledBoundary.Line($"fold:{i}:north",new(-35,stations[i+1].Item1,stations[i+1].Item2),new(35,stations[i+1].Item1,stations[i+1].Item2));
+            var ir=new RuledSurfaceIr($"folded-canopy:{i}",RuledConstructionKind.RuledSurface,a,b,new(a.StableId,"showcase:folded-canopy","south"),new(b.StableId,"showcase:folded-canopy","north"));
+            panels.Add(PanelFactory.FromRuled(ir,thickness:1.2,material:"Aluminum").Panel!);
+        }
+        var mates=Enumerable.Range(0,panels.Count-1).Select(i=>new PanelMateRequest($"folded-canopy:seam:{i}",panels[i]["North"],panels[i+1]["South"])).ToArray();
+        var network=PanelNetworkValidator.Validate(panels,mates);
+        return new("panel-showcase:developable-folded-canopy",panels,mates,network);
     }
 }

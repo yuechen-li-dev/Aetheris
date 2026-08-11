@@ -1,0 +1,696 @@
+[
+  {
+    "stableId": "pringles-saddle",
+    "panelId": "panel:pringles-saddle",
+    "constructionFamily": "HyperbolicParaboloid",
+    "supportType": "BSplineSurfaceWithKnots",
+    "materialization": "ExactPolynomialBSpline",
+    "parameterDomain": {
+      "u": [
+        -1,
+        1
+      ],
+      "v": [
+        -1,
+        1
+      ]
+    },
+    "orientation": {
+      "normal": "SupportNormal",
+      "materialSide": "Front",
+      "sameSense": true
+    },
+    "edges": [
+      {
+        "name": "South",
+        "stableId": "panel:pringles-saddle:edge:south",
+        "curveFamily": "BSpline3",
+        "lengthMm": 83.52245207128446,
+        "direction": "AlongSource",
+        "sourceCurveStableId": "pringles-saddle:south"
+      },
+      {
+        "name": "East",
+        "stableId": "panel:pringles-saddle:edge:east",
+        "curveFamily": "BSpline3",
+        "lengthMm": 64.6219776856141,
+        "direction": "AlongSource",
+        "sourceCurveStableId": "pringles-saddle:east"
+      },
+      {
+        "name": "North",
+        "stableId": "panel:pringles-saddle:edge:north",
+        "curveFamily": "BSpline3",
+        "lengthMm": 83.52245207128446,
+        "direction": "OppositeSource",
+        "sourceCurveStableId": "pringles-saddle:north"
+      },
+      {
+        "name": "West",
+        "stableId": "panel:pringles-saddle:edge:west",
+        "curveFamily": "BSpline3",
+        "lengthMm": 64.6219776856141,
+        "direction": "OppositeSource",
+        "sourceCurveStableId": "pringles-saddle:west"
+      }
+    ],
+    "corners": [
+      {
+        "name": "SW",
+        "stableId": "panel:pringles-saddle:corner:sw",
+        "point": {
+          "x": -40,
+          "y": -30,
+          "z": 12
+        }
+      },
+      {
+        "name": "SE",
+        "stableId": "panel:pringles-saddle:corner:se",
+        "point": {
+          "x": 40,
+          "y": -30,
+          "z": -12
+        }
+      },
+      {
+        "name": "NE",
+        "stableId": "panel:pringles-saddle:corner:ne",
+        "point": {
+          "x": 40,
+          "y": 30,
+          "z": 12
+        }
+      },
+      {
+        "name": "NW",
+        "stableId": "panel:pringles-saddle:corner:nw",
+        "point": {
+          "x": -40,
+          "y": 30,
+          "z": -12
+        }
+      }
+    ],
+    "sourceDeclarations": 4,
+    "authoringSummary": "named HyperbolicParaboloid(width, depth, rise)",
+    "developability": {
+      "kind": "Indeterminate",
+      "method": "parametric curvature classification",
+      "maximumTripleProduct": null,
+      "sampleCount": 0,
+      "explanation": "Not assumed developable."
+    },
+    "approximation": {
+      "requestedTolerance": 0.1,
+      "maximumSampledPositionResidual": 0,
+      "maximumNormalDeviationDegrees": 0,
+      "controlCountU": 9,
+      "controlCountV": 9,
+      "samplingPolicy": "adaptive uniform tensor grid; residuals at cell centers",
+      "sourceIdentity": "pringles-saddle"
+    },
+    "step": "pringles-saddle.step",
+    "stepSha256": "5130B6A6C0F53BF602443A5CD26F96B0D81069C41CF06F612E8CEA24BA0432ED",
+    "brepFaces": 6,
+    "stepReimport": true,
+    "surfaceMeshIr": "typed-unsupported-non-rational-bspline-support"
+  },
+  {
+    "stableId": "twisted-ruled-canopy",
+    "panelId": "panel:twisted-ruled-canopy",
+    "constructionFamily": "RuledSurface",
+    "supportType": "BSplineSurfaceWithKnots",
+    "materialization": "ExactPolynomialBSpline",
+    "parameterDomain": {
+      "u": [
+        0,
+        1
+      ],
+      "v": [
+        0,
+        1
+      ]
+    },
+    "orientation": {
+      "normal": "SupportNormal",
+      "materialSide": "Front",
+      "sameSense": true
+    },
+    "edges": [
+      {
+        "name": "South",
+        "stableId": "panel:twisted-ruled-canopy:edge:south",
+        "curveFamily": "Line3",
+        "lengthMm": 83.52245207128448,
+        "direction": "AlongSource",
+        "sourceCurveStableId": "twisted-ruled-canopy:y-"
+      },
+      {
+        "name": "East",
+        "stableId": "panel:twisted-ruled-canopy:edge:east",
+        "curveFamily": "Line3",
+        "lengthMm": 55.4616984954482,
+        "direction": "AlongSource",
+        "sourceCurveStableId": "twisted-ruled-canopy:u-max"
+      },
+      {
+        "name": "North",
+        "stableId": "panel:twisted-ruled-canopy:edge:north",
+        "curveFamily": "Line3",
+        "lengthMm": 83.52245207128442,
+        "direction": "OppositeSource",
+        "sourceCurveStableId": "twisted-ruled-canopy:y\u002B"
+      },
+      {
+        "name": "West",
+        "stableId": "panel:twisted-ruled-canopy:edge:west",
+        "curveFamily": "Line3",
+        "lengthMm": 55.4616984954482,
+        "direction": "AlongSource",
+        "sourceCurveStableId": "twisted-ruled-canopy:u-min"
+      }
+    ],
+    "corners": [
+      {
+        "name": "SW",
+        "stableId": "panel:twisted-ruled-canopy:corner:sw",
+        "point": {
+          "x": -40,
+          "y": -25,
+          "z": 12
+        }
+      },
+      {
+        "name": "SE",
+        "stableId": "panel:twisted-ruled-canopy:corner:se",
+        "point": {
+          "x": 40,
+          "y": -25,
+          "z": -12
+        }
+      },
+      {
+        "name": "NE",
+        "stableId": "panel:twisted-ruled-canopy:corner:ne",
+        "point": {
+          "x": 40,
+          "y": 25,
+          "z": 12
+        }
+      },
+      {
+        "name": "NW",
+        "stableId": "panel:twisted-ruled-canopy:corner:nw",
+        "point": {
+          "x": -40,
+          "y": 25,
+          "z": -12
+        }
+      }
+    ],
+    "sourceDeclarations": 4,
+    "authoringSummary": "two authoritative lines and straight rulings",
+    "developability": {
+      "kind": "NonDevelopable",
+      "method": "normalized scalar triple product C0\u0027(u) \u00B7 (ruling(u) \u00D7 ruling\u0027(u))",
+      "maximumTripleProduct": 0.9578262852211514,
+      "sampleCount": 17,
+      "explanation": "Sampled rulings exhibit non-zero distribution parameter; ruled does not imply developable."
+    },
+    "approximation": null,
+    "step": "twisted-ruled-canopy.step",
+    "stepSha256": "2198B1E15548CF99C3FB522C3E469858BFD4F234C779487C46D4A16E8B77F977",
+    "brepFaces": 6,
+    "stepReimport": true,
+    "surfaceMeshIr": "typed-unsupported-non-rational-bspline-support"
+  },
+  {
+    "stableId": "conoid-panel",
+    "panelId": "panel:conoid-panel",
+    "constructionFamily": "RuledSurface",
+    "supportType": "BSplineSurfaceWithKnots",
+    "materialization": "ApproximatedNonRationalBSpline",
+    "parameterDomain": {
+      "u": [
+        0,
+        1
+      ],
+      "v": [
+        0,
+        1
+      ]
+    },
+    "orientation": {
+      "normal": "SupportNormal",
+      "materialSide": "Front",
+      "sameSense": true
+    },
+    "edges": [
+      {
+        "name": "South",
+        "stableId": "panel:conoid-panel:edge:south",
+        "curveFamily": "Line3",
+        "lengthMm": 70,
+        "direction": "AlongSource",
+        "sourceCurveStableId": "conoid:axis"
+      },
+      {
+        "name": "East",
+        "stableId": "panel:conoid-panel:edge:east",
+        "curveFamily": "Line3",
+        "lengthMm": 40,
+        "direction": "AlongSource",
+        "sourceCurveStableId": "conoid-panel:u-max"
+      },
+      {
+        "name": "North",
+        "stableId": "panel:conoid-panel:edge:north",
+        "curveFamily": "Circle3",
+        "lengthMm": 109.94470378264707,
+        "direction": "OppositeSource",
+        "sourceCurveStableId": "conoid:arch"
+      },
+      {
+        "name": "West",
+        "stableId": "panel:conoid-panel:edge:west",
+        "curveFamily": "Line3",
+        "lengthMm": 40,
+        "direction": "AlongSource",
+        "sourceCurveStableId": "conoid-panel:u-min"
+      }
+    ],
+    "corners": [
+      {
+        "name": "SW",
+        "stableId": "panel:conoid-panel:corner:sw",
+        "point": {
+          "x": -35,
+          "y": -20,
+          "z": 0
+        }
+      },
+      {
+        "name": "SE",
+        "stableId": "panel:conoid-panel:corner:se",
+        "point": {
+          "x": 35,
+          "y": -20,
+          "z": 0
+        }
+      },
+      {
+        "name": "NE",
+        "stableId": "panel:conoid-panel:corner:ne",
+        "point": {
+          "x": 35,
+          "y": 20,
+          "z": -4.2862637970157365E-15
+        }
+      },
+      {
+        "name": "NW",
+        "stableId": "panel:conoid-panel:corner:nw",
+        "point": {
+          "x": -35,
+          "y": 20,
+          "z": 0
+        }
+      }
+    ],
+    "sourceDeclarations": 5,
+    "authoringSummary": "line-to-arc ruled conoid family",
+    "developability": {
+      "kind": "NonDevelopable",
+      "method": "normalized scalar triple product C0\u0027(u) \u00B7 (ruling(u) \u00D7 ruling\u0027(u))",
+      "maximumTripleProduct": 0.9049726146848344,
+      "sampleCount": 17,
+      "explanation": "Sampled rulings exhibit non-zero distribution parameter; ruled does not imply developable."
+    },
+    "approximation": {
+      "requestedTolerance": 0.1,
+      "maximumSampledPositionResidual": 0.042159032818974235,
+      "maximumNormalDeviationDegrees": null,
+      "controlCountU": 33,
+      "controlCountV": 2,
+      "samplingPolicy": "adaptive uniform native-parameter samples; residuals at span midpoints; normal deviation not sampled",
+      "sourceIdentity": "conoid-panel"
+    },
+    "step": "conoid-panel.step",
+    "stepSha256": "0C100A6B3B95160537B1DA8DB622F4E306CA072D5C3386D5574ED3CE0461337C",
+    "brepFaces": 6,
+    "stepReimport": true,
+    "surfaceMeshIr": "typed-unsupported-non-rational-bspline-support"
+  },
+  {
+    "stableId": "four-boundary-panel",
+    "panelId": "panel:four-boundary-panel",
+    "constructionFamily": "BoundaryPatch",
+    "supportType": "BSplineSurfaceWithKnots",
+    "materialization": "ApproximatedNonRationalBSpline",
+    "parameterDomain": {
+      "u": [
+        0,
+        1
+      ],
+      "v": [
+        0,
+        1
+      ]
+    },
+    "orientation": {
+      "normal": "SupportNormal",
+      "materialSide": "Front",
+      "sameSense": true
+    },
+    "edges": [
+      {
+        "name": "South",
+        "stableId": "panel:four-boundary-panel:edge:south",
+        "curveFamily": "Line3",
+        "lengthMm": 60,
+        "direction": "AlongSource",
+        "sourceCurveStableId": "panel:south"
+      },
+      {
+        "name": "East",
+        "stableId": "panel:four-boundary-panel:edge:east",
+        "curveFamily": "BSpline3",
+        "lengthMm": 42.69379376691972,
+        "direction": "AlongSource",
+        "sourceCurveStableId": "panel:east"
+      },
+      {
+        "name": "North",
+        "stableId": "panel:four-boundary-panel:edge:north",
+        "curveFamily": "Line3",
+        "lengthMm": 60,
+        "direction": "OppositeSource",
+        "sourceCurveStableId": "panel:north"
+      },
+      {
+        "name": "West",
+        "stableId": "panel:four-boundary-panel:edge:west",
+        "curveFamily": "BSpline3",
+        "lengthMm": 42.69379376691971,
+        "direction": "OppositeSource",
+        "sourceCurveStableId": "panel:west"
+      }
+    ],
+    "corners": [
+      {
+        "name": "SW",
+        "stableId": "panel:four-boundary-panel:corner:sw",
+        "point": {
+          "x": -30,
+          "y": -20,
+          "z": 0
+        }
+      },
+      {
+        "name": "SE",
+        "stableId": "panel:four-boundary-panel:corner:se",
+        "point": {
+          "x": 30,
+          "y": -20,
+          "z": 0
+        }
+      },
+      {
+        "name": "NE",
+        "stableId": "panel:four-boundary-panel:corner:ne",
+        "point": {
+          "x": 30,
+          "y": 20,
+          "z": 5
+        }
+      },
+      {
+        "name": "NW",
+        "stableId": "panel:four-boundary-panel:corner:nw",
+        "point": {
+          "x": -30,
+          "y": 20,
+          "z": 5
+        }
+      }
+    ],
+    "sourceDeclarations": 8,
+    "authoringSummary": "four boundary curves; no authored control net",
+    "developability": {
+      "kind": "Indeterminate",
+      "method": "boundary patch Gaussian curvature classification deferred",
+      "maximumTripleProduct": null,
+      "sampleCount": 1,
+      "explanation": "A boundary patch is not assumed developable."
+    },
+    "approximation": {
+      "requestedTolerance": 0.1,
+      "maximumSampledPositionResidual": 0.04488201902087232,
+      "maximumNormalDeviationDegrees": null,
+      "controlCountU": 13,
+      "controlCountV": 13,
+      "samplingPolicy": "adaptive uniform tensor grid; residuals at cell centers; normal deviation not sampled",
+      "sourceIdentity": "four-boundary-panel"
+    },
+    "step": "four-boundary-panel.step",
+    "stepSha256": "6B6A0D3DB192B9833696815F26A47C873F94B9FF27AFFA0C65485067444E0E9A",
+    "brepFaces": 6,
+    "stepReimport": true,
+    "surfaceMeshIr": "typed-unsupported-non-rational-bspline-support"
+  },
+  {
+    "stableId": "section-fairing",
+    "panelId": "panel:section-fairing",
+    "constructionFamily": "SectionSurface",
+    "supportType": "BSplineSurfaceWithKnots",
+    "materialization": "ApproximatedNonRationalBSpline",
+    "parameterDomain": {
+      "u": [
+        0,
+        1
+      ],
+      "v": [
+        0,
+        1
+      ]
+    },
+    "orientation": {
+      "normal": "SupportNormal",
+      "materialSide": "Front",
+      "sameSense": true
+    },
+    "edges": [
+      {
+        "name": "South",
+        "stableId": "panel:section-fairing:edge:south",
+        "curveFamily": "BSpline3",
+        "lengthMm": 26.89476980745081,
+        "direction": "AlongSource",
+        "sourceCurveStableId": "section-fairing:south"
+      },
+      {
+        "name": "East",
+        "stableId": "panel:section-fairing:edge:east",
+        "curveFamily": "BSpline3",
+        "lengthMm": 69.1055760510202,
+        "direction": "AlongSource",
+        "sourceCurveStableId": "section-fairing:east"
+      },
+      {
+        "name": "North",
+        "stableId": "panel:section-fairing:edge:north",
+        "curveFamily": "BSpline3",
+        "lengthMm": 15.561033263200212,
+        "direction": "OppositeSource",
+        "sourceCurveStableId": "section-fairing:north"
+      },
+      {
+        "name": "West",
+        "stableId": "panel:section-fairing:edge:west",
+        "curveFamily": "BSpline3",
+        "lengthMm": 69.1055760510202,
+        "direction": "OppositeSource",
+        "sourceCurveStableId": "section-fairing:west"
+      }
+    ],
+    "corners": [
+      {
+        "name": "SW",
+        "stableId": "panel:section-fairing:corner:sw",
+        "point": {
+          "x": -13,
+          "y": 0,
+          "z": 0
+        }
+      },
+      {
+        "name": "SE",
+        "stableId": "panel:section-fairing:corner:se",
+        "point": {
+          "x": 13,
+          "y": 0,
+          "z": 0
+        }
+      },
+      {
+        "name": "NE",
+        "stableId": "panel:section-fairing:corner:ne",
+        "point": {
+          "x": 7,
+          "y": 60,
+          "z": 0
+        }
+      },
+      {
+        "name": "NW",
+        "stableId": "panel:section-fairing:corner:nw",
+        "point": {
+          "x": -7,
+          "y": 60,
+          "z": 0
+        }
+      }
+    ],
+    "sourceDeclarations": 7,
+    "authoringSummary": "four ordered semantic sections",
+    "developability": {
+      "kind": "Indeterminate",
+      "method": "section interpolation curvature sampling deferred",
+      "maximumTripleProduct": null,
+      "sampleCount": 0,
+      "explanation": "Three or more interpolated sections may be genuinely double-curved and are not assumed developable."
+    },
+    "approximation": {
+      "requestedTolerance": 0.1,
+      "maximumSampledPositionResidual": 0.09359330364981232,
+      "maximumNormalDeviationDegrees": null,
+      "controlCountU": 49,
+      "controlCountV": 25,
+      "samplingPolicy": "adaptive uniform tensor grid; residuals at cell centers; normal deviation not sampled",
+      "sourceIdentity": "section-fairing"
+    },
+    "step": "section-fairing.step",
+    "stepSha256": "7FE0217DEA54CC870CFC51AEFC8708A4C653E0394F81A905D9DCD47B08E73F07",
+    "brepFaces": 6,
+    "stepReimport": true,
+    "surfaceMeshIr": "typed-unsupported-non-rational-bspline-support"
+  },
+  {
+    "stableId": "helicoid-panel",
+    "panelId": "panel:helicoid-panel",
+    "constructionFamily": "Helicoid",
+    "supportType": "BSplineSurfaceWithKnots",
+    "materialization": "ApproximatedNonRationalBSpline",
+    "parameterDomain": {
+      "u": [
+        0,
+        1
+      ],
+      "v": [
+        0,
+        1
+      ]
+    },
+    "orientation": {
+      "normal": "SupportNormal",
+      "materialSide": "Front",
+      "sameSense": true
+    },
+    "edges": [
+      {
+        "name": "South",
+        "stableId": "panel:helicoid-panel:edge:south",
+        "curveFamily": "BSpline3",
+        "lengthMm": 32,
+        "direction": "AlongSource",
+        "sourceCurveStableId": "helicoid-panel:south"
+      },
+      {
+        "name": "East",
+        "stableId": "panel:helicoid-panel:edge:east",
+        "curveFamily": "BSpline3",
+        "lengthMm": 151.26385481779738,
+        "direction": "AlongSource",
+        "sourceCurveStableId": "helicoid-panel:east"
+      },
+      {
+        "name": "North",
+        "stableId": "panel:helicoid-panel:edge:north",
+        "curveFamily": "BSpline3",
+        "lengthMm": 32,
+        "direction": "OppositeSource",
+        "sourceCurveStableId": "helicoid-panel:north"
+      },
+      {
+        "name": "West",
+        "stableId": "panel:helicoid-panel:edge:west",
+        "curveFamily": "BSpline3",
+        "lengthMm": 13.5,
+        "direction": "OppositeSource",
+        "sourceCurveStableId": "helicoid-panel:west"
+      }
+    ],
+    "corners": [
+      {
+        "name": "SW",
+        "stableId": "panel:helicoid-panel:corner:sw",
+        "point": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        }
+      },
+      {
+        "name": "SE",
+        "stableId": "panel:helicoid-panel:corner:se",
+        "point": {
+          "x": 32,
+          "y": 0,
+          "z": 0
+        }
+      },
+      {
+        "name": "NE",
+        "stableId": "panel:helicoid-panel:corner:ne",
+        "point": {
+          "x": -5.878304635907295E-15,
+          "y": -32,
+          "z": 13.5
+        }
+      },
+      {
+        "name": "NW",
+        "stableId": "panel:helicoid-panel:corner:nw",
+        "point": {
+          "x": -0,
+          "y": -0,
+          "z": 13.5
+        }
+      }
+    ],
+    "sourceDeclarations": 5,
+    "authoringSummary": "named Helicoid(radius, rise, turns)",
+    "developability": {
+      "kind": "Indeterminate",
+      "method": "parametric curvature classification",
+      "maximumTripleProduct": null,
+      "sampleCount": 0,
+      "explanation": "Not assumed developable."
+    },
+    "approximation": {
+      "requestedTolerance": 0.1,
+      "maximumSampledPositionResidual": 0.0853506146212626,
+      "maximumNormalDeviationDegrees": 0,
+      "controlCountU": 33,
+      "controlCountV": 33,
+      "samplingPolicy": "adaptive uniform tensor grid; residuals at cell centers",
+      "sourceIdentity": "helicoid-panel"
+    },
+    "step": "helicoid-panel.step",
+    "stepSha256": "22F79CA5F48BDCC77A03744C747B6F089DABF1EF9C016CA12A27D37F2D32C005",
+    "brepFaces": 6,
+    "stepReimport": true,
+    "surfaceMeshIr": "typed-unsupported-non-rational-bspline-support"
+  }
+]

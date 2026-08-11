@@ -3,6 +3,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <Description>Typed Forge contracts and values shared by Aetheris Host and KernelSDK integrations.</Description>
   </PropertyGroup>
 
   <ItemGroup>

@@ -3,6 +3,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <Description>The Firmament V2 parser, compiler, semantic pipeline, assembly, drawing, and review runtime for Aetheris.</Description>
   </PropertyGroup>
 
   <ItemGroup>

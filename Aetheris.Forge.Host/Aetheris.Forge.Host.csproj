@@ -3,6 +3,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <Description>Stable application-host integration APIs for compiling and invoking typed Aetheris Forge programs.</Description>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Aetheris.Forge\Aetheris.Forge.csproj" />

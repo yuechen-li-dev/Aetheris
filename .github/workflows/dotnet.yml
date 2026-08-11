@@ -35,6 +35,72 @@ jobs:
       - name: Test kernel
         run: dotnet test Aetheris.Kernel.Core.Tests/Aetheris.Kernel.Core.Tests.csproj --configuration Release --no-build --filter "Category!=SlowCorpus"
 
+  public-library-build:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Pack public library dependency graph
+        shell: pwsh
+        run: ./scripts/package-public-libraries.ps1 -OutputDirectory artifacts/packages/public-libraries
+      - uses: actions/upload-artifact@v4
+        with:
+          name: public-libraries-preview2
+          path: artifacts/packages/public-libraries
+          if-no-files-found: error
+
+  public-library-smoke:
+    needs: public-library-build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/download-artifact@v4
+        with:
+          name: public-libraries-preview2
+          path: local-feed
+      - name: Restore and run clean public-package consumer
+        shell: pwsh
+        run: |
+          $smoke = Join-Path $env:RUNNER_TEMP 'aetheris-public-package-smoke'
+          Copy-Item tests/PublicPackageSmoke $smoke -Recurse
+          dotnet restore "$smoke/PublicPackageSmoke.csproj" --source "$pwd/local-feed" --no-cache
+          dotnet run --project "$smoke/PublicPackageSmoke.csproj" --configuration Release --no-restore
+
+  publish-public-libraries:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master'
+    needs: [build-test, public-library-smoke]
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: public-libraries-preview2
+          path: packages
+      - name: Authenticate to NuGet with trusted publishing
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: yuechen-li
+      - name: Publish tested packages in dependency order
+        shell: pwsh
+        run: |
+          Get-Content packages/PACKAGE_ORDER.txt | ForEach-Object {
+            $package = "packages/$_.2.0.0-preview.2.nupkg"
+            dotnet nuget push $package --source https://api.nuget.org/v3/index.json --api-key '${{ steps.nuget-login.outputs.NUGET_API_KEY }}' --skip-duplicate
+            if ($LASTEXITCODE -ne 0) { throw "NuGet push failed for $_" }
+          }
+
   release-build:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: windows-latest

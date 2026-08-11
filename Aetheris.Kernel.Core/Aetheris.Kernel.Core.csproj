@@ -3,5 +3,6 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <Description>Core exact-geometry, ConstructionIR, BRep, STEP AP242, and inspection APIs for Aetheris.</Description>
   </PropertyGroup>
 </Project>

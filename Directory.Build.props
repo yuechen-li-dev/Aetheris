@@ -7,5 +7,23 @@
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <Authors Condition="'$(Authors)' == ''">Yuechen Li</Authors>
+    <Company Condition="'$(Company)' == ''">Aetheris</Company>
+    <Description Condition="'$(Description)' == ''">Aetheris engineering CAD runtime component.</Description>
+    <PackageLicenseExpression Condition="'$(PackageLicenseExpression)' == ''">AGPL-3.0-only</PackageLicenseExpression>
+    <PackageProjectUrl Condition="'$(PackageProjectUrl)' == ''">https://yuechen-li-dev.github.io/aetheris/</PackageProjectUrl>
+    <RepositoryUrl Condition="'$(RepositoryUrl)' == ''">https://github.com/yuechen-li-dev/Aetheris</RepositoryUrl>
+    <RepositoryType Condition="'$(RepositoryType)' == ''">git</RepositoryType>
+    <PackageTags Condition="'$(PackageTags)' == ''">cad;firmament;step;ap242;geometry;engineering</PackageTags>
+    <PackageReleaseNotes Condition="'$(PackageReleaseNotes)' == ''">Aetheris 2.0.0-preview.2 public library package.</PackageReleaseNotes>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <PackageReadmeFile Condition="'$(PackageReadmeFile)' == '' and '$(MSBuildProjectName)' != 'Aetheris.CLI'">Aetheris.Libraries.README.md</PackageReadmeFile>
   </PropertyGroup>
+  <ItemGroup Condition="'$(MSBuildProjectName)' != 'Aetheris.CLI'">
+    <None Include="$(MSBuildThisFileDirectory)docs\release\Aetheris.Libraries.README.md"
+          Pack="true"
+          PackagePath="\"
+          Link="Aetheris.Libraries.README.md" />
+  </ItemGroup>
 </Project>

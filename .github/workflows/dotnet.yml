@@ -48,8 +48,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 26
-          cache: npm
-          cache-dependency-path: aetheris.client/package-lock.json
       - name: Restore and build Preview 2 frozen baseline
         run: |
           dotnet restore Aetheris.slnx

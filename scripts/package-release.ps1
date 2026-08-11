@@ -49,12 +49,23 @@ New-Item -ItemType Directory -Force -Path $stage, (Join-Path $output 'packages')
 
 Push-Location (Join-Path $repoRoot 'aetheris.client')
 try {
-    tspack sync
-    tspack check
-    tspack run typecheck
-    tspack run test
-    tspack run build
-    tspack run lint
+    if (Get-Command tspack -ErrorAction SilentlyContinue) {
+        tspack sync
+        tspack check
+        tspack run typecheck
+        tspack run test
+        tspack run build
+        tspack run lint
+    }
+    else {
+        # GitHub-hosted release runners do not carry the maintainer's standalone
+        # tspack binary. Install the locked package graph with lifecycle scripts
+        # disabled, then run the same project targets explicitly.
+        npm install --ignore-scripts
+        npm run test
+        npm run build
+        npm run lint
+    }
 }
 finally { Pop-Location }
 

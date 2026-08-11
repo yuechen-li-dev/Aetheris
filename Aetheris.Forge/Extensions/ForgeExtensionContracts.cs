@@ -30,6 +30,16 @@ public enum ForgeCapabilityDeterminism
     ExperimentalNonDeterministic = 2,
 }
 
+/// <summary>
+/// Declares the authority requested by an extension. Safe is the default.
+/// UNSAFE means arbitrary in-process C# authority and requires explicit host consent.
+/// </summary>
+public enum ForgeExtensionSafety
+{
+    Safe = 1,
+    UNSAFE = 2,
+}
+
 public enum ForgeCapabilityParameterType
 {
     Length = 1,
@@ -140,6 +150,7 @@ public interface IForgeExtension
 {
     string Id { get; }
     Version Version { get; }
+    ForgeExtensionSafety Safety => ForgeExtensionSafety.Safe;
     void Register(ForgeExtensionRegistry registry);
 }
 
@@ -162,10 +173,17 @@ public sealed class ForgeExtensionRegistry
 {
     private readonly SortedDictionary<string, IForgeCapability> capabilities = new(StringComparer.Ordinal);
     private readonly SortedDictionary<string, Version> extensions = new(StringComparer.Ordinal);
+    private readonly bool allowUnsafeExtensions;
+
+    public ForgeExtensionRegistry(bool allowUnsafeExtensions = false) => this.allowUnsafeExtensions = allowUnsafeExtensions;
 
     public void RegisterExtension(IForgeExtension extension)
     {
         ArgumentNullException.ThrowIfNull(extension);
+        if (extension.Safety == ForgeExtensionSafety.UNSAFE && !allowUnsafeExtensions)
+            throw new ForgeExtensionRegistrationException(
+                "forge-extension-unsafe-consent-required",
+                $"Extension '{extension.Id}' declares UNSAFE arbitrary C# authority. The host must explicitly set AllowUnsafeExtensions=true to load it.");
         if (extensions.TryGetValue(extension.Id, out var existing))
             throw new ForgeExtensionRegistrationException(
                 existing == extension.Version ? "forge-extension-duplicate" : "forge-extension-version-conflict",

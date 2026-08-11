@@ -2,14 +2,14 @@
   "name": "aetheris-firmament",
   "displayName": "Aetheris Firmament",
   "description": "Firmament language support and CLI-backed workflows for Aetheris.",
-  "version": "0.1.0-preview.1",
+  "version": "0.2.0-preview.2",
   "publisher": "aetheris",
   "license": "MIT",
   "preview": true,
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yuechen-li/Aetheris.git"
+    "url": "https://github.com/yuechen-li-dev/Aetheris.git"
   },
   "engines": {
     "vscode": "^1.90.0"

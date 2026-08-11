@@ -3466,6 +3466,7 @@ Model CanonicalPanel {
         stdout.WriteLine("  analyze    Analyze STEP topology and analytic surfaces.");
         stdout.WriteLine("  fea        Compile and solve a Firmament linear-elastic analysis and export Abaqus verification input.");
         stdout.WriteLine("  drawing    Compile a Firmament Drawing Template to DrawingIR, SVG, vector A4 PDF, and native editable PPTX.");
+        stdout.WriteLine("  asm        Inspect, execute, import, and export Firmament V2 assemblies.");
         stdout.WriteLine("  modules    Inspect built-in engineering Modules and capabilities.");
         stdout.WriteLine("  verify     Build/reimport and verify a model.");
         stdout.WriteLine();
@@ -3480,6 +3481,7 @@ Model CanonicalPanel {
         stdout.WriteLine("  aetheris analyze imported.step --json");
         stdout.WriteLine("  aetheris fea plate-with-hole.firmament --out-dir artifacts --json");
         stdout.WriteLine("  aetheris drawing compile bearing-block-drawing.firmament --out-dir artifacts/drawing --json");
+        stdout.WriteLine("  aetheris asm inspect bearing-module.firmament --json");
         stdout.WriteLine();
         stdout.WriteLine("Run 'aetheris <command> --help' for command-specific usage.");
     }

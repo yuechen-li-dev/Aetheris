@@ -1,10 +1,11 @@
-# Aetheris + Firmament v1
+# Aetheris 2.0.0-preview.2 + Firmament V2
 
-> The public Preview 1 language-manual source is maintained in the sibling
+> The public Preview 2 language-manual source is maintained in the sibling
 > `yuechen-li-dev.github.io` repository at `src/aetheris` and published under
 > `/aetheris/`. Documentation here includes architecture, implementation
 > evidence, and historical milestone records; the authoritative frozen support
-> contract is `docs/release/preview1-feature-freeze.md`.
+> contract is `docs/preview2/feature-manifest.json` and the release notes in
+> `docs/release/2.0.0-preview.2-notes.md`.
 
 Firmament is a deterministic DSL for generating CAD geometry (STEP AP242) via Aetheris.
 
@@ -28,11 +29,11 @@ parameters and are erased before geometry AIR. A Table is not a runtime
 dataframe, SQL surface, or spreadsheet import format. See
 [the M1 language note](docs/preview2/firmament-tables-with-m1.md).
 
-## Preview 1 release
+## Preview 2 release
 
-Aetheris 2.0.0-preview.1 is available as a complete Windows x64 bundle and as
+Aetheris 2.0.0-preview.2 is available as a complete Windows x64 bundle and as
 the `Aetheris.CLI` .NET global tool. Download the bundle (including Cadmata)
-from the [GitHub Release](https://github.com/yuechen-li-dev/Aetheris/releases/tag/v2.0.0-preview.1),
+from the [GitHub Release](https://github.com/yuechen-li-dev/Aetheris/releases/tag/v2.0.0-preview.2),
 or install the CLI with:
 
 ```bash
@@ -40,7 +41,7 @@ dotnet tool install --global Aetheris.CLI --prerelease
 ```
 
 The NuGet tool does not include Cadmata; use the Windows bundle for `aetheris view`.
-The public manual, installation guidance, support boundary, and Preview 1
+The public manual, installation guidance, support boundary, and Preview 2
 limitations are at [yuechen-li-dev.github.io/aetheris](https://yuechen-li-dev.github.io/aetheris/).
 
 ## What works today

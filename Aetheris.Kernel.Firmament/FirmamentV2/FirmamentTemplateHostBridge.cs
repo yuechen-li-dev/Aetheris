@@ -72,18 +72,24 @@ public static class FirmamentTemplateHostBridge
         ArgumentNullException.ThrowIfNull(moduleSource);
         ArgumentNullException.ThrowIfNull(arguments);
         var collected = new List<string>();
-        var expansion = FirmamentV2TemplateExpansion.ExpandHostInvocation(
-            moduleSource,
-            templateName,
-            instanceName,
-            arguments.ToDictionary(
+        Dictionary<string, FirmamentV2TemplateExpansion.HostArgument> hostArguments;
+        try
+        {
+            hostArguments = arguments.ToDictionary(
                 pair => pair.Key,
                 pair => new FirmamentV2TemplateExpansion.HostArgument(
                     pair.Value.Literal,
                     pair.Value.RecordType,
                     pair.Value.RecordFields),
-                StringComparer.Ordinal),
-            collected);
+                StringComparer.Ordinal);
+        }
+        catch (ArgumentException)
+        {
+            diagnostics = ["firmament-host-argument-duplicate"];
+            return null;
+        }
+        var expansion = FirmamentV2TemplateExpansion.ExpandHostInvocation(
+            moduleSource, templateName, instanceName, hostArguments, collected);
         diagnostics = collected.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
         if (expansion is null) return null;
         var instance = expansion.Instantiations.Single();

@@ -9,6 +9,9 @@ using Aetheris.Semantics;
 
 namespace Aetheris.Forge.Host;
 
+/// <summary>Deliberate host policy for extension execution. UNSAFE is denied by default.</summary>
+public sealed record ForgeHostOptions(bool AllowUnsafeExtensions = false);
+
 public sealed record ForgeDiagnostic(
     string Code,
     ForgeDiagnosticSeverity Severity,

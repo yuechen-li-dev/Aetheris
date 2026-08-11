@@ -30,9 +30,11 @@ public sealed class ForgeHost
 
     public ForgeHost(
         IEnumerable<IForgeExtension>? extensions = null,
-        ForgeExtensionManifest? manifest = null)
+        ForgeExtensionManifest? manifest = null,
+        ForgeHostOptions? options = null)
     {
-        registry = new ForgeExtensionRegistry();
+        options ??= new ForgeHostOptions();
+        registry = new ForgeExtensionRegistry(options.AllowUnsafeExtensions);
         var start = Stopwatch.GetTimestamp();
         var registrationFailures = new List<ForgeDiagnostic>();
         foreach (var extension in extensions ?? [])

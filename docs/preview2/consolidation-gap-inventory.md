@@ -25,8 +25,10 @@ manifest (`docs/preview2/feature-manifest.json`).
 
 - Whole-loop mixed line/arc Profile Fillet: exact shell executes, but curved-trim
   volume verification remains too loose for promotion.
-- Forge trusted extensions: deterministic and validated, but trusted/in-process,
-  explicitly registered, and not a sandbox/plugin marketplace.
+- Forge Safe extensions: deterministic, explicitly registered, and validated.
+  They are capability-bounded by public contract but still execute in-process;
+  CLR isolation is not claimed. Arbitrary authority must declare `UNSAFE` and
+  receive explicit host consent.
 - Bounded recognition and recovery routes where diagnostics label them as such.
 
 ## Intentionally unsupported
@@ -37,7 +39,7 @@ manifest (`docs/preview2/feature-manifest.json`).
 - Arbitrary CIR/SDF -> exact BRep and arbitrary BRep -> authoritative CIR.
 - Spline/NURBS support surfaces in SurfaceMeshIR.
 - Unsupported Modify targets without existing exact identity/topology contracts.
-- Untrusted Forge extension execution and implicit assembly scanning.
+- Implicit extension assembly scanning and claims of a perfect CLR sandbox.
 
 ## Deferred post-Preview2
 

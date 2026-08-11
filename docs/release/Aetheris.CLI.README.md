@@ -16,4 +16,4 @@ download the Windows bundle from the GitHub release for package-relative Cadmata
 discovery and the complete desktop experience.
 
 See the [Aetheris manual](https://yuechen-li-dev.github.io/aetheris/) for the
-supported Firmament surface and Preview 1 limitations.
+supported Firmament surface and Preview 2 limitations.

@@ -6,7 +6,7 @@ Firmament is Aetheris's canonical, intent-oriented language for mechanical desig
 
 Install the Aetheris CLI so `aetheris` is on `PATH`, or set `aetheris.executablePath` to the executable. The extension never implements or guesses compiler semantics.
 
-Current development builds are installed from the supplied VSIX: in VS Code run **Extensions: Install from VSIX...** and select `aetheris-firmament-0.1.0-preview.1.vsix`.
+Preview 2 builds are installed from the supplied VSIX: in VS Code run **Extensions: Install from VSIX...** and select `aetheris-firmament-0.2.0-preview.2.vsix`.
 
 ## Commands
 

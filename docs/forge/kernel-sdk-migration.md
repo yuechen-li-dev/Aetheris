@@ -1,5 +1,38 @@
 # Forge SDK package migration
 
+## Preview 2 safety model
+
+Host users do not need KernelSDK. Application configurators should reference
+`Aetheris.Forge.Host`; KernelSDK is for advanced C# extension development.
+
+`IForgeExtension.Safety` defaults to `ForgeExtensionSafety.Safe`. A Safe
+extension receives typed inputs, semantic/construction builders, requested
+lowering targets, deterministic math, and explicit resources supplied by the
+host. Aetheris does not provide process, network, environment-secret, arbitrary
+filesystem, or host-internal services.
+
+This capability surface is enforced at the Aetheris API boundary, including
+explicit registration, argument validation, output validation, and typed
+diagnostics. It is not a CLR security sandbox: in-process C# can call the .NET
+base class library directly. Safe is a reviewed capability contract, not
+isolation from malicious code.
+
+An extension needing arbitrary C# authority must declare:
+
+```csharp
+public ForgeExtensionSafety Safety => ForgeExtensionSafety.UNSAFE;
+```
+
+The host rejects it with `forge-extension-unsafe-consent-required` unless the
+application deliberately opts in:
+
+```csharp
+new ForgeHost(extensions, options: new ForgeHostOptions(AllowUnsafeExtensions: true));
+```
+
+The canonical SecretGeometry extension explicitly declares Safe and uses typed
+ConstructionIR/SemanticValue output only.
+
 The former `Aetheris.Forge.Sdk` name mixed two audiences and has been removed before a stable NuGet release made compatibility forwarding necessary.
 
 Use:

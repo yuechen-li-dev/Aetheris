@@ -13,6 +13,7 @@ public sealed class SecretGeometryExtension : IForgeExtension
     public static readonly Version ExtensionVersion = new(1, 0, 0);
     public string Id => ExtensionId;
     public Version Version => ExtensionVersion;
+    public ForgeExtensionSafety Safety => ForgeExtensionSafety.Safe;
     public void Register(ForgeExtensionRegistry registry) => registry.RegisterCapability(new SecretCouponCapability());
 }
 

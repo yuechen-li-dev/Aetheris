@@ -79,6 +79,29 @@ public sealed class ForgeHostM1Tests
     }
 
     [Fact]
+    public void UnsafeExtensionRequiresExplicitHostConsent()
+    {
+        var denied = new ForgeHost([new UnsafeExtension()]);
+        var result = ForgeTemplates.SecretCoupon(denied.LoadModule(ModulePath), new SecretCouponSpec(20, 12, 4)).Compile();
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "forge-extension-unsafe-consent-required"
+            && diagnostic.Message.Contains("UNSAFE", StringComparison.Ordinal));
+
+        var allowed = new ForgeHost([new UnsafeExtension()], options: new ForgeHostOptions(AllowUnsafeExtensions: true));
+        Assert.Contains(allowed.Capabilities, capability => capability.Id.Value == "Unsafe.Capability");
+    }
+
+    [Fact]
+    public void EnumCaseIsTypedAndNeverStringCoerced()
+    {
+        var value = ForgeValue.EnumCase("MetricBoltSize", "M8");
+        Assert.Equal("MetricBoltSize", value.TypeName);
+        Assert.IsType<ForgeEnumCase>(value);
+        Assert.Equal("M8", ((ForgeEnumCase)value).CaseName);
+        Assert.Throws<ArgumentException>(() => ForgeValue.EnumCase("MetricBoltSize", "M8; Inject"));
+    }
+
+    [Fact]
     public void RegistryOrdersMultipleExtensionsAndRejectsCapabilityCollisions()
     {
         var registry = new ForgeExtensionRegistry();
@@ -227,6 +250,15 @@ public sealed class ForgeHostM1Tests
         public string Id => "Throwing.Extension";
         public Version Version => new(1, 0, 0);
         public void Register(ForgeExtensionRegistry registry) => registry.RegisterCapability(new ThrowingCapability());
+    }
+
+    private sealed class UnsafeExtension : IForgeExtension
+    {
+        public string Id => "Unsafe.Extension";
+        public Version Version => new(1, 0, 0);
+        public ForgeExtensionSafety Safety => ForgeExtensionSafety.UNSAFE;
+        public void Register(ForgeExtensionRegistry registry) => registry.RegisterCapability(
+            new StubCapability(Id, Version, "Unsafe.Capability", ForgeCapabilityDeterminism.Deterministic));
     }
 
     private sealed class ThrowingCapability : IForgeCapability

@@ -216,7 +216,7 @@ public static class PrismaticProfileCompositionParser
             var profile = match.Groups["profile"].Value;
             var from = N(match, "from"); var to = N(match, "to");
             if (!names.Add(name)) diagnostics.Add($"compose-duplicate-operation:{name}");
-            if (!profiles.ContainsKey(profile)) diagnostics.Add($"compose-operation-unresolved-profile:{name}:{profile}");
+            if (!profiles.ContainsKey(profile)) diagnostics.Add($"ConceptPathProfileNotAdmittedByCompose:{name}:{profile}");
             if (!double.IsFinite(from) || !double.IsFinite(to) || from >= to) diagnostics.Add($"compose-invalid-interval:{name}:{from:R}:{to:R}");
             operations.Add(new(name, Enum.Parse<PrismaticProfileIntent>(match.Groups["intent"].Value), profile, from, to, match.Groups["role"].Success ? match.Groups["role"].Value : match.Groups["intent"].Value, $"offset:{match.Index}"));
         }

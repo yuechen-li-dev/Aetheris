@@ -13,6 +13,7 @@ public abstract record ForgeValue(string TypeName)
     public static ForgeValue From(Length value) => new ForgeLength(value.Millimeters);
     public static ForgeValue From(Angle value) => new ForgeAngle(value.Degrees);
     public static ForgeValue From(Version value) => new ForgeVersion(value);
+    public static ForgeValue EnumCase(string enumType, string caseName) => new ForgeEnumCase(enumType, caseName);
 }
 
 /// <summary>An application-side length expressed explicitly in millimetres.</summary>
@@ -59,6 +60,27 @@ public sealed record ForgeVersion(Version Value) : ForgeValue("Version")
 public sealed record ForgeType(string Name) : ForgeValue("Type")
 {
     internal override string CanonicalLiteral => Name;
+}
+
+/// <summary>A typed Firmament enum case. It is emitted as a symbol, never coerced to a string.</summary>
+public sealed record ForgeEnumCase : ForgeValue
+{
+    public ForgeEnumCase(string enumType, string caseName) : base(ValidateIdentifier(enumType, nameof(enumType)))
+    {
+        CaseName = ValidateIdentifier(caseName, nameof(caseName));
+    }
+
+    public string EnumType => TypeName;
+    public string CaseName { get; }
+    internal override string CanonicalLiteral => CaseName;
+
+    private static string ValidateIdentifier(string value, string parameterName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(value, parameterName);
+        if (!(char.IsLetter(value[0]) || value[0] == '_') || value.Skip(1).Any(character => !(char.IsLetterOrDigit(character) || character == '_')))
+            throw new ArgumentException("Firmament enum type and case names must be identifiers.", parameterName);
+        return value;
+    }
 }
 
 /// <summary>Typed seam from a Template parameter to an ImportedStepResource on the invocation.</summary>

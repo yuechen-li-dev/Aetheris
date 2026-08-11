@@ -70,9 +70,10 @@ jobs:
         shell: pwsh
         run: |
           $smoke = Join-Path $env:RUNNER_TEMP 'aetheris-public-package-smoke'
+          $packages = Join-Path $env:RUNNER_TEMP 'aetheris-public-package-cache'
           Copy-Item tests/PublicPackageSmoke $smoke -Recurse
-          dotnet restore "$smoke/PublicPackageSmoke.csproj" --source "$pwd/local-feed" --no-cache
-          dotnet run --project "$smoke/PublicPackageSmoke.csproj" --configuration Release --no-restore
+          dotnet restore "$smoke/PublicPackageSmoke.csproj" --source "$pwd/local-feed" --packages $packages --no-cache
+          dotnet run --project "$smoke/PublicPackageSmoke.csproj" --configuration Release --no-restore --property:RestorePackagesPath=$packages
 
   publish-public-libraries:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master'

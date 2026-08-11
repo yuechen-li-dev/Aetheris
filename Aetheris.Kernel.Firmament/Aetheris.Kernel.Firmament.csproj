@@ -9,6 +9,7 @@
     <ProjectReference Include="..\Aetheris.Continuum\Aetheris.Continuum.csproj" />
     <ProjectReference Include="..\Aetheris.Kernel.Core\Aetheris.Kernel.Core.csproj" />
     <ProjectReference Include="..\Aetheris.Semantics\Aetheris.Semantics.csproj" />
+    <ProjectReference Include="..\Aetheris.Collaboration\Aetheris.Collaboration.csproj" />
     <ProjectReference Include="..\Aetheris.Kernel.StandardLibrary\Aetheris.Kernel.StandardLibrary.csproj" />
     <ProjectReference Include="..\Aetheris.Forge\Aetheris.Forge.csproj" />
     <ProjectReference Include="..\Aetheris.Surfacing\Aetheris.Surfacing.csproj" />

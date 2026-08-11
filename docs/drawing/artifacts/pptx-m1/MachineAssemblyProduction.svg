@@ -1,0 +1,524 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="297mm" height="428mm" viewBox="0 0 297 428" data-drawing-schema="aetheris-drawing-m0b">
+<style>.sheet{fill:white;stroke:#aab2bd;stroke-width:.25}.border,.zone-tick{fill:none;stroke:#334155;stroke-width:.25}.visible,.silhouette{fill:none;stroke:#111827;stroke-width:.35;stroke-linecap:round;stroke-linejoin:round}.silhouette{stroke-width:.5}.hidden{fill:none;stroke:#64748b;stroke-width:.25;stroke-dasharray:2 1}.leader{fill:none;stroke:#374151;stroke-width:.22}.annotation{font:3.2px Inter,Arial,sans-serif;fill:#111827}.label{font:600 3.2px Inter,Arial,sans-serif;fill:#334155}.meta,.zone-label{font:2.8px Inter,Arial,sans-serif;fill:#334155}.zone-label{font-size:2.4px}.table-header{font:600 3px Inter,Arial,sans-serif}.table-cell{font:2.8px Inter,Arial,sans-serif}.info-key{font:2px Inter,Arial,sans-serif;fill:#64748b}.info-value{font:2.6px Inter,Arial,sans-serif;fill:#111827}</style>
+<g transform="translate(0 0)" data-page="1">
+<rect class="sheet" x="0" y="0" width="297" height="210"/>
+<rect class="border" x="7" y="15" width="283" height="183"/>
+<text class="zone-label" x="30.583" y="13" text-anchor="middle">1</text><text class="zone-label" x="30.583" y="202" text-anchor="middle">1</text>
+<text class="zone-label" x="77.75" y="13" text-anchor="middle">2</text><text class="zone-label" x="77.75" y="202" text-anchor="middle">2</text>
+<path class="zone-tick" d="M 54.167 15 v 3 M 54.167 198 v -3"/>
+<text class="zone-label" x="124.917" y="13" text-anchor="middle">3</text><text class="zone-label" x="124.917" y="202" text-anchor="middle">3</text>
+<path class="zone-tick" d="M 101.333 15 v 3 M 101.333 198 v -3"/>
+<text class="zone-label" x="172.083" y="13" text-anchor="middle">4</text><text class="zone-label" x="172.083" y="202" text-anchor="middle">4</text>
+<path class="zone-tick" d="M 148.5 15 v 3 M 148.5 198 v -3"/>
+<text class="zone-label" x="219.25" y="13" text-anchor="middle">5</text><text class="zone-label" x="219.25" y="202" text-anchor="middle">5</text>
+<path class="zone-tick" d="M 195.667 15 v 3 M 195.667 198 v -3"/>
+<text class="zone-label" x="266.417" y="13" text-anchor="middle">6</text><text class="zone-label" x="266.417" y="202" text-anchor="middle">6</text>
+<path class="zone-tick" d="M 242.833 15 v 3 M 242.833 198 v -3"/>
+<text class="zone-label" x="4" y="38.875" text-anchor="middle">A</text><text class="zone-label" x="293" y="38.875" text-anchor="middle">A</text>
+<text class="zone-label" x="4" y="84.625" text-anchor="middle">B</text><text class="zone-label" x="293" y="84.625" text-anchor="middle">B</text>
+<path class="zone-tick" d="M 7 60.75 h 3 M 290 60.75 h -3"/>
+<text class="zone-label" x="4" y="130.375" text-anchor="middle">C</text><text class="zone-label" x="293" y="130.375" text-anchor="middle">C</text>
+<path class="zone-tick" d="M 7 106.5 h 3 M 290 106.5 h -3"/>
+<text class="zone-label" x="4" y="176.125" text-anchor="middle">D</text><text class="zone-label" x="293" y="176.125" text-anchor="middle">D</text>
+<path class="zone-tick" d="M 7 152.25 h 3 M 290 152.25 h -3"/>
+<text class="label" x="10" y="9">Machine / Bearing Module Assembly</text>
+<text class="meta" x="287" y="9" text-anchor="end">Machine · REV 1.1.0 · 1/2</text>
+<g data-view="Front">
+<text class="label" x="10" y="19.5">Front · scale ×1.381</text>
+<polyline class="hidden" points="63.438,133.509 91.063,133.509" data-semantic-id="Machine.Frame:edge:1:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="63.438,133.509 91.063,133.509" data-semantic-id="Machine.Frame:edge:10:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="63.438,133.509 63.438,133.509" data-semantic-id="Machine.Frame:edge:11:segment:0:interval:0:Hidden"/>
+<polyline class="hidden" points="91.063,105.884 91.063,105.884" data-semantic-id="Machine.Frame:edge:12:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="91.063,133.509 91.063,105.884" data-semantic-id="Machine.Frame:edge:13:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="63.438,105.884 63.438,105.884" data-semantic-id="Machine.Frame:edge:14:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="91.063,105.884 63.438,105.884" data-semantic-id="Machine.Frame:edge:15:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="63.438,105.884 63.438,133.509" data-semantic-id="Machine.Frame:edge:16:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="91.063,133.509 89.681,132.128" data-semantic-id="Machine.Frame:edge:17:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="63.438,133.509 64.819,132.128" data-semantic-id="Machine.Frame:edge:18:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="91.063,105.884 89.681,107.266" data-semantic-id="Machine.Frame:edge:19:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="91.063,133.509 91.063,105.884" data-semantic-id="Machine.Frame:edge:2:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="63.438,105.884 64.819,107.266" data-semantic-id="Machine.Frame:edge:20:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="91.063,105.884 63.438,105.884" data-semantic-id="Machine.Frame:edge:3:segment:0:interval:0:Hidden"/>
+<polyline class="hidden" points="63.438,105.884 63.438,133.509" data-semantic-id="Machine.Frame:edge:4:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="64.819,107.266 64.819,132.128" data-semantic-id="Machine.Frame:edge:5:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="89.681,107.266 64.819,107.266" data-semantic-id="Machine.Frame:edge:6:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="89.681,132.128 89.681,107.266" data-semantic-id="Machine.Frame:edge:7:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="64.819,132.128 89.681,132.128" data-semantic-id="Machine.Frame:edge:8:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="91.063,133.509 91.063,133.509" data-semantic-id="Machine.Frame:edge:9:segment:0:interval:0:Hidden"/>
+<polyline class="hidden" points="31.669,82.403 39.956,82.403" data-semantic-id="Machine.LeftModule.Bearing:edge:1:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="31.669,82.403 39.956,82.403" data-semantic-id="Machine.LeftModule.Bearing:edge:10:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="31.669,82.403 31.669,82.403" data-semantic-id="Machine.LeftModule.Bearing:edge:11:segment:0:interval:0:Hidden"/>
+<polyline class="hidden" points="39.956,74.116 39.956,74.116" data-semantic-id="Machine.LeftModule.Bearing:edge:12:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="39.956,82.403 39.956,74.116" data-semantic-id="Machine.LeftModule.Bearing:edge:13:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="31.669,74.116 31.669,74.116" data-semantic-id="Machine.LeftModule.Bearing:edge:14:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="39.956,74.116 31.669,74.116" data-semantic-id="Machine.LeftModule.Bearing:edge:15:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="31.669,74.116 31.669,82.403" data-semantic-id="Machine.LeftModule.Bearing:edge:16:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="39.956,82.403 38.575,81.022" data-semantic-id="Machine.LeftModule.Bearing:edge:17:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="31.669,82.403 33.05,81.022" data-semantic-id="Machine.LeftModule.Bearing:edge:18:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="39.956,74.116 38.575,75.497" data-semantic-id="Machine.LeftModule.Bearing:edge:19:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="39.956,82.403 39.956,74.116" data-semantic-id="Machine.LeftModule.Bearing:edge:2:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="31.669,74.116 33.05,75.497" data-semantic-id="Machine.LeftModule.Bearing:edge:20:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="39.956,74.116 31.669,74.116" data-semantic-id="Machine.LeftModule.Bearing:edge:3:segment:0:interval:0:Hidden"/>
+<polyline class="hidden" points="31.669,74.116 31.669,82.403" data-semantic-id="Machine.LeftModule.Bearing:edge:4:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="33.05,75.497 33.05,81.022" data-semantic-id="Machine.LeftModule.Bearing:edge:5:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="38.575,75.497 33.05,75.497" data-semantic-id="Machine.LeftModule.Bearing:edge:6:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="38.575,81.022 38.575,75.497" data-semantic-id="Machine.LeftModule.Bearing:edge:7:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="33.05,81.022 38.575,81.022" data-semantic-id="Machine.LeftModule.Bearing:edge:8:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="39.956,82.403 39.956,82.403" data-semantic-id="Machine.LeftModule.Bearing:edge:9:segment:0:interval:0:Hidden"/>
+<polyline class="hidden" points="22,133.509 49.625,133.509" data-semantic-id="Machine.LeftModule.Housing:edge:1:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="22,133.509 49.625,133.509" data-semantic-id="Machine.LeftModule.Housing:edge:10:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="22,133.509 22,133.509" data-semantic-id="Machine.LeftModule.Housing:edge:11:segment:0:interval:0:Hidden"/>
+<polyline class="hidden" points="49.625,105.884 49.625,105.884" data-semantic-id="Machine.LeftModule.Housing:edge:12:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="49.625,133.509 49.625,105.884" data-semantic-id="Machine.LeftModule.Housing:edge:13:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="22,105.884 22,105.884" data-semantic-id="Machine.LeftModule.Housing:edge:14:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="49.625,105.884 22,105.884" data-semantic-id="Machine.LeftModule.Housing:edge:15:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="22,105.884 22,133.509" data-semantic-id="Machine.LeftModule.Housing:edge:16:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="49.625,133.509 48.244,132.128" data-semantic-id="Machine.LeftModule.Housing:edge:17:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="22,133.509 23.381,132.128" data-semantic-id="Machine.LeftModule.Housing:edge:18:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="49.625,105.884 48.244,107.266" data-semantic-id="Machine.LeftModule.Housing:edge:19:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="49.625,133.509 49.625,105.884" data-semantic-id="Machine.LeftModule.Housing:edge:2:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="22,105.884 23.381,107.266" data-semantic-id="Machine.LeftModule.Housing:edge:20:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="49.625,105.884 22,105.884" data-semantic-id="Machine.LeftModule.Housing:edge:3:segment:0:interval:0:Hidden"/>
+<polyline class="hidden" points="22,105.884 22,133.509" data-semantic-id="Machine.LeftModule.Housing:edge:4:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="23.381,107.266 23.381,132.128" data-semantic-id="Machine.LeftModule.Housing:edge:5:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="48.244,107.266 23.381,107.266" data-semantic-id="Machine.LeftModule.Housing:edge:6:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="48.244,132.128 48.244,107.266" data-semantic-id="Machine.LeftModule.Housing:edge:7:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="23.381,132.128 48.244,132.128" data-semantic-id="Machine.LeftModule.Housing:edge:8:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="49.625,133.509 49.625,133.509" data-semantic-id="Machine.LeftModule.Housing:edge:9:segment:0:interval:0:Hidden"/>
+<polyline class="hidden" points="30.288,125.222 41.338,125.222" data-semantic-id="Machine.LeftModule.Shaft:edge:1:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="30.288,125.222 41.338,125.222" data-semantic-id="Machine.LeftModule.Shaft:edge:10:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="30.288,125.222 30.288,125.222" data-semantic-id="Machine.LeftModule.Shaft:edge:11:segment:0:interval:0:Hidden"/>
+<polyline class="hidden" points="41.338,114.172 41.338,114.172" data-semantic-id="Machine.LeftModule.Shaft:edge:12:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="41.338,125.222 41.338,114.172" data-semantic-id="Machine.LeftModule.Shaft:edge:13:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="30.288,114.172 30.288,114.172" data-semantic-id="Machine.LeftModule.Shaft:edge:14:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="41.338,114.172 30.288,114.172" data-semantic-id="Machine.LeftModule.Shaft:edge:15:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="30.288,114.172 30.288,125.222" data-semantic-id="Machine.LeftModule.Shaft:edge:16:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="41.338,125.222 39.956,123.841" data-semantic-id="Machine.LeftModule.Shaft:edge:17:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="30.288,125.222 31.669,123.841" data-semantic-id="Machine.LeftModule.Shaft:edge:18:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="41.338,114.172 39.956,115.553" data-semantic-id="Machine.LeftModule.Shaft:edge:19:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="41.338,125.222 41.338,114.172" data-semantic-id="Machine.LeftModule.Shaft:edge:2:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="30.288,114.172 31.669,115.553" data-semantic-id="Machine.LeftModule.Shaft:edge:20:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="41.338,114.172 30.288,114.172" data-semantic-id="Machine.LeftModule.Shaft:edge:3:segment:0:interval:0:Hidden"/>
+<polyline class="hidden" points="30.288,114.172 30.288,125.222" data-semantic-id="Machine.LeftModule.Shaft:edge:4:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="31.669,115.553 31.669,123.841" data-semantic-id="Machine.LeftModule.Shaft:edge:5:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="39.956,115.553 31.669,115.553" data-semantic-id="Machine.LeftModule.Shaft:edge:6:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="39.956,123.841 39.956,115.553" data-semantic-id="Machine.LeftModule.Shaft:edge:7:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="31.669,123.841 39.956,123.841" data-semantic-id="Machine.LeftModule.Shaft:edge:8:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="41.338,125.222 41.338,125.222" data-semantic-id="Machine.LeftModule.Shaft:edge:9:segment:0:interval:0:Hidden"/>
+<polyline class="hidden" points="31.669,54.778 39.956,54.778" data-semantic-id="Machine.LeftModule.Spacer:edge:1:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="31.669,54.778 39.956,54.778" data-semantic-id="Machine.LeftModule.Spacer:edge:10:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="31.669,54.778 31.669,54.778" data-semantic-id="Machine.LeftModule.Spacer:edge:11:segment:0:interval:0:Hidden"/>
+<polyline class="hidden" points="39.956,46.491 39.956,46.491" data-semantic-id="Machine.LeftModule.Spacer:edge:12:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="39.956,54.778 39.956,46.491" data-semantic-id="Machine.LeftModule.Spacer:edge:13:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="31.669,46.491 31.669,46.491" data-semantic-id="Machine.LeftModule.Spacer:edge:14:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="39.956,46.491 31.669,46.491" data-semantic-id="Machine.LeftModule.Spacer:edge:15:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="31.669,46.491 31.669,54.778" data-semantic-id="Machine.LeftModule.Spacer:edge:16:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="39.956,54.778 38.575,53.397" data-semantic-id="Machine.LeftModule.Spacer:edge:17:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="31.669,54.778 33.05,53.397" data-semantic-id="Machine.LeftModule.Spacer:edge:18:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="39.956,46.491 38.575,47.872" data-semantic-id="Machine.LeftModule.Spacer:edge:19:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="39.956,54.778 39.956,46.491" data-semantic-id="Machine.LeftModule.Spacer:edge:2:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="31.669,46.491 33.05,47.872" data-semantic-id="Machine.LeftModule.Spacer:edge:20:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="39.956,46.491 31.669,46.491" data-semantic-id="Machine.LeftModule.Spacer:edge:3:segment:0:interval:0:Hidden"/>
+<polyline class="hidden" points="31.669,46.491 31.669,54.778" data-semantic-id="Machine.LeftModule.Spacer:edge:4:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="33.05,47.872 33.05,53.397" data-semantic-id="Machine.LeftModule.Spacer:edge:5:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="38.575,47.872 33.05,47.872" data-semantic-id="Machine.LeftModule.Spacer:edge:6:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="38.575,53.397 38.575,47.872" data-semantic-id="Machine.LeftModule.Spacer:edge:7:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="33.05,53.397 38.575,53.397" data-semantic-id="Machine.LeftModule.Spacer:edge:8:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="39.956,54.778 39.956,54.778" data-semantic-id="Machine.LeftModule.Spacer:edge:9:segment:0:interval:0:Hidden"/>
+<polyline class="hidden" points="114.544,82.403 122.831,82.403" data-semantic-id="Machine.RightModule.Bearing:edge:1:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="114.544,82.403 122.831,82.403" data-semantic-id="Machine.RightModule.Bearing:edge:10:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="114.544,82.403 114.544,82.403" data-semantic-id="Machine.RightModule.Bearing:edge:11:segment:0:interval:0:Hidden"/>
+<polyline class="hidden" points="122.831,74.116 122.831,74.116" data-semantic-id="Machine.RightModule.Bearing:edge:12:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="122.831,82.403 122.831,74.116" data-semantic-id="Machine.RightModule.Bearing:edge:13:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="114.544,74.116 114.544,74.116" data-semantic-id="Machine.RightModule.Bearing:edge:14:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="122.831,74.116 114.544,74.116" data-semantic-id="Machine.RightModule.Bearing:edge:15:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="114.544,74.116 114.544,82.403" data-semantic-id="Machine.RightModule.Bearing:edge:16:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="122.831,82.403 121.45,81.022" data-semantic-id="Machine.RightModule.Bearing:edge:17:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="114.544,82.403 115.925,81.022" data-semantic-id="Machine.RightModule.Bearing:edge:18:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="122.831,74.116 121.45,75.497" data-semantic-id="Machine.RightModule.Bearing:edge:19:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="122.831,82.403 122.831,74.116" data-semantic-id="Machine.RightModule.Bearing:edge:2:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="114.544,74.116 115.925,75.497" data-semantic-id="Machine.RightModule.Bearing:edge:20:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="122.831,74.116 114.544,74.116" data-semantic-id="Machine.RightModule.Bearing:edge:3:segment:0:interval:0:Hidden"/>
+<polyline class="hidden" points="114.544,74.116 114.544,82.403" data-semantic-id="Machine.RightModule.Bearing:edge:4:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="115.925,75.497 115.925,81.022" data-semantic-id="Machine.RightModule.Bearing:edge:5:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="121.45,75.497 115.925,75.497" data-semantic-id="Machine.RightModule.Bearing:edge:6:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="121.45,81.022 121.45,75.497" data-semantic-id="Machine.RightModule.Bearing:edge:7:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="115.925,81.022 121.45,81.022" data-semantic-id="Machine.RightModule.Bearing:edge:8:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="122.831,82.403 122.831,82.403" data-semantic-id="Machine.RightModule.Bearing:edge:9:segment:0:interval:0:Hidden"/>
+<polyline class="hidden" points="104.875,133.509 132.5,133.509" data-semantic-id="Machine.RightModule.Housing:edge:1:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="104.875,133.509 132.5,133.509" data-semantic-id="Machine.RightModule.Housing:edge:10:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="104.875,133.509 104.875,133.509" data-semantic-id="Machine.RightModule.Housing:edge:11:segment:0:interval:0:Hidden"/>
+<polyline class="hidden" points="132.5,105.884 132.5,105.884" data-semantic-id="Machine.RightModule.Housing:edge:12:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="132.5,133.509 132.5,105.884" data-semantic-id="Machine.RightModule.Housing:edge:13:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="104.875,105.884 104.875,105.884" data-semantic-id="Machine.RightModule.Housing:edge:14:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="132.5,105.884 104.875,105.884" data-semantic-id="Machine.RightModule.Housing:edge:15:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="104.875,105.884 104.875,133.509" data-semantic-id="Machine.RightModule.Housing:edge:16:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="132.5,133.509 131.119,132.128" data-semantic-id="Machine.RightModule.Housing:edge:17:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="104.875,133.509 106.256,132.128" data-semantic-id="Machine.RightModule.Housing:edge:18:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="132.5,105.884 131.119,107.266" data-semantic-id="Machine.RightModule.Housing:edge:19:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="132.5,133.509 132.5,105.884" data-semantic-id="Machine.RightModule.Housing:edge:2:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="104.875,105.884 106.256,107.266" data-semantic-id="Machine.RightModule.Housing:edge:20:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="132.5,105.884 104.875,105.884" data-semantic-id="Machine.RightModule.Housing:edge:3:segment:0:interval:0:Hidden"/>
+<polyline class="hidden" points="104.875,105.884 104.875,133.509" data-semantic-id="Machine.RightModule.Housing:edge:4:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="106.256,107.266 106.256,132.128" data-semantic-id="Machine.RightModule.Housing:edge:5:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="131.119,107.266 106.256,107.266" data-semantic-id="Machine.RightModule.Housing:edge:6:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="131.119,132.128 131.119,107.266" data-semantic-id="Machine.RightModule.Housing:edge:7:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="106.256,132.128 131.119,132.128" data-semantic-id="Machine.RightModule.Housing:edge:8:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="132.5,133.509 132.5,133.509" data-semantic-id="Machine.RightModule.Housing:edge:9:segment:0:interval:0:Hidden"/>
+<polyline class="hidden" points="113.163,125.222 124.213,125.222" data-semantic-id="Machine.RightModule.Shaft:edge:1:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="113.163,125.222 124.213,125.222" data-semantic-id="Machine.RightModule.Shaft:edge:10:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="113.163,125.222 113.163,125.222" data-semantic-id="Machine.RightModule.Shaft:edge:11:segment:0:interval:0:Hidden"/>
+<polyline class="hidden" points="124.213,114.172 124.213,114.172" data-semantic-id="Machine.RightModule.Shaft:edge:12:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="124.213,125.222 124.213,114.172" data-semantic-id="Machine.RightModule.Shaft:edge:13:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="113.163,114.172 113.163,114.172" data-semantic-id="Machine.RightModule.Shaft:edge:14:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="124.213,114.172 113.163,114.172" data-semantic-id="Machine.RightModule.Shaft:edge:15:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="113.163,114.172 113.163,125.222" data-semantic-id="Machine.RightModule.Shaft:edge:16:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="124.213,125.222 122.831,123.841" data-semantic-id="Machine.RightModule.Shaft:edge:17:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="113.163,125.222 114.544,123.841" data-semantic-id="Machine.RightModule.Shaft:edge:18:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="124.213,114.172 122.831,115.553" data-semantic-id="Machine.RightModule.Shaft:edge:19:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="124.213,125.222 124.213,114.172" data-semantic-id="Machine.RightModule.Shaft:edge:2:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="113.163,114.172 114.544,115.553" data-semantic-id="Machine.RightModule.Shaft:edge:20:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="124.213,114.172 113.163,114.172" data-semantic-id="Machine.RightModule.Shaft:edge:3:segment:0:interval:0:Hidden"/>
+<polyline class="hidden" points="113.163,114.172 113.163,125.222" data-semantic-id="Machine.RightModule.Shaft:edge:4:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="114.544,115.553 114.544,123.841" data-semantic-id="Machine.RightModule.Shaft:edge:5:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="122.831,115.553 114.544,115.553" data-semantic-id="Machine.RightModule.Shaft:edge:6:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="122.831,123.841 122.831,115.553" data-semantic-id="Machine.RightModule.Shaft:edge:7:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="114.544,123.841 122.831,123.841" data-semantic-id="Machine.RightModule.Shaft:edge:8:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="124.213,125.222 124.213,125.222" data-semantic-id="Machine.RightModule.Shaft:edge:9:segment:0:interval:0:Hidden"/>
+<polyline class="hidden" points="114.544,54.778 122.831,54.778" data-semantic-id="Machine.RightModule.Spacer:edge:1:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="114.544,54.778 122.831,54.778" data-semantic-id="Machine.RightModule.Spacer:edge:10:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="114.544,54.778 114.544,54.778" data-semantic-id="Machine.RightModule.Spacer:edge:11:segment:0:interval:0:Hidden"/>
+<polyline class="hidden" points="122.831,46.491 122.831,46.491" data-semantic-id="Machine.RightModule.Spacer:edge:12:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="122.831,54.778 122.831,46.491" data-semantic-id="Machine.RightModule.Spacer:edge:13:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="114.544,46.491 114.544,46.491" data-semantic-id="Machine.RightModule.Spacer:edge:14:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="122.831,46.491 114.544,46.491" data-semantic-id="Machine.RightModule.Spacer:edge:15:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="114.544,46.491 114.544,54.778" data-semantic-id="Machine.RightModule.Spacer:edge:16:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="122.831,54.778 121.45,53.397" data-semantic-id="Machine.RightModule.Spacer:edge:17:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="114.544,54.778 115.925,53.397" data-semantic-id="Machine.RightModule.Spacer:edge:18:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="122.831,46.491 121.45,47.872" data-semantic-id="Machine.RightModule.Spacer:edge:19:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="122.831,54.778 122.831,46.491" data-semantic-id="Machine.RightModule.Spacer:edge:2:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="114.544,46.491 115.925,47.872" data-semantic-id="Machine.RightModule.Spacer:edge:20:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="122.831,46.491 114.544,46.491" data-semantic-id="Machine.RightModule.Spacer:edge:3:segment:0:interval:0:Hidden"/>
+<polyline class="hidden" points="114.544,46.491 114.544,54.778" data-semantic-id="Machine.RightModule.Spacer:edge:4:segment:0:interval:0:Hidden"/>
+<polyline class="visible" points="115.925,47.872 115.925,53.397" data-semantic-id="Machine.RightModule.Spacer:edge:5:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="121.45,47.872 115.925,47.872" data-semantic-id="Machine.RightModule.Spacer:edge:6:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="121.45,53.397 121.45,47.872" data-semantic-id="Machine.RightModule.Spacer:edge:7:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="115.925,53.397 121.45,53.397" data-semantic-id="Machine.RightModule.Spacer:edge:8:segment:0:interval:0:Visible"/>
+<polyline class="hidden" points="122.831,54.778 122.831,54.778" data-semantic-id="Machine.RightModule.Spacer:edge:9:segment:0:interval:0:Hidden"/>
+</g>
+<g data-view="ISO">
+<text class="label" x="152.5" y="19.5">ISO · scale ×1.149</text>
+<polyline class="visible" points="205.125,97.036 205.125,88.593" data-semantic-id="Machine.Frame:edge:12:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="188.875,79.211 193.918,82.122" data-semantic-id="Machine.Frame:edge:13:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="193.918,82.122 196.188,83.433" data-semantic-id="Machine.Frame:edge:13:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="196.188,83.433 203.5,87.655" data-semantic-id="Machine.Frame:edge:13:segment:0:interval:2:Visible"/>
+<polyline class="visible" points="203.5,87.655 205.125,88.593" data-semantic-id="Machine.Frame:edge:13:segment:0:interval:3:Visible"/>
+<polyline class="visible" points="221.375,87.655 221.375,79.211" data-semantic-id="Machine.Frame:edge:14:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="205.125,88.593 206.75,87.655" data-semantic-id="Machine.Frame:edge:15:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="206.75,87.655 214.063,83.433" data-semantic-id="Machine.Frame:edge:15:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="214.063,83.433 221.375,79.211" data-semantic-id="Machine.Frame:edge:15:segment:0:interval:2:Visible"/>
+<polyline class="visible" points="188.875,79.211 190.5,78.273" data-semantic-id="Machine.Frame:edge:17:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="205.125,88.593 205.125,87.655" data-semantic-id="Machine.Frame:edge:19:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="205.125,87.655 205.125,86.716" data-semantic-id="Machine.Frame:edge:19:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="188.875,87.655 205.125,97.036" data-semantic-id="Machine.Frame:edge:2:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="221.375,79.211 219.75,78.273" data-semantic-id="Machine.Frame:edge:20:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="205.125,97.036 221.375,87.655" data-semantic-id="Machine.Frame:edge:3:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="219.75,78.273 205.125,69.829" data-semantic-id="Machine.Frame:edge:5:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="205.125,86.716 212.438,82.494" data-semantic-id="Machine.Frame:edge:6:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="212.438,82.494 218.42,79.04" data-semantic-id="Machine.Frame:edge:6:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="218.42,79.04 219.75,78.273" data-semantic-id="Machine.Frame:edge:6:segment:0:interval:2:Visible"/>
+<polyline class="visible" points="190.5,78.273 195.039,80.893" data-semantic-id="Machine.Frame:edge:7:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="195.039,80.893 197.813,82.494" data-semantic-id="Machine.Frame:edge:7:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="197.813,82.494 205.125,86.716" data-semantic-id="Machine.Frame:edge:7:segment:0:interval:2:Visible"/>
+<polyline class="visible" points="205.125,69.829 190.5,78.273" data-semantic-id="Machine.Frame:edge:8:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="188.875,87.655 188.875,79.211" data-semantic-id="Machine.Frame:edge:9:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="253.875,90.469 253.875,87.655" data-semantic-id="Machine.LeftModule.Bearing:edge:12:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="253.875,87.655 253.875,86.716" data-semantic-id="Machine.LeftModule.Bearing:edge:12:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="249,83.902 250.95,85.028" data-semantic-id="Machine.LeftModule.Bearing:edge:13:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="250.95,85.028 252.25,85.778" data-semantic-id="Machine.LeftModule.Bearing:edge:13:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="252.25,85.778 253.875,86.716" data-semantic-id="Machine.LeftModule.Bearing:edge:13:segment:0:interval:2:Visible"/>
+<polyline class="visible" points="258.75,87.655 258.75,83.902" data-semantic-id="Machine.LeftModule.Bearing:edge:14:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="253.875,86.716 255.5,85.778" data-semantic-id="Machine.LeftModule.Bearing:edge:15:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="255.5,85.778 258.75,83.902" data-semantic-id="Machine.LeftModule.Bearing:edge:15:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="249,83.902 250.625,82.964" data-semantic-id="Machine.LeftModule.Bearing:edge:17:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="253.875,86.716 253.875,84.84" data-semantic-id="Machine.LeftModule.Bearing:edge:19:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="249,87.655 253.875,90.469" data-semantic-id="Machine.LeftModule.Bearing:edge:2:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="258.75,83.902 257.125,82.964" data-semantic-id="Machine.LeftModule.Bearing:edge:20:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="253.875,90.469 258.75,87.655" data-semantic-id="Machine.LeftModule.Bearing:edge:3:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="257.125,82.964 253.875,81.087" data-semantic-id="Machine.LeftModule.Bearing:edge:5:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="253.875,84.84 257.125,82.964" data-semantic-id="Machine.LeftModule.Bearing:edge:6:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="250.625,82.964 251.925,83.714" data-semantic-id="Machine.LeftModule.Bearing:edge:7:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="251.925,83.714 253.875,84.84" data-semantic-id="Machine.LeftModule.Bearing:edge:7:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="253.875,81.087 250.625,82.964" data-semantic-id="Machine.LeftModule.Bearing:edge:8:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="249,87.655 249,83.902" data-semantic-id="Machine.LeftModule.Bearing:edge:9:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="229.5,82.964 229.5,74.52" data-semantic-id="Machine.LeftModule.Housing:edge:12:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="213.25,65.138 218.293,68.049" data-semantic-id="Machine.LeftModule.Housing:edge:13:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="218.293,68.049 220.563,69.36" data-semantic-id="Machine.LeftModule.Housing:edge:13:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="220.563,69.36 227.875,73.582" data-semantic-id="Machine.LeftModule.Housing:edge:13:segment:0:interval:2:Visible"/>
+<polyline class="visible" points="227.875,73.582 229.5,74.52" data-semantic-id="Machine.LeftModule.Housing:edge:13:segment:0:interval:3:Visible"/>
+<polyline class="visible" points="245.75,73.582 245.75,65.138" data-semantic-id="Machine.LeftModule.Housing:edge:14:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="229.5,74.52 231.125,73.582" data-semantic-id="Machine.LeftModule.Housing:edge:15:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="231.125,73.582 238.438,69.36" data-semantic-id="Machine.LeftModule.Housing:edge:15:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="238.438,69.36 245.75,65.138" data-semantic-id="Machine.LeftModule.Housing:edge:15:segment:0:interval:2:Visible"/>
+<polyline class="visible" points="213.25,65.138 214.875,64.2" data-semantic-id="Machine.LeftModule.Housing:edge:17:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="229.5,74.52 229.5,73.582" data-semantic-id="Machine.LeftModule.Housing:edge:19:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="229.5,73.582 229.5,72.643" data-semantic-id="Machine.LeftModule.Housing:edge:19:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="213.25,73.582 229.5,82.964" data-semantic-id="Machine.LeftModule.Housing:edge:2:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="245.75,65.138 244.125,64.2" data-semantic-id="Machine.LeftModule.Housing:edge:20:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="229.5,82.964 245.75,73.582" data-semantic-id="Machine.LeftModule.Housing:edge:3:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="244.125,64.2 236,59.509" data-semantic-id="Machine.LeftModule.Housing:edge:5:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="229.5,72.643 236.813,68.422" data-semantic-id="Machine.LeftModule.Housing:edge:6:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="236.813,68.422 242.795,64.967" data-semantic-id="Machine.LeftModule.Housing:edge:6:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="242.795,64.967 244.125,64.2" data-semantic-id="Machine.LeftModule.Housing:edge:6:segment:0:interval:2:Visible"/>
+<polyline class="visible" points="214.875,64.2 219.414,66.82" data-semantic-id="Machine.LeftModule.Housing:edge:7:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="219.414,66.82 222.188,68.422" data-semantic-id="Machine.LeftModule.Housing:edge:7:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="222.188,68.422 229.5,72.643" data-semantic-id="Machine.LeftModule.Housing:edge:7:segment:0:interval:2:Visible"/>
+<polyline class="visible" points="223,59.509 214.875,64.2" data-semantic-id="Machine.LeftModule.Housing:edge:8:segment:0:interval:6:Visible"/>
+<polyline class="visible" points="213.25,73.582 213.25,65.138" data-semantic-id="Machine.LeftModule.Housing:edge:9:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="229.5,67.952 229.5,64.2" data-semantic-id="Machine.LeftModule.Shaft:edge:12:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="229.5,64.2 229.5,60.447" data-semantic-id="Machine.LeftModule.Shaft:edge:12:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="229.5,60.447 229.5,59.509" data-semantic-id="Machine.LeftModule.Shaft:edge:12:segment:0:interval:2:Visible"/>
+<polyline class="visible" points="223,55.756 226.25,57.632" data-semantic-id="Machine.LeftModule.Shaft:edge:13:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="226.25,57.632 226.441,57.743" data-semantic-id="Machine.LeftModule.Shaft:edge:13:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="226.441,57.743 227.259,58.215" data-semantic-id="Machine.LeftModule.Shaft:edge:13:segment:0:interval:2:Visible"/>
+<polyline class="visible" points="227.259,58.215 229.5,59.509" data-semantic-id="Machine.LeftModule.Shaft:edge:13:segment:0:interval:3:Visible"/>
+<polyline class="visible" points="236,64.2 236,59.509" data-semantic-id="Machine.LeftModule.Shaft:edge:14:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="236,59.509 236,55.756" data-semantic-id="Machine.LeftModule.Shaft:edge:14:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="229.5,59.509 232.75,57.632" data-semantic-id="Machine.LeftModule.Shaft:edge:15:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="232.75,57.632 236,55.756" data-semantic-id="Machine.LeftModule.Shaft:edge:15:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="223,55.756 224.625,54.818" data-semantic-id="Machine.LeftModule.Shaft:edge:17:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="229.5,59.509 229.5,57.632" data-semantic-id="Machine.LeftModule.Shaft:edge:19:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="223,64.2 226.25,66.076" data-semantic-id="Machine.LeftModule.Shaft:edge:2:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="226.25,66.076 229.5,67.952" data-semantic-id="Machine.LeftModule.Shaft:edge:2:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="236,55.756 234.375,54.818" data-semantic-id="Machine.LeftModule.Shaft:edge:20:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="229.5,67.952 232.75,66.076" data-semantic-id="Machine.LeftModule.Shaft:edge:3:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="232.75,66.076 235.409,64.541" data-semantic-id="Machine.LeftModule.Shaft:edge:3:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="235.409,64.541 236,64.2" data-semantic-id="Machine.LeftModule.Shaft:edge:3:segment:0:interval:2:Visible"/>
+<polyline class="visible" points="234.375,54.818 229.5,52.003" data-semantic-id="Machine.LeftModule.Shaft:edge:5:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="229.5,57.632 231.125,56.694" data-semantic-id="Machine.LeftModule.Shaft:edge:6:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="231.125,56.694 234.375,54.818" data-semantic-id="Machine.LeftModule.Shaft:edge:6:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="224.625,54.818 227.206,56.308" data-semantic-id="Machine.LeftModule.Shaft:edge:7:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="227.206,56.308 227.875,56.694" data-semantic-id="Machine.LeftModule.Shaft:edge:7:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="227.875,56.694 228.379,56.985" data-semantic-id="Machine.LeftModule.Shaft:edge:7:segment:0:interval:2:Visible"/>
+<polyline class="visible" points="228.379,56.985 229.5,57.632" data-semantic-id="Machine.LeftModule.Shaft:edge:7:segment:0:interval:3:Visible"/>
+<polyline class="visible" points="229.5,52.003 224.625,54.818" data-semantic-id="Machine.LeftModule.Shaft:edge:8:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="223,64.2 223,62.886" data-semantic-id="Machine.LeftModule.Shaft:edge:9:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="223,62.886 223,59.509" data-semantic-id="Machine.LeftModule.Shaft:edge:9:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="223,59.509 223,55.756" data-semantic-id="Machine.LeftModule.Shaft:edge:9:segment:0:interval:2:Visible"/>
+<polyline class="visible" points="270.125,99.851 270.125,97.036" data-semantic-id="Machine.LeftModule.Spacer:edge:12:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="270.125,97.036 270.125,96.098" data-semantic-id="Machine.LeftModule.Spacer:edge:12:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="265.25,93.284 267.2,94.41" data-semantic-id="Machine.LeftModule.Spacer:edge:13:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="267.2,94.41 268.5,95.16" data-semantic-id="Machine.LeftModule.Spacer:edge:13:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="268.5,95.16 270.125,96.098" data-semantic-id="Machine.LeftModule.Spacer:edge:13:segment:0:interval:2:Visible"/>
+<polyline class="visible" points="275,97.036 275,93.284" data-semantic-id="Machine.LeftModule.Spacer:edge:14:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="270.125,96.098 271.75,95.16" data-semantic-id="Machine.LeftModule.Spacer:edge:15:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="271.75,95.16 275,93.284" data-semantic-id="Machine.LeftModule.Spacer:edge:15:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="265.25,93.284 266.875,92.345" data-semantic-id="Machine.LeftModule.Spacer:edge:17:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="270.125,96.098 270.125,94.222" data-semantic-id="Machine.LeftModule.Spacer:edge:19:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="265.25,97.036 270.125,99.851" data-semantic-id="Machine.LeftModule.Spacer:edge:2:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="275,93.284 273.375,92.345" data-semantic-id="Machine.LeftModule.Spacer:edge:20:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="270.125,99.851 275,97.036" data-semantic-id="Machine.LeftModule.Spacer:edge:3:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="273.375,92.345 270.125,90.469" data-semantic-id="Machine.LeftModule.Spacer:edge:5:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="270.125,94.222 273.375,92.345" data-semantic-id="Machine.LeftModule.Spacer:edge:6:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="266.875,92.345 268.175,93.096" data-semantic-id="Machine.LeftModule.Spacer:edge:7:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="268.175,93.096 270.125,94.222" data-semantic-id="Machine.LeftModule.Spacer:edge:7:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="270.125,90.469 266.875,92.345" data-semantic-id="Machine.LeftModule.Spacer:edge:8:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="265.25,97.036 265.25,93.284" data-semantic-id="Machine.LeftModule.Spacer:edge:9:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="205.125,118.615 205.125,115.8" data-semantic-id="Machine.RightModule.Bearing:edge:12:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="205.125,115.8 205.125,114.862" data-semantic-id="Machine.RightModule.Bearing:edge:12:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="200.25,112.048 202.2,113.173" data-semantic-id="Machine.RightModule.Bearing:edge:13:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="202.2,113.173 203.5,113.924" data-semantic-id="Machine.RightModule.Bearing:edge:13:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="203.5,113.924 205.125,114.862" data-semantic-id="Machine.RightModule.Bearing:edge:13:segment:0:interval:2:Visible"/>
+<polyline class="visible" points="210,115.8 210,112.048" data-semantic-id="Machine.RightModule.Bearing:edge:14:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="205.125,114.862 206.75,113.924" data-semantic-id="Machine.RightModule.Bearing:edge:15:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="206.75,113.924 210,112.048" data-semantic-id="Machine.RightModule.Bearing:edge:15:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="200.25,112.048 201.875,111.109" data-semantic-id="Machine.RightModule.Bearing:edge:17:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="205.125,114.862 205.125,112.986" data-semantic-id="Machine.RightModule.Bearing:edge:19:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="200.25,115.8 205.125,118.615" data-semantic-id="Machine.RightModule.Bearing:edge:2:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="210,112.048 208.375,111.109" data-semantic-id="Machine.RightModule.Bearing:edge:20:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="205.125,118.615 210,115.8" data-semantic-id="Machine.RightModule.Bearing:edge:3:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="208.375,111.109 205.125,109.233" data-semantic-id="Machine.RightModule.Bearing:edge:5:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="205.125,112.986 208.375,111.109" data-semantic-id="Machine.RightModule.Bearing:edge:6:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="201.875,111.109 203.175,111.86" data-semantic-id="Machine.RightModule.Bearing:edge:7:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="203.175,111.86 205.125,112.986" data-semantic-id="Machine.RightModule.Bearing:edge:7:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="205.125,109.233 201.875,111.109" data-semantic-id="Machine.RightModule.Bearing:edge:8:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="200.25,115.8 200.25,112.048" data-semantic-id="Machine.RightModule.Bearing:edge:9:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="180.75,111.109 180.75,102.666" data-semantic-id="Machine.RightModule.Housing:edge:12:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="164.5,93.284 169.543,96.195" data-semantic-id="Machine.RightModule.Housing:edge:13:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="169.543,96.195 171.813,97.506" data-semantic-id="Machine.RightModule.Housing:edge:13:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="171.813,97.506 179.125,101.727" data-semantic-id="Machine.RightModule.Housing:edge:13:segment:0:interval:2:Visible"/>
+<polyline class="visible" points="179.125,101.727 180.75,102.666" data-semantic-id="Machine.RightModule.Housing:edge:13:segment:0:interval:3:Visible"/>
+<polyline class="visible" points="197,101.727 197,93.284" data-semantic-id="Machine.RightModule.Housing:edge:14:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="180.75,102.666 182.375,101.727" data-semantic-id="Machine.RightModule.Housing:edge:15:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="182.375,101.727 189.688,97.506" data-semantic-id="Machine.RightModule.Housing:edge:15:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="189.688,97.506 197,93.284" data-semantic-id="Machine.RightModule.Housing:edge:15:segment:0:interval:2:Visible"/>
+<polyline class="visible" points="164.5,93.284 166.125,92.345" data-semantic-id="Machine.RightModule.Housing:edge:17:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="180.75,102.666 180.75,101.727" data-semantic-id="Machine.RightModule.Housing:edge:19:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="180.75,101.727 180.75,100.789" data-semantic-id="Machine.RightModule.Housing:edge:19:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="164.5,101.727 180.75,111.109" data-semantic-id="Machine.RightModule.Housing:edge:2:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="197,93.284 195.375,92.345" data-semantic-id="Machine.RightModule.Housing:edge:20:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="180.75,111.109 197,101.727" data-semantic-id="Machine.RightModule.Housing:edge:3:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="195.375,92.345 187.25,87.655" data-semantic-id="Machine.RightModule.Housing:edge:5:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="180.75,100.789 188.063,96.567" data-semantic-id="Machine.RightModule.Housing:edge:6:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="188.063,96.567 194.045,93.113" data-semantic-id="Machine.RightModule.Housing:edge:6:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="194.045,93.113 195.375,92.345" data-semantic-id="Machine.RightModule.Housing:edge:6:segment:0:interval:2:Visible"/>
+<polyline class="visible" points="166.125,92.345 170.664,94.966" data-semantic-id="Machine.RightModule.Housing:edge:7:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="170.664,94.966 173.438,96.567" data-semantic-id="Machine.RightModule.Housing:edge:7:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="173.438,96.567 180.75,100.789" data-semantic-id="Machine.RightModule.Housing:edge:7:segment:0:interval:2:Visible"/>
+<polyline class="visible" points="174.25,87.655 166.125,92.345" data-semantic-id="Machine.RightModule.Housing:edge:8:segment:0:interval:6:Visible"/>
+<polyline class="visible" points="164.5,101.727 164.5,93.284" data-semantic-id="Machine.RightModule.Housing:edge:9:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="180.75,96.098 180.75,92.345" data-semantic-id="Machine.RightModule.Shaft:edge:12:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="180.75,92.345 180.75,88.593" data-semantic-id="Machine.RightModule.Shaft:edge:12:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="180.75,88.593 180.75,87.655" data-semantic-id="Machine.RightModule.Shaft:edge:12:segment:0:interval:2:Visible"/>
+<polyline class="visible" points="174.25,83.902 177.5,85.778" data-semantic-id="Machine.RightModule.Shaft:edge:13:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="177.5,85.778 177.691,85.889" data-semantic-id="Machine.RightModule.Shaft:edge:13:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="177.691,85.889 178.509,86.36" data-semantic-id="Machine.RightModule.Shaft:edge:13:segment:0:interval:2:Visible"/>
+<polyline class="visible" points="178.509,86.36 180.75,87.655" data-semantic-id="Machine.RightModule.Shaft:edge:13:segment:0:interval:3:Visible"/>
+<polyline class="visible" points="187.25,92.345 187.25,87.655" data-semantic-id="Machine.RightModule.Shaft:edge:14:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="187.25,87.655 187.25,83.902" data-semantic-id="Machine.RightModule.Shaft:edge:14:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="180.75,87.655 184,85.778" data-semantic-id="Machine.RightModule.Shaft:edge:15:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="184,85.778 187.25,83.902" data-semantic-id="Machine.RightModule.Shaft:edge:15:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="174.25,83.902 175.875,82.964" data-semantic-id="Machine.RightModule.Shaft:edge:17:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="180.75,87.655 180.75,85.778" data-semantic-id="Machine.RightModule.Shaft:edge:19:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="174.25,92.345 177.5,94.222" data-semantic-id="Machine.RightModule.Shaft:edge:2:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="177.5,94.222 180.75,96.098" data-semantic-id="Machine.RightModule.Shaft:edge:2:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="187.25,83.902 185.625,82.964" data-semantic-id="Machine.RightModule.Shaft:edge:20:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="180.75,96.098 184,94.222" data-semantic-id="Machine.RightModule.Shaft:edge:3:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="184,94.222 186.659,92.687" data-semantic-id="Machine.RightModule.Shaft:edge:3:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="186.659,92.687 187.25,92.345" data-semantic-id="Machine.RightModule.Shaft:edge:3:segment:0:interval:2:Visible"/>
+<polyline class="visible" points="185.625,82.964 180.75,80.149" data-semantic-id="Machine.RightModule.Shaft:edge:5:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="180.75,85.778 182.375,84.84" data-semantic-id="Machine.RightModule.Shaft:edge:6:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="182.375,84.84 185.625,82.964" data-semantic-id="Machine.RightModule.Shaft:edge:6:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="175.875,82.964 178.456,84.454" data-semantic-id="Machine.RightModule.Shaft:edge:7:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="178.456,84.454 179.125,84.84" data-semantic-id="Machine.RightModule.Shaft:edge:7:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="179.125,84.84 179.629,85.131" data-semantic-id="Machine.RightModule.Shaft:edge:7:segment:0:interval:2:Visible"/>
+<polyline class="visible" points="179.629,85.131 180.75,85.778" data-semantic-id="Machine.RightModule.Shaft:edge:7:segment:0:interval:3:Visible"/>
+<polyline class="visible" points="180.75,80.149 175.875,82.964" data-semantic-id="Machine.RightModule.Shaft:edge:8:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="174.25,92.345 174.25,91.032" data-semantic-id="Machine.RightModule.Shaft:edge:9:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="174.25,91.032 174.25,87.655" data-semantic-id="Machine.RightModule.Shaft:edge:9:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="174.25,87.655 174.25,83.902" data-semantic-id="Machine.RightModule.Shaft:edge:9:segment:0:interval:2:Visible"/>
+<polyline class="visible" points="221.375,127.997 221.375,125.182" data-semantic-id="Machine.RightModule.Spacer:edge:12:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="221.375,125.182 221.375,124.244" data-semantic-id="Machine.RightModule.Spacer:edge:12:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="216.5,121.43 218.45,122.555" data-semantic-id="Machine.RightModule.Spacer:edge:13:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="218.45,122.555 219.75,123.306" data-semantic-id="Machine.RightModule.Spacer:edge:13:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="219.75,123.306 221.375,124.244" data-semantic-id="Machine.RightModule.Spacer:edge:13:segment:0:interval:2:Visible"/>
+<polyline class="visible" points="226.25,125.182 226.25,121.43" data-semantic-id="Machine.RightModule.Spacer:edge:14:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="221.375,124.244 223,123.306" data-semantic-id="Machine.RightModule.Spacer:edge:15:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="223,123.306 226.25,121.43" data-semantic-id="Machine.RightModule.Spacer:edge:15:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="216.5,121.43 218.125,120.491" data-semantic-id="Machine.RightModule.Spacer:edge:17:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="221.375,124.244 221.375,122.368" data-semantic-id="Machine.RightModule.Spacer:edge:19:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="216.5,125.182 221.375,127.997" data-semantic-id="Machine.RightModule.Spacer:edge:2:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="226.25,121.43 224.625,120.491" data-semantic-id="Machine.RightModule.Spacer:edge:20:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="221.375,127.997 226.25,125.182" data-semantic-id="Machine.RightModule.Spacer:edge:3:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="224.625,120.491 221.375,118.615" data-semantic-id="Machine.RightModule.Spacer:edge:5:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="221.375,122.368 224.625,120.491" data-semantic-id="Machine.RightModule.Spacer:edge:6:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="218.125,120.491 219.425,121.242" data-semantic-id="Machine.RightModule.Spacer:edge:7:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="219.425,121.242 221.375,122.368" data-semantic-id="Machine.RightModule.Spacer:edge:7:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="221.375,118.615 218.125,120.491" data-semantic-id="Machine.RightModule.Spacer:edge:8:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="216.5,125.182 216.5,121.43" data-semantic-id="Machine.RightModule.Spacer:edge:9:segment:0:interval:0:Visible"/>
+</g>
+<g data-annotation="annotation:Front:MachineOffset" data-semantic-reference="MachineOffset">
+<polyline class="leader" points="77.25,90 77.25,44.491"/>
+<rect x="60.396" y="38.491" width="33.707" height="6" fill="white" stroke="#374151" stroke-width=".18"/>
+<text class="annotation" x="61.596" y="42.491">45 mm [44.92, 45.1]</text>
+</g>
+<text class="meta" x="10" y="182" data-zone="D2">ASSEMBLE TO SEMANTIC MATE INTENT</text>
+<text class="meta" x="10" y="186" data-zone="D2">BOM IS FLATTENED TO LEAF PART OCCURRENCES</text>
+<g data-information-block="true" data-zone="D5"><rect x="175" y="176" width="115" height="22" fill="#fff" stroke="#334155" stroke-width=".3"/>
+<rect x="175" y="176" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="175.8" y="178.2">COMPANY</text><text class="info-value" x="175.8" y="181">Aster Works</text>
+<rect x="213.333" y="176" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="214.133" y="178.2">TITLE</text><text class="info-value" x="214.133" y="181">Machine Assembly</text>
+<rect x="251.667" y="176" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="252.467" y="178.2">PRODUCT</text><text class="info-value" x="252.467" y="181">Machine</text>
+<rect x="175" y="183.333" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="175.8" y="185.533">PART</text><text class="info-value" x="175.8" y="188.333">ASM-MACHINE-001</text>
+<rect x="213.333" y="183.333" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="214.133" y="185.533">REVISION</text><text class="info-value" x="214.133" y="188.333">1.1.0</text>
+<rect x="251.667" y="183.333" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="252.467" y="185.533">AUTHOR</text><text class="info-value" x="252.467" y="188.333">CODEX</text>
+<rect x="175" y="190.667" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="175.8" y="192.867">DATE</text><text class="info-value" x="175.8" y="195.667">2026-08-10</text>
+<rect x="213.333" y="190.667" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="214.133" y="192.867">SCALE</text><text class="info-value" x="214.133" y="195.667">MULTIPLE</text>
+<rect x="251.667" y="190.667" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="252.467" y="192.867">PAGE</text><text class="info-value" x="252.467" y="195.667">1/2</text>
+</g>
+</g>
+<g transform="translate(0 218)" data-page="2">
+<rect class="sheet" x="0" y="0" width="297" height="210"/>
+<rect class="border" x="7" y="15" width="283" height="183"/>
+<text class="zone-label" x="30.583" y="13" text-anchor="middle">1</text><text class="zone-label" x="30.583" y="202" text-anchor="middle">1</text>
+<text class="zone-label" x="77.75" y="13" text-anchor="middle">2</text><text class="zone-label" x="77.75" y="202" text-anchor="middle">2</text>
+<path class="zone-tick" d="M 54.167 15 v 3 M 54.167 198 v -3"/>
+<text class="zone-label" x="124.917" y="13" text-anchor="middle">3</text><text class="zone-label" x="124.917" y="202" text-anchor="middle">3</text>
+<path class="zone-tick" d="M 101.333 15 v 3 M 101.333 198 v -3"/>
+<text class="zone-label" x="172.083" y="13" text-anchor="middle">4</text><text class="zone-label" x="172.083" y="202" text-anchor="middle">4</text>
+<path class="zone-tick" d="M 148.5 15 v 3 M 148.5 198 v -3"/>
+<text class="zone-label" x="219.25" y="13" text-anchor="middle">5</text><text class="zone-label" x="219.25" y="202" text-anchor="middle">5</text>
+<path class="zone-tick" d="M 195.667 15 v 3 M 195.667 198 v -3"/>
+<text class="zone-label" x="266.417" y="13" text-anchor="middle">6</text><text class="zone-label" x="266.417" y="202" text-anchor="middle">6</text>
+<path class="zone-tick" d="M 242.833 15 v 3 M 242.833 198 v -3"/>
+<text class="zone-label" x="4" y="38.875" text-anchor="middle">A</text><text class="zone-label" x="293" y="38.875" text-anchor="middle">A</text>
+<text class="zone-label" x="4" y="84.625" text-anchor="middle">B</text><text class="zone-label" x="293" y="84.625" text-anchor="middle">B</text>
+<path class="zone-tick" d="M 7 60.75 h 3 M 290 60.75 h -3"/>
+<text class="zone-label" x="4" y="130.375" text-anchor="middle">C</text><text class="zone-label" x="293" y="130.375" text-anchor="middle">C</text>
+<path class="zone-tick" d="M 7 106.5 h 3 M 290 106.5 h -3"/>
+<text class="zone-label" x="4" y="176.125" text-anchor="middle">D</text><text class="zone-label" x="293" y="176.125" text-anchor="middle">D</text>
+<path class="zone-tick" d="M 7 152.25 h 3 M 290 152.25 h -3"/>
+<text class="label" x="10" y="9">Machine / Bearing Module Assembly</text>
+<text class="meta" x="287" y="9" text-anchor="end">Machine · REV 1.1.0 · 2/2</text>
+<g data-table-kind="BillOfMaterials" data-zone="A3"><text class="label" x="10" y="23">BOM</text>
+<rect x="10" y="26" width="46.167" height="7" fill="#e2e8f0" stroke="#64748b" stroke-width=".2"/>
+<text class="table-header" x="11" y="30.5">ITEM</text>
+<rect x="56.167" y="26" width="46.167" height="7" fill="#e2e8f0" stroke="#64748b" stroke-width=".2"/>
+<text class="table-header" x="57.167" y="30.5">DEFINITION</text>
+<rect x="102.333" y="26" width="46.167" height="7" fill="#e2e8f0" stroke="#64748b" stroke-width=".2"/>
+<text class="table-header" x="103.333" y="30.5">DESCRIPTION</text>
+<rect x="148.5" y="26" width="46.167" height="7" fill="#e2e8f0" stroke="#64748b" stroke-width=".2"/>
+<text class="table-header" x="149.5" y="30.5">QTY</text>
+<rect x="194.667" y="26" width="46.167" height="7" fill="#e2e8f0" stroke="#64748b" stroke-width=".2"/>
+<text class="table-header" x="195.667" y="30.5">PART NO.</text>
+<rect x="240.833" y="26" width="46.167" height="7" fill="#e2e8f0" stroke="#64748b" stroke-width=".2"/>
+<text class="table-header" x="241.833" y="30.5">REV</text>
+<rect x="10" y="33" width="46.167" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="11" y="37.5">1</text>
+<rect x="56.167" y="33" width="46.167" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="57.167" y="37.5">AssemblyBlock&lt;Spec: HousingSpec&gt;</text>
+<rect x="102.333" y="33" width="46.167" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="103.333" y="37.5">AssemblyBlock</text>
+<rect x="148.5" y="33" width="46.167" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="149.5" y="37.5">3</text>
+<rect x="194.667" y="33" width="46.167" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="195.667" y="37.5">-</text>
+<rect x="240.833" y="33" width="46.167" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="241.833" y="37.5">-</text>
+<rect x="10" y="40" width="46.167" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="11" y="44.5">2</text>
+<rect x="56.167" y="40" width="46.167" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="57.167" y="44.5">AssemblyBlock&lt;Spec: ShaftSpec&gt;</text>
+<rect x="102.333" y="40" width="46.167" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="103.333" y="44.5">AssemblyBlock</text>
+<rect x="148.5" y="40" width="46.167" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="149.5" y="44.5">2</text>
+<rect x="194.667" y="40" width="46.167" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="195.667" y="44.5">-</text>
+<rect x="240.833" y="40" width="46.167" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="241.833" y="44.5">-</text>
+<rect x="10" y="47" width="46.167" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="11" y="51.5">3</text>
+<rect x="56.167" y="47" width="46.167" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="57.167" y="51.5">AssemblyBlock&lt;Spec: SpacerSpec&gt;</text>
+<rect x="102.333" y="47" width="46.167" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="103.333" y="51.5">AssemblyBlock</text>
+<rect x="148.5" y="47" width="46.167" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="149.5" y="51.5">4</text>
+<rect x="194.667" y="47" width="46.167" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="195.667" y="51.5">-</text>
+<rect x="240.833" y="47" width="46.167" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="241.833" y="51.5">-</text>
+</g>
+<g data-information-block="true" data-zone="D5"><rect x="175" y="176" width="115" height="22" fill="#fff" stroke="#334155" stroke-width=".3"/>
+<rect x="175" y="176" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="175.8" y="178.2">COMPANY</text><text class="info-value" x="175.8" y="181">Aster Works</text>
+<rect x="213.333" y="176" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="214.133" y="178.2">TITLE</text><text class="info-value" x="214.133" y="181">Machine Assembly</text>
+<rect x="251.667" y="176" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="252.467" y="178.2">PRODUCT</text><text class="info-value" x="252.467" y="181">Machine</text>
+<rect x="175" y="183.333" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="175.8" y="185.533">PART</text><text class="info-value" x="175.8" y="188.333">ASM-MACHINE-001</text>
+<rect x="213.333" y="183.333" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="214.133" y="185.533">REVISION</text><text class="info-value" x="214.133" y="188.333">1.1.0</text>
+<rect x="251.667" y="183.333" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="252.467" y="185.533">AUTHOR</text><text class="info-value" x="252.467" y="188.333">CODEX</text>
+<rect x="175" y="190.667" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="175.8" y="192.867">DATE</text><text class="info-value" x="175.8" y="195.667">2026-08-10</text>
+<rect x="213.333" y="190.667" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="214.133" y="192.867">SCALE</text><text class="info-value" x="214.133" y="195.667">MULTIPLE</text>
+<rect x="251.667" y="190.667" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="252.467" y="192.867">PAGE</text><text class="info-value" x="252.467" y="195.667">2/2</text>
+</g>
+</g>
+</svg>

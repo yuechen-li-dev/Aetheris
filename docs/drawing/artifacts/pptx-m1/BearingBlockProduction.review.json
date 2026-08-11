@@ -1,0 +1,68 @@
+{
+  "threads": [
+    {
+      "id": "DFM-004",
+      "target": {
+        "semanticReference": "MountDiameter",
+        "sourcePath": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\DrawingM0\\bearing-block-drawing.firmament",
+        "currentEngineeringValue": "\u00D88 mm \u002B0.05/-0.02",
+        "capabilities": [
+          "PMI",
+          "Dimensional"
+        ],
+        "presentationReference": null
+      },
+      "status": "Resolved",
+      "entries": [
+        {
+          "id": "DFM-004-I1",
+          "kind": "Issue",
+          "author": {
+            "name": "Alice Chen",
+            "organization": "Northstar Machining",
+            "email": null
+          },
+          "authoredDate": "2026-08-10",
+          "text": "Current bore tolerance requires finish grinding.",
+          "proposal": null,
+          "authoredOrder": 0
+        },
+        {
+          "id": "DFM-004-P1",
+          "kind": "Proposal",
+          "author": {
+            "name": "Alice Chen",
+            "organization": "Northstar Machining",
+            "email": null
+          },
+          "authoredDate": "2026-08-10",
+          "text": "Avoid a secondary grinding operation.",
+          "proposal": {
+            "property": "tolerance",
+            "currentValue": "PlusMinus(0.005mm)",
+            "proposedValue": "PlusMinus(0.010mm)",
+            "units": "mm",
+            "rationale": "Avoid a secondary grinding operation."
+          },
+          "authoredOrder": 1
+        },
+        {
+          "id": "DFM-004-R1",
+          "kind": "Resolution",
+          "author": {
+            "name": "Daniel Ruiz",
+            "organization": "Aster Works",
+            "email": null
+          },
+          "authoredDate": "2026-08-10",
+          "text": "\u0022Accepted as a proposal for the next authoritative product revision",
+          "proposal": null,
+          "authoredOrder": 2
+        }
+      ],
+      "provenance": "C:\\Users\\yuech\\source\\repos\\Aetheris\\fixtures\\DrawingM0\\bearing-block-drawing.firmament:Review DFM-004"
+    }
+  ],
+  "orderingPolicy": "Authored source order; stable thread and entry identities are preserved.",
+  "schemaVersion": "aetheris-review-m0"
+}

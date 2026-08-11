@@ -557,8 +557,8 @@ Model CanonicalPanel {
             return 1;
         }
         var artifacts = result.Artifacts!;
-        if (json) stdout.WriteLine(JsonSerializer.Serialize(new { success = true, artifacts.DrawingIrPath, artifacts.SvgPath, artifacts.PdfPath, artifacts.ValidationPath, artifacts.PdfSha256, artifacts.DrawingIrSha256, pageCount = artifacts.Drawing.Pages.Count, layout = artifacts.Drawing.LayoutEvidence }, JsonOptions));
-        else stdout.WriteLine($"Compiled Drawing '{artifacts.Drawing.Identity}' to {artifacts.PdfPath} ({artifacts.Drawing.Pages.Count} A4 page(s)).");
+        if (json) stdout.WriteLine(JsonSerializer.Serialize(new { success = true, artifacts.DrawingIrPath, artifacts.SvgPath, artifacts.PdfPath, artifacts.PptxPath, artifacts.ReviewPptxPath, artifacts.DfmReviewPptxPath, artifacts.ReviewIrPath, artifacts.ValidationPath, artifacts.PdfSha256, artifacts.DrawingIrSha256, artifacts.PptxSha256, pageCount = artifacts.Drawing.Pages.Count, layout = artifacts.Drawing.LayoutEvidence }, JsonOptions));
+        else stdout.WriteLine($"Compiled Drawing '{artifacts.Drawing.Identity}' to PDF and native editable PPTX ({artifacts.Drawing.Pages.Count} A4 page(s)).");
         return 0;
     }
 
@@ -3465,7 +3465,7 @@ Model CanonicalPanel {
         stdout.WriteLine("  inspect    Inspect Firmament semantics or STEP topology.");
         stdout.WriteLine("  analyze    Analyze STEP topology and analytic surfaces.");
         stdout.WriteLine("  fea        Compile and solve a Firmament linear-elastic analysis and export Abaqus verification input.");
-        stdout.WriteLine("  drawing    Compile a Firmament Drawing Template to DrawingIR, SVG, and vector A4 PDF.");
+        stdout.WriteLine("  drawing    Compile a Firmament Drawing Template to DrawingIR, SVG, vector A4 PDF, and native editable PPTX.");
         stdout.WriteLine("  modules    Inspect built-in engineering Modules and capabilities.");
         stdout.WriteLine("  verify     Build/reimport and verify a model.");
         stdout.WriteLine();

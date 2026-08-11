@@ -1,0 +1,58 @@
+{
+  "success": true,
+  "schema": "aetheris-drawing-m0b",
+  "authoritativeSource": "BearingBlock",
+  "sourceKind": "Part",
+  "pageCount": 2,
+  "a4Only": true,
+  "vectorPdf": true,
+  "rasterImages": 0,
+  "embeddedFont": "Inter",
+  "searchableText": true,
+  "pptx": {
+    "slideCount": 2,
+    "widthEmu": 10692000,
+    "heightEmu": 7560000,
+    "nativeShapes": 867,
+    "nativeGroups": 6,
+    "nativeTables": 1,
+    "editableTextRuns": 82,
+    "rasterImages": 0,
+    "semanticNames": 872
+  },
+  "reviewPptx": {
+    "slideCount": 2,
+    "widthEmu": 10692000,
+    "heightEmu": 7560000,
+    "nativeShapes": 870,
+    "nativeGroups": 7,
+    "nativeTables": 1,
+    "editableTextRuns": 85,
+    "rasterImages": 0,
+    "semanticNames": 876
+  },
+  "occurrenceCount": 1,
+  "bomRows": 0,
+  "visibleSegments": 793,
+  "hiddenSegments": 998,
+  "splitPoints": 1509,
+  "textModelCollisionsAfter": 0,
+  "textTextCollisionsAfter": 0,
+  "failedAnnotationCount": 0,
+  "drawingIrSha256": "2d007bb1965e905b1a9ca8e63333b1aadae6153235d5fe0244e6e6c58097ad4b",
+  "pdfSha256": "dce4e2a65e1057ffd7eeab9049d77821114af8d52a85740ee0c1c280f51cc3f0",
+  "pptxSha256": "e630178f41a57428b0193515a116eee6139b4fbd7247849a5d82ed4b0c1d07c5",
+  "measuredPerformance": {
+    "sourceCompileMilliseconds": 213.3896,
+    "projectionMilliseconds": 886.9475,
+    "layoutMilliseconds": 6.8683,
+    "renderMilliseconds": 7.0257,
+    "pdfMilliseconds": 15.2913,
+    "bomMilliseconds": 0
+  },
+  "pptxPerformance": {
+    "drawingMilliseconds": 23.1572,
+    "reviewProjectionMilliseconds": 7.2421,
+    "dfmDeckMilliseconds": 9.7214
+  }
+}

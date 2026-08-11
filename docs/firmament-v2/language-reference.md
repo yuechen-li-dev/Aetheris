@@ -215,11 +215,17 @@ retains its structured private contributor chain.
 - `Assert ToleranceStackup`: Assembly compile-time worst-case interval assertion with full relation provenance.
 - Historical V1 `expect` validation forms belong to the legacy frontend and are not canonical V2 assertions.
 
+## Engineering reviews
+
+`Review StableId { ... }` is an ordinary Firmament declaration that compiles to backend-independent ReviewIR. `Target` names a stable semantic/PMI reference and `Status` is typed as `Open`, `Accepted`, `Rejected`, `Resolved`, or `Superseded`. Nested `Comment`, `Issue`, `Proposal`, and `Resolution` entries require a stable ID (an authored ID is recommended), `Author`, and an authored ISO `Date`. `Organization` and `Email` are optional.
+
+A `Proposal` may add `Property`, `Current`, `Proposed`, `Units`, and `Reason`. It records a candidate change but never mutates product source. Drawing compilation rejects unknown review targets and explicit current/proposed unit mismatches. See [the review reference](../collaboration/reviews.md).
+
 ## Status appendix
 
 | Status | Constructs |
 |---|---|
-| Supported | Model, Units, primitive literals/types, let, Record, Static Record/Table/array, indexing, with, Concept, Concept Struct, Struct, Expose, Concept Path, Profile, Compose, bounded Modify/Hole/Pattern/EdgeFinish/Selection, Template, Match, Require, Panel with ParametricSurface/named/RuledSurface/RuledTransition/BoundaryPatch/SectionSurface construction, semantic Panel edges/corners, exact G0 Panel edge Mates, InlineStep, bounded Recognize/Replace, PMI datum/diameter binding, Analysis declarations, bounded Drawing declaration/Concept/Template specialization, SemanticValue, Interface/Role/Lower/Fit/Allow, Assembly/Part/Panel/Anchor/Mate/Relation/Dimension/tol, Assert Volume, Assert ToleranceStackup |
+| Supported | Model, Units, primitive literals/types, let, Record, Static Record/Table/array, indexing, with, Concept, Concept Struct, Struct, Expose, Concept Path, Profile, Compose, bounded Modify/Hole/Pattern/EdgeFinish/Selection, Template, Match, Require, Panel with ParametricSurface/named/RuledSurface/RuledTransition/BoundaryPatch/SectionSurface construction, semantic Panel edges/corners, exact G0 Panel edge Mates, InlineStep, bounded Recognize/Replace, PMI datum/diameter binding, Analysis declarations, bounded Drawing declaration/Concept/Template specialization, Review/Comment/Issue/Proposal/Resolution, SemanticValue, Interface/Role/Lower/Fit/Allow, Assembly/Part/Panel/Anchor/Mate/Relation/Dimension/tol, Assert Volume, Assert ToleranceStackup |
 | Experimental | standalone/fill lattice routes, broader PMI controls/export, general Forge source invocation, some Slot/EdgeFinish/Boolean/placement routes, M1 Template Part syntax while the central grammar remains split |
 | Internal-only | AIR/CIR/BRep plans, topology IDs, semantic source maps, Template expansion artifacts, Judgment/route machinery |
 | Legacy/Deprecated | Firmament V1 TOON-style fixture syntax, `.firmasm`, transform-first assembly execution, legacy lowercase/alternate PMI spellings accepted for compatibility |

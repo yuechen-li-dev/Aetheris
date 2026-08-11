@@ -1,3 +1,5 @@
+using Aetheris.Collaboration;
+
 namespace Aetheris.Kernel.Firmament.Drawing;
 
 public enum DrawingPageOrientation { Portrait, Landscape }
@@ -189,6 +191,7 @@ public sealed record DrawingIr(
     IReadOnlyList<string> Diagnostics,
     string ProjectionPolicy,
     DrawingTypographyIr? Typography = null,
+    ReviewIr? Reviews = null,
     string SchemaVersion = "aetheris-drawing-m0b");
 
 public sealed record DrawingCompileArtifacts(
@@ -197,8 +200,13 @@ public sealed record DrawingCompileArtifacts(
     string SvgPath,
     string PdfPath,
     string ValidationPath,
+    string PptxPath,
+    string? ReviewPptxPath,
+    string? DfmReviewPptxPath,
+    string? ReviewIrPath,
     string PdfSha256,
-    string DrawingIrSha256);
+    string DrawingIrSha256,
+    string PptxSha256);
 
 public sealed record DrawingCompileResult(
     bool IsSuccess,

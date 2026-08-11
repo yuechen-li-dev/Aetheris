@@ -9,6 +9,7 @@ using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament.Assembly;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Semantics;
+using Aetheris.Collaboration;
 
 namespace Aetheris.Kernel.Firmament.Drawing;
 
@@ -39,13 +40,15 @@ public static class FirmamentDrawingCompiler
         if (!File.Exists(fullSourcePath)) return Failure($"drawing-source-file-missing: {fullSourcePath}");
         Directory.CreateDirectory(output);
         var source = File.ReadAllText(fullSourcePath, Encoding.UTF8).Replace("\r\n", "\n", StringComparison.Ordinal);
-        var parse = ParseDrawingLanguage(source);
+        var reviewScan = FirmamentReviewCompiler.Compile(source, fullSourcePath);
+        var drawingSourceText = FirmamentReviewCompiler.EraseDeclarations(source, reviewScan.SourceRanges);
+        var parse = ParseDrawingLanguage(drawingSourceText);
         if (parse.Diagnostics.Count > 0 || parse.Drawing is null) return new(false, null, parse.Diagnostics);
         var drawingSource = parse.Drawing;
-        var metadataResult = ResolveMetadata(source, drawingSource);
+        var metadataResult = ResolveMetadata(drawingSourceText, drawingSource);
         if (metadataResult.Diagnostics.Count > 0) return new(false, null, metadataResult.Diagnostics);
         var metadata = metadataResult.Metadata!;
-        var geometrySource = EraseDrawingDeclarations(source, parse.Ranges);
+        var geometrySource = EraseDrawingDeclarations(drawingSourceText, parse.Ranges);
 
         var sourceWatch = Stopwatch.StartNew();
         var bodies = new List<DrawingProjectionBody>();
@@ -96,6 +99,9 @@ public static class FirmamentDrawingCompiler
 
         var unknownPmi = drawingSource.Views.SelectMany(view => view.Pmi).Distinct(StringComparer.Ordinal).Where(reference => !pmi.ContainsKey(reference)).Order(StringComparer.Ordinal).ToArray();
         if (unknownPmi.Length > 0) return Failure($"{DrawingPmiUnknown}: {string.Join(", ", unknownPmi)}");
+        var reviewTargets = pmi.ToDictionary(pair => pair.Key, pair => ((string?)pair.Value.Display, (IReadOnlyList<string>)["PMI", "Dimensional"]), StringComparer.Ordinal);
+        var reviewResult = FirmamentReviewCompiler.Compile(source, fullSourcePath, reviewTargets);
+        if (!reviewResult.IsSuccess) return new(false, null, reviewResult.Diagnostics);
         var conceptFailures = ValidateConcept(drawingSource, parse.Concept, metadata);
         if (conceptFailures.Count > 0) return new(false, null, conceptFailures);
 
@@ -117,31 +123,43 @@ public static class FirmamentDrawingCompiler
         var typography = new DrawingTypographyIr("Inter", "Embedded TrueType / Type0 Identity-H", "Embedded Inter advance widths shared by layout and PDF", new Dictionary<string, double> { ["body"] = 2.8, ["label"] = 3.2, ["title"] = 4.0 });
         var preliminary = new DrawingIr(drawingSource.Name, metadata, provenance, pages, layout.Evidence,
             new(sourceWatch.Elapsed.TotalMilliseconds, projectionWatch.Elapsed.TotalMilliseconds, layoutWatch.Elapsed.TotalMilliseconds, 0, 0, bomMilliseconds), [],
-            "Exact B-rep occurrence edges; bounded segment-split occlusion against deterministic face tessellation. Unsupported patches are conservative and explicit.", typography);
+            "Exact B-rep occurrence edges; bounded segment-split occlusion against deterministic face tessellation. Unsupported patches are conservative and explicit.", typography, reviewResult.Review);
 
         var stem = Sanitize(drawingSource.Name); var irPath = Path.Combine(output, $"{stem}.drawing.json");
         var svgPath = Path.Combine(output, $"{stem}.svg"); var pdfPath = Path.Combine(output, $"{stem}.pdf");
         var validationPath = Path.Combine(output, $"{stem}.validation.json");
+        var pptxPath = Path.Combine(output, $"{stem}.pptx");
+        var reviewPptxPath = reviewResult.Review!.Threads.Count == 0 ? null : Path.Combine(output, $"{stem.Replace("Production", "Review", StringComparison.Ordinal)}.pptx");
+        var dfmPptxPath = reviewResult.Review.Threads.Count == 0 ? null : Path.Combine(output, $"{stem.Replace("Production", "DfmReview", StringComparison.Ordinal)}.pptx");
+        var reviewIrPath = reviewResult.Review.Threads.Count == 0 ? null : Path.Combine(output, $"{stem}.review.json");
         var renderWatch = Stopwatch.StartNew(); File.WriteAllText(svgPath, DrawingSvgRenderer.Render(preliminary), new UTF8Encoding(false)); renderWatch.Stop();
         var pdfWatch = Stopwatch.StartNew(); DrawingVectorPdfWriter.Write(preliminary, pdfPath); pdfWatch.Stop();
         var measured = preliminary.Performance with { RenderMilliseconds = renderWatch.Elapsed.TotalMilliseconds, PdfMilliseconds = pdfWatch.Elapsed.TotalMilliseconds };
         var drawing = preliminary with { Performance = new(0, 0, 0, 0, 0, 0) };
         var json = JsonSerializer.Serialize(drawing, JsonOptions); File.WriteAllText(irPath, json, new UTF8Encoding(false));
+        var pptxWatch = Stopwatch.StartNew(); DrawingPptxWriter.WriteDrawing(drawing, pptxPath, includeReviews: false); pptxWatch.Stop();
+        var reviewPptxMilliseconds = 0d; var dfmDeckMilliseconds = 0d;
+        if (reviewPptxPath is not null) { var watch = Stopwatch.StartNew(); DrawingPptxWriter.WriteDrawing(drawing, reviewPptxPath, includeReviews: true); watch.Stop(); reviewPptxMilliseconds = watch.Elapsed.TotalMilliseconds; }
+        if (dfmPptxPath is not null) { var watch = Stopwatch.StartNew(); DrawingPptxWriter.WriteDfmDeck(drawing, dfmPptxPath); watch.Stop(); dfmDeckMilliseconds = watch.Elapsed.TotalMilliseconds; }
+        if (reviewIrPath is not null) File.WriteAllText(reviewIrPath, JsonSerializer.Serialize(reviewResult.Review, JsonOptions), new UTF8Encoding(false));
         var irHash = HashBytes(Encoding.UTF8.GetBytes(json)); var pdfHash = HashBytes(File.ReadAllBytes(pdfPath));
+        var pptxHash = HashBytes(File.ReadAllBytes(pptxPath));
         var validation = new
         {
             success = true, schema = drawing.SchemaVersion, authoritativeSource = drawing.Provenance.SourceProductIdentity, sourceKind,
             pageCount = drawing.Pages.Count, a4Only = drawing.Pages.All(page => (page.WidthMillimetres, page.HeightMillimetres) is (210, 297) or (297, 210)),
             vectorPdf = true, rasterImages = 0, embeddedFont = "Inter", searchableText = true,
+            pptx = DrawingPptxWriter.Inspect(pptxPath), reviewPptx = reviewPptxPath is null ? null : DrawingPptxWriter.Inspect(reviewPptxPath),
             occurrenceCount = bodies.Count, bomRows = bom?.Items.Count ?? 0,
             visibleSegments = drawing.Pages.SelectMany(page => page.Views).Sum(view => view.VisibilityEvidence?.VisibleSegments ?? 0),
             hiddenSegments = drawing.Pages.SelectMany(page => page.Views).Sum(view => view.VisibilityEvidence?.HiddenSegments ?? 0),
             splitPoints = drawing.Pages.SelectMany(page => page.Views).Sum(view => view.VisibilityEvidence?.SplitPointCount ?? 0),
             drawing.LayoutEvidence.TextModelCollisionsAfter, drawing.LayoutEvidence.TextTextCollisionsAfter, drawing.LayoutEvidence.FailedAnnotationCount,
-            drawingIrSha256 = irHash, pdfSha256 = pdfHash, measuredPerformance = measured
+            drawingIrSha256 = irHash, pdfSha256 = pdfHash, pptxSha256 = pptxHash, measuredPerformance = measured,
+            pptxPerformance = new { drawingMilliseconds = pptxWatch.Elapsed.TotalMilliseconds, reviewProjectionMilliseconds = reviewPptxMilliseconds, dfmDeckMilliseconds }
         };
         File.WriteAllText(validationPath, JsonSerializer.Serialize(validation, JsonOptions), new UTF8Encoding(false));
-        return new(true, new(drawing, irPath, svgPath, pdfPath, validationPath, pdfHash, irHash), []);
+        return new(true, new(drawing, irPath, svgPath, pdfPath, validationPath, pptxPath, reviewPptxPath, dfmPptxPath, reviewIrPath, pdfHash, irHash, pptxHash), []);
     }
 
     private static IReadOnlyList<DrawingPageIr> ProjectAndAllocate(IReadOnlyList<DrawingProjectionBody> bodies, ParsedDrawing drawing,

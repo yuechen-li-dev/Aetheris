@@ -11,6 +11,8 @@
   <Project Path="Aetheris.Modules.BuiltIn/Aetheris.Modules.BuiltIn.csproj" />
   <Project Path="Aetheris.Modules.Tests/Aetheris.Modules.Tests.csproj" />
   <Project Path="Aetheris.Continuum/Aetheris.Continuum.csproj" />
+  <Project Path="Aetheris.Collaboration/Aetheris.Collaboration.csproj" />
+  <Project Path="Aetheris.Collaboration.Tests/Aetheris.Collaboration.Tests.csproj" />
   <Project Path="Aetheris.FEA/Aetheris.FEA.csproj" />
   <Project Path="Aetheris.FEA.Tests/Aetheris.FEA.Tests.csproj" />
   <Project Path="Aetheris.Continuum.Tests/Aetheris.Continuum.Tests.csproj" />

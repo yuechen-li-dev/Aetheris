@@ -1,0 +1,82 @@
+[
+  {
+    "file": "architecture-audit.md",
+    "bytes": 2404,
+    "sha256": "0f90f92041d4344bf95ee1fbba3fb6a5066fdfd02fe34515ee53e5e518cb8479"
+  },
+  {
+    "file": "BearingBlockDfmReview.pptx",
+    "bytes": 42644,
+    "sha256": "ea5200b5b727a4f58ef63a9bbc19217066fcdf8de3e45ab31d11f5901429355c"
+  },
+  {
+    "file": "BearingBlockProduction.drawing.json",
+    "bytes": 568782,
+    "sha256": "2d007bb1965e905b1a9ca8e63333b1aadae6153235d5fe0244e6e6c58097ad4b"
+  },
+  {
+    "file": "BearingBlockProduction.pdf",
+    "bytes": 397126,
+    "sha256": "dce4e2a65e1057ffd7eeab9049d77821114af8d52a85740ee0c1c280f51cc3f0"
+  },
+  {
+    "file": "BearingBlockProduction.pptx",
+    "bytes": 26789,
+    "sha256": "e630178f41a57428b0193515a116eee6139b4fbd7247849a5d82ed4b0c1d07c5"
+  },
+  {
+    "file": "BearingBlockProduction.review.json",
+    "bytes": 2251,
+    "sha256": "3b9d8f9ebf3d56932329bb7e9845bbcc022ff83702f755fd5aec9169cc9d5731"
+  },
+  {
+    "file": "BearingBlockProduction.svg",
+    "bytes": 127593,
+    "sha256": "dc32481581aa3c4d94b03727d3b6c058d77e8310033f3cf1aeeb3b9bcc3e9f46"
+  },
+  {
+    "file": "BearingBlockProduction.validation.json",
+    "bytes": 1637,
+    "sha256": "3ff0ebf42c814d683ad22dd59f845da01ac6b880972724139556fc75b33a7492"
+  },
+  {
+    "file": "BearingBlockReview.pptx",
+    "bytes": 27066,
+    "sha256": "ea1c4e63091cd1741bb0def1f04057b622a9c805b444e35a9d70ab77a45d24ed"
+  },
+  {
+    "file": "determinism.json",
+    "bytes": 1222,
+    "sha256": "4bd6ae01a92ff55c691300f33e62dbef7ab95288ea43239320c957ac1d1befb3"
+  },
+  {
+    "file": "MachineAssemblyProduction.drawing.json",
+    "bytes": 300905,
+    "sha256": "c6ec439714cca05e64f5e8789635ee45f80ae74f081828b630508f1ef81064da"
+  },
+  {
+    "file": "MachineAssemblyProduction.pdf",
+    "bytes": 376856,
+    "sha256": "c9e83bce29b6d8b8bfb9e8c69b9642743dccd1ce1174b0f236c8c5a1de79e079"
+  },
+  {
+    "file": "MachineAssemblyProduction.pptx",
+    "bytes": 15026,
+    "sha256": "fb86f9cac951d01634d3117ac88eaa246044683b79dd74f8955a67adc34312bb"
+  },
+  {
+    "file": "MachineAssemblyProduction.svg",
+    "bytes": 71916,
+    "sha256": "25ab06acacc65291597548ac3329fb24f43b3f925678b58d13498185eb85a266"
+  },
+  {
+    "file": "MachineAssemblyProduction.validation.json",
+    "bytes": 1398,
+    "sha256": "0d051221675eaaa16dc3326c19a99f30447811024a81348c43ce2a6d9e8b0886"
+  },
+  {
+    "file": "README.md",
+    "bytes": 577,
+    "sha256": "59bb65cf814bde624dd69de8880502374cdb0f1bf6742d905db7b85668b3063e"
+  }
+]

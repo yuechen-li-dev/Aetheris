@@ -1,0 +1,47 @@
+[
+  {
+    "file": "bearing-block-review.firmament",
+    "bytes": 3657,
+    "sha256": "14ab063315765b023af92d84e25c5f1222570adb37f5fadf9882a447c5038270"
+  },
+  {
+    "file": "BearingBlockDfmReview-page-1.png",
+    "bytes": 82638,
+    "sha256": "5d52f4fbb5a133b6a912873ce5c995105ee74630465744ff0d432314eb4122f2"
+  },
+  {
+    "file": "BearingBlockDfmReview-page-2.png",
+    "bytes": 86853,
+    "sha256": "2c0f93820852ba592b946eedcf19270d5cebbbe8c185cfa9c34ed4ae2516e680"
+  },
+  {
+    "file": "BearingBlockDfmReview.pptx",
+    "bytes": 42644,
+    "sha256": "ea5200b5b727a4f58ef63a9bbc19217066fcdf8de3e45ab31d11f5901429355c"
+  },
+  {
+    "file": "BearingBlockProduction.review.json",
+    "bytes": 2251,
+    "sha256": "3b9d8f9ebf3d56932329bb7e9845bbcc022ff83702f755fd5aec9169cc9d5731"
+  },
+  {
+    "file": "BearingBlockReview-page-1.png",
+    "bytes": 84748,
+    "sha256": "46790b5fc968c4831e4425621d7f073e7adaf5e7176dfa58821864b0ece16b76"
+  },
+  {
+    "file": "BearingBlockReview.pptx",
+    "bytes": 27066,
+    "sha256": "ea1c4e63091cd1741bb0def1f04057b622a9c805b444e35a9d70ab77a45d24ed"
+  },
+  {
+    "file": "README.md",
+    "bytes": 661,
+    "sha256": "d8f8bf0d3fa05515202b1844d198e63650ec439166f20b534bcd5840a535d4a3"
+  },
+  {
+    "file": "validation-report.md",
+    "bytes": 3551,
+    "sha256": "61a28ec9b613e1c01686587c788a25620e685d0f7a5ff09a57baf2850b6679ad"
+  }
+]

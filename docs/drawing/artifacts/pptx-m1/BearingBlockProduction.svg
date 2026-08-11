@@ -1,0 +1,926 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="297mm" height="428mm" viewBox="0 0 297 428" data-drawing-schema="aetheris-drawing-m0b">
+<style>.sheet{fill:white;stroke:#aab2bd;stroke-width:.25}.border,.zone-tick{fill:none;stroke:#334155;stroke-width:.25}.visible,.silhouette{fill:none;stroke:#111827;stroke-width:.35;stroke-linecap:round;stroke-linejoin:round}.silhouette{stroke-width:.5}.hidden{fill:none;stroke:#64748b;stroke-width:.25;stroke-dasharray:2 1}.leader{fill:none;stroke:#374151;stroke-width:.22}.annotation{font:3.2px Inter,Arial,sans-serif;fill:#111827}.label{font:600 3.2px Inter,Arial,sans-serif;fill:#334155}.meta,.zone-label{font:2.8px Inter,Arial,sans-serif;fill:#334155}.zone-label{font-size:2.4px}.table-header{font:600 3px Inter,Arial,sans-serif}.table-cell{font:2.8px Inter,Arial,sans-serif}.info-key{font:2px Inter,Arial,sans-serif;fill:#64748b}.info-value{font:2.6px Inter,Arial,sans-serif;fill:#111827}</style>
+<g transform="translate(0 0)" data-page="1">
+<rect class="sheet" x="0" y="0" width="297" height="210"/>
+<rect class="border" x="7" y="15" width="283" height="183"/>
+<text class="zone-label" x="30.583" y="13" text-anchor="middle">1</text><text class="zone-label" x="30.583" y="202" text-anchor="middle">1</text>
+<text class="zone-label" x="77.75" y="13" text-anchor="middle">2</text><text class="zone-label" x="77.75" y="202" text-anchor="middle">2</text>
+<path class="zone-tick" d="M 54.167 15 v 3 M 54.167 198 v -3"/>
+<text class="zone-label" x="124.917" y="13" text-anchor="middle">3</text><text class="zone-label" x="124.917" y="202" text-anchor="middle">3</text>
+<path class="zone-tick" d="M 101.333 15 v 3 M 101.333 198 v -3"/>
+<text class="zone-label" x="172.083" y="13" text-anchor="middle">4</text><text class="zone-label" x="172.083" y="202" text-anchor="middle">4</text>
+<path class="zone-tick" d="M 148.5 15 v 3 M 148.5 198 v -3"/>
+<text class="zone-label" x="219.25" y="13" text-anchor="middle">5</text><text class="zone-label" x="219.25" y="202" text-anchor="middle">5</text>
+<path class="zone-tick" d="M 195.667 15 v 3 M 195.667 198 v -3"/>
+<text class="zone-label" x="266.417" y="13" text-anchor="middle">6</text><text class="zone-label" x="266.417" y="202" text-anchor="middle">6</text>
+<path class="zone-tick" d="M 242.833 15 v 3 M 242.833 198 v -3"/>
+<text class="zone-label" x="4" y="38.875" text-anchor="middle">A</text><text class="zone-label" x="293" y="38.875" text-anchor="middle">A</text>
+<text class="zone-label" x="4" y="84.625" text-anchor="middle">B</text><text class="zone-label" x="293" y="84.625" text-anchor="middle">B</text>
+<path class="zone-tick" d="M 7 60.75 h 3 M 290 60.75 h -3"/>
+<text class="zone-label" x="4" y="130.375" text-anchor="middle">C</text><text class="zone-label" x="293" y="130.375" text-anchor="middle">C</text>
+<path class="zone-tick" d="M 7 106.5 h 3 M 290 106.5 h -3"/>
+<text class="zone-label" x="4" y="176.125" text-anchor="middle">D</text><text class="zone-label" x="293" y="176.125" text-anchor="middle">D</text>
+<path class="zone-tick" d="M 7 152.25 h 3 M 290 152.25 h -3"/>
+<text class="label" x="10" y="9">Bearing Block Production Drawing</text>
+<text class="meta" x="287" y="9" text-anchor="end">BearingBlock · REV 1.0.0 · 1/2</text>
+<g data-view="Front">
+<text class="label" x="10" y="19.5">Front · scale ×1.381</text>
+<polyline class="silhouette" points="82.775,90 82.748,89.458" data-semantic-id="BearingBlock:edge:10:segment:0:interval:0:Silhouette"/>
+<polyline class="silhouette" points="82.748,89.458 82.669,88.922" data-semantic-id="BearingBlock:edge:10:segment:1:interval:0:Silhouette"/>
+<polyline class="silhouette" points="82.669,88.922 82.593,88.621" data-semantic-id="BearingBlock:edge:10:segment:2:interval:0:Silhouette"/>
+<polyline class="silhouette" points="82.593,88.621 82.571,88.533" data-semantic-id="BearingBlock:edge:10:segment:2:interval:1:Silhouette"/>
+<polyline class="silhouette" points="82.571,88.533 82.537,88.396" data-semantic-id="BearingBlock:edge:10:segment:2:interval:2:Silhouette"/>
+<polyline class="silhouette" points="82.537,88.396 82.354,87.886" data-semantic-id="BearingBlock:edge:10:segment:3:interval:0:Silhouette"/>
+<polyline class="silhouette" points="82.354,87.886 82.123,87.396" data-semantic-id="BearingBlock:edge:10:segment:4:interval:0:Silhouette"/>
+<polyline class="silhouette" points="82.123,87.396 82.05,87.275" data-semantic-id="BearingBlock:edge:10:segment:5:interval:0:Silhouette"/>
+<polyline class="silhouette" points="82.05,87.275 82.003,87.196" data-semantic-id="BearingBlock:edge:10:segment:5:interval:1:Silhouette"/>
+<polyline class="silhouette" points="82.003,87.196 81.844,86.93" data-semantic-id="BearingBlock:edge:10:segment:5:interval:2:Silhouette"/>
+<polyline class="silhouette" points="81.844,86.93 81.521,86.495" data-semantic-id="BearingBlock:edge:10:segment:6:interval:0:Silhouette"/>
+<polyline class="silhouette" points="81.521,86.495 81.157,86.093" data-semantic-id="BearingBlock:edge:10:segment:7:interval:0:Silhouette"/>
+<polyline class="silhouette" points="81.157,86.093 81.024,85.973" data-semantic-id="BearingBlock:edge:10:segment:8:interval:0:Silhouette"/>
+<polyline class="silhouette" points="81.024,85.973 80.755,85.729" data-semantic-id="BearingBlock:edge:10:segment:8:interval:1:Silhouette"/>
+<polyline class="silhouette" points="80.755,85.729 80.32,85.406" data-semantic-id="BearingBlock:edge:10:segment:9:interval:0:Silhouette"/>
+<polyline class="silhouette" points="80.32,85.406 80.059,85.25" data-semantic-id="BearingBlock:edge:10:segment:10:interval:0:Silhouette"/>
+<polyline class="silhouette" points="80.059,85.25 80.054,85.247" data-semantic-id="BearingBlock:edge:10:segment:10:interval:1:Silhouette"/>
+<polyline class="silhouette" points="80.054,85.247 79.975,85.2" data-semantic-id="BearingBlock:edge:10:segment:10:interval:2:Silhouette"/>
+<polyline class="silhouette" points="79.975,85.2 79.933,85.174" data-semantic-id="BearingBlock:edge:10:segment:10:interval:3:Silhouette"/>
+<polyline class="silhouette" points="79.933,85.174 79.854,85.127" data-semantic-id="BearingBlock:edge:10:segment:10:interval:4:Silhouette"/>
+<polyline class="silhouette" points="79.854,85.127 79.684,85.047" data-semantic-id="BearingBlock:edge:10:segment:11:interval:0:Silhouette"/>
+<polyline class="silhouette" points="79.684,85.047 79.364,84.896" data-semantic-id="BearingBlock:edge:10:segment:11:interval:1:Silhouette"/>
+<polyline class="silhouette" points="79.364,84.896 78.854,84.713" data-semantic-id="BearingBlock:edge:10:segment:12:interval:0:Silhouette"/>
+<polyline class="silhouette" points="78.854,84.713 78.717,84.679" data-semantic-id="BearingBlock:edge:10:segment:13:interval:0:Silhouette"/>
+<polyline class="silhouette" points="78.717,84.679 78.629,84.657" data-semantic-id="BearingBlock:edge:10:segment:13:interval:1:Silhouette"/>
+<polyline class="silhouette" points="78.629,84.657 78.328,84.581" data-semantic-id="BearingBlock:edge:10:segment:13:interval:2:Silhouette"/>
+<polyline class="silhouette" points="78.328,84.581 77.792,84.502" data-semantic-id="BearingBlock:edge:10:segment:14:interval:0:Silhouette"/>
+<polyline class="silhouette" points="77.792,84.502 77.25,84.475" data-semantic-id="BearingBlock:edge:10:segment:15:interval:0:Silhouette"/>
+<polyline class="silhouette" points="77.25,84.475 76.708,84.502" data-semantic-id="BearingBlock:edge:10:segment:16:interval:0:Silhouette"/>
+<polyline class="silhouette" points="76.708,84.502 76.172,84.581" data-semantic-id="BearingBlock:edge:10:segment:17:interval:0:Silhouette"/>
+<polyline class="silhouette" points="76.172,84.581 75.871,84.657" data-semantic-id="BearingBlock:edge:10:segment:18:interval:0:Silhouette"/>
+<polyline class="silhouette" points="75.871,84.657 75.783,84.679" data-semantic-id="BearingBlock:edge:10:segment:18:interval:1:Silhouette"/>
+<polyline class="silhouette" points="75.783,84.679 75.646,84.713" data-semantic-id="BearingBlock:edge:10:segment:18:interval:2:Silhouette"/>
+<polyline class="silhouette" points="75.646,84.713 75.136,84.896" data-semantic-id="BearingBlock:edge:10:segment:19:interval:0:Silhouette"/>
+<polyline class="silhouette" points="75.136,84.896 74.646,85.127" data-semantic-id="BearingBlock:edge:10:segment:20:interval:0:Silhouette"/>
+<polyline class="silhouette" points="74.646,85.127 74.525,85.2" data-semantic-id="BearingBlock:edge:10:segment:21:interval:0:Silhouette"/>
+<polyline class="silhouette" points="74.525,85.2 74.446,85.247" data-semantic-id="BearingBlock:edge:10:segment:21:interval:1:Silhouette"/>
+<polyline class="silhouette" points="74.446,85.247 74.441,85.25" data-semantic-id="BearingBlock:edge:10:segment:21:interval:2:Silhouette"/>
+<polyline class="silhouette" points="74.441,85.25 74.18,85.406" data-semantic-id="BearingBlock:edge:10:segment:21:interval:3:Silhouette"/>
+<polyline class="silhouette" points="74.18,85.406 73.745,85.729" data-semantic-id="BearingBlock:edge:10:segment:22:interval:0:Silhouette"/>
+<polyline class="silhouette" points="73.745,85.729 73.476,85.973" data-semantic-id="BearingBlock:edge:10:segment:23:interval:0:Silhouette"/>
+<polyline class="silhouette" points="73.476,85.973 73.343,86.093" data-semantic-id="BearingBlock:edge:10:segment:23:interval:1:Silhouette"/>
+<polyline class="silhouette" points="73.343,86.093 72.979,86.495" data-semantic-id="BearingBlock:edge:10:segment:24:interval:0:Silhouette"/>
+<polyline class="silhouette" points="72.979,86.495 72.656,86.93" data-semantic-id="BearingBlock:edge:10:segment:25:interval:0:Silhouette"/>
+<polyline class="silhouette" points="72.656,86.93 72.497,87.196" data-semantic-id="BearingBlock:edge:10:segment:26:interval:0:Silhouette"/>
+<polyline class="silhouette" points="72.497,87.196 72.45,87.275" data-semantic-id="BearingBlock:edge:10:segment:26:interval:1:Silhouette"/>
+<polyline class="silhouette" points="72.45,87.275 72.377,87.396" data-semantic-id="BearingBlock:edge:10:segment:26:interval:2:Silhouette"/>
+<polyline class="silhouette" points="72.377,87.396 72.146,87.886" data-semantic-id="BearingBlock:edge:10:segment:27:interval:0:Silhouette"/>
+<polyline class="silhouette" points="72.146,87.886 71.963,88.396" data-semantic-id="BearingBlock:edge:10:segment:28:interval:0:Silhouette"/>
+<polyline class="silhouette" points="71.963,88.396 71.929,88.533" data-semantic-id="BearingBlock:edge:10:segment:29:interval:0:Silhouette"/>
+<polyline class="silhouette" points="71.929,88.533 71.907,88.621" data-semantic-id="BearingBlock:edge:10:segment:29:interval:1:Silhouette"/>
+<polyline class="silhouette" points="71.907,88.621 71.831,88.922" data-semantic-id="BearingBlock:edge:10:segment:29:interval:2:Silhouette"/>
+<polyline class="silhouette" points="71.831,88.922 71.752,89.458" data-semantic-id="BearingBlock:edge:10:segment:30:interval:0:Silhouette"/>
+<polyline class="silhouette" points="71.752,89.458 71.725,90" data-semantic-id="BearingBlock:edge:10:segment:31:interval:0:Silhouette"/>
+<polyline class="silhouette" points="71.725,90 71.752,90.542" data-semantic-id="BearingBlock:edge:10:segment:32:interval:0:Silhouette"/>
+<polyline class="silhouette" points="71.752,90.542 71.831,91.078" data-semantic-id="BearingBlock:edge:10:segment:33:interval:0:Silhouette"/>
+<polyline class="silhouette" points="71.831,91.078 71.907,91.379" data-semantic-id="BearingBlock:edge:10:segment:34:interval:0:Silhouette"/>
+<polyline class="silhouette" points="71.907,91.379 71.929,91.467" data-semantic-id="BearingBlock:edge:10:segment:34:interval:1:Silhouette"/>
+<polyline class="silhouette" points="71.929,91.467 71.963,91.604" data-semantic-id="BearingBlock:edge:10:segment:34:interval:2:Silhouette"/>
+<polyline class="silhouette" points="71.963,91.604 72.146,92.114" data-semantic-id="BearingBlock:edge:10:segment:35:interval:0:Silhouette"/>
+<polyline class="silhouette" points="72.146,92.114 72.377,92.604" data-semantic-id="BearingBlock:edge:10:segment:36:interval:0:Silhouette"/>
+<polyline class="silhouette" points="72.377,92.604 72.45,92.725" data-semantic-id="BearingBlock:edge:10:segment:37:interval:0:Silhouette"/>
+<polyline class="silhouette" points="72.45,92.725 72.497,92.804" data-semantic-id="BearingBlock:edge:10:segment:37:interval:1:Silhouette"/>
+<polyline class="silhouette" points="72.497,92.804 72.656,93.07" data-semantic-id="BearingBlock:edge:10:segment:37:interval:2:Silhouette"/>
+<polyline class="silhouette" points="72.656,93.07 72.979,93.505" data-semantic-id="BearingBlock:edge:10:segment:38:interval:0:Silhouette"/>
+<polyline class="silhouette" points="72.979,93.505 73.343,93.907" data-semantic-id="BearingBlock:edge:10:segment:39:interval:0:Silhouette"/>
+<polyline class="silhouette" points="73.343,93.907 73.476,94.027" data-semantic-id="BearingBlock:edge:10:segment:40:interval:0:Silhouette"/>
+<polyline class="silhouette" points="73.476,94.027 73.745,94.271" data-semantic-id="BearingBlock:edge:10:segment:40:interval:1:Silhouette"/>
+<polyline class="silhouette" points="73.745,94.271 74.18,94.594" data-semantic-id="BearingBlock:edge:10:segment:41:interval:0:Silhouette"/>
+<polyline class="silhouette" points="74.18,94.594 74.441,94.75" data-semantic-id="BearingBlock:edge:10:segment:42:interval:0:Silhouette"/>
+<polyline class="silhouette" points="74.441,94.75 74.446,94.753" data-semantic-id="BearingBlock:edge:10:segment:42:interval:1:Silhouette"/>
+<polyline class="silhouette" points="74.446,94.753 74.525,94.8" data-semantic-id="BearingBlock:edge:10:segment:42:interval:2:Silhouette"/>
+<polyline class="silhouette" points="74.525,94.8 74.646,94.873" data-semantic-id="BearingBlock:edge:10:segment:42:interval:3:Silhouette"/>
+<polyline class="silhouette" points="74.646,94.873 75.136,95.104" data-semantic-id="BearingBlock:edge:10:segment:43:interval:0:Silhouette"/>
+<polyline class="silhouette" points="75.136,95.104 75.646,95.287" data-semantic-id="BearingBlock:edge:10:segment:44:interval:0:Silhouette"/>
+<polyline class="silhouette" points="75.646,95.287 75.783,95.321" data-semantic-id="BearingBlock:edge:10:segment:45:interval:0:Silhouette"/>
+<polyline class="silhouette" points="75.783,95.321 75.871,95.343" data-semantic-id="BearingBlock:edge:10:segment:45:interval:1:Silhouette"/>
+<polyline class="silhouette" points="75.871,95.343 76.172,95.419" data-semantic-id="BearingBlock:edge:10:segment:45:interval:2:Silhouette"/>
+<polyline class="silhouette" points="76.172,95.419 76.708,95.498" data-semantic-id="BearingBlock:edge:10:segment:46:interval:0:Silhouette"/>
+<polyline class="silhouette" points="76.708,95.498 77.25,95.525" data-semantic-id="BearingBlock:edge:10:segment:47:interval:0:Silhouette"/>
+<polyline class="silhouette" points="77.25,95.525 77.792,95.498" data-semantic-id="BearingBlock:edge:10:segment:48:interval:0:Silhouette"/>
+<polyline class="silhouette" points="77.792,95.498 78.328,95.419" data-semantic-id="BearingBlock:edge:10:segment:49:interval:0:Silhouette"/>
+<polyline class="silhouette" points="78.328,95.419 78.629,95.343" data-semantic-id="BearingBlock:edge:10:segment:50:interval:0:Silhouette"/>
+<polyline class="silhouette" points="78.629,95.343 78.717,95.321" data-semantic-id="BearingBlock:edge:10:segment:50:interval:1:Silhouette"/>
+<polyline class="silhouette" points="78.717,95.321 78.854,95.287" data-semantic-id="BearingBlock:edge:10:segment:50:interval:2:Silhouette"/>
+<polyline class="silhouette" points="78.854,95.287 79.364,95.104" data-semantic-id="BearingBlock:edge:10:segment:51:interval:0:Silhouette"/>
+<polyline class="silhouette" points="79.364,95.104 79.684,94.953" data-semantic-id="BearingBlock:edge:10:segment:52:interval:0:Silhouette"/>
+<polyline class="silhouette" points="79.684,94.953 79.854,94.873" data-semantic-id="BearingBlock:edge:10:segment:52:interval:1:Silhouette"/>
+<polyline class="silhouette" points="79.854,94.873 79.933,94.826" data-semantic-id="BearingBlock:edge:10:segment:53:interval:0:Silhouette"/>
+<polyline class="silhouette" points="79.933,94.826 79.975,94.8" data-semantic-id="BearingBlock:edge:10:segment:53:interval:1:Silhouette"/>
+<polyline class="silhouette" points="79.975,94.8 80.054,94.753" data-semantic-id="BearingBlock:edge:10:segment:53:interval:2:Silhouette"/>
+<polyline class="silhouette" points="80.054,94.753 80.059,94.75" data-semantic-id="BearingBlock:edge:10:segment:53:interval:3:Silhouette"/>
+<polyline class="silhouette" points="80.059,94.75 80.32,94.594" data-semantic-id="BearingBlock:edge:10:segment:53:interval:4:Silhouette"/>
+<polyline class="silhouette" points="80.32,94.594 80.755,94.271" data-semantic-id="BearingBlock:edge:10:segment:54:interval:0:Silhouette"/>
+<polyline class="silhouette" points="80.755,94.271 81.024,94.027" data-semantic-id="BearingBlock:edge:10:segment:55:interval:0:Silhouette"/>
+<polyline class="silhouette" points="81.024,94.027 81.157,93.907" data-semantic-id="BearingBlock:edge:10:segment:55:interval:1:Silhouette"/>
+<polyline class="silhouette" points="81.157,93.907 81.521,93.505" data-semantic-id="BearingBlock:edge:10:segment:56:interval:0:Silhouette"/>
+<polyline class="silhouette" points="81.521,93.505 81.844,93.07" data-semantic-id="BearingBlock:edge:10:segment:57:interval:0:Silhouette"/>
+<polyline class="silhouette" points="81.844,93.07 82.003,92.804" data-semantic-id="BearingBlock:edge:10:segment:58:interval:0:Silhouette"/>
+<polyline class="silhouette" points="82.003,92.804 82.05,92.725" data-semantic-id="BearingBlock:edge:10:segment:58:interval:1:Silhouette"/>
+<polyline class="silhouette" points="82.05,92.725 82.123,92.604" data-semantic-id="BearingBlock:edge:10:segment:58:interval:2:Silhouette"/>
+<polyline class="silhouette" points="82.123,92.604 82.354,92.114" data-semantic-id="BearingBlock:edge:10:segment:59:interval:0:Silhouette"/>
+<polyline class="silhouette" points="82.354,92.114 82.537,91.604" data-semantic-id="BearingBlock:edge:10:segment:60:interval:0:Silhouette"/>
+<polyline class="silhouette" points="82.537,91.604 82.571,91.467" data-semantic-id="BearingBlock:edge:10:segment:61:interval:0:Silhouette"/>
+<polyline class="silhouette" points="82.571,91.467 82.593,91.379" data-semantic-id="BearingBlock:edge:10:segment:61:interval:1:Silhouette"/>
+<polyline class="silhouette" points="82.593,91.379 82.669,91.078" data-semantic-id="BearingBlock:edge:10:segment:61:interval:2:Silhouette"/>
+<polyline class="silhouette" points="82.669,91.078 82.748,90.542" data-semantic-id="BearingBlock:edge:10:segment:62:interval:0:Silhouette"/>
+<polyline class="silhouette" points="82.748,90.542 82.775,90" data-semantic-id="BearingBlock:edge:10:segment:63:interval:0:Silhouette"/>
+<polyline class="silhouette" points="82.593,88.621 82.571,88.533" data-semantic-id="BearingBlock:edge:5:segment:2:interval:1:Silhouette"/>
+<polyline class="silhouette" points="82.05,87.275 82.003,87.196" data-semantic-id="BearingBlock:edge:5:segment:5:interval:1:Silhouette"/>
+<polyline class="silhouette" points="80.054,85.247 79.975,85.2" data-semantic-id="BearingBlock:edge:5:segment:10:interval:2:Silhouette"/>
+<polyline class="silhouette" points="78.717,84.679 78.629,84.657" data-semantic-id="BearingBlock:edge:5:segment:13:interval:1:Silhouette"/>
+<polyline class="silhouette" points="75.871,84.657 75.783,84.679" data-semantic-id="BearingBlock:edge:5:segment:18:interval:1:Silhouette"/>
+<polyline class="silhouette" points="74.525,85.2 74.446,85.247" data-semantic-id="BearingBlock:edge:5:segment:21:interval:1:Silhouette"/>
+<polyline class="silhouette" points="72.497,87.196 72.45,87.275" data-semantic-id="BearingBlock:edge:5:segment:26:interval:1:Silhouette"/>
+<polyline class="silhouette" points="71.929,88.533 71.907,88.621" data-semantic-id="BearingBlock:edge:5:segment:29:interval:1:Silhouette"/>
+<polyline class="silhouette" points="71.907,91.379 71.929,91.467" data-semantic-id="BearingBlock:edge:5:segment:34:interval:1:Silhouette"/>
+<polyline class="silhouette" points="72.45,92.725 72.497,92.804" data-semantic-id="BearingBlock:edge:5:segment:37:interval:1:Silhouette"/>
+<polyline class="silhouette" points="74.446,94.753 74.525,94.8" data-semantic-id="BearingBlock:edge:5:segment:42:interval:2:Silhouette"/>
+<polyline class="silhouette" points="75.783,95.321 75.871,95.343" data-semantic-id="BearingBlock:edge:5:segment:45:interval:1:Silhouette"/>
+<polyline class="silhouette" points="78.629,95.343 78.717,95.321" data-semantic-id="BearingBlock:edge:5:segment:50:interval:1:Silhouette"/>
+<polyline class="silhouette" points="79.975,94.8 80.054,94.753" data-semantic-id="BearingBlock:edge:5:segment:53:interval:2:Silhouette"/>
+<polyline class="silhouette" points="82.003,92.804 82.05,92.725" data-semantic-id="BearingBlock:edge:5:segment:58:interval:1:Silhouette"/>
+<polyline class="silhouette" points="82.571,91.467 82.593,91.379" data-semantic-id="BearingBlock:edge:5:segment:61:interval:1:Silhouette"/>
+<polyline class="visible" points="22,124.531 132.5,124.531" data-semantic-id="BearingBlock:edge:6:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="132.5,124.531 132.5,55.469" data-semantic-id="BearingBlock:edge:7:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="132.5,55.469 22,55.469" data-semantic-id="BearingBlock:edge:8:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="22,55.469 22,124.531" data-semantic-id="BearingBlock:edge:9:segment:0:interval:0:Visible"/>
+</g>
+<g data-view="ISO">
+<text class="label" x="152.5" y="19.5">ISO · scale ×1.202</text>
+<polyline class="silhouette" points="216.35,86.074 216.398,86.099" data-semantic-id="BearingBlock:edge:10:segment:0:interval:0:Silhouette"/>
+<polyline class="silhouette" points="216.398,86.099 216.401,86.101" data-semantic-id="BearingBlock:edge:10:segment:0:interval:1:Silhouette"/>
+<polyline class="silhouette" points="216.401,86.101 216.447,86.125" data-semantic-id="BearingBlock:edge:10:segment:0:interval:2:Silhouette"/>
+<polyline class="silhouette" points="216.447,86.125 216.452,86.127" data-semantic-id="BearingBlock:edge:10:segment:0:interval:3:Silhouette"/>
+<polyline class="silhouette" points="216.452,86.127 216.495,86.15" data-semantic-id="BearingBlock:edge:10:segment:0:interval:4:Silhouette"/>
+<polyline class="silhouette" points="216.495,86.15 216.502,86.154" data-semantic-id="BearingBlock:edge:10:segment:0:interval:5:Silhouette"/>
+<polyline class="silhouette" points="216.502,86.154 216.543,86.175" data-semantic-id="BearingBlock:edge:10:segment:0:interval:6:Silhouette"/>
+<polyline class="silhouette" points="216.543,86.175 216.553,86.18" data-semantic-id="BearingBlock:edge:10:segment:0:interval:7:Silhouette"/>
+<polyline class="silhouette" points="216.553,86.18 216.592,86.2" data-semantic-id="BearingBlock:edge:10:segment:0:interval:8:Silhouette"/>
+<polyline class="silhouette" points="216.592,86.2 216.604,86.207" data-semantic-id="BearingBlock:edge:10:segment:0:interval:9:Silhouette"/>
+<polyline class="silhouette" points="216.604,86.207 216.64,86.226" data-semantic-id="BearingBlock:edge:10:segment:0:interval:10:Silhouette"/>
+<polyline class="silhouette" points="216.64,86.226 216.655,86.233" data-semantic-id="BearingBlock:edge:10:segment:0:interval:11:Silhouette"/>
+<polyline class="silhouette" points="216.655,86.233 216.688,86.251" data-semantic-id="BearingBlock:edge:10:segment:0:interval:12:Silhouette"/>
+<polyline class="silhouette" points="216.688,86.251 216.7,86.257" data-semantic-id="BearingBlock:edge:10:segment:0:interval:13:Silhouette"/>
+<polyline class="silhouette" points="216.7,86.257 216.706,86.26" data-semantic-id="BearingBlock:edge:10:segment:1:interval:0:Silhouette"/>
+<polyline class="silhouette" points="216.706,86.26 216.74,86.274" data-semantic-id="BearingBlock:edge:10:segment:1:interval:1:Silhouette"/>
+<polyline class="silhouette" points="216.74,86.274 216.762,86.284" data-semantic-id="BearingBlock:edge:10:segment:1:interval:2:Silhouette"/>
+<polyline class="silhouette" points="216.762,86.284 216.794,86.297" data-semantic-id="BearingBlock:edge:10:segment:1:interval:3:Silhouette"/>
+<polyline class="silhouette" points="216.794,86.297 216.819,86.308" data-semantic-id="BearingBlock:edge:10:segment:1:interval:4:Silhouette"/>
+<polyline class="silhouette" points="216.819,86.308 216.847,86.32" data-semantic-id="BearingBlock:edge:10:segment:1:interval:5:Silhouette"/>
+<polyline class="silhouette" points="216.847,86.32 216.869,86.329" data-semantic-id="BearingBlock:edge:10:segment:1:interval:6:Silhouette"/>
+<polyline class="silhouette" points="216.869,86.329 216.875,86.332" data-semantic-id="BearingBlock:edge:10:segment:1:interval:7:Silhouette"/>
+<polyline class="silhouette" points="216.875,86.332 216.9,86.343" data-semantic-id="BearingBlock:edge:10:segment:1:interval:8:Silhouette"/>
+<polyline class="silhouette" points="216.9,86.343 216.931,86.356" data-semantic-id="BearingBlock:edge:10:segment:1:interval:9:Silhouette"/>
+<polyline class="silhouette" points="216.931,86.356 216.954,86.366" data-semantic-id="BearingBlock:edge:10:segment:1:interval:10:Silhouette"/>
+<polyline class="silhouette" points="216.954,86.366 216.988,86.38" data-semantic-id="BearingBlock:edge:10:segment:1:interval:11:Silhouette"/>
+<polyline class="silhouette" points="216.988,86.38 217.007,86.389" data-semantic-id="BearingBlock:edge:10:segment:1:interval:12:Silhouette"/>
+<polyline class="silhouette" points="217.007,86.389 217.044,86.404" data-semantic-id="BearingBlock:edge:10:segment:1:interval:13:Silhouette"/>
+<polyline class="silhouette" points="217.044,86.404 217.06,86.411" data-semantic-id="BearingBlock:edge:10:segment:1:interval:14:Silhouette"/>
+<polyline class="silhouette" points="217.06,86.411 217.079,86.419" data-semantic-id="BearingBlock:edge:10:segment:1:interval:15:Silhouette"/>
+<polyline class="silhouette" points="217.079,86.419 217.103,86.428" data-semantic-id="BearingBlock:edge:10:segment:2:interval:0:Silhouette"/>
+<polyline class="silhouette" points="217.103,86.428 217.117,86.433" data-semantic-id="BearingBlock:edge:10:segment:2:interval:1:Silhouette"/>
+<polyline class="silhouette" points="217.117,86.433 217.165,86.449" data-semantic-id="BearingBlock:edge:10:segment:2:interval:2:Silhouette"/>
+<polyline class="silhouette" points="217.165,86.449 217.176,86.453" data-semantic-id="BearingBlock:edge:10:segment:2:interval:3:Silhouette"/>
+<polyline class="silhouette" points="217.176,86.453 217.227,86.471" data-semantic-id="BearingBlock:edge:10:segment:2:interval:4:Silhouette"/>
+<polyline class="silhouette" points="217.227,86.471 217.234,86.473" data-semantic-id="BearingBlock:edge:10:segment:2:interval:5:Silhouette"/>
+<polyline class="silhouette" points="217.234,86.473 217.289,86.492" data-semantic-id="BearingBlock:edge:10:segment:2:interval:6:Silhouette"/>
+<polyline class="silhouette" points="217.289,86.492 217.293,86.493" data-semantic-id="BearingBlock:edge:10:segment:2:interval:7:Silhouette"/>
+<polyline class="silhouette" points="217.293,86.493 217.31,86.499" data-semantic-id="BearingBlock:edge:10:segment:2:interval:8:Silhouette"/>
+<polyline class="silhouette" points="217.31,86.499 217.346,86.512" data-semantic-id="BearingBlock:edge:10:segment:2:interval:9:Silhouette"/>
+<polyline class="silhouette" points="217.346,86.512 217.353,86.514" data-semantic-id="BearingBlock:edge:10:segment:2:interval:10:Silhouette"/>
+<polyline class="silhouette" points="217.353,86.514 217.353,86.514" data-semantic-id="BearingBlock:edge:10:segment:2:interval:11:Silhouette"/>
+<polyline class="silhouette" points="217.353,86.514 217.378,86.523" data-semantic-id="BearingBlock:edge:10:segment:2:interval:12:Silhouette"/>
+<polyline class="silhouette" points="217.378,86.523 217.399,86.53" data-semantic-id="BearingBlock:edge:10:segment:2:interval:13:Silhouette"/>
+<polyline class="silhouette" points="217.399,86.53 217.431,86.541" data-semantic-id="BearingBlock:edge:10:segment:2:interval:14:Silhouette"/>
+<polyline class="silhouette" points="217.431,86.541 217.437,86.543" data-semantic-id="BearingBlock:edge:10:segment:2:interval:15:Silhouette"/>
+<polyline class="silhouette" points="217.437,86.543 217.483,86.559" data-semantic-id="BearingBlock:edge:10:segment:2:interval:16:Silhouette"/>
+<polyline class="silhouette" points="217.483,86.559 217.513,86.567" data-semantic-id="BearingBlock:edge:10:segment:3:interval:0:Silhouette"/>
+<polyline class="silhouette" points="217.513,86.567 217.527,86.571" data-semantic-id="BearingBlock:edge:10:segment:3:interval:1:Silhouette"/>
+<polyline class="silhouette" points="217.527,86.571 217.601,86.592" data-semantic-id="BearingBlock:edge:10:segment:3:interval:2:Silhouette"/>
+<polyline class="silhouette" points="217.601,86.592 217.622,86.597" data-semantic-id="BearingBlock:edge:10:segment:3:interval:3:Silhouette"/>
+<polyline class="silhouette" points="217.622,86.597 217.69,86.616" data-semantic-id="BearingBlock:edge:10:segment:3:interval:4:Silhouette"/>
+<polyline class="silhouette" points="217.69,86.616 217.718,86.623" data-semantic-id="BearingBlock:edge:10:segment:3:interval:5:Silhouette"/>
+<polyline class="silhouette" points="217.718,86.623 217.778,86.64" data-semantic-id="BearingBlock:edge:10:segment:3:interval:6:Silhouette"/>
+<polyline class="silhouette" points="217.778,86.64 217.814,86.65" data-semantic-id="BearingBlock:edge:10:segment:3:interval:7:Silhouette"/>
+<polyline class="silhouette" points="217.814,86.65 217.867,86.664" data-semantic-id="BearingBlock:edge:10:segment:3:interval:8:Silhouette"/>
+<polyline class="silhouette" points="217.867,86.664 217.91,86.676" data-semantic-id="BearingBlock:edge:10:segment:3:interval:9:Silhouette"/>
+<polyline class="silhouette" points="217.91,86.676 217.91,86.676" data-semantic-id="BearingBlock:edge:10:segment:3:interval:10:Silhouette"/>
+<polyline class="silhouette" points="217.91,86.676 217.934,86.681" data-semantic-id="BearingBlock:edge:10:segment:4:interval:0:Silhouette"/>
+<polyline class="silhouette" points="217.934,86.681 217.961,86.686" data-semantic-id="BearingBlock:edge:10:segment:4:interval:1:Silhouette"/>
+<polyline class="silhouette" points="217.961,86.686 218.02,86.699" data-semantic-id="BearingBlock:edge:10:segment:4:interval:2:Silhouette"/>
+<polyline class="silhouette" points="218.02,86.699 218.062,86.707" data-semantic-id="BearingBlock:edge:10:segment:4:interval:3:Silhouette"/>
+<polyline class="silhouette" points="218.062,86.707 218.13,86.721" data-semantic-id="BearingBlock:edge:10:segment:4:interval:4:Silhouette"/>
+<polyline class="silhouette" points="218.13,86.721 218.163,86.728" data-semantic-id="BearingBlock:edge:10:segment:4:interval:5:Silhouette"/>
+<polyline class="silhouette" points="218.163,86.728 218.24,86.744" data-semantic-id="BearingBlock:edge:10:segment:4:interval:6:Silhouette"/>
+<polyline class="silhouette" points="218.24,86.744 218.263,86.749" data-semantic-id="BearingBlock:edge:10:segment:4:interval:7:Silhouette"/>
+<polyline class="silhouette" points="218.263,86.749 218.35,86.767" data-semantic-id="BearingBlock:edge:10:segment:4:interval:8:Silhouette"/>
+<polyline class="silhouette" points="218.35,86.767 218.354,86.768" data-semantic-id="BearingBlock:edge:10:segment:4:interval:9:Silhouette"/>
+<polyline class="silhouette" points="218.354,86.768 218.365,86.769" data-semantic-id="BearingBlock:edge:10:segment:5:interval:0:Silhouette"/>
+<polyline class="silhouette" points="218.365,86.769 218.473,86.785" data-semantic-id="BearingBlock:edge:10:segment:5:interval:1:Silhouette"/>
+<polyline class="silhouette" points="218.473,86.785 218.477,86.785" data-semantic-id="BearingBlock:edge:10:segment:5:interval:2:Silhouette"/>
+<polyline class="silhouette" points="218.477,86.785 218.48,86.786" data-semantic-id="BearingBlock:edge:10:segment:5:interval:3:Silhouette"/>
+<polyline class="silhouette" points="218.48,86.786 218.506,86.789" data-semantic-id="BearingBlock:edge:10:segment:5:interval:4:Silhouette"/>
+<polyline class="silhouette" points="218.506,86.789 218.55,86.796" data-semantic-id="BearingBlock:edge:10:segment:5:interval:5:Silhouette"/>
+<polyline class="silhouette" points="218.55,86.796 218.611,86.805" data-semantic-id="BearingBlock:edge:10:segment:5:interval:6:Silhouette"/>
+<polyline class="silhouette" points="218.611,86.805 218.653,86.811" data-semantic-id="BearingBlock:edge:10:segment:5:interval:7:Silhouette"/>
+<polyline class="silhouette" points="218.653,86.811 218.679,86.815" data-semantic-id="BearingBlock:edge:10:segment:5:interval:8:Silhouette"/>
+<polyline class="silhouette" points="218.679,86.815 218.812,86.834" data-semantic-id="BearingBlock:edge:10:segment:5:interval:9:Silhouette"/>
+<polyline class="silhouette" points="218.812,86.834 218.85,86.837" data-semantic-id="BearingBlock:edge:10:segment:6:interval:0:Silhouette"/>
+<polyline class="silhouette" points="218.85,86.837 218.934,86.844" data-semantic-id="BearingBlock:edge:10:segment:6:interval:1:Silhouette"/>
+<polyline class="silhouette" points="218.934,86.844 219.009,86.851" data-semantic-id="BearingBlock:edge:10:segment:6:interval:2:Silhouette"/>
+<polyline class="silhouette" points="219.009,86.851 219.094,86.858" data-semantic-id="BearingBlock:edge:10:segment:6:interval:3:Silhouette"/>
+<polyline class="silhouette" points="219.094,86.858 219.238,86.87" data-semantic-id="BearingBlock:edge:10:segment:6:interval:4:Silhouette"/>
+<polyline class="silhouette" points="219.238,86.87 219.279,86.874" data-semantic-id="BearingBlock:edge:10:segment:6:interval:5:Silhouette"/>
+<polyline class="silhouette" points="219.279,86.874 219.362,86.876" data-semantic-id="BearingBlock:edge:10:segment:7:interval:0:Silhouette"/>
+<polyline class="silhouette" points="219.362,86.876 219.686,86.885" data-semantic-id="BearingBlock:edge:10:segment:7:interval:1:Silhouette"/>
+<polyline class="silhouette" points="219.686,86.885 219.703,86.886" data-semantic-id="BearingBlock:edge:10:segment:7:interval:2:Silhouette"/>
+<polyline class="silhouette" points="219.703,86.886 219.727,86.886" data-semantic-id="BearingBlock:edge:10:segment:7:interval:3:Silhouette"/>
+<polyline class="silhouette" points="219.727,86.886 219.75,86.887" data-semantic-id="BearingBlock:edge:10:segment:7:interval:4:Silhouette"/>
+<polyline class="silhouette" points="219.75,86.887 219.808,86.885" data-semantic-id="BearingBlock:edge:10:segment:8:interval:0:Silhouette"/>
+<polyline class="silhouette" points="219.808,86.885 219.814,86.885" data-semantic-id="BearingBlock:edge:10:segment:8:interval:1:Silhouette"/>
+<polyline class="silhouette" points="219.814,86.885 219.854,86.884" data-semantic-id="BearingBlock:edge:10:segment:8:interval:2:Silhouette"/>
+<polyline class="silhouette" points="219.854,86.884 220.154,86.876" data-semantic-id="BearingBlock:edge:10:segment:8:interval:3:Silhouette"/>
+<polyline class="silhouette" points="220.154,86.876 220.221,86.874" data-semantic-id="BearingBlock:edge:10:segment:8:interval:4:Silhouette"/>
+<polyline class="silhouette" points="220.221,86.874 220.262,86.87" data-semantic-id="BearingBlock:edge:10:segment:9:interval:0:Silhouette"/>
+<polyline class="silhouette" points="220.262,86.87 220.3,86.867" data-semantic-id="BearingBlock:edge:10:segment:9:interval:1:Silhouette"/>
+<polyline class="silhouette" points="220.3,86.867 220.427,86.856" data-semantic-id="BearingBlock:edge:10:segment:9:interval:2:Silhouette"/>
+<polyline class="silhouette" points="220.427,86.856 220.566,86.844" data-semantic-id="BearingBlock:edge:10:segment:9:interval:3:Silhouette"/>
+<polyline class="silhouette" points="220.566,86.844 220.688,86.834" data-semantic-id="BearingBlock:edge:10:segment:9:interval:4:Silhouette"/>
+<polyline class="silhouette" points="220.688,86.834 220.769,86.822" data-semantic-id="BearingBlock:edge:10:segment:10:interval:0:Silhouette"/>
+<polyline class="silhouette" points="220.769,86.822 220.783,86.82" data-semantic-id="BearingBlock:edge:10:segment:10:interval:1:Silhouette"/>
+<polyline class="silhouette" points="220.783,86.82 220.821,86.815" data-semantic-id="BearingBlock:edge:10:segment:10:interval:2:Silhouette"/>
+<polyline class="silhouette" points="220.821,86.815 220.95,86.796" data-semantic-id="BearingBlock:edge:10:segment:10:interval:3:Silhouette"/>
+<polyline class="silhouette" points="220.95,86.796 220.994,86.789" data-semantic-id="BearingBlock:edge:10:segment:10:interval:4:Silhouette"/>
+<polyline class="silhouette" points="220.994,86.789 221.023,86.785" data-semantic-id="BearingBlock:edge:10:segment:10:interval:5:Silhouette"/>
+<polyline class="silhouette" points="221.023,86.785 221.026,86.785" data-semantic-id="BearingBlock:edge:10:segment:10:interval:6:Silhouette"/>
+<polyline class="silhouette" points="221.026,86.785 221.027,86.785" data-semantic-id="BearingBlock:edge:10:segment:10:interval:7:Silhouette"/>
+<polyline class="silhouette" points="221.027,86.785 221.053,86.781" data-semantic-id="BearingBlock:edge:10:segment:10:interval:8:Silhouette"/>
+<polyline class="silhouette" points="221.053,86.781 221.069,86.779" data-semantic-id="BearingBlock:edge:10:segment:10:interval:9:Silhouette"/>
+<polyline class="silhouette" points="221.069,86.779 221.146,86.768" data-semantic-id="BearingBlock:edge:10:segment:10:interval:10:Silhouette"/>
+<polyline class="silhouette" points="221.146,86.768 221.15,86.767" data-semantic-id="BearingBlock:edge:10:segment:11:interval:0:Silhouette"/>
+<polyline class="silhouette" points="221.15,86.767 221.166,86.763" data-semantic-id="BearingBlock:edge:10:segment:11:interval:1:Silhouette"/>
+<polyline class="silhouette" points="221.166,86.763 221.26,86.744" data-semantic-id="BearingBlock:edge:10:segment:11:interval:2:Silhouette"/>
+<polyline class="silhouette" points="221.26,86.744 221.288,86.738" data-semantic-id="BearingBlock:edge:10:segment:11:interval:3:Silhouette"/>
+<polyline class="silhouette" points="221.288,86.738 221.3,86.736" data-semantic-id="BearingBlock:edge:10:segment:11:interval:4:Silhouette"/>
+<polyline class="silhouette" points="221.3,86.736 221.37,86.721" data-semantic-id="BearingBlock:edge:10:segment:11:interval:5:Silhouette"/>
+<polyline class="silhouette" points="221.37,86.721 221.409,86.713" data-semantic-id="BearingBlock:edge:10:segment:11:interval:6:Silhouette"/>
+<polyline class="silhouette" points="221.409,86.713 221.48,86.699" data-semantic-id="BearingBlock:edge:10:segment:11:interval:7:Silhouette"/>
+<polyline class="silhouette" points="221.48,86.699 221.531,86.688" data-semantic-id="BearingBlock:edge:10:segment:11:interval:8:Silhouette"/>
+<polyline class="silhouette" points="221.531,86.688 221.59,86.676" data-semantic-id="BearingBlock:edge:10:segment:11:interval:9:Silhouette"/>
+<polyline class="silhouette" points="221.59,86.676 221.59,86.676" data-semantic-id="BearingBlock:edge:10:segment:12:interval:0:Silhouette"/>
+<polyline class="silhouette" points="221.59,86.676 221.597,86.674" data-semantic-id="BearingBlock:edge:10:segment:12:interval:1:Silhouette"/>
+<polyline class="silhouette" points="221.597,86.674 221.641,86.662" data-semantic-id="BearingBlock:edge:10:segment:12:interval:2:Silhouette"/>
+<polyline class="silhouette" points="221.641,86.662 221.644,86.661" data-semantic-id="BearingBlock:edge:10:segment:12:interval:3:Silhouette"/>
+<polyline class="silhouette" points="221.644,86.661 221.686,86.65" data-semantic-id="BearingBlock:edge:10:segment:12:interval:4:Silhouette"/>
+<polyline class="silhouette" points="221.686,86.65 221.748,86.633" data-semantic-id="BearingBlock:edge:10:segment:12:interval:5:Silhouette"/>
+<polyline class="silhouette" points="221.748,86.633 221.782,86.623" data-semantic-id="BearingBlock:edge:10:segment:12:interval:6:Silhouette"/>
+<polyline class="silhouette" points="221.782,86.623 221.853,86.604" data-semantic-id="BearingBlock:edge:10:segment:12:interval:7:Silhouette"/>
+<polyline class="silhouette" points="221.853,86.604 221.878,86.597" data-semantic-id="BearingBlock:edge:10:segment:12:interval:8:Silhouette"/>
+<polyline class="silhouette" points="221.878,86.597 221.957,86.576" data-semantic-id="BearingBlock:edge:10:segment:12:interval:9:Silhouette"/>
+<polyline class="silhouette" points="221.957,86.576 221.973,86.571" data-semantic-id="BearingBlock:edge:10:segment:12:interval:10:Silhouette"/>
+<polyline class="silhouette" points="221.973,86.571 222.017,86.559" data-semantic-id="BearingBlock:edge:10:segment:12:interval:11:Silhouette"/>
+<polyline class="silhouette" points="222.017,86.559 222.056,86.546" data-semantic-id="BearingBlock:edge:10:segment:13:interval:0:Silhouette"/>
+<polyline class="silhouette" points="222.056,86.546 222.063,86.543" data-semantic-id="BearingBlock:edge:10:segment:13:interval:1:Silhouette"/>
+<polyline class="silhouette" points="222.063,86.543 222.122,86.523" data-semantic-id="BearingBlock:edge:10:segment:13:interval:2:Silhouette"/>
+<polyline class="silhouette" points="222.122,86.523 222.146,86.515" data-semantic-id="BearingBlock:edge:10:segment:13:interval:3:Silhouette"/>
+<polyline class="silhouette" points="222.146,86.515 222.147,86.514" data-semantic-id="BearingBlock:edge:10:segment:13:interval:4:Silhouette"/>
+<polyline class="silhouette" points="222.147,86.514 222.154,86.512" data-semantic-id="BearingBlock:edge:10:segment:13:interval:5:Silhouette"/>
+<polyline class="silhouette" points="222.154,86.512 222.19,86.499" data-semantic-id="BearingBlock:edge:10:segment:13:interval:6:Silhouette"/>
+<polyline class="silhouette" points="222.19,86.499 222.211,86.492" data-semantic-id="BearingBlock:edge:10:segment:13:interval:7:Silhouette"/>
+<polyline class="silhouette" points="222.211,86.492 222.214,86.491" data-semantic-id="BearingBlock:edge:10:segment:13:interval:8:Silhouette"/>
+<polyline class="silhouette" points="222.214,86.491 222.227,86.487" data-semantic-id="BearingBlock:edge:10:segment:13:interval:9:Silhouette"/>
+<polyline class="silhouette" points="222.227,86.487 222.273,86.471" data-semantic-id="BearingBlock:edge:10:segment:13:interval:10:Silhouette"/>
+<polyline class="silhouette" points="222.273,86.471 222.281,86.468" data-semantic-id="BearingBlock:edge:10:segment:13:interval:11:Silhouette"/>
+<polyline class="silhouette" points="222.281,86.468 222.335,86.449" data-semantic-id="BearingBlock:edge:10:segment:13:interval:12:Silhouette"/>
+<polyline class="silhouette" points="222.335,86.449 222.347,86.445" data-semantic-id="BearingBlock:edge:10:segment:13:interval:13:Silhouette"/>
+<polyline class="silhouette" points="222.347,86.445 222.397,86.428" data-semantic-id="BearingBlock:edge:10:segment:13:interval:14:Silhouette"/>
+<polyline class="silhouette" points="222.397,86.428 222.413,86.422" data-semantic-id="BearingBlock:edge:10:segment:13:interval:15:Silhouette"/>
+<polyline class="silhouette" points="222.413,86.422 222.421,86.419" data-semantic-id="BearingBlock:edge:10:segment:13:interval:16:Silhouette"/>
+<polyline class="silhouette" points="222.421,86.419 222.456,86.404" data-semantic-id="BearingBlock:edge:10:segment:14:interval:0:Silhouette"/>
+<polyline class="silhouette" points="222.456,86.404 222.474,86.397" data-semantic-id="BearingBlock:edge:10:segment:14:interval:1:Silhouette"/>
+<polyline class="silhouette" points="222.474,86.397 222.512,86.38" data-semantic-id="BearingBlock:edge:10:segment:14:interval:2:Silhouette"/>
+<polyline class="silhouette" points="222.512,86.38 222.534,86.371" data-semantic-id="BearingBlock:edge:10:segment:14:interval:3:Silhouette"/>
+<polyline class="silhouette" points="222.534,86.371 222.569,86.356" data-semantic-id="BearingBlock:edge:10:segment:14:interval:4:Silhouette"/>
+<polyline class="silhouette" points="222.569,86.356 222.593,86.346" data-semantic-id="BearingBlock:edge:10:segment:14:interval:5:Silhouette"/>
+<polyline class="silhouette" points="222.593,86.346 222.625,86.332" data-semantic-id="BearingBlock:edge:10:segment:14:interval:6:Silhouette"/>
+<polyline class="silhouette" points="222.625,86.332 222.653,86.32" data-semantic-id="BearingBlock:edge:10:segment:14:interval:7:Silhouette"/>
+<polyline class="silhouette" points="222.653,86.32 222.681,86.308" data-semantic-id="BearingBlock:edge:10:segment:14:interval:8:Silhouette"/>
+<polyline class="silhouette" points="222.681,86.308 222.691,86.304" data-semantic-id="BearingBlock:edge:10:segment:14:interval:9:Silhouette"/>
+<polyline class="silhouette" points="222.691,86.304 222.713,86.294" data-semantic-id="BearingBlock:edge:10:segment:14:interval:10:Silhouette"/>
+<polyline class="silhouette" points="222.713,86.294 222.738,86.284" data-semantic-id="BearingBlock:edge:10:segment:14:interval:11:Silhouette"/>
+<polyline class="silhouette" points="222.738,86.284 222.773,86.269" data-semantic-id="BearingBlock:edge:10:segment:14:interval:12:Silhouette"/>
+<polyline class="silhouette" points="222.773,86.269 222.794,86.26" data-semantic-id="BearingBlock:edge:10:segment:14:interval:13:Silhouette"/>
+<polyline class="silhouette" points="222.794,86.26 222.8,86.257" data-semantic-id="BearingBlock:edge:10:segment:14:interval:14:Silhouette"/>
+<polyline class="silhouette" points="222.8,86.257 222.829,86.242" data-semantic-id="BearingBlock:edge:10:segment:15:interval:0:Silhouette"/>
+<polyline class="silhouette" points="222.829,86.242 222.845,86.233" data-semantic-id="BearingBlock:edge:10:segment:15:interval:1:Silhouette"/>
+<polyline class="silhouette" points="222.845,86.233 222.882,86.214" data-semantic-id="BearingBlock:edge:10:segment:15:interval:2:Silhouette"/>
+<polyline class="silhouette" points="222.882,86.214 222.896,86.207" data-semantic-id="BearingBlock:edge:10:segment:15:interval:3:Silhouette"/>
+<polyline class="silhouette" points="222.896,86.207 222.936,86.186" data-semantic-id="BearingBlock:edge:10:segment:15:interval:4:Silhouette"/>
+<polyline class="silhouette" points="222.936,86.186 222.947,86.18" data-semantic-id="BearingBlock:edge:10:segment:15:interval:5:Silhouette"/>
+<polyline class="silhouette" points="222.947,86.18 222.989,86.158" data-semantic-id="BearingBlock:edge:10:segment:15:interval:6:Silhouette"/>
+<polyline class="silhouette" points="222.989,86.158 222.998,86.154" data-semantic-id="BearingBlock:edge:10:segment:15:interval:7:Silhouette"/>
+<polyline class="silhouette" points="222.998,86.154 223.043,86.13" data-semantic-id="BearingBlock:edge:10:segment:15:interval:8:Silhouette"/>
+<polyline class="silhouette" points="223.043,86.13 223.048,86.127" data-semantic-id="BearingBlock:edge:10:segment:15:interval:9:Silhouette"/>
+<polyline class="silhouette" points="223.048,86.127 223.096,86.102" data-semantic-id="BearingBlock:edge:10:segment:15:interval:10:Silhouette"/>
+<polyline class="silhouette" points="223.096,86.102 223.099,86.101" data-semantic-id="BearingBlock:edge:10:segment:15:interval:11:Silhouette"/>
+<polyline class="silhouette" points="223.099,86.101 223.15,86.074" data-semantic-id="BearingBlock:edge:10:segment:15:interval:12:Silhouette"/>
+<polyline class="silhouette" points="223.15,86.074 223.185,86.052" data-semantic-id="BearingBlock:edge:10:segment:16:interval:0:Silhouette"/>
+<polyline class="silhouette" points="223.185,86.052 223.187,86.05" data-semantic-id="BearingBlock:edge:10:segment:16:interval:1:Silhouette"/>
+<polyline class="silhouette" points="223.187,86.05 223.221,86.029" data-semantic-id="BearingBlock:edge:10:segment:16:interval:2:Silhouette"/>
+<polyline class="silhouette" points="223.221,86.029 223.224,86.027" data-semantic-id="BearingBlock:edge:10:segment:16:interval:3:Silhouette"/>
+<polyline class="silhouette" points="223.224,86.027 223.256,86.007" data-semantic-id="BearingBlock:edge:10:segment:16:interval:4:Silhouette"/>
+<polyline class="silhouette" points="223.256,86.007 223.261,86.003" data-semantic-id="BearingBlock:edge:10:segment:16:interval:5:Silhouette"/>
+<polyline class="silhouette" points="223.261,86.003 223.291,85.984" data-semantic-id="BearingBlock:edge:10:segment:16:interval:6:Silhouette"/>
+<polyline class="silhouette" points="223.291,85.984 223.298,85.98" data-semantic-id="BearingBlock:edge:10:segment:16:interval:7:Silhouette"/>
+<polyline class="silhouette" points="223.298,85.98 223.327,85.962" data-semantic-id="BearingBlock:edge:10:segment:16:interval:8:Silhouette"/>
+<polyline class="silhouette" points="223.327,85.962 223.335,85.956" data-semantic-id="BearingBlock:edge:10:segment:16:interval:9:Silhouette"/>
+<polyline class="silhouette" points="223.335,85.956 223.362,85.939" data-semantic-id="BearingBlock:edge:10:segment:16:interval:10:Silhouette"/>
+<polyline class="silhouette" points="223.362,85.939 223.372,85.932" data-semantic-id="BearingBlock:edge:10:segment:16:interval:11:Silhouette"/>
+<polyline class="silhouette" points="223.372,85.932 223.397,85.917" data-semantic-id="BearingBlock:edge:10:segment:16:interval:12:Silhouette"/>
+<polyline class="silhouette" points="223.397,85.917 223.409,85.909" data-semantic-id="BearingBlock:edge:10:segment:16:interval:13:Silhouette"/>
+<polyline class="silhouette" points="223.409,85.909 223.433,85.894" data-semantic-id="BearingBlock:edge:10:segment:16:interval:14:Silhouette"/>
+<polyline class="silhouette" points="223.433,85.894 223.446,85.885" data-semantic-id="BearingBlock:edge:10:segment:16:interval:15:Silhouette"/>
+<polyline class="silhouette" points="223.446,85.885 223.467,85.872" data-semantic-id="BearingBlock:edge:10:segment:16:interval:16:Silhouette"/>
+<polyline class="silhouette" points="223.467,85.872 223.468,85.871" data-semantic-id="BearingBlock:edge:10:segment:17:interval:0:Silhouette"/>
+<polyline class="silhouette" points="223.468,85.871 223.482,85.861" data-semantic-id="BearingBlock:edge:10:segment:17:interval:1:Silhouette"/>
+<polyline class="silhouette" points="223.482,85.861 223.5,85.847" data-semantic-id="BearingBlock:edge:10:segment:17:interval:2:Silhouette"/>
+<polyline class="silhouette" points="223.5,85.847 223.515,85.835" data-semantic-id="BearingBlock:edge:10:segment:17:interval:3:Silhouette"/>
+<polyline class="silhouette" points="223.515,85.835 223.532,85.822" data-semantic-id="BearingBlock:edge:10:segment:17:interval:4:Silhouette"/>
+<polyline class="silhouette" points="223.532,85.822 223.549,85.809" data-semantic-id="BearingBlock:edge:10:segment:17:interval:5:Silhouette"/>
+<polyline class="silhouette" points="223.549,85.809 223.564,85.797" data-semantic-id="BearingBlock:edge:10:segment:17:interval:6:Silhouette"/>
+<polyline class="silhouette" points="223.564,85.797 223.582,85.782" data-semantic-id="BearingBlock:edge:10:segment:17:interval:7:Silhouette"/>
+<polyline class="silhouette" points="223.582,85.782 223.596,85.772" data-semantic-id="BearingBlock:edge:10:segment:17:interval:8:Silhouette"/>
+<polyline class="silhouette" points="223.596,85.772 223.616,85.756" data-semantic-id="BearingBlock:edge:10:segment:17:interval:9:Silhouette"/>
+<polyline class="silhouette" points="223.616,85.756 223.628,85.747" data-semantic-id="BearingBlock:edge:10:segment:17:interval:10:Silhouette"/>
+<polyline class="silhouette" points="223.628,85.747 223.647,85.732" data-semantic-id="BearingBlock:edge:10:segment:17:interval:11:Silhouette"/>
+<polyline class="silhouette" points="223.647,85.732 223.649,85.73" data-semantic-id="BearingBlock:edge:10:segment:17:interval:12:Silhouette"/>
+<polyline class="silhouette" points="223.649,85.73 223.66,85.722" data-semantic-id="BearingBlock:edge:10:segment:17:interval:13:Silhouette"/>
+<polyline class="silhouette" points="223.66,85.722 223.682,85.704" data-semantic-id="BearingBlock:edge:10:segment:17:interval:14:Silhouette"/>
+<polyline class="silhouette" points="223.682,85.704 223.692,85.697" data-semantic-id="BearingBlock:edge:10:segment:17:interval:15:Silhouette"/>
+<polyline class="silhouette" points="223.692,85.697 223.716,85.678" data-semantic-id="BearingBlock:edge:10:segment:17:interval:16:Silhouette"/>
+<polyline class="silhouette" points="223.716,85.678 223.724,85.672" data-semantic-id="BearingBlock:edge:10:segment:17:interval:17:Silhouette"/>
+<polyline class="silhouette" points="223.724,85.672 223.748,85.653" data-semantic-id="BearingBlock:edge:10:segment:17:interval:18:Silhouette"/>
+<polyline class="silhouette" points="223.748,85.653 223.749,85.652" data-semantic-id="BearingBlock:edge:10:segment:18:interval:0:Silhouette"/>
+<polyline class="silhouette" points="223.749,85.652 223.755,85.646" data-semantic-id="BearingBlock:edge:10:segment:18:interval:1:Silhouette"/>
+<polyline class="silhouette" points="223.755,85.646 223.779,85.624" data-semantic-id="BearingBlock:edge:10:segment:18:interval:2:Silhouette"/>
+<polyline class="silhouette" points="223.779,85.624 223.784,85.619" data-semantic-id="BearingBlock:edge:10:segment:18:interval:3:Silhouette"/>
+<polyline class="silhouette" points="223.784,85.619 223.809,85.595" data-semantic-id="BearingBlock:edge:10:segment:18:interval:4:Silhouette"/>
+<polyline class="silhouette" points="223.809,85.595 223.813,85.591" data-semantic-id="BearingBlock:edge:10:segment:18:interval:5:Silhouette"/>
+<polyline class="silhouette" points="223.813,85.591 223.838,85.566" data-semantic-id="BearingBlock:edge:10:segment:18:interval:6:Silhouette"/>
+<polyline class="silhouette" points="223.838,85.566 223.841,85.564" data-semantic-id="BearingBlock:edge:10:segment:18:interval:7:Silhouette"/>
+<polyline class="silhouette" points="223.841,85.564 223.868,85.538" data-semantic-id="BearingBlock:edge:10:segment:18:interval:8:Silhouette"/>
+<polyline class="silhouette" points="223.868,85.538 223.87,85.536" data-semantic-id="BearingBlock:edge:10:segment:18:interval:9:Silhouette"/>
+<polyline class="silhouette" points="223.87,85.536 223.887,85.52" data-semantic-id="BearingBlock:edge:10:segment:18:interval:10:Silhouette"/>
+<polyline class="silhouette" points="223.887,85.52 223.898,85.509" data-semantic-id="BearingBlock:edge:10:segment:18:interval:11:Silhouette"/>
+<polyline class="silhouette" points="223.898,85.509 223.898,85.508" data-semantic-id="BearingBlock:edge:10:segment:18:interval:12:Silhouette"/>
+<polyline class="silhouette" points="223.898,85.508 223.914,85.493" data-semantic-id="BearingBlock:edge:10:segment:18:interval:13:Silhouette"/>
+<polyline class="silhouette" points="223.914,85.493 223.924,85.484" data-semantic-id="BearingBlock:edge:10:segment:18:interval:14:Silhouette"/>
+<polyline class="silhouette" points="223.924,85.484 223.924,85.484" data-semantic-id="BearingBlock:edge:10:segment:18:interval:15:Silhouette"/>
+<polyline class="silhouette" points="223.924,85.484 223.928,85.48" data-semantic-id="BearingBlock:edge:10:segment:18:interval:16:Silhouette"/>
+<polyline class="silhouette" points="223.928,85.48 223.932,85.476" data-semantic-id="BearingBlock:edge:10:segment:18:interval:17:Silhouette"/>
+<polyline class="silhouette" points="223.932,85.476 223.944,85.464" data-semantic-id="BearingBlock:edge:10:segment:18:interval:18:Silhouette"/>
+<polyline class="silhouette" points="223.944,85.464 223.946,85.463" data-semantic-id="BearingBlock:edge:10:segment:18:interval:19:Silhouette"/>
+<polyline class="silhouette" points="223.946,85.463 223.965,85.444" data-semantic-id="BearingBlock:edge:10:segment:18:interval:20:Silhouette"/>
+<polyline class="silhouette" points="223.965,85.444 223.967,85.442" data-semantic-id="BearingBlock:edge:10:segment:18:interval:21:Silhouette"/>
+<polyline class="silhouette" points="223.967,85.442 223.986,85.424" data-semantic-id="BearingBlock:edge:10:segment:18:interval:22:Silhouette"/>
+<polyline class="silhouette" points="223.986,85.424 223.989,85.421" data-semantic-id="BearingBlock:edge:10:segment:18:interval:23:Silhouette"/>
+<polyline class="silhouette" points="223.989,85.421 223.991,85.42" data-semantic-id="BearingBlock:edge:10:segment:18:interval:24:Silhouette"/>
+<polyline class="silhouette" points="223.991,85.42 224.005,85.402" data-semantic-id="BearingBlock:edge:10:segment:19:interval:0:Silhouette"/>
+<polyline class="silhouette" points="224.005,85.402 224.009,85.397" data-semantic-id="BearingBlock:edge:10:segment:19:interval:1:Silhouette"/>
+<polyline class="silhouette" points="224.009,85.397 224.024,85.379" data-semantic-id="BearingBlock:edge:10:segment:19:interval:2:Silhouette"/>
+<polyline class="silhouette" points="224.024,85.379 224.028,85.373" data-semantic-id="BearingBlock:edge:10:segment:19:interval:3:Silhouette"/>
+<polyline class="silhouette" points="224.028,85.373 224.043,85.356" data-semantic-id="BearingBlock:edge:10:segment:19:interval:4:Silhouette"/>
+<polyline class="silhouette" points="224.043,85.356 224.048,85.35" data-semantic-id="BearingBlock:edge:10:segment:19:interval:5:Silhouette"/>
+<polyline class="silhouette" points="224.048,85.35 224.062,85.333" data-semantic-id="BearingBlock:edge:10:segment:19:interval:6:Silhouette"/>
+<polyline class="silhouette" points="224.062,85.333 224.068,85.326" data-semantic-id="BearingBlock:edge:10:segment:19:interval:7:Silhouette"/>
+<polyline class="silhouette" points="224.068,85.326 224.08,85.31" data-semantic-id="BearingBlock:edge:10:segment:19:interval:8:Silhouette"/>
+<polyline class="silhouette" points="224.08,85.31 224.087,85.302" data-semantic-id="BearingBlock:edge:10:segment:19:interval:9:Silhouette"/>
+<polyline class="silhouette" points="224.087,85.302 224.099,85.287" data-semantic-id="BearingBlock:edge:10:segment:19:interval:10:Silhouette"/>
+<polyline class="silhouette" points="224.099,85.287 224.107,85.278" data-semantic-id="BearingBlock:edge:10:segment:19:interval:11:Silhouette"/>
+<polyline class="silhouette" points="224.107,85.278 224.117,85.265" data-semantic-id="BearingBlock:edge:10:segment:19:interval:12:Silhouette"/>
+<polyline class="silhouette" points="224.117,85.265 224.118,85.264" data-semantic-id="BearingBlock:edge:10:segment:19:interval:13:Silhouette"/>
+<polyline class="silhouette" points="224.118,85.264 224.126,85.254" data-semantic-id="BearingBlock:edge:10:segment:19:interval:14:Silhouette"/>
+<polyline class="silhouette" points="224.126,85.254 224.137,85.241" data-semantic-id="BearingBlock:edge:10:segment:19:interval:15:Silhouette"/>
+<polyline class="silhouette" points="224.137,85.241 224.146,85.23" data-semantic-id="BearingBlock:edge:10:segment:19:interval:16:Silhouette"/>
+<polyline class="silhouette" points="224.146,85.23 224.155,85.219" data-semantic-id="BearingBlock:edge:10:segment:19:interval:17:Silhouette"/>
+<polyline class="silhouette" points="224.155,85.219 224.165,85.207" data-semantic-id="BearingBlock:edge:10:segment:19:interval:18:Silhouette"/>
+<polyline class="silhouette" points="224.165,85.207 224.174,85.196" data-semantic-id="BearingBlock:edge:10:segment:19:interval:19:Silhouette"/>
+<polyline class="silhouette" points="224.174,85.196 224.185,85.183" data-semantic-id="BearingBlock:edge:10:segment:19:interval:20:Silhouette"/>
+<polyline class="silhouette" points="224.185,85.183 224.192,85.173" data-semantic-id="BearingBlock:edge:10:segment:19:interval:21:Silhouette"/>
+<polyline class="silhouette" points="224.192,85.173 224.193,85.173" data-semantic-id="BearingBlock:edge:10:segment:20:interval:0:Silhouette"/>
+<polyline class="silhouette" points="224.193,85.173 224.203,85.157" data-semantic-id="BearingBlock:edge:10:segment:20:interval:1:Silhouette"/>
+<polyline class="silhouette" points="224.203,85.157 224.209,85.146" data-semantic-id="BearingBlock:edge:10:segment:20:interval:2:Silhouette"/>
+<polyline class="silhouette" points="224.209,85.146 224.22,85.13" data-semantic-id="BearingBlock:edge:10:segment:20:interval:3:Silhouette"/>
+<polyline class="silhouette" points="224.22,85.13 224.225,85.12" data-semantic-id="BearingBlock:edge:10:segment:20:interval:4:Silhouette"/>
+<polyline class="silhouette" points="224.225,85.12 224.236,85.102" data-semantic-id="BearingBlock:edge:10:segment:20:interval:5:Silhouette"/>
+<polyline class="silhouette" points="224.236,85.102 224.242,85.094" data-semantic-id="BearingBlock:edge:10:segment:20:interval:6:Silhouette"/>
+<polyline class="silhouette" points="224.242,85.094 224.251,85.078" data-semantic-id="BearingBlock:edge:10:segment:20:interval:7:Silhouette"/>
+<polyline class="silhouette" points="224.251,85.078 224.253,85.075" data-semantic-id="BearingBlock:edge:10:segment:20:interval:8:Silhouette"/>
+<polyline class="silhouette" points="224.253,85.075 224.258,85.067" data-semantic-id="BearingBlock:edge:10:segment:20:interval:9:Silhouette"/>
+<polyline class="silhouette" points="224.258,85.067 224.27,85.048" data-semantic-id="BearingBlock:edge:10:segment:20:interval:10:Silhouette"/>
+<polyline class="silhouette" points="224.27,85.048 224.274,85.041" data-semantic-id="BearingBlock:edge:10:segment:20:interval:11:Silhouette"/>
+<polyline class="silhouette" points="224.274,85.041 224.287,85.02" data-semantic-id="BearingBlock:edge:10:segment:20:interval:12:Silhouette"/>
+<polyline class="silhouette" points="224.287,85.02 224.291,85.015" data-semantic-id="BearingBlock:edge:10:segment:20:interval:13:Silhouette"/>
+<polyline class="silhouette" points="224.291,85.015 224.297,85.005" data-semantic-id="BearingBlock:edge:10:segment:20:interval:14:Silhouette"/>
+<polyline class="silhouette" points="224.297,85.005 224.304,84.993" data-semantic-id="BearingBlock:edge:10:segment:20:interval:15:Silhouette"/>
+<polyline class="silhouette" points="224.304,84.993 224.307,84.988" data-semantic-id="BearingBlock:edge:10:segment:20:interval:16:Silhouette"/>
+<polyline class="silhouette" points="224.307,84.988 224.321,84.966" data-semantic-id="BearingBlock:edge:10:segment:20:interval:17:Silhouette"/>
+<polyline class="silhouette" points="224.321,84.966 224.323,84.962" data-semantic-id="BearingBlock:edge:10:segment:20:interval:18:Silhouette"/>
+<polyline class="silhouette" points="224.323,84.962 224.338,84.939" data-semantic-id="BearingBlock:edge:10:segment:20:interval:19:Silhouette"/>
+<polyline class="silhouette" points="224.338,84.939 224.34,84.936" data-semantic-id="BearingBlock:edge:10:segment:20:interval:20:Silhouette"/>
+<polyline class="silhouette" points="224.34,84.936 224.351,84.917" data-semantic-id="BearingBlock:edge:10:segment:20:interval:21:Silhouette"/>
+<polyline class="silhouette" points="224.351,84.917 224.354,84.911" data-semantic-id="BearingBlock:edge:10:segment:21:interval:0:Silhouette"/>
+<polyline class="silhouette" points="224.354,84.911 224.355,84.908" data-semantic-id="BearingBlock:edge:10:segment:21:interval:1:Silhouette"/>
+<polyline class="silhouette" points="224.355,84.908 224.368,84.879" data-semantic-id="BearingBlock:edge:10:segment:21:interval:2:Silhouette"/>
+<polyline class="silhouette" points="224.368,84.879 224.368,84.877" data-semantic-id="BearingBlock:edge:10:segment:21:interval:3:Silhouette"/>
+<polyline class="silhouette" points="224.368,84.877 224.381,84.848" data-semantic-id="BearingBlock:edge:10:segment:21:interval:4:Silhouette"/>
+<polyline class="silhouette" points="224.381,84.848 224.381,84.848" data-semantic-id="BearingBlock:edge:10:segment:21:interval:5:Silhouette"/>
+<polyline class="silhouette" points="224.381,84.848 224.382,84.847" data-semantic-id="BearingBlock:edge:10:segment:21:interval:6:Silhouette"/>
+<polyline class="silhouette" points="224.382,84.847 224.394,84.817" data-semantic-id="BearingBlock:edge:10:segment:21:interval:7:Silhouette"/>
+<polyline class="silhouette" points="224.394,84.817 224.395,84.817" data-semantic-id="BearingBlock:edge:10:segment:21:interval:8:Silhouette"/>
+<polyline class="silhouette" points="224.395,84.817 224.395,84.817" data-semantic-id="BearingBlock:edge:10:segment:21:interval:9:Silhouette"/>
+<polyline class="silhouette" points="224.395,84.817 224.4,84.804" data-semantic-id="BearingBlock:edge:10:segment:21:interval:10:Silhouette"/>
+<polyline class="silhouette" points="224.4,84.804 224.401,84.801" data-semantic-id="BearingBlock:edge:10:segment:21:interval:11:Silhouette"/>
+<polyline class="silhouette" points="224.401,84.801 224.402,84.801" data-semantic-id="BearingBlock:edge:10:segment:21:interval:12:Silhouette"/>
+<polyline class="silhouette" points="224.402,84.801 224.402,84.8" data-semantic-id="BearingBlock:edge:10:segment:21:interval:13:Silhouette"/>
+<polyline class="silhouette" points="224.402,84.8 224.402,84.799" data-semantic-id="BearingBlock:edge:10:segment:21:interval:14:Silhouette"/>
+<polyline class="silhouette" points="224.402,84.799 224.409,84.783" data-semantic-id="BearingBlock:edge:10:segment:21:interval:15:Silhouette"/>
+<polyline class="silhouette" points="224.409,84.783 224.41,84.781" data-semantic-id="BearingBlock:edge:10:segment:21:interval:16:Silhouette"/>
+<polyline class="silhouette" points="224.41,84.781 224.417,84.766" data-semantic-id="BearingBlock:edge:10:segment:21:interval:17:Silhouette"/>
+<polyline class="silhouette" points="224.417,84.766 224.418,84.764" data-semantic-id="BearingBlock:edge:10:segment:21:interval:18:Silhouette"/>
+<polyline class="silhouette" points="224.418,84.764 224.424,84.749" data-semantic-id="BearingBlock:edge:10:segment:21:interval:19:Silhouette"/>
+<polyline class="silhouette" points="224.424,84.749 224.424,84.749" data-semantic-id="BearingBlock:edge:10:segment:21:interval:20:Silhouette"/>
+<polyline class="silhouette" points="224.424,84.749 224.425,84.746" data-semantic-id="BearingBlock:edge:10:segment:21:interval:21:Silhouette"/>
+<polyline class="silhouette" points="224.425,84.746 224.429,84.738" data-semantic-id="BearingBlock:edge:10:segment:21:interval:22:Silhouette"/>
+<polyline class="silhouette" points="224.429,84.738 224.431,84.732" data-semantic-id="BearingBlock:edge:10:segment:21:interval:23:Silhouette"/>
+<polyline class="silhouette" points="224.431,84.732 224.433,84.728" data-semantic-id="BearingBlock:edge:10:segment:21:interval:24:Silhouette"/>
+<polyline class="silhouette" points="224.433,84.728 224.439,84.715" data-semantic-id="BearingBlock:edge:10:segment:21:interval:25:Silhouette"/>
+<polyline class="silhouette" points="224.439,84.715 224.441,84.711" data-semantic-id="BearingBlock:edge:10:segment:21:interval:26:Silhouette"/>
+<polyline class="silhouette" points="224.441,84.711 224.446,84.698" data-semantic-id="BearingBlock:edge:10:segment:21:interval:27:Silhouette"/>
+<polyline class="silhouette" points="224.446,84.698 224.448,84.695" data-semantic-id="BearingBlock:edge:10:segment:21:interval:28:Silhouette"/>
+<polyline class="silhouette" points="224.448,84.695 224.448,84.693" data-semantic-id="BearingBlock:edge:10:segment:21:interval:29:Silhouette"/>
+<polyline class="silhouette" points="224.448,84.693 224.453,84.681" data-semantic-id="BearingBlock:edge:10:segment:21:interval:30:Silhouette"/>
+<polyline class="silhouette" points="224.453,84.681 224.456,84.675" data-semantic-id="BearingBlock:edge:10:segment:21:interval:31:Silhouette"/>
+<polyline class="silhouette" points="224.456,84.675 224.456,84.674" data-semantic-id="BearingBlock:edge:10:segment:21:interval:32:Silhouette"/>
+<polyline class="silhouette" points="224.456,84.674 224.461,84.665" data-semantic-id="BearingBlock:edge:10:segment:21:interval:33:Silhouette"/>
+<polyline class="silhouette" points="224.461,84.665 224.464,84.657" data-semantic-id="BearingBlock:edge:10:segment:21:interval:34:Silhouette"/>
+<polyline class="silhouette" points="224.464,84.657 224.466,84.653" data-semantic-id="BearingBlock:edge:10:segment:21:interval:35:Silhouette"/>
+<polyline class="silhouette" points="224.466,84.653 224.468,84.646" data-semantic-id="BearingBlock:edge:10:segment:22:interval:0:Silhouette"/>
+<polyline class="silhouette" points="224.468,84.646 224.47,84.635" data-semantic-id="BearingBlock:edge:10:segment:22:interval:1:Silhouette"/>
+<polyline class="silhouette" points="224.47,84.635 224.474,84.623" data-semantic-id="BearingBlock:edge:10:segment:22:interval:2:Silhouette"/>
+<polyline class="silhouette" points="224.474,84.623 224.477,84.611" data-semantic-id="BearingBlock:edge:10:segment:22:interval:3:Silhouette"/>
+<polyline class="silhouette" points="224.477,84.611 224.48,84.6" data-semantic-id="BearingBlock:edge:10:segment:22:interval:4:Silhouette"/>
+<polyline class="silhouette" points="224.48,84.6 224.483,84.587" data-semantic-id="BearingBlock:edge:10:segment:22:interval:5:Silhouette"/>
+<polyline class="silhouette" points="224.483,84.587 224.485,84.577" data-semantic-id="BearingBlock:edge:10:segment:22:interval:6:Silhouette"/>
+<polyline class="silhouette" points="224.485,84.577 224.488,84.567" data-semantic-id="BearingBlock:edge:10:segment:22:interval:7:Silhouette"/>
+<polyline class="silhouette" points="224.488,84.567 224.489,84.563" data-semantic-id="BearingBlock:edge:10:segment:22:interval:8:Silhouette"/>
+<polyline class="silhouette" points="224.489,84.563 224.491,84.554" data-semantic-id="BearingBlock:edge:10:segment:22:interval:9:Silhouette"/>
+<polyline class="silhouette" points="224.491,84.554 224.495,84.539" data-semantic-id="BearingBlock:edge:10:segment:22:interval:10:Silhouette"/>
+<polyline class="silhouette" points="224.495,84.539 224.497,84.53" data-semantic-id="BearingBlock:edge:10:segment:22:interval:11:Silhouette"/>
+<polyline class="silhouette" points="224.497,84.53 224.501,84.515" data-semantic-id="BearingBlock:edge:10:segment:22:interval:12:Silhouette"/>
+<polyline class="silhouette" points="224.501,84.515 224.503,84.507" data-semantic-id="BearingBlock:edge:10:segment:22:interval:13:Silhouette"/>
+<polyline class="silhouette" points="224.503,84.507 224.507,84.492" data-semantic-id="BearingBlock:edge:10:segment:22:interval:14:Silhouette"/>
+<polyline class="silhouette" points="224.507,84.492 224.509,84.484" data-semantic-id="BearingBlock:edge:10:segment:22:interval:15:Silhouette"/>
+<polyline class="silhouette" points="224.509,84.484 224.513,84.468" data-semantic-id="BearingBlock:edge:10:segment:22:interval:16:Silhouette"/>
+<polyline class="silhouette" points="224.513,84.468 224.515,84.461" data-semantic-id="BearingBlock:edge:10:segment:22:interval:17:Silhouette"/>
+<polyline class="silhouette" points="224.515,84.461 224.52,84.444" data-semantic-id="BearingBlock:edge:10:segment:22:interval:18:Silhouette"/>
+<polyline class="silhouette" points="224.52,84.444 224.521,84.438" data-semantic-id="BearingBlock:edge:10:segment:22:interval:19:Silhouette"/>
+<polyline class="silhouette" points="224.521,84.438 224.526,84.42" data-semantic-id="BearingBlock:edge:10:segment:22:interval:20:Silhouette"/>
+<polyline class="silhouette" points="224.526,84.42 224.527,84.415" data-semantic-id="BearingBlock:edge:10:segment:22:interval:21:Silhouette"/>
+<polyline class="silhouette" points="224.527,84.415 224.532,84.396" data-semantic-id="BearingBlock:edge:10:segment:22:interval:22:Silhouette"/>
+<polyline class="silhouette" points="224.532,84.396 224.533,84.392" data-semantic-id="BearingBlock:edge:10:segment:22:interval:23:Silhouette"/>
+<polyline class="silhouette" points="224.533,84.392 224.535,84.383" data-semantic-id="BearingBlock:edge:10:segment:22:interval:24:Silhouette"/>
+<polyline class="silhouette" points="224.535,84.383 224.537,84.366" data-semantic-id="BearingBlock:edge:10:segment:23:interval:0:Silhouette"/>
+<polyline class="silhouette" points="224.537,84.366 224.537,84.361" data-semantic-id="BearingBlock:edge:10:segment:23:interval:1:Silhouette"/>
+<polyline class="silhouette" points="224.537,84.361 224.538,84.346" data-semantic-id="BearingBlock:edge:10:segment:23:interval:2:Silhouette"/>
+<polyline class="silhouette" points="224.538,84.346 224.539,84.337" data-semantic-id="BearingBlock:edge:10:segment:23:interval:3:Silhouette"/>
+<polyline class="silhouette" points="224.539,84.337 224.54,84.33" data-semantic-id="BearingBlock:edge:10:segment:23:interval:4:Silhouette"/>
+<polyline class="silhouette" points="224.54,84.33 224.54,84.325" data-semantic-id="BearingBlock:edge:10:segment:23:interval:5:Silhouette"/>
+<polyline class="silhouette" points="224.54,84.325 224.543,84.293" data-semantic-id="BearingBlock:edge:10:segment:23:interval:6:Silhouette"/>
+<polyline class="silhouette" points="224.543,84.293 224.543,84.29" data-semantic-id="BearingBlock:edge:10:segment:23:interval:7:Silhouette"/>
+<polyline class="silhouette" points="224.543,84.29 224.545,84.268" data-semantic-id="BearingBlock:edge:10:segment:23:interval:8:Silhouette"/>
+<polyline class="silhouette" points="224.545,84.268 224.546,84.261" data-semantic-id="BearingBlock:edge:10:segment:23:interval:9:Silhouette"/>
+<polyline class="silhouette" points="224.546,84.261 224.546,84.257" data-semantic-id="BearingBlock:edge:10:segment:23:interval:10:Silhouette"/>
+<polyline class="silhouette" points="224.546,84.257 224.546,84.254" data-semantic-id="BearingBlock:edge:10:segment:23:interval:11:Silhouette"/>
+<polyline class="silhouette" points="224.546,84.254 224.549,84.22" data-semantic-id="BearingBlock:edge:10:segment:23:interval:12:Silhouette"/>
+<polyline class="silhouette" points="224.549,84.22 224.549,84.218" data-semantic-id="BearingBlock:edge:10:segment:23:interval:13:Silhouette"/>
+<polyline class="silhouette" points="224.549,84.218 224.551,84.201" data-semantic-id="BearingBlock:edge:10:segment:23:interval:14:Silhouette"/>
+<polyline class="silhouette" points="224.551,84.201 224.552,84.189" data-semantic-id="BearingBlock:edge:10:segment:23:interval:15:Silhouette"/>
+<polyline class="silhouette" points="224.552,84.189 224.552,84.186" data-semantic-id="BearingBlock:edge:10:segment:23:interval:16:Silhouette"/>
+<polyline class="silhouette" points="224.552,84.186 224.552,84.184" data-semantic-id="BearingBlock:edge:10:segment:23:interval:17:Silhouette"/>
+<polyline class="silhouette" points="224.552,84.184 224.552,84.183" data-semantic-id="BearingBlock:edge:10:segment:23:interval:18:Silhouette"/>
+<polyline class="silhouette" points="224.552,84.183 224.555,84.147" data-semantic-id="BearingBlock:edge:10:segment:23:interval:19:Silhouette"/>
+<polyline class="silhouette" points="224.555,84.147 224.555,84.147" data-semantic-id="BearingBlock:edge:10:segment:23:interval:20:Silhouette"/>
+<polyline class="silhouette" points="224.555,84.147 224.558,84.111" data-semantic-id="BearingBlock:edge:10:segment:23:interval:21:Silhouette"/>
+<polyline class="silhouette" points="224.558,84.111 224.535,83.839" data-semantic-id="BearingBlock:edge:10:segment:24:interval:0:Silhouette"/>
+<polyline class="silhouette" points="224.535,83.839 224.466,83.569" data-semantic-id="BearingBlock:edge:10:segment:25:interval:0:Silhouette"/>
+<polyline class="silhouette" points="224.466,83.569 224.4,83.418" data-semantic-id="BearingBlock:edge:10:segment:26:interval:0:Silhouette"/>
+<polyline class="silhouette" points="224.4,83.418 224.394,83.405" data-semantic-id="BearingBlock:edge:10:segment:26:interval:1:Silhouette"/>
+<polyline class="silhouette" points="224.394,83.405 224.382,83.377" data-semantic-id="BearingBlock:edge:10:segment:26:interval:2:Silhouette"/>
+<polyline class="silhouette" points="224.382,83.377 224.381,83.374" data-semantic-id="BearingBlock:edge:10:segment:26:interval:3:Silhouette"/>
+<polyline class="silhouette" points="224.381,83.374 224.351,83.305" data-semantic-id="BearingBlock:edge:10:segment:26:interval:4:Silhouette"/>
+<polyline class="silhouette" points="224.351,83.305 224.192,83.049" data-semantic-id="BearingBlock:edge:10:segment:27:interval:0:Silhouette"/>
+<polyline class="silhouette" points="224.192,83.049 223.991,82.802" data-semantic-id="BearingBlock:edge:10:segment:28:interval:0:Silhouette"/>
+<polyline class="silhouette" points="223.991,82.802 223.928,82.742" data-semantic-id="BearingBlock:edge:10:segment:29:interval:0:Silhouette"/>
+<polyline class="silhouette" points="223.928,82.742 223.914,82.729" data-semantic-id="BearingBlock:edge:10:segment:29:interval:1:Silhouette"/>
+<polyline class="silhouette" points="223.914,82.729 223.893,82.709" data-semantic-id="BearingBlock:edge:10:segment:29:interval:2:Silhouette"/>
+<polyline class="silhouette" points="223.893,82.709 223.887,82.702" data-semantic-id="BearingBlock:edge:10:segment:29:interval:3:Silhouette"/>
+<polyline class="silhouette" points="223.887,82.702 223.748,82.569" data-semantic-id="BearingBlock:edge:10:segment:29:interval:4:Silhouette"/>
+<polyline class="silhouette" points="223.748,82.569 223.641,82.486" data-semantic-id="BearingBlock:edge:10:segment:30:interval:0:Silhouette"/>
+<polyline class="silhouette" points="223.641,82.486 223.467,82.35" data-semantic-id="BearingBlock:edge:10:segment:30:interval:1:Silhouette"/>
+<polyline class="silhouette" points="223.467,82.35 223.166,82.158" data-semantic-id="BearingBlock:edge:10:segment:31:interval:0:Silhouette"/>
+<polyline class="silhouette" points="223.166,82.158 223.15,82.148" data-semantic-id="BearingBlock:edge:10:segment:31:interval:1:Silhouette"/>
+<polyline class="silhouette" points="223.15,82.148 222.802,81.966" data-semantic-id="BearingBlock:edge:10:segment:32:interval:0:Silhouette"/>
+<polyline class="silhouette" points="222.802,81.966 222.8,81.965" data-semantic-id="BearingBlock:edge:10:segment:32:interval:1:Silhouette"/>
+<polyline class="silhouette" points="222.8,81.965 222.586,81.873" data-semantic-id="BearingBlock:edge:10:segment:33:interval:0:Silhouette"/>
+<polyline class="silhouette" points="222.586,81.873 222.536,81.852" data-semantic-id="BearingBlock:edge:10:segment:33:interval:1:Silhouette"/>
+<polyline class="silhouette" points="222.536,81.852 222.421,81.803" data-semantic-id="BearingBlock:edge:10:segment:33:interval:2:Silhouette"/>
+<polyline class="silhouette" points="222.421,81.803 222.19,81.723" data-semantic-id="BearingBlock:edge:10:segment:34:interval:0:Silhouette"/>
+<polyline class="silhouette" points="222.19,81.723 222.154,81.71" data-semantic-id="BearingBlock:edge:10:segment:34:interval:1:Silhouette"/>
+<polyline class="silhouette" points="222.154,81.71 222.131,81.702" data-semantic-id="BearingBlock:edge:10:segment:34:interval:2:Silhouette"/>
+<polyline class="silhouette" points="222.131,81.702 222.122,81.699" data-semantic-id="BearingBlock:edge:10:segment:34:interval:3:Silhouette"/>
+<polyline class="silhouette" points="222.122,81.699 222.017,81.663" data-semantic-id="BearingBlock:edge:10:segment:34:interval:4:Silhouette"/>
+<polyline class="silhouette" points="222.017,81.663 221.59,81.546" data-semantic-id="BearingBlock:edge:10:segment:35:interval:0:Silhouette"/>
+<polyline class="silhouette" points="221.59,81.546 221.146,81.454" data-semantic-id="BearingBlock:edge:10:segment:36:interval:0:Silhouette"/>
+<polyline class="silhouette" points="221.146,81.454 221.027,81.437" data-semantic-id="BearingBlock:edge:10:segment:37:interval:0:Silhouette"/>
+<polyline class="silhouette" points="221.027,81.437 220.994,81.433" data-semantic-id="BearingBlock:edge:10:segment:37:interval:1:Silhouette"/>
+<polyline class="silhouette" points="220.994,81.433 220.966,81.428" data-semantic-id="BearingBlock:edge:10:segment:37:interval:2:Silhouette"/>
+<polyline class="silhouette" points="220.966,81.428 220.95,81.426" data-semantic-id="BearingBlock:edge:10:segment:37:interval:3:Silhouette"/>
+<polyline class="silhouette" points="220.95,81.426 220.688,81.388" data-semantic-id="BearingBlock:edge:10:segment:37:interval:4:Silhouette"/>
+<polyline class="silhouette" points="220.688,81.388 220.221,81.348" data-semantic-id="BearingBlock:edge:10:segment:38:interval:0:Silhouette"/>
+<polyline class="silhouette" points="220.221,81.348 219.75,81.335" data-semantic-id="BearingBlock:edge:10:segment:39:interval:0:Silhouette"/>
+<polyline class="silhouette" points="219.75,81.335 219.279,81.348" data-semantic-id="BearingBlock:edge:10:segment:40:interval:0:Silhouette"/>
+<polyline class="silhouette" points="219.279,81.348 218.812,81.388" data-semantic-id="BearingBlock:edge:10:segment:41:interval:0:Silhouette"/>
+<polyline class="silhouette" points="218.812,81.388 218.55,81.426" data-semantic-id="BearingBlock:edge:10:segment:42:interval:0:Silhouette"/>
+<polyline class="silhouette" points="218.55,81.426 218.506,81.433" data-semantic-id="BearingBlock:edge:10:segment:42:interval:1:Silhouette"/>
+<polyline class="silhouette" points="218.506,81.433 218.483,81.436" data-semantic-id="BearingBlock:edge:10:segment:42:interval:2:Silhouette"/>
+<polyline class="silhouette" points="218.483,81.436 218.473,81.437" data-semantic-id="BearingBlock:edge:10:segment:42:interval:3:Silhouette"/>
+<polyline class="silhouette" points="218.473,81.437 218.354,81.454" data-semantic-id="BearingBlock:edge:10:segment:42:interval:4:Silhouette"/>
+<polyline class="silhouette" points="218.354,81.454 217.91,81.546" data-semantic-id="BearingBlock:edge:10:segment:43:interval:0:Silhouette"/>
+<polyline class="silhouette" points="217.91,81.546 217.483,81.663" data-semantic-id="BearingBlock:edge:10:segment:44:interval:0:Silhouette"/>
+<polyline class="silhouette" points="217.483,81.663 217.378,81.699" data-semantic-id="BearingBlock:edge:10:segment:45:interval:0:Silhouette"/>
+<polyline class="silhouette" points="217.378,81.699 217.346,81.71" data-semantic-id="BearingBlock:edge:10:segment:45:interval:1:Silhouette"/>
+<polyline class="silhouette" points="217.346,81.71 217.322,81.719" data-semantic-id="BearingBlock:edge:10:segment:45:interval:2:Silhouette"/>
+<polyline class="silhouette" points="217.322,81.719 217.31,81.723" data-semantic-id="BearingBlock:edge:10:segment:45:interval:3:Silhouette"/>
+<polyline class="silhouette" points="217.31,81.723 217.079,81.803" data-semantic-id="BearingBlock:edge:10:segment:45:interval:4:Silhouette"/>
+<polyline class="silhouette" points="217.079,81.803 216.7,81.965" data-semantic-id="BearingBlock:edge:10:segment:46:interval:0:Silhouette"/>
+<polyline class="silhouette" points="216.7,81.965 216.35,82.148" data-semantic-id="BearingBlock:edge:10:segment:47:interval:0:Silhouette"/>
+<polyline class="silhouette" points="216.35,82.148 216.033,82.35" data-semantic-id="BearingBlock:edge:10:segment:48:interval:0:Silhouette"/>
+<polyline class="silhouette" points="216.033,82.35 215.752,82.569" data-semantic-id="BearingBlock:edge:10:segment:49:interval:0:Silhouette"/>
+<polyline class="silhouette" points="215.752,82.569 215.613,82.702" data-semantic-id="BearingBlock:edge:10:segment:50:interval:0:Silhouette"/>
+<polyline class="silhouette" points="215.613,82.702 215.586,82.729" data-semantic-id="BearingBlock:edge:10:segment:50:interval:1:Silhouette"/>
+<polyline class="silhouette" points="215.586,82.729 215.575,82.739" data-semantic-id="BearingBlock:edge:10:segment:50:interval:2:Silhouette"/>
+<polyline class="silhouette" points="215.575,82.739 215.572,82.742" data-semantic-id="BearingBlock:edge:10:segment:50:interval:3:Silhouette"/>
+<polyline class="silhouette" points="215.572,82.742 215.509,82.802" data-semantic-id="BearingBlock:edge:10:segment:50:interval:4:Silhouette"/>
+<polyline class="silhouette" points="215.509,82.802 215.308,83.049" data-semantic-id="BearingBlock:edge:10:segment:51:interval:0:Silhouette"/>
+<polyline class="silhouette" points="215.308,83.049 215.149,83.305" data-semantic-id="BearingBlock:edge:10:segment:52:interval:0:Silhouette"/>
+<polyline class="silhouette" points="215.149,83.305 215.119,83.374" data-semantic-id="BearingBlock:edge:10:segment:53:interval:0:Silhouette"/>
+<polyline class="silhouette" points="215.119,83.374 215.106,83.405" data-semantic-id="BearingBlock:edge:10:segment:53:interval:1:Silhouette"/>
+<polyline class="silhouette" points="215.106,83.405 215.1,83.417" data-semantic-id="BearingBlock:edge:10:segment:53:interval:2:Silhouette"/>
+<polyline class="silhouette" points="215.1,83.417 215.1,83.418" data-semantic-id="BearingBlock:edge:10:segment:53:interval:3:Silhouette"/>
+<polyline class="silhouette" points="215.1,83.418 215.098,83.421" data-semantic-id="BearingBlock:edge:10:segment:53:interval:4:Silhouette"/>
+<polyline class="silhouette" points="215.098,83.421 215.034,83.569" data-semantic-id="BearingBlock:edge:10:segment:53:interval:5:Silhouette"/>
+<polyline class="silhouette" points="215.034,83.569 214.965,83.839" data-semantic-id="BearingBlock:edge:10:segment:54:interval:0:Silhouette"/>
+<polyline class="silhouette" points="214.965,83.839 214.949,84.021" data-semantic-id="BearingBlock:edge:10:segment:55:interval:0:Silhouette"/>
+<polyline class="silhouette" points="214.949,84.021 214.942,84.111" data-semantic-id="BearingBlock:edge:10:segment:55:interval:1:Silhouette"/>
+<polyline class="silhouette" points="214.942,84.111 214.945,84.146" data-semantic-id="BearingBlock:edge:10:segment:56:interval:0:Silhouette"/>
+<polyline class="silhouette" points="214.945,84.146 214.945,84.147" data-semantic-id="BearingBlock:edge:10:segment:56:interval:1:Silhouette"/>
+<polyline class="silhouette" points="214.945,84.147 214.948,84.181" data-semantic-id="BearingBlock:edge:10:segment:56:interval:2:Silhouette"/>
+<polyline class="silhouette" points="214.948,84.181 214.948,84.183" data-semantic-id="BearingBlock:edge:10:segment:56:interval:3:Silhouette"/>
+<polyline class="silhouette" points="214.948,84.183 214.948,84.189" data-semantic-id="BearingBlock:edge:10:segment:56:interval:4:Silhouette"/>
+<polyline class="silhouette" points="214.948,84.189 214.949,84.193" data-semantic-id="BearingBlock:edge:10:segment:56:interval:5:Silhouette"/>
+<polyline class="silhouette" points="214.949,84.193 214.951,84.216" data-semantic-id="BearingBlock:edge:10:segment:56:interval:6:Silhouette"/>
+<polyline class="silhouette" points="214.951,84.216 214.951,84.218" data-semantic-id="BearingBlock:edge:10:segment:56:interval:7:Silhouette"/>
+<polyline class="silhouette" points="214.951,84.218 214.954,84.251" data-semantic-id="BearingBlock:edge:10:segment:56:interval:8:Silhouette"/>
+<polyline class="silhouette" points="214.954,84.251 214.954,84.254" data-semantic-id="BearingBlock:edge:10:segment:56:interval:9:Silhouette"/>
+<polyline class="silhouette" points="214.954,84.254 214.955,84.268" data-semantic-id="BearingBlock:edge:10:segment:56:interval:10:Silhouette"/>
+<polyline class="silhouette" points="214.955,84.268 214.956,84.274" data-semantic-id="BearingBlock:edge:10:segment:56:interval:11:Silhouette"/>
+<polyline class="silhouette" points="214.956,84.274 214.957,84.286" data-semantic-id="BearingBlock:edge:10:segment:56:interval:12:Silhouette"/>
+<polyline class="silhouette" points="214.957,84.286 214.957,84.29" data-semantic-id="BearingBlock:edge:10:segment:56:interval:13:Silhouette"/>
+<polyline class="silhouette" points="214.957,84.29 214.96,84.322" data-semantic-id="BearingBlock:edge:10:segment:56:interval:14:Silhouette"/>
+<polyline class="silhouette" points="214.96,84.322 214.96,84.325" data-semantic-id="BearingBlock:edge:10:segment:56:interval:15:Silhouette"/>
+<polyline class="silhouette" points="214.96,84.325 214.962,84.346" data-semantic-id="BearingBlock:edge:10:segment:56:interval:16:Silhouette"/>
+<polyline class="silhouette" points="214.962,84.346 214.963,84.356" data-semantic-id="BearingBlock:edge:10:segment:56:interval:17:Silhouette"/>
+<polyline class="silhouette" points="214.963,84.356 214.963,84.357" data-semantic-id="BearingBlock:edge:10:segment:56:interval:18:Silhouette"/>
+<polyline class="silhouette" points="214.963,84.357 214.963,84.361" data-semantic-id="BearingBlock:edge:10:segment:56:interval:19:Silhouette"/>
+<polyline class="silhouette" points="214.963,84.361 214.965,84.383" data-semantic-id="BearingBlock:edge:10:segment:56:interval:20:Silhouette"/>
+<polyline class="silhouette" points="214.965,84.383 214.966,84.389" data-semantic-id="BearingBlock:edge:10:segment:57:interval:0:Silhouette"/>
+<polyline class="silhouette" points="214.966,84.389 214.967,84.392" data-semantic-id="BearingBlock:edge:10:segment:57:interval:1:Silhouette"/>
+<polyline class="silhouette" points="214.967,84.392 214.972,84.411" data-semantic-id="BearingBlock:edge:10:segment:57:interval:2:Silhouette"/>
+<polyline class="silhouette" points="214.972,84.411 214.973,84.415" data-semantic-id="BearingBlock:edge:10:segment:57:interval:3:Silhouette"/>
+<polyline class="silhouette" points="214.973,84.415 214.978,84.433" data-semantic-id="BearingBlock:edge:10:segment:57:interval:4:Silhouette"/>
+<polyline class="silhouette" points="214.978,84.433 214.979,84.438" data-semantic-id="BearingBlock:edge:10:segment:57:interval:5:Silhouette"/>
+<polyline class="silhouette" points="214.979,84.438 214.983,84.455" data-semantic-id="BearingBlock:edge:10:segment:57:interval:6:Silhouette"/>
+<polyline class="silhouette" points="214.983,84.455 214.985,84.461" data-semantic-id="BearingBlock:edge:10:segment:57:interval:7:Silhouette"/>
+<polyline class="silhouette" points="214.985,84.461 214.986,84.464" data-semantic-id="BearingBlock:edge:10:segment:57:interval:8:Silhouette"/>
+<polyline class="silhouette" points="214.986,84.464 214.989,84.478" data-semantic-id="BearingBlock:edge:10:segment:57:interval:9:Silhouette"/>
+<polyline class="silhouette" points="214.989,84.478 214.991,84.484" data-semantic-id="BearingBlock:edge:10:segment:57:interval:10:Silhouette"/>
+<polyline class="silhouette" points="214.991,84.484 214.995,84.5" data-semantic-id="BearingBlock:edge:10:segment:57:interval:11:Silhouette"/>
+<polyline class="silhouette" points="214.995,84.5 214.997,84.507" data-semantic-id="BearingBlock:edge:10:segment:57:interval:12:Silhouette"/>
+<polyline class="silhouette" points="214.997,84.507 215.001,84.522" data-semantic-id="BearingBlock:edge:10:segment:57:interval:13:Silhouette"/>
+<polyline class="silhouette" points="215.001,84.522 215.003,84.53" data-semantic-id="BearingBlock:edge:10:segment:57:interval:14:Silhouette"/>
+<polyline class="silhouette" points="215.003,84.53 215.006,84.544" data-semantic-id="BearingBlock:edge:10:segment:57:interval:15:Silhouette"/>
+<polyline class="silhouette" points="215.006,84.544 215.009,84.554" data-semantic-id="BearingBlock:edge:10:segment:57:interval:16:Silhouette"/>
+<polyline class="silhouette" points="215.009,84.554 215.012,84.567" data-semantic-id="BearingBlock:edge:10:segment:57:interval:17:Silhouette"/>
+<polyline class="silhouette" points="215.012,84.567 215.012,84.567" data-semantic-id="BearingBlock:edge:10:segment:57:interval:18:Silhouette"/>
+<polyline class="silhouette" points="215.012,84.567 215.015,84.577" data-semantic-id="BearingBlock:edge:10:segment:57:interval:19:Silhouette"/>
+<polyline class="silhouette" points="215.015,84.577 215.018,84.589" data-semantic-id="BearingBlock:edge:10:segment:57:interval:20:Silhouette"/>
+<polyline class="silhouette" points="215.018,84.589 215.02,84.6" data-semantic-id="BearingBlock:edge:10:segment:57:interval:21:Silhouette"/>
+<polyline class="silhouette" points="215.02,84.6 215.023,84.611" data-semantic-id="BearingBlock:edge:10:segment:57:interval:22:Silhouette"/>
+<polyline class="silhouette" points="215.023,84.611 215.026,84.623" data-semantic-id="BearingBlock:edge:10:segment:57:interval:23:Silhouette"/>
+<polyline class="silhouette" points="215.026,84.623 215.029,84.634" data-semantic-id="BearingBlock:edge:10:segment:57:interval:24:Silhouette"/>
+<polyline class="silhouette" points="215.029,84.634 215.032,84.646" data-semantic-id="BearingBlock:edge:10:segment:57:interval:25:Silhouette"/>
+<polyline class="silhouette" points="215.032,84.646 215.034,84.653" data-semantic-id="BearingBlock:edge:10:segment:57:interval:26:Silhouette"/>
+<polyline class="silhouette" points="215.034,84.653 215.035,84.655" data-semantic-id="BearingBlock:edge:10:segment:58:interval:0:Silhouette"/>
+<polyline class="silhouette" points="215.035,84.655 215.039,84.663" data-semantic-id="BearingBlock:edge:10:segment:58:interval:1:Silhouette"/>
+<polyline class="silhouette" points="215.039,84.663 215.039,84.665" data-semantic-id="BearingBlock:edge:10:segment:58:interval:2:Silhouette"/>
+<polyline class="silhouette" points="215.039,84.665 215.042,84.671" data-semantic-id="BearingBlock:edge:10:segment:58:interval:3:Silhouette"/>
+<polyline class="silhouette" points="215.042,84.671 215.047,84.681" data-semantic-id="BearingBlock:edge:10:segment:58:interval:4:Silhouette"/>
+<polyline class="silhouette" points="215.047,84.681 215.049,84.687" data-semantic-id="BearingBlock:edge:10:segment:58:interval:5:Silhouette"/>
+<polyline class="silhouette" points="215.049,84.687 215.052,84.695" data-semantic-id="BearingBlock:edge:10:segment:58:interval:6:Silhouette"/>
+<polyline class="silhouette" points="215.052,84.695 215.054,84.698" data-semantic-id="BearingBlock:edge:10:segment:58:interval:7:Silhouette"/>
+<polyline class="silhouette" points="215.054,84.698 215.056,84.703" data-semantic-id="BearingBlock:edge:10:segment:58:interval:8:Silhouette"/>
+<polyline class="silhouette" points="215.056,84.703 215.059,84.71" data-semantic-id="BearingBlock:edge:10:segment:58:interval:9:Silhouette"/>
+<polyline class="silhouette" points="215.059,84.71 215.061,84.715" data-semantic-id="BearingBlock:edge:10:segment:58:interval:10:Silhouette"/>
+<polyline class="silhouette" points="215.061,84.715 215.063,84.72" data-semantic-id="BearingBlock:edge:10:segment:58:interval:11:Silhouette"/>
+<polyline class="silhouette" points="215.063,84.72 215.069,84.732" data-semantic-id="BearingBlock:edge:10:segment:58:interval:12:Silhouette"/>
+<polyline class="silhouette" points="215.069,84.732 215.07,84.736" data-semantic-id="BearingBlock:edge:10:segment:58:interval:13:Silhouette"/>
+<polyline class="silhouette" points="215.07,84.736 215.076,84.749" data-semantic-id="BearingBlock:edge:10:segment:58:interval:14:Silhouette"/>
+<polyline class="silhouette" points="215.076,84.749 215.076,84.749" data-semantic-id="BearingBlock:edge:10:segment:58:interval:15:Silhouette"/>
+<polyline class="silhouette" points="215.076,84.749 215.077,84.752" data-semantic-id="BearingBlock:edge:10:segment:58:interval:16:Silhouette"/>
+<polyline class="silhouette" points="215.077,84.752 215.08,84.758" data-semantic-id="BearingBlock:edge:10:segment:58:interval:17:Silhouette"/>
+<polyline class="silhouette" points="215.08,84.758 215.083,84.766" data-semantic-id="BearingBlock:edge:10:segment:58:interval:18:Silhouette"/>
+<polyline class="silhouette" points="215.083,84.766 215.084,84.768" data-semantic-id="BearingBlock:edge:10:segment:58:interval:19:Silhouette"/>
+<polyline class="silhouette" points="215.084,84.768 215.091,84.783" data-semantic-id="BearingBlock:edge:10:segment:58:interval:20:Silhouette"/>
+<polyline class="silhouette" points="215.091,84.783 215.091,84.784" data-semantic-id="BearingBlock:edge:10:segment:58:interval:21:Silhouette"/>
+<polyline class="silhouette" points="215.091,84.784 215.098,84.8" data-semantic-id="BearingBlock:edge:10:segment:58:interval:22:Silhouette"/>
+<polyline class="silhouette" points="215.098,84.8 215.098,84.801" data-semantic-id="BearingBlock:edge:10:segment:58:interval:23:Silhouette"/>
+<polyline class="silhouette" points="215.098,84.801 215.1,84.804" data-semantic-id="BearingBlock:edge:10:segment:58:interval:24:Silhouette"/>
+<polyline class="silhouette" points="215.1,84.804 215.105,84.817" data-semantic-id="BearingBlock:edge:10:segment:58:interval:25:Silhouette"/>
+<polyline class="silhouette" points="215.105,84.817 215.105,84.817" data-semantic-id="BearingBlock:edge:10:segment:58:interval:26:Silhouette"/>
+<polyline class="silhouette" points="215.105,84.817 215.106,84.817" data-semantic-id="BearingBlock:edge:10:segment:58:interval:27:Silhouette"/>
+<polyline class="silhouette" points="215.106,84.817 215.118,84.846" data-semantic-id="BearingBlock:edge:10:segment:58:interval:28:Silhouette"/>
+<polyline class="silhouette" points="215.118,84.846 215.118,84.847" data-semantic-id="BearingBlock:edge:10:segment:58:interval:29:Silhouette"/>
+<polyline class="silhouette" points="215.118,84.847 215.119,84.848" data-semantic-id="BearingBlock:edge:10:segment:58:interval:30:Silhouette"/>
+<polyline class="silhouette" points="215.119,84.848 215.121,84.852" data-semantic-id="BearingBlock:edge:10:segment:58:interval:31:Silhouette"/>
+<polyline class="silhouette" points="215.121,84.852 215.131,84.876" data-semantic-id="BearingBlock:edge:10:segment:58:interval:32:Silhouette"/>
+<polyline class="silhouette" points="215.131,84.876 215.132,84.877" data-semantic-id="BearingBlock:edge:10:segment:58:interval:33:Silhouette"/>
+<polyline class="silhouette" points="215.132,84.877 215.144,84.906" data-semantic-id="BearingBlock:edge:10:segment:58:interval:34:Silhouette"/>
+<polyline class="silhouette" points="215.144,84.906 215.145,84.908" data-semantic-id="BearingBlock:edge:10:segment:58:interval:35:Silhouette"/>
+<polyline class="silhouette" points="215.145,84.908 215.149,84.917" data-semantic-id="BearingBlock:edge:10:segment:58:interval:36:Silhouette"/>
+<polyline class="silhouette" points="215.149,84.917 215.159,84.933" data-semantic-id="BearingBlock:edge:10:segment:59:interval:0:Silhouette"/>
+<polyline class="silhouette" points="215.159,84.933 215.16,84.936" data-semantic-id="BearingBlock:edge:10:segment:59:interval:1:Silhouette"/>
+<polyline class="silhouette" points="215.16,84.936 215.174,84.958" data-semantic-id="BearingBlock:edge:10:segment:59:interval:2:Silhouette"/>
+<polyline class="silhouette" points="215.174,84.958 215.177,84.962" data-semantic-id="BearingBlock:edge:10:segment:59:interval:3:Silhouette"/>
+<polyline class="silhouette" points="215.177,84.962 215.19,84.984" data-semantic-id="BearingBlock:edge:10:segment:59:interval:4:Silhouette"/>
+<polyline class="silhouette" points="215.19,84.984 215.193,84.988" data-semantic-id="BearingBlock:edge:10:segment:59:interval:5:Silhouette"/>
+<polyline class="silhouette" points="215.193,84.988 215.206,85.009" data-semantic-id="BearingBlock:edge:10:segment:59:interval:6:Silhouette"/>
+<polyline class="silhouette" points="215.206,85.009 215.209,85.015" data-semantic-id="BearingBlock:edge:10:segment:59:interval:7:Silhouette"/>
+<polyline class="silhouette" points="215.209,85.015 215.222,85.035" data-semantic-id="BearingBlock:edge:10:segment:59:interval:8:Silhouette"/>
+<polyline class="silhouette" points="215.222,85.035 215.226,85.041" data-semantic-id="BearingBlock:edge:10:segment:59:interval:9:Silhouette"/>
+<polyline class="silhouette" points="215.226,85.041 215.237,85.06" data-semantic-id="BearingBlock:edge:10:segment:59:interval:10:Silhouette"/>
+<polyline class="silhouette" points="215.237,85.06 215.242,85.067" data-semantic-id="BearingBlock:edge:10:segment:59:interval:11:Silhouette"/>
+<polyline class="silhouette" points="215.242,85.067 215.249,85.078" data-semantic-id="BearingBlock:edge:10:segment:59:interval:12:Silhouette"/>
+<polyline class="silhouette" points="215.249,85.078 215.253,85.085" data-semantic-id="BearingBlock:edge:10:segment:59:interval:13:Silhouette"/>
+<polyline class="silhouette" points="215.253,85.085 215.258,85.094" data-semantic-id="BearingBlock:edge:10:segment:59:interval:14:Silhouette"/>
+<polyline class="silhouette" points="215.258,85.094 215.269,85.111" data-semantic-id="BearingBlock:edge:10:segment:59:interval:15:Silhouette"/>
+<polyline class="silhouette" points="215.269,85.111 215.275,85.12" data-semantic-id="BearingBlock:edge:10:segment:59:interval:16:Silhouette"/>
+<polyline class="silhouette" points="215.275,85.12 215.285,85.136" data-semantic-id="BearingBlock:edge:10:segment:59:interval:17:Silhouette"/>
+<polyline class="silhouette" points="215.285,85.136 215.291,85.146" data-semantic-id="BearingBlock:edge:10:segment:59:interval:18:Silhouette"/>
+<polyline class="silhouette" points="215.291,85.146 215.301,85.162" data-semantic-id="BearingBlock:edge:10:segment:59:interval:19:Silhouette"/>
+<polyline class="silhouette" points="215.301,85.162 215.307,85.173" data-semantic-id="BearingBlock:edge:10:segment:59:interval:20:Silhouette"/>
+<polyline class="silhouette" points="215.307,85.173 215.308,85.173" data-semantic-id="BearingBlock:edge:10:segment:59:interval:21:Silhouette"/>
+<polyline class="silhouette" points="215.308,85.173 215.318,85.185" data-semantic-id="BearingBlock:edge:10:segment:60:interval:0:Silhouette"/>
+<polyline class="silhouette" points="215.318,85.185 215.326,85.196" data-semantic-id="BearingBlock:edge:10:segment:60:interval:1:Silhouette"/>
+<polyline class="silhouette" points="215.326,85.196 215.336,85.208" data-semantic-id="BearingBlock:edge:10:segment:60:interval:2:Silhouette"/>
+<polyline class="silhouette" points="215.336,85.208 215.345,85.219" data-semantic-id="BearingBlock:edge:10:segment:60:interval:3:Silhouette"/>
+<polyline class="silhouette" points="215.345,85.219 215.354,85.23" data-semantic-id="BearingBlock:edge:10:segment:60:interval:4:Silhouette"/>
+<polyline class="silhouette" points="215.354,85.23 215.363,85.241" data-semantic-id="BearingBlock:edge:10:segment:60:interval:5:Silhouette"/>
+<polyline class="silhouette" points="215.363,85.241 215.372,85.252" data-semantic-id="BearingBlock:edge:10:segment:60:interval:6:Silhouette"/>
+<polyline class="silhouette" points="215.372,85.252 215.382,85.264" data-semantic-id="BearingBlock:edge:10:segment:60:interval:7:Silhouette"/>
+<polyline class="silhouette" points="215.382,85.264 215.383,85.265" data-semantic-id="BearingBlock:edge:10:segment:60:interval:8:Silhouette"/>
+<polyline class="silhouette" points="215.383,85.265 215.39,85.274" data-semantic-id="BearingBlock:edge:10:segment:60:interval:9:Silhouette"/>
+<polyline class="silhouette" points="215.39,85.274 215.401,85.287" data-semantic-id="BearingBlock:edge:10:segment:60:interval:10:Silhouette"/>
+<polyline class="silhouette" points="215.401,85.287 215.408,85.296" data-semantic-id="BearingBlock:edge:10:segment:60:interval:11:Silhouette"/>
+<polyline class="silhouette" points="215.408,85.296 215.42,85.31" data-semantic-id="BearingBlock:edge:10:segment:60:interval:12:Silhouette"/>
+<polyline class="silhouette" points="215.42,85.31 215.426,85.318" data-semantic-id="BearingBlock:edge:10:segment:60:interval:13:Silhouette"/>
+<polyline class="silhouette" points="215.426,85.318 215.438,85.333" data-semantic-id="BearingBlock:edge:10:segment:60:interval:14:Silhouette"/>
+<polyline class="silhouette" points="215.438,85.333 215.444,85.34" data-semantic-id="BearingBlock:edge:10:segment:60:interval:15:Silhouette"/>
+<polyline class="silhouette" points="215.444,85.34 215.457,85.356" data-semantic-id="BearingBlock:edge:10:segment:60:interval:16:Silhouette"/>
+<polyline class="silhouette" points="215.457,85.356 215.458,85.357" data-semantic-id="BearingBlock:edge:10:segment:60:interval:17:Silhouette"/>
+<polyline class="silhouette" points="215.458,85.357 215.462,85.362" data-semantic-id="BearingBlock:edge:10:segment:60:interval:18:Silhouette"/>
+<polyline class="silhouette" points="215.462,85.362 215.476,85.379" data-semantic-id="BearingBlock:edge:10:segment:60:interval:19:Silhouette"/>
+<polyline class="silhouette" points="215.476,85.379 215.48,85.384" data-semantic-id="BearingBlock:edge:10:segment:60:interval:20:Silhouette"/>
+<polyline class="silhouette" points="215.48,85.384 215.495,85.402" data-semantic-id="BearingBlock:edge:10:segment:60:interval:21:Silhouette"/>
+<polyline class="silhouette" points="215.495,85.402 215.498,85.406" data-semantic-id="BearingBlock:edge:10:segment:60:interval:22:Silhouette"/>
+<polyline class="silhouette" points="215.498,85.406 215.509,85.42" data-semantic-id="BearingBlock:edge:10:segment:60:interval:23:Silhouette"/>
+<polyline class="silhouette" points="215.509,85.42 215.514,85.424" data-semantic-id="BearingBlock:edge:10:segment:61:interval:0:Silhouette"/>
+<polyline class="silhouette" points="215.514,85.424 215.517,85.427" data-semantic-id="BearingBlock:edge:10:segment:61:interval:1:Silhouette"/>
+<polyline class="silhouette" points="215.517,85.427 215.535,85.444" data-semantic-id="BearingBlock:edge:10:segment:61:interval:2:Silhouette"/>
+<polyline class="silhouette" points="215.535,85.444 215.537,85.446" data-semantic-id="BearingBlock:edge:10:segment:61:interval:3:Silhouette"/>
+<polyline class="silhouette" points="215.537,85.446 215.556,85.464" data-semantic-id="BearingBlock:edge:10:segment:61:interval:4:Silhouette"/>
+<polyline class="silhouette" points="215.556,85.464 215.557,85.465" data-semantic-id="BearingBlock:edge:10:segment:61:interval:5:Silhouette"/>
+<polyline class="silhouette" points="215.557,85.465 215.572,85.48" data-semantic-id="BearingBlock:edge:10:segment:61:interval:6:Silhouette"/>
+<polyline class="silhouette" points="215.572,85.48 215.576,85.484" data-semantic-id="BearingBlock:edge:10:segment:61:interval:7:Silhouette"/>
+<polyline class="silhouette" points="215.576,85.484 215.577,85.485" data-semantic-id="BearingBlock:edge:10:segment:61:interval:8:Silhouette"/>
+<polyline class="silhouette" points="215.577,85.485 215.586,85.493" data-semantic-id="BearingBlock:edge:10:segment:61:interval:9:Silhouette"/>
+<polyline class="silhouette" points="215.586,85.493 215.601,85.508" data-semantic-id="BearingBlock:edge:10:segment:61:interval:10:Silhouette"/>
+<polyline class="silhouette" points="215.601,85.508 215.602,85.508" data-semantic-id="BearingBlock:edge:10:segment:61:interval:11:Silhouette"/>
+<polyline class="silhouette" points="215.602,85.508 215.613,85.52" data-semantic-id="BearingBlock:edge:10:segment:61:interval:12:Silhouette"/>
+<polyline class="silhouette" points="215.613,85.52 215.625,85.531" data-semantic-id="BearingBlock:edge:10:segment:61:interval:13:Silhouette"/>
+<polyline class="silhouette" points="215.625,85.531 215.629,85.534" data-semantic-id="BearingBlock:edge:10:segment:61:interval:14:Silhouette"/>
+<polyline class="silhouette" points="215.629,85.534 215.63,85.536" data-semantic-id="BearingBlock:edge:10:segment:61:interval:15:Silhouette"/>
+<polyline class="silhouette" points="215.63,85.536 215.656,85.561" data-semantic-id="BearingBlock:edge:10:segment:61:interval:16:Silhouette"/>
+<polyline class="silhouette" points="215.656,85.561 215.659,85.564" data-semantic-id="BearingBlock:edge:10:segment:61:interval:17:Silhouette"/>
+<polyline class="silhouette" points="215.659,85.564 215.684,85.588" data-semantic-id="BearingBlock:edge:10:segment:61:interval:18:Silhouette"/>
+<polyline class="silhouette" points="215.684,85.588 215.687,85.591" data-semantic-id="BearingBlock:edge:10:segment:61:interval:19:Silhouette"/>
+<polyline class="silhouette" points="215.687,85.591 215.711,85.614" data-semantic-id="BearingBlock:edge:10:segment:61:interval:20:Silhouette"/>
+<polyline class="silhouette" points="215.711,85.614 215.716,85.619" data-semantic-id="BearingBlock:edge:10:segment:61:interval:21:Silhouette"/>
+<polyline class="silhouette" points="215.716,85.619 215.739,85.641" data-semantic-id="BearingBlock:edge:10:segment:61:interval:22:Silhouette"/>
+<polyline class="silhouette" points="215.739,85.641 215.745,85.646" data-semantic-id="BearingBlock:edge:10:segment:61:interval:23:Silhouette"/>
+<polyline class="silhouette" points="215.745,85.646 215.752,85.653" data-semantic-id="BearingBlock:edge:10:segment:61:interval:24:Silhouette"/>
+<polyline class="silhouette" points="215.752,85.653 215.768,85.666" data-semantic-id="BearingBlock:edge:10:segment:62:interval:0:Silhouette"/>
+<polyline class="silhouette" points="215.768,85.666 215.776,85.672" data-semantic-id="BearingBlock:edge:10:segment:62:interval:1:Silhouette"/>
+<polyline class="silhouette" points="215.776,85.672 215.799,85.69" data-semantic-id="BearingBlock:edge:10:segment:62:interval:2:Silhouette"/>
+<polyline class="silhouette" points="215.799,85.69 215.808,85.697" data-semantic-id="BearingBlock:edge:10:segment:62:interval:3:Silhouette"/>
+<polyline class="silhouette" points="215.808,85.697 215.83,85.714" data-semantic-id="BearingBlock:edge:10:segment:62:interval:4:Silhouette"/>
+<polyline class="silhouette" points="215.83,85.714 215.84,85.722" data-semantic-id="BearingBlock:edge:10:segment:62:interval:5:Silhouette"/>
+<polyline class="silhouette" points="215.84,85.722 215.86,85.738" data-semantic-id="BearingBlock:edge:10:segment:62:interval:6:Silhouette"/>
+<polyline class="silhouette" points="215.86,85.738 215.872,85.747" data-semantic-id="BearingBlock:edge:10:segment:62:interval:7:Silhouette"/>
+<polyline class="silhouette" points="215.872,85.747 215.891,85.762" data-semantic-id="BearingBlock:edge:10:segment:62:interval:8:Silhouette"/>
+<polyline class="silhouette" points="215.891,85.762 215.904,85.772" data-semantic-id="BearingBlock:edge:10:segment:62:interval:9:Silhouette"/>
+<polyline class="silhouette" points="215.904,85.772 215.922,85.786" data-semantic-id="BearingBlock:edge:10:segment:62:interval:10:Silhouette"/>
+<polyline class="silhouette" points="215.922,85.786 215.936,85.797" data-semantic-id="BearingBlock:edge:10:segment:62:interval:11:Silhouette"/>
+<polyline class="silhouette" points="215.936,85.797 215.953,85.81" data-semantic-id="BearingBlock:edge:10:segment:62:interval:12:Silhouette"/>
+<polyline class="silhouette" points="215.953,85.81 215.968,85.822" data-semantic-id="BearingBlock:edge:10:segment:62:interval:13:Silhouette"/>
+<polyline class="silhouette" points="215.968,85.822 215.983,85.834" data-semantic-id="BearingBlock:edge:10:segment:62:interval:14:Silhouette"/>
+<polyline class="silhouette" points="215.983,85.834 216,85.847" data-semantic-id="BearingBlock:edge:10:segment:62:interval:15:Silhouette"/>
+<polyline class="silhouette" points="216,85.847 216.014,85.857" data-semantic-id="BearingBlock:edge:10:segment:62:interval:16:Silhouette"/>
+<polyline class="silhouette" points="216.014,85.857 216.032,85.871" data-semantic-id="BearingBlock:edge:10:segment:62:interval:17:Silhouette"/>
+<polyline class="silhouette" points="216.032,85.871 216.033,85.872" data-semantic-id="BearingBlock:edge:10:segment:62:interval:18:Silhouette"/>
+<polyline class="silhouette" points="216.033,85.872 216.046,85.88" data-semantic-id="BearingBlock:edge:10:segment:63:interval:0:Silhouette"/>
+<polyline class="silhouette" points="216.046,85.88 216.067,85.894" data-semantic-id="BearingBlock:edge:10:segment:63:interval:1:Silhouette"/>
+<polyline class="silhouette" points="216.067,85.894 216.077,85.9" data-semantic-id="BearingBlock:edge:10:segment:63:interval:2:Silhouette"/>
+<polyline class="silhouette" points="216.077,85.9 216.08,85.902" data-semantic-id="BearingBlock:edge:10:segment:63:interval:3:Silhouette"/>
+<polyline class="silhouette" points="216.08,85.902 216.103,85.917" data-semantic-id="BearingBlock:edge:10:segment:63:interval:4:Silhouette"/>
+<polyline class="silhouette" points="216.103,85.917 216.114,85.923" data-semantic-id="BearingBlock:edge:10:segment:63:interval:5:Silhouette"/>
+<polyline class="silhouette" points="216.114,85.923 216.138,85.939" data-semantic-id="BearingBlock:edge:10:segment:63:interval:6:Silhouette"/>
+<polyline class="silhouette" points="216.138,85.939 216.147,85.945" data-semantic-id="BearingBlock:edge:10:segment:63:interval:7:Silhouette"/>
+<polyline class="silhouette" points="216.147,85.945 216.173,85.962" data-semantic-id="BearingBlock:edge:10:segment:63:interval:8:Silhouette"/>
+<polyline class="silhouette" points="216.173,85.962 216.181,85.966" data-semantic-id="BearingBlock:edge:10:segment:63:interval:9:Silhouette"/>
+<polyline class="silhouette" points="216.181,85.966 216.209,85.984" data-semantic-id="BearingBlock:edge:10:segment:63:interval:10:Silhouette"/>
+<polyline class="silhouette" points="216.209,85.984 216.215,85.988" data-semantic-id="BearingBlock:edge:10:segment:63:interval:11:Silhouette"/>
+<polyline class="silhouette" points="216.215,85.988 216.244,86.007" data-semantic-id="BearingBlock:edge:10:segment:63:interval:12:Silhouette"/>
+<polyline class="silhouette" points="216.244,86.007 216.249,86.01" data-semantic-id="BearingBlock:edge:10:segment:63:interval:13:Silhouette"/>
+<polyline class="silhouette" points="216.249,86.01 216.279,86.029" data-semantic-id="BearingBlock:edge:10:segment:63:interval:14:Silhouette"/>
+<polyline class="silhouette" points="216.279,86.029 216.282,86.031" data-semantic-id="BearingBlock:edge:10:segment:63:interval:15:Silhouette"/>
+<polyline class="silhouette" points="216.282,86.031 216.315,86.052" data-semantic-id="BearingBlock:edge:10:segment:63:interval:16:Silhouette"/>
+<polyline class="silhouette" points="216.315,86.052 216.316,86.053" data-semantic-id="BearingBlock:edge:10:segment:63:interval:17:Silhouette"/>
+<polyline class="silhouette" points="216.316,86.053 216.35,86.074" data-semantic-id="BearingBlock:edge:10:segment:63:interval:18:Silhouette"/>
+<polyline class="visible" points="164.5,103.25 164.5,91.472" data-semantic-id="BearingBlock:edge:11:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="207,127.788 207,116.01" data-semantic-id="BearingBlock:edge:13:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="275,88.528 275,76.75" data-semantic-id="BearingBlock:edge:14:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="164.5,103.25 207,127.788" data-semantic-id="BearingBlock:edge:2:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="207,127.788 275,88.528" data-semantic-id="BearingBlock:edge:3:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="232.5,52.212 164.5,91.472" data-semantic-id="BearingBlock:edge:6:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="164.5,91.472 173.37,96.593" data-semantic-id="BearingBlock:edge:7:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="173.37,96.593 174.7,97.361" data-semantic-id="BearingBlock:edge:7:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="174.7,97.361 180.481,100.699" data-semantic-id="BearingBlock:edge:7:segment:0:interval:2:Visible"/>
+<polyline class="visible" points="180.481,100.699 180.784,100.874" data-semantic-id="BearingBlock:edge:7:segment:0:interval:3:Visible"/>
+<polyline class="visible" points="180.784,100.874 181.121,101.068" data-semantic-id="BearingBlock:edge:7:segment:0:interval:4:Visible"/>
+<polyline class="visible" points="181.121,101.068 181.464,101.267" data-semantic-id="BearingBlock:edge:7:segment:0:interval:5:Visible"/>
+<polyline class="visible" points="181.464,101.267 181.783,101.451" data-semantic-id="BearingBlock:edge:7:segment:0:interval:6:Visible"/>
+<polyline class="visible" points="181.783,101.451 182.049,101.604" data-semantic-id="BearingBlock:edge:7:segment:0:interval:7:Visible"/>
+<polyline class="visible" points="182.049,101.604 182.238,101.713" data-semantic-id="BearingBlock:edge:7:segment:0:interval:8:Visible"/>
+<polyline class="visible" points="182.238,101.713 182.336,101.77" data-semantic-id="BearingBlock:edge:7:segment:0:interval:9:Visible"/>
+<polyline class="visible" points="182.336,101.77 182.34,101.772" data-semantic-id="BearingBlock:edge:7:segment:0:interval:10:Visible"/>
+<polyline class="visible" points="182.34,101.772 207,116.01" data-semantic-id="BearingBlock:edge:7:segment:0:interval:11:Visible"/>
+<polyline class="visible" points="207,116.01 214.798,111.508" data-semantic-id="BearingBlock:edge:8:segment:0:interval:0:Visible"/>
+<polyline class="visible" points="214.798,111.508 215.604,111.042" data-semantic-id="BearingBlock:edge:8:segment:0:interval:1:Visible"/>
+<polyline class="visible" points="215.604,111.042 216.229,110.682" data-semantic-id="BearingBlock:edge:8:segment:0:interval:2:Visible"/>
+<polyline class="visible" points="216.229,110.682 245.371,93.856" data-semantic-id="BearingBlock:edge:8:segment:0:interval:3:Visible"/>
+<polyline class="visible" points="245.371,93.856 245.996,93.495" data-semantic-id="BearingBlock:edge:8:segment:0:interval:4:Visible"/>
+<polyline class="visible" points="245.996,93.495 246.802,93.03" data-semantic-id="BearingBlock:edge:8:segment:0:interval:5:Visible"/>
+<polyline class="visible" points="246.802,93.03 247.699,92.512" data-semantic-id="BearingBlock:edge:8:segment:0:interval:6:Visible"/>
+<polyline class="visible" points="247.699,92.512 248.597,91.994" data-semantic-id="BearingBlock:edge:8:segment:0:interval:7:Visible"/>
+<polyline class="visible" points="248.597,91.994 249.419,91.519" data-semantic-id="BearingBlock:edge:8:segment:0:interval:8:Visible"/>
+<polyline class="visible" points="249.419,91.519 250.112,91.119" data-semantic-id="BearingBlock:edge:8:segment:0:interval:9:Visible"/>
+<polyline class="visible" points="250.112,91.119 250.643,90.813" data-semantic-id="BearingBlock:edge:8:segment:0:interval:10:Visible"/>
+<polyline class="visible" points="250.643,90.813 250.998,90.608" data-semantic-id="BearingBlock:edge:8:segment:0:interval:11:Visible"/>
+<polyline class="visible" points="250.998,90.608 251.175,90.505" data-semantic-id="BearingBlock:edge:8:segment:0:interval:12:Visible"/>
+<polyline class="visible" points="251.175,90.505 251.183,90.501" data-semantic-id="BearingBlock:edge:8:segment:0:interval:13:Visible"/>
+<polyline class="visible" points="251.183,90.501 264.8,82.639" data-semantic-id="BearingBlock:edge:8:segment:0:interval:14:Visible"/>
+<polyline class="visible" points="264.8,82.639 275,76.75" data-semantic-id="BearingBlock:edge:8:segment:0:interval:15:Visible"/>
+<polyline class="visible" points="275,76.75 232.5,52.212" data-semantic-id="BearingBlock:edge:9:segment:0:interval:0:Visible"/>
+</g>
+<g data-annotation="annotation:Front:MountDiameter" data-semantic-reference="MountDiameter">
+<polyline class="leader" points="77.25,90 77.25,53.469"/>
+<rect x="60.577" y="47.469" width="33.346" height="6" fill="white" stroke="#374151" stroke-width=".18"/>
+<text class="annotation" x="61.777" y="51.469">Ø8 mm +0.05/-0.02</text>
+</g>
+<g data-annotation="annotation:Front:A" data-semantic-reference="A">
+<polyline class="leader" points="77.25,124.531 77.25,126.531"/>
+<rect x="68.25" y="126.531" width="18" height="6" fill="white" stroke="#374151" stroke-width=".18"/>
+<text class="annotation" x="69.45" y="130.531">A</text>
+</g>
+<text class="meta" x="10" y="182" data-zone="D2">DEBURR ALL EDGES</text>
+<text class="meta" x="10" y="186" data-zone="D2">DIMENSIONS AND TOLERANCES COME FROM THE SEMANTIC PRODUCT MODEL</text>
+<g data-information-block="true" data-zone="D5"><rect x="175" y="176" width="115" height="22" fill="#fff" stroke="#334155" stroke-width=".3"/>
+<rect x="175" y="176" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="175.8" y="178.2">COMPANY</text><text class="info-value" x="175.8" y="181">Aster Works</text>
+<rect x="213.333" y="176" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="214.133" y="178.2">TITLE</text><text class="info-value" x="214.133" y="181">Machined bearing block</text>
+<rect x="251.667" y="176" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="252.467" y="178.2">PRODUCT</text><text class="info-value" x="252.467" y="181">BearingBlock</text>
+<rect x="175" y="183.333" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="175.8" y="185.533">PART</text><text class="info-value" x="175.8" y="188.333">BB-080</text>
+<rect x="213.333" y="183.333" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="214.133" y="185.533">REVISION</text><text class="info-value" x="214.133" y="188.333">1.0.0</text>
+<rect x="251.667" y="183.333" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="252.467" y="185.533">AUTHOR</text><text class="info-value" x="252.467" y="188.333">CODEX</text>
+<rect x="175" y="190.667" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="175.8" y="192.867">DATE</text><text class="info-value" x="175.8" y="195.667">2026-08-10</text>
+<rect x="213.333" y="190.667" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="214.133" y="192.867">SCALE</text><text class="info-value" x="214.133" y="195.667">MULTIPLE</text>
+<rect x="251.667" y="190.667" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="252.467" y="192.867">PAGE</text><text class="info-value" x="252.467" y="195.667">1/2</text>
+</g>
+</g>
+<g transform="translate(0 218)" data-page="2">
+<rect class="sheet" x="0" y="0" width="297" height="210"/>
+<rect class="border" x="7" y="15" width="283" height="183"/>
+<text class="zone-label" x="30.583" y="13" text-anchor="middle">1</text><text class="zone-label" x="30.583" y="202" text-anchor="middle">1</text>
+<text class="zone-label" x="77.75" y="13" text-anchor="middle">2</text><text class="zone-label" x="77.75" y="202" text-anchor="middle">2</text>
+<path class="zone-tick" d="M 54.167 15 v 3 M 54.167 198 v -3"/>
+<text class="zone-label" x="124.917" y="13" text-anchor="middle">3</text><text class="zone-label" x="124.917" y="202" text-anchor="middle">3</text>
+<path class="zone-tick" d="M 101.333 15 v 3 M 101.333 198 v -3"/>
+<text class="zone-label" x="172.083" y="13" text-anchor="middle">4</text><text class="zone-label" x="172.083" y="202" text-anchor="middle">4</text>
+<path class="zone-tick" d="M 148.5 15 v 3 M 148.5 198 v -3"/>
+<text class="zone-label" x="219.25" y="13" text-anchor="middle">5</text><text class="zone-label" x="219.25" y="202" text-anchor="middle">5</text>
+<path class="zone-tick" d="M 195.667 15 v 3 M 195.667 198 v -3"/>
+<text class="zone-label" x="266.417" y="13" text-anchor="middle">6</text><text class="zone-label" x="266.417" y="202" text-anchor="middle">6</text>
+<path class="zone-tick" d="M 242.833 15 v 3 M 242.833 198 v -3"/>
+<text class="zone-label" x="4" y="38.875" text-anchor="middle">A</text><text class="zone-label" x="293" y="38.875" text-anchor="middle">A</text>
+<text class="zone-label" x="4" y="84.625" text-anchor="middle">B</text><text class="zone-label" x="293" y="84.625" text-anchor="middle">B</text>
+<path class="zone-tick" d="M 7 60.75 h 3 M 290 60.75 h -3"/>
+<text class="zone-label" x="4" y="130.375" text-anchor="middle">C</text><text class="zone-label" x="293" y="130.375" text-anchor="middle">C</text>
+<path class="zone-tick" d="M 7 106.5 h 3 M 290 106.5 h -3"/>
+<text class="zone-label" x="4" y="176.125" text-anchor="middle">D</text><text class="zone-label" x="293" y="176.125" text-anchor="middle">D</text>
+<path class="zone-tick" d="M 7 152.25 h 3 M 290 152.25 h -3"/>
+<text class="label" x="10" y="9">Bearing Block Production Drawing</text>
+<text class="meta" x="287" y="9" text-anchor="end">BearingBlock · REV 1.0.0 · 2/2</text>
+<g data-table-kind="Design" data-zone="A3"><text class="label" x="10" y="23">BearingStandards</text>
+<rect x="10" y="26" width="55.4" height="7" fill="#e2e8f0" stroke="#64748b" stroke-width=".2"/>
+<text class="table-header" x="11" y="30.5">BoreDiameter</text>
+<rect x="65.4" y="26" width="55.4" height="7" fill="#e2e8f0" stroke="#64748b" stroke-width=".2"/>
+<text class="table-header" x="66.4" y="30.5">Depth</text>
+<rect x="120.8" y="26" width="55.4" height="7" fill="#e2e8f0" stroke="#64748b" stroke-width=".2"/>
+<text class="table-header" x="121.8" y="30.5">Height</text>
+<rect x="176.2" y="26" width="55.4" height="7" fill="#e2e8f0" stroke="#64748b" stroke-width=".2"/>
+<text class="table-header" x="177.2" y="30.5">Size</text>
+<rect x="231.6" y="26" width="55.4" height="7" fill="#e2e8f0" stroke="#64748b" stroke-width=".2"/>
+<text class="table-header" x="232.6" y="30.5">Width</text>
+<rect x="10" y="33" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="11" y="37.5">8mm</text>
+<rect x="65.4" y="33" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="66.4" y="37.5">12mm</text>
+<rect x="120.8" y="33" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="121.8" y="37.5">50mm</text>
+<rect x="176.2" y="33" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="177.2" y="37.5">BB080</text>
+<rect x="231.6" y="33" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="232.6" y="37.5">80mm</text>
+<rect x="10" y="40" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="11" y="44.5">10mm</text>
+<rect x="65.4" y="40" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="66.4" y="44.5">16mm</text>
+<rect x="120.8" y="40" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="121.8" y="44.5">60mm</text>
+<rect x="176.2" y="40" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="177.2" y="44.5">BB100</text>
+<rect x="231.6" y="40" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="232.6" y="44.5">100mm</text>
+<rect x="10" y="47" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="11" y="51.5">12mm</text>
+<rect x="65.4" y="47" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="66.4" y="51.5">20mm</text>
+<rect x="120.8" y="47" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="121.8" y="51.5">70mm</text>
+<rect x="176.2" y="47" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="177.2" y="51.5">BB120</text>
+<rect x="231.6" y="47" width="55.4" height="7" fill="white" stroke="#94a3b8" stroke-width=".18"/>
+<text class="table-cell" x="232.6" y="51.5">120mm</text>
+</g>
+<g data-information-block="true" data-zone="D5"><rect x="175" y="176" width="115" height="22" fill="#fff" stroke="#334155" stroke-width=".3"/>
+<rect x="175" y="176" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="175.8" y="178.2">COMPANY</text><text class="info-value" x="175.8" y="181">Aster Works</text>
+<rect x="213.333" y="176" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="214.133" y="178.2">TITLE</text><text class="info-value" x="214.133" y="181">Machined bearing block</text>
+<rect x="251.667" y="176" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="252.467" y="178.2">PRODUCT</text><text class="info-value" x="252.467" y="181">BearingBlock</text>
+<rect x="175" y="183.333" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="175.8" y="185.533">PART</text><text class="info-value" x="175.8" y="188.333">BB-080</text>
+<rect x="213.333" y="183.333" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="214.133" y="185.533">REVISION</text><text class="info-value" x="214.133" y="188.333">1.0.0</text>
+<rect x="251.667" y="183.333" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="252.467" y="185.533">AUTHOR</text><text class="info-value" x="252.467" y="188.333">CODEX</text>
+<rect x="175" y="190.667" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="175.8" y="192.867">DATE</text><text class="info-value" x="175.8" y="195.667">2026-08-10</text>
+<rect x="213.333" y="190.667" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="214.133" y="192.867">SCALE</text><text class="info-value" x="214.133" y="195.667">MULTIPLE</text>
+<rect x="251.667" y="190.667" width="38.333" height="7.333" fill="none" stroke="#94a3b8" stroke-width=".12"/><text class="info-key" x="252.467" y="192.867">PAGE</text><text class="info-value" x="252.467" y="195.667">2/2</text>
+</g>
+</g>
+</svg>

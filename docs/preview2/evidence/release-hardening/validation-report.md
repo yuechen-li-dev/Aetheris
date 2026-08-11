@@ -57,3 +57,11 @@ The NuGet package contains the CLI tool payload and its runtime assemblies,
 readme, nuspec, and tool settings; it contains no source tree, tests, secrets,
 or evidence directory. The Windows bundle includes the self-contained CLI and
 Cadmata by contract. The VSIX contains ten editor-extension entries only.
+
+## Publication closeout
+
+The final tag, GitHub Latest state, public release asset hashes, NuGet trusted
+publication, and clean public-feed installation are recorded in
+`publication-proof.md`. The release workflow completed successfully after this
+local candidate validation, and the tagged release commit remains the immutable
+source of the published artifacts.

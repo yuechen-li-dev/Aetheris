@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Geometry;
 using Aetheris.Surfacing;
 
 namespace Aetheris.Kernel.Firmament.FirmamentV2;

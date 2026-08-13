@@ -8,4 +8,11 @@ namespace Aetheris.Forge.KernelSDK;
 public static class KernelSdk
 {
     public const string MigrationFrom = "Aetheris.Forge.Sdk";
+
+    /// <summary>Extension-author convenience over the public, independently owned geometry query.</summary>
+    public static Aetheris.Geometry.SignedSideResult QuerySignedSide(
+        Aetheris.Geometry.BoundedParametricPatch3 patch,
+        Aetheris.Geometry.Plane3 plane,
+        Aetheris.Geometry.SignedSidePolicy policy) =>
+        Aetheris.Geometry.SignedSideQuery.Query(patch, plane, policy);
 }

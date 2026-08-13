@@ -1,0 +1,141 @@
+{
+  "milestone": "AETHERIS-GEOMETRY-REASONING-M0",
+  "fixture": "cad-panel-clearance",
+  "authoredGeometry": {
+    "stableId": "cad:mold-clearance-panel",
+    "provenance": "cad:mold-tooling-clearance",
+    "representation": "AnalyticExpression",
+    "domain": {
+      "u": {
+        "minimum": -1,
+        "maximum": 1
+      },
+      "v": {
+        "minimum": -1,
+        "maximum": 1
+      }
+    }
+  },
+  "plane": {
+    "origin": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "normal": {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    }
+  },
+  "sampled": {
+    "classification": "Positive",
+    "evidenceKind": "Sampled",
+    "policy": {
+      "method": "Sampled",
+      "tolerance": 1E-09,
+      "samplesU": 17,
+      "samplesV": 17,
+      "maximumSubdivisionDepth": 10,
+      "maximumLeafCount": 4096
+    },
+    "domain": {
+      "u": {
+        "minimum": -1,
+        "maximum": 1
+      },
+      "v": {
+        "minimum": -1,
+        "maximum": 1
+      }
+    },
+    "patchIdentity": "cad:mold-clearance-panel",
+    "provenance": "cad:mold-tooling-clearance",
+    "representation": "AnalyticExpression",
+    "observedMinimum": 8,
+    "observedMaximum": 9,
+    "certifiedLowerBound": null,
+    "certifiedUpperBound": null,
+    "witnesses": [
+      {
+        "u": -1,
+        "v": -1,
+        "point": {
+          "x": -50,
+          "y": -30,
+          "z": 9
+        },
+        "signedDistance": 9,
+        "kind": "positive"
+      }
+    ],
+    "statistics": {
+      "sampleCount": 289,
+      "leafCount": 0,
+      "resolvedLeaves": 0,
+      "unresolvedLeaves": 0,
+      "maximumDepthReached": 0
+    },
+    "diagnostics": []
+  },
+  "certified": {
+    "classification": "Positive",
+    "evidenceKind": "Certified",
+    "policy": {
+      "method": "CertifiedInterval",
+      "tolerance": 1E-09,
+      "samplesU": 9,
+      "samplesV": 9,
+      "maximumSubdivisionDepth": 10,
+      "maximumLeafCount": 4096
+    },
+    "domain": {
+      "u": {
+        "minimum": -1,
+        "maximum": 1
+      },
+      "v": {
+        "minimum": -1,
+        "maximum": 1
+      }
+    },
+    "patchIdentity": "cad:mold-clearance-panel",
+    "provenance": "cad:mold-tooling-clearance",
+    "representation": "AnalyticExpression",
+    "observedMinimum": null,
+    "observedMaximum": null,
+    "certifiedLowerBound": 7.9999999999999964,
+    "certifiedUpperBound": 9.000000000000007,
+    "witnesses": [
+      {
+        "u": 0,
+        "v": 0,
+        "point": {
+          "x": 0,
+          "y": 0,
+          "z": 8
+        },
+        "signedDistance": 8,
+        "kind": "certified-positive-region"
+      }
+    ],
+    "statistics": {
+      "sampleCount": 0,
+      "leafCount": 1,
+      "resolvedLeaves": 1,
+      "unresolvedLeaves": 0,
+      "maximumDepthReached": 0
+    },
+    "diagnostics": []
+  },
+  "performance": {
+    "sampledMilliseconds": 0.2584,
+    "certifiedMilliseconds": 0.0053
+  },
+  "determinism": {
+    "stable": true,
+    "certifiedQuerySha256": "03780db056562c9e463f6086aa4d76176b6f1aa13e05dd0cb1697aa47ae31a48",
+    "repeatQuerySha256": "03780db056562c9e463f6086aa4d76176b6f1aa13e05dd0cb1697aa47ae31a48",
+    "sampledQuerySha256": "d5b20b1b44a06817f05da6f03540f7f3d7c46be2d220cfc3041dfe4a9fcfe81d"
+  }
+}

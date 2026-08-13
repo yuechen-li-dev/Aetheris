@@ -1,3 +1,4 @@
+using Aetheris.Geometry;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Curves;
@@ -27,6 +28,7 @@ public sealed record PanelConstruction(
     ParametricDomain ParameterDomain,
     SurfaceGeometry Support,
     Func<double, double, Point3D> Evaluate,
+    BoundedParametricPatch3 AuthoredPatch,
     SurfaceMaterializationKind MaterializationKind,
     ApproximationCertificate? Approximation,
     DevelopabilityEvidence Developability,
@@ -79,6 +81,7 @@ public sealed record PanelIr(
     string? Material,
     SemanticValue SemanticValue)
 {
+    public BoundedParametricPatch3 AuthoredPatch => SurfaceConstruction.AuthoredPatch;
     public ParametricDomain ParameterDomain => SurfaceConstruction.ParameterDomain;
     public DevelopabilityEvidence Developability => SurfaceConstruction.Developability;
     public ApproximationCertificate? ApproximationStatus => SurfaceConstruction.Approximation;
@@ -141,6 +144,7 @@ public static class PanelFactory
         var construction = new PanelConstruction(source.StableId, source.ConstructionKind, source.Domain,
             SurfaceGeometry.FromBSplineSurfaceWithKnots(materialized.Surface),
             (u, v) => source.Evaluate(source.Domain.U.Map(u), source.Domain.V.Map(v)).Point,
+            source.Patch,
             materialized.Kind, materialized.Certificate,
             new(DevelopabilityKind.Indeterminate, "parametric curvature classification", null, 0, "A bounded parametric panel is not assumed developable."),
             [new(source.StableId, source.Provenance, "surface-construction")]);
@@ -158,7 +162,9 @@ public static class PanelFactory
         var patch = lowered.Patch!;
         var construction = new PanelConstruction(source.StableId,
             source.Kind == RuledConstructionKind.RuledTransition ? SurfaceConstructionKind.RuledTransition : SurfaceConstructionKind.RuledSurface,
-            patch.Domain, patch.ExactSurface, patch.Evaluate, patch.MaterializationKind, patch.ApproximationCertificate,
+            patch.Domain, patch.ExactSurface, patch.Evaluate,
+            ProceduralPatch(source.StableId, patch.Domain, patch.Evaluate, string.Join(";", patch.BoundaryProvenance.Select(item => item.BoundaryStableId))),
+            patch.MaterializationKind, patch.ApproximationCertificate,
             patch.Developability, patch.BoundaryProvenance);
         var curves = new[]
         {
@@ -205,7 +211,23 @@ public static class PanelFactory
 
     private static PanelConstruction FromPatch(ConstructedSurfacePatch patch) => new(
         patch.StableId, patch.ConstructionKind, patch.Domain, patch.Support, patch.Evaluate,
+        ProceduralPatch(patch.StableId, patch.Domain, patch.Evaluate, string.Join(";", patch.Provenance.Select(item => item.BoundaryStableId))),
         patch.MaterializationKind, patch.ApproximationCertificate, patch.Developability, patch.Provenance);
+
+    private static BoundedParametricPatch3 ProceduralPatch(string stableId, ParametricDomain domain,
+        Func<double, double, Point3D> evaluate, string provenance) =>
+        BoundedParametricPatch3.Procedural(stableId, domain, (u, v) =>
+        {
+            var hu = (domain.U.Maximum - domain.U.Minimum) * 1e-6;
+            var hv = (domain.V.Maximum - domain.V.Minimum) * 1e-6;
+            var u0 = double.Max(domain.U.Minimum, u - hu); var u1 = double.Min(domain.U.Maximum, u + hu);
+            var v0 = double.Max(domain.V.Minimum, v - hv); var v1 = double.Min(domain.V.Maximum, v + hv);
+            var point = evaluate(u, v);
+            var du = (evaluate(u1, v) - evaluate(u0, v)) / (u1 - u0);
+            var dv = (evaluate(u, v1) - evaluate(u, v0)) / (v1 - v0);
+            var singular = !du.Cross(dv).TryNormalize(out var normal);
+            return new(point, du, dv, singular ? null : Direction3D.Create(normal), singular);
+        }, provenance);
 
     private static PanelResult Create(
         PanelConstruction construction,

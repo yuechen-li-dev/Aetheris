@@ -1,0 +1,141 @@
+{
+  "milestone": "AETHERIS-GEOMETRY-REASONING-M0",
+  "fixture": "safe",
+  "authoredGeometry": {
+    "stableId": "calibration:safe-clearance",
+    "provenance": "geometry-m0:calibration",
+    "representation": "AnalyticExpression",
+    "domain": {
+      "u": {
+        "minimum": -1,
+        "maximum": 1
+      },
+      "v": {
+        "minimum": -1,
+        "maximum": 1
+      }
+    }
+  },
+  "plane": {
+    "origin": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "normal": {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    }
+  },
+  "sampled": {
+    "classification": "Positive",
+    "evidenceKind": "Sampled",
+    "policy": {
+      "method": "Sampled",
+      "tolerance": 1E-09,
+      "samplesU": 17,
+      "samplesV": 17,
+      "maximumSubdivisionDepth": 10,
+      "maximumLeafCount": 4096
+    },
+    "domain": {
+      "u": {
+        "minimum": -1,
+        "maximum": 1
+      },
+      "v": {
+        "minimum": -1,
+        "maximum": 1
+      }
+    },
+    "patchIdentity": "calibration:safe-clearance",
+    "provenance": "geometry-m0:calibration",
+    "representation": "AnalyticExpression",
+    "observedMinimum": 1,
+    "observedMaximum": 3,
+    "certifiedLowerBound": null,
+    "certifiedUpperBound": null,
+    "witnesses": [
+      {
+        "u": -1,
+        "v": -1,
+        "point": {
+          "x": -20,
+          "y": -15,
+          "z": 3
+        },
+        "signedDistance": 3,
+        "kind": "positive"
+      }
+    ],
+    "statistics": {
+      "sampleCount": 289,
+      "leafCount": 0,
+      "resolvedLeaves": 0,
+      "unresolvedLeaves": 0,
+      "maximumDepthReached": 0
+    },
+    "diagnostics": []
+  },
+  "certified": {
+    "classification": "Positive",
+    "evidenceKind": "Certified",
+    "policy": {
+      "method": "CertifiedInterval",
+      "tolerance": 1E-09,
+      "samplesU": 9,
+      "samplesV": 9,
+      "maximumSubdivisionDepth": 10,
+      "maximumLeafCount": 4096
+    },
+    "domain": {
+      "u": {
+        "minimum": -1,
+        "maximum": 1
+      },
+      "v": {
+        "minimum": -1,
+        "maximum": 1
+      }
+    },
+    "patchIdentity": "calibration:safe-clearance",
+    "provenance": "geometry-m0:calibration",
+    "representation": "AnalyticExpression",
+    "observedMinimum": null,
+    "observedMaximum": null,
+    "certifiedLowerBound": 0.9999999999999996,
+    "certifiedUpperBound": 3.0000000000000027,
+    "witnesses": [
+      {
+        "u": 0,
+        "v": 0,
+        "point": {
+          "x": 0,
+          "y": 0,
+          "z": 1
+        },
+        "signedDistance": 1,
+        "kind": "certified-positive-region"
+      }
+    ],
+    "statistics": {
+      "sampleCount": 0,
+      "leafCount": 1,
+      "resolvedLeaves": 1,
+      "unresolvedLeaves": 0,
+      "maximumDepthReached": 0
+    },
+    "diagnostics": []
+  },
+  "performance": {
+    "sampledMilliseconds": 1.8537,
+    "certifiedMilliseconds": 2.4863
+  },
+  "determinism": {
+    "stable": true,
+    "certifiedQuerySha256": "943c6de754afa2d54d014274c87f8c92ef39f6f6a26460248a61f345cc72a4a1",
+    "repeatQuerySha256": "943c6de754afa2d54d014274c87f8c92ef39f6f6a26460248a61f345cc72a4a1",
+    "sampledQuerySha256": "429e19f8d2452b92a7eb077496019bd9d439d9a10c72d143f76caee807dde877"
+  }
+}

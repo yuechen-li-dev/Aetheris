@@ -1,0 +1,174 @@
+{
+  "milestone": "AETHERIS-GEOMETRY-REASONING-M0",
+  "fixture": "failing",
+  "authoredGeometry": {
+    "stableId": "calibration:crossing",
+    "provenance": "geometry-m0:calibration",
+    "representation": "AnalyticExpression",
+    "domain": {
+      "u": {
+        "minimum": -1,
+        "maximum": 1
+      },
+      "v": {
+        "minimum": -1,
+        "maximum": 1
+      }
+    }
+  },
+  "plane": {
+    "origin": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "normal": {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    }
+  },
+  "sampled": {
+    "classification": "Crossing",
+    "evidenceKind": "Sampled",
+    "policy": {
+      "method": "Sampled",
+      "tolerance": 1E-09,
+      "samplesU": 17,
+      "samplesV": 17,
+      "maximumSubdivisionDepth": 10,
+      "maximumLeafCount": 4096
+    },
+    "domain": {
+      "u": {
+        "minimum": -1,
+        "maximum": 1
+      },
+      "v": {
+        "minimum": -1,
+        "maximum": 1
+      }
+    },
+    "patchIdentity": "calibration:crossing",
+    "provenance": "geometry-m0:calibration",
+    "representation": "AnalyticExpression",
+    "observedMinimum": -3,
+    "observedMaximum": 3,
+    "certifiedLowerBound": null,
+    "certifiedUpperBound": null,
+    "witnesses": [
+      {
+        "u": -1,
+        "v": -1,
+        "point": {
+          "x": -20,
+          "y": -15,
+          "z": -3
+        },
+        "signedDistance": -3,
+        "kind": "negative"
+      },
+      {
+        "u": 0,
+        "v": -1,
+        "point": {
+          "x": 0,
+          "y": -15,
+          "z": 0
+        },
+        "signedDistance": 0,
+        "kind": "contact-candidate"
+      },
+      {
+        "u": 1,
+        "v": -1,
+        "point": {
+          "x": 20,
+          "y": -15,
+          "z": 3
+        },
+        "signedDistance": 3,
+        "kind": "positive"
+      }
+    ],
+    "statistics": {
+      "sampleCount": 289,
+      "leafCount": 0,
+      "resolvedLeaves": 0,
+      "unresolvedLeaves": 0,
+      "maximumDepthReached": 0
+    },
+    "diagnostics": []
+  },
+  "certified": {
+    "classification": "Crossing",
+    "evidenceKind": "Certified",
+    "policy": {
+      "method": "CertifiedInterval",
+      "tolerance": 1E-09,
+      "samplesU": 9,
+      "samplesV": 9,
+      "maximumSubdivisionDepth": 10,
+      "maximumLeafCount": 4096
+    },
+    "domain": {
+      "u": {
+        "minimum": -1,
+        "maximum": 1
+      },
+      "v": {
+        "minimum": -1,
+        "maximum": 1
+      }
+    },
+    "patchIdentity": "calibration:crossing",
+    "provenance": "geometry-m0:calibration",
+    "representation": "AnalyticExpression",
+    "observedMinimum": null,
+    "observedMaximum": null,
+    "certifiedLowerBound": -3.0000000000000018,
+    "certifiedUpperBound": 3.0000000000000018,
+    "witnesses": [
+      {
+        "u": -0.75,
+        "v": -0.75,
+        "point": {
+          "x": -15,
+          "y": -11.25,
+          "z": -2.25
+        },
+        "signedDistance": -2.25,
+        "kind": "certified-negative-region"
+      },
+      {
+        "u": 0.75,
+        "v": -0.75,
+        "point": {
+          "x": 15,
+          "y": -11.25,
+          "z": 2.25
+        },
+        "signedDistance": 2.25,
+        "kind": "certified-positive-region"
+      }
+    ],
+    "statistics": {
+      "sampleCount": 0,
+      "leafCount": 3,
+      "resolvedLeaves": 3,
+      "unresolvedLeaves": 0,
+      "maximumDepthReached": 2
+    },
+    "diagnostics": []
+  },
+  "performance": {
+    "sampledMilliseconds": 0.2356,
+    "certifiedMilliseconds": 0.0233
+  },
+  "determinism": {
+    "stable": true,
+    "certifiedQuerySha256": "390906d67446891c34299cc279ca386aded853b14f78b888be7a7b6dcac1e376",
+    "repeatQuerySha256": "390906d67446891c34299cc279ca386aded853b14f78b888be7a7b6dcac1e376",
+    "sampledQuerySha256": "88792082b0c9df4d2e992c7b8f794071ea8fb31656847f1dc0077388fc1a9c72"
+  }
+}

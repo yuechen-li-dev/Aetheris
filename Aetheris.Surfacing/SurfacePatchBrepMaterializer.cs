@@ -1,3 +1,4 @@
+using Aetheris.Geometry;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Curves;

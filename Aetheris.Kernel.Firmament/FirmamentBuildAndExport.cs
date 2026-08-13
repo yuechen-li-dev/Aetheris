@@ -196,6 +196,15 @@ public static class FirmamentBuildAndExport
         }
         if (v2Parse.IsSuccess && v2Parse.Document is not null)
         {
+            if (v2Parse.Document.Solids.Count == 0 && v2Parse.Document.Panels is { Count: > 0 })
+            {
+                return KernelResult<FirmamentStepExportResult>.Failure([new Kernel.Core.Diagnostics.KernelDiagnostic(
+                    Kernel.Core.Diagnostics.KernelDiagnosticCode.NotImplemented,
+                    Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+                    "firmament-panel-only-step-materialization-unsupported: the document contains authored Panels but no solid body. Panel geometry remains available to public pre-realization predicates; the ordinary STEP build route does not yet define a shell/product export contract.",
+                    "FirmamentV2.Panel")]);
+            }
+
             var dfm = FirmamentV2DfmEnforcement.Validate(v2Parse.Document);
             if (!dfm.IsSuccess)
             {

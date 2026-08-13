@@ -8,5 +8,6 @@
   <ItemGroup>
     <ProjectReference Include="..\Aetheris.Forge\Aetheris.Forge.csproj" />
     <ProjectReference Include="..\Aetheris.Forge.Host\Aetheris.Forge.Host.csproj" />
+    <ProjectReference Include="..\Aetheris.Geometry\Aetheris.Geometry.csproj" />
   </ItemGroup>
 </Project>

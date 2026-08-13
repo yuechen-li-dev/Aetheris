@@ -1,0 +1,45 @@
+{
+  "milestone": "AETHERIS-GEOMETRY-REASONING-M0",
+  "sdk": "10.0.302",
+  "restore": {
+    "command": "dotnet restore Aetheris.slnx",
+    "succeeded": true
+  },
+  "build": {
+    "command": "dotnet build Aetheris.slnx -f net10.0 --no-restore /m:1",
+    "succeeded": true,
+    "warnings": 0,
+    "errors": 0
+  },
+  "tests": {
+    "command": "dotnet test Aetheris.slnx -f net10.0 --no-restore --no-build",
+    "succeeded": true,
+    "passed": 2708,
+    "failed": 0,
+    "skipped": 0,
+    "assemblies": {
+      "Aetheris.CLI.Tests": 362,
+      "Aetheris.Collaboration.Tests": 5,
+      "Aetheris.Continuum.Tests": 148,
+      "Aetheris.FEA.Tests": 12,
+      "Aetheris.Forge.Host.Tests": 10,
+      "Aetheris.Geometry.Tests": 11,
+      "Aetheris.Kernel.Core.Tests": 940,
+      "Aetheris.Kernel.Firmament.Tests": 1112,
+      "Aetheris.Modules.Tests": 37,
+      "Aetheris.Semantics.Tests": 9,
+      "Aetheris.Server.Tests": 54,
+      "Aetheris.Samples.DatabaseDrivenCad.Tests": 8
+    },
+    "emptyTestAssemblies": ["Aetheris.FrictionLab.Tests"]
+  },
+  "cliAudit": {
+    "panelOnlyValidate": "valid-0-fatal-2-warning",
+    "panelOnlyBuild": "typed-unsupported-no-step-emitted"
+  },
+  "determinism": {
+    "allCalibrationQueryHashesStableOnImmediateRepeat": true,
+    "samplingRandomized": false,
+    "subdivisionOrder": "southwest-southeast-northwest-northeast"
+  }
+}

@@ -2,6 +2,8 @@
   <Project Path="Aetheris.Server/Aetheris.Server.csproj" />
   <Project Path="Aetheris.Server.Tests/Aetheris.Server.Tests.csproj" />
   <Project Path="Aetheris.Kernel.Core/Aetheris.Kernel.Core.csproj" />
+  <Project Path="Aetheris.Geometry/Aetheris.Geometry.csproj" />
+  <Project Path="Aetheris.Geometry.Tests/Aetheris.Geometry.Tests.csproj" />
   <Project Path="Aetheris.Semantics/Aetheris.Semantics.csproj" />
   <Project Path="Aetheris.Semantics.Tests/Aetheris.Semantics.Tests.csproj" />
   <Project Path="Aetheris.Modules/Aetheris.Modules.csproj" />
@@ -23,6 +25,7 @@
   <Project Path="tools/Aetheris.Continuum.M4B/Aetheris.Continuum.M4B.csproj" />
   <Project Path="tools/Aetheris.Continuum.M4C/Aetheris.Continuum.M4C.csproj" />
   <Project Path="tools/Aetheris.Forge.M1Evidence/Aetheris.Forge.M1Evidence.csproj" />
+  <Project Path="tools/Aetheris.Geometry.M0Evidence/Aetheris.Geometry.M0Evidence.csproj" />
   <Project Path="tools/Aetheris.Continuum.AttentionE0/Aetheris.Continuum.AttentionE0.csproj" />
   <Project Path="tools/Aetheris.Continuum.AttentionE1/Aetheris.Continuum.AttentionE1.csproj" />
   <Project Path="Aetheris.Forge/Aetheris.Forge.csproj" />

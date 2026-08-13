@@ -1,0 +1,157 @@
+{
+  "milestone": "AETHERIS-GEOMETRY-REASONING-M0",
+  "fixture": "tangent",
+  "authoredGeometry": {
+    "stableId": "calibration:tangent-contact",
+    "provenance": "geometry-m0:calibration",
+    "representation": "AnalyticExpression",
+    "domain": {
+      "u": {
+        "minimum": -1,
+        "maximum": 1
+      },
+      "v": {
+        "minimum": -1,
+        "maximum": 1
+      }
+    }
+  },
+  "plane": {
+    "origin": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "normal": {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    }
+  },
+  "sampled": {
+    "classification": "Unknown",
+    "evidenceKind": "Sampled",
+    "policy": {
+      "method": "Sampled",
+      "tolerance": 1E-09,
+      "samplesU": 17,
+      "samplesV": 17,
+      "maximumSubdivisionDepth": 10,
+      "maximumLeafCount": 4096
+    },
+    "domain": {
+      "u": {
+        "minimum": -1,
+        "maximum": 1
+      },
+      "v": {
+        "minimum": -1,
+        "maximum": 1
+      }
+    },
+    "patchIdentity": "calibration:tangent-contact",
+    "provenance": "geometry-m0:calibration",
+    "representation": "AnalyticExpression",
+    "observedMinimum": 0,
+    "observedMaximum": 2,
+    "certifiedLowerBound": null,
+    "certifiedUpperBound": null,
+    "witnesses": [
+      {
+        "u": 0,
+        "v": -1,
+        "point": {
+          "x": 0,
+          "y": -15,
+          "z": 0
+        },
+        "signedDistance": 0,
+        "kind": "contact-candidate"
+      },
+      {
+        "u": -1,
+        "v": -1,
+        "point": {
+          "x": -20,
+          "y": -15,
+          "z": 2
+        },
+        "signedDistance": 2,
+        "kind": "positive"
+      }
+    ],
+    "statistics": {
+      "sampleCount": 289,
+      "leafCount": 0,
+      "resolvedLeaves": 0,
+      "unresolvedLeaves": 0,
+      "maximumDepthReached": 0
+    },
+    "diagnostics": []
+  },
+  "certified": {
+    "classification": "Unknown",
+    "evidenceKind": "Unknown",
+    "policy": {
+      "method": "CertifiedInterval",
+      "tolerance": 1E-09,
+      "samplesU": 9,
+      "samplesV": 9,
+      "maximumSubdivisionDepth": 10,
+      "maximumLeafCount": 4096
+    },
+    "domain": {
+      "u": {
+        "minimum": -1,
+        "maximum": 1
+      },
+      "v": {
+        "minimum": -1,
+        "maximum": 1
+      }
+    },
+    "patchIdentity": "calibration:tangent-contact",
+    "provenance": "geometry-m0:calibration",
+    "representation": "AnalyticExpression",
+    "observedMinimum": null,
+    "observedMaximum": null,
+    "certifiedLowerBound": -4.4E-323,
+    "certifiedUpperBound": 2.000000000000002,
+    "witnesses": [
+      {
+        "u": -0.75,
+        "v": -0.75,
+        "point": {
+          "x": -15,
+          "y": -11.25,
+          "z": 1.125
+        },
+        "signedDistance": 1.125,
+        "kind": "certified-positive-region"
+      }
+    ],
+    "statistics": {
+      "sampleCount": 0,
+      "leafCount": 4096,
+      "resolvedLeaves": 2728,
+      "unresolvedLeaves": 1368,
+      "maximumDepthReached": 10
+    },
+    "diagnostics": [
+      {
+        "code": "SubdivisionBudgetExhausted",
+        "message": "Certification remained inconclusive at depth 10 with leaf budget 4096."
+      }
+    ]
+  },
+  "performance": {
+    "sampledMilliseconds": 0.2519,
+    "certifiedMilliseconds": 8.9127
+  },
+  "determinism": {
+    "stable": true,
+    "certifiedQuerySha256": "ec4edab23865d349a3704317dc5bf2bc48c4d1176d7caaeb48bf8c7fce1ecd13",
+    "repeatQuerySha256": "ec4edab23865d349a3704317dc5bf2bc48c4d1176d7caaeb48bf8c7fce1ecd13",
+    "sampledQuerySha256": "40222cbaa6c525942a072ee4b0179d095dd0a77aee6613d6d9537857c6a78d70"
+  }
+}

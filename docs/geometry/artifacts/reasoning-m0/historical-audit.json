@@ -1,0 +1,17 @@
+{
+  "milestone": "AETHERIS-GEOMETRY-REASONING-M0",
+  "panelOnlyBuild": {
+    "preChange": "still-present-index-out-of-range",
+    "postChange": "typed-unsupported-shell-export",
+    "diagnostic": "firmament-panel-only-step-materialization-unsupported"
+  },
+  "assemblyPanelLinkage": {
+    "status": "changed-architecture-partially-applicable",
+    "programmaticPanelOccurrences": "linked-through-semantic-edges-and-provenance",
+    "textualOccurrenceIdentity": "product-definition-identity-not-PanelIr-object-reference"
+  },
+  "publicParametricApi": {
+    "preChange": "public-but-surfacing-owned-and-materialization-coupled",
+    "postChange": "public-domain-neutral-Aetheris.Geometry"
+  }
+}

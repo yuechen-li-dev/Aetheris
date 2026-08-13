@@ -1,19 +1,19 @@
 # Authored geometry reasoning
 
-Status: AETHERIS-GEOMETRY-REASONING-M1
+Status: AETHERIS-GEOMETRY-REASONING-M2
 
 ## Architecture and authority
 
 Aetheris separates four layers:
 
-1. authored bounded geometry, including parameter domain, evaluation, first jet, identity, and provenance;
+1. authored bounded geometry, including parameter domain, first/second jets, identity, and provenance;
 2. predicates that inspect that geometry and return explicit evidence;
 3. optional realization into a supported surface representation;
 4. BRep topology and STEP serialization.
 
-`Aetheris.Geometry.BoundedParametricCurve3` and `BoundedParametricPatch3` are sibling public objects at layer 1. Neither owns B-rep topology or CAD intent. Curves and patches share `GeometryIdentity`, `GeometryProvenance`, `GeometryRepresentationKind`, `IFirstJet3`, and `DifferentialSingularityKind`, while retaining dimension-appropriate `CurveJet1` and `SurfaceDifferential` results. `Aetheris.Surfacing.PanelIr` remains the manufacturing/CAD wrapper and exposes its source through `AuthoredPatch`; each semantic edge exposes its directed source through `AuthoredCurve`.
+`Aetheris.Geometry.BoundedParametricCurve3` and `BoundedParametricPatch3` are sibling public objects at layer 1. Neither owns B-rep topology or CAD intent. Curves and patches share identity, provenance, representation, first/second-jet interfaces, and explicit singularity states while retaining dimension-appropriate `CurveJet1`, `CurveJet2`, `SurfaceDifferential`, and `PatchJet2` results. `SupportsSecondJet` is a capability statement: expression geometry and supported analytic/non-rational spline adapters return raw second derivatives; first-jet-only procedural geometry does not silently finite-difference them.
 
-Patch domains are rectangular and curve domains are one dimensional. All bounds are finite and strictly increasing. A reversed native curve support is mapped into an increasing public domain whose increasing parameter follows the authored edge direction. Arbitrary trim-domain topology and second jets are deferred.
+Patch domains are rectangular and curve domains are one dimensional. All bounds are finite and strictly increasing. A reversed native curve support is mapped into an increasing public domain whose increasing parameter follows the authored edge direction. Curvature is computed from geometric differential forms, so parameter scaling and reversal do not change unsigned curve curvature, Gaussian curvature, or principal-curvature magnitudes; signed surface curvature follows orientation.
 
 ## Representation is not evidence
 
@@ -87,15 +87,21 @@ var result = SignedSideQuery.Query(patch, plane, SignedSidePolicy.Certified());
 
 Normal Aetheris code references `Aetheris.Geometry` directly. Forge extension authors may do the same or call `Aetheris.Forge.KernelSDK.KernelSdk.QuerySignedSide`; KernelSDK is an exposure surface, not the owner.
 
+## Differential queries
+
+`CurvatureQuery` consumes public second jets. Curve curvature uses `|P' × P''| / |P'|³`. Patch curvature forms the first and second fundamental forms, then reports oriented normal, Gaussian and mean curvature, ordered principal curvatures (`K1 >= K2`), stable principal directions where distinct, and normal curvature in an arbitrary tangent direction. `DifferentialPolicy` owns magnitude, metric-conditioning, and curvature tolerances.
+
+Finite analytic evaluation returns `ToleranceBounded`, never `Certified` merely because the source is an expression. Singular tangents, tiny normals, ill-conditioned metrics, unavailable second jets, and indeterminate principal directions remain explicit. See [differential-geometry.md](differential-geometry.md).
+
 ## Limitations
 
-M0 has no second jets, curvature, contact order, generic tangency certificate, arbitrary trimmed parameter domains, generic curve/surface intersection, CAS, or theorem-specific vocabulary. Procedural patches have public first-jet evaluation but require a future certified evaluator before the interval policy can certify them. No generic predicate materializes intersection curves or mutates topology.
+M2 does not add contact order, a generic tangency certificate, arbitrary trimmed parameter domains, generic curve/surface intersection, CAS, rational splines/NURBS, or theorem-specific vocabulary. Section and boundary procedural patches remain first-jet-only unless an honest second evaluator is supplied. No differential query materializes intersection curves or mutates topology.
 
 ## Differential-geometry ladder
 
 - M0 established bounded patches and evidence-aware signed-side reasoning.
 - M1 adds bounded curves and a shared first-jet vocabulary.
-- M2 is the intended home for curve `P''`, patch `Puu/Puv/Pvv`, curvature, and Panel G2 evidence.
-- Closest point, distance, certified intersection, contact classification, and contact order remain later independent query milestones.
+- M2 adds curve `P''`, patch `Puu/Puv/Pvv`, curvature, and sampled Panel G1/G2 evidence.
+- M3 pressure is closest point/distance. Certified intersection and generic contact classification/order remain later independent query milestones; chronology may change with product pressure.
 
 M1 adds no generic curve intersection service. The constructive transverse-cone/world-Z hyperbola remains an admitted construction-specific analytic result; adapting its bounded trim does not grant it topology-authoring authority.

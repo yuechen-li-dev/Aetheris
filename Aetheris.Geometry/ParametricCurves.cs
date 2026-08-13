@@ -33,6 +33,12 @@ public sealed record CurveJet1(
     public bool IsRegular => Singularity == DifferentialSingularityKind.Regular;
 }
 
+public sealed record CurveJet2(Point3D Point, Vector3D FirstDerivative, Vector3D SecondDerivative,
+    DifferentialSingularityKind Singularity) : ISecondJet3
+{
+    public bool IsRegular => Singularity == DifferentialSingularityKind.Regular;
+}
+
 public sealed record CurvePointExpression(
     SurfaceScalarExpression X,
     SurfaceScalarExpression Y,
@@ -67,6 +73,7 @@ public static class CurveExpression
 public sealed class BoundedParametricCurve3
 {
     private readonly Func<double, (Point3D Point, Vector3D Derivative)> _evaluator;
+    private readonly Func<double,CurveJet2>? _secondJetEvaluator;
 
     public BoundedParametricCurve3(
         string stableId,
@@ -86,15 +93,22 @@ public sealed class BoundedParametricCurve3
             var z = pointExpression.Z.Evaluate(t, 0d);
             return (new(x.Value, y.Value, z.Value), new(x.Du, y.Du, z.Du));
         };
+        _secondJetEvaluator=t=>
+        {
+            var x=pointExpression.X.Evaluate(t,0d);var y=pointExpression.Y.Evaluate(t,0d);var z=pointExpression.Z.Evaluate(t,0d);
+            var first=new Vector3D(x.Du,y.Du,z.Du);var second=new Vector3D(x.Duu,y.Duu,z.Duu);
+            return new(new(x.Value,y.Value,z.Value),first,second,Classify(first,second,new(x.Value,y.Value,z.Value)));
+        };
         Initialize(stableId, domain, provenance, semanticOwner, isGenerated, GeometryRepresentationKind.AnalyticExpression);
     }
 
     private BoundedParametricCurve3(string stableId, ParameterDomain1 domain,
-        Func<double, (Point3D Point, Vector3D Derivative)> evaluator, string provenance,
+        Func<double, (Point3D Point, Vector3D Derivative)> evaluator, Func<double,CurveJet2>? secondJetEvaluator, string provenance,
         string? semanticOwner, bool isGenerated, GeometryRepresentationKind representation,
         bool isPeriodic, string? nativeFamily, int? degree = null)
     {
         _evaluator = evaluator ?? throw new ArgumentNullException(nameof(evaluator));
+        _secondJetEvaluator=secondJetEvaluator;
         IsPeriodic = isPeriodic;
         NativeFamily = nativeFamily;
         Degree = degree;
@@ -111,6 +125,7 @@ public sealed class BoundedParametricCurve3
     public bool IsPeriodic { get; }
     public string? NativeFamily { get; }
     public int? Degree { get; }
+    public bool SupportsSecondJet => _secondJetEvaluator is not null;
 
     public Point3D Evaluate(double parameter) => EvaluateJet1(parameter).Point;
 
@@ -129,11 +144,23 @@ public sealed class BoundedParametricCurve3
         return new(point, derivative, Direction3D.Create(normalized), DifferentialSingularityKind.Regular);
     }
 
+    public CurveJet2 EvaluateJet2(double parameter)
+    {
+        if(!Domain.Contains(parameter))throw new ArgumentOutOfRangeException(nameof(parameter),"Parameter must be finite and lie inside the authored curve domain.");
+        if(_secondJetEvaluator is null)throw new NotSupportedException($"Curve '{StableId}' does not expose second-jet capability.");
+        var jet=_secondJetEvaluator(parameter);
+        return jet with{Singularity=Classify(jet.FirstDerivative,jet.SecondDerivative,jet.Point)};
+    }
+
     public static BoundedParametricCurve3 Procedural(string stableId, ParameterDomain1 domain,
         Func<double, (Point3D Point, Vector3D Derivative)> evaluator, string provenance,
         string? semanticOwner = null, bool isGenerated = false,
         GeometryRepresentationKind representation = GeometryRepresentationKind.ProceduralParametric) =>
-        new(stableId, domain, evaluator, provenance, semanticOwner, isGenerated, representation, false, null);
+        new(stableId, domain, evaluator, null, provenance, semanticOwner, isGenerated, representation, false, null);
+
+    public static BoundedParametricCurve3 Procedural(string stableId,ParameterDomain1 domain,Func<double,(Point3D Point,Vector3D Derivative)> evaluator,
+        Func<double,CurveJet2> secondJetEvaluator,string provenance,string? semanticOwner=null,bool isGenerated=false,GeometryRepresentationKind representation=GeometryRepresentationKind.ProceduralParametric)=>
+        new(stableId,domain,evaluator,secondJetEvaluator,provenance,semanticOwner,isGenerated,representation,false,null);
 
     public static BoundedParametricCurve3 FromCurveGeometry(string stableId, CurveGeometry curve,
         double parameterStart, double parameterEnd, string provenance, string? semanticOwner = null,
@@ -151,25 +178,25 @@ public sealed class BoundedParametricCurve3
         return curve.Kind switch
         {
             CurveGeometryKind.Line3 => NativeCurve("Line3", false, t =>
-                (curve.Line3!.Value.Evaluate(Native(t)), curve.Line3.Value.Direction.ToVector() * sign)),
+                (curve.Line3!.Value.Evaluate(Native(t)), curve.Line3.Value.Direction.ToVector() * sign),t=>new(curve.Line3!.Value.Evaluate(Native(t)),curve.Line3.Value.Direction.ToVector()*sign,new(0,0,0),DifferentialSingularityKind.Regular)),
             CurveGeometryKind.Circle3 => NativeCurve("Circle3", IsFullPeriod(minimum, maximum), t =>
-                (curve.Circle3!.Value.Evaluate(Native(t)), curve.Circle3.Value.Tangent(Native(t)) * sign)),
+                (curve.Circle3!.Value.Evaluate(Native(t)), curve.Circle3.Value.Tangent(Native(t)) * sign),t=>{var c=curve.Circle3!.Value;var n=Native(t);return new(c.Evaluate(n),c.Tangent(n)*sign,c.XAxis.ToVector()*(-c.Radius*double.Cos(n))+c.YAxis.ToVector()*(-c.Radius*double.Sin(n)),DifferentialSingularityKind.Regular);}),
             CurveGeometryKind.Ellipse3 => NativeCurve("Ellipse3", IsFullPeriod(minimum, maximum), t =>
             {
                 var e = curve.Ellipse3!.Value; var n = Native(t);
                 var derivative = e.XAxis.ToVector() * (-e.MajorRadius * double.Sin(n)) + e.YAxis.ToVector() * (e.MinorRadius * double.Cos(n));
                 return (e.Evaluate(n), derivative * sign);
-            }),
+            },t=>{var e=curve.Ellipse3!.Value;var n=Native(t);var first=(e.XAxis.ToVector()*(-e.MajorRadius*double.Sin(n))+e.YAxis.ToVector()*(e.MinorRadius*double.Cos(n)))*sign;var second=e.XAxis.ToVector()*(-e.MajorRadius*double.Cos(n))+e.YAxis.ToVector()*(-e.MinorRadius*double.Sin(n));return new(e.Evaluate(n),first,second,DifferentialSingularityKind.Regular);}),
             CurveGeometryKind.Hyperbola3 => NativeCurve("Hyperbola3", false, t =>
-                (curve.Hyperbola3!.Value.Evaluate(Native(t)), curve.Hyperbola3.Value.FirstDerivative(Native(t)) * sign)),
+                (curve.Hyperbola3!.Value.Evaluate(Native(t)), curve.Hyperbola3.Value.FirstDerivative(Native(t)) * sign),t=>{var h=curve.Hyperbola3!.Value;var n=Native(t);return new(h.Evaluate(n),h.FirstDerivative(n)*sign,h.SecondDerivative(n),DifferentialSingularityKind.Regular);}),
             CurveGeometryKind.BSpline3 => NativeCurve("BSpline3", curve.BSpline3!.Value.ClosedCurve, t =>
-                (curve.BSpline3.Value.Evaluate(Native(t)), curve.BSpline3.Value.EvaluateTangent(Native(t)) * sign)),
+                (curve.BSpline3.Value.Evaluate(Native(t)), curve.BSpline3.Value.EvaluateTangent(Native(t)) * sign),t=>{var s=curve.BSpline3!.Value;var n=Native(t);return new(s.Evaluate(n),s.EvaluateTangent(n)*sign,s.EvaluateSecondDerivative(n),DifferentialSingularityKind.Regular);}),
             _ => throw new NotSupportedException($"Curve family '{curve.Kind}' has no bounded public adapter.")
         };
 
         BoundedParametricCurve3 NativeCurve(string family, bool periodic,
-            Func<double, (Point3D Point, Vector3D Derivative)> evaluator) =>
-            new(stableId, domain, evaluator, provenance, semanticOwner, isGenerated,
+            Func<double, (Point3D Point, Vector3D Derivative)> evaluator,Func<double,CurveJet2> secondJetEvaluator) =>
+            new(stableId, domain, evaluator, secondJetEvaluator,provenance, semanticOwner, isGenerated,
                 representation, periodic, family, family == "BSpline3" ? curve.BSpline3!.Value.Degree : null);
     }
 
@@ -192,4 +219,5 @@ public sealed class BoundedParametricCurve3
     private static bool IsFullPeriod(double minimum, double maximum) => double.Abs((maximum - minimum) - 2d * double.Pi) <= 1e-12;
     private static bool Finite(Point3D p) => double.IsFinite(p.X) && double.IsFinite(p.Y) && double.IsFinite(p.Z);
     private static bool Finite(Vector3D v) => double.IsFinite(v.X) && double.IsFinite(v.Y) && double.IsFinite(v.Z);
+    private static DifferentialSingularityKind Classify(Vector3D first,Vector3D second,Point3D point)=>!Finite(point)||!Finite(first)||!Finite(second)?DifferentialSingularityKind.NonFinite:!first.TryNormalize(out _)?DifferentialSingularityKind.Singular:DifferentialSingularityKind.Regular;
 }

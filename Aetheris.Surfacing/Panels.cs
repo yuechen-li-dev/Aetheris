@@ -11,7 +11,7 @@ namespace Aetheris.Surfacing;
 public enum PanelNormalOrientation { SupportNormal, ReversedSupportNormal }
 public enum PanelMaterialSide { Front, Back }
 public enum PanelEdgeDirection { AlongSource, OppositeSource }
-public enum PanelContinuity { PositionG0, TangentG1 }
+public enum PanelContinuity { PositionG0, TangentG1, CurvatureG2 }
 public enum PanelEdgeCorrespondence { OppositeDirections, SameDirection }
 
 public sealed record PanelOrientation(
@@ -160,7 +160,7 @@ public static class PanelFactory
         var construction = new PanelConstruction(source.StableId,
             source.Kind == RuledConstructionKind.RuledTransition ? SurfaceConstructionKind.RuledTransition : SurfaceConstructionKind.RuledSurface,
             patch.Domain, patch.ExactSurface, patch.Evaluate,
-            ProceduralPatch(source.StableId, patch.Domain, patch.Evaluate, string.Join(";", patch.BoundaryProvenance.Select(item => item.BoundaryStableId))),
+            RuledPatch(source,patch.Domain,patch.Evaluate,string.Join(";",patch.BoundaryProvenance.Select(item=>item.BoundaryStableId))),
             patch.MaterializationKind, patch.ApproximationCertificate,
             patch.Developability, patch.BoundaryProvenance);
         var curves = new[]
@@ -220,11 +220,28 @@ public static class PanelFactory
             var u0 = double.Max(domain.U.Minimum, u - hu); var u1 = double.Min(domain.U.Maximum, u + hu);
             var v0 = double.Max(domain.V.Minimum, v - hv); var v1 = double.Min(domain.V.Maximum, v + hv);
             var point = evaluate(u, v);
-            var du = (evaluate(u1, v) - evaluate(u0, v)) / (u1 - u0);
-            var dv = (evaluate(u, v1) - evaluate(u, v0)) / (v1 - v0);
+            var du = (evaluate(u1, v) - evaluate(u0, v)) * (1d / (u1 - u0));
+            var dv = (evaluate(u, v1) - evaluate(u, v0)) * (1d / (v1 - v0));
             var singular = !du.Cross(dv).TryNormalize(out var normal);
             return new(point, du, dv, singular ? null : Direction3D.Create(normal), singular);
         }, provenance);
+
+    private static BoundedParametricPatch3 RuledPatch(RuledSurfaceIr source,ParametricDomain domain,Func<double,double,Point3D> evaluate,string provenance)
+    {
+        var a=BoundaryCurve(source.BoundaryA);var b=BoundaryCurve(source.BoundaryB);
+        CurveJet2 Jet(BoundedParametricCurve3 curve,double u){var jet=curve.EvaluateJet2(curve.Domain.Map(u));var scale=curve.Domain.Length;return jet with{FirstDerivative=jet.FirstDerivative*scale,SecondDerivative=jet.SecondDerivative*(scale*scale)};}
+        PatchJet2 Second(double u,double v){var ja=Jet(a,u);var jb=Jet(b,u);var du=ja.FirstDerivative*(1-v)+jb.FirstDerivative*v;var dv=jb.Point-ja.Point;return new(evaluate(u,v),du,dv,ja.SecondDerivative*(1-v)+jb.SecondDerivative*v,jb.FirstDerivative-ja.FirstDerivative,Vector3D.Zero,du.Cross(dv).TryNormalize(out _)?DifferentialSingularityKind.Regular:DifferentialSingularityKind.Singular);}
+        return BoundedParametricPatch3.Procedural(source.StableId,domain,(u,v)=>{var jet=Second(u,v);var singular=jet.Singularity!=DifferentialSingularityKind.Regular;return new(jet.Point,jet.Du,jet.Dv,singular?null:Direction3D.Create(jet.Du.Cross(jet.Dv)),singular);},Second,provenance);
+    }
+
+    private static BoundedParametricCurve3 BoundaryCurve(RuledBoundary boundary)=>boundary switch
+    {
+        RuledBoundary.Line line=>BoundedParametricCurve3.LineSegment(line.Id,line.Start,line.End,"ruled-boundary"),
+        RuledBoundary.Arc arc=>BoundedParametricCurve3.FromCurveGeometry(arc.Id,CurveGeometry.FromCircle(new(arc.Center,arc.Normal,arc.Radius,arc.ReferenceAxis)),arc.StartAngleRadians,arc.StartAngleRadians+arc.SweepAngleRadians,"ruled-boundary"),
+        RuledBoundary.Circle circle=>BoundedParametricCurve3.FromCurveGeometry(circle.Id,CurveGeometry.FromCircle(new(circle.Center,circle.Normal,circle.Radius,circle.ReferenceAxis)),0,2*Math.PI,"ruled-boundary"),
+        RuledBoundary.BSpline spline=>BoundedParametricCurve3.FromCurveGeometry(spline.Id,CurveGeometry.FromBSpline(spline.Curve),spline.Curve.DomainStart,spline.Curve.DomainEnd,"ruled-boundary"),
+        _=>throw new NotSupportedException($"Ruled boundary '{boundary.GetType().Name}' has no second-jet adapter.")
+    };
 
     private static PanelResult Create(
         PanelConstruction construction,
@@ -363,9 +380,14 @@ public static class PanelFactory
 public sealed record PanelMateRequest(string StableId, PanelEdgeIr A, PanelEdgeIr B,
     PanelContinuity Continuity = PanelContinuity.PositionG0,
     PanelEdgeCorrespondence Correspondence = PanelEdgeCorrespondence.OppositeDirections,
-    double Tolerance = 1e-6);
+    double Tolerance = 1e-6,
+    double AngularToleranceRadians = 1e-6,
+    double CurvatureTolerance = 1e-6,
+    int SampleCount = 17);
 public sealed record PanelMateEvidence(string StableId, string EdgeA, string EdgeB, PanelContinuity Continuity,
-    PanelEdgeCorrespondence Correspondence, double EndpointResidual, double G0Residual, string Status);
+    PanelEdgeCorrespondence Correspondence, double EndpointResidual, double G0Residual, string Status,
+    PredicateEvidenceKind Evidence=PredicateEvidenceKind.Sampled,double? MaximumAngularResidualRadians=null,
+    double? MaximumNormalCurvatureResidual=null,int SampleCount=17,string? Diagnostic=null);
 public sealed record PanelNetworkReport(IReadOnlyList<PanelMateEvidence> Mates, IReadOnlyList<string> FreeEdges,
     IReadOnlyList<SurfacingDiagnostic> Diagnostics)
 {
@@ -379,6 +401,7 @@ public static class PanelNetworkValidator
     {
         var diagnostics = new List<SurfacingDiagnostic>(); var evidence = new List<PanelMateEvidence>();
         var allEdges = panels.SelectMany(panel => panel.BoundaryEdges).ToDictionary(edge => edge.StableId, StringComparer.Ordinal);
+        var owners=panels.SelectMany(panel=>panel.BoundaryEdges.Select(edge=>(edge.StableId,Panel:panel))).ToDictionary(item=>item.StableId,item=>item.Panel,StringComparer.Ordinal);
         var used = new HashSet<string>(StringComparer.Ordinal);
         foreach (var mate in mates.OrderBy(item => item.StableId, StringComparer.Ordinal))
         {
@@ -386,25 +409,55 @@ public static class PanelNetworkValidator
             { diagnostics.Add(new("panel-mate-edge-not-in-network", $"Mate '{mate.StableId}' references an edge outside the network.")); continue; }
             foreach (var edge in new[] { mate.A, mate.B })
                 if (!used.Add(edge.StableId)) diagnostics.Add(new("panel-mate-edge-already-mated", $"Edge '{edge.StableId}' is used by more than one one-to-one Mate."));
-            if (!double.IsFinite(mate.Tolerance) || mate.Tolerance <= 0)
+            if (!double.IsFinite(mate.Tolerance) || mate.Tolerance <= 0||!double.IsFinite(mate.AngularToleranceRadians)||mate.AngularToleranceRadians<=0||!double.IsFinite(mate.CurvatureTolerance)||mate.CurvatureTolerance<=0||mate.SampleCount<2)
             { diagnostics.Add(new("panel-mate-tolerance-invalid", $"Mate '{mate.StableId}' tolerance must be finite and positive.")); continue; }
             var b0 = mate.Correspondence == PanelEdgeCorrespondence.OppositeDirections ? mate.B.End : mate.B.Start;
             var b1 = mate.Correspondence == PanelEdgeCorrespondence.OppositeDirections ? mate.B.Start : mate.B.End;
             var endpoint = Math.Max((mate.A.Start - b0).Length, (mate.A.End - b1).Length);
             var residual = 0d;
-            for (var i = 0; i <= 16; i++)
+            var maxAngle=0d;var maxCurvature=0d;string? unknown=null;
+            var panelA=owners[mate.A.StableId];var panelB=owners[mate.B.StableId];
+            for (var i = 0; i < mate.SampleCount; i++)
             {
-                var t = i / 16d; var paired = mate.Correspondence == PanelEdgeCorrespondence.OppositeDirections ? 1 - t : t;
+                var t = i / (double)(mate.SampleCount-1); var paired = mate.Correspondence == PanelEdgeCorrespondence.OppositeDirections ? 1 - t : t;
                 residual = Math.Max(residual, (mate.A.Evaluate(t) - mate.B.Evaluate(paired)).Length);
+                if(mate.Continuity==PanelContinuity.PositionG0)continue;
+                var uvA=BoundaryParameter(panelA,mate.A,t);var uvB=BoundaryParameter(panelB,mate.B,paired);
+                var firstA=panelA.AuthoredPatch.EvaluateJet1(uvA.U,uvA.V);var firstB=panelB.AuthoredPatch.EvaluateJet1(uvB.U,uvB.V);
+                if(firstA.IsSingular||firstB.IsSingular||firstA.Normal is null||firstB.Normal is null){unknown="A seam tangent plane is singular.";continue;}
+                var na=OrientedNormal(panelA,firstA.Normal.Value.ToVector());var nb=OrientedNormal(panelB,firstB.Normal.Value.ToVector());
+                var dot=double.Clamp(na.Dot(nb),-1d,1d);maxAngle=Math.Max(maxAngle,double.Acos(double.Abs(dot)));
+                if(mate.Continuity!=PanelContinuity.CurvatureG2)continue;
+                if(!panelA.AuthoredPatch.SupportsSecondJet||!panelB.AuthoredPatch.SupportsSecondJet){unknown="Second-jet capability is unavailable on one or both Panel supports.";continue;}
+                var tangent=mate.A.AuthoredCurve.EvaluateJet1(mate.A.AuthoredCurve.Domain.Map(t)).Derivative;
+                if(!tangent.TryNormalize(out tangent)){unknown="The seam tangent is singular.";continue;}
+                var transverseA=na.Cross(tangent);var transverseB=nb.Cross(tangent);
+                var ka=CurvatureQuery.NormalCurvature(panelA.AuthoredPatch,uvA.U,uvA.V,transverseA);
+                var kb=CurvatureQuery.NormalCurvature(panelB.AuthoredPatch,uvB.U,uvB.V,transverseB);
+                if(ka.Status!=DifferentialQueryStatus.Available||kb.Status!=DifferentialQueryStatus.Available){unknown=ka.Diagnostic??kb.Diagnostic??"Normal curvature is unavailable.";continue;}
+                var orientedKa=ka.Curvature!.Value*(panelA.Orientation.SameSense?1d:-1d);
+                var orientedKb=kb.Curvature!.Value*(panelB.Orientation.SameSense?1d:-1d)*(dot>=0?1d:-1d);
+                maxCurvature=Math.Max(maxCurvature,double.Abs(orientedKa-orientedKb));
             }
             if (endpoint > mate.Tolerance) diagnostics.Add(new("panel-mate-endpoint-mismatch", $"Mate '{mate.StableId}' endpoint residual {endpoint:G6} mm exceeds {mate.Tolerance:G6} mm."));
             if (residual > mate.Tolerance) diagnostics.Add(new("panel-mate-g0-failure", $"Mate '{mate.StableId}' G0 residual {residual:G6} mm exceeds {mate.Tolerance:G6} mm."));
-            if (mate.Continuity == PanelContinuity.TangentG1)
-                diagnostics.Add(new("panel-mate-g1-unsupported", $"Mate '{mate.StableId}' requests G1, but Panel M0 only verifies exact G0 position continuity."));
-            evidence.Add(new(mate.StableId, mate.A.StableId, mate.B.StableId, mate.Continuity, mate.Correspondence, endpoint, residual,
-                endpoint <= mate.Tolerance && residual <= mate.Tolerance && mate.Continuity == PanelContinuity.PositionG0 ? "valid" : "invalid"));
+            var g0=endpoint<=mate.Tolerance&&residual<=mate.Tolerance;var g1=maxAngle<=mate.AngularToleranceRadians;
+            if(mate.Continuity!=PanelContinuity.PositionG0&&unknown is null&&g0&&!g1)diagnostics.Add(new("panel-mate-g1-failure",$"Mate '{mate.StableId}' tangent-plane angular residual {maxAngle:G6} rad exceeds {mate.AngularToleranceRadians:G6} rad."));
+            if(mate.Continuity==PanelContinuity.CurvatureG2&&unknown is null&&g0&&g1&&maxCurvature>mate.CurvatureTolerance)diagnostics.Add(new("panel-mate-g2-failure",$"Mate '{mate.StableId}' transverse normal-curvature residual {maxCurvature:G6} exceeds {mate.CurvatureTolerance:G6}."));
+            if(unknown is not null&&mate.Continuity!=PanelContinuity.PositionG0)diagnostics.Add(new(mate.Continuity==PanelContinuity.CurvatureG2?"panel-mate-g2-unknown":"panel-mate-g1-unknown",$"Mate '{mate.StableId}' continuity is Unknown: {unknown}"));
+            var pass=g0&&(mate.Continuity==PanelContinuity.PositionG0||(unknown is null&&g1&&(mate.Continuity==PanelContinuity.TangentG1||maxCurvature<=mate.CurvatureTolerance)));
+            evidence.Add(new(mate.StableId,mate.A.StableId,mate.B.StableId,mate.Continuity,mate.Correspondence,endpoint,residual,unknown is null?(pass?"valid":"invalid"):"unknown",PredicateEvidenceKind.Sampled,mate.Continuity==PanelContinuity.PositionG0?null:maxAngle,mate.Continuity==PanelContinuity.CurvatureG2?maxCurvature:null,mate.SampleCount,unknown));
         }
         var free = allEdges.Keys.Where(id => !used.Contains(id)).Order(StringComparer.Ordinal).ToArray();
         return new(evidence, free, diagnostics);
+    }
+
+    private static Vector3D OrientedNormal(PanelIr panel,Vector3D normal)=>panel.Orientation.SameSense?normal:-normal;
+    private static (double U,double V) BoundaryParameter(PanelIr panel,PanelEdgeIr edge,double normalized)
+    {
+        var domain=panel.AuthoredPatch.Domain;
+        (double U,double V) Map(double t)=>edge.Name switch{"South"=>(domain.U.Map(t),domain.V.Minimum),"East"=>(domain.U.Maximum,domain.V.Map(t)),"North"=>(domain.U.Map(t),domain.V.Maximum),"West"=>(domain.U.Minimum,domain.V.Map(t)),_=>(domain.U.Map(t),domain.V.Minimum)};
+        var direct=Map(normalized);var reverse=Map(1d-normalized);var point=edge.Evaluate(normalized);
+        return (panel.AuthoredPatch.EvaluatePoint(direct.U,direct.V)-point).Length<=(panel.AuthoredPatch.EvaluatePoint(reverse.U,reverse.V)-point).Length?direct:reverse;
     }
 }

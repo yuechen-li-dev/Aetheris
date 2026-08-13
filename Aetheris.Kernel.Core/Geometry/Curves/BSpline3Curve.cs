@@ -160,6 +160,36 @@ public readonly record struct BSpline3Curve
         return d[derivativeDegree];
     }
 
+    /// <summary>Evaluates the exact polynomial second derivative of this non-rational B-spline.</summary>
+    public Vector3D EvaluateSecondDerivative(double parameter)
+    {
+        if (!double.IsFinite(parameter)) throw new ArgumentOutOfRangeException(nameof(parameter), "Parameter must be finite.");
+        if (Degree < 2) return new Vector3D(0d,0d,0d);
+        var first=new Vector3D[ControlPoints.Count-1];
+        for(var i=0;i<first.Length;i++)
+        {
+            var denominator=FullKnots[i+Degree+1]-FullKnots[i+1];
+            first[i]=double.Abs(denominator)<=1e-15?new(0,0,0):(ControlPoints[i+1]-ControlPoints[i])*(Degree/denominator);
+        }
+        var second=new Vector3D[first.Length-1];
+        for(var i=0;i<second.Length;i++)
+        {
+            var denominator=FullKnots[i+Degree+1]-FullKnots[i+2];
+            second[i]=double.Abs(denominator)<=1e-15?new(0,0,0):(first[i+1]-first[i])*((Degree-1)/denominator);
+        }
+        return EvaluateVectorSpline(second,Degree-2,FullKnots.Skip(2).SkipLast(2).ToArray(),ClampToDomain(parameter));
+    }
+
+    private Vector3D EvaluateVectorSpline(IReadOnlyList<Vector3D> controls,int degree,IReadOnlyList<double> knots,double u)
+    {
+        if(degree==0)return controls[FindSpan(controls.Count,degree,knots,u)];
+        if(double.Abs(u-DomainEnd)<=1e-12)return controls[^1];
+        var span=FindSpan(controls.Count,degree,knots,u);var d=new Vector3D[degree+1];
+        for(var j=0;j<=degree;j++)d[j]=controls[span-degree+j];
+        for(var r=1;r<=degree;r++)for(var j=degree;j>=r;j--){var left=knots[span-degree+j];var right=knots[span+1+j-r];var denominator=right-left;var alpha=double.Abs(denominator)<=1e-15?0d:(u-left)/denominator;d[j]=d[j-1]+(d[j]-d[j-1])*alpha;}
+        return d[degree];
+    }
+
     public IReadOnlyList<ParameterInterval> GetNonZeroKnotSpans(ParameterInterval interval)
     {
         var start = double.Max(DomainStart, double.Min(interval.Start, interval.End));

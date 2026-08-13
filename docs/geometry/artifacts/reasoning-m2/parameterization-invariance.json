@@ -1,0 +1,73 @@
+{
+  "scaled": {
+    "GaussianCurvature": 0,
+    "MeanCurvature": 1,
+    "K1": 2,
+    "K2": 0,
+    "Direction1": {
+      "X": 1,
+      "Y": 0,
+      "Z": 0
+    },
+    "Direction2": {
+      "X": 0,
+      "Y": 1,
+      "Z": 0
+    },
+    "OrientedNormal": {
+      "X": 0,
+      "Y": 0,
+      "Z": 1
+    },
+    "FirstFundamentalForm": {
+      "E": 9,
+      "F": 0,
+      "G": 1
+    },
+    "SecondFundamentalForm": {
+      "E2": 18,
+      "F2": 0,
+      "G2": 0
+    },
+    "Evidence": "ToleranceBounded",
+    "Status": "Available",
+    "Singularity": "Regular",
+    "Diagnostic": null
+  },
+  "reversed": {
+    "GaussianCurvature": -0,
+    "MeanCurvature": -1,
+    "K1": 0,
+    "K2": -2,
+    "Direction1": {
+      "X": 0,
+      "Y": -1,
+      "Z": -0
+    },
+    "Direction2": {
+      "X": 1,
+      "Y": 0,
+      "Z": 0
+    },
+    "OrientedNormal": {
+      "X": 0,
+      "Y": 0,
+      "Z": -1
+    },
+    "FirstFundamentalForm": {
+      "E": 9,
+      "F": 0,
+      "G": 1
+    },
+    "SecondFundamentalForm": {
+      "E2": -18,
+      "F2": 0,
+      "G2": 0
+    },
+    "Evidence": "ToleranceBounded",
+    "Status": "Available",
+    "Singularity": "Regular",
+    "Diagnostic": null
+  },
+  "invariant": "Gaussian curvature and principal-curvature magnitudes agree; signed mean/normal curvature follows orientation."
+}

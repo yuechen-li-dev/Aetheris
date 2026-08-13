@@ -23,6 +23,6 @@ public static class SurfacingModule
          new(PanelCapability,Id,Version,"Bounded oriented engineering surface with ordered semantic boundary edges and developability evidence.")],
         ["Surfacing.PanelConcept", "Surfacing.SurfacePatchConcept"], ["Surfacing.RuledCanopyPanel","Surfacing.HyperbolicParaboloid","Surfacing.ParabolicCylinder","Surfacing.EllipticParaboloid","Surfacing.Helicoid"],
         ["Surface construction -> PanelIR -> semantic edges", "Panel edge Interface/Mate -> deterministic G0 evidence", "PanelIR -> bounded BRep-backed STEP export envelope"],
-        ["panel-incomplete-boundary", "panel-boundary-orientation-inconsistent","panel-mate-endpoint-mismatch","panel-mate-g0-failure","panel-mate-g1-unsupported","surfacing-panel-thickness-invalid"],
+        ["panel-incomplete-boundary", "panel-boundary-orientation-inconsistent","panel-mate-endpoint-mismatch","panel-mate-g0-failure","panel-mate-g1-failure","panel-mate-g1-unknown","panel-mate-g2-failure","panel-mate-g2-unknown","surfacing-panel-thickness-invalid"],
         [new(CoreModule.Id, new(1, 0, 0))], new("docs/modules/surfacing.md"));
 }

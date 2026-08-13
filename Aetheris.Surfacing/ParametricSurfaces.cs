@@ -26,6 +26,7 @@ public sealed record ParametricSurfaceIr
     public BoundedParametricPatch3 Patch { get; }
 
     public SurfaceDifferential Evaluate(double u, double v) => Patch.Evaluate(u,v);
+    public PatchJet2 EvaluateJet2(double u,double v)=>Patch.EvaluateJet2(u,v);
 }
 
 public sealed record ParametricMaterialization(BSplineSurfaceWithKnots Surface, ApproximationCertificate Certificate,

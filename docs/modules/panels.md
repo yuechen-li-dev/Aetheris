@@ -14,7 +14,7 @@ ParametricSurface / RuledSurface / SectionSurface / BoundaryPatch
 
 A Panel is neither a naked support nor necessarily a closed solid Part. M0 is BRep-backed, rectangular-domain/four-sided, and retains the source construction so a later Panel implementation may use BRep, SubD, or SDF backing without changing the high-level edge and Mate contract. Arbitrary trim networks and SubD/SDF construction are not implemented.
 
-## M0 model
+## Panel model
 
 `PanelIr` owns a stable ID, `PanelConstruction`, rectangular parameter domain, four explicitly ordered `PanelEdgeIr` members, four corners, normal/material-side orientation, optional positive thickness metadata, optional material text, developability evidence, approximation certificate, and construction provenance. Thickness is engineering metadata; it does not turn the Panel into a solid.
 
@@ -26,7 +26,13 @@ Corners are stable semantic points named `SW`, `SE`, `NE`, and `NW`. Panel and m
 
 Each boundary edge is a `SemanticValue` with `CurveCapable`, `BoundaryEdgeCapable`, `ExactGeometryCapable`, and `Selectable`, backed by `ExactCurveBinding`. The binding contains a directed source curve and parameter interval. Raw BRep `EdgeId` is not part of the authoring contract.
 
-The existing Assembly `InterfaceDefinition`/`MateIr` path handles Panel seams. A two-role Interface requiring `BoundaryEdgeCapable` validates its exact curve bindings. `Correspondence: OppositeDirections` is the default physical seam mapping; `SameDirection` is explicit. M0 measures both paired endpoints and 17 deterministic curve samples. It reports endpoint and G0 residuals, duplicate one-to-one edge use, free edges, and missing exact bindings. `Continuity: G1` binds cleanly but produces `assembly-panel-mate-g1-unsupported`; M0 never claims tangent continuity it cannot verify.
+The existing `PanelMateRequest`/`PanelNetworkValidator` relation handles Panel seams; M2 extends it rather than creating another continuity system. `Correspondence: OppositeDirections` is the default physical seam mapping and `SameDirection` is explicit. A deterministic sample policy reports `Sampled` evidence:
+
+- G0 compares paired endpoints and boundary positions.
+- G1 first requires G0, then compares surface tangent planes through oriented normals. Boundary-curve tangent equality alone is insufficient.
+- G2 first requires G0/G1, constructs corresponding geometric transverse directions from the seam tangent and tangent planes, and compares normal curvature.
+
+The patch boundary parameter is recovered per semantic edge, including reversed edge traversal. G1/G2 therefore do not require identical `(u,v)` coordinates or scaling. Normal signs are aligned geometrically so a deliberate Panel orientation flip does not manufacture a curvature failure. Singular tangent planes, missing second jets, and unstable normal curvature return `Unknown`. The older Firmament Assembly serialization bridge still reports its historical G0 binding evidence; it does not fabricate G1/G2 from exact curve bindings alone.
 
 Mating relates separate Panels. It neither Boolean-unions them nor implies a closed shell.
 

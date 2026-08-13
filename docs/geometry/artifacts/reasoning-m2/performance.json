@@ -1,0 +1,38 @@
+[
+  {
+    "Name": "curve-second-jet",
+    "Iterations": 100000,
+    "ElapsedMilliseconds": 46.8765,
+    "NanosecondsPerOperation": 468.765
+  },
+  {
+    "Name": "patch-second-jet",
+    "Iterations": 100000,
+    "ElapsedMilliseconds": 93.2749,
+    "NanosecondsPerOperation": 932.749
+  },
+  {
+    "Name": "curve-curvature",
+    "Iterations": 100000,
+    "ElapsedMilliseconds": 53.7946,
+    "NanosecondsPerOperation": 537.946
+  },
+  {
+    "Name": "principal-curvature",
+    "Iterations": 100000,
+    "ElapsedMilliseconds": 163.2521,
+    "NanosecondsPerOperation": 1632.521
+  },
+  {
+    "Name": "panel-g1",
+    "Iterations": 5000,
+    "ElapsedMilliseconds": 711.4234,
+    "NanosecondsPerOperation": 142284.68
+  },
+  {
+    "Name": "panel-g2",
+    "Iterations": 5000,
+    "ElapsedMilliseconds": 1148.7136,
+    "NanosecondsPerOperation": 229742.72
+  }
+]

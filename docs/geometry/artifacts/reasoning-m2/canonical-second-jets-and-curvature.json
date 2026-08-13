@@ -1,0 +1,195 @@
+{
+  "line": {
+    "StableId": "line",
+    "SupportsSecondJet": true,
+    "jet": {
+      "Point": {
+        "X": 1,
+        "Y": 0,
+        "Z": 0
+      },
+      "FirstDerivative": {
+        "X": 1,
+        "Y": 0,
+        "Z": 0,
+        "LengthSquared": 1,
+        "Length": 1
+      },
+      "SecondDerivative": {
+        "X": 0,
+        "Y": 0,
+        "Z": 0,
+        "LengthSquared": 0,
+        "Length": 0
+      },
+      "Singularity": "Regular",
+      "IsRegular": true
+    },
+    "curvature": {
+      "Curvature": 0,
+      "RadiusOfCurvature": "Infinity",
+      "Evidence": "ToleranceBounded",
+      "Status": "Available",
+      "Singularity": "Regular",
+      "Diagnostic": null
+    }
+  },
+  "circle": {
+    "StableId": "circle",
+    "SupportsSecondJet": true,
+    "jet": {
+      "Point": {
+        "X": 3.6842439760115404,
+        "Y": 1.557673369234602,
+        "Z": 0
+      },
+      "FirstDerivative": {
+        "X": -1.557673369234602,
+        "Y": 3.6842439760115404,
+        "Z": 0,
+        "LengthSquared": 16,
+        "Length": 4
+      },
+      "SecondDerivative": {
+        "X": -3.6842439760115404,
+        "Y": -1.557673369234602,
+        "Z": -0,
+        "LengthSquared": 16,
+        "Length": 4
+      },
+      "Singularity": "Regular",
+      "IsRegular": true
+    },
+    "curvature": {
+      "Curvature": 0.25,
+      "RadiusOfCurvature": 4,
+      "Evidence": "ToleranceBounded",
+      "Status": "Available",
+      "Singularity": "Regular",
+      "Diagnostic": null
+    }
+  },
+  "parabola": {
+    "StableId": "parabola",
+    "SupportsSecondJet": true,
+    "jet": {
+      "Point": {
+        "X": 0,
+        "Y": 0,
+        "Z": 0
+      },
+      "FirstDerivative": {
+        "X": 1,
+        "Y": 0,
+        "Z": 0,
+        "LengthSquared": 1,
+        "Length": 1
+      },
+      "SecondDerivative": {
+        "X": 0,
+        "Y": 2,
+        "Z": 0,
+        "LengthSquared": 4,
+        "Length": 2
+      },
+      "Singularity": "Regular",
+      "IsRegular": true
+    },
+    "curvature": {
+      "Curvature": 2,
+      "RadiusOfCurvature": 0.5,
+      "Evidence": "ToleranceBounded",
+      "Status": "Available",
+      "Singularity": "Regular",
+      "Diagnostic": null
+    }
+  },
+  "patch": {
+    "jet": {
+      "Point": {
+        "X": 0,
+        "Y": 0,
+        "Z": 0
+      },
+      "Du": {
+        "X": 2,
+        "Y": 0,
+        "Z": 0,
+        "LengthSquared": 4,
+        "Length": 2
+      },
+      "Dv": {
+        "X": 0,
+        "Y": 3,
+        "Z": 0,
+        "LengthSquared": 9,
+        "Length": 3
+      },
+      "Duu": {
+        "X": 0,
+        "Y": 0,
+        "Z": 2,
+        "LengthSquared": 4,
+        "Length": 2
+      },
+      "Duv": {
+        "X": 0,
+        "Y": 0,
+        "Z": 0,
+        "LengthSquared": 0,
+        "Length": 0
+      },
+      "Dvv": {
+        "X": 0,
+        "Y": 0,
+        "Z": 2,
+        "LengthSquared": 4,
+        "Length": 2
+      },
+      "Singularity": "Regular",
+      "IsRegular": true
+    },
+    "curvature": {
+      "GaussianCurvature": 0.1111111111111111,
+      "MeanCurvature": 0.3611111111111111,
+      "K1": 0.5,
+      "K2": 0.2222222222222222,
+      "Direction1": {
+        "X": 1,
+        "Y": 0,
+        "Z": 0
+      },
+      "Direction2": {
+        "X": 0,
+        "Y": 1,
+        "Z": 0
+      },
+      "OrientedNormal": {
+        "X": 0,
+        "Y": 0,
+        "Z": 1
+      },
+      "FirstFundamentalForm": {
+        "E": 4,
+        "F": 0,
+        "G": 9
+      },
+      "SecondFundamentalForm": {
+        "E2": 2,
+        "F2": 0,
+        "G2": 2
+      },
+      "Evidence": "ToleranceBounded",
+      "Status": "Available",
+      "Singularity": "Regular",
+      "Diagnostic": null
+    }
+  },
+  "localMinimum": {
+    "parameter": 0,
+    "value": 0,
+    "firstDerivative": 0,
+    "secondDerivative": 2,
+    "observation": "The scalar value has zero first derivative and positive second derivative; no general contact-order classification is made."
+  }
+}

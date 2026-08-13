@@ -58,6 +58,8 @@ public interface IFirstJet3
     DifferentialSingularityKind Singularity { get; }
 }
 
+public interface ISecondJet3 : IFirstJet3 { }
+
 public enum GeometryRepresentationKind
 {
     AnalyticExpression,
@@ -76,7 +78,7 @@ public readonly record struct UnitDimension(int LengthPower)
     public static UnitDimension operator /(UnitDimension a, UnitDimension b) => new(a.LengthPower - b.LengthPower);
 }
 
-public readonly record struct ScalarJet(double Value, double Du, double Dv);
+public readonly record struct ScalarJet(double Value, double Du, double Dv, double Duu, double Duv, double Dvv);
 
 /// <summary>A deliberately small, unit-aware expression tree with forward automatic differentiation.</summary>
 public abstract record SurfaceScalarExpression(UnitDimension Unit)
@@ -84,23 +86,27 @@ public abstract record SurfaceScalarExpression(UnitDimension Unit)
     public abstract ScalarJet Evaluate(double u, double v);
 
     public sealed record Constant(double ConstantValue, UnitDimension ConstantUnit) : SurfaceScalarExpression(ConstantUnit)
-    { public override ScalarJet Evaluate(double u, double v) => new(ConstantValue, 0d, 0d); }
+    { public override ScalarJet Evaluate(double u, double v) => new(ConstantValue, 0d, 0d, 0d, 0d, 0d); }
     public sealed record Parameter(bool IsU) : SurfaceScalarExpression(UnitDimension.Dimensionless)
-    { public override ScalarJet Evaluate(double u, double v) => IsU ? new(u, 1d, 0d) : new(v, 0d, 1d); }
+    { public override ScalarJet Evaluate(double u, double v) => IsU ? new(u, 1d, 0d, 0d, 0d, 0d) : new(v, 0d, 1d, 0d, 0d, 0d); }
     public sealed record Sum(SurfaceScalarExpression Left, SurfaceScalarExpression Right) : SurfaceScalarExpression(RequireSame(Left, Right))
-    { public override ScalarJet Evaluate(double u, double v) { var a = Left.Evaluate(u, v); var b = Right.Evaluate(u, v); return new(a.Value + b.Value, a.Du + b.Du, a.Dv + b.Dv); } }
+    { public override ScalarJet Evaluate(double u, double v) { var a = Left.Evaluate(u, v); var b = Right.Evaluate(u, v); return new(a.Value + b.Value, a.Du + b.Du, a.Dv + b.Dv, a.Duu + b.Duu, a.Duv + b.Duv, a.Dvv + b.Dvv); } }
     public sealed record Difference(SurfaceScalarExpression Left, SurfaceScalarExpression Right) : SurfaceScalarExpression(RequireSame(Left, Right))
-    { public override ScalarJet Evaluate(double u, double v) { var a = Left.Evaluate(u, v); var b = Right.Evaluate(u, v); return new(a.Value - b.Value, a.Du - b.Du, a.Dv - b.Dv); } }
+    { public override ScalarJet Evaluate(double u, double v) { var a = Left.Evaluate(u, v); var b = Right.Evaluate(u, v); return new(a.Value - b.Value, a.Du - b.Du, a.Dv - b.Dv, a.Duu - b.Duu, a.Duv - b.Duv, a.Dvv - b.Dvv); } }
     public sealed record Product(SurfaceScalarExpression Left, SurfaceScalarExpression Right) : SurfaceScalarExpression(Left.Unit * Right.Unit)
-    { public override ScalarJet Evaluate(double u, double v) { var a = Left.Evaluate(u, v); var b = Right.Evaluate(u, v); return new(a.Value * b.Value, a.Du * b.Value + a.Value * b.Du, a.Dv * b.Value + a.Value * b.Dv); } }
+    { public override ScalarJet Evaluate(double u, double v) { var a = Left.Evaluate(u, v); var b = Right.Evaluate(u, v); return new(a.Value*b.Value, a.Du*b.Value+a.Value*b.Du, a.Dv*b.Value+a.Value*b.Dv, a.Duu*b.Value+2*a.Du*b.Du+a.Value*b.Duu, a.Duv*b.Value+a.Du*b.Dv+a.Dv*b.Du+a.Value*b.Duv, a.Dvv*b.Value+2*a.Dv*b.Dv+a.Value*b.Dvv); } }
     public sealed record Quotient(SurfaceScalarExpression Left, SurfaceScalarExpression Right) : SurfaceScalarExpression(Left.Unit / Right.Unit)
-    { public override ScalarJet Evaluate(double u, double v) { var a = Left.Evaluate(u, v); var b = Right.Evaluate(u, v); if (double.Abs(b.Value) <= 1e-15) throw new DivideByZeroException("Parametric expression divisor is zero."); var q = b.Value * b.Value; return new(a.Value / b.Value, (a.Du * b.Value - a.Value * b.Du) / q, (a.Dv * b.Value - a.Value * b.Dv) / q); } }
+    { public override ScalarJet Evaluate(double u, double v) { var a=Left.Evaluate(u,v);var b=Right.Evaluate(u,v);if(double.Abs(b.Value)<=1e-15)throw new DivideByZeroException("Parametric expression divisor is zero.");var inverse=Reciprocal(b);return Multiply(a,inverse); } }
     public sealed record IntegerPower(SurfaceScalarExpression Operand, int Exponent) : SurfaceScalarExpression(new UnitDimension(Operand.Unit.LengthPower * Exponent))
-    { public override ScalarJet Evaluate(double u, double v) { var a = Operand.Evaluate(u, v); var value = double.Pow(a.Value, Exponent); var scale = Exponent == 0 ? 0d : Exponent * double.Pow(a.Value, Exponent - 1); return new(value, scale * a.Du, scale * a.Dv); } }
+    { public override ScalarJet Evaluate(double u, double v) { var a=Operand.Evaluate(u,v);if(Exponent<0&&double.Abs(a.Value)<=1e-15)throw new DivideByZeroException("Negative power is singular at zero.");var value=double.Pow(a.Value,Exponent);var first=Exponent==0?0d:Exponent*double.Pow(a.Value,Exponent-1);var second=Exponent is 0 or 1?0d:Exponent*(Exponent-1)*double.Pow(a.Value,Exponent-2);return Compose(a,value,first,second); } }
     public sealed record Sine(SurfaceScalarExpression Operand) : SurfaceScalarExpression(RequireDimensionless(Operand))
-    { public override ScalarJet Evaluate(double u, double v) { var a = Operand.Evaluate(u, v); var c = double.Cos(a.Value); return new(double.Sin(a.Value), c * a.Du, c * a.Dv); } }
+    { public override ScalarJet Evaluate(double u, double v) { var a=Operand.Evaluate(u,v);return Compose(a,double.Sin(a.Value),double.Cos(a.Value),-double.Sin(a.Value)); } }
     public sealed record Cosine(SurfaceScalarExpression Operand) : SurfaceScalarExpression(RequireDimensionless(Operand))
-    { public override ScalarJet Evaluate(double u, double v) { var a = Operand.Evaluate(u, v); var s = -double.Sin(a.Value); return new(double.Cos(a.Value), s * a.Du, s * a.Dv); } }
+    { public override ScalarJet Evaluate(double u, double v) { var a=Operand.Evaluate(u,v);return Compose(a,double.Cos(a.Value),-double.Sin(a.Value),-double.Cos(a.Value)); } }
+
+    private static ScalarJet Compose(ScalarJet a,double value,double first,double second)=>new(value,first*a.Du,first*a.Dv,second*a.Du*a.Du+first*a.Duu,second*a.Du*a.Dv+first*a.Duv,second*a.Dv*a.Dv+first*a.Dvv);
+    private static ScalarJet Reciprocal(ScalarJet b){var v=b.Value;return Compose(b,1d/v,-1d/(v*v),2d/(v*v*v));}
+    private static ScalarJet Multiply(ScalarJet a,ScalarJet b)=>new(a.Value*b.Value,a.Du*b.Value+a.Value*b.Du,a.Dv*b.Value+a.Value*b.Dv,a.Duu*b.Value+2*a.Du*b.Du+a.Value*b.Duu,a.Duv*b.Value+a.Du*b.Dv+a.Dv*b.Du+a.Value*b.Duv,a.Dvv*b.Value+2*a.Dv*b.Dv+a.Value*b.Dvv);
 
     private static UnitDimension RequireSame(SurfaceScalarExpression a, SurfaceScalarExpression b) =>
         a.Unit == b.Unit ? a.Unit : throw new ArgumentException($"Cannot add/subtract dimensions L^{a.Unit.LengthPower} and L^{b.Unit.LengthPower}.");
@@ -137,10 +143,17 @@ public sealed record SurfaceDifferential(Point3D Point, Vector3D Du, Vector3D Dv
     public DifferentialSingularityKind Singularity => IsSingular ? DifferentialSingularityKind.Singular : DifferentialSingularityKind.Regular;
 }
 
+public sealed record PatchJet2(Point3D Point, Vector3D Du, Vector3D Dv, Vector3D Duu, Vector3D Duv, Vector3D Dvv,
+    DifferentialSingularityKind Singularity) : ISecondJet3
+{
+    public bool IsRegular => Singularity == DifferentialSingularityKind.Regular;
+}
+
 /// <summary>Authored rectangular parametric geometry, independent of CAD realization and topology.</summary>
 public sealed class BoundedParametricPatch3
 {
     private readonly Func<double, double, SurfaceDifferential>? _proceduralEvaluator;
+    private readonly Func<double, double, PatchJet2>? _secondJetEvaluator;
 
     public BoundedParametricPatch3(string stableId, ParametricDomain domain, SurfacePointExpression pointExpression,
         string provenance, GeometryRepresentationKind representation = GeometryRepresentationKind.AnalyticExpression)
@@ -154,12 +167,12 @@ public sealed class BoundedParametricPatch3
         Identity = new(stableId); GeometryProvenance = new(provenance);
     }
 
-    private BoundedParametricPatch3(string stableId, ParametricDomain domain, Func<double, double, SurfaceDifferential> evaluator,
+    private BoundedParametricPatch3(string stableId, ParametricDomain domain, Func<double, double, SurfaceDifferential> evaluator, Func<double,double,PatchJet2>? secondJetEvaluator,
         string provenance, GeometryRepresentationKind representation)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(stableId);
         ArgumentException.ThrowIfNullOrWhiteSpace(provenance);
-        StableId = stableId; Domain = domain; Provenance = provenance; Representation = representation; _proceduralEvaluator = evaluator;
+        StableId = stableId; Domain = domain; Provenance = provenance; Representation = representation; _proceduralEvaluator = evaluator; _secondJetEvaluator=secondJetEvaluator;
         Identity = new(stableId); GeometryProvenance = new(provenance);
     }
 
@@ -171,10 +184,15 @@ public sealed class BoundedParametricPatch3
     public GeometryProvenance GeometryProvenance { get; }
     public GeometryRepresentationKind Representation { get; }
     public bool HasExpressionTree => PointExpression is not null;
+    public bool SupportsSecondJet => PointExpression is not null || _secondJetEvaluator is not null;
 
     public static BoundedParametricPatch3 Procedural(string stableId, ParametricDomain domain,
         Func<double, double, SurfaceDifferential> evaluator, string provenance) =>
-        new(stableId, domain, evaluator ?? throw new ArgumentNullException(nameof(evaluator)), provenance, GeometryRepresentationKind.ProceduralParametric);
+        new(stableId, domain, evaluator ?? throw new ArgumentNullException(nameof(evaluator)), null, provenance, GeometryRepresentationKind.ProceduralParametric);
+
+    public static BoundedParametricPatch3 Procedural(string stableId, ParametricDomain domain,
+        Func<double,double,SurfaceDifferential> evaluator, Func<double,double,PatchJet2> secondJetEvaluator, string provenance) =>
+        new(stableId,domain,evaluator ?? throw new ArgumentNullException(nameof(evaluator)),secondJetEvaluator ?? throw new ArgumentNullException(nameof(secondJetEvaluator)),provenance,GeometryRepresentationKind.ProceduralParametric);
 
     public SurfaceDifferential Evaluate(double u, double v)
     {
@@ -193,4 +211,19 @@ public sealed class BoundedParametricPatch3
 
     public Point3D EvaluatePoint(double u, double v) => Evaluate(u, v).Point;
     public SurfaceDifferential EvaluateJet1(double u, double v) => Evaluate(u, v);
+
+    public PatchJet2 EvaluateJet2(double u,double v)
+    {
+        ValidateParameters(u,v);
+        if(_secondJetEvaluator is not null)return Validate(_secondJetEvaluator(u,v));
+        if(PointExpression is null)throw new NotSupportedException($"Patch '{StableId}' does not expose second-jet capability.");
+        var x=PointExpression.X.Evaluate(u,v);var y=PointExpression.Y.Evaluate(u,v);var z=PointExpression.Z.Evaluate(u,v);
+        var values=new[]{x.Value,x.Du,x.Dv,x.Duu,x.Duv,x.Dvv,y.Value,y.Du,y.Dv,y.Duu,y.Duv,y.Dvv,z.Value,z.Du,z.Dv,z.Duu,z.Duv,z.Dvv};
+        if(!values.All(double.IsFinite))return new(new(x.Value,y.Value,z.Value),new(x.Du,y.Du,z.Du),new(x.Dv,y.Dv,z.Dv),new(x.Duu,y.Duu,z.Duu),new(x.Duv,y.Duv,z.Duv),new(x.Dvv,y.Dvv,z.Dvv),DifferentialSingularityKind.NonFinite);
+        var du=new Vector3D(x.Du,y.Du,z.Du);var dv=new Vector3D(x.Dv,y.Dv,z.Dv);
+        return new(new(x.Value,y.Value,z.Value),du,dv,new(x.Duu,y.Duu,z.Duu),new(x.Duv,y.Duv,z.Duv),new(x.Dvv,y.Dvv,z.Dvv),du.Cross(dv).TryNormalize(out _)?DifferentialSingularityKind.Regular:DifferentialSingularityKind.Singular);
+    }
+
+    private void ValidateParameters(double u,double v){if(!double.IsFinite(u)||!double.IsFinite(v)||u<Domain.U.Minimum||u>Domain.U.Maximum||v<Domain.V.Minimum||v>Domain.V.Maximum)throw new ArgumentOutOfRangeException(nameof(u),"Parameters must be finite and lie inside the authored rectangular domain.");}
+    private static PatchJet2 Validate(PatchJet2 jet)=>new[]{jet.Point.X,jet.Point.Y,jet.Point.Z,jet.Du.X,jet.Du.Y,jet.Du.Z,jet.Dv.X,jet.Dv.Y,jet.Dv.Z,jet.Duu.X,jet.Duu.Y,jet.Duu.Z,jet.Duv.X,jet.Duv.Y,jet.Duv.Z,jet.Dvv.X,jet.Dvv.Y,jet.Dvv.Z}.All(double.IsFinite)?jet:jet with{Singularity=DifferentialSingularityKind.NonFinite};
 }

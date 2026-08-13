@@ -71,7 +71,7 @@ public sealed class PanelM0Tests
         var duplicate=PanelNetworkValidator.Validate(showcase.Panels,[showcase.Mates[0],showcase.Mates[0] with{StableId="duplicate"}]);
         Assert.Contains(duplicate.Diagnostics,item=>item.Code=="panel-mate-edge-already-mated");
         var g1=PanelNetworkValidator.Validate(showcase.Panels,[showcase.Mates[0] with{Continuity=PanelContinuity.TangentG1}]);
-        Assert.Contains(g1.Diagnostics,item=>item.Code=="panel-mate-g1-unsupported");
+        Assert.Contains(g1.Diagnostics,item=>item.Code=="panel-mate-g1-failure");
     }
 
     [Fact]

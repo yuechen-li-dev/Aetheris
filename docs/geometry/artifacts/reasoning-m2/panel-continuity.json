@@ -1,0 +1,62 @@
+{
+  "g0PassG1Fail": {
+    "StableId": "seam",
+    "EdgeA": "panel:crease-left:edge:east",
+    "EdgeB": "panel:crease-right:edge:west",
+    "Continuity": "TangentG1",
+    "Correspondence": "OppositeDirections",
+    "EndpointResidual": 0,
+    "G0Residual": 0,
+    "Status": "invalid",
+    "Evidence": "Sampled",
+    "MaximumAngularResidualRadians": 0.7853981633974483,
+    "MaximumNormalCurvatureResidual": null,
+    "SampleCount": 17,
+    "Diagnostic": null
+  },
+  "g1PassG2Fail": {
+    "StableId": "seam",
+    "EdgeA": "panel:curvature-break-left:edge:east",
+    "EdgeB": "panel:curvature-break-right:edge:west",
+    "Continuity": "CurvatureG2",
+    "Correspondence": "OppositeDirections",
+    "EndpointResidual": 0,
+    "G0Residual": 0,
+    "Status": "invalid",
+    "Evidence": "Sampled",
+    "MaximumAngularResidualRadians": 0,
+    "MaximumNormalCurvatureResidual": 2,
+    "SampleCount": 17,
+    "Diagnostic": null
+  },
+  "g2Pass": {
+    "StableId": "seam",
+    "EdgeA": "panel:smooth-left:edge:east",
+    "EdgeB": "panel:smooth-right:edge:west",
+    "Continuity": "CurvatureG2",
+    "Correspondence": "OppositeDirections",
+    "EndpointResidual": 0,
+    "G0Residual": 0,
+    "Status": "valid",
+    "Evidence": "Sampled",
+    "MaximumAngularResidualRadians": 0,
+    "MaximumNormalCurvatureResidual": 0,
+    "SampleCount": 17,
+    "Diagnostic": null
+  },
+  "unknown": {
+    "StableId": "seam",
+    "EdgeA": "panel:smooth-left:edge:east",
+    "EdgeB": "panel:smooth-right:edge:west",
+    "Continuity": "CurvatureG2",
+    "Correspondence": "OppositeDirections",
+    "EndpointResidual": 0,
+    "G0Residual": 0,
+    "Status": "unknown",
+    "Evidence": "Sampled",
+    "MaximumAngularResidualRadians": 0,
+    "MaximumNormalCurvatureResidual": 0,
+    "SampleCount": 17,
+    "Diagnostic": "Second-jet capability is unavailable on one or both Panel supports."
+  }
+}

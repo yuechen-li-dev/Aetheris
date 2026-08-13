@@ -1,0 +1,17 @@
+{
+  "algorithm": "SHA-256",
+  "files": [
+    {
+      "file": "canonical-second-jets-and-curvature.json",
+      "sha256": "925db5209e63ce6559b8d17a88455c25e782f0672c0e253712cfdf8dd48e9d7a"
+    },
+    {
+      "file": "panel-continuity.json",
+      "sha256": "6dd2506bddfb7bfeca32cd6feb773a7b94a17ea075d3ba90bfa62402be113ef7"
+    },
+    {
+      "file": "parameterization-invariance.json",
+      "sha256": "0bc2a7739fcaf569534ad40a8dc43c16158d6ae299e3f5a91e9008daa6ebd604"
+    }
+  ]
+}

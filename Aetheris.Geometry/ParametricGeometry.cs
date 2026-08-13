@@ -25,6 +25,39 @@ public sealed class GeometryDefinitionException : ArgumentException
 
 public sealed record ParametricDomain(ParameterInterval2 U, ParameterInterval2 V);
 
+public readonly record struct GeometryIdentity
+{
+    public GeometryIdentity(string stableId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(stableId);
+        StableId = stableId;
+    }
+    public string StableId { get; }
+    public override string ToString() => StableId;
+}
+
+public sealed record GeometryProvenance
+{
+    public GeometryProvenance(string source, string? semanticOwner = null, bool isGenerated = false)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(source);
+        Source = source;
+        SemanticOwner = semanticOwner;
+        IsGenerated = isGenerated;
+    }
+    public string Source { get; }
+    public string? SemanticOwner { get; }
+    public bool IsGenerated { get; }
+}
+
+public enum DifferentialSingularityKind { Regular, Singular, NonFinite, Undefined }
+
+public interface IFirstJet3
+{
+    Point3D Point { get; }
+    DifferentialSingularityKind Singularity { get; }
+}
+
 public enum GeometryRepresentationKind
 {
     AnalyticExpression,
@@ -99,7 +132,10 @@ public sealed record SurfacePointExpression(SurfaceScalarExpression X, SurfaceSc
     }
 }
 
-public sealed record SurfaceDifferential(Point3D Point, Vector3D Du, Vector3D Dv, Direction3D? Normal, bool IsSingular);
+public sealed record SurfaceDifferential(Point3D Point, Vector3D Du, Vector3D Dv, Direction3D? Normal, bool IsSingular) : IFirstJet3
+{
+    public DifferentialSingularityKind Singularity => IsSingular ? DifferentialSingularityKind.Singular : DifferentialSingularityKind.Regular;
+}
 
 /// <summary>Authored rectangular parametric geometry, independent of CAD realization and topology.</summary>
 public sealed class BoundedParametricPatch3
@@ -115,6 +151,7 @@ public sealed class BoundedParametricPatch3
         ArgumentNullException.ThrowIfNull(pointExpression);
         pointExpression.ValidateLengthOutput();
         StableId = stableId; Domain = domain; PointExpression = pointExpression; Provenance = provenance; Representation = representation;
+        Identity = new(stableId); GeometryProvenance = new(provenance);
     }
 
     private BoundedParametricPatch3(string stableId, ParametricDomain domain, Func<double, double, SurfaceDifferential> evaluator,
@@ -123,12 +160,15 @@ public sealed class BoundedParametricPatch3
         ArgumentException.ThrowIfNullOrWhiteSpace(stableId);
         ArgumentException.ThrowIfNullOrWhiteSpace(provenance);
         StableId = stableId; Domain = domain; Provenance = provenance; Representation = representation; _proceduralEvaluator = evaluator;
+        Identity = new(stableId); GeometryProvenance = new(provenance);
     }
 
     public string StableId { get; }
+    public GeometryIdentity Identity { get; }
     public ParametricDomain Domain { get; }
     public SurfacePointExpression? PointExpression { get; }
     public string Provenance { get; }
+    public GeometryProvenance GeometryProvenance { get; }
     public GeometryRepresentationKind Representation { get; }
     public bool HasExpressionTree => PointExpression is not null;
 
@@ -150,4 +190,7 @@ public sealed class BoundedParametricPatch3
         var singular = !cross.TryNormalize(out var normalized);
         return new(new(x.Value, y.Value, z.Value), du, dv, singular ? null : Direction3D.Create(normalized), singular);
     }
+
+    public Point3D EvaluatePoint(double u, double v) => Evaluate(u, v).Point;
+    public SurfaceDifferential EvaluateJet1(double u, double v) => Evaluate(u, v);
 }

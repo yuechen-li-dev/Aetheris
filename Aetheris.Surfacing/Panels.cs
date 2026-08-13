@@ -46,18 +46,15 @@ public sealed record PanelEdgeIr(
     IReadOnlyList<BoundaryProvenance> Provenance,
     SemanticValue SemanticValue)
 {
+    /// <summary>The semantic edge as authored, including its directed parameter orientation.</summary>
+    public BoundedParametricCurve3 AuthoredCurve { get; } = BoundedParametricCurve3.FromCurveGeometry(
+        StableId + ":curve", Curve, ParameterStart, ParameterEnd,
+        string.Join(";", Provenance.Select(item => item.SourceIdentity + ":" + item.Role)), StableId);
     public Point3D Start => Evaluate(0);
     public Point3D End => Evaluate(1);
     public Point3D Evaluate(double normalized)
     {
-        var parameter = ParameterStart + Math.Clamp(normalized, 0, 1) * (ParameterEnd - ParameterStart);
-        return Curve.Kind switch
-        {
-            CurveGeometryKind.Line3 => Curve.Line3!.Value.Evaluate(parameter),
-            CurveGeometryKind.Circle3 => Curve.Circle3!.Value.Evaluate(parameter),
-            CurveGeometryKind.BSpline3 => Curve.BSpline3!.Value.Evaluate(parameter),
-            _ => throw new NotSupportedException($"Panel edge curve family '{Curve.Kind}' cannot be evaluated.")
-        };
+        return AuthoredCurve.Evaluate(AuthoredCurve.Domain.Map(normalized));
     }
 
     public double Length(int segments = 64)

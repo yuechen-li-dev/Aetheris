@@ -8,5 +8,6 @@
   <ItemGroup>
     <ProjectReference Include="..\Aetheris.Geometry\Aetheris.Geometry.csproj" />
     <ProjectReference Include="..\Aetheris.Surfacing\Aetheris.Surfacing.csproj" />
+    <ProjectReference Include="..\Aetheris.Piping\Aetheris.Piping.csproj" />
   </ItemGroup>
 </Project>

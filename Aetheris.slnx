@@ -26,6 +26,7 @@
   <Project Path="tools/Aetheris.Continuum.M4C/Aetheris.Continuum.M4C.csproj" />
   <Project Path="tools/Aetheris.Forge.M1Evidence/Aetheris.Forge.M1Evidence.csproj" />
   <Project Path="tools/Aetheris.Geometry.M0Evidence/Aetheris.Geometry.M0Evidence.csproj" />
+  <Project Path="tools/Aetheris.Geometry.M1Evidence/Aetheris.Geometry.M1Evidence.csproj" />
   <Project Path="tools/Aetheris.Continuum.AttentionE0/Aetheris.Continuum.AttentionE0.csproj" />
   <Project Path="tools/Aetheris.Continuum.AttentionE1/Aetheris.Continuum.AttentionE1.csproj" />
   <Project Path="Aetheris.Forge/Aetheris.Forge.csproj" />

@@ -1,0 +1,358 @@
+{
+  "curves": [
+    {
+      "identity": "evidence:line",
+      "Domain": {
+        "Minimum": 0,
+        "Maximum": 10,
+        "Length": 10
+      },
+      "Provenance": {
+        "Source": "evidence",
+        "SemanticOwner": "fixture",
+        "IsGenerated": false
+      },
+      "Representation": 1,
+      "NativeFamily": "Line3",
+      "IsPeriodic": false,
+      "parameter": 0.5,
+      "Point": {
+        "X": 0.5,
+        "Y": 0,
+        "Z": 0
+      },
+      "Derivative": {
+        "X": 1,
+        "Y": 0,
+        "Z": 0,
+        "LengthSquared": 1,
+        "Length": 1
+      },
+      "UnitTangent": {
+        "X": 1,
+        "Y": 0,
+        "Z": 0
+      },
+      "Singularity": 0
+    },
+    {
+      "identity": "evidence:circle",
+      "Domain": {
+        "Minimum": 0,
+        "Maximum": 6.283185307179586,
+        "Length": 6.283185307179586
+      },
+      "Provenance": {
+        "Source": "evidence",
+        "SemanticOwner": "fixture",
+        "IsGenerated": false
+      },
+      "Representation": 1,
+      "NativeFamily": "Circle3",
+      "IsPeriodic": true,
+      "parameter": 1.5707963267948966,
+      "Point": {
+        "X": 3.061616997868383E-16,
+        "Y": 5,
+        "Z": 0
+      },
+      "Derivative": {
+        "X": -5,
+        "Y": 3.061616997868383E-16,
+        "Z": 0,
+        "LengthSquared": 25,
+        "Length": 5
+      },
+      "UnitTangent": {
+        "X": -1,
+        "Y": 6.123233995736766E-17,
+        "Z": 0
+      },
+      "Singularity": 0
+    },
+    {
+      "identity": "evidence:helix",
+      "Domain": {
+        "Minimum": 0,
+        "Maximum": 6.283185307179586,
+        "Length": 6.283185307179586
+      },
+      "Provenance": {
+        "Source": "evidence",
+        "SemanticOwner": "fixture",
+        "IsGenerated": false
+      },
+      "Representation": 0,
+      "NativeFamily": null,
+      "IsPeriodic": false,
+      "parameter": 3.141592653589793,
+      "Point": {
+        "X": -1,
+        "Y": 1.2246467991473532E-16,
+        "Z": 3.141592653589793
+      },
+      "Derivative": {
+        "X": -1.2246467991473532E-16,
+        "Y": -1,
+        "Z": 1,
+        "LengthSquared": 2,
+        "Length": 1.4142135623730951
+      },
+      "UnitTangent": {
+        "X": -8.659560562354934E-17,
+        "Y": -0.7071067811865476,
+        "Z": 0.7071067811865476
+      },
+      "Singularity": 0
+    }
+  ],
+  "panel": [
+    {
+      "identity": "panel:evidence-panel:edge:south:curve",
+      "Domain": {
+        "Minimum": 0,
+        "Maximum": 20.396078054371138,
+        "Length": 20.396078054371138
+      },
+      "Provenance": {
+        "Source": "evidence-panel:South",
+        "SemanticOwner": "panel:evidence-panel:edge:south",
+        "IsGenerated": false
+      },
+      "Representation": 1,
+      "NativeFamily": "Line3",
+      "IsPeriodic": false,
+      "parameter": 0,
+      "Point": {
+        "X": -10,
+        "Y": -5,
+        "Z": 2
+      },
+      "Derivative": {
+        "X": 0.9805806756909202,
+        "Y": 0,
+        "Z": -0.19611613513818404,
+        "LengthSquared": 1.0000000000000002,
+        "Length": 1
+      },
+      "UnitTangent": {
+        "X": 0.9805806756909202,
+        "Y": 0,
+        "Z": -0.19611613513818404
+      },
+      "Singularity": 0
+    },
+    {
+      "identity": "panel:evidence-panel:edge:east:curve",
+      "Domain": {
+        "Minimum": 0,
+        "Maximum": 10.770329614269007,
+        "Length": 10.770329614269007
+      },
+      "Provenance": {
+        "Source": "evidence-panel:East",
+        "SemanticOwner": "panel:evidence-panel:edge:east",
+        "IsGenerated": false
+      },
+      "Representation": 1,
+      "NativeFamily": "Line3",
+      "IsPeriodic": false,
+      "parameter": 0,
+      "Point": {
+        "X": 10,
+        "Y": -5,
+        "Z": -2
+      },
+      "Derivative": {
+        "X": 0,
+        "Y": 0.9284766908852594,
+        "Z": 0.3713906763541037,
+        "LengthSquared": 1.0000000000000002,
+        "Length": 1
+      },
+      "UnitTangent": {
+        "X": 0,
+        "Y": 0.9284766908852594,
+        "Z": 0.3713906763541037
+      },
+      "Singularity": 0
+    },
+    {
+      "identity": "panel:evidence-panel:edge:north:curve",
+      "Domain": {
+        "Minimum": 0,
+        "Maximum": 20.396078054371138,
+        "Length": 20.396078054371138
+      },
+      "Provenance": {
+        "Source": "evidence-panel:North",
+        "SemanticOwner": "panel:evidence-panel:edge:north",
+        "IsGenerated": false
+      },
+      "Representation": 1,
+      "NativeFamily": "Line3",
+      "IsPeriodic": false,
+      "parameter": 0,
+      "Point": {
+        "X": 10,
+        "Y": 5,
+        "Z": 2
+      },
+      "Derivative": {
+        "X": -0.9805806756909202,
+        "Y": -0,
+        "Z": -0.19611613513818404,
+        "LengthSquared": 1.0000000000000002,
+        "Length": 1
+      },
+      "UnitTangent": {
+        "X": -0.9805806756909202,
+        "Y": -0,
+        "Z": -0.19611613513818404
+      },
+      "Singularity": 0
+    },
+    {
+      "identity": "panel:evidence-panel:edge:west:curve",
+      "Domain": {
+        "Minimum": 0,
+        "Maximum": 10.770329614269007,
+        "Length": 10.770329614269007
+      },
+      "Provenance": {
+        "Source": "evidence-panel:West",
+        "SemanticOwner": "panel:evidence-panel:edge:west",
+        "IsGenerated": false
+      },
+      "Representation": 1,
+      "NativeFamily": "Line3",
+      "IsPeriodic": false,
+      "parameter": 0,
+      "Point": {
+        "X": -10,
+        "Y": 5,
+        "Z": -2
+      },
+      "Derivative": {
+        "X": 0,
+        "Y": -0.9284766908852594,
+        "Z": 0.3713906763541037,
+        "LengthSquared": 1.0000000000000002,
+        "Length": 1
+      },
+      "UnitTangent": {
+        "X": 0,
+        "Y": -0.9284766908852594,
+        "Z": 0.3713906763541037
+      },
+      "Singularity": 0
+    }
+  ],
+  "piping": [
+    {
+      "identity": "evidence-route:straight-in",
+      "Domain": {
+        "Minimum": 0,
+        "Maximum": 10,
+        "Length": 10
+      },
+      "Provenance": {
+        "Source": "centerline and four cross-section rings",
+        "SemanticOwner": "evidence-route",
+        "IsGenerated": true
+      },
+      "Representation": 1,
+      "NativeFamily": "Line3",
+      "IsPeriodic": false,
+      "parameter": 0,
+      "Point": {
+        "X": 0,
+        "Y": 0,
+        "Z": 0
+      },
+      "Derivative": {
+        "X": 1,
+        "Y": 0,
+        "Z": 0,
+        "LengthSquared": 1,
+        "Length": 1
+      },
+      "UnitTangent": {
+        "X": 1,
+        "Y": 0,
+        "Z": 0
+      },
+      "Singularity": 0
+    },
+    {
+      "identity": "evidence-route:bend-0",
+      "Domain": {
+        "Minimum": 0,
+        "Maximum": 1.5707963267948966,
+        "Length": 1.5707963267948966
+      },
+      "Provenance": {
+        "Source": "centerline and four cross-section rings",
+        "SemanticOwner": "evidence-route",
+        "IsGenerated": true
+      },
+      "Representation": 1,
+      "NativeFamily": "Circle3",
+      "IsPeriodic": false,
+      "parameter": 0,
+      "Point": {
+        "X": 10,
+        "Y": 0,
+        "Z": 0
+      },
+      "Derivative": {
+        "X": 8,
+        "Y": 0,
+        "Z": -0,
+        "LengthSquared": 64,
+        "Length": 8
+      },
+      "UnitTangent": {
+        "X": 1,
+        "Y": 0,
+        "Z": -0
+      },
+      "Singularity": 0
+    },
+    {
+      "identity": "evidence-route:straight-out",
+      "Domain": {
+        "Minimum": 0,
+        "Maximum": 10,
+        "Length": 10
+      },
+      "Provenance": {
+        "Source": "centerline and four cross-section rings",
+        "SemanticOwner": "evidence-route",
+        "IsGenerated": true
+      },
+      "Representation": 1,
+      "NativeFamily": "Line3",
+      "IsPeriodic": false,
+      "parameter": 0,
+      "Point": {
+        "X": 18,
+        "Y": 8,
+        "Z": 0
+      },
+      "Derivative": {
+        "X": 0,
+        "Y": 1,
+        "Z": 0,
+        "LengthSquared": 1,
+        "Length": 1
+      },
+      "UnitTangent": {
+        "X": 0,
+        "Y": 1,
+        "Z": 0
+      },
+      "Singularity": 0
+    }
+  ]
+}

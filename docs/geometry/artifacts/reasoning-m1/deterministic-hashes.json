@@ -1,0 +1,6 @@
+{
+  "algorithm": "SHA-256",
+  "artifact": "deterministic-evaluations.json",
+  "sha256": "bec8477b73723b0562f823787f38727d4596992f0ea2d310bcc377663eca7634",
+  "invariant": "Same runtime inputs preserve identities, domains, provenance, ordered pieces, evaluations, and first jets."
+}

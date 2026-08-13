@@ -6,6 +6,7 @@ using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Topology;
 using Aetheris.Semantics;
+using Aetheris.Geometry;
 
 namespace Aetheris.Piping;
 
@@ -17,7 +18,20 @@ public abstract record PipeRouteElement(string StableId)
     public sealed record Straight(string Id, Point3D Start, Point3D End) : PipeRouteElement(Id);
     public sealed record PlanarCircularBend(string Id, Point3D Center, double Radius, double AngleRadians) : PipeRouteElement(Id);
 }
-public sealed record PipeRouteIr(string StableId,IReadOnlyList<PipeRouteElement> Elements,string FramePolicy,string BoundaryProvenance);
+public sealed record PipeRouteIr(string StableId,IReadOnlyList<PipeRouteElement> Elements,string FramePolicy,string BoundaryProvenance)
+{
+    /// <summary>Ordered authored centerline pieces; Piping retains ownership of route intent.</summary>
+    public IReadOnlyList<BoundedParametricCurve3> CenterlineCurves { get; } = Elements.Select((element, index) => element switch
+    {
+        PipeRouteElement.Straight line => BoundedParametricCurve3.LineSegment(
+            line.StableId, line.Start, line.End, BoundaryProvenance, StableId, isGenerated: true),
+        PipeRouteElement.PlanarCircularBend bend => BoundedParametricCurve3.FromCurveGeometry(
+            bend.StableId,
+            CurveGeometry.FromCircle(new Circle3Curve(bend.Center, Direction3D.Create(new(0, 0, 1)), bend.Radius, Direction3D.Create(new(0, -1, 0)))),
+            0d, bend.AngleRadians, BoundaryProvenance, StableId, isGenerated: true),
+        _ => throw new NotSupportedException($"Route element {index} has no bounded curve adapter.")
+    }).ToArray();
+}
 public sealed record PipingDiagnostic(string Code,string Message);
 public sealed record PipeRouteResult(BrepBody? Body,SemanticValue? Semantics,PipeRouteIr? Ir,IReadOnlyList<PipingDiagnostic> Diagnostics)
 { public bool IsSuccess=>Body is not null&&Semantics is not null&&Diagnostics.Count==0; }

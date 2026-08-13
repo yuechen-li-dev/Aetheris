@@ -1,0 +1,60 @@
+{
+  "Status": "Available",
+  "Relation": "Coincident",
+  "ComputedDistance": 0,
+  "SquaredDistance": 0,
+  "DistanceLowerBound": 0,
+  "DistanceUpperBound": 0,
+  "PointOnA": {
+    "X": 0,
+    "Y": 0,
+    "Z": 0
+  },
+  "PointOnB": {
+    "X": 0,
+    "Y": 0,
+    "Z": 0
+  },
+  "ParameterOnA": {
+    "T": 0,
+    "U": null,
+    "V": null
+  },
+  "ParameterOnB": {
+    "T": 0,
+    "U": null,
+    "V": null
+  },
+  "ToleranceUsed": {
+    "LinearTolerance": 1E-06,
+    "RelativeTolerance": 1E-12,
+    "ParameterTolerance": 1E-10,
+    "IterationBudget": 96,
+    "SubdivisionBudget": 10000
+  },
+  "Evidence": "Structural",
+  "Residual": 0,
+  "Statistics": {
+    "Iterations": 0,
+    "Subdivisions": 0,
+    "CandidateCount": 0,
+    "BudgetExhausted": false
+  },
+  "IdentityA": {
+    "StableId": "a"
+  },
+  "IdentityB": {
+    "StableId": "a"
+  },
+  "ProvenanceA": {
+    "Source": "M3 evidence",
+    "SemanticOwner": null,
+    "IsGenerated": false
+  },
+  "ProvenanceB": {
+    "Source": "M3 evidence",
+    "SemanticOwner": null,
+    "IsGenerated": false
+  },
+  "Diagnostics": []
+}

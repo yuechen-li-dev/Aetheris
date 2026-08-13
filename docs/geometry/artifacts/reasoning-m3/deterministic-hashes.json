@@ -1,0 +1,32 @@
+{
+  "algorithm": "SHA-256",
+  "excluded": [
+    "performance.json (wall-clock measurement)"
+  ],
+  "files": [
+    {
+      "file": "architecture-and-audit.json",
+      "sha256": "fcc19a6823e8f243c26a6cd54ca4d86f94d94c631e1792adbb197bfe5ce2768b"
+    },
+    {
+      "file": "cad-panel-clearance.json",
+      "sha256": "5c702fb0645df4d1a06e54676a8684114007c2841c3ff74342f2aa11549f1eb3"
+    },
+    {
+      "file": "floating-point-and-tolerance.json",
+      "sha256": "f83470fc5be28cee7380723860653e68b6ecf9a18b0d9780d656f41ffa2aabbe"
+    },
+    {
+      "file": "pair-family-evidence.json",
+      "sha256": "b0ae703b9f5a7875f8d3ed1fb1339a4e792f560a23a825417bc30f7999028978"
+    },
+    {
+      "file": "structural-coincidence.json",
+      "sha256": "e2075918c3c782338496d6a0311f634b3af4fdefc0d9e6a8afc8bd0ffaa4ae99"
+    },
+    {
+      "file": "validation.json",
+      "sha256": "93b370c535a47286773dda5d0cf7a93a7c59c75926cdd1dd6bd25acd3495e451"
+    }
+  ]
+}

@@ -1,0 +1,282 @@
+{
+  "pointCurve": {
+    "Status": "Available",
+    "Relation": "Separated",
+    "ComputedDistance": 3.605551275463989,
+    "SquaredDistance": 12.999999999999998,
+    "DistanceLowerBound": 3.605551275463989,
+    "DistanceUpperBound": 3.605551275463989,
+    "PointOnA": {
+      "X": 12,
+      "Y": 3,
+      "Z": 0
+    },
+    "PointOnB": {
+      "X": 10,
+      "Y": 0,
+      "Z": 0
+    },
+    "ParameterOnA": null,
+    "ParameterOnB": {
+      "T": 10,
+      "U": null,
+      "V": null
+    },
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-06,
+      "RelativeTolerance": 1E-12,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000
+    },
+    "Evidence": "Certified",
+    "Residual": 0,
+    "Statistics": {
+      "Iterations": 0,
+      "Subdivisions": 0,
+      "CandidateCount": 1,
+      "BudgetExhausted": false
+    },
+    "IdentityA": null,
+    "IdentityB": {
+      "StableId": "a"
+    },
+    "ProvenanceA": null,
+    "ProvenanceB": {
+      "Source": "M3 evidence",
+      "SemanticOwner": null,
+      "IsGenerated": false
+    },
+    "Diagnostics": []
+  },
+  "pointPatch": {
+    "Status": "Available",
+    "Relation": "Separated",
+    "ComputedDistance": 1.4142135623730951,
+    "SquaredDistance": 2.0000000000000004,
+    "DistanceLowerBound": 1.4142135623730951,
+    "DistanceUpperBound": 1.4142135623730951,
+    "PointOnA": {
+      "X": 0,
+      "Y": 0,
+      "Z": 2
+    },
+    "PointOnB": {
+      "X": -1,
+      "Y": 0,
+      "Z": 1
+    },
+    "ParameterOnA": null,
+    "ParameterOnB": {
+      "T": null,
+      "U": -1,
+      "V": 0
+    },
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-06,
+      "RelativeTolerance": 1E-12,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000
+    },
+    "Evidence": "ToleranceBounded",
+    "Residual": 0,
+    "Statistics": {
+      "Iterations": 57,
+      "Subdivisions": 1378,
+      "CandidateCount": 1614,
+      "BudgetExhausted": false
+    },
+    "IdentityA": null,
+    "IdentityB": {
+      "StableId": "saddle"
+    },
+    "ProvenanceA": null,
+    "ProvenanceB": {
+      "Source": "M3 evidence",
+      "SemanticOwner": null,
+      "IsGenerated": false
+    },
+    "Diagnostics": []
+  },
+  "curveCurve": {
+    "Status": "Available",
+    "Relation": "Separated",
+    "ComputedDistance": 2,
+    "SquaredDistance": 4,
+    "DistanceLowerBound": 2,
+    "DistanceUpperBound": 2,
+    "PointOnA": {
+      "X": -1,
+      "Y": 1,
+      "Z": 2
+    },
+    "PointOnB": {
+      "X": -1,
+      "Y": 1,
+      "Z": 4
+    },
+    "ParameterOnA": {
+      "T": -1,
+      "U": null,
+      "V": null
+    },
+    "ParameterOnB": {
+      "T": -1,
+      "U": null,
+      "V": null
+    },
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-06,
+      "RelativeTolerance": 1E-12,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000
+    },
+    "Evidence": "ToleranceBounded",
+    "Residual": 0,
+    "Statistics": {
+      "Iterations": 57,
+      "Subdivisions": 1378,
+      "CandidateCount": 1614,
+      "BudgetExhausted": false
+    },
+    "IdentityA": {
+      "StableId": "parabola"
+    },
+    "IdentityB": {
+      "StableId": "parabola-4"
+    },
+    "ProvenanceA": {
+      "Source": "M3 evidence",
+      "SemanticOwner": null,
+      "IsGenerated": false
+    },
+    "ProvenanceB": {
+      "Source": "M3 evidence",
+      "SemanticOwner": null,
+      "IsGenerated": false
+    },
+    "Diagnostics": []
+  },
+  "curvePatch": {
+    "Status": "Available",
+    "Relation": "Separated",
+    "ComputedDistance": 2,
+    "SquaredDistance": 4,
+    "DistanceLowerBound": 2,
+    "DistanceUpperBound": 2,
+    "PointOnA": {
+      "X": -1,
+      "Y": 1,
+      "Z": 2
+    },
+    "PointOnB": {
+      "X": -1,
+      "Y": 1,
+      "Z": 0
+    },
+    "ParameterOnA": {
+      "T": -1,
+      "U": null,
+      "V": null
+    },
+    "ParameterOnB": {
+      "T": null,
+      "U": -1,
+      "V": 1
+    },
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-06,
+      "RelativeTolerance": 1E-12,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000
+    },
+    "Evidence": "ToleranceBounded",
+    "Residual": 0,
+    "Statistics": {
+      "Iterations": 59,
+      "Subdivisions": 5642,
+      "CandidateCount": 6008,
+      "BudgetExhausted": false
+    },
+    "IdentityA": {
+      "StableId": "parabola"
+    },
+    "IdentityB": {
+      "StableId": "plane"
+    },
+    "ProvenanceA": {
+      "Source": "M3 evidence",
+      "SemanticOwner": null,
+      "IsGenerated": false
+    },
+    "ProvenanceB": {
+      "Source": "M3 evidence",
+      "SemanticOwner": null,
+      "IsGenerated": false
+    },
+    "Diagnostics": []
+  },
+  "patchPatch": {
+    "Status": "Available",
+    "Relation": "Separated",
+    "ComputedDistance": 3,
+    "SquaredDistance": 9,
+    "DistanceLowerBound": 3,
+    "DistanceUpperBound": 3,
+    "PointOnA": {
+      "X": -1,
+      "Y": -1,
+      "Z": 0
+    },
+    "PointOnB": {
+      "X": -1,
+      "Y": -1,
+      "Z": 3
+    },
+    "ParameterOnA": {
+      "T": null,
+      "U": -1,
+      "V": -1
+    },
+    "ParameterOnB": {
+      "T": null,
+      "U": -1,
+      "V": -1
+    },
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-06,
+      "RelativeTolerance": 1E-12,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000
+    },
+    "Evidence": "ToleranceBounded",
+    "Residual": 0,
+    "Statistics": {
+      "Iterations": 61,
+      "Subdivisions": 7186,
+      "CandidateCount": 7690,
+      "BudgetExhausted": false
+    },
+    "IdentityA": {
+      "StableId": "plane"
+    },
+    "IdentityB": {
+      "StableId": "plane-3"
+    },
+    "ProvenanceA": {
+      "Source": "M3 evidence",
+      "SemanticOwner": null,
+      "IsGenerated": false
+    },
+    "ProvenanceB": {
+      "Source": "M3 evidence",
+      "SemanticOwner": null,
+      "IsGenerated": false
+    },
+    "Diagnostics": []
+  }
+}

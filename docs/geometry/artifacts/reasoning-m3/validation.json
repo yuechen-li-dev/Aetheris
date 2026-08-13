@@ -1,0 +1,19 @@
+{
+  "milestone": "AETHERIS-GEOMETRY-REASONING-M3",
+  "restore": "passed",
+  "build": {
+    "status": "passed",
+    "warnings": 0,
+    "errors": 0
+  },
+  "tests": {
+    "status": "passed",
+    "fullSolutionPassed": 2731,
+    "postFinalGeometryPassed": 35,
+    "failed": 0,
+    "projectsWithTests": 12,
+    "frictionLabDiscoverableTests": 0
+  },
+  "cli": "dotnet run --project Aetheris.CLI -- --help passed",
+  "gitDiffCheck": "passed"
+}

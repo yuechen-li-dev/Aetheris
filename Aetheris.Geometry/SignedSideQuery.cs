@@ -18,7 +18,10 @@ public enum GeometryQueryDiagnosticCode
     UnsupportedCertifiedExpression,
     SubdivisionBudgetExhausted,
     NonFiniteEvaluation,
-    EvidenceUnavailable
+    EvidenceUnavailable,
+    IterationBudgetExhausted,
+    UnsupportedPairFamily,
+    IllConditionedCandidate
 }
 
 public sealed record GeometryQueryDiagnostic(GeometryQueryDiagnosticCode Code, string Message);

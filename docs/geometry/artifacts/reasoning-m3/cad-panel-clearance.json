@@ -1,0 +1,66 @@
+{
+  "panel": "panel:clearance-panel",
+  "edgeA": "panel:clearance-panel:edge:south",
+  "edgeB": "panel:clearance-panel:edge:north",
+  "result": {
+    "Status": "Available",
+    "Relation": "Separated",
+    "ComputedDistance": 4,
+    "SquaredDistance": 16,
+    "DistanceLowerBound": 4,
+    "DistanceUpperBound": 4,
+    "PointOnA": {
+      "X": -5,
+      "Y": -2,
+      "Z": 0
+    },
+    "PointOnB": {
+      "X": -5,
+      "Y": 2,
+      "Z": 0
+    },
+    "ParameterOnA": {
+      "T": 0,
+      "U": null,
+      "V": null
+    },
+    "ParameterOnB": {
+      "T": 10,
+      "U": null,
+      "V": null
+    },
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-06,
+      "RelativeTolerance": 1E-12,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000
+    },
+    "Evidence": "Certified",
+    "Residual": 0,
+    "Statistics": {
+      "Iterations": 0,
+      "Subdivisions": 0,
+      "CandidateCount": 1,
+      "BudgetExhausted": false
+    },
+    "IdentityA": {
+      "StableId": "panel:clearance-panel:edge:south:curve"
+    },
+    "IdentityB": {
+      "StableId": "panel:clearance-panel:edge:north:curve"
+    },
+    "ProvenanceA": {
+      "Source": "clearance-panel:South",
+      "SemanticOwner": "panel:clearance-panel:edge:south",
+      "IsGenerated": false
+    },
+    "ProvenanceB": {
+      "Source": "clearance-panel:North",
+      "SemanticOwner": "panel:clearance-panel:edge:north",
+      "IsGenerated": false
+    },
+    "Diagnostics": []
+  },
+  "signedSideComposition": "SignedSide remains the separate side classifier; distance adds unsigned minimum clearance."
+}

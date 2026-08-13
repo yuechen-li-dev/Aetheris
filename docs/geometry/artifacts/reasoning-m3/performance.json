@@ -1,0 +1,7 @@
+{
+  "operation": "patch-patch default policy",
+  "iterations": 100,
+  "elapsedMilliseconds": 245.5656,
+  "nanosecondsPerQuery": 2455656,
+  "candidatesPerQuery": 7690
+}

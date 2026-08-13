@@ -1,0 +1,25 @@
+{
+  "ownership": "Aetheris.Geometry",
+  "policy": {
+    "LinearTolerance": 1E-06,
+    "RelativeTolerance": 1E-12,
+    "ParameterTolerance": 1E-10,
+    "IterationBudget": 96,
+    "SubdivisionBudget": 10000
+  },
+  "inventory": [
+    "Kernel.Core: B-rep picking, planar domain, STEP conic recovery, primitive spatial queries",
+    "Continuum: optimized support projection and sampled boundary-offset maps",
+    "Surfacing: public bounded Panel edge curves"
+  ],
+  "intentionallyUnchanged": "Specialized internal projection/maps remain in place; M3 adds shared semantics without repository-wide refactoring.",
+  "algorithms": {
+    "analytic": [
+      "point-line-segment",
+      "segment-segment"
+    ],
+    "generic": "two deterministic whole-domain lattice resolutions plus bounded coordinate refinement",
+    "unknown": "non-finite evaluation or failure to stabilize under budget"
+  },
+  "topologyBoundary": "No intersection topology, contact order, collision response, or motion is authored."
+}

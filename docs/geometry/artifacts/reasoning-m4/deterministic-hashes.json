@@ -1,0 +1,25 @@
+{
+  "algorithm": "SHA-256",
+  "reports": [
+    {
+      "name": "curve-patch",
+      "stable": true,
+      "sha256": "64daee483b9dbe968966397db2088d9eb25b9975bc1086a4c8f0b47afcdc3a52"
+    },
+    {
+      "name": "curve-plane",
+      "stable": true,
+      "sha256": "7d3722b1b83363f6073e4a5b5d0f606b00c0fae22ee844b994e04f6992c6d97c"
+    },
+    {
+      "name": "patch-patch",
+      "stable": true,
+      "sha256": "d381e8479b511be51f592fd49565e899f99bbed507173dc477d6df05cefb35ff"
+    },
+    {
+      "name": "patch-plane",
+      "stable": true,
+      "sha256": "73459552ce46d0cecda868c9f77d9a94b09b446d5ab394c55d0fbbe457eb565f"
+    }
+  ]
+}

@@ -1,0 +1,340 @@
+{
+  "panelPlane": {
+    "Relation": "Disjoint",
+    "Evidence": "Certified",
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-06,
+      "AngularTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "EvidencePreference": "PreferCertified"
+    },
+    "WitnessPoints": [],
+    "Residuals": [],
+    "DomainA": {
+      "Kind": "Patch",
+      "MinimumA": -1,
+      "MaximumA": 1,
+      "MinimumB": -1,
+      "MaximumB": 1
+    },
+    "DomainB": {
+      "Kind": "UnboundedPlane",
+      "MinimumA": null,
+      "MaximumA": null,
+      "MinimumB": null,
+      "MaximumB": null
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 1,
+      "Iterations": 0,
+      "ClosestPointCalls": 0,
+      "CandidateRegions": 1,
+      "BudgetExhausted": false
+    },
+    "OperandA": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "panel"
+      },
+      "Provenance": {
+        "Source": "cad:M4-panel",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Plane",
+      "Identity": null,
+      "Provenance": {
+        "Source": "query-plane",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "SignedSide whole-domain strict-side result",
+    "Diagnostics": [],
+    "IsDefinitelyDisjoint": true,
+    "WitnessesAreAuthoritativeTrims": false
+  },
+  "panelPanelGap": {
+    "Relation": "Disjoint",
+    "Evidence": "ToleranceBounded",
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-06,
+      "AngularTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "EvidencePreference": "PreferCertified"
+    },
+    "WitnessPoints": [],
+    "Residuals": [],
+    "DomainA": {
+      "Kind": "Patch",
+      "MinimumA": -1,
+      "MaximumA": 1,
+      "MinimumB": -1,
+      "MaximumB": 1
+    },
+    "DomainB": {
+      "Kind": "Patch",
+      "MinimumA": -1,
+      "MaximumA": 1,
+      "MinimumB": -1,
+      "MaximumB": 1
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 7186,
+      "Iterations": 61,
+      "ClosestPointCalls": 1,
+      "CandidateRegions": 7690,
+      "BudgetExhausted": false
+    },
+    "OperandA": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "panel"
+      },
+      "Provenance": {
+        "Source": "cad:M4-panel",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "panel-gap"
+      },
+      "Provenance": {
+        "Source": "cad:M4-panel-gap",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "M3 distance gate proves bounded separation",
+    "Diagnostics": [],
+    "IsDefinitelyDisjoint": true,
+    "WitnessesAreAuthoritativeTrims": false
+  },
+  "panelPlaneCrossing": {
+    "Relation": "Crossing",
+    "Evidence": "Certified",
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-06,
+      "AngularTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "EvidencePreference": "PreferCertified"
+    },
+    "WitnessPoints": [
+      {
+        "Point": {
+          "X": -0.75,
+          "Y": -0.75,
+          "Z": -0.75
+        },
+        "PointOnA": {
+          "X": -0.75,
+          "Y": -0.75,
+          "Z": -0.75
+        },
+        "PointOnB": {
+          "X": -0.75,
+          "Y": -0.75,
+          "Z": -0.75
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": -0.75,
+          "V": -0.75
+        },
+        "ParameterOnB": null,
+        "Residual": 0.75,
+        "LocalRelation": "Crossing",
+        "Contact": null
+      },
+      {
+        "Point": {
+          "X": 0.75,
+          "Y": -0.75,
+          "Z": 0.75
+        },
+        "PointOnA": {
+          "X": 0.75,
+          "Y": -0.75,
+          "Z": 0.75
+        },
+        "PointOnB": {
+          "X": 0.75,
+          "Y": -0.75,
+          "Z": 0.75
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": 0.75,
+          "V": -0.75
+        },
+        "ParameterOnB": null,
+        "Residual": 0.75,
+        "LocalRelation": "Crossing",
+        "Contact": null
+      }
+    ],
+    "Residuals": [
+      0.75,
+      0.75
+    ],
+    "DomainA": {
+      "Kind": "Patch",
+      "MinimumA": -1,
+      "MaximumA": 1,
+      "MinimumB": -1,
+      "MaximumB": 1
+    },
+    "DomainB": {
+      "Kind": "UnboundedPlane",
+      "MinimumA": null,
+      "MaximumA": null,
+      "MinimumB": null,
+      "MaximumB": null
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 3,
+      "Iterations": 0,
+      "ClosestPointCalls": 0,
+      "CandidateRegions": 2,
+      "BudgetExhausted": false
+    },
+    "OperandA": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "panel-crossing"
+      },
+      "Provenance": {
+        "Source": "cad:M4-panel-crossing",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Plane",
+      "Identity": null,
+      "Provenance": {
+        "Source": "query-plane",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "SignedSide opposite-side bounded witnesses establish crossing",
+    "Diagnostics": [],
+    "IsDefinitelyDisjoint": false,
+    "WitnessesAreAuthoritativeTrims": false
+  },
+  "panelPlaneTangent": {
+    "Relation": "Touching",
+    "Evidence": "ToleranceBounded",
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-06,
+      "AngularTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "EvidencePreference": "PreferCertified"
+    },
+    "WitnessPoints": [
+      {
+        "Point": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": 0,
+          "V": 0
+        },
+        "ParameterOnB": null,
+        "Residual": 0,
+        "LocalRelation": "TouchingCandidate",
+        "Contact": {
+          "TangentNormalDot": null,
+          "NormalNormalDot": 1,
+          "SignedSecondDerivative": null,
+          "HasSecondJet": true,
+          "Summary": "compatible tangent planes"
+        }
+      }
+    ],
+    "Residuals": [
+      0
+    ],
+    "DomainA": {
+      "Kind": "Patch",
+      "MinimumA": -1,
+      "MaximumA": 1,
+      "MinimumB": -1,
+      "MaximumB": 1
+    },
+    "DomainB": {
+      "Kind": "UnboundedPlane",
+      "MinimumA": null,
+      "MaximumA": null,
+      "MinimumB": null,
+      "MaximumB": null
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 64,
+      "Iterations": 0,
+      "ClosestPointCalls": 0,
+      "CandidateRegions": 1,
+      "BudgetExhausted": true
+    },
+    "OperandA": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "panel-tangent"
+      },
+      "Provenance": {
+        "Source": "cad:M4-panel-tangent",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Plane",
+      "Identity": null,
+      "Provenance": {
+        "Source": "query-plane",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "SignedSide-backed whole-domain one-sided interval plus tangent-plane contact",
+    "Diagnostics": [
+      {
+        "Code": "SubdivisionBudgetExhausted",
+        "Message": "Certification remained inconclusive at depth 6 with leaf budget 10000."
+      }
+    ],
+    "IsDefinitelyDisjoint": false,
+    "WitnessesAreAuthoritativeTrims": false
+  }
+}

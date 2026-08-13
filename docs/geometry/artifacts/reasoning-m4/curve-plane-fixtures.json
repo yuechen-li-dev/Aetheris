@@ -1,0 +1,441 @@
+{
+  "disjoint": {
+    "Relation": "Disjoint",
+    "Evidence": "Certified",
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-06,
+      "AngularTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "EvidencePreference": "PreferCertified"
+    },
+    "WitnessPoints": [],
+    "Residuals": [],
+    "DomainA": {
+      "Kind": "Curve",
+      "MinimumA": 0,
+      "MaximumA": 2,
+      "MinimumB": null,
+      "MaximumB": null
+    },
+    "DomainB": {
+      "Kind": "UnboundedPlane",
+      "MinimumA": null,
+      "MaximumA": null,
+      "MinimumB": null,
+      "MaximumB": null
+    },
+    "Statistics": {
+      "Samples": 257,
+      "Subdivisions": 0,
+      "Iterations": 0,
+      "ClosestPointCalls": 0,
+      "CandidateRegions": 0,
+      "BudgetExhausted": false
+    },
+    "OperandA": {
+      "Kind": "Curve",
+      "Identity": {
+        "StableId": "disjoint-line"
+      },
+      "Provenance": {
+        "Source": "M4 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Plane",
+      "Identity": null,
+      "Provenance": {
+        "Source": "query-plane",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "affine signed scalar has strict bounded endpoint separation",
+    "Diagnostics": [],
+    "IsDefinitelyDisjoint": true,
+    "WitnessesAreAuthoritativeTrims": false
+  },
+  "crossing": {
+    "Relation": "Crossing",
+    "Evidence": "Certified",
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-06,
+      "AngularTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "EvidencePreference": "PreferCertified"
+    },
+    "WitnessPoints": [
+      {
+        "Point": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": 1,
+          "U": null,
+          "V": null
+        },
+        "ParameterOnB": null,
+        "Residual": 0,
+        "LocalRelation": "Crossing",
+        "Contact": {
+          "TangentNormalDot": 1,
+          "NormalNormalDot": null,
+          "SignedSecondDerivative": 0,
+          "HasSecondJet": true,
+          "Summary": "signed scalar crosses transversely"
+        }
+      }
+    ],
+    "Residuals": [
+      0
+    ],
+    "DomainA": {
+      "Kind": "Curve",
+      "MinimumA": 0,
+      "MaximumA": 2,
+      "MinimumB": null,
+      "MaximumB": null
+    },
+    "DomainB": {
+      "Kind": "UnboundedPlane",
+      "MinimumA": null,
+      "MaximumA": null,
+      "MinimumB": null,
+      "MaximumB": null
+    },
+    "Statistics": {
+      "Samples": 257,
+      "Subdivisions": 0,
+      "Iterations": 0,
+      "ClosestPointCalls": 0,
+      "CandidateRegions": 1,
+      "BudgetExhausted": false
+    },
+    "OperandA": {
+      "Kind": "Curve",
+      "Identity": {
+        "StableId": "crossing-line"
+      },
+      "Provenance": {
+        "Source": "M4 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Plane",
+      "Identity": null,
+      "Provenance": {
+        "Source": "query-plane",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "continuous signed scalar has opposite strict-side witnesses",
+    "Diagnostics": [],
+    "IsDefinitelyDisjoint": false,
+    "WitnessesAreAuthoritativeTrims": false
+  },
+  "tangent": {
+    "Relation": "Touching",
+    "Evidence": "ToleranceBounded",
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-06,
+      "AngularTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "EvidencePreference": "PreferCertified"
+    },
+    "WitnessPoints": [
+      {
+        "Point": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": 0,
+          "U": null,
+          "V": null
+        },
+        "ParameterOnB": null,
+        "Residual": 0,
+        "LocalRelation": "TouchingCandidate",
+        "Contact": {
+          "TangentNormalDot": 0,
+          "NormalNormalDot": null,
+          "SignedSecondDerivative": 2,
+          "HasSecondJet": true,
+          "Summary": "stationary signed scalar with second-order observation"
+        }
+      }
+    ],
+    "Residuals": [
+      0
+    ],
+    "DomainA": {
+      "Kind": "Curve",
+      "MinimumA": -1,
+      "MaximumA": 1,
+      "MinimumB": null,
+      "MaximumB": null
+    },
+    "DomainB": {
+      "Kind": "UnboundedPlane",
+      "MinimumA": null,
+      "MaximumA": null,
+      "MinimumB": null,
+      "MaximumB": null
+    },
+    "Statistics": {
+      "Samples": 257,
+      "Subdivisions": 1,
+      "Iterations": 0,
+      "ClosestPointCalls": 0,
+      "CandidateRegions": 1,
+      "BudgetExhausted": false
+    },
+    "OperandA": {
+      "Kind": "Curve",
+      "Identity": {
+        "StableId": "tangent-parabola"
+      },
+      "Provenance": {
+        "Source": "M4 scientific fixture",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Plane",
+      "Identity": null,
+      "Provenance": {
+        "Source": "query-plane",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "whole-domain one-sided interval plus isolated second-order tangent contact",
+    "Diagnostics": [],
+    "IsDefinitelyDisjoint": false,
+    "WitnessesAreAuthoritativeTrims": false
+  },
+  "structuralZero": {
+    "Relation": "Coincident",
+    "Evidence": "Structural",
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-06,
+      "AngularTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "EvidencePreference": "PreferCertified"
+    },
+    "WitnessPoints": [
+      {
+        "Point": {
+          "X": -1,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": -1,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": -1,
+          "Y": 0,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": 0,
+          "U": null,
+          "V": null
+        },
+        "ParameterOnB": null,
+        "Residual": 0,
+        "LocalRelation": "CoincidentCandidate",
+        "Contact": null
+      }
+    ],
+    "Residuals": [
+      0
+    ],
+    "DomainA": {
+      "Kind": "Curve",
+      "MinimumA": 0,
+      "MaximumA": 2,
+      "MinimumB": null,
+      "MaximumB": null
+    },
+    "DomainB": {
+      "Kind": "UnboundedPlane",
+      "MinimumA": null,
+      "MaximumA": null,
+      "MinimumB": null,
+      "MaximumB": null
+    },
+    "Statistics": {
+      "Samples": 257,
+      "Subdivisions": 0,
+      "Iterations": 0,
+      "ClosestPointCalls": 0,
+      "CandidateRegions": 1,
+      "BudgetExhausted": false
+    },
+    "OperandA": {
+      "Kind": "Curve",
+      "Identity": {
+        "StableId": "structural-zero"
+      },
+      "Provenance": {
+        "Source": "M4 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Plane",
+      "Identity": null,
+      "Provenance": {
+        "Source": "query-plane",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "analytic-line/plane structural zero over bounded segment",
+    "Diagnostics": [],
+    "IsDefinitelyDisjoint": false,
+    "WitnessesAreAuthoritativeTrims": false
+  },
+  "unknown": {
+    "Relation": "Unknown",
+    "Evidence": "Unknown",
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-06,
+      "AngularTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "EvidencePreference": "PreferCertified"
+    },
+    "WitnessPoints": [
+      {
+        "Point": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": 0,
+          "U": null,
+          "V": null
+        },
+        "ParameterOnB": null,
+        "Residual": 0,
+        "LocalRelation": "TouchingCandidate",
+        "Contact": {
+          "TangentNormalDot": 0,
+          "NormalNormalDot": null,
+          "SignedSecondDerivative": null,
+          "HasSecondJet": false,
+          "Summary": "stationary signed scalar without second jet"
+        }
+      }
+    ],
+    "Residuals": [
+      0
+    ],
+    "DomainA": {
+      "Kind": "Curve",
+      "MinimumA": -1,
+      "MaximumA": 1,
+      "MinimumB": null,
+      "MaximumB": null
+    },
+    "DomainB": {
+      "Kind": "UnboundedPlane",
+      "MinimumA": null,
+      "MaximumA": null,
+      "MinimumB": null,
+      "MaximumB": null
+    },
+    "Statistics": {
+      "Samples": 257,
+      "Subdivisions": 1,
+      "Iterations": 0,
+      "ClosestPointCalls": 0,
+      "CandidateRegions": 1,
+      "BudgetExhausted": false
+    },
+    "OperandA": {
+      "Kind": "Curve",
+      "Identity": {
+        "StableId": "first-jet-only"
+      },
+      "Provenance": {
+        "Source": "M4 fixture",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Plane",
+      "Identity": null,
+      "Provenance": {
+        "Source": "query-plane",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "local curve/plane contact remains globally inconclusive",
+    "Diagnostics": [
+      {
+        "Code": "InsufficientSecondJetEvidence",
+        "Message": "A local contact candidate does not establish a whole-domain touching relation."
+      }
+    ],
+    "IsDefinitelyDisjoint": false,
+    "WitnessesAreAuthoritativeTrims": false
+  }
+}

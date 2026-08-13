@@ -1,0 +1,21 @@
+{
+  "before": {
+    "Vertices": 8,
+    "Edges": 12,
+    "Faces": 6,
+    "Curves": 12,
+    "Surfaces": 6
+  },
+  "after": {
+    "Vertices": 8,
+    "Edges": 12,
+    "Faces": 6,
+    "Curves": 12,
+    "Surfaces": 6
+  },
+  "unchanged": true,
+  "queryRelation": "Crossing",
+  "witnessesAreAuthoritativeTrims": false,
+  "resultContainsBrep": false,
+  "law": "Generic numerical intersection may establish geometric evidence, but it does not author semantic topology."
+}

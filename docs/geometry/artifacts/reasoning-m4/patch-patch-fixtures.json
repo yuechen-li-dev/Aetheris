@@ -1,0 +1,1211 @@
+{
+  "separated": {
+    "Relation": "Disjoint",
+    "Evidence": "ToleranceBounded",
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-06,
+      "AngularTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "EvidencePreference": "PreferCertified"
+    },
+    "WitnessPoints": [],
+    "Residuals": [],
+    "DomainA": {
+      "Kind": "Patch",
+      "MinimumA": -1,
+      "MaximumA": 1,
+      "MinimumB": -1,
+      "MaximumB": 1
+    },
+    "DomainB": {
+      "Kind": "Patch",
+      "MinimumA": -1,
+      "MaximumA": 1,
+      "MinimumB": -1,
+      "MaximumB": 1
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 7186,
+      "Iterations": 61,
+      "ClosestPointCalls": 1,
+      "CandidateRegions": 7690,
+      "BudgetExhausted": false
+    },
+    "OperandA": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "horizontal"
+      },
+      "Provenance": {
+        "Source": "M4 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "parallel-gap"
+      },
+      "Provenance": {
+        "Source": "M4 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "M3 distance gate proves bounded separation",
+    "Diagnostics": [],
+    "IsDefinitelyDisjoint": true,
+    "WitnessesAreAuthoritativeTrims": false
+  },
+  "transverse": {
+    "Relation": "Crossing",
+    "Evidence": "ToleranceBounded",
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-06,
+      "AngularTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "EvidencePreference": "PreferCertified"
+    },
+    "WitnessPoints": [
+      {
+        "Point": {
+          "X": -0.5,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": -0.5,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": -0.5,
+          "Y": 0,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": -0.5,
+          "V": 0
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": -0.5,
+          "V": 0
+        },
+        "Residual": 0,
+        "LocalRelation": "Crossing",
+        "Contact": {
+          "TangentNormalDot": null,
+          "NormalNormalDot": 0,
+          "SignedSecondDerivative": null,
+          "HasSecondJet": false,
+          "Summary": "interior transverse lattice witness"
+        }
+      },
+      {
+        "Point": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": 0,
+          "V": 0
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": 0,
+          "V": 0
+        },
+        "Residual": 0,
+        "LocalRelation": "Crossing",
+        "Contact": {
+          "TangentNormalDot": null,
+          "NormalNormalDot": 0,
+          "SignedSecondDerivative": null,
+          "HasSecondJet": false,
+          "Summary": "interior transverse lattice witness"
+        }
+      },
+      {
+        "Point": {
+          "X": 0.5,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": 0.5,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0.5,
+          "Y": 0,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": 0.5,
+          "V": 0
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": 0.5,
+          "V": 0
+        },
+        "Residual": 0,
+        "LocalRelation": "Crossing",
+        "Contact": {
+          "TangentNormalDot": null,
+          "NormalNormalDot": 0,
+          "SignedSecondDerivative": null,
+          "HasSecondJet": false,
+          "Summary": "interior transverse lattice witness"
+        }
+      }
+    ],
+    "Residuals": [
+      0,
+      0,
+      0
+    ],
+    "DomainA": {
+      "Kind": "Patch",
+      "MinimumA": -1,
+      "MaximumA": 1,
+      "MinimumB": -1,
+      "MaximumB": 1
+    },
+    "DomainB": {
+      "Kind": "Patch",
+      "MinimumA": -1,
+      "MaximumA": 1,
+      "MinimumB": -1,
+      "MaximumB": 1
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 7186,
+      "Iterations": 61,
+      "ClosestPointCalls": 1,
+      "CandidateRegions": 7690,
+      "BudgetExhausted": false
+    },
+    "OperandA": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "horizontal"
+      },
+      "Provenance": {
+        "Source": "M4 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "vertical"
+      },
+      "Provenance": {
+        "Source": "M4 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "M3 near-zero candidate plus interior transverse tangent planes",
+    "Diagnostics": [],
+    "IsDefinitelyDisjoint": false,
+    "WitnessesAreAuthoritativeTrims": false
+  },
+  "tangentCompatible": {
+    "Relation": "Unknown",
+    "Evidence": "Unknown",
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-06,
+      "AngularTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "EvidencePreference": "PreferCertified"
+    },
+    "WitnessPoints": [
+      {
+        "Point": {
+          "X": -0.5,
+          "Y": -0.5,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": -0.5,
+          "Y": -0.5,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": -0.5,
+          "Y": -0.5,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": -0.5,
+          "V": -0.5
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": -0.5,
+          "V": -0.5
+        },
+        "Residual": 0,
+        "LocalRelation": "TouchingCandidate",
+        "Contact": {
+          "TangentNormalDot": null,
+          "NormalNormalDot": 1,
+          "SignedSecondDerivative": null,
+          "HasSecondJet": false,
+          "Summary": "interior compatible tangent-plane witness"
+        }
+      },
+      {
+        "Point": {
+          "X": -0.5,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": -0.5,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": -0.5,
+          "Y": 0,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": -0.5,
+          "V": 0
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": -0.5,
+          "V": 0
+        },
+        "Residual": 0,
+        "LocalRelation": "TouchingCandidate",
+        "Contact": {
+          "TangentNormalDot": null,
+          "NormalNormalDot": 1,
+          "SignedSecondDerivative": null,
+          "HasSecondJet": false,
+          "Summary": "interior compatible tangent-plane witness"
+        }
+      },
+      {
+        "Point": {
+          "X": -0.5,
+          "Y": 0.5,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": -0.5,
+          "Y": 0.5,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": -0.5,
+          "Y": 0.5,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": -0.5,
+          "V": 0.5
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": -0.5,
+          "V": 0.5
+        },
+        "Residual": 0,
+        "LocalRelation": "TouchingCandidate",
+        "Contact": {
+          "TangentNormalDot": null,
+          "NormalNormalDot": 1,
+          "SignedSecondDerivative": null,
+          "HasSecondJet": false,
+          "Summary": "interior compatible tangent-plane witness"
+        }
+      },
+      {
+        "Point": {
+          "X": 0,
+          "Y": -0.5,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": 0,
+          "Y": -0.5,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0,
+          "Y": -0.5,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": 0,
+          "V": -0.5
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": 0,
+          "V": -0.5
+        },
+        "Residual": 0,
+        "LocalRelation": "TouchingCandidate",
+        "Contact": {
+          "TangentNormalDot": null,
+          "NormalNormalDot": 1,
+          "SignedSecondDerivative": null,
+          "HasSecondJet": false,
+          "Summary": "interior compatible tangent-plane witness"
+        }
+      },
+      {
+        "Point": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": 0,
+          "V": 0
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": 0,
+          "V": 0
+        },
+        "Residual": 0,
+        "LocalRelation": "TouchingCandidate",
+        "Contact": {
+          "TangentNormalDot": null,
+          "NormalNormalDot": 1,
+          "SignedSecondDerivative": null,
+          "HasSecondJet": false,
+          "Summary": "interior compatible tangent-plane witness"
+        }
+      },
+      {
+        "Point": {
+          "X": 0,
+          "Y": 0.5,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": 0,
+          "Y": 0.5,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0,
+          "Y": 0.5,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": 0,
+          "V": 0.5
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": 0,
+          "V": 0.5
+        },
+        "Residual": 0,
+        "LocalRelation": "TouchingCandidate",
+        "Contact": {
+          "TangentNormalDot": null,
+          "NormalNormalDot": 1,
+          "SignedSecondDerivative": null,
+          "HasSecondJet": false,
+          "Summary": "interior compatible tangent-plane witness"
+        }
+      },
+      {
+        "Point": {
+          "X": 0.5,
+          "Y": -0.5,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": 0.5,
+          "Y": -0.5,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0.5,
+          "Y": -0.5,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": 0.5,
+          "V": -0.5
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": 0.5,
+          "V": -0.5
+        },
+        "Residual": 0,
+        "LocalRelation": "TouchingCandidate",
+        "Contact": {
+          "TangentNormalDot": null,
+          "NormalNormalDot": 1,
+          "SignedSecondDerivative": null,
+          "HasSecondJet": false,
+          "Summary": "interior compatible tangent-plane witness"
+        }
+      },
+      {
+        "Point": {
+          "X": 0.5,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": 0.5,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0.5,
+          "Y": 0,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": 0.5,
+          "V": 0
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": 0.5,
+          "V": 0
+        },
+        "Residual": 0,
+        "LocalRelation": "TouchingCandidate",
+        "Contact": {
+          "TangentNormalDot": null,
+          "NormalNormalDot": 1,
+          "SignedSecondDerivative": null,
+          "HasSecondJet": false,
+          "Summary": "interior compatible tangent-plane witness"
+        }
+      },
+      {
+        "Point": {
+          "X": 0.5,
+          "Y": 0.5,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": 0.5,
+          "Y": 0.5,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0.5,
+          "Y": 0.5,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": 0.5,
+          "V": 0.5
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": 0.5,
+          "V": 0.5
+        },
+        "Residual": 0,
+        "LocalRelation": "TouchingCandidate",
+        "Contact": {
+          "TangentNormalDot": null,
+          "NormalNormalDot": 1,
+          "SignedSecondDerivative": null,
+          "HasSecondJet": false,
+          "Summary": "interior compatible tangent-plane witness"
+        }
+      }
+    ],
+    "Residuals": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "DomainA": {
+      "Kind": "Patch",
+      "MinimumA": -1,
+      "MaximumA": 1,
+      "MinimumB": -1,
+      "MaximumB": 1
+    },
+    "DomainB": {
+      "Kind": "Patch",
+      "MinimumA": -1,
+      "MaximumA": 1,
+      "MinimumB": -1,
+      "MaximumB": 1
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 7186,
+      "Iterations": 61,
+      "ClosestPointCalls": 1,
+      "CandidateRegions": 7690,
+      "BudgetExhausted": false
+    },
+    "OperandA": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "horizontal"
+      },
+      "Provenance": {
+        "Source": "M4 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "compatible"
+      },
+      "Provenance": {
+        "Source": "M4 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "local patch contact remains globally inconclusive",
+    "Diagnostics": [
+      {
+        "Code": "AmbiguousOverlap",
+        "Message": "Compatible tangent planes or boundary-only contact do not certify overlap or whole-domain touching."
+      }
+    ],
+    "IsDefinitelyDisjoint": false,
+    "WitnessesAreAuthoritativeTrims": false
+  },
+  "structurallyCoincident": {
+    "Relation": "Coincident",
+    "Evidence": "Structural",
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-06,
+      "AngularTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "EvidencePreference": "PreferCertified"
+    },
+    "WitnessPoints": [
+      {
+        "Point": {
+          "X": -1,
+          "Y": -1,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": -1,
+          "Y": -1,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": -1,
+          "Y": -1,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": -1,
+          "V": -1
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": -1,
+          "V": -1
+        },
+        "Residual": 0,
+        "LocalRelation": "TouchingCandidate",
+        "Contact": {
+          "TangentNormalDot": null,
+          "NormalNormalDot": 1,
+          "SignedSecondDerivative": null,
+          "HasSecondJet": false,
+          "Summary": "compatible tangent planes"
+        }
+      }
+    ],
+    "Residuals": [
+      0
+    ],
+    "DomainA": {
+      "Kind": "Patch",
+      "MinimumA": -1,
+      "MaximumA": 1,
+      "MinimumB": -1,
+      "MaximumB": 1
+    },
+    "DomainB": {
+      "Kind": "Patch",
+      "MinimumA": -1,
+      "MaximumA": 1,
+      "MinimumB": -1,
+      "MaximumB": 1
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 0,
+      "Iterations": 0,
+      "ClosestPointCalls": 1,
+      "CandidateRegions": 0,
+      "BudgetExhausted": false
+    },
+    "OperandA": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "horizontal"
+      },
+      "Provenance": {
+        "Source": "M4 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "horizontal"
+      },
+      "Provenance": {
+        "Source": "M4 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "shared authored geometry identity",
+    "Diagnostics": [],
+    "IsDefinitelyDisjoint": false,
+    "WitnessesAreAuthoritativeTrims": false
+  },
+  "numericalNearZero": {
+    "Relation": "Unknown",
+    "Evidence": "Unknown",
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-06,
+      "AngularTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "EvidencePreference": "PreferCertified"
+    },
+    "WitnessPoints": [
+      {
+        "Point": {
+          "X": -0.5,
+          "Y": -0.5,
+          "Z": 2.5E-07
+        },
+        "PointOnA": {
+          "X": -0.5,
+          "Y": -0.5,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": -0.5,
+          "Y": -0.5,
+          "Z": 5E-07
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": -0.5,
+          "V": -0.5
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": -0.5,
+          "V": -0.5
+        },
+        "Residual": 5E-07,
+        "LocalRelation": "TouchingCandidate",
+        "Contact": {
+          "TangentNormalDot": null,
+          "NormalNormalDot": 1,
+          "SignedSecondDerivative": null,
+          "HasSecondJet": false,
+          "Summary": "interior compatible tangent-plane witness"
+        }
+      },
+      {
+        "Point": {
+          "X": -0.5,
+          "Y": 0,
+          "Z": 2.5E-07
+        },
+        "PointOnA": {
+          "X": -0.5,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": -0.5,
+          "Y": 0,
+          "Z": 5E-07
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": -0.5,
+          "V": 0
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": -0.5,
+          "V": 0
+        },
+        "Residual": 5E-07,
+        "LocalRelation": "TouchingCandidate",
+        "Contact": {
+          "TangentNormalDot": null,
+          "NormalNormalDot": 1,
+          "SignedSecondDerivative": null,
+          "HasSecondJet": false,
+          "Summary": "interior compatible tangent-plane witness"
+        }
+      },
+      {
+        "Point": {
+          "X": -0.5,
+          "Y": 0.5,
+          "Z": 2.5E-07
+        },
+        "PointOnA": {
+          "X": -0.5,
+          "Y": 0.5,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": -0.5,
+          "Y": 0.5,
+          "Z": 5E-07
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": -0.5,
+          "V": 0.5
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": -0.5,
+          "V": 0.5
+        },
+        "Residual": 5E-07,
+        "LocalRelation": "TouchingCandidate",
+        "Contact": {
+          "TangentNormalDot": null,
+          "NormalNormalDot": 1,
+          "SignedSecondDerivative": null,
+          "HasSecondJet": false,
+          "Summary": "interior compatible tangent-plane witness"
+        }
+      },
+      {
+        "Point": {
+          "X": 0,
+          "Y": -0.5,
+          "Z": 2.5E-07
+        },
+        "PointOnA": {
+          "X": 0,
+          "Y": -0.5,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0,
+          "Y": -0.5,
+          "Z": 5E-07
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": 0,
+          "V": -0.5
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": 0,
+          "V": -0.5
+        },
+        "Residual": 5E-07,
+        "LocalRelation": "TouchingCandidate",
+        "Contact": {
+          "TangentNormalDot": null,
+          "NormalNormalDot": 1,
+          "SignedSecondDerivative": null,
+          "HasSecondJet": false,
+          "Summary": "interior compatible tangent-plane witness"
+        }
+      },
+      {
+        "Point": {
+          "X": 0,
+          "Y": 0,
+          "Z": 2.5E-07
+        },
+        "PointOnA": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0,
+          "Y": 0,
+          "Z": 5E-07
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": 0,
+          "V": 0
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": 0,
+          "V": 0
+        },
+        "Residual": 5E-07,
+        "LocalRelation": "TouchingCandidate",
+        "Contact": {
+          "TangentNormalDot": null,
+          "NormalNormalDot": 1,
+          "SignedSecondDerivative": null,
+          "HasSecondJet": false,
+          "Summary": "interior compatible tangent-plane witness"
+        }
+      },
+      {
+        "Point": {
+          "X": 0,
+          "Y": 0.5,
+          "Z": 2.5E-07
+        },
+        "PointOnA": {
+          "X": 0,
+          "Y": 0.5,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0,
+          "Y": 0.5,
+          "Z": 5E-07
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": 0,
+          "V": 0.5
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": 0,
+          "V": 0.5
+        },
+        "Residual": 5E-07,
+        "LocalRelation": "TouchingCandidate",
+        "Contact": {
+          "TangentNormalDot": null,
+          "NormalNormalDot": 1,
+          "SignedSecondDerivative": null,
+          "HasSecondJet": false,
+          "Summary": "interior compatible tangent-plane witness"
+        }
+      },
+      {
+        "Point": {
+          "X": 0.5,
+          "Y": -0.5,
+          "Z": 2.5E-07
+        },
+        "PointOnA": {
+          "X": 0.5,
+          "Y": -0.5,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0.5,
+          "Y": -0.5,
+          "Z": 5E-07
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": 0.5,
+          "V": -0.5
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": 0.5,
+          "V": -0.5
+        },
+        "Residual": 5E-07,
+        "LocalRelation": "TouchingCandidate",
+        "Contact": {
+          "TangentNormalDot": null,
+          "NormalNormalDot": 1,
+          "SignedSecondDerivative": null,
+          "HasSecondJet": false,
+          "Summary": "interior compatible tangent-plane witness"
+        }
+      },
+      {
+        "Point": {
+          "X": 0.5,
+          "Y": 0,
+          "Z": 2.5E-07
+        },
+        "PointOnA": {
+          "X": 0.5,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0.5,
+          "Y": 0,
+          "Z": 5E-07
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": 0.5,
+          "V": 0
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": 0.5,
+          "V": 0
+        },
+        "Residual": 5E-07,
+        "LocalRelation": "TouchingCandidate",
+        "Contact": {
+          "TangentNormalDot": null,
+          "NormalNormalDot": 1,
+          "SignedSecondDerivative": null,
+          "HasSecondJet": false,
+          "Summary": "interior compatible tangent-plane witness"
+        }
+      },
+      {
+        "Point": {
+          "X": 0.5,
+          "Y": 0.5,
+          "Z": 2.5E-07
+        },
+        "PointOnA": {
+          "X": 0.5,
+          "Y": 0.5,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0.5,
+          "Y": 0.5,
+          "Z": 5E-07
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": 0.5,
+          "V": 0.5
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": 0.5,
+          "V": 0.5
+        },
+        "Residual": 5E-07,
+        "LocalRelation": "TouchingCandidate",
+        "Contact": {
+          "TangentNormalDot": null,
+          "NormalNormalDot": 1,
+          "SignedSecondDerivative": null,
+          "HasSecondJet": false,
+          "Summary": "interior compatible tangent-plane witness"
+        }
+      }
+    ],
+    "Residuals": [
+      5E-07,
+      5E-07,
+      5E-07,
+      5E-07,
+      5E-07,
+      5E-07,
+      5E-07,
+      5E-07,
+      5E-07
+    ],
+    "DomainA": {
+      "Kind": "Patch",
+      "MinimumA": -1,
+      "MaximumA": 1,
+      "MinimumB": -1,
+      "MaximumB": 1
+    },
+    "DomainB": {
+      "Kind": "Patch",
+      "MinimumA": -1,
+      "MaximumA": 1,
+      "MinimumB": -1,
+      "MaximumB": 1
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 7186,
+      "Iterations": 61,
+      "ClosestPointCalls": 1,
+      "CandidateRegions": 7690,
+      "BudgetExhausted": false
+    },
+    "OperandA": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "horizontal"
+      },
+      "Provenance": {
+        "Source": "M4 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "near"
+      },
+      "Provenance": {
+        "Source": "M4 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "local patch contact remains globally inconclusive",
+    "Diagnostics": [
+      {
+        "Code": "AmbiguousOverlap",
+        "Message": "Compatible tangent planes or boundary-only contact do not certify overlap or whole-domain touching."
+      }
+    ],
+    "IsDefinitelyDisjoint": false,
+    "WitnessesAreAuthoritativeTrims": false
+  },
+  "budgetLimited": {
+    "Relation": "Unknown",
+    "Evidence": "Unknown",
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-06,
+      "AngularTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 16,
+      "EvidencePreference": "PreferCertified"
+    },
+    "WitnessPoints": [],
+    "Residuals": [],
+    "DomainA": {
+      "Kind": "Patch",
+      "MinimumA": -1,
+      "MaximumA": 1,
+      "MinimumB": -1,
+      "MaximumB": 1
+    },
+    "DomainB": {
+      "Kind": "Patch",
+      "MinimumA": -1,
+      "MaximumA": 1,
+      "MinimumB": -1,
+      "MaximumB": 1
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 0,
+      "Iterations": 0,
+      "ClosestPointCalls": 1,
+      "CandidateRegions": 0,
+      "BudgetExhausted": true
+    },
+    "OperandA": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "horizontal"
+      },
+      "Provenance": {
+        "Source": "M4 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "vertical"
+      },
+      "Provenance": {
+        "Source": "M4 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "M3 distance query exhausted its bounded evidence budget",
+    "Diagnostics": [
+      {
+        "Code": "SubdivisionBudgetExhausted",
+        "Message": "The minimum deterministic 4D lattice requires 97 candidates; policy permits 16."
+      }
+    ],
+    "IsDefinitelyDisjoint": false,
+    "WitnessesAreAuthoritativeTrims": false
+  }
+}

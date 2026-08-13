@@ -1,0 +1,61 @@
+{
+  "note": "Calibration only; no optimization campaign.",
+  "operations": [
+    {
+      "Name": "curve-plane",
+      "iterations": 25,
+      "elapsedMilliseconds": 3.5612,
+      "nanosecondsPerQuery": 142448,
+      "Statistics": {
+        "Samples": 257,
+        "Subdivisions": 0,
+        "Iterations": 0,
+        "ClosestPointCalls": 0,
+        "CandidateRegions": 1,
+        "BudgetExhausted": false
+      }
+    },
+    {
+      "Name": "patch-plane",
+      "iterations": 25,
+      "elapsedMilliseconds": 0.4765,
+      "nanosecondsPerQuery": 19060,
+      "Statistics": {
+        "Samples": 0,
+        "Subdivisions": 3,
+        "Iterations": 0,
+        "ClosestPointCalls": 0,
+        "CandidateRegions": 2,
+        "BudgetExhausted": false
+      }
+    },
+    {
+      "Name": "curve-patch",
+      "iterations": 25,
+      "elapsedMilliseconds": 117.0149,
+      "nanosecondsPerQuery": 4680596,
+      "Statistics": {
+        "Samples": 0,
+        "Subdivisions": 5642,
+        "Iterations": 59,
+        "ClosestPointCalls": 1,
+        "CandidateRegions": 6008,
+        "BudgetExhausted": false
+      }
+    },
+    {
+      "Name": "patch-patch",
+      "iterations": 25,
+      "elapsedMilliseconds": 107.7707,
+      "nanosecondsPerQuery": 4310828,
+      "Statistics": {
+        "Samples": 0,
+        "Subdivisions": 7186,
+        "Iterations": 61,
+        "ClosestPointCalls": 1,
+        "CandidateRegions": 7690,
+        "BudgetExhausted": false
+      }
+    }
+  ]
+}

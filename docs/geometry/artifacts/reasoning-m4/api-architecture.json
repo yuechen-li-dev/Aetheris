@@ -1,0 +1,61 @@
+{
+  "owner": "Aetheris.Geometry",
+  "matrix": [
+    "Curve-Plane",
+    "Patch-Plane",
+    "Curve-Patch",
+    "Patch-Patch"
+  ],
+  "relationStates": [
+    "Disjoint",
+    "Crossing",
+    "Touching",
+    "Coincident",
+    "Overlapping",
+    "Unknown"
+  ],
+  "evidenceClasses": [
+    "Structural",
+    "Certified",
+    "ToleranceBounded",
+    "Sampled",
+    "Heuristic",
+    "Unknown"
+  ],
+  "policy": {
+    "LinearTolerance": 1E-06,
+    "AngularTolerance": 1E-09,
+    "ParameterTolerance": 1E-10,
+    "IterationBudget": 96,
+    "SubdivisionBudget": 10000,
+    "EvidencePreference": "PreferCertified"
+  },
+  "resultFields": [
+    "Relation",
+    "Evidence",
+    "ToleranceUsed",
+    "WitnessPoints",
+    "Residuals",
+    "DomainA",
+    "DomainB",
+    "Statistics",
+    "OperandA",
+    "OperandB",
+    "Provenance",
+    "Diagnostics",
+    "IsDefinitelyDisjoint",
+    "WitnessesAreAuthoritativeTrims"
+  ],
+  "witnessFields": [
+    "Point",
+    "PointOnA",
+    "PointOnB",
+    "ParameterOnA",
+    "ParameterOnB",
+    "Residual",
+    "LocalRelation",
+    "Contact"
+  ],
+  "witnessAuthority": "EvidenceOnly; NonAuthoritative; NonExportableAsTrim",
+  "futureSeam": "ContactClassification / ContactOrder (not implemented)"
+}

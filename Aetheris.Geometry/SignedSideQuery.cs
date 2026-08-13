@@ -21,7 +21,10 @@ public enum GeometryQueryDiagnosticCode
     EvidenceUnavailable,
     IterationBudgetExhausted,
     UnsupportedPairFamily,
-    IllConditionedCandidate
+    IllConditionedCandidate,
+    AmbiguousOverlap,
+    InsufficientSecondJetEvidence,
+    ConflictingLocalRelations
 }
 
 public sealed record GeometryQueryDiagnostic(GeometryQueryDiagnosticCode Code, string Message);

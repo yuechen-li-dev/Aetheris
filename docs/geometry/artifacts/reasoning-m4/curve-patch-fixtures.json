@@ -1,0 +1,338 @@
+{
+  "separated": {
+    "Relation": "Disjoint",
+    "Evidence": "ToleranceBounded",
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-06,
+      "AngularTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "EvidencePreference": "PreferCertified"
+    },
+    "WitnessPoints": [],
+    "Residuals": [],
+    "DomainA": {
+      "Kind": "Curve",
+      "MinimumA": 0,
+      "MaximumA": 2,
+      "MinimumB": null,
+      "MaximumB": null
+    },
+    "DomainB": {
+      "Kind": "Patch",
+      "MinimumA": -1,
+      "MaximumA": 1,
+      "MinimumB": -1,
+      "MaximumB": 1
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 5642,
+      "Iterations": 59,
+      "ClosestPointCalls": 1,
+      "CandidateRegions": 6008,
+      "BudgetExhausted": false
+    },
+    "OperandA": {
+      "Kind": "Curve",
+      "Identity": {
+        "StableId": "disjoint-line"
+      },
+      "Provenance": {
+        "Source": "M4 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "horizontal"
+      },
+      "Provenance": {
+        "Source": "M4 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "M3 distance gate proves bounded separation",
+    "Diagnostics": [],
+    "IsDefinitelyDisjoint": true,
+    "WitnessesAreAuthoritativeTrims": false
+  },
+  "transverse": {
+    "Relation": "Crossing",
+    "Evidence": "ToleranceBounded",
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-06,
+      "AngularTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "EvidencePreference": "PreferCertified"
+    },
+    "WitnessPoints": [
+      {
+        "Point": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": 1,
+          "U": null,
+          "V": null
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": 0,
+          "V": 0
+        },
+        "Residual": 0,
+        "LocalRelation": "Crossing",
+        "Contact": {
+          "TangentNormalDot": 1,
+          "NormalNormalDot": null,
+          "SignedSecondDerivative": null,
+          "HasSecondJet": false,
+          "Summary": "transverse curve tangent and patch normal"
+        }
+      }
+    ],
+    "Residuals": [
+      0
+    ],
+    "DomainA": {
+      "Kind": "Curve",
+      "MinimumA": 0,
+      "MaximumA": 2,
+      "MinimumB": null,
+      "MaximumB": null
+    },
+    "DomainB": {
+      "Kind": "Patch",
+      "MinimumA": -1,
+      "MaximumA": 1,
+      "MinimumB": -1,
+      "MaximumB": 1
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 5642,
+      "Iterations": 59,
+      "ClosestPointCalls": 1,
+      "CandidateRegions": 6008,
+      "BudgetExhausted": false
+    },
+    "OperandA": {
+      "Kind": "Curve",
+      "Identity": {
+        "StableId": "crossing-line"
+      },
+      "Provenance": {
+        "Source": "M4 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "horizontal"
+      },
+      "Provenance": {
+        "Source": "M4 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "M3 near-zero candidate plus interior transverse tangent/normal evidence",
+    "Diagnostics": [],
+    "IsDefinitelyDisjoint": false,
+    "WitnessesAreAuthoritativeTrims": false
+  },
+  "nearContact": {
+    "Relation": "Unknown",
+    "Evidence": "Unknown",
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-06,
+      "AngularTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "EvidencePreference": "PreferCertified"
+    },
+    "WitnessPoints": [
+      {
+        "Point": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": 0.5,
+          "U": null,
+          "V": null
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": 0,
+          "V": 0
+        },
+        "Residual": 0,
+        "LocalRelation": "TouchingCandidate",
+        "Contact": {
+          "TangentNormalDot": 0,
+          "NormalNormalDot": null,
+          "SignedSecondDerivative": null,
+          "HasSecondJet": false,
+          "Summary": "interior tangent lattice witness"
+        }
+      }
+    ],
+    "Residuals": [
+      0
+    ],
+    "DomainA": {
+      "Kind": "Curve",
+      "MinimumA": 0,
+      "MaximumA": 1,
+      "MinimumB": null,
+      "MaximumB": null
+    },
+    "DomainB": {
+      "Kind": "Patch",
+      "MinimumA": -1,
+      "MaximumA": 1,
+      "MinimumB": -1,
+      "MaximumB": 1
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 5642,
+      "Iterations": 59,
+      "ClosestPointCalls": 1,
+      "CandidateRegions": 6008,
+      "BudgetExhausted": false
+    },
+    "OperandA": {
+      "Kind": "Curve",
+      "Identity": {
+        "StableId": "in-plane"
+      },
+      "Provenance": {
+        "Source": "M4 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "horizontal"
+      },
+      "Provenance": {
+        "Source": "M4 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "local contact candidate remains globally inconclusive",
+    "Diagnostics": [
+      {
+        "Code": "InsufficientSecondJetEvidence",
+        "Message": "Near-zero distance and local tangency do not establish whole-domain touching."
+      }
+    ],
+    "IsDefinitelyDisjoint": false,
+    "WitnessesAreAuthoritativeTrims": false
+  },
+  "budgetLimited": {
+    "Relation": "Unknown",
+    "Evidence": "Unknown",
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-06,
+      "AngularTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 16,
+      "EvidencePreference": "PreferCertified"
+    },
+    "WitnessPoints": [],
+    "Residuals": [],
+    "DomainA": {
+      "Kind": "Curve",
+      "MinimumA": 0,
+      "MaximumA": 2,
+      "MinimumB": null,
+      "MaximumB": null
+    },
+    "DomainB": {
+      "Kind": "Patch",
+      "MinimumA": -1,
+      "MaximumA": 1,
+      "MinimumB": -1,
+      "MaximumB": 1
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 0,
+      "Iterations": 0,
+      "ClosestPointCalls": 1,
+      "CandidateRegions": 0,
+      "BudgetExhausted": true
+    },
+    "OperandA": {
+      "Kind": "Curve",
+      "Identity": {
+        "StableId": "crossing-line"
+      },
+      "Provenance": {
+        "Source": "M4 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "horizontal"
+      },
+      "Provenance": {
+        "Source": "M4 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "M3 distance query exhausted its bounded evidence budget",
+    "Diagnostics": [
+      {
+        "Code": "SubdivisionBudgetExhausted",
+        "Message": "The minimum deterministic 3D lattice requires 35 candidates; policy permits 16."
+      }
+    ],
+    "IsDefinitelyDisjoint": false,
+    "WitnessesAreAuthoritativeTrims": false
+  }
+}

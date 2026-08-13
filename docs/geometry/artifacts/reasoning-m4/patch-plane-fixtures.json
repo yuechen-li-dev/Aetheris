@@ -1,0 +1,440 @@
+{
+  "disjoint": {
+    "Relation": "Disjoint",
+    "Evidence": "Certified",
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-06,
+      "AngularTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "EvidencePreference": "PreferCertified"
+    },
+    "WitnessPoints": [],
+    "Residuals": [],
+    "DomainA": {
+      "Kind": "Patch",
+      "MinimumA": -1,
+      "MaximumA": 1,
+      "MinimumB": -1,
+      "MaximumB": 1
+    },
+    "DomainB": {
+      "Kind": "UnboundedPlane",
+      "MinimumA": null,
+      "MaximumA": null,
+      "MinimumB": null,
+      "MaximumB": null
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 1,
+      "Iterations": 0,
+      "ClosestPointCalls": 0,
+      "CandidateRegions": 1,
+      "BudgetExhausted": false
+    },
+    "OperandA": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "patch-above"
+      },
+      "Provenance": {
+        "Source": "M4 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Plane",
+      "Identity": null,
+      "Provenance": {
+        "Source": "query-plane",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "SignedSide whole-domain strict-side result",
+    "Diagnostics": [],
+    "IsDefinitelyDisjoint": true,
+    "WitnessesAreAuthoritativeTrims": false
+  },
+  "crossing": {
+    "Relation": "Crossing",
+    "Evidence": "Certified",
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-06,
+      "AngularTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "EvidencePreference": "PreferCertified"
+    },
+    "WitnessPoints": [
+      {
+        "Point": {
+          "X": -0.75,
+          "Y": -0.75,
+          "Z": -0.75
+        },
+        "PointOnA": {
+          "X": -0.75,
+          "Y": -0.75,
+          "Z": -0.75
+        },
+        "PointOnB": {
+          "X": -0.75,
+          "Y": -0.75,
+          "Z": -0.75
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": -0.75,
+          "V": -0.75
+        },
+        "ParameterOnB": null,
+        "Residual": 0.75,
+        "LocalRelation": "Crossing",
+        "Contact": null
+      },
+      {
+        "Point": {
+          "X": 0.75,
+          "Y": -0.75,
+          "Z": 0.75
+        },
+        "PointOnA": {
+          "X": 0.75,
+          "Y": -0.75,
+          "Z": 0.75
+        },
+        "PointOnB": {
+          "X": 0.75,
+          "Y": -0.75,
+          "Z": 0.75
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": 0.75,
+          "V": -0.75
+        },
+        "ParameterOnB": null,
+        "Residual": 0.75,
+        "LocalRelation": "Crossing",
+        "Contact": null
+      }
+    ],
+    "Residuals": [
+      0.75,
+      0.75
+    ],
+    "DomainA": {
+      "Kind": "Patch",
+      "MinimumA": -1,
+      "MaximumA": 1,
+      "MinimumB": -1,
+      "MaximumB": 1
+    },
+    "DomainB": {
+      "Kind": "UnboundedPlane",
+      "MinimumA": null,
+      "MaximumA": null,
+      "MinimumB": null,
+      "MaximumB": null
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 3,
+      "Iterations": 0,
+      "ClosestPointCalls": 0,
+      "CandidateRegions": 2,
+      "BudgetExhausted": false
+    },
+    "OperandA": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "crossing-saddle"
+      },
+      "Provenance": {
+        "Source": "M4 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Plane",
+      "Identity": null,
+      "Provenance": {
+        "Source": "query-plane",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "SignedSide opposite-side bounded witnesses establish crossing",
+    "Diagnostics": [],
+    "IsDefinitelyDisjoint": false,
+    "WitnessesAreAuthoritativeTrims": false
+  },
+  "tangent": {
+    "Relation": "Touching",
+    "Evidence": "ToleranceBounded",
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-06,
+      "AngularTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "EvidencePreference": "PreferCertified"
+    },
+    "WitnessPoints": [
+      {
+        "Point": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": 0,
+          "V": 0
+        },
+        "ParameterOnB": null,
+        "Residual": 0,
+        "LocalRelation": "TouchingCandidate",
+        "Contact": {
+          "TangentNormalDot": null,
+          "NormalNormalDot": 1,
+          "SignedSecondDerivative": null,
+          "HasSecondJet": true,
+          "Summary": "compatible tangent planes"
+        }
+      }
+    ],
+    "Residuals": [
+      0
+    ],
+    "DomainA": {
+      "Kind": "Patch",
+      "MinimumA": -1,
+      "MaximumA": 1,
+      "MinimumB": -1,
+      "MaximumB": 1
+    },
+    "DomainB": {
+      "Kind": "UnboundedPlane",
+      "MinimumA": null,
+      "MaximumA": null,
+      "MinimumB": null,
+      "MaximumB": null
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 64,
+      "Iterations": 0,
+      "ClosestPointCalls": 0,
+      "CandidateRegions": 1,
+      "BudgetExhausted": true
+    },
+    "OperandA": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "tangent-paraboloid"
+      },
+      "Provenance": {
+        "Source": "M4 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Plane",
+      "Identity": null,
+      "Provenance": {
+        "Source": "query-plane",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "SignedSide-backed whole-domain one-sided interval plus tangent-plane contact",
+    "Diagnostics": [
+      {
+        "Code": "SubdivisionBudgetExhausted",
+        "Message": "Certification remained inconclusive at depth 6 with leaf budget 10000."
+      }
+    ],
+    "IsDefinitelyDisjoint": false,
+    "WitnessesAreAuthoritativeTrims": false
+  },
+  "toleranceSensitivity": {
+    "loose": {
+      "Relation": "Touching",
+      "Evidence": "ToleranceBounded",
+      "ToleranceUsed": {
+        "LinearTolerance": 1E-06,
+        "AngularTolerance": 1E-09,
+        "ParameterTolerance": 1E-10,
+        "IterationBudget": 96,
+        "SubdivisionBudget": 10000,
+        "EvidencePreference": "PreferCertified"
+      },
+      "WitnessPoints": [
+        {
+          "Point": {
+            "X": -1,
+            "Y": -1,
+            "Z": 5E-07
+          },
+          "PointOnA": {
+            "X": -1,
+            "Y": -1,
+            "Z": 5E-07
+          },
+          "PointOnB": {
+            "X": -1,
+            "Y": -1,
+            "Z": 5E-07
+          },
+          "ParameterOnA": {
+            "T": null,
+            "U": -1,
+            "V": -1
+          },
+          "ParameterOnB": null,
+          "Residual": 5E-07,
+          "LocalRelation": "TouchingCandidate",
+          "Contact": {
+            "TangentNormalDot": null,
+            "NormalNormalDot": 1,
+            "SignedSecondDerivative": null,
+            "HasSecondJet": true,
+            "Summary": "compatible tangent planes"
+          }
+        }
+      ],
+      "Residuals": [
+        5E-07
+      ],
+      "DomainA": {
+        "Kind": "Patch",
+        "MinimumA": -1,
+        "MaximumA": 1,
+        "MinimumB": -1,
+        "MaximumB": 1
+      },
+      "DomainB": {
+        "Kind": "UnboundedPlane",
+        "MinimumA": null,
+        "MaximumA": null,
+        "MinimumB": null,
+        "MaximumB": null
+      },
+      "Statistics": {
+        "Samples": 0,
+        "Subdivisions": 4096,
+        "Iterations": 0,
+        "ClosestPointCalls": 0,
+        "CandidateRegions": 1,
+        "BudgetExhausted": true
+      },
+      "OperandA": {
+        "Kind": "Patch",
+        "Identity": {
+          "StableId": "near-plane-loose"
+        },
+        "Provenance": {
+          "Source": "M4 evidence",
+          "SemanticOwner": null,
+          "IsGenerated": false
+        }
+      },
+      "OperandB": {
+        "Kind": "Plane",
+        "Identity": null,
+        "Provenance": {
+          "Source": "query-plane",
+          "SemanticOwner": null,
+          "IsGenerated": false
+        }
+      },
+      "Provenance": "SignedSide-backed whole-domain one-sided interval plus tangent-plane contact",
+      "Diagnostics": [
+        {
+          "Code": "SubdivisionBudgetExhausted",
+          "Message": "Certification remained inconclusive at depth 6 with leaf budget 10000."
+        }
+      ],
+      "IsDefinitelyDisjoint": false,
+      "WitnessesAreAuthoritativeTrims": false
+    },
+    "tight": {
+      "Relation": "Disjoint",
+      "Evidence": "Certified",
+      "ToleranceUsed": {
+        "LinearTolerance": 1E-08,
+        "AngularTolerance": 1E-09,
+        "ParameterTolerance": 1E-10,
+        "IterationBudget": 96,
+        "SubdivisionBudget": 10000,
+        "EvidencePreference": "PreferCertified"
+      },
+      "WitnessPoints": [],
+      "Residuals": [],
+      "DomainA": {
+        "Kind": "Patch",
+        "MinimumA": -1,
+        "MaximumA": 1,
+        "MinimumB": -1,
+        "MaximumB": 1
+      },
+      "DomainB": {
+        "Kind": "UnboundedPlane",
+        "MinimumA": null,
+        "MaximumA": null,
+        "MinimumB": null,
+        "MaximumB": null
+      },
+      "Statistics": {
+        "Samples": 0,
+        "Subdivisions": 1,
+        "Iterations": 0,
+        "ClosestPointCalls": 0,
+        "CandidateRegions": 1,
+        "BudgetExhausted": false
+      },
+      "OperandA": {
+        "Kind": "Patch",
+        "Identity": {
+          "StableId": "near-plane-tight"
+        },
+        "Provenance": {
+          "Source": "M4 evidence",
+          "SemanticOwner": null,
+          "IsGenerated": false
+        }
+      },
+      "OperandB": {
+        "Kind": "Plane",
+        "Identity": null,
+        "Provenance": {
+          "Source": "query-plane",
+          "SemanticOwner": null,
+          "IsGenerated": false
+        }
+      },
+      "Provenance": "SignedSide whole-domain strict-side result",
+      "Diagnostics": [],
+      "IsDefinitelyDisjoint": true,
+      "WitnessesAreAuthoritativeTrims": false
+    }
+  }
+}

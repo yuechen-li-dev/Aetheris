@@ -1,0 +1,836 @@
+{
+  "transverse": {
+    "Classification": "Transverse",
+    "Evidence": "ToleranceBounded",
+    "Scope": "Local",
+    "Witnesses": [
+      {
+        "Point": {
+          "X": -0.5,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": -0.5,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": -0.5,
+          "Y": 0,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": -0.5,
+          "V": 0
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": -0.5,
+          "V": 0
+        },
+        "Residual": 0,
+        "TangentRelation": "Transverse",
+        "NormalRelation": "NonParallel",
+        "CurvatureRelation": "NotApplicable",
+        "Derivatives": [],
+        "DirectionalObservations": []
+      }
+    ],
+    "DistanceRelation": "WithinTolerance",
+    "IntersectionRelation": "Crossing",
+    "SideRelation": null,
+    "TangentRelation": "Transverse",
+    "NormalRelation": "NonParallel",
+    "CurvatureRelation": "NotApplicable",
+    "OrderEvidence": {
+      "Status": "Unknown",
+      "Order": null,
+      "ProvenLowerBound": null,
+      "MaximumDerivativeOrderChecked": 1,
+      "Evidence": "Unknown",
+      "Diagnostic": "Patch/patch has no generic scalar integer order."
+    },
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-09,
+      "AngularTolerance": 1E-09,
+      "CurvatureTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "MaximumDerivativeOrderObserved": 2
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 7186,
+      "Iterations": 61,
+      "ClosestPointCalls": 1,
+      "CandidateRegions": 7690,
+      "BudgetExhausted": false
+    },
+    "Diagnostics": [],
+    "OperandA": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "horizontal"
+      },
+      "Provenance": {
+        "Source": "M5 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "vertical"
+      },
+      "Provenance": {
+        "Source": "M5 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "ContactQuery composed from M3 near-zero candidate plus interior transverse tangent planes",
+    "ContactExists": true,
+    "HasTopologyAuthority": false
+  },
+  "firstOrderCompatibleSecondOrderIncompatible": {
+    "Classification": "Tangent",
+    "Evidence": "ToleranceBounded",
+    "Scope": "Local",
+    "Witnesses": [
+      {
+        "Point": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": 0,
+          "V": 0
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": 0,
+          "V": 0
+        },
+        "Residual": 0,
+        "TangentRelation": "Compatible",
+        "NormalRelation": "Parallel",
+        "CurvatureRelation": "Separating",
+        "Derivatives": [],
+        "DirectionalObservations": [
+          {
+            "TangentDirection": {
+              "X": 1,
+              "Y": 0,
+              "Z": 0
+            },
+            "NormalCurvatureA": 0,
+            "NormalCurvatureB": 2,
+            "Difference": -2,
+            "Relation": "Separating",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Geometric normal curvatures compared in a shared physical tangent direction."
+          },
+          {
+            "TangentDirection": {
+              "X": 0,
+              "Y": 1,
+              "Z": 0
+            },
+            "NormalCurvatureA": 0,
+            "NormalCurvatureB": 2,
+            "Difference": -2,
+            "Relation": "Separating",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Geometric normal curvatures compared in a shared physical tangent direction."
+          },
+          {
+            "TangentDirection": {
+              "X": 0.7071067811865476,
+              "Y": 0.7071067811865476,
+              "Z": 0
+            },
+            "NormalCurvatureA": 0,
+            "NormalCurvatureB": 2,
+            "Difference": -2,
+            "Relation": "Separating",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Geometric normal curvatures compared in a shared physical tangent direction."
+          }
+        ]
+      }
+    ],
+    "DistanceRelation": "WithinTolerance",
+    "IntersectionRelation": "Unknown",
+    "SideRelation": null,
+    "TangentRelation": "Compatible",
+    "NormalRelation": "Parallel",
+    "CurvatureRelation": "Separating",
+    "OrderEvidence": {
+      "Status": "Unknown",
+      "Order": null,
+      "ProvenLowerBound": null,
+      "MaximumDerivativeOrderChecked": 2,
+      "Evidence": "Unknown",
+      "Diagnostic": "Patch/patch reports geometric directional compatibility and never assigns integer multiplicity."
+    },
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-09,
+      "AngularTolerance": 1E-09,
+      "CurvatureTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "MaximumDerivativeOrderObserved": 2
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 7186,
+      "Iterations": 61,
+      "ClosestPointCalls": 1,
+      "CandidateRegions": 7690,
+      "BudgetExhausted": false
+    },
+    "Diagnostics": [
+      {
+        "Code": "AmbiguousOverlap",
+        "Message": "Compatible tangent planes or boundary-only contact do not certify overlap or whole-domain touching."
+      }
+    ],
+    "OperandA": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "horizontal"
+      },
+      "Provenance": {
+        "Source": "M5 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "patch-bowl"
+      },
+      "Provenance": {
+        "Source": "M5 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "ContactQuery composed from local patch contact remains globally inconclusive",
+    "ContactExists": true,
+    "HasTopologyAuthority": false
+  },
+  "secondOrderCompatible": {
+    "Classification": "SecondOrderCompatible",
+    "Evidence": "ToleranceBounded",
+    "Scope": "Local",
+    "Witnesses": [
+      {
+        "Point": {
+          "X": -0.5,
+          "Y": -0.5,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": -0.5,
+          "Y": -0.5,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": -0.5,
+          "Y": -0.5,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": -0.5,
+          "V": -0.5
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": -0.5,
+          "V": -0.5
+        },
+        "Residual": 0,
+        "TangentRelation": "Compatible",
+        "NormalRelation": "Parallel",
+        "CurvatureRelation": "Compatible",
+        "Derivatives": [],
+        "DirectionalObservations": [
+          {
+            "TangentDirection": {
+              "X": 1,
+              "Y": 0,
+              "Z": 0
+            },
+            "NormalCurvatureA": 0,
+            "NormalCurvatureB": 0,
+            "Difference": 0,
+            "Relation": "Compatible",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Geometric normal curvatures compared in a shared physical tangent direction."
+          },
+          {
+            "TangentDirection": {
+              "X": 0,
+              "Y": 1,
+              "Z": 0
+            },
+            "NormalCurvatureA": 0,
+            "NormalCurvatureB": 0,
+            "Difference": 0,
+            "Relation": "Compatible",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Geometric normal curvatures compared in a shared physical tangent direction."
+          },
+          {
+            "TangentDirection": {
+              "X": 0.7071067811865476,
+              "Y": 0.7071067811865476,
+              "Z": 0
+            },
+            "NormalCurvatureA": 0,
+            "NormalCurvatureB": 0,
+            "Difference": 0,
+            "Relation": "Compatible",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Geometric normal curvatures compared in a shared physical tangent direction."
+          }
+        ]
+      }
+    ],
+    "DistanceRelation": "WithinTolerance",
+    "IntersectionRelation": "Unknown",
+    "SideRelation": null,
+    "TangentRelation": "Compatible",
+    "NormalRelation": "Parallel",
+    "CurvatureRelation": "Compatible",
+    "OrderEvidence": {
+      "Status": "Unknown",
+      "Order": null,
+      "ProvenLowerBound": null,
+      "MaximumDerivativeOrderChecked": 2,
+      "Evidence": "Unknown",
+      "Diagnostic": "Patch/patch reports geometric directional compatibility and never assigns integer multiplicity."
+    },
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-09,
+      "AngularTolerance": 1E-09,
+      "CurvatureTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "MaximumDerivativeOrderObserved": 2
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 7186,
+      "Iterations": 61,
+      "ClosestPointCalls": 1,
+      "CandidateRegions": 7690,
+      "BudgetExhausted": false
+    },
+    "Diagnostics": [
+      {
+        "Code": "AmbiguousOverlap",
+        "Message": "Compatible tangent planes or boundary-only contact do not certify overlap or whole-domain touching."
+      }
+    ],
+    "OperandA": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "horizontal"
+      },
+      "Provenance": {
+        "Source": "M5 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "distinct-flat"
+      },
+      "Provenance": {
+        "Source": "M5 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "ContactQuery composed from local patch contact remains globally inconclusive",
+    "ContactExists": true,
+    "HasTopologyAuthority": false
+  },
+  "directional": {
+    "Classification": "Tangent",
+    "Evidence": "ToleranceBounded",
+    "Scope": "Local",
+    "Witnesses": [
+      {
+        "Point": {
+          "X": 0,
+          "Y": -0.5,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": 0,
+          "Y": -0.5,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0,
+          "Y": -0.5,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": 0,
+          "V": -0.5
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": 0,
+          "V": -0.5
+        },
+        "Residual": 0,
+        "TangentRelation": "Compatible",
+        "NormalRelation": "Parallel",
+        "CurvatureRelation": "DirectionDependent",
+        "Derivatives": [],
+        "DirectionalObservations": [
+          {
+            "TangentDirection": {
+              "X": 1,
+              "Y": 0,
+              "Z": 0
+            },
+            "NormalCurvatureA": 0,
+            "NormalCurvatureB": 2,
+            "Difference": -2,
+            "Relation": "Separating",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Geometric normal curvatures compared in a shared physical tangent direction."
+          },
+          {
+            "TangentDirection": {
+              "X": 0,
+              "Y": 1,
+              "Z": 0
+            },
+            "NormalCurvatureA": 0,
+            "NormalCurvatureB": 0,
+            "Difference": 0,
+            "Relation": "Compatible",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Geometric normal curvatures compared in a shared physical tangent direction."
+          },
+          {
+            "TangentDirection": {
+              "X": 0.7071067811865476,
+              "Y": 0.7071067811865476,
+              "Z": 0
+            },
+            "NormalCurvatureA": 0,
+            "NormalCurvatureB": 1,
+            "Difference": -1,
+            "Relation": "Separating",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Geometric normal curvatures compared in a shared physical tangent direction."
+          }
+        ]
+      }
+    ],
+    "DistanceRelation": "WithinTolerance",
+    "IntersectionRelation": "Unknown",
+    "SideRelation": null,
+    "TangentRelation": "Compatible",
+    "NormalRelation": "Parallel",
+    "CurvatureRelation": "DirectionDependent",
+    "OrderEvidence": {
+      "Status": "Unknown",
+      "Order": null,
+      "ProvenLowerBound": null,
+      "MaximumDerivativeOrderChecked": 2,
+      "Evidence": "Unknown",
+      "Diagnostic": "Patch/patch reports geometric directional compatibility and never assigns integer multiplicity."
+    },
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-09,
+      "AngularTolerance": 1E-09,
+      "CurvatureTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "MaximumDerivativeOrderObserved": 2
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 7186,
+      "Iterations": 61,
+      "ClosestPointCalls": 1,
+      "CandidateRegions": 7690,
+      "BudgetExhausted": false
+    },
+    "Diagnostics": [
+      {
+        "Code": "AmbiguousOverlap",
+        "Message": "Compatible tangent planes or boundary-only contact do not certify overlap or whole-domain touching."
+      }
+    ],
+    "OperandA": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "horizontal"
+      },
+      "Provenance": {
+        "Source": "M5 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "patch-cylinder"
+      },
+      "Provenance": {
+        "Source": "M5 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "ContactQuery composed from local patch contact remains globally inconclusive",
+    "ContactExists": true,
+    "HasTopologyAuthority": false
+  },
+  "equalPrincipalValuesNotIdentity": {
+    "curvatureA": {
+      "GaussianCurvature": 0,
+      "MeanCurvature": 1,
+      "K1": 2,
+      "K2": 0,
+      "Direction1": {
+        "X": 1,
+        "Y": 0,
+        "Z": 0
+      },
+      "Direction2": {
+        "X": 0,
+        "Y": 1,
+        "Z": 0
+      },
+      "OrientedNormal": {
+        "X": 0,
+        "Y": 0,
+        "Z": 1
+      },
+      "FirstFundamentalForm": {
+        "E": 1,
+        "F": 0,
+        "G": 1
+      },
+      "SecondFundamentalForm": {
+        "E2": 2,
+        "F2": 0,
+        "G2": 0
+      },
+      "Evidence": "ToleranceBounded",
+      "Status": "Available",
+      "Singularity": "Regular",
+      "Diagnostic": null
+    },
+    "curvatureB": {
+      "GaussianCurvature": 0,
+      "MeanCurvature": 1,
+      "K1": 2,
+      "K2": 0,
+      "Direction1": {
+        "X": -0,
+        "Y": -1,
+        "Z": -0
+      },
+      "Direction2": {
+        "X": -1,
+        "Y": 0,
+        "Z": 0
+      },
+      "OrientedNormal": {
+        "X": 0,
+        "Y": 0,
+        "Z": 1
+      },
+      "FirstFundamentalForm": {
+        "E": 1,
+        "F": 0,
+        "G": 1
+      },
+      "SecondFundamentalForm": {
+        "E2": 0,
+        "F2": 0,
+        "G2": 2
+      },
+      "Evidence": "ToleranceBounded",
+      "Status": "Available",
+      "Singularity": "Regular",
+      "Diagnostic": null
+    },
+    "contact": {
+      "Classification": "Transverse",
+      "Evidence": "ToleranceBounded",
+      "Scope": "Local",
+      "Witnesses": [
+        {
+          "Point": {
+            "X": -0.5,
+            "Y": -0.5,
+            "Z": 0.25
+          },
+          "PointOnA": {
+            "X": -0.5,
+            "Y": -0.5,
+            "Z": 0.25
+          },
+          "PointOnB": {
+            "X": -0.5,
+            "Y": -0.5,
+            "Z": 0.25
+          },
+          "ParameterOnA": {
+            "T": null,
+            "U": -0.5,
+            "V": -0.5
+          },
+          "ParameterOnB": {
+            "T": null,
+            "U": -0.5,
+            "V": -0.5
+          },
+          "Residual": 0,
+          "TangentRelation": "Transverse",
+          "NormalRelation": "NonParallel",
+          "CurvatureRelation": "NotApplicable",
+          "Derivatives": [],
+          "DirectionalObservations": []
+        }
+      ],
+      "DistanceRelation": "WithinTolerance",
+      "IntersectionRelation": "Unknown",
+      "SideRelation": null,
+      "TangentRelation": "Transverse",
+      "NormalRelation": "NonParallel",
+      "CurvatureRelation": "NotApplicable",
+      "OrderEvidence": {
+        "Status": "Unknown",
+        "Order": null,
+        "ProvenLowerBound": null,
+        "MaximumDerivativeOrderChecked": 1,
+        "Evidence": "Unknown",
+        "Diagnostic": "Patch/patch has no generic scalar integer order."
+      },
+      "ToleranceUsed": {
+        "LinearTolerance": 1E-09,
+        "AngularTolerance": 1E-09,
+        "CurvatureTolerance": 1E-09,
+        "ParameterTolerance": 1E-10,
+        "IterationBudget": 96,
+        "SubdivisionBudget": 10000,
+        "MaximumDerivativeOrderObserved": 2
+      },
+      "Statistics": {
+        "Samples": 0,
+        "Subdivisions": 7186,
+        "Iterations": 61,
+        "ClosestPointCalls": 1,
+        "CandidateRegions": 7690,
+        "BudgetExhausted": false
+      },
+      "Diagnostics": [
+        {
+          "Code": "ConflictingLocalRelations",
+          "Message": "Different bounded candidate regions have conflicting local relations."
+        }
+      ],
+      "OperandA": {
+        "Kind": "Patch",
+        "Identity": {
+          "StableId": "patch-cylinder"
+        },
+        "Provenance": {
+          "Source": "M5 evidence",
+          "SemanticOwner": null,
+          "IsGenerated": false
+        }
+      },
+      "OperandB": {
+        "Kind": "Patch",
+        "Identity": {
+          "StableId": "patch-rotated-cylinder"
+        },
+        "Provenance": {
+          "Source": "M5 evidence",
+          "SemanticOwner": null,
+          "IsGenerated": false
+        }
+      },
+      "Provenance": "ContactQuery composed from conflicting local candidate evidence",
+      "ContactExists": true,
+      "HasTopologyAuthority": false
+    },
+    "law": "Equal principal-curvature values without aligned directions/forms do not establish second-order compatibility or identity."
+  },
+  "structuralCoincidence": {
+    "Classification": "Coincident",
+    "Evidence": "Structural",
+    "Scope": "Structural",
+    "Witnesses": [],
+    "DistanceRelation": "StructuralCoincidence",
+    "IntersectionRelation": "Coincident",
+    "SideRelation": null,
+    "TangentRelation": "Unknown",
+    "NormalRelation": "Unknown",
+    "CurvatureRelation": "NotApplicable",
+    "OrderEvidence": {
+      "Status": "Unknown",
+      "Order": null,
+      "ProvenLowerBound": null,
+      "MaximumDerivativeOrderChecked": 0,
+      "Evidence": "Unknown",
+      "Diagnostic": "Coincidence has no finite contact order."
+    },
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-09,
+      "AngularTolerance": 1E-09,
+      "CurvatureTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "MaximumDerivativeOrderObserved": 2
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 0,
+      "Iterations": 0,
+      "ClosestPointCalls": 1,
+      "CandidateRegions": 0,
+      "BudgetExhausted": false
+    },
+    "Diagnostics": [],
+    "OperandA": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "horizontal"
+      },
+      "Provenance": {
+        "Source": "M5 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "horizontal"
+      },
+      "Provenance": {
+        "Source": "M5 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "ContactQuery composed from shared authored geometry identity",
+    "ContactExists": true,
+    "HasTopologyAuthority": false
+  },
+  "sameIdentityDifferentDomain": {
+    "Classification": "Unknown",
+    "Evidence": "Unknown",
+    "Scope": "Local",
+    "Witnesses": [],
+    "DistanceRelation": "Unknown",
+    "IntersectionRelation": "Unknown",
+    "SideRelation": null,
+    "TangentRelation": "Unknown",
+    "NormalRelation": "Unknown",
+    "CurvatureRelation": "Unknown",
+    "OrderEvidence": {
+      "Status": "Unknown",
+      "Order": null,
+      "ProvenLowerBound": null,
+      "MaximumDerivativeOrderChecked": 0,
+      "Evidence": "Unknown",
+      "Diagnostic": "M4 did not establish a bounded patch/patch contact witness."
+    },
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-09,
+      "AngularTolerance": 1E-09,
+      "CurvatureTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "MaximumDerivativeOrderObserved": 2
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 0,
+      "Iterations": 0,
+      "ClosestPointCalls": 1,
+      "CandidateRegions": 0,
+      "BudgetExhausted": false
+    },
+    "Diagnostics": [
+      {
+        "Code": "AmbiguousOverlap",
+        "Message": "Shared support identity with different bounded domains does not establish whole-domain coincidence; partial overlap classification is deferred."
+      },
+      {
+        "Code": "EvidenceUnavailable",
+        "Message": "M4 did not establish a bounded patch/patch contact witness."
+      }
+    ],
+    "OperandA": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "horizontal"
+      },
+      "Provenance": {
+        "Source": "M5 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "horizontal"
+      },
+      "Provenance": {
+        "Source": "M5 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "ContactQuery composed from shared support identity has non-identical bounded domains",
+    "ContactExists": null,
+    "HasTopologyAuthority": false
+  },
+  "comparison": "Three shared physical tangent directions determine the geometric normal-curvature quadratic form; raw parameter derivatives are not compared."
+}

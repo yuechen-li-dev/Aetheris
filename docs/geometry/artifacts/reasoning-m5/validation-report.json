@@ -1,0 +1,66 @@
+{
+  "milestone": "AETHERIS-GEOMETRY-REASONING-M5",
+  "date": "2026-08-13",
+  "status": "success",
+  "restore": {
+    "command": "dotnet restore Aetheris.slnx",
+    "success": true,
+    "summary": "All projects are up-to-date for restore."
+  },
+  "build": {
+    "command": "dotnet build Aetheris.slnx -f net10.0 --no-restore /m:1",
+    "success": true,
+    "warnings": 0,
+    "errors": 0
+  },
+  "tests": {
+    "command": "dotnet test Aetheris.slnx -f net10.0 --no-build --no-restore /m:1 --logger console;verbosity=minimal",
+    "success": true,
+    "passed": 2755,
+    "failed": 0,
+    "skipped": 0,
+    "projects": {
+      "Aetheris.CLI.Tests": 362,
+      "Aetheris.Collaboration.Tests": 5,
+      "Aetheris.Continuum.Tests": 148,
+      "Aetheris.FEA.Tests": 12,
+      "Aetheris.Forge.Host.Tests": 10,
+      "Aetheris.FrictionLab.Tests": 0,
+      "Aetheris.Geometry.Tests": 58,
+      "Aetheris.Kernel.Core.Tests": 940,
+      "Aetheris.Kernel.Firmament.Tests": 1112,
+      "Aetheris.Modules.Tests": 37,
+      "Aetheris.Semantics.Tests": 9,
+      "Aetheris.Server.Tests": 54,
+      "Aetheris.Samples.DatabaseDrivenCad.Tests": 8
+    },
+    "m5FocusedTests": 12,
+    "note": "Aetheris.FrictionLab.Tests currently contains no discoverable tests; dotnet test returned success."
+  },
+  "cliGroundTruth": {
+    "helpCommand": "dotnet run --project Aetheris.CLI/Aetheris.CLI.csproj -f net10.0 -- --help",
+    "inspectHelpSuccess": true,
+    "validateCommand": "aetheris validate docs/geometry/artifacts/reasoning-m0/historical-panel-only.firmament",
+    "validation": "valid (0 fatal, 2 warning)",
+    "inspectCommand": "aetheris inspect docs/geometry/artifacts/reasoning-m0/historical-panel-only.firmament --json",
+    "inspectSuccess": true,
+    "model": "HistoricalPanelOnly"
+  },
+  "scientificCalibration": {
+    "t": "Transverse / Exact order 1",
+    "t2": "Tangent / Exact order 2",
+    "t4": "HigherOrderCandidate / AtLeast order 2; no exact order 4",
+    "saddle": "Crossing despite zero gradient at origin",
+    "parameterizationInvariant": true,
+    "deterministic": true,
+    "topologyUnchanged": true
+  },
+  "evidenceGenerator": {
+    "command": "dotnet run --project tools/Aetheris.Geometry.M5Evidence/Aetheris.Geometry.M5Evidence.csproj -f net10.0 --no-restore",
+    "success": true
+  },
+  "diffChecks": {
+    "gitDiffCheck": "passed",
+    "gitStatusShort": "only the intended M5 source, tests, tool, docs, artifacts, and solution registration are modified/untracked"
+  }
+}

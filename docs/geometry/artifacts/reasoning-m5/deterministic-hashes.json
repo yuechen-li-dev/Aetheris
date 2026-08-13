@@ -1,0 +1,65 @@
+{
+  "algorithm": "SHA-256",
+  "deterministic": [
+    {
+      "Name": "curve-patch",
+      "stable": true,
+      "sha256": "f3b9d4672c541469118ba4581becc7eea45c21f066034ab961e260bf0be233b1",
+      "classification": "Tangent",
+      "order": {
+        "Status": "Unknown",
+        "Order": null,
+        "ProvenLowerBound": null,
+        "MaximumDerivativeOrderChecked": 2,
+        "Evidence": "Unknown",
+        "Diagnostic": "Curve/patch reports first/second-order geometry without generic scalar multiplicity."
+      },
+      "witnessCount": 1
+    },
+    {
+      "Name": "curve-plane",
+      "stable": true,
+      "sha256": "c050982b91fae3ac6bc55b7200cc86599efa6c1571b4db969a906565e0c1958d",
+      "classification": "Tangent",
+      "order": {
+        "Status": "Exact",
+        "Order": 2,
+        "ProvenLowerBound": 2,
+        "MaximumDerivativeOrderChecked": 2,
+        "Evidence": "ToleranceBounded",
+        "Diagnostic": "Regular admitted scalar reduction has g and g\u0027 zero within tolerance and definitively nonzero invariant g\u0027\u0027."
+      },
+      "witnessCount": 1
+    },
+    {
+      "Name": "patch-patch",
+      "stable": true,
+      "sha256": "8110db0c25316fb4596a3f75b996d8ef142800df4df5b0149b260bc4c62308f5",
+      "classification": "Tangent",
+      "order": {
+        "Status": "Unknown",
+        "Order": null,
+        "ProvenLowerBound": null,
+        "MaximumDerivativeOrderChecked": 2,
+        "Evidence": "Unknown",
+        "Diagnostic": "Patch/patch reports geometric directional compatibility and never assigns integer multiplicity."
+      },
+      "witnessCount": 1
+    },
+    {
+      "Name": "patch-plane",
+      "stable": true,
+      "sha256": "59ed47acfd18287e059ce95bd72b3fc3055608801c96fc62d0b7b2ae6061c57c",
+      "classification": "Tangent",
+      "order": {
+        "Status": "Unknown",
+        "Order": null,
+        "ProvenLowerBound": null,
+        "MaximumDerivativeOrderChecked": 2,
+        "Evidence": "Unknown",
+        "Diagnostic": "Patch/plane reports directional differential compatibility, not an integer contact order."
+      },
+      "witnessCount": 1
+    }
+  ]
+}

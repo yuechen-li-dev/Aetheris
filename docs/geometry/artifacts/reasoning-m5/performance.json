@@ -1,0 +1,65 @@
+{
+  "note": "Calibration only; queries reuse M4 candidates and no optimization campaign was performed.",
+  "operations": [
+    {
+      "Name": "curve-plane",
+      "iterations": 25,
+      "elapsedMilliseconds": 4.8006,
+      "nanosecondsPerQuery": 192024,
+      "Classification": "Tangent",
+      "Statistics": {
+        "Samples": 257,
+        "Subdivisions": 1,
+        "Iterations": 0,
+        "ClosestPointCalls": 0,
+        "CandidateRegions": 1,
+        "BudgetExhausted": false
+      }
+    },
+    {
+      "Name": "patch-plane",
+      "iterations": 25,
+      "elapsedMilliseconds": 37.997,
+      "nanosecondsPerQuery": 1519880,
+      "Classification": "Tangent",
+      "Statistics": {
+        "Samples": 0,
+        "Subdivisions": 64,
+        "Iterations": 0,
+        "ClosestPointCalls": 0,
+        "CandidateRegions": 1,
+        "BudgetExhausted": true
+      }
+    },
+    {
+      "Name": "curve-patch",
+      "iterations": 25,
+      "elapsedMilliseconds": 141.3054,
+      "nanosecondsPerQuery": 5652216,
+      "Classification": "Tangent",
+      "Statistics": {
+        "Samples": 0,
+        "Subdivisions": 5642,
+        "Iterations": 59,
+        "ClosestPointCalls": 1,
+        "CandidateRegions": 6008,
+        "BudgetExhausted": false
+      }
+    },
+    {
+      "Name": "patch-patch",
+      "iterations": 25,
+      "elapsedMilliseconds": 246.394,
+      "nanosecondsPerQuery": 9855760,
+      "Classification": "Tangent",
+      "Statistics": {
+        "Samples": 0,
+        "Subdivisions": 7186,
+        "Iterations": 61,
+        "ClosestPointCalls": 1,
+        "CandidateRegions": 7690,
+        "BudgetExhausted": false
+      }
+    }
+  ]
+}

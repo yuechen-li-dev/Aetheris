@@ -1,0 +1,240 @@
+{
+  "fixture": "z=u^2-v^2 against z=0",
+  "originJet": {
+    "Point": {
+      "X": 0,
+      "Y": 0,
+      "Z": 0
+    },
+    "Du": {
+      "X": 1,
+      "Y": 0,
+      "Z": 0,
+      "LengthSquared": 1,
+      "Length": 1
+    },
+    "Dv": {
+      "X": 0,
+      "Y": 1,
+      "Z": 0,
+      "LengthSquared": 1,
+      "Length": 1
+    },
+    "Duu": {
+      "X": 0,
+      "Y": 0,
+      "Z": 2,
+      "LengthSquared": 4,
+      "Length": 2
+    },
+    "Duv": {
+      "X": 0,
+      "Y": 0,
+      "Z": 0,
+      "LengthSquared": 0,
+      "Length": 0
+    },
+    "Dvv": {
+      "X": 0,
+      "Y": 0,
+      "Z": -2,
+      "LengthSquared": 4,
+      "Length": 2
+    },
+    "Singularity": "Regular",
+    "IsRegular": true
+  },
+  "signedSide": {
+    "Classification": "Crossing",
+    "EvidenceKind": "Certified",
+    "Policy": {
+      "Method": "CertifiedInterval",
+      "Tolerance": 1E-09,
+      "SamplesU": 9,
+      "SamplesV": 9,
+      "MaximumSubdivisionDepth": 10,
+      "MaximumLeafCount": 4096
+    },
+    "Domain": {
+      "U": {
+        "Minimum": -1,
+        "Maximum": 1
+      },
+      "V": {
+        "Minimum": -1,
+        "Maximum": 1
+      }
+    },
+    "PatchIdentity": "saddle",
+    "Provenance": "M5 evidence",
+    "Representation": "AnalyticExpression",
+    "ObservedMinimum": null,
+    "ObservedMaximum": null,
+    "CertifiedLowerBound": -1.0000000000000013,
+    "CertifiedUpperBound": 1.0000000000000013,
+    "Witnesses": [
+      {
+        "U": -0.375,
+        "V": -0.875,
+        "Point": {
+          "X": -0.375,
+          "Y": -0.875,
+          "Z": -0.625
+        },
+        "SignedDistance": -0.625,
+        "Kind": "certified-negative-region"
+      },
+      {
+        "U": -0.875,
+        "V": -0.375,
+        "Point": {
+          "X": -0.875,
+          "Y": -0.375,
+          "Z": 0.625
+        },
+        "SignedDistance": 0.625,
+        "Kind": "certified-positive-region"
+      }
+    ],
+    "Statistics": {
+      "SampleCount": 0,
+      "LeafCount": 4,
+      "ResolvedLeaves": 4,
+      "UnresolvedLeaves": 0,
+      "MaximumDepthReached": 3
+    },
+    "Diagnostics": []
+  },
+  "contact": {
+    "Classification": "Crossing",
+    "Evidence": "Certified",
+    "Scope": "WholeDomain",
+    "Witnesses": [
+      {
+        "Point": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": 0,
+          "V": 0
+        },
+        "ParameterOnB": null,
+        "Residual": 0,
+        "TangentRelation": "Compatible",
+        "NormalRelation": "Parallel",
+        "CurvatureRelation": "DirectionDependent",
+        "Derivatives": [],
+        "DirectionalObservations": [
+          {
+            "TangentDirection": {
+              "X": 1,
+              "Y": 0,
+              "Z": 0
+            },
+            "NormalCurvatureA": 2,
+            "NormalCurvatureB": 0,
+            "Difference": 2,
+            "Relation": "Separating",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Compared with zero plane normal curvature."
+          },
+          {
+            "TangentDirection": {
+              "X": 0,
+              "Y": 1,
+              "Z": 0
+            },
+            "NormalCurvatureA": -2,
+            "NormalCurvatureB": 0,
+            "Difference": -2,
+            "Relation": "Separating",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Compared with zero plane normal curvature."
+          },
+          {
+            "TangentDirection": {
+              "X": 0.7071067811865476,
+              "Y": 0.7071067811865476,
+              "Z": 0
+            },
+            "NormalCurvatureA": 0,
+            "NormalCurvatureB": 0,
+            "Difference": 0,
+            "Relation": "Compatible",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Compared with zero plane normal curvature."
+          }
+        ]
+      }
+    ],
+    "DistanceRelation": "WithinTolerance",
+    "IntersectionRelation": "Crossing",
+    "SideRelation": "Crossing",
+    "TangentRelation": "Compatible",
+    "NormalRelation": "Parallel",
+    "CurvatureRelation": "DirectionDependent",
+    "OrderEvidence": {
+      "Status": "Unknown",
+      "Order": null,
+      "ProvenLowerBound": null,
+      "MaximumDerivativeOrderChecked": 2,
+      "Evidence": "Unknown",
+      "Diagnostic": "A 2D signed-side crossing has no generic scalar contact order."
+    },
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-09,
+      "AngularTolerance": 1E-09,
+      "CurvatureTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "MaximumDerivativeOrderObserved": 2
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 4,
+      "Iterations": 0,
+      "ClosestPointCalls": 0,
+      "CandidateRegions": 2,
+      "BudgetExhausted": false
+    },
+    "Diagnostics": [],
+    "OperandA": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "saddle"
+      },
+      "Provenance": {
+        "Source": "M5 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Plane",
+      "Identity": null,
+      "Provenance": {
+        "Source": "query-plane",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "ContactQuery composed from SignedSide opposite-side bounded witnesses establish crossing",
+    "ContactExists": true,
+    "HasTopologyAuthority": false
+  },
+  "requiredConclusion": "Crossing"
+}

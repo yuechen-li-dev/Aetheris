@@ -1,0 +1,293 @@
+{
+  "g1PassG2Fail": {
+    "Classification": "Tangent",
+    "Evidence": "ToleranceBounded",
+    "Scope": "Local",
+    "Witnesses": [
+      {
+        "Point": {
+          "X": 0,
+          "Y": -1,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": 0,
+          "Y": -1,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0,
+          "Y": -1,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": 0,
+          "V": -1
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": 0,
+          "V": -1
+        },
+        "Residual": 0,
+        "TangentRelation": "Compatible",
+        "NormalRelation": "Parallel",
+        "CurvatureRelation": "DirectionDependent",
+        "Derivatives": [],
+        "DirectionalObservations": [
+          {
+            "TangentDirection": {
+              "X": 1,
+              "Y": 0,
+              "Z": 0
+            },
+            "NormalCurvatureA": 0,
+            "NormalCurvatureB": 2,
+            "Difference": -2,
+            "Relation": "Separating",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Geometric normal curvatures compared in a shared physical tangent direction."
+          },
+          {
+            "TangentDirection": {
+              "X": 0,
+              "Y": 1,
+              "Z": 0
+            },
+            "NormalCurvatureA": 0,
+            "NormalCurvatureB": 0,
+            "Difference": 0,
+            "Relation": "Compatible",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Geometric normal curvatures compared in a shared physical tangent direction."
+          },
+          {
+            "TangentDirection": {
+              "X": 0.7071067811865476,
+              "Y": 0.7071067811865476,
+              "Z": 0
+            },
+            "NormalCurvatureA": 0,
+            "NormalCurvatureB": 1,
+            "Difference": -1,
+            "Relation": "Separating",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Geometric normal curvatures compared in a shared physical tangent direction."
+          }
+        ]
+      }
+    ],
+    "DistanceRelation": "WithinTolerance",
+    "IntersectionRelation": "Unknown",
+    "SideRelation": null,
+    "TangentRelation": "Compatible",
+    "NormalRelation": "Parallel",
+    "CurvatureRelation": "DirectionDependent",
+    "OrderEvidence": {
+      "Status": "Unknown",
+      "Order": null,
+      "ProvenLowerBound": null,
+      "MaximumDerivativeOrderChecked": 2,
+      "Evidence": "Unknown",
+      "Diagnostic": "Patch/patch reports geometric directional compatibility and never assigns integer multiplicity."
+    },
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-09,
+      "AngularTolerance": 1E-09,
+      "CurvatureTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "MaximumDerivativeOrderObserved": 2
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 7186,
+      "Iterations": 61,
+      "ClosestPointCalls": 1,
+      "CandidateRegions": 7690,
+      "BudgetExhausted": false
+    },
+    "Diagnostics": [
+      {
+        "Code": "AmbiguousOverlap",
+        "Message": "Compatible tangent planes or boundary-only contact do not certify overlap or whole-domain touching."
+      }
+    ],
+    "OperandA": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "panel-left-flat"
+      },
+      "Provenance": {
+        "Source": "M5 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "panel-right-break"
+      },
+      "Provenance": {
+        "Source": "M5 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "ContactQuery composed from local patch contact remains globally inconclusive",
+    "ContactExists": true,
+    "HasTopologyAuthority": false
+  },
+  "g2Pass": {
+    "Classification": "SecondOrderCompatible",
+    "Evidence": "ToleranceBounded",
+    "Scope": "Local",
+    "Witnesses": [
+      {
+        "Point": {
+          "X": 0,
+          "Y": -1,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": 0,
+          "Y": -1,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0,
+          "Y": -1,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": 0,
+          "V": -1
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": 0,
+          "V": -1
+        },
+        "Residual": 0,
+        "TangentRelation": "Compatible",
+        "NormalRelation": "Parallel",
+        "CurvatureRelation": "Compatible",
+        "Derivatives": [],
+        "DirectionalObservations": [
+          {
+            "TangentDirection": {
+              "X": 1,
+              "Y": 0,
+              "Z": 0
+            },
+            "NormalCurvatureA": 2,
+            "NormalCurvatureB": 2,
+            "Difference": 0,
+            "Relation": "Compatible",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Geometric normal curvatures compared in a shared physical tangent direction."
+          },
+          {
+            "TangentDirection": {
+              "X": 0,
+              "Y": 1,
+              "Z": 0
+            },
+            "NormalCurvatureA": 0,
+            "NormalCurvatureB": 0,
+            "Difference": 0,
+            "Relation": "Compatible",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Geometric normal curvatures compared in a shared physical tangent direction."
+          },
+          {
+            "TangentDirection": {
+              "X": 0.7071067811865476,
+              "Y": 0.7071067811865476,
+              "Z": 0
+            },
+            "NormalCurvatureA": 1,
+            "NormalCurvatureB": 1,
+            "Difference": 0,
+            "Relation": "Compatible",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Geometric normal curvatures compared in a shared physical tangent direction."
+          }
+        ]
+      }
+    ],
+    "DistanceRelation": "WithinTolerance",
+    "IntersectionRelation": "Unknown",
+    "SideRelation": null,
+    "TangentRelation": "Compatible",
+    "NormalRelation": "Parallel",
+    "CurvatureRelation": "Compatible",
+    "OrderEvidence": {
+      "Status": "Unknown",
+      "Order": null,
+      "ProvenLowerBound": null,
+      "MaximumDerivativeOrderChecked": 2,
+      "Evidence": "Unknown",
+      "Diagnostic": "Patch/patch reports geometric directional compatibility and never assigns integer multiplicity."
+    },
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-09,
+      "AngularTolerance": 1E-09,
+      "CurvatureTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "MaximumDerivativeOrderObserved": 2
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 7186,
+      "Iterations": 61,
+      "ClosestPointCalls": 1,
+      "CandidateRegions": 7690,
+      "BudgetExhausted": false
+    },
+    "Diagnostics": [
+      {
+        "Code": "AmbiguousOverlap",
+        "Message": "Compatible tangent planes or boundary-only contact do not certify overlap or whole-domain touching."
+      }
+    ],
+    "OperandA": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "panel-left-smooth"
+      },
+      "Provenance": {
+        "Source": "M5 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "panel-right-smooth"
+      },
+      "Provenance": {
+        "Source": "M5 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "ContactQuery composed from local patch contact remains globally inconclusive",
+    "ContactExists": true,
+    "HasTopologyAuthority": false
+  },
+  "mapping": {
+    "G0": "positional meeting",
+    "G1": "Tangent / first-order compatible",
+    "G2": "SecondOrderCompatible"
+  },
+  "panelApiReplaced": false,
+  "engineeringOwner": "Aetheris.Surfacing.PanelNetworkValidator"
+}

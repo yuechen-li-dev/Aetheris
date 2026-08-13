@@ -1,0 +1,72 @@
+{
+  "owner": "Aetheris.Geometry",
+  "matrix": [
+    "Curve-Plane",
+    "Patch-Plane",
+    "Curve-Patch",
+    "Patch-Patch"
+  ],
+  "classifications": [
+    "Disjoint",
+    "Crossing",
+    "Transverse",
+    "Tangent",
+    "SecondOrderCompatible",
+    "HigherOrderCandidate",
+    "Coincident",
+    "Overlapping",
+    "Unknown"
+  ],
+  "orderStates": [
+    "Exact",
+    "AtLeast",
+    "Candidate",
+    "Unknown"
+  ],
+  "evidence": [
+    "Structural",
+    "Certified",
+    "ToleranceBounded",
+    "Sampled",
+    "Heuristic",
+    "Unknown"
+  ],
+  "scopes": [
+    "Local",
+    "WholeDomain",
+    "Structural"
+  ],
+  "policy": {
+    "LinearTolerance": 1E-09,
+    "AngularTolerance": 1E-09,
+    "CurvatureTolerance": 1E-09,
+    "ParameterTolerance": 1E-10,
+    "IterationBudget": 96,
+    "SubdivisionBudget": 10000,
+    "MaximumDerivativeOrderObserved": 2
+  },
+  "resultFields": [
+    "Classification",
+    "Evidence",
+    "Scope",
+    "Witnesses",
+    "DistanceRelation",
+    "IntersectionRelation",
+    "SideRelation",
+    "TangentRelation",
+    "NormalRelation",
+    "CurvatureRelation",
+    "OrderEvidence",
+    "ToleranceUsed",
+    "Statistics",
+    "Diagnostics",
+    "OperandA",
+    "OperandB",
+    "Provenance",
+    "ContactExists",
+    "HasTopologyAuthority"
+  ],
+  "classificationSeparateFromOrder": true,
+  "topologyAuthority": false,
+  "higherDerivativeDecision": "No CurveJet3/PatchJet3. Exact scalar order is bounded to 1/2; higher observations remain lower bounds/candidates."
+}

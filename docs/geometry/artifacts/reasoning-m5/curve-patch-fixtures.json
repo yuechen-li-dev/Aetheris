@@ -1,0 +1,356 @@
+{
+  "transverse": {
+    "Classification": "Transverse",
+    "Evidence": "ToleranceBounded",
+    "Scope": "Local",
+    "Witnesses": [
+      {
+        "Point": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": 1,
+          "U": null,
+          "V": null
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": 0,
+          "V": 0
+        },
+        "Residual": 0,
+        "TangentRelation": "Transverse",
+        "NormalRelation": "NotApplicable",
+        "CurvatureRelation": "NotApplicable",
+        "Derivatives": [
+          {
+            "Order": 1,
+            "Value": 1,
+            "Relation": "NonZeroWithinTolerance",
+            "Evidence": "ToleranceBounded",
+            "Meaning": "patch normal dot curve unit tangent"
+          }
+        ],
+        "DirectionalObservations": []
+      }
+    ],
+    "DistanceRelation": "WithinTolerance",
+    "IntersectionRelation": "Crossing",
+    "SideRelation": null,
+    "TangentRelation": "Transverse",
+    "NormalRelation": "NotApplicable",
+    "CurvatureRelation": "NotApplicable",
+    "OrderEvidence": {
+      "Status": "Unknown",
+      "Order": null,
+      "ProvenLowerBound": null,
+      "MaximumDerivativeOrderChecked": 1,
+      "Evidence": "Unknown",
+      "Diagnostic": "Curve/patch M5 does not assign generic integer order."
+    },
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-09,
+      "AngularTolerance": 1E-09,
+      "CurvatureTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "MaximumDerivativeOrderObserved": 2
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 5642,
+      "Iterations": 59,
+      "ClosestPointCalls": 1,
+      "CandidateRegions": 6008,
+      "BudgetExhausted": false
+    },
+    "Diagnostics": [],
+    "OperandA": {
+      "Kind": "Curve",
+      "Identity": {
+        "StableId": "pierce"
+      },
+      "Provenance": {
+        "Source": "M5 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "curve-patch-plane"
+      },
+      "Provenance": {
+        "Source": "M5 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "ContactQuery composed from M3 near-zero candidate plus interior transverse tangent/normal evidence",
+    "ContactExists": true,
+    "HasTopologyAuthority": false
+  },
+  "tangentSecondOrderSeparating": {
+    "Classification": "Tangent",
+    "Evidence": "ToleranceBounded",
+    "Scope": "Local",
+    "Witnesses": [
+      {
+        "Point": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": 0,
+          "U": null,
+          "V": null
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": 0,
+          "V": 0
+        },
+        "Residual": 0,
+        "TangentRelation": "Compatible",
+        "NormalRelation": "NotApplicable",
+        "CurvatureRelation": "Separating",
+        "Derivatives": [
+          {
+            "Order": 1,
+            "Value": 0,
+            "Relation": "ZeroWithinTolerance",
+            "Evidence": "ToleranceBounded",
+            "Meaning": "patch normal dot curve unit tangent"
+          }
+        ],
+        "DirectionalObservations": [
+          {
+            "TangentDirection": {
+              "X": 1,
+              "Y": 0,
+              "Z": 0
+            },
+            "NormalCurvatureA": 2,
+            "NormalCurvatureB": 0,
+            "Difference": 2,
+            "Relation": "Separating",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Curve normal acceleration compared with patch normal curvature in the curve tangent direction."
+          }
+        ]
+      }
+    ],
+    "DistanceRelation": "WithinTolerance",
+    "IntersectionRelation": "Unknown",
+    "SideRelation": null,
+    "TangentRelation": "Compatible",
+    "NormalRelation": "NotApplicable",
+    "CurvatureRelation": "Separating",
+    "OrderEvidence": {
+      "Status": "Unknown",
+      "Order": null,
+      "ProvenLowerBound": null,
+      "MaximumDerivativeOrderChecked": 2,
+      "Evidence": "Unknown",
+      "Diagnostic": "Curve/patch reports first/second-order geometry without generic scalar multiplicity."
+    },
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-09,
+      "AngularTolerance": 1E-09,
+      "CurvatureTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "MaximumDerivativeOrderObserved": 2
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 5642,
+      "Iterations": 59,
+      "ClosestPointCalls": 1,
+      "CandidateRegions": 6008,
+      "BudgetExhausted": false
+    },
+    "Diagnostics": [
+      {
+        "Code": "InsufficientSecondJetEvidence",
+        "Message": "Near-zero distance and local tangency do not establish whole-domain touching."
+      }
+    ],
+    "OperandA": {
+      "Kind": "Curve",
+      "Identity": {
+        "StableId": "curve-parabola"
+      },
+      "Provenance": {
+        "Source": "M5 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "curve-patch-plane"
+      },
+      "Provenance": {
+        "Source": "M5 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "ContactQuery composed from local contact candidate remains globally inconclusive",
+    "ContactExists": true,
+    "HasTopologyAuthority": false
+  },
+  "secondOrderCompatible": {
+    "Classification": "SecondOrderCompatible",
+    "Evidence": "ToleranceBounded",
+    "Scope": "Local",
+    "Witnesses": [
+      {
+        "Point": {
+          "X": -0.5,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": -0.5,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": -0.5,
+          "Y": 0,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": 0.5,
+          "U": null,
+          "V": null
+        },
+        "ParameterOnB": {
+          "T": null,
+          "U": -0.5,
+          "V": 0
+        },
+        "Residual": 0,
+        "TangentRelation": "Compatible",
+        "NormalRelation": "NotApplicable",
+        "CurvatureRelation": "Compatible",
+        "Derivatives": [
+          {
+            "Order": 1,
+            "Value": 0,
+            "Relation": "ZeroWithinTolerance",
+            "Evidence": "ToleranceBounded",
+            "Meaning": "patch normal dot curve unit tangent"
+          }
+        ],
+        "DirectionalObservations": [
+          {
+            "TangentDirection": {
+              "X": 1,
+              "Y": 0,
+              "Z": 0
+            },
+            "NormalCurvatureA": 0,
+            "NormalCurvatureB": 0,
+            "Difference": 0,
+            "Relation": "Compatible",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Curve normal acceleration compared with patch normal curvature in the curve tangent direction."
+          }
+        ]
+      }
+    ],
+    "DistanceRelation": "WithinTolerance",
+    "IntersectionRelation": "Unknown",
+    "SideRelation": null,
+    "TangentRelation": "Compatible",
+    "NormalRelation": "NotApplicable",
+    "CurvatureRelation": "Compatible",
+    "OrderEvidence": {
+      "Status": "Unknown",
+      "Order": null,
+      "ProvenLowerBound": null,
+      "MaximumDerivativeOrderChecked": 2,
+      "Evidence": "Unknown",
+      "Diagnostic": "Curve/patch reports first/second-order geometry without generic scalar multiplicity."
+    },
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-09,
+      "AngularTolerance": 1E-09,
+      "CurvatureTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "MaximumDerivativeOrderObserved": 2
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 5642,
+      "Iterations": 59,
+      "ClosestPointCalls": 1,
+      "CandidateRegions": 6008,
+      "BudgetExhausted": false
+    },
+    "Diagnostics": [
+      {
+        "Code": "InsufficientSecondJetEvidence",
+        "Message": "Near-zero distance and local tangency do not establish whole-domain touching."
+      }
+    ],
+    "OperandA": {
+      "Kind": "Curve",
+      "Identity": {
+        "StableId": "in-plane"
+      },
+      "Provenance": {
+        "Source": "M5 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "curve-patch-plane"
+      },
+      "Provenance": {
+        "Source": "M5 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "ContactQuery composed from local contact candidate remains globally inconclusive",
+    "ContactExists": true,
+    "HasTopologyAuthority": false
+  },
+  "orderRule": "No generic integer order is assigned for curve/patch in M5."
+}

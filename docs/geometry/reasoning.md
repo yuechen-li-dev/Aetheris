@@ -1,6 +1,6 @@
 # Authored geometry reasoning
 
-Status: AETHERIS-GEOMETRY-REASONING-M4
+Status: AETHERIS-GEOMETRY-REASONING-M5
 
 ## Architecture and authority
 
@@ -101,12 +101,13 @@ The public domain-neutral query ladder is now:
 2. `ClosestPointQuery`: bounded unsigned distance and candidate parameters for points, curves, and patches.
 3. `CurvatureQuery`: local first/second-order differential observations.
 4. `IntersectionQuery`: bounded relation evidence for curve/plane, patch/plane, curve/patch, and patch/patch.
+5. `ContactQuery`: local first/second-order classification and separately bounded contact-order evidence.
 
-Intersection composes the earlier layers. Patch/plane delegates whole-domain classification to SignedSide. Curve/patch and patch/patch use closest distance as the first gate, then jets only to classify a local candidate. Local differential evidence never silently becomes a global touching proof. See [intersection.md](intersection.md).
+Intersection composes the earlier layers. Contact then composes Intersection, SignedSide, and Curvature without adding a second witness locator. Patch/plane preserves whole-domain sidedness before interpreting a local jet. Curve/patch and patch/patch use M4 distance/intersection candidates, then compare geometric normal curvature in shared physical directions. Local differential evidence never silently becomes a global touching proof. See [intersection.md](intersection.md) and [contact.md](contact.md).
 
 ## Limitations
 
-M4 does not add contact order/multiplicity, arbitrary trimmed parameter domains, traced surface/surface intersection curves, CAS, rational splines/NURBS, or theorem-specific vocabulary. `Overlapping` is reserved but is not inferred numerically. Section and boundary procedural patches remain first-jet-only unless an honest second evaluator is supplied. No reasoning query materializes intersection curves or mutates topology.
+M5 admits exact order 1/2 only for regular curve/plane scalar reductions. It does not add arbitrary higher contact order, patch integer multiplicity, arbitrary trimmed parameter domains, traced surface/surface intersection curves, CAS, rational splines/NURBS, or theorem-specific vocabulary. `Overlapping` is reserved but is not inferred numerically. Section and boundary procedural patches remain first-jet-only unless an honest second evaluator is supplied. No reasoning query materializes contact/intersection curves or mutates topology.
 
 ## Differential-geometry ladder
 
@@ -115,6 +116,7 @@ M4 does not add contact order/multiplicity, arbitrary trimmed parameter domains,
 - M2 adds curve `P''`, patch `Puu/Puv/Pvv`, curvature, and sampled Panel G1/G2 evidence.
 - M3 adds closest point/distance across authored points, curves, and patches.
 - M4 adds bounded evidence-aware intersection predicates and preserves the topology firewall.
-- A future milestone may add `ContactClassification` / `ContactOrder` as a separate query over local observations.
+- M5 adds separate `ContactClassification` and `ContactOrderEvidence`, directional surface observations, and explicit local/whole-domain/structural scope.
+- Future work may add higher-order jets or certified algebraic contact for narrowly admitted families; finite available jets never imply infinite order.
 
 M1 adds no generic curve intersection service. The constructive transverse-cone/world-Z hyperbola remains an admitted construction-specific analytic result; adapting its bounded trim does not grant it topology-authoring authority.

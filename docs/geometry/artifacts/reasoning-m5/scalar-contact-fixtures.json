@@ -1,0 +1,475 @@
+{
+  "definition": "g(t)=plane.normal dot (C(t)-plane.origin)",
+  "exactOrderAdmission": "regular g=0 and first nonzero derivative observed through order 2 under explicit tolerance",
+  "finiteJetLaw": "t^4 is AtLeast 2 / HigherOrderCandidate, never exact order 4",
+  "results": {
+    "t": {
+      "Classification": "Transverse",
+      "Evidence": "ToleranceBounded",
+      "Scope": "Local",
+      "Witnesses": [
+        {
+          "Point": {
+            "X": 0,
+            "Y": 0,
+            "Z": 0
+          },
+          "PointOnA": {
+            "X": 0,
+            "Y": 0,
+            "Z": 0
+          },
+          "PointOnB": {
+            "X": 0,
+            "Y": 0,
+            "Z": 0
+          },
+          "ParameterOnA": {
+            "T": 0,
+            "U": null,
+            "V": null
+          },
+          "ParameterOnB": null,
+          "Residual": 0,
+          "TangentRelation": "Transverse",
+          "NormalRelation": "NotApplicable",
+          "CurvatureRelation": "NotApplicable",
+          "Derivatives": [
+            {
+              "Order": 0,
+              "Value": 0,
+              "Relation": "ZeroWithinTolerance",
+              "Evidence": "ToleranceBounded",
+              "Meaning": "g(t)=n dot (C(t)-p)"
+            },
+            {
+              "Order": 1,
+              "Value": 1,
+              "Relation": "NonZeroWithinTolerance",
+              "Evidence": "ToleranceBounded",
+              "Meaning": "g\u0027(t)=n dot C\u0027(t); zero/nonzero is angular-tolerance qualified"
+            }
+          ],
+          "DirectionalObservations": []
+        }
+      ],
+      "DistanceRelation": "WithinTolerance",
+      "IntersectionRelation": "Crossing",
+      "SideRelation": null,
+      "TangentRelation": "Transverse",
+      "NormalRelation": "NotApplicable",
+      "CurvatureRelation": "NotApplicable",
+      "OrderEvidence": {
+        "Status": "Exact",
+        "Order": 1,
+        "ProvenLowerBound": 1,
+        "MaximumDerivativeOrderChecked": 1,
+        "Evidence": "ToleranceBounded",
+        "Diagnostic": "Regular scalar reduction has g=0 within tolerance and definitively nonzero g\u0027."
+      },
+      "ToleranceUsed": {
+        "LinearTolerance": 1E-09,
+        "AngularTolerance": 1E-09,
+        "CurvatureTolerance": 1E-09,
+        "ParameterTolerance": 1E-10,
+        "IterationBudget": 96,
+        "SubdivisionBudget": 10000,
+        "MaximumDerivativeOrderObserved": 2
+      },
+      "Statistics": {
+        "Samples": 257,
+        "Subdivisions": 0,
+        "Iterations": 0,
+        "ClosestPointCalls": 0,
+        "CandidateRegions": 1,
+        "BudgetExhausted": false
+      },
+      "Diagnostics": [],
+      "OperandA": {
+        "Kind": "Curve",
+        "Identity": {
+          "StableId": "scalar-t"
+        },
+        "Provenance": {
+          "Source": "M5 evidence",
+          "SemanticOwner": null,
+          "IsGenerated": false
+        }
+      },
+      "OperandB": {
+        "Kind": "Plane",
+        "Identity": null,
+        "Provenance": {
+          "Source": "query-plane",
+          "SemanticOwner": null,
+          "IsGenerated": false
+        }
+      },
+      "Provenance": "ContactQuery composed from continuous signed scalar has opposite strict-side witnesses",
+      "ContactExists": true,
+      "HasTopologyAuthority": false
+    },
+    "t2": {
+      "Classification": "Tangent",
+      "Evidence": "ToleranceBounded",
+      "Scope": "Local",
+      "Witnesses": [
+        {
+          "Point": {
+            "X": 0,
+            "Y": 0,
+            "Z": 0
+          },
+          "PointOnA": {
+            "X": 0,
+            "Y": 0,
+            "Z": 0
+          },
+          "PointOnB": {
+            "X": 0,
+            "Y": 0,
+            "Z": 0
+          },
+          "ParameterOnA": {
+            "T": 0,
+            "U": null,
+            "V": null
+          },
+          "ParameterOnB": null,
+          "Residual": 0,
+          "TangentRelation": "Compatible",
+          "NormalRelation": "NotApplicable",
+          "CurvatureRelation": "Separating",
+          "Derivatives": [
+            {
+              "Order": 0,
+              "Value": 0,
+              "Relation": "ZeroWithinTolerance",
+              "Evidence": "ToleranceBounded",
+              "Meaning": "g(t)=n dot (C(t)-p)"
+            },
+            {
+              "Order": 1,
+              "Value": 0,
+              "Relation": "ZeroWithinTolerance",
+              "Evidence": "ToleranceBounded",
+              "Meaning": "g\u0027(t)=n dot C\u0027(t); zero/nonzero is angular-tolerance qualified"
+            },
+            {
+              "Order": 2,
+              "Value": 2,
+              "Relation": "NonZeroWithinTolerance",
+              "Evidence": "ToleranceBounded",
+              "Meaning": "g\u0027\u0027(t)=n dot C\u0027\u0027(t); at stationary contact g\u0027\u0027/|C\u0027|^2 is parameterization invariant"
+            }
+          ],
+          "DirectionalObservations": []
+        }
+      ],
+      "DistanceRelation": "WithinTolerance",
+      "IntersectionRelation": "Touching",
+      "SideRelation": null,
+      "TangentRelation": "Compatible",
+      "NormalRelation": "NotApplicable",
+      "CurvatureRelation": "Separating",
+      "OrderEvidence": {
+        "Status": "Exact",
+        "Order": 2,
+        "ProvenLowerBound": 2,
+        "MaximumDerivativeOrderChecked": 2,
+        "Evidence": "ToleranceBounded",
+        "Diagnostic": "Regular admitted scalar reduction has g and g\u0027 zero within tolerance and definitively nonzero invariant g\u0027\u0027."
+      },
+      "ToleranceUsed": {
+        "LinearTolerance": 1E-09,
+        "AngularTolerance": 1E-09,
+        "CurvatureTolerance": 1E-09,
+        "ParameterTolerance": 1E-10,
+        "IterationBudget": 96,
+        "SubdivisionBudget": 10000,
+        "MaximumDerivativeOrderObserved": 2
+      },
+      "Statistics": {
+        "Samples": 257,
+        "Subdivisions": 1,
+        "Iterations": 0,
+        "ClosestPointCalls": 0,
+        "CandidateRegions": 1,
+        "BudgetExhausted": false
+      },
+      "Diagnostics": [],
+      "OperandA": {
+        "Kind": "Curve",
+        "Identity": {
+          "StableId": "scalar-t2"
+        },
+        "Provenance": {
+          "Source": "M5 evidence",
+          "SemanticOwner": null,
+          "IsGenerated": false
+        }
+      },
+      "OperandB": {
+        "Kind": "Plane",
+        "Identity": null,
+        "Provenance": {
+          "Source": "query-plane",
+          "SemanticOwner": null,
+          "IsGenerated": false
+        }
+      },
+      "Provenance": "ContactQuery composed from whole-domain one-sided interval plus isolated second-order tangent contact",
+      "ContactExists": true,
+      "HasTopologyAuthority": false
+    },
+    "t4": {
+      "Classification": "HigherOrderCandidate",
+      "Evidence": "ToleranceBounded",
+      "Scope": "Local",
+      "Witnesses": [
+        {
+          "Point": {
+            "X": 0,
+            "Y": 0,
+            "Z": 0
+          },
+          "PointOnA": {
+            "X": 0,
+            "Y": 0,
+            "Z": 0
+          },
+          "PointOnB": {
+            "X": 0,
+            "Y": 0,
+            "Z": 0
+          },
+          "ParameterOnA": {
+            "T": 0,
+            "U": null,
+            "V": null
+          },
+          "ParameterOnB": null,
+          "Residual": 0,
+          "TangentRelation": "Compatible",
+          "NormalRelation": "NotApplicable",
+          "CurvatureRelation": "Compatible",
+          "Derivatives": [
+            {
+              "Order": 0,
+              "Value": 0,
+              "Relation": "ZeroWithinTolerance",
+              "Evidence": "ToleranceBounded",
+              "Meaning": "g(t)=n dot (C(t)-p)"
+            },
+            {
+              "Order": 1,
+              "Value": 0,
+              "Relation": "ZeroWithinTolerance",
+              "Evidence": "ToleranceBounded",
+              "Meaning": "g\u0027(t)=n dot C\u0027(t); zero/nonzero is angular-tolerance qualified"
+            },
+            {
+              "Order": 2,
+              "Value": 0,
+              "Relation": "ZeroWithinTolerance",
+              "Evidence": "ToleranceBounded",
+              "Meaning": "g\u0027\u0027(t)=n dot C\u0027\u0027(t); at stationary contact g\u0027\u0027/|C\u0027|^2 is parameterization invariant"
+            }
+          ],
+          "DirectionalObservations": []
+        }
+      ],
+      "DistanceRelation": "WithinTolerance",
+      "IntersectionRelation": "Unknown",
+      "SideRelation": null,
+      "TangentRelation": "Compatible",
+      "NormalRelation": "NotApplicable",
+      "CurvatureRelation": "Compatible",
+      "OrderEvidence": {
+        "Status": "AtLeast",
+        "Order": null,
+        "ProvenLowerBound": 2,
+        "MaximumDerivativeOrderChecked": 2,
+        "Evidence": "ToleranceBounded",
+        "Diagnostic": "All derivatives available through order 2 vanish within tolerance. This neither proves order 3/4 nor coincidence."
+      },
+      "ToleranceUsed": {
+        "LinearTolerance": 1E-09,
+        "AngularTolerance": 1E-09,
+        "CurvatureTolerance": 1E-09,
+        "ParameterTolerance": 1E-10,
+        "IterationBudget": 96,
+        "SubdivisionBudget": 10000,
+        "MaximumDerivativeOrderObserved": 2
+      },
+      "Statistics": {
+        "Samples": 257,
+        "Subdivisions": 1,
+        "Iterations": 0,
+        "ClosestPointCalls": 0,
+        "CandidateRegions": 1,
+        "BudgetExhausted": false
+      },
+      "Diagnostics": [
+        {
+          "Code": "InsufficientSecondJetEvidence",
+          "Message": "A local contact candidate does not establish a whole-domain touching relation."
+        }
+      ],
+      "OperandA": {
+        "Kind": "Curve",
+        "Identity": {
+          "StableId": "scalar-t4"
+        },
+        "Provenance": {
+          "Source": "M5 evidence",
+          "SemanticOwner": null,
+          "IsGenerated": false
+        }
+      },
+      "OperandB": {
+        "Kind": "Plane",
+        "Identity": null,
+        "Provenance": {
+          "Source": "query-plane",
+          "SemanticOwner": null,
+          "IsGenerated": false
+        }
+      },
+      "Provenance": "ContactQuery composed from local curve/plane contact remains globally inconclusive",
+      "ContactExists": true,
+      "HasTopologyAuthority": false
+    },
+    "structuralZero": {
+      "Classification": "Coincident",
+      "Evidence": "Structural",
+      "Scope": "Structural",
+      "Witnesses": [],
+      "DistanceRelation": "StructuralCoincidence",
+      "IntersectionRelation": "Coincident",
+      "SideRelation": null,
+      "TangentRelation": "Unknown",
+      "NormalRelation": "Unknown",
+      "CurvatureRelation": "NotApplicable",
+      "OrderEvidence": {
+        "Status": "Unknown",
+        "Order": null,
+        "ProvenLowerBound": null,
+        "MaximumDerivativeOrderChecked": 0,
+        "Evidence": "Unknown",
+        "Diagnostic": "Coincidence has no finite contact order."
+      },
+      "ToleranceUsed": {
+        "LinearTolerance": 1E-09,
+        "AngularTolerance": 1E-09,
+        "CurvatureTolerance": 1E-09,
+        "ParameterTolerance": 1E-10,
+        "IterationBudget": 96,
+        "SubdivisionBudget": 10000,
+        "MaximumDerivativeOrderObserved": 2
+      },
+      "Statistics": {
+        "Samples": 257,
+        "Subdivisions": 0,
+        "Iterations": 0,
+        "ClosestPointCalls": 0,
+        "CandidateRegions": 1,
+        "BudgetExhausted": false
+      },
+      "Diagnostics": [],
+      "OperandA": {
+        "Kind": "Curve",
+        "Identity": {
+          "StableId": "scalar-zero"
+        },
+        "Provenance": {
+          "Source": "M5 evidence",
+          "SemanticOwner": null,
+          "IsGenerated": false
+        }
+      },
+      "OperandB": {
+        "Kind": "Plane",
+        "Identity": null,
+        "Provenance": {
+          "Source": "query-plane",
+          "SemanticOwner": null,
+          "IsGenerated": false
+        }
+      },
+      "Provenance": "ContactQuery composed from analytic-line/plane structural zero over bounded segment",
+      "ContactExists": true,
+      "HasTopologyAuthority": false
+    },
+    "singular": {
+      "Classification": "Unknown",
+      "Evidence": "Unknown",
+      "Scope": "Local",
+      "Witnesses": [],
+      "DistanceRelation": "Unknown",
+      "IntersectionRelation": "Unknown",
+      "SideRelation": null,
+      "TangentRelation": "Unknown",
+      "NormalRelation": "Unknown",
+      "CurvatureRelation": "Unknown",
+      "OrderEvidence": {
+        "Status": "Unknown",
+        "Order": null,
+        "ProvenLowerBound": null,
+        "MaximumDerivativeOrderChecked": 0,
+        "Evidence": "Unknown",
+        "Diagnostic": "The curve parameterization is singular at the contact witness."
+      },
+      "ToleranceUsed": {
+        "LinearTolerance": 1E-09,
+        "AngularTolerance": 1E-09,
+        "CurvatureTolerance": 1E-09,
+        "ParameterTolerance": 1E-10,
+        "IterationBudget": 96,
+        "SubdivisionBudget": 10000,
+        "MaximumDerivativeOrderObserved": 2
+      },
+      "Statistics": {
+        "Samples": 257,
+        "Subdivisions": 1,
+        "Iterations": 0,
+        "ClosestPointCalls": 0,
+        "CandidateRegions": 1,
+        "BudgetExhausted": false
+      },
+      "Diagnostics": [
+        {
+          "Code": "InsufficientSecondJetEvidence",
+          "Message": "A local contact candidate does not establish a whole-domain touching relation."
+        },
+        {
+          "Code": "EvidenceUnavailable",
+          "Message": "The curve parameterization is singular at the contact witness."
+        }
+      ],
+      "OperandA": {
+        "Kind": "Curve",
+        "Identity": {
+          "StableId": "scalar-singular"
+        },
+        "Provenance": {
+          "Source": "M5 evidence",
+          "SemanticOwner": null,
+          "IsGenerated": false
+        }
+      },
+      "OperandB": {
+        "Kind": "Plane",
+        "Identity": null,
+        "Provenance": {
+          "Source": "query-plane",
+          "SemanticOwner": null,
+          "IsGenerated": false
+        }
+      },
+      "Provenance": "ContactQuery composed from local curve/plane contact remains globally inconclusive",
+      "ContactExists": null,
+      "HasTopologyAuthority": false
+    }
+  }
+}

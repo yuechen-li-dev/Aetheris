@@ -1,0 +1,410 @@
+{
+  "paraboloid": {
+    "Classification": "Tangent",
+    "Evidence": "ToleranceBounded",
+    "Scope": "Local",
+    "Witnesses": [
+      {
+        "Point": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": 0,
+          "V": 0
+        },
+        "ParameterOnB": null,
+        "Residual": 0,
+        "TangentRelation": "Compatible",
+        "NormalRelation": "Parallel",
+        "CurvatureRelation": "Separating",
+        "Derivatives": [],
+        "DirectionalObservations": [
+          {
+            "TangentDirection": {
+              "X": 1,
+              "Y": 0,
+              "Z": 0
+            },
+            "NormalCurvatureA": 2,
+            "NormalCurvatureB": 0,
+            "Difference": 2,
+            "Relation": "Separating",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Compared with zero plane normal curvature."
+          },
+          {
+            "TangentDirection": {
+              "X": 0,
+              "Y": 1,
+              "Z": 0
+            },
+            "NormalCurvatureA": 2,
+            "NormalCurvatureB": 0,
+            "Difference": 2,
+            "Relation": "Separating",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Compared with zero plane normal curvature."
+          },
+          {
+            "TangentDirection": {
+              "X": 0.7071067811865476,
+              "Y": 0.7071067811865476,
+              "Z": 0
+            },
+            "NormalCurvatureA": 2,
+            "NormalCurvatureB": 0,
+            "Difference": 2,
+            "Relation": "Separating",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Compared with zero plane normal curvature."
+          }
+        ]
+      }
+    ],
+    "DistanceRelation": "WithinTolerance",
+    "IntersectionRelation": "Touching",
+    "SideRelation": "Unknown",
+    "TangentRelation": "Compatible",
+    "NormalRelation": "Parallel",
+    "CurvatureRelation": "Separating",
+    "OrderEvidence": {
+      "Status": "Unknown",
+      "Order": null,
+      "ProvenLowerBound": null,
+      "MaximumDerivativeOrderChecked": 2,
+      "Evidence": "Unknown",
+      "Diagnostic": "Patch/plane reports directional differential compatibility, not an integer contact order."
+    },
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-09,
+      "AngularTolerance": 1E-09,
+      "CurvatureTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "MaximumDerivativeOrderObserved": 2
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 64,
+      "Iterations": 0,
+      "ClosestPointCalls": 0,
+      "CandidateRegions": 1,
+      "BudgetExhausted": true
+    },
+    "Diagnostics": [
+      {
+        "Code": "SubdivisionBudgetExhausted",
+        "Message": "Certification remained inconclusive at depth 6 with leaf budget 10000."
+      }
+    ],
+    "OperandA": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "paraboloid"
+      },
+      "Provenance": {
+        "Source": "M5 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Plane",
+      "Identity": null,
+      "Provenance": {
+        "Source": "query-plane",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "ContactQuery composed from SignedSide-backed whole-domain one-sided interval plus tangent-plane contact",
+    "ContactExists": true,
+    "HasTopologyAuthority": false
+  },
+  "saddle": {
+    "Classification": "Crossing",
+    "Evidence": "Certified",
+    "Scope": "WholeDomain",
+    "Witnesses": [
+      {
+        "Point": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": 0,
+          "V": 0
+        },
+        "ParameterOnB": null,
+        "Residual": 0,
+        "TangentRelation": "Compatible",
+        "NormalRelation": "Parallel",
+        "CurvatureRelation": "DirectionDependent",
+        "Derivatives": [],
+        "DirectionalObservations": [
+          {
+            "TangentDirection": {
+              "X": 1,
+              "Y": 0,
+              "Z": 0
+            },
+            "NormalCurvatureA": 2,
+            "NormalCurvatureB": 0,
+            "Difference": 2,
+            "Relation": "Separating",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Compared with zero plane normal curvature."
+          },
+          {
+            "TangentDirection": {
+              "X": 0,
+              "Y": 1,
+              "Z": 0
+            },
+            "NormalCurvatureA": -2,
+            "NormalCurvatureB": 0,
+            "Difference": -2,
+            "Relation": "Separating",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Compared with zero plane normal curvature."
+          },
+          {
+            "TangentDirection": {
+              "X": 0.7071067811865476,
+              "Y": 0.7071067811865476,
+              "Z": 0
+            },
+            "NormalCurvatureA": 0,
+            "NormalCurvatureB": 0,
+            "Difference": 0,
+            "Relation": "Compatible",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Compared with zero plane normal curvature."
+          }
+        ]
+      }
+    ],
+    "DistanceRelation": "WithinTolerance",
+    "IntersectionRelation": "Crossing",
+    "SideRelation": "Crossing",
+    "TangentRelation": "Compatible",
+    "NormalRelation": "Parallel",
+    "CurvatureRelation": "DirectionDependent",
+    "OrderEvidence": {
+      "Status": "Unknown",
+      "Order": null,
+      "ProvenLowerBound": null,
+      "MaximumDerivativeOrderChecked": 2,
+      "Evidence": "Unknown",
+      "Diagnostic": "A 2D signed-side crossing has no generic scalar contact order."
+    },
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-09,
+      "AngularTolerance": 1E-09,
+      "CurvatureTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "MaximumDerivativeOrderObserved": 2
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 4,
+      "Iterations": 0,
+      "ClosestPointCalls": 0,
+      "CandidateRegions": 2,
+      "BudgetExhausted": false
+    },
+    "Diagnostics": [],
+    "OperandA": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "saddle"
+      },
+      "Provenance": {
+        "Source": "M5 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Plane",
+      "Identity": null,
+      "Provenance": {
+        "Source": "query-plane",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "ContactQuery composed from SignedSide opposite-side bounded witnesses establish crossing",
+    "ContactExists": true,
+    "HasTopologyAuthority": false
+  },
+  "saddleGuard": "Whole-domain SignedSide crossing takes precedence over the stationary first jet at the origin.",
+  "flat": {
+    "Classification": "SecondOrderCompatible",
+    "Evidence": "ToleranceBounded",
+    "Scope": "Local",
+    "Witnesses": [
+      {
+        "Point": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnA": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "PointOnB": {
+          "X": 0,
+          "Y": 0,
+          "Z": 0
+        },
+        "ParameterOnA": {
+          "T": null,
+          "U": 0,
+          "V": 0
+        },
+        "ParameterOnB": null,
+        "Residual": 0,
+        "TangentRelation": "Compatible",
+        "NormalRelation": "Parallel",
+        "CurvatureRelation": "Compatible",
+        "Derivatives": [],
+        "DirectionalObservations": [
+          {
+            "TangentDirection": {
+              "X": 1,
+              "Y": 0,
+              "Z": 0
+            },
+            "NormalCurvatureA": 0,
+            "NormalCurvatureB": 0,
+            "Difference": 0,
+            "Relation": "Compatible",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Compared with zero plane normal curvature."
+          },
+          {
+            "TangentDirection": {
+              "X": 0,
+              "Y": 1,
+              "Z": 0
+            },
+            "NormalCurvatureA": 0,
+            "NormalCurvatureB": 0,
+            "Difference": 0,
+            "Relation": "Compatible",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Compared with zero plane normal curvature."
+          },
+          {
+            "TangentDirection": {
+              "X": 0.7071067811865476,
+              "Y": 0.7071067811865476,
+              "Z": 0
+            },
+            "NormalCurvatureA": 0,
+            "NormalCurvatureB": 0,
+            "Difference": 0,
+            "Relation": "Compatible",
+            "Evidence": "ToleranceBounded",
+            "Diagnostic": "Compared with zero plane normal curvature."
+          }
+        ]
+      }
+    ],
+    "DistanceRelation": "WithinTolerance",
+    "IntersectionRelation": "Unknown",
+    "SideRelation": "Unknown",
+    "TangentRelation": "Compatible",
+    "NormalRelation": "Parallel",
+    "CurvatureRelation": "Compatible",
+    "OrderEvidence": {
+      "Status": "Unknown",
+      "Order": null,
+      "ProvenLowerBound": null,
+      "MaximumDerivativeOrderChecked": 2,
+      "Evidence": "Unknown",
+      "Diagnostic": "Patch/plane reports directional differential compatibility, not an integer contact order."
+    },
+    "ToleranceUsed": {
+      "LinearTolerance": 1E-09,
+      "AngularTolerance": 1E-09,
+      "CurvatureTolerance": 1E-09,
+      "ParameterTolerance": 1E-10,
+      "IterationBudget": 96,
+      "SubdivisionBudget": 10000,
+      "MaximumDerivativeOrderObserved": 2
+    },
+    "Statistics": {
+      "Samples": 0,
+      "Subdivisions": 0,
+      "Iterations": 0,
+      "ClosestPointCalls": 0,
+      "CandidateRegions": 0,
+      "BudgetExhausted": false
+    },
+    "Diagnostics": [
+      {
+        "Code": "UnsupportedCertifiedExpression",
+        "Message": "Certified interval evaluation requires an authored expression tree; no sampled fallback was performed."
+      },
+      {
+        "Code": "InsufficientSecondJetEvidence",
+        "Message": "SignedSide did not establish a strict side or crossing; local contact evidence is not a global touching proof."
+      }
+    ],
+    "OperandA": {
+      "Kind": "Patch",
+      "Identity": {
+        "StableId": "flat"
+      },
+      "Provenance": {
+        "Source": "M5 evidence",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "OperandB": {
+      "Kind": "Plane",
+      "Identity": null,
+      "Provenance": {
+        "Source": "query-plane",
+        "SemanticOwner": null,
+        "IsGenerated": false
+      }
+    },
+    "Provenance": "ContactQuery composed from patch/plane relation remains inconclusive",
+    "ContactExists": true,
+    "HasTopologyAuthority": false
+  }
+}

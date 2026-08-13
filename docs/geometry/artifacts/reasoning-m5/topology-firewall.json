@@ -1,0 +1,20 @@
+{
+  "before": {
+    "Vertices": 8,
+    "Edges": 12,
+    "Faces": 6,
+    "Curves": 12,
+    "Surfaces": 6
+  },
+  "after": {
+    "Vertices": 8,
+    "Edges": 12,
+    "Faces": 6,
+    "Curves": 12,
+    "Surfaces": 6
+  },
+  "unchanged": true,
+  "HasTopologyAuthority": false,
+  "resultContainsBrep": false,
+  "law": "ContactQuery is evidence-only and cannot create trims, split topology, reposition geometry, or generate response."
+}

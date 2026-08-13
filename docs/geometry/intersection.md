@@ -44,9 +44,8 @@ Curve/patch and patch/patch first call M3 `ClosestPointQuery`. A stabilized dist
 
 `IntersectionWitness` is evidence only. `WitnessesAreAuthoritativeTrims` is permanently false, and the public result contains no BRep, trim, Boolean, face, edge, or mutation operation. No witness curves are emitted in M4, avoiding accidental trim reuse.
 
-`ContactObservation` records tangent/normal and available second-jet observations. It deliberately does not expose multiplicity or contact order. A future `ContactClassification` / `ContactOrder` query can consume these observations without changing intersection authority.
+`ContactObservation` records tangent/normal and available second-jet observations. It deliberately does not expose multiplicity or contact order. M5 `ContactQuery` consumes M4 witnesses and relations, returns separate `ContactClassification` and `ContactOrderEvidence`, and does not change intersection authority. See [contact.md](contact.md).
 
 ## Tolerance and determinism
 
 Tolerance is interpretation, not coordinate rounding. Residuals remain raw. Stable traversal orders are used for samples, subdivisions, bisection, candidate lattices, witnesses, and diagnostics. Budget exhaustion returns `Unknown` rather than a local answer that ignores unresolved regions.
-

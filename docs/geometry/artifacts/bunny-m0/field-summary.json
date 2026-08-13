@@ -1,0 +1,6672 @@
+{
+  "fieldSummary": {
+    "sampleCount": 69451,
+    "knownDirectionCount": 67735,
+    "unknownDirectionCount": 1716,
+    "singularityCount": 1716,
+    "meanNeighborMismatchDegrees": 5.582766413275881,
+    "representation": "unoriented tangent cross {d,-d,nxd,-nxd}",
+    "propagation": "stable-index breadth-first quarter-turn transport"
+  },
+  "curvatureMethod": "adjacent face-normal variation divided by mean local edge length",
+  "tangentMethod": "triangle tangent from longest projected edge; stable-index four-fold transport",
+  "conditioning": "heuristic; degenerate/unsupported samples Unknown",
+  "samples": [
+    {
+      "triangleIndex": 0,
+      "point": {
+        "x": -0.09242066666666666,
+        "y": 0.13190133333333334,
+        "z": 0.017559033333333335
+      },
+      "normal": {
+        "x": -0.910279748695212,
+        "y": 0.39349339305530207,
+        "z": -0.12866129463520581,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.25854613702761986,
+        "y": 0.7830580573993411,
+        "z": 0.5656624203268815,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 55.154418746958825,
+      "conditioning": 0.9277280238171101,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 1,
+      "point": {
+        "x": -0.08785720000000001,
+        "y": 0.11090166666666668,
+        "z": 0.018013
+      },
+      "normal": {
+        "x": -0.6305267315480628,
+        "y": -0.7665688080784796,
+        "z": 0.12168937210971291,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": -0.7731321223172868,
+        "y": 0.6341459528988116,
+        "z": -0.011208562049877765,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 90.22624003039877,
+      "conditioning": 0.8541966346229287,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 2,
+      "point": {
+        "x": -0.08744273333333334,
+        "y": 0.10591033333333333,
+        "z": 0.014030100000000002
+      },
+      "normal": {
+        "x": -0.9109018969400821,
+        "y": 0.4124435666876993,
+        "z": 0.012167105197607051,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.243393056909923,
+        "y": 0.5132672165067881,
+        "z": 0.8229924570173272,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 45.98389567224812,
+      "conditioning": 0.9391822076524282,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 3,
+      "point": {
+        "x": -0.0876455,
+        "y": 0.10546533333333334,
+        "z": 0.013700333333333333
+      },
+      "normal": {
+        "x": -0.9133779547371198,
+        "y": 0.4070964837504936,
+        "z": 0.00362832168088793,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.2339298138357586,
+        "y": 0.5175184867815649,
+        "z": 0.8230743939876192,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 16.72570371102429,
+      "conditioning": 0.9769911184693437,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 4,
+      "point": {
+        "x": -0.03189153333333333,
+        "y": 0.05161193333333333,
+        "z": -0.012748566666666667
+      },
+      "normal": {
+        "x": -0.8697685975656112,
+        "y": 0.13814119925907115,
+        "z": -0.4737294541782424,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.1546803936860869,
+        "y": -0.8353089376964018,
+        "z": -0.5275727005954971,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 247.16162043009564,
+      "conditioning": 0.7430267210392247,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 5,
+      "point": {
+        "x": -0.08890283333333333,
+        "y": 0.14240133333333335,
+        "z": 0.012530066666666667
+      },
+      "normal": {
+        "x": -0.8604463727003714,
+        "y": -0.07355339950739416,
+        "z": -0.5042042613144788,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.420228392629224,
+        "y": 0.6620549983583267,
+        "z": 0.6205572311858228,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 95.11406945117893,
+      "conditioning": 0.8773813145005923,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 6,
+      "point": {
+        "x": -0.03454383333333333,
+        "y": 0.10617599999999999,
+        "z": -0.020409933333333335
+      },
+      "normal": {
+        "x": -0.11893914334389948,
+        "y": 0.15528162484026065,
+        "z": -0.980683994550532,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.8174066661192341,
+        "y": -0.5760064507387763,
+        "z": 0.007931638617382386,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 169.74479789306042,
+      "conditioning": 0.806554073737642,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 7,
+      "point": {
+        "x": -0.033168366666666664,
+        "y": 0.09343856666666667,
+        "z": -0.023964633333333336
+      },
+      "normal": {
+        "x": -0.11855116134152065,
+        "y": 0.15445052059472544,
+        "z": -0.9808622017554733,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": -0.5657784116352423,
+        "y": -0.8222905352253987,
+        "z": -0.061098810186692915,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 5.206206696354994,
+      "conditioning": 0.9927654174243737,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 8,
+      "point": {
+        "x": -0.08606193333333334,
+        "y": 0.108595,
+        "z": 0.009692253333333333
+      },
+      "normal": {
+        "x": -0.9827390213333,
+        "y": 0.1588413613621515,
+        "z": -0.09483373803391904,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.07944150102567814,
+        "y": 0.8252933322102086,
+        "z": 0.5590885115293975,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 214.87992662554282,
+      "conditioning": 0.770137483422699,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 9,
+      "point": {
+        "x": -0.08688786666666666,
+        "y": 0.105864,
+        "z": 0.009708203333333333
+      },
+      "normal": {
+        "x": -0.9096636165571083,
+        "y": 0.3953760620117125,
+        "z": -0.12723943689105413,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.2596386191168096,
+        "y": 0.7804166586169948,
+        "z": 0.5688036800304663,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 48.276386083490415,
+      "conditioning": 0.9367522716823623,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 10,
+      "point": {
+        "x": -0.0864284,
+        "y": 0.148303,
+        "z": 0.007557703333333333
+      },
+      "normal": {
+        "x": -0.7872383710079148,
+        "y": 0.0060316926267913705,
+        "z": -0.6166193038633,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.42453668415909857,
+        "y": 0.7199403654135152,
+        "z": 0.5490486991619704,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 92.40603917788717,
+      "conditioning": 0.8767068303703731,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 11,
+      "point": {
+        "x": -0.08677776666666666,
+        "y": 0.14785,
+        "z": 0.007907806666666666
+      },
+      "normal": {
+        "x": -0.7061599335382084,
+        "y": 0.11624498459839587,
+        "z": -0.6984448810185608,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": -0.4245366841590986,
+        "y": 0.7199403654135152,
+        "z": 0.5490486991619704,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 62.932232478932214,
+      "conditioning": 0.9097094701974874,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 12,
+      "point": {
+        "x": -0.016465133333333336,
+        "y": 0.12791966666666668,
+        "z": 0.0045667
+      },
+      "normal": {
+        "x": -0.2544527623052032,
+        "y": 0.9542218512889874,
+        "z": -0.1572083021912949,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.882896560248803,
+        "y": 0.1628746490250051,
+        "z": -0.4404151593733046,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 16.64968386461353,
+      "conditioning": 0.9748467481585373,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 13,
+      "point": {
+        "x": -0.015048133333333333,
+        "y": 0.12811,
+        "z": 0.0036091166666666666
+      },
+      "normal": {
+        "x": -0.23468989256383932,
+        "y": 0.9473117990067652,
+        "z": -0.21799314161445496,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.9362192692559597,
+        "y": 0.15993511154880916,
+        "z": -0.31291251168290946,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 20.15632281241018,
+      "conditioning": 0.9685814205483974,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 14,
+      "point": {
+        "x": -0.0168725,
+        "y": 0.12804133333333334,
+        "z": 0.005866053333333334
+      },
+      "normal": {
+        "x": -0.2667439491412837,
+        "y": 0.9446346079854718,
+        "z": -0.19108407310041844,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.8834427025442851,
+        "y": 0.1604148737148856,
+        "z": -0.44022273863612166,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 35.82216276318308,
+      "conditioning": 0.9463989633744141,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 15,
+      "point": {
+        "x": -0.013265066666666667,
+        "y": 0.12930333333333333,
+        "z": 0.010083646666666666
+      },
+      "normal": {
+        "x": -0.2555781381602633,
+        "y": 0.9658485212134174,
+        "z": -0.042619823608131026,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.8869641280941725,
+        "y": 0.21670750415702367,
+        "z": -0.40783880776132386,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 20.031127689367736,
+      "conditioning": 0.9700344491033449,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 16,
+      "point": {
+        "x": -0.0171668,
+        "y": 0.12785100000000002,
+        "z": 0.005275493333333333
+      },
+      "normal": {
+        "x": -0.2531899882997818,
+        "y": 0.954015540100314,
+        "z": -0.16046550742094862,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.8834427025442851,
+        "y": 0.16041487371488558,
+        "z": -0.44022273863612166,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 25.566831685217068,
+      "conditioning": 0.9619137434043431,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 17,
+      "point": {
+        "x": -0.014265633333333333,
+        "y": 0.12921666666666667,
+        "z": 0.012609133333333333
+      },
+      "normal": {
+        "x": -0.21564264785153178,
+        "y": 0.9751674621430897,
+        "z": -0.050464534130277953,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.897116904923562,
+        "y": 0.17744556388341437,
+        "z": -0.40459156041428473,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 41.96759718707706,
+      "conditioning": 0.9403443177635008,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 18,
+      "point": {
+        "x": -0.012686566666666668,
+        "y": 0.129431,
+        "z": 0.009812573333333333
+      },
+      "normal": {
+        "x": -0.21879440124161606,
+        "y": 0.9739614791003108,
+        "z": -0.059397367063341644,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.896746652749061,
+        "y": 0.17670468447906584,
+        "z": -0.40573500621280995,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 13.756708259859677,
+      "conditioning": 0.9796301418400366,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 19,
+      "point": {
+        "x": -0.012211466666666669,
+        "y": 0.129455,
+        "z": 0.008543696666666666
+      },
+      "normal": {
+        "x": -0.21032528125279917,
+        "y": 0.9754371427870846,
+        "z": -0.06546492600851102,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.8987241537225616,
+        "y": 0.16655967634849894,
+        "z": -0.40565104428603227,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 8.110351675979167,
+      "conditioning": 0.9878853527939747,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 20,
+      "point": {
+        "x": -0.013664533333333333,
+        "y": 0.12936366666666668,
+        "z": 0.0123451
+      },
+      "normal": {
+        "x": -0.28291824127421933,
+        "y": 0.9589416927343135,
+        "z": -0.019700220560996653,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.8782242090869242,
+        "y": 0.2507375865329059,
+        "z": -0.40725041592771877,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 45.00367595576371,
+      "conditioning": 0.9338806238808111,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 21,
+      "point": {
+        "x": -0.01777593333333333,
+        "y": 0.12792133333333333,
+        "z": 0.006985239999999999
+      },
+      "normal": {
+        "x": -0.25509434423682636,
+        "y": 0.9608354600285682,
+        "z": -0.10826862098536841,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.8824190814256948,
+        "y": 0.18556039851092057,
+        "z": -0.4323238407031256,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 33.36189300625216,
+      "conditioning": 0.9504859969928063,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 22,
+      "point": {
+        "x": -0.011891766666666666,
+        "y": 0.12946333333333335,
+        "z": 0.007699326666666666
+      },
+      "normal": {
+        "x": -0.2074055247417009,
+        "y": 0.9754943100441892,
+        "z": -0.07344249027661792,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.8865333155996022,
+        "y": 0.15568956310388027,
+        "z": -0.4356827289123347,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 16.83763411385238,
+      "conditioning": 0.975053596871095,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 23,
+      "point": {
+        "x": -0.017175766666666665,
+        "y": 0.1280726666666667,
+        "z": 0.006721156666666668
+      },
+      "normal": {
+        "x": -0.307859093016818,
+        "y": 0.9478923757250348,
+        "z": -0.08199282218104051,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.8654243690656311,
+        "y": 0.24318200341758717,
+        "z": -0.43806754575198004,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 44.63352785708843,
+      "conditioning": 0.9336682203089518,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 24,
+      "point": {
+        "x": -0.018256833333333333,
+        "y": 0.127907,
+        "z": 0.008260316666666667
+      },
+      "normal": {
+        "x": -0.26451942403590606,
+        "y": 0.9611941643195938,
+        "z": -0.0783278544687024,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.876767605015837,
+        "y": 0.2058678639655404,
+        "z": -0.434622812771096,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 17.535683502310302,
+      "conditioning": 0.9733336232340898,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 25,
+      "point": {
+        "x": -0.017679666666666663,
+        "y": 0.12804433333333332,
+        "z": 0.007987733333333333
+      },
+      "normal": {
+        "x": -0.26635645545719544,
+        "y": 0.9607605758373662,
+        "z": -0.07741675886351561,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.8762112744845122,
+        "y": 0.20788197337053838,
+        "z": -0.4347860250902709,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 10.950656002090124,
+      "conditioning": 0.9831936368869331,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 26,
+      "point": {
+        "x": -0.018754733333333332,
+        "y": 0.12785066666666667,
+        "z": 0.009527823333333333
+      },
+      "normal": {
+        "x": -0.2878426947029908,
+        "y": 0.9561427154351521,
+        "z": -0.05420046887633608,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.8673752292844077,
+        "y": 0.23629204149105804,
+        "z": -0.4379797743638505,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 21.698134150349215,
+      "conditioning": 0.9666485044631813,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 27,
+      "point": {
+        "x": -0.01815553333333333,
+        "y": 0.128009,
+        "z": 0.009262766666666667
+      },
+      "normal": {
+        "x": -0.2699233766499522,
+        "y": 0.9608050316426495,
+        "z": -0.0632065021026733,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.8731177331883404,
+        "y": 0.21655602582677133,
+        "z": -0.4367710059861676,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 15.939262874809412,
+      "conditioning": 0.9757418356957196,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 28,
+      "point": {
+        "x": -0.01925223333333333,
+        "y": 0.127804,
+        "z": 0.010796803333333334
+      },
+      "normal": {
+        "x": -0.1922384791864028,
+        "y": 0.9764389736818648,
+        "z": -0.09803722657850669,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.8928553336027236,
+        "y": 0.13257053802042446,
+        "z": -0.43038866818974736,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 44.88430041374062,
+      "conditioning": 0.9355944943102065,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 29,
+      "point": {
+        "x": -0.018673,
+        "y": 0.1279296666666667,
+        "z": 0.010523703333333334
+      },
+      "normal": {
+        "x": -0.289249837423183,
+        "y": 0.9559407583699018,
+        "z": -0.05011784151217336,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.8663029557685891,
+        "y": 0.23913444620776705,
+        "z": -0.43855889623117966,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 30.21145923261237,
+      "conditioning": 0.9541313154885888,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 30,
+      "point": {
+        "x": -0.019727899999999996,
+        "y": 0.12777066666666667,
+        "z": 0.012073633333333333
+      },
+      "normal": {
+        "x": -0.2621901241958149,
+        "y": 0.9646603039284377,
+        "z": -0.02620757140364684,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.8847058836441178,
+        "y": 0.22943486896473653,
+        "z": -0.40577720530928646,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 26.727407780749076,
+      "conditioning": 0.9603541372496939,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 31,
+      "point": {
+        "x": -0.019148833333333334,
+        "y": 0.12790133333333334,
+        "z": 0.011800266666666668
+      },
+      "normal": {
+        "x": -0.20973120781833965,
+        "y": 0.9764790426710717,
+        "z": -0.050014994664079486,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.8985883274600203,
+        "y": 0.17233264431430048,
+        "z": -0.40353497674457434,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 25.857785906930648,
+      "conditioning": 0.9622989958817787,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 32,
+      "point": {
+        "x": -0.020304833333333334,
+        "y": 0.12758933333333333,
+        "z": 0.013324266666666668
+      },
+      "normal": {
+        "x": -0.2779166985179452,
+        "y": 0.9600920827936763,
+        "z": 0.031392694082952595,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.8892970893670399,
+        "y": 0.2695049627763932,
+        "z": -0.369483100942663,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 26.320833847894228,
+      "conditioning": 0.9610329468866805,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 33,
+      "point": {
+        "x": -0.0092649,
+        "y": 0.12921366666666667,
+        "z": 0.002411333333333333
+      },
+      "normal": {
+        "x": -0.18681914112646023,
+        "y": 0.9502266026281977,
+        "z": -0.24933514025593168,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.4461638084398871,
+        "y": 0.30818622246637123,
+        "z": 0.8402137277623616,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 39.40730542813879,
+      "conditioning": 0.9432678896277411,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 34,
+      "point": {
+        "x": -0.0196853,
+        "y": 0.127779,
+        "z": 0.013059800000000002
+      },
+      "normal": {
+        "x": -0.2820289023432295,
+        "y": 0.9588346821441549,
+        "z": 0.03310212320366195,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.8880015217976129,
+        "y": 0.27394485708208155,
+        "z": -0.36933387681527613,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 15.0045483760401,
+      "conditioning": 0.9774324495277946,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 35,
+      "point": {
+        "x": -0.013323833333333333,
+        "y": 0.12940200000000002,
+        "z": 0.011505500000000002
+      },
+      "normal": {
+        "x": -0.25118791680640845,
+        "y": 0.9616957250721729,
+        "z": -0.10975410164711176,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.8911800522387615,
+        "y": 0.1855240918521807,
+        "z": -0.41397937851315963,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 32.241014134145445,
+      "conditioning": 0.9511186848753088,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 36,
+      "point": {
+        "x": -0.011239366666666667,
+        "y": 0.12924566666666668,
+        "z": 0.00456991
+      },
+      "normal": {
+        "x": -0.23806807452082546,
+        "y": 0.9556717449882087,
+        "z": -0.17324868751346645,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.8892966710460021,
+        "y": 0.14276971172696756,
+        "z": -0.43447467162067943,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 18.4470604060967,
+      "conditioning": 0.9722753130931775,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 37,
+      "point": {
+        "x": -0.06844303333333333,
+        "y": 0.17032100000000003,
+        "z": -0.0323912
+      },
+      "normal": {
+        "x": 0.5120720112839116,
+        "y": 0.8268155561860107,
+        "z": 0.2327193402114816,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": -0.4020065375448116,
+        "y": 0.47012959216664263,
+        "z": -0.7857282674948499,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 32.17837521307521,
+      "conditioning": 0.9587396346328709,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 38,
+      "point": {
+        "x": -0.013606166666666667,
+        "y": 0.129271,
+        "z": 0.010923000000000002
+      },
+      "normal": {
+        "x": -0.24063635077033818,
+        "y": 0.9669124935785006,
+        "z": -0.08470169094971342,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.8911800522387615,
+        "y": 0.18552409185218072,
+        "z": -0.41397937851315963,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 15.608263038784065,
+      "conditioning": 0.9761313437665281,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 39,
+      "point": {
+        "x": -0.08114726666666666,
+        "y": 0.15450266666666668,
+        "z": 0.023159600000000002
+      },
+      "normal": {
+        "x": -0.3483365340675343,
+        "y": 0.924833735790871,
+        "z": 0.15278815457004163,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.27467884398703896,
+        "y": -0.05513308721481545,
+        "z": 0.9599541006527903,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 25.871077590976455,
+      "conditioning": 0.9615928890049023,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 40,
+      "point": {
+        "x": -0.06769693333333333,
+        "y": 0.17016900000000001,
+        "z": -0.03354843333333333
+      },
+      "normal": {
+        "x": 0.524963278325762,
+        "y": 0.8225392566279448,
+        "z": 0.21872980527449087,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.17693308362235846,
+        "y": 0.3568398325156839,
+        "z": -0.9172567894815836,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 14.245440540773842,
+      "conditioning": 0.9812121920445706,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 41,
+      "point": {
+        "x": -0.0479776,
+        "y": 0.13549333333333333,
+        "z": 0.0175326
+      },
+      "normal": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "lengthSquared": 0,
+        "length": 0
+      },
+      "crossDirection": {
+        "x": 0.0003873999999999961,
+        "y": -0.00019399999999999973,
+        "z": -0.0013399999999999974,
+        "lengthSquared": 1.98331475999999E-06,
+        "length": 0.0014083020840714503
+      },
+      "curvatureProxy": 1660.7726605754315,
+      "conditioning": 0,
+      "directionKnown": false,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 42,
+      "point": {
+        "x": -0.06834676666666667,
+        "y": 0.17011566666666667,
+        "z": -0.031880799999999994
+      },
+      "normal": {
+        "x": 0.5146075171508582,
+        "y": 0.8238218029145037,
+        "z": 0.23769042962333556,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": -0.39875569495738583,
+        "y": 0.4753561132715688,
+        "z": -0.784238778252134,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 23.15921460494674,
+      "conditioning": 0.9699352631365065,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 43,
+      "point": {
+        "x": -0.012151533333333332,
+        "y": 0.12934766666666667,
+        "z": 0.007121896666666666
+      },
+      "normal": {
+        "x": -0.22776632669309907,
+        "y": 0.9665301339221583,
+        "z": -0.11807624928471928,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.8865333155996022,
+        "y": 0.15568956310388024,
+        "z": -0.4356827289123347,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 15.683876977897226,
+      "conditioning": 0.9762977646528213,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 44,
+      "point": {
+        "x": -0.07862933333333334,
+        "y": 0.15564566666666665,
+        "z": 0.018147
+      },
+      "normal": {
+        "x": -0.2022134351745347,
+        "y": 0.9793362116683093,
+        "z": 0.0032110979553420286,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.36764322931182625,
+        "y": 0.07287116169667723,
+        "z": 0.9271074639620527,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 49.48384912562538,
+      "conditioning": 0.9305698115131273,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 45,
+      "point": {
+        "x": -0.011849533333333334,
+        "y": 0.12932366666666667,
+        "z": 0.00626982
+      },
+      "normal": {
+        "x": -0.23448994289045694,
+        "y": 0.9669405925152459,
+        "z": -0.10020158296901004,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.8856831599256157,
+        "y": 0.17001295389307303,
+        "z": -0.43204274757566313,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 10.85500166078208,
+      "conditioning": 0.9833621555548759,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 46,
+      "point": {
+        "x": -0.012768833333333333,
+        "y": 0.12935066666666664,
+        "z": 0.008820006666666666
+      },
+      "normal": {
+        "x": -0.21782528946668206,
+        "y": 0.9740117808107942,
+        "z": -0.06207410176991382,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.8969358793621538,
+        "y": 0.17470202104078042,
+        "z": -0.4061837418670358,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 8.145441764086423,
+      "conditioning": 0.9878388318631508,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 47,
+      "point": {
+        "x": -0.0109654,
+        "y": 0.12940566666666667,
+        "z": 0.005153153333333334
+      },
+      "normal": {
+        "x": -0.22216543727102764,
+        "y": 0.9652579445665355,
+        "z": -0.13754860571216407,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.8892966710460021,
+        "y": 0.14276971172696756,
+        "z": -0.43447467162067943,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 26.72283526844631,
+      "conditioning": 0.9603213242463638,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 48,
+      "point": {
+        "x": -0.011268066666666667,
+        "y": 0.12943800000000003,
+        "z": 0.00600394
+      },
+      "normal": {
+        "x": -0.23680322071299545,
+        "y": 0.9664930889173207,
+        "z": -0.09907241662041187,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.8850674707346021,
+        "y": 0.17253875802334703,
+        "z": -0.4323030756624513,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 21.342429680526774,
+      "conditioning": 0.9678310393842476,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 49,
+      "point": {
+        "x": -0.0209324,
+        "y": 0.1272866666666667,
+        "z": 0.0145647
+      },
+      "normal": {
+        "x": -0.32914500771695565,
+        "y": 0.9381161078526316,
+        "z": 0.1077113368333859,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.8800297617453708,
+        "y": 0.34610414608681755,
+        "z": -0.32520691644536204,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 22.646744053482024,
+      "conditioning": 0.9663167191904615,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 50,
+      "point": {
+        "x": -0.09231603333333334,
+        "y": 0.116887,
+        "z": 0.009977456666666667
+      },
+      "normal": {
+        "x": -0.899492429538013,
+        "y": -0.31709903979762977,
+        "z": -0.30060200957948374,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.4295748275678806,
+        "y": 0.5160376249937576,
+        "z": 0.7410604814121637,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 83.96890603227968,
+      "conditioning": 0.8953146804899217,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 51,
+      "point": {
+        "x": -0.020299266666666666,
+        "y": 0.12752533333333332,
+        "z": 0.014303266666666667
+      },
+      "normal": {
+        "x": -0.2982143823700096,
+        "y": 0.9496296521047753,
+        "z": 0.09628969826018345,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.8909865317782771,
+        "y": 0.31313485209158487,
+        "z": -0.3287697744551628,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 35.92090769129057,
+      "conditioning": 0.9476198846437963,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 52,
+      "point": {
+        "x": -0.021589233333333336,
+        "y": 0.12689799999999998,
+        "z": 0.015788833333333335
+      },
+      "normal": {
+        "x": -0.3568643325266737,
+        "y": 0.9261031422436156,
+        "z": 0.1223961522957038,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.8675440975144334,
+        "y": 0.3771502378041239,
+        "z": -0.32422975957206696,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 43.897933846810005,
+      "conditioning": 0.9353817296226842,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 53,
+      "point": {
+        "x": -0.020938166666666664,
+        "y": 0.12717066666666665,
+        "z": 0.015534966666666669
+      },
+      "normal": {
+        "x": -0.33056668905241055,
+        "y": 0.9370448334000154,
+        "z": 0.1125728399182688,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.8779012342232855,
+        "y": 0.34907923476990566,
+        "z": -0.32776990527150185,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 9.652771975783226,
+      "conditioning": 0.9854271135799679,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 54,
+      "point": {
+        "x": -0.0223037,
+        "y": 0.12641533333333332,
+        "z": 0.01699406666666667
+      },
+      "normal": {
+        "x": -0.3262875986368424,
+        "y": 0.9296761799902691,
+        "z": 0.17099299206255075,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.8874212417229931,
+        "y": 0.3635761057137699,
+        "z": -0.2833654091325031,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 41.2518977379457,
+      "conditioning": 0.9403971569912626,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 55,
+      "point": {
+        "x": -0.021633033333333333,
+        "y": 0.12671966666666667,
+        "z": 0.016744833333333334
+      },
+      "normal": {
+        "x": -0.3732464114521483,
+        "y": 0.9089176218835832,
+        "z": 0.18589210033668846,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.8687158186791983,
+        "y": 0.4127397980771681,
+        "z": -0.2738223611390219,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 42.81037381468031,
+      "conditioning": 0.9366773655354088,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 56,
+      "point": {
+        "x": -0.023080666666666666,
+        "y": 0.12584833333333334,
+        "z": 0.018189800000000002
+      },
+      "normal": {
+        "x": -0.31998972840232587,
+        "y": 0.9162168882836922,
+        "z": 0.2411497197608859,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.9107418183716218,
+        "y": 0.36760814137606895,
+        "z": -0.18818500116423745,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 35.85039335560837,
+      "conditioning": 0.9471675454082118,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 57,
+      "point": {
+        "x": -0.02238496666666667,
+        "y": 0.12616933333333333,
+        "z": 0.017940833333333333
+      },
+      "normal": {
+        "x": -0.3459558037679754,
+        "y": 0.9053067690366653,
+        "z": 0.24644316946437786,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.9011984619677824,
+        "y": 0.39371155167027266,
+        "z": -0.1811975337257375,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 26.739894495135147,
+      "conditioning": 0.9600338153677488,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 58,
+      "point": {
+        "x": -0.023935799999999997,
+        "y": 0.125151,
+        "z": 0.0193697
+      },
+      "normal": {
+        "x": -0.27686638577319106,
+        "y": 0.9025810114972015,
+        "z": 0.32968548969218997,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.1943528298996163,
+        "y": -0.2834068626016711,
+        "z": 0.9390993172930584,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 36.13717250560859,
+      "conditioning": 0.9484182476068214,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 59,
+      "point": {
+        "x": -0.0232448,
+        "y": 0.125486,
+        "z": 0.019123
+      },
+      "normal": {
+        "x": -0.3425277131839822,
+        "y": 0.8774848648065806,
+        "z": 0.3357008753880881,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.9191853693412241,
+        "y": 0.3869119567364836,
+        "z": -0.07346696212164373,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 55.032909091223274,
+      "conditioning": 0.9190293273909403,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 60,
+      "point": {
+        "x": -0.024753566666666667,
+        "y": 0.12444500000000001,
+        "z": 0.0205398
+      },
+      "normal": {
+        "x": -0.19348442183599704,
+        "y": 0.906820444323386,
+        "z": 0.3744869293632647,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.966596713089337,
+        "y": 0.2415868012528913,
+        "z": -0.08559562900806375,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 37.20356469076168,
+      "conditioning": 0.9476700853560723,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 61,
+      "point": {
+        "x": -0.0241069,
+        "y": 0.12472866666666667,
+        "z": 0.02028896666666667
+      },
+      "normal": {
+        "x": -0.2921102489440775,
+        "y": 0.8770801168033912,
+        "z": 0.3813162351250976,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.1680909657051206,
+        "y": -0.3454164142271366,
+        "z": 0.9232729434088205,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 38.37794017288382,
+      "conditioning": 0.9448106641973781,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 62,
+      "point": {
+        "x": -0.025636433333333333,
+        "y": 0.12371966666666667,
+        "z": 0.0216954
+      },
+      "normal": {
+        "x": -0.32810232391761673,
+        "y": 0.8666478613735114,
+        "z": 0.37585948094544364,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.5414508917718669,
+        "y": 0.4985735651674672,
+        "z": -0.6769455900703184,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 56.37597614419068,
+      "conditioning": 0.9213306616759773,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 63,
+      "point": {
+        "x": -0.02496403333333333,
+        "y": 0.12402600000000001,
+        "z": 0.02144343333333333
+      },
+      "normal": {
+        "x": -0.19395976984079089,
+        "y": 0.9061286421419701,
+        "z": 0.3759128776369027,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.9752604296010476,
+        "y": 0.21952896449203607,
+        "z": -0.02596397895998348,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 46.43875330074925,
+      "conditioning": 0.9359635177531882,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 64,
+      "point": {
+        "x": -0.08799563333333334,
+        "y": 0.10055183333333334,
+        "z": 0.022034966666666666
+      },
+      "normal": {
+        "x": -0.891767820772325,
+        "y": 0.2757914363796294,
+        "z": 0.3587328218251561,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.4524648266447043,
+        "y": 0.5346039947727977,
+        "z": 0.7137745788568994,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 53.79988894176223,
+      "conditioning": 0.930289340421003,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 65,
+      "point": {
+        "x": -0.03525023333333333,
+        "y": 0.08699686666666667,
+        "z": -0.024379833333333333
+      },
+      "normal": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "lengthSquared": 0,
+        "length": 0
+      },
+      "crossDirection": {
+        "x": 0.0009571000000000024,
+        "y": 3.369999999999762E-05,
+        "z": -0.0004615000000000001,
+        "lengthSquared": 1.1301583500000046E-06,
+        "length": 0.0010630890602390773
+      },
+      "curvatureProxy": 1685.9378554310554,
+      "conditioning": 0,
+      "directionKnown": false,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 66,
+      "point": {
+        "x": -0.07607443333333334,
+        "y": 0.15565133333333334,
+        "z": 0.011257433333333332
+      },
+      "normal": {
+        "x": -0.1370918506707576,
+        "y": 0.9885498228459509,
+        "z": -0.06304817389033347,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.46106634577952815,
+        "y": 0.12001536106554508,
+        "z": 0.8792122257440576,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 43.640798799079185,
+      "conditioning": 0.9388592079699174,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 67,
+      "point": {
+        "x": -0.06886216666666667,
+        "y": 0.17001600000000003,
+        "z": -0.03064036666666667
+      },
+      "normal": {
+        "x": 0.48694920548235165,
+        "y": 0.8250426609110522,
+        "z": 0.2866794009986016,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.3941456569463326,
+        "y": 0.5004709035445235,
+        "z": -0.7708294725914885,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 21.24507572045352,
+      "conditioning": 0.9724235362376016,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 68,
+      "point": {
+        "x": -0.022700200000000004,
+        "y": 0.038397633333333334,
+        "z": 0.0540265
+      },
+      "normal": {
+        "x": 0.18451456003612543,
+        "y": 0.06921661086014845,
+        "z": 0.9803894317645973,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.8026163220753276,
+        "y": -0.5863287946098666,
+        "z": -0.10966122445794145,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 49.11438470393203,
+      "conditioning": 0.9347479952796117,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 69,
+      "point": {
+        "x": -0.0698479,
+        "y": 0.155514,
+        "z": 0.0052153699999999996
+      },
+      "normal": {
+        "x": 0.08534627710442592,
+        "y": 0.9953251785780508,
+        "z": -0.04520842701295772,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.5334787607184994,
+        "y": -0.007328223356991744,
+        "z": 0.8457817147495471,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 67.52205411642136,
+      "conditioning": 0.9131246738694945,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 70,
+      "point": {
+        "x": -0.0021816799999999996,
+        "y": 0.13039466666666666,
+        "z": 0.00263042
+      },
+      "normal": {
+        "x": -0.10641184379076363,
+        "y": 0.9656230022434912,
+        "z": -0.23716816194278056,
+        "lengthSquared": 1.0000000000000004,
+        "length": 1.0000000000000002
+      },
+      "crossDirection": {
+        "x": 0.8599715585213749,
+        "y": -0.030354924154253796,
+        "z": -0.5094384134651677,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 23.834269111356885,
+      "conditioning": 0.9649813164217514,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 71,
+      "point": {
+        "x": -0.08224823333333334,
+        "y": 0.07441043333333332,
+        "z": 0.007865133333333335
+      },
+      "normal": {
+        "x": -0.8684299136262851,
+        "y": -0.4775368079056413,
+        "z": 0.13337196937262952,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": -0.33866712041509417,
+        "y": 0.7677880927194776,
+        "z": 0.5438805256928537,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 120.696948340275,
+      "conditioning": 0.849141325387409,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 72,
+      "point": {
+        "x": -0.08823696666666665,
+        "y": 0.08700983333333334,
+        "z": 0.007812206666666666
+      },
+      "normal": {
+        "x": -0.9215984857021323,
+        "y": -0.3881443314095064,
+        "z": 0.0004573250528033138,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.3222451792543292,
+        "y": 0.7657852054308787,
+        "z": 0.5565348718548839,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 87.9685814263263,
+      "conditioning": 0.8885815652303555,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 73,
+      "point": {
+        "x": 0.0206727,
+        "y": 0.09199096666666666,
+        "z": -0.024055800000000002
+      },
+      "normal": {
+        "x": 0.4469300410464363,
+        "y": 0.38498740538884096,
+        "z": -0.8074888458066768,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.6723998356355718,
+        "y": 0.7399343358222759,
+        "z": -0.019381426895445586,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 9.503379667647529,
+      "conditioning": 0.9869483469933492,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 74,
+      "point": {
+        "x": -0.06018143333333333,
+        "y": 0.04389083333333333,
+        "z": 0.0431288
+      },
+      "normal": {
+        "x": -0.46090345829998863,
+        "y": 0.5089896832424323,
+        "z": 0.7269783383842184,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.20140422275708092,
+        "y": 0.7378088790685542,
+        "z": -0.6442626770372623,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 121.31810777946991,
+      "conditioning": 0.8530996519026518,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 75,
+      "point": {
+        "x": -0.08893166666666667,
+        "y": 0.09468033333333332,
+        "z": 0.009764393333333333
+      },
+      "normal": {
+        "x": -0.982829426505535,
+        "y": -0.1819676873317366,
+        "z": -0.03056270868134216,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": -0.13160756058510115,
+        "y": 0.5752310256519585,
+        "z": 0.8073343279733836,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 88.91954637153924,
+      "conditioning": 0.8920279891011821,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 76,
+      "point": {
+        "x": -0.07926513333333333,
+        "y": 0.15531499999999998,
+        "z": 0.020376633333333335
+      },
+      "normal": {
+        "x": -0.2435561609795586,
+        "y": 0.9673375526758516,
+        "z": 0.07027414625588362,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.34610125091813526,
+        "y": 0.018998131306456095,
+        "z": 0.9380047948277048,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 33.98013429290335,
+      "conditioning": 0.9513391685801261,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 77,
+      "point": {
+        "x": -0.05311456666666667,
+        "y": 0.15178500000000003,
+        "z": 0.0185434
+      },
+      "normal": {
+        "x": 0.8666446923240763,
+        "y": 0.47275722029925116,
+        "z": 0.15946030202352135,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.490020595054645,
+        "y": -0.746416106868342,
+        "z": -0.4502697100958487,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 45.42527367756309,
+      "conditioning": 0.938941365612892,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 78,
+      "point": {
+        "x": 0.05970313333333333,
+        "y": 0.06954083333333333,
+        "z": 0.0126031
+      },
+      "normal": {
+        "x": 0.8621666869449401,
+        "y": 0.5018244132111761,
+        "z": -0.06957630507323871,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.4697224737252727,
+        "y": 0.7403391585555017,
+        "z": -0.48089367638464753,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 71.56449178085273,
+      "conditioning": 0.923161738965964,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 79,
+      "point": {
+        "x": -0.0708034,
+        "y": 0.177095,
+        "z": -0.0471559
+      },
+      "normal": {
+        "x": 0.4119842645079729,
+        "y": 0.7737554932297158,
+        "z": 0.4812186639093123,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.367952105366852,
+        "y": -0.624418519569696,
+        "z": 0.6889940207102602,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 25.918521666560483,
+      "conditioning": 0.965220514995791,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 80,
+      "point": {
+        "x": -0.0920493,
+        "y": 0.11642933333333333,
+        "z": 0.00964628
+      },
+      "normal": {
+        "x": -0.9062324768319008,
+        "y": -0.3088244472168216,
+        "z": -0.28873891101883514,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": -0.4151672689546827,
+        "y": 0.5210317574303905,
+        "z": 0.7457627280427126,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 43.52668014409621,
+      "conditioning": 0.9428603690922406,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 81,
+      "point": {
+        "x": -0.0756426,
+        "y": 0.15555100000000002,
+        "z": 0.009952886666666667
+      },
+      "normal": {
+        "x": -0.12577926890777383,
+        "y": 0.9798214183319447,
+        "z": -0.1553369360165254,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.4777450885653105,
+        "y": 0.19705267843938193,
+        "z": 0.856113235659623,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 35.69041099221909,
+      "conditioning": 0.948992492706403,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 82,
+      "point": {
+        "x": -0.026447766666666664,
+        "y": 0.12300499999999999,
+        "z": 0.02289063333333333
+      },
+      "normal": {
+        "x": -0.329732250142887,
+        "y": 0.8999395150191122,
+        "z": 0.2852814619334277,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.22964587529724761,
+        "y": -0.21664705216722083,
+        "z": 0.9488555352350613,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 53.79121733355114,
+      "conditioning": 0.923816327674399,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 83,
+      "point": {
+        "x": -0.08526126666666667,
+        "y": 0.07873443333333333,
+        "z": 0.012178566666666666
+      },
+      "normal": {
+        "x": -0.7373617308954638,
+        "y": -0.6718890244403946,
+        "z": -0.06973389883966662,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.366030732407365,
+        "y": 0.3106540682425255,
+        "z": 0.8772203559070527,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 90.13285675030725,
+      "conditioning": 0.8675903727308468,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 84,
+      "point": {
+        "x": -0.0258134,
+        "y": 0.123313,
+        "z": 0.022620266666666666
+      },
+      "normal": {
+        "x": -0.3057806683093863,
+        "y": 0.9094852918496674,
+        "z": 0.2816641382877669,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.9239918586476973,
+        "y": 0.35482468727017674,
+        "z": -0.1426130655178383,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 49.49027153097793,
+      "conditioning": 0.9315129387523614,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 85,
+      "point": {
+        "x": -0.027327100000000003,
+        "y": 0.12220866666666667,
+        "z": 0.024057833333333334
+      },
+      "normal": {
+        "x": -0.41506992639454016,
+        "y": 0.8442316720214516,
+        "z": 0.3391015189566327,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.7257992805975816,
+        "y": 0.0825271713246857,
+        "z": 0.6829382624199491,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 53.888354759480556,
+      "conditioning": 0.9184702649861479,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 86,
+      "point": {
+        "x": -0.026603500000000002,
+        "y": 0.12262233333333333,
+        "z": 0.023819733333333332
+      },
+      "normal": {
+        "x": -0.34193660878178994,
+        "y": 0.8784171286748226,
+        "z": 0.33386030555531626,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.1981522582437739,
+        "y": -0.2798893313067256,
+        "z": 0.9393602316329805,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 44.7370640635457,
+      "conditioning": 0.9350565030910067,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 87,
+      "point": {
+        "x": -0.028211733333333336,
+        "y": 0.12142866666666667,
+        "z": 0.02523033333333333
+      },
+      "normal": {
+        "x": -0.07773733870208553,
+        "y": 0.9491621015050927,
+        "z": 0.30503804883645824,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.19562496399002177,
+        "y": -0.28549402895756987,
+        "z": 0.9382025542991645,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 131.99028622121253,
+      "conditioning": 0.8412597353807935,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 88,
+      "point": {
+        "x": -0.027540433333333336,
+        "y": 0.121733,
+        "z": 0.0249741
+      },
+      "normal": {
+        "x": -0.4157423541279305,
+        "y": 0.842322006551946,
+        "z": 0.34300427440845377,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.725389462469971,
+        "y": 0.07960894264093121,
+        "z": 0.6837196384404353,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 104.80138065441264,
+      "conditioning": 0.8525596046326325,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 89,
+      "point": {
+        "x": -0.028988066666666663,
+        "y": 0.120878,
+        "z": 0.026450966666666662
+      },
+      "normal": {
+        "x": -0.061397263407617225,
+        "y": 0.918467668883174,
+        "z": 0.3907013146412025,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.12661404684466435,
+        "y": -0.3811105872692275,
+        "z": 0.915818542841824,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 64.79639911805546,
+      "conditioning": 0.9130257722877712,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 90,
+      "point": {
+        "x": -0.0283727,
+        "y": 0.12105833333333334,
+        "z": 0.026166866666666663
+      },
+      "normal": {
+        "x": -0.11197004835104522,
+        "y": 0.9118571039141066,
+        "z": 0.3949421860394795,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.12661404684466435,
+        "y": -0.3811105872692274,
+        "z": 0.915818542841824,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 49.410692383318924,
+      "conditioning": 0.9320647330690106,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 91,
+      "point": {
+        "x": -0.08332450000000001,
+        "y": 0.07677250000000001,
+        "z": 0.011852833333333333
+      },
+      "normal": {
+        "x": -0.685844110362825,
+        "y": -0.7252292203539407,
+        "z": 0.06050152250514298,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": -0.26248180899969353,
+        "y": 0.3240510232925861,
+        "z": 0.9088972627570601,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 80.83701360254064,
+      "conditioning": 0.867562337028102,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 92,
+      "point": {
+        "x": -0.042336099999999995,
+        "y": 0.16949033333333333,
+        "z": 0.0015066356666666666
+      },
+      "normal": {
+        "x": -0.29310780678756576,
+        "y": 0.7651297135218008,
+        "z": 0.57329253883705,
+        "lengthSquared": 1.0000000000000004,
+        "length": 1.0000000000000002
+      },
+      "crossDirection": {
+        "x": 0.7758722343943993,
+        "y": -0.16002719325035483,
+        "z": 0.6102569731811803,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 78.704400779848,
+      "conditioning": 0.8846560524476879,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 93,
+      "point": {
+        "x": -0.0890878,
+        "y": 0.13593133333333332,
+        "z": 0.00754519
+      },
+      "normal": {
+        "x": -0.7986743150452581,
+        "y": 0.5756162031585773,
+        "z": -0.17545747390262822,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.4164358309612964,
+        "y": 0.7391655771750656,
+        "z": 0.5293538024903824,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 55.60387424113492,
+      "conditioning": 0.9215830989646737,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 94,
+      "point": {
+        "x": -0.010848726666666668,
+        "y": 0.129083,
+        "z": 0.00327026
+      },
+      "normal": {
+        "x": -0.2247959647760308,
+        "y": 0.9550052047029097,
+        "z": -0.19347308135957061,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.8802086289758206,
+        "y": 0.11385154500870108,
+        "z": -0.4607283312057529,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 20.196534606694044,
+      "conditioning": 0.9699932853602701,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 95,
+      "point": {
+        "x": -0.08946136666666667,
+        "y": 0.08977833333333333,
+        "z": 0.013785500000000001
+      },
+      "normal": {
+        "x": -0.9622285226397559,
+        "y": -0.2658756682710189,
+        "z": 0.05853545284655886,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": -0.18294529909269827,
+        "y": 0.790715802082392,
+        "z": 0.5842084712472789,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 67.99377449765089,
+      "conditioning": 0.9151296965940394,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 96,
+      "point": {
+        "x": -0.010555526666666667,
+        "y": 0.129274,
+        "z": 0.003860413333333333
+      },
+      "normal": {
+        "x": -0.22761669425541473,
+        "y": 0.9531317876603093,
+        "z": -0.19932495038930878,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.8802086289758206,
+        "y": 0.1138515450087011,
+        "z": -0.4607283312057529,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 23.878873516258754,
+      "conditioning": 0.9647364800744745,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 97,
+      "point": {
+        "x": -0.029801466666666665,
+        "y": 0.12024833333333333,
+        "z": 0.027662000000000003
+      },
+      "normal": {
+        "x": -0.05075638276776451,
+        "y": 0.8957662536837233,
+        "z": 0.4416181703346902,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.1278014164404291,
+        "y": -0.4327270682901802,
+        "z": 0.89242035068952,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 77.25669782649383,
+      "conditioning": 0.8974577869585566,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 98,
+      "point": {
+        "x": -0.021780233333333333,
+        "y": 0.12381133333333333,
+        "z": 0.0245596
+      },
+      "normal": {
+        "x": -0.2998056765962734,
+        "y": 0.8957972832794012,
+        "z": 0.3281215987250684,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": -0.9340263300405393,
+        "y": -0.3456328534093063,
+        "z": 0.09018173559619842,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 36.38315811107521,
+      "conditioning": 0.9467093513707557,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 99,
+      "point": {
+        "x": -0.0291841,
+        "y": 0.120435,
+        "z": 0.02737773333333333
+      },
+      "normal": {
+        "x": -0.08211448686221484,
+        "y": 0.8920930592447023,
+        "z": 0.44432778969448117,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.9883946625731926,
+        "y": 0.13006636004906758,
+        "z": -0.07847759540410985,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 24.723479831559143,
+      "conditioning": 0.9648889777944306,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 100,
+      "point": {
+        "x": -0.06716496666666667,
+        "y": 0.14329466666666665,
+        "z": -0.012640433333333333
+      },
+      "normal": {
+        "x": 0.13476297361026096,
+        "y": -0.9389919792245884,
+        "z": -0.31643799376119486,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": -0.8698225890527765,
+        "y": -0.2650646676816261,
+        "z": 0.41611222707384327,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 24.90874120239518,
+      "conditioning": 0.9574894347499017,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 101,
+      "point": {
+        "x": -0.0300533,
+        "y": 0.11970166666666666,
+        "z": 0.028580833333333333
+      },
+      "normal": {
+        "x": -0.08970211913573599,
+        "y": 0.83536318729708,
+        "z": 0.54233004262296,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.9953018721711364,
+        "y": 0.09510839842876498,
+        "z": 0.018126659950087092,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 82.95765628193746,
+      "conditioning": 0.8842279397032423,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 102,
+      "point": {
+        "x": -0.07191143333333333,
+        "y": 0.146922,
+        "z": -0.023587466666666668
+      },
+      "normal": {
+        "x": -0.40031804879826827,
+        "y": -0.916370272186827,
+        "z": -0.0033142206607110858,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.6736740395150187,
+        "y": -0.29184015174019723,
+        "z": -0.6789643689589134,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 214.14297586605176,
+      "conditioning": 0.7864448573121428,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 103,
+      "point": {
+        "x": -0.017359133333333332,
+        "y": 0.16197966666666666,
+        "z": -0.014886966666666666
+      },
+      "normal": {
+        "x": 0.07380122710722085,
+        "y": -0.7776135121120518,
+        "z": -0.6243961920593593,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.9964450864940477,
+        "y": -0.08300437451079454,
+        "z": -0.014403590314278444,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 43.44797134898822,
+      "conditioning": 0.9385517794754125,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 104,
+      "point": {
+        "x": -0.055483866666666666,
+        "y": 0.154473,
+        "z": 0.017115266666666667
+      },
+      "normal": {
+        "x": 0.5749121045200833,
+        "y": 0.8138350560788555,
+        "z": 0.08454923756850079,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.2284105399260088,
+        "y": -0.25885738056968516,
+        "z": 0.9385209010860175,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 26.680125540703354,
+      "conditioning": 0.9643169564896564,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 105,
+      "point": {
+        "x": -0.08494363333333332,
+        "y": 0.10847200000000001,
+        "z": 0.004703796666666667
+      },
+      "normal": {
+        "x": -0.8621351353812307,
+        "y": 0.27770541541494226,
+        "z": -0.4237956000130269,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.026521311023524882,
+        "y": 0.8105389436402588,
+        "z": 0.5850839605596165,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 77.52263951408023,
+      "conditioning": 0.9018456762232228,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 106,
+      "point": {
+        "x": -0.06625769999999999,
+        "y": 0.15046233333333334,
+        "z": -0.036300200000000005
+      },
+      "normal": {
+        "x": 0.6613454532116898,
+        "y": -0.7027701127682009,
+        "z": -0.2621762005140717,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.7312050213806982,
+        "y": 0.6819588383731665,
+        "z": 0.01647299221070137,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 42.55143758758515,
+      "conditioning": 0.9408864416973196,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 107,
+      "point": {
+        "x": -0.059010266666666665,
+        "y": 0.045572166666666664,
+        "z": 0.04237273333333333
+      },
+      "normal": {
+        "x": -0.3546186855703339,
+        "y": 0.7177232215793905,
+        "z": 0.5992653544549942,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.0183816371112904,
+        "y": 0.6461455247490574,
+        "z": -0.7629928415548037,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 88.49042655165543,
+      "conditioning": 0.876796247772904,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 108,
+      "point": {
+        "x": -0.06895230000000001,
+        "y": 0.155412,
+        "z": 0.002620576666666667
+      },
+      "normal": {
+        "x": 0.2777702513464979,
+        "y": 0.9593796416227185,
+        "z": 0.04933954506040389,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.5291736060580071,
+        "y": -0.19567389908226396,
+        "z": 0.8256433975206907,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 60.55146900080797,
+      "conditioning": 0.9234874811374881,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 109,
+      "point": {
+        "x": -0.0892641,
+        "y": 0.09471183333333333,
+        "z": 0.012762866666666666
+      },
+      "normal": {
+        "x": -0.9849779360859435,
+        "y": -0.1185968367784032,
+        "z": -0.12551197444878107,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": -0.17149814633284197,
+        "y": 0.5869502537710111,
+        "z": 0.7912507727658439,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 82.27155395723015,
+      "conditioning": 0.8997557473298067,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 110,
+      "point": {
+        "x": -0.08823116666666668,
+        "y": 0.1001107,
+        "z": 0.021705600000000002
+      },
+      "normal": {
+        "x": -0.9355842128766979,
+        "y": 0.21617695189270308,
+        "z": 0.2791947458070611,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.3530671977563668,
+        "y": 0.5613642962263923,
+        "z": 0.7484742352217034,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 37.64596064476122,
+      "conditioning": 0.9516495186140084,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 111,
+      "point": {
+        "x": -0.05149493333333333,
+        "y": 0.13415466666666667,
+        "z": 0.0295277
+      },
+      "normal": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "lengthSquared": 0,
+        "length": 0
+      },
+      "crossDirection": {
+        "x": -0.0004315000000000013,
+        "y": -0.0007500000000000007,
+        "z": 0.0014056999999999993,
+        "lengthSquared": 2.7246847400000005E-06,
+        "length": 0.0016506619096592738
+      },
+      "curvatureProxy": 1285.1976616351637,
+      "conditioning": 0,
+      "directionKnown": false,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 112,
+      "point": {
+        "x": -0.0143789,
+        "y": 0.12821866666666668,
+        "z": 0.021289633333333332
+      },
+      "normal": {
+        "x": -0.29499166038248964,
+        "y": 0.9349882272285855,
+        "z": 0.19691860056563687,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.9089983036738288,
+        "y": 0.33812057552634295,
+        "z": -0.24371409545579478,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 29.953770028886964,
+      "conditioning": 0.9570583345619647,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 113,
+      "point": {
+        "x": -0.09083443333333334,
+        "y": 0.13739366666666666,
+        "z": 0.018532066666666666
+      },
+      "normal": {
+        "x": -0.9998174974174612,
+        "y": 0.0029075333179278597,
+        "z": -0.018881687103919936,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.008643145575691786,
+        "y": 0.8125732779327957,
+        "z": 0.5827949588183728,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 75.91280429252652,
+      "conditioning": 0.906487229349256,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 114,
+      "point": {
+        "x": -0.08547023333333333,
+        "y": 0.08104923333333335,
+        "z": 0.0201461
+      },
+      "normal": {
+        "x": -0.9046060470946841,
+        "y": -0.2664033610973587,
+        "z": 0.33274186504820924,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.016234855605165553,
+        "y": 0.8015959955049,
+        "z": 0.5976456219650471,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 87.62823551262429,
+      "conditioning": 0.8918258533567703,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 115,
+      "point": {
+        "x": -0.08750970000000001,
+        "y": 0.10188599999999999,
+        "z": 0.022036533333333334
+      },
+      "normal": {
+        "x": -0.8914575754257921,
+        "y": 0.3302224567401788,
+        "z": 0.3102523493552448,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.4452301959812998,
+        "y": 0.5113073341140421,
+        "z": 0.735074746313356,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 32.283393048125895,
+      "conditioning": 0.9572280802784169,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 116,
+      "point": {
+        "x": -0.005962793333333333,
+        "y": 0.13047699999999998,
+        "z": 0.0194777
+      },
+      "normal": {
+        "x": -0.15964000335117462,
+        "y": 0.9828570766732584,
+        "z": 0.09223359563268525,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.9335124945834974,
+        "y": 0.18068707226577124,
+        "z": -0.30968791447604116,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 16.91130452860358,
+      "conditioning": 0.975984865260015,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 117,
+      "point": {
+        "x": -0.0509513,
+        "y": 0.05256063333333333,
+        "z": 0.020287700000000002
+      },
+      "normal": {
+        "x": -0.965909275522491,
+        "y": -0.02016534986489733,
+        "z": -0.25809422722029846,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.1399471931734441,
+        "y": 0.7980599297898181,
+        "z": -0.5861016392970976,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 87.5737314383629,
+      "conditioning": 0.8920492000541896,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 118,
+      "point": {
+        "x": -0.054518466666666675,
+        "y": 0.15264833333333336,
+        "z": 0.024782533333333332
+      },
+      "normal": {
+        "x": 0.7945168241476873,
+        "y": 0.5845596876460003,
+        "z": 0.16441711506252468,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.12245647611863301,
+        "y": -0.41943524599303267,
+        "z": 0.8994879020172373,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 83.81009119998922,
+      "conditioning": 0.8948186242320707,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 119,
+      "point": {
+        "x": -0.05515373333333332,
+        "y": 0.15303533333333333,
+        "z": 0.0259971
+      },
+      "normal": {
+        "x": 0.7355593098544285,
+        "y": 0.6471187178354645,
+        "z": 0.20047410484514322,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.28481807967026385,
+        "y": -0.5638908596416962,
+        "z": 0.7751811142600755,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 86.36006712152465,
+      "conditioning": 0.8926421238737986,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 120,
+      "point": {
+        "x": -0.05508886666666666,
+        "y": 0.1527666666666667,
+        "z": 0.026511466666666667
+      },
+      "normal": {
+        "x": 0.755786397694051,
+        "y": 0.600479945923525,
+        "z": 0.2611718890009607,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.22573382086260277,
+        "y": -0.6133183277093118,
+        "z": 0.7568915847164795,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 96.71775466327999,
+      "conditioning": 0.8800956383506119,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 121,
+      "point": {
+        "x": -0.05847856666666667,
+        "y": 0.153801,
+        "z": 0.029639433333333336
+      },
+      "normal": {
+        "x": 0.18191853718696857,
+        "y": 0.9486884441977607,
+        "z": 0.2586423818197354,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.206319573215761,
+        "y": -0.29400251509551123,
+        "z": 0.9332709975272884,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 73.1342533097325,
+      "conditioning": 0.9071909766511996,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 122,
+      "point": {
+        "x": -0.08581853333333334,
+        "y": 0.143719,
+        "z": 0.0075080699999999995
+      },
+      "normal": {
+        "x": -0.8311026688630488,
+        "y": -0.023087506557528996,
+        "z": -0.5556395601913828,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": -0.4351344175703273,
+        "y": 0.6491758464537324,
+        "z": 0.6238820072952996,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 161.1879761605326,
+      "conditioning": 0.8106126134024196,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 123,
+      "point": {
+        "x": -0.05792076666666667,
+        "y": 0.153975,
+        "z": 0.02837383333333333
+      },
+      "normal": {
+        "x": 0.2736952677983473,
+        "y": 0.9393307260259606,
+        "z": 0.2067575573669144,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.21730483319028424,
+        "y": -0.26979817346161244,
+        "z": 0.9380765187706813,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 28.62343059848922,
+      "conditioning": 0.9623015111628407,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 124,
+      "point": {
+        "x": -0.08476786666666668,
+        "y": 0.07825093333333333,
+        "z": 0.010846066666666668
+      },
+      "normal": {
+        "x": -0.793681200245134,
+        "y": -0.6081823167136005,
+        "z": -0.01358020671128627,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.30807089147513256,
+        "y": 0.38258443415342536,
+        "z": 0.8710461965758307,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 54.588923591844,
+      "conditioning": 0.9192035065140131,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 125,
+      "point": {
+        "x": -0.08661736666666668,
+        "y": 0.14557799999999999,
+        "z": 0.007876196666666667
+      },
+      "normal": {
+        "x": -0.6317743004515148,
+        "y": -0.20593214586324188,
+        "z": -0.7472972531658065,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.6652772293859521,
+        "y": 0.6388336883701395,
+        "z": 0.3863906399797422,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 60.02611289834692,
+      "conditioning": 0.9095358986128768,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 126,
+      "point": {
+        "x": 0.014907866666666667,
+        "y": 0.035674533333333334,
+        "z": 0.0034752366666666664
+      },
+      "normal": {
+        "x": 0.345619235629972,
+        "y": -0.5142977091115942,
+        "z": 0.7848854759550085,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.5564220347133146,
+        "y": 0.7858403064668336,
+        "z": 0.2699065245925121,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 171.4382437990298,
+      "conditioning": 0.7900159034624211,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 127,
+      "point": {
+        "x": -0.08629066666666667,
+        "y": 0.109527,
+        "z": 0.009693479999999999
+      },
+      "normal": {
+        "x": -0.8469708603429332,
+        "y": -0.5316248079496498,
+        "z": -0.0039275058815042676,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": -0.28770652645346895,
+        "y": 0.45212927761533644,
+        "z": 0.8442772476853284,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 256.29910536330294,
+      "conditioning": 0.7191892534572188,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 128,
+      "point": {
+        "x": -0.015384799999999999,
+        "y": 0.186059,
+        "z": -0.022817466666666664
+      },
+      "normal": {
+        "x": 0.8059506762659191,
+        "y": 0.5151050527897552,
+        "z": 0.2917366826728706,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.5850878638347192,
+        "y": 0.6181226330656476,
+        "z": 0.5249729536702972,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 172.61382748988174,
+      "conditioning": 0.7974878164963669,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 129,
+      "point": {
+        "x": -0.08029599999999999,
+        "y": 0.0716875,
+        "z": 0.0168127
+      },
+      "normal": {
+        "x": -0.8174349437193172,
+        "y": -0.5485537697713091,
+        "z": 0.17575230996001814,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.2282543308900413,
+        "y": 0.5886086091849381,
+        "z": 0.7755255415673378,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 71.11123362696148,
+      "conditioning": 0.9203339319699949,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 130,
+      "point": {
+        "x": -0.05339406666666666,
+        "y": 0.0558696,
+        "z": 0.0119868
+      },
+      "normal": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "lengthSquared": 0,
+        "length": 0
+      },
+      "crossDirection": {
+        "x": -0.0008410000000000015,
+        "y": 7.199999999999568E-05,
+        "z": -0.0010001000000000003,
+        "lengthSquared": 1.7126650100000026E-06,
+        "length": 0.0013086882783917653
+      },
+      "curvatureProxy": 1593.0553760254818,
+      "conditioning": 0,
+      "directionKnown": false,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 131,
+      "point": {
+        "x": -0.07538283333333333,
+        "y": 0.155667,
+        "z": 0.01052953
+      },
+      "normal": {
+        "x": -0.11249992726459247,
+        "y": 0.9849029328629585,
+        "z": -0.1315673941499347,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.48104527905459366,
+        "y": 0.16984105139836225,
+        "z": 0.8600868890752766,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 22.96379842463825,
+      "conditioning": 0.967192913598126,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 132,
+      "point": {
+        "x": -0.08780890000000001,
+        "y": 0.10144333333333333,
+        "z": 0.0217007
+      },
+      "normal": {
+        "x": -0.8668355353218867,
+        "y": 0.35662882418175273,
+        "z": 0.3484423000526179,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.49144958123982213,
+        "y": 0.4932524126824607,
+        "z": 0.7177599643906972,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 42.77929938360701,
+      "conditioning": 0.9432010108086533,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 133,
+      "point": {
+        "x": -0.057762666666666664,
+        "y": 0.047204133333333335,
+        "z": 0.030339166666666667
+      },
+      "normal": {
+        "x": -0.3739318896989882,
+        "y": 0.8646013143810887,
+        "z": -0.3356180999836532,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.13034716448871522,
+        "y": -0.3092860316670829,
+        "z": -0.9419935070505423,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 51.39477727329021,
+      "conditioning": 0.8985392354067545,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 134,
+      "point": {
+        "x": -0.08693930000000001,
+        "y": 0.10320366666666665,
+        "z": 0.022023333333333336
+      },
+      "normal": {
+        "x": -0.8626234348371716,
+        "y": 0.4056332528295913,
+        "z": 0.3022291744167082,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.48091140994234377,
+        "y": 0.4723584976387509,
+        "z": 0.7386485398995448,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 18.92311570784987,
+      "conditioning": 0.97419633004114,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 135,
+      "point": {
+        "x": -0.06437436666666667,
+        "y": 0.17051399999999997,
+        "z": -0.0453249
+      },
+      "normal": {
+        "x": 0.8637460547553927,
+        "y": 0.45956043787729617,
+        "z": 0.2067533719979485,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.07453910092183666,
+        "y": 0.5222846370760822,
+        "z": -0.8495073162180944,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 87.07551955177654,
+      "conditioning": 0.8872012818538018,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 136,
+      "point": {
+        "x": -0.047881266666666665,
+        "y": 0.162925,
+        "z": 0.005967269999999999
+      },
+      "normal": {
+        "x": -0.09077174631137766,
+        "y": 0.575389193963173,
+        "z": 0.812827020676597,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.9958674328328789,
+        "y": -0.050049402052300566,
+        "z": -0.07578333310866346,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 82.34871376265322,
+      "conditioning": 0.8839565999083113,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 137,
+      "point": {
+        "x": -0.06371483333333333,
+        "y": 0.17501766666666665,
+        "z": -0.053260433333333336
+      },
+      "normal": {
+        "x": 0.8156590535895281,
+        "y": 0.42876284603415143,
+        "z": 0.38841051756888617,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.5764663563948663,
+        "y": 0.5456473837918121,
+        "z": 0.608239650553939,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 43.697765419998305,
+      "conditioning": 0.9401773646445659,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 138,
+      "point": {
+        "x": -0.07261713333333335,
+        "y": 0.15614999999999998,
+        "z": 0.012471033333333333
+      },
+      "normal": {
+        "x": -0.006331683972587744,
+        "y": 0.9977728544087759,
+        "z": -0.06640211429641926,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.5122883758815349,
+        "y": 0.0602643220377534,
+        "z": 0.8566964639975989,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 36.401041650386645,
+      "conditioning": 0.9501103440786784,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 139,
+      "point": {
+        "x": -0.0727847,
+        "y": 0.16999633333333333,
+        "z": -0.027775233333333333
+      },
+      "normal": {
+        "x": -0.20204288908987644,
+        "y": 0.9074194128592339,
+        "z": 0.36846801779044425,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.9638511186937622,
+        "y": -0.25095529325412314,
+        "z": 0.08951235546292094,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 77.46450658524478,
+      "conditioning": 0.8980055597376496,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 140,
+      "point": {
+        "x": -0.07449606666666668,
+        "y": 0.17507733333333333,
+        "z": -0.04133783333333333
+      },
+      "normal": {
+        "x": -0.050029151157041596,
+        "y": 0.8847265583330913,
+        "z": 0.46341773921008766,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.10915616657555766,
+        "y": -0.45637562149630934,
+        "z": 0.8830663754228142,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 31.20831470871077,
+      "conditioning": 0.9572858763840886,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 141,
+      "point": {
+        "x": -0.073947,
+        "y": 0.17520766666666665,
+        "z": -0.041587066666666665
+      },
+      "normal": {
+        "x": 0.052769499238749254,
+        "y": 0.8897825431032169,
+        "z": 0.45332373193873654,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.10915616657555767,
+        "y": -0.4563756214963092,
+        "z": 0.8830663754228143,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 65.62837425199244,
+      "conditioning": 0.9177154252046388,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 142,
+      "point": {
+        "x": -0.09003939999999999,
+        "y": 0.112821,
+        "z": 0.0110105
+      },
+      "normal": {
+        "x": -0.623843282137045,
+        "y": -0.7502001593756,
+        "z": -0.21913301943181343,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": -0.14663155308115453,
+        "y": -0.1630553877474778,
+        "z": 0.9756598424489594,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 72.19973331693535,
+      "conditioning": 0.8876145507544538,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 143,
+      "point": {
+        "x": -0.07579426666666667,
+        "y": 0.17200700000000002,
+        "z": -0.0361051
+      },
+      "normal": {
+        "x": -0.43614002109331457,
+        "y": 0.8285409982276905,
+        "z": 0.35114341266295385,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.8763328245996769,
+        "y": -0.4797371236479552,
+        "z": 0.043509455560128835,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 32.96248556686481,
+      "conditioning": 0.9507293892337167,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 144,
+      "point": {
+        "x": -0.06587833333333333,
+        "y": 0.158832,
+        "z": -0.011305066666666667
+      },
+      "normal": {
+        "x": 0.6688815752409463,
+        "y": 0.6540407161889793,
+        "z": 0.35331031667671026,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.2462420601188711,
+        "y": -0.643392191212282,
+        "z": 0.7248526306191299,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 8.58589081979014,
+      "conditioning": 0.9883199653685979,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 145,
+      "point": {
+        "x": -0.0663778,
+        "y": 0.15837600000000002,
+        "z": -0.009556153333333333
+      },
+      "normal": {
+        "x": 0.689841313796736,
+        "y": 0.578223463304086,
+        "z": 0.43563354813859495,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.17005576490280902,
+        "y": -0.7143216811034947,
+        "z": 0.6788413457714533,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 53.71000807278804,
+      "conditioning": 0.9300387632102218,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 146,
+      "point": {
+        "x": -0.07423066666666667,
+        "y": 0.16786966666666667,
+        "z": -0.02398286666666667
+      },
+      "normal": {
+        "x": -0.4329080122351038,
+        "y": 0.8247891549157066,
+        "z": 0.36374923075669274,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": -0.875788192315327,
+        "y": -0.48040231416668366,
+        "z": 0.04699636948049072,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 30.652260251563987,
+      "conditioning": 0.9536728886536116,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 147,
+      "point": {
+        "x": -0.07351106666666667,
+        "y": 0.16829466666666668,
+        "z": -0.024188366666666666
+      },
+      "normal": {
+        "x": -0.35735491917455914,
+        "y": 0.8624335836537299,
+        "z": 0.3584770223151399,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.9092369144497167,
+        "y": -0.40898881073869925,
+        "z": 0.07756536657879709,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 38.894804629657266,
+      "conditioning": 0.9419134470398142,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 148,
+      "point": {
+        "x": -0.0712157,
+        "y": 0.16992833333333332,
+        "z": -0.027685166666666667
+      },
+      "normal": {
+        "x": 0.17486926296938085,
+        "y": 0.941908967835519,
+        "z": 0.2867546637451128,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.17629582352150613,
+        "y": 0.3164893025832348,
+        "z": -0.9320699029360682,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 82.00829728129699,
+      "conditioning": 0.8989139717435887,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 149,
+      "point": {
+        "x": -0.05396926666666666,
+        "y": 0.16067866666666666,
+        "z": 0.00597943
+      },
+      "normal": {
+        "x": -0.4570704885379612,
+        "y": 0.7541380267552298,
+        "z": 0.4715531837549161,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.5780837648119324,
+        "y": 0.654805181389214,
+        "z": -0.48687712545025263,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 38.44710643953141,
+      "conditioning": 0.9308420827559499,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 150,
+      "point": {
+        "x": -0.010080016666666667,
+        "y": 0.13016466666666668,
+        "z": 0.012687866666666667
+      },
+      "normal": {
+        "x": -0.12656998972964048,
+        "y": 0.9914134720706146,
+        "z": -0.032853692284543344,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.9214904256053634,
+        "y": 0.10525386626364314,
+        "z": -0.37386764924796784,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 36.3021859347616,
+      "conditioning": 0.9494438166729664,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 151,
+      "point": {
+        "x": -0.07247483333333334,
+        "y": 0.16942933333333332,
+        "z": -0.026220999999999998
+      },
+      "normal": {
+        "x": -0.04559575338106359,
+        "y": 0.9140021200820935,
+        "z": 0.40313912208944885,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.9824305128954438,
+        "y": -0.11413709577054759,
+        "z": 0.14765842577062788,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 61.895454289024954,
+      "conditioning": 0.9181765149970683,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 152,
+      "point": {
+        "x": -0.029159400000000002,
+        "y": 0.116932,
+        "z": 0.032017899999999995
+      },
+      "normal": {
+        "x": -0.03170200988771128,
+        "y": 0.7584791685157155,
+        "z": 0.6509257511397045,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.8245706001937513,
+        "y": -0.3879054498931698,
+        "z": 0.41184060902161423,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 56.69467635914911,
+      "conditioning": 0.9279044030437396,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 153,
+      "point": {
+        "x": -0.009539723333333333,
+        "y": 0.13022966666666666,
+        "z": 0.012405233333333335
+      },
+      "normal": {
+        "x": -0.142684617165386,
+        "y": 0.9894186502480851,
+        "z": -0.026302748252317567,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.9191331061423488,
+        "y": 0.12259601750388824,
+        "z": -0.3743855628697562,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 9.121418270177813,
+      "conditioning": 0.9867997847644234,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 154,
+      "point": {
+        "x": -0.021055133333333337,
+        "y": 0.12421866666666666,
+        "z": 0.024325366666666667
+      },
+      "normal": {
+        "x": -0.44205446508808033,
+        "y": 0.8307953123368365,
+        "z": 0.3381819020805661,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.5437675835624431,
+        "y": 0.5480483310609686,
+        "z": -0.6355783522807777,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 65.8645392102461,
+      "conditioning": 0.9021447148451935,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 155,
+      "point": {
+        "x": -0.0170294,
+        "y": 0.12466700000000001,
+        "z": 0.0272231
+      },
+      "normal": {
+        "x": -0.39079705930669384,
+        "y": 0.8277130687368282,
+        "z": 0.4027017932409827,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.7456048204104433,
+        "y": 0.028105345341164573,
+        "z": 0.6657954200382912,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 40.434897640522166,
+      "conditioning": 0.9384605062203173,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 156,
+      "point": {
+        "x": -0.0177776,
+        "y": 0.12423133333333335,
+        "z": 0.02745243333333333
+      },
+      "normal": {
+        "x": -0.33986014589498303,
+        "y": 0.8503028485127866,
+        "z": 0.40184592450749307,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": -0.556917750003714,
+        "y": -0.5262658625085705,
+        "z": 0.642562729769562,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 22.647685811321,
+      "conditioning": 0.9644910348180831,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 157,
+      "point": {
+        "x": -0.02265126666666667,
+        "y": 0.12307833333333333,
+        "z": 0.0257367
+      },
+      "normal": {
+        "x": -0.29664237939751714,
+        "y": 0.893328000095748,
+        "z": 0.3375920363253715,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.9334417343762641,
+        "y": -0.3458969862730161,
+        "z": 0.09508839788258706,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 12.979466691855357,
+      "conditioning": 0.9802393536812337,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 158,
+      "point": {
+        "x": -0.07441940000000001,
+        "y": 0.16735766666666665,
+        "z": -0.023106666666666664
+      },
+      "normal": {
+        "x": -0.4400372249757614,
+        "y": 0.8042956009523923,
+        "z": 0.39934424613891867,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.5295622507406026,
+        "y": -0.5915809931566418,
+        "z": 0.6079438716907577,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 28.340077327012697,
+      "conditioning": 0.9561933852476331,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 159,
+      "point": {
+        "x": -0.02722366666666667,
+        "y": 0.12476866666666665,
+        "z": 0.00157658
+      },
+      "normal": {
+        "x": -0.09034036653791254,
+        "y": 0.9820042277466966,
+        "z": -0.1658502784483935,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.4723189458980981,
+        "y": 0.18885811771228295,
+        "z": 0.8609572722962987,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 87.16511021190612,
+      "conditioning": 0.8866195891807901,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 160,
+      "point": {
+        "x": -0.0677714,
+        "y": 0.151401,
+        "z": -0.04426876666666666
+      },
+      "normal": {
+        "x": 0.20742858158516017,
+        "y": -0.8762295365594505,
+        "z": -0.43496572600881933,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.8743820224525775,
+        "y": 0.3654530250786167,
+        "z": -0.3192180528614073,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 172.4707285917028,
+      "conditioning": 0.7835323605095437,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 161,
+      "point": {
+        "x": -0.0734551,
+        "y": 0.15538566666666667,
+        "z": 0.0039169
+      },
+      "normal": {
+        "x": -0.28421140143714707,
+        "y": 0.9586672371454293,
+        "z": 0.013453910847101723,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.35560493824493894,
+        "y": 0.09237201746602436,
+        "z": 0.9300605024863005,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 76.3102363908231,
+      "conditioning": 0.8948466350701109,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 162,
+      "point": {
+        "x": -0.08725909999999999,
+        "y": 0.10276766666666666,
+        "z": 0.021694266666666667
+      },
+      "normal": {
+        "x": -0.8633297698054057,
+        "y": 0.40493812491648556,
+        "z": 0.30114253030229043,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.47964224491881247,
+        "y": 0.47295454441391466,
+        "z": 0.7390922241557331,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 23.110760983603313,
+      "conditioning": 0.9686991634507517,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 163,
+      "point": {
+        "x": -0.0896424,
+        "y": 0.09067966666666666,
+        "z": 0.014113866666666667
+      },
+      "normal": {
+        "x": -0.9839167596964277,
+        "y": -0.16797994914599032,
+        "z": 0.06074986973971745,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": -0.10069727935031947,
+        "y": 0.8025017021784094,
+        "z": 0.5880910439142898,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 83.99944962528808,
+      "conditioning": 0.8975805922382696,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 164,
+      "point": {
+        "x": -0.07445633333333333,
+        "y": 0.15537866666666666,
+        "z": 0.006483443333333334
+      },
+      "normal": {
+        "x": -0.1418778283333176,
+        "y": 0.9878504732172071,
+        "z": -0.06342022068679354,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.36048456539097046,
+        "y": 0.11123022765522089,
+        "z": 0.9261094506432007,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 29.818836945568687,
+      "conditioning": 0.9577973279238977,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 165,
+      "point": {
+        "x": -0.09136516666666666,
+        "y": 0.14014400000000002,
+        "z": 0.017853666666666667
+      },
+      "normal": {
+        "x": -0.9421180646040475,
+        "y": -0.33478025777612425,
+        "z": -0.018322973286989903,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.20517172571876047,
+        "y": 0.5324346915417979,
+        "z": 0.8212294820623381,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 72.39984642916356,
+      "conditioning": 0.907792289338923,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 166,
+      "point": {
+        "x": -0.09115083333333333,
+        "y": 0.1396746666666667,
+        "z": 0.017505999999999997
+      },
+      "normal": {
+        "x": -0.9091171161795985,
+        "y": -0.39865614814303074,
+        "z": -0.12074495690111689,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.3212288183787081,
+        "y": 0.4864543116281525,
+        "z": 0.8125110761961337,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 113.49507386953975,
+      "conditioning": 0.8583620177659956,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 167,
+      "point": {
+        "x": -0.08872326666666668,
+        "y": 0.15163000000000001,
+        "z": 0.013746766666666667
+      },
+      "normal": {
+        "x": -0.46040608468959016,
+        "y": 0.8675935868027683,
+        "z": -0.18790318070620676,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.8829397765984106,
+        "y": -0.42564568490416294,
+        "z": 0.19809871736791956,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 127.95692681045216,
+      "conditioning": 0.8746007987928573,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 168,
+      "point": {
+        "x": -0.030437266666666667,
+        "y": 0.179659,
+        "z": -0.008480223333333333
+      },
+      "normal": {
+        "x": -0.5168744372852965,
+        "y": 0.8394624745260977,
+        "z": 0.1677604540513909,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": -0.8007244425505604,
+        "y": -0.5434027434291966,
+        "z": 0.2520988408059768,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 45.71285119043828,
+      "conditioning": 0.9282276745055427,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 169,
+      "point": {
+        "x": -0.08621203333333333,
+        "y": 0.104538,
+        "z": 0.02202446666666667
+      },
+      "normal": {
+        "x": -0.8173479909134508,
+        "y": 0.4843179209047965,
+        "z": 0.3120551445501273,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.5210947562234894,
+        "y": 0.39038439017473536,
+        "z": 0.7589863522780118,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 39.38212891548412,
+      "conditioning": 0.9460570132156438,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 170,
+      "point": {
+        "x": -0.06645253333333333,
+        "y": 0.180719,
+        "z": -0.05764823333333333
+      },
+      "normal": {
+        "x": 0.35855710079993935,
+        "y": 0.9318388220110205,
+        "z": 0.05579619394775733,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.5222118365091177,
+        "y": -0.24976442626632345,
+        "z": 0.8154216879514726,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 76.0027524186357,
+      "conditioning": 0.9065321384569086,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 171,
+      "point": {
+        "x": -0.0858114,
+        "y": 0.08241056666666667,
+        "z": 0.020145633333333333
+      },
+      "normal": {
+        "x": -0.9358554187778902,
+        "y": -0.18745165950861964,
+        "z": 0.2983898632519616,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.03309118302476327,
+        "y": 0.7962827712668495,
+        "z": 0.6040188091356161,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 47.05883350213402,
+      "conditioning": 0.9393518892687168,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 172,
+      "point": {
+        "x": 0.05863603333333333,
+        "y": 0.06842213333333334,
+        "z": 0.020285433333333335
+      },
+      "normal": {
+        "x": 0.8185784147395602,
+        "y": 0.40946337350335676,
+        "z": 0.40282642003935026,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.5119786270031043,
+        "y": -0.20219055222818763,
+        "z": -0.8348633816868942,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 33.01385785705951,
+      "conditioning": 0.9455006220623675,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 173,
+      "point": {
+        "x": -0.0275389,
+        "y": 0.103951,
+        "z": -0.02314073333333333
+      },
+      "normal": {
+        "x": -0.1376964577646659,
+        "y": 0.26249974119778685,
+        "z": -0.9550568419681409,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.5647857037774547,
+        "y": -0.8129275857088673,
+        "z": -0.14200651112592536,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 75.69924293688217,
+      "conditioning": 0.90355898849374,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 174,
+      "point": {
+        "x": -0.027198366666666668,
+        "y": 0.10205466666666667,
+        "z": -0.023516866666666664
+      },
+      "normal": {
+        "x": -0.16009398829953908,
+        "y": 0.08062931987715387,
+        "z": -0.9838032464301459,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": -0.5635486876183561,
+        "y": -0.8257332225612491,
+        "z": 0.02403168413247188,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 27.79999895869173,
+      "conditioning": 0.962502416406791,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 175,
+      "point": {
+        "x": -0.0869006,
+        "y": 0.10725233333333332,
+        "z": 0.013691133333333334
+      },
+      "normal": {
+        "x": -0.9211624075043057,
+        "y": 0.38340934088952794,
+        "z": -0.06676148829624208,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.2811617442329744,
+        "y": 0.7742383601615772,
+        "z": 0.5670123766146409,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 124.0645048212875,
+      "conditioning": 0.8517593392550779,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 176,
+      "point": {
+        "x": -0.08708256666666665,
+        "y": 0.106805,
+        "z": 0.0140261
+      },
+      "normal": {
+        "x": -0.9428314789215644,
+        "y": 0.33302464900265877,
+        "z": 0.012782234203441958,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.28116174423297446,
+        "y": 0.7742383601615771,
+        "z": 0.5670123766146408,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 69.13282739879115,
+      "conditioning": 0.9121752611700594,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 177,
+      "point": {
+        "x": -0.08960610000000001,
+        "y": 0.14423999999999998,
+        "z": 0.012825000000000001
+      },
+      "normal": {
+        "x": -0.9441687371439733,
+        "y": -0.21631627714026072,
+        "z": -0.24850083308538967,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.3285784223138891,
+        "y": 0.563041155798055,
+        "z": 0.7583013103426013,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 225.9469398745682,
+      "conditioning": 0.7637890243827741,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 178,
+      "point": {
+        "x": -0.0935242,
+        "y": 0.124569,
+        "z": 0.012933033333333335
+      },
+      "normal": {
+        "x": -0.9731583981498215,
+        "y": 0.08493321364317888,
+        "z": -0.21389034884892677,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.05793316363698482,
+        "y": 0.8090665956200493,
+        "z": 0.5848546763109568,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 27.066128942066776,
+      "conditioning": 0.9643217002055892,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 179,
+      "point": {
+        "x": -0.03317163333333334,
+        "y": 0.0962688,
+        "z": -0.023390400000000002
+      },
+      "normal": {
+        "x": -0.1142485922348875,
+        "y": 0.23990317782709472,
+        "z": -0.964050685618141,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": -0.5653591982387066,
+        "y": -0.8136434553217757,
+        "z": -0.1354743687157409,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 33.123456023944044,
+      "conditioning": 0.9554418501949113,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 180,
+      "point": {
+        "x": -0.03350326666666666,
+        "y": 0.09532246666666666,
+        "z": -0.023566
+      },
+      "normal": {
+        "x": -0.11487296507539847,
+        "y": 0.19953188252329404,
+        "z": -0.9731347438826222,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.5733032594766921,
+        "y": -0.813329277148759,
+        "z": -0.09909015897695117,
+        "lengthSquared": 0.9999999999999997,
+        "length": 0.9999999999999998
+      },
+      "curvatureProxy": 31.846206879357602,
+      "conditioning": 0.9573909759311754,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 181,
+      "point": {
+        "x": -0.08715903333333334,
+        "y": 0.105423,
+        "z": 0.010044266666666668
+      },
+      "normal": {
+        "x": -0.8725177299557183,
+        "y": 0.4420111706244917,
+        "z": -0.20818005657624034,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.25963861911680947,
+        "y": 0.7804166586169948,
+        "z": 0.5688036800304663,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 34.71640470772563,
+      "conditioning": 0.9530416203475238,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 182,
+      "point": {
+        "x": -0.08750866666666667,
+        "y": 0.10453,
+        "z": 0.009717499999999999
+      },
+      "normal": {
+        "x": -0.8910192175862994,
+        "y": 0.4014534312128859,
+        "z": -0.21194314440268983,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.21551788952017448,
+        "y": 0.7849795378011201,
+        "z": 0.5808262774103026,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 53.88879505879437,
+      "conditioning": 0.9300629388142309,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 183,
+      "point": {
+        "x": -0.08615063333333332,
+        "y": 0.14965333333333333,
+        "z": 0.007539646666666667
+      },
+      "normal": {
+        "x": -0.8105150805191005,
+        "y": 0.2039160644506095,
+        "z": -0.5490751705459744,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.5499264224699438,
+        "y": -0.5876104912285881,
+        "z": 0.593544303710773,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 102.34155341393127,
+      "conditioning": 0.8711010290398088,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 184,
+      "point": {
+        "x": -0.056800866666666665,
+        "y": 0.15517766666666666,
+        "z": 0.015219233333333332
+      },
+      "normal": {
+        "x": 0.3580923779330604,
+        "y": 0.9276982457388903,
+        "z": 0.10557373593480397,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.24383884683484755,
+        "y": -0.20206659950937647,
+        "z": 0.9485313416735206,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 38.177038622166656,
+      "conditioning": 0.9508736058341309,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 185,
+      "point": {
+        "x": -0.03713006666666666,
+        "y": 0.175593,
+        "z": -0.006629736666666667
+      },
+      "normal": {
+        "x": -0.5227359082266466,
+        "y": 0.8508483651823032,
+        "z": 0.05295497820852139,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.42157101357690185,
+        "y": -0.20401053022500204,
+        "z": -0.8835482918715067,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 69.8168663988285,
+      "conditioning": 0.8895808708175696,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 186,
+      "point": {
+        "x": -0.015129533333333334,
+        "y": 0.127673,
+        "z": 0.022480766666666666
+      },
+      "normal": {
+        "x": -0.34291958900349906,
+        "y": 0.9081616405115531,
+        "z": 0.24010120820403177,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.9022514342025572,
+        "y": -0.3895665289957934,
+        "z": 0.18487906578517335,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 35.90338025846376,
+      "conditioning": 0.9472484730852676,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 187,
+      "point": {
+        "x": -0.013746433333333334,
+        "y": 0.12845933333333334,
+        "z": 0.021032433333333333
+      },
+      "normal": {
+        "x": -0.2640670236751924,
+        "y": 0.9458931184540045,
+        "z": 0.18855984585452973,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.918458819318777,
+        "y": 0.3062918822164197,
+        "z": -0.2502372476348816,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 9.968431122106924,
+      "conditioning": 0.9852602508597386,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 188,
+      "point": {
+        "x": -0.06811940000000001,
+        "y": 0.170349,
+        "z": -0.033224533333333334
+      },
+      "normal": {
+        "x": 0.5160954361533338,
+        "y": 0.8271939980498667,
+        "z": 0.2222511875603305,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": -0.17693308362235843,
+        "y": 0.3568398325156839,
+        "z": -0.9172567894815836,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 32.94789672477681,
+      "conditioning": 0.9574722246041787,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 189,
+      "point": {
+        "x": -0.08659323333333334,
+        "y": 0.10409333333333333,
+        "z": 0.0216891
+      },
+      "normal": {
+        "x": -0.8310805655775313,
+        "y": 0.4736325099665764,
+        "z": 0.29150872889519375,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.4989013697447653,
+        "y": 0.4032816213322963,
+        "z": 0.7671123497652684,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 27.013049415717255,
+      "conditioning": 0.9623621756675155,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 190,
+      "point": {
+        "x": -0.007855483333333333,
+        "y": 0.12955333333333333,
+        "z": 0.023144566666666668
+      },
+      "normal": {
+        "x": -0.2100154022670183,
+        "y": 0.939687961334439,
+        "z": 0.26996308290903126,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.9491170987708449,
+        "y": 0.2622254816317546,
+        "z": -0.1743976192607241,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 37.62280132260812,
+      "conditioning": 0.9486599173136242,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 191,
+      "point": {
+        "x": -0.007154303333333334,
+        "y": 0.130113,
+        "z": 0.020980766666666668
+      },
+      "normal": {
+        "x": -0.10679000126413934,
+        "y": 0.9861477867657419,
+        "z": 0.12691902255782647,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.9493159225868986,
+        "y": 0.1390798861064523,
+        "z": -0.28187952107877917,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 49.44851825886721,
+      "conditioning": 0.9342497228372335,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 192,
+      "point": {
+        "x": -0.08286913333333333,
+        "y": 0.07534553333333334,
+        "z": 0.006856149999999999
+      },
+      "normal": {
+        "x": -0.7916403892481426,
+        "y": -0.608251660923958,
+        "z": -0.05775301805356811,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.33963299879306236,
+        "y": 0.35950874193185145,
+        "z": 0.8691391664200903,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 39.747461066925226,
+      "conditioning": 0.9383819029899991,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 193,
+      "point": {
+        "x": -0.08324046666666667,
+        "y": 0.07584556666666666,
+        "z": 0.007858703333333333
+      },
+      "normal": {
+        "x": -0.7800807711848057,
+        "y": -0.6043960415225867,
+        "z": 0.16180054208668945,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.4636029846745072,
+        "y": 0.7320100055196815,
+        "z": 0.499233036186473,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 59.45516893065614,
+      "conditioning": 0.9118170451325104,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 194,
+      "point": {
+        "x": -0.07362896666666667,
+        "y": 0.16665166666666667,
+        "z": -0.02088986666666667
+      },
+      "normal": {
+        "x": -0.43211778384726823,
+        "y": 0.7952967240215765,
+        "z": 0.4251791876885252,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.5469794130635682,
+        "y": -0.6059814185781749,
+        "z": 0.5775811995058505,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 57.0945625762636,
+      "conditioning": 0.9136010541148595,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 195,
+      "point": {
+        "x": -0.08553699999999999,
+        "y": 0.105879,
+        "z": 0.02203076666666667
+      },
+      "normal": {
+        "x": -0.8417771390089703,
+        "y": 0.39971995956725836,
+        "z": 0.36281565865522136,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.5250059721319121,
+        "y": 0.4497943540715145,
+        "z": 0.7225328838684196,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 90.10515922488257,
+      "conditioning": 0.8857788669337417,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 196,
+      "point": {
+        "x": -0.07479416666666668,
+        "y": 0.17949766666666667,
+        "z": -0.05006966666666666
+      },
+      "normal": {
+        "x": -0.36670684743937904,
+        "y": 0.9039177963944097,
+        "z": 0.22013338093652784,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.8944466454274222,
+        "y": -0.4076361155565812,
+        "z": 0.18384231226127673,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 22.063504281539963,
+      "conditioning": 0.9676168575288603,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 197,
+      "point": {
+        "x": -0.07133226666666669,
+        "y": 0.16824799999999998,
+        "z": -0.02342443333333333
+      },
+      "normal": {
+        "x": 0.13641729876345668,
+        "y": 0.9082377082460392,
+        "z": 0.3955939659778249,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.1420064963009586,
+        "y": 0.41313120763893146,
+        "z": -0.8995314115044143,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 37.69103275393789,
+      "conditioning": 0.9503527725916543,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 198,
+      "point": {
+        "x": -0.0579797,
+        "y": 0.153764,
+        "z": 0.02933553333333333
+      },
+      "normal": {
+        "x": 0.2611062623360502,
+        "y": 0.9357489421168921,
+        "z": 0.23705998628198544,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.206319573215761,
+        "y": -0.29400251509551123,
+        "z": 0.9332709975272884,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 90.94705083139019,
+      "conditioning": 0.8877749939326616,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 199,
+      "point": {
+        "x": -0.07414306666666666,
+        "y": 0.1798086666666667,
+        "z": -0.05027776666666667
+      },
+      "normal": {
+        "x": -0.3585628695038916,
+        "y": 0.9075851104061561,
+        "z": 0.218453509887529,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.8977423806908261,
+        "y": -0.39940437242677934,
+        "z": 0.18583531741286025,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 118.33339442122552,
+      "conditioning": 0.8461594198737817,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 200,
+      "point": {
+        "x": -0.0638861,
+        "y": 0.1602296666666667,
+        "z": -0.017797133333333333
+      },
+      "normal": {
+        "x": 0.7608581374328932,
+        "y": 0.5622780997942762,
+        "z": 0.32394171264887545,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.1721004039525712,
+        "y": -0.6561728065345475,
+        "z": 0.7347235527216596,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 26.582000207134822,
+      "conditioning": 0.964034915836445,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 201,
+      "point": {
+        "x": -0.06491296666666667,
+        "y": 0.15965466666666667,
+        "z": -0.014806133333333332
+      },
+      "normal": {
+        "x": 0.7444900774546996,
+        "y": 0.5689725657254134,
+        "z": 0.34929177491509217,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.16334588383023324,
+        "y": -0.66251073507958,
+        "z": 0.731025066697466,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 22.515744912334384,
+      "conditioning": 0.9690082098963723,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 202,
+      "point": {
+        "x": -0.0916471,
+        "y": 0.13277333333333333,
+        "z": 0.012891966666666666
+      },
+      "normal": {
+        "x": -0.8289356706711802,
+        "y": 0.5159846757367188,
+        "z": -0.21592931318788924,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.32944087121621385,
+        "y": 0.7623563794018604,
+        "z": 0.5570291403127746,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 87.34247060705974,
+      "conditioning": 0.885060236547437,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 203,
+      "point": {
+        "x": -0.07531956666666667,
+        "y": 0.15396466666666667,
+        "z": 0.030590133333333335
+      },
+      "normal": {
+        "x": -0.08617481515394014,
+        "y": 0.948161157715992,
+        "z": 0.3058828537722474,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.19441480274016612,
+        "y": -0.2851184831105764,
+        "z": 0.9385682367650346,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 36.234062888145836,
+      "conditioning": 0.9490367671221832,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 204,
+      "point": {
+        "x": -0.07521343333333334,
+        "y": 0.15546666666666667,
+        "z": 0.008646250000000001
+      },
+      "normal": {
+        "x": -0.1347828822392215,
+        "y": 0.9882797810411644,
+        "z": -0.0716704195642543,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.45871898909603787,
+        "y": 0.1263462070799836,
+        "z": 0.8795530256893049,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 29.50480172367805,
+      "conditioning": 0.9578387029303284,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 205,
+      "point": {
+        "x": -0.09108233333333333,
+        "y": 0.13464066666666666,
+        "z": 0.017876633333333333
+      },
+      "normal": {
+        "x": -0.9104859269227424,
+        "y": 0.41344797181036086,
+        "z": -0.00872648162395863,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.2224492206272706,
+        "y": 0.5074434796687797,
+        "z": 0.8324767018865817,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 116.91541470021487,
+      "conditioning": 0.8553745661455676,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 206,
+      "point": {
+        "x": -0.0758351,
+        "y": 0.15574,
+        "z": 0.011826966666666666
+      },
+      "normal": {
+        "x": -0.16410084556219443,
+        "y": 0.9797291537167203,
+        "z": -0.11489864160768797,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.45215844923720444,
+        "y": 0.178228012663479,
+        "z": 0.8739493762715512,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 37.24536160705912,
+      "conditioning": 0.9465085658925202,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 207,
+      "point": {
+        "x": -0.06894470000000001,
+        "y": 0.17024466666666668,
+        "z": -0.0311493
+      },
+      "normal": {
+        "x": 0.49067412204962657,
+        "y": 0.8202476849841465,
+        "z": 0.2939942877488893,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.3894986951972726,
+        "y": 0.5082915038597533,
+        "z": -0.768069341624578,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 65.06509590623058,
+      "conditioning": 0.9199842681446183,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 208,
+      "point": {
+        "x": -0.06518933333333334,
+        "y": 0.1708353333333333,
+        "z": -0.04367536666666666
+      },
+      "normal": {
+        "x": 0.7502839159386215,
+        "y": 0.6105080288975164,
+        "z": 0.25368088642126074,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": -0.09434721424369397,
+        "y": 0.4786648752020694,
+        "z": -0.8729138218703161,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 11.848443550823907,
+      "conditioning": 0.9836406789334837,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 209,
+      "point": {
+        "x": -0.07497263333333333,
+        "y": 0.15555,
+        "z": 0.00921759
+      },
+      "normal": {
+        "x": -0.1475182423918039,
+        "y": 0.9843735325846135,
+        "z": -0.0961619285815448,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.4547833599238606,
+        "y": 0.15384745043438036,
+        "z": 0.8772132337870908,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 30.701646295307707,
+      "conditioning": 0.9554892775837303,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 210,
+      "point": {
+        "x": -0.0289157,
+        "y": 0.180723,
+        "z": -0.010939836666666666
+      },
+      "normal": {
+        "x": -0.6448903456591387,
+        "y": 0.7636938803473174,
+        "z": -0.02980099319978902,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.33888749962204634,
+        "y": 0.32068329740115176,
+        "z": 0.8844871312618641,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 70.01104088642357,
+      "conditioning": 0.8701355390183114,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 211,
+      "point": {
+        "x": -0.0648248,
+        "y": 0.17054233333333335,
+        "z": -0.044030599999999996
+      },
+      "normal": {
+        "x": 0.7396259895267354,
+        "y": 0.6206119011509803,
+        "z": 0.26037331615655895,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.09434721424369397,
+        "y": 0.4786648752020694,
+        "z": -0.8729138218703161,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 29.837323041773548,
+      "conditioning": 0.9602603406810392,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 212,
+      "point": {
+        "x": -0.06542053333333332,
+        "y": 0.15246,
+        "z": -0.03893956666666667
+      },
+      "normal": {
+        "x": 0.7682656697398847,
+        "y": -0.6019298591189055,
+        "z": -0.21782631934690763,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.05653393730562346,
+        "y": -0.27515307026559127,
+        "z": 0.9597367877997293,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 27.07993914455203,
+      "conditioning": 0.9616640170978038,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 213,
+      "point": {
+        "x": -0.0647164,
+        "y": 0.170848,
+        "z": -0.044959266666666664
+      },
+      "normal": {
+        "x": 0.7176263415216174,
+        "y": 0.6196027468207029,
+        "z": 0.31796992009707276,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": -0.07453910092183666,
+        "y": 0.5222846370760822,
+        "z": -0.8495073162180944,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 79.95803507180129,
+      "conditioning": 0.8995423179033005,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 214,
+      "point": {
+        "x": -0.0441581,
+        "y": 0.16783666666666666,
+        "z": 0.0027737300000000003
+      },
+      "normal": {
+        "x": -0.178734913465273,
+        "y": 0.7091740961685391,
+        "z": 0.6820014164443479,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.8074690451617497,
+        "y": -0.2903332623090198,
+        "z": 0.5135176120665914,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 52.204235825964,
+      "conditioning": 0.9185290068717912,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 215,
+      "point": {
+        "x": -0.04939676666666667,
+        "y": 0.0343846,
+        "z": -0.013253166666666668
+      },
+      "normal": {
+        "x": -0.6629364193908811,
+        "y": 0.2127947819887887,
+        "z": -0.7177978020330947,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.5070852203705289,
+        "y": 0.5777332406111855,
+        "z": 0.6396005643952091,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 421.81574500158365,
+      "conditioning": 0.508922438248678,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 216,
+      "point": {
+        "x": -0.07094643333333334,
+        "y": 0.17916333333333334,
+        "z": -0.0500979
+      },
+      "normal": {
+        "x": 0.36434012642091196,
+        "y": 0.7584107545234003,
+        "z": 0.540434454585235,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.36943067160239784,
+        "y": -0.650412176988691,
+        "z": 0.6636904239961829,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 40.122352436498275,
+      "conditioning": 0.9463209981380389,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 217,
+      "point": {
+        "x": -0.018543533333333334,
+        "y": 0.18555066666666664,
+        "z": -0.016841333333333333
+      },
+      "normal": {
+        "x": 0.8018038018884768,
+        "y": 0.11806174026600122,
+        "z": 0.5858089183023314,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.5370213495229031,
+        "y": -0.5723748622002612,
+        "z": -0.6196733714448541,
+        "lengthSquared": 1.0000000000000004,
+        "length": 1.0000000000000002
+      },
+      "curvatureProxy": 206.46102808411032,
+      "conditioning": 0.7743542990080199,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 218,
+      "point": {
+        "x": -0.023459666666666667,
+        "y": 0.038669966666666666,
+        "z": -0.012543433333333333
+      },
+      "normal": {
+        "x": 0.04495573987656765,
+        "y": -0.998843561614356,
+        "z": -0.01704467288329268,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": -0.9859411652646101,
+        "y": -0.047110696053696034,
+        "z": 0.16031406973188328,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 48.02596312500763,
+      "conditioning": 0.9265843351223969,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 219,
+      "point": {
+        "x": -0.06409653333333333,
+        "y": 0.15560033333333334,
+        "z": -0.010157150000000002
+      },
+      "normal": {
+        "x": 0.831662423471154,
+        "y": 0.43900183992110564,
+        "z": 0.3400220550669776,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.05755795474586234,
+        "y": -0.677197320939711,
+        "z": 0.7335467744851389,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 15.01555963367874,
+      "conditioning": 0.9782692101412599,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 220,
+      "point": {
+        "x": -0.08653870000000001,
+        "y": 0.14920266666666668,
+        "z": 0.007891500000000001
+      },
+      "normal": {
+        "x": -0.7623630961719671,
+        "y": 0.2517173486074436,
+        "z": -0.5961886329049982,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.20160911219616265,
+        "y": 0.7830275533192125,
+        "z": 0.5884059964194814,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 79.5048971127728,
+      "conditioning": 0.8944965661436782,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 221,
+      "point": {
+        "x": -0.0858762,
+        "y": 0.105435,
+        "z": 0.0216938
+      },
+      "normal": {
+        "x": -0.8655457905348506,
+        "y": 0.37811507861364924,
+        "z": 0.3284196580784932,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.4848200769560825,
+        "y": 0.4681025468378221,
+        "z": 0.7388027467627898,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 44.55903554926495,
+      "conditioning": 0.941113580490054,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 222,
+      "point": {
+        "x": -0.016358133333333334,
+        "y": 0.12769666666666665,
+        "z": 0.0033608833333333334
+      },
+      "normal": {
+        "x": -0.28322427502934067,
+        "y": 0.9350927823509153,
+        "z": -0.21303872518706118,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.3804050354041058,
+        "y": -0.09437981885176684,
+        "z": -0.9199915536746566,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 21.868409744320505,
+      "conditioning": 0.9724755160730585,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 223,
+      "point": {
+        "x": -0.08650046666666666,
+        "y": 0.08373973333333333,
+        "z": 0.007820823333333332
+      },
+      "normal": {
+        "x": -0.8817156537473113,
+        "y": -0.46816757666837194,
+        "z": -0.05828058075736282,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.3039721553801347,
+        "y": 0.4692706663044754,
+        "z": 0.8290874323614543,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 201.03701559851032,
+      "conditioning": 0.7720464073887829,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 224,
+      "point": {
+        "x": -0.0181229,
+        "y": 0.12765600000000002,
+        "z": 0.005407323333333333
+      },
+      "normal": {
+        "x": -0.17881309554187969,
+        "y": 0.9742553035762983,
+        "z": -0.13730433465912603,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.8813872757939442,
+        "y": 0.0965993073648838,
+        "z": -0.4624122012719328,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 47.43112467648431,
+      "conditioning": 0.933441743917582,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 225,
+      "point": {
+        "x": -0.018396433333333333,
+        "y": 0.12749566666666665,
+        "z": 0.00482358
+      },
+      "normal": {
+        "x": -0.21281105021866745,
+        "y": 0.9551081413842563,
+        "z": -0.2061065141288341,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.8813872757939442,
+        "y": 0.09659930736488379,
+        "z": -0.4624122012719328,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 44.65266754253802,
+      "conditioning": 0.9358282451675198,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 226,
+      "point": {
+        "x": -0.019011033333333333,
+        "y": 0.12758133333333332,
+        "z": 0.00653285
+      },
+      "normal": {
+        "x": -0.24914863419288436,
+        "y": 0.96636771584241,
+        "z": -0.06370554024057322,
+        "lengthSquared": 0.9999999999999998,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.8921812430228784,
+        "y": 0.2034373311251843,
+        "z": -0.403268994472441,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 38.04264208537896,
+      "conditioning": 0.9445257887376944,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 227,
+      "point": {
+        "x": -0.01842876666666667,
+        "y": 0.127695,
+        "z": 0.006261966666666667
+      },
+      "normal": {
+        "x": -0.19796033050190087,
+        "y": 0.9763808691813312,
+        "z": -0.08655695144982022,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.9049166369724928,
+        "y": 0.14810033158140884,
+        "z": -0.3989889370845643,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 38.383598540259854,
+      "conditioning": 0.9450852671289681,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 228,
+      "point": {
+        "x": -0.07188816666666667,
+        "y": 0.16955733333333334,
+        "z": -0.026487200000000002
+      },
+      "normal": {
+        "x": 0.010013797812333022,
+        "y": 0.918992700225877,
+        "z": 0.39414735922612143,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.9834370387817236,
+        "y": -0.062286186888011616,
+        "z": 0.17021169664622463,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 59.99563177288227,
+      "conditioning": 0.9225874168014987,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 229,
+      "point": {
+        "x": -0.06549816666666668,
+        "y": 0.154067,
+        "z": -0.00339773
+      },
+      "normal": {
+        "x": 0.7251562557932535,
+        "y": 0.6710021961778865,
+        "z": 0.15461066395421377,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.14941396973848348,
+        "y": -0.37251632501996507,
+        "z": 0.9159186935752581,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 53.97006815426403,
+      "conditioning": 0.9302388717929079,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 230,
+      "point": {
+        "x": -0.010593833333333332,
+        "y": 0.130081,
+        "z": 0.013941799999999999
+      },
+      "normal": {
+        "x": -0.16209745670662618,
+        "y": 0.986351260566015,
+        "z": 0.02890683844830886,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.9243002955922962,
+        "y": 0.16202742685513644,
+        "z": -0.34556631276022465,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 22.020939127954453,
+      "conditioning": 0.9689307791034076,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 231,
+      "point": {
+        "x": -0.010034816666666667,
+        "y": 0.13017566666666666,
+        "z": 0.013665133333333334
+      },
+      "normal": {
+        "x": -0.14662492506340247,
+        "y": 0.9889217828280429,
+        "z": 0.023126582072519237,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.9268806575028493,
+        "y": 0.14551770930601113,
+        "z": -0.34600121824267766,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 18.854252997234127,
+      "conditioning": 0.9733032323062047,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 232,
+      "point": {
+        "x": -0.018709166666666666,
+        "y": 0.123327,
+        "z": 0.028594233333333333
+      },
+      "normal": {
+        "x": -0.2879204797595046,
+        "y": 0.8643982967722819,
+        "z": 0.412210361189811,
+        "lengthSquared": 0.9999999999999997,
+        "length": 0.9999999999999998
+      },
+      "crossDirection": {
+        "x": -0.9401334458180558,
+        "y": -0.3370883842226788,
+        "z": 0.050204833197736706,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 32.46987523770848,
+      "conditioning": 0.9527107728352564,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 233,
+      "point": {
+        "x": -0.05115423333333333,
+        "y": 0.05211793333333333,
+        "z": 0.020955199999999997
+      },
+      "normal": {
+        "x": -0.937953516065025,
+        "y": -0.020584729631785183,
+        "z": -0.34614949170444126,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.1987319008542781,
+        "y": 0.7861233921289059,
+        "z": -0.5852483608952594,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 54.519726624851394,
+      "conditioning": 0.9292533136704542,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 234,
+      "point": {
+        "x": -0.021172399999999997,
+        "y": 0.07731433333333333,
+        "z": 0.05459556666666667
+      },
+      "normal": {
+        "x": -0.44996834715509626,
+        "y": -0.5052781375966353,
+        "z": 0.736357583124793,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.886508065339202,
+        "y": -0.35230462490686504,
+        "z": 0.2999748345407969,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 72.73324911961261,
+      "conditioning": 0.8986429096402214,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 235,
+      "point": {
+        "x": -0.018002633333333334,
+        "y": 0.12370633333333332,
+        "z": 0.028353566666666667
+      },
+      "normal": {
+        "x": -0.34227844415065545,
+        "y": 0.8432598841390737,
+        "z": 0.41443725034263346,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.7627903013436594,
+        "y": -0.008166062313974348,
+        "z": 0.6465943640353925,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 18.609979956522903,
+      "conditioning": 0.9705583372759431,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 236,
+      "point": {
+        "x": -0.019073966666666668,
+        "y": 0.12768666666666664,
+        "z": 0.007961096666666667
+      },
+      "normal": {
+        "x": -0.20651973399829535,
+        "y": 0.9768279839365377,
+        "z": -0.05618442193128496,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.882878776282371,
+        "y": 0.16129009286113774,
+        "z": -0.44103352744999863,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 35.209221467966614,
+      "conditioning": 0.9491596842932122,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 237,
+      "point": {
+        "x": -0.019333866666666668,
+        "y": 0.12757766666666667,
+        "z": 0.007382380000000001
+      },
+      "normal": {
+        "x": -0.23192000174370161,
+        "y": 0.9663986327721238,
+        "z": -0.11084581799676148,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.882878776282371,
+        "y": 0.16129009286113774,
+        "z": -0.44103352744999863,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 27.72867227297116,
+      "conditioning": 0.958815375592964,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 238,
+      "point": {
+        "x": -0.09032093333333334,
+        "y": 0.15044866666666667,
+        "z": 0.0146852
+      },
+      "normal": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "lengthSquared": 0,
+        "length": 0
+      },
+      "crossDirection": {
+        "x": -0.0004572000000000048,
+        "y": -0.0007620000000000127,
+        "z": -0.000653599999999999,
+        "lengthSquared": 1.2168688000000225E-06,
+        "length": 0.0011031177634323647
+      },
+      "curvatureProxy": 1512.9350180166584,
+      "conditioning": 0,
+      "directionKnown": false,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 239,
+      "point": {
+        "x": -0.005591646666666666,
+        "y": 0.13084300000000001,
+        "z": 0.011452566666666669
+      },
+      "normal": {
+        "x": -0.17500634692609748,
+        "y": 0.9845552684151117,
+        "z": -0.004868467071863865,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.9122419714086509,
+        "y": 0.1602883775782342,
+        "z": -0.37699100999068347,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 17.502463720766993,
+      "conditioning": 0.9745425414151898,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 240,
+      "point": {
+        "x": -0.015978133333333335,
+        "y": 0.12696666666666664,
+        "z": 0.023649599999999996
+      },
+      "normal": {
+        "x": -0.29661485247772296,
+        "y": 0.8997170532508476,
+        "z": 0.3202012701087084,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.934924781696009,
+        "y": 0.34195360149865744,
+        "z": -0.09478073112593899,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 56.659169542673226,
+      "conditioning": 0.9218293486845451,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 241,
+      "point": {
+        "x": -0.05721006666666667,
+        "y": 0.15551933333333334,
+        "z": 0.013613
+      },
+      "normal": {
+        "x": 0.13957808999513013,
+        "y": 0.9842831390808775,
+        "z": 0.10818807195992189,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.2610901265865759,
+        "y": -0.14197364735415796,
+        "z": 0.9548169611270858,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 94.91286064894865,
+      "conditioning": 0.8854789681307841,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 242,
+      "point": {
+        "x": -0.06964223333333333,
+        "y": 0.17008466666666666,
+        "z": -0.029498533333333337
+      },
+      "normal": {
+        "x": 0.315090327927321,
+        "y": 0.9043534038852883,
+        "z": 0.2878593512945966,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.17514802713165564,
+        "y": 0.35350977953177526,
+        "z": -0.918887373059008,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 58.69828182036808,
+      "conditioning": 0.9266480032132154,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 243,
+      "point": {
+        "x": -0.06919583333333333,
+        "y": 0.16996333333333333,
+        "z": -0.029810566666666666
+      },
+      "normal": {
+        "x": 0.5143068230084505,
+        "y": 0.8287000769455769,
+        "z": 0.22078196094189712,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.17514802713165561,
+        "y": 0.35350977953177526,
+        "z": -0.918887373059008,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 94.64249500004115,
+      "conditioning": 0.8874773785092556,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 244,
+      "point": {
+        "x": -0.06973326666666667,
+        "y": 0.16981833333333332,
+        "z": -0.028576400000000002
+      },
+      "normal": {
+        "x": 0.31144713979643646,
+        "y": 0.9029873093649461,
+        "z": 0.29599763215011377,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.1743633782611918,
+        "y": 0.36050565413266744,
+        "z": -0.9163149489448059,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 55.447493685482875,
+      "conditioning": 0.9304339877170955,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 245,
+      "point": {
+        "x": -0.07021310000000001,
+        "y": 0.16987466666666665,
+        "z": -0.028277366666666665
+      },
+      "normal": {
+        "x": 0.2766334494922814,
+        "y": 0.9110265588483121,
+        "z": 0.3057851266739514,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.17436337826119183,
+        "y": 0.3605056541326674,
+        "z": -0.9163149489448059,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 26.975714508667874,
+      "conditioning": 0.9648636477336096,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 246,
+      "point": {
+        "x": -0.08634449999999999,
+        "y": 0.08105836666666667,
+        "z": 0.010837766666666665
+      },
+      "normal": {
+        "x": -0.9697528504756897,
+        "y": -0.21796757113456536,
+        "z": -0.10986148974036723,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.21622481914589503,
+        "y": 0.5582853275883164,
+        "z": 0.8009771036583575,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 59.455303791520265,
+      "conditioning": 0.9242989634878949,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 247,
+      "point": {
+        "x": -0.07082403333333334,
+        "y": 0.16960899999999998,
+        "z": -0.027060199999999996
+      },
+      "normal": {
+        "x": 0.30942762859229855,
+        "y": 0.8864593800983049,
+        "z": 0.3441573914642476,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.14629517900959826,
+        "y": 0.40198755876125175,
+        "z": -0.9038825826398685,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 67.27911621220912,
+      "conditioning": 0.9153647193362978,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 248,
+      "point": {
+        "x": -0.03958656666666666,
+        "y": 0.17341566666666666,
+        "z": -0.0032301566666666664
+      },
+      "normal": {
+        "x": -0.4391139614641244,
+        "y": 0.825417548235331,
+        "z": 0.3547742943231074,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.536283883129943,
+        "y": -0.5576273484108712,
+        "z": 0.6336018757858364,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 63.06190621283315,
+      "conditioning": 0.9062696218809436,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 249,
+      "point": {
+        "x": -0.08888416666666665,
+        "y": 0.09241809999999999,
+        "z": 0.009778326666666667
+      },
+      "normal": {
+        "x": -0.9666229099975789,
+        "y": 0.17180988817808962,
+        "z": -0.19005660260050078,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.026600620357782493,
+        "y": 0.8051121094954905,
+        "z": 0.5925258628450765,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "curvatureProxy": 99.96379077260653,
+      "conditioning": 0.8802435048421616,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 250,
+      "point": {
+        "x": -0.06115343333333333,
+        "y": 0.15504733333333334,
+        "z": 0.026723400000000005
+      },
+      "normal": {
+        "x": 0.19710290295488053,
+        "y": 0.9543595357143851,
+        "z": 0.2243843181636864,
+        "lengthSquared": 1.0000000000000004,
+        "length": 1.0000000000000002
+      },
+      "crossDirection": {
+        "x": 0.22975025522656287,
+        "y": -0.2674651937281511,
+        "z": 0.9357762501620203,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 51.69308979657403,
+      "conditioning": 0.9337406296143392,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 251,
+      "point": {
+        "x": -0.08424993333333335,
+        "y": 0.078032,
+        "z": 0.0189005
+      },
+      "normal": {
+        "x": -0.7599128418809217,
+        "y": -0.5959713187062448,
+        "z": 0.2595200570745944,
+        "lengthSquared": 0.9999999999999997,
+        "length": 0.9999999999999998
+      },
+      "crossDirection": {
+        "x": 0.25019053470481234,
+        "y": 0.10032504714429201,
+        "z": 0.9629847253511427,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 51.86931886758281,
+      "conditioning": 0.9316946471999475,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 252,
+      "point": {
+        "x": -0.07520083333333333,
+        "y": 0.17077,
+        "z": -0.032039866666666666
+      },
+      "normal": {
+        "x": -0.3357014927594216,
+        "y": 0.883052473370679,
+        "z": 0.3279067505145664,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": -0.9208240054269884,
+        "y": -0.38098350091211153,
+        "z": 0.0832749846121196,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 59.034015109413815,
+      "conditioning": 0.9172872125446867,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 253,
+      "point": {
+        "x": -0.053473700000000006,
+        "y": 0.152013,
+        "z": 0.019861166666666666
+      },
+      "normal": {
+        "x": 0.8906900618221877,
+        "y": 0.43054957137828226,
+        "z": 0.14593930367507213,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.4464722276250097,
+        "y": -0.767973845484246,
+        "z": -0.45921533359819466,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 44.70940084361449,
+      "conditioning": 0.9387415267742221,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 254,
+      "point": {
+        "x": -0.031610000000000006,
+        "y": 0.126324,
+        "z": 0.013623099999999999
+      },
+      "normal": {
+        "x": 0.43706773826958395,
+        "y": 0.8949043952667014,
+        "z": 0.09009947556034971,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "crossDirection": {
+        "x": 0.7460129597939785,
+        "y": -0.30473520477351496,
+        "z": -0.5921157984643475,
+        "lengthSquared": 1.0000000000000002,
+        "length": 1
+      },
+      "curvatureProxy": 89.76967266456306,
+      "conditioning": 0.890752300233936,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    },
+    {
+      "triangleIndex": 255,
+      "point": {
+        "x": -0.06632400000000001,
+        "y": 0.180592,
+        "z": -0.05711196666666667
+      },
+      "normal": {
+        "x": 0.43623959698754694,
+        "y": 0.8809483206756319,
+        "z": 0.18337139994810145,
+        "lengthSquared": 0.9999999999999999,
+        "length": 0.9999999999999999
+      },
+      "crossDirection": {
+        "x": 0.4593075339513016,
+        "y": -0.39323773360883885,
+        "z": 0.7964927332510686,
+        "lengthSquared": 1,
+        "length": 1
+      },
+      "curvatureProxy": 74.06951545654353,
+      "conditioning": 0.908832757838463,
+      "directionKnown": true,
+      "evidenceClass": "Heuristic"
+    }
+  ]
+}

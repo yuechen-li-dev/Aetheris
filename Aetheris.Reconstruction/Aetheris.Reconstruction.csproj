@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Description>Deterministic evidence-driven recovery of structured surfaces from triangle meshes.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Aetheris.Kernel.Core\Aetheris.Kernel.Core.csproj" />
+    <ProjectReference Include="..\Aetheris.Geometry\Aetheris.Geometry.csproj" />
+    <ProjectReference Include="..\Aetheris.Surfacing\Aetheris.Surfacing.csproj" />
+  </ItemGroup>
+</Project>

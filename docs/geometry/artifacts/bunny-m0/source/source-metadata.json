@@ -1,0 +1,41 @@
+{
+  "archiveSha256": "a5720bd96d158df403d153381b8411a727a1d73cff2f33dc9b212d6f75455b84",
+  "selectedMember": "bunny/reconstruction/bun_zipper.ply",
+  "selectionReason": "canonical high-resolution zipper reconstruction",
+  "sourceFormat": "ASCII PLY 1.0",
+  "sourceCoordinateScale": "unitless archive coordinates (Stanford bunny convention; no silent rescale)",
+  "vertexCount": 35947,
+  "triangleCount": 69451,
+  "connectedComponents": 1,
+  "boundaryEdgeCount": 223,
+  "boundaryLoopCount": 5,
+  "bounds": {
+    "minimum": {
+      "x": -0.0946899,
+      "y": 0.0329874,
+      "z": -0.0618736
+    },
+    "maximum": {
+      "x": 0.0610091,
+      "y": 0.187321,
+      "z": 0.0587997
+    },
+    "size": {
+      "x": 0.15569899999999998,
+      "y": 0.1543336,
+      "z": 0.12067330000000001,
+      "lengthSquared": 0.06262308402285,
+      "length": 0.2502460469674796
+    },
+    "center": {
+      "x": -0.0168404,
+      "y": 0.1101542,
+      "z": -0.0015369499999999987
+    }
+  },
+  "surfaceArea": 0.05712878347791955,
+  "signedVolume": 0.0007700565241248492,
+  "orientationConsistent": true,
+  "degenerateTriangleCount": 0,
+  "deterministicHash": "88d635a8709c1c570ff47c80ef6340fe8a8da58c1f3e2c96975ff428276cbde0"
+}

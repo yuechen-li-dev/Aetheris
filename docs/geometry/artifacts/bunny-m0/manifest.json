@@ -1,0 +1,126 @@
+{
+  "milestone": "AETHERIS-BUNNY-M0",
+  "deterministicInputs": {
+    "archiveSha256": "a5720bd96d158df403d153381b8411a727a1d73cff2f33dc9b212d6f75455b84",
+    "selectedMember": "bunny/reconstruction/bun_zipper.ply",
+    "sourceMeshHash": "88d635a8709c1c570ff47c80ef6340fe8a8da58c1f3e2c96975ff428276cbde0",
+    "structuredMeshHash": "906d38666742a7ebd5e8c5a51eb236aa57f397db8dad1763eff3af435d35e173"
+  },
+  "note": "performance.json is observational and intentionally excluded from deterministic reproducibility claims",
+  "files": [
+    {
+      "path": "analysis-lattice.json",
+      "sha256": "0e3a2c4567b9e33181522eaa0accb3225fae7ed6e1b4f7fd6d97045de9b31732",
+      "bytes": 1014,
+      "deterministic": true
+    },
+    {
+      "path": "chart-colored.obj",
+      "sha256": "6a6236a0bd6e09c1a720a77cfadfb004cf711417ef170469110d41cb38b86208",
+      "bytes": 3162004,
+      "deterministic": true
+    },
+    {
+      "path": "chart-network.json",
+      "sha256": "f7caffa205e8469be0d3b19e649df9bb43b1c6f4c85a4c4bbf1e5d3174d55307",
+      "bytes": 1564908,
+      "deterministic": true
+    },
+    {
+      "path": "comparison-baselines.json",
+      "sha256": "c8f06361f997ebb1dcb66fc9d6f804581ecd4dd0106931ecf9e61824483c90bc",
+      "bytes": 328,
+      "deterministic": true
+    },
+    {
+      "path": "field-summary.json",
+      "sha256": "e7d8bd8c36a96a47ca5fe8c6706b4058dad5517a05a760d26900596bc1209be9",
+      "bytes": 185772,
+      "deterministic": true
+    },
+    {
+      "path": "mesh-validation.json",
+      "sha256": "b814bdf45da9e7e2fd62907cd1f44fbb5b81d841d5ccbc63761b164ea2cf0d61",
+      "bytes": 4423,
+      "deterministic": true
+    },
+    {
+      "path": "panel-continuity.json",
+      "sha256": "d79dcb44690fe83fbd3e4edb77964f857b3c813a5b78a7bdec41c4e7ef5580e8",
+      "bytes": 376,
+      "deterministic": true
+    },
+    {
+      "path": "panel-fit-summary.json",
+      "sha256": "2dbed93f5891d303c752954ed46fbba5c0e248fbf5095ba3bb7031d14287b88f",
+      "bytes": 613,
+      "deterministic": true
+    },
+    {
+      "path": "performance.json",
+      "sha256": "183e1bf3eca547a51199b098a9cbab96fb57019b9807b659e089ac26cdc3a51c",
+      "bytes": 452,
+      "deterministic": false
+    },
+    {
+      "path": "README.md",
+      "sha256": "afb7e22fa8a5b3c5a4ea153574909cedb35d2d570838cd6f648f95ab189ef9fb",
+      "bytes": 864,
+      "deterministic": true
+    },
+    {
+      "path": "reconstruction-error.json",
+      "sha256": "e44e32bf12150abb0ea04a158b5dd801f7e256dcdd1a62f15b17dd78785e0a26",
+      "bytes": 1029,
+      "deterministic": true
+    },
+    {
+      "path": "repair-policy.md.json",
+      "sha256": "1574dca18dd76b30bb3565224cb788939bf92ae17c4b61c476b5d16d0091721f",
+      "bytes": 203,
+      "deterministic": true
+    },
+    {
+      "path": "source-metadata.json",
+      "sha256": "06e11f4860474008629b25d97131c6dddbe75d1f81f40db0b5d8a6f659a9c7fa",
+      "bytes": 1250,
+      "deterministic": true
+    },
+    {
+      "path": "source/mesh-validation.json",
+      "sha256": "b814bdf45da9e7e2fd62907cd1f44fbb5b81d841d5ccbc63761b164ea2cf0d61",
+      "bytes": 4423,
+      "deterministic": true
+    },
+    {
+      "path": "source/source-metadata.json",
+      "sha256": "06e11f4860474008629b25d97131c6dddbe75d1f81f40db0b5d8a6f659a9c7fa",
+      "bytes": 1250,
+      "deterministic": true
+    },
+    {
+      "path": "source/source-normalized.obj",
+      "sha256": "f3326c67fed2d01d16dcb758e6f572a7fb6973d4b66a92629ca075f699663967",
+      "bytes": 2606545,
+      "deterministic": true
+    },
+    {
+      "path": "surface-mesh-ir.obj",
+      "sha256": "a3057cc18ee8f38c888f2e2ac0702604304fb46870d0bdb1fe99fd5e20290b3f",
+      "bytes": 1358404,
+      "deterministic": true
+    },
+    {
+      "path": "surface-mesh-summary.json",
+      "sha256": "072ef05d099eac9aae2d1e823a5abf49b290a1d1d31ff078b90ec7323540ef9c",
+      "bytes": 551,
+      "deterministic": true
+    },
+    {
+      "path": "validation-report.json",
+      "sha256": "c6898a52207893b6831703977ebc54d3af73788c1071da76fa7e61e6b8fff854",
+      "bytes": 3807,
+      "deterministic": true
+    }
+  ]
+}

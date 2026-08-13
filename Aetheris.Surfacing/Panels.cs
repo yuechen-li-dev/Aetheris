@@ -148,6 +148,38 @@ public static class PanelFactory
         return Create(construction, orientation, thickness, material);
     }
 
+    /// <summary>
+    /// Materializes a sampled quadratic reconstruction as one exact non-rational
+    /// tensor-product Bezier support. The fit remains approximation evidence;
+    /// only the expression-to-support lowering is exact.
+    /// </summary>
+    public static PanelResult FromRecoveredQuadratic(
+        BoundedParametricPatch3 patch,
+        ApproximationCertificate approximation,
+        IReadOnlyList<BoundaryProvenance> provenance,
+        PanelOrientation? orientation = null)
+    {
+        ArgumentNullException.ThrowIfNull(patch); ArgumentNullException.ThrowIfNull(approximation); ArgumentNullException.ThrowIfNull(provenance);
+        if (patch.PointExpression is null || patch.Domain.U.Minimum != 0 || patch.Domain.U.Maximum != 1 || patch.Domain.V.Minimum != 0 || patch.Domain.V.Maximum != 1)
+            return new(null, [new("reconstruction-quadratic-domain-unsupported", "Recovered quadratic Panel materialization requires an expression on [0,1] x [0,1].")]);
+        var p00=patch.EvaluatePoint(0,0);var p20=patch.EvaluatePoint(1,0);var p02=patch.EvaluatePoint(0,1);var p22=patch.EvaluatePoint(1,1);
+        var p10=Control(patch.EvaluatePoint(.5,0),p00,p20);var p12=Control(patch.EvaluatePoint(.5,1),p02,p22);
+        var p01=Control(patch.EvaluatePoint(0,.5),p00,p02);var p21=Control(patch.EvaluatePoint(1,.5),p20,p22);
+        var center=patch.EvaluatePoint(.5,.5);var cornerSum=ToVector(p00)+ToVector(p20)+ToVector(p02)+ToVector(p22);var edgeSum=ToVector(p10)+ToVector(p12)+ToVector(p01)+ToVector(p21);
+        var p11=ToPoint(ToVector(center)*4-cornerSum*.25-edgeSum*.5);
+        IReadOnlyList<IReadOnlyList<Point3D>> controls=[new[]{p00,p01,p02},new[]{p10,p11,p12},new[]{p20,p21,p22}];
+        var surface=new BSplineSurfaceWithKnots(2,2,controls,"UNSPECIFIED",false,false,false,[3,3],[3,3],[0d,1d],[0d,1d],"UNSPECIFIED");
+        var construction=new PanelConstruction(patch.StableId,SurfaceConstructionKind.ParametricSurface,patch.Domain,
+            SurfaceGeometry.FromBSplineSurfaceWithKnots(surface),patch.EvaluatePoint,patch,
+            SurfaceMaterializationKind.ApproximatedNonRationalBSpline,approximation,
+            new(DevelopabilityKind.Indeterminate,"recovered quadratic curvature classification",null,0,"Reconstructed surface is not assumed developable."),provenance);
+        return Create(construction,orientation,null,null);
+
+        static Point3D Control(Point3D midpoint,Point3D first,Point3D last)=>ToPoint(ToVector(midpoint)*2-(ToVector(first)+ToVector(last))*.5);
+        static Vector3D ToVector(Point3D p)=>new(p.X,p.Y,p.Z);
+        static Point3D ToPoint(Vector3D v)=>new(v.X,v.Y,v.Z);
+    }
+
     public static PanelResult FromRuled(
         RuledSurfaceIr source,
         PanelOrientation? orientation = null,
@@ -337,8 +369,9 @@ public static class PanelFactory
     private static double Differential(Func<double, double, Point3D> evaluate, double u, double v)
     {
         const double h = 1e-6;
-        var du = evaluate(Math.Min(1, u + h), v) - evaluate(Math.Max(0, u - h), v);
-        var dv = evaluate(u, Math.Min(1, v + h)) - evaluate(u, Math.Max(0, v - h));
+        var u0=Math.Max(0,u-h);var u1=Math.Min(1,u+h);var v0=Math.Max(0,v-h);var v1=Math.Min(1,v+h);
+        var du = (evaluate(u1, v) - evaluate(u0, v)) * (1d/(u1-u0));
+        var dv = (evaluate(u, v1) - evaluate(u, v0)) * (1d/(v1-v0));
         return du.Cross(dv).Length;
     }
 

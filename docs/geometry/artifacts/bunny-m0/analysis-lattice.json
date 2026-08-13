@@ -1,0 +1,41 @@
+{
+  "bounds": {
+    "minimum": {
+      "x": -0.10247484999999999,
+      "y": 0.02520245,
+      "z": -0.06965855
+    },
+    "maximum": {
+      "x": 0.06879405,
+      "y": 0.19510594999999997,
+      "z": 0.06658465
+    },
+    "size": {
+      "x": 0.1712689,
+      "y": 0.16990349999999999,
+      "z": 0.1362432,
+      "lengthSquared": 0.0767624449657,
+      "length": 0.27706036339704027
+    },
+    "center": {
+      "x": -0.0168404,
+      "y": 0.11015419999999998,
+      "z": -0.0015369500000000022
+    }
+  },
+  "policy": {
+    "baseResolution": 20,
+    "surfaceBandCells": 1.5,
+    "normalVariationDegrees": 18,
+    "maximumDepth": 1
+  },
+  "candidateCellCount": 2792,
+  "refinedParentCount": 2423,
+  "leafCount": 18499,
+  "levels": {
+    "1": 18130,
+    "0": 369
+  },
+  "evidence": "nearest triangle/point/distance/normal/provenance retained per in-memory leaf; summary persisted to bound artifact size",
+  "representationRole": "analysis scaffold, never output topology"
+}

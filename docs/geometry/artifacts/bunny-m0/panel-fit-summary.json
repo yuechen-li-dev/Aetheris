@@ -1,0 +1,19 @@
+{
+  "representationLadder": {
+    "analyticPlaneAttempts": 0,
+    "analyticCylinderAttempts": 0,
+    "analyticConeAttempts": 0,
+    "analyticSphereAttempts": 0,
+    "ruledAttempts": 0,
+    "quadraticExpressionFallback": 333
+  },
+  "fit": "non-rational quadratic expression patch with exact first/second jets",
+  "panelCount": 333,
+  "actualPanelIrCount": 333,
+  "panelIrFailures": [],
+  "rejectedCount": 0,
+  "maximumResidual": 0.0037478611113775364,
+  "rmsResidual": 0.00041565759003772256,
+  "evidence": "SampledApproximation",
+  "provenance": "source triangle membership retained per chart"
+}

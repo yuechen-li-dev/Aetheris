@@ -1,0 +1,15 @@
+{
+  "representation": "panel-derived structured surface mesh IR experiment",
+  "inputTriangles": 69451,
+  "outputVertices": 16317,
+  "cells": 11988,
+  "quads": 11988,
+  "triangleCount": 0,
+  "ngonCount": 0,
+  "quadPercentage": 100,
+  "boundaryEdgeCount": 7992,
+  "nonManifoldEdgeCount": 0,
+  "crackCount": 845,
+  "deterministicHash": "906d38666742a7ebd5e8c5a51eb236aa57f397db8dad1763eff3af435d35e173",
+  "caveat": "chart rectangles are independently tessellated; seam reconciliation/open-boundary trimming is the isolated next blocker"
+}

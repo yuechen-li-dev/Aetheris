@@ -1,0 +1,16 @@
+{
+  "timingsMilliseconds": {
+    "analysisLattice": 1970.3196,
+    "archiveLoad": 93.8694,
+    "chartParameterizationAndPanelFit": 169.8708,
+    "errorEvaluation": 796.6634,
+    "geometryDogfood": 887.7285,
+    "localDifferentialAndCrossField": 430.2565,
+    "meshValidation": 104.7222,
+    "spatialIndex": 1196.1702,
+    "surfaceMeshIr": 214.8143,
+    "total": 6050.3927
+  },
+  "approximateWorkingSetBytes": 153157632,
+  "noGpu": true
+}

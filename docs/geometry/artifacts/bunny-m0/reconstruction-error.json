@@ -1,0 +1,32 @@
+{
+  "sourceToPanels": {
+    "mean": 0.00024307087545630173,
+    "maximum": 0.0032993837537705043,
+    "rms": 0.00036256811738685383,
+    "p50": 0.00015418071070672155,
+    "p90": 0.0005802937783412499,
+    "p95": 0.0007642005580378718,
+    "p99": 0.0012856805046987166
+  },
+  "remeshToSource": {
+    "mean": 0.0005620134648547616,
+    "maximum": 0.014510655135104078,
+    "rms": 0.0011799706833783676,
+    "p50": 0.0001928118287837403,
+    "p90": 0.001454192219087284,
+    "p95": 0.00242691307445194,
+    "p99": 0.00531937507642792
+  },
+  "sampledBidirectionalHausdorff": 0.014510655135104078,
+  "normalAngleDegrees": {
+    "mean": 11.456890403481678,
+    "maximum": 90,
+    "rms": 18.77884279304215,
+    "p50": 7.33781309397067,
+    "p90": 21.405065330940506,
+    "p95": 30.822269132228165,
+    "p99": 90
+  },
+  "curvatureAgreement": "Unavailable: the source normal-variation proxy is not a commensurate curvature estimator; no false numeric comparison is emitted.",
+  "evidenceClass": "Sampled"
+}

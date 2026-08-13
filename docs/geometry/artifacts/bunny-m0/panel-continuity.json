@@ -1,0 +1,10 @@
+{
+  "seamCount": 845,
+  "strategy": "one source-evidence seam identity per neighboring chart pair",
+  "g0": "reported as zero only for the shared evidence polyline; fitted rectangular boundaries are not yet reconciled",
+  "g1": "Unknown",
+  "g2": "Unknown",
+  "originalOpenBoundaryLoops": 5,
+  "boundariesPreservedAsEvidence": true,
+  "fittedNetworkCrackCount": 845
+}

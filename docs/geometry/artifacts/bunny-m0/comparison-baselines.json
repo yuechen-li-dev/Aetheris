@@ -1,0 +1,15 @@
+{
+  "identity": {
+    "geometryError": 0,
+    "structure": "none",
+    "triangles": 69451
+  },
+  "directRetopo": {
+    "status": "not available in repository; no external remesher imported"
+  },
+  "recovered": {
+    "panels": 333,
+    "quads": 11988,
+    "sampledBidirectionalHausdorff": 0.014510655135104078
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "futureExplicitPolicies": [
+    "FillHole",
+    "BridgeBoundary",
+    "InferMissingSurface"
+  ],
+  "implemented": false,
+  "reason": "M0 preserves source holes and never repairs implicitly"
+}

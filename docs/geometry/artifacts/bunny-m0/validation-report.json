@@ -1,0 +1,123 @@
+{
+  "milestone": "AETHERIS-BUNNY-M0",
+  "status": "MeaningfulProgression",
+  "sourceIngested": true,
+  "genericLoader": true,
+  "sourceDefectsRecorded": true,
+  "bvhQueries": [
+    "nearest triangle",
+    "nearest point",
+    "bounds candidates"
+  ],
+  "adaptiveLattice": true,
+  "differentialRecovery": true,
+  "fourFoldCrossField": true,
+  "multiChart": true,
+  "boundedPatches": 333,
+  "actualPanelIr": 333,
+  "secondJetsHonest": true,
+  "structuredMostlyQuads": true,
+  "bidirectionalErrorMeasured": true,
+  "originalHolesCapped": false,
+  "panelNetworkSeamAware": false,
+  "surfaceMeshCrackFree": false,
+  "blocker": "shared rectangular chart-boundary parameterization/reconciliation that preserves open source boundary loops",
+  "dogfood": [
+    {
+      "stableId": "chart-0000",
+      "panelIr": "panel:chart-0000",
+      "panelConcept": true,
+      "jet1Regular": true,
+      "jet2": "Regular",
+      "curvature": "Available",
+      "curvatureEvidence": "ToleranceBounded",
+      "closestPoint": "Available",
+      "closestPointEvidence": "ToleranceBounded",
+      "distance": 0.00011885979227767286
+    },
+    {
+      "stableId": "chart-0001",
+      "panelIr": "panel:chart-0001",
+      "panelConcept": true,
+      "jet1Regular": true,
+      "jet2": "Regular",
+      "curvature": "Available",
+      "curvatureEvidence": "ToleranceBounded",
+      "closestPoint": "Available",
+      "closestPointEvidence": "ToleranceBounded",
+      "distance": 4.6104326087610396E-05
+    },
+    {
+      "stableId": "chart-0002",
+      "panelIr": "panel:chart-0002",
+      "panelConcept": true,
+      "jet1Regular": true,
+      "jet2": "Regular",
+      "curvature": "Available",
+      "curvatureEvidence": "ToleranceBounded",
+      "closestPoint": "Available",
+      "closestPointEvidence": "ToleranceBounded",
+      "distance": 0.00023200604187331012
+    },
+    {
+      "stableId": "chart-0003",
+      "panelIr": "panel:chart-0003",
+      "panelConcept": true,
+      "jet1Regular": true,
+      "jet2": "Regular",
+      "curvature": "Available",
+      "curvatureEvidence": "ToleranceBounded",
+      "closestPoint": "Available",
+      "closestPointEvidence": "ToleranceBounded",
+      "distance": 0.0003458414447834341
+    },
+    {
+      "stableId": "chart-0004",
+      "panelIr": "panel:chart-0004",
+      "panelConcept": true,
+      "jet1Regular": true,
+      "jet2": "Regular",
+      "curvature": "Available",
+      "curvatureEvidence": "ToleranceBounded",
+      "closestPoint": "Available",
+      "closestPointEvidence": "ToleranceBounded",
+      "distance": 0.00022262957806948506
+    },
+    {
+      "stableId": "chart-0005",
+      "panelIr": "panel:chart-0005",
+      "panelConcept": true,
+      "jet1Regular": true,
+      "jet2": "Regular",
+      "curvature": "Available",
+      "curvatureEvidence": "ToleranceBounded",
+      "closestPoint": "Available",
+      "closestPointEvidence": "ToleranceBounded",
+      "distance": 4.059843313359663E-05
+    },
+    {
+      "stableId": "chart-0006",
+      "panelIr": "panel:chart-0006",
+      "panelConcept": true,
+      "jet1Regular": true,
+      "jet2": "Regular",
+      "curvature": "Available",
+      "curvatureEvidence": "ToleranceBounded",
+      "closestPoint": "Available",
+      "closestPointEvidence": "ToleranceBounded",
+      "distance": 9.173258744834329E-05
+    },
+    {
+      "stableId": "chart-0007",
+      "panelIr": "panel:chart-0007",
+      "panelConcept": true,
+      "jet1Regular": true,
+      "jet2": "Regular",
+      "curvature": "Available",
+      "curvatureEvidence": "ToleranceBounded",
+      "closestPoint": "Available",
+      "closestPointEvidence": "ToleranceBounded",
+      "distance": 0.00020430226868119528
+    }
+  ]
+}

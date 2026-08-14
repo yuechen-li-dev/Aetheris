@@ -1,23 +1,16 @@
 # Aetheris.Kernel.Firmament
 
-This project is the future home of Firmament in Aetheris.
+This project owns the Firmament compiler-facing implementation: the canonical Firmament V2 frontend and assembly profile, AIR/materialization bridges, STEP build/export orchestration, plus frozen V1 and legacy `.firmasm` compatibility paths.
 
-Current status: pre-M0 scaffold only.
+Current architecture:
 
-Implemented scaffolding:
-- compile boundary contracts (`FirmamentSourceDocument`, `FirmamentCompileRequest`, `FirmamentCompileResult`)
-- Firmament diagnostic taxonomy placeholders and code-family conventions
-- source location contract placeholders (`FirmamentSourcePosition`, `FirmamentSourceSpan`)
-- deterministic compiler facade stub (`FirmamentCompiler`) that reports not implemented
-- tiny pre-M0 curated corpus scaffold (`testdata/firmament/`) with a manifest and placeholder `.firmament` fixtures consumed by tests
+- Firmament V2 is the sole canonical engineering authoring language. `.firmament` is its general document profile and `.firmasm` is its current Assembly profile.
+- `FirmamentV2/` contains the current parser, typed/static authoring, Concepts/Templates, validation, and lowering integration.
+- `Assembly/` contains current Assembly compilation/interchange and the deprecated JSON-shaped `.firmasm` compatibility reader/migration path.
+- `Parsing/`, `ParsedModel/`, `Validation/`, `Lowering/`, the public `FirmamentCompiler`, and related `op`/`expect` execution represent the older V1 TOON/JSON path. They remain for build compatibility and historical regression, not for new language features.
+- `Materializer/` and parts of `Execution/` are shared implementation substrate; do not assume every file in those folders is V1-owned.
+- `FirmamentBuildAndExport` routes recognized V2 documents through current paths and retains a V1 export fallback for unrecognized historical documents.
 
-Not implemented yet: parser, semantic validation, selectors, lowering, or STEP behavior. The corpus scaffold is infrastructure-only and will be expanded by future parser/validator/lowering work.
+The V1 parser accepts both TOON-style and JSON-shaped documents and normalizes them into `FirmamentParsedDocument`. Its formatter emits deterministic canonical TOON, not lossless source preservation and not JSON. The broad V1 test suite is opt-in through `AETHERIS_RUN_LEGACY_TESTS=1`.
 
-The top-level lanes (`Connectors`, `ParsedModel`, `Lanes`, `Mapping`, `Diagnostics`) are intentionally separated to guide future implementation work.
-
-Pre-M0 composition seam note: `ImportOrchestrator.CreateDefault(...)` now supports additive registration while keeping STEP/AP242 as the default import composition, so Firmament can later register its own source-family connector/lane without reshaping STEP-specific wiring.
-
-Canonical corpus note: repository `.firmament` fixtures under `testdata/firmament/fixtures/` are maintained only in canonical TOON-style Firmament syntax; JSON-shaped source text is supported by parser compatibility but is not canonical corpus form.
-
-
-FORGE-M0c note: reusable external/library parts are routed through `Connectors/FirmamentPartLibraryConnector.cs` (currently `standard_library/*`), while operation/schema parsing/validation/lowering remains lane-owned.
+The authoritative ownership and migration audit is [AETHERIS-ARCHAEOLOGY-M1](../docs/architecture/artifacts/archaeology-m1/README.md). The current V2 language reference is [docs/firmament-v2/language-reference.md](../docs/firmament-v2/language-reference.md).

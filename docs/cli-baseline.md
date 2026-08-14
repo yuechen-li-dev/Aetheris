@@ -10,7 +10,7 @@ aetheris analyze <file.step> [--face <id>] [--edge <id>] [--vertex <id>] [--json
 ## Contract notes
 
 - `build` runs `FirmamentBuildAndExport.Run`; no parallel compile/export path is introduced.
-- `build` default output path remains deterministic: `<repo>/testdata/firmament/exports/<source-filename>.step`.
+- `build` default output path is deterministic and adjacent to the source: `<source-directory>/<source-filename>.step`. Use `--out` to place it elsewhere.
 - `analyze` imports STEP with `Step242Importer.ImportBody` and reports imported topology/geometry facts.
 - At most one detail selector is allowed on `analyze`: `--face`, `--edge`, or `--vertex`.
 - `analyze --json` is the canonical machine-readable mode.

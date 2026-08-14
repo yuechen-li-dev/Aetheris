@@ -744,7 +744,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_FrictionLabFlangeBoltCircle_RemovesOverlapBlocker_AndAdvancesPastSchemaVoidGate()
     {
         var fullSourcePath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/flange-bolt-circle/part.firmament");
-        var expectedOutputPath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/flange-bolt-circle/part.step");
+        var expectedOutputPath = Path.GetFullPath(Path.Combine(FirmamentCorpusHarness.RepoRoot(), "Aetheris.Firmament.FrictionLab/Cases/flange-bolt-circle/part.step"));
         if (File.Exists(expectedOutputPath))
         {
             File.Delete(expectedOutputPath);
@@ -754,7 +754,7 @@ public sealed class FirmamentBuildAndExportTests
 
         Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message)));
         Assert.True(File.Exists(result.Value.OutputPath));
-        Assert.EndsWith(Path.Combine("testdata", "firmament", "exports", "part.step"), result.Value.OutputPath, StringComparison.Ordinal);
+        Assert.Equal(expectedOutputPath, result.Value.OutputPath);
         Assert.DoesNotContain(result.Diagnostics, diagnostic =>
             diagnostic.Message.Contains("overlapping cylinder-root hole chains are not supported", StringComparison.Ordinal));
         Assert.DoesNotContain(result.Diagnostics, diagnostic =>
@@ -766,7 +766,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_BoundedPocketFixture_WithSealedCavity_RemainsExplicitlyRejected()
     {
         var fullSourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath("testdata/firmament/fixtures/m13b-unsupported-sealed-pocket-box.firmament");
-        var expectedOutputPath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "testdata", "firmament", "exports", "m13b-unsupported-sealed-pocket-box.step");
+        var expectedOutputPath = Path.ChangeExtension(fullSourcePath, ".step");
         if (File.Exists(expectedOutputPath))
         {
             File.Delete(expectedOutputPath);
@@ -784,7 +784,7 @@ public sealed class FirmamentBuildAndExportTests
     private static void AssertExampleBuildAndExport(string sourcePath, string expectedFileName, string expectedFeatureId, int expectedOpIndex, string expectedBodyCategory, string expectedFeatureKind)
     {
         var fullSourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath(sourcePath);
-        var expectedOutputPath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "testdata", "firmament", "exports", expectedFileName);
+        var expectedOutputPath = Path.ChangeExtension(fullSourcePath, ".step");
         if (File.Exists(expectedOutputPath))
         {
             File.Delete(expectedOutputPath);
@@ -806,7 +806,7 @@ public sealed class FirmamentBuildAndExportTests
     private static void AssertUnsupportedBuildAndExport(string sourcePath, string expectedFileName, string expectedFeatureId, string expectedKind)
     {
         var fullSourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath(sourcePath);
-        var expectedOutputPath = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "testdata", "firmament", "exports", expectedFileName);
+        var expectedOutputPath = Path.ChangeExtension(fullSourcePath, ".step");
         if (File.Exists(expectedOutputPath))
         {
             File.Delete(expectedOutputPath);

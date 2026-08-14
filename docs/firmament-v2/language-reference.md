@@ -21,7 +21,7 @@ There are two current frontend lanes:
 1. the canonical `Model { Units: mm ... }` V2 parser/binder; and
 2. the supported Assembly relational parser for `Interface` plus `Assembly` source. M1 lets its Part tags apply declarations from the adjacent canonical V2 definition catalog.
 
-This split is implementation structure, not two languages. `.firmasm` is a Legacy compatibility format and is not Firmament V2 architecture.
+This split is implementation structure, not two languages. Current `.firmasm` is the Firmament V2 Assembly profile. Only the historical JSON-shaped `.firmasm` syntax is a legacy compatibility format; it is migrated into this current profile and does not define V2 architecture.
 
 ## Lexical structure
 

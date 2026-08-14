@@ -15,21 +15,21 @@ internal static class FirmamentCanonicalFormatter
 
         var builder = new StringBuilder();
         AppendHeaderSection(builder, document.Firmament);
-        builder.AppendLine();
+        builder.Append('\n');
         AppendModelSection(builder, document.Model);
 
         if (document.Schema is not null)
         {
-            builder.AppendLine();
+            builder.Append('\n');
             AppendSchemaSection(builder, document.Schema);
         }
 
-        builder.AppendLine();
+        builder.Append('\n');
         AppendOpsSection(builder, document.Ops);
 
         if (document.Pmi is not null)
         {
-            builder.AppendLine();
+            builder.Append('\n');
             AppendPmiSection(builder, document.Pmi);
         }
 
@@ -99,7 +99,7 @@ internal static class FirmamentCanonicalFormatter
         {
             if (index > 0)
             {
-                builder.AppendLine();
+                builder.Append('\n');
             }
 
             builder.Append(Indent(1)).Append("-\n");
@@ -114,7 +114,7 @@ internal static class FirmamentCanonicalFormatter
         {
             if (index > 0)
             {
-                builder.AppendLine();
+                builder.Append('\n');
             }
 
             builder.Append(Indent(1)).Append("-\n");

@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Diagnostics;
+using Aetheris.Kernel.Core.Brep.Surgery;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Geometry.Surfaces;
@@ -86,50 +87,66 @@ internal static class BrepBooleanCylinderOpenSlotBuilder
         var eBottomRadialMax = builder.AddEdge(vBottomFloorMax, vBottomArcMax);
         var eBottomRadialMin = builder.AddEdge(vBottomArcMin, vBottomFloorMin);
 
-        var sideCylinderFace = AddFaceWithLoop(builder, [
-            EdgeUse.Forward(eCylMax),
-            EdgeUse.Forward(eTopArc),
-            EdgeUse.Forward(eCylMin),
-            EdgeUse.Forward(eBottomArc),
+        // This bounded recipe knows the retained cylinder arc, slot floor, two
+        // radial walls, and both caps before editing begins. Surgery realizes
+        // those explicit cycles and never searches for an affected feature.
+        var sideCylinderFace = AddFaceWithLegacyLoopSense(builder, [
+            BrepEdgeUse.Forward(eCylMax),
+            BrepEdgeUse.Forward(eTopArc),
+            BrepEdgeUse.Forward(eCylMin),
+            BrepEdgeUse.Forward(eBottomArc),
+        ]);
+        var topCapFace = AddFaceWithLegacyLoopSense(builder, [
+            BrepEdgeUse.Reversed(eTopArc),
+            BrepEdgeUse.Forward(eTopRadialMax),
+            BrepEdgeUse.Forward(eTopFloor),
+            BrepEdgeUse.Forward(eTopRadialMin),
+        ]);
+        var bottomCapFace = AddFaceWithLegacyLoopSense(builder, [
+            BrepEdgeUse.Reversed(eBottomArc),
+            BrepEdgeUse.Reversed(eBottomRadialMin),
+            BrepEdgeUse.Forward(eBottomFloor),
+            BrepEdgeUse.Forward(eBottomRadialMax),
+        ]);
+        var floorFace = AddFaceWithLegacyLoopSense(builder, [
+            BrepEdgeUse.Reversed(eTopFloor),
+            BrepEdgeUse.Forward(eFloorMax),
+            BrepEdgeUse.Forward(eBottomFloor),
+            BrepEdgeUse.Reversed(eFloorMin),
+        ]);
+        var sideMaxFace = AddFaceWithLegacyLoopSense(builder, [
+            BrepEdgeUse.Reversed(eTopRadialMax),
+            BrepEdgeUse.Reversed(eCylMax),
+            BrepEdgeUse.Reversed(eBottomRadialMax),
+            BrepEdgeUse.Forward(eFloorMax),
+        ]);
+        var sideMinFace = AddFaceWithLegacyLoopSense(builder, [
+            BrepEdgeUse.Reversed(eTopRadialMin),
+            BrepEdgeUse.Forward(eCylMin),
+            BrepEdgeUse.Reversed(eBottomRadialMin),
+            BrepEdgeUse.Reversed(eFloorMin),
         ]);
 
-        var topCapFace = AddFaceWithLoop(builder, [
-            EdgeUse.Reversed(eTopArc),
-            EdgeUse.Forward(eTopRadialMax),
-            EdgeUse.Forward(eTopFloor),
-            EdgeUse.Forward(eTopRadialMin),
-        ]);
+        var faceResults = new[] { sideCylinderFace, topCapFace, bottomCapFace, floorFace, sideMaxFace, sideMinFace };
+        var failedFace = faceResults.FirstOrDefault(result => !result.IsSuccess);
+        if (failedFace is not null)
+        {
+            return KernelResult<BrepBody>.Failure(failedFace.Diagnostics);
+        }
 
-        var bottomCapFace = AddFaceWithLoop(builder, [
-            EdgeUse.Reversed(eBottomArc),
-            EdgeUse.Reversed(eBottomRadialMin),
-            EdgeUse.Forward(eBottomFloor),
-            EdgeUse.Forward(eBottomRadialMax),
-        ]);
+        var faceIds = faceResults.Select(result => result.Value).ToArray();
+        var assembly = BrepShellAssembler.CreateClosedBody(builder, faceIds);
+        if (!assembly.IsSuccess)
+        {
+            return KernelResult<BrepBody>.Failure(assembly.Diagnostics);
+        }
 
-        var floorFace = AddFaceWithLoop(builder, [
-            EdgeUse.Reversed(eTopFloor),
-            EdgeUse.Forward(eFloorMax),
-            EdgeUse.Forward(eBottomFloor),
-            EdgeUse.Reversed(eFloorMin),
-        ]);
-
-        var sideMaxFace = AddFaceWithLoop(builder, [
-            EdgeUse.Reversed(eTopRadialMax),
-            EdgeUse.Reversed(eCylMax),
-            EdgeUse.Reversed(eBottomRadialMax),
-            EdgeUse.Forward(eFloorMax),
-        ]);
-
-        var sideMinFace = AddFaceWithLoop(builder, [
-            EdgeUse.Reversed(eTopRadialMin),
-            EdgeUse.Forward(eCylMin),
-            EdgeUse.Reversed(eBottomRadialMin),
-            EdgeUse.Reversed(eFloorMin),
-        ]);
-
-        var shell = builder.AddShell([sideCylinderFace, topCapFace, bottomCapFace, floorFace, sideMaxFace, sideMinFace]);
-        builder.AddBody([shell]);
+        var sideCylinderFaceId = faceIds[0];
+        var topCapFaceId = faceIds[1];
+        var bottomCapFaceId = faceIds[2];
+        var floorFaceId = faceIds[3];
+        var sideMaxFaceId = faceIds[4];
+        var sideMinFaceId = faceIds[5];
 
         var geometry = new BrepGeometryStore();
         var zAxis = Direction3D.Create(new Vector3D(0d, 0d, 1d));
@@ -178,12 +195,12 @@ internal static class BrepBooleanCylinderOpenSlotBuilder
         bindings.AddEdgeBinding(new EdgeGeometryBinding(eBottomRadialMax, new CurveGeometryId(11), new ParameterInterval(0d, xOnCylinderAtMaxY - floorX)));
         bindings.AddEdgeBinding(new EdgeGeometryBinding(eBottomRadialMin, new CurveGeometryId(12), new ParameterInterval(0d, xOnCylinderAtMinY - floorX)));
 
-        bindings.AddFaceBinding(new FaceGeometryBinding(sideCylinderFace, new SurfaceGeometryId(1)));
-        bindings.AddFaceBinding(new FaceGeometryBinding(topCapFace, new SurfaceGeometryId(2)));
-        bindings.AddFaceBinding(new FaceGeometryBinding(bottomCapFace, new SurfaceGeometryId(3)));
-        bindings.AddFaceBinding(new FaceGeometryBinding(floorFace, new SurfaceGeometryId(4)));
-        bindings.AddFaceBinding(new FaceGeometryBinding(sideMaxFace, new SurfaceGeometryId(5)));
-        bindings.AddFaceBinding(new FaceGeometryBinding(sideMinFace, new SurfaceGeometryId(6)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(sideCylinderFaceId, new SurfaceGeometryId(1)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(topCapFaceId, new SurfaceGeometryId(2)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(bottomCapFaceId, new SurfaceGeometryId(3)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(floorFaceId, new SurfaceGeometryId(4)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(sideMaxFaceId, new SurfaceGeometryId(5)));
+        bindings.AddFaceBinding(new FaceGeometryBinding(sideMinFaceId, new SurfaceGeometryId(6)));
 
         var points = new Dictionary<VertexId, Point3D>
         {
@@ -198,30 +215,10 @@ internal static class BrepBooleanCylinderOpenSlotBuilder
         };
 
         var body = new BrepBody(builder.Model, geometry, bindings, points, composition);
-        var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
+        var validation = BrepSurgeryValidation.ValidateBody(body, requireAllEdgeAndFaceBindings: true);
         return validation.IsSuccess
             ? KernelResult<BrepBody>.Success(body, validation.Diagnostics)
             : KernelResult<BrepBody>.Failure(validation.Diagnostics);
-    }
-
-    private static FaceId AddFaceWithLoop(TopologyBuilder builder, IReadOnlyList<EdgeUse> edgeUses)
-    {
-        var loopId = builder.AllocateLoopId();
-        var coedgeIds = new CoedgeId[edgeUses.Count];
-        for (var i = 0; i < edgeUses.Count; i++)
-        {
-            coedgeIds[i] = builder.AllocateCoedgeId();
-        }
-
-        for (var i = 0; i < edgeUses.Count; i++)
-        {
-            var next = coedgeIds[(i + 1) % edgeUses.Count];
-            var prev = coedgeIds[(i + edgeUses.Count - 1) % edgeUses.Count];
-            builder.AddCoedge(new Coedge(coedgeIds[i], edgeUses[i].EdgeId, loopId, next, prev, edgeUses[i].IsReversed));
-        }
-
-        builder.AddLoop(new Loop(loopId, coedgeIds));
-        return builder.AddFace([loopId]);
     }
 
     private static double NormalizeAngle(double value)
@@ -230,9 +227,15 @@ internal static class BrepBooleanCylinderOpenSlotBuilder
         return angle < 0d ? angle + (2d * double.Pi) : angle;
     }
 
-    private readonly record struct EdgeUse(EdgeId EdgeId, bool IsReversed)
+    // M3 preserves the established keyway coedge senses byte-for-byte. The
+    // recipe still hands the completed, explicitly selected loop to Surgery;
+    // strict new callers use BrepLoopBuilder instead of this control seam.
+    private static KernelResult<FaceId> AddFaceWithLegacyLoopSense(TopologyBuilder builder, IReadOnlyList<BrepEdgeUse> edgeUses)
     {
-        public static EdgeUse Forward(EdgeId edgeId) => new(edgeId, false);
-        public static EdgeUse Reversed(EdgeId edgeId) => new(edgeId, true);
+        var loop = BrepLoopBuilder.CreateKnownLoopPreservingLegacySense(builder, edgeUses);
+        return loop.IsSuccess
+            ? BrepFaceBuilder.CreateKnownFaceFromLoops(builder, loop.Value)
+            : KernelResult<FaceId>.Failure(loop.Diagnostics);
     }
+
 }

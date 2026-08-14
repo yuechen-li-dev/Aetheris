@@ -6,6 +6,7 @@ using Aetheris.Kernel.Core.Numerics;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Topology;
 using Aetheris.Kernel.Core.Diagnostics;
+using Aetheris.Kernel.Core.Brep.Surgery;
 
 namespace Aetheris.Kernel.Core.Brep.Boolean;
 
@@ -79,7 +80,15 @@ public static class BrepBooleanOrthogonalUnionBuilder
                 OrientEdgeUse(edges[3], corners[3], corners[0]),
             };
 
-            var faceId = AddFaceWithLoop(builder, uses);
+            // The occupied-cell recipe already selected this boundary rectangle
+            // and its winding. Surgery only realizes that known topology cycle.
+            var faceResult = AddFaceWithLegacyLoopSense(builder, uses);
+            if (!faceResult.IsSuccess)
+            {
+                return KernelResult<BrepBody>.Failure(faceResult.Diagnostics);
+            }
+
+            var faceId = faceResult.Value;
             var rectSurfaceId = new SurfaceGeometryId(surfaceId);
             geometry.AddSurface(rectSurfaceId, SurfaceGeometry.FromPlane(rect.ToPlaneSurface()));
             faceBindings.Add((faceId, rectSurfaceId));
@@ -120,6 +129,9 @@ public static class BrepBooleanOrthogonalUnionBuilder
         }
 
         var faces = builder.Model.Faces.OrderBy(f => f.Id.Value).Select(f => f.Id).ToArray();
+        // Orthogonal retessellation can retain T-junction incidence across
+        // merged coplanar rectangles. Preserve its canonical assembly path in
+        // M3; strict two-use shell assembly is exercised by the other recipes.
         var shell = builder.AddShell(faces);
         builder.AddBody([shell]);
 
@@ -135,7 +147,7 @@ public static class BrepBooleanOrthogonalUnionBuilder
         }
 
         var body = new BrepBody(builder.Model, geometry, bindings, vertexPoints, safeBooleanComposition: null);
-        var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
+        var validation = BrepSurgeryValidation.ValidateBody(body, requireAllEdgeAndFaceBindings: true);
         return validation.IsSuccess
             ? KernelResult<BrepBody>.Success(body, validation.Diagnostics)
             : KernelResult<BrepBody>.Failure(validation.Diagnostics);
@@ -154,32 +166,23 @@ public static class BrepBooleanOrthogonalUnionBuilder
         }
     }
 
-    private static EdgeUse OrientEdgeUse(EdgeId edgeId, in PointKey start, in PointKey end)
+    private static BrepEdgeUse OrientEdgeUse(EdgeId edgeId, in PointKey start, in PointKey end)
     {
         var canonical = EdgeKey.Create(start, end);
         return canonical.Start.Equals(start) && canonical.End.Equals(end)
-            ? EdgeUse.Forward(edgeId)
-            : EdgeUse.Reversed(edgeId);
+            ? BrepEdgeUse.Forward(edgeId)
+            : BrepEdgeUse.Reversed(edgeId);
     }
 
-    private static FaceId AddFaceWithLoop(TopologyBuilder builder, IReadOnlyList<EdgeUse> edgeUses)
+    // Control seam retained for M3 parity: this builder's historical coedge
+    // sense predates DirectedEdgeUse closure validation. The known resulting
+    // loop still crosses Surgery for explicit face ownership.
+    private static KernelResult<FaceId> AddFaceWithLegacyLoopSense(TopologyBuilder builder, IReadOnlyList<BrepEdgeUse> edgeUses)
     {
-        var loopId = builder.AllocateLoopId();
-        var coedgeIds = new CoedgeId[edgeUses.Count];
-        for (var i = 0; i < edgeUses.Count; i++)
-        {
-            coedgeIds[i] = builder.AllocateCoedgeId();
-        }
-
-        for (var i = 0; i < edgeUses.Count; i++)
-        {
-            var next = coedgeIds[(i + 1) % edgeUses.Count];
-            var prev = coedgeIds[(i + edgeUses.Count - 1) % edgeUses.Count];
-            builder.AddCoedge(new Coedge(coedgeIds[i], edgeUses[i].EdgeId, loopId, next, prev, edgeUses[i].IsReversed));
-        }
-
-        builder.AddLoop(new Loop(loopId, coedgeIds));
-        return builder.AddFace([loopId]);
+        var loop = BrepLoopBuilder.CreateKnownLoopPreservingLegacySense(builder, edgeUses);
+        return loop.IsSuccess
+            ? BrepFaceBuilder.CreateKnownFaceFromLoops(builder, loop.Value)
+            : KernelResult<FaceId>.Failure(loop.Diagnostics);
     }
 
     private static List<FaceRect> CollectBoundaryFaceRectangles(IReadOnlyList<AxisAlignedBoxExtents> cells)
@@ -418,9 +421,4 @@ public static class BrepBooleanOrthogonalUnionBuilder
         }
     }
 
-    private readonly record struct EdgeUse(EdgeId EdgeId, bool IsReversed)
-    {
-        public static EdgeUse Forward(EdgeId edgeId) => new(edgeId, IsReversed: false);
-        public static EdgeUse Reversed(EdgeId edgeId) => new(edgeId, IsReversed: true);
-    }
 }

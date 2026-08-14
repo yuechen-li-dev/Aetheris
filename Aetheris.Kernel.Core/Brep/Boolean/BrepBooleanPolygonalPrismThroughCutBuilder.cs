@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Diagnostics;
+using Aetheris.Kernel.Core.Brep.Surgery;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Geometry.Surfaces;
@@ -48,22 +49,42 @@ internal static class BrepBooleanPolygonalPrismThroughCutBuilder
         var outerVerticalEdges = BuildVerticalEdges(builder, outerBottomVertices, outerTopVertices);
         var innerVerticalEdges = BuildVerticalEdges(builder, innerBottomVertices, innerTopVertices);
 
-        var bottomFace = AddFaceWithLoops(
+        // The bounded through-cut recipe supplies both footprints, their inner
+        // roles, and every side correspondence. Surgery realizes those known
+        // loops; it does not derive a cut from intersection evidence.
+        var bottomFace = AddFaceWithLegacyLoopSenses(
             builder,
-            [.. outerBottomEdges.Select(EdgeUse.Forward)],
-            [.. innerBottomEdges.Select(EdgeUse.Reversed)]);
+            [.. outerBottomEdges.Select(BrepEdgeUse.Forward)],
+            [.. innerBottomEdges.Select(BrepEdgeUse.Reversed)]);
 
-        var topFace = AddFaceWithLoops(
+        var topFace = AddFaceWithLegacyLoopSenses(
             builder,
-            [.. outerTopEdges.Reverse().Select(EdgeUse.Reversed)],
-            [.. innerTopEdges.Select(EdgeUse.Forward)]);
+            [.. outerTopEdges.Reverse().Select(BrepEdgeUse.Reversed)],
+            [.. innerTopEdges.Select(BrepEdgeUse.Forward)]);
 
-        var faces = new List<FaceId> { bottomFace, topFace };
-        faces.AddRange(AddSideFaces(builder, outerBottomEdges, outerTopEdges, outerVerticalEdges, reverseInnerOrientation: false));
-        faces.AddRange(AddSideFaces(builder, innerBottomEdges, innerTopEdges, innerVerticalEdges, reverseInnerOrientation: true));
+        if (!bottomFace.IsSuccess || !topFace.IsSuccess)
+        {
+            return KernelResult<BrepBody>.Failure(
+                !bottomFace.IsSuccess ? bottomFace.Diagnostics : topFace.Diagnostics);
+        }
 
-        var shell = builder.AddShell(faces);
-        builder.AddBody([shell]);
+        var outerSideFaces = AddSideFaces(builder, outerBottomEdges, outerTopEdges, outerVerticalEdges, reverseInnerOrientation: false);
+        var innerSideFaces = AddSideFaces(builder, innerBottomEdges, innerTopEdges, innerVerticalEdges, reverseInnerOrientation: true);
+        if (!outerSideFaces.IsSuccess || !innerSideFaces.IsSuccess)
+        {
+            return KernelResult<BrepBody>.Failure(
+                !outerSideFaces.IsSuccess ? outerSideFaces.Diagnostics : innerSideFaces.Diagnostics);
+        }
+
+        var faces = new List<FaceId> { bottomFace.Value, topFace.Value };
+        faces.AddRange(outerSideFaces.Value);
+        faces.AddRange(innerSideFaces.Value);
+
+        var assembly = BrepShellAssembler.CreateClosedBody(builder, faces);
+        if (!assembly.IsSuccess)
+        {
+            return KernelResult<BrepBody>.Failure(assembly.Diagnostics);
+        }
 
         var geometry = new BrepGeometryStore();
         var bindings = new BrepBindingModel();
@@ -92,8 +113,8 @@ internal static class BrepBooleanPolygonalPrismThroughCutBuilder
             bindings.AddFaceBinding(new FaceGeometryBinding(face, sid));
         }
 
-        BindFaceToPlane(bottomFace, outerBottomPoints[0], new Vector3D(0d, 0d, -1d), new Vector3D(1d, 0d, 0d));
-        BindFaceToPlane(topFace, outerTopPoints[0], new Vector3D(0d, 0d, 1d), new Vector3D(1d, 0d, 0d));
+        BindFaceToPlane(bottomFace.Value, outerBottomPoints[0], new Vector3D(0d, 0d, -1d), new Vector3D(1d, 0d, 0d));
+        BindFaceToPlane(topFace.Value, outerTopPoints[0], new Vector3D(0d, 0d, 1d), new Vector3D(1d, 0d, 0d));
 
         var faceIndex = 2;
         for (var i = 0; i < outerBottomPoints.Length; i++)
@@ -126,7 +147,7 @@ internal static class BrepBooleanPolygonalPrismThroughCutBuilder
         }
 
         var body = new BrepBody(builder.Model, geometry, bindings, vertexPoints);
-        var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
+        var validation = BrepSurgeryValidation.ValidateBody(body, requireAllEdgeAndFaceBindings: true);
         return validation.IsSuccess
             ? KernelResult<BrepBody>.Success(body, validation.Diagnostics)
             : KernelResult<BrepBody>.Failure(validation.Diagnostics);
@@ -154,7 +175,7 @@ internal static class BrepBooleanPolygonalPrismThroughCutBuilder
         return edges;
     }
 
-    private static IReadOnlyList<FaceId> AddSideFaces(TopologyBuilder builder, EdgeId[] bottom, EdgeId[] top, EdgeId[] vertical, bool reverseInnerOrientation)
+    private static KernelResult<IReadOnlyList<FaceId>> AddSideFaces(TopologyBuilder builder, EdgeId[] bottom, EdgeId[] top, EdgeId[] vertical, bool reverseInnerOrientation)
     {
         var faces = new List<FaceId>(bottom.Length);
         for (var i = 0; i < bottom.Length; i++)
@@ -163,22 +184,28 @@ internal static class BrepBooleanPolygonalPrismThroughCutBuilder
             var uses = reverseInnerOrientation
                 ? new[]
                 {
-                    EdgeUse.Reversed(bottom[i]),
-                    EdgeUse.Forward(vertical[i]),
-                    EdgeUse.Forward(top[i]),
-                    EdgeUse.Reversed(vertical[next]),
+                    BrepEdgeUse.Reversed(bottom[i]),
+                    BrepEdgeUse.Forward(vertical[i]),
+                    BrepEdgeUse.Forward(top[i]),
+                    BrepEdgeUse.Reversed(vertical[next]),
                 }
                 : new[]
                 {
-                    EdgeUse.Forward(bottom[i]),
-                    EdgeUse.Forward(vertical[next]),
-                    EdgeUse.Reversed(top[i]),
-                    EdgeUse.Reversed(vertical[i]),
+                    BrepEdgeUse.Forward(bottom[i]),
+                    BrepEdgeUse.Forward(vertical[next]),
+                    BrepEdgeUse.Reversed(top[i]),
+                    BrepEdgeUse.Reversed(vertical[i]),
                 };
-            faces.Add(AddFaceWithLoop(builder, uses));
+            var face = AddFaceWithLegacyLoopSense(builder, uses);
+            if (!face.IsSuccess)
+            {
+                return KernelResult<IReadOnlyList<FaceId>>.Failure(face.Diagnostics);
+            }
+
+            faces.Add(face.Value);
         }
 
-        return faces;
+        return KernelResult<IReadOnlyList<FaceId>>.Success(faces);
     }
 
     private static void BindLoopEdges(EdgeId[] edges, Point3D[] points, Action<EdgeId, Point3D, Point3D> bind)
@@ -197,42 +224,34 @@ internal static class BrepBooleanPolygonalPrismThroughCutBuilder
         }
     }
 
-    private static FaceId AddFaceWithLoops(TopologyBuilder builder, IReadOnlyList<EdgeUse> outerLoop, IReadOnlyList<EdgeUse> innerLoop)
+    // These control seams retain the pre-M3 prismatic coedge senses. Surgery
+    // owns the face created from the recipe-supplied loop IDs; strict new loop
+    // construction goes through BrepLoopBuilder and its closure diagnostics.
+    private static KernelResult<FaceId> AddFaceWithLegacyLoopSenses(
+        TopologyBuilder builder,
+        IReadOnlyList<BrepEdgeUse> outerUses,
+        IReadOnlyList<BrepEdgeUse> innerUses)
     {
-        var outerLoopId = AddLoop(builder, outerLoop);
-        var innerLoopId = AddLoop(builder, innerLoop);
-        return builder.AddFace([outerLoopId, innerLoopId]);
-    }
-
-    private static FaceId AddFaceWithLoop(TopologyBuilder builder, IReadOnlyList<EdgeUse> edgeUses)
-    {
-        var loopId = AddLoop(builder, edgeUses);
-        return builder.AddFace([loopId]);
-    }
-
-    private static LoopId AddLoop(TopologyBuilder builder, IReadOnlyList<EdgeUse> edgeUses)
-    {
-        var loopId = builder.AllocateLoopId();
-        var coedgeIds = new CoedgeId[edgeUses.Count];
-        for (var i = 0; i < edgeUses.Count; i++)
+        var outerLoop = BrepLoopBuilder.CreateKnownLoopPreservingLegacySense(builder, outerUses);
+        if (!outerLoop.IsSuccess)
         {
-            coedgeIds[i] = builder.AllocateCoedgeId();
+            return KernelResult<FaceId>.Failure(outerLoop.Diagnostics);
         }
 
-        for (var i = 0; i < edgeUses.Count; i++)
-        {
-            var next = coedgeIds[(i + 1) % edgeUses.Count];
-            var prev = coedgeIds[(i + edgeUses.Count - 1) % edgeUses.Count];
-            builder.AddCoedge(new Coedge(coedgeIds[i], edgeUses[i].EdgeId, loopId, next, prev, edgeUses[i].IsReversed));
-        }
-
-        builder.AddLoop(new Loop(loopId, coedgeIds));
-        return loopId;
+        var innerLoop = BrepLoopBuilder.CreateKnownLoopPreservingLegacySense(builder, innerUses);
+        return innerLoop.IsSuccess
+            ? BrepFaceBuilder.CreateKnownFaceFromLoops(builder, outerLoop.Value, [innerLoop.Value])
+            : KernelResult<FaceId>.Failure(innerLoop.Diagnostics);
     }
 
-    private readonly record struct EdgeUse(EdgeId EdgeId, bool IsReversed)
+    private static KernelResult<FaceId> AddFaceWithLegacyLoopSense(
+        TopologyBuilder builder,
+        IReadOnlyList<BrepEdgeUse> edgeUses)
     {
-        public static EdgeUse Forward(EdgeId edgeId) => new(edgeId, false);
-        public static EdgeUse Reversed(EdgeId edgeId) => new(edgeId, true);
+        var loop = BrepLoopBuilder.CreateKnownLoopPreservingLegacySense(builder, edgeUses);
+        return loop.IsSuccess
+            ? BrepFaceBuilder.CreateKnownFaceFromLoops(builder, loop.Value)
+            : KernelResult<FaceId>.Failure(loop.Diagnostics);
     }
+
 }

@@ -1,0 +1,14 @@
+Use SheetMetal.ProductFamilies;
+
+Static NetworkLidSpec: LidSpec = LidSpec {
+    Width: 162mm
+    Depth: 112mm
+    SkirtHeight: 9mm
+    Clearance: 1mm
+    Thickness: 1.2mm
+    InsideRadius: 1.5mm
+    KFactor: 0.42
+    ReliefPolicy: Rectangular
+}
+
+SheetMetal NetworkApplianceLid = RemovablePanLid < Spec: NetworkLidSpec >

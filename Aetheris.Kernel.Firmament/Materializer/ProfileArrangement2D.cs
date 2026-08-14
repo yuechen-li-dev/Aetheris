@@ -124,9 +124,21 @@ public static class ProfileArrangementBuilder
 
     public static ArrangementPointLocation PointInProfile(ResolvedProfile2D profile, (double X, double Y) point)
     {
-        var loop = profile.Loops.SingleOrDefault();
-        if (loop is null) return ArrangementPointLocation.Outside;
-        return PointInLoop(loop.Segments.Select(x => x.Geometry).ToArray(), point);
+        // A PrismaticSectionRegion stores each hole as a one-loop profile whose
+        // loop is intentionally tagged non-outer. In that established contract
+        // the profile itself still denotes the bounded region for nesting tests.
+        if(profile.Loops.Count==1)return PointInLoop(profile.Loops[0].Segments.Select(x=>x.Geometry).ToArray(),point);
+        var outer = profile.Loops.SingleOrDefault(x=>x.IsOuter);
+        if (outer is null) return ArrangementPointLocation.Outside;
+        var outerLocation=PointInLoop(outer.Segments.Select(x => x.Geometry).ToArray(), point);
+        if(outerLocation is not ArrangementPointLocation.Inside)return outerLocation;
+        foreach(var inner in profile.Loops.Where(x=>!x.IsOuter))
+        {
+            var innerLocation=PointInLoop(inner.Segments.Select(x=>x.Geometry).ToArray(),point);
+            if(innerLocation==ArrangementPointLocation.OnBoundary)return innerLocation;
+            if(innerLocation==ArrangementPointLocation.Inside)return ArrangementPointLocation.Outside;
+        }
+        return ArrangementPointLocation.Inside;
     }
 
     /// <summary>
@@ -588,7 +600,19 @@ public static class ProfileArrangementBuilder
                 _ => false
             };
     }
-    private static string VertexKey((double X, double Y) p) => $"{Math.Round(p.X / VertexTol):F0},{Math.Round(p.Y / VertexTol):F0}";
+    private static string VertexKey((double X, double Y) p)
+    {
+        // IEEE-754 preserves the sign of zero and the fixed-point formatter renders
+        // it as "-0".  That is a numeric no-op but a different graph key from "0",
+        // which used to split one exact vertex into two nodes when symmetric Sheet
+        // Metal relief operations approached an axis from opposite sides.
+        static double Bucket(double value)
+        {
+            var rounded = Math.Round(value / VertexTol);
+            return rounded == 0d ? 0d : rounded;
+        }
+        return $"{Bucket(p.X):F0},{Bucket(p.Y):F0}";
+    }
     private static double Cross((double X, double Y) a, (double X, double Y) b) => a.X * b.Y - a.Y * b.X;
     private static double Distance((double X, double Y) a, (double X, double Y) b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
 }

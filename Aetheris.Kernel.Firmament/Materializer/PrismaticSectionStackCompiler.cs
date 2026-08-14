@@ -413,7 +413,10 @@ public static class PrismaticSectionStackEmitter
     private static string CurveKey(LineArcProfileCurve2D curve, double z, (double X, double Y) a, (double X, double Y) b) => curve switch
     {
         LineArcLineSegment2D => $"L:{P(a)}:{P(b)}:{Q(z)}",
-        LineArcCircularArc2D arc => $"A:{P(arc.Center)}:{Q(arc.Radius)}:{P(a)}:{P(b)}:{Q(z)}",
+        // Endpoints alone do not identify a bounded circular arc: complementary
+        // semicircles share the same unordered endpoint pair. Include the exact
+        // domain midpoint so distinct cut-loop arcs never collapse to one edge.
+        LineArcCircularArc2D arc => $"A:{P(arc.Center)}:{Q(arc.Radius)}:{P(a)}:{P(b)}:{P((arc.Center.X+arc.Radius*Math.Cos(arc.StartAngleRadians+arc.SweepAngleRadians*.5d),arc.Center.Y+arc.Radius*Math.Sin(arc.StartAngleRadians+arc.SweepAngleRadians*.5d)))}:{Q(z)}",
         _ => throw new NotSupportedException()
     };
     private static string P((double X, double Y) point) => $"{Q(point.X)},{Q(point.Y)}";

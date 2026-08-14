@@ -27,7 +27,7 @@ public sealed record AuthoredSheetCutSpec(
 public sealed record SheetMetalConstructionSpec(
     string Name, double Thickness, string? Material, double KFactor, AuthoredSheetBaseSpec Base,
     IReadOnlyList<AuthoredSheetFlangeSpec> Flanges, IReadOnlyList<AuthoredSheetCutSpec> Cuts,
-    SheetMetalProvenanceCategory Authority, bool LegacySyntax = false);
+    SheetMetalProvenanceCategory Authority, bool LegacySyntax = false, string? SatisfiesConcept = null);
 
 /// <summary>
 /// Bounded high-level authored Sheet Metal compiler. It deliberately consumes only
@@ -42,7 +42,7 @@ internal static class AuthoredSheetMetalCompiler
     {
         var parseStarted=Stopwatch.GetTimestamp();
         var diagnostics = new List<SheetMetalDiagnostic>();
-        var header = Regex.Match(source, @"\bSheetMetal\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", Rx);
+        var header = Regex.Match(source, @"\bSheetMetal\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)(?:\s*:\s*(?<concept>[A-Za-z_][A-Za-z0-9_]*))?\s*\{", Rx);
         if (!header.Success) return Fail("Expected `SheetMetal <Name> { ... }`.");
         if (!Scalar(source, "Thickness", "mm", out var thickness) || thickness <= 0)
             return Fail("Thickness must be a positive millimetre value.");
@@ -102,6 +102,9 @@ internal static class AuthoredSheetMetalCompiler
             return Fail($"Multiple flanges target {duplicate.First().ParentRegion}.{duplicate.First().EdgeName}.", SheetMetalDiagnosticCodes.DuplicateFlange);
         if (flanges.Select(f => f.Name).Append(baseSpec.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count() != flanges.Count + 1)
             return Fail("Base and flange names must be unique.", SheetMetalDiagnosticCodes.ImpossibleTopology);
+        foreach(Match extension in Regex.Matches(source,@"\bExtend\s+SheetMetal\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{",Rx))
+            if(!extension.Groups["name"].Value.Equals(header.Groups["name"].Value,StringComparison.Ordinal))
+                return Fail($"Sheet Metal extension targets '{extension.Groups["name"].Value}', but the specialized part is '{header.Groups["name"].Value}'.","sheetmetal-extension-target-mismatch");
 
         var cuts = new List<AuthoredSheetCutSpec>();
         foreach (var block in Blocks(source, "Hole"))
@@ -134,7 +137,10 @@ internal static class AuthoredSheetMetalCompiler
 
         var authority = Regex.IsMatch(source, @"\bIntent\s*:\s*Reconstructed\s*;", Rx)
             ? SheetMetalProvenanceCategory.Reconstructed : SheetMetalProvenanceCategory.Authored;
-        var spec = new SheetMetalConstructionSpec(header.Groups["name"].Value, thickness, material, k, baseSpec, flanges, cuts, authority, legacyBase.Success);
+        var concept=header.Groups["concept"].Success?header.Groups["concept"].Value:null;
+        var spec = new SheetMetalConstructionSpec(header.Groups["name"].Value, thickness, material, k, baseSpec, flanges, cuts, authority, legacyBase.Success,concept);
+        if(concept is not null&&SheetMetalConceptContracts.Validate(source,spec) is { } conformanceFailure)
+            return Fail(conformanceFailure.Message,conformanceFailure.Code);
         var parseMs=Stopwatch.GetElapsedTime(parseStarted).TotalMilliseconds;var formedStarted=Stopwatch.GetTimestamp();var lowered = AuthoredSheetMetalLowering.Lower(spec, sourcePath);var formedMs=Stopwatch.GetElapsedTime(formedStarted).TotalMilliseconds;
         if (!lowered.IsSuccess || lowered.Part is null) return new(false, spec, null, null, lowered.Diagnostics);
         var flatStarted=Stopwatch.GetTimestamp();var flat = SheetMetalFlattener.Flatten(lowered.Part);var flatMs=Stopwatch.GetElapsedTime(flatStarted).TotalMilliseconds;

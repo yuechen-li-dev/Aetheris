@@ -11,6 +11,26 @@ Firmament is a deterministic DSL for generating CAD geometry (STEP AP242) via Ae
 
 Firmament V2 is the sole canonical authoring path. Firmament V1 TOON/JSON and JSON-shaped legacy `.firmasm` remain explicit compatibility/serialization inputs. See the [current authoring and kernel boundaries](docs/architecture/current-authoring-and-kernel-boundaries.md).
 
+## Generic Sheet Metal product families
+
+Firmament `Template` is typed compile-time generic programming—not a document
+template, prefab model, macro, or C# geometry generator. The Sheet Metal module
+ships its product families as readable Firmament source:
+
+```firmament
+Use SheetMetal.ProductFamilies;
+
+Static Psu: EnclosureSpec = EnclosureSpec {
+    Width: 240mm Depth: 180mm Height: 60mm LidLipHeight: 8mm
+    Thickness: 1.2mm InsideRadius: 1.5mm KFactor: 0.42
+    ReliefPolicy: Rectangular
+}
+SheetMetal Enclosure = ElectronicsEnclosure < Spec: Psu >
+```
+
+The specialization lowers through ordinary Base, Flange, Relief, Cut, exact-flat,
+DFM, SVG, and STEP paths. See the [M5 product-family guide](docs/firmament/sheetmetal-product-templates-m5.md).
+
 ## Static engineering data
 
 Firmament `Record` values are immutable typed specifications. A finite standards

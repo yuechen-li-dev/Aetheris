@@ -98,7 +98,7 @@ public static class SheetMetalFlattener
         if(allPoints.Any(p=>!double.IsFinite(p.X)||!double.IsFinite(p.Y)))return Unsupported("Flat lowering produced non-finite coordinates.");
         var bounds=allPoints.Length==0?null:new FlatPatternBounds(allPoints.Min(p=>p.X),allPoints.Min(p=>p.Y),allPoints.Max(p=>p.X),allPoints.Max(p=>p.Y));
         var authored=part.Provenance.Contains("source-independent",StringComparison.OrdinalIgnoreCase);
-        var exactBlank=authored?BuildExactBlank(part,flatRegions,flatReliefs,diagnostics):null;
+        BlankCompositionPlan? compositionPlan=null;var exactBlank=authored?BuildExactBlank(part,flatRegions,flatReliefs,cuts,diagnostics,out compositionPlan):null;
         var boundary=exactBlank is not null?ContourVertices(exactBlank):authored?StitchBoundary(flatRegions):ConvexHull(flatRegions.SelectMany(r=>r.Boundary));
         if(authored&&exactBlank is null)diagnostics.Add(new(SheetMetalDiagnosticCodes.ExactBlankContour,SheetMetalDiagnosticSeverity.Warning,"Authored flat material regions contain a point-touch/open-corner topology that the exact single-loop contract rejects; compatibility boundary remains available."));
         if(exactBlank is not null)
@@ -108,7 +108,7 @@ public static class SheetMetalFlattener
         }
         var status=overlaps.Count>0?FlatPatternStatus.Overlapping:(mappings.Count<planar.Count||part.RecognitionStatus==SheetMetalRecognitionStatus.Partial?FlatPatternStatus.Partial:FlatPatternStatus.Valid);
         var hash=Hash(flatRegions,bendLines,cuts,flatReliefs,policy,status);
-        return new($"flat-{part.StableId}",status,flatRegions,bendLines.OrderBy(b=>b.BendId,StringComparer.Ordinal).ToArray(),cuts,mappings.Values.OrderBy(m=>m.Region.StableId,StringComparer.Ordinal).Select(m=>m.Public()).ToArray(),boundary,bounds,policy,evidence,diagnostics,hash,exactBlank,flatReliefs);
+        return new($"flat-{part.StableId}",status,flatRegions,bendLines.OrderBy(b=>b.BendId,StringComparer.Ordinal).ToArray(),cuts,mappings.Values.OrderBy(m=>m.Region.StableId,StringComparer.Ordinal).Select(m=>m.Public()).ToArray(),boundary,bounds,policy,evidence,diagnostics,hash,exactBlank,flatReliefs,compositionPlan);
 
         SheetMetalFlatPatternIr Unsupported(string message)=>new($"flat-{part.StableId}",FlatPatternStatus.Unsupported,[],[],[],[],[],null,policy,[],[new(SheetMetalDiagnosticCodes.UnsupportedBendTopology,SheetMetalDiagnosticSeverity.Error,message)],SheetMetalRecognizer.StableHash(message));
     }
@@ -169,21 +169,35 @@ public static class SheetMetalFlattener
         var c=(center.X,center.Y);var provenance=new ProfileSegmentProvenance($"{id}.circle",id,id,"SheetMetalFlatPatternIr:analytic circle","XY");
         return new(id,"XY",new($"{id}.outer",true,[new($"{id}.arc0",new LineArcCircularArc2D(c,radius,0,Math.PI),provenance),new($"{id}.arc1",new LineArcCircularArc2D(c,radius,Math.PI,Math.PI),provenance with { StableId=$"{id}.circle.1" })]),[],$"SheetMetalFlatPatternIr:analytic circle radius={radius:R}");
     }
-    private static PlanarContour2? BuildExactBlank(SheetMetalPartIr part,IReadOnlyList<FlatRegion2D> regions,IReadOnlyList<FlatReliefLoop> reliefs,ICollection<SheetMetalDiagnostic> diagnostics)
+    private static PlanarContour2? BuildExactBlank(SheetMetalPartIr part,IReadOnlyList<FlatRegion2D> regions,IReadOnlyList<FlatReliefLoop> reliefs,IReadOnlyList<FlatCutLoop> cuts,ICollection<SheetMetalDiagnostic> diagnostics,out BlankCompositionPlan? plan)
     {
+        plan=null;
         var usable=regions.Where(x=>x.ExactContour is not null).OrderBy(x=>x.StableId,StringComparer.Ordinal).ToArray();
         if(usable.Length!=regions.Count)return null;
-        var profiles=usable.ToDictionary(x=>x.StableId,x=>PlanarContourKernel.ToResolvedProfile(x.ExactContour!,x.StableId),StringComparer.Ordinal);
-        foreach(var relief in reliefs)profiles[relief.ReliefId]=PlanarContourKernel.ToResolvedProfile(relief.ExactContour,relief.ReliefId);
-        var operations=usable.Select((x,index)=>new PrismaticProfileOperation(x.StableId,index==0?PrismaticProfileIntent.Base:PrismaticProfileIntent.Add,x.StableId,0,1,"SheetMetalBlankRegion",x.SourceRegionId))
-            .Concat(reliefs.Select(x=>new PrismaticProfileOperation(x.ReliefId,PrismaticProfileIntent.Remove,x.ReliefId,0,1,"SheetMetalCornerRelief",x.ReliefId))).ToArray();
+        if(cuts.Any(x=>x.ExactContour is null))return null;
+        var baseRegion=usable.FirstOrDefault(x=>x.SourceRegionId==part.BaseRegionId)??usable[0];
+        var planOperations=usable.Where(x=>x!=baseRegion).Select((x,index)=>new BlankCompositionOperation(x.StableId,BlankCompositionOperationKind.AddMaterialRegion,x.SourceRegionId,x.ExactContour!,"one connected material region sharing an authored bend boundary",100+index))
+            .Concat(reliefs.OrderBy(x=>x.ReliefId,StringComparer.Ordinal).Select((x,index)=>new BlankCompositionOperation(x.ReliefId,BlankCompositionOperationKind.ResolveCornerRelief,x.ReliefId,x.ExactContour,"outer-boundary corner chain replacement; no material island",200+index)))
+            .Concat(cuts.OrderBy(x=>x.FeatureId,StringComparer.Ordinal).Select((x,index)=>new BlankCompositionOperation(x.FeatureId,BlankCompositionOperationKind.InsertThroughCut,x.SourceRegionId,x.ExactContour!,"one clockwise inner loop nested in the owning material region",300+index))).OrderBy(x=>x.Order).ToArray();
+        plan=new BlankCompositionPlan(part.StableId,baseRegion.ExactContour!,planOperations);
+        var all=new[]{new BlankCompositionOperation(baseRegion.StableId,BlankCompositionOperationKind.AddMaterialRegion,baseRegion.SourceRegionId,baseRegion.ExactContour!,"one authoritative base contour",0)}.Concat(plan.OrderedOperations).ToArray();
+        var profiles=all.ToDictionary(x=>x.StableId,x=>PlanarContourKernel.ToResolvedProfile(x.Contour,x.StableId),StringComparer.Ordinal);
+        var operations=all.Select(x=>new PrismaticProfileOperation(x.StableId,x.Order==0?PrismaticProfileIntent.Base:x.Kind==BlankCompositionOperationKind.AddMaterialRegion?PrismaticProfileIntent.Add:PrismaticProfileIntent.Remove,x.StableId,0,1,x.Kind.ToString(),x.SemanticOwner)).ToArray();
         var composed=ProfileArrangementBuilder.Compose("XY",operations,profiles,$"sheetmetal-blank:{part.StableId}");
         if(composed.Region is null)
         {
             foreach(var message in composed.Arrangement.Diagnostics)diagnostics.Add(new(SheetMetalDiagnosticCodes.ExactBlankContour,SheetMetalDiagnosticSeverity.Warning,$"Exact blank composition: {message}"));
             return null;
         }
-        var contour=PlanarContourKernel.FromResolvedProfile(composed.Region.Outer,$"SheetMetal exact material composition:{part.StableId}") with { StableId=$"flat-{part.StableId}.blank" };
+        var regionProfile=new ResolvedProfile2D($"flat-{part.StableId}.blank","XY",[composed.Region.Outer.Loops.Single(),..composed.Region.Holes.Select(x=>x.Loops.Single())]);
+        var contour=PlanarContourKernel.FromResolvedProfile(regionProfile,$"SheetMetal exact semantic composition plan:{part.StableId}") with { StableId=$"flat-{part.StableId}.blank" };
+        contour=contour with { InnerLoops=contour.InnerLoops.Select(loop=>loop with { Segments=loop.Segments.Reverse().Select(segment=>segment with { Geometry=segment.Geometry switch
+        {
+            LineArcLineSegment2D line=>new LineArcLineSegment2D(line.End,line.Start),
+            LineArcCircularArc2D arc=>arc with { StartAngleRadians=arc.StartAngleRadians+arc.SweepAngleRadians,SweepAngleRadians=-arc.SweepAngleRadians },
+            LineArcFullCircle2D circle=>circle,
+            _=>segment.Geometry
+        }}).ToArray() }).ToArray() };
         var validation=PlanarContourKernel.Validate(contour);
         if(validation.IsValid)return contour;
         foreach(var item in validation.Diagnostics)diagnostics.Add(new(SheetMetalDiagnosticCodes.ExactBlankContour,SheetMetalDiagnosticSeverity.Warning,$"Exact blank composition: {item.Code}: {item.Message}"));

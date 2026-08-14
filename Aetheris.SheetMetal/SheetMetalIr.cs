@@ -282,7 +282,8 @@ public sealed record SheetMetalFlatPatternIr(
     IReadOnlyList<SheetMetalDiagnostic> Diagnostics,
     string DeterministicHash,
     PlanarContour2? ExactBlankContour = null,
-    IReadOnlyList<FlatReliefLoop>? ReliefLoops = null);
+    IReadOnlyList<FlatReliefLoop>? ReliefLoops = null,
+    BlankCompositionPlan? CompositionPlan = null);
 
 public sealed record SheetMetalRecognitionResult(
     SheetMetalPartIr? Part,

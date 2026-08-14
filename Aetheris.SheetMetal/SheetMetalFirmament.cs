@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.SheetMetal;
 
@@ -9,7 +10,8 @@ public sealed record SheetMetalAuthoringResult(
     SheetMetalPartIr? Part,
     SheetMetalFlatPatternIr? FlatPattern,
     IReadOnlyList<SheetMetalDiagnostic> Diagnostics,
-    SheetMetalAuthoringTimings? Timings=null);
+    SheetMetalAuthoringTimings? Timings=null,
+    IReadOnlyList<ConceptIrTemplateInstantiation>? TemplateInstantiations=null);
 
 /// <summary>
 /// Entry point for the module-owned Sheet Metal dialects. Recovered and historical
@@ -24,7 +26,8 @@ public static class SheetMetalFirmament
     {
         if(source is null)return false;
         var clean=Regex.Replace(source,@"//.*?$|#.*?$",string.Empty,RegexOptions.Multiline);
-        return Regex.IsMatch(clean,@"^\s*SheetMetal\s+",RegexOptions.IgnoreCase|RegexOptions.CultureInvariant);
+        return Regex.IsMatch(clean,@"^\s*SheetMetal\s+",RegexOptions.IgnoreCase|RegexOptions.CultureInvariant)
+            ||Regex.IsMatch(clean,@"\bUse\s+SheetMetal\.ProductFamilies\s*;",RegexOptions.IgnoreCase|RegexOptions.CultureInvariant);
     }
 
     public static SheetMetalAuthoringResult CompileFile(string path)
@@ -36,10 +39,25 @@ public static class SheetMetalFirmament
 
     public static SheetMetalAuthoringResult Compile(string source,string sourcePath="authored.firmament")
     {
-        ArgumentNullException.ThrowIfNull(source);var clean=Regex.Replace(source,@"//.*?$|#.*?$",string.Empty,RegexOptions.Multiline);
+        ArgumentNullException.ThrowIfNull(source);
+        if(Regex.IsMatch(source,@"\bUse\s+SheetMetal\.ProductFamilies\s*;",RegexOptions.IgnoreCase|RegexOptions.CultureInvariant))
+        {
+            source=Regex.Replace(source,@"\bUse\s+SheetMetal\.ProductFamilies\s*;",string.Empty,RegexOptions.IgnoreCase|RegexOptions.CultureInvariant);
+            source=SheetMetalTemplateLibrary.Source+Environment.NewLine+source;
+        }
+        IReadOnlyList<ConceptIrTemplateInstantiation> instantiations=[];
+        if(Regex.IsMatch(source,@"\bTemplate\s*<",RegexOptions.CultureInvariant))
+        {
+            var expanded=FirmamentTemplateSourceCompiler.Expand(source,out var templateDiagnostics);
+            if(expanded is null||templateDiagnostics.Count>0)
+                return new(false,null,null,null,templateDiagnostics.Select(x=>new SheetMetalDiagnostic(x.Split(':',2)[0],SheetMetalDiagnosticSeverity.Error,x)).ToArray());
+            source=expanded.ExpandedSource;instantiations=expanded.Instantiations;
+        }
+        var clean=Regex.Replace(source,@"//.*?$|#.*?$",string.Empty,RegexOptions.Multiline);
         if(ReconstructedSheetMetalFirmament.IsReconstructed(clean)&&Regex.IsMatch(clean,@"\bEvidenceSource\s*:",Rx))return ReconstructedSheetMetalFirmament.Compile(clean,sourcePath);
         if(RecoveredSheetMetalFirmament.IsRecovered(clean))return RecoveredSheetMetalFirmament.Compile(clean,sourcePath);
-        return AuthoredSheetMetalCompiler.Compile(clean,sourcePath);
+        var result=AuthoredSheetMetalCompiler.Compile(clean,sourcePath);
+        return result with { TemplateInstantiations=instantiations };
     }
 
     private static SheetMetalAuthoringResult Failure(string message)=>new(false,null,null,null,[new("sheetmetal-firmament-invalid",SheetMetalDiagnosticSeverity.Error,message)]);

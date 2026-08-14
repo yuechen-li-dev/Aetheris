@@ -1,0 +1,23 @@
+Use SheetMetal.ProductFamilies;
+
+Static PsuSpec: EnclosureSpec = EnclosureSpec {
+    Width: 150mm
+    Depth: 100mm
+    Height: 42mm
+    LidLipHeight: 7mm
+    Thickness: 1.2mm
+    InsideRadius: 1.5mm
+    KFactor: 0.42
+    ReliefPolicy: Rectangular
+}
+
+SheetMetal PsuEnclosure = ElectronicsEnclosure < Spec: PsuSpec >
+
+Extend SheetMetal PsuEnclosure {
+    Cut AcInlet { On: Rear; At: (32mm, 21mm); Profile: Rectangle; Width: 28mm; Length: 20mm; }
+    Cut DcOutlet { On: Front; At: (115mm, 21mm); Profile: Rectangle; Width: 24mm; Length: 14mm; }
+    Hole Mount1 { On: Body; Center: (20mm, 20mm); Diameter: 4mm; }
+    Hole Mount2 { On: Body; Center: (130mm, 20mm); Diameter: 4mm; }
+    Hole Mount3 { On: Body; Center: (20mm, 80mm); Diameter: 4mm; }
+    Hole Mount4 { On: Body; Center: (130mm, 80mm); Diameter: 4mm; }
+}

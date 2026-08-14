@@ -1,0 +1,151 @@
+// Sheet Metal product-family standard library.
+// Template is typed compile-time generic programming, not a prefab/document template.
+
+Concept SheetMetalPart {
+    Base: SheetRegion
+    Flat: FlatPattern
+}
+
+Concept Tray {
+    Base: SheetRegion
+    Front: SheetFlange
+    Right: SheetFlange
+    Rear: SheetFlange
+    Left: SheetFlange
+    Flat: FlatPattern
+}
+
+Concept RemovableLid {
+    Top: SheetRegion
+    Front: SheetFlange
+    Right: SheetFlange
+    Rear: SheetFlange
+    Left: SheetFlange
+    Flat: FlatPattern
+}
+
+Concept Enclosure {
+    Body: SheetRegion
+    Front: SheetFlange
+    Right: SheetFlange
+    Rear: SheetFlange
+    Left: SheetFlange
+    FrontLip: SheetFlange
+    Flat: FlatPattern
+}
+
+Enum SheetMetalReliefPolicy {
+    Auto
+    Rectangular
+    Round
+}
+
+Record LBracketSpec {
+    Width: Length
+    Depth: Length
+    FlangeHeight: Length
+    Thickness: Length
+    InsideRadius: Length
+    KFactor: float
+    ReliefPolicy: SheetMetalReliefPolicy
+}
+
+Record UChannelSpec {
+    Width: Length
+    Depth: Length
+    WallHeight: Length
+    Thickness: Length
+    InsideRadius: Length
+    KFactor: float
+    ReliefPolicy: SheetMetalReliefPolicy
+}
+
+Record TraySpec {
+    Width: Length
+    Depth: Length
+    WallHeight: Length
+    Thickness: Length
+    InsideRadius: Length
+    KFactor: float
+    ReliefPolicy: SheetMetalReliefPolicy
+}
+
+Record LidSpec {
+    Width: Length
+    Depth: Length
+    SkirtHeight: Length
+    Clearance: Length
+    Thickness: Length
+    InsideRadius: Length
+    KFactor: float
+    ReliefPolicy: SheetMetalReliefPolicy
+}
+
+Record EnclosureSpec {
+    Width: Length
+    Depth: Length
+    Height: Length
+    LidLipHeight: Length
+    Thickness: Length
+    InsideRadius: Length
+    KFactor: float
+    ReliefPolicy: SheetMetalReliefPolicy
+}
+
+Template < Spec: LBracketSpec >
+SheetMetal LBracket: SheetMetalPart {
+    Require Positive => Spec.Width > 0mm && Spec.Depth > 0mm && Spec.FlangeHeight > 0mm && Spec.Thickness > 0mm
+    Thickness: Spec.Thickness;
+    KFactor: Spec.KFactor;
+    Base Base { Profile: Rectangle { Width: Spec.Width; Height: Spec.Depth; }; }
+    Flange Wall { From: Base.Front; Height: Spec.FlangeHeight; Angle: 90deg; Radius: Spec.InsideRadius; Relief: Spec.ReliefPolicy; }
+}
+
+Template < Spec: UChannelSpec >
+SheetMetal UChannel: SheetMetalPart {
+    Require Positive => Spec.Width > 0mm && Spec.Depth > 0mm && Spec.WallHeight > 0mm && Spec.Thickness > 0mm
+    Thickness: Spec.Thickness;
+    KFactor: Spec.KFactor;
+    Base Base { Profile: Rectangle { Width: Spec.Width; Height: Spec.Depth; }; }
+    Flange LeftWall { From: Base.Left; Height: Spec.WallHeight; Angle: 90deg; Radius: Spec.InsideRadius; Relief: Spec.ReliefPolicy; }
+    Flange RightWall { From: Base.Right; Height: Spec.WallHeight; Angle: 90deg; Radius: Spec.InsideRadius; Relief: Spec.ReliefPolicy; }
+}
+
+Template < Spec: TraySpec >
+SheetMetal FourWallTray: Tray {
+    Require Positive => Spec.Width > 0mm && Spec.Depth > 0mm && Spec.WallHeight > 0mm && Spec.Thickness > 0mm
+    Require ManufacturableWall => Spec.WallHeight > Spec.InsideRadius
+    Thickness: Spec.Thickness;
+    KFactor: Spec.KFactor;
+    Base Base { Profile: Rectangle { Width: Spec.Width; Height: Spec.Depth; }; }
+    Flange Front { From: Base.Front; Height: Spec.WallHeight; Angle: 90deg; Radius: Spec.InsideRadius; Relief: Spec.ReliefPolicy; }
+    Flange Right { From: Base.Right; Height: Spec.WallHeight; Angle: 90deg; Radius: Spec.InsideRadius; Relief: Spec.ReliefPolicy; }
+    Flange Rear { From: Base.Rear; Height: Spec.WallHeight; Angle: 90deg; Radius: Spec.InsideRadius; Relief: Spec.ReliefPolicy; }
+    Flange Left { From: Base.Left; Height: Spec.WallHeight; Angle: 90deg; Radius: Spec.InsideRadius; Relief: Spec.ReliefPolicy; }
+}
+
+Template < Spec: LidSpec >
+SheetMetal RemovablePanLid: RemovableLid {
+    Require Positive => Spec.Width > 0mm && Spec.Depth > 0mm && Spec.SkirtHeight > 0mm && Spec.Thickness > 0mm
+    Thickness: Spec.Thickness;
+    KFactor: Spec.KFactor;
+    Base Top { Profile: Rectangle { Width: Spec.Width; Height: Spec.Depth; }; }
+    Flange Front { From: Top.Front; Height: Spec.SkirtHeight; Angle: 90deg; Radius: Spec.InsideRadius; Direction: Down; Relief: Spec.ReliefPolicy; }
+    Flange Right { From: Top.Right; Height: Spec.SkirtHeight; Angle: 90deg; Radius: Spec.InsideRadius; Direction: Down; Relief: Spec.ReliefPolicy; }
+    Flange Rear { From: Top.Rear; Height: Spec.SkirtHeight; Angle: 90deg; Radius: Spec.InsideRadius; Direction: Down; Relief: Spec.ReliefPolicy; }
+    Flange Left { From: Top.Left; Height: Spec.SkirtHeight; Angle: 90deg; Radius: Spec.InsideRadius; Direction: Down; Relief: Spec.ReliefPolicy; }
+}
+
+Template < Spec: EnclosureSpec >
+SheetMetal ElectronicsEnclosure: Enclosure {
+    Require Positive => Spec.Width > 0mm && Spec.Depth > 0mm && Spec.Height > 0mm && Spec.Thickness > 0mm
+    Require LipFits => Spec.LidLipHeight > Spec.InsideRadius
+    Thickness: Spec.Thickness;
+    KFactor: Spec.KFactor;
+    Base Body { Profile: Rectangle { Width: Spec.Width; Height: Spec.Depth; }; }
+    Flange Front { From: Body.Front; Height: Spec.Height; Angle: 90deg; Radius: Spec.InsideRadius; Relief: Spec.ReliefPolicy; }
+    Flange Right { From: Body.Right; Height: Spec.Height; Angle: 90deg; Radius: Spec.InsideRadius; Relief: Spec.ReliefPolicy; }
+    Flange Rear { From: Body.Rear; Height: Spec.Height; Angle: 90deg; Radius: Spec.InsideRadius; Relief: Spec.ReliefPolicy; }
+    Flange Left { From: Body.Left; Height: Spec.Height; Angle: 90deg; Radius: Spec.InsideRadius; Relief: Spec.ReliefPolicy; }
+    Flange FrontLip { From: Front.Outer; Height: Spec.LidLipHeight; Angle: 90deg; Radius: Spec.InsideRadius; }
+}

@@ -26,29 +26,27 @@ public static class SheetMetalManufacturingArtifacts
         var operations = new List<PrismaticProfileOperation>();
         var shift = flat.Bounds is null ? new SheetPoint2(10, 10) : new SheetPoint2(10 - flat.Bounds.MinX, 10 - flat.Bounds.MinY);
         var materialRegions = flat.Regions2D.Where(r => r.Boundary.Count >= 3).OrderBy(r => r.StableId, StringComparer.Ordinal).ToArray();
-        for (var index = 0; index < materialRegions.Length; index++)
+        if(flat.ExactBlankContour is not null)
         {
-            var region = materialRegions[index];
-            var name = $"material_{index:D3}";
-            profiles[name] = region.ExactContour is not null ? Profile(name,region.ExactContour,shift) : Profile(name, region.Boundary, shift);
-            operations.Add(new(name, index == 0 ? PrismaticProfileIntent.Base : PrismaticProfileIntent.Add, name, 0, part.Thickness,
-                region.Kind == SheetRegionKind.CylindricalBend ? "NeutralAxisBendStrip" : "FlatSheetRegion", region.SourceRegionId));
+            const string name="exact_blank";
+            profiles[name]=Profile(name,flat.ExactBlankContour,shift);
+            operations.Add(new(name,PrismaticProfileIntent.Base,name,0,part.Thickness,"ExactSemanticBlank",part.StableId));
         }
-        for (var index = 0; index < flat.CutLoops.Count; index++)
+        else
         {
-            var cut = flat.CutLoops[index];
-            if (cut.Boundary.Count < 3) continue;
-            var name = $"cut_{index:D3}";
-            var cutFeature=part.Features.FirstOrDefault(f=>f.StableId==cut.FeatureId);
-            profiles[name] = cut.ExactContour is not null ? Profile(name,cut.ExactContour,shift) : cutFeature is { Kind:SheetFeatureKind.CircularHole,Diameter:not null }
-                ? CircleProfile(name,new(cut.Boundary.Average(p=>p.X),cut.Boundary.Average(p=>p.Y)),cutFeature.Diameter.Value/2,shift)
-                : Profile(name, cut.Boundary, shift);
-            operations.Add(new(name, PrismaticProfileIntent.Remove, name, 0, part.Thickness, "ThroughCut", cut.FeatureId, cut.FeatureId, cut.Kind.ToString()));
-        }
-        foreach(var relief in (flat.ReliefLoops??[]).OrderBy(x=>x.ReliefId,StringComparer.Ordinal))
-        {
-            var name=$"relief_{Safe(relief.ReliefId)}";profiles[name]=Profile(name,relief.ExactContour,shift);
-            operations.Add(new(name,PrismaticProfileIntent.Remove,name,0,part.Thickness,"CornerRelief",relief.ReliefId,relief.ReliefId,relief.Kind.ToString()));
+            for (var index = 0; index < materialRegions.Length; index++)
+            {
+                var region = materialRegions[index];var name = $"material_{index:D3}";
+                profiles[name] = region.ExactContour is not null ? Profile(name,region.ExactContour,shift) : Profile(name, region.Boundary, shift);
+                operations.Add(new(name, index == 0 ? PrismaticProfileIntent.Base : PrismaticProfileIntent.Add, name, 0, part.Thickness,region.Kind == SheetRegionKind.CylindricalBend ? "NeutralAxisBendStrip" : "FlatSheetRegion", region.SourceRegionId));
+            }
+            for (var index = 0; index < flat.CutLoops.Count; index++)
+            {
+                var cut = flat.CutLoops[index];if (cut.Boundary.Count < 3) continue;var name = $"cut_{index:D3}";var cutFeature=part.Features.FirstOrDefault(f=>f.StableId==cut.FeatureId);
+                profiles[name] = cut.ExactContour is not null ? Profile(name,cut.ExactContour,shift) : cutFeature is { Kind:SheetFeatureKind.CircularHole,Diameter:not null }?CircleProfile(name,new(cut.Boundary.Average(p=>p.X),cut.Boundary.Average(p=>p.Y)),cutFeature.Diameter.Value/2,shift):Profile(name, cut.Boundary, shift);
+                operations.Add(new(name, PrismaticProfileIntent.Remove, name, 0, part.Thickness, "ThroughCut", cut.FeatureId, cut.FeatureId, cut.Kind.ToString()));
+            }
+            foreach(var relief in (flat.ReliefLoops??[]).OrderBy(x=>x.ReliefId,StringComparer.Ordinal)){var name=$"relief_{Safe(relief.ReliefId)}";profiles[name]=Profile(name,relief.ExactContour,shift);operations.Add(new(name,PrismaticProfileIntent.Remove,name,0,part.Thickness,"CornerRelief",relief.ReliefId,relief.ReliefId,relief.Kind.ToString()));}
         }
         if (materialRegions.Length == 0) return Failure("Flat pattern contains no bounded material regions.");
 
@@ -56,8 +54,20 @@ public static class SheetMetalManufacturingArtifacts
         var feature = new PrismaticProfileCompositionFeature(
             $"flat_{Safe(part.StableId)}", "XY", "+Z", placement, operations, [0, part.Thickness],
             $"SheetMetalFlatPatternIr:{flat.DeterministicHash}");
-        var parsed = new PrismaticProfileCompositionParseResult(feature, profiles, []);
-        var stack = PrismaticSectionStackCompiler.Normalize(parsed, out var normalizeDiagnostics);
+        PrismaticSectionStackConstruction? stack;IReadOnlyList<string> normalizeDiagnostics;
+        if(flat.ExactBlankContour is not null)
+        {
+            var exact=profiles["exact_blank"];var outerLoop=exact.Loops.Single(x=>x.IsOuter);
+            var outer=new ResolvedProfile2D("exact_blank.outer",exact.PlaneFrame,[outerLoop]);
+            var holes=exact.Loops.Where(x=>!x.IsOuter).Select((loop,index)=>new ResolvedProfile2D($"exact_blank.inner{index}",exact.PlaneFrame,[ReverseForSection(loop,index)])).ToArray();
+            var region=new PrismaticSectionRegion(outer,holes,[part.StableId,"ExactSemanticBlank"]);var area=PrismaticSectionStackCompiler.Area(region);
+            stack=new(feature,[new(0,part.Thickness,region,["exact_blank"])],[new(0,[],[region]),new(part.Thickness,[region],[])],area*part.Thickness,[]);normalizeDiagnostics=[];
+        }
+        else
+        {
+            var parsed = new PrismaticProfileCompositionParseResult(feature, profiles, []);
+            stack = PrismaticSectionStackCompiler.Normalize(parsed, out normalizeDiagnostics);
+        }
         if (stack is null)
             return Failure("Flat profile union could not be normalized: " + string.Join("; ", normalizeDiagnostics));
         var emission = PrismaticSectionStackEmitter.Emit(stack);
@@ -170,6 +180,14 @@ public static class SheetMetalManufacturingArtifacts
         ResolvedProfileSegment2D Segment(string id,double start)=>new(id,new LineArcCircularArc2D(c,radius,start,Math.PI),new($"{name}:{id}",name,name,"SheetMetalFlatPatternIr analytic circle","XY"));
         return new(name,"XY",[new("Outer",true,[Segment("semicircle_0",0),Segment("semicircle_1",Math.PI)])]);
     }
+
+    private static ResolvedProfileLoop2D ReverseForSection(ResolvedProfileLoop2D loop,int loopIndex)=>new($"Inner{loopIndex}",false,loop.Segments.Reverse().Select(segment=>segment with { Geometry=segment.Geometry switch
+    {
+        LineArcLineSegment2D line=>new LineArcLineSegment2D(line.End,line.Start),
+        LineArcCircularArc2D arc=>arc with { StartAngleRadians=arc.StartAngleRadians+arc.SweepAngleRadians,SweepAngleRadians=-arc.SweepAngleRadians },
+        LineArcFullCircle2D circle=>circle,
+        _=>segment.Geometry
+    }}).ToArray());
 
     private static double SignedArea(IReadOnlyList<SheetPoint2> points) { var sum = 0d; for (var i = 0; i < points.Count; i++) { var q = points[(i + 1) % points.Count]; sum += points[i].X * q.Y - q.X * points[i].Y; } return sum / 2d; }
     private static double Clean(double value) => Math.Abs(value) < 1e-9 ? 0d : value;

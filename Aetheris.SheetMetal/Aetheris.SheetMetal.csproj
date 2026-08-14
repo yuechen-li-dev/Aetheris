@@ -2,4 +2,5 @@
   <PropertyGroup><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup>
   <ItemGroup><ProjectReference Include="..\Aetheris.Modules\Aetheris.Modules.csproj" /><ProjectReference Include="..\Aetheris.Surfacing\Aetheris.Surfacing.csproj" /></ItemGroup>
   <ItemGroup><ProjectReference Include="..\Aetheris.Kernel.Core\Aetheris.Kernel.Core.csproj" /><ProjectReference Include="..\Aetheris.Kernel.Firmament\Aetheris.Kernel.Firmament.csproj" /></ItemGroup>
+  <ItemGroup><EmbeddedResource Include="Firmament\SheetMetalProductFamilies.firmament" /></ItemGroup>
 </Project>

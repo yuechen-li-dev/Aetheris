@@ -1,0 +1,13 @@
+Use SheetMetal.ProductFamilies;
+
+Static ProductionTray: TraySpec = TraySpec {
+    Width: 80mm
+    Depth: 60mm
+    WallHeight: 18mm
+    Thickness: 1.2mm
+    InsideRadius: 1.5mm
+    KFactor: 0.42
+    ReliefPolicy: Rectangular
+}
+
+SheetMetal ProductionTrayA = FourWallTray < Spec: ProductionTray >

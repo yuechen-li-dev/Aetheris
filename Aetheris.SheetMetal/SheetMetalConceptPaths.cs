@@ -34,7 +34,11 @@ public static class SheetMetalConceptPaths
             Add($"{flange.Name}.RightCorner","SheetCorner",$"{flange.Name}.RightCorner",region?.StableId,$"flat-{region?.StableId}","canonical flange endpoint","CornerAdjacent");
             Add($"{flange.Name}.Bend","SheetBend",$"{flange.Name}.Bend",bend?.StableId,$"flat-{bend?.StableId}","authored flange bend","BendBoundary","FlatCorrespondent");
         }
-        foreach(var cut in spec.Cuts)Add(cut.Name,"SheetCut",cut.Name,cut.Name,cut.Name,"authored cut declaration","FlatFeature","Cuttable");
+        foreach(var cut in spec.Cuts)
+        {
+            Add(cut.Name,"SheetCut",cut.Name,cut.Name,cut.Name,"authored cut declaration","FlatFeature","Cuttable");
+            Add($"{cut.RegionName}.{cut.Name}","SheetCut",$"{cut.RegionName}.{cut.Name}",cut.Name,cut.Name,"semantic owning-region cut path","FlatFeature","Cuttable");
+        }
         Add("Flat","FlatPattern",$"flat-{part.StableId}",null,flat?.StableId,"derived flat state","ManufacturingContour");
         foreach(var path in paths.Where(x=>x.FormedId is not null&&x.Path!="Flat").ToArray())Add($"Flat.{path.Path}","Flat"+path.Kind,$"Flat.{path.StableId}",path.FormedId,path.FlatId,"formed/flat semantic correspondence",[..path.Capabilities,"FlatState"]);
         return paths.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray();

@@ -1,0 +1,10 @@
+SheetMetal FourReliefTray {
+    Thickness: 1.2mm;
+    KFactor: 0.42;
+    Material: "5052-H32";
+    Base Base { Profile: Rectangle { Width: 80mm; Height: 60mm; }; }
+    Flange Front { From: Base.Front; Height: 18mm; Angle: 90deg; Radius: 1.5mm; Relief: Rectangular; }
+    Flange Right { From: Base.Right; Height: 18mm; Angle: 90deg; Radius: 1.5mm; Relief: Rectangular; }
+    Flange Rear { From: Base.Rear; Height: 18mm; Angle: 90deg; Radius: 1.5mm; Relief: Rectangular; }
+    Flange Left { From: Base.Left; Height: 18mm; Angle: 90deg; Radius: 1.5mm; Relief: Rectangular; }
+}

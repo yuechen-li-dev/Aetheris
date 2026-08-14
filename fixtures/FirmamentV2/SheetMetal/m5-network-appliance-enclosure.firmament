@@ -1,0 +1,30 @@
+Use SheetMetal.ProductFamilies;
+
+Static NetworkSpec: EnclosureSpec = EnclosureSpec {
+    Width: 160mm
+    Depth: 110mm
+    Height: 36mm
+    LidLipHeight: 7mm
+    Thickness: 1.2mm
+    InsideRadius: 1.5mm
+    KFactor: 0.42
+    ReliefPolicy: Rectangular
+}
+
+SheetMetal NetworkAppliance = ElectronicsEnclosure < Spec: NetworkSpec >
+
+// Ordinary downstream authoring against the specialized object's semantic regions.
+Extend SheetMetal NetworkAppliance {
+    Hole FrontIndicatorGreen { On: Front; Center: (45mm, 18mm); Diameter: 3mm; }
+    Hole FrontIndicatorAmber { On: Front; Center: (55mm, 18mm); Diameter: 3mm; }
+    Cut RearPowerInlet { On: Rear; At: (35mm, 18mm); Profile: Rectangle; Width: 18mm; Length: 12mm; }
+    Cut RearEthernet { On: Rear; At: (80mm, 18mm); Profile: Rectangle; Width: 16mm; Length: 14mm; }
+    Cut LeftVentA { On: Left; At: (30mm, 15mm); Profile: Slot; Width: 3mm; Length: 18mm; }
+    Cut LeftVentB { On: Left; At: (55mm, 15mm); Profile: Slot; Width: 3mm; Length: 18mm; }
+    Cut RightVentA { On: Right; At: (30mm, 15mm); Profile: Slot; Width: 3mm; Length: 18mm; }
+    Cut RightVentB { On: Right; At: (55mm, 15mm); Profile: Slot; Width: 3mm; Length: 18mm; }
+    Hole MountA { On: Body; Center: (25mm, 25mm); Diameter: 3.2mm; }
+    Hole MountB { On: Body; Center: (135mm, 25mm); Diameter: 3.2mm; }
+    Hole MountC { On: Body; Center: (25mm, 85mm); Diameter: 3.2mm; }
+    Hole MountD { On: Body; Center: (135mm, 85mm); Diameter: 3.2mm; }
+}

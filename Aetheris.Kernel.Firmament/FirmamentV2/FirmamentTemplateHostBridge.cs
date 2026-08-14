@@ -35,6 +35,29 @@ public sealed record FirmamentHostTemplateExpansion(
     string SpecializationIdentity,
     IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> RecordArguments);
 
+public sealed record FirmamentTemplateSourceExpansion(
+    string ExpandedSource,
+    IReadOnlyList<ConceptIrTemplateInstantiation> Instantiations);
+
+/// <summary>
+/// Expands user-authored generic Templates before a domain compiler consumes the
+/// concrete declarations. Domain modules use this same typed parser/binder as the
+/// canonical Firmament V2 frontend; they do not implement their own substitution.
+/// </summary>
+public static class FirmamentTemplateSourceCompiler
+{
+    public static FirmamentTemplateSourceExpansion? Expand(
+        string source,
+        out IReadOnlyList<string> diagnostics)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        var collected = new List<string>();
+        var expansion = FirmamentV2TemplateExpansion.Expand(source, collected);
+        diagnostics = collected.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+        return expansion is null ? null : new(expansion.Source, expansion.Instantiations);
+    }
+}
+
 /// <summary>
 /// Narrow public seam for Forge. Template declarations are parsed once into compiler IR and host
 /// invocations enter the existing typed binder directly; this is not a general source-rewrite API.

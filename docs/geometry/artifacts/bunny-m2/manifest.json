@@ -1,0 +1,84 @@
+{
+  "milestone": "AETHERIS-BUNNY-M2",
+  "sourceMeshHash": "88d635a8709c1c570ff47c80ef6340fe8a8da58c1f3e2c96975ff428276cbde0",
+  "atlasHash": "b6dcfaf892db983495aa05c44040bc379416b80b06705744785fa4240c465f62",
+  "surfaceMeshHash": "f6c9f5b845197132bfc9284e35b5bd75cefb57a760d2a8613f87cdf41c66d661",
+  "deterministic": true,
+  "excludedObservationalFiles": [
+    "performance.json"
+  ],
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "3989c966ec144c5bdac924af79f843755b5a899ef0de670fb398af3cbb3e0234",
+      "bytes": 767,
+      "lines": 11
+    },
+    {
+      "path": "chart-topology-summary.json",
+      "sha256": "90b4ed83b89fa021889770f7e9ce4caf2ac42a4c4b27261a5232d23e3cbd7385",
+      "bytes": 899,
+      "lines": 38
+    },
+    {
+      "path": "continuity-summary.json",
+      "sha256": "d7ad9ba105ffd189df5892cbee66ce35361afb6332f473cdf3b3a665c178804d",
+      "bytes": 450,
+      "lines": 23
+    },
+    {
+      "path": "judgment-summary.json",
+      "sha256": "bb1476e1ff8b60a3f333ae18954853c3e057f5bc09a7d44f2d1ad46daec030ef",
+      "bytes": 9815,
+      "lines": 295
+    },
+    {
+      "path": "mesh-summary.json",
+      "sha256": "e1f56caf40eba633e4fb79ec22bc9be1b42c45a2af52ed2bc9bae61a5d05fb11",
+      "bytes": 464,
+      "lines": 15
+    },
+    {
+      "path": "panel-fit-summary.json",
+      "sha256": "b3f65303b989b7132c205a0f72456f182e592345a9731afe459d6e90104f9707",
+      "bytes": 544,
+      "lines": 23
+    },
+    {
+      "path": "parameterization-summary.json",
+      "sha256": "b261cc77970ccc4603a261d519432d2e8d99e91765a11256fcc98edba9787ebb",
+      "bytes": 3245,
+      "lines": 116
+    },
+    {
+      "path": "quad-atlas-summary.json",
+      "sha256": "01da30ff695680b3c8fee1d5b6a921293ad5ce181d36142b1c330954f4fdb981",
+      "bytes": 614,
+      "lines": 33
+    },
+    {
+      "path": "quality-comparison.json",
+      "sha256": "8dbd5b8be0d884038959f30b420891a548dc8aacc29e3eefbae050985de842d1",
+      "bytes": 3268,
+      "lines": 134
+    },
+    {
+      "path": "separatrix-summary.json",
+      "sha256": "4e4c0ac3b269fdb8739f27749baad5dc05bd5d1eb6696053d6682966157086ac",
+      "bytes": 3039,
+      "lines": 118
+    },
+    {
+      "path": "singularity-summary.json",
+      "sha256": "366ab3c55550ffde4a34f415caefa38dbbe1eb2e1262c2e630e60151153b5aa7",
+      "bytes": 12429,
+      "lines": 342
+    },
+    {
+      "path": "validation-report.json",
+      "sha256": "d53c07eaaa789216caadcc2c824891b616bcbdcd834903006dac44457d40df63",
+      "bytes": 5763,
+      "lines": 307
+    }
+  ]
+}

@@ -1,0 +1,342 @@
+{
+  "method": "discrete quarter-turn winding around ordered incident-face loops after deterministic cross-field transport; adjacent same-sign candidates consolidate under source-edge adjacency",
+  "count": 1603,
+  "interior": 1595,
+  "boundary": 8,
+  "ambiguousUnknownFieldSamples": 1716,
+  "groups": {
+    "interior-valence-5": 803,
+    "interior-valence-3": 785,
+    "interior-valence-2": 4,
+    "interior-valence-6": 3,
+    "boundary-valence-5": 2,
+    "boundary-valence-3": 6
+  },
+  "top": [
+    {
+      "stableId": "singularity-5df0198db5f31977",
+      "location": {
+        "x": 0.0223205,
+        "y": 0.04126525,
+        "z": 0.0406275
+      },
+      "sourceVertices": [
+        7161,
+        11553
+      ],
+      "quarterIndex": 0.5,
+      "impliedQuadValence": 2,
+      "isBoundary": false,
+      "confidence": 0.9285714285714286,
+      "evidence": "discrete quarter-turn winding over ordered incident-face loop; adjacent same-sign candidates consolidated to a representative quarter index rather than summing noisy samples; boundary confidence reduced because the fan is open"
+    },
+    {
+      "stableId": "singularity-a9a92c959ae2e2e7",
+      "location": {
+        "x": 0.039816,
+        "y": 0.0393083,
+        "z": 0.00327619
+      },
+      "sourceVertices": [
+        11459
+      ],
+      "quarterIndex": 0.5,
+      "impliedQuadValence": 2,
+      "isBoundary": false,
+      "confidence": 0.875,
+      "evidence": "discrete quarter-turn winding over ordered incident-face loop; adjacent same-sign candidates consolidated to a representative quarter index rather than summing noisy samples; boundary confidence reduced because the fan is open"
+    },
+    {
+      "stableId": "singularity-7f1d1ac49bce5dd3",
+      "location": {
+        "x": -0.0500704,
+        "y": 0.137041,
+        "z": 0.0213927
+      },
+      "sourceVertices": [
+        12560
+      ],
+      "quarterIndex": -0.5,
+      "impliedQuadValence": 6,
+      "isBoundary": false,
+      "confidence": 1,
+      "evidence": "discrete quarter-turn winding over ordered incident-face loop; adjacent same-sign candidates consolidated to a representative quarter index rather than summing noisy samples; boundary confidence reduced because the fan is open"
+    },
+    {
+      "stableId": "singularity-aed4ff3facb80d26",
+      "location": {
+        "x": -0.0273861,
+        "y": 0.0720614,
+        "z": 0.0416635
+      },
+      "sourceVertices": [
+        19944
+      ],
+      "quarterIndex": 0.5,
+      "impliedQuadValence": 2,
+      "isBoundary": false,
+      "confidence": 1,
+      "evidence": "discrete quarter-turn winding over ordered incident-face loop; adjacent same-sign candidates consolidated to a representative quarter index rather than summing noisy samples; boundary confidence reduced because the fan is open"
+    },
+    {
+      "stableId": "singularity-7eb4de1b3af64ffb",
+      "location": {
+        "x": -0.038981,
+        "y": 0.047549549999999996,
+        "z": -0.0154719
+      },
+      "sourceVertices": [
+        20672,
+        24632
+      ],
+      "quarterIndex": -0.5,
+      "impliedQuadValence": 6,
+      "isBoundary": false,
+      "confidence": 1,
+      "evidence": "discrete quarter-turn winding over ordered incident-face loop; adjacent same-sign candidates consolidated to a representative quarter index rather than summing noisy samples; boundary confidence reduced because the fan is open"
+    },
+    {
+      "stableId": "singularity-7f11d4e405c1385c",
+      "location": {
+        "x": 0.007729079999999999,
+        "y": 0.03448614999999999,
+        "z": -0.02101095
+      },
+      "sourceVertices": [
+        26332,
+        30896
+      ],
+      "quarterIndex": 0.5,
+      "impliedQuadValence": 2,
+      "isBoundary": false,
+      "confidence": 1,
+      "evidence": "discrete quarter-turn winding over ordered incident-face loop; adjacent same-sign candidates consolidated to a representative quarter index rather than summing noisy samples; boundary confidence reduced because the fan is open"
+    },
+    {
+      "stableId": "singularity-99b37f26ebb19011",
+      "location": {
+        "x": 0.027107,
+        "y": 0.0406036,
+        "z": 0.0313674
+      },
+      "sourceVertices": [
+        33543
+      ],
+      "quarterIndex": -0.5,
+      "impliedQuadValence": 6,
+      "isBoundary": false,
+      "confidence": 1,
+      "evidence": "discrete quarter-turn winding over ordered incident-face loop; adjacent same-sign candidates consolidated to a representative quarter index rather than summing noisy samples; boundary confidence reduced because the fan is open"
+    },
+    {
+      "stableId": "singularity-d6909aeacfc053a9",
+      "location": {
+        "x": 0.0400265,
+        "y": 0.10701,
+        "z": 0.00816505
+      },
+      "sourceVertices": [
+        20
+      ],
+      "quarterIndex": -0.25,
+      "impliedQuadValence": 5,
+      "isBoundary": false,
+      "confidence": 1,
+      "evidence": "discrete quarter-turn winding over ordered incident-face loop; adjacent same-sign candidates consolidated to a representative quarter index rather than summing noisy samples; boundary confidence reduced because the fan is open"
+    },
+    {
+      "stableId": "singularity-bb2f64df1ef20aab",
+      "location": {
+        "x": 0.0371657,
+        "y": 0.0997172,
+        "z": -0.00981258
+      },
+      "sourceVertices": [
+        21
+      ],
+      "quarterIndex": -0.25,
+      "impliedQuadValence": 5,
+      "isBoundary": false,
+      "confidence": 0.8,
+      "evidence": "discrete quarter-turn winding over ordered incident-face loop; adjacent same-sign candidates consolidated to a representative quarter index rather than summing noisy samples; boundary confidence reduced because the fan is open"
+    },
+    {
+      "stableId": "singularity-ec2191e0393955ea",
+      "location": {
+        "x": -0.08510960000000001,
+        "y": 0.15203850000000002,
+        "z": 0.0268163
+      },
+      "sourceVertices": [
+        25,
+        15489
+      ],
+      "quarterIndex": 0.25,
+      "impliedQuadValence": 3,
+      "isBoundary": false,
+      "confidence": 0.9166666666666667,
+      "evidence": "discrete quarter-turn winding over ordered incident-face loop; adjacent same-sign candidates consolidated to a representative quarter index rather than summing noisy samples; boundary confidence reduced because the fan is open"
+    },
+    {
+      "stableId": "singularity-2346ea76cdd06a9f",
+      "location": {
+        "x": 0.037492,
+        "y": 0.0983062,
+        "z": -0.0097724
+      },
+      "sourceVertices": [
+        126
+      ],
+      "quarterIndex": 0.25,
+      "impliedQuadValence": 3,
+      "isBoundary": false,
+      "confidence": 0.8571428571428571,
+      "evidence": "discrete quarter-turn winding over ordered incident-face loop; adjacent same-sign candidates consolidated to a representative quarter index rather than summing noisy samples; boundary confidence reduced because the fan is open"
+    },
+    {
+      "stableId": "singularity-43fcf7102defdfa9",
+      "location": {
+        "x": -0.0442176,
+        "y": 0.170815,
+        "z": -0.00391429
+      },
+      "sourceVertices": [
+        147
+      ],
+      "quarterIndex": -0.25,
+      "impliedQuadValence": 5,
+      "isBoundary": false,
+      "confidence": 1,
+      "evidence": "discrete quarter-turn winding over ordered incident-face loop; adjacent same-sign candidates consolidated to a representative quarter index rather than summing noisy samples; boundary confidence reduced because the fan is open"
+    },
+    {
+      "stableId": "singularity-b75d1d5b14640d4e",
+      "location": {
+        "x": 0.0390362,
+        "y": 0.108381,
+        "z": 0.0141662
+      },
+      "sourceVertices": [
+        159
+      ],
+      "quarterIndex": 0.25,
+      "impliedQuadValence": 3,
+      "isBoundary": false,
+      "confidence": 1,
+      "evidence": "discrete quarter-turn winding over ordered incident-face loop; adjacent same-sign candidates consolidated to a representative quarter index rather than summing noisy samples; boundary confidence reduced because the fan is open"
+    },
+    {
+      "stableId": "singularity-d2aaf79271282293",
+      "location": {
+        "x": -0.0360017,
+        "y": 0.17408,
+        "z": -0.0118959
+      },
+      "sourceVertices": [
+        170
+      ],
+      "quarterIndex": 0.25,
+      "impliedQuadValence": 3,
+      "isBoundary": false,
+      "confidence": 1,
+      "evidence": "discrete quarter-turn winding over ordered incident-face loop; adjacent same-sign candidates consolidated to a representative quarter index rather than summing noisy samples; boundary confidence reduced because the fan is open"
+    },
+    {
+      "stableId": "singularity-12cd519f5c705444",
+      "location": {
+        "x": -0.0767116,
+        "y": 0.165247,
+        "z": -0.022942
+      },
+      "sourceVertices": [
+        181
+      ],
+      "quarterIndex": 0.25,
+      "impliedQuadValence": 3,
+      "isBoundary": false,
+      "confidence": 0.8571428571428571,
+      "evidence": "discrete quarter-turn winding over ordered incident-face loop; adjacent same-sign candidates consolidated to a representative quarter index rather than summing noisy samples; boundary confidence reduced because the fan is open"
+    },
+    {
+      "stableId": "singularity-572230acadbb1418",
+      "location": {
+        "x": -0.0619095,
+        "y": 0.118087,
+        "z": -0.0102757
+      },
+      "sourceVertices": [
+        201
+      ],
+      "quarterIndex": 0.25,
+      "impliedQuadValence": 3,
+      "isBoundary": false,
+      "confidence": 1,
+      "evidence": "discrete quarter-turn winding over ordered incident-face loop; adjacent same-sign candidates consolidated to a representative quarter index rather than summing noisy samples; boundary confidence reduced because the fan is open"
+    },
+    {
+      "stableId": "singularity-90b33d3dd880a1cf",
+      "location": {
+        "x": -0.0564742,
+        "y": 0.041367,
+        "z": 0.0464242
+      },
+      "sourceVertices": [
+        254
+      ],
+      "quarterIndex": 0.25,
+      "impliedQuadValence": 3,
+      "isBoundary": false,
+      "confidence": 1,
+      "evidence": "discrete quarter-turn winding over ordered incident-face loop; adjacent same-sign candidates consolidated to a representative quarter index rather than summing noisy samples; boundary confidence reduced because the fan is open"
+    },
+    {
+      "stableId": "singularity-9a3f6dfd54d2dfcc",
+      "location": {
+        "x": -0.0454852,
+        "y": 0.0411575,
+        "z": 0.0440424
+      },
+      "sourceVertices": [
+        265
+      ],
+      "quarterIndex": -0.25,
+      "impliedQuadValence": 5,
+      "isBoundary": false,
+      "confidence": 0.6666666666666666,
+      "evidence": "discrete quarter-turn winding over ordered incident-face loop; adjacent same-sign candidates consolidated to a representative quarter index rather than summing noisy samples; boundary confidence reduced because the fan is open"
+    },
+    {
+      "stableId": "singularity-b7045ec627a499f2",
+      "location": {
+        "x": -0.0424856,
+        "y": 0.0410553,
+        "z": 0.0431368
+      },
+      "sourceVertices": [
+        268
+      ],
+      "quarterIndex": 0.25,
+      "impliedQuadValence": 3,
+      "isBoundary": false,
+      "confidence": 1,
+      "evidence": "discrete quarter-turn winding over ordered incident-face loop; adjacent same-sign candidates consolidated to a representative quarter index rather than summing noisy samples; boundary confidence reduced because the fan is open"
+    },
+    {
+      "stableId": "singularity-83bc8cb2bdab07c6",
+      "location": {
+        "x": -0.0645088,
+        "y": 0.15495150000000002,
+        "z": 0.004910285
+      },
+      "sourceVertices": [
+        274,
+        23996
+      ],
+      "quarterIndex": 0.25,
+      "impliedQuadValence": 3,
+      "isBoundary": false,
+      "confidence": 0.9285714285714286,
+      "evidence": "discrete quarter-turn winding over ordered incident-face loop; adjacent same-sign candidates consolidated to a representative quarter index rather than summing noisy samples; boundary confidence reduced because the fan is open"
+    }
+  ]
+}

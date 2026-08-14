@@ -1,0 +1,15 @@
+{
+  "vertices": 35947,
+  "cells": 34759,
+  "quads": 34692,
+  "triangles": 67,
+  "nGons": 0,
+  "quadPercentage": 99.80724416697834,
+  "internalCrackGroups": 0,
+  "intentionalOpenLoops": 5,
+  "boundaryEdgeCount": 223,
+  "nonManifoldEdgeCount": 0,
+  "validation": "Pass",
+  "deterministicHash": "f6c9f5b845197132bfc9284e35b5bd75cefb57a760d2a8613f87cdf41c66d661",
+  "authority": "strict quad Panels plus explicitly typed unmatched transition triangles"
+}

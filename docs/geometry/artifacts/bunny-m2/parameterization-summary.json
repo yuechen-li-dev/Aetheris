@@ -1,0 +1,116 @@
+{
+  "method": "four-corner transfinite Coons map; straight authoritative seams reduce exactly to bilinear",
+  "foldovers": 0,
+  "angleDistortion": {
+    "mean": 51.69240882178393,
+    "p95": 85.11062477992303,
+    "maximum": 89.99391228927865
+  },
+  "stretch": {
+    "aspectMean": 1.4131285539664047,
+    "aspectP95": 2.0547064617820565,
+    "aspectMaximum": 7.341050611505488
+  },
+  "topWorst": [
+    {
+      "stableId": "quad-006938",
+      "angleDistortionDegrees": 88.19675841120656,
+      "aspectRatio": 7.341050611505488
+    },
+    {
+      "stableId": "quad-014861",
+      "angleDistortionDegrees": 89.93032095637614,
+      "aspectRatio": 3.24836604286431
+    },
+    {
+      "stableId": "quad-013590",
+      "angleDistortionDegrees": 89.9575415110973,
+      "aspectRatio": 2.6096752176158806
+    },
+    {
+      "stableId": "quad-001309",
+      "angleDistortionDegrees": 88.12014456471277,
+      "aspectRatio": 4.017737693261878
+    },
+    {
+      "stableId": "quad-000084",
+      "angleDistortionDegrees": 89.77338495476161,
+      "aspectRatio": 2.2954497356122956
+    },
+    {
+      "stableId": "quad-031229",
+      "angleDistortionDegrees": 89.75774778524564,
+      "aspectRatio": 2.296955467019438
+    },
+    {
+      "stableId": "quad-004240",
+      "angleDistortionDegrees": 89.90641399186183,
+      "aspectRatio": 1.9713369388626798
+    },
+    {
+      "stableId": "quad-011089",
+      "angleDistortionDegrees": 87.25905240828243,
+      "aspectRatio": 4.539083869641567
+    },
+    {
+      "stableId": "quad-018741",
+      "angleDistortionDegrees": 89.98935704232201,
+      "aspectRatio": 1.7751892549386947
+    },
+    {
+      "stableId": "quad-031029",
+      "angleDistortionDegrees": 89.9395847783282,
+      "aspectRatio": 1.7749055610364723
+    },
+    {
+      "stableId": "quad-014835",
+      "angleDistortionDegrees": 89.86981914823244,
+      "aspectRatio": 1.8406171834357101
+    },
+    {
+      "stableId": "quad-031442",
+      "angleDistortionDegrees": 89.95329593712196,
+      "aspectRatio": 1.723915064707218
+    },
+    {
+      "stableId": "quad-012669",
+      "angleDistortionDegrees": 89.71331489386222,
+      "aspectRatio": 1.8813983612584855
+    },
+    {
+      "stableId": "quad-030846",
+      "angleDistortionDegrees": 89.89469455309282,
+      "aspectRatio": 1.684166550445229
+    },
+    {
+      "stableId": "quad-003445",
+      "angleDistortionDegrees": 89.81111363791985,
+      "aspectRatio": 1.7565047935511553
+    },
+    {
+      "stableId": "quad-033157",
+      "angleDistortionDegrees": 89.73513276334867,
+      "aspectRatio": 1.7864451893501863
+    },
+    {
+      "stableId": "quad-022272",
+      "angleDistortionDegrees": 89.77725897718082,
+      "aspectRatio": 1.7165149861369213
+    },
+    {
+      "stableId": "quad-009612",
+      "angleDistortionDegrees": 89.68715505141918,
+      "aspectRatio": 1.7980540460273575
+    },
+    {
+      "stableId": "quad-028853",
+      "angleDistortionDegrees": 89.7469534445988,
+      "aspectRatio": 1.7298410890703513
+    },
+    {
+      "stableId": "quad-012506",
+      "angleDistortionDegrees": 89.74905323881808,
+      "aspectRatio": 1.724372343306407
+    }
+  ]
+}

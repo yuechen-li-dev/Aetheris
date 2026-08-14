@@ -1,0 +1,295 @@
+{
+  "decision": "choose among admissible adjacent-face quad routes",
+  "hardConstraints": [
+    "two distinct source faces",
+    "four distinct corners",
+    "closed disk boundary",
+    "finite positive area",
+    "non-folded projected center"
+  ],
+  "scoreTerms": {
+    "crossFieldAlignment": 0.5,
+    "shapeQuality": 0.35,
+    "normalCompatibility": 0.15
+  },
+  "decisionCount": 500,
+  "sampledDecisions": [
+    {
+      "decisionId": "route-face-000041",
+      "candidateCount": 2,
+      "winner": "pair-000041-028640",
+      "topCandidates": [
+        {
+          "name": "pair-000041-028640",
+          "admissible": true,
+          "utility": 0.26885693075727035,
+          "reason": "finite disk; four distinct corners; non-folded center",
+          "fieldAlignment": 0,
+          "shapeQuality": 0.5538769450207724,
+          "normalCompatibility": 0.5
+        },
+        {
+          "name": "pair-000041-026856",
+          "admissible": true,
+          "utility": 0.17858338345486416,
+          "reason": "finite disk; four distinct corners; non-folded center",
+          "fieldAlignment": 0,
+          "shapeQuality": 0.29595252415675477,
+          "normalCompatibility": 0.5
+        }
+      ],
+      "hardRejectCount": 0,
+      "hardRejectReasons": {}
+    },
+    {
+      "decisionId": "route-face-000102",
+      "candidateCount": 2,
+      "winner": "pair-000102-017131",
+      "topCandidates": [
+        {
+          "name": "pair-000102-017131",
+          "admissible": true,
+          "utility": 0.53267407220695,
+          "reason": "finite disk; four distinct corners; non-folded center",
+          "fieldAlignment": 0.45918316013790494,
+          "shapeQuality": 0.44302725685239525,
+          "normalCompatibility": 0.986819681597728
+        },
+        {
+          "name": "pair-000102-000296",
+          "admissible": true,
+          "utility": 0.438425283115993,
+          "reason": "finite disk; four distinct corners; non-folded center",
+          "fieldAlignment": 0.29935497112342546,
+          "shapeQuality": 0.3996167419364838,
+          "normalCompatibility": 0.992546252510073
+        }
+      ],
+      "hardRejectCount": 0,
+      "hardRejectReasons": {}
+    },
+    {
+      "decisionId": "route-face-000126",
+      "candidateCount": 2,
+      "winner": "pair-000126-064734",
+      "topCandidates": [
+        {
+          "name": "pair-000126-064734",
+          "admissible": true,
+          "utility": 0.5855211192598772,
+          "reason": "finite disk; four distinct corners; non-folded center",
+          "fieldAlignment": 0.45694417974718715,
+          "shapeQuality": 0.6058941271884216,
+          "normalCompatibility": 0.9665738991355739
+        },
+        {
+          "name": "pair-000126-046064",
+          "admissible": true,
+          "utility": 0.5012275166518254,
+          "reason": "finite disk; four distinct corners; non-folded center",
+          "fieldAlignment": 0.0794406987589277,
+          "shapeQuality": 0.8928911975807825,
+          "normalCompatibility": 0.9933016541272518
+        }
+      ],
+      "hardRejectCount": 0,
+      "hardRejectReasons": {}
+    },
+    {
+      "decisionId": "route-face-000130",
+      "candidateCount": 2,
+      "winner": "pair-000130-024578",
+      "topCandidates": [
+        {
+          "name": "pair-000130-024578",
+          "admissible": true,
+          "utility": 0.3123562781800361,
+          "reason": "finite disk; four distinct corners; non-folded center",
+          "fieldAlignment": 0,
+          "shapeQuality": 0.6781607948001032,
+          "normalCompatibility": 0.5
+        },
+        {
+          "name": "pair-000130-036021",
+          "admissible": true,
+          "utility": 0.17134189178996578,
+          "reason": "finite disk; four distinct corners; non-folded center",
+          "fieldAlignment": 0,
+          "shapeQuality": 0.2752625479713309,
+          "normalCompatibility": 0.5
+        }
+      ],
+      "hardRejectCount": 0,
+      "hardRejectReasons": {}
+    },
+    {
+      "decisionId": "route-face-000286",
+      "candidateCount": 2,
+      "winner": "pair-000286-006393",
+      "topCandidates": [
+        {
+          "name": "pair-000286-006393",
+          "admissible": true,
+          "utility": 0.6478253108154576,
+          "reason": "finite disk; four distinct corners; non-folded center",
+          "fieldAlignment": 0.5339086894268449,
+          "shapeQuality": 0.6730912932439869,
+          "normalCompatibility": 0.9685934231109313
+        },
+        {
+          "name": "pair-000286-030928",
+          "admissible": true,
+          "utility": 0.46899737923242873,
+          "reason": "finite disk; four distinct corners; non-folded center",
+          "fieldAlignment": 0.2627200860690497,
+          "shapeQuality": 0.5392505548976805,
+          "normalCompatibility": 0.9926642798914384
+        }
+      ],
+      "hardRejectCount": 0,
+      "hardRejectReasons": {}
+    },
+    {
+      "decisionId": "route-face-000352",
+      "candidateCount": 2,
+      "winner": "pair-000352-042793",
+      "topCandidates": [
+        {
+          "name": "pair-000352-042793",
+          "admissible": true,
+          "utility": 0.5961093973196508,
+          "reason": "finite disk; four distinct corners; non-folded center",
+          "fieldAlignment": 0.5927545308456273,
+          "shapeQuality": 0.4282934495316233,
+          "normalCompatibility": 0.998862830405127
+        },
+        {
+          "name": "pair-000352-039568",
+          "admissible": true,
+          "utility": 0.5092659957213699,
+          "reason": "finite disk; four distinct corners; non-folded center",
+          "fieldAlignment": 0.45243431919496047,
+          "shapeQuality": 0.3805926941501381,
+          "normalCompatibility": 0.9989426211422754
+        }
+      ],
+      "hardRejectCount": 0,
+      "hardRejectReasons": {}
+    },
+    {
+      "decisionId": "route-face-000390",
+      "candidateCount": 2,
+      "winner": "pair-000390-031351",
+      "topCandidates": [
+        {
+          "name": "pair-000390-031351",
+          "admissible": true,
+          "utility": 0.24694762360732792,
+          "reason": "finite disk; four distinct corners; non-folded center",
+          "fieldAlignment": 0,
+          "shapeQuality": 0.49127892459236544,
+          "normalCompatibility": 0.5
+        },
+        {
+          "name": "pair-000390-039660",
+          "admissible": true,
+          "utility": 0.23081240435858985,
+          "reason": "finite disk; four distinct corners; non-folded center",
+          "fieldAlignment": 0,
+          "shapeQuality": 0.4451782981673996,
+          "normalCompatibility": 0.5
+        }
+      ],
+      "hardRejectCount": 0,
+      "hardRejectReasons": {}
+    },
+    {
+      "decisionId": "route-face-000410",
+      "candidateCount": 2,
+      "winner": "pair-000410-028173",
+      "topCandidates": [
+        {
+          "name": "pair-000410-028173",
+          "admissible": true,
+          "utility": 0.6575273713705302,
+          "reason": "finite disk; four distinct corners; non-folded center",
+          "fieldAlignment": 0.6223885859090178,
+          "shapeQuality": 0.5610767175608095,
+          "normalCompatibility": 0.9997081817982536
+        },
+        {
+          "name": "pair-000332-000410",
+          "admissible": true,
+          "utility": 0.5076764312681525,
+          "reason": "finite disk; four distinct corners; non-folded center",
+          "fieldAlignment": 0.2413359486889563,
+          "shapeQuality": 0.6773833506719231,
+          "normalCompatibility": 0.9994952279233422
+        }
+      ],
+      "hardRejectCount": 0,
+      "hardRejectReasons": {}
+    },
+    {
+      "decisionId": "route-face-000565",
+      "candidateCount": 2,
+      "winner": "pair-000565-002544",
+      "topCandidates": [
+        {
+          "name": "pair-000565-002544",
+          "admissible": true,
+          "utility": 0.24452420760440857,
+          "reason": "finite disk; four distinct corners; non-folded center",
+          "fieldAlignment": 0,
+          "shapeQuality": 0.4843548788697388,
+          "normalCompatibility": 0.5
+        },
+        {
+          "name": "pair-000565-032738",
+          "admissible": true,
+          "utility": 0.22937248063689913,
+          "reason": "finite disk; four distinct corners; non-folded center",
+          "fieldAlignment": 0,
+          "shapeQuality": 0.44106423039114045,
+          "normalCompatibility": 0.5
+        }
+      ],
+      "hardRejectCount": 0,
+      "hardRejectReasons": {}
+    },
+    {
+      "decisionId": "route-face-000615",
+      "candidateCount": 2,
+      "winner": "pair-000615-019571",
+      "topCandidates": [
+        {
+          "name": "pair-000615-019571",
+          "admissible": true,
+          "utility": 0.6610514135268191,
+          "reason": "finite disk; four distinct corners; non-folded center",
+          "fieldAlignment": 0.7053334523354684,
+          "shapeQuality": 0.5605606746026094,
+          "normalCompatibility": 0.7479230083211437
+        },
+        {
+          "name": "pair-000615-052603",
+          "admissible": true,
+          "utility": 0.47412595969651605,
+          "reason": "finite disk; four distinct corners; non-folded center",
+          "fieldAlignment": 0.3020375616767949,
+          "shapeQuality": 0.5306108107491002,
+          "normalCompatibility": 0.9159559673062235
+        }
+      ],
+      "hardRejectCount": 0,
+      "hardRejectReasons": {}
+    }
+  ],
+  "notUsedFor": [
+    "boundary loop preservation",
+    "four-side invariant",
+    "disk topology",
+    "foldover rejection",
+    "seam incidence"
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "chartCount": 34692,
+  "fourSidedChartCount": 34692,
+  "exceptionalUnresolvedRegions": 67,
+  "seamCount": 69594,
+  "junctionCount": 34567,
+  "intentionalBoundaryLoops": 5,
+  "unintendedBoundaryInterfaces": 199,
+  "isGloballyValid": false,
+  "deterministicHash": "b6dcfaf892db983495aa05c44040bc379416b80b06705744785fa4240c465f62",
+  "unresolvedSample": [
+    10647,
+    28623,
+    32400,
+    33144,
+    33210,
+    35723,
+    36723,
+    36784,
+    37771,
+    42476,
+    43339,
+    48580,
+    49024,
+    49336,
+    49611,
+    49933,
+    50337,
+    54934,
+    55196,
+    57044
+  ]
+}

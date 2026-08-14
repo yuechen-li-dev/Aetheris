@@ -1,0 +1,23 @@
+{
+  "seams": 69174,
+  "g0": {
+    "pass": 69174,
+    "fail": 0,
+    "unknown": 0,
+    "maximumResidual": 0
+  },
+  "g1": {
+    "pass": 25961,
+    "fail": 33349,
+    "unknown": 9864,
+    "maximumAngularResidualDegrees": 89.84928354020559,
+    "toleranceDegrees": 5
+  },
+  "g2": {
+    "pass": 0,
+    "fail": 0,
+    "unknown": 69174,
+    "reason": "BoundaryPatch public support exposes first jets only"
+  },
+  "featureSeams": 1820
+}

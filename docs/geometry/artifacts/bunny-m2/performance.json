@@ -1,0 +1,16 @@
+{
+  "timingsMilliseconds": {
+    "continuity": 196.8356,
+    "crossField": 371.4068,
+    "errorAnalysis": 503.5449,
+    "geometryDogfood": 12.2099,
+    "m1TopologyAudit": 864.3212,
+    "singularityLayoutParameterizationAndPanelFit": 74028.8118,
+    "sourceLoad": 72.735,
+    "sourceValidation": 93.3663,
+    "spatialIndex": 744.5857,
+    "surfaceMeshIrLowering": 252.6092,
+    "total": 77268.1902
+  },
+  "workingSetBytes": 1130037248
+}

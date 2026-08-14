@@ -1,0 +1,118 @@
+{
+  "algorithm": "deterministic source-edge layout traces selected by dual-graph routing and projected by source edge authority",
+  "traceCount": 69594,
+  "terminationCategories": {
+    "Junction": 69174,
+    "SourceBoundary": 221,
+    "UnmatchedTransition": 199
+  },
+  "meanFieldDeviationDegrees": 20.4791464428885,
+  "maximumFieldDeviationDegrees": 45,
+  "pathologyDetection": [
+    "four-distinct-corner hard check",
+    "disk boundary cycle hard check",
+    "center foldover hard check"
+  ],
+  "topProblematic": [
+    {
+      "stableId": "atlas-seam-03336f37814be829",
+      "fieldDeviationDegrees": 45,
+      "termination": 0
+    },
+    {
+      "stableId": "atlas-seam-035a670bbbd371d4",
+      "fieldDeviationDegrees": 45,
+      "termination": 0
+    },
+    {
+      "stableId": "atlas-seam-05917abd1ae3c2d4",
+      "fieldDeviationDegrees": 45,
+      "termination": 0
+    },
+    {
+      "stableId": "atlas-seam-06486aee3d85869e",
+      "fieldDeviationDegrees": 45,
+      "termination": 2
+    },
+    {
+      "stableId": "atlas-seam-06cf7b850f5c6a35",
+      "fieldDeviationDegrees": 45,
+      "termination": 0
+    },
+    {
+      "stableId": "atlas-seam-089984db1171ec74",
+      "fieldDeviationDegrees": 45,
+      "termination": 0
+    },
+    {
+      "stableId": "atlas-seam-0cf5f51084779e79",
+      "fieldDeviationDegrees": 45,
+      "termination": 0
+    },
+    {
+      "stableId": "atlas-seam-10768be88d55a472",
+      "fieldDeviationDegrees": 45,
+      "termination": 0
+    },
+    {
+      "stableId": "atlas-seam-12add7fa3de21ec2",
+      "fieldDeviationDegrees": 45,
+      "termination": 0
+    },
+    {
+      "stableId": "atlas-seam-16caedfcf0d170f0",
+      "fieldDeviationDegrees": 45,
+      "termination": 0
+    },
+    {
+      "stableId": "atlas-seam-19372117839cfd4e",
+      "fieldDeviationDegrees": 45,
+      "termination": 0
+    },
+    {
+      "stableId": "atlas-seam-1b95aece7dc1c9ab",
+      "fieldDeviationDegrees": 45,
+      "termination": 0
+    },
+    {
+      "stableId": "atlas-seam-1d037dc8b7ffff3c",
+      "fieldDeviationDegrees": 45,
+      "termination": 0
+    },
+    {
+      "stableId": "atlas-seam-293982ba8f189bb9",
+      "fieldDeviationDegrees": 45,
+      "termination": 0
+    },
+    {
+      "stableId": "atlas-seam-2f5e4d933ad9f4a8",
+      "fieldDeviationDegrees": 45,
+      "termination": 0
+    },
+    {
+      "stableId": "atlas-seam-3100c0bde5e5f1e9",
+      "fieldDeviationDegrees": 45,
+      "termination": 0
+    },
+    {
+      "stableId": "atlas-seam-35f73deace8d36f0",
+      "fieldDeviationDegrees": 45,
+      "termination": 0
+    },
+    {
+      "stableId": "atlas-seam-3979181e890c9c6e",
+      "fieldDeviationDegrees": 45,
+      "termination": 0
+    },
+    {
+      "stableId": "atlas-seam-3c999afa6b28fae3",
+      "fieldDeviationDegrees": 45,
+      "termination": 0
+    },
+    {
+      "stableId": "atlas-seam-417f60a4de13c7b9",
+      "fieldDeviationDegrees": 45,
+      "termination": 2
+    }
+  ]
+}

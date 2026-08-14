@@ -8,14 +8,16 @@ TriangleSurfaceMesh
 Adaptive Surface Analysis
         ↓ local differential estimates
 Unoriented Tangent Cross Field
-        ↓ geometric objective
-Chart Network
-        ↓ ordered chart-transition traces
-Recovered Seam + Junction Network
-        ↓ fixed boundary authorities
-Boundary-constrained Panel Network
-        ↓ sample every seam once
-Canonical SurfaceMeshDocument
+        ↓ discrete quarter-turn winding
+Cross-field Singularities
+        ↓ deterministic field-aligned layout candidates
+Separatrix / Quad Layout Graph
+        ↓ four ordered seams and corners
+QuadAtlas
+        ↓ transfinite [0,1]² parameterization
+Strict BoundaryPatch Panel Network
+        ↓ shared seam sampling
+SurfaceMeshIR
 ```
 
 This path is distinct from `TriangleMesh → Continuum CutCells → FEA`. CutCells describe geometry embedded in a computational volume; reconstruction recovers structure on the surface itself.
@@ -48,6 +50,24 @@ spline = -0.002 * source sample count
 ```
 
 This makes the residual/complexity trade explicit and deterministic. Candidate scores, rejections, winners, and weights are persisted in `seam-fit-candidates.json` and `judgment-traces.json`. Exact trace ordering, junction identity, same/reversed side orientation, shared sampling, and source boundary classification use deterministic invariants instead of Judgment because no competing interpretation is needed.
+
+M2 also uses `JudgmentEngine` when one triangle has multiple admissible dual-graph routes into a four-sided chart. Hard rejection establishes two distinct faces, four distinct corners, a closed disk boundary, finite positive area, and a non-folded center before utility is considered. Admissible routes use dimensionless cross-field alignment (0.50), boundary shape quality (0.35), and source-normal compatibility (0.15). Boundary-loop preservation, seam incidence, four-side closure, and foldover rejection remain deterministic invariants; scoring cannot override them.
+
+## Segmentation is not an atlas
+
+> Geometric chart segmentation and quadrilateral surface parameterization are separate problems. M0 solved the former approximately; M2 introduces the latter.
+
+The 333 Bunny M0 regions answer which triangles share a geometric fit. Only 78 have four connected boundary-side components; the others cannot truthfully populate `South/East/North/West`. `QuadAtlas` instead owns four ordered seam uses, four corners, disk topology, a non-folded rectangular parameterization, singularity evidence, and source-boundary correspondence. `PanelIr` is unchanged: an unresolved triangle remains a typed transition rather than an arbitrary N-sided Panel.
+
+## M2 convergence status
+
+M2 recovers discrete cross-field singularity evidence by quarter-turn winding around ordered incident-face loops and consolidates adjacent same-sign candidates through source-edge adjacency. A deterministic field-scored matching of the triangle dual graph creates genuine four-sided charts; bounded alternating paths improve coverage without making a false maximum-matching claim. Straight source-edge authorities feed a Coons boundary patch, which reduces to a bilinear non-rational support and maps coherently to `[0,1]²` without foldovers.
+
+On the canonical Bunny, this produces 34,692 strict four-boundary `PanelIr` objects and a 99.807% quad mesh. The complete mixed lowering has zero internal cracks, preserves all five intentional holes, has zero non-manifold edges, and passes `SurfaceMeshIR` validation. Sixty-seven source triangles remain explicit residual transitions. Consequently the milestone is **Meaningful Progression**, not full success: the canonical document still includes those transitions and is not yet exclusively `QuadAtlas → strict Panel network → SurfaceMeshIR`.
+
+The next blocker is a globally complete cross-field layout optimizer (in matching terms, blossom-capable/global rerouting rather than longer local augmenting paths), followed by a richer `SurfaceMeshIR` support carrier for non-planar `BoundaryPatch` geometry. Current `SurfaceMeshIR` stores a plane support proxy for each non-planar strict Panel cell and records that approximation in `PlanarPlannerPath`; the strict `PanelIr` remains the geometry authority.
+
+Canonical compact evidence is in [the Bunny M2 artifact directory](artifacts/bunny-m2/README.md).
 
 ## M1 convergence status
 

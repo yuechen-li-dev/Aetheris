@@ -1,0 +1,23 @@
+{
+  "strictPanelIrCount": 34692,
+  "rejectedOrTransitionCharts": 67,
+  "representationTypes": {
+    "boundaryPatch": 34692,
+    "nonRational": true,
+    "nurbs": false
+  },
+  "sourceFit": {
+    "rms": 6.273042597053603E-05,
+    "maximum": 0.00038516791063472345
+  },
+  "boundaryResidualMaximum": 0,
+  "sharedSeamAuthority": true,
+  "dogfood": {
+    "jet1": "Available",
+    "jet2": "Unavailable",
+    "curvature": "Unknown",
+    "closestPoint": "Available",
+    "intersection": "Unknown",
+    "contact": "Transverse"
+  }
+}

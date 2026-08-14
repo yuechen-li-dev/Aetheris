@@ -72,6 +72,9 @@ public static class BoundaryPatchLowering
     public static ConstructedSurfaceResult Lower(BoundaryPatchIr ir,int controlCount=13)
     {
         ArgumentNullException.ThrowIfNull(ir);
+        // Four straight boundaries produce a bilinear Coons patch exactly. Avoid expanding
+        // reconstruction atlases into unnecessary 13x13 control nets per strict Panel.
+        if(ir.South is RuledBoundary.Line&&ir.North is RuledBoundary.Line&&ir.West is RuledBoundary.Line&&ir.East is RuledBoundary.Line)controlCount=2;
         if(ir.Continuity==BoundaryContinuity.TangentG1)return Failure("surfacing-tangent-constraint-unsupported","BoundaryPatch G1 requires adjacent support tangent evidence; M1 does not infer it from curves alone.");
         if(!double.IsFinite(ir.CornerTolerance)||ir.CornerTolerance<=0)return Failure("surfacing-corner-tolerance-invalid","Corner tolerance must be finite and positive.");
         if(!Try(ir.South,out var south,out var d)||!Try(ir.North,out var north,out d)||!Try(ir.West,out var west,out d)||!Try(ir.East,out var east,out d))return Failure("surfacing-boundary-invalid",d!);

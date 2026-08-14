@@ -1,0 +1,38 @@
+{
+  "chartCount": 333,
+  "sideCountHistogram": {
+    "5-sided": 72,
+    "4-sided": 78,
+    "6\u002B-sided": 123,
+    "3-sided": 39,
+    "0-2-sided": 21
+  },
+  "dominantCauses": {
+    "segmentation boundary placement": 255,
+    "chart merge history": 123,
+    "source open boundary": 22
+  },
+  "worstCharts": [
+    "chart-0108:13",
+    "chart-0013:12",
+    "chart-0241:12",
+    "chart-0014:11",
+    "chart-0117:11",
+    "chart-0240:11",
+    "chart-0288:11",
+    "chart-0033:10",
+    "chart-0040:10",
+    "chart-0094:10",
+    "chart-0129:10",
+    "chart-0143:10",
+    "chart-0149:10",
+    "chart-0202:10",
+    "chart-0229:10",
+    "chart-0329:10",
+    "chart-0046:9",
+    "chart-0047:9",
+    "chart-0054:9",
+    "chart-0071:9"
+  ],
+  "note": "M0 segmentation boundaries are connected geometric regions; side components are not a rectangular coordinate topology."
+}

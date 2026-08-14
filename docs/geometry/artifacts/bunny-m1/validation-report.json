@@ -1,0 +1,25 @@
+{
+  "milestone": "AETHERIS-BUNNY-M1",
+  "status": "MeaningfulProgression",
+  "seamAuthority": true,
+  "sharedJunctionAuthority": true,
+  "canonicalCrackFree": true,
+  "sourceOpenLoopsPreserved": true,
+  "canonicalSurfaceMeshValid": true,
+  "strictJointPanelNetwork": false,
+  "blocker": "the current chart decomposition is not a boundary-aligned quadrilateral atlas; strict four-boundary PanelIr reconstruction would require chart-topology work, not welding",
+  "geometryDogfood": {
+    "seam": "seam-004a083509922d4c",
+    "chart": "chart-0022",
+    "jet1": "Available",
+    "jet2": "Regular",
+    "curvature": "Available",
+    "curvatureEvidence": "ToleranceBounded",
+    "closestPoint": "Unknown",
+    "closestPointEvidence": "Unknown",
+    "intersection": "Unknown",
+    "intersectionEvidence": "Unknown",
+    "contact": "Unknown",
+    "contactEvidence": "Unknown"
+  }
+}

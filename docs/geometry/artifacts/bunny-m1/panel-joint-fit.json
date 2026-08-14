@@ -1,0 +1,9 @@
+{
+  "strictBoundaryConstrainedPanelCount": 0,
+  "sampledTopologyConformingPanelCount": 333,
+  "algorithm": "interior vertices evaluate recovered quadratic supports; boundary vertices evaluate one authoritative seam and are shared",
+  "strictPanelStatus": "Blocked",
+  "rejection": "M0 chart boundaries are not a four-sided atlas, so their rectangular PanelIr supports cannot truthfully bind the recovered multi-side seam cycles.",
+  "nextBlocker": "quadrilateral chart topology and boundary-aligned parameterization before BoundaryPatch lowering",
+  "silentSeamDrift": false
+}

@@ -1,0 +1,15 @@
+{
+  "representation": "canonical topology-conforming sampled Panel mesh with shared RecoveredSeam vertices",
+  "vertices": 35947,
+  "cells": 37568,
+  "quads": 31883,
+  "triangles": 5685,
+  "nGons": 0,
+  "quadPercentage": 84.86744037478705,
+  "internalCrackGroups": 0,
+  "intentionalOpenLoops": 5,
+  "boundaryEdgeCount": 223,
+  "nonManifoldEdgeCount": 0,
+  "surfaceMeshDocumentValidation": "Pass",
+  "deterministicHash": "ac66525e9f8f15aa147181a18d3a51cd4266326632b141f950a588406043135a"
+}

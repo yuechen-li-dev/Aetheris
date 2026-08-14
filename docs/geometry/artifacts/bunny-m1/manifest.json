@@ -1,0 +1,102 @@
+{
+  "milestone": "AETHERIS-BUNNY-M1",
+  "sourceMeshHash": "88d635a8709c1c570ff47c80ef6340fe8a8da58c1f3e2c96975ff428276cbde0",
+  "seamNetworkHash": "c00c4d91f8c1647e5786a9f07f0457409d5b3d2344b3a4bce0705e3dd8fd0a8c",
+  "surfaceMeshHash": "ac66525e9f8f15aa147181a18d3a51cd4266326632b141f950a588406043135a",
+  "deterministic": true,
+  "excludedObservationalFiles": [
+    "performance.json"
+  ],
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "44a52129ef7ccba0f9709594c69918207777d2206f2aaf7aedd6aac5ded7d568",
+      "bytes": 634
+    },
+    {
+      "path": "authoritative-seams.obj",
+      "sha256": "b88dbd73e6eaad00d375244cbed3c121a131c428f0ba010ed379ba30274b27b9",
+      "bytes": 393969
+    },
+    {
+      "path": "chart-colored.obj",
+      "sha256": "a88978a0bd29a8d49bb75a0ea4164f2fa90fe4a50105602509865be3fdb962e5",
+      "bytes": 3578784
+    },
+    {
+      "path": "judgment-traces.json",
+      "sha256": "371934b470d56b88f0521dfaa8b9216343a086a6aa7b3b7936a9389a48b0a664",
+      "bytes": 663858
+    },
+    {
+      "path": "junction-network.json",
+      "sha256": "6db5303fd1ef7323ae1d96852580dfade771bc29006e51336f1b583e7c894b75",
+      "bytes": 290438
+    },
+    {
+      "path": "m0-seam-failure-audit.json",
+      "sha256": "62079c7a4bb6718f8354b8bf527a57285c2854330c4f156ac650326738fc1478",
+      "bytes": 585257
+    },
+    {
+      "path": "normal-error.json",
+      "sha256": "c47924c319669af25ce2c8c3966550cc80c48aeceb1e09438772f5b8739ba5f4",
+      "bytes": 451
+    },
+    {
+      "path": "panel-continuity.json",
+      "sha256": "e12ac72eb6fa1115ee80857d5072e116d110076a089059e11d2cefb3fafe2180",
+      "bytes": 454
+    },
+    {
+      "path": "panel-joint-fit.json",
+      "sha256": "a2a3e116dd08a45e88d9c6fa31e76a4ebd2e314482be0396f326e01a9be15634",
+      "bytes": 584
+    },
+    {
+      "path": "reconstruction-error.json",
+      "sha256": "1484a85cdf169ba3f874a8555c4cac42f7b0dabeb0e1b842ef5aae8136a60b5e",
+      "bytes": 842
+    },
+    {
+      "path": "seam-fit-candidates.json",
+      "sha256": "c079e11b778320a409c17b59e70213bd8936c42159e9582a5914e94e1a4549d6",
+      "bytes": 663688
+    },
+    {
+      "path": "seam-network.json",
+      "sha256": "188e4b2513ec6aa55831359b9d992395a53b093e94ed322b17c9d6fe3d1c09bb",
+      "bytes": 1626196
+    },
+    {
+      "path": "source-boundary-loops.json",
+      "sha256": "bf465c93c9c43833b10a5f5184cc6cd488dfe99d414ad2a0068c1f43fa9843e5",
+      "bytes": 5945
+    },
+    {
+      "path": "structured-remesh.obj",
+      "sha256": "2960b7bddd5094b39e7447d54dc99dc392dd265c3e51d2a96215d8c13336e11d",
+      "bytes": 2989964
+    },
+    {
+      "path": "surface-mesh-document.json",
+      "sha256": "588510f082517e1c4a881256ed617cee13c767955b2d4bcabe90b3462218f22a",
+      "bytes": 21388115
+    },
+    {
+      "path": "surface-mesh-summary.json",
+      "sha256": "4c9c0ab6c1df850f5e375cffee32b158a868946536596496ddf15d948e9bb9a5",
+      "bytes": 502
+    },
+    {
+      "path": "validation-report.json",
+      "sha256": "21b6dc46fb2589c7131a8b2bd3e83681bb71e8e3922412d613215323c4670936",
+      "bytes": 898
+    },
+    {
+      "path": "worst-regions.json",
+      "sha256": "d958223e8dcce60caace83cba28640e61d71603d2a1b9ff5d0890a588f290119",
+      "bytes": 19831
+    }
+  ]
+}

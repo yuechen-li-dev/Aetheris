@@ -1,0 +1,638 @@
+{
+  "worstCharts": [
+    {
+      "stableId": "chart-0229",
+      "rmsResidual": 0.0004372156088555771,
+      "maxResidual": 0.0037478611113775364,
+      "cause": "quadratic support capacity / chart parameter domain"
+    },
+    {
+      "stableId": "chart-0013",
+      "rmsResidual": 0.0012317238822135452,
+      "maxResidual": 0.003662899837826052,
+      "cause": "quadratic support capacity / chart parameter domain"
+    },
+    {
+      "stableId": "chart-0014",
+      "rmsResidual": 0.0010346664962895679,
+      "maxResidual": 0.0035474993594757846,
+      "cause": "quadratic support capacity / chart parameter domain"
+    },
+    {
+      "stableId": "chart-0117",
+      "rmsResidual": 0.0005482150457851572,
+      "maxResidual": 0.003340073086684597,
+      "cause": "quadratic support capacity / chart parameter domain"
+    },
+    {
+      "stableId": "chart-0153",
+      "rmsResidual": 0.0009920486705206728,
+      "maxResidual": 0.00329242571337985,
+      "cause": "quadratic support capacity / chart parameter domain"
+    },
+    {
+      "stableId": "chart-0028",
+      "rmsResidual": 0.0005707072770551663,
+      "maxResidual": 0.0027966171747853467,
+      "cause": "quadratic support capacity / chart parameter domain"
+    },
+    {
+      "stableId": "chart-0182",
+      "rmsResidual": 0.0007696231348638361,
+      "maxResidual": 0.0027523813764706723,
+      "cause": "quadratic support capacity / chart parameter domain"
+    },
+    {
+      "stableId": "chart-0329",
+      "rmsResidual": 0.0007503260237949672,
+      "maxResidual": 0.002711202313875862,
+      "cause": "quadratic support capacity / chart parameter domain"
+    },
+    {
+      "stableId": "chart-0119",
+      "rmsResidual": 0.0007957596524019243,
+      "maxResidual": 0.002683512480091904,
+      "cause": "quadratic support capacity / chart parameter domain"
+    },
+    {
+      "stableId": "chart-0073",
+      "rmsResidual": 0.0005279600394864852,
+      "maxResidual": 0.0026507007582698104,
+      "cause": "quadratic support capacity / chart parameter domain"
+    },
+    {
+      "stableId": "chart-0114",
+      "rmsResidual": 0.0009407359585872111,
+      "maxResidual": 0.0024598794405404265,
+      "cause": "quadratic support capacity / chart parameter domain"
+    },
+    {
+      "stableId": "chart-0202",
+      "rmsResidual": 0.0006859783351474674,
+      "maxResidual": 0.002458877291938786,
+      "cause": "quadratic support capacity / chart parameter domain"
+    },
+    {
+      "stableId": "chart-0037",
+      "rmsResidual": 0.0007472579991160752,
+      "maxResidual": 0.002321333322655577,
+      "cause": "quadratic support capacity / chart parameter domain"
+    },
+    {
+      "stableId": "chart-0113",
+      "rmsResidual": 0.000691933847577622,
+      "maxResidual": 0.0023076889214109,
+      "cause": "quadratic support capacity / chart parameter domain"
+    },
+    {
+      "stableId": "chart-0068",
+      "rmsResidual": 0.0007045062209223668,
+      "maxResidual": 0.0022844222846435075,
+      "cause": "quadratic support capacity / chart parameter domain"
+    },
+    {
+      "stableId": "chart-0098",
+      "rmsResidual": 0.0004141699711706131,
+      "maxResidual": 0.0022449776953364625,
+      "cause": "quadratic support capacity / chart parameter domain"
+    },
+    {
+      "stableId": "chart-0149",
+      "rmsResidual": 0.0004441862249154883,
+      "maxResidual": 0.002240641900664327,
+      "cause": "quadratic support capacity / chart parameter domain"
+    },
+    {
+      "stableId": "chart-0089",
+      "rmsResidual": 0.0003843897077598283,
+      "maxResidual": 0.002236195894393304,
+      "cause": "quadratic support capacity / chart parameter domain"
+    },
+    {
+      "stableId": "chart-0094",
+      "rmsResidual": 0.00039179446352363164,
+      "maxResidual": 0.0021975413461031664,
+      "cause": "quadratic support capacity / chart parameter domain"
+    },
+    {
+      "stableId": "chart-0022",
+      "rmsResidual": 0.0004407818860128724,
+      "maxResidual": 0.002177959019212556,
+      "cause": "quadratic support capacity / chart parameter domain"
+    }
+  ],
+  "worstSeams": [
+    {
+      "stableId": "seam-fe6dd79d8efb0c76",
+      "chartA": "chart-0054",
+      "chartB": "chart-0329",
+      "fitResidual": 0,
+      "normalEvidenceDegrees": 97.83191100812198,
+      "cause": "possible feature seam or noisy support"
+    },
+    {
+      "stableId": "seam-bc69f3a862d24149",
+      "chartA": "chart-0210",
+      "chartB": "chart-0291",
+      "fitResidual": 0,
+      "normalEvidenceDegrees": 97.53725493097812,
+      "cause": "possible feature seam or noisy support"
+    },
+    {
+      "stableId": "seam-011ff120855169f5",
+      "chartA": "chart-0033",
+      "chartB": "chart-0159",
+      "fitResidual": 0,
+      "normalEvidenceDegrees": 90,
+      "cause": "possible feature seam or noisy support"
+    },
+    {
+      "stableId": "seam-04e5c9b1658aa464",
+      "chartA": "chart-0005",
+      "chartB": "chart-0213",
+      "fitResidual": 0,
+      "normalEvidenceDegrees": 90,
+      "cause": "possible feature seam or noisy support"
+    },
+    {
+      "stableId": "seam-07f3bdf6b8513bae",
+      "chartA": "chart-0077",
+      "chartB": "chart-0082",
+      "fitResidual": 0,
+      "normalEvidenceDegrees": 90,
+      "cause": "possible feature seam or noisy support"
+    },
+    {
+      "stableId": "seam-089936573950f6a9",
+      "chartA": "chart-0001",
+      "chartB": "chart-0287",
+      "fitResidual": 0,
+      "normalEvidenceDegrees": 90,
+      "cause": "possible feature seam or noisy support"
+    },
+    {
+      "stableId": "seam-0bb75ac0be6ee368",
+      "chartA": "chart-0218",
+      "chartB": "chart-0240",
+      "fitResidual": 0,
+      "normalEvidenceDegrees": 90,
+      "cause": "possible feature seam or noisy support"
+    },
+    {
+      "stableId": "seam-0d0077a17d52aaae",
+      "chartA": "chart-0006",
+      "chartB": "chart-0050",
+      "fitResidual": 0,
+      "normalEvidenceDegrees": 90,
+      "cause": "possible feature seam or noisy support"
+    },
+    {
+      "stableId": "seam-0f24ab2059b36eb4",
+      "chartA": "chart-0035",
+      "chartB": "chart-0067",
+      "fitResidual": 0,
+      "normalEvidenceDegrees": 90,
+      "cause": "possible feature seam or noisy support"
+    },
+    {
+      "stableId": "seam-10b633a0de10d45e",
+      "chartA": "chart-0173",
+      "chartB": "chart-0197",
+      "fitResidual": 0,
+      "normalEvidenceDegrees": 90,
+      "cause": "possible feature seam or noisy support"
+    },
+    {
+      "stableId": "seam-181dc7bfb25651e3",
+      "chartA": "chart-0112",
+      "chartB": "chart-0205",
+      "fitResidual": 0,
+      "normalEvidenceDegrees": 90,
+      "cause": "possible feature seam or noisy support"
+    },
+    {
+      "stableId": "seam-1b4156bdab666ab9",
+      "chartA": "chart-0034",
+      "chartB": "chart-0035",
+      "fitResidual": 0,
+      "normalEvidenceDegrees": 90,
+      "cause": "possible feature seam or noisy support"
+    },
+    {
+      "stableId": "seam-1cb2619fb44fcd64",
+      "chartA": "chart-0013",
+      "chartB": "chart-0193",
+      "fitResidual": 0,
+      "normalEvidenceDegrees": 90,
+      "cause": "possible feature seam or noisy support"
+    },
+    {
+      "stableId": "seam-1cd9d3b9b5d53a34",
+      "chartA": "chart-0112",
+      "chartB": "chart-0308",
+      "fitResidual": 0,
+      "normalEvidenceDegrees": 90,
+      "cause": "possible feature seam or noisy support"
+    },
+    {
+      "stableId": "seam-1d21d8e3a85b45af",
+      "chartA": "chart-0027",
+      "chartB": "chart-0102",
+      "fitResidual": 0,
+      "normalEvidenceDegrees": 90,
+      "cause": "possible feature seam or noisy support"
+    },
+    {
+      "stableId": "seam-2241d59eb67082fd",
+      "chartA": "chart-0052",
+      "chartB": "chart-0084",
+      "fitResidual": 0,
+      "normalEvidenceDegrees": 90,
+      "cause": "possible feature seam or noisy support"
+    },
+    {
+      "stableId": "seam-305e9df4fb434724",
+      "chartA": "chart-0043",
+      "chartB": "chart-0117",
+      "fitResidual": 0,
+      "normalEvidenceDegrees": 90,
+      "cause": "possible feature seam or noisy support"
+    },
+    {
+      "stableId": "seam-333f8f5caed0a6de",
+      "chartA": "chart-0039",
+      "chartB": "chart-0179",
+      "fitResidual": 0,
+      "normalEvidenceDegrees": 90,
+      "cause": "possible feature seam or noisy support"
+    },
+    {
+      "stableId": "seam-33b59c2403c57de6",
+      "chartA": "chart-0018",
+      "chartB": "chart-0187",
+      "fitResidual": 0,
+      "normalEvidenceDegrees": 90,
+      "cause": "possible feature seam or noisy support"
+    },
+    {
+      "stableId": "seam-346b092d6f1e2402",
+      "chartA": "chart-0155",
+      "chartB": "chart-0224",
+      "fitResidual": 0,
+      "normalEvidenceDegrees": 90,
+      "cause": "possible feature seam or noisy support"
+    }
+  ],
+  "worstJunctions": [
+    {
+      "stableId": "junction-80b22949dd9964d9",
+      "sourceVertexIndex": 7674,
+      "point": {
+        "x": -0.0147714,
+        "y": 0.163994,
+        "z": -0.0109737
+      },
+      "incidentSeamIds": [
+        "seam-09d2771889bc102b",
+        "seam-36e217d4da7ec54c",
+        "seam-85f03b836135d52a"
+      ],
+      "sourceResidual": 0,
+      "incidentTangentSpreadDegrees": 89.99992391237123,
+      "authority": "one source-supported endpoint point shared by every incident recovered seam"
+    },
+    {
+      "stableId": "junction-760c520887fc9ea7",
+      "sourceVertexIndex": 17954,
+      "point": {
+        "x": -0.0856354,
+        "y": 0.143297,
+        "z": 0.0395519
+      },
+      "incidentSeamIds": [
+        "seam-d037cb63c22bc705",
+        "seam-d7a5d66896074d5d",
+        "seam-f5fdaf292661a167"
+      ],
+      "sourceResidual": 0,
+      "incidentTangentSpreadDegrees": 89.99794400664007,
+      "authority": "one source-supported endpoint point shared by every incident recovered seam"
+    },
+    {
+      "stableId": "junction-3bdf11b57ba384c6",
+      "sourceVertexIndex": 19817,
+      "point": {
+        "x": -0.081252,
+        "y": 0.0993542,
+        "z": 0.0322994
+      },
+      "incidentSeamIds": [
+        "seam-2bcea663f63bcdd0",
+        "seam-aa4d546f803320bb",
+        "seam-ed59ea2bc0fedddb"
+      ],
+      "sourceResidual": 0,
+      "incidentTangentSpreadDegrees": 89.98901129918097,
+      "authority": "one source-supported endpoint point shared by every incident recovered seam"
+    },
+    {
+      "stableId": "junction-e1f713b53e8ced1c",
+      "sourceVertexIndex": 19623,
+      "point": {
+        "x": -0.023276,
+        "y": 0.0768174,
+        "z": 0.0529315
+      },
+      "incidentSeamIds": [
+        "seam-29665fb87a4dfcc0",
+        "seam-b4d0ee53e6602539",
+        "seam-cb7aa0713f5c2f06",
+        "seam-e40058bf31e3b064"
+      ],
+      "sourceResidual": 0,
+      "incidentTangentSpreadDegrees": 89.98833220605678,
+      "authority": "one source-supported endpoint point shared by every incident recovered seam"
+    },
+    {
+      "stableId": "junction-7a7439d7b9640a9d",
+      "sourceVertexIndex": 2659,
+      "point": {
+        "x": 0.016279,
+        "y": 0.127286,
+        "z": 0.0242335
+      },
+      "incidentSeamIds": [
+        "seam-5a8d188fe9de9c04",
+        "seam-90557a026144016e",
+        "seam-b6ecf90e85796d1f"
+      ],
+      "sourceResidual": 0,
+      "incidentTangentSpreadDegrees": 89.97662594166127,
+      "authority": "one source-supported endpoint point shared by every incident recovered seam"
+    },
+    {
+      "stableId": "junction-76b7c75cbbd02039",
+      "sourceVertexIndex": 7559,
+      "point": {
+        "x": -0.0283728,
+        "y": 0.156641,
+        "z": -0.000811787
+      },
+      "incidentSeamIds": [
+        "seam-0c6a2bf449c3dc2b",
+        "seam-b09a20c22ad49bf7",
+        "seam-c65b4e2d82f36665",
+        "seam-ebe99d605f46e2b4"
+      ],
+      "sourceResidual": 0,
+      "incidentTangentSpreadDegrees": 89.97380380043549,
+      "authority": "one source-supported endpoint point shared by every incident recovered seam"
+    },
+    {
+      "stableId": "junction-69cc753d3bc46b00",
+      "sourceVertexIndex": 5289,
+      "point": {
+        "x": -0.00549542,
+        "y": 0.0965711,
+        "z": 0.0536823
+      },
+      "incidentSeamIds": [
+        "seam-1e59341651a372fc",
+        "seam-40860b70408bb2b1",
+        "seam-47def14a0b47a4b0",
+        "seam-b5746ba7fdd66ebc"
+      ],
+      "sourceResidual": 0,
+      "incidentTangentSpreadDegrees": 89.97374002236455,
+      "authority": "one source-supported endpoint point shared by every incident recovered seam"
+    },
+    {
+      "stableId": "junction-2a990f68472d50d5",
+      "sourceVertexIndex": 23867,
+      "point": {
+        "x": 0.0162842,
+        "y": 0.118981,
+        "z": -0.0122323
+      },
+      "incidentSeamIds": [
+        "seam-6a5a99954a7aaf3c",
+        "seam-80914ab9dbf057e1",
+        "seam-ae09ccd10e204a43",
+        "seam-c26f09d74ba31da9"
+      ],
+      "sourceResidual": 0,
+      "incidentTangentSpreadDegrees": 89.97364551756833,
+      "authority": "one source-supported endpoint point shared by every incident recovered seam"
+    },
+    {
+      "stableId": "junction-80c58ec069d8c400",
+      "sourceVertexIndex": 13106,
+      "point": {
+        "x": -0.0329051,
+        "y": 0.0359381,
+        "z": 0.0496011
+      },
+      "incidentSeamIds": [
+        "seam-82942e469cabd005",
+        "seam-a1c68a99adc55296",
+        "seam-a8ed1bb8ae4aaaac"
+      ],
+      "sourceResidual": 0,
+      "incidentTangentSpreadDegrees": 89.97287859827996,
+      "authority": "one source-supported endpoint point shared by every incident recovered seam"
+    },
+    {
+      "stableId": "junction-528aa8db6cb2dec5",
+      "sourceVertexIndex": 32917,
+      "point": {
+        "x": -0.089438,
+        "y": 0.113514,
+        "z": 0.0412091
+      },
+      "incidentSeamIds": [
+        "seam-061b858efae1619d",
+        "seam-6b4346a678a29e83",
+        "seam-9c6e6f6e64044470"
+      ],
+      "sourceResidual": 0,
+      "incidentTangentSpreadDegrees": 89.9724718402403,
+      "authority": "one source-supported endpoint point shared by every incident recovered seam"
+    },
+    {
+      "stableId": "junction-7556ab8934fa95d4",
+      "sourceVertexIndex": 134,
+      "point": {
+        "x": -0.0725041,
+        "y": 0.146981,
+        "z": 0.0423864
+      },
+      "incidentSeamIds": [
+        "seam-0f24ab2059b36eb4",
+        "seam-65942c86467145ec",
+        "seam-66bd24d9f9485e22",
+        "seam-6855cb85de99fb14"
+      ],
+      "sourceResidual": 0,
+      "incidentTangentSpreadDegrees": 89.96756327083423,
+      "authority": "one source-supported endpoint point shared by every incident recovered seam"
+    },
+    {
+      "stableId": "junction-fd36acce47003d89",
+      "sourceVertexIndex": 33456,
+      "point": {
+        "x": -0.0896796,
+        "y": 0.114349,
+        "z": 0.0422656
+      },
+      "incidentSeamIds": [
+        "seam-8349ec260576e4dc",
+        "seam-8b54879150f6c033",
+        "seam-9c6e6f6e64044470"
+      ],
+      "sourceResidual": 0,
+      "incidentTangentSpreadDegrees": 89.95632678043944,
+      "authority": "one source-supported endpoint point shared by every incident recovered seam"
+    },
+    {
+      "stableId": "junction-c0dda22171f69b72",
+      "sourceVertexIndex": 18164,
+      "point": {
+        "x": -0.053021,
+        "y": 0.0473885,
+        "z": 0.0142865
+      },
+      "incidentSeamIds": [
+        "seam-61b76984ba2da0e5",
+        "seam-8f012e9f61c56f3b",
+        "seam-f1c028e9ceaf4c24"
+      ],
+      "sourceResidual": 0,
+      "incidentTangentSpreadDegrees": 89.9503206700953,
+      "authority": "one source-supported endpoint point shared by every incident recovered seam"
+    },
+    {
+      "stableId": "junction-4d764680baf1cd34",
+      "sourceVertexIndex": 13772,
+      "point": {
+        "x": 0.0437866,
+        "y": 0.098742,
+        "z": 0.00716534
+      },
+      "incidentSeamIds": [
+        "seam-87fe6e8cac2805e8",
+        "seam-937c4a4e5b034035",
+        "seam-a9344ef254ecfcaa",
+        "seam-fc17850855380433"
+      ],
+      "sourceResidual": 0,
+      "incidentTangentSpreadDegrees": 89.93995633619039,
+      "authority": "one source-supported endpoint point shared by every incident recovered seam"
+    },
+    {
+      "stableId": "junction-128640cf965296ce",
+      "sourceVertexIndex": 15008,
+      "point": {
+        "x": -0.0720698,
+        "y": 0.176015,
+        "z": -0.0442709
+      },
+      "incidentSeamIds": [
+        "seam-93a52ec5e37e9b99",
+        "seam-b2a5387651fd990f",
+        "seam-d8541ed424a05370"
+      ],
+      "sourceResidual": 0,
+      "incidentTangentSpreadDegrees": 89.93282069429068,
+      "authority": "one source-supported endpoint point shared by every incident recovered seam"
+    },
+    {
+      "stableId": "junction-b74cc7d989e752ae",
+      "sourceVertexIndex": 9929,
+      "point": {
+        "x": 0.0163312,
+        "y": 0.0767998,
+        "z": 0.0535416
+      },
+      "incidentSeamIds": [
+        "seam-1e0248a68f3101e6",
+        "seam-22d2ca494acffcdd",
+        "seam-6321f7accbbcd2bf",
+        "seam-ac1c15382e7c1bcb"
+      ],
+      "sourceResidual": 0,
+      "incidentTangentSpreadDegrees": 89.91863422547014,
+      "authority": "one source-supported endpoint point shared by every incident recovered seam"
+    },
+    {
+      "stableId": "junction-3e848d69b7daede6",
+      "sourceVertexIndex": 1053,
+      "point": {
+        "x": -0.0744916,
+        "y": 0.146991,
+        "z": 0.0423999
+      },
+      "incidentSeamIds": [
+        "seam-4665ac0787be4e92",
+        "seam-65942c86467145ec",
+        "seam-c710b0c72fc75b25"
+      ],
+      "sourceResidual": 0,
+      "incidentTangentSpreadDegrees": 89.91711103814993,
+      "authority": "one source-supported endpoint point shared by every incident recovered seam"
+    },
+    {
+      "stableId": "junction-4eeb8c29b1d8da25",
+      "sourceVertexIndex": 14769,
+      "point": {
+        "x": -0.0663498,
+        "y": 0.172859,
+        "z": -0.0450539
+      },
+      "incidentSeamIds": [
+        "seam-2c9e7db4ab55fe7d",
+        "seam-2cb104d3d10aa0c6",
+        "seam-93a52ec5e37e9b99",
+        "seam-b5af39ac9f54b8e7"
+      ],
+      "sourceResidual": 0,
+      "incidentTangentSpreadDegrees": 89.91099353324496,
+      "authority": "one source-supported endpoint point shared by every incident recovered seam"
+    },
+    {
+      "stableId": "junction-5553be7c1c4a62e5",
+      "sourceVertexIndex": 5513,
+      "point": {
+        "x": -0.050497,
+        "y": 0.0987878,
+        "z": 0.0435099
+      },
+      "incidentSeamIds": [
+        "seam-8bd6246586c70ca5",
+        "seam-bfdee66d81d5dcd3",
+        "seam-f5fce8d5affe3f7b",
+        "seam-fdbede55e99435f2"
+      ],
+      "sourceResidual": 0,
+      "incidentTangentSpreadDegrees": 89.90693708617259,
+      "authority": "one source-supported endpoint point shared by every incident recovered seam"
+    },
+    {
+      "stableId": "junction-e2b7cc84381cc30a",
+      "sourceVertexIndex": 17890,
+      "point": {
+        "x": -0.0899083,
+        "y": 0.121615,
+        "z": 0.0458595
+      },
+      "incidentSeamIds": [
+        "seam-0d0fd078bdd67da0",
+        "seam-1561274f530cfc68",
+        "seam-278ff944cce1c9ea",
+        "seam-4105dc9689a050b5"
+      ],
+      "sourceResidual": 0,
+      "incidentTangentSpreadDegrees": 89.90690632573761,
+      "authority": "one source-supported endpoint point shared by every incident recovered seam"
+    }
+  ]
+}

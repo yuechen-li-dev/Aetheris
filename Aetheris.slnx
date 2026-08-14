@@ -34,6 +34,7 @@
   <Project Path="tools/Aetheris.Geometry.M4Evidence/Aetheris.Geometry.M4Evidence.csproj" />
   <Project Path="tools/Aetheris.Geometry.M5Evidence/Aetheris.Geometry.M5Evidence.csproj" />
   <Project Path="tools/Aetheris.BunnyM0/Aetheris.BunnyM0.csproj" />
+  <Project Path="tools/Aetheris.BunnyM1/Aetheris.BunnyM1.csproj" />
   <Project Path="tools/Aetheris.Continuum.AttentionE0/Aetheris.Continuum.AttentionE0.csproj" />
   <Project Path="tools/Aetheris.Continuum.AttentionE1/Aetheris.Continuum.AttentionE1.csproj" />
   <Project Path="Aetheris.Forge/Aetheris.Forge.csproj" />

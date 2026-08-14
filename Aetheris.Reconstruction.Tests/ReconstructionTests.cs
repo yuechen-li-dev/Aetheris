@@ -1,4 +1,5 @@
 using System.Text;
+using Aetheris.Kernel.Core.Brep.Tessellation;
 using Aetheris.Kernel.Core.Math;
 using Xunit;
 
@@ -51,6 +52,69 @@ end_header
     {
         var mesh = Grid(4); var a = Run(mesh); var b = Run(mesh); Assert.Equal(a.DeterministicHash, b.DeterministicHash);
         static StructuredSurfaceMesh Run(TriangleSurfaceMesh m) { var (f, _) = StructuredSurfaceRecovery.EstimateField(m); return PanelSurfaceMeshLowering.Lower(StructuredSurfaceRecovery.BuildCharts(m, f, 1, 2), 4); }
+    }
+
+    [Fact]
+    public void Two_chart_fixture_has_one_internal_seam_authority_with_opposite_side_orientation()
+    {
+        var mesh = Square();
+        var network = RecoveredSeamNetworkBuilder.Build(mesh, ["chart-a", "chart-b"]);
+        var seam = Assert.Single(network.Seams, item => item.Classification == RecoveredSeamClassification.Internal);
+
+        Assert.Equal("chart-a", seam.ChartA);
+        Assert.Equal("chart-b", seam.ChartB);
+        Assert.Equal(RecoveredSeamOrientation.SameDirection, seam.LeftOrientation);
+        Assert.Equal(RecoveredSeamOrientation.ReversedDirection, seam.RightOrientation);
+        Assert.Equal(0, seam.G0Residual);
+        Assert.Equal(0, seam.ParameterStart);
+        Assert.Equal(1, seam.ParameterEnd);
+        Assert.Equal(2, network.Junctions.Count);
+        Assert.All(network.Junctions, junction => Assert.Contains(seam.StableId, junction.IncidentSeamIds));
+    }
+
+    [Fact]
+    public void Source_open_boundary_is_retained_and_is_not_an_internal_crack()
+    {
+        var mesh = Square(); var (field, _) = StructuredSurfaceRecovery.EstimateField(mesh);
+        var charts = StructuredSurfaceRecovery.BuildCharts(mesh, field, spatialBins: 1, minimumFaces: 1);
+        var canonical = SeamAuthoritativeSurfaceMeshLowering.Lower(mesh, charts);
+
+        Assert.Equal(0, canonical.InternalCrackGroups);
+        Assert.Equal(1, canonical.IntentionalOpenBoundaryLoops);
+        Assert.Equal(4, canonical.BoundaryEdgeCount);
+        Assert.Equal(0, canonical.NonManifoldEdgeCount);
+        Assert.Equal(1, canonical.QuadCount);
+        Assert.Equal(0, canonical.TriangleCount);
+        Assert.Equal("Pass", canonical.ValidationStatus);
+        Assert.True(SurfaceMeshIrValidator.TryValidate(canonical.Document, out _));
+        Assert.All(charts.Seams, seam => Assert.Equal(RecoveredSeamClassification.SourceOpenBoundary, seam.Classification));
+    }
+
+    [Fact]
+    public void Seam_judgment_rejects_line_when_bounded_residual_is_exceeded_and_is_stable()
+    {
+        var vertices = new Point3D[]
+        {
+            new(0,0,0), new(1,0,0), new(2,0,0),
+            new(0,1,0), new(1,1,.2), new(2,1,0),
+            new(0,2,0), new(1,2,0), new(2,2,0)
+        };
+        var triangles = new Triangle[]
+        {
+            new(0,1,4), new(0,4,3), new(3,4,7), new(3,7,6),
+            new(1,2,5), new(1,5,4), new(4,5,8), new(4,8,7)
+        };
+        var mesh = new TriangleSurfaceMesh(vertices, triangles, null, "bent-two-chart", "fixture", new Dictionary<string,string>());
+        var labels = new[] { "left", "left", "left", "left", "right", "right", "right", "right" };
+        var first = RecoveredSeamNetworkBuilder.Build(mesh, labels);
+        var second = RecoveredSeamNetworkBuilder.Build(mesh, labels);
+        var seam = Assert.Single(first.Seams, item => item.Classification == RecoveredSeamClassification.Internal);
+
+        Assert.Equal(RecoveredSeamRepresentation.NonRationalBSpline, seam.RepresentationKind);
+        Assert.Equal("NonRationalBSpline", seam.JudgmentWinner);
+        Assert.False(seam.JudgmentCandidates.Single(candidate => candidate.Representation == "Line").Admissible);
+        Assert.Equal(seam.StableId, second.Seams.Single(item => item.Classification == RecoveredSeamClassification.Internal).StableId);
+        Assert.Equal(seam.JudgmentWinner, second.Seams.Single(item => item.StableId == seam.StableId).JudgmentWinner);
     }
 
     private static TriangleSurfaceMesh Square() => new([new(0, 0, 0), new(1, 0, 0), new(1, 1, 0), new(0, 1, 0)], [new(0, 1, 2), new(0, 2, 3)], null, "square", "fixture", new Dictionary<string, string>());

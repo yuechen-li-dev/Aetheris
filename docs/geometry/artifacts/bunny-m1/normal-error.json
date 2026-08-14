@@ -1,0 +1,17 @@
+{
+  "normalAngleDegrees": {
+    "mean": 11.456890403481678,
+    "maximum": 90,
+    "rms": 18.77884279304215,
+    "p50": 7.33781309397067,
+    "p90": 21.405065330940506,
+    "p95": 30.822269132228165,
+    "p99": 90
+  },
+  "baselineM0": {
+    "mean": 11.456890403481678,
+    "rms": 18.77884279304215,
+    "maximum": 90
+  },
+  "localization": "per-chart source-centroid evaluation; seam source-normal discontinuity in seam-network.json"
+}

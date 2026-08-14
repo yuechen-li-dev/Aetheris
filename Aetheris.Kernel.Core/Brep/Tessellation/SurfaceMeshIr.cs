@@ -1798,7 +1798,8 @@ public static class SurfaceMeshIrValidator
 {
     public static bool TryValidate(SurfaceMeshDocument document, out string? failure)
     {
-        var vertices = document.Vertices.Select(v => v.Id).ToHashSet();
+        var vertexById = document.Vertices.ToDictionary(v => v.Id);
+        var vertices = vertexById.Keys.ToHashSet();
         if (vertices.Count != document.Vertices.Count) { failure = "SurfaceMeshIR vertex IDs are not unique."; return false; }
         foreach (var boundary in document.SharedBoundaries)
         {
@@ -1810,7 +1811,7 @@ public static class SurfaceMeshIrValidator
         {
             if (cell.VertexIds.Count < 3 || cell.VertexIds.Any(id => !vertices.Contains(id))) { failure = "A cell references an invalid or insufficient vertex set."; return false; }
             if (cell.VertexIds.Distinct().Count() != cell.VertexIds.Count) { failure = "A cell repeats a vertex."; return false; }
-            var points = cell.VertexIds.Select(id => document.Vertices.Single(v => v.Id == id).Position).ToArray();
+            var points = cell.VertexIds.Select(id => vertexById[id].Position).ToArray();
             if (PolygonAreaMagnitude(points) <= 1e-14d) { failure = "A cell has zero area."; return false; }
         }
         if (document.Patches.Any(patch => patch.TrimLoopData is { Count: > 1 } && patch.Cells.Count == 0)) { failure = "A trimmed patch has no covering cells."; return false; }

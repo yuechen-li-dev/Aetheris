@@ -1,0 +1,15 @@
+{
+  "timingsMilliseconds": {
+    "canonicalSurfaceMeshLowering": 815.5519,
+    "chartAndSeamRecovery": 1401.3826,
+    "errorEvaluation": 992.1962,
+    "fieldRecovery": 473.3413,
+    "geometryDogfood": 31.925,
+    "seamExtractionRepeat": 1045.191,
+    "sourceLoad": 66.716,
+    "sourceValidation": 111.8699,
+    "spatialIndex": 1288.6474,
+    "total": 6316.0495
+  },
+  "approximateWorkingSetBytes": 172539904
+}

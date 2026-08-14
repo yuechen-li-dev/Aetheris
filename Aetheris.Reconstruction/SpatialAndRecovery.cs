@@ -80,8 +80,13 @@ public static class AdaptiveSurfaceAnalyzer
 public sealed record DifferentialSample(int TriangleIndex, Point3D Point, Vector3D Normal, Vector3D PrincipalDirection, Vector3D CrossDirection, double CurvatureProxy, double Conditioning, bool DirectionKnown, string EvidenceClass);
 public sealed record CrossFieldSummary(int SampleCount, int KnownDirectionCount, int UnknownDirectionCount, int SingularityCount, double MeanNeighborMismatchDegrees, string Representation, string Propagation);
 public sealed record RecoveredChart(string StableId, int[] SourceTriangles, Point3D Origin, Vector3D Normal, Vector3D UAxis, Vector3D VAxis, double UMin, double UMax, double VMin, double VMax, double[] HeightCoefficients, double RmsResidual, double MaxResidual, double? AngleDistortionP95, double? AreaDistortionP95, int Foldovers, string Status, BoundedParametricPatch3 Patch);
-public sealed record ChartNetwork(IReadOnlyList<RecoveredChart> Charts, IReadOnlyList<RecoveredSeam> Seams, IReadOnlyList<ReconstructionDiagnostic> Diagnostics, IReadOnlyDictionary<string, double> ObjectiveWeights);
-public sealed record RecoveredSeam(string StableId, string ChartA, string ChartB, int SourceEdgeCount, double G0Residual, string Authority);
+public sealed record ChartNetwork(
+    IReadOnlyList<RecoveredChart> Charts,
+    IReadOnlyList<RecoveredSeam> Seams,
+    IReadOnlyList<RecoveredJunction> Junctions,
+    IReadOnlyList<SourceBoundaryLoopCorrespondence> SourceBoundaryLoops,
+    IReadOnlyList<ReconstructionDiagnostic> Diagnostics,
+    IReadOnlyDictionary<string, double> ObjectiveWeights);
 
 public static class StructuredSurfaceRecovery
 {
@@ -121,9 +126,9 @@ public static class StructuredSurfaceRecovery
         }
         var ordered = Enumerable.Range(0, groups.Count).GroupBy(Root).Select(g => g.SelectMany(i => groups[i]).Order().ToList()).OrderBy(g => g.Min()).ToArray(); var charts = new List<RecoveredChart>(); var faceChart = new int[mesh.Triangles.Count]; Array.Fill(faceChart, -1); var diagnostics = new List<ReconstructionDiagnostic>();
         for (var ci = 0; ci < ordered.Length; ci++) { var chart = FitChart(mesh, field, ordered[ci], $"chart-{ci:D4}", minimumFaces); charts.Add(chart); foreach (var f in ordered[ci]) faceChart[f] = ci; if (chart.Status != "Accepted") diagnostics.Add(new(ReconstructionDiagnosticCode.PoorLocalSupport, "Warning", $"{chart.StableId}: {chart.Status}", ordered[ci].Min())); }
-        var seamCounts = new SortedDictionary<(int, int), int>(); foreach (var (a, neighbors) in adjacency.Select((n, i) => (i, n))) foreach (var b in neighbors) if (a < b && faceChart[a] != faceChart[b]) { var key = faceChart[a] < faceChart[b] ? (faceChart[a], faceChart[b]) : (faceChart[b], faceChart[a]); seamCounts[key] = seamCounts.GetValueOrDefault(key) + 1; }
-        var seams = seamCounts.Select((p, i) => new RecoveredSeam($"seam-{i:D4}", charts[p.Key.Item1].StableId, charts[p.Key.Item2].StableId, p.Value, 0, "single source-evidence seam polyline; neighboring fitted boundaries require future reconciliation")).ToArray();
-        return new(charts, seams, diagnostics, new Dictionary<string, double> { ["normalDiscontinuity"] = 4, ["fieldMismatch"] = 2, ["spatialCompactness"] = 1, ["panelCountPenalty"] = .05, ["poorSupportPenalty"] = 10 });
+        var seamNetwork = RecoveredSeamNetworkBuilder.Build(mesh, charts, faceChart);
+        return new(charts, seamNetwork.Seams, seamNetwork.Junctions, seamNetwork.SourceBoundaryLoops, diagnostics,
+            new Dictionary<string, double> { ["normalDiscontinuity"] = 4, ["fieldMismatch"] = 2, ["spatialCompactness"] = 1, ["panelCountPenalty"] = .05, ["poorSupportPenalty"] = 10 });
     }
 
     private static RecoveredChart FitChart(TriangleSurfaceMesh mesh, IReadOnlyList<DifferentialSample> field, List<int> faces, string id, int minimumFaces)

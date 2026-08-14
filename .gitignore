@@ -48,6 +48,16 @@ docs/preview2/evidence/**/*.json
 docs/reports/artifacts/**/*.json
 Aetheris.Firmament.FrictionLab/Reports/*.json
 
+# Bunny M1 heavyweight evidence is reproducible via tools/Aetheris.BunnyM1 and remains local.
+# Keep the manifest, validation/quality summaries, and compact reports eligible for source control.
+docs/geometry/artifacts/bunny-m1/*.obj
+docs/geometry/artifacts/bunny-m1/surface-mesh-document.json
+docs/geometry/artifacts/bunny-m1/seam-network.json
+docs/geometry/artifacts/bunny-m1/seam-fit-candidates.json
+docs/geometry/artifacts/bunny-m1/judgment-traces.json
+docs/geometry/artifacts/bunny-m1/m0-seam-failure-audit.json
+docs/geometry/artifacts/bunny-m1/junction-network.json
+
 # Package-manager caches are local even when a new JS workspace is added without a nested ignore file.
 .tspack/
 

@@ -1,0 +1,8 @@
+// Repair from semantic DFM suggestion: width >= thickness, depth >= radius + thickness.
+SheetMetal FixedTrayDfm {
+    Thickness: 1.2mm;
+    KFactor: 0.42;
+    Base Main { Profile: Rectangle { Width: 80mm; Height: 60mm; }; }
+    Flange Front { From: Main.Front; Height: 12mm; Angle: 90deg; Radius: 1.5mm; Relief: Rectangular; ReliefWidth: 1.2mm; ReliefDepth: 2.7mm; }
+    Flange Right { From: Main.Right; Height: 12mm; Angle: 90deg; Radius: 1.5mm; Relief: Rectangular; ReliefWidth: 1.2mm; ReliefDepth: 2.7mm; }
+}

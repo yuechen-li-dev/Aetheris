@@ -1,0 +1,19 @@
+// M4 LLM-authoring dogfood: semantic paths only; no region, face, edge, or BRep IDs.
+SheetMetal PsuEnclosure {
+    Thickness: 1.2mm;
+    Material: "5052-H32 Aluminum";
+    KFactor: 0.42;
+    Base Main { Profile: Rectangle { Width: 180mm; Height: 120mm; }; }
+    Flange FrontWall { From: Main.Front; Height: 35mm; Angle: 90deg; Radius: 1.5mm; Corner: Miter; }
+    Flange RightWall { From: Main.Right; Height: 35mm; Angle: 90deg; Radius: 1.5mm; Corner: Miter; }
+    Flange RearWall { From: Main.Rear; Height: 35mm; Angle: 90deg; Radius: 1.5mm; Corner: Open; }
+    Flange LeftWall { From: Main.Left; Height: 35mm; Angle: 90deg; Radius: 1.5mm; Corner: Open; }
+    Flange FrontLip { From: FrontWall.Outer; Height: 10mm; Angle: 90deg; Radius: 1.2mm; Direction: Down; }
+    Hole MountFL { On: Main; Center: (15mm, 15mm); Diameter: 4mm; }
+    Hole MountFR { On: Main; Center: (165mm, 15mm); Diameter: 4mm; }
+    Hole MountRL { On: Main; Center: (15mm, 105mm); Diameter: 4mm; }
+    Hole MountRR { On: Main; Center: (165mm, 105mm); Diameter: 4mm; }
+    Cut VentLeft { On: Main; Profile: Slot { Length: 45mm; Width: 6mm; }; At: (62mm, 60mm); }
+    Cut VentCenter { On: Main; Profile: Slot { Length: 45mm; Width: 6mm; }; At: (90mm, 60mm); }
+    Cut VentRight { On: Main; Profile: Slot { Length: 45mm; Width: 6mm; }; At: (118mm, 60mm); }
+}

@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.SheetMetal;
 
@@ -6,6 +7,7 @@ public sealed record SheetMetalFlatPatternValidationReport(
     bool Finite,
     bool LoopsClosed,
     bool FeaturesContained,
+    bool ExactContoursValid,
     IReadOnlyList<(string A,string B)> Overlaps,
     FlatPatternStatus Status,
     IReadOnlyList<SheetMetalDiagnostic> Diagnostics);
@@ -29,8 +31,14 @@ public static class SheetMetalFlatPatternValidation
         if(!contained)diagnostics.Add(new(SheetMetalDiagnosticCodes.FeatureMappingFailure,SheetMetalDiagnosticSeverity.Warning,"One or more cut loops are not contained by their owning flat region."));
         var bendLinesInside=flat.BendLines.All(b=>flat.Regions2D.Any(r=>PointInPolygon(b.Start,r.Boundary,true))&&flat.Regions2D.Any(r=>PointInPolygon(b.End,r.Boundary,true)));
         if(!bendLinesInside)diagnostics.Add(new(SheetMetalDiagnosticCodes.BendLineOutsideMaterial,SheetMetalDiagnosticSeverity.Error,"One or more bend-line endpoints lie outside recovered flat material."));
-        var status=!finite||!closed||slivers.Length>0||duplicateCuts.Length>0||!bendLinesInside?FlatPatternStatus.Unsupported:overlaps.Count>0?FlatPatternStatus.Overlapping:flat.Status;
-        return new(finite,closed,contained,overlaps,status,diagnostics);
+        var exactContoursValid=true;
+        foreach(var contour in new[]{flat.ExactBlankContour}.Concat(flat.Regions2D.Select(r=>r.ExactContour)).Concat(flat.CutLoops.Select(c=>c.ExactContour)).Concat((flat.ReliefLoops??[]).Select(r=>(PlanarContour2?)r.ExactContour)).OfType<PlanarContour2>())
+        {
+            var validation=PlanarContourKernel.Validate(contour);exactContoursValid&=validation.IsValid;
+            diagnostics.AddRange(validation.Diagnostics.Where(x=>x.Severity==PlanarContourDiagnosticSeverity.Error).Select(x=>new SheetMetalDiagnostic(SheetMetalDiagnosticCodes.ImpossibleTopology,SheetMetalDiagnosticSeverity.Error,$"Exact contour '{contour.StableId}': {x.Code}: {x.Message}")));
+        }
+        var status=!finite||!closed||slivers.Length>0||duplicateCuts.Length>0||!bendLinesInside||!exactContoursValid?FlatPatternStatus.Unsupported:overlaps.Count>0?FlatPatternStatus.Overlapping:flat.Status;
+        return new(finite,closed,contained,exactContoursValid,overlaps,status,diagnostics);
     }
 
     public static IReadOnlyList<(string A,string B)> FindOverlaps(IReadOnlyList<FlatRegion2D> regions)

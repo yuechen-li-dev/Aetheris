@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.SheetMetal;
 
@@ -55,15 +56,19 @@ public static class SheetMetalFlattener
                 mappings[neighborId]=neighborMap;pending.Enqueue(neighborId);
 
                 var shiftedStart=Add(seamStart,Scale(targetPerp,allowance));var shiftedEnd=Add(seamEnd,Scale(targetPerp,allowance));
-                bendRegions.Add(new($"flat-{bend.StableId}",bend.StableId,SheetRegionKind.CylindricalBend,[seamStart,seamEnd,shiftedEnd,shiftedStart],"exact neutral-axis cylindrical unroll"));
+                var bendBoundary = new SheetPoint2[] { seamStart,seamEnd,shiftedEnd,shiftedStart };
+                bendRegions.Add(new($"flat-{bend.StableId}",bend.StableId,SheetRegionKind.CylindricalBend,bendBoundary,"exact neutral-axis cylindrical unroll",Contour($"flat-{bend.StableId}",bendBoundary,"cylindrical neutral-axis unroll")));
                 var centerShift=Scale(targetPerp,allowance/2d);
                 bendLines.Add(new(bend.StableId,Add(seamStart,centerShift),Add(seamEnd,centerShift),bend.Direction,bend.BendAngleRadians,bend.InsideRadius,bend.Thickness,policy.KFactor,allowance));
                 evidence.Add(new(SheetEvidenceKind.Derived,"bend-allowance","angle * (inside radius + K * thickness)",allowance,null,bend.Source.FaceIds));
             }
         }
 
-        var flatRegions=mappings.Values.OrderBy(m=>m.Region.StableId,StringComparer.Ordinal).Select(m=>new FlatRegion2D(
-            $"flat-{m.Region.StableId}",m.Region.StableId,SheetRegionKind.Planar,NormalizeSourcePolygon(m.Region.Boundary3D.Select(m.Map)),"exact ordered source-edge vertices through composed analytic plane-to-flat transform")).ToList();
+        var flatRegions=mappings.Values.OrderBy(m=>m.Region.StableId,StringComparer.Ordinal).Select(m=>
+        {
+            var boundary=NormalizeSourcePolygon(m.Region.Boundary3D.Select(m.Map));
+            return new FlatRegion2D($"flat-{m.Region.StableId}",m.Region.StableId,SheetRegionKind.Planar,boundary,"exact ordered source-edge vertices through composed analytic plane-to-flat transform",Contour($"flat-{m.Region.StableId}",boundary,"analytic plane-to-flat transform"));
+        }).ToList();
         flatRegions.AddRange(bendRegions.OrderBy(r=>r.StableId,StringComparer.Ordinal));
         var cuts=new List<FlatCutLoop>();
         foreach(var feature in part.Features.OrderBy(f=>f.StableId,StringComparer.Ordinal))
@@ -75,9 +80,16 @@ public static class SheetMetalFlattener
                 var c=mapping.Map(feature.Center);loop=Enumerable.Range(0,48).Select(i=>{var a=2*Math.PI*i/48d;return new SheetPoint2(c.X+diameter/2d*Math.Cos(a),c.Y+diameter/2d*Math.Sin(a));}).ToArray();
             }
             else loop=NormalizeSourcePolygon(feature.Boundary3D.Select(mapping.Map));
-            if(loop.Count>=3)cuts.Add(new(feature.StableId,feature.Kind,loop,feature.OwningRegionId));
+            if(loop.Count>=3)
+            {
+                var exact=feature.Kind==SheetFeatureKind.CircularHole&&feature.Diameter is { } exactDiameter
+                    ? CircleContour(feature.StableId,mapping.Map(feature.Center),exactDiameter/2d)
+                    : Contour(feature.StableId,loop,"mapped exact feature boundary");
+                cuts.Add(new(feature.StableId,feature.Kind,loop,feature.OwningRegionId,exact));
+            }
             else diagnostics.Add(new(SheetMetalDiagnosticCodes.FeatureMappingFailure,SheetMetalDiagnosticSeverity.Warning,$"Feature '{feature.StableId}' did not yield a closed 2D loop."));
         }
+        var flatReliefs=BuildReliefs(part,mappings);
 
         if(mappings.Count<planar.Count)diagnostics.Add(new(SheetMetalDiagnosticCodes.DisconnectedGraph,SheetMetalDiagnosticSeverity.Warning,$"Flattened {mappings.Count} of {planar.Count} planar regions in the base-region bend component."));
         var planarFlat=flatRegions.Where(r=>r.Kind==SheetRegionKind.Planar).ToArray();var overlaps=FindOverlaps(planarFlat);
@@ -85,11 +97,18 @@ public static class SheetMetalFlattener
         var allPoints=flatRegions.SelectMany(r=>r.Boundary).Concat(cuts.SelectMany(c=>c.Boundary)).ToArray();
         if(allPoints.Any(p=>!double.IsFinite(p.X)||!double.IsFinite(p.Y)))return Unsupported("Flat lowering produced non-finite coordinates.");
         var bounds=allPoints.Length==0?null:new FlatPatternBounds(allPoints.Min(p=>p.X),allPoints.Min(p=>p.Y),allPoints.Max(p=>p.X),allPoints.Max(p=>p.Y));
-        var boundary=part.Provenance.Contains("source-independent",StringComparison.OrdinalIgnoreCase)?StitchBoundary(flatRegions):ConvexHull(flatRegions.SelectMany(r=>r.Boundary));
-        if(part.Provenance.Contains("source-independent",StringComparison.OrdinalIgnoreCase)&&boundary.Count<3)diagnostics.Add(new(SheetMetalDiagnosticCodes.ImpossibleTopology,SheetMetalDiagnosticSeverity.Error,"Authored flat material regions could not be stitched into one outer contour."));
+        var authored=part.Provenance.Contains("source-independent",StringComparison.OrdinalIgnoreCase);
+        var exactBlank=authored?BuildExactBlank(part,flatRegions,flatReliefs,diagnostics):null;
+        var boundary=exactBlank is not null?ContourVertices(exactBlank):authored?StitchBoundary(flatRegions):ConvexHull(flatRegions.SelectMany(r=>r.Boundary));
+        if(authored&&exactBlank is null)diagnostics.Add(new(SheetMetalDiagnosticCodes.ExactBlankContour,SheetMetalDiagnosticSeverity.Warning,"Authored flat material regions contain a point-touch/open-corner topology that the exact single-loop contract rejects; compatibility boundary remains available."));
+        if(exactBlank is not null)
+        {
+            var contourValidation=PlanarContourKernel.Validate(exactBlank);
+            diagnostics.AddRange(contourValidation.Diagnostics.Where(x=>x.Severity==PlanarContourDiagnosticSeverity.Error).Select(x=>new SheetMetalDiagnostic(SheetMetalDiagnosticCodes.ImpossibleTopology,SheetMetalDiagnosticSeverity.Error,$"Exact blank contour: {x.Code}: {x.Message}")));
+        }
         var status=overlaps.Count>0?FlatPatternStatus.Overlapping:(mappings.Count<planar.Count||part.RecognitionStatus==SheetMetalRecognitionStatus.Partial?FlatPatternStatus.Partial:FlatPatternStatus.Valid);
-        var hash=Hash(flatRegions,bendLines,cuts,policy,status);
-        return new($"flat-{part.StableId}",status,flatRegions,bendLines.OrderBy(b=>b.BendId,StringComparer.Ordinal).ToArray(),cuts,mappings.Values.OrderBy(m=>m.Region.StableId,StringComparer.Ordinal).Select(m=>m.Public()).ToArray(),boundary,bounds,policy,evidence,diagnostics,hash);
+        var hash=Hash(flatRegions,bendLines,cuts,flatReliefs,policy,status);
+        return new($"flat-{part.StableId}",status,flatRegions,bendLines.OrderBy(b=>b.BendId,StringComparer.Ordinal).ToArray(),cuts,mappings.Values.OrderBy(m=>m.Region.StableId,StringComparer.Ordinal).Select(m=>m.Public()).ToArray(),boundary,bounds,policy,evidence,diagnostics,hash,exactBlank,flatReliefs);
 
         SheetMetalFlatPatternIr Unsupported(string message)=>new($"flat-{part.StableId}",FlatPatternStatus.Unsupported,[],[],[],[],[],null,policy,[],[new(SheetMetalDiagnosticCodes.UnsupportedBendTopology,SheetMetalDiagnosticSeverity.Error,message)],SheetMetalRecognizer.StableHash(message));
     }
@@ -144,6 +163,71 @@ public static class SheetMetalFlattener
         var p=input.DistinctBy(x=>(Math.Round(x.X,9),Math.Round(x.Y,9))).OrderBy(x=>x.X).ThenBy(x=>x.Y).ToArray();if(p.Length<=2)return p;
         var lower=new List<SheetPoint2>();foreach(var x in p){while(lower.Count>=2&&Cross(lower[^2],lower[^1],x)<=1e-10)lower.RemoveAt(lower.Count-1);lower.Add(x);}var upper=new List<SheetPoint2>();foreach(var x in p.Reverse()){while(upper.Count>=2&&Cross(upper[^2],upper[^1],x)<=1e-10)upper.RemoveAt(upper.Count-1);upper.Add(x);}return lower.Take(lower.Count-1).Concat(upper.Take(upper.Count-1)).ToArray();
     }
+    private static PlanarContour2 Contour(string id,IReadOnlyList<SheetPoint2> boundary,string provenance)=>PlanarContourKernel.FromPolygon(id,"XY",boundary.Select(p=>(p.X,p.Y)).ToArray(),$"SheetMetalFlatPatternIr:{provenance}");
+    private static PlanarContour2 CircleContour(string id,SheetPoint2 center,double radius)
+    {
+        var c=(center.X,center.Y);var provenance=new ProfileSegmentProvenance($"{id}.circle",id,id,"SheetMetalFlatPatternIr:analytic circle","XY");
+        return new(id,"XY",new($"{id}.outer",true,[new($"{id}.arc0",new LineArcCircularArc2D(c,radius,0,Math.PI),provenance),new($"{id}.arc1",new LineArcCircularArc2D(c,radius,Math.PI,Math.PI),provenance with { StableId=$"{id}.circle.1" })]),[],$"SheetMetalFlatPatternIr:analytic circle radius={radius:R}");
+    }
+    private static PlanarContour2? BuildExactBlank(SheetMetalPartIr part,IReadOnlyList<FlatRegion2D> regions,IReadOnlyList<FlatReliefLoop> reliefs,ICollection<SheetMetalDiagnostic> diagnostics)
+    {
+        var usable=regions.Where(x=>x.ExactContour is not null).OrderBy(x=>x.StableId,StringComparer.Ordinal).ToArray();
+        if(usable.Length!=regions.Count)return null;
+        var profiles=usable.ToDictionary(x=>x.StableId,x=>PlanarContourKernel.ToResolvedProfile(x.ExactContour!,x.StableId),StringComparer.Ordinal);
+        foreach(var relief in reliefs)profiles[relief.ReliefId]=PlanarContourKernel.ToResolvedProfile(relief.ExactContour,relief.ReliefId);
+        var operations=usable.Select((x,index)=>new PrismaticProfileOperation(x.StableId,index==0?PrismaticProfileIntent.Base:PrismaticProfileIntent.Add,x.StableId,0,1,"SheetMetalBlankRegion",x.SourceRegionId))
+            .Concat(reliefs.Select(x=>new PrismaticProfileOperation(x.ReliefId,PrismaticProfileIntent.Remove,x.ReliefId,0,1,"SheetMetalCornerRelief",x.ReliefId))).ToArray();
+        var composed=ProfileArrangementBuilder.Compose("XY",operations,profiles,$"sheetmetal-blank:{part.StableId}");
+        if(composed.Region is null)
+        {
+            foreach(var message in composed.Arrangement.Diagnostics)diagnostics.Add(new(SheetMetalDiagnosticCodes.ExactBlankContour,SheetMetalDiagnosticSeverity.Warning,$"Exact blank composition: {message}"));
+            return null;
+        }
+        var contour=PlanarContourKernel.FromResolvedProfile(composed.Region.Outer,$"SheetMetal exact material composition:{part.StableId}") with { StableId=$"flat-{part.StableId}.blank" };
+        var validation=PlanarContourKernel.Validate(contour);
+        if(validation.IsValid)return contour;
+        foreach(var item in validation.Diagnostics)diagnostics.Add(new(SheetMetalDiagnosticCodes.ExactBlankContour,SheetMetalDiagnosticSeverity.Warning,$"Exact blank composition: {item.Code}: {item.Message}"));
+        return null;
+    }
+    private static IReadOnlyList<SheetPoint2> ContourVertices(PlanarContour2 contour)=>contour.OuterLoop.Segments.Select(segment=>segment.Geometry switch
+    {
+        LineArcLineSegment2D line=>new SheetPoint2(line.Start.X,line.Start.Y),
+        LineArcCircularArc2D arc=>new SheetPoint2(arc.Center.X+arc.Radius*Math.Cos(arc.StartAngleRadians),arc.Center.Y+arc.Radius*Math.Sin(arc.StartAngleRadians)),
+        LineArcFullCircle2D circle=>new SheetPoint2(circle.Center.X+circle.Radius,circle.Center.Y),
+        _=>default
+    }).ToArray();
+    private static IReadOnlyList<FlatReliefLoop> BuildReliefs(SheetMetalPartIr part,IReadOnlyDictionary<string,Mapping> mappings)
+    {
+        if(!mappings.TryGetValue(part.BaseRegionId,out var mapping))return [];
+        var basePoints=mapping.Region.Boundary3D.Select(mapping.Map).ToArray();if(basePoints.Length<3)return [];
+        var minX=basePoints.Min(p=>p.X);var maxX=basePoints.Max(p=>p.X);var minY=basePoints.Min(p=>p.Y);var maxY=basePoints.Max(p=>p.Y);var result=new List<FlatReliefLoop>();
+        foreach(var corner in part.Corners??[])
+        {
+            var relief=(part.Reliefs??[]).FirstOrDefault(x=>x.CornerId==corner.StableId);if(relief is null)continue;
+            var tokens=corner.VertexName.Split('-',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);var right=tokens.Contains("Right",StringComparer.OrdinalIgnoreCase);var left=tokens.Contains("Left",StringComparer.OrdinalIgnoreCase);var front=tokens.Contains("Front",StringComparer.OrdinalIgnoreCase);var rear=tokens.Contains("Rear",StringComparer.OrdinalIgnoreCase);
+            var c=new SheetPoint2(right?maxX:left?minX:(minX+maxX)/2,front?minY:rear?maxY:(minY+maxY)/2);var ix=right?-1d:1d;var iy=front?1d:-1d;
+            PlanarContour2 contour;IReadOnlyList<SheetPoint2> sample;
+            if(relief.Kind==SheetReliefKind.Round)
+            {
+                var radius=relief.Radius??relief.Width/2d;var inv=1/Math.Sqrt(2);var dir=(X:ix*inv,Y:iy*inv);var perp=(X:-dir.Y,Y:dir.X);var start=(X:c.X-dir.X*radius,Y:c.Y-dir.Y*radius);var end=(X:c.X+dir.X*Math.Max(radius,relief.Depth-radius),Y:c.Y+dir.Y*Math.Max(radius,relief.Depth-radius));
+                var p0=(X:start.X+perp.X*radius,Y:start.Y+perp.Y*radius);var p1=(X:end.X+perp.X*radius,Y:end.Y+perp.Y*radius);var p2=(X:end.X-perp.X*radius,Y:end.Y-perp.Y*radius);var p3=(X:start.X-perp.X*radius,Y:start.Y-perp.Y*radius);var plus=Math.Atan2(perp.Y,perp.X);var minus=Math.Atan2(-perp.Y,-perp.X);var provenance=new ProfileSegmentProvenance($"{relief.StableId}.round",relief.StableId,corner.StableId,"exact round-ended bend relief","XY");
+                contour=new(relief.StableId,"XY",new($"{relief.StableId}.outer",true,[new($"{relief.StableId}.side0",new LineArcLineSegment2D(p3,p2),provenance),new($"{relief.StableId}.end",new LineArcCircularArc2D(end,radius,minus,Math.PI),provenance with { StableId=$"{relief.StableId}.end" }),new($"{relief.StableId}.side1",new LineArcLineSegment2D(p1,p0),provenance with { StableId=$"{relief.StableId}.side1" }),new($"{relief.StableId}.start",new LineArcCircularArc2D(start,radius,plus,Math.PI),provenance with { StableId=$"{relief.StableId}.start" })]),[],$"{corner.StableId}: round relief width={relief.Width:R} depth={relief.Depth:R}");
+                sample=Sample(contour);
+            }
+            else
+            {
+                var half=relief.Width/2d;var inv=1/Math.Sqrt(2);var dir=(X:ix*inv,Y:iy*inv);var perp=(X:-dir.Y,Y:dir.X);var start=(X:c.X-dir.X*relief.Width*2d,Y:c.Y-dir.Y*relief.Width*2d);var end=(X:c.X+dir.X*relief.Depth,Y:c.Y+dir.Y*relief.Depth);var points=new[]{new SheetPoint2(start.X-perp.X*half,start.Y-perp.Y*half),new SheetPoint2(end.X-perp.X*half,end.Y-perp.Y*half),new SheetPoint2(end.X+perp.X*half,end.Y+perp.Y*half),new SheetPoint2(start.X+perp.X*half,start.Y+perp.Y*half)};contour=Contour(relief.StableId,points,$"{corner.StableId}: rectangular diagonal relief width={relief.Width:R} depth={relief.Depth:R}");sample=points;
+            }
+            result.Add(new(relief.StableId,relief.Kind,sample,part.BaseRegionId,contour,relief.Width,relief.Depth));
+        }
+        return result;
+    }
+    private static IReadOnlyList<SheetPoint2> Sample(PlanarContour2 contour)=>contour.OuterLoop.Segments.SelectMany(segment=>segment.Geometry switch
+    {
+        LineArcLineSegment2D line=>new[]{new SheetPoint2(line.Start.X,line.Start.Y)},
+        LineArcCircularArc2D arc=>Enumerable.Range(0,12).Select(i=>{var a=arc.StartAngleRadians+arc.SweepAngleRadians*i/12d;return new SheetPoint2(arc.Center.X+arc.Radius*Math.Cos(a),arc.Center.Y+arc.Radius*Math.Sin(a));}),
+        _=>[]
+    }).ToArray();
     private readonly record struct PointKey(long X,long Y){public static PointKey Of(SheetPoint2 p)=>new((long)Math.Round(p.X*1e8),(long)Math.Round(p.Y*1e8));}
     private readonly record struct SegmentKey(PointKey A,PointKey B)
     {
@@ -181,7 +265,7 @@ public static class SheetMetalFlattener
         static bool PointInPolygonStrict(SheetPoint2 point,IReadOnlyList<SheetPoint2> polygon){var inside=false;for(var i=0;i<polygon.Count;i++){var a=polygon[i];var b=polygon[(i+1)%polygon.Count];if(Math.Abs(Cross(a,b,point))<1e-8&&point.X>=Math.Min(a.X,b.X)-1e-8&&point.X<=Math.Max(a.X,b.X)+1e-8&&point.Y>=Math.Min(a.Y,b.Y)-1e-8&&point.Y<=Math.Max(a.Y,b.Y)+1e-8)return false;if((a.Y>point.Y)!=(b.Y>point.Y)&&point.X<(b.X-a.X)*(point.Y-a.Y)/(b.Y-a.Y)+a.X)inside=!inside;}return inside;}
         static IEnumerable<SheetPoint2> InteriorProbes(IReadOnlyList<SheetPoint2> p){var sign=SignedArea(p)>=0?1d:-1d;for(var i=0;i<p.Count;i++){var a=p[i];var b=p[(i+1)%p.Count];var dx=b.X-a.X;var dy=b.Y-a.Y;var len=Math.Sqrt(dx*dx+dy*dy);if(len>1e-12)yield return new((a.X+b.X)/2-sign*dy/len*1e-6,(a.Y+b.Y)/2+sign*dx/len*1e-6);}}
     }
-    private static string Hash(IReadOnlyList<FlatRegion2D> regions,IReadOnlyList<FlatBendLine>bends,IReadOnlyList<FlatCutLoop>cuts,SheetMetalFlattenPolicy policy,FlatPatternStatus status){var sb=new StringBuilder().Append(status).Append('|').Append(Q(policy.KFactor));foreach(var r in regions.OrderBy(x=>x.StableId,StringComparer.Ordinal)){sb.Append('|').Append(r.StableId);foreach(var p in r.Boundary)sb.Append('|').Append(Q(p.X)).Append(',').Append(Q(p.Y));}foreach(var b in bends.OrderBy(x=>x.BendId,StringComparer.Ordinal))sb.Append('|').Append(b.BendId).Append(':').Append(b.Direction).Append(':').Append(Q(b.BendAngleRadians)).Append(':').Append(Q(b.BendAllowance));foreach(var c in cuts.OrderBy(x=>x.FeatureId,StringComparer.Ordinal))sb.Append('|').Append(c.FeatureId);return SheetMetalRecognizer.StableHash(sb.ToString());static string Q(double value)=>Math.Round(value,9,MidpointRounding.AwayFromZero).ToString("R",CultureInfo.InvariantCulture);}
+    private static string Hash(IReadOnlyList<FlatRegion2D> regions,IReadOnlyList<FlatBendLine>bends,IReadOnlyList<FlatCutLoop>cuts,IReadOnlyList<FlatReliefLoop>reliefs,SheetMetalFlattenPolicy policy,FlatPatternStatus status){var sb=new StringBuilder().Append(status).Append('|').Append(Q(policy.KFactor));foreach(var r in regions.OrderBy(x=>x.StableId,StringComparer.Ordinal)){sb.Append('|').Append(r.StableId);foreach(var p in r.Boundary)sb.Append('|').Append(Q(p.X)).Append(',').Append(Q(p.Y));}foreach(var b in bends.OrderBy(x=>x.BendId,StringComparer.Ordinal))sb.Append('|').Append(b.BendId).Append(':').Append(b.Direction).Append(':').Append(Q(b.BendAngleRadians)).Append(':').Append(Q(b.BendAllowance));foreach(var c in cuts.OrderBy(x=>x.FeatureId,StringComparer.Ordinal))sb.Append('|').Append(c.FeatureId);foreach(var r in reliefs.OrderBy(x=>x.ReliefId,StringComparer.Ordinal))sb.Append('|').Append(r.ReliefId).Append(':').Append(r.Kind).Append(':').Append(Q(r.Width)).Append(':').Append(Q(r.Depth));return SheetMetalRecognizer.StableHash(sb.ToString());static string Q(double value)=>Math.Round(value,9,MidpointRounding.AwayFromZero).ToString("R",CultureInfo.InvariantCulture);}
     private static double Cross(SheetPoint2 a,SheetPoint2 b,SheetPoint2 c)=>(b.X-a.X)*(c.Y-a.Y)-(b.Y-a.Y)*(c.X-a.X);
     private static SheetPoint2 Add(SheetPoint2 a,SheetPoint2 b)=>new(a.X+b.X,a.Y+b.Y);private static SheetPoint2 Sub(SheetPoint2 a,SheetPoint2 b)=>new(a.X-b.X,a.Y-b.Y);private static SheetPoint2 Scale(SheetPoint2 a,double s)=>new(a.X*s,a.Y*s);private static double Dot(SheetPoint2 a,SheetPoint2 b)=>a.X*b.X+a.Y*b.Y;private static SheetPoint2 Normalize(SheetPoint2 a){var l=Math.Sqrt(Dot(a,a));return l<=1e-12?new(1,0):Scale(a,1/l);}private static Vector3D Normalize(Vector3D v)=>v.TryNormalize(out var n)?n:v;
 }

@@ -30,7 +30,7 @@ public static class SheetMetalManufacturingArtifacts
         {
             var region = materialRegions[index];
             var name = $"material_{index:D3}";
-            profiles[name] = Profile(name, region.Boundary, shift);
+            profiles[name] = region.ExactContour is not null ? Profile(name,region.ExactContour,shift) : Profile(name, region.Boundary, shift);
             operations.Add(new(name, index == 0 ? PrismaticProfileIntent.Base : PrismaticProfileIntent.Add, name, 0, part.Thickness,
                 region.Kind == SheetRegionKind.CylindricalBend ? "NeutralAxisBendStrip" : "FlatSheetRegion", region.SourceRegionId));
         }
@@ -40,10 +40,15 @@ public static class SheetMetalManufacturingArtifacts
             if (cut.Boundary.Count < 3) continue;
             var name = $"cut_{index:D3}";
             var cutFeature=part.Features.FirstOrDefault(f=>f.StableId==cut.FeatureId);
-            profiles[name] = cutFeature is { Kind:SheetFeatureKind.CircularHole,Diameter:not null }
+            profiles[name] = cut.ExactContour is not null ? Profile(name,cut.ExactContour,shift) : cutFeature is { Kind:SheetFeatureKind.CircularHole,Diameter:not null }
                 ? CircleProfile(name,new(cut.Boundary.Average(p=>p.X),cut.Boundary.Average(p=>p.Y)),cutFeature.Diameter.Value/2,shift)
                 : Profile(name, cut.Boundary, shift);
             operations.Add(new(name, PrismaticProfileIntent.Remove, name, 0, part.Thickness, "ThroughCut", cut.FeatureId, cut.FeatureId, cut.Kind.ToString()));
+        }
+        foreach(var relief in (flat.ReliefLoops??[]).OrderBy(x=>x.ReliefId,StringComparer.Ordinal))
+        {
+            var name=$"relief_{Safe(relief.ReliefId)}";profiles[name]=Profile(name,relief.ExactContour,shift);
+            operations.Add(new(name,PrismaticProfileIntent.Remove,name,0,part.Thickness,"CornerRelief",relief.ReliefId,relief.ReliefId,relief.Kind.ToString()));
         }
         if (materialRegions.Length == 0) return Failure("Flat pattern contains no bounded material regions.");
 
@@ -144,6 +149,19 @@ public static class SheetMetalManufacturingArtifacts
         var points = SignedArea(cleaned) >= 0 ? cleaned : cleaned.Reverse().ToArray();
         var segments = points.Select((point, index) => new ResolvedProfileSegment2D($"s{index:D3}", new LineArcLineSegment2D((point.X, point.Y), (points[(index + 1) % points.Length].X, points[(index + 1) % points.Length].Y)), new($"{name}:s{index:D3}", name, name, "SheetMetalFlatPatternIr", "XY"))).ToArray();
         return new(name, "XY", [new("Outer", true, segments)]);
+    }
+
+    private static ResolvedProfile2D Profile(string name,PlanarContour2 contour,SheetPoint2 shift)
+    {
+        LineArcProfileCurve2D Shift(LineArcProfileCurve2D curve)=>curve switch
+        {
+            LineArcLineSegment2D line=>new LineArcLineSegment2D((Clean(line.Start.X+shift.X),Clean(line.Start.Y+shift.Y)),(Clean(line.End.X+shift.X),Clean(line.End.Y+shift.Y))),
+            LineArcCircularArc2D arc=>arc with { Center=(Clean(arc.Center.X+shift.X),Clean(arc.Center.Y+shift.Y)) },
+            LineArcFullCircle2D circle=>circle with { Center=(Clean(circle.Center.X+shift.X),Clean(circle.Center.Y+shift.Y)) },
+            _=>throw new NotSupportedException("Flat manufacturing profiles support exact lines, arcs, and circles.")
+        };
+        ResolvedProfileLoop2D Loop(PlanarContourLoop2 loop,int loopIndex)=>new(loop.StableId,loop.IsOuter,loop.Segments.Select((segment,index)=>new ResolvedProfileSegment2D($"l{loopIndex:D2}s{index:D3}",Shift(segment.Geometry),segment.Provenance with { StableId=$"{name}:l{loopIndex:D2}s{index:D3}",Derivation=$"{segment.Provenance.Derivation}; flat manufacturing shift" })).ToArray());
+        return new(name,contour.PlaneFrame,contour.Loops.Select(Loop).ToArray());
     }
 
     private static ResolvedProfile2D CircleProfile(string name,SheetPoint2 center,double radius,SheetPoint2 shift)

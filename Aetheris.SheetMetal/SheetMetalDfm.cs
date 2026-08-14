@@ -1,9 +1,12 @@
+using Aetheris.Kernel.Firmament.Materializer;
+
 namespace Aetheris.SheetMetal;
 
 public sealed record SheetMetalDfmPolicy(
     double MinimumInsideRadiusRatio = 1d,
     double MinimumHoleToBendDistanceFactor = 2d,
-    double MinimumEdgeDistanceFactor = 1.5d);
+    double MinimumEdgeDistanceFactor = 1.5d,
+    double MinimumFlangeBeyondTangentFactor = 1d);
 
 public enum SheetMetalDfmStatus { Pass, Warning, Fail, NotEvaluated }
 
@@ -32,14 +35,18 @@ public static class SheetMetalDfm
         {
             var ratio=bend.InsideRadius/part.Thickness;var pass=ratio>=policy.MinimumInsideRadiusRatio;
             findings.Add(new("sheetmetal-dfm-inside-radius-ratio",pass?SheetMetalDfmStatus.Pass:SheetMetalDfmStatus.Warning,$"Inside-radius/thickness ratio {ratio:G4} {(pass?"meets":"is below")} the parameterized experimental policy {policy.MinimumInsideRadiusRatio:G4}.",bend.StableId,ratio,policy.MinimumInsideRadiusRatio));
+            var flange=part.Regions.FirstOrDefault(r=>r.StableId==bend.AdjacentRegionB);var axisLength=part.Regions.Where(r=>r.Cylinder is not null).OrderBy(r=>Math.Abs(r.Cylinder!.InsideRadius-bend.InsideRadius)+(1-Math.Abs(r.Cylinder.AxisDirection.Dot(bend.AxisDirection)))*1000).FirstOrDefault()?.Cylinder?.AxisLength??0;var flangeLength=flange is null||axisLength<=0?double.NaN:flange.ApproximateArea/axisLength;var requiredFlange=bend.InsideRadius+part.Thickness*policy.MinimumFlangeBeyondTangentFactor;var flangePass=double.IsNaN(flangeLength)||flangeLength>=requiredFlange;
+            findings.Add(new("sheetmetal-dfm-minimum-flange-length",double.IsNaN(flangeLength)?SheetMetalDfmStatus.NotEvaluated:flangePass?SheetMetalDfmStatus.Pass:SheetMetalDfmStatus.Warning,double.IsNaN(flangeLength)?$"'{bend.AdjacentRegionB}' flange length could not be derived.":$"'{bend.AdjacentRegionB}' tangent-to-edge length is {flangeLength:G4} mm; policy requires {requiredFlange:G4} mm.",bend.AdjacentRegionB,double.IsNaN(flangeLength)?null:flangeLength,requiredFlange,!flangePass?$"Increase {bend.AdjacentRegionB} Height/Length by at least {requiredFlange-flangeLength:G4} mm.":null));
         }
         foreach(var corner in part.Corners??[])
         {
-            var relief=(part.Reliefs??[]).FirstOrDefault(r=>r.CornerId==corner.StableId);var valid=corner.Policy!=SheetCornerPolicy.Relief||relief is not null&&relief.Width>=part.Thickness&&relief.Depth>=part.Thickness;
-            findings.Add(new("sheetmetal-dfm-corner-resolution",valid?SheetMetalDfmStatus.Pass:SheetMetalDfmStatus.Warning,valid?$"'{corner.StableId}' uses bounded {corner.Policy} corner resolution.":$"'{corner.StableId}' has insufficient or missing relief geometry.",corner.StableId,relief?.Width,part.Thickness,valid?null:$"Increase {corner.ReliefId??"the corner relief"} width and depth to at least {part.Thickness:G4} mm."));
+            var relief=(part.Reliefs??[]).FirstOrDefault(r=>r.CornerId==corner.StableId);var requiresRelief=corner.Policy is SheetCornerPolicy.RectangularRelief or SheetCornerPolicy.RoundRelief;var minimumDepth=(part.Bends.Where(b=>b.AdjacentRegionB==corner.RegionA||b.AdjacentRegionB==corner.RegionB).Select(b=>b.InsideRadius).DefaultIfEmpty(0).Max()+part.Thickness);var valid=!requiresRelief||relief is not null&&relief.Width>=part.Thickness&&relief.Depth>=minimumDepth;
+            findings.Add(new("sheetmetal-dfm-corner-resolution",valid?SheetMetalDfmStatus.Pass:SheetMetalDfmStatus.Warning,valid?$"'{corner.StableId}' uses bounded {corner.Policy} corner resolution.":$"'{corner.StableId}' has insufficient or missing relief geometry.",corner.StableId,relief?.Depth,requiresRelief?minimumDepth:part.Thickness,valid?null:$"Increase {corner.ReliefId??"the corner relief"} width to at least {part.Thickness:G4} mm and depth to at least {minimumDepth:G4} mm."));
         }
         if(flat is not null)
         {
+            var exactValid=flat.ExactBlankContour is not null&&SheetMetalFlatPatternValidation.Validate(flat).ExactContoursValid;findings.Add(new("sheetmetal-dfm-exact-blank-contour",exactValid?SheetMetalDfmStatus.Pass:SheetMetalDfmStatus.Fail,exactValid?"One validated exact analytic blank contour is authoritative.":"No validated exact analytic blank contour is available.",flat.StableId,null,null,exactValid?null:"Resolve the reported corner/contour topology before fabrication export."));
+            foreach(var relief in part.Reliefs??[]){var flatRelief=(flat.ReliefLoops??[]).FirstOrDefault(x=>x.ReliefId==relief.StableId);var valid=flatRelief is not null&&PlanarContourKernel.Validate(flatRelief.ExactContour).IsValid;findings.Add(new("sheetmetal-dfm-exact-relief-topology",valid?SheetMetalDfmStatus.Pass:SheetMetalDfmStatus.Fail,valid?$"'{relief.StableId}' has exact {relief.Kind} line/arc removal geometry.":$"'{relief.StableId}' is missing valid exact flat relief geometry.",relief.StableId,relief.Depth,relief.Width,valid?null:$"Rebuild {relief.StableId} from its typed corner policy."));}
             findings.Add(new("sheetmetal-dfm-flat-overlap",flat.Status==FlatPatternStatus.Overlapping?SheetMetalDfmStatus.Fail:SheetMetalDfmStatus.Pass,flat.Status==FlatPatternStatus.Overlapping?"Flat material regions overlap.":"No planar-region overlap was detected.",flat.StableId,null,null));
             foreach(var cut in flat.CutLoops)
             {

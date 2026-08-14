@@ -1,5 +1,6 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Firmament.Materializer;
 using Aetheris.Surfacing;
 
 namespace Aetheris.SheetMetal;
@@ -15,7 +16,7 @@ public enum SheetMetalIntentConfidence { StructuralFact, StrongCandidate, WeakCa
 public enum SheetMetalProvenanceCategory { Authored, Recovered, Reconstructed }
 public enum SheetCornerKind { ClosedCorner, OpenCorner, ReliefCorner, OverlapCorner, MiteredCorner, Unknown }
 public enum SheetReliefKind { Rectangular, Round, Unknown }
-public enum SheetCornerPolicy { Open, Mitered, Relief }
+public enum SheetCornerPolicy { Open, Mitered, RectangularRelief, RoundRelief, Relief = RectangularRelief }
 public enum SheetReliefPolicy { None, Auto, Rectangular, Round }
 public enum SheetFlangeLengthMode { TangentToEdge }
 
@@ -39,11 +40,13 @@ public static class SheetMetalDiagnosticCodes
     public const string InvalidRelief = "sheetmetal-invalid-relief";
     public const string CutCrossesBend = "sheetmetal-cut-crosses-bend";
     public const string FormedBodyInvalid = "sheetmetal-formed-body-invalid";
+    public const string ExactBlankContour = "sheetmetal-exact-blank-contour";
+    public const string FlangeBelowMinimum = "sheetmetal-flange-below-minimum";
     public static IReadOnlyList<string> All { get; } =
         [NonConstantThickness, UnpairedFaces, NonDevelopable, AmbiguousBendAxis, UnsupportedBendTopology,
          InconsistentBendRadius, DisconnectedGraph, FlatOverlap, FeatureMappingFailure, InvalidRadius,
          DuplicateCut, BendLineOutsideMaterial, ZeroWidthSliver, DuplicateFlange, ImpossibleTopology,
-         InvalidRelief, CutCrossesBend, FormedBodyInvalid];
+         InvalidRelief, CutCrossesBend, FormedBodyInvalid, ExactBlankContour, FlangeBelowMinimum];
 }
 
 public sealed record SheetMetalDiagnostic(
@@ -220,7 +223,8 @@ public sealed record FlatRegion2D(
     string SourceRegionId,
     SheetRegionKind Kind,
     IReadOnlyList<SheetPoint2> Boundary,
-    string MappingKind);
+    string MappingKind,
+    PlanarContour2? ExactContour = null);
 
 public sealed record FlatBendLine(
     string BendId,
@@ -237,7 +241,17 @@ public sealed record FlatCutLoop(
     string FeatureId,
     SheetFeatureKind Kind,
     IReadOnlyList<SheetPoint2> Boundary,
-    string SourceRegionId);
+    string SourceRegionId,
+    PlanarContour2? ExactContour = null);
+
+public sealed record FlatReliefLoop(
+    string ReliefId,
+    SheetReliefKind Kind,
+    IReadOnlyList<SheetPoint2> Boundary,
+    string SourceRegionId,
+    PlanarContour2 ExactContour,
+    double Width,
+    double Depth);
 
 public sealed record SourceToFlatMapping(
     string SourceRegionId,
@@ -266,7 +280,9 @@ public sealed record SheetMetalFlatPatternIr(
     SheetMetalFlattenPolicy Policy,
     IReadOnlyList<SheetEvidence> Evidence,
     IReadOnlyList<SheetMetalDiagnostic> Diagnostics,
-    string DeterministicHash);
+    string DeterministicHash,
+    PlanarContour2? ExactBlankContour = null,
+    IReadOnlyList<FlatReliefLoop>? ReliefLoops = null);
 
 public sealed record SheetMetalRecognitionResult(
     SheetMetalPartIr? Part,

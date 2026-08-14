@@ -33,6 +33,19 @@ public sealed record ProfileArrangementResult(
         RegionSet ?? (Region is null ? [] : [Region]);
 }
 
+/// <summary>A bounded analytic intersection result. Parameters are normalized to each source curve.</summary>
+public sealed record PlanarCurveIntersection2(
+    (double X, double Y) Point,
+    double FirstParameter,
+    double SecondParameter,
+    bool IsTangent);
+
+public sealed record PlanarCurveIntersectionResult(
+    IReadOnlyList<PlanarCurveIntersection2> Intersections,
+    bool IsCoincident,
+    bool HasBoundedOverlap,
+    IReadOnlyList<string> Diagnostics);
+
 public static class ProfileArrangementBuilder
 {
     private const double Tol = 1e-7;
@@ -41,6 +54,45 @@ public static class ProfileArrangementBuilder
     // topology bucket. Profile intersections still use the stricter analytic Tol.
     private const double VertexTol = 1e-5;
     private const double SideSample = 1e-5;
+
+    /// <summary>
+    /// Shared bounded line/arc intersection entry point for Profile, Drawing, and
+    /// Sheet Metal construction. It never extends a source curve implicitly.
+    /// </summary>
+    public static PlanarCurveIntersectionResult IntersectBounded(LineArcProfileCurve2D first, LineArcProfileCurve2D second)
+    {
+        ArgumentNullException.ThrowIfNull(first);
+        ArgumentNullException.ThrowIfNull(second);
+        var points = Intersections(first, second, out var coincident, out var tangent);
+        var hits = new List<PlanarCurveIntersection2>();
+        foreach (var point in points)
+            if (OnCurve(first, point, out var a) && OnCurve(second, point, out var b))
+                hits.Add(new(point, Math.Clamp(a, 0d, 1d), Math.Clamp(b, 0d, 1d), tangent));
+        var diagnostics = coincident ? new[] { "planar-curve-coincident-support" } : [];
+        return new(hits.OrderBy(x => x.FirstParameter).ThenBy(x => x.SecondParameter).ToArray(), coincident, coincident&&HasPositiveCoincidentOverlap(first,second), diagnostics);
+    }
+
+    /// <summary>Splits a bounded line or circular arc at a known normalized parameter.</summary>
+    public static IReadOnlyList<LineArcProfileCurve2D> SplitBounded(LineArcProfileCurve2D curve, double parameter)
+    {
+        ArgumentNullException.ThrowIfNull(curve);
+        if (!double.IsFinite(parameter) || parameter <= Tol || parameter >= 1d - Tol)
+            throw new ArgumentOutOfRangeException(nameof(parameter), "Split parameter must lie strictly inside (0, 1).");
+        if (curve is not LineArcLineSegment2D and not LineArcCircularArc2D)
+            throw new NotSupportedException("Bounded split supports line segments and circular arcs.");
+        return [Trim(curve, 0d, parameter), Trim(curve, parameter, 1d)];
+    }
+
+    /// <summary>Returns the exact bounded fragment on a normalized parameter interval.</summary>
+    public static LineArcProfileCurve2D TrimBounded(LineArcProfileCurve2D curve, double fromParameter, double toParameter)
+    {
+        ArgumentNullException.ThrowIfNull(curve);
+        if (!double.IsFinite(fromParameter) || !double.IsFinite(toParameter) || fromParameter < -Tol || toParameter > 1d + Tol || toParameter - fromParameter <= Tol)
+            throw new ArgumentOutOfRangeException(nameof(fromParameter), "Trim interval must be a positive subset of [0, 1].");
+        if (curve is not LineArcLineSegment2D and not LineArcCircularArc2D)
+            throw new NotSupportedException("Bounded trim supports line segments and circular arcs.");
+        return Trim(curve, Math.Clamp(fromParameter, 0d, 1d), Math.Clamp(toParameter, 0d, 1d));
+    }
 
     public static ProfileArrangementResult Compose(
         string frame,

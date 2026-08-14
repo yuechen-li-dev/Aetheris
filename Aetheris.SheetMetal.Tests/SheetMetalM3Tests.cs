@@ -30,7 +30,7 @@ public sealed class SheetMetalM3Tests
     [InlineData("",SheetCornerPolicy.Open,null)]
     [InlineData("Corner: Miter;",SheetCornerPolicy.Mitered,null)]
     [InlineData("Relief: Rectangular;",SheetCornerPolicy.Relief,SheetReliefKind.Rectangular)]
-    [InlineData("Relief: Round;",SheetCornerPolicy.Relief,SheetReliefKind.Round)]
+    [InlineData("Relief: Round;",SheetCornerPolicy.RoundRelief,SheetReliefKind.Round)]
     public void AdjacentCornerPolicies_AreTypedAndLowered(string policy,SheetCornerPolicy expected,SheetReliefKind? reliefKind)
     {
         var source=$$"""

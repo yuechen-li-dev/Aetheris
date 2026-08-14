@@ -66,11 +66,19 @@ internal static class AuthoredSheetMetalCompiler
         var flanges = new List<AuthoredSheetFlangeSpec>();
         foreach (var block in Blocks(source, "Flange"))
         {
-            var from = Regex.Match(block.Body, @"\bFrom\s*:\s*(?<region>[A-Za-z_][A-Za-z0-9_]*)\.(?<edge>Left|Right|Front|Rear|Outer|Top)\s*;", Rx);
+            var from = Regex.Match(block.Body, @"\bFrom\s*:\s*(?<region>[A-Za-z_][A-Za-z0-9_]*)\.(?<edge>[A-Za-z_][A-Za-z0-9_]*)\s*;", Rx);
             var hasLength = Scalar(block.Body, "Length", "mm", out var length) || Scalar(block.Body, "Height", "mm", out length);
             var hasRadius = Scalar(block.Body, "InsideRadius", "mm", out var radius) || Scalar(block.Body, "Radius", "mm", out radius);
             if (!from.Success || !hasLength || !Scalar(block.Body, "Angle", "deg", out var degrees) || !hasRadius)
                 return Fail($"Flange '{block.Name}' requires From, Length/Height, Angle, and InsideRadius/Radius.");
+            var parentName=from.Groups["region"].Value;var authoredMember=from.Groups["edge"].Value;
+            if(parentName.Equals(baseSpec.Name,StringComparison.OrdinalIgnoreCase)&&authoredMember.Equals("Center",StringComparison.OrdinalIgnoreCase))
+                return Fail($"`{parentName}.Center` has capability PointCapable; `Flange.From` requires FlangeAttachable SheetEdge. Available public edge members: Front, Right, Rear, Left.","sheetmetal-incompatible-edge-capability");
+            var available=parentName.Equals(baseSpec.Name,StringComparison.OrdinalIgnoreCase)?SheetMetalConceptPaths.AvailableMembers("SheetRegion.Rectangle"):SheetMetalConceptPaths.AvailableMembers("SheetFlange");
+            var allowed=parentName.Equals(baseSpec.Name,StringComparison.OrdinalIgnoreCase)
+                ? new[]{"Front","Right","Rear","Left"}.Contains(authoredMember,StringComparer.OrdinalIgnoreCase)
+                : new[]{"Outer","Top"}.Contains(authoredMember,StringComparer.OrdinalIgnoreCase);
+            if(!allowed)return Fail($"`{parentName}.{authoredMember}` is not a FlangeAttachable public member. Available public members: {string.Join(", ",available)}.","sheetmetal-concept-member-not-exposed");
             var direction = Token(block.Body, "Direction")?.Equals("Down", StringComparison.OrdinalIgnoreCase) == true ? SheetBendDirection.Down : SheetBendDirection.Up;
             var corner = Token(block.Body, "Corner")?.ToLowerInvariant() switch
             {
@@ -82,9 +90,9 @@ internal static class AuthoredSheetMetalCompiler
             var relief = reliefToken switch { "auto" => SheetReliefPolicy.Auto, "rectangular" or "rectangle" => SheetReliefPolicy.Rectangular, "round" => SheetReliefPolicy.Round, _ => SheetReliefPolicy.None };
             Scalar(block.Body, "ReliefWidth", "mm", out var reliefWidth);
             Scalar(block.Body, "ReliefDepth", "mm", out var reliefDepth);
-            if (length <= radius + thickness || radius < 0 || degrees is <= 0 or >= 180)
-                return Fail($"Flange '{block.Name}' has an invalid length, radius, or bend angle.");
-            flanges.Add(new(block.Name, from.Groups["region"].Value, NormalizeEdge(from.Groups["edge"].Value), length,
+            if(radius<0||degrees is <=0 or >=180)return Fail($"Flange '{block.Name}' has an invalid radius or bend angle.");
+            if(length<=radius+thickness)return Fail($"Flange '{block.Name}' length {length:G6} mm is not greater than inside radius + thickness ({radius+thickness:G6} mm). Increase `{block.Name}` Height/Length above {radius+thickness:G6} mm.",legacyBase.Success?"sheetmetal-firmament-invalid":SheetMetalDiagnosticCodes.FlangeBelowMinimum);
+            flanges.Add(new(block.Name, parentName, NormalizeEdge(authoredMember), length,
                 degrees * Math.PI / 180d, radius, direction, corner, relief,
                 reliefWidth > 0 ? reliefWidth : null, reliefDepth > 0 ? reliefDepth : null));
         }
@@ -300,12 +308,14 @@ internal static class AuthoredSheetMetalLowering
                 var a = spec.Flanges.FirstOrDefault(f => f.ParentRegion.Equals(spec.Base.Name, StringComparison.OrdinalIgnoreCase) && f.EdgeName.Equals(edgeOrder[i], StringComparison.OrdinalIgnoreCase));
                 var b = spec.Flanges.FirstOrDefault(f => f.ParentRegion.Equals(spec.Base.Name, StringComparison.OrdinalIgnoreCase) && f.EdgeName.Equals(edgeOrder[(i+1)%4], StringComparison.OrdinalIgnoreCase));
                 if (a is null || b is null) continue;
+                var reliefOwner=a.ReliefPolicy!=SheetReliefPolicy.None?a:b.ReliefPolicy!=SheetReliefPolicy.None?b:null;
                 var policy = a.CornerPolicy == SheetCornerPolicy.Mitered && b.CornerPolicy == SheetCornerPolicy.Mitered ? SheetCornerPolicy.Mitered :
-                    a.ReliefPolicy != SheetReliefPolicy.None || b.ReliefPolicy != SheetReliefPolicy.None ? SheetCornerPolicy.Relief : SheetCornerPolicy.Open;
+                    reliefOwner?.ReliefPolicy==SheetReliefPolicy.Round?SheetCornerPolicy.RoundRelief:
+                    reliefOwner is not null?SheetCornerPolicy.RectangularRelief:SheetCornerPolicy.Open;
                 var id = $"corner-{a.Name}-{b.Name}"; string? reliefId = null;
-                if (policy == SheetCornerPolicy.Relief)
+                if (policy is SheetCornerPolicy.RectangularRelief or SheetCornerPolicy.RoundRelief)
                 {
-                    reliefId = $"relief-{a.Name}-{b.Name}"; var owner = a.ReliefPolicy != SheetReliefPolicy.None ? a : b;
+                    reliefId = $"relief-{a.Name}-{b.Name}"; var owner = reliefOwner!;
                     var width = owner.ReliefWidth ?? Math.Max(t, 0.5 * t); var depth = owner.ReliefDepth ?? owner.InsideRadius + t;
                     var kind = owner.ReliefPolicy == SheetReliefPolicy.Round ? SheetReliefKind.Round : SheetReliefKind.Rectangular;
                     reliefs.Add(new(reliefId, kind, spec.Base.Name, id, width, depth, kind == SheetReliefKind.Round ? width/2 : null, owner.ReliefWidth is null || owner.ReliefDepth is null, source,

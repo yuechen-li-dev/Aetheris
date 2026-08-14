@@ -1,0 +1,96 @@
+{
+  "milestone": "AETHERIS-BUNNY-M3",
+  "sourceMeshHash": "88d635a8709c1c570ff47c80ef6340fe8a8da58c1f3e2c96975ff428276cbde0",
+  "atlasHash": "2d7a91833163f326fea017c96f1dafc2107682e6fb85e9fd6b86e70ab90b418f",
+  "surfaceMeshHash": "79f32bff0df53fe32eacfc90087b41f889fbb356161827a2160fb56118e5d58c",
+  "deterministic": true,
+  "excludedObservationalFiles": [
+    "performance.json"
+  ],
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "e6d9e8ad750cfeef0d799ce4e58525dc09e868e4644cb21d7891a8516419fb29",
+      "bytes": 899,
+      "lines": 7
+    },
+    {
+      "path": "continuity-summary.json",
+      "sha256": "c0b4e23c6db585ad5faa149993df210d9d9a2808c6ad43a06234ac5f34dad309",
+      "bytes": 293,
+      "lines": 7
+    },
+    {
+      "path": "field-regularization-summary.json",
+      "sha256": "89f4aadb0842890449d9dedd4b809d1a3dced03a32284d21f0b8ff93705d74ca",
+      "bytes": 554,
+      "lines": 13
+    },
+    {
+      "path": "global-layout-summary.json",
+      "sha256": "7412f046592ba8bdcc2d0dbf51b0b31f16b455291d2c0d7eef15a6b5a0d5e918",
+      "bytes": 701,
+      "lines": 12
+    },
+    {
+      "path": "judgment-summary.json",
+      "sha256": "0a9fbb35e6e20658a63435639156b5b6a55c20298c8f5a93aeefcf626e51c1cd",
+      "bytes": 791,
+      "lines": 28
+    },
+    {
+      "path": "m2-oversegmentation-audit.json",
+      "sha256": "1599cceb478050333dfa399cada58d0f4ee882de2e3f1715fafab3f93f070e35",
+      "bytes": 3877,
+      "lines": 43
+    },
+    {
+      "path": "mesh-summary.json",
+      "sha256": "f54413a7f6ccaf6fc7b19e3bd62aa3bb27446e6e122a2ef1d8c13721811464db",
+      "bytes": 532,
+      "lines": 16
+    },
+    {
+      "path": "panel-coarsening-summary.json",
+      "sha256": "fce06b8f1045d5df15c8209f4a88e54bdfdc6f6d6464bdcb2c65c702f783c817",
+      "bytes": 635,
+      "lines": 14
+    },
+    {
+      "path": "parameterization-summary.json",
+      "sha256": "49f675b8862ced272c4076a232ee15f3836da963f090af996a27fd4abc613fdc",
+      "bytes": 487,
+      "lines": 18
+    },
+    {
+      "path": "quality-comparison.json",
+      "sha256": "9dd6318e82d04d5a7e639e3c0c4a7fa15b112c876dd4b4171629dafadb9b4598",
+      "bytes": 662,
+      "lines": 16
+    },
+    {
+      "path": "representation-compression.json",
+      "sha256": "f1cdd9a4d1d5bdccb8b3b680ab7086834e6a3eb0ed81d9f6c5604d0ec55f5ba3",
+      "bytes": 356,
+      "lines": 12
+    },
+    {
+      "path": "residual-field-summary.json",
+      "sha256": "5bf777416073f0581c22253e0636b6c8491a21728ff5bb0989222e877b3bc34e",
+      "bytes": 905,
+      "lines": 19
+    },
+    {
+      "path": "singularity-summary.json",
+      "sha256": "85e8a2eb45f8eb26217e642e50cc541f2720a774b9c763421e876f8128281f12",
+      "bytes": 271,
+      "lines": 10
+    },
+    {
+      "path": "validation-report.json",
+      "sha256": "cf2b9630432947a5d1877b3a424b06f50f96170d2e9619628fe187962eb3fe12",
+      "bytes": 5636,
+      "lines": 308
+    }
+  ]
+}

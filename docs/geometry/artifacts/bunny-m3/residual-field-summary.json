@@ -1,0 +1,19 @@
+{
+  "offsetType": "bounded 3 x 3 piecewise-bilinear scalar grid along base unit normal",
+  "normalType": "bounded piecewise-bilinear explicit target-normal grid; differential-only authority",
+  "domain": "authored base Panel rectangular ParametricDomain",
+  "evidence": "Sampled closest-point projection with explicit normal/tangential decomposition",
+  "seamPolicy": "zero scalar offset at structural seams in the bounded coarsening stage",
+  "residualMappedPanels": 46,
+  "controls": 414,
+  "storageBytesEstimate": 3312,
+  "baseRms": 0.00011796580274291358,
+  "correctedRms": 0.00011752668947007265,
+  "offsetRms": 9.273715938744762E-06,
+  "offsetMaximum": 8.100835810594908E-05,
+  "maximumTangentialResidual": 0.0005605357303746075,
+  "authority": {
+    "offset": "moves reconstructed geometry",
+    "normal": "never moves geometry; interpreted differential/shading normal only"
+  }
+}

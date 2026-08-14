@@ -1,0 +1,18 @@
+{
+  "m2": {
+    "mean": 51.69,
+    "p95": 85.11,
+    "maximum": 89.99
+  },
+  "m3": {
+    "mean": 51.20397434245495,
+    "p95": 85.0788840932172,
+    "maximum": 89.99586563252217,
+    "aspectMean": 1.414255610817858,
+    "aspectP95": 2.074971202557143,
+    "aspectMaximum": 13.599499030164827,
+    "foldovers": 0
+  },
+  "method": "four-corner Coons/bilinear; bounded pair coarsening does not yet solve arbitrary multi-chart UV relaxation",
+  "improvedMaterially": false
+}

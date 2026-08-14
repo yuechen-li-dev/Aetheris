@@ -58,18 +58,41 @@ public sealed record QuadAtlas(
 /// <summary>Canonical topology lowering from strict quad Panels, retaining typed triangle transitions only where matching is unresolved.</summary>
 public static class QuadAtlasSurfaceMeshLowering
 {
-    public static CanonicalReconstructionMesh Lower(TriangleSurfaceMesh source, QuadAtlas atlas)
+    public static CanonicalReconstructionMesh Lower(TriangleSurfaceMesh source, QuadAtlas atlas) => Lower(source, atlas, null);
+
+    public static CanonicalReconstructionMesh Lower(TriangleSurfaceMesh source, QuadAtlas atlas,
+        IReadOnlyDictionary<string, SurfaceResidualField>? residualFields, double seamTolerance = 1e-9)
     {
-        var vertices = source.Vertices.Select((p, i) => new SurfaceMeshVertex(i + 1, p)).ToArray();
+        ArgumentNullException.ThrowIfNull(source); ArgumentNullException.ThrowIfNull(atlas);
+        if (!double.IsFinite(seamTolerance) || seamTolerance <= 0) throw new ArgumentOutOfRangeException(nameof(seamTolerance));
+        residualFields ??= new Dictionary<string, SurfaceResidualField>();
+        var correctedCorners = new Dictionary<int, List<Point3D>>();
+        foreach (var chart in atlas.Charts) if (residualFields.TryGetValue(chart.StableId, out var residual))
+        {
+            var uv = new[] { (0d, 0d), (1d, 0d), (1d, 1d), (0d, 1d) };
+            for (var i = 0; i < 4; i++)
+            {
+                var point = residual.Evaluate(chart.StrictPanel.AuthoredPatch, uv[i].Item1, uv[i].Item2).Point;
+                if (!correctedCorners.TryGetValue(chart.CornerVertices[i], out var samples)) correctedCorners[chart.CornerVertices[i]] = samples = [];
+                samples.Add(point);
+            }
+        }
+        foreach (var item in correctedCorners)
+        {
+            var first = item.Value[0]; if (item.Value.Any(point => (point - first).Length > seamTolerance))
+                throw new InvalidOperationException($"Residual fields disagree at shared source vertex {item.Key}; seam reconciliation is required before lowering.");
+        }
+        var vertices = source.Vertices.Select((p, i) => new SurfaceMeshVertex(i + 1,
+            correctedCorners.TryGetValue(i, out var samples) ? new Point3D(samples.Average(x => x.X), samples.Average(x => x.Y), samples.Average(x => x.Z)) : p)).ToArray();
         var patches = new List<SurfacePatch>(); var faceIds = new Dictionary<string, FaceId>(StringComparer.Ordinal); var nextFace = 1;
         foreach (var chart in atlas.Charts)
         {
-            var points = chart.CornerVertices.Select(v => source.Vertices[v]).ToArray(); var normal = (points[1] - points[0]).Cross(points[3] - points[0]); if (!normal.TryNormalize(out normal)) normal = new(0, 0, 1);
-            var x = points[1] - points[0]; if (!x.TryNormalize(out x)) x = new(1, 0, 0);
             var id = new FaceId(nextFace++); faceIds[chart.StableId] = id;
-            patches.Add(new(id, new(SurfaceMeshSupportKind.Plane, new(points[0], Direction3D.Create(normal), Direction3D.Create(x))), [],
+            residualFields.TryGetValue(chart.StableId, out var residual);
+            var adapter = new SurfaceMeshBoundedPatchAdapter(chart.StrictPanel.AuthoredPatch, residual);
+            patches.Add(new(id, new(SurfaceMeshSupportKind.BoundedParametricPatch, BoundedPatch: adapter, BoundedPatchStableId: adapter.StableId), [],
                 [new QuadCell(chart.CornerVertices.Select(v => v + 1).ToArray())], true, chart.StrictPanel.StableId,
-                ChartId: chart.StableId, PlanarPlannerPath: "QuadAtlas strict Panel boundary topology; SurfaceMeshIR plane support is a cell-carrier approximation for non-planar BoundaryPatch"));
+                ChartId: chart.StableId, PlanarPlannerPath: "native bounded parametric patch evaluation; no plane proxy", ResidualFieldId: residual?.StableId));
         }
         foreach (var face in atlas.UnresolvedTriangles)
         {
@@ -161,7 +184,15 @@ public static class QuadAtlasRecovery
                     new Dictionary<string, int>()));
         }
 
-        ImproveMatching(selected, matched, byFace);
+        var initialMate = Enumerable.Repeat(-1, matched.Length).ToArray();
+        foreach (var pair in selected) { initialMate[pair.FaceA] = pair.FaceB; initialMate[pair.FaceB] = pair.FaceA; }
+        var global = GlobalQuadLayoutMatcher.Match(mesh.Triangles.Count,
+            candidates.Select(c => new GlobalMatchingEdge(c.FaceA, c.FaceB, c.Utility, c.Name)).ToArray(), initialMate);
+        var byEdge = candidates.ToDictionary(c => Key(c.FaceA, c.FaceB)); selected.Clear(); Array.Fill(matched, false);
+        for (var face = 0; face < global.Mate.Count; face++) if (global.Mate[face] > face)
+        {
+            var pair = byEdge[Key(face, global.Mate[face])]; selected.Add(pair); matched[face] = matched[global.Mate[face]] = true;
+        }
         selected = selected.OrderBy(c => Math.Min(c.FaceA, c.FaceB)).ToList();
         var labels = Enumerable.Repeat<string?>(null, mesh.Triangles.Count).ToArray();
         for (var i = 0; i < selected.Count; i++) { labels[selected[i].FaceA] = labels[selected[i].FaceB] = $"quad-{i:D6}"; }
@@ -237,8 +268,8 @@ public static class QuadAtlasRecovery
         return result;
     }
 
-    // Deterministic bounded alternating-path search removes avoidable greedy transition faces.
-    // It intentionally stops short of pretending to be a blossom-capable maximum matcher.
+    // Historical M2 bounded alternating-path implementation retained for artifact reproducibility.
+    // M3 invokes GlobalQuadLayoutMatcher above.
     private static void ImproveMatching(List<PairCandidate> selected, bool[] matched, Dictionary<int, PairCandidate[]> byFace)
     {
         var mate = new int[matched.Length]; Array.Fill(mate, -1);
@@ -306,6 +337,9 @@ public static class QuadAtlasRecovery
                 "discrete quarter-turn winding over ordered incident-face loop; adjacent same-sign candidates consolidated to a representative quarter index rather than summing noisy samples; boundary confidence reduced because the fan is open");
         }).ToArray();
     }
+
+    internal static IReadOnlyList<CrossFieldSingularity> DetectSingularitiesForRegularization(TriangleSurfaceMesh mesh, IReadOnlyList<DifferentialSample> field)
+        => DetectSingularities(mesh, field, EdgeFaces(mesh));
 
     private static bool TryBoundary(Triangle a, Triangle b, out int[] boundary)
     {

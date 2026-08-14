@@ -1,0 +1,16 @@
+{
+  "vertices": 35947,
+  "cells": 34726,
+  "quads": 34725,
+  "triangles": 1,
+  "nGons": 0,
+  "quadPercentage": 99.9971203133099,
+  "internalCrackGroups": 0,
+  "intentionalLoops": 5,
+  "nonManifoldEdgeCount": 0,
+  "validation": "Pass",
+  "nativeBoundedPatchSupports": 34725,
+  "planeProxyCount": 0,
+  "deterministicHash": "79f32bff0df53fe32eacfc90087b41f889fbb356161827a2160fb56118e5d58c",
+  "authority": "globally valid pair atlas; coarsened diagnostic atlas is not substituted until its global seam network exists"
+}

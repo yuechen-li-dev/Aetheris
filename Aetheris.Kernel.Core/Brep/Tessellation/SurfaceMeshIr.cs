@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Geometry.Surfaces;
@@ -69,16 +70,39 @@ public sealed record ForeignTrimResolution(
     double RecognitionTolerance,
     string Provenance);
 
-public enum SurfaceMeshSupportKind { Plane, Cylinder, Cone, Sphere, Torus }
+public enum SurfaceMeshSupportKind { Plane, Cylinder, Cone, Sphere, Torus, BoundedParametricPatch }
 public enum SurfaceMeshCellKind { Quad, Triangle, BoundaryPolygon, Singular }
 public enum SurfaceMeshCellProvenance { Unclassified, FeatureBand, Bridge, CoarseRemainder, ResidualTransition }
+/// <summary>
+/// Domain-neutral evaluator for a bounded parametric support. Implementations adapt the
+/// authored geometry owned by a higher layer; SurfaceMeshIR only consumes the first jet
+/// needed for sampling and normal generation.
+/// </summary>
+public interface ISurfaceMeshBoundedPatch
+{
+    string StableId { get; }
+    double MinimumU { get; }
+    double MaximumU { get; }
+    double MinimumV { get; }
+    double MaximumV { get; }
+    SurfaceMeshParametricJet Evaluate(double u, double v);
+    bool TryProject(Point3D point, out double u, out double v);
+}
+
+public sealed record SurfaceMeshParametricJet(Point3D Point, Vector3D Du, Vector3D Dv)
+{
+    public bool TryNormal(out Vector3D normal) => Du.Cross(Dv).TryNormalize(out normal);
+}
+
 public sealed record SurfaceMeshSupport(
     SurfaceMeshSupportKind Kind,
     PlaneSurface? Plane = null,
     CylinderSurface? Cylinder = null,
     ConeSurface? Cone = null,
     SphereSurface? Sphere = null,
-    TorusSurface? Torus = null);
+    TorusSurface? Torus = null,
+    [property: JsonIgnore] ISurfaceMeshBoundedPatch? BoundedPatch = null,
+    string? BoundedPatchStableId = null);
 
 public abstract record SurfaceMeshCell(SurfaceMeshCellKind Kind, IReadOnlyList<int> VertexIds, int RefinementLevel = 0, int? ParentCellId = null)
 {
@@ -107,7 +131,8 @@ public sealed record SurfacePatch(
     IReadOnlyList<SurfaceMeshTrimLoop>? TrimLoopData = null,
     string? ChartId = null,
     string? PlanarPlannerPath = null,
-    PlanarFeatureDecompositionPlan? PlanarFeaturePlan = null);
+    PlanarFeatureDecompositionPlan? PlanarFeaturePlan = null,
+    string? ResidualFieldId = null);
 
 public enum SurfaceMeshDownstreamIntent { Presentation, Manufacturing, Fea }
 

@@ -1,0 +1,14 @@
+{
+  "m2PanelCount": 34692,
+  "m3PairAtlasPanels": 34725,
+  "structuralPanelCount": 34209,
+  "mergedPairCount": 516,
+  "mergeRatio": 1.0150837498903797,
+  "exactCandidateCount": 1000,
+  "deferredCandidateCount": 24392,
+  "averageM2PanelsPerStructuralPanel": 1.0141190914671578,
+  "sourceTrianglesPerStructuralPanel": 2.0301967318541903,
+  "globallyLowerable": false,
+  "scope": "bounded audit of the 1,000 smoothest best-neighbor proposals; disjoint two-Panel unions only",
+  "nextBlocker": "batched/cached projection followed by arbitrary multi-chart four-sided parameterization plus global residual seam reconciliation"
+}

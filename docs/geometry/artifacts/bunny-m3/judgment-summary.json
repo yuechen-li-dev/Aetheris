@@ -1,0 +1,28 @@
+{
+  "uses": [
+    {
+      "decision": "adjacent-face quad route",
+      "hardConstraints": "disk/four corners/nonfolded",
+      "score": "field .50 \u002B shape .35 \u002B normal .15",
+      "candidateCount": 1000,
+      "winner": "trace-specific"
+    },
+    {
+      "decision": "base-only versus scalar offset grid",
+      "hardConstraints": "tangential residual and bounded error",
+      "score": "error - representation complexity",
+      "candidateCount": 1032,
+      "winner": "per admitted merge"
+    }
+  ],
+  "exactAlgorithms": [
+    "Edmonds blossom for maximum-cardinality layout",
+    "Edmonds blossom for disjoint merge selection"
+  ],
+  "notJudgment": [
+    "manifoldness",
+    "boundary-loop count",
+    "seam incidence",
+    "foldover legality"
+  ]
+}

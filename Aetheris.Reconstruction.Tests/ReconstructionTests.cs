@@ -1,6 +1,7 @@
 using System.Text;
 using Aetheris.Kernel.Core.Brep.Tessellation;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Geometry;
 using Aetheris.Surfacing;
 using Xunit;
 
@@ -177,10 +178,124 @@ end_header
         Assert.All(atlas.Charts, chart => Assert.Equal(4, chart.OrderedSides.Count));
     }
 
+    [Fact]
+    public void Offset_field_moves_position_and_its_gradient_corrects_geometric_normal()
+    {
+        var patch = PlanePatch("base"); var values = new double[3, 3]; values[1, 1] = .2;
+        var residual = new SurfaceResidualField("offset", patch.StableId, patch.Domain, new(values, patch.Domain), null,
+            ResidualSeamPolicy.ZeroAtBoundary, Evidence("synthetic known displacement"));
+
+        var sample = residual.Evaluate(patch, .5, .5);
+
+        Assert.Equal(.2, sample.Point.Z, 12); Assert.True(sample.PositionWasDisplaced); Assert.False(sample.NormalCorrectionWasApplied);
+        Assert.InRange((sample.GeometricNormal - new Vector3D(0, 0, 1)).Length, 0, 1e-10); // symmetric peak has zero center gradient
+        Assert.NotEqual(new Vector3D(0, 0, 1), residual.Evaluate(patch, .25, .5).GeometricNormal);
+    }
+
+    [Fact]
+    public void Normal_only_field_never_moves_geometry()
+    {
+        var patch = PlanePatch("normal-base"); var normals = new Vector3D[2, 2];
+        for (var i = 0; i < 2; i++) for (var j = 0; j < 2; j++) normals[i, j] = new(0, .2, 1);
+        var residual = new SurfaceResidualField("normal", patch.StableId, patch.Domain, null, new(normals, patch.Domain),
+            ResidualSeamPolicy.SharedBoundarySamples, Evidence("synthetic normal-only detail"));
+
+        var sample = residual.Evaluate(patch, .37, .61);
+
+        Assert.Equal(patch.EvaluatePoint(.37, .61), sample.Point); Assert.False(sample.PositionWasDisplaced);
+        Assert.Equal(new Vector3D(0, 0, 1), sample.GeometricNormal); Assert.NotEqual(sample.GeometricNormal, sample.InterpretedNormal);
+    }
+
+    [Fact]
+    public void Residual_decomposition_keeps_tangential_error_explicit()
+    {
+        var patch = PlanePatch("decompose"); var normal = SurfaceResidualExtractor.Decompose(new(.5, .5, .1), new(0, 0, 1), patch);
+        var tangential = SurfaceResidualExtractor.Decompose(new(1.1, .5, .1), new(0, 0, 1), patch);
+
+        Assert.Equal(.1, normal.NormalComponent, 6); Assert.InRange(normal.TangentialMagnitude, 0, 1e-5); Assert.True(SurfaceResidualExtractor.IsScalarOffsetSuitable(normal));
+        Assert.True(tangential.TangentialMagnitude > .09); Assert.False(SurfaceResidualExtractor.IsScalarOffsetSuitable(tangential));
+    }
+
+    [Fact]
+    public void Quad_atlas_lowering_uses_native_bounded_patch_support_without_plane_proxy()
+    {
+        var mesh = Grid(3); var (field, _) = StructuredSurfaceRecovery.EstimateField(mesh); var atlas = QuadAtlasRecovery.Build(mesh, field);
+        var canonical = QuadAtlasSurfaceMeshLowering.Lower(mesh, atlas);
+
+        Assert.All(canonical.Document.Patches.Where(p => p.ChartId!.StartsWith("quad-")), p =>
+        {
+            Assert.Equal(SurfaceMeshSupportKind.BoundedParametricPatch, p.Support.Kind); Assert.NotNull(p.Support.BoundedPatch); Assert.Contains("no plane proxy", p.PlanarPlannerPath);
+        });
+        Assert.Equal(0, canonical.InternalCrackGroups); Assert.Equal("Pass", canonical.ValidationStatus);
+        var obj = SurfaceMeshObjExporter.Export(canonical.Document); Assert.Equal(canonical.QuadCount, obj.QuadCount);
+    }
+
+    [Fact]
+    public void Reconciled_zero_boundary_residuals_keep_neighboring_panels_crack_free()
+    {
+        var mesh = Grid(3); var (field, _) = StructuredSurfaceRecovery.EstimateField(mesh); var atlas = QuadAtlasRecovery.Build(mesh, field);
+        var fields = atlas.Charts.ToDictionary(chart => chart.StableId, chart =>
+            new SurfaceResidualField("residual-" + chart.StableId, chart.StrictPanel.AuthoredPatch.StableId, chart.StrictPanel.AuthoredPatch.Domain,
+                new(new double[2, 2], chart.StrictPanel.AuthoredPatch.Domain), null, ResidualSeamPolicy.ZeroAtBoundary, Evidence("zero seam fixture")));
+
+        var canonical = QuadAtlasSurfaceMeshLowering.Lower(mesh, atlas, fields);
+
+        Assert.Equal(0, canonical.InternalCrackGroups); Assert.Equal("Pass", canonical.ValidationStatus);
+        Assert.All(canonical.Document.Patches, patch => Assert.NotNull(patch.ResidualFieldId));
+    }
+
+    [Fact]
+    public void Global_matching_finds_augmenting_reroute_that_local_greedy_pairing_misses()
+    {
+        var edges = new[] { new GlobalMatchingEdge(0, 1, 10, "greedy"), new(0, 2, 5, "left"), new(1, 3, 5, "right") };
+        var result = GlobalQuadLayoutMatcher.Match(4, edges, new[] { 1, 0, -1, -1 });
+
+        Assert.Equal(2, result.MatchedEdges); Assert.Equal(2, result.Mate[0]); Assert.Equal(3, result.Mate[1]); Assert.Equal(1, result.Augmentations);
+    }
+
+    [Fact]
+    public void Smooth_tiny_quad_panels_coarsen_under_bounded_structural_merge()
+    {
+        var mesh = Grid(4); var (field, _) = StructuredSurfaceRecovery.EstimateField(mesh); var atlas = QuadAtlasRecovery.Build(mesh, field);
+        var result = StructuralPanelCoarsener.Coarsen(mesh, atlas);
+
+        Assert.True(result.Panels.Count < atlas.Charts.Count, $"merged={result.MergedPairCount} topo={result.RejectedTopology} feature={result.RejectedFeature} uv={result.RejectedParameterization} residual={result.RejectedResidual}"); Assert.True(result.MergedPairCount > 0); Assert.True(result.MergeRatio > 1);
+        Assert.All(result.Panels, panel => Assert.True(PanelConcept.Validate(panel.Panel).Satisfies));
+    }
+
+    [Fact]
+    public void Hard_crease_evidence_rejects_cross_feature_merge()
+    {
+        var mesh = CreasedGrid(); var (field, _) = StructuredSurfaceRecovery.EstimateField(mesh); var atlas = QuadAtlasRecovery.Build(mesh, field);
+        var result = StructuralPanelCoarsener.Coarsen(mesh, atlas, new(MaximumFeatureAngleDegrees: 5));
+
+        Assert.All(result.Panels.Where(panel => panel.SourceChartIds.Count > 1), panel => Assert.InRange(panel.NormalDiscontinuityDegrees, 0, 5));
+    }
+
+    [Fact]
+    public void Cross_field_regularization_is_deterministic_and_preserves_detected_global_index()
+    {
+        var mesh = Grid(4); var (field, _) = StructuredSurfaceRecovery.EstimateField(mesh);
+        var first = CrossFieldRegularizer.Regularize(mesh, field, 3); var second = CrossFieldRegularizer.Regularize(mesh, field, 3);
+
+        Assert.True(first.Report.GlobalIndexPreserved); Assert.True(first.Report.OutputSingularities <= first.Report.InputSingularities);
+        Assert.Equal(first.Report, second.Report); Assert.Equal(first.Field.Select(x => x.CrossDirection), second.Field.Select(x => x.CrossDirection));
+    }
+
+    private static ResidualFieldEvidence Evidence(string method) => new(PredicateEvidenceKind.Sampled, "fixture", method, 0, 0, 0, 0, 9);
+    private static BoundedParametricPatch3 PlanePatch(string id) => BoundedParametricPatch3.Procedural(id,
+        new(new(0, 1), new(0, 1)), (u, v) => new(new(u, v, 0), new(1, 0, 0), new(0, 1, 0), Direction3D.Create(new(0, 0, 1)), false), "fixture");
+
     private static TriangleSurfaceMesh Square() => new([new(0, 0, 0), new(1, 0, 0), new(1, 1, 0), new(0, 1, 0)], [new(0, 1, 2), new(0, 2, 3)], null, "square", "fixture", new Dictionary<string, string>());
     private static TriangleSurfaceMesh Grid(int n)
     {
         var p = new List<Point3D>(); for (var j = 0; j < n; j++) for (var i = 0; i < n; i++) p.Add(new(i / (double)(n - 1), j / (double)(n - 1), .02 * i * j)); var t = new List<Triangle>(); for (var j = 0; j < n - 1; j++) for (var i = 0; i < n - 1; i++) { var a = j * n + i; t.Add(new(a, a + 1, a + n + 1)); t.Add(new(a, a + n + 1, a + n)); } return new(p, t, null, "grid", "fixture", new Dictionary<string, string>());
+    }
+    private static TriangleSurfaceMesh CreasedGrid()
+    {
+        var p = new List<Point3D>(); for (var j = 0; j < 3; j++) for (var i = 0; i < 3; i++) p.Add(new(i, j, i < 2 ? 0 : 1));
+        var t = new List<Triangle>(); for (var j = 0; j < 2; j++) for (var i = 0; i < 2; i++) { var a = j * 3 + i; t.Add(new(a, a + 1, a + 4)); t.Add(new(a, a + 4, a + 3)); }
+        return new(p, t, null, "creased-grid", "fixture", new Dictionary<string, string>());
     }
 
     private static TriangleSurfaceMesh Ring()

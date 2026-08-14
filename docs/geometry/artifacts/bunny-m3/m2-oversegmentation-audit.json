@@ -1,0 +1,43 @@
+{
+  "m2Panels": 34692,
+  "measuredM3PairPanels": 34725,
+  "classificationsAreOverlapping": true,
+  "classifications": {
+    "real topology / detected singularity proximity": 5754,
+    "source boundary": 201,
+    "parameterization limitation (angle distortion \u003E= 75 degrees)": 4364,
+    "likely removable through admitted bounded merge": 1032,
+    "local triangle-pairing artifact / unproven necessity": 28971
+  },
+  "explanation": "M2 creates exactly one Panel per matched adjacent triangle pair; panel existence therefore follows source face density before topology, feature, or residual necessity is tested.",
+  "mergePressure": {
+    "neighborPairs": 69338,
+    "admittedPairs": 516,
+    "rejectedTopology": 0,
+    "rejectedFeature": 0,
+    "rejectedParameterization": 175,
+    "rejectedResidual": 244
+  },
+  "representatives": [
+    "quad-031925\u002Bquad-033758: base-only; baseRms=3.440784963605128E-06; correctedRms=3.440784504891414E-06; tangentMax=6.352715587575599E-06",
+    "quad-031368\u002Bquad-031369: base-only; baseRms=1.1687800402191081E-05; correctedRms=1.1687799460690751E-05; tangentMax=1.9759629266468812E-05",
+    "quad-031637\u002Bquad-034428: base-only; baseRms=2.1844894667983304E-06; correctedRms=2.184482271664698E-06; tangentMax=3.7020145280423674E-06",
+    "quad-031016\u002Bquad-031241: base-only; baseRms=1.9822499840459547E-05; correctedRms=1.9822481621982765E-05; tangentMax=9.91078703156421E-06",
+    "quad-031820\u002Bquad-033758: base-only; baseRms=2.1525510179044474E-06; correctedRms=2.1525505344990204E-06; tangentMax=3.6809758906481284E-06",
+    "quad-032002\u002Bquad-032074: base-only; baseRms=3.7084894900149514E-05; correctedRms=3.708496549408723E-05; tangentMax=6.385745029430018E-06",
+    "quad-034354\u002Bquad-034407: base-only; baseRms=9.301190472712202E-07; correctedRms=9.301041572776672E-07; tangentMax=1.8185096149911458E-06",
+    "quad-031208\u002Bquad-031760: base-only; baseRms=2.0752700785285335E-05; correctedRms=2.0752686130571403E-05; tangentMax=1.0510229928729393E-05",
+    "quad-033507\u002Bquad-033557: base-only; baseRms=2.5696876213795353E-05; correctedRms=2.569687484853427E-05; tangentMax=3.733548605834995E-05",
+    "quad-034540\u002Bquad-034584: base-only; baseRms=2.720404938917846E-06; correctedRms=2.720404556189607E-06; tangentMax=5.485235154684635E-06",
+    "quad-031002\u002Bquad-031225: offset-grid; baseRms=0.00016728678144181116; correctedRms=0.00016728678036720287; tangentMax=0.0005289297665636197",
+    "quad-031132\u002Bquad-032948: base-only; baseRms=1.92069436673282E-05; correctedRms=1.920693566406317E-05; tangentMax=1.0152928952014562E-05",
+    "quad-034357\u002Bquad-034410: base-only; baseRms=1.0018796294761087E-06; correctedRms=1.0018295203765737E-06; tangentMax=1.8304338625974234E-06",
+    "quad-033451\u002Bquad-033505: base-only; baseRms=1.1501667940807772E-05; correctedRms=1.1501664181224256E-05; tangentMax=2.0486651515677135E-05",
+    "quad-032922\u002Bquad-032979: base-only; baseRms=2.1757057611705952E-05; correctedRms=2.175711711032971E-05; tangentMax=2.0216543366891443E-05",
+    "quad-030908\u002Bquad-032218: base-only; baseRms=1.9227572083383396E-05; correctedRms=1.922757191789958E-05; tangentMax=9.30515565936692E-06",
+    "quad-031704\u002Bquad-032661: base-only; baseRms=1.0671285539072458E-06; correctedRms=1.0670513435302317E-06; tangentMax=2.5537082750996156E-06",
+    "quad-031638\u002Bquad-031696: base-only; baseRms=2.218878743433714E-05; correctedRms=2.2188785839755927E-05; tangentMax=1.8058096959447103E-05",
+    "quad-031925\u002Bquad-032639: base-only; baseRms=3.3546165970667047E-06; correctedRms=3.3545947504553232E-06; tangentMax=6.4229154699061E-06",
+    "quad-013071\u002Bquad-013576: base-only; baseRms=2.6095233303937262E-05; correctedRms=2.609521004172053E-05; tangentMax=3.494959683490661E-05"
+  ]
+}

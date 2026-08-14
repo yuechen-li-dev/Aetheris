@@ -1,0 +1,13 @@
+{
+  "inputSingularities": 1603,
+  "outputSingularities": 1603,
+  "cancelledNet": 0,
+  "retainedFeatureFaces": 6946,
+  "retainedBoundaryFaces": 221,
+  "acceptedIterations": 0,
+  "inputIndexSum": -3,
+  "outputIndexSum": -3,
+  "globalIndexPreserved": true,
+  "objective": "principal-direction alignment \u002B neighbor smoothness \u002B fixed feature/boundary evidence \u002B singularity sparsity",
+  "deterministicPolicy": "synchronous quarter-equivalent averaging; admit only non-increasing defect count with preserved global detected index"
+}

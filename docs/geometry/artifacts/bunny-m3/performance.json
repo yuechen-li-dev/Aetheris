@@ -1,0 +1,14 @@
+{
+  "timingsMilliseconds": {
+    "boundedPairCoarseningAndResidualExtraction": 120908.9166,
+    "crossField": 421.2923,
+    "diagnosticsAggregationAndSerialization": 60964.5734,
+    "fieldRegularization": 493.6539,
+    "globalLayoutAndPanelFit": 36354.3048,
+    "nativeBoundedPatchLowering": 227.4973,
+    "sourceLoad": 74.346,
+    "sourceValidation": 100.1708,
+    "total": 219146.655
+  },
+  "workingSetBytes": 1111654400
+}

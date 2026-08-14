@@ -36,6 +36,7 @@
   <Project Path="tools/Aetheris.BunnyM0/Aetheris.BunnyM0.csproj" />
   <Project Path="tools/Aetheris.BunnyM1/Aetheris.BunnyM1.csproj" />
   <Project Path="tools/Aetheris.BunnyM2/Aetheris.BunnyM2.csproj" />
+  <Project Path="tools/Aetheris.BunnyM3/Aetheris.BunnyM3.csproj" />
   <Project Path="tools/Aetheris.Continuum.AttentionE0/Aetheris.Continuum.AttentionE0.csproj" />
   <Project Path="tools/Aetheris.Continuum.AttentionE1/Aetheris.Continuum.AttentionE1.csproj" />
   <Project Path="Aetheris.Forge/Aetheris.Forge.csproj" />

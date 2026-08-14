@@ -1,0 +1,12 @@
+{
+  "sourceTriangles": 69451,
+  "m2Panels": 34692,
+  "m3PairAtlasPanels": 34725,
+  "m3StructuralCandidates": 34209,
+  "residualControls": 414,
+  "derivedCanonicalCells": 34726,
+  "sourceTrianglesPerStructuralPanel": 2.0301967318541903,
+  "m2PanelsPerM3Panel": 1.0141190914671578,
+  "sourceMeshBytes": 3033195,
+  "m3ResidualBytesEstimate": 3312
+}

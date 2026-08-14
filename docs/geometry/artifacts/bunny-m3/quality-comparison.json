@@ -1,0 +1,16 @@
+{
+  "m2": {
+    "sourcePanelRms": 6.273042597053603E-05,
+    "remeshSourceRms": 3.045295353210311E-05,
+    "normalMeanDegrees": 4.2433,
+    "normalRmsDegrees": 14.7434,
+    "normalMaxDegrees": 90
+  },
+  "m3": {
+    "positionAndNormalCanonicalReevaluation": "not repeated: native support changes carrier, not authored Panel geometry",
+    "representativeCoarsenedBaseRms": 3.924316843605095E-05,
+    "representativeCoarsenedCorrectedRms": 3.908451864622847E-05,
+    "maximumTangentialResidual": 0.0005605357303746075
+  },
+  "honesty": "No improved global normal-tail or Hausdorff claim is made without a residual-aware globally coarsened remesh."
+}

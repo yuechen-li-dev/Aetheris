@@ -1,0 +1,7 @@
+{
+  "internalCracks": 0,
+  "intentionalOpenLoops": 5,
+  "nonManifoldEdgeCount": 0,
+  "residualSeamPolicy": "shared corrected corner position within explicit tolerance; disagreement rejects lowering; bounded coarsener fits zero seam offsets",
+  "coarsenedAtlasGloballyReconciled": false
+}

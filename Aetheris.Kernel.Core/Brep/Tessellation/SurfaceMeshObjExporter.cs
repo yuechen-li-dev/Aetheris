@@ -40,7 +40,7 @@ public static class SurfaceMeshObjExporter
                 {
                     var point = vertexById[vertexId].Position;
                     var uv = EvaluateUv(patch, point);
-                    var normal = EvaluateNormal(patch, point);
+                    var normal = EvaluateNormal(patch, point, uv);
                     var vt = Intern(textureCoordinates, textureIndex, uv.U, uv.V);
                     var vn = Intern(normals, normalIndex, normal.X, normal.Y, normal.Z);
                     corners.Add(new ObjCorner(positionIndex[vertexId], vt, vn));
@@ -96,10 +96,11 @@ public static class SurfaceMeshObjExporter
         SurfaceMeshSupportKind.Cone when patch.Support.Cone is { } cone => ConeUv(cone, point),
         SurfaceMeshSupportKind.Sphere when patch.Support.Sphere is { } sphere => SphereUv(sphere, point),
         SurfaceMeshSupportKind.Torus when patch.Support.Torus is { } torus => TorusUv(torus, point),
+        SurfaceMeshSupportKind.BoundedParametricPatch when patch.Support.BoundedPatch is { } bounded && bounded.TryProject(point, out var u, out var v) => (u, v),
         _ => throw new InvalidOperationException($"Patch {patch.FaceId.Value} has no parameterization."),
     };
 
-    private static Vector3D EvaluateNormal(SurfacePatch patch, Point3D point)
+    private static Vector3D EvaluateNormal(SurfacePatch patch, Point3D point, (double U, double V) uv)
     {
         Vector3D normal = patch.Support.Kind switch
         {
@@ -108,6 +109,7 @@ public static class SurfaceMeshObjExporter
             SurfaceMeshSupportKind.Cone when patch.Support.Cone is { } cone => cone.Normal(ConeUv(cone, point).U).ToVector(),
             SurfaceMeshSupportKind.Sphere when patch.Support.Sphere is { } sphere => Direction3D.Create(point - sphere.Center).ToVector(),
             SurfaceMeshSupportKind.Torus when patch.Support.Torus is { } torus => torus.Normal(TorusUv(torus, point).U, TorusUv(torus, point).V).ToVector(),
+            SurfaceMeshSupportKind.BoundedParametricPatch when patch.Support.BoundedPatch is { } bounded && bounded.Evaluate(uv.U, uv.V).TryNormal(out var evaluated) => evaluated,
             _ => throw new InvalidOperationException($"Patch {patch.FaceId.Value} has no exact normal evaluator."),
         };
         return patch.SameSense ? normal : -normal;

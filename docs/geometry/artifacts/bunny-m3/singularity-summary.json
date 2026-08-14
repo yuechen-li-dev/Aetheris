@@ -1,0 +1,10 @@
+{
+  "m2": 1603,
+  "m3": 1603,
+  "cancelled": 0,
+  "retainedFeatureFaces": 6946,
+  "retainedBoundaryFaces": 221,
+  "globalIndexPreserved": true,
+  "uncertainCases": 1603,
+  "note": "Retained cases remain heuristic winding evidence; no certification is claimed."
+}

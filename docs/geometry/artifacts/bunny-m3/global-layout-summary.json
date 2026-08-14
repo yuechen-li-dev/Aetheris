@@ -1,0 +1,12 @@
+{
+  "algorithm": "deterministic Edmonds blossom maximum-cardinality matching after hard disk/four-corner/foldover filtering",
+  "transitionTrianglesBefore": 67,
+  "transitionTrianglesAfter": 1,
+  "parityLowerBound": 1,
+  "explanation": "An odd source face count makes zero impossible for pair-only layout; eliminating the last transition requires a larger chart operation.",
+  "additionalMatchedPairs": 33,
+  "transitionFacesRemoved": 66,
+  "meanFieldDeviationDegrees": 20.72099153977918,
+  "deterministicHash": "2d7a91833163f326fea017c96f1dafc2107682e6fb85e9fd6b86e70ab90b418f",
+  "judgment": "Judgment scores geometric options before the exact graph stage; it does not replace matching."
+}

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="428.749mm" height="649.298mm" viewBox="0 0 428.749 649.298">
+<rect width="100%" height="100%" fill="white"/>
+<g id="sheet-regions" fill="#dbeafe" fill-opacity="0.55" stroke="#0f172a" stroke-width="0.45">
+<polygon id="flat-AngledServiceFlange" points="404.049,263.051 355.535,263.051 355.535,390.051 404.049,390.051 416.749,377.351 416.749,275.751"/>
+<polygon id="flat-FrontLipBend" points="67.921,66.95 309.221,66.95 309.221,55.48 67.921,55.48"/>
+<polygon id="flat-FrontMountingFlange" points="67.921,24.7 67.921,55.48 309.221,55.48 309.221,24.7 296.521,12 252.071,12 252.071,37.4 245.721,43.75 131.421,43.75 125.071,37.4 125.071,12 80.621,12"/>
+<polygon id="flat-FrontWall" points="309.221,115.972 300.331,115.972 300.331,128.543 76.811,128.543 76.811,115.972 67.921,115.972 67.921,66.95 309.221,66.95"/>
+<polygon id="flat-FrontWallBend" points="76.811,140.014 300.331,140.014 300.331,128.543 76.811,128.543"/>
+<polygon id="flat-LeftWall" points="12,167.316 12,481.981 37.4,507.381 56.45,507.381 56.45,141.916 37.4,141.916"/>
+<polygon id="flat-LeftWallBend" points="67.921,141.916 67.921,507.381 56.45,507.381 56.45,141.916"/>
+<polygon id="flat-MainDeck" points="300.331,141.916 300.331,140.014 76.811,140.014 76.811,141.916 67.921,141.916 67.921,507.381 76.811,507.381 76.811,508.314 300.331,508.314 300.331,507.381 309.221,507.381 309.221,141.916"/>
+<polygon id="flat-RearLipBend" points="67.921,581.377 309.221,581.377 309.221,592.848 67.921,592.848"/>
+<polygon id="flat-RearMountingFlange" points="118.721,637.298 80.621,637.298 67.921,624.598 67.921,592.848 309.221,592.848 309.221,624.598 296.521,637.298 258.421,637.298 252.071,630.948 252.071,611.898 245.721,605.548 131.421,605.548 125.071,611.898 125.071,630.948"/>
+<polygon id="flat-RearWall" points="300.331,532.355 300.331,519.784 76.811,519.784 76.811,532.355 67.921,532.355 67.921,581.377 309.221,581.377 309.221,532.355"/>
+<polygon id="flat-RearWallBend" points="76.811,508.314 300.331,508.314 300.331,519.784 76.811,519.784"/>
+<polygon id="flat-RightWall" points="352.441,154.616 352.441,184.311 337.201,199.551 337.201,263.051 349.8,263.051 349.8,390.051 337.201,390.051 337.201,453.551 352.441,468.791 352.441,494.681 339.741,507.381 320.691,507.381 320.691,141.916 339.741,141.916"/>
+<polygon id="flat-RightWallBend" points="309.221,141.916 309.221,507.381 320.691,507.381 320.691,141.916"/>
+<polygon id="flat-ServiceRampBend" points="349.8,263.051 349.8,390.051 355.535,390.051 355.535,263.051"/>
+</g>
+<g id="cut-contours" fill="white" stroke="#dc2626" stroke-width="0.5">
+<polygon id="VentSlotLeft" points="109.678,203.999 128.728,203.999 128.728,292.899 109.678,292.899"/>
+<polygon id="VentSlotRight" points="192.228,292.899 173.178,292.899 173.178,203.999 192.228,203.999"/>
+</g>
+<g id="bend-lines" fill="none" stroke="#2563eb" stroke-width="0.45" stroke-dasharray="3 2">
+<line x1="67.921" y1="61.215" x2="309.221" y2="61.215"/>
+<line x1="76.811" y1="134.278" x2="300.331" y2="134.278"/>
+<line x1="62.185" y1="141.916" x2="62.185" y2="507.381"/>
+<line x1="67.921" y1="587.112" x2="309.221" y2="587.112"/>
+<line x1="76.811" y1="514.049" x2="300.331" y2="514.049"/>
+<line x1="314.956" y1="141.916" x2="314.956" y2="507.381"/>
+<line x1="352.668" y1="263.051" x2="352.668" y2="390.051"/>
+</g>
+<g id="bend-labels" stroke="none" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="3" text-anchor="middle" dominant-baseline="central">
+<rect x="177.971" y="63.015" width="21.2" height="4.4" rx="0.8" fill="white" fill-opacity="0.88"/>
+<text x="188.571" y="65.215" fill="#1d4ed8">Up 90° R6.35</text>
+<rect x="177.971" y="136.078" width="21.2" height="4.4" rx="0.8" fill="white" fill-opacity="0.88"/>
+<text x="188.571" y="138.278" fill="#1d4ed8">Up 90° R6.35</text>
+<rect x="47.585" y="322.449" width="21.2" height="4.4" rx="0.8" fill="white" fill-opacity="0.88"/>
+<text x="58.185" y="324.649" fill="#1d4ed8">Up 90° R6.35</text>
+<rect x="176.321" y="588.912" width="24.5" height="4.4" rx="0.8" fill="white" fill-opacity="0.88"/>
+<text x="188.571" y="591.112" fill="#1d4ed8">Down 90° R6.35</text>
+<rect x="177.971" y="515.849" width="21.2" height="4.4" rx="0.8" fill="white" fill-opacity="0.88"/>
+<text x="188.571" y="518.049" fill="#1d4ed8">Up 90° R6.35</text>
+<rect x="300.356" y="322.449" width="21.2" height="4.4" rx="0.8" fill="white" fill-opacity="0.88"/>
+<text x="310.956" y="324.649" fill="#1d4ed8">Up 90° R6.35</text>
+<rect x="338.068" y="324.351" width="21.2" height="4.4" rx="0.8" fill="white" fill-opacity="0.88"/>
+<text x="348.668" y="326.551" fill="#1d4ed8">Up 45° R6.35</text>
+</g>
+<text x="4" y="6" font-family="sans-serif" font-size="3" fill="#334155">Partial · K=0.5 · SHA-256 ab5a744dd032</text>
+</svg>

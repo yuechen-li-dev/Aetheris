@@ -58,5 +58,20 @@ public sealed class SheetMetalCliTests
         finally{Directory.Delete(dir,true);}
     }
 
+    [Fact]
+    public void RecoverAndCompare_ProvideLlmBriefAndLocalizedResiduals()
+    {
+        var dir=Path.Combine(Path.GetTempPath(),$"aetheris-sheetmetal-m2-{Guid.NewGuid():N}");Directory.CreateDirectory(dir);
+        try
+        {
+            var source=Path.Combine(RepoRoot,"testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp");var intent=Path.Combine(RepoRoot,"docs/modules/sheetmetal/artifacts/m2/ctc03-idiomatic.firmament");
+            var output=new StringWriter();var error=new StringWriter();var recover=CliRunner.Run(["sheetmetal","recover",source,"--out-dir",dir,"--json"],output,error);
+            Assert.Equal(0,recover);Assert.Empty(error.ToString());Assert.Contains("Ambiguities:",File.ReadAllText(Path.Combine(dir,"reconstruction-brief.md")));Assert.True(File.Exists(Path.Combine(dir,"recovery-summary.json")));
+            output.GetStringBuilder().Clear();var compare=CliRunner.Run(["sheetmetal","compare",source,intent,"--json"],output,error);Assert.Equal(0,compare);Assert.Empty(error.ToString());
+            using var report=JsonDocument.Parse(output.ToString());Assert.Equal("PassWithKnownDifferences",report.RootElement.GetProperty("comparison").GetProperty("status").GetString());Assert.Equal(7,report.RootElement.GetProperty("comparison").GetProperty("bends").GetArrayLength());
+        }
+        finally{Directory.Delete(dir,true);}
+    }
+
     private static string FindRepoRoot(){var dir=new DirectoryInfo(AppContext.BaseDirectory);while(dir is not null&&!File.Exists(Path.Combine(dir.FullName,"Aetheris.slnx")))dir=dir.Parent;return dir?.FullName??throw new InvalidOperationException("Repo root not found.");}
 }

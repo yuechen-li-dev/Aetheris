@@ -63,7 +63,7 @@ public static class SheetMetalFlattener
         }
 
         var flatRegions=mappings.Values.OrderBy(m=>m.Region.StableId,StringComparer.Ordinal).Select(m=>new FlatRegion2D(
-            $"flat-{m.Region.StableId}",m.Region.StableId,SheetRegionKind.Planar,NormalizePolygon(m.Region.Boundary3D.Select(m.Map)),"composed analytic plane-to-flat transform")).ToList();
+            $"flat-{m.Region.StableId}",m.Region.StableId,SheetRegionKind.Planar,NormalizeSourcePolygon(m.Region.Boundary3D.Select(m.Map)),"exact ordered source-edge vertices through composed analytic plane-to-flat transform")).ToList();
         flatRegions.AddRange(bendRegions.OrderBy(r=>r.StableId,StringComparer.Ordinal));
         var cuts=new List<FlatCutLoop>();
         foreach(var feature in part.Features.OrderBy(f=>f.StableId,StringComparer.Ordinal))
@@ -74,7 +74,7 @@ public static class SheetMetalFlattener
             {
                 var c=mapping.Map(feature.Center);loop=Enumerable.Range(0,48).Select(i=>{var a=2*Math.PI*i/48d;return new SheetPoint2(c.X+diameter/2d*Math.Cos(a),c.Y+diameter/2d*Math.Sin(a));}).ToArray();
             }
-            else loop=NormalizePolygon(feature.Boundary3D.Select(mapping.Map));
+            else loop=NormalizeSourcePolygon(feature.Boundary3D.Select(mapping.Map));
             if(loop.Count>=3)cuts.Add(new(feature.StableId,feature.Kind,loop,feature.OwningRegionId));
             else diagnostics.Add(new(SheetMetalDiagnosticCodes.FeatureMappingFailure,SheetMetalDiagnosticSeverity.Warning,$"Feature '{feature.StableId}' did not yield a closed 2D loop."));
         }
@@ -114,7 +114,29 @@ public static class SheetMetalFlattener
         .FirstOrDefault()?.Cylinder?.AxisLength??0d;
     private static Point3D ProjectToPlane(Point3D point,SheetPlaneReference plane)=>point-plane.Normal*((point-plane.Origin).Dot(plane.Normal));
     private static Point3D Centroid(IReadOnlyList<Point3D> points)=>points.Count==0?Point3D.Origin:new(points.Average(p=>p.X),points.Average(p=>p.Y),points.Average(p=>p.Z));
-    private static IReadOnlyList<SheetPoint2> NormalizePolygon(IEnumerable<SheetPoint2> points)=>ConvexHull(points.DistinctBy(p=>(Math.Round(p.X,9),Math.Round(p.Y,9))));
+    public static IReadOnlyList<SheetPoint2> NormalizeSourcePolygon(IEnumerable<SheetPoint2> points)
+    {
+        var ordered=points.DistinctBy(p=>(Math.Round(p.X,9),Math.Round(p.Y,9))).ToArray();
+        if(ordered.Length<3)return ordered;
+        if(Math.Abs(SignedArea(ordered))>1e-10&&!SelfIntersects(ordered))return ordered;
+        return ConvexHull(ordered);
+    }
+
+    private static double SignedArea(IReadOnlyList<SheetPoint2> p){var sum=0d;for(var i=0;i<p.Count;i++){var q=p[(i+1)%p.Count];sum+=p[i].X*q.Y-q.X*p[i].Y;}return sum/2d;}
+    private static bool SelfIntersects(IReadOnlyList<SheetPoint2> p)
+    {
+        for(var i=0;i<p.Count;i++)for(var j=i+1;j<p.Count;j++)
+        {
+            if(j==i||j==(i+1)%p.Count||i==(j+1)%p.Count)continue;
+            if(Intersects(p[i],p[(i+1)%p.Count],p[j],p[(j+1)%p.Count]))return true;
+        }
+        return false;
+        static bool Intersects(SheetPoint2 a,SheetPoint2 b,SheetPoint2 c,SheetPoint2 d)
+        {
+            var ab1=Cross(a,b,c);var ab2=Cross(a,b,d);var cd1=Cross(c,d,a);var cd2=Cross(c,d,b);
+            return Math.Sign(ab1)!=Math.Sign(ab2)&&Math.Sign(cd1)!=Math.Sign(cd2);
+        }
+    }
 
     private static IReadOnlyList<SheetPoint2> ConvexHull(IEnumerable<SheetPoint2> input)
     {
@@ -122,8 +144,15 @@ public static class SheetMetalFlattener
         var lower=new List<SheetPoint2>();foreach(var x in p){while(lower.Count>=2&&Cross(lower[^2],lower[^1],x)<=1e-10)lower.RemoveAt(lower.Count-1);lower.Add(x);}var upper=new List<SheetPoint2>();foreach(var x in p.Reverse()){while(upper.Count>=2&&Cross(upper[^2],upper[^1],x)<=1e-10)upper.RemoveAt(upper.Count-1);upper.Add(x);}return lower.Take(lower.Count-1).Concat(upper.Take(upper.Count-1)).ToArray();
     }
     private static IReadOnlyList<(string A,string B)> FindOverlaps(IReadOnlyList<FlatRegion2D> regions){var result=new List<(string,string)>();for(var i=0;i<regions.Count;i++)for(var j=i+1;j<regions.Count;j++)if(PolygonsOverlap(regions[i].Boundary,regions[j].Boundary))result.Add((regions[i].SourceRegionId,regions[j].SourceRegionId));return result;}
-    private static bool PolygonsOverlap(IReadOnlyList<SheetPoint2> a,IReadOnlyList<SheetPoint2>b){if(a.Count<3||b.Count<3)return false;foreach(var axis in Axes(a).Concat(Axes(b))){var aa=a.Select(p=>Dot(p,axis)).ToArray();var bb=b.Select(p=>Dot(p,axis)).ToArray();if(Math.Min(aa.Max(),bb.Max())-Math.Max(aa.Min(),bb.Min())<=1e-7)return false;}return true;}
-    private static IEnumerable<SheetPoint2> Axes(IReadOnlyList<SheetPoint2> p){for(var i=0;i<p.Count;i++){var e=Sub(p[(i+1)%p.Count],p[i]);yield return Normalize(new SheetPoint2(-e.Y,e.X));}}
+    private static bool PolygonsOverlap(IReadOnlyList<SheetPoint2> a,IReadOnlyList<SheetPoint2>b)
+    {
+        if(a.Count<3||b.Count<3)return false;
+        for(var i=0;i<a.Count;i++)for(var j=0;j<b.Count;j++)if(ProperCross(a[i],a[(i+1)%a.Count],b[j],b[(j+1)%b.Count]))return true;
+        return InteriorProbes(a).Any(p=>PointInPolygonStrict(p,b))||InteriorProbes(b).Any(p=>PointInPolygonStrict(p,a));
+        static bool ProperCross(SheetPoint2 p,SheetPoint2 q,SheetPoint2 r,SheetPoint2 s){var a1=Cross(p,q,r);var a2=Cross(p,q,s);var b1=Cross(r,s,p);var b2=Cross(r,s,q);return a1*a2< -1e-14&&b1*b2< -1e-14;}
+        static bool PointInPolygonStrict(SheetPoint2 point,IReadOnlyList<SheetPoint2> polygon){var inside=false;for(var i=0;i<polygon.Count;i++){var a=polygon[i];var b=polygon[(i+1)%polygon.Count];if(Math.Abs(Cross(a,b,point))<1e-8&&point.X>=Math.Min(a.X,b.X)-1e-8&&point.X<=Math.Max(a.X,b.X)+1e-8&&point.Y>=Math.Min(a.Y,b.Y)-1e-8&&point.Y<=Math.Max(a.Y,b.Y)+1e-8)return false;if((a.Y>point.Y)!=(b.Y>point.Y)&&point.X<(b.X-a.X)*(point.Y-a.Y)/(b.Y-a.Y)+a.X)inside=!inside;}return inside;}
+        static IEnumerable<SheetPoint2> InteriorProbes(IReadOnlyList<SheetPoint2> p){var sign=SignedArea(p)>=0?1d:-1d;for(var i=0;i<p.Count;i++){var a=p[i];var b=p[(i+1)%p.Count];var dx=b.X-a.X;var dy=b.Y-a.Y;var len=Math.Sqrt(dx*dx+dy*dy);if(len>1e-12)yield return new((a.X+b.X)/2-sign*dy/len*1e-6,(a.Y+b.Y)/2+sign*dx/len*1e-6);}}
+    }
     private static string Hash(IReadOnlyList<FlatRegion2D> regions,IReadOnlyList<FlatBendLine>bends,IReadOnlyList<FlatCutLoop>cuts,SheetMetalFlattenPolicy policy,FlatPatternStatus status){var sb=new StringBuilder().Append(status).Append('|').Append(Q(policy.KFactor));foreach(var r in regions.OrderBy(x=>x.StableId,StringComparer.Ordinal)){sb.Append('|').Append(r.StableId);foreach(var p in r.Boundary)sb.Append('|').Append(Q(p.X)).Append(',').Append(Q(p.Y));}foreach(var b in bends.OrderBy(x=>x.BendId,StringComparer.Ordinal))sb.Append('|').Append(b.BendId).Append(':').Append(Q(b.BendAngleRadians)).Append(':').Append(Q(b.BendAllowance));foreach(var c in cuts.OrderBy(x=>x.FeatureId,StringComparer.Ordinal))sb.Append('|').Append(c.FeatureId);return SheetMetalRecognizer.StableHash(sb.ToString());static string Q(double value)=>Math.Round(value,9,MidpointRounding.AwayFromZero).ToString("R",CultureInfo.InvariantCulture);}
     private static double Cross(SheetPoint2 a,SheetPoint2 b,SheetPoint2 c)=>(b.X-a.X)*(c.Y-a.Y)-(b.Y-a.Y)*(c.X-a.X);
     private static SheetPoint2 Add(SheetPoint2 a,SheetPoint2 b)=>new(a.X+b.X,a.Y+b.Y);private static SheetPoint2 Sub(SheetPoint2 a,SheetPoint2 b)=>new(a.X-b.X,a.Y-b.Y);private static SheetPoint2 Scale(SheetPoint2 a,double s)=>new(a.X*s,a.Y*s);private static double Dot(SheetPoint2 a,SheetPoint2 b)=>a.X*b.X+a.Y*b.Y;private static SheetPoint2 Normalize(SheetPoint2 a){var l=Math.Sqrt(Dot(a,a));return l<=1e-12?new(1,0):Scale(a,1/l);}private static Vector3D Normalize(Vector3D v)=>v.TryNormalize(out var n)?n:v;

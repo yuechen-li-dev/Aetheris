@@ -36,6 +36,7 @@ public static class SheetMetalFirmament
     public static SheetMetalAuthoringResult Compile(string source,string sourcePath="authored.firmament")
     {
         ArgumentNullException.ThrowIfNull(source);var clean=Regex.Replace(source,@"//.*?$|#.*?$",string.Empty,RegexOptions.Multiline);
+        if(ReconstructedSheetMetalFirmament.IsReconstructed(clean))return ReconstructedSheetMetalFirmament.Compile(clean,sourcePath);
         if(RecoveredSheetMetalFirmament.IsRecovered(clean))return RecoveredSheetMetalFirmament.Compile(clean,sourcePath);
         var header=Regex.Match(clean,@"\bSheetMetal\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{",Rx);if(!header.Success)return Failure("Expected `SheetMetal <Name> { ... }`.");
         if(!TryScalar(clean,"Thickness","mm",out var thickness)||thickness<=0)return Failure("Thickness must be a positive millimetre value.");

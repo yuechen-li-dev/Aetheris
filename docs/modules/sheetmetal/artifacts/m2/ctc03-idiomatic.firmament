@@ -1,0 +1,103 @@
+// Engineer/LLM reconstruction of NIST CTC-03.
+// Geometry/provenance stays in the forensic evidence artifact; this file owns
+// the editable names, grouping interpretation, and accepted nominal values.
+SheetMetal Ctc03 {
+    Intent: Reconstructed;
+    EvidenceSource: "recovered-draft.firmament";
+
+    // Measured 1.907540000007641 mm; accepted as 0.075 in nominal sheet.
+    Thickness: 1.905mm;
+    KFactor: 0.5; // Assumed policy; source STEP does not establish shop bend policy.
+    BaseRegion: MainDeck;
+
+    Region MainDeck {
+        FromEvidence: "region-p-0065-0069";
+        Role: Base;
+    }
+    Region FrontWall {
+        FromEvidence: "region-p-0062-0063";
+        Role: Flange;
+    }
+    Region RearWall {
+        FromEvidence: "region-p-0061-0066";
+        Role: Flange;
+    }
+    Region LeftWall {
+        FromEvidence: "region-p-0102-0104";
+        Role: Flange;
+    }
+    Region RightWall {
+        FromEvidence: "region-p-0118-0119";
+        Role: Flange;
+    }
+    Region FrontMountingFlange {
+        FromEvidence: "region-p-0096-0097";
+        Role: Flange;
+    }
+    Region RearMountingFlange {
+        FromEvidence: "region-p-0088-0089";
+        Role: Flange;
+    }
+    Region AngledServiceFlange {
+        FromEvidence: "region-p-0109-0111";
+        Role: Flange;
+    }
+
+    // Bend strips remain explicit regions so formed/flat correspondence is stable.
+    Region FrontLipBendRegion { FromEvidence: "region-c-0006-0009"; Role: Bend; }
+    Region RearLipBendRegion { FromEvidence: "region-c-0005-0024"; Role: Bend; }
+    Region ServiceRampBendRegion { FromEvidence: "region-c-0046-0050"; Role: Bend; }
+    Region RightWallBendRegion { FromEvidence: "region-c-0057-0070"; Role: Bend; }
+    Region FrontWallBendRegion { FromEvidence: "region-c-0058-0064"; Role: Bend; }
+    Region LeftWallBendRegion { FromEvidence: "region-c-0059-0068"; Role: Bend; }
+    Region RearWallBendRegion { FromEvidence: "region-c-0060-0067"; Role: Bend; }
+
+    Bend FrontLipBend {
+        FromEvidence: "bend-c-0006-0009";
+        Angle: 90deg;
+        InsideRadius: 6.35mm;
+    }
+    Bend RearLipBend {
+        FromEvidence: "bend-c-0005-0024";
+        Angle: 90deg;
+        InsideRadius: 6.35mm;
+    }
+    Bend ServiceRampBend {
+        FromEvidence: "bend-c-0046-0050";
+        Angle: 45deg;
+        InsideRadius: 6.35mm;
+    }
+    Bend RightWallBend {
+        FromEvidence: "bend-c-0057-0070";
+        Angle: 90deg;
+        InsideRadius: 6.35mm;
+    }
+    Bend FrontWallBend {
+        FromEvidence: "bend-c-0058-0064";
+        Angle: 90deg;
+        InsideRadius: 6.35mm;
+    }
+    Bend LeftWallBend {
+        FromEvidence: "bend-c-0059-0068";
+        Angle: 90deg;
+        InsideRadius: 6.35mm;
+    }
+    Bend RearWallBend {
+        FromEvidence: "bend-c-0060-0067";
+        Angle: 90deg;
+        InsideRadius: 6.35mm;
+    }
+
+    // Equal rectangular openings are interpreted as a repeated vent pair. Pattern
+    // syntax is intentionally not added solely for this imported fixture.
+    Cut VentSlotRight {
+        FromEvidence: "feature-profile-f0065-l0069";
+        On: MainDeck;
+        Group: VentPair;
+    }
+    Cut VentSlotLeft {
+        FromEvidence: "feature-profile-f0065-l0070";
+        On: MainDeck;
+        Group: VentPair;
+    }
+}

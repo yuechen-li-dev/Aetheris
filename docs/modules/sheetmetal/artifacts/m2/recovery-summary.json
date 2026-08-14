@@ -1,0 +1,546 @@
+{
+  "status": "Partial",
+  "deterministicId": "faa11860d1bf7517e1563861fe2c2844626ba59f77f07aae2e7b2535a5bb1509",
+  "thickness": 1.907540000007641,
+  "regions": [
+    {
+      "stableId": "region-c-0005-0024",
+      "kind": "CylindricalBend",
+      "sourceFaces": [
+        5,
+        24
+      ]
+    },
+    {
+      "stableId": "region-c-0006-0009",
+      "kind": "CylindricalBend",
+      "sourceFaces": [
+        6,
+        9
+      ]
+    },
+    {
+      "stableId": "region-c-0046-0050",
+      "kind": "CylindricalBend",
+      "sourceFaces": [
+        46,
+        50
+      ]
+    },
+    {
+      "stableId": "region-c-0057-0070",
+      "kind": "CylindricalBend",
+      "sourceFaces": [
+        57,
+        70
+      ]
+    },
+    {
+      "stableId": "region-c-0058-0064",
+      "kind": "CylindricalBend",
+      "sourceFaces": [
+        58,
+        64
+      ]
+    },
+    {
+      "stableId": "region-c-0059-0068",
+      "kind": "CylindricalBend",
+      "sourceFaces": [
+        59,
+        68
+      ]
+    },
+    {
+      "stableId": "region-c-0060-0067",
+      "kind": "CylindricalBend",
+      "sourceFaces": [
+        60,
+        67
+      ]
+    },
+    {
+      "stableId": "region-p-0061-0066",
+      "kind": "Planar",
+      "sourceFaces": [
+        61,
+        66
+      ]
+    },
+    {
+      "stableId": "region-p-0062-0063",
+      "kind": "Planar",
+      "sourceFaces": [
+        62,
+        63
+      ]
+    },
+    {
+      "stableId": "region-p-0065-0069",
+      "kind": "Planar",
+      "sourceFaces": [
+        65,
+        69
+      ]
+    },
+    {
+      "stableId": "region-p-0088-0089",
+      "kind": "Planar",
+      "sourceFaces": [
+        88,
+        89
+      ]
+    },
+    {
+      "stableId": "region-p-0096-0097",
+      "kind": "Planar",
+      "sourceFaces": [
+        96,
+        97
+      ]
+    },
+    {
+      "stableId": "region-p-0102-0104",
+      "kind": "Planar",
+      "sourceFaces": [
+        102,
+        104
+      ]
+    },
+    {
+      "stableId": "region-p-0109-0111",
+      "kind": "Planar",
+      "sourceFaces": [
+        109,
+        111
+      ]
+    },
+    {
+      "stableId": "region-p-0118-0119",
+      "kind": "Planar",
+      "sourceFaces": [
+        118,
+        119
+      ]
+    }
+  ],
+  "bends": [
+    {
+      "stableId": "bend-c-0005-0024",
+      "angleDegrees": 89.9999999999998,
+      "insideRadius": 6.35000000002538,
+      "adjacentRegionA": "region-p-0061-0066",
+      "adjacentRegionB": "region-p-0088-0089",
+      "sourceFaces": [
+        5,
+        24
+      ]
+    },
+    {
+      "stableId": "bend-c-0006-0009",
+      "angleDegrees": 90,
+      "insideRadius": 6.35000000002541,
+      "adjacentRegionA": "region-p-0062-0063",
+      "adjacentRegionB": "region-p-0096-0097",
+      "sourceFaces": [
+        6,
+        9
+      ]
+    },
+    {
+      "stableId": "bend-c-0046-0050",
+      "angleDegrees": 45.00000000000239,
+      "insideRadius": 6.3500000000254,
+      "adjacentRegionA": "region-p-0109-0111",
+      "adjacentRegionB": "region-p-0118-0119",
+      "sourceFaces": [
+        46,
+        50
+      ]
+    },
+    {
+      "stableId": "bend-c-0057-0070",
+      "angleDegrees": 90,
+      "insideRadius": 6.35000000002539,
+      "adjacentRegionA": "region-p-0065-0069",
+      "adjacentRegionB": "region-p-0118-0119",
+      "sourceFaces": [
+        57,
+        70
+      ]
+    },
+    {
+      "stableId": "bend-c-0058-0064",
+      "angleDegrees": 90.00000000000071,
+      "insideRadius": 6.3500000000254,
+      "adjacentRegionA": "region-p-0062-0063",
+      "adjacentRegionB": "region-p-0065-0069",
+      "sourceFaces": [
+        58,
+        64
+      ]
+    },
+    {
+      "stableId": "bend-c-0059-0068",
+      "angleDegrees": 89.99999999999919,
+      "insideRadius": 6.35000000002538,
+      "adjacentRegionA": "region-p-0065-0069",
+      "adjacentRegionB": "region-p-0102-0104",
+      "sourceFaces": [
+        59,
+        68
+      ]
+    },
+    {
+      "stableId": "bend-c-0060-0067",
+      "angleDegrees": 89.9999999999993,
+      "insideRadius": 6.3500000000254,
+      "adjacentRegionA": "region-p-0061-0066",
+      "adjacentRegionB": "region-p-0065-0069",
+      "sourceFaces": [
+        60,
+        67
+      ]
+    }
+  ],
+  "cuts": [
+    {
+      "stableId": "feature-profile-f0065-l0069",
+      "kind": "Slot",
+      "owningRegionId": "region-p-0065-0069",
+      "center": {
+        "x": -126.517400000506,
+        "y": 166.52240000066598,
+        "z": 77.1537700003087
+      },
+      "diameter": null
+    },
+    {
+      "stableId": "feature-profile-f0065-l0070",
+      "kind": "Slot",
+      "owningRegionId": "region-p-0065-0069",
+      "center": {
+        "x": -190.01740000076,
+        "y": 166.522400000666,
+        "z": 77.1537700003087
+      },
+      "diameter": null
+    }
+  ],
+  "nominalCandidates": [
+    {
+      "subjectId": "bend-c-0005-0024",
+      "quantity": "BendAngle",
+      "measured": 89.9999999999998,
+      "proposedNominal": 90,
+      "delta": 1.9895196601282805E-13,
+      "tolerance": 0.01,
+      "unit": "deg",
+      "confidence": "StrongCandidate",
+      "evidence": "Canonical bend angle within bounded angular tolerance.",
+      "accepted": false
+    },
+    {
+      "subjectId": "bend-c-0005-0024",
+      "quantity": "InsideRadius",
+      "measured": 6.35000000002538,
+      "proposedNominal": 6.35,
+      "delta": -2.538058652135078E-11,
+      "tolerance": 0.01,
+      "unit": "mm",
+      "confidence": "StrongCandidate",
+      "evidence": "Common fractional/decimal-inch value converted to millimetres within tolerance.",
+      "accepted": false
+    },
+    {
+      "subjectId": "bend-c-0006-0009",
+      "quantity": "BendAngle",
+      "measured": 90,
+      "proposedNominal": 90,
+      "delta": 0,
+      "tolerance": 0.01,
+      "unit": "deg",
+      "confidence": "StrongCandidate",
+      "evidence": "Canonical bend angle within bounded angular tolerance.",
+      "accepted": false
+    },
+    {
+      "subjectId": "bend-c-0006-0009",
+      "quantity": "InsideRadius",
+      "measured": 6.35000000002541,
+      "proposedNominal": 6.35,
+      "delta": -2.5410784587620583E-11,
+      "tolerance": 0.01,
+      "unit": "mm",
+      "confidence": "StrongCandidate",
+      "evidence": "Common fractional/decimal-inch value converted to millimetres within tolerance.",
+      "accepted": false
+    },
+    {
+      "subjectId": "bend-c-0046-0050",
+      "quantity": "BendAngle",
+      "measured": 45.00000000000239,
+      "proposedNominal": 45,
+      "delta": -2.3874235921539366E-12,
+      "tolerance": 0.01,
+      "unit": "deg",
+      "confidence": "StrongCandidate",
+      "evidence": "Canonical bend angle within bounded angular tolerance.",
+      "accepted": false
+    },
+    {
+      "subjectId": "bend-c-0046-0050",
+      "quantity": "InsideRadius",
+      "measured": 6.3500000000254,
+      "proposedNominal": 6.35,
+      "delta": -2.540012644658418E-11,
+      "tolerance": 0.01,
+      "unit": "mm",
+      "confidence": "StrongCandidate",
+      "evidence": "Common fractional/decimal-inch value converted to millimetres within tolerance.",
+      "accepted": false
+    },
+    {
+      "subjectId": "bend-c-0057-0070",
+      "quantity": "BendAngle",
+      "measured": 90,
+      "proposedNominal": 90,
+      "delta": 0,
+      "tolerance": 0.01,
+      "unit": "deg",
+      "confidence": "StrongCandidate",
+      "evidence": "Canonical bend angle within bounded angular tolerance.",
+      "accepted": false
+    },
+    {
+      "subjectId": "bend-c-0057-0070",
+      "quantity": "InsideRadius",
+      "measured": 6.35000000002539,
+      "proposedNominal": 6.35,
+      "delta": -2.539035648396748E-11,
+      "tolerance": 0.01,
+      "unit": "mm",
+      "confidence": "StrongCandidate",
+      "evidence": "Common fractional/decimal-inch value converted to millimetres within tolerance.",
+      "accepted": false
+    },
+    {
+      "subjectId": "bend-c-0058-0064",
+      "quantity": "BendAngle",
+      "measured": 90.00000000000071,
+      "proposedNominal": 90,
+      "delta": -7.105427357601002E-13,
+      "tolerance": 0.01,
+      "unit": "deg",
+      "confidence": "StrongCandidate",
+      "evidence": "Canonical bend angle within bounded angular tolerance.",
+      "accepted": false
+    },
+    {
+      "subjectId": "bend-c-0058-0064",
+      "quantity": "InsideRadius",
+      "measured": 6.3500000000254,
+      "proposedNominal": 6.35,
+      "delta": -2.540012644658418E-11,
+      "tolerance": 0.01,
+      "unit": "mm",
+      "confidence": "StrongCandidate",
+      "evidence": "Common fractional/decimal-inch value converted to millimetres within tolerance.",
+      "accepted": false
+    },
+    {
+      "subjectId": "bend-c-0059-0068",
+      "quantity": "BendAngle",
+      "measured": 89.99999999999919,
+      "proposedNominal": 90,
+      "delta": 8.100187187665142E-13,
+      "tolerance": 0.01,
+      "unit": "deg",
+      "confidence": "StrongCandidate",
+      "evidence": "Canonical bend angle within bounded angular tolerance.",
+      "accepted": false
+    },
+    {
+      "subjectId": "bend-c-0059-0068",
+      "quantity": "InsideRadius",
+      "measured": 6.35000000002538,
+      "proposedNominal": 6.35,
+      "delta": -2.538058652135078E-11,
+      "tolerance": 0.01,
+      "unit": "mm",
+      "confidence": "StrongCandidate",
+      "evidence": "Common fractional/decimal-inch value converted to millimetres within tolerance.",
+      "accepted": false
+    },
+    {
+      "subjectId": "bend-c-0060-0067",
+      "quantity": "BendAngle",
+      "measured": 89.9999999999993,
+      "proposedNominal": 90,
+      "delta": 6.963318810448982E-13,
+      "tolerance": 0.01,
+      "unit": "deg",
+      "confidence": "StrongCandidate",
+      "evidence": "Canonical bend angle within bounded angular tolerance.",
+      "accepted": false
+    },
+    {
+      "subjectId": "bend-c-0060-0067",
+      "quantity": "InsideRadius",
+      "measured": 6.3500000000254,
+      "proposedNominal": 6.35,
+      "delta": -2.540012644658418E-11,
+      "tolerance": 0.01,
+      "unit": "mm",
+      "confidence": "StrongCandidate",
+      "evidence": "Common fractional/decimal-inch value converted to millimetres within tolerance.",
+      "accepted": false
+    },
+    {
+      "subjectId": "part",
+      "quantity": "Thickness",
+      "measured": 1.907540000007641,
+      "proposedNominal": 1.9049999999999998,
+      "delta": -0.0025400000076412077,
+      "tolerance": 0.01,
+      "unit": "mm",
+      "confidence": "StrongCandidate",
+      "evidence": "Common fractional/decimal-inch value converted to millimetres within tolerance.",
+      "accepted": false
+    }
+  ],
+  "groupingCandidates": [
+    {
+      "stableId": "repeated-bends-1",
+      "kind": "RepeatedBendPolicy",
+      "members": [
+        "bend-c-0005-0024",
+        "bend-c-0006-0009",
+        "bend-c-0057-0070",
+        "bend-c-0058-0064",
+        "bend-c-0059-0068",
+        "bend-c-0060-0067"
+      ],
+      "confidence": "StrongCandidate",
+      "evidence": "6 bends repeat angle 90 deg and inside radius 6.35 mm."
+    },
+    {
+      "stableId": "repeated-cuts-2",
+      "kind": "RepeatedCut",
+      "members": [
+        "feature-profile-f0065-l0069",
+        "feature-profile-f0065-l0070"
+      ],
+      "confidence": "StrongCandidate",
+      "evidence": "2 Slot cuts share size within 0.01 mm."
+    }
+  ],
+  "corners": [
+    {
+      "stableId": "corner-bend-c-0005-0024-bend-c-0060-0067",
+      "kind": "Unknown",
+      "adjacentRegions": [
+        "region-p-0061-0066",
+        "region-p-0065-0069",
+        "region-p-0088-0089"
+      ],
+      "confidence": "Ambiguous",
+      "evidence": "Two bends meet a recovered planar region; boundary trimming is insufficient to assert a corner family."
+    },
+    {
+      "stableId": "corner-bend-c-0006-0009-bend-c-0058-0064",
+      "kind": "Unknown",
+      "adjacentRegions": [
+        "region-p-0062-0063",
+        "region-p-0065-0069",
+        "region-p-0096-0097"
+      ],
+      "confidence": "Ambiguous",
+      "evidence": "Two bends meet a recovered planar region; boundary trimming is insufficient to assert a corner family."
+    },
+    {
+      "stableId": "corner-bend-c-0046-0050-bend-c-0057-0070",
+      "kind": "Unknown",
+      "adjacentRegions": [
+        "region-p-0065-0069",
+        "region-p-0109-0111",
+        "region-p-0118-0119"
+      ],
+      "confidence": "Ambiguous",
+      "evidence": "Two bends meet a recovered planar region; boundary trimming is insufficient to assert a corner family."
+    },
+    {
+      "stableId": "corner-bend-c-0057-0070-bend-c-0058-0064",
+      "kind": "Unknown",
+      "adjacentRegions": [
+        "region-p-0062-0063",
+        "region-p-0065-0069",
+        "region-p-0118-0119"
+      ],
+      "confidence": "Ambiguous",
+      "evidence": "Two bends meet a recovered planar region; boundary trimming is insufficient to assert a corner family."
+    },
+    {
+      "stableId": "corner-bend-c-0057-0070-bend-c-0059-0068",
+      "kind": "Unknown",
+      "adjacentRegions": [
+        "region-p-0065-0069",
+        "region-p-0102-0104",
+        "region-p-0118-0119"
+      ],
+      "confidence": "Ambiguous",
+      "evidence": "Two bends meet a recovered planar region; boundary trimming is insufficient to assert a corner family."
+    },
+    {
+      "stableId": "corner-bend-c-0057-0070-bend-c-0060-0067",
+      "kind": "Unknown",
+      "adjacentRegions": [
+        "region-p-0061-0066",
+        "region-p-0065-0069",
+        "region-p-0118-0119"
+      ],
+      "confidence": "Ambiguous",
+      "evidence": "Two bends meet a recovered planar region; boundary trimming is insufficient to assert a corner family."
+    },
+    {
+      "stableId": "corner-bend-c-0058-0064-bend-c-0059-0068",
+      "kind": "Unknown",
+      "adjacentRegions": [
+        "region-p-0062-0063",
+        "region-p-0065-0069",
+        "region-p-0102-0104"
+      ],
+      "confidence": "Ambiguous",
+      "evidence": "Two bends meet a recovered planar region; boundary trimming is insufficient to assert a corner family."
+    },
+    {
+      "stableId": "corner-bend-c-0058-0064-bend-c-0060-0067",
+      "kind": "Unknown",
+      "adjacentRegions": [
+        "region-p-0061-0066",
+        "region-p-0062-0063",
+        "region-p-0065-0069"
+      ],
+      "confidence": "Ambiguous",
+      "evidence": "Two bends meet a recovered planar region; boundary trimming is insufficient to assert a corner family."
+    },
+    {
+      "stableId": "corner-bend-c-0059-0068-bend-c-0060-0067",
+      "kind": "Unknown",
+      "adjacentRegions": [
+        "region-p-0061-0066",
+        "region-p-0065-0069",
+        "region-p-0102-0104"
+      ],
+      "confidence": "Ambiguous",
+      "evidence": "Two bends meet a recovered planar region; boundary trimming is insufficient to assert a corner family."
+    }
+  ],
+  "reliefs": [],
+  "ambiguities": [
+    "Recovered region boundaries and bend adjacency are geometric facts; authored flange/feature history is not recoverable from STEP alone.",
+    "K-factor 0.5 is a flattening policy assumption unless source manufacturing metadata says otherwise.",
+    "CTC-03 cut loops may be one repeated operation, but STEP contains no authoritative feature-history grouping.",
+    "Machine recovery status is Partial; unsupported boundary faces remain forensic evidence."
+  ]
+}

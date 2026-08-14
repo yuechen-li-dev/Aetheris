@@ -1,6 +1,10 @@
 # Sheet Metal Module
 
-`Aetheris.SheetMetal` 0.2.0 is the first implemented Sheet Metal milestone. It owns manufacturing semantics above Core BRep: nominal thickness, reference-sheet regions, explicit bends, neutral-axis policy, cut correspondence, flat-pattern lowering, validation, and bounded DFM. Imported STEP remains the formed-geometry authority; recovered `SheetMetalPartIr` is an evidence-bearing interpretation and never silently replaces or repairs the source.
+`Aetheris.SheetMetal` 0.3.0 adds an explicit human/LLM-in-the-loop intent-reconstruction workflow. It owns manufacturing semantics above Core BRep: nominal thickness, reference-sheet regions, explicit bends, neutral-axis policy, cut correspondence, source-edge-aware flat-pattern lowering, comparison, validation, and bounded DFM. Imported STEP remains the formed-geometry authority; recovered `SheetMetalPartIr` is evidence and never silently becomes production authority.
+
+## M2 authority model
+
+Recovery deliberately has two layers. `RecoveredSheetMetalEvidence` is deterministic, provenance-heavy forensic data. `RecoveredFirmamentDraft` is a machine-generated starting point. An engineer or LLM writes a separate `Intent: Reconstructed` Firmament source whose names, grouping, and accepted nominals are explicit decisions linked through `FromEvidence`. `SheetMetalIntentComparer` then verifies formed boundaries, bend axes/angles/radii/adjacency, cuts, and flat output using structured residuals. `Partial` machine recovery is therefore useful and is not treated as workflow failure.
 
 ## Supported M1 boundary
 
@@ -13,12 +17,14 @@
 - Explicit provisional K-factor policy. The default is `0.5`; authored source may override it. This is not a material/process database.
 - Parameterized first-pass DFM checks for positive thickness, bend-radius ratio, hole-to-bend distance, and flat overlap.
 
-M1 does not advertise arbitrary forming, stamping, hems, jogs, beads, springback, arbitrary lofted bends, double-curvature approximation, bend tables, automatic relief families, or a production nesting boundary. Unsupported and ambiguous input returns typed `Partial`/`Unsupported` evidence.
+M2 additionally preserves valid ordered source-line loops instead of replacing every flat region with a convex hull, exposes bounded nominal/grouping/corner/relief suggestions, and adds semantic cut-to-bend/cut-to-edge DFM findings with suggested displacement where deterministic. Analytic arcs in arbitrary imported outer contours, exact global blank union/stitching, and authoritative relief-family recognition remain incomplete; CTC-03 honestly remains `Partial`.
 
 ## Canonical commands
 
 ```text
 aetheris sheetmetal inspect part.step
+aetheris sheetmetal recover part.step --out-dir recovery
+aetheris sheetmetal compare part.step reconstructed.firmament
 aetheris sheetmetal flatten part.step --step part-flat.step --firmament part-recovered.firmament --svg part-flat.svg --k-factor 0.5
 aetheris build fixtures/FirmamentV2/SheetMetal/simple-u-channel.firmament
 ```
@@ -31,4 +37,4 @@ Thickness candidates come from overlapping parallel planes and axially overlappi
 
 The flat STEP is generated from the same analytic flat IR as the Firmament and SVG artifacts. It is a closed thickness-bearing solid and re-imports through Aetheris, but the current imported flattening preserves recovered region hulls and mapped inner-loop cut profiles rather than stitching every source edge fragment into an exact production-ready blank contour. That boundary-stitching/corner-relief problem is why imported CTC-03 remains `Partial`.
 
-See the compact [M1 evidence bundle](sheetmetal/artifacts/m1/README.md).
+See the compact [M1 evidence bundle](sheetmetal/artifacts/m1/README.md) and [M2 assisted-reconstruction evidence](sheetmetal/artifacts/m2/README.md).

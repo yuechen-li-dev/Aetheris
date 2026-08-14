@@ -4,13 +4,17 @@ using Aetheris.Surfacing;
 
 namespace Aetheris.SheetMetal;
 
-public enum SheetMetalRecognitionStatus { Complete, Partial, Unsupported }
+public enum SheetMetalRecognitionStatus { Complete, Partial, Ambiguous, Unsupported }
 public enum SheetRegionKind { Planar, CylindricalBend, Developable, Unsupported }
 public enum SheetBendDirection { Up, Down, Unknown }
 public enum SheetFeatureKind { CircularHole, ProfileHole, Slot, Cutout, Unsupported }
 public enum SheetEvidenceKind { Authored, Exact, ToleranceBounded, DeterministicHeuristic, Derived, Unsupported }
 public enum FlatPatternStatus { Valid, Overlapping, Partial, Unsupported }
 public enum SheetMetalDiagnosticSeverity { Information, Warning, Error }
+public enum SheetMetalIntentConfidence { StructuralFact, StrongCandidate, WeakCandidate, Ambiguous, Unknown }
+public enum SheetMetalProvenanceCategory { Authored, Recovered, Reconstructed }
+public enum SheetCornerKind { ClosedCorner, OpenCorner, ReliefCorner, OverlapCorner, MiteredCorner, Unknown }
+public enum SheetReliefKind { Rectangular, Round, Unknown }
 
 public static class SheetMetalDiagnosticCodes
 {
@@ -24,9 +28,13 @@ public static class SheetMetalDiagnosticCodes
     public const string FlatOverlap = "sheetmetal-flat-overlap";
     public const string FeatureMappingFailure = "sheetmetal-feature-mapping-failure";
     public const string InvalidRadius = "sheetmetal-invalid-radius";
+    public const string DuplicateCut = "sheetmetal-flat-duplicate-cut";
+    public const string BendLineOutsideMaterial = "sheetmetal-flat-bend-line-outside-material";
+    public const string ZeroWidthSliver = "sheetmetal-flat-zero-width-sliver";
     public static IReadOnlyList<string> All { get; } =
         [NonConstantThickness, UnpairedFaces, NonDevelopable, AmbiguousBendAxis, UnsupportedBendTopology,
-         InconsistentBendRadius, DisconnectedGraph, FlatOverlap, FeatureMappingFailure, InvalidRadius];
+         InconsistentBendRadius, DisconnectedGraph, FlatOverlap, FeatureMappingFailure, InvalidRadius,
+         DuplicateCut, BendLineOutsideMaterial, ZeroWidthSliver];
 }
 
 public sealed record SheetMetalDiagnostic(

@@ -19,11 +19,17 @@ public static class SheetMetalFlatPatternValidation
         if(!finite)diagnostics.Add(new(SheetMetalDiagnosticCodes.FeatureMappingFailure,SheetMetalDiagnosticSeverity.Error,"Flat pattern contains non-finite coordinates."));
         var closed=flat.Regions2D.All(r=>r.Boundary.Count>=3)&&flat.CutLoops.All(c=>c.Boundary.Count>=3);
         if(!closed)diagnostics.Add(new(SheetMetalDiagnosticCodes.FeatureMappingFailure,SheetMetalDiagnosticSeverity.Error,"A flat region or cut loop has fewer than three boundary points."));
+        var slivers=flat.Regions2D.Where(r=>Math.Abs(SignedArea(r.Boundary))<=1e-10).Select(r=>r.SourceRegionId).ToArray();
+        if(slivers.Length>0)diagnostics.Add(new(SheetMetalDiagnosticCodes.ZeroWidthSliver,SheetMetalDiagnosticSeverity.Error,$"Flat regions have zero/negligible area: {string.Join(", ",slivers)}."));
+        var duplicateCuts=flat.CutLoops.GroupBy(c=>BoundaryKey(c.Boundary),StringComparer.Ordinal).Where(g=>g.Count()>1).SelectMany(g=>g.Select(c=>c.FeatureId)).ToArray();
+        if(duplicateCuts.Length>0)diagnostics.Add(new(SheetMetalDiagnosticCodes.DuplicateCut,SheetMetalDiagnosticSeverity.Error,$"Coincident cut loops were detected: {string.Join(", ",duplicateCuts)}."));
         var overlaps=FindOverlaps(flat.Regions2D.Where(r=>r.Kind==SheetRegionKind.Planar).ToArray());
         if(overlaps.Count>0)diagnostics.Add(new(SheetMetalDiagnosticCodes.FlatOverlap,SheetMetalDiagnosticSeverity.Error,$"Flat planar regions overlap: {string.Join(", ",overlaps.Select(x=>$"{x.A}/{x.B}"))}."));
         var contained=flat.CutLoops.All(c=>flat.Regions2D.Any(r=>r.SourceRegionId==c.SourceRegionId&&c.Boundary.All(p=>PointInConvex(p,r.Boundary))));
         if(!contained)diagnostics.Add(new(SheetMetalDiagnosticCodes.FeatureMappingFailure,SheetMetalDiagnosticSeverity.Warning,"One or more cut loops are not contained by their owning flat region."));
-        var status=!finite||!closed?FlatPatternStatus.Unsupported:overlaps.Count>0?FlatPatternStatus.Overlapping:flat.Status;
+        var bendLinesInside=flat.BendLines.All(b=>flat.Regions2D.Any(r=>PointInPolygon(b.Start,r.Boundary,true))&&flat.Regions2D.Any(r=>PointInPolygon(b.End,r.Boundary,true)));
+        if(!bendLinesInside)diagnostics.Add(new(SheetMetalDiagnosticCodes.BendLineOutsideMaterial,SheetMetalDiagnosticSeverity.Error,"One or more bend-line endpoints lie outside recovered flat material."));
+        var status=!finite||!closed||slivers.Length>0||duplicateCuts.Length>0||!bendLinesInside?FlatPatternStatus.Unsupported:overlaps.Count>0?FlatPatternStatus.Overlapping:flat.Status;
         return new(finite,closed,contained,overlaps,status,diagnostics);
     }
 
@@ -31,9 +37,13 @@ public static class SheetMetalFlatPatternValidation
     {
         var result=new List<(string,string)>();for(var i=0;i<regions.Count;i++)for(var j=i+1;j<regions.Count;j++)if(Overlap(regions[i].Boundary,regions[j].Boundary))result.Add((regions[i].SourceRegionId,regions[j].SourceRegionId));return result;
     }
-    private static bool Overlap(IReadOnlyList<SheetPoint2>a,IReadOnlyList<SheetPoint2>b){if(a.Count<3||b.Count<3)return false;foreach(var axis in Axes(a).Concat(Axes(b))){var aa=a.Select(p=>Dot(p,axis)).ToArray();var bb=b.Select(p=>Dot(p,axis)).ToArray();if(Math.Min(aa.Max(),bb.Max())-Math.Max(aa.Min(),bb.Min())<=1e-7)return false;}return true;}
-    private static IEnumerable<SheetPoint2> Axes(IReadOnlyList<SheetPoint2>p){for(var i=0;i<p.Count;i++){var e=Sub(p[(i+1)%p.Count],p[i]);var axis=new SheetPoint2(-e.Y,e.X);var len=Math.Sqrt(Dot(axis,axis));yield return len<=1e-12?new(1,0):new(axis.X/len,axis.Y/len);}}
-    private static bool PointInConvex(SheetPoint2 p,IReadOnlyList<SheetPoint2>poly){if(poly.Count<3)return false;double? sign=null;for(var i=0;i<poly.Count;i++){var a=poly[i];var b=poly[(i+1)%poly.Count];var c=(b.X-a.X)*(p.Y-a.Y)-(b.Y-a.Y)*(p.X-a.X);if(Math.Abs(c)<=1e-7)continue;var s=Math.Sign(c);if(sign is null)sign=s;else if(sign!=s)return false;}return true;}
+    private static bool Overlap(IReadOnlyList<SheetPoint2>a,IReadOnlyList<SheetPoint2>b){if(a.Count<3||b.Count<3)return false;for(var i=0;i<a.Count;i++)for(var j=0;j<b.Count;j++)if(Cross(a[i],a[(i+1)%a.Count],b[j])*Cross(a[i],a[(i+1)%a.Count],b[(j+1)%b.Count])< -1e-14&&Cross(b[j],b[(j+1)%b.Count],a[i])*Cross(b[j],b[(j+1)%b.Count],a[(i+1)%a.Count])< -1e-14)return true;return Probes(a).Any(p=>PointInPolygon(p,b,false))||Probes(b).Any(p=>PointInPolygon(p,a,false));}
+    private static IEnumerable<SheetPoint2> Probes(IReadOnlyList<SheetPoint2> p){var area=0d;for(var i=0;i<p.Count;i++){var q=p[(i+1)%p.Count];area+=p[i].X*q.Y-q.X*p[i].Y;}var sign=area>=0?1d:-1d;for(var i=0;i<p.Count;i++){var a=p[i];var b=p[(i+1)%p.Count];var dx=b.X-a.X;var dy=b.Y-a.Y;var len=Math.Sqrt(dx*dx+dy*dy);if(len>1e-12)yield return new((a.X+b.X)/2-sign*dy/len*1e-6,(a.Y+b.Y)/2+sign*dx/len*1e-6);}}
+    private static bool PointInConvex(SheetPoint2 p,IReadOnlyList<SheetPoint2>poly)=>PointInPolygon(p,poly,true);
+    private static bool PointInPolygon(SheetPoint2 p,IReadOnlyList<SheetPoint2>poly,bool boundaryInside){if(poly.Count<3)return false;var inside=false;for(var i=0;i<poly.Count;i++){var a=poly[i];var b=poly[(i+1)%poly.Count];if(Math.Abs(Cross(a,b,p))<1e-8&&p.X>=Math.Min(a.X,b.X)-1e-8&&p.X<=Math.Max(a.X,b.X)+1e-8&&p.Y>=Math.Min(a.Y,b.Y)-1e-8&&p.Y<=Math.Max(a.Y,b.Y)+1e-8)return boundaryInside;if((a.Y>p.Y)!=(b.Y>p.Y)&&p.X<(b.X-a.X)*(p.Y-a.Y)/(b.Y-a.Y)+a.X)inside=!inside;}return inside;}
+    private static double Cross(SheetPoint2 a,SheetPoint2 b,SheetPoint2 c)=>(b.X-a.X)*(c.Y-a.Y)-(b.Y-a.Y)*(c.X-a.X);
+    private static double SignedArea(IReadOnlyList<SheetPoint2> p){var sum=0d;for(var i=0;i<p.Count;i++){var q=p[(i+1)%p.Count];sum+=p[i].X*q.Y-q.X*p[i].Y;}return sum/2d;}
+    private static string BoundaryKey(IReadOnlyList<SheetPoint2> p)=>string.Join('|',p.Select(x=>$"{Math.Round(x.X,7):R},{Math.Round(x.Y,7):R}").Order(StringComparer.Ordinal));
     private static SheetPoint2 Sub(SheetPoint2 a,SheetPoint2 b)=>new(a.X-b.X,a.Y-b.Y);private static double Dot(SheetPoint2 a,SheetPoint2 b)=>a.X*b.X+a.Y*b.Y;
 }
 

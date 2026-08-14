@@ -1,5 +1,7 @@
 # Boolean deferred pile (safe-family snapshot)
 
+> Current architecture: see [Current authoring and kernel boundaries](architecture/current-authoring-and-kernel-boundaries.md). Central Boolean-family expansion is frozen unless real compatibility usage justifies a bounded family with an owner and migration plan; current product construction should prefer a Recipe.
+
 This note records the current boolean scope so deferred items can be revisited later without losing context.
 
 ## Current supported subset (safe family)

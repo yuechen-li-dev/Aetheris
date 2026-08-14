@@ -1,5 +1,7 @@
 # BREP-BOOLEAN-STACK-A4: stepped repeated-subtract productionization (V13.3)
 
+> Historical evidence; outcomes below are intentionally preserved. Current architecture: see [Current authoring and kernel boundaries](architecture/current-authoring-and-kernel-boundaries.md) and [BRep Boolean lessons](kernel/brep-boolean-lessons.md).
+
 ## Inputs
 - A3.1 FrictionLab evidence: repeated-subtract variants succeed on canonical stepped case.
 - V13.2 contract fix: explicit stepped tier placement semantics on `HoleProfileSegment`.

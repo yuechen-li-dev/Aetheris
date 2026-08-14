@@ -1,4 +1,6 @@
-# Architecture Overview (Provisional)
+# Architecture Overview (Historical package sketch)
+
+> Current architecture: see [Current authoring and kernel boundaries](architecture/current-authoring-and-kernel-boundaries.md). This older package sketch is retained for historical context and is not the current authoring/kernel authority.
 
 This package map is directional only and may evolve with milestone outcomes.
 

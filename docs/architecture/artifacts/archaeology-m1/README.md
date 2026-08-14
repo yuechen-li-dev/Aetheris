@@ -1,5 +1,7 @@
 # AETHERIS-ARCHAEOLOGY-M1
 
+> Historical archaeology evidence. Current architecture: see [Current authoring and kernel boundaries](../../current-authoring-and-kernel-boundaries.md).
+
 Status: audit complete; architecture frozen for phased migration. Repository evidence was inspected on 2026-08-13. Runtime architecture is unchanged; two narrow compatibility-test/formatter inconsistencies found by the audit were corrected.
 
 ## Decisions

@@ -140,9 +140,11 @@ internal sealed record BooleanSubtractIntersectContext(
     string? SubtractPocketUnsupportedReason);
 
 /// <summary>
-/// bounded boolean pipeline with narrow real support for axis-aligned box/box cases that resolve to a single box
-/// plus the M10k box-minus-Z-aligned-through-cylinder subset that rebuilds to a single box-with-hole solid.
-/// Unsupported and non-solid cases return deterministic NotImplemented diagnostics.
+/// Bounded compatibility and generic recognized-family facade. This is not a
+/// universal exact Boolean kernel: only explicitly admitted operand families are
+/// reconstructed, and unsupported arbitrary combinations return typed diagnostics.
+/// New semantic construction should use a higher-level construction API or a
+/// recognized Recipe so known intent is not rediscovered from temporary bodies.
 /// </summary>
 public static class BrepBoolean
 {

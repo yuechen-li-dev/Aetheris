@@ -63,6 +63,15 @@ prism feature knowledge.
 - Export and reimport through the normal STEP path.
 - Do not use generic numerical intersections as topology authority.
 
+## Developer decision ladder
+
+1. Use a Template for ordinary reusable product authoring.
+2. Use a typed construction primitive when one directly names the result.
+3. Use an existing recognized Recipe when its admission contract matches.
+4. Add a new reusable Recipe only when a bounded family has repeat product value and a fully predictable topology graph.
+5. Use bespoke internal Surgery when the caller already knows the exact topology but reuse does not justify a Recipe.
+6. Use bounded generic `BrepBoolean` only for compatibility or experimental external-body workflows; expect typed rejection outside admitted families.
+
 ## M3 compatibility seams
 
 Some established Boolean builders predate `DirectedEdgeUse` closure semantics, and orthogonal retessellation can retain T-junction incidence across merged coplanar rectangles. M3 preserves their canonical coedge senses and assembly rather than silently changing STEP. The narrowly named `CreateKnownLoopPreservingLegacySense` shares deterministic coedge-cycle mechanics but deliberately omits the newer endpoint-closure check; it is internal and used only at documented compatibility seams. Strict new loop/shell construction uses `CreateKnownLoop` and `BrepShellAssembler`. The remaining seams are evidence for recipe-local orientation work in M4, not reasons to weaken the strict primitives.

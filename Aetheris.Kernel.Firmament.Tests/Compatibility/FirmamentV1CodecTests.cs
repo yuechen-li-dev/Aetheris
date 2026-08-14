@@ -55,6 +55,32 @@ public sealed class FirmamentV1CodecTests
         Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Message.Contains("V1 JSON compatibility", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData("2")]
+    [InlineData("preview")]
+    public void NamedV1Readers_RejectOtherDeclaredVersions(string version)
+    {
+        var toon = new FirmamentV1ToonReader().Read($"""
+            firmament:
+              version: {version}
+            model:
+              name: not_v1
+              units: mm
+            ops[0]:
+            """);
+        var json = new FirmamentV1JsonReader().Read($$"""
+            { "firmament": { "version": "{{version}}" }, "model": { "name": "not_v1", "units": "mm" }, "ops": [] }
+            """);
+
+        Assert.False(toon.IsSuccess);
+        Assert.False(json.IsSuccess);
+        Assert.All(toon.Diagnostics.Concat(json.Diagnostics), diagnostic =>
+        {
+            Assert.Equal("FirmamentV1.CompatibilityReader", diagnostic.Source);
+            Assert.Contains("must declare version '1'", diagnostic.Message, StringComparison.Ordinal);
+        });
+    }
+
     private static object Snapshot(FirmamentParsedDocument document) => new
     {
         document.Firmament.Version,

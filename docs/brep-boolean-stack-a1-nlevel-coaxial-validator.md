@@ -1,5 +1,7 @@
 # BREP-BOOLEAN-STACK-A1 N-level coaxial validator generalization
 
+> Historical evidence; outcomes below are intentionally preserved. Current architecture: see [Current authoring and kernel boundaries](architecture/current-authoring-and-kernel-boundaries.md) and [BRep Boolean lessons](kernel/brep-boolean-lessons.md).
+
 ## Summary
 
 A1 generalizes safe-composition continuation validation so N-level coaxial subtract stacks are classified before independent-hole interference rejection runs.

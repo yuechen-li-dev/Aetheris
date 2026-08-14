@@ -9,6 +9,8 @@
 
 Firmament is a deterministic DSL for generating CAD geometry (STEP AP242) via Aetheris.
 
+Firmament V2 is the sole canonical authoring path. Firmament V1 TOON/JSON and JSON-shaped legacy `.firmasm` remain explicit compatibility/serialization inputs. See the [current authoring and kernel boundaries](docs/architecture/current-authoring-and-kernel-boundaries.md).
+
 ## Static engineering data
 
 Firmament `Record` values are immutable typed specifications. A finite standards
@@ -46,7 +48,8 @@ limitations are at [yuechen-li-dev.github.io/aetheris](https://yuechen-li-dev.gi
 
 ## What works today
 
-- primitives and booleans: `box`, `cylinder`, `sphere`, `add`, `subtract`, `intersect`
+- canonical V2 semantic construction, including bounded exact through-hole Recipes
+- historical V1 primitive/Boolean execution retained as explicit compatibility
 - placement with `place.on` anchors and `offset[3]`
 - validation ops: `expect_exists`, `expect_selectable`, `expect_manifold`
 - schema-aware CNC minimum tool radius validation

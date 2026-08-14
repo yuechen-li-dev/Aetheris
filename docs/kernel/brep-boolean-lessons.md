@@ -57,6 +57,12 @@ A counterbore predicts two cylindrical walls, an annular shoulder, ordered radii
 
 The generic CIR experiment recursively mapped a Boolean expression tree to `BrepBoolean`. It succeeded only for families already supported below and did not remove stepped/conic limitations. A generic syntax tree is a generic traversal mechanism; it does not create a generic topology reconstruction algorithm.
 
+## Rotated, conic, overlap, and tangency cases
+
+Rotating a cylinder or cone changes more than an axis value: support intersections, seam placement, parameter intervals, face splitting, and orientation all change. The preserved rotated/conic regressions show why recognition success cannot substitute for a complete reconstruction contract. Overlap and tangency are similarly topological events, not merely small distances. A zero-distance witness may mean intended contact, a non-manifold result, coincident support, or tolerance noise; the owning bounded family must decide.
+
+The stepped-hole root-cause and continuation/history suites, overlap/tangency regressions, rotated/conic failures, mixed-continuation evidence, and generic CIR executor lab remain permanent educational evidence. Their entry points are indexed in the [M6 current-paths evidence](../architecture/artifacts/archaeology-m6/current-paths.md).
+
 ## Contrasting recipe: polygonal through cut
 
 The polygonal recipe is deliberately not a circular-hole parameterization.
@@ -79,6 +85,13 @@ Use this decision ladder:
 6. Treat arbitrary-body Boolean as a compatibility or experimental path, not a default implementation strategy.
 
 Do not add a central dispatcher case merely because a new pair of bodies can be recognized. The recognition must name a useful construction contract, and the result graph must be predictable enough for explicit validation.
+
+## Do not do this
+
+- Do not convert arbitrary intersection witnesses directly into authoritative trims.
+- Do not treat numerical zero as proof of topological identity or intended contact.
+- Do not recognize a temporary tool body again when the semantic caller already knows the construction intent.
+- Do not add one central dispatcher case per product feature.
 
 ### Bespoke bounded example
 

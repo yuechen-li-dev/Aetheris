@@ -1,5 +1,7 @@
 # BREP-BOOLEAN-STACK-A2 stepped-hole downstream blocker after A1/A1.1 validator fix
 
+> Historical evidence; outcomes below are intentionally preserved. Current architecture: see [Current authoring and kernel boundaries](architecture/current-authoring-and-kernel-boundaries.md) and [BRep Boolean lessons](kernel/brep-boolean-lessons.md).
+
 ## Outcome
 A2 confirms validator admission succeeds but bounded stepped execution still fails downstream in repeated subtract execution.
 

@@ -8,13 +8,13 @@ namespace Aetheris.Kernel.Firmament.Compatibility.V1;
 /// <summary>Strict reader for the historical Firmament V1 TOON serialization.</summary>
 public sealed class FirmamentV1ToonReader
 {
-    public KernelResult<FirmamentParsedDocument> Read(string sourceText) => FirmamentTopLevelParser.ReadToon(sourceText);
+    public KernelResult<FirmamentParsedDocument> Read(string sourceText) => FirmamentV1CodecContract.RequireV1(FirmamentTopLevelParser.ReadToon(sourceText));
 }
 
 /// <summary>Strict reader for the historical Firmament V1 JSON serialization.</summary>
 public sealed class FirmamentV1JsonReader
 {
-    public KernelResult<FirmamentParsedDocument> Read(string sourceText) => FirmamentTopLevelParser.ReadJson(sourceText);
+    public KernelResult<FirmamentParsedDocument> Read(string sourceText) => FirmamentV1CodecContract.RequireV1(FirmamentTopLevelParser.ReadJson(sourceText));
 }
 
 /// <summary>
@@ -23,7 +23,22 @@ public sealed class FirmamentV1JsonReader
 /// </summary>
 public sealed class LegacyFirmamentV1SourceReader
 {
-    public KernelResult<FirmamentParsedDocument> ReadAuto(string sourceText) => FirmamentTopLevelParser.ReadAuto(sourceText);
+    public KernelResult<FirmamentParsedDocument> ReadAuto(string sourceText) => FirmamentV1CodecContract.RequireV1(FirmamentTopLevelParser.ReadAuto(sourceText));
+}
+
+internal static class FirmamentV1CodecContract
+{
+    public static KernelResult<FirmamentParsedDocument> RequireV1(KernelResult<FirmamentParsedDocument> decoded)
+    {
+        if (!decoded.IsSuccess || string.Equals(decoded.Value.Firmament.Version, "1", StringComparison.Ordinal)) return decoded;
+        return KernelResult<FirmamentParsedDocument>.Failure([
+            new Aetheris.Kernel.Core.Diagnostics.KernelDiagnostic(
+                Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed,
+                Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+                $"Firmament V1 compatibility input must declare version '1'; found '{decoded.Value.Firmament.Version}'.",
+                "FirmamentV1.CompatibilityReader")
+        ]);
+    }
 }
 
 /// <summary>Deterministic LF-only writer for the historical Firmament V1 TOON form.</summary>

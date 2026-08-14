@@ -37,7 +37,7 @@ public static class FirmamentBuildAndExport
 
         var fullSourcePath = Path.GetFullPath(sourcePath);
         var sourceText = NormalizeLf(File.ReadAllText(fullSourcePath, Encoding.UTF8));
-        var exportResult = ExportSource(sourceText, Path.GetDirectoryName(fullSourcePath));
+        var exportResult = ExportSource(sourceText, Path.GetDirectoryName(fullSourcePath), allowV1Compatibility: true);
         if (!exportResult.IsSuccess)
         {
             return KernelResult<FirmamentBuildAndExportResult>.Failure(exportResult.Diagnostics);
@@ -60,7 +60,8 @@ public static class FirmamentBuildAndExport
             new FirmamentBuildAndExportResult(
                 fullSourcePath,
                 resolvedOutputPath,
-                export));
+                export),
+            exportResult.Diagnostics);
     }
 
     /// <summary>
@@ -73,7 +74,10 @@ public static class FirmamentBuildAndExport
     {
         ArgumentNullException.ThrowIfNull(sourceText);
         var normalized = NormalizeLf(sourceText);
-        var export = ExportSource(normalized, sourceDirectory);
+        // In-memory compilation is the canonical V2 boundary used by Forge,
+        // assemblies, and drawings. Historical V1 execution is intentionally
+        // available only to the explicitly versioned file compatibility route.
+        var export = ExportSource(normalized, sourceDirectory, allowV1Compatibility: false);
         if (!export.IsSuccess) return export;
         var assertions = EvaluateVolumeAssertions(normalized, sourceDirectory, export.Value);
         return assertions.IsSuccess
@@ -107,7 +111,10 @@ public static class FirmamentBuildAndExport
     }
 
 
-    private static KernelResult<FirmamentStepExportResult> ExportSource(string sourceText, string? sourceDirectory = null)
+    private static KernelResult<FirmamentStepExportResult> ExportSource(
+        string sourceText,
+        string? sourceDirectory = null,
+        bool allowV1Compatibility = false)
     {
         // The V2 parser owns canonical-root admission.  Profile/composition
         // materializers consume only the extracted normalized declaration body,
@@ -324,9 +331,45 @@ public static class FirmamentBuildAndExport
                 "FirmamentV2.Parse")).ToArray());
         }
 
-        // V1 is not a peer authoring route: this is the sole retained build fallback
-        // for historical serialized source and deliberately emits one concise warning.
+        if (!allowV1Compatibility)
+        {
+            return V2SourceRequired(v2Parse);
+        }
+
+        // V1 is not a peer authoring route. File builds admit it only when the
+        // historical reader proves that the document explicitly declares version 1.
+        // This prevents V1's permissive serialization parser from accepting malformed
+        // or serialization-shaped V2 input.
+        var compatibility = new Compatibility.V1.LegacyFirmamentV1SourceReader().ReadAuto(sourceText);
+        if (!compatibility.IsSuccess)
+        {
+            return KernelResult<FirmamentStepExportResult>.Failure(compatibility.Diagnostics);
+        }
+        if (!string.Equals(compatibility.Value.Firmament.Version, "1", StringComparison.Ordinal))
+        {
+            return V2SourceRequired(v2Parse);
+        }
+
         return ExportV1CompatibilitySource(sourceText);
+    }
+
+    private static KernelResult<FirmamentStepExportResult> V2SourceRequired(FirmamentV2ParseResult parse)
+    {
+        var fatal = parse.Diagnostics
+            .Where(FirmamentV2Parser.IsFatalDiagnosticCode)
+            .Distinct(StringComparer.Ordinal)
+            .Select(code => new Kernel.Core.Diagnostics.KernelDiagnostic(
+                Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed,
+                Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+                code,
+                "FirmamentV2.Parse"))
+            .ToList();
+        fatal.Add(new Kernel.Core.Diagnostics.KernelDiagnostic(
+            Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed,
+            Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+            "firmament-v2-source-required: canonical in-memory compilation requires Firmament V2; historical V1 is accepted only from an explicitly versioned file compatibility input.",
+            "FirmamentV2.CompatibilityFirewall"));
+        return KernelResult<FirmamentStepExportResult>.Failure(fatal);
     }
 
     private static KernelResult<FirmamentStepExportResult> ExportV1CompatibilitySource(string sourceText)

@@ -3497,7 +3497,9 @@ Model CanonicalPanel {
 
     private static void WriteBuildHelp(TextWriter stdout)
     {
-        stdout.WriteLine("Build .firmament input into STEP output.");
+        stdout.WriteLine("Build canonical Firmament V2 .firmament input into STEP output.");
+        stdout.WriteLine("Explicitly versioned Firmament V1 TOON/JSON files remain readable through the historical compatibility route and emit one warning.");
+        stdout.WriteLine("Legacy JSON .firmasm is a separate assembly compatibility format; inspect or export it with 'aetheris asm'.");
         stdout.WriteLine();
         stdout.WriteLine(BuildUsage);
         stdout.WriteLine();

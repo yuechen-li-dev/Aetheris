@@ -1,5 +1,7 @@
 # BREP-BOOLEAN-STACK-A0 stepped coaxial stack root-cause verification
 
+> Historical evidence; outcomes below are intentionally preserved. Current architecture: see [Current authoring and kernel boundaries](architecture/current-authoring-and-kernel-boundaries.md) and [BRep Boolean lessons](kernel/brep-boolean-lessons.md).
+
 ## 1) Purpose and scope
 
 This milestone verifies (without fixing behavior) whether stepped-hole boolean failure is caused by hard N=2 cliffs in:

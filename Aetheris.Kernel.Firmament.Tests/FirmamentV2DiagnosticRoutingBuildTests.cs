@@ -58,9 +58,60 @@ Modify Base { EdgeFinish Break { Face: +Z Target: Boundary Kind: Chamfer Distanc
 
             Assert.Equal(FirmamentV2ParseDisposition.NotRecognized, v2.Disposition);
             Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(diagnostic => diagnostic.Message)));
+            Assert.Single(result.Diagnostics, diagnostic => diagnostic.Message.StartsWith("firmament-v1-compatibility-input:", StringComparison.Ordinal));
         }
         finally
         {
+            File.Delete(output);
+        }
+    }
+
+    [Fact]
+    public void CompileSource_ValidLegacyToon_CannotCrossCanonicalV2Boundary()
+    {
+        var source = File.ReadAllText(Path.Combine(RepoRoot(), "testdata", "firmament", "examples", "box_basic.firmament"));
+
+        var result = FirmamentBuildAndExport.CompileSource(source);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Source == "FirmamentV2.CompatibilityFirewall");
+        Assert.DoesNotContain(result.Diagnostics, diagnostic => diagnostic.Message.StartsWith("firmament-v1-compatibility-input:", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("2")]
+    [InlineData("preview")]
+    public void Build_SerializationShapedNonV1Document_DoesNotExecuteAsV1(string version)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"aetheris-v2-firewall-{Guid.NewGuid():N}.firmament");
+        var output = Path.ChangeExtension(path, ".step");
+        File.WriteAllText(path, $"""
+            firmament:
+              version: {version}
+            model:
+              name: must_not_fallback
+              units: mm
+            ops[1]:
+              -
+                op: box
+                id: base
+                size[3]:
+                  10
+                  10
+                  10
+            """);
+        try
+        {
+            var result = FirmamentBuildAndExport.Run(path, output);
+
+            Assert.False(result.IsSuccess);
+            Assert.False(File.Exists(output));
+            Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Source == "FirmamentV1.CompatibilityReader");
+            Assert.DoesNotContain(result.Diagnostics, diagnostic => diagnostic.Message.StartsWith("firmament-v1-compatibility-input:", StringComparison.Ordinal));
+        }
+        finally
+        {
+            File.Delete(path);
             File.Delete(output);
         }
     }

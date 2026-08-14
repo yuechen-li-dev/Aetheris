@@ -1,0 +1,62 @@
+using System.Text.Json;
+using Aetheris.CLI;
+using Aetheris.Kernel.Core.Step242;
+using Aetheris.SheetMetal;
+using Xunit;
+
+namespace Aetheris.CLI.Tests;
+
+public sealed class SheetMetalCliTests
+{
+    private static readonly string RepoRoot=FindRepoRoot();
+
+    [Fact]
+    public void InspectCtc03_ReportsRecoveredManufacturingSemantics()
+    {
+        var output=new StringWriter();var error=new StringWriter();var input=Path.Combine(RepoRoot,"testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp");
+        var exit=CliRunner.Run(["sheetmetal","inspect",input,"--json"],output,error);Assert.Equal(0,exit);Assert.Empty(error.ToString());
+        using var json=JsonDocument.Parse(output.ToString());var root=json.RootElement;Assert.True(root.GetProperty("success").GetBoolean());Assert.Equal("Partial",root.GetProperty("recognitionStatus").GetString());Assert.Equal(7,root.GetProperty("sheetMetal").GetProperty("bends").GetArrayLength());Assert.Equal("Partial",root.GetProperty("flatPattern").GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public void FlattenAuthored_WritesDeterministicSvgWithBendAndCutLayers()
+    {
+        var temp=Path.Combine(Path.GetTempPath(),$"aetheris-sheetmetal-{Guid.NewGuid():N}.svg");
+        try
+        {
+            var output=new StringWriter();var error=new StringWriter();var input=Path.Combine(RepoRoot,"fixtures/FirmamentV2/SheetMetal/simple-u-channel.firmament");
+            var exit=CliRunner.Run(["sheetmetal","flatten",input,"--output",temp,"--k-factor","0.42","--json"],output,error);Assert.Equal(0,exit);Assert.Empty(error.ToString());
+            var svg=File.ReadAllText(temp);Assert.Contains("id=\"bend-lines\"",svg);Assert.Contains("id=\"bend-labels\" stroke=\"none\"",svg);Assert.Contains("id=\"cut-contours\"",svg);Assert.Contains("MountA",svg);Assert.Contains("Up 90°",svg);Assert.DoesNotContain("x1=\"35.66\" y1=\"42\" x2=\"35.66\" y2=\"42\"",svg);
+        }
+        finally{if(File.Exists(temp))File.Delete(temp);}
+    }
+
+    [Fact]
+    public void BuildAuthoredSheetMetal_UsesRealStepExportPath()
+    {
+        var temp=Path.Combine(Path.GetTempPath(),$"aetheris-sheetmetal-{Guid.NewGuid():N}.step");
+        try
+        {
+            var output=new StringWriter();var error=new StringWriter();var input=Path.Combine(RepoRoot,"fixtures/FirmamentV2/SheetMetal/simple-u-channel.firmament");
+            var exit=CliRunner.Run(["build",input,"--output",temp,"--json"],output,error);Assert.Equal(0,exit);Assert.Empty(error.ToString());var step=File.ReadAllText(temp);Assert.Contains("MANIFOLD_SOLID_BREP",step);Assert.Contains("ADVANCED_FACE",step);
+        }
+        finally{if(File.Exists(temp))File.Delete(temp);}
+    }
+
+    [Fact]
+    public void FlattenCtc03_WritesReimportableStepAndRecompilableRecoveredFirmament()
+    {
+        var dir=Path.Combine(Path.GetTempPath(),$"aetheris-sheetmetal-{Guid.NewGuid():N}");Directory.CreateDirectory(dir);
+        try
+        {
+            var step=Path.Combine(dir,"ctc03-flat.step");var firmament=Path.Combine(dir,"ctc03-recovered.firmament");var svg=Path.Combine(dir,"ctc03-flat.svg");
+            var output=new StringWriter();var error=new StringWriter();var input=Path.Combine(RepoRoot,"testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp");
+            var exit=CliRunner.Run(["sheetmetal","flatten",input,"--step",step,"--firmament",firmament,"--svg",svg,"--json"],output,error);
+            Assert.Equal(0,exit);Assert.Empty(error.ToString());Assert.True(Step242Importer.ImportBody(File.ReadAllText(step)).IsSuccess);Assert.True(SheetMetalFirmament.CompileFile(firmament).IsSuccess);Assert.Contains("id=\"bend-labels\" stroke=\"none\"",File.ReadAllText(svg));
+            using var report=JsonDocument.Parse(output.ToString());Assert.Equal(Path.GetFullPath(step),report.RootElement.GetProperty("flatPattern").GetProperty("step").GetString());
+        }
+        finally{Directory.Delete(dir,true);}
+    }
+
+    private static string FindRepoRoot(){var dir=new DirectoryInfo(AppContext.BaseDirectory);while(dir is not null&&!File.Exists(Path.Combine(dir.FullName,"Aetheris.slnx")))dir=dir.Parent;return dir?.FullName??throw new InvalidOperationException("Repo root not found.");}
+}

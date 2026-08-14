@@ -12,6 +12,7 @@
   <Project Path="Aetheris.Surfacing/Aetheris.Surfacing.csproj" />
   <Project Path="Aetheris.Piping/Aetheris.Piping.csproj" />
   <Project Path="Aetheris.SheetMetal/Aetheris.SheetMetal.csproj" />
+  <Project Path="Aetheris.SheetMetal.Tests/Aetheris.SheetMetal.Tests.csproj" />
   <Project Path="Aetheris.Modules.BuiltIn/Aetheris.Modules.BuiltIn.csproj" />
   <Project Path="Aetheris.Modules.Tests/Aetheris.Modules.Tests.csproj" />
   <Project Path="Aetheris.Continuum/Aetheris.Continuum.csproj" />

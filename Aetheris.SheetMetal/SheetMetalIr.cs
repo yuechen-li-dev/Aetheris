@@ -1,0 +1,226 @@
+using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Math;
+using Aetheris.Surfacing;
+
+namespace Aetheris.SheetMetal;
+
+public enum SheetMetalRecognitionStatus { Complete, Partial, Unsupported }
+public enum SheetRegionKind { Planar, CylindricalBend, Developable, Unsupported }
+public enum SheetBendDirection { Up, Down, Unknown }
+public enum SheetFeatureKind { CircularHole, ProfileHole, Slot, Cutout, Unsupported }
+public enum SheetEvidenceKind { Authored, Exact, ToleranceBounded, DeterministicHeuristic, Derived, Unsupported }
+public enum FlatPatternStatus { Valid, Overlapping, Partial, Unsupported }
+public enum SheetMetalDiagnosticSeverity { Information, Warning, Error }
+
+public static class SheetMetalDiagnosticCodes
+{
+    public const string NonConstantThickness = "sheetmetal-non-constant-thickness";
+    public const string UnpairedFaces = "sheetmetal-unpaired-sheet-faces";
+    public const string NonDevelopable = "sheetmetal-non-developable-region";
+    public const string AmbiguousBendAxis = "sheetmetal-ambiguous-bend-axis";
+    public const string UnsupportedBendTopology = "sheetmetal-unsupported-bend-topology";
+    public const string InconsistentBendRadius = "sheetmetal-inconsistent-bend-radius";
+    public const string DisconnectedGraph = "sheetmetal-disconnected-sheet-graph";
+    public const string FlatOverlap = "sheetmetal-flat-overlap";
+    public const string FeatureMappingFailure = "sheetmetal-feature-mapping-failure";
+    public const string InvalidRadius = "sheetmetal-invalid-radius";
+    public static IReadOnlyList<string> All { get; } =
+        [NonConstantThickness, UnpairedFaces, NonDevelopable, AmbiguousBendAxis, UnsupportedBendTopology,
+         InconsistentBendRadius, DisconnectedGraph, FlatOverlap, FeatureMappingFailure, InvalidRadius];
+}
+
+public sealed record SheetMetalDiagnostic(
+    string Code,
+    SheetMetalDiagnosticSeverity Severity,
+    string Message,
+    IReadOnlyList<int>? SourceFaceIds = null);
+
+public sealed record SheetEvidence(
+    SheetEvidenceKind Kind,
+    string Predicate,
+    string Basis,
+    double? Measured = null,
+    double? Tolerance = null,
+    IReadOnlyList<int>? SourceFaceIds = null);
+
+public sealed record SheetSourceBinding(
+    string SourceKind,
+    string SourceAuthority,
+    IReadOnlyList<int> FaceIds,
+    IReadOnlyList<int> EdgeIds,
+    string? SourcePath = null);
+
+public sealed record SheetPlaneReference(
+    Point3D Origin,
+    Vector3D Normal,
+    Vector3D UAxis,
+    Vector3D VAxis,
+    bool MaterialPositiveSide);
+
+public sealed record SheetCylinderReference(
+    Point3D AxisOrigin,
+    Vector3D AxisDirection,
+    double GeometricMidRadius,
+    double InsideRadius,
+    double AngularSpanRadians,
+    double AxisLength,
+    bool MaterialOutside);
+
+public sealed record SheetRegionIr(
+    string StableId,
+    SheetRegionKind Kind,
+    DevelopabilityEvidence Developability,
+    SheetPlaneReference? Plane,
+    SheetCylinderReference? Cylinder,
+    IReadOnlyList<Point3D> Boundary3D,
+    double ApproximateArea,
+    SheetSourceBinding Source,
+    IReadOnlyList<SheetEvidence> Evidence);
+
+public sealed record SheetNeutralAxisPolicy(string Kind, double KFactor)
+{
+    public static SheetNeutralAxisPolicy KFactorPolicy(double kFactor) => new("KFactor", kFactor);
+}
+
+public sealed record SheetBendIr(
+    string StableId,
+    Point3D AxisOrigin,
+    Vector3D AxisDirection,
+    double BendAngleRadians,
+    double InsideRadius,
+    double Thickness,
+    SheetBendDirection Direction,
+    string AdjacentRegionA,
+    string AdjacentRegionB,
+    SheetNeutralAxisPolicy NeutralAxisPolicy,
+    SheetSourceBinding Source,
+    IReadOnlyList<SheetEvidence> Evidence);
+
+public sealed record SheetFeatureIr(
+    string StableId,
+    SheetFeatureKind Kind,
+    string OwningRegionId,
+    Point3D Center,
+    double? Diameter,
+    IReadOnlyList<Point3D> Boundary3D,
+    SheetSourceBinding Source,
+    IReadOnlyList<SheetEvidence> Evidence);
+
+public sealed record SheetMetalFlattenPolicy(double KFactor)
+{
+    public static SheetMetalFlattenPolicy Default { get; } = new(0.5d);
+
+    public double NeutralRadius(double insideRadius, double thickness)
+    {
+        Validate(insideRadius, thickness);
+        return insideRadius + KFactor * thickness;
+    }
+
+    public double BendAllowance(double bendAngleRadians, double insideRadius, double thickness)
+    {
+        if (!double.IsFinite(bendAngleRadians) || bendAngleRadians <= 0d)
+            throw new ArgumentOutOfRangeException(nameof(bendAngleRadians));
+        return bendAngleRadians * NeutralRadius(insideRadius, thickness);
+    }
+
+    private void Validate(double radius, double thickness)
+    {
+        if (!double.IsFinite(KFactor) || KFactor < 0d || KFactor > 1d) throw new ArgumentOutOfRangeException(nameof(KFactor));
+        if (!double.IsFinite(radius) || radius < 0d) throw new ArgumentOutOfRangeException(nameof(radius));
+        if (!double.IsFinite(thickness) || thickness <= 0d) throw new ArgumentOutOfRangeException(nameof(thickness));
+    }
+}
+
+public sealed record SheetThicknessPairEvidence(
+    string Family,
+    int FaceA,
+    int FaceB,
+    double Separation,
+    double Residual,
+    bool Admitted);
+
+public sealed record SheetThicknessRecognition(
+    bool IsPlausible,
+    double? NominalThickness,
+    double Tolerance,
+    IReadOnlyList<SheetThicknessPairEvidence> SourcePairs,
+    IReadOnlyList<int> OutlierFaceIds,
+    IReadOnlyList<int> UnsupportedFaceIds,
+    IReadOnlyList<SheetEvidence> Evidence);
+
+public sealed record SheetMetalPartIr(
+    string StableId,
+    double Thickness,
+    string? Material,
+    string BaseRegionId,
+    IReadOnlyList<SheetRegionIr> Regions,
+    IReadOnlyList<SheetBendIr> Bends,
+    IReadOnlyList<SheetFeatureIr> Features,
+    SheetMetalFlattenPolicy FlatPatternPolicy,
+    SheetMetalRecognitionStatus RecognitionStatus,
+    string Provenance,
+    IReadOnlyList<SheetEvidence> Evidence,
+    IReadOnlyList<SheetMetalDiagnostic> Diagnostics,
+    BrepBody? FormedBody = null);
+
+public readonly record struct SheetPoint2(double X, double Y);
+
+public sealed record FlatRegion2D(
+    string StableId,
+    string SourceRegionId,
+    SheetRegionKind Kind,
+    IReadOnlyList<SheetPoint2> Boundary,
+    string MappingKind);
+
+public sealed record FlatBendLine(
+    string BendId,
+    SheetPoint2 Start,
+    SheetPoint2 End,
+    SheetBendDirection Direction,
+    double BendAngleRadians,
+    double InsideRadius,
+    double Thickness,
+    double KFactor,
+    double BendAllowance);
+
+public sealed record FlatCutLoop(
+    string FeatureId,
+    SheetFeatureKind Kind,
+    IReadOnlyList<SheetPoint2> Boundary,
+    string SourceRegionId);
+
+public sealed record SourceToFlatMapping(
+    string SourceRegionId,
+    Point3D PlaneOrigin,
+    Vector3D SourceU,
+    Vector3D SourceV,
+    SheetPoint2 FlatOrigin,
+    SheetPoint2 FlatU,
+    SheetPoint2 FlatV);
+
+public sealed record FlatPatternBounds(double MinX, double MinY, double MaxX, double MaxY)
+{
+    public double Width => MaxX - MinX;
+    public double Height => MaxY - MinY;
+}
+
+public sealed record SheetMetalFlatPatternIr(
+    string StableId,
+    FlatPatternStatus Status,
+    IReadOnlyList<FlatRegion2D> Regions2D,
+    IReadOnlyList<FlatBendLine> BendLines,
+    IReadOnlyList<FlatCutLoop> CutLoops,
+    IReadOnlyList<SourceToFlatMapping> SourceToFlatMappings,
+    IReadOnlyList<SheetPoint2> Boundary,
+    FlatPatternBounds? Bounds,
+    SheetMetalFlattenPolicy Policy,
+    IReadOnlyList<SheetEvidence> Evidence,
+    IReadOnlyList<SheetMetalDiagnostic> Diagnostics,
+    string DeterministicHash);
+
+public sealed record SheetMetalRecognitionResult(
+    SheetMetalPartIr? Part,
+    SheetThicknessRecognition Thickness,
+    IReadOnlyList<SheetMetalDiagnostic> Diagnostics,
+    TimeSpan ImportTime,
+    TimeSpan RecognitionTime);

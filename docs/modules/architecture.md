@@ -16,7 +16,7 @@ An `AetherisModule` has an explicit dotted `AetherisModuleId`, semantic version,
 flowchart TD
   Core["Aetheris.Core\ngeometry/compiler semantics"] --> Piping["Aetheris.Piping\nPipeRoute / PathPipe"]
   Core --> Surfacing["Aetheris.Surfacing\nRuledSurface / RuledTransition"]
-  Core --> Sheet["Aetheris.SheetMetal\nreserved"]
+  Core --> Sheet["Aetheris.SheetMetal\nSheetMetalPartIr / bend recovery / flat pattern"]
   Surfacing --> Sheet
   Piping --> BRep["exact cylinder / torus BRep"]
   Surfacing --> BRep2["exact analytic / degree-(1,1) ruled BRep"]
@@ -31,6 +31,8 @@ A Module owns a domain package and its admitted compiler capabilities. Forge Hos
 M0 adds no import keyword. Domain APIs and module-owned Templates resolve the owning Module explicitly, then lower to ordinary Firmament/Core construction or exact BRep. Forge `Construct` uses the fully qualified capability ID (`Piping.PipeRoute`, not an unqualified `PipeRoute`) at the capability boundary. Template-authored Firmament stays pleasant because its expansion uses normal short local declarations.
 
 This choice is intentional: the current canonical Firmament grammar does not have two competing domain declarations requiring an import/name-resolution system. Adding `Use` now would create syntax without a native domain construct consumer. Tooling obtains ownership from the catalog. If native domain declarations later create real collisions, the smallest future import form can enable a Module once per document; fully qualified IDs remain the unambiguous fallback.
+
+`Aetheris.SheetMetal` advanced to 0.2.0 in Sheet Metal M1. Its native module-owned `SheetMetal` declaration is intentionally bounded to a two-flange bracket family, while ordinary STEP recognition consumes Core exact BRep without changing source authority. See [Sheet Metal](sheet-metal.md).
 
 ## M0 scope and limitations
 

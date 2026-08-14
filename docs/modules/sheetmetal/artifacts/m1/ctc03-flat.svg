@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="428.754mm" height="649.306mm" viewBox="0 0 428.754 649.306">
+<rect width="100%" height="100%" fill="white"/>
+<g id="sheet-regions" fill="#dbeafe" fill-opacity="0.55" stroke="#0f172a" stroke-width="0.45">
+<polygon id="flat-bend-c-0005-0024" points="67.923,581.383 309.223,581.383 309.223,592.856 67.923,592.856"/>
+<polygon id="flat-bend-c-0006-0009" points="67.923,66.952 309.223,66.952 309.223,55.48 67.923,55.48"/>
+<polygon id="flat-bend-c-0046-0050" points="349.804,263.055 349.804,390.055 355.54,390.055 355.54,263.055"/>
+<polygon id="flat-bend-c-0057-0070" points="309.223,141.92 309.223,507.385 320.695,507.385 320.695,141.92"/>
+<polygon id="flat-bend-c-0058-0064" points="76.813,140.018 300.333,140.018 300.333,128.545 76.813,128.545"/>
+<polygon id="flat-bend-c-0059-0068" points="67.923,141.92 67.923,507.385 56.45,507.385 56.45,141.92"/>
+<polygon id="flat-bend-c-0060-0067" points="76.813,508.318 300.333,508.318 300.333,519.79 76.813,519.79"/>
+<polygon id="flat-region-p-0061-0066" points="67.923,581.383 309.223,581.383 309.223,532.361 300.333,519.79 76.813,519.79 67.923,532.361"/>
+<polygon id="flat-region-p-0062-0063" points="67.923,115.974 76.813,128.545 300.333,128.545 309.223,115.974 309.223,66.952 67.923,66.952"/>
+<polygon id="flat-region-p-0065-0069" points="67.923,507.385 76.813,508.318 300.333,508.318 309.223,507.385 309.223,141.92 300.333,140.018 76.813,140.018 67.923,141.92"/>
+<polygon id="flat-region-p-0088-0089" points="67.923,624.606 80.623,637.306 296.523,637.306 309.223,624.606 309.223,592.856 67.923,592.856"/>
+<polygon id="flat-region-p-0096-0097" points="67.923,55.48 309.223,55.48 309.223,24.7 296.523,12 80.623,12 67.923,24.7"/>
+<polygon id="flat-region-p-0102-0104" points="12,481.985 37.4,507.385 56.45,507.385 56.45,141.92 37.4,141.92 12,167.32"/>
+<polygon id="flat-region-p-0109-0111" points="355.54,390.055 404.054,390.055 416.754,377.355 416.754,275.755 404.054,263.055 355.54,263.055"/>
+<polygon id="flat-region-p-0118-0119" points="320.695,507.385 339.745,507.385 352.445,494.685 352.445,154.62 339.745,141.92 320.695,141.92"/>
+</g>
+<g id="cut-contours" fill="white" stroke="#dc2626" stroke-width="0.5">
+<polygon id="feature-profile-f0065-l0069" points="173.18,292.903 192.23,292.903 192.23,204.003 173.18,204.003"/>
+<polygon id="feature-profile-f0065-l0070" points="109.68,292.903 128.73,292.903 128.73,204.003 109.68,204.003"/>
+</g>
+<g id="bend-lines" fill="none" stroke="#2563eb" stroke-width="0.45" stroke-dasharray="3 2">
+<line x1="67.923" y1="587.119" x2="309.223" y2="587.119"/>
+<line x1="67.923" y1="61.216" x2="309.223" y2="61.216"/>
+<line x1="352.672" y1="263.055" x2="352.672" y2="390.055"/>
+<line x1="314.959" y1="141.92" x2="314.959" y2="507.385"/>
+<line x1="76.813" y1="134.281" x2="300.333" y2="134.281"/>
+<line x1="62.186" y1="141.92" x2="62.186" y2="507.385"/>
+<line x1="76.813" y1="514.054" x2="300.333" y2="514.054"/>
+</g>
+<g id="bend-labels" stroke="none" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="3" text-anchor="middle" dominant-baseline="central">
+<rect x="176.323" y="588.919" width="24.5" height="4.4" rx="0.8" fill="white" fill-opacity="0.88"/>
+<text x="188.573" y="591.119" fill="#1d4ed8">Down 90° R6.35</text>
+<rect x="177.973" y="63.016" width="21.2" height="4.4" rx="0.8" fill="white" fill-opacity="0.88"/>
+<text x="188.573" y="65.216" fill="#1d4ed8">Up 90° R6.35</text>
+<rect x="338.072" y="324.355" width="21.2" height="4.4" rx="0.8" fill="white" fill-opacity="0.88"/>
+<text x="348.672" y="326.555" fill="#1d4ed8">Up 45° R6.35</text>
+<rect x="300.359" y="322.453" width="21.2" height="4.4" rx="0.8" fill="white" fill-opacity="0.88"/>
+<text x="310.959" y="324.653" fill="#1d4ed8">Up 90° R6.35</text>
+<rect x="177.973" y="136.081" width="21.2" height="4.4" rx="0.8" fill="white" fill-opacity="0.88"/>
+<text x="188.573" y="138.281" fill="#1d4ed8">Up 90° R6.35</text>
+<rect x="47.586" y="322.453" width="21.2" height="4.4" rx="0.8" fill="white" fill-opacity="0.88"/>
+<text x="58.186" y="324.653" fill="#1d4ed8">Up 90° R6.35</text>
+<rect x="177.973" y="515.854" width="21.2" height="4.4" rx="0.8" fill="white" fill-opacity="0.88"/>
+<text x="188.573" y="518.054" fill="#1d4ed8">Up 90° R6.35</text>
+</g>
+<text x="4" y="6" font-family="sans-serif" font-size="3" fill="#334155">Partial · K=0.5 · SHA-256 2a7809249922</text>
+</svg>

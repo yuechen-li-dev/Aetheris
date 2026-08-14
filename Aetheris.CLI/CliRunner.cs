@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Aetheris.Kernel.Core.Diagnostics;
 using System.Text.RegularExpressions;
 using Aetheris.Forge.Abstractions.FirmamentInterop;
 using Aetheris.Kernel.Core.Brep.Verification;
@@ -449,6 +450,7 @@ public static class CliRunner
                 features = build.Value.Export.Features,
                 inlineStepMigration = build.Value.Export.InlineStepMigration,
                 inlineStepReplacementAssist = build.Value.Export.InlineStepReplacementAssist,
+                diagnostics = build.Diagnostics.Select(d => new { d.Source, d.Message, severity = d.Severity.ToString() }),
                 pmiExportEvidence = new
                 {
                     datum = (build.Value.Export.DatumInspection ?? []).Select(d => new { kind = "datum", name = d.Label, exportSupport = "supported", exportEvidence = "found", target = d.Target }),
@@ -463,6 +465,8 @@ public static class CliRunner
             stdout.WriteLine($"Model: {build.Value.Export.ExportedFeatureId}");
             if (build.Value.Export.StandardPart is { } standardPart)
                 stdout.WriteLine($"Standard part: {standardPart.Family} via {standardPart.Template ?? "direct record"} ({standardPart.SemanticDescendants.Count} semantic descendants)");
+            foreach (var diagnostic in build.Diagnostics.Where(diagnostic => diagnostic.Severity == KernelDiagnosticSeverity.Warning))
+                stderr.WriteLine($"- [Warning] {diagnostic.Source}: {diagnostic.Message}");
         }
 
         return 0;

@@ -1,4 +1,6 @@
-# .firmasm examples (ASM-A0)
+# Legacy JSON `.firmasm` compatibility fixtures (ASM-A0)
+
+> Historical compatibility serialization: these JSON manifests are not the current `.firmasm` authoring language. Current `.firmasm` is the Firmament V2 Assembly document profile.
 
 `.firmasm` manifests are JSON objects with four top-level sections:
 

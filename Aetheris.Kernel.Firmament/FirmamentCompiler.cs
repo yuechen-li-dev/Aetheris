@@ -6,6 +6,7 @@ using Aetheris.Kernel.Firmament.Lowering;
 using Aetheris.Kernel.Firmament.Mapping;
 using Aetheris.Kernel.Firmament.Parsing;
 using Aetheris.Kernel.Firmament.Validation;
+using Aetheris.Kernel.Firmament.Compatibility.V1;
 
 namespace Aetheris.Kernel.Firmament;
 
@@ -15,7 +16,8 @@ public sealed class FirmamentCompiler
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var parseResult = FirmamentTopLevelParser.Parse(request.Document.SourceText);
+        // V1 execution is retained as a compatibility lane. V2 callers use the V2 pipeline.
+        var parseResult = new LegacyFirmamentV1SourceReader().ReadAuto(request.Document.SourceText);
         if (!parseResult.IsSuccess)
         {
             return new FirmamentCompileResult(

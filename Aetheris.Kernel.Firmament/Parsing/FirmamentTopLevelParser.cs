@@ -10,15 +10,40 @@ namespace Aetheris.Kernel.Firmament.Parsing;
 
 internal static class FirmamentTopLevelParser
 {
-    public static KernelResult<FirmamentParsedDocument> Parse(string sourceText)
+    // This parser is the V1 normalized-model decoder.  V2 source never enters here.
+    // Callers should select a named V1 codec; ReadAuto is retained only for historical
+    // callers that supplied V1 source without a declared serialization format.
+    public static KernelResult<FirmamentParsedDocument> Parse(string sourceText) => ReadAuto(sourceText);
+
+    public static KernelResult<FirmamentParsedDocument> ReadAuto(string sourceText)
     {
         ArgumentNullException.ThrowIfNull(sourceText);
 
         if (TryParseJson(sourceText, out var jsonRootResult))
         {
-            return ParseFromRoot(jsonRootResult);
+            return ReadJson(sourceText);
         }
 
+        return ReadToon(sourceText);
+    }
+
+    public static KernelResult<FirmamentParsedDocument> ReadJson(string sourceText)
+    {
+        ArgumentNullException.ThrowIfNull(sourceText);
+        if (!TryParseJson(sourceText, out var root))
+        {
+            return KernelResult<FirmamentParsedDocument>.Failure([
+                CreateDiagnostic(KernelDiagnosticCode.ValidationFailed,
+                    FirmamentDiagnosticCodes.StructureInvalidSectionShape,
+                    "Firmament V1 JSON compatibility input is not valid JSON.")]);
+        }
+
+        return ParseFromRoot(root);
+    }
+
+    public static KernelResult<FirmamentParsedDocument> ReadToon(string sourceText)
+    {
+        ArgumentNullException.ThrowIfNull(sourceText);
         var toonResult = ParseToonTopLevel(sourceText);
         if (!toonResult.IsSuccess)
         {

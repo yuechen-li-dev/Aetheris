@@ -1,3 +1,7 @@
+# Historical / Firmament V1 Compatibility Documentation
+
+> This document describes the legacy Firmament V1 authoring/execution model retained for compatibility and regression coverage. Firmament V2 is the current canonical authoring language; see [the serialization authority](architecture/firmament-serialization-compatibility.md).
+
 # Firmament Overview
 
 Firmament now includes bounded static logic: PascalCase `Enum` declarations and exhaustive enum/boolean `Match` expressions are evaluated into typed Concept IR and erased before Feature AIR. This is compile-time selection, not runtime behavior or general scripting. See [CONCEPT-STATIC-LOGIC-M3](concept-static-logic-m3.md).

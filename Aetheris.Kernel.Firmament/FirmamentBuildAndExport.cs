@@ -324,7 +324,26 @@ public static class FirmamentBuildAndExport
                 "FirmamentV2.Parse")).ToArray());
         }
 
-        return FirmamentStepExporter.Export(new FirmamentCompileRequest(new FirmamentSourceDocument(sourceText)));
+        // V1 is not a peer authoring route: this is the sole retained build fallback
+        // for historical serialized source and deliberately emits one concise warning.
+        return ExportV1CompatibilitySource(sourceText);
+    }
+
+    private static KernelResult<FirmamentStepExportResult> ExportV1CompatibilitySource(string sourceText)
+    {
+        var legacy = FirmamentStepExporter.Export(new FirmamentCompileRequest(new FirmamentSourceDocument(sourceText)));
+        if (!legacy.IsSuccess)
+        {
+            return legacy;
+        }
+
+        return KernelResult<FirmamentStepExportResult>.Success(legacy.Value, [
+            .. legacy.Diagnostics,
+            new Kernel.Core.Diagnostics.KernelDiagnostic(
+                Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed,
+                Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Warning,
+                "firmament-v1-compatibility-input: historical Firmament V1 source was accepted through the compatibility build route; Firmament V2 is the canonical authoring language.",
+                "FirmamentV1.Compatibility")]);
     }
 
     private static KernelResult<FirmamentStepExportResult>? TryExportV2StandardPart(FirmamentV2Document document)

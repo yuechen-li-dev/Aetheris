@@ -1,3 +1,7 @@
+# Historical / Firmament V1 Compatibility Documentation
+
+> This document describes the legacy Firmament V1 placement model retained for compatibility and regression coverage. Firmament V2 is the current canonical authoring language; see [the serialization authority](architecture/firmament-serialization-compatibility.md).
+
 # Firmament Placement Semantics (current executable rules)
 
 This is the bounded, executable placement model in current Firmament.

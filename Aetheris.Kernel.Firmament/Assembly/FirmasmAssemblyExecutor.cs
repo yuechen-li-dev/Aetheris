@@ -22,9 +22,10 @@ public sealed record FirmasmExecutionResult(
     IReadOnlyList<FirmasmExecutedInstance> Instances,
     BrepBody ComposedBody);
 
+/// <summary>Legacy JSON <c>.firmasm</c> direct execution bridge retained for Preview compatibility.</summary>
 public sealed class FirmasmAssemblyExecutor
 {
-    private readonly FirmasmManifestLoader _loader = new();
+    private readonly LegacyFirmasmJsonReader _loader = new();
 
     public KernelResult<FirmasmExecutionResult> ExecuteFromFile(string manifestPath)
     {

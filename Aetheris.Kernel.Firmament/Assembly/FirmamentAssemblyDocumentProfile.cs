@@ -38,7 +38,7 @@ public sealed class FirmamentAssemblyDocumentCompiler
         var migrated = false;
         if (profile == FirmamentDocumentProfile.Assembly && LooksLikeJson(source))
         {
-            var legacy = new FirmasmManifestLoader().LoadFromFile(fullPath);
+            var legacy = new LegacyFirmasmJsonReader().LoadFromFile(fullPath);
             if (!legacy.IsSuccess)
             {
                 var diagnostics = legacy.Diagnostics.Select(diagnostic => new AssemblyDiagnostic(

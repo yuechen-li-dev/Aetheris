@@ -5,7 +5,12 @@ using Aetheris.Kernel.Core.Step242;
 
 namespace Aetheris.Kernel.Firmament.Assembly;
 
-public sealed class FirmasmManifestLoader
+/// <summary>
+/// Compatibility reader for the deprecated JSON-shaped <c>.firmasm</c> serialization.
+/// It intentionally preserves flat explicit transforms and never derives V2 mates,
+/// interfaces, roles, or hierarchy semantics.
+/// </summary>
+public sealed class LegacyFirmasmJsonReader
 {
     private static readonly HashSet<string> AllowedTopLevelSections = new(StringComparer.Ordinal)
     {

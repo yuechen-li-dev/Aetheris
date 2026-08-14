@@ -1,3 +1,7 @@
+# Historical / Firmament V1 Compatibility Documentation
+
+> This document describes the legacy Firmament V1 syntax retained for compatibility and regression coverage. Firmament V2 is the current canonical authoring language; see [the serialization authority](architecture/firmament-serialization-compatibility.md).
+
 # Firmament Language Shape
 
 This document defines the **canonical source shape** of `.firmament` files used by the Aetheris Firmament DSL.

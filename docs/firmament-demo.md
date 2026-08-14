@@ -1,3 +1,7 @@
+# Historical / Firmament V1 Compatibility Documentation
+
+> This document describes the legacy Firmament V1 workflow retained for compatibility and regression coverage. Firmament V2 is the current canonical authoring language; see [the serialization authority](architecture/firmament-serialization-compatibility.md).
+
 # Firmament Demo Script
 
 Use this when you need to demo Firmament v1 quickly and without improvising.

@@ -1,3 +1,7 @@
+# Historical / Firmament V1 Compatibility Documentation
+
+> This document describes the legacy Firmament V1 workflow retained for compatibility and regression coverage. Firmament V2 is the current canonical authoring language; see [the serialization authority](architecture/firmament-serialization-compatibility.md).
+
 # Firmament Build and Export Workflow
 
 This document describes the current Firmament v1 golden path as it exists in the repository today.

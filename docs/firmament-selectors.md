@@ -1,3 +1,7 @@
+# Historical / Firmament V1 Compatibility Documentation
+
+> This document describes the legacy Firmament V1 selector model retained for compatibility and regression coverage. Firmament V2 is the current canonical authoring language; see [the serialization authority](architecture/firmament-serialization-compatibility.md).
+
 # Firmament Selector Contracts + Primitive Semantic Naming (current v1 reality)
 
 This document is the source-of-truth summary for the selector/semantic naming surface that is implemented **today**.

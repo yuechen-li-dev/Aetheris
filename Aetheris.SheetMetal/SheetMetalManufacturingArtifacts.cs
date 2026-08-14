@@ -39,7 +39,10 @@ public static class SheetMetalManufacturingArtifacts
             var cut = flat.CutLoops[index];
             if (cut.Boundary.Count < 3) continue;
             var name = $"cut_{index:D3}";
-            profiles[name] = Profile(name, cut.Boundary, shift);
+            var cutFeature=part.Features.FirstOrDefault(f=>f.StableId==cut.FeatureId);
+            profiles[name] = cutFeature is { Kind:SheetFeatureKind.CircularHole,Diameter:not null }
+                ? CircleProfile(name,new(cut.Boundary.Average(p=>p.X),cut.Boundary.Average(p=>p.Y)),cutFeature.Diameter.Value/2,shift)
+                : Profile(name, cut.Boundary, shift);
             operations.Add(new(name, PrismaticProfileIntent.Remove, name, 0, part.Thickness, "ThroughCut", cut.FeatureId, cut.FeatureId, cut.Kind.ToString()));
         }
         if (materialRegions.Length == 0) return Failure("Flat pattern contains no bounded material regions.");
@@ -141,6 +144,13 @@ public static class SheetMetalManufacturingArtifacts
         var points = SignedArea(cleaned) >= 0 ? cleaned : cleaned.Reverse().ToArray();
         var segments = points.Select((point, index) => new ResolvedProfileSegment2D($"s{index:D3}", new LineArcLineSegment2D((point.X, point.Y), (points[(index + 1) % points.Length].X, points[(index + 1) % points.Length].Y)), new($"{name}:s{index:D3}", name, name, "SheetMetalFlatPatternIr", "XY"))).ToArray();
         return new(name, "XY", [new("Outer", true, segments)]);
+    }
+
+    private static ResolvedProfile2D CircleProfile(string name,SheetPoint2 center,double radius,SheetPoint2 shift)
+    {
+        var c=(Clean(center.X+shift.X),Clean(center.Y+shift.Y));
+        ResolvedProfileSegment2D Segment(string id,double start)=>new(id,new LineArcCircularArc2D(c,radius,start,Math.PI),new($"{name}:{id}",name,name,"SheetMetalFlatPatternIr analytic circle","XY"));
+        return new(name,"XY",[new("Outer",true,[Segment("semicircle_0",0),Segment("semicircle_1",Math.PI)])]);
     }
 
     private static double SignedArea(IReadOnlyList<SheetPoint2> points) { var sum = 0d; for (var i = 0; i < points.Count; i++) { var q = points[(i + 1) % points.Count]; sum += points[i].X * q.Y - q.X * points[i].Y; } return sum / 2d; }

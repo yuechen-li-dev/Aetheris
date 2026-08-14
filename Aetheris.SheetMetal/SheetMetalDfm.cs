@@ -33,6 +33,11 @@ public static class SheetMetalDfm
             var ratio=bend.InsideRadius/part.Thickness;var pass=ratio>=policy.MinimumInsideRadiusRatio;
             findings.Add(new("sheetmetal-dfm-inside-radius-ratio",pass?SheetMetalDfmStatus.Pass:SheetMetalDfmStatus.Warning,$"Inside-radius/thickness ratio {ratio:G4} {(pass?"meets":"is below")} the parameterized experimental policy {policy.MinimumInsideRadiusRatio:G4}.",bend.StableId,ratio,policy.MinimumInsideRadiusRatio));
         }
+        foreach(var corner in part.Corners??[])
+        {
+            var relief=(part.Reliefs??[]).FirstOrDefault(r=>r.CornerId==corner.StableId);var valid=corner.Policy!=SheetCornerPolicy.Relief||relief is not null&&relief.Width>=part.Thickness&&relief.Depth>=part.Thickness;
+            findings.Add(new("sheetmetal-dfm-corner-resolution",valid?SheetMetalDfmStatus.Pass:SheetMetalDfmStatus.Warning,valid?$"'{corner.StableId}' uses bounded {corner.Policy} corner resolution.":$"'{corner.StableId}' has insufficient or missing relief geometry.",corner.StableId,relief?.Width,part.Thickness,valid?null:$"Increase {corner.ReliefId??"the corner relief"} width and depth to at least {part.Thickness:G4} mm."));
+        }
         if(flat is not null)
         {
             findings.Add(new("sheetmetal-dfm-flat-overlap",flat.Status==FlatPatternStatus.Overlapping?SheetMetalDfmStatus.Fail:SheetMetalDfmStatus.Pass,flat.Status==FlatPatternStatus.Overlapping?"Flat material regions overlap.":"No planar-region overlap was detected.",flat.StableId,null,null));

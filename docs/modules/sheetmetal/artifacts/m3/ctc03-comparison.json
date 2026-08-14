@@ -1,0 +1,143 @@
+{
+  "command": "sheetmetal compare",
+  "success": true,
+  "source": "C:\\Users\\yuech\\source\\repos\\Aetheris\\testdata\\step242\\nist\\CTC\\nist_ctc_03_asme1_ap242-e2.stp",
+  "intent": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\modules\\sheetmetal\\artifacts\\m2\\ctc03-idiomatic.firmament",
+  "comparison": {
+    "status": "NeedsReview",
+    "thicknessResidual": 0.0025400000076409857,
+    "sourceToIntent": {
+      "rms": 45.8065804342658,
+      "p95": 114.78655818595969,
+      "maximum": 128.11735869868062,
+      "sampleCount": 136
+    },
+    "intentToSource": {
+      "rms": 11.124620087809111,
+      "p95": 18.102256748656195,
+      "maximum": 51.53558488189028,
+      "sampleCount": 68
+    },
+    "bends": [
+      {
+        "sourceBendId": "bend-c-0005-0024",
+        "intentBendId": "RearMountingFlangeBend",
+        "axisResidual": 0.0025412612943755287,
+        "axisAngleResidualDegrees": 0,
+        "bendAngleResidualDegrees": 2.0355549961366507E-13,
+        "radiusResidual": 2.538058652135078E-11,
+        "adjacencyMatches": true,
+        "status": "Pass"
+      },
+      {
+        "sourceBendId": "bend-c-0006-0009",
+        "intentBendId": "FrontMountingFlangeBend",
+        "axisResidual": 0.002541259357449586,
+        "axisAngleResidualDegrees": 0,
+        "bendAngleResidualDegrees": 0,
+        "radiusResidual": 2.5410784587620583E-11,
+        "adjacencyMatches": true,
+        "status": "Pass"
+      },
+      {
+        "sourceBendId": "bend-c-0046-0050",
+        "intentBendId": "AngledServiceFlangeBend",
+        "axisResidual": 0.002540000058399313,
+        "axisAngleResidualDegrees": 0,
+        "bendAngleResidualDegrees": 2.3917771204605646E-12,
+        "radiusResidual": 2.540012644658418E-11,
+        "adjacencyMatches": true,
+        "status": "Pass"
+      },
+      {
+        "sourceBendId": "bend-c-0057-0070",
+        "intentBendId": "RightWallBend",
+        "axisResidual": 0.0025400003380013914,
+        "axisAngleResidualDegrees": 0,
+        "bendAngleResidualDegrees": 0,
+        "radiusResidual": 2.539035648396748E-11,
+        "adjacencyMatches": true,
+        "status": "Pass"
+      },
+      {
+        "sourceBendId": "bend-c-0058-0064",
+        "intentBendId": "FrontWallBend",
+        "axisResidual": 3.634199174541027E-10,
+        "axisAngleResidualDegrees": 0,
+        "bendAngleResidualDegrees": 7.124442486478278E-13,
+        "radiusResidual": 2.540012644658418E-11,
+        "adjacencyMatches": true,
+        "status": "Pass"
+      },
+      {
+        "sourceBendId": "bend-c-0059-0068",
+        "intentBendId": "LeftWallBend",
+        "axisResidual": 0.002540000338001575,
+        "axisAngleResidualDegrees": 0,
+        "bendAngleResidualDegrees": 8.142219984546603E-13,
+        "radiusResidual": 2.538058652135078E-11,
+        "adjacencyMatches": true,
+        "status": "Pass"
+      },
+      {
+        "sourceBendId": "bend-c-0060-0067",
+        "intentBendId": "RearWallBend",
+        "axisResidual": 1.7286944152133616E-09,
+        "axisAngleResidualDegrees": 0,
+        "bendAngleResidualDegrees": 7.124442486478278E-13,
+        "radiusResidual": 2.540012644658418E-11,
+        "adjacencyMatches": true,
+        "status": "Pass"
+      }
+    ],
+    "features": [
+      {
+        "sourceFeatureId": "feature-profile-f0065-l0069",
+        "intentFeatureId": "VentSlotRight",
+        "centerResidual": 0.001270000308693673,
+        "sizeResidual": 3.560103323252406E-10,
+        "status": "Pass"
+      },
+      {
+        "sourceFeatureId": "feature-profile-f0065-l0070",
+        "intentFeatureId": "VentSlotLeft",
+        "centerResidual": 0.0012700003086937996,
+        "sizeResidual": 3.560103323252406E-10,
+        "status": "Pass"
+      }
+    ],
+    "flatPattern": {
+      "widthResidual": 12.702447279956402,
+      "heightResidual": 12.707819647841916,
+      "contour": {
+        "rms": 52.776254755101434,
+        "p95": 128.11367917941004,
+        "maximum": 128.11367917941004,
+        "sampleCount": 12
+      },
+      "cuts": [
+        {
+          "sourceFeatureId": "feature-profile-f0065-l0069",
+          "intentFeatureId": "VentSlotRight",
+          "centerResidual": 0.001270000308693673,
+          "sizeResidual": 3.560103323252406E-10,
+          "status": "Pass"
+        },
+        {
+          "sourceFeatureId": "feature-profile-f0065-l0070",
+          "intentFeatureId": "VentSlotLeft",
+          "centerResidual": 0.0012700003086937996,
+          "sizeResidual": 3.560103323252406E-10,
+          "status": "Pass"
+        }
+      ],
+      "bendLineCountDelta": 0,
+      "hasOverlap": false,
+      "status": "Fail"
+    },
+    "knownDifferences": [
+      "Source-independent reconstructed topology differs from historical STEP boundary trims; bend/cut semantics pass and global formed/flat residuals require engineer review."
+    ],
+    "diagnostics": []
+  }
+}

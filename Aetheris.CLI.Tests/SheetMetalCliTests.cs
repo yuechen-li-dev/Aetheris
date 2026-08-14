@@ -68,7 +68,7 @@ public sealed class SheetMetalCliTests
             var output=new StringWriter();var error=new StringWriter();var recover=CliRunner.Run(["sheetmetal","recover",source,"--out-dir",dir,"--json"],output,error);
             Assert.Equal(0,recover);Assert.Empty(error.ToString());Assert.Contains("Ambiguities:",File.ReadAllText(Path.Combine(dir,"reconstruction-brief.md")));Assert.True(File.Exists(Path.Combine(dir,"recovery-summary.json")));
             output.GetStringBuilder().Clear();var compare=CliRunner.Run(["sheetmetal","compare",source,intent,"--json"],output,error);Assert.Equal(0,compare);Assert.Empty(error.ToString());
-            using var report=JsonDocument.Parse(output.ToString());Assert.Equal("PassWithKnownDifferences",report.RootElement.GetProperty("comparison").GetProperty("status").GetString());Assert.Equal(7,report.RootElement.GetProperty("comparison").GetProperty("bends").GetArrayLength());
+            using var report=JsonDocument.Parse(output.ToString());Assert.True(report.RootElement.GetProperty("success").GetBoolean());Assert.Equal("NeedsReview",report.RootElement.GetProperty("comparison").GetProperty("status").GetString());Assert.Equal(7,report.RootElement.GetProperty("comparison").GetProperty("bends").GetArrayLength());
         }
         finally{Directory.Delete(dir,true);}
     }

@@ -1,0 +1,470 @@
+{
+  "command": "sheetmetal flatten",
+  "success": true,
+  "input": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\modules\\sheetmetal\\artifacts\\m2\\ctc03-idiomatic.firmament",
+  "sourceAuthority": "Firmament reconstructed engineering authority",
+  "recognitionStatus": "Complete",
+  "thickness": {
+    "nominal": 1.905,
+    "tolerance": null,
+    "evidencePairs": 0,
+    "outlierFaces": 0
+  },
+  "geometry": {
+    "bodies": 1,
+    "shells": 1,
+    "faces": 78,
+    "edges": 172,
+    "vertices": 96,
+    "supportFamilies": {
+      "Cylinder": 14,
+      "Plane": 64
+    },
+    "pmiIndicators": 0
+  },
+  "sheetMetal": {
+    "baseRegion": "MainDeck",
+    "regions": [
+      {
+        "stableId": "MainDeck",
+        "kind": "Planar",
+        "approximateArea": 88870.79000000001,
+        "sourceFaces": []
+      },
+      {
+        "stableId": "FrontWall",
+        "kind": "Planar",
+        "approximateArea": 13845.387066600002,
+        "sourceFaces": []
+      },
+      {
+        "stableId": "FrontWallBendRegion",
+        "kind": "CylindricalBend",
+        "approximateArea": 2578.5076842573917,
+        "sourceFaces": []
+      },
+      {
+        "stableId": "RearWall",
+        "kind": "Planar",
+        "approximateArea": 13845.387066600002,
+        "sourceFaces": []
+      },
+      {
+        "stableId": "RearWallBendRegion",
+        "kind": "CylindricalBend",
+        "approximateArea": 2578.5076842573917,
+        "sourceFaces": []
+      },
+      {
+        "stableId": "LeftWall",
+        "kind": "Planar",
+        "approximateArea": 15637.065500000002,
+        "sourceFaces": []
+      },
+      {
+        "stableId": "LeftWallBendRegion",
+        "kind": "CylindricalBend",
+        "approximateArea": 4035.2916866626974,
+        "sourceFaces": []
+      },
+      {
+        "stableId": "RightWall",
+        "kind": "Planar",
+        "approximateArea": 10240.9375826,
+        "sourceFaces": []
+      },
+      {
+        "stableId": "RightWallBendRegion",
+        "kind": "CylindricalBend",
+        "approximateArea": 4035.2916866626974,
+        "sourceFaces": []
+      },
+      {
+        "stableId": "FrontMountingFlange",
+        "kind": "Planar",
+        "approximateArea": 6918.973258800001,
+        "sourceFaces": []
+      },
+      {
+        "stableId": "FrontMountingFlangeBendRegion",
+        "kind": "CylindricalBend",
+        "approximateArea": 2578.5076842573917,
+        "sourceFaces": []
+      },
+      {
+        "stableId": "RearMountingFlange",
+        "kind": "Planar",
+        "approximateArea": 9991.915500000001,
+        "sourceFaces": []
+      },
+      {
+        "stableId": "RearMountingFlangeBendRegion",
+        "kind": "CylindricalBend",
+        "approximateArea": 2578.5076842573917,
+        "sourceFaces": []
+      },
+      {
+        "stableId": "AngledServiceFlange",
+        "kind": "Planar",
+        "approximateArea": 17066.740060000004,
+        "sourceFaces": []
+      },
+      {
+        "stableId": "AngledServiceFlangeBendRegion",
+        "kind": "CylindricalBend",
+        "approximateArea": 2017.6458433313487,
+        "sourceFaces": []
+      }
+    ],
+    "bends": [
+      {
+        "stableId": "FrontWallBend",
+        "axisOrigin": {
+          "x": -120.65,
+          "y": 58.08726,
+          "z": 69.85000000000001
+        },
+        "axisDirection": {
+          "x": 1,
+          "y": 0,
+          "z": 0,
+          "lengthSquared": 1,
+          "length": 1
+        },
+        "angleDegrees": 90,
+        "insideRadius": 6.35,
+        "direction": "Down",
+        "adjacentRegionA": "MainDeck",
+        "adjacentRegionB": "FrontWall",
+        "sourceFaces": []
+      },
+      {
+        "stableId": "RearWallBend",
+        "axisOrigin": {
+          "x": -120.65,
+          "y": 426.38726,
+          "z": 69.85000000000001
+        },
+        "axisDirection": {
+          "x": -1,
+          "y": 0,
+          "z": 0,
+          "lengthSquared": 1,
+          "length": 1
+        },
+        "angleDegrees": 90,
+        "insideRadius": 6.35,
+        "direction": "Down",
+        "adjacentRegionA": "MainDeck",
+        "adjacentRegionB": "RearWall",
+        "sourceFaces": []
+      },
+      {
+        "stableId": "LeftWallBend",
+        "axisOrigin": {
+          "x": -241.3,
+          "y": 242.23726000000002,
+          "z": 84.455
+        },
+        "axisDirection": {
+          "x": 0,
+          "y": -1,
+          "z": 0,
+          "lengthSquared": 1,
+          "length": 1
+        },
+        "angleDegrees": 90,
+        "insideRadius": 6.35,
+        "direction": "Up",
+        "adjacentRegionA": "MainDeck",
+        "adjacentRegionB": "LeftWall",
+        "sourceFaces": []
+      },
+      {
+        "stableId": "RightWallBend",
+        "axisOrigin": {
+          "x": 0,
+          "y": 242.23726000000002,
+          "z": 84.455
+        },
+        "axisDirection": {
+          "x": 0,
+          "y": 1,
+          "z": 0,
+          "lengthSquared": 1,
+          "length": 1
+        },
+        "angleDegrees": 90,
+        "insideRadius": 6.35,
+        "direction": "Up",
+        "adjacentRegionA": "MainDeck",
+        "adjacentRegionB": "RightWall",
+        "sourceFaces": []
+      },
+      {
+        "stableId": "FrontMountingFlangeBend",
+        "axisOrigin": {
+          "x": -120.65,
+          "y": 43.48225999999999,
+          "z": 8.257460000000009
+        },
+        "axisDirection": {
+          "x": 1,
+          "y": 0,
+          "z": 0,
+          "lengthSquared": 1,
+          "length": 1
+        },
+        "angleDegrees": 90,
+        "insideRadius": 6.35,
+        "direction": "Up",
+        "adjacentRegionA": "FrontWall",
+        "adjacentRegionB": "FrontMountingFlange",
+        "sourceFaces": []
+      },
+      {
+        "stableId": "RearMountingFlangeBend",
+        "axisOrigin": {
+          "x": -120.65,
+          "y": 440.99226000000004,
+          "z": 8.257460000000009
+        },
+        "axisDirection": {
+          "x": -1,
+          "y": 0,
+          "z": 0,
+          "lengthSquared": 1,
+          "length": 1
+        },
+        "angleDegrees": 90,
+        "insideRadius": 6.35,
+        "direction": "Up",
+        "adjacentRegionA": "RearWall",
+        "adjacentRegionB": "RearMountingFlange",
+        "sourceFaces": []
+      },
+      {
+        "stableId": "AngledServiceFlangeBend",
+        "axisOrigin": {
+          "x": 14.605,
+          "y": 242.23726000000002,
+          "z": 113.56594
+        },
+        "axisDirection": {
+          "x": 0,
+          "y": 1,
+          "z": 0,
+          "lengthSquared": 1,
+          "length": 1
+        },
+        "angleDegrees": 45,
+        "insideRadius": 6.35,
+        "direction": "Down",
+        "adjacentRegionA": "RightWall",
+        "adjacentRegionB": "AngledServiceFlange",
+        "sourceFaces": []
+      }
+    ],
+    "cuts": [
+      {
+        "stableId": "VentSlotRight",
+        "kind": "Slot",
+        "owningRegionId": "MainDeck",
+        "diameter": null,
+        "sourceFaces": []
+      },
+      {
+        "stableId": "VentSlotLeft",
+        "kind": "Slot",
+        "owningRegionId": "MainDeck",
+        "diameter": null,
+        "sourceFaces": []
+      }
+    ]
+  },
+  "flatPattern": {
+    "status": "Valid",
+    "bounds": {
+      "minX": -55.920740176419734,
+      "minY": -115.31374035283946,
+      "maxX": 336.1310502646297,
+      "maxY": 497.28402035283943,
+      "width": 392.05179044104943,
+      "height": 612.5977607056789
+    },
+    "bendLines": 7,
+    "cuts": 2,
+    "kFactor": 0.5,
+    "deterministicHash": "d812b205f1d6e221c3a493fe5ffb1f599d0c3fb011aedb0662dee28a555c822b",
+    "svg": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\modules\\sheetmetal\\artifacts\\m3\\ctc03-m3-flat.svg",
+    "step": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\modules\\sheetmetal\\artifacts\\m3\\ctc03-m3-flat.step",
+    "firmament": null
+  },
+  "dfm": {
+    "overall": "Pass",
+    "findings": [
+      {
+        "ruleId": "sheetmetal-dfm-thickness-positive",
+        "status": "Pass",
+        "message": "Thickness is positive.",
+        "subjectId": "sheetmetal-Ctc03",
+        "measured": 1.905,
+        "required": 0,
+        "suggestedFix": null
+      },
+      {
+        "ruleId": "sheetmetal-dfm-inside-radius-ratio",
+        "status": "Pass",
+        "message": "Inside-radius/thickness ratio 3.333 meets the parameterized experimental policy 1.",
+        "subjectId": "FrontWallBend",
+        "measured": 3.333333333333333,
+        "required": 1,
+        "suggestedFix": null
+      },
+      {
+        "ruleId": "sheetmetal-dfm-inside-radius-ratio",
+        "status": "Pass",
+        "message": "Inside-radius/thickness ratio 3.333 meets the parameterized experimental policy 1.",
+        "subjectId": "RearWallBend",
+        "measured": 3.333333333333333,
+        "required": 1,
+        "suggestedFix": null
+      },
+      {
+        "ruleId": "sheetmetal-dfm-inside-radius-ratio",
+        "status": "Pass",
+        "message": "Inside-radius/thickness ratio 3.333 meets the parameterized experimental policy 1.",
+        "subjectId": "LeftWallBend",
+        "measured": 3.333333333333333,
+        "required": 1,
+        "suggestedFix": null
+      },
+      {
+        "ruleId": "sheetmetal-dfm-inside-radius-ratio",
+        "status": "Pass",
+        "message": "Inside-radius/thickness ratio 3.333 meets the parameterized experimental policy 1.",
+        "subjectId": "RightWallBend",
+        "measured": 3.333333333333333,
+        "required": 1,
+        "suggestedFix": null
+      },
+      {
+        "ruleId": "sheetmetal-dfm-inside-radius-ratio",
+        "status": "Pass",
+        "message": "Inside-radius/thickness ratio 3.333 meets the parameterized experimental policy 1.",
+        "subjectId": "FrontMountingFlangeBend",
+        "measured": 3.333333333333333,
+        "required": 1,
+        "suggestedFix": null
+      },
+      {
+        "ruleId": "sheetmetal-dfm-inside-radius-ratio",
+        "status": "Pass",
+        "message": "Inside-radius/thickness ratio 3.333 meets the parameterized experimental policy 1.",
+        "subjectId": "RearMountingFlangeBend",
+        "measured": 3.333333333333333,
+        "required": 1,
+        "suggestedFix": null
+      },
+      {
+        "ruleId": "sheetmetal-dfm-inside-radius-ratio",
+        "status": "Pass",
+        "message": "Inside-radius/thickness ratio 3.333 meets the parameterized experimental policy 1.",
+        "subjectId": "AngledServiceFlangeBend",
+        "measured": 3.333333333333333,
+        "required": 1,
+        "suggestedFix": null
+      },
+      {
+        "ruleId": "sheetmetal-dfm-corner-resolution",
+        "status": "Pass",
+        "message": "\u0027corner-FrontWall-RightWall\u0027 uses bounded Relief corner resolution.",
+        "subjectId": "corner-FrontWall-RightWall",
+        "measured": 1.905,
+        "required": 1.905,
+        "suggestedFix": null
+      },
+      {
+        "ruleId": "sheetmetal-dfm-corner-resolution",
+        "status": "Pass",
+        "message": "\u0027corner-RightWall-RearWall\u0027 uses bounded Relief corner resolution.",
+        "subjectId": "corner-RightWall-RearWall",
+        "measured": 1.905,
+        "required": 1.905,
+        "suggestedFix": null
+      },
+      {
+        "ruleId": "sheetmetal-dfm-corner-resolution",
+        "status": "Pass",
+        "message": "\u0027corner-RearWall-LeftWall\u0027 uses bounded Relief corner resolution.",
+        "subjectId": "corner-RearWall-LeftWall",
+        "measured": 1.905,
+        "required": 1.905,
+        "suggestedFix": null
+      },
+      {
+        "ruleId": "sheetmetal-dfm-corner-resolution",
+        "status": "Pass",
+        "message": "\u0027corner-LeftWall-FrontWall\u0027 uses bounded Relief corner resolution.",
+        "subjectId": "corner-LeftWall-FrontWall",
+        "measured": 1.905,
+        "required": 1.905,
+        "suggestedFix": null
+      },
+      {
+        "ruleId": "sheetmetal-dfm-flat-overlap",
+        "status": "Pass",
+        "message": "No planar-region overlap was detected.",
+        "subjectId": "flat-sheetmetal-Ctc03",
+        "measured": null,
+        "required": null,
+        "suggestedFix": null
+      },
+      {
+        "ruleId": "sheetmetal-dfm-cut-to-bend-distance",
+        "status": "Pass",
+        "message": "\u0027VentSlotLeft\u0027 boundary to nearest bend line is 47.49 mm; parameterized policy requires 3.81 mm.",
+        "subjectId": "VentSlotLeft",
+        "measured": 47.49297008820986,
+        "required": 3.81,
+        "suggestedFix": null
+      },
+      {
+        "ruleId": "sheetmetal-dfm-cut-to-edge-distance",
+        "status": "Pass",
+        "message": "\u0027VentSlotLeft\u0027 boundary to nearest recovered source edge is 41.76 mm; bounded policy requires 2.857 mm.",
+        "subjectId": "VentSlotLeft",
+        "measured": 41.7576,
+        "required": 2.8575,
+        "suggestedFix": null
+      },
+      {
+        "ruleId": "sheetmetal-dfm-cut-to-bend-distance",
+        "status": "Pass",
+        "message": "\u0027VentSlotRight\u0027 boundary to nearest bend line is 69.72 mm; parameterized policy requires 3.81 mm.",
+        "subjectId": "VentSlotRight",
+        "measured": 69.72051008820986,
+        "required": 3.81,
+        "suggestedFix": null
+      },
+      {
+        "ruleId": "sheetmetal-dfm-cut-to-edge-distance",
+        "status": "Pass",
+        "message": "\u0027VentSlotRight\u0027 boundary to nearest recovered source edge is 63.99 mm; bounded policy requires 2.857 mm.",
+        "subjectId": "VentSlotRight",
+        "measured": 63.98514,
+        "required": 2.8575,
+        "suggestedFix": null
+      }
+    ]
+  },
+  "diagnostics": [],
+  "timingsMilliseconds": {
+    "parse": 9.0654,
+    "formedLower": 59.437,
+    "authoredFlatLower": 29.5692,
+    "import": 0,
+    "recognition": 0,
+    "flatten": 0.4196
+  }
+}

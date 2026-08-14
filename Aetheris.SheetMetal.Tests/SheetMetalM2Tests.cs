@@ -24,13 +24,13 @@ public sealed class SheetMetalM2Tests
     }
 
     [Fact]
-    public void IdiomaticCtc_CompilesAndPassesWithAcceptedNominalDifference()
+    public void IdiomaticCtc_CompilesIndependentlyAndLocalizesHistoricalTrimDifferences()
     {
         var source=SheetMetalRecognizer.RecognizeStep(Ctc).Part!;var authored=SheetMetalFirmament.CompileFile(Intent);
         Assert.True(authored.IsSuccess,string.Join('\n',authored.Diagnostics.Select(d=>d.Message)));Assert.Equal("MainDeck",authored.Part!.BaseRegionId);
         Assert.Contains(authored.Part.Bends,b=>b.StableId=="FrontWallBend");Assert.Contains(authored.Part.Features,f=>f.StableId=="VentSlotLeft");
         var comparison=SheetMetalIntentComparer.Compare(source,authored.Part);
-        Assert.Equal(SheetMetalComparisonStatus.PassWithKnownDifferences,comparison.Status);Assert.Equal(0,comparison.SourceToIntent.Maximum);Assert.All(comparison.Bends,b=>Assert.Equal(SheetMetalComparisonStatus.Pass,b.Status));Assert.Equal(SheetMetalComparisonStatus.Pass,comparison.FlatPattern.Status);
+        Assert.Equal(SheetMetalComparisonStatus.NeedsReview,comparison.Status);Assert.True(comparison.SourceToIntent.Maximum>0);Assert.All(comparison.Bends,b=>Assert.Equal(SheetMetalComparisonStatus.Pass,b.Status));Assert.All(comparison.Features,f=>Assert.Equal(SheetMetalComparisonStatus.Pass,f.Status));Assert.Equal(SheetMetalComparisonStatus.Fail,comparison.FlatPattern.Status);
     }
 
     [Fact]

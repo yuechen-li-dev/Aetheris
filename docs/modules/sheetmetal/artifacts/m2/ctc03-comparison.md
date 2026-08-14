@@ -1,4 +1,6 @@
-# CTC-03 source → reconstructed intent comparison
+# CTC-03 source → reconstructed intent comparison (historical M2 result)
+
+The checked-in idiomatic source was promoted to source-independent M3 construction after this report. See `../m3/ctc03-formed-comparison.md` for the current comparison.
 
 Policy: position 0.05 mm; bend axis 0.05 mm; bend angle 0.05°; bend radius 0.05 mm; flat 0.1 mm; feature 0.1 mm.
 

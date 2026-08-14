@@ -1,40 +1,74 @@
 # Sheet Metal Module
 
-`Aetheris.SheetMetal` 0.3.0 adds an explicit human/LLM-in-the-loop intent-reconstruction workflow. It owns manufacturing semantics above Core BRep: nominal thickness, reference-sheet regions, explicit bends, neutral-axis policy, cut correspondence, source-edge-aware flat-pattern lowering, comparison, validation, and bounded DFM. Imported STEP remains the formed-geometry authority; recovered `SheetMetalPartIr` is evidence and never silently becomes production authority.
+`Aetheris.SheetMetal` 0.4.0 adds bounded M3 source-independent construction while preserving the M1/M2 imported-recovery workflow. Clean authored or reconstructed Firmament is engineering authority; imported STEP participates only in recovery or post-generation comparison.
 
-## M2 authority model
-
-Recovery deliberately has two layers. `RecoveredSheetMetalEvidence` is deterministic, provenance-heavy forensic data. `RecoveredFirmamentDraft` is a machine-generated starting point. An engineer or LLM writes a separate `Intent: Reconstructed` Firmament source whose names, grouping, and accepted nominals are explicit decisions linked through `FromEvidence`. `SheetMetalIntentComparer` then verifies formed boundaries, bend axes/angles/radii/adjacency, cuts, and flat output using structured residuals. `Partial` machine recovery is therefore useful and is not treated as workflow failure.
-
-## Supported M1 boundary
-
-- Firmament V2 module-owned `SheetMetal` syntax for one rectangular base with two opposite 90° flanges and circular base holes.
-- Exact formed analytic BRep for that authored family: planar skins, concentric cylindrical bends, exact circular hole walls, closed-manifold STEP AP242 export, and no generic Boolean fallback.
-- Tolerance-bounded recognition of parallel planar skin pairs and coaxial cylindrical skin pairs in ordinary exact BRep/STEP.
-- Planar midpoint reference planes and geometric mid-cylinders. These are deliberately distinct from the manufacturing neutral axis.
-- Planar/cylindrical developability using the existing Surfacing evidence vocabulary.
-- Deterministic largest-planar-area base selection, bend-graph traversal, exact neutral-axis cylindrical development, cut mapping, overlap checks, a thickness-bearing flat AP242 solid, explicit recovered Firmament intent, and a compact secondary SVG view.
-- Explicit provisional K-factor policy. The default is `0.5`; authored source may override it. This is not a material/process database.
-- Parameterized first-pass DFM checks for positive thickness, bend-radius ratio, hole-to-bend distance, and flat overlap.
-
-M2 additionally preserves valid ordered source-line loops instead of replacing every flat region with a convex hull, exposes bounded nominal/grouping/corner/relief suggestions, and adds semantic cut-to-bend/cut-to-edge DFM findings with suggested displacement where deterministic. Analytic arcs in arbitrary imported outer contours, exact global blank union/stitching, and authoritative relief-family recognition remain incomplete; CTC-03 honestly remains `Partial`.
-
-## Canonical commands
+## Construction architecture
 
 ```text
-aetheris sheetmetal inspect part.step
-aetheris sheetmetal recover part.step --out-dir recovery
-aetheris sheetmetal compare part.step reconstructed.firmament
-aetheris sheetmetal flatten part.step --step part-flat.step --firmament part-recovered.firmament --svg part-flat.svg --k-factor 0.5
-aetheris build fixtures/FirmamentV2/SheetMetal/simple-u-channel.firmament
+Firmament SheetMetal
+  -> SheetMetalPartIr (region / bend / corner / relief graph)
+  -> explicit sheet topology lowering
+  -> planar skins + analytic cylindrical skins + thickness/cut walls
+  -> closed formed BRep -> AP242
+
+SheetMetalPartIr
+  -> exact graph traversal using the same bend policy
+  -> planar regions + neutral-axis bend strips
+  -> stitched outer blank + mapped cuts
+  -> thickness-bearing flat AP242 / SVG
 ```
 
-The canonical authored fixture is [`simple-u-channel.firmament`](../../fixtures/FirmamentV2/SheetMetal/simple-u-channel.firmament). The hostile imported fixture is the existing NIST CTC-03 corpus file at `testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp`.
+The formed path constructs known sheet topology directly. It does not union flange solids with generic `BrepBoolean`. Every authored region, bend, cut, corner, and relief has a stable formed/flat correspondence entry.
 
-## Recognition doctrine
+## Canonical syntax and semantics
 
-Thickness candidates come from overlapping parallel planes and axially overlapping coaxial cylinders. Candidate separations are clustered under an explicit linear tolerance, then the bounded alternatives are admitted/scored/tie-broken by `JudgmentEngine`. BRep face IDs remain source bindings only; stable semantic region and bend IDs derive deterministically from ordered source bindings.
+```firmament
+SheetMetal Tray {
+    Thickness: 1.2mm;
+    KFactor: 0.42;
+    Base Main { Profile: Rectangle { Width: 240mm; Height: 180mm; }; }
+    Flange Front { From: Main.Front; Height: 40mm; Angle: 90deg; Radius: 1.5mm; Direction: Up; Relief: Auto; }
+    Flange Lip { From: Front.Outer; Length: 15mm; Angle: 45deg; Radius: 1.5mm; Direction: Down; }
+    Cut Fan { On: Main; Profile: Circle { Diameter: 120mm; }; At: (120mm, 90mm); }
+}
+```
 
-The flat STEP is generated from the same analytic flat IR as the Firmament and SVG artifacts. It is a closed thickness-bearing solid and re-imports through Aetheris, but the current imported flattening preserves recovered region hulls and mapped inner-loop cut profiles rather than stitching every source edge fragment into an exact production-ready blank contour. That boundary-stitching/corner-relief problem is why imported CTC-03 remains `Partial`.
+`Length` and `Height` are aliases for the canonical `TangentToEdge` dimension: distance on the resulting planar flange from the bend tangent line to its free edge. `InsideRadius`/`Radius` is the physical inside radius. `Up` rotates the parent outward direction toward its material-positive normal; `Down` rotates oppositely. Angles strictly between 0° and 180° are supported; ordinary bends retain exact plane and cylinder supports.
 
-See the compact [M1 evidence bundle](sheetmetal/artifacts/m1/README.md) and [M2 assisted-reconstruction evidence](sheetmetal/artifacts/m2/README.md).
+`KFactor` defines `neutral radius = inside radius + K * thickness` and `bend allowance = abs(angle) * neutral radius`. The formed and flat paths consume the same bend record and policy. The flat bend line is the neutral-axis centerline of the explicit bend strip.
+
+The bounded graph supports flanges from rectangular-base `Front/Rear/Left/Right` edges and from a previously generated flange's `Outer` (`Top`) edge. Duplicate edge ownership, disconnected parents, invalid bends, and cuts reaching a region boundary/bend zone are typed rejections.
+
+## Corners, reliefs, and cuts
+
+Adjacent base flanges receive deterministic end trimming. `Corner: Open` is the robust baseline. `Corner: Miter` selects the smaller symmetric miter setback but remains an open, non-welded seam. `Relief: Auto`, `Rectangular`, and `Round` create typed relief intent/provenance; the bounded formed topology realizes this as bend-end/open-corner material clearance. Auto width is at least one thickness and auto depth is `inside radius + thickness`. Closed overlap/gap seams, welded corners, arbitrary corner intersections, and a freestanding shop relief library remain deferred.
+
+Circular holes and axis-aligned rectangular/slot profile cuts are exact formed through-cuts and map to the same owning flat region. Cuts crossing bend zones are rejected rather than warped or silently split. SVG shows region material, cut contours, neutral-axis bend lines, direction, angle, and radius.
+
+## Authored fixtures and CTC-03
+
+- [`m3-l-bracket.firmament`](../../fixtures/FirmamentV2/SheetMetal/m3-l-bracket.firmament)
+- [`m3-u-channel.firmament`](../../fixtures/FirmamentV2/SheetMetal/m3-u-channel.firmament)
+- [`m3-electronics-tray.firmament`](../../fixtures/FirmamentV2/SheetMetal/m3-electronics-tray.firmament)
+- [`ctc03-idiomatic.firmament`](sheetmetal/artifacts/m2/ctc03-idiomatic.firmament)
+
+The CTC-03 source contains no `EvidenceSource`, `FromEvidence`, face IDs, or recovered polygons. It independently generates 15 semantic regions, seven exact bends, two cuts, a closed formed BRep, and a valid flat blank. Post-generation comparison classifies it `NeedsReview`: all seven bend axis/angle/radius/graph comparisons and both cuts pass, while historical local boundary trims and the accepted M2 flat outline are not yet reproduced closely enough. This is deliberately not presented as full source parity.
+
+## Recovery remains separate
+
+Imported STEP still follows `STEP -> RecoveredSheetMetalEvidence -> recovered draft -> engineer/LLM reconstruction`. Recovered models may retain source-edge geometry and `Partial` status. That forensic dialect is distinct from the M3 clean authored dialect and remains useful for verification.
+
+## Commands
+
+```text
+aetheris build part.firmament --output part-formed.step
+aetheris sheetmetal flatten part.firmament --step part-flat.step --svg part-flat.svg
+aetheris sheetmetal recover imported.step --out-dir recovery
+aetheris sheetmetal compare imported.step reconstructed.firmament
+```
+
+## Bounded capability
+
+M3 proves common brackets, parallel channels, four-wall open-corner trays, parent-flange lips, circular/rectangular cuts, analytic cylindrical bends, deterministic correspondence, and physical formed/flat STEP. It does not claim hems, jogs, beads, lofted bends, stamping, springback, closed-corner overlap policy, universal brake sequencing, or commercial sheet-metal parity. The largest production blocker is a richer exact 2D contour/trim kernel for commercial corner seams, arbitrary profile/relief curves, and manufacturing-grade DXF/tooling workflows.
+
+See the [M1 bundle](sheetmetal/artifacts/m1/README.md), [M2 recovery bundle](sheetmetal/artifacts/m2/README.md), and [M3 evidence](sheetmetal/artifacts/m3/README.md).

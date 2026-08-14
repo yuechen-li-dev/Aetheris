@@ -15,6 +15,9 @@ public enum SheetMetalIntentConfidence { StructuralFact, StrongCandidate, WeakCa
 public enum SheetMetalProvenanceCategory { Authored, Recovered, Reconstructed }
 public enum SheetCornerKind { ClosedCorner, OpenCorner, ReliefCorner, OverlapCorner, MiteredCorner, Unknown }
 public enum SheetReliefKind { Rectangular, Round, Unknown }
+public enum SheetCornerPolicy { Open, Mitered, Relief }
+public enum SheetReliefPolicy { None, Auto, Rectangular, Round }
+public enum SheetFlangeLengthMode { TangentToEdge }
 
 public static class SheetMetalDiagnosticCodes
 {
@@ -31,10 +34,16 @@ public static class SheetMetalDiagnosticCodes
     public const string DuplicateCut = "sheetmetal-flat-duplicate-cut";
     public const string BendLineOutsideMaterial = "sheetmetal-flat-bend-line-outside-material";
     public const string ZeroWidthSliver = "sheetmetal-flat-zero-width-sliver";
+    public const string DuplicateFlange = "sheetmetal-duplicate-flange";
+    public const string ImpossibleTopology = "sheetmetal-impossible-topology";
+    public const string InvalidRelief = "sheetmetal-invalid-relief";
+    public const string CutCrossesBend = "sheetmetal-cut-crosses-bend";
+    public const string FormedBodyInvalid = "sheetmetal-formed-body-invalid";
     public static IReadOnlyList<string> All { get; } =
         [NonConstantThickness, UnpairedFaces, NonDevelopable, AmbiguousBendAxis, UnsupportedBendTopology,
          InconsistentBendRadius, DisconnectedGraph, FlatOverlap, FeatureMappingFailure, InvalidRadius,
-         DuplicateCut, BendLineOutsideMaterial, ZeroWidthSliver];
+         DuplicateCut, BendLineOutsideMaterial, ZeroWidthSliver, DuplicateFlange, ImpossibleTopology,
+         InvalidRelief, CutCrossesBend, FormedBodyInvalid];
 }
 
 public sealed record SheetMetalDiagnostic(
@@ -114,6 +123,35 @@ public sealed record SheetFeatureIr(
     SheetSourceBinding Source,
     IReadOnlyList<SheetEvidence> Evidence);
 
+public sealed record SheetMetalCornerIr(
+    string StableId,
+    string RegionA,
+    string RegionB,
+    string ParentRegion,
+    string VertexName,
+    SheetCornerPolicy Policy,
+    string? ReliefId,
+    SheetSourceBinding Source,
+    IReadOnlyList<SheetEvidence> Evidence);
+
+public sealed record SheetMetalReliefIr(
+    string StableId,
+    SheetReliefKind Kind,
+    string OwningRegionId,
+    string CornerId,
+    double Width,
+    double Depth,
+    double? Radius,
+    bool IsPolicyDerived,
+    SheetSourceBinding Source,
+    IReadOnlyList<SheetEvidence> Evidence);
+
+public sealed record SheetMetalCorrespondence(
+    string SemanticId,
+    string Kind,
+    string FormedId,
+    string FlatId);
+
 public sealed record SheetMetalFlattenPolicy(double KFactor)
 {
     public static SheetMetalFlattenPolicy Default { get; } = new(0.5d);
@@ -169,7 +207,11 @@ public sealed record SheetMetalPartIr(
     string Provenance,
     IReadOnlyList<SheetEvidence> Evidence,
     IReadOnlyList<SheetMetalDiagnostic> Diagnostics,
-    BrepBody? FormedBody = null);
+    BrepBody? FormedBody = null,
+    IReadOnlyList<SheetMetalCornerIr>? Corners = null,
+    IReadOnlyList<SheetMetalReliefIr>? Reliefs = null,
+    IReadOnlyList<SheetMetalCorrespondence>? Correspondence = null,
+    SheetFlangeLengthMode FlangeLengthMode = SheetFlangeLengthMode.TangentToEdge);
 
 public readonly record struct SheetPoint2(double X, double Y);
 

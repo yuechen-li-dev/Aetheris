@@ -180,15 +180,18 @@ public static class SheetMetalIntentComparer
             var match = remaining.OrderBy(x => AxisDistance(bend, x) + Math.Abs(bend.BendAngleRadians - x.BendAngleRadians) * 10 + Math.Abs(bend.InsideRadius - x.InsideRadius)).FirstOrDefault();
             if (match is null) continue; remaining.Remove(match);
             var axis = AxisDistance(bend, match); var axisAngle = AxisAngle(bend.AxisDirection, match.AxisDirection); var angle = Math.Abs(bend.BendAngleRadians - match.BendAngleRadians) * 180 / Math.PI; var radius = Math.Abs(bend.InsideRadius - match.InsideRadius);
-            var adjacency = SameAdjacency(bend, match); var bendStatus = axis <= policy.BendAxisTolerance && axisAngle <= policy.BendAngleToleranceDegrees && angle <= policy.BendAngleToleranceDegrees && radius <= policy.BendRadiusTolerance && adjacency ? SheetMetalComparisonStatus.Pass : SheetMetalComparisonStatus.Fail;
+            var adjacency = SameAdjacency(source, intent, bend, match); var bendStatus = axis <= policy.BendAxisTolerance && axisAngle <= policy.BendAngleToleranceDegrees && angle <= policy.BendAngleToleranceDegrees && radius <= policy.BendRadiusTolerance && adjacency ? SheetMetalComparisonStatus.Pass : SheetMetalComparisonStatus.Fail;
             bends.Add(new(bend.StableId, match.StableId, axis, axisAngle, angle, radius, adjacency, bendStatus));
         }
         var features = CompareFeatures(source.Features, intent.Features, policy.FeatureTolerance);
         var sf = SheetMetalFlattener.Flatten(source); var inf = SheetMetalFlattener.Flatten(intent); var flat = CompareFlat(sf, inf, policy.FlatPatternTolerance, features);
         var thickness = Math.Abs(source.Thickness - intent.Thickness);
         if(thickness>1e-9&&intent.Evidence.Any(e=>e.Predicate=="accepted-thickness-nominal"))acceptedDifferences.Add($"Accepted thickness nominalization: source {source.Thickness:G12} mm -> intent {intent.Thickness:G12} mm (delta {thickness:G6} mm).");
-        var unexplained = thickness > policy.PositionTolerance || s2i.P95 > policy.PositionTolerance || i2s.P95 > policy.PositionTolerance || bends.Any(b => b.Status == SheetMetalComparisonStatus.Fail) || features.Any(f => f.Status == SheetMetalComparisonStatus.Fail) || flat.Status == SheetMetalComparisonStatus.Fail;
-        var status = unexplained ? SheetMetalComparisonStatus.Fail : acceptedDifferences.Count > 0 ? SheetMetalComparisonStatus.PassWithKnownDifferences : SheetMetalComparisonStatus.Pass;
+        var critical = thickness > policy.PositionTolerance || bends.Any(b => b.Status == SheetMetalComparisonStatus.Fail) || features.Any(f => f.Status == SheetMetalComparisonStatus.Fail) || remaining.Count > 0 || bends.Count != source.Bends.Count;
+        var shapeReview = s2i.P95 > policy.PositionTolerance || i2s.P95 > policy.PositionTolerance || flat.Status == SheetMetalComparisonStatus.Fail;
+        if(!critical&&shapeReview&&intent.Provenance.Contains("source-independent",StringComparison.OrdinalIgnoreCase))
+            acceptedDifferences.Add("Source-independent reconstructed topology differs from historical STEP boundary trims; bend/cut semantics pass and global formed/flat residuals require engineer review.");
+        var status = critical ? SheetMetalComparisonStatus.Fail : shapeReview ? SheetMetalComparisonStatus.NeedsReview : acceptedDifferences.Count > 0 ? SheetMetalComparisonStatus.PassWithKnownDifferences : SheetMetalComparisonStatus.Pass;
         var diagnostics = new List<string>(); if (remaining.Count > 0 || bends.Count != source.Bends.Count) diagnostics.Add($"Bend count mismatch: source {source.Bends.Count}, intent {intent.Bends.Count}."); if (source.Features.Count != intent.Features.Count) diagnostics.Add($"Feature count mismatch: source {source.Features.Count}, intent {intent.Features.Count}.");
         return new(status, thickness, s2i, i2s, bends, features, flat, acceptedDifferences, diagnostics);
     }
@@ -220,5 +223,11 @@ public static class SheetMetalIntentComparer
     private static double AxisDistance(SheetBendIr a, SheetBendIr b) { var u = Normalize(a.AxisDirection); var v = Normalize(b.AxisDirection); var cross = u.Cross(v); if (cross.TryNormalize(out var n)) return Math.Abs((b.AxisOrigin-a.AxisOrigin).Dot(n)); return ((b.AxisOrigin-a.AxisOrigin).Cross(u)).Length; }
     private static double AxisAngle(Vector3D a, Vector3D b) => Math.Acos(Math.Clamp(Math.Abs(Normalize(a).Dot(Normalize(b))), -1, 1)) * 180 / Math.PI;
     private static Vector3D Normalize(Vector3D v) => v.TryNormalize(out var n) ? n : v;
-    private static bool SameAdjacency(SheetBendIr a, SheetBendIr b) => (a.AdjacentRegionA == b.AdjacentRegionA && a.AdjacentRegionB == b.AdjacentRegionB) || (a.AdjacentRegionA == b.AdjacentRegionB && a.AdjacentRegionB == b.AdjacentRegionA) || (a.Source.FaceIds.Count > 0 && a.Source.FaceIds.SequenceEqual(b.Source.FaceIds));
+    private static bool SameAdjacency(SheetMetalPartIr source,SheetMetalPartIr intent,SheetBendIr a,SheetBendIr b)
+    {
+        if((a.AdjacentRegionA == b.AdjacentRegionA && a.AdjacentRegionB == b.AdjacentRegionB) || (a.AdjacentRegionA == b.AdjacentRegionB && a.AdjacentRegionB == b.AdjacentRegionA) || (a.Source.FaceIds.Count > 0 && a.Source.FaceIds.SequenceEqual(b.Source.FaceIds)))return true;
+        static int Degree(SheetMetalPartIr p,string id)=>p.Bends.Count(x=>x.AdjacentRegionA==id||x.AdjacentRegionB==id);
+        var sa=new[]{Degree(source,a.AdjacentRegionA),Degree(source,a.AdjacentRegionB)}.Order().ToArray();var sb=new[]{Degree(intent,b.AdjacentRegionA),Degree(intent,b.AdjacentRegionB)}.Order().ToArray();
+        return sa.SequenceEqual(sb);
+    }
 }

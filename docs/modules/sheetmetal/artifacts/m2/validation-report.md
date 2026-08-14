@@ -1,4 +1,6 @@
-# M2 validation report
+# M2 validation report (historical snapshot)
+
+These measurements describe the evidence-linked M2 version of the idiomatic source. M3 replaced the checked-in idiomatic file with source-independent construction; current results are under `../m3/`.
 
 - CTC-03 recovery: 15 regions, seven bends, two cuts; status `Partial`; deterministic evidence ID `3dd6f4dd338cfded7467f3aded3e0bd4e32315f40cf3db0d117e22b0687cadab`.
 - Reconstructed source: compiles; 103 lines versus 264 machine lines; raw coordinates/face IDs stay in evidence.

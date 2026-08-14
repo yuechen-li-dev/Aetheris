@@ -1,0 +1,8 @@
+// M3 source-independent two-bend fixture.
+SheetMetal UChannelM3 {
+    Thickness: 1.5mm;
+    KFactor: 0.42;
+    Base Main { Profile: Rectangle { Width: 100mm; Height: 60mm; }; }
+    Flange LeftWall { From: Main.Left; Length: 25mm; Angle: 90deg; Radius: 2mm; Direction: Up; }
+    Flange RightWall { From: Main.Right; Length: 20mm; Angle: 90deg; Radius: 2mm; Direction: Up; }
+}

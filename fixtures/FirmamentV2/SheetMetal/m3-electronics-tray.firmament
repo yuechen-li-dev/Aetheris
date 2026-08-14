@@ -1,0 +1,15 @@
+// M3 dogfood: four adjacent walls, automatic relief semantics, holes and vent slots.
+SheetMetal ElectronicsTray {
+    Thickness: 1.2mm;
+    Material: "5052-H32 Aluminum";
+    KFactor: 0.42;
+    Base Main { Profile: Rectangle { Width: 240mm; Height: 180mm; }; }
+    Flange FrontWall { From: Main.Front; Height: 40mm; Angle: 90deg; Radius: 1.5mm; Relief: Auto; }
+    Flange RightWall { From: Main.Right; Height: 30mm; Angle: 90deg; Radius: 1.5mm; Relief: Auto; }
+    Flange RearWall { From: Main.Rear; Height: 40mm; Angle: 90deg; Radius: 1.5mm; Relief: Auto; }
+    Flange LeftWall { From: Main.Left; Height: 30mm; Angle: 90deg; Radius: 1.5mm; Relief: Auto; }
+    Hole MountA { On: Main; Center: (20mm, 20mm); Diameter: 4mm; }
+    Hole MountB { On: Main; Center: (220mm, 160mm); Diameter: 4mm; }
+    Cut VentA { On: Main; Profile: Slot { Length: 50mm; Width: 8mm; }; At: (90mm, 90mm); }
+    Cut VentB { On: Main; Profile: Slot { Length: 50mm; Width: 8mm; }; At: (150mm, 90mm); }
+}

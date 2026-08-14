@@ -1,0 +1,26 @@
+{
+  "command": "build",
+  "success": true,
+  "input": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\modules\\sheetmetal\\artifacts\\m2\\ctc03-idiomatic.firmament",
+  "output": "C:\\Users\\yuech\\source\\repos\\Aetheris\\docs\\modules\\sheetmetal\\artifacts\\m3\\ctc03-m3-formed.step",
+  "domain": "SheetMetal",
+  "part": {
+    "stableId": "sheetmetal-Ctc03",
+    "thickness": 1.905,
+    "regions": 15,
+    "bends": 7,
+    "features": 2
+  },
+  "flatPattern": {
+    "status": "Valid",
+    "bounds": {
+      "minX": -55.920740176419734,
+      "minY": -115.31374035283946,
+      "maxX": 336.1310502646297,
+      "maxY": 497.28402035283943,
+      "width": 392.05179044104943,
+      "height": 612.5977607056789
+    },
+    "deterministicHash": "d812b205f1d6e221c3a493fe5ffb1f599d0c3fb011aedb0662dee28a555c822b"
+  }
+}

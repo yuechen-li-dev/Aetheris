@@ -216,6 +216,7 @@ public static class CliRunner
                 "asm" => RunAsm(args.Skip(1).ToArray(), stdout, stderr),
                 "experimental" => RunExperimental(args.Skip(1).ToArray(), stdout, stderr),
                 "modules" => RunModules(args.Skip(1).ToArray(), stdout, stderr),
+                "reconstruct" => ReconstructionCli.Run(args.Skip(1).ToArray(), stdout, stderr, JsonOptions),
                 _ => UnknownCommand(args[0], stderr)
             };
         }
@@ -3376,7 +3377,7 @@ Model CanonicalPanel {
 
     private static int UnknownCommand(string command, TextWriter stderr)
     {
-        stderr.WriteLine($"Unknown command '{command}'. Expected one of: validate, build, drawing, inspect, analyze, verify, view.");
+        stderr.WriteLine($"Unknown command '{command}'. Expected one of: validate, build, mesh, reconstruct, drawing, inspect, analyze, verify, view.");
         stderr.WriteLine("Run 'aetheris --help' for usage and examples.");
         return 1;
     }
@@ -3471,6 +3472,7 @@ Model CanonicalPanel {
         stdout.WriteLine("  asm        Inspect, execute, import, and export Firmament V2 assemblies.");
         stdout.WriteLine("  modules    Inspect built-in engineering Modules and capabilities.");
         stdout.WriteLine("  verify     Build/reimport and verify a model.");
+        stdout.WriteLine("  reconstruct  Experimentally reconstruct a structured mesh from triangle PLY input.");
         stdout.WriteLine();
         stdout.WriteLine("Global options:");
         stdout.WriteLine("  -h, --help       Show help.");
@@ -3484,6 +3486,7 @@ Model CanonicalPanel {
         stdout.WriteLine("  aetheris fea plate-with-hole.firmament --out-dir artifacts --json");
         stdout.WriteLine("  aetheris drawing compile bearing-block-drawing.firmament --out-dir artifacts/drawing --json");
         stdout.WriteLine("  aetheris asm inspect bearing-module.firmament --json");
+        stdout.WriteLine("  aetheris reconstruct mesh scan.ply --mode fast --out scan-remesh.obj --report scan-report.json");
         stdout.WriteLine();
         stdout.WriteLine("Run 'aetheris <command> --help' for command-specific usage.");
     }

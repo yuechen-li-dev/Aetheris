@@ -72,3 +72,6 @@ testdata/step242/**/*.json text eol=lf
 *.sh   text eol=lf
 *.stp  text eol=lf
 *.step text eol=lf
+
+# Keep the canonical Bunny showcase byte-stable without rendering a 71k-line text diff.
+docs/geometry/artifacts/bunny-m4/bunny-fast-structured-remesh.obj text eol=lf -diff

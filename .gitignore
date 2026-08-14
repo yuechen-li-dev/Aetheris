@@ -55,6 +55,7 @@ docs/geometry/artifacts/bunny-m1/surface-mesh-document.json
 docs/geometry/artifacts/bunny-m2/surface-mesh-document.json
 docs/geometry/artifacts/bunny-m2/*.obj
 docs/geometry/artifacts/bunny-m2/*.ply
+docs/geometry/artifacts/bunny-m4/*.ply
 docs/geometry/artifacts/bunny-m1/seam-network.json
 docs/geometry/artifacts/bunny-m1/seam-fit-candidates.json
 docs/geometry/artifacts/bunny-m1/judgment-traces.json
@@ -122,6 +123,7 @@ StyleCopReport.xml
 *.ilk
 *.meta
 *.obj
+!docs/geometry/artifacts/bunny-m4/bunny-fast-structured-remesh.obj
 *.iobj
 *.pch
 *.pdb

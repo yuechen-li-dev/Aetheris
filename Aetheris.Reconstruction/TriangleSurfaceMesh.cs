@@ -91,7 +91,7 @@ public sealed record MeshValidationReport(
     int NonFiniteVertexCount, double SurfaceArea, double SignedVolume, Bounds3 Bounds, bool OrientationConsistent,
     IReadOnlyList<IReadOnlyList<int>> BoundaryLoops, IReadOnlyList<ReconstructionDiagnostic> Diagnostics);
 
-public enum ReconstructionDiagnosticCode { NonFiniteVertex, InvalidIndex, DegenerateTriangle, DuplicateTriangle, NonManifoldEdge, InconsistentOrientation, OpenBoundary, PoorLocalSupport, AmbiguousDirection, ChartFoldover, ExcessiveDistortion, FitResidualExceeded }
+public enum ReconstructionDiagnosticCode { NonFiniteVertex, InvalidIndex, DegenerateTriangle, DuplicateTriangle, NonManifoldEdge, InconsistentOrientation, OpenBoundary, PoorLocalSupport, AmbiguousDirection, ChartFoldover, ExcessiveDistortion, FitResidualExceeded, ProjectionRejected, BudgetExceeded, UnsupportedTopology }
 public sealed record ReconstructionDiagnostic(ReconstructionDiagnosticCode Code, string Severity, string Message, int? SourceElement = null, string EvidenceClass = "Sampled");
 
 public static class TriangleSurfaceValidator

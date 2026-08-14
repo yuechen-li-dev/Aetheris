@@ -1,0 +1,9 @@
+{
+  "tolerance": 0.0002502460469674796,
+  "evidence": "deterministic bounded centroid samples",
+  "sourceToResult": { "rms": 0.00006011921280758208, "p95": 0.0001252827089495133, "maximum": 0.00029732957687380414 },
+  "resultToSource": { "rms": 0.000041805185141034235, "p95": 0.00008425183664722977, "maximum": 0.00037020743474704745 },
+  "normalDegrees": { "mean": 2.4979835182192796, "rms": 9.017435409402701, "p95": 5.706508791037855, "maximum": 160.1367917071511 },
+  "samples": { "sourceToResult": 4086, "resultToSource": 5394, "lowConfidence": 83 },
+  "interpretation": "Mean and p95 are useful; the maximum normal outlier is retained honestly and identifies thin/ambiguous local pairing as the main limitation."
+}

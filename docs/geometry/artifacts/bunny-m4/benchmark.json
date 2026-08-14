@@ -1,0 +1,12 @@
+{
+  "milestone": "AETHERIS-BUNNY-M4",
+  "configuration": "Release net10.0; three separate dotnet-run processes; --no-build",
+  "runs": [
+    { "run": 1, "processMilliseconds": 3155.33, "engineMilliseconds": 2455.50 },
+    { "run": 2, "processMilliseconds": 3121.17, "engineMilliseconds": 2450.64 },
+    { "run": 3, "processMilliseconds": 3148.68, "engineMilliseconds": 2450.02 }
+  ],
+  "process": { "minimumMilliseconds": 3121.17, "medianMilliseconds": 3148.68, "maximumMilliseconds": 3155.33 },
+  "engine": { "minimumMilliseconds": 2450.02, "medianMilliseconds": 2450.64, "maximumMilliseconds": 2455.50 },
+  "target": { "desiredMilliseconds": 10000, "ceilingMilliseconds": 15000, "passed": true }
+}

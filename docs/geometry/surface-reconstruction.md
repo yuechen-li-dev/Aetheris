@@ -1,5 +1,11 @@
 # Structured surface recovery
 
+## M4 fast experimental operation
+
+M4 closes the open M3 performance seam with the reusable `SurfaceReconstruction.Remesh` API and `aetheris reconstruct mesh` command. The mesh-first Fast policy bypasses global blossom matching, strict `PanelIr` materialization per cell, deep coarsening, and unconditional residual fitting. On the canonical Bunny it produces 33,913 quads plus 1,625 explicit transitions (95.427% quads), zero cracks, five open loops, and zero non-manifold edges in 2.451 seconds median engine time. See the [experimental user guide](experimental-remeshing.md) and [compact M4 evidence](artifacts/bunny-m4/README.md).
+
+This is the intentional research stop point. Further compact-atlas optimization is deferred until real consumer use demonstrates a concrete need.
+
 `Aetheris.Reconstruction` treats a triangle surface as sampled geometric evidence, not as future semantic topology.
 
 ```text

@@ -1,0 +1,23 @@
+{
+  "milestone": "AETHERIS-BUNNY-M4",
+  "status": "Success",
+  "canonicalBunny": {
+    "runtimeCeilingPassed": true,
+    "quadTargetPassed": true,
+    "crackTargetPassed": true,
+    "boundaryTargetPassed": true,
+    "manifoldTargetPassed": true,
+    "deterministicHashes": [
+      "ba4e9d684423e2d9a81b6b67cf3ee14144c962bc9e50105d29ef9f230e39d1f1",
+      "ba4e9d684423e2d9a81b6b67cf3ee14144c962bc9e50105d29ef9f230e39d1f1",
+      "ba4e9d684423e2d9a81b6b67cf3ee14144c962bc9e50105d29ef9f230e39d1f1"
+    ]
+  },
+  "genericFixtures": {
+    "sphere-ish": { "closed": true, "mostlyQuads": true, "passed": true },
+    "creasedBox": { "closed": true, "featureAwarePairing": true, "passed": true },
+    "openCurvedSheet": { "boundaryLoops": 1, "quads": 1, "passed": true }
+  },
+  "failureBehavior": { "emptyOrInvalid": "Unsupported", "nonManifold": "Unsupported", "budgetMiss": "Partial", "unboundedLoop": false },
+  "productVerdict": "Useful experimental approximate structured remeshing in seconds; park global atlas research pending consumer pressure."
+}

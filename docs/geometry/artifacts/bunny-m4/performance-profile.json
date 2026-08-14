@@ -1,0 +1,26 @@
+{
+  "m3BaselineMilliseconds": {
+    "total": 219146.655,
+    "coarseningAndResidualExtraction": 120908.9166,
+    "diagnosticsAggregationAndSerialization": 60964.5734,
+    "globalLayoutAndPanelFit": 36354.3048,
+    "crossField": 421.2923,
+    "fieldRegularization": 493.6539,
+    "lowering": 227.4973
+  },
+  "m4MedianMilliseconds": [
+    { "stage": "source validation", "milliseconds": 96.27, "callCount": 1, "largestAvoidableCost": "none" },
+    { "stage": "directional analysis", "milliseconds": 403.60, "callCount": 69451, "largestAvoidableCost": "field relaxation disabled" },
+    { "stage": "bounded layout and SurfaceMeshIR lowering", "milliseconds": 1343.47, "callCount": 69451, "largestAvoidableCost": "strict Panel materialization bypassed" },
+    { "stage": "cached bidirectional quality", "milliseconds": 607.87, "callCount": 8192, "largestAvoidableCost": "3855 bounded BVH projections remain" }
+  ],
+  "removed": [
+    "120.9 s pair-coarsening/residual audit",
+    "global blossom optimization",
+    "strict Panel materialization per output quad",
+    "field regularization",
+    "oversized diagnostic aggregation"
+  ],
+  "correspondence": { "entries": 7766, "generalProjectionCalls": 3769, "cacheReuseHits": 3997, "regionalInvalidation": true },
+  "largestRemainingCost": "bounded local layout and direct SurfaceMeshIR construction"
+}

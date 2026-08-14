@@ -1,0 +1,15 @@
+{
+  "vertices": 35947,
+  "cells": 35538,
+  "quads": 33913,
+  "triangles": 1625,
+  "nGons": 0,
+  "quadPercentage": 95.42742979346052,
+  "internalCracks": 0,
+  "intentionalBoundaryLoops": 5,
+  "boundaryEdges": 223,
+  "nonManifoldEdges": 0,
+  "connectedComponents": 1,
+  "validation": "Pass",
+  "support": "native bounded-parametric bilinear quads and bounded-parametric triangle transitions; no plane proxy"
+}

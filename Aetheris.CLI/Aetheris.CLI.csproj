@@ -26,6 +26,7 @@
     <ProjectReference Include="..\Aetheris.Firmament.FrictionLab\Aetheris.Firmament.FrictionLab.csproj" />
     <ProjectReference Include="..\Aetheris.FEA\Aetheris.FEA.csproj" />
     <ProjectReference Include="..\Aetheris.Modules.BuiltIn\Aetheris.Modules.BuiltIn.csproj" />
+    <ProjectReference Include="..\Aetheris.Reconstruction\Aetheris.Reconstruction.csproj" />
   </ItemGroup>
 
   <ItemGroup>

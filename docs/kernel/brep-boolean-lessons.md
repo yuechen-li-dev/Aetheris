@@ -1,12 +1,43 @@
 # BRep Boolean lessons
 
+This is a practical guide for implementing a bounded topology recipe. The
+public Boolean names are compatibility vocabulary; they are not evidence that
+the kernel can infer arbitrary result topology.
+
+## The Boolean API illusion
+
+`Subtract(left, right)` looks uniform while its successful implementations are
+not. A through-hole, blind pocket, open keyway, prismatic cut, and orthogonal
+union each require different loop roles, face survival rules, orientation, and
+history. The facade is useful routing compatibility, but the implementation
+must eventually name the recognized construction it is performing.
+
 ## Intersection is not topology
 
 `Union`, `Subtract`, and `Intersect` express set intent. An exact result additionally needs bounded trims, outer and inner loops, face supports and senses, a closed shell, stable identity, bindings, and validation. Intersection geometry supplies local evidence; it does not choose those graph elements or explain product intent.
 
 ## Through hole and blind hole
 
-The bounded box-cylinder through-hole case works because the recipe already knows one cylindrical wall, entry and exit rings, and the affected planar faces. A blind hole adds state: one exterior opening, a termination circle, a bottom face, and cavity-facing orientation. That is a different known topology recipe, not merely a shorter intersection interval.
+For the canonical box/cylinder case, recognition proves a world-Z cylinder
+fully spans a box. `ThroughHoleRecipeRequest` then carries the box root, the
+recognized hole descriptor, tolerance, feature identity, and
+`SafeBooleanComposition` history. The expected result is fixed before topology
+editing: six surviving exterior faces, one inner circular loop on each planar
+support, one cylindrical wall, two rings, and a periodic seam. The recipe
+supplies those loop senses and support bindings to Surgery, then validates and
+STEP-round-trips the result.
+
+This works reliably because the answer's topology is part of the admitted
+family contract. A generic arbitrary-body subtraction lacks that contract: an
+intersection curve cannot say which fragments survive, which loops are inner,
+how faces are oriented, which identity survives, or whether earlier features
+permit the operation.
+
+A blind hole adds state: one exterior opening, a termination circle, a bottom
+face, and cavity-facing orientation. That is a different known topology recipe,
+not merely a shorter intersection interval. Rotated tools, tangency at entry,
+non-planar supports, and intersection with an existing void likewise require
+new bounded recognition and topology contracts, not flags on this recipe.
 
 ## Composition and the stepped-hole cliff
 
@@ -25,6 +56,42 @@ A counterbore predicts two cylindrical walls, an annular shoulder, ordered radii
 ## Generic CIR execution
 
 The generic CIR experiment recursively mapped a Boolean expression tree to `BrepBoolean`. It succeeded only for families already supported below and did not remove stepped/conic limitations. A generic syntax tree is a generic traversal mechanism; it does not create a generic topology reconstruction algorithm.
+
+## Contrasting recipe: polygonal through cut
+
+The polygonal recipe is deliberately not a circular-hole parameterization.
+Recognition supplies ordered outer and inner footprints and a full through
+span. The recipe creates one planar cavity wall per inner polygon segment and
+multi-edge inner loops on both support faces. Explicit correspondence and wall
+ordering replace the circular recipe's analytic rings and periodic seam. Both
+recipes use the same Surgery mechanics because those mechanics only realize
+caller-authorized loops, faces, shells, and validation.
+
+## When to write your own BRep recipe
+
+Use this decision ladder:
+
+1. Prefer a Firmament Template for ordinary product generation.
+2. Use a typed construction primitive when the result is a primitive.
+3. Use an existing recognized Recipe when its admitted intent matches.
+4. Add a reusable bounded Recipe when a construction family is broadly useful and its expected topology can be stated completely.
+5. Use bespoke Surgery only when the consumer already knows the exact topology it must author.
+6. Treat arbitrary-body Boolean as a compatibility or experimental path, not a default implementation strategy.
+
+Do not add a central dispatcher case merely because a new pair of bodies can be recognized. The recognition must name a useful construction contract, and the result graph must be predictable enough for explicit validation.
+
+### Bespoke bounded example
+
+For a known planar plate with a known inner polygonal opening, gather intersection/contact evidence only to check the authored polygon against the support. Author the outer loop and the explicitly ordered inner loop, create one known wall face per inner edge, assemble the caller-selected faces into a shell, validate manifold incidence/bindings/finite geometry, then inspect and reimport STEP. The developer owns the expected topology, orientation, IDs, provenance, and tolerance decisions. `IntersectionQuery` witnesses are not authoritative trims unless that bespoke recipe explicitly adopts them under its own contract.
+
+## Writing the bounded contract
+
+Write the expected face/edge/loop graph first. State the admitted root and tool
+families, orientation convention, tolerance boundaries, analytic support
+requirements, identity/history behavior, and exact rejection cases. Only then
+construct geometry and call Surgery. If those facts cannot be stated without
+inspecting arbitrary fragments and guessing their role, the proposed recipe is
+not bounded enough.
 
 ## M3 extraction lesson
 

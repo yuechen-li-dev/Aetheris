@@ -22,6 +22,8 @@ public sealed class CirBrepMaterializerTests
         Assert.True(result.IsSuccess);
         Assert.Equal("subtract_box_cylinder", result.SelectedStrategy);
         Assert.Equal(CirBrepMaterializer.BoxMinusCylinderPattern, result.PatternName);
+        Assert.Equal("matched-box-minus-cylinder-direct-recipe", result.Message);
+        Assert.Equal("cut", Assert.Single(result.Body!.SafeBooleanComposition!.Holes).FeatureId);
     }
 
     [Fact]
@@ -36,6 +38,7 @@ public sealed class CirBrepMaterializerTests
         Assert.True(result.IsSuccess);
         Assert.Equal("subtract_box_box", result.SelectedStrategy);
         Assert.Equal(CirBrepMaterializer.BoxMinusBoxPattern, result.PatternName);
+        Assert.Null(result.Body!.SafeBooleanComposition?.Holes.SingleOrDefault().FeatureId);
     }
 
     [Fact]

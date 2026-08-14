@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Diagnostics;
+using Aetheris.Kernel.Core.Brep.Boolean;
 using Aetheris.Kernel.Core.Brep.Surgery;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Curves;
@@ -7,9 +8,13 @@ using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Topology;
 
-namespace Aetheris.Kernel.Core.Brep.Boolean;
+namespace Aetheris.Kernel.Core.Brep.Recipes;
 
-internal static class BrepBooleanPolygonalPrismThroughCutBuilder
+/// <summary>
+/// Recipe-owned topology realization. This receives ordered, recognized
+/// footprints and has no access to arbitrary Boolean operands or recognition.
+/// </summary>
+internal static class PolygonalThroughCutTopologyRealizer
 {
     public static KernelResult<BrepBody> Build(
         IReadOnlyList<(double X, double Y)> outerFootprint,
@@ -23,7 +28,7 @@ internal static class BrepBooleanPolygonalPrismThroughCutBuilder
                     KernelDiagnosticCode.ValidationFailed,
                     KernelDiagnosticSeverity.Error,
                     "Bounded prism-family subtract requires valid outer/inner footprints with at least three vertices.",
-                    "BrepBooleanPolygonalPrismThroughCutBuilder.Build")
+                    "Brep.Recipes.PolygonalThroughCut.Realize")
             ]);
         }
 

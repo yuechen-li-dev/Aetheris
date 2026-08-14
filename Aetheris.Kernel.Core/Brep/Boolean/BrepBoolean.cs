@@ -4,6 +4,7 @@ using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Numerics;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Topology;
+using Aetheris.Kernel.Core.Brep.Recipes;
 
 namespace Aetheris.Kernel.Core.Brep.Boolean;
 
@@ -1063,7 +1064,12 @@ public static class BrepBoolean
             KernelResult<BrepBody> rebuiltPrismSubtract = leftComposition.RootDescriptor.Kind switch
             {
                 SafeBooleanRootKind.PolygonalExtrusion when leftComposition.RootDescriptor.PolygonFootprint is { Count: > 2 } polygonFootprint
-                    => BrepBooleanPolygonalPrismThroughCutBuilder.Build(polygonFootprint, leftComposition.RootDescriptor.Box, prismaticTool.Footprint),
+                    => PolygonalThroughCutRecipe.Execute(new(
+                        polygonFootprint,
+                        leftComposition.RootDescriptor.Box,
+                        prismaticTool.Footprint,
+                        request.Tolerance ?? ToleranceContext.Default,
+                        classification.SafeCompositionResult)),
                 _ => BrepBooleanBoxPrismThroughCutBuilder.Build(leftComposition.RootDescriptor.Box, prismaticTool.Footprint, request.Tolerance ?? ToleranceContext.Default),
             };
             if (!rebuiltPrismSubtract.IsSuccess)

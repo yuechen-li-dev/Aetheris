@@ -1,6 +1,8 @@
 using Aetheris.Kernel.Core.Air;
 using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Brep.Recipes;
 using Aetheris.Kernel.Core.Geometry.Curves;
+using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Topology;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 
@@ -107,8 +109,42 @@ internal static class AirHoleSimpleShaftMaterializer
         }
 
         var diagnostics = planResult.Diagnostics.ToList();
-        diagnostics.Add("air-hole-x2 execution route: semantic AirHoleFeature -> simple shaft materialization plan -> ProfileStackExtrudeExecutor.");
         diagnostics.Add($"air-hole-x2 semantic-parent featureId={planResult.Plan.SemanticFeatureId} source={planResult.Plan.SemanticSourceKind}.");
+
+        if (planResult.Plan.EndConditionKind == AirHoleEndConditionKind.ThroughAll
+            && planResult.Plan.StackKind == AirHoleStackKind.SimpleShaft)
+        {
+            diagnostics.Add("air-hole-m5 execution route: semantic AirHoleFeature -> ThroughHoleRecipeRequest -> ThroughHoleConstructionRecipe.");
+            var hostCenterZ = (host.ZMin + host.ZMax) * 0.5d;
+            var request = ThroughHoleRecipeRequestBuilder.FromBoxAndZCylinder(
+                host.Width,
+                host.Depth,
+                host.Thickness,
+                new Vector3D(0d, 0d, hostCenterZ),
+                planResult.Plan.Radius,
+                host.Thickness,
+                new Vector3D(planResult.Plan.CenterU, planResult.Plan.CenterV, hostCenterZ),
+                planResult.Plan.SemanticFeatureId);
+            if (!request.IsSuccess)
+            {
+                diagnostics.AddRange(request.Diagnostics.Select(diagnostic => $"air-hole-m5 recipe request failed: {diagnostic.Message}"));
+                return new(AirHoleSimpleShaftMaterializationStatus.ExecutionFailed, planResult.Plan, null, diagnostics);
+            }
+
+            var recipe = ThroughHoleConstructionRecipe.Execute(request.Value);
+            if (!recipe.IsSuccess)
+            {
+                diagnostics.AddRange(recipe.Diagnostics.Select(diagnostic => $"air-hole-m5 recipe execution failed: {diagnostic.Message}"));
+                return new(AirHoleSimpleShaftMaterializationStatus.ExecutionFailed, planResult.Plan, null, diagnostics);
+            }
+
+            diagnostics.Add("air-hole-m5 direct Recipe materialization succeeded; no Boolean or temporary tool BRep was used.");
+            var recipeCorrespondence = BuildCorrespondence(planResult.Plan, recipe.Value);
+            diagnostics.Add("air-hole-x2 semantic correspondence published: entry/exit loops and edges plus shaft wall face.");
+            return new(AirHoleSimpleShaftMaterializationStatus.Succeeded, planResult.Plan, recipe.Value, diagnostics, recipeCorrespondence);
+        }
+
+        diagnostics.Add("air-hole-x2 execution route: semantic AirHoleFeature -> simple shaft materialization plan -> ProfileStackExtrudeExecutor.");
 
         var execution = ProfileStackExtrudeExecutor.Execute(planResult.Plan.ProfileStackSpec);
         diagnostics.AddRange(execution.Diagnostics);
@@ -206,7 +242,7 @@ internal static class AirHoleSimpleShaftMaterializer
             new($"material:{source}:exit-edge", "Edge", SemanticTopologyRole.BottomBoundary, source, Edge: EdgeOf(exitLoop), ParentStableId: plan.SemanticFeatureId),
             new($"material:{source}:wall", "Face", SemanticTopologyRole.HoleWallFace, source, Face: wall.Id, ParentStableId: plan.SemanticFeatureId)
         };
-        return new(plan.SemanticFeature.TargetBodyId ?? "semantic-hole-host", descendants, ["HoleAIR", "AirHoleSimpleShaftMaterializationPlan", "ProfileStackExtrudeSpec", "AuthoritativeBRepPlan"]);
+        return new(plan.SemanticFeature.TargetBodyId ?? "semantic-hole-host", descendants, ["HoleAIR", "AirHoleSimpleShaftMaterializationPlan", "ThroughHoleConstructionRecipe", "BrepSurgery"]);
     }
 
     private static IEnumerable<ProfileStackLayer> BuildLayers(AirHoleFeature feature, AirHoleSimpleShaftHost host, double cutZMin, double cutZMax)

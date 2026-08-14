@@ -1,5 +1,6 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Boolean;
+using Aetheris.Kernel.Core.Brep.Recipes;
 using Aetheris.Continuum.Backends.Sdf;
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Judgment;
@@ -57,12 +58,18 @@ internal static class CirBrepMaterializer
         public CirBrepMaterializationResult Materialize(CirBrepMaterializerContext context)
         {
             if (!TryMatch(context, true, out var m, out var reason)) return new(false, null, BoxMinusCylinderPattern, "strategy-no-longer-admissible", [], reason, Name, []);
-            var b = BrepPrimitives.CreateBox(m!.LeftBox.Width, m.LeftBox.Height, m.LeftBox.Depth);
-            var c = BrepPrimitives.CreateCylinder(m.Cylinder!.Radius, m.Cylinder.Height);
-            if (!b.IsSuccess) return Failed(BoxMinusCylinderPattern, "Failed to create BRep box primitive.", b.Diagnostics);
-            if (!c.IsSuccess) return Failed(BoxMinusCylinderPattern, "Failed to create BRep cylinder primitive.", c.Diagnostics);
-            var s = BrepBoolean.Subtract(TranslateBody(b.Value, m.LeftTranslation), TranslateBody(c.Value, m.RightTranslation));
-            return s.IsSuccess ? new(true, s.Value, BoxMinusCylinderPattern, null, [], "matched-box-minus-cylinder", Name, []) : Failed(BoxMinusCylinderPattern, "Failed to boolean subtract box/cylinder during CIR rematerialization.", s.Diagnostics);
+            var request = ThroughHoleRecipeRequestBuilder.FromBoxAndZCylinder(
+                m!.LeftBox.Width,
+                m.LeftBox.Height,
+                m.LeftBox.Depth,
+                m.LeftTranslation,
+                m.Cylinder!.Radius,
+                m.Cylinder.Height,
+                m.RightTranslation,
+                context.LatestOperation?.FeatureId);
+            if (!request.IsSuccess) return Failed(BoxMinusCylinderPattern, "Failed to construct recognized CIR through-hole Recipe request.", request.Diagnostics);
+            var recipe = ThroughHoleConstructionRecipe.Execute(request.Value);
+            return recipe.IsSuccess ? new(true, recipe.Value, BoxMinusCylinderPattern, null, [], "matched-box-minus-cylinder-direct-recipe", Name, []) : Failed(BoxMinusCylinderPattern, "Failed to execute through-hole Recipe during CIR rematerialization.", recipe.Diagnostics);
         }
     }
 

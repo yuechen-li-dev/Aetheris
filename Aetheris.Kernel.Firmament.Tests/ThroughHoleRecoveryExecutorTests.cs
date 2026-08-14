@@ -20,9 +20,9 @@ public sealed class ThroughHoleRecoveryExecutorTests
 
         Assert.Equal(ThroughHoleRecoveryExecutionStatus.Succeeded, result.Status);
         Assert.NotNull(result.Body);
-        Assert.Contains("Box primitive constructed.", result.Diagnostics);
-        Assert.Contains(result.Diagnostics, d => d.Contains("Cylinder primitive constructed", StringComparison.Ordinal));
-        Assert.Contains("Boolean subtract succeeded.", result.Diagnostics);
+        Assert.Contains(result.Diagnostics, d => d.Contains("Recipe request constructed from recognized semantics", StringComparison.Ordinal));
+        Assert.Contains(result.Diagnostics, d => d.Contains("no temporary tool BRep or Boolean recognition pass", StringComparison.Ordinal));
+        Assert.Contains("Through-hole Recipe succeeded.", result.Diagnostics);
     }
 
     [Fact]
@@ -37,7 +37,7 @@ public sealed class ThroughHoleRecoveryExecutorTests
 
         Assert.Equal(ThroughHoleRecoveryExecutionStatus.Succeeded, result.Status);
         Assert.NotNull(result.Body);
-        Assert.Contains("Boolean subtract succeeded.", result.Diagnostics);
+        Assert.Contains("Through-hole Recipe succeeded.", result.Diagnostics);
     }
 
     [Fact]

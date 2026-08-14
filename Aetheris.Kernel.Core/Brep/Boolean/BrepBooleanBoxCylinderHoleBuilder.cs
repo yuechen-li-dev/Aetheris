@@ -6,6 +6,8 @@ using Aetheris.Kernel.Core.Numerics;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Topology;
 using Aetheris.Kernel.Core.Brep.Features;
+using Aetheris.Kernel.Core.Brep.Recipes;
+using Aetheris.Kernel.Core.Brep.Surgery;
 
 namespace Aetheris.Kernel.Core.Brep.Boolean;
 
@@ -34,6 +36,18 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             }
 
             return CreateBoundedCylinderRootHoleChainBody(composition, tolerance);
+        }
+
+        if (composition.RootDescriptor.Kind == SafeBooleanRootKind.Box
+            && composition.Holes.Count == 1
+            && composition.Holes[0].SpanKind == SupportedBooleanHoleSpanKind.Through
+            && composition.Holes[0].Surface.Kind == AnalyticSurfaceKind.Cylinder)
+        {
+            return ThroughHoleConstructionRecipe.Execute(new(
+                composition.RootDescriptor,
+                composition.Holes[0],
+                composition,
+                tolerance));
         }
 
         if (composition.Holes.Count == 1
@@ -115,6 +129,21 @@ public static class BrepBooleanBoxCylinderHoleBuilder
 
         return CreateComposedThroughHoleBody(composition, tolerance);
     }
+
+    /// <summary>
+    /// Recipe realization and rollback seam for the already-recognized canonical
+    /// box/cylinder through-hole. This method performs no operand recognition.
+    /// </summary>
+    internal static KernelResult<BrepBody> BuildRecognizedThroughHoleTopology(
+        SafeBooleanComposition composition,
+        ToleranceContext tolerance)
+        => CreateComposedThroughHoleBody(composition, tolerance);
+
+    /// <summary>Pre-M4 callable path retained for byte/topology parity tests.</summary>
+    internal static KernelResult<BrepBody> BuildRecognizedThroughHoleLegacy(
+        SafeBooleanComposition composition,
+        ToleranceContext tolerance)
+        => CreateComposedThroughHoleBody(composition, tolerance);
 
     private static bool IsCoaxialHolePair(in SupportedBooleanHole first, in SupportedBooleanHole second, ToleranceContext tolerance)
     {
@@ -745,33 +774,36 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             holeTopology.Add(new HoleTopology(hole, topHoleVertex, bottomHoleVertex, seamTopVertex, seamBottomVertex, topCircle, bottomCircle, seam));
         }
 
-        var bottomOuterLoop = AddLoop(builder, [Forward(e1), Forward(e2), Forward(e3), Forward(e4)]);
-        var topOuterLoop = AddLoop(builder, [Forward(e5), Forward(e6), Forward(e7), Forward(e8)]);
+        var bottomOuterLoop = AddSurgeryLoop(builder, [Forward(e1), Forward(e2), Forward(e3), Forward(e4)]);
+        var topOuterLoop = AddSurgeryLoop(builder, [Forward(e5), Forward(e6), Forward(e7), Forward(e8)]);
         var bottomLoops = new List<LoopId>(holes.Count + 1) { bottomOuterLoop };
         var topLoops = new List<LoopId>(holes.Count + 1) { topOuterLoop };
         foreach (var hole in holeTopology)
         {
             if (hole.Hole.SpanKind == SupportedBooleanHoleSpanKind.Through)
             {
-                topLoops.Add(AddLoop(builder, [Forward(hole.TopCircle)]));
-                bottomLoops.Add(AddLoop(builder, [Reversed(hole.BottomCircle)]));
+                topLoops.Add(AddSurgeryLoop(builder, [Forward(hole.TopCircle)]));
+                bottomLoops.Add(AddSurgeryLoop(builder, [Reversed(hole.BottomCircle)]));
             }
             else if (hole.Hole.SpanKind == SupportedBooleanHoleSpanKind.BlindFromTop)
             {
-                topLoops.Add(AddLoop(builder, [Forward(hole.TopCircle)]));
+                topLoops.Add(AddSurgeryLoop(builder, [Forward(hole.TopCircle)]));
             }
             else
             {
-                bottomLoops.Add(AddLoop(builder, [Reversed(hole.BottomCircle)]));
+                bottomLoops.Add(AddSurgeryLoop(builder, [Reversed(hole.BottomCircle)]));
             }
         }
 
-        var bottomFace = builder.AddFace(bottomLoops);
-        var topFace = builder.AddFace(topLoops);
-        var xMinFace = builder.AddFace([AddLoop(builder, [Forward(e1), Forward(e10), Reversed(e5), Reversed(e9)])]);
-        var xMaxFace = builder.AddFace([AddLoop(builder, [Forward(e2), Forward(e11), Reversed(e6), Reversed(e10)])]);
-        var yMaxFace = builder.AddFace([AddLoop(builder, [Forward(e3), Forward(e12), Reversed(e7), Reversed(e11)])]);
-        var yMinFace = builder.AddFace([AddLoop(builder, [Forward(e4), Forward(e9), Reversed(e8), Reversed(e12)])]);
+        // Recognition has already identified the support faces and loop roles.
+        // Surgery realizes those exact ownership decisions; numerical
+        // intersection is not topology authority here.
+        var bottomFace = AddKnownFace(builder, bottomLoops);
+        var topFace = AddKnownFace(builder, topLoops);
+        var xMinFace = AddKnownFace(builder, [AddSurgeryLoop(builder, [Forward(e1), Forward(e10), Reversed(e5), Reversed(e9)])]);
+        var xMaxFace = AddKnownFace(builder, [AddSurgeryLoop(builder, [Forward(e2), Forward(e11), Reversed(e6), Reversed(e10)])]);
+        var yMaxFace = AddKnownFace(builder, [AddSurgeryLoop(builder, [Forward(e3), Forward(e12), Reversed(e7), Reversed(e11)])]);
+        var yMinFace = AddKnownFace(builder, [AddSurgeryLoop(builder, [Forward(e4), Forward(e9), Reversed(e8), Reversed(e12)])]);
 
         var holeFaces = new List<FaceId>(holes.Count);
         foreach (var hole in holeTopology)
@@ -780,8 +812,8 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             // the bottom circle, back up the reversed seam, then the top
             // circle.  The previous top/bottom ordering was incidence-manifold
             // but disconnected in declared coedge traversal.
-            holeFaces.Add(builder.AddFace([
-                AddLoop(builder, [Forward(hole.Seam), Forward(hole.BottomCircle), Reversed(hole.Seam), Reversed(hole.TopCircle)])
+            holeFaces.Add(AddKnownFace(builder, [
+                AddSurgeryLoop(builder, [Forward(hole.Seam), Forward(hole.BottomCircle), Reversed(hole.Seam), Reversed(hole.TopCircle)])
             ]));
         }
 
@@ -789,7 +821,7 @@ public static class BrepBooleanBoxCylinderHoleBuilder
         foreach (var hole in holeTopology.Where(h => h.Hole.IsBlind))
         {
             var terminationEdge = hole.Hole.SpanKind == SupportedBooleanHoleSpanKind.BlindFromTop ? hole.BottomCircle : hole.TopCircle;
-            blindBottomFaces.Add(builder.AddFace([AddLoop(builder, [Forward(terminationEdge)])]));
+            blindBottomFaces.Add(AddKnownFace(builder, [AddSurgeryLoop(builder, [Forward(terminationEdge)])]));
         }
 
         var shellFaces = new List<FaceId>(6 + holeFaces.Count)
@@ -804,8 +836,11 @@ public static class BrepBooleanBoxCylinderHoleBuilder
         shellFaces.AddRange(holeFaces);
         shellFaces.AddRange(blindBottomFaces);
 
-        var shell = builder.AddShell(shellFaces);
-        builder.AddBody([shell]);
+        var assembly = BrepShellAssembler.CreateClosedBody(builder, shellFaces);
+        if (!assembly.IsSuccess)
+        {
+            return KernelResult<BrepBody>.Failure(assembly.Diagnostics);
+        }
 
         var geometry = new BrepGeometryStore();
         var width = box.MaxX - box.MinX;
@@ -920,7 +955,7 @@ public static class BrepBooleanBoxCylinderHoleBuilder
         }
 
         var body = new BrepBody(builder.Model, geometry, bindings, vertexPoints, composition);
-        var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
+        var validation = BrepSurgeryValidation.ValidateBody(body, requireAllEdgeAndFaceBindings: true);
         return validation.IsSuccess
             ? KernelResult<BrepBody>.Success(body, validation.Diagnostics)
             : KernelResult<BrepBody>.Failure(validation.Diagnostics);
@@ -1621,6 +1656,18 @@ public static class BrepBooleanBoxCylinderHoleBuilder
         builder.AddLoop(new Loop(loopId, coedgeIds));
         return loopId;
     }
+
+    private static LoopId AddSurgeryLoop(TopologyBuilder builder, IReadOnlyList<EdgeUse> edgeUses)
+    {
+        // Periodic analytic faces use the seam twice; preserve the established
+        // coedge senses at this explicitly named compatibility seam.
+        return BrepLoopBuilder.CreateKnownLoopPreservingLegacySense(
+            builder,
+            edgeUses.Select(use => new BrepEdgeUse(use.EdgeId, use.IsReversed)).ToArray()).Value;
+    }
+
+    private static FaceId AddKnownFace(TopologyBuilder builder, IReadOnlyList<LoopId> loops)
+        => BrepFaceBuilder.CreateKnownFaceFromLoops(builder, loops[0], loops.Skip(1).ToArray()).Value;
 
     private static bool SupportsBoundedBlindContinuationOnRecognizedOrthogonalAdditiveRoot(
         SafeBooleanComposition composition,

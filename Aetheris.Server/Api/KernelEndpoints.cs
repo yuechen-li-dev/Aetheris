@@ -208,7 +208,8 @@ public static class KernelEndpoints
                 }
 
                 return ApiMappings.Ok(CreateBodyResponse(document, kernel.Value));
-            }));
+            }))
+            .WithDescription("Compatibility Boolean API for bounded recognized BRep families. Unsupported arbitrary body combinations return typed kernel rejections; this is not a general-purpose exact Boolean guarantee.");
 
         documents.MapPost("/{documentId:guid}/occurrences", (Guid documentId, CreateOccurrenceRequestDto request, KernelDocumentStore store) =>
             WithDocument(store, documentId, document =>

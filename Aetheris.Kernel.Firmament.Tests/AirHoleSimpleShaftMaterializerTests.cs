@@ -31,6 +31,11 @@ public sealed class AirHoleSimpleShaftMaterializerTests
         Assert.Equal(-5, result.Plan.CutZMin);
         Assert.Equal(5, result.Plan.CutZMax);
         Assert.Contains(result.Diagnostics, d => d.Contains("semantic-parent featureId=hole-001", StringComparison.Ordinal));
+        Assert.Contains(result.Diagnostics, d => d.Contains("ThroughHoleConstructionRecipe", StringComparison.Ordinal));
+        Assert.Contains(result.Diagnostics, d => d.Contains("no Boolean or temporary tool BRep", StringComparison.Ordinal));
+        Assert.Contains("ThroughHoleConstructionRecipe", correspondence.ProvenanceChain);
+        Assert.Contains("BrepSurgery", correspondence.ProvenanceChain);
+        Assert.DoesNotContain("ProfileStackExtrudeSpec", correspondence.ProvenanceChain);
         Assert.DoesNotContain(result.Diagnostics, d => d.Contains("CylinderCut", StringComparison.OrdinalIgnoreCase));
 
         var step = Step242Exporter.ExportBody(result.Body!);

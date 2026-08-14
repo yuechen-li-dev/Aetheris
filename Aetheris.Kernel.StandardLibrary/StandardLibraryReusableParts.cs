@@ -1,5 +1,6 @@
 using Aetheris.Kernel.Core.Brep;
-using Aetheris.Kernel.Core.Brep.Boolean;
+using Aetheris.Kernel.Core.Brep.Recipes;
+using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Results;
 
@@ -56,19 +57,21 @@ public static class StandardLibraryReusableParts
         const double holeRadius = 3d;
         const double holeHeight = 24d;
 
-        var cubeResult = BrepPrimitives.CreateBox(cubeSize, cubeSize, cubeSize);
-        if (!cubeResult.IsSuccess)
+        var request = ThroughHoleRecipeRequestBuilder.FromBoxAndZCylinder(
+            cubeSize,
+            cubeSize,
+            cubeSize,
+            Vector3D.Zero,
+            holeRadius,
+            holeHeight,
+            Vector3D.Zero,
+            featureId: CubeWithCylindricalHolePartName);
+        if (!request.IsSuccess)
         {
-            return cubeResult;
+            return KernelResult<BrepBody>.Failure(request.Diagnostics);
         }
 
-        var holeResult = BrepPrimitives.CreateCylinder(holeRadius, holeHeight);
-        if (!holeResult.IsSuccess)
-        {
-            return holeResult;
-        }
-
-        return BrepBoolean.Subtract(cubeResult.Value, holeResult.Value);
+        return ThroughHoleConstructionRecipe.Execute(request.Value);
     }
 }
 

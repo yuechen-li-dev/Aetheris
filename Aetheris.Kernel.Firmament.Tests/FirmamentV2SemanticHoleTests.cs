@@ -48,7 +48,14 @@ public sealed class FirmamentV2SemanticHoleTests
         Assert.True(result.Succeeded, string.Join(" | ", result.Diagnostics));
         Assert.Equal(kind, result.Plan!.StackKind.ToString());
         Assert.Equal(nameof(AirHoleFeature), result.Plan.SemanticSourceKind);
-        Assert.Contains(result.Diagnostics, d => d.Contains("semantic AirHoleFeature -> simple shaft materialization plan -> ProfileStackExtrudeExecutor", StringComparison.Ordinal));
+        if (kind == "SimpleShaft")
+        {
+            Assert.Contains(result.Diagnostics, d => d.Contains("semantic AirHoleFeature -> ThroughHoleRecipeRequest -> ThroughHoleConstructionRecipe", StringComparison.Ordinal));
+        }
+        else
+        {
+            Assert.Contains(result.Diagnostics, d => d.Contains("semantic AirHoleFeature -> simple shaft materialization plan -> ProfileStackExtrudeExecutor", StringComparison.Ordinal));
+        }
     }
 
     private static void AssertHole(string fixture, FirmamentV2SemanticHoleVariant variant)

@@ -6,6 +6,8 @@ using Aetheris.Surfacing;
 namespace Aetheris.SheetMetal;
 
 public enum SheetMetalRecognitionStatus { Complete, Partial, Ambiguous, Unsupported }
+public enum RecognizedBendStatus { Candidate, Recognized, Rejected, Ambiguous }
+public enum RecoveredFlatReferenceKind { GeometricMidSurface, ManufacturingNeutralSurface }
 public enum SheetRegionKind { Planar, CylindricalBend, Developable, Unsupported }
 public enum SheetBendDirection { Up, Down, Unknown }
 public enum SheetFeatureKind { CircularHole, ProfileHole, Slot, Cutout, Unsupported }
@@ -42,11 +44,19 @@ public static class SheetMetalDiagnosticCodes
     public const string FormedBodyInvalid = "sheetmetal-formed-body-invalid";
     public const string ExactBlankContour = "sheetmetal-exact-blank-contour";
     public const string FlangeBelowMinimum = "sheetmetal-flange-below-minimum";
+    public const string RecognitionAssertionInvalid = "sheetmetal-recognition-assertion-invalid";
+    public const string RecognitionPlanIncomplete = "sheetmetal-recognition-plan-incomplete";
+    public const string RegionGraphCycle = "sheetmetal-region-graph-cycle";
+    public const string UnfoldCrack = "sheetmetal-unfold-crack";
+    public const string UnfoldDuplicateBoundary = "sheetmetal-unfold-duplicate-boundary";
+    public const string SourceContourUnsupported = "sheetmetal-source-contour-unsupported";
     public static IReadOnlyList<string> All { get; } =
         [NonConstantThickness, UnpairedFaces, NonDevelopable, AmbiguousBendAxis, UnsupportedBendTopology,
          InconsistentBendRadius, DisconnectedGraph, FlatOverlap, FeatureMappingFailure, InvalidRadius,
          DuplicateCut, BendLineOutsideMaterial, ZeroWidthSliver, DuplicateFlange, ImpossibleTopology,
-         InvalidRelief, CutCrossesBend, FormedBodyInvalid, ExactBlankContour, FlangeBelowMinimum];
+         InvalidRelief, CutCrossesBend, FormedBodyInvalid, ExactBlankContour, FlangeBelowMinimum,
+         RecognitionAssertionInvalid, RecognitionPlanIncomplete, RegionGraphCycle, UnfoldCrack,
+         UnfoldDuplicateBoundary, SourceContourUnsupported];
 }
 
 public sealed record SheetMetalDiagnostic(

@@ -90,6 +90,8 @@ Canonical M4 dogfood is [`m4-psu-enclosure.firmament`](../../fixtures/FirmamentV
 
 The [M8 CTC-03 evidence bundle](sheetmetal/artifacts/m8/README.md) records full opening recovery, semantic-layout authoring, independent regeneration, comparison, PMI evidence, generalization, timings, and the remaining outer-contour blocker.
 
+The [recognized-import recovery M1 report](sheetmetal/artifacts/recovery-m1/README.md) separates detected bend candidates from accepted recognition authority and adds direct imported-body geometric mid-surface unfolding. Its CTC-03 run preserves exact per-region line/arc contours, all 17 source openings, seven bend lines, and source edge ancestry before any native reconstruction. Exact single-loop stitching remains partial at three source point-tangent junctions and is reported as such.
+
 ## Bounded capability verdict
 
 M4 can generate production-like exact blanks for common line/arc brackets, channels, open/miter trays, nested lips, cuts, and individual rectangular/round relief cases without generic BRep Boolean. It is not yet commercial sheet-metal parity: the largest blocker is robust simultaneous multi-corner relief/seam resolution—including exact formed curved relief walls and hostile historical trim reconstruction—without arrangement ambiguity.

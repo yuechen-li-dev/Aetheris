@@ -73,5 +73,21 @@ public sealed class SheetMetalCliTests
         finally{Directory.Delete(dir,true);}
     }
 
+    [Fact]
+    public void RecognizeThenRecoverFlat_WritesInspectableSourceDerivedArtifacts()
+    {
+        var dir=Path.Combine(Path.GetTempPath(),$"aetheris-recognized-flat-{Guid.NewGuid():N}");Directory.CreateDirectory(dir);
+        try
+        {
+            var source=Path.Combine(RepoRoot,"testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp");var plan=Path.Combine(dir,"recognition-plan.json");var output=new StringWriter();var error=new StringWriter();
+            var recognize=CliRunner.Run(["sheetmetal","recognize",source,"--plan",plan,"--json"],output,error);Assert.Equal(0,recognize);Assert.Empty(error.ToString());Assert.True(File.Exists(plan));
+            using(var report=JsonDocument.Parse(output.ToString())){Assert.Equal(7,report.RootElement.GetProperty("bends").GetArrayLength());Assert.All(report.RootElement.GetProperty("bends").EnumerateArray(),x=>Assert.Equal("Recognized",x.GetProperty("acceptedStatus").GetString()));}
+            output.GetStringBuilder().Clear();var recover=CliRunner.Run(["sheetmetal","recover-flat",source,"--recognition-plan",plan,"--out-dir",dir,"--json"],output,error);Assert.Equal(0,recover);Assert.Empty(error.ToString());
+            var reference=Path.Combine(dir,"recovered-flat.json");Assert.True(File.Exists(reference));Assert.True(File.Exists(Path.Combine(dir,"recovered-flat.svg")));
+            using var flat=JsonDocument.Parse(File.ReadAllText(reference));Assert.Equal("aetheris.recovered-flat-reference.v2",flat.RootElement.GetProperty("schema").GetString());Assert.Equal("RecoveredWithRepairs",flat.RootElement.GetProperty("contourAcceptance").GetString());Assert.Equal(3,flat.RootElement.GetProperty("junctionRepairs").GetArrayLength());Assert.Equal(17,flat.RootElement.GetProperty("cuts").GetArrayLength());Assert.Equal(7,flat.RootElement.GetProperty("bendLines").GetArrayLength());Assert.True(flat.RootElement.GetProperty("sourceProvenance").GetArrayLength()>=100);
+        }
+        finally{Directory.Delete(dir,true);}
+    }
+
     private static string FindRepoRoot(){var dir=new DirectoryInfo(AppContext.BaseDirectory);while(dir is not null&&!File.Exists(Path.Combine(dir.FullName,"Aetheris.slnx")))dir=dir.Parent;return dir?.FullName??throw new InvalidOperationException("Repo root not found.");}
 }

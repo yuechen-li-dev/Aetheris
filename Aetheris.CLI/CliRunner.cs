@@ -158,7 +158,7 @@ public static class CliRunner
     private const string ExperimentalPrismaticMapUsage = "Usage: aetheris experimental prismatic-map --case <case> --rows <N> --cols <N> --json";
     private const string FeaUsage = "Usage: aetheris fea <analysis.firmament> [--rotate <x,y,z-degrees>] [--out-dir <directory>] [--json]";
     private const string DrawingUsage = "Usage: aetheris drawing compile <drawing.firmament> --out-dir <directory> [--json]";
-    private const string SheetMetalUsage = "Usage: aetheris sheetmetal inspect <part.step|part.firmament> [--k-factor <0..1>] [--json] | aetheris sheetmetal paths <part.firmament> [--json] | aetheris sheetmetal recover <part.step> --out-dir <directory> [--json] | aetheris sheetmetal compare <part.step|part.firmament> <intent.firmament> [--json] | aetheris sheetmetal flatten <part.step|part.firmament> [--step <flat.step>] [--firmament <recovered.firmament>] [--svg <flat.svg>] [--k-factor <0..1>] [--json]";
+    private const string SheetMetalUsage = "Usage: aetheris sheetmetal recognize <part.step> [--plan <recognition.json>] [--json] | aetheris sheetmetal recover-flat <part.step> --out-dir <directory> [--recognition-plan <recognition.json>] [--json] | aetheris sheetmetal compare-flat <recovered-flat.json> <native.firmament> [--json] | aetheris sheetmetal inspect <part.step|part.firmament> [--k-factor <0..1>] [--json] | aetheris sheetmetal paths <part.firmament> [--json] | aetheris sheetmetal recover <part.step> --out-dir <directory> [--json] | aetheris sheetmetal compare <part.step|part.firmament> <intent.firmament> [--json] | aetheris sheetmetal flatten <part.step|part.firmament> [--step <flat.step>] [--firmament <recovered.firmament>] [--svg <flat.svg>] [--k-factor <0..1>] [--json]";
     private const string ExperimentalLoopChamferCorpusUsage = "Usage: aetheris experimental loop-chamfer-corpus --out-dir <dir> [--json]";
 
     internal static readonly JsonSerializerOptions JsonOptions = new()
@@ -498,6 +498,9 @@ public static class CliRunner
     private static int RunSheetMetal(string[] args, TextWriter stdout, TextWriter stderr)
     {
         if(args.Length==0||IsHelpFlag(args[0])){WriteSheetMetalHelp(stdout);return args.Length==0?1:0;}
+        if(args[0]=="recognize")return RunSheetMetalRecognize(args.Skip(1).ToArray(),stdout,stderr);
+        if(args[0]=="recover-flat")return RunSheetMetalRecoverFlat(args.Skip(1).ToArray(),stdout,stderr);
+        if(args[0]=="compare-flat")return RunSheetMetalCompareFlat(args.Skip(1).ToArray(),stdout,stderr);
         if(args[0]=="recover")return RunSheetMetalRecover(args.Skip(1).ToArray(),stdout,stderr);
         if(args[0]=="compare")return RunSheetMetalCompare(args.Skip(1).ToArray(),stdout,stderr);
         var operation=args[0];if(operation is not ("inspect" or "flatten" or "paths")||args.Length<2){stderr.WriteLine(SheetMetalUsage);return 1;}
@@ -550,6 +553,77 @@ public static class CliRunner
         return flat.Status is FlatPatternStatus.Unsupported or FlatPatternStatus.Overlapping?2:0;
         void WriteFailure(IReadOnlyList<SheetMetalDiagnostic> ds){if(json)stdout.WriteLine(JsonSerializer.Serialize(new{command=$"sheetmetal {operation}",success=false,input,diagnostics=ds},JsonOptions));else foreach(var d in ds)stderr.WriteLine($"[{d.Severity}] {d.Code}: {d.Message}");}
     }
+
+    private static int RunSheetMetalRecognize(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if(args.Length<1){stderr.WriteLine(SheetMetalUsage);return 1;}
+        var input=Path.GetFullPath(args[0]);string? planPath=null;var json=false;
+        for(var i=1;i<args.Length;i++)if(args[i]=="--json")json=true;else if(args[i]=="--plan"&&i+1<args.Length)planPath=Path.GetFullPath(args[++i]);else{stderr.WriteLine(SheetMetalUsage);return 1;}
+        if(!File.Exists(input)){stderr.WriteLine($"Sheet Metal input was not found: {input}");return 1;}
+        var detection=SheetMetalRecognizer.RecognizeStep(input);if(detection.Part is null){WriteSheetMetalDiagnostics(detection.Diagnostics,stderr);return 2;}
+        var model=RecognizedSheetMetalRecovery.FromDetection(detection);var plan=RecognizedSheetMetalRecovery.CreateAutomaticPlan(model);var validation=RecognizedSheetMetalRecovery.ValidatePlan(model,plan);
+        if(planPath is not null){Directory.CreateDirectory(Path.GetDirectoryName(planPath)!);File.WriteAllText(planPath,JsonSerializer.Serialize(plan,JsonOptions));}
+        var report=new{command="sheetmetal recognize",success=validation.IsValid,input,model=model.StableId,model.RecognitionStatus,model.Thickness,rootRegion=model.RootRegionId,
+            regions=model.Regions.Where(x=>x.Kind==SheetRegionKind.Planar).Select(x=>new{x.StableId,sourceFaces=x.Source.FaceIds}),
+            bends=model.Bends.Select(x=>new{x.SourceBendId,x.Name,candidateStatus=x.Status,acceptedStatus=plan.Bends.Single(y=>y.BendId==x.SourceBendId).Status,x.Confidence,axisOrigin=x.Geometry.AxisOrigin,axisDirection=x.Geometry.AxisDirection,angleDegrees=x.Geometry.BendAngleRadians*180/Math.PI,x.Geometry.InsideRadius,x.Geometry.AdjacentRegionA,x.Geometry.AdjacentRegionB,sourceFaces=x.Geometry.Source.FaceIds,evidence=x.Evidence}),
+            cuts=model.Cuts.Select(x=>new{x.StableId,x.Kind,x.OwningRegionId,sourceFaces=x.Source.FaceIds}),recognitionPlan=planPath,plan.DeterministicHash,diagnostics=detection.Diagnostics.Concat(validation.Diagnostics),timingsMilliseconds=new{import=detection.ImportTime.TotalMilliseconds,recognition=detection.RecognitionTime.TotalMilliseconds}};
+        if(json)stdout.WriteLine(JsonSerializer.Serialize(report,JsonOptions));else{stdout.WriteLine($"Recognized imported Sheet Metal: {model.Regions.Count(x=>x.Kind==SheetRegionKind.Planar)} planar regions, {model.Bends.Count} bend candidates, {plan.Bends.Count(x=>x.Status==RecognizedBendStatus.Recognized)} accepted, {model.Cuts.Count} cuts.");foreach(var b in report.bends)stdout.WriteLine($"  {b.Name} ({b.SourceBendId}): {b.acceptedStatus}, {b.angleDegrees:G6} deg, R{b.InsideRadius:G6}, {b.AdjacentRegionA} -> {b.AdjacentRegionB}");if(planPath is not null)stdout.WriteLine($"Recognition plan: {planPath}");}
+        return validation.IsValid?0:2;
+    }
+
+    private static int RunSheetMetalRecoverFlat(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if(args.Length<1){stderr.WriteLine(SheetMetalUsage);return 1;}
+        var input=Path.GetFullPath(args[0]);string? outDir=null,planPath=null;var json=false;
+        for(var i=1;i<args.Length;i++)if(args[i]=="--json")json=true;else if(args[i]=="--out-dir"&&i+1<args.Length)outDir=Path.GetFullPath(args[++i]);else if(args[i]=="--recognition-plan"&&i+1<args.Length)planPath=Path.GetFullPath(args[++i]);else{stderr.WriteLine(SheetMetalUsage);return 1;}
+        if(!File.Exists(input)){stderr.WriteLine($"Sheet Metal input was not found: {input}");return 1;}if(outDir is null){stderr.WriteLine("sheetmetal recover-flat requires --out-dir.");return 1;}
+        var detection=SheetMetalRecognizer.RecognizeStep(input);if(detection.Part is null){WriteSheetMetalDiagnostics(detection.Diagnostics,stderr);return 2;}
+        var model=RecognizedSheetMetalRecovery.FromDetection(detection);SheetMetalRecognitionPlan plan;
+        if(planPath is null)plan=RecognizedSheetMetalRecovery.CreateAutomaticPlan(model);else
+        {
+            if(!File.Exists(planPath)){stderr.WriteLine($"Recognition plan was not found: {planPath}");return 1;}
+            var loaded=JsonSerializer.Deserialize<SheetMetalRecognitionPlan>(File.ReadAllText(planPath),JsonOptions)??throw new InvalidDataException("Recognition plan JSON was empty.");
+            plan=RecognizedSheetMetalRecovery.CreatePlan(model,loaded.Bends,loaded.RootRegionId,loaded.ReferenceKind,loaded.Authority);
+        }
+        var recovered=RecoveredSourceFlattener.Flatten(model,plan);Directory.CreateDirectory(outDir);
+        var artifactPath=Path.Combine(outDir,"recovered-flat.json");var svgPath=Path.Combine(outDir,"recovered-flat.svg");var persistedPlanPath=Path.Combine(outDir,"recognition-plan.json");
+        File.WriteAllText(persistedPlanPath,JsonSerializer.Serialize(plan,JsonOptions));File.WriteAllText(artifactPath,JsonSerializer.Serialize(RecoveredFlatArtifact(input,recovered),JsonOptions));SheetMetalSvgRenderer.Write(svgPath,RecoveredSourceFlattener.ToFlatPattern(recovered));
+        var report=new{command="sheetmetal recover-flat",success=recovered.Status!=FlatPatternStatus.Unsupported,input,recovered.StableId,recovered.ReferenceKind,recovered.RootRegionId,recovered.Status,recovered.ContourAcceptance,recovered.Bounds,outerSegments=recovered.OuterAndInnerContours?.OuterLoop.Segments.Count??0,innerLoops=recovered.OuterAndInnerContours?.InnerLoops.Count??recovered.InnerContours.Count,cuts=recovered.InnerContours.Count,bendLines=recovered.BendLines.Count,regions=recovered.Regions.Count,sourceProvenance=recovered.SourceProvenance.Count,junctionRepairs=recovered.JunctionRepairs,recovered.StitchSummary,recovered.DeterministicHash,artifacts=new{reference=artifactPath,svg=svgPath,recognitionPlan=persistedPlanPath},timingsMilliseconds=new{graph=recovered.GraphTime.TotalMilliseconds,unfold=recovered.UnfoldTime.TotalMilliseconds,stitch=recovered.StitchTime.TotalMilliseconds,cluster=recovered.StitchSummary?.EndpointClusteringMilliseconds,candidateSelection=recovered.StitchSummary?.CandidateSelectionMilliseconds,validate=recovered.StitchSummary?.ContourValidationMilliseconds},recovered.Diagnostics};
+        if(json)stdout.WriteLine(JsonSerializer.Serialize(report,JsonOptions));else stdout.WriteLine($"Recovered source flat: {recovered.Status} ({recovered.ContourAcceptance}); {(recovered.Bounds is null?"no bounds":$"{recovered.Bounds.Width:G8} x {recovered.Bounds.Height:G8} mm")}; {recovered.InnerContours.Count} cuts; {recovered.BendLines.Count} bend lines; {recovered.JunctionRepairs.Count} repaired junctions; {recovered.JunctionRepairs.Count(x=>x.Confidence==RecoveryRepairConfidence.Ambiguous)} unresolved/ambiguous.\nReference: {artifactPath}\nSVG: {svgPath}\nPlan: {persistedPlanPath}");
+        return recovered.Status==FlatPatternStatus.Unsupported?2:0;
+    }
+
+    private static int RunSheetMetalCompareFlat(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if(args.Length<2||args.Skip(2).Any(x=>x!="--json")){stderr.WriteLine(SheetMetalUsage);return 1;}
+        var referencePath=Path.GetFullPath(args[0]);var nativePath=Path.GetFullPath(args[1]);var json=args.Contains("--json",StringComparer.Ordinal);
+        if(!File.Exists(referencePath)||!File.Exists(nativePath)){stderr.WriteLine("Recovered flat or native Firmament input was not found.");return 1;}
+        using var document=JsonDocument.Parse(File.ReadAllText(referencePath));var root=document.RootElement;var sourcePath=root.GetProperty("sourcePath").GetString();var planElement=root.GetProperty("recognitionPlan");
+        if(string.IsNullOrWhiteSpace(sourcePath)||!File.Exists(sourcePath)){stderr.WriteLine("Recovered flat sourcePath is unavailable; deterministic source revalidation cannot proceed.");return 2;}
+        var loadedPlan=planElement.Deserialize<SheetMetalRecognitionPlan>(JsonOptions);if(loadedPlan is null){stderr.WriteLine("Recovered flat recognition plan is invalid.");return 2;}
+        var detection=SheetMetalRecognizer.RecognizeStep(sourcePath);if(detection.Part is null){WriteSheetMetalDiagnostics(detection.Diagnostics,stderr);return 2;}var model=RecognizedSheetMetalRecovery.FromDetection(detection);var plan=RecognizedSheetMetalRecovery.CreatePlan(model,loadedPlan.Bends,loadedPlan.RootRegionId,loadedPlan.ReferenceKind,loadedPlan.Authority);var source=RecoveredSourceFlattener.Flatten(model,plan);
+        var native=SheetMetalFirmament.CompileFile(nativePath);if(!native.IsSuccess||native.FlatPattern is null){WriteSheetMetalDiagnostics(native.Diagnostics,stderr);return 2;}
+        var comparison=RecoveredFlatComparer.Compare(source,native.FlatPattern);var report=new{command="sheetmetal compare-flat",success=comparison.Status!=SheetMetalComparisonStatus.Fail,reference=referencePath,native=nativePath,comparison};
+        if(json)stdout.WriteLine(JsonSerializer.Serialize(report,JsonOptions));else{stdout.WriteLine($"Recovered source flat -> native flat: {comparison.Status}");stdout.WriteLine($"source->native RMS/p95/max: {comparison.SourceToNative.Rms:G6}/{comparison.SourceToNative.P95:G6}/{comparison.SourceToNative.Maximum:G6} mm");stdout.WriteLine($"native->source RMS/p95/max: {comparison.NativeToSource.Rms:G6}/{comparison.NativeToSource.P95:G6}/{comparison.NativeToSource.Maximum:G6} mm");foreach(var item in comparison.LocalizedDifferences)stdout.WriteLine($"  {item}");}
+        return comparison.Status==SheetMetalComparisonStatus.Fail?2:0;
+    }
+
+    private static object RecoveredFlatArtifact(string sourcePath, RecoveredFlatReference recovered) => new
+    {
+        schema="aetheris.recovered-flat-reference.v2",sourcePath=Path.GetFullPath(sourcePath),recovered.StableId,recovered.ReferenceKind,recovered.RootRegionId,recovered.Frame,recovered.Status,recovered.ContourAcceptance,recovered.Bounds,recovered.DeterministicHash,recovered.RecognitionPlan,recovered.JunctionRepairs,recovered.StitchSummary,
+        outerContour=ContourArtifact(recovered.OuterAndInnerContours?.OuterLoop),innerContours=(recovered.OuterAndInnerContours?.InnerLoops??[]).Select(ContourArtifact),
+        regions=recovered.Regions.Select(x=>new{x.StableId,x.SourceRegionId,x.Kind,x.MappingKind,contour=ContourArtifact(x.ExactContour?.OuterLoop)}),
+        cuts=recovered.InnerContours.Select(x=>new{x.FeatureId,x.Kind,x.SourceRegionId,contour=ContourArtifact(x.ExactContour?.OuterLoop)}),recovered.BendLines,recovered.RegionMap,recovered.SourceProvenance,recovered.Diagnostics
+    };
+    private static object? ContourArtifact(PlanarContourLoop2? loop)=>loop is null?null:new{loop.StableId,loop.IsOuter,segments=loop.Segments.Select(x=>new{x.StableId,kind=x.Geometry.GetType().Name,geometry=CurveArtifact(x.Geometry),x.Provenance})};
+    private static object CurveArtifact(LineArcProfileCurve2D curve)=>curve switch
+    {
+        LineArcLineSegment2D line=>new{start=new{x=line.Start.X,y=line.Start.Y},end=new{x=line.End.X,y=line.End.Y}},
+        LineArcCircularArc2D arc=>new{center=new{x=arc.Center.X,y=arc.Center.Y},arc.Radius,arc.StartAngleRadians,arc.SweepAngleRadians,start=new{x=arc.Center.X+arc.Radius*Math.Cos(arc.StartAngleRadians),y=arc.Center.Y+arc.Radius*Math.Sin(arc.StartAngleRadians)},end=new{x=arc.Center.X+arc.Radius*Math.Cos(arc.StartAngleRadians+arc.SweepAngleRadians),y=arc.Center.Y+arc.Radius*Math.Sin(arc.StartAngleRadians+arc.SweepAngleRadians)}},
+        LineArcFullCircle2D circle=>new{center=new{x=circle.Center.X,y=circle.Center.Y},circle.Radius},
+        _=>new{unsupported=curve.GetType().Name}
+    };
+    private static void WriteSheetMetalDiagnostics(IEnumerable<SheetMetalDiagnostic> diagnostics,TextWriter stderr){foreach(var d in diagnostics)stderr.WriteLine($"[{d.Severity}] {d.Code}: {d.Message}");}
 
     private static int RunSheetMetalRecover(string[] args, TextWriter stdout, TextWriter stderr)
     {
@@ -3685,6 +3759,9 @@ Model CanonicalPanel {
         stdout.WriteLine(SheetMetalUsage);
         stdout.WriteLine();
         stdout.WriteLine("  inspect                 Print a compact recognition, bend-evidence, flat-status, DFM, and timing summary.");
+        stdout.WriteLine("  recognize               Separate machine bend candidates from a validated, editable recognition plan.");
+        stdout.WriteLine("  recover-flat             Unfold accepted imported bends into a source-derived geometric mid-surface reference.");
+        stdout.WriteLine("  compare-flat             Compare a recovered source reference directly with a native Firmament flat.");
         stdout.WriteLine("  paths                   List stable authored Sheet Metal Concept Paths, capabilities, and formed/flat correspondence.");
         stdout.WriteLine("  recover                 Emit forensic summary JSON, editable recovered draft, and concise LLM/engineer reconstruction brief.");
         stdout.WriteLine("  compare                 Compare source and reconstructed intent with localized formed, bend, feature, and flat residuals.");
@@ -3696,6 +3773,9 @@ Model CanonicalPanel {
         stdout.WriteLine("  --json                  Emit compact deterministic JSON.");
         stdout.WriteLine();
         stdout.WriteLine("Examples:");
+        stdout.WriteLine("  aetheris sheetmetal recognize part.step --plan artifacts/recognition-plan.json --json");
+        stdout.WriteLine("  aetheris sheetmetal recover-flat part.step --recognition-plan artifacts/recognition-plan.json --out-dir artifacts/recovered-flat --json");
+        stdout.WriteLine("  aetheris sheetmetal compare-flat artifacts/recovered-flat/recovered-flat.json reconstructed.firmament --json");
         stdout.WriteLine("  aetheris sheetmetal inspect testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp");
         stdout.WriteLine("  aetheris sheetmetal paths fixtures/FirmamentV2/SheetMetal/m3-electronics-tray.firmament");
         stdout.WriteLine("  aetheris sheetmetal recover part.step --out-dir artifacts/recovery --json");

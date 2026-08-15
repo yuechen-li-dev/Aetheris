@@ -97,6 +97,7 @@ internal static class SheetMetalSemanticLayoutParser
             steppedNotches.Add(new(Path(block),match.Groups["region"].Value,match.Groups["edge"].Value,center,width,depth,shoulder,outerChamfer,innerChamfer,side));
         }
 
+
         foreach(var block in CornerBlocks(source,structs))
         {
             var owner=Regex.Match(block.Name,@"^(?<region>[A-Za-z_][A-Za-z0-9_]*)\.(?<corner>RootStart|RootEnd|OuterStart|OuterEnd)$",Rx);

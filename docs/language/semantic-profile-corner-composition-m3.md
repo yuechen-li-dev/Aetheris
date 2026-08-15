@@ -92,7 +92,12 @@ RearWall 0.96/0.96/0.96 mm, LeftWall 1.78/2.13/2.13 mm,
 FrontMountingFlange 0.95/0.95/0.95 mm, and RearMountingFlange
 0.95/0.95/0.95 mm RMS/p95/max. RightWall remains 64.78/115.48/115.48 mm in
 that deliberately coarse vertex-only audit because its persistent interior
-edge program is still missing.
+edge program is still missing. The later recognized-import recovery M1 source
+unfold confirms the geometry behind this statement but corrects its design
+interpretation: the wall is an ordinary outer carrier with two 63.5 mm local
+cutback runs, two 15.24 mm diagonal transitions, two R12.7 outer corners, and
+the existing partial service-flange attachment. It does not justify a general
+persistent edge-program language.
 
 One measured run reported parse 27.6 ms, semantic resolve 17.3 ms, formed lower
 75.1 ms, exact authored-flat lower 62.6 ms, and flatten 8.8 ms (about 191 ms

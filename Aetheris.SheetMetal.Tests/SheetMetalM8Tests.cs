@@ -30,10 +30,12 @@ public sealed class SheetMetalM8Tests
             Assert.True(result.IsSuccess,string.Join('\n',result.Diagnostics.Select(x=>x.Message)));
             Assert.Equal(15,result.Part!.Features.Count(x=>x.Kind==SheetFeatureKind.CircularHole));
             Assert.Equal(2,result.Part.Features.Count(x=>x.Kind==SheetFeatureKind.Slot));
-            Assert.Equal(9,result.Spec!.SemanticLayout.Patterns.Count);Assert.Single(result.Spec.SemanticLayout.Tabs);
+            Assert.Equal(9,result.Spec!.SemanticLayout.Patterns.Count);Assert.Single(result.Spec.SemanticLayout.Tabs);Assert.Equal(2,result.Spec.SemanticLayout.SteppedNotches!.Count);
             Assert.Equal(127,result.Part.Regions.Single(x=>x.StableId=="AngledServiceFlangeBendRegion").Cylinder!.AxisLength,8);
             Assert.NotNull(result.FlatPattern!.ExactBlankContour);Assert.Equal(17,result.FlatPattern.CutLoops.Count);
             Assert.True(BrepExportPreflight.Validate(result.Part.FormedBody!).IsValid);
+            var paths=SheetMetalConceptPaths.Inspect(result.Spec,result.Part,result.FlatPattern).Select(x=>x.Path).ToArray();
+            Assert.Contains("Ctc03Layout.FrontConnectorRelief",paths);Assert.Contains("Flat.Ctc03Layout.FrontConnectorRelief",paths);
         }
         finally{if(File.Exists(isolated))File.Delete(isolated);}
     }

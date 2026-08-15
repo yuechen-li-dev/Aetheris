@@ -66,6 +66,7 @@ public static class FirmamentSemanticValues
             {
                 new($"concept-path:{inspection.Name}.Start", new("Point2"), provenance: [new("concept-path", inspection.Name, "validated start", authoredSpan)], authoredSourceSpan: authoredSpan, generatedSourceSpan: expansion is null ? null : span, exposedName: "Start")
             };
+            var edgeMembers = new Dictionary<string, List<SemanticValue>>(StringComparer.Ordinal);
             foreach (var entry in inspection.Entries)
             {
                 var stepMatch = Regex.Match(expanded, $@"\b(?:Line|Arc|Close)\s+{Regex.Escape(entry.Name)}\b", RegexOptions.CultureInvariant);
@@ -76,8 +77,21 @@ public static class FirmamentSemanticValues
                     $"{entry.GuideId}.curve{ordinal:D2}", new("ExactProfileCurve"),
                     provenance: [new("semantic-profile-lowering", entry.Name, $"exact curve descendant {ordinal}", memberAuthoredSpan)],
                     authoredSourceSpan: memberAuthoredSpan, generatedSourceSpan: expansion is null ? null : stepSpan, exposedName: $"Curve{ordinal:D2}")).ToArray();
-                members.Add(new SemanticValue(entry.GuideId, new(entry.SemanticKind ?? entry.Kind), exposedMembers: [end, .. descendants], provenance: [new("semantic-profile-member", entry.Name, $"{entry.CurveCount} exact curve descendant(s)", memberAuthoredSpan)], authoredSourceSpan: memberAuthoredSpan, generatedSourceSpan: expansion is null ? null : stepSpan, exposedName: entry.Name));
+                var exposedName = entry.Name; var dot = entry.Name.IndexOf('.');
+                if (dot >= 0) exposedName = entry.Name[(dot + 1)..];
+                var semanticMember = new SemanticValue(entry.GuideId, new(entry.SemanticKind ?? entry.Kind), exposedMembers: [end, .. descendants], provenance: [new("semantic-profile-member", entry.Name, $"{entry.CurveCount} exact curve descendant(s)", memberAuthoredSpan)], authoredSourceSpan: memberAuthoredSpan, generatedSourceSpan: expansion is null ? null : stepSpan, exposedName: exposedName);
+                if (dot < 0) members.Add(semanticMember);
+                else
+                {
+                    var edge = entry.Name[..dot];
+                    if (!edgeMembers.TryGetValue(edge, out var nested)) edgeMembers[edge] = nested = [];
+                    nested.Add(semanticMember);
+                }
             }
+            members.AddRange(edgeMembers.OrderBy(x => x.Key, StringComparer.Ordinal).Select(pair => new SemanticValue(
+                $"concept-path:{inspection.Name}.{pair.Key}", new("SemanticEdge"),
+                exposedMembers: pair.Value, provenance: [new("semantic-edge-owner", inspection.Name, pair.Key, authoredSpan)],
+                authoredSourceSpan: authoredSpan, generatedSourceSpan: expansion is null ? null : span, exposedName: pair.Key)));
             var capabilities = new List<ISemanticCapability>();
             var bindings = new List<SemanticBinding>();
             if (profiles.Values.FirstOrDefault(profile => inspection.Consumers?.Any(consumer => consumer.Kind == "Profile" && consumer.Name == profile.Name) == true) is { } profile)

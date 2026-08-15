@@ -4,7 +4,7 @@
 
 M8 removes the previous missing-opening blocker. The canonical NIST CTC-03 STEP now recognizes 15 holes, two slots, seven bends, and 15 planar regions. The source-independent Firmament program regenerates the same opening inventory and all 17 opening comparisons pass. It also models the partial-span service flange and its 101.6 x 12.7 mm outer tab.
 
-This is not a full CTC-03 reconstruction. Several source outer-boundary trims remain simplified: wall-end chamfers/steps, the complex front and rear mounting-flange edges, and right-wall attachment cutbacks. Consequently the comparison remains `NeedsReview`, formed surface residuals remain material, and the flat outer contour fails. The isolated next blocker is reusable multi-segment local edge-profile authoring/lowering, not hole recognition.
+Profile-M2 now reconstructs the complex central front and rear mounting-flange free edges through generic semantic edge attachment. It is still not a full CTC-03 reconstruction: endpoint corner ownership, left-wall tapered ends, and right-wall attachment cutbacks remain simplified. The comparison remains `NeedsReview`, but source-to-generated formed RMS improves from 19.4627 to 10.6140 mm, p95 from 52.4846 to 19.0713 mm, and flat height residual from 12.7078 to 0.00782 mm. The isolated next blocker is cross-edge corner composition, not single-edge fragment placement or hole recognition.
 
 ## Delivered mechanism
 
@@ -45,4 +45,4 @@ The non-CTC generalization fixture is [`m8-semantic-panel.firmament`](../../../.
 
 **Did it generalize?** Yes, within its bounded scope. The independent semantic-panel fixture uses the same datum/pattern lowering and stable paths, and tests prove deterministic output.
 
-**Largest remaining blocker?** A reusable way to author, constrain, recognize, and lower irregular multi-segment flange-edge profiles while preserving correspondence through bends and flattening. Real vendor parts express tabs, notches, cutbacks, and chamfers as related edge intent; forcing those into raw polygons would recreate the coordinate-dump problem M8 was intended to avoid.
+**Largest remaining blocker?** Bounded corner programs that may consume both an owning edge endpoint and the adjacent edge endpoint while preserving one explicit corner owner. Single-edge fragments now compose deterministically and retain correspondence; the remaining CTC wall tapers and mounting-flange end chamfers cross that seam.

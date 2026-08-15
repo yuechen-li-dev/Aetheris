@@ -1,11 +1,11 @@
-# M8 validation report
+# M8/Profile-M2 validation report
 
 ## Real-path results
 
 - .NET SDK 10 detected; restore was satisfied during the clean solution build.
 - `dotnet build Aetheris.slnx --no-incremental`: pass, zero warnings, zero errors.
-- `dotnet test Aetheris.SheetMetal.Tests --no-restore`: pass, 58/58.
-- `dotnet test Aetheris.slnx --no-build --no-restore`: pass, 2,880/2,880 discovered tests across test-bearing projects. `Aetheris.FrictionLab.Tests` reports no discoverable tests, as before.
+- `dotnet test Aetheris.SheetMetal.Tests --no-restore`: pass, 60/60 in the full run; new Profile-M2 tests also pass after rebuild.
+- Full solution test execution completed. All feature suites passed; Kernel.Core exposed timing-test nondeterminism under parallel load. The two failures from the parallel run passed immediately in isolation; a later full Kernel.Core run exposed a different timing assertion, which also passed in isolation. `Aetheris.FrictionLab.Tests` reports no discoverable tests, as before.
 - Final Firmament parses and compiles with the source STEP absent: pass.
 - Concept contract, Concept Struct resolution, Concept Paths, semantic constraints, Profiles, formed lowering, flattening, STEP export/reimport, DFM, and CLI inspect/compare: exercised by tests and CLI dogfood.
 - Non-CTC semantic-panel fixture: pass with deterministic stable paths.
@@ -13,16 +13,16 @@
 
 ## CLI inspection
 
-Final authored recognition is `Complete`: 15 regions, seven bends, 17 cuts, nine patterns, three datums, one tab, and 18 resolved constraints. Exact flat status is `Valid`; DFM is `Warning` for the two localized front-hole edge-clearance findings documented in the comparison.
+Final authored recognition is `Complete`: 15 regions, seven bends, 17 cuts, nine patterns, three datums, one tab, two stepped-notch edge fragments, and 18 resolved constraints. Exact flat status is `Valid`; DFM is `Pass` after the mounting-flange profiles restored the real hole-to-edge clearance.
 
 One warm observational run on this machine measured:
 
 | Phase | Time |
 |---|---:|
-| Parse total | 33.2315 ms |
-| Semantic + constraint resolution | 19.5383 ms |
-| Formed/profile lower | 71.0012 ms |
-| Authored flat lower | 61.0412 ms |
+| Parse total | 26.5759 ms |
+| Semantic + constraint resolution | 16.0116 ms |
+| Formed/profile lower | 70.3482 ms |
+| Authored flat lower | 57.5023 ms |
 
 These are diagnostic timings, not benchmarks. Constraint resolution is included in `semanticResolve`; exact profile construction is included in `formedLower` and is not separately instrumented.
 
@@ -32,12 +32,12 @@ Repeated generation produced stable paths and these SHA-256 values:
 
 | Artifact | SHA-256 |
 |---|---|
-| `ctc03-final.firmament` | `B2EBD30F8D6BB2A6045F28D11AC5779C82D75EF82B56C666BB8A8A8310CD54C4` |
-| `ctc03-formed.step` | `8F4E1A6FA5E780B4EAC140FBDE63AEFCF3DC5463EFD9C0577DD94928030C409A` |
-| `ctc03-flat.step` | `948C3F69090B70E615C3ED60ABB9C6A66B86C88E687870C911FF19E03FA7AC6C` |
-| `ctc03-flat.svg` | `9DA3147DC841A5DF629D88A3576368496A78B71C0DB9DCD4E0C67659A1ED832D` |
-| Flat IR deterministic hash | `55dd154c6bb063a27f6055bbaeb9e0b29aac41ba99bf8735b21cae54969b71aa` |
+| `ctc03-final.firmament` | `3A8C4A7C93C4750FE9241B4F4071F240108966F5AB0A28F1E81ABF7ABF16CA91` |
+| `ctc03-formed.step` | `8E049EC25E0B3F3C57A1F931C4D111C51BD9D840B3B53569A7771F764567F330` |
+| `ctc03-flat.step` | `8104D7C13DF87F838DC709171E7BEABCAECFDD3A62943B6D254B68E5DC11B9B5` |
+| `ctc03-flat.svg` | `24C95460BF669BA38A78CDFF9BE6E7E1051EE56F39C8E0018249B5BAE00C5B05` |
+| Flat IR deterministic hash | `e3ec913e24f65d220839bbdbfa2d909dd8bdeeaed87ecc9ccfc6c1be7a1d297c` |
 
 ## Code quality
 
-Verdict: **acceptable bounded prototype**. The semantic IR, diagnostics, stable paths, non-CTC fixture, and real export/reimport tests are cleanly localized. Debt remains: the parser is regex/block based, `Tab` supports only the bounded outer-edge case, semantic and constraint timing share one bucket, and no general irregular edge-profile MIR exists. There is no CTC-specific compiler branch or generator.
+Verdict: **acceptable bounded prototype**. Generic edge-composition IR, diagnostics, stable paths, non-CTC fixture, and real export/reimport tests are cleanly localized. Debt remains: the Profile adapter is regex/block based, Sheet Metal exposes only the repeated fragment pressure needed so far, semantic and constraint timing share one bucket, and cross-edge corner ownership is not implemented. There is no CTC-specific compiler branch or generator.

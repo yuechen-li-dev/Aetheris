@@ -287,32 +287,34 @@ internal static class AuthoredSheetMetalLowering
                 var normal = Unit(parentNormal * Math.Cos(angle) - edge.Outward * (sign * Math.Sin(angle)));
                 var frame = new RegionFrame(flange.Name, tangentA, tangentB, direction, normal, flange.Length); frames[flange.Name] = frame;
                 IReadOnlyList<Point3D> boundary = [tangentA, tangentB, frame.OuterB, frame.OuterA];
-                var tabs=spec.SemanticLayout.Tabs.Where(x=>x.Region.Equals(flange.Name,StringComparison.OrdinalIgnoreCase)&&x.Edge.Equals("Outer",StringComparison.OrdinalIgnoreCase)).OrderByDescending(x=>x.Center).ToArray();
-                if(tabs.Length>0)
+                var tabs=spec.SemanticLayout.Tabs.Where(x=>x.Region.Equals(flange.Name,StringComparison.OrdinalIgnoreCase)&&x.Edge.Equals("Outer",StringComparison.OrdinalIgnoreCase)).ToArray();
+                var steppedNotches=(spec.SemanticLayout.SteppedNotches??[]).Where(x=>x.Region.Equals(flange.Name,StringComparison.OrdinalIgnoreCase)&&x.Edge.Equals("Outer",StringComparison.OrdinalIgnoreCase)).ToArray();
+                if(tabs.Length>0||steppedNotches.Length>0)
                 {
-                    var points=new List<Point3D>{tangentA,tangentB,frame.OuterB};var cursor=(edge.B-edge.A).Length;
-                    foreach(var tab in tabs)
+                    var ownerLength=(edge.B-edge.A).Length;
+                    var attachment=new SemanticEdgeProfileIr($"{flange.Name}.Outer",$"{flange.Name}.Outer",new(0,0),new(ownerLength,0),
+                        tabs.Select(tab=>(SemanticEdgeFragmentIr)new SemanticEdgeTabIr(tab.Path.Split('.').Last(),tab.Path,
+                            new(SemanticEdgeAnchorKind.CenteredAt,ownerLength-tab.Center),tab.Width,tab.Extension,1,"SheetMetalSemanticLayout"))
+                        .Concat(steppedNotches.Select(notch=>(SemanticEdgeFragmentIr)new SemanticEdgeSteppedNotchIr(notch.Path.Split('.').Last(),notch.Path,
+                            new(SemanticEdgeAnchorKind.CenteredAt,ownerLength-notch.Center),notch.Width,notch.Depth,notch.ShoulderDepth,notch.OuterChamfer,notch.InnerChamfer,notch.Side,"SheetMetalSemanticLayout"))).ToArray(),
+                        "SheetRegionLocal[u=OuterB->OuterA,v=flange-outward]","Sheet Metal semantic edge attachment");
+                    var composed=SemanticEdgeProfileResolver.Resolve(attachment);
+                    if(!composed.IsSuccess)return Failure($"Edge attachment '{flange.Name}.Outer' failed: {string.Join("; ",composed.Diagnostics)}","sheetmetal-edge-profile-invalid");
+                    var points=new List<Point3D>{tangentA,tangentB,frame.OuterB};
+                    foreach(var descendant in composed.Profile!.OrderedMembers.SelectMany(member=>member.CurveDescendants))
                     {
-                        var right=tab.Center+tab.Width/2d;var left=tab.Center-tab.Width/2d;
-                        if(left< -1e-8||right>cursor+1e-8)return Failure($"Tab '{tab.Path}' does not fit '{flange.Name}.Outer'.","sheetmetal-tab-outside-edge");
-                        if(right<cursor-1e-8)points.Add(frame.OuterA+axis*right);
-                        var tabMir=new SemanticProfileIr(tab.Path,tab.Path,"SheetRegionLocal",new(right,0d),180d,
-                            [new SemanticProfileTabIr(tab.Path.Split('.').Last(),tab.Path,tab.Width,tab.Extension,-1,"SheetMetalSemanticLayout")],[],[],"Sheet Metal semantic Tab");
-                        var resolvedTab=SemanticProfileMirResolver.Resolve(tabMir);
-                        if(!resolvedTab.IsSuccess)return Failure($"Tab '{tab.Path}' failed semantic Profile MIR resolution: {string.Join("; ",resolvedTab.Diagnostics)}","sheetmetal-tab-profile-mir-invalid");
-                        foreach(var descendant in resolvedTab.Profile!.Members[0].CurveDescendants)
-                        {
-                            if(descendant.Geometry is not LineArcLineSegment2D line)return Failure($"Tab '{tab.Path}' generated a non-line descendant.","sheetmetal-tab-profile-mir-invalid");
-                            var mapped=frame.OuterA+axis*line.End.X+direction*line.End.Y;
-                            if((mapped-points[^1]).Length>1e-8)points.Add(mapped);
-                        }
-                        cursor=left;
+                        if(descendant.Geometry is not LineArcLineSegment2D line)return Failure($"Edge attachment '{flange.Name}.Outer' generated a non-line descendant.","sheetmetal-edge-profile-invalid");
+                        var mapped=frame.OuterB-axis*line.End.X+direction*line.End.Y;
+                        if(points.Count==0||(mapped-points[^1]).Length>1e-8)points.Add(mapped);
                     }
-                    if((frame.OuterA-points[^1]).Length>1e-8)points.Add(frame.OuterA);boundary=points;
+                    boundary=points;
+                    foreach(var fragment in composed.Profile.OrderedMembers.Where(member=>!member.IsGeneratedCarrier))
+                        correspondence.Add(new(fragment.StableId,"EdgeFragment",fragment.StableId,$"flat-{fragment.StableId}"));
                 }
                 var plane = new SheetPlaneReference(tangentA, normal, axis, direction, true);
                 var flangeId=stableRegions[flange.Name];
-                regions.Add(new(flangeId, SheetRegionKind.Planar, Developable("Authored planar flange."), plane, null, boundary, (edge.B-edge.A).Length * flange.Length+tabs.Sum(x=>x.Width*x.Extension), source, evidence));
+                var fragmentArea=tabs.Sum(x=>x.Width*x.Extension)-steppedNotches.Sum(x=>x.Width*x.Depth);
+                regions.Add(new(flangeId, SheetRegionKind.Planar, Developable("Authored planar flange."), plane, null, boundary, (edge.B-edge.A).Length * flange.Length+fragmentArea, source, evidence));
                 patches.Add(PlanePatch(flangeId, SheetRegionKind.Planar, boundary, normal, t));
 
                 var bendId = spec.LegacySyntax ? $"bend-{flange.EdgeName.ToLowerInvariant()}" : $"{flange.Name}Bend"; var bendRegionId = spec.LegacySyntax ? $"region-{flange.EdgeName.ToLowerInvariant()}-bend" : $"{flange.Name}BendRegion"; var centerA = edge.A + parentNormal * (sign * rMid); var center = Mid(centerA, edge.B + parentNormal * (sign * rMid));

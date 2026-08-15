@@ -1,0 +1,16 @@
+Model EdgeAttachmentPlate {
+    Units: mm
+    Concept Struct Layout On XY {
+        Rect2 PlateBase { Center: [0mm, 0mm]; Size: [100mm, 60mm] }
+        EdgeProfile PlateBase.Bottom {
+            Notch CableNotch { FromStart: 18mm; Width: 8mm; Depth: 4mm; Side: Left }
+            Tab MountTab { CenteredAt: 50mm; Width: 12mm; Extension: 6mm; Side: Right }
+        }
+        EdgeProfile PlateBase.Top {
+            Cutback HandlingCutback { FromEnd: 10mm; Run: 8mm; Offset: 3mm; Side: Right }
+        }
+    }
+
+    Profile Plate From PlateBase
+    Struct Body { Extrude Solid { Profile: Plate; From: 0mm; To: 3mm } }
+}

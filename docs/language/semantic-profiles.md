@@ -55,3 +55,50 @@ Firmament Concept Path / Profile
 Each exact descendant carries its semantic member stable ID as provenance. Splitting or offsetting a `PlanarContour2` preserves that ancestry. Stable IDs and contour hashes depend only on normalized semantic input and resolved exact geometry, not BRep edge numbering.
 
 This is intentionally not a general-purpose sketch solver. Relationships are admitted only when their resolution is direct and bounded. M1 includes required-member, equal-size, and paired mirror validation in the MIR API.
+
+## Attached edge profiles
+
+`EdgeProfile` modifies one directed semantic edge without restating its untouched
+parts. The owner path supplies the local frame: `u` runs from the edge start to
+its end, and positive `v` is the left side of that direction. `Side: Left` and
+`Side: Right` select positive and negative `v` respectively.
+
+```firmament
+Rect2 PlateBase { Center: [0mm, 0mm]; Size: [100mm, 60mm] }
+EdgeProfile PlateBase.Bottom {
+    Notch CableNotch { FromStart: 18mm; Width: 8mm; Depth: 4mm; Side: Left }
+    Tab MountTab { CenteredAt: 50mm; Width: 12mm; Extension: 6mm; Side: Right }
+}
+Profile Plate From PlateBase
+Extrude Solid { Profile: Plate; From: 0mm; To: 3mm }
+```
+
+Each fragment must have exactly one anchor: `FromStart`, `FromEnd`, or
+`CenteredAt`. The values are distances in the owner's local `u` coordinate.
+Resolution sorts by the resulting interval, rejects overlaps and out-of-bounds
+intervals with both semantic paths in the diagnostic, and inserts non-zero
+`CarrierNN` members for every gap. Declaration order therefore has no geometric
+effect when anchors fully determine placement.
+
+The current bounded attached set is `Tab`, `Notch`, `Step`, `Chamfer`,
+`Cutback`, and the multi-transition `SteppedNotch` used by Sheet Metal mounting
+flanges. Tabs, notches, and bounded steps lower to three lines; chamfers and
+cutbacks lower to two; a `SteppedNotch` lowers to five or seven lines depending
+on whether it has an outer chamfer. All return to the owning carrier baseline, which keeps
+replacement continuous and makes adjacency unambiguous. Endpoint-consuming
+corner fragments and tangent arc attachments are not yet admitted.
+
+Identity remains hierarchical through lowering:
+
+```text
+Plate.Bottom
+  Carrier00                       generated untouched span
+  CableNotch                     authored semantic fragment -> 3 curves
+  Carrier01                       generated untouched span
+  MountTab                       authored semantic fragment -> 3 curves
+  Carrier02                       generated untouched span
+```
+
+`Plate.Bottom.MountTab` and its `Curve00` descendants are normal Concept Path
+members. The owning edge, authored fragments, and generated carriers all retain
+stable provenance in `ResolvedProfile2D` and `PlanarContour2`.

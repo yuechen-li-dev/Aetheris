@@ -8,6 +8,9 @@ public enum SheetMetalSemanticConstraintKind { RequiredMembers, EqualSize, Equal
 public sealed record SheetMetalSemanticDatum(string Path,string Region,double X,double Y,string Provenance);
 
 public sealed record SheetMetalSemanticTab(string Path,string Region,string Edge,double Center,double Width,double Extension);
+public sealed record SheetMetalSemanticSteppedNotch(
+    string Path,string Region,string Edge,double Center,double Width,double Depth,
+    double ShoulderDepth,double OuterChamfer,double InnerChamfer,int Side);
 
 public sealed record SheetMetalSemanticPattern(
     string Path,string Name,string Region,SheetFeatureKind FeatureKind,int Count,double CenterX,double CenterY,
@@ -18,7 +21,8 @@ public sealed record SheetMetalSemanticConstraint(
 
 public sealed record SheetMetalSemanticLayout(
     IReadOnlyList<string> Structs,IReadOnlyList<SheetMetalSemanticDatum> Datums,IReadOnlyList<SheetMetalSemanticTab> Tabs,
-    IReadOnlyList<SheetMetalSemanticPattern> Patterns,IReadOnlyList<SheetMetalSemanticConstraint> Constraints)
+    IReadOnlyList<SheetMetalSemanticPattern> Patterns,IReadOnlyList<SheetMetalSemanticConstraint> Constraints,
+    IReadOnlyList<SheetMetalSemanticSteppedNotch>? SteppedNotches = null)
 {
     public static SheetMetalSemanticLayout Empty { get; } = new([],[],[],[],[]);
 }
@@ -49,6 +53,7 @@ internal static class SheetMetalSemanticLayoutParser
         var structNames=structs.Select(x=>x.Name).Distinct(StringComparer.Ordinal).OrderBy(x=>x,StringComparer.Ordinal).ToArray();
         var datums=new List<SheetMetalSemanticDatum>();
         var tabs=new List<SheetMetalSemanticTab>();
+        var steppedNotches=new List<SheetMetalSemanticSteppedNotch>();
         var patterns=new List<SheetMetalSemanticPattern>();
         var generated=new List<AuthoredSheetCutSpec>();
         var constraints=new List<SheetMetalSemanticConstraint>();
@@ -72,6 +77,20 @@ internal static class SheetMetalSemanticLayoutParser
             if(tabs.Any(x=>x.Region.Equals(match.Groups["region"].Value,StringComparison.OrdinalIgnoreCase)&&center-width/2<x.Center+x.Width/2-1e-8&&center+width/2>x.Center-x.Width/2+1e-8))
                 return Fail("sheetmetal-tab-overlap",$"Tab '{Path(block)}' overlaps another tab on '{on}'.");
             tabs.Add(new(Path(block),match.Groups["region"].Value,match.Groups["edge"].Value,center,width,extension));
+        }
+
+        foreach(var block in Blocks(source,"SteppedNotch",structs))
+        {
+            var on=TokenPath(block.Body,"On");var match=on is null?Match.Empty:Regex.Match(on,@"^(?<region>[A-Za-z_][A-Za-z0-9_]*)\.(?<edge>Outer)$",Rx);
+            if(!match.Success||!regionSizes.TryGetValue(match.Groups["region"].Value,out var size))return Fail("sheetmetal-edge-fragment-owner",$"SteppedNotch '{Path(block)}' requires On: <planar-region>.Outer.");
+            if(!Scalar(block.Body,"Center",out var center)||!Scalar(block.Body,"Width",out var width)||!Scalar(block.Body,"Depth",out var depth)||
+               !Scalar(block.Body,"ShoulderDepth",out var shoulder)||!Scalar(block.Body,"OuterChamfer",out var outerChamfer)||!Scalar(block.Body,"InnerChamfer",out var innerChamfer))
+                return Fail("sheetmetal-edge-fragment-properties",$"SteppedNotch '{Path(block)}' requires Center, Width, Depth, ShoulderDepth, OuterChamfer, and InnerChamfer.");
+            var sideToken=Token(block.Body,"Side");var side=sideToken?.Equals("Outward",StringComparison.OrdinalIgnoreCase)==true?1:sideToken?.Equals("Inward",StringComparison.OrdinalIgnoreCase)==true?-1:0;
+            if(width<=0||depth<=0||shoulder<0||shoulder>=depth||outerChamfer<0||innerChamfer<=0||2*(outerChamfer+innerChamfer)>=width||side==0)
+                return Fail("sheetmetal-edge-fragment-invalid",$"SteppedNotch '{Path(block)}' has impossible dimensions or Side (use Inward/Outward).");
+            if(center-width/2< -1e-8||center+width/2>size.Width+1e-8)return Fail("sheetmetal-edge-fragment-outside",$"SteppedNotch '{Path(block)}' lies outside '{on}'.");
+            steppedNotches.Add(new(Path(block),match.Groups["region"].Value,match.Groups["edge"].Value,center,width,depth,shoulder,outerChamfer,innerChamfer,side));
         }
 
         foreach(var block in Blocks(source,"Pattern",structs))
@@ -151,7 +170,7 @@ internal static class SheetMetalSemanticLayoutParser
             constraints.Add(new(path,kind,members,"Satisfied",detail));
         }
 
-        return new(true,new(structNames,datums.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),tabs.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),patterns.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),constraints.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray()),generated,diagnostics);
+        return new(true,new(structNames,datums.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),tabs.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),patterns.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),constraints.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),steppedNotches.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray()),generated,diagnostics);
 
         SheetMetalSemanticLayoutParseResult Fail(string code,string message)=>new(false,SheetMetalSemanticLayout.Empty,[],[new(code,SheetMetalDiagnosticSeverity.Error,message)]);
     }

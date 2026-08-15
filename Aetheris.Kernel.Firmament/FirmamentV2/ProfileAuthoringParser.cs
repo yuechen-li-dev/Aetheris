@@ -177,7 +177,67 @@ public static class ProfileAuthoringParser
             }
             result[name] = path;
         }
+        BindRectEdgeProfiles(source, result, diagnostics);
         return result;
+    }
+
+    private static void BindRectEdgeProfiles(string source, Dictionary<string, BoundPath> result, List<string> diagnostics)
+    {
+        var programs = FindBlocks(source, @"\bEdgeProfile\s+(?<owner>[A-Za-z_]\w*)\.(?<edge>[A-Za-z_]\w*)\s*\{").ToArray();
+        foreach (Match rectangle in Rect.Matches(source))
+        {
+            var name = rectangle.Groups["n"].Value;
+            var isProfileSource = Regex.IsMatch(source, $@"\bProfile\s+[A-Za-z_]\w*\s+From\s+{Regex.Escape(name)}\b", RegexOptions.CultureInvariant);
+            if (!isProfileSource && !programs.Any(x => x.Match.Groups["owner"].Value == name)) continue;
+            if (!TryNumber(rectangle.Groups["w"].Value, out var width) || !TryNumber(rectangle.Groups["h"].Value, out var height) ||
+                !TryNumber(rectangle.Groups["x"].Value, out var cx) || !TryNumber(rectangle.Groups["y"].Value, out var cy)) continue;
+            if (result.ContainsKey(name)) { diagnostics.Add($"profile-edge-owner-name-collision:{name}"); continue; }
+            var bl = (X: cx - width / 2, Y: cy - height / 2); var br = (X: cx + width / 2, Y: cy - height / 2);
+            var tr = (X: cx + width / 2, Y: cy + height / 2); var tl = (X: cx - width / 2, Y: cy + height / 2);
+            var path = new BoundPath(name, bl, 0, []);
+            AddEdge("Bottom", bl, br); AddEdge("Right", br, tr); AddEdge("Top", tr, tl); AddEdge("Left", tl, bl);
+            result[name] = path;
+
+            void AddEdge(string edge, (double X, double Y) start, (double X, double Y) end)
+            {
+                var matching = programs.Where(x => x.Match.Groups["owner"].Value == name && x.Match.Groups["edge"].Value == edge).ToArray();
+                if (matching.Length == 0)
+                {
+                    path.Steps.Add(new(edge, "Span", $"{name}.{edge}", $"{name}.{edge}.End", [new LineArcLineSegment2D(start, end)], start, end, Heading(start, end)));
+                    return;
+                }
+                if (matching.Length > 1) { diagnostics.Add($"semantic-edge-duplicate-program:{name}.{edge}"); return; }
+                var fragments = new List<SemanticEdgeFragmentIr>();
+                foreach (var step in FindPathSteps(matching[0].Body).Where(x => x.Kind is "Chamfer" or "Step" or "Notch" or "Cutback" or "Tab"))
+                {
+                    var id = $"{name}.{edge}.{step.Name}";
+                    var anchors = new[] { ("FromStart", SemanticEdgeAnchorKind.FromStart), ("FromEnd", SemanticEdgeAnchorKind.FromEnd), ("CenteredAt", SemanticEdgeAnchorKind.CenteredAt) }
+                        .Select(x => (x.Item2, Value: Property(step.Body, x.Item1))).Where(x => x.Value is not null).ToArray();
+                    if (anchors.Length != 1 || !TryMeasure(anchors[0].Value!, "mm", out var offset)) { diagnostics.Add($"semantic-edge-anchor-required:{id}"); continue; }
+                    var sideText = Property(step.Body, "Side"); var side = sideText?.Equals("Left", StringComparison.OrdinalIgnoreCase) == true ? 1 : sideText?.Equals("Right", StringComparison.OrdinalIgnoreCase) == true ? -1 : 0;
+                    bool Measure(string property, out double value) { value = default; var text = Property(step.Body, property); return text is not null && TryMeasure(text, "mm", out value); }
+                    var anchor = new SemanticEdgeAnchorIr(anchors[0].Item1, offset); SemanticEdgeFragmentIr? fragment = null;
+                    if (step.Kind == "Tab" && Measure("Width", out var tabWidth) && Measure("Extension", out var extension)) fragment = new SemanticEdgeTabIr(step.Name, id, anchor, tabWidth, extension, side, $"offset:{step.Index}");
+                    else if (step.Kind == "Notch" && Measure("Width", out var notchWidth) && Measure("Depth", out var depth)) fragment = new SemanticEdgeNotchIr(step.Name, id, anchor, notchWidth, depth, side, $"offset:{step.Index}");
+                    else if (step.Kind == "Step" && Measure("Width", out var stepWidth) && Measure("Rise", out var rise)) fragment = new SemanticEdgeStepIr(step.Name, id, anchor, stepWidth, rise, side, $"offset:{step.Index}");
+                    else if (step.Kind == "Chamfer" && Measure("Run", out var chamferRun) && Measure("Offset", out var chamferOffset)) fragment = new SemanticEdgeChamferIr(step.Name, id, anchor, chamferRun, chamferOffset, side, $"offset:{step.Index}");
+                    else if (step.Kind == "Cutback" && Measure("Run", out var cutbackRun) && Measure("Offset", out var cutbackOffset)) fragment = new SemanticEdgeCutbackIr(step.Name, id, anchor, cutbackRun, cutbackOffset, side, $"offset:{step.Index}");
+                    else diagnostics.Add($"semantic-edge-fragment-properties-invalid:{id}:{step.Kind}");
+                    if (fragment is not null) fragments.Add(fragment);
+                }
+                var resolution = SemanticEdgeProfileResolver.Resolve(new($"{name}.{edge}", $"{name}.{edge}", new(start.X, start.Y), new(end.X, end.Y), fragments, $"{name}.{edge}[u,v]", $"EdgeProfile {name}.{edge}"));
+                if (!resolution.IsSuccess) { diagnostics.AddRange(resolution.Diagnostics); return; }
+                foreach (var member in resolution.Profile!.OrderedMembers)
+                {
+                    var first = ((LineArcLineSegment2D)member.CurveDescendants.First().Geometry).Start; var last = ((LineArcLineSegment2D)member.CurveDescendants.Last().Geometry).End;
+                    path.Steps.Add(new($"{edge}.{member.Name}", member.Kind, $"{name}.{edge}.{member.Name}", $"{name}.{edge}.{member.Name}.End", member.CurveDescendants.Select(x => x.Geometry).ToArray(), first, last, Heading(first, last)));
+                }
+            }
+        }
+        foreach (var program in programs.Where(p => !result.ContainsKey(p.Match.Groups["owner"].Value)))
+            diagnostics.Add($"semantic-edge-owner-path-missing:{program.Match.Groups["owner"].Value}.{program.Match.Groups["edge"].Value}");
+        foreach (var program in programs.Where(p => result.ContainsKey(p.Match.Groups["owner"].Value) && p.Match.Groups["edge"].Value is not ("Bottom" or "Right" or "Top" or "Left")))
+            diagnostics.Add($"semantic-edge-owner-member-missing:{program.Match.Groups["owner"].Value}.{program.Match.Groups["edge"].Value}:available=Bottom,Right,Top,Left");
     }
 
     private static bool TryBindStep(string path, PathStep step, (double X, double Y) current, ref double headingDegrees, (double X, double Y) start, IReadOnlyDictionary<string, (double X, double Y)> points, out IReadOnlyList<LineArcProfileCurve2D>? curves, out (double X, double Y) endpoint, out string? diagnostic)

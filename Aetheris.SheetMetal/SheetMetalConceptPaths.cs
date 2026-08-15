@@ -43,6 +43,8 @@ public static class SheetMetalConceptPaths
             Add(datum.Path,"SheetDatum",datum.Path,null,null,datum.Provenance,"PointCapable","StableSemanticIdentity");
         foreach(var tab in spec.SemanticLayout.Tabs)
             Add(tab.Path,"SheetTab",tab.Path,tab.Region,$"flat-{tab.Region}","exact outer-edge contour extension","EdgeFeature","ManufacturingContour","StableSemanticIdentity");
+        foreach(var notch in spec.SemanticLayout.SteppedNotches??[])
+            Add(notch.Path,"SheetSteppedNotch",notch.Path,notch.Region,$"flat-{notch.Region}","semantic stepped edge removal","EdgeFeature","ManufacturingContour","StableSemanticIdentity");
         foreach(var pattern in spec.SemanticLayout.Patterns)
             Add(pattern.Path,"SheetPattern",pattern.Path,null,null,"compile-time semantic feature pattern","EqualPitch","EqualSize","StableSemanticIdentity");
         foreach(var constraint in spec.SemanticLayout.Constraints)

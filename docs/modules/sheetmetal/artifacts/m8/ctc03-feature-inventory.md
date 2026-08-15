@@ -17,7 +17,7 @@ Inventory is from a fresh CLI recognition of `testdata/step242/nist/CTC/nist_ctc
 | Service outer tab | 1, 101.6 x 12.7 mm | 1 | 1 | Present; participates in exact blank |
 | Automatic corner reliefs | four corner transitions | inferred | 4 bounded rectangular removals | Manufacturing interpretation; not source-trim parity |
 | Wall-end chamfers/steps | present on front/rear/left/right contours | boundary evidence | simplified | Missing exact trim parity |
-| Front/rear mounting-flange edge notches and cutbacks | present | boundary evidence | simplified rectangles | Missing exact trim parity |
+| Front/rear mounting-flange stepped/chamfered free-edge reliefs | 2 | boundary evidence | 2 semantic `SteppedNotch` programs | Pass for central edge programs; endpoint corner chamfers remain |
 | Right-wall service attachment cutbacks | present | boundary evidence | partial-span attachment only | Missing exact trim parity |
 
 ## Opening detail
@@ -30,7 +30,7 @@ Nothing in the recognized opening inventory is absent. The remaining absent geom
 
 - base/wall corner cutbacks and stepped transitions;
 - front and rear wall end bands;
-- the 12–14 segment front/rear mounting-flange boundary shapes;
+- mounting-flange endpoint corner chamfers (central 5/7-curve free-edge programs are regenerated);
 - left-wall tapered ends;
 - right-wall chamfers and service-attachment cutbacks.
 

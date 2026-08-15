@@ -24,6 +24,6 @@ public sealed record ConceptPathInspection(
     IReadOnlyList<ConceptPathExposedMemberInspection>? ExposedMembers = null,
     IReadOnlyList<ConceptPathConsumerInspection>? Consumers = null,
     string? Provenance = null);
-public sealed record ConceptPathEntryInspection(string Name, string Kind, double StartX, double StartY, double EndX, double EndY, double HeadingDegrees, double? Radius, double? SweepDegrees, string GuideId, string EndpointId);
+public sealed record ConceptPathEntryInspection(string Name, string Kind, double StartX, double StartY, double EndX, double EndY, double HeadingDegrees, double? Radius, double? SweepDegrees, string GuideId, string EndpointId, int CurveCount = 1, string? SemanticKind = null);
 public sealed record ConceptPathExposedMemberInspection(string Name, string Kind, string Capability, string StableId);
 public sealed record ConceptPathConsumerInspection(string Kind, string Name, string RequiredCapability, string Provenance);

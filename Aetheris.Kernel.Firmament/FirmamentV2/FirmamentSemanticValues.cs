@@ -71,8 +71,12 @@ public static class FirmamentSemanticValues
                 var stepMatch = Regex.Match(expanded, $@"\b(?:Line|Arc|Close)\s+{Regex.Escape(entry.Name)}\b", RegexOptions.CultureInvariant);
                 var stepSpan = new SemanticSourceSpan(sourceIdentity, stepMatch.Success ? stepMatch.Index : span.Start, stepMatch.Success ? DeclarationLength(expanded, stepMatch.Index) : span.Length);
                 var memberAuthoredSpan = expansion is null ? stepSpan : authoredSpan;
-                var end = new SemanticValue(entry.EndpointId, new("Point2"), provenance: [new("concept-path-segment", entry.Name, "validated endpoint", memberAuthoredSpan)], authoredSourceSpan: memberAuthoredSpan, generatedSourceSpan: expansion is null ? null : stepSpan, exposedName: "End");
-                members.Add(new SemanticValue(entry.GuideId, new(entry.Kind + "2"), exposedMembers: [end], provenance: [new("concept-path-segment", entry.Name, "validated ordered planar guide", memberAuthoredSpan)], authoredSourceSpan: memberAuthoredSpan, generatedSourceSpan: expansion is null ? null : stepSpan, exposedName: entry.Name));
+                var end = new SemanticValue(entry.EndpointId, new("Point2"), provenance: [new("semantic-profile-member", entry.Name, "derived endpoint", memberAuthoredSpan)], authoredSourceSpan: memberAuthoredSpan, generatedSourceSpan: expansion is null ? null : stepSpan, exposedName: "End");
+                var descendants = Enumerable.Range(0, entry.CurveCount).Select(ordinal => new SemanticValue(
+                    $"{entry.GuideId}.curve{ordinal:D2}", new("ExactProfileCurve"),
+                    provenance: [new("semantic-profile-lowering", entry.Name, $"exact curve descendant {ordinal}", memberAuthoredSpan)],
+                    authoredSourceSpan: memberAuthoredSpan, generatedSourceSpan: expansion is null ? null : stepSpan, exposedName: $"Curve{ordinal:D2}")).ToArray();
+                members.Add(new SemanticValue(entry.GuideId, new(entry.SemanticKind ?? entry.Kind), exposedMembers: [end, .. descendants], provenance: [new("semantic-profile-member", entry.Name, $"{entry.CurveCount} exact curve descendant(s)", memberAuthoredSpan)], authoredSourceSpan: memberAuthoredSpan, generatedSourceSpan: expansion is null ? null : stepSpan, exposedName: entry.Name));
             }
             var capabilities = new List<ISemanticCapability>();
             var bindings = new List<SemanticBinding>();
@@ -84,8 +88,11 @@ public static class FirmamentSemanticValues
             var provenance = new List<SemanticProvenance> { new("authored", inspection.Name, "Concept Path", authoredSpan) };
             if (expansion is not null)
                 provenance.AddRange(expansion.Instantiations.Select(item => new SemanticProvenance("template-specialization", item.SpecializationIdentity, "expanded before semantic normalization", new(sourceIdentity, item.ApplicationSourceSpan.Start, item.ApplicationSourceSpan.Length))));
-            values.Add(new SemanticValue(inspection.Provenance ?? "concept-path:" + inspection.Name, new("ConceptPath"), capabilities, bindings, members, provenance, authoredSpan, expansion is null ? null : span));
+            var exposedProfileNames = inspection.Consumers?.Where(consumer => consumer.Kind == "Profile").Select(consumer => consumer.Name).Distinct(StringComparer.Ordinal).ToArray() ?? [];
+            var exposedProfileName = exposedProfileNames.Length == 1 ? exposedProfileNames[0] : null;
+            values.Add(new SemanticValue(inspection.Provenance ?? "concept-path:" + inspection.Name, new(bindings.Count > 0 ? "SemanticProfile" : "ConceptPath"), capabilities, bindings, members, provenance, authoredSpan, expansion is null ? null : span, exposedName: exposedProfileName ?? inspection.Name));
         }
+        values.AddRange(CanonicalPrimitiveSemanticValues(expanded, sourceIdentity));
         return values;
     }
 
@@ -165,5 +172,30 @@ public static class FirmamentSemanticValues
             else if (source[index] == '}' && --depth == 0) return index - start + 1;
         }
         return 0;
+    }
+
+    private static IEnumerable<SemanticValue> CanonicalPrimitiveSemanticValues(string source, string sourceIdentity)
+    {
+        foreach (Match match in Regex.Matches(source, @"\bRect2\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant))
+        {
+            var name = match.Groups["name"].Value;
+            var span = new SemanticSourceSpan(sourceIdentity, match.Index, DeclarationLength(source, match.Index));
+            SemanticValue Member(string member, string type) => new($"profile-primitive:{name}.{member}", new(type), provenance: [new("canonical-profile-semantics", name, member, span)], authoredSourceSpan: span, exposedName: member);
+            yield return new SemanticValue($"profile-primitive:{name}", new("RectangleProfile"), exposedMembers:
+            [
+                Member("Left", "Span"), Member("Right", "Span"), Member("Top", "Span"), Member("Bottom", "Span"), Member("Center", "Point2"),
+                Member("TopLeft", "Point2"), Member("TopRight", "Point2"), Member("BottomLeft", "Point2"), Member("BottomRight", "Point2")
+            ], provenance: [new("canonical-profile-semantics", name, "Rectangle members", span)], authoredSourceSpan: span, exposedName: name);
+        }
+        foreach (Match match in Regex.Matches(source, @"\bCircle2\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant))
+        {
+            var name = match.Groups["name"].Value;
+            var span = new SemanticSourceSpan(sourceIdentity, match.Index, DeclarationLength(source, match.Index));
+            yield return new SemanticValue($"profile-primitive:{name}", new("CircleProfile"), exposedMembers:
+            [
+                new($"profile-primitive:{name}.Center", new("Point2"), provenance: [new("canonical-profile-semantics", name, "Center", span)], authoredSourceSpan: span, exposedName: "Center"),
+                new($"profile-primitive:{name}.Radius", new("Length"), provenance: [new("canonical-profile-semantics", name, "Radius", span)], authoredSourceSpan: span, exposedName: "Radius")
+            ], provenance: [new("canonical-profile-semantics", name, "Circle members", span)], authoredSourceSpan: span, exposedName: name);
+        }
     }
 }

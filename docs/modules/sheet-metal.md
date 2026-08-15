@@ -22,7 +22,7 @@ The bounded kernel publishes line/line, line/arc, and arc/arc intersection; norm
 
 ## Authoring and Concept Paths
 
-M8 permits a `Concept Struct` to declare named `Datum`, regular `Pattern`, and bounded outer-edge `Tab` intent before the `SheetMetal` body. The compiler resolves those declarations into a `SheetMetalSemanticLayout`, validates required/equal-size/equal-pitch/mirror claims, generates stable feature members, and only then lowers exact formed and flat profiles. This is intentionally not a general sketch solver. `Span` and `SpanOffset` on a flange provide reusable partial-edge attachment.
+M8 permits a `Concept Struct` to declare named `Datum`, regular `Pattern`, and bounded outer-edge `Tab` intent before the `SheetMetal` body. The compiler resolves those declarations into a `SheetMetalSemanticLayout`, validates required/equal-size/equal-pitch/mirror claims, generates stable feature members, and only then lowers exact formed and flat profiles. Profile M1 routes the outer-edge `Tab` through the shared Semantic Profile MIR, so its stable path owns three generated contour descendants in both formed and flat states rather than relying on anonymous polygon indices. This is intentionally not a general sketch solver. `Span` and `SpanOffset` on a flange provide reusable partial-edge attachment. See [Semantic Profiles](../language/semantic-profiles.md).
 
 The resolved layout is visible in `aetheris sheetmetal inspect --json`; semantic paths are visible through `aetheris sheetmetal paths`.
 

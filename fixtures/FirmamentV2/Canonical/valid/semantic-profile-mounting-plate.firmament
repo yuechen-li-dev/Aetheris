@@ -1,0 +1,17 @@
+Model SemanticMountingPlate {
+    Units: mm
+    Concept Path Outline {
+        Start: Point2(0mm, 0mm)
+        Heading: 0deg
+        Span BottomLeft { Length: 44mm }
+        Tab MountTab { Width: 12mm; Extension: 8mm; Side: Right }
+        Span BottomRight { Length: 44mm }
+        Span Right { Turn: 90deg; Length: 60mm }
+        Span Top { Turn: 90deg; Length: 100mm }
+        Close Left
+    }
+    Profile Plate From Outline
+    Struct PlateBody {
+        Extrude Solid { Profile: Plate; From: 0mm; To: 3mm }
+    }
+}

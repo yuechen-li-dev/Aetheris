@@ -48,7 +48,7 @@ public static class ProfileAuthoringParser
             };
             exposed.AddRange(path.Steps.SelectMany(step => new[]
             {
-                new ConceptPathExposedMemberInspection(step.Name, step.Geometry is LineArcCircularArc2D ? "Arc2" : "Line2", "ProfileGuide", step.GuideName),
+                new ConceptPathExposedMemberInspection(step.Name, step.Kind, "ProfileGuide", step.GuideName),
                 new ConceptPathExposedMemberInspection(step.Name + ".End", "Point2", "ProfileEndpoint", step.EndpointName)
             }));
             var consumers = pathProfiles.Select(profile => new ConceptPathConsumerInspection("Profile", profile.Name, "ProfileSource", profile.SourceSpan))
@@ -56,8 +56,8 @@ public static class ProfileAuthoringParser
                 .ToArray();
             return new ConceptPathInspection(
                 path.Name, path.Start.X, path.Start.Y, path.InitialHeading,
-                path.Steps.Select(step => new ConceptPathEntryInspection(step.Name, step.Geometry is LineArcCircularArc2D ? "Arc" : "Line", step.Start.X, step.Start.Y, step.End.X, step.End.Y, step.Heading,
-                    step.Geometry is LineArcCircularArc2D arc ? arc.Radius : null, step.Geometry is LineArcCircularArc2D arc2 ? arc2.SweepAngleRadians * 180d / Math.PI : null, step.GuideName, step.EndpointName)).ToArray(),
+                path.Steps.Select(step => new ConceptPathEntryInspection(step.Name, step.Curves.Count == 1 && step.Curves[0] is LineArcCircularArc2D ? "Arc" : step.Curves.All(curve => curve is LineArcLineSegment2D) ? "LineChain" : "CurveChain", step.Start.X, step.Start.Y, step.End.X, step.End.Y, step.Heading,
+                    step.Curves.Count == 1 && step.Curves[0] is LineArcCircularArc2D arc ? arc.Radius : null, step.Curves.Count == 1 && step.Curves[0] is LineArcCircularArc2D arc2 ? arc2.SweepAngleRadians * 180d / Math.PI : null, step.GuideName, step.EndpointName, step.Curves.Count, step.Kind)).ToArray(),
                 capabilities, exposed, consumers, $"concept-path:{path.Name}");
         }).ToArray();
     }
@@ -171,27 +171,28 @@ public static class ProfileAuthoringParser
                 var guideName = $"{name}.{step.Name}";
                 var endpointName = $"{guideName}.End";
                 if (guides.ContainsKey(guideName) || points.ContainsKey(endpointName)) { diagnostics.Add($"concept-path-name-collision:{guideName}"); continue; }
-                if (!TryBindStep(name, step, current, ref heading, path.Start, points, out var geometry, out var endpoint, out var diagnostic)) { diagnostics.Add(diagnostic!); continue; }
-                guides[guideName] = geometry!; points[endpointName] = endpoint; path.Steps.Add(new BoundPathStep(step.Name, guideName, endpointName, geometry!, current, endpoint, heading)); current = endpoint;
+                if (!TryBindStep(name, step, current, ref heading, path.Start, points, out var curves, out var endpoint, out var diagnostic)) { diagnostics.Add(diagnostic!); continue; }
+                if (curves!.Count == 1) guides[guideName] = curves[0];
+                points[endpointName] = endpoint; path.Steps.Add(new BoundPathStep(step.Name, step.Kind == "Line" ? "Span" : step.Kind == "Arc" ? "ArcTransition" : step.Kind, guideName, endpointName, curves, current, endpoint, heading)); current = endpoint;
             }
             result[name] = path;
         }
         return result;
     }
 
-    private static bool TryBindStep(string path, PathStep step, (double X, double Y) current, ref double headingDegrees, (double X, double Y) start, IReadOnlyDictionary<string, (double X, double Y)> points, out LineArcProfileCurve2D? geometry, out (double X, double Y) endpoint, out string? diagnostic)
+    private static bool TryBindStep(string path, PathStep step, (double X, double Y) current, ref double headingDegrees, (double X, double Y) start, IReadOnlyDictionary<string, (double X, double Y)> points, out IReadOnlyList<LineArcProfileCurve2D>? curves, out (double X, double Y) endpoint, out string? diagnostic)
     {
-        geometry = null; endpoint = default; diagnostic = null;
+        curves = null; endpoint = default; diagnostic = null;
         var prefix = $"concept-path-{step.Kind.ToLowerInvariant()}-invalid:{path}:{step.Name}";
         if (step.Kind == "Close")
         {
             endpoint = start;
             if (Distance(current, endpoint) <= Tolerance) { diagnostic = $"concept-path-zero-length:{path}:{step.Name}"; return false; }
-            geometry = new LineArcLineSegment2D(current, endpoint); headingDegrees = Heading(current, endpoint); return true;
+            curves = [new LineArcLineSegment2D(current, endpoint)]; headingDegrees = Heading(current, endpoint); return true;
         }
         var body = step.Body;
         var turn = Property(body, "Turn"); var absolute = Property(body, "Heading"); var length = Property(body, "Length"); var to = Property(body, "To");
-        if (step.Kind == "Line")
+        if (step.Kind is "Line" or "Span")
         {
             if (turn is not null && absolute is not null) { diagnostic = $"concept-path-turn-and-heading:{path}:{step.Name}"; return false; }
             if (to is not null && (length is not null || turn is not null || absolute is not null)) { diagnostic = $"concept-path-to-mixed-direction-or-length:{path}:{step.Name}"; return false; }
@@ -200,12 +201,17 @@ public static class ProfileAuthoringParser
                 var targetName = string.Equals(to, "Start", StringComparison.Ordinal) ? $"{path}.Start" : to;
                 if (!points.TryGetValue(targetName, out endpoint)) { diagnostic = $"concept-path-unknown-target:{path}:{step.Name}:{to}"; return false; }
                 if (Distance(current, endpoint) <= Tolerance) { diagnostic = $"concept-path-zero-length:{path}:{step.Name}"; return false; }
-                geometry = new LineArcLineSegment2D(current, endpoint); headingDegrees = Heading(current, endpoint); return true;
+                curves = [new LineArcLineSegment2D(current, endpoint)]; headingDegrees = Heading(current, endpoint); return true;
             }
             if (length is null || !TryMeasure(length, "mm", out var distance) || distance <= 0) { diagnostic = $"concept-path-length-invalid:{path}:{step.Name}"; return false; }
             if (turn is not null) { if (!TryMeasure(turn, "deg", out var degrees) || !double.IsFinite(degrees)) { diagnostic = prefix; return false; } headingDegrees += degrees; }
             else if (absolute is not null) { if (!TryMeasure(absolute, "deg", out var degrees) || !double.IsFinite(degrees)) { diagnostic = prefix; return false; } headingDegrees = degrees; }
-            endpoint = Advance(current, headingDegrees, distance); geometry = new LineArcLineSegment2D(current, endpoint); return true;
+            endpoint = Advance(current, headingDegrees, distance); curves = [new LineArcLineSegment2D(current, endpoint)]; return true;
+        }
+        if (step.Kind is "Chamfer" or "Cutback" or "Step" or "Notch" or "Tab")
+        {
+            if (!TrySemanticFeature(path, step, current, headingDegrees, out curves, out endpoint, out diagnostic)) return false;
+            return true;
         }
         var radiusText = Property(body, "Radius");
         if (step.Kind != "Arc" || radiusText is null || turn is null || absolute is not null || length is not null || to is not null || !TryMeasure(radiusText, "mm", out var radius) || radius <= 0 || !TryMeasure(turn, "deg", out var sweepDegrees) || !double.IsFinite(sweepDegrees) || Math.Abs(sweepDegrees) <= Tolerance || Math.Abs(sweepDegrees) >= 360d - Tolerance)
@@ -213,10 +219,69 @@ public static class ProfileAuthoringParser
         var headingRadians = DegreesToRadians(headingDegrees); var sweepRadians = DegreesToRadians(sweepDegrees); var sign = Math.Sign(sweepRadians);
         (double X, double Y) center = (current.X - sign * radius * Math.Sin(headingRadians), current.Y + sign * radius * Math.Cos(headingRadians));
         var startAngle = Math.Atan2(current.Y - center.Y, current.X - center.X);
-        geometry = new LineArcCircularArc2D(center, radius, startAngle, sweepRadians);
+        curves = [new LineArcCircularArc2D(center, radius, startAngle, sweepRadians)];
         endpoint = (center.Item1 + radius * Math.Cos(startAngle + sweepRadians), center.Item2 + radius * Math.Sin(startAngle + sweepRadians));
         headingDegrees += sweepDegrees;
         return true;
+    }
+
+    private static bool TrySemanticFeature(string path, PathStep step, (double X, double Y) current, double headingDegrees, out IReadOnlyList<LineArcProfileCurve2D>? curves, out (double X, double Y) endpoint, out string? diagnostic)
+    {
+        curves = null; endpoint = default; diagnostic = null;
+        var stableId = $"concept-path:{path}.{step.Name}";
+        var sideText = Property(step.Body, "Side");
+        var side = string.Equals(sideText, "Left", StringComparison.OrdinalIgnoreCase) ? 1
+            : string.Equals(sideText, "Right", StringComparison.OrdinalIgnoreCase) ? -1 : 0;
+        bool Measure(string name, out double value)
+        {
+            value = default;
+            var text = Property(step.Body, name);
+            return text is not null && TryMeasure(text, "mm", out value);
+        }
+
+        SemanticProfileMemberIr? member = null;
+        if (step.Kind is "Chamfer" or "Cutback")
+        {
+            if (!Measure("Run", out var run) || !Measure("Offset", out var offset))
+            { diagnostic = $"semantic-profile-invalid-{step.Kind.ToLowerInvariant()}:{stableId}:Run and Offset are required"; return false; }
+            member = step.Kind == "Chamfer"
+                ? new SemanticProfileChamferIr(step.Name, stableId, run, offset, side, $"offset:{step.Index}")
+                : new SemanticProfileCutbackIr(step.Name, stableId, run, offset, side, $"offset:{step.Index}");
+        }
+        else if (step.Kind == "Step")
+        {
+            if (!Measure("Run", out var run) || !Measure("Rise", out var rise))
+            { diagnostic = $"semantic-profile-invalid-step:{stableId}:Run and Rise are required"; return false; }
+            member = new SemanticProfileStepIr(step.Name, stableId, run, rise, side, $"offset:{step.Index}");
+        }
+        else if (step.Kind == "Notch")
+        {
+            if (!Measure("Width", out var width) || !Measure("Depth", out var depth))
+            { diagnostic = $"semantic-profile-invalid-notch:{stableId}:Width and Depth are required"; return false; }
+            member = new SemanticProfileNotchIr(step.Name, stableId, width, depth, side, $"offset:{step.Index}");
+        }
+        else if (step.Kind == "Tab")
+        {
+            if (!Measure("Width", out var width) || !Measure("Extension", out var extension))
+            { diagnostic = $"semantic-profile-invalid-tab:{stableId}:Width and Extension are required"; return false; }
+            member = new SemanticProfileTabIr(step.Name, stableId, width, extension, side, $"offset:{step.Index}");
+        }
+
+        var ir = new SemanticProfileIr(path, "concept-path:" + path, "XY", new(current.X, current.Y), headingDegrees,
+            [member!], [], [], "Firmament Concept Path semantic member");
+        var resolution = SemanticProfileMirResolver.Resolve(ir);
+        if (!resolution.IsSuccess)
+        {
+            diagnostic = resolution.Diagnostics.FirstOrDefault() ?? $"semantic-profile-member-unresolved:{stableId}";
+            return false;
+        }
+        var resolved = AssertSingle(resolution.Profile!.Members);
+        curves = resolved.CurveDescendants.Select(descendant => descendant.Geometry).ToArray();
+        endpoint = (resolved.End.X, resolved.End.Y);
+        return true;
+
+        static ResolvedSemanticProfileMemberIr AssertSingle(IReadOnlyList<ResolvedSemanticProfileMemberIr> members) =>
+            members.Count == 1 ? members[0] : throw new InvalidOperationException("A bounded semantic feature must resolve to exactly one semantic member.");
     }
 
     private static IReadOnlyList<ResolvedProfileLoop2D> BindProfileLoops(ProfileBlock profile, IReadOnlyDictionary<string, BoundPath> paths, IReadOnlyDictionary<string, (double X, double Y)> points, IReadOnlyDictionary<string, LineArcProfileCurve2D> guides, List<string> diagnostics)
@@ -262,7 +327,10 @@ public static class ProfileAuthoringParser
     private static void AddPathLoop(string loopName, bool outer, string pathName, ProfileBlock profile, IReadOnlyDictionary<string, BoundPath> paths, List<ResolvedProfileLoop2D> loops, List<string> diagnostics)
     {
         if (!paths.TryGetValue(pathName, out var path)) { diagnostics.Add($"profile-path-missing:{profile.Name}:{pathName}"); return; }
-        loops.Add(new ResolvedProfileLoop2D(loopName, outer, path.Steps.Select(step => SegmentResult(profile, loopName, outer ? step.Name : $"{loopName}.{step.Name}", step.Geometry, $"concept-path:{pathName}.{step.Name}", "ConceptPath")).ToArray()));
+        loops.Add(new ResolvedProfileLoop2D(loopName, outer, path.Steps.SelectMany(step => step.Curves.Select((curve, ordinal) => SegmentResult(
+            profile, loopName,
+            outer ? (step.Curves.Count == 1 ? step.Name : $"{step.Name}.curve{ordinal:D2}") : $"{loopName}.{step.Name}.curve{ordinal:D2}",
+            curve, $"concept-path:{pathName}.{step.Name}", $"SemanticProfileMIR:{step.Kind}"))).ToArray()));
     }
 
     private static ResolvedProfileSegment2D SegmentResult(ProfileBlock profile, string loop, string name, LineArcProfileCurve2D geometry, string conceptId, string derivation) => new(name, geometry, new($"profile:{profile.Name}.{loop}.{name}", conceptId, profile.SourceSpan, derivation, profile.Frame ?? "XY"));
@@ -316,7 +384,7 @@ public static class ProfileAuthoringParser
     private static IEnumerable<PathStep> FindPathSteps(string body)
     {
         var entries = new List<PathStep>();
-        foreach (var block in FindBlocks(body, @"\b(?<kind>Line|Arc)\s+(?<name>[A-Za-z_]\w*)\s*\{")) entries.Add(new(block.Match.Groups["kind"].Value, block.Match.Groups["name"].Value, block.Body, block.Match.Index));
+        foreach (var block in FindBlocks(body, @"\b(?<kind>Line|Span|Arc|Chamfer|Step|Notch|Cutback|Tab)\s+(?<name>[A-Za-z_]\w*)\s*\{")) entries.Add(new(block.Match.Groups["kind"].Value, block.Match.Groups["name"].Value, block.Body, block.Match.Index));
         foreach (Match match in Regex.Matches(body, @"\bClose\s+(?<name>[A-Za-z_]\w*)\b", RegexOptions.CultureInvariant)) entries.Add(new("Close", match.Groups["name"].Value, string.Empty, match.Index));
         return entries.OrderBy(x => x.Index);
     }
@@ -334,6 +402,6 @@ public static class ProfileAuthoringParser
     private sealed record Block(Match Match, string Body);
     private sealed record ProfileBlock(string Name, string? Frame, string? FromPath, string? Body, string SourceSpan);
     private sealed record PathStep(string Kind, string Name, string Body, int Index);
-    private sealed record BoundPathStep(string Name, string GuideName, string EndpointName, LineArcProfileCurve2D Geometry, (double X, double Y) Start, (double X, double Y) End, double Heading);
+    private sealed record BoundPathStep(string Name, string Kind, string GuideName, string EndpointName, IReadOnlyList<LineArcProfileCurve2D> Curves, (double X, double Y) Start, (double X, double Y) End, double Heading);
     private sealed record BoundPath(string Name, (double X, double Y) Start, double InitialHeading, List<BoundPathStep> Steps);
 }

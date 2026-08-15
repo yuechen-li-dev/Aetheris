@@ -8,6 +8,8 @@ using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Topology;
+using Aetheris.Kernel.Firmament.FirmamentV2;
+using Aetheris.Kernel.Firmament.Materializer;
 using Aetheris.Surfacing;
 
 namespace Aetheris.SheetMetal;
@@ -294,10 +296,19 @@ internal static class AuthoredSheetMetalLowering
                         var right=tab.Center+tab.Width/2d;var left=tab.Center-tab.Width/2d;
                         if(left< -1e-8||right>cursor+1e-8)return Failure($"Tab '{tab.Path}' does not fit '{flange.Name}.Outer'.","sheetmetal-tab-outside-edge");
                         if(right<cursor-1e-8)points.Add(frame.OuterA+axis*right);
-                        points.Add(frame.OuterA+axis*right+direction*tab.Extension);points.Add(frame.OuterA+axis*left+direction*tab.Extension);
-                        if(left>1e-8)points.Add(frame.OuterA+axis*left);cursor=left;
+                        var tabMir=new SemanticProfileIr(tab.Path,tab.Path,"SheetRegionLocal",new(right,0d),180d,
+                            [new SemanticProfileTabIr(tab.Path.Split('.').Last(),tab.Path,tab.Width,tab.Extension,-1,"SheetMetalSemanticLayout")],[],[],"Sheet Metal semantic Tab");
+                        var resolvedTab=SemanticProfileMirResolver.Resolve(tabMir);
+                        if(!resolvedTab.IsSuccess)return Failure($"Tab '{tab.Path}' failed semantic Profile MIR resolution: {string.Join("; ",resolvedTab.Diagnostics)}","sheetmetal-tab-profile-mir-invalid");
+                        foreach(var descendant in resolvedTab.Profile!.Members[0].CurveDescendants)
+                        {
+                            if(descendant.Geometry is not LineArcLineSegment2D line)return Failure($"Tab '{tab.Path}' generated a non-line descendant.","sheetmetal-tab-profile-mir-invalid");
+                            var mapped=frame.OuterA+axis*line.End.X+direction*line.End.Y;
+                            if((mapped-points[^1]).Length>1e-8)points.Add(mapped);
+                        }
+                        cursor=left;
                     }
-                    points.Add(frame.OuterA);boundary=points;
+                    if((frame.OuterA-points[^1]).Length>1e-8)points.Add(frame.OuterA);boundary=points;
                 }
                 var plane = new SheetPlaneReference(tangentA, normal, axis, direction, true);
                 var flangeId=stableRegions[flange.Name];

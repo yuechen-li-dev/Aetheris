@@ -89,8 +89,8 @@ public static class FirmamentSemanticValues
                 }
             }
             members.AddRange(edgeMembers.OrderBy(x => x.Key, StringComparer.Ordinal).Select(pair => new SemanticValue(
-                $"concept-path:{inspection.Name}.{pair.Key}", new("SemanticEdge"),
-                exposedMembers: pair.Value, provenance: [new("semantic-edge-owner", inspection.Name, pair.Key, authoredSpan)],
+                $"concept-path:{inspection.Name}.{pair.Key}", new(pair.Key is "BottomRight" or "TopRight" or "TopLeft" or "BottomLeft" ? "SemanticCorner" : "SemanticEdge"),
+                exposedMembers: pair.Value, provenance: [new(pair.Key is "BottomRight" or "TopRight" or "TopLeft" or "BottomLeft" ? "semantic-corner-owner" : "semantic-edge-owner", inspection.Name, pair.Key, authoredSpan)],
                 authoredSourceSpan: authoredSpan, generatedSourceSpan: expansion is null ? null : span, exposedName: pair.Key)));
             var capabilities = new List<ISemanticCapability>();
             var bindings = new List<SemanticBinding>();

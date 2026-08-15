@@ -15,8 +15,8 @@ Concept Ctc03ManufacturedIntent {
 
 Concept Struct Ctc03Layout {
     // Named local workpoints isolate measured formed coordinates from feature generation.
-    Datum RearMountCenter { On: RearMountingFlange; At: (112.395mm, 25.40254mm); }
-    Datum FrontMountCenter { On: FrontMountingFlange; At: (112.395mm, 24.43226mm); }
+    Datum RearMountCenter { On: RearMountingFlange; At: (120.65mm, 25.40254mm); }
+    Datum FrontMountCenter { On: FrontMountingFlange; At: (120.65mm, 24.43226mm); }
     Datum ServiceHoleCenter { On: AngledServiceFlange; At: (63.5mm, 30.735796052mm); }
 
     // Source contour: the 127 mm partial flange grows a centered 101.6 x 12.7 mm tab.
@@ -50,6 +50,21 @@ Concept Struct Ctc03Layout {
         InnerChamfer: 6.35mm;
         Side: Inward;
     }
+
+    // Cross-edge region-profile corners. Each operation consumes the named
+    // side-edge endpoint and the adjacent Outer-edge endpoint as one feature.
+    CornerProfile FrontWall.RootEnd   { NotchCorner RearEndStep { SetbackA: 8.89mm; SetbackB: 12.57046mm; } }
+    CornerProfile FrontWall.RootStart { NotchCorner FrontEndStep { SetbackA: 12.57046mm; SetbackB: 8.89mm; } }
+    CornerProfile RearWall.RootEnd    { NotchCorner FrontEndStep { SetbackA: 8.89mm; SetbackB: 12.57046mm; } }
+    CornerProfile RearWall.RootStart  { NotchCorner RearEndStep { SetbackA: 12.57046mm; SetbackB: 8.89mm; } }
+
+    CornerProfile LeftWall.OuterStart { Chamfer RearEndTaper { Setback: 25.4mm; } }
+    CornerProfile LeftWall.OuterEnd   { Chamfer FrontEndTaper { Setback: 25.4mm; } }
+
+    CornerProfile FrontMountingFlange.OuterStart { Chamfer RightEndChamfer { Setback: 12.7mm; } }
+    CornerProfile FrontMountingFlange.OuterEnd   { Chamfer LeftEndChamfer { Setback: 12.7mm; } }
+    CornerProfile RearMountingFlange.OuterStart  { Chamfer LeftEndChamfer { Setback: 12.7mm; } }
+    CornerProfile RearMountingFlange.OuterEnd    { Chamfer RightEndChamfer { Setback: 12.7mm; } }
 
     // Four source-PMI Ø0.625 in holes at equal 1.75 in pitch.
     Pattern BaseFastenerPattern {

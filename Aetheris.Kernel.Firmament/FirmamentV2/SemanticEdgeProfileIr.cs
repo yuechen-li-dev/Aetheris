@@ -51,6 +51,12 @@ public sealed record SemanticEdgeProfileResolution(ResolvedSemanticEdgeProfileIr
     public bool IsSuccess => Profile is not null && Diagnostics.Count == 0;
 }
 
+public sealed record SemanticEdgeEndpointConsumptionIr(
+    double Start, double End, string? StartCornerPath = null, string? EndCornerPath = null)
+{
+    public static SemanticEdgeEndpointConsumptionIr None { get; } = new(0, 0);
+}
+
 /// <summary>
 /// Resolves independently anchored fragments in the owner's u/v frame and inserts every
 /// untouched carrier span. It is intentionally bounded to baseline-returning fragments.
@@ -60,6 +66,9 @@ public static class SemanticEdgeProfileResolver
     private const double Tolerance = 1e-8;
 
     public static SemanticEdgeProfileResolution Resolve(SemanticEdgeProfileIr source)
+        => Resolve(source, SemanticEdgeEndpointConsumptionIr.None);
+
+    public static SemanticEdgeProfileResolution Resolve(SemanticEdgeProfileIr source, SemanticEdgeEndpointConsumptionIr consumption)
     {
         ArgumentNullException.ThrowIfNull(source);
         var clock = Stopwatch.StartNew();
@@ -68,6 +77,8 @@ public static class SemanticEdgeProfileResolver
         var length = Math.Sqrt(dx * dx + dy * dy);
         if (!double.IsFinite(length) || length <= Tolerance)
             return new(null, [$"semantic-edge-owner-degenerate:{source.OwnerPath}"]);
+        if (!double.IsFinite(consumption.Start) || !double.IsFinite(consumption.End) || consumption.Start < -Tolerance || consumption.End < -Tolerance || consumption.Start + consumption.End >= length - Tolerance)
+            return new(null, [$"semantic-edge-corner-consumption-invalid:{source.OwnerPath}:start={consumption.Start:R}:end={consumption.End:R}:length={length:R}"]);
         var tx = dx / length; var ty = dy / length; var nx = -ty; var ny = tx;
         var ids = new HashSet<string>(StringComparer.Ordinal);
         var placed = new List<(SemanticEdgeFragmentIr Fragment, double Start, double End)>();
@@ -94,13 +105,20 @@ public static class SemanticEdgeProfileResolver
             { diagnostics.Add($"semantic-edge-fragment-out-of-bounds:{fragment.StableId}:{start:R}:{end:R}:owner={source.OwnerPath}:length={length:R}"); continue; }
             placed.Add((fragment, Math.Max(0, start), Math.Min(length, end)));
         }
+        foreach (var item in placed)
+        {
+            if (item.Start < consumption.Start - Tolerance)
+                diagnostics.Add($"semantic-corner-edge-fragment-conflict:{consumption.StartCornerPath ?? "<start-corner>"}:{item.Fragment.StableId}:owner={source.OwnerPath}");
+            if (item.End > length - consumption.End + Tolerance)
+                diagnostics.Add($"semantic-corner-edge-fragment-conflict:{consumption.EndCornerPath ?? "<end-corner>"}:{item.Fragment.StableId}:owner={source.OwnerPath}");
+        }
         placed.Sort((a, b) => { var c = a.Start.CompareTo(b.Start); return c != 0 ? c : StringComparer.Ordinal.Compare(a.Fragment.StableId, b.Fragment.StableId); });
         for (var i = 1; i < placed.Count; i++)
             if (placed[i].Start < placed[i - 1].End - Tolerance)
                 diagnostics.Add($"semantic-edge-fragment-overlap:{source.OwnerPath}:{placed[i - 1].Fragment.StableId}:{placed[i].Fragment.StableId}");
         if (diagnostics.Count > 0) return new(null, diagnostics);
 
-        var result = new List<ResolvedSemanticEdgeMemberIr>(); var cursor = 0d; var carrier = 0;
+        var result = new List<ResolvedSemanticEdgeMemberIr>(); var cursor = Math.Max(0d, consumption.Start); var carrier = 0;
         foreach (var item in placed)
         {
             if (item.Start > cursor + Tolerance)
@@ -109,9 +127,10 @@ public static class SemanticEdgeProfileResolver
             result.Add(Fragment(item.Fragment, item.Start, item.End));
             cursor = item.End;
         }
-        if (cursor < length - Tolerance)
-            result.Add(Member($"Carrier{carrier++:D2}", $"{source.StableId}.Carrier{carrier - 1:D2}", "Carrier", cursor, length,
-                [Line(cursor, 0, length, 0)], "generated:untouched-carrier", true));
+        var terminal = length - Math.Max(0d, consumption.End);
+        if (cursor < terminal - Tolerance)
+            result.Add(Member($"Carrier{carrier++:D2}", $"{source.StableId}.Carrier{carrier - 1:D2}", "Carrier", cursor, terminal,
+                [Line(cursor, 0, terminal, 0)], "generated:untouched-carrier", true));
         clock.Stop();
         var hashText = string.Join("|", result.SelectMany(x => x.CurveDescendants).Select(x => $"{x.StableId}:{x.Geometry}"));
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(hashText))).ToLowerInvariant();

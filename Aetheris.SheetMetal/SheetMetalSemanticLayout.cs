@@ -11,6 +11,8 @@ public sealed record SheetMetalSemanticTab(string Path,string Region,string Edge
 public sealed record SheetMetalSemanticSteppedNotch(
     string Path,string Region,string Edge,double Center,double Width,double Depth,
     double ShoulderDepth,double OuterChamfer,double InnerChamfer,int Side);
+public sealed record SheetMetalSemanticCornerProfile(
+    string CornerPath,string OperationPath,string Region,string Corner,string Operation,double SetbackA,double SetbackB);
 
 public sealed record SheetMetalSemanticPattern(
     string Path,string Name,string Region,SheetFeatureKind FeatureKind,int Count,double CenterX,double CenterY,
@@ -22,7 +24,8 @@ public sealed record SheetMetalSemanticConstraint(
 public sealed record SheetMetalSemanticLayout(
     IReadOnlyList<string> Structs,IReadOnlyList<SheetMetalSemanticDatum> Datums,IReadOnlyList<SheetMetalSemanticTab> Tabs,
     IReadOnlyList<SheetMetalSemanticPattern> Patterns,IReadOnlyList<SheetMetalSemanticConstraint> Constraints,
-    IReadOnlyList<SheetMetalSemanticSteppedNotch>? SteppedNotches = null)
+    IReadOnlyList<SheetMetalSemanticSteppedNotch>? SteppedNotches = null,
+    IReadOnlyList<SheetMetalSemanticCornerProfile>? Corners = null)
 {
     public static SheetMetalSemanticLayout Empty { get; } = new([],[],[],[],[]);
 }
@@ -54,6 +57,7 @@ internal static class SheetMetalSemanticLayoutParser
         var datums=new List<SheetMetalSemanticDatum>();
         var tabs=new List<SheetMetalSemanticTab>();
         var steppedNotches=new List<SheetMetalSemanticSteppedNotch>();
+        var corners=new List<SheetMetalSemanticCornerProfile>();
         var patterns=new List<SheetMetalSemanticPattern>();
         var generated=new List<AuthoredSheetCutSpec>();
         var constraints=new List<SheetMetalSemanticConstraint>();
@@ -91,6 +95,22 @@ internal static class SheetMetalSemanticLayoutParser
                 return Fail("sheetmetal-edge-fragment-invalid",$"SteppedNotch '{Path(block)}' has impossible dimensions or Side (use Inward/Outward).");
             if(center-width/2< -1e-8||center+width/2>size.Width+1e-8)return Fail("sheetmetal-edge-fragment-outside",$"SteppedNotch '{Path(block)}' lies outside '{on}'.");
             steppedNotches.Add(new(Path(block),match.Groups["region"].Value,match.Groups["edge"].Value,center,width,depth,shoulder,outerChamfer,innerChamfer,side));
+        }
+
+        foreach(var block in CornerBlocks(source,structs))
+        {
+            var owner=Regex.Match(block.Name,@"^(?<region>[A-Za-z_][A-Za-z0-9_]*)\.(?<corner>RootStart|RootEnd|OuterStart|OuterEnd)$",Rx);
+            if(!owner.Success||!regionSizes.ContainsKey(owner.Groups["region"].Value))return Fail("sheetmetal-corner-owner",$"CornerProfile '{Path(block)}' requires <planar-region>.RootStart, .RootEnd, .OuterStart, or .OuterEnd.");
+            var operations=Regex.Matches(block.Body,@"\b(?<kind>Chamfer|Cutback|Taper|NotchCorner)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{",Rx).Cast<Match>().ToArray();
+            if(operations.Length!=1)return Fail("sheetmetal-corner-operation",$"CornerProfile '{Path(block)}' requires exactly one Chamfer, Cutback, Taper, or NotchCorner operation.");
+            var operation=operations[0];var open=block.Body.IndexOf('{',operation.Index);var close=Close(block.Body,open);var operationBody=close>open?block.Body[(open+1)..close]:string.Empty;
+            var hasEqual=Scalar(operationBody,"Setback",out var equal);var hasA=Scalar(operationBody,"SetbackA",out var setbackA);var hasB=Scalar(operationBody,"SetbackB",out var setbackB);
+            if(!hasA){setbackA=equal;}if(!hasB){setbackB=equal;}
+            var cornerPath=Path(block);var operationPath=$"{cornerPath}.{operation.Groups["name"].Value}";
+            if((!hasEqual&&(!hasA||!hasB))||setbackA<=0||setbackB<=0)return Fail("sheetmetal-corner-setback",$"Corner operation '{operationPath}' requires positive Setback or SetbackA and SetbackB.");
+            if(corners.Any(x=>x.Region.Equals(owner.Groups["region"].Value,StringComparison.OrdinalIgnoreCase)&&x.Corner.Equals(owner.Groups["corner"].Value,StringComparison.OrdinalIgnoreCase)))
+                return Fail("sheetmetal-corner-duplicate",$"Corner '{owner.Groups["region"].Value}.{owner.Groups["corner"].Value}' is authored more than once.");
+            corners.Add(new(cornerPath,operationPath,owner.Groups["region"].Value,owner.Groups["corner"].Value,operation.Groups["kind"].Value,setbackA,setbackB));
         }
 
         foreach(var block in Blocks(source,"Pattern",structs))
@@ -170,7 +190,7 @@ internal static class SheetMetalSemanticLayoutParser
             constraints.Add(new(path,kind,members,"Satisfied",detail));
         }
 
-        return new(true,new(structNames,datums.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),tabs.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),patterns.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),constraints.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),steppedNotches.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray()),generated,diagnostics);
+        return new(true,new(structNames,datums.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),tabs.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),patterns.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),constraints.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),steppedNotches.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),corners.OrderBy(x=>x.CornerPath,StringComparer.Ordinal).ToArray()),generated,diagnostics);
 
         SheetMetalSemanticLayoutParseResult Fail(string code,string message)=>new(false,SheetMetalSemanticLayout.Empty,[],[new(code,SheetMetalDiagnosticSeverity.Error,message)]);
     }
@@ -227,6 +247,11 @@ internal static class SheetMetalSemanticLayoutParser
     {
         var result=new List<Block>();foreach(Match match in Regex.Matches(source,$@"\b{Regex.Escape(keyword)}\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{{",Rx))
         {var open=source.IndexOf('{',match.Index);var close=Close(source,open);if(close<=open)continue;var owner=structs.Where(x=>match.Index>x.Index&&match.Index<x.Index+x.Body.Length+(source.IndexOf('{',x.Index)-x.Index)+2).OrderByDescending(x=>x.Index).FirstOrDefault()?.Name;result.Add(new(keyword,match.Groups["name"].Value,source[(open+1)..close],match.Index,owner));}return result;
+    }
+    private static IReadOnlyList<Block> CornerBlocks(string source,IReadOnlyList<Block> structs)
+    {
+        var result=new List<Block>();foreach(Match match in Regex.Matches(source,@"\bCornerProfile\s+(?<name>[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*)\s*\{",Rx))
+        {var open=source.IndexOf('{',match.Index);var close=Close(source,open);if(close<=open)continue;var owner=structs.Where(x=>match.Index>x.Index&&match.Index<x.Index+x.Body.Length+(source.IndexOf('{',x.Index)-x.Index)+2).OrderByDescending(x=>x.Index).FirstOrDefault()?.Name;result.Add(new("CornerProfile",match.Groups["name"].Value,source[(open+1)..close],match.Index,owner));}return result;
     }
     private static int Close(string source,int open){var depth=0;for(var i=open;i<source.Length;i++){if(source[i]=='{')depth++;else if(source[i]=='}'&&--depth==0)return i;}return -1;}
     private static string Path(Block block)=>block.Struct is null?block.Name:$"{block.Struct}.{block.Name}";

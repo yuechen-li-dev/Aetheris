@@ -1,0 +1,21 @@
+Model SharedCornerPlate {
+Units: mm
+Concept Struct Layout On XY {
+Rect2 PlateBase { Center: [0mm, 0mm]; Size: [100mm, 60mm] }
+
+EdgeProfile PlateBase.Bottom {
+    Tab MountTab { CenteredAt: 50mm; Width: 12mm; Extension: 6mm; Side: Right }
+}
+
+CornerProfile PlateBase.BottomRight {
+    Chamfer CableClearance { SetbackA: 8mm; SetbackB: 5mm; }
+}
+
+CornerProfile PlateBase.TopLeft {
+    NotchCorner LocatingStep { SetbackA: 7mm; SetbackB: 4mm; }
+}
+}
+
+Profile Plate From PlateBase
+Struct Body { Extrude Solid { Profile: Plate; From: 0mm; To: 3mm } }
+}

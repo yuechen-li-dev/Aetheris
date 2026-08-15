@@ -248,6 +248,14 @@ internal static class AuthoredSheetMetalLowering
             var edgeLength = (edge.B - edge.A).Length;
             var gapStart = flange is null || !atStart ? 0 : CornerGap(flange, spec.Flanges.First(f => f.ParentRegion.Equals(spec.Base.Name, StringComparison.OrdinalIgnoreCase) && f.EdgeName.Equals(previous, StringComparison.OrdinalIgnoreCase)), t);
             var gapEnd = flange is null || !atEnd ? 0 : CornerGap(flange, spec.Flanges.First(f => f.ParentRegion.Equals(spec.Base.Name, StringComparison.OrdinalIgnoreCase) && f.EdgeName.Equals(next, StringComparison.OrdinalIgnoreCase)), t);
+            if(flange is not null)
+            {
+                // A child-region Profile corner owns its end outline explicitly.  The
+                // generic manufacturing relief policy remains available at the shared
+                // base corner, but must not silently shorten this authored flange edge.
+                if((spec.SemanticLayout.Corners??[]).Any(c=>c.Region.Equals(flange.Name,StringComparison.OrdinalIgnoreCase)&&(c.Corner.Equals("OuterEnd",StringComparison.OrdinalIgnoreCase)||c.Corner.Equals("RootStart",StringComparison.OrdinalIgnoreCase))))gapStart=0;
+                if((spec.SemanticLayout.Corners??[]).Any(c=>c.Region.Equals(flange.Name,StringComparison.OrdinalIgnoreCase)&&(c.Corner.Equals("OuterStart",StringComparison.OrdinalIgnoreCase)||c.Corner.Equals("RootEnd",StringComparison.OrdinalIgnoreCase))))gapEnd=0;
+            }
             if (gapStart + gapEnd >= edgeLength - 1e-8) return Failure($"Corner trims consume base edge {spec.Base.Name}.{edgeName}.", SheetMetalDiagnosticCodes.ImpossibleTopology);
             var axis = Unit(edge.B - edge.A); var a = edge.A + axis * gapStart; var b = edge.B - axis * gapEnd;
             if (baseBoundary.Count == 0 || !Same(baseBoundary[^1], edge.A)) baseBoundary.Add(edge.A);
@@ -286,31 +294,79 @@ internal static class AuthoredSheetMetalLowering
                 var direction = Unit(edge.Outward * Math.Cos(angle) + parentNormal * (sign * Math.Sin(angle)));
                 var normal = Unit(parentNormal * Math.Cos(angle) - edge.Outward * (sign * Math.Sin(angle)));
                 var frame = new RegionFrame(flange.Name, tangentA, tangentB, direction, normal, flange.Length); frames[flange.Name] = frame;
-                IReadOnlyList<Point3D> boundary = [tangentA, tangentB, frame.OuterB, frame.OuterA];
                 var tabs=spec.SemanticLayout.Tabs.Where(x=>x.Region.Equals(flange.Name,StringComparison.OrdinalIgnoreCase)&&x.Edge.Equals("Outer",StringComparison.OrdinalIgnoreCase)).ToArray();
                 var steppedNotches=(spec.SemanticLayout.SteppedNotches??[]).Where(x=>x.Region.Equals(flange.Name,StringComparison.OrdinalIgnoreCase)&&x.Edge.Equals("Outer",StringComparison.OrdinalIgnoreCase)).ToArray();
-                if(tabs.Length>0||steppedNotches.Length>0)
+                var cornerPrograms=(spec.SemanticLayout.Corners??[]).Where(x=>x.Region.Equals(flange.Name,StringComparison.OrdinalIgnoreCase)).ToArray();
+                var rootStartProgram=cornerPrograms.SingleOrDefault(x=>x.Corner.Equals("RootStart",StringComparison.OrdinalIgnoreCase));
+                var rootEndProgram=cornerPrograms.SingleOrDefault(x=>x.Corner.Equals("RootEnd",StringComparison.OrdinalIgnoreCase));
+                var outerStartProgram=cornerPrograms.SingleOrDefault(x=>x.Corner.Equals("OuterStart",StringComparison.OrdinalIgnoreCase));
+                var outerEndProgram=cornerPrograms.SingleOrDefault(x=>x.Corner.Equals("OuterEnd",StringComparison.OrdinalIgnoreCase));
+                ResolvedSemanticCornerProfileIr? ResolveCorner(SheetMetalSemanticCornerProfile? program)
                 {
-                    var ownerLength=(edge.B-edge.A).Length;
-                    var attachment=new SemanticEdgeProfileIr($"{flange.Name}.Outer",$"{flange.Name}.Outer",new(0,0),new(ownerLength,0),
-                        tabs.Select(tab=>(SemanticEdgeFragmentIr)new SemanticEdgeTabIr(tab.Path.Split('.').Last(),tab.Path,
-                            new(SemanticEdgeAnchorKind.CenteredAt,ownerLength-tab.Center),tab.Width,tab.Extension,1,"SheetMetalSemanticLayout"))
-                        .Concat(steppedNotches.Select(notch=>(SemanticEdgeFragmentIr)new SemanticEdgeSteppedNotchIr(notch.Path.Split('.').Last(),notch.Path,
-                            new(SemanticEdgeAnchorKind.CenteredAt,ownerLength-notch.Center),notch.Width,notch.Depth,notch.ShoulderDepth,notch.OuterChamfer,notch.InnerChamfer,notch.Side,"SheetMetalSemanticLayout"))).ToArray(),
-                        "SheetRegionLocal[u=OuterB->OuterA,v=flange-outward]","Sheet Metal semantic edge attachment");
-                    var composed=SemanticEdgeProfileResolver.Resolve(attachment);
-                    if(!composed.IsSuccess)return Failure($"Edge attachment '{flange.Name}.Outer' failed: {string.Join("; ",composed.Diagnostics)}","sheetmetal-edge-profile-invalid");
-                    var points=new List<Point3D>{tangentA,tangentB,frame.OuterB};
-                    foreach(var descendant in composed.Profile!.OrderedMembers.SelectMany(member=>member.CurveDescendants))
+                    if(program is null)return null;
+                    var length=(edge.B-edge.A).Length;var height=flange.Length;
+                    SemanticCornerOperationIr operation=program.Operation.ToUpperInvariant() switch
                     {
-                        if(descendant.Geometry is not LineArcLineSegment2D line)return Failure($"Edge attachment '{flange.Name}.Outer' generated a non-line descendant.","sheetmetal-edge-profile-invalid");
-                        var mapped=frame.OuterB-axis*line.End.X+direction*line.End.Y;
-                        if(points.Count==0||(mapped-points[^1]).Length>1e-8)points.Add(mapped);
-                    }
-                    boundary=points;
-                    foreach(var fragment in composed.Profile.OrderedMembers.Where(member=>!member.IsGeneratedCarrier))
-                        correspondence.Add(new(fragment.StableId,"EdgeFragment",fragment.StableId,$"flat-{fragment.StableId}"));
+                        "CHAMFER"=>new SemanticCornerChamferIr(program.OperationPath.Split('.').Last(),program.OperationPath,program.SetbackA,program.SetbackB,"SheetMetalSemanticLayout"),
+                        "CUTBACK"=>new SemanticCornerCutbackIr(program.OperationPath.Split('.').Last(),program.OperationPath,program.SetbackA,program.SetbackB,"SheetMetalSemanticLayout"),
+                        "TAPER"=>new SemanticCornerTaperIr(program.OperationPath.Split('.').Last(),program.OperationPath,program.SetbackA,program.SetbackB,"SheetMetalSemanticLayout"),
+                        "NOTCHCORNER"=>new SemanticCornerNotchIr(program.OperationPath.Split('.').Last(),program.OperationPath,program.SetbackA,program.SetbackB,"SheetMetalSemanticLayout"),
+                        _=>throw new InvalidOperationException()
+                    };
+                    var request=program.Corner.ToUpperInvariant() switch
+                    {
+                        "ROOTEND"=>new SemanticCornerProfileIr(program.CornerPath,program.CornerPath,$"{flange.Name}.Root",$"{flange.Name}.EndB",new(0,0),new(length,0),new(length,height),operation,$"{program.CornerPath}[u,v]","Sheet Metal Profile corner"),
+                        "OUTERSTART"=>new SemanticCornerProfileIr(program.CornerPath,program.CornerPath,$"{flange.Name}.EndB",$"{flange.Name}.Outer",new(length,0),new(length,height),new(0,height),operation,$"{program.CornerPath}[u,v]","Sheet Metal Profile corner"),
+                        "OUTEREND"=>new SemanticCornerProfileIr(program.CornerPath,program.CornerPath,$"{flange.Name}.Outer",$"{flange.Name}.EndA",new(length,height),new(0,height),new(0,0),operation,$"{program.CornerPath}[u,v]","Sheet Metal Profile corner"),
+                        "ROOTSTART"=>new SemanticCornerProfileIr(program.CornerPath,program.CornerPath,$"{flange.Name}.EndA",$"{flange.Name}.Root",new(0,height),new(0,0),new(length,0),operation,$"{program.CornerPath}[u,v]","Sheet Metal Profile corner"),
+                        _=>throw new InvalidOperationException()
+                    };
+                    var resolved=SemanticCornerProfileResolver.Resolve(request);
+                    if(!resolved.IsSuccess)throw new InvalidOperationException($"CornerProfile '{program.CornerPath}' failed: {string.Join("; ",resolved.Diagnostics)}");
+                    return resolved.Corner;
                 }
+                ResolvedSemanticCornerProfileIr? rootStartCorner;ResolvedSemanticCornerProfileIr? rootEndCorner;ResolvedSemanticCornerProfileIr? outerStartCorner;ResolvedSemanticCornerProfileIr? outerEndCorner;
+                try{rootStartCorner=ResolveCorner(rootStartProgram);rootEndCorner=ResolveCorner(rootEndProgram);outerStartCorner=ResolveCorner(outerStartProgram);outerEndCorner=ResolveCorner(outerEndProgram);}
+                catch(InvalidOperationException ex){return Failure(ex.Message,"sheetmetal-corner-profile-invalid");}
+                var ownerLength=(edge.B-edge.A).Length;
+                var outerAttachment=new SemanticEdgeProfileIr($"{flange.Name}.Outer",$"{flange.Name}.Outer",new(ownerLength,flange.Length),new(0,flange.Length),
+                    tabs.Select(tab=>(SemanticEdgeFragmentIr)new SemanticEdgeTabIr(tab.Path.Split('.').Last(),tab.Path,
+                        new(SemanticEdgeAnchorKind.CenteredAt,ownerLength-tab.Center),tab.Width,tab.Extension,-1,"SheetMetalSemanticLayout"))
+                    .Concat(steppedNotches.Select(notch=>(SemanticEdgeFragmentIr)new SemanticEdgeSteppedNotchIr(notch.Path.Split('.').Last(),notch.Path,
+                        new(SemanticEdgeAnchorKind.CenteredAt,ownerLength-notch.Center),notch.Width,notch.Depth,notch.ShoulderDepth,notch.OuterChamfer,notch.InnerChamfer,-notch.Side,"SheetMetalSemanticLayout"))).ToArray(),
+                    "SheetRegionLocal[u=OuterB->OuterA,v=material-left]","Sheet Metal semantic edge attachment");
+                SemanticEdgeProfileResolution Edge(string edgeName,SemanticProfilePoint start,SemanticProfilePoint end,IReadOnlyList<SemanticEdgeFragmentIr> fragments,ResolvedSemanticCornerProfileIr? startCorner,ResolvedSemanticCornerProfileIr? endCorner)
+                    =>SemanticEdgeProfileResolver.Resolve(new($"{flange.Name}.{edgeName}",$"{flange.Name}.{edgeName}",start,end,fragments,$"{flange.Name}.{edgeName}[u,v]","Sheet Metal profile edge"),
+                        new(startCorner?.EdgeBConsumption??0,endCorner?.EdgeAConsumption??0,startCorner?.Source.CornerPath,endCorner?.Source.CornerPath));
+                var rootEdge=Edge("Root",new(0,0),new(ownerLength,0),[],rootStartCorner,rootEndCorner);
+                var endBEdge=Edge("EndB",new(ownerLength,0),new(ownerLength,flange.Length),[],rootEndCorner,outerStartCorner);
+                var composed=SemanticEdgeProfileResolver.Resolve(outerAttachment,new(outerStartCorner?.EdgeBConsumption??0,outerEndCorner?.EdgeAConsumption??0,outerStartCorner?.Source.CornerPath,outerEndCorner?.Source.CornerPath));
+                var endAEdge=Edge("EndA",new(0,flange.Length),new(0,0),[],outerEndCorner,rootStartCorner);
+                var edgeFailures=new[]{rootEdge,endBEdge,composed,endAEdge}.Where(x=>!x.IsSuccess).SelectMany(x=>x.Diagnostics).ToArray();
+                if(edgeFailures.Length>0)return Failure($"Profile edge composition for '{flange.Name}' failed: {string.Join("; ",edgeFailures)}","sheetmetal-edge-profile-invalid");
+                Point3D Map((double X,double Y) point)=>tangentA+axis*point.X+direction*point.Y;
+                var points=new List<Point3D>();
+                void Add(Point3D point){if(points.Count==0||(point-points[^1]).Length>1e-8)points.Add(point);}
+                void AddEdge(SemanticEdgeProfileResolution profile)
+                {
+                    var descendants=profile.Profile!.OrderedMembers.SelectMany(member=>member.CurveDescendants).ToArray();
+                    if(descendants.Length==0)return;
+                    Add(Map(((LineArcLineSegment2D)descendants[0].Geometry).Start));
+                    foreach(var descendant in descendants)Add(Map(((LineArcLineSegment2D)descendant.Geometry).End));
+                }
+                void AddCorner(ResolvedSemanticCornerProfileIr? corner)
+                {
+                    if(corner is null)return;
+                    Add(Map((corner.EdgeAEndpoint.X,corner.EdgeAEndpoint.Y)));
+                    foreach(var descendant in corner.CurveDescendants)Add(Map(((LineArcLineSegment2D)descendant.Geometry).End));
+                }
+                AddEdge(rootEdge);AddCorner(rootEndCorner);AddEdge(endBEdge);AddCorner(outerStartCorner);AddEdge(composed);AddCorner(outerEndCorner);AddEdge(endAEdge);AddCorner(rootStartCorner);
+                if(points.Count>1&&(points[^1]-points[0]).Length<=1e-8)points.RemoveAt(points.Count-1);
+                IReadOnlyList<Point3D> boundary=points;
+                foreach(var fragment in composed.Profile!.OrderedMembers.Where(member=>!member.IsGeneratedCarrier))
+                    correspondence.Add(new(fragment.StableId,"EdgeFragment",fragment.StableId,$"flat-{fragment.StableId}"));
+                foreach(var corner in new[]{rootStartCorner,rootEndCorner,outerStartCorner,outerEndCorner}.OfType<ResolvedSemanticCornerProfileIr>())
+                    correspondence.Add(new(corner.Source.CornerPath,"ProfileCorner",corner.Source.CornerPath,$"flat-{corner.Source.CornerPath}"));
                 var plane = new SheetPlaneReference(tangentA, normal, axis, direction, true);
                 var flangeId=stableRegions[flange.Name];
                 var fragmentArea=tabs.Sum(x=>x.Width*x.Extension)-steppedNotches.Sum(x=>x.Width*x.Depth);

@@ -31,6 +31,14 @@ public sealed class Step242AssemblyProductStructureTests
         Assert.Equal(2, imported.Value.Occurrences.Count);
         Assert.Single(imported.Value.Definitions, definition => definition.StableId == "def:bolt" && definition.Geometry is not null);
         Assert.Equal(25, imported.Value.Occurrences.Single(occurrence => occurrence.StableId == "bolt-2").LocalTransform[12], 8);
+
+        // AP242 occurrence transforms relate the child representation to its parent.
+        // A parent-first relationship appears correct to Aetheris' own importer but causes
+        // standards-compliant CAD viewers to apply the inverse translation.
+        var childRepresentation = imported.Value.Definitions.Single(definition => definition.StableId == "def:bolt").RepresentationEntityId;
+        var parentRepresentation = imported.Value.Definitions.Single(definition => definition.StableId == "root").RepresentationEntityId;
+        Assert.Contains($"(REPRESENTATION_RELATIONSHIP('bolt-2','',#{childRepresentation},#{parentRepresentation})REPRESENTATION_RELATIONSHIP_WITH_TRANSFORMATION(#", first.Value, StringComparison.Ordinal);
+        Assert.Contains("SHAPE_REPRESENTATION_RELATIONSHIP())", first.Value, StringComparison.Ordinal);
     }
 
     [Fact]

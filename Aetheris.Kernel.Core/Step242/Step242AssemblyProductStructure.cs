@@ -140,7 +140,11 @@ public static class Step242AssemblyExporter
             var x = Add("DIRECTION", Str(""), $"({Num(m[0])},{Num(m[1])},{Num(m[2])})");
             var placement = Add("AXIS2_PLACEMENT_3D", Str(""), Ref(point), Ref(z), Ref(x));
             var transformation = Add("ITEM_DEFINED_TRANSFORMATION", Str(usageStableId), Str("Aetheris rigid occurrence transform"), Ref(identityAxis), Ref(placement));
-            var relationship = Add("REPRESENTATION_RELATIONSHIP_WITH_TRANSFORMATION", Str(usageStableId), Str(""), Ref(parent.Representation), Ref(child.Representation), Ref(transformation));
+            // AP242 maps representation_1 (the child) into representation_2 (the parent)
+            // using the item-defined occurrence transform. Writing the parent first reverses
+            // that mapping and makes standards-compliant consumers apply the inverse placement.
+            var relationship = AddRaw($"(REPRESENTATION_RELATIONSHIP({Str(usageStableId)},{Str("")},{Ref(child.Representation)},{Ref(parent.Representation)})" +
+                $"REPRESENTATION_RELATIONSHIP_WITH_TRANSFORMATION({Ref(transformation)})SHAPE_REPRESENTATION_RELATIONSHIP())");
             Add("CONTEXT_DEPENDENT_SHAPE_REPRESENTATION", Ref(relationship), Ref(usageShape));
         }
 

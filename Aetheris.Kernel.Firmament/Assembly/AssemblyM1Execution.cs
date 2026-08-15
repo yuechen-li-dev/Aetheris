@@ -26,6 +26,24 @@ public sealed record AssemblyM1CompilationResult(
     public bool IsSuccess => Ir is not null && Geometry is not null && Diagnostics.All(diagnostic => diagnostic.Severity != AssemblyDiagnosticSeverity.Error);
 }
 
+/// <summary>
+/// Exact part materialization supplied by a domain compiler to the ordinary
+/// Assembly pipeline.  This is the cross-profile seam used by Sheet Metal: the
+/// Assembly compiler continues to own hierarchy, mates, placement and product
+/// export, while the owning part compiler remains authoritative for geometry.
+/// </summary>
+public sealed record AssemblyPartMaterialization(
+    BrepBody Body,
+    string SpecializationIdentity,
+    IReadOnlyList<SemanticProvenance> Provenance,
+    IReadOnlyList<SemanticValue>? Semantics = null);
+
+public delegate AssemblyPartMaterialization? AssemblyPartMaterializer(
+    string definitionIdentity,
+    string? declarationSource,
+    string sourceIdentity,
+    IList<AssemblyDiagnostic> diagnostics);
+
 internal sealed record MaterializedAssemblyDefinition(
     string DefinitionIdentity,
     string SpecializationIdentity,
@@ -154,15 +172,26 @@ internal static class AssemblyDefinitionMaterializer
 
 public sealed class AssemblyM1Pipeline
 {
-    public AssemblyM1CompilationResult CompileFile(string path)
+    public AssemblyM1CompilationResult CompileFile(string path, AssemblyPartMaterializer? domainMaterializer = null)
     {
         var parsed = new AssemblyM0Parser().ParseFile(path);
+        return CompileParsed(parsed, domainMaterializer);
+    }
+
+    public AssemblyM1CompilationResult Compile(string source, string sourceIdentity = "<memory>", AssemblyPartMaterializer? domainMaterializer = null)
+    {
+        var parsed = new AssemblyM0Parser().Parse(source, sourceIdentity);
+        return CompileParsed(parsed, domainMaterializer);
+    }
+
+    private static AssemblyM1CompilationResult CompileParsed(AssemblyM0Parser.ParseResult parsed, AssemblyPartMaterializer? domainMaterializer)
+    {
         if (!parsed.IsSuccess || parsed.Source is null) return new(null, null, parsed.Diagnostics);
         var diagnostics = parsed.Diagnostics.ToList();
         var materializationWatch = Stopwatch.StartNew();
         var definitions = parsed.Source.Root.Flatten().Where(member => member.Kind == AssemblyInstanceKind.Part)
             .Select(member => member.DefinitionIdentity).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)
-            .Select(identity => AssemblyDefinitionMaterializer.TryMaterialize(identity, parsed.Source.DefinitionSource, parsed.Source.SourceIdentity, diagnostics))
+            .Select(identity => Materialize(identity, parsed.Source.DefinitionSource, parsed.Source.SourceIdentity, diagnostics, domainMaterializer))
             .Where(definition => definition is not null).Cast<MaterializedAssemblyDefinition>().ToDictionary(definition => definition.DefinitionIdentity, StringComparer.Ordinal);
         materializationWatch.Stop();
         var enriched = parsed.Source with { Root = Enrich(parsed.Source.Root, definitions) };
@@ -178,6 +207,23 @@ public sealed class AssemblyM1Pipeline
             GeometryExecutionMilliseconds = geometryWatch.Elapsed.TotalMilliseconds
         };
         return new(validatedIr, geometry, diagnostics, performance);
+    }
+
+    private static MaterializedAssemblyDefinition? Materialize(string identity, string? declarations, string sourceIdentity,
+        List<AssemblyDiagnostic> diagnostics, AssemblyPartMaterializer? domainMaterializer)
+    {
+        if (domainMaterializer?.Invoke(identity, declarations, sourceIdentity, diagnostics) is { } supplied)
+        {
+            var step = Step242Exporter.ExportBody(supplied.Body);
+            var hash = step.IsSuccess
+                ? Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value)))
+                : Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity + supplied.SpecializationIdentity)));
+            var stableId = "assembly-definition:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity)))[..16];
+            var artifact = new AssemblyDefinitionArtifactIr(stableId, identity, supplied.SpecializationIdentity, hash,
+                AssemblyDefinitionMaterializer.Metrics(supplied.Body), supplied.Provenance);
+            return new(identity, supplied.SpecializationIdentity, supplied.Body, supplied.Semantics ?? [], artifact);
+        }
+        return AssemblyDefinitionMaterializer.TryMaterialize(identity, declarations, sourceIdentity, diagnostics);
     }
 
     private static AssemblyMemberSource Enrich(AssemblyMemberSource member, IReadOnlyDictionary<string, MaterializedAssemblyDefinition> definitions)
@@ -272,6 +318,15 @@ public static class AssemblyWorldQuery
             var normal = transform.Apply(new Vector3D(plane.NormalX, plane.NormalY, plane.NormalZ));
             return new ExactPlaneBinding(origin.X, origin.Y, origin.Z, normal.X, normal.Y, normal.Z, plane.PlaneStableId + ":world:" + instance.StableId);
         }
+        if (value.TryBinding<ExactDatumFrameBinding>(out var frame))
+        {
+            var origin = transform.Apply(new Point3D(frame.OriginX, frame.OriginY, frame.OriginZ));
+            var x = transform.Apply(new Vector3D(frame.XAxisX, frame.XAxisY, frame.XAxisZ));
+            var y = transform.Apply(new Vector3D(frame.YAxisX, frame.YAxisY, frame.YAxisZ));
+            var z = transform.Apply(new Vector3D(frame.ZAxisX, frame.ZAxisY, frame.ZAxisZ));
+            return new ExactDatumFrameBinding(origin.X, origin.Y, origin.Z, x.X, x.Y, x.Z, y.X, y.Y, y.Z, z.X, z.Y, z.Z,
+                frame.FrameStableId + ":world:" + instance.StableId);
+        }
         if (value.TryBinding<ExactPointBinding>(out var point))
         {
             var world = transform.Apply(new Point3D(point.X, point.Y, point.Z));
@@ -291,13 +346,13 @@ public static class AssemblyWorldQuery
             if (owners.Length != 2 || owners.Any(owner => !materializedInstanceIds.Contains(owner.StableId))) continue;
             var first = Resolve(ir, constraint.FirstSemanticValueId);
             var second = Resolve(ir, constraint.SecondSemanticValueId);
-            var (position, angle) = Residual(constraint.Kind, first, second, constraint.OffsetMm);
+            var (position, angle) = Residual(constraint.Kind, first, second, constraint.OffsetMm, constraint.Orientation);
             result.Add(new(constraint.StableId, constraint.Kind, position, angle, position <= positionToleranceMm && angle <= angularToleranceRadians, "world exact semantic binding over materialized BRep instance"));
         }
         return result;
     }
 
-    private static (double Position, double Angle) Residual(PlacementConstraintKind kind, SemanticBinding first, SemanticBinding second, double offset)
+    private static (double Position, double Angle) Residual(PlacementConstraintKind kind, SemanticBinding first, SemanticBinding second, double offset, DatumOrientationRelation orientation)
     {
         if (first is ExactAxisBinding a && second is ExactAxisBinding b)
         {
@@ -316,6 +371,14 @@ public static class AssemblyWorldQuery
         {
             var delta = new Vector3D(x.X - y.X, x.Y - y.Y, x.Z - y.Z);
             return (Math.Abs(delta.Length - offset), 0);
+        }
+        if (first is ExactDatumFrameBinding f && second is ExactDatumFrameBinding g)
+        {
+            var delta = new Vector3D(f.OriginX - g.OriginX, f.OriginY - g.OriginY, f.OriginZ - g.OriginZ);
+            var fx = Unit(new(f.XAxisX, f.XAxisY, f.XAxisZ)); var gx = Unit(new(g.XAxisX, g.XAxisY, g.XAxisZ));
+            var fz = Unit(new(f.ZAxisX, f.ZAxisY, f.ZAxisZ)); var gz = Unit(new(g.ZAxisX, g.ZAxisY, g.ZAxisZ));
+            var expectedZDot = orientation == DatumOrientationRelation.OpposedDirection ? -1d : 1d;
+            return (delta.Length, Math.Max(Math.Acos(Math.Clamp(fx.Dot(gx), -1, 1)), Math.Acos(Math.Clamp(expectedZDot * fz.Dot(gz), -1, 1))));
         }
         return (double.PositiveInfinity, double.PositiveInfinity);
     }

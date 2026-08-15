@@ -36,6 +36,8 @@ public sealed record PointCapability : ISemanticCapability { public string Name 
 public sealed record DimensionalCapability : ISemanticCapability { public string Name => "DimensionalCapable"; }
 public sealed record CurveCapability : ISemanticCapability { public string Name => "CurveCapable"; }
 public sealed record BoundaryEdgeCapability : ISemanticCapability { public string Name => "BoundaryEdgeCapable"; }
+/// <summary>A fully oriented, authoring-stable rigid assembly datum.</summary>
+public sealed record DatumFrameCapability : ISemanticCapability { public string Name => "DatumFrameCapable"; }
 
 public sealed class SemanticCapabilitySet
 {
@@ -99,6 +101,18 @@ public sealed record ExactPlaneBinding(
     double OriginX, double OriginY, double OriginZ,
     double NormalX, double NormalY, double NormalZ,
     string PlaneStableId) : SemanticBinding("ExactPlane", PlaneStableId);
+
+/// <summary>
+/// Exact nominal frame in definition-local millimetres. X/Y/Z are an
+/// orthonormal right-handed basis. Unlike a plane, this binds all six rigid
+/// placement degrees of freedom without borrowing identity from a BRep face.
+/// </summary>
+public sealed record ExactDatumFrameBinding(
+    double OriginX, double OriginY, double OriginZ,
+    double XAxisX, double XAxisY, double XAxisZ,
+    double YAxisX, double YAxisY, double YAxisZ,
+    double ZAxisX, double ZAxisY, double ZAxisZ,
+    string FrameStableId) : SemanticBinding("ExactDatumFrame", FrameStableId);
 
 public sealed record ExactPointBinding(double X, double Y, double Z, string PointStableId)
     : SemanticBinding("ExactPoint", PointStableId);
@@ -226,6 +240,7 @@ public static class SemanticValueValidator
         RequireBinding<DimensionalCapability, TolerancedDimensionBinding>(value, diagnostics);
         RequireBinding<CurveCapability, ExactCurveBinding>(value, diagnostics);
         RequireBinding<BoundaryEdgeCapability, ExactCurveBinding>(value, diagnostics);
+        RequireBinding<DatumFrameCapability, ExactDatumFrameBinding>(value, diagnostics);
         RequireAnyExactBinding<ExactGeometryCapability>(value, diagnostics);
         RequireAnyExactBinding<SelectableCapability>(value, diagnostics);
         RequireBinding<ComposeOperandCapability, ExactProfileBinding>(value, diagnostics);
@@ -246,7 +261,7 @@ public static class SemanticValueValidator
         where TCapability : class, ISemanticCapability
     {
         if (!value.Capabilities.Supports<TCapability>()) return;
-        if (!value.Bindings.Any(binding => binding is ExactProfileBinding or ExactBrepBodyBinding or ExactBrepFaceBinding or ExactBrepRegionBinding or ExactCurveBinding or ExactSelectionBinding or ExactAnalysisRegionBinding or ExactPointBinding or ExactAxisBinding or ExactPlaneBinding or TolerancedDimensionBinding))
+        if (!value.Bindings.Any(binding => binding is ExactProfileBinding or ExactBrepBodyBinding or ExactBrepFaceBinding or ExactBrepRegionBinding or ExactCurveBinding or ExactSelectionBinding or ExactAnalysisRegionBinding or ExactPointBinding or ExactAxisBinding or ExactPlaneBinding or ExactDatumFrameBinding or TolerancedDimensionBinding))
             diagnostics.Add(new(NoExactBinding, $"{newCapabilityName<TCapability>()} on '{value.StableIdentity}' requires exact producer evidence.", value.AuthoredSourceSpan));
     }
 

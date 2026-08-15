@@ -1,0 +1,94 @@
+// Firmament M7: semantic DatumFrames own Body/Lid placement; fit policy and
+// production variation remain relational Assembly engineering semantics.
+Use SheetMetal.ProductFamilies;
+
+Concept EnclosureProduct { Body: Part Lid: Part Closure: Mate Attachments: Mate }
+
+Record EnclosureProductSpec {
+    Body: EnclosureSpec Lid: LidSpec Clearance: Length MinimumClearance: Length
+    MaximumClearance: Length Overlap: Length FastenerDiameter: Length
+}
+
+Static NetworkBodySpec: EnclosureSpec = EnclosureSpec {
+    Width: 160mm Depth: 110mm Height: 36mm LidLipHeight: 7mm
+    Thickness: 1.2mm InsideRadius: 1.5mm KFactor: 0.42 ReliefPolicy: Rectangular
+}
+Static NetworkLidSpec: LidSpec = LidSpec {
+    Width: 162mm Depth: 112mm SkirtHeight: 9mm Clearance: 1mm
+    Thickness: 1.2mm InsideRadius: 1.5mm KFactor: 0.42 ReliefPolicy: Rectangular
+}
+Static NetworkProductSpec: EnclosureProductSpec = EnclosureProductSpec {
+    Body: NetworkBodySpec Lid: NetworkLidSpec Clearance: 1mm
+    MinimumClearance: 0.5mm MaximumClearance: 1.5mm Overlap: 9mm FastenerDiameter: 3.2mm
+}
+
+Extend SheetMetal Body {
+    Hole FrontIndicatorGreen { On: Front; Center: (45mm, 18mm); Diameter: 3mm; }
+    Hole FrontIndicatorAmber { On: Front; Center: (55mm, 18mm); Diameter: 3mm; }
+    Cut RearPowerInlet { On: Rear; At: (35mm, 18mm); Profile: Rectangle; Width: 18mm; Length: 12mm; }
+    Cut RearEthernet { On: Rear; At: (80mm, 18mm); Profile: Rectangle; Width: 16mm; Length: 14mm; }
+    Cut LeftVentA { On: Left; At: (30mm, 15mm); Profile: Slot; Width: 3mm; Length: 18mm; }
+    Cut LeftVentB { On: Left; At: (55mm, 15mm); Profile: Slot; Width: 3mm; Length: 18mm; }
+    Cut RightVentA { On: Right; At: (30mm, 15mm); Profile: Slot; Width: 3mm; Length: 18mm; }
+    Cut RightVentB { On: Right; At: (55mm, 15mm); Profile: Slot; Width: 3mm; Length: 18mm; }
+    Hole LidMountA { On: Body; Center: (12mm, 12mm); Diameter: 3.2mm; }
+}
+Extend SheetMetal Lid { Hole LidMountA { On: Top; Center: (13mm, 13mm); Diameter: 3.2mm; } }
+
+Interface LidClosure {
+    Role Body requires DatumFrameCapable, DimensionalCapable;
+    Role Lid requires DatumFrameCapable, DimensionalCapable;
+    Lower FrameCoincident Lid.BodySeat Body.LidSeat OpposedDirection;
+    Fit Body.Width inside Lid.Width per-side;
+    ClearancePolicy Minimum 0.5mm Maximum 1.5mm;
+    Variation Linear 0.1mm Thickness 0.08mm BendAngle 0.5deg BendLocation 0.1mm Coating 0mm CoatingTolerance 0mm Engagement 9mm;
+}
+
+Interface AlignedScrewPattern {
+    Role Body requires PointCapable;
+    Role Lid requires PointCapable;
+    Allow rotation:about-axis;
+}
+
+Template < Spec: EnclosureProductSpec >
+Assembly ElectronicsEnclosureProduct: EnclosureProduct {
+    <Assembly ElectronicsEnclosureProduct>
+        <Part Body = ElectronicsEnclosure<Spec: Spec.Body>>
+            Semantic Datums {
+                DatumFrame LidSeat = [80,55,41.4] x [1,0,0] y [0,1,0] z [0,0,1];
+                Dimension Width = 160mm;
+                Dimension Overlap = 9mm;
+            }
+            Semantic Attachments { Point HoleA = [12,12,41.4]; }
+        </Part>
+        <Part Lid = RemovablePanLid<Spec: Spec.Lid>>
+            Semantic Datums {
+                DatumFrame BodySeat = [81,56,0] x [1,0,0] y [0,-1,0] z [0,0,-1];
+                Dimension Width = 162mm;
+                Dimension Overlap = 9mm;
+            }
+            Semantic Attachments { Point HoleA = [13,13,0]; }
+        </Part>
+    </Assembly>
+    Anchor: ElectronicsEnclosureProduct.Body.Datums.LidSeat;
+    Mate Closure: LidClosure {
+        Body: ElectronicsEnclosureProduct.Body.Datums;
+        Lid: ElectronicsEnclosureProduct.Lid.Datums;
+    }
+    Mate Attachments: AlignedScrewPattern {
+        Body: ElectronicsEnclosureProduct.Body.Attachments;
+        Lid: ElectronicsEnclosureProduct.Lid.Attachments;
+    }
+    Expose {
+        Semantic Body = Body.Datums;
+        Semantic Lid = Lid.Datums;
+        DatumFrame ClosureFrame = Lid.Datums.BodySeat;
+    }
+}
+
+Assembly NetworkAppliance {
+    <Assembly NetworkAppliance>
+        <Assembly Product = ElectronicsEnclosureProduct<Spec: NetworkProductSpec>></Assembly>
+    </Assembly>
+    Anchor: NetworkAppliance.Product;
+}

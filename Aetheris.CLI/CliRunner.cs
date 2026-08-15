@@ -2779,12 +2779,13 @@ Model CanonicalPanel {
         if (!File.Exists(path)) { stderr.WriteLine($"Assembly source '{path}' was not found."); return 1; }
         var sourceText = File.ReadAllText(path);
         var usesTemplateInstances = Regex.IsMatch(sourceText, @"<Part\s+[A-Za-z_]\w*\s*=\s*[A-Za-z_]\w*\s*<", RegexOptions.CultureInvariant);
+        var usesSheetMetalParts = sourceText.Contains("Use SheetMetal.ProductFamilies", StringComparison.Ordinal);
         AssemblyIr? assemblyIr;
         AssemblyGeometryArtifactIr? geometryArtifact;
         IReadOnlyList<AssemblyDiagnostic> assemblyDiagnostics;
         AssemblyPerformanceIr? assemblyPerformance;
         bool success;
-        if (string.Equals(Path.GetExtension(path), ".firmasm", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(Path.GetExtension(path), ".firmasm", StringComparison.OrdinalIgnoreCase) && !usesSheetMetalParts)
         {
             var document = new FirmamentAssemblyDocumentCompiler().CompileFile(path);
             assemblyIr = document.Compilation.Ir;
@@ -2795,7 +2796,7 @@ Model CanonicalPanel {
         }
         else if (usesTemplateInstances)
         {
-            var m1 = new AssemblyM1Pipeline().CompileFile(path);
+            var m1 = new AssemblyM1Pipeline().CompileFile(path, usesSheetMetalParts ? EnclosureProductFamilies.MaterializeAssemblyPart : null);
             assemblyIr = m1.Ir;
             geometryArtifact = m1.Geometry?.Artifact;
             assemblyDiagnostics = m1.Diagnostics;
@@ -2829,8 +2830,33 @@ Model CanonicalPanel {
             foreach (var instance in ir.Instances.OrderBy(x => x.Path.Segments.Count).ThenBy(x => x.Path.ToString(), StringComparer.Ordinal))
                 stdout.WriteLine($"{new string(' ', (instance.Path.Segments.Count - 1) * 2)}- {instance.Path.Segments[^1]} [{instance.Kind}] = {instance.DefinitionIdentity}; placement={instance.PlacementAuthority}");
             stdout.WriteLine("Mates:");
-            foreach (var mate in ir.Mates)
+            foreach (var mate in ir.Mates.Concat((ir.AssemblyDefinitions ?? []).SelectMany(definition => definition.LocalMates)).DistinctBy(mate => mate.StableId))
                 stdout.WriteLine($"- {mate.Name}: {mate.InterfaceStableId} ({string.Join(", ", mate.Roles.Select(x => x.Role + "=" + x.ParticipantPath))})");
+            var datums = (ir.Datums ?? []).Concat((ir.AssemblyDefinitions ?? []).SelectMany(definition => definition.LocalDatums ?? []))
+                .DistinctBy(datum => datum.SemanticPath).OrderBy(datum => datum.SemanticPath, StringComparer.Ordinal).ToArray();
+            var rootDatums = datums.Where(datum => datum.SemanticPath.StartsWith(ir.Name + ".", StringComparison.Ordinal)).ToArray();
+            if (rootDatums.Any(datum => datum.SemanticPath.Contains(".Datums.", StringComparison.Ordinal)))
+                datums = rootDatums.Where(datum => datum.SemanticPath.Contains(".Datums.", StringComparison.Ordinal)).ToArray();
+            else if (rootDatums.Length > 0)
+                datums = rootDatums;
+            if (datums.Length > 0)
+            {
+                stdout.WriteLine("Semantic datums:");
+                foreach (var datum in datums) stdout.WriteLine($"- {datum.SemanticPath} [{datum.Kind}] id={datum.StableBindingId}");
+            }
+            var datumMates = (ir.DatumMateSolutions ?? []).Concat((ir.AssemblyDefinitions ?? []).SelectMany(definition => definition.LocalDatumMateSolutions ?? []))
+                .DistinctBy(solution => (solution.MateStableId, solution.FirstDatumSemanticValueId, solution.SecondDatumSemanticValueId)).OrderBy(solution => solution.MateStableId, StringComparer.Ordinal).ToArray();
+            if (datumMates.Length > 0)
+            {
+                stdout.WriteLine("Datum Mate solutions:");
+                foreach (var solution in datumMates)
+                {
+                    var translation = solution.DerivedTransform is { Matrix.Length: >= 15 } transform
+                        ? $"; translation=[{transform.Matrix[12]:G6},{transform.Matrix[13]:G6},{transform.Matrix[14]:G6}]mm"
+                        : string.Empty;
+                    stdout.WriteLine($"- {solution.MateStableId}: {solution.Orientation}; DOF={solution.ConstrainedDegreesOfFreedom}/6; {solution.Status}{translation}");
+                }
+            }
             if (geometryArtifact is not null)
             {
                 stdout.WriteLine($"Executable geometry: {geometryArtifact.Instances.Count} instances, {geometryArtifact.Definitions.Count} definitions, sha256={geometryArtifact.DeterministicSha256}");
@@ -2843,6 +2869,14 @@ Model CanonicalPanel {
             stdout.WriteLine("Tolerance stackups:");
             foreach (var stack in ir.ToleranceStackups)
                 stdout.WriteLine($"- {stack.Name}: nominal={stack.Nominal:G6} {stack.Unit}, worst=[{stack.WorstCaseMinimum:G6},{stack.WorstCaseMaximum:G6}], {stack.Status}, contributors={stack.Contributions.Count}");
+            var fits = ir.FitResults.Concat((ir.AssemblyDefinitions ?? []).SelectMany(definition => definition.LocalFitResults ?? []))
+                .DistinctBy(fit => fit.MateStableId).OrderBy(fit => fit.MateStableId, StringComparer.Ordinal).ToArray();
+            if (fits.Length > 0)
+            {
+                stdout.WriteLine("Fit evidence:");
+                foreach (var fit in fits)
+                    stdout.WriteLine($"- {fit.MateStableId}: nominal={fit.NominalClearance:G6}{fit.Unit}; envelope=[{fit.WorstCaseMinimum:G6},{fit.WorstCaseMaximum:G6}]{fit.Unit}; {fit.NominalState} -> {fit.VariationEnvelopeState}; penetration={fit.MaximumPenetration:G6}{fit.Unit}");
+            }
             foreach (var diagnostic in assemblyDiagnostics)
                 (diagnostic.Severity == AssemblyDiagnosticSeverity.Error ? stderr : stdout).WriteLine($"{diagnostic.Severity}: {diagnostic.Code}: {diagnostic.Message}");
         }
@@ -3508,7 +3542,11 @@ Model CanonicalPanel {
         string? output = null; var json = false;
         for (var i = 1; i < args.Length; i++) if (args[i] == "--out" && i + 1 < args.Length) output = args[++i]; else if (args[i] == "--json") json = true; else { stderr.WriteLine(AsmExportAp242Usage); return 1; }
         if (output is null || !File.Exists(args[0])) { stderr.WriteLine(AsmExportAp242Usage); return 1; }
-        var compilation = string.Equals(Path.GetExtension(args[0]), ".firmasm", StringComparison.OrdinalIgnoreCase) ? new FirmamentAssemblyDocumentCompiler().CompileFile(args[0]).Compilation : new AssemblyM1Pipeline().CompileFile(args[0]);
+        var sourceText = File.ReadAllText(args[0]);
+        var usesSheetMetalParts = sourceText.Contains("Use SheetMetal.ProductFamilies", StringComparison.Ordinal);
+        var compilation = string.Equals(Path.GetExtension(args[0]), ".firmasm", StringComparison.OrdinalIgnoreCase) && !usesSheetMetalParts
+            ? new FirmamentAssemblyDocumentCompiler().CompileFile(args[0]).Compilation
+            : new AssemblyM1Pipeline().CompileFile(args[0], usesSheetMetalParts ? EnclosureProductFamilies.MaterializeAssemblyPart : null);
         var export = AssemblyIrAp242Exporter.Export(compilation);
         if (!export.IsSuccess) { foreach (var diagnostic in export.Diagnostics) stderr.WriteLine($"{diagnostic.Source}: {diagnostic.Message}"); return 1; }
         var fullOutput = Path.GetFullPath(output); Directory.CreateDirectory(Path.GetDirectoryName(fullOutput)!); File.WriteAllText(fullOutput, export.Value);

@@ -4,7 +4,8 @@ namespace Aetheris.Kernel.Firmament.Assembly;
 
 public enum AssemblyInstanceKind { Assembly, Part, Panel }
 public enum AssemblyDiagnosticSeverity { Warning, Error }
-public enum PlacementConstraintKind { AxisCoincident, AxisAligned, PlaneCoincident, PointCoincident, OffsetAlongAxis }
+public enum PlacementConstraintKind { AxisCoincident, AxisAligned, PlaneCoincident, PointCoincident, OffsetAlongAxis, FrameCoincident }
+public enum DatumOrientationRelation { SameDirection, OpposedDirection }
 public enum PlacementStatus { Anchored, Resolved, Underconstrained, Overconstrained, Unresolved }
 public enum PlacementAuthority { MateDerived, ImportedOccurrence, LegacyExplicit }
 
@@ -17,8 +18,16 @@ public sealed record AssemblyPath(IReadOnlyList<string> Segments)
 }
 
 public sealed record InterfaceRoleDefinition(string Name, IReadOnlyList<string> RequiredCapabilities, int Minimum = 1, int Maximum = 1);
-public sealed record InterfaceRequirementDefinition(PlacementConstraintKind Kind, string FirstRole, string FirstMember, string SecondRole, string SecondMember, double OffsetMm = 0);
-public sealed record InterfaceFitDefinition(string ShaftRole, string ShaftDimension, string BoreRole, string BoreDimension);
+public sealed record AssemblyConceptMemberDefinition(string Name, string Type);
+public sealed record AssemblyConceptDefinition(string Name, IReadOnlyList<AssemblyConceptMemberDefinition> Members, SemanticSourceSpan? SourceSpan = null);
+public sealed record InterfaceRequirementDefinition(PlacementConstraintKind Kind, string FirstRole, string FirstMember, string SecondRole, string SecondMember, double OffsetMm = 0, DatumOrientationRelation Orientation = DatumOrientationRelation.SameDirection);
+public sealed record InterfaceClearancePolicyDefinition(double MinimumClearanceMm, double MaximumClearanceMm);
+public sealed record ManufacturingVariationDefinition(double LinearToleranceMm, double ThicknessToleranceMm,
+    double BendAngleToleranceDegrees, double BendLocationToleranceMm, double CoatingThicknessMm,
+    double CoatingThicknessToleranceMm, double EngagementLengthMm);
+public sealed record InterfaceFitDefinition(string ShaftRole, string ShaftDimension, string BoreRole, string BoreDimension,
+    double ClearanceScale = 1d, InterfaceClearancePolicyDefinition? Policy = null, ManufacturingVariationDefinition? Variation = null);
+public enum FitClassification { GuaranteedClearance, PossibleContact, PossibleInterference, GuaranteedInterference, Unknown }
 public sealed record InterfaceDefinition(
     string StableId, string Name, IReadOnlyList<InterfaceRoleDefinition> Roles,
     IReadOnlyList<InterfaceRequirementDefinition> Requirements,
@@ -50,7 +59,8 @@ public sealed record AssemblyDefinitionSource(
     IReadOnlyList<MateSource>? LocalMates = null,
     IReadOnlyList<DimensionalRelationSource>? LocalDimensionalRelations = null,
     IReadOnlyList<ToleranceStackupAssertSource>? LocalStackupAsserts = null,
-    IReadOnlyList<AssemblyExposedRelationSource>? ExposedRelations = null);
+    IReadOnlyList<AssemblyExposedRelationSource>? ExposedRelations = null,
+    string? ClaimedConcept = null);
 
 public sealed record AssemblyExposedRelationSource(
     string Name, string PublicFrom, string PublicTo, AssemblyPath InternalFrom, AssemblyPath InternalTo);
@@ -87,7 +97,8 @@ public sealed record PanelMateEvidenceIr(string MateStableId,string FirstEdgeSta
 public sealed record PlacementConstraintIr(
     string StableId, PlacementConstraintKind Kind, string MateStableId,
     string FirstSemanticValueId, string SecondSemanticValueId, double OffsetMm,
-    double Residual, string Status);
+    double Residual, string Status,
+    DatumOrientationRelation Orientation = DatumOrientationRelation.SameDirection);
 public sealed record PlacementResultIr(string InstanceStableId, PlacementStatus Status, AssemblyTransform? Transform, IReadOnlyList<string> FreeTranslations, IReadOnlyList<string> FreeRotations, IReadOnlyList<string> ConstraintIds, PlacementAuthority Authority = PlacementAuthority.MateDerived);
 
 public sealed record DimensionalRelationIr(
@@ -108,8 +119,17 @@ public sealed record ToleranceStackupResultIr(
     double Nominal, double WorstCaseMinimum, double WorstCaseMaximum,
     double RequiredMinimum, string Unit, bool Passed, string Status,
     IReadOnlyList<StackupContributionIr> Contributions);
+public sealed record FitContributionIr(string Source, string SemanticPath, double WorstCaseClearanceReductionMm);
 public sealed record InterfaceFitResultIr(
-    string MateStableId, double NominalClearance, double WorstCaseMinimum, double WorstCaseMaximum, string Unit, bool Compatible);
+    string MateStableId, double NominalClearance, double WorstCaseMinimum, double WorstCaseMaximum, string Unit, bool Compatible,
+    FitClassification NominalState = FitClassification.Unknown,
+    FitClassification VariationEnvelopeState = FitClassification.Unknown,
+    double MaximumPenetration = 0,
+    IReadOnlyList<FitContributionIr>? Contributions = null,
+    string Evidence = "dimension-interval");
+public sealed record AssemblyDatumIr(string SemanticValueId, string SemanticPath, string Kind, string StableBindingId);
+public sealed record DatumMateSolutionIr(string MateStableId, string FirstDatumSemanticValueId, string SecondDatumSemanticValueId,
+    DatumOrientationRelation Orientation, int ConstrainedDegreesOfFreedom, string Status, AssemblyTransform? DerivedTransform);
 
 public sealed record AssemblyDefinitionIr(
     string StableId, string DefinitionIdentity, string TemplateName, string SpecializationIdentity,
@@ -118,7 +138,11 @@ public sealed record AssemblyDefinitionIr(
     IReadOnlyList<DimensionalRelationIr> LocalDimensionalRelations,
     IReadOnlyList<ToleranceStackupResultIr> LocalToleranceStackups,
     IReadOnlyList<SemanticValue> PublicSemantics, IReadOnlyList<DimensionalRelationIr> PublicDimensionalRelations,
-    double SolveMilliseconds);
+    double SolveMilliseconds,
+    IReadOnlyList<PlacementConstraintIr>? LocalPlacementConstraints = null,
+    IReadOnlyList<AssemblyDatumIr>? LocalDatums = null,
+    IReadOnlyList<DatumMateSolutionIr>? LocalDatumMateSolutions = null,
+    IReadOnlyList<InterfaceFitResultIr>? LocalFitResults = null);
 
 public sealed record AssemblyPerformanceIr(double ParseMilliseconds, double BindMilliseconds, double MateValidationMilliseconds, double PlacementMilliseconds, double DimensionalGraphMilliseconds, double ToleranceAnalysisMilliseconds, double DefinitionMaterializationMilliseconds = 0, double GeometryExecutionMilliseconds = 0);
 public sealed record AssemblyGeometryMetricsIr(int Bodies, int Faces, int Edges, int Vertices, double[] Minimum, double[] Maximum);
@@ -134,7 +158,9 @@ public sealed record AssemblyIr(
     IReadOnlyList<ToleranceStackupResultIr> ToleranceStackups, IReadOnlyList<InterfaceFitResultIr> FitResults,
     IReadOnlyList<AssemblyDiagnostic> Diagnostics,
     IReadOnlyList<AssemblyDefinitionIr>? AssemblyDefinitions = null,
-    IReadOnlyList<PanelMateEvidenceIr>? PanelMateEvidence = null);
+    IReadOnlyList<PanelMateEvidenceIr>? PanelMateEvidence = null,
+    IReadOnlyList<AssemblyDatumIr>? Datums = null,
+    IReadOnlyList<DatumMateSolutionIr>? DatumMateSolutions = null);
 
 public sealed record AssemblyCompilationResult(AssemblyIr? Ir, IReadOnlyList<AssemblyDiagnostic> Diagnostics, AssemblyPerformanceIr? Performance = null)
 {

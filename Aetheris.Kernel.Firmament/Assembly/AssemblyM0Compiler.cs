@@ -63,10 +63,28 @@ public sealed class AssemblyM0Compiler
             graphWatch.Elapsed.TotalMilliseconds, toleranceWatch.Elapsed.TotalMilliseconds);
         var assemblyDefinitions = source.Root.Flatten().Select(member => member.SolvedAssemblyDefinition).Where(definition => definition is not null)
             .Cast<AssemblyDefinitionIr>().DistinctBy(definition => definition.StableId).OrderBy(definition => definition.StableId, StringComparer.Ordinal).ToArray();
+        var datums = instances.SelectMany(instance => Flatten([instance.SemanticRoot])
+                .Where(value => value.Type.Name == "AssemblyDatumFrame" && value.TryBinding<ExactDatumFrameBinding>(out _))
+                .Select(value => new AssemblyDatumIr(value.StableIdentity, SemanticPath(instance, value), "DatumFrame",
+                    value.TryBinding<ExactDatumFrameBinding>(out var frame) ? frame.FrameStableId : value.StableIdentity)))
+            .OrderBy(datum => datum.SemanticPath, StringComparer.Ordinal).ToArray();
+        var datumSolutions = mates.SelectMany(mate => constraints.Where(constraint => constraint.MateStableId == mate.StableId && constraint.Kind == PlacementConstraintKind.FrameCoincident)
+                .Select(constraint => new DatumMateSolutionIr(mate.StableId, constraint.FirstSemanticValueId, constraint.SecondSemanticValueId,
+                    constraint.Orientation, 6, placements.Any(placement => placement.ConstraintIds.Contains(constraint.StableId) && placement.Status == PlacementStatus.Overconstrained) ? "conflicting" : "resolved",
+                    placements.FirstOrDefault(placement => placement.ConstraintIds.Contains(constraint.StableId) && placement.Authority == PlacementAuthority.MateDerived)?.Transform)))
+            .OrderBy(solution => solution.MateStableId, StringComparer.Ordinal).ToArray();
         var ir = new AssemblyIr("aetheris/assembly-ir/m0", $"assembly:{source.Name}", source.Name,
             instances.Single(x => x.ParentStableId is null).StableId, instances, source.Interfaces, mates,
-            constraints, placements, relations, stackups, fits, diagnostics, assemblyDefinitions, panelMateEvidence);
+            constraints, placements, relations, stackups, fits, diagnostics, assemblyDefinitions, panelMateEvidence, datums, datumSolutions);
         return new(ir, diagnostics, perf);
+
+        static string SemanticPath(AssemblyInstanceIr instance, SemanticValue value)
+        {
+            var prefix = instance.SemanticRoot.StableIdentity + ":";
+            return value.StableIdentity.StartsWith(prefix, StringComparison.Ordinal)
+                ? instance.Path + "." + value.StableIdentity[prefix.Length..]
+                : instance.Path + "." + (value.ExposedName ?? value.StableIdentity);
+        }
     }
 
     private static IReadOnlyList<AssemblyInstanceIr> BindInstances(AssemblySource source, List<AssemblyDiagnostic> diagnostics)
@@ -189,7 +207,7 @@ public sealed class AssemblyM0Compiler
                 var secondId = ResolveRelativeSemantic(second.ParticipantSemanticValueId, requirement.SecondMember, instances);
                 if (firstId is null || secondId is null)
                 { diagnostics.Add(new(InvalidParticipant, $"Interface '{definition.Name}' requirement '{requirement.Kind}' cannot resolve exposed members '{requirement.FirstMember}'/'{requirement.SecondMember}'.")); continue; }
-                result.Add(new($"constraint:{mate.StableId}:{index:D2}", requirement.Kind, mate.StableId, firstId, secondId, requirement.OffsetMm, 0, "admitted"));
+                result.Add(new($"constraint:{mate.StableId}:{index:D2}", requirement.Kind, mate.StableId, firstId, secondId, requirement.OffsetMm, 0, "admitted", requirement.Orientation));
             }
         }
         return result;
@@ -262,6 +280,14 @@ public sealed class AssemblyM0Compiler
                 var movingInstance = firstKnown ? owners[1] : owners[0];
                 var targetInstance = firstKnown ? owners[0] : owners[1];
                 var orientedConstraints = Orient(mateConstraints, movingInstance, instances);
+                var frameCandidates = orientedConstraints.Where(x => x.Kind == PlacementConstraintKind.FrameCoincident)
+                    .Select(x => CandidateTransform([x], instances, known[targetInstance.StableId])).ToArray();
+                if (frameCandidates.Length > 1 && frameCandidates.Skip(1).Any(x => TransformDistance(frameCandidates[0], x) > 1e-7))
+                {
+                    overconstrained.Add(movingInstance.StableId);
+                    diagnostics.Add(new(Overconstrained, $"Instance '{movingInstance.Path}' receives conflicting DatumFrame constraints from Mate '{mate.Name}'."));
+                    continue;
+                }
                 var axisCandidates = orientedConstraints.Where(x => x.Kind == PlacementConstraintKind.AxisCoincident)
                     .Select(x => CandidateTransform([x], instances, known[targetInstance.StableId])).ToArray();
                 if (axisCandidates.Length > 1 && axisCandidates.Skip(1).Any(x => TransformDistance(axisCandidates[0], x) > 1e-7))
@@ -305,11 +331,12 @@ public sealed class AssemblyM0Compiler
             { results.Add(new(instance.StableId, PlacementStatus.Overconstrained, null, [], [], relevant.Select(x => x.StableId).ToArray())); continue; }
             if (relevant.Length == 0 || !known.TryGetValue(instance.StableId, out var transform))
             { results.Add(new(instance.StableId, PlacementStatus.Unresolved, null, ["X", "Y", "Z"], ["X", "Y", "Z"], relevant.Select(x => x.StableId).ToArray())); continue; }
+            var hasFrame = relevant.Any(x => x.Kind == PlacementConstraintKind.FrameCoincident);
             var hasAxis = relevant.Any(x => x.Kind is PlacementConstraintKind.AxisCoincident or PlacementConstraintKind.AxisAligned);
             var hasPlane = relevant.Any(x => x.Kind == PlacementConstraintKind.PlaneCoincident);
             var hasPoint = relevant.Any(x => x.Kind == PlacementConstraintKind.PointCoincident);
-            var freeT = hasAxis ? (hasPlane || hasPoint ? Array.Empty<string>() : ["along-axis"]) : (hasPoint ? Array.Empty<string>() : ["X", "Y", "Z"]);
-            string[] freeR = hasAxis ? ["about-axis"] : ["X", "Y", "Z"];
+            var freeT = hasFrame ? Array.Empty<string>() : hasAxis ? (hasPlane || hasPoint ? Array.Empty<string>() : ["along-axis"]) : (hasPoint ? Array.Empty<string>() : ["X", "Y", "Z"]);
+            string[] freeR = hasFrame ? [] : hasAxis ? ["about-axis"] : ["X", "Y", "Z"];
             var involvedInterfaces = mates.Where(m => relevant.Any(c => c.MateStableId == m.StableId)).Select(m => interfaces.Values.Single(x => x.StableId == m.InterfaceStableId)).ToArray();
             string[] admitted = involvedInterfaces.Length == 0 ? [] : (involvedInterfaces.Select(x => x.AdmittedFreeMotions ?? []).Aggregate((IEnumerable<string>?)null,
                 (common, next) => common is null ? next : common.Intersect(next, StringComparer.Ordinal)) ?? []).ToArray();
@@ -339,6 +366,18 @@ public sealed class AssemblyM0Compiler
     private static AssemblyTransform CandidateTransform(IReadOnlyList<PlacementConstraintIr> constraints, IReadOnlyList<AssemblyInstanceIr> instances, AssemblyTransform? targetWorld = null)
     {
         var values = Flatten(instances.Select(x => x.SemanticRoot)).ToDictionary(x => x.StableIdentity, StringComparer.Ordinal);
+        var frameConstraint = constraints.FirstOrDefault(x => x.Kind == PlacementConstraintKind.FrameCoincident);
+        if (frameConstraint is not null
+            && values[frameConstraint.FirstSemanticValueId].TryBinding<ExactDatumFrameBinding>(out var sourceFrame)
+            && values[frameConstraint.SecondSemanticValueId].TryBinding<ExactDatumFrameBinding>(out var targetFrame))
+        {
+            var source = FrameMatrix(sourceFrame, DatumOrientationRelation.SameDirection);
+            var targetFrameMatrix = FrameMatrix(targetFrame, frameConstraint.Orientation);
+            if (!Matrix4x4.Invert(source, out var inverse)) return targetWorld ?? AssemblyTransform.Identity;
+            var transform = inverse * targetFrameMatrix;
+            if (targetWorld is not null) transform *= ToMatrix(targetWorld);
+            return FromMatrix(transform);
+        }
         var axis = constraints.FirstOrDefault(x => x.Kind == PlacementConstraintKind.AxisCoincident);
         if (axis is null || !values[axis.FirstSemanticValueId].TryBinding<ExactAxisBinding>(out var a) || !values[axis.SecondSemanticValueId].TryBinding<ExactAxisBinding>(out var b))
             return targetWorld ?? AssemblyTransform.Identity;
@@ -364,6 +403,16 @@ public sealed class AssemblyM0Compiler
         if (targetWorld is not null) rotation *= ToMatrix(targetWorld);
         return new([rotation.M11, rotation.M12, rotation.M13, rotation.M14, rotation.M21, rotation.M22, rotation.M23, rotation.M24,
             rotation.M31, rotation.M32, rotation.M33, rotation.M34, rotation.M41, rotation.M42, rotation.M43, rotation.M44]);
+    }
+
+    private static Matrix4x4 FrameMatrix(ExactDatumFrameBinding frame, DatumOrientationRelation orientation)
+    {
+        var x = Vector3.Normalize(new((float)frame.XAxisX, (float)frame.XAxisY, (float)frame.XAxisZ));
+        var y = Vector3.Normalize(new((float)frame.YAxisX, (float)frame.YAxisY, (float)frame.YAxisZ));
+        var z = Vector3.Normalize(new((float)frame.ZAxisX, (float)frame.ZAxisY, (float)frame.ZAxisZ));
+        if (orientation == DatumOrientationRelation.OpposedDirection) { y = -y; z = -z; }
+        return new(x.X, x.Y, x.Z, 0, y.X, y.Y, y.Z, 0, z.X, z.Y, z.Z, 0,
+            (float)frame.OriginX, (float)frame.OriginY, (float)frame.OriginZ, 1);
     }
 
     private static Matrix4x4 ToMatrix(AssemblyTransform transform) => new(
@@ -438,14 +487,43 @@ public sealed class AssemblyM0Compiler
             if (shaftId is null || boreId is null || !values[shaftId].TryBinding<TolerancedDimensionBinding>(out var sd) || !values[boreId].TryBinding<TolerancedDimensionBinding>(out var bd))
             { diagnostics.Add(new(CapabilityMismatch, $"Mate '{mate.Name}' fit requires toleranced dimensions '{fit.ShaftDimension}' and '{fit.BoreDimension}'.")); continue; }
             if (sd.Unit != bd.Unit) { diagnostics.Add(new("assembly-tolerance-unit-mismatch", $"Mate '{mate.Name}' fit dimensions use '{sd.Unit}' and '{bd.Unit}'.")); continue; }
-            var nominal = bd.Nominal - sd.Nominal;
-            var min = bd.Minimum - sd.Maximum;
-            var max = bd.Maximum - sd.Minimum;
+            var nominal = fit.ClearanceScale * (bd.Nominal - sd.Nominal);
+            var min = fit.ClearanceScale * (bd.Minimum - sd.Maximum);
+            var max = fit.ClearanceScale * (bd.Maximum - sd.Minimum);
+            var contributions = Array.Empty<FitContributionIr>();
+            if (fit.Variation is { } variation)
+            {
+                var bend = 2d * variation.EngagementLengthMm * Math.Tan(variation.BendAngleToleranceDegrees * Math.PI / 180d);
+                contributions =
+                [
+                    new("linear dimension tolerance", $"{shaft.ParticipantPath}/{bore.ParticipantPath}", variation.LinearToleranceMm),
+                    new("sheet thickness tolerance", $"{shaft.ParticipantPath}/{bore.ParticipantPath}.Thickness", 2d * variation.ThicknessToleranceMm),
+                    new("bend location tolerance", $"{shaft.ParticipantPath}/{bore.ParticipantPath}.Bends", 2d * variation.BendLocationToleranceMm),
+                    new("bend angle envelope", $"{shaft.ParticipantPath}/{bore.ParticipantPath}.Bends", bend),
+                    new("two coated fit surfaces", $"{shaft.ParticipantPath}/{bore.ParticipantPath}.Coating", 2d * (variation.CoatingThicknessMm + variation.CoatingThicknessToleranceMm))
+                ];
+                var reduction = contributions.Sum(item => item.WorstCaseClearanceReductionMm);
+                var symmetric = reduction - 2d * (variation.CoatingThicknessMm + variation.CoatingThicknessToleranceMm);
+                min = nominal - reduction;
+                max = nominal + symmetric - 2d * Math.Max(0, variation.CoatingThicknessMm - variation.CoatingThicknessToleranceMm);
+            }
             var compatible = min >= 0;
             if (!compatible) diagnostics.Add(new(IncompatibleDimensions, $"Mate '{mate.Name}' fit ranges from {min:G6} to {max:G6} {sd.Unit} (nominal {nominal:G6}).", AssemblyDiagnosticSeverity.Warning));
-            result.Add(new(mate.StableId, nominal, min, max, sd.Unit, compatible));
+            result.Add(new(mate.StableId, nominal, min, max, sd.Unit, compatible,
+                Classify(nominal, nominal), Classify(min, max), Math.Max(0, -min),
+                contributions.OrderByDescending(item => item.WorstCaseClearanceReductionMm).ThenBy(item => item.Source, StringComparer.Ordinal).ToArray(),
+                fit.Variation is null ? "toleranced semantic dimensions" : "worst-case analytic interval over authored dimensions, thickness, bend and coating allowances"));
         }
         return result;
+
+        static FitClassification Classify(double minimum, double maximum)
+        {
+            const double engineeringNoiseFloor = 1e-6;
+            return minimum > engineeringNoiseFloor ? FitClassification.GuaranteedClearance
+                : maximum < -engineeringNoiseFloor ? FitClassification.GuaranteedInterference
+                : minimum < -engineeringNoiseFloor ? FitClassification.PossibleInterference
+                : FitClassification.PossibleContact;
+        }
     }
 
     private static IReadOnlyList<DimensionalRelationIr> LowerInterfaceDimensionalRelations(
@@ -473,9 +551,9 @@ public sealed class AssemblyM0Compiler
                 $"dimension-relation:{mate.StableId}:fit-clearance",
                 shaftId,
                 boreId,
-                boreDimension.Nominal - shaftDimension.Nominal,
-                boreDimension.LowerTolerance - shaftDimension.UpperTolerance,
-                boreDimension.UpperTolerance - shaftDimension.LowerTolerance,
+                fit.ClearanceScale * (boreDimension.Nominal - shaftDimension.Nominal),
+                fit.ClearanceScale * (boreDimension.LowerTolerance - shaftDimension.UpperTolerance),
+                fit.ClearanceScale * (boreDimension.UpperTolerance - shaftDimension.LowerTolerance),
                 shaftDimension.Unit,
                 1,
                 OwnerPath(shaftId, instances),

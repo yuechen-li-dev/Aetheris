@@ -29,7 +29,9 @@ SheetMetal Enclosure = ElectronicsEnclosure < Spec: Psu >
 ```
 
 The specialization lowers through ordinary Base, Flange, Relief, Cut, exact-flat,
-DFM, SVG, and STEP paths. See the [M5 product-family guide](docs/firmament/sheetmetal-product-templates-m5.md).
+DFM, SVG, and STEP paths. Generic Assembly DatumFrames and tolerance-aware enclosure
+fit are documented in the [M7 guide](docs/sheetmetal/aetheris-sheetmetal-m7.md); see
+also the [M5 product-family guide](docs/firmament/sheetmetal-product-templates-m5.md).
 
 ## Static engineering data
 
@@ -164,7 +166,7 @@ Use `Aetheris.slnx` as the only solution entrypoint. For legacy Firmament V1/Fri
 
 ## Assembly model snapshot
 
-- Firmament Assembly source lowers to normalized AssemblyIR; `.firmasm` is a deprecated transform-first compatibility lane.
+- Firmament Assembly source lowers to normalized AssemblyIR; `.firmasm` is the current single-root Assembly document profile. Only the historical JSON-shaped `.firmasm` syntax is a deprecated transform-first compatibility lane.
 - STEP is treated as foreign interop input/output.
 - Multi-root STEP is assembly-like input and must route through assembly extraction/import, not single-part import.
 - Current roundtrip export is intentionally bounded to per-instance STEP + `roundtrip.package.json`.

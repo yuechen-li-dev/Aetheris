@@ -18,9 +18,10 @@ public sealed class AssemblyM0Parser
         var watch = Stopwatch.StartNew();
         var diagnostics = new List<AssemblyDiagnostic>();
         var source = Regex.Replace(input, @"//[^\r\n]*", string.Empty);
+        var concepts = ParseAssemblyConcepts(source, sourceIdentity, diagnostics);
         var interfaces = ParseInterfaces(source, sourceIdentity, diagnostics);
         var templateRanges = new List<(int Start, int Length)>();
-        var assemblyDefinitions = ParseAssemblyDefinitions(source, sourceIdentity, interfaces, diagnostics, templateRanges);
+        var assemblyDefinitions = ParseAssemblyDefinitions(source, sourceIdentity, interfaces, concepts, diagnostics, templateRanges);
         // Template-produced Assembly bodies are declarations, not exported roots.
         // Blank them without changing offsets, then locate the single root Assembly.
         var rootSearch = source.ToCharArray();
@@ -54,6 +55,21 @@ public sealed class AssemblyM0Parser
         ParseResult Done(AssemblySource? value) { watch.Stop(); return new(value, diagnostics, watch.Elapsed.TotalMilliseconds); }
     }
 
+    private static IReadOnlyList<AssemblyConceptDefinition> ParseAssemblyConcepts(string source, string sourceIdentity, List<AssemblyDiagnostic> diagnostics)
+    {
+        var result = new List<AssemblyConceptDefinition>();
+        foreach (Match header in Regex.Matches(source, @"\bConcept\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant))
+        {
+            var body = BalancedBody(source, header.Index + header.Length - 1, diagnostics, "Concept");
+            if (body is null) continue;
+            var members = Regex.Matches(body, @"\b(?<name>[A-Za-z_]\w*)\s*:\s*(?<type>Part|Assembly|Mate|Semantic)\b", RegexOptions.CultureInvariant)
+                .Select(match => new AssemblyConceptMemberDefinition(match.Groups["name"].Value, match.Groups["type"].Value)).ToArray();
+            if (members.Length > 0)
+                result.Add(new(header.Groups["name"].Value, members, SemanticSourceSpan.Generated(sourceIdentity)));
+        }
+        return result;
+    }
+
     private static IReadOnlyList<InterfaceDefinition> ParseInterfaces(string source, string sourceIdentity, List<AssemblyDiagnostic> diagnostics)
     {
         var result = new List<InterfaceDefinition>();
@@ -69,8 +85,21 @@ public sealed class AssemblyM0Parser
                 .Select(m => new InterfaceRequirementDefinition(Enum.Parse<PlacementConstraintKind>(m.Groups["kind"].Value),
                     m.Groups["a"].Value, m.Groups["am"].Value, m.Groups["b"].Value, m.Groups["bm"].Value,
                     m.Groups["offset"].Success ? Number(m.Groups["offset"].Value) : 0)).ToArray();
-            var fitMatch = Regex.Match(body, @"\bFit\s+(?<a>[A-Za-z_]\w*)\.(?<am>[A-Za-z_]\w*)\s+inside\s+(?<b>[A-Za-z_]\w*)\.(?<bm>[A-Za-z_]\w*)\s*;", RegexOptions.CultureInvariant);
-            InterfaceFitDefinition? fit = fitMatch.Success ? new(fitMatch.Groups["a"].Value, fitMatch.Groups["am"].Value, fitMatch.Groups["b"].Value, fitMatch.Groups["bm"].Value) : null;
+            var frameRequirements = Regex.Matches(body, @"\bLower\s+FrameCoincident\s+(?<a>[A-Za-z_]\w*)(?:\.(?<am>[A-Za-z_]\w*))?\s+(?<b>[A-Za-z_]\w*)(?:\.(?<bm>[A-Za-z_]\w*))?(?:\s+(?<orientation>SameDirection|OpposedDirection))?\s*;", RegexOptions.CultureInvariant)
+                .Select(m => new InterfaceRequirementDefinition(PlacementConstraintKind.FrameCoincident,
+                    m.Groups["a"].Value, m.Groups["am"].Success ? m.Groups["am"].Value : ".",
+                    m.Groups["b"].Value, m.Groups["bm"].Success ? m.Groups["bm"].Value : ".", 0,
+                    m.Groups["orientation"].Success ? Enum.Parse<DatumOrientationRelation>(m.Groups["orientation"].Value) : DatumOrientationRelation.SameDirection));
+            requirements = requirements.Concat(frameRequirements).ToArray();
+            var fitMatch = Regex.Match(body, @"\bFit\s+(?<a>[A-Za-z_]\w*)\.(?<am>[A-Za-z_]\w*)\s+inside\s+(?<b>[A-Za-z_]\w*)\.(?<bm>[A-Za-z_]\w*)(?:\s+(?<perSide>per-side))?\s*;", RegexOptions.CultureInvariant);
+            var policyMatch = Regex.Match(body, @"\bClearancePolicy\s+Minimum\s+(?<min>[-+]?\d+(?:\.\d+)?)mm\s+Maximum\s+(?<max>[-+]?\d+(?:\.\d+)?)mm\s*;", RegexOptions.CultureInvariant);
+            var variationMatch = Regex.Match(body, @"\bVariation\s+Linear\s+(?<linear>\d+(?:\.\d+)?)mm\s+Thickness\s+(?<thickness>\d+(?:\.\d+)?)mm\s+BendAngle\s+(?<angle>\d+(?:\.\d+)?)deg\s+BendLocation\s+(?<location>\d+(?:\.\d+)?)mm\s+Coating\s+(?<coating>\d+(?:\.\d+)?)mm\s+CoatingTolerance\s+(?<coatingTol>\d+(?:\.\d+)?)mm\s+Engagement\s+(?<engagement>\d+(?:\.\d+)?)mm\s*;", RegexOptions.CultureInvariant);
+            var policy = policyMatch.Success ? new InterfaceClearancePolicyDefinition(Number(policyMatch.Groups["min"].Value), Number(policyMatch.Groups["max"].Value)) : null;
+            var variation = variationMatch.Success ? new ManufacturingVariationDefinition(Number(variationMatch.Groups["linear"].Value), Number(variationMatch.Groups["thickness"].Value),
+                Number(variationMatch.Groups["angle"].Value), Number(variationMatch.Groups["location"].Value), Number(variationMatch.Groups["coating"].Value),
+                Number(variationMatch.Groups["coatingTol"].Value), Number(variationMatch.Groups["engagement"].Value)) : null;
+            InterfaceFitDefinition? fit = fitMatch.Success ? new(fitMatch.Groups["a"].Value, fitMatch.Groups["am"].Value, fitMatch.Groups["b"].Value, fitMatch.Groups["bm"].Value,
+                fitMatch.Groups["perSide"].Success ? .5d : 1d, policy, variation) : null;
             var free = Regex.Matches(body, @"\bAllow\s+(?<kind>rotation|translation):(?<axis>[A-Za-z-]+)\s*;", RegexOptions.CultureInvariant)
                 .Select(m => m.Groups["kind"].Value + ":" + m.Groups["axis"].Value).ToArray();
             var continuity = Regex.Match(body,@"\bContinuity\s*:\s*(?<value>G0|G1)\s*;",RegexOptions.CultureInvariant);
@@ -100,11 +129,12 @@ public sealed class AssemblyM0Parser
     }
 
     private static IReadOnlyList<AssemblyDefinitionSource> ParseAssemblyDefinitions(string source, string sourceIdentity,
-        IReadOnlyList<InterfaceDefinition> interfaces, List<AssemblyDiagnostic> diagnostics, List<(int Start, int Length)> ranges)
+        IReadOnlyList<InterfaceDefinition> interfaces, IReadOnlyList<AssemblyConceptDefinition> concepts,
+        List<AssemblyDiagnostic> diagnostics, List<(int Start, int Length)> ranges)
     {
         var result = new List<AssemblyDefinitionSource>();
         foreach (Match template in Regex.Matches(source,
-            @"\bTemplate\s*<\s*(?<parameter>[A-Za-z_]\w*)\s*:\s*(?<type>[A-Za-z_]\w*)\s*>\s*Assembly\s+(?<name>[A-Za-z_]\w*)\s*\{",
+            @"\bTemplate\s*<\s*(?<parameter>[A-Za-z_]\w*)\s*:\s*(?<type>[A-Za-z_]\w*)\s*>\s*Assembly\s+(?<name>[A-Za-z_]\w*)(?:\s*:\s*(?<concept>[A-Za-z_]\w*))?\s*\{",
             RegexOptions.CultureInvariant))
         {
             var body = BalancedBody(source, template.Index + template.Length - 1, diagnostics, "Template Assembly");
@@ -116,6 +146,7 @@ public sealed class AssemblyM0Parser
             var exposed = ParseAssemblyExposes(body, root, sourceIdentity, diagnostics);
             root = root with { ExposedSemantics = exposed, IsEncapsulatedDefinition = true };
             var name = template.Groups["name"].Value;
+            var claimedConcept = template.Groups["concept"].Success ? template.Groups["concept"].Value : null;
             if (result.Any(item => item.Name == name))
             {
                 diagnostics.Add(new("assembly-template-duplicate-definition", $"Assembly Template '{name}' is declared more than once."));
@@ -131,11 +162,41 @@ public sealed class AssemblyM0Parser
                 .Concat(Regex.Matches(source, @"\bStatic\s+(?<name>[A-Za-z_]\w*)\s*:\s*(?<type>[A-Za-z_]\w*)\s*=\s*\k<type>\s*\{", RegexOptions.CultureInvariant)
                     .Select(match => new SemanticProvenance("static-record", match.Groups["name"].Value, match.Groups["type"].Value, SemanticSourceSpan.Generated(sourceIdentity))))
                 .ToArray();
+            var localMates = ParseMates(body, sourceIdentity, diagnostics);
+            if (claimedConcept is not null)
+                ValidateAssemblyConcept(name, claimedConcept, concepts, root, localMates, diagnostics);
             result.Add(new(name, template.Groups["parameter"].Value, template.Groups["type"].Value, root, name,
-                [new("assembly-template-definition", name, template.Groups["parameter"].Value + ":" + template.Groups["type"].Value, SemanticSourceSpan.Generated(sourceIdentity)), .. staticProvenance],
-                anchor, ParseMates(body, sourceIdentity, diagnostics), ParseRelations(body, diagnostics), ParseAsserts(body, sourceIdentity, diagnostics), exposedRelations));
+                [new("assembly-template-definition", name, template.Groups["parameter"].Value + ":" + template.Groups["type"].Value, SemanticSourceSpan.Generated(sourceIdentity)),
+                 .. claimedConcept is null ? [] : new[] { new SemanticProvenance("assembly-concept-satisfaction", claimedConcept, name, SemanticSourceSpan.Generated(sourceIdentity)) },
+                 .. staticProvenance],
+                anchor, localMates, ParseRelations(body, diagnostics), ParseAsserts(body, sourceIdentity, diagnostics), exposedRelations, claimedConcept));
         }
         return result;
+    }
+
+    private static void ValidateAssemblyConcept(string templateName, string claimedConcept,
+        IReadOnlyList<AssemblyConceptDefinition> concepts, AssemblyMemberSource root, IReadOnlyList<MateSource> mates,
+        List<AssemblyDiagnostic> diagnostics)
+    {
+        var concept = concepts.SingleOrDefault(item => item.Name == claimedConcept);
+        if (concept is null)
+        {
+            diagnostics.Add(new("assembly-concept-unknown", $"Assembly Template '{templateName}' claims unknown Concept '{claimedConcept}'."));
+            return;
+        }
+        foreach (var member in concept.Members)
+        {
+            var actual = member.Type switch
+            {
+                "Part" => root.Children.Any(item => item.Name == member.Name && item.Kind == AssemblyInstanceKind.Part),
+                "Assembly" => root.Children.Any(item => item.Name == member.Name && item.Kind == AssemblyInstanceKind.Assembly),
+                "Mate" => mates.Any(item => item.Name == member.Name),
+                "Semantic" => root.ExposedSemantics.Any(item => item.ExposedName == member.Name),
+                _ => false
+            };
+            if (!actual)
+                diagnostics.Add(new("assembly-concept-missing-member", $"Assembly Template '{templateName}' does not satisfy Concept '{claimedConcept}': required {member.Type} member '{member.Name}' is missing."));
+        }
     }
 
     private static IReadOnlyList<AssemblyExposedRelationSource> ParseExposedRelations(string body)
@@ -155,7 +216,7 @@ public sealed class AssemblyM0Parser
         if (!header.Success) return [];
         var block = BalancedBody(body, header.Index + header.Length - 1, diagnostics, "Assembly Expose") ?? string.Empty;
         var result = new List<SemanticValue>();
-        foreach (Match expose in Regex.Matches(block, @"\b(?:Semantic|Axis|Plane|Point|Dimension)\s+(?<name>[A-Za-z_]\w*)\s*=\s*(?<path>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*;", RegexOptions.CultureInvariant))
+        foreach (Match expose in Regex.Matches(block, @"\b(?:Semantic|Axis|Plane|Point|Dimension|DatumFrame)\s+(?<name>[A-Za-z_]\w*)\s*=\s*(?<path>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*;", RegexOptions.CultureInvariant))
         {
             var alias = expose.Groups["name"].Value;
             if (result.Any(value => value.ExposedName == alias)) { diagnostics.Add(new("assembly-expose-duplicate-name", $"Assembly Expose declares '{alias}' more than once.")); continue; }
@@ -191,7 +252,10 @@ public sealed class AssemblyM0Parser
         AssemblyMemberSource Replace(AssemblyMemberSource item) => item with
         {
             Name = item.Name,
-            DefinitionIdentity = Regex.Replace(item.DefinitionIdentity, $@"(?<prefix>:\s*)\b{Regex.Escape(definition.ParameterName)}\b(?=\s*>)", "${prefix}" + argument),
+            // Preserve member projection (for example Spec.Body) so a domain
+            // compiler can bind the nested typed Record through its ordinary
+            // Template frontend.
+            DefinitionIdentity = Regex.Replace(item.DefinitionIdentity, $@"(?<prefix>:\s*)\b{Regex.Escape(definition.ParameterName)}\b", "${prefix}" + argument),
             Children = item.Children.Select(Replace).ToArray(),
             Provenance = [.. item.Provenance ?? [], new("assembly-template-specialization", definition.Name, specializationIdentity, SemanticSourceSpan.Generated(sourceIdentity))],
             IsEncapsulatedDefinition = false
@@ -224,7 +288,8 @@ public sealed class AssemblyM0Parser
         var definitionIr = new AssemblyDefinitionIr(stableId, specializationIdentity, definition.Name, specializationIdentity,
             [.. definition.Provenance, new("assembly-template-specialization", definition.Name, specializationIdentity, SemanticSourceSpan.Generated(sourceIdentity))],
             local.Ir.Instances, local.Ir.Mates, local.Ir.Placements, local.Ir.DimensionalRelations, local.Ir.ToleranceStackups,
-            publicSemantics, publicRelations, watch.Elapsed.TotalMilliseconds);
+            publicSemantics, publicRelations, watch.Elapsed.TotalMilliseconds,
+            local.Ir.PlacementConstraints, local.Ir.Datums, local.Ir.DatumMateSolutions, local.Ir.FitResults);
         specializedRoot = specializedRoot with { ExposedSemantics = publicSemantics, IsEncapsulatedDefinition = true, SolvedAssemblyDefinition = definitionIr, DefinitionIdentity = specializationIdentity };
         specializationCache[specializationIdentity] = specializedRoot;
         return RenameOccurrence(specializedRoot, occurrenceName);
@@ -402,6 +467,14 @@ public sealed class AssemblyM0Parser
                 members.Add(new SemanticValue(binding.PointStableId, new("Point"), [new PointCapability()], [binding], exposedName: point.Groups["name"].Value));
                 caps.Add(new PointCapability()); if (!bindings.OfType<ExactPointBinding>().Any()) bindings.Add(binding);
             }
+            foreach (Match frame in Regex.Matches(block, @"\bDatumFrame\s+(?<name>[A-Za-z_]\w*)\s*=\s*\[(?<o>[^]]+)\]\s+x\s*\[(?<x>[^]]+)\]\s+y\s*\[(?<y>[^]]+)\]\s+z\s*\[(?<z>[^]]+)\]\s*;", RegexOptions.CultureInvariant))
+            {
+                var o = Vector(frame.Groups["o"].Value); var x = Vector(frame.Groups["x"].Value); var y = Vector(frame.Groups["y"].Value); var z = Vector(frame.Groups["z"].Value);
+                if (o is null || x is null || y is null || z is null || !ValidFrame(x, y, z)) { diagnostics.Add(new("assembly-datum-frame-invalid", $"Semantic '{name}' DatumFrame requires a finite orthonormal right-handed X/Y/Z basis.")); continue; }
+                var binding = new ExactDatumFrameBinding(o[0], o[1], o[2], x[0], x[1], x[2], y[0], y[1], y[2], z[0], z[1], z[2], $"definition:{definition}:{name}:{frame.Groups["name"].Value}");
+                members.Add(new SemanticValue(binding.FrameStableId, new("AssemblyDatumFrame"), [new DatumFrameCapability()], [binding], exposedName: frame.Groups["name"].Value));
+                caps.Add(new DatumFrameCapability()); if (!bindings.OfType<ExactDatumFrameBinding>().Any()) bindings.Add(binding);
+            }
             foreach (Match dim in Regex.Matches(block, @"\bDimension\s+(?<name>[A-Za-z_]\w*)\s*=\s*(?<nom>[-+]?\d+(?:\.\d+)?)mm(?:\s+tol\s+(?:(?<bil>\d+(?:\.\d+)?)mm|\+(?<plus>\d+(?:\.\d+)?)mm\s+-(?<minus>\d+(?:\.\d+)?)mm))?\s*;", RegexOptions.CultureInvariant))
             {
                 var plus = dim.Groups["bil"].Success ? Number(dim.Groups["bil"].Value) : dim.Groups["plus"].Success ? Number(dim.Groups["plus"].Value) : 0;
@@ -466,6 +539,15 @@ public sealed class AssemblyM0Parser
     }
     private static double[]? Vector(string text)
     { var values = text.Split(',', StringSplitOptions.TrimEntries).Select(x => double.TryParse(x, NumberStyles.Float, CultureInfo.InvariantCulture, out var n) ? n : double.NaN).ToArray(); return values.Length == 3 && values.All(double.IsFinite) ? values : null; }
+    private static bool ValidFrame(double[] x, double[] y, double[] z)
+    {
+        static double Dot(double[] a, double[] b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+        var cross = new[] { x[1] * y[2] - x[2] * y[1], x[2] * y[0] - x[0] * y[2], x[0] * y[1] - x[1] * y[0] };
+        const double tolerance = 1e-6;
+        return Math.Abs(Dot(x, x) - 1) <= tolerance && Math.Abs(Dot(y, y) - 1) <= tolerance && Math.Abs(Dot(z, z) - 1) <= tolerance
+            && Math.Abs(Dot(x, y)) <= tolerance && Math.Abs(Dot(x, z)) <= tolerance && Math.Abs(Dot(y, z)) <= tolerance
+            && Dot(cross, z) >= 1 - tolerance;
+    }
     private static double Number(string text) => double.Parse(text, NumberStyles.Float, CultureInfo.InvariantCulture);
 }
 

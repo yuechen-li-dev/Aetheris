@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="428.752mm" height="636.598mm" viewBox="0 0 428.752 636.598">
+<rect width="100%" height="100%" fill="white"/>
+<g id="sheet-regions" fill="#dbeafe" fill-opacity="0.55" stroke="#0f172a" stroke-width="0.45">
+<path id="flat-AngledServiceFlange" d="M 404.052 386.246 L 404.052 373.546 L 416.752 373.546 L 416.752 271.946 L 404.052 271.946 L 404.052 259.246 L 355.538 259.246 L 355.538 386.246 L 404.052 386.246 Z"/>
+<path id="flat-AngledServiceFlangeBend" d="M 355.538 386.246 L 355.538 259.246 L 349.802 259.246 L 349.802 386.246 L 355.538 386.246 Z"/>
+<path id="flat-FrontMountingFlange" d="M 76.176 624.598 L 300.966 624.598 L 300.966 593.818 L 76.176 593.818 L 76.176 624.598 Z"/>
+<path id="flat-FrontMountingFlangeBend" d="M 76.176 593.818 L 300.966 593.818 L 300.966 582.347 L 76.176 582.347 L 76.176 593.818 Z"/>
+<path id="flat-FrontWall" d="M 76.176 582.347 L 300.966 582.347 L 300.966 520.755 L 76.176 520.755 L 76.176 582.347 Z"/>
+<path id="flat-FrontWallBend" d="M 76.176 520.755 L 300.966 520.755 L 300.966 509.284 L 76.176 509.284 L 76.176 520.755 Z"/>
+<path id="flat-LeftWall" d="M 12 149.239 L 12 501.029 L 56.45 501.029 L 56.45 149.239 L 12 149.239 Z"/>
+<path id="flat-LeftWallBend" d="M 56.45 149.239 L 56.45 501.029 L 67.921 501.029 L 67.921 149.239 L 56.45 149.239 Z"/>
+<path id="flat-MainDeck" d="M 67.921 509.284 L 76.176 509.284 L 300.966 509.284 L 309.221 509.284 L 309.221 501.029 L 309.221 149.239 L 309.221 140.984 L 300.966 140.984 L 76.176 140.984 L 67.921 140.984 L 67.921 149.239 L 67.921 501.029 L 67.921 509.284 Z"/>
+<path id="flat-RearMountingFlange" d="M 300.966 12 L 76.176 12 L 76.176 56.45 L 300.966 56.45 L 300.966 12 Z"/>
+<path id="flat-RearMountingFlangeBend" d="M 300.966 56.45 L 76.176 56.45 L 76.176 67.921 L 300.966 67.921 L 300.966 56.45 Z"/>
+<path id="flat-RearWall" d="M 300.966 67.921 L 76.176 67.921 L 76.176 129.513 L 300.966 129.513 L 300.966 67.921 Z"/>
+<path id="flat-RearWallBend" d="M 300.966 129.513 L 76.176 129.513 L 76.176 140.984 L 300.966 140.984 L 300.966 129.513 Z"/>
+<path id="flat-RightWall" d="M 349.802 501.029 L 349.802 149.239 L 320.691 149.239 L 320.691 501.029 L 349.802 501.029 Z"/>
+<path id="flat-RightWallBend" d="M 320.691 501.029 L 320.691 149.239 L 309.221 149.239 L 309.221 501.029 L 320.691 501.029 Z"/>
+</g>
+<path id="exact-blank-contour" d="M 404.052 386.246 L 404.052 373.546 L 416.752 373.546 L 416.752 271.946 L 404.052 271.946 L 404.052 259.246 L 355.538 259.246 L 349.802 259.246 L 349.802 149.239 L 320.691 149.239 L 309.221 149.239 L 309.221 142.331 L 304.057 147.495 L 302.71 146.148 L 307.874 140.984 L 300.966 140.984 L 300.966 129.513 L 300.966 67.921 L 300.966 56.45 L 300.966 12 L 76.176 12 L 76.176 56.45 L 76.176 67.921 L 76.176 129.513 L 76.176 140.984 L 69.268 140.984 L 74.431 146.148 L 73.084 147.495 L 67.921 142.331 L 67.921 149.239 L 56.45 149.239 L 12 149.239 L 12 501.029 L 56.45 501.029 L 67.921 501.029 L 67.921 507.937 L 73.084 502.773 L 74.431 504.12 L 69.268 509.284 L 76.176 509.284 L 76.176 520.755 L 76.176 582.347 L 76.176 593.818 L 76.176 624.598 L 300.966 624.598 L 300.966 593.818 L 300.966 582.347 L 300.966 520.755 L 300.966 509.284 L 307.874 509.284 L 302.71 504.12 L 304.057 502.773 L 309.221 507.937 L 309.221 501.029 L 320.691 501.029 L 349.802 501.029 L 349.802 386.246 L 355.538 386.246 L 404.052 386.246 Z" fill="none" stroke="#020617" stroke-width="0.7"/>
+<g id="cut-contours" fill="white" stroke="#dc2626" stroke-width="0.5">
+<path id="Ctc03Layout.BaseFastenerPattern[0]" d="M 279.058 470.597 A 7.938 7.938 0 0 0 263.183 470.597 A 7.938 7.938 0 0 0 279.058 470.597 Z"/>
+<path id="Ctc03Layout.BaseFastenerPattern[1]" d="M 279.058 426.147 A 7.938 7.938 0 0 0 263.183 426.147 A 7.938 7.938 0 0 0 279.058 426.147 Z"/>
+<path id="Ctc03Layout.BaseFastenerPattern[2]" d="M 279.058 381.697 A 7.938 7.938 0 0 0 263.183 381.697 A 7.938 7.938 0 0 0 279.058 381.697 Z"/>
+<path id="Ctc03Layout.BaseFastenerPattern[3]" d="M 279.058 337.247 A 7.938 7.938 0 0 0 263.183 337.247 A 7.938 7.938 0 0 0 279.058 337.247 Z"/>
+<path id="Ctc03Layout.FrontMountHoles[0]" d="M 92.533 618.25 A 5.563 5.563 0 0 0 81.408 618.25 A 5.563 5.563 0 0 0 92.533 618.25 Z"/>
+<path id="Ctc03Layout.FrontMountHoles[1]" d="M 295.733 618.25 A 5.563 5.563 0 0 0 284.608 618.25 A 5.563 5.563 0 0 0 295.733 618.25 Z"/>
+<path id="Ctc03Layout.LargeOpeningOnePointFiveInch[0]" d="M 265.253 235.85 A 19.05 19.05 0 0 0 227.153 235.85 A 19.05 19.05 0 0 0 265.253 235.85 Z"/>
+<path id="Ctc03Layout.LargeOpeningTwoInch[0]" d="M 182.703 210.45 A 25.4 25.4 0 0 0 131.903 210.45 A 25.4 25.4 0 0 0 182.703 210.45 Z"/>
+<path id="Ctc03Layout.RearMountHoles[0]" d="M 295.733 31.047 A 5.563 5.563 0 0 0 284.608 31.047 A 5.563 5.563 0 0 0 295.733 31.047 Z"/>
+<path id="Ctc03Layout.RearMountHoles[1]" d="M 92.533 31.047 A 5.563 5.563 0 0 0 81.408 31.047 A 5.563 5.563 0 0 0 92.533 31.047 Z"/>
+<path id="Ctc03Layout.ServiceHole[0]" d="M 399.799 322.746 A 13.526 13.526 0 0 0 372.748 322.746 A 13.526 13.526 0 0 0 399.799 322.746 Z"/>
+<path id="Ctc03Layout.ServiceInnerHoles[0]" d="M 374.685 341.796 A 2.381 2.381 0 0 0 369.922 341.796 A 2.381 2.381 0 0 0 374.685 341.796 Z"/>
+<path id="Ctc03Layout.ServiceInnerHoles[1]" d="M 374.685 303.696 A 2.381 2.381 0 0 0 369.922 303.696 A 2.381 2.381 0 0 0 374.685 303.696 Z"/>
+<path id="Ctc03Layout.ServiceOuterHoles[0]" d="M 406.435 341.796 A 2.381 2.381 0 0 0 401.672 341.796 A 2.381 2.381 0 0 0 406.435 341.796 Z"/>
+<path id="Ctc03Layout.ServiceOuterHoles[1]" d="M 406.435 303.696 A 2.381 2.381 0 0 0 401.672 303.696 A 2.381 2.381 0 0 0 406.435 303.696 Z"/>
+<path id="Ctc03Layout.VentSlots[0]" d="M 109.678 445.299 L 128.728 445.299 L 128.728 356.399 L 109.678 356.399 L 109.678 445.299 Z"/>
+<path id="Ctc03Layout.VentSlots[1]" d="M 173.178 445.299 L 192.228 445.299 L 192.228 356.399 L 173.178 356.399 L 173.178 445.299 Z"/>
+</g>
+<g id="corner-reliefs" fill="white" stroke="#ea580c" stroke-width="0.5">
+<path id="relief-FrontWall-RightWall" d="M 312.588 511.305 L 304.057 502.773 L 302.71 504.12 L 311.241 512.652 L 312.588 511.305 Z"/>
+<path id="relief-LeftWall-FrontWall" d="M 65.9 512.652 L 74.431 504.12 L 73.084 502.773 L 64.553 511.305 L 65.9 512.652 Z"/>
+<path id="relief-RearWall-LeftWall" d="M 64.553 138.963 L 73.084 147.495 L 74.431 146.148 L 65.9 137.616 L 64.553 138.963 Z"/>
+<path id="relief-RightWall-RearWall" d="M 311.241 137.616 L 302.71 146.148 L 304.057 147.495 L 312.588 138.963 L 311.241 137.616 Z"/>
+</g>
+<g id="bend-lines" fill="none" stroke="#2563eb" stroke-width="0.45" stroke-dasharray="3 2">
+<line x1="352.67" y1="386.246" x2="352.67" y2="259.246"/>
+<line x1="76.176" y1="588.083" x2="300.966" y2="588.083"/>
+<line x1="76.176" y1="515.019" x2="300.966" y2="515.019"/>
+<line x1="62.185" y1="149.239" x2="62.185" y2="501.029"/>
+<line x1="300.966" y1="62.185" x2="76.176" y2="62.185"/>
+<line x1="300.966" y1="135.249" x2="76.176" y2="135.249"/>
+<line x1="314.956" y1="501.029" x2="314.956" y2="149.239"/>
+</g>
+<g id="bend-labels" stroke="none" font-family="Inter, 'Segoe UI', Arial, sans-serif" font-size="3" text-anchor="middle" dominant-baseline="central">
+<rect x="344.42" y="320.546" width="24.5" height="4.4" rx="0.8" fill="white" fill-opacity="0.88"/>
+<text x="356.67" y="322.746" fill="#1d4ed8">Down 45° R6.35</text>
+<rect x="177.971" y="589.883" width="21.2" height="4.4" rx="0.8" fill="white" fill-opacity="0.88"/>
+<text x="188.571" y="592.083" fill="#1d4ed8">Up 90° R6.35</text>
+<rect x="176.321" y="516.819" width="24.5" height="4.4" rx="0.8" fill="white" fill-opacity="0.88"/>
+<text x="188.571" y="519.019" fill="#1d4ed8">Down 90° R6.35</text>
+<rect x="47.585" y="322.934" width="21.2" height="4.4" rx="0.8" fill="white" fill-opacity="0.88"/>
+<text x="58.185" y="325.134" fill="#1d4ed8">Up 90° R6.35</text>
+<rect x="177.971" y="55.985" width="21.2" height="4.4" rx="0.8" fill="white" fill-opacity="0.88"/>
+<text x="188.571" y="58.185" fill="#1d4ed8">Up 90° R6.35</text>
+<rect x="176.321" y="129.049" width="24.5" height="4.4" rx="0.8" fill="white" fill-opacity="0.88"/>
+<text x="188.571" y="131.249" fill="#1d4ed8">Down 90° R6.35</text>
+<rect x="308.356" y="322.934" width="21.2" height="4.4" rx="0.8" fill="white" fill-opacity="0.88"/>
+<text x="318.956" y="325.134" fill="#1d4ed8">Up 90° R6.35</text>
+</g>
+<text x="4" y="6" font-family="sans-serif" font-size="3" fill="#334155">Valid · K=0.5 · SHA-256 55dd154c6bb0</text>
+</svg>

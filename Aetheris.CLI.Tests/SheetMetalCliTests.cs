@@ -15,7 +15,7 @@ public sealed class SheetMetalCliTests
     {
         var output=new StringWriter();var error=new StringWriter();var input=Path.Combine(RepoRoot,"testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp");
         var exit=CliRunner.Run(["sheetmetal","inspect",input,"--json"],output,error);Assert.Equal(0,exit);Assert.Empty(error.ToString());
-        using var json=JsonDocument.Parse(output.ToString());var root=json.RootElement;Assert.True(root.GetProperty("success").GetBoolean());Assert.Equal("Partial",root.GetProperty("recognitionStatus").GetString());Assert.Equal(7,root.GetProperty("sheetMetal").GetProperty("bends").GetArrayLength());Assert.Equal("Partial",root.GetProperty("flatPattern").GetProperty("status").GetString());
+        using var json=JsonDocument.Parse(output.ToString());var root=json.RootElement;Assert.True(root.GetProperty("success").GetBoolean());Assert.Equal("Partial",root.GetProperty("recognitionStatus").GetString());Assert.Equal(7,root.GetProperty("sheetMetal").GetProperty("bends").GetArrayLength());Assert.Equal(17,root.GetProperty("sheetMetal").GetProperty("cuts").GetArrayLength());Assert.Equal("Partial",root.GetProperty("flatPattern").GetProperty("status").GetString());
     }
 
     [Fact]
@@ -67,8 +67,8 @@ public sealed class SheetMetalCliTests
             var source=Path.Combine(RepoRoot,"testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp");var intent=Path.Combine(RepoRoot,"docs/modules/sheetmetal/artifacts/m2/ctc03-idiomatic.firmament");
             var output=new StringWriter();var error=new StringWriter();var recover=CliRunner.Run(["sheetmetal","recover",source,"--out-dir",dir,"--json"],output,error);
             Assert.Equal(0,recover);Assert.Empty(error.ToString());Assert.Contains("Ambiguities:",File.ReadAllText(Path.Combine(dir,"reconstruction-brief.md")));Assert.True(File.Exists(Path.Combine(dir,"recovery-summary.json")));
-            output.GetStringBuilder().Clear();var compare=CliRunner.Run(["sheetmetal","compare",source,intent,"--json"],output,error);Assert.Equal(0,compare);Assert.Empty(error.ToString());
-            using var report=JsonDocument.Parse(output.ToString());Assert.True(report.RootElement.GetProperty("success").GetBoolean());Assert.Equal("NeedsReview",report.RootElement.GetProperty("comparison").GetProperty("status").GetString());Assert.Equal(7,report.RootElement.GetProperty("comparison").GetProperty("bends").GetArrayLength());
+            output.GetStringBuilder().Clear();var compare=CliRunner.Run(["sheetmetal","compare",source,intent,"--json"],output,error);Assert.Equal(2,compare);Assert.Empty(error.ToString());
+            using var report=JsonDocument.Parse(output.ToString());Assert.False(report.RootElement.GetProperty("success").GetBoolean());Assert.Equal("Fail",report.RootElement.GetProperty("comparison").GetProperty("status").GetString());Assert.Equal(7,report.RootElement.GetProperty("comparison").GetProperty("bends").GetArrayLength());Assert.Contains(report.RootElement.GetProperty("comparison").GetProperty("diagnostics").EnumerateArray(),x=>x.GetString()!.Contains("Feature count mismatch: source 17, intent 2",StringComparison.Ordinal));
         }
         finally{Directory.Delete(dir,true);}
     }

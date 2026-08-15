@@ -20,14 +20,19 @@ public sealed record AuthoredSheetBaseSpec(string Name, double Width, double Dep
 public sealed record AuthoredSheetFlangeSpec(
     string Name, string ParentRegion, string EdgeName, double Length, double AngleRadians,
     double InsideRadius, SheetBendDirection Direction, SheetCornerPolicy CornerPolicy,
-    SheetReliefPolicy ReliefPolicy, double? ReliefWidth = null, double? ReliefDepth = null);
+    SheetReliefPolicy ReliefPolicy, double? ReliefWidth = null, double? ReliefDepth = null,
+    double? SpanLength = null, double SpanOffset = 0d);
 public sealed record AuthoredSheetCutSpec(
     string Name, string RegionName, SheetFeatureKind Kind, double X, double Y,
     double? Diameter, double? Width, double? Length);
 public sealed record SheetMetalConstructionSpec(
     string Name, double Thickness, string? Material, double KFactor, AuthoredSheetBaseSpec Base,
     IReadOnlyList<AuthoredSheetFlangeSpec> Flanges, IReadOnlyList<AuthoredSheetCutSpec> Cuts,
-    SheetMetalProvenanceCategory Authority, bool LegacySyntax = false, string? SatisfiesConcept = null);
+    SheetMetalProvenanceCategory Authority, bool LegacySyntax = false, string? SatisfiesConcept = null)
+{
+    /// <summary>Compile-time semantic layout erased after it resolves exact authored cuts.</summary>
+    public SheetMetalSemanticLayout SemanticLayout { get; init; } = SheetMetalSemanticLayout.Empty;
+}
 
 /// <summary>
 /// Bounded high-level authored Sheet Metal compiler. It deliberately consumes only
@@ -90,11 +95,16 @@ internal static class AuthoredSheetMetalCompiler
             var relief = reliefToken switch { "auto" => SheetReliefPolicy.Auto, "rectangular" or "rectangle" => SheetReliefPolicy.Rectangular, "round" => SheetReliefPolicy.Round, _ => SheetReliefPolicy.None };
             Scalar(block.Body, "ReliefWidth", "mm", out var reliefWidth);
             Scalar(block.Body, "ReliefDepth", "mm", out var reliefDepth);
+            var hasSpan=Scalar(block.Body, "Span", "mm", out var spanLength);
+            var hasSpanOffset=Scalar(block.Body, "SpanOffset", "mm", out var spanOffset);
             if(radius<0||degrees is <=0 or >=180)return Fail($"Flange '{block.Name}' has an invalid radius or bend angle.");
             if(length<=radius+thickness)return Fail($"Flange '{block.Name}' length {length:G6} mm is not greater than inside radius + thickness ({radius+thickness:G6} mm). Increase `{block.Name}` Height/Length above {radius+thickness:G6} mm.",legacyBase.Success?"sheetmetal-firmament-invalid":SheetMetalDiagnosticCodes.FlangeBelowMinimum);
+            if(hasSpan&&spanLength<=0)return Fail($"Flange '{block.Name}' Span must be positive when supplied.","sheetmetal-flange-span-invalid");
+            if(hasSpanOffset&&!hasSpan)return Fail($"Flange '{block.Name}' SpanOffset requires Span.","sheetmetal-flange-span-invalid");
             flanges.Add(new(block.Name, parentName, NormalizeEdge(authoredMember), length,
                 degrees * Math.PI / 180d, radius, direction, corner, relief,
-                reliefWidth > 0 ? reliefWidth : null, reliefDepth > 0 ? reliefDepth : null));
+                reliefWidth > 0 ? reliefWidth : null, reliefDepth > 0 ? reliefDepth : null,
+                spanLength > 0 ? spanLength : null, spanOffset));
         }
         if (flanges.Count == 0) return Fail("At least one Flange is required.");
         var duplicate = flanges.GroupBy(f => (f.ParentRegion.ToLowerInvariant(), f.EdgeName.ToLowerInvariant())).FirstOrDefault(g => g.Count() > 1);
@@ -135,17 +145,26 @@ internal static class AuthoredSheetMetalCompiler
             }
         }
 
+        var semanticStarted=Stopwatch.GetTimestamp();
+        var semanticLayout=SheetMetalSemanticLayoutParser.Parse(source,baseSpec,flanges,cuts);
+        var semanticMs=Stopwatch.GetElapsedTime(semanticStarted).TotalMilliseconds;
+        if(!semanticLayout.IsSuccess)return new(false,null,null,null,semanticLayout.Diagnostics);
+        cuts.AddRange(semanticLayout.GeneratedCuts);
+        var duplicateCut=cuts.GroupBy(x=>x.Name,StringComparer.Ordinal).FirstOrDefault(x=>x.Count()>1);
+        if(duplicateCut is not null)return Fail($"Semantic feature path '{duplicateCut.Key}' is declared more than once.","sheetmetal-semantic-duplicate-feature");
+
         var authority = Regex.IsMatch(source, @"\bIntent\s*:\s*Reconstructed\s*;", Rx)
             ? SheetMetalProvenanceCategory.Reconstructed : SheetMetalProvenanceCategory.Authored;
         var concept=header.Groups["concept"].Success?header.Groups["concept"].Value:null;
-        var spec = new SheetMetalConstructionSpec(header.Groups["name"].Value, thickness, material, k, baseSpec, flanges, cuts, authority, legacyBase.Success,concept);
+        var spec = new SheetMetalConstructionSpec(header.Groups["name"].Value, thickness, material, k, baseSpec, flanges, cuts, authority, legacyBase.Success,concept)
+        { SemanticLayout=semanticLayout.Layout };
         if(concept is not null&&SheetMetalConceptContracts.Validate(source,spec) is { } conformanceFailure)
             return Fail(conformanceFailure.Message,conformanceFailure.Code);
         var parseMs=Stopwatch.GetElapsedTime(parseStarted).TotalMilliseconds;var formedStarted=Stopwatch.GetTimestamp();var lowered = AuthoredSheetMetalLowering.Lower(spec, sourcePath);var formedMs=Stopwatch.GetElapsedTime(formedStarted).TotalMilliseconds;
         if (!lowered.IsSuccess || lowered.Part is null) return new(false, spec, null, null, lowered.Diagnostics);
         var flatStarted=Stopwatch.GetTimestamp();var flat = SheetMetalFlattener.Flatten(lowered.Part);var flatMs=Stopwatch.GetElapsedTime(flatStarted).TotalMilliseconds;
         diagnostics.AddRange(lowered.Diagnostics); diagnostics.AddRange(flat.Diagnostics);
-        return new(flat.Status is not FlatPatternStatus.Unsupported and not FlatPatternStatus.Overlapping, spec, lowered.Part, flat, diagnostics,new(parseMs,formedMs,flatMs));
+        return new(flat.Status is not FlatPatternStatus.Unsupported and not FlatPatternStatus.Overlapping, spec, lowered.Part, flat, diagnostics,new(parseMs,formedMs,flatMs,semanticMs));
 
         SheetMetalAuthoringResult Fail(string message, string code = "sheetmetal-firmament-invalid") =>
             new(false, null, null, null, [new(code, SheetMetalDiagnosticSeverity.Error, message)]);
@@ -251,17 +270,38 @@ internal static class AuthoredSheetMetalLowering
                 else if (frames.TryGetValue(flange.ParentRegion, out var pf) && flange.EdgeName.Equals("Outer", StringComparison.OrdinalIgnoreCase)) { parentEdge = new(pf.OuterA, pf.OuterB, pf.Outward); parentNormal = pf.Normal; }
                 else continue;
                 progressed = true; pending.Remove(flange);
-                var edge = parentEdge; var axis = Unit(edge.B - edge.A); var sign = flange.Direction == SheetBendDirection.Down ? -1d : 1d;
+                var edge = parentEdge; var axis = Unit(edge.B - edge.A);
+                if(flange.SpanLength is { } span)
+                {
+                    var available=(edge.B-edge.A).Length;if(span>available+1e-8||Math.Abs(flange.SpanOffset)>(available-span)/2d+1e-8)
+                        return Failure($"Flange '{flange.Name}' Span {span:G9} mm with offset {flange.SpanOffset:G9} mm does not fit parent edge length {available:G9} mm.","sheetmetal-flange-span-invalid");
+                    var spanCenter=Mid(edge.A,edge.B)+axis*flange.SpanOffset;edge=new(spanCenter-axis*(span/2d),spanCenter+axis*(span/2d),edge.Outward);
+                }
+                var sign = flange.Direction == SheetBendDirection.Down ? -1d : 1d;
                 var rMid = flange.InsideRadius + t / 2d; var angle = flange.AngleRadians;
                 var tangentA = edge.A + edge.Outward * (rMid * Math.Sin(angle)) + parentNormal * (sign * rMid * (1 - Math.Cos(angle)));
                 var tangentB = edge.B + edge.Outward * (rMid * Math.Sin(angle)) + parentNormal * (sign * rMid * (1 - Math.Cos(angle)));
                 var direction = Unit(edge.Outward * Math.Cos(angle) + parentNormal * (sign * Math.Sin(angle)));
                 var normal = Unit(parentNormal * Math.Cos(angle) - edge.Outward * (sign * Math.Sin(angle)));
                 var frame = new RegionFrame(flange.Name, tangentA, tangentB, direction, normal, flange.Length); frames[flange.Name] = frame;
-                var boundary = new[] { tangentA, tangentB, frame.OuterB, frame.OuterA };
+                IReadOnlyList<Point3D> boundary = [tangentA, tangentB, frame.OuterB, frame.OuterA];
+                var tabs=spec.SemanticLayout.Tabs.Where(x=>x.Region.Equals(flange.Name,StringComparison.OrdinalIgnoreCase)&&x.Edge.Equals("Outer",StringComparison.OrdinalIgnoreCase)).OrderByDescending(x=>x.Center).ToArray();
+                if(tabs.Length>0)
+                {
+                    var points=new List<Point3D>{tangentA,tangentB,frame.OuterB};var cursor=(edge.B-edge.A).Length;
+                    foreach(var tab in tabs)
+                    {
+                        var right=tab.Center+tab.Width/2d;var left=tab.Center-tab.Width/2d;
+                        if(left< -1e-8||right>cursor+1e-8)return Failure($"Tab '{tab.Path}' does not fit '{flange.Name}.Outer'.","sheetmetal-tab-outside-edge");
+                        if(right<cursor-1e-8)points.Add(frame.OuterA+axis*right);
+                        points.Add(frame.OuterA+axis*right+direction*tab.Extension);points.Add(frame.OuterA+axis*left+direction*tab.Extension);
+                        if(left>1e-8)points.Add(frame.OuterA+axis*left);cursor=left;
+                    }
+                    points.Add(frame.OuterA);boundary=points;
+                }
                 var plane = new SheetPlaneReference(tangentA, normal, axis, direction, true);
                 var flangeId=stableRegions[flange.Name];
-                regions.Add(new(flangeId, SheetRegionKind.Planar, Developable("Authored planar flange."), plane, null, boundary, (edge.B-edge.A).Length * flange.Length, source, evidence));
+                regions.Add(new(flangeId, SheetRegionKind.Planar, Developable("Authored planar flange."), plane, null, boundary, (edge.B-edge.A).Length * flange.Length+tabs.Sum(x=>x.Width*x.Extension), source, evidence));
                 patches.Add(PlanePatch(flangeId, SheetRegionKind.Planar, boundary, normal, t));
 
                 var bendId = spec.LegacySyntax ? $"bend-{flange.EdgeName.ToLowerInvariant()}" : $"{flange.Name}Bend"; var bendRegionId = spec.LegacySyntax ? $"region-{flange.EdgeName.ToLowerInvariant()}-bend" : $"{flange.Name}BendRegion"; var centerA = edge.A + parentNormal * (sign * rMid); var center = Mid(centerA, edge.B + parentNormal * (sign * rMid));

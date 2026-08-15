@@ -39,6 +39,14 @@ public static class SheetMetalConceptPaths
             Add(cut.Name,"SheetCut",cut.Name,cut.Name,cut.Name,"authored cut declaration","FlatFeature","Cuttable");
             Add($"{cut.RegionName}.{cut.Name}","SheetCut",$"{cut.RegionName}.{cut.Name}",cut.Name,cut.Name,"semantic owning-region cut path","FlatFeature","Cuttable");
         }
+        foreach(var datum in spec.SemanticLayout.Datums)
+            Add(datum.Path,"SheetDatum",datum.Path,null,null,datum.Provenance,"PointCapable","StableSemanticIdentity");
+        foreach(var tab in spec.SemanticLayout.Tabs)
+            Add(tab.Path,"SheetTab",tab.Path,tab.Region,$"flat-{tab.Region}","exact outer-edge contour extension","EdgeFeature","ManufacturingContour","StableSemanticIdentity");
+        foreach(var pattern in spec.SemanticLayout.Patterns)
+            Add(pattern.Path,"SheetPattern",pattern.Path,null,null,"compile-time semantic feature pattern","EqualPitch","EqualSize","StableSemanticIdentity");
+        foreach(var constraint in spec.SemanticLayout.Constraints)
+            Add(constraint.Path,"SheetConstraint",constraint.Path,null,null,constraint.Detail,"ValidatedBeforeProfileLowering");
         Add("Flat","FlatPattern",$"flat-{part.StableId}",null,flat?.StableId,"derived flat state","ManufacturingContour");
         foreach(var path in paths.Where(x=>x.FormedId is not null&&x.Path!="Flat").ToArray())Add($"Flat.{path.Path}","Flat"+path.Kind,$"Flat.{path.StableId}",path.FormedId,path.FlatId,"formed/flat semantic correspondence",[..path.Capabilities,"FlatState"]);
         return paths.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray();

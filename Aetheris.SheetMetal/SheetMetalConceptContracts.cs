@@ -22,6 +22,8 @@ internal static class SheetMetalConceptContracts
             available[flange.Name]="SheetFlange";
             available[flange.Name+"Bend"]="SheetBend";
         }
+        foreach(var cut in spec.Cuts)available[cut.Name]="SheetCut";
+        foreach(var pattern in spec.SemanticLayout.Patterns)available[pattern.Name]="SheetPattern";
         foreach(Match requirement in Regex.Matches(declaration.Groups["body"].Value,@"(?m)^\s*(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?<type>[A-Za-z_][A-Za-z0-9_]*)\s*$",RegexOptions.CultureInvariant))
         {
             var name=requirement.Groups["name"].Value;var expected=requirement.Groups["type"].Value;

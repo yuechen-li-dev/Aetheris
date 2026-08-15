@@ -3,7 +3,11 @@ using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.SheetMetal;
 
-public sealed record SheetMetalAuthoringTimings(double ParseMilliseconds,double FormedLowerMilliseconds,double FlatLowerMilliseconds);
+public sealed record SheetMetalAuthoringTimings(
+    double ParseMilliseconds,
+    double FormedLowerMilliseconds,
+    double FlatLowerMilliseconds,
+    double SemanticResolveMilliseconds = 0d);
 public sealed record SheetMetalAuthoringResult(
     bool IsSuccess,
     SheetMetalConstructionSpec? Spec,
@@ -26,7 +30,7 @@ public static class SheetMetalFirmament
     {
         if(source is null)return false;
         var clean=Regex.Replace(source,@"//.*?$|#.*?$",string.Empty,RegexOptions.Multiline);
-        return Regex.IsMatch(clean,@"^\s*SheetMetal\s+",RegexOptions.IgnoreCase|RegexOptions.CultureInvariant)
+        return Regex.IsMatch(clean,@"\bSheetMetal\s+[A-Za-z_]",RegexOptions.IgnoreCase|RegexOptions.CultureInvariant)
             ||Regex.IsMatch(clean,@"\bUse\s+SheetMetal\.ProductFamilies\s*;",RegexOptions.IgnoreCase|RegexOptions.CultureInvariant);
     }
 

@@ -274,14 +274,14 @@ public static class SheetMetalRecognizer
             foreach(var face in new[]{pair.A,pair.B})foreach(var loopId in body.GetLoopIds(face.Id).Skip(1))
             {
                 var edges=body.GetCoedgeIds(loopId).Select(body.GetCoedgeEdgeId).ToArray();
-                if(edges.Length==1&&body.TryGetEdgeCurve(edges[0],out var curve)&&curve?.Circle3 is Circle3Curve circle)
+                if(TryCircularLoop(body,edges,tolerance,out var circle))
                 {
                     var center=ProjectToPlane(circle.Center,region.Plane);
-                    var id=$"feature-hole-f{face.Id.Value:D4}-e{edges[0].Value:D4}";
+                    var id=$"feature-hole-f{face.Id.Value:D4}-e{edges.Min(e=>e.Value):D4}";
                     if(result.Any(f=>(f.Center-center).Length<=tolerance&&Math.Abs((f.Diameter??0)-2d*circle.Radius)<=tolerance))continue;
                     result.Add(new(id,SheetFeatureKind.CircularHole,region.StableId,center,2d*circle.Radius,[],
                         new("STEP/BRep loop","formed cut-boundary evidence",[face.Id.Value],edges.Select(e=>e.Value).ToArray(),sourcePath),
-                        [new(SheetEvidenceKind.Exact,"circular-inner-loop","Single closed circular edge on a recovered planar sheet skin.",2d*circle.Radius,null,[face.Id.Value])]));
+                        [new(SheetEvidenceKind.Exact,"circular-inner-loop",edges.Length==1?"Single closed circular edge on a recovered planar sheet skin.":"Coaxial circular arcs form one closed circular inner loop on a recovered planar sheet skin.",2d*circle.Radius,null,[face.Id.Value])]));
                 }
                 else
                 {
@@ -295,6 +295,20 @@ public static class SheetMetalRecognizer
             }
         }
         return result.OrderBy(f=>f.StableId,StringComparer.Ordinal).ToArray();
+    }
+
+    private static bool TryCircularLoop(BrepBody body,IReadOnlyList<EdgeId> edges,double tolerance,out Circle3Curve circle)
+    {
+        circle=default;if(edges.Count==0)return false;
+        var circles=new List<Circle3Curve>(edges.Count);
+        foreach(var edge in edges)
+        {
+            if(!body.TryGetEdgeCurve(edge,out var curve)||curve?.Circle3 is not Circle3Curve candidate)return false;
+            circles.Add(candidate);
+        }
+        var first=circles[0];var axis=first.Normal.ToVector();
+        if(circles.Skip(1).Any(x=>(x.Center-first.Center).Length>tolerance||Math.Abs(x.Radius-first.Radius)>tolerance||Math.Abs(Math.Abs(x.Normal.ToVector().Dot(axis))-1)>1e-8))return false;
+        circle=first;return true;
     }
 
     private static IReadOnlyList<FaceFacts> ExtractFacts(BrepBody body)

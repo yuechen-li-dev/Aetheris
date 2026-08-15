@@ -1,0 +1,123 @@
+// M8 independent reconstruction of NIST CTC-03.
+// Construction reads no STEP, recovery provider, face ID, edge ID, or recovered polygon.
+// Dimensions below are source-derived unless explicitly described as a flattening policy.
+Concept Ctc03ManufacturedIntent {
+    MainDeck: SheetRegion
+    BaseFastenerPattern: SheetPattern
+    VentSlots: SheetPattern
+    RearMountHoles: SheetPattern
+    FrontMountHoles: SheetPattern
+    ServiceHole: SheetPattern
+    ServiceInnerHoles: SheetPattern
+    ServiceOuterHoles: SheetPattern
+    Flat: FlatPattern
+}
+
+Concept Struct Ctc03Layout {
+    // Named local workpoints isolate measured formed coordinates from feature generation.
+    Datum RearMountCenter { On: RearMountingFlange; At: (112.395mm, 25.40254mm); }
+    Datum FrontMountCenter { On: FrontMountingFlange; At: (112.395mm, 24.43226mm); }
+    Datum ServiceHoleCenter { On: AngledServiceFlange; At: (63.5mm, 30.735796052mm); }
+
+    // Source contour: the 127 mm partial flange grows a centered 101.6 x 12.7 mm tab.
+    Tab ServiceConnectorTab {
+        On: AngledServiceFlange.Outer;
+        Center: 63.5mm;
+        Width: 101.6mm;
+        Extension: 12.7mm;
+    }
+
+    // Four source-PMI Ø0.625 in holes at equal 1.75 in pitch.
+    Pattern BaseFastenerPattern {
+        On: MainDeck;
+        Feature: Circle { Diameter: 15.875mm; };
+        Center: MainDeck.Center + (82.55mm, -78.78826mm);
+        Count: 4;
+        Pitch: (0mm, 44.45mm);
+    }
+
+    Pattern LargeOpeningTwoInch {
+        On: MainDeck;
+        Feature: Circle { Diameter: 50.8mm; };
+        Center: MainDeck.Center + (-31.2674mm, 114.68354mm);
+        Count: 1;
+        Pitch: (0mm, 0mm);
+    }
+
+    Pattern LargeOpeningOnePointFiveInch {
+        On: MainDeck;
+        Feature: Circle { Diameter: 38.1mm; };
+        Center: MainDeck.Center + (57.6326mm, 89.28354mm);
+        Count: 1;
+        Pitch: (0mm, 0mm);
+    }
+
+    Pattern VentSlots {
+        On: MainDeck;
+        Feature: Slot { Length: 19.05mm; Width: 88.9mm; };
+        Center: MainDeck.Center + (-37.6174mm, -75.71486mm);
+        Count: 2;
+        Pitch: (63.5mm, 0mm);
+    }
+
+    Pattern RearMountHoles {
+        On: RearMountingFlange;
+        Feature: Circle { Diameter: 11.1252mm; };
+        Center: RearMountCenter;
+        Count: 2;
+        Pitch: (203.2mm, 0mm);
+    }
+
+    Pattern FrontMountHoles {
+        On: FrontMountingFlange;
+        Feature: Circle { Diameter: 11.1252mm; };
+        Center: FrontMountCenter;
+        Count: 2;
+        Pitch: (203.2mm, 0mm);
+    }
+
+    Pattern ServiceHole {
+        On: AngledServiceFlange;
+        Feature: Circle { Diameter: 27.051mm; };
+        Center: ServiceHoleCenter;
+        Count: 1;
+        Pitch: (0mm, 0mm);
+    }
+
+    Pattern ServiceInnerHoles {
+        On: AngledServiceFlange;
+        Feature: Circle { Diameter: 4.7625mm; };
+        Center: AngledServiceFlange.Center + (0mm, -7.491203948mm);
+        Count: 2;
+        Pitch: (38.1mm, 0mm);
+    }
+
+    Pattern ServiceOuterHoles {
+        On: AngledServiceFlange;
+        Feature: Circle { Diameter: 4.7625mm; };
+        Center: AngledServiceFlange.Center + (0mm, 24.258796052mm);
+        Count: 2;
+        Pitch: (38.1mm, 0mm);
+    }
+}
+
+SheetMetal Ctc03 : Ctc03ManufacturedIntent {
+    Intent: Reconstructed;
+    Thickness: 1.905mm;
+    KFactor: 0.5;
+    Material: "0.075 in nominal sheet";
+
+    Base MainDeck {
+        Profile: Rectangle { Width: 241.3mm; Height: 368.3mm; };
+        Origin: (-241.3mm, 58.08726mm, 76.2mm);
+    }
+
+    Flange FrontWall { From: MainDeck.Front; Height: 61.59254mm; Angle: 90deg; Radius: 6.35mm; Direction: Down; Relief: Auto; }
+    Flange RearWall  { From: MainDeck.Rear;  Height: 61.59254mm; Angle: 90deg; Radius: 6.35mm; Direction: Down; Relief: Auto; }
+    Flange LeftWall  { From: MainDeck.Left;  Height: 44.45mm;  Angle: 90deg; Radius: 6.35mm; Direction: Up;   Relief: Auto; }
+    Flange RightWall { From: MainDeck.Right; Height: 29.11094mm; Angle: 90deg; Radius: 6.35mm; Direction: Up; Relief: Auto; }
+
+    Flange FrontMountingFlange { From: FrontWall.Outer; Length: 30.77972mm; Angle: 90deg; Radius: 6.35mm; Direction: Up; }
+    Flange RearMountingFlange  { From: RearWall.Outer;  Length: 44.45mm;    Angle: 90deg; Radius: 6.35mm; Direction: Up; }
+    Flange AngledServiceFlange { From: RightWall.Outer; Length: 48.514mm; Span: 127mm; SpanOffset: 2.3876mm; Angle: 45deg; Radius: 6.35mm; Direction: Down; }
+}

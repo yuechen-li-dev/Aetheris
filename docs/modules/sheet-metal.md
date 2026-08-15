@@ -1,6 +1,6 @@
 # Sheet Metal Module
 
-`Aetheris.SheetMetal` M4 adds a shared exact planar-contour contract, exact line/arc corner-relief removal on bounded authored cases, stable Sheet Metal Concept Paths, and a small reusable template surface. Imported STEP recovery remains separate from authored construction.
+`Aetheris.SheetMetal` includes a shared exact planar-contour contract, exact line/arc corner-relief removal on bounded authored cases, stable Sheet Metal Concept Paths, reusable templates, and an M8 bounded semantic-layout pass. Imported STEP recovery remains separate from authored construction.
 
 ## Construction architecture
 
@@ -21,6 +21,10 @@ SheetMetalPartIr
 The bounded kernel publishes line/line, line/arc, and arc/arc intersection; normalized-parameter split/trim; explicit-side line/arc offset with miter joins; and known-topology arrangement/stitching. It does not expose a universal arbitrary Boolean or silently polygonize analytic curves.
 
 ## Authoring and Concept Paths
+
+M8 permits a `Concept Struct` to declare named `Datum`, regular `Pattern`, and bounded outer-edge `Tab` intent before the `SheetMetal` body. The compiler resolves those declarations into a `SheetMetalSemanticLayout`, validates required/equal-size/equal-pitch/mirror claims, generates stable feature members, and only then lowers exact formed and flat profiles. This is intentionally not a general sketch solver. `Span` and `SpanOffset` on a flange provide reusable partial-edge attachment.
+
+The resolved layout is visible in `aetheris sheetmetal inspect --json`; semantic paths are visible through `aetheris sheetmetal paths`.
 
 ```firmament
 SheetMetal Tray {
@@ -83,6 +87,8 @@ aetheris sheetmetal compare imported.step reconstructed.firmament
 ```
 
 Canonical M4 dogfood is [`m4-psu-enclosure.firmament`](../../fixtures/FirmamentV2/SheetMetal/m4-psu-enclosure.firmament). The [M4 evidence bundle](sheetmetal/artifacts/m4/README.md) records exact-kernel scope, template/DFM evidence, CTC-03 comparison, timings, hashes, and remaining limits.
+
+The [M8 CTC-03 evidence bundle](sheetmetal/artifacts/m8/README.md) records full opening recovery, semantic-layout authoring, independent regeneration, comparison, PMI evidence, generalization, timings, and the remaining outer-contour blocker.
 
 ## Bounded capability verdict
 

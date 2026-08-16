@@ -99,13 +99,15 @@ public sealed class SheetMetalM11Tests
     }
 
     [Fact]
-    public void Ctc03_owns_four_side_wall_bend_terminations_without_feature_or_bend_regression()
+    public void Ctc03_owns_four_front_rear_bend_terminations_without_regression()
     {
         var root=FindRepoRoot();var path=Path.Combine(root,"docs/modules/sheetmetal/artifacts/m8/ctc03-final.firmament");
         var result=SheetMetalFirmament.CompileFile(path);
         Assert.True(result.IsSuccess,string.Join('\n',result.Diagnostics.Select(x=>x.Message)));
         var terminations=result.Part!.Bends.SelectMany(x=>new[]{x.StartTermination,x.EndTermination}).OfType<SheetBendTerminationIr>().ToArray();
         Assert.Equal(4,terminations.Length);Assert.All(terminations,x=>Assert.Equal(SheetBendTerminationTreatment.Trimmed,x.ResolvedTreatment));
+        Assert.All(terminations,x=>Assert.Equal(8.89,x.Setback,6));
+        Assert.Equal(new[]{"FrontWallBend.EndTermination","FrontWallBend.StartTermination","RearWallBend.EndTermination","RearWallBend.StartTermination"},terminations.Select(x=>x.StableId).Order().ToArray());
         Assert.Equal(7,result.Part.Bends.Count);Assert.Equal(17,result.Part.Features.Count);
         Assert.Equal(FlatPatternStatus.Valid,result.FlatPattern!.Status);Assert.NotNull(result.FlatPattern.ExactBlankContour);
         Assert.True(BrepExportPreflight.Validate(result.Part.FormedBody!).IsValid);

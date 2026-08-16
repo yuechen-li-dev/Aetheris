@@ -221,13 +221,12 @@ SheetMetal Ctc03 : Ctc03ManufacturedIntent {
         Origin: (-241.3mm, 58.08726mm, 76.2mm);
     }
 
-    Flange FrontWall { From: MainDeck.Front; Height: 61.59254mm; Angle: 90deg; Radius: 6.35mm; Direction: Down; }
-    Flange RearWall  { From: MainDeck.Rear;  Height: 61.59254mm; Angle: 90deg; Radius: 6.35mm; Direction: Down; }
-    // The four finite side-wall bend ends meet front/rear material boundaries.
-    // Their source-backed thickness-scale root finish is bend termination intent, not
-    // anonymous base-profile edits or corner-relief cut loops.
-    Flange LeftWall  { From: MainDeck.Left;  Height: 44.45mm;  Angle: 90deg; Radius: 6.35mm; Direction: Up; StartTermination: Trimmed; StartTerminationSetback: 0.9525mm; EndTermination: Trimmed; EndTerminationSetback: 0.9525mm; }
-    Flange RightWall { From: MainDeck.Right; Height: 31.75254mm; Angle: 90deg; Radius: 6.35mm; Direction: Up; StartTermination: Trimmed; StartTerminationSetback: 0.9525mm; EndTermination: Trimmed; EndTerminationSetback: 0.9525mm; }
+    // The source front/rear bend strips terminate 8.89 mm before both side corners.
+    // These four explicit trims remove the two front and two rear rectangular tabs.
+    Flange FrontWall { From: MainDeck.Front; Height: 61.59254mm; Angle: 90deg; Radius: 6.35mm; Direction: Down; StartTermination: Trimmed; StartTerminationSetback: 8.89mm; EndTermination: Trimmed; EndTerminationSetback: 8.89mm; }
+    Flange RearWall  { From: MainDeck.Rear;  Height: 61.59254mm; Angle: 90deg; Radius: 6.35mm; Direction: Down; StartTermination: Trimmed; StartTerminationSetback: 8.89mm; EndTermination: Trimmed; EndTerminationSetback: 8.89mm; }
+    Flange LeftWall  { From: MainDeck.Left;  Height: 44.45mm;  Angle: 90deg; Radius: 6.35mm; Direction: Up; }
+    Flange RightWall { From: MainDeck.Right; Height: 31.75254mm; Angle: 90deg; Radius: 6.35mm; Direction: Up; }
 
     Flange FrontMountingFlange { From: FrontWall.Outer; Length: 43.47972mm; Angle: 90deg; Radius: 6.35mm; Direction: Up; }
     Flange RearMountingFlange  { From: RearWall.Outer;  Length: 44.45mm;    Angle: 90deg; Radius: 6.35mm; Direction: Up; }

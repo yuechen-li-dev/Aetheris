@@ -59,20 +59,17 @@ authority. Formed residual is axial endpoint extent in the matched source bend f
 
 | Semantic termination | Native treatment | Flat max (mm) | Formed axial (mm) | Verdict |
 |---|---|---:|---:|---|
-| `LeftWallBend.StartTermination` | Trimmed 0.9525 | 0.0204 | 0.0200 | Pass |
-| `LeftWallBend.EndTermination` | Trimmed 0.9525 | 0.9501 | 0.9500 | NeedsReview |
-| `RightWallBend.StartTermination` | Trimmed 0.9525 | 0.9500 | 0.9500 | NeedsReview |
-| `RightWallBend.EndTermination` | Trimmed 0.9525 | 0.0203 | 0.0200 | Pass |
+| `FrontWallBend.StartTermination` | Trimmed 8.89 | 0.0001 | <0.0001 | Pass |
+| `FrontWallBend.EndTermination` | Trimmed 8.89 | 0.0001 | <0.0001 | Pass |
+| `RearWallBend.StartTermination` | Trimmed 8.89 | 0.0001 | <0.0001 | Pass |
+| `RearWallBend.EndTermination` | Trimmed 8.89 | 0.0001 | <0.0001 | Pass |
 
-A controlled `Natural` trial doubled the two failing endpoint residuals to about
-1.90 mm. A 1.905 mm trim made those endpoint probes pass but worsened the physical
-right-wall and stitched-blank comparison. The evidence therefore isolates a coupled
-modeling seam: the source uses different parent-side and child-side axial extents
-across the finite bend strip, while current `Trimmed` lowering makes the cylindrical
-bend region rectangular and applies one extent to both sides. The existing
-`SheetBendTerminationIr` already carries setback and depth, but formed/flat lowering
-does not materialize the tapered termination chain represented by its ProfileDelta.
-The trials were reverted; random parameter tuning was not retained.
+Visual source authority identified the four rectangles as the two endpoints of each
+front/rear cylindrical bend strip. The semantic bend comparison independently measured
+each native strip as 8.89 mm too long. Four 8.89 mm trims now remove those exact pieces.
+Lowering was corrected so BendTermination shortens only the finite cylindrical strip;
+it no longer shortens the adjacent planar wall or downstream mounting flange. All four
+flat and formed endpoint probes now pass at numerical noise.
 
 ## Main-deck and right-wall forensics
 
@@ -89,37 +86,35 @@ The right-wall aggregate is decomposed as follows:
 | Target | Max (mm) | Status |
 |---|---:|---|
 | service AttachmentPath | <0.0001 | PassWithKnownDifference (segmentation) |
-| LeadIn / LeadOut | 0.6740 / 0.6740 | NeedsReview |
-| LeftRun / AttachmentLand / step transitions | 0.9525 | NeedsReview |
-| RightRun | 0.6735 | NeedsReview |
-| rear end round | 0.0203 | Pass |
-| front end round | 0.9500 | NeedsReview |
+| LeadIn / LeadOut | <0.0001 | PassWithKnownDifference (segmentation) |
+| LeftRun / AttachmentLand / step transitions | <0.0001 | PassWithKnownDifference (segmentation) |
+| RightRun | <0.0001 | PassWithKnownDifference (segmentation) |
+| rear end round | 0.9322 | NeedsReview |
+| front end round | 1.9025 | NeedsReview |
 | service-flange openings | <0.0001 | Pass |
 | service connector crown | 0.0018 | Pass |
 
-The worst right-wall contributor is no longer a vague 4.7535 mm aggregate. It is a
-thickness-scale termination/reference-extent offset that shifts selected service
-profile domains; the attachment path itself is correct.
+The service profile and attachment path are correct. Remaining right-wall residual is
+confined to the end-round/corner family and the shared regional boundary.
 
 ## Worst semantic targets
 
 | Target | Kind | RMS (mm) | p95 (mm) | max (mm) | Classification |
 |---|---|---:|---:|---:|---|
-| Front/Rear wall bend endpoints | Bend | 1.40 | 2.89 | 8.89 | finite bend-line domain mismatch |
 | Front mounting outer rounds | Profile member | 1.24 | 2.42 | 2.632 | WrongProfileOperation |
 | Rear mounting shoulders | Profile member | 0.63 | 1.82 | 2.628 | WrongProfileOperation |
 | MainDeck shared boundary | Region boundary | 0.25 | 0.00 | 1.9025 | reference/shared-boundary mismatch |
-| two side bend terminations | Bend termination | 0.95 | 0.95 | 0.9501 | WrongTermination |
-| right-wall service transitions | ProfileDelta member | 0.05–0.93 | 0.00–0.95 | 0.674–0.9525 | ParameterMismatch |
+| Left/Right wall bend domains | Bend | 0.09 | 0.001 | 1.9025 | ParameterMismatch |
+| right-wall end rounds | Profile corner | 0.67–1.39 | bounded per member | 0.9322–1.9025 | WrongProfileOperation |
 
 These are the exact remaining targets. There is no final “miscellaneous contour”
 bucket.
 
 ## Parity and inventory
 
-Flat semantic report: 71 stable targets. All 17 openings pass. Three of seven bend
+Flat semantic report: 71 stable targets. All 17 openings pass. Five of seven bend
 lines pass the complete local-domain test; all seven still pass the independent
-axis/angle/radius/adjacency test. Of four terminations, two pass and two need review.
+axis/angle/radius/adjacency test. All four terminations pass.
 AttachmentPath passes. ProfileDelta and corner results are listed individually in the
 JSON CLI output.
 
@@ -127,13 +122,13 @@ Legacy flat global summary remains `NeedsReview`:
 
 | Direction | RMS / p95 / max (mm) |
 |---|---:|
-| source -> native | 2.70748 / 8.88801 / 8.94301 |
-| native -> source | 2.21000 / 4.75351 / 8.89199 |
+| source -> native | 1.39725 / 3.80101 / 3.80101 |
+| native -> source | 1.37476 / 3.80101 / 3.80101 |
 
 Bounds residual is 0.002447 x 0.007820 mm. These global values are summary only.
 
-Formed global summary is source -> native 3.48510 / 8.94115 / 8.99148 mm and
-native -> source 2.57315 / 6.42356 / 8.94088 mm. All seven bend parameter matches and
+Formed global summary is source -> native 1.81177 / 2.12872 / 6.42141 mm and
+native -> source 1.96634 / 6.41889 / 6.42356 mm. All seven bend parameter matches and
 all 17 opening matches pass. Endpoint-local formed evidence is in the table above.
 
 Final inventory remains seven bends, 15 circular holes, two slots, service flange and
@@ -163,8 +158,8 @@ the worst target and its source edge provenance -> revise an existing semantic
 parameter/program -> repeat. This was substantially easier than screenshots/global
 RMS: the previous “main-deck 8.945 mm missing geometry” diagnosis was too coarse, and
 the right-wall AttachmentPath was shown to be correct. No genuinely new general
-Profile primitive was needed. The remaining bend-strip extent seam is proven rather
-than guessed and should be addressed inside existing BendTermination lowering.
+Profile primitive was needed. The bend-strip extent seam is now resolved by keeping
+finite bend termination independent from adjacent planar-profile extent.
 
 ## Verdict
 
@@ -175,6 +170,6 @@ ProfileDelta members, AttachmentPaths, profile corners, openings, bends, and ben
 terminations, and can report formed axial endpoint evidence per termination.
 
 CTC-03 is **not fully reconstructed**. Exact remaining manufactured geometry includes
-`LeftWallBend.EndTermination`, `RightWallBend.StartTermination`, the front/rear
-mounting-profile transition families, and finite Front/Rear wall bend-line domains.
+the front/rear mounting-profile transition families, finite Left/Right wall bend-line
+domains, and the right-wall end-round family.
 Calling it Complete would violate the 0.1 mm policy.

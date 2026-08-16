@@ -14,6 +14,16 @@ Concept Ctc03ManufacturedIntent {
 }
 
 Concept Struct Ctc03Layout {
+    // The physical RightWall outer carrier and the service bend root are not
+    // coincident. The explicit release removes the bounded strip between them.
+    AttachmentPath ServiceFlangeAttachment {
+        On: RightWall.Outer;
+        Inset: 2.6416mm;
+        Span: 127mm;
+        SpanOffset: 2.3876mm;
+        Release: ToCarrier;
+    }
+
     // Named local workpoints isolate measured formed coordinates from feature generation.
     Datum RearMountCenter { On: RearMountingFlange; At: (120.65mm, 25.40254mm); }
     Datum FrontMountCenter { On: FrontMountingFlange; At: (120.65mm, 24.43226mm); }
@@ -60,6 +70,8 @@ Concept Struct Ctc03Layout {
 
     CornerProfile LeftWall.OuterStart { Chamfer RearEndTaper { Setback: 25.4mm; } }
     CornerProfile LeftWall.OuterEnd   { Chamfer FrontEndTaper { Setback: 25.4mm; } }
+    CornerProfile RightWall.OuterStart { Round RearEndRound { Radius: 12.7mm; } }
+    CornerProfile RightWall.OuterEnd   { Round FrontEndRound { Radius: 12.7mm; } }
 
     CornerProfile FrontMountingFlange.OuterStart { Chamfer RightEndChamfer { Setback: 12.7mm; } }
     CornerProfile FrontMountingFlange.OuterEnd   { Chamfer LeftEndChamfer { Setback: 12.7mm; } }
@@ -154,9 +166,9 @@ SheetMetal Ctc03 : Ctc03ManufacturedIntent {
     Flange FrontWall { From: MainDeck.Front; Height: 61.59254mm; Angle: 90deg; Radius: 6.35mm; Direction: Down; Relief: Auto; }
     Flange RearWall  { From: MainDeck.Rear;  Height: 61.59254mm; Angle: 90deg; Radius: 6.35mm; Direction: Down; Relief: Auto; }
     Flange LeftWall  { From: MainDeck.Left;  Height: 44.45mm;  Angle: 90deg; Radius: 6.35mm; Direction: Up;   Relief: Auto; }
-    Flange RightWall { From: MainDeck.Right; Height: 29.11094mm; Angle: 90deg; Radius: 6.35mm; Direction: Up; Relief: Auto; }
+    Flange RightWall { From: MainDeck.Right; Height: 31.75254mm; Angle: 90deg; Radius: 6.35mm; Direction: Up; Relief: Auto; }
 
     Flange FrontMountingFlange { From: FrontWall.Outer; Length: 43.47972mm; Angle: 90deg; Radius: 6.35mm; Direction: Up; }
     Flange RearMountingFlange  { From: RearWall.Outer;  Length: 44.45mm;    Angle: 90deg; Radius: 6.35mm; Direction: Up; }
-    Flange AngledServiceFlange { From: RightWall.Outer; Length: 48.514mm; Span: 127mm; SpanOffset: 2.3876mm; Angle: 45deg; Radius: 6.35mm; Direction: Down; }
+    Flange AngledServiceFlange { From: RightWall.ServiceFlangeAttachment; Length: 48.514mm; Angle: 45deg; Radius: 6.35mm; Direction: Down; }
 }

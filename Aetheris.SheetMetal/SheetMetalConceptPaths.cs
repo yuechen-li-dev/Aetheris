@@ -41,6 +41,11 @@ public static class SheetMetalConceptPaths
         }
         foreach(var datum in spec.SemanticLayout.Datums)
             Add(datum.Path,"SheetDatum",datum.Path,null,null,datum.Provenance,"PointCapable","StableSemanticIdentity");
+        foreach(var attachment in spec.SemanticLayout.AttachmentPaths??[])
+        {
+            var ir=part.AttachmentPaths?.FirstOrDefault(x=>x.StableId.Equals(attachment.Path,StringComparison.Ordinal));
+            Add(attachment.Path,"SheetAttachmentPath",attachment.Path,ir?.StableId,$"flat-{attachment.Path}","bounded region-owned path derived from a physical carrier","FlangeAttachable","BendAttachable","FeatureAttachable","StableSemanticIdentity");
+        }
         foreach(var tab in spec.SemanticLayout.Tabs)
             Add(tab.Path,"SheetTab",tab.Path,tab.Region,$"flat-{tab.Region}","exact outer-edge contour extension","EdgeFeature","ManufacturingContour","StableSemanticIdentity");
         foreach(var notch in spec.SemanticLayout.SteppedNotches??[])

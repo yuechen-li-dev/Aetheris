@@ -6,6 +6,8 @@ namespace Aetheris.SheetMetal;
 public enum SheetMetalSemanticConstraintKind { RequiredMembers, EqualSize, EqualPitch, Mirror }
 
 public sealed record SheetMetalSemanticDatum(string Path,string Region,double X,double Y,string Provenance);
+public sealed record SheetMetalSemanticAttachmentPath(
+    string Path,string Region,string CarrierEdge,double Inset,double Span,double SpanOffset,bool ReleaseToCarrier);
 
 public sealed record SheetMetalSemanticTab(string Path,string Region,string Edge,double Center,double Width,double Extension);
 public sealed record SheetMetalSemanticSteppedNotch(
@@ -25,7 +27,8 @@ public sealed record SheetMetalSemanticLayout(
     IReadOnlyList<string> Structs,IReadOnlyList<SheetMetalSemanticDatum> Datums,IReadOnlyList<SheetMetalSemanticTab> Tabs,
     IReadOnlyList<SheetMetalSemanticPattern> Patterns,IReadOnlyList<SheetMetalSemanticConstraint> Constraints,
     IReadOnlyList<SheetMetalSemanticSteppedNotch>? SteppedNotches = null,
-    IReadOnlyList<SheetMetalSemanticCornerProfile>? Corners = null)
+    IReadOnlyList<SheetMetalSemanticCornerProfile>? Corners = null,
+    IReadOnlyList<SheetMetalSemanticAttachmentPath>? AttachmentPaths = null)
 {
     public static SheetMetalSemanticLayout Empty { get; } = new([],[],[],[],[]);
 }
@@ -62,6 +65,39 @@ internal static class SheetMetalSemanticLayoutParser
         var generated=new List<AuthoredSheetCutSpec>();
         var constraints=new List<SheetMetalSemanticConstraint>();
         var regionSizes=RegionSizes(baseSpec,flanges);
+
+        var attachmentPaths=new List<SheetMetalSemanticAttachmentPath>();
+        foreach(var block in Blocks(source,"AttachmentPath",structs))
+        {
+            var on=TokenPath(block.Body,"On");
+            var owner=on is null?Match.Empty:Regex.Match(on,@"^(?<region>[A-Za-z_][A-Za-z0-9_]*)\.(?<edge>Front|Right|Rear|Left|Outer)$",Rx);
+            if(!owner.Success||!regionSizes.TryGetValue(owner.Groups["region"].Value,out var size))
+                return Fail("sheetmetal-attachment-path-owner",$"AttachmentPath '{block.Name}' requires On: <planar-region>.<physical-edge>.");
+            if(!Scalar(block.Body,"Inset",out var inset)||!Scalar(block.Body,"Span",out var span))
+                return Fail("sheetmetal-attachment-path-properties",$"AttachmentPath '{block.Name}' requires Inset and Span.");
+            Scalar(block.Body,"SpanOffset",out var spanOffset);
+            var edge=owner.Groups["edge"].Value;var carrierLength=edge is "Front" or "Rear"?size.Width:edge is "Right" or "Left"?size.Height:size.Width;
+            var maxInset=edge.Equals("Outer",StringComparison.OrdinalIgnoreCase)?size.Height:edge is "Front" or "Rear"?size.Height:size.Width;
+            if(!double.IsFinite(inset)||inset<0||inset>=maxInset-1e-8)
+                return Fail("sheetmetal-attachment-path-offset",$"AttachmentPath '{block.Name}' Inset must be finite, non-negative, and inside owning region '{owner.Groups["region"].Value}'.");
+            if(!double.IsFinite(span)||span<=0||span>carrierLength+1e-8||Math.Abs(spanOffset)>(carrierLength-span)/2d+1e-8)
+                return Fail("sheetmetal-attachment-path-span",$"AttachmentPath '{block.Name}' Span {span:G9} mm with offset {spanOffset:G9} mm does not fit carrier length {carrierLength:G9} mm.");
+            var release=Token(block.Body,"Release");var releaseToCarrier=release?.Equals("ToCarrier",StringComparison.OrdinalIgnoreCase)==true;
+            if(inset>1e-8&&!releaseToCarrier)
+                return Fail("sheetmetal-attachment-path-release",$"Inset AttachmentPath '{block.Name}' requires `Release: ToCarrier;` so the owner and child do not describe double material.");
+            if(release is not null&&!releaseToCarrier)
+                return Fail("sheetmetal-attachment-path-release",$"AttachmentPath '{block.Name}' uses unsupported Release '{release}'. Supported: ToCarrier.");
+            var region=owner.Groups["region"].Value;
+            var path=$"{region}.{block.Name}";
+            if(attachmentPaths.Any(x=>x.Path.Equals(path,StringComparison.Ordinal)))
+                return Fail("sheetmetal-attachment-path-duplicate",$"Attachment path '{path}' is declared more than once.");
+            attachmentPaths.Add(new(path,region,edge,inset,span,spanOffset,releaseToCarrier));
+        }
+        foreach(var flange in flanges)
+        {
+            var attachment=attachmentPaths.SingleOrDefault(x=>x.Path.Equals($"{flange.ParentRegion}.{flange.EdgeName}",StringComparison.OrdinalIgnoreCase));
+            if(attachment is not null)regionSizes[flange.Name]=(attachment.Span,flange.Length);
+        }
 
         foreach(var block in Blocks(source,"Datum",structs))
         {
@@ -102,10 +138,12 @@ internal static class SheetMetalSemanticLayoutParser
         {
             var owner=Regex.Match(block.Name,@"^(?<region>[A-Za-z_][A-Za-z0-9_]*)\.(?<corner>RootStart|RootEnd|OuterStart|OuterEnd)$",Rx);
             if(!owner.Success||!regionSizes.ContainsKey(owner.Groups["region"].Value))return Fail("sheetmetal-corner-owner",$"CornerProfile '{Path(block)}' requires <planar-region>.RootStart, .RootEnd, .OuterStart, or .OuterEnd.");
-            var operations=Regex.Matches(block.Body,@"\b(?<kind>Chamfer|Cutback|Taper|NotchCorner)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{",Rx).Cast<Match>().ToArray();
-            if(operations.Length!=1)return Fail("sheetmetal-corner-operation",$"CornerProfile '{Path(block)}' requires exactly one Chamfer, Cutback, Taper, or NotchCorner operation.");
+            var operations=Regex.Matches(block.Body,@"\b(?<kind>Chamfer|Cutback|Taper|NotchCorner|Round)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{",Rx).Cast<Match>().ToArray();
+            if(operations.Length!=1)return Fail("sheetmetal-corner-operation",$"CornerProfile '{Path(block)}' requires exactly one Chamfer, Cutback, Taper, NotchCorner, or Round operation.");
             var operation=operations[0];var open=block.Body.IndexOf('{',operation.Index);var close=Close(block.Body,open);var operationBody=close>open?block.Body[(open+1)..close]:string.Empty;
+            var isRound=operation.Groups["kind"].Value.Equals("Round",StringComparison.OrdinalIgnoreCase);var hasRadius=Scalar(operationBody,"Radius",out var radius);
             var hasEqual=Scalar(operationBody,"Setback",out var equal);var hasA=Scalar(operationBody,"SetbackA",out var setbackA);var hasB=Scalar(operationBody,"SetbackB",out var setbackB);
+            if(isRound){hasEqual=hasRadius;equal=radius;}
             if(!hasA){setbackA=equal;}if(!hasB){setbackB=equal;}
             var cornerPath=Path(block);var operationPath=$"{cornerPath}.{operation.Groups["name"].Value}";
             if((!hasEqual&&(!hasA||!hasB))||setbackA<=0||setbackB<=0)return Fail("sheetmetal-corner-setback",$"Corner operation '{operationPath}' requires positive Setback or SetbackA and SetbackB.");
@@ -191,12 +229,12 @@ internal static class SheetMetalSemanticLayoutParser
             constraints.Add(new(path,kind,members,"Satisfied",detail));
         }
 
-        return new(true,new(structNames,datums.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),tabs.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),patterns.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),constraints.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),steppedNotches.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),corners.OrderBy(x=>x.CornerPath,StringComparer.Ordinal).ToArray()),generated,diagnostics);
+        return new(true,new(structNames,datums.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),tabs.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),patterns.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),constraints.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),steppedNotches.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),corners.OrderBy(x=>x.CornerPath,StringComparer.Ordinal).ToArray(),attachmentPaths.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray()),generated,diagnostics);
 
         SheetMetalSemanticLayoutParseResult Fail(string code,string message)=>new(false,SheetMetalSemanticLayout.Empty,[],[new(code,SheetMetalDiagnosticSeverity.Error,message)]);
     }
 
-    private static IReadOnlyDictionary<string,(double Width,double Height)> RegionSizes(AuthoredSheetBaseSpec baseSpec,IReadOnlyList<AuthoredSheetFlangeSpec> flanges)
+    private static Dictionary<string,(double Width,double Height)> RegionSizes(AuthoredSheetBaseSpec baseSpec,IReadOnlyList<AuthoredSheetFlangeSpec> flanges)
     {
         var result=new Dictionary<string,(double Width,double Height)>(StringComparer.OrdinalIgnoreCase){{baseSpec.Name,(baseSpec.Width,baseSpec.Depth)}};
         var pending=flanges.ToList();var guard=0;

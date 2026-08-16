@@ -37,6 +37,11 @@ public sealed record SemanticCornerTaperIr(
     string Name, string StableId, double SetbackA, double SetbackB, string SourceSpan)
     : SemanticCornerOperationIr(Name, StableId, "Taper", SetbackA, SetbackB, SourceSpan);
 
+/// <summary>An analytic circular fillet between two orthogonal profile members.</summary>
+public sealed record SemanticCornerRoundIr(
+    string Name, string StableId, double Radius, string SourceSpan)
+    : SemanticCornerOperationIr(Name, StableId, "Round", Radius, Radius, SourceSpan);
+
 /// <summary>A rectangular material-removal step in the bounded corner u/v frame.</summary>
 public sealed record SemanticCornerNotchIr(
     string Name, string StableId, double SetbackA, double SetbackB, string SourceSpan)
@@ -99,6 +104,8 @@ public static class SemanticCornerProfileResolver
             SemanticCornerNotchIr =>
                 [new LineArcLineSegment2D(ToTuple(a), ToTuple(new(a.X + v.X * operation.SetbackB, a.Y + v.Y * operation.SetbackB))),
                  new LineArcLineSegment2D(ToTuple(new(a.X + v.X * operation.SetbackB, a.Y + v.Y * operation.SetbackB)), ToTuple(b))],
+            SemanticCornerRoundIr round when Math.Abs(u.X*v.X+u.Y*v.Y)<=Tolerance =>
+                Round(a,b,u,v,round.Radius),
             _ => []
         };
         if (curves.Count == 0) return new(null, [$"semantic-corner-operation-unsupported:{operation.StableId}:{operation.Kind}"]);
@@ -115,4 +122,13 @@ public static class SemanticCornerProfileResolver
     private static double Length(SemanticProfilePoint value) => Math.Sqrt(value.X * value.X + value.Y * value.Y);
     private static SemanticProfilePoint Add(SemanticProfilePoint origin, SemanticProfilePoint direction, double distance) => new(origin.X + direction.X * distance, origin.Y + direction.Y * distance);
     private static (double X, double Y) ToTuple(SemanticProfilePoint point) => (point.X, point.Y);
+    private static IReadOnlyList<LineArcProfileCurve2D> Round(SemanticProfilePoint a,SemanticProfilePoint b,SemanticProfilePoint u,SemanticProfilePoint v,double radius)
+    {
+        var center=new SemanticProfilePoint(a.X+v.X*radius,a.Y+v.Y*radius);
+        var start=Math.Atan2(a.Y-center.Y,a.X-center.X);var end=Math.Atan2(b.Y-center.Y,b.X-center.X);
+        var incoming=new SemanticProfilePoint(-u.X,-u.Y);var startTangentCcw=new SemanticProfilePoint(-Math.Sin(start),Math.Cos(start));
+        var ccw=incoming.X*startTangentCcw.X+incoming.Y*startTangentCcw.Y>0;
+        var sweep=end-start;if(ccw){while(sweep<=0)sweep+=2*Math.PI;}else{while(sweep>=0)sweep-=2*Math.PI;}
+        return [new LineArcCircularArc2D(ToTuple(center),radius,start,sweep)];
+    }
 }

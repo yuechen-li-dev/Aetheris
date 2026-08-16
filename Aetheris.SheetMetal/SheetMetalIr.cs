@@ -21,6 +21,7 @@ public enum SheetReliefKind { Rectangular, Round, Unknown }
 public enum SheetCornerPolicy { Open, Mitered, RectangularRelief, RoundRelief, Relief = RectangularRelief }
 public enum SheetReliefPolicy { None, Auto, Rectangular, Round }
 public enum SheetFlangeLengthMode { TangentToEdge }
+public enum SheetPathCapability { FlangeAttachable, BendAttachable, FeatureAttachable }
 
 public static class SheetMetalDiagnosticCodes
 {
@@ -105,7 +106,8 @@ public sealed record SheetRegionIr(
     IReadOnlyList<Point3D> Boundary3D,
     double ApproximateArea,
     SheetSourceBinding Source,
-    IReadOnlyList<SheetEvidence> Evidence);
+    IReadOnlyList<SheetEvidence> Evidence,
+    PlanarContour2? ExactContour = null);
 
 public sealed record SheetNeutralAxisPolicy(string Kind, double KFactor)
 {
@@ -164,6 +166,26 @@ public sealed record SheetMetalCorrespondence(
     string Kind,
     string FormedId,
     string FlatId);
+
+/// <summary>
+/// An oriented, bounded path owned by a planar sheet region.  Unlike a region
+/// boundary this is feature intent: it may be shorter than, or inset from, the
+/// physical carrier edge from which it was authored.
+/// </summary>
+public sealed record SheetAttachmentPathIr(
+    string StableId,
+    string OwningRegionId,
+    string CarrierPath,
+    Point3D Start,
+    Point3D End,
+    Vector3D Tangent,
+    Vector3D InPlaneNormal,
+    Vector3D RegionNormal,
+    double Inset,
+    double SpanOffset,
+    IReadOnlyList<SheetPathCapability> Capabilities,
+    SheetSourceBinding Source,
+    IReadOnlyList<SheetEvidence> Evidence);
 
 public sealed record SheetMetalFlattenPolicy(double KFactor)
 {
@@ -224,7 +246,8 @@ public sealed record SheetMetalPartIr(
     IReadOnlyList<SheetMetalCornerIr>? Corners = null,
     IReadOnlyList<SheetMetalReliefIr>? Reliefs = null,
     IReadOnlyList<SheetMetalCorrespondence>? Correspondence = null,
-    SheetFlangeLengthMode FlangeLengthMode = SheetFlangeLengthMode.TangentToEdge);
+    SheetFlangeLengthMode FlangeLengthMode = SheetFlangeLengthMode.TangentToEdge,
+    IReadOnlyList<SheetAttachmentPathIr>? AttachmentPaths = null);
 
 public readonly record struct SheetPoint2(double X, double Y);
 

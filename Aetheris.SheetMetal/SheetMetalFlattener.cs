@@ -67,7 +67,8 @@ public static class SheetMetalFlattener
         var flatRegions=mappings.Values.OrderBy(m=>m.Region.StableId,StringComparer.Ordinal).Select(m=>
         {
             var boundary=NormalizeSourcePolygon(m.Region.Boundary3D.Select(m.Map));
-            return new FlatRegion2D($"flat-{m.Region.StableId}",m.Region.StableId,SheetRegionKind.Planar,boundary,"exact ordered source-edge vertices through composed analytic plane-to-flat transform",Contour($"flat-{m.Region.StableId}",boundary,"analytic plane-to-flat transform"));
+            var exact=m.Region.ExactContour is null?Contour($"flat-{m.Region.StableId}",boundary,"analytic plane-to-flat transform"):MapContour(m.Region.ExactContour,m);
+            return new FlatRegion2D($"flat-{m.Region.StableId}",m.Region.StableId,SheetRegionKind.Planar,boundary,"exact ordered source-edge vertices through composed analytic plane-to-flat transform",exact);
         }).ToList();
         flatRegions.AddRange(bendRegions.OrderBy(r=>r.StableId,StringComparer.Ordinal));
         var cuts=new List<FlatCutLoop>();
@@ -126,6 +127,36 @@ public static class SheetMetalFlattener
         var flatV=Add(Scale(flatAxis,p.VAxis.Dot(sourceAxis)),Scale(flatPerp,p.VAxis.Dot(sourcePerp)));
         var d=anchor-p.Origin;var contribution=Add(Scale(flatU,d.Dot(p.UAxis)),Scale(flatV,d.Dot(p.VAxis)));
         return new(region,Sub(target,contribution),flatU,flatV);
+    }
+    private static PlanarContour2 MapContour(PlanarContour2 contour,Mapping mapping)
+    {
+        var plane=mapping.Region.Plane!;
+        SheetPoint2 Map((double X,double Y) p)=>mapping.Map(plane.Origin+plane.UAxis*p.X+plane.VAxis*p.Y);
+        var orientation=mapping.FlatU.X*mapping.FlatV.Y-mapping.FlatU.Y*mapping.FlatV.X;
+        PlanarContourLoop2 Loop(PlanarContourLoop2 loop)
+        {
+            var mapped=loop.Segments.Select(segment=>
+            {
+                LineArcProfileCurve2D geometry=segment.Geometry switch
+                {
+                    LineArcLineSegment2D line=>new LineArcLineSegment2D(ToTuple(Map(line.Start)),ToTuple(Map(line.End))),
+                    LineArcCircularArc2D arc=>MapArc(arc),
+                    _=>throw new InvalidOperationException($"Unsupported exact Sheet Metal curve '{segment.Geometry.GetType().Name}'.")
+                };
+                return new PlanarContourSegment2($"flat-{segment.StableId}",geometry,segment.Provenance with { StableId=$"flat-{segment.Provenance.StableId}",Derivation=segment.Provenance.Derivation+"; exact plane-to-flat transform",SourceFrame="XY" });
+            }).ToArray();
+            if(orientation<0)mapped=mapped.Reverse().Select(x=>x with { Geometry=Reverse(x.Geometry) }).ToArray();
+            return new($"flat-{loop.StableId}",loop.IsOuter,mapped);
+        }
+        LineArcCircularArc2D MapArc(LineArcCircularArc2D arc){var center=Map(arc.Center);var start=Map((arc.Center.X+arc.Radius*Math.Cos(arc.StartAngleRadians),arc.Center.Y+arc.Radius*Math.Sin(arc.StartAngleRadians)));return new(ToTuple(center),arc.Radius,Math.Atan2(start.Y-center.Y,start.X-center.X),orientation>=0?arc.SweepAngleRadians:-arc.SweepAngleRadians);}
+        static (double X,double Y) ToTuple(SheetPoint2 p)=>(p.X,p.Y);
+        static LineArcProfileCurve2D Reverse(LineArcProfileCurve2D curve)=>curve switch
+        {
+            LineArcLineSegment2D line=>new LineArcLineSegment2D(line.End,line.Start),
+            LineArcCircularArc2D arc=>arc with { StartAngleRadians=arc.StartAngleRadians+arc.SweepAngleRadians,SweepAngleRadians=-arc.SweepAngleRadians },
+            _=>throw new InvalidOperationException()
+        };
+        return new($"flat-{contour.StableId}","XY",Loop(contour.OuterLoop),contour.InnerLoops.Select(Loop).ToArray(),contour.Provenance+"; exact plane-to-flat transform");
     }
 
     private static double FindBendAxisLength(SheetMetalPartIr part,SheetBendIr bend)=>part.Regions

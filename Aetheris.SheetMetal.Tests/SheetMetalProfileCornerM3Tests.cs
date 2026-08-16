@@ -66,7 +66,7 @@ public sealed class SheetMetalProfileCornerM3Tests
         var authored = SheetMetalFirmament.CompileFile(intent);
 
         Assert.True(authored.IsSuccess, string.Join('\n', authored.Diagnostics.Select(x => x.Message)));
-        Assert.Equal(10, authored.Spec!.SemanticLayout.Corners!.Count);
+        Assert.Equal(12, authored.Spec!.SemanticLayout.Corners!.Count);
         var comparison = SheetMetalIntentComparer.Compare(source, authored.Part!);
         Assert.All(comparison.Bends, x => Assert.Equal(SheetMetalComparisonStatus.Pass, x.Status));
         Assert.All(comparison.Features, x => Assert.Equal(SheetMetalComparisonStatus.Pass, x.Status));

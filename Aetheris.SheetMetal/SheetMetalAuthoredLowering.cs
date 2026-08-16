@@ -70,6 +70,15 @@ internal static class AuthoredSheetMetalCompiler
         if (baseSpec is null || baseSpec.Width <= 0 || baseSpec.Depth <= 0)
             return Fail("A positive rectangular base is required (`Base: Rectangle(w, d)` or named `Base <Name> { Profile: Rectangle { Width; Height; } }`).");
 
+        // Attachment paths are resolved fully by the semantic-layout pass after
+        // all region dimensions are known.  This small pre-scan exists only so
+        // Flange.From capability checking can admit their public member names.
+        var declaredAttachmentPaths=Blocks(source,"AttachmentPath")
+            .Select(b=>(Block:b,On:Regex.Match(b.Body,@"\bOn\s*:\s*(?<region>[A-Za-z_][A-Za-z0-9_]*)\.(?<edge>[A-Za-z_][A-Za-z0-9_]*)\s*;",Rx)))
+            .Where(x=>x.On.Success)
+            .Select(x=>$"{x.On.Groups["region"].Value}.{x.Block.Name}")
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         var flanges = new List<AuthoredSheetFlangeSpec>();
         foreach (var block in Blocks(source, "Flange"))
         {
@@ -82,9 +91,11 @@ internal static class AuthoredSheetMetalCompiler
             if(parentName.Equals(baseSpec.Name,StringComparison.OrdinalIgnoreCase)&&authoredMember.Equals("Center",StringComparison.OrdinalIgnoreCase))
                 return Fail($"`{parentName}.Center` has capability PointCapable; `Flange.From` requires FlangeAttachable SheetEdge. Available public edge members: Front, Right, Rear, Left.","sheetmetal-incompatible-edge-capability");
             var available=parentName.Equals(baseSpec.Name,StringComparison.OrdinalIgnoreCase)?SheetMetalConceptPaths.AvailableMembers("SheetRegion.Rectangle"):SheetMetalConceptPaths.AvailableMembers("SheetFlange");
-            var allowed=parentName.Equals(baseSpec.Name,StringComparison.OrdinalIgnoreCase)
+            var isAttachmentPath=declaredAttachmentPaths.Contains($"{parentName}.{authoredMember}");
+            var allowed=isAttachmentPath||parentName.Equals(baseSpec.Name,StringComparison.OrdinalIgnoreCase)
                 ? new[]{"Front","Right","Rear","Left"}.Contains(authoredMember,StringComparer.OrdinalIgnoreCase)
                 : new[]{"Outer","Top"}.Contains(authoredMember,StringComparer.OrdinalIgnoreCase);
+            if(isAttachmentPath)allowed=true;
             if(!allowed)return Fail($"`{parentName}.{authoredMember}` is not a FlangeAttachable public member. Available public members: {string.Join(", ",available)}.","sheetmetal-concept-member-not-exposed");
             var direction = Token(block.Body, "Direction")?.Equals("Down", StringComparison.OrdinalIgnoreCase) == true ? SheetBendDirection.Down : SheetBendDirection.Up;
             var corner = Token(block.Body, "Corner")?.ToLowerInvariant() switch
@@ -103,6 +114,7 @@ internal static class AuthoredSheetMetalCompiler
             if(length<=radius+thickness)return Fail($"Flange '{block.Name}' length {length:G6} mm is not greater than inside radius + thickness ({radius+thickness:G6} mm). Increase `{block.Name}` Height/Length above {radius+thickness:G6} mm.",legacyBase.Success?"sheetmetal-firmament-invalid":SheetMetalDiagnosticCodes.FlangeBelowMinimum);
             if(hasSpan&&spanLength<=0)return Fail($"Flange '{block.Name}' Span must be positive when supplied.","sheetmetal-flange-span-invalid");
             if(hasSpanOffset&&!hasSpan)return Fail($"Flange '{block.Name}' SpanOffset requires Span.","sheetmetal-flange-span-invalid");
+            if(isAttachmentPath&&(hasSpan||hasSpanOffset))return Fail($"Flange '{block.Name}' consumes bounded path '{parentName}.{authoredMember}'; put Span and SpanOffset on the AttachmentPath, not the flange.","sheetmetal-attachment-path-span-conflict");
             flanges.Add(new(block.Name, parentName, NormalizeEdge(authoredMember), length,
                 degrees * Math.PI / 180d, radius, direction, corner, relief,
                 reliefWidth > 0 ? reliefWidth : null, reliefDepth > 0 ? reliefDepth : null,
@@ -218,7 +230,8 @@ internal static class AuthoredSheetMetalLowering
         public Point3D OuterB => B + Outward * Length;
     }
     private sealed record Patch(string Id, SheetRegionKind Kind, IReadOnlyList<Point3D> Positive, IReadOnlyList<Point3D> Negative,
-        SurfaceGeometry PositiveSurface, SurfaceGeometry NegativeSurface, Point3D? CylinderCenter = null, Vector3D? CylinderAxis = null);
+        SurfaceGeometry PositiveSurface, SurfaceGeometry NegativeSurface, Point3D? CylinderCenter = null, Vector3D? CylinderAxis = null,
+        SheetPlaneReference? Plane = null,PlanarContour2? ExactContour = null);
 
     public static AuthoredSheetLoweringResult Lower(SheetMetalConstructionSpec spec, string sourcePath)
     {
@@ -226,6 +239,7 @@ internal static class AuthoredSheetMetalLowering
         var source = new SheetSourceBinding("Firmament declaration", "sole construction authority", [], [], sourcePath);
         var evidence = new[] { new SheetEvidence(SheetEvidenceKind.Authored, "source-independent-construction", "All dimensions, adjacency, cuts, corners, and bend policy come from this Firmament source.") };
         var regions = new List<SheetRegionIr>(); var bends = new List<SheetBendIr>(); var features = new List<SheetFeatureIr>();
+        var attachmentPaths = new List<SheetAttachmentPathIr>();
         var corners = new List<SheetMetalCornerIr>(); var reliefs = new List<SheetMetalReliefIr>(); var correspondence = new List<SheetMetalCorrespondence>();
         var patches = new List<Patch>(); var frames = new Dictionary<string, RegionFrame>(StringComparer.OrdinalIgnoreCase);
         var stableRegions = new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase) { [spec.Base.Name] = spec.LegacySyntax ? "region-base" : spec.Base.Name };
@@ -266,7 +280,7 @@ internal static class AuthoredSheetMetalLowering
         var basePlane = new SheetPlaneReference(origin+new Vector3D(0,0,mid), z, x, y, true);
         var baseId=stableRegions[spec.Base.Name];
         regions.Add(new(baseId, SheetRegionKind.Planar, Developable("Authored planar base."), basePlane, null, baseBoundary, w * d, source, evidence));
-        patches.Add(PlanePatch(baseId, SheetRegionKind.Planar, baseBoundary, z, t));
+        patches.Add(PlanePatch(baseId, SheetRegionKind.Planar, baseBoundary, z, t,basePlane));
         correspondence.Add(new(spec.Base.Name, "Region", baseId, $"flat-{baseId}"));
 
         var pending = new List<AuthoredSheetFlangeSpec>(spec.Flanges); var guard = 0;
@@ -276,7 +290,33 @@ internal static class AuthoredSheetMetalLowering
             foreach (var flange in pending.ToArray())
             {
                 EdgeFrame? parentEdge = null; Vector3D parentNormal;
-                if (flange.ParentRegion.Equals(spec.Base.Name, StringComparison.OrdinalIgnoreCase) && baseEdges.TryGetValue(flange.EdgeName, out var be)) { parentEdge = be; parentNormal = z; }
+                var attachment=spec.SemanticLayout.AttachmentPaths?.SingleOrDefault(x=>x.Path.Equals($"{flange.ParentRegion}.{flange.EdgeName}",StringComparison.OrdinalIgnoreCase));
+                if(attachment is not null)
+                {
+                    EdgeFrame? carrier=null;
+                    if(attachment.Region.Equals(spec.Base.Name,StringComparison.OrdinalIgnoreCase)&&baseEdges.TryGetValue(attachment.CarrierEdge,out var baseCarrier)){carrier=baseCarrier;parentNormal=z;}
+                    else if(frames.TryGetValue(attachment.Region,out var ownerFrame)&&attachment.CarrierEdge.Equals("Outer",StringComparison.OrdinalIgnoreCase)){carrier=new(ownerFrame.OuterA,ownerFrame.OuterB,ownerFrame.Outward);parentNormal=ownerFrame.Normal;}
+                    else continue;
+                    var carrierAxis=Unit(carrier.B-carrier.A);var pathCenter=Mid(carrier.A,carrier.B)+carrierAxis*attachment.SpanOffset-carrier.Outward*attachment.Inset;
+                    parentEdge=new(pathCenter-carrierAxis*(attachment.Span/2d),pathCenter+carrierAxis*(attachment.Span/2d),carrier.Outward);
+                    var ownerId=stableRegions.GetValueOrDefault(attachment.Region,attachment.Region);
+                    if(attachment.ReleaseToCarrier&&attachment.Inset>1e-8)
+                    {
+                        var ownerIndex=regions.FindIndex(x=>x.StableId.Equals(ownerId,StringComparison.Ordinal));
+                        var patchIndex=patches.FindIndex(x=>x.Id.Equals(ownerId,StringComparison.Ordinal));
+                        if(ownerIndex<0||patchIndex<0)return Failure($"Attachment path '{attachment.Path}' could not locate owning planar region '{attachment.Region}'.","sheetmetal-attachment-path-owner");
+                        var released=ReleaseToCarrier(regions[ownerIndex].Boundary3D,carrier,parentEdge);
+                        if(released is null)return Failure($"Attachment path '{attachment.Path}' carrier is not an exact physical boundary segment of '{attachment.Region}'.","sheetmetal-attachment-path-release");
+                        var ownerRegion=regions[ownerIndex];var releasedContour=ownerRegion.ExactContour is null?null:ReleaseContourToCarrier(ownerRegion.ExactContour,ownerRegion.Plane!,carrier,parentEdge,attachment.Path);
+                        regions[ownerIndex]=ownerRegion with { Boundary3D=released,ApproximateArea=ownerRegion.ApproximateArea-attachment.Span*attachment.Inset,ExactContour=releasedContour };
+                        patches[patchIndex]=PlanePatch(ownerId,SheetRegionKind.Planar,released,parentNormal,t,ownerRegion.Plane!,releasedContour);
+                    }
+                    attachmentPaths.Add(new(attachment.Path,ownerId,$"{attachment.Region}.{attachment.CarrierEdge}",parentEdge.A,parentEdge.B,carrierAxis,carrier.Outward,parentNormal,attachment.Inset,attachment.SpanOffset,
+                        [SheetPathCapability.FlangeAttachable,SheetPathCapability.BendAttachable,SheetPathCapability.FeatureAttachable],source,
+                        [new(SheetEvidenceKind.Authored,"bounded-attachment-path","Path geometry derives from its physical carrier, inset, span, and span offset without changing carrier identity.",attachment.Span)]));
+                    correspondence.Add(new(attachment.Path,"AttachmentPath",attachment.Path,$"flat-{attachment.Path}"));
+                }
+                else if (flange.ParentRegion.Equals(spec.Base.Name, StringComparison.OrdinalIgnoreCase) && baseEdges.TryGetValue(flange.EdgeName, out var be)) { parentEdge = be; parentNormal = z; }
                 else if (frames.TryGetValue(flange.ParentRegion, out var pf) && flange.EdgeName.Equals("Outer", StringComparison.OrdinalIgnoreCase)) { parentEdge = new(pf.OuterA, pf.OuterB, pf.Outward); parentNormal = pf.Normal; }
                 else continue;
                 progressed = true; pending.Remove(flange);
@@ -311,6 +351,7 @@ internal static class AuthoredSheetMetalLowering
                         "CUTBACK"=>new SemanticCornerCutbackIr(program.OperationPath.Split('.').Last(),program.OperationPath,program.SetbackA,program.SetbackB,"SheetMetalSemanticLayout"),
                         "TAPER"=>new SemanticCornerTaperIr(program.OperationPath.Split('.').Last(),program.OperationPath,program.SetbackA,program.SetbackB,"SheetMetalSemanticLayout"),
                         "NOTCHCORNER"=>new SemanticCornerNotchIr(program.OperationPath.Split('.').Last(),program.OperationPath,program.SetbackA,program.SetbackB,"SheetMetalSemanticLayout"),
+                        "ROUND"=>new SemanticCornerRoundIr(program.OperationPath.Split('.').Last(),program.OperationPath,program.SetbackA,"SheetMetalSemanticLayout"),
                         _=>throw new InvalidOperationException()
                     };
                     var request=program.Corner.ToUpperInvariant() switch
@@ -346,23 +387,25 @@ internal static class AuthoredSheetMetalLowering
                 if(edgeFailures.Length>0)return Failure($"Profile edge composition for '{flange.Name}' failed: {string.Join("; ",edgeFailures)}","sheetmetal-edge-profile-invalid");
                 Point3D Map((double X,double Y) point)=>tangentA+axis*point.X+direction*point.Y;
                 var points=new List<Point3D>();
+                var localCurves=new List<(string Id,LineArcProfileCurve2D Geometry,string Provenance)>();
                 void Add(Point3D point){if(points.Count==0||(point-points[^1]).Length>1e-8)points.Add(point);}
                 void AddEdge(SemanticEdgeProfileResolution profile)
                 {
                     var descendants=profile.Profile!.OrderedMembers.SelectMany(member=>member.CurveDescendants).ToArray();
                     if(descendants.Length==0)return;
                     Add(Map(((LineArcLineSegment2D)descendants[0].Geometry).Start));
-                    foreach(var descendant in descendants)Add(Map(((LineArcLineSegment2D)descendant.Geometry).End));
+                    foreach(var descendant in descendants){localCurves.Add((descendant.StableId,descendant.Geometry,descendant.Provenance));Add(Map(End(descendant.Geometry)));}
                 }
                 void AddCorner(ResolvedSemanticCornerProfileIr? corner)
                 {
                     if(corner is null)return;
                     Add(Map((corner.EdgeAEndpoint.X,corner.EdgeAEndpoint.Y)));
-                    foreach(var descendant in corner.CurveDescendants)Add(Map(((LineArcLineSegment2D)descendant.Geometry).End));
+                    foreach(var descendant in corner.CurveDescendants){localCurves.Add((descendant.StableId,descendant.Geometry,descendant.Provenance));Add(Map(End(descendant.Geometry)));}
                 }
                 AddEdge(rootEdge);AddCorner(rootEndCorner);AddEdge(endBEdge);AddCorner(outerStartCorner);AddEdge(composed);AddCorner(outerEndCorner);AddEdge(endAEdge);AddCorner(rootStartCorner);
                 if(points.Count>1&&(points[^1]-points[0]).Length<=1e-8)points.RemoveAt(points.Count-1);
                 IReadOnlyList<Point3D> boundary=points;
+                var exactContour=new PlanarContour2($"{flange.Name}.Profile",$"{flange.Name}[u,v]",new($"{flange.Name}.OuterLoop",true,localCurves.Select(x=>new PlanarContourSegment2(x.Id,x.Geometry,new(x.Id,flange.Name,x.Id,x.Provenance,$"{flange.Name}[u,v]"))).ToArray()),[],$"semantic Sheet Metal profile:{flange.Name}");
                 foreach(var fragment in composed.Profile!.OrderedMembers.Where(member=>!member.IsGeneratedCarrier))
                     correspondence.Add(new(fragment.StableId,"EdgeFragment",fragment.StableId,$"flat-{fragment.StableId}"));
                 foreach(var corner in new[]{rootStartCorner,rootEndCorner,outerStartCorner,outerEndCorner}.OfType<ResolvedSemanticCornerProfileIr>())
@@ -370,8 +413,8 @@ internal static class AuthoredSheetMetalLowering
                 var plane = new SheetPlaneReference(tangentA, normal, axis, direction, true);
                 var flangeId=stableRegions[flange.Name];
                 var fragmentArea=tabs.Sum(x=>x.Width*x.Extension)-steppedNotches.Sum(x=>x.Width*x.Depth);
-                regions.Add(new(flangeId, SheetRegionKind.Planar, Developable("Authored planar flange."), plane, null, boundary, (edge.B-edge.A).Length * flange.Length+fragmentArea, source, evidence));
-                patches.Add(PlanePatch(flangeId, SheetRegionKind.Planar, boundary, normal, t));
+                regions.Add(new(flangeId, SheetRegionKind.Planar, Developable("Authored planar flange."), plane, null, boundary, (edge.B-edge.A).Length * flange.Length+fragmentArea, source, evidence,exactContour));
+                patches.Add(PlanePatch(flangeId, SheetRegionKind.Planar, boundary, normal, t,plane,exactContour));
 
                 var bendId = spec.LegacySyntax ? $"bend-{flange.EdgeName.ToLowerInvariant()}" : $"{flange.Name}Bend"; var bendRegionId = spec.LegacySyntax ? $"region-{flange.EdgeName.ToLowerInvariant()}-bend" : $"{flange.Name}BendRegion"; var centerA = edge.A + parentNormal * (sign * rMid); var center = Mid(centerA, edge.B + parentNormal * (sign * rMid));
                 var cylinder = new SheetCylinderReference(center, axis, rMid, flange.InsideRadius, angle, (edge.B-edge.A).Length, sign > 0);
@@ -412,7 +455,7 @@ internal static class AuthoredSheetMetalLowering
         var authorityText = spec.Authority == SheetMetalProvenanceCategory.Reconstructed ? "Reconstructed Firmament engineering intent" : "Authored Firmament engineering intent";
         var part = new SheetMetalPartIr($"sheetmetal-{spec.Name}", t, spec.Material, baseId, regions, bends, features, new(spec.KFactor), status,
             $"{authorityText}; source-independent exact formed lowering.", [new(SheetEvidenceKind.Authored, "construction-authority", authorityText)], diagnostics, bodyResult.Value,
-            corners, reliefs, correspondence, SheetFlangeLengthMode.TangentToEdge);
+            corners, reliefs, correspondence, SheetFlangeLengthMode.TangentToEdge,attachmentPaths);
         return new(true, part, diagnostics);
 
         void AddCorners()
@@ -444,11 +487,11 @@ internal static class AuthoredSheetMetalLowering
         AuthoredSheetLoweringResult Failure(string message, string code) => new(false, null, [new(code, SheetMetalDiagnosticSeverity.Error, message)]);
     }
 
-    private static Patch PlanePatch(string id, SheetRegionKind kind, IReadOnlyList<Point3D> mid, Vector3D normal, double thickness)
+    private static Patch PlanePatch(string id, SheetRegionKind kind, IReadOnlyList<Point3D> mid, Vector3D normal, double thickness,SheetPlaneReference plane,PlanarContour2? exactContour=null)
     {
         var n = Unit(normal); var positive = mid.Select(p => p + n * (thickness/2)).ToArray(); var negative = mid.Select(p => p - n * (thickness/2)).ToArray();
         var u = Unit(mid[1]-mid[0]);
-        return new(id, kind, positive, negative, SurfaceGeometry.FromPlane(new PlaneSurface(positive[0], Direction3D.Create(n), Direction3D.Create(u))), SurfaceGeometry.FromPlane(new PlaneSurface(negative[0], Direction3D.Create(-n), Direction3D.Create(u))));
+        return new(id, kind, positive, negative, SurfaceGeometry.FromPlane(new PlaneSurface(positive[0], Direction3D.Create(n), Direction3D.Create(u))), SurfaceGeometry.FromPlane(new PlaneSurface(negative[0], Direction3D.Create(-n), Direction3D.Create(u))),Plane:plane,ExactContour:exactContour);
     }
     private static Patch BendPatch(string id, EdgeFrame edge, Vector3D parentNormal, AuthoredSheetFlangeSpec flange, double thickness)
     {
@@ -466,6 +509,50 @@ internal static class AuthoredSheetMetalLowering
     }
     private static DevelopabilityEvidence Developable(string note)=>new(DevelopabilityKind.Developable,"authored analytic construction",0,0,note);
     private static IReadOnlyList<Point3D> RectangleLoop(Point3D c,Vector3D u,Vector3D v,double length,double width)=>[c-u*(length/2)-v*(width/2),c+u*(length/2)-v*(width/2),c+u*(length/2)+v*(width/2),c-u*(length/2)+v*(width/2)];
+    private static (double X,double Y) End(LineArcProfileCurve2D curve)=>curve switch
+    {
+        LineArcLineSegment2D line=>line.End,
+        LineArcCircularArc2D arc=>(arc.Center.X+arc.Radius*Math.Cos(arc.StartAngleRadians+arc.SweepAngleRadians),arc.Center.Y+arc.Radius*Math.Sin(arc.StartAngleRadians+arc.SweepAngleRadians)),
+        _=>throw new InvalidOperationException($"Unsupported profile curve '{curve.GetType().Name}'.")
+    };
+    private static IReadOnlyList<Point3D>? ReleaseToCarrier(IReadOnlyList<Point3D> boundary,EdgeFrame carrier,EdgeFrame path)
+    {
+        var axis=Unit(carrier.B-carrier.A);
+        var outerStart=carrier.A+axis*((path.A-carrier.A).Dot(axis));
+        var outerEnd=carrier.A+axis*((path.B-carrier.A).Dot(axis));
+        for(var i=0;i<boundary.Count;i++)
+        {
+            var j=(i+1)%boundary.Count;var a=boundary[i];var b=boundary[j];
+            var ta=(a-carrier.A).Dot(axis);var tb=(b-carrier.A).Dot(axis);var ts=(outerStart-carrier.A).Dot(axis);var te=(outerEnd-carrier.A).Dot(axis);
+            var onCarrier=((a-carrier.A)-axis*ta).Length<1e-7&&((b-carrier.A)-axis*tb).Length<1e-7;
+            if(!onCarrier||Math.Min(ta,tb)>ts+1e-8||Math.Max(ta,tb)<te-1e-8)continue;
+            if(tb>ta)return CleanLoop(boundary.Take(i+1).Concat(new[]{outerStart,path.A,path.B,outerEnd}).Concat(boundary.Skip(i+1)).ToList());
+            return CleanLoop(boundary.Take(i+1).Concat(new[]{outerEnd,path.B,path.A,outerStart}).Concat(boundary.Skip(i+1)).ToList());
+        }
+        return null;
+    }
+    private static PlanarContour2? ReleaseContourToCarrier(PlanarContour2 contour,SheetPlaneReference plane,EdgeFrame carrier,EdgeFrame path,string pathId)
+    {
+        (double X,double Y) Local(Point3D p){var d=p-plane.Origin;return(d.Dot(plane.UAxis),d.Dot(plane.VAxis));}
+        var ca=Local(carrier.A);var cb=Local(carrier.B);var pa=Local(path.A);var pb=Local(path.B);var dx=cb.X-ca.X;var dy=cb.Y-ca.Y;var length=Math.Sqrt(dx*dx+dy*dy);if(length<1e-8)return null;dx/=length;dy/=length;
+        var oa=(ca.X+dx*((pa.X-ca.X)*dx+(pa.Y-ca.Y)*dy),ca.Y+dy*((pa.X-ca.X)*dx+(pa.Y-ca.Y)*dy));
+        var ob=(ca.X+dx*((pb.X-ca.X)*dx+(pb.Y-ca.Y)*dy),ca.Y+dy*((pb.X-ca.X)*dx+(pb.Y-ca.Y)*dy));
+        var segments=new List<PlanarContourSegment2>();var replaced=false;
+        foreach(var segment in contour.OuterLoop.Segments)
+        {
+            if(!replaced&&segment.Geometry is LineArcLineSegment2D line&&Contains(line,oa,ob))
+            {
+                var forward=Projection(line.End)>Projection(line.Start);var chain=forward?new[]{line.Start,oa,pa,pb,ob,line.End}:new[]{line.Start,ob,pb,pa,oa,line.End};
+                for(var i=0;i<chain.Length-1;i++)if(Distance(chain[i],chain[i+1])>1e-8)segments.Add(new($"{pathId}.release{i:D2}",new LineArcLineSegment2D(chain[i],chain[i+1]),segment.Provenance with { StableId=$"{pathId}.release{i:D2}",ConceptStableId=pathId,SourceSpan="AttachmentPath Release: ToCarrier" }));
+                replaced=true;
+            }
+            else segments.Add(segment);
+        }
+        return replaced?contour with { OuterLoop=contour.OuterLoop with { Segments=segments } }:null;
+        double Projection((double X,double Y) p)=>(p.X-ca.X)*dx+(p.Y-ca.Y)*dy;
+        bool Contains(LineArcLineSegment2D line,(double X,double Y) a,(double X,double Y) b){var crossA=Math.Abs((a.X-line.Start.X)*(line.End.Y-line.Start.Y)-(a.Y-line.Start.Y)*(line.End.X-line.Start.X));var crossB=Math.Abs((b.X-line.Start.X)*(line.End.Y-line.Start.Y)-(b.Y-line.Start.Y)*(line.End.X-line.Start.X));var min=Math.Min(Projection(line.Start),Projection(line.End))-1e-7;var max=Math.Max(Projection(line.Start),Projection(line.End))+1e-7;return crossA<1e-6&&crossB<1e-6&&Projection(a)>=min&&Projection(b)<=max;}
+        static double Distance((double X,double Y) a,(double X,double Y)b)=>Math.Sqrt((a.X-b.X)*(a.X-b.X)+(a.Y-b.Y)*(a.Y-b.Y));
+    }
     private static string Previous(string edge)=>edge switch{"Front"=>"Left","Right"=>"Front","Rear"=>"Right",_=>"Rear"};
     private static string Next(string edge)=>edge switch{"Front"=>"Right","Right"=>"Rear","Rear"=>"Left",_=>"Front"};
     private static double CornerGap(AuthoredSheetFlangeSpec a,AuthoredSheetFlangeSpec b,double t)=>a.CornerPolicy==SheetCornerPolicy.Mitered&&b.CornerPolicy==SheetCornerPolicy.Mitered?Math.Max(a.InsideRadius,b.InsideRadius)+t/2:Math.Max(Math.Max(a.InsideRadius,b.InsideRadius)+t, a.ReliefWidth??0);
@@ -486,7 +573,7 @@ internal static class AuthoredSheetMetalLowering
         {
             var b=new TopologyBuilder();var g=new BrepGeometryStore();var bindings=new BrepBindingModel();var points=new Dictionary<VertexId,Point3D>();
             var vertices=new Dictionary<Key,VertexId>();var edges=new Dictionary<EdgeKey,EdgeId>();var edgeGeometry=new Dictionary<EdgeId,EdgeGeometry>();var useCount=new Dictionary<EdgeId,int>();var faces=new List<FaceId>();
-            var boundaryCandidates=new List<(EdgeId Positive,EdgeId Negative,Point3D PA,Point3D PB,Point3D NA,Point3D NB)>();
+            var boundaryCandidates=new List<(EdgeId Positive,EdgeId Negative,Point3D PA,Point3D PB,Point3D NA,Point3D NB,bool ProfileArc)>();
             var cutsByRegion=new Dictionary<string,List<CutBoundary>>(StringComparer.Ordinal);
             VertexId Vertex(Point3D p){var key=Key.Of(p);if(vertices.TryGetValue(key,out var id))return id;id=b.AddVertex();vertices[key]=id;points[id]=p;return id;}
             EdgeId Edge(Point3D a,Point3D q,EdgeGeometry? geometry=null){var key=EdgeKey.Of(a,q);if(edges.TryGetValue(key,out var id))return id;id=b.AddEdge(Vertex(a),Vertex(q));edges[key]=id;edgeGeometry[id]=geometry??Line(a,q);return id;}
@@ -502,14 +589,18 @@ internal static class AuthoredSheetMetalLowering
                 {
                     var j=(i+1)%count;var pg=CurveFor(patch,true,i,patch.Positive[i],patch.Positive[j]);var ng=CurveFor(patch,false,i,patch.Negative[i],patch.Negative[j]);
                     var pe=Edge(patch.Positive[i],patch.Positive[j],pg);var ne=Edge(patch.Negative[i],patch.Negative[j],ng);
-                    boundaryCandidates.Add((pe,ne,patch.Positive[i],patch.Positive[j],patch.Negative[i],patch.Negative[j]));
+                    boundaryCandidates.Add((pe,ne,patch.Positive[i],patch.Positive[j],patch.Negative[i],patch.Negative[j],patch.Kind==SheetRegionKind.Planar&&pg.Curve.Kind==CurveGeometryKind.Circle3));
                 }
             }
             foreach(var candidate in boundaryCandidates)
             {
                 if(useCount.GetValueOrDefault(candidate.Positive)!=1||useCount.GetValueOrDefault(candidate.Negative)!=1)continue;
                 var loop=new[]{DirectedEdge(candidate.PA,candidate.PB),DirectedEdge(candidate.PB,candidate.NB),DirectedEdge(candidate.NB,candidate.NA),DirectedEdge(candidate.NA,candidate.PA)};
-                var u=candidate.PB-candidate.PA;var v=candidate.NA-candidate.PA;var normal=Unit(u.Cross(v));Face([loop],SurfaceGeometry.FromPlane(new PlaneSurface(candidate.PA,Direction3D.Create(normal),Direction3D.Create(Unit(u)))));
+                if(candidate.ProfileArc&&edgeGeometry[candidate.Positive].Curve is { Kind:CurveGeometryKind.Circle3,Circle3:{ } arcCircle })
+                {
+                    var axis=Unit(candidate.PA-candidate.NA);Face([loop],SurfaceGeometry.FromCylinder(new CylinderSurface(arcCircle.Center,Direction3D.Create(axis),arcCircle.Radius,Direction3D.Create(candidate.PA-arcCircle.Center))));
+                }
+                else{var u=candidate.PB-candidate.PA;var v=candidate.NA-candidate.PA;var normal=Unit(u.Cross(v));Face([loop],SurfaceGeometry.FromPlane(new PlaneSurface(candidate.PA,Direction3D.Create(normal),Direction3D.Create(Unit(u)))));}
             }
             AddCutWalls();
             foreach(var (edge,geometry) in edgeGeometry.OrderBy(x=>x.Key.Value)){var cid=new CurveGeometryId(g.Curves.Count()+1);g.AddCurve(cid,geometry.Curve);bindings.AddEdgeBinding(new(edge,cid,geometry.Interval));}
@@ -531,6 +622,13 @@ internal static class AuthoredSheetMetalLowering
             }
             EdgeGeometry CurveFor(Patch patch,bool positive,int index,Point3D a,Point3D q)
             {
+                if(patch.Kind==SheetRegionKind.Planar&&patch.ExactContour is not null&&patch.Plane is not null&&index<patch.ExactContour.OuterLoop.Segments.Count&&patch.ExactContour.OuterLoop.Segments[index].Geometry is LineArcCircularArc2D planarArc)
+                {
+                    var plane=patch.Plane;var n=Unit(plane.Normal);var planarCenter=plane.Origin+plane.UAxis*planarArc.Center.X+plane.VAxis*planarArc.Center.Y+n*(positive?spec.Thickness/2:-spec.Thickness/2);
+                    var planarVa=Unit(a-planarCenter);var planarVq=Unit(q-planarCenter);var planarSigned=Math.Atan2(n.Dot(planarVa.Cross(planarVq)),planarVa.Dot(planarVq));if(planarSigned<0){n=-n;planarSigned=-planarSigned;}
+                    var planarCircle=new Circle3Curve(planarCenter,Direction3D.Create(n),planarArc.Radius,Direction3D.Create(a-planarCenter));
+                    return new(CurveGeometry.FromCircle(planarCircle),new(0,Math.Max(planarSigned,1e-12)));
+                }
                 if(patch.Kind!=SheetRegionKind.CylindricalBend||index is 0 or 2)return Line(a,q);
                 var center=patch.CylinderCenter!.Value;var axis=Unit(patch.CylinderAxis!.Value);var endpointCenter=ProjectToAxis(a,center,axis);var radius=(a-endpointCenter).Length;var va=a-endpointCenter;var vq=q-ProjectToAxis(q,center,axis);var signed=Math.Atan2(axis.Dot(Unit(va).Cross(Unit(vq))),Unit(va).Dot(Unit(vq)));if(signed<0){axis=-axis;signed=-signed;}var circle=new Circle3Curve(endpointCenter,Direction3D.Create(axis),radius,Direction3D.Create(va));return new(CurveGeometry.FromCircle(circle),new(0,Math.Max(signed,1e-12)));
             }

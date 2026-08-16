@@ -39,6 +39,31 @@ SheetMetal Tray {
 
 A rectangular authored base exposes `Front`, `Right`, `Rear`, `Left`, and `Center`. A flange exposes `Root`, `Outer`, `Left`, `Right`, `LeftCorner`, `RightCorner`, and `Bend`. `Outer` is `FlangeAttachable`; `Center` is `PointCapable`, so using `Main.Center` in `Flange.From` produces a capability diagnostic rather than a topology-ID failure.
 
+An `AttachmentPath` is a distinct, bounded feature path owned by a planar
+region. It derives its oriented line from a physical carrier, but may be inset
+and shorter without changing the carrier's `FreeEdge` identity. An inset path
+must explicitly say `Release: ToCarrier;`; lowering then places the two release
+cuts and removes the bounded carrier strip before the ordinary flange/bend
+lowering runs. Full-edge flange syntax remains unchanged.
+
+```firmament
+AttachmentPath ServiceFlangeAttachment {
+    On: Wall.Outer;
+    Inset: 2mm;
+    Span: 40mm;
+    SpanOffset: 5mm;
+    Release: ToCarrier;
+}
+Flange ServiceFlange {
+    From: Wall.ServiceFlangeAttachment;
+    Height: 12mm; Angle: 45deg; Radius: 2mm;
+}
+```
+
+`Round` is an analytic cross-edge profile operation. Its semantic descendant,
+region `PlanarContour2` arc, formed circular edges/cylindrical thickness wall,
+and flat arc retain the same ancestry rather than being replaced by a chord.
+
 Formed/flat correspondence uses the same semantic identity: `FrontWall.Bend` maps to `Flat.FrontWall.Bend`; `Main.Front` maps to `Flat.Main.Front`. Inspect the public surface with:
 
 ```text

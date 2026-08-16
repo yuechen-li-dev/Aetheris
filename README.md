@@ -1,11 +1,16 @@
-# Aetheris 2.0.0-preview.2 + Firmament V2
+# Aetheris 2.0.0-preview.3 + Firmament V2
 
-> The public Preview 2 language-manual source is maintained in the sibling
+> Aetheris is under feature freeze for the `2.0.0-preview.3` release candidate.
+> This milestone accepts correctness, packaging, diagnostics, documentation,
+> cross-platform, NativeAOT, determinism, and other release-hardening fixes to
+> existing behavior; new feature families are deferred until after Preview 3.
+>
+> The public language-manual source is maintained in the sibling
 > `yuechen-li-dev.github.io` repository at `src/aetheris` and published under
 > `/aetheris/`. Documentation here includes architecture, implementation
-> evidence, and historical milestone records; the authoritative frozen support
-> contract is `docs/preview2/feature-manifest.json` and the release notes in
-> `docs/release/2.0.0-preview.2-notes.md`.
+> evidence, and historical milestone records. The Preview 2 support contract
+> remains at `docs/preview2/feature-manifest.json`; Preview 3 release topology
+> and qualification evidence are recorded in `docs/release/PREVIEW3-HARDEN-A1.md`.
 
 Firmament is a deterministic DSL for generating CAD geometry (STEP AP242) via Aetheris.
 
@@ -53,20 +58,25 @@ parameters and are erased before geometry AIR. A Table is not a runtime
 dataframe, SQL surface, or spreadsheet import format. See
 [the M1 language note](docs/preview2/firmament-tables-with-m1.md).
 
-## Preview 2 release
+## Preview 3 release candidate
 
-Aetheris 2.0.0-preview.2 is available as a complete Windows x64 bundle and as
-the `Aetheris.CLI` .NET global tool. Download the bundle (including Cadmata)
-from the [GitHub Release](https://github.com/yuechen-li-dev/Aetheris/releases/tag/v2.0.0-preview.2),
-or install the CLI with:
+Aetheris `2.0.0-preview.3` is qualified for Windows x64 as a release bundle,
+the `Aetheris.CLI` .NET global tool, public .NET integration packages, and a
+standalone Forge Host Protocol v1 executable. After publication, install the
+CLI with:
 
 ```bash
 dotnet tool install --global Aetheris.CLI --prerelease
 ```
 
 The NuGet tool does not include Cadmata; use the Windows bundle for `aetheris view`.
-The public manual, installation guidance, support boundary, and Preview 2
-limitations are at [yuechen-li-dev.github.io/aetheris](https://yuechen-li-dev.github.io/aetheris/).
+The public manual and installation guidance are at
+[yuechen-li-dev.github.io/aetheris](https://yuechen-li-dev.github.io/aetheris/).
+
+Maintainer release builds require the .NET 10 SDK, the Windows NativeAOT C++
+toolchain, and TSPack. Cadmata and the Firmament VS Code extension are restored
+and built from their committed `manifest.tsx` and `ts-lock.toml` files. Do not
+substitute npm install/ci or generate a `package-lock.json` for either workspace.
 
 ## What works today
 
@@ -174,3 +184,19 @@ Use `Aetheris.slnx` as the only solution entrypoint. For legacy Firmament V1/Fri
 ## Notes
 
 - The repository still contains broader Aetheris server/client scaffolding; the Firmament + CLI paths above are the primary deterministic kernel entry points.
+
+## License and acknowledgments
+
+Aetheris source code is licensed under the GNU Affero General Public License
+v3.0 (`AGPL-3.0`), except for third-party assets distributed with the
+repository, which retain their respective licenses and attribution.
+Alternative licensing is available on request. See [LICENSE](LICENSE) and
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+Special thanks to the National Institute of Standards and Technology (NIST)
+for making available the STEP AP242 test models used during development and
+validation. The project's STEP, PMI, Sheet Metal, and reconstruction work
+would not have been possible in its present form without those models. The
+files retain their original NIST project descriptions and filenames; this
+acknowledgment does not imply NIST endorsement, authorship of Aetheris, or
+application of the Aetheris license to the models.

@@ -8,8 +8,14 @@ using Aetheris.Geometry;
 using Aetheris.Reconstruction;
 
 const string selectedMember = "bunny/reconstruction/bun_zipper.ply";
+if (args.Length == 0)
+{
+    Console.Error.WriteLine("Usage: Aetheris.BunnyM0 <path-to-bunny.tar.gz> [output-directory]");
+    Environment.ExitCode = 2;
+    return;
+}
 var root = FindRoot();
-var archive = Path.GetFullPath(args.Length > 0 ? args[0] : @"C:\Users\yuech\Downloads\bunny.tar.gz");
+var archive = Path.GetFullPath(args[0]);
 var output = Path.GetFullPath(args.Length > 1 ? args[1] : Path.Combine(root, "docs", "geometry", "artifacts", "bunny-m0"));
 if (!File.Exists(archive)) throw new FileNotFoundException("Local Stanford Bunny archive was not found.", archive);
 Directory.CreateDirectory(output); Directory.CreateDirectory(Path.Combine(output, "source"));

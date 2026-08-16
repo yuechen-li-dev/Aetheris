@@ -16,7 +16,7 @@
     <ProjectUrl>https://yuechen-li-dev.github.io/aetheris/</ProjectUrl>
     <PackageLicenseExpression>AGPL-3.0-only</PackageLicenseExpression>
     <PackageReadmeFile>Aetheris.CLI.README.md</PackageReadmeFile>
-    <PackageReleaseNotes>Preview 2: Firmament V2, Forge Host, assemblies, engineering modules, Continuum/FEA, drawings, and release hardening.</PackageReleaseNotes>
+    <PackageReleaseNotes>Preview 3: release-topology hardening for Firmament V2, Forge Host, engineering modules, analysis, and drawings.</PackageReleaseNotes>
     <AllowedOutputExtensionsInPackageBuildOutputFolder>.dll;.exe;.json</AllowedOutputExtensionsInPackageBuildOutputFolder>
   </PropertyGroup>
 

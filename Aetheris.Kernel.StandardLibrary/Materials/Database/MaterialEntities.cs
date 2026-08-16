@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Aetheris.Kernel.StandardLibrary.Materials.Database;
 
-public sealed class MaterialEntity
+public class MaterialEntity
 {
     public int Id { get; set; }
     public required string CatalogId { get; set; }
@@ -19,7 +19,7 @@ public sealed class MaterialEntity
     public ICollection<MaterialPropertyEntity> Properties { get; } = [];
 }
 
-public sealed class MaterialPropertyEntity
+public class MaterialPropertyEntity
 {
     public int Id { get; set; }
     public int MaterialId { get; set; }
@@ -35,7 +35,7 @@ public sealed class MaterialPropertyEntity
     public string? Notes { get; set; }
 }
 
-public sealed class MaterialCatalogMetadataEntity
+public class MaterialCatalogMetadataEntity
 {
     public int Id { get; set; }
     public int SchemaVersion { get; set; }

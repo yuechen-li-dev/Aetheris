@@ -82,9 +82,9 @@ export default define(
 	<Workspace name="aetheris-cadmata" runtime="nodejs">
 		<Package
 			name="aetheris.client"
-			version="0.0.0-preview.2"
+			version="2.0.0-preview.3"
 			kind="app"
-			license="AGPL-3.0-or-later"
+			license="AGPL-3.0-only"
 			dependencies={{
 				values: [
 					deps.react,

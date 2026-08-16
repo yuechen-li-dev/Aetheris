@@ -39,9 +39,9 @@ export default define(
   <Workspace name="aetheris-firmament" runtime="nodejs">
     <Package
       name="aetheris-firmament"
-      version="0.2.0-preview.2"
+      version="0.3.0-preview.3"
       kind="app"
-      license="MIT"
+      license="AGPL-3.0-only"
       dependencies={{
         values: [
           deps.vscodeTypes,
@@ -93,7 +93,7 @@ export default define(
               "package",
               "--no-dependencies",
               "--out",
-              "../../artifacts/release/preview2/aetheris-firmament-0.2.0-preview.2.vsix",
+              "dist/aetheris-firmament-0.3.0-preview.3.vsix",
             ],
           },
         ]}

@@ -3,6 +3,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <InterceptorsNamespaces>$(InterceptorsNamespaces);Microsoft.EntityFrameworkCore.GeneratedInterceptors</InterceptorsNamespaces>
   </PropertyGroup>
 
   <ItemGroup>
@@ -12,6 +13,16 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Materials\Database\aetheris-materials-x1.sqlite" Condition="Exists('Materials\Database\aetheris-materials-x1.sqlite')" CopyToOutputDirectory="PreserveNewest" Link="Materials\aetheris-materials-x1.sqlite" />
+    <Content Include="Materials\Database\aetheris-materials-x1.sqlite"
+             Condition="Exists('Materials\Database\aetheris-materials-x1.sqlite')"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             Pack="true"
+             PackagePath="contentFiles/any/any/Materials/aetheris-materials-x1.sqlite"
+             PackageCopyToOutput="true"
+             Link="Materials\aetheris-materials-x1.sqlite" />
+    <None Include="build\Aetheris.Kernel.StandardLibrary.targets"
+          Pack="true"
+          PackagePath="buildTransitive\Aetheris.Kernel.StandardLibrary.targets" />
   </ItemGroup>
 </Project>

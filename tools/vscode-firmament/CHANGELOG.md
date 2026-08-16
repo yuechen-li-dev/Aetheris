@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0-preview.3
+
+- Align package and CLI-facing metadata with Aetheris 2.0.0-preview.3.
+- Preserve the feature-frozen Firmament language and existing trusted-workspace
+  execution boundary.
+
 ## 0.2.0-preview.2
 
 - Align Firmament V2 syntax, diagnostics, commands, and reference links with

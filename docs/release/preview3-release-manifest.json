@@ -1,0 +1,58 @@
+{
+  "aetherisVersion": "2.0.0-preview.3",
+  "forgeHostProtocolVersion": 1,
+  "qualifiedRids": ["win-x64"],
+  "packages": [
+    "Aetheris.Kernel.Core",
+    "Aetheris.Modules",
+    "Aetheris.Geometry",
+    "Aetheris.Semantics",
+    "Aetheris.Forge",
+    "Aetheris.Collaboration",
+    "Aetheris.Kernel.StandardLibrary",
+    "Aetheris.Continuum",
+    "Aetheris.Surfacing",
+    "Aetheris.Piping",
+    "Aetheris.SheetMetal",
+    "Aetheris.Modules.BuiltIn",
+    "Aetheris.Kernel.Firmament",
+    "Aetheris.FEA",
+    "Aetheris.Forge.Host",
+    "Aetheris.Forge.KernelSDK",
+    "Aetheris.CLI"
+  ],
+  "executables": [
+    { "name": "Aetheris.CLI", "rid": "win-x64", "nativeAot": false, "selfContained": true },
+    { "name": "Aetheris.Forge.Host", "rid": "win-x64", "nativeAot": true, "selfContained": true },
+    { "name": "Cadmata", "rid": "win-x64", "nativeAot": false, "selfContained": true }
+  ],
+  "clientArtifacts": [
+    { "name": "Cadmata production bundle", "buildSystem": "TSPack", "lockFile": "aetheris.client/ts-lock.toml" },
+    { "name": "aetheris-firmament VSIX", "version": "0.3.0-preview.3", "buildSystem": "TSPack", "lockFile": "tools/vscode-firmament/ts-lock.toml" }
+  ],
+  "runtimeAssets": [
+    {
+      "name": "Standard Library material catalog",
+      "path": "Aetheris.Kernel.StandardLibrary/Materials/Database/aetheris-materials-x1.sqlite",
+      "sha256": "10180ac314b35c9b0f6b7b5fd415779cc05d1ab96ed3e71ab4da05d94e6d048e"
+    }
+  ],
+  "testCounts": {
+    "dotnet": 2971,
+    "cadmata": 81,
+    "vscodeExtension": 13
+  },
+  "representativeHashes": {
+    "stepAp242": "114cd7c0c6a8a364b2943cc955a12d8a96b576a187dfc1957ea9f769296872be",
+    "flatStep": "88c437373fe4fdf91e8f0a5b5e0e5c135b290f0dfe18449ec3ee7c0970c1d075",
+    "svg": "1657e3bbc3ef418617b45c5d9ab76a96d70b0ba6356c0e88a7ba07edc18b6519",
+    "windowsBundle": "8e90475dd4189eb4f00c83c45ef0b9687d757e04a613ddf2ee1518c95506203d",
+    "firmamentVsix": "3f188020cdfc4908d49c0eb810baed4ec4b78e1eb8bd66d39553f4c4558587a4",
+    "cliNuget": "6f4b3a2724c382e99f84fd6f155538f2c44ff99a614f2c4deb5ca104bd09c0df"
+  },
+  "knownPackagingLimitations": [
+    "Only win-x64 is qualified for Preview 3.",
+    "The CLI and Cadmata are self-contained JIT applications; Forge Host is the qualified NativeAOT executable.",
+    "Release creation requires TSPack and the .NET NativeAOT C++ toolchain."
+  ]
+}

@@ -64,7 +64,5 @@
   <Project Path="Aetheris.Kernel.Core.Tests/Aetheris.Kernel.Core.Tests.csproj" />
   <Project Path="tests/Aetheris.TestForgePack/Aetheris.TestForgePack.csproj" />
   <Project Path="tests/Aetheris.TestForgePack.Duplicate/Aetheris.TestForgePack.Duplicate.csproj" />
-  <Project Path="demos/Aetheris.PmiInjectionDemo/Aetheris.PmiInjectionDemo.csproj">
-    <Build Solution="Debug|*" Project="false" />
-  </Project>
+  <Project Path="demos/Aetheris.PmiInjectionDemo/Aetheris.PmiInjectionDemo.csproj" />
 </Solution>

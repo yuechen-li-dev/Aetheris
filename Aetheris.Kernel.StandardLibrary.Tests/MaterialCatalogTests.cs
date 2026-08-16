@@ -26,14 +26,21 @@ public sealed class MaterialCatalogTests
     public void ReproducibleGeneration_CreatesLoadableEfCoreSqliteCatalog()
     {
         var path = Path.Combine(Path.GetTempPath(), $"aetheris-materials-{Guid.NewGuid():N}.sqlite");
+        var secondPath = Path.Combine(Path.GetTempPath(), $"aetheris-materials-{Guid.NewGuid():N}.sqlite");
         try
         {
             MaterialCatalogDatabase.Recreate(path);
+            MaterialCatalogDatabase.Recreate(secondPath);
+            Assert.Equal(File.ReadAllBytes(path), File.ReadAllBytes(secondPath));
             using var catalog = new MaterialCatalog(path);
             Assert.Equal(MaterialCatalog.ExpectedSeedMaterialCount, catalog.Materials.Count());
             Assert.NotNull(catalog.GetById("standard", "aluminum/5052-h32"));
         }
-        finally { if (File.Exists(path)) File.Delete(path); }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+            if (File.Exists(secondPath)) File.Delete(secondPath);
+        }
     }
 
     [Fact]

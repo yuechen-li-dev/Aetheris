@@ -59,7 +59,7 @@ No unit or constraint semantics live in clients. For example, `"12 kg"` transpor
     "protocolVersion": 1,
     "template": "Standard.SheetMetal.ElectronicsEnclosure",
     "templateVersion": "1+b1ab02987f0a",
-    "aetherisVersion": "2.0.0-preview.2+...",
+    "aetherisVersion": "2.0.0-preview.3+...",
     "specialization": "template:94546352d5d67afa"
   },
   "diagnostics": [],

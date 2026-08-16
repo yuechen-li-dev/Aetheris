@@ -15,5 +15,8 @@ KernelSDK extensions are Safe by default at the Aetheris capability boundary.
 Extensions declaring `UNSAFE` require explicit host consent. Because extensions
 execute in-process, this API policy is not a cryptographic CLR sandbox.
 
-Preview 2 targets .NET 10. Documentation and examples are available at
+Preview 3 targets .NET 10. Aetheris is licensed under the GNU Affero General
+Public License v3.0 (`AGPL-3.0`); third-party assets retain their respective
+licenses and provenance. Alternative licensing is available on request.
+Documentation and examples are available at
 <https://yuechen-li-dev.github.io/aetheris/>.

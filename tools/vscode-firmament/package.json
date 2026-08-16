@@ -2,9 +2,9 @@
   "name": "aetheris-firmament",
   "displayName": "Aetheris Firmament",
   "description": "Firmament language support and CLI-backed workflows for Aetheris.",
-  "version": "0.2.0-preview.2",
+  "version": "0.3.0-preview.3",
   "publisher": "aetheris",
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "preview": true,
   "type": "module",
   "repository": {

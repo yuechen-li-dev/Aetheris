@@ -9,11 +9,14 @@ aetheris --help
 ```
 
 The tool supports validation, STEP build, inspection, analysis, and verification
-from Firmament source. It requires the .NET 10 runtime.
+from Firmament source. It requires the .NET 10 runtime. Aetheris is licensed
+under the GNU Affero General Public License v3.0 (`AGPL-3.0`); third-party
+assets retain their respective licenses and provenance. Alternative licensing
+is available on request.
 
 `aetheris view` needs Cadmata. The NuGet global tool does not bundle the viewer;
 download the Windows bundle from the GitHub release for package-relative Cadmata
 discovery and the complete desktop experience.
 
 See the [Aetheris manual](https://yuechen-li-dev.github.io/aetheris/) for the
-supported Firmament surface and Preview 2 limitations.
+supported Firmament surface and Preview 3 limitations.

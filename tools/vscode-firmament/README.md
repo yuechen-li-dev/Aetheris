@@ -1,12 +1,12 @@
 # Aetheris Firmament for VS Code
 
-Firmament is Aetheris's canonical, intent-oriented language for mechanical design. This Preview 1 extension recognizes `.firmament` files, adds TextMate syntax highlighting, comments/brackets, and a focused set of canonical snippets, and delegates validation, STEP build, Cadmata viewing, and verification to the real Aetheris CLI.
+Firmament is Aetheris's canonical, intent-oriented language for mechanical design. This Preview 3 extension recognizes `.firmament` files, adds TextMate syntax highlighting, comments/brackets, and a focused set of canonical snippets, and delegates validation, STEP build, Cadmata viewing, and verification to the real Aetheris CLI.
 
 ## Requirements
 
 Install the Aetheris CLI so `aetheris` is on `PATH`, or set `aetheris.executablePath` to the executable. The extension never implements or guesses compiler semantics.
 
-Preview 2 builds are installed from the supplied VSIX: in VS Code run **Extensions: Install from VSIX...** and select `aetheris-firmament-0.2.0-preview.2.vsix`.
+Preview 3 builds are installed from the supplied VSIX: in VS Code run **Extensions: Install from VSIX...** and select `aetheris-firmament-0.3.0-preview.3.vsix`.
 
 ## Commands
 
@@ -23,7 +23,7 @@ Structured CLI diagnostics populate VS Code Problems. Validate and build remain 
 
 Use `model`, `box`, `cylinder`, `concept-path`, `profile-from-path`, `hole-shaft`, `hole-counterbore`, `hole-countersink`, `slot-capsule`, `edgefinish-chamfer`, `edgefinish-fillet`, `require`, `pmi-projection`, `assert-volume`, and `inline-step`.
 
-## Preview 1 limits
+## Preview 3 limits
 
 Syntax highlighting is not capability proof. This extension has no LSP, completion engine, semantic tokens, formatter, hover, navigation, or embedded CAD view. Respect build diagnostics and the frozen capability matrix in the [Aetheris manual](https://yuechen-li.github.io/aetheris/).
 

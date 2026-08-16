@@ -1,4 +1,5 @@
 using Aetheris.Kernel.StandardLibrary.Materials.Database;
+using Aetheris.Kernel.StandardLibrary.Materials.Database.CompiledModel;
 using Microsoft.EntityFrameworkCore;
 
 namespace Aetheris.Kernel.StandardLibrary.Materials;
@@ -16,7 +17,10 @@ public sealed class MaterialCatalog : IDisposable
     public MaterialCatalog(string databasePath)
     {
         var fullPath = Path.GetFullPath(databasePath);
-        var options = new DbContextOptionsBuilder<MaterialCatalogDbContext>().UseSqlite($"Data Source={fullPath};Mode=ReadOnly;Pooling=False").Options;
+        var options = new DbContextOptionsBuilder<MaterialCatalogDbContext>()
+            .UseSqlite($"Data Source={fullPath};Mode=ReadOnly;Pooling=False")
+            .UseModel(MaterialCatalogDbContextModel.Instance)
+            .Options;
         database = new(options);
     }
 
@@ -40,19 +44,28 @@ public sealed class MaterialCatalog : IDisposable
 
     public ResolvedMaterial? GetById(string catalogId, string stableId)
     {
-        var entity = database.Materials.AsNoTracking().Include(x => x.Properties).SingleOrDefault(x => x.CatalogId == catalogId && x.StableId == stableId);
+        var entity = LoadAll().SingleOrDefault(x => x.CatalogId == catalogId && x.StableId == stableId);
         return entity is null ? null : Map(entity);
     }
 
-    public IReadOnlyList<ResolvedMaterial> FindByDesignation(string designation) => database.Materials.AsNoTracking().Include(x => x.Properties)
+    public IReadOnlyList<ResolvedMaterial> FindByDesignation(string designation) => LoadAll()
         .Where(x => x.Designation == designation || x.Grade == designation)
-        .OrderBy(x => x.StableId).AsEnumerable().Select(Map).ToArray();
+        .OrderBy(x => x.StableId).Select(Map).ToArray();
 
-    internal IReadOnlyList<ResolvedMaterial> FindByReference(string reference) => database.Materials.AsNoTracking().Include(x => x.Properties)
+    internal IReadOnlyList<ResolvedMaterial> FindByReference(string reference) => LoadAll()
         .Where(x => x.FirmamentPath == reference || x.StableId == reference || (x.CatalogId + ":" + x.StableId) == reference)
-        .OrderBy(x => x.StableId).AsEnumerable().Select(Map).ToArray();
+        .OrderBy(x => x.StableId).Select(Map).ToArray();
 
     public void Dispose() => database.Dispose();
+
+    // The standard catalog is deliberately small and immutable. Loading its
+    // bounded row set through one parameter-free EF query lets NativeAOT use
+    // EF's generated query interceptor; identity filtering remains ordinary
+    // deterministic in-memory comparison over database-derived entities.
+    private MaterialEntity[] LoadAll() => database.Materials.AsNoTracking()
+        .Include(x => x.Properties)
+        .OrderBy(x => x.StableId)
+        .ToArray();
 
     private static ResolvedMaterial Map(MaterialEntity entity)
     {
@@ -107,7 +120,10 @@ public static class MaterialCatalogDatabase
         var fullPath = Path.GetFullPath(databasePath);
         Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
         if (File.Exists(fullPath)) File.Delete(fullPath);
-        var options = new DbContextOptionsBuilder<MaterialCatalogDbContext>().UseSqlite($"Data Source={fullPath};Pooling=False").Options;
+        var options = new DbContextOptionsBuilder<MaterialCatalogDbContext>()
+            .UseSqlite($"Data Source={fullPath};Pooling=False")
+            .UseModel(MaterialCatalogDbContextModel.Instance)
+            .Options;
         using var database = new MaterialCatalogDbContext(options);
         database.Database.EnsureCreated();
         var seed = MaterialSeedData.Create();

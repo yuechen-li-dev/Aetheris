@@ -125,6 +125,8 @@ The [M8 CTC-03 evidence bundle](sheetmetal/artifacts/m8/README.md) records full 
 
 The [M10 generic profile-programming report](sheetmetal/artifacts/m10/README.md) documents typed `ProfileDelta` template specialization, reusable `Tab<T>`/`Recess<T>` library dogfood, the materialized CTC-03 right-wall service profile, and the remaining non-right-wall contour residuals.
 
+The [M11 bend-termination report](sheetmetal/artifacts/m11/README.md) adds stable finite-bend start/end identities, explicit and bounded automatic treatment, semantic ProfileDelta ancestry, conflict/DFM behavior, and the source-backed CTC-03 side-root completion.
+
 The [recognized-import recovery M1 report](sheetmetal/artifacts/recovery-m1/README.md) separates detected bend candidates from accepted recognition authority and adds direct imported-body geometric mid-surface unfolding. Its CTC-03 run preserves exact per-region line/arc contours, all 17 source openings, seven bend lines, and source edge ancestry before any native reconstruction. Exact single-loop stitching remains partial at three source point-tangent junctions and is reported as such.
 
 ## Bounded capability verdict

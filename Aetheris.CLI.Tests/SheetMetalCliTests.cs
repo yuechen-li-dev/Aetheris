@@ -44,6 +44,16 @@ public sealed class SheetMetalCliTests
     }
 
     [Fact]
+    public void ValidateRoutesModuleShapedSheetMetalThroughDomainCompiler()
+    {
+        var output=new StringWriter();var error=new StringWriter();var input=Path.Combine(RepoRoot,"docs/modules/sheetmetal/artifacts/m8/ctc03-final.firmament");
+        var exit=CliRunner.Run(["validate",input,"--json"],output,error);
+        Assert.Equal(0,exit);Assert.Empty(error.ToString());
+        using var json=JsonDocument.Parse(output.ToString());var validation=json.RootElement.GetProperty("sheetMetalValidation");
+        Assert.Equal("valid",validation.GetProperty("status").GetString());Assert.Equal(7,validation.GetProperty("summary").GetProperty("bends").GetInt32());Assert.True(validation.GetProperty("summary").GetProperty("exactBlank").GetBoolean());
+    }
+
+    [Fact]
     public void FlattenCtc03_WritesReimportableStepAndRecompilableRecoveredFirmament()
     {
         var dir=Path.Combine(Path.GetTempPath(),$"aetheris-sheetmetal-{Guid.NewGuid():N}");Directory.CreateDirectory(dir);

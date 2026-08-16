@@ -23,7 +23,10 @@ public sealed record AuthoredSheetFlangeSpec(
     string Name, string ParentRegion, string EdgeName, double Length, double AngleRadians,
     double InsideRadius, SheetBendDirection Direction, SheetCornerPolicy CornerPolicy,
     SheetReliefPolicy ReliefPolicy, double? ReliefWidth = null, double? ReliefDepth = null,
-    double? SpanLength = null, double SpanOffset = 0d);
+    double? SpanLength = null, double SpanOffset = 0d,
+    AuthoredSheetTerminationSpec? StartTermination = null, AuthoredSheetTerminationSpec? EndTermination = null);
+public sealed record AuthoredSheetTerminationSpec(
+    SheetBendTerminationTreatment Treatment,double? Setback=null,double? Depth=null,double? Radius=null);
 public sealed record AuthoredSheetCutSpec(
     string Name, string RegionName, SheetFeatureKind Kind, double X, double Y,
     double? Diameter, double? Width, double? Length, bool ExactCapsule = false);
@@ -117,6 +120,25 @@ internal static class AuthoredSheetMetalCompiler
             Scalar(block.Body, "ReliefDepth", "mm", out var reliefDepth);
             var hasSpan=Scalar(block.Body, "Span", "mm", out var spanLength);
             var hasSpanOffset=Scalar(block.Body, "SpanOffset", "mm", out var spanOffset);
+            AuthoredSheetTerminationSpec? Termination(string end)
+            {
+                var token=Token(block.Body,$"{end}Termination");if(token is null)return null;
+                var treatment=token.ToLowerInvariant() switch
+                {
+                    "natural" or "none"=>SheetBendTerminationTreatment.Natural,
+                    "trimmed" or "trim"=>SheetBendTerminationTreatment.Trimmed,
+                    "rounded" or "round"=>SheetBendTerminationTreatment.Rounded,
+                    "auto"=>SheetBendTerminationTreatment.Auto,
+                    _=>throw new FormatException($"Flange '{block.Name}' has unsupported {end}Termination '{token}'. Supported: Natural, Trimmed, Rounded, Auto.")
+                };
+                Scalar(block.Body,$"{end}TerminationSetback","mm",out var setback);
+                Scalar(block.Body,$"{end}TerminationDepth","mm",out var depth);
+                Scalar(block.Body,$"{end}TerminationRadius","mm",out var terminationRadius);
+                return new(treatment,setback>0?setback:null,depth>0?depth:null,terminationRadius>0?terminationRadius:null);
+            }
+            AuthoredSheetTerminationSpec? startTermination;AuthoredSheetTerminationSpec? endTermination;
+            try{startTermination=Termination("Start");endTermination=Termination("End");}
+            catch(FormatException ex){return Fail(ex.Message,"sheetmetal-bend-termination-treatment-invalid");}
             if(radius<0||degrees is <=0 or >=180)return Fail($"Flange '{block.Name}' has an invalid radius or bend angle.");
             if(length<=radius+thickness)return Fail($"Flange '{block.Name}' length {length:G6} mm is not greater than inside radius + thickness ({radius+thickness:G6} mm). Increase `{block.Name}` Height/Length above {radius+thickness:G6} mm.",legacyBase.Success?"sheetmetal-firmament-invalid":SheetMetalDiagnosticCodes.FlangeBelowMinimum);
             if(hasSpan&&spanLength<=0)return Fail($"Flange '{block.Name}' Span must be positive when supplied.","sheetmetal-flange-span-invalid");
@@ -125,7 +147,7 @@ internal static class AuthoredSheetMetalCompiler
             flanges.Add(new(block.Name, parentName, NormalizeEdge(authoredMember), length,
                 degrees * Math.PI / 180d, radius, direction, corner, relief,
                 reliefWidth > 0 ? reliefWidth : null, reliefDepth > 0 ? reliefDepth : null,
-                spanLength > 0 ? spanLength : null, spanOffset));
+                spanLength > 0 ? spanLength : null, spanOffset,startTermination,endTermination));
         }
         if (flanges.Count == 0) return Fail("At least one Flange is required.");
         var duplicate = flanges.GroupBy(f => (f.ParentRegion.ToLowerInvariant(), f.EdgeName.ToLowerInvariant())).FirstOrDefault(g => g.Count() > 1);
@@ -276,6 +298,10 @@ internal static class AuthoredSheetMetalLowering
                 // base corner, but must not silently shorten this authored flange edge.
                 if((spec.SemanticLayout.Corners??[]).Any(c=>c.Region.Equals(flange.Name,StringComparison.OrdinalIgnoreCase)&&(c.Corner.Equals("OuterEnd",StringComparison.OrdinalIgnoreCase)||c.Corner.Equals("RootStart",StringComparison.OrdinalIgnoreCase))))gapStart=0;
                 if((spec.SemanticLayout.Corners??[]).Any(c=>c.Region.Equals(flange.Name,StringComparison.OrdinalIgnoreCase)&&(c.Corner.Equals("OuterStart",StringComparison.OrdinalIgnoreCase)||c.Corner.Equals("RootEnd",StringComparison.OrdinalIgnoreCase))))gapEnd=0;
+                // A first-class bend-end treatment is the final authority for
+                // finite root extent, after ordinary profile-corner compatibility.
+                if(flange.StartTermination is { } start)gapStart=start.Treatment==SheetBendTerminationTreatment.Natural?0:start.Setback??start.Radius??t;
+                if(flange.EndTermination is { } end)gapEnd=end.Treatment==SheetBendTerminationTreatment.Natural?0:end.Setback??end.Radius??t;
             }
             if (gapStart + gapEnd >= edgeLength - 1e-8) return Failure($"Corner trims consume base edge {spec.Base.Name}.{edgeName}.", SheetMetalDiagnosticCodes.ImpossibleTopology);
             var axis = Unit(edge.B - edge.A); var a = edge.A + axis * gapStart; var b = edge.B - axis * gapEnd;
@@ -349,6 +375,38 @@ internal static class AuthoredSheetMetalLowering
                 var rootEndProgram=cornerPrograms.SingleOrDefault(x=>x.Corner.Equals("RootEnd",StringComparison.OrdinalIgnoreCase));
                 var outerStartProgram=cornerPrograms.SingleOrDefault(x=>x.Corner.Equals("OuterStart",StringComparison.OrdinalIgnoreCase));
                 var outerEndProgram=cornerPrograms.SingleOrDefault(x=>x.Corner.Equals("OuterEnd",StringComparison.OrdinalIgnoreCase));
+                var bendSemanticId=spec.LegacySyntax?$"bend-{flange.EdgeName.ToLowerInvariant()}":$"{flange.Name}Bend";
+                (AuthoredSheetTerminationSpec Authored,SheetBendTerminationTreatment Resolved,double Setback,double Depth,double? Radius,SemanticProfileDeltaIr? Delta,SheetMetalSemanticCornerProfile? Corner) ResolveTermination(AuthoredSheetTerminationSpec authored,SheetBendEnd bendEnd)
+                {
+                    var resolved=authored.Treatment==SheetBendTerminationTreatment.Auto?SheetBendTerminationTreatment.Rounded:authored.Treatment;
+                    double? radius=resolved==SheetBendTerminationTreatment.Rounded?(authored.Radius??Math.Min(flange.InsideRadius,Math.Min(flange.Length/4d,(edge.B-edge.A).Length/4d))):null;
+                    var setback=authored.Setback??radius??t;var depth=authored.Depth??radius??t;
+                    if(!double.IsFinite(setback)||!double.IsFinite(depth)||setback<=0||depth<=0||setback>=flange.Length-1e-8||depth>=(edge.B-edge.A).Length-1e-8||radius is <=0)
+                        throw new InvalidOperationException($"{bendSemanticId}.{bendEnd}Termination has no safe bounded {resolved} treatment: setback={setback:G9}, depth={depth:G9}, radius={radius:G9}; the treatment must remain inside the finite root and adjacent flange profile.");
+                    if(authored.Treatment==SheetBendTerminationTreatment.Auto&&radius<t/2d)
+                        throw new InvalidOperationException($"{bendSemanticId}.{bendEnd}Termination Auto refused: no rounded candidate with radius at least {t/2d:G9} mm fits the bounded root neighborhood.");
+                    if(resolved==SheetBendTerminationTreatment.Natural)return(authored,resolved,0,0,null,null,null);
+                    var path=$"{bendSemanticId}.{bendEnd}Termination";var finish=$"{path}.Finish";
+                    var levels=new[]{new SemanticProfileDeltaLevelIr("Carrier",$"{path}.Carrier",0,"Sheet Metal bend termination"),new SemanticProfileDeltaLevelIr("Trimmed",$"{path}.Trimmed",depth,"Sheet Metal bend termination")};
+                    SemanticProfileDeltaMemberIr[] members=resolved==SheetBendTerminationTreatment.Rounded
+                        ?[new("EnterRound",$"{path}.EnterRound",SemanticProfileDeltaMemberKind.Round,setback,"Trimmed",null,[],"Sheet Metal bend termination",radius),new("Return",$"{path}.Return",SemanticProfileDeltaMemberKind.Step,0,"Carrier",null,[],"Sheet Metal bend termination")]
+                        :[new("Enter",$"{path}.Enter",SemanticProfileDeltaMemberKind.Diagonal,setback,"Trimmed",null,[],"Sheet Metal bend termination"),new("Return",$"{path}.Return",SemanticProfileDeltaMemberKind.Step,0,"Carrier",null,[],"Sheet Metal bend termination")];
+                    var anchor=new SemanticEdgeAnchorIr(bendEnd==SheetBendEnd.Start?SemanticEdgeAnchorKind.FromStart:SemanticEdgeAnchorKind.FromEnd,0);
+                    var delta=new SemanticProfileDeltaIr($"{bendEnd}Termination",path,anchor,-1,levels,members,"Sheet Metal bend/root termination treatment");
+                    var operation=resolved==SheetBendTerminationTreatment.Rounded?"Round":"NotchCorner";
+                    var corner=resolved==SheetBendTerminationTreatment.Rounded?new SheetMetalSemanticCornerProfile(path,finish,flange.Name,bendEnd==SheetBendEnd.Start?"RootStart":"RootEnd",operation,radius!.Value,radius.GetValueOrDefault()):null;
+                    return(authored,resolved,setback,depth,radius,delta,corner);
+                }
+                (AuthoredSheetTerminationSpec Authored,SheetBendTerminationTreatment Resolved,double Setback,double Depth,double? Radius,SemanticProfileDeltaIr? Delta,SheetMetalSemanticCornerProfile? Corner)? startTermination=null,endTermination=null;
+                try
+                {
+                    if(flange.StartTermination is not null)startTermination=ResolveTermination(flange.StartTermination,SheetBendEnd.Start);
+                    if(flange.EndTermination is not null)endTermination=ResolveTermination(flange.EndTermination,SheetBendEnd.End);
+                }
+                catch(InvalidOperationException ex){return Failure(ex.Message,"sheetmetal-bend-termination-auto-refused");}
+                if(startTermination?.Corner is not null&&rootStartProgram is not null)return Failure($"Bend termination '{bendSemanticId}.StartTermination' conflicts with CornerProfile '{rootStartProgram.CornerPath}'; explicit overlapping semantic profile operations are not composed silently.","sheetmetal-bend-termination-conflict");
+                if(endTermination?.Corner is not null&&rootEndProgram is not null)return Failure($"Bend termination '{bendSemanticId}.EndTermination' conflicts with CornerProfile '{rootEndProgram.CornerPath}'; explicit overlapping semantic profile operations are not composed silently.","sheetmetal-bend-termination-conflict");
+                rootStartProgram=startTermination?.Corner??rootStartProgram;rootEndProgram=endTermination?.Corner??rootEndProgram;
                 ResolvedSemanticCornerProfileIr? ResolveCorner(SheetMetalSemanticCornerProfile? program)
                 {
                     if(program is null)return null;
@@ -425,15 +483,28 @@ internal static class AuthoredSheetMetalLowering
                 regions.Add(new(flangeId, SheetRegionKind.Planar, Developable("Authored planar flange."), plane, null, boundary, (edge.B-edge.A).Length * flange.Length+fragmentArea, source, evidence,exactContour));
                 patches.Add(PlanePatch(flangeId, SheetRegionKind.Planar, boundary, normal, t,plane,exactContour));
 
-                var bendId = spec.LegacySyntax ? $"bend-{flange.EdgeName.ToLowerInvariant()}" : $"{flange.Name}Bend"; var bendRegionId = spec.LegacySyntax ? $"region-{flange.EdgeName.ToLowerInvariant()}-bend" : $"{flange.Name}BendRegion"; var centerA = edge.A + parentNormal * (sign * rMid); var center = Mid(centerA, edge.B + parentNormal * (sign * rMid));
+                var bendId = bendSemanticId; var bendRegionId = spec.LegacySyntax ? $"region-{flange.EdgeName.ToLowerInvariant()}-bend" : $"{flange.Name}BendRegion"; var centerA = edge.A + parentNormal * (sign * rMid); var center = Mid(centerA, edge.B + parentNormal * (sign * rMid));
                 var cylinder = new SheetCylinderReference(center, axis, rMid, flange.InsideRadius, angle, (edge.B-edge.A).Length, sign > 0);
                 var bendBoundary = new[] { edge.A, edge.B, tangentB, tangentA };
                 regions.Add(new(bendRegionId, SheetRegionKind.CylindricalBend, Developable("Authored analytic cylindrical bend."), null, cylinder, bendBoundary, angle * rMid * cylinder.AxisLength, source, evidence));
+                SheetBendTerminationIr? Termination((AuthoredSheetTerminationSpec Authored,SheetBendTerminationTreatment Resolved,double Setback,double Depth,double? Radius,SemanticProfileDeltaIr? Delta,SheetMetalSemanticCornerProfile? Corner)? value,SheetBendEnd bendEnd,Point3D point)
+                {
+                    if(value is null)return null;var v=value.Value;var path=$"{bendId}.{bendEnd}Termination";
+                    var neighbor=flange.ParentRegion.Equals(spec.Base.Name,StringComparison.OrdinalIgnoreCase)?$"{spec.Base.Name}.{(bendEnd==SheetBendEnd.Start?Previous(flange.EdgeName):Next(flange.EdgeName))}":$"{flange.ParentRegion}.{flange.EdgeName}.{bendEnd}";
+                    return new(path,bendId,bendEnd,point,stableRegions[flange.ParentRegion],neighbor,v.Authored.Treatment,v.Resolved,v.Setback,v.Depth,v.Radius,v.Authored.Treatment==SheetBendTerminationTreatment.Auto,v.Delta,source,
+                        [new(v.Authored.Treatment==SheetBendTerminationTreatment.Auto?SheetEvidenceKind.Derived:SheetEvidenceKind.Authored,"bend-end-termination",v.Authored.Treatment==SheetBendTerminationTreatment.Auto?$"Bounded Auto selected {v.Resolved}; invalid candidates are rejected before selection.":$"Explicit {v.Resolved} bend-end treatment.",v.Radius??v.Setback)]);
+                }
+                var startTerminationIr=Termination(startTermination,SheetBendEnd.Start,edge.A);var endTerminationIr=Termination(endTermination,SheetBendEnd.End,edge.B);
                 bends.Add(new(bendId, center, axis, angle, flange.InsideRadius, t, flange.Direction, stableRegions[flange.ParentRegion], flangeId, SheetNeutralAxisPolicy.KFactorPolicy(spec.KFactor), source,
-                    [new(SheetEvidenceKind.Authored, "bend-intent", "Axis, angle, inside radius, direction, and adjacency derive from the high-level flange declaration.")]));
+                    [new(SheetEvidenceKind.Authored, "bend-intent", "Axis, angle, inside radius, direction, and adjacency derive from the high-level flange declaration.")],startTerminationIr,endTerminationIr));
                 patches.Add(BendPatch(bendRegionId, edge, parentNormal, flange, t));
                 correspondence.Add(new(flange.Name, "Region", flangeId, $"flat-{flangeId}"));
                 correspondence.Add(new(bendId, "Bend", bendRegionId, $"flat-{bendId}"));
+                foreach(var termination in new[]{startTerminationIr,endTerminationIr}.OfType<SheetBendTerminationIr>())
+                {
+                    correspondence.Add(new(termination.StableId,"BendTermination",termination.StableId,$"flat-{termination.StableId}"));
+                    if(termination.LoweredProfileDelta is not null)foreach(var member in termination.LoweredProfileDelta.Members)correspondence.Add(new(member.StableId,"BendTerminationProfileDeltaMember",member.StableId,$"flat-{member.StableId}"));
+                }
             }
             if (!progressed) break;
         }

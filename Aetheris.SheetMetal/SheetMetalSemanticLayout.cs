@@ -102,7 +102,14 @@ internal static class SheetMetalSemanticLayoutParser
         if(!parsedDeltas.IsSuccess)return Fail("sheetmetal-profile-delta-parse",string.Join("; ",parsedDeltas.Diagnostics));
         foreach(var parsed in parsedDeltas.Deltas)
         {
-            var owner=Regex.Match(parsed.OwnerPath,@"^(?<region>[A-Za-z_][A-Za-z0-9_]*)\.(?<edge>Outer)$",Rx);
+            var owner=Regex.Match(parsed.OwnerPath,@"^(?<region>[A-Za-z_][A-Za-z0-9_]*)\.(?<edge>Outer|Root)$",Rx);
+            if(owner.Success&&owner.Groups["edge"].Value.Equals("Root",StringComparison.OrdinalIgnoreCase))
+            {
+                var flange=flanges.FirstOrDefault(x=>x.Name.Equals(owner.Groups["region"].Value,StringComparison.OrdinalIgnoreCase));
+                var termination=flange?.StartTermination is not null?$"{flange.Name}Bend.StartTermination":flange?.EndTermination is not null?$"{flange.Name}Bend.EndTermination":null;
+                if(termination is not null)return Fail("sheetmetal-bend-termination-profile-delta-conflict",$"ProfileDelta '{parsed.Delta.StableId}' on '{parsed.OwnerPath}' conflicts with bend termination '{termination}'; root ownership cannot be double-trimmed.");
+                return Fail("sheetmetal-profile-delta-owner",$"ProfileDelta '{parsed.Delta.StableId}' targets '{parsed.OwnerPath}', but root ProfileDelta is reserved for Sheet Metal bend termination lowering.");
+            }
             if(!owner.Success||!regionSizes.TryGetValue(owner.Groups["region"].Value,out var size))
                 return Fail("sheetmetal-profile-delta-owner",$"ProfileDelta '{parsed.Delta.StableId}' requires On: <planar-region>.Outer.");
             var length=size.Width;var span=parsed.Delta.Span;

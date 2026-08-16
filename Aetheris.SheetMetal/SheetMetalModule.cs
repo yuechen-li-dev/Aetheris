@@ -17,6 +17,7 @@ public static class SheetMetalModule
             Capability("SheetMetal.ExactPlanarContour", "Shared native line/arc/circle outer/inner contour IR with bounded intersection, trim, split, offset, composition, and manufacturing validation."),
             Capability("SheetMetal.StitchedAuthoredFlat", "Authored graph traversal, shared bend allowance, exact profile composition when admitted, mapped analytic cuts/reliefs, physical flat AP242, and SVG."),
             Capability("SheetMetal.CornerRelief", "Bounded adjacent-flange Open, Mitered, RectangularRelief, and RoundRelief semantics with deterministic automatic dimensions and correspondence."),
+            Capability("SheetMetal.BendTermination", "Stable finite-bend StartTermination/EndTermination semantics with Natural, Trimmed, Rounded, and bounded Auto treatments lowered through semantic ProfileDelta ancestry."),
             Capability("SheetMetal.ConceptPaths", "Canonical base/flange/corner/bend and formed/flat public paths with typed capabilities and CLI inspection."),
             Capability("SheetMetal.Templates", "Module-owned LBracket, UChannel, and FourWallTray engineering-parameter generators using ordinary Sheet Metal lowering and DFM."),
             Capability("SheetMetal.IntentRecovery", "Two-layer forensic recovery and explicit human/LLM reconstructed authority with bounded nominal/grouping suggestions."),

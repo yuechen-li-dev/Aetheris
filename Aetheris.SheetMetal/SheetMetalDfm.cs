@@ -6,7 +6,9 @@ public sealed record SheetMetalDfmPolicy(
     double MinimumInsideRadiusRatio = 1d,
     double MinimumHoleToBendDistanceFactor = 2d,
     double MinimumEdgeDistanceFactor = 1.5d,
-    double MinimumFlangeBeyondTangentFactor = 1d);
+    double MinimumFlangeBeyondTangentFactor = 1d,
+    bool ProhibitNaturalBendTerminations = false,
+    double MinimumTerminationRadiusFactor = 0.5d);
 
 public enum SheetMetalDfmStatus { Pass, Warning, Fail, NotEvaluated }
 
@@ -37,6 +39,17 @@ public static class SheetMetalDfm
             findings.Add(new("sheetmetal-dfm-inside-radius-ratio",pass?SheetMetalDfmStatus.Pass:SheetMetalDfmStatus.Warning,$"Inside-radius/thickness ratio {ratio:G4} {(pass?"meets":"is below")} the parameterized experimental policy {policy.MinimumInsideRadiusRatio:G4}.",bend.StableId,ratio,policy.MinimumInsideRadiusRatio));
             var flange=part.Regions.FirstOrDefault(r=>r.StableId==bend.AdjacentRegionB);var axisLength=part.Regions.Where(r=>r.Cylinder is not null).OrderBy(r=>Math.Abs(r.Cylinder!.InsideRadius-bend.InsideRadius)+(1-Math.Abs(r.Cylinder.AxisDirection.Dot(bend.AxisDirection)))*1000).FirstOrDefault()?.Cylinder?.AxisLength??0;var flangeLength=flange is null||axisLength<=0?double.NaN:flange.ApproximateArea/axisLength;var requiredFlange=bend.InsideRadius+part.Thickness*policy.MinimumFlangeBeyondTangentFactor;var flangePass=double.IsNaN(flangeLength)||flangeLength>=requiredFlange;
             findings.Add(new("sheetmetal-dfm-minimum-flange-length",double.IsNaN(flangeLength)?SheetMetalDfmStatus.NotEvaluated:flangePass?SheetMetalDfmStatus.Pass:SheetMetalDfmStatus.Warning,double.IsNaN(flangeLength)?$"'{bend.AdjacentRegionB}' flange length could not be derived.":$"'{bend.AdjacentRegionB}' tangent-to-edge length is {flangeLength:G4} mm; policy requires {requiredFlange:G4} mm.",bend.AdjacentRegionB,double.IsNaN(flangeLength)?null:flangeLength,requiredFlange,!flangePass?$"Increase {bend.AdjacentRegionB} Height/Length by at least {requiredFlange-flangeLength:G4} mm.":null));
+            foreach(var termination in new[]{bend.StartTermination,bend.EndTermination}.OfType<SheetBendTerminationIr>())
+            {
+                var natural=termination.ResolvedTreatment==SheetBendTerminationTreatment.Natural;
+                var required=part.Thickness*policy.MinimumTerminationRadiusFactor;
+                var measured=termination.ResolvedTreatment==SheetBendTerminationTreatment.Rounded?termination.Radius:termination.Setback;
+                var valid=natural?!policy.ProhibitNaturalBendTerminations:measured is not null&&measured>=required&&termination.LoweredProfileDelta is not null;
+                findings.Add(new("sheetmetal-dfm-bend-end-termination",valid?SheetMetalDfmStatus.Pass:SheetMetalDfmStatus.Warning,
+                    natural?(valid?$"'{termination.StableId}' intentionally preserves its natural bend end.":$"'{termination.StableId}' uses Natural treatment while policy prohibits an untreated sharp termination."):
+                    valid?$"'{termination.StableId}' has bounded {termination.ResolvedTreatment} treatment with exact ProfileDelta ancestry.":$"'{termination.StableId}' has insufficient {termination.ResolvedTreatment} treatment.",
+                    termination.StableId,measured,required,valid?null:natural?$"Use Rounded with radius >= {required:G4} mm or an engineer-approved Trimmed treatment.":$"Increase {termination.StableId}.Finish to at least {required:G4} mm without intersecting neighboring features."));
+            }
         }
         foreach(var corner in part.Corners??[])
         {

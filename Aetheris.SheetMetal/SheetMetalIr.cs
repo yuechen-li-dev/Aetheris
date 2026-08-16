@@ -1,6 +1,7 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Firmament.Materializer;
+using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Surfacing;
 
 namespace Aetheris.SheetMetal;
@@ -22,6 +23,8 @@ public enum SheetCornerPolicy { Open, Mitered, RectangularRelief, RoundRelief, R
 public enum SheetReliefPolicy { None, Auto, Rectangular, Round }
 public enum SheetFlangeLengthMode { TangentToEdge }
 public enum SheetPathCapability { FlangeAttachable, BendAttachable, FeatureAttachable }
+public enum SheetBendEnd { Start, End }
+public enum SheetBendTerminationTreatment { Natural, Trimmed, Rounded, Auto }
 
 public static class SheetMetalDiagnosticCodes
 {
@@ -125,6 +128,30 @@ public sealed record SheetBendIr(
     string AdjacentRegionA,
     string AdjacentRegionB,
     SheetNeutralAxisPolicy NeutralAxisPolicy,
+    SheetSourceBinding Source,
+    IReadOnlyList<SheetEvidence> Evidence,
+    SheetBendTerminationIr? StartTermination = null,
+    SheetBendTerminationIr? EndTermination = null);
+
+/// <summary>
+/// Stable semantic identity for the end of a finite bend/root.  The treatment is
+/// Sheet Metal intent; LoweredProfileDelta records the exact, reusable 2D contour
+/// program selected for the adjacent planar profile.
+/// </summary>
+public sealed record SheetBendTerminationIr(
+    string StableId,
+    string BendId,
+    SheetBendEnd End,
+    Point3D RootPoint,
+    string AdjacentRegionId,
+    string NeighborBoundary,
+    SheetBendTerminationTreatment AuthoredTreatment,
+    SheetBendTerminationTreatment ResolvedTreatment,
+    double Setback,
+    double Depth,
+    double? Radius,
+    bool IsPolicyDerived,
+    SemanticProfileDeltaIr? LoweredProfileDelta,
     SheetSourceBinding Source,
     IReadOnlyList<SheetEvidence> Evidence);
 

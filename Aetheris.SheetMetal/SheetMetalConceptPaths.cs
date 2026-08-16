@@ -33,6 +33,13 @@ public static class SheetMetalConceptPaths
             Add($"{flange.Name}.LeftCorner","SheetCorner",$"{flange.Name}.LeftCorner",region?.StableId,$"flat-{region?.StableId}","canonical flange endpoint","CornerAdjacent");
             Add($"{flange.Name}.RightCorner","SheetCorner",$"{flange.Name}.RightCorner",region?.StableId,$"flat-{region?.StableId}","canonical flange endpoint","CornerAdjacent");
             Add($"{flange.Name}.Bend","SheetBend",$"{flange.Name}.Bend",bend?.StableId,$"flat-{bend?.StableId}","authored flange bend","BendBoundary","FlatCorrespondent");
+            foreach(var termination in new[]{bend?.StartTermination,bend?.EndTermination}.OfType<SheetBendTerminationIr>())
+            {
+                Add(termination.StableId,"SheetBendTermination",termination.StableId,termination.BendId,$"flat-{termination.StableId}","stable finite bend/root endpoint treatment authority","BendEnd","ManufacturingContour","StableSemanticIdentity","DrawingAnchor");
+                Add($"{termination.StableId}.Finish","SheetBendTerminationFinish",$"{termination.StableId}.Finish",termination.AdjacentRegionId,$"flat-{termination.StableId}.Finish",$"{termination.ResolvedTreatment} treatment lowered through semantic ProfileDelta","ManufacturingContour","StableSemanticIdentity");
+                if(termination.LoweredProfileDelta is not null)foreach(var member in termination.LoweredProfileDelta.Members)
+                    Add(member.StableId,"SemanticProfileDeltaMember",member.StableId,termination.AdjacentRegionId,$"flat-{member.StableId}","exact descendant of bend termination ProfileDelta lowering","ManufacturingContour","StableSemanticIdentity");
+            }
         }
         foreach(var cut in spec.Cuts)
         {
@@ -74,6 +81,7 @@ public static class SheetMetalConceptPaths
     {
         "SheetRegion.Rectangle"=>["Front","Right","Rear","Left","Center"],
         "SheetFlange"=>["Root","Outer","Left","Right","LeftCorner","RightCorner","Bend"],
+        "SheetBend"=>["StartTermination","EndTermination"],
         _=>[]
     };
 }

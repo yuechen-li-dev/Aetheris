@@ -1512,9 +1512,25 @@ Model CanonicalPanel {
             return 1;
         }
 
+        var validationSource=File.ReadAllText(sourcePath);
+        if(SheetMetalFirmament.LooksLikeSheetMetal(validationSource))
+        {
+            var sheet=SheetMetalFirmament.Compile(validationSource,Path.GetFullPath(sourcePath));
+            var status=sheet.IsSuccess?"valid":"invalid";
+            var payload=new
+            {
+                source=sourcePath,status,domain="SheetMetal",
+                summary=new{fatalDiagnosticCount=sheet.Diagnostics.Count(x=>x.Severity==SheetMetalDiagnosticSeverity.Error),warningDiagnosticCount=sheet.Diagnostics.Count(x=>x.Severity==SheetMetalDiagnosticSeverity.Warning),regions=sheet.Part?.Regions.Count??0,bends=sheet.Part?.Bends.Count??0,features=sheet.Part?.Features.Count??0,exactBlank=sheet.FlatPattern?.ExactBlankContour is not null},
+                diagnostics=sheet.Diagnostics
+            };
+            if(json)stdout.WriteLine(JsonSerializer.Serialize(new{sheetMetalValidation=payload},JsonOptions));
+            else stdout.WriteLine($"Sheet Metal validation: {status} ({payload.summary.fatalDiagnosticCount} fatal, {payload.summary.warningDiagnosticCount} warning)");
+            return sheet.IsSuccess?0:1;
+        }
+
         var runtimeConfiguration = CreateValidateForgeRuntimeConfiguration(forgePackPaths);
         var parse = FirmamentV2Parser.Parse(
-            File.ReadAllText(sourcePath),
+            validationSource,
             Path.GetDirectoryName(Path.GetFullPath(sourcePath)),
             runtimeConfiguration.Catalog);
         var runtimeValidation = FirmamentV2RuntimeConceptValidation.Validate(parse.Document, runtimeConfiguration);

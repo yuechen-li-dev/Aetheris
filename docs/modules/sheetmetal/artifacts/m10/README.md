@@ -69,11 +69,9 @@ sampled historical per-region boundaries still differ at shared/released edges.
 Therefore M10 completes the generic substrate and this review's explicit corrections,
 but not full CTC-03 geometric parity.
 
-The generic `aetheris validate` entry point still routes this module-shaped source to
-an older parser fallback and reports `firmament-v2-phase3-edge-finish-syntax-invalid`.
-The authoritative Sheet Metal `build`, `inspect`, `paths`, and `flatten` paths all
-recognize and materialize it. This command-routing inconsistency remains open and is
-not treated as a geometry failure.
+M11 corrected the generic `aetheris validate` routing inconsistency: module-shaped
+Sheet Metal source now uses the same domain compiler as `build`, `inspect`, `paths`,
+and `flatten` instead of the unrelated edge-finish parser fallback.
 
 ## Follow-up profile/corner review
 

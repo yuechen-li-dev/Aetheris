@@ -299,10 +299,15 @@ public static class SheetMetalFlattener
             if(a[ai].Geometry is not LineArcLineSegment2D al)continue;
             for(var bi=0;bi<b.Count;bi++)
             {
-                if(b[bi].Geometry is not LineArcLineSegment2D bl||!Near(al.Start,bl.End)||!Near(al.End,bl.Start))continue;
+                if(b[bi].Geometry is not LineArcLineSegment2D bl)continue;
+                var exact=Near(al.Start,bl.End)&&Near(al.End,bl.Start);
+                var partial=!exact&&OppositeCollinearSubset(al,bl,out var atEnd,out var atStart);
+                if(!exact&&!partial)continue;
                 var segments=new List<PlanarContourSegment2>(a.Count+b.Count-2);
                 for(var offset=1;offset<a.Count;offset++)segments.Add(a[(ai+offset)%a.Count]);
+                if(partial&&!Near(al.Start,bl.End))segments.Add(a[ai] with { StableId=$"{a[ai].StableId}.termination-before",Geometry=new LineArcLineSegment2D(al.Start,bl.End) });
                 for(var offset=1;offset<b.Count;offset++)segments.Add(b[(bi+offset)%b.Count]);
+                if(partial&&!Near(bl.Start,al.End))segments.Add(a[ai] with { StableId=$"{a[ai].StableId}.termination-after",Geometry=new LineArcLineSegment2D(bl.Start,al.End) });
                 var candidate=accumulated with
                 {
                     OuterLoop=accumulated.OuterLoop with { Segments=segments },
@@ -314,6 +319,15 @@ public static class SheetMetalFlattener
         }
         merged=accumulated;return false;
         static bool Near((double X,double Y) x,(double X,double Y) y)=>Math.Abs(x.X-y.X)<=tolerance&&Math.Abs(x.Y-y.Y)<=tolerance;
+        static bool OppositeCollinearSubset(LineArcLineSegment2D carrier,LineArcLineSegment2D attached,out double attachedEnd,out double attachedStart)
+        {
+            attachedEnd=attachedStart=0;var dx=carrier.End.X-carrier.Start.X;var dy=carrier.End.Y-carrier.Start.Y;var length2=dx*dx+dy*dy;if(length2<=tolerance*tolerance)return false;
+            double Cross((double X,double Y) p)=>(p.X-carrier.Start.X)*dy-(p.Y-carrier.Start.Y)*dx;
+            if(Math.Abs(Cross(attached.Start))>tolerance*Math.Sqrt(length2)||Math.Abs(Cross(attached.End))>tolerance*Math.Sqrt(length2))return false;
+            double T((double X,double Y) p)=>((p.X-carrier.Start.X)*dx+(p.Y-carrier.Start.Y)*dy)/length2;
+            attachedEnd=T(attached.End);attachedStart=T(attached.Start);
+            return attachedEnd>=-tolerance&&attachedEnd<=1+tolerance&&attachedStart>=-tolerance&&attachedStart<=1+tolerance&&attachedEnd<attachedStart-tolerance;
+        }
     }
     private static IReadOnlyList<SheetPoint2> ContourVertices(PlanarContour2 contour)=>contour.OuterLoop.Segments.Select(segment=>segment.Geometry switch
     {

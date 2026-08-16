@@ -2,14 +2,14 @@ model CatalogMaterialCoupon {
     units mm
     solid coupon: Box { size: [80, 20, 2] }
 
-    analysis LinearElastic CouponPull {
+    Analysis LinearElastic CouponPull {
         body: coupon
         material: Standard.Materials.Aluminum.5052_H32
-        fixed Clamp {
+        Fixed Clamp {
             region: coupon.face(-X)
             components: [X, Y, Z]
         }
-        force Pull {
+        Force Pull {
             region: coupon.face(+X)
             vector: [1000N, 0N, 0N]
         }

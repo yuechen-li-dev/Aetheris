@@ -15,7 +15,7 @@ model PlateWithHoleModel {
         }
     }
 
-    analysis LinearElastic PlateWithHole {
+    Analysis LinearElastic PlateWithHole {
         body: plate
 
         material Steel {
@@ -24,12 +24,12 @@ model PlateWithHoleModel {
             density: 7850kg/m3
         }
 
-        fixed Clamp {
+        Fixed Clamp {
             region: plate.face(-X)
             components: [X, Y, Z]
         }
 
-        force Tension {
+        Force Tension {
             region: plate.face(+X)
             vector: [10000N, 0N, 0N]
         }

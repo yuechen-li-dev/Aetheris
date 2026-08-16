@@ -6,7 +6,7 @@ namespace Aetheris.FEA.Firmament;
 
 internal static partial class FirmamentAnalysisSemanticProducer
 {
-    [GeneratedRegex(@"^(?<body>[A-Za-z_][A-Za-z0-9_]*)\.face\((?<side>[+-][XYZ])\)$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^(?<body>[A-Za-z_][A-Za-z0-9_]*)\.face\((?<side>[+-][XYZ]|\#?[0-9]+)\)$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
     private static partial Regex FacePath();
 
     public static (SemanticValue? Value, SemanticDiagnostic? Diagnostic) Bind(
@@ -20,8 +20,8 @@ internal static partial class FirmamentAnalysisSemanticProducer
         if (!match.Success || !string.Equals(match.Groups["body"].Value, expectedBody, StringComparison.Ordinal))
             return (null, new(SemanticValueValidator.PathMemberMissing,
                 $"Boundary region '{authoredPath}' is not an exposed face of semantic body '{expectedBody}'.", sourceSpan));
-        var side = match.Groups["side"].Value;
-        var token = side switch { "-X" => "x-min", "+X" => "x-max", "-Y" => "y-min", "+Y" => "y-max", "-Z" => "z-min", "+Z" => "z-max", _ => string.Empty };
+        var side = match.Groups["side"].Value.ToUpperInvariant();
+        var token = side switch { "-X" => "x-min", "+X" => "x-max", "-Y" => "y-min", "+Y" => "y-max", "-Z" => "z-min", "+Z" => "z-max", _ => side };
         exactFaceIds.TryGetValue(token, out var faceId);
         var stableId = $"analysis-region:{origin}:{expectedBody}:face({side})" + (faceId is null ? string.Empty : ":" + faceId);
         return (new SemanticValue(stableId, new("BoundaryRegion"),

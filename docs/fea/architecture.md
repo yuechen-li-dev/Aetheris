@@ -20,7 +20,7 @@ Firmament owns body, homogeneous material assignment, semantic regions, constrai
 
 AnalysisIR contains no node, element, DOF, or sparse-matrix indices. `SemanticRegionBinding` preserves the source path, optional exact BRep face IDs, recognized imported faces, and declaration provenance. Solver indices first appear during mechanics discretization.
 
-M5 supports native Box and centered box-minus-through-cylinder material domains. InlineStep Templates support canonical six-planar-face boxes through `ImportedStep`; unsupported imported topology fails with `firmament-analysis-inline-step-cir-unsupported` instead of silently approximating arbitrary BRep solids.
+X1 supports native Box and centered box-minus-through-cylinder material domains plus closed imported BReps admitted by kernel point containment. InlineStep Templates and direct `inlineSTEP(path)` expressions lower through the existing STEP importer. Six-planar-face boxes retain an analytic fast path; general imported bodies use conservative cut-cell sampling and exact planar BRep face trims. Unsupported kernel containment fails instead of silently fabricating material. See [FEA-PROD-X1](production-x1.md).
 
 ## Boundary ownership
 

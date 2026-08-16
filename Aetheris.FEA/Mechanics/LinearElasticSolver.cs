@@ -14,7 +14,8 @@ public sealed record MechanicsSolveOptions(
     double RelativeResidualTolerance = 1e-9,
     int? MaximumIterations = null,
     Transform3D? DomainTransform = null,
-    bool PreserveNominalCellVolumeUnderTransform = false);
+    bool PreserveNominalCellVolumeUnderTransform = false,
+    bool RetryEmptyCutCells = true);
 
 public static class LinearElasticSolver
 {
@@ -56,7 +57,7 @@ public static class LinearElasticSolver
         foreach (var cell in grid.Cells.Where(item => item.Classification != CellClassification.Outside))
         {
             var plan = CreateQuadrature(region, cell, options.CutCellQuadraturePerAxis);
-            if(plan.Points.Count==0&&cell.Classification==CellClassification.Cut)
+            if(plan.Points.Count==0&&cell.Classification==CellClassification.Cut&&options.RetryEmptyCutCells)
             {
                 for(var order=Math.Max(options.CutCellQuadraturePerAxis+1,8);order<=32&&plan.Points.Count==0;order*=2)plan=CreateQuadrature(region,cell,order);
             }
@@ -103,7 +104,10 @@ public static class LinearElasticSolver
         MechanicsBoundaryQuadraturePlan? Plan(SemanticRegionBinding binding)
         {
             var key=binding.Path+"|"+binding.ExactBrepFaceId;if(boundaryPlans.TryGetValue(key,out var cached))return cached;
-            var semanticStart=Stopwatch.GetTimestamp();var resolved=planar.TryResolvePlanarBoundary(binding.Path,binding.ExactBrepFaceId,out var domain);semanticFaceTime+=Stopwatch.GetElapsedTime(semanticStart);
+            var semanticStart=Stopwatch.GetTimestamp();bool resolved;PlanarBoundaryDomain domain;
+            try{resolved=planar.TryResolvePlanarBoundary(binding.Path,binding.ExactBrepFaceId,out domain);}
+            catch(NotSupportedException exception){semanticFaceTime+=Stopwatch.GetElapsedTime(semanticStart);diagnostics.Add(new("fea-boundary-geometry-unsupported",AnalysisDiagnosticSeverity.Error,exception.Message,binding.Provenance));return null;}
+            semanticFaceTime+=Stopwatch.GetElapsedTime(semanticStart);
             if(!resolved){diagnostics.Add(new("fea-boundary-region-unresolved",AnalysisDiagnosticSeverity.Error,$"Semantic region '{binding.Path}' did not resolve to an exact planar face.",binding.Provenance));return null;}
             if(!domain.TryOrientFromMaterialSide(region,out domain)){diagnostics.Add(new("fea-material-side-ambiguity",AnalysisDiagnosticSeverity.Error,$"Semantic region '{binding.Path}' did not provide an unambiguous CIR material side.",binding.Provenance));return null;}
             try{var planStart=Stopwatch.GetTimestamp();var created=MechanicsBoundaryQuadrature.Create(domain,binding,active.Select(item=>item.Cell).ToArray());boundaryPlanTime+=Stopwatch.GetElapsedTime(planStart);boundaryPlans[key]=created;return created;}
@@ -196,8 +200,15 @@ public static class LinearElasticSolver
         var sparseBytes = (long)rawMatrix.Nonzeros * (sizeof(double) + sizeof(int)) + (long)(dofs + 1) * sizeof(int);
         var resultBytes = (long)displacements.Length * (sizeof(int) + 6*sizeof(double)) + (long)fields.Count * 16*sizeof(double);
         var lowering=new NumericalLoweringEvidence("m5c-v1-frozen","Compiler metadata governing independent numerical carriers; never a physical stiffness multiplier.",basisPlan.Supports,basisPlan.Treatments,boundaryEvidence,basisPlan.JudgmentCalls,boundaryChoices.Count,basisPlan.FixedThresholdCount,ImmersedNumericalLowering.Hash(basisPlan,boundaryEvidence),authorityTime,TimeSpan.Zero,constraintTime);
-        return new(analysis.Id, true, convergence, displacements, fields, reactions, equilibrium, system, tiny,
-            new(domainTime,quadratureTime,assemblyTime,boundaryTime,convergence.Runtime,recoveryTime,sparseBytes,resultBytes,semanticFaceTime,boundaryPlanTime,loadAssemblyTime,constraintTime),diagnostics,loadEvidence,lowering,energy,stressProbes);
+        var reportedDisplacements=analysis.RequestedFields.Contains(AnalysisResultField.Displacement)?displacements:[];
+        var wantsStrain=analysis.RequestedFields.Contains(AnalysisResultField.Strain);var wantsStress=analysis.RequestedFields.Contains(AnalysisResultField.Stress);
+        var reportedFields=wantsStrain&&wantsStress?fields:[];
+        var strainFields=wantsStrain?fields.Select(item=>new CellStrainResult(item.I,item.J,item.K,item.Position,item.Strain)).ToArray():[];
+        var stressFields=wantsStress?fields.Select(item=>new CellStressResult(item.I,item.J,item.K,item.Position,item.StressPascal,item.VonMisesPascal)).ToArray():[];
+        var reportedReactions=analysis.RequestedFields.Contains(AnalysisResultField.ReactionForce)?reactions:[];
+        var reportedStressProbes=analysis.RequestedFields.Contains(AnalysisResultField.Stress)?stressProbes:[];
+        return new(analysis.Id, true, convergence, reportedDisplacements, reportedFields, reportedReactions, equilibrium, system, tiny,
+            new(domainTime,quadratureTime,assemblyTime,boundaryTime,convergence.Runtime,recoveryTime,sparseBytes,resultBytes,semanticFaceTime,boundaryPlanTime,loadAssemblyTime,constraintTime),diagnostics,loadEvidence,lowering,energy,reportedStressProbes,strainFields,stressFields);
     }
 
     public static MechanicsQuadraturePlan CreateQuadrature(IContinuumRegion region, ContinuumCell cell, int cutSamplesPerAxis)
@@ -451,7 +462,8 @@ public static class LinearElasticSolver
                 maximum=double.Max(maximum,error);weighted+=error*error*point.AreaWeight;area+=point.AreaWeight;
             }
         }
-        return (maximum,area==0?0:double.Sqrt(weighted/area));
+        // Roundoff can leave a tiny negative weighted sum when oriented triangle weights cancel.
+        return (maximum,area==0?0:double.Sqrt(double.Max(0,weighted/area)));
     }
 
     private static Vector3D StrongReaction(IReadOnlyList<double> residual,IReadOnlySet<int> effectiveNodes,IReadOnlyDictionary<int,IReadOnlyList<(int EffectiveNode,double Weight)>> mappings)

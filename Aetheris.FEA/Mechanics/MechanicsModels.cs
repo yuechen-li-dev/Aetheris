@@ -22,6 +22,8 @@ public sealed record BoundaryLoadEvidence(string LoadId,string RegionPath,string
 public readonly record struct MechanicsNode(int Id, Point3D Position);
 public readonly record struct SymmetricTensor(double XX, double YY, double ZZ, double XY, double YZ, double XZ);
 public sealed record CellFieldResult(int I, int J, int K, Point3D Position, SymmetricTensor Strain, SymmetricTensor StressPascal, double VonMisesPascal);
+public sealed record CellStrainResult(int I,int J,int K,Point3D Position,SymmetricTensor Strain);
+public sealed record CellStressResult(int I,int J,int K,Point3D Position,SymmetricTensor CauchyStressPascal,double VonMisesPascal);
 public sealed record NodalDisplacement(int NodeId, Point3D Position, Vector3D DisplacementMeters);
 public sealed record ReactionResult(string ConstraintId, Vector3D ForceNewton);
 public sealed record SolverConvergence(bool Converged, int Iterations, double InitialResidual, double FinalResidual, IReadOnlyList<double> ResidualHistory, TimeSpan Runtime);
@@ -60,8 +62,10 @@ public sealed record LinearElasticAnalysisResult(
     IReadOnlyList<BoundaryLoadEvidence>? BoundaryLoads=null,
     NumericalLoweringEvidence? NumericalLowering=null,
     StrainEnergyConsistency? StrainEnergy=null,
-    IReadOnlyList<ExactStressProbe>? StressProbes=null)
+    IReadOnlyList<ExactStressProbe>? StressProbes=null,
+    IReadOnlyList<CellStrainResult>? StrainFields=null,
+    IReadOnlyList<CellStressResult>? StressFields=null)
 {
     public double MaximumDisplacementMeters => Displacements.Count == 0 ? 0 : Displacements.Max(item => item.DisplacementMeters.Length);
-    public double MaximumVonMisesPascal => CellFields.Count == 0 ? 0 : CellFields.Max(item => item.VonMisesPascal);
+    public double MaximumVonMisesPascal => StressFields is { Count: >0 }?StressFields.Max(item=>item.VonMisesPascal):CellFields.Count == 0 ? 0 : CellFields.Max(item => item.VonMisesPascal);
 }

@@ -8,6 +8,8 @@ namespace Aetheris.FEA.Analysis;
 public enum AnalysisKind { LinearStaticElasticity }
 public enum AnalysisResultField { Displacement, Strain, Stress, ReactionForce }
 public enum BoundaryLoadKind { Traction, ResultantForce, Pressure }
+public enum LoadDistributionPolicy { TotalResultantOverSelectedArea, TractionPerUnitArea, PressureNormalToSurface }
+public enum AnalysisGeometrySourceKind { FirmamentNative, InlineStep }
 public enum DisplacementComponent { X, Y, Z }
 
 public sealed record AnalysisProvenance(
@@ -55,7 +57,8 @@ public sealed record BoundaryLoadIr(
     SemanticRegionBinding Region,
     Vector3D VectorSi,
     double PressurePascal,
-    AnalysisProvenance Provenance);
+    AnalysisProvenance Provenance,
+    LoadDistributionPolicy Distribution = LoadDistributionPolicy.TotalResultantOverSelectedArea);
 
 public sealed record AnalysisBodyIr(
     string Id,
@@ -63,7 +66,23 @@ public sealed record AnalysisBodyIr(
     IContinuumRegion ContinuumRegion,
     string? BrepBodyId,
     string? ResourceHash,
-    AnalysisProvenance Provenance);
+    AnalysisProvenance Provenance)
+{
+    public AnalysisGeometrySourceKind GeometrySource => Enum.Parse<AnalysisGeometrySourceKind>(SourceKind);
+}
+
+public sealed record AnalysisResultSemantics(AnalysisResultField Field,string Representation,string Unit,string Location,string Recovery);
+public static class AnalysisResultContracts
+{
+    public static AnalysisResultSemantics Describe(AnalysisResultField field)=>field switch
+    {
+        AnalysisResultField.Displacement=>new(field,"Vector3","m","admitted lattice node","primary solved degrees of freedom; aggregated nodes are affine extensions"),
+        AnalysisResultField.Strain=>new(field,"symmetric tensor","1","occupied cell center","small-strain tensor recovered from the Q1 displacement gradient"),
+        AnalysisResultField.Stress=>new(field,"Cauchy symmetric tensor plus von Mises scalar","Pa","occupied cell center","linear isotropic constitutive recovery; no nodal interpolation"),
+        AnalysisResultField.ReactionForce=>new(field,"Vector3 per constraint","N","selected boundary condition","assembled constrained residual or consistent Nitsche boundary reaction"),
+        _=>throw new ArgumentOutOfRangeException(nameof(field)),
+    };
+}
 
 public sealed record LinearElasticAnalysisIr(
     string Id,
@@ -90,6 +109,8 @@ public static class AnalysisIrValidator
             diagnostics.Add(Error("fea-m5-multiple-material-regions-unsupported", "M5 supports one homogeneous material while retaining region-shaped assignments.", analysis.Provenance));
         foreach (var material in analysis.Materials)
         {
+            if (material.ConstitutiveClass is not null and not MaterialConstitutiveClass.LinearElasticIsotropic)
+                diagnostics.Add(Error("fea-unsupported-constitutive-class", $"Material '{material.Id}' uses unsupported constitutive class '{material.ConstitutiveClass}'. X1 supports LinearElasticIsotropic.", material.Provenance));
             if (!double.IsFinite(material.YoungsModulusPascal) || material.YoungsModulusPascal <= 0)
                 diagnostics.Add(Error("fea-invalid-youngs-modulus", "Young's modulus must be finite and positive.", material.Provenance));
             if (!double.IsFinite(material.PoissonRatio) || material.PoissonRatio <= -1 || material.PoissonRatio >= 0.5)
@@ -101,6 +122,8 @@ public static class AnalysisIrValidator
             diagnostics.Add(Error("fea-empty-constraint", $"Constraint '{constraint.Id}' constrains no displacement components.", constraint.Provenance));
         foreach (var load in analysis.Loads.Where(l => string.IsNullOrWhiteSpace(l.Region.Path)))
             diagnostics.Add(Error("fea-empty-region-selection", $"Load '{load.Id}' has no semantic region.", load.Provenance));
+        foreach(var load in analysis.Loads.Where(load=>!double.IsFinite(load.VectorSi.X)||!double.IsFinite(load.VectorSi.Y)||!double.IsFinite(load.VectorSi.Z)||!double.IsFinite(load.PressurePascal)))
+            diagnostics.Add(Error("fea-invalid-load",$"Load '{load.Id}' contains a non-finite or unit-incompatible value.",load.Provenance));
         return diagnostics;
     }
 

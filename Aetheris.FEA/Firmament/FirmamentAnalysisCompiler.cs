@@ -12,6 +12,9 @@ using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Core.Topology;
 using Aetheris.Semantics;
 using Aetheris.Kernel.StandardLibrary.Materials;
+using Aetheris.FEA.Geometry;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Aetheris.FEA.Firmament;
 
@@ -21,21 +24,23 @@ public sealed record FirmamentAnalysisCompilation(LinearElasticAnalysisIr? Analy
     public bool IsSuccess=>Analysis is not null&&!Diagnostics.Any(item=>item.Severity==AnalysisDiagnosticSeverity.Error);
 }
 
-/// <summary>Bounded M5 parser/lowerer for declarative analysis blocks embedded in Firmament source.</summary>
+/// <summary>Firmament analysis-intent compiler. Geometry, materials and selections are fully resolved before solver execution.</summary>
 public static class FirmamentAnalysisCompiler
 {
-    private static readonly Regex Header=new(@"\banalysis\s+LinearElastic\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{",RegexOptions.CultureInvariant);
+    private static readonly Regex Header=new(@"\banalysis\s+LinearElastic\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{",RegexOptions.CultureInvariant|RegexOptions.IgnoreCase);
     public static FirmamentAnalysisCompilation Compile(string source,string? sourcePath=null,string? sourceDirectory=null,IReadOnlyDictionary<string,FirmamentAnalysisResource>? resources=null,IMaterialResolver? materialResolver=null)
     {
         var started=System.Diagnostics.Stopwatch.GetTimestamp();var diagnostics=new List<AnalysisDiagnostic>();var match=Header.Match(source);
-        if(!match.Success)return Done(null,[Error("firmament-analysis-missing","No 'analysis LinearElastic' declaration was found.",sourcePath)],started);
+        if(!match.Success)return Done(null,[Error("firmament-analysis-missing","No 'Analysis LinearElastic' declaration was found.",sourcePath)],started);
         var open=source.IndexOf('{',match.Index);var close=MatchingBrace(source,open);if(close<0)return Done(null,[Error("firmament-analysis-malformed","Analysis block has no closing brace.",sourcePath)],started);
         var block=source[(open+1)..close];var analysisSpan=new AnalysisProvenance(sourcePath??"<memory>",match.Index,close-match.Index+1,match.Value);
         var stripped=source.Remove(match.Index,close-match.Index+1);
-        var bodyName=Scalar(block,"body")??string.Empty;var resourceName=(Scalar(block,"bodyResource")??string.Empty).TrimStart('$');
+        var bodyExpression=Scalar(block,"body")??string.Empty;
+        var inlineCall=Regex.Match(bodyExpression,@"^(?:inlineSTEP|InlineStep)\s*\(\s*""(?<path>[^""]+)""\s*\)$",RegexOptions.CultureInvariant);
+        var bodyName=inlineCall.Success?"body":bodyExpression;var resourceName=(Scalar(block,"bodyResource")??string.Empty).TrimStart('$');
         IContinuumRegion? region=null;string sourceKind;string? resourceHash=null;string? brepBodyId=null;string bodyId;IReadOnlyDictionary<string,string> semanticFaceIds=new Dictionary<string,string>();var namedRegions=new Dictionary<string,SemanticValue>(StringComparer.Ordinal);
         var sourceParse=FirmamentV2Parser.Parse(stripped,sourceDirectory);var directInline=sourceParse.Document?.Solids.SingleOrDefault(item=>item.Name==bodyName)?.InlineStep;
-        if(resourceName.Length>0||directInline is not null)
+        if(resourceName.Length>0||directInline is not null||inlineCall.Success)
         {
             bodyId=bodyName.Length>0?bodyName:resourceName;sourceKind="InlineStep";
             FirmamentAnalysisResource resource;
@@ -43,7 +48,7 @@ public static class FirmamentAnalysisCompiler
             {
                 if(resources is null||!resources.TryGetValue(resourceName,out resource!)){diagnostics.Add(Error("firmament-analysis-resource-missing",$"InlineStep analysis resource '${resourceName}' is not bound.",sourcePath));return Done(null,diagnostics,started);}
             }
-            else
+            else if(directInline is not null)
             {
                 var imported=Step242Importer.ImportBody(File.ReadAllText(directInline!.NormalizedPath));
                 if(!imported.IsSuccess||imported.Value is null){diagnostics.Add(Error("firmament-analysis-inline-step-import-failed",string.Join("; ",imported.Diagnostics.Select(item=>item.Message)),sourcePath));return Done(null,diagnostics,started);}
@@ -56,30 +61,58 @@ public static class FirmamentAnalysisCompiler
                     foreach(var member in semanticRoot.ExposedMembers)namedRegions[bodyId+"."+member.Key]=member.Value;
                 }
             }
+            else
+            {
+                var relativePath=inlineCall.Groups["path"].Value;
+                var normalizedPath=Path.GetFullPath(relativePath,sourceDirectory??Directory.GetCurrentDirectory());
+                if(!File.Exists(normalizedPath)){diagnostics.Add(Error("firmament-analysis-inline-step-file-missing",$"InlineStep analysis file was not found: {normalizedPath}",sourcePath));return Done(null,diagnostics,started);}
+                var stepText=File.ReadAllText(normalizedPath);var imported=Step242Importer.ImportBody(stepText);
+                if(!imported.IsSuccess||imported.Value is null){diagnostics.Add(Error("firmament-analysis-inline-step-import-failed",string.Join("; ",imported.Diagnostics.Select(item=>item.Message)),sourcePath));return Done(null,diagnostics,started);}
+                resource=new(bodyId,Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(stepText))).ToLowerInvariant(),imported.Value);
+                var entityFaceIds=new Dictionary<string,string>(StringComparer.Ordinal);var ordinal=0;
+                foreach(Match entity in Regex.Matches(stepText,@"(?m)^\s*(#[0-9]+)\s*=\s*ADVANCED_FACE\s*\(",RegexOptions.CultureInvariant))entityFaceIds[entity.Groups[1].Value]=(++ordinal).ToString(CultureInfo.InvariantCulture);
+                semanticFaceIds=entityFaceIds;
+            }
             var points=resource.Body.Topology.Vertices.Select(v=>resource.Body.TryGetVertexPoint(v.Id,out var point)?point:(Point3D?)null).Where(p=>p.HasValue).Select(p=>p!.Value).ToArray();
             if(points.Length==0){diagnostics.Add(Error("firmament-analysis-inline-step-bounds-unavailable","Imported STEP has no exact vertex positions for bounded M5 CIR recognition.",sourcePath));return Done(null,diagnostics,started);}
             var rawMin=new Point3D(points.Min(p=>p.X),points.Min(p=>p.Y),points.Min(p=>p.Z));var rawMax=new Point3D(points.Max(p=>p.X),points.Max(p=>p.Y),points.Max(p=>p.Z));const double stepMeters=0.001;var size=(rawMax-rawMin)*stepMeters;var center=new Vector3D((rawMin.X+rawMax.X)*stepMeters/2,(rawMin.Y+rawMax.Y)*stepMeters/2,(rawMin.Z+rawMax.Z)*stepMeters/2);
-            // M5's InlineStep seam admits an exact six-planar-face box; other imported topology fails explicitly.
-            if(resource.Body.Topology.Faces.Count()!=6){diagnostics.Add(Error("firmament-analysis-inline-step-cir-unsupported","M5 InlineStep mechanics admits exact planar boxes; this imported body needs a broader BRep-to-CIR recognizer.",sourcePath));return Done(null,diagnostics,started);}
-            var faceIds=new Dictionary<string,string>(StringComparer.Ordinal);
-            foreach(var binding in resource.Body.Bindings.FaceBindings)
+            if(resource.Body.Topology.Faces.Count()==6&&resource.Body.Bindings.FaceBindings.All(binding=>resource.Body.Geometry.GetSurface(binding.SurfaceGeometryId).Kind==SurfaceGeometryKind.Plane))
             {
-                var surface=resource.Body.Geometry.GetSurface(binding.SurfaceGeometryId);if(surface.Kind!=SurfaceGeometryKind.Plane||surface.Plane is not { } plane)continue;
-                var n=plane.Normal.ToVector();string token=double.Abs(n.X)>0.9?(double.Abs(plane.Origin.X-rawMin.X)<double.Abs(plane.Origin.X-rawMax.X)?"x-min":"x-max"):double.Abs(n.Y)>0.9?(double.Abs(plane.Origin.Y-rawMin.Y)<double.Abs(plane.Origin.Y-rawMax.Y)?"y-min":"y-max"):(double.Abs(plane.Origin.Z-rawMin.Z)<double.Abs(plane.Origin.Z-rawMax.Z)?"z-min":"z-max");faceIds[token]=binding.FaceId.Value.ToString(CultureInfo.InvariantCulture);
+                var faceIds=new Dictionary<string,string>(StringComparer.Ordinal);
+                foreach(var binding in resource.Body.Bindings.FaceBindings)
+                {
+                    var plane=resource.Body.Geometry.GetSurface(binding.SurfaceGeometryId).Plane!.Value;var n=plane.Normal.ToVector();
+                    var token=double.Abs(n.X)>0.9?(double.Abs(plane.Origin.X-rawMin.X)<double.Abs(plane.Origin.X-rawMax.X)?"x-min":"x-max")
+                        :double.Abs(n.Y)>0.9?(double.Abs(plane.Origin.Y-rawMin.Y)<double.Abs(plane.Origin.Y-rawMax.Y)?"y-min":"y-max")
+                        :(double.Abs(plane.Origin.Z-rawMin.Z)<double.Abs(plane.Origin.Z-rawMax.Z)?"z-min":"z-max");
+                    faceIds[token]=binding.FaceId.Value.ToString(CultureInfo.InvariantCulture);
+                }
+                region=new ExactBrepBoxContinuumRegion(new RegionId(bodyId+":imported-box-cir"),size.X,size.Y,size.Z,Transform3D.CreateTranslation(center),faceIds);
+                semanticFaceIds=faceIds;
             }
-            region=new ExactBrepBoxContinuumRegion(new RegionId(bodyId+":inline-cir"),size.X,size.Y,size.Z,Transform3D.CreateTranslation(center),faceIds);semanticFaceIds=faceIds;resourceHash=resource.ContentHash;brepBodyId=resource.Body.Topology.Bodies.Single().Id.Value.ToString(CultureInfo.InvariantCulture);
+            else
+            {
+                ImportedBrepAnalysisRegion importedRegion;
+                try{importedRegion=new ImportedBrepAnalysisRegion(new RegionId(bodyId+":imported-brep-cir"),resource.Body,stepMeters);}
+                catch(Exception exception) when(exception is NotSupportedException or InvalidOperationException or ArgumentException)
+                {diagnostics.Add(Error("firmament-analysis-inline-step-cir-unsupported",$"Imported STEP cannot be lowered to the bounded analysis domain: {exception.Message}",sourcePath));return Done(null,diagnostics,started);}
+                if(!importedRegion.TryValidateOccupancySupport(out var evidence)){diagnostics.Add(Error("firmament-analysis-inline-step-containment-unsupported",$"Imported STEP cannot provide deterministic occupied-material classification. {evidence}",sourcePath));return Done(null,diagnostics,started);}
+                region=importedRegion;
+            }
+            resourceHash=resource.ContentHash;brepBodyId=resource.Body.Topology.Bodies.Single().Id.Value.ToString(CultureInfo.InvariantCulture);
         }
         else
         {
             var parse=FirmamentV2Parser.Parse(stripped,sourceDirectory);
-            var units=Regex.Match(stripped,@"\bunits\s+(?<u>[A-Za-z]+)",RegexOptions.CultureInvariant).Groups["u"].Value;
-            var boxHeader=Regex.Match(stripped,$@"\bsolid\s+{Regex.Escape(bodyName)}\s*:\s*Box\s*\{{",RegexOptions.CultureInvariant);
+            var units=Regex.Match(stripped,@"\bunits\s*:?\s*(?<u>[A-Za-z]+)",RegexOptions.CultureInvariant|RegexOptions.IgnoreCase).Groups["u"].Value;
+            var boxHeader=Regex.Match(stripped,$@"\bsolid\s+{Regex.Escape(bodyName)}\s*:\s*Box\s*\{{",RegexOptions.CultureInvariant|RegexOptions.IgnoreCase);
             if(!boxHeader.Success){diagnostics.Add(Error("firmament-analysis-body-unsupported",$"Body '{bodyName}' is not a Firmament Box/box-with-hole solid.",sourcePath));return Done(null,diagnostics,started);}
             var boxOpen=stripped.IndexOf('{',boxHeader.Index);var boxClose=MatchingBrace(stripped,boxOpen);var sizeRaw=Numbers(Scalar(stripped[(boxOpen+1)..boxClose],"size"));
             if(sizeRaw.Length!=3){diagnostics.Add(Error("firmament-analysis-body-size-invalid",$"Body '{bodyName}' requires three Box dimensions.",sourcePath));return Done(null,diagnostics,started);}
-            var scale=UnitScale(units);var size=sizeRaw.Select(value=>value*scale).ToArray();var bounds=new BoundingBox3D(new(0,0,0),new(size[0],size[1],size[2]));
-            var modify=Regex.Match(stripped,$@"\bmodify\s+{Regex.Escape(bodyName)}\s*\{{",RegexOptions.CultureInvariant);double? holeRadius=null;
-            if(modify.Success){var modifyOpen=stripped.IndexOf('{',modify.Index);var modifyClose=MatchingBrace(stripped,modifyOpen);var radiusMatch=Regex.Match(stripped[(modifyOpen+1)..modifyClose],@"\bradius\s*:\s*(?<v>[-+0-9.eE]+)",RegexOptions.CultureInvariant);if(radiusMatch.Success)holeRadius=Number(radiusMatch.Groups["v"].Value)*scale;}
+            var scale=UnitScale(units);if(scale is null){diagnostics.Add(Error("firmament-analysis-length-unit-unsupported",$"Analysis body length unit '{units}' is unsupported; use mm, cm, or m.",sourcePath));return Done(null,diagnostics,started);}
+            var size=sizeRaw.Select(value=>value*scale.Value).ToArray();var bounds=new BoundingBox3D(new(0,0,0),new(size[0],size[1],size[2]));
+            var modify=Regex.Match(stripped,$@"\bmodify\s+{Regex.Escape(bodyName)}\s*\{{",RegexOptions.CultureInvariant|RegexOptions.IgnoreCase);double? holeRadius=null;
+            if(modify.Success){var modifyOpen=stripped.IndexOf('{',modify.Index);var modifyClose=MatchingBrace(stripped,modifyOpen);var radiusMatch=Regex.Match(stripped[(modifyOpen+1)..modifyClose],@"\bradius\s*:\s*(?<v>[-+0-9.eE]+)",RegexOptions.CultureInvariant);if(radiusMatch.Success)holeRadius=Number(radiusMatch.Groups["v"].Value)*scale.Value;}
             region=holeRadius is null?new AxisAlignedBoxRegion(new RegionId(bodyName+":cir"),bounds):new BlockWithCylindricalHoleRegion(new RegionId(bodyName+":cir"),bounds,holeRadius.Value);
             if(!parse.IsSuccess) diagnostics.Add(new("firmament-analysis-geometry-parser-fallback",AnalysisDiagnosticSeverity.Warning,"The bounded analysis body recognizer admitted Box/through-cylinder syntax while the general geometry parser reported: "+string.Join(",",parse.Diagnostics),analysisSpan));
             bodyId=bodyName;sourceKind="FirmamentNative";
@@ -118,31 +151,35 @@ public static class FirmamentAnalysisCompiler
             return FirmamentAnalysisSemanticProducer.Normalize(path,bodyId,semanticFaceIds,provenance,sourceKind);
         }
         var constraints=new List<DisplacementConstraintIr>();
-        foreach(var nested in NestedAll(block,"fixed"))
+        foreach(var nested in NestedAll(block,"Fixed"))
         {
             var path=Scalar(nested.Body,"region")??"";var components=Components(Scalar(nested.Body,"components"));if(components.Count==0)components=[DisplacementComponent.X,DisplacementComponent.Y,DisplacementComponent.Z];var prov=new AnalysisProvenance(sourcePath??"<memory>",open+nested.Start,nested.Length,"fixed "+nested.Name);
             var normalized=NormalizeRegion(path,prov);if(normalized.Diagnostic is not null){diagnostics.Add(normalized.Diagnostic);continue;}
             constraints.Add(new(nested.Name,normalized.Region!,components,new(0,0,0),prov));
         }
         var loads=new List<BoundaryLoadIr>();
-        foreach(var keyword in new[]{("traction",BoundaryLoadKind.Traction),("force",BoundaryLoadKind.ResultantForce),("pressure",BoundaryLoadKind.Pressure)})foreach(var nested in NestedAll(block,keyword.Item1))
+        foreach(var keyword in new[]{("Traction",BoundaryLoadKind.Traction),("Force",BoundaryLoadKind.ResultantForce),("Pressure",BoundaryLoadKind.Pressure)})foreach(var nested in NestedAll(block,keyword.Item1))
         {
             var path=Scalar(nested.Body,"region")??"";var prov=new AnalysisProvenance(sourcePath??"<memory>",open+nested.Start,nested.Length,keyword.Item1+" "+nested.Name);var vector=Vector(Scalar(nested.Body,"vector"),keyword.Item2==BoundaryLoadKind.ResultantForce);var pressure=keyword.Item2==BoundaryLoadKind.Pressure?Stress(Scalar(nested.Body,"value")):0;
             var normalized=NormalizeRegion(path,prov);if(normalized.Diagnostic is not null){diagnostics.Add(normalized.Diagnostic);continue;}
-            loads.Add(new(nested.Name,keyword.Item2,normalized.Region!,vector,pressure,prov));
+            var distribution=keyword.Item2 switch{BoundaryLoadKind.ResultantForce=>LoadDistributionPolicy.TotalResultantOverSelectedArea,BoundaryLoadKind.Traction=>LoadDistributionPolicy.TractionPerUnitArea,_=>LoadDistributionPolicy.PressureNormalToSurface};
+            loads.Add(new(nested.Name,keyword.Item2,normalized.Region!,vector,pressure,prov,distribution));
         }
-        var latticeValues=Numbers(Scalar(block,"lattice"));var lattice=latticeValues.Length==3?new LatticeSpec(region.Bounds,(int)latticeValues[0],(int)latticeValues[1],(int)latticeValues[2]):new LatticeSpec(region.Bounds,12,6,2);
-        var requested=(Scalar(block,"results")??"Displacement,Strain,Stress,ReactionForce").Trim('[',']').Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries).Select(Enum.Parse<AnalysisResultField>).ToHashSet();
+        var latticeValues=Numbers(Scalar(block,"lattice"));
+        if(latticeValues.Length is not (0 or 3)||latticeValues.Any(value=>!double.IsInteger(value)||value<1)){diagnostics.Add(Error("fea-invalid-lattice-dimensions","Lattice must contain exactly three positive integer dimensions.",sourcePath));return Done(null,diagnostics,started);}
+        var lattice=latticeValues.Length==3?new LatticeSpec(region.Bounds,(int)latticeValues[0],(int)latticeValues[1],(int)latticeValues[2]):new LatticeSpec(region.Bounds,12,6,2);
+        var requested=new HashSet<AnalysisResultField>();foreach(var item in (Scalar(block,"results")??"Displacement,Strain,Stress,ReactionForce").Trim('[',']').Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries)){if(Enum.TryParse<AnalysisResultField>(item,true,out var field))requested.Add(field);else diagnostics.Add(Error("fea-invalid-result-request",$"Analysis result '{item}' is unsupported.",sourcePath));}
+        if(requested.Count==0){diagnostics.Add(Error("fea-invalid-result-request","Analysis must request at least one supported result field.",sourcePath));return Done(null,diagnostics,started);}
         var bodyProv=new AnalysisProvenance(sourcePath??"<memory>",match.Index,match.Length,"body "+bodyId,ExactBrepFaceId:brepBodyId);var ir=new LinearElasticAnalysisIr(match.Groups["name"].Value,AnalysisKind.LinearStaticElasticity,new(bodyId,sourceKind,region,brepBodyId,resourceHash,bodyProv),[material],constraints,loads,requested,lattice,analysisSpan);
         diagnostics.AddRange(AnalysisIrValidator.Validate(ir));return Done(ir,diagnostics,started);
     }
 
     private sealed record NestedBlock(string Name,string Body,int Start,int Length);
-    private static IEnumerable<NestedBlock> NestedAll(string source,string keyword){var regex=new Regex($@"\b{Regex.Escape(keyword)}\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{{",RegexOptions.CultureInvariant);foreach(Match m in regex.Matches(source)){var open=source.IndexOf('{',m.Index);var close=MatchingBrace(source,open);if(close>open)yield return new(m.Groups["name"].Value,source[(open+1)..close],m.Index,close-m.Index+1);}}
+    private static IEnumerable<NestedBlock> NestedAll(string source,string keyword){var regex=new Regex($@"\b{Regex.Escape(keyword)}\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{{",RegexOptions.CultureInvariant|RegexOptions.IgnoreCase);foreach(Match m in regex.Matches(source)){var open=source.IndexOf('{',m.Index);var close=MatchingBrace(source,open);if(close>open)yield return new(m.Groups["name"].Value,source[(open+1)..close],m.Index,close-m.Index+1);}}
     private static string? Nested(string source,string keyword,out string name,out int start){var item=NestedAll(source,keyword).FirstOrDefault();name=item?.Name??"";start=item?.Start??0;return item?.Body;}
-    private static string? Scalar(string source,string name){var m=Regex.Match(source,$@"(?m)^\s*{Regex.Escape(name)}\s*:\s*(?<value>[^\r\n}}]+)",RegexOptions.CultureInvariant);return m.Success?m.Groups["value"].Value.Trim():null;}
+    private static string? Scalar(string source,string name){var m=Regex.Match(source,$@"(?m)^\s*{Regex.Escape(name)}\s*:\s*(?<value>[^\r\n}}]+)",RegexOptions.CultureInvariant|RegexOptions.IgnoreCase);return m.Success?m.Groups["value"].Value.Trim():null;}
     private static int MatchingBrace(string source,int open){var depth=0;for(var i=open;i<source.Length;i++){if(source[i]=='{')depth++;else if(source[i]=='}'&&--depth==0)return i;}return-1;}
-    private static double UnitScale(string unit)=>unit.ToLowerInvariant() switch{"m"=>1,"cm"=>.01,"mm"=>.001,_=>throw new FormatException($"Unsupported length unit '{unit}'.")};
+    private static double? UnitScale(string unit)=>unit.ToLowerInvariant() switch{"m"=>1,"cm"=>.01,"mm"=>.001,_=>null};
     private static double Number(string? text)=>double.Parse(text??"NaN",NumberStyles.Float,CultureInfo.InvariantCulture);
     private static double Stress(string? text){if(text is null)return double.NaN;var m=Regex.Match(text,@"^(?<v>[-+0-9.eE]+)\s*(?<u>GPa|MPa|kPa|Pa)$",RegexOptions.IgnoreCase);if(!m.Success)return double.NaN;var v=Number(m.Groups["v"].Value);return v*(m.Groups["u"].Value.ToLowerInvariant() switch{"gpa"=>1e9,"mpa"=>1e6,"kpa"=>1e3,_=>1});}
     private static double? Density(string? text){if(string.IsNullOrWhiteSpace(text))return null;var m=Regex.Match(text,@"^(?<v>[-+0-9.eE]+)\s*kg/m3$",RegexOptions.IgnoreCase);return m.Success?Number(m.Groups["v"].Value):double.NaN;}

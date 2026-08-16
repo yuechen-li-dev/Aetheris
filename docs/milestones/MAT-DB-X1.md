@@ -52,7 +52,7 @@ Values are not supplier certificates. Reports should preserve the attached prove
 Firmament names one catalog material; it does not query the database:
 
 ```firmament
-analysis LinearElastic CouponPull {
+Analysis LinearElastic CouponPull {
     body: coupon
     material: Standard.Materials.Aluminum.5052_H32
     // constraints and loads...

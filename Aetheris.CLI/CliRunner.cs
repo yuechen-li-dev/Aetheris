@@ -156,7 +156,7 @@ public static class CliRunner
     private const string ExperimentalAirChamferCorpusUsage = "Usage: aetheris experimental airchamfer-corpus --out-dir <dir> [--json]";
     private const string ExperimentalPrismaticCorpusUsage = "Usage: aetheris experimental prismatic-corpus --out-dir <dir> [--json]";
     private const string ExperimentalPrismaticMapUsage = "Usage: aetheris experimental prismatic-map --case <case> --rows <N> --cols <N> --json";
-    private const string FeaUsage = "Usage: aetheris fea <analysis.firmament> [--rotate <x,y,z-degrees>] [--out-dir <directory>] [--json]";
+    private const string FeaUsage = "Usage: aetheris fea <analysis.firmament> [--lattice <nx,ny,nz>] [--rotate <x,y,z-degrees>] [--out-dir <directory>] [--json]";
     private const string DrawingUsage = "Usage: aetheris drawing compile <drawing.firmament> --out-dir <directory> [--json]";
     private const string SheetMetalUsage = "Usage: aetheris sheetmetal recognize <part.step> [--plan <recognition.json>] [--json] | aetheris sheetmetal recover-flat <part.step> --out-dir <directory> [--recognition-plan <recognition.json>] [--json] | aetheris sheetmetal compare-flat <recovered-flat.json> <native.firmament> [--semantic] [--json] | aetheris sheetmetal inspect <part.step|part.firmament> [--k-factor <0..1>] [--json] | aetheris sheetmetal paths <part.firmament> [--json] | aetheris sheetmetal recover <part.step> --out-dir <directory> [--json] | aetheris sheetmetal compare <part.step|part.firmament> <intent.firmament> [--semantic] [--json] | aetheris sheetmetal flatten <part.step|part.firmament> [--step <flat.step>] [--firmament <recovered.firmament>] [--svg <flat.svg>] [--k-factor <0..1>] [--json]";
     private const string ExperimentalLoopChamferCorpusUsage = "Usage: aetheris experimental loop-chamfer-corpus --out-dir <dir> [--json]";
@@ -164,7 +164,9 @@ public static class CliRunner
     internal static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        // Numerical diagnostics may intentionally expose an unbounded conditioning proxy.
+        NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals
     };
 
     static CliRunner()
@@ -752,12 +754,13 @@ Model CanonicalPanel {
     private static int RunFea(string[] args, TextWriter stdout, TextWriter stderr)
     {
         if (args.Length == 0 || IsHelpFlag(args[0])) { stdout.WriteLine(FeaUsage); return args.Length == 0 ? 1 : 0; }
-        var input = Path.GetFullPath(args[0]); string? outDir = null; var json = false;Vector3D? rotationDegrees=null;
+        var input = Path.GetFullPath(args[0]); string? outDir = null; var json = false;Vector3D? rotationDegrees=null;(int X,int Y,int Z)? latticeOverride=null;
         for (var index = 1; index < args.Length; index++)
         {
             if (args[index] == "--json") json = true;
             else if (args[index] == "--out-dir" && index + 1 < args.Length) outDir = Path.GetFullPath(args[++index]);
             else if(args[index]=="--rotate"&&index+1<args.Length){var values=args[++index].Split(',').Select(value=>double.Parse(value,System.Globalization.CultureInfo.InvariantCulture)).ToArray();if(values.Length!=3){stderr.WriteLine(FeaUsage);return 1;}rotationDegrees=new(values[0],values[1],values[2]);}
+            else if(args[index]=="--lattice"&&index+1<args.Length){var values=args[++index].Split(',').Select(value=>int.TryParse(value,out var parsed)?parsed:0).ToArray();if(values.Length!=3||values.Any(value=>value<1)){stderr.WriteLine("Lattice override requires three positive integers.");return 1;}latticeOverride=(values[0],values[1],values[2]);}
             else { stderr.WriteLine(FeaUsage); return 1; }
         }
         if (!File.Exists(input)) { stderr.WriteLine($"Analysis source was not found: {input}"); return 1; }
@@ -767,8 +770,13 @@ Model CanonicalPanel {
             foreach (var diagnostic in compiled.Diagnostics) stderr.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
             return 1;
         }
+        if(latticeOverride is { } requestedLattice)compiled=compiled with{Analysis=compiled.Analysis with{Lattice=new Aetheris.Continuum.Lattice.LatticeSpec(compiled.Analysis.Body.ContinuumRegion.Bounds,requestedLattice.X,requestedLattice.Y,requestedLattice.Z)}};
         Transform3D? orientation=null;if(rotationDegrees is { } degrees){var b=compiled.Analysis.Body.ContinuumRegion.Bounds;var center=new Vector3D((b.Min.X+b.Max.X)/2,(b.Min.Y+b.Max.Y)/2,(b.Min.Z+b.Max.Z)/2);orientation=Transform3D.CreateTranslation(-center)*Transform3D.CreateRotationX(degrees.X*double.Pi/180)*Transform3D.CreateRotationY(degrees.Y*double.Pi/180)*Transform3D.CreateRotationZ(degrees.Z*double.Pi/180)*Transform3D.CreateTranslation(center);}
-        var solveOptions=new MechanicsSolveOptions(CutCellQuadraturePerAxis:6,DomainTransform:orientation,PreserveNominalCellVolumeUnderTransform:orientation is not null);var result = LinearElasticSolver.Solve(compiled.Analysis,solveOptions);
+        // Generic imported BReps classify every intersecting site through exact kernel containment;
+        // use the production default order while analytic domains retain the higher CLI verification order.
+        var quadratureOrder=compiled.Analysis.Body.ContinuumRegion is Aetheris.FEA.Geometry.ImportedBrepAnalysisRegion?4:6;
+        var solveOptions=new MechanicsSolveOptions(CutCellQuadraturePerAxis:quadratureOrder,DomainTransform:orientation,PreserveNominalCellVolumeUnderTransform:orientation is not null,
+            RetryEmptyCutCells:compiled.Analysis.Body.ContinuumRegion is not Aetheris.FEA.Geometry.ImportedBrepAnalysisRegion);var result = LinearElasticSolver.Solve(compiled.Analysis,solveOptions);
         if (!result.IsSuccess)
         {
             foreach (var diagnostic in result.Diagnostics.Where(item => item.Severity == Aetheris.FEA.Analysis.AnalysisDiagnosticSeverity.Error)) stderr.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
@@ -778,10 +786,13 @@ Model CanonicalPanel {
         var report = new
         {
             analysis = new { compiled.Analysis.Id, kind = compiled.Analysis.Kind.ToString(), body = compiled.Analysis.Body.Id, compiled.Analysis.Body.SourceKind,
+                geometryIdentity=compiled.Analysis.Body.ContinuumRegion.Id.Value,geometryHash=compiled.Analysis.Body.ResourceHash,brepBodyId=compiled.Analysis.Body.BrepBodyId,
                 material = compiled.Analysis.Materials.Select(item => new { item.Id, item.StableMaterialId, item.ConstitutiveClass, item.YoungsModulusPascal, item.PoissonRatio, item.DensityKilogramsPerCubicMeter, item.YieldStrengthPascal }),
                 constraints = compiled.Analysis.Constraints.Select(item => new { item.Id, region = item.Region.Path, components = item.Components }),
-                loads = compiled.Analysis.Loads.Select(item => new { item.Id, kind = item.Kind.ToString(), region = item.Region.Path, item.VectorSi, item.PressurePascal }),
+                loads = compiled.Analysis.Loads.Select(item => new { item.Id, kind = item.Kind.ToString(), distribution=item.Distribution.ToString(), region = item.Region.Path, item.VectorSi, item.PressurePascal }),
+                requestedResults=compiled.Analysis.RequestedFields.Order().Select(Aetheris.FEA.Analysis.AnalysisResultContracts.Describe),
                 lattice = new { compiled.Analysis.Lattice.CountX, compiled.Analysis.Lattice.CountY, compiled.Analysis.Lattice.CountZ } },
+            solverSettings=new{solveOptions.CutCellQuadraturePerAxis,solveOptions.RelativeResidualTolerance,solveOptions.MaximumIterations,solveOptions.RetryEmptyCutCells},
             orientationDegrees=rotationDegrees,result.System, result.Solver, result.Equilibrium, result.TinyCells, result.Performance,boundaryLoads=result.BoundaryLoads,numericalLowering=result.NumericalLowering,strainEnergy=result.StrainEnergy,stressProbes=result.StressProbes,
             maximumDisplacementMeters = result.MaximumDisplacementMeters, maximumVonMisesPascal = result.MaximumVonMisesPascal,
             abaqus = new { abaqus.Sha256, abaqus.NodeCount, abaqus.ElementCount, validation.IsValid, validation.Diagnostics }

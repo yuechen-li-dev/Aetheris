@@ -1,0 +1,22 @@
+Model CantileverWitness {
+    Units: mm
+    solid beam: Box { size: [120, 20, 20] }
+
+    Analysis LinearElastic Cantilever {
+        body: beam
+        material: Standard.Materials.Aluminum.6061_T6
+
+        Fixed Root {
+            region: beam.face(-X)
+            components: [X, Y, Z]
+        }
+
+        Force Tip {
+            region: beam.face(+X)
+            vector: [0N, -100N, 0N]
+        }
+
+        results: [Displacement, Strain, Stress, ReactionForce]
+        lattice: [12, 2, 2]
+    }
+}

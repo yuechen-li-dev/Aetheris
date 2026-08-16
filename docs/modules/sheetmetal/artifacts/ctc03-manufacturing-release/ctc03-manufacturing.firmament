@@ -1,0 +1,265 @@
+// CTC-03 metric manufacturing release.
+// The M8 reconstruction is provenance; this authored definition is production authority.
+Record CtcServiceRecessSpec {
+    Center: Length
+    Lead: Length
+    Run: Length
+    Depth: Length
+    AttachmentInset: Length
+    AttachmentSpan: Length
+}
+
+Template < P: CtcServiceRecessSpec, Owner: ProfilePath >
+ProfileDelta CtcServiceRecess {
+    On: Owner;
+    Anchor: CenteredAt P.Center;
+    Side: Inward;
+    Level Carrier { Offset: 0mm; }
+    Level Deep { Offset: P.Depth; }
+    Level Attachment { Offset: P.AttachmentInset; }
+    Transition LeadIn { Kind: Diagonal; Run: P.Lead; To: Deep; }
+    Span LeftRecessRun { Run: P.Run; At: Deep; }
+    Transition RiseToAttachment { Kind: Step; To: Attachment; }
+    Span AttachmentLand { Run: P.AttachmentSpan; At: Attachment; Expose: ServiceFlangeAttachment; Capabilities: [FlangeAttachable, BendAttachable, FeatureAttachable, StableSemanticIdentity]; }
+    Transition FallFromAttachment { Kind: Step; To: Deep; }
+    Span RightRecessRun { Run: P.Run; At: Deep; }
+    Transition LeadOut { Kind: Diagonal; Run: P.Lead; To: Carrier; }
+}
+
+Static CtcServiceProfile: CtcServiceRecessSpec = CtcServiceRecessSpec {
+    Center: 185mm;
+    Lead: 15mm;
+    Run: 64mm;
+    Depth: 15mm;
+    AttachmentInset: 3mm;
+    AttachmentSpan: 125mm;
+}
+
+Record RoundedTabSpec { Center: Length Radius: Length Crown: Length Extension: Length }
+Template < P: RoundedTabSpec, Owner: ProfilePath >
+ProfileDelta RoundedTab {
+    On: Owner;
+    Anchor: CenteredAt P.Center;
+    Side: Outward;
+    Level Carrier { Offset: 0mm; }
+    Level Extended { Offset: P.Extension; }
+    Transition EnterRound { Kind: Round; Run: P.Radius; To: Extended; Radius: P.Radius; }
+    Span Crown { Run: P.Crown; At: Extended; }
+    Transition ExitRound { Kind: Round; Run: P.Radius; To: Carrier; Radius: P.Radius; }
+}
+Static ServiceConnectorSpec: RoundedTabSpec = RoundedTabSpec { Center: 62.5mm; Radius: 12.5mm; Crown: 100mm; Extension: 12.5mm; }
+
+Record TwoRoundRecessSpec { Center: Length Radius: Length Floor: Length Shoulder: Length Depth: Length }
+Template < P: TwoRoundRecessSpec, Owner: ProfilePath >
+ProfileDelta TwoRoundRecess {
+    On: Owner;
+    Anchor: CenteredAt P.Center;
+    Side: Inward;
+    Level Carrier { Offset: 0mm; }
+    Level Shoulder { Offset: P.Shoulder; }
+    Level Deep { Offset: P.Depth; }
+    Transition EnterShoulder { Kind: Step; To: Shoulder; }
+    Transition EnterRound { Kind: Round; Run: P.Radius; To: Deep; Radius: P.Radius; Concave: true; }
+    Span Floor { Run: P.Floor; At: Deep; }
+    Transition ExitRound { Kind: Round; Run: P.Radius; To: Shoulder; Radius: P.Radius; Concave: true; }
+    Transition ExitShoulder { Kind: Step; To: Carrier; }
+}
+Static RearConnectorSpec: TwoRoundRecessSpec = TwoRoundRecessSpec { Center: 120mm; Radius: 6mm; Floor: 114mm; Shoulder: 25mm; Depth: 32mm; }
+
+Record FourRoundRecessSpec { Center: Length Radius: Length Floor: Length OuterShoulder: Length InnerShoulder: Length Depth: Length }
+Template < P: FourRoundRecessSpec, Owner: ProfilePath >
+ProfileDelta FourRoundRecess {
+    On: Owner;
+    Anchor: CenteredAt P.Center;
+    Side: Inward;
+    Level Carrier { Offset: 0mm; }
+    Level OuterShoulder { Offset: P.OuterShoulder; }
+    Level InnerShoulder { Offset: P.InnerShoulder; }
+    Level Deep { Offset: P.Depth; }
+    Transition EnterOuterRound { Kind: Round; Run: P.Radius; To: OuterShoulder; Radius: P.Radius; }
+    Transition EnterShoulder { Kind: Step; To: InnerShoulder; }
+    Transition EnterInnerRound { Kind: Round; Run: P.Radius; To: Deep; Radius: P.Radius; Concave: true; }
+    Span Floor { Run: P.Floor; At: Deep; }
+    Transition ExitInnerRound { Kind: Round; Run: P.Radius; To: InnerShoulder; Radius: P.Radius; Concave: true; }
+    Transition ExitShoulder { Kind: Step; To: OuterShoulder; }
+    Transition ExitOuterRound { Kind: Round; Run: P.Radius; To: Carrier; Radius: P.Radius; }
+}
+Static FrontConnectorSpec: FourRoundRecessSpec = FourRoundRecessSpec { Center: 120mm; Radius: 6mm; Floor: 114mm; OuterShoulder: 6mm; InnerShoulder: 25mm; Depth: 32mm; }
+
+Concept Ctc03ManufacturedIntent {
+    MainDeck: SheetRegion
+    BaseFastenerPattern: SheetPattern
+    VentSlots: SheetPattern
+    RearMountHoles: SheetPattern
+    FrontMountHoles: SheetPattern
+    ServiceHole: SheetPattern
+    ServiceInnerHoles: SheetPattern
+    ServiceOuterHoles: SheetPattern
+    Flat: FlatPattern
+}
+
+Concept Struct Ctc03Layout {
+    ProfileDelta RightWallServiceProfile = CtcServiceRecess < P: CtcServiceProfile, Owner: RightWall.Outer >
+
+    Datum RearMountCenter { On: RearMountingFlange; At: (120mm, 25mm); }
+    Datum FrontMountCenter { On: FrontMountingFlange; At: (120mm, 25mm); }
+    Datum ServiceHoleCenter { On: AngledServiceFlange; At: (62.5mm, 31mm); }
+
+    ProfileDelta ServiceConnectorProfile = RoundedTab < P: ServiceConnectorSpec, Owner: AngledServiceFlange.Outer >
+    ProfileDelta RearConnectorRelief = TwoRoundRecess < P: RearConnectorSpec, Owner: RearMountingFlange.Outer >
+    ProfileDelta FrontConnectorRelief = FourRoundRecess < P: FrontConnectorSpec, Owner: FrontMountingFlange.Outer >
+
+    CornerProfile FrontWall.RootEnd   { NotchCorner RearEndStep { SetbackA: 9mm; SetbackB: 12.5mm; } }
+    CornerProfile FrontWall.RootStart { NotchCorner FrontEndStep { SetbackA: 12.5mm; SetbackB: 9mm; } }
+    CornerProfile RearWall.RootEnd    { NotchCorner FrontEndStep { SetbackA: 9mm; SetbackB: 12.5mm; } }
+    CornerProfile RearWall.RootStart  { NotchCorner RearEndStep { SetbackA: 12.5mm; SetbackB: 9mm; } }
+
+    CornerProfile LeftWall.OuterStart { Chamfer RearEndTaper { Setback: 25mm; } }
+    CornerProfile LeftWall.OuterEnd   { Chamfer FrontEndTaper { Setback: 25mm; } }
+    CornerProfile RightWall.OuterStart { Round RearEndRound { Radius: 12.5mm; } }
+    CornerProfile RightWall.OuterEnd   { Round FrontEndRound { Radius: 12.5mm; } }
+
+    CornerProfile FrontMountingFlange.OuterStart { Chamfer RightEndChamfer { Setback: 12.5mm; } }
+    CornerProfile FrontMountingFlange.OuterEnd   { Chamfer LeftEndChamfer { Setback: 12.5mm; } }
+    CornerProfile RearMountingFlange.OuterStart  { Chamfer LeftEndChamfer { Setback: 12.5mm; } }
+    CornerProfile RearMountingFlange.OuterEnd    { Chamfer RightEndChamfer { Setback: 12.5mm; } }
+
+    Pattern BaseFastenerPattern {
+        On: MainDeck;
+        Feature: Circle { Diameter: 16mm; };
+        Center: MainDeck.Center + (82mm, -80mm);
+        Count: 4;
+        Pitch: (0mm, 45mm);
+    }
+
+    Pattern LargeAccess51 {
+        On: MainDeck;
+        Feature: Circle { Diameter: 51mm; };
+        Center: MainDeck.Center + (-30mm, 115mm);
+        Count: 1;
+        Pitch: (0mm, 0mm);
+    }
+
+    Pattern LargeAccess38 {
+        On: MainDeck;
+        Feature: Circle { Diameter: 38mm; };
+        Center: MainDeck.Center + (60mm, 90mm);
+        Count: 1;
+        Pitch: (0mm, 0mm);
+    }
+
+    Pattern VentSlots {
+        On: MainDeck;
+        Feature: Slot { Length: 20mm; Width: 90mm; };
+        Center: MainDeck.Center + (-35mm, -75mm);
+        Count: 2;
+        Pitch: (65mm, 0mm);
+    }
+
+    Pattern RearMountHoles {
+        On: RearMountingFlange;
+        Feature: Circle { Diameter: 11mm; };
+        Center: RearMountCenter;
+        Count: 2;
+        Pitch: (200mm, 0mm);
+    }
+
+    Pattern FrontMountHoles {
+        On: FrontMountingFlange;
+        Feature: Circle { Diameter: 11mm; };
+        Center: FrontMountCenter;
+        Count: 2;
+        Pitch: (200mm, 0mm);
+    }
+
+    Pattern ServiceHole {
+        On: AngledServiceFlange;
+        Feature: Circle { Diameter: 27mm; };
+        Center: ServiceHoleCenter;
+        Count: 1;
+        Pitch: (0mm, 0mm);
+    }
+
+    Pattern ServiceInnerHoles {
+        On: AngledServiceFlange;
+        Feature: Circle { Diameter: 5mm; };
+        Center: AngledServiceFlange.Center + (0mm, -7.5mm);
+        Count: 2;
+        Pitch: (38mm, 0mm);
+    }
+
+    Pattern ServiceOuterHoles {
+        On: AngledServiceFlange;
+        Feature: Circle { Diameter: 5mm; };
+        Center: AngledServiceFlange.Center + (0mm, 24.5mm);
+        Count: 2;
+        Pitch: (38mm, 0mm);
+    }
+}
+
+Manufacturing Ctc03MetricRelease {
+    MaterialSpecification: "ASTM B209 5052-H32 aluminium sheet, mill finish";
+    ThicknessTolerance: PlusMinus(0.12mm, 0.12mm);
+    BlankProcess: "CNC laser cut or CNC punch; cut all holes and profiles before forming";
+    FormingProcess: "CNC press brake; use 6 mm inside radius tooling and K-factor 0.42";
+    GeneralCutTolerance: 0.5mm;
+    GeneralFormedTolerance: 0.8mm;
+    GeneralAngularTolerance: 1deg;
+}
+
+Pmi Ctc03ReleasePmi {
+    DatumFeature A { Target: MainDeck; }
+    DatumFeature B { Target: FrontWall; }
+    DatumFeature C { Target: LeftWall; }
+
+    Dimension SheetThickness { Kind: Thickness; Target: Ctc03; Value: 2mm; Tolerance: PlusMinus(0.12mm, 0.12mm); }
+    Dimension DeckWidth { Kind: Linear; Target: MainDeck; Value: 240mm; Tolerance: PlusMinus(0.5mm, 0.5mm); }
+    Dimension DeckLength { Kind: Linear; Target: MainDeck; Value: 370mm; Tolerance: PlusMinus(0.5mm, 0.5mm); }
+    Dimension BaseFastenerDiameter { Kind: Diameter; Target: Ctc03Layout.BaseFastenerPattern; Value: 16mm; Tolerance: PlusMinus(0.15mm, 0.15mm); Quantity: 4; }
+    Dimension LargeAccess51Diameter { Kind: Diameter; Target: Ctc03Layout.LargeAccess51; Value: 51mm; Tolerance: PlusMinus(0.2mm, 0.2mm); }
+    Dimension LargeAccess38Diameter { Kind: Diameter; Target: Ctc03Layout.LargeAccess38; Value: 38mm; Tolerance: PlusMinus(0.2mm, 0.2mm); }
+    Dimension VentSlotWidth { Kind: Linear; Target: Ctc03Layout.VentSlots; Value: 20mm; Tolerance: PlusMinus(0.2mm, 0.2mm); Quantity: 2; }
+    Dimension VentSlotLength { Kind: Linear; Target: Ctc03Layout.VentSlots; Value: 90mm; Tolerance: PlusMinus(0.2mm, 0.2mm); Quantity: 2; }
+    Dimension FrontMountDiameter { Kind: Diameter; Target: Ctc03Layout.FrontMountHoles; Value: 11mm; Tolerance: PlusMinus(0.15mm, 0.15mm); Quantity: 2; }
+    Dimension RearMountDiameter { Kind: Diameter; Target: Ctc03Layout.RearMountHoles; Value: 11mm; Tolerance: PlusMinus(0.15mm, 0.15mm); Quantity: 2; }
+    Dimension ServiceClearanceDiameter { Kind: Diameter; Target: Ctc03Layout.ServiceHole; Value: 27mm; Tolerance: PlusMinus(0.15mm, 0.15mm); }
+    Dimension ServiceInnerDiameter { Kind: Diameter; Target: Ctc03Layout.ServiceInnerHoles; Value: 5mm; Tolerance: PlusMinus(0.15mm, 0.15mm); Quantity: 2; }
+    Dimension ServiceOuterDiameter { Kind: Diameter; Target: Ctc03Layout.ServiceOuterHoles; Value: 5mm; Tolerance: PlusMinus(0.15mm, 0.15mm); Quantity: 2; }
+
+    Position FrontMountPosition { Target: Ctc03Layout.FrontMountHoles; Tolerance: 0.8mm; DatumRefs: [A, B, C]; Quantity: 2; }
+    Position RearMountPosition { Target: Ctc03Layout.RearMountHoles; Tolerance: 0.8mm; DatumRefs: [A, B, C]; Quantity: 2; }
+    Position ServiceHolePosition { Target: Ctc03Layout.ServiceHole; Tolerance: 0.6mm; DatumRefs: [A, B, C]; }
+    Position ServiceInnerPosition { Target: Ctc03Layout.ServiceInnerHoles; Tolerance: 0.6mm; DatumRefs: [A, B, C]; Quantity: 2; }
+    Position ServiceOuterPosition { Target: Ctc03Layout.ServiceOuterHoles; Tolerance: 0.6mm; DatumRefs: [A, B, C]; Quantity: 2; }
+
+    Annotation MaterialAndThickness { Target: Ctc03; Text: "ASTM B209 5052-H32 aluminium sheet, mill finish; thickness 2.0 +/-0.12 mm."; }
+    Annotation GeneralTolerance { Target: Ctc03; Text: "Unless specifically toleranced: cut profile +/-0.5 mm, formed linear +/-0.8 mm, bend angle +/-1 degree."; }
+    Annotation CutAndDeburr { Target: Ctc03; Text: "Cut all profiles before forming. Remove burrs and sharp edges; break edges 0.2-0.5 mm."; }
+    Annotation Forming { Target: Ctc03; Text: "CNC press brake form; inside bend radius 6 mm unless noted; reject visible bend cracking."; }
+    Annotation GrainDirection { Target: Ctc03; Text: "Orient major 90-degree bend axes across rolling direction where practical."; }
+    Annotation ProtectDatumA { Target: MainDeck; Text: "Protect datum A support surface from gouges, raised burrs, and forming-tool damage."; }
+    Annotation MountHoleRework { Target: Ctc03Layout.FrontMountHoles; Text: "Do not enlarge or rework formed mounting holes without engineering approval."; }
+    Annotation ServiceCutBeforeForm { Target: AngledServiceFlangeBend; Text: "Cut the complete five-hole service interface before forming; keep the interface free of bend distortion."; }
+}
+
+SheetMetal Ctc03 : Ctc03ManufacturedIntent {
+    Intent: Manufacturing;
+    Thickness: 2mm;
+    KFactor: 0.42;
+    Material: "ASTM B209 5052-H32 aluminium sheet";
+
+    Base MainDeck {
+        Profile: Rectangle { Width: 240mm; Height: 370mm; };
+        // Retained M8 model frame for provenance/comparison only; this is not controlled PMI.
+        Origin: (-241.3mm, 58.08726mm, 76.2mm);
+    }
+
+    Flange FrontWall { From: MainDeck.Front; Height: 62mm; Angle: 90deg; Radius: 6mm; Direction: Down; StartTermination: Trimmed; StartTerminationSetback: 9mm; EndTermination: Trimmed; EndTerminationSetback: 9mm; }
+    Flange RearWall  { From: MainDeck.Rear;  Height: 62mm; Angle: 90deg; Radius: 6mm; Direction: Down; StartTermination: Trimmed; StartTerminationSetback: 9mm; EndTermination: Trimmed; EndTerminationSetback: 9mm; }
+    Flange LeftWall  { From: MainDeck.Left;  Height: 45mm; Angle: 90deg; Radius: 6mm; Direction: Up; }
+    Flange RightWall { From: MainDeck.Right; Height: 32mm; Angle: 90deg; Radius: 6mm; Direction: Up; }
+
+    Flange FrontMountingFlange { From: FrontWall.Outer; Length: 44mm; Angle: 90deg; Radius: 6mm; Direction: Up; }
+    Flange RearMountingFlange  { From: RearWall.Outer; Length: 44mm; Angle: 90deg; Radius: 6mm; Direction: Up; }
+    Flange AngledServiceFlange { From: RightWall.ServiceFlangeAttachment; Length: 49mm; Angle: 45deg; Radius: 6mm; Direction: Down; }
+}

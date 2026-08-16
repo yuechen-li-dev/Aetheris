@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Core.Step242;
 
 namespace Aetheris.CLI;
 
@@ -67,7 +68,8 @@ public sealed record AnalyzeResult(
     FaceDetail? Face,
     EdgeDetail? Edge,
     VertexDetail? Vertex,
-    IReadOnlyList<string> Notes);
+    IReadOnlyList<string> Notes,
+    Step242SemanticPmiInspectionResult? SemanticPmi = null);
 
 public enum OrthographicView
 {

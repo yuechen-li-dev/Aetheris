@@ -39,13 +39,17 @@ public sealed record VolumeAnalysisResult(
     public static AnalyzeResult Analyze(string stepPath, int? faceId = null, int? edgeId = null, int? vertexId = null)
     {
         var (fullPath, body) = ImportStepBody(stepPath);
-        var analysis = AnalyzeImportedBody(body, fullPath, faceId, edgeId, vertexId);
+        var stepText = File.ReadAllText(fullPath);
+        var analysis = AnalyzeImportedBody(body, fullPath, faceId, edgeId, vertexId) with
+        {
+            SemanticPmi = Step242SemanticPmiInspector.Inspect(stepText)
+        };
         if (analysis.Face is null) return analysis;
 
         // Imported B-rep IDs are the public sequential vocabulary.  Preserve the
         // originating ADVANCED_FACE alongside it for traceability, never as a
         // requirement for normal authoring.
-        var entities = Regex.Matches(File.ReadAllText(fullPath), @"(?m)^\s*(#[0-9]+)\s*=\s*ADVANCED_FACE\s*\(", RegexOptions.CultureInvariant)
+        var entities = Regex.Matches(stepText, @"(?m)^\s*(#[0-9]+)\s*=\s*ADVANCED_FACE\s*\(", RegexOptions.CultureInvariant)
             .Cast<Match>().Select(match => match.Groups[1].Value).ToArray();
         var entity = analysis.Face.FaceId > 0 && analysis.Face.FaceId <= entities.Length ? entities[analysis.Face.FaceId - 1] : null;
         return analysis with { Face = analysis.Face with { StepEntity = entity } };

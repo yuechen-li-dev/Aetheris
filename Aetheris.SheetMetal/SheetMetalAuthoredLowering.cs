@@ -37,6 +37,8 @@ public sealed record SheetMetalConstructionSpec(
 {
     /// <summary>Compile-time semantic layout erased after it resolves exact authored cuts.</summary>
     public SheetMetalSemanticLayout SemanticLayout { get; init; } = SheetMetalSemanticLayout.Empty;
+    /// <summary>Manufacturing-authoritative semantic PMI and engineer annotations.</summary>
+    public SheetMetalManufacturingDefinition Manufacturing { get; init; } = SheetMetalManufacturingDefinition.Empty;
 }
 
 /// <summary>
@@ -192,6 +194,8 @@ internal static class AuthoredSheetMetalCompiler
         var semanticLayout=SheetMetalSemanticLayoutParser.Parse(source,baseSpec,flanges,cuts);
         var semanticMs=Stopwatch.GetElapsedTime(semanticStarted).TotalMilliseconds;
         if(!semanticLayout.IsSuccess)return new(false,null,null,null,semanticLayout.Diagnostics);
+        var manufacturing = SheetMetalManufacturingParser.Parse(source, header.Groups["name"].Value, baseSpec, flanges, semanticLayout.Layout);
+        if(!manufacturing.IsSuccess)return new(false,null,null,null,manufacturing.Diagnostics);
         cuts.AddRange(semanticLayout.GeneratedCuts);
         var duplicateCut=cuts.GroupBy(x=>x.Name,StringComparer.Ordinal).FirstOrDefault(x=>x.Count()>1);
         if(duplicateCut is not null)return Fail($"Semantic feature path '{duplicateCut.Key}' is declared more than once.","sheetmetal-semantic-duplicate-feature");
@@ -200,7 +204,7 @@ internal static class AuthoredSheetMetalCompiler
             ? SheetMetalProvenanceCategory.Reconstructed : SheetMetalProvenanceCategory.Authored;
         var concept=header.Groups["concept"].Success?header.Groups["concept"].Value:null;
         var spec = new SheetMetalConstructionSpec(header.Groups["name"].Value, thickness, material, k, baseSpec, flanges, cuts, authority, legacyBase.Success,concept)
-        { SemanticLayout=semanticLayout.Layout };
+        { SemanticLayout=semanticLayout.Layout, Manufacturing=manufacturing.Definition };
         if(concept is not null&&SheetMetalConceptContracts.Validate(source,spec) is { } conformanceFailure)
             return Fail(conformanceFailure.Message,conformanceFailure.Code);
         var parseMs=Stopwatch.GetElapsedTime(parseStarted).TotalMilliseconds;var formedStarted=Stopwatch.GetTimestamp();var lowered = AuthoredSheetMetalLowering.Lower(spec, sourcePath);var formedMs=Stopwatch.GetElapsedTime(formedStarted).TotalMilliseconds;

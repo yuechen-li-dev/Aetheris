@@ -44,6 +44,11 @@ public static class SheetMetalFirmament
     public static SheetMetalAuthoringResult Compile(string source,string sourcePath="authored.firmament")
     {
         ArgumentNullException.ThrowIfNull(source);
+        if(Regex.IsMatch(source,@"\bUse\s+Profile\.Modifications\s*;",RegexOptions.CultureInvariant))
+        {
+            source=Regex.Replace(source,@"\bUse\s+Profile\.Modifications\s*;",string.Empty,RegexOptions.CultureInvariant);
+            source=ProfileModificationTemplateLibrary.Source+Environment.NewLine+source;
+        }
         if(Regex.IsMatch(source,@"\bUse\s+SheetMetal\.ProductFamilies\s*;",RegexOptions.IgnoreCase|RegexOptions.CultureInvariant))
         {
             source=Regex.Replace(source,@"\bUse\s+SheetMetal\.ProductFamilies\s*;",string.Empty,RegexOptions.IgnoreCase|RegexOptions.CultureInvariant);

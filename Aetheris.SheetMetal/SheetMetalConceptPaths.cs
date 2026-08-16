@@ -46,6 +46,12 @@ public static class SheetMetalConceptPaths
             var ir=part.AttachmentPaths?.FirstOrDefault(x=>x.StableId.Equals(attachment.Path,StringComparison.Ordinal));
             Add(attachment.Path,"SheetAttachmentPath",attachment.Path,ir?.StableId,$"flat-{attachment.Path}","bounded region-owned path derived from a physical carrier","FlangeAttachable","BendAttachable","FeatureAttachable","StableSemanticIdentity");
         }
+        foreach(var delta in spec.SemanticLayout.ProfileDeltas??[])
+        {
+            Add(delta.Path,"SemanticProfileDelta",delta.Program.StableId,delta.Region,$"flat-{delta.Region}","template-specialized local profile modification program","EdgeFeature","ManufacturingContour","StableSemanticIdentity");
+            foreach(var level in delta.Program.Levels)Add($"{delta.Path}.{level.Name}","SemanticProfileLevel",level.StableId,delta.Region,$"flat-{delta.Region}","named local profile offset","ProfileLandmark","StableSemanticIdentity");
+            foreach(var member in delta.Program.Members)Add($"{delta.Path}.{member.Name}","SemanticProfileDeltaMember",member.StableId,delta.Region,$"flat-{delta.Region}","exact descendant of semantic profile delta","ManufacturingContour","StableSemanticIdentity");
+        }
         foreach(var tab in spec.SemanticLayout.Tabs)
             Add(tab.Path,"SheetTab",tab.Path,tab.Region,$"flat-{tab.Region}","exact outer-edge contour extension","EdgeFeature","ManufacturingContour","StableSemanticIdentity");
         foreach(var notch in spec.SemanticLayout.SteppedNotches??[])

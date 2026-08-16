@@ -301,6 +301,8 @@ public static class FirmamentV2Parser
         FirmamentV2ForgeConceptCatalog? conceptCatalog)
     {
         ArgumentNullException.ThrowIfNull(sourceText);
+        if(Regex.IsMatch(sourceText,@"\bUse\s+Profile\.Modifications\s*;",RegexOptions.CultureInvariant))
+            sourceText=ProfileModificationTemplateLibrary.Source+Environment.NewLine+Regex.Replace(sourceText,@"\bUse\s+Profile\.Modifications\s*;",string.Empty,RegexOptions.CultureInvariant);
         var diagnostics = new List<string> { "firmament-v2-parser-invoked" };
         var source = StripLineComments(sourceText);
         var v2AdmissionCandidate = IsV2AdmissionCandidate(source);
@@ -900,7 +902,7 @@ public static class FirmamentV2Parser
         var known = new HashSet<string>(StringComparer.Ordinal)
         {
             "Box", "Cylinder", "RoundedBox", "Frustum", "StandardPart", "ExactCoaxialPart", "Concept", "Struct", "Construction", "Profile", "Compose", "EdgeFinish",
-            "Record", "Static", "Template", "Selection", "InlineStep", "Recognize", "Replace", "Pmi", "Modify", "Match", "Require", "Assert"
+            "Record", "Static", "Template", "ProfileDelta", "Selection", "InlineStep", "Recognize", "Replace", "Pmi", "Modify", "Match", "Require", "Assert"
         };
         var compatibilityOnly = new HashSet<string>(StringComparer.Ordinal)
         {

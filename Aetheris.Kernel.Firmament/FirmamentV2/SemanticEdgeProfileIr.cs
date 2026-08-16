@@ -28,6 +28,36 @@ public sealed record SemanticEdgeSteppedNotchIr(
     double ShoulderDepth, double OuterChamfer, double InnerChamfer, int Side, string SourceSpan)
     : SemanticEdgeFragmentIr(Name, StableId, "SteppedNotch", Anchor, Width, Depth, Side, SourceSpan);
 
+public enum SemanticProfileDeltaMemberKind { Span, Diagonal, Step, Round }
+
+/// <summary>A named offset in the local frame of a profile carrier.</summary>
+public sealed record SemanticProfileDeltaLevelIr(string Name, string StableId, double Offset, string SourceSpan);
+
+/// <summary>
+/// One semantic move in a profile-delta program. Run is measured along the carrier;
+/// Step permits a zero run, while Span must remain on the current level and Diagonal
+/// moves to ToLevel over a positive run. ExposeAs creates a stable nested concept path.
+/// </summary>
+public sealed record SemanticProfileDeltaMemberIr(
+    string Name, string StableId, SemanticProfileDeltaMemberKind Kind, double Run,
+    string ToLevel, string? ExposeAs, IReadOnlyList<string> Capabilities, string SourceSpan,
+    double? Radius = null, bool Concave = false);
+
+/// <summary>
+/// A bounded, baseline-returning profile modification program. This is deliberately
+/// generic: user libraries name features through ordinary Firmament templates, while
+/// the kernel only understands levels and finite span/transition primitives.
+/// </summary>
+public sealed record SemanticProfileDeltaIr(
+    string Name, string StableId, SemanticEdgeAnchorIr Anchor, int Side,
+    IReadOnlyList<SemanticProfileDeltaLevelIr> Levels,
+    IReadOnlyList<SemanticProfileDeltaMemberIr> Members, string SourceSpan)
+    : SemanticEdgeFragmentIr(
+        Name, StableId, "ProfileDelta", Anchor,
+        Members.Sum(member => member.Run),
+        Levels.Count == 0 ? 0d : Levels.Max(level => Math.Abs(level.Offset)),
+        Side, SourceSpan);
+
 /// <summary>Semantic modification program for one directed, named carrier edge.</summary>
 public sealed record SemanticEdgeProfileIr(
     string OwnerPath, string StableId, SemanticProfilePoint Start, SemanticProfilePoint End,
@@ -92,6 +122,11 @@ public static class SemanticEdgeProfileResolver
                  !double.IsFinite(stepped.OuterChamfer) || stepped.OuterChamfer < -Tolerance || !double.IsFinite(stepped.InnerChamfer) || stepped.InnerChamfer <= Tolerance ||
                  2d * (stepped.OuterChamfer + stepped.InnerChamfer) >= stepped.Width - Tolerance || stepped.ShoulderDepth + Tolerance < stepped.OuterChamfer))
             { diagnostics.Add($"semantic-edge-invalid-stepped-notch:{fragment.StableId}"); continue; }
+            if (fragment is SemanticProfileDeltaIr delta)
+            {
+                ValidateDelta(delta, diagnostics);
+                if (diagnostics.Count > 0) continue;
+            }
             if (!double.IsFinite(fragment.Anchor.Offset)) { diagnostics.Add($"semantic-edge-invalid-anchor:{fragment.StableId}"); continue; }
             var start = fragment.Anchor.Kind switch
             {
@@ -138,6 +173,13 @@ public static class SemanticEdgeProfileResolver
 
         ResolvedSemanticEdgeMemberIr Fragment(SemanticEdgeFragmentIr f, double a, double b)
         {
+            if(f is SemanticProfileDeltaIr delta)
+            {
+                var deltaCurves=ProfileDelta(delta,a);
+                var descendants=delta.Members.Select((member,index)=>new ResolvedSemanticProfileCurveIr(
+                    $"{member.StableId}.curve00",0,deltaCurves[index],$"lowered-from:{member.StableId};profile-delta:{delta.StableId}" )).ToArray();
+                return new(delta.Name,delta.StableId,delta.Kind,a,b,descendants,delta.SourceSpan,false);
+            }
             var v = f.Side * f.Depth;
             IReadOnlyList<LineArcProfileCurve2D> curves = f switch
             {
@@ -149,6 +191,17 @@ public static class SemanticEdgeProfileResolver
                 _ => []
             };
             return Member(f.Name, f.StableId, f.Kind, a, b, curves, f.SourceSpan, false);
+        }
+        IReadOnlyList<LineArcProfileCurve2D> ProfileDelta(SemanticProfileDeltaIr delta, double a)
+        {
+            var levels=delta.Levels.ToDictionary(level=>level.Name,level=>delta.Side*level.Offset,StringComparer.Ordinal);
+            var curves=new List<LineArcProfileCurve2D>();var u=a;var v=0d;
+            foreach(var member in delta.Members)
+            {
+                var target=levels[member.ToLevel];var next=u+member.Run;
+                curves.Add(member.Kind==SemanticProfileDeltaMemberKind.Round?Round(u,v,next,target,member.Radius!.Value,member.Concave?-1d:1d):Line(u,v,next,target));u=next;v=target;
+            }
+            return curves;
         }
         IReadOnlyList<LineArcProfileCurve2D> SteppedNotch(SemanticEdgeSteppedNotchIr f, double a, double b)
         {
@@ -165,6 +218,48 @@ public static class SemanticEdgeProfileResolver
         ResolvedSemanticEdgeMemberIr Member(string name, string id, string kind, double a, double b, IReadOnlyList<LineArcProfileCurve2D> curves, string span, bool generated) =>
             new(name, id, kind, a, b, curves.Select((curve, ordinal) => new ResolvedSemanticProfileCurveIr($"{id}.curve{ordinal:D2}", ordinal, curve, generated ? $"generated-carrier:{source.OwnerPath}" : $"lowered-from:{id}")).ToArray(), span, generated);
         LineArcLineSegment2D Line(double u0, double v0, double u1, double v1) => new(ToWorld(u0, v0), ToWorld(u1, v1));
+        LineArcCircularArc2D Round(double u0,double v0,double u1,double v1,double radius,double centerSide)
+        {
+            var du=u1-u0;var dv=v1-v0;var chord=Math.Sqrt(du*du+dv*dv);var h=Math.Sqrt(Math.Max(0,radius*radius-chord*chord/4d));
+            var cu=(u0+u1)/2d+centerSide*(-dv/chord*h);var cv=(v0+v1)/2d+centerSide*(du/chord*h);var center=ToWorld(cu,cv);
+            var start=Math.Atan2(v0-cv,u0-cu);var end=Math.Atan2(v1-cv,u1-cu);var sweep=end-start;while(sweep<=0)sweep+=2*Math.PI;if(sweep>Math.PI)sweep-=2*Math.PI;
+            return new(center,radius,start+Math.Atan2(ty,tx),sweep);
+        }
         (double X, double Y) ToWorld(double u, double v) => (source.Start.X + tx * u + nx * v, source.Start.Y + ty * u + ny * v);
+    }
+
+    private static void ValidateDelta(SemanticProfileDeltaIr delta,List<string> diagnostics)
+    {
+        var levelNames=new HashSet<string>(StringComparer.Ordinal);
+        foreach(var level in delta.Levels)
+        {
+            if(!levelNames.Add(level.Name))diagnostics.Add($"semantic-profile-delta-duplicate-level:{delta.StableId}:{level.Name}");
+            if(!double.IsFinite(level.Offset)||level.Offset<0)diagnostics.Add($"semantic-profile-delta-invalid-level:{level.StableId}");
+        }
+        var memberIds=new HashSet<string>(StringComparer.Ordinal);var exposed=new HashSet<string>(StringComparer.Ordinal);var current=0d;
+        foreach(var member in delta.Members)
+        {
+            if(!memberIds.Add(member.StableId))diagnostics.Add($"semantic-profile-delta-duplicate-member:{member.StableId}");
+            if(!levelNames.Contains(member.ToLevel))diagnostics.Add($"semantic-profile-delta-unknown-level:{member.StableId}:{member.ToLevel}");
+            if(!double.IsFinite(member.Run)||member.Run<0||(member.Kind is not SemanticProfileDeltaMemberKind.Step&&member.Run<=Tolerance))
+                diagnostics.Add($"semantic-profile-delta-invalid-run:{member.StableId}:{member.Run:R}");
+            var target=delta.Levels.FirstOrDefault(level=>level.Name==member.ToLevel)?.Offset??double.NaN;
+            if(member.Kind==SemanticProfileDeltaMemberKind.Span&&Math.Abs(target-current)>Tolerance)
+                diagnostics.Add($"semantic-profile-delta-span-changes-level:{member.StableId}:{current:R}:{target:R}");
+            if(member.Kind==SemanticProfileDeltaMemberKind.Diagonal&&Math.Abs(target-current)<=Tolerance)
+                diagnostics.Add($"semantic-profile-delta-diagonal-same-level:{member.StableId}:{member.ToLevel}");
+            if(member.Kind==SemanticProfileDeltaMemberKind.Step&&(member.Run>Tolerance||Math.Abs(target-current)<=Tolerance))
+                diagnostics.Add($"semantic-profile-delta-invalid-step:{member.StableId}");
+            if(member.Kind==SemanticProfileDeltaMemberKind.Round)
+            {
+                var chord=Math.Sqrt(member.Run*member.Run+(target-current)*(target-current));
+                if(member.Radius is not { } radius||!double.IsFinite(radius)||radius<chord/2d-Tolerance)
+                    diagnostics.Add($"semantic-profile-delta-invalid-round:{member.StableId}:radius={member.Radius?.ToString("R")??"<missing>"}:chord={chord:R}");
+            }
+            if(member.ExposeAs is { Length:>0 } path&&!exposed.Add(path))diagnostics.Add($"semantic-profile-delta-duplicate-exposure:{delta.StableId}:{path}");
+            current=target;
+        }
+        if(delta.Members.Count==0)diagnostics.Add($"semantic-profile-delta-empty:{delta.StableId}");
+        if(Math.Abs(current)>Tolerance)diagnostics.Add($"semantic-profile-delta-open:{delta.StableId}:terminal-level={current:R}");
     }
 }

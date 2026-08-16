@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.SheetMetal;
 
@@ -7,7 +8,9 @@ public enum SheetMetalSemanticConstraintKind { RequiredMembers, EqualSize, Equal
 
 public sealed record SheetMetalSemanticDatum(string Path,string Region,double X,double Y,string Provenance);
 public sealed record SheetMetalSemanticAttachmentPath(
-    string Path,string Region,string CarrierEdge,double Inset,double Span,double SpanOffset,bool ReleaseToCarrier);
+    string Path,string Region,string CarrierEdge,double Inset,double Span,double SpanOffset,bool ReleaseToCarrier,
+    string? ProfileDeltaPath = null,string? DeltaMemberPath = null);
+public sealed record SheetMetalSemanticProfileDelta(string Path,string Region,string Edge,SemanticProfileDeltaIr Program);
 
 public sealed record SheetMetalSemanticTab(string Path,string Region,string Edge,double Center,double Width,double Extension);
 public sealed record SheetMetalSemanticSteppedNotch(
@@ -28,7 +31,8 @@ public sealed record SheetMetalSemanticLayout(
     IReadOnlyList<SheetMetalSemanticPattern> Patterns,IReadOnlyList<SheetMetalSemanticConstraint> Constraints,
     IReadOnlyList<SheetMetalSemanticSteppedNotch>? SteppedNotches = null,
     IReadOnlyList<SheetMetalSemanticCornerProfile>? Corners = null,
-    IReadOnlyList<SheetMetalSemanticAttachmentPath>? AttachmentPaths = null)
+    IReadOnlyList<SheetMetalSemanticAttachmentPath>? AttachmentPaths = null,
+    IReadOnlyList<SheetMetalSemanticProfileDelta>? ProfileDeltas = null)
 {
     public static SheetMetalSemanticLayout Empty { get; } = new([],[],[],[],[]);
 }
@@ -65,6 +69,7 @@ internal static class SheetMetalSemanticLayoutParser
         var generated=new List<AuthoredSheetCutSpec>();
         var constraints=new List<SheetMetalSemanticConstraint>();
         var regionSizes=RegionSizes(baseSpec,flanges);
+        var profileDeltas=new List<SheetMetalSemanticProfileDelta>();
 
         var attachmentPaths=new List<SheetMetalSemanticAttachmentPath>();
         foreach(var block in Blocks(source,"AttachmentPath",structs))
@@ -92,6 +97,39 @@ internal static class SheetMetalSemanticLayoutParser
             if(attachmentPaths.Any(x=>x.Path.Equals(path,StringComparison.Ordinal)))
                 return Fail("sheetmetal-attachment-path-duplicate",$"Attachment path '{path}' is declared more than once.");
             attachmentPaths.Add(new(path,region,edge,inset,span,spanOffset,releaseToCarrier));
+        }
+        var parsedDeltas=SemanticProfileDeltaParser.Parse(source);
+        if(!parsedDeltas.IsSuccess)return Fail("sheetmetal-profile-delta-parse",string.Join("; ",parsedDeltas.Diagnostics));
+        foreach(var parsed in parsedDeltas.Deltas)
+        {
+            var owner=Regex.Match(parsed.OwnerPath,@"^(?<region>[A-Za-z_][A-Za-z0-9_]*)\.(?<edge>Outer)$",Rx);
+            if(!owner.Success||!regionSizes.TryGetValue(owner.Groups["region"].Value,out var size))
+                return Fail("sheetmetal-profile-delta-owner",$"ProfileDelta '{parsed.Delta.StableId}' requires On: <planar-region>.Outer.");
+            var length=size.Width;var span=parsed.Delta.Span;
+            var start=parsed.Delta.Anchor.Kind switch
+            {
+                SemanticEdgeAnchorKind.FromStart=>parsed.Delta.Anchor.Offset,
+                SemanticEdgeAnchorKind.FromEnd=>length-parsed.Delta.Anchor.Offset-span,
+                SemanticEdgeAnchorKind.CenteredAt=>parsed.Delta.Anchor.Offset-span/2d,
+                _=>double.NaN
+            };
+            if(start< -1e-8||start+span>length+1e-8)
+                return Fail("sheetmetal-profile-delta-outside",$"ProfileDelta '{parsed.Delta.StableId}' lies outside '{parsed.OwnerPath}'.");
+            var region=owner.Groups["region"].Value;
+            var path=$"{region}.{parsed.Delta.StableId}";
+            profileDeltas.Add(new(path,region,"Outer",parsed.Delta with { StableId=path,Name=parsed.Delta.Name,
+                Levels=parsed.Delta.Levels.Select(level=>level with { StableId=$"{path}.{level.Name}" }).ToArray(),
+                Members=parsed.Delta.Members.Select(member=>member with { StableId=$"{path}.{member.Name}",ExposeAs=member.ExposeAs is null?null:$"{path}.{member.ExposeAs.Split('.').Last()}" }).ToArray() }));
+            foreach(var exposure in parsed.Exposures)
+            {
+                var publicName=exposure.Path.Split('.').Last();var publicPath=$"{region}.{publicName}";
+                var exposureSpan=exposure.EndU-exposure.StartU;var exposureCenter=start+(exposure.StartU+exposure.EndU)/2d;
+                if(exposureSpan<=1e-8||Math.Abs(exposure.Offset)<=1e-8)
+                    return Fail("sheetmetal-profile-delta-exposure",$"ProfileDelta exposure '{publicPath}' must be a non-zero inset span.");
+                if(!exposure.Capabilities.Contains("FlangeAttachable",StringComparer.OrdinalIgnoreCase))
+                    return Fail("sheetmetal-profile-delta-capability",$"ProfileDelta exposure '{publicPath}' must explicitly include FlangeAttachable.");
+                attachmentPaths.Add(new(publicPath,region,"Outer",Math.Abs(exposure.Offset),exposureSpan,exposureCenter-length/2d,false,path,$"{path}.{exposure.MemberPath.Split('.').Last()}"));
+            }
         }
         foreach(var flange in flanges)
         {
@@ -180,7 +218,7 @@ internal static class SheetMetalSemanticLayoutParser
             for(var i=0;i<count;i++)
             {
                 var member=$"{path}[{i}]";var offset=i-(count-1)/2d;
-                generated.Add(new(member,region,kind,center.X+offset*pitch.X,center.Y+offset*pitch.Y,diameter,width,length));members.Add(member);
+                generated.Add(new(member,region,kind,center.X+offset*pitch.X,center.Y+offset*pitch.Y,diameter,width,length,kind==SheetFeatureKind.Slot));members.Add(member);
             }
             patterns.Add(new(path,block.Name,region,kind,count,center.X,center.Y,pitch.X,pitch.Y,diameter,width,length,members));
             constraints.Add(new($"{path}.EqualPitch",SheetMetalSemanticConstraintKind.EqualPitch,members,"Satisfied",$"generated at pitch ({pitch.X:G9} mm, {pitch.Y:G9} mm)"));
@@ -229,7 +267,7 @@ internal static class SheetMetalSemanticLayoutParser
             constraints.Add(new(path,kind,members,"Satisfied",detail));
         }
 
-        return new(true,new(structNames,datums.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),tabs.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),patterns.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),constraints.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),steppedNotches.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),corners.OrderBy(x=>x.CornerPath,StringComparer.Ordinal).ToArray(),attachmentPaths.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray()),generated,diagnostics);
+        return new(true,new(structNames,datums.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),tabs.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),patterns.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),constraints.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),steppedNotches.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),corners.OrderBy(x=>x.CornerPath,StringComparer.Ordinal).ToArray(),attachmentPaths.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray(),profileDeltas.OrderBy(x=>x.Path,StringComparer.Ordinal).ToArray()),generated,diagnostics);
 
         SheetMetalSemanticLayoutParseResult Fail(string code,string message)=>new(false,SheetMetalSemanticLayout.Empty,[],[new(code,SheetMetalDiagnosticSeverity.Error,message)]);
     }

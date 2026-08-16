@@ -1,0 +1,17 @@
+Use Profile.Modifications;
+
+Static WallRecess: ProfileRecessSpec = ProfileRecessSpec {
+    Center: 60mm;
+    Lead: 6mm;
+    Run: 10mm;
+    Depth: 8mm;
+    Land: 40mm;
+}
+
+ProfileDelta UserDefinedWallRecess = Recess < P: WallRecess, Owner: Wall.Outer >
+
+SheetMetal DeltaTray {
+    Thickness: 1mm;
+    Base Deck { Profile: Rectangle { Width: 120mm; Height: 80mm; }; }
+    Flange Wall { From: Deck.Front; Height: 20mm; Angle: 90deg; Radius: 2mm; }
+}

@@ -184,12 +184,15 @@ public static class ProfileAuthoringParser
     private static void BindRectEdgeProfiles(string source, Dictionary<string, BoundPath> result, List<string> diagnostics)
     {
         var programs = FindBlocks(source, @"\bEdgeProfile\s+(?<owner>[A-Za-z_]\w*)\.(?<edge>[A-Za-z_]\w*)\s*\{").ToArray();
+        var parsedDeltas=SemanticProfileDeltaParser.Parse(source);
+        diagnostics.AddRange(parsedDeltas.Diagnostics);
         var cornerPrograms = FindBlocks(source, @"\bCornerProfile\s+(?<owner>[A-Za-z_]\w*)\.(?<corner>[A-Za-z_]\w*)\s*\{").ToArray();
         foreach (Match rectangle in Rect.Matches(source))
         {
             var name = rectangle.Groups["n"].Value;
             var isProfileSource = Regex.IsMatch(source, $@"\bProfile\s+[A-Za-z_]\w*\s+From\s+{Regex.Escape(name)}\b", RegexOptions.CultureInvariant);
-            if (!isProfileSource && !programs.Any(x => x.Match.Groups["owner"].Value == name) && !cornerPrograms.Any(x => x.Match.Groups["owner"].Value == name)) continue;
+            if (!isProfileSource && !programs.Any(x => x.Match.Groups["owner"].Value == name) && !cornerPrograms.Any(x => x.Match.Groups["owner"].Value == name)
+                &&!parsedDeltas.Deltas.Any(delta=>delta.OwnerPath.StartsWith(name+".",StringComparison.Ordinal))) continue;
             if (!TryNumber(rectangle.Groups["w"].Value, out var width) || !TryNumber(rectangle.Groups["h"].Value, out var height) ||
                 !TryNumber(rectangle.Groups["x"].Value, out var cx) || !TryNumber(rectangle.Groups["y"].Value, out var cy)) continue;
             if (result.ContainsKey(name)) { diagnostics.Add($"profile-edge-owner-name-collision:{name}"); continue; }
@@ -244,13 +247,21 @@ public static class ProfileAuthoringParser
                 var endCorner = cornerEdges.First(x => x.Value.EdgeA == edge).Key;
                 resolvedCorners.TryGetValue(startCorner, out var startResolution);
                 resolvedCorners.TryGetValue(endCorner, out var endResolution);
-                if (matching.Length == 0 && startResolution is null && endResolution is null)
+                var edgeDeltas=parsedDeltas.Deltas.Where(delta=>delta.OwnerPath.Equals($"{name}.{edge}",StringComparison.Ordinal)).ToArray();
+                if (matching.Length == 0 && edgeDeltas.Length==0 && startResolution is null && endResolution is null)
                 {
                     path.Steps.Add(new(edge, "Span", $"{name}.{edge}", $"{name}.{edge}.End", [new LineArcLineSegment2D(start, end)], start, end, Heading(start, end)));
                     return;
                 }
                 if (matching.Length > 1) { diagnostics.Add($"semantic-edge-duplicate-program:{name}.{edge}"); return; }
                 var fragments = new List<SemanticEdgeFragmentIr>();
+                foreach(var parsed in edgeDeltas)
+                {
+                    var id=$"{name}.{edge}.{parsed.Delta.Name}";
+                    fragments.Add(parsed.Delta with { StableId=id,Side=-parsed.Delta.Side,
+                        Levels=parsed.Delta.Levels.Select(level=>level with { StableId=$"{id}.{level.Name}" }).ToArray(),
+                        Members=parsed.Delta.Members.Select(member=>member with { StableId=$"{id}.{member.Name}",ExposeAs=member.ExposeAs is null?null:$"{id}.{member.ExposeAs.Split('.').Last()}" }).ToArray() });
+                }
                 foreach (var step in matching.Length == 0 ? Enumerable.Empty<PathStep>() : FindPathSteps(matching[0].Body).Where(x => x.Kind is "Chamfer" or "Step" or "Notch" or "Cutback" or "Tab"))
                 {
                     var id = $"{name}.{edge}.{step.Name}";
@@ -275,6 +286,15 @@ public static class ProfileAuthoringParser
                 if (!resolution.IsSuccess) { diagnostics.AddRange(resolution.Diagnostics); return; }
                 foreach (var member in resolution.Profile!.OrderedMembers)
                 {
+                    if(member.Kind=="ProfileDelta")
+                    {
+                        foreach(var descendant in member.CurveDescendants)
+                        {
+                            var curveStart=Start(descendant.Geometry);var curveEnd=End(descendant.Geometry);var leaf=descendant.StableId.EndsWith(".curve00",StringComparison.Ordinal)?descendant.StableId[..^8]:descendant.StableId;
+                            path.Steps.Add(new($"{edge}.{leaf}","ProfileDeltaMember",leaf,$"{leaf}.End",[descendant.Geometry],curveStart,curveEnd,Heading(curveStart,curveEnd)));
+                        }
+                        continue;
+                    }
                     var first = ((LineArcLineSegment2D)member.CurveDescendants.First().Geometry).Start; var last = ((LineArcLineSegment2D)member.CurveDescendants.Last().Geometry).End;
                     path.Steps.Add(new($"{edge}.{member.Name}", member.Kind, $"{name}.{edge}.{member.Name}", $"{name}.{edge}.{member.Name}.End", member.CurveDescendants.Select(x => x.Geometry).ToArray(), first, last, Heading(first, last)));
                 }
@@ -511,6 +531,8 @@ public static class ProfileAuthoringParser
     private static double DegreesToRadians(double value) => value * Math.PI / 180d;
     private static double Heading((double X, double Y) from, (double X, double Y) to) => Math.Atan2(to.Y - from.Y, to.X - from.X) * 180d / Math.PI;
     private static double Distance((double X, double Y) a, (double X, double Y) b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
+    private static (double X,double Y) Start(LineArcProfileCurve2D curve)=>curve switch{LineArcLineSegment2D line=>line.Start,LineArcCircularArc2D arc=>(arc.Center.X+arc.Radius*Math.Cos(arc.StartAngleRadians),arc.Center.Y+arc.Radius*Math.Sin(arc.StartAngleRadians)),_=>throw new InvalidOperationException()};
+    private static (double X,double Y) End(LineArcProfileCurve2D curve)=>curve switch{LineArcLineSegment2D line=>line.End,LineArcCircularArc2D arc=>(arc.Center.X+arc.Radius*Math.Cos(arc.StartAngleRadians+arc.SweepAngleRadians),arc.Center.Y+arc.Radius*Math.Sin(arc.StartAngleRadians+arc.SweepAngleRadians)),_=>throw new InvalidOperationException()};
     private static bool OnLine((double X, double Y) point, LineArcLineSegment2D line) => Math.Abs((line.End.X - line.Start.X) * (point.Y - line.Start.Y) - (line.End.Y - line.Start.Y) * (point.X - line.Start.X)) < 1e-7;
     private static bool OnCircle((double X, double Y) point, (double X, double Y) center, double radius) => Math.Abs(Distance(point, center) - radius) < 1e-7;
 

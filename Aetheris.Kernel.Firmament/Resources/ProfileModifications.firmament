@@ -1,0 +1,41 @@
+// Generic profile-modification standard library. User feature names are ordinary
+// ProfileDelta template specializations; the compiler knows only semantic primitives.
+Record ProfileRecessSpec {
+    Center: Length
+    Lead: Length
+    Run: Length
+    Depth: Length
+    Land: Length
+}
+
+Template < P: ProfileRecessSpec, Owner: ProfilePath >
+ProfileDelta Recess {
+    On: Owner;
+    Anchor: CenteredAt P.Center;
+    Side: Inward;
+    Level Carrier { Offset: 0mm; }
+    Level Recessed { Offset: P.Depth; }
+    Transition LeadIn { Kind: Diagonal; Run: P.Lead; To: Recessed; }
+    Span LeftRun { Run: P.Run; At: Recessed; }
+    Span Land { Run: P.Land; At: Recessed; }
+    Span RightRun { Run: P.Run; At: Recessed; }
+    Transition LeadOut { Kind: Diagonal; Run: P.Lead; To: Carrier; }
+}
+
+Record ProfileTabSpec {
+    Center: Length
+    Width: Length
+    Extension: Length
+}
+
+Template < P: ProfileTabSpec, Owner: ProfilePath >
+ProfileDelta Tab {
+    On: Owner;
+    Anchor: CenteredAt P.Center;
+    Side: Outward;
+    Level Carrier { Offset: 0mm; }
+    Level Extended { Offset: P.Extension; }
+    Transition Enter { Kind: Step; To: Extended; }
+    Span Crown { Run: P.Width; At: Extended; }
+    Transition Exit { Kind: Step; To: Carrier; }
+}

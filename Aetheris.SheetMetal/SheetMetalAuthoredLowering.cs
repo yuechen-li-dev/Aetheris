@@ -26,7 +26,7 @@ public sealed record AuthoredSheetFlangeSpec(
     double? SpanLength = null, double SpanOffset = 0d);
 public sealed record AuthoredSheetCutSpec(
     string Name, string RegionName, SheetFeatureKind Kind, double X, double Y,
-    double? Diameter, double? Width, double? Length);
+    double? Diameter, double? Width, double? Length, bool ExactCapsule = false);
 public sealed record SheetMetalConstructionSpec(
     string Name, double Thickness, string? Material, double KFactor, AuthoredSheetBaseSpec Base,
     IReadOnlyList<AuthoredSheetFlangeSpec> Flanges, IReadOnlyList<AuthoredSheetCutSpec> Cuts,
@@ -78,6 +78,13 @@ internal static class AuthoredSheetMetalCompiler
             .Where(x=>x.On.Success)
             .Select(x=>$"{x.On.Groups["region"].Value}.{x.Block.Name}")
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var deltaDeclarations=SemanticProfileDeltaParser.Parse(source);
+        foreach(var delta in deltaDeclarations.Deltas)
+        {
+            var region=delta.OwnerPath.Split('.')[0];
+            foreach(var exposure in delta.Exposures.Where(exposure=>exposure.Capabilities.Contains("FlangeAttachable",StringComparer.OrdinalIgnoreCase)))
+                declaredAttachmentPaths.Add($"{region}.{exposure.Path.Split('.').Last()}");
+        }
 
         var flanges = new List<AuthoredSheetFlangeSpec>();
         foreach (var block in Blocks(source, "Flange"))
@@ -336,6 +343,7 @@ internal static class AuthoredSheetMetalLowering
                 var frame = new RegionFrame(flange.Name, tangentA, tangentB, direction, normal, flange.Length); frames[flange.Name] = frame;
                 var tabs=spec.SemanticLayout.Tabs.Where(x=>x.Region.Equals(flange.Name,StringComparison.OrdinalIgnoreCase)&&x.Edge.Equals("Outer",StringComparison.OrdinalIgnoreCase)).ToArray();
                 var steppedNotches=(spec.SemanticLayout.SteppedNotches??[]).Where(x=>x.Region.Equals(flange.Name,StringComparison.OrdinalIgnoreCase)&&x.Edge.Equals("Outer",StringComparison.OrdinalIgnoreCase)).ToArray();
+                var profileDeltas=(spec.SemanticLayout.ProfileDeltas??[]).Where(x=>x.Region.Equals(flange.Name,StringComparison.OrdinalIgnoreCase)&&x.Edge.Equals("Outer",StringComparison.OrdinalIgnoreCase)).ToArray();
                 var cornerPrograms=(spec.SemanticLayout.Corners??[]).Where(x=>x.Region.Equals(flange.Name,StringComparison.OrdinalIgnoreCase)).ToArray();
                 var rootStartProgram=cornerPrograms.SingleOrDefault(x=>x.Corner.Equals("RootStart",StringComparison.OrdinalIgnoreCase));
                 var rootEndProgram=cornerPrograms.SingleOrDefault(x=>x.Corner.Equals("RootEnd",StringComparison.OrdinalIgnoreCase));
@@ -374,7 +382,8 @@ internal static class AuthoredSheetMetalLowering
                     tabs.Select(tab=>(SemanticEdgeFragmentIr)new SemanticEdgeTabIr(tab.Path.Split('.').Last(),tab.Path,
                         new(SemanticEdgeAnchorKind.CenteredAt,ownerLength-tab.Center),tab.Width,tab.Extension,-1,"SheetMetalSemanticLayout"))
                     .Concat(steppedNotches.Select(notch=>(SemanticEdgeFragmentIr)new SemanticEdgeSteppedNotchIr(notch.Path.Split('.').Last(),notch.Path,
-                        new(SemanticEdgeAnchorKind.CenteredAt,ownerLength-notch.Center),notch.Width,notch.Depth,notch.ShoulderDepth,notch.OuterChamfer,notch.InnerChamfer,-notch.Side,"SheetMetalSemanticLayout"))).ToArray(),
+                        new(SemanticEdgeAnchorKind.CenteredAt,ownerLength-notch.Center),notch.Width,notch.Depth,notch.ShoulderDepth,notch.OuterChamfer,notch.InnerChamfer,-notch.Side,"SheetMetalSemanticLayout")))
+                    .Concat(profileDeltas.Select(delta=>(SemanticEdgeFragmentIr)ReverseDelta(delta.Program,ownerLength))).ToArray(),
                     "SheetRegionLocal[u=OuterB->OuterA,v=material-left]","Sheet Metal semantic edge attachment");
                 SemanticEdgeProfileResolution Edge(string edgeName,SemanticProfilePoint start,SemanticProfilePoint end,IReadOnlyList<SemanticEdgeFragmentIr> fragments,ResolvedSemanticCornerProfileIr? startCorner,ResolvedSemanticCornerProfileIr? endCorner)
                     =>SemanticEdgeProfileResolver.Resolve(new($"{flange.Name}.{edgeName}",$"{flange.Name}.{edgeName}",start,end,fragments,$"{flange.Name}.{edgeName}[u,v]","Sheet Metal profile edge"),
@@ -393,7 +402,7 @@ internal static class AuthoredSheetMetalLowering
                 {
                     var descendants=profile.Profile!.OrderedMembers.SelectMany(member=>member.CurveDescendants).ToArray();
                     if(descendants.Length==0)return;
-                    Add(Map(((LineArcLineSegment2D)descendants[0].Geometry).Start));
+                    Add(Map(Start(descendants[0].Geometry)));
                     foreach(var descendant in descendants){localCurves.Add((descendant.StableId,descendant.Geometry,descendant.Provenance));Add(Map(End(descendant.Geometry)));}
                 }
                 void AddCorner(ResolvedSemanticCornerProfileIr? corner)
@@ -412,7 +421,7 @@ internal static class AuthoredSheetMetalLowering
                     correspondence.Add(new(corner.Source.CornerPath,"ProfileCorner",corner.Source.CornerPath,$"flat-{corner.Source.CornerPath}"));
                 var plane = new SheetPlaneReference(tangentA, normal, axis, direction, true);
                 var flangeId=stableRegions[flange.Name];
-                var fragmentArea=tabs.Sum(x=>x.Width*x.Extension)-steppedNotches.Sum(x=>x.Width*x.Depth);
+                var fragmentArea=tabs.Sum(x=>x.Width*x.Extension)-steppedNotches.Sum(x=>x.Width*x.Depth)-profileDeltas.Sum(x=>DeltaArea(x.Program));
                 regions.Add(new(flangeId, SheetRegionKind.Planar, Developable("Authored planar flange."), plane, null, boundary, (edge.B-edge.A).Length * flange.Length+fragmentArea, source, evidence,exactContour));
                 patches.Add(PlanePatch(flangeId, SheetRegionKind.Planar, boundary, normal, t,plane,exactContour));
 
@@ -437,12 +446,21 @@ internal static class AuthoredSheetMetalLowering
             if (cut.RegionName.Equals(spec.Base.Name, StringComparison.OrdinalIgnoreCase)) { plane = basePlane; boundary = baseBoundary; }
             else { var region = regions.FirstOrDefault(r => r.StableId.Equals(stableRegions.GetValueOrDefault(cut.RegionName,cut.RegionName), StringComparison.OrdinalIgnoreCase)); plane = region?.Plane; boundary = region?.Boundary3D ?? []; }
             if (plane is null) return Failure($"Cut '{cut.Name}' references unknown planar region '{cut.RegionName}'.", SheetMetalDiagnosticCodes.FeatureMappingFailure);
-            var local=boundary.Select(p=>(U:(p-plane.Origin).Dot(plane.UAxis),V:(p-plane.Origin).Dot(plane.VAxis))).ToArray();var hu=(cut.Diameter??cut.Length)!.Value/2;var hv=(cut.Diameter??cut.Width)!.Value/2;
+            var local=boundary.Select(p=>(U:(p-plane.Origin).Dot(plane.UAxis),V:(p-plane.Origin).Dot(plane.VAxis))).ToArray();
+            var hu=cut.ExactCapsule&&cut.Length!.Value>=cut.Width!.Value?(cut.Length.Value+cut.Width.Value)/2:(cut.Diameter??cut.Length)!.Value/2;
+            var hv=cut.ExactCapsule&&cut.Width!.Value>cut.Length!.Value?(cut.Width.Value+cut.Length.Value)/2:(cut.Diameter??cut.Width)!.Value/2;
             if(local.Length<3||cut.X-hu<=local.Min(p=>p.U)+1e-8||cut.X+hu>=local.Max(p=>p.U)-1e-8||cut.Y-hv<=local.Min(p=>p.V)+1e-8||cut.Y+hv>=local.Max(p=>p.V)-1e-8)
                 return Failure($"Cut '{cut.Name}' reaches or crosses the boundary/bend zone of region '{cut.RegionName}'.",SheetMetalDiagnosticCodes.CutCrossesBend);
             var center = plane.Origin + plane.UAxis * cut.X + plane.VAxis * cut.Y;
-            IReadOnlyList<Point3D> loop = cut.Kind == SheetFeatureKind.CircularHole ? [] : RectangleLoop(center, plane.UAxis, plane.VAxis, cut.Length!.Value, cut.Width!.Value);
-            features.Add(new(cut.Name, cut.Kind, stableRegions.GetValueOrDefault(cut.RegionName,cut.RegionName), center, cut.Diameter, loop, source, evidence));
+            IReadOnlyList<Point3D> loop;PlanarContour2? exactFeature=null;
+            if(cut.Kind==SheetFeatureKind.CircularHole)loop=[];
+            else if(cut.Kind==SheetFeatureKind.Slot&&cut.ExactCapsule)
+            {
+                var capsule=Capsule(cut.Name,cut.X,cut.Y,cut.Length!.Value,cut.Width!.Value,plane);
+                loop=capsule.Boundary;exactFeature=capsule.Contour;
+            }
+            else loop=RectangleLoop(center, plane.UAxis, plane.VAxis, cut.Length!.Value, cut.Width!.Value);
+            features.Add(new(cut.Name, cut.Kind, stableRegions.GetValueOrDefault(cut.RegionName,cut.RegionName), center, cut.Diameter, loop, source, evidence,exactFeature));
             correspondence.Add(new(cut.Name, "Cut", cut.Name, cut.Name));
         }
 
@@ -509,10 +527,54 @@ internal static class AuthoredSheetMetalLowering
     }
     private static DevelopabilityEvidence Developable(string note)=>new(DevelopabilityKind.Developable,"authored analytic construction",0,0,note);
     private static IReadOnlyList<Point3D> RectangleLoop(Point3D c,Vector3D u,Vector3D v,double length,double width)=>[c-u*(length/2)-v*(width/2),c+u*(length/2)-v*(width/2),c+u*(length/2)+v*(width/2),c-u*(length/2)+v*(width/2)];
+    private static (IReadOnlyList<Point3D> Boundary,PlanarContour2 Contour) Capsule(string id,double cx,double cy,double length,double width,SheetPlaneReference plane)
+    {
+        var alongU=length>=width;var diameter=Math.Min(length,width);var run=Math.Max(length,width);var radius=diameter/2d;var straight=run/2d;
+        var local=alongU
+            ?new[]{(cx-straight,cy-radius),(cx+straight,cy-radius),(cx+straight,cy+radius),(cx-straight,cy+radius)}
+            :new[]{(cx-radius,cy-straight),(cx+radius,cy-straight),(cx+radius,cy+straight),(cx-radius,cy+straight)};
+        var boundary=local.Select(p=>plane.Origin+plane.UAxis*p.Item1+plane.VAxis*p.Item2).ToArray();
+        var provenance=new ProfileSegmentProvenance($"{id}.capsule",id,id,"SheetMetal authored analytic capsule","SheetRegionLocal[u,v]");
+        PlanarContourSegment2[] segments=alongU
+            ?[new($"{id}.Bottom",new LineArcLineSegment2D(local[0],local[1]),provenance with { StableId=$"{id}.Bottom" }),
+              new($"{id}.RightArc",new LineArcCircularArc2D((cx+straight,cy),radius,-Math.PI/2,Math.PI),provenance with { StableId=$"{id}.RightArc" }),
+              new($"{id}.Top",new LineArcLineSegment2D(local[2],local[3]),provenance with { StableId=$"{id}.Top" }),
+              new($"{id}.LeftArc",new LineArcCircularArc2D((cx-straight,cy),radius,Math.PI/2,Math.PI),provenance with { StableId=$"{id}.LeftArc" })]
+            :[new($"{id}.BottomArc",new LineArcCircularArc2D((cx,cy-straight),radius,Math.PI,Math.PI),provenance with { StableId=$"{id}.BottomArc" }),
+              new($"{id}.Right",new LineArcLineSegment2D(local[1],local[2]),provenance with { StableId=$"{id}.Right" }),
+              new($"{id}.TopArc",new LineArcCircularArc2D((cx,cy+straight),radius,0,Math.PI),provenance with { StableId=$"{id}.TopArc" }),
+              new($"{id}.Left",new LineArcLineSegment2D(local[3],local[0]),provenance with { StableId=$"{id}.Left" })];
+        return(boundary,new(id,"SheetRegionLocal[u,v]",new($"{id}.Outer",true,segments),[],$"analytic capsule diameter={diameter:R} straight-run={run:R}"));
+    }
+    private static SemanticProfileDeltaIr ReverseDelta(SemanticProfileDeltaIr delta,double ownerLength)
+    {
+        var states=new List<string>{delta.Levels.FirstOrDefault(level=>Math.Abs(level.Offset)<1e-9)?.Name??"Carrier"};
+        states.AddRange(delta.Members.Select(member=>member.ToLevel));
+        var reversed=delta.Members.Select((member,index)=>(member,index)).Reverse().Select(pair=>pair.member with { ToLevel=states[pair.index] }).ToArray();
+        var anchor=delta.Anchor.Kind switch
+        {
+            SemanticEdgeAnchorKind.FromStart=>new SemanticEdgeAnchorIr(SemanticEdgeAnchorKind.FromEnd,delta.Anchor.Offset),
+            SemanticEdgeAnchorKind.FromEnd=>new SemanticEdgeAnchorIr(SemanticEdgeAnchorKind.FromStart,delta.Anchor.Offset),
+            SemanticEdgeAnchorKind.CenteredAt=>new SemanticEdgeAnchorIr(SemanticEdgeAnchorKind.CenteredAt,ownerLength-delta.Anchor.Offset),
+            _=>delta.Anchor
+        };
+        return delta with { Anchor=anchor,Side=-delta.Side,Members=reversed };
+    }
+    private static double DeltaArea(SemanticProfileDeltaIr delta)
+    {
+        var levels=delta.Levels.ToDictionary(level=>level.Name,level=>Math.Abs(level.Offset),StringComparer.Ordinal);var current=0d;var area=0d;
+        foreach(var member in delta.Members){var target=levels.GetValueOrDefault(member.ToLevel);area+=(current+target)*member.Run/2d;current=target;}return area;
+    }
     private static (double X,double Y) End(LineArcProfileCurve2D curve)=>curve switch
     {
         LineArcLineSegment2D line=>line.End,
         LineArcCircularArc2D arc=>(arc.Center.X+arc.Radius*Math.Cos(arc.StartAngleRadians+arc.SweepAngleRadians),arc.Center.Y+arc.Radius*Math.Sin(arc.StartAngleRadians+arc.SweepAngleRadians)),
+        _=>throw new InvalidOperationException($"Unsupported profile curve '{curve.GetType().Name}'.")
+    };
+    private static (double X,double Y) Start(LineArcProfileCurve2D curve)=>curve switch
+    {
+        LineArcLineSegment2D line=>line.Start,
+        LineArcCircularArc2D arc=>(arc.Center.X+arc.Radius*Math.Cos(arc.StartAngleRadians),arc.Center.Y+arc.Radius*Math.Sin(arc.StartAngleRadians)),
         _=>throw new InvalidOperationException($"Unsupported profile curve '{curve.GetType().Name}'.")
     };
     private static IReadOnlyList<Point3D>? ReleaseToCarrier(IReadOnlyList<Point3D> boundary,EdgeFrame carrier,EdgeFrame path)
@@ -645,7 +707,8 @@ internal static class AuthoredSheetMetalLowering
                     else
                     {
                         positive=feature.Boundary3D.Select(p=>p+n*spec.Thickness/2).ToArray();negative=feature.Boundary3D.Select(p=>p-n*spec.Thickness/2).ToArray();
-                        positiveEdges=Enumerable.Range(0,positive.Count).Select(i=>Edge(positive[i],positive[(i+1)%positive.Count])).ToArray();negativeEdges=Enumerable.Range(0,negative.Count).Select(i=>Edge(negative[i],negative[(i+1)%negative.Count])).ToArray();
+                        positiveEdges=Enumerable.Range(0,positive.Count).Select(i=>Edge(positive[i],positive[(i+1)%positive.Count],CutCurve(feature,plane,true,i,positive[i],positive[(i+1)%positive.Count]))).ToArray();
+                        negativeEdges=Enumerable.Range(0,negative.Count).Select(i=>Edge(negative[i],negative[(i+1)%negative.Count],CutCurve(feature,plane,false,i,negative[i],negative[(i+1)%negative.Count]))).ToArray();
                     }
                     var cut=new CutBoundary(feature,plane,positive,negative,positiveEdges,negativeEdges,circle);if(!cutsByRegion.TryGetValue(feature.OwningRegionId,out var list))cutsByRegion[feature.OwningRegionId]=list=[];list.Add(cut);
                 }
@@ -661,9 +724,28 @@ internal static class AuthoredSheetMetalLowering
                     }
                     else for(var i=0;i<cut.Positive.Count;i++)
                     {
-                        var j=(i+1)%cut.Positive.Count;var loop=new[]{ExistingEdge(cut.PositiveEdges[i],cut.Positive[i]),DirectedEdge(cut.Positive[j],cut.Negative[j]),ExistingEdge(cut.NegativeEdges[i],cut.Negative[j]),DirectedEdge(cut.Negative[i],cut.Positive[i])};var u=cut.Positive[j]-cut.Positive[i];var v=cut.Negative[i]-cut.Positive[i];var normal=Unit(u.Cross(v));Face([loop],SurfaceGeometry.FromPlane(new PlaneSurface(cut.Positive[i],Direction3D.Create(normal),Direction3D.Create(Unit(u)))));
+                        var j=(i+1)%cut.Positive.Count;var loop=new[]{ExistingEdge(cut.PositiveEdges[i],cut.Positive[i]),DirectedEdge(cut.Positive[j],cut.Negative[j]),ExistingEdge(cut.NegativeEdges[i],cut.Negative[j]),DirectedEdge(cut.Negative[i],cut.Positive[i])};
+                        if(edgeGeometry[cut.PositiveEdges[i]].Curve is { Kind:CurveGeometryKind.Circle3,Circle3:{ } circle })
+                        {
+                            var axis=Unit(cut.Positive[i]-cut.Negative[i]);var center=circle.Center-axis*(spec.Thickness/2);
+                            Face([loop],SurfaceGeometry.FromCylinder(new CylinderSurface(center,Direction3D.Create(axis),circle.Radius,Direction3D.Create(cut.Positive[i]-circle.Center))));
+                        }
+                        else
+                        {
+                            var u=cut.Positive[j]-cut.Positive[i];var v=cut.Negative[i]-cut.Positive[i];var normal=Unit(u.Cross(v));Face([loop],SurfaceGeometry.FromPlane(new PlaneSurface(cut.Positive[i],Direction3D.Create(normal),Direction3D.Create(Unit(u)))));
+                        }
                     }
                 }
+            }
+            EdgeGeometry CutCurve(SheetFeatureIr feature,SheetPlaneReference plane,bool positive,int index,Point3D a,Point3D q)
+            {
+                if(feature.ExactContour is not null&&index<feature.ExactContour.OuterLoop.Segments.Count&&feature.ExactContour.OuterLoop.Segments[index].Geometry is LineArcCircularArc2D arc)
+                {
+                    var n=Unit(plane.Normal);if(arc.SweepAngleRadians<0)n=-n;
+                    var center=plane.Origin+plane.UAxis*arc.Center.X+plane.VAxis*arc.Center.Y+Unit(plane.Normal)*(positive?spec.Thickness/2:-spec.Thickness/2);
+                    return new(CurveGeometry.FromCircle(new Circle3Curve(center,Direction3D.Create(n),arc.Radius,Direction3D.Create(a-center))),new(0,Math.Abs(arc.SweepAngleRadians)));
+                }
+                return Line(a,q);
             }
             EdgeGeometry Line(Point3D a,Point3D q){var d=q-a;return new(CurveGeometry.FromLine(new Line3Curve(a,Direction3D.Create(d))),new(0,d.Length));}
             Point3D ProjectToAxis(Point3D p,Point3D origin,Vector3D axis)=>origin+axis*((p-origin).Dot(axis));

@@ -1,5 +1,6 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Step242;
+using Aetheris.Kernel.Firmament.FirmamentV2;
 using Xunit;
 
 namespace Aetheris.SheetMetal.Tests;
@@ -21,7 +22,7 @@ public sealed class SheetMetalM8Tests
     }
 
     [Fact]
-    public void Ctc03_FinalSemanticLayout_LowersAllOpeningsAndPartialTabFlangeWithoutSourceStep()
+    public void Ctc03_FinalSemanticLayout_LowersAllOpeningsAndRoundedProfileFlangeWithoutSourceStep()
     {
         var isolated=Path.Combine(Path.GetTempPath(),$"ctc03-m8-{Guid.NewGuid():N}.firmament");
         try
@@ -30,13 +31,17 @@ public sealed class SheetMetalM8Tests
             Assert.True(result.IsSuccess,string.Join('\n',result.Diagnostics.Select(x=>x.Message)));
             Assert.Equal(15,result.Part!.Features.Count(x=>x.Kind==SheetFeatureKind.CircularHole));
             Assert.Equal(2,result.Part.Features.Count(x=>x.Kind==SheetFeatureKind.Slot));
-            Assert.Equal(9,result.Spec!.SemanticLayout.Patterns.Count);Assert.Single(result.Spec.SemanticLayout.Tabs);Assert.Equal(2,result.Spec.SemanticLayout.SteppedNotches!.Count);Assert.Equal(12,result.Spec.SemanticLayout.Corners!.Count);
+            Assert.Equal(9,result.Spec!.SemanticLayout.Patterns.Count);Assert.Empty(result.Spec.SemanticLayout.Tabs);Assert.Empty(result.Spec.SemanticLayout.SteppedNotches!);Assert.Equal(4,result.Spec.SemanticLayout.ProfileDeltas!.Count);Assert.Equal(12,result.Spec.SemanticLayout.Corners!.Count);
             var attachment=Assert.Single(result.Part.AttachmentPaths!);Assert.Equal("RightWall.ServiceFlangeAttachment",attachment.StableId);Assert.Equal(2.6416,attachment.Inset,8);
             Assert.Equal(127,result.Part.Regions.Single(x=>x.StableId=="AngledServiceFlangeBendRegion").Cylinder!.AxisLength,8);
             Assert.NotNull(result.FlatPattern!.ExactBlankContour);Assert.Equal(17,result.FlatPattern.CutLoops.Count);
+            var rearDelta=result.Spec.SemanticLayout.ProfileDeltas.Single(x=>x.Path=="RearMountingFlange.RearConnectorRelief");
+            Assert.All(rearDelta.Program.Members.Where(x=>x.Kind==SemanticProfileDeltaMemberKind.Round),x=>Assert.True(x.Concave));
+            var rearArcs=result.FlatPattern.Regions2D.Single(x=>x.SourceRegionId=="RearMountingFlange").ExactContour!.OuterLoop.Segments.Select(x=>x.Geometry).OfType<Aetheris.Kernel.Firmament.Materializer.LineArcCircularArc2D>().ToArray();
+            Assert.Equal(2,rearArcs.Length);Assert.All(rearArcs,x=>Assert.True(x.SweepAngleRadians<0));
             Assert.True(BrepExportPreflight.Validate(result.Part.FormedBody!).IsValid);
             var paths=SheetMetalConceptPaths.Inspect(result.Spec,result.Part,result.FlatPattern).Select(x=>x.Path).ToArray();
-            Assert.Contains("Ctc03Layout.FrontConnectorRelief",paths);Assert.Contains("Flat.Ctc03Layout.FrontConnectorRelief",paths);
+            Assert.Contains("FrontMountingFlange.FrontConnectorRelief",paths);Assert.Contains("Flat.FrontMountingFlange.FrontConnectorRelief",paths);
             Assert.Contains("Ctc03Layout.LeftWall.OuterStart.RearEndTaper",paths);Assert.Contains("Flat.Ctc03Layout.LeftWall.OuterStart.RearEndTaper",paths);
         }
         finally{if(File.Exists(isolated))File.Delete(isolated);}

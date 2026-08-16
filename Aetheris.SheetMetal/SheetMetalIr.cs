@@ -136,7 +136,8 @@ public sealed record SheetFeatureIr(
     double? Diameter,
     IReadOnlyList<Point3D> Boundary3D,
     SheetSourceBinding Source,
-    IReadOnlyList<SheetEvidence> Evidence);
+    IReadOnlyList<SheetEvidence> Evidence,
+    PlanarContour2? ExactContour = null);
 
 public sealed record SheetMetalCornerIr(
     string StableId,

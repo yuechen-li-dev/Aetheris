@@ -18,6 +18,14 @@ SheetMetalPartIr
 
 `PlanarContour2` is shared with normal Firmament Profiles. It owns one ordered outer loop, ordered inner loops, a plane frame, stable IDs, and segment provenance. Supported native curves are line segments, bounded circular arcs, and full circles. Validation rejects open chains, endpoint mismatches, duplicate IDs, wrong winding, self-intersection, invalid inner-loop nesting, and zero-length/zero-area topology.
 
+Semantic `Pattern Feature: Slot` accepts either orientation: the smaller of `Length`/`Width` is the
+rounded-end diameter and the larger is the tangent-to-tangent straight span. The
+resulting capsule's overall major span is their sum; its two semicircular ends remain
+analytic in formed BRep, flat STEP, and SVG rather than being reduced to a rectangular
+opening. Direct legacy `Cut ... Profile: Slot` remains on its established rectangular
+compatibility lowering until its dimension contract can be migrated without changing
+existing fixtures.
+
 The bounded kernel publishes line/line, line/arc, and arc/arc intersection; normalized-parameter split/trim; explicit-side line/arc offset with miter joins; and known-topology arrangement/stitching. It does not expose a universal arbitrary Boolean or silently polygonize analytic curves.
 
 ## Authoring and Concept Paths
@@ -114,6 +122,8 @@ aetheris sheetmetal compare imported.step reconstructed.firmament
 Canonical M4 dogfood is [`m4-psu-enclosure.firmament`](../../fixtures/FirmamentV2/SheetMetal/m4-psu-enclosure.firmament). The [M4 evidence bundle](sheetmetal/artifacts/m4/README.md) records exact-kernel scope, template/DFM evidence, CTC-03 comparison, timings, hashes, and remaining limits.
 
 The [M8 CTC-03 evidence bundle](sheetmetal/artifacts/m8/README.md) records full opening recovery, semantic-layout authoring, independent regeneration, comparison, PMI evidence, generalization, timings, and the remaining outer-contour blocker.
+
+The [M10 generic profile-programming report](sheetmetal/artifacts/m10/README.md) documents typed `ProfileDelta` template specialization, reusable `Tab<T>`/`Recess<T>` library dogfood, the materialized CTC-03 right-wall service profile, and the remaining non-right-wall contour residuals.
 
 The [recognized-import recovery M1 report](sheetmetal/artifacts/recovery-m1/README.md) separates detected bend candidates from accepted recognition authority and adds direct imported-body geometric mid-surface unfolding. Its CTC-03 run preserves exact per-region line/arc contours, all 17 source openings, seven bend lines, and source edge ancestry before any native reconstruction. Exact single-loop stitching remains partial at three source point-tangent junctions and is reported as such.
 

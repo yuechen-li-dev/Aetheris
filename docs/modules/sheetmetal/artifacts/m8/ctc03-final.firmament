@@ -1,6 +1,92 @@
-// M8 independent reconstruction of NIST CTC-03.
+// M10 independent reconstruction of NIST CTC-03.
 // Construction reads no STEP, recovery provider, face ID, edge ID, or recovered polygon.
 // Dimensions below are source-derived unless explicitly described as a flattening policy.
+Record CtcServiceRecessSpec {
+    Center: Length
+    Lead: Length
+    Run: Length
+    Depth: Length
+    AttachmentInset: Length
+    AttachmentSpan: Length
+}
+
+Template < P: CtcServiceRecessSpec, Owner: ProfilePath >
+ProfileDelta CtcServiceRecess {
+    On: Owner;
+    Anchor: CenteredAt P.Center;
+    Side: Inward;
+    Level Carrier { Offset: 0mm; }
+    Level Deep { Offset: P.Depth; }
+    Level Attachment { Offset: P.AttachmentInset; }
+    Transition LeadIn { Kind: Diagonal; Run: P.Lead; To: Deep; }
+    Span LeftRecessRun { Run: P.Run; At: Deep; }
+    Transition RiseToAttachment { Kind: Step; To: Attachment; }
+    Span AttachmentLand { Run: P.AttachmentSpan; At: Attachment; Expose: ServiceFlangeAttachment; Capabilities: [FlangeAttachable, BendAttachable, FeatureAttachable, StableSemanticIdentity]; }
+    Transition FallFromAttachment { Kind: Step; To: Deep; }
+    Span RightRecessRun { Run: P.Run; At: Deep; }
+    Transition LeadOut { Kind: Diagonal; Run: P.Lead; To: Carrier; }
+}
+
+Static CtcServiceProfile: CtcServiceRecessSpec = CtcServiceRecessSpec {
+    Center: 186.5376mm;
+    Lead: 15.24mm;
+    Run: 63.5mm;
+    Depth: 15.24mm;
+    AttachmentInset: 2.6416mm;
+    AttachmentSpan: 127mm;
+}
+
+Record RoundedTabSpec { Center: Length Radius: Length Crown: Length Extension: Length }
+Template < P: RoundedTabSpec, Owner: ProfilePath >
+ProfileDelta RoundedTab {
+    On: Owner;
+    Anchor: CenteredAt P.Center;
+    Side: Outward;
+    Level Carrier { Offset: 0mm; }
+    Level Extended { Offset: P.Extension; }
+    Transition EnterRound { Kind: Round; Run: P.Radius; To: Extended; Radius: P.Radius; }
+    Span Crown { Run: P.Crown; At: Extended; }
+    Transition ExitRound { Kind: Round; Run: P.Radius; To: Carrier; Radius: P.Radius; }
+}
+Static ServiceConnectorSpec: RoundedTabSpec = RoundedTabSpec { Center: 63.5mm; Radius: 12.7mm; Crown: 101.6mm; Extension: 12.7mm; }
+
+Record TwoRoundRecessSpec { Center: Length Radius: Length Floor: Length Shoulder: Length Depth: Length }
+Template < P: TwoRoundRecessSpec, Owner: ProfilePath >
+ProfileDelta TwoRoundRecess {
+    On: Owner;
+    Anchor: CenteredAt P.Center;
+    Side: Inward;
+    Level Carrier { Offset: 0mm; }
+    Level Shoulder { Offset: P.Shoulder; }
+    Level Deep { Offset: P.Depth; }
+    Transition EnterShoulder { Kind: Step; To: Shoulder; }
+    Transition EnterRound { Kind: Round; Run: P.Radius; To: Deep; Radius: P.Radius; Concave: true; }
+    Span Floor { Run: P.Floor; At: Deep; }
+    Transition ExitRound { Kind: Round; Run: P.Radius; To: Shoulder; Radius: P.Radius; Concave: true; }
+    Transition ExitShoulder { Kind: Step; To: Carrier; }
+}
+Static RearConnectorSpec: TwoRoundRecessSpec = TwoRoundRecessSpec { Center: 120.65mm; Radius: 6.35mm; Floor: 114.3mm; Shoulder: 25.4mm; Depth: 31.75mm; }
+
+Record FourRoundRecessSpec { Center: Length Radius: Length Floor: Length OuterShoulder: Length InnerShoulder: Length Depth: Length }
+Template < P: FourRoundRecessSpec, Owner: ProfilePath >
+ProfileDelta FourRoundRecess {
+    On: Owner;
+    Anchor: CenteredAt P.Center;
+    Side: Inward;
+    Level Carrier { Offset: 0mm; }
+    Level OuterShoulder { Offset: P.OuterShoulder; }
+    Level InnerShoulder { Offset: P.InnerShoulder; }
+    Level Deep { Offset: P.Depth; }
+    Transition EnterOuterRound { Kind: Round; Run: P.Radius; To: OuterShoulder; Radius: P.Radius; }
+    Transition EnterShoulder { Kind: Step; To: InnerShoulder; }
+    Transition EnterInnerRound { Kind: Round; Run: P.Radius; To: Deep; Radius: P.Radius; Concave: true; }
+    Span Floor { Run: P.Floor; At: Deep; }
+    Transition ExitInnerRound { Kind: Round; Run: P.Radius; To: InnerShoulder; Radius: P.Radius; Concave: true; }
+    Transition ExitShoulder { Kind: Step; To: OuterShoulder; }
+    Transition ExitOuterRound { Kind: Round; Run: P.Radius; To: Carrier; Radius: P.Radius; }
+}
+Static FrontConnectorSpec: FourRoundRecessSpec = FourRoundRecessSpec { Center: 120.65mm; Radius: 6.35mm; Floor: 114.3mm; OuterShoulder: 6.35mm; InnerShoulder: 25.4mm; Depth: 31.75mm; }
+
 Concept Ctc03ManufacturedIntent {
     MainDeck: SheetRegion
     BaseFastenerPattern: SheetPattern
@@ -14,52 +100,24 @@ Concept Ctc03ManufacturedIntent {
 }
 
 Concept Struct Ctc03Layout {
-    // The physical RightWall outer carrier and the service bend root are not
-    // coincident. The explicit release removes the bounded strip between them.
-    AttachmentPath ServiceFlangeAttachment {
-        On: RightWall.Outer;
-        Inset: 2.6416mm;
-        Span: 127mm;
-        SpanOffset: 2.3876mm;
-        Release: ToCarrier;
-    }
+    // One user-programmed semantic construction owns the complete right-wall
+    // recess and exposes its central land as the child-flange attachment path.
+    ProfileDelta RightWallServiceProfile = CtcServiceRecess < P: CtcServiceProfile, Owner: RightWall.Outer >
 
     // Named local workpoints isolate measured formed coordinates from feature generation.
     Datum RearMountCenter { On: RearMountingFlange; At: (120.65mm, 25.40254mm); }
     Datum FrontMountCenter { On: FrontMountingFlange; At: (120.65mm, 24.43226mm); }
     Datum ServiceHoleCenter { On: AngledServiceFlange; At: (63.5mm, 30.735796052mm); }
 
-    // Source contour: the 127 mm partial flange grows a centered 101.6 x 12.7 mm tab.
-    Tab ServiceConnectorTab {
-        On: AngledServiceFlange.Outer;
-        Center: 63.5mm;
-        Width: 101.6mm;
-        Extension: 12.7mm;
-    }
+    // Source contour: the 127 mm partial flange grows a centered 101.6 mm tab
+    // through two tangent R12.7 transitions rather than sharp shoulders.
+    ProfileDelta ServiceConnectorProfile = RoundedTab < P: ServiceConnectorSpec, Owner: AngledServiceFlange.Outer >
 
-    // Source free-edge programs. Both are symmetric bounded removals from the
-    // mounting-flange outer carrier; carrier spans are generated by the compiler.
-    SteppedNotch FrontConnectorRelief {
-        On: FrontMountingFlange.Outer;
-        Center: 120.65mm;
-        Width: 127mm;
-        Depth: 31.75mm;
-        ShoulderDepth: 25.4mm;
-        OuterChamfer: 0mm;
-        InnerChamfer: 6.35mm;
-        Side: Inward;
-    }
+    // Source free-edge programs. These retain the vertical shoulders while
+    // expressing the six tangent R6.35 transitions visible in the recovered blank.
+    ProfileDelta RearConnectorRelief = TwoRoundRecess < P: RearConnectorSpec, Owner: RearMountingFlange.Outer >
 
-    SteppedNotch RearConnectorRelief {
-        On: RearMountingFlange.Outer;
-        Center: 120.65mm;
-        Width: 139.7mm;
-        Depth: 31.75mm;
-        ShoulderDepth: 25.4mm;
-        OuterChamfer: 6.35mm;
-        InnerChamfer: 6.35mm;
-        Side: Inward;
-    }
+    ProfileDelta FrontConnectorRelief = FourRoundRecess < P: FrontConnectorSpec, Owner: FrontMountingFlange.Outer >
 
     // Cross-edge region-profile corners. Each operation consumes the named
     // side-edge endpoint and the adjacent Outer-edge endpoint as one feature.
@@ -163,10 +221,10 @@ SheetMetal Ctc03 : Ctc03ManufacturedIntent {
         Origin: (-241.3mm, 58.08726mm, 76.2mm);
     }
 
-    Flange FrontWall { From: MainDeck.Front; Height: 61.59254mm; Angle: 90deg; Radius: 6.35mm; Direction: Down; Relief: Auto; }
-    Flange RearWall  { From: MainDeck.Rear;  Height: 61.59254mm; Angle: 90deg; Radius: 6.35mm; Direction: Down; Relief: Auto; }
-    Flange LeftWall  { From: MainDeck.Left;  Height: 44.45mm;  Angle: 90deg; Radius: 6.35mm; Direction: Up;   Relief: Auto; }
-    Flange RightWall { From: MainDeck.Right; Height: 31.75254mm; Angle: 90deg; Radius: 6.35mm; Direction: Up; Relief: Auto; }
+    Flange FrontWall { From: MainDeck.Front; Height: 61.59254mm; Angle: 90deg; Radius: 6.35mm; Direction: Down; }
+    Flange RearWall  { From: MainDeck.Rear;  Height: 61.59254mm; Angle: 90deg; Radius: 6.35mm; Direction: Down; }
+    Flange LeftWall  { From: MainDeck.Left;  Height: 44.45mm;  Angle: 90deg; Radius: 6.35mm; Direction: Up; }
+    Flange RightWall { From: MainDeck.Right; Height: 31.75254mm; Angle: 90deg; Radius: 6.35mm; Direction: Up; }
 
     Flange FrontMountingFlange { From: FrontWall.Outer; Length: 43.47972mm; Angle: 90deg; Radius: 6.35mm; Direction: Up; }
     Flange RearMountingFlange  { From: RearWall.Outer;  Length: 44.45mm;    Angle: 90deg; Radius: 6.35mm; Direction: Up; }

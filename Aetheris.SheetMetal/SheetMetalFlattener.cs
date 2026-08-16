@@ -85,7 +85,7 @@ public static class SheetMetalFlattener
             {
                 var exact=feature.Kind==SheetFeatureKind.CircularHole&&feature.Diameter is { } exactDiameter
                     ? CircleContour(feature.StableId,mapping.Map(feature.Center),exactDiameter/2d)
-                    : Contour(feature.StableId,loop,"mapped exact feature boundary");
+                    : feature.ExactContour is not null?MapContour(feature.ExactContour,mapping):Contour(feature.StableId,loop,"mapped exact feature boundary");
                 cuts.Add(new(feature.StableId,feature.Kind,loop,feature.OwningRegionId,exact));
             }
             else diagnostics.Add(new(SheetMetalDiagnosticCodes.FeatureMappingFailure,SheetMetalDiagnosticSeverity.Warning,$"Feature '{feature.StableId}' did not yield a closed 2D loop."));
@@ -207,21 +207,67 @@ public static class SheetMetalFlattener
         if(usable.Length!=regions.Count)return null;
         if(cuts.Any(x=>x.ExactContour is null))return null;
         var baseRegion=usable.FirstOrDefault(x=>x.SourceRegionId==part.BaseRegionId)??usable[0];
-        var planOperations=usable.Where(x=>x!=baseRegion).Select((x,index)=>new BlankCompositionOperation(x.StableId,BlankCompositionOperationKind.AddMaterialRegion,x.SourceRegionId,x.ExactContour!,"one connected material region sharing an authored bend boundary",100+index))
+        var depth=new Dictionary<string,int>(StringComparer.Ordinal) { [part.BaseRegionId]=0 };
+        for(var pass=0;pass<part.Regions.Count;pass++)foreach(var bend in part.Bends)
+        {
+            if(depth.TryGetValue(bend.AdjacentRegionA,out var a)&&!depth.ContainsKey(bend.AdjacentRegionB))depth[bend.AdjacentRegionB]=a+2;
+            if(depth.TryGetValue(bend.AdjacentRegionB,out var b)&&!depth.ContainsKey(bend.AdjacentRegionA))depth[bend.AdjacentRegionA]=b+2;
+            var bendRegion=bend.StableId;
+            if(!depth.ContainsKey(bendRegion))
+            {
+                if(depth.TryGetValue(bend.AdjacentRegionA,out var parentDepth))depth[bendRegion]=parentDepth+1;
+                else if(depth.TryGetValue(bend.AdjacentRegionB,out parentDepth))depth[bendRegion]=parentDepth+1;
+            }
+        }
+        var additions=usable.Where(x=>x!=baseRegion).OrderBy(x=>depth.GetValueOrDefault(x.SourceRegionId,int.MaxValue)).ThenBy(x=>x.StableId,StringComparer.Ordinal).ToArray();
+        var planOperations=additions.Select((x,index)=>new BlankCompositionOperation(x.StableId,BlankCompositionOperationKind.AddMaterialRegion,x.SourceRegionId,x.ExactContour!,"one connected material region sharing an authored bend boundary",100+index))
             .Concat(reliefs.OrderBy(x=>x.ReliefId,StringComparer.Ordinal).Select((x,index)=>new BlankCompositionOperation(x.ReliefId,BlankCompositionOperationKind.ResolveCornerRelief,x.ReliefId,x.ExactContour,"outer-boundary corner chain replacement; no material island",200+index)))
             .Concat(cuts.OrderBy(x=>x.FeatureId,StringComparer.Ordinal).Select((x,index)=>new BlankCompositionOperation(x.FeatureId,BlankCompositionOperationKind.InsertThroughCut,x.SourceRegionId,x.ExactContour!,"one clockwise inner loop nested in the owning material region",300+index))).OrderBy(x=>x.Order).ToArray();
         plan=new BlankCompositionPlan(part.StableId,baseRegion.ExactContour!,planOperations);
-        var all=new[]{new BlankCompositionOperation(baseRegion.StableId,BlankCompositionOperationKind.AddMaterialRegion,baseRegion.SourceRegionId,baseRegion.ExactContour!,"one authoritative base contour",0)}.Concat(plan.OrderedOperations).ToArray();
-        var profiles=all.ToDictionary(x=>x.StableId,x=>PlanarContourKernel.ToResolvedProfile(x.Contour,x.StableId),StringComparer.Ordinal);
-        var operations=all.Select(x=>new PrismaticProfileOperation(x.StableId,x.Order==0?PrismaticProfileIntent.Base:x.Kind==BlankCompositionOperationKind.AddMaterialRegion?PrismaticProfileIntent.Add:PrismaticProfileIntent.Remove,x.StableId,0,1,x.Kind.ToString(),x.SemanticOwner)).ToArray();
-        var composed=ProfileArrangementBuilder.Compose("XY",operations,profiles,$"sheetmetal-blank:{part.StableId}");
-        if(composed.Region is null)
+        var contour=TryComposeWholePlan(part,baseRegion,plan);
+        if(contour is null)
         {
-            foreach(var message in composed.Arrangement.Diagnostics)diagnostics.Add(new(SheetMetalDiagnosticCodes.ExactBlankContour,SheetMetalDiagnosticSeverity.Warning,$"Exact blank composition: {message}"));
-            return null;
+            contour=baseRegion.ExactContour!;
+            foreach(var operation in plan.OrderedOperations)
+            {
+                if(operation.Kind==BlankCompositionOperationKind.AddMaterialRegion&&TryMergeAlongSharedEdge(contour,operation.Contour,out var merged))
+                {
+                    contour=merged with { StableId=$"flat-{part.StableId}.blank.{operation.Order}" };
+                    continue;
+                }
+                if(operation.Kind==BlankCompositionOperationKind.InsertThroughCut&&operation.Contour.InnerLoops.Count==0)
+                {
+                    contour=contour with
+                    {
+                        StableId=$"flat-{part.StableId}.blank.{operation.Order}",
+                        InnerLoops=[..contour.InnerLoops,operation.Contour.OuterLoop with { IsOuter=false }],
+                        Provenance=$"{contour.Provenance}; exact nested through-cut:{operation.StableId}"
+                    };
+                    continue;
+                }
+                const string currentId="__current-blank";
+                var profiles=new Dictionary<string,ResolvedProfile2D>(StringComparer.Ordinal)
+                {
+                    [currentId]=PlanarContourKernel.ToResolvedProfile(contour,currentId),
+                    [operation.StableId]=PlanarContourKernel.ToResolvedProfile(operation.Contour,operation.StableId)
+                };
+                var intent=operation.Kind==BlankCompositionOperationKind.AddMaterialRegion?PrismaticProfileIntent.Add:PrismaticProfileIntent.Remove;
+                var compositionOperations=new[]
+                {
+                    new PrismaticProfileOperation(currentId,PrismaticProfileIntent.Base,currentId,0,1,"accumulated blank",part.BaseRegionId),
+                    new PrismaticProfileOperation(operation.StableId,intent,operation.StableId,0,1,operation.Kind.ToString(),operation.SemanticOwner)
+                };
+                var composed=ProfileArrangementBuilder.Compose("XY",compositionOperations,profiles,$"sheetmetal-blank:{part.StableId}:{operation.StableId}");
+                if(composed.Region is null)
+                {
+                    foreach(var message in composed.Arrangement.Diagnostics)diagnostics.Add(new(SheetMetalDiagnosticCodes.ExactBlankContour,SheetMetalDiagnosticSeverity.Warning,$"Exact blank composition at {operation.StableId}: {message}"));
+                    return null;
+                }
+                var regionProfile=new ResolvedProfile2D($"flat-{part.StableId}.blank.{operation.Order}","XY",[composed.Region.Outer.Loops.Single(),..composed.Region.Holes.Select(x=>x.Loops.Single())]);
+                contour=PlanarContourKernel.FromResolvedProfile(regionProfile,$"SheetMetal exact semantic composition step:{operation.StableId}") with { StableId=$"flat-{part.StableId}.blank.{operation.Order}" };
+            }
         }
-        var regionProfile=new ResolvedProfile2D($"flat-{part.StableId}.blank","XY",[composed.Region.Outer.Loops.Single(),..composed.Region.Holes.Select(x=>x.Loops.Single())]);
-        var contour=PlanarContourKernel.FromResolvedProfile(regionProfile,$"SheetMetal exact semantic composition plan:{part.StableId}") with { StableId=$"flat-{part.StableId}.blank" };
+        contour=contour with { StableId=$"flat-{part.StableId}.blank" };
         contour=contour with { InnerLoops=contour.InnerLoops.Select(loop=>loop with { Segments=loop.Segments.Reverse().Select(segment=>segment with { Geometry=segment.Geometry switch
         {
             LineArcLineSegment2D line=>new LineArcLineSegment2D(line.End,line.Start),
@@ -233,6 +279,41 @@ public static class SheetMetalFlattener
         if(validation.IsValid)return contour;
         foreach(var item in validation.Diagnostics)diagnostics.Add(new(SheetMetalDiagnosticCodes.ExactBlankContour,SheetMetalDiagnosticSeverity.Warning,$"Exact blank composition: {item.Code}: {item.Message}"));
         return null;
+    }
+    private static PlanarContour2? TryComposeWholePlan(SheetMetalPartIr part,FlatRegion2D baseRegion,BlankCompositionPlan plan)
+    {
+        var all=new[]{new BlankCompositionOperation(baseRegion.StableId,BlankCompositionOperationKind.AddMaterialRegion,baseRegion.SourceRegionId,baseRegion.ExactContour!,"one authoritative base contour",0)}.Concat(plan.OrderedOperations).ToArray();
+        var profiles=all.ToDictionary(x=>x.StableId,x=>PlanarContourKernel.ToResolvedProfile(x.Contour,x.StableId),StringComparer.Ordinal);
+        var operations=all.Select(x=>new PrismaticProfileOperation(x.StableId,x.Order==0?PrismaticProfileIntent.Base:x.Kind==BlankCompositionOperationKind.AddMaterialRegion?PrismaticProfileIntent.Add:PrismaticProfileIntent.Remove,x.StableId,0,1,x.Kind.ToString(),x.SemanticOwner)).ToArray();
+        var composed=ProfileArrangementBuilder.Compose("XY",operations,profiles,$"sheetmetal-blank:{part.StableId}");
+        if(composed.Region is null)return null;
+        var regionProfile=new ResolvedProfile2D($"flat-{part.StableId}.blank","XY",[composed.Region.Outer.Loops.Single(),..composed.Region.Holes.Select(x=>x.Loops.Single())]);
+        return PlanarContourKernel.FromResolvedProfile(regionProfile,$"SheetMetal exact semantic composition plan:{part.StableId}");
+    }
+    private static bool TryMergeAlongSharedEdge(PlanarContour2 accumulated,PlanarContour2 addition,out PlanarContour2 merged)
+    {
+        const double tolerance=1e-7;
+        var a=accumulated.OuterLoop.Segments;var b=addition.OuterLoop.Segments;
+        for(var ai=0;ai<a.Count;ai++)
+        {
+            if(a[ai].Geometry is not LineArcLineSegment2D al)continue;
+            for(var bi=0;bi<b.Count;bi++)
+            {
+                if(b[bi].Geometry is not LineArcLineSegment2D bl||!Near(al.Start,bl.End)||!Near(al.End,bl.Start))continue;
+                var segments=new List<PlanarContourSegment2>(a.Count+b.Count-2);
+                for(var offset=1;offset<a.Count;offset++)segments.Add(a[(ai+offset)%a.Count]);
+                for(var offset=1;offset<b.Count;offset++)segments.Add(b[(bi+offset)%b.Count]);
+                var candidate=accumulated with
+                {
+                    OuterLoop=accumulated.OuterLoop with { Segments=segments },
+                    InnerLoops=[..accumulated.InnerLoops,..addition.InnerLoops],
+                    Provenance=$"{accumulated.Provenance}; exact shared-edge material attachment:{addition.StableId}"
+                };
+                if(PlanarContourKernel.Validate(candidate).IsValid){merged=candidate;return true;}
+            }
+        }
+        merged=accumulated;return false;
+        static bool Near((double X,double Y) x,(double X,double Y) y)=>Math.Abs(x.X-y.X)<=tolerance&&Math.Abs(x.Y-y.Y)<=tolerance;
     }
     private static IReadOnlyList<SheetPoint2> ContourVertices(PlanarContour2 contour)=>contour.OuterLoop.Segments.Select(segment=>segment.Geometry switch
     {

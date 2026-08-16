@@ -253,7 +253,7 @@ internal static class FirmamentV2TemplateExpansion
         foreach (Match start in Regex.Matches(source, @"\bTemplate\s*<", RegexOptions.CultureInvariant))
         {
             var open = source.IndexOf('<', start.Index); var close = Matching(source, open, '<', '>');
-            var header = close < 0 ? Match.Empty : Regex.Match(source[(close + 1)..], @"^\s*(?<kind>Concept\s+Struct|Struct|Model|Panel|SheetMetal)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)(?<tail>\s*:\s*[A-Za-z_][A-Za-z0-9_]*)?\s*\{", RegexOptions.CultureInvariant);
+            var header = close < 0 ? Match.Empty : Regex.Match(source[(close + 1)..], @"^\s*(?<kind>Concept\s+Struct|Struct|Model|Panel|SheetMetal|ProfileDelta)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)(?<tail>\s*:\s*[A-Za-z_][A-Za-z0-9_]*)?\s*\{", RegexOptions.CultureInvariant);
             if (close < 0 || !header.Success) { diagnostics.Add(FirmamentV2Parser.UnsupportedConstruct); continue; }
             var brace = close + 1 + header.Index + header.Value.LastIndexOf('{'); var end = Matching(source, brace, '{', '}');
             if (end < 0) { diagnostics.Add(FirmamentV2Parser.UnsupportedConstruct); continue; }
@@ -285,7 +285,7 @@ internal static class FirmamentV2TemplateExpansion
     private static ImmutableArray<TemplateApplicationIr> ParseApplications(string source, IReadOnlyDictionary<string, TemplateDeclarationIr> templates, List<string> diagnostics)
     {
         var result = ImmutableArray.CreateBuilder<TemplateApplicationIr>();
-        foreach (Match start in Regex.Matches(source, @"\b(?<kind>Concept\s+Struct|Struct|Model|Panel|SheetMetal)\s+(?<instance>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*(?<template>[A-Za-z_][A-Za-z0-9_]*)\s*<", RegexOptions.CultureInvariant))
+        foreach (Match start in Regex.Matches(source, @"\b(?<kind>Concept\s+Struct|Struct|Model|Panel|SheetMetal|ProfileDelta)\s+(?<instance>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*(?<template>[A-Za-z_][A-Za-z0-9_]*)\s*<", RegexOptions.CultureInvariant))
         {
             if (!templates.ContainsKey(start.Groups["template"].Value)) continue;
             var open = source.IndexOf('<', start.Index); var close = Matching(source, open, '<', '>');
@@ -399,13 +399,14 @@ internal static class FirmamentV2TemplateExpansion
         "Version" => Regex.IsMatch(value, @"^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$", RegexOptions.CultureInvariant),
         "Date" => DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _),
         "ImportedStep" => Regex.IsMatch(value, @"^\$[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant),
+        "ProfilePath" => Regex.IsMatch(value, @"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+$", RegexOptions.CultureInvariant),
         "int" => long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _), "float" => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out _), "bool" => value is "true" or "false",
         _ when enums.TryGetValue(type, out var variants) => variants.Contains(value),
         _ when recordTypes?.ContainsKey(type) == true && staticRecords?.TryGetValue(value, out var record) == true => record.TypeName == type,
         _ => false
     };
     private static bool IsBuiltInValueType(string type, IReadOnlyDictionary<string, ImmutableHashSet<string>> enums) =>
-        type is "Length" or "Angle" or "String" or "Version" or "Date" or "ImportedStep" or "int" or "float" or "bool" || enums.ContainsKey(type);
+        type is "Length" or "Angle" or "String" or "Version" or "Date" or "ImportedStep" or "ProfilePath" or "int" or "float" or "bool" || enums.ContainsKey(type);
 
     private static IReadOnlyDictionary<string, TemplateRecordTypeIr> ParseRecordTypes(string source, List<string> diagnostics)
     {

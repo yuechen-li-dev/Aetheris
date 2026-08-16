@@ -475,7 +475,14 @@ public static class Step242Importer
             var (surfaceGeometryId, surfaceGeometry) = bindSurfaceResult.Value;
             nextSurfaceGeometryId++;
             geometry.AddSurface(surfaceGeometryId, surfaceGeometry);
-            bindings.AddFaceBinding(new FaceGeometryBinding(faceId, surfaceGeometryId, faceSameSenseResult.Value));
+            // Preserve interchange identity as provenance. Semantic associations such as
+            // GEOMETRIC_ITEM_SPECIFIC_USAGE refer to the ADVANCED_FACE entity number;
+            // consumers must not guess this relationship from allocation order.
+            bindings.AddFaceBinding(new FaceGeometryBinding(
+                faceId,
+                surfaceGeometryId,
+                faceSameSenseResult.Value,
+                SourceStepEntityId: faceEntity.Id));
         }
 
         foreach (var coedge in coedges)

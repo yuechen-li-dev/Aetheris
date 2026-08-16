@@ -12,7 +12,8 @@ public readonly record struct EdgeGeometryBinding(
 public readonly record struct FaceGeometryBinding(
     FaceId FaceId,
     SurfaceGeometryId SurfaceGeometryId,
-    bool SameSense = true);
+    bool SameSense = true,
+    int? SourceStepEntityId = null);
 
 /// <summary>
 /// Explicit topology-to-geometry binding container.

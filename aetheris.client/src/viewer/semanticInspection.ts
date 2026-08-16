@@ -12,9 +12,22 @@ const KIND_ORDER = [
 	"SlotFeature",
 	"ConstructionPlane",
 	"Datum",
+	"Dimension",
+	"Diameter",
+	"Position",
+	"Annotation",
 	"HoleDiameter",
 	"PMI",
 ];
+
+export const SEMANTIC_PMI_KINDS = new Set([
+	"Datum",
+	"Dimension",
+	"Diameter",
+	"Position",
+	"Annotation",
+	"HoleDiameter",
+]);
 
 /** Document-scoped index: all correspondence is published by Aetheris; no ownership is inferred here. */
 export function indexSemanticInspection(artifact: CadmataVisualizationArtifact) {
@@ -49,7 +62,7 @@ export function indexSemanticInspection(artifact: CadmataVisualizationArtifact) 
 			edgeOwners.set(edgeId, owners);
 		}
 		const target = entity.metadata?.targetSemanticId;
-		if ((entity.kind === "Datum" || entity.kind === "HoleDiameter") && typeof target === "string")
+		if (SEMANTIC_PMI_KINDS.has(entity.kind) && typeof target === "string")
 			(pmiByTarget.get(target) ?? pmiByTarget.set(target, []).get(target)!).push(entity);
 	}
 	const brepFaceById = new Map(
@@ -106,5 +119,11 @@ export function formatPmiLabel(entity: CadmataEntity) {
 	const plus = entity.metadata?.tolerancePlus;
 	const minus = entity.metadata?.toleranceMinus;
 	const tolerance = plus || minus ? ` +${plus ?? "0"}/-${minus ?? "0"}` : "";
-	return entity.kind === "HoleDiameter" ? `⌀${value}${tolerance}` : entity.label;
+	const quantity = Number(entity.metadata?.quantity ?? 0);
+	const prefix = quantity > 1 ? `${quantity}× ` : "";
+	return entity.kind === "HoleDiameter" || entity.kind === "Diameter"
+		? `${prefix}⌀${value}${tolerance}`
+		: entity.kind === "Dimension"
+			? `${prefix}${entity.label}: ${value}${tolerance}`
+			: entity.label;
 }

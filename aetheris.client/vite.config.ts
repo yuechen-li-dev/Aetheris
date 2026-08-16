@@ -78,7 +78,10 @@ export default defineConfig(({ command }) => ({
 					},
 					port: 5173,
 					strictPort: true,
-					https: ensureCertificates(),
+					// The packaged app remains HTTPS by default. Browser-driven localhost
+					// validation may opt into HTTP when the automation surface cannot trust
+					// the developer certificate.
+					https: env.AETHERIS_VITE_HTTP === "1" ? undefined : ensureCertificates(),
 				}
 			: undefined,
 }));

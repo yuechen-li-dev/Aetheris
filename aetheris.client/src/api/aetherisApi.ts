@@ -63,6 +63,7 @@ export interface StepImportResponseDto {
 	occurrenceId: string;
 	name: string | null;
 	diagnostics: DiagnosticDto[];
+	semanticPresentation?: unknown | null;
 }
 
 export type BooleanOperation = "union" | "subtract" | "intersect";

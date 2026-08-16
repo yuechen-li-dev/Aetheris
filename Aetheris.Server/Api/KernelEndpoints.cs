@@ -268,7 +268,17 @@ public static class KernelEndpoints
 
                 var occurrenceName = string.IsNullOrWhiteSpace(request.Name) ? "Imported" : request.Name;
                 var imported = document.AddDefinitionAndOccurrence(importResult.Value, occurrenceName);
-                return ApiMappings.Ok(new StepImportResponseDto(documentId, imported.DefinitionId, imported.OccurrenceId, occurrenceName, []));
+                var semanticPresentation = CadmataStepSemanticBridge.Build(
+                    request.StepText,
+                    occurrenceName,
+                    importResult.Value);
+                return ApiMappings.Ok(new StepImportResponseDto(
+                    documentId,
+                    imported.DefinitionId,
+                    imported.OccurrenceId,
+                    occurrenceName,
+                    [],
+                    semanticPresentation));
             }));
 
         documents.MapPost("/{documentId:guid}/bodies/{bodyId:guid}/transform", (Guid documentId, Guid bodyId, TranslateBodyRequestDto request, KernelDocumentStore store) =>

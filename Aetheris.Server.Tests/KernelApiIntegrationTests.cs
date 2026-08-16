@@ -994,6 +994,48 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
     }
 
     [Fact]
+    public async Task StepImport_Ctc03PublishesStructuredSemanticPmiWithRealFaceAssociations()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var path = Path.Combine(
+            RepositoryRoot(),
+            "docs", "modules", "sheetmetal", "artifacts", "ctc03-manufacturing-release",
+            "ctc03-manufacturing-ap242.step");
+        var response = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data!.DocumentId}/import/step",
+            new StepImportRequestDto(await File.ReadAllTextAsync(path), "CTC-03 manufacturing"));
+        response.EnsureSuccessStatusCode();
+        var imported = await response.Content.ReadFromJsonAsync<ApiResponseDto<StepImportResponseDto>>();
+
+        Assert.True(imported!.Success);
+        var presentation = Assert.IsType<CadmataVisualizationArtifactDto>(imported.Data!.SemanticPresentation);
+        Assert.Equal(3, presentation.Metrics["datumCount"]);
+        Assert.Equal(13, presentation.Metrics["dimensionCount"]);
+        Assert.Equal(5, presentation.Metrics["geometricToleranceCount"]);
+        Assert.Equal(8, presentation.Metrics["annotationCount"]);
+        Assert.Equal(11, presentation.Metrics["repeatedFeaturePmiCount"]);
+
+        var position = Assert.Single(presentation.Entities, entity => entity.Kind == "Position" && entity.Label == "FrontMountPosition");
+        Assert.Equal("A | B | C", position.Metadata!["datumRefs"]);
+        Assert.Equal(2, position.Topology!.FaceIds!.Count);
+        Assert.Equal(3, position.SelectionIds!.Count);
+        Assert.All(position.Topology.FaceIds, faceId =>
+            Assert.Contains(presentation.Entities, entity => entity.Kind == "BRepFace" && entity.Topology!.FaceIds!.Contains(faceId)));
+        Assert.Equal(
+            ["3738", "3750"],
+            position.Topology.FaceIds
+                .Select(faceId => presentation.Entities.Single(entity => entity.Kind == "BRepFace" && entity.Topology!.FaceIds!.Contains(faceId)).Metadata!["stepEntityId"])
+                .OrderBy(value => value, StringComparer.Ordinal));
+
+        var localNote = Assert.Single(presentation.Entities, entity => entity.Kind == "Annotation" && entity.Label == "ProtectDatumA");
+        Assert.Single(localNote.Topology!.FaceIds!);
+        Assert.Contains("support surface", localNote.Metadata!["text"], StringComparison.Ordinal);
+        Assert.All(
+            presentation.Entities.Where(entity => entity.Kind is "Datum" or "Dimension" or "Diameter" or "Position" or "Annotation"),
+            entity => Assert.StartsWith("STEP #", entity.SourceSpan, StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task CadmataHexBoltV2Fixture_PublishesTemplateParametersAndGeneratedFaceOwnership()
     {
         var document = await CreateDocumentAsync("/api/v1/documents");

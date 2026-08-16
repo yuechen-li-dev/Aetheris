@@ -44,7 +44,13 @@ public sealed record StepExportResponseDto(Guid DocumentId, Guid DefinitionId, s
 
 public sealed record StepImportRequestDto(string? StepText, string? Name);
 
-public sealed record StepImportResponseDto(Guid DocumentId, Guid DefinitionId, Guid OccurrenceId, string? Name, IReadOnlyList<DiagnosticDto> Diagnostics);
+public sealed record StepImportResponseDto(
+    Guid DocumentId,
+    Guid DefinitionId,
+    Guid OccurrenceId,
+    string? Name,
+    IReadOnlyList<DiagnosticDto> Diagnostics,
+    CadmataVisualizationArtifactDto? SemanticPresentation = null);
 
 public sealed record ExtrudeRequestDto(
     IReadOnlyList<ProfilePoint2Dto> Profile,

@@ -56,6 +56,7 @@ import {
 	loadViewportThemePreference,
 	saveViewportThemePreference,
 } from "./viewer/viewportThemePreference";
+import { DEFAULT_PMI_VISIBILITY, type PmiCategory, type PmiVisibility } from "./viewer/PmiAnnotationLayer";
 
 type RequestStatus = "idle" | "loading" | "success" | "error";
 type BooleanOperationUi = "Union" | "Subtract" | "Intersect";
@@ -224,6 +225,7 @@ function App() {
 		useState<CadmataLayerVisibility>(DEFAULT_CADMATA_LAYERS);
 	const [selectedCadmataId, setSelectedCadmataId] = useState<string | null>(null);
 	const [isPmiVisible, setIsPmiVisible] = useState(true);
+	const [pmiVisibility, setPmiVisibility] = useState<PmiVisibility>(DEFAULT_PMI_VISIBILITY);
 	const startupStepClaimed = useRef(false);
 	const viewportTheme = useMemo(() => viewportThemeById(viewportThemeId), [viewportThemeId]);
 	useEffect(() => saveViewportThemePreference(viewportThemeId), [viewportThemeId]);
@@ -252,6 +254,7 @@ function App() {
 		setCadmataArtifact(null);
 		setSelectedCadmataId(null);
 		setIsPmiVisible(true);
+		setPmiVisibility(DEFAULT_PMI_VISIBILITY);
 		setImportStatusMessage("Preparing workspace…");
 	}, [dispatchDocumentEvent]);
 
@@ -541,6 +544,11 @@ function App() {
 				}
 
 				const imported = await importStep(documentId, stepText, fileName);
+				const semanticPresentation = imported.semanticPresentation
+					? parseCadmataVisualizationArtifact(imported.semanticPresentation)
+					: null;
+				setCadmataArtifact(semanticPresentation);
+				setSelectedCadmataId(null);
 				setStepExportText("");
 				const displayRefresh = await refreshSummaryAndActiveTessellation(
 					imported.occurrenceId,
@@ -1028,6 +1036,25 @@ function App() {
 							>
 								PMI
 							</button>
+							{([
+								["datums", "DATUM"],
+								["dimensions", "DIM"],
+								["geometricTolerances", "GD&T"],
+								["engineeringAnnotations", "NOTES"],
+							] as const).map(([category, label]) => (
+								<button
+									key={category}
+									type="button"
+									className={pmiVisibility[category] && isPmiVisible ? "viewport-segmented__button is-active" : "viewport-segmented__button"}
+									onClick={() => {
+										setIsPmiVisible(true);
+										setPmiVisibility((current) => ({ ...current, [category as PmiCategory]: !current[category] }));
+									}}
+									aria-pressed={pmiVisibility[category] && isPmiVisible}
+								>
+									{label}
+								</button>
+							))}
 							<button
 								type="button"
 								className={
@@ -1076,6 +1103,7 @@ function App() {
 							selectedCadmataIds={cadmataSelection?.entityIds}
 							onCadmataSelect={setSelectedCadmataId}
 							showPmi={isPmiVisible}
+							pmiVisibility={pmiVisibility}
 							assemblyPacket={assemblyPacket}
 							selectedAssemblyOccurrenceId={selectedAssemblyOccurrenceId}
 							onAssemblyOccurrenceSelect={setSelectedAssemblyOccurrenceId}

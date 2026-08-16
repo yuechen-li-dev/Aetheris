@@ -106,3 +106,7 @@ the shaft envelope, shaft-to-DrillPoint circle, analytic cone envelope, and
 Tip marker come from `LocalFrameHoleBRepPlan`/`ConeSurface` metadata. Selecting
 the DrillPoint entity follows only its cone-face and Tip descendants; Cadmata
 does not infer a cone from display tessellation.
+
+# Follow-on semantic PMI presentation
+
+The [CADMATA-PMI-X1 report](artifacts/pmi-x1/README.md) extends this application model to imported AP242 datums, dimensions, GD&T, repeated-feature requirements, and engineering annotations without making rendered callouts authoritative.

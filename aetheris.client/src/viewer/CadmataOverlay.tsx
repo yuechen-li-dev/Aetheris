@@ -8,6 +8,7 @@ import type {
 	CadmataVisualizationArtifact,
 } from "./conceptVisualization";
 import type { ViewportTheme } from "./viewportTheme";
+import { SEMANTIC_PMI_KINDS } from "./semanticInspection";
 
 export type CadmataLayerVisibility = Record<CadmataLayer, boolean>;
 export const DEFAULT_CADMATA_LAYERS: CadmataLayerVisibility = {
@@ -142,7 +143,7 @@ export function CadmataOverlay({
 	return (
 		<group name="CadmataCompilerOverlays">
 			{artifact.entities
-				.filter((entity) => layers[entity.layer])
+				.filter((entity) => layers[entity.layer] && !SEMANTIC_PMI_KINDS.has(entity.kind) && entity.kind !== "EngineeringTarget")
 				.map((entity) => (
 					<OverlayEntity
 						key={entity.stableId}

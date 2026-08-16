@@ -30,7 +30,7 @@ import { buildAdaptiveGridPlan, type GridBounds } from "./logarithmicGrid";
 import { CadmataOverlay, type CadmataLayerVisibility } from "./CadmataOverlay";
 import type { CadmataVisualizationArtifact } from "./conceptVisualization";
 import { ATELIER_VIEWPORT_THEME, type ViewportTheme } from "./viewportTheme";
-import { PmiAnnotationLayer } from "./PmiAnnotationLayer";
+import { DEFAULT_PMI_VISIBILITY, PmiAnnotationLayer, type PmiVisibility } from "./PmiAnnotationLayer";
 import { ThemeBackground } from "./ThemeBackground";
 
 function intersectGround(origin: Vector3, direction: Vector3, y: number): Vector3 | null {
@@ -282,6 +282,7 @@ export interface AetherisViewportProps {
 	selectedCadmataIds?: Set<string>;
 	onCadmataSelect?: (stableId: string) => void;
 	showPmi?: boolean;
+	pmiVisibility?: PmiVisibility;
 	assemblyPacket?: AssemblyDisplayPacketDto | null;
 	selectedAssemblyOccurrenceId?: string | null;
 	onAssemblyOccurrenceSelect?: (stableId: string) => void;
@@ -575,6 +576,7 @@ export function AetherisViewport({
 	selectedCadmataIds = new Set(),
 	onCadmataSelect = () => undefined,
 	showPmi = true,
+	pmiVisibility = DEFAULT_PMI_VISIBILITY,
 	assemblyPacket = null,
 	selectedAssemblyOccurrenceId = null,
 	onAssemblyOccurrenceSelect = () => undefined,
@@ -698,6 +700,7 @@ export function AetherisViewport({
 			<PmiAnnotationLayer
 				artifact={cadmataArtifact}
 				visible={showPmi}
+				visibility={pmiVisibility}
 				selectedIds={selectedCadmataIds}
 				onSelect={onCadmataSelect}
 				theme={theme}

@@ -173,6 +173,7 @@ export function resolveCadmataSelection(
 			...(entity.childIds ?? []),
 			...(entity.constructionDescendantIds ?? []),
 			...(entity.materializedDescendantIds ?? []),
+			...(entity.selectionIds ?? []),
 			...(ownedChildren.get(id) ?? []),
 		);
 	}

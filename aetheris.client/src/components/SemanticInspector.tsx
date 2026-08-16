@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { PropertyTable, type PropertyRecord } from "./PropertyTable";
 import {
 	indexSemanticInspection,
+	SEMANTIC_PMI_KINDS,
 	semanticTree,
 	type SemanticTreeNode,
 } from "../viewer/semanticInspection";
@@ -123,8 +124,8 @@ function BrepDetails({
 				{pmi.length ? pmi.map((item) => item.label).join(", ") : "None"}
 			</p>
 			<p className="semantic-provenance">
-				Advanced traceability: Aetheris topology IDs are shown above. STEP entity IDs are not yet
-				published by this fixture channel.
+				Advanced traceability: Aetheris topology IDs are shown above; imported STEP entity
+				provenance is shown when the importer preserves it.
 			</p>
 		</>
 	);
@@ -199,13 +200,13 @@ export function SemanticInspector({
 	onSelect: (id: string) => void;
 }) {
 	if (!artifact)
-		return <p>Load a real Firmament fixture to inspect compiler-published semantic structure.</p>;
+		return <p>Load a STEP/Firmament model with published semantics to inspect its engineering structure.</p>;
 	const entity = artifact.entities.find((candidate) => candidate.stableId === selectedId) ?? null;
 	const details: ReactNode = entity
 		? (matchKind(
 				entity.kind.startsWith("BRep")
 					? { kind: "BRep" as const, entity }
-					: entity.kind === "HoleDiameter" || entity.kind === "Datum"
+					: SEMANTIC_PMI_KINDS.has(entity.kind)
 						? { kind: "Pmi" as const, entity }
 						: { kind: "Generic" as const, entity },
 				{

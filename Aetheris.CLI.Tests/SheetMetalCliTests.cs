@@ -95,6 +95,8 @@ public sealed class SheetMetalCliTests
             output.GetStringBuilder().Clear();var recover=CliRunner.Run(["sheetmetal","recover-flat",source,"--recognition-plan",plan,"--out-dir",dir,"--json"],output,error);Assert.Equal(0,recover);Assert.Empty(error.ToString());
             var reference=Path.Combine(dir,"recovered-flat.json");Assert.True(File.Exists(reference));Assert.True(File.Exists(Path.Combine(dir,"recovered-flat.svg")));
             using var flat=JsonDocument.Parse(File.ReadAllText(reference));Assert.Equal("aetheris.recovered-flat-reference.v2",flat.RootElement.GetProperty("schema").GetString());Assert.Equal("RecoveredWithRepairs",flat.RootElement.GetProperty("contourAcceptance").GetString());Assert.Equal(3,flat.RootElement.GetProperty("junctionRepairs").GetArrayLength());Assert.Equal(17,flat.RootElement.GetProperty("cuts").GetArrayLength());Assert.Equal(7,flat.RootElement.GetProperty("bendLines").GetArrayLength());Assert.True(flat.RootElement.GetProperty("sourceProvenance").GetArrayLength()>=100);
+            output.GetStringBuilder().Clear();var native=Path.Combine(RepoRoot,"docs/modules/sheetmetal/artifacts/m8/ctc03-final.firmament");var compare=CliRunner.Run(["sheetmetal","compare-flat",reference,native,"--semantic","--json"],output,error);Assert.Equal(0,compare);Assert.Empty(error.ToString());
+            using var semantic=JsonDocument.Parse(output.ToString());var local=semantic.RootElement.GetProperty("semanticComparison");Assert.True(local.GetProperty("targets").GetArrayLength()>60);Assert.Equal(4,local.GetProperty("targets").EnumerateArray().Count(x=>x.GetProperty("geometryKind").GetString()=="BendTermination"));
         }
         finally{Directory.Delete(dir,true);}
     }

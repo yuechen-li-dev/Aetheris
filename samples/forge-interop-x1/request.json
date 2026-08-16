@@ -1,0 +1,14 @@
+{
+  "protocolVersion": 1,
+  "arguments": {
+    "width": "120 mm",
+    "height": "40 mm",
+    "depth": "80 mm",
+    "thickness": "1.5 mm",
+    "lidLipHeight": "8 mm",
+    "insideRadius": "2 mm",
+    "kFactor": 0.42,
+    "reliefPolicy": "Rectangular"
+  },
+  "artifacts": ["StepAp242", "FlatStep", "Svg"]
+}

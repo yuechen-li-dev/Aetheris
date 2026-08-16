@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -11,5 +12,9 @@
     <ProjectReference Include="..\Aetheris.Continuum\Aetheris.Continuum.csproj" />
     <ProjectReference Include="..\Aetheris.FEA\Aetheris.FEA.csproj" />
     <ProjectReference Include="..\Aetheris.Modules.BuiltIn\Aetheris.Modules.BuiltIn.csproj" />
+    <ProjectReference Include="..\Aetheris.SheetMetal\Aetheris.SheetMetal.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Aetheris.Forge.Host.Tests" />
   </ItemGroup>
 </Project>

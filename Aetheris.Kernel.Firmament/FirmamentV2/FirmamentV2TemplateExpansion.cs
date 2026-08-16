@@ -45,6 +45,9 @@ internal static class FirmamentV2TemplateExpansion
     internal const string WrongRecordType = Prefix + "record-argument-type-mismatch";
     internal const string RecordCollectionMismatch = Prefix + "record-collection-scalar-mismatch";
     internal const string UnknownRecordMember = Prefix + "unknown-record-member";
+    internal const string RecordMissingField = Prefix + "record-missing-field";
+    internal const string RecordExtraField = Prefix + "record-extra-field";
+    internal const string RecordFieldTypeMismatch = Prefix + "record-field-type-mismatch";
     internal const string MaterializedRecordArgument = Prefix + "materialized-value-not-compile-time-record";
     internal const string UnsupportedRecordValue = Prefix + "unsupported-record-value-form";
     internal const string WithBaseNotRecord = Prefix + "with-base-not-record";
@@ -82,6 +85,8 @@ internal static class FirmamentV2TemplateExpansion
         string TargetKind,
         IReadOnlyList<HostParameter> Parameters);
 
+    internal sealed record HostRecord(string Name, IReadOnlyDictionary<string, string> Fields);
+
     internal static IReadOnlyList<HostTemplate> Inspect(string source, List<string> diagnostics) =>
         ParseDeclarations(source, diagnostics)
             .Select(template => new HostTemplate(
@@ -95,6 +100,20 @@ internal static class FirmamentV2TemplateExpansion
                 }).ToArray()))
             .OrderBy(template => template.Name, StringComparer.Ordinal)
             .ToArray();
+
+    internal static IReadOnlyList<HostRecord> InspectRecords(string source, List<string> diagnostics) =>
+        ParseRecordTypes(source, diagnostics).Values
+            .OrderBy(record => record.Name, StringComparer.Ordinal)
+            .Select(record => new HostRecord(record.Name,
+                record.Fields.OrderBy(field => field.Key, StringComparer.Ordinal)
+                    .ToDictionary(field => field.Key, field => field.Value, StringComparer.Ordinal)))
+            .ToArray();
+
+    internal static IReadOnlyDictionary<string, IReadOnlyList<string>> InspectEnums(string source) =>
+        ParseEnums(source).OrderBy(item => item.Key, StringComparer.Ordinal)
+            .ToDictionary(item => item.Key,
+                item => (IReadOnlyList<string>)item.Value.OrderBy(value => value, StringComparer.Ordinal).ToArray(),
+                StringComparer.Ordinal);
 
     /// <summary>
     /// Expands one host-supplied Template invocation from typed arguments. The invocation is
@@ -139,6 +158,12 @@ internal static class FirmamentV2TemplateExpansion
             {
                 var recordName = $"__forge_{instanceName}_{pair.Key}";
                 var recordType = pair.Value.RecordType ?? string.Empty;
+                if (!recordTypes.TryGetValue(recordType, out var recordDefinition))
+                {
+                    diagnostics.Add(UnknownRecordType + $":{pair.Key}:{recordType}");
+                    continue;
+                }
+                ValidateSyntheticRecord(recordName, recordDefinition, pair.Value.RecordFields, string.Empty);
                 staticRecords[recordName] = new TemplateStaticRecordIr(
                     recordName,
                     recordType,
@@ -149,6 +174,7 @@ internal static class FirmamentV2TemplateExpansion
             }
             arguments.Add(new TemplateArgumentIr(pair.Key, expression, new FirmamentV2SourceSpan(source.Length, 0)));
         }
+        if (HasErrors(diagnostics)) return null;
 
         var application = new TemplateApplicationIr(
             template.TargetKind,
@@ -206,6 +232,33 @@ internal static class FirmamentV2TemplateExpansion
         foreach (var change in changes)
             source = source.Remove(change.Start, change.Length).Insert(change.Start, change.Text);
         return HasErrors(diagnostics) ? null : new Result(source, [instantiation]);
+
+        void ValidateSyntheticRecord(string recordName, TemplateRecordTypeIr definition,
+            IReadOnlyDictionary<string, string> fields, string prefix)
+        {
+            foreach (var expected in definition.Fields)
+            {
+                var path = prefix + expected.Key;
+                if (!fields.TryGetValue(path, out var value))
+                {
+                    diagnostics.Add(RecordMissingField + ":" + recordName + ":" + path);
+                    continue;
+                }
+                if (recordTypes.TryGetValue(expected.Value, out var nested))
+                {
+                    if (!string.Equals(value, expected.Value, StringComparison.Ordinal))
+                        diagnostics.Add(RecordFieldTypeMismatch + $":{recordName}.{path}:expected-{expected.Value}:actual-{value}");
+                    else ValidateSyntheticRecord(recordName, nested, fields, path + ".");
+                }
+                else if (!TypeMatches(value, expected.Value, enums, recordTypes, staticRecords))
+                    diagnostics.Add(RecordFieldTypeMismatch + $":{recordName}.{path}:expected-{expected.Value}:actual-{value}");
+            }
+            var admitted = definition.Fields.Keys.Select(field => prefix + field).ToArray();
+            foreach (var extra in fields.Keys.Where(field => field.StartsWith(prefix, StringComparison.Ordinal)
+                         && !admitted.Contains(field, StringComparer.Ordinal)
+                         && !admitted.Any(candidate => field.StartsWith(candidate + ".", StringComparison.Ordinal))))
+                diagnostics.Add(RecordExtraField + ":" + recordName + ":" + extra);
+        }
     }
 
     public static Result? Expand(string source, List<string> diagnostics)
@@ -471,10 +524,10 @@ internal static class FirmamentV2TemplateExpansion
             if (close < 0 || !recordTypes.TryGetValue(typeName, out var recordType)) continue;
             if (!string.Equals(typeName, literalType, StringComparison.Ordinal)) { diagnostics.Add(WrongRecordType + $":{name}:expected-{typeName}:actual-{literalType}"); continue; }
             var fields = ParseRecordFields(source[(open + 1)..close]);
-            foreach (var missing in recordType.Fields.Keys.Where(field => !fields.ContainsKey(field))) diagnostics.Add(Prefix + "record-missing-field:" + name + ":" + missing);
-            foreach (var extra in fields.Keys.Where(field => !recordType.Fields.ContainsKey(field))) diagnostics.Add(Prefix + "record-extra-field:" + name + ":" + extra);
+            foreach (var missing in recordType.Fields.Keys.Where(field => !fields.ContainsKey(field))) diagnostics.Add(RecordMissingField + ":" + name + ":" + missing);
+            foreach (var extra in fields.Keys.Where(field => !recordType.Fields.ContainsKey(field))) diagnostics.Add(RecordExtraField + ":" + name + ":" + extra);
             foreach (var field in fields.Where(field => recordType.Fields.TryGetValue(field.Key, out var expected) && !recordTypes.ContainsKey(expected) && !TypeMatches(field.Value, expected, enums, recordTypes, result)))
-                diagnostics.Add(Prefix + "record-field-type-mismatch:" + name + "." + field.Key + ":expected-" + recordType.Fields[field.Key] + ":actual-" + field.Value);
+                diagnostics.Add(RecordFieldTypeMismatch + ":" + name + "." + field.Key + ":expected-" + recordType.Fields[field.Key] + ":actual-" + field.Value);
             result[name] = new(name, typeName, fields.ToImmutableDictionary(StringComparer.Ordinal), new(header.Index, close - header.Index + 1));
         }
         foreach (Match declaration in Regex.Matches(source, @"\bStatic\s+(?<name>[A-Za-z_]\w*)\s*(?::\s*(?<type>[A-Za-z_]\w*))?\s*=\s*(?<table>[A-Za-z_]\w*)\s*\[\s*(?<lookup>[^\]]+)\s*\]", RegexOptions.CultureInvariant))

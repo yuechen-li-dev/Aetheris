@@ -13,6 +13,24 @@ public sealed record FirmamentTemplateParameterMetadata(
     string? DefaultExpression,
     string? ConstraintConcept);
 
+public sealed record FirmamentTemplateRecordFieldMetadata(
+    string Name,
+    string TypeName);
+
+public sealed record FirmamentTemplateRecordMetadata(
+    string Name,
+    IReadOnlyList<FirmamentTemplateRecordFieldMetadata> Fields);
+
+public sealed record FirmamentTemplateEnumMetadata(
+    string Name,
+    IReadOnlyList<string> Cases);
+
+/// <summary>Authoritative public Template schema extracted from Firmament binder IR.</summary>
+public sealed record FirmamentTemplateModuleMetadata(
+    IReadOnlyList<FirmamentTemplateMetadata> Templates,
+    IReadOnlyList<FirmamentTemplateRecordMetadata> Records,
+    IReadOnlyList<FirmamentTemplateEnumMetadata> Enums);
+
 public enum FirmamentTemplateParameterKind
 {
     Value = 1,
@@ -67,6 +85,15 @@ public static class FirmamentTemplateHostBridge
     public static IReadOnlyList<FirmamentTemplateMetadata> Inspect(
         string moduleSource,
         out IReadOnlyList<string> diagnostics)
+        => InspectModule(moduleSource, out diagnostics).Templates;
+
+    /// <summary>
+    /// Inspects templates and their referenced Record/Enum definitions through the same parser
+    /// used by host binding. Interop callers therefore never need to parse Firmament source.
+    /// </summary>
+    public static FirmamentTemplateModuleMetadata InspectModule(
+        string moduleSource,
+        out IReadOnlyList<string> diagnostics)
     {
         ArgumentNullException.ThrowIfNull(moduleSource);
         var collected = new List<string>();
@@ -81,8 +108,15 @@ public static class FirmamentTemplateHostBridge
                     parameter.DefaultExpression,
                     parameter.ConstraintConcept)).ToArray()))
             .ToArray();
+        var records = FirmamentV2TemplateExpansion.InspectRecords(moduleSource, collected)
+            .Select(record => new FirmamentTemplateRecordMetadata(record.Name,
+                record.Fields.Select(field => new FirmamentTemplateRecordFieldMetadata(field.Key, field.Value)).ToArray()))
+            .ToArray();
+        var enums = FirmamentV2TemplateExpansion.InspectEnums(moduleSource)
+            .Select(item => new FirmamentTemplateEnumMetadata(item.Key, item.Value.ToArray()))
+            .ToArray();
         diagnostics = collected.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
-        return templates;
+        return new(templates, records, enums);
     }
 
     public static FirmamentHostTemplateExpansion? Expand(

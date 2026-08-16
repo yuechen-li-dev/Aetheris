@@ -9,5 +9,6 @@
     <ProjectReference Include="..\Aetheris.Kernel.Core\Aetheris.Kernel.Core.csproj" />
     <ProjectReference Include="..\Aetheris.Semantics\Aetheris.Semantics.csproj" />
     <ProjectReference Include="..\Aetheris.Kernel.Firmament\Aetheris.Kernel.Firmament.csproj" />
+    <ProjectReference Include="..\Aetheris.Kernel.StandardLibrary\Aetheris.Kernel.StandardLibrary.csproj" />
   </ItemGroup>
 </Project>

@@ -7,5 +7,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Aetheris.Forge\Aetheris.Forge.csproj" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.0" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Materials\Database\aetheris-materials-x1.sqlite" Condition="Exists('Materials\Database\aetheris-materials-x1.sqlite')" CopyToOutputDirectory="PreserveNewest" Link="Materials\aetheris-materials-x1.sqlite" />
   </ItemGroup>
 </Project>

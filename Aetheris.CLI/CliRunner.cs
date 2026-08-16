@@ -778,7 +778,7 @@ Model CanonicalPanel {
         var report = new
         {
             analysis = new { compiled.Analysis.Id, kind = compiled.Analysis.Kind.ToString(), body = compiled.Analysis.Body.Id, compiled.Analysis.Body.SourceKind,
-                material = compiled.Analysis.Materials.Select(item => new { item.Id, item.YoungsModulusPascal, item.PoissonRatio, item.DensityKilogramsPerCubicMeter }),
+                material = compiled.Analysis.Materials.Select(item => new { item.Id, item.StableMaterialId, item.ConstitutiveClass, item.YoungsModulusPascal, item.PoissonRatio, item.DensityKilogramsPerCubicMeter, item.YieldStrengthPascal }),
                 constraints = compiled.Analysis.Constraints.Select(item => new { item.Id, region = item.Region.Path, components = item.Components }),
                 loads = compiled.Analysis.Loads.Select(item => new { item.Id, kind = item.Kind.ToString(), region = item.Region.Path, item.VectorSi, item.PressurePascal }),
                 lattice = new { compiled.Analysis.Lattice.CountX, compiled.Analysis.Lattice.CountY, compiled.Analysis.Lattice.CountZ } },

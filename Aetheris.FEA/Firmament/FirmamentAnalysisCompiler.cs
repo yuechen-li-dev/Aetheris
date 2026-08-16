@@ -11,6 +11,7 @@ using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Core.Topology;
 using Aetheris.Semantics;
+using Aetheris.Kernel.StandardLibrary.Materials;
 
 namespace Aetheris.FEA.Firmament;
 
@@ -24,7 +25,7 @@ public sealed record FirmamentAnalysisCompilation(LinearElasticAnalysisIr? Analy
 public static class FirmamentAnalysisCompiler
 {
     private static readonly Regex Header=new(@"\banalysis\s+LinearElastic\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{",RegexOptions.CultureInvariant);
-    public static FirmamentAnalysisCompilation Compile(string source,string? sourcePath=null,string? sourceDirectory=null,IReadOnlyDictionary<string,FirmamentAnalysisResource>? resources=null)
+    public static FirmamentAnalysisCompilation Compile(string source,string? sourcePath=null,string? sourceDirectory=null,IReadOnlyDictionary<string,FirmamentAnalysisResource>? resources=null,IMaterialResolver? materialResolver=null)
     {
         var started=System.Diagnostics.Stopwatch.GetTimestamp();var diagnostics=new List<AnalysisDiagnostic>();var match=Header.Match(source);
         if(!match.Success)return Done(null,[Error("firmament-analysis-missing","No 'analysis LinearElastic' declaration was found.",sourcePath)],started);
@@ -83,10 +84,30 @@ public static class FirmamentAnalysisCompiler
             if(!parse.IsSuccess) diagnostics.Add(new("firmament-analysis-geometry-parser-fallback",AnalysisDiagnosticSeverity.Warning,"The bounded analysis body recognizer admitted Box/through-cylinder syntax while the general geometry parser reported: "+string.Join(",",parse.Diagnostics),analysisSpan));
             bodyId=bodyName;sourceKind="FirmamentNative";
         }
-        var materialBlock=Nested(block,"material",out var materialName,out var materialStart);if(materialBlock is null){diagnostics.Add(Error("fea-missing-material","Analysis has no material declaration.",sourcePath));return Done(null,diagnostics,started);}
-        var young=Stress(Scalar(materialBlock,"youngsModulus"));var poisson=Number(Scalar(materialBlock,"poissonRatio"));var density=Density(Scalar(materialBlock,"density"));
-        var materialProv=new AnalysisProvenance(sourcePath??"<memory>",open+materialStart,materialBlock.Length,"material "+materialName);
-        var material=new LinearElasticMaterialIr(materialName,young,poisson,density,bodyId,materialProv);
+        var materialBlock=Nested(block,"material",out var materialName,out var materialStart);
+        var materialReference=materialBlock is null?Scalar(block,"material"):null;
+        if(materialBlock is null&&string.IsNullOrWhiteSpace(materialReference)){diagnostics.Add(Error("fea-missing-material","Analysis has no material declaration or catalog material reference.",sourcePath));return Done(null,diagnostics,started);}
+        LinearElasticMaterialIr material;
+        if(materialBlock is not null)
+        {
+            var young=Stress(Scalar(materialBlock,"youngsModulus"));var poisson=Number(Scalar(materialBlock,"poissonRatio"));var density=Density(Scalar(materialBlock,"density"));
+            var materialProv=new AnalysisProvenance(sourcePath??"<memory>",open+materialStart,materialBlock.Length,"material "+materialName);
+            material=new LinearElasticMaterialIr(materialName,young,poisson,density,bodyId,materialProv);
+        }
+        else
+        {
+            materialReference=materialReference!.Trim();
+            var referenceOffset=block.IndexOf(materialReference,StringComparison.Ordinal);var materialProv=new AnalysisProvenance(sourcePath??"<memory>",open+1+referenceOffset,materialReference.Length,"material: "+materialReference);
+            var resolution=(materialResolver??new MaterialResolver()).Resolve(materialReference);
+            if(!resolution.IsSuccess)
+            {
+                var code=resolution.Error switch{MaterialResolutionError.UnknownMaterial=>"firmament-material-unknown",MaterialResolutionError.AmbiguousMaterial=>"firmament-material-ambiguous",MaterialResolutionError.MissingRequiredStructuralProperty=>"fea-material-missing-structural-properties",_=>"firmament-material-invalid"};
+                diagnostics.Add(new(code,AnalysisDiagnosticSeverity.Error,resolution.Message??$"Material '{materialReference}' could not be resolved.",materialProv));return Done(null,diagnostics,started);
+            }
+            var resolved=resolution.Material!;var structural=resolved.Structural;
+            if(structural is null){diagnostics.Add(new("fea-material-missing-structural-properties",AnalysisDiagnosticSeverity.Error,$"Material '{materialReference}' does not provide density, Young's modulus, Poisson ratio, yield strength, and ultimate tensile strength for its reference condition.",materialProv));return Done(null,diagnostics,started);}
+            material=new LinearElasticMaterialIr(resolved.Identity.DisplayName,structural.YoungsModulus.SiValue,structural.PoissonsRatio.SiValue,structural.Density.SiValue,bodyId,materialProv,$"{resolved.Identity.CatalogId}:{resolved.Identity.StableId}",resolved.ConstitutiveClass,structural.YieldStrength.SiValue,resolved);
+        }
         (SemanticRegionBinding? Region,AnalysisDiagnostic? Diagnostic) NormalizeRegion(string path,AnalysisProvenance provenance)
         {
             if(namedRegions.TryGetValue(path,out var semantic))

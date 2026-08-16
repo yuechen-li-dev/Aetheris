@@ -1,6 +1,7 @@
 using Aetheris.Continuum.Cir;
 using Aetheris.Continuum.Lattice;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.StandardLibrary.Materials;
 
 namespace Aetheris.FEA.Analysis;
 
@@ -35,7 +36,11 @@ public sealed record LinearElasticMaterialIr(
     double PoissonRatio,
     double? DensityKilogramsPerCubicMeter,
     string RegionPath,
-    AnalysisProvenance Provenance);
+    AnalysisProvenance Provenance,
+    string? StableMaterialId = null,
+    MaterialConstitutiveClass? ConstitutiveClass = null,
+    double? YieldStrengthPascal = null,
+    ResolvedMaterial? CatalogMaterial = null);
 
 public sealed record DisplacementConstraintIr(
     string Id,

@@ -6,7 +6,9 @@
 |---|---|---|
 | Firmament V2 native primitives/profiles | Bounded | Named Box/Cylinder/Frustum/RoundedBox and admitted line/arc profile construction/composition |
 | Firmament V2 analytic `model` / `solid` primitives | Bounded | Parser-backed single-solid Sphere, Cone (including zero-radius pointed end), and Torus routes round-trip through AP242; this is not a general boolean/composition promise |
-| Profile-composed pads and pockets | Bounded | Admitted prismatic `Compose` `Add`/`Remove` profile operations; no universal named Boss/Pocket feature or arbitrary solid boolean |
+| Boss | Bounded | First-class connected finite `On: Top` profile addition on an admitted Compose host; positive height; lowers through existing `Add`; no arbitrary solid union |
+| Pocket | Bounded | First-class enclosed finite-depth `On: Top` profile removal; positive depth, non-through termination, and minimum remaining floor enforced; lowers through existing `Remove` |
+| Lower-level profile composition | Bounded | Existing prismatic `Compose` `Add`/`Remove` remains compatible for bounded blockout authoring |
 | Semantic holes, slots, patterns | Bounded | Qualified shaft/counterbore/countersink and finite static pattern routes; no stable generated-instance selector |
 | Edge finishes/hollow/lattice | Bounded | Documented admitted chamfer/fillet, hollow, and cubic-truss routes; not arbitrary topology |
 | Templates/Records/Static/Tables | Supported | Typed compile-time specialization, finite data, `with`, and `Require` |
@@ -24,3 +26,5 @@
 | Linux/macOS release binaries | Not in Preview 3 | Framework logic tests do not constitute binary qualification |
 | New geometry/PMI/FEA/Forge families | Not in Preview 3 | Feature-frozen until after Preview 3 |
 | General loft, helix, and freeform surface features | Not in Preview 3 | No public native V2 authoring and qualification route |
+| Through profile removal | Bounded semantic operations | Use qualified `Hole`, `Slot`, or another documented opening feature; Pocket never means through-all |
+| Arbitrary solid Boolean subtraction / hemispherical cavity | Not in Preview 3 | No public `Union`, `Subtract`, `Intersect`, CSG tree, Sphere-from-Block subtraction, or hemisphere special case |

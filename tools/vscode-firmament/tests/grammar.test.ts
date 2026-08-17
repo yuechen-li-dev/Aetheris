@@ -33,6 +33,8 @@ test("critical canonical syntax receives stable TextMate scopes", async () => {
   const source = `Model Plate {
     Concept Path Outline On XY { Start: Point2(0mm, 0mm) }
     Profile Face From Outline
+    Boss MountBoss { On: Top Profile: Face Height: 8mm }
+    Pocket Recess { On: Top Profile: Face Depth: 4mm MinimumFloorThickness: 1mm }
     Hole<Counterbore> Mount { Diameter: 8mm }
     Pattern Mounts Over Specs { ShaftHole(Current) }
     EdgeFinish Rim { Kind: Chamfer }
@@ -53,6 +55,8 @@ test("critical canonical syntax receives stable TextMate scopes", async () => {
     return token.scopes;
   };
   assert.ok(scopeAt("Model").includes("keyword.declaration.firmament"));
+  assert.ok(scopeAt("Boss").includes("keyword.declaration.firmament"));
+  assert.ok(scopeAt("Pocket").includes("keyword.declaration.firmament"));
   assert.ok(scopeAt("Concept Path").includes("keyword.declaration.compound.firmament"));
   assert.ok(scopeAt("Counterbore").includes("entity.name.type.variant.firmament"));
   assert.ok(scopeAt("Diameter:").includes("variable.other.property.firmament"));

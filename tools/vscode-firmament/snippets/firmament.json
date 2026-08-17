@@ -31,6 +31,29 @@
     "body": ["Profile ${1:Section} From ${2:Outline}"],
     "description": "Profile derived from a Concept Path"
   },
+  "Boss": {
+    "prefix": "boss",
+    "body": [
+      "Boss ${1:BossName} {",
+      "    On: Top",
+      "    Profile: ${2:BossProfile}",
+      "    Height: ${3:8mm}",
+      "}"
+    ],
+    "description": "Connected finite top-support Boss"
+  },
+  "Pocket": {
+    "prefix": "pocket",
+    "body": [
+      "Pocket ${1:PocketName} {",
+      "    On: Top",
+      "    Profile: ${2:PocketProfile}",
+      "    Depth: ${3:4mm}",
+      "    MinimumFloorThickness: ${4:1mm}",
+      "}"
+    ],
+    "description": "Finite top-support Pocket with explicit minimum floor"
+  },
   "Hole Shaft": {
     "prefix": "hole-shaft",
     "body": [

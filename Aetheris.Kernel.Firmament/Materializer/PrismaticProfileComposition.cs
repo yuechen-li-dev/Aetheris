@@ -15,6 +15,15 @@ public sealed record PrismaticProfileOperation(
     string Name, PrismaticProfileIntent Intent, string ProfileReference, double From, double To,
     string SemanticRole, string SourceSpan, string? SemanticFeatureId = null, string? SemanticFeatureKind = null,
     double? Diameter = null);
+/// <summary>First-class connected material addition lowered through the section-stack Add operation.</summary>
+public sealed record PrismaticBossFeature(
+    string Name, string StableId, string Host, string SupportFace, string ProfileReference,
+    double Height, double From, double To, string SourceSpan);
+/// <summary>First-class finite material removal lowered through the section-stack Remove operation.</summary>
+public sealed record PrismaticPocketFeature(
+    string Name, string StableId, string Host, string SupportFace, string ProfileReference,
+    double Depth, double HostThickness, double RemainingFloor, double MinimumFloorThickness,
+    string MinimumFloorPolicySource, double From, double To, string SourceSpan);
 public sealed record PrismaticShaftHoleFeature(
     string Name, string StableId, string ProfileReference, double CenterX, double CenterY, double Diameter,
     double From, double To, string SemanticRole, string SourceSpan);
@@ -56,7 +65,9 @@ public sealed record PrismaticProfileCompositionFeature(
     IReadOnlyList<PrismaticCapsuleSlotFeature>? CapsuleSlots = null,
     IReadOnlyList<PrismaticRoundedRectangleSlotFeature>? RoundedRectangleSlots = null,
     IReadOnlyList<PrismaticConstructionPlaneBlindDrillFeature>? ConstructionPlaneBlindDrills = null,
-    IReadOnlyList<PrismaticCounterboreHoleFeature>? CounterboreHoles = null)
+    IReadOnlyList<PrismaticCounterboreHoleFeature>? CounterboreHoles = null,
+    IReadOnlyList<PrismaticBossFeature>? Bosses = null,
+    IReadOnlyList<PrismaticPocketFeature>? Pockets = null)
 {
     public IEnumerable<(string Name, string StableId, string ProfileReference)> AllSlotProfiles =>
         (CapsuleSlots ?? []).Select(x => (x.Name, x.StableId, x.ProfileReference))
@@ -94,6 +105,14 @@ public static class PrismaticProfileCompositionParser
     private static readonly Regex ModifyHead = new(@"\bModify\s+(?<target>\w+)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex Placement = new(@"\bPlacement\s+(?<n>\w+)\s*\{\s*Anchor\s*:\s*\[(?<x>[-+.\d]+)mm\s*,\s*(?<y>[-+.\d]+)mm\s*,\s*(?<z>[-+.\d]+)mm\]\s*;?\s*ProfilePlane\s*:\s*(?<plane>\w+)\s*;?\s*Axis\s*:\s*(?<axis>[+-][XYZ])\s*;?\s*ReferenceDirection\s*:\s*(?<reference>[+-][XYZ])", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex Operation = new(@"\b(?<intent>Base|Add|Remove)\s+(?<n>\w+)\s*\{\s*Profile\s*:\s*(?<profile>\w+)\s*;?\s*From\s*:\s*(?<from>[-+.\d]+)mm\s*;?\s*To\s*:\s*(?<to>[-+.\d]+)mm(?:\s*;?\s*Role\s*:\s*(?<role>\w+))?", RegexOptions.Singleline | RegexOptions.CultureInvariant);
+    private static readonly Regex BossHeader = new(@"\bBoss\s+(?<n>\w+)\s*\{", RegexOptions.CultureInvariant);
+    private static readonly Regex PocketHeader = new(@"\bPocket\s+(?<n>\w+)\s*\{", RegexOptions.CultureInvariant);
+    private static readonly Regex SemanticProfile = new(@"\bProfile\s*:\s*(?<profile>\w+)", RegexOptions.CultureInvariant);
+    private static readonly Regex SemanticSupport = new(@"\bOn\s*:\s*(?<face>\w+|[+-][XYZ])", RegexOptions.CultureInvariant);
+    private static readonly Regex BossHeight = new(@"\bHeight\s*:\s*(?<value>[-+.\d]+)mm", RegexOptions.CultureInvariant);
+    private static readonly Regex PocketDepth = new(@"\bDepth\s*:\s*(?<value>[-+.\d]+)mm", RegexOptions.CultureInvariant);
+    private static readonly Regex PocketMinimumFloor = new(@"\bMinimumFloorThickness\s*:\s*(?<value>[-+.\d]+)mm", RegexOptions.CultureInvariant);
+    private static readonly Regex TemplateMinimumFloor = new(@"\bconcept\s+(?<name>minimumFloorThickness|minimumWallThickness)\s*:\s*(?<value>[-+.\d]+)\s*mm", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex HoleHeader = new(@"\bHole\s*<\s*(?<variant>\w+)\s*>\s+(?<n>\w+)\s*\{", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex HoleCenter = new(@"\bCenter\s*:\s*\[(?<x>[-+.\d]+)mm\s*,\s*(?<y>[-+.\d]+)mm\]", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex HolePoint2Center = new(@"\bCenter\s*:\s*Point2\s*\(\s*(?<x>[-+.\d]+)mm\s*,\s*(?<y>[-+.\d]+)mm\s*\)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
@@ -221,6 +240,64 @@ public static class PrismaticProfileCompositionParser
             operations.Add(new(name, Enum.Parse<PrismaticProfileIntent>(match.Groups["intent"].Value), profile, from, to, match.Groups["role"].Success ? match.Groups["role"].Value : match.Groups["intent"].Value, $"offset:{match.Index}"));
         }
         if (operations.Count(o => o.Intent == PrismaticProfileIntent.Base) != 1) diagnostics.Add("compose-requires-exactly-one-base-operation");
+        var bosses = new List<PrismaticBossFeature>();
+        var pockets = new List<PrismaticPocketFeature>();
+        var stock = operations.SingleOrDefault(operation => operation.Intent == PrismaticProfileIntent.Base);
+        if (stock is not null)
+        {
+            foreach (Match header in BossHeader.Matches(composeBody))
+            {
+                var name = header.Groups["n"].Value;
+                var body = Block(composeBody, header.Index + header.Length - 1);
+                if (body is null) { diagnostics.Add($"firmament-boss-malformed:{name}:unclosed"); continue; }
+                var profileMatch = SemanticProfile.Match(body); var support = SemanticSupport.Match(body); var heightMatch = BossHeight.Match(body);
+                if (!profileMatch.Success || !support.Success || !heightMatch.Success) { diagnostics.Add($"firmament-boss-missing-required-field:{name}:required=On,Profile,Height"); continue; }
+                var profileName = profileMatch.Groups["profile"].Value; var face = support.Groups["face"].Value; var height = N(heightMatch, "value");
+                if (!names.Add(name)) { diagnostics.Add($"compose-duplicate-operation:{name}"); continue; }
+                if (!profiles.TryGetValue(profileName, out var bossProfile)) { diagnostics.Add($"firmament-boss-invalid-profile:{name}:profile={profileName}"); continue; }
+                if (face is not ("Top" or "+Z")) { diagnostics.Add($"firmament-boss-invalid-target:{name}:On={face}:supported=Top"); continue; }
+                if (!double.IsFinite(height) || height <= 0d) { diagnostics.Add($"firmament-boss-height-must-be-positive:{name}:height={height:R}mm"); continue; }
+                if (!HasConnectedBossSupport(stock, bossProfile, profiles)) { diagnostics.Add($"firmament-boss-disconnected-from-host:{name}:host={compose.Groups["n"].Value}:profile={profileName}:support=Top"); continue; }
+                var stableId = $"boss:{compose.Groups["n"].Value}.{name}"; var sourceSpan = $"offset:{header.Index}";
+                bosses.Add(new(name, stableId, compose.Groups["n"].Value, "Top", profileName, height, stock.To, stock.To + height, sourceSpan));
+                operations.Add(new(name, PrismaticProfileIntent.Add, profileName, stock.To, stock.To + height, "Boss", sourceSpan, stableId, "Boss"));
+            }
+
+            foreach (Match header in PocketHeader.Matches(composeBody))
+            {
+                var name = header.Groups["n"].Value;
+                var body = Block(composeBody, header.Index + header.Length - 1);
+                if (body is null) { diagnostics.Add($"firmament-pocket-malformed:{name}:unclosed"); continue; }
+                var profileMatch = SemanticProfile.Match(body); var support = SemanticSupport.Match(body); var depthMatch = PocketDepth.Match(body);
+                if (!profileMatch.Success || !support.Success || !depthMatch.Success) { diagnostics.Add($"firmament-pocket-missing-required-field:{name}:required=On,Profile,Depth"); continue; }
+                var profileName = profileMatch.Groups["profile"].Value; var face = support.Groups["face"].Value; var depth = N(depthMatch, "value");
+                if (!names.Add(name)) { diagnostics.Add($"compose-duplicate-operation:{name}"); continue; }
+                if (!profiles.TryGetValue(profileName, out var pocketProfile)) { diagnostics.Add($"firmament-pocket-invalid-profile:{name}:profile={profileName}"); continue; }
+                if (face is not ("Top" or "+Z")) { diagnostics.Add($"firmament-pocket-invalid-target:{name}:On={face}:supported=Top"); continue; }
+                if (!double.IsFinite(depth) || depth <= 0d) { diagnostics.Add($"firmament-pocket-depth-must-be-positive:{name}:depth={depth:R}mm"); continue; }
+                if (!IsPocketFootprintInsideStock(stock, pocketProfile, profiles)) { diagnostics.Add($"firmament-pocket-invalid-profile:{name}:profile={profileName}:footprint-must-be-enclosed-by-host"); continue; }
+                var hostThickness = stock.To - stock.From; var remaining = hostThickness - depth;
+                var (minimumFloor, policySource) = ResolveMinimumFloor(source, body);
+                if (!double.IsFinite(minimumFloor) || minimumFloor <= 0d)
+                {
+                    diagnostics.Add($"firmament-pocket-minimum-floor-policy-invalid:{name}:requiredFloor={minimumFloor:R}mm:policy={policySource}");
+                    continue;
+                }
+                if (remaining <= 1e-7d)
+                {
+                    diagnostics.Add($"firmament-pocket-through-depth:{name}:host={compose.Groups["n"].Value}:depth={depth:R}mm:hostThickness={hostThickness:R}mm:remainingFloor={remaining:R}mm:requiredFloor={minimumFloor:R}mm");
+                    continue;
+                }
+                if (remaining + 1e-7d < minimumFloor)
+                {
+                    diagnostics.Add($"firmament-pocket-minimum-floor-thickness:{name}:host={compose.Groups["n"].Value}:depth={depth:R}mm:hostThickness={hostThickness:R}mm:remainingFloor={remaining:R}mm:requiredFloor={minimumFloor:R}mm:policy={policySource}");
+                    continue;
+                }
+                var stableId = $"pocket:{compose.Groups["n"].Value}.{name}"; var sourceSpan = $"offset:{header.Index}";
+                pockets.Add(new(name, stableId, compose.Groups["n"].Value, "Top", profileName, depth, hostThickness, remaining, minimumFloor, policySource, stock.To - depth, stock.To, sourceSpan));
+                operations.Add(new(name, PrismaticProfileIntent.Remove, profileName, stock.To - depth, stock.To, "Pocket", sourceSpan, stableId, "Pocket"));
+            }
+        }
         var shaftHoles = new List<PrismaticShaftHoleFeature>();
         var counterboreHoles = new List<PrismaticCounterboreHoleFeature>();
         var constructionPlaneBlindDrills = new List<PrismaticConstructionPlaneBlindDrillFeature>();
@@ -351,8 +428,41 @@ public static class PrismaticProfileCompositionParser
             }
         }
         var levels = operations.SelectMany(o => new[] { o.From, o.To }).Distinct().Order().ToArray();
-        var feature = diagnostics.Count == 0 ? new PrismaticProfileCompositionFeature(compose.Groups["n"].Value, "XY", "+Z", placement, operations, levels, "parser-backed-scaffold-profile-composition", shaftHoles, capsuleSlots, roundedRectangleSlots, constructionPlaneBlindDrills, counterboreHoles) : null;
+        var feature = diagnostics.Count == 0 ? new PrismaticProfileCompositionFeature(compose.Groups["n"].Value, "XY", "+Z", placement, operations, levels, "parser-backed-scaffold-profile-composition", shaftHoles, capsuleSlots, roundedRectangleSlots, constructionPlaneBlindDrills, counterboreHoles, bosses, pockets) : null;
         return new(feature, profiles, diagnostics.Distinct().ToArray(), expansion.Evidence);
+    }
+
+    private static bool HasConnectedBossSupport(PrismaticProfileOperation stock, ResolvedProfile2D boss, IReadOnlyDictionary<string, ResolvedProfile2D> profiles)
+    {
+        var probe = ProfileArrangementBuilder.Compose("XY", [stock with { From = 0d, To = 1d }, new("BossSupportProbe", PrismaticProfileIntent.Add, boss.Name, 0d, 1d, "Boss", "generated")], profiles, "boss-connectivity-probe");
+        if (probe.Region is null || probe.Arrangement.Diagnostics.Count > 0) return false;
+        var stockArea = Math.Abs(PrismaticSectionStackCompiler.ProfileArea(profiles[stock.ProfileReference]));
+        var bossArea = Math.Abs(PrismaticSectionStackCompiler.ProfileArea(boss));
+        var overlapArea = stockArea + bossArea - PrismaticSectionStackCompiler.Area(probe.Region);
+        return overlapArea > Math.Max(1e-7d, Math.Min(stockArea, bossArea) * 1e-8d);
+    }
+
+    private static bool IsPocketFootprintInsideStock(PrismaticProfileOperation stock, ResolvedProfile2D pocket, IReadOnlyDictionary<string, ResolvedProfile2D> profiles)
+    {
+        var probe = ProfileArrangementBuilder.Compose("XY", [stock with { From = 0d, To = 1d }, new("PocketContainmentProbe", PrismaticProfileIntent.Remove, pocket.Name, 0d, 1d, "Pocket", "generated")], profiles, "pocket-containment-probe");
+        if (probe.Region is null || probe.Arrangement.Diagnostics.Count > 0 || probe.Region.Holes.Count == 0) return false;
+        var stockArea = Math.Abs(PrismaticSectionStackCompiler.ProfileArea(profiles[stock.ProfileReference]));
+        var pocketArea = Math.Abs(PrismaticSectionStackCompiler.ProfileArea(pocket));
+        var retainedArea = PrismaticSectionStackCompiler.Area(probe.Region);
+        return Math.Abs((stockArea - retainedArea) - pocketArea) <= Math.Max(1e-7d, pocketArea * 1e-8d);
+    }
+
+    private static (double Value, string Source) ResolveMinimumFloor(string source, string pocketBody)
+    {
+        var local = PocketMinimumFloor.Match(pocketBody);
+        if (local.Success) return (N(local, "value"), "Pocket.MinimumFloorThickness");
+        var concepts = TemplateMinimumFloor.Matches(source).Cast<Match>().ToArray();
+        var floors = concepts.Where(match => string.Equals(match.Groups["name"].Value, "minimumFloorThickness", StringComparison.OrdinalIgnoreCase)).ToArray();
+        if (floors.Length > 1) return (double.NaN, "Template.minimumFloorThickness:ambiguous-multiple-authorities");
+        if (floors.Length == 1) return (N(floors[0], "value"), "Template.minimumFloorThickness");
+        var walls = concepts.Where(match => string.Equals(match.Groups["name"].Value, "minimumWallThickness", StringComparison.OrdinalIgnoreCase)).ToArray();
+        if (walls.Length > 1) return (double.NaN, "Template.minimumWallThickness:ambiguous-multiple-authorities");
+        return walls.Length == 1 ? (N(walls[0], "value"), "Template.minimumWallThickness") : (1d, "Preview3.boundedDefault");
     }
 
     // The canonical Modify form is body-level syntax. Bind feature declarations

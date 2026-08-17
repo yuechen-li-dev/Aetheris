@@ -274,6 +274,14 @@ public static class PrismaticSectionStackEmitter
             var source = fragment.Source.Provenance.StableId;
             descendants.Add(new($"construction:{stack.Feature.Name}:{fragment.StableId}", "ArrangementFragment", SemanticTopologyRole.Unknown, source, ParentStableId: fragment.Source.StableId));
         }
+        foreach (var feature in (stack.Feature.Bosses ?? []).Select(item => (item.StableId, item.ProfileReference, Kind: "Boss"))
+                     .Concat((stack.Feature.Pockets ?? []).Select(item => (item.StableId, item.ProfileReference, Kind: "Pocket"))))
+        {
+            var prefix = $"profile:{feature.ProfileReference}.Outer.";
+            foreach (var item in sideFaces.Select((side, index) => (Side: side, Face: faces[capFaces.Count + index]))
+                         .Where(item => item.Side.Source.StartsWith(prefix, StringComparison.Ordinal)))
+                descendants.Add(new($"material:{feature.StableId}:wall:{item.Face.Value}", "Face", SemanticTopologyRole.ExtrusionSideFace, feature.StableId, Face: item.Face, ParentStableId: feature.StableId, GeometryPreview: feature.Kind));
+        }
         foreach (var hole in stack.Feature.ShaftHoles ?? [])
         {
             var profilePrefix = $"profile:{hole.ProfileReference}.Outer.";

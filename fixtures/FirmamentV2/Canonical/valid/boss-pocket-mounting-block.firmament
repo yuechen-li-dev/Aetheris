@@ -1,0 +1,49 @@
+Model BossPocketMountingBlock {
+    Units: mm
+
+    Concept Struct Layout On XY {
+        Rect2 Stock { Center: [0mm, 0mm]; Size: [40mm, 24mm] }
+        Point2 BossCenter { Position: [-12mm, 0mm] }
+        Point2 BossEast { Position: [-6mm, 0mm] }
+        Point2 BossNorth { Position: [-12mm, 6mm] }
+        Point2 BossWest { Position: [-18mm, 0mm] }
+        Point2 BossSouth { Position: [-12mm, -6mm] }
+        Circle2 BossCircle { Center: BossCenter; Radius: 6mm }
+        Rect2 BossPad { Center: [-12mm, 0mm]; Size: [10mm, 10mm] }
+        Rect2 Recess { Center: [10mm, 0mm]; Size: [8mm, 8mm] }
+    }
+
+    Profile BaseProfile Using Layout { Loop Outer {
+        Segment Bottom { Trace: Stock.Bottom; From: Stock.BottomLeft; To: Stock.BottomRight }
+        Segment Right { Trace: Stock.Right; From: Stock.BottomRight; To: Stock.TopRight }
+        Segment Top { Trace: Stock.Top; From: Stock.TopRight; To: Stock.TopLeft }
+        Segment Left { Trace: Stock.Left; From: Stock.TopLeft; To: Stock.BottomLeft }
+    } }
+    Profile BossProfile Using Layout { Loop Outer {
+        Segment Q1 { Trace: BossCircle; From: BossEast; To: BossNorth; Sweep: CounterClockwise }
+        Segment Q2 { Trace: BossCircle; From: BossNorth; To: BossWest; Sweep: CounterClockwise }
+        Segment Q3 { Trace: BossCircle; From: BossWest; To: BossSouth; Sweep: CounterClockwise }
+        Segment Q4 { Trace: BossCircle; From: BossSouth; To: BossEast; Sweep: CounterClockwise }
+    } }
+    Profile PocketProfile Using Layout { Loop Outer {
+        Segment Bottom { Trace: Recess.Bottom; From: Recess.BottomLeft; To: Recess.BottomRight }
+        Segment Right { Trace: Recess.Right; From: Recess.BottomRight; To: Recess.TopRight }
+        Segment Top { Trace: Recess.Top; From: Recess.TopRight; To: Recess.TopLeft }
+        Segment Left { Trace: Recess.Left; From: Recess.TopLeft; To: Recess.BottomLeft }
+    } }
+    Profile RectBossProfile Using Layout { Loop Outer {
+        Segment Bottom { Trace: BossPad.Bottom; From: BossPad.BottomLeft; To: BossPad.BottomRight }
+        Segment Right { Trace: BossPad.Right; From: BossPad.BottomRight; To: BossPad.TopRight }
+        Segment Top { Trace: BossPad.Top; From: BossPad.TopRight; To: BossPad.TopLeft }
+        Segment Left { Trace: BossPad.Left; From: BossPad.TopLeft; To: BossPad.BottomLeft }
+    } }
+
+    Struct MountingBlock {
+        Compose Body {
+            Base Stock { Profile: BaseProfile; From: 0mm; To: 10mm; Role: Stock }
+            Boss MountBoss { On: Top; Profile: BossProfile; Height: 6mm }
+            Pocket ElectronicsRecess { On: Top; Profile: PocketProfile; Depth: 4mm; MinimumFloorThickness: 2mm }
+            Hole<Shaft> MountHole { On: +Z; Center: [-12mm, 0mm]; Diameter: 6mm; End: ThroughAll; Role: MountingHole }
+        }
+    }
+}

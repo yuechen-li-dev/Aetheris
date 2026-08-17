@@ -45,6 +45,30 @@ public sealed class PublicDocumentationQualificationTests
         Assert.Equal(diameters, report.RootElement.GetProperty("pmiExportEvidence").GetProperty("diameter").GetArrayLength());
     }
 
+    [Fact]
+    public void PublicBossPocketWitness_BuildsWithTruthfulFeatureInventory_AndReimportsEnclosed()
+    {
+        using var temp = TempDirectory.Create();
+        var output = new StringWriter(); var error = new StringWriter();
+        var source = Path.Combine(RepoRoot, "fixtures/FirmamentV2/Canonical/valid/boss-pocket-mounting-block.firmament");
+        var step = Path.Combine(temp.Path, "boss-pocket.step");
+        Assert.Equal(0, CliRunner.Run(["build", source, "--output", step, "--json"], output, error));
+        Assert.Empty(error.ToString());
+        using (var build = JsonDocument.Parse(output.ToString()))
+        {
+            Assert.Equal(3, build.RootElement.GetProperty("featureCount").GetInt32());
+            Assert.Equal("Hole<Shaft>", build.RootElement.GetProperty("features")[0].GetProperty("kind").GetString());
+            Assert.Equal(["Boss", "Pocket"], build.RootElement.GetProperty("engineeringFeatures").EnumerateArray().Select(item => item.GetProperty("kind").GetString()!).Order().ToArray());
+        }
+        output.GetStringBuilder().Clear();
+        Assert.Equal(0, CliRunner.Run(["analyze", step, "--json"], output, error));
+        using var analysis = JsonDocument.Parse(output.ToString());
+        var summary = analysis.RootElement.GetProperty("summary");
+        Assert.Equal("enclosed-manifold", summary.GetProperty("structuralAssessment").GetString());
+        Assert.Equal(1, summary.GetProperty("bodyCount").GetInt32());
+        Assert.Equal(32, summary.GetProperty("faceCount").GetInt32());
+    }
+
     [Theory]
     [InlineData("fixtures/FirmamentV2/SheetMetal/preview3-l-bracket-hole.firmament")]
     [InlineData("fixtures/FirmamentV2/PublicDogfood/ai-sheet-metal.firmament")]

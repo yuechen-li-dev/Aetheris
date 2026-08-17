@@ -221,7 +221,9 @@ public static class FirmamentBuildAndExport
             if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
             return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, stack.Feature.Name, 0, "prismatic-section-stack", "line-arc-profile-composition",
                 DatumInspection: v2Parse.Document?.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.DatumPlane).Select(p => new FirmamentPmiInspectionDatum(p.Name, "planar", p.Target)).ToArray() ?? [],
-                DimensionInspection: v2Parse.Document?.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-record-pmi", p.Name)).ToArray() ?? []));
+                DimensionInspection: v2Parse.Document?.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-record-pmi", p.Name)).ToArray() ?? [],
+                Features: CompositionHoleReports(stack.Feature),
+                EngineeringFeatures: EngineeringFeatureReports(stack.Feature)));
         }
         if (ProfileAuthoringParser.IsProfileSource(materializerSource))
         {
@@ -529,7 +531,9 @@ public static class FirmamentBuildAndExport
             if (!plannedReimport.IsSuccess || plannedReimport.Value is null || !FirmamentManifoldChecker.IsManifold(plannedReimport.Value)) return Fail("ProfileBoundaryChamferStepReimportFailed");
             return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(plannedStep.Value, target.StableId, 0, "composed-profile-boundary-chamfer-section-stack", "source-grounded-composed-profile-boundary-chamfer",
                 DatumInspection: canonicalDocument?.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.DatumPlane).Select(p => new FirmamentPmiInspectionDatum(p.Name, "planar", p.Target)).ToArray() ?? [],
-                DimensionInspection: canonicalDocument?.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-record-pmi", p.Name)).ToArray() ?? []));
+                DimensionInspection: canonicalDocument?.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-record-pmi", p.Name)).ToArray() ?? [],
+                Features: CompositionHoleReports(stack.Feature),
+                EngineeringFeatures: EngineeringFeatureReports(stack.Feature)));
         }
         if (emitted.Body is null || emitted.Correspondence is null) return Fail("MissingCorrespondenceEvidence");
         var composedCurves = stack.Slabs.MaxBy(s => s.To)!.Region.Outer.Loops.Single().Segments.Select(segment => segment.Geometry).ToArray();
@@ -1933,6 +1937,29 @@ public static class FirmamentBuildAndExport
         "face(-Y)" => "minus_y_face",
         _ => selector
     };
+
+    private static IReadOnlyList<FirmamentEngineeringFeatureReport> EngineeringFeatureReports(PrismaticProfileCompositionFeature feature) =>
+        (feature.Bosses ?? []).Select(item => new FirmamentEngineeringFeatureReport(
+            item.Name, "Boss", item.StableId, item.Host, item.SupportFace, item.ProfileReference,
+            item.Height, "Height", "Add", MaterializationRoute: "PrismaticSectionStack/Add"))
+        .Concat((feature.Pockets ?? []).Select(item => new FirmamentEngineeringFeatureReport(
+            item.Name, "Pocket", item.StableId, item.Host, item.SupportFace, item.ProfileReference,
+            item.Depth, "Depth", "Remove", item.RemainingFloor, item.MinimumFloorThickness,
+            item.MinimumFloorPolicySource, "PrismaticSectionStack/Remove")))
+        .OrderBy(item => item.FeatureId, StringComparer.Ordinal)
+        .ToArray();
+
+    private static IReadOnlyList<FirmamentHoleFeatureReport> CompositionHoleReports(PrismaticProfileCompositionFeature feature) =>
+        (feature.ShaftHoles ?? []).Select(item => new FirmamentHoleFeatureReport(
+            item.Name, "Hole<Shaft>", item.StableId, item.Diameter, item.CenterX, item.CenterY,
+            null, "ProfileCompose.Center", null, null, "+Z", item.SourceSpan,
+            "PrismaticSectionStack/Remove", "SemanticShaftProfile", "ThroughAll"))
+        .Concat((feature.CounterboreHoles ?? []).Select(item => new FirmamentHoleFeatureReport(
+            item.Name, "Hole<Counterbore>", item.StableId, item.Diameter, item.CenterX, item.CenterY,
+            null, "ProfileCompose.Center", null, null, "+Z", item.SourceSpan,
+            "PrismaticSectionStack/Remove", "SemanticCounterboreProfiles", "ThroughAll")))
+        .OrderBy(item => item.FeatureId, StringComparer.Ordinal)
+        .ToArray();
 
     private static KernelResult<FirmamentStepExportResult> SemanticHoleFailure(IEnumerable<string> diagnostics) =>
         KernelResult<FirmamentStepExportResult>.Failure(diagnostics.Select(d => new Kernel.Core.Diagnostics.KernelDiagnostic(

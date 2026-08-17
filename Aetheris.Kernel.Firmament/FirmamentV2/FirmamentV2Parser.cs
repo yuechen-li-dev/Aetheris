@@ -901,8 +901,8 @@ public static class FirmamentV2Parser
 
         var known = new HashSet<string>(StringComparer.Ordinal)
         {
-            "Box", "Cylinder", "RoundedBox", "Frustum", "StandardPart", "ExactCoaxialPart", "Concept", "Struct", "Construction", "Profile", "Compose", "EdgeFinish",
-            "Record", "Static", "Template", "ProfileDelta", "Selection", "InlineStep", "Recognize", "Replace", "Pmi", "Modify", "Match", "Require", "Assert"
+            "Box", "Cylinder", "RoundedBox", "Frustum", "StandardPart", "ExactCoaxialPart", "Concept", "Struct", "Construction", "Profile", "Compose", "Boss", "Pocket", "EdgeFinish",
+            "Record", "Static", "Template", "template", "ProfileDelta", "Selection", "InlineStep", "Recognize", "Replace", "Pmi", "Modify", "Match", "Require", "Assert"
         };
         var compatibilityOnly = new HashSet<string>(StringComparer.Ordinal)
         {
@@ -996,6 +996,9 @@ public static class FirmamentV2Parser
                 [new FirmamentV2SolidBinding(feature.Name, "Compose", new FirmamentV2AdvancedMaterialRecord("Compose"))],
                 Profiles: composition.Profiles.Values.Select(profile => new FirmamentV2ProfileDecl(profile.Name, profile.EffectiveConstructionPlane.StableId, profile.LocalStartDepth ?? 0d, profile.LocalEndDepth ?? 0d, new(0, 0))).ToArray(),
                 Composes: [new FirmamentV2ComposeDecl(feature.Name, feature.Operations.Select(operation => operation.Name).ToArray(), new(0, body.Length))],
+                Bosses: (feature.Bosses ?? []).Select(item => new FirmamentV2BossDecl(item.Name, item.Host, item.SupportFace, item.ProfileReference, item.Height, item.StableId, new(0, body.Length))).ToArray(),
+                Pockets: (feature.Pockets ?? []).Select(item => new FirmamentV2PocketDecl(item.Name, item.Host, item.SupportFace, item.ProfileReference, item.Depth, item.HostThickness, item.RemainingFloor, item.MinimumFloorThickness, item.MinimumFloorPolicySource, item.StableId, new(0, body.Length))).ToArray(),
+                Templates: ParseTemplates(body, diagnostics),
                 Pmi: compositionPmi,
                 PmiBlock: compositionPmiBlock,
                 BoundPmi: compositionBoundPmi,

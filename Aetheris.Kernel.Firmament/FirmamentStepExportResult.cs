@@ -20,7 +20,24 @@ public sealed record FirmamentStepExportResult(
     FirmamentStandaloneLatticeReport? Lattice = null,
     FirmamentCombinedFeaturePlanReport? Combined = null,
     IReadOnlyList<Aetheris.Kernel.Firmament.FirmamentV2.FirmamentV2VolumeAssertionResult>? Assertions = null,
-    FirmamentStandardPartReport? StandardPart = null);
+    FirmamentStandardPartReport? StandardPart = null,
+    IReadOnlyList<FirmamentEngineeringFeatureReport>? EngineeringFeatures = null);
+
+/// <summary>Public semantic feature inventory; geometry implementation details are deliberately omitted.</summary>
+public sealed record FirmamentEngineeringFeatureReport(
+    string Name,
+    string Kind,
+    string FeatureId,
+    string Host,
+    string Support,
+    string Profile,
+    double Extent,
+    string ExtentKind,
+    string MaterialEffect,
+    double? RemainingFloor = null,
+    double? MinimumFloorThickness = null,
+    string? PolicySource = null,
+    string MaterializationRoute = "PrismaticSectionStack");
 
 public sealed record FirmamentStandardPartReport(
     string Family,

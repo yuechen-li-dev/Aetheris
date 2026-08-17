@@ -14,6 +14,8 @@ public enum FirmamentV2CanonicalSymbolKind
     Require,
     Profile,
     Compose,
+    Boss,
+    Pocket,
     Hole,
     Slot,
     Selection,
@@ -83,6 +85,8 @@ internal static class FirmamentV2CanonicalSymbolBinder
 
         foreach (var profile in document.Profiles ?? []) Add(profile.Name, FirmamentV2CanonicalSymbolKind.Profile, profile.SourceSpan);
         foreach (var compose in document.Composes ?? []) Add(compose.Name, FirmamentV2CanonicalSymbolKind.Compose, compose.SourceSpan);
+        foreach (var boss in document.Bosses ?? []) Add(boss.Name, FirmamentV2CanonicalSymbolKind.Boss, boss.SourceSpan);
+        foreach (var pocket in document.Pockets ?? []) Add(pocket.Name, FirmamentV2CanonicalSymbolKind.Pocket, pocket.SourceSpan);
         var profileOrComposeNames = (document.Profiles ?? []).Select(profile => profile.Name).Concat((document.Composes ?? []).Select(compose => compose.Name)).ToHashSet(StringComparer.Ordinal);
         foreach (var solid in document.Solids.Where(solid => !profileOrComposeNames.Contains(solid.Name))) Add(solid.Name, FirmamentV2CanonicalSymbolKind.Body, new(0, 0));
         foreach (Match body in Regex.Matches(source, @"(?<!Concept\s)\bStruct\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant)) Add(body.Groups["name"].Value, FirmamentV2CanonicalSymbolKind.Body, new(body.Index, body.Length));
@@ -97,6 +101,16 @@ internal static class FirmamentV2CanonicalSymbolBinder
         foreach (var selection in document.Selections ?? []) Add(selection.Name, FirmamentV2CanonicalSymbolKind.Selection, selection.SourceSpan);
 
         var bindings = new List<FirmamentV2CanonicalSymbolBinding>();
+        foreach (var boss in document.Bosses ?? [])
+        {
+            if (byName.TryGetValue(boss.Host, out var host)) bindings.Add(new($"Boss:{boss.Name}", "Host", host.CanonicalId, boss.SourceSpan));
+            if (byName.TryGetValue(boss.Profile, out var profile)) bindings.Add(new($"Boss:{boss.Name}", "Profile", profile.CanonicalId, boss.SourceSpan));
+        }
+        foreach (var pocket in document.Pockets ?? [])
+        {
+            if (byName.TryGetValue(pocket.Host, out var host)) bindings.Add(new($"Pocket:{pocket.Name}", "Host", host.CanonicalId, pocket.SourceSpan));
+            if (byName.TryGetValue(pocket.Profile, out var profile)) bindings.Add(new($"Pocket:{pocket.Name}", "Profile", profile.CanonicalId, pocket.SourceSpan));
+        }
         foreach (var selection in document.Selections ?? [])
         {
             var reference = ParseSelectionReference(selection.Source);

@@ -456,6 +456,8 @@ public static class CliRunner
                 standardPart = build.Value.Export.StandardPart,
                 assertions = build.Value.Export.Assertions,
                 features = build.Value.Export.Features,
+                engineeringFeatures = build.Value.Export.EngineeringFeatures,
+                featureCount = (build.Value.Export.Features?.Count ?? 0) + (build.Value.Export.EngineeringFeatures?.Count ?? 0),
                 inlineStepMigration = build.Value.Export.InlineStepMigration,
                 inlineStepReplacementAssist = build.Value.Export.InlineStepReplacementAssist,
                 diagnostics = build.Diagnostics.Select(d => new { d.Source, d.Message, severity = d.Severity.ToString() }),
@@ -959,13 +961,21 @@ Model CanonicalPanel {
         var parse = FirmamentV2Parser.Parse(source, Path.GetDirectoryName(fullPath));
         var document = parse.Document;
         var success = parse.IsSuccess && document is not null;
-        var features = document?.ModifyBlocks?.SelectMany(block =>
+        var features = (document?.ModifyBlocks?.SelectMany(block =>
             block.SemanticHoles.Select(hole => $"Hole<{hole.Variant}> {hole.Name}")
-            .Concat((block.EdgeFinishes ?? []).Select(finish => $"{finish.Kind} {finish.Name}"))) ?? [];
+            .Concat((block.EdgeFinishes ?? []).Select(finish => $"{finish.Kind} {finish.Name}"))) ?? [])
+            .Concat((document?.Bosses ?? []).Select(feature => $"Boss {feature.Name}"))
+            .Concat((document?.Pockets ?? []).Select(feature => $"Pocket {feature.Name}"))
+            .ToList();
         var semanticValues = FirmamentSemanticValues.FromProfilesAndConceptPaths(source, fullPath).ToList();
         if (PrismaticProfileCompositionParser.IsCompositionSource(source))
         {
             var composition = PrismaticProfileCompositionParser.Parse(source);
+            if (composition.Feature is { } compositionFeature)
+            {
+                features.AddRange((compositionFeature.ShaftHoles ?? []).Select(feature => $"Hole<Shaft> {feature.Name}"));
+                features.AddRange((compositionFeature.CounterboreHoles ?? []).Select(feature => $"Hole<Counterbore> {feature.Name}"));
+            }
             semanticValues.AddRange(composition.Profiles.Values.OrderBy(profile => profile.Name, StringComparer.Ordinal).Select(profile =>
                 FirmamentSemanticValues.FromProfile(profile, SemanticSourceSpan.Generated(fullPath),
                     [new("firmament-profile", profile.Name, "named Profile normalized before consumer")])));
@@ -1408,6 +1418,8 @@ Model CanonicalPanel {
                 operations = stack.Feature.Operations.Select(x => new { x.Name, intent = x.Intent.ToString(), profile = x.ProfileReference, x.From, x.To, x.SemanticRole, x.SourceSpan, x.SemanticFeatureId, x.SemanticFeatureKind, x.Diameter, signature = Hash($"{x.Intent}|{x.ProfileReference}|{x.From:R}|{x.To:R}|{x.SemanticRole}|{x.SemanticFeatureId}|{x.Diameter:R}") }),
                 shaftHoles = (stack.Feature.ShaftHoles ?? []).Select(x => new { x.Name, x.StableId, profile = x.ProfileReference, center = new[] { x.CenterX, x.CenterY }, x.Diameter, x.From, x.To, endCondition = "ThroughAll", x.SemanticRole, x.SourceSpan }),
                 counterboreHoles = (stack.Feature.CounterboreHoles ?? []).Select(x => new { x.Name, x.StableId, shaftProfile = x.ShaftProfileReference, counterboreProfile = x.CounterboreProfileReference, center = new[] { x.CenterX, x.CenterY }, x.Diameter, x.CounterboreDiameter, x.CounterboreDepth, x.From, x.To, endCondition = "ThroughAll", x.SemanticRole, x.SourceSpan }),
+                bosses = (stack.Feature.Bosses ?? []).Select(x => new { x.Name, x.StableId, host = x.Host, on = x.SupportFace, profile = x.ProfileReference, x.Height, x.From, x.To, materialEffect = "Add", lowering = "PrismaticSectionStack/Add" }),
+                pockets = (stack.Feature.Pockets ?? []).Select(x => new { x.Name, x.StableId, host = x.Host, on = x.SupportFace, profile = x.ProfileReference, x.Depth, x.HostThickness, x.RemainingFloor, x.MinimumFloorThickness, x.MinimumFloorPolicySource, x.From, x.To, materialEffect = "Remove", lowering = "PrismaticSectionStack/Remove" }),
                 capsuleSlots = (stack.Feature.CapsuleSlots ?? []).Select(x => new { x.Name, x.StableId, kind = "Slot<Capsule>", profile = x.ProfileReference, center = new[] { x.CenterX, x.CenterY }, direction = new[] { x.DirectionX, x.DirectionY }, x.Length, x.Width, radius = x.Radius, straightSpan = x.StraightSpan, endCenters = new[] { new[] { x.CenterX - x.DirectionX * x.StraightSpan / 2d, x.CenterY - x.DirectionY * x.StraightSpan / 2d }, new[] { x.CenterX + x.DirectionX * x.StraightSpan / 2d, x.CenterY + x.DirectionY * x.StraightSpan / 2d } }, x.From, x.To, x.Extent, x.SemanticRole, x.SourceSpan, segments = parsed.Profiles[x.ProfileReference].Loops.Single().Segments.Select(s => s.Name) }),
                 roundedRectangleSlots = (stack.Feature.RoundedRectangleSlots ?? []).Select(x => new { x.Name, x.StableId, kind = "Slot<RoundedRectangle>", profile = x.ProfileReference, center = new[] { x.CenterX, x.CenterY }, direction = new[] { x.DirectionX, x.DirectionY }, x.Length, x.Width, x.CornerRadius, x.From, x.To, x.Extent, x.SemanticRole, x.SourceSpan, segments = parsed.Profiles[x.ProfileReference].Loops.Single().Segments.Select(s => s.Name) }),
                 criticalLevels = stack.Feature.CriticalLevels,

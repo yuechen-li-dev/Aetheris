@@ -1,0 +1,29 @@
+Model BossPlate {
+    Units: mm
+    Concept Struct Layout On XY {
+        Rect2 Stock { Center: [0mm, 0mm]; Size: [50mm, 30mm] }
+        Point2 C { Position: [0mm, 0mm] }
+        Point2 E { Position: [8mm, 0mm] }
+        Point2 N { Position: [0mm, 8mm] }
+        Point2 W { Position: [-8mm, 0mm] }
+        Point2 S { Position: [0mm, -8mm] }
+        Circle2 BossCircle { Center: C; Radius: 8mm }
+    }
+    Profile BaseProfile Using Layout { Loop Outer {
+        Segment Bottom { Trace: Stock.Bottom; From: Stock.BottomLeft; To: Stock.BottomRight }
+        Segment Right { Trace: Stock.Right; From: Stock.BottomRight; To: Stock.TopRight }
+        Segment Top { Trace: Stock.Top; From: Stock.TopRight; To: Stock.TopLeft }
+        Segment Left { Trace: Stock.Left; From: Stock.TopLeft; To: Stock.BottomLeft }
+    } }
+    Profile BossProfile Using Layout { Loop Outer {
+        Segment Q1 { Trace: BossCircle; From: E; To: N; Sweep: CounterClockwise }
+        Segment Q2 { Trace: BossCircle; From: N; To: W; Sweep: CounterClockwise }
+        Segment Q3 { Trace: BossCircle; From: W; To: S; Sweep: CounterClockwise }
+        Segment Q4 { Trace: BossCircle; From: S; To: E; Sweep: CounterClockwise }
+    } }
+    Struct Plate { Compose Body {
+        Base Stock { Profile: BaseProfile; From: 0mm; To: 6mm; Role: Stock }
+        Boss MountBoss { On: Top; Profile: BossProfile; Height: 8mm }
+        Hole<Shaft> ThroughBoss { On: +Z; Center: [0mm, 0mm]; Diameter: 5mm; End: ThroughAll; Role: MountingHole }
+    } }
+}

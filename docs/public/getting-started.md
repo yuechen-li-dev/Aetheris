@@ -7,7 +7,7 @@ dotnet tool install --global Aetheris.CLI --prerelease
 aetheris --help
 ```
 
-For a source checkout, replace `aetheris` below with `dotnet run --project Aetheris.CLI -c Release --`.
+The release ZIP is the complete product path: run the commands below from its `Aetheris-win-x64` directory and use `.\aetheris.exe` in place of `aetheris`. It also supplies the `fixtures` used below and Cadmata for the final `view` command. For a source checkout, replace `aetheris` with `dotnet run --project Aetheris.CLI -c Release --`.
 
 ## Build a first part
 
@@ -19,9 +19,19 @@ aetheris build fixtures/FirmamentV2/Canonical/valid/box-hole-pmi.firmament --out
 aetheris analyze artifacts/first-part.step --json
 ```
 
-`validate` checks syntax, binding, units, targets, and supported/deferred PMI without materializing geometry. `build` runs the real geometry and AP242 path. In JSON, `success: true`, the output path, diagnostics, feature reports, and `pmiExportEvidence` describe what was actually emitted. `analyze` independently reinspects topology and semantic PMI.
+`validate` checks syntax, binding, units, targets, and supported/deferred PMI without materializing geometry. A successful validation exits zero and reports `firmamentV2Validation.status: "valid"`. `build` runs the real geometry and AP242 path; its JSON includes `success`, output path, diagnostics, feature reports, and `pmiExportEvidence` describing what was actually emitted. `analyze` independently reinspects topology and semantic PMI.
 
 Use `aetheris view ...` to open Firmament or STEP in Cadmata when using the Windows bundle.
+
+## Build the canonical ordinary-CAD example
+
+[`a4-machined-mounting-block.firmament`](../../fixtures/FirmamentV2/Canonical/valid/a4-machined-mounting-block.firmament) is the first serious example after the small plate. It combines a base, connected Boss, finite Pocket, shaft hole, two counterbores, perimeter EdgeFinish, and semantic PMI while remaining a single readable source file:
+
+```powershell
+aetheris build fixtures/FirmamentV2/Canonical/valid/a4-machined-mounting-block.firmament --output artifacts/mounting-block.step --json
+aetheris analyze artifacts/mounting-block.step --json
+aetheris view artifacts/mounting-block.step
+```
 
 ## Invoke a Template
 

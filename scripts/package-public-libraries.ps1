@@ -77,7 +77,11 @@ $projects = @(
 Push-Location $repoRoot
 try {
     foreach ($project in $projects) {
-        dotnet pack $project --configuration Release --output $outputPath -p:PackageVersion=$Version
+        # The package payload must not inherit assemblies from an earlier commit
+        # or a RID-specific publish. Rebuild every public package payload and
+        # exclude debug symbols so the staged bytes reflect this invocation.
+        dotnet pack $project --configuration Release --output $outputPath -t:Rebuild `
+            -p:PackageVersion=$Version -p:DebugType=None -p:DebugSymbols=false
         if ($LASTEXITCODE -ne 0) {
             throw "dotnet pack failed for $project"
         }

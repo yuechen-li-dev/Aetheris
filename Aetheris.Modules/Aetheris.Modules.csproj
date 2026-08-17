@@ -3,5 +3,6 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <Description>Capability and module contracts for extensible Aetheris engineering domains.</Description>
   </PropertyGroup>
 </Project>

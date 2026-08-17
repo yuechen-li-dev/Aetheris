@@ -14,7 +14,7 @@
 | Templates/Records/Static/Tables | Supported | Typed compile-time specialization, finite data, `with`, and `Require` |
 | STEP AP242 export | Bounded | Deterministic single-body routes plus semantic PMI; unsupported intent fails loudly |
 | STEP import / inlineSTEP | Bounded | Canonical single-body topology and recognized identities; arbitrary containment and multi-root bodies are not native-part promises |
-| PMI authoring | Bounded | Plane Datum and toleranced shaft HoleDiameter AP242 export; broader PMI families are deferred |
+| PMI authoring and presentation | Bounded | Model authoring qualifies plane Datum and toleranced shaft HoleDiameter; manufacturing AP242 workflows additionally qualify documented dimensions, position controls, annotations, and geometry associations; this is not general PMI authoring |
 | Sheet Metal authoring | Bounded | Base/flanges/bends and planar circular holes/cuts, formed STEP, flat STEP/SVG, K-factor, DFM, semantic regions; Model `Hole<Counterbore>` / `Hole<Countersink>` syntax is rejected |
 | Sheet Metal reconstruction | Experimental | Bounded recognition/recovery with explicit partial status and evidence |
 | Materials | Supported | Four deployed Standard Library catalog entries |

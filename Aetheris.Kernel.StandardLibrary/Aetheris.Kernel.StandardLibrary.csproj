@@ -4,6 +4,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <InterceptorsNamespaces>$(InterceptorsNamespaces);Microsoft.EntityFrameworkCore.GeneratedInterceptors</InterceptorsNamespaces>
+    <Description>Standard Forge Templates and the versioned engineering material catalog for Aetheris.</Description>
   </PropertyGroup>
 
   <ItemGroup>

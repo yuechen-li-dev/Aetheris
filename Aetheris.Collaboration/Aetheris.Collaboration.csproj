@@ -3,6 +3,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <Description>Semantic collaboration contracts for Aetheris engineering models and review workflows.</Description>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Aetheris.Semantics\Aetheris.Semantics.csproj" />

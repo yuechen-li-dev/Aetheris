@@ -3,6 +3,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <Description>Bounded linear-elastic analysis, semantic boundary conditions, and verification artifacts for Aetheris.</Description>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Aetheris.Continuum\Aetheris.Continuum.csproj" />

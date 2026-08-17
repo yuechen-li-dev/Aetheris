@@ -145,6 +145,7 @@ $publicExamples = @(
     'fixtures/FirmamentV2/Canonical/valid/profile-compose-l-bracket-counterbore-pmi.firmament',
     'fixtures/FirmamentV2/Canonical/valid/record-array-pattern-holes.firmament',
     'fixtures/FirmamentV2/Canonical/valid/table-template-concept-path-compose.firmament',
+    'fixtures/FirmamentV2/FEA/cantilever.firmament',
     'fixtures/FirmamentV2/FEA/inline-step-through-hole.firmament',
     'fixtures/FirmamentV2/InlineStep/testdata/canonical-through-hole.step',
     'fixtures/FirmamentV2/Materials/catalog-material-coupon.firmament',
@@ -199,4 +200,27 @@ try {
 }
 finally { $archive.Dispose() }
 $releaseFiles = @($zip, $extensionArtifact) + (Get-ChildItem -LiteralPath (Join-Path $output 'packages') -Filter '*.nupkg' -File | Select-Object -ExpandProperty FullName)
-$releaseFiles | ForEach-Object { Get-FileHash -LiteralPath $_ -Algorithm SHA256 } | ForEach-Object { "{0}  {1}" -f $_.Hash.ToLowerInvariant(), $_.Path.Substring($output.Length + 1) } | Set-Content (Join-Path $output 'SHA256SUMS.txt')
+$releaseHashes = @($releaseFiles | ForEach-Object {
+    $item = Get-Item -LiteralPath $_
+    $hash = Get-FileHash -LiteralPath $_ -Algorithm SHA256
+    [pscustomobject]@{
+        Path = $item.FullName.Substring($output.Length + 1).Replace('\', '/')
+        Bytes = $item.Length
+        Sha256 = $hash.Hash.ToLowerInvariant()
+    }
+})
+$releaseHashes | ForEach-Object { "{0}  {1}" -f $_.Sha256, $_.Path } | Set-Content (Join-Path $output 'SHA256SUMS.txt')
+
+$inventory = @(
+    "# Aetheris $Version publication inventory",
+    "",
+    "Qualified release target: Windows x64 (`win-x64`). Forge Host Protocol v1 and the VS Code extension version are independently versioned.",
+    "",
+    "| Artifact | Bytes | SHA-256 |",
+    "|---|---:|---|"
+)
+$inventory += $releaseHashes | ForEach-Object { "| ``$($_.Path)`` | $($_.Bytes) | ``$($_.Sha256)`` |" }
+$inventory += @(
+    "",
+    "The 16 public library packages are generated separately by ``scripts/package-public-libraries.ps1``. Public documentation is in ``docs/public`` and is also included in the Windows ZIP.")
+[IO.File]::WriteAllLines((Join-Path $output 'RELEASE-INVENTORY.md'), [string[]]$inventory, [Text.UTF8Encoding]::new($false))

@@ -38,7 +38,7 @@
     }
   ],
   "testCounts": {
-    "dotnet": 2971,
+    "dotnet": 3017,
     "cadmata": 81,
     "vscodeExtension": 13
   },
@@ -46,9 +46,9 @@
     "stepAp242": "114cd7c0c6a8a364b2943cc955a12d8a96b576a187dfc1957ea9f769296872be",
     "flatStep": "88c437373fe4fdf91e8f0a5b5e0e5c135b290f0dfe18449ec3ee7c0970c1d075",
     "svg": "1657e3bbc3ef418617b45c5d9ab76a96d70b0ba6356c0e88a7ba07edc18b6519",
-    "windowsBundle": "8e90475dd4189eb4f00c83c45ef0b9687d757e04a613ddf2ee1518c95506203d",
-    "firmamentVsix": "3f188020cdfc4908d49c0eb810baed4ec4b78e1eb8bd66d39553f4c4558587a4",
-    "cliNuget": "6f4b3a2724c382e99f84fd6f155538f2c44ff99a614f2c4deb5ca104bd09c0df"
+    "windowsBundle": "2e6a8efabd83363a6e5af4be12f2d113cc626f2cd6d90902abb99bcc4fdb89b8",
+    "firmamentVsix": "def44bc6a83aed90a67505987ec36d00aa134d900fab734c48b83d0aeb59f361",
+    "cliNuget": "abe221bdb24e31b1cedd32b5b08fb3d220754f6254abd13a193758d3b5ebb07e"
   },
   "knownPackagingLimitations": [
     "Only win-x64 is qualified for Preview 3.",

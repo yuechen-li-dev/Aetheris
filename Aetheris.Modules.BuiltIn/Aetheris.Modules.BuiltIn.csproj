@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup>
+  <PropertyGroup><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><Description>Built-in Surfacing, Piping, and Sheet Metal module registration for Aetheris.</Description></PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Aetheris.Modules\Aetheris.Modules.csproj" />
     <ProjectReference Include="..\Aetheris.Surfacing\Aetheris.Surfacing.csproj" />

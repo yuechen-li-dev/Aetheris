@@ -3,6 +3,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <Description>Cut-cell lattice, sparse-system, and numerical lowering infrastructure used by Aetheris analysis.</Description>
   </PropertyGroup>
 
   <ItemGroup>

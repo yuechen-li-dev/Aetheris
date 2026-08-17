@@ -11,10 +11,19 @@ public sealed class PublicDocumentationQualificationTests
     public void PublicMarkdownRelativeLinksResolveInsideRepository()
     {
         var markdown = Directory.GetFiles(Path.Combine(RepoRoot, "docs", "public"), "*.md", SearchOption.AllDirectories)
-            .Append(Path.Combine(RepoRoot, "README.md"));
+            .Concat(Directory.GetFiles(Path.Combine(RepoRoot, "docs", "release"), "*.md", SearchOption.TopDirectoryOnly))
+            .Concat([
+                Path.Combine(RepoRoot, "README.md"),
+                Path.Combine(RepoRoot, "CONTRIBUTING.md"),
+                Path.Combine(RepoRoot, "THIRD_PARTY_NOTICES.md"),
+                Path.Combine(RepoRoot, "docs", "release", "Aetheris.CLI.README.md"),
+                Path.Combine(RepoRoot, "docs", "release", "Aetheris.Libraries.README.md")
+            ]);
         foreach (var file in markdown)
         {
-            var links = Regex.Matches(File.ReadAllText(file), @"\]\((?<target>[^)]+)\)")
+            var text = File.ReadAllText(file);
+            Assert.DoesNotMatch(@"[A-Za-z]:\\Users\\", text);
+            var links = Regex.Matches(text, @"\]\((?<target>[^)]+)\)")
                 .Select(match => match.Groups["target"].Value)
                 .Where(target => !target.StartsWith("http", StringComparison.OrdinalIgnoreCase) && !target.StartsWith('#'));
             foreach (var target in links)

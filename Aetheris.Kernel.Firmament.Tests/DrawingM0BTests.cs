@@ -89,7 +89,9 @@ public sealed class DrawingM0BTests
     public void DrawingInfo_RejectsMissingRequiredField()
     {
         using var temporary = new TemporaryDirectory();
-        var source = File.ReadAllText(Fixture()).Replace("    Author: \"CODEX\"\n", "", StringComparison.Ordinal);
+        var source = File.ReadAllText(Fixture())
+            .ReplaceLineEndings("\n")
+            .Replace("    Author: \"CODEX\"\n", "", StringComparison.Ordinal);
         var path = Path.Combine(temporary.Path, "missing-author.firmament"); File.WriteAllText(path, source);
         var result = FirmamentDrawingCompiler.Compile(path, Path.Combine(temporary.Path, "out"));
         Assert.False(result.IsSuccess);

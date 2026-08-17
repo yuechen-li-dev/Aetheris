@@ -58,7 +58,7 @@ public sealed class FirmamentV2ConstructionPlaneHoleSourceTests
     [InlineData("From: PositiveXWorkplane\n            From: PositiveXWorkplane", FirmamentV2Parser.HolePlacementDuplicate)]
     public void Source_ConstructionPlaneHole_InvalidPlacementIsTyped(string replacement, string diagnostic)
     {
-        var source = File.ReadAllText(Fixture);
+        var source = File.ReadAllText(Fixture).ReplaceLineEndings("\n");
         if (replacement.StartsWith("Center:", StringComparison.Ordinal)) source = source.Replace("Center: Point2(10mm, 6mm)\n            ", string.Empty, StringComparison.Ordinal);
         else if (replacement.StartsWith("End:", StringComparison.Ordinal)) source = source.Replace("End: ThroughAll", replacement, StringComparison.Ordinal);
         else source = source.Replace("From: PositiveXWorkplane", replacement, StringComparison.Ordinal);

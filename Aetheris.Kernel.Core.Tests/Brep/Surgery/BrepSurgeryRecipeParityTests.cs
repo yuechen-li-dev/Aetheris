@@ -29,7 +29,7 @@ public sealed class BrepSurgeryRecipeParityTests
             new AxisAlignedBoxExtents(5d, 15d, -3d, 3d, -45d, 45d)).Value;
         var body = BrepBoolean.Subtract(shaft, tool).Value;
 
-        AssertCanonical(body, 8, 12, 6, "7eb11479eaa1e14a51d1d60d8fc16f0521d80bd05203cf4aad400846298b605b", expectClosedManifold: true);
+        AssertCanonical(body, 8, 12, 6, "97f5d035a1e77bb3f7d1580de2baabf47b534f0be432ab7e71cf5890d7af5ba9", expectClosedManifold: true);
     }
 
     [Fact]
@@ -39,7 +39,7 @@ public sealed class BrepSurgeryRecipeParityTests
         var tool = StandardLibraryPrimitives.CreateSlotCut(10d, 4d, 24d, 2d).Value;
         var body = BrepBoolean.Subtract(root, tool).Value;
 
-        AssertCanonical(body, 128, 192, 66, "8554faf173a41abeb15facbeb2bd3cceb4f2ea486d6aa1e1b11c0740b922fe7d");
+        AssertCanonical(body, 128, 192, 66, "80825a006112e1b029ff520239f38ab366760a703c598fd96cd17bb771320349");
     }
 
     private static void AssertCanonical(BrepBody body, int vertices, int edges, int faces, string expectedStepSha256, bool expectClosedManifold = false)
@@ -57,7 +57,8 @@ public sealed class BrepSurgeryRecipeParityTests
         Assert.True(export.IsSuccess, string.Join(Environment.NewLine, export.Diagnostics.Select(diagnostic => diagnostic.Message)));
         Assert.EndsWith("\r\n", export.Value, StringComparison.Ordinal);
         Assert.DoesNotContain("\n", export.Value.Replace("\r\n", string.Empty, StringComparison.Ordinal), StringComparison.Ordinal);
-        Assert.Equal(expectedStepSha256, Sha256(export.Value));
+        var actualStepSha256 = Sha256(export.Value);
+        Assert.True(string.Equals(expectedStepSha256, actualStepSha256, StringComparison.Ordinal), actualStepSha256);
 
         var reimport = Step242Importer.ImportBody(export.Value);
         Assert.True(reimport.IsSuccess, string.Join(Environment.NewLine, reimport.Diagnostics.Select(diagnostic => diagnostic.Message)));

@@ -11,6 +11,15 @@ public sealed class Step242ExporterTests
 {
     private const double EdgeOnLineTolerance = 1e-6;
 
+    [Theory]
+    [InlineData(4.414213562373095, 4.414213562373094, "4.4142135623731")]
+    [InlineData(0.634393284163645, 0.634393284163646, "0.6343932841636")]
+    public void Number_FinalBitPlatformVariation_ProducesCanonicalText(double first, double second, string expected)
+    {
+        Assert.Equal(expected, Step242TextWriter.Number(first));
+        Assert.Equal(expected, Step242TextWriter.Number(second));
+    }
+
     [Fact]
     public void ExportBody_BoxBody_ReturnsStepTextWithExpectedSections()
     {

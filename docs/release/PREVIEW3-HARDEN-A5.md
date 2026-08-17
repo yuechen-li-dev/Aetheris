@@ -5,12 +5,13 @@
 Yes. Aetheris `2.0.0-preview.3` completed the A5 publication gate. No tag, push,
 package publication, or remote release was performed by A5.
 
-After A5, the first Ubuntu push check exposed platform-dependent STEP line endings in
-three byte-hash assertions. The publication follow-up made AP242 text explicitly CRLF
-on every platform while preserving the qualified Windows bytes. Because that code
-correction changes binary payloads, the A5 candidate hashes were superseded. The tag
-workflow now generates `SHA256SUMS.txt` and `RELEASE-INVENTORY.md` from the tagged
-commit and verifies them before any publication job can run.
+After A5, Ubuntu push checks exposed two sources of platform-dependent STEP bytes:
+line endings and final-bit variation in transcendental geometry values. The publication
+follow-up made AP242 text explicitly CRLF and centralized numeric output at 13 fractional
+digits, which remains far below kernel tolerances. Native Windows and Linux recipe tests
+now produce the same hashes. Because those corrections change binary payloads, the A5
+candidate hashes were superseded. The tag workflow generates `SHA256SUMS.txt` and
+`RELEASE-INVENTORY.md` from the tagged commit and verifies them before publication.
 
 The final bounded smoke passed from a clean extraction of the Windows ZIP in a path
 containing spaces. ReleaseBlocker and MustFix count: zero. The remaining boundaries

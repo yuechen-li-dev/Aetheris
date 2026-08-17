@@ -51,7 +51,9 @@ internal sealed class Step242TextWriter
 
     public static string Enum(string value) => $".{value}.";
 
-    public static string Number(double value) => value.ToString("0.###############", CultureInfo.InvariantCulture);
+    // Thirteen fractional digits keep exported geometry well below kernel tolerances while
+    // suppressing the final-bit libm variation that can otherwise change STEP bytes by OS.
+    public static string Number(double value) => value.ToString("0.#############", CultureInfo.InvariantCulture);
 
     public static string BooleanLogical(bool value) => value ? ".T." : ".F.";
 

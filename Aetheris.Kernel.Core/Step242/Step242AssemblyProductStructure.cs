@@ -87,7 +87,7 @@ public static class Step242AssemblyExporter
         }
         string Ref(int id) => $"#{id}";
         string Str(string value) => $"'{value.Replace("'", "''", StringComparison.Ordinal)}'";
-        string Num(double value) => value.ToString("0.###############", CultureInfo.InvariantCulture);
+        string Num(double value) => Step242TextWriter.Number(value);
 
         var app = Add("APPLICATION_CONTEXT", Str("mechanical design"));
         var productContext = Add("PRODUCT_CONTEXT", Str(""), Ref(app), Str("mechanical"));

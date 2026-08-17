@@ -43,18 +43,19 @@ public static class FirmamentBuildAndExport
             return KernelResult<FirmamentBuildAndExportResult>.Failure(exportResult.Diagnostics);
         }
 
-        var pmiParity = VerifyV2PmiExportParity(sourceText, Path.GetDirectoryName(fullSourcePath), exportResult.Value);
+        var enrichedExport = AttachAuthoredFeatureReports(sourceText, Path.GetDirectoryName(fullSourcePath), exportResult.Value);
+        var pmiParity = VerifyV2PmiExportParity(sourceText, Path.GetDirectoryName(fullSourcePath), enrichedExport);
         if (!pmiParity.IsSuccess)
         {
             return KernelResult<FirmamentBuildAndExportResult>.Failure(pmiParity.Diagnostics);
         }
 
-        var assertions = EvaluateVolumeAssertions(sourceText, Path.GetDirectoryName(fullSourcePath), exportResult.Value);
+        var assertions = EvaluateVolumeAssertions(sourceText, Path.GetDirectoryName(fullSourcePath), enrichedExport);
         if (!assertions.IsSuccess)
         {
             return KernelResult<FirmamentBuildAndExportResult>.Failure(assertions.Diagnostics);
         }
-        var export = exportResult.Value with { Assertions = assertions.Value };
+        var export = enrichedExport with { Assertions = assertions.Value };
         var resolvedOutputPath = string.IsNullOrWhiteSpace(outputPath)
             ? ResolveDefaultOutputPath(fullSourcePath)
             : Path.GetFullPath(outputPath);
@@ -85,12 +86,48 @@ public static class FirmamentBuildAndExport
         // available only to the explicitly versioned file compatibility route.
         var export = ExportSource(normalized, sourceDirectory, allowV1Compatibility: false);
         if (!export.IsSuccess) return export;
-        var pmiParity = VerifyV2PmiExportParity(normalized, sourceDirectory, export.Value);
+        var enrichedExport = AttachAuthoredFeatureReports(normalized, sourceDirectory, export.Value);
+        var pmiParity = VerifyV2PmiExportParity(normalized, sourceDirectory, enrichedExport);
         if (!pmiParity.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(pmiParity.Diagnostics);
-        var assertions = EvaluateVolumeAssertions(normalized, sourceDirectory, export.Value);
+        var assertions = EvaluateVolumeAssertions(normalized, sourceDirectory, enrichedExport);
         return assertions.IsSuccess
-            ? KernelResult<FirmamentStepExportResult>.Success(export.Value with { Assertions = assertions.Value }, export.Diagnostics)
+            ? KernelResult<FirmamentStepExportResult>.Success(enrichedExport with { Assertions = assertions.Value }, export.Diagnostics)
             : KernelResult<FirmamentStepExportResult>.Failure(assertions.Diagnostics);
+    }
+
+    private static FirmamentStepExportResult AttachAuthoredFeatureReports(
+        string source,
+        string? sourceDirectory,
+        FirmamentStepExportResult export)
+    {
+        var parsed = FirmamentV2Parser.Parse(source, sourceDirectory);
+        if (!parsed.IsSuccess || parsed.Document is null) return export;
+
+        var edgeFinishes = (parsed.Document.ModifyBlocks ?? [])
+            .SelectMany(modification => (modification.EdgeFinishes ?? []).Select(finish => new FirmamentEngineeringFeatureReport(
+                finish.Name,
+                "EdgeFinish",
+                $"edgefinish:{finish.Name}",
+                modification.TargetSolid,
+                finish.FaceAxis,
+                finish.Target,
+                finish.Distance,
+                string.Equals(finish.Kind, "Fillet", StringComparison.Ordinal) ? "Radius" : "Distance",
+                "Remove",
+                PolicySource: finish.Kind,
+                MaterializationRoute: "SemanticEdgeFinish")))
+            .ToArray();
+        if (edgeFinishes.Length == 0) return export;
+
+        var existing = export.EngineeringFeatures ?? [];
+        return export with
+        {
+            EngineeringFeatures = existing
+                .Concat(edgeFinishes)
+                .DistinctBy(feature => feature.FeatureId, StringComparer.Ordinal)
+                .OrderBy(feature => feature.FeatureId, StringComparer.Ordinal)
+                .ToArray()
+        };
     }
 
     private static KernelResult<IReadOnlyList<FirmamentV2VolumeAssertionResult>> EvaluateVolumeAssertions(string source, string? sourceDirectory, FirmamentStepExportResult export)
@@ -533,7 +570,18 @@ public static class FirmamentBuildAndExport
                 DatumInspection: canonicalDocument?.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.DatumPlane).Select(p => new FirmamentPmiInspectionDatum(p.Name, "planar", p.Target)).ToArray() ?? [],
                 DimensionInspection: canonicalDocument?.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-record-pmi", p.Name)).ToArray() ?? [],
                 Features: CompositionHoleReports(stack.Feature),
-                EngineeringFeatures: EngineeringFeatureReports(stack.Feature)));
+                EngineeringFeatures: EngineeringFeatureReports(stack.Feature).Append(new FirmamentEngineeringFeatureReport(
+                    target.StableId["edgefinish:".Length..],
+                    "EdgeFinish",
+                    target.StableId,
+                    target.HostBodyId,
+                    target.Side.ToString(),
+                    $"{target.ProfileId}.{target.LoopId}",
+                    distance,
+                    "Distance",
+                    "Remove",
+                    PolicySource: "Chamfer",
+                    MaterializationRoute: "ComposedProfileBoundaryChamfer")).ToArray()));
         }
         if (emitted.Body is null || emitted.Correspondence is null) return Fail("MissingCorrespondenceEvidence");
         var composedCurves = stack.Slabs.MaxBy(s => s.To)!.Region.Outer.Loops.Single().Segments.Select(segment => segment.Geometry).ToArray();

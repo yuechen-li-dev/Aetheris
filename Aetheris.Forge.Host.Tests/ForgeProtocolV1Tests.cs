@@ -105,6 +105,24 @@ public sealed class ForgeProtocolV1Tests
         Assert.True(File.Exists(System.IO.Path.Combine(outputDirectory.Path, "part.step")));
     }
 
+    [Theory]
+    [InlineData(99, Enclosure, false, 2)]
+    [InlineData(1, "Standard.SheetMetal.DoesNotExist", false, 3)]
+    [InlineData(1, Enclosure, true, 4)]
+    public void ProcessCommandUsesDocumentedFailureExitCodes(int protocolVersion, string template, bool violateSemanticRequirement, int expectedExitCode)
+    {
+        using var outputDirectory = TempDirectory.Create();
+        var arguments = ValidArguments();
+        if (violateSemanticRequirement) arguments["lidLipHeight"] = "1 mm";
+        var request = JsonSerializer.Serialize(new ForgeTemplateInvocationRequest(protocolVersion, Elements(arguments), [ForgeArtifactKind.StepAp242]),
+            ForgeProtocolJsonContext.Default.ForgeTemplateInvocationRequest);
+
+        var exitCode = Program.Run(["invoke", template, "--request", "-", "--out", outputDirectory.Path],
+            new StringReader(request), new StringWriter());
+
+        Assert.Equal(expectedExitCode, exitCode);
+    }
+
     [Fact]
     public void PublicInteropRequestInvokesTheProductionTemplate()
     {

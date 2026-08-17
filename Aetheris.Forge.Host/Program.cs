@@ -35,7 +35,7 @@ public static class Program
                     return WriteError(output, "forge-host-request-invalid", "Invocation request was empty.", 2);
                 var result = host.InvokeTemplate(args[1], request, outputDirectory);
                 Write(output, result, ForgeProtocolJsonContext.Default.ForgeTemplateInvocationResult);
-                return result.Success ? 0 : 4;
+                return result.Success ? 0 : InvocationFailureExitCode(result);
             }
             return WriteError(output, "forge-host-command-invalid",
                 "Usage: forge-host info | list | describe <template-id> | invoke <template-id> [--request <json|->] --out <directory>", 2);
@@ -48,6 +48,18 @@ public static class Program
         {
             return WriteError(output, "forge-host-request-read-failed", exception.Message, 2);
         }
+    }
+
+    private static int InvocationFailureExitCode(ForgeTemplateInvocationResult result)
+    {
+        if (result.Diagnostics.Any(diagnostic => diagnostic.Code == "forge-host-template-not-found")) return 3;
+        if (result.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == "forge-host-protocol-version-unsupported" ||
+                diagnostic.Code == "forge-host-artifact-unsupported" ||
+                diagnostic.Code == "forge-host-argument-transport-type" ||
+                diagnostic.Code.StartsWith("firmament-template-record-", StringComparison.Ordinal)))
+            return 2;
+        return 4;
     }
 
     private static string? Option(string[] args, string name)

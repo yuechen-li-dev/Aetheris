@@ -106,7 +106,7 @@ public sealed class BossPocketSemanticFeatureTests
             "    Modify Body { EdgeFinish BossTop { Target: RectBossProfile.Outer On: Top Kind: Chamfer Distance: 1mm } }\n");
         var build = FirmamentBuildAndExport.CompileSource(source);
         Assert.True(build.IsSuccess, string.Join("; ", build.Diagnostics.Select(item => item.Message)));
-        Assert.Equal(["Boss", "Pocket"], build.Value!.EngineeringFeatures!.Select(item => item.Kind).Order().ToArray());
+        Assert.Equal(["Boss", "EdgeFinish", "Pocket"], build.Value!.EngineeringFeatures!.Select(item => item.Kind).Order().ToArray());
         var imported = Step242Importer.ImportBody(build.Value.StepText);
         Assert.True(imported.IsSuccess, string.Join("; ", imported.Diagnostics.Select(item => item.Message)));
         Assert.True(BrepMassProperties.Evaluate(imported.Value!).IsEnclosed);

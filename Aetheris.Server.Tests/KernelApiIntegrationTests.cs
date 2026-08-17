@@ -986,6 +986,7 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         Assert.NotNull(loaded.Data);
         Assert.Equal("cadmata-concept-viz-x1", loaded.Data!.Visualization.SchemaVersion);
         Assert.Contains(loaded.Data.Visualization.Entities, entity => entity.StableId == expectedEntityId);
+        Assert.DoesNotContain(loaded.Data.Visualization.Entities, entity => entity.Consumer?.Contains("Materializer", StringComparison.Ordinal) == true);
         Assert.Equal(
             loaded.Data.Visualization.Entities.Count,
             loaded.Data.Visualization.Entities.Select(entity => entity.StableId).Distinct(StringComparer.Ordinal).Count());

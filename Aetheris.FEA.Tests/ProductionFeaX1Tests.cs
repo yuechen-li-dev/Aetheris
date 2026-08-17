@@ -87,6 +87,21 @@ public sealed class ProductionFeaX1Tests
     }
 
     [Fact]
+    public void InlineStepUnknownFace_IsAStableActionableDiagnostic()
+    {
+        var root = FindRoot();
+        var path = Path.Combine(root, "fixtures", "FirmamentV2", "FEA", "inline-step-through-hole.firmament");
+        var source = File.ReadAllText(path).Replace("body.face(#170)", "body.face(#999999)", StringComparison.Ordinal);
+
+        var compilation = FirmamentAnalysisCompiler.Compile(source, path, Path.GetDirectoryName(path));
+
+        Assert.False(compilation.IsSuccess);
+        var diagnostic = Assert.Single(compilation.Diagnostics, item => item.Code == "firmament-analysis-inline-step-face-missing");
+        Assert.Contains("body.face(#999999)", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("body.face(#141)", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void InvalidLatticeAndResultRequest_AreStableDiagnostics()
     {
         var lattice = FirmamentAnalysisCompiler.Compile(CanonicalBeam.Replace("[12, 2, 2]", "[12, 0, 2]", StringComparison.Ordinal));

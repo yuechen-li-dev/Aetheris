@@ -69,6 +69,27 @@ public sealed class PublicDocumentationQualificationTests
         Assert.Equal(32, summary.GetProperty("faceCount").GetInt32());
     }
 
+    [Fact]
+    public void A4MachinedPart_ReportsEveryAuthoredManufacturingFeature()
+    {
+        using var temp = TempDirectory.Create();
+        var output = new StringWriter(); var error = new StringWriter();
+        var source = Path.Combine(RepoRoot, "fixtures/FirmamentV2/Canonical/valid/a4-machined-mounting-block.firmament");
+        var step = Path.Combine(temp.Path, "a4-machined.step");
+
+        Assert.Equal(0, CliRunner.Run(["build", source, "--output", step, "--json"], output, error));
+        Assert.Empty(error.ToString());
+        using var build = JsonDocument.Parse(output.ToString());
+        Assert.Equal(6, build.RootElement.GetProperty("featureCount").GetInt32());
+        Assert.Equal(
+            ["Boss", "EdgeFinish", "Pocket"],
+            build.RootElement.GetProperty("engineeringFeatures").EnumerateArray()
+                .Select(item => item.GetProperty("kind").GetString()!)
+                .Order(StringComparer.Ordinal)
+                .ToArray());
+        Assert.True(File.Exists(step));
+    }
+
     [Theory]
     [InlineData("fixtures/FirmamentV2/SheetMetal/preview3-l-bracket-hole.firmament")]
     [InlineData("fixtures/FirmamentV2/PublicDogfood/ai-sheet-metal.firmament")]

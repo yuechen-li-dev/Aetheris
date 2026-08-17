@@ -8,6 +8,7 @@
   <ItemGroup>
     <PackageReference Include="Aetheris.Kernel.Core" Version="2.0.0-preview.3" />
     <PackageReference Include="Aetheris.Kernel.Firmament" Version="2.0.0-preview.3" />
+    <PackageReference Include="Aetheris.Kernel.StandardLibrary" Version="2.0.0-preview.3" />
     <PackageReference Include="Aetheris.Forge.Host" Version="2.0.0-preview.3" />
     <PackageReference Include="Aetheris.Forge.KernelSDK" Version="2.0.0-preview.3" />
   </ItemGroup>

@@ -27,6 +27,7 @@ public sealed class SheetMetalCliTests
             var output=new StringWriter();var error=new StringWriter();var input=Path.Combine(RepoRoot,"fixtures/FirmamentV2/SheetMetal/simple-u-channel.firmament");
             var exit=CliRunner.Run(["sheetmetal","flatten",input,"--output",temp,"--k-factor","0.42","--json"],output,error);Assert.Equal(0,exit);Assert.Empty(error.ToString());
             var svg=File.ReadAllText(temp);Assert.Contains("id=\"bend-lines\"",svg);Assert.Contains("id=\"bend-labels\" stroke=\"none\"",svg);Assert.Contains("id=\"cut-contours\"",svg);Assert.Contains("MountA",svg);Assert.Contains("Up 90°",svg);Assert.DoesNotContain("x1=\"35.66\" y1=\"42\" x2=\"35.66\" y2=\"42\"",svg);
+            using var report=JsonDocument.Parse(output.ToString());Assert.Equal("5052-H32 Aluminum",report.RootElement.GetProperty("material").GetProperty("authored").GetString());
         }
         finally{if(File.Exists(temp))File.Delete(temp);}
     }
@@ -55,6 +56,7 @@ public sealed class SheetMetalCliTests
             Assert.Equal(0,exit);Assert.Empty(error.ToString());
             using var report=JsonDocument.Parse(output.ToString());
             Assert.Equal(1,report.RootElement.GetProperty("part").GetProperty("features").GetInt32());
+            Assert.Equal("5052-H32 Aluminum",report.RootElement.GetProperty("part").GetProperty("material").GetString());
             var analysis=StepAnalyzer.Analyze(temp);
             Assert.Equal(3,analysis.Summary.SurfaceFamilies["cylinder"]);
         }

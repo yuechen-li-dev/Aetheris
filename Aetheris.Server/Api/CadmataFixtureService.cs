@@ -261,7 +261,7 @@ internal static class CadmataFixtureService
         if (fixtureId == "semantic-shaft-hole")
         {
             const string id = "hole:base.mount";
-            entities.Add(new(id, "HoleFeature", "mount", "conceptAxes", "SemanticHole", new("circle", Center: new(1.5, -1, 5), Radius: 2), "offset:0", null, null, null, correspondence?.Descendants.Select(d => d.StableId).ToArray(), null, null, "AirHoleSimpleShaftMaterializer", null, new Dictionary<string, string> { ["diameter"] = "4 mm", ["axis"] = "+Z", ["endCondition"] = "throughAll" }));
+            entities.Add(new(id, "HoleFeature", "mount", "conceptAxes", "SemanticHole", new("circle", Center: new(1.5, -1, 5), Radius: 2), "offset:0", null, null, null, correspondence?.Descendants.Select(d => d.StableId).ToArray(), null, null, "SemanticShaftHole", null, new Dictionary<string, string> { ["diameter"] = "4 mm", ["axis"] = "+Z", ["endCondition"] = "throughAll" }));
             entities.Add(new("concept:base.mount.axis", "ConceptAxis", "mount axis", "conceptAxes", "HoleAxis", new("polyline", [new(1.5, -1, -5), new(1.5, -1, 5)]), "offset:0", [id], null, null, null, null, null, null, null, null));
         }
         if (semanticHoleEvidence is { PlacementKind: "ConstructionPlane", FrameOrigin: { } origin, AxisX: { } axisX, AxisY: { } axisY, AxisZ: { } axisZ, WorldMouthCenter: { } mouth, HostInterval: { } interval })

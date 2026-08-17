@@ -37,5 +37,34 @@ public sealed class FeaCliTests
         finally { if(Directory.Exists(output))Directory.Delete(output,true); }
     }
 
+    [Fact]
+    public void FeaCommand_UnknownInlineStepFace_ReturnsActionableDiagnostic()
+    {
+        var root=FindRoot();var temp=Path.Combine(Path.GetTempPath(),"aetheris-fea-bad-face-"+Guid.NewGuid().ToString("N"));
+        try
+        {
+            var feaDirectory=Directory.CreateDirectory(Path.Combine(temp,"FEA")).FullName;
+            var stepDirectory=Directory.CreateDirectory(Path.Combine(temp,"InlineStep","testdata")).FullName;
+            var canonicalSource=Path.Combine(root,"fixtures","FirmamentV2","FEA","inline-step-through-hole.firmament");
+            var source=Path.Combine(feaDirectory,"bad-face.firmament");
+            File.WriteAllText(source,File.ReadAllText(canonicalSource).Replace("body.face(#170)","body.face(#999999)",StringComparison.Ordinal));
+            File.Copy(Path.Combine(root,"fixtures","FirmamentV2","InlineStep","testdata","canonical-through-hole.step"),Path.Combine(stepDirectory,"canonical-through-hole.step"));
+            var stdout=new StringWriter();var stderr=new StringWriter();
+
+            var exit=CliRunner.Run(["fea",source,"--out-dir",Path.Combine(temp,"output"),"--json"],stdout,stderr);
+
+            Assert.Equal(1,exit);
+            Assert.Empty(stderr.ToString());
+            using var report=JsonDocument.Parse(stdout.ToString());
+            Assert.False(report.RootElement.GetProperty("success").GetBoolean());
+            var diagnostics=report.RootElement.GetProperty("diagnostics").ToString();
+            Assert.Contains("firmament-analysis-inline-step-face-missing",diagnostics,StringComparison.Ordinal);
+            Assert.Contains("body.face(#999999)",diagnostics,StringComparison.Ordinal);
+            Assert.Contains("body.face(#141)",diagnostics,StringComparison.Ordinal);
+            Assert.DoesNotContain("Nullable object must have a value",diagnostics,StringComparison.Ordinal);
+        }
+        finally { if(Directory.Exists(temp))Directory.Delete(temp,true); }
+    }
+
     private static string FindRoot(){var directory=new DirectoryInfo(AppContext.BaseDirectory);while(directory is not null&&!File.Exists(Path.Combine(directory.FullName,"Aetheris.slnx")))directory=directory.Parent;return directory?.FullName??throw new DirectoryNotFoundException();}
 }

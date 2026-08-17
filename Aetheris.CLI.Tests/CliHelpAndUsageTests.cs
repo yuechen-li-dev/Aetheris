@@ -28,6 +28,8 @@ public sealed class CliHelpAndUsageTests
         Assert.Contains("inspect", text, StringComparison.Ordinal);
         Assert.Contains("verify", text, StringComparison.Ordinal);
         Assert.Contains("view", text, StringComparison.Ordinal);
+        Assert.Contains("sheetmetal flatten bracket.firmament --step bracket-flat.step --svg bracket-flat.svg --json", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("sheetmetal flatten formed.step --output formed-flat.svg", text, StringComparison.Ordinal);
     }
 
     [Theory]

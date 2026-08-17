@@ -23,6 +23,20 @@ internal static partial class FirmamentAnalysisSemanticProducer
         var side = match.Groups["side"].Value.ToUpperInvariant();
         var token = side switch { "-X" => "x-min", "+X" => "x-max", "-Y" => "y-min", "+Y" => "y-max", "-Z" => "z-min", "+Z" => "z-max", _ => side };
         exactFaceIds.TryGetValue(token, out var faceId);
+        if (origin == "InlineStep" && (token.StartsWith('#') || char.IsDigit(token[0])) && faceId is null)
+        {
+            var available = exactFaceIds.Keys
+                .Where(key => key.StartsWith('#'))
+                .OrderBy(key => int.TryParse(key.AsSpan(1), out var entityId) ? entityId : int.MaxValue)
+                .Take(12)
+                .Select(key => $"{expectedBody}.face({key})")
+                .ToArray();
+            var suffix = available.Length == 0
+                ? " The imported STEP artifact exposes no selectable ADVANCED_FACE identities."
+                : $" Available selectors include {string.Join(", ", available)}.";
+            return (null, new("firmament-analysis-inline-step-face-missing",
+                $"Imported boundary selector '{authoredPath}' does not match an ADVANCED_FACE in the STEP artifact.{suffix}", sourceSpan));
+        }
         var stableId = $"analysis-region:{origin}:{expectedBody}:face({side})" + (faceId is null ? string.Empty : ":" + faceId);
         return (new SemanticValue(stableId, new("BoundaryRegion"),
             [new BoundaryRegionCapability(), new AnalysisRegionCapability(), new ExactGeometryCapability()],

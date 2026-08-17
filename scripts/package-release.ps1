@@ -85,6 +85,18 @@ function Normalize-PeTimestamps([string]$Path) {
 
     [IO.File]::WriteAllBytes($Path, $bytes)
 }
+
+function Get-ReleaseRelativePath([string]$Root, [string]$Path) {
+    $canonicalRoot = [IO.Path]::GetFullPath($Root).TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+    $canonicalPath = [IO.Path]::GetFullPath($Path)
+    $rootPrefix = $canonicalRoot + [IO.Path]::DirectorySeparatorChar
+    if (-not $canonicalPath.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Release file is outside the staging root: $canonicalPath"
+    }
+
+    return $canonicalPath.Substring($rootPrefix.Length)
+}
+
 Remove-Item -LiteralPath $output -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $stage, (Join-Path $output 'packages') | Out-Null
 
@@ -102,6 +114,11 @@ try {
 }
 finally { Pop-Location }
 
+# Release binaries must not inherit compiler state from an earlier publish with
+# different properties (notably PublishAot). Start the managed release graph
+# from a clean configuration so identical inputs produce identical archives.
+dotnet clean (Join-Path $repoRoot 'Aetheris.slnx') -c Release
+
 dotnet publish (Join-Path $repoRoot 'Aetheris.CLI/Aetheris.CLI.csproj') -c Release -r win-x64 --self-contained true -t:Rebuild -p:Version=$Version -p:DebugType=None -p:DebugSymbols=false -o (Join-Path $stage 'Aetheris-win-x64')
 dotnet publish (Join-Path $repoRoot 'Aetheris.Forge.Host/Aetheris.Forge.Host.csproj') -c Release -r win-x64 --self-contained true -t:Rebuild -p:PublishAot=true -p:Version=$Version -p:DebugType=None -p:DebugSymbols=false -o (Join-Path $stage 'Aetheris-win-x64/forge-host')
 Normalize-PeTimestamps (Join-Path $stage 'Aetheris-win-x64/forge-host/Aetheris.Forge.Host.exe')
@@ -111,6 +128,40 @@ if (Test-Path -LiteralPath $endpoints) {
     $canonicalEndpoints = [Regex]::Replace([IO.File]::ReadAllText($endpoints),
         '"Last-Modified","Value":"[^"]+"', '"Last-Modified","Value":"Mon, 01 Jan 2024 00:00:00 GMT"')
     [IO.File]::WriteAllText($endpoints, $canonicalEndpoints, [Text.UTF8Encoding]::new($false))
+}
+
+$bundleRoot = Join-Path $stage 'Aetheris-win-x64'
+New-Item -ItemType Directory -Force -Path (Join-Path $bundleRoot 'docs'), (Join-Path $bundleRoot 'samples') | Out-Null
+Copy-Item -LiteralPath (Join-Path $repoRoot 'docs/public') -Destination (Join-Path $bundleRoot 'docs/public') -Recurse
+Copy-Item -LiteralPath (Join-Path $repoRoot 'docs/public/release-bundle.md') -Destination (Join-Path $bundleRoot 'README.md')
+Copy-Item -LiteralPath (Join-Path $repoRoot 'LICENSE') -Destination (Join-Path $bundleRoot 'LICENSE')
+Copy-Item -LiteralPath (Join-Path $repoRoot 'THIRD_PARTY_NOTICES.md') -Destination (Join-Path $bundleRoot 'THIRD_PARTY_NOTICES.md')
+Copy-Item -LiteralPath (Join-Path $repoRoot 'samples/forge-interop-x1') -Destination (Join-Path $bundleRoot 'samples/forge-interop-x1') -Recurse
+$publicExamples = @(
+    'fixtures/FirmamentV2/Canonical/valid/a4-machined-mounting-block.firmament',
+    'fixtures/FirmamentV2/Canonical/valid/boss-pocket-mounting-block.firmament',
+    'fixtures/FirmamentV2/Canonical/valid/box-hole-pmi.firmament',
+    'fixtures/FirmamentV2/Canonical/valid/box-holes-pmi-chamfer.firmament',
+    'fixtures/FirmamentV2/Canonical/valid/profile-compose-l-bracket-counterbore-pmi.firmament',
+    'fixtures/FirmamentV2/Canonical/valid/record-array-pattern-holes.firmament',
+    'fixtures/FirmamentV2/Canonical/valid/table-template-concept-path-compose.firmament',
+    'fixtures/FirmamentV2/FEA/inline-step-through-hole.firmament',
+    'fixtures/FirmamentV2/InlineStep/testdata/canonical-through-hole.step',
+    'fixtures/FirmamentV2/Materials/catalog-material-coupon.firmament',
+    'fixtures/FirmamentV2/Primitive/valid/a3-pointed-cone-step-qualified.firmament',
+    'fixtures/FirmamentV2/Primitive/valid/a3-sphere-step-qualified.firmament',
+    'fixtures/FirmamentV2/Primitive/valid/a3-torus-step-qualified.firmament',
+    'fixtures/FirmamentV2/PublicDogfood/ai-fea-a36-cantilever.firmament',
+    'fixtures/FirmamentV2/PublicDogfood/ai-model.firmament',
+    'fixtures/FirmamentV2/PublicDogfood/ai-sheet-metal.firmament',
+    'fixtures/FirmamentV2/SheetMetal/m5-four-wall-tray-template.firmament',
+    'fixtures/FirmamentV2/SheetMetal/preview3-l-bracket-hole.firmament'
+)
+foreach ($relativeExample in $publicExamples) {
+    $sourceExample = Join-Path $repoRoot $relativeExample
+    $destinationExample = Join-Path $bundleRoot $relativeExample
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $destinationExample) | Out-Null
+    Copy-Item -LiteralPath $sourceExample -Destination $destinationExample
 }
 # Build the framework-dependent tool payload explicitly. Reusing the preceding
 # RID-specific publish output can package stale non-RID bytes with a new filename.
@@ -138,7 +189,7 @@ $sourceRoot = Join-Path $stage 'Aetheris-win-x64'
 $archive = [System.IO.Compression.ZipFile]::Open($zip, [System.IO.Compression.ZipArchiveMode]::Create)
 try {
     Get-ChildItem -LiteralPath $sourceRoot -Recurse -File | Sort-Object FullName | ForEach-Object {
-        $relative = [System.IO.Path]::GetRelativePath($sourceRoot, $_.FullName).Replace('\', '/')
+        $relative = (Get-ReleaseRelativePath $sourceRoot $_.FullName).Replace('\', '/')
         $entry = $archive.CreateEntry("Aetheris-win-x64/$relative", [System.IO.Compression.CompressionLevel]::Optimal)
         $entry.LastWriteTime = [DateTimeOffset]::new(1980, 1, 1, 0, 0, 0, [TimeSpan]::Zero)
         $input = $_.OpenRead()
@@ -148,4 +199,4 @@ try {
 }
 finally { $archive.Dispose() }
 $releaseFiles = @($zip, $extensionArtifact) + (Get-ChildItem -LiteralPath (Join-Path $output 'packages') -Filter '*.nupkg' -File | Select-Object -ExpandProperty FullName)
-$releaseFiles | Get-FileHash -Algorithm SHA256 | ForEach-Object { "{0}  {1}" -f $_.Hash.ToLowerInvariant(), $_.Path.Substring($output.Length + 1) } | Set-Content (Join-Path $output 'SHA256SUMS.txt')
+$releaseFiles | ForEach-Object { Get-FileHash -LiteralPath $_ -Algorithm SHA256 } | ForEach-Object { "{0}  {1}" -f $_.Hash.ToLowerInvariant(), $_.Path.Substring($output.Length + 1) } | Set-Content (Join-Path $output 'SHA256SUMS.txt')

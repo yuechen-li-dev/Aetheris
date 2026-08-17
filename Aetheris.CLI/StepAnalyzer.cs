@@ -1878,6 +1878,27 @@ public sealed record VolumeAnalysisResult(
             points.Add(new Point3D(circle.Center.X + dx, circle.Center.Y + dy, circle.Center.Z + dz));
         }
 
+        // A full torus is periodic in both parameters. Its seam vertices (and even its
+        // circular seam edges) do not reach the extrema of the body, so a vertex-only
+        // box can collapse to a point after STEP reimport. Include the exact world-axis
+        // extrema only for faces whose boundary is made entirely of full circular seams.
+        foreach (var face in body.Topology.Faces)
+        {
+            if (!body.TryGetFaceSurface(face.Id, out var surface)
+                || surface?.Torus is not { } torus
+                || !IsFullPeriodicTorusFace(body, face.Id))
+            {
+                continue;
+            }
+
+            var axis = torus.Axis.ToVector();
+            var xExtent = (torus.MajorRadius * Math.Sqrt(Math.Max(0d, 1d - (axis.X * axis.X)))) + torus.MinorRadius;
+            var yExtent = (torus.MajorRadius * Math.Sqrt(Math.Max(0d, 1d - (axis.Y * axis.Y)))) + torus.MinorRadius;
+            var zExtent = (torus.MajorRadius * Math.Sqrt(Math.Max(0d, 1d - (axis.Z * axis.Z)))) + torus.MinorRadius;
+            points.Add(new Point3D(torus.Center.X - xExtent, torus.Center.Y - yExtent, torus.Center.Z - zExtent));
+            points.Add(new Point3D(torus.Center.X + xExtent, torus.Center.Y + yExtent, torus.Center.Z + zExtent));
+        }
+
         if (points.Count > 0)
         {
             return ComputeBoundingBox(points);
@@ -1905,6 +1926,35 @@ public sealed record VolumeAnalysisResult(
         return new BoundingBox3D(
             new Point3D(sphereBounds.Min(b => b.Min.X), sphereBounds.Min(b => b.Min.Y), sphereBounds.Min(b => b.Min.Z)),
             new Point3D(sphereBounds.Max(b => b.Max.X), sphereBounds.Max(b => b.Max.Y), sphereBounds.Max(b => b.Max.Z)));
+    }
+
+    private static bool IsFullPeriodicTorusFace(BrepBody body, FaceId faceId)
+    {
+        var edgeIds = body.GetLoopIds(faceId)
+            .SelectMany(loopId => body.GetCoedgeIds(loopId))
+            .Select(coedgeId => body.Topology.GetCoedge(coedgeId))
+            .Select(coedge => coedge.EdgeId)
+            .Distinct()
+            .ToArray();
+
+        if (edgeIds.Length == 0)
+        {
+            return false;
+        }
+
+        foreach (var edgeId in edgeIds)
+        {
+            if (!body.Bindings.TryGetEdgeBinding(edgeId, out var binding)
+                || binding.TrimInterval is not { } interval
+                || Math.Abs(Math.Abs(interval.End - interval.Start) - (2d * Math.PI)) > 1e-9d
+                || !body.Geometry.TryGetCurve(binding.CurveGeometryId, out var curve)
+                || curve?.Circle3 is null)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static BoundingBox3D ComputeBoundingBox(IReadOnlyList<Point3D> points)

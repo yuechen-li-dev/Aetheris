@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Boolean;
+using Aetheris.Kernel.Core.Brep.Verification;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.StandardLibrary;
 
@@ -17,7 +18,7 @@ public sealed class BrepSurgeryRecipeParityTests
             new AxisAlignedBoxExtents(2d, 4d, 0d, 2d, 0d, 1d),
         ]).Value;
 
-        AssertCanonical(body, 8, 12, 6, "09e6b8d838d08748d60fe6f08f0bfcb09282eb983d26d6fc51956cf5e8828de2");
+        AssertCanonical(body, 8, 12, 6, "39692ac0ea3c48d9f2f6fb1155e3b494c1b946bf56cd8dd2ade2c9005cd38048", expectClosedManifold: true);
     }
 
     [Fact]
@@ -28,7 +29,7 @@ public sealed class BrepSurgeryRecipeParityTests
             new AxisAlignedBoxExtents(5d, 15d, -3d, 3d, -45d, 45d)).Value;
         var body = BrepBoolean.Subtract(shaft, tool).Value;
 
-        AssertCanonical(body, 8, 12, 6, "b91443673ab595a0449e91359aa697ae597a03efdb90d7394ac937107e25ae98");
+        AssertCanonical(body, 8, 12, 6, "7eb11479eaa1e14a51d1d60d8fc16f0521d80bd05203cf4aad400846298b605b", expectClosedManifold: true);
     }
 
     [Fact]
@@ -41,7 +42,7 @@ public sealed class BrepSurgeryRecipeParityTests
         AssertCanonical(body, 128, 192, 66, "8554faf173a41abeb15facbeb2bd3cceb4f2ea486d6aa1e1b11c0740b922fe7d");
     }
 
-    private static void AssertCanonical(BrepBody body, int vertices, int edges, int faces, string expectedStepSha256)
+    private static void AssertCanonical(BrepBody body, int vertices, int edges, int faces, string expectedStepSha256, bool expectClosedManifold = false)
     {
         Assert.Equal(vertices, body.Topology.Vertices.Count());
         Assert.Equal(edges, body.Topology.Edges.Count());
@@ -59,6 +60,12 @@ public sealed class BrepSurgeryRecipeParityTests
         var reimport = Step242Importer.ImportBody(export.Value);
         Assert.True(reimport.IsSuccess, string.Join(Environment.NewLine, reimport.Diagnostics.Select(diagnostic => diagnostic.Message)));
         Assert.True(BrepBindingValidator.Validate(reimport.Value, requireAllEdgeAndFaceBindings: true).IsSuccess);
+        if (expectClosedManifold)
+        {
+            var mass = BrepMassProperties.Evaluate(reimport.Value);
+            Assert.True(mass.IsEnclosed, string.Join(Environment.NewLine, mass.Diagnostics));
+            Assert.True(mass.IsOrientationConsistent, string.Join(Environment.NewLine, mass.Diagnostics));
+        }
     }
 
     private static string Sha256(string value)

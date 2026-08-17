@@ -205,9 +205,9 @@ public static class Step242Exporter
 
                 // Loop.CoedgeIds is the authoritative cyclic order. Sorting this list can
                 // silently turn a coherent loop into a disconnected STEP EDGE_LOOP.
-                foreach (var coedgeId in loop.CoedgeIds)
+                foreach (var loopUse in ResolveConnectedLoopUses(body, model, loop))
                 {
-                    var coedge = model.GetCoedge(coedgeId);
+                    var coedge = loopUse.Coedge;
 
                     if (!edgeCurveIds.TryGetValue(coedge.EdgeId, out var edgeCurveId))
                     {
@@ -227,9 +227,9 @@ public static class Step242Exporter
                         "$",
                         "$",
                         Step242TextWriter.Ref(edgeCurveId),
-                        Step242TextWriter.BooleanLogical(!coedge.IsReversed));
+                        Step242TextWriter.BooleanLogical(!loopUse.IsReversed));
 
-                    orientedEdgeIds[coedgeId] = orientedEdgeId;
+                    orientedEdgeIds[coedge.Id] = orientedEdgeId;
                     oriented.Add(orientedEdgeId);
                 }
 
@@ -252,6 +252,137 @@ public static class Step242Exporter
 
         return writer.AddEntity("CLOSED_SHELL", "$", Step242TextWriter.List(faceIds.ToArray()));
     }
+
+    private static IReadOnlyList<StepLoopUse> ResolveConnectedLoopUses(BrepBody body, TopologyModel model, Loop loop)
+    {
+        var authored = loop.CoedgeIds
+            .Select(model.GetCoedge)
+            .Select(coedge => new StepLoopUse(coedge, coedge.IsReversed))
+            .ToArray();
+        if (IsConnectedCycle(body, model, authored))
+        {
+            return authored;
+        }
+
+        // Some valid analytic constructions intentionally use distinct seam vertices
+        // at the same point. A malformed authored ordering must never be emitted as a
+        // disconnected STEP EDGE_LOOP, so reconnect it by geometric endpoint identity.
+        // Keep the repair bounded: unusually large malformed loops are rejected by the
+        // normal export preflight instead of spending factorial time searching a cycle.
+        if (authored.Length > 16)
+        {
+            return authored;
+        }
+
+        for (var startIndex = 0; startIndex < authored.Length; startIndex++)
+        {
+            foreach (var startReversed in OrderedDirections(authored[startIndex]))
+            {
+                var candidate = new List<StepLoopUse>(authored.Length)
+                {
+                    authored[startIndex] with { IsReversed = startReversed }
+                };
+                var used = new bool[authored.Length];
+                used[startIndex] = true;
+                if (TryBuildConnectedCycle(body, model, authored, used, candidate))
+                {
+                    return candidate;
+                }
+            }
+        }
+
+        // Keep the exact authored sequence when no geometrically closed traversal
+        // exists. Export preflight will then reject the body rather than disguising it.
+        return authored;
+    }
+
+    private static bool TryBuildConnectedCycle(
+        BrepBody body,
+        TopologyModel model,
+        IReadOnlyList<StepLoopUse> authored,
+        bool[] used,
+        List<StepLoopUse> candidate)
+    {
+        if (candidate.Count == authored.Count)
+        {
+            return VerticesCoincide(body, EndVertex(model, candidate[^1]), StartVertex(model, candidate[0]));
+        }
+
+        var requiredStart = EndVertex(model, candidate[^1]);
+        for (var index = 0; index < authored.Count; index++)
+        {
+            if (used[index])
+            {
+                continue;
+            }
+
+            foreach (var reversed in OrderedDirections(authored[index]))
+            {
+                var next = authored[index] with { IsReversed = reversed };
+                if (!VerticesCoincide(body, requiredStart, StartVertex(model, next)))
+                {
+                    continue;
+                }
+
+                used[index] = true;
+                candidate.Add(next);
+                if (TryBuildConnectedCycle(body, model, authored, used, candidate))
+                {
+                    return true;
+                }
+
+                candidate.RemoveAt(candidate.Count - 1);
+                used[index] = false;
+            }
+        }
+
+        return false;
+    }
+
+    private static IEnumerable<bool> OrderedDirections(StepLoopUse use)
+    {
+        yield return use.IsReversed;
+        yield return !use.IsReversed;
+    }
+
+    private static bool IsConnectedCycle(BrepBody body, TopologyModel model, IReadOnlyList<StepLoopUse> uses)
+    {
+        for (var index = 0; index < uses.Count; index++)
+        {
+            if (!VerticesCoincide(body, EndVertex(model, uses[index]), StartVertex(model, uses[(index + 1) % uses.Count])))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static VertexId StartVertex(TopologyModel model, StepLoopUse use)
+    {
+        var edge = model.GetEdge(use.Coedge.EdgeId);
+        return use.IsReversed ? edge.EndVertexId : edge.StartVertexId;
+    }
+
+    private static VertexId EndVertex(TopologyModel model, StepLoopUse use)
+    {
+        var edge = model.GetEdge(use.Coedge.EdgeId);
+        return use.IsReversed ? edge.StartVertexId : edge.EndVertexId;
+    }
+
+    private static bool VerticesCoincide(BrepBody body, VertexId left, VertexId right)
+    {
+        if (left == right)
+        {
+            return true;
+        }
+
+        return body.TryGetVertexPoint(left, out var a)
+            && body.TryGetVertexPoint(right, out var b)
+            && (a - b).Length <= 1e-9d;
+    }
+
+    private sealed record StepLoopUse(Coedge Coedge, bool IsReversed);
 
     private static void EmitSemanticPmi(
         Step242TextWriter writer,

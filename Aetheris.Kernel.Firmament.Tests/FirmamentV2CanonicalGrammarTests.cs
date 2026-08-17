@@ -1,5 +1,6 @@
 using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Kernel.Core.Step242;
+using Aetheris.Kernel.Core.Brep.Verification;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
@@ -99,6 +100,28 @@ public sealed class FirmamentV2CanonicalGrammarTests
         {
             if (File.Exists(firstOutput)) File.Delete(firstOutput);
             if (File.Exists(secondOutput)) File.Delete(secondOutput);
+        }
+    }
+
+    [Fact]
+    public void CanonicalCounterbore_ReimportsAsAnEnclosedManifold()
+    {
+        var output = Path.Combine(Path.GetTempPath(), $"aetheris-canonical-counterbore-{Guid.NewGuid():N}.step");
+        try
+        {
+            var build = FirmamentBuildAndExport.Run(Fixture("counterbore-hole.firmament"), output);
+            Assert.True(build.IsSuccess, string.Join(Environment.NewLine, build.Diagnostics.Select(d => d.Message)));
+
+            var imported = Step242Importer.ImportBody(File.ReadAllText(output));
+            Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(d => d.Message)));
+
+            var mass = BrepMassProperties.Evaluate(imported.Value);
+            Assert.True(mass.IsEnclosed, string.Join(Environment.NewLine, mass.Diagnostics));
+            Assert.True(mass.IsOrientationConsistent, string.Join(Environment.NewLine, mass.Diagnostics));
+        }
+        finally
+        {
+            if (File.Exists(output)) File.Delete(output);
         }
     }
 

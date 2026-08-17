@@ -1,0 +1,25 @@
+// fixture-id: a3-sheetmetal-countersink-wrong-domain
+// case: preview3-a3-sheetmetal-countersink-rejected
+// category: SheetMetal
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: rejected
+// expected: invalid
+// expected-stage: rejected
+// expected-diagnostic: sheetmetal-hole-domain-syntax
+
+SheetMetal A3UnsupportedCountersink {
+    Thickness: 1.5mm;
+    Material: "5052-H32 Aluminum";
+    KFactor: 0.42;
+    Base: Rectangle(80mm, 50mm);
+
+    Hole<Countersink> Mount {
+        On: Base;
+        Center: (40mm, 25mm);
+        Diameter: 6mm;
+        CountersinkDiameter: 12mm;
+        CountersinkAngle: 90deg;
+        End: ThroughAll;
+    }
+}

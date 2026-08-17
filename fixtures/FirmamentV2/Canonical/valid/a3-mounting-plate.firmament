@@ -1,0 +1,23 @@
+Model A3MountingPlate {
+    Units: mm
+
+    Box Plate { Size: [100mm, 70mm, 10mm] }
+
+    Modify Plate {
+        Hole<Shaft> MountNorthWest { On: +Z Center: Point2(-35mm, 20mm) Diameter: 8mm End: ThroughAll }
+        Hole<Shaft> MountNorthEast { On: +Z Center: Point2(35mm, 20mm) Diameter: 8mm End: ThroughAll }
+        Hole<Shaft> MountSouthWest { On: +Z Center: Point2(-35mm, -20mm) Diameter: 8mm End: ThroughAll }
+        Hole<Shaft> MountSouthEast { On: +Z Center: Point2(35mm, -20mm) Diameter: 8mm End: ThroughAll }
+        EdgeFinish TopBreak { Face: +Z Target: Boundary Kind: Chamfer Distance: 1mm }
+    }
+
+    Pmi {
+        Datum A { Target: face(+Z) }
+        HoleDiameter MountNorthWestDiameter {
+            Target: MountNorthWest
+            Value: 8mm
+            Tolerance: PlusMinus(0.10mm, 0.00mm)
+            DatumRefs: [A]
+        }
+    }
+}

@@ -1,0 +1,16 @@
+Model A3CounterboreHole {
+    Units: mm
+
+    Box Base { Size: [70mm, 45mm, 18mm] }
+
+    Modify Base {
+        Hole<Counterbore> Mount {
+            On: +Z
+            Center: Point2(0mm, 0mm)
+            Diameter: 6mm
+            CounterboreDiameter: 12mm
+            CounterboreDepth: 5mm
+            End: ThroughAll
+        }
+    }
+}

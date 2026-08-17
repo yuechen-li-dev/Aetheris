@@ -718,7 +718,9 @@ public sealed class CliBaselineTests
         Assert.True(root.GetProperty("summary").GetProperty("analyticHitCount").GetInt32() > 0);
         Assert.Equal(0, root.GetProperty("summary").GetProperty("tessellatedFallbackHitCount").GetInt32());
         var hits = root.GetProperty("hits").EnumerateArray().Where(h => h.GetProperty("surfaceFamily").GetString() == "torus").ToArray();
-        Assert.Single(hits);
+        // The exact full-torus bounds now start the probe outside the tube, so the
+        // ray correctly observes both the entering and exiting intersections.
+        Assert.Equal(2, hits.Length);
         Assert.All(hits, hit =>
         {
             Assert.Equal("analytic", hit.GetProperty("intersectionMode").GetString());

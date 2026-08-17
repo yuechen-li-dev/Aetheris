@@ -1,0 +1,8 @@
+model A3Torus {
+    units mm
+
+    solid body: Torus {
+        majorRadius: 12mm
+        minorRadius: 3mm
+    }
+}

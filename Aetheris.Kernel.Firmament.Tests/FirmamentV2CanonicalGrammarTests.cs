@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Firmament.FirmamentV2;
+using Aetheris.Kernel.Core.Step242;
 
 namespace Aetheris.Kernel.Firmament.Tests;
 
@@ -64,6 +65,40 @@ public sealed class FirmamentV2CanonicalGrammarTests
         finally
         {
             if (File.Exists(output)) File.Delete(output);
+        }
+    }
+
+    [Fact]
+    public void CanonicalCombinedPart_PreservesSupportedPmiInAp242AndInspectionEvidence()
+    {
+        var firstOutput = Path.Combine(Path.GetTempPath(), $"aetheris-canonical-pmi-edge-{Guid.NewGuid():N}.step");
+        var secondOutput = Path.Combine(Path.GetTempPath(), $"aetheris-canonical-pmi-edge-{Guid.NewGuid():N}.step");
+        try
+        {
+            var fixture = Fixture("box-holes-pmi-chamfer.firmament");
+            var parsed = FirmamentV2Parser.Parse(File.ReadAllText(fixture));
+            Assert.True(parsed.IsSuccess, string.Join(Environment.NewLine, parsed.Diagnostics));
+            Assert.Equal(3, parsed.Document!.Pmi!.Count);
+
+            var first = FirmamentBuildAndExport.Run(fixture, firstOutput);
+            var second = FirmamentBuildAndExport.Run(fixture, secondOutput);
+
+            Assert.True(first.IsSuccess, string.Join(Environment.NewLine, first.Diagnostics.Select(d => d.Message)));
+            Assert.True(second.IsSuccess, string.Join(Environment.NewLine, second.Diagnostics.Select(d => d.Message)));
+            Assert.Equal("CombinedHoleEdgeFinish", first.Value.Export.Combined!.Route);
+            Assert.Single(first.Value.Export.DatumInspection!);
+            Assert.Equal(2, first.Value.Export.DimensionInspection!.Count);
+            Assert.Equal(File.ReadAllText(firstOutput), File.ReadAllText(secondOutput));
+
+            var pmi = Step242SemanticPmiInspector.Inspect(File.ReadAllText(firstOutput));
+            Assert.True(pmi.Success, string.Join(Environment.NewLine, pmi.Diagnostics));
+            Assert.Equal(1, pmi.DatumCount);
+            Assert.Equal(2, pmi.DimensionCount);
+        }
+        finally
+        {
+            if (File.Exists(firstOutput)) File.Delete(firstOutput);
+            if (File.Exists(secondOutput)) File.Delete(secondOutput);
         }
     }
 

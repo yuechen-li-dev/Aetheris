@@ -105,6 +105,19 @@ public sealed class ForgeProtocolV1Tests
         Assert.True(File.Exists(System.IO.Path.Combine(outputDirectory.Path, "part.step")));
     }
 
+    [Fact]
+    public void PublicInteropRequestInvokesTheProductionTemplate()
+    {
+        using var outputDirectory = TempDirectory.Create();
+        var root = FindRepoRoot();
+        var requestPath = System.IO.Path.Combine(root, "samples", "forge-interop-x1", "request.json");
+        var request = JsonSerializer.Deserialize(File.ReadAllText(requestPath), ForgeProtocolJsonContext.Default.ForgeTemplateInvocationRequest);
+        var result = new ForgeProtocolHost().InvokeTemplate(Enclosure, request!, outputDirectory.Path);
+        Assert.True(result.Success, string.Join(Environment.NewLine, result.Diagnostics.Select(item => item.Code + ": " + item.Message)));
+        Assert.Equal([ForgeArtifactKind.StepAp242, ForgeArtifactKind.FlatStep, ForgeArtifactKind.Svg], result.Artifacts.Select(item => item.Kind));
+        Assert.All(result.Artifacts, artifact => Assert.True(File.Exists(System.IO.Path.Combine(outputDirectory.Path, artifact.Path))));
+    }
+
     private static ForgeTemplateInvocationRequest Request(IReadOnlyDictionary<string, object?> values, params ForgeArtifactKind[] artifacts) =>
         new(1, Elements(values), artifacts);
 
@@ -125,6 +138,13 @@ public sealed class ForgeProtocolV1Tests
     private static Dictionary<string, object?> With(string name, object? value)
     {
         var values = ValidArguments(); values[name] = value; return values;
+    }
+
+    private static string FindRepoRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(System.IO.Path.Combine(directory.FullName, "Aetheris.slnx"))) directory = directory.Parent;
+        return directory?.FullName ?? throw new DirectoryNotFoundException();
     }
 
     private sealed class TempDirectory : IDisposable

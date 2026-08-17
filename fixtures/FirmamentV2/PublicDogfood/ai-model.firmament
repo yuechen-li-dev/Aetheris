@@ -1,0 +1,7 @@
+Model InspectionBlock {
+    Units: mm
+    Box Body { Size: [60mm, 40mm, 12mm] }
+    Modify Body {
+        Hole<Shaft> Mount { On: +Z Center: Point2(0mm, 0mm) Diameter: 6mm End: ThroughAll }
+    }
+}

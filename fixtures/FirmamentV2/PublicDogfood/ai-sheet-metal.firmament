@@ -1,0 +1,18 @@
+SheetMetal SensorBracket {
+    Thickness: 1.5mm;
+    Material: "5052-H32 Aluminum";
+    KFactor: 0.42;
+    Base: Rectangle(70mm, 45mm);
+    Flange Upright {
+        From: Base.Rear;
+        Length: 25mm;
+        Angle: 90deg;
+        InsideRadius: 2mm;
+        Direction: Up;
+    }
+    Hole Mount {
+        On: Base;
+        Center: (35mm, 18mm);
+        Diameter: 6mm;
+    }
+}

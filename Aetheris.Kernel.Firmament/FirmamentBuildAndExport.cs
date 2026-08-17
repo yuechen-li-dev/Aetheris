@@ -43,6 +43,12 @@ public static class FirmamentBuildAndExport
             return KernelResult<FirmamentBuildAndExportResult>.Failure(exportResult.Diagnostics);
         }
 
+        var pmiParity = VerifyV2PmiExportParity(sourceText, Path.GetDirectoryName(fullSourcePath), exportResult.Value);
+        if (!pmiParity.IsSuccess)
+        {
+            return KernelResult<FirmamentBuildAndExportResult>.Failure(pmiParity.Diagnostics);
+        }
+
         var assertions = EvaluateVolumeAssertions(sourceText, Path.GetDirectoryName(fullSourcePath), exportResult.Value);
         if (!assertions.IsSuccess)
         {
@@ -79,6 +85,8 @@ public static class FirmamentBuildAndExport
         // available only to the explicitly versioned file compatibility route.
         var export = ExportSource(normalized, sourceDirectory, allowV1Compatibility: false);
         if (!export.IsSuccess) return export;
+        var pmiParity = VerifyV2PmiExportParity(normalized, sourceDirectory, export.Value);
+        if (!pmiParity.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(pmiParity.Diagnostics);
         var assertions = EvaluateVolumeAssertions(normalized, sourceDirectory, export.Value);
         return assertions.IsSuccess
             ? KernelResult<FirmamentStepExportResult>.Success(export.Value with { Assertions = assertions.Value }, export.Diagnostics)
@@ -108,6 +116,31 @@ public static class FirmamentBuildAndExport
         return failures.Length == 0
             ? KernelResult<IReadOnlyList<FirmamentV2VolumeAssertionResult>>.Success(results)
             : KernelResult<IReadOnlyList<FirmamentV2VolumeAssertionResult>>.Failure(failures);
+    }
+
+    private static KernelResult<bool> VerifyV2PmiExportParity(string source, string? sourceDirectory, FirmamentStepExportResult export)
+    {
+        var parsed = FirmamentV2Parser.Parse(source, sourceDirectory);
+        if (!parsed.IsSuccess || parsed.Document is null || parsed.Document.Pmi is not { Count: > 0 } pmi)
+            return KernelResult<bool>.Success(true);
+
+        var support = ValidateV2PmiExportSupport(parsed.Document);
+        if (!support.IsSuccess) return support;
+
+        var expectedDatums = pmi.Count(record => record.Kind == FirmamentV2PmiKind.DatumPlane);
+        var expectedDiameters = pmi.Count(record => record.Kind == FirmamentV2PmiKind.HoleDiameter);
+        var inspection = Step242SemanticPmiInspector.Inspect(export.StepText);
+        if (inspection.Success && inspection.DatumCount == expectedDatums && inspection.DimensionCount == expectedDiameters)
+            return KernelResult<bool>.Success(true);
+
+        var actualDatums = inspection.Success ? inspection.DatumCount : 0;
+        var actualDiameters = inspection.Success ? inspection.DimensionCount : 0;
+        var detail = inspection.Success ? string.Empty : $" Inspector diagnostics: {string.Join("; ", inspection.Diagnostics)}";
+        return KernelResult<bool>.Failure([new Kernel.Core.Diagnostics.KernelDiagnostic(
+            Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed,
+            Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+            $"firmament-v2-pmi-export-evidence-mismatch: validation admitted {expectedDatums} datum and {expectedDiameters} diameter PMI records, but AP242 reinspection found {actualDatums} datum and {actualDiameters} diameter records.{detail}",
+            "FirmamentV2.PmiExportParity")]);
     }
 
 
@@ -791,7 +824,13 @@ public static class FirmamentBuildAndExport
         {
             return CombinedFailure("CombinedFeaturePlanChainInvalid: final combined plan did not produce one enclosed manifold body.");
         }
-        var step = Step242Exporter.ExportBody(body);
+        var pmiSupport = ValidateV2PmiExportSupport(document);
+        if (!pmiSupport.IsSuccess)
+        {
+            return KernelResult<FirmamentStepExportResult>.Failure(pmiSupport.Diagnostics);
+        }
+        var semanticPmi = BuildV2SemanticPmi(document, holes, solid.Name);
+        var step = Step242Exporter.ExportBody(body, semanticPmi);
         if (!step.IsSuccess || step.Value is null)
         {
             return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
@@ -827,7 +866,17 @@ public static class FirmamentBuildAndExport
             Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))), body.Topology.Vertices.Count(), body.Topology.Edges.Count(), body.Topology.Faces.Count(),
             body.Geometry.Surfaces.Count(s => s.Value.Kind == SurfaceGeometryKind.Plane), body.Geometry.Surfaces.Count(s => s.Value.Kind == SurfaceGeometryKind.Cylinder), true, true);
         var featureReports = holes.Select(h => new FirmamentHoleFeatureReport(h.Name, "Hole", h.FeatureId, h.Shaft.Diameter, h.Placement.U, h.Placement.V, null, null, null, null, "top", null, nameof(AirHoleSimpleShaftMaterializer), "HoleChangedBRepPlan", h.Stack.Kind.ToString(), "CombinedHoleEdgeFinish", 1, 0, 0, report.StepSha256, true)).ToArray();
-        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, finish.Name, 0, "combined-hole-edgefinish", "CombinedHoleEdgeFinish", ConceptIr: document.ConceptIr, Features: featureReports, Combined: report));
+        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(
+            step.Value,
+            finish.Name,
+            0,
+            "combined-hole-edgefinish",
+            "CombinedHoleEdgeFinish",
+            DatumInspection: document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.DatumPlane).Select(p => new FirmamentPmiInspectionDatum(p.Name, "planar", p.Target)).ToArray() ?? [],
+            DimensionInspection: document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-semantic-pmi", p.Name)).ToArray() ?? [],
+            ConceptIr: document.ConceptIr,
+            Features: featureReports,
+            Combined: report));
     }
 
     private static KernelResult<FirmamentStepExportResult> CombinedFailure(string message, IEnumerable<string>? details = null) =>
@@ -1757,7 +1806,7 @@ public static class FirmamentBuildAndExport
                 semanticHoles.Count == 1 ? nameof(AirHoleSimpleShaftMaterializer) : nameof(AirHoleCompositeMaterializer),
                 semanticHoles.Count == 1 ? feature.Stack.Kind.ToString() : "CompositeSimpleShaft",
                 DatumInspection: document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.DatumPlane).Select(p => new FirmamentPmiInspectionDatum(p.Name, "planar", p.Target)).ToArray() ?? [],
-                DimensionInspection: document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-semantic-pmi", null)).ToArray() ?? [],
+                DimensionInspection: document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-semantic-pmi", p.Name)).ToArray() ?? [],
                 ConceptIr: document.ConceptIr,
                 Features: featureReports));
     }

@@ -1,0 +1,24 @@
+Model MountingPlate {
+    Units: mm
+    Box Plate { Size: [80mm, 50mm, 8mm] }
+    Modify Plate {
+        Hole<Shaft> MountLeft { On: +Z Center: Point2(-25mm, 0mm) Diameter: 8mm End: ThroughAll }
+        Hole<Shaft> MountRight { On: +Z Center: Point2(25mm, 0mm) Diameter: 8mm End: ThroughAll }
+        EdgeFinish TopBreak { Face: +Z Target: Boundary Kind: Chamfer Distance: 1mm }
+    }
+    Pmi {
+        Datum A { Target: face(+Z) }
+        HoleDiameter MountLeftDiameter {
+            Target: MountLeft
+            Value: 8mm
+            Tolerance: PlusMinus(0.10mm, 0.00mm)
+            DatumRefs: [A]
+        }
+        HoleDiameter MountRightDiameter {
+            Target: MountRight
+            Value: 8mm
+            Tolerance: PlusMinus(0.10mm, 0.00mm)
+            DatumRefs: [A]
+        }
+    }
+}

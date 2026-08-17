@@ -1,0 +1,21 @@
+SheetMetal MountingBracket {
+    Thickness: 1.5mm;
+    Material: "5052-H32 Aluminum";
+    KFactor: 0.42;
+
+    Base: Rectangle(80mm, 50mm);
+
+    Flange Upright {
+        From: Base.Rear;
+        Length: 30mm;
+        Angle: 90deg;
+        InsideRadius: 2mm;
+        Direction: Up;
+    }
+
+    Hole Mount {
+        On: Base;
+        Center: (40mm, 20mm);
+        Diameter: 8mm;
+    }
+}

@@ -56,6 +56,15 @@ internal static class AuthoredSheetMetalCompiler
         var diagnostics = new List<SheetMetalDiagnostic>();
         var header = Regex.Match(source, @"\bSheetMetal\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)(?:\s*:\s*(?<concept>[A-Za-z_][A-Za-z0-9_]*))?\s*\{", Rx);
         if (!header.Success) return Fail("Expected `SheetMetal <Name> { ... }`.");
+        var modelStyleHole = Regex.Match(source, @"\bHole\s*<\s*(?<variant>[A-Za-z_][A-Za-z0-9_]*)\s*>", Rx);
+        if (modelStyleHole.Success)
+            return Fail(
+                $"Sheet Metal does not use the Model-domain `Hole<{modelStyleHole.Groups["variant"].Value}>` form. Declare `Hole <Name> {{ On: <planar-region>; Center: (<x>, <y>); Diameter: <length>; }}`; for example, `Hole Mount {{ On: Base; Center: (20mm, 15mm); Diameter: 6mm; }}`.",
+                "sheetmetal-hole-domain-syntax");
+        if (Regex.IsMatch(source, @"\bPmi\s*\{\s*Datum\s+[A-Za-z_]", Rx))
+            return Fail(
+                "Sheet Metal PMI does not use the Model-domain `Datum` record or axis-face targets. Add a `Manufacturing <Release> { ... }` block and declare `DatumFeature <Label> { Target: <named-sheet-region>; }` inside `Pmi`; for example, `DatumFeature A { Target: Base; }`.",
+                "sheetmetal-pmi-domain-syntax");
         if (!Scalar(source, "Thickness", "mm", out var thickness) || thickness <= 0)
             return Fail("Thickness must be a positive millimetre value.");
         var material = Quoted(source, "Material");

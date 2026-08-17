@@ -44,6 +44,60 @@ public sealed class SheetMetalCliTests
     }
 
     [Fact]
+    public void BuildAuthoredSheetMetal_ReportsCanonicalHoleAsGeneratedFeature()
+    {
+        var temp=Path.Combine(Path.GetTempPath(),$"aetheris-sheetmetal-hole-{Guid.NewGuid():N}.step");
+        try
+        {
+            var output=new StringWriter();var error=new StringWriter();
+            var input=Path.Combine(RepoRoot,"fixtures/FirmamentV2/SheetMetal/preview3-l-bracket-hole.firmament");
+            var exit=CliRunner.Run(["build",input,"--output",temp,"--json"],output,error);
+            Assert.Equal(0,exit);Assert.Empty(error.ToString());
+            using var report=JsonDocument.Parse(output.ToString());
+            Assert.Equal(1,report.RootElement.GetProperty("part").GetProperty("features").GetInt32());
+            var analysis=StepAnalyzer.Analyze(temp);
+            Assert.Equal(3,analysis.Summary.SurfaceFamilies["cylinder"]);
+        }
+        finally{if(File.Exists(temp))File.Delete(temp);}
+    }
+
+    [Fact]
+    public void BuildAuthoredSheetMetal_RejectsModelDomainHoleSyntaxInsteadOfIgnoringIntent()
+    {
+        var canonical=File.ReadAllText(Path.Combine(RepoRoot,"fixtures/FirmamentV2/SheetMetal/preview3-l-bracket-hole.firmament"));
+        var source=canonical.Replace("Hole Mount", "Hole<Shaft> Mount", StringComparison.Ordinal);
+        var dir=Path.Combine(Path.GetTempPath(),$"aetheris-sheetmetal-domain-{Guid.NewGuid():N}");Directory.CreateDirectory(dir);
+        try
+        {
+            var input=Path.Combine(dir,"wrong-domain.firmament");File.WriteAllText(input,source);
+            var output=new StringWriter();var error=new StringWriter();
+            var exit=CliRunner.Run(["build",input,"--json"],output,error);
+            Assert.Equal(1,exit);Assert.Empty(error.ToString());
+            Assert.Contains("sheetmetal-hole-domain-syntax",output.ToString(),StringComparison.Ordinal);
+            Assert.Contains("Hole Mount",output.ToString(),StringComparison.Ordinal);
+        }
+        finally{Directory.Delete(dir,true);}
+    }
+
+    [Fact]
+    public void BuildAuthoredSheetMetal_ExplainsModelDomainPmiSyntax()
+    {
+        var source=File.ReadAllText(Path.Combine(RepoRoot,"fixtures/FirmamentV2/SheetMetal/preview3-l-bracket-hole.firmament"));
+        source=source.Insert(source.LastIndexOf('}'),"\n    Pmi { Datum A { Target: face(-Z) } }\n");
+        var dir=Path.Combine(Path.GetTempPath(),$"aetheris-sheetmetal-pmi-domain-{Guid.NewGuid():N}");Directory.CreateDirectory(dir);
+        try
+        {
+            var input=Path.Combine(dir,"wrong-pmi-domain.firmament");File.WriteAllText(input,source);
+            var output=new StringWriter();var error=new StringWriter();
+            var exit=CliRunner.Run(["build",input,"--json"],output,error);
+            Assert.Equal(1,exit);Assert.Empty(error.ToString());
+            Assert.Contains("sheetmetal-pmi-domain-syntax",output.ToString(),StringComparison.Ordinal);
+            Assert.Contains("DatumFeature A",output.ToString(),StringComparison.Ordinal);
+        }
+        finally{Directory.Delete(dir,true);}
+    }
+
+    [Fact]
     public void ValidateRoutesModuleShapedSheetMetalThroughDomainCompiler()
     {
         var output=new StringWriter();var error=new StringWriter();var input=Path.Combine(RepoRoot,"docs/modules/sheetmetal/artifacts/m8/ctc03-final.firmament");

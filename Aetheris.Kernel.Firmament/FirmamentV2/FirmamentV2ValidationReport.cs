@@ -39,13 +39,14 @@ public static class FirmamentV2ValidationReportBuilder
         conceptCatalog ??= FirmamentV2ForgeConceptRegistry.Catalog;
         var diagnostics = parse.Diagnostics
             .Distinct(StringComparer.Ordinal)
+            .Where(code => !IsParserTraceDiagnostic(code))
             .Select(ToParserDiagnostic)
             .Concat(runtimeValidation.Diagnostics.Select(ToRuntimeDiagnostic))
             .Distinct()
             .ToArray();
 
         var fatalCount = diagnostics.Count(diagnostic => diagnostic.Severity == "fatal");
-        var warningCount = diagnostics.Length - fatalCount;
+        var warningCount = diagnostics.Count(diagnostic => diagnostic.Severity == "warning");
         var document = parse.Document;
         var lets = document is null ? [] : BuildLets(document);
         var concepts = document is null ? [] : BuildConcepts(document, runtimeValidation, conceptCatalog);
@@ -58,7 +59,7 @@ public static class FirmamentV2ValidationReportBuilder
             .Distinct()
             .ToArray();
         fatalCount = diagnostics.Count(diagnostic => diagnostic.Severity == "fatal");
-        warningCount = diagnostics.Length - fatalCount;
+        warningCount = diagnostics.Count(diagnostic => diagnostic.Severity == "warning");
         var supported = pmi.Count(record => record.ExportSupport is "supported" or "supported-when-target-resolves");
         var deferred = pmi.Count(record => record.ExportSupport == "deferred");
         var status = fatalCount > 0 ? "invalid" : deferred > 0 ? "valid-with-deferred-export" : "valid";
@@ -304,6 +305,12 @@ public static class FirmamentV2ValidationReportBuilder
 
     private static FirmamentV2ValidationDiagnostic ToParserDiagnostic(string code) =>
         new(code, FirmamentV2Parser.IsFatalDiagnosticCode(code) ? "fatal" : "warning", Message(code));
+
+    private static bool IsParserTraceDiagnostic(string code) =>
+        code is "firmament-v2-parser-invoked" or "firmament-v2-parse-succeeded"
+        || code.EndsWith("-parsed", StringComparison.Ordinal)
+        || code.EndsWith("-adapted", StringComparison.Ordinal)
+        || code.EndsWith("-symbols-bound", StringComparison.Ordinal);
 
     private static FirmamentV2ValidationDiagnostic ToRuntimeDiagnostic(FirmamentDiagnostic diagnostic) =>
         new(

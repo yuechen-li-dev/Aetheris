@@ -99,6 +99,33 @@ public sealed class FirmamentV2ConceptPoint3HoleStepPipelineTests
     }
 
     [Fact]
+    public void BuildJson_ReportsEverySupportedPmiRecordPreservedByCombinedRoute()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "aetheris-preview3-pmi-parity", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var source = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2/Canonical/valid/box-holes-pmi-chamfer.firmament"));
+            var step = Path.Combine(dir, "mounting-plate.step");
+            var output = new StringWriter();
+
+            var exit = CliRunner.Run(["build", source, "--out", step, "--json"], output, new StringWriter());
+
+            Assert.Equal(0, exit);
+            using var report = JsonDocument.Parse(output.ToString());
+            Assert.Empty(report.RootElement.GetProperty("diagnostics").EnumerateArray());
+            Assert.Single(report.RootElement.GetProperty("pmiExportEvidence").GetProperty("datum").EnumerateArray());
+            Assert.Equal(2, report.RootElement.GetProperty("pmiExportEvidence").GetProperty("diameter").GetArrayLength());
+            var pmi = Step242SemanticPmiInspector.Inspect(File.ReadAllText(step));
+            Assert.Equal((1, 2), (pmi.DatumCount, pmi.DimensionCount));
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    [Fact]
     public void ConceptHolesThatSplitTheRequestedChamferChain_AreRejectedByCombinedRoute()
     {
         var combined = Source.Replace("        }\n    }\n    Expose {", "        }\n        EdgeFinish TopBreak {\n            Face: BracketConcept.TopPlane\n            Target: Boundary\n            Kind: Chamfer\n            Distance: 6mm\n        }\n    }\n    Expose {", StringComparison.Ordinal)

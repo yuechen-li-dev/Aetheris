@@ -1,0 +1,19 @@
+Model SteelCantilever {
+    Units: mm
+    solid beam: Box { size: [100, 30, 15] }
+
+    Analysis LinearElastic ServiceLoad {
+        body: beam
+        material: Standard.Materials.Steel.ASTM_A36
+        Fixed Root {
+            region: beam.face(-X)
+            components: [X, Y, Z]
+        }
+        Force Tip {
+            region: beam.face(+X)
+            vector: [0N, -500N, 0N]
+        }
+        results: [Displacement, Strain, Stress, ReactionForce]
+        lattice: [16, 2, 2]
+    }
+}

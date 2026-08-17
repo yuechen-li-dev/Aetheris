@@ -116,20 +116,44 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 26
-      - name: Install pinned TSPack
+      - uses: actions/checkout@v4
+        with:
+          repository: yuechen-li-dev/tspack
+          ref: 359b0738acda3d6d4d05c3775763a5e63236273c
+          path: .release-tools/tspack
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: .release-tools/tspack/go.mod
+          cache-dependency-path: .release-tools/tspack/go.sum
+      - name: Build pinned TSPack
         shell: pwsh
         run: |
-          $archive = Join-Path $env:RUNNER_TEMP 'tspack-windows-amd64.zip'
-          $install = Join-Path $env:RUNNER_TEMP 'tspack'
-          Invoke-WebRequest 'https://github.com/yuechen-li-dev/tspack/releases/download/v0.1.8/tspack-windows-amd64.zip' -OutFile $archive
-          $actual = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
-          $expected = '7d5e58d64e6adcadbbc70eb1f283643c6bc43838847575741c55a91154bd675f'
-          if ($actual -ne $expected) { throw "TSPack checksum mismatch: $actual" }
-          Expand-Archive $archive -DestinationPath $install
-          $executable = Get-ChildItem $install -Filter tspack.exe -Recurse | Select-Object -First 1
-          if ($null -eq $executable) { throw 'TSPack executable was not found in the verified archive.' }
-          $executable.DirectoryName | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
-          & $executable.FullName --version
+          $source = Resolve-Path '.release-tools/tspack'
+          Push-Location "$source/manifest-frontend"
+          try {
+            npm install --no-package-lock
+            if ($LASTEXITCODE -ne 0) { throw 'TSPack manifest frontend dependency installation failed.' }
+            npm run build
+            if ($LASTEXITCODE -ne 0) { throw 'TSPack manifest frontend build failed.' }
+          }
+          finally { Pop-Location }
+
+          Push-Location $source
+          try {
+            go run ./tools/generate-embedded-bridges
+            if ($LASTEXITCODE -ne 0) { throw 'TSPack embedded bridge generation failed.' }
+            New-Item -ItemType Directory -Force dist | Out-Null
+            go build -trimpath -buildvcs=false -tags tspack_embedded_bridges `
+              -ldflags '-X github.com/yuechen-li-dev/tspack/internal/version.Version=v0.1.8-pinned.359b073 -X github.com/yuechen-li-dev/tspack/internal/version.Commit=359b0738acda -X github.com/yuechen-li-dev/tspack/internal/version.Date=2026-08-08T23:18:29Z' `
+              -o dist/tspack.exe ./cmd/tspack
+            if ($LASTEXITCODE -ne 0) { throw 'Pinned TSPack build failed.' }
+          }
+          finally { Pop-Location }
+
+          $toolDirectory = "$source/dist"
+          $toolDirectory | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
+          & "$toolDirectory/tspack.exe" --version
       - name: Restore and build Preview 3 frozen baseline
         run: |
           dotnet restore Aetheris.slnx

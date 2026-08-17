@@ -13,6 +13,12 @@ now produce the same hashes. Because those corrections change binary payloads, t
 candidate hashes were superseded. The tag workflow generates `SHA256SUMS.txt` and
 `RELEASE-INVENTORY.md` from the tagged commit and verifies them before publication.
 
+The release job builds TSPack from pinned upstream commit
+`359b0738acda3d6d4d05c3775763a5e63236273c`. The published v0.1.8 binary predates
+that commit's private-app empty-type-surface fix and rejects Cadmata's valid browser
+target; the pinned source build preserves the TSPack-only package path without weakening
+the client manifest or substituting an npm lockfile.
+
 The final bounded smoke passed from a clean extraction of the Windows ZIP in a path
 containing spaces. ReleaseBlocker and MustFix count: zero. The remaining boundaries
 are the documented Preview 3 limitations.

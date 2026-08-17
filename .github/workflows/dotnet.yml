@@ -71,8 +71,11 @@ jobs:
         run: |
           $smoke = Join-Path $env:RUNNER_TEMP 'aetheris-public-package-smoke'
           $packages = Join-Path $env:RUNNER_TEMP 'aetheris-public-package-cache'
+          $nugetConfigDirectory = Join-Path $env:RUNNER_TEMP 'aetheris-public-package-nuget'
           Copy-Item tests/PublicPackageSmoke $smoke -Recurse
-          dotnet restore "$smoke/PublicPackageSmoke.csproj" --source "$pwd/local-feed" --source 'https://api.nuget.org/v3/index.json' --packages $packages --no-cache
+          dotnet new nugetconfig --output $nugetConfigDirectory --force
+          dotnet nuget add source "$pwd/local-feed" --name aetheris-local --configfile "$nugetConfigDirectory/NuGet.Config"
+          dotnet restore "$smoke/PublicPackageSmoke.csproj" --configfile "$nugetConfigDirectory/NuGet.Config" --packages $packages --no-cache
           dotnet run --project "$smoke/PublicPackageSmoke.csproj" --configuration Release --no-restore --property:RestorePackagesPath=$packages
 
   publish-public-libraries:
@@ -217,8 +220,11 @@ jobs:
           }
           $smoke = Join-Path $env:RUNNER_TEMP 'aetheris-preview3-public-package-smoke'
           $packages = Join-Path $env:RUNNER_TEMP 'aetheris-preview3-public-package-cache'
+          $nugetConfigDirectory = Join-Path $env:RUNNER_TEMP 'aetheris-preview3-public-package-nuget'
           Copy-Item tests/PublicPackageSmoke $smoke -Recurse
-          dotnet restore "$smoke/PublicPackageSmoke.csproj" --source "$pwd/release/packages/public-libraries" --source 'https://api.nuget.org/v3/index.json' --packages $packages --no-cache
+          dotnet new nugetconfig --output $nugetConfigDirectory --force
+          dotnet nuget add source "$pwd/release/packages/public-libraries" --name aetheris-local --configfile "$nugetConfigDirectory/NuGet.Config"
+          dotnet restore "$smoke/PublicPackageSmoke.csproj" --configfile "$nugetConfigDirectory/NuGet.Config" --packages $packages --no-cache
           dotnet run --project "$smoke/PublicPackageSmoke.csproj" --configuration Release --no-restore --property:RestorePackagesPath=$packages
 
   publish:

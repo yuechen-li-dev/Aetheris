@@ -24,23 +24,26 @@ internal sealed class Step242TextWriter
     public string Build(Step242HeaderMetadata headerMetadata)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("ISO-10303-21;");
-        sb.AppendLine("HEADER;");
-        sb.AppendLine($"FILE_DESCRIPTION(('{EscapeString(headerMetadata.Description)}'),'2;1');");
-        sb.AppendLine($"FILE_NAME('{EscapeString(headerMetadata.FileName)}','{EscapeString(headerMetadata.CreationTimestamp)}',('{EscapeString(headerMetadata.Author)}'),('{EscapeString(headerMetadata.Organization)}'),'{EscapeString(headerMetadata.PreprocessorVersion)}','{EscapeString(headerMetadata.OriginatingSystem)}','{EscapeString(headerMetadata.Authorization)}');");
-        sb.AppendLine("FILE_SCHEMA(('AP242_MANAGED_MODEL_BASED_3D_ENGINEERING_MIM_LF'));");
-        sb.AppendLine("ENDSEC;");
-        sb.AppendLine("DATA;");
+        AppendCanonicalLine(sb, "ISO-10303-21;");
+        AppendCanonicalLine(sb, "HEADER;");
+        AppendCanonicalLine(sb, $"FILE_DESCRIPTION(('{EscapeString(headerMetadata.Description)}'),'2;1');");
+        AppendCanonicalLine(sb, $"FILE_NAME('{EscapeString(headerMetadata.FileName)}','{EscapeString(headerMetadata.CreationTimestamp)}',('{EscapeString(headerMetadata.Author)}'),('{EscapeString(headerMetadata.Organization)}'),'{EscapeString(headerMetadata.PreprocessorVersion)}','{EscapeString(headerMetadata.OriginatingSystem)}','{EscapeString(headerMetadata.Authorization)}');");
+        AppendCanonicalLine(sb, "FILE_SCHEMA(('AP242_MANAGED_MODEL_BASED_3D_ENGINEERING_MIM_LF'));");
+        AppendCanonicalLine(sb, "ENDSEC;");
+        AppendCanonicalLine(sb, "DATA;");
 
         foreach (var entity in _entities)
         {
-            sb.AppendLine(entity);
+            AppendCanonicalLine(sb, entity);
         }
 
-        sb.AppendLine("ENDSEC;");
-        sb.AppendLine("END-ISO-10303-21;");
+        AppendCanonicalLine(sb, "ENDSEC;");
+        AppendCanonicalLine(sb, "END-ISO-10303-21;");
         return sb.ToString();
     }
+
+    internal static StringBuilder AppendCanonicalLine(StringBuilder builder, string value)
+        => builder.Append(value).Append("\r\n");
 
     public static string Ref(string entityId) => entityId;
 

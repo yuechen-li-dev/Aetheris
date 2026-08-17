@@ -45,11 +45,9 @@
   "representativeHashes": {
     "stepAp242": "114cd7c0c6a8a364b2943cc955a12d8a96b576a187dfc1957ea9f769296872be",
     "flatStep": "88c437373fe4fdf91e8f0a5b5e0e5c135b290f0dfe18449ec3ee7c0970c1d075",
-    "svg": "1657e3bbc3ef418617b45c5d9ab76a96d70b0ba6356c0e88a7ba07edc18b6519",
-    "windowsBundle": "2e6a8efabd83363a6e5af4be12f2d113cc626f2cd6d90902abb99bcc4fdb89b8",
-    "firmamentVsix": "def44bc6a83aed90a67505987ec36d00aa134d900fab734c48b83d0aeb59f361",
-    "cliNuget": "abe221bdb24e31b1cedd32b5b08fb3d220754f6254abd13a193758d3b5ebb07e"
+    "svg": "1657e3bbc3ef418617b45c5d9ab76a96d70b0ba6356c0e88a7ba07edc18b6519"
   },
+  "releaseArtifactHashes": "Generated from the tagged commit into SHA256SUMS.txt and verified by release-smoke before publication.",
   "knownPackagingLimitations": [
     "Only win-x64 is qualified for Preview 3.",
     "The CLI and Cadmata are self-contained JIT applications; Forge Host is the qualified NativeAOT executable.",

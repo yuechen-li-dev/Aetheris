@@ -22,6 +22,8 @@ public sealed class Step242AssemblyProductStructureTests
 
         Assert.True(first.IsSuccess, string.Join(Environment.NewLine, first.Diagnostics.Select(diagnostic => diagnostic.Message)));
         Assert.Equal(first.Value, second.Value);
+        Assert.EndsWith("\r\n", first.Value, StringComparison.Ordinal);
+        Assert.DoesNotContain("\n", first.Value.Replace("\r\n", string.Empty, StringComparison.Ordinal), StringComparison.Ordinal);
         Assert.Equal(1, Count(first.Value, "MANIFOLD_SOLID_BREP("));
         Assert.Equal(2, Count(first.Value, "NEXT_ASSEMBLY_USAGE_OCCURRENCE("));
 

@@ -149,16 +149,16 @@ public static class Step242AssemblyExporter
         }
 
         var builder = new StringBuilder();
-        builder.AppendLine("ISO-10303-21;");
-        builder.AppendLine("HEADER;");
-        builder.AppendLine("FILE_DESCRIPTION(('Aetheris AP242 assembly product structure'),'2;1');");
-        builder.AppendLine("FILE_NAME('aetheris_assembly.step','1970-01-01T00:00:00',('Aetheris'),('Aetheris'),'Aetheris.Kernel','Aetheris.Kernel','');");
-        builder.AppendLine("FILE_SCHEMA(('AP242_MANAGED_MODEL_BASED_3D_ENGINEERING_MIM_LF'));");
-        builder.AppendLine("ENDSEC;");
-        builder.AppendLine("DATA;");
-        foreach (var entity in entities) builder.AppendLine(entity);
-        builder.AppendLine("ENDSEC;");
-        builder.AppendLine("END-ISO-10303-21;");
+        Step242TextWriter.AppendCanonicalLine(builder, "ISO-10303-21;");
+        Step242TextWriter.AppendCanonicalLine(builder, "HEADER;");
+        Step242TextWriter.AppendCanonicalLine(builder, "FILE_DESCRIPTION(('Aetheris AP242 assembly product structure'),'2;1');");
+        Step242TextWriter.AppendCanonicalLine(builder, "FILE_NAME('aetheris_assembly.step','1970-01-01T00:00:00',('Aetheris'),('Aetheris'),'Aetheris.Kernel','Aetheris.Kernel','');");
+        Step242TextWriter.AppendCanonicalLine(builder, "FILE_SCHEMA(('AP242_MANAGED_MODEL_BASED_3D_ENGINEERING_MIM_LF'));");
+        Step242TextWriter.AppendCanonicalLine(builder, "ENDSEC;");
+        Step242TextWriter.AppendCanonicalLine(builder, "DATA;");
+        foreach (var entity in entities) Step242TextWriter.AppendCanonicalLine(builder, entity);
+        Step242TextWriter.AppendCanonicalLine(builder, "ENDSEC;");
+        Step242TextWriter.AppendCanonicalLine(builder, "END-ISO-10303-21;");
         return KernelResult<string>.Success(builder.ToString());
     }
 

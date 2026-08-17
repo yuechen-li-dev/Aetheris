@@ -23,6 +23,12 @@ foreach ($package in $publicPackages) {
     Copy-Item -LiteralPath $package.FullName -Destination (Join-Path $publicPackageDestination $package.Name) -Force
 }
 
+$packageOrder = Join-Path $publicLibrariesRoot "PACKAGE_ORDER.txt"
+if (-not (Test-Path -LiteralPath $packageOrder -PathType Leaf)) {
+    throw "Public library package order is missing: $packageOrder"
+}
+Copy-Item -LiteralPath $packageOrder -Destination (Join-Path $publicPackageDestination "PACKAGE_ORDER.txt") -Force
+
 $binaryArtifacts = @(
     Get-ChildItem -LiteralPath $releaseRoot -File -Recurse |
         Where-Object { $_.Extension -in @(".zip", ".vsix", ".nupkg") } |

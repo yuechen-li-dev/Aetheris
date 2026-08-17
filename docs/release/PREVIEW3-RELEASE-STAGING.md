@@ -52,9 +52,8 @@ Aetheris code is available under GNU AGPL-3.0; alternative licensing is availabl
 
 ## Owner release checklist
 
-1. Confirm the A5 report verdict, clean commit, and no post-validation changes.
-2. Compare upload bytes to `RELEASE-INVENTORY.md` and `SHA256SUMS.txt`.
-3. Create and push annotated tag `v2.0.0-preview.3`.
-4. Create the GitHub release from that tag and upload the exact qualified artifacts.
-5. Paste/adapt the factual body above; do not infer support beyond the linked matrix.
-6. Verify the published asset hashes once after upload.
+1. Confirm the A5 report verdict, green `master` push check, clean commit, and no post-validation changes.
+2. Create and push annotated tag `v2.0.0-preview.3`.
+3. Allow the protected production environment to publish only after `build-test`, `release-build`, and `release-smoke` pass.
+4. Compare the published assets to the workflow-generated `RELEASE-INVENTORY.md` and `SHA256SUMS.txt`.
+5. Verify the published asset hashes once after upload; do not infer support beyond the linked matrix.

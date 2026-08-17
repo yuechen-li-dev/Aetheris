@@ -55,6 +55,8 @@ public sealed class BrepSurgeryRecipeParityTests
 
         var export = Step242Exporter.ExportBody(body);
         Assert.True(export.IsSuccess, string.Join(Environment.NewLine, export.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        Assert.EndsWith("\r\n", export.Value, StringComparison.Ordinal);
+        Assert.DoesNotContain("\n", export.Value.Replace("\r\n", string.Empty, StringComparison.Ordinal), StringComparison.Ordinal);
         Assert.Equal(expectedStepSha256, Sha256(export.Value));
 
         var reimport = Step242Importer.ImportBody(export.Value);

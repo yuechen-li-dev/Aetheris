@@ -50,7 +50,7 @@ jobs:
         run: ./scripts/package-public-libraries.ps1 -OutputDirectory artifacts/packages/public-libraries
       - uses: actions/upload-artifact@v4
         with:
-          name: public-libraries-preview2
+          name: public-libraries-preview3
           path: artifacts/packages/public-libraries
           if-no-files-found: error
 
@@ -64,7 +64,7 @@ jobs:
           dotnet-version: 10.0.x
       - uses: actions/download-artifact@v4
         with:
-          name: public-libraries-preview2
+          name: public-libraries-preview3
           path: local-feed
       - name: Restore and run clean public-package consumer
         shell: pwsh
@@ -72,7 +72,7 @@ jobs:
           $smoke = Join-Path $env:RUNNER_TEMP 'aetheris-public-package-smoke'
           $packages = Join-Path $env:RUNNER_TEMP 'aetheris-public-package-cache'
           Copy-Item tests/PublicPackageSmoke $smoke -Recurse
-          dotnet restore "$smoke/PublicPackageSmoke.csproj" --source "$pwd/local-feed" --packages $packages --no-cache
+          dotnet restore "$smoke/PublicPackageSmoke.csproj" --source "$pwd/local-feed" --source 'https://api.nuget.org/v3/index.json' --packages $packages --no-cache
           dotnet run --project "$smoke/PublicPackageSmoke.csproj" --configuration Release --no-restore --property:RestorePackagesPath=$packages
 
   publish-public-libraries:
@@ -86,7 +86,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: public-libraries-preview2
+          name: public-libraries-preview3
           path: packages
       - name: Authenticate to NuGet with trusted publishing
         id: nuget-login
@@ -97,13 +97,14 @@ jobs:
         shell: pwsh
         run: |
           Get-Content packages/PACKAGE_ORDER.txt | ForEach-Object {
-            $package = "packages/$_.2.0.0-preview.2.nupkg"
+            $package = "packages/$_.2.0.0-preview.3.nupkg"
             dotnet nuget push $package --source https://api.nuget.org/v3/index.json --api-key '${{ steps.nuget-login.outputs.NUGET_API_KEY }}' --skip-duplicate
             if ($LASTEXITCODE -ne 0) { throw "NuGet push failed for $_" }
           }
 
   release-build:
     if: startsWith(github.ref, 'refs/tags/v')
+    needs: build-test
     runs-on: windows-latest
     permissions:
       contents: read
@@ -115,23 +116,36 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 26
-      - name: Restore and build Preview 2 frozen baseline
+      - name: Install pinned TSPack
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP 'tspack-windows-amd64.zip'
+          $install = Join-Path $env:RUNNER_TEMP 'tspack'
+          Invoke-WebRequest 'https://github.com/yuechen-li-dev/tspack/releases/download/v0.1.8/tspack-windows-amd64.zip' -OutFile $archive
+          $actual = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          $expected = '7d5e58d64e6adcadbbc70eb1f283643c6bc43838847575741c55a91154bd675f'
+          if ($actual -ne $expected) { throw "TSPack checksum mismatch: $actual" }
+          Expand-Archive $archive -DestinationPath $install
+          $executable = Get-ChildItem $install -Filter tspack.exe -Recurse | Select-Object -First 1
+          if ($null -eq $executable) { throw 'TSPack executable was not found in the verified archive.' }
+          $executable.DirectoryName | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
+          & $executable.FullName --version
+      - name: Restore and build Preview 3 frozen baseline
         run: |
           dotnet restore Aetheris.slnx
-          dotnet restore demos/Aetheris.PmiInjectionDemo/Aetheris.PmiInjectionDemo.csproj
-          dotnet build Aetheris.slnx -f net10.0 --no-restore /m:1 -c Release
+          dotnet build Aetheris.slnx --no-restore /m:1 -c Release
       - name: Test frozen baseline
-        run: |
-          dotnet test Aetheris.Kernel.Core.Tests -f net10.0 -c Release --no-build --filter "Category!=SlowCorpus"
-          dotnet test Aetheris.Kernel.Firmament.Tests -f net10.0 -c Release --no-build
-          dotnet test Aetheris.CLI.Tests -f net10.0 -c Release --no-build
-          dotnet test Aetheris.Server.Tests -f net10.0 -c Release --no-build
+        run: dotnet test Aetheris.slnx -c Release --no-build -m:1 -- RunConfiguration.MaxCpuCount=1
       - name: Package exact release bytes
         shell: pwsh
-        run: ./scripts/package-release.ps1 -Version ($env:GITHUB_REF_NAME.TrimStart('v')) -OutputDirectory artifacts/release/published
+        run: |
+          $version = $env:GITHUB_REF_NAME.TrimStart('v')
+          ./scripts/package-release.ps1 -Version $version -OutputDirectory artifacts/release/published
+          ./scripts/package-public-libraries.ps1 -Version $version -OutputDirectory artifacts/release/public-libraries
+          ./scripts/finalize-publication.ps1 -ReleaseDirectory artifacts/release/published -PublicLibrariesDirectory artifacts/release/public-libraries
       - uses: actions/upload-artifact@v4
         with:
-          name: preview2-release
+          name: preview3-release
           path: artifacts/release/published
           if-no-files-found: error
 
@@ -142,7 +156,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: preview2-release
+          name: preview3-release
           path: release
       - name: Clean-directory CLI and package smoke
         shell: pwsh
@@ -165,9 +179,23 @@ jobs:
           $package = Get-ChildItem release/packages/*.nupkg | Select-Object -First 1
           New-Item -ItemType Directory local-feed, installed-tool | Out-Null
           Copy-Item $package.FullName local-feed
-          dotnet tool install --tool-path installed-tool Aetheris.CLI --version 2.0.0-preview.2 --add-source local-feed --ignore-failed-sources
+          dotnet tool install --tool-path installed-tool Aetheris.CLI --version 2.0.0-preview.3 --add-source local-feed --ignore-failed-sources
           & installed-tool/aetheris --version
           & installed-tool/aetheris build smoke.firmament
+      - name: Verify checksums and public packages
+        shell: pwsh
+        run: |
+          foreach ($line in Get-Content release/SHA256SUMS.txt) {
+            if ($line -notmatch '^([0-9a-f]{64})  (.+)$') { throw "Malformed checksum line: $line" }
+            $path = Join-Path (Resolve-Path release) $Matches[2]
+            $actual = (Get-FileHash $path -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($actual -ne $Matches[1]) { throw "Checksum mismatch: $($Matches[2])" }
+          }
+          $smoke = Join-Path $env:RUNNER_TEMP 'aetheris-preview3-public-package-smoke'
+          $packages = Join-Path $env:RUNNER_TEMP 'aetheris-preview3-public-package-cache'
+          Copy-Item tests/PublicPackageSmoke $smoke -Recurse
+          dotnet restore "$smoke/PublicPackageSmoke.csproj" --source "$pwd/release/packages/public-libraries" --source 'https://api.nuget.org/v3/index.json' --packages $packages --no-cache
+          dotnet run --project "$smoke/PublicPackageSmoke.csproj" --configuration Release --no-restore --property:RestorePackagesPath=$packages
 
   publish:
     needs: release-smoke
@@ -180,19 +208,27 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: preview2-release
+          name: preview3-release
           path: release
       - name: Authenticate to NuGet with trusted publishing
         id: nuget-login
         uses: NuGet/login@v1
         with:
           user: yuechen-li
-      - name: Publish the tested NuGet package
-        run: dotnet nuget push 'release/packages/*.nupkg' --source https://api.nuget.org/v3/index.json --api-key '${{ steps.nuget-login.outputs.NUGET_API_KEY }}' --skip-duplicate
-      - name: Create prerelease and upload the tested assets
+      - name: Publish the tested NuGet packages
+        shell: pwsh
+        run: |
+          dotnet nuget push 'release/packages/Aetheris.CLI.2.0.0-preview.3.nupkg' --source https://api.nuget.org/v3/index.json --api-key '${{ steps.nuget-login.outputs.NUGET_API_KEY }}' --skip-duplicate
+          if ($LASTEXITCODE -ne 0) { throw 'NuGet push failed for Aetheris.CLI.' }
+          Get-Content release/packages/public-libraries/PACKAGE_ORDER.txt | ForEach-Object {
+            $package = "release/packages/public-libraries/$_.2.0.0-preview.3.nupkg"
+            dotnet nuget push $package --source https://api.nuget.org/v3/index.json --api-key '${{ steps.nuget-login.outputs.NUGET_API_KEY }}' --skip-duplicate
+            if ($LASTEXITCODE -ne 0) { throw "NuGet push failed for $_" }
+          }
+      - name: Create release and upload the tested assets
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --title "Aetheris ${GITHUB_REF_NAME#v}" --latest --notes-file docs/release/2.0.0-preview.2-notes.md release/Aetheris-*.zip release/aetheris-firmament-*.vsix release/SHA256SUMS.txt release/packages/*.nupkg || \
-          gh release upload "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --clobber release/Aetheris-*.zip release/aetheris-firmament-*.vsix release/SHA256SUMS.txt release/packages/*.nupkg
-          gh release edit "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --latest --prerelease=false --notes-file docs/release/2.0.0-preview.2-notes.md
+          gh release create "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --title "Aetheris ${GITHUB_REF_NAME#v}" --latest --notes-file docs/release/2.0.0-preview.3-notes.md release/Aetheris-*.zip release/aetheris-firmament-*.vsix release/SHA256SUMS.txt release/RELEASE-INVENTORY.md release/packages/*.nupkg release/packages/public-libraries/*.nupkg || \
+          gh release upload "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --clobber release/Aetheris-*.zip release/aetheris-firmament-*.vsix release/SHA256SUMS.txt release/RELEASE-INVENTORY.md release/packages/*.nupkg release/packages/public-libraries/*.nupkg
+          gh release edit "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --latest --prerelease=false --notes-file docs/release/2.0.0-preview.3-notes.md

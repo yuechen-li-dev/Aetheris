@@ -13,5 +13,5 @@ public static class PipingModule
         ["Piping.PipeRoute","Piping.PipeSection"],["Piping.StandardPipeElbow"],
         ["PipeRouteIR -> analytic cylinders/torus -> exact BRep"],
         ["piping-route-invalid","piping-bend-radius-invalid","piping-wall-not-supported"],
-        [new(CoreModule.Id,new(1,0,0))],new("docs/modules/piping.md"));
+        [new(CoreModule.Id,new(1,0,0))],new("docs/development/milestones/modules/piping.md"));
 }

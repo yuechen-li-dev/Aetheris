@@ -13,7 +13,7 @@ public sealed class CliBaselineTests
     [Fact]
     public void Build_Command_Builds_Firmament_To_Step()
     {
-        var outputPath = Path.Combine(RepoRoot, "testdata", "firmament", "exports", "cli-build-probe.step");
+        var outputPath = Path.Combine(RepoRoot, "testdata", "step242", "golden", "firmament-v1", "cli-build-probe.step");
         if (File.Exists(outputPath))
         {
             File.Delete(outputPath);
@@ -22,7 +22,7 @@ public sealed class CliBaselineTests
         var stdout = new StringWriter();
         var stderr = new StringWriter();
         var exitCode = Aetheris.CLI.CliRunner.Run(
-            ["build", Path.Combine(RepoRoot, "testdata/firmament/examples/box_basic.firmament"), "--out", outputPath],
+            ["build", Path.Combine(RepoRoot, "fixtures/LegacyV1/Examples/box_basic.firmament"), "--out", outputPath],
             stdout,
             stderr);
 
@@ -38,7 +38,7 @@ public sealed class CliBaselineTests
     {
         var stdout = new StringWriter();
         var stderr = new StringWriter();
-        var manifestPath = Path.Combine(RepoRoot, "testdata/firmasm/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
+        var manifestPath = Path.Combine(RepoRoot, "fixtures/Assembly/LegacyImports/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
 
         var exitCode = Aetheris.CLI.CliRunner.Run(
             ["asm", "exec", manifestPath, "--json"],
@@ -61,7 +61,7 @@ public sealed class CliBaselineTests
     {
         var stdout = new StringWriter();
         var stderr = new StringWriter();
-        var manifestPath = Path.Combine(RepoRoot, "testdata/firmasm/examples/occt-as1/as1-assembly.firmasm");
+        var manifestPath = Path.Combine(RepoRoot, "fixtures/Assembly/LegacyImports/examples/occt-as1/as1-assembly.firmasm");
 
         var exitCode = Aetheris.CLI.CliRunner.Run(
             ["asm", "exec", manifestPath, "--json"],
@@ -84,7 +84,7 @@ public sealed class CliBaselineTests
     {
         var stdout = new StringWriter();
         var stderr = new StringWriter();
-        var manifestPath = Path.Combine(RepoRoot, "testdata/firmasm/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
+        var manifestPath = Path.Combine(RepoRoot, "fixtures/Assembly/LegacyImports/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
         var outputDirectory = CreateTempDirectory();
 
         try
@@ -120,7 +120,7 @@ public sealed class CliBaselineTests
     {
         var stdout = new StringWriter();
         var stderr = new StringWriter();
-        var manifestPath = Path.Combine(RepoRoot, "testdata/firmasm/examples/occt-as1/as1-assembly.firmasm");
+        var manifestPath = Path.Combine(RepoRoot, "fixtures/Assembly/LegacyImports/examples/occt-as1/as1-assembly.firmasm");
         var outputDirectory = CreateTempDirectory();
 
         try
@@ -235,7 +235,7 @@ public sealed class CliBaselineTests
         var stderr = new StringWriter();
 
         var exitCode = Aetheris.CLI.CliRunner.Run(
-            ["analyze", Path.Combine(RepoRoot, "testdata/firmament/exports/box_basic.step"), "--json"],
+            ["analyze", Path.Combine(RepoRoot, "testdata/step242/golden/firmament-v1/box_basic.step"), "--json"],
             stdout,
             stderr);
 
@@ -423,7 +423,7 @@ public sealed class CliBaselineTests
         var stderr = new StringWriter();
 
         var exitCode = Aetheris.CLI.CliRunner.Run(
-            ["analyze", Path.Combine(RepoRoot, "testdata/firmament/exports/box_basic.step"), "--vertex", "1", "--json"],
+            ["analyze", Path.Combine(RepoRoot, "testdata/step242/golden/firmament-v1/box_basic.step"), "--vertex", "1", "--json"],
             stdout,
             stderr);
 
@@ -796,7 +796,7 @@ public sealed class CliBaselineTests
     [Fact]
     public void Analyze_Section_BoxWithHole_XY_Produces_Multiple_Loops()
     {
-        var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/boolean_box_cylinder_hole.step");
+        var stepPath = Path.Combine(RepoRoot, "testdata/step242/golden/firmament-v1/boolean_box_cylinder_hole.step");
         using var doc = RunAnalyzeSection(stepPath, "--xy", 0d);
         var summary = doc.RootElement.GetProperty("summary");
         Assert.True(summary.GetProperty("loopCount").GetInt32() >= 2);
@@ -857,7 +857,7 @@ public sealed class CliBaselineTests
         var buildStdout = new StringWriter();
         var buildStderr = new StringWriter();
         var buildExitCode = Aetheris.CLI.CliRunner.Run(
-            ["build", Path.Combine(RepoRoot, "testdata/firmament/fixtures/m5b-valid-fillet-concave-overlap-lroot.firmament"), "--out", outputPath],
+            ["build", Path.Combine(RepoRoot, "fixtures/LegacyV1/Corpus/valid/m5b-valid-fillet-concave-overlap-lroot.firmament"), "--out", outputPath],
             buildStdout,
             buildStderr);
         Assert.Equal(0, buildExitCode);
@@ -896,7 +896,7 @@ public sealed class CliBaselineTests
         var buildStdout = new StringWriter();
         var buildStderr = new StringWriter();
         var buildExitCode = Aetheris.CLI.CliRunner.Run(
-            ["build", Path.Combine(RepoRoot, "testdata/firmament/fixtures/m5b-valid-fillet-concave-chained-adjacent-pair.firmament"), "--out", outputPath],
+            ["build", Path.Combine(RepoRoot, "fixtures/LegacyV1/Corpus/valid/m5b-valid-fillet-concave-chained-adjacent-pair.firmament"), "--out", outputPath],
             buildStdout,
             buildStderr);
         Assert.Equal(0, buildExitCode);
@@ -923,7 +923,7 @@ public sealed class CliBaselineTests
     [Fact]
     public void Build_And_Analyze_TriangularPrism_Example_Reports_IsoscelesContractBounds()
     {
-        var outputPath = Path.Combine(RepoRoot, "testdata", "firmament", "exports", "cli-triangular-prism-contract.step");
+        var outputPath = Path.Combine(RepoRoot, "testdata", "step242", "golden", "firmament-v1", "cli-triangular-prism-contract.step");
         if (File.Exists(outputPath))
         {
             File.Delete(outputPath);
@@ -932,7 +932,7 @@ public sealed class CliBaselineTests
         var buildStdout = new StringWriter();
         var buildStderr = new StringWriter();
         var buildExitCode = Aetheris.CLI.CliRunner.Run(
-            ["build", Path.Combine(RepoRoot, "testdata/firmament/examples/triangular_prism_basic.firmament"), "--out", outputPath],
+            ["build", Path.Combine(RepoRoot, "fixtures/LegacyV1/Examples/triangular_prism_basic.firmament"), "--out", outputPath],
             buildStdout,
             buildStderr);
         Assert.Equal(0, buildExitCode);
@@ -961,7 +961,7 @@ public sealed class CliBaselineTests
     [Fact]
     public void Build_And_Analyze_NonOrthogonalTriangularPrismCornerChamfer_Reports_Enclosed_And_Planar_Cut_Face()
     {
-        var outputPath = Path.Combine(RepoRoot, "testdata", "firmament", "exports", "cli-triangular-prism-corner-chamfer-e4.step");
+        var outputPath = Path.Combine(RepoRoot, "testdata", "step242", "golden", "firmament-v1", "cli-triangular-prism-corner-chamfer-e4.step");
         if (File.Exists(outputPath))
         {
             File.Delete(outputPath);
@@ -970,7 +970,7 @@ public sealed class CliBaselineTests
         var buildStdout = new StringWriter();
         var buildStderr = new StringWriter();
         var buildExitCode = Aetheris.CLI.CliRunner.Run(
-            ["build", Path.Combine(RepoRoot, "testdata/firmament/examples/m5a_chamfer_triangular_prism_corner_e4_basic.firmament"), "--out", outputPath],
+            ["build", Path.Combine(RepoRoot, "fixtures/LegacyV1/Examples/m5a_chamfer_triangular_prism_corner_e4_basic.firmament"), "--out", outputPath],
             buildStdout,
             buildStderr);
         Assert.Equal(0, buildExitCode);
@@ -1005,7 +1005,7 @@ public sealed class CliBaselineTests
     [Fact]
     public void Build_And_Analyze_BoundedConcaveStraightEdgeChamfer_Reports_Enclosed_And_ChangedTopology()
     {
-        var outputPath = Path.Combine(RepoRoot, "testdata", "firmament", "exports", "cli-concave-edge-chamfer-e7b.step");
+        var outputPath = Path.Combine(RepoRoot, "testdata", "step242", "golden", "firmament-v1", "cli-concave-edge-chamfer-e7b.step");
         if (File.Exists(outputPath))
         {
             File.Delete(outputPath);
@@ -1014,7 +1014,7 @@ public sealed class CliBaselineTests
         var buildStdout = new StringWriter();
         var buildStderr = new StringWriter();
         var buildExitCode = Aetheris.CLI.CliRunner.Run(
-            ["build", Path.Combine(RepoRoot, "testdata/firmament/fixtures/e7-valid-chamfer-concave-overlap-lroot.firmament"), "--out", outputPath],
+            ["build", Path.Combine(RepoRoot, "fixtures/LegacyV1/Corpus/valid/e7-valid-chamfer-concave-overlap-lroot.firmament"), "--out", outputPath],
             buildStdout,
             buildStderr);
         Assert.Equal(0, buildExitCode);
@@ -1057,7 +1057,7 @@ public sealed class CliBaselineTests
     [Fact]
     public void AnalyzeVolume_Box_ReturnsExpectedVolume()
     {
-        var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/box_basic.step");
+        var stepPath = Path.Combine(RepoRoot, "testdata/step242/golden/firmament-v1/box_basic.step");
         var stdout = new StringWriter(); var stderr = new StringWriter();
         var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "volume", stepPath, "--json"], stdout, stderr);
         Assert.Equal(0, exitCode);
@@ -1070,7 +1070,7 @@ public sealed class CliBaselineTests
     [Fact]
     public void AnalyzeVolume_BoxMinusBox_PlanarBoolean_ReturnsExpectedVolume()
     {
-        var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/boolean_subtract_basic.step");
+        var stepPath = Path.Combine(RepoRoot, "testdata/step242/golden/firmament-v1/boolean_subtract_basic.step");
         var stdout = new StringWriter(); var stderr = new StringWriter();
         var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "volume", stepPath, "--json"], stdout, stderr);
         Assert.Equal(0, exitCode);
@@ -1108,7 +1108,7 @@ public sealed class CliBaselineTests
     [Fact]
     public void AnalyzeVolume_MixedCurvedTrimmedBody_FailsClearly()
     {
-        var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/boolean_box_sphere_cavity_basic.step");
+        var stepPath = Path.Combine(RepoRoot, "testdata/step242/golden/firmament-v1/boolean_box_sphere_cavity_basic.step");
         var stdout = new StringWriter(); var stderr = new StringWriter();
         var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "volume", stepPath, "--json"], stdout, stderr);
         Assert.Equal(1, exitCode);
@@ -1120,7 +1120,7 @@ public sealed class CliBaselineTests
     [Fact]
     public void AnalyzeVolume_ApproximateModeRequiresResolution()
     {
-        var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/box_basic.step");
+        var stepPath = Path.Combine(RepoRoot, "testdata/step242/golden/firmament-v1/box_basic.step");
         var stdout = new StringWriter(); var stderr = new StringWriter();
         var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "volume", stepPath, "--approximate"], stdout, stderr);
         Assert.Equal(1, exitCode);
@@ -1133,7 +1133,7 @@ public sealed class CliBaselineTests
     [InlineData("-2")]
     public void AnalyzeVolume_Approximate_ResolutionValidation(string resolution)
     {
-        var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/box_basic.step");
+        var stepPath = Path.Combine(RepoRoot, "testdata/step242/golden/firmament-v1/box_basic.step");
         var stdout = new StringWriter(); var stderr = new StringWriter();
         var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "volume", stepPath, "--approximate", "--resolution", resolution, "--json"], stdout, stderr);
         Assert.Equal(1, exitCode);
@@ -1160,7 +1160,7 @@ public sealed class CliBaselineTests
     [Fact]
     public void AnalyzeVolume_ApproximateCurvedMixedVolume_ReturnsNumericEstimate()
     {
-        var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/boolean_box_cylinder_hole.step");
+        var stepPath = Path.Combine(RepoRoot, "testdata/step242/golden/firmament-v1/boolean_box_cylinder_hole.step");
         var stdout = new StringWriter(); var stderr = new StringWriter();
         var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "volume", stepPath, "--approximate", "--resolution", "48", "--json"], stdout, stderr);
         Assert.Equal(0, exitCode);
@@ -1175,7 +1175,7 @@ public sealed class CliBaselineTests
     [Fact]
     public void AnalyzeVolume_JsonContractIncludesApproximationMetadata()
     {
-        var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/boolean_box_cylinder_hole.step");
+        var stepPath = Path.Combine(RepoRoot, "testdata/step242/golden/firmament-v1/boolean_box_cylinder_hole.step");
         var stdout = new StringWriter(); var stderr = new StringWriter();
         var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "volume", stepPath, "--approximate", "--resolution", "64", "--json"], stdout, stderr);
         Assert.Equal(0, exitCode);
@@ -1196,7 +1196,7 @@ public sealed class CliBaselineTests
     [Fact]
     public void AnalyzeCompare_IdenticalFile_HasZeroDeltas()
     {
-        var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/box_basic.step");
+        var stepPath = Path.Combine(RepoRoot, "testdata/step242/golden/firmament-v1/box_basic.step");
         var stdout = new StringWriter(); var stderr = new StringWriter();
         var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "compare", stepPath, stepPath, "--json"], stdout, stderr);
         Assert.Equal(0, exitCode);
@@ -1210,8 +1210,8 @@ public sealed class CliBaselineTests
     [Fact]
     public void AnalyzeCompare_DifferentFiles_ShowsNonZeroDifferences()
     {
-        var refPath = Path.Combine(RepoRoot, "testdata/firmament/exports/box_basic.step");
-        var candPath = Path.Combine(RepoRoot, "testdata/firmament/exports/boolean_subtract_basic.step");
+        var refPath = Path.Combine(RepoRoot, "testdata/step242/golden/firmament-v1/box_basic.step");
+        var candPath = Path.Combine(RepoRoot, "testdata/step242/golden/firmament-v1/boolean_subtract_basic.step");
         var stdout = new StringWriter(); var stderr = new StringWriter();
         var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "compare", refPath, candPath, "--json"], stdout, stderr);
         Assert.Equal(0, exitCode);
@@ -1224,8 +1224,8 @@ public sealed class CliBaselineTests
     [Fact]
     public void AnalyzeCompare_FailureSide_IsStructured()
     {
-        var refPath = Path.Combine(RepoRoot, "testdata/firmament/exports/does-not-exist.step");
-        var candPath = Path.Combine(RepoRoot, "testdata/firmament/exports/box_basic.step");
+        var refPath = Path.Combine(RepoRoot, "testdata/step242/golden/firmament-v1/does-not-exist.step");
+        var candPath = Path.Combine(RepoRoot, "testdata/step242/golden/firmament-v1/box_basic.step");
         var stdout = new StringWriter(); var stderr = new StringWriter();
         var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "compare", refPath, candPath, "--json"], stdout, stderr);
         Assert.Equal(1, exitCode);
@@ -1242,7 +1242,7 @@ public sealed class CliBaselineTests
         var stdout = new StringWriter();
         var stderr = new StringWriter();
 
-        var missingPath = Path.Combine(RepoRoot, "testdata/firmament/exports/does-not-exist.step");
+        var missingPath = Path.Combine(RepoRoot, "testdata/step242/golden/firmament-v1/does-not-exist.step");
         var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", missingPath, "--json"], stdout, stderr);
         Assert.Equal(1, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()));
@@ -1257,7 +1257,7 @@ public sealed class CliBaselineTests
     [Fact]
     public void Analyze_Command_SingleRootStep_StillReturnsSuccess()
     {
-        var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/box_basic.step");
+        var stepPath = Path.Combine(RepoRoot, "testdata/step242/golden/firmament-v1/box_basic.step");
         var stdout = new StringWriter();
         var stderr = new StringWriter();
 
@@ -1274,7 +1274,7 @@ public sealed class CliBaselineTests
     [Fact]
     public void Analyze_Command_Default_Output_Is_Human_Readable_Summary()
     {
-        var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/box_basic.step");
+        var stepPath = Path.Combine(RepoRoot, "testdata/step242/golden/firmament-v1/box_basic.step");
         var stdout = new StringWriter();
         var stderr = new StringWriter();
 
@@ -1335,7 +1335,7 @@ public sealed class CliBaselineTests
     [Fact]
     public void Canon_Command_RoundTrips_Supported_Step_Through_Importer_Exporter_Path()
     {
-        var inputPath = Path.Combine(RepoRoot, "testdata/firmament/exports/box_basic.step");
+        var inputPath = Path.Combine(RepoRoot, "testdata/step242/golden/firmament-v1/box_basic.step");
         var outputPath = Path.Combine(Path.GetTempPath(), $"cli-canon-roundtrip-{Guid.NewGuid():N}.step");
 
         var stdout = new StringWriter();
@@ -1356,7 +1356,7 @@ public sealed class CliBaselineTests
     [Fact]
     public void Canon_Command_Json_Success_Contract_Is_Machine_Friendly()
     {
-        var inputPath = Path.Combine(RepoRoot, "testdata/firmament/exports/box_basic.step");
+        var inputPath = Path.Combine(RepoRoot, "testdata/step242/golden/firmament-v1/box_basic.step");
         var outputPath = Path.Combine(Path.GetTempPath(), $"cli-canon-json-{Guid.NewGuid():N}.step");
         var stdout = new StringWriter();
         var stderr = new StringWriter();
@@ -1380,7 +1380,7 @@ public sealed class CliBaselineTests
     [Fact]
     public void Canon_Command_Production_Mode_Preserves_Supported_Header_And_Product_Metadata()
     {
-        var sourceText = File.ReadAllText(Path.Combine(RepoRoot, "testdata/firmament/exports/box_basic.step"))
+        var sourceText = File.ReadAllText(Path.Combine(RepoRoot, "testdata/step242/golden/firmament-v1/box_basic.step"))
             .Replace("FILE_DESCRIPTION(('Aetheris AP242 subset export'),'2;1');", "FILE_DESCRIPTION(('Vendor production description'),'2;1');", StringComparison.Ordinal)
             .Replace("FILE_NAME('aetheris_export.step','1970-01-01T00:00:00',('Aetheris'),('Aetheris'),'Aetheris.Kernel','Aetheris.Kernel','');", "FILE_NAME('vendor-widget.stp','2024-05-06T07:08:09',('Vendor Author'),('Vendor Org'),'Vendor Preprocessor','Vendor CAD','Vendor Approval');", StringComparison.Ordinal)
             .Replace("PRODUCT('AETHERIS','AetherisBody','',", "PRODUCT('VENDOR-ID','Vendor Widget','Vendor Product Description',", StringComparison.Ordinal);
@@ -1409,7 +1409,7 @@ public sealed class CliBaselineTests
     [Fact]
     public void Canon_Command_Json_Failure_Contract_Reports_Missing_Input()
     {
-        var missingPath = Path.Combine(RepoRoot, "testdata/firmament/exports/not-real.step");
+        var missingPath = Path.Combine(RepoRoot, "testdata/step242/golden/firmament-v1/not-real.step");
         var outputPath = Path.Combine(Path.GetTempPath(), $"cli-canon-missing-{Guid.NewGuid():N}.step");
         var stdout = new StringWriter();
         var stderr = new StringWriter();

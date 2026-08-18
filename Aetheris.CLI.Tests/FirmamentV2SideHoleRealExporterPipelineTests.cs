@@ -11,7 +11,7 @@ public sealed class FirmamentV2SideHoleRealExporterPipelineTests
     public void SIDEHOLE_REAL_X1_locked_side_hole_builds_through_real_exporter_reimports_and_matches_volume()
     {
         const string fixtureId = "feature-v2-side-hole-step-verified";
-        var fixturePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, $"../../../../fixtures/FirmamentV2/Region/valid/{fixtureId}.valid.firmfixture"));
+        var fixturePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, $"../../../../fixtures/Region/valid/{fixtureId}.valid.firmfixture"));
         var outDir = Path.Combine(Path.GetTempPath(), "aetheris-sidehole-real-x1", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(outDir);
         var stepPath = Path.Combine(outDir, fixtureId + ".step");
@@ -64,7 +64,7 @@ public sealed class FirmamentV2SideHoleRealExporterPipelineTests
     public void ConstructionPlaneHole_AnalyticVolumeCountsOnePartitionedPhysicalCylinder()
     {
         var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../"));
-        var fixture = Path.Combine(root, "fixtures", "FirmamentV2", "Hole", "valid", "construction-plane-through-hole.firmament");
+        var fixture = Path.Combine(root, "fixtures", "Hole", "valid", "construction-plane-through-hole.firmament");
         var stepPath = Path.Combine(Path.GetTempPath(), "aetheris-construction-plane-hole-" + Guid.NewGuid().ToString("N") + ".step");
         var stdout = new StringWriter(); var stderr = new StringWriter();
 

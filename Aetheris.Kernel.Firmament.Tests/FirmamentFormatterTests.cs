@@ -197,12 +197,12 @@ public sealed class FirmamentFormatterTests
     };
 
     [Theory]
-    [InlineData("testdata/firmament/fixtures/m3a-valid-primitive-only-lower.firmament")]
-    [InlineData("testdata/firmament/fixtures/m3b-mixed-primitive-boolean-validation.firmament")]
-    [InlineData("testdata/firmament/fixtures/m7a-valid-box-origin-placement.firmament")]
-    [InlineData("testdata/firmament/fixtures/m8a-valid-schema-cnc.firmament")]
-    [InlineData("testdata/firmament/fixtures/m8a-valid-schema-additive.firmament")]
-    [InlineData("testdata/firmament/fixtures/m8a-valid-schema-injection-molded.firmament")]
+    [InlineData("fixtures/LegacyV1/Corpus/valid/m3a-valid-primitive-only-lower.firmament")]
+    [InlineData("fixtures/LegacyV1/Corpus/valid/m3b-mixed-primitive-boolean-validation.firmament")]
+    [InlineData("fixtures/LegacyV1/Corpus/valid/m7a-valid-box-origin-placement.firmament")]
+    [InlineData("fixtures/LegacyV1/Corpus/valid/m8a-valid-schema-cnc.firmament")]
+    [InlineData("fixtures/LegacyV1/Corpus/valid/m8a-valid-schema-additive.firmament")]
+    [InlineData("fixtures/LegacyV1/Corpus/valid/m8a-valid-schema-injection-molded.firmament")]
     public void Format_CanonicalFixtures_RoundTrip_As_ByteForByte_NoOp(string fixturePath)
     {
         var source = FirmamentCorpusHarness.ReadFixtureText(fixturePath);
@@ -214,10 +214,10 @@ public sealed class FirmamentFormatterTests
     }
 
     [Theory]
-    [InlineData("testdata/firmament/fixtures/m3a-valid-primitive-only-lower.firmament")]
-    [InlineData("testdata/firmament/fixtures/m3b-mixed-primitive-boolean-validation.firmament")]
-    [InlineData("testdata/firmament/fixtures/m7d-valid-boolean-selector-placement.firmament")]
-    [InlineData("testdata/firmament/fixtures/m8c-valid-schema-cnc-minimum-tool-radius.firmament")]
+    [InlineData("fixtures/LegacyV1/Corpus/valid/m3a-valid-primitive-only-lower.firmament")]
+    [InlineData("fixtures/LegacyV1/Corpus/valid/m3b-mixed-primitive-boolean-validation.firmament")]
+    [InlineData("fixtures/LegacyV1/Corpus/valid/m7d-valid-boolean-selector-placement.firmament")]
+    [InlineData("fixtures/LegacyV1/Corpus/valid/m8c-valid-schema-cnc-minimum-tool-radius.firmament")]
     public void Format_Is_Deterministic_For_Supported_Canonical_Fixtures(string fixturePath)
     {
         var source = FirmamentCorpusHarness.ReadFixtureText(fixturePath);
@@ -257,9 +257,9 @@ public sealed class FirmamentFormatterTests
     }
 
     [Theory]
-    [InlineData("testdata/firmament/fixtures/m3b-mixed-primitive-boolean-validation.firmament")]
-    [InlineData("testdata/firmament/fixtures/m7d-valid-boolean-selector-placement.firmament")]
-    [InlineData("testdata/firmament/fixtures/m8a-valid-schema-injection-molded.firmament")]
+    [InlineData("fixtures/LegacyV1/Corpus/valid/m3b-mixed-primitive-boolean-validation.firmament")]
+    [InlineData("fixtures/LegacyV1/Corpus/valid/m7d-valid-boolean-selector-placement.firmament")]
+    [InlineData("fixtures/LegacyV1/Corpus/valid/m8a-valid-schema-injection-molded.firmament")]
     public void Format_Does_Not_Change_Parsed_Meaning_For_Supported_Fixtures(string fixturePath)
     {
         var source = FirmamentCorpusHarness.ReadFixtureText(fixturePath);

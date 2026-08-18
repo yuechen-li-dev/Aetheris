@@ -16,7 +16,7 @@ if (args.Length == 0)
 }
 var root = FindRoot();
 var archive = Path.GetFullPath(args[0]);
-var output = Path.GetFullPath(args.Length > 1 ? args[1] : Path.Combine(root, "docs", "geometry", "artifacts", "bunny-m0"));
+var output = Path.GetFullPath(args.Length > 1 ? args[1] : Path.Combine(root, "artifacts", "local", "evidence", "geometry", "bunny-m0"));
 if (!File.Exists(archive)) throw new FileNotFoundException("Local Stanford Bunny archive was not found.", archive);
 Directory.CreateDirectory(output); Directory.CreateDirectory(Path.Combine(output, "source"));
 var total = Stopwatch.StartNew(); var timings = new SortedDictionary<string, double>(); var stage = Stopwatch.StartNew();

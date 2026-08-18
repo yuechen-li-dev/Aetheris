@@ -5,7 +5,7 @@ using System.Text.Json;
 using Aetheris.Continuum.Experiments.Attention;
 
 var repository = FindRepositoryRoot(AppContext.BaseDirectory);
-var output = Path.Combine(repository, "docs", "continuum", "artifacts", "attention-e0");
+var output = Path.Combine(repository, "artifacts", "local", "evidence", "continuum", "attention-e0");
 Directory.CreateDirectory(output);
 var options = new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 var compact = new JsonSerializerOptions(options) { WriteIndented = false };

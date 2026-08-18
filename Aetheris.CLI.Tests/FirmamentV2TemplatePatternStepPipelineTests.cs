@@ -12,7 +12,7 @@ public sealed class FirmamentV2TemplatePatternStepPipelineTests
     [InlineData("template-m4b-standard.firmament", 80d, 50d, 25d, 30d)]
     public void TemplatePattern_BuildsReimportsAndProducesExactTwoHoleGeometry(string fixtureName, double width, double depth, double height, double centerX)
     {
-        var fixture = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../demos", fixtureName));
+        var fixture = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/DemoRegression", fixtureName));
         var stepPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".step");
         var stdout = new StringWriter();
         var stderr = new StringWriter();

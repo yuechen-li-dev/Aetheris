@@ -198,7 +198,7 @@ public sealed class ForgeCsA1InteropTests
 
     private static FirmamentV2Document ParseFixture(string relative)
     {
-        var result = FirmamentV2Parser.Parse(File.ReadAllText(Path.Combine(FindRepoRoot(), "fixtures", "FirmamentV2", relative)));
+        var result = FirmamentV2Parser.Parse(File.ReadAllText(Path.Combine(FindRepoRoot(), "fixtures", relative)));
         Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
         return result.Document!;
     }

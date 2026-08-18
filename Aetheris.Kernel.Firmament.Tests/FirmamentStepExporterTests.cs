@@ -13,7 +13,7 @@ public sealed class FirmamentStepExporterTests
     [Fact]
     public void Export_SingleBoxFixture_Returns_Explicit_Metadata_And_Persisted_Artifact()
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m10a-valid-single-box-export.firmament");
+        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Corpus/valid/m10a-valid-single-box-export.firmament");
 
         var first = Export(source);
         var second = Export(source);
@@ -39,8 +39,8 @@ public sealed class FirmamentStepExporterTests
     [Fact]
     public void Export_PlacedPrimitiveFixture_Exports_Successfully_With_Metadata_And_Deterministic_Text()
     {
-        var first = ExportFixture("testdata/firmament/fixtures/m10a-valid-placed-box-export.firmament");
-        var second = ExportFixture("testdata/firmament/fixtures/m10a-valid-placed-box-export.firmament");
+        var first = ExportFixture("fixtures/LegacyV1/Corpus/valid/m10a-valid-placed-box-export.firmament");
+        var second = ExportFixture("fixtures/LegacyV1/Corpus/valid/m10a-valid-placed-box-export.firmament");
 
         Assert.True(first.IsSuccess);
         Assert.True(second.IsSuccess);
@@ -55,8 +55,8 @@ public sealed class FirmamentStepExporterTests
     [Fact]
     public void Export_BooleanFixture_Exports_Successfully_With_Metadata_And_Deterministic_Text()
     {
-        var first = ExportFixture("testdata/firmament/fixtures/m10a-valid-boolean-export.firmament");
-        var second = ExportFixture("testdata/firmament/fixtures/m10a-valid-boolean-export.firmament");
+        var first = ExportFixture("fixtures/LegacyV1/Corpus/valid/m10a-valid-boolean-export.firmament");
+        var second = ExportFixture("fixtures/LegacyV1/Corpus/valid/m10a-valid-boolean-export.firmament");
 
         Assert.True(first.IsSuccess);
         Assert.True(second.IsSuccess);
@@ -75,8 +75,8 @@ public sealed class FirmamentStepExporterTests
     [Fact]
     public void Export_SupportedBoxCylinderHole_Exports_Deterministically_With_Semantic_Diameter_Pmi()
     {
-        var first = ExportFixture("testdata/firmament/examples/boolean_box_cylinder_hole.firmament");
-        var second = ExportFixture("testdata/firmament/examples/boolean_box_cylinder_hole.firmament");
+        var first = ExportFixture("fixtures/LegacyV1/Examples/boolean_box_cylinder_hole.firmament");
+        var second = ExportFixture("fixtures/LegacyV1/Examples/boolean_box_cylinder_hole.firmament");
 
         Assert.True(first.IsSuccess);
         Assert.True(second.IsSuccess);
@@ -99,8 +99,8 @@ public sealed class FirmamentStepExporterTests
     [Fact]
     public void Export_SupportedBoxConeThroughHole_Exports_Deterministically_With_ConicalSurface_And_Persisted_Artifact()
     {
-        var first = ExportFixture("testdata/firmament/examples/boolean_box_cone_throughhole_basic.firmament");
-        var second = ExportFixture("testdata/firmament/examples/boolean_box_cone_throughhole_basic.firmament");
+        var first = ExportFixture("fixtures/LegacyV1/Examples/boolean_box_cone_throughhole_basic.firmament");
+        var second = ExportFixture("fixtures/LegacyV1/Examples/boolean_box_cone_throughhole_basic.firmament");
 
         Assert.True(first.IsSuccess);
         Assert.True(second.IsSuccess);
@@ -120,8 +120,8 @@ public sealed class FirmamentStepExporterTests
     [Fact]
     public void Export_SupportedTwoCylinderComposition_Exports_Two_Semantic_Diameter_Items_Deterministically()
     {
-        var first = ExportFixture("testdata/firmament/examples/boolean_two_cylinder_holes_basic.firmament");
-        var second = ExportFixture("testdata/firmament/examples/boolean_two_cylinder_holes_basic.firmament");
+        var first = ExportFixture("fixtures/LegacyV1/Examples/boolean_two_cylinder_holes_basic.firmament");
+        var second = ExportFixture("fixtures/LegacyV1/Examples/boolean_two_cylinder_holes_basic.firmament");
 
         Assert.True(first.IsSuccess);
         Assert.True(second.IsSuccess);
@@ -147,8 +147,8 @@ public sealed class FirmamentStepExporterTests
     [Fact]
     public void Export_SupportedCylinderConeComposition_Exports_Only_Cylinder_Diameter_Pmi()
     {
-        var first = ExportFixture("testdata/firmament/examples/boolean_cylinder_cone_holes_basic.firmament");
-        var second = ExportFixture("testdata/firmament/examples/boolean_cylinder_cone_holes_basic.firmament");
+        var first = ExportFixture("fixtures/LegacyV1/Examples/boolean_cylinder_cone_holes_basic.firmament");
+        var second = ExportFixture("fixtures/LegacyV1/Examples/boolean_cylinder_cone_holes_basic.firmament");
 
         Assert.True(first.IsSuccess);
         Assert.True(second.IsSuccess);
@@ -173,8 +173,8 @@ public sealed class FirmamentStepExporterTests
     [Fact]
     public void Export_SupportedBoxSphereCavity_Uses_BrepWithVoids_And_Is_Deterministic()
     {
-        var first = ExportFixture("testdata/firmament/examples/boolean_box_sphere_cavity_basic.firmament");
-        var second = ExportFixture("testdata/firmament/examples/boolean_box_sphere_cavity_basic.firmament");
+        var first = ExportFixture("fixtures/LegacyV1/Examples/boolean_box_sphere_cavity_basic.firmament");
+        var second = ExportFixture("fixtures/LegacyV1/Examples/boolean_box_sphere_cavity_basic.firmament");
 
         Assert.True(first.IsSuccess);
         Assert.True(second.IsSuccess);
@@ -197,11 +197,11 @@ public sealed class FirmamentStepExporterTests
     [Fact]
     public void Export_NonCylinderOrFailedBooleanCases_DoNotEmit_SemanticPmi()
     {
-        var boxSubtract = ExportFixture("testdata/firmament/examples/boolean_subtract_basic.firmament");
-        var coneHole = ExportFixture("testdata/firmament/examples/boolean_box_cone_throughhole_basic.firmament");
-        var containedCylinder = ExportFixture("testdata/firmament/fixtures/m10h1-unsupported-box-with-cylinder-hole.firmament");
-        var supportedSphereCavity = ExportFixture("testdata/firmament/examples/boolean_box_sphere_cavity_basic.firmament");
-        var unsupportedTorus = ExportFixture("testdata/firmament/fixtures/m10n-unsupported-box-subtract-torus.firmament");
+        var boxSubtract = ExportFixture("fixtures/LegacyV1/Examples/boolean_subtract_basic.firmament");
+        var coneHole = ExportFixture("fixtures/LegacyV1/Examples/boolean_box_cone_throughhole_basic.firmament");
+        var containedCylinder = ExportFixture("fixtures/LegacyV1/Corpus/deferred/m10h1-unsupported-box-with-cylinder-hole.firmament");
+        var supportedSphereCavity = ExportFixture("fixtures/LegacyV1/Examples/boolean_box_sphere_cavity_basic.firmament");
+        var unsupportedTorus = ExportFixture("fixtures/LegacyV1/Corpus/deferred/m10n-unsupported-box-subtract-torus.firmament");
 
         Assert.True(boxSubtract.IsSuccess);
         Assert.DoesNotContain("SHAPE_ASPECT", boxSubtract.Value.StepText, StringComparison.Ordinal);
@@ -222,8 +222,8 @@ public sealed class FirmamentStepExporterTests
     [Fact]
     public void Export_ContainedBoxWithCylinderHole_Succeeds_Deterministically_Without_Fallback()
     {
-        var first = ExportFixture("testdata/firmament/fixtures/m10h1-unsupported-box-with-cylinder-hole.firmament");
-        var second = ExportFixture("testdata/firmament/fixtures/m10h1-unsupported-box-with-cylinder-hole.firmament");
+        var first = ExportFixture("fixtures/LegacyV1/Corpus/deferred/m10h1-unsupported-box-with-cylinder-hole.firmament");
+        var second = ExportFixture("fixtures/LegacyV1/Corpus/deferred/m10h1-unsupported-box-with-cylinder-hole.firmament");
 
         Assert.True(first.IsSuccess);
         Assert.True(second.IsSuccess);
@@ -236,7 +236,7 @@ public sealed class FirmamentStepExporterTests
     public void FirmamentStepExporter_CirOnlyBoxCylinder_ExportsViaSemanticRecovery()
     {
         var compiler = new FirmamentCompiler();
-        var source = FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/examples/boolean_box_cylinder_hole.firmament");
+        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Examples/boolean_box_cylinder_hole.firmament");
         var compiled = compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
         Assert.True(compiled.Compilation.IsSuccess);
 
@@ -313,7 +313,7 @@ public sealed class FirmamentStepExporterTests
     public void FirmamentStepExporter_CirOnlyUnsupportedBoxSphere_FailsClearly()
     {
         var compiler = new FirmamentCompiler();
-        var source = FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-touching-boundary.firmament");
+        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Corpus/deferred/m10l-unsupported-box-subtract-sphere-touching-boundary.firmament");
         var compiled = compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source)));
         Assert.True(compiled.Compilation.IsSuccess);
 
@@ -345,8 +345,8 @@ public sealed class FirmamentStepExporterTests
     [Fact]
     public void Export_AddThenSubtract_ReentrySafeRootFixture_Succeeds_Deterministically_Without_Fallback()
     {
-        var first = ExportFixture("testdata/firmament/fixtures/m13b-invalid-composed-reenter-safe-family.firmament");
-        var second = ExportFixture("testdata/firmament/fixtures/m13b-invalid-composed-reenter-safe-family.firmament");
+        var first = ExportFixture("fixtures/LegacyV1/Corpus/invalid/m13b-invalid-composed-reenter-safe-family.firmament");
+        var second = ExportFixture("fixtures/LegacyV1/Corpus/invalid/m13b-invalid-composed-reenter-safe-family.firmament");
 
         Assert.True(first.IsSuccess);
         Assert.True(second.IsSuccess);
@@ -356,21 +356,21 @@ public sealed class FirmamentStepExporterTests
 
 
     [Theory]
-    [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-touching-boundary.firmament", "tangent_cavity")]
-    [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-subtract-sphere-partially-outside.firmament", "leaking_cavity")]
-    [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-add-sphere.firmament", "joined")]
-    [InlineData("testdata/firmament/fixtures/m10l-unsupported-box-intersect-sphere.firmament", "overlap")]
-    [InlineData("testdata/firmament/fixtures/m10m-unsupported-box-subtract-cone.firmament", "tapered_cut")]
-    [InlineData("testdata/firmament/fixtures/m10m-unsupported-box-add-cone.firmament", "joined")]
-    [InlineData("testdata/firmament/fixtures/m10m-unsupported-box-intersect-cone.firmament", "overlap")]
-    [InlineData("testdata/firmament/fixtures/m10n-unsupported-box-subtract-torus.firmament", "ring_cut")]
-    [InlineData("testdata/firmament/fixtures/m10n-unsupported-box-add-torus.firmament", "joined")]
-    [InlineData("testdata/firmament/fixtures/m10n-unsupported-box-intersect-torus.firmament", "overlap")]
-    [InlineData("testdata/firmament/fixtures/m13a-unsupported-overlapping-composed-holes.firmament", "hole_b")]
-    [InlineData("testdata/firmament/fixtures/m13a-unsupported-tangent-composed-holes.firmament", "hole_b")]
-    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-add-ordering.firmament", "joined")]
-    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-sphere.firmament", "cavity")]
-    [InlineData("testdata/firmament/fixtures/m13a-unsupported-composed-subtract-box.firmament", "notch")]
+    [InlineData("fixtures/LegacyV1/Corpus/deferred/m10l-unsupported-box-subtract-sphere-touching-boundary.firmament", "tangent_cavity")]
+    [InlineData("fixtures/LegacyV1/Corpus/deferred/m10l-unsupported-box-subtract-sphere-partially-outside.firmament", "leaking_cavity")]
+    [InlineData("fixtures/LegacyV1/Corpus/deferred/m10l-unsupported-box-add-sphere.firmament", "joined")]
+    [InlineData("fixtures/LegacyV1/Corpus/deferred/m10l-unsupported-box-intersect-sphere.firmament", "overlap")]
+    [InlineData("fixtures/LegacyV1/Corpus/deferred/m10m-unsupported-box-subtract-cone.firmament", "tapered_cut")]
+    [InlineData("fixtures/LegacyV1/Corpus/deferred/m10m-unsupported-box-add-cone.firmament", "joined")]
+    [InlineData("fixtures/LegacyV1/Corpus/deferred/m10m-unsupported-box-intersect-cone.firmament", "overlap")]
+    [InlineData("fixtures/LegacyV1/Corpus/deferred/m10n-unsupported-box-subtract-torus.firmament", "ring_cut")]
+    [InlineData("fixtures/LegacyV1/Corpus/deferred/m10n-unsupported-box-add-torus.firmament", "joined")]
+    [InlineData("fixtures/LegacyV1/Corpus/deferred/m10n-unsupported-box-intersect-torus.firmament", "overlap")]
+    [InlineData("fixtures/LegacyV1/Corpus/deferred/m13a-unsupported-overlapping-composed-holes.firmament", "hole_b")]
+    [InlineData("fixtures/LegacyV1/Corpus/deferred/m13a-unsupported-tangent-composed-holes.firmament", "hole_b")]
+    [InlineData("fixtures/LegacyV1/Corpus/deferred/m13a-unsupported-composed-add-ordering.firmament", "joined")]
+    [InlineData("fixtures/LegacyV1/Corpus/deferred/m13a-unsupported-composed-subtract-sphere.firmament", "cavity")]
+    [InlineData("fixtures/LegacyV1/Corpus/deferred/m13a-unsupported-composed-subtract-box.firmament", "notch")]
     public void Export_UnsupportedMixedPrimitiveBooleanFixtures_Fail_Loudly_Without_Fallback(string fixturePath, string expectedFeatureId)
     {
         var first = ExportFixture(fixturePath);
@@ -457,8 +457,8 @@ public sealed class FirmamentStepExporterTests
     [Fact]
     public void Export_SchemaPresent_Model_Still_Exports_With_Stable_Metadata_And_Deterministic_Text()
     {
-        var first = ExportFixture("testdata/firmament/fixtures/m10b-valid-schema-box-export.firmament");
-        var second = ExportFixture("testdata/firmament/fixtures/m10b-valid-schema-box-export.firmament");
+        var first = ExportFixture("fixtures/LegacyV1/Corpus/valid/m10b-valid-schema-box-export.firmament");
+        var second = ExportFixture("fixtures/LegacyV1/Corpus/valid/m10b-valid-schema-box-export.firmament");
 
         Assert.True(first.IsSuccess);
         Assert.True(second.IsSuccess);
@@ -474,8 +474,8 @@ public sealed class FirmamentStepExporterTests
     [Fact]
     public void Export_CylinderExample_Exports_Successfully_With_Metadata_Deterministic_Text_And_Persisted_Artifact()
     {
-        var first = ExportFixture("testdata/firmament/examples/cylinder_basic.firmament");
-        var second = ExportFixture("testdata/firmament/examples/cylinder_basic.firmament");
+        var first = ExportFixture("fixtures/LegacyV1/Examples/cylinder_basic.firmament");
+        var second = ExportFixture("fixtures/LegacyV1/Examples/cylinder_basic.firmament");
 
         Assert.True(first.IsSuccess);
         Assert.True(second.IsSuccess);
@@ -496,8 +496,8 @@ public sealed class FirmamentStepExporterTests
     [Fact]
     public void Export_SphereExample_Exports_Successfully_With_Metadata_Deterministic_Text_And_Persisted_Artifact()
     {
-        var first = ExportFixture("testdata/firmament/examples/sphere_basic.firmament");
-        var second = ExportFixture("testdata/firmament/examples/sphere_basic.firmament");
+        var first = ExportFixture("fixtures/LegacyV1/Examples/sphere_basic.firmament");
+        var second = ExportFixture("fixtures/LegacyV1/Examples/sphere_basic.firmament");
 
         Assert.True(first.IsSuccess);
         Assert.True(second.IsSuccess);
@@ -517,8 +517,8 @@ public sealed class FirmamentStepExporterTests
     [Fact]
     public void Export_TorusExample_Exports_Successfully_With_Metadata_Deterministic_Text_And_Persisted_Artifact()
     {
-        var first = ExportFixture("testdata/firmament/examples/torus_basic.firmament");
-        var second = ExportFixture("testdata/firmament/examples/torus_basic.firmament");
+        var first = ExportFixture("fixtures/LegacyV1/Examples/torus_basic.firmament");
+        var second = ExportFixture("fixtures/LegacyV1/Examples/torus_basic.firmament");
 
         Assert.True(first.IsSuccess);
         Assert.True(second.IsSuccess);
@@ -613,8 +613,8 @@ ops[2]:
     [Fact]
     public void Export_ConeExample_Exports_Successfully_With_Metadata_Deterministic_Text_And_Persisted_Artifact()
     {
-        var first = ExportFixture("testdata/firmament/examples/cone_frustum_basic.firmament");
-        var second = ExportFixture("testdata/firmament/examples/cone_frustum_basic.firmament");
+        var first = ExportFixture("fixtures/LegacyV1/Examples/cone_frustum_basic.firmament");
+        var second = ExportFixture("fixtures/LegacyV1/Examples/cone_frustum_basic.firmament");
 
         Assert.True(first.IsSuccess);
         Assert.True(second.IsSuccess);
@@ -634,8 +634,8 @@ ops[2]:
     [Fact]
     public void Export_PointedConeExample_Exports_Successfully_With_Metadata_Deterministic_Text_And_Persisted_Artifact()
     {
-        var first = ExportFixture("testdata/firmament/examples/cone_pointed_top_zero.firmament");
-        var second = ExportFixture("testdata/firmament/examples/cone_pointed_top_zero.firmament");
+        var first = ExportFixture("fixtures/LegacyV1/Examples/cone_pointed_top_zero.firmament");
+        var second = ExportFixture("fixtures/LegacyV1/Examples/cone_pointed_top_zero.firmament");
 
         Assert.True(first.IsSuccess);
         Assert.True(second.IsSuccess);
@@ -655,7 +655,7 @@ ops[2]:
     [Fact]
     public void Export_MultipleExecutedGeometryBodies_Selects_Last_Executed_Geometric_Feature_Body()
     {
-        var compile = CompileFixture("testdata/firmament/fixtures/m10h1-valid-mixed-primitive-boolean-validation.firmament");
+        var compile = CompileFixture("fixtures/LegacyV1/Corpus/valid/m10h1-valid-mixed-primitive-boolean-validation.firmament");
         Assert.True(compile.Compilation.IsSuccess);
 
         var export = FirmamentStepExporter.Export(compile.Compilation.Value);
@@ -718,8 +718,8 @@ ops[3]:
     [Fact]
     public void Export_NoExecutedGeometricBody_Fails_Deterministically()
     {
-        var first = ExportFixture("testdata/firmament/fixtures/m10a-no-export-body.firmament");
-        var second = ExportFixture("testdata/firmament/fixtures/m10a-no-export-body.firmament");
+        var first = ExportFixture("fixtures/LegacyV1/Corpus/valid/m10a-no-export-body.firmament");
+        var second = ExportFixture("fixtures/LegacyV1/Corpus/valid/m10a-no-export-body.firmament");
 
         Assert.False(first.IsSuccess);
         Assert.False(second.IsSuccess);
@@ -732,7 +732,7 @@ ops[3]:
     [Fact]
     public void Export_ValidationFailure_Prevents_Export()
     {
-        var result = ExportFixture("testdata/firmament/fixtures/m1a-invalid-sphere-missing-radius.firmament");
+        var result = ExportFixture("fixtures/LegacyV1/Corpus/invalid/m1a-invalid-sphere-missing-radius.firmament");
 
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
@@ -844,10 +844,7 @@ ops[1]:
     {
         var path = Path.Combine(
             FirmamentCorpusHarness.RepoRoot(),
-            "testdata",
-            "firmament",
-            "exports",
-            fileName);
+            "testdata", "step242", "golden", "firmament-v1", fileName);
 
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, stepText);

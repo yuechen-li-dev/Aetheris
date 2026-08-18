@@ -809,7 +809,7 @@ model AliasFailure {
     [Fact]
     public void FirmamentV2_AllPriorSideHoleMilestonesRemainGreen()
     {
-        foreach (var fixture in Directory.EnumerateFiles(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2/Region/valid")), "side-hole*.valid.firmfixture"))
+        foreach (var fixture in Directory.EnumerateFiles(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Region/valid")), "side-hole*.valid.firmfixture"))
         {
             var lines = File.ReadAllLines(fixture);
             var bodyStart = Array.FindIndex(lines, line => !string.IsNullOrWhiteSpace(line) && !line.TrimStart().StartsWith("//", StringComparison.Ordinal));
@@ -866,7 +866,7 @@ model BadPmiDiameter {
     public void FirmamentV2Parser_RecordPmiDatumDiameter_BindsTolerancedDimensionAndTargets()
     {
         var result = FirmamentV2Parser.Parse(Source("InlineStep/valid/inline-step-v2-record-pmi-datum-diameter-step-verified.valid.firmfixture"),
-            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2/InlineStep/valid")));
+            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/InlineStep/valid")));
 
         Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
         var bound = result.Document!.BoundPmi!;
@@ -914,7 +914,7 @@ model BadPmiDiameter {
     public void FirmamentV2P2_RecordPmiDiameterDimensionWithoutTolerance_IsRejected()
     {
         var result = FirmamentV2Parser.Parse(Source("InlineStep/invalid/inline-step-v2-record-pmi-diameter-missing-tolerance.invalid.firmfixture"),
-            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2/InlineStep/invalid")));
+            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/InlineStep/invalid")));
 
         Assert.False(result.IsSuccess);
         Assert.Contains(FirmamentV2Parser.PmiDimensionMissingTolerance, result.Diagnostics);
@@ -1001,7 +1001,7 @@ model:
         return string.Join(Environment.NewLine, lines.Skip(Math.Max(0, bodyStart)));
     }
 
-    private static string FixturePath(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2", relative));
+    private static string FixturePath(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures", relative));
 
     [Fact]
     public void FirmamentV2Parser_LetPrimitiveLiterals_ParsesAndBinds()

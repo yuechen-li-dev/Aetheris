@@ -7,7 +7,7 @@ public sealed class AssemblyDocumentationContractTests
     [Fact]
     public void Assembly_Documentation_Exists_And_Contains_Frozen_Sections()
     {
-        var path = Path.Combine(RepoRoot, "docs", "assembly.md");
+        var path = Path.Combine(RepoRoot, "docs", "development", "milestones", "general", "assembly.md");
         Assert.True(File.Exists(path), $"Expected assembly doc at '{path}'.");
 
         var text = File.ReadAllText(path);

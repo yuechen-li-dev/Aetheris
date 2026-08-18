@@ -85,7 +85,7 @@ public sealed class ForgeCsA5ExternalConceptPackTests
         return FirmamentV2ForgeRuntimeConfiguration.Create(packs);
     }
 
-    private static string FixturePath(string relative) => Path.Combine(FindRepoRoot(), "fixtures", "FirmamentV2", relative);
+    private static string FixturePath(string relative) => Path.Combine(FindRepoRoot(), "fixtures", relative);
 
     private static string FindRepoRoot()
     {

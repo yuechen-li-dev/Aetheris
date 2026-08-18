@@ -85,5 +85,5 @@ public sealed class FirmamentV2CanonicalSafetyAndLabelingTests
         Assert.Contains(FirmamentV2Parser.CanonicalDeclarationUnrecognized, parse.Diagnostics);
     }
 
-    private static string Canonical(string name) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2/Canonical/valid", name));
+    private static string Canonical(string name) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Canonical/valid", name));
 }

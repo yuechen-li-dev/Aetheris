@@ -30,7 +30,7 @@ public static class SheetMetalModule
         ["AuthoredSheetMetal<RegionBendGraph>","RecoveredSheetMetalEvidence<Part>"],
         ["Firmament SheetMetal -> SheetMetalPartIr region/bend/corner graph -> explicit formed BRep + stitched SheetMetalFlatPatternIr","STEP BRep -> recognized SheetMetalPartIr -> bounded flat pattern -> recovered Firmament + SVG"],
         SheetMetalDiagnosticCodes.All,
-        [new(CoreModule.Id,new(1,0,0)),new(SurfacingModule.Id,new(0,1,0))],new("docs/modules/sheet-metal.md"));
+        [new(CoreModule.Id,new(1,0,0)),new(SurfacingModule.Id,new(0,1,0))],new("docs/development/milestones/modules/sheet-metal.md"));
 
     private static ModuleCapability Capability(string id, string description) => new(id, Id, Version, description);
 }

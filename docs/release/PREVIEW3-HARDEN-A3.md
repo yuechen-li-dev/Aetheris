@@ -14,16 +14,16 @@ The sources below were authored as new A3 witnesses, then run with `aetheris bui
 
 | Fresh V2 witness | Intent | Result |
 |---|---|---|
-| [`a3-sphere-step-qualified.firmament`](../../fixtures/FirmamentV2/Primitive/valid/a3-sphere-step-qualified.firmament) | 7.5 mm analytic sphere | one sphere face, enclosed manifold, bounds ±7.5 mm |
-| [`a3-pointed-cone-step-qualified.firmament`](../../fixtures/FirmamentV2/Primitive/valid/a3-pointed-cone-step-qualified.firmament) | 6 mm radius, 18 mm pointed cone | plane + cone, enclosed manifold, apex retained |
-| [`a3-torus-step-qualified.firmament`](../../fixtures/FirmamentV2/Primitive/valid/a3-torus-step-qualified.firmament) | 12/3 mm major/minor-radius torus | one torus face, enclosed manifold, bounds x/z ±15 mm and y ±3 mm |
-| [`a3-blind-shaft-hole.firmament`](../../fixtures/FirmamentV2/Canonical/valid/a3-blind-shaft-hole.firmament) | blind 8 mm shaft hole in 60 × 40 × 20 mm block | one cylindrical shaft face; enclosed, orientation-consistent reimport |
-| [`a3-counterbore-hole.firmament`](../../fixtures/FirmamentV2/Canonical/valid/a3-counterbore-hole.firmament) | through 6 mm shaft with 12 × 5 mm counterbore | two cylinders, nine faces, enclosed manifold |
-| [`a3-countersink-hole.firmament`](../../fixtures/FirmamentV2/Canonical/valid/a3-countersink-hole.firmament) | through 6 mm shaft with 14 mm, 90° countersink | cylinder + cone, eight faces, enclosed manifold |
-| [`a3-mounting-plate.firmament`](../../fixtures/FirmamentV2/Canonical/valid/a3-mounting-plate.firmament) | four through holes, boundary chamfer, datum and diameter PMI | `CombinedHoleEdgeFinish`, 14 faces/4 cylinders, AP242 PMI evidence, reimported manifold |
-| [`a3-two-hole-l-bracket.firmament`](../../fixtures/FirmamentV2/SheetMetal/a3-two-hole-l-bracket.firmament) | two-hole L bracket | formed STEP: 3 regions, 1 bend, 2 cuts; flat STEP/SVG: valid exact contours and DFM pass |
+| [`a3-sphere-step-qualified.firmament`](../../fixtures/Primitive/valid/a3-sphere-step-qualified.firmament) | 7.5 mm analytic sphere | one sphere face, enclosed manifold, bounds ±7.5 mm |
+| [`a3-pointed-cone-step-qualified.firmament`](../../fixtures/Primitive/valid/a3-pointed-cone-step-qualified.firmament) | 6 mm radius, 18 mm pointed cone | plane + cone, enclosed manifold, apex retained |
+| [`a3-torus-step-qualified.firmament`](../../fixtures/Primitive/valid/a3-torus-step-qualified.firmament) | 12/3 mm major/minor-radius torus | one torus face, enclosed manifold, bounds x/z ±15 mm and y ±3 mm |
+| [`a3-blind-shaft-hole.firmament`](../../fixtures/Canonical/valid/a3-blind-shaft-hole.firmament) | blind 8 mm shaft hole in 60 × 40 × 20 mm block | one cylindrical shaft face; enclosed, orientation-consistent reimport |
+| [`a3-counterbore-hole.firmament`](../../fixtures/Canonical/valid/a3-counterbore-hole.firmament) | through 6 mm shaft with 12 × 5 mm counterbore | two cylinders, nine faces, enclosed manifold |
+| [`a3-countersink-hole.firmament`](../../fixtures/Canonical/valid/a3-countersink-hole.firmament) | through 6 mm shaft with 14 mm, 90° countersink | cylinder + cone, eight faces, enclosed manifold |
+| [`a3-mounting-plate.firmament`](../../fixtures/Canonical/valid/a3-mounting-plate.firmament) | four through holes, boundary chamfer, datum and diameter PMI | `CombinedHoleEdgeFinish`, 14 faces/4 cylinders, AP242 PMI evidence, reimported manifold |
+| [`a3-two-hole-l-bracket.firmament`](../../fixtures/SheetMetal/a3-two-hole-l-bracket.firmament) | two-hole L bracket | formed STEP: 3 regions, 1 bend, 2 cuts; flat STEP/SVG: valid exact contours and DFM pass |
 
-The negative companion [`a3-countersink-wrong-domain.invalid.firmfixture`](../../fixtures/FirmamentV2/SheetMetal/invalid/a3-countersink-wrong-domain.invalid.firmfixture) fails with `sheetmetal-hole-domain-syntax`, directing the author to canonical Sheet Metal `Hole Name` syntax. There is no silent feature loss.
+The negative companion [`a3-countersink-wrong-domain.invalid.firmfixture`](../../fixtures/SheetMetal/invalid/a3-countersink-wrong-domain.invalid.firmfixture) fails with `sheetmetal-hole-domain-syntax`, directing the author to canonical Sheet Metal `Hole Name` syntax. There is no silent feature loss.
 
 ## Geometry and feature matrix
 

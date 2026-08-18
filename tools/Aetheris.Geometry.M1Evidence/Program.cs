@@ -9,7 +9,7 @@ using Aetheris.Kernel.Core.Math;
 using Aetheris.Piping;
 using Aetheris.Surfacing;
 
-var output = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "docs", "geometry", "artifacts", "reasoning-m1"));
+var output = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "artifacts", "local", "evidence", "geometry", "reasoning-m1"));
 Directory.CreateDirectory(output);
 var x = Direction3D.Create(new Vector3D(1, 0, 0));
 var z = Direction3D.Create(new Vector3D(0, 0, 1));

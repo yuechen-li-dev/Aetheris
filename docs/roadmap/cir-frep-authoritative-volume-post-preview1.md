@@ -5,7 +5,7 @@
 > CIR backend, and BRep remains exact boundary/topology authority. Generated
 > dual representations lower independently from shared constructive intent;
 > bounded SDF-to-BRep routes are decompilation/intent recovery, not topology
-> ownership. See `docs/continuum/architecture.md`. The still-open certified
+> ownership. See `docs/development/milestones/continuum/architecture.md`. The still-open certified
 > volume work below does not transfer exact-topology authority to CIR.
 
 ## Target

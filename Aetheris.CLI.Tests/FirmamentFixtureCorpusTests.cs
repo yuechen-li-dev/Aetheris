@@ -4,12 +4,12 @@ namespace Aetheris.CLI.Tests;
 
 public sealed class FirmamentFixtureCorpusTests
 {
-    private static readonly string CorpusRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Firmament"));
-    private static readonly string V2CorpusRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2"));
-    private static readonly string V2DoctrinePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../docs/air-firmament-a2-firmament-v2-source-language-design.md"));
-    private static readonly string V21DoctrinePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../docs/air-firmament-a2-1-semantic-references-admissibility-surface-doctrine.md"));
-    private static readonly string V22DoctrinePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../docs/air-firmament-a2-2-record-derivation-with.md"));
-    private static readonly string V23DoctrinePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../docs/air-firmament-a2-3-dfm-templates-concepts-pmi.md"));
+    private static readonly string CorpusRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Speculative"));
+    private static readonly string V2CorpusRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures"));
+    private static readonly string V2DoctrinePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../docs/development/milestones/general/air-firmament-a2-firmament-v2-source-language-design.md"));
+    private static readonly string V21DoctrinePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../docs/development/milestones/general/air-firmament-a2-1-semantic-references-admissibility-surface-doctrine.md"));
+    private static readonly string V22DoctrinePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../docs/development/milestones/general/air-firmament-a2-2-record-derivation-with.md"));
+    private static readonly string V23DoctrinePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../docs/development/milestones/general/air-firmament-a2-3-dfm-templates-concepts-pmi.md"));
     private static readonly string[] RequiredMetadata = ["fixture-id", "case", "category", "validity", "implementation", "expected", "expected-stage"];
 
     [Fact]
@@ -467,7 +467,11 @@ public sealed class FirmamentFixtureCorpusTests
 
     private static string[] DiscoverFixtures() => Directory.EnumerateFiles(CorpusRoot, "*.firmfixture", SearchOption.AllDirectories).OrderBy(p => p.Replace('\\', '/'), StringComparer.Ordinal).ToArray();
 
-    private static string[] DiscoverV2Fixtures() => Directory.EnumerateFiles(V2CorpusRoot, "*.firmfixture", SearchOption.AllDirectories).Select(p => p.Replace('\\', '/')).Order(StringComparer.Ordinal).ToArray();
+    private static string[] DiscoverV2Fixtures() => Directory.EnumerateFiles(V2CorpusRoot, "*.firmfixture", SearchOption.AllDirectories)
+        .Where(path => string.Equals(LoadMetadata(path).GetValueOrDefault("syntax-version"), "FirmamentV2", StringComparison.Ordinal))
+        .Select(p => p.Replace('\\', '/'))
+        .Order(StringComparer.Ordinal)
+        .ToArray();
 
     private static string[] DiscoverV2TraceFixtures() => DiscoverV2Fixtures().Where(path => path.EndsWith(".valid.firmfixture", StringComparison.Ordinal) || path.EndsWith(".invalid.firmfixture", StringComparison.Ordinal)).ToArray();
 

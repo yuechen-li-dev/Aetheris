@@ -41,7 +41,7 @@ public sealed class Step242TessellationRobustnessTests
     [Fact]
     public void Step242_Tessellate_BoxTopCapWithCircularHole_PreservesHoleDeterministically()
     {
-        var text = LoadFixture("testdata/firmament/exports/boolean_box_cylinder_hole.step");
+        var text = LoadFixture("testdata/step242/golden/firmament-v1/boolean_box_cylinder_hole.step");
 
         var firstImport = Step242Importer.ImportBody(text);
         var secondImport = Step242Importer.ImportBody(text);
@@ -67,7 +67,7 @@ public sealed class Step242TessellationRobustnessTests
     [Fact]
     public void Step242_Tessellate_BoxPlanarFaceWithoutHole_RemainsValid()
     {
-        var text = LoadFixture("testdata/firmament/exports/box_basic.step");
+        var text = LoadFixture("testdata/step242/golden/firmament-v1/box_basic.step");
 
         var import = Step242Importer.ImportBody(text);
 

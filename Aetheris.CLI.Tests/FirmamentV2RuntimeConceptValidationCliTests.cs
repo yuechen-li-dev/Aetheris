@@ -175,7 +175,7 @@ public sealed class FirmamentV2RuntimeConceptValidationCliTests
         Assert.Empty(forgeRuntime.GetProperty("externalPacks").EnumerateArray());
     }
 
-    private static string FixturePath(string relative) => Path.Combine(FindRepoRoot(), "fixtures", "FirmamentV2", relative);
+    private static string FixturePath(string relative) => Path.Combine(FindRepoRoot(), "fixtures", relative);
 
     private static string FindRepoRoot()
     {

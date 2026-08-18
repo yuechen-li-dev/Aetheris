@@ -28,7 +28,7 @@ if ($identifier -match '^[0-9]') {
 }
 
 $outputRoot = if ([string]::IsNullOrWhiteSpace($Out)) {
-    Join-Path $repoRoot "demo-output\ruled-probes\$probeName"
+    Join-Path $repoRoot "artifacts\local\demos\ruled-probes\$probeName"
 } elseif ([System.IO.Path]::IsPathRooted($Out)) {
     [System.IO.Path]::GetFullPath($Out)
 } else {

@@ -97,7 +97,7 @@ public sealed class BrepSpatialQueriesPointClassificationTests
     [Fact]
     public void BoxMinusCylinder_MaterialPoint_ClassifiesInside()
     {
-        var body = ImportFixtureBody("testdata/firmament/exports/boolean_box_cylinder_hole.step");
+        var body = ImportFixtureBody("testdata/step242/golden/firmament-v1/boolean_box_cylinder_hole.step");
         var result = BrepSpatialQueries.ClassifyPoint(body, new Point3D(0d, 0d, 0d)).Value;
         Assert.True(result is PointContainment.Inside or PointContainment.Outside);
     }
@@ -105,7 +105,7 @@ public sealed class BrepSpatialQueriesPointClassificationTests
     [Fact]
     public void BoxMinusCylinder_HoleVoidPoint_ClassifiesOutside()
     {
-        var body = ImportFixtureBody("testdata/firmament/exports/boolean_box_cylinder_hole.step");
+        var body = ImportFixtureBody("testdata/step242/golden/firmament-v1/boolean_box_cylinder_hole.step");
         var result = BrepSpatialQueries.ClassifyPoint(body, new Point3D(3d, -2d, 6d)).Value;
         Assert.True(result is PointContainment.Outside or PointContainment.Boundary);
     }
@@ -113,7 +113,7 @@ public sealed class BrepSpatialQueriesPointClassificationTests
     [Fact]
     public void BoxMinusCylinder_BoundaryPoint_RemainsBoundaryOrUnknown()
     {
-        var body = ImportFixtureBody("testdata/firmament/exports/boolean_box_cylinder_hole.step");
+        var body = ImportFixtureBody("testdata/step242/golden/firmament-v1/boolean_box_cylinder_hole.step");
         var boundaryish = BrepSpatialQueries.ClassifyPoint(body, new Point3D(3d, 0d, 0d)).Value;
         Assert.True(boundaryish is PointContainment.Boundary or PointContainment.Inside or PointContainment.Outside);
     }
@@ -121,7 +121,7 @@ public sealed class BrepSpatialQueriesPointClassificationTests
     [Fact]
     public void BoxMinusCylinder_DiagnosticTrace_CapturesRayConsensusDetails()
     {
-        var body = ImportFixtureBody("testdata/firmament/exports/boolean_box_cylinder_hole.step");
+        var body = ImportFixtureBody("testdata/step242/golden/firmament-v1/boolean_box_cylinder_hole.step");
         var trace = BrepSpatialQueries.TraceMultiAxisConsensus(body, new Point3D(0d, 0d, 0d));
         Assert.True(trace.ProviderAvailable);
         Assert.Equal(6, trace.Rays.Count);

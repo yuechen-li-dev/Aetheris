@@ -25,7 +25,7 @@ public static class StandardConceptPack
         ],
         Examples: [new ForgeExampleDescriptor("standard-concept-pack-minimal", "package Aetheris.Standard concepts: Standard.CNC, Standard.Hole, Standard.EdgeFinish", "Descriptor-only package inventory example; not parser syntax.")],
         Fixtures: [],
-        LlmGuidance: [new ForgeLlmGuidanceDescriptor("standard-concept-pack-implementation-note", "docs/implementation/forge-x2-standard-concept-pack-scaffold.md", "FORGE-X2 implementation note for the built-in Standard concept pack scaffold.")]);
+        LlmGuidance: [new ForgeLlmGuidanceDescriptor("standard-concept-pack-implementation-note", "docs/development/implementation/forge-x2-standard-concept-pack-scaffold.md", "FORGE-X2 implementation note for the built-in Standard concept pack scaffold.")]);
 
     public static ForgeConceptDescriptor CreateCnc() => new(
         "Standard.CNC", "Standard CNC", "ManufacturingProcess", "Descriptor-only CNC/prismatic process concept for manufacturing assumptions and constraints; it is not a geometry feature.",

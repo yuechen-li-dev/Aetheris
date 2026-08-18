@@ -9,7 +9,7 @@ using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Surfacing;
 
-var output=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","..","..","..","..","docs","geometry","artifacts","reasoning-m2"));Directory.CreateDirectory(output);
+var output=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","..","..","..","..","artifacts", "local", "evidence", "geometry","reasoning-m2"));Directory.CreateDirectory(output);
 var options=new JsonSerializerOptions{WriteIndented=true,NumberHandling=JsonNumberHandling.AllowNamedFloatingPointLiterals};options.Converters.Add(new JsonStringEnumConverter());var t=CurveExpression.T;var mm=CurveExpression.Length(1);var x=Direction3D.Create(new(1,0,0));var z=Direction3D.Create(new(0,0,1));
 var line=BoundedParametricCurve3.LineSegment("line",Point3D.Origin,new(5,0,0),"evidence");
 var circle=BoundedParametricCurve3.FromCurveGeometry("circle",CurveGeometry.FromCircle(new(Point3D.Origin,z,4,x)),0,2*double.Pi,"evidence");

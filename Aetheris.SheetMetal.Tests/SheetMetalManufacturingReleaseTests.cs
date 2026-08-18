@@ -7,8 +7,8 @@ namespace Aetheris.SheetMetal.Tests;
 public sealed class SheetMetalManufacturingReleaseTests
 {
     private static readonly string RepoRoot = FindRepoRoot();
-    private static string ReleaseModel => Path.Combine(RepoRoot, "docs/modules/sheetmetal/artifacts/ctc03-manufacturing-release/ctc03-manufacturing.firmament");
-    private static string M8DesignBasis => Path.Combine(RepoRoot, "docs/modules/sheetmetal/artifacts/m8/ctc03-final.firmament");
+    private static string ReleaseModel => Path.Combine(RepoRoot, "docs/development/milestones/modules/sheetmetal/artifacts/ctc03-manufacturing-release/ctc03-manufacturing.firmament");
+    private static string M8DesignBasis => Path.Combine(RepoRoot, "docs/development/milestones/modules/sheetmetal/artifacts/m8/ctc03-final.firmament");
 
     [Fact]
     public void Ctc03MetricRelease_BindsManufacturingPmiToStableSheetMetalTargets()

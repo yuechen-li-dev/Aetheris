@@ -7,9 +7,9 @@
 - Qualified RID: `win-x64`
 - Forge Host Protocol: `1` (independently versioned)
 - VS Code extension: `0.3.0-preview.3` (independently versioned)
-- Publish/push status: not performed by A5
+- Publish/push status: not performed by A5/A5b
 
-Create the tag only from the final clean release commit after the A5 report records the same commit and final artifact hashes.
+Create the tag only from the final clean release commit after the A5b report is green. A5b candidate hashes qualify the structural change, but release automation must regenerate the inventory from the final committed/tagged revision so embedded source revision metadata and published hashes agree.
 
 ## Required release assets
 
@@ -25,9 +25,11 @@ canonical hashes and inventory from their actual bytes:
 
 ```powershell
 .\scripts\finalize-publication.ps1 `
-  -ReleaseDirectory artifacts/release/a5-final `
-  -PublicLibrariesDirectory artifacts/release/a5-public-packages-publication
+  -ReleaseDirectory artifacts/local/a5b/release `
+  -PublicLibrariesDirectory artifacts/local/a5b/public-libraries
 ```
+
+The local A5b qualification inventory and checksums are intentionally ignored generated output. Their principal candidate hashes and complete validation record are in [`PREVIEW3-HARDEN-A5b.md`](PREVIEW3-HARDEN-A5b.md). Never commit the expanded release directory or raw qualification diagnostics.
 
 The public documentation is under [`docs/public`](../public/README.md). The canonical release notes and limitations are [`release-notes.md`](../public/reference/release-notes.md) and [`known-issues.md`](../public/reference/known-issues.md).
 
@@ -52,7 +54,7 @@ Aetheris code is available under GNU AGPL-3.0; alternative licensing is availabl
 
 ## Owner release checklist
 
-1. Confirm the A5 report verdict, green `master` push check, clean commit, and no post-validation changes.
+1. Confirm the A5b report verdict, green `master` push check, clean commit, and no post-validation changes.
 2. Create and push annotated tag `v2.0.0-preview.3`.
 3. Allow the protected production environment to publish only after `build-test`, `release-build`, and `release-smoke` pass.
 4. Compare the published assets to the workflow-generated `RELEASE-INVENTORY.md` and `SHA256SUMS.txt`.

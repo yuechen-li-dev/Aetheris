@@ -33,34 +33,43 @@ bld/
 [Ll]og/
 [Ll]ogs/
 
-# Repository-local generated/demo output (source fixtures and checked-in docs evidence live elsewhere).
+# Repository-local generated output (source fixtures and checked-in docs evidence live elsewhere).
 .tmp/
+artifacts/local/
 demo-output/
+docs/preview2/
+
+# Per-run diagnostics are never repository content. Generators must default to artifacts/local/;
+# these patterns also protect against accidental output beside development documentation.
+docs/development/**/generated/
+docs/development/**/diagnostics/
+docs/development/**/*.trace.json
+docs/development/**/*.jsonl
 
 # Generated diagnostic JSON stays local by default. These files are often tens or hundreds of
 # thousands of lines and are reproducible from the owning benchmark/tool. Curated JSON may still
 # be added deliberately with `git add -f <path>` after a size/content review.
-docs/continuum/artifacts/*.json
-docs/continuum/artifacts/**/*.json
-!docs/continuum/artifacts/m4b/
-!docs/continuum/artifacts/m4b/*.json
-docs/preview2/evidence/**/*.json
-docs/reports/artifacts/**/*.json
+docs/development/milestones/continuum/artifacts/*.json
+docs/development/milestones/continuum/artifacts/**/*.json
+!docs/development/milestones/continuum/artifacts/m4b/
+!docs/development/milestones/continuum/artifacts/m4b/*.json
+docs/development/history/preview2/evidence/**/*.json
+docs/development/reports/artifacts/**/*.json
 Aetheris.Firmament.FrictionLab/Reports/*.json
 
 # Bunny M1 heavyweight evidence is reproducible via tools/Aetheris.BunnyM1 and remains local.
 # Keep the manifest, validation/quality summaries, and compact reports eligible for source control.
-docs/geometry/artifacts/bunny-m1/*.obj
-docs/geometry/artifacts/bunny-m1/surface-mesh-document.json
-docs/geometry/artifacts/bunny-m2/surface-mesh-document.json
-docs/geometry/artifacts/bunny-m2/*.obj
-docs/geometry/artifacts/bunny-m2/*.ply
-docs/geometry/artifacts/bunny-m4/*.ply
-docs/geometry/artifacts/bunny-m1/seam-network.json
-docs/geometry/artifacts/bunny-m1/seam-fit-candidates.json
-docs/geometry/artifacts/bunny-m1/judgment-traces.json
-docs/geometry/artifacts/bunny-m1/m0-seam-failure-audit.json
-docs/geometry/artifacts/bunny-m1/junction-network.json
+docs/development/milestones/geometry/artifacts/bunny-m1/*.obj
+docs/development/milestones/geometry/artifacts/bunny-m1/surface-mesh-document.json
+docs/development/milestones/geometry/artifacts/bunny-m2/surface-mesh-document.json
+docs/development/milestones/geometry/artifacts/bunny-m2/*.obj
+docs/development/milestones/geometry/artifacts/bunny-m2/*.ply
+docs/development/milestones/geometry/artifacts/bunny-m4/*.ply
+docs/development/milestones/geometry/artifacts/bunny-m1/seam-network.json
+docs/development/milestones/geometry/artifacts/bunny-m1/seam-fit-candidates.json
+docs/development/milestones/geometry/artifacts/bunny-m1/judgment-traces.json
+docs/development/milestones/geometry/artifacts/bunny-m1/m0-seam-failure-audit.json
+docs/development/milestones/geometry/artifacts/bunny-m1/junction-network.json
 
 # Package-manager caches are local even when a new JS workspace is added without a nested ignore file.
 .tspack/
@@ -123,7 +132,7 @@ StyleCopReport.xml
 *.ilk
 *.meta
 *.obj
-!docs/geometry/artifacts/bunny-m4/bunny-fast-structured-remesh.obj
+!docs/development/milestones/geometry/artifacts/bunny-m4/bunny-fast-structured-remesh.obj
 *.iobj
 *.pch
 *.pdb

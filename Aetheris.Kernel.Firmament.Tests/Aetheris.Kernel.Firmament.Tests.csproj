@@ -49,7 +49,7 @@
     <ProjectReference Include="..\Aetheris.Surfacing\Aetheris.Surfacing.csproj" />
     <ProjectReference Include="..\Aetheris.Kernel.Core\Aetheris.Kernel.Core.csproj" />
     <ProjectReference Include="..\Aetheris.Firmament.FrictionLab\Aetheris.Firmament.FrictionLab.csproj" />
-    <ProjectReference Include="..\tests\Aetheris.TestForgePack\Aetheris.TestForgePack.csproj" />
-    <ProjectReference Include="..\tests\Aetheris.TestForgePack.Duplicate\Aetheris.TestForgePack.Duplicate.csproj" />
+    <ProjectReference Include="..\test-support\Aetheris.TestForgePack\Aetheris.TestForgePack.csproj" />
+    <ProjectReference Include="..\test-support\Aetheris.TestForgePack.Duplicate\Aetheris.TestForgePack.Duplicate.csproj" />
   </ItemGroup>
 </Project>

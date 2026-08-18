@@ -1,0 +1,11 @@
+# Historical generated evidence retained during PREVIEW3-HARDEN-A5b.
+# New entries require an owning report, reproduction instructions, and explicit size review.
+docs/development/milestones/fea/artifacts/m5c/compound-15-20-45/native-results.json
+docs/development/milestones/fea/artifacts/m5c/compound-15-20-45/numerical-lowering-strategy-map.json
+docs/development/milestones/fea/artifacts/m5c/held-out-z31/native-results.json
+docs/development/milestones/fea/artifacts/m5c/held-out-z31/numerical-lowering-strategy-map.json
+docs/development/milestones/fea/artifacts/m5c/x90-z45/native-results.json
+docs/development/milestones/fea/artifacts/m5c/x90-z45/numerical-lowering-strategy-map.json
+docs/development/milestones/fea/artifacts/m5c/z45/native-results.json
+docs/development/milestones/fea/artifacts/m5c/z45/numerical-lowering-strategy-map.json
+docs/development/milestones/geometry/artifacts/bunny-m0/chart-network.json

@@ -7,14 +7,14 @@ public sealed class FirmamentDocumentCoherenceValidationTests
     [Fact]
     public void Compiler_Accepts_UniqueFeatureIds()
     {
-        var result = CompileFixture("testdata/firmament/fixtures/m2a-valid-two-primitives-distinct-ids.firmament");
+        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m2a-valid-two-primitives-distinct-ids.firmament");
         Assert.True(result.Compilation.IsSuccess);
     }
 
     [Fact]
     public void Compiler_Rejects_DuplicateFeatureId_Deterministically()
     {
-        var fixturePath = "testdata/firmament/fixtures/m2a-invalid-duplicate-id-across-primitive-boolean.firmament";
+        var fixturePath = "fixtures/LegacyV1/Corpus/invalid/m2a-invalid-duplicate-id-across-primitive-boolean.firmament";
         var first = CompileFixture(fixturePath);
         var second = CompileFixture(fixturePath);
 
@@ -33,14 +33,14 @@ public sealed class FirmamentDocumentCoherenceValidationTests
     [Fact]
     public void Compiler_Accepts_BooleanReferencesToPriorFeatures()
     {
-        var result = CompileFixture("testdata/firmament/fixtures/m2a-valid-chained-features.firmament");
+        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m2a-valid-chained-features.firmament");
         Assert.True(result.Compilation.IsSuccess);
     }
 
     [Fact]
     public void Compiler_Rejects_PatternCircular_With_Unknown_Axis_Root()
     {
-        var result = CompileFixture("testdata/firmament/fixtures/p2_invalid_pattern_unknown_axis.firmament");
+        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/p2_invalid_pattern_unknown_axis.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         var diagnostic = Assert.Single(result.Compilation.Diagnostics);
@@ -53,7 +53,7 @@ public sealed class FirmamentDocumentCoherenceValidationTests
     [Fact]
     public void Compiler_Rejects_PatternLinear_With_Primitive_Source_Feature()
     {
-        var result = CompileFixture("testdata/firmament/fixtures/p2_invalid_pattern_source_primitive.firmament");
+        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/p2_invalid_pattern_source_primitive.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         var diagnostic = Assert.Single(result.Compilation.Diagnostics);
@@ -65,7 +65,7 @@ public sealed class FirmamentDocumentCoherenceValidationTests
     [Fact]
     public void Compiler_Rejects_PatternMirror_With_Unsupported_Plane()
     {
-        var result = CompileFixture("testdata/firmament/fixtures/p3_invalid_pattern_mirror_plane.firmament");
+        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/p3_invalid_pattern_mirror_plane.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         var diagnostic = Assert.Single(result.Compilation.Diagnostics);
@@ -77,7 +77,7 @@ public sealed class FirmamentDocumentCoherenceValidationTests
     [Fact]
     public void Compiler_Rejects_PatternMirror_With_NonOrigin_Source_Placement()
     {
-        var result = CompileFixture("testdata/firmament/fixtures/p3_invalid_pattern_mirror_source_placement.firmament");
+        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/p3_invalid_pattern_mirror_source_placement.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         var diagnostic = Assert.Single(result.Compilation.Diagnostics);
@@ -87,10 +87,10 @@ public sealed class FirmamentDocumentCoherenceValidationTests
     }
 
     [Theory]
-    [InlineData("testdata/firmament/fixtures/m2a-invalid-add-to-missing-id.firmament", "add", "to", "missing")]
-    [InlineData("testdata/firmament/fixtures/m2a-invalid-subtract-from-missing-id.firmament", "subtract", "from", "missing")]
-    [InlineData("testdata/firmament/fixtures/m2a-invalid-intersect-left-missing-id.firmament", "intersect", "left", "missing")]
-    [InlineData("testdata/firmament/fixtures/m2a-invalid-forward-reference.firmament", "add", "to", "later")]
+    [InlineData("fixtures/LegacyV1/Corpus/invalid/m2a-invalid-add-to-missing-id.firmament", "add", "to", "missing")]
+    [InlineData("fixtures/LegacyV1/Corpus/invalid/m2a-invalid-subtract-from-missing-id.firmament", "subtract", "from", "missing")]
+    [InlineData("fixtures/LegacyV1/Corpus/invalid/m2a-invalid-intersect-left-missing-id.firmament", "intersect", "left", "missing")]
+    [InlineData("fixtures/LegacyV1/Corpus/invalid/m2a-invalid-forward-reference.firmament", "add", "to", "later")]
     public void Compiler_Rejects_BooleanReference_ToUnknownOrForwardFeatureId(string fixturePath, string opName, string fieldName, string refId)
     {
         var result = CompileFixture(fixturePath);

@@ -10,7 +10,7 @@ public sealed class ConceptStepMatchTests
         var root = RepositoryRoot();
         var step = BuildStandardStep(root);
         var stdout = new StringWriter(); var stderr = new StringWriter();
-        var exit = CliRunner.Run(["match", step, Path.Combine(root, "demos", "concept-step-match-standard.firmament"), "--json"], stdout, stderr);
+        var exit = CliRunner.Run(["match", step, Path.Combine(root, "fixtures", "DemoRegression", "concept-step-match-standard.firmament"), "--json"], stdout, stderr);
         Assert.Equal(0, exit);
         using var json = JsonDocument.Parse(stdout.ToString());
         var report = json.RootElement.GetProperty("conceptStepMatch");
@@ -22,7 +22,7 @@ public sealed class ConceptStepMatchTests
     [Fact]
     public void Match_WrongBounds_IsConflicted_And_PartialConcept_RemainsUseful()
     {
-        var root = RepositoryRoot(); var source = File.ReadAllText(Path.Combine(root, "demos", "concept-step-match-standard.firmament"));
+        var root = RepositoryRoot(); var source = File.ReadAllText(Path.Combine(root, "fixtures", "DemoRegression", "concept-step-match-standard.firmament"));
         var dir = Path.Combine(Path.GetTempPath(), "aetheris-match", Guid.NewGuid().ToString("N")); Directory.CreateDirectory(dir);
         var wrong = Path.Combine(dir, "wrong.firmament"); File.WriteAllText(wrong, source.Replace("Width: 80mm", "Width: 81mm", StringComparison.Ordinal));
         var step = BuildStandardStep(root);
@@ -46,7 +46,7 @@ public sealed class ConceptStepMatchTests
         Directory.CreateDirectory(directory);
         var step = Path.Combine(directory, "standard.step");
         var output = new StringWriter(); var errors = new StringWriter();
-        Assert.Equal(0, CliRunner.Run(["build", Path.Combine(root, "demos", "concept-step-match-standard.firmament"), "--out", step, "--json"], output, errors));
+        Assert.Equal(0, CliRunner.Run(["build", Path.Combine(root, "fixtures", "DemoRegression", "concept-step-match-standard.firmament"), "--out", step, "--json"], output, errors));
         return step;
     }
 }

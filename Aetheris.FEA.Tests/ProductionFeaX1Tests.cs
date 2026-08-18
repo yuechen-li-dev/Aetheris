@@ -71,7 +71,7 @@ public sealed class ProductionFeaX1Tests
     public void InlineStepThroughHole_UsesStableFaceIdentityAndSolvesSharedCutCellPath()
     {
         var root = FindRoot();
-        var path = Path.Combine(root, "fixtures", "FirmamentV2", "FEA", "inline-step-through-hole.firmament");
+        var path = Path.Combine(root, "fixtures", "FEA", "inline-step-through-hole.firmament");
         var compilation = FirmamentAnalysisCompiler.Compile(File.ReadAllText(path), path, Path.GetDirectoryName(path));
         Assert.True(compilation.IsSuccess, Describe(compilation));
         Assert.IsType<ImportedBrepAnalysisRegion>(compilation.Analysis!.Body.ContinuumRegion);
@@ -90,7 +90,7 @@ public sealed class ProductionFeaX1Tests
     public void InlineStepUnknownFace_IsAStableActionableDiagnostic()
     {
         var root = FindRoot();
-        var path = Path.Combine(root, "fixtures", "FirmamentV2", "FEA", "inline-step-through-hole.firmament");
+        var path = Path.Combine(root, "fixtures", "FEA", "inline-step-through-hole.firmament");
         var source = File.ReadAllText(path).Replace("body.face(#170)", "body.face(#999999)", StringComparison.Ordinal);
 
         var compilation = FirmamentAnalysisCompiler.Compile(source, path, Path.GetDirectoryName(path));
@@ -136,7 +136,7 @@ public sealed class ProductionFeaX1Tests
     [Fact]
     public void ImportedBodyWithAmbiguousKernelContainment_FailsBeforeSolver()
     {
-        var root=FindRoot();var directory=Path.Combine(root,"testdata","firmasm","examples","occt-l-bracket");
+        var root=FindRoot();var directory=Path.Combine(root,"fixtures", "Assembly", "LegacyImports", "examples","occt-l-bracket");
         const string source="""
             Analysis LinearElastic UnsupportedImportedBracket {
                 body: inlineSTEP("_part_003_l_bracket.step")

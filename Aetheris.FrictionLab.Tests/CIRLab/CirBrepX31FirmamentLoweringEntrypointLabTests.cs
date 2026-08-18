@@ -19,13 +19,13 @@ public sealed class CirBrepX31FirmamentLoweringEntrypointLabTests
         Assert.True(File.Exists(Path.Combine(root, "Aetheris.Firmament.FrictionLab/CIRLab/CIRBoxCylinderRecognitionLab.cs")));
         Assert.True(File.Exists(Path.Combine(root, "Aetheris.FrictionLab.Tests/CIRLab/CirBoxCylinderRecognitionLabTests.cs")));
         Assert.True(File.Exists(Path.Combine(root, "Aetheris.FrictionLab.Tests/CIRLab/Reports/cir-brep-x3-box-cylinder-recognition-lab.md")));
-        Assert.True(File.Exists(Path.Combine(root, "docs/frictionlab/cir-brep-x3-box-cylinder-recognition-lab.md")));
+        Assert.True(File.Exists(Path.Combine(root, "docs/development/milestones/frictionlab/cir-brep-x3-box-cylinder-recognition-lab.md")));
     }
 
     [Fact]
     public void Experiment1_BooleanBoxCylinderHole_LowersToSubtractWithTransformWrappedOperands()
     {
-        var compile = CompileFixture("testdata/firmament/examples/boolean_box_cylinder_hole.firmament");
+        var compile = CompileFixture("fixtures/LegacyV1/Examples/boolean_box_cylinder_hole.firmament");
         var lower = LowerViaReflection(compile.PrimitiveLoweringPlan!);
 
         var subtract = Assert.IsType<SdfSubtractNode>(lower.Root);
@@ -53,7 +53,7 @@ public sealed class CirBrepX31FirmamentLoweringEntrypointLabTests
     [Fact]
     public void Experiment3_EntrypointComparison_RawNodePlanAndReplayHaveDifferentStrengths()
     {
-        var compile = CompileFixture("testdata/firmament/examples/boolean_box_cylinder_hole.firmament");
+        var compile = CompileFixture("fixtures/LegacyV1/Examples/boolean_box_cylinder_hole.firmament");
         var plan = compile.PrimitiveLoweringPlan!;
         var lowered = LowerViaReflection(plan);
         var replay = compile.PrimitiveExecutionResult!.NativeGeometryState.ReplayLog;
@@ -70,7 +70,7 @@ public sealed class CirBrepX31FirmamentLoweringEntrypointLabTests
     [Fact]
     public void Experiment5And6_ReplayAndNativeStateExposeUsefulDiagnosticsButNotFullCsgTree()
     {
-        var compile = CompileFixture("testdata/firmament/examples/boolean_box_cylinder_hole.firmament");
+        var compile = CompileFixture("fixtures/LegacyV1/Examples/boolean_box_cylinder_hole.firmament");
         var state = compile.PrimitiveExecutionResult!.NativeGeometryState;
 
         Assert.NotEmpty(state.ReplayLog.Operations);

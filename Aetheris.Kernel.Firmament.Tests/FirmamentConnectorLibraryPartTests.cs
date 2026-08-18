@@ -34,7 +34,7 @@ public sealed class FirmamentConnectorLibraryPartTests
     [Fact]
     public void Firmament_Uses_CubeWithHole_LibraryPart_EndToEnd()
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/examples/library_part_cube_with_hole_basic.firmament");
+        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Examples/library_part_cube_with_hole_basic.firmament");
 
         var compile = FirmamentCorpusHarness.Compile(source);
 
@@ -48,7 +48,7 @@ public sealed class FirmamentConnectorLibraryPartTests
     [Fact]
     public void ConnectorPart_With_SlotCut_Composition_Succeeds()
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/examples/composed_part_with_slot.firmament");
+        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Examples/composed_part_with_slot.firmament");
 
         var compile = FirmamentCorpusHarness.Compile(source);
 
@@ -61,7 +61,7 @@ public sealed class FirmamentConnectorLibraryPartTests
     [Fact]
     public void Firmament_Composed_Model_Export_Succeeds()
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("testdata/firmament/examples/composed_part_with_slot.firmament");
+        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Examples/composed_part_with_slot.firmament");
 
         var compile = FirmamentCorpusHarness.Compile(source);
         Assert.True(compile.Compilation.IsSuccess);

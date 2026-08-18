@@ -124,7 +124,7 @@ public sealed class FirmamentV2ValidationReportTests
 
     private static FirmamentV2ValidationReport Report(string relative)
     {
-        var path = Path.Combine(FindRepoRoot(), "fixtures/FirmamentV2", relative);
+        var path = Path.Combine(FindRepoRoot(), "fixtures", relative);
         var parse = FirmamentV2Parser.Parse(File.ReadAllText(path), Path.GetDirectoryName(path));
         return FirmamentV2ValidationReportBuilder.Build(parse, path);
     }

@@ -124,7 +124,7 @@ public sealed class HexBoltStandardLibraryM1Tests
     [Fact]
     public void CanonicalFirmamentFixture_MaterializesStandardLibraryBoltAndPublishesSemantics()
     {
-        var sourcePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../testdata/firmament/examples/mcmaster_91180a151_threadless_hex_bolt.firmament"));
+        var sourcePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/LegacyV1/Examples/mcmaster_91180a151_threadless_hex_bolt.firmament"));
         var source = File.ReadAllText(sourcePath);
         var parse = FirmamentV2Parser.Parse(source, Path.GetDirectoryName(sourcePath));
         Assert.True(parse.IsSuccess, string.Join(Environment.NewLine, parse.Diagnostics));

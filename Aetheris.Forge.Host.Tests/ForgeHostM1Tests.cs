@@ -150,7 +150,7 @@ public sealed class ForgeHostM1Tests
     [Fact]
     public void ImportedStepResourceUsesCanonicalStepPipelineEvidence()
     {
-        var path = Path.Combine(FindRepositoryRoot(), "fixtures", "FirmamentV2", "InlineStep", "testdata", "canonical-box-10x8x6.step");
+        var path = Path.Combine(FindRepositoryRoot(), "fixtures", "InlineStep", "testdata", "canonical-box-10x8x6.step");
         var resource = ImportedStepResource.Load("VendorPart", path);
         Assert.True(resource.Canonical);
         Assert.Equal(Path.GetFullPath(path), resource.Path);

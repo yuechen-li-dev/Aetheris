@@ -69,7 +69,7 @@ public sealed class FirmamentV2SemanticHoleTests
 
     private static FirmamentV2ParseResult Parse(string relative)
     {
-        var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2", relative));
+        var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures", relative));
         return FirmamentV2Parser.Parse(File.ReadAllText(path));
     }
 }

@@ -42,7 +42,7 @@ public static class HoleFamilyPolicyShapeLab
     public static IReadOnlyList<string> InventoryVocabulary() =>
     [
         "through-hole: first-class semantic recovery policy in production",
-        "blind-hole: present in docs/frictionlab fixtures and boolean-deferred, not first-class recovery policy",
+        "blind-hole: present in docs/development/milestones/frictionlab fixtures and boolean-deferred, not first-class recovery policy",
         "counterbore/countersink: present in FrictionLab cases and docs, not first-class recovery policy",
         "threaded hole: deferred/forge-style and surface-feature docs indicate deferred",
         "slot/keyway: bounded subtract families present in primitive execution vocabulary",

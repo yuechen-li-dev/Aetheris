@@ -14,7 +14,7 @@ public sealed class SheetMetalM3Tests
     [InlineData("m3-electronics-tray.firmament",4,4,4)]
     public void AuthoredFixtures_IndependentlyProduceManifoldFormedAndStitchedFlatArtifacts(string file,int bends,int cuts,int corners)
     {
-        var result=SheetMetalFirmament.CompileFile(Path.Combine(RepoRoot,"fixtures/FirmamentV2/SheetMetal",file));
+        var result=SheetMetalFirmament.CompileFile(Path.Combine(RepoRoot,"fixtures/SheetMetal",file));
         Assert.True(result.IsSuccess,string.Join('\n',result.Diagnostics.Select(d=>d.Message)));var part=result.Part!;var flat=result.FlatPattern!;
         Assert.NotNull(part.FormedBody);Assert.Equal(bends,part.Bends.Count);Assert.Equal(cuts,part.Features.Count);Assert.Equal(corners,part.Corners?.Count??0);
         Assert.True((part.Correspondence?.Count??0)>=1+bends*2+cuts+corners);
@@ -81,7 +81,7 @@ public sealed class SheetMetalM3Tests
     [Fact]
     public void Ctc03_ReconstructionCompilesWithNoEvidenceProviderOrSourceStep()
     {
-        var path=Path.Combine(RepoRoot,"docs/modules/sheetmetal/artifacts/m2/ctc03-idiomatic.firmament");var source=File.ReadAllText(path);
+        var path=Path.Combine(RepoRoot,"docs/development/milestones/modules/sheetmetal/artifacts/m2/ctc03-idiomatic.firmament");var source=File.ReadAllText(path);
         Assert.DoesNotContain("EvidenceSource",source);Assert.DoesNotContain("FromEvidence",source);
         var isolatedPath=Path.Combine(Path.GetTempPath(),$"ctc03-{Guid.NewGuid():N}.firmament");
         try

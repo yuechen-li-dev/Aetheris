@@ -114,6 +114,6 @@ public sealed class ChamferM6FixturePipelineTests
     }
 
     private static string FixturePath(string category, string fixture) =>
-        Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2/Chamfer", category, fixture));
+        Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Chamfer", category, fixture));
 
 }

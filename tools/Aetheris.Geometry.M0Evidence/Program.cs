@@ -7,7 +7,7 @@ using Aetheris.Geometry;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Surfacing;
 
-var output = args.Length == 1 ? Path.GetFullPath(args[0]) : Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "docs", "geometry", "artifacts", "reasoning-m0"));
+var output = args.Length == 1 ? Path.GetFullPath(args[0]) : Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "artifacts", "local", "evidence", "geometry", "reasoning-m0"));
 Directory.CreateDirectory(output);
 var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, WriteIndented = true };
 options.Converters.Add(new JsonStringEnumConverter());

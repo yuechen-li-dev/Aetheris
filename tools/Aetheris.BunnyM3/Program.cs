@@ -6,7 +6,7 @@ using Aetheris.Reconstruction;
 
 var root = FindRoot();
 var sourcePath = Path.GetFullPath(args.Length > 0 ? args[0] : Path.Combine(root, ".tmp", "bunny-m0-source", "bunny", "reconstruction", "bun_zipper.ply"));
-var output = Path.GetFullPath(args.Length > 1 ? args[1] : Path.Combine(root, "docs", "geometry", "artifacts", "bunny-m3"));
+var output = Path.GetFullPath(args.Length > 1 ? args[1] : Path.Combine(root, "artifacts", "local", "evidence", "geometry", "bunny-m3"));
 if (!File.Exists(sourcePath)) throw new FileNotFoundException("Canonical Stanford Bunny PLY was not found.", sourcePath);
 Directory.CreateDirectory(output); var total = Stopwatch.StartNew(); var watch = Stopwatch.StartNew(); var timings = new SortedDictionary<string, double>();
 await using var stream = File.OpenRead(sourcePath); var mesh = PlyTriangleSurfaceLoader.LoadAscii(stream, "bunny/reconstruction/bun_zipper.ply", new Dictionary<string,string>{{"path",sourcePath}}); timings["sourceLoad"] = Lap();
@@ -51,7 +51,7 @@ M3 separates structural `PanelIr` support from sampled scalar offset and differe
 
 The canonical run is **Meaningful Progression**, not Success. The global pair atlas is crack-free and has one parity-forced transition. The bounded coarsener demonstrates fewer structural Panels and residual representation on admitted two-Panel unions, but those unions are not yet installed as the canonical atlas because arbitrary multi-chart parameterization and globally authoritative residual seam construction remain unresolved.
 
-Reproduce with `dotnet run --project tools/Aetheris.BunnyM3 -c Release -- .tmp/bunny-m0-source/bunny/reconstruction/bun_zipper.ply docs/geometry/artifacts/bunny-m3`.
+Reproduce with `dotnet run --project tools/Aetheris.BunnyM3 -c Release -- .tmp/bunny-m0-source/bunny/reconstruction/bun_zipper.ply artifacts/local/evidence/geometry/bunny-m3`.
 """);
 var files=Directory.GetFiles(output).Where(x=>Path.GetFileName(x)!="manifest.json"&&Path.GetFileName(x)!="performance.json").OrderBy(Path.GetFileName,StringComparer.Ordinal).Select(x=>new{path=Path.GetFileName(x),sha256=Sha(File.ReadAllBytes(x)),bytes=new FileInfo(x).Length,lines=File.ReadLines(x).Count()}).ToArray();
 Write("manifest.json",new{milestone="AETHERIS-BUNNY-M3",sourceMeshHash=mesh.DeterministicHash,atlasHash=atlas.DeterministicHash,surfaceMeshHash=canonical.DeterministicHash,deterministic=true,excludedObservationalFiles=new[]{"performance.json"},files});

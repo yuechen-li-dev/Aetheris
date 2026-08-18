@@ -5,7 +5,7 @@ namespace Aetheris.CLI.Tests;
 
 public sealed class FirmamentV2BoxStepPipelineTests
 {
-    private static readonly string FixturePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2/Primitive/valid/pipeline-v2-box-step-verified.valid.firmfixture"));
+    private static readonly string FixturePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Primitive/valid/pipeline-v2-box-step-verified.valid.firmfixture"));
 
     [Fact]
     public void STEP_V2_A1_pipeline_v2_box_step_verified_builds_emits_reimports_and_matches_volume()

@@ -49,7 +49,7 @@ function Resolve-AbsolutePath {
 $repoRoot = Get-RepoRoot -StartPath $PSScriptRoot
 $demoProject = Join-Path $repoRoot "demos\Aetheris.PmiInjectionDemo\Aetheris.PmiInjectionDemo.csproj"
 $outputDir = if ([string]::IsNullOrWhiteSpace($Out)) {
-    Join-Path $repoRoot "demo-output\pmi-injection"
+    Join-Path $repoRoot "artifacts\local\demos\pmi-injection"
 } else {
     Resolve-AbsolutePath -Path $Out -BasePath (Get-Location).Path
 }

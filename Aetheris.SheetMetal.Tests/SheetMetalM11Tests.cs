@@ -101,7 +101,7 @@ public sealed class SheetMetalM11Tests
     [Fact]
     public void Ctc03_owns_four_front_rear_bend_terminations_without_regression()
     {
-        var root=FindRepoRoot();var path=Path.Combine(root,"docs/modules/sheetmetal/artifacts/m8/ctc03-final.firmament");
+        var root=FindRepoRoot();var path=Path.Combine(root,"docs/development/milestones/modules/sheetmetal/artifacts/m8/ctc03-final.firmament");
         var result=SheetMetalFirmament.CompileFile(path);
         Assert.True(result.IsSuccess,string.Join('\n',result.Diagnostics.Select(x=>x.Message)));
         var terminations=result.Part!.Bends.SelectMany(x=>new[]{x.StartTermination,x.EndTermination}).OfType<SheetBendTerminationIr>().ToArray();

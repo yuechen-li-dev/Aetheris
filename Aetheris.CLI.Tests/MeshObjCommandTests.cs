@@ -14,7 +14,7 @@ public sealed class MeshObjCommandTests
             var stdout = new StringWriter();
             var stderr = new StringWriter();
             var exit = Aetheris.CLI.CliRunner.Run(
-                ["mesh", Path.Combine(root, "testdata/firmament/examples/mcmaster_91180a151_threadless_hex_bolt.step"), "--format", "obj", "--output", output, "--json"], stdout, stderr);
+                ["mesh", Path.Combine(root, "testdata/step242/golden/firmament-v1/mcmaster_91180a151_threadless_hex_bolt.step"), "--format", "obj", "--output", output, "--json"], stdout, stderr);
 
             Assert.Equal(0, exit);
             Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()));

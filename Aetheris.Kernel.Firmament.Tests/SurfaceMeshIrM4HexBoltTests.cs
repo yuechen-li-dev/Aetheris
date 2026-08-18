@@ -55,15 +55,23 @@ public sealed class SurfaceMeshIrM4HexBoltTests
     [Fact]
     public void FirmamentHexBoltStepRoundTrip_UsesTheSameSurfaceMeshIrRoute()
     {
-        var source = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../testdata/firmament/examples/mcmaster_91180a151_threadless_hex_bolt.firmament"));
-        var built = FirmamentBuildAndExport.Run(source);
-        Assert.True(built.IsSuccess, string.Join(Environment.NewLine, built.Diagnostics.Select(diagnostic => diagnostic.Message)));
-        var imported = Step242Importer.ImportBody(built.Value.Export.StepText);
-        Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(diagnostic => diagnostic.Message)));
-        Assert.True(SurfaceMeshIrTessellator.TryBuild(imported.Value!, SurfaceMeshPolicy.FromDisplayOptions(DisplayTessellationOptions.Default), out var document));
-        Assert.True(SurfaceMeshIrValidator.TryValidate(document, out var failure), failure);
-        Assert.True(SurfaceMeshIrTessellator.TryLowerToTriangleMesh(document, out _, out var topology));
-        Assert.True(topology.IsWatertight);
+        var source = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/LegacyV1/Examples/mcmaster_91180a151_threadless_hex_bolt.firmament"));
+        var output = Path.Combine(Path.GetTempPath(), $"aetheris-surface-mesh-hexbolt-{Guid.NewGuid():N}.step");
+        try
+        {
+            var built = FirmamentBuildAndExport.Run(source, output);
+            Assert.True(built.IsSuccess, string.Join(Environment.NewLine, built.Diagnostics.Select(diagnostic => diagnostic.Message)));
+            var imported = Step242Importer.ImportBody(built.Value.Export.StepText);
+            Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(diagnostic => diagnostic.Message)));
+            Assert.True(SurfaceMeshIrTessellator.TryBuild(imported.Value!, SurfaceMeshPolicy.FromDisplayOptions(DisplayTessellationOptions.Default), out var document));
+            Assert.True(SurfaceMeshIrValidator.TryValidate(document, out var failure), failure);
+            Assert.True(SurfaceMeshIrTessellator.TryLowerToTriangleMesh(document, out _, out var topology));
+            Assert.True(topology.IsWatertight);
+        }
+        finally
+        {
+            if (File.Exists(output)) File.Delete(output);
+        }
     }
 
     [Fact]

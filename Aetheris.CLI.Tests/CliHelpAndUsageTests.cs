@@ -95,7 +95,7 @@ public sealed class CliHelpAndUsageTests
     {
         var stdout = new StringWriter();
         var stderr = new StringWriter();
-        var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/box_basic.step");
+        var stepPath = Path.Combine(RepoRoot, "testdata/step242/golden/firmament-v1/box_basic.step");
 
         var exitCode = Aetheris.CLI.CliRunner.Run(
             ["analyze", "map", stepPath, "--top", "--rows", "6", "--json"],
@@ -112,7 +112,7 @@ public sealed class CliHelpAndUsageTests
     {
         var stdout = new StringWriter();
         var stderr = new StringWriter();
-        var stepPath = Path.Combine(RepoRoot, "testdata/firmament/exports/box_basic.step");
+        var stepPath = Path.Combine(RepoRoot, "testdata/step242/golden/firmament-v1/box_basic.step");
 
         var exitCode = Aetheris.CLI.CliRunner.Run(["analyze", "section", stepPath, "--xy", "--json"], stdout, stderr);
 
@@ -124,7 +124,7 @@ public sealed class CliHelpAndUsageTests
     [Fact]
     public void Analyze_Map_And_Section_Still_Return_Structured_Json_Failure_On_Runtime_Error()
     {
-        var missingPath = Path.Combine(RepoRoot, "testdata/firmament/exports/does-not-exist.step");
+        var missingPath = Path.Combine(RepoRoot, "testdata/step242/golden/firmament-v1/does-not-exist.step");
 
         var mapStdout = new StringWriter();
         var mapStderr = new StringWriter();
@@ -156,7 +156,7 @@ public sealed class CliHelpAndUsageTests
     {
         var stdout = new StringWriter();
         var stderr = new StringWriter();
-        var manifestPath = Path.Combine(RepoRoot, "testdata/firmasm/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
+        var manifestPath = Path.Combine(RepoRoot, "fixtures/Assembly/LegacyImports/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
 
         var exitCode = Aetheris.CLI.CliRunner.Run(
             ["asm", "export", manifestPath, "--json"],

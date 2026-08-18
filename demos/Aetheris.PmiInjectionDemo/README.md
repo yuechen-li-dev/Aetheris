@@ -27,7 +27,7 @@ Custom PMI example:
 .\demos\Aetheris.PmiInjectionDemo\Run-PmiInjectionDemo.ps1 -PmiValue 33.0 -PmiLabel demoInnerDiameter33 -Open
 ```
 
-The script writes to `demo-output/pmi-injection` by default, prints the absolute output path, lists the generated files, and shows the exact `explorer` command to open the folder. A repo-root convenience wrapper is also available:
+The script writes to `artifacts/local/demos/pmi-injection` by default, prints the absolute output path, lists the generated files, and shows the exact `explorer` command to open the folder. A repo-root convenience wrapper is also available:
 
 ```powershell
 .\tools\Run-PmiInjectionDemo.ps1 -Open
@@ -84,7 +84,7 @@ If you want the more obvious repo-root output location for local demo use, prefe
 .\demos\Aetheris.PmiInjectionDemo\Run-PmiInjectionDemo.ps1
 ```
 
-That script passes `--out demo-output/pmi-injection` to the demo without changing the executable's own default behavior.
+That script passes `--out artifacts/local/demos/pmi-injection` to the demo without changing the executable's own default behavior.
 
 ## Change the PMI value or label
 
@@ -113,7 +113,7 @@ dotnet run --project demos/Aetheris.PmiInjectionDemo -- --firm demos/Aetheris.Pm
 Or use the PowerShell runner with a visible repo-root output directory:
 
 ```powershell
-.\demos\Aetheris.PmiInjectionDemo\Run-PmiInjectionDemo.ps1 -Firm .\demo-output\pmi-injection\ftc11-pmi-overlay.firm -Keep
+.\demos\Aetheris.PmiInjectionDemo\Run-PmiInjectionDemo.ps1 -Firm .\artifacts\local\demos\pmi-injection\ftc11-pmi-overlay.firm -Keep
 ```
 
 For an external overlay path, the demo validates that the file exists and copies it into the output directory before building. It does not overwrite or delete the user-provided source overlay.

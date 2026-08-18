@@ -4,7 +4,7 @@ This document records concrete seams observed while hardening the Preview 1
 `aetheris view` path. P2-CADMATA-M1 consumed the application-shell, document
 machine, TSPack, theme, renderer-boundary, and grid items. Remaining work is
 marked below; the implementation report is
-[`docs/preview2/cadmata-refactor-m1.md`](../preview2/cadmata-refactor-m1.md).
+[`docs/development/history/preview2/cadmata-refactor-m1.md`](../development/history/preview2/cadmata-refactor-m1.md).
 
 ## Preview 2 M1 disposition
 

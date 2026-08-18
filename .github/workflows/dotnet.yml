@@ -15,6 +15,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check repository information architecture
+        shell: pwsh
+        run: ./scripts/Test-RepositoryLayout.ps1
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -72,7 +76,7 @@ jobs:
           $smoke = Join-Path $env:RUNNER_TEMP 'aetheris-public-package-smoke'
           $packages = Join-Path $env:RUNNER_TEMP 'aetheris-public-package-cache'
           $nugetConfigDirectory = Join-Path $env:RUNNER_TEMP 'aetheris-public-package-nuget'
-          Copy-Item tests/PublicPackageSmoke $smoke -Recurse
+          Copy-Item test-support/PublicPackageSmoke $smoke -Recurse
           dotnet new nugetconfig --output $nugetConfigDirectory --force
           dotnet nuget add source "$pwd/local-feed" --name aetheris-local --configfile "$nugetConfigDirectory/NuGet.Config"
           dotnet restore "$smoke/PublicPackageSmoke.csproj" --configfile "$nugetConfigDirectory/NuGet.Config" --packages $packages --no-cache
@@ -193,7 +197,7 @@ jobs:
           $cli = (Resolve-Path extracted/Aetheris-win-x64/aetheris.exe)
           & $cli --version
           & $cli --help
-          Copy-Item '${{ github.workspace }}/fixtures/FirmamentV2/Canonical/valid/box-through-hole.firmament' smoke.firmament
+          Copy-Item '${{ github.workspace }}/fixtures/Canonical/valid/box-through-hole.firmament' smoke.firmament
           & $cli validate smoke.firmament
           & $cli build smoke.firmament
           & $cli inspect smoke.firmament
@@ -221,7 +225,7 @@ jobs:
           $smoke = Join-Path $env:RUNNER_TEMP 'aetheris-preview3-public-package-smoke'
           $packages = Join-Path $env:RUNNER_TEMP 'aetheris-preview3-public-package-cache'
           $nugetConfigDirectory = Join-Path $env:RUNNER_TEMP 'aetheris-preview3-public-package-nuget'
-          Copy-Item tests/PublicPackageSmoke $smoke -Recurse
+          Copy-Item test-support/PublicPackageSmoke $smoke -Recurse
           dotnet new nugetconfig --output $nugetConfigDirectory --force
           dotnet nuget add source "$pwd/release/packages/public-libraries" --name aetheris-local --configfile "$nugetConfigDirectory/NuGet.Config"
           dotnet restore "$smoke/PublicPackageSmoke.csproj" --configfile "$nugetConfigDirectory/NuGet.Config" --packages $packages --no-cache

@@ -8,7 +8,7 @@ public sealed class FirmasmAssemblyExecutorTests
     public void Execute_OcctNutBoltAssembly_ComposesTwoWorldSpaceBodies()
     {
         var executor = new FirmasmAssemblyExecutor();
-        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("testdata/firmasm/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Assembly/LegacyImports/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
 
         var result = executor.ExecuteFromFile(path);
 
@@ -22,7 +22,7 @@ public sealed class FirmasmAssemblyExecutorTests
     public void Execute_OcctAs1Assembly_ComposesAllInstances()
     {
         var executor = new FirmasmAssemblyExecutor();
-        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("testdata/firmasm/examples/occt-as1/as1-assembly.firmasm");
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Assembly/LegacyImports/examples/occt-as1/as1-assembly.firmasm");
 
         var result = executor.ExecuteFromFile(path);
 
@@ -37,7 +37,7 @@ public sealed class FirmasmAssemblyExecutorTests
     public void Execute_TransformsMoveInstancesAwayFromOrigin()
     {
         var executor = new FirmasmAssemblyExecutor();
-        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("testdata/firmasm/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Assembly/LegacyImports/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
 
         var result = executor.ExecuteFromFile(path);
 

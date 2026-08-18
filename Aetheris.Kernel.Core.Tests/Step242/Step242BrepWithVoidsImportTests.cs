@@ -18,7 +18,7 @@ public sealed class Step242BrepWithVoidsImportTests
     [Fact]
     public void Import_BrepWithVoids_MinimalOuterAndVoidShells_PreservesShellRepresentation()
     {
-        var fixturePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), "testdata", "firmament", "exports", "boolean_box_sphere_cavity_basic.step");
+        var fixturePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), "testdata", "step242", "golden", "firmament-v1", "boolean_box_sphere_cavity_basic.step");
         var stepText = File.ReadAllText(fixturePath);
         Assert.Contains("BREP_WITH_VOIDS", stepText, StringComparison.Ordinal);
 

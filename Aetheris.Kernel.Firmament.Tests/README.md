@@ -11,6 +11,6 @@ No parser, validator, selector, or lowering behavior is implemented yet.
 
 
 Corpus manifests:
-- `testdata/firmament/manifests/firmament.corpus.json` is the canonical curated corpus for current Firmament coverage.
-- `testdata/firmament/manifests/pre-m0.corpus.json` remains as historical pre-M0 scaffold coverage.
-- `testdata/firmament/fixtures/*.firmament` contains milestone-prefixed fixtures used by these manifests.
+- `fixtures/LegacyV1/Corpus/manifests/firmament.corpus.json` is the canonical curated corpus for current Firmament coverage.
+- `fixtures/LegacyV1/Corpus/manifests/pre-m0.corpus.json` remains as historical pre-M0 scaffold coverage.
+- `fixtures/LegacyV1/Corpus/*.firmament` contains milestone-prefixed fixtures used by these manifests.

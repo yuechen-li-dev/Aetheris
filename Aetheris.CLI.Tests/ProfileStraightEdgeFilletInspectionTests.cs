@@ -7,7 +7,7 @@ public sealed class ProfileStraightEdgeFilletInspectionTests
     [Fact]
     public void InspectProfile_ReportsDeterministicStraightFilletPlan()
     {
-        var source = Path.Combine(FindRepoRoot(), "fixtures", "FirmamentV2", "Canonical", "valid", "profile-straight-edge-fillet-top.firmament");
+        var source = Path.Combine(FindRepoRoot(), "fixtures", "Canonical", "valid", "profile-straight-edge-fillet-top.firmament");
         var stdout = new StringWriter(); var stderr = new StringWriter();
         var exit = Aetheris.CLI.CliRunner.Run(["inspect-profile", source, "--json"], stdout, stderr);
 

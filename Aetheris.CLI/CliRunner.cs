@@ -278,7 +278,7 @@ public static class CliRunner
         var fullPath = Path.GetFullPath(stepPath);
         var hash = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(fullPath))).ToLowerInvariant();
         var fixtureName = Path.GetFileNameWithoutExtension(fullPath);
-        var evidenceDir = Path.GetFullPath(evidenceRoot ?? Path.Combine("artifacts", "verification", fixtureName, hash));
+        var evidenceDir = Path.GetFullPath(evidenceRoot ?? Path.Combine("artifacts", "local", "verification", fixtureName, hash));
         Directory.CreateDirectory(evidenceDir);
         File.Copy(fullPath, Path.Combine(evidenceDir, "model.step"), overwrite: true);
 
@@ -3851,7 +3851,7 @@ Model CanonicalPanel {
         stdout.WriteLine("  aetheris sheetmetal recover-flat part.step --recognition-plan artifacts/recognition-plan.json --out-dir artifacts/recovered-flat --json");
         stdout.WriteLine("  aetheris sheetmetal compare-flat artifacts/recovered-flat/recovered-flat.json reconstructed.firmament --json");
         stdout.WriteLine("  aetheris sheetmetal inspect testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp");
-        stdout.WriteLine("  aetheris sheetmetal paths fixtures/FirmamentV2/SheetMetal/m3-electronics-tray.firmament");
+        stdout.WriteLine("  aetheris sheetmetal paths fixtures/SheetMetal/m3-electronics-tray.firmament");
         stdout.WriteLine("  aetheris sheetmetal recover part.step --out-dir artifacts/recovery --json");
         stdout.WriteLine("  aetheris sheetmetal compare part.step reconstructed.firmament --json");
         stdout.WriteLine("  aetheris sheetmetal flatten testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp --step artifacts/ctc03-flat.step --firmament artifacts/ctc03-recovered.firmament --svg artifacts/ctc03-flat.svg");
@@ -3900,9 +3900,9 @@ Model CanonicalPanel {
         stdout.WriteLine("Examples:");
         stdout.WriteLine("  aetheris trace --case prismatic-section-transition");
         stdout.WriteLine("  aetheris trace --case top-face-loop-chamfer --json");
-        stdout.WriteLine("  aetheris trace --fixture fixtures/Firmament/Chamfer/valid/top-face-loop-chamfer.valid.firmfixture --json");
-        stdout.WriteLine("  aetheris trace --fixture fixtures/Firmament/Chamfer/valid/top-face-loop-chamfer.valid.firmfixture --out-dir artifacts/air-x7");
-        stdout.WriteLine("  aetheris trace --fixture fixtures/Firmament/Region/valid/side-hole-face-attached-region.valid.firmfixture --out-dir artifacts/air-region-x13/side-hole");
+        stdout.WriteLine("  aetheris trace --fixture fixtures/Chamfer/valid/top-face-loop-chamfer.valid.firmfixture --json");
+        stdout.WriteLine("  aetheris trace --fixture fixtures/Chamfer/valid/top-face-loop-chamfer.valid.firmfixture --out-dir artifacts/air-x7");
+        stdout.WriteLine("  aetheris trace --fixture fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture --out-dir artifacts/air-region-x13/side-hole");
     }
 
     private static void WriteAnalyzeHelp(TextWriter stdout)
@@ -4000,7 +4000,7 @@ Model CanonicalPanel {
         stdout.WriteLine(VerifyUsage);
         stdout.WriteLine();
         stdout.WriteLine("Firmament input is built first; STEP input is reimported directly for independent B-rep mass properties and optional external display inspection.");
-        stdout.WriteLine("The report is hash-tied to artifacts/verification/<fixture>/<sha256>/ by default.");
+        stdout.WriteLine("The report is hash-tied to artifacts/local/verification/<fixture>/<sha256>/ by default.");
         stdout.WriteLine();
         stdout.WriteLine("Options:");
         stdout.WriteLine("  --expected-volume <value>   Compare independent measured volume with external analytic evidence; never used by the evaluator.");
@@ -4196,8 +4196,8 @@ Model CanonicalPanel {
         stdout.WriteLine("  -h, --help     Show this help.");
         stdout.WriteLine();
         stdout.WriteLine("Example:");
-        stdout.WriteLine("  aetheris asm exec testdata/firmasm/examples/occt-as1/as1-assembly.firmasm --json");
-        stdout.WriteLine("  aetheris asm export testdata/firmasm/examples/occt-nut-bolt/nut-bolt-assembly.firmasm --out tmp/nutbolt-export --json");
+        stdout.WriteLine("  aetheris asm exec fixtures/Assembly/LegacyImports/examples/occt-as1/as1-assembly.firmasm --json");
+        stdout.WriteLine("  aetheris asm export fixtures/Assembly/LegacyImports/examples/occt-nut-bolt/nut-bolt-assembly.firmasm --out tmp/nutbolt-export --json");
         stdout.WriteLine("  aetheris asm inspect fixtures/AssemblyM0/bearing-module.firmament --json");
         stdout.WriteLine("  aetheris asm import-step testdata/step242/OCCT/as1.step --out tmp/as1-package --json");
         stdout.WriteLine("  aetheris asm export-ap242 tmp/as1-package/as1.firmasm --out tmp/as1.step --json");

@@ -142,7 +142,7 @@ public sealed class ForgeCsA3RuntimeConceptValidationTests
 
     private static FirmamentV2ParseResult ParseFixture(string relative)
     {
-        var path = Path.Combine(FindRepoRoot(), "fixtures", "FirmamentV2", relative);
+        var path = Path.Combine(FindRepoRoot(), "fixtures", relative);
         return FirmamentV2Parser.Parse(File.ReadAllText(path), Path.GetDirectoryName(path));
     }
 

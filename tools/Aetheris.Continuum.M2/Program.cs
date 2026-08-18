@@ -15,7 +15,7 @@ _ = ContinuumM2Experiments.Run();
 var first = ContinuumM2Experiments.Run();
 var second = ContinuumM2Experiments.Run();
 var repository = FindRepositoryRoot(AppContext.BaseDirectory);
-var output = Path.Combine(repository, "docs", "continuum", "artifacts", "m2");
+var output = Path.Combine(repository, "artifacts", "local", "evidence", "continuum", "m2");
 Directory.CreateDirectory(output);
 
 Write("benchmark-summary.json", first);

@@ -1,0 +1,15 @@
+{
+  "manifest": {
+    "version": "1"
+  },
+  "assembly": {
+    "name": "invalid_missing_instances",
+    "units": "mm"
+  },
+  "parts": {
+    "base": {
+      "kind": "firmament",
+      "source": "../../../LegacyV1/Corpus/valid/m0b-valid-one-op.firmament"
+    }
+  }
+}

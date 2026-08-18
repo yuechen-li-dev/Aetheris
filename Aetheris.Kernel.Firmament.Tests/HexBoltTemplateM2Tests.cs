@@ -13,7 +13,7 @@ namespace Aetheris.Kernel.Firmament.Tests;
 
 public sealed class HexBoltTemplateM2Tests
 {
-    private static string FixturePath => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../testdata/firmament/examples/hexbolt_template_m2.firmament"));
+    private static string FixturePath => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/LegacyV1/Examples/hexbolt_template_m2.firmament"));
 
     [Fact]
     public void CanonicalTemplate_IsConceptConstrainedTypedRecordAuthoredAndHasNoStandardPartHook()

@@ -9,7 +9,7 @@ public sealed class FirmamentV2ConstructionPlaneHoleSourceTests
     [Fact]
     public void Source_ConstructionPlaneBlindDrillPoint_LowersWithUnambiguousDepth()
     {
-        var source = File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2/Hole/valid/construction-plane-blind-drillpoint-shaft-depth.firmament")));
+        var source = File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Hole/valid/construction-plane-blind-drillpoint-shaft-depth.firmament")));
         var parsed = FirmamentV2Parser.Parse(source);
         Assert.True(parsed.IsSuccess, string.Join(Environment.NewLine, parsed.Diagnostics));
         var hole = Assert.Single(Assert.Single(parsed.Document!.ModifyBlocks!).SemanticHoles);
@@ -89,6 +89,6 @@ public sealed class FirmamentV2ConstructionPlaneHoleSourceTests
         Assert.Contains(FirmamentV2Parser.HoleConstructionPlaneHostUnsupported, parsed.Diagnostics);
     }
 
-    private static string Fixture => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2/Hole/valid/construction-plane-through-hole.firmament"));
-    private static string InvalidFixture(string name) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2/Hole/invalid", name));
+    private static string Fixture => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Hole/valid/construction-plane-through-hole.firmament"));
+    private static string InvalidFixture(string name) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Hole/invalid", name));
 }

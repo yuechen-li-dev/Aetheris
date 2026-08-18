@@ -194,7 +194,7 @@ public sealed class FirmamentV2SourceCompositionStepPipelineTests
     }
 
     private static string Fixture(string relativePath) =>
-        Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2", relativePath));
+        Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures", relativePath));
 
     private static string TempStep(string fixtureId)
     {

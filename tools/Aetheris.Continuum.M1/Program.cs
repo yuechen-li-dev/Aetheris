@@ -31,7 +31,7 @@ var compactOptions = new JsonSerializerOptions
     Converters = { new JsonStringEnumConverter() },
 };
 var repository = FindRepositoryRoot(AppContext.BaseDirectory);
-var output = Path.Combine(repository, "docs", "continuum", "artifacts", "m1");
+var output = Path.Combine(repository, "artifacts", "local", "evidence", "continuum", "m1");
 Directory.CreateDirectory(output);
 
 var m0Summary = benchmark.M0CylindricalHoleBaselines.Select(row => new

@@ -1,0 +1,19 @@
+topic,before,after,public_route,authority
+Firmament language reference,partial,definitive,/aetheris/reference/language,docs/development/history/firmament/preview2-reference/language-reference.md
+progressive quickstart,partial,complete,/aetheris/getting-started,docs/development/history/firmament/preview2-reference/quickstart.md
+language philosophy,absent,complete,/aetheris/firmament/philosophy,language reference + Forge architecture
+let and tol,partial,complete,/aetheris/firmament/values-tolerances,language reference
+Record Table with Template,partial,complete,/aetheris/firmament/records-tables-templates,language reference + canonical fixtures
+SemanticValue,absent,complete,/aetheris/firmament/semantics,docs/development/milestones/semantic/architecture.md
+Point Axis Plane Dimension,absent,complete,/aetheris/firmament/datums-dimensions,language reference + assembly tests
+InlineStep Recognize Replace,partial,complete,/aetheris/firmament/inline-step,canonical fixture + semantic evidence
+Forge host SDK,absent,complete,/aetheris/forge/host-sdk,docs/development/milestones/forge/invocation-sdk.md + evidence program
+Forge extension SDK,absent,complete,/aetheris/forge/extension-sdk,sample extension + extension-sdk.md
+SurfaceMeshIR,absent,complete,/aetheris/geometry/surface-mesh-ir,Preview 2 evidence + CLI
+Continuum,absent,complete,/aetheris/analysis/continuum,Continuum M4/M4C docs + manifest
+linear elasticity FEA,absent,complete,/aetheris/analysis/fea,FEA docs/tests/current artifacts
+Interfaces Roles Mates,absent,complete,/aetheris/assemblies/interfaces-mates,assembly docs/tests
+tolerance stackup,absent,complete,/aetheris/assemblies/tolerance-stackup,assembly fixture/tests
+feature status,Preview 1 freeze,generated Preview 2 explorer,/aetheris/reference/features,language-features.json + feature-manifest.json
+LLM guidance,Preview 1 syntax context,Preview 2 tool-author workflow,/aetheris/for-llms,public reference + CLI diagnostics
+CLI,stale/partial,current help-verified commands,/aetheris/cli,Aetheris.CLI --help outputs

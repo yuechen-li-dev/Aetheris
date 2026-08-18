@@ -8,7 +8,7 @@ public sealed class InspectSelectionsTests
     public void InspectSelections_ReportsSourceGroundedClosedLoop()
     {
         var root = FindRepoRoot();
-        var source = Path.Combine(root, "fixtures", "FirmamentV2", "Profile", "valid", "semantic-top-boundary-loop.firmament");
+        var source = Path.Combine(root, "fixtures", "Profile", "valid", "semantic-top-boundary-loop.firmament");
         var stdout = new StringWriter(); var stderr = new StringWriter();
         var exit = Aetheris.CLI.CliRunner.Run(["inspect-selections", source, "--json"], stdout, stderr);
         Assert.Equal(0, exit); Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()), stderr.ToString());
@@ -24,7 +24,7 @@ public sealed class InspectSelectionsTests
     public void InspectSelections_ReportsConstructionPlaneHoleSourceToPlanEvidence()
     {
         var root = FindRepoRoot();
-        var source = Path.Combine(root, "fixtures", "FirmamentV2", "Hole", "valid", "construction-plane-through-hole.firmament");
+        var source = Path.Combine(root, "fixtures", "Hole", "valid", "construction-plane-through-hole.firmament");
         var stdout = new StringWriter(); var stderr = new StringWriter();
 
         var exit = Aetheris.CLI.CliRunner.Run(["inspect-selections", source, "--json"], stdout, stderr);
@@ -47,7 +47,7 @@ public sealed class InspectSelectionsTests
     public void InspectSelections_ComposedBlindDrillReportsConservativeClearanceContract()
     {
         var root = FindRepoRoot();
-        var source = Path.Combine(root, "fixtures", "FirmamentV2", "ProfileComposition", "valid", "construction-plane-blind-drill-clearance.firmament");
+        var source = Path.Combine(root, "fixtures", "ProfileComposition", "valid", "construction-plane-blind-drill-clearance.firmament");
         var stdout = new StringWriter(); var stderr = new StringWriter();
 
         var exit = Aetheris.CLI.CliRunner.Run(["inspect-selections", source, "--json"], stdout, stderr);

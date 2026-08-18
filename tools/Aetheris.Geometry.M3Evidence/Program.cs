@@ -7,7 +7,7 @@ using Aetheris.Geometry;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Surfacing;
 
-var output=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","..","..","..","..","docs","geometry","artifacts","reasoning-m3"));Directory.CreateDirectory(output);
+var output=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","..","..","..","..","artifacts", "local", "evidence", "geometry","reasoning-m3"));Directory.CreateDirectory(output);
 var json=new JsonSerializerOptions{WriteIndented=true};json.Converters.Add(new JsonStringEnumConverter());
 var a=Line("a",new(0,0,0),new(10,0,0));var noise=Line("noise",new(0,0,5e-7),new(10,0,5e-7));
 var loose=ClosestPointQuery.Between(a,noise);var tight=ClosestPointQuery.Between(a,noise,new(){LinearTolerance=1e-8});

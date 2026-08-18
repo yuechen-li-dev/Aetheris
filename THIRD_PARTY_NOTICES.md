@@ -7,13 +7,13 @@ licenses, terms, and provenance and are not relicensed as Aetheris source code.
 ## Stanford Bunny
 
 The reconstructed Bunny evidence under
-`docs/geometry/artifacts/bunny-m4/` derives from the Stanford Bunny
+`docs/development/milestones/geometry/artifacts/bunny-m4/` derives from the Stanford Bunny
 `bun_zipper.ply`, credited to the Stanford University Computer Graphics
 Laboratory. The repository's existing provenance record states that Stanford
 permits free mirroring and redistribution with acknowledgment and that
 commercial use requires Stanford's permission. The dataset terms and original
 model are linked from the preserved provenance record:
-`docs/geometry/artifacts/bunny-m4/README.md`.
+`docs/development/milestones/geometry/artifacts/bunny-m4/README.md`.
 
 The original Stanford Bunny archive/model is not bundled in this repository;
 the M4 directory contains Aetheris-generated derived evidence. Those derived

@@ -66,7 +66,7 @@ public sealed class FirmamentV2CanonicalConstructSafetyTests
     [Fact]
     public void CanonicalPmiFixture_BuildsExportsAndReimportsAp242Pmi()
     {
-        var fixture = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2/Canonical/valid/box-hole-pmi.firmament"));
+        var fixture = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Canonical/valid/box-hole-pmi.firmament"));
         var output = Path.Combine(Path.GetTempPath(), "aetheris-canonical-pmi-" + Guid.NewGuid().ToString("N") + ".step");
         try
         {

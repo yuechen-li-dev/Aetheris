@@ -14,7 +14,7 @@ public sealed class ProfileBoundaryChamferFixtureTests
     [InlineData("profile-chamfer-reflex-low-level-segments.firmament", 18, 5569.666666666666d)]
     public void CanonicalFixture_ExportsAnEnclosedDeterministicPlanarStep(string fixtureName, int expectedFaces, double expectedVolume)
     {
-        var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/FirmamentV2/Canonical/valid/{fixtureName}");
+        var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/Canonical/valid/{fixtureName}");
         var firstOutput = Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step");
         var secondOutput = Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step");
         try
@@ -55,7 +55,7 @@ public sealed class ProfileBoundaryChamferFixtureTests
     [InlineData("profile-compose-reflex-chamfer-with-counterbore.firmament")]
     public void ComposedReflexFixture_AdmitsDisjointCavity(string fixtureName)
     {
-        var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/FirmamentV2/Canonical/valid/{fixtureName}");
+        var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/Canonical/valid/{fixtureName}");
         var output = Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step");
         try
         {
@@ -76,7 +76,7 @@ public sealed class ProfileBoundaryChamferFixtureTests
     [InlineData("profile-straight-edge-fillet-bottom.firmament")]
     public void StraightFilletFixture_ExportsDeterministicExactCylinderAndEndpointArcs(string fixtureName)
     {
-        var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/FirmamentV2/Canonical/valid/{fixtureName}");
+        var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/Canonical/valid/{fixtureName}");
         var firstOutput = Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step");
         var secondOutput = Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step");
         try
@@ -103,7 +103,7 @@ public sealed class ProfileBoundaryChamferFixtureTests
     [InlineData("profile-fillet-convex-two-segment-bottom.firmament")]
     public void ConvexTwoSegmentFilletFixture_ExportsDeterministicTwoCylindersAndSphere(string fixtureName)
     {
-        var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/FirmamentV2/Canonical/valid/{fixtureName}");
+        var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/Canonical/valid/{fixtureName}");
         var firstOutput = Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step");
         var secondOutput = Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step");
         try
@@ -130,8 +130,8 @@ public sealed class ProfileBoundaryChamferFixtureTests
     [Fact]
     public void ConvexTwoSegmentFillet_ConceptPathAndExplicitSegmentsAreStepEquivalent()
     {
-        var concept = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/FirmamentV2/Canonical/valid/profile-fillet-convex-two-segment-concept-path.firmament");
-        var lowLevel = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/FirmamentV2/Canonical/valid/profile-fillet-convex-two-segment-low-level.firmament");
+        var concept = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/valid/profile-fillet-convex-two-segment-concept-path.firmament");
+        var lowLevel = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/valid/profile-fillet-convex-two-segment-low-level.firmament");
         var conceptResult = FirmamentBuildAndExport.Run(concept, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
         var lowLevelResult = FirmamentBuildAndExport.Run(lowLevel, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
 
@@ -145,7 +145,7 @@ public sealed class ProfileBoundaryChamferFixtureTests
     [InlineData("profile-fillet-reflex-two-segment-bottom.firmament")]
     public void ReflexTwoSegmentFilletFixture_ExportsDeterministicTwoCylindersAndHornTorus(string fixtureName)
     {
-        var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/FirmamentV2/Canonical/valid/{fixtureName}");
+        var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/Canonical/valid/{fixtureName}");
         var first = FirmamentBuildAndExport.Run(source, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
         var second = FirmamentBuildAndExport.Run(source, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
         Assert.True(first.IsSuccess, string.Join(Environment.NewLine, first.Diagnostics.Select(item => item.Message)));
@@ -163,7 +163,7 @@ public sealed class ProfileBoundaryChamferFixtureTests
     [Fact]
     public void ReflexSphereSeamCompatibilityFixture_IsOptInAndExportsDeterministicSphere()
     {
-        var source = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/FirmamentV2/Canonical/valid/profile-fillet-reflex-two-segment-sphere-seam-compatibility.firmament");
+        var source = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/valid/profile-fillet-reflex-two-segment-sphere-seam-compatibility.firmament");
         var first = FirmamentBuildAndExport.Run(source, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
         var second = FirmamentBuildAndExport.Run(source, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
         Assert.True(first.IsSuccess, string.Join(Environment.NewLine, first.Diagnostics.Select(item => item.Message)));
@@ -184,8 +184,8 @@ public sealed class ProfileBoundaryChamferFixtureTests
     [Fact]
     public void ReflexTwoSegmentFillet_ConceptPathAndExplicitSegmentsAreStepEquivalent()
     {
-        var concept = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/FirmamentV2/Canonical/valid/profile-fillet-reflex-two-segment-concept-path.firmament");
-        var lowLevel = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/FirmamentV2/Canonical/valid/profile-fillet-reflex-two-segment-low-level.firmament");
+        var concept = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/valid/profile-fillet-reflex-two-segment-concept-path.firmament");
+        var lowLevel = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/valid/profile-fillet-reflex-two-segment-low-level.firmament");
         var conceptResult = FirmamentBuildAndExport.Run(concept, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
         var lowLevelResult = FirmamentBuildAndExport.Run(lowLevel, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
         Assert.True(conceptResult.IsSuccess, string.Join(Environment.NewLine, conceptResult.Diagnostics.Select(item => item.Message)));
@@ -203,7 +203,7 @@ public sealed class ProfileBoundaryChamferFixtureTests
     [InlineData("profile-edgefinish-convex-small-fillet-invalid.firmament", "ProfileBoundaryFilletConvexArcSpindleUnsupported")]
     public void InvalidFixture_ProducesTypedProfileBoundaryDiagnostic(string fixtureName, string diagnostic)
     {
-        var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/FirmamentV2/Canonical/invalid/{fixtureName}");
+        var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/Canonical/invalid/{fixtureName}");
         var build = FirmamentBuildAndExport.Run(source, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
 
         Assert.False(build.IsSuccess);

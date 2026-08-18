@@ -8,7 +8,7 @@ public sealed class FirmamentV2LanguageManifestTests
     public void CanonicalLanguageManifest_IsValidClassifiedAndDocumentationTargetsExist()
     {
         var root = FirmamentCorpusHarness.RepoRoot();
-        var path = Path.Combine(root, "docs", "firmament-v2", "language-features.json");
+        var path = Path.Combine(root, "docs", "development", "milestones", "firmament", "language-features.json");
         using var document = JsonDocument.Parse(File.ReadAllText(path));
         var features = document.RootElement.GetProperty("features").EnumerateArray().ToArray();
         Assert.True(features.Length >= 30);
@@ -18,7 +18,7 @@ public sealed class FirmamentV2LanguageManifestTests
         };
         Assert.All(features, feature => Assert.Contains(feature.GetProperty("status").GetString()!, admitted));
         Assert.Equal(features.Length, features.Select(feature => feature.GetProperty("name").GetString()).Distinct(StringComparer.Ordinal).Count());
-        Assert.True(File.Exists(Path.Combine(root, "docs", "firmament-v2", "language-reference.md")));
-        Assert.True(File.Exists(Path.Combine(root, "docs", "firmament-v2", "quickstart.md")));
+        Assert.True(File.Exists(Path.Combine(root, "docs", "development", "history", "firmament", "preview2-reference", "language-reference.md")));
+        Assert.True(File.Exists(Path.Combine(root, "docs", "development", "history", "firmament", "preview2-reference", "quickstart.md")));
     }
 }

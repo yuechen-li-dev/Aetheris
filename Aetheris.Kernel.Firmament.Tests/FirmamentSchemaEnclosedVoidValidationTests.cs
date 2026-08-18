@@ -81,7 +81,7 @@ ops[2]:
     [Fact]
     public void Compile_BlindHole_Remains_Allowed_UnderDefaultPolicy()
     {
-        var result = CompileFixture("testdata/firmament/examples/p1_blind_hole_on_face_semantic.firmament");
+        var result = CompileFixture("fixtures/LegacyV1/Examples/p1_blind_hole_on_face_semantic.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         Assert.DoesNotContain(
@@ -92,7 +92,7 @@ ops[2]:
     [Fact]
     public void Compile_ThroughHole_Remains_Allowed_UnderDefaultPolicy()
     {
-        var result = CompileFixture("testdata/firmament/examples/boolean_box_cylinder_hole.firmament");
+        var result = CompileFixture("fixtures/LegacyV1/Examples/boolean_box_cylinder_hole.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         Assert.DoesNotContain(

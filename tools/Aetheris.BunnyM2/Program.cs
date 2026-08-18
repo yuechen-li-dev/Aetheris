@@ -8,7 +8,7 @@ using Aetheris.Reconstruction;
 
 var root = FindRoot();
 var sourcePath = Path.GetFullPath(args.Length > 0 ? args[0] : Path.Combine(root, ".tmp", "bunny-m0-source", "bunny", "reconstruction", "bun_zipper.ply"));
-var output = Path.GetFullPath(args.Length > 1 ? args[1] : Path.Combine(root, "docs", "geometry", "artifacts", "bunny-m2"));
+var output = Path.GetFullPath(args.Length > 1 ? args[1] : Path.Combine(root, "artifacts", "local", "evidence", "geometry", "bunny-m2"));
 if (!File.Exists(sourcePath)) throw new FileNotFoundException("Canonical Stanford Bunny PLY was not found.", sourcePath);
 Directory.CreateDirectory(output); var total = Stopwatch.StartNew(); var watch = Stopwatch.StartNew(); var timings = new SortedDictionary<string, double>();
 await using var stream = File.OpenRead(sourcePath); var mesh = PlyTriangleSurfaceLoader.LoadAscii(stream, "bunny/reconstruction/bun_zipper.ply", new Dictionary<string,string>{{"path",sourcePath}}); timings["sourceLoad"] = Lap();
@@ -67,7 +67,7 @@ TriangleSurfaceMesh → transported cross field → singularity/junction evidenc
                     → SurfaceMeshIR (with explicitly typed unmatched transitions, if any)
 ```
 
-Geometric chart segmentation and quadrilateral surface parameterization are separate problems. M0 solved the former approximately; M2 introduces the latter. Reproduce with `dotnet run --project tools/Aetheris.BunnyM2 -c Release -- .tmp/bunny-m0-source/bunny/reconstruction/bun_zipper.ply docs/geometry/artifacts/bunny-m2`.
+Geometric chart segmentation and quadrilateral surface parameterization are separate problems. M0 solved the former approximately; M2 introduces the latter. Reproduce with `dotnet run --project tools/Aetheris.BunnyM2 -c Release -- .tmp/bunny-m0-source/bunny/reconstruction/bun_zipper.ply artifacts/local/evidence/geometry/bunny-m2`.
 
 Only compact summaries are checked in. No full mesh document, per-face dump, dense field dump, or candidate geometry is persisted.
 """);

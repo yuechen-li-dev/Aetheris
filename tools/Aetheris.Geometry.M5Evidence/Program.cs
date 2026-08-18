@@ -8,7 +8,7 @@ using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Surfacing;
 
-var output = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "docs", "geometry", "artifacts", "reasoning-m5"));
+var output = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "artifacts", "local", "evidence", "geometry", "reasoning-m5"));
 Directory.CreateDirectory(output);
 var json = new JsonSerializerOptions { WriteIndented = true }; json.Converters.Add(new JsonStringEnumConverter());
 var z0 = new Plane3(Point3D.Origin, Direction3D.Create(new(0, 0, 1)));

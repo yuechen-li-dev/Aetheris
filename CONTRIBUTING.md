@@ -53,7 +53,24 @@ The shell entry points under `scripts/` remain useful for targeted Linux/framewo
 - Use `ToleranceContext` and `ToleranceMath`; do not introduce ad hoc geometry epsilon constants.
 - State whether display work changes STEP semantics, BRep topology, Firmament/AIR/CIR lowering, DisplayIR authority, or frontend presentation only.
 - Update public documentation whenever a user-visible command, boundary, diagnostic, or example changes.
-- Put current user-facing behavior under [`docs/public`](docs/public/README.md). Architecture, experiments, and development evidence belong elsewhere under `docs/` and must not silently become the public contract.
+- Put current user-facing behavior only under [`docs/public`](docs/public/README.md). Architecture, experiments, and development evidence belong under [`docs/development`](docs/development/README.md) and must not silently become the public contract.
+
+## Repository content map
+
+| Location | Durable purpose |
+| --- | --- |
+| `docs/public/` | Authoritative current Preview 3 user documentation. |
+| `docs/development/` | Historical engineering, architecture, milestones, experiments, and evidence. |
+| `docs/release/` | Release qualification, staging, claims, and contracts. |
+| `docs/legal/` | Legal-review candidates and counsel questions. |
+| `fixtures/` | All Firmament-family test source and corpus metadata, including `.firmament`, `.firmfixture`, and `.firmasm`. |
+| `testdata/` | Non-Firmament external/reference inputs and deliberate golden exports. |
+| `samples/` | External consumer integration examples. |
+| `demos/` | Runnable narrative demonstrations of Aetheris capabilities. |
+| `test-support/` | Auxiliary projects and assets used by tests. |
+| `artifacts/local/` | Generated local output; ignored by Git. |
+
+Before adding content, use an existing location above. Do not create another top-level documentation, fixture, example, or generated-output bucket without an explicit architectural reason. Generated output is governed by the [generated-artifact policy](docs/development/GENERATED-ARTIFACT-POLICY.md): tools default to `artifacts/local/`, and only bounded, reviewed evidence or goldens may be promoted into source control. Run `./scripts/Test-RepositoryLayout.ps1` before submitting structural changes.
 
 ## Rights and provenance
 

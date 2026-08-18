@@ -7,7 +7,7 @@ public sealed class SheetMetalM2Tests
 {
     private static string RepoRoot=>Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"../../../../"));
     private static string Ctc=>Path.Combine(RepoRoot,"testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp");
-    private static string Intent=>Path.Combine(RepoRoot,"docs/modules/sheetmetal/artifacts/m2/ctc03-idiomatic.firmament");
+    private static string Intent=>Path.Combine(RepoRoot,"docs/development/milestones/modules/sheetmetal/artifacts/m2/ctc03-idiomatic.firmament");
 
     [Fact]
     public void Recovery_SeparatesEvidenceDraftAndBrief_WithBoundedNominals()

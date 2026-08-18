@@ -61,7 +61,7 @@ public sealed class CanonicalCliWorkflowTests
     public void Inspect_ConceptPath_ReportsTypedCapabilitiesMembersAndConsumers()
     {
         var root = FindRepositoryRoot();
-        var source = Path.Combine(root, "fixtures", "FirmamentV2", "Canonical", "valid", "concept-path-compose-profile.firmament");
+        var source = Path.Combine(root, "fixtures", "Canonical", "valid", "concept-path-compose-profile.firmament");
         var stdout = new StringWriter();
         var stderr = new StringWriter();
 

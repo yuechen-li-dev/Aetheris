@@ -36,11 +36,11 @@ The easiest complete experience is the `Aetheris-2.0.0-preview.3-win-x64.zip` re
 ```powershell
 dotnet tool install --global Aetheris.CLI --version 2.0.0-preview.3
 aetheris --version
-aetheris build fixtures/FirmamentV2/Canonical/valid/box-hole-pmi.firmament --output out/first-part.step --json
+aetheris build fixtures/Canonical/valid/box-hole-pmi.firmament --output out/first-part.step --json
 aetheris analyze out/first-part.step --json
 ```
 
-Go next to [Getting Started](docs/public/getting-started.md), the [public documentation](docs/public/README.md), or the [CLI reference](docs/public/reference/cli.md). The [A4 machined mounting block](fixtures/FirmamentV2/Canonical/valid/a4-machined-mounting-block.firmament) is the canonical first serious CAD example; the [L-bracket](fixtures/FirmamentV2/SheetMetal/preview3-l-bracket-hole.firmament) is the introductory Sheet Metal example; and the [A36 cantilever](fixtures/FirmamentV2/PublicDogfood/ai-fea-a36-cantilever.firmament) is the analytically interpretable FEA witness.
+Go next to [Getting Started](docs/public/getting-started.md), the [public documentation](docs/public/README.md), or the [CLI reference](docs/public/reference/cli.md). The [A4 machined mounting block](fixtures/Canonical/valid/a4-machined-mounting-block.firmament) is the canonical first serious CAD example; the [L-bracket](fixtures/SheetMetal/preview3-l-bracket-hole.firmament) is the introductory Sheet Metal example; and the [A36 cantilever](fixtures/PublicDogfood/ai-fea-a36-cantilever.firmament) is the analytically interpretable FEA witness.
 
 ![Qualified CTC-03 Sheet Metal flat pattern with bend and opening evidence](docs/public/assets/sheet-metal-flat-pattern.png)
 

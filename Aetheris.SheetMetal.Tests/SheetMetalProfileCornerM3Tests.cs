@@ -61,7 +61,7 @@ public sealed class SheetMetalProfileCornerM3Tests
     {
         var root = FindRepoRoot();
         var step = Path.Combine(root, "testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp");
-        var intent = Path.Combine(root, "docs/modules/sheetmetal/artifacts/m8/ctc03-final.firmament");
+        var intent = Path.Combine(root, "docs/development/milestones/modules/sheetmetal/artifacts/m8/ctc03-final.firmament");
         var source = SheetMetalRecognizer.RecognizeStep(step).Part!;
         var authored = SheetMetalFirmament.CompileFile(intent);
 

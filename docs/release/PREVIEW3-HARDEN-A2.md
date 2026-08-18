@@ -52,7 +52,7 @@ Every public workflow links to a checked-in source fixture. Relative-link qualif
 
 The automated public-only path performs: first STEP build, typed Template/pattern build, catalog-material FEA, PMI + EdgeFinish AP242 build/reinspection, Sheet Metal formed/flat STEP and SVG, native FEA, inlineSTEP FEA, and the public Forge request. No test reads a milestone report or implementation document.
 
-An AI-style authoring pass using only the public syntax/target/material pages produced three new first-attempt sources under `fixtures/FirmamentV2/PublicDogfood`: a native Model, a Sheet Metal bracket, and the A36 FEA cantilever. All three parsed and ran on first attempt, with zero syntax guesses after selecting the correct domain page and no hidden documentation lookup. The deliberately wrong Sheet Metal Model hole and datum forms recovered in one diagnostic cycle via the new named errors.
+An AI-style authoring pass using only the public syntax/target/material pages produced three new first-attempt sources under `fixtures/PublicDogfood`: a native Model, a Sheet Metal bracket, and the A36 FEA cantilever. All three parsed and ran on first attempt, with zero syntax guesses after selecting the correct domain page and no hidden documentation lookup. The deliberately wrong Sheet Metal Model hole and datum forms recovered in one diagnostic cycle via the new named errors.
 
 ## Regression coverage
 

@@ -112,7 +112,7 @@ public sealed class CirBrepX4RecognizerSourceContractLabTests
     private static FirmamentCompilationArtifact CompileFixture()
     {
         var root = ResolveRepoRoot();
-        var absolute = Path.Combine(root, "testdata/firmament/examples/boolean_box_cylinder_hole.firmament");
+        var absolute = Path.Combine(root, "fixtures/LegacyV1/Examples/boolean_box_cylinder_hole.firmament");
         var source = File.ReadAllText(absolute);
         var compiler = new FirmamentCompiler();
         var result = compiler.Compile(new FirmamentCompileRequest(new FirmamentSourceDocument(source, absolute)));

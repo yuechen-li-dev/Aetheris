@@ -4,15 +4,15 @@ This bundle is the qualified `win-x64` Preview 3 product. Run commands from the 
 
 ```powershell
 .\aetheris.exe --help
-.\aetheris.exe validate .\fixtures\FirmamentV2\Canonical\valid\box-hole-pmi.firmament --json
-.\aetheris.exe build .\fixtures\FirmamentV2\Canonical\valid\box-hole-pmi.firmament --output .\out\first-part.step --json
+.\aetheris.exe validate .\fixtures\Canonical\valid\box-hole-pmi.firmament --json
+.\aetheris.exe build .\fixtures\Canonical\valid\box-hole-pmi.firmament --output .\out\first-part.step --json
 .\aetheris.exe analyze .\out\first-part.step --json
 .\aetheris.exe view .\out\first-part.step
 .\forge-host\Aetheris.Forge.Host.exe info
 .\forge-host\Aetheris.Forge.Host.exe list
 ```
 
-The complete public guide is under `docs/public`, executable Firmament examples are under `fixtures/FirmamentV2`, foreign-language Forge clients are under `samples/forge-interop-x1`, and the deployed Standard Library material catalog is under `Materials`.
+The complete public guide is under `docs/public`, executable Firmament examples are under `fixtures`, foreign-language Forge clients are under `samples/forge-interop-x1`, and the deployed Standard Library material catalog is under `Materials`.
 
 The ZIP is the complete end-user distribution. `packages/Aetheris.CLI.2.0.0-preview.3.nupkg`, the 16 public library packages, and `aetheris-firmament-0.3.0-preview.3.vsix` are published as separate release assets rather than duplicated inside the runtime tree. Verify downloaded binary assets against the release's `SHA256SUMS.txt`.
 

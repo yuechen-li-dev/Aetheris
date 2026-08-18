@@ -63,7 +63,7 @@ public sealed class FirmamentV2ForgeConceptApplicationTests
         Assert.Single(result.Document.Solids);
     }
 
-    private static string Source(string relative) => File.ReadAllText(Path.Combine(FindRepoRoot(), "fixtures/FirmamentV2", relative));
+    private static string Source(string relative) => File.ReadAllText(Path.Combine(FindRepoRoot(), "fixtures", relative));
 
     private static string FindRepoRoot()
     {

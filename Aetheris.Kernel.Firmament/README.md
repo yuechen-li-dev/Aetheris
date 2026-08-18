@@ -13,4 +13,4 @@ Current architecture:
 
 The V1 parser accepts both TOON-style and JSON-shaped documents and normalizes them into `FirmamentParsedDocument`. Its formatter emits deterministic canonical TOON, not lossless source preservation and not JSON. The broad V1 test suite is opt-in through `AETHERIS_RUN_LEGACY_TESTS=1`.
 
-The authoritative ownership and migration audit is [AETHERIS-ARCHAEOLOGY-M1](../docs/architecture/artifacts/archaeology-m1/README.md). The current V2 language reference is [docs/firmament-v2/language-reference.md](../docs/firmament-v2/language-reference.md).
+The authoritative ownership and migration audit is [AETHERIS-ARCHAEOLOGY-M1](../docs/development/architecture/system/artifacts/archaeology-m1/README.md). The current V2 language reference is [docs/development/history/firmament/preview2-reference/language-reference.md](../docs/development/history/firmament/preview2-reference/language-reference.md).

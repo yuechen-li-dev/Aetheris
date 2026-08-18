@@ -152,5 +152,5 @@ public static class CoreModule
 {
     public static readonly AetherisModuleId Id = new("Aetheris.Core");
     public static AetherisModule Definition { get; } = new(Id, "Core", new(1, 0, 0), [], [], [],
-        ["Shared exact geometry, BRep, AIR/ConstructionIR, compiler substrate"], [], [], new("docs/modules/architecture.md"));
+        ["Shared exact geometry, BRep, AIR/ConstructionIR, compiler substrate"], [], [], new("docs/development/milestones/modules/architecture.md"));
 }

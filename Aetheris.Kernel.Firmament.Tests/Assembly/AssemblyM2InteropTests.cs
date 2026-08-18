@@ -8,7 +8,7 @@ public sealed class AssemblyM2InteropTests
     [Fact]
     public void FirmasmProfile_LegacyOcctFixtureMigratesThroughOrdinaryParserWithExplicitAuthority()
     {
-        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("testdata/firmasm/examples/occt-as1/as1-assembly.firmasm");
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Assembly/LegacyImports/examples/occt-as1/as1-assembly.firmasm");
         var result = new FirmamentAssemblyDocumentCompiler().CompileFile(path);
 
         Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Compilation.Diagnostics.Select(diagnostic => $"{diagnostic.Code}: {diagnostic.Message}")));
@@ -45,7 +45,7 @@ public sealed class AssemblyM2InteropTests
     [Fact]
     public void AssemblyIr_NativeAp242RoundTripPreservesOccurrencesDefinitionsAndTransforms()
     {
-        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("testdata/firmasm/examples/occt-as1/as1-assembly.firmasm");
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Assembly/LegacyImports/examples/occt-as1/as1-assembly.firmasm");
         var compiled = new FirmamentAssemblyDocumentCompiler().CompileFile(path).Compilation;
         var exported = AssemblyIrAp242Exporter.Export(compiled);
         Assert.True(exported.IsSuccess, string.Join(Environment.NewLine, exported.Diagnostics.Select(diagnostic => diagnostic.Message)));

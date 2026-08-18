@@ -7,7 +7,7 @@ using MyCompany.SecretGeometry;
 using MyCompany.SecretGeometry.Generated;
 
 var root = FindRepositoryRoot();
-var output = Path.Combine(root, "docs", "forge", "artifacts", "m1");
+var output = Path.Combine(root, "artifacts", "local", "evidence", "forge", "m1");
 Directory.CreateDirectory(output);
 var modulePath = Path.Combine(root, "Aetheris.Forge.SampleExtension", "Templates", "SecretGeometry.firmament");
 var manifest = new ForgeExtensionManifest([new(SecretGeometryExtension.ExtensionId, SecretGeometryExtension.ExtensionVersion)]);

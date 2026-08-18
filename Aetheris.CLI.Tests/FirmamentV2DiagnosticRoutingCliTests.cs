@@ -28,5 +28,5 @@ public sealed class FirmamentV2DiagnosticRoutingCliTests
         Assert.DoesNotContain(buildMessages, message => message!.Contains("FIRM-PARSE-0001", StringComparison.Ordinal) || message.Contains("canonical TOON-style text", StringComparison.Ordinal));
     }
 
-    private static string FixturePath() => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2/Language/invalid/concept-struct-diagnostic-routing-x1.invalid.firmfixture"));
+    private static string FixturePath() => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Language/invalid/concept-struct-diagnostic-routing-x1.invalid.firmfixture"));
 }

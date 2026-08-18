@@ -163,7 +163,7 @@ public sealed class BossPocketSemanticFeatureTests
         Assert.Contains(parsed.Diagnostics, diagnostic => diagnostic.StartsWith(code + ":ElectronicsRecess", StringComparison.Ordinal));
     }
 
-    private static string Fixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2", relative));
+    private static string Fixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures", relative));
 
     private static string AddBeforeModelClose(string source, string addition)
     {

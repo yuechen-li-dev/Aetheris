@@ -12,7 +12,7 @@ using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.StandardLibrary;
 
 var json=new JsonSerializerOptions{WriteIndented=true,PropertyNamingPolicy=JsonNamingPolicy.CamelCase,Converters={new JsonStringEnumConverter()}};
-var root=FindRoot(AppContext.BaseDirectory);var output=Path.Combine(root,"docs","continuum","artifacts","m4c");Directory.CreateDirectory(output);
+var root=FindRoot(AppContext.BaseDirectory);var output=Path.Combine(root,"artifacts", "local", "evidence", "continuum","m4c");Directory.CreateDirectory(output);
 var genericPlan=ExactCoaxialPartBuilder.Plan(new ExactCoaxialPartRecipe("M4C-GenericCoaxial",8,13,5.3,12.35,25,.2,8,35,.9375,6.125,22,"M4C","reference")).Value!;
 var hexPlan=HexBoltConstructionPlanner.Plan(McMasterHexBoltSpecs.Reference91180A151,"M4C-HexBolt").Value!;
 _ = Run("warmup",genericPlan,Transform3D.Identity,12,24,false);

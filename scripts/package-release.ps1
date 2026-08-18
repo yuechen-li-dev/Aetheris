@@ -138,25 +138,25 @@ Copy-Item -LiteralPath (Join-Path $repoRoot 'LICENSE') -Destination (Join-Path $
 Copy-Item -LiteralPath (Join-Path $repoRoot 'THIRD_PARTY_NOTICES.md') -Destination (Join-Path $bundleRoot 'THIRD_PARTY_NOTICES.md')
 Copy-Item -LiteralPath (Join-Path $repoRoot 'samples/forge-interop-x1') -Destination (Join-Path $bundleRoot 'samples/forge-interop-x1') -Recurse
 $publicExamples = @(
-    'fixtures/FirmamentV2/Canonical/valid/a4-machined-mounting-block.firmament',
-    'fixtures/FirmamentV2/Canonical/valid/boss-pocket-mounting-block.firmament',
-    'fixtures/FirmamentV2/Canonical/valid/box-hole-pmi.firmament',
-    'fixtures/FirmamentV2/Canonical/valid/box-holes-pmi-chamfer.firmament',
-    'fixtures/FirmamentV2/Canonical/valid/profile-compose-l-bracket-counterbore-pmi.firmament',
-    'fixtures/FirmamentV2/Canonical/valid/record-array-pattern-holes.firmament',
-    'fixtures/FirmamentV2/Canonical/valid/table-template-concept-path-compose.firmament',
-    'fixtures/FirmamentV2/FEA/cantilever.firmament',
-    'fixtures/FirmamentV2/FEA/inline-step-through-hole.firmament',
-    'fixtures/FirmamentV2/InlineStep/testdata/canonical-through-hole.step',
-    'fixtures/FirmamentV2/Materials/catalog-material-coupon.firmament',
-    'fixtures/FirmamentV2/Primitive/valid/a3-pointed-cone-step-qualified.firmament',
-    'fixtures/FirmamentV2/Primitive/valid/a3-sphere-step-qualified.firmament',
-    'fixtures/FirmamentV2/Primitive/valid/a3-torus-step-qualified.firmament',
-    'fixtures/FirmamentV2/PublicDogfood/ai-fea-a36-cantilever.firmament',
-    'fixtures/FirmamentV2/PublicDogfood/ai-model.firmament',
-    'fixtures/FirmamentV2/PublicDogfood/ai-sheet-metal.firmament',
-    'fixtures/FirmamentV2/SheetMetal/m5-four-wall-tray-template.firmament',
-    'fixtures/FirmamentV2/SheetMetal/preview3-l-bracket-hole.firmament'
+    'fixtures/Canonical/valid/a4-machined-mounting-block.firmament',
+    'fixtures/Canonical/valid/boss-pocket-mounting-block.firmament',
+    'fixtures/Canonical/valid/box-hole-pmi.firmament',
+    'fixtures/Canonical/valid/box-holes-pmi-chamfer.firmament',
+    'fixtures/Canonical/valid/profile-compose-l-bracket-counterbore-pmi.firmament',
+    'fixtures/Canonical/valid/record-array-pattern-holes.firmament',
+    'fixtures/Canonical/valid/table-template-concept-path-compose.firmament',
+    'fixtures/FEA/cantilever.firmament',
+    'fixtures/FEA/inline-step-through-hole.firmament',
+    'fixtures/InlineStep/testdata/canonical-through-hole.step',
+    'fixtures/Materials/catalog-material-coupon.firmament',
+    'fixtures/Primitive/valid/a3-pointed-cone-step-qualified.firmament',
+    'fixtures/Primitive/valid/a3-sphere-step-qualified.firmament',
+    'fixtures/Primitive/valid/a3-torus-step-qualified.firmament',
+    'fixtures/PublicDogfood/ai-fea-a36-cantilever.firmament',
+    'fixtures/PublicDogfood/ai-model.firmament',
+    'fixtures/PublicDogfood/ai-sheet-metal.firmament',
+    'fixtures/SheetMetal/m5-four-wall-tray-template.firmament',
+    'fixtures/SheetMetal/preview3-l-bracket-hole.firmament'
 )
 foreach ($relativeExample in $publicExamples) {
     $sourceExample = Join-Path $repoRoot $relativeExample

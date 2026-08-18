@@ -1,0 +1,114 @@
+// CTC01-RECONSTRUCTION-A1
+// Best executable Firmament V2 subset. Coordinates are normalized by +100 mm in Z:
+// reference Z [-100, 50] maps to source Z [0, 150]. Firmament Concept Box3 does not
+// currently support an origin/translation, so ReferenceEnvelope is documentary spatial
+// scaffolding while PrimaryPlateEnvelope is the materialized z=-100..0 plate interval.
+//
+// Direct STEP evidence used here:
+//   overall bounds: [-400,-225,-100]..[400,225,50]
+//   four diameter-35 Z-axis cylinders: (x,y)=(+/-325,+/-175)
+//   four diameter-25 Z-axis cylinders: (x,y)=(+/-160,+/-45)
+//
+// Not represented by this executable subset: the line/arc outer profile, multiple
+// thickness levels, side holes/countersinks, slots/pockets, central raised region,
+// local cutouts, and edge finishes. See docs/development/milestones/reconstruction/ctc01-reconstruction-a1.md.
+
+Concept Struct Ctc01Scaffold {
+    ReferenceEnvelope: Box3 {
+        Size: [800mm, 450mm, 150mm]
+    }
+    PrimaryPlateEnvelope: Box3 {
+        Size: [800mm, 450mm, 100mm]
+    }
+    XMaxDatum: ReferenceEnvelope.Face(+X)
+    YMaxDatum: ReferenceEnvelope.Face(+Y)
+    ReferenceBottom: ReferenceEnvelope.Face(-Z)
+    PrimaryPlateTop: PrimaryPlateEnvelope.Face(+Z)
+    ReferenceTop: ReferenceEnvelope.Face(+Z)
+    PartAxisZ: ReferenceEnvelope.Center.Axis(+Z)
+
+    // The 25 mm inset is an exact way to express the measured symmetric centers
+    // with the current centered Box3 + Grid vocabulary.
+    MountHoleFrame: Box3 {
+        Size: [700mm, 400mm, 100mm]
+    }
+    MountHoleCenters: Grid {
+        Within: MountHoleFrame.Face(+Z).Inset(25mm)
+        Columns: 2
+        Rows: 2
+    }
+    ReferenceMountHoleCenters: Grid {
+        Within: MountHoleFrame.Face(-Z).Inset(25mm)
+        Columns: 2
+        Rows: 2
+    }
+
+    QuarterHoleFrame: Box3 {
+        Size: [370mm, 140mm, 100mm]
+    }
+    QuarterHoleCenters: Grid {
+        Within: QuarterHoleFrame.Face(+Z).Inset(25mm)
+        Columns: 2
+        Rows: 2
+    }
+    ReferenceQuarterHoleCenters: Grid {
+        Within: QuarterHoleFrame.Face(-Z).Inset(25mm)
+        Columns: 2
+        Rows: 2
+    }
+
+    // Landmark-only frames retained in Concept IR provenance. Their bounds encode
+    // measured symmetric extents; current Concept Struct has no named literal point,
+    // translated frame, line, profile landmark, or arbitrary point-set constructor.
+    OuterLobeCenterFrame: Box3 {
+        Size: [700mm, 350mm, 100mm]
+    }
+    MidBoreCenterFrame: Box3 {
+        Size: [450mm, 300mm, 100mm]
+    }
+    LeftSlotLandmarkFrame: Box3 {
+        Size: [80mm, 40mm, 100mm]
+    }
+    CentralBossLandmarkFrame: Box3 {
+        Size: [110mm, 127.017mm, 150mm]
+    }
+}
+
+Match {
+    ReferenceMountHoleCenters As HoleCenters {
+        Diameter: 35mm
+        Axis: +Z
+        Kind: Through
+    }
+    ReferenceQuarterHoleCenters As HoleCenters {
+        Diameter: 25mm
+        Axis: +Z
+        Kind: Through
+    }
+}
+
+Struct Ctc01ReconstructionA1 {
+    Box PrimaryPlateSubset {
+        Bounds: Ctc01Scaffold.PrimaryPlateEnvelope
+    }
+    Modify PrimaryPlateSubset {
+        Pattern MountHolePattern {
+            Source: Ctc01Scaffold.MountHoleCenters
+            Hole<Shaft> Item {
+                on: PrimaryPlateSubset.Top
+                center: Item
+                diameter: 35mm
+                end: ThroughAll
+            }
+        }
+        Pattern QuarterHolePattern {
+            Source: Ctc01Scaffold.QuarterHoleCenters
+            Hole<Shaft> Item {
+                on: PrimaryPlateSubset.Top
+                center: Item
+                diameter: 25mm
+                end: ThroughAll
+            }
+        }
+    }
+}

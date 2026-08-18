@@ -10,7 +10,7 @@ public sealed class SheetMetalM7Tests
     [Fact]
     public void NetworkAppliance_UsesRegisteredSemanticFramesAndCorrectedPlacement()
     {
-        var source = File.ReadAllText(Path.Combine(Root(), "fixtures/FirmamentV2/SheetMetal/m7-network-appliance-product.firmasm"));
+        var source = File.ReadAllText(Path.Combine(Root(), "fixtures/SheetMetal/m7-network-appliance-product.firmasm"));
         var product = EnclosureProductFamilies.Compile(source, Canonical, "m7-network-appliance-product.firmasm");
         var definition = Assert.Single(product.Assembly.Ir!.AssemblyDefinitions!);
         var solution = Assert.Single(definition.LocalDatumMateSolutions!);
@@ -30,7 +30,7 @@ public sealed class SheetMetalM7Tests
     [Fact]
     public void M6ReferenceFixture_ReproducesDetachedUnderregisteredClosure()
     {
-        var source = File.ReadAllText(Path.Combine(Root(), "fixtures/FirmamentV2/SheetMetal/m6-network-appliance-product.firmasm"));
+        var source = File.ReadAllText(Path.Combine(Root(), "fixtures/SheetMetal/m6-network-appliance-product.firmasm"));
         var product = EnclosureProductFamilies.Compile(source, Canonical, "m6-reference-network-appliance.firmasm");
         var definition = Assert.Single(product.Assembly.Ir!.AssemblyDefinitions!);
         Assert.Empty(definition.LocalDatumMateSolutions ?? []);

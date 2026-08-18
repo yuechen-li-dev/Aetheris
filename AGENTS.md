@@ -4,6 +4,8 @@
 
 - Update documentation opportunistically during development and surface any inconsistencies or friction immediately; do not defer doc fixes, as the system is evolving rapidly and drift must be corrected in-place.
 
+- Follow the repository content-location policy before creating documentation, fixtures, samples, demos, or test-support assets. Current user documentation belongs only under `docs/public/`; Firmament-family test source belongs under `fixtures/`. Generated output must default to ignored `artifacts/local/` and follow `docs/development/GENERATED-ARTIFACT-POLICY.md`. Do not introduce a new top-level content bucket without an explicit architectural reason.
+
 - Aetheris introduce utility scoring as a first class concept within its JudgmentEngine to use when appropriate.
   - When a subsystem must select among multiple bounded strategies, prefer JudgmentEngine so admissibility, scoring, tie-breaking, and rejection reasons are explicit.
   - Do not use JudgmentEngine for simple deterministic transformations, ordinary enum dispatch, null checks, or reductions where no competing interpretation exists.

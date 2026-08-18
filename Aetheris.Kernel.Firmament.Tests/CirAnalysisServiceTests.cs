@@ -32,7 +32,7 @@ public sealed class CirAnalysisServiceTests
     [Fact]
     public void CirAnalysisService_FirmamentPlan_BoxBasic_Succeeds()
     {
-        var plan = CompilePlan("testdata/firmament/examples/box_basic.firmament");
+        var plan = CompilePlan("fixtures/LegacyV1/Examples/box_basic.firmament");
         var result = CirNativeAnalysisService.AnalyzeFirmamentPlan(plan, denseResolution: 30);
 
         Assert.True(result.Success);
@@ -47,7 +47,7 @@ public sealed class CirAnalysisServiceTests
     [Fact]
     public void CirAnalysisService_FirmamentPlan_BoxMinusCylinder_Succeeds()
     {
-        var plan = CompilePlan("testdata/firmament/examples/boolean_box_cylinder_hole.firmament");
+        var plan = CompilePlan("fixtures/LegacyV1/Examples/boolean_box_cylinder_hole.firmament");
         var result = CirNativeAnalysisService.AnalyzeFirmamentPlan(plan, denseResolution: 32);
 
         Assert.True(result.Success);
@@ -60,7 +60,7 @@ public sealed class CirAnalysisServiceTests
     [Fact]
     public void CirAnalysisService_UnsupportedFirmamentPlan_FailsClearly()
     {
-        var plan = CompilePlan("testdata/firmament/examples/rounded_corner_box_basic.firmament");
+        var plan = CompilePlan("fixtures/LegacyV1/Examples/rounded_corner_box_basic.firmament");
         var result = CirNativeAnalysisService.AnalyzeFirmamentPlan(plan, denseResolution: 24);
 
         Assert.False(result.Success);
@@ -72,7 +72,7 @@ public sealed class CirAnalysisServiceTests
     [Fact]
     public void AdaptiveVolume_MetadataPresent()
     {
-        var plan = CompilePlan("testdata/firmament/examples/boolean_box_cylinder_hole.firmament");
+        var plan = CompilePlan("fixtures/LegacyV1/Examples/boolean_box_cylinder_hole.firmament");
         var options = new SdfAdaptiveVolumeOptions(MaxDepth: 6, DirectSampleGrid: 2, MaxTraceEvents: 20);
 
         var result = CirNativeAnalysisService.AnalyzeFirmamentPlan(plan, adaptiveOptions: options);

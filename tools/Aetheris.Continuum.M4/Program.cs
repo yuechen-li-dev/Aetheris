@@ -11,7 +11,7 @@ using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Topology;
 
-var root=FindRoot(AppContext.BaseDirectory);var output=Path.Combine(root,"docs","continuum","artifacts","m4");Directory.CreateDirectory(output);
+var root=FindRoot(AppContext.BaseDirectory);var output=Path.Combine(root,"artifacts", "local", "evidence", "continuum","m4");Directory.CreateDirectory(output);
 var options=new JsonSerializerOptions{WriteIndented=true,PropertyNamingPolicy=JsonNamingPolicy.CamelCase,Converters={new JsonStringEnumConverter()}};
 var baseline=Run("baseline",Transform3D.CreateTranslation(new(.031,-.027,.019)),16,true);
 var orientations=new[]{baseline,Run("rotate-y-21",Transform3D.CreateRotationY(21d*Math.PI/180d)*Transform3D.CreateTranslation(new(.031,-.027,.019)),16,false),

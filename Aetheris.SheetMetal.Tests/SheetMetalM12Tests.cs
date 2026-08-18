@@ -33,7 +33,7 @@ public sealed class SheetMetalM12Tests
     [Fact]
     public void Ctc_semantic_compare_proves_openings_and_emits_four_individual_termination_results()
     {
-        var root=FindRepoRoot();var step=Path.Combine(root,"testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp");var nativePath=Path.Combine(root,"docs/modules/sheetmetal/artifacts/m8/ctc03-final.firmament");
+        var root=FindRepoRoot();var step=Path.Combine(root,"testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp");var nativePath=Path.Combine(root,"docs/development/milestones/modules/sheetmetal/artifacts/m8/ctc03-final.firmament");
         var detection=SheetMetalRecognizer.RecognizeStep(step);Assert.NotNull(detection.Part);var model=RecognizedSheetMetalRecovery.FromDetection(detection);var plan=RecognizedSheetMetalRecovery.CreateAutomaticPlan(model);var recovered=RecoveredSourceFlattener.Flatten(model,plan);var native=SheetMetalFirmament.CompileFile(nativePath);Assert.True(native.IsSuccess);
         var report=SemanticSheetMetalComparer.CompareFlat(recovered,native.Part!,native.FlatPattern!,sourcePart:model.DetectedPart);
         var terminations=report.Targets.Where(x=>x.GeometryKind==SemanticGeometryTargetKind.BendTermination).ToArray();Assert.Equal(4,terminations.Length);Assert.Equal(4,terminations.Select(x=>x.SemanticPath).Distinct().Count());

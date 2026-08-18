@@ -1,6 +1,6 @@
 # Aetheris Preview 3 public documentation
 
-This directory is the authoritative in-repository guide to behavior shipped in Aetheris `2.0.0-preview.3`. It describes what users can do now. Files elsewhere under `docs/` may be development reports, architecture notes, experiments, milestone evidence, or generated artifacts; use them for background, not as the public contract.
+This directory is the only authoritative in-repository guide to behavior shipped in Aetheris `2.0.0-preview.3`. It describes what users can do now. Files elsewhere under `docs/` are development history, release material, roadmap notes, or legal-review candidates; use them for their stated purpose, not as the current public contract.
 
 Start with [Getting Started](getting-started.md), then use these guides:
 

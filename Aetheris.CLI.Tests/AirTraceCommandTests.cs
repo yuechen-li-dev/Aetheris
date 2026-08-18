@@ -274,7 +274,7 @@ public sealed class AirTraceCommandTests
         Assert.NotEqual(0, both.ExitCode); Assert.Contains("mutually exclusive", both.Stderr);
         var wrongPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".txt"); File.WriteAllText(wrongPath, "// case: nope");
         var wrong = Run("trace", "--fixture", wrongPath); Assert.NotEqual(0, wrong.ExitCode); Assert.Contains(".valid.firmfixture", wrong.Stderr);
-        var missing = Run("trace", "--fixture", "fixtures/Firmament/Chamfer/missing.valid.firmfixture"); Assert.NotEqual(0, missing.ExitCode); Assert.Contains("not found", missing.Stderr);
+        var missing = Run("trace", "--fixture", "fixtures/Chamfer/missing.valid.firmfixture"); Assert.NotEqual(0, missing.ExitCode); Assert.Contains("not found", missing.Stderr);
         var unknownPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".valid.firmfixture"); File.WriteAllText(unknownPath, "// case: nope\n// expected: valid\n");
         var unknown = Run("trace", "--fixture", unknownPath); Assert.NotEqual(0, unknown.ExitCode); Assert.Contains("Supported fixture cases", unknown.Stderr);
     }
@@ -1171,7 +1171,7 @@ public sealed class AirTraceCommandTests
         var root = doc.RootElement;
         Assert.Equal("AIR-FIRMAMENT-X6", root.GetProperty("milestone").GetString());
         Assert.Equal("FirmamentV2", root.GetProperty("syntaxVersion").GetString());
-        Assert.EndsWith("fixtures/FirmamentV2/Region/valid/side-hole-v2.valid.firmfixture", root.GetProperty("fixture").GetString()!.Replace('\\', '/'), StringComparison.Ordinal);
+        Assert.EndsWith("fixtures/Region/valid/side-hole-v2.valid.firmfixture", root.GetProperty("fixture").GetString()!.Replace('\\', '/'), StringComparison.Ordinal);
         Assert.Equal("region-parent-integrated", root.GetProperty("stage").GetString());
         Assert.Equal("Integrated", root.GetProperty("parentIntegration").GetString());
         Assert.Equal("Closed", root.GetProperty("shellClosure").GetString());
@@ -1295,10 +1295,10 @@ public sealed class AirTraceCommandTests
         Assert.Equal("+X", route.GetProperty("throughFace").GetString());
     }
 
-    private static string Fixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Firmament/Chamfer", relative));
-    private static string PrimitiveFixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Firmament/Primitive", relative));
-    private static string RegionFixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Firmament/Region", relative));
-    private static string FirmamentV2Fixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/FirmamentV2", relative));
+    private static string Fixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Speculative/Chamfer", relative));
+    private static string PrimitiveFixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Speculative/Primitive", relative));
+    private static string RegionFixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Speculative/Region", relative));
+    private static string FirmamentV2Fixture(string relative) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures", relative));
     private static string NormalizeOutDir(string text, string outDir) =>
         text.Replace(outDir.Replace("\\", "\\\\", StringComparison.Ordinal), "<OUT>", StringComparison.Ordinal)
             .Replace(outDir, "<OUT>", StringComparison.Ordinal);

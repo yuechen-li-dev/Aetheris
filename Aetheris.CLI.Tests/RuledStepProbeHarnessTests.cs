@@ -89,8 +89,8 @@ public sealed class RuledStepProbeHarnessTests
     public void Harness_Documentation_And_Script_Are_Present_And_Reference_InlineStep()
     {
         var scriptPath = Path.Combine(RepoRoot, "tools", "Run-RuledStepProbe.ps1");
-        var docPath = Path.Combine(RepoRoot, "docs", "implementation", "ruled-tooling-a0-inline-step-probe-harness.md");
-        var ruledA2Path = Path.Combine(RepoRoot, "docs", "implementation", "ruled-a2-linear-extrusion-production-and-snapshot-refresh.md");
+        var docPath = Path.Combine(RepoRoot, "docs", "development", "implementation", "ruled-tooling-a0-inline-step-probe-harness.md");
+        var ruledA2Path = Path.Combine(RepoRoot, "docs", "development", "implementation", "ruled-a2-linear-extrusion-production-and-snapshot-refresh.md");
 
         Assert.True(File.Exists(scriptPath), $"Expected ruled probe script at '{scriptPath}'.");
         Assert.True(File.Exists(docPath), $"Expected ruled probe doc at '{docPath}'.");
@@ -105,7 +105,7 @@ public sealed class RuledStepProbeHarnessTests
         Assert.Contains("Run-RuledStepProbe.ps1", doc, StringComparison.Ordinal);
         Assert.Contains("InlineStep", doc, StringComparison.Ordinal);
         Assert.Contains("tooling only", doc, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("demo-output/ruled-probes/<probe-name>/", doc, StringComparison.Ordinal);
+        Assert.Contains("artifacts/local/demos/ruled-probes/<probe-name>/", doc, StringComparison.Ordinal);
 
         var ruledA2 = File.ReadAllText(ruledA2Path);
         Assert.Contains("ruled-tooling-a0-inline-step-probe-harness.md", ruledA2, StringComparison.Ordinal);

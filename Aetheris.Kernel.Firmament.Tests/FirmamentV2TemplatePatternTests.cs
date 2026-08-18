@@ -5,7 +5,7 @@ public sealed class FirmamentV2TemplatePatternTests
     [Fact]
     public void PersistedCompactTemplate_Parses()
     {
-        var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../demos/template-m4b-compact.firmament"));
+        var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/DemoRegression/template-m4b-compact.firmament"));
         var parse = FirmamentV2Parser.Parse(File.ReadAllText(path));
         Assert.True(parse.IsSuccess, string.Join(Environment.NewLine, parse.Diagnostics));
     }

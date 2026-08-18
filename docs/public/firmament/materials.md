@@ -17,4 +17,4 @@ Preview 3 ships four catalog entries:
 
 The Standard Library catalog is backed by a deployed SQLite asset and resolved by .NET. Firmament does not expose SQL. FEA consumes catalog density and the properties required by its constitutive model; an unknown material is a named error, not a fallback.
 
-Build/solve [`catalog-material-coupon.firmament`](../../../fixtures/FirmamentV2/Materials/catalog-material-coupon.firmament) with `aetheris fea ... --out-dir artifacts/material --json`.
+Build/solve [`catalog-material-coupon.firmament`](../../../fixtures/Materials/catalog-material-coupon.firmament) with `aetheris fea ... --out-dir artifacts/material --json`.

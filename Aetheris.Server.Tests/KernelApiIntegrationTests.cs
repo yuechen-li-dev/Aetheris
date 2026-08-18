@@ -888,7 +888,7 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
     [Fact]
     public async Task AssemblyDisplay_HistoricalOcctFirmasm_ReusesDefinitionsAndPublishesProductTree()
     {
-        var path = Path.Combine(RepositoryRoot(), "testdata", "firmasm", "examples", "occt-as1", "as1-assembly.firmasm");
+        var path = Path.Combine(RepositoryRoot(), "fixtures", "Assembly", "LegacyImports", "examples", "occt-as1", "as1-assembly.firmasm");
         var response = await _client.PostAsJsonAsync("/api/v1/assemblies/display", new AssemblyDisplayRequestDto(path));
         response.EnsureSuccessStatusCode();
         var envelope = await response.Content.ReadFromJsonAsync<ApiResponseDto<AssemblyDisplayPacketDto>>();
@@ -903,7 +903,7 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
     [Fact]
     public async Task AssemblyDisplay_CurrentOcctPackage_PreservesNestedImportedHierarchy()
     {
-        var path = Path.Combine(RepositoryRoot(), "docs", "assembly", "artifacts", "m2", "occt-package", "as1.firmasm");
+        var path = Path.Combine(RepositoryRoot(), "docs", "development", "milestones", "assembly", "artifacts", "m2", "occt-package", "as1.firmasm");
         var response = await _client.PostAsJsonAsync("/api/v1/assemblies/display", new AssemblyDisplayRequestDto(path));
         response.EnsureSuccessStatusCode();
         var envelope = await response.Content.ReadFromJsonAsync<ApiResponseDto<AssemblyDisplayPacketDto>>();
@@ -1000,7 +1000,7 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         var document = await CreateDocumentAsync("/api/v1/documents");
         var path = Path.Combine(
             RepositoryRoot(),
-            "docs", "modules", "sheetmetal", "artifacts", "ctc03-manufacturing-release",
+            "docs", "development", "milestones", "modules", "sheetmetal", "artifacts", "ctc03-manufacturing-release",
             "ctc03-manufacturing-ap242.step");
         var response = await _client.PostAsJsonAsync(
             $"/api/v1/documents/{document.Data!.DocumentId}/import/step",

@@ -62,7 +62,7 @@ The initial failure was documentation friction, not diagnostic-driven source cor
 
 - `docs/public/firmament/geometry.md`: first-class Boss/Pocket contracts, syntax, floor precedence, diagnostics, canonical example, and Boolean boundary.
 - `docs/public/reference/supported-features.md`: separate Boss, Pocket, through-removal, lower-level Compose, and arbitrary-Boolean support rows.
-- `fixtures/FirmamentV2/Canonical/valid/boss-pocket-mounting-block.firmament`: canonical practical public witness.
+- `fixtures/Canonical/valid/boss-pocket-mounting-block.firmament`: canonical practical public witness.
 
 ## Remaining limitations
 

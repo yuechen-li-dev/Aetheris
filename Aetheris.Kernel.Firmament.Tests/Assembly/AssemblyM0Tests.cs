@@ -239,7 +239,7 @@ public sealed class AssemblyM0Tests
     [Fact]
     public void LegacyFirmasm_LoadsWithDeprecationDiagnostic()
     {
-        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("testdata/firmasm/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Assembly/LegacyImports/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
         var result = new FirmasmManifestLoader().LoadFromFile(path);
         Assert.True(result.IsSuccess);
         Assert.Contains(result.Diagnostics, x => x.Message.StartsWith("legacy-firmasm-syntax:", StringComparison.Ordinal));

@@ -8,7 +8,7 @@ using Aetheris.Reconstruction;
 
 var root = FindRoot();
 var sourcePath = Path.GetFullPath(args.Length > 0 ? args[0] : Path.Combine(root, ".tmp", "bunny-m0-source", "bunny", "reconstruction", "bun_zipper.ply"));
-var output = Path.GetFullPath(args.Length > 1 ? args[1] : Path.Combine(root, "docs", "geometry", "artifacts", "bunny-m1"));
+var output = Path.GetFullPath(args.Length > 1 ? args[1] : Path.Combine(root, "artifacts", "local", "evidence", "geometry", "bunny-m1"));
 if (!File.Exists(sourcePath)) throw new FileNotFoundException("Canonical extracted Stanford Bunny PLY was not found. Pass its path as argument 1.", sourcePath);
 Directory.CreateDirectory(output);
 

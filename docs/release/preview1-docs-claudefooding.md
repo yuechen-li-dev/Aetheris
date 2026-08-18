@@ -12,15 +12,15 @@ sources so the review remains tied to executable release truth.
 
 | Task | First-attempt source | Build result | Retries | Public pages used | Invented grammar / compatibility input |
 | --- | --- | --- | ---: | --- | --- |
-| Rectangular plate | `fixtures/FirmamentV2/Canonical/valid/bare-box.firmament` | Success | 0 | Getting started; Language tour | None |
-| Four patterned shaft holes | `fixtures/FirmamentV2/Canonical/valid/docs-four-hole-pattern.firmament` | Success | 0 | Static authoring; Slots and patterns; Holes | None |
-| Low-level Profile/Compose L-bracket | `fixtures/FirmamentV2/Canonical/valid/profile-compose-l-bracket.firmament` | Success | 0 | Low-level Profiles/Compose | `Concept Path`-derived Profiles are Extrude-only in Preview 1. |
-| Counterbored plate | `fixtures/FirmamentV2/Canonical/valid/counterbore-hole.firmament` | Success | 0 | Holes; Language reference | None |
-| Supported Profile chamfer | `fixtures/FirmamentV2/Canonical/valid/profile-chamfer-mixed-convex-reflex-loop-top.firmament` | Success | 0 | Edge finishes | None |
-| Supported bounded fillet | `fixtures/FirmamentV2/Canonical/valid/profile-fillet-reflex-two-segment-top.firmament` | Success | 0 | Edge finishes | None |
-| Static/Require/projected PMI | `fixtures/FirmamentV2/Canonical/valid/pmi-projected-hole-diameter.firmament` | Success | 0 | Require/PMI; Language reference | None |
-| Intentional ConvexSmall fillet | `fixtures/FirmamentV2/Canonical/invalid/profile-edgefinish-convex-small-fillet-invalid.firmament` | Rejected with `ProfileBoundaryFilletConvexArcSpindleUnsupported` | 0 | Edge finishes; Diagnostics | None |
-| InlineStep/Recognize/Replace | `fixtures/FirmamentV2/Canonical/valid/inline-step-recognize-replace.firmament` | Success | 0 | Existing STEP | None |
+| Rectangular plate | `fixtures/Canonical/valid/bare-box.firmament` | Success | 0 | Getting started; Language tour | None |
+| Four patterned shaft holes | `fixtures/Canonical/valid/docs-four-hole-pattern.firmament` | Success | 0 | Static authoring; Slots and patterns; Holes | None |
+| Low-level Profile/Compose L-bracket | `fixtures/Canonical/valid/profile-compose-l-bracket.firmament` | Success | 0 | Low-level Profiles/Compose | `Concept Path`-derived Profiles are Extrude-only in Preview 1. |
+| Counterbored plate | `fixtures/Canonical/valid/counterbore-hole.firmament` | Success | 0 | Holes; Language reference | None |
+| Supported Profile chamfer | `fixtures/Canonical/valid/profile-chamfer-mixed-convex-reflex-loop-top.firmament` | Success | 0 | Edge finishes | None |
+| Supported bounded fillet | `fixtures/Canonical/valid/profile-fillet-reflex-two-segment-top.firmament` | Success | 0 | Edge finishes | None |
+| Static/Require/projected PMI | `fixtures/Canonical/valid/pmi-projected-hole-diameter.firmament` | Success | 0 | Require/PMI; Language reference | None |
+| Intentional ConvexSmall fillet | `fixtures/Canonical/invalid/profile-edgefinish-convex-small-fillet-invalid.firmament` | Rejected with `ProfileBoundaryFilletConvexArcSpindleUnsupported` | 0 | Edge finishes; Diagnostics | None |
+| InlineStep/Recognize/Replace | `fixtures/Canonical/valid/inline-step-recognize-replace.firmament` | Success | 0 | Existing STEP | None |
 
 Normal supported first-attempt success: **8/8 (100%)**. The unsupported case
 was correctly identified without fallback. There were no retries,

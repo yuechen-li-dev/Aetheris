@@ -5,7 +5,7 @@
 The previous root help mixed public authoring work with internal/lab commands
 (`trace`, `canon`, `asm`, `experimental`, and specialized inspection routes).
 `build` advertised `--out`, while its implicit output searched for an
-`Aetheris.slnx` checkout and wrote beneath `testdata/firmament/exports`.
+`Aetheris.slnx` checkout and wrote beneath `testdata/step242/golden/firmament-v1`.
 That made a normal user directory fail despite the compiler otherwise being
 file-oriented. `verify` accepted only an existing STEP artifact. There was no
 public `inspect` or `view` command.

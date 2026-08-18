@@ -15,19 +15,19 @@ internal static class CadmataFixtureService
 {
     private static readonly IReadOnlyDictionary<string, string> FixturePaths = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
-        ["direct-profile"] = "fixtures/FirmamentV2/Profile/valid/scaffold-rectangle.firmament",
-        ["construction-plane-positive-x"] = "fixtures/FirmamentV2/Profile/valid/construction-plane-positive-x.firmament",
-        ["split-compose-chamfer"] = "fixtures/FirmamentV2/ProfileComposition/valid/semantic-split-compose-chamfer.firmament",
-        ["semantic-shaft-hole"] = "fixtures/FirmamentV2/Hole/valid/semantic-shaft-selection.firmament",
-        ["construction-plane-through-hole"] = "fixtures/FirmamentV2/Hole/valid/construction-plane-through-hole.firmament",
-        ["construction-plane-blind-drillpoint"] = "fixtures/FirmamentV2/Hole/valid/construction-plane-blind-drillpoint-shaft-depth.firmament",
-        ["ctc-01-x3"] = "testdata/firmament/reconstructions/nist_ctc_01/ctc01_prismatic_blockout_x3.firmament",
-        ["ctc-01-x4"] = "testdata/firmament/reconstructions/nist_ctc_01/ctc01_prismatic_blockout_x4.firmament",
-        ["semantic-capsule-slot"] = "fixtures/FirmamentV2/ProfileComposition/valid/semantic-capsule-slot-through.firmament",
-        ["profile-compose-l-bracket-counterbore-pmi"] = "fixtures/FirmamentV2/Canonical/valid/profile-compose-l-bracket-counterbore-pmi.firmament",
-        ["pmi-projected-hole-diameter"] = "fixtures/FirmamentV2/Canonical/valid/pmi-projected-hole-diameter.firmament",
-        ["hexbolt-m1"] = "testdata/firmament/examples/mcmaster_91180a151_threadless_hex_bolt.firmament",
-        ["hexbolt-m2"] = "testdata/firmament/examples/hexbolt_template_m2.firmament",
+        ["direct-profile"] = "fixtures/Profile/valid/scaffold-rectangle.firmament",
+        ["construction-plane-positive-x"] = "fixtures/Profile/valid/construction-plane-positive-x.firmament",
+        ["split-compose-chamfer"] = "fixtures/ProfileComposition/valid/semantic-split-compose-chamfer.firmament",
+        ["semantic-shaft-hole"] = "fixtures/Hole/valid/semantic-shaft-selection.firmament",
+        ["construction-plane-through-hole"] = "fixtures/Hole/valid/construction-plane-through-hole.firmament",
+        ["construction-plane-blind-drillpoint"] = "fixtures/Hole/valid/construction-plane-blind-drillpoint-shaft-depth.firmament",
+        ["ctc-01-x3"] = "fixtures/LegacyV1/Reconstruction/nist_ctc_01/ctc01_prismatic_blockout_x3.firmament",
+        ["ctc-01-x4"] = "fixtures/LegacyV1/Reconstruction/nist_ctc_01/ctc01_prismatic_blockout_x4.firmament",
+        ["semantic-capsule-slot"] = "fixtures/ProfileComposition/valid/semantic-capsule-slot-through.firmament",
+        ["profile-compose-l-bracket-counterbore-pmi"] = "fixtures/Canonical/valid/profile-compose-l-bracket-counterbore-pmi.firmament",
+        ["pmi-projected-hole-diameter"] = "fixtures/Canonical/valid/pmi-projected-hole-diameter.firmament",
+        ["hexbolt-m1"] = "fixtures/LegacyV1/Examples/mcmaster_91180a151_threadless_hex_bolt.firmament",
+        ["hexbolt-m2"] = "fixtures/LegacyV1/Examples/hexbolt_template_m2.firmament",
     };
 
     public static bool TryLoad(string fixtureId, DocumentSession document, out CadmataFixtureLoadResponseDto? response, out string error)

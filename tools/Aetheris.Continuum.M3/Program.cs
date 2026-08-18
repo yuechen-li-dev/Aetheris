@@ -17,7 +17,7 @@ var jsonOptions = new JsonSerializerOptions { WriteIndented = true, PropertyNami
     Converters = { new JsonStringEnumConverter() } };
 var compactOptions = new JsonSerializerOptions(jsonOptions) { WriteIndented = false };
 var root = FindRepositoryRoot(AppContext.BaseDirectory);
-var output = Path.Combine(root, "docs", "continuum", "artifacts", "m3");
+var output = Path.Combine(root, "artifacts", "local", "evidence", "continuum", "m3");
 Directory.CreateDirectory(output);
 var occupancyEngine = new JudgmentEngine<OccupancyChoice>();
 JudgmentCandidate<OccupancyChoice>[] occupancyStrategies =

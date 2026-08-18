@@ -129,7 +129,7 @@ public sealed class SheetMetalM5Tests
     [Fact]
     public void MultiCutNetworkFixtureExportsAnEnclosedReimportableFlatStep()
     {
-        var root=FindRepoRoot();var result=SheetMetalFirmament.CompileFile(Path.Combine(root,"fixtures/FirmamentV2/SheetMetal/m5-network-appliance-enclosure.firmament"));
+        var root=FindRepoRoot();var result=SheetMetalFirmament.CompileFile(Path.Combine(root,"fixtures/SheetMetal/m5-network-appliance-enclosure.firmament"));
         Assert.True(result.IsSuccess,string.Join('\n',result.Diagnostics.Select(x=>$"{x.Code}: {x.Message}")));
         Assert.Equal(12,result.FlatPattern!.CutLoops.Count);Assert.Equal(12,result.FlatPattern.ExactBlankContour!.InnerLoops.Count);
         var flat=SheetMetalManufacturingArtifacts.BuildFlatBody(result.Part!,result.FlatPattern);Assert.True(flat.IsSuccess,string.Join('\n',flat.Diagnostics.Select(x=>x.Message)));

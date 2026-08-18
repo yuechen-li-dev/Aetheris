@@ -57,7 +57,7 @@ public sealed class AssemblyM0CliTests
     public void AsmInspect_LegacyFirmasmMigratesAndReportsPlacementAuthority()
     {
         var root = FindRepoRoot();
-        var path = Path.Combine(root, "testdata", "firmasm", "examples", "occt-as1", "as1-assembly.firmasm");
+        var path = Path.Combine(root, "fixtures", "Assembly", "LegacyImports", "examples", "occt-as1", "as1-assembly.firmasm");
         var stdout = new StringWriter(); var stderr = new StringWriter();
 
         var exit = Aetheris.CLI.CliRunner.Run(["asm", "inspect", path, "--json"], stdout, stderr);

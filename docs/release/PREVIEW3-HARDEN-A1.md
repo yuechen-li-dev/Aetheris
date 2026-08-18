@@ -35,11 +35,11 @@ Runtime assets
   Cadmata static web assets under the published server wwwroot
 
 Samples/reference data
-  testdata/firmament/examples and testdata/firmament/exports
+  fixtures/LegacyV1/Examples and testdata/step242/golden/firmament-v1
   samples/forge-interop-x1 foreign-language clients
   samples/Aetheris.Samples.DatabaseDrivenCad
   testdata/step242/nist reference models
-  docs/geometry/artifacts/bunny-m4 derived Stanford Bunny evidence
+  docs/development/milestones/geometry/artifacts/bunny-m4 derived Stanford Bunny evidence
 
 Licensing/provenance
   LICENSE (Aetheris code: AGPL-3.0)

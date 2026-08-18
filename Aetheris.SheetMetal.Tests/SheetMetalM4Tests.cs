@@ -88,7 +88,7 @@ public sealed class SheetMetalM4Tests
     [Fact]
     public void LlmPsuEnclosure_UsesOnlyHighLevelPathsAndProducesExactArtifacts()
     {
-        var path=Path.Combine(RepoRoot,"fixtures/FirmamentV2/SheetMetal/m4-psu-enclosure.firmament");var source=File.ReadAllText(path);var result=SheetMetalFirmament.CompileFile(path);
+        var path=Path.Combine(RepoRoot,"fixtures/SheetMetal/m4-psu-enclosure.firmament");var source=File.ReadAllText(path);var result=SheetMetalFirmament.CompileFile(path);
         Assert.True(result.IsSuccess,string.Join('\n',result.Diagnostics.Select(x=>x.Message)));Assert.DoesNotContain("region-",source,StringComparison.OrdinalIgnoreCase);Assert.DoesNotContain("face-",source,StringComparison.OrdinalIgnoreCase);Assert.DoesNotContain("edge-",source,StringComparison.OrdinalIgnoreCase);
         Assert.Equal(5,result.Part!.Bends.Count);Assert.Equal(7,result.Part.Features.Count);Assert.True(result.FlatPattern!.ExactBlankContour is not null,string.Join('\n',result.FlatPattern.Diagnostics.Select(x=>$"{x.Code}: {x.Message}")));Assert.Equal(4,result.Part.Corners!.Count);Assert.Contains(result.Part.Corners,x=>x.Policy==SheetCornerPolicy.Mitered);Assert.Contains(result.Part.Corners,x=>x.Policy==SheetCornerPolicy.Open);
         var paths=SheetMetalConceptPaths.Inspect(result.Spec!,result.Part,result.FlatPattern);Assert.Contains(paths,x=>x.Path=="FrontWall.Outer");Assert.Contains(paths,x=>x.Path=="FrontLip.Bend");
@@ -98,7 +98,7 @@ public sealed class SheetMetalM4Tests
     [Fact]
     public void SemanticDfmRepairFixture_ConvergesWithoutBrepIds()
     {
-        var bad=SheetMetalFirmament.CompileFile(Path.Combine(RepoRoot,"fixtures/FirmamentV2/SheetMetal/m4-bad-tray-dfm.firmament"));var fixedPart=SheetMetalFirmament.CompileFile(Path.Combine(RepoRoot,"fixtures/FirmamentV2/SheetMetal/m4-fixed-tray-dfm.firmament"));Assert.True(bad.IsSuccess);Assert.True(fixedPart.IsSuccess);
+        var bad=SheetMetalFirmament.CompileFile(Path.Combine(RepoRoot,"fixtures/SheetMetal/m4-bad-tray-dfm.firmament"));var fixedPart=SheetMetalFirmament.CompileFile(Path.Combine(RepoRoot,"fixtures/SheetMetal/m4-fixed-tray-dfm.firmament"));Assert.True(bad.IsSuccess);Assert.True(fixedPart.IsSuccess);
         var before=SheetMetalDfm.Evaluate(bad.Part!,bad.FlatPattern);var after=SheetMetalDfm.Evaluate(fixedPart.Part!,fixedPart.FlatPattern);Assert.Equal(SheetMetalDfmStatus.Warning,before.Overall);Assert.Contains(before.Findings,x=>x.RuleId=="sheetmetal-dfm-corner-resolution"&&x.SuggestedFix is not null);Assert.Equal(SheetMetalDfmStatus.Pass,after.Overall);
     }
 

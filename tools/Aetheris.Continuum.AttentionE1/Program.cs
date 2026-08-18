@@ -4,7 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Aetheris.Continuum.Experiments.Attention;
 
-var repository=FindRoot(AppContext.BaseDirectory);var output=Path.Combine(repository,"docs","continuum","artifacts","attention-e1");Directory.CreateDirectory(output);
+var repository=FindRoot(AppContext.BaseDirectory);var output=Path.Combine(repository,"artifacts", "local", "evidence", "continuum","attention-e1");Directory.CreateDirectory(output);
 var options=new JsonSerializerOptions{WriteIndented=true,PropertyNamingPolicy=JsonNamingPolicy.CamelCase};var compact=new JsonSerializerOptions(options){WriteIndented=false};
 var benchmark=AttentionE1Experiments.Run();
 WriteJson("benchmark-matrix.json",benchmark.Methods.Where(x=>x.Matrix=="benchmark").Select(Trim));

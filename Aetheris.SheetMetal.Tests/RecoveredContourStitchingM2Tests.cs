@@ -61,7 +61,7 @@ public sealed class RecoveredContourStitchingM2Tests
     [Fact]
     public void SignedZeroPerturbedDumbStep_StillRecognizesAndRecoversGenericUChannel()
     {
-        var source=SheetMetalFirmament.CompileFile(Path.Combine(RepoRoot,"fixtures/FirmamentV2/SheetMetal/simple-u-channel.firmament"));Assert.True(source.IsSuccess);
+        var source=SheetMetalFirmament.CompileFile(Path.Combine(RepoRoot,"fixtures/SheetMetal/simple-u-channel.firmament"));Assert.True(source.IsSuccess);
         var exported=Step242Exporter.ExportBody(source.Part!.FormedBody!);Assert.True(exported.IsSuccess);
         // A vendor-style text perturbation changes numeric spelling only; native
         // Firmament source is deliberately absent from the recovery call below.

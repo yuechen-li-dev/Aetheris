@@ -31,6 +31,7 @@ async function grammar() {
 test("critical canonical syntax receives stable TextMate scopes", async () => {
   const loaded = await grammar();
   const source = `Model Plate {
+    Template<Spec: PlateSpec> PlateFamily { }
     Sphere Ball { Radius: 5mm }
     Analysis LinearElastic Check { Body: Ball }
     Concept Path Outline On XY { Start: Point2(0mm, 0mm) }
@@ -57,6 +58,7 @@ test("critical canonical syntax receives stable TextMate scopes", async () => {
     return token.scopes;
   };
   assert.ok(scopeAt("Model").includes("keyword.declaration.firmament"));
+  assert.ok(scopeAt("Template").includes("keyword.declaration.firmament"));
   assert.ok(scopeAt("Sphere").includes("keyword.declaration.firmament"));
   assert.ok(scopeAt("Analysis").includes("keyword.declaration.firmament"));
   assert.ok(scopeAt("Boss").includes("keyword.declaration.firmament"));

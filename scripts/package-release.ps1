@@ -145,6 +145,10 @@ $publicExamples = @(
     'fixtures/Canonical/valid/profile-compose-l-bracket-counterbore-pmi.firmament',
     'fixtures/Canonical/valid/record-array-pattern-holes.firmament',
     'fixtures/Canonical/valid/table-template-concept-path-compose.firmament',
+    'fixtures/Templates/Canonical/generic-mounting-plate.firmament',
+    'fixtures/Templates/Canonical/cnc-dfm-policy.firmament',
+    'fixtures/Templates/Canonical/fdm-dfm-policy.firmament',
+    'fixtures/Templates/Canonical/sheet-metal-dfm-policy.firmament',
     'fixtures/FEA/cantilever.firmament',
     'fixtures/FEA/inline-step-through-hole.firmament',
     'fixtures/InlineStep/testdata/canonical-through-hole.step',
@@ -174,6 +178,9 @@ $extensionRoot = Join-Path $repoRoot 'tools/vscode-firmament'
 $extensionArtifact = Join-Path $output 'aetheris-firmament-0.3.0-preview.3.vsix'
 Push-Location $extensionRoot
 try {
+    # A prior local package must not be selected as input while vsce overwrites
+    # that same path. This keeps repeated release qualification reproducible.
+    Remove-Item -LiteralPath (Join-Path $extensionRoot 'dist/aetheris-firmament-0.3.0-preview.3.vsix') -Force -ErrorAction SilentlyContinue
     tspack sync
     tspack check
     tspack run typecheck

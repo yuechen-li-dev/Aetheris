@@ -92,7 +92,7 @@ Record EnclosureSpec {
     ReliefPolicy: SheetMetalReliefPolicy
 }
 
-Template < Spec: LBracketSpec >
+Template<Spec: LBracketSpec>
 SheetMetal LBracket: SheetMetalPart {
     Require Positive => Spec.Width > 0mm && Spec.Depth > 0mm && Spec.FlangeHeight > 0mm && Spec.Thickness > 0mm
     Thickness: Spec.Thickness;
@@ -101,7 +101,7 @@ SheetMetal LBracket: SheetMetalPart {
     Flange Wall { From: Base.Front; Height: Spec.FlangeHeight; Angle: 90deg; Radius: Spec.InsideRadius; Relief: Spec.ReliefPolicy; }
 }
 
-Template < Spec: UChannelSpec >
+Template<Spec: UChannelSpec>
 SheetMetal UChannel: SheetMetalPart {
     Require Positive => Spec.Width > 0mm && Spec.Depth > 0mm && Spec.WallHeight > 0mm && Spec.Thickness > 0mm
     Thickness: Spec.Thickness;
@@ -111,7 +111,7 @@ SheetMetal UChannel: SheetMetalPart {
     Flange RightWall { From: Base.Right; Height: Spec.WallHeight; Angle: 90deg; Radius: Spec.InsideRadius; Relief: Spec.ReliefPolicy; }
 }
 
-Template < Spec: TraySpec >
+Template<Spec: TraySpec>
 SheetMetal FourWallTray: Tray {
     Require Positive => Spec.Width > 0mm && Spec.Depth > 0mm && Spec.WallHeight > 0mm && Spec.Thickness > 0mm
     Require ManufacturableWall => Spec.WallHeight > Spec.InsideRadius
@@ -124,7 +124,7 @@ SheetMetal FourWallTray: Tray {
     Flange Left { From: Base.Left; Height: Spec.WallHeight; Angle: 90deg; Radius: Spec.InsideRadius; Relief: Spec.ReliefPolicy; }
 }
 
-Template < Spec: LidSpec >
+Template<Spec: LidSpec>
 SheetMetal RemovablePanLid: RemovableLid {
     Require Positive => Spec.Width > 0mm && Spec.Depth > 0mm && Spec.SkirtHeight > 0mm && Spec.Thickness > 0mm
     Thickness: Spec.Thickness;
@@ -136,7 +136,7 @@ SheetMetal RemovablePanLid: RemovableLid {
     Flange Left { From: Top.Left; Height: Spec.SkirtHeight; Angle: 90deg; Radius: Spec.InsideRadius; Direction: Down; Relief: Spec.ReliefPolicy; }
 }
 
-Template < Spec: EnclosureSpec >
+Template<Spec: EnclosureSpec>
 SheetMetal ElectronicsEnclosure: Enclosure {
     Require Positive => Spec.Width > 0mm && Spec.Depth > 0mm && Spec.Height > 0mm && Spec.Thickness > 0mm
     Require LipFits => Spec.LidLipHeight > Spec.InsideRadius

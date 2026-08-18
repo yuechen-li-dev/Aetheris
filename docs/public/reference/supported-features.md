@@ -28,3 +28,22 @@
 | General loft, helix, and freeform surface features | Not in Preview 3 | No public native V2 authoring and qualification route |
 | Through profile removal | Bounded semantic operations | Use qualified `Hole`, `Slot`, or another documented opening feature; Pocket never means through-all |
 | Arbitrary solid Boolean subtraction / hemispherical cavity | Not in Preview 3 | No public `Union`, `Subtract`, `Intersect`, CSG tree, Sphere-from-Block subtraction, or hemisphere special case |
+
+## Template capability matrix
+
+| Capability | Status | Boundary |
+|---|---|---|
+| Typed value parameters and defaults | Supported | `Length`, `Angle`, `Int`, `Float`, `Bool`, `String`, enums, `Version`, `Date`, bounded `ImportedStep`/`ProfilePath` seams; lowercase scalar aliases remain accepted |
+| Records and `with` | Supported | immutable checked values and finite derivation; no mutation or inheritance |
+| DFM policy families | Supported | typed CNC/FDM/SheetMetal policy Records and Concept Structs; canonical CNC/Additive policies feed existing enforcement, lowercase process templates remain compatibility-only |
+| Language Concept constraint | Supported | explicit `type T satisfies Concept`; distinct from an ordinary value parameter |
+| `Require` | Supported | finite specialization-time boolean admissibility; no runtime scripting |
+| Static arrays, Tables, Pattern | Bounded | finite checked data and admitted feature expansion; no query language |
+| Materials | Bounded by consuming domain | semantic identity can flow through existing Firmament/Forge paths; no SQLite or catalog queries in Templates |
+| Sheet Metal product families | Supported | five embedded public families and Forge Protocol v1 exposure |
+| Nested Templates | Bounded | acyclic concrete specialization only; Templates are not values |
+| Recursive or higher-order metaprogramming | Not in Preview 3 | cycles are rejected; Template parameters are unsupported |
+| Direct array/Table parameters | Not in Preview 3 | select/derive a finite Record or use bounded feature Pattern data |
+| FEA specialization | Bounded by concrete Model output | an admitted specialized Model can contain existing Analysis; no generic Analysis output family |
+| PMI specialization | Bounded by existing concrete semantics | specialized dimensions can feed existing PMI; no new PMI kinds |
+| Forge introspection | Supported | stable ID plus generic display signature, categories, units, defaults, enum cases, Record fields, constraints, output kind, artifacts |

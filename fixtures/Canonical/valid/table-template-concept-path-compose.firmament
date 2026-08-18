@@ -23,7 +23,7 @@ Model TableTemplateConceptPathCompose {
     Static ThickSmall = BaseSpec with {
         Thickness: 10mm
     }
-    Template < Spec: PlateSpec >
+    Template<Spec: PlateSpec>
     Struct PlateTemplate {
         Require Positive => Spec.Standard.Width > 0mm && Spec.Standard.Height > 0mm && Spec.Thickness > 0mm
         Concept Path Outline {
@@ -44,5 +44,5 @@ Model TableTemplateConceptPathCompose {
             Require: ClosedLoop
         }
     }
-    Struct Plate = PlateTemplate < Spec: ThickSmall >
+    Struct Plate = PlateTemplate<Spec: ThickSmall>
 }

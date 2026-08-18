@@ -1,6 +1,6 @@
 # Firmament language reconciliation register
 
-This A5c register classifies the language seams first exposed by A5b. The public dialect is defined by [`docs/public/firmament`](../public/firmament/overview.md), especially the [language-style contract](../public/firmament/language-style.md). Parser/lowering ownership is recorded in the [active grammar inventory](firmament-v2-grammar-inventory.md).
+This A5d register classifies the language seams first exposed by A5b and completes the Template reconciliation begun in A5c. The public dialect is defined by [`docs/public/firmament`](../public/firmament/overview.md), especially the [language-style contract](../public/firmament/language-style.md) and [Templates guide](../public/firmament/templates.md). Parser/lowering ownership is recorded in the [active grammar inventory](firmament-v2-grammar-inventory.md).
 
 | Area | Final classification | Decision and evidence |
 |---|---|---|
@@ -15,7 +15,18 @@ This A5c register classifies the language seams first exposed by A5b. The public
 | Assembly document families | RetainedCompatibility | V2 `Assembly` source is current. JSON-shaped `.firmasm` is explicitly deprecated compatibility; it is not merged into Model. |
 | PMI declaration/value shapes | RetainedCompatibility | Canonical Model PMI is PascalCase. Bounded legacy spellings remain on the same semantic PMI/AP242 route; Sheet Metal manufacturing PMI stays domain-specific. |
 | Edge finishing | ResolvedCanonical | Current V2 uses qualified `EdgeFinish`. V1 low-level operations are quarantined; future `.firmfixture` forms remain speculative. |
-| Template / Record / `with` / Struct / Compose / Modify | ResolvedCanonical | Ownership is explicit in the grammar inventory: compile-time data/specialization, constructive body creation, and post-construction operations are distinct. |
+| `Template<...>` | ResolvedCanonical | Angle brackets identify typed compile-time specialization. Modern product Templates have explicit output kinds; finite feature Templates use the same generic visual form. The old call-shaped feature declaration remains a compatibility alias. |
+| `Record` | ResolvedCanonical | Defines immutable grouped engineering-data shape; it is not a materialized object or semantic capability. |
+| language `Concept` | ResolvedCanonical | Structural semantic contract and compile-time Concept value vocabulary. Forge C# concept descriptors remain a separate runtime extension mechanism. |
+| `Require` | IntentionalOwnerOverlap | In a modern Template, named boolean `Require` is specialization admissibility. Other domain-owned `Require` blocks remain semantic requirements with their documented schemas. |
+| `with` | ResolvedCanonical | Immutable checked Record derivation; not inheritance, mutation, or source substitution. |
+| `Static` | ResolvedCanonical | Finite compile-time binding erased before materialization. |
+| `Table` | ResolvedCanonical | Finite checked columnar Record data and keyed/index lookup; no LINQ or database-query semantics. |
+| `Pattern` | IntentionalOwnerOverlap | Static `Pattern ... Over` expands a bounded feature Template; geometry-domain Pattern operations retain their separately typed owners. |
+| `Struct` | ResolvedCanonical | Named materialized construction intent, or `Concept Struct` for explicitly non-materialized semantic data according to the qualified declaration. |
+| `Compose` | ResolvedCanonical | Creates an admitted profile-based body and material interval; it is neither generic specialization nor post-construction mutation. |
+| `Modify` | ResolvedCanonical | Applies admitted semantic operations to an existing body after construction. |
+| historical lowercase manufacturing `template<Process>` | ResolvedCompatibility | Persisted CNC/Additive syntax is adapted to the same DFM representation. CNC/FDM/SheetMetal examples are ported to canonical typed Record/Static/`with`/Template/Concept Struct families. Canonical policy wins when both forms occur; new source uses the modern form. |
 | Boss / Pocket versus Add / Remove | RetainedCompatibility | Boss/Pocket preserve their first-class engineering contracts. Low-level Add/Remove remain bounded profile-composition compatibility, not coequal public feature design. |
 | Units and literals | ResolvedCanonical | V2 uses `Units: mm` and unit-bearing engineering literals. Lowercase V2 input, external JSON, and unitless V1 arrays are separately classified compatibility forms. |
 | Speculative keyword families | SpeculativeQuarantined | Future/not-implemented `.firmfixture` bodies remain untouched and do not define parser or documentation requirements. |

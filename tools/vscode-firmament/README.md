@@ -21,7 +21,7 @@ Structured CLI diagnostics populate VS Code Problems. Validate and build remain 
 
 ## Snippets
 
-Use `model`, `box`, `cylinder`, `concept-path`, `profile-from-path`, `hole-shaft`, `hole-counterbore`, `hole-countersink`, `slot-capsule`, `edgefinish-chamfer`, `edgefinish-fillet`, `require`, `pmi-projection`, `assert-volume`, and `inline-step`.
+Use `model`, `template`, `box`, `cylinder`, `concept-path`, `profile-from-path`, `hole-shaft`, `hole-counterbore`, `hole-countersink`, `slot-capsule`, `edgefinish-chamfer`, `edgefinish-fillet`, `require`, `pmi-projection`, `assert-volume`, and `inline-step`. The Template snippet always emits canonical `Template<...>` generic syntax.
 
 ## Preview 3 limits
 

@@ -7,7 +7,7 @@
 // expected: valid
 // expected-stage: not-implemented
 // expected-diagnostic: firmament-v2-parser-not-ready
-// notes: AIR-FIRMAMENT-A2.3 metadata-only CNC template/concept fixture; not parser-backed.
+// notes: Historical lowercase compatibility specimen. Canonical port: fixtures/Templates/Canonical/cnc-dfm-policy.firmament.
 
 template<CNC> ShopDefault {
     concept minimumToolRadius: 0.1 mm

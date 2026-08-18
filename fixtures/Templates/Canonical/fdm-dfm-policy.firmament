@@ -1,0 +1,62 @@
+Concept FdmManufacturingPolicy {
+    NozzleDiameter: Length
+    MinimumWallThickness: Length
+    MaximumUnsupportedOverhang: Angle
+    LayerHeight: Length
+}
+
+Concept FdmCouponContract {
+    Bounds: Box3
+    TopPlane: Plane
+    ProbePoints: Point3[]
+}
+
+Record FdmPolicySpec {
+    NozzleDiameter: Length
+    MinimumWallThickness: Length
+    MaximumUnsupportedOverhang: Angle
+    LayerHeight: Length
+}
+
+Static PrinterDefaults: FdmPolicySpec = FdmPolicySpec {
+    NozzleDiameter: 0.4mm
+    MinimumWallThickness: 0.8mm
+    MaximumUnsupportedOverhang: 45deg
+    LayerHeight: 0.2mm
+}
+
+Static BalancedSettings: FdmPolicySpec = PrinterDefaults with {
+    LayerHeight: 0.12mm
+}
+
+Template<Policy: FdmPolicySpec>
+Struct FdmCoupon: FdmCouponContract {
+    Require PositiveLengths => Policy.NozzleDiameter > 0mm && Policy.MinimumWallThickness > 0mm && Policy.LayerHeight > 0mm
+    Concept Struct Dfm: FdmManufacturingPolicy {
+        NozzleDiameter: Policy.NozzleDiameter
+        MinimumWallThickness: Policy.MinimumWallThickness
+        MaximumUnsupportedOverhang: Policy.MaximumUnsupportedOverhang
+        LayerHeight: Policy.LayerHeight
+    }
+    Concept Struct Layout: FdmCouponContract {
+        Bounds: Box3 { Size: [20mm, 20mm, 4mm] }
+        TopPlane: Bounds.Face(+Z)
+        ProbePoints: Grid { Within: Bounds.Face(+Z).Inset(5mm); Columns: 1; Rows: 1 }
+    }
+    Box Coupon { Bounds: Layout.Bounds }
+    Modify Coupon {
+        Hole<Shaft> Probe {
+            On: Coupon.Top
+            Center: Layout.ProbePoints[0]
+            Diameter: 4mm
+            End: ThroughAll
+        }
+    }
+    Expose {
+        Bounds: Layout.Bounds
+        TopPlane: Coupon.Top
+        ProbePoints: Layout.ProbePoints
+    }
+}
+
+Struct PrintedCoupon = FdmCoupon<Policy: BalancedSettings>

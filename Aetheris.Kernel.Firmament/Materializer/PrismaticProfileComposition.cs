@@ -113,6 +113,7 @@ public static class PrismaticProfileCompositionParser
     private static readonly Regex PocketDepth = new(@"\bDepth\s*:\s*(?<value>[-+.\d]+)mm", RegexOptions.CultureInvariant);
     private static readonly Regex PocketMinimumFloor = new(@"\bMinimumFloorThickness\s*:\s*(?<value>[-+.\d]+)mm", RegexOptions.CultureInvariant);
     private static readonly Regex TemplateMinimumFloor = new(@"\bconcept\s+(?<name>minimumFloorThickness|minimumWallThickness)\s*:\s*(?<value>[-+.\d]+)\s*mm", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    private static readonly Regex CncPolicyHead = new(@"\bConcept\s+Struct\s+(?<name>[A-Za-z_]\w*)\s*:\s*CncManufacturingPolicy\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex HoleHeader = new(@"\bHole\s*<\s*(?<variant>\w+)\s*>\s+(?<n>\w+)\s*\{", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex HoleCenter = new(@"\bCenter\s*:\s*\[(?<x>[-+.\d]+)mm\s*,\s*(?<y>[-+.\d]+)mm\]", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex HolePoint2Center = new(@"\bCenter\s*:\s*Point2\s*\(\s*(?<x>[-+.\d]+)mm\s*,\s*(?<y>[-+.\d]+)mm\s*\)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
@@ -456,6 +457,22 @@ public static class PrismaticProfileCompositionParser
     {
         var local = PocketMinimumFloor.Match(pocketBody);
         if (local.Success) return (N(local, "value"), "Pocket.MinimumFloorThickness");
+
+        var canonical = CncPolicyHead.Matches(source).Cast<Match>()
+            .Select(match => (Match: match, Body: Block(source, source.IndexOf('{', match.Index))))
+            .Where(candidate => candidate.Body is not null)
+            .ToArray();
+        if (canonical.Length > 1) return (double.NaN, "CncManufacturingPolicy:ambiguous-multiple-authorities");
+        if (canonical.Length == 1)
+        {
+            var floor = PocketMinimumFloor.Match(canonical[0].Body!);
+            if (floor.Success) return (N(floor, "value"), "CncManufacturingPolicy.MinimumFloorThickness");
+            var wall = Regex.Match(canonical[0].Body!, @"\bMinimumWallThickness\s*:\s*(?<value>[-+.\d]+)mm", RegexOptions.CultureInvariant);
+            if (wall.Success) return (N(wall, "value"), "CncManufacturingPolicy.MinimumWallThickness");
+        }
+
+        // Historical lowercase templates remain readable so persisted Preview sources
+        // do not change behavior; new authoring uses the typed policy contract above.
         var concepts = TemplateMinimumFloor.Matches(source).Cast<Match>().ToArray();
         var floors = concepts.Where(match => string.Equals(match.Groups["name"].Value, "minimumFloorThickness", StringComparison.OrdinalIgnoreCase)).ToArray();
         if (floors.Length > 1) return (double.NaN, "Template.minimumFloorThickness:ambiguous-multiple-authorities");

@@ -36,7 +36,13 @@ public sealed record ForgeTemplateParameterDescription(
     string? Dimension,
     string? Unit,
     IReadOnlyList<string>? AllowedValues,
-    IReadOnlyList<ForgeTemplateParameterDescription>? Fields);
+    IReadOnlyList<ForgeTemplateParameterDescription>? Fields,
+    string Category,
+    string? Constraint);
+
+public sealed record ForgeTemplateConstraintDescription(
+    string Name,
+    string Expression);
 
 public sealed record ForgeTemplateDescription(
     int ProtocolVersion,
@@ -45,7 +51,10 @@ public sealed record ForgeTemplateDescription(
     string Version,
     string Documentation,
     IReadOnlyList<ForgeTemplateParameterDescription> Parameters,
-    IReadOnlyList<ForgeArtifactKind> Artifacts);
+    IReadOnlyList<ForgeArtifactKind> Artifacts,
+    string Signature,
+    string OutputKind,
+    IReadOnlyList<ForgeTemplateConstraintDescription> Constraints);
 
 public sealed record ForgeTemplateInvocationRequest(
     int ProtocolVersion,

@@ -1,0 +1,59 @@
+Concept SheetMetalManufacturingPolicy {
+    Thickness: Length
+    MinimumBendRadius: Length
+    KFactor: Float
+}
+
+Concept SheetMetalCouponContract {
+    Bounds: Box3
+    TopPlane: Plane
+    ProbePoints: Point3[]
+}
+
+Record SheetMetalPolicySpec {
+    Thickness: Length
+    MinimumBendRadius: Length
+    KFactor: Float
+}
+
+Static BrakeDefaults: SheetMetalPolicySpec = SheetMetalPolicySpec {
+    Thickness: 1.5mm
+    MinimumBendRadius: 1.5mm
+    KFactor: 0.42
+}
+
+Static TightBend: SheetMetalPolicySpec = BrakeDefaults with {
+    MinimumBendRadius: 2.0mm
+}
+
+Template<Policy: SheetMetalPolicySpec>
+Struct SheetMetalCoupon: SheetMetalCouponContract {
+    Require PositiveGeometry => Policy.Thickness > 0mm && Policy.MinimumBendRadius > 0mm
+    Require PhysicalKFactor => Policy.KFactor > 0 && Policy.KFactor < 1
+    Concept Struct Dfm: SheetMetalManufacturingPolicy {
+        Thickness: Policy.Thickness
+        MinimumBendRadius: Policy.MinimumBendRadius
+        KFactor: Policy.KFactor
+    }
+    Concept Struct Layout: SheetMetalCouponContract {
+        Bounds: Box3 { Size: [40mm, 20mm, Policy.Thickness] }
+        TopPlane: Bounds.Face(+Z)
+        ProbePoints: Grid { Within: Bounds.Face(+Z).Inset(5mm); Columns: 1; Rows: 1 }
+    }
+    Box Coupon { Bounds: Layout.Bounds }
+    Modify Coupon {
+        Hole<Shaft> Probe {
+            On: Coupon.Top
+            Center: Layout.ProbePoints[0]
+            Diameter: 4mm
+            End: ThroughAll
+        }
+    }
+    Expose {
+        Bounds: Layout.Bounds
+        TopPlane: Coupon.Top
+        ProbePoints: Layout.ProbePoints
+    }
+}
+
+Struct TightBendCoupon = SheetMetalCoupon<Policy: TightBend>

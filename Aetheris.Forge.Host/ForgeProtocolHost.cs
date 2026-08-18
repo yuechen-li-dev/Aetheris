@@ -51,7 +51,11 @@ public sealed class ForgeProtocolHost
             template.Version,
             template.Documentation,
             template.Metadata.Parameters.Select(parameter => DescribeParameter(template, parameter)).ToArray(),
-            template.Artifacts);
+            template.Artifacts,
+            Signature(template.Metadata),
+            template.Metadata.TargetKind,
+            template.Metadata.Constraints.Select(constraint => new ForgeTemplateConstraintDescription(
+                constraint.Name, constraint.Expression)).ToArray());
     }
 
     public ForgeTemplateInvocationResult InvokeTemplate(
@@ -168,17 +172,26 @@ public sealed class ForgeProtocolHost
             ? record.Fields.Select(field => DescribeValue(template, field.Name, field.TypeName, true, null)).ToArray()
             : null;
         return DescribeValue(template, parameter.Name, parameter.TypeName, parameter.DefaultExpression is null,
-            parameter.DefaultExpression, fields);
+            parameter.DefaultExpression, fields,
+            parameter.Kind == FirmamentTemplateParameterKind.Type ? "type" : fields is null ? "value" : "record",
+            parameter.ConstraintConcept);
     }
 
     private static ForgeTemplateParameterDescription DescribeValue(RegisteredTemplate template, string name, string type,
-        bool required, string? defaultValue, IReadOnlyList<ForgeTemplateParameterDescription>? fields = null)
+        bool required, string? defaultValue, IReadOnlyList<ForgeTemplateParameterDescription>? fields = null,
+        string category = "value", string? constraint = null)
     {
         var dimension = type switch { "Length" => "length", "Angle" => "angle", _ => null };
         var unit = type switch { "Length" => "mm", "Angle" => "deg", _ => null };
         var allowed = template.Enums.TryGetValue(type, out var enumeration) ? enumeration.Cases : null;
-        return new(name, PublicType(type, fields is not null), required, defaultValue, dimension, unit, allowed, fields);
+        return new(name, PublicType(type, fields is not null), required, defaultValue, dimension, unit, allowed, fields, category, constraint);
     }
+
+    private static string Signature(FirmamentTemplateMetadata template) =>
+        template.Name + "<" + string.Join(", ", template.Parameters.Select(parameter =>
+            parameter.Kind == FirmamentTemplateParameterKind.Type
+                ? $"type {parameter.Name} satisfies {parameter.ConstraintConcept}"
+                : $"{parameter.Name}: {parameter.TypeName}" + (parameter.DefaultExpression is null ? string.Empty : $" = {parameter.DefaultExpression}"))) + ">";
 
     private static IReadOnlyDictionary<string, FirmamentHostArgument> BindArguments(
         RegisteredTemplate template,

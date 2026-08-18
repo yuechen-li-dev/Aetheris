@@ -1,0 +1,63 @@
+Concept CncManufacturingPolicy {
+    MinimumToolRadius: Length
+    MinimumWallThickness: Length
+    MinimumFloorThickness: Length
+    MinimumHoleDiameter: Length
+}
+
+Concept CncCouponContract {
+    Bounds: Box3
+    TopPlane: Plane
+    ProbePoints: Point3[]
+}
+
+Record CncPolicySpec {
+    MinimumToolRadius: Length
+    MinimumWallThickness: Length
+    MinimumFloorThickness: Length
+    MinimumHoleDiameter: Length
+}
+
+Static CncShopDefaults: CncPolicySpec = CncPolicySpec {
+    MinimumToolRadius: 0.5mm
+    MinimumWallThickness: 0.8mm
+    MinimumFloorThickness: 1.0mm
+    MinimumHoleDiameter: 1.0mm
+}
+
+Static CncAluminum: CncPolicySpec = CncShopDefaults with {
+    MinimumToolRadius: 0.75mm
+    MinimumFloorThickness: 1.5mm
+}
+
+Template<Policy: CncPolicySpec>
+Struct CncCoupon: CncCouponContract {
+    Require PositiveLimits => Policy.MinimumToolRadius > 0mm && Policy.MinimumWallThickness > 0mm && Policy.MinimumFloorThickness > 0mm && Policy.MinimumHoleDiameter > 0mm
+    Concept Struct Dfm: CncManufacturingPolicy {
+        MinimumToolRadius: Policy.MinimumToolRadius
+        MinimumWallThickness: Policy.MinimumWallThickness
+        MinimumFloorThickness: Policy.MinimumFloorThickness
+        MinimumHoleDiameter: Policy.MinimumHoleDiameter
+    }
+    Concept Struct Layout: CncCouponContract {
+        Bounds: Box3 { Size: [30mm, 20mm, 6mm] }
+        TopPlane: Bounds.Face(+Z)
+        ProbePoints: Grid { Within: Bounds.Face(+Z).Inset(5mm); Columns: 1; Rows: 1 }
+    }
+    Box Coupon { Bounds: Layout.Bounds }
+    Modify Coupon {
+        Hole<Shaft> Probe {
+            On: Coupon.Top
+            Center: Layout.ProbePoints[0]
+            Diameter: 4mm
+            End: ThroughAll
+        }
+    }
+    Expose {
+        Bounds: Layout.Bounds
+        TopPlane: Coupon.Top
+        ProbePoints: Layout.ProbePoints
+    }
+}
+
+Struct AluminumCoupon = CncCoupon<Policy: CncAluminum>

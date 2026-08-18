@@ -6,7 +6,7 @@ Model ProfileComposeLBracketCounterborePmi {
         MountSpec { Center: Point2(20mm, -10mm) Diameter: 6mm }
         MountSpec { Center: Point2(-30mm, 20mm) Diameter: 6mm }
     ]
-    Template ShaftHole(MountSpec spec) {
+    Template<spec: MountSpec> ShaftHole {
         Hole<Shaft> Mount {
             On: +Z
             Center: spec.Center
@@ -33,7 +33,7 @@ Model ProfileComposeLBracketCounterborePmi {
     Struct BracketBody {
         Compose BracketBody {
             Base Stock { Profile: Bracket; From: 0mm; To: 12mm; Role: Stock }
-            Pattern MountPattern Over Mounts { ShaftHole(Current) }
+            Pattern MountPattern Over Mounts { ShaftHole<Current> }
             Hole<Counterbore> CounterboredMount {
                 On: +Z
                 Center: Point2(-30mm, -10mm)

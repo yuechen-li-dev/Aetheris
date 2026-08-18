@@ -172,6 +172,17 @@
     ],
     "description": "Semantic requirement"
   },
+  "Template": {
+    "prefix": "template",
+    "body": [
+      "Template<${1:Spec}: ${2:PartSpec}>",
+      "Struct ${3:PartFamily} {",
+      "    Require ${4:Admissible} => ${1:Spec}.${5:Width} > 0mm",
+      "    $0",
+      "}"
+    ],
+    "description": "Typed compile-time engineering Template specialization"
+  },
   "PMI Projection": {
     "prefix": "pmi-projection",
     "body": [

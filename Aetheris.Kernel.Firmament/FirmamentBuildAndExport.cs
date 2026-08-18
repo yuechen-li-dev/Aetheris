@@ -746,7 +746,7 @@ public static class FirmamentBuildAndExport
                 : reimport.Diagnostics);
         }
 
-        var template = (document.Templates ?? []).Single(template => string.Equals(template.Process, "Additive", StringComparison.OrdinalIgnoreCase));
+        var template = FirmamentManufacturingPolicyResolver.Resolve(document, "Additive").Single();
         var graph = realization.Value.Plan.Construction;
         var centroid = mass.Centroid.Value;
         var report = new FirmamentStandaloneLatticeReport(

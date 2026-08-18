@@ -4,7 +4,12 @@ namespace Aetheris.Kernel.Firmament.FirmamentV2;
 public sealed record FirmamentTemplateMetadata(
     string Name,
     string TargetKind,
-    IReadOnlyList<FirmamentTemplateParameterMetadata> Parameters);
+    IReadOnlyList<FirmamentTemplateParameterMetadata> Parameters,
+    IReadOnlyList<FirmamentTemplateConstraintMetadata> Constraints);
+
+public sealed record FirmamentTemplateConstraintMetadata(
+    string Name,
+    string Expression);
 
 public sealed record FirmamentTemplateParameterMetadata(
     string Name,
@@ -106,7 +111,10 @@ public static class FirmamentTemplateHostBridge
                     parameter.Kind == "Type" ? FirmamentTemplateParameterKind.Type : FirmamentTemplateParameterKind.Value,
                     parameter.TypeName,
                     parameter.DefaultExpression,
-                    parameter.ConstraintConcept)).ToArray()))
+                    parameter.ConstraintConcept)).ToArray(),
+                template.Constraints.Select(constraint => new FirmamentTemplateConstraintMetadata(
+                    constraint.Name,
+                    constraint.Expression)).ToArray()))
             .ToArray();
         var records = FirmamentV2TemplateExpansion.InspectRecords(moduleSource, collected)
             .Select(record => new FirmamentTemplateRecordMetadata(record.Name,

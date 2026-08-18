@@ -13,23 +13,20 @@ internal static class FirmamentV2DfmEnforcement
         ArgumentNullException.ThrowIfNull(document);
 
         var diagnostics = new List<KernelDiagnostic>();
-        foreach (var template in document.Templates ?? [])
+        foreach (var template in FirmamentManufacturingPolicyResolver.Resolve(document, "CNC"))
         {
-            if (!string.Equals(template.Process, "CNC", StringComparison.Ordinal)) continue;
-            foreach (var concept in template.Concepts.Where(c => string.Equals(c.Name, "minimumToolRadius", StringComparison.Ordinal)))
+            const string conceptName = "MinimumToolRadius";
+            if (!FirmamentManufacturingPolicyResolver.TryLength(template, conceptName, document.Units, out var minimumToolRadius))
             {
-                if (!string.Equals(concept.Unit, document.Units, StringComparison.Ordinal))
-                {
-                    diagnostics.Add(Error($"{FirmamentV2Parser.DfmConceptUnitMismatch}: template '{template.Name}' concept '{concept.Name}' expects length unit '{document.Units}' but found '{concept.Unit ?? "<unitless>"}' in '{concept.RawValue}'."));
-                    continue;
-                }
+                diagnostics.Add(Error($"{FirmamentV2Parser.DfmConceptUnitMismatch}: policy '{template.Name}' member '{conceptName}' expects Length in '{document.Units}'."));
+                continue;
+            }
 
-                foreach (var (featureName, radius) in EnumerateHoleRadii(document))
+            foreach (var (featureName, radius) in EnumerateHoleRadii(document))
+            {
+                if (radius < minimumToolRadius)
                 {
-                    if (radius < concept.NumericValue)
-                    {
-                        diagnostics.Add(Error($"{FirmamentV2Parser.DfmMinimumToolRadiusViolation}: template '{template.Name}' concept '{concept.Name}' requires minimum tool radius {concept.NumericValue:0.###}{document.Units}; feature '{featureName}' has radius {radius:0.###}{document.Units}."));
-                    }
+                    diagnostics.Add(Error($"{FirmamentV2Parser.DfmMinimumToolRadiusViolation}: policy '{template.Name}' member '{conceptName}' requires minimum tool radius {minimumToolRadius:0.###}{document.Units}; feature '{featureName}' has radius {radius:0.###}{document.Units}."));
                 }
             }
         }
@@ -43,22 +40,22 @@ internal static class FirmamentV2DfmEnforcement
                 continue;
             }
 
-            var template = (document.Templates ?? []).SingleOrDefault(t => string.Equals(t.Process, "Additive", StringComparison.OrdinalIgnoreCase));
-            if (template is null)
+            var policies = FirmamentManufacturingPolicyResolver.Resolve(document, "Additive");
+            if (policies.Count != 1)
             {
-                diagnostics.Add(Error("additive-template-required: Lattice Fill requires one Template<Additive> manufacturing context."));
+                diagnostics.Add(Error($"additive-template-required: Lattice Fill requires exactly one AdditiveManufacturingPolicy; found {policies.Count}."));
                 continue;
             }
+            var template = policies[0];
 
             double Concept(string name)
             {
-                var concept = template.Concepts.SingleOrDefault(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase));
-                if (concept is null || !string.Equals(concept.Unit, document.Units, StringComparison.OrdinalIgnoreCase))
+                if (!FirmamentManufacturingPolicyResolver.TryLength(template, name, document.Units, out var value))
                 {
-                    diagnostics.Add(Error($"additive-concept-required: template '{template.Name}' requires typed length concept '{name}' in '{document.Units}'."));
+                    diagnostics.Add(Error($"additive-concept-required: policy '{template.Name}' requires typed Length member '{name}' in '{document.Units}'."));
                     return double.NaN;
                 }
-                return concept.NumericValue;
+                return value;
             }
 
             var context = new AdditiveManufacturingContext(template.Name, template.Process,
@@ -85,22 +82,22 @@ internal static class FirmamentV2DfmEnforcement
 
         foreach (var fill in document.StandaloneLatticeFills ?? [])
         {
-            var template = (document.Templates ?? []).SingleOrDefault(t => string.Equals(t.Process, "Additive", StringComparison.OrdinalIgnoreCase));
-            if (template is null)
+            var policies = FirmamentManufacturingPolicyResolver.Resolve(document, "Additive");
+            if (policies.Count != 1)
             {
-                diagnostics.Add(Error("additive-template-required: standalone CubicTruss requires one Template<Additive> context."));
+                diagnostics.Add(Error($"additive-template-required: standalone CubicTruss requires exactly one AdditiveManufacturingPolicy; found {policies.Count}."));
                 continue;
             }
+            var template = policies[0];
 
             double Concept(string name)
             {
-                var concept = template.Concepts.SingleOrDefault(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase));
-                if (concept is null || !string.Equals(concept.Unit, document.Units, StringComparison.OrdinalIgnoreCase))
+                if (!FirmamentManufacturingPolicyResolver.TryLength(template, name, document.Units, out var value))
                 {
-                    diagnostics.Add(Error($"additive-concept-required: template '{template.Name}' requires typed length concept '{name}' in '{document.Units}'."));
+                    diagnostics.Add(Error($"additive-concept-required: policy '{template.Name}' requires typed Length member '{name}' in '{document.Units}'."));
                     return double.NaN;
                 }
-                return concept.NumericValue;
+                return value;
             }
 
             var minStrut = Concept("MinimumStrutDiameter");

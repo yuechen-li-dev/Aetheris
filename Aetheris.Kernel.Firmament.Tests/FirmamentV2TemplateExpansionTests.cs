@@ -5,6 +5,30 @@ namespace Aetheris.Kernel.Firmament.Tests;
 public sealed class FirmamentV2TemplateExpansionTests
 {
     [Fact]
+    public void CanonicalFiniteFeatureTemplate_UsesAngleBrackets_AndLegacyCallFormRemainsCompatible()
+    {
+        const string canonical = """
+            Model CanonicalFeatureTemplate {
+                Units: mm
+                Record MountSpec { Center: Point2 Diameter: Length }
+                Static Mounts: MountSpec[] = [ MountSpec { Center: Point2(0mm, 0mm) Diameter: 6mm } ]
+                Template<spec: MountSpec> MountHole {
+                    Hole<Shaft> Mount { On: +Z Center: spec.Center Diameter: spec.Diameter End: ThroughAll }
+                }
+                Box Plate { Size: [30mm, 20mm, 5mm] }
+                Modify Plate { Pattern MountsPattern Over Mounts { MountHole<Current> } }
+            }
+            """;
+        var parsed = FirmamentV2Parser.Parse(canonical);
+        Assert.True(parsed.IsSuccess, string.Join(Environment.NewLine, parsed.Diagnostics));
+        Assert.Equal("MountHole", Assert.Single(parsed.Document!.StaticAuthoring!.Templates).Name);
+
+        var legacy = canonical.Replace("Template<spec: MountSpec> MountHole", "Template MountHole(MountSpec spec)", StringComparison.Ordinal)
+            .Replace("MountHole<Current>", "MountHole(Current)", StringComparison.Ordinal);
+        Assert.True(FirmamentV2Parser.Parse(legacy).IsSuccess);
+    }
+
+    [Fact]
     public void TypedRecordParameter_BindsStaticRecordMembersAndRequireBeforeAir()
     {
         var first = FirmamentV2Parser.Parse(WidgetSource("WidgetA"));
@@ -77,6 +101,7 @@ public sealed class FirmamentV2TemplateExpansionTests
     {
         var missing = FirmamentV2Parser.Parse(Source("Bad", "", "40mm", "20mm", "Compact"));
         Assert.Contains(missing.Diagnostics, d => d.StartsWith("firmament-template-missing-required-argument:Width", StringComparison.Ordinal));
+        Assert.Contains(missing.Diagnostics, d => d.Contains("expected-signature:MountingBracket<", StringComparison.Ordinal));
         var unknown = FirmamentV2Parser.Parse(Source("Bad", "60mm", "40mm", "20mm", "Compact").Replace("Variant: Compact", "Nope: Compact", StringComparison.Ordinal));
         Assert.Contains(unknown.Diagnostics, d => d.StartsWith("firmament-template-unknown-argument:Nope", StringComparison.Ordinal));
         var mismatch = FirmamentV2Parser.Parse(Source("Bad", "60", "40mm", "20mm", "Compact"));
@@ -85,6 +110,7 @@ public sealed class FirmamentV2TemplateExpansionTests
         Assert.Contains(constraint.Diagnostics, d => d.StartsWith("firmament-template-type-argument-does-not-satisfy-concept:TBody", StringComparison.Ordinal));
         var require = FirmamentV2Parser.Parse(Source("Bad", "0mm", "40mm", "20mm", "Compact"));
         Assert.Contains(require.Diagnostics, d => d.StartsWith("firmament-template-require-failed:Bad.ValidDimensions", StringComparison.Ordinal));
+        Assert.Contains(require.Diagnostics, d => d.Contains("template-signature:MountingBracket<", StringComparison.Ordinal));
     }
 
     [Fact]

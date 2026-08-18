@@ -14,7 +14,7 @@ internal static class CanonicalStaticAuthoring
     public static Result? Expand(string source, List<string> diagnostics)
     {
         var canonicalRoot = Regex.IsMatch(source, @"^\s*Model\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant);
-        var staticDeclaration = Regex.IsMatch(source, @"\b(?:Record|Static|Template\s+[A-Za-z_]\w*\s*\(|Pattern\s+\w+\s+Over)\b", RegexOptions.CultureInvariant);
+        var staticDeclaration = Regex.IsMatch(source, @"\b(?:Record|Static|Template\s*(?:<|[A-Za-z_]\w*\s*\()|Pattern\s+\w+\s+Over)\b", RegexOptions.CultureInvariant);
         if (!staticDeclaration && !(canonicalRoot && Regex.IsMatch(source, @"\b(?:Require\s+[A-Za-z_]\w*\s*(?:=>|\{)|Pmi\s*\{[\s\S]*?\bFrom\s*:)", RegexOptions.CultureInvariant))) return new(source, null);
         var changes = new List<(int Start, int Length, string Text)>();
         var names = new HashSet<string>(StringComparer.Ordinal);
@@ -110,13 +110,21 @@ internal static class CanonicalStaticAuthoring
         }
         var arrayByName = arrays.ToDictionary(x => x.Name, StringComparer.Ordinal);
 
-        foreach (Match header in Regex.Matches(source, @"\bTemplate\s+(?<name>[A-Za-z_]\w*)\s*\(\s*(?<type>[A-Za-z_]\w*)\s+(?<param>[A-Za-z_]\w*)\s*\)\s*\{", RegexOptions.CultureInvariant))
+        // Canonical finite feature Template: Template<Parameter: RecordType> Name { ... }.
+        // The former Template Name(RecordType parameter) spelling remains warning-free
+        // compatibility syntax for persisted Preview sources.
+        var featureTemplateHeaders = Regex.Matches(source,
+            @"\bTemplate\s*<\s*(?<param>[A-Za-z_]\w*)\s*:\s*(?<type>[A-Za-z_]\w*)\s*>\s*(?<name>[A-Za-z_]\w*)\s*\{|\bTemplate\s+(?<legacyName>[A-Za-z_]\w*)\s*\(\s*(?<legacyType>[A-Za-z_]\w*)\s+(?<legacyParam>[A-Za-z_]\w*)\s*\)\s*\{",
+            RegexOptions.CultureInvariant);
+        foreach (Match header in featureTemplateHeaders)
         {
             var close = MatchPair(source, source.IndexOf('{', header.Index), '{', '}');
-            var name = header.Groups["name"].Value;
-            if (close < 0 || !recordByName.ContainsKey(header.Groups["type"].Value)) { diagnostics.Add(Prefix + "template-malformed:" + name); continue; }
+            var name = header.Groups["name"].Success ? header.Groups["name"].Value : header.Groups["legacyName"].Value;
+            var type = header.Groups["type"].Success ? header.Groups["type"].Value : header.Groups["legacyType"].Value;
+            var parameter = header.Groups["param"].Success ? header.Groups["param"].Value : header.Groups["legacyParam"].Value;
+            if (close < 0 || !recordByName.ContainsKey(type)) { diagnostics.Add(Prefix + "template-malformed:" + name); continue; }
             if (!names.Add(name)) { diagnostics.Add(FirmamentV2Parser.DuplicateName + ":Template:" + name); continue; }
-            var template = new Template(name, header.Groups["type"].Value, header.Groups["param"].Value, source[(source.IndexOf('{', header.Index) + 1)..close], new(header.Index, close - header.Index + 1));
+            var template = new Template(name, type, parameter, source[(source.IndexOf('{', header.Index) + 1)..close], new(header.Index, close - header.Index + 1));
             templates.Add(template); changes.Add((header.Index, close - header.Index + 1, string.Empty));
         }
         var templateByName = templates.ToDictionary(x => x.Name, StringComparer.Ordinal);
@@ -140,7 +148,7 @@ internal static class CanonicalStaticAuthoring
         {
             var open = source.IndexOf('{', pattern.Index); var close = MatchPair(source, open, '{', '}');
             if (close < 0 || !arrayByName.TryGetValue(pattern.Groups["array"].Value, out var array)) { diagnostics.Add(Prefix + "pattern-source-invalid:" + pattern.Groups["name"].Value); continue; }
-            var invocation = Regex.Match(source[(open + 1)..close], @"^(?:\s)*(?<template>[A-Za-z_]\w*)\s*\(\s*Current\s*\)\s*$", RegexOptions.CultureInvariant);
+            var invocation = Regex.Match(source[(open + 1)..close], @"^(?:\s)*(?<template>[A-Za-z_]\w*)\s*(?:<\s*Current\s*>|\(\s*Current\s*\))\s*$", RegexOptions.CultureInvariant);
             if (!invocation.Success || !templateByName.TryGetValue(invocation.Groups["template"].Value, out var template) || template.Type != array.ElementType) { diagnostics.Add(Prefix + "pattern-body-invalid:" + pattern.Groups["name"].Value); continue; }
             var generated = new List<string>(); var output = new List<string>();
             for (var index = 0; index < array.Elements.Count; index++)
@@ -156,12 +164,14 @@ internal static class CanonicalStaticAuthoring
         // A direct invocation is the same static expansion route as Pattern, with an
         // explicit bounded element index. The declaration body is still erased before
         // material AIR; it is not a runtime call.
-        foreach (Match invocation in Regex.Matches(source, @"\b(?<template>[A-Za-z_]\w*)\s*\(\s*(?<array>[A-Za-z_]\w*)\s*\[\s*(?<index>\d+)\s*\]\s*\)", RegexOptions.CultureInvariant))
+        foreach (Match invocation in Regex.Matches(source, @"\b(?<template>[A-Za-z_]\w*)\s*(?:<\s*(?<array>[A-Za-z_]\w*)\s*\[\s*(?<index>\d+)\s*\]\s*>|\(\s*(?<legacyArray>[A-Za-z_]\w*)\s*\[\s*(?<legacyIndex>\d+)\s*\]\s*\))", RegexOptions.CultureInvariant))
         {
+            var arrayName = invocation.Groups["array"].Success ? invocation.Groups["array"].Value : invocation.Groups["legacyArray"].Value;
+            var indexText = invocation.Groups["index"].Success ? invocation.Groups["index"].Value : invocation.Groups["legacyIndex"].Value;
             if (!templateByName.TryGetValue(invocation.Groups["template"].Value, out var template)
-                || !arrayByName.TryGetValue(invocation.Groups["array"].Value, out var array)
+                || !arrayByName.TryGetValue(arrayName, out var array)
                 || template.Type != array.ElementType) continue;
-            var index = int.Parse(invocation.Groups["index"].Value, CultureInfo.InvariantCulture);
+            var index = int.Parse(indexText, CultureInfo.InvariantCulture);
             if (index >= array.Elements.Count) { diagnostics.Add(Prefix + "array-index-out-of-range:" + array.Name); continue; }
             var generatedId = template.Name + "[" + index.ToString(CultureInfo.InvariantCulture) + "]";
             var declaration = Instantiate(template, array.Elements[index], generatedId, false, diagnostics);

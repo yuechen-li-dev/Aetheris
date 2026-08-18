@@ -6,7 +6,7 @@ Model GeneratedMounts {
         MountSpec { Center: Point2(20mm, 0mm) Diameter: 8mm }
     ]
     Require ValidDiameter => 8mm > 0mm
-    Template MountHole(MountSpec spec) {
+    Template<spec: MountSpec> MountHole {
         Hole<Shaft> Mount {
             On: +Z
             Center: spec.Center
@@ -16,6 +16,6 @@ Model GeneratedMounts {
     }
     Box Base { Size: [80mm, 40mm, 10mm] }
     Modify Base {
-        Pattern MountPattern Over Mounts { MountHole(Current) }
+        Pattern MountPattern Over Mounts { MountHole<Current> }
     }
 }

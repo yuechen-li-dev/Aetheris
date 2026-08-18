@@ -11,7 +11,7 @@ Model GeneratedSlots {
         }
     ]
 
-    Template Vent(SlotSpec spec) {
+    Template<spec: SlotSpec> Vent {
         Slot<Capsule> Vent {
             Center: spec.Center
             Direction: spec.Direction
@@ -36,7 +36,7 @@ Model GeneratedSlots {
     Struct Plate {
         Compose Body {
             Base Stock { Profile: Plate; From: -10mm; To: 10mm; Role: Stock }
-            Pattern SlotPattern Over Vents { Vent(Current) }
+            Pattern SlotPattern Over Vents { Vent<Current> }
         }
     }
 }

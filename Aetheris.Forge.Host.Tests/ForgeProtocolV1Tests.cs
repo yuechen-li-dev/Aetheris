@@ -23,6 +23,10 @@ public sealed class ForgeProtocolV1Tests
         Assert.DoesNotContain(list.Templates, item => item.Id.Contains("Aetheris.", StringComparison.Ordinal));
 
         var description = host.DescribeTemplate(Enclosure)!;
+        Assert.StartsWith("ElectronicsEnclosure<", description.Signature, StringComparison.Ordinal);
+        Assert.Equal("SheetMetal", description.OutputKind);
+        Assert.Contains(description.Constraints, item => item.Name == "Positive");
+        Assert.All(description.Parameters, parameter => Assert.Contains(parameter.Category, new[] { "type", "value", "record" }));
         var spec = Assert.Single(description.Parameters);
         Assert.Equal("record", spec.Type);
         Assert.Equal("mm", spec.Fields!.Single(item => item.Name == "Width").Unit);

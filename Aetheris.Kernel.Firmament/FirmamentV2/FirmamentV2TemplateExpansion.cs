@@ -83,7 +83,10 @@ internal static class FirmamentV2TemplateExpansion
     internal sealed record HostTemplate(
         string Name,
         string TargetKind,
-        IReadOnlyList<HostParameter> Parameters);
+        IReadOnlyList<HostParameter> Parameters,
+        IReadOnlyList<HostConstraint> Constraints);
+
+    internal sealed record HostConstraint(string Name, string Expression);
 
     internal sealed record HostRecord(string Name, IReadOnlyDictionary<string, string> Fields);
 
@@ -97,8 +100,15 @@ internal static class FirmamentV2TemplateExpansion
                     TemplateTypeParameterIr type => new HostParameter(type.Name, "Type", type.Name, null, type.ConstraintConcept),
                     TemplateValueParameterIr value => new HostParameter(value.Name, "Value", value.TypeName, value.DefaultExpression, null),
                     _ => throw new InvalidOperationException($"Unknown Template parameter IR '{parameter.GetType().Name}'."),
-                }).ToArray()))
+                }).ToArray(),
+                ParseRequires(template.Body)))
             .OrderBy(template => template.Name, StringComparer.Ordinal)
+            .ToArray();
+
+    private static IReadOnlyList<HostConstraint> ParseRequires(string body) =>
+        Regex.Matches(body, @"\bRequire\s+(?<name>[A-Za-z_]\w*)\s*=>\s*(?<expression>[^\r\n}]+)", RegexOptions.CultureInvariant)
+            .Cast<Match>()
+            .Select(match => new HostConstraint(match.Groups["name"].Value, match.Groups["expression"].Value.Trim()))
             .ToArray();
 
     internal static IReadOnlyList<HostRecord> InspectRecords(string source, List<string> diagnostics) =>
@@ -188,7 +198,7 @@ internal static class FirmamentV2TemplateExpansion
         var body = ResolveTemplateMatches(template.Body, bound, diagnostics, out var selectedMatches);
         if (body is null || !ValidateRecordMembers(body, bound, diagnostics)) return null;
         body = Substitute(body, bound);
-        if (!EvaluateRequires(body, application.InstanceName, diagnostics, out var requireResults)) return null;
+        if (!EvaluateRequires(body, application.InstanceName, DisplaySignature(template), diagnostics, out var requireResults)) return null;
         body = RemoveRequires(body);
 
         var specialization = new TemplateSpecializationIr(
@@ -286,7 +296,7 @@ internal static class FirmamentV2TemplateExpansion
             if (body is null) continue;
             if (!ValidateRecordMembers(body, bound, diagnostics)) continue;
             body = Substitute(body, bound);
-            if (!EvaluateRequires(body, application.InstanceName, diagnostics, out var requireResults)) continue;
+            if (!EvaluateRequires(body, application.InstanceName, DisplaySignature(template), diagnostics, out var requireResults)) continue;
             body = RemoveRequires(body);
             changes.Add((application.SourceSpan.Start, application.SourceSpan.Length, $"{template.TargetKind} {application.InstanceName}{template.HeaderTail} {{{body}}}"));
             var recordArguments = bound.RecordArguments.ToDictionary(pair => pair.Key, pair => new ConceptIrTemplateRecordArgument(
@@ -307,6 +317,9 @@ internal static class FirmamentV2TemplateExpansion
         {
             var open = source.IndexOf('<', start.Index); var close = Matching(source, open, '<', '>');
             var header = close < 0 ? Match.Empty : Regex.Match(source[(close + 1)..], @"^\s*(?<kind>Concept\s+Struct|Struct|Model|Panel|SheetMetal|ProfileDelta)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)(?<tail>\s*:\s*[A-Za-z_][A-Za-z0-9_]*)?\s*\{", RegexOptions.CultureInvariant);
+            if (close >= 0 && !header.Success
+                && Regex.IsMatch(source[(close + 1)..], @"^\s*[A-Za-z_][A-Za-z0-9_]*\s*\{", RegexOptions.CultureInvariant))
+                continue; // finite feature Template; CanonicalStaticAuthoring owns this bounded form.
             if (close < 0 || !header.Success) { diagnostics.Add(FirmamentV2Parser.UnsupportedConstruct); continue; }
             var brace = close + 1 + header.Index + header.Value.LastIndexOf('{'); var end = Matching(source, brace, '{', '}');
             if (end < 0) { diagnostics.Add(FirmamentV2Parser.UnsupportedConstruct); continue; }
@@ -361,7 +374,8 @@ internal static class FirmamentV2TemplateExpansion
         IReadOnlyDictionary<string, TemplateRecordTypeIr> recordTypes, IReadOnlyDictionary<string, TemplateStaticRecordIr> staticRecords, List<string> diagnostics)
     {
         var supplied = application.Arguments.ToDictionary(a => a.Name, a => a.Expression, StringComparer.Ordinal);
-        foreach (var unknown in supplied.Keys.Where(name => template.Parameters.All(p => p.Name != name))) diagnostics.Add(UnknownArgument + ":" + unknown);
+        var expectedSignature = DisplaySignature(template);
+        foreach (var unknown in supplied.Keys.Where(name => template.Parameters.All(p => p.Name != name))) diagnostics.Add(UnknownArgument + ":" + unknown + ":expected-signature:" + expectedSignature);
         var types = ImmutableDictionary.CreateBuilder<string, string>(StringComparer.Ordinal); var values = ImmutableDictionary.CreateBuilder<string, string>(StringComparer.Ordinal);
         var records = ImmutableDictionary.CreateBuilder<string, BoundTemplateRecordIr>(StringComparer.Ordinal); var defaults = ImmutableArray.CreateBuilder<string>();
         var resolving = new List<string>();
@@ -370,13 +384,13 @@ internal static class FirmamentV2TemplateExpansion
             if (values.TryGetValue(p.Name, out var existing)) return existing;
             if (resolving.Contains(p.Name, StringComparer.Ordinal)) { diagnostics.Add(DefaultCycle + ":" + string.Join(" -> ", resolving.Append(p.Name))); return null; }
             var expression = supplied.TryGetValue(p.Name, out var suppliedValue) ? suppliedValue : p.DefaultExpression;
-            if (expression is null) { diagnostics.Add(MissingArgument + ":" + p.Name); return null; }
+            if (expression is null) { diagnostics.Add(MissingArgument + ":" + p.Name + ":expected-signature:" + expectedSignature); return null; }
             resolving.Add(p.Name);
             var referenced = template.Parameters.OfType<TemplateValueParameterIr>().SingleOrDefault(x => x.Name == expression);
             var value = referenced is null ? expression : Resolve(referenced);
             resolving.RemoveAt(resolving.Count - 1);
             if (value is null) return null;
-            if (!TypeMatches(value, p.TypeName, enums)) { diagnostics.Add((supplied.ContainsKey(p.Name) ? TypeMismatch : BadDefault) + $":{p.Name}:expected-{p.TypeName}:actual-{value}"); return null; }
+            if (!TypeMatches(value, p.TypeName, enums)) { diagnostics.Add((supplied.ContainsKey(p.Name) ? TypeMismatch : BadDefault) + $":{p.Name}:expected-{p.TypeName}:actual-{value}:expected-signature:{expectedSignature}"); return null; }
             values[p.Name] = value;
             if (!supplied.ContainsKey(p.Name)) defaults.Add(p.Name);
             return value;
@@ -385,9 +399,9 @@ internal static class FirmamentV2TemplateExpansion
         {
             if (parameter is TemplateTypeParameterIr type)
             {
-                if (!supplied.TryGetValue(type.Name, out var value)) { diagnostics.Add(MissingArgument + ":" + type.Name); continue; }
+                if (!supplied.TryGetValue(type.Name, out var value)) { diagnostics.Add(MissingArgument + ":" + type.Name + ":expected-signature:" + expectedSignature); continue; }
                 if (!ConceptExists(type.ConstraintConcept, source)) diagnostics.Add(UnknownConstraint + ":" + type.ConstraintConcept);
-                else if (!Satisfies(value, type.ConstraintConcept, source)) diagnostics.Add(ConstraintFailure + $":{type.Name}:{value}:{type.ConstraintConcept}");
+                else if (!Satisfies(value, type.ConstraintConcept, source)) diagnostics.Add(ConstraintFailure + $":{type.Name}:{value}:{type.ConstraintConcept}:expected-signature:{expectedSignature}");
                 types[type.Name] = value;
             }
             else
@@ -403,7 +417,7 @@ internal static class FirmamentV2TemplateExpansion
         void BindRecord(TemplateValueParameterIr parameter, TemplateRecordTypeIr recordType)
         {
             var expression = supplied.TryGetValue(parameter.Name, out var suppliedValue) ? suppliedValue : parameter.DefaultExpression;
-            if (expression is null) { diagnostics.Add(MissingArgument + ":" + parameter.Name); return; }
+            if (expression is null) { diagnostics.Add(MissingArgument + ":" + parameter.Name + ":expected-signature:" + expectedSignature); return; }
             if (!supplied.ContainsKey(parameter.Name)) defaults.Add(parameter.Name);
             if (Regex.IsMatch(source, $@"\bStatic\s+{Regex.Escape(expression)}\s*:\s*{Regex.Escape(recordType.Name)}\s*\[", RegexOptions.CultureInvariant))
             { diagnostics.Add(RecordCollectionMismatch + $":{parameter.Name}:expected-{recordType.Name}:actual-collection"); return; }
@@ -453,13 +467,15 @@ internal static class FirmamentV2TemplateExpansion
         "Date" => DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _),
         "ImportedStep" => Regex.IsMatch(value, @"^\$[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant),
         "ProfilePath" => Regex.IsMatch(value, @"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+$", RegexOptions.CultureInvariant),
-        "int" => long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _), "float" => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out _), "bool" => value is "true" or "false",
+        "Int" or "int" => long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _),
+        "Float" or "float" => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out _),
+        "Bool" or "bool" => value is "true" or "false",
         _ when enums.TryGetValue(type, out var variants) => variants.Contains(value),
         _ when recordTypes?.ContainsKey(type) == true && staticRecords?.TryGetValue(value, out var record) == true => record.TypeName == type,
         _ => false
     };
     private static bool IsBuiltInValueType(string type, IReadOnlyDictionary<string, ImmutableHashSet<string>> enums) =>
-        type is "Length" or "Angle" or "String" or "Version" or "Date" or "ImportedStep" or "ProfilePath" or "int" or "float" or "bool" || enums.ContainsKey(type);
+        type is "Length" or "Angle" or "String" or "Version" or "Date" or "ImportedStep" or "ProfilePath" or "Int" or "Float" or "Bool" or "int" or "float" or "bool" || enums.ContainsKey(type);
 
     private static IReadOnlyDictionary<string, TemplateRecordTypeIr> ParseRecordTypes(string source, List<string> diagnostics)
     {
@@ -686,14 +702,14 @@ internal static class FirmamentV2TemplateExpansion
         if (end < 0 || end > enclosingClose) end = enclosingClose;
         return body[start..end].Trim();
     }
-    private static bool EvaluateRequires(string body, string instance, List<string> diagnostics, out IReadOnlyDictionary<string, string> results)
+    private static bool EvaluateRequires(string body, string instance, string signature, List<string> diagnostics, out IReadOnlyDictionary<string, string> results)
     {
         var evidence = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (Match require in Regex.Matches(body, @"\bRequire\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*=>\s*(?<expr>[^\r\n}]+)", RegexOptions.CultureInvariant))
         {
             var name = require.Groups["name"].Value; var expression = require.Groups["expr"].Value.Trim();
-            if (!TryBool(expression, out var value)) { diagnostics.Add(RequireNonBool + ":" + name); evidence[name] = "Invalid:" + expression; }
-            else if (!value) { diagnostics.Add(RequireFailed + $":{instance}.{name}:{expression}"); evidence[name] = "Failed:" + expression; }
+            if (!TryBool(expression, out var value)) { diagnostics.Add(RequireNonBool + ":" + name + ":template-signature:" + signature); evidence[name] = "Invalid:" + expression; }
+            else if (!value) { diagnostics.Add(RequireFailed + $":{instance}.{name}:{expression}:template-signature:{signature}"); evidence[name] = "Failed:" + expression; }
             else evidence[name] = "Passed:" + expression;
         }
         results = evidence;
@@ -732,6 +748,12 @@ internal static class FirmamentV2TemplateExpansion
         var input = template.Name + "|" + application.InstanceName + "|" + string.Join("|", args.TypeArguments.Concat(args.ValueArguments).OrderBy(x => x.Key).Select(x => x.Key + "=" + x.Value).Concat(recordInput));
         return "template:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(input))).ToLowerInvariant()[..16];
     }
+    private static string DisplaySignature(TemplateDeclarationIr template) => template.Name + "<" + string.Join(", ", template.Parameters.Select(parameter => parameter switch
+    {
+        TemplateTypeParameterIr type => $"type {type.Name} satisfies {type.ConstraintConcept}",
+        TemplateValueParameterIr value => $"{value.Name}: {value.TypeName}" + (value.DefaultExpression is null ? string.Empty : $" = {value.DefaultExpression}"),
+        _ => parameter.Name,
+    })) + ">";
     private static ImmutableArray<string> GeneratedPaths(string body, string instance) => Regex.Matches(body, @"\b(?:Concept\s+Struct|Box|Modify|EdgeFinish)\s+(?<n>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant).Select(m => instance + "::" + m.Groups["n"].Value).Distinct().ToImmutableArray();
     private static string RemoveRequires(string body) => Regex.Replace(body, @"(?m)^\s*Require\s+[A-Za-z_][A-Za-z0-9_]*\s*=>\s*[^\r\n}]+\s*$", string.Empty);
     private static bool HasErrors(IEnumerable<string> diagnostics) => diagnostics.Any(d => d.StartsWith(Prefix, StringComparison.Ordinal));

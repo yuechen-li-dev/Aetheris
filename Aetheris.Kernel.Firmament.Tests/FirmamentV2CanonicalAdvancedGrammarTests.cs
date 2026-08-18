@@ -18,7 +18,7 @@ public sealed class FirmamentV2CanonicalAdvancedGrammarTests
                     MountSpec { Center: Point2(20mm, 0mm) Diameter: 8mm }
                 ]
                 Require ValidDiameter => 8mm > 0mm
-                Template MountHole(MountSpec spec) {
+                Template<spec: MountSpec> MountHole {
                     Hole<Shaft> Mount {
                         On: +Z
                         Center: spec.Center
@@ -28,7 +28,7 @@ public sealed class FirmamentV2CanonicalAdvancedGrammarTests
                 }
                 Box Base { Size: [80mm, 40mm, 10mm] }
                 Modify Base {
-                    Pattern MountPattern Over Mounts { MountHole(Current) }
+                    Pattern MountPattern Over Mounts { MountHole<Current> }
                 }
             }
             """);
@@ -90,7 +90,7 @@ public sealed class FirmamentV2CanonicalAdvancedGrammarTests
                 Units: mm
                 Record SlotSpec { Center: Point2 Direction: Vector2 Length: Length Width: Length }
                 Static Vents: SlotSpec[] = [ SlotSpec { Center: Point2(0mm, 0mm) Direction: Vector2(1, 0) Length: 80mm Width: 40mm } ]
-                Template Vent(SlotSpec spec) { Slot<Capsule> Vent { Center: spec.Center Direction: spec.Direction Length: spec.Length Width: spec.Width Extent: ThroughAll Role: ThroughSlot } }
+                Template<spec: SlotSpec> Vent { Slot<Capsule> Vent { Center: spec.Center Direction: spec.Direction Length: spec.Length Width: spec.Width Extent: ThroughAll Role: ThroughSlot } }
                 Concept Struct Layout On XY { Rect2 Stock { Center: Point2(0mm, 0mm); Size: [200mm, 100mm] } }
                 Profile Plate Using Layout { Loop Outer {
                     Segment South { Trace: Stock.Bottom; From: Stock.BottomLeft; To: Stock.BottomRight }
@@ -98,7 +98,7 @@ public sealed class FirmamentV2CanonicalAdvancedGrammarTests
                     Segment North { Trace: Stock.Top; From: Stock.TopRight; To: Stock.TopLeft }
                     Segment West { Trace: Stock.Left; From: Stock.TopLeft; To: Stock.BottomLeft }
                 } }
-                Struct Plate { Compose Body { Base Stock { Profile: Plate; From: -10mm; To: 10mm; Role: Stock } Pattern SlotPattern Over Vents { Vent(Current) } } }
+                Struct Plate { Compose Body { Base Stock { Profile: Plate; From: -10mm; To: 10mm; Role: Stock } Pattern SlotPattern Over Vents { Vent<Current> } } }
             }
             """);
         Assert.True(slots.IsSuccess, string.Join(Environment.NewLine, slots.Diagnostics));
@@ -108,14 +108,14 @@ public sealed class FirmamentV2CanonicalAdvancedGrammarTests
                 Units: mm
                 Record ProfileSpec { Center: Point2 }
                 Static Specs: ProfileSpec[] = [ ProfileSpec { Center: Point2(0mm, 0mm) } ]
-                Template PlateProfile(ProfileSpec spec) { Profile Plate Using Layout { Loop Outer {
+                Template<spec: ProfileSpec> PlateProfile { Profile Plate Using Layout { Loop Outer {
                     Segment South { Trace: Stock.Bottom; From: Stock.BottomLeft; To: Stock.BottomRight }
                     Segment East { Trace: Stock.Right; From: Stock.BottomRight; To: Stock.TopRight }
                     Segment North { Trace: Stock.Top; From: Stock.TopRight; To: Stock.TopLeft }
                     Segment West { Trace: Stock.Left; From: Stock.TopLeft; To: Stock.BottomLeft }
                 } } }
                 Concept Struct Layout On XY { Rect2 Stock { Center: Specs[0].Center; Size: [20mm, 10mm] } }
-                PlateProfile(Specs[0])
+                PlateProfile<Specs[0]>
                 Struct PlateBody { Extrude Plate { Profile: Plate; From: -2mm; To: 2mm } }
             }
             """);

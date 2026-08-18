@@ -2,7 +2,7 @@ Model ProfileDeltaPlate {
   Units: mm
 
   Record LocalRecessSpec { Center: Length Lead: Length Run: Length Depth: Length Land: Length }
-  Template < P: LocalRecessSpec, Owner: ProfilePath >
+  Template<P: LocalRecessSpec, Owner: ProfilePath>
   ProfileDelta LocalRecess {
     On: Owner;
     Anchor: CenteredAt P.Center;

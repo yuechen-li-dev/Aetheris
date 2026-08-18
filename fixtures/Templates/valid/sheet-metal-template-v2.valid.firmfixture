@@ -7,7 +7,7 @@
 // expected: valid
 // expected-stage: not-implemented
 // expected-diagnostic: firmament-v2-parser-not-ready
-// notes: AIR-FIRMAMENT-A2.3 metadata-only sheet metal template/concept fixture; not parser-backed.
+// notes: Historical lowercase compatibility specimen. Canonical port: fixtures/Templates/Canonical/sheet-metal-dfm-policy.firmament.
 
 template<SheetMetal> ShopDefault {
     concept thickness: 1.5 mm

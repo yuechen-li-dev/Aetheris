@@ -1,0 +1,40 @@
+Concept MountingPlateContract {
+    Bounds: Box3
+    TopPlane: Plane
+    MountPoints: Point3[]
+}
+
+Template<Width: Length, Height: Length, Thickness: Length, HoleDiameter: Length>
+Struct MountingPlate: MountingPlateContract {
+    Require Positive => Width > 0mm && Height > 0mm && Thickness > 0mm && HoleDiameter > 0mm
+    Concept Struct Design: MountingPlateContract {
+        Bounds: Box3 { Size: [Width, Height, Thickness] }
+        TopPlane: Bounds.Face(+Z)
+        MountPoints: Grid {
+            Within: Bounds.Face(+Z).Inset(10mm)
+            Columns: 1
+            Rows: 1
+        }
+    }
+    Box Plate { Bounds: Design.Bounds }
+    Modify Plate {
+        Hole<Shaft> CenterMount {
+            On: Plate.Top
+            Center: Design.MountPoints[0]
+            Diameter: HoleDiameter
+            End: ThroughAll
+        }
+    }
+    Expose {
+        Bounds: Design.Bounds
+        TopPlane: Plate.Top
+        MountPoints: Design.MountPoints
+    }
+}
+
+Struct StandardMountingPlate = MountingPlate<
+    Width: 80mm,
+    Height: 50mm,
+    Thickness: 8mm,
+    HoleDiameter: 8.5mm
+>

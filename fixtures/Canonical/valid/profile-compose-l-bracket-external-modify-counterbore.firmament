@@ -6,7 +6,7 @@ Model ProfileComposeLBracketExternalModifyCounterbore {
         MountSpec { Center: Point2(20mm, -10mm) Diameter: 6mm }
         MountSpec { Center: Point2(-30mm, 20mm) Diameter: 6mm }
     ]
-    Template BoltHole(MountSpec spec) {
+    Template<spec: MountSpec> BoltHole {
         Hole<Shaft> Mount {
             On: +Z
             Center: spec.Center
@@ -37,7 +37,7 @@ Model ProfileComposeLBracketExternalModifyCounterbore {
     }
 
     Modify BracketBody {
-        Pattern BoltPattern Over Mounts { BoltHole(Current) }
+        Pattern BoltPattern Over Mounts { BoltHole<Current> }
         Hole<Counterbore> LocatingPin {
             On: +Z
             Center: Point2(-30mm, -10mm)

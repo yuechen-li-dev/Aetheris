@@ -8,7 +8,7 @@ Model FourHolePlate {
         MountSpec { Center: Point2(30mm, 15mm) Diameter: 6mm }
         MountSpec { Center: Point2(-30mm, 15mm) Diameter: 6mm }
     ]
-    Template MountHole(MountSpec spec) {
+    Template<spec: MountSpec> MountHole {
         Hole<Shaft> Mount {
             On: +Z
             Center: spec.Center
@@ -19,6 +19,6 @@ Model FourHolePlate {
 
     Box Plate { Size: [80mm, 50mm, 8mm] }
     Modify Plate {
-        Pattern MountPattern Over Mounts { MountHole(Current) }
+        Pattern MountPattern Over Mounts { MountHole<Current> }
     }
 }

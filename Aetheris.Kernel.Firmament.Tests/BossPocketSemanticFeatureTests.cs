@@ -85,6 +85,32 @@ public sealed class BossPocketSemanticFeatureTests
     }
 
     [Fact]
+    public void PocketMinimumFloor_UsesCanonicalCncPolicyBeforeLegacyCompatibilityChannel()
+    {
+        var source = File.ReadAllText(Fixture("Canonical/valid/boss-pocket-mounting-block.firmament"))
+            .Replace("; MinimumFloorThickness: 2mm", string.Empty, StringComparison.Ordinal)
+            .Replace("    Concept Struct Layout On XY", """
+                Concept CncManufacturingPolicy {
+                    MinimumFloorThickness: Length
+                    MinimumWallThickness: Length
+                }
+                Concept Struct ShopPolicy: CncManufacturingPolicy {
+                    MinimumFloorThickness: 5mm
+                    MinimumWallThickness: 3mm
+                }
+
+                    Concept Struct Layout On XY
+                """, StringComparison.Ordinal);
+
+        var build = FirmamentBuildAndExport.CompileSource(source);
+
+        Assert.True(build.IsSuccess, string.Join("; ", build.Diagnostics.Select(item => item.Message)));
+        var pocket = Assert.Single(build.Value!.EngineeringFeatures!, item => item.Kind == "Pocket");
+        Assert.Equal(5d, pocket.MinimumFloorThickness);
+        Assert.Equal("CncManufacturingPolicy.MinimumFloorThickness", pocket.PolicySource);
+    }
+
+    [Fact]
     public void BossPocketCounterboreCombination_BuildsAndReimports()
     {
         var source = File.ReadAllText(Fixture("Canonical/valid/boss-pocket-mounting-block.firmament"))

@@ -5,7 +5,7 @@
 | Area | Status | Preview 3 boundary |
 |---|---|---|
 | Firmament V2 native primitives/profiles | Bounded | Named Box/Cylinder/Frustum/RoundedBox and admitted line/arc profile construction/composition |
-| Firmament V2 analytic `model` / `solid` primitives | Bounded | Parser-backed single-solid Sphere, Cone (including zero-radius pointed end), and Torus routes round-trip through AP242; this is not a general boolean/composition promise |
+| Firmament V2 analytic primitives | Bounded | Direct named Sphere, Cone (including zero-radius pointed end), and Torus routes round-trip through AP242; legacy `solid` declarations remain compatibility inputs, not canonical authoring |
 | Boss | Bounded | First-class connected finite `On: Top` profile addition on an admitted Compose host; positive height; lowers through existing `Add`; no arbitrary solid union |
 | Pocket | Bounded | First-class enclosed finite-depth `On: Top` profile removal; positive depth, non-through termination, and minimum remaining floor enforced; lowers through existing `Remove` |
 | Lower-level profile composition | Bounded | Existing prismatic `Compose` `Add`/`Remove` remains compatible for bounded blockout authoring |

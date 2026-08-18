@@ -14,6 +14,35 @@
     "body": ["Cylinder ${1:Body} {", "    Radius: ${2:20mm}", "    Height: ${3:40mm}", "}"],
     "description": "Cylinder primitive"
   },
+  "Sphere": {
+    "prefix": "sphere",
+    "body": ["Sphere ${1:Body} {", "    Radius: ${2:20mm}", "}"],
+    "description": "Canonical analytic sphere primitive"
+  },
+  "Cone": {
+    "prefix": "cone",
+    "body": ["Cone ${1:Body} {", "    BottomRadius: ${2:20mm}", "    TopRadius: ${3:0mm}", "    Height: ${4:40mm}", "}"],
+    "description": "Canonical analytic cone primitive"
+  },
+  "Torus": {
+    "prefix": "torus",
+    "body": ["Torus ${1:Body} {", "    MajorRadius: ${2:20mm}", "    MinorRadius: ${3:5mm}", "}"],
+    "description": "Canonical analytic torus primitive"
+  },
+  "Linear Analysis": {
+    "prefix": "analysis-linear",
+    "body": [
+      "Analysis LinearElastic ${1:Check} {",
+      "    Body: ${2:Body}",
+      "    Material: ${3:Standard.Materials.Aluminum.6061_T6}",
+      "    Fixed ${4:Root} { Region: ${2:Body}.face(-X) Components: [X, Y, Z] }",
+      "    Force ${5:Tip} { Region: ${2:Body}.face(+X) Vector: [0N, ${6:-100N}, 0N] }",
+      "    Results: [Displacement, Strain, Stress, ReactionForce]",
+      "    Lattice: [${7:12}, ${8:2}, ${9:2}]",
+      "}"
+    ],
+    "description": "Canonical linear-elastic analysis on ordinary Model geometry"
+  },
   "Concept Path": {
     "prefix": "concept-path",
     "body": [

@@ -2,7 +2,7 @@
 
 Preview 3 supports bounded production routes, not an unrestricted general-purpose CAD kernel. Public native examples cover Box, Cylinder, Frustum, RoundedBox, line/arc profile extrusion and composition, semantic shaft/counterbore/countersink holes, slots, patterns, selected chamfer/fillet routes, hollow bodies, and a bounded cubic lattice. Consult the [support matrix](../reference/supported-features.md) before relying on a combination.
 
-The V2 compiler also qualifies parser-backed analytic single-solid source using `model` / `solid`: `Sphere`, `Cone` (including a pointed zero-radius end), and `Torus`. Those forms round-trip as analytic AP242 surfaces, but they do not imply arbitrary boolean or profile-composition support. Use the qualified [sphere](../../../fixtures/Primitive/valid/a3-sphere-step-qualified.firmament), [pointed cone](../../../fixtures/Primitive/valid/a3-pointed-cone-step-qualified.firmament), and [torus](../../../fixtures/Primitive/valid/a3-torus-step-qualified.firmament) sources as the boundary examples.
+Analytic single solids use the same direct named declaration family: `Sphere Body { Radius: 7.5mm }`, `Cone Body { ... }`, and `Torus Body { ... }`. `Cone` includes a pointed zero-radius end. These forms round-trip as analytic AP242 surfaces, but they do not imply arbitrary Boolean or profile-composition support. The older `solid Body: Sphere { radius: ... }` spelling remains a compatibility input, not canonical authoring. Use the qualified [sphere](../../../fixtures/Primitive/valid/a3-sphere-step-qualified.firmament), [pointed cone](../../../fixtures/Primitive/valid/a3-pointed-cone-step-qualified.firmament), and [torus](../../../fixtures/Primitive/valid/a3-torus-step-qualified.firmament) sources as the boundary examples.
 
 Use named features and selectors, never raw internal B-rep IDs in native authoring. [`box-holes-pmi-chamfer.firmament`](../../../fixtures/Canonical/valid/box-holes-pmi-chamfer.firmament) demonstrates two holes, an outer-boundary chamfer, and PMI surviving the same AP242 build. [`profile-compose-l-bracket-counterbore-pmi.firmament`](../../../fixtures/Canonical/valid/profile-compose-l-bracket-counterbore-pmi.firmament) demonstrates a profile-composed part, pattern holes, a counterbore, a chamfer, and shaft-diameter PMI.
 
@@ -10,7 +10,7 @@ Use named features and selectors, never raw internal B-rep IDs in native authori
 
 ## Boss
 
-`Boss` is the first-class finite profile feature for adding connected material. In Preview 3 it is declared inside the active `Compose` body, targets that body's top support (`On: Top`), consumes an already-admitted line/arc `Profile`, and extrudes outward along `+Z` by a positive `Height`:
+`Boss` is the first-class finite profile feature for adding connected material. In Preview 3 it is declared inside the active profile-based `Compose` body, targets that body's top support (`On: Top`), consumes an already-admitted line/arc `Profile`, and extrudes outward along `+Z` by a positive `Height`. A `Compose` does not reopen or augment a separately declared direct `Box`; use a rectangular Base Profile when the stock is box-shaped.
 
 ```firmament
 Compose Body {
@@ -114,7 +114,7 @@ Model PocketBlock {
 }
 ```
 
-To author a block containing both features, declare all three profiles in one `Concept Struct ... On XY`, then place both the documented `Boss` and `Pocket` declarations after the unique `Base` in the same Compose. Feature declaration order does not replace their explicit finite intervals.
+To author a block containing both features, declare all three profiles in one `Concept Struct ... On XY`, then place both the documented `Boss` and `Pocket` declarations after the unique `Base` in the same Compose. Feature declaration order does not replace their explicit finite intervals. Apply post-construction `EdgeFinish` in `Modify Body`; its semantic profile target is such as `BaseProfile.Outer`, not the primitive-only `Boundary` selector.
 
 The canonical [Boss + Pocket mounting block](../../../fixtures/Canonical/valid/boss-pocket-mounting-block.firmament) combines a cylindrical boss, through shaft hole, and shallow rectangular pocket using public Firmament only. Existing lower-level `Compose Add` / `Remove` remains compatible for bounded blockout work.
 

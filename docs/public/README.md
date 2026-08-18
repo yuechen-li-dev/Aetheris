@@ -4,7 +4,7 @@ This directory is the only authoritative in-repository guide to behavior shipped
 
 Start with [Getting Started](getting-started.md), then use these guides:
 
-- Firmament: [overview](firmament/overview.md), [syntax](firmament/syntax.md), [geometry](firmament/geometry.md), [Templates](firmament/templates.md), [materials](firmament/materials.md), [PMI](firmament/pmi.md), [Sheet Metal](firmament/sheet-metal.md), [FEA](firmament/fea.md), and [STEP import](firmament/step-import.md)
+- Firmament: [overview](firmament/overview.md), [language style](firmament/language-style.md), [syntax](firmament/syntax.md), [geometry](firmament/geometry.md), [Templates](firmament/templates.md), [materials](firmament/materials.md), [PMI](firmament/pmi.md), [Sheet Metal](firmament/sheet-metal.md), [FEA](firmament/fea.md), and [STEP import](firmament/step-import.md)
 - Interoperability: [Forge Host Protocol v1](forge/interop.md)
 - Inspection: [Cadmata](cadmata/overview.md) and [Cadmata PMI](cadmata/pmi.md)
 - Reference: [CLI](reference/cli.md), [targets/selectors](reference/targets.md), [diagnostics](reference/diagnostics.md), [supported features](reference/supported-features.md), [known issues](reference/known-issues.md), and [release notes](reference/release-notes.md)

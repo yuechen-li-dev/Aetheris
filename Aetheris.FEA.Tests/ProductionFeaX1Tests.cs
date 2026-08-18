@@ -12,20 +12,20 @@ public sealed class ProductionFeaX1Tests
     private const string CanonicalBeam = """
         Model CantileverWitness {
             Units: mm
-            solid beam: Box { size: [120, 20, 20] }
+            Box beam { Size: [120mm, 20mm, 20mm] }
             Analysis LinearElastic Cantilever {
-                body: beam
-                material: Standard.Materials.Aluminum.6061_T6
+                Body: beam
+                Material: Standard.Materials.Aluminum.6061_T6
                 Fixed Root {
-                    region: beam.face(-X)
-                    components: [X, Y, Z]
+                    Region: beam.face(-X)
+                    Components: [X, Y, Z]
                 }
                 Force Tip {
-                    region: beam.face(+X)
-                    vector: [0N, -100N, 0N]
+                    Region: beam.face(+X)
+                    Vector: [0N, -100N, 0N]
                 }
-                results: [Displacement, Strain, Stress, ReactionForce]
-                lattice: [12, 2, 2]
+                Results: [Displacement, Strain, Stress, ReactionForce]
+                Lattice: [12, 2, 2]
             }
         }
         """;
@@ -37,7 +37,14 @@ public sealed class ProductionFeaX1Tests
         var legacy = FirmamentAnalysisCompiler.Compile(CanonicalBeam
             .Replace("Analysis LinearElastic", "analysis LinearElastic", StringComparison.Ordinal)
             .Replace("Fixed Root", "fixed Root", StringComparison.Ordinal)
-            .Replace("Force Tip", "force Tip", StringComparison.Ordinal));
+            .Replace("Force Tip", "force Tip", StringComparison.Ordinal)
+            .Replace("Body:", "body:", StringComparison.Ordinal)
+            .Replace("Material:", "material:", StringComparison.Ordinal)
+            .Replace("Region:", "region:", StringComparison.Ordinal)
+            .Replace("Components:", "components:", StringComparison.Ordinal)
+            .Replace("Vector:", "vector:", StringComparison.Ordinal)
+            .Replace("Results:", "results:", StringComparison.Ordinal)
+            .Replace("Lattice:", "lattice:", StringComparison.Ordinal));
         Assert.True(canonical.IsSuccess, Describe(canonical));
         Assert.True(legacy.IsSuccess, Describe(legacy));
         Assert.Equal(canonical.Analysis!.Kind, legacy.Analysis!.Kind);

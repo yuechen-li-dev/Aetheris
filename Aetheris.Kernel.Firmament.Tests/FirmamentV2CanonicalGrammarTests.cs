@@ -19,6 +19,41 @@ public sealed class FirmamentV2CanonicalGrammarTests
         }
     }
 
+    [Theory]
+    [InlineData("Sphere Body { Radius: 7.5mm }", "solid Body: Sphere { radius: 7.5mm }")]
+    [InlineData("Cone Body { BottomRadius: 6mm TopRadius: 0mm Height: 18mm }", "solid Body: Cone { bottomRadius: 6mm topRadius: 0mm height: 18mm }")]
+    [InlineData("Torus Body { MajorRadius: 12mm MinorRadius: 3mm }", "solid Body: Torus { majorRadius: 12mm minorRadius: 3mm }")]
+    public void CanonicalAnalyticPrimitiveAndCompatibilitySolid_LowerToTheSameRecord(string canonicalDeclaration, string compatibilityDeclaration)
+    {
+        var canonical = FirmamentV2Parser.Parse($"Model Analytic {{ Units: mm {canonicalDeclaration} }}");
+        var compatibility = FirmamentV2Parser.Parse($"model Analytic {{ units mm {compatibilityDeclaration} }}");
+
+        Assert.True(canonical.IsSuccess, string.Join(Environment.NewLine, canonical.Diagnostics));
+        Assert.True(compatibility.IsSuccess, string.Join(Environment.NewLine, compatibility.Diagnostics));
+        var canonicalSolid = Assert.Single(canonical.Document!.Solids);
+        var compatibilitySolid = Assert.Single(compatibility.Document!.Solids);
+        Assert.Equal(canonicalSolid.Name, compatibilitySolid.Name);
+        Assert.Equal(canonicalSolid.RecordType, compatibilitySolid.RecordType);
+        Assert.Equal(canonicalSolid.Primitive, compatibilitySolid.Primitive);
+        var canonicalLowering = FirmamentV2BuildLowering.LowerPrimitiveBridge(canonical.Document);
+        var compatibilityLowering = FirmamentV2BuildLowering.LowerPrimitiveBridge(compatibility.Document);
+        Assert.True(canonicalLowering.IsSuccess);
+        Assert.True(compatibilityLowering.IsSuccess);
+        Assert.Equal(Assert.Single(canonicalLowering.Value.Primitives), Assert.Single(compatibilityLowering.Value.Primitives));
+    }
+
+    [Fact]
+    public void CanonicalPrimitiveFields_AcceptLowercaseCompatibilityWithoutChangingTheRoute()
+    {
+        var canonical = FirmamentV2Parser.Parse("Model X { Units: mm Box body { Size: [10mm, 20mm, 30mm] } }");
+        var mixed = FirmamentV2Parser.Parse("Model X { units: mm Box body { size: [10mm, 20mm, 30mm] } }");
+
+        Assert.True(canonical.IsSuccess, string.Join(Environment.NewLine, canonical.Diagnostics));
+        Assert.True(mixed.IsSuccess, string.Join(Environment.NewLine, mixed.Diagnostics));
+        Assert.Equal(Assert.Single(canonical.Document!.Solids).Box!.Size, Assert.Single(mixed.Document!.Solids).Box!.Size);
+        Assert.Contains("firmament-v2-unified-canonical-parsed", mixed.Diagnostics);
+    }
+
     [Fact]
     public void CanonicalFrustum_ExportsThroughTheProductionConeRoute()
     {

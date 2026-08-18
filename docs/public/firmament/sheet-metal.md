@@ -2,6 +2,31 @@
 
 Authored Sheet Metal uses a specialized semantic model: a base region, named flanges and bend strips, and cuts on named planar regions. It can emit formed STEP, thickness-bearing flat STEP, and flat SVG; it also carries material, K-factor, DFM, semantic layout, and manufacturing definitions on qualified routes.
 
+```firmament
+SheetMetal MountingBracket {
+    Thickness: 1.5mm;
+    Material: "5052-H32 Aluminum";
+    KFactor: 0.42;
+    Base: Rectangle(80mm, 50mm);
+
+    Flange Upright {
+        From: Base.Rear;
+        Length: 30mm;
+        Angle: 90deg;
+        InsideRadius: 2mm;
+        Direction: Up;
+    }
+
+    Hole Mount {
+        On: Base;
+        Center: (40mm, 20mm);
+        Diameter: 8mm;
+    }
+}
+```
+
+Sheet Metal does not use a Model `Units` declaration in this authored route; dimensional fields carry explicit units. `Thickness`, `Material`, `KFactor`, and `Base` belong directly in the `SheetMetal` body, alongside `Flange` and `Hole` declarations.
+
 [`preview3-l-bracket-hole.firmament`](../../../fixtures/SheetMetal/preview3-l-bracket-hole.firmament) is the practical first example. Build the formed part and then flatten the same source:
 
 ```powershell

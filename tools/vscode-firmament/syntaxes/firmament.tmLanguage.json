@@ -49,7 +49,7 @@
         },
         {
           "name": "keyword.declaration.firmament",
-          "match": "\\b(?:Model|Box|Cylinder|RoundedBox|Frustum|Concept|Struct|Construction|Plane|Path|Profile|Compose|Boss|Pocket|Modify|Selection|Record|Static|Table|Template|Pattern|Match|Require|Pmi|Datum|Assert|InlineStep|Recognize|Replace|EdgeFinish|Hole|Slot|Region|Segment|Loop|Base|Extrude)\\b"
+          "match": "\\b(?:Model|Units|Box|Cylinder|Cone|Sphere|Torus|RoundedBox|Frustum|Concept|Struct|Construction|Plane|Path|Profile|Compose|Boss|Pocket|Modify|Selection|Record|Static|Table|Template|Pattern|Match|Require|Pmi|Datum|HoleDiameter|Assert|InlineStep|Recognize|Replace|EdgeFinish|Hole|Slot|Region|Segment|Loop|Base|Extrude|SheetMetal|Flange|Analysis|Fixed|Force|Material|Results|Lattice)\\b"
         },
         { "name": "keyword.control.firmament", "match": "\\b(?:with|With|From|Using|On|Over|As|Current|Key)\\b" }
       ]

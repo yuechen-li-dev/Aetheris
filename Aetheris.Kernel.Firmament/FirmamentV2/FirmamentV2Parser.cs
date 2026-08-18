@@ -280,7 +280,7 @@ public static class FirmamentV2Parser
     private static readonly Regex FillRegionHeaderRegex = new(@"\bregion\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex FillHeaderRegex = new(@"\bfill\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex CanonicalModelRegex = new(@"^\s*Model\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
-    private static readonly Regex CanonicalPrimitiveHeaderRegex = new(@"\b(?<type>Box|Cylinder|RoundedBox|Frustum|StandardPart|ExactCoaxialPart)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
+    private static readonly Regex CanonicalPrimitiveHeaderRegex = new(@"\b(?<type>Box|Cylinder|Cone|Sphere|Torus|RoundedBox|Frustum|StandardPart|ExactCoaxialPart)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex CanonicalInlineStepHeaderRegex = new(@"\bInlineStep\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex CanonicalModifyHeaderRegex = new(@"\bModify\s+(?<target>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     // Match the declaration-shaped header first; variant admission belongs in the
@@ -901,7 +901,7 @@ public static class FirmamentV2Parser
 
         var known = new HashSet<string>(StringComparer.Ordinal)
         {
-            "Box", "Cylinder", "RoundedBox", "Frustum", "StandardPart", "ExactCoaxialPart", "Concept", "Struct", "Construction", "Profile", "Compose", "Boss", "Pocket", "EdgeFinish",
+            "Box", "Cylinder", "Cone", "Sphere", "Torus", "RoundedBox", "Frustum", "StandardPart", "ExactCoaxialPart", "Concept", "Struct", "Construction", "Profile", "Compose", "Boss", "Pocket", "EdgeFinish",
             "Record", "Static", "Template", "template", "ProfileDelta", "Selection", "InlineStep", "Recognize", "Replace", "Pmi", "Modify", "Match", "Require", "Assert"
         };
         var compatibilityOnly = new HashSet<string>(StringComparer.Ordinal)
@@ -949,12 +949,12 @@ public static class FirmamentV2Parser
             return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
 
         var body = source[(rootOpen + 1)..rootClose];
-        var units = Regex.Match(body, @"\bUnits\s*:\s*(?<value>[A-Za-z_][A-Za-z0-9_]*)\b", RegexOptions.CultureInvariant);
+        var units = Regex.Match(body, @"\bUnits\s*:\s*(?<value>[A-Za-z_][A-Za-z0-9_]*)\b", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
         if (!units.Success || units.Groups["value"].Value != "mm")
             return CanonicalFailure(diagnostics, CanonicalUnitsInvalid);
         if (Regex.IsMatch(body, @"\b(?!(?:InlineStep|Recognize|Replace)\b)(?:Inline[A-Za-z_][A-Za-z0-9_]*|Recogniz[A-Za-z_][A-Za-z0-9_]*|Replac[A-Za-z_][A-Za-z0-9_]*)\b", RegexOptions.CultureInvariant))
             return CanonicalFailure(diagnostics, CanonicalDeclarationUnrecognized);
-        var adapterSource = Regex.Replace(body, @"(?m)^\s*Units\s*:\s*mm\s*$", string.Empty, RegexOptions.CultureInvariant);
+        var adapterSource = Regex.Replace(body, @"(?m)^\s*Units\s*:\s*mm\s*$", string.Empty, RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
         if (TryParseExactCoaxialTemplateDocument(adapterSource, model.Groups["name"].Value, templateInstantiations, diagnostics, out var exactDocument))
             return FirmamentV2ParseResult.Success(exactDocument!, diagnostics.Append("firmament-v2-exact-coaxial-template-parsed").Append("firmament-v2-parse-succeeded").Distinct(StringComparer.Ordinal).Order().ToArray());
@@ -1357,7 +1357,7 @@ public static class FirmamentV2Parser
             return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
 
         var body = source[(rootOpen + 1)..rootClose];
-        var units = Regex.Match(body, @"\bUnits\s*:\s*(?<value>[A-Za-z_][A-Za-z0-9_]*)\b", RegexOptions.CultureInvariant);
+        var units = Regex.Match(body, @"\bUnits\s*:\s*(?<value>[A-Za-z_][A-Za-z0-9_]*)\b", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
         if (!units.Success || units.Groups["value"].Value != "mm")
             return CanonicalFailure(diagnostics, CanonicalUnitsInvalid);
         if (Regex.IsMatch(body, @"\b(?!(?:InlineStep|Recognize|Replace)\b)(?:Inline[A-Za-z_][A-Za-z0-9_]*|Recogniz[A-Za-z_][A-Za-z0-9_]*|Recognis[A-Za-z_][A-Za-z0-9_]*|Replac[A-Za-z_][A-Za-z0-9_]*)\b", RegexOptions.CultureInvariant))
@@ -1426,14 +1426,14 @@ public static class FirmamentV2Parser
 
     private static FirmamentV2PrimitiveRecord? ParseCanonicalPrimitive(string type, string body, List<string> diagnostics)
     {
-        double Number(string field)
+        double Number(string field, bool allowZero = false)
         {
-            var match = Regex.Match(body, $@"\b{field}\s*:\s*(?<value>[-+0-9.eE]+)mm\b", RegexOptions.CultureInvariant);
-            return match.Success && double.TryParse(match.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) && double.IsFinite(value) && value > 0d ? value : double.NaN;
+            var match = Regex.Match(body, $@"\b{field}\s*:\s*(?<value>[-+0-9.eE]+)mm\b", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+            return match.Success && double.TryParse(match.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) && double.IsFinite(value) && (allowZero ? value >= 0d : value > 0d) ? value : double.NaN;
         }
         IReadOnlyList<double>? Size()
         {
-            var match = Regex.Match(body, @"\bSize\s*:\s*\[(?<values>[^\]]+)\]", RegexOptions.CultureInvariant);
+            var match = Regex.Match(body, @"\bSize\s*:\s*\[(?<values>[^\]]+)\]", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
             if (!match.Success) return null;
             var values = match.Groups["values"].Value.Split(',', StringSplitOptions.TrimEntries);
             var parsed = values.Select(ParsePhase3Length).ToArray();
@@ -1461,6 +1461,9 @@ public static class FirmamentV2Parser
         {
             "Box" when Size() is { } size => new FirmamentV2BoxRecord(size, []),
             "Cylinder" when Number("Radius") is var radius && Number("Height") is var height && double.IsFinite(radius) && double.IsFinite(height) => new FirmamentV2CylinderRecord(radius, height),
+            "Cone" when Number("BottomRadius") is var coneBottom && Number("TopRadius", allowZero: true) is var coneTop && Number("Height") is var coneHeight && double.IsFinite(coneBottom) && double.IsFinite(coneTop) && double.IsFinite(coneHeight) => new FirmamentV2ConeRecord(coneBottom, coneTop, coneHeight),
+            "Sphere" when Number("Radius") is var sphereRadius && double.IsFinite(sphereRadius) => new FirmamentV2SphereRecord(sphereRadius),
+            "Torus" when Number("MajorRadius") is var majorRadius && Number("MinorRadius") is var minorRadius && double.IsFinite(majorRadius) && double.IsFinite(minorRadius) && majorRadius > minorRadius => new FirmamentV2TorusRecord(majorRadius, minorRadius),
             "RoundedBox" when Size() is { } roundedSize && Number("CornerRadius") is var corner && double.IsFinite(corner) && corner < double.Min(roundedSize[0], roundedSize[1]) / 2d => new FirmamentV2RoundedBoxRecord(roundedSize, corner),
             "Frustum" when Number("BottomRadius") is var bottom && Number("TopRadius") is var top && Number("Height") is var frustumHeight && double.IsFinite(bottom) && double.IsFinite(top) && double.IsFinite(frustumHeight) && double.Abs(bottom - top) > 1e-12d => new FirmamentV2FrustumRecord(bottom, top, frustumHeight),
             "StandardPart" => StandardPart(),

@@ -104,10 +104,16 @@ public static class FirmamentAnalysisCompiler
         else
         {
             var parse=FirmamentV2Parser.Parse(stripped,sourceDirectory);
-            var units=Regex.Match(stripped,@"\bunits\s*:?\s*(?<u>[A-Za-z]+)",RegexOptions.CultureInvariant|RegexOptions.IgnoreCase).Groups["u"].Value;
-            var boxHeader=Regex.Match(stripped,$@"\bsolid\s+{Regex.Escape(bodyName)}\s*:\s*Box\s*\{{",RegexOptions.CultureInvariant|RegexOptions.IgnoreCase);
-            if(!boxHeader.Success){diagnostics.Add(Error("firmament-analysis-body-unsupported",$"Body '{bodyName}' is not a Firmament Box/box-with-hole solid.",sourcePath));return Done(null,diagnostics,started);}
-            var boxOpen=stripped.IndexOf('{',boxHeader.Index);var boxClose=MatchingBrace(stripped,boxOpen);var sizeRaw=Numbers(Scalar(stripped[(boxOpen+1)..boxClose],"size"));
+            var parsedBox=parse.Document?.Solids.SingleOrDefault(item=>item.Name==bodyName)?.Box;
+            var units=parse.Document?.Units??Regex.Match(stripped,@"\bunits\s*:?\s*(?<u>[A-Za-z]+)",RegexOptions.CultureInvariant|RegexOptions.IgnoreCase).Groups["u"].Value;
+            double[] sizeRaw;
+            if(parsedBox is not null)sizeRaw=parsedBox.Size.ToArray();
+            else
+            {
+                var boxHeader=Regex.Match(stripped,$@"\bsolid\s+{Regex.Escape(bodyName)}\s*:\s*Box\s*\{{",RegexOptions.CultureInvariant|RegexOptions.IgnoreCase);
+                if(!boxHeader.Success){diagnostics.Add(Error("firmament-analysis-body-unsupported",$"Body '{bodyName}' is not a Firmament Box/box-with-hole solid.",sourcePath));return Done(null,diagnostics,started);}
+                var boxOpen=stripped.IndexOf('{',boxHeader.Index);var boxClose=MatchingBrace(stripped,boxOpen);sizeRaw=Numbers(Scalar(stripped[(boxOpen+1)..boxClose],"size"));
+            }
             if(sizeRaw.Length!=3){diagnostics.Add(Error("firmament-analysis-body-size-invalid",$"Body '{bodyName}' requires three Box dimensions.",sourcePath));return Done(null,diagnostics,started);}
             var scale=UnitScale(units);if(scale is null){diagnostics.Add(Error("firmament-analysis-length-unit-unsupported",$"Analysis body length unit '{units}' is unsupported; use mm, cm, or m.",sourcePath));return Done(null,diagnostics,started);}
             var size=sizeRaw.Select(value=>value*scale.Value).ToArray();var bounds=new BoundingBox3D(new(0,0,0),new(size[0],size[1],size[2]));

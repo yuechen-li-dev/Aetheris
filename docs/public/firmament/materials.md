@@ -3,7 +3,7 @@
 Firmament refers to catalog materials semantically, for example:
 
 ```firmament
-material: Standard.Materials.Aluminum.5052_H32
+Material: Standard.Materials.Aluminum.5052_H32
 ```
 
 Preview 3 ships four catalog entries:

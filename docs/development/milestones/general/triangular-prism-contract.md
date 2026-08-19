@@ -36,7 +36,7 @@ Example (`w=20, d=12, h=10`) yields bbox min `(-10, -6, 0)` max `(10, 6, 10)`.
 
 ## Canonical example
 
-- `fixtures/LegacyV1/Examples/triangular_prism_basic.firmament`
+- `fixtures/Compatibility/LegacyV1/Examples/triangular_prism_basic.firmament`
 
 This example is used by tests that assert both topology counts and analyze JSON bounding-box facts.
 

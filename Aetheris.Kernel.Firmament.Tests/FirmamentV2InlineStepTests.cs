@@ -5,8 +5,8 @@ namespace Aetheris.Kernel.Firmament.Tests;
 
 public sealed class FirmamentV2InlineStepTests
 {
-    private const string FixturePath = "fixtures/InlineStep/valid/inline-step-v2-canonical-box-reexport-step-verified.valid.firmfixture";
-    private const string InputStepPath = "fixtures/InlineStep/testdata/canonical-box-10x8x6.step";
+    private const string FixturePath = "fixtures/Regression/InlineStep/valid/inline-step-v2-canonical-box-reexport-step-verified.valid.firmfixture";
+    private const string InputStepPath = "testdata/firmament/inline-step/canonical-box-10x8x6.step";
 
     [Fact]
     public void InlineStep_CanonicalBox_ReexportsAndRoundTripsThroughAp242()
@@ -58,7 +58,7 @@ public sealed class FirmamentV2InlineStepTests
     public void InlineStep_SemanticPmiOnCanonicalFace_ExportsReimportsAndKeepsGeometry(string fixtureId, string primaryEvidence, string secondaryEvidence, double expectedVolume)
     {
         var repo = FindRepoRoot();
-        var fixturePath = Path.Combine(repo, $"fixtures/InlineStep/valid/{fixtureId}.valid.firmfixture");
+        var fixturePath = Path.Combine(repo, $"fixtures/Regression/InlineStep/valid/{fixtureId}.valid.firmfixture");
         var outputPath = Path.Combine(Path.GetTempPath(), $"aetheris-inline-step-x2-{Guid.NewGuid():N}.step");
         try
         {
@@ -97,8 +97,8 @@ public sealed class FirmamentV2InlineStepTests
     public void InlineStep_RecognizedRegion_ParsesAndStoresMetadata()
     {
         var repo = FindRepoRoot();
-        var source = File.ReadAllText(Path.Combine(repo, "fixtures/InlineStep/valid/inline-step-v2-recognized-face-datum-pmi-emits-in-step.valid.firmfixture"));
-        var parse = FirmamentV2Parser.Parse(source, Path.Combine(repo, "fixtures/InlineStep/valid"));
+        var source = File.ReadAllText(Path.Combine(repo, "fixtures/Regression/InlineStep/valid/inline-step-v2-recognized-face-datum-pmi-emits-in-step.valid.firmfixture"));
+        var parse = FirmamentV2Parser.Parse(source, Path.Combine(repo, "fixtures/Regression/InlineStep/valid"));
 
         Assert.True(parse.IsSuccess, string.Join(Environment.NewLine, parse.Diagnostics));
         var region = Assert.Single(parse.Document!.RecognizedRegions!);
@@ -117,9 +117,9 @@ public sealed class FirmamentV2InlineStepTests
     public void InlineStep_InvalidRecognitionMetadata_RejectsDeterministically(string regionBody, string diagnostic)
     {
         var source = $$"""
-model BadRecognition { units mm solid importedPart: InlineStep { path: "../testdata/canonical-box-10x8x6.step" } recognize importedPart { region topFace { {{regionBody}} } } }
+model BadRecognition { units mm solid importedPart: InlineStep { path: "../../../../testdata/firmament/inline-step/canonical-box-10x8x6.step" } recognize importedPart { region topFace { {{regionBody}} } } }
 """;
-        var parse = FirmamentV2Parser.Parse(source, Path.Combine(FindRepoRoot(), "fixtures/InlineStep/valid"));
+        var parse = FirmamentV2Parser.Parse(source, Path.Combine(FindRepoRoot(), "fixtures/Regression/InlineStep/valid"));
 
         Assert.False(parse.IsSuccess);
         Assert.Contains(diagnostic, parse.Diagnostics);
@@ -133,9 +133,9 @@ model BadRecognition { units mm solid importedPart: InlineStep { path: "../testd
     public void InlineStep_InvalidRecognizedTargets_RejectDeterministically(string tail, string diagnostic)
     {
         var source = $$"""
-model BadRecognitionTarget { units mm solid importedPart: InlineStep { path: "../testdata/canonical-box-10x8x6.step" } {{tail}} }
+model BadRecognitionTarget { units mm solid importedPart: InlineStep { path: "../../../../testdata/firmament/inline-step/canonical-box-10x8x6.step" } {{tail}} }
 """;
-        var parse = FirmamentV2Parser.Parse(source, Path.Combine(FindRepoRoot(), "fixtures/InlineStep/valid"));
+        var parse = FirmamentV2Parser.Parse(source, Path.Combine(FindRepoRoot(), "fixtures/Regression/InlineStep/valid"));
 
         Assert.False(parse.IsSuccess);
         Assert.Contains(diagnostic, parse.Diagnostics);
@@ -148,8 +148,8 @@ model BadRecognitionTarget { units mm solid importedPart: InlineStep { path: "..
     public void InlineStep_InvalidImportedPmiTargets_RejectDeterministically(string fixtureName, string diagnostic)
     {
         var repo = FindRepoRoot();
-        var source = File.ReadAllText(Path.Combine(repo, "fixtures/InlineStep/invalid", fixtureName));
-        var parse = FirmamentV2Parser.Parse(source, Path.Combine(repo, "fixtures/InlineStep/invalid"));
+        var source = File.ReadAllText(Path.Combine(repo, "fixtures/Compatibility/LegacyAliases/Invalid/InlineStep", fixtureName));
+        var parse = FirmamentV2Parser.Parse(source, Path.Combine(repo, "fixtures/Compatibility/LegacyAliases/Invalid/InlineStep"));
 
         Assert.False(parse.IsSuccess);
         Assert.Contains(diagnostic, parse.Diagnostics);
@@ -160,7 +160,7 @@ model BadRecognitionTarget { units mm solid importedPart: InlineStep { path: "..
     public void InlineStep_RecognizedRegion_ParsesEvidenceAndSemanticProposalMetadataOnly()
     {
         var repo = FindRepoRoot();
-        var fixturePath = Path.Combine(repo, "fixtures/InlineStep/valid/inline-step-v2-recognized-hole-proposal-report.valid.firmfixture");
+        var fixturePath = Path.Combine(repo, "fixtures/Regression/InlineStep/valid/inline-step-v2-recognized-hole-proposal-report.valid.firmfixture");
         var parse = FirmamentV2Parser.Parse(File.ReadAllText(fixturePath), Path.GetDirectoryName(fixturePath));
 
         Assert.True(parse.IsSuccess, string.Join(Environment.NewLine, parse.Diagnostics));
@@ -192,9 +192,9 @@ model BadRecognitionTarget { units mm solid importedPart: InlineStep { path: "..
     public void InlineStep_InvalidEvidenceOrProposal_RejectsDeterministically(string metadata, string diagnostic)
     {
         var source = $$"""
-model BadRecognitionProposal { units mm solid importedPart: InlineStep { path: "../testdata/canonical-through-hole.step" } recognize importedPart { region mountHole { kind: hole<shaft> faces: ["#191"] confidence: high {{metadata}} } } }
+model BadRecognitionProposal { units mm solid importedPart: InlineStep { path: "../../../../testdata/firmament/inline-step/canonical-through-hole.step" } recognize importedPart { region mountHole { kind: hole<shaft> faces: ["#191"] confidence: high {{metadata}} } } }
 """;
-        var parse = FirmamentV2Parser.Parse(source, Path.Combine(FindRepoRoot(), "fixtures/InlineStep/valid"));
+        var parse = FirmamentV2Parser.Parse(source, Path.Combine(FindRepoRoot(), "fixtures/Regression/InlineStep/valid"));
 
         Assert.False(parse.IsSuccess);
         Assert.Contains(diagnostic, parse.Diagnostics);
@@ -279,7 +279,7 @@ model BadRecognitionProposal { units mm solid importedPart: InlineStep { path: "
     private static FirmamentV2ParseResult ParseRecognizedHoleProposalFixture()
     {
         var repo = FindRepoRoot();
-        var fixturePath = Path.Combine(repo, "fixtures/InlineStep/valid/inline-step-v2-recognized-hole-proposal-report.valid.firmfixture");
+        var fixturePath = Path.Combine(repo, "fixtures/Regression/InlineStep/valid/inline-step-v2-recognized-hole-proposal-report.valid.firmfixture");
         var parse = FirmamentV2Parser.Parse(File.ReadAllText(fixturePath), Path.GetDirectoryName(fixturePath));
         Assert.True(parse.IsSuccess, string.Join(Environment.NewLine, parse.Diagnostics));
         return parse;
@@ -307,7 +307,7 @@ model BadRecognitionProposal { units mm solid importedPart: InlineStep { path: "
     public void InlineStep_ReplacementDeclaration_ParsesAndReferencesRecognizedRegion()
     {
         var repo = FindRepoRoot();
-        var fixturePath = Path.Combine(repo, "fixtures/InlineStep/valid/inline-step-v2-replace-through-hole-step-verified.valid.firmfixture");
+        var fixturePath = Path.Combine(repo, "fixtures/Regression/InlineStep/valid/inline-step-v2-replace-through-hole-step-verified.valid.firmfixture");
         var parse = FirmamentV2Parser.Parse(File.ReadAllText(fixturePath), Path.GetDirectoryName(fixturePath));
 
         Assert.True(parse.IsSuccess, string.Join(Environment.NewLine, parse.Diagnostics));
@@ -332,9 +332,9 @@ model BadRecognitionProposal { units mm solid importedPart: InlineStep { path: "
     {
         var recognition = tail.Contains("recognize importedPart", StringComparison.Ordinal) ? string.Empty : "recognize importedPart { region mountHole { kind: holeShaft faces: [\"#191\"] confidence: high } }";
         var source = $$"""
-model BadReplacement { units mm solid importedPart: InlineStep { path: "../testdata/canonical-through-hole.step" } {{recognition}} {{tail}} }
+model BadReplacement { units mm solid importedPart: InlineStep { path: "../../../../testdata/firmament/inline-step/canonical-through-hole.step" } {{recognition}} {{tail}} }
 """;
-        var parse = FirmamentV2Parser.Parse(source, Path.Combine(FindRepoRoot(), "fixtures/InlineStep/valid"));
+        var parse = FirmamentV2Parser.Parse(source, Path.Combine(FindRepoRoot(), "fixtures/Regression/InlineStep/valid"));
 
         Assert.False(parse.IsSuccess);
         Assert.Contains(diagnostic, parse.Diagnostics);
@@ -344,7 +344,7 @@ model BadReplacement { units mm solid importedPart: InlineStep { path: "../testd
     public void InlineStep_ReplacementFixture_ExportsReimportsAndKeepsSingleThroughHoleVolume()
     {
         var repo = FindRepoRoot();
-        var fixturePath = Path.Combine(repo, "fixtures/InlineStep/valid/inline-step-v2-replace-through-hole-step-verified.valid.firmfixture");
+        var fixturePath = Path.Combine(repo, "fixtures/Regression/InlineStep/valid/inline-step-v2-replace-through-hole-step-verified.valid.firmfixture");
         var outputPath = Path.Combine(Path.GetTempPath(), $"aetheris-inline-step-x4-{Guid.NewGuid():N}.step");
         try
         {
@@ -368,7 +368,7 @@ model BadReplacement { units mm solid importedPart: InlineStep { path: "../testd
     public void InlineStep_MigrationReport_RecognizedOnlyCountsResidualCoverage()
     {
         var repo = FindRepoRoot();
-        var fixturePath = Path.Combine(repo, "fixtures/InlineStep/valid/inline-step-v2-recognized-face-datum-pmi-emits-in-step.valid.firmfixture");
+        var fixturePath = Path.Combine(repo, "fixtures/Regression/InlineStep/valid/inline-step-v2-recognized-face-datum-pmi-emits-in-step.valid.firmfixture");
         var parse = FirmamentV2Parser.Parse(File.ReadAllText(fixturePath), Path.GetDirectoryName(fixturePath));
         Assert.True(parse.IsSuccess, string.Join(Environment.NewLine, parse.Diagnostics));
 
@@ -390,7 +390,7 @@ model BadReplacement { units mm solid importedPart: InlineStep { path: "../testd
     public void InlineStep_MigrationReport_RecognizedProposalCountsDoNotReplace()
     {
         var repo = FindRepoRoot();
-        var fixturePath = Path.Combine(repo, "fixtures/InlineStep/valid/inline-step-v2-recognized-hole-proposal-report.valid.firmfixture");
+        var fixturePath = Path.Combine(repo, "fixtures/Regression/InlineStep/valid/inline-step-v2-recognized-hole-proposal-report.valid.firmfixture");
         var parse = FirmamentV2Parser.Parse(File.ReadAllText(fixturePath), Path.GetDirectoryName(fixturePath));
         Assert.True(parse.IsSuccess, string.Join(Environment.NewLine, parse.Diagnostics));
 
@@ -414,7 +414,7 @@ model BadReplacement { units mm solid importedPart: InlineStep { path: "../testd
     public void InlineStep_MigrationReport_VerifiedReplacementCountsReplacedFaces()
     {
         var repo = FindRepoRoot();
-        var fixturePath = Path.Combine(repo, "fixtures/InlineStep/valid/inline-step-v2-replace-through-hole-step-verified.valid.firmfixture");
+        var fixturePath = Path.Combine(repo, "fixtures/Regression/InlineStep/valid/inline-step-v2-replace-through-hole-step-verified.valid.firmfixture");
         var parse = FirmamentV2Parser.Parse(File.ReadAllText(fixturePath), Path.GetDirectoryName(fixturePath));
         Assert.True(parse.IsSuccess, string.Join(Environment.NewLine, parse.Diagnostics));
 
@@ -462,12 +462,12 @@ model BadInlineStep {
     units mm
 
     solid importedPart: InlineStep {
-        path: "../../../testdata/step242/generated/v0-required/gen_box_v0.step"
+        path: "../../../../testdata/step242/generated/v0-required/gen_box_v0.step"
     }
 }
 """;
 
-        var parse = FirmamentV2Parser.Parse(source, Path.Combine(FindRepoRoot(), "fixtures/InlineStep/valid"));
+        var parse = FirmamentV2Parser.Parse(source, Path.Combine(FindRepoRoot(), "fixtures/Regression/InlineStep/valid"));
 
         Assert.False(parse.IsSuccess);
         Assert.Contains(FirmamentV2Parser.InlineStepRequiresCanonical, parse.Diagnostics);

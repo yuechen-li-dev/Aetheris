@@ -36,7 +36,7 @@ public sealed class FirmamentManufacturingPolicyTests
     public void HistoricalLowercaseCncTemplate_RemainsACompatibilityInput()
     {
         var parse = FirmamentV2Parser.Parse(File.ReadAllText(Path.Combine(
-            FirmamentCorpusHarness.RepoRoot(), "fixtures", "Templates", "invalid", "template-v2-cnc-min-tool-radius-enforced.invalid.firmfixture")));
+            FirmamentCorpusHarness.RepoRoot(), "fixtures", "Compatibility", "LegacyAliases", "Invalid", "Templates", "template-v2-cnc-min-tool-radius-enforced.invalid.firmfixture")));
         Assert.True(parse.IsSuccess, string.Join(Environment.NewLine, parse.Diagnostics));
         var dfm = FirmamentV2DfmEnforcement.Validate(parse.Document!);
 
@@ -45,5 +45,5 @@ public sealed class FirmamentManufacturingPolicyTests
     }
 
     private static string Source(string fixture) => File.ReadAllText(Path.Combine(
-        FirmamentCorpusHarness.RepoRoot(), "fixtures", "Templates", "Canonical", fixture));
+        FirmamentCorpusHarness.RepoRoot(), "fixtures", "Canonical", "Templates", fixture));
 }

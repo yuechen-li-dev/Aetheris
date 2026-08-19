@@ -4,9 +4,9 @@ STEP-V2-X3 promotes Tier 3 Firmament V2 source-composition fixtures from parser/
 
 ## Fixture paths
 
-- `fixtures/RecordDerivation/valid/derivation-v2-with-size-override-step-verified.valid.firmfixture`
-- `fixtures/RecordDerivation/valid/derivation-v2-with-chained-twice-step-verified.valid.firmfixture`
-- `fixtures/SemanticRefs/valid/semanticref-v2-expose-face-alias-resolves-in-step.valid.firmfixture`
+- `fixtures/Regression/RecordDerivation/valid/derivation-v2-with-size-override-step-verified.valid.firmfixture`
+- `fixtures/Regression/RecordDerivation/valid/derivation-v2-with-chained-twice-step-verified.valid.firmfixture`
+- `fixtures/Regression/SemanticRefs/valid/semanticref-v2-expose-face-alias-resolves-in-step.valid.firmfixture`
 
 The repository's existing V2 derivation convention is `RecordDerivation`, so X3 keeps the new derivation fixtures there instead of creating a parallel `Derivation` tree.
 

@@ -34,7 +34,7 @@ Typed failures are `SemanticSourceNotFound`, `NoMaterializedDescendants`, `Ambig
 
 ## Production proof
 
-`fixtures/Profile/valid/semantic-top-boundary-chamfer.firmament` resolves the four authored perimeter segments into a closed top-boundary chain, then feeds that validated semantic selection to the admitted rectangular top-loop chamfer route. The finish route emits its changed authoritative BRepPlan; it does not use a raw edge id or a finished-topology search.
+`fixtures/Regression/Profile/valid/semantic-top-boundary-chamfer.firmament` resolves the four authored perimeter segments into a closed top-boundary chain, then feeds that validated semantic selection to the admitted rectangular top-loop chamfer route. The finish route emits its changed authoritative BRepPlan; it does not use a raw edge id or a finished-topology search.
 
 The verification artifact is `artifacts/semantic-top-boundary-chamfer.step`, SHA-256 `3821ecb87303402c84abb2c07b3e92e916ff8887049120c7d83362d048be2c06`. Ordinary analysis reports one body, one shell, 10 faces, and `enclosed-manifold`. M8 reimport reports `isEnclosed: true` and `isOrientationConsistent: true`; external inspection remains honestly `ExternalInspectionPending`.
 

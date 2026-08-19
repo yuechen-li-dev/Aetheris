@@ -46,8 +46,8 @@ Feature AIR retains primitive parameters, policy, wall thickness, opening intent
 The production route invokes `BrepExportPreflightMode.Enforce`, emits planes/cylinders/circles for the rounded vessel and planes/cones/circles for the frustum vessel, then reimports the STEP artifact. Canonical fixture evidence is produced by:
 
 ```text
-fixtures/LegacyV1/Experiments/air-thinwall-m7/rounded-enclosure.firmament
-fixtures/LegacyV1/Experiments/air-thinwall-m7/frustum-cup.firmament
+fixtures/Compatibility/LegacyV1/Experiments/air-thinwall-m7/rounded-enclosure.firmament
+fixtures/Compatibility/LegacyV1/Experiments/air-thinwall-m7/frustum-cup.firmament
 ```
 
 The CLI reports the witness, exactness, topology and surface counts, deterministic plan signature, analytic volume expression, STEP SHA-256, and reimport result. Independent CAD Assistant inspection is not automated by this repository route and is therefore pending external review; no CAD Assistant admission is claimed here.

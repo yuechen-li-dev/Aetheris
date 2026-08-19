@@ -12,7 +12,7 @@
 
 ## PSU enclosure
 
-[`m4-psu-enclosure.firmament`](../../../../../../../fixtures/SheetMetal/m4-psu-enclosure.firmament) is 18 noncomment, nonblank source lines with one base, five flanges, four mounting holes, and three vent cuts. It uses `Main.Front`, `Main.Right`, `Main.Rear`, `Main.Left`, and nested `FrontWall.Outer`; it contains no raw region/face/edge/BRep IDs.
+[`m4-psu-enclosure.firmament`](../../../../../../../fixtures/Regression/CanonicalGeometry/power-supply-enclosure-m4.firmament) is 18 noncomment, nonblank source lines with one base, five flanges, four mounting holes, and three vent cuts. It uses `Main.Front`, `Main.Right`, `Main.Rear`, `Main.Left`, and nested `FrontWall.Outer`; it contains no raw region/face/edge/BRep IDs.
 
 Real-path result:
 

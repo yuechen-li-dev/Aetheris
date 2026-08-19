@@ -92,7 +92,7 @@ M1 CLI evidence: `asm inspect` migrated the OCCT AS1 JSON fixture to AssemblyIR 
 | `docs/development/history/firmament/preview2-reference/language-reference.md` former “`.firmasm` is a Legacy compatibility format” sentence | contradicted the same page and implementation | corrected in M1 to distinguish current profile from legacy JSON syntax |
 | `FirmasmAssemblyRoundtripExporter` package field `nativeAuthority = ".firmasm"` | ambiguous when input is legacy JSON | update in M2 to a named legacy format identity or current AssemblyIR authority |
 | CLI command names `asm exec` / `asm export` | accept only the legacy JSON direct path despite general `.firmasm` wording | document/deprecate or rename as legacy in M2; keep aliases for compatibility |
-| `fixtures/Assembly/LegacyImports` READMEs call JSON manifests `.firmasm` contracts without consistently saying legacy | historical ambiguity | update labels in M2; retain fixtures |
+| `fixtures/Compatibility/Firmasm/LegacyAssembly` READMEs call JSON manifests `.firmasm` contracts without consistently saying legacy | historical ambiguity | update labels in M2; retain fixtures |
 | historical assembly artifact docs | correctly record transform-first limitations but sometimes predate current profile | retain as historical and add context, do not rewrite history |
 
 ## Proposed M2 ownership

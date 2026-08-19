@@ -55,8 +55,8 @@ So the exported body is tied to execution success, not simply to the last textua
 
 ## Where examples and artifacts live
 
-- example source files: `fixtures/LegacyV1/Examples/`
-- existing fixture corpus used by implementation tests: `fixtures/LegacyV1/Corpus/`
+- example source files: `fixtures/Compatibility/LegacyV1/Examples/`
+- existing fixture corpus used by implementation tests: `fixtures/Compatibility/LegacyV1/Corpus/`
 - generated STEP artifacts checked by exporter tests and demo helper flows: `testdata/step242/golden/firmament-v1/`
 
 ## How to review the golden path today

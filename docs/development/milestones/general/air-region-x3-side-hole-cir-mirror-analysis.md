@@ -36,7 +36,7 @@ Actual CIR evaluator/tape composition is deferred. X3 intentionally implements a
 
 ## Fixture path and expected trace stage
 
-Fixture: `fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture`.
+Fixture: `fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture`.
 
 Expected stage advances to `region-cir-mirror` because the fixture now reports an admitted region CIR mirror summary. Parent integration remains `Deferred` on the region yield.
 

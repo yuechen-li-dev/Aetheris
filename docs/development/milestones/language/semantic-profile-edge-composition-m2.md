@@ -68,7 +68,7 @@ Plate.Bottom.MountTab.Curve00
 Template expansion runs before edge binding. A generic Template test varies
 plate/tab dimensions and proves that `Plate.Bottom.MountTab` survives
 specialization. The non-Sheet-Metal dogfood fixture is
-`fixtures/Canonical/valid/profile-edge-attachment-plate.firmament`;
+`fixtures/Regression/CanonicalGeometry/profile-edge-attachment-plate.firmament`;
 it validates, extrudes, exports STEP, and reimports as one enclosed manifold.
 
 ## Diagnostics exercised

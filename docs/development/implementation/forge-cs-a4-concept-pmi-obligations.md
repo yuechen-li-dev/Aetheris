@@ -147,10 +147,10 @@ Added/report-updated coverage for:
 
 Added fixtures:
 
-- `fixtures/Language/valid/concept-pmi-obligation-satisfied.valid.firmfixture`
-- `fixtures/Language/valid/concept-pmi-obligation-missing-warning.valid.firmfixture`
-- `fixtures/Language/valid/concept-pmi-obligation-with-deferred-export.valid.firmfixture`
-- `fixtures/Language/invalid/concept-pmi-obligation-invalid-countersink.invalid.firmfixture`
+- `fixtures/Regression/Language/valid/concept-pmi-obligation-satisfied.valid.firmfixture`
+- `fixtures/Regression/Language/valid/concept-pmi-obligation-missing-warning.valid.firmfixture`
+- `fixtures/Regression/Language/valid/concept-pmi-obligation-with-deferred-export.valid.firmfixture`
+- `fixtures/Compatibility/LegacyAliases/Invalid/Language/concept-pmi-obligation-invalid-countersink.invalid.firmfixture`
 
 Also normalized missing fixture metadata on several existing Firmament V2 fixtures so corpus-style CLI tests can classify them consistently.
 

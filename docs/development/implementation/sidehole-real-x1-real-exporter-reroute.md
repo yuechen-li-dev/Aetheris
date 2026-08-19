@@ -7,7 +7,7 @@ The current CLI-visible side-hole artifact path was `aetheris trace --fixture ..
 The parser/lowering path for the locked V2 fixture already existed at:
 
 ```text
-fixtures/Region/valid/feature-v2-side-hole-step-verified.valid.firmfixture
+fixtures/Regression/Region/valid/feature-v2-side-hole-step-verified.valid.firmfixture
 ```
 
 The fixture parses as a box-like host (`Box size [10, 8, 6]`) with a controlled `region sideHole on face(+X)` and `through: face(-X)`, radius `1`, centered in the face-local frame. The route policy still admits only the existing locked +X/-X side-hole path; this milestone did not broaden side-hole admissibility.
@@ -33,13 +33,13 @@ Implementation note: the existing exact box-minus-Z-cylinder BRep builder is reu
 Fixture:
 
 ```text
-fixtures/Region/valid/feature-v2-side-hole-step-verified.valid.firmfixture
+fixtures/Regression/Region/valid/feature-v2-side-hole-step-verified.valid.firmfixture
 ```
 
 CLI build path:
 
 ```bash
-dotnet run --project Aetheris.CLI -f net10.0 -- build fixtures/Region/valid/feature-v2-side-hole-step-verified.valid.firmfixture --out "$tmp/feature-v2-side-hole.step" --json
+dotnet run --project Aetheris.CLI -f net10.0 -- build fixtures/Regression/Region/valid/feature-v2-side-hole-step-verified.valid.firmfixture --out "$tmp/feature-v2-side-hole.step" --json
 ```
 
 Volume analysis path:

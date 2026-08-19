@@ -26,9 +26,9 @@ This is intentionally not full decompilation: no automatic recognition, no raw v
 
 ## Fixture
 
-Fixture: `fixtures/InlineStep/valid/inline-step-v2-replace-through-hole-step-verified.valid.firmfixture`.
+Fixture: `fixtures/Regression/InlineStep/valid/inline-step-v2-replace-through-hole-step-verified.valid.firmfixture`.
 
-Input canonical STEP: `fixtures/InlineStep/testdata/canonical-through-hole.step`.
+Input canonical STEP: `testdata/firmament/inline-step/canonical-through-hole.step`.
 
 Expected volume: `480 - pi * 1^2 * 6 = 461.15044407846125`.
 

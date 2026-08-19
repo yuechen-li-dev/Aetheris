@@ -50,7 +50,7 @@ public sealed class AssemblyM0Tests
     [Fact]
     public void BearingModule_CompilesTreeMatesPlacementFitAndAutomaticStackup()
     {
-        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/AssemblyM0/bearing-module.firmament");
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/Assembly/bearing-module.firmament");
         var result = new AssemblyM0Pipeline().CompileFile(path);
 
         Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(x => $"{x.Code}: {x.Message}")));
@@ -85,7 +85,7 @@ public sealed class AssemblyM0Tests
     [Fact]
     public void RepeatedCompilation_IsDeterministicExceptPerformanceTelemetry()
     {
-        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/AssemblyM0/bearing-module.firmament");
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/Assembly/bearing-module.firmament");
         var pipeline = new AssemblyM0Pipeline();
         var first = pipeline.CompileFile(path).Ir!;
         var second = pipeline.CompileFile(path).Ir!;
@@ -151,7 +151,7 @@ public sealed class AssemblyM0Tests
     [Fact]
     public void FailingStackup_ReportsTypedFailureAndPreservesFullChain()
     {
-        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/AssemblyM0/bearing-module-failing.firmament");
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Invalid/Assembly/bearing-module-tolerance-failure.firmament");
         var result = new AssemblyM0Pipeline().CompileFile(path);
         Assert.False(result.IsSuccess);
         Assert.Contains(result.Diagnostics, x => x.Code == AssemblyM0Compiler.ToleranceAssertionFailure);
@@ -239,7 +239,7 @@ public sealed class AssemblyM0Tests
     [Fact]
     public void LegacyFirmasm_LoadsWithDeprecationDiagnostic()
     {
-        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Assembly/LegacyImports/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Compatibility/Firmasm/LegacyAssembly/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
         var result = new FirmasmManifestLoader().LoadFromFile(path);
         Assert.True(result.IsSuccess);
         Assert.Contains(result.Diagnostics, x => x.Message.StartsWith("legacy-firmasm-syntax:", StringComparison.Ordinal));

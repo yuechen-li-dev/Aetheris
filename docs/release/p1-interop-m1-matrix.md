@@ -54,7 +54,7 @@ import.
 
 | Workflow | Fixture / evidence | Result | Boundary |
 | --- | --- | --- | --- |
-| Analyze | `fixtures/InlineStep/testdata/canonical-through-hole.step`; `aetheris analyze --json` | pass | Sequential IDs are contiguous and expose raw STEP traceability; `Source.Face(7)` is authoring vocabulary, not `ADVANCED_FACE #…`. |
+| Analyze | `testdata/firmament/inline-step/canonical-through-hole.step`; `aetheris analyze --json` | pass | Sequential IDs are contiguous and expose raw STEP traceability; `Source.Face(7)` is authoring vocabulary, not `ADVANCED_FACE #…`. |
 | InlineStep | `inline-step-recognize-replace.firmament` | pass | Canonical Aetheris AP242 input only; source-relative path, body, and topology map preserved. |
 | Recognize | same fixture, `HoleShaft` region `MountHole`, face 7 | pass | Bounded HoleShaft / DatumPlane only; no automatic decompiler claim. |
 | Replace | same fixture -> `inline-step-replace.step` | pass | One valid manifold body; Aetheris and FreeCAD reimport pass; ThroughAll Shaft replacement only. |

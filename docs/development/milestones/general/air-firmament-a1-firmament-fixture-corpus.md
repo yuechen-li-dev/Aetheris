@@ -122,7 +122,7 @@ The corpus now includes 27 `.firmfixture` files:
 - future/not-implemented valid fixtures: cylinder, profile/prism sketches, boolean subtract intent, face-attached pocket/boss, single-edge chamfer, single-edge fillet, ruled surfacing, shell, linear pattern, and material assignment;
 - invalid/rejected fixtures: primitive missing radius, negative dimension, ambiguous boolean target, implicit parent mutation, unsupported chamfer/fillet/surfacing/shell/pattern/material cases.
 
-The side-hole golden path remains part of the language-level corpus at `fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture`. Its generated-on-demand artifact path remains controlled fixture evidence, not general side-hole support.
+The side-hole golden path remains part of the language-level corpus at `fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture`. Its generated-on-demand artifact path remains controlled fixture evidence, not general side-hole support.
 
 ## Tests run
 
@@ -136,7 +136,7 @@ Next milestones should pick one narrow future fixture and lower it part-by-part:
 
 Firmament V2 is the canonical future human-facing source language. Firmament V1 remains valid where already supported, but it is legacy TOON/YAML structured syntax, mostly frozen, and primarily useful for the existing corpus, interchange, and historical regression evidence.
 
-A2 introduces metadata-only V2 design fixtures under `fixtures/`. These fixtures use record/block-style construction-intent snippets and declare `syntax-version: FirmamentV2`. AIR-FIRMAMENT-X1 promotes only `fixtures/Primitive/valid/box-v2.valid.firmfixture` and its small invalid primitive pilots to parser-backed V2 fixtures. The rest remain deliberately classified by metadata as `not-implemented` or `rejected`; they must not be surfaced as random V1 parser failures.
+A2 introduces metadata-only V2 design fixtures under `fixtures/`. These fixtures use record/block-style construction-intent snippets and declare `syntax-version: FirmamentV2`. AIR-FIRMAMENT-X1 promotes only `fixtures/Regression/Primitive/valid/box-v2.valid.firmfixture` and its small invalid primitive pilots to parser-backed V2 fixtures. The rest remain deliberately classified by metadata as `not-implemented` or `rejected`; they must not be surfaced as random V1 parser failures.
 
 The intended V2 fixture tree is:
 
@@ -172,20 +172,20 @@ A2.2 expands the `fixtures/` metadata-only taxonomy with `RecordDerivation/` fix
 
 ### AIR-FIRMAMENT-X2 fixture stage update
 
-`fixtures/RecordDerivation/valid/box-with-size-variant-v2.valid.firmfixture` is no longer metadata-only. It is parser-backed, reaches `feature-air`, lowers the derived solid `tall` to `CreateBox`, and retains `base` as source record evidence. The surrounding V2 design fixtures remain metadata-only, parser-not-ready, not-implemented, deferred, or rejected according to their existing fixture metadata.
+`fixtures/Regression/RecordDerivation/valid/box-with-size-variant-v2.valid.firmfixture` is no longer metadata-only. It is parser-backed, reaches `feature-air`, lowers the derived solid `tall` to `CreateBox`, and retains `base` as source record evidence. The surrounding V2 design fixtures remain metadata-only, parser-not-ready, not-implemented, deferred, or rejected according to their existing fixture metadata.
 
 ## X3 fixture stage note
 
-`fixtures/SemanticRefs/valid/named-box-faces-v2.valid.firmfixture` is parser-backed as of AIR-FIRMAMENT-X3 and is expected to reach `feature-air` while reporting four semantic exposure aliases.
+`fixtures/Regression/SemanticRefs/valid/named-box-faces-v2.valid.firmfixture` is parser-backed as of AIR-FIRMAMENT-X3 and is expected to reach `feature-air` while reporting four semantic exposure aliases.
 
 
 ## AIR-FIRMAMENT-X4 fixture promotion
 
-`fixtures/Region/valid/side-hole-v2.valid.firmfixture` is parser-backed for the controlled +X to -X side-hole region and reaches `region-parent-integrated` through the existing AIR Region golden trace path.
+`fixtures/Regression/Region/valid/side-hole-v2.valid.firmfixture` is parser-backed for the controlled +X to -X side-hole region and reaches `region-parent-integrated` through the existing AIR Region golden trace path.
 
 ## AIR-FIRMAMENT-X5 V2 side-hole artifact status
 
-`fixtures/Region/valid/side-hole-v2.valid.firmfixture` now has a generated-on-demand artifact workflow. Running `aetheris trace --fixture fixtures/Region/valid/side-hole-v2.valid.firmfixture --out-dir artifacts/air-firmament-x5/side-hole-v2` writes `side-hole-v2.step`, `side-hole-v2.trace.json`, `side-hole-v2.trace.txt`, and `manifest.json`. This records parser-backed V2 parity with the controlled AIR-REGION-X13 side-hole path without broad corpus migration or general side-hole support.
+`fixtures/Regression/Region/valid/side-hole-v2.valid.firmfixture` now has a generated-on-demand artifact workflow. Running `aetheris trace --fixture fixtures/Regression/Region/valid/side-hole-v2.valid.firmfixture --out-dir artifacts/air-firmament-x5/side-hole-v2` writes `side-hole-v2.step`, `side-hole-v2.trace.json`, `side-hole-v2.trace.txt`, and `manifest.json`. This records parser-backed V2 parity with the controlled AIR-REGION-X13 side-hole path without broad corpus migration or general side-hole support.
 
 ## AIR-FIRMAMENT-X6 V2 side-hole radius variation status
 
@@ -194,7 +194,7 @@ The Firmament V2 region corpus now includes controlled valid side-hole radius va
 
 ## AIR-FIRMAMENT-X7 fixture taxonomy update
 
-X7 adds controlled Firmament V2 Region side-hole center-offset fixtures under `fixtures/Region/valid` and matching clearance/arity invalid fixtures under `fixtures/Region/invalid`. These remain parser-backed controlled Region fixtures, not broad corpus migration or general side-hole support.
+X7 adds controlled Firmament V2 Region side-hole center-offset fixtures under `fixtures/Regression/Region/valid` and matching clearance/arity invalid fixtures under `fixtures/Compatibility/LegacyAliases/Invalid/Region`. These remain parser-backed controlled Region fixtures, not broad corpus migration or general side-hole support.
 
 
 ## AIR-FIRMAMENT-X9 fixture taxonomy note

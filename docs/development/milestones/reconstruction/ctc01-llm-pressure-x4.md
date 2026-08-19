@@ -6,7 +6,7 @@ Milestone: `CTC-01-LLM-PRESSURE-X4`
 
 X4 preserves the X3 scaffold, seven authored Profiles, and three-slab composition, then adds the four reference-backed Ø35 mounting holes as semantic `Hole<Shaft>` declarations. The declarations lower statically into exact circular removal regions inside the one authoritative `PrismaticSectionStackBrepPlan`; they do not create Boolean tool bodies or bypass BRepPlan.
 
-The updated source is `fixtures/LegacyV1/Reconstruction/nist_ctc_01/ctc01_prismatic_blockout_x4.firmament`.
+The updated source is `fixtures/Compatibility/LegacyV1/Reconstruction/nist_ctc_01/ctc01_prismatic_blockout_x4.firmament`.
 
 | Feature | Center XY (mm) | Diameter | Material span | Evidence |
 | --- | ---: | ---: | ---: | --- |
@@ -132,7 +132,7 @@ Evidence images:
 
 ## Artifact evidence
 
-- Firmament: `fixtures/LegacyV1/Reconstruction/nist_ctc_01/ctc01_prismatic_blockout_x4.firmament`.
+- Firmament: `fixtures/Compatibility/LegacyV1/Reconstruction/nist_ctc_01/ctc01_prismatic_blockout_x4.firmament`.
 - Route: semantic Compose Hole → exact arc removal Profiles → `ProfileArrangement2D` → `PrismaticSectionStackConstruction` → authoritative BRepPlan → BRep → STEP AP242.
 - STEP SHA-256: `9F868B75A36C68D377F269F2E7AB6922A23312A49C14EF5C54EF78BDF1B9AE39`.
 - Canonical re-export SHA-256: `10D1E6DE4EC51A6455B6CCCCED1AAB71634840B1202A7D1B54F0E1E8B782ABA0`.

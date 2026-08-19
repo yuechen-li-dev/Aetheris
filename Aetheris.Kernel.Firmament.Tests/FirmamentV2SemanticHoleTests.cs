@@ -9,23 +9,23 @@ public sealed class FirmamentV2SemanticHoleTests
     [Fact]
     public void FirmamentV2SemanticHole_ParsesShaftCounterboreCountersink()
     {
-        AssertHole("Hole/valid/hole-x4-shaft-through.valid.firmfixture", FirmamentV2SemanticHoleVariant.Shaft);
-        AssertHole("Hole/valid/hole-x4-counterbore-through.valid.firmfixture", FirmamentV2SemanticHoleVariant.Counterbore);
-        AssertHole("Hole/valid/hole-x4-countersink-depth.valid.firmfixture", FirmamentV2SemanticHoleVariant.Countersink);
+        AssertHole("Regression/Hole/valid/hole-x4-shaft-through.valid.firmfixture", FirmamentV2SemanticHoleVariant.Shaft);
+        AssertHole("Regression/Hole/valid/hole-x4-counterbore-through.valid.firmfixture", FirmamentV2SemanticHoleVariant.Counterbore);
+        AssertHole("Regression/Hole/valid/hole-x4-countersink-depth.valid.firmfixture", FirmamentV2SemanticHoleVariant.Countersink);
     }
 
     [Fact]
     public void FirmamentV2SemanticHole_InvalidFixturesProduceDeterministicDiagnostics()
     {
-        Assert.Contains(FirmamentV2Parser.HoleVariantUnknown, Parse("Hole/invalid/hole-x4-unknown.invalid.firmfixture").Diagnostics);
-        Assert.Contains(FirmamentV2Parser.HoleCounterboreInvalid, Parse("Hole/invalid/hole-x4-bad-counterbore.invalid.firmfixture").Diagnostics);
-        Assert.Contains(FirmamentV2Parser.HoleDepthInvalid, Parse("Hole/invalid/hole-x4-negative-depth.invalid.firmfixture").Diagnostics);
+        Assert.Contains(FirmamentV2Parser.HoleVariantUnknown, Parse("Compatibility/LegacyAliases/Invalid/Hole/hole-x4-unknown.invalid.firmfixture").Diagnostics);
+        Assert.Contains(FirmamentV2Parser.HoleCounterboreInvalid, Parse("Compatibility/LegacyAliases/Invalid/Hole/hole-x4-bad-counterbore.invalid.firmfixture").Diagnostics);
+        Assert.Contains(FirmamentV2Parser.HoleDepthInvalid, Parse("Compatibility/LegacyAliases/Invalid/Hole/hole-x4-negative-depth.invalid.firmfixture").Diagnostics);
     }
 
     [Fact]
     public void FirmamentV2SemanticHole_LowersThroughAirHoleFeatureAndPreservesProvenance()
     {
-        var features = FirmamentV2SemanticHoleLowering.LowerSemanticHoles(Parse("Hole/valid/hole-x4-counterbore-through.valid.firmfixture").Document!);
+        var features = FirmamentV2SemanticHoleLowering.LowerSemanticHoles(Parse("Regression/Hole/valid/hole-x4-counterbore-through.valid.firmfixture").Document!);
         var feature = Assert.Single(features);
         Assert.Equal(nameof(AirHoleFeature), feature.Provenance.RouteName);
         Assert.Equal("mount", feature.Name);
@@ -38,9 +38,9 @@ public sealed class FirmamentV2SemanticHoleTests
     }
 
     [Theory]
-    [InlineData("Hole/valid/hole-x4-shaft-through.valid.firmfixture", "SimpleShaft")]
-    [InlineData("Hole/valid/hole-x4-counterbore-through.valid.firmfixture", "Counterbore")]
-    [InlineData("Hole/valid/hole-x4-countersink-depth.valid.firmfixture", "Countersink")]
+    [InlineData("Regression/Hole/valid/hole-x4-shaft-through.valid.firmfixture", "SimpleShaft")]
+    [InlineData("Regression/Hole/valid/hole-x4-counterbore-through.valid.firmfixture", "Counterbore")]
+    [InlineData("Regression/Hole/valid/hole-x4-countersink-depth.valid.firmfixture", "Countersink")]
     public void FirmamentV2SemanticHole_MaterializesViaExistingAirHolePath(string fixture, string kind)
     {
         var feature = Assert.Single(FirmamentV2SemanticHoleLowering.LowerSemanticHoles(Parse(fixture).Document!));

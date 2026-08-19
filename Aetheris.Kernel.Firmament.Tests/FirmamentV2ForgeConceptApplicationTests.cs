@@ -7,7 +7,7 @@ public sealed class FirmamentV2ForgeConceptApplicationTests
     [Fact]
     public void FirmamentV2ForgeConceptApplication_ParsesAndBindsProcessAndHole()
     {
-        var result = FirmamentV2Parser.Parse(Source("Language/valid/concept-applications-forge.valid.firmfixture"));
+        var result = FirmamentV2Parser.Parse(Source("Regression/Language/valid/concept-applications-forge.valid.firmfixture"));
 
         Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
         var document = result.Document!;
@@ -54,7 +54,7 @@ public sealed class FirmamentV2ForgeConceptApplicationTests
     [Fact]
     public void FirmamentV2ForgeConceptApplication_DoesNotLowerToDfmPmiOrGeometry()
     {
-        var result = FirmamentV2Parser.Parse(Source("Language/valid/concept-applications-forge.valid.firmfixture"));
+        var result = FirmamentV2Parser.Parse(Source("Regression/Language/valid/concept-applications-forge.valid.firmfixture"));
 
         Assert.True(result.IsSuccess, string.Join(", ", result.Diagnostics));
         Assert.Empty(result.Document!.Templates!);

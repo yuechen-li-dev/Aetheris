@@ -14,7 +14,7 @@ A parent body should not observe arbitrary internal mutation from a nested regio
 
 ## Fixture path
 
-The side-hole fixture is `fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture`.
+The side-hole fixture is `fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture`.
 
 ## Yield contract fields
 
@@ -53,7 +53,7 @@ First-scope side-hole values are symbolic and deterministic:
 
 ## Invalid implicit parent mutation fixture
 
-`fixtures/Region/invalid/implicit-parent-mutation.invalid.firmfixture` still rejects direct parent mutation. X2 preserves the X1 rejection and adds diagnostics for missing explicit yield and missing boundary contract.
+`fixtures/Compatibility/LegacyAliases/Invalid/Region/implicit-parent-mutation.invalid.firmfixture` still rejects direct parent mutation. X2 preserves the X1 rejection and adds diagnostics for missing explicit yield and missing boundary contract.
 
 ## Trace output examples
 

@@ -6,7 +6,7 @@ public sealed class FirmamentV2RuntimeConceptValidationCliTests
     [Fact]
     public void ValidateJson_InvalidCountersinkFixture_ReturnsNonZeroAndRuntimeDiagnostic()
     {
-        var fixturePath = FixturePath("Language/invalid/concept-countersink-diameter-order.invalid.firmfixture");
+        var fixturePath = FixturePath("Compatibility/LegacyAliases/Invalid/Language/concept-countersink-diameter-order.invalid.firmfixture");
         var stdout = new StringWriter();
         var stderr = new StringWriter();
 
@@ -27,7 +27,7 @@ public sealed class FirmamentV2RuntimeConceptValidationCliTests
     [Fact]
     public void ValidateJson_WarningOnlyFixture_ReturnsZeroAndWarningDiagnostic()
     {
-        var fixturePath = FixturePath("Language/valid/concept-shaft-missing-tolerance-warning.valid.firmfixture");
+        var fixturePath = FixturePath("Regression/Language/valid/concept-shaft-missing-tolerance-warning.valid.firmfixture");
         var stdout = new StringWriter();
         var stderr = new StringWriter();
 
@@ -62,7 +62,7 @@ public sealed class FirmamentV2RuntimeConceptValidationCliTests
     [Fact]
     public void ValidateJson_ConceptPmiObligationWarningFixture_ReturnsZeroAndContainsObligationRow()
     {
-        var fixturePath = FixturePath("Language/valid/concept-pmi-obligation-missing-warning.valid.firmfixture");
+        var fixturePath = FixturePath("Regression/Language/valid/concept-pmi-obligation-missing-warning.valid.firmfixture");
         var stdout = new StringWriter();
         var stderr = new StringWriter();
 
@@ -89,7 +89,7 @@ public sealed class FirmamentV2RuntimeConceptValidationCliTests
     [Fact]
     public void ValidateJson_MissingForgePackPath_FailsClearly()
     {
-        var fixturePath = FixturePath("Language/valid/concept-applications-forge.valid.firmfixture");
+        var fixturePath = FixturePath("Regression/Language/valid/concept-applications-forge.valid.firmfixture");
         var stdout = new StringWriter();
         var stderr = new StringWriter();
 
@@ -103,7 +103,7 @@ public sealed class FirmamentV2RuntimeConceptValidationCliTests
     [Fact]
     public void ValidateJson_AssemblyWithoutPacks_FailsClearly()
     {
-        var fixturePath = FixturePath("Language/valid/concept-applications-forge.valid.firmfixture");
+        var fixturePath = FixturePath("Regression/Language/valid/concept-applications-forge.valid.firmfixture");
         var stdout = new StringWriter();
         var stderr = new StringWriter();
 
@@ -117,7 +117,7 @@ public sealed class FirmamentV2RuntimeConceptValidationCliTests
     [Fact]
     public void ValidateJson_ExternalPack_ValidatesExternalConceptAndReportsProvenance()
     {
-        var fixturePath = FixturePath("Language/invalid/concept-external-boss-hole.invalid.firmfixture");
+        var fixturePath = FixturePath("Compatibility/LegacyAliases/Invalid/Language/concept-external-boss-hole.invalid.firmfixture");
         var stdout = new StringWriter();
         var stderr = new StringWriter();
 
@@ -145,7 +145,7 @@ public sealed class FirmamentV2RuntimeConceptValidationCliTests
     [Fact]
     public void ValidateJson_DuplicateConceptPack_FailsClearly()
     {
-        var fixturePath = FixturePath("Language/valid/concept-applications-forge.valid.firmfixture");
+        var fixturePath = FixturePath("Regression/Language/valid/concept-applications-forge.valid.firmfixture");
         var stdout = new StringWriter();
         var stderr = new StringWriter();
         var duplicatePackPath = Path.Combine(AppContext.BaseDirectory, "Aetheris.TestForgePack.Duplicate.dll");
@@ -160,7 +160,7 @@ public sealed class FirmamentV2RuntimeConceptValidationCliTests
     [Fact]
     public void ValidateJson_DefaultRuntime_RemainsBuiltInOnly()
     {
-        var fixturePath = FixturePath("Language/valid/concept-applications-forge.valid.firmfixture");
+        var fixturePath = FixturePath("Regression/Language/valid/concept-applications-forge.valid.firmfixture");
         var stdout = new StringWriter();
         var stderr = new StringWriter();
 

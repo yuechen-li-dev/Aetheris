@@ -71,7 +71,7 @@ X6 counts proposal presence but does not claim replacement verification.
 
 The recognized-only fixture is:
 
-`fixtures/InlineStep/valid/inline-step-v2-recognized-hole-proposal-report.valid.firmfixture`
+`fixtures/Regression/InlineStep/valid/inline-step-v2-recognized-hole-proposal-report.valid.firmfixture`
 
 It imports the canonical through-hole STEP body, recognizes the cylindrical wall face, attaches cylindrical/radius/axis/through evidence, proposes a future `hole<shaft>`, attaches diameter PMI to the recognized region, and re-exports canonical AP242 without replacement.
 

@@ -32,7 +32,7 @@ Profiles are a bounded planar blockout and escape-hatch mechanism. Higher-level 
 |---|---|
 | Reference | `testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp` |
 | Reference SHA-256 | `85a5752da05f53c456ca3a9e038c90358e1d5a3141d1f0d6e5f0970f2356e821` |
-| Source | `fixtures/LegacyV1/Reconstruction/nist_ctc_01/ctc01_prismatic_blockout_x2.firmament` |
+| Source | `fixtures/Compatibility/LegacyV1/Reconstruction/nist_ctc_01/ctc01_prismatic_blockout_x2.firmament` |
 | STEP | `artifacts/reconstruction/ctc01/ctc01-prismatic-blockout-x2.step` |
 | STEP SHA-256 | `0add5993e0db1fc76482959f33eeecca5034bd580586ece5188655b1e28040f0` |
 | Placement | explicit `ReferenceWorld`: anchor `[0,0,0]`, plane `XY`, axis `+Z`, reference direction `+X` |

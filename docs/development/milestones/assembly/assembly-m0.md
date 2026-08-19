@@ -25,7 +25,7 @@ The XML-like product tree remains deliberately bounded to paired `Assembly`, `Pa
 Inspect with:
 
 ```text
-aetheris asm inspect fixtures/AssemblyM0/bearing-module.firmament --json
+aetheris asm inspect fixtures/Canonical/Assembly/bearing-module.firmament --json
 ```
 
 JSON exposes tree/BOM data, Interface definitions and Roles, Mate participants and semantic IDs, constraints, transforms/status, fit bands, dimensional graph, complete stackup chains, diagnostics, and phase timings. Text mode gives a compact product tree, Mate table, and stackup summary. This is the Cadmata seam for M0; transformed geometry display is deferred.

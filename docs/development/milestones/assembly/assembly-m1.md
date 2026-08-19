@@ -15,7 +15,7 @@ Static Record
   -> post-materialization Mate residual validation
 ```
 
-The canonical proof is `fixtures/AssemblyM1/template-block-pair.firmament`. A Part tag may apply an existing Firmament Template:
+The canonical proof is `fixtures/Canonical/Assembly/template-block-pair.firmament`. A Part tag may apply an existing Firmament Template:
 
 ```firmament
 <Part Fixed = AssemblyBlock<Spec: FixedSpec>></Part>
@@ -28,7 +28,7 @@ The specialization is compiled by `FirmamentBuildAndExport.CompileSource`; Assem
 `AssemblyM1Pipeline` returns AssemblyIR plus an in-memory collection of source definition bodies and transformed instance bodies. The serializable `AssemblyGeometryArtifactIr` contains definition hashes, topology/bounds metrics, instance-to-definition mappings, world transforms, residuals, and a deterministic hash.
 
 ```powershell
-dotnet run --project Aetheris.CLI -- asm inspect fixtures/AssemblyM1/template-block-pair.firmament --json
+dotnet run --project Aetheris.CLI -- asm inspect fixtures/Canonical/Assembly/template-block-pair.firmament --json
 ```
 
 Human-readable inspection includes the product tree, Mates, residuals, a minimal derived BOM, and stackups. JSON distinguishes definition artifacts from instance artifacts.

@@ -78,7 +78,7 @@ public sealed class SheetMetalM8Tests
     [Fact]
     public void SemanticLayout_GeneralizesToNonCtcPanelAndRetainsStablePaths()
     {
-        var path=Path.Combine(RepoRoot,"fixtures/SheetMetal/m8-semantic-panel.firmament");var first=SheetMetalFirmament.CompileFile(path);var second=SheetMetalFirmament.CompileFile(path);
+        var path=Path.Combine(RepoRoot,"fixtures/Canonical/SheetMetal/semantic-panel.firmament");var first=SheetMetalFirmament.CompileFile(path);var second=SheetMetalFirmament.CompileFile(path);
         Assert.True(first.IsSuccess,string.Join('\n',first.Diagnostics.Select(x=>x.Message)));Assert.Equal(4,first.Part!.Features.Count);
         var paths=SheetMetalConceptPaths.Inspect(first.Spec!,first.Part,first.FlatPattern).Select(x=>x.Path).ToArray();
         Assert.Contains("PanelLayout.MountingHoles[0]",paths);Assert.Contains("PanelLayout.MountingHoles[3]",paths);

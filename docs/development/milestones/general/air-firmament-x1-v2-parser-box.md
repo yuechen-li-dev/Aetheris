@@ -54,9 +54,9 @@ X1 intentionally stops at Feature AIR for V2. Existing V1 box trace behavior sti
 
 ## Fixture changes
 
-`fixtures/Primitive/valid/box-v2.valid.firmfixture` is promoted from metadata-only `not-implemented` design intent to `implementation: parser-backed`, `expected-stage: feature-air`, `expected-feature-air: CreateBox`, `dimensions: 10, 8, 6`, and `units: mm`.
+`fixtures/Regression/Primitive/valid/box-v2.valid.firmfixture` is promoted from metadata-only `not-implemented` design intent to `implementation: parser-backed`, `expected-stage: feature-air`, `expected-feature-air: CreateBox`, `dimensions: 10, 8, 6`, and `units: mm`.
 
-New invalid parser-backed pilot fixtures cover missing units, negative size, wrong size arity, and unknown record type under `fixtures/Primitive/invalid/`.
+New invalid parser-backed pilot fixtures cover missing units, negative size, wrong size arity, and unknown record type under `fixtures/Compatibility/LegacyAliases/Invalid/Primitive/`.
 
 ## Diagnostics
 

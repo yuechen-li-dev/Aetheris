@@ -34,13 +34,13 @@ For X2 the map is built from `ADVANCED_FACE` entities in the canonical STEP text
 
 Valid fixtures:
 
-* `fixtures/InlineStep/valid/inline-step-v2-datum-pmi-on-canonical-face-emits-in-step.valid.firmfixture`
-* `fixtures/InlineStep/valid/inline-step-v2-hole-diameter-pmi-on-canonical-face-emits-in-step.valid.firmfixture`
+* `fixtures/Regression/InlineStep/valid/inline-step-v2-datum-pmi-on-canonical-face-emits-in-step.valid.firmfixture`
+* `fixtures/Regression/InlineStep/valid/inline-step-v2-hole-diameter-pmi-on-canonical-face-emits-in-step.valid.firmfixture`
 
 Input canonical STEP fixtures:
 
-* `fixtures/InlineStep/testdata/canonical-box-10x8x6.step`
-* `fixtures/InlineStep/testdata/canonical-through-hole.step`
+* `testdata/firmament/inline-step/canonical-box-10x8x6.step`
+* `testdata/firmament/inline-step/canonical-through-hole.step`
 
 The datum fixture targets box face `#40`. The diameter fixture targets hole cylindrical face `#191` from the checked-in canonical through-hole STEP fixture.
 

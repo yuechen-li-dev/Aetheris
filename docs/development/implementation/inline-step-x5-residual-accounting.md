@@ -53,7 +53,7 @@ The residual counts are therefore migration accounting over the original importe
 
 Primary fixture:
 
-- `fixtures/InlineStep/valid/inline-step-v2-replace-through-hole-step-verified.valid.firmfixture`
+- `fixtures/Regression/InlineStep/valid/inline-step-v2-replace-through-hole-step-verified.valid.firmfixture`
 
 For the canonical through-hole fixture, the X5 report records:
 
@@ -72,7 +72,7 @@ For the canonical through-hole fixture, the X5 report records:
 
 Recognized-only fixture coverage is exercised with:
 
-- `fixtures/InlineStep/valid/inline-step-v2-recognized-face-datum-pmi-emits-in-step.valid.firmfixture`
+- `fixtures/Regression/InlineStep/valid/inline-step-v2-recognized-face-datum-pmi-emits-in-step.valid.firmfixture`
 
 ## Deferred work
 

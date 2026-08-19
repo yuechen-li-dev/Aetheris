@@ -160,11 +160,11 @@ Focused coverage was added for:
 
 Added fixtures:
 
-- `fixtures/Language/invalid/concept-countersink-diameter-order.invalid.firmfixture`
-- `fixtures/Language/invalid/concept-countersink-angle-range.invalid.firmfixture`
-- `fixtures/Language/invalid/concept-counterbore-diameter-order.invalid.firmfixture`
-- `fixtures/Language/invalid/concept-cnc-minimum-tool-radius.invalid.firmfixture`
-- `fixtures/Language/valid/concept-shaft-missing-tolerance-warning.valid.firmfixture`
+- `fixtures/Compatibility/LegacyAliases/Invalid/Language/concept-countersink-diameter-order.invalid.firmfixture`
+- `fixtures/Compatibility/LegacyAliases/Invalid/Language/concept-countersink-angle-range.invalid.firmfixture`
+- `fixtures/Compatibility/LegacyAliases/Invalid/Language/concept-counterbore-diameter-order.invalid.firmfixture`
+- `fixtures/Compatibility/LegacyAliases/Invalid/Language/concept-cnc-minimum-tool-radius.invalid.firmfixture`
+- `fixtures/Regression/Language/valid/concept-shaft-missing-tolerance-warning.valid.firmfixture`
 
 Forward link: [`forge-cs-a4-concept-pmi-obligations.md`](forge-cs-a4-concept-pmi-obligations.md) extends the same runtime concept path with report-only PMI obligation rows and warning-only missing-obligation findings.
 

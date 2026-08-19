@@ -40,7 +40,7 @@ ops[1]:
     [Fact]
     public void Compile_WithCncSchema_FailsForInternalCornerToolRadiusViolation()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/m8c-invalid-schema-cnc-minimum-tool-radius.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/invalid/m8c-invalid-schema-cnc-minimum-tool-radius.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         var diagnostic = Assert.Single(result.Compilation.Diagnostics);

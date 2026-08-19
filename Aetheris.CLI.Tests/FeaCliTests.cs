@@ -21,7 +21,7 @@ public sealed class FeaCliTests
     [Fact]
     public void FeaCommand_InlineStepAndLatticeOverride_ReportProductionIdentity()
     {
-        var root=FindRoot();var source=Path.Combine(root,"fixtures", "FEA","inline-step-through-hole.firmament");var output=Path.Combine(Path.GetTempPath(),"aetheris-fea-x1-cli-"+Guid.NewGuid().ToString("N"));
+        var root=FindRoot();var source=Path.Combine(root,"fixtures", "Canonical", "FEA","inline-step-cantilever.firmament");var output=Path.Combine(Path.GetTempPath(),"aetheris-fea-x1-cli-"+Guid.NewGuid().ToString("N"));
         try
         {
             var stdout=new StringWriter();var stderr=new StringWriter();
@@ -45,10 +45,12 @@ public sealed class FeaCliTests
         {
             var feaDirectory=Directory.CreateDirectory(Path.Combine(temp,"FEA")).FullName;
             var stepDirectory=Directory.CreateDirectory(Path.Combine(temp,"InlineStep","testdata")).FullName;
-            var canonicalSource=Path.Combine(root,"fixtures", "FEA","inline-step-through-hole.firmament");
+            var canonicalSource=Path.Combine(root,"fixtures", "Canonical", "FEA","inline-step-cantilever.firmament");
             var source=Path.Combine(feaDirectory,"bad-face.firmament");
-            File.WriteAllText(source,File.ReadAllText(canonicalSource).Replace("body.face(#170)","body.face(#999999)",StringComparison.Ordinal));
-            File.Copy(Path.Combine(root,"fixtures", "InlineStep","testdata","canonical-through-hole.step"),Path.Combine(stepDirectory,"canonical-through-hole.step"));
+            File.WriteAllText(source,File.ReadAllText(canonicalSource)
+                .Replace("../../../testdata/firmament/inline-step/", "../InlineStep/testdata/", StringComparison.Ordinal)
+                .Replace("body.face(#170)","body.face(#999999)",StringComparison.Ordinal));
+            File.Copy(Path.Combine(root,"testdata", "firmament","inline-step","canonical-through-hole.step"),Path.Combine(stepDirectory,"canonical-through-hole.step"));
             var stdout=new StringWriter();var stderr=new StringWriter();
 
             var exit=CliRunner.Run(["fea",source,"--out-dir",Path.Combine(temp,"output"),"--json"],stdout,stderr);

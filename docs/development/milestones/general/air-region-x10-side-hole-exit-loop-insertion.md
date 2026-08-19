@@ -12,7 +12,7 @@ X10 consumes that X9 entry-loop evidence and advances the blocker by creating co
 
 ## Controlled fixture geometry
 
-Fixture: `fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture`.
+Fixture: `fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture`.
 
 - Parent box: 10 × 8 × 6.
 - Entry face: `+X`.

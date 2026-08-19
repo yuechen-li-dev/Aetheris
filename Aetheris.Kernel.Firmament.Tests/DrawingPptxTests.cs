@@ -60,7 +60,7 @@ public sealed class DrawingPptxTests
     }
 
     private static string Read(ZipArchive archive, string name) { using var reader = new StreamReader(archive.GetEntry(name)!.Open(), Encoding.UTF8); return reader.ReadToEnd(); }
-    private static string Fixture() => Path.Combine(RepositoryRoot(), "fixtures", "DrawingM0", "bearing-block-drawing.firmament");
+    private static string Fixture() => Path.Combine(RepositoryRoot(), "fixtures", "Canonical", "Drawings", "bearing-block-production-drawing.firmament");
     private static string RepositoryRoot() { var directory = new DirectoryInfo(AppContext.BaseDirectory); while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Aetheris.slnx"))) directory = directory.Parent; return directory?.FullName ?? throw new InvalidOperationException(); }
     private sealed class TemporaryDirectory : IDisposable { public TemporaryDirectory() { Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"aetheris-pptx-{Guid.NewGuid():N}"); Directory.CreateDirectory(Path); } public string Path { get; } public void Dispose() { if (Directory.Exists(Path)) Directory.Delete(Path, true); } }
 }

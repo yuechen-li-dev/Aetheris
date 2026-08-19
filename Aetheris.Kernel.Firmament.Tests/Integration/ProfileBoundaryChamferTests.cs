@@ -146,7 +146,7 @@ public sealed class ProfileBoundaryChamferTests
     [Fact]
     public void FilletComposeCorridorRejectsShaftBeforeComposeMaterialization()
     {
-        var source = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/invalid/profile-straight-edge-fillet-shaft-collision.firmament");
+        var source = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Invalid/Geometry/profile-straight-edge-fillet-shaft-collision.firmament");
         var build = FirmamentBuildAndExport.Run(source, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
         Assert.False(build.IsSuccess);
         Assert.Contains(build.Diagnostics, x => x.Message.StartsWith("ProfileBoundaryFilletIntersectsShaft", StringComparison.Ordinal));

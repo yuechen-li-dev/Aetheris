@@ -8,7 +8,7 @@ Use this when you need to demo Firmament v1 quickly and without improvising.
 
 ## Step 1 — Open an example
 
-Open `fixtures/LegacyV1/Examples/box_with_hole.firmament`.
+Open `fixtures/Compatibility/LegacyV1/Examples/box_with_hole.firmament`.
 
 Point out that it is a tiny ordered feature program:
 - first a `box`

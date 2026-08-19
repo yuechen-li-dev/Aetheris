@@ -12,7 +12,7 @@ public sealed class SheetMetalM6Tests
     [Fact]
     public void UserAssemblyTemplate_ComposesTypedSheetMetalPartsThroughInterfaceAndMates()
     {
-        var source = File.ReadAllText(Path.Combine(Root(), "fixtures/SheetMetal/m7-network-appliance-product.firmasm"));
+        var source = File.ReadAllText(Path.Combine(Root(), "fixtures/Compatibility/Firmasm/SheetMetal/network-appliance-product-m7.firmasm"));
         var product = EnclosureProductFamilies.Compile(source, Canonical, "m6-network-appliance-product.firmasm");
 
         Assert.True(product.Assembly.IsSuccess, Evidence(product));
@@ -64,7 +64,7 @@ public sealed class SheetMetalM6Tests
     [Fact]
     public void MissingProductConceptMember_IsTypedParserDiagnosticBeforeGeometry()
     {
-        var source = File.ReadAllText(Path.Combine(Root(), "fixtures/SheetMetal/m7-network-appliance-product.firmasm"))
+        var source = File.ReadAllText(Path.Combine(Root(), "fixtures/Compatibility/Firmasm/SheetMetal/network-appliance-product-m7.firmasm"))
             .Replace("<Part Lid = RemovablePanLid<Spec: Spec.Lid>>", "<Part Cover = RemovablePanLid<Spec: Spec.Lid>>", StringComparison.Ordinal);
         var parsed = new AssemblyM0Parser().Parse(source);
         Assert.False(parsed.IsSuccess);

@@ -35,7 +35,7 @@ Runtime assets
   Cadmata static web assets under the published server wwwroot
 
 Samples/reference data
-  fixtures/LegacyV1/Examples and testdata/step242/golden/firmament-v1
+  fixtures/Compatibility/LegacyV1/Examples and testdata/step242/golden/firmament-v1
   samples/forge-interop-x1 foreign-language clients
   samples/Aetheris.Samples.DatabaseDrivenCad
   testdata/step242/nist reference models

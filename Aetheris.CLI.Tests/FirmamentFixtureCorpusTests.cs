@@ -99,34 +99,34 @@ public sealed class FirmamentFixtureCorpusTests
     public void FirmamentV2DesignFixtures_MetadataRecognized()
     {
         var fixtures = DiscoverV2Fixtures();
-        Assert.Contains(fixtures, p => p.EndsWith("Primitive/valid/box-v2.valid.firmfixture", StringComparison.Ordinal));
-        Assert.Contains(fixtures, p => p.EndsWith("Region/valid/side-hole-v2.valid.firmfixture", StringComparison.Ordinal));
-        Assert.Contains(fixtures, p => p.EndsWith("Shell/future/open-top-box-shell-v2.valid.firmfixture", StringComparison.Ordinal));
-        Assert.Contains(fixtures, p => p.EndsWith("Fillet/future/single-edge-fillet-v2.valid.firmfixture", StringComparison.Ordinal));
-        Assert.Contains(fixtures, p => p.EndsWith("Invalid/invalid-missing-units-v2.invalid.firmfixture", StringComparison.Ordinal));
-        Assert.Contains(fixtures, p => p.EndsWith("SemanticRefs/valid/named-box-faces-v2.valid.firmfixture", StringComparison.Ordinal));
-        Assert.Contains(fixtures, p => p.EndsWith("SemanticRefs/valid/side-hole-feature-output-aliases-v2.valid.firmfixture", StringComparison.Ordinal));
-        Assert.Contains(fixtures, p => p.EndsWith("SemanticRefs/invalid/raw-brep-id-reference-v2.invalid.firmfixture", StringComparison.Ordinal));
-        Assert.Contains(fixtures, p => p.EndsWith("Admissibility/invalid/degenerate-box-zero-dimension-v2.invalid.firmfixture", StringComparison.Ordinal));
-        Assert.Contains(fixtures, p => p.EndsWith("Admissibility/invalid/shell-thickness-collapse-v2.invalid.firmfixture", StringComparison.Ordinal));
-        Assert.Contains(fixtures, p => p.EndsWith("Surface/future/ruled-surface-rails-v2.valid.firmfixture", StringComparison.Ordinal));
-        Assert.Contains(fixtures, p => p.EndsWith("Surface/future/offset-surface-detail-v2.valid.firmfixture", StringComparison.Ordinal));
-        Assert.Contains(fixtures, p => p.EndsWith("Pattern/future/linear-pattern-v2.valid.firmfixture", StringComparison.Ordinal));
-        Assert.Contains(fixtures, p => p.EndsWith("RecordDerivation/valid/box-with-size-variant-v2.valid.firmfixture", StringComparison.Ordinal));
-        Assert.Contains(fixtures, p => p.EndsWith("RecordDerivation/valid/feature-with-radius-variant-v2.valid.firmfixture", StringComparison.Ordinal));
-        Assert.Contains(fixtures, p => p.EndsWith("RecordDerivation/valid/material-with-property-variant-v2.valid.firmfixture", StringComparison.Ordinal));
-        Assert.Contains(fixtures, p => p.EndsWith("RecordDerivation/invalid/with-degenerate-box-v2.invalid.firmfixture", StringComparison.Ordinal));
-        Assert.Contains(fixtures, p => p.EndsWith("RecordDerivation/invalid/with-selector-target-v2.invalid.firmfixture", StringComparison.Ordinal));
-        Assert.Contains(fixtures, p => p.EndsWith("RecordDerivation/invalid/with-unknown-field-v2.invalid.firmfixture", StringComparison.Ordinal));
-        Assert.Contains(fixtures, p => p.EndsWith("Templates/valid/cnc-template-min-tool-radius-v2.valid.firmfixture", StringComparison.Ordinal));
-        Assert.Contains(fixtures, p => p.EndsWith("Templates/valid/fdm-template-wall-overhang-v2.valid.firmfixture", StringComparison.Ordinal));
-        Assert.Contains(fixtures, p => p.EndsWith("Templates/valid/sheet-metal-template-v2.valid.firmfixture", StringComparison.Ordinal));
-        Assert.Contains(fixtures, p => p.EndsWith("Templates/invalid/template-concept-unit-mismatch-v2.invalid.firmfixture", StringComparison.Ordinal));
-        Assert.Contains(fixtures, p => p.EndsWith("Templates/invalid/template-unknown-process-v2.invalid.firmfixture", StringComparison.Ordinal));
-        Assert.Contains(fixtures, p => p.EndsWith("PMI/future/pmi-datum-flatness-position-v2.valid.firmfixture", StringComparison.Ordinal));
-        Assert.Contains(fixtures, p => p.EndsWith("PMI/future/pmi-material-surface-finish-v2.valid.firmfixture", StringComparison.Ordinal));
-        Assert.Contains(fixtures, p => p.EndsWith("PMI/invalid/pmi-raw-brep-id-target-v2.invalid.firmfixture", StringComparison.Ordinal));
-        Assert.Contains(fixtures, p => p.EndsWith("Decompile/ctc-01-candidate-v2.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Regression/Primitive/valid/box-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Regression/Region/valid/side-hole-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Speculative/Shell/future/open-top-box-shell-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Speculative/Fillet/future/single-edge-fillet-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Compatibility/LegacyAliases/Invalid/invalid-missing-units-v2.invalid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Regression/SemanticRefs/valid/named-box-faces-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Speculative/SemanticRefs/valid/side-hole-feature-output-aliases-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Compatibility/LegacyAliases/Invalid/SemanticRefs/raw-brep-id-reference-v2.invalid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Compatibility/LegacyAliases/Invalid/Admissibility/degenerate-box-zero-dimension-v2.invalid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Compatibility/LegacyAliases/Invalid/Admissibility/shell-thickness-collapse-v2.invalid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Speculative/Surface/future/ruled-surface-rails-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Speculative/Surface/future/offset-surface-detail-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Speculative/Pattern/future/linear-pattern-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Regression/RecordDerivation/valid/box-with-size-variant-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Speculative/RecordDerivation/valid/feature-with-radius-variant-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Speculative/RecordDerivation/valid/material-with-property-variant-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Compatibility/LegacyAliases/Invalid/RecordDerivation/with-degenerate-box-v2.invalid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Compatibility/LegacyAliases/Invalid/RecordDerivation/with-selector-target-v2.invalid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Compatibility/LegacyAliases/Invalid/RecordDerivation/with-unknown-field-v2.invalid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Speculative/Templates/compatibility-syntax/cnc-template-min-tool-radius-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Speculative/Templates/compatibility-syntax/fdm-template-wall-overhang-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Speculative/Templates/compatibility-syntax/sheet-metal-template-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Compatibility/LegacyAliases/Invalid/Templates/template-concept-unit-mismatch-v2.invalid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Compatibility/LegacyAliases/Invalid/Templates/template-unknown-process-v2.invalid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Speculative/PMI/future/pmi-datum-flatness-position-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Speculative/PMI/future/pmi-material-surface-finish-v2.valid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Invalid/PMI/pmi-raw-brep-id-target-v2.invalid.firmfixture", StringComparison.Ordinal));
+        Assert.Contains(fixtures, p => p.EndsWith("Regression/Decompile/ctc-01-candidate-v2.firmfixture", StringComparison.Ordinal));
 
         foreach (var path in fixtures)
         {
@@ -236,9 +236,9 @@ public sealed class FirmamentFixtureCorpusTests
     {
         var expected = new[]
         {
-            (Path: "SemanticRefs/invalid/raw-brep-id-reference-v2.invalid.firmfixture", Diagnostic: "firmament-raw-backend-id-reference-forbidden"),
-            (Path: "Admissibility/invalid/degenerate-box-zero-dimension-v2.invalid.firmfixture", Diagnostic: "firmament-degenerate-dimension"),
-            (Path: "Admissibility/invalid/shell-thickness-collapse-v2.invalid.firmfixture", Diagnostic: "firmament-shell-thickness-collapses-body")
+            (Path: "Compatibility/LegacyAliases/Invalid/SemanticRefs/raw-brep-id-reference-v2.invalid.firmfixture", Diagnostic: "firmament-raw-backend-id-reference-forbidden"),
+            (Path: "Compatibility/LegacyAliases/Invalid/Admissibility/degenerate-box-zero-dimension-v2.invalid.firmfixture", Diagnostic: "firmament-degenerate-dimension"),
+            (Path: "Compatibility/LegacyAliases/Invalid/Admissibility/shell-thickness-collapse-v2.invalid.firmfixture", Diagnostic: "firmament-shell-thickness-collapses-body")
         };
 
         foreach (var item in expected)
@@ -301,9 +301,9 @@ public sealed class FirmamentFixtureCorpusTests
     {
         var expected = new[]
         {
-            (Path: "RecordDerivation/invalid/with-degenerate-box-v2.invalid.firmfixture", Diagnostic: "firmament-degenerate-dimension"),
-            (Path: "RecordDerivation/invalid/with-selector-target-v2.invalid.firmfixture", Diagnostic: "firmament-v2-with-requires-record"),
-            (Path: "RecordDerivation/invalid/with-unknown-field-v2.invalid.firmfixture", Diagnostic: "firmament-v2-with-field-not-found")
+            (Path: "Compatibility/LegacyAliases/Invalid/RecordDerivation/with-degenerate-box-v2.invalid.firmfixture", Diagnostic: "firmament-degenerate-dimension"),
+            (Path: "Compatibility/LegacyAliases/Invalid/RecordDerivation/with-selector-target-v2.invalid.firmfixture", Diagnostic: "firmament-v2-with-requires-record"),
+            (Path: "Compatibility/LegacyAliases/Invalid/RecordDerivation/with-unknown-field-v2.invalid.firmfixture", Diagnostic: "firmament-v2-with-field-not-found")
         };
 
         foreach (var item in expected)
@@ -365,10 +365,10 @@ public sealed class FirmamentFixtureCorpusTests
     {
         var expected = new[]
         {
-            (Path: "Templates/invalid/template-concept-unit-mismatch-v2.invalid.firmfixture", Diagnostic: "firmament-concept-unit-mismatch"),
-            (Path: "Templates/invalid/template-unknown-process-v2.invalid.firmfixture", Diagnostic: "firmament-template-process-unknown"),
-            (Path: "Templates/invalid/template-v2-cnc-min-tool-radius-enforced.invalid.firmfixture", Diagnostic: "firmament-v2-dfm-minimum-tool-radius-violation"),
-            (Path: "Templates/invalid/template-v2-concept-unit-mismatch-rejected-at-build.invalid.firmfixture", Diagnostic: "firmament-v2-dfm-concept-unit-mismatch")
+            (Path: "Compatibility/LegacyAliases/Invalid/Templates/template-concept-unit-mismatch-v2.invalid.firmfixture", Diagnostic: "firmament-concept-unit-mismatch"),
+            (Path: "Compatibility/LegacyAliases/Invalid/Templates/template-unknown-process-v2.invalid.firmfixture", Diagnostic: "firmament-template-process-unknown"),
+            (Path: "Compatibility/LegacyAliases/Invalid/Templates/template-v2-cnc-min-tool-radius-enforced.invalid.firmfixture", Diagnostic: "firmament-v2-dfm-minimum-tool-radius-violation"),
+            (Path: "Compatibility/LegacyAliases/Invalid/Templates/template-v2-concept-unit-mismatch-rejected-at-build.invalid.firmfixture", Diagnostic: "firmament-v2-dfm-concept-unit-mismatch")
         };
 
         foreach (var item in expected)
@@ -397,7 +397,7 @@ public sealed class FirmamentFixtureCorpusTests
     [Fact]
     public void FirmamentV2PMI_InvalidFixtures_ReportExpectedDiagnostics()
     {
-        using var doc = Trace(Path.Combine(V2CorpusRoot, "PMI/invalid/pmi-raw-brep-id-target-v2.invalid.firmfixture"));
+        using var doc = Trace(Path.Combine(V2CorpusRoot, "Invalid/PMI/pmi-raw-brep-id-target-v2.invalid.firmfixture"));
         var diagnostics = doc.RootElement.GetProperty("diagnostics").EnumerateArray().Select(x => x.GetString()).ToArray();
         Assert.True(doc.RootElement.GetProperty("fixture").GetProperty("expectationSatisfied").GetBoolean());
         Assert.Contains("firmament-raw-backend-id-reference-forbidden", diagnostics);

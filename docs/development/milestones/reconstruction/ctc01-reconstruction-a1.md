@@ -18,7 +18,7 @@ This milestone therefore ends in **Meaningful progression**: a real Concept-driv
 | Reference schema | AP242 managed-model-based 3D engineering MIM LF |
 | Reference file timestamp | `2021-12-21T09:14:03` |
 | Reference images used | `artifacts/display-corruption-x1/ctc01-aetheris-default.png`, `ctc01-aetheris-angle-1.png`, `ctc01-aetheris-angle-2.png` |
-| Reconstruction source | `fixtures/LegacyV1/Reconstruction/nist_ctc_01/ctc01_reconstruction_a1.firmament` |
+| Reconstruction source | `fixtures/Compatibility/LegacyV1/Reconstruction/nist_ctc_01/ctc01_reconstruction_a1.firmament` |
 | Reconstructed STEP | `artifacts/reconstruction/ctc01/ctc01-reconstruction-a1.step` |
 | Reconstructed SHA-256 | `202d0599248beb926cdfe55f1a1fd833b8db17bfb411871276d6ba92b3903937` |
 | Reconstructed bytes | 17,945 |
@@ -378,8 +378,8 @@ The pressure test used the current CLI front door for help, build, analyze, matc
 
 ```text
 dotnet run --project Aetheris.CLI -- --help
-dotnet run --no-build --project Aetheris.CLI -- build fixtures/LegacyV1/Reconstruction/nist_ctc_01/ctc01_reconstruction_a1.firmament --out artifacts/reconstruction/ctc01/ctc01-reconstruction-a1.step --json
-dotnet run --no-build --project Aetheris.CLI -- match testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp fixtures/LegacyV1/Reconstruction/nist_ctc_01/ctc01_reconstruction_a1.firmament --linear-tolerance 0.01 --angular-tolerance 0.1 --json
+dotnet run --no-build --project Aetheris.CLI -- build fixtures/Compatibility/LegacyV1/Reconstruction/nist_ctc_01/ctc01_reconstruction_a1.firmament --out artifacts/reconstruction/ctc01/ctc01-reconstruction-a1.step --json
+dotnet run --no-build --project Aetheris.CLI -- match testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp fixtures/Compatibility/LegacyV1/Reconstruction/nist_ctc_01/ctc01_reconstruction_a1.firmament --linear-tolerance 0.01 --angular-tolerance 0.1 --json
 dotnet run --no-build --project Aetheris.CLI -- analyze artifacts/reconstruction/ctc01/ctc01-reconstruction-a1.step --json
 dotnet run --no-build --project Aetheris.CLI -- analyze compare testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp artifacts/reconstruction/ctc01/ctc01-reconstruction-a1.step --approximate-volume --resolution 24 --json
 dotnet run --no-build --project Aetheris.CLI -- verify artifacts/reconstruction/ctc01/ctc01-reconstruction-a1.step --evidence-dir artifacts/reconstruction/ctc01/verification --json

@@ -55,7 +55,7 @@ public sealed class SurfaceMeshIrM4HexBoltTests
     [Fact]
     public void FirmamentHexBoltStepRoundTrip_UsesTheSameSurfaceMeshIrRoute()
     {
-        var source = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/LegacyV1/Examples/mcmaster_91180a151_threadless_hex_bolt.firmament"));
+        var source = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Compatibility/LegacyV1/Examples/mcmaster_91180a151_threadless_hex_bolt.firmament"));
         var output = Path.Combine(Path.GetTempPath(), $"aetheris-surface-mesh-hexbolt-{Guid.NewGuid():N}.step");
         try
         {

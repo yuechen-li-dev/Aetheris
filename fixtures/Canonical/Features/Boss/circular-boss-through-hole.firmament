@@ -1,0 +1,33 @@
+Model CircularBossThroughHole {
+    Units: mm
+
+    Concept Struct Layout On XY {
+        Rect2 Stock { Center: [0mm, 0mm]; Size: [50mm, 32mm] }
+        Point2 Center { Position: [0mm, 0mm] }
+        Point2 East { Position: [8mm, 0mm] }
+        Point2 North { Position: [0mm, 8mm] }
+        Point2 West { Position: [-8mm, 0mm] }
+        Point2 South { Position: [0mm, -8mm] }
+        Circle2 Pad { Center: Center; Radius: 8mm }
+    }
+    Profile BaseProfile Using Layout { Loop Outer {
+        Segment Bottom { Trace: Stock.Bottom; From: Stock.BottomLeft; To: Stock.BottomRight }
+        Segment Right { Trace: Stock.Right; From: Stock.BottomRight; To: Stock.TopRight }
+        Segment Top { Trace: Stock.Top; From: Stock.TopRight; To: Stock.TopLeft }
+        Segment Left { Trace: Stock.Left; From: Stock.TopLeft; To: Stock.BottomLeft }
+    } }
+    Profile BossProfile Using Layout { Loop Outer {
+        Segment Q1 { Trace: Pad; From: East; To: North; Sweep: CounterClockwise }
+        Segment Q2 { Trace: Pad; From: North; To: West; Sweep: CounterClockwise }
+        Segment Q3 { Trace: Pad; From: West; To: South; Sweep: CounterClockwise }
+        Segment Q4 { Trace: Pad; From: South; To: East; Sweep: CounterClockwise }
+    } }
+
+    Struct BearingMount {
+        Compose Body {
+            Base Stock { Profile: BaseProfile; From: 0mm; To: 8mm; Role: Stock }
+            Boss BearingBoss { On: Top; Profile: BossProfile; Height: 6mm }
+            Hole<Shaft> BearingBore { On: +Z; Center: [0mm, 0mm]; Diameter: 8mm; End: ThroughAll }
+        }
+    }
+}

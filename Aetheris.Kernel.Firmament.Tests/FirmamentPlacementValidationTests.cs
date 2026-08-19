@@ -8,49 +8,49 @@ public sealed class FirmamentPlacementValidationTests
     [Fact]
     public void Primitive_Without_Place_Remains_Valid()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m3c-valid-box-exec.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m3c-valid-box-exec.firmament");
         Assert.True(result.Compilation.IsSuccess);
     }
 
     [Fact]
     public void Primitive_With_Origin_Place_Is_Valid()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m7a-valid-box-origin-placement.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m7a-valid-box-origin-placement.firmament");
         Assert.True(result.Compilation.IsSuccess);
     }
 
     [Fact]
     public void Primitive_With_SelectorShaped_PlaceAnchor_Is_Valid()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m7a-valid-box-selector-placement.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m7a-valid-box-selector-placement.firmament");
         Assert.True(result.Compilation.IsSuccess);
     }
 
     [Fact]
     public void Primitive_With_SelectorShaped_PlaceAnchor_Uses_Selector_Contracts()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m7b-valid-placement-selector-anchors.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m7b-valid-placement-selector-anchors.firmament");
         Assert.True(result.Compilation.IsSuccess);
     }
 
     [Fact]
     public void Semantic_OnFace_Placement_For_Rib_Is_Valid()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Examples/p1_bracket_rib_on_face_semantic.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Examples/p1_bracket_rib_on_face_semantic.firmament");
         Assert.True(result.Compilation.IsSuccess, string.Join(Environment.NewLine, result.Compilation.Diagnostics.Select(d => d.Message)));
     }
 
     [Fact]
     public void Semantic_AroundAxis_And_RadialOffset_For_FlangeHole_Is_Valid()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Examples/p1_flange_radial_hole_semantic.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Examples/p1_flange_radial_hole_semantic.firmament");
         Assert.True(result.Compilation.IsSuccess, string.Join(Environment.NewLine, result.Compilation.Diagnostics.Select(d => d.Message)));
     }
 
     [Fact]
     public void Unsupported_Placement_Semantic_Field_Is_Rejected_Loudly()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/deferred/p1-invalid-unsupported-placement-semantic.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/deferred/p1-invalid-unsupported-placement-semantic.firmament");
         Assert.False(result.Compilation.IsSuccess);
         var diagnostic = Assert.Single(result.Compilation.Diagnostics);
         Assert.Contains(FirmamentDiagnosticCodes.PlacementUnsupportedSemanticField.Value, diagnostic.Message, StringComparison.Ordinal);
@@ -103,14 +103,14 @@ ops[2]:
     [Fact]
     public void Primitive_With_Sphere_Surface_PlaceAnchor_Is_Valid()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m7b-valid-placement-selector-anchor-sphere.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m7b-valid-placement-selector-anchor-sphere.firmament");
         Assert.True(result.Compilation.IsSuccess);
     }
 
     [Fact]
     public void Primitive_With_Boolean_Edges_PlaceAnchor_Runtime_Is_Deterministically_Reported_When_Unresolved()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m7b-valid-placement-selector-anchor-boolean.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m7b-valid-placement-selector-anchor-boolean.firmament");
         Assert.False(result.Compilation.IsSuccess);
         var diagnostic = Assert.Single(result.Compilation.Diagnostics);
         Assert.Contains(FirmamentDiagnosticCodes.ValidationTargetSelectorResolvedEmpty.Value, diagnostic.Message, StringComparison.Ordinal);
@@ -119,7 +119,7 @@ ops[2]:
     [Fact]
     public void Primitive_With_SelectorShaped_PlaceAnchor_Unknown_Root_Is_Invalid()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/m7b-invalid-placement-selector-root-missing.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/invalid/m7b-invalid-placement-selector-root-missing.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         var diagnostic = Assert.Single(result.Compilation.Diagnostics);
@@ -130,7 +130,7 @@ ops[2]:
     [Fact]
     public void Primitive_With_SelectorShaped_PlaceAnchor_Forward_Root_Is_Invalid()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/m7b-invalid-placement-selector-root-forward.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/invalid/m7b-invalid-placement-selector-root-forward.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         var diagnostic = Assert.Single(result.Compilation.Diagnostics);
@@ -142,7 +142,7 @@ ops[2]:
     [Fact]
     public void Primitive_With_SelectorShaped_PlaceAnchor_Illegal_Box_Port_Is_Invalid()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/m7b-invalid-placement-selector-port-box.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/invalid/m7b-invalid-placement-selector-port-box.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         var diagnostic = Assert.Single(result.Compilation.Diagnostics);
@@ -155,7 +155,7 @@ ops[2]:
     [Fact]
     public void Primitive_With_SelectorShaped_PlaceAnchor_Illegal_Sphere_Port_Is_Invalid()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/m7b-invalid-placement-selector-port-sphere.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/invalid/m7b-invalid-placement-selector-port-sphere.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         var diagnostic = Assert.Single(result.Compilation.Diagnostics);
@@ -168,7 +168,7 @@ ops[2]:
     [Fact]
     public void Primitive_With_Place_Missing_On_Is_Invalid()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/m7a-invalid-box-placement-missing-on.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/invalid/m7a-invalid-box-placement-missing-on.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         var diagnostic = Assert.Single(result.Compilation.Diagnostics);
@@ -179,7 +179,7 @@ ops[2]:
     [Fact]
     public void Primitive_With_Place_Missing_Offset_Is_Invalid()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/m7a-invalid-box-placement-missing-offset.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/invalid/m7a-invalid-box-placement-missing-offset.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         var diagnostic = Assert.Single(result.Compilation.Diagnostics);
@@ -190,7 +190,7 @@ ops[2]:
     [Fact]
     public void Primitive_With_Place_Invalid_Anchor_Is_Invalid()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/m7a-invalid-box-placement-invalid-anchor.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/invalid/m7a-invalid-box-placement-invalid-anchor.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         var diagnostic = Assert.Single(result.Compilation.Diagnostics);
@@ -200,7 +200,7 @@ ops[2]:
     [Fact]
     public void Primitive_With_Place_Invalid_Offset_Length_Is_Invalid()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/m7a-invalid-box-placement-offset-length.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/invalid/m7a-invalid-box-placement-offset-length.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         var diagnostic = Assert.Single(result.Compilation.Diagnostics);
@@ -210,7 +210,7 @@ ops[2]:
     [Fact]
     public void Primitive_With_Place_NonNumeric_Offset_Component_Is_Invalid()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/m7a-invalid-box-placement-offset-non-numeric.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/invalid/m7a-invalid-box-placement-offset-non-numeric.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         var diagnostic = Assert.Single(result.Compilation.Diagnostics);
@@ -221,21 +221,21 @@ ops[2]:
     [Fact]
     public void Boolean_With_Origin_Place_Is_Valid()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m7d-valid-boolean-origin-placement.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m7d-valid-boolean-origin-placement.firmament");
         Assert.True(result.Compilation.IsSuccess);
     }
 
     [Fact]
     public void Boolean_With_SelectorShaped_PlaceAnchor_Is_Valid()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m7d-valid-boolean-selector-placement.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m7d-valid-boolean-selector-placement.firmament");
         Assert.True(result.Compilation.IsSuccess);
     }
 
     [Fact]
     public void Boolean_Placement_Fails_Early_When_Requested_Boolean_Cannot_Execute()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/m7d-invalid-boolean-placement-selector-runtime-empty.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/invalid/m7d-invalid-boolean-placement-selector-runtime-empty.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         Assert.Contains(result.Compilation.Diagnostics, diagnostic => diagnostic.Message.Contains("Requested boolean feature 'cut' (subtract) could not be executed.", StringComparison.Ordinal));
@@ -244,7 +244,7 @@ ops[2]:
     [Fact]
     public void Placement_Runtime_Selector_Resolution_Failure_Is_Diagnostic()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/m7c-invalid-placement-selector-runtime-empty.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/invalid/m7c-invalid-placement-selector-runtime-empty.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         var diagnostic = Assert.Single(result.Compilation.Diagnostics);
@@ -255,7 +255,7 @@ ops[2]:
     [Fact]
     public void Placement_Diagnostics_Are_Deterministic()
     {
-        var fixture = "fixtures/LegacyV1/Corpus/invalid/m7a-invalid-box-placement-missing-on.firmament";
+        var fixture = "fixtures/Compatibility/LegacyV1/Corpus/invalid/m7a-invalid-box-placement-missing-on.firmament";
         var first = CompileFixture(fixture);
         var second = CompileFixture(fixture);
 
@@ -273,7 +273,7 @@ ops[2]:
     [Fact]
     public void Selector_Placement_On_TopFace_Lands_At_Expected_Anchor_Point()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m7c-valid-selector-top-face-anchor.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m7c-valid-selector-top-face-anchor.firmament");
         Assert.True(result.Compilation.IsSuccess);
 
         var placed = result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives.Single(p => p.FeatureId == "placed");
@@ -284,7 +284,7 @@ ops[2]:
     [Fact]
     public void Selector_Placement_On_Vertices_And_Edges_Uses_Deterministic_Centroid_Aggregates()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m7c-valid-selector-vertices-edges-anchors.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m7c-valid-selector-vertices-edges-anchors.firmament");
         Assert.True(result.Compilation.IsSuccess);
 
         var vertexPlaced = result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives.Single(p => p.FeatureId == "on_vertices");

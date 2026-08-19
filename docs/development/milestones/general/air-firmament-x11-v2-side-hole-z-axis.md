@@ -88,16 +88,16 @@ The existing trace artifact flow emits STEP smoke, trace JSON, trace text, and `
 
 Valid fixtures added:
 
-- `fixtures/Region/valid/side-hole-z-axis-v2.valid.firmfixture`
-- `fixtures/Region/valid/side-hole-reverse-z-v2.valid.firmfixture`
-- `fixtures/Region/valid/side-hole-aliases-z-axis-v2.valid.firmfixture`
+- `fixtures/Regression/Region/valid/side-hole-z-axis-v2.valid.firmfixture`
+- `fixtures/Regression/Region/valid/side-hole-reverse-z-v2.valid.firmfixture`
+- `fixtures/Regression/Region/valid/side-hole-aliases-z-axis-v2.valid.firmfixture`
 
 Invalid fixtures added:
 
-- `fixtures/Region/invalid/side-hole-mixed-axis-z-to-x-v2.invalid.firmfixture`
-- `fixtures/Region/invalid/side-hole-z-center-x-boundary-v2.invalid.firmfixture`
-- `fixtures/Region/invalid/side-hole-z-center-y-boundary-v2.invalid.firmfixture`
-- `fixtures/Region/invalid/side-hole-alias-z-wrong-through-v2.invalid.firmfixture`
+- `fixtures/Compatibility/LegacyAliases/Invalid/Region/side-hole-mixed-axis-z-to-x-v2.invalid.firmfixture`
+- `fixtures/Compatibility/LegacyAliases/Invalid/Region/side-hole-z-center-x-boundary-v2.invalid.firmfixture`
+- `fixtures/Compatibility/LegacyAliases/Invalid/Region/side-hole-z-center-y-boundary-v2.invalid.firmfixture`
+- `fixtures/Compatibility/LegacyAliases/Invalid/Region/side-hole-alias-z-wrong-through-v2.invalid.firmfixture`
 
 ## What this proves
 

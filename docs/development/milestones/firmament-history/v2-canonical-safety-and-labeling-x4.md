@@ -25,6 +25,6 @@ lowercase compatibility adapter. Sequential face IDs resolve via the imported
 topology map; raw STEP entities remain an explicit advanced form.
 
 The repository fixture
-`fixtures/Canonical/valid/inline-step-recognize-replace.firmament`
+`fixtures/Regression/CanonicalGeometry/inline-step-recognize-replace.firmament`
 is the replay path: analyze face 7, recognize it by `Faces: [7]`, and execute
 the bounded verified hole replacement. It does not require raw STEP grep.

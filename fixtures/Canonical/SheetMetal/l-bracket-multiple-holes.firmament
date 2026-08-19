@@ -1,0 +1,27 @@
+SheetMetal TwoHoleLBracket {
+    Thickness: 1.5mm;
+    Material: "5052-H32 Aluminum";
+    KFactor: 0.42;
+
+    Base: Rectangle(100mm, 60mm);
+
+    Flange Upright {
+        From: Base.Rear;
+        Length: 35mm;
+        Angle: 90deg;
+        InsideRadius: 2mm;
+        Direction: Up;
+    }
+
+    Hole MountLeft {
+        On: Base;
+        Center: (25mm, 25mm);
+        Diameter: 8mm;
+    }
+
+    Hole MountRight {
+        On: Base;
+        Center: (75mm, 25mm);
+        Diameter: 8mm;
+    }
+}

@@ -8,7 +8,7 @@ public sealed class FirmasmManifestLoaderTests
     public void LoadFromFile_NativeOnlyManifest_LoadsSuccessfully()
     {
         var loader = new FirmasmManifestLoader();
-        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Assembly/LegacyImports/examples/native-only.firmasm");
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Compatibility/Firmasm/LegacyAssembly/examples/native-only.firmasm");
 
         var result = loader.LoadFromFile(path);
 
@@ -22,7 +22,7 @@ public sealed class FirmasmManifestLoaderTests
     public void LoadFromFile_MixedNativeAndStep_LoadsSuccessfully()
     {
         var loader = new FirmasmManifestLoader();
-        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Assembly/LegacyImports/examples/mixed-native-step.firmasm");
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Compatibility/Firmasm/LegacyAssembly/examples/mixed-native-step.firmasm");
 
         var result = loader.LoadFromFile(path);
 
@@ -39,7 +39,7 @@ public sealed class FirmasmManifestLoaderTests
     public void Parse_InvalidStructure_RejectsClearly()
     {
         var loader = new FirmasmManifestLoader();
-        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Assembly/LegacyImports/fixtures/invalid-structure.firmasm");
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Compatibility/Firmasm/LegacyAssembly/fixtures/invalid-structure.firmasm");
 
         var result = loader.LoadFromFile(path);
 
@@ -52,7 +52,7 @@ public sealed class FirmasmManifestLoaderTests
     public void LoadFromFile_MissingStep_RejectsClearly()
     {
         var loader = new FirmasmManifestLoader();
-        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Assembly/LegacyImports/fixtures/invalid-step-missing-file.firmasm");
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Compatibility/Firmasm/LegacyAssembly/fixtures/invalid-step-missing-file.firmasm");
 
         var result = loader.LoadFromFile(path);
 
@@ -179,7 +179,7 @@ public sealed class FirmasmManifestLoaderTests
     public void LoadFromFile_OcctNutBoltBoltOnly_LoadsSuccessfully()
     {
         var loader = new FirmasmManifestLoader();
-        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Assembly/LegacyImports/examples/occt-nut-bolt/bolt-only.firmasm");
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Compatibility/Firmasm/LegacyAssembly/examples/occt-nut-bolt/bolt-only.firmasm");
 
         var result = loader.LoadFromFile(path);
 
@@ -191,7 +191,7 @@ public sealed class FirmasmManifestLoaderTests
     public void Parse_OcctNutBoltManifest_UsesStepKindsAndRigidTransforms()
     {
         var loader = new FirmasmManifestLoader();
-        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Assembly/LegacyImports/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Compatibility/Firmasm/LegacyAssembly/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
 
         var result = loader.Parse(File.ReadAllText(path));
 
@@ -206,7 +206,7 @@ public sealed class FirmasmManifestLoaderTests
     public void LoadFromFile_OcctNutBoltManifest_LoadsSuccessfully()
     {
         var loader = new FirmasmManifestLoader();
-        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Assembly/LegacyImports/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Compatibility/Firmasm/LegacyAssembly/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
 
         var result = loader.LoadFromFile(path);
 
@@ -219,7 +219,7 @@ public sealed class FirmasmManifestLoaderTests
     public void Parse_OcctLBracketManifest_IsFlatAndDeduplicated()
     {
         var loader = new FirmasmManifestLoader();
-        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Assembly/LegacyImports/examples/occt-l-bracket/l-bracket-assembly.firmasm");
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Compatibility/Firmasm/LegacyAssembly/examples/occt-l-bracket/l-bracket-assembly.firmasm");
 
         var result = loader.Parse(File.ReadAllText(path));
 
@@ -240,7 +240,7 @@ public sealed class FirmasmManifestLoaderTests
     public void LoadFromFile_OcctLBracketManifest_LoadsSuccessfully()
     {
         var loader = new FirmasmManifestLoader();
-        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Assembly/LegacyImports/examples/occt-l-bracket/l-bracket-assembly.firmasm");
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Compatibility/Firmasm/LegacyAssembly/examples/occt-l-bracket/l-bracket-assembly.firmasm");
 
         var result = loader.LoadFromFile(path);
 
@@ -254,7 +254,7 @@ public sealed class FirmasmManifestLoaderTests
     public void Parse_OcctAs1Manifest_IsFlatAndDeduplicated()
     {
         var loader = new FirmasmManifestLoader();
-        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Assembly/LegacyImports/examples/occt-as1/as1-assembly.firmasm");
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Compatibility/Firmasm/LegacyAssembly/examples/occt-as1/as1-assembly.firmasm");
 
         var result = loader.Parse(File.ReadAllText(path));
 
@@ -277,7 +277,7 @@ public sealed class FirmasmManifestLoaderTests
     public void LoadFromFile_OcctAs1Manifest_LoadsSuccessfully()
     {
         var loader = new FirmasmManifestLoader();
-        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Assembly/LegacyImports/examples/occt-as1/as1-assembly.firmasm");
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Compatibility/Firmasm/LegacyAssembly/examples/occt-as1/as1-assembly.firmasm");
 
         var result = loader.LoadFromFile(path);
 

@@ -130,7 +130,7 @@ public sealed class ConceptPathAuthoringTests
     [Fact]
     public void TableRecordTemplatePathCompose_PreservesInputAndSpecializationProvenance()
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/valid/table-template-concept-path-compose.firmament");
+        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/Templates/table-driven-mounting-plate.firmament");
 
         var parsed = FirmamentV2Parser.Parse(source);
 

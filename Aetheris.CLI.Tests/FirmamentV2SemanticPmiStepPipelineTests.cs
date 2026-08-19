@@ -15,7 +15,7 @@ public sealed class FirmamentV2SemanticPmiStepPipelineTests
     [MemberData(nameof(Cases))]
     public void STEP_V2_X7_semantic_pmi_step_verified_builds_emits_reimports_and_matches_volume(string fixtureId, string primaryEvidence, string secondaryEvidence, double expectedVolume)
     {
-        var fixturePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, $"../../../../fixtures/PMI/valid/{fixtureId}.valid.firmfixture"));
+        var fixturePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, $"../../../../fixtures/Regression/PMI/valid/{fixtureId}.valid.firmfixture"));
         var outDir = Path.Combine(Path.GetTempPath(), "aetheris-step-v2-x7", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(outDir);
         var stepPath = Path.Combine(outDir, fixtureId + ".step");

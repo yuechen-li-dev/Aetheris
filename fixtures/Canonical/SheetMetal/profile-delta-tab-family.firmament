@@ -1,0 +1,21 @@
+Use Profile.Modifications;
+
+Static Table TabStandards: ProfileTabSpec {
+    Center: [40mm, 60mm]
+    Width: [20mm, 28mm]
+    Extension: [6mm, 8mm]
+}
+Static StandardServiceTab = TabStandards[1]
+Static WideServiceTab: ProfileTabSpec = StandardServiceTab with {
+    Width: 32mm
+}
+
+ProfileDelta ServiceTab = Tab < P: WideServiceTab, Owner: Wall.Outer >
+
+SheetMetal TabbedBracket {
+    Thickness: 1.5mm;
+    Material: "5052-H32 Aluminum";
+    KFactor: 0.42;
+    Base Deck { Profile: Rectangle { Width: 100mm; Height: 60mm; }; }
+    Flange Wall { From: Deck.Rear; Height: 24mm; Angle: 90deg; Radius: 2mm; }
+}

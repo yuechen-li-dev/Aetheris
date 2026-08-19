@@ -346,7 +346,7 @@ Firmament source is always written using canonical indentation syntax.
 
 All `.firmament` fixtures under:
 
-`fixtures/LegacyV1/Corpus/`
+`fixtures/Compatibility/LegacyV1/Corpus/`
 
 must follow this canonical format exactly.
 

@@ -46,7 +46,7 @@ The authoritative member table stores only the resolved `ConceptIrValue`. `Conce
 
 Feature AIR consumers read resolved values exactly as if they had been declared directly. For example, a selected `Box3` becomes the materialized box bounds and a selected `Length` becomes the AIR chamfer distance. The report's AIR section contains neither a Match node nor conditional execution. Concept Struct instances remain `Materialized: false`; only `Struct` or `Model` creates bodies.
 
-The fixtures [static-logic-m3-compact.firmament](../../../../fixtures/DemoRegression/static-logic-m3-compact.firmament) and [static-logic-m3-standard.firmament](../../../../fixtures/DemoRegression/static-logic-m3-standard.firmament) exercise the same declarations with different enum values and produce distinct valid AP242 geometry.
+The fixtures [static-logic-m3-compact.firmament](../../../../fixtures/Regression/DemoRegression/static-logic-m3-compact.firmament) and [static-logic-m3-standard.firmament](../../../../fixtures/Regression/DemoRegression/static-logic-m3-standard.firmament) exercise the same declarations with different enum values and produce distinct valid AP242 geometry.
 
 ## Diagnostics
 

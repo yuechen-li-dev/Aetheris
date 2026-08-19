@@ -7,7 +7,7 @@ public sealed class ForgeCsA3RuntimeConceptValidationTests
     [Fact]
     public void ForgeCsA3_ValidBuiltInConceptFixture_RemainsValidAndReportsRuntimeProvider()
     {
-        var report = ReportFixture("Language/valid/concept-applications-forge.valid.firmfixture");
+        var report = ReportFixture("Regression/Language/valid/concept-applications-forge.valid.firmfixture");
 
         Assert.Equal("valid", report.Status);
         Assert.DoesNotContain(report.Diagnostics, diagnostic => diagnostic.Severity == "fatal");
@@ -23,7 +23,7 @@ public sealed class ForgeCsA3RuntimeConceptValidationTests
     [Fact]
     public void ForgeCsA3_CountersinkDiameterOrder_IsInvalid()
     {
-        var report = ReportFixture("Language/invalid/concept-countersink-diameter-order.invalid.firmfixture");
+        var report = ReportFixture("Compatibility/LegacyAliases/Invalid/Language/concept-countersink-diameter-order.invalid.firmfixture");
 
         Assert.Equal("invalid", report.Status);
         Assert.Contains(report.Diagnostics, diagnostic => diagnostic.Code == "forge.hole.countersink.diameter-order" && diagnostic.Severity == "fatal");
@@ -33,7 +33,7 @@ public sealed class ForgeCsA3RuntimeConceptValidationTests
     [Fact]
     public void ForgeCsA3_CountersinkAngleRange_IsInvalid()
     {
-        var report = ReportFixture("Language/invalid/concept-countersink-angle-range.invalid.firmfixture");
+        var report = ReportFixture("Compatibility/LegacyAliases/Invalid/Language/concept-countersink-angle-range.invalid.firmfixture");
 
         Assert.Equal("invalid", report.Status);
         Assert.Contains(report.Diagnostics, diagnostic => diagnostic.Code == "forge.hole.countersink.angle-range" && diagnostic.Severity == "fatal");
@@ -42,7 +42,7 @@ public sealed class ForgeCsA3RuntimeConceptValidationTests
     [Fact]
     public void ForgeCsA3_CounterboreDiameterOrder_IsInvalid()
     {
-        var report = ReportFixture("Language/invalid/concept-counterbore-diameter-order.invalid.firmfixture");
+        var report = ReportFixture("Compatibility/LegacyAliases/Invalid/Language/concept-counterbore-diameter-order.invalid.firmfixture");
 
         Assert.Equal("invalid", report.Status);
         Assert.Contains(report.Diagnostics, diagnostic => diagnostic.Code == "forge.hole.counterbore.diameter-order" && diagnostic.Severity == "fatal");
@@ -100,7 +100,7 @@ public sealed class ForgeCsA3RuntimeConceptValidationTests
     [Fact]
     public void ForgeCsA3_MissingToleranceRecommendation_IsWarningOnly()
     {
-        var report = ReportFixture("Language/valid/concept-shaft-missing-tolerance-warning.valid.firmfixture");
+        var report = ReportFixture("Regression/Language/valid/concept-shaft-missing-tolerance-warning.valid.firmfixture");
 
         Assert.Equal("valid", report.Status);
         Assert.Contains(report.Diagnostics, diagnostic => diagnostic.Code == "forge.hole.shaft.diameter-tolerance-recommended" && diagnostic.Severity == "warning");
@@ -113,7 +113,7 @@ public sealed class ForgeCsA3RuntimeConceptValidationTests
     [Fact]
     public void ForgeCsA3_CncMinimumToolRadius_IsInvalid()
     {
-        var report = ReportFixture("Language/invalid/concept-cnc-minimum-tool-radius.invalid.firmfixture");
+        var report = ReportFixture("Compatibility/LegacyAliases/Invalid/Language/concept-cnc-minimum-tool-radius.invalid.firmfixture");
 
         Assert.Equal("invalid", report.Status);
         Assert.Contains(report.Diagnostics, diagnostic => diagnostic.Code == "forge.process.cnc.minimum-tool-radius-positive" && diagnostic.Severity == "fatal");
@@ -122,7 +122,7 @@ public sealed class ForgeCsA3RuntimeConceptValidationTests
     [Fact]
     public void ForgeCsA3_RuntimeValidation_UsesBuiltInStandardPackOnly()
     {
-        var runtime = FirmamentV2RuntimeConceptValidation.Validate(ParseFixture("Language/valid/concept-applications-forge.valid.firmfixture").Document);
+        var runtime = FirmamentV2RuntimeConceptValidation.Validate(ParseFixture("Regression/Language/valid/concept-applications-forge.valid.firmfixture").Document);
 
         Assert.Equal("Aetheris.Standard", runtime.ForgeRuntime.BuiltInPack);
         Assert.Empty(runtime.ForgeRuntime.ExternalPacks);

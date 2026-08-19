@@ -1,6 +1,6 @@
 # Template/Record/Mate tolerance transition evidence
 
-`TemplateFitTransition` in `fixtures/AssemblyM1/template-block-pair.firmament` crosses the dimensional edge generated automatically by `SeatedAxis.Fit`.
+`TemplateFitTransition` in `fixtures/Canonical/Assembly/template-block-pair.firmament` crosses the dimensional edge generated automatically by `SeatedAxis.Fit`.
 
 - from: `TemplateBlockPair.Moving.Interface.Height` (`MovingSpec`, Template specialization `template:88509cacec6ff417`)
 - to: `TemplateBlockPair.Fixed.Interface.Height` (`FixedSpec`, Template specialization `template:0a30ccff1bd91583`)

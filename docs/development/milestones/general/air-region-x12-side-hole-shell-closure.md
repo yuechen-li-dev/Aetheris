@@ -2,7 +2,7 @@
 
 ## Purpose and scope
 
-AIR-REGION-X12 addresses the precise AIR-REGION-X11 blocker: `ShellClosure` for the metadata-driven controlled side-hole fixture at `fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture`.
+AIR-REGION-X12 addresses the precise AIR-REGION-X11 blocker: `ShellClosure` for the metadata-driven controlled side-hole fixture at `fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture`.
 
 The scope remains the golden-path fixture only: a `10 × 8 × 6` parent box, `+X` entry face, `-X` exit face, radius-1 circular through side-hole, and the existing side-hole `FaceAttachedRegion` trace path. This is not general side-hole support, arbitrary face/axis support, arbitrary planar face splitting, production route replacement, Boolean fallback admission, or a Firmament grammar expansion.
 
@@ -67,8 +67,8 @@ This is a golden-path proof point for future generalization through AIR Regions,
 ## Tests run
 
 - `dotnet build Aetheris.CLI/Aetheris.CLI.csproj -f net10.0`
-- `dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture`
-- `dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture --json`
+- `dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture`
+- `dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture --json`
 - `dotnet test Aetheris.CLI.Tests/Aetheris.CLI.Tests.csproj --filter "ShellClosure|SideHole"`
 
 ## Recommended next milestone
@@ -81,7 +81,7 @@ The X12 closed-shell evidence is now locked by the X13 generated-on-demand artif
 
 ```bash
 dotnet run --project Aetheris.CLI -f net10.0 -- trace \
-  --fixture fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture \
+  --fixture fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture \
   --out-dir artifacts/air-region-x13/side-hole
 ```
 

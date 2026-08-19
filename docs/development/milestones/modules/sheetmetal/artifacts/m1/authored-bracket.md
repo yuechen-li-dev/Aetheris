@@ -1,6 +1,6 @@
 # Authored U-channel
 
-Source: `fixtures/SheetMetal/simple-u-channel.firmament`.
+Source: `fixtures/Canonical/SheetMetal/u-channel.firmament`.
 
 - Thickness 1.5 mm; 5052-H32 Aluminum provenance string; K = 0.42.
 - Base 100 × 60 mm; left/right flange heights 25/20 mm; two 90° bends at R2 mm.

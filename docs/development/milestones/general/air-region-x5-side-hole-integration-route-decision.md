@@ -4,7 +4,7 @@
 
 AIR-REGION-X5 adds a trace-only integration route decision summary for the metadata-driven side-hole `FaceAttachedRegion` fixture:
 
-`fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture`
+`fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture`
 
 The purpose is to prevent side-hole regions from silently falling through to any backend. The trace now names candidate parent integration routes, gives deterministic statuses and reasons, and selects `DeferredIntegration`.
 

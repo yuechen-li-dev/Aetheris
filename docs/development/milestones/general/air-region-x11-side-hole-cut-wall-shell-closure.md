@@ -20,7 +20,7 @@ X10 materialized the controlled opposite-side exit loop and advanced the blocker
 
 The fixture remains:
 
-`fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture`
+`fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture`
 
 The trace preserves the full chain from `RootRegion` through side-hole yield, CIR mirror, BRep boundary contract, route decision, placeholders, standalone patch evidence, entry loop, exit loop, and now cut-wall attachment / shell-closure evidence.
 
@@ -67,8 +67,8 @@ This is meaningful progression toward a side-hole golden path: the specific X10 
 ## Tests run
 
 - `dotnet build Aetheris.CLI/Aetheris.CLI.csproj -f net10.0`
-- `dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture`
-- `dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture --json`
+- `dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture`
+- `dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture --json`
 - focused CLI cut-wall/side-hole tests during development.
 
 ## Recommended next milestone

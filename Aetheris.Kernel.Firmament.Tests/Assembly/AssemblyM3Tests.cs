@@ -5,7 +5,7 @@ namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 
 public sealed class AssemblyM3Tests
 {
-    private static string Fixture => FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/AssemblyM3/bearing-module.firmament");
+    private static string Fixture => FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Regression/Assembly/bearing-module-family-with-legacy-placement.firmament");
 
     [Fact]
     public void BearingModule_SolvesDefinitionOnceAndComposesOccurrenceWorldTransforms()

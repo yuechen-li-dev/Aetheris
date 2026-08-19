@@ -36,11 +36,11 @@ binding validates semantic hole IDs and admitted face selectors; the AP242
 exporter consumes the bound values and tolerance.
 
 The canonical production fixture is
-`fixtures/Canonical/valid/box-hole-pmi.firmament`.
+`fixtures/Canonical/PMI/hole-diameter-and-datum.firmament`.
 
 ## Profile authoring and EdgeFinish admission
 
-`fixtures/Canonical/valid/profile-compose-l-bracket.firmament`
+`fixtures/Regression/CanonicalGeometry/profile-compose-l-bracket.firmament`
 shows a six-segment L loop from two `Rect2` guides and one named `Point2`.
 `Segment.From` and `Segment.To` must be named points (including named Rect2
 corners); literal coordinates produce

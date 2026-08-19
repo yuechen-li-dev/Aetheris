@@ -55,7 +55,7 @@ This text is review support only. The source document remains recognized/propose
 The primary fixture is:
 
 ```text
-fixtures/InlineStep/valid/inline-step-v2-recognized-hole-proposal-report.valid.firmfixture
+fixtures/Regression/InlineStep/valid/inline-step-v2-recognized-hole-proposal-report.valid.firmfixture
 ```
 
 For that fixture, build JSON reports one ready assist and zero blocked assists, while replacement planned/verified/emitted counts remain zero. The emitted STEP remains the canonical inline STEP re-export; AP242 analyze volume remains `461.15044407846125`, proving the assist did not mutate geometry.

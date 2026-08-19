@@ -22,7 +22,7 @@ Available public members: Root, Outer, Left, Right, LeftCorner, RightCorner, Ben
 Inspection:
 
 ```text
-aetheris sheetmetal paths fixtures/SheetMetal/m4-psu-enclosure.firmament
+aetheris sheetmetal paths fixtures/Regression/CanonicalGeometry/power-supply-enclosure-m4.firmament
 ```
 
 Path shape is tested stable across `FourWallTray` specializations with different dimensions. Normal Profile dogfood remains `Concept Path Outline` -> `Profile Plate From Outline`, and M4 tests convert/offset its ordinary `ResolvedProfile2D` line/arc semantics rather than introducing Sheet Metal path logic in the geometry kernel.

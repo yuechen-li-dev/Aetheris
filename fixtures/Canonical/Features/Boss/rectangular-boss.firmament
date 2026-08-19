@@ -1,0 +1,27 @@
+Model RectangularBoss {
+    Units: mm
+
+    Concept Struct Layout On XY {
+        Rect2 Stock { Center: [0mm, 0mm]; Size: [50mm, 32mm] }
+        Rect2 Pad { Center: [0mm, 0mm]; Size: [20mm, 12mm] }
+    }
+    Profile BaseProfile Using Layout { Loop Outer {
+        Segment Bottom { Trace: Stock.Bottom; From: Stock.BottomLeft; To: Stock.BottomRight }
+        Segment Right { Trace: Stock.Right; From: Stock.BottomRight; To: Stock.TopRight }
+        Segment Top { Trace: Stock.Top; From: Stock.TopRight; To: Stock.TopLeft }
+        Segment Left { Trace: Stock.Left; From: Stock.TopLeft; To: Stock.BottomLeft }
+    } }
+    Profile BossProfile Using Layout { Loop Outer {
+        Segment Bottom { Trace: Pad.Bottom; From: Pad.BottomLeft; To: Pad.BottomRight }
+        Segment Right { Trace: Pad.Right; From: Pad.BottomRight; To: Pad.TopRight }
+        Segment Top { Trace: Pad.Top; From: Pad.TopRight; To: Pad.TopLeft }
+        Segment Left { Trace: Pad.Left; From: Pad.TopLeft; To: Pad.BottomLeft }
+    } }
+
+    Struct BracketBlock {
+        Compose Body {
+            Base Stock { Profile: BaseProfile; From: 0mm; To: 8mm; Role: Stock }
+            Boss MountingPad { On: Top; Profile: BossProfile; Height: 5mm }
+        }
+    }
+}

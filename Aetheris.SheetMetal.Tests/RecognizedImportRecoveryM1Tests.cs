@@ -44,7 +44,7 @@ public sealed class RecognizedImportRecoveryM1Tests
     [Fact]
     public void NonCtcUChannel_StepOnlyRoundTripRecognizesAndUnfoldsWithoutNativeConstructionAuthority()
     {
-        var authored=SheetMetalFirmament.CompileFile(Path.Combine(RepoRoot,"fixtures/SheetMetal/simple-u-channel.firmament"));Assert.True(authored.IsSuccess);
+        var authored=SheetMetalFirmament.CompileFile(Path.Combine(RepoRoot,"fixtures/Canonical/SheetMetal/u-channel.firmament"));Assert.True(authored.IsSuccess);
         var exported=Step242Exporter.ExportBody(authored.Part!.FormedBody!);Assert.True(exported.IsSuccess);
         var imported=Step242Importer.ImportBody(exported.Value);Assert.True(imported.IsSuccess);
         var detection=SheetMetalRecognizer.Recognize(imported.Value,"generic-u-channel.step");var model=RecognizedSheetMetalRecovery.FromDetection(detection);var plan=RecognizedSheetMetalRecovery.CreateAutomaticPlan(model);

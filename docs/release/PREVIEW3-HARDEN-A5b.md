@@ -35,9 +35,9 @@ All nine tracked files under `references/firmament/` were reviewed and moved to 
 | --- | ---: | --- |
 | `fixtures/FirmamentV2/` | 335 | Direct domain/status folders under `fixtures/`. |
 | `fixtures/Firmament/` | 27 | `fixtures/Speculative/<domain>/`; metadata semantics preserved. |
-| `testdata/firmament/fixtures/` | 256 | `fixtures/LegacyV1/Corpus/{valid,invalid,deferred}/`, classified from manifests and expected outcomes. |
+| `testdata/firmament/fixtures/` | 256 | `fixtures/Compatibility/LegacyV1/Corpus/{valid,invalid,deferred}/`, classified from manifests and expected outcomes. |
 
-Additional authored legacy examples, friction-lab inputs, reconstruction/verification sources, manifests, and `.firmasm` compatibility inputs moved under `fixtures/LegacyV1/` and `fixtures/Assembly/LegacyImports/`. Seven loose demo regression sources moved to `fixtures/DemoRegression/`. The final fixture root contains 530 `.firmament`, 173 `.firmfixture`, and 10 `.firmasm` files. Extension semantics remain distinct; the demo-specific `.firm` file was generated output and was not generalized into the language.
+Additional authored legacy examples, friction-lab inputs, reconstruction/verification sources, manifests, and `.firmasm` compatibility inputs moved under `fixtures/Compatibility/LegacyV1/` and `fixtures/Compatibility/Firmasm/LegacyAssembly/`. Seven loose demo regression sources moved to `fixtures/Regression/DemoRegression/`. The final fixture root contains 530 `.firmament`, 173 `.firmfixture`, and 10 `.firmasm` files. Extension semantics remain distinct; the demo-specific `.firm` file was generated output and was not generalized into the language.
 
 Tests, projects, manifests, scripts, CI, and documentation were repaired to the new paths. A repository-wide stale-path scan and local Markdown-link scan pass.
 
@@ -56,7 +56,7 @@ Deliberate deterministic STEP goldens were preserved under `testdata/step242/gol
 - `test-support/` owns the three auxiliary support projects formerly hidden under ambiguous top-level `tests/`.
 - `testdata/` is non-Firmament external/reference input and deliberate goldens; NIST/OCCT provenance corpora were not reorganized.
 
-Fresh placement questions resolve directly: an invalid unsupported-material FEA fixture goes to `fixtures/FEA/invalid/`; an external STEP corpus goes under `testdata/`; a Python Forge Host integration example goes under `samples/`.
+Fresh placement questions resolve directly: an invalid unsupported-material FEA fixture goes to `fixtures/Canonical/FEA/invalid/`; an external STEP corpus goes under `testdata/`; a Python Forge Host integration example goes under `samples/`.
 
 ## Firmament language inconsistency inventory
 

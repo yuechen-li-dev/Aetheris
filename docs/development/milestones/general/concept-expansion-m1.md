@@ -117,6 +117,6 @@ Basic member/type conformance does not execute C# and does not depend on a Forge
 
 ## Production proof and M1 limits
 
-The checked-in proof is [`docs/development/milestones/firmament/demo-sources/concept-expansion-m1.firmament`](../../../../fixtures/DemoRegression/concept-expansion-m1.firmament). It resolves bounds, a top plane, a center axis, and two mounting points; materializes one box from the bounds; selects the chamfer face from the resolved plane; follows `AirPrismaticTopFaceBoundaryChamfer`; exports AP242; and successfully reimports a closed manifold.
+The checked-in proof is [`docs/development/milestones/firmament/demo-sources/concept-expansion-m1.firmament`](../../../../fixtures/Regression/DemoRegression/concept-expansion-m1.firmament). It resolves bounds, a top plane, a center axis, and two mounting points; materializes one box from the bounds; selects the chamfer face from the resolved plane; follows `AirPrismaticTopFaceBoundaryChamfer`; exports AP242; and successfully reimports a closed manifold.
 
 M1 is intentionally not a parametric constraint solver or arbitrary compile-time programming system. It has no general functions, loops, mutable values, constraint propagation, cross-instance dependency graph, or materialized member-surface inference. M2 adds typed `Point3` hole consumption and explicit materialized exposure without changing those boundaries or widening the chamfer modification network.

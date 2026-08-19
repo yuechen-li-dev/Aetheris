@@ -6,6 +6,8 @@ User-defined identifiers are case-preserving and stylistically free. `beam`, `Be
 
 Lowercase and historical aliases may remain accepted for compatibility when unambiguous. They receive no style warning and must not select different semantics. Documentation, snippets, generated examples, and `fixtures/Canonical/` use the canonical spelling.
 
+Semicolons are optional wherever newline/block structure already delimits a field. Use them when they improve readability in dense one-line Records, Tables, or `ProfileDelta` members; their presence must not select a different language path.
+
 Casing is not a type-system distinction unless a domain explicitly says otherwise. A field uses `Name: Value`; braces delimit declarations, brackets delimit lists, and semicolons are optional where the owning grammar is unambiguous.
 
 Different target grammars are intentional. Native Model geometry uses axis faces and semantic selectors; Sheet Metal uses named planar regions and paths; native and imported Analysis use body-qualified faces; Assembly uses typed roles, ports, interfaces, and DatumFrame references. Similar engineering ideas do not make these value types interchangeable.

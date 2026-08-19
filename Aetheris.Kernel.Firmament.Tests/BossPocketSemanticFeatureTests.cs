@@ -10,7 +10,7 @@ public sealed class BossPocketSemanticFeatureTests
     [Fact]
     public void PracticalBossPocketWitness_LowersThroughOneSectionStack_AndRoundTripsStep()
     {
-        var parsed = PrismaticProfileCompositionParser.Parse(File.ReadAllText(Fixture("Canonical/valid/boss-pocket-mounting-block.firmament")));
+        var parsed = PrismaticProfileCompositionParser.Parse(File.ReadAllText(Fixture("Canonical/Features/Boss/boss-pocket-block.firmament")));
         Assert.Empty(parsed.Diagnostics);
         var stack = Assert.IsType<PrismaticSectionStackConstruction>(PrismaticSectionStackCompiler.Normalize(parsed, out var diagnostics));
         Assert.Empty(diagnostics);
@@ -44,7 +44,7 @@ public sealed class BossPocketSemanticFeatureTests
     [Fact]
     public void PublicParserAndBuild_ReportFirstClassBossAndPocketIdentity()
     {
-        var source = File.ReadAllText(Fixture("Canonical/valid/boss-pocket-mounting-block.firmament"));
+        var source = File.ReadAllText(Fixture("Canonical/Features/Boss/boss-pocket-block.firmament"));
         var parse = FirmamentV2Parser.Parse(source);
         Assert.True(parse.IsSuccess, string.Join("; ", parse.Diagnostics));
         Assert.Equal("MountBoss", Assert.Single(parse.Document!.Bosses!).Name);
@@ -63,7 +63,7 @@ public sealed class BossPocketSemanticFeatureTests
     [InlineData("minimumWallThickness", "7", "Template.minimumWallThickness")]
     public void PocketMinimumFloor_UsesExistingTemplateConceptChannel(string concept, string value, string policy)
     {
-        var source = File.ReadAllText(Fixture("Canonical/valid/boss-pocket-mounting-block.firmament"))
+        var source = File.ReadAllText(Fixture("Canonical/Features/Boss/boss-pocket-block.firmament"))
             .Replace("; MinimumFloorThickness: 2mm", string.Empty, StringComparison.Ordinal)
             .Replace("    Concept Struct Layout On XY", $"    template<CNC> ShopDefault {{ concept {concept}: {value} mm }}\n\n    Concept Struct Layout On XY", StringComparison.Ordinal);
         var parsed = PrismaticProfileCompositionParser.Parse(source);
@@ -74,7 +74,7 @@ public sealed class BossPocketSemanticFeatureTests
     [Fact]
     public void PocketTemplateFloorPolicy_ParticipatesInRealBuildPath()
     {
-        var source = File.ReadAllText(Fixture("Canonical/valid/boss-pocket-mounting-block.firmament"))
+        var source = File.ReadAllText(Fixture("Canonical/Features/Boss/boss-pocket-block.firmament"))
             .Replace("; MinimumFloorThickness: 2mm", string.Empty, StringComparison.Ordinal)
             .Replace("    Concept Struct Layout On XY", "    template<CNC> ShopDefault { concept minimumFloorThickness: 5 mm }\n\n    Concept Struct Layout On XY", StringComparison.Ordinal);
         var build = FirmamentBuildAndExport.CompileSource(source);
@@ -87,7 +87,7 @@ public sealed class BossPocketSemanticFeatureTests
     [Fact]
     public void PocketMinimumFloor_UsesCanonicalCncPolicyBeforeLegacyCompatibilityChannel()
     {
-        var source = File.ReadAllText(Fixture("Canonical/valid/boss-pocket-mounting-block.firmament"))
+        var source = File.ReadAllText(Fixture("Canonical/Features/Boss/boss-pocket-block.firmament"))
             .Replace("; MinimumFloorThickness: 2mm", string.Empty, StringComparison.Ordinal)
             .Replace("    Concept Struct Layout On XY", """
                 Concept CncManufacturingPolicy {
@@ -113,7 +113,7 @@ public sealed class BossPocketSemanticFeatureTests
     [Fact]
     public void BossPocketCounterboreCombination_BuildsAndReimports()
     {
-        var source = File.ReadAllText(Fixture("Canonical/valid/boss-pocket-mounting-block.firmament"))
+        var source = File.ReadAllText(Fixture("Canonical/Features/Boss/boss-pocket-block.firmament"))
             .Replace("Hole<Shaft> MountHole { On: +Z; Center: [-12mm, 0mm]; Diameter: 6mm; End: ThroughAll; Role: MountingHole }",
                 "Hole<Counterbore> MountHole { On: +Z; Center: [-12mm, 0mm]; Diameter: 6mm; CounterboreDiameter: 10mm; CounterboreDepth: 3mm; End: ThroughAll; Role: MountingHole }", StringComparison.Ordinal);
         var build = FirmamentBuildAndExport.CompileSource(source);
@@ -126,7 +126,7 @@ public sealed class BossPocketSemanticFeatureTests
     [Fact]
     public void BossPocketEdgeFinishCombination_PreservesSemanticInventory_WhenAdmitted()
     {
-        var source = File.ReadAllText(Fixture("Canonical/valid/boss-pocket-mounting-block.firmament"))
+        var source = File.ReadAllText(Fixture("Canonical/Features/Boss/boss-pocket-block.firmament"))
             .Replace("Boss MountBoss { On: Top; Profile: BossProfile;", "Boss MountBoss { On: Top; Profile: RectBossProfile;", StringComparison.Ordinal);
         source = AddBeforeModelClose(source,
             "    Modify Body { EdgeFinish BossTop { Target: RectBossProfile.Outer On: Top Kind: Chamfer Distance: 1mm } }\n");
@@ -144,7 +144,7 @@ public sealed class BossPocketSemanticFeatureTests
     [InlineData("11", "firmament-pocket-through-depth", "remainingFloor=-1mm")]
     public void PocketFloorGuardrails_RejectWithEngineeringQuantities(string depth, string code, string quantity)
     {
-        var source = File.ReadAllText(Fixture("Canonical/valid/boss-pocket-mounting-block.firmament"))
+        var source = File.ReadAllText(Fixture("Canonical/Features/Boss/boss-pocket-block.firmament"))
             .Replace("Depth: 4mm", $"Depth: {depth}mm", StringComparison.Ordinal);
         var parsed = PrismaticProfileCompositionParser.Parse(source);
         Assert.Null(parsed.Feature);
@@ -157,7 +157,7 @@ public sealed class BossPocketSemanticFeatureTests
     [InlineData("On: Top; Profile: BossProfile", "On: Top; Profile: MissingProfile", "firmament-boss-invalid-profile")]
     public void BossGuardrails_AreTyped(string before, string after, string code)
     {
-        var source = File.ReadAllText(Fixture("Canonical/valid/boss-pocket-mounting-block.firmament")).Replace(before, after, StringComparison.Ordinal);
+        var source = File.ReadAllText(Fixture("Canonical/Features/Boss/boss-pocket-block.firmament")).Replace(before, after, StringComparison.Ordinal);
         var parsed = PrismaticProfileCompositionParser.Parse(source);
         Assert.Null(parsed.Feature);
         Assert.Contains(parsed.Diagnostics, diagnostic => diagnostic.StartsWith(code + ":MountBoss", StringComparison.Ordinal));
@@ -168,7 +168,7 @@ public sealed class BossPocketSemanticFeatureTests
     [InlineData("[25mm, 0mm]", "tangent")]
     public void BossConnectivity_RejectsDisjointAndPointContact(string center, string _)
     {
-        var source = File.ReadAllText(Fixture("Canonical/valid/boss-pocket-mounting-block.firmament"))
+        var source = File.ReadAllText(Fixture("Canonical/Features/Boss/boss-pocket-block.firmament"))
             .Replace("Boss MountBoss { On: Top; Profile: BossProfile;", "Boss MountBoss { On: Top; Profile: RectBossProfile;", StringComparison.Ordinal)
             .Replace("Rect2 BossPad { Center: [-12mm, 0mm]", $"Rect2 BossPad {{ Center: {center}", StringComparison.Ordinal);
         var parsed = PrismaticProfileCompositionParser.Parse(source);
@@ -183,7 +183,7 @@ public sealed class BossPocketSemanticFeatureTests
     [InlineData("MinimumFloorThickness: 2mm", "MinimumFloorThickness: 0mm", "firmament-pocket-minimum-floor-policy-invalid")]
     public void PocketGuardrails_AreTyped(string before, string after, string code)
     {
-        var source = File.ReadAllText(Fixture("Canonical/valid/boss-pocket-mounting-block.firmament")).Replace(before, after, StringComparison.Ordinal);
+        var source = File.ReadAllText(Fixture("Canonical/Features/Boss/boss-pocket-block.firmament")).Replace(before, after, StringComparison.Ordinal);
         var parsed = PrismaticProfileCompositionParser.Parse(source);
         Assert.Null(parsed.Feature);
         Assert.Contains(parsed.Diagnostics, diagnostic => diagnostic.StartsWith(code + ":ElectronicsRecess", StringComparison.Ordinal));

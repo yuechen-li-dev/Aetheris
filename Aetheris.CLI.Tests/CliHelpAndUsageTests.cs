@@ -156,7 +156,7 @@ public sealed class CliHelpAndUsageTests
     {
         var stdout = new StringWriter();
         var stderr = new StringWriter();
-        var manifestPath = Path.Combine(RepoRoot, "fixtures/Assembly/LegacyImports/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
+        var manifestPath = Path.Combine(RepoRoot, "fixtures/Compatibility/Firmasm/LegacyAssembly/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
 
         var exitCode = Aetheris.CLI.CliRunner.Run(
             ["asm", "export", manifestPath, "--json"],

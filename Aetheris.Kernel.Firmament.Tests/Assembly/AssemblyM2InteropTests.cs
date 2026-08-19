@@ -8,7 +8,7 @@ public sealed class AssemblyM2InteropTests
     [Fact]
     public void FirmasmProfile_LegacyOcctFixtureMigratesThroughOrdinaryParserWithExplicitAuthority()
     {
-        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Assembly/LegacyImports/examples/occt-as1/as1-assembly.firmasm");
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Compatibility/Firmasm/LegacyAssembly/examples/occt-as1/as1-assembly.firmasm");
         var result = new FirmamentAssemblyDocumentCompiler().CompileFile(path);
 
         Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Compilation.Diagnostics.Select(diagnostic => $"{diagnostic.Code}: {diagnostic.Message}")));
@@ -45,7 +45,7 @@ public sealed class AssemblyM2InteropTests
     [Fact]
     public void AssemblyIr_NativeAp242RoundTripPreservesOccurrencesDefinitionsAndTransforms()
     {
-        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Assembly/LegacyImports/examples/occt-as1/as1-assembly.firmasm");
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Compatibility/Firmasm/LegacyAssembly/examples/occt-as1/as1-assembly.firmasm");
         var compiled = new FirmamentAssemblyDocumentCompiler().CompileFile(path).Compilation;
         var exported = AssemblyIrAp242Exporter.Export(compiled);
         Assert.True(exported.IsSuccess, string.Join(Environment.NewLine, exported.Diagnostics.Select(diagnostic => diagnostic.Message)));
@@ -61,7 +61,7 @@ public sealed class AssemblyM2InteropTests
     [Fact]
     public void TemplateAssembly_Ap242RoundTripPreservesNestedReuseAndComposedTransforms()
     {
-        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/AssemblyM3/bearing-module.firmament");
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Regression/Assembly/bearing-module-family-with-legacy-placement.firmament");
         var compiled = new AssemblyM1Pipeline().CompileFile(path);
         Assert.True(compiled.IsSuccess, string.Join(Environment.NewLine, compiled.Diagnostics.Select(item => item.Code + ": " + item.Message)));
         var exported = AssemblyIrAp242Exporter.Export(compiled);
@@ -95,7 +95,7 @@ public sealed class AssemblyM2InteropTests
     [Fact]
     public void FirmasmProfile_CompilesRecordsTablesPartTemplatesAndOneTemplateAssemblyDefinition()
     {
-        var source = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/AssemblyM3/bearing-module.firmament");
+        var source = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Regression/Assembly/bearing-module-family-with-legacy-placement.firmament");
         var temporary = Path.Combine(Path.GetTempPath(), "aetheris-m3-" + Guid.NewGuid().ToString("N") + ".firmasm");
         try
         {

@@ -197,14 +197,14 @@ jobs:
           $cli = (Resolve-Path extracted/Aetheris-win-x64/aetheris.exe)
           & $cli --version
           & $cli --help
-          Copy-Item '${{ github.workspace }}/fixtures/Canonical/valid/box-through-hole.firmament' smoke.firmament
+          Copy-Item '${{ github.workspace }}/fixtures/Canonical/Features/Holes/through-hole.firmament' smoke.firmament
           & $cli validate smoke.firmament
           & $cli build smoke.firmament
           & $cli inspect smoke.firmament
           & $cli verify smoke.firmament
-          Copy-Item '${{ github.workspace }}/fixtures/AssemblyM3/bearing-module.firmament' assembly.firmament
+          Copy-Item '${{ github.workspace }}/fixtures/Regression/Assembly/bearing-module-family-with-legacy-placement.firmament' assembly.firmament
           & $cli asm inspect assembly.firmament --json
-          Copy-Item '${{ github.workspace }}/fixtures/DrawingM0/bearing-block-drawing.firmament' drawing.firmament
+          Copy-Item '${{ github.workspace }}/fixtures/Canonical/Drawings/bearing-block-production-drawing.firmament' drawing.firmament
           & $cli drawing compile drawing.firmament --out-dir drawing-out --json
           if (-not (Test-Path drawing-out/*.pdf) -or -not (Test-Path drawing-out/*.pptx)) { throw 'Drawing PDF/PPTX smoke outputs missing.' }
           $package = Get-ChildItem release/packages/*.nupkg | Select-Object -First 1

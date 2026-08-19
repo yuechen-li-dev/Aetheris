@@ -132,7 +132,7 @@ public sealed class LinearElasticM5Tests
                 }
             }
             """;
-        var root=FindRoot();var resource=ImportedStepResource.Load("VendorPart",Path.Combine(root,"fixtures", "InlineStep","testdata","canonical-box-10x8x6.step"));
+        var root=FindRoot();var resource=ImportedStepResource.Load("VendorPart",Path.Combine(root,"testdata", "firmament","inline-step","canonical-box-10x8x6.step"));
         var template=new ForgeHost().LoadModule("ImportedM5",module).ResolveTemplate("ImportedBoxAnalysis");
         var center=new Vector3D(.005,.004,.003);var orientation=Transform3D.CreateTranslation(-center)*Transform3D.CreateRotationZ(17*double.Pi/180)*Transform3D.CreateRotationX(9*double.Pi/180)*Transform3D.CreateTranslation(center);
         var result=template.Invoke("ImportedPull").Bind("Part",new ForgeImportedStep(resource.Name)).AddResource(resource).Analyze(new(CutCellQuadraturePerAxis:6,RelativeResidualTolerance:1e-8,DomainTransform:orientation));
@@ -143,12 +143,12 @@ public sealed class LinearElasticM5Tests
     [Fact]
     public void InlineStepRecognizeMemberPath_NormalizesToBoundarySemanticValueBeforeAnalysisIr()
     {
-        var root=FindRoot();var fixtureDirectory=Path.Combine(root,"fixtures", "Canonical","valid");
+        var root=FindRoot();var fixtureDirectory=Path.Combine(root,"fixtures", "Canonical","FEA");
         const string source="""
             Model ImportedRecognizedAnalysis {
                 Units: mm
                 InlineStep imported {
-                    Path: "../../InlineStep/testdata/canonical-box-10x8x6.step"
+                    Path: "../../../testdata/firmament/inline-step/canonical-box-10x8x6.step"
                 }
                 Recognize imported {
                     Region MountFace {

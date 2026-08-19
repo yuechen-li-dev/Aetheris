@@ -13,7 +13,7 @@ public sealed class FirmamentValidationExecutionTests
     [Fact]
     public void Compile_Executes_ExpectExists_For_BareFeatureId_Target()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m2c-valid-expect-exists-bare-target-earlier.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m2c-valid-expect-exists-bare-target-earlier.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var validation = Assert.Single(result.Compilation.Value.ValidationExecutionResult!.Validations);
@@ -28,7 +28,7 @@ public sealed class FirmamentValidationExecutionTests
     [Fact]
     public void Compile_Executes_ExpectExists_For_TopologyBacked_SelectorTargets()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m6b-valid-selector-exists.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m6b-valid-selector-exists.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var validations = result.Compilation.Value.ValidationExecutionResult!.Validations;
@@ -44,7 +44,7 @@ public sealed class FirmamentValidationExecutionTests
     [Fact]
     public void Compile_Rejects_Sphere_Edge_Selector_After_Contract_Is_Reduced_To_Truthful_Surface_Only()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/m6b-invalid-selector-empty.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/invalid/m6b-invalid-selector-empty.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         var diagnostic = Assert.Single(result.Compilation.Diagnostics);
@@ -56,7 +56,7 @@ public sealed class FirmamentValidationExecutionTests
     [Fact]
     public void Compile_Executes_ExpectSelectable_With_TopologyBacked_Counts_As_Successes()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m6c-valid-selectable-count.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m6c-valid-selectable-count.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var validations = result.Compilation.Value.ValidationExecutionResult!.Validations;
@@ -127,7 +127,7 @@ ops[7]:
     [Fact]
     public void Compile_Executes_FrustumCone_Selector_Contract_With_Truthful_Runtime_Counts()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m10e-valid-cone-selector-contract.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m10e-valid-cone-selector-contract.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         Assert.Equal(6, result.Compilation.Value.ValidationExecutionResult!.Validations.Count);
@@ -142,7 +142,7 @@ ops[7]:
     [Fact]
     public void Compile_Executes_PointedCone_TopRadiusZero_Selector_Contract_With_Truthful_Runtime_Counts()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m10f2-valid-cone-pointed-top-zero-selector-contract.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m10f2-valid-cone-pointed-top-zero-selector-contract.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         Assert.Equal(6, result.Compilation.Value.ValidationExecutionResult!.Validations.Count);
@@ -157,7 +157,7 @@ ops[7]:
     [Fact]
     public void Compile_Executes_PointedCone_BottomRadiusZero_Selector_Contract_With_Truthful_Runtime_Counts()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m10f2-valid-cone-pointed-bottom-zero-selector-contract.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m10f2-valid-cone-pointed-bottom-zero-selector-contract.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         Assert.Equal(6, result.Compilation.Value.ValidationExecutionResult!.Validations.Count);
@@ -242,7 +242,7 @@ ops[2]:
     [Fact]
     public void Compile_Executes_ExpectSelectable_With_Count_Mismatch_As_Deterministic_Failure()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/m6c-invalid-selectable-count-mismatch.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/invalid/m6c-invalid-selectable-count-mismatch.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var validations = result.Compilation.Value.ValidationExecutionResult!.Validations;
@@ -268,7 +268,7 @@ ops[2]:
     [Fact]
     public void Compile_Records_Unsupported_For_ExpectSelectable_On_BareFeatureId_Target()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/deferred/m6a-unsupported-expect-selectable-bare-target.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/deferred/m6a-unsupported-expect-selectable-bare-target.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var validation = Assert.Single(result.Compilation.Value.ValidationExecutionResult!.Validations);
@@ -280,7 +280,7 @@ ops[2]:
     [Fact]
     public void Compile_Executes_ExpectManifold_For_Valid_Solids()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m6d-valid-manifold.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m6d-valid-manifold.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var validations = result.Compilation.Value.ValidationExecutionResult!.Validations;
@@ -297,7 +297,7 @@ ops[2]:
     [Fact]
     public void Compile_Rejects_SelectorShaped_Targets_For_ExpectManifold_Deterministically()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/m6d-invalid-nonmanifold.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/invalid/m6d-invalid-nonmanifold.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var validation = Assert.Single(result.Compilation.Value.ValidationExecutionResult!.Validations);
@@ -410,7 +410,7 @@ ops[4]:
     [Fact]
     public void Compile_Still_Executes_Primitives_And_Booleans_With_M6b_ValidationExecution_Output()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m10h1-valid-mixed-primitive-boolean-validation.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m10h1-valid-mixed-primitive-boolean-validation.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         Assert.NotEmpty(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives);

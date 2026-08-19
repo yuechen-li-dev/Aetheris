@@ -25,7 +25,7 @@ currently supported dimensional callout route.
 Unknown kinds, targets, and fields are fatal typed diagnostics. In particular,
 use `Tolerance`, `DatumRefs`, `Target`, and `Value` exactly; misspellings are
 not ignored. See
-`fixtures/Canonical/valid/box-hole-pmi.firmament` for an
+`fixtures/Canonical/PMI/hole-diameter-and-datum.firmament` for an
 exportable example.
 
 Profile/Compose uses this exact same normalized PMI route. A `Datum` may target
@@ -33,7 +33,7 @@ the composed host's admitted `face(+Z)` selector, and `HoleDiameter` may target
 a composed `Hole<Shaft>` or `Hole<Counterbore>` by feature name. For a
 Counterbore, `HoleDiameter` means the shaft diameter; there is no separate
 counterbore-diameter PMI kind. See
-`fixtures/Canonical/valid/profile-compose-l-bracket-counterbore-pmi.firmament`
+`fixtures/Canonical/PMI/counterbore-shaft-diameter.firmament`
 for the complete accepted example. Datum and HoleDiameter are the currently
 supported composed-host PMI kinds.
 # Projected PMI

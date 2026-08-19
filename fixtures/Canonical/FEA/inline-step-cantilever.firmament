@@ -1,0 +1,19 @@
+Model ImportedThroughHoleWitness {
+    Analysis LinearElastic ImportedThroughHole {
+        Body: inlineSTEP("../../../testdata/firmament/inline-step/canonical-through-hole.step")
+        Material: Standard.Materials.Aluminum.6061_T6
+
+        Fixed Mount {
+            Region: body.face(#170)
+            Components: [X, Y, Z]
+        }
+
+        Force ServiceLoad {
+            Region: body.face(#141)
+            Vector: [0N, -500N, 0N]
+        }
+
+        Results: [Displacement, Strain, Stress, ReactionForce]
+        Lattice: [6, 4, 3]
+    }
+}

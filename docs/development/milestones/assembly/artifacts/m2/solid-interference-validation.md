@@ -1,6 +1,6 @@
 # Assembly solid-interference validation
 
-The original `fixtures/AssemblyM1/template-block-pair.firmament` seated two top faces together. Its 20 × 20 × 10 mm Fixed solid occupied world Z `[0, 10]`; its 12 × 12 × 15 mm Moving solid was translated to world Z `[-5, 10]`. The solids therefore shared positive volume from Z `0` through `10`, and their coplanar top faces produced visible depth-buffer fighting in Cadmata.
+The original `fixtures/Canonical/Assembly/template-block-pair.firmament` seated two top faces together. Its 20 × 20 × 10 mm Fixed solid occupied world Z `[0, 10]`; its 12 × 12 × 15 mm Moving solid was translated to world Z `[-5, 10]`. The solids therefore shared positive volume from Z `0` through `10`, and their coplanar top faces produced visible depth-buffer fighting in Cadmata.
 
 The fixture now exposes both `Seat = Bounds.Face(+Z)` and `Base = Bounds.Face(-Z)`. `Moving.Base` is coincident with `Fixed.Seat`; the 12 × 12 × 8 mm Moving solid occupies world Z `[10, 18]`. The parts have legal zero-volume face contact and a positive 2 mm dimensional transition.
 

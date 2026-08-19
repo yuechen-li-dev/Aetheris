@@ -1,0 +1,19 @@
+Model CatalogMaterialCoupon {
+    Units: mm
+    Box Coupon { Size: [80mm, 20mm, 2mm] }
+
+    Analysis LinearElastic CouponPull {
+        Body: Coupon
+        Material: Standard.Materials.Aluminum.5052_H32
+        Fixed Clamp {
+            Region: Coupon.face(-X)
+            Components: [X, Y, Z]
+        }
+        Force Pull {
+            Region: Coupon.face(+X)
+            Vector: [1000N, 0N, 0N]
+        }
+        Results: [Displacement, Strain, Stress, ReactionForce]
+        Lattice: [8, 2, 1]
+    }
+}

@@ -1,9 +1,0 @@
-Model A3PointedCone {
-    Units: mm
-
-    Cone Body {
-        BottomRadius: 6mm
-        TopRadius: 0mm
-        Height: 18mm
-    }
-}

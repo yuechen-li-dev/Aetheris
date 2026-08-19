@@ -35,7 +35,7 @@ Key boundaries confirmed in code before fixture authoring:
 
 ## Chimera fixtures created
 
-All fixtures are under `fixtures/LegacyV1/FrictionLab/fric-b0/`.
+All fixtures are under `fixtures/Compatibility/LegacyV1/FrictionLab/fric-b0/`.
 
 ### Chimera A — box-root subtract stress block
 
@@ -84,23 +84,23 @@ Zones:
    - Proved CLI command surface and baseline availability.
 2. `dotnet run --project Aetheris.CLI -- build --help`
    - Confirmed machine-readable diagnostics path (`--json`) for pressure test matrix capture.
-3. `for f in fixtures/LegacyV1/FrictionLab/fric-b0/*.firmament; do dotnet run --project Aetheris.CLI -- build "$f" --json > artifacts/fric-b0/<name>.json; done`
+3. `for f in fixtures/Compatibility/LegacyV1/FrictionLab/fric-b0/*.firmament; do dotnet run --project Aetheris.CLI -- build "$f" --json > artifacts/fric-b0/<name>.json; done`
    - Produced per-zone success/failure evidence with exact diagnostics.
 4. `python3` aggregation over `artifacts/fric-b0/*.json`
    - Clustered diagnostics into blocker classes used below.
-5. `dotnet run --project Aetheris.CLI -- build fixtures/LegacyV1/FrictionLab/fric-b0/chimera_a_zone_b_blind_cyl.firmament --json` (pre-fix capture)
+5. `dotnet run --project Aetheris.CLI -- build fixtures/Compatibility/LegacyV1/FrictionLab/fric-b0/chimera_a_zone_b_blind_cyl.firmament --json` (pre-fix capture)
    - Confirmed old fixture behavior in INV-B0 context: rejected with `[FIRM-SCHEMA-0006]` enclosed-void diagnostic.
 6. Updated `chimera_a_zone_b_blind_cyl.firmament` to use explicit `place.on_face: chimera_a_root.top_face` blind-hole placement.
    - Converted semantics from contained internal cavity to exterior-opening blind hole.
-7. `dotnet run --project Aetheris.CLI -- build fixtures/LegacyV1/FrictionLab/fric-b0/chimera_a_zone_b_blind_cyl.firmament --out artifacts/fric-b0.1/zone_b_blind_cyl_new.step --json`
+7. `dotnet run --project Aetheris.CLI -- build fixtures/Compatibility/LegacyV1/FrictionLab/fric-b0/chimera_a_zone_b_blind_cyl.firmament --out artifacts/fric-b0.1/zone_b_blind_cyl_new.step --json`
    - Corrected case builds successfully under process `default`.
 8. `dotnet run --project Aetheris.CLI -- analyze artifacts/fric-b0.1/zone_b_blind_cyl_new.step --json`
    - Confirms single-shell manifold body (no enclosed void shell), consistent with an exterior-opening blind hole.
-9. `dotnet run --project Aetheris.CLI --no-build -- build fixtures/LegacyV1/FrictionLab/fric-b0/chimera_c_zone_cf_mixed_prismatic_baseline_blocked.firmament --json`
+9. `dotnet run --project Aetheris.CLI --no-build -- build fixtures/Compatibility/LegacyV1/FrictionLab/fric-b0/chimera_c_zone_cf_mixed_prismatic_baseline_blocked.firmament --json`
    - Now passes after FRIC-B0.2 bounded continuation generalization.
-10. `dotnet run --project Aetheris.CLI --no-build -- build fixtures/LegacyV1/FrictionLab/fric-b0/chimera_a_zone_h_partial_overlap.firmament --json`
+10. `dotnet run --project Aetheris.CLI --no-build -- build fixtures/Compatibility/LegacyV1/FrictionLab/fric-b0/chimera_a_zone_h_partial_overlap.firmament --json`
     - Now reaches kernel interaction classifier and rejects with tangent/edge-grazing containment diagnostic (instead of upstream tool-kind gate).
-11. `dotnet run --project Aetheris.CLI --no-build -- build fixtures/LegacyV1/FrictionLab/fric-b0/chimera_c_zone_cc_open_slot_history.firmament --json`
+11. `dotnet run --project Aetheris.CLI --no-build -- build fixtures/Compatibility/LegacyV1/FrictionLab/fric-b0/chimera_c_zone_cc_open_slot_history.firmament --json`
     - Remains rejected by explicit “prior prismatic/open-slot through-void history unsupported” boundary.
 
 ## Per-zone result matrix

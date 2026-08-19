@@ -5,8 +5,8 @@ namespace Aetheris.Kernel.Firmament.Tests;
 public sealed class FirmamentV2CanonicalSafetyAndLabelingTests
 {
     [Theory]
-    [InlineData("counterbore-hole.firmament", FirmamentV2SemanticHoleVariant.Counterbore)]
-    [InlineData("countersink-hole.firmament", FirmamentV2SemanticHoleVariant.Countersink)]
+    [InlineData("counterbore.firmament", FirmamentV2SemanticHoleVariant.Counterbore)]
+    [InlineData("countersink.firmament", FirmamentV2SemanticHoleVariant.Countersink)]
     public void CanonicalHoleFamilies_BindCompleteVariantContracts(string fixture, FirmamentV2SemanticHoleVariant expected)
     {
         var parse = FirmamentV2Parser.Parse(File.ReadAllText(Canonical(fixture)));
@@ -85,5 +85,9 @@ public sealed class FirmamentV2CanonicalSafetyAndLabelingTests
         Assert.Contains(FirmamentV2Parser.CanonicalDeclarationUnrecognized, parse.Diagnostics);
     }
 
-    private static string Canonical(string name) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Canonical/valid", name));
+    private static string Canonical(string name)
+    {
+        var domain = name == "inline-step-recognize-replace.firmament" ? "Integration" : "Features/Holes";
+        return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Canonical", domain, name));
+    }
 }

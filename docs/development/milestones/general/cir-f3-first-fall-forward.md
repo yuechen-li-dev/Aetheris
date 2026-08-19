@@ -13,7 +13,7 @@ Out of scope for F3:
 
 ## Chosen F3 candidate
 
-Fixture: `fixtures/LegacyV1/Corpus/deferred/m10l-unsupported-box-subtract-sphere-touching-boundary.firmament`.
+Fixture: `fixtures/Compatibility/LegacyV1/Corpus/deferred/m10l-unsupported-box-subtract-sphere-touching-boundary.firmament`.
 
 Why this candidate:
 

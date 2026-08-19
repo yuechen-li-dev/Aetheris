@@ -187,7 +187,7 @@ public sealed class FirmamentPrimitiveLoweringTests
     [Fact]
     public void Compile_Lowers_Add_Boolean_With_Primary_Reference_And_Coarse_Tool()
     {
-        var result = Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Corpus/valid/m1b-valid-add.firmament"));
+        var result = Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Compatibility/LegacyV1/Corpus/valid/m1b-valid-add.firmament"));
 
         Assert.True(result.Compilation.IsSuccess);
         var boolean = Assert.Single(result.Compilation.Value.PrimitiveLoweringPlan!.Booleans);
@@ -205,7 +205,7 @@ public sealed class FirmamentPrimitiveLoweringTests
     [Fact]
     public void Compile_Lowers_Subtract_Boolean_With_Primary_Reference_And_Coarse_Tool()
     {
-        var result = Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Corpus/valid/m1b-valid-subtract.firmament"));
+        var result = Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Compatibility/LegacyV1/Corpus/valid/m1b-valid-subtract.firmament"));
 
         Assert.True(result.Compilation.IsSuccess);
         var boolean = result.Compilation.Value.PrimitiveLoweringPlan!.Booleans.Single(b => b.FeatureId == "sub1");
@@ -218,7 +218,7 @@ public sealed class FirmamentPrimitiveLoweringTests
     [Fact]
     public void Compile_Lowers_Intersect_Boolean_With_Primary_Reference_And_Coarse_Tool()
     {
-        var result = Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Corpus/valid/m1b-valid-intersect.firmament"));
+        var result = Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Compatibility/LegacyV1/Corpus/valid/m1b-valid-intersect.firmament"));
 
         Assert.True(result.Compilation.IsSuccess);
         var boolean = Assert.Single(result.Compilation.Value.PrimitiveLoweringPlan!.Booleans);
@@ -231,7 +231,7 @@ public sealed class FirmamentPrimitiveLoweringTests
     [Fact]
     public void Compile_Lowers_Mixed_Primitive_And_Boolean_In_Source_Order_With_Preserved_Ids()
     {
-        var result = Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Corpus/valid/m3b-mixed-primitive-boolean-validation.firmament"));
+        var result = Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Compatibility/LegacyV1/Corpus/valid/m3b-mixed-primitive-boolean-validation.firmament"));
 
         Assert.True(result.Compilation.IsSuccess);
         var plan = result.Compilation.Value.PrimitiveLoweringPlan!;
@@ -268,7 +268,7 @@ public sealed class FirmamentPrimitiveLoweringTests
     [Fact]
     public void Compile_Expands_LinearPattern_Into_Chained_SubtractBooleans_With_Deterministic_Ids()
     {
-        var result = Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Examples/p2_linear_hole_row.firmament"));
+        var result = Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Compatibility/LegacyV1/Examples/p2_linear_hole_row.firmament"));
 
         Assert.True(result.Compilation.IsSuccess);
         var booleans = result.Compilation.Value.PrimitiveLoweringPlan!.Booleans
@@ -294,7 +294,7 @@ public sealed class FirmamentPrimitiveLoweringTests
     [Fact]
     public void Compile_Lowers_Boolean_Placement_Metadata_Using_Primitive_Placement_Model()
     {
-        var result = Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Corpus/valid/m7d-valid-boolean-origin-placement.firmament"));
+        var result = Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Compatibility/LegacyV1/Corpus/valid/m7d-valid-boolean-origin-placement.firmament"));
 
         Assert.True(result.Compilation.IsSuccess);
         var boolean = Assert.Single(result.Compilation.Value.PrimitiveLoweringPlan!.Booleans);
@@ -360,7 +360,7 @@ ops[2]:
     [Fact]
     public void Compile_Validation_Family_Ops_Remain_Explicitly_NonLowered()
     {
-        var result = Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Corpus/valid/m3b-mixed-primitive-boolean-validation.firmament"));
+        var result = Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Compatibility/LegacyV1/Corpus/valid/m3b-mixed-primitive-boolean-validation.firmament"));
 
         Assert.True(result.Compilation.IsSuccess);
         var skipped = Assert.Single(result.Compilation.Value.PrimitiveLoweringPlan!.SkippedOps);
@@ -373,7 +373,7 @@ ops[2]:
     [Fact]
     public void Compile_Primitive_And_Boolean_Lowering_Output_Is_Deterministic()
     {
-        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Corpus/valid/m3b-valid-primitives-and-booleans-lower.firmament");
+        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Compatibility/LegacyV1/Corpus/valid/m3b-valid-primitives-and-booleans-lower.firmament");
 
         var first = Compile(source);
         var second = Compile(source);
@@ -386,7 +386,7 @@ ops[2]:
     [Fact]
     public void Compile_ValidationFailure_Prevents_Lowering()
     {
-        var result = Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Corpus/invalid/m1a-invalid-sphere-missing-radius.firmament"));
+        var result = Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Compatibility/LegacyV1/Corpus/invalid/m1a-invalid-sphere-missing-radius.firmament"));
 
         Assert.False(result.Compilation.IsSuccess);
     }

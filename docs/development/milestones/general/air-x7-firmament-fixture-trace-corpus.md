@@ -11,10 +11,10 @@ AIR-X7 extends AIR-X6 without changing production geometry, route behavior, STEP
 AIR-X6 added built-in trace cases. AIR-X7 keeps those cases and adds fixture input:
 
 ```bash
-aetheris trace --fixture fixtures/Chamfer/valid/top-face-loop-chamfer.valid.firmfixture
-aetheris trace --fixture fixtures/Chamfer/valid/top-face-loop-chamfer.valid.firmfixture --json
-aetheris trace --fixture fixtures/Chamfer/valid/top-face-loop-chamfer.valid.firmfixture --out-dir artifacts/air-x7
-aetheris trace --fixture fixtures/Chamfer/valid/top-face-loop-chamfer.valid.firmfixture --out-dir artifacts/air-x7 --json
+aetheris trace --fixture fixtures/Regression/Chamfer/valid/top-face-loop-chamfer.valid.firmfixture
+aetheris trace --fixture fixtures/Regression/Chamfer/valid/top-face-loop-chamfer.valid.firmfixture --json
+aetheris trace --fixture fixtures/Regression/Chamfer/valid/top-face-loop-chamfer.valid.firmfixture --out-dir artifacts/air-x7
+aetheris trace --fixture fixtures/Regression/Chamfer/valid/top-face-loop-chamfer.valid.firmfixture --out-dir artifacts/air-x7 --json
 ```
 
 Text output remains the default. JSON is emitted only when `--json` is present. `--case` and `--fixture` are mutually exclusive, and one of them is required.
@@ -33,7 +33,7 @@ AIR-X7 adds two source fixture extensions:
 The first corpus is committed under:
 
 ```text
-fixtures/Chamfer/
+fixtures/Regression/Chamfer/
   valid/top-face-loop-chamfer.valid.firmfixture
   invalid/arbitrary-graph-chamfer.invalid.firmfixture
   invalid/non-uniform-loop-chamfer.invalid.firmfixture
@@ -91,9 +91,9 @@ AIR-X7 does not change production Firmament syntax or behavior, production route
 
 - `dotnet run --project Aetheris.CLI -f net10.0 -- --help`
 - `dotnet run --project Aetheris.CLI -f net10.0 -- trace --help`
-- `dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Chamfer/valid/top-face-loop-chamfer.valid.firmfixture`
-- `dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Chamfer/valid/top-face-loop-chamfer.valid.firmfixture --json`
-- `dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Chamfer/invalid/arbitrary-graph-chamfer.invalid.firmfixture`
+- `dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Regression/Chamfer/valid/top-face-loop-chamfer.valid.firmfixture`
+- `dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Regression/Chamfer/valid/top-face-loop-chamfer.valid.firmfixture --json`
+- `dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Regression/Chamfer/invalid/arbitrary-graph-chamfer.invalid.firmfixture`
 - Focused .NET CLI/core/Firmament/FrictionLab test filters for Trace/Fixture/AIR/CIR/BRepPlan/etc.
 
 ## Recommended next milestone
@@ -125,4 +125,4 @@ AIR-REGION-X1 adds a trace-only AIR Region skeleton: parser-backed box fixtures 
 
 ## AIR-REGION-X2 side-hole fixture note
 
-The region fixture corpus now uses `fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture` to validate a side-hole `FaceAttachedRegion` yield contract. Metadata records the expected side-hole feature, circle profile, radius, attachment face, direction, boundary kind, and affected scope without requiring production Firmament grammar support.
+The region fixture corpus now uses `fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture` to validate a side-hole `FaceAttachedRegion` yield contract. Metadata records the expected side-hole feature, circle profile, radius, attachment face, direction, boundary kind, and affected scope without requiring production Firmament grammar support.

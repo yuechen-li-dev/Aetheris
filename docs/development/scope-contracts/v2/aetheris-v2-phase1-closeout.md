@@ -189,7 +189,7 @@ Per-item rows expose whether a concept or PMI record is valid, invalid, export-s
 The key P2 proof fixture is:
 
 ```text
-fixtures/InlineStep/valid/inline-step-v2-record-pmi-datum-diameter-step-verified.valid.firmfixture
+fixtures/Regression/InlineStep/valid/inline-step-v2-record-pmi-datum-diameter-step-verified.valid.firmfixture
 ```
 
 It proves the Phase 1 finish line because it exercises:
@@ -282,7 +282,7 @@ Closeout validation should use the repository's real .NET path and CLI ground tr
 dotnet restore Aetheris.slnx
 dotnet build Aetheris.slnx -f net10.0 --no-restore /m:1
 dotnet test Aetheris.Kernel.Firmament.Tests/Aetheris.Kernel.Firmament.Tests.csproj -f net10.0 --filter "FirmamentV2|PMI|Pmi|Forge|Concept|Let|Tolerance|Validation"
-dotnet run --project Aetheris.CLI -- validate fixtures/InlineStep/valid/inline-step-v2-record-pmi-datum-diameter-step-verified.valid.firmfixture --json
+dotnet run --project Aetheris.CLI -- validate fixtures/Regression/InlineStep/valid/inline-step-v2-record-pmi-datum-diameter-step-verified.valid.firmfixture --json
 dotnet run --project Aetheris.CLI -- --help
 git diff --check
 git status --short

@@ -84,7 +84,7 @@ The build report exposes Feature AIR, Construction AIR, authoritative BRepPlan, 
 
 The canonical rectangle produces 12 vertices, 20 edges, 10 planar faces, 10 loops, and 40 coedges. These are validation consequences of the three-section four-vertex topology plan, not a geometry algorithm. Geometry tests inspect the four reimported vertices at `z = height` and verify their X/Y extrema equal the requested inset.
 
-The fixture is `fixtures/Chamfer/valid/air-top-boundary-chamfer.valid.firmament`.
+The fixture is `fixtures/Regression/Chamfer/valid/air-top-boundary-chamfer.valid.firmament`.
 
 ## Remaining limitations and legacy paths
 

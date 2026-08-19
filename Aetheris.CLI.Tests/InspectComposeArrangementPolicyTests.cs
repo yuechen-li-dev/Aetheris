@@ -9,7 +9,7 @@ public sealed class InspectComposeArrangementPolicyTests
     [Fact]
     public void InspectCompose_CtcBlockout_ReportsMultiRegionTransitionAndM8Evidence()
     {
-        var source = Path.Combine(RepoRoot, "fixtures/LegacyV1/Reconstruction/nist_ctc_01/ctc01_prismatic_blockout_x2.firmament");
+        var source = Path.Combine(RepoRoot, "fixtures/Compatibility/LegacyV1/Reconstruction/nist_ctc_01/ctc01_prismatic_blockout_x2.firmament");
         var stdout = new StringWriter(); var stderr = new StringWriter();
         var exit = Aetheris.CLI.CliRunner.Run(["inspect-compose", source, "--json", "--materialize"], stdout, stderr);
         Assert.Equal(0, exit); Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()), stderr.ToString());
@@ -33,7 +33,7 @@ public sealed class InspectComposeArrangementPolicyTests
     [Fact]
     public void InspectCompose_InvalidArrangement_RejectsBeforeBrepReport()
     {
-        var source = Path.Combine(RepoRoot, "fixtures/ProfileComposition/invalid/ambiguous-tangent-crossing.firmament");
+        var source = Path.Combine(RepoRoot, "fixtures/Invalid/ProfileComposition/ambiguous-tangent-crossing.firmament");
         var stdout = new StringWriter(); var stderr = new StringWriter();
         var exit = Aetheris.CLI.CliRunner.Run(["inspect-compose", source, "--json"], stdout, stderr);
         Assert.Equal(1, exit);
@@ -44,7 +44,7 @@ public sealed class InspectComposeArrangementPolicyTests
     [Fact]
     public void InspectProfile_ComposeSource_ReportsEveryCtcProfileWithProvenance()
     {
-        var source = Path.Combine(RepoRoot, "fixtures/LegacyV1/Reconstruction/nist_ctc_01/ctc01_prismatic_blockout_x2.firmament");
+        var source = Path.Combine(RepoRoot, "fixtures/Compatibility/LegacyV1/Reconstruction/nist_ctc_01/ctc01_prismatic_blockout_x2.firmament");
         var stdout = new StringWriter(); var stderr = new StringWriter();
         var exit = Aetheris.CLI.CliRunner.Run(["inspect-profile", source, "--json"], stdout, stderr);
         Assert.Equal(0, exit); Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()), stderr.ToString());

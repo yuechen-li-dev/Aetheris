@@ -26,14 +26,14 @@ AIR-REGION-X13 locked the earlier metadata-controlled side-hole fixture as gener
 ## V2 fixture path
 
 ```text
-fixtures/Region/valid/side-hole-v2.valid.firmfixture
+fixtures/Regression/Region/valid/side-hole-v2.valid.firmfixture
 ```
 
 ## Artifact generation command
 
 ```bash
 dotnet run --project Aetheris.CLI -f net10.0 -- trace \
-  --fixture fixtures/Region/valid/side-hole-v2.valid.firmfixture \
+  --fixture fixtures/Regression/Region/valid/side-hole-v2.valid.firmfixture \
   --out-dir artifacts/air-firmament-x5/side-hole-v2
 ```
 
@@ -97,10 +97,10 @@ X5 validation should include the focused CLI artifact/parity tests plus the usua
 dotnet build Aetheris.CLI/Aetheris.CLI.csproj -f net10.0
 dotnet run --project Aetheris.CLI -f net10.0 -- --help
 dotnet run --project Aetheris.CLI -f net10.0 -- trace --help
-dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Region/valid/side-hole-v2.valid.firmfixture
-dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Region/valid/side-hole-v2.valid.firmfixture --json
-dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Region/valid/side-hole-v2.valid.firmfixture --out-dir artifacts/air-firmament-x5/side-hole-v2
-dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture
+dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Regression/Region/valid/side-hole-v2.valid.firmfixture
+dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Regression/Region/valid/side-hole-v2.valid.firmfixture --json
+dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Regression/Region/valid/side-hole-v2.valid.firmfixture --out-dir artifacts/air-firmament-x5/side-hole-v2
+dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture
 dotnet test Aetheris.CLI.Tests/Aetheris.CLI.Tests.csproj --filter "FirmamentV2SideHoleArtifacts|FirmamentV2Parser|FirmamentV2SideHole|FirmamentV2Region|FirmamentSemanticRefs|FirmamentExpose|FirmamentFatArrow|FirmamentWith|FirmamentRecordDerivation|FirmamentV2|FirmamentFixtureCorpus|FirmFixture|Fixture|Trace|Region|SideHole|Primitive|ParserBacked|NotImplemented|Invalid"
 ```
 

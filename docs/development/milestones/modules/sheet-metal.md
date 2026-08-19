@@ -131,7 +131,7 @@ evidence, status, and a conservative difference classification. Use the recovere
 as primary profile authority; use formed endpoint/bend evidence only after local flat
 correspondence is understood. DFM remains a separate manufacturability decision.
 
-Canonical M4 dogfood is [`m4-psu-enclosure.firmament`](../../../../fixtures/SheetMetal/m4-psu-enclosure.firmament). The [M4 evidence bundle](sheetmetal/artifacts/m4/README.md) records exact-kernel scope, template/DFM evidence, CTC-03 comparison, timings, hashes, and remaining limits.
+Canonical M4 dogfood is [`m4-psu-enclosure.firmament`](../../../../fixtures/Regression/CanonicalGeometry/power-supply-enclosure-m4.firmament). The [M4 evidence bundle](sheetmetal/artifacts/m4/README.md) records exact-kernel scope, template/DFM evidence, CTC-03 comparison, timings, hashes, and remaining limits.
 
 The [M8 CTC-03 evidence bundle](sheetmetal/artifacts/m8/README.md) records full opening recovery, semantic-layout authoring, independent regeneration, comparison, PMI evidence, generalization, timings, and the remaining outer-contour blocker.
 

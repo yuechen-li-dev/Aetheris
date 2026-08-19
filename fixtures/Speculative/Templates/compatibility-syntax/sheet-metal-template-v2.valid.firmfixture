@@ -1,0 +1,16 @@
+// fixture-id: sheet-metal-template-v2
+// case: firmament-v2-sheet-metal-template
+// category: Templates
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: not-implemented
+// expected: valid
+// expected-stage: not-implemented
+// expected-diagnostic: firmament-v2-parser-not-ready
+// notes: Historical lowercase compatibility specimen. Canonical port: fixtures/Canonical/Templates/sheet-metal-dfm-policy.firmament.
+
+template<SheetMetal> ShopDefault {
+    concept thickness: 1.5 mm
+    concept minimumBendRadius: 1.5 mm
+    concept kFactor: 0.42
+}

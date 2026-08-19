@@ -1,0 +1,17 @@
+// fixture-id: fdm-template-wall-overhang-v2
+// case: firmament-v2-fdm-template-wall-overhang
+// category: Templates
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: not-implemented
+// expected: valid
+// expected-stage: not-implemented
+// expected-diagnostic: firmament-v2-parser-not-ready
+// notes: Historical lowercase compatibility specimen. Canonical port: fixtures/Canonical/Templates/fdm-dfm-policy.firmament.
+
+template<FDM> PrinterDefault {
+    concept nozzleDiameter: 0.4 mm
+    concept minimumWallThickness: 0.8 mm
+    concept maximumUnsupportedOverhang: 45 deg
+    concept layerHeight: 0.2 mm
+}

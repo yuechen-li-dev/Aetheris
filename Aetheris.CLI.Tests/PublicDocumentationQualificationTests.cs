@@ -37,10 +37,10 @@ public sealed class PublicDocumentationQualificationTests
     }
 
     [Theory]
-    [InlineData("fixtures/Canonical/valid/box-hole-pmi.firmament", 1, 1)]
-    [InlineData("fixtures/Canonical/valid/record-array-pattern-holes.firmament", 0, 0)]
-    [InlineData("fixtures/Canonical/valid/box-holes-pmi-chamfer.firmament", 1, 2)]
-    [InlineData("fixtures/PublicDogfood/ai-model.firmament", 0, 0)]
+    [InlineData("fixtures/Canonical/PMI/hole-diameter-and-datum.firmament", 1, 1)]
+    [InlineData("fixtures/Canonical/Patterns/record-array-hole-pattern.firmament", 0, 0)]
+    [InlineData("fixtures/Canonical/PMI/multiple-hole-dimensions-with-chamfer.firmament", 1, 2)]
+    [InlineData("fixtures/Canonical/Integration/inspection-block.firmament", 0, 0)]
     public void PublicModelAndTemplateExamplesBuildThroughRealCli(string relativeSource, int datums, int diameters)
     {
         using var temp = TempDirectory.Create();
@@ -59,7 +59,7 @@ public sealed class PublicDocumentationQualificationTests
     {
         using var temp = TempDirectory.Create();
         var output = new StringWriter(); var error = new StringWriter();
-        var source = Path.Combine(RepoRoot, "fixtures/Canonical/valid/boss-pocket-mounting-block.firmament");
+        var source = Path.Combine(RepoRoot, "fixtures/Canonical/Features/Boss/boss-pocket-block.firmament");
         var step = Path.Combine(temp.Path, "boss-pocket.step");
         Assert.Equal(0, CliRunner.Run(["build", source, "--output", step, "--json"], output, error));
         Assert.Empty(error.ToString());
@@ -83,7 +83,7 @@ public sealed class PublicDocumentationQualificationTests
     {
         using var temp = TempDirectory.Create();
         var output = new StringWriter(); var error = new StringWriter();
-        var source = Path.Combine(RepoRoot, "fixtures/Canonical/valid/a4-machined-mounting-block.firmament");
+        var source = Path.Combine(RepoRoot, "fixtures/Canonical/Integration/machined-mounting-block.firmament");
         var step = Path.Combine(temp.Path, "a4-machined.step");
 
         Assert.Equal(0, CliRunner.Run(["build", source, "--output", step, "--json"], output, error));
@@ -100,8 +100,8 @@ public sealed class PublicDocumentationQualificationTests
     }
 
     [Theory]
-    [InlineData("fixtures/SheetMetal/preview3-l-bracket-hole.firmament")]
-    [InlineData("fixtures/PublicDogfood/ai-sheet-metal.firmament")]
+    [InlineData("fixtures/Canonical/SheetMetal/l-bracket-with-hole.firmament")]
+    [InlineData("fixtures/Canonical/SheetMetal/sensor-bracket.firmament")]
     public void PublicSheetMetalExampleBuildsAndFlattensWithOneFeature(string relativeSource)
     {
         using var temp = TempDirectory.Create();
@@ -116,10 +116,10 @@ public sealed class PublicDocumentationQualificationTests
     }
 
     [Theory]
-    [InlineData("fixtures/Materials/catalog-material-coupon.firmament", "FirmamentNative")]
-    [InlineData("fixtures/FEA/cantilever.firmament", "FirmamentNative")]
-    [InlineData("fixtures/FEA/inline-step-through-hole.firmament", "InlineStep")]
-    [InlineData("fixtures/PublicDogfood/ai-fea-a36-cantilever.firmament", "FirmamentNative")]
+    [InlineData("fixtures/Canonical/Materials/material-catalog-coupon.firmament", "FirmamentNative")]
+    [InlineData("fixtures/Canonical/FEA/cantilever.firmament", "FirmamentNative")]
+    [InlineData("fixtures/Canonical/FEA/inline-step-cantilever.firmament", "InlineStep")]
+    [InlineData("fixtures/Canonical/FEA/material-resolved-cantilever.firmament", "FirmamentNative")]
     public void PublicMaterialAndFeaExamplesSolveThroughRealCli(string relativeSource, string sourceKind)
     {
         using var temp = TempDirectory.Create();

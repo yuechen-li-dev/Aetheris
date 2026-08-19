@@ -107,7 +107,7 @@ Canonical pattern:
 - one subtract cylinder tool,
 - `place.on_face: <root>.top_face` with negative Z `offset` equal to blind depth.
 
-Reference: `fixtures/LegacyV1/Examples/w2_cylinder_root_blind_bore_semantic.firmament`.
+Reference: `fixtures/Compatibility/LegacyV1/Examples/w2_cylinder_root_blind_bore_semantic.firmament`.
 
 ### Exterior-opening sphere pocket (box root)
 
@@ -117,7 +117,7 @@ Canonical pattern:
 - place sphere center near `top_face` using `place.on_face` + negative Z offset,
 - ensure strict non-tangent intersection (avoid exactly tangent placement).
 
-Reference: `fixtures/LegacyV1/Examples/w2_box_sphere_exterior_opening_pocket_semantic.firmament`.
+Reference: `fixtures/Compatibility/LegacyV1/Examples/w2_box_sphere_exterior_opening_pocket_semantic.firmament`.
 
 ---
 

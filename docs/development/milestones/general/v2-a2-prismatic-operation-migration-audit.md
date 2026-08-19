@@ -29,10 +29,10 @@ No production behavior, routing, public API, STEP exporter/importer, or Boolean 
 - `Aetheris.Kernel.Firmament.Tests/FirmamentPrimitiveExecutionTests.cs`
 - `Aetheris.Kernel.Firmament.Tests/FirmamentBuildAndExportTests.cs`
 - `Aetheris.Kernel.Firmament.Tests/FirmamentExamplePackSmokeTests.cs`
-- `fixtures/LegacyV1/Examples/triangular_prism_basic.firmament`
-- `fixtures/LegacyV1/Examples/hexagonal_prism_basic.firmament`
-- `fixtures/LegacyV1/Examples/straight_slot_basic.firmament`
-- `fixtures/LegacyV1/Examples/slot_cut_basic.firmament`
+- `fixtures/Compatibility/LegacyV1/Examples/triangular_prism_basic.firmament`
+- `fixtures/Compatibility/LegacyV1/Examples/hexagonal_prism_basic.firmament`
+- `fixtures/Compatibility/LegacyV1/Examples/straight_slot_basic.firmament`
+- `fixtures/Compatibility/LegacyV1/Examples/slot_cut_basic.firmament`
 
 ### Architecture / milestone docs
 - `docs/development/milestones/general/aetheris-v2-sweep-first-architecture.md`

@@ -23,7 +23,7 @@ Firmament V2 is one language. Backend specialization is not an author-facing dia
 
 ### Concept Path
 
-For ordinary connected line/arc scaffolds, use `Concept Path`: its ordered entries emit named guides and endpoints and can be consumed directly with `Profile Name From PathName`, or with explicit `Loop Outer From` / `Loop Inner From` declarations. In Preview 1 those Profile forms are admitted by `Extrude`; `Compose` currently requires the low-level `Profile ... Using ... { Loop ... Segment ... }` form. It does not replace low-level `Segment` authoring or validate a material boundary. See [Concept Path M1](v2-concept-path.md) and the [canonical fixtures](../../../../fixtures/Canonical/valid/concept-path-rectangle.firmament).
+For ordinary connected line/arc scaffolds, use `Concept Path`: its ordered entries emit named guides and endpoints and can be consumed directly with `Profile Name From PathName`, or with explicit `Loop Outer From` / `Loop Inner From` declarations. In Preview 1 those Profile forms are admitted by `Extrude`; `Compose` currently requires the low-level `Profile ... Using ... { Loop ... Segment ... }` form. It does not replace low-level `Segment` authoring or validate a material boundary. See [Concept Path M1](v2-concept-path.md) and the [canonical fixtures](../../../../fixtures/Canonical/Profiles/closed-loop-profile.firmament).
 
 Use this form for ordinary parts:
 
@@ -88,7 +88,7 @@ full circular footprint inside the profile material, and must be disjoint from
 all other cavities. Profile/Compose bodies also use the normal `Pmi` export
 route. A complete L-bracket with Pattern shafts, Counterbore, Datum, and a
 toleranced diameter callout is maintained at
-`fixtures/Canonical/valid/profile-compose-l-bracket-counterbore-pmi.firmament`.
+`fixtures/Canonical/PMI/counterbore-shaft-diameter.firmament`.
 
 Other Counterbore orientations/end conditions, touching or overlapping
 cavities, non-prismatic composition, and polygon-boundary EdgeFinish remain
@@ -222,7 +222,7 @@ support, so aligned named points can be collinear even when they are not the
 guide's original endpoints. Close the loop and use counter-clockwise winding.
 
 The multi-guide L example is
-`fixtures/Canonical/valid/profile-compose-l-bracket.firmament`.
+`fixtures/Regression/CanonicalGeometry/profile-compose-l-bracket.firmament`.
 It uses two overlapping `Rect2` guides plus a named notch point. A bounded,
 source-bound outer-line-loop chamfer is now admitted on `Top` or `Bottom`:
 
@@ -272,25 +272,25 @@ specific unsupported diagnostics.
 
 ## Canonical examples
 
-- `fixtures/Canonical/valid/bare-box.firmament`
-- `fixtures/Canonical/valid/bare-cylinder.firmament`
-- `fixtures/Canonical/valid/bare-rounded-box.firmament`
-- `fixtures/Canonical/valid/bare-frustum.firmament`
-- `fixtures/Canonical/valid/box-through-hole.firmament`
-- `fixtures/Canonical/valid/box-hole-chamfer.firmament`
-- `fixtures/Canonical/valid/profile-line-extrusion.firmament`
-- `fixtures/Canonical/valid/profile-compose-base.firmament`
-- `fixtures/Canonical/valid/profile-compose-l-bracket.firmament`
-- `fixtures/Canonical/valid/profile-straight-edge-fillet-top.firmament`
-- `fixtures/Canonical/valid/profile-straight-edge-fillet-bottom.firmament`
-- `fixtures/Canonical/valid/profile-edgefinish-chimera-base.firmament` (curved-source baseline card)
-- `fixtures/Canonical/valid/box-hole-pmi.firmament`
-- `fixtures/Canonical/valid/semantic-slot-capsule.firmament`
-- `fixtures/Canonical/valid/semantic-slot-rounded-rectangle.firmament`
-- `fixtures/Canonical/valid/semantic-selection-chamfer.firmament`
-- `fixtures/Canonical/valid/record-array-pattern-holes.firmament`
-- `fixtures/Canonical/valid/record-array-pattern-slots.firmament`
-- `fixtures/Canonical/valid/record-array-template-profile.firmament`
+- `fixtures/Canonical/Basics/box.firmament`
+- `fixtures/Canonical/Basics/cylinder.firmament`
+- `fixtures/Canonical/Primitives/rounded-box.firmament`
+- `fixtures/Canonical/Primitives/frustum.firmament`
+- `fixtures/Canonical/Features/Holes/through-hole.firmament`
+- `fixtures/Canonical/Features/EdgeFinish/boundary-chamfer.firmament`
+- `fixtures/Canonical/Profiles/line-arc-profile-extrusion.firmament`
+- `fixtures/Regression/CanonicalGeometry/profile-compose-base.firmament`
+- `fixtures/Regression/CanonicalGeometry/profile-compose-l-bracket.firmament`
+- `fixtures/Canonical/Features/EdgeFinish/single-edge-fillet.firmament`
+- `fixtures/Regression/CanonicalGeometry/profile-straight-edge-fillet-bottom.firmament`
+- `fixtures/Regression/CanonicalGeometry/profile-edgefinish-chimera-base.firmament` (curved-source baseline card)
+- `fixtures/Canonical/PMI/hole-diameter-and-datum.firmament`
+- `fixtures/Canonical/Features/Slots/straight-slot.firmament`
+- `fixtures/Canonical/Features/Slots/rounded-rectangle-opening.firmament`
+- `fixtures/Regression/CanonicalGeometry/semantic-selection-chamfer.firmament`
+- `fixtures/Canonical/Patterns/record-array-hole-pattern.firmament`
+- `fixtures/Canonical/Patterns/record-array-slot-pattern.firmament`
+- `fixtures/Canonical/Templates/record-array-profile-family.firmament`
 
 ## Common diagnostics
 

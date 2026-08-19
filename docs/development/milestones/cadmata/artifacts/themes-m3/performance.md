@@ -1,6 +1,6 @@
 # Theme performance evidence
 
-Measured on the development machine in the in-app Chromium browser at a consistent 1157 × 1216 application window using `fixtures/AssemblyM1/template-block-pair.firmament`, the same fitted orthographic camera, one selected occurrence, and the `?perf` renderer probe. Values are approximate 120–150-frame samples after switching.
+Measured on the development machine in the in-app Chromium browser at a consistent 1157 × 1216 application window using `fixtures/Canonical/Assembly/template-block-pair.firmament`, the same fitted orthographic camera, one selected occurrence, and the `?perf` renderer probe. Values are approximate 120–150-frame samples after switching.
 
 | Theme | Average frame | Approx. FPS | Draw calls | Triangles | Geometries | Textures | Shader programs |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |

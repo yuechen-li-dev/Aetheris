@@ -9,7 +9,7 @@ namespace Aetheris.Kernel.Firmament.Tests;
 
 public sealed class AirChamferFirmamentShadowProbeTests
 {
-    private const string SupportedFixture = "fixtures/LegacyV1/Corpus/valid/edge-x13-valid-airchamfer-shadow-box-edge.firmament";
+    private const string SupportedFixture = "fixtures/Compatibility/LegacyV1/Corpus/valid/edge-x13-valid-airchamfer-shadow-box-edge.firmament";
 
     [Fact]
     public void FirmamentAirChamferShadowProbe_SupportedControlledCase_ProducesSidecarWithoutChangingProductionOutput()

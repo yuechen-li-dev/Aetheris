@@ -32,8 +32,8 @@ PMI can target labels with `importedPart.region("name")`.
 
 ## Fixtures and AP242 evidence
 
-- `fixtures/InlineStep/valid/inline-step-v2-recognized-face-datum-pmi-emits-in-step.valid.firmfixture` checks semantic datum evidence such as `SHAPE_ASPECT('firmament-datum:A')` and `PROPERTY_DEFINITION('datum:A:importedPart')`.
-- `fixtures/InlineStep/valid/inline-step-v2-recognized-hole-diameter-pmi-emits-in-step.valid.firmfixture` checks semantic diameter evidence such as `SHAPE_DIMENSION_REPRESENTATION('diameter:importedPart.mountHoleDiameter')` and `PROPERTY_DEFINITION('diameter:importedPart.mountHoleDiameter')`.
+- `fixtures/Regression/InlineStep/valid/inline-step-v2-recognized-face-datum-pmi-emits-in-step.valid.firmfixture` checks semantic datum evidence such as `SHAPE_ASPECT('firmament-datum:A')` and `PROPERTY_DEFINITION('datum:A:importedPart')`.
+- `fixtures/Regression/InlineStep/valid/inline-step-v2-recognized-hole-diameter-pmi-emits-in-step.valid.firmfixture` checks semantic diameter evidence such as `SHAPE_DIMENSION_REPRESENTATION('diameter:importedPart.mountHoleDiameter')` and `PROPERTY_DEFINITION('diameter:importedPart.mountHoleDiameter')`.
 
 No graphical PMI markers, leader lines, drawing views, or annotation layout are required.
 

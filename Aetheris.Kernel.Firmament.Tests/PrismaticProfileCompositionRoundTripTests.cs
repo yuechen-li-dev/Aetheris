@@ -11,7 +11,7 @@ public sealed class PrismaticProfileCompositionRoundTripTests
     [Fact]
     public void LProfileCounterbore_UsesSteppedSectionPlanAndPublishesSemanticDescendants()
     {
-        var source = File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Canonical/valid/profile-compose-l-bracket.firmament")))
+        var source = File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Regression/CanonicalGeometry/profile-compose-l-bracket.firmament")))
             .Replace("Base Stock { Profile: Bracket; From: 0mm; To: 12mm; Role: Stock }", """
                 Base Stock { Profile: Bracket; From: 0mm; To: 12mm; Role: Stock }
                 Hole<Counterbore> CounterboredMount {
@@ -159,7 +159,7 @@ public sealed class PrismaticProfileCompositionRoundTripTests
     [InlineData("Axis: +Z", "Axis: -Z", "compose-placement-unsupported-orientation")]
     public void ExplicitComposePlacement_RejectsUnsupportedTransformInsteadOfIgnoringIt(string before, string after, string expected)
     {
-        var source = File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "fixtures", "LegacyV1", "Reconstruction", "nist_ctc_01", "ctc01_prismatic_blockout_x2.firmament")));
+        var source = File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "fixtures", "Compatibility", "LegacyV1", "Reconstruction", "nist_ctc_01", "ctc01_prismatic_blockout_x2.firmament")));
         var parsed = PrismaticProfileCompositionParser.Parse(source.Replace(before, after, StringComparison.Ordinal));
         Assert.Null(parsed.Feature);
         Assert.Contains(parsed.Diagnostics, diagnostic => diagnostic.Contains(expected, StringComparison.Ordinal));
@@ -184,7 +184,7 @@ public sealed class PrismaticProfileCompositionRoundTripTests
     [Fact]
     public void Ctc01Blockout_AllAuthoritativeFacesTessellateForM8()
     {
-        var source = File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "fixtures", "LegacyV1", "Reconstruction", "nist_ctc_01", "ctc01_prismatic_blockout_x2.firmament")));
+        var source = File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "fixtures", "Compatibility", "LegacyV1", "Reconstruction", "nist_ctc_01", "ctc01_prismatic_blockout_x2.firmament")));
         var parsed = PrismaticProfileCompositionParser.Parse(source);
         var stack = Assert.IsType<PrismaticSectionStackConstruction>(PrismaticSectionStackCompiler.Normalize(parsed, out var diagnostics));
         Assert.Empty(diagnostics);
@@ -203,7 +203,7 @@ public sealed class PrismaticProfileCompositionRoundTripTests
     [Fact]
     public void Ctc01X4_MultipleCurvedInnerLoopsTessellateAndRespectVoidOrientation()
     {
-        var source = File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "fixtures", "LegacyV1", "Reconstruction", "nist_ctc_01", "ctc01_prismatic_blockout_x4.firmament")));
+        var source = File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "fixtures", "Compatibility", "LegacyV1", "Reconstruction", "nist_ctc_01", "ctc01_prismatic_blockout_x4.firmament")));
         var parsed = PrismaticProfileCompositionParser.Parse(source);
         var stack = Assert.IsType<PrismaticSectionStackConstruction>(PrismaticSectionStackCompiler.Normalize(parsed, out var diagnostics));
         Assert.Empty(diagnostics);
@@ -228,7 +228,7 @@ public sealed class PrismaticProfileCompositionRoundTripTests
     [Fact]
     public void MixedLineArcAdditiveOverlap_PreservesAnalyticCurvesAcrossStepRoundTrip()
     {
-        var source = File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "fixtures", "ProfileComposition", "mixed-line-arc-additive-overlap.firmament")));
+        var source = File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "fixtures", "Regression", "ProfileComposition", "mixed-line-arc-additive-overlap.firmament")));
         var parsed = PrismaticProfileCompositionParser.Parse(source);
         Assert.Empty(parsed.Diagnostics);
         var stack = Assert.IsType<PrismaticSectionStackConstruction>(PrismaticSectionStackCompiler.Normalize(parsed, out var diagnostics));
@@ -425,6 +425,11 @@ public sealed class PrismaticProfileCompositionRoundTripTests
         } }
         """;
 
-    private static string CompositionFixture(string name) => Path.GetFullPath(Path.Combine(
-        AppContext.BaseDirectory, "..", "..", "..", "..", "fixtures", "ProfileComposition", name));
+    private static string CompositionFixture(string name)
+    {
+        var invalidPrefix = "invalid" + Path.DirectorySeparatorChar;
+        return name.StartsWith(invalidPrefix, StringComparison.OrdinalIgnoreCase)
+            ? Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "fixtures", "Invalid", "ProfileComposition", name[invalidPrefix.Length..]))
+            : Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "fixtures", "Regression", "ProfileComposition", name));
+    }
 }

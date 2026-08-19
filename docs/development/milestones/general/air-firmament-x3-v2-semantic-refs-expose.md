@@ -56,7 +56,7 @@ Text trace prints an `Expose:` section beneath each V2 solid with entries such a
 
 ## Fixture changes
 
-`fixtures/SemanticRefs/valid/named-box-faces-v2.valid.firmfixture` is now parser-backed and expected to reach `feature-air` with four exposures. Focused invalid fixtures cover duplicate aliases, invalid axes, raw backend IDs, `=>` outside expose blocks, and unsupported `edge(...)` selectors.
+`fixtures/Regression/SemanticRefs/valid/named-box-faces-v2.valid.firmfixture` is now parser-backed and expected to reach `feature-air` with four exposures. Focused invalid fixtures cover duplicate aliases, invalid axes, raw backend IDs, `=>` outside expose blocks, and unsupported `edge(...)` selectors.
 
 ## Diagnostics
 

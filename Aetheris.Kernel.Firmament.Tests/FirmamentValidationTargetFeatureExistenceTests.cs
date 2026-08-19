@@ -5,9 +5,9 @@ namespace Aetheris.Kernel.Firmament.Tests;
 public sealed partial class FirmamentValidationTargetFeatureExistenceTests
 {
     [Theory]
-    [InlineData("fixtures/LegacyV1/Corpus/valid/m2c-valid-expect-exists-bare-target-earlier.firmament")]
-    [InlineData("fixtures/LegacyV1/Corpus/valid/m2c-valid-expect-selectable-bare-target-earlier.firmament")]
-    [InlineData("fixtures/LegacyV1/Corpus/valid/m4a-valid-mixed-bare-and-selector-targets.firmament")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/valid/m2c-valid-expect-exists-bare-target-earlier.firmament")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/valid/m2c-valid-expect-selectable-bare-target-earlier.firmament")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/valid/m4a-valid-mixed-bare-and-selector-targets.firmament")]
     public void Compiler_Accepts_BareValidationTargets_WhenFeatureDefinedEarlier(string fixturePath)
     {
         var result = CompileFixture(fixturePath);
@@ -16,10 +16,10 @@ public sealed partial class FirmamentValidationTargetFeatureExistenceTests
     }
 
     [Theory]
-    [InlineData("fixtures/LegacyV1/Corpus/invalid/m2c-invalid-expect-exists-bare-target-nonexistent.firmament", "expect_exists", "missing")]
-    [InlineData("fixtures/LegacyV1/Corpus/invalid/m2c-invalid-expect-selectable-bare-target-nonexistent.firmament", "expect_selectable", "missing")]
-    [InlineData("fixtures/LegacyV1/Corpus/invalid/m2c-invalid-expect-exists-bare-target-forward.firmament", "expect_exists", "later")]
-    [InlineData("fixtures/LegacyV1/Corpus/invalid/m2c-invalid-expect-selectable-bare-target-forward.firmament", "expect_selectable", "later")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/invalid/m2c-invalid-expect-exists-bare-target-nonexistent.firmament", "expect_exists", "missing")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/invalid/m2c-invalid-expect-selectable-bare-target-nonexistent.firmament", "expect_selectable", "missing")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/invalid/m2c-invalid-expect-exists-bare-target-forward.firmament", "expect_exists", "later")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/invalid/m2c-invalid-expect-selectable-bare-target-forward.firmament", "expect_selectable", "later")]
     public void Compiler_Rejects_BareValidationTargets_WhenFeatureMissingOrForward(string fixturePath, string opName, string targetId)
     {
         var first = CompileFixture(fixturePath);
@@ -38,14 +38,14 @@ public sealed partial class FirmamentValidationTargetFeatureExistenceTests
     }
 
     [Theory]
-    [InlineData("fixtures/LegacyV1/Corpus/valid/m4a-valid-expect-exists-selector-target-root-earlier.firmament")]
-    [InlineData("fixtures/LegacyV1/Corpus/valid/m4a-valid-expect-selectable-selector-target-root-earlier.firmament")]
-    [InlineData("fixtures/LegacyV1/Corpus/valid/m2c-valid-expect-exists-selector-target-unresolved.firmament")]
-    [InlineData("fixtures/LegacyV1/Corpus/valid/m2c-valid-expect-selectable-selector-target-unresolved.firmament")]
-    [InlineData("fixtures/LegacyV1/Corpus/valid/m4b-valid-expect-exists-selector-target-port-surface-valid.firmament")]
-    [InlineData("fixtures/LegacyV1/Corpus/valid/m4b-valid-expect-selectable-selector-target-port-surface-valid.firmament")]
-    [InlineData("fixtures/LegacyV1/Corpus/valid/m4b-valid-mixed-bare-and-selector-targets.firmament")]
-    [InlineData("fixtures/LegacyV1/Corpus/valid/m4c-valid-primitive-selector-contracts.firmament")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/valid/m4a-valid-expect-exists-selector-target-root-earlier.firmament")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/valid/m4a-valid-expect-selectable-selector-target-root-earlier.firmament")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/valid/m2c-valid-expect-exists-selector-target-unresolved.firmament")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/valid/m2c-valid-expect-selectable-selector-target-unresolved.firmament")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/valid/m4b-valid-expect-exists-selector-target-port-surface-valid.firmament")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/valid/m4b-valid-expect-selectable-selector-target-port-surface-valid.firmament")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/valid/m4b-valid-mixed-bare-and-selector-targets.firmament")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/valid/m4c-valid-primitive-selector-contracts.firmament")]
     public void Compiler_Accepts_SelectorShapedValidationTargets_WhenRootFeatureDefinedEarlier(string fixturePath)
     {
         var result = CompileFixture(fixturePath);
@@ -54,10 +54,10 @@ public sealed partial class FirmamentValidationTargetFeatureExistenceTests
     }
 
     [Theory]
-    [InlineData("fixtures/LegacyV1/Corpus/invalid/m4a-invalid-expect-exists-selector-target-root-nonexistent.firmament", "expect_exists", "ghost")]
-    [InlineData("fixtures/LegacyV1/Corpus/invalid/m4a-invalid-expect-selectable-selector-target-root-nonexistent.firmament", "expect_selectable", "ghost")]
-    [InlineData("fixtures/LegacyV1/Corpus/invalid/m4a-invalid-expect-exists-selector-target-root-forward.firmament", "expect_exists", "later")]
-    [InlineData("fixtures/LegacyV1/Corpus/invalid/m4a-invalid-expect-selectable-selector-target-root-forward.firmament", "expect_selectable", "later")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/invalid/m4a-invalid-expect-exists-selector-target-root-nonexistent.firmament", "expect_exists", "ghost")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/invalid/m4a-invalid-expect-selectable-selector-target-root-nonexistent.firmament", "expect_selectable", "ghost")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/invalid/m4a-invalid-expect-exists-selector-target-root-forward.firmament", "expect_exists", "later")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/invalid/m4a-invalid-expect-selectable-selector-target-root-forward.firmament", "expect_selectable", "later")]
     public void Compiler_Rejects_SelectorShapedValidationTargets_WhenRootMissingOrForward(string fixturePath, string opName, string rootFeatureId)
     {
         var first = CompileFixture(fixturePath);
@@ -78,10 +78,10 @@ public sealed partial class FirmamentValidationTargetFeatureExistenceTests
 
 
     [Theory]
-    [InlineData("fixtures/LegacyV1/Corpus/invalid/m4b-invalid-expect-exists-selector-target-port-starts-digit.firmament", "expect_exists", "1port")]
-    [InlineData("fixtures/LegacyV1/Corpus/invalid/m4b-invalid-expect-selectable-selector-target-port-invalid-punctuation.firmament", "expect_selectable", "top-face")]
-    [InlineData("fixtures/LegacyV1/Corpus/invalid/m4b-invalid-expect-selectable-selector-target-port-whitespace.firmament", "expect_selectable", "top face")]
-    [InlineData("fixtures/LegacyV1/Corpus/invalid/m4b-invalid-expect-exists-selector-target-port-invalid-symbol.firmament", "expect_exists", "face$")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/invalid/m4b-invalid-expect-exists-selector-target-port-starts-digit.firmament", "expect_exists", "1port")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/invalid/m4b-invalid-expect-selectable-selector-target-port-invalid-punctuation.firmament", "expect_selectable", "top-face")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/invalid/m4b-invalid-expect-selectable-selector-target-port-whitespace.firmament", "expect_selectable", "top face")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/invalid/m4b-invalid-expect-exists-selector-target-port-invalid-symbol.firmament", "expect_exists", "face$")]
     public void Compiler_Rejects_SelectorShapedValidationTargets_WhenPortTokenMalformed(string fixturePath, string opName, string portToken)
     {
         var first = CompileFixture(fixturePath);
@@ -102,10 +102,10 @@ public sealed partial class FirmamentValidationTargetFeatureExistenceTests
 
 
     [Theory]
-    [InlineData("fixtures/LegacyV1/Corpus/invalid/m4c-invalid-expect-exists-selector-target-port-not-allowed-box.firmament", "expect_exists", "box", "circular_edges", "box", 1)]
-    [InlineData("fixtures/LegacyV1/Corpus/invalid/m4c-invalid-expect-exists-selector-target-port-not-allowed-sphere.firmament", "expect_exists", "sphere", "top_face", "sphere", 1)]
-    [InlineData("fixtures/LegacyV1/Corpus/invalid/m4c-invalid-expect-selectable-selector-target-port-not-allowed-cylinder.firmament", "expect_selectable", "cylinder", "surface", "cylinder", 1)]
-    [InlineData("fixtures/LegacyV1/Corpus/invalid/m4c-mixed-valid-and-invalid-selector-contracts.firmament", "expect_exists", "sph", "top_face", "sphere", 5)]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/invalid/m4c-invalid-expect-exists-selector-target-port-not-allowed-box.firmament", "expect_exists", "box", "circular_edges", "box", 1)]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/invalid/m4c-invalid-expect-exists-selector-target-port-not-allowed-sphere.firmament", "expect_exists", "sphere", "top_face", "sphere", 1)]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/invalid/m4c-invalid-expect-selectable-selector-target-port-not-allowed-cylinder.firmament", "expect_selectable", "cylinder", "surface", "cylinder", 1)]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/invalid/m4c-mixed-valid-and-invalid-selector-contracts.firmament", "expect_exists", "sph", "top_face", "sphere", 5)]
     public void Compiler_Rejects_SelectorShapedValidationTargets_WhenPortNotAllowedByPrimitiveFeatureContract(string fixturePath, string opName, string featureId, string portToken, string featureKind, int opIndex)
     {
         var first = CompileFixture(fixturePath);
@@ -232,7 +232,7 @@ ops[6]:
     [Fact]
     public void Compiler_DoesNotAttach_SelectorMetadata_For_BareFeatureIdTarget()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m2c-valid-expect-exists-bare-target-earlier.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m2c-valid-expect-exists-bare-target-earlier.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var validationOp = result.Compilation.Value.ParsedDocument!.Ops.Entries[1];

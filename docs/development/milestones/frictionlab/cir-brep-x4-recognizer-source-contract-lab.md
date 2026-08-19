@@ -12,7 +12,7 @@
 - Analysis/readiness: `CirNativeAnalysisService`, `MaterializationReadinessAnalyzer`.
 
 ## 3) Experiment 1 source inventory table
-Fixture: `fixtures/LegacyV1/Examples/boolean_box_cylinder_hole.firmament`.
+Fixture: `fixtures/Compatibility/LegacyV1/Examples/boolean_box_cylinder_hole.firmament`.
 
 | Source | Available at recognizer call site | Geometry tree | Dimensions/transforms | Provenance ids/tool/source | Sufficient alone | Diagnostic value |
 |---|---|---:|---:|---:|---:|---:|

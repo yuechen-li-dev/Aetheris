@@ -4,7 +4,7 @@
 
 AIR-REGION-X9 addresses the exact AIR-REGION-X8 blocker for the metadata-driven side-hole fixture: controlled parent face splitting for the `+X` face of the `10 × 8 × 6` box.
 
-This is not general side-hole support, arbitrary planar face splitting, arbitrary face selection, arbitrary profiles, or Boolean fallback. The path remains scoped to `fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture`.
+This is not general side-hole support, arbitrary planar face splitting, arbitrary face selection, arbitrary profiles, or Boolean fallback. The path remains scoped to `fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture`.
 
 ## Relationship to AIR-REGION-X8
 

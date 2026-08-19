@@ -6,12 +6,12 @@ STEP-V2-X4 promotes the first bounded Firmament V2 multi-feature composition cas
 
 Valid Tier 4 fixtures:
 
-- `fixtures/Composite/valid/composite-v2-two-independent-holes-step-verified.valid.firmfixture`
-- `fixtures/Composite/valid/composite-v2-adjacent-non-overlapping-holes-step-verified.valid.firmfixture`
+- `fixtures/Regression/Composite/valid/composite-v2-two-independent-holes-step-verified.valid.firmfixture`
+- `fixtures/Regression/Composite/valid/composite-v2-adjacent-non-overlapping-holes-step-verified.valid.firmfixture`
 
 Invalid Tier 4 fixture:
 
-- `fixtures/Composite/invalid/composite-v2-overlapping-holes-rejected-with-clear-diagnostic.invalid.firmfixture`
+- `fixtures/Compatibility/LegacyAliases/Invalid/Composite/composite-v2-overlapping-holes-rejected-with-clear-diagnostic.invalid.firmfixture`
 
 The optional derived-variant plus hole case was deferred from X4 and is promoted separately by STEP-V2-X5; see `docs/development/implementation/step-v2-x5-derived-variant-plus-hole-ap242.md`. X4 intentionally proved multi-hole composition on one selected Box first.
 

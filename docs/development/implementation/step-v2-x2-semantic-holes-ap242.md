@@ -4,7 +4,7 @@ STEP-V2-X2 promotes the already-supported Firmament V2 semantic hole source form
 
 ## Fixtures
 
-The MVP fixtures live under `fixtures/Hole/valid/`:
+The MVP fixtures live under `fixtures/Regression/Hole/valid/`:
 
 - `feature-v2-shaft-hole-through-step-verified.valid.firmfixture`
 - `feature-v2-shaft-hole-blind-step-verified.valid.firmfixture`

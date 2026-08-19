@@ -1,0 +1,46 @@
+Model ProfileDeltaPlate {
+    Units: mm
+
+    Enum RecessKind { Cable Service }
+    Record LocalRecessSpec {
+        Kind: RecessKind
+        Center: Length
+        Lead: Length
+        Run: Length
+        Depth: Length
+        Land: Length
+    }
+    Static Table RecessStandards: LocalRecessSpec Key: Kind {
+        Kind: [Cable, Service]
+        Center: [50mm, 65mm]
+        Lead: [5mm, 4mm]
+        Run: [8mm, 6mm]
+        Depth: [6mm, 4mm]
+        Land: [20mm, 16mm]
+    }
+    Static CableStandard = RecessStandards[Cable]
+    Static PlateRecess: LocalRecessSpec = CableStandard with {
+        Center: 52mm
+    }
+
+    Template<P: LocalRecessSpec, Owner: ProfilePath>
+    ProfileDelta LocalRecess {
+        On: Owner
+        Anchor: CenteredAt P.Center
+        Side: Inward
+        Level Carrier { Offset: 0mm; }
+        Level Recessed { Offset: P.Depth; }
+        Transition LeadIn { Kind: Diagonal; Run: P.Lead; To: Recessed; }
+        Span LeftRun { Run: P.Run; At: Recessed; }
+        Span Land { Run: P.Land; At: Recessed; }
+        Span RightRun { Run: P.Run; At: Recessed; }
+        Transition LeadOut { Kind: Diagonal; Run: P.Lead; To: Carrier; }
+    }
+
+    Concept Struct Layout On XY {
+        Rect2 PlateBase { Center: [50mm, 20mm]; Size: [100mm, 40mm]; }
+    }
+    ProfileDelta CableRelief = LocalRecess < P: PlateRecess, Owner: PlateBase.Bottom >
+    Profile Plate From PlateBase
+    Struct PlateBody { Extrude Solid { Profile: Plate; From: 0mm; To: 3mm; } }
+}

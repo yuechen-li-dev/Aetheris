@@ -49,7 +49,7 @@ Modify Base { EdgeFinish Break { Face: +Z Target: Boundary Kind: Chamfer Distanc
     [Fact]
     public void Build_ValidLegacyToon_RemainsEligibleForV1Fallback()
     {
-        var path = Path.Combine(RepoRoot(), "fixtures", "LegacyV1", "Examples", "box_basic.firmament");
+        var path = Path.Combine(RepoRoot(), "fixtures", "Compatibility", "LegacyV1", "Examples", "box_basic.firmament");
         var v2 = FirmamentV2Parser.Parse(File.ReadAllText(path));
         var output = Path.Combine(Path.GetTempPath(), $"aetheris-v1-fallback-{Guid.NewGuid():N}.step");
         try
@@ -69,7 +69,7 @@ Modify Base { EdgeFinish Break { Face: +Z Target: Boundary Kind: Chamfer Distanc
     [Fact]
     public void CompileSource_ValidLegacyToon_CannotCrossCanonicalV2Boundary()
     {
-        var source = File.ReadAllText(Path.Combine(RepoRoot(), "fixtures", "LegacyV1", "Examples", "box_basic.firmament"));
+        var source = File.ReadAllText(Path.Combine(RepoRoot(), "fixtures", "Compatibility", "LegacyV1", "Examples", "box_basic.firmament"));
 
         var result = FirmamentBuildAndExport.CompileSource(source);
 
@@ -116,6 +116,6 @@ Modify Base { EdgeFinish Break { Face: +Z Target: Boundary Kind: Chamfer Distanc
         }
     }
 
-    private static string FixturePath() => Path.Combine(RepoRoot(), "fixtures", "Language", "invalid", "concept-struct-diagnostic-routing-x1.invalid.firmfixture");
+    private static string FixturePath() => Path.Combine(RepoRoot(), "fixtures", "Invalid", "Language", "concept-struct-diagnostic-routing-x1.invalid.firmfixture");
     private static string RepoRoot() => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../"));
 }

@@ -8,7 +8,7 @@ public sealed class ForgeCsA5ExternalConceptPackTests
     [Fact]
     public void ForgeCsA5_WithoutExternalPack_UnknownExternalConceptRemainsInvalid()
     {
-        var parse = ParseFixture("Language/invalid/concept-external-boss-hole.invalid.firmfixture");
+        var parse = ParseFixture("Compatibility/LegacyAliases/Invalid/Language/concept-external-boss-hole.invalid.firmfixture");
 
         Assert.NotNull(parse.Document);
         Assert.Contains(FirmamentV2Parser.ConceptUnknownConcept, parse.Diagnostics);
@@ -18,7 +18,7 @@ public sealed class ForgeCsA5ExternalConceptPackTests
     public void ForgeCsA5_WithExternalPack_ParserAndRuntimeAcceptExternalConcept()
     {
         var configuration = CreateExternalRuntimeConfiguration(typeof(Aetheris.TestForgePack.TestForgePack).Assembly.Location);
-        var path = FixturePath("Language/invalid/concept-external-boss-hole.invalid.firmfixture");
+        var path = FixturePath("Compatibility/LegacyAliases/Invalid/Language/concept-external-boss-hole.invalid.firmfixture");
         var parse = FirmamentV2Parser.Parse(File.ReadAllText(path), Path.GetDirectoryName(path), configuration.Catalog);
 
         Assert.True(parse.IsSuccess);
@@ -56,7 +56,7 @@ public sealed class ForgeCsA5ExternalConceptPackTests
     [Fact]
     public void ForgeCsA5_DefaultReport_RemainsBuiltInOnly()
     {
-        var report = BuildFixture("Language/valid/concept-applications-forge.valid.firmfixture");
+        var report = BuildFixture("Regression/Language/valid/concept-applications-forge.valid.firmfixture");
 
         Assert.Equal("Aetheris.Standard", report.ForgeRuntime.BuiltInPack);
         Assert.Empty(report.ForgeRuntime.ExternalPacks);

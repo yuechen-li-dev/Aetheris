@@ -107,4 +107,4 @@ Two independent CTC runs produced flat hash
 `615aa6c549c55654a0bdafc9da0e07f4e3f983970f2f7acda6f5e4c305a41364`.
 
 The executable non-Sheet-Metal fixture is
-`fixtures/Canonical/valid/profile-shared-corners-plate.firmament`.
+`fixtures/Regression/CanonicalGeometry/profile-shared-corners-plate.firmament`.

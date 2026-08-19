@@ -72,7 +72,7 @@ public sealed class ForgeCsA1InteropTests
     [Fact]
     public void ForgeCsA1_ConceptApplication_InteropPreservesProcessAndHoleConcepts()
     {
-        var document = ParseFixture("Language/valid/concept-applications-forge.valid.firmfixture");
+        var document = ParseFixture("Regression/Language/valid/concept-applications-forge.valid.firmfixture");
 
         var manufacturing = FirmamentV2ConceptApplicationAdapter.Adapt(Assert.Single(document.ManufacturingConcepts!));
         Assert.Equal(FirmamentConceptApplicationKind.Manufacturing, manufacturing.Kind);

@@ -1,0 +1,73 @@
+// A typed Template can specialize ordinary parts before assembly placement.
+Concept AssemblyBlockConcept {
+    Bounds: Box3
+    Axis: Axis
+    Seat: Plane
+    Base: Plane
+    Height: Length
+}
+
+Record BlockSpec {
+    Width: Length
+    Depth: Length
+    Height: Length
+}
+
+Static FixedSpec: BlockSpec = BlockSpec { Width: 20mm Depth: 20mm Height: 10mm }
+Static MovingSpec: BlockSpec = BlockSpec { Width: 12mm Depth: 12mm Height: 8mm }
+
+Template < Spec: BlockSpec >
+Struct AssemblyBlock: AssemblyBlockConcept {
+    Require Positive => Spec.Width > 0mm && Spec.Depth > 0mm && Spec.Height > 0mm
+    Concept Struct Design: AssemblyBlockConcept {
+        Bounds: Box3 { Size: [Spec.Width, Spec.Depth, Spec.Height] }
+        Axis: Bounds.Center.Axis(+Z)
+        Seat: Bounds.Face(+Z)
+        Base: Bounds.Face(-Z)
+        Height: Spec.Height
+    }
+    Box Body { Bounds: Design.Bounds }
+    Modify Body {
+        EdgeFinish ProofBreak {
+            Face: Design.Seat
+            Target: Boundary
+            Kind: Chamfer
+            Distance: 1mm
+        }
+    }
+    Expose {
+        Bounds: Design.Bounds
+        Axis: Design.Axis
+        Seat: Design.Seat
+        Base: Design.Base
+        Height: Design.Height
+    }
+}
+
+Interface SeatedAxis {
+    Role Fixed requires AxisCapable, PlaneCapable, DimensionalCapable;
+    Role Moving requires AxisCapable, PlaneCapable, DimensionalCapable;
+    Lower AxisCoincident Moving.Axis Fixed.Axis;
+    Lower PlaneCoincident Moving.Base Fixed.Seat;
+    Fit Moving.Height inside Fixed.Height;
+    Allow rotation:about-axis;
+}
+
+Assembly TemplateBlockPair {
+    <Assembly TemplateBlockPair>
+        <Part Fixed = AssemblyBlock<Spec: FixedSpec>></Part>
+        <Part Moving = AssemblyBlock<Spec: MovingSpec>></Part>
+    </Assembly>
+
+    Anchor: TemplateBlockPair.Fixed.Interface;
+
+    Mate Seat: SeatedAxis {
+        Fixed: TemplateBlockPair.Fixed.Interface;
+        Moving: TemplateBlockPair.Moving.Interface;
+    }
+
+    Assert ToleranceStackup TemplateFitTransition {
+        Between: [TemplateBlockPair.Moving.Interface.Height, TemplateBlockPair.Fixed.Interface.Height];
+        Require: Clearance >= 2mm;
+    }
+}

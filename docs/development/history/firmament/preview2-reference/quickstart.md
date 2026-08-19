@@ -69,7 +69,7 @@ Static Table Blocks: BlockSpec Key: Width {
 Static Small = Blocks[20mm]
 ```
 
-Columns must have the same length and keyed lookup is typed. The complete Table/Template/Profile example is `fixtures/Canonical/valid/table-template-concept-path-compose.firmament`.
+Columns must have the same length and keyed lookup is typed. The complete Table/Template/Profile example is `fixtures/Canonical/Templates/table-driven-mounting-plate.firmament`.
 
 ## 5. Specialize a Template
 
@@ -97,13 +97,13 @@ Template binding checks fields, types, defaults, `Require`, and recursion before
 
 ## 6. Build a Profile and Compose it
 
-Use `Concept Path` for named ordered planar motion, convert a valid closed Path to a Profile, then use the ordinary Compose/Modify lanes. The canonical complete source is `fixtures/Canonical/valid/table-template-concept-path-compose.firmament`.
+Use `Concept Path` for named ordered planar motion, convert a valid closed Path to a Profile, then use the ordinary Compose/Modify lanes. The canonical complete source is `fixtures/Canonical/Templates/table-driven-mounting-plate.firmament`.
 
 This separation is useful: Path captures construction intent, Profile is admitted exact planar geometry, Compose builds a body, and Modify applies a supported semantic feature route.
 
 ## 7. Bring in existing STEP
 
-The complete `fixtures/Canonical/valid/inline-step-recognize-replace.firmament` workflow performs:
+The complete `fixtures/Regression/CanonicalGeometry/inline-step-recognize-replace.firmament` workflow performs:
 
 ```text
 InlineStep -> Recognize -> SemanticValue -> bounded Replace
@@ -123,17 +123,17 @@ The command writes AnalysisIR, native displacement/stress results, diagnostics/m
 
 ## 9. Assemble Template-produced parts
 
-`fixtures/AssemblyM1/template-block-pair.firmament` turns two Static Records into Template-produced Part definitions, instantiates them in one product tree, and relates their exposed semantics through an Interface and Mate.
+`fixtures/Canonical/Assembly/template-block-pair.firmament` turns two Static Records into Template-produced Part definitions, instantiates them in one product tree, and relates their exposed semantics through an Interface and Mate.
 
 ```powershell
-aetheris asm inspect fixtures/AssemblyM1/template-block-pair.firmament --json
+aetheris asm inspect fixtures/Canonical/Assembly/template-block-pair.firmament --json
 ```
 
 The report distinguishes reusable definitions from occurrences and includes transforms, world bounds, Mate residuals, dimensional transitions, and Template/Record provenance.
 
 ## 10. Assert a worst-case tolerance path
 
-`fixtures/AssemblyM0/bearing-module.firmament` combines Shaft/Bore and seated-axis Interfaces with explicit dimensional Relations:
+`fixtures/Canonical/Assembly/bearing-module.firmament` combines Shaft/Bore and seated-axis Interfaces with explicit dimensional Relations:
 
 ```firmament
 Assert ToleranceStackup AxialReach {

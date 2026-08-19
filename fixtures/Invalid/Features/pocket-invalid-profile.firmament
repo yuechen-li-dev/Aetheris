@@ -1,0 +1,16 @@
+Model PocketInvalidProfile {
+    Units: mm
+    Concept Path StockOutline {
+        Start: Point2(0mm, 0mm)
+        Heading: 0deg
+        Line South { Length: 50mm }
+        Line East { Turn: 90deg; Length: 32mm }
+        Line North { Turn: 90deg; Length: 50mm }
+        Close West
+    }
+    Profile StockProfile From StockOutline
+    Struct Block { Compose Body {
+        Base Stock { Profile: StockProfile; From: 0mm; To: 10mm; Role: Stock }
+        Pocket Recess { On: Top; Profile: MissingProfile; Depth: 4mm; MinimumFloorThickness: 2mm }
+    } }
+}

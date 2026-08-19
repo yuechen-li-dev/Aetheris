@@ -11,7 +11,7 @@ public sealed class FirmamentPlacementAnchorSemanticsTests
     [Fact]
     public void SharedAnchor_TopFace_MatchesProduction()
     {
-        var compile = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Examples/w2_cylinder_root_blind_bore_semantic.firmament"));
+        var compile = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Compatibility/LegacyV1/Examples/w2_cylinder_root_blind_bore_semantic.firmament"));
         var baseBody = compile.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives.Single(p => p.FeatureId == "flange").Body;
         var bounds = baseBody.ComputeBounds()!.Value;
 

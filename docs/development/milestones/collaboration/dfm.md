@@ -7,6 +7,6 @@ Drawing compilation produces two optional review projections when review data ex
 
 Callout anchors come from the DrawingIR annotation whose semantic reference matches the review target. Firmament contains no slide coordinates. Placement is bounded to the page content region and deterministic. Production PPTX explicitly excludes all review groups.
 
-The canonical fixture is `fixtures/DrawingM0/bearing-block-drawing.firmament`. Its fictional supplier story proposes loosening a bore tolerance to avoid a secondary grinding operation. The proposal is collaboration data only; the authoritative `MountDiameterConstraint` remains unchanged.
+The canonical fixture is `fixtures/Canonical/Drawings/bearing-block-production-drawing.firmament`. Its fictional supplier story proposes loosening a bore tolerance to avoid a secondary grinding operation. The proposal is collaboration data only; the authoritative `MountDiameterConstraint` remains unchanged.
 
 Microsoft 365 is not required. The Dominatus audit found a useful conceptual capability-profile/allowlist boundary and fake Outlook workflow, but no live Graph authentication, OneDrive/SharePoint upload, or PowerPoint file transport implementation suitable for direct reuse. M0 therefore adds no cloud dependency. A future adapter should accept already-generated artifacts and expose upload/send operations behind credentials and mocked transport boundaries.

@@ -12,7 +12,7 @@ The third error was the decisive CAD Assistant trigger. Wire and face-sense corr
 
 ## Reproduction
 
-The retained original is `fixtures/Chamfer/evidence/hole-entry.step`, SHA-256 `F3B8AFD4BD55F388475D35751683A915287EF3CD6D2B42F569DB40D658911E14`. `tools/Open-In-CadAssistant.ps1` resolved `C:\Program Files\CAD Assistant\CADAssistant.exe` and launched the exact file twice. Both imports deterministically remained at 50%, `Loading: 1 / 2`. Cancelling changed the UI to `Aborting...` but did not finish within ten seconds. The earlier M6 run produced `OSD_Exception_ACCESS_VIOLATION`; that exception was not reproduced in this run, so only the 50% stall is classified as deterministic.
+The retained original is `fixtures/Regression/Chamfer/evidence/hole-entry.step`, SHA-256 `F3B8AFD4BD55F388475D35751683A915287EF3CD6D2B42F569DB40D658911E14`. `tools/Open-In-CadAssistant.ps1` resolved `C:\Program Files\CAD Assistant\CADAssistant.exe` and launched the exact file twice. Both imports deterministically remained at 50%, `Loading: 1 / 2`. Cancelling changed the UI to `Aborting...` but did not finish within ten seconds. The earlier M6 run produced `OSD_Exception_ACCESS_VIOLATION`; that exception was not reproduced in this run, so only the 50% stall is classified as deterministic.
 
 SolidWorks 2026 imported the original as a surface body and visibly showed cross-hole chord/seam artifacts. That independent result agreed with the STEP graph audit and ruled out an OCCT-only interpretation.
 

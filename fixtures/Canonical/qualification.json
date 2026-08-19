@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "actions": [
+    { "path": "Assembly", "operation": "assembly-inspect" },
+    { "path": "Drawings", "operation": "drawing-compile" },
+    { "path": "FEA", "operation": "fea-solve" },
+    { "path": "Materials", "operation": "fea-solve" },
+    { "path": "SheetMetal", "operation": "sheet-metal-flatten" },
+    { "path": "Basics", "operation": "build-step" },
+    { "path": "Primitives", "operation": "build-step" },
+    { "path": "Profiles", "operation": "build-step" },
+    { "path": "Features", "operation": "build-step" },
+    { "path": "Patterns", "operation": "build-step" },
+    { "path": "PMI", "operation": "build-step" },
+    { "path": "Templates", "operation": "build-step" },
+    { "path": "Integration", "operation": "build-step" }
+  ]
+}

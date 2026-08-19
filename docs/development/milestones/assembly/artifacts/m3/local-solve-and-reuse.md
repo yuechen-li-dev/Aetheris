@@ -1,6 +1,6 @@
 # Local solve and definition reuse
 
-Canonical source: `fixtures/AssemblyM3/bearing-module.firmament`.
+Canonical source: `fixtures/Regression/Assembly/bearing-module-family-with-legacy-placement.firmament`.
 
 - specialization: `BearingModule<Spec:StandardModuleSpec>`
 - AssemblyDefinition ID: `assembly-definition:232D83A6D04B59D4`

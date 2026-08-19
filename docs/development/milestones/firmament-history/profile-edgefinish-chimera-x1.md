@@ -5,7 +5,7 @@
 > Its policy matrix is superseded by [the X2 policy card](profile-edgefinish-chimera-closure-x2.md) and [the X3 release note](profile-edgefinish-chimera-release-closure-x3.md).
 
 X1 introduces the permanent *source* conformance card for Profile edge finishes:
-`fixtures/Canonical/valid/profile-edgefinish-chimera-base.firmament`.
+`fixtures/Regression/CanonicalGeometry/profile-edgefinish-chimera-base.firmament`.
 It is a single CCW outer Profile extruded from 0 to 24 mm.  `F = 4 mm`; the
 rounded source radii are Small = 2 mm, Medium = 4 mm, and Large = 8 mm.
 The explicit straight isolation runs are 32–40 mm (at least `8F`).

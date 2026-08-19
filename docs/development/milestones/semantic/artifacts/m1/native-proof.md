@@ -2,7 +2,7 @@
 
 Ground-truth command:
 
-`aetheris inspect fixtures/Canonical/valid/table-template-concept-path-compose.firmament --json`
+`aetheris inspect fixtures/Canonical/Templates/table-driven-mounting-plate.firmament --json`
 
 The output shows Table `PlateStandards`, with-derived record `ThickSmall`,
 specialization `template:a4b84f0a2a193884`, semantic root

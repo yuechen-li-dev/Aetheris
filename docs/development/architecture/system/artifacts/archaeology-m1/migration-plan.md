@@ -106,7 +106,7 @@ Add architecture comments at migrated recipe entry points and publish the two ke
 | `docs/development/milestones/general/air-firmament-a1-firmament-fixture-corpus.md` | directionally correct but says V1 remains valid; update wording to explicit compatibility/serialization destination in M2 |
 | `docs/development/milestones/general/build-test-policy-net10-and-legacy-v1.md` | current and consistent; retain |
 | `docs/development/milestones/assembly/artifacts/m0/*`, assembly milestone docs | retain historical; link to current profile distinction |
-| `fixtures/Assembly/LegacyImports/*/README.md` | update to say legacy JSON compatibility fixture |
+| `fixtures/Compatibility/Firmasm/LegacyAssembly/*/README.md` | update to say legacy JSON compatibility fixture |
 | `docs/development/milestones/general/boolean-deferred.md` | current truthful scope statement; retain and link to freeze policy |
 | stepped/CIR recovery/FrictionLab Boolean docs | retain historical/educational, including failures and later fixes |
 

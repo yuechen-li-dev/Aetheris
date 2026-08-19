@@ -1,6 +1,6 @@
 # Drawing M0B evidence
 
-Generated from `fixtures/DrawingM0B/machine-assembly-drawing.firmament` through the real `aetheris drawing compile` command.
+Generated from `fixtures/Regression/Drawing/machine-assembly-production-drawing-legacy-placement.firmament` through the real `aetheris drawing compile` command.
 
 - `MachineAssemblyProduction.*`: normalized occurrence-aware DrawingIR, SVG, two-page native PDF, validation, and Poppler QA renders.
 - `BearingBlockProduction.*`: upgraded Part DrawingIR, SVG, two-page native PDF/design table, validation, and Poppler QA renders.

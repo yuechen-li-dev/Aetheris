@@ -23,6 +23,6 @@ Firmament / Assembly / SemanticValue / PMI
 Generate the canonical evidence with:
 
 ```powershell
-dotnet run --project Aetheris.CLI -- drawing compile fixtures/DrawingM0/bearing-block-drawing.firmament --out-dir docs/development/milestones/drawing/artifacts/pptx-m1 --json
-dotnet run --project Aetheris.CLI -- drawing compile fixtures/DrawingM0B/machine-assembly-drawing.firmament --out-dir docs/development/milestones/drawing/artifacts/pptx-m1 --json
+dotnet run --project Aetheris.CLI -- drawing compile fixtures/Canonical/Drawings/bearing-block-production-drawing.firmament --out-dir docs/development/milestones/drawing/artifacts/pptx-m1 --json
+dotnet run --project Aetheris.CLI -- drawing compile fixtures/Regression/Drawing/machine-assembly-production-drawing-legacy-placement.firmament --out-dir docs/development/milestones/drawing/artifacts/pptx-m1 --json
 ```

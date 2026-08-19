@@ -1,0 +1,9 @@
+Model ConeExample {
+    Units: mm
+
+    Cone Body {
+        BottomRadius: 10mm
+        TopRadius: 4mm
+        Height: 24mm
+    }
+}

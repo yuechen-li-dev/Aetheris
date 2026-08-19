@@ -8,7 +8,7 @@ public sealed class AssemblyM0CliTests
     public void AsmInspect_EmitsMachineReadableAssemblyIr()
     {
         var root = FindRepoRoot();
-        var path = Path.Combine(root, "fixtures", "AssemblyM0", "bearing-module.firmament");
+        var path = Path.Combine(root, "fixtures", "Canonical", "Assembly", "bearing-module.firmament");
         var stdout = new StringWriter(); var stderr = new StringWriter();
         var exit = Aetheris.CLI.CliRunner.Run(["asm", "inspect", path, "--json"], stdout, stderr);
         Assert.Equal(0, exit);
@@ -25,7 +25,7 @@ public sealed class AssemblyM0CliTests
     public void AsmInspect_FailingAssertReturnsFailureJsonWithChain()
     {
         var root = FindRepoRoot();
-        var path = Path.Combine(root, "fixtures", "AssemblyM0", "bearing-module-failing.firmament");
+        var path = Path.Combine(root, "fixtures", "Invalid", "Assembly", "bearing-module-tolerance-failure.firmament");
         var stdout = new StringWriter(); var stderr = new StringWriter();
         var exit = Aetheris.CLI.CliRunner.Run(["asm", "inspect", path, "--json"], stdout, stderr);
         Assert.Equal(1, exit);
@@ -39,7 +39,7 @@ public sealed class AssemblyM0CliTests
     public void AsmInspect_TemplateAssembly_EmitsExecutableGeometryResidualsAndDefinitionReuseSeam()
     {
         var root = FindRepoRoot();
-        var path = Path.Combine(root, "fixtures", "AssemblyM1", "template-block-pair.firmament");
+        var path = Path.Combine(root, "fixtures", "Canonical", "Assembly", "template-block-pair.firmament");
         var stdout = new StringWriter(); var stderr = new StringWriter();
         var exit = Aetheris.CLI.CliRunner.Run(["asm", "inspect", path, "--json"], stdout, stderr);
         Assert.Equal(0, exit);
@@ -57,7 +57,7 @@ public sealed class AssemblyM0CliTests
     public void AsmInspect_LegacyFirmasmMigratesAndReportsPlacementAuthority()
     {
         var root = FindRepoRoot();
-        var path = Path.Combine(root, "fixtures", "Assembly", "LegacyImports", "examples", "occt-as1", "as1-assembly.firmasm");
+        var path = Path.Combine(root, "fixtures", "Compatibility", "Firmasm", "LegacyAssembly", "examples", "occt-as1", "as1-assembly.firmasm");
         var stdout = new StringWriter(); var stderr = new StringWriter();
 
         var exit = Aetheris.CLI.CliRunner.Run(["asm", "inspect", path, "--json"], stdout, stderr);
@@ -108,7 +108,7 @@ public sealed class AssemblyM0CliTests
     public void AsmInspect_PositiveVolumeInterferenceReturnsFatalStructuredDiagnostic()
     {
         var root = FindRepoRoot();
-        var canonical = Path.Combine(root, "fixtures", "AssemblyM1", "template-block-pair.firmament");
+        var canonical = Path.Combine(root, "fixtures", "Canonical", "Assembly", "template-block-pair.firmament");
         var source = File.ReadAllText(canonical).Replace(
             "Lower PlaneCoincident Moving.Base Fixed.Seat;",
             "Lower PlaneCoincident Moving.Seat Fixed.Seat;",

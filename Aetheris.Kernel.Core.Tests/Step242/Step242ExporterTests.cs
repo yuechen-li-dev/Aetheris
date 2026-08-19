@@ -530,7 +530,7 @@ END-ISO-10303-21;";
     {
         var fixturePath = Path.Combine(
             Step242CorpusManifestRunner.RepoRoot(),
-            "fixtures", "Assembly", "LegacyImports", "examples",
+            "fixtures", "Compatibility", "Firmasm", "LegacyAssembly", "examples",
             "occt-l-bracket",
             "_part_003_l_bracket.step");
         var source = File.ReadAllText(fixturePath);

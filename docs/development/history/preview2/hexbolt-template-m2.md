@@ -8,7 +8,7 @@ AP242 oracle with a regular hex head, exact cone/plane hyperbola trims, toroidal
 under-head blend, cylindrical shank, and conical tip. M2 preserves that path.
 
 M2 moves family authoring to
-`fixtures/LegacyV1/Examples/hexbolt_template_m2.firmament`. The canonical source
+`fixtures/Compatibility/LegacyV1/Examples/hexbolt_template_m2.firmament`. The canonical source
 declares `BoltConcept`, `HexBoltStandardRow`, the instance-specific `HexBoltSpec`,
 a keyed columnar Static Table, and immutable derived Static records,
 and `Template < Spec: HexBoltSpec > Struct HexBolt: BoltConcept`. It contains no

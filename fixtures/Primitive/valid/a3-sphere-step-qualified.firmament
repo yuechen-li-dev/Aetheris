@@ -1,7 +1,0 @@
-Model A3Sphere {
-    Units: mm
-
-    Sphere Body {
-        Radius: 7.5mm
-    }
-}

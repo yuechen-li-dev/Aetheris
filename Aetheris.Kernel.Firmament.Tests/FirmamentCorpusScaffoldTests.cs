@@ -4,7 +4,7 @@ namespace Aetheris.Kernel.Firmament.Tests;
 
 public sealed class FirmamentCorpusScaffoldTests
 {
-    private const string ManifestPath = "fixtures/LegacyV1/Corpus/manifests/firmament.corpus.json";
+    private const string ManifestPath = "fixtures/Compatibility/LegacyV1/Corpus/manifests/firmament.corpus.json";
 
     [Fact]
     public void Manifest_Exists_And_CanBeLoaded()
@@ -39,7 +39,7 @@ public sealed class FirmamentCorpusScaffoldTests
     [Fact]
     public void Fixtures_AreCanonicalToonStyle_NotJsonObjectLiterals()
     {
-        var fixturesRoot = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "fixtures", "LegacyV1", "Corpus");
+        var fixturesRoot = Path.Combine(FirmamentCorpusHarness.RepoRoot(), "fixtures", "Compatibility", "LegacyV1", "Corpus");
         var fixtureFiles = Directory.GetFiles(fixturesRoot, "*.firmament", SearchOption.AllDirectories)
             .OrderBy(path => path, StringComparer.Ordinal)
             .ToArray();

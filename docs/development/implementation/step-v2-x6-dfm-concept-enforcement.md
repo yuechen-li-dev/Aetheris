@@ -6,8 +6,8 @@ STEP-V2-X6 promotes a narrow Tier 5 slice of Firmament V2 template/concept metad
 
 Added build-verified invalid fixtures:
 
-- `fixtures/Templates/invalid/template-v2-cnc-min-tool-radius-enforced.invalid.firmfixture`
-- `fixtures/Templates/invalid/template-v2-concept-unit-mismatch-rejected-at-build.invalid.firmfixture`
+- `fixtures/Compatibility/LegacyAliases/Invalid/Templates/template-v2-cnc-min-tool-radius-enforced.invalid.firmfixture`
+- `fixtures/Compatibility/LegacyAliases/Invalid/Templates/template-v2-concept-unit-mismatch-rejected-at-build.invalid.firmfixture`
 
 Both fixtures use the real `aetheris build` path and are classified as Tier 5 deterministic rejections.
 
@@ -49,11 +49,11 @@ Firmament V2 fixture
 Direct CLI probes:
 
 ```bash
-dotnet run --project Aetheris.CLI -- build fixtures/Templates/invalid/template-v2-cnc-min-tool-radius-enforced.invalid.firmfixture --out "$tmp/template-v2-cnc-min-tool-radius.step" --json
+dotnet run --project Aetheris.CLI -- build fixtures/Compatibility/LegacyAliases/Invalid/Templates/template-v2-cnc-min-tool-radius-enforced.invalid.firmfixture --out "$tmp/template-v2-cnc-min-tool-radius.step" --json
 ```
 
 ```bash
-dotnet run --project Aetheris.CLI -- build fixtures/Templates/invalid/template-v2-concept-unit-mismatch-rejected-at-build.invalid.firmfixture --out "$tmp/template-v2-concept-unit-mismatch.step" --json
+dotnet run --project Aetheris.CLI -- build fixtures/Compatibility/LegacyAliases/Invalid/Templates/template-v2-concept-unit-mismatch-rejected-at-build.invalid.firmfixture --out "$tmp/template-v2-concept-unit-mismatch.step" --json
 ```
 
 Both commands are expected to return a failing build result and must not leave a successful AP242 output file.

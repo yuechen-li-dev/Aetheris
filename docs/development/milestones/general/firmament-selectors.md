@@ -134,5 +134,5 @@ Not supported yet:
 
 For concrete authoring of semantic placement with subtract tools:
 
-- `fixtures/LegacyV1/Examples/w2_cylinder_root_blind_bore_semantic.firmament`
-- `fixtures/LegacyV1/Examples/w2_box_sphere_exterior_opening_pocket_semantic.firmament`
+- `fixtures/Compatibility/LegacyV1/Examples/w2_cylinder_root_blind_bore_semantic.firmament`
+- `fixtures/Compatibility/LegacyV1/Examples/w2_box_sphere_exterior_opening_pocket_semantic.firmament`

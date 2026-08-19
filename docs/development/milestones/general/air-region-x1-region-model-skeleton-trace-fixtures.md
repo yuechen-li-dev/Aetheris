@@ -16,7 +16,7 @@ Parser-backed `fixtures/Primitive/valid/box.valid.firmfixture` now reports a sin
 
 ## FaceAttachedRegion side-hole fixture
 
-`fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture` is metadata-driven and trace-only. It reports `RootRegion` plus `FaceAttachedRegion` with `Subtractive` effect, `YieldSubtractiveVolume`, `YieldsCutVolume`, and `Deferred` integration. It does not parse new Firmament grammar and does not emit geometry.
+`fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture` is metadata-driven and trace-only. It reports `RootRegion` plus `FaceAttachedRegion` with `Subtractive` effect, `YieldSubtractiveVolume`, `YieldsCutVolume`, and `Deferred` integration. It does not parse new Firmament grammar and does not emit geometry.
 
 ## Local frame convention
 
@@ -28,7 +28,7 @@ X1 guarantees no Boolean, no BRep emission, no STEP smoke, no production route r
 
 ## Invalid fixture
 
-`fixtures/Region/invalid/implicit-parent-mutation.invalid.firmfixture` rejects a region that attempts implicit parent mutation without explicit yield. The actual stage is `region-rejected` and no geometry is emitted.
+`fixtures/Compatibility/LegacyAliases/Invalid/Region/implicit-parent-mutation.invalid.firmfixture` rejects a region that attempts implicit parent mutation without explicit yield. The actual stage is `region-rejected` and no geometry is emitted.
 
 ## Trace output additions
 

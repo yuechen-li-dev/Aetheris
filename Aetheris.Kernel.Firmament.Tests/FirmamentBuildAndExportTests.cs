@@ -9,7 +9,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_BoxBasicExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/box_basic.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/box_basic.firmament",
             "box_basic.step",
             "base",
             0,
@@ -21,7 +21,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_CylinderBasicExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/cylinder_basic.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/cylinder_basic.firmament",
             "cylinder_basic.step",
             "post",
             0,
@@ -34,7 +34,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_SphereBasicExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/sphere_basic.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/sphere_basic.firmament",
             "sphere_basic.step",
             "ball",
             0,
@@ -46,7 +46,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_TorusBasicExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/torus_basic.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/torus_basic.firmament",
             "torus_basic.step",
             "donut1",
             0,
@@ -58,7 +58,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_TriangularPrismBasicExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/triangular_prism_basic.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/triangular_prism_basic.firmament",
             "triangular_prism_basic.step",
             "tri1",
             0,
@@ -70,7 +70,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_HexagonalPrismBasicExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/hexagonal_prism_basic.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/hexagonal_prism_basic.firmament",
             "hexagonal_prism_basic.step",
             "hex1",
             0,
@@ -82,7 +82,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_StraightSlotBasicExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/straight_slot_basic.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/straight_slot_basic.firmament",
             "straight_slot_basic.step",
             "slot1",
             0,
@@ -94,7 +94,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_ConeFrustumBasicExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/cone_frustum_basic.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/cone_frustum_basic.firmament",
             "cone_frustum_basic.step",
             "frustum1",
             0,
@@ -106,7 +106,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_ConePointedTopZeroExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/cone_pointed_top_zero.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/cone_pointed_top_zero.firmament",
             "cone_pointed_top_zero.step",
             "pointed1",
             0,
@@ -118,7 +118,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_BoxAddBasicExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/box_add_basic.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/box_add_basic.firmament",
             "box_add_basic.step",
             "joined",
             1,
@@ -130,7 +130,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_BooleanAddBasicExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/boolean_add_basic.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/boolean_add_basic.firmament",
             "boolean_add_basic.step",
             "joined",
             2,
@@ -142,7 +142,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_BooleanSubtractBasicExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/boolean_subtract_basic.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/boolean_subtract_basic.firmament",
             "boolean_subtract_basic.step",
             "carved",
             2,
@@ -154,7 +154,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_PrismFamilyTriangularSubtractFixture_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Corpus/valid/m3b-valid-box-subtract-triangular-prism.firmament",
+            "fixtures/Compatibility/LegacyV1/Corpus/valid/m3b-valid-box-subtract-triangular-prism.firmament",
             "m3b-valid-box-subtract-triangular-prism.step",
             "tri_cut",
             1,
@@ -166,7 +166,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_PrismFamilyHexagonalSubtractFixture_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Corpus/valid/m3b-valid-box-subtract-hexagonal-prism.firmament",
+            "fixtures/Compatibility/LegacyV1/Corpus/valid/m3b-valid-box-subtract-hexagonal-prism.firmament",
             "m3b-valid-box-subtract-hexagonal-prism.step",
             "hex_cut",
             1,
@@ -178,7 +178,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_PrismFamilyStraightSlotSubtractFixture_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Corpus/valid/m3b-valid-box-subtract-straight-slot.firmament",
+            "fixtures/Compatibility/LegacyV1/Corpus/valid/m3b-valid-box-subtract-straight-slot.firmament",
             "m3b-valid-box-subtract-straight-slot.step",
             "slot_cut",
             1,
@@ -190,7 +190,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_BooleanIntersectBasicExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/boolean_intersect_basic.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/boolean_intersect_basic.firmament",
             "boolean_intersect_basic.step",
             "overlap",
             2,
@@ -202,7 +202,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_M4DraftBoxBasicExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/m4_draft_box_basic.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/m4_draft_box_basic.firmament",
             "m4_draft_box_basic.step",
             "drafted",
             1,
@@ -214,7 +214,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_M5aChamferBoxEdgeExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/m5a_chamfer_box_edge_basic.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/m5a_chamfer_box_edge_basic.firmament",
             "m5a_chamfer_box_edge_basic.step",
             "edge_break",
             1,
@@ -226,7 +226,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_M5aChamferBoxCornerE2Example_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/m5a_chamfer_box_corner_e2_basic.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/m5a_chamfer_box_corner_e2_basic.firmament",
             "m5a_chamfer_box_corner_e2_basic.step",
             "corner_break",
             1,
@@ -238,7 +238,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_M5aChamferTriangularPrismCornerE4Example_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/m5a_chamfer_triangular_prism_corner_e4_basic.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/m5a_chamfer_triangular_prism_corner_e4_basic.firmament",
             "m5a_chamfer_triangular_prism_corner_e4_basic.step",
             "corner_break",
             1,
@@ -250,7 +250,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_BooleanBoxCylinderHoleExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/boolean_box_cylinder_hole.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/boolean_box_cylinder_hole.firmament",
             "boolean_box_cylinder_hole.step",
             "hole",
             1,
@@ -262,7 +262,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_BooleanBoxConeThroughHoleExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/boolean_box_cone_throughhole_basic.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/boolean_box_cone_throughhole_basic.firmament",
             "boolean_box_cone_throughhole_basic.step",
             "cut",
             1,
@@ -274,7 +274,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_BooleanTwoCylinderHolesExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/boolean_two_cylinder_holes_basic.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/boolean_two_cylinder_holes_basic.firmament",
             "boolean_two_cylinder_holes_basic.step",
             "hole_b",
             2,
@@ -286,7 +286,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_BooleanCylinderConeHolesExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/boolean_cylinder_cone_holes_basic.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/boolean_cylinder_cone_holes_basic.firmament",
             "boolean_cylinder_cone_holes_basic.step",
             "cut_b",
             2,
@@ -298,7 +298,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_BooleanBoxSphereCavityExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/boolean_box_sphere_cavity_basic.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/boolean_box_sphere_cavity_basic.firmament",
             "boolean_box_sphere_cavity_basic.step",
             "cavity",
             1,
@@ -311,7 +311,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_W2CylinderRootBlindBoreSemanticExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/w2_cylinder_root_blind_bore_semantic.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/w2_cylinder_root_blind_bore_semantic.firmament",
             "w2_cylinder_root_blind_bore_semantic.step",
             "blind_bore",
             1,
@@ -323,7 +323,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_W2BoxSphereExteriorOpeningPocketSemanticExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/w2_box_sphere_exterior_opening_pocket_semantic.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/w2_box_sphere_exterior_opening_pocket_semantic.firmament",
             "w2_box_sphere_exterior_opening_pocket_semantic.step",
             "pocket",
             1,
@@ -334,7 +334,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_RibbedSupportF1Example_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/ribbed_support_f1.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/ribbed_support_f1.firmament",
             "ribbed_support_f1.step",
             "wall",
             1,
@@ -346,7 +346,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_F2FlangeCenterBoreExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/f2_flange_center_bore.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/f2_flange_center_bore.firmament",
             "f2_flange_center_bore.step",
             "center_bore",
             1,
@@ -358,7 +358,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_P1BlindHoleOnFaceSemanticExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/p1_blind_hole_on_face_semantic.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/p1_blind_hole_on_face_semantic.firmament",
             "p1_blind_hole_on_face_semantic.step",
             "blind_hole_tool",
             1,
@@ -370,7 +370,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_P1FlangeRadialHoleSemanticExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/p1_flange_radial_hole_semantic.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/p1_flange_radial_hole_semantic.firmament",
             "p1_flange_radial_hole_semantic.step",
             "radial_hole_tool",
             1,
@@ -382,7 +382,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_P2LinearHoleRowExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/p2_linear_hole_row.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/p2_linear_hole_row.firmament",
             "p2_linear_hole_row.step",
             "hole_cut_1__lin3",
             4,
@@ -394,7 +394,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_P2FlangeBoltCirclePatternExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/p2_flange_bolt_circle_pattern.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/p2_flange_bolt_circle_pattern.firmament",
             "p2_flange_bolt_circle_pattern.step",
             "bolt_hole_1__cir5",
             7,
@@ -406,7 +406,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_P2MirrorHolePairExample_Writes_Default_Export_Artifact()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Examples/p2_mirror_hole_pair.firmament",
+            "fixtures/Compatibility/LegacyV1/Examples/p2_mirror_hole_pair.firmament",
             "p2_mirror_hole_pair.step",
             "hole_cut_left__mir_yz",
             2,
@@ -495,7 +495,7 @@ public sealed class FirmamentBuildAndExportTests
     [Fact]
     public void Semantic_Placement_Build_Is_Deterministic()
     {
-        var fullSourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/LegacyV1/Examples/p1_flange_radial_hole_semantic.firmament");
+        var fullSourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Compatibility/LegacyV1/Examples/p1_flange_radial_hole_semantic.firmament");
         var first = FirmamentBuildAndExport.Run(fullSourcePath);
         var second = FirmamentBuildAndExport.Run(fullSourcePath);
 
@@ -507,7 +507,7 @@ public sealed class FirmamentBuildAndExportTests
     [Fact]
     public void P2_CircularPattern_Build_Is_Deterministic()
     {
-        var fullSourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/LegacyV1/Examples/p2_flange_bolt_circle_pattern.firmament");
+        var fullSourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Compatibility/LegacyV1/Examples/p2_flange_bolt_circle_pattern.firmament");
         var first = FirmamentBuildAndExport.Run(fullSourcePath);
         var second = FirmamentBuildAndExport.Run(fullSourcePath);
 
@@ -520,7 +520,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_ContainedBoxWithCylinderHoleFixture_Builds_And_Writes_Export()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Corpus/deferred/m10h1-unsupported-box-with-cylinder-hole.firmament",
+            "fixtures/Compatibility/LegacyV1/Corpus/deferred/m10h1-unsupported-box-with-cylinder-hole.firmament",
             "m10h1-unsupported-box-with-cylinder-hole.step",
             "hole",
             1,
@@ -532,7 +532,7 @@ public sealed class FirmamentBuildAndExportTests
     public void Run_AddThenSubtract_ReentrySafeRootFixture_Builds_And_Writes_Export()
     {
         AssertExampleBuildAndExport(
-            "fixtures/LegacyV1/Corpus/invalid/m13b-invalid-composed-reenter-safe-family.firmament",
+            "fixtures/Compatibility/LegacyV1/Corpus/invalid/m13b-invalid-composed-reenter-safe-family.firmament",
             "m13b-invalid-composed-reenter-safe-family.step",
             "hole",
             2,
@@ -683,19 +683,19 @@ public sealed class FirmamentBuildAndExportTests
     }
 
     [Theory]
-    [InlineData("fixtures/LegacyV1/Corpus/deferred/m10j-unsupported-box-add-cylinder.firmament", "m10j-unsupported-box-add-cylinder.step", "joined", "add")]
-    [InlineData("fixtures/LegacyV1/Corpus/deferred/m10j-unsupported-box-intersect-cylinder.firmament", "m10j-unsupported-box-intersect-cylinder.step", "overlap", "intersect")]
-    [InlineData("fixtures/LegacyV1/Corpus/deferred/m10l-unsupported-box-add-sphere.firmament", "m10l-unsupported-box-add-sphere.step", "joined", "add")]
-    [InlineData("fixtures/LegacyV1/Corpus/deferred/m10l-unsupported-box-intersect-sphere.firmament", "m10l-unsupported-box-intersect-sphere.step", "overlap", "intersect")]
-    [InlineData("fixtures/LegacyV1/Corpus/deferred/m10m-unsupported-box-subtract-cone.firmament", "m10m-unsupported-box-subtract-cone.step", "tapered_cut", "subtract")]
-    [InlineData("fixtures/LegacyV1/Corpus/deferred/m10m-unsupported-box-add-cone.firmament", "m10m-unsupported-box-add-cone.step", "joined", "add")]
-    [InlineData("fixtures/LegacyV1/Corpus/deferred/m10m-unsupported-box-intersect-cone.firmament", "m10m-unsupported-box-intersect-cone.step", "overlap", "intersect")]
-    [InlineData("fixtures/LegacyV1/Corpus/deferred/m13a-unsupported-overlapping-composed-holes.firmament", "m13a-unsupported-overlapping-composed-holes.step", "hole_b", "subtract")]
-    [InlineData("fixtures/LegacyV1/Corpus/deferred/m13a-unsupported-tangent-composed-holes.firmament", "m13a-unsupported-tangent-composed-holes.step", "hole_b", "subtract")]
-    [InlineData("fixtures/LegacyV1/Corpus/deferred/m13a-unsupported-composed-add-ordering.firmament", "m13a-unsupported-composed-add-ordering.step", "joined", "add")]
-    [InlineData("fixtures/LegacyV1/Corpus/deferred/m13a-unsupported-composed-subtract-sphere.firmament", "m13a-unsupported-composed-subtract-sphere.step", "cavity", "subtract")]
-    [InlineData("fixtures/LegacyV1/Corpus/deferred/m13a-unsupported-composed-subtract-box.firmament", "m13a-unsupported-composed-subtract-box.step", "notch", "subtract")]
-    [InlineData("fixtures/LegacyV1/Corpus/deferred/m13c-unsupported-cylinder-root-follow-on-hole.firmament", "m13c-unsupported-cylinder-root-follow-on-hole.step", "bolt_hole", "subtract")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/deferred/m10j-unsupported-box-add-cylinder.firmament", "m10j-unsupported-box-add-cylinder.step", "joined", "add")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/deferred/m10j-unsupported-box-intersect-cylinder.firmament", "m10j-unsupported-box-intersect-cylinder.step", "overlap", "intersect")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/deferred/m10l-unsupported-box-add-sphere.firmament", "m10l-unsupported-box-add-sphere.step", "joined", "add")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/deferred/m10l-unsupported-box-intersect-sphere.firmament", "m10l-unsupported-box-intersect-sphere.step", "overlap", "intersect")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/deferred/m10m-unsupported-box-subtract-cone.firmament", "m10m-unsupported-box-subtract-cone.step", "tapered_cut", "subtract")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/deferred/m10m-unsupported-box-add-cone.firmament", "m10m-unsupported-box-add-cone.step", "joined", "add")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/deferred/m10m-unsupported-box-intersect-cone.firmament", "m10m-unsupported-box-intersect-cone.step", "overlap", "intersect")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/deferred/m13a-unsupported-overlapping-composed-holes.firmament", "m13a-unsupported-overlapping-composed-holes.step", "hole_b", "subtract")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/deferred/m13a-unsupported-tangent-composed-holes.firmament", "m13a-unsupported-tangent-composed-holes.step", "hole_b", "subtract")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/deferred/m13a-unsupported-composed-add-ordering.firmament", "m13a-unsupported-composed-add-ordering.step", "joined", "add")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/deferred/m13a-unsupported-composed-subtract-sphere.firmament", "m13a-unsupported-composed-subtract-sphere.step", "cavity", "subtract")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/deferred/m13a-unsupported-composed-subtract-box.firmament", "m13a-unsupported-composed-subtract-box.step", "notch", "subtract")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/deferred/m13c-unsupported-cylinder-root-follow-on-hole.firmament", "m13c-unsupported-cylinder-root-follow-on-hole.step", "bolt_hole", "subtract")]
     public void Run_Unsupported_MixedPrimitive_Fixtures_Fail_And_Do_Not_Write_Fallback_Export(
         string sourcePath,
         string expectedFileName,
@@ -765,7 +765,7 @@ public sealed class FirmamentBuildAndExportTests
     [Fact]
     public void Run_BoundedPocketFixture_WithSealedCavity_RemainsExplicitlyRejected()
     {
-        var fullSourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/LegacyV1/Corpus/deferred/m13b-unsupported-sealed-pocket-box.firmament");
+        var fullSourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Compatibility/LegacyV1/Corpus/deferred/m13b-unsupported-sealed-pocket-box.firmament");
         var expectedOutputPath = Path.ChangeExtension(fullSourcePath, ".step");
         if (File.Exists(expectedOutputPath))
         {

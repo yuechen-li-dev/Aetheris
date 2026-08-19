@@ -4,11 +4,11 @@ Firmament concepts and explicit PMI lower into the semantic engineering model, S
 
 Preview 3's native Model export supports `Datum` plane records and toleranced `HoleDiameter` records. The diameter record targets a named shaft hole; on a counterbore it means the shaft `Diameter`, not `CounterboreDiameter`. Other parsed PMI kinds may be reported as deferred and cannot be silently omitted by a successful build.
 
-The complete qualified example is [`box-holes-pmi-chamfer.firmament`](../../../fixtures/Canonical/valid/box-holes-pmi-chamfer.firmament):
+The complete qualified example is [`multiple-hole-dimensions-with-chamfer.firmament`](../../../fixtures/Canonical/PMI/multiple-hole-dimensions-with-chamfer.firmament):
 
 ```powershell
-aetheris validate fixtures/Canonical/valid/box-holes-pmi-chamfer.firmament --json
-aetheris build fixtures/Canonical/valid/box-holes-pmi-chamfer.firmament --output artifacts/pmi.step --json
+aetheris validate fixtures/Canonical/PMI/multiple-hole-dimensions-with-chamfer.firmament --json
+aetheris build fixtures/Canonical/PMI/multiple-hole-dimensions-with-chamfer.firmament --output artifacts/pmi.step --json
 aetheris analyze artifacts/pmi.step --json
 ```
 

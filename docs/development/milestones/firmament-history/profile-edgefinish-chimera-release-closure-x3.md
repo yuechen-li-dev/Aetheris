@@ -11,8 +11,8 @@ area/volume evidence `(38240 + 4 - π) mm² × 24 mm = 917780.601776314 mm³`.
 
 The two discoverable canonical invalid cases are:
 
-- `fixtures/Canonical/invalid/profile-edgefinish-convex-small-chamfer-invalid.firmament`
-- `fixtures/Canonical/invalid/profile-edgefinish-convex-small-fillet-invalid.firmament`
+- `fixtures/Invalid/Geometry/profile-edgefinish-convex-small-chamfer-invalid.firmament`
+- `fixtures/Invalid/Geometry/profile-edgefinish-convex-small-fillet-invalid.firmament`
 
 Their precise diagnostics are respectively
 `ProfileBoundaryChamferConvexArcRadiusTooSmall` and

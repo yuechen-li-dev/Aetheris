@@ -22,7 +22,7 @@ public sealed class CliBaselineTests
         var stdout = new StringWriter();
         var stderr = new StringWriter();
         var exitCode = Aetheris.CLI.CliRunner.Run(
-            ["build", Path.Combine(RepoRoot, "fixtures/LegacyV1/Examples/box_basic.firmament"), "--out", outputPath],
+            ["build", Path.Combine(RepoRoot, "fixtures/Compatibility/LegacyV1/Examples/box_basic.firmament"), "--out", outputPath],
             stdout,
             stderr);
 
@@ -38,7 +38,7 @@ public sealed class CliBaselineTests
     {
         var stdout = new StringWriter();
         var stderr = new StringWriter();
-        var manifestPath = Path.Combine(RepoRoot, "fixtures/Assembly/LegacyImports/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
+        var manifestPath = Path.Combine(RepoRoot, "fixtures/Compatibility/Firmasm/LegacyAssembly/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
 
         var exitCode = Aetheris.CLI.CliRunner.Run(
             ["asm", "exec", manifestPath, "--json"],
@@ -61,7 +61,7 @@ public sealed class CliBaselineTests
     {
         var stdout = new StringWriter();
         var stderr = new StringWriter();
-        var manifestPath = Path.Combine(RepoRoot, "fixtures/Assembly/LegacyImports/examples/occt-as1/as1-assembly.firmasm");
+        var manifestPath = Path.Combine(RepoRoot, "fixtures/Compatibility/Firmasm/LegacyAssembly/examples/occt-as1/as1-assembly.firmasm");
 
         var exitCode = Aetheris.CLI.CliRunner.Run(
             ["asm", "exec", manifestPath, "--json"],
@@ -84,7 +84,7 @@ public sealed class CliBaselineTests
     {
         var stdout = new StringWriter();
         var stderr = new StringWriter();
-        var manifestPath = Path.Combine(RepoRoot, "fixtures/Assembly/LegacyImports/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
+        var manifestPath = Path.Combine(RepoRoot, "fixtures/Compatibility/Firmasm/LegacyAssembly/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
         var outputDirectory = CreateTempDirectory();
 
         try
@@ -120,7 +120,7 @@ public sealed class CliBaselineTests
     {
         var stdout = new StringWriter();
         var stderr = new StringWriter();
-        var manifestPath = Path.Combine(RepoRoot, "fixtures/Assembly/LegacyImports/examples/occt-as1/as1-assembly.firmasm");
+        var manifestPath = Path.Combine(RepoRoot, "fixtures/Compatibility/Firmasm/LegacyAssembly/examples/occt-as1/as1-assembly.firmasm");
         var outputDirectory = CreateTempDirectory();
 
         try
@@ -857,7 +857,7 @@ public sealed class CliBaselineTests
         var buildStdout = new StringWriter();
         var buildStderr = new StringWriter();
         var buildExitCode = Aetheris.CLI.CliRunner.Run(
-            ["build", Path.Combine(RepoRoot, "fixtures/LegacyV1/Corpus/valid/m5b-valid-fillet-concave-overlap-lroot.firmament"), "--out", outputPath],
+            ["build", Path.Combine(RepoRoot, "fixtures/Compatibility/LegacyV1/Corpus/valid/m5b-valid-fillet-concave-overlap-lroot.firmament"), "--out", outputPath],
             buildStdout,
             buildStderr);
         Assert.Equal(0, buildExitCode);
@@ -896,7 +896,7 @@ public sealed class CliBaselineTests
         var buildStdout = new StringWriter();
         var buildStderr = new StringWriter();
         var buildExitCode = Aetheris.CLI.CliRunner.Run(
-            ["build", Path.Combine(RepoRoot, "fixtures/LegacyV1/Corpus/valid/m5b-valid-fillet-concave-chained-adjacent-pair.firmament"), "--out", outputPath],
+            ["build", Path.Combine(RepoRoot, "fixtures/Compatibility/LegacyV1/Corpus/valid/m5b-valid-fillet-concave-chained-adjacent-pair.firmament"), "--out", outputPath],
             buildStdout,
             buildStderr);
         Assert.Equal(0, buildExitCode);
@@ -932,7 +932,7 @@ public sealed class CliBaselineTests
         var buildStdout = new StringWriter();
         var buildStderr = new StringWriter();
         var buildExitCode = Aetheris.CLI.CliRunner.Run(
-            ["build", Path.Combine(RepoRoot, "fixtures/LegacyV1/Examples/triangular_prism_basic.firmament"), "--out", outputPath],
+            ["build", Path.Combine(RepoRoot, "fixtures/Compatibility/LegacyV1/Examples/triangular_prism_basic.firmament"), "--out", outputPath],
             buildStdout,
             buildStderr);
         Assert.Equal(0, buildExitCode);
@@ -970,7 +970,7 @@ public sealed class CliBaselineTests
         var buildStdout = new StringWriter();
         var buildStderr = new StringWriter();
         var buildExitCode = Aetheris.CLI.CliRunner.Run(
-            ["build", Path.Combine(RepoRoot, "fixtures/LegacyV1/Examples/m5a_chamfer_triangular_prism_corner_e4_basic.firmament"), "--out", outputPath],
+            ["build", Path.Combine(RepoRoot, "fixtures/Compatibility/LegacyV1/Examples/m5a_chamfer_triangular_prism_corner_e4_basic.firmament"), "--out", outputPath],
             buildStdout,
             buildStderr);
         Assert.Equal(0, buildExitCode);
@@ -1014,7 +1014,7 @@ public sealed class CliBaselineTests
         var buildStdout = new StringWriter();
         var buildStderr = new StringWriter();
         var buildExitCode = Aetheris.CLI.CliRunner.Run(
-            ["build", Path.Combine(RepoRoot, "fixtures/LegacyV1/Corpus/valid/e7-valid-chamfer-concave-overlap-lroot.firmament"), "--out", outputPath],
+            ["build", Path.Combine(RepoRoot, "fixtures/Compatibility/LegacyV1/Corpus/valid/e7-valid-chamfer-concave-overlap-lroot.firmament"), "--out", outputPath],
             buildStdout,
             buildStderr);
         Assert.Equal(0, buildExitCode);

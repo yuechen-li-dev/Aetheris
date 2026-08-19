@@ -26,7 +26,7 @@ CLI:
 
 ```text
 aetheris mesh plate.firmament --format stl
-aetheris mesh fixtures/Hole/valid/hole-x4-shaft-through.valid.firmfixture --output plate.stl --debug-ir plate.ir.json --json
+aetheris mesh fixtures/Regression/Hole/valid/hole-x4-shaft-through.valid.firmfixture --output plate.stl --debug-ir plate.ir.json --json
 ```
 
 Runtime LOD is explicitly not part of this design. The intended optimization is to compile one economical mesh and omit unnecessary flat-face polygons.

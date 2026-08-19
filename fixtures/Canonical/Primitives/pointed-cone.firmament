@@ -1,0 +1,9 @@
+Model PointedConeExample {
+    Units: mm
+
+    Cone Body {
+        BottomRadius: 6mm
+        TopRadius: 0mm
+        Height: 18mm
+    }
+}

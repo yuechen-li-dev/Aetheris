@@ -21,7 +21,7 @@ Validated on Windows x64, .NET SDK 10.0.302, 2026-08-10.
   STEP inspect, and verify passed from a fresh extraction directory.
 - NuGet package: installed into a fresh tool path from a local feed; reported
   `aetheris 2.0.0-preview.2`; canonical compile and STEP inspect passed.
-- Assembly: `aetheris asm inspect fixtures/AssemblyM0/bearing-module.firmament
+- Assembly: `aetheris asm inspect fixtures/Canonical/Assembly/bearing-module.firmament
   --json` succeeded, including fit/tolerance results.
 - Drawing: canonical fixture emitted DrawingIR, SVG, vector PDF, editable PPTX,
   review PPTX, and DFM review PPTX.

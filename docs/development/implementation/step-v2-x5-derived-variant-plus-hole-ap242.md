@@ -4,7 +4,7 @@ STEP-V2-X5 closes the deferred Tier 4 composition case `composite-v2-hole-plus-d
 
 ## Fixture
 
-- `fixtures/Composite/valid/composite-v2-hole-plus-derived-variant-step-verified.valid.firmfixture`
+- `fixtures/Regression/Composite/valid/composite-v2-hole-plus-derived-variant-step-verified.valid.firmfixture`
 
 The source composition is intentionally narrow:
 
@@ -19,7 +19,7 @@ No new hole families, parser syntax, pattern/group semantics, side-hole reroute,
 The verification path is the real CLI path:
 
 ```bash
-aetheris build fixtures/Composite/valid/composite-v2-hole-plus-derived-variant-step-verified.valid.firmfixture --out <temp>/composite-v2-hole-plus-derived-variant.step --json
+aetheris build fixtures/Regression/Composite/valid/composite-v2-hole-plus-derived-variant-step-verified.valid.firmfixture --out <temp>/composite-v2-hole-plus-derived-variant.step --json
 ```
 
 The implementation path is:

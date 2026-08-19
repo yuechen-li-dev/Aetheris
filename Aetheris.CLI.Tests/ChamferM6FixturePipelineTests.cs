@@ -113,7 +113,15 @@ public sealed class ChamferM6FixturePipelineTests
         return (Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(output))), stdout + stderr.ToString(), output);
     }
 
-    private static string FixturePath(string category, string fixture) =>
-        Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Chamfer", category, fixture));
+    private static string FixturePath(string category, string fixture)
+    {
+        if (!string.Equals(category, "invalid", StringComparison.OrdinalIgnoreCase))
+            return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Regression/Chamfer/valid", fixture));
+
+        var root = fixture.StartsWith("air-hole-entry-", StringComparison.Ordinal)
+            ? "../../../../fixtures/Compatibility/LegacyAliases/Invalid/Chamfer"
+            : "../../../../fixtures/Invalid/Chamfer";
+        return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, root, fixture));
+    }
 
 }

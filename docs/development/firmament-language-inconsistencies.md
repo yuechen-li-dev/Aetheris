@@ -5,7 +5,7 @@ This A5d register classifies the language seams first exposed by A5b and complet
 | Area | Final classification | Decision and evidence |
 |---|---|---|
 | Declaration and construct casing | ResolvedCanonical | Firmament-owned vocabulary is canonically PascalCase. Audited lowercase aliases remain only where unambiguous and select the same semantic route; no style warnings exist. |
-| Legacy V1 document shape | LegacyQuarantined | `fixtures/LegacyV1/` remains untouched and is compatibility evidence, not V2 authoring authority. |
+| Legacy V1 document shape | LegacyQuarantined | `fixtures/Compatibility/LegacyV1/` remains untouched and is compatibility evidence, not V2 authoring authority. |
 | Legacy primitive/Boolean vocabulary | LegacyQuarantined | V1 operations remain on their versioned compiler path. Public V2 uses named declarations and semantic features. |
 | Direct versus `solid` primitive declarations | RetainedCompatibility | Direct `Box`/`Cylinder`/`Cone`/`Sphere`/`Torus` declarations are canonical. `solid name: Type` remains a compatibility adapter to the same primitive AST/lowering. |
 | Through-hole and extent vocabulary | IntentionalDomainDifference | Model Hole `End`, Slot `Extent`, legacy Cut exit selectors, and recognition/speculative booleans have different owning types and were not merged. |

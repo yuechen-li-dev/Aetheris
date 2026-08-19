@@ -1,13 +1,19 @@
-# Firmament fixture kingdom
+# Firmament fixture corpus
 
-`fixtures/` is the single canonical root for Firmament-family test source.
+This is the single repository root for Firmament-family test source. Choose a category before copying anything:
+
+- `Canonical/` contains current Firmament V2 examples. These are qualified and safe to copy.
+- `Invalid/` contains focused current diagnostic expectations.
+- `Compatibility/` contains older accepted formats and spellings. Do not copy them into new source.
+- `Speculative/` contains future or not-implemented language corpus entries. It is not public syntax.
+- `Regression/` contains bug-specific and implementation witnesses. It is not a general example library.
+
+Extensions remain semantically distinct:
 
 - `.firmament` is executable Firmament source.
-- `.firmfixture` is a self-describing corpus entry. Its metadata may declare a passing case, an expected rejection, or speculative/not-yet-implemented syntax; do not modernize it merely because it does not parse today.
-- `.firmasm` is assembly-domain document syntax and remains distinct from Model documents.
+- `.firmfixture` is a self-describing corpus entry and may describe expected failure or future syntax.
+- `.firmasm` is a compatibility assembly input.
 
-Current Preview 3 fixtures are grouped directly by domain, normally with `valid/`, `invalid/`, `future/`, or `deferred/` status folders. `LegacyV1/` preserves the older TOON-style executable regression corpus, including its manifests and expected outcomes. `Assembly/LegacyImports/` owns the older JSON assembly compatibility corpus and its local STEP dependencies.
+Required STEP inputs live under `testdata/`; generated STEP, SVG, solver, and report output belongs under ignored `artifacts/local/`.
 
-`Speculative/` preserves proposed language shapes whose acceptance is not part of the current contract. `DemoRegression/` contains small authored demo inputs that are exercised as regression fixtures; runnable demo applications remain under `demos/`.
-
-When adding an invalid unsupported-material FEA case, use `fixtures/FEA/invalid/`. Do not add Firmament test source under `testdata/`.
+Start authoring from the [Canonical cookbook](Canonical/README.md). Run `scripts/Test-CanonicalFixtures.ps1` to qualify every canonical example through its real CLI path.

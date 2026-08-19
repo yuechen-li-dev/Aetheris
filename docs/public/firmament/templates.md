@@ -18,7 +18,7 @@ Struct MountingPlate {
 Struct StandardPlate = MountingPlate<Width: 80mm, Height: 50mm, Thickness: 8mm>
 ```
 
-The complete build-qualified version is [`generic-mounting-plate.firmament`](../../../fixtures/Templates/Canonical/generic-mounting-plate.firmament).
+The complete build-qualified version is [`generic-mounting-plate.firmament`](../../../fixtures/Canonical/Templates/generic-mounting-plate.firmament).
 
 The explicit output keyword is significant: current Templates specialize `Struct`, `Model`, `Concept Struct`, `Panel`, `SheetMetal`, or `ProfileDelta` declarations. It is not inferred from the body.
 
@@ -115,9 +115,9 @@ Canonical policy contracts are `CncManufacturingPolicy`, `FdmManufacturingPolicy
 
 Copy-ready, CLI-validated ports of the historical policy examples are:
 
-- [`cnc-dfm-policy.firmament`](../../../fixtures/Templates/Canonical/cnc-dfm-policy.firmament)
-- [`fdm-dfm-policy.firmament`](../../../fixtures/Templates/Canonical/fdm-dfm-policy.firmament)
-- [`sheet-metal-dfm-policy.firmament`](../../../fixtures/Templates/Canonical/sheet-metal-dfm-policy.firmament)
+- [`cnc-dfm-policy.firmament`](../../../fixtures/Canonical/Templates/cnc-dfm-policy.firmament)
+- [`fdm-dfm-policy.firmament`](../../../fixtures/Canonical/Templates/fdm-dfm-policy.firmament)
+- [`sheet-metal-dfm-policy.firmament`](../../../fixtures/Canonical/Templates/sheet-metal-dfm-policy.firmament)
 
 Persisted lowercase `template<CNC>`, `template<FDM>`, `template<Additive>`, and `template<SheetMetal>` sources remain compatibility inputs. When a canonical typed policy is present it is authoritative; new source should not emit the lowercase form.
 

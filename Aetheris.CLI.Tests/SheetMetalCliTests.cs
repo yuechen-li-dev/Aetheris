@@ -24,7 +24,7 @@ public sealed class SheetMetalCliTests
         var temp=Path.Combine(Path.GetTempPath(),$"aetheris-sheetmetal-{Guid.NewGuid():N}.svg");
         try
         {
-            var output=new StringWriter();var error=new StringWriter();var input=Path.Combine(RepoRoot,"fixtures/SheetMetal/simple-u-channel.firmament");
+            var output=new StringWriter();var error=new StringWriter();var input=Path.Combine(RepoRoot,"fixtures/Canonical/SheetMetal/u-channel.firmament");
             var exit=CliRunner.Run(["sheetmetal","flatten",input,"--output",temp,"--k-factor","0.42","--json"],output,error);Assert.Equal(0,exit);Assert.Empty(error.ToString());
             var svg=File.ReadAllText(temp);Assert.Contains("id=\"bend-lines\"",svg);Assert.Contains("id=\"bend-labels\" stroke=\"none\"",svg);Assert.Contains("id=\"cut-contours\"",svg);Assert.Contains("MountA",svg);Assert.Contains("Up 90°",svg);Assert.DoesNotContain("x1=\"35.66\" y1=\"42\" x2=\"35.66\" y2=\"42\"",svg);
             using var report=JsonDocument.Parse(output.ToString());Assert.Equal("5052-H32 Aluminum",report.RootElement.GetProperty("material").GetProperty("authored").GetString());
@@ -38,7 +38,7 @@ public sealed class SheetMetalCliTests
         var temp=Path.Combine(Path.GetTempPath(),$"aetheris-sheetmetal-{Guid.NewGuid():N}.step");
         try
         {
-            var output=new StringWriter();var error=new StringWriter();var input=Path.Combine(RepoRoot,"fixtures/SheetMetal/simple-u-channel.firmament");
+            var output=new StringWriter();var error=new StringWriter();var input=Path.Combine(RepoRoot,"fixtures/Canonical/SheetMetal/u-channel.firmament");
             var exit=CliRunner.Run(["build",input,"--output",temp,"--json"],output,error);Assert.Equal(0,exit);Assert.Empty(error.ToString());var step=File.ReadAllText(temp);Assert.Contains("MANIFOLD_SOLID_BREP",step);Assert.Contains("ADVANCED_FACE",step);
         }
         finally{if(File.Exists(temp))File.Delete(temp);}
@@ -51,7 +51,7 @@ public sealed class SheetMetalCliTests
         try
         {
             var output=new StringWriter();var error=new StringWriter();
-            var input=Path.Combine(RepoRoot,"fixtures/SheetMetal/preview3-l-bracket-hole.firmament");
+            var input=Path.Combine(RepoRoot,"fixtures/Canonical/SheetMetal/l-bracket-with-hole.firmament");
             var exit=CliRunner.Run(["build",input,"--output",temp,"--json"],output,error);
             Assert.Equal(0,exit);Assert.Empty(error.ToString());
             using var report=JsonDocument.Parse(output.ToString());
@@ -66,7 +66,7 @@ public sealed class SheetMetalCliTests
     [Fact]
     public void BuildAuthoredSheetMetal_RejectsModelDomainHoleSyntaxInsteadOfIgnoringIntent()
     {
-        var canonical=File.ReadAllText(Path.Combine(RepoRoot,"fixtures/SheetMetal/preview3-l-bracket-hole.firmament"));
+        var canonical=File.ReadAllText(Path.Combine(RepoRoot,"fixtures/Canonical/SheetMetal/l-bracket-with-hole.firmament"));
         var source=canonical.Replace("Hole Mount", "Hole<Shaft> Mount", StringComparison.Ordinal);
         var dir=Path.Combine(Path.GetTempPath(),$"aetheris-sheetmetal-domain-{Guid.NewGuid():N}");Directory.CreateDirectory(dir);
         try
@@ -84,7 +84,7 @@ public sealed class SheetMetalCliTests
     [Fact]
     public void BuildAuthoredSheetMetal_ExplainsModelDomainPmiSyntax()
     {
-        var source=File.ReadAllText(Path.Combine(RepoRoot,"fixtures/SheetMetal/preview3-l-bracket-hole.firmament"));
+        var source=File.ReadAllText(Path.Combine(RepoRoot,"fixtures/Canonical/SheetMetal/l-bracket-with-hole.firmament"));
         source=source.Insert(source.LastIndexOf('}'),"\n    Pmi { Datum A { Target: face(-Z) } }\n");
         var dir=Path.Combine(Path.GetTempPath(),$"aetheris-sheetmetal-pmi-domain-{Guid.NewGuid():N}");Directory.CreateDirectory(dir);
         try

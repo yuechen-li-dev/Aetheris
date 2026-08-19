@@ -50,14 +50,14 @@ The primary P2 fixture asserts these semantic STEP/AP242 strings:
 
 Primary fixture:
 
-`fixtures/InlineStep/valid/inline-step-v2-record-pmi-datum-diameter-step-verified.valid.firmfixture`
+`fixtures/Regression/InlineStep/valid/inline-step-v2-record-pmi-datum-diameter-step-verified.valid.firmfixture`
 
 Because this fixture imports `canonical-through-hole.step`, its `step-verified` corpus contract includes InlineStep trace metadata for the real through-hole body (`expected-volume: 461.15044407846124`, `expected-topology: faces=7`). Without that metadata, the generic parser-backed trace verifier falls back to the plain 10x8x6 box volume and reports a stale `step-v2-a1-volume-mismatch` even though the AP242 PMI export proof still succeeds.
 
 Invalid/deferred fixtures:
 
-- `fixtures/InlineStep/invalid/inline-step-v2-record-pmi-diameter-missing-tolerance.invalid.firmfixture`
-- `fixtures/InlineStep/invalid/inline-step-v2-record-pmi-export-deferred-flatness.invalid.firmfixture`
+- `fixtures/Compatibility/LegacyAliases/Invalid/InlineStep/inline-step-v2-record-pmi-diameter-missing-tolerance.invalid.firmfixture`
+- `fixtures/Compatibility/LegacyAliases/Invalid/InlineStep/inline-step-v2-record-pmi-export-deferred-flatness.invalid.firmfixture`
 
 `aetheris validate <fixture> --json` reports record-shaped PMI status through `firmamentV2Validation.pmi`, including `exportSupport: supported` for datum/diameter and `exportSupport: deferred` for unsupported records.
 

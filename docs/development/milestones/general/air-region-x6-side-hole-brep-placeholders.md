@@ -2,7 +2,7 @@
 
 ## Purpose and scope
 
-AIR-REGION-X6 adds trace-only BRepPlan placeholder elements for the metadata-driven side-hole `FaceAttachedRegion` fixture at `fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture`.
+AIR-REGION-X6 adds trace-only BRepPlan placeholder elements for the metadata-driven side-hole `FaceAttachedRegion` fixture at `fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture`.
 
 This is scaffolding for future topology work. It does not materialize side-hole BRepPlan patches, emit BRep, invoke Boolean, smoke STEP, mutate parent topology, change production routing, or expand Firmament grammar.
 

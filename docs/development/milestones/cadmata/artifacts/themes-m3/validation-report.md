@@ -16,7 +16,7 @@
 
 ## Rendered assembly QA
 
-Fixture: `fixtures/AssemblyM1/template-block-pair.firmament` loaded through the real Cadmata startup/assembly display path.
+Fixture: `fixtures/Canonical/Assembly/template-block-pair.firmament` loaded through the real Cadmata startup/assembly display path.
 
 - Same two-definition/two-occurrence assembly and fitted orthographic camera captured under all six themes.
 - Selecting `Fixed` in the product tree produced `active-row`; that exact selection remained active through all six immediate theme switches.

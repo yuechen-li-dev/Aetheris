@@ -25,16 +25,16 @@ For `face(+X)`, `u=+Y` and `v=+Z`. The stable frame label is `face(+X):u=+Y,v=+Z
 
 ## Valid center fixtures
 
-- `fixtures/Region/valid/side-hole-center-y1-v2.valid.firmfixture`
-- `fixtures/Region/valid/side-hole-center-z1-v2.valid.firmfixture`
-- `fixtures/Region/valid/side-hole-center-y1-z1-v2.valid.firmfixture`
+- `fixtures/Regression/Region/valid/side-hole-center-y1-v2.valid.firmfixture`
+- `fixtures/Regression/Region/valid/side-hole-center-z1-v2.valid.firmfixture`
+- `fixtures/Regression/Region/valid/side-hole-center-y1-z1-v2.valid.firmfixture`
 
 ## Invalid center fixtures
 
-- `fixtures/Region/invalid/side-hole-center-y-boundary-v2.invalid.firmfixture`
-- `fixtures/Region/invalid/side-hole-center-z-boundary-v2.invalid.firmfixture`
-- `fixtures/Region/invalid/side-hole-center-arity-one-v2.invalid.firmfixture`
-- `fixtures/Region/invalid/side-hole-center-arity-three-v2.invalid.firmfixture`
+- `fixtures/Compatibility/LegacyAliases/Invalid/Region/side-hole-center-y-boundary-v2.invalid.firmfixture`
+- `fixtures/Compatibility/LegacyAliases/Invalid/Region/side-hole-center-z-boundary-v2.invalid.firmfixture`
+- `fixtures/Compatibility/LegacyAliases/Invalid/Region/side-hole-center-arity-one-v2.invalid.firmfixture`
+- `fixtures/Compatibility/LegacyAliases/Invalid/Region/side-hole-center-arity-three-v2.invalid.firmfixture`
 
 ## Center/radius admissibility and clearance rule
 

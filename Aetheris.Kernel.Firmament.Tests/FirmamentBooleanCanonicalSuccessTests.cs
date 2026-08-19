@@ -11,14 +11,14 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
     public static TheoryData<string, string, FirmamentLoweredBooleanKind> CanonicalBooleanExamples =>
         new()
         {
-            { "fixtures/LegacyV1/Examples/boolean_add_basic.firmament", "joined", FirmamentLoweredBooleanKind.Add },
-            { "fixtures/LegacyV1/Examples/boolean_subtract_basic.firmament", "carved", FirmamentLoweredBooleanKind.Subtract },
-            { "fixtures/LegacyV1/Examples/boolean_intersect_basic.firmament", "overlap", FirmamentLoweredBooleanKind.Intersect },
-            { "fixtures/LegacyV1/Examples/boolean_box_cylinder_hole.firmament", "hole", FirmamentLoweredBooleanKind.Subtract },
-            { "fixtures/LegacyV1/Examples/boolean_box_cone_throughhole_basic.firmament", "cut", FirmamentLoweredBooleanKind.Subtract },
-            { "fixtures/LegacyV1/Examples/boolean_two_cylinder_holes_basic.firmament", "hole_b", FirmamentLoweredBooleanKind.Subtract },
-            { "fixtures/LegacyV1/Examples/boolean_cylinder_cone_holes_basic.firmament", "cut_b", FirmamentLoweredBooleanKind.Subtract },
-            { "fixtures/LegacyV1/Corpus/invalid/m13b-invalid-composed-reenter-safe-family.firmament", "hole", FirmamentLoweredBooleanKind.Subtract }
+            { "fixtures/Compatibility/LegacyV1/Examples/boolean_add_basic.firmament", "joined", FirmamentLoweredBooleanKind.Add },
+            { "fixtures/Compatibility/LegacyV1/Examples/boolean_subtract_basic.firmament", "carved", FirmamentLoweredBooleanKind.Subtract },
+            { "fixtures/Compatibility/LegacyV1/Examples/boolean_intersect_basic.firmament", "overlap", FirmamentLoweredBooleanKind.Intersect },
+            { "fixtures/Compatibility/LegacyV1/Examples/boolean_box_cylinder_hole.firmament", "hole", FirmamentLoweredBooleanKind.Subtract },
+            { "fixtures/Compatibility/LegacyV1/Examples/boolean_box_cone_throughhole_basic.firmament", "cut", FirmamentLoweredBooleanKind.Subtract },
+            { "fixtures/Compatibility/LegacyV1/Examples/boolean_two_cylinder_holes_basic.firmament", "hole_b", FirmamentLoweredBooleanKind.Subtract },
+            { "fixtures/Compatibility/LegacyV1/Examples/boolean_cylinder_cone_holes_basic.firmament", "cut_b", FirmamentLoweredBooleanKind.Subtract },
+            { "fixtures/Compatibility/LegacyV1/Corpus/invalid/m13b-invalid-composed-reenter-safe-family.firmament", "hole", FirmamentLoweredBooleanKind.Subtract }
         };
 
     [Theory]
@@ -39,14 +39,14 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
     }
 
     [Theory]
-    [InlineData("fixtures/LegacyV1/Examples/boolean_add_basic.firmament", "joined", 2, "add")]
-    [InlineData("fixtures/LegacyV1/Examples/boolean_subtract_basic.firmament", "carved", 2, "subtract")]
-    [InlineData("fixtures/LegacyV1/Examples/boolean_intersect_basic.firmament", "overlap", 2, "intersect")]
-    [InlineData("fixtures/LegacyV1/Examples/boolean_box_cylinder_hole.firmament", "hole", 1, "subtract")]
-    [InlineData("fixtures/LegacyV1/Examples/boolean_box_cone_throughhole_basic.firmament", "cut", 1, "subtract")]
-    [InlineData("fixtures/LegacyV1/Examples/boolean_two_cylinder_holes_basic.firmament", "hole_b", 2, "subtract")]
-    [InlineData("fixtures/LegacyV1/Examples/boolean_cylinder_cone_holes_basic.firmament", "cut_b", 2, "subtract")]
-    [InlineData("fixtures/LegacyV1/Corpus/invalid/m13b-invalid-composed-reenter-safe-family.firmament", "hole", 2, "subtract")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Examples/boolean_add_basic.firmament", "joined", 2, "add")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Examples/boolean_subtract_basic.firmament", "carved", 2, "subtract")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Examples/boolean_intersect_basic.firmament", "overlap", 2, "intersect")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Examples/boolean_box_cylinder_hole.firmament", "hole", 1, "subtract")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Examples/boolean_box_cone_throughhole_basic.firmament", "cut", 1, "subtract")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Examples/boolean_two_cylinder_holes_basic.firmament", "hole_b", 2, "subtract")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Examples/boolean_cylinder_cone_holes_basic.firmament", "cut_b", 2, "subtract")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/invalid/m13b-invalid-composed-reenter-safe-family.firmament", "hole", 2, "subtract")]
     public void CanonicalBooleanExamples_Export_Deterministically_WithExpectedMarkers(string fixturePath, string expectedFeatureId, int expectedOpIndex, string expectedKind)
     {
         var first = ExportFixture(fixturePath);
@@ -68,8 +68,8 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
     [Fact]
     public void SequentialSafeCompositionExamples_ExportExpectedAnalyticMarkers()
     {
-        var twoCylinder = ExportFixture("fixtures/LegacyV1/Examples/boolean_two_cylinder_holes_basic.firmament");
-        var cylinderCone = ExportFixture("fixtures/LegacyV1/Examples/boolean_cylinder_cone_holes_basic.firmament");
+        var twoCylinder = ExportFixture("fixtures/Compatibility/LegacyV1/Examples/boolean_two_cylinder_holes_basic.firmament");
+        var cylinderCone = ExportFixture("fixtures/Compatibility/LegacyV1/Examples/boolean_cylinder_cone_holes_basic.firmament");
 
         Assert.True(twoCylinder.IsSuccess);
         Assert.Contains("CYLINDRICAL_SURFACE", twoCylinder.Value.StepText, StringComparison.Ordinal);
@@ -84,11 +84,11 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
     public void OutsideCanonicalSubset_RemainsRejected_WithoutSilentFallback()
     {
         var unsupportedSingleBoxSubtract = FirmamentCorpusHarness.Compile(
-            FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Corpus/valid/m3d-valid-subtract-exec.firmament"));
-        var supportedCylinderHoleExport = ExportFixture("fixtures/LegacyV1/Examples/boolean_box_cylinder_hole.firmament");
-        var supportedConeHoleExport = ExportFixture("fixtures/LegacyV1/Examples/boolean_box_cone_throughhole_basic.firmament");
-        var containedCylinderHoleExport = ExportFixture("fixtures/LegacyV1/Corpus/deferred/m10h1-unsupported-box-with-cylinder-hole.firmament");
-        var unsupportedConeHoleExport = ExportFixture("fixtures/LegacyV1/Corpus/deferred/m10m-unsupported-box-subtract-cone.firmament");
+            FirmamentCorpusHarness.ReadFixtureText("fixtures/Compatibility/LegacyV1/Corpus/valid/m3d-valid-subtract-exec.firmament"));
+        var supportedCylinderHoleExport = ExportFixture("fixtures/Compatibility/LegacyV1/Examples/boolean_box_cylinder_hole.firmament");
+        var supportedConeHoleExport = ExportFixture("fixtures/Compatibility/LegacyV1/Examples/boolean_box_cone_throughhole_basic.firmament");
+        var containedCylinderHoleExport = ExportFixture("fixtures/Compatibility/LegacyV1/Corpus/deferred/m10h1-unsupported-box-with-cylinder-hole.firmament");
+        var unsupportedConeHoleExport = ExportFixture("fixtures/Compatibility/LegacyV1/Corpus/deferred/m10m-unsupported-box-subtract-cone.firmament");
 
         Assert.False(unsupportedSingleBoxSubtract.Compilation.IsSuccess);
         Assert.Contains(unsupportedSingleBoxSubtract.Compilation.Diagnostics, diagnostic =>
@@ -115,16 +115,16 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
     public static TheoryData<string, string, string> UnsupportedMixedPrimitiveBooleanFixtures =>
         new()
         {
-            { "fixtures/LegacyV1/Corpus/deferred/m10j-unsupported-box-add-cylinder.firmament", "joined", "add" },
-            { "fixtures/LegacyV1/Corpus/deferred/m10j-unsupported-box-intersect-cylinder.firmament", "overlap", "intersect" },
-            { "fixtures/LegacyV1/Corpus/deferred/m10l-unsupported-box-add-sphere.firmament", "joined", "add" },
-            { "fixtures/LegacyV1/Corpus/deferred/m10l-unsupported-box-intersect-sphere.firmament", "overlap", "intersect" },
-            { "fixtures/LegacyV1/Corpus/deferred/m10m-unsupported-box-subtract-cone.firmament", "tapered_cut", "subtract" },
-            { "fixtures/LegacyV1/Corpus/deferred/m10m-unsupported-box-add-cone.firmament", "joined", "add" },
-            { "fixtures/LegacyV1/Corpus/deferred/m10m-unsupported-box-intersect-cone.firmament", "overlap", "intersect" },
-            { "fixtures/LegacyV1/Corpus/deferred/m10n-unsupported-box-subtract-torus.firmament", "ring_cut", "subtract" },
-            { "fixtures/LegacyV1/Corpus/deferred/m10n-unsupported-box-add-torus.firmament", "joined", "add" },
-            { "fixtures/LegacyV1/Corpus/deferred/m10n-unsupported-box-intersect-torus.firmament", "overlap", "intersect" }
+            { "fixtures/Compatibility/LegacyV1/Corpus/deferred/m10j-unsupported-box-add-cylinder.firmament", "joined", "add" },
+            { "fixtures/Compatibility/LegacyV1/Corpus/deferred/m10j-unsupported-box-intersect-cylinder.firmament", "overlap", "intersect" },
+            { "fixtures/Compatibility/LegacyV1/Corpus/deferred/m10l-unsupported-box-add-sphere.firmament", "joined", "add" },
+            { "fixtures/Compatibility/LegacyV1/Corpus/deferred/m10l-unsupported-box-intersect-sphere.firmament", "overlap", "intersect" },
+            { "fixtures/Compatibility/LegacyV1/Corpus/deferred/m10m-unsupported-box-subtract-cone.firmament", "tapered_cut", "subtract" },
+            { "fixtures/Compatibility/LegacyV1/Corpus/deferred/m10m-unsupported-box-add-cone.firmament", "joined", "add" },
+            { "fixtures/Compatibility/LegacyV1/Corpus/deferred/m10m-unsupported-box-intersect-cone.firmament", "overlap", "intersect" },
+            { "fixtures/Compatibility/LegacyV1/Corpus/deferred/m10n-unsupported-box-subtract-torus.firmament", "ring_cut", "subtract" },
+            { "fixtures/Compatibility/LegacyV1/Corpus/deferred/m10n-unsupported-box-add-torus.firmament", "joined", "add" },
+            { "fixtures/Compatibility/LegacyV1/Corpus/deferred/m10n-unsupported-box-intersect-torus.firmament", "overlap", "intersect" }
         };
 
     [Theory]
@@ -145,7 +145,7 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
 
 
     [Theory]
-    [InlineData("fixtures/LegacyV1/Corpus/deferred/m10l-unsupported-box-subtract-sphere-partially-outside.firmament", "leaking_cavity")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/deferred/m10l-unsupported-box-subtract-sphere-partially-outside.firmament", "leaking_cavity")]
     public void BoxSphereSubtract_OutsideProvenSubset_RemainsUnsupported(string fixturePath, string expectedFeatureId)
     {
         var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText(fixturePath));
@@ -163,7 +163,7 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
     [Fact]
     public void BoxSphereSubtract_TangentBoundary_FallsForwardToCirOnly()
     {
-        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Corpus/deferred/m10l-unsupported-box-subtract-sphere-touching-boundary.firmament"));
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Compatibility/LegacyV1/Corpus/deferred/m10l-unsupported-box-subtract-sphere-touching-boundary.firmament"));
         Assert.True(result.Compilation.IsSuccess);
         Assert.Equal(NativeGeometryExecutionMode.CirOnly, result.Compilation.Value.PrimitiveExecutionResult!.NativeGeometryState.ExecutionMode);
     }
@@ -171,7 +171,7 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
     [Fact]
     public void BoxSphereSubtract_ContainedCavity_Succeeds_WithoutFallback()
     {
-        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Examples/boolean_box_sphere_cavity_basic.firmament"));
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Compatibility/LegacyV1/Examples/boolean_box_sphere_cavity_basic.firmament"));
 
         Assert.True(result.Compilation.IsSuccess);
         Assert.NotNull(result.Compilation.Value.PrimitiveExecutionResult);
@@ -182,7 +182,7 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
     }
 
     [Theory]
-    [InlineData("fixtures/LegacyV1/Corpus/deferred/m10l-unsupported-box-subtract-sphere-partially-outside.firmament", "BrepBoolean.AnalyticHole.RadiusExceedsBoundary", "must remain strictly contained inside the box")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/deferred/m10l-unsupported-box-subtract-sphere-partially-outside.firmament", "BrepBoolean.AnalyticHole.RadiusExceedsBoundary", "must remain strictly contained inside the box")]
     public void BoxSphereSubtract_Diagnostics_ArePropagated_WithSpecificSources(string fixturePath, string expectedSource, string expectedMessageFragment)
     {
         var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText(fixturePath));
@@ -195,12 +195,12 @@ public sealed class FirmamentBooleanCanonicalSuccessTests
     }
 
     [Theory]
-    [InlineData("fixtures/LegacyV1/Corpus/deferred/m13a-unsupported-overlapping-composed-holes.firmament", "hole_b", "overlaps previously accepted hole")]
-    [InlineData("fixtures/LegacyV1/Corpus/deferred/m13a-unsupported-tangent-composed-holes.firmament", "hole_b", "would be tangent to previously accepted hole")]
-    [InlineData("fixtures/LegacyV1/Corpus/deferred/m13a-unsupported-composed-add-ordering.firmament", "joined", "cannot continue the safe subtract chain rooted at 'hole_a'")]
-    [InlineData("fixtures/LegacyV1/Corpus/deferred/m13a-unsupported-composed-subtract-sphere.firmament", "cavity", "analytic tool surface kind 'Sphere'")]
-    [InlineData("fixtures/LegacyV1/Corpus/deferred/m13a-unsupported-composed-subtract-box.firmament", "notch", "bounded mixed through-void builder rejects tangent/edge-grazing analytic-prismatic interactions")]
-    [InlineData("fixtures/LegacyV1/Corpus/deferred/m13a-unsupported-composed-subtract-straight-slot.firmament", "slot_b", "bounded mixed through-void builder rejects tangent/edge-grazing analytic-prismatic interactions")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/deferred/m13a-unsupported-overlapping-composed-holes.firmament", "hole_b", "overlaps previously accepted hole")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/deferred/m13a-unsupported-tangent-composed-holes.firmament", "hole_b", "would be tangent to previously accepted hole")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/deferred/m13a-unsupported-composed-add-ordering.firmament", "joined", "cannot continue the safe subtract chain rooted at 'hole_a'")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/deferred/m13a-unsupported-composed-subtract-sphere.firmament", "cavity", "analytic tool surface kind 'Sphere'")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/deferred/m13a-unsupported-composed-subtract-box.firmament", "notch", "bounded mixed through-void builder rejects tangent/edge-grazing analytic-prismatic interactions")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/deferred/m13a-unsupported-composed-subtract-straight-slot.firmament", "slot_b", "bounded mixed through-void builder rejects tangent/edge-grazing analytic-prismatic interactions")]
     public void SequentialCompositionOutsideSafeSubset_RemainsRejectedWithoutFallback(string fixturePath, string expectedFeatureId, string expectedMessageFragment)
     {
         var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText(fixturePath));

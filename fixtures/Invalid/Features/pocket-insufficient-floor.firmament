@@ -1,0 +1,25 @@
+Model PocketInsufficientFloor {
+    Units: mm
+    Concept Path StockOutline {
+        Start: Point2(0mm, 0mm)
+        Heading: 0deg
+        Line South { Length: 50mm }
+        Line East { Turn: 90deg; Length: 32mm }
+        Line North { Turn: 90deg; Length: 50mm }
+        Close West
+    }
+    Concept Path RecessOutline {
+        Start: Point2(10mm, 10mm)
+        Heading: 0deg
+        Line South { Length: 20mm }
+        Line East { Turn: 90deg; Length: 10mm }
+        Line North { Turn: 90deg; Length: 20mm }
+        Close West
+    }
+    Profile StockProfile From StockOutline
+    Profile PocketProfile From RecessOutline
+    Struct Block { Compose Body {
+        Base Stock { Profile: StockProfile; From: 0mm; To: 10mm; Role: Stock }
+        Pocket Recess { On: Top; Profile: PocketProfile; Depth: 9mm; MinimumFloorThickness: 2mm }
+    } }
+}

@@ -124,11 +124,11 @@ public sealed class FirmamentV2CanonicalAdvancedGrammarTests
     }
 
     [Theory]
-    [InlineData("record-array-pattern-slots.firmament", "CYLINDRICAL_SURFACE")]
-    [InlineData("record-array-template-profile.firmament", "MANIFOLD_SOLID_BREP")]
+    [InlineData("Patterns/record-array-slot-pattern.firmament", "CYLINDRICAL_SURFACE")]
+    [InlineData("Templates/record-array-profile-family.firmament", "MANIFOLD_SOLID_BREP")]
     public void CanonicalStaticTemplateOutput_BuildsThroughTheProductionMaterializer(string fixtureName, string expectedStepEntity)
     {
-        var source = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Canonical/valid", fixtureName));
+        var source = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Canonical", fixtureName));
         var output = Path.Combine(Path.GetTempPath(), "aetheris-" + Guid.NewGuid().ToString("N") + ".step");
         try
         {
@@ -146,7 +146,7 @@ public sealed class FirmamentV2CanonicalAdvancedGrammarTests
     [Fact]
     public void CanonicalSymbolTable_BindsSelectionsAcrossProfileComposeAndSlotFamilies()
     {
-        var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Canonical/valid/semantic-slot-capsule.firmament"));
+        var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Canonical/Features/Slots/straight-slot.firmament"));
         var parse = FirmamentV2Parser.Parse(File.ReadAllText(path));
 
         Assert.True(parse.IsSuccess, string.Join(Environment.NewLine, parse.Diagnostics));
@@ -180,12 +180,12 @@ public sealed class FirmamentV2CanonicalAdvancedGrammarTests
     }
 
     [Theory]
-    [InlineData("semantic-slot-capsule.firmament", "ReliefEntry")]
-    [InlineData("semantic-slot-rounded-rectangle.firmament", "OpeningEntry")]
-    [InlineData("semantic-selection-chamfer.firmament", "OuterTopBoundary")]
+    [InlineData("Features/Slots/straight-slot.firmament", "ReliefEntry")]
+    [InlineData("Features/Slots/rounded-rectangle-opening.firmament", "OpeningEntry")]
+    [InlineData("Features/EdgeFinish/semantic-selection-chamfer.firmament", "OuterTopBoundary")]
     public void CanonicalRoot_AdmitsSemanticSlotsAndSelections_WithoutACompatibilityDocumentRoot(string fixtureName, string selectionName)
     {
-        var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Canonical/valid", fixtureName));
+        var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Canonical", fixtureName));
         var parse = FirmamentV2Parser.Parse(File.ReadAllText(path));
 
         Assert.True(parse.IsSuccess, string.Join(Environment.NewLine, parse.Diagnostics));
@@ -291,7 +291,7 @@ public sealed class FirmamentV2CanonicalAdvancedGrammarTests
     [Fact]
     public void CanonicalMultiRectProfileComposeFixture_IsDiscoverableAndBuilds()
     {
-        var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Canonical/valid/profile-compose-l-bracket.firmament"));
+        var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Regression/CanonicalGeometry/profile-compose-l-bracket.firmament"));
         var parse = FirmamentV2Parser.Parse(File.ReadAllText(path));
         var output = Path.Combine(Path.GetTempPath(), "aetheris-l-profile-" + Guid.NewGuid().ToString("N") + ".step");
         try
@@ -310,7 +310,7 @@ public sealed class FirmamentV2CanonicalAdvancedGrammarTests
     [Fact]
     public void CanonicalLProfilePatternCounterborePmi_ExportsDeterministicAp242AndReimports()
     {
-        var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Canonical/valid/profile-compose-l-bracket-counterbore-pmi.firmament"));
+        var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Canonical/PMI/counterbore-shaft-diameter.firmament"));
         var firstOutput = Path.Combine(Path.GetTempPath(), "aetheris-l-profile-counterbore-" + Guid.NewGuid().ToString("N") + ".step");
         var secondOutput = Path.Combine(Path.GetTempPath(), "aetheris-l-profile-counterbore-" + Guid.NewGuid().ToString("N") + ".step");
         try
@@ -348,7 +348,7 @@ public sealed class FirmamentV2CanonicalAdvancedGrammarTests
     [Fact]
     public void CanonicalExternalModifyFeatures_AreMaterializedIntoStep()
     {
-        var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Canonical/valid/profile-compose-l-bracket-external-modify-counterbore.firmament"));
+        var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Regression/CanonicalGeometry/profile-compose-l-bracket-external-modify-counterbore.firmament"));
         var output = Path.Combine(Path.GetTempPath(), "aetheris-external-modify-" + Guid.NewGuid().ToString("N") + ".step");
         try
         {
@@ -376,7 +376,7 @@ public sealed class FirmamentV2CanonicalAdvancedGrammarTests
     [Fact]
     public void CanonicalExternalModifyFeatures_WithUnboundTarget_AreFatal()
     {
-        var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Canonical/valid/profile-compose-l-bracket-external-modify-counterbore.firmament"));
+        var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Regression/CanonicalGeometry/profile-compose-l-bracket-external-modify-counterbore.firmament"));
         var parse = FirmamentV2Parser.Parse(File.ReadAllText(path).Replace("Modify BracketBody", "Modify OtherBody", StringComparison.Ordinal));
 
         Assert.False(parse.IsSuccess);
@@ -386,7 +386,7 @@ public sealed class FirmamentV2CanonicalAdvancedGrammarTests
     [Fact]
     public void ProfileComposePolygonEdgeFinish_ReportsHostAdmissionInsteadOfMissingSemanticSource()
     {
-        var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Canonical/invalid/profile-compose-l-bracket-edgefinish-unsupported.firmament"));
+        var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Invalid/Geometry/profile-compose-l-bracket-edgefinish-unsupported.firmament"));
         var output = Path.Combine(Path.GetTempPath(), "aetheris-l-profile-finish-" + Guid.NewGuid().ToString("N") + ".step");
         try
         {

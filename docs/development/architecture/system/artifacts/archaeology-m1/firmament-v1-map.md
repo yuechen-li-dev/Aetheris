@@ -62,7 +62,7 @@ Production-relevant dependencies are:
 
 | Entry | Dependency | Classification | Migration note |
 |---|---|---|---|
-| `FirmamentBuildAndExport.ExportSource` | if V2 returns `NotRecognized`, calls `FirmamentStepExporter.Export`, which creates `FirmamentCompiler` | live legacy build compatibility | This is the hidden V1 execution dependency. A real CLI build of `fixtures/LegacyV1/Examples/box_basic.firmament` succeeded during M1. Keep until M2 names an explicit compatibility route. |
+| `FirmamentBuildAndExport.ExportSource` | if V2 returns `NotRecognized`, calls `FirmamentStepExporter.Export`, which creates `FirmamentCompiler` | live legacy build compatibility | This is the hidden V1 execution dependency. A real CLI build of `fixtures/Compatibility/LegacyV1/Examples/box_basic.firmament` succeeded during M1. Keep until M2 names an explicit compatibility route. |
 | `FirmamentPrimitiveExecutor` | invoked by both V1 compiler and `FirmamentV2BuildLowering.LowerPrimitiveBridge` | shared execution implementation | Do not delete wholesale with V1. Separate request/model ownership before moving it. |
 | CLI `build`, `view`, `verify`, and consumers of `FirmamentBuildAndExport` | inherit fallback behavior | compatibility surface | CLI `validate` and `inspect` are V2-only and reject V1; behavior is already asymmetric and must be documented. |
 | `ForgeHost` | calls `FirmamentBuildAndExport.CompileSource` | indirect compatibility exposure | Expanded Forge source is expected V2, but unrecognized input can reach V1 fallback; close or explicitly retain this in M2. |
@@ -113,8 +113,8 @@ Content search found 333 repository files with a V1 `firmament:` root across `te
 | validator/selector/placement/schema/PMI tests | historical regression plus legacy behavior contract | keep opt-in; promote only current V2 concepts into V2 tests |
 | primitive/Boolean/lowering/execution/STEP tests | historical regression and educational examples | keep until caller migration; preserve topology lessons in Core/recipe tests |
 | `expect_*` tests | legacy regression language | keep opt-in, then retire after equivalent test assertions exist outside source syntax |
-| `fixtures/LegacyV1/Examples` | compatibility artifacts | freeze; do not advertise as current authoring examples |
-| `fixtures/LegacyV1/Corpus` | broad historical regression corpus | freeze and label V1; no new feature syntax |
+| `fixtures/Compatibility/LegacyV1/Examples` | compatibility artifacts | freeze; do not advertise as current authoring examples |
+| `fixtures/Compatibility/LegacyV1/Corpus` | broad historical regression corpus | freeze and label V1; no new feature syntax |
 | `Aetheris.Firmament.FrictionLab/Cases/*/part.firmament` | FrictionLab-only historical inputs | freeze; do not treat as product language direction |
 | placement-lab `*.toon` files | candidate experiment syntax, not the V1 document grammar | FrictionLab-only; do not fold into V1 serialization identity |
 

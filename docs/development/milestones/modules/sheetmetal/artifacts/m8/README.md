@@ -35,7 +35,7 @@ The M8 CTC program resolves three datums, nine patterns, one tab, 17 generated c
 - [Independent flat STEP](ctc03-flat.step)
 - [Independent flat SVG](ctc03-flat.svg)
 
-The non-CTC generalization fixture is [`m8-semantic-panel.firmament`](../../../../../../../fixtures/SheetMetal/m8-semantic-panel.firmament).
+The non-CTC generalization fixture is [`m8-semantic-panel.firmament`](../../../../../../../fixtures/Canonical/SheetMetal/semantic-panel.firmament).
 
 ## Direct architecture answers
 

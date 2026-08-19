@@ -66,7 +66,7 @@ record-shaped Firmament V2 fields to the spec; geometry code contains no M8-only
 literals.
 
 The canonical authoring fixture is
-`fixtures/LegacyV1/Examples/mcmaster_91180a151_threadless_hex_bolt.firmament`:
+`fixtures/Compatibility/LegacyV1/Examples/mcmaster_91180a151_threadless_hex_bolt.firmament`:
 
 ```firmament
 Record HexBoltSpec {

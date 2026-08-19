@@ -53,7 +53,7 @@ Only requested result collections are exposed. Equilibrium evidence is always re
 
 ## X1 witnesses
 
-- Catalog coupon: `fixtures/Materials/catalog-material-coupon.firmament` preserves the MAT-DB-X1 5052-H32 path.
+- Catalog coupon: `fixtures/Canonical/Materials/material-catalog-coupon.firmament` preserves the MAT-DB-X1 5052-H32 path.
 - Cantilever: `ProductionFeaX1Tests` checks exact linear scaling (`u` doubles with load and halves with doubled `E`), three bounded lattice levels, increasing DOFs, finite displacement, and reaction equilibrium. For the 120x20x20 mm beam, 100 N transverse tip resultant, and 70 GPa modulus, slender Euler-Bernoulli theory gives 61.71 micrometres. The table trends toward that reference; the fine result is about 5.6% low. The beam is only six depths long and the load/support idealizations differ, so this is an empirical credibility check rather than an asymptotic or exact-agreement claim.
 
 | Lattice | DOFs | max displacement | beam-reference error | equilibrium residual | PCG residual / iterations | assembly / solve | sparse bytes |
@@ -63,7 +63,7 @@ Only requested result collections are exposed. Equilibrium evidence is always re
 | 18x3x3 | 912 | 58.270 micrometres | -5.6% | 1.19e-9 N | 2.66e-8 / 89 | 186 / 223 ms | 597,652 |
 
 The CLI `--lattice nx,ny,nz` override produced these three runs from one canonical fixture, keeping analysis intent fixed while varying only discretization. Timings are machine/run dependent.
-- Imported through-hole: `fixtures/FEA/inline-step-through-hole.firmament` imports a seven-face planar/cylindrical STEP body without rebuilding it. At 6x4x3 it produced 72 cut cells, 420 DOFs, 22,230 nonzeros, 45 PCG iterations, 14.445 micrometre maximum displacement, 44.945 MPa maximum cell-center von Mises stress, and an 8.43e-9 N equilibrium residual. The measured run spent about 0.17 s in domain setup, 0.83 s in cut quadrature, 0.46 s in assembly, 0.04 s in solve, and used about 268 kB of sparse storage; timings are machine-dependent.
+- Imported through-hole: `fixtures/Canonical/FEA/inline-step-cantilever.firmament` imports a seven-face planar/cylindrical STEP body without rebuilding it. At 6x4x3 it produced 72 cut cells, 420 DOFs, 22,230 nonzeros, 45 PCG iterations, 14.445 micrometre maximum displacement, 44.945 MPa maximum cell-center von Mises stress, and an 8.43e-9 N equilibrium residual. The measured run spent about 0.17 s in domain setup, 0.83 s in cut quadrature, 0.46 s in assembly, 0.04 s in solve, and used about 268 kB of sparse storage; timings are machine-dependent.
 
 The imported witness deliberately disables high-order rescue sampling for cells already empty at the bounded occupancy pass. This policy is reported as a solver setting. It avoids exponential work over generic BRep bounding-box voids; users must refine the lattice when features are thinner than the chosen occupancy sampling.
 

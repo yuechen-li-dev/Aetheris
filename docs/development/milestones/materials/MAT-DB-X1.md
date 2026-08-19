@@ -59,7 +59,7 @@ Analysis LinearElastic CouponPull {
 }
 ```
 
-The complete executable witness is [`catalog-material-coupon.firmament`](../../../../fixtures/Materials/catalog-material-coupon.firmament). Unknown paths produce `firmament-material-unknown`; there is no fallback to a generic family.
+The complete executable witness is [`catalog-material-coupon.firmament`](../../../../fixtures/Canonical/Materials/material-catalog-coupon.firmament). Unknown paths produce `firmament-material-unknown`; there is no fallback to a generic family.
 
 ## C# and LINQ usage
 

@@ -53,7 +53,7 @@ Full golden path was reached for the controlled fixture: `region-parent-integrat
 
 ## Fixture changes
 
-`fixtures/Region/valid/side-hole-v2.valid.firmfixture` is promoted to parser-backed implemented status. Focused invalid fixtures cover unsupported attach face, unsupported through face, invalid radius, and unresolved modify target.
+`fixtures/Regression/Region/valid/side-hole-v2.valid.firmfixture` is promoted to parser-backed implemented status. Focused invalid fixtures cover unsupported attach face, unsupported through face, invalid radius, and unresolved modify target.
 
 ## Diagnostics
 
@@ -73,7 +73,7 @@ AIR-FIRMAMENT-X5 adds generated-on-demand artifacts for the same parser-backed V
 
 ```bash
 dotnet run --project Aetheris.CLI -f net10.0 -- trace \
-  --fixture fixtures/Region/valid/side-hole-v2.valid.firmfixture \
+  --fixture fixtures/Regression/Region/valid/side-hole-v2.valid.firmfixture \
   --out-dir artifacts/air-firmament-x5/side-hole-v2
 ```
 

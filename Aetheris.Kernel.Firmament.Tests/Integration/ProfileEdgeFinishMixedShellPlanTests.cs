@@ -11,7 +11,7 @@ public sealed class ProfileEdgeFinishMixedShellPlanTests
     [Fact]
     public void SevenStationChamfer_ExportsOneDeterministicMixedAnalyticShell()
     {
-        var source = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/valid/profile-edgefinish-chimera-chamfer.firmament");
+        var source = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Regression/CanonicalGeometry/profile-edgefinish-chimera-chamfer.firmament");
         var first = FirmamentBuildAndExport.Run(source, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
         var second = FirmamentBuildAndExport.Run(source, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
 
@@ -153,7 +153,7 @@ public sealed class ProfileEdgeFinishMixedShellPlanTests
     [InlineData("profile-edgefinish-chimera-reflex-sphere-compat.firmament", 2, 4)]
     public void SevenStationFillet_ExportsDeterministicallyWithExpectedSphereTorusDelta(string fixture, int spheres, int tori)
     {
-        var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/Canonical/valid/{fixture}");
+        var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/Regression/CanonicalGeometry/{fixture}");
         var first = FirmamentBuildAndExport.Run(source, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
         var second = FirmamentBuildAndExport.Run(source, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
 
@@ -175,7 +175,7 @@ public sealed class ProfileEdgeFinishMixedShellPlanTests
     [InlineData("profile-edgefinish-chimera-reflex-sphere-compat.firmament")]
     public void SevenStationFillet_ReimportedMassIsNonAuthoritativeSanityEvidence(string fixture)
     {
-        var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/Canonical/valid/{fixture}");
+        var source = FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/Regression/CanonicalGeometry/{fixture}");
         var built = FirmamentBuildAndExport.Run(source, Path.Combine(Path.GetTempPath(), $"aetheris-{Guid.NewGuid():N}.step"));
         Assert.True(built.IsSuccess, string.Join(Environment.NewLine, built.Diagnostics.Select(diagnostic => diagnostic.Message)));
         var imported = Step242Importer.ImportBody(built.Value.Export.StepText);
@@ -193,7 +193,7 @@ public sealed class ProfileEdgeFinishMixedShellPlanTests
 
     private static (ResolvedProfile2D Profile, ProfileBoundaryChamferTarget Target) ReleaseCard(string fixture, ProfileEdgeFinishKind kind)
     {
-        var source = File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/Canonical/valid/{fixture}"));
+        var source = File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath($"fixtures/Regression/CanonicalGeometry/{fixture}"));
         var parsed = ProfileAuthoringParser.Parse(source);
         var profile = Assert.IsType<ResolvedProfile2D>(parsed.Profile);
         var bound = kind == ProfileEdgeFinishKind.Chamfer

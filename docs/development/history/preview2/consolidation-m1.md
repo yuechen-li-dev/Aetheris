@@ -13,10 +13,10 @@ exact BRep planner, and STEP exporter. Path syntax does not reach downstream
 lowering.
 
 The durable native fixture is
-`fixtures/Canonical/valid/table-template-concept-path-compose.firmament`:
+`fixtures/Canonical/Templates/table-driven-mounting-plate.firmament`:
 Static Table row -> Static Record -> `with`-derived Record -> Template -> Concept
 Path -> Profile -> Compose -> Selection -> exact STEP. The smaller direct fixture
-is `fixtures/Canonical/valid/concept-path-compose-profile.firmament`.
+is `fixtures/Regression/CanonicalGeometry/concept-path-compose-profile.firmament`.
 
 ## Semantic contract and capability rule
 

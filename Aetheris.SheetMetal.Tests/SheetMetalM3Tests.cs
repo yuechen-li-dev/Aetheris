@@ -9,12 +9,12 @@ public sealed class SheetMetalM3Tests
     private static readonly string RepoRoot=FindRepoRoot();
 
     [Theory]
-    [InlineData("m3-l-bracket.firmament",1,0,0)]
-    [InlineData("m3-u-channel.firmament",2,0,0)]
-    [InlineData("m3-electronics-tray.firmament",4,4,4)]
+    [InlineData("Canonical/SheetMetal/l-bracket.firmament",1,0,0)]
+    [InlineData("Regression/CanonicalGeometry/sheet-metal-u-channel-m3.firmament",2,0,0)]
+    [InlineData("Canonical/SheetMetal/electronics-tray.firmament",4,4,4)]
     public void AuthoredFixtures_IndependentlyProduceManifoldFormedAndStitchedFlatArtifacts(string file,int bends,int cuts,int corners)
     {
-        var result=SheetMetalFirmament.CompileFile(Path.Combine(RepoRoot,"fixtures/SheetMetal",file));
+        var result=SheetMetalFirmament.CompileFile(Path.Combine(RepoRoot,"fixtures",file));
         Assert.True(result.IsSuccess,string.Join('\n',result.Diagnostics.Select(d=>d.Message)));var part=result.Part!;var flat=result.FlatPattern!;
         Assert.NotNull(part.FormedBody);Assert.Equal(bends,part.Bends.Count);Assert.Equal(cuts,part.Features.Count);Assert.Equal(corners,part.Corners?.Count??0);
         Assert.True((part.Correspondence?.Count??0)>=1+bends*2+cuts+corners);

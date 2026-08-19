@@ -35,17 +35,17 @@ model SideHoleRadius05V2 {
 
 ## Valid radius fixtures
 
-- `fixtures/Region/valid/side-hole-v2.valid.firmfixture` keeps canonical radius `1`.
-- `fixtures/Region/valid/side-hole-radius-0_5-v2.valid.firmfixture` covers radius `0.5`.
-- `fixtures/Region/valid/side-hole-radius-1_5-v2.valid.firmfixture` covers radius `1.5`.
+- `fixtures/Regression/Region/valid/side-hole-v2.valid.firmfixture` keeps canonical radius `1`.
+- `fixtures/Regression/Region/valid/side-hole-radius-0_5-v2.valid.firmfixture` covers radius `0.5`.
+- `fixtures/Regression/Region/valid/side-hole-radius-1_5-v2.valid.firmfixture` covers radius `1.5`.
 
 Each valid fixture reaches `region-parent-integrated`, `Integrated`, `Closed`, `Succeeded`, with no blocker.
 
 ## Invalid radius fixtures
 
-- `fixtures/Region/invalid/side-hole-radius-zero-v2.invalid.firmfixture` reports `firmament-v2-cylinder-radius-invalid`.
-- `fixtures/Region/invalid/side-hole-radius-negative-v2.invalid.firmfixture` reports `firmament-v2-cylinder-radius-invalid`.
-- `fixtures/Region/invalid/side-hole-radius-too-large-v2.invalid.firmfixture` reports `firmament-v2-side-hole-radius-exceeds-clearance`.
+- `fixtures/Compatibility/LegacyAliases/Invalid/Region/side-hole-radius-zero-v2.invalid.firmfixture` reports `firmament-v2-cylinder-radius-invalid`.
+- `fixtures/Compatibility/LegacyAliases/Invalid/Region/side-hole-radius-negative-v2.invalid.firmfixture` reports `firmament-v2-cylinder-radius-invalid`.
+- `fixtures/Compatibility/LegacyAliases/Invalid/Region/side-hole-radius-too-large-v2.invalid.firmfixture` reports `firmament-v2-side-hole-radius-exceeds-clearance`.
 
 ## Radius admissibility / clearance rule
 

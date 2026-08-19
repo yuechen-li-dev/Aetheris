@@ -25,7 +25,7 @@ Firmament V2 Box source
 The Tier 0 proof fixture is:
 
 ```text
-fixtures/Primitive/valid/pipeline-v2-box-step-verified.valid.firmfixture
+fixtures/Regression/Primitive/valid/pipeline-v2-box-step-verified.valid.firmfixture
 ```
 
 It declares:
@@ -41,7 +41,7 @@ It declares:
 The integration test invokes the real production CLI path:
 
 ```bash
-aetheris build fixtures/Primitive/valid/pipeline-v2-box-step-verified.valid.firmfixture --out <temp>/pipeline-v2-box-step-verified.step --json
+aetheris build fixtures/Regression/Primitive/valid/pipeline-v2-box-step-verified.valid.firmfixture --out <temp>/pipeline-v2-box-step-verified.step --json
 ```
 
 This reaches `FirmamentBuildAndExport.Run`, uses the V2 Box lowering bridge, executes the existing primitive executor to produce a real `BrepBody`, and calls the real `Step242Exporter`.

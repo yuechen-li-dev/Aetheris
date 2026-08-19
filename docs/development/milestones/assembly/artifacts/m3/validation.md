@@ -17,5 +17,5 @@ M3B focused coverage includes:
   endpoint, and tolerance details.
 
 The canonical source is
-`fixtures/AssemblyM3/bearing-module.firmament`; the persisted AP242 round-trip
+`fixtures/Regression/Assembly/bearing-module-family-with-legacy-placement.firmament`; the persisted AP242 round-trip
 artifact is `docs/development/milestones/assembly/artifacts/m3/bearing-module-ap242.step`.

@@ -1,6 +1,6 @@
 # Drawing M0 evidence
 
-Canonical source: `fixtures/DrawingM0/bearing-block-drawing.firmament`.
+Canonical source: `fixtures/Canonical/Drawings/bearing-block-production-drawing.firmament`.
 
 Artifacts:
 

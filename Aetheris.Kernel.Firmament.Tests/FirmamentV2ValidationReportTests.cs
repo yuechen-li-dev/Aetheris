@@ -7,7 +7,7 @@ public sealed class FirmamentV2ValidationReportTests
     [Fact]
     public void ValidationReport_ValidAuthoringFixtureSurfacesDeferredExport()
     {
-        var report = Report("Language/valid/v2-phase1-validation-report.valid.firmfixture");
+        var report = Report("Regression/Language/valid/v2-phase1-validation-report.valid.firmfixture");
 
         Assert.Equal("valid-with-deferred-export", report.Status);
         Assert.Equal(7, report.Summary.LetCount);
@@ -29,7 +29,7 @@ public sealed class FirmamentV2ValidationReportTests
     [Fact]
     public void ValidationReport_ExportableSubsetHasNoDeferredRecords()
     {
-        var report = Report("Language/valid/v2-phase1-validation-report-exportable.valid.firmfixture");
+        var report = Report("Regression/Language/valid/v2-phase1-validation-report-exportable.valid.firmfixture");
 
         Assert.Equal("valid", report.Status);
         Assert.Equal(2, report.Summary.PmiRecordCount);
@@ -41,7 +41,7 @@ public sealed class FirmamentV2ValidationReportTests
     [Fact]
     public void ValidationReport_MissingToleranceIsFatalPmiDiagnostic()
     {
-        var report = Report("Language/invalid/v2-phase1-validation-report-missing-tolerance.invalid.firmfixture");
+        var report = Report("Compatibility/LegacyAliases/Invalid/Language/v2-phase1-validation-report-missing-tolerance.invalid.firmfixture");
 
         Assert.Equal("invalid", report.Status);
         Assert.True(report.Summary.FatalDiagnosticCount > 0);
@@ -52,7 +52,7 @@ public sealed class FirmamentV2ValidationReportTests
     [Fact]
     public void ValidationReport_ForgeMissingFieldIsFatalConceptDiagnostic()
     {
-        var report = Report("Language/invalid/v2-phase1-validation-report-forge-missing-field.invalid.firmfixture");
+        var report = Report("Compatibility/LegacyAliases/Invalid/Language/v2-phase1-validation-report-forge-missing-field.invalid.firmfixture");
 
         Assert.Equal("invalid", report.Status);
         Assert.Contains(report.Diagnostics, d => d.Code == FirmamentV2Parser.ConceptMissingRequiredField && d.Message.Contains("required", StringComparison.OrdinalIgnoreCase));
@@ -61,7 +61,7 @@ public sealed class FirmamentV2ValidationReportTests
     [Fact]
     public void ValidationReport_UnknownDatumIsFatalPmiDiagnostic()
     {
-        var report = Report("Language/invalid/v2-phase1-validation-report-unknown-datum.invalid.firmfixture");
+        var report = Report("Compatibility/LegacyAliases/Invalid/Language/v2-phase1-validation-report-unknown-datum.invalid.firmfixture");
 
         Assert.Equal("invalid", report.Status);
         Assert.Contains(report.Diagnostics, d => d.Code == FirmamentV2Parser.PmiUnknownDatum && d.Severity == "fatal");
@@ -70,7 +70,7 @@ public sealed class FirmamentV2ValidationReportTests
     [Fact]
     public void ForgeCsA4_ConceptPmiObligation_SatisfiedCountersinkDiameter_IsReportedWithoutWarning()
     {
-        var report = Report("Language/valid/concept-pmi-obligation-satisfied.valid.firmfixture");
+        var report = Report("Regression/Language/valid/concept-pmi-obligation-satisfied.valid.firmfixture");
 
         Assert.Equal("valid", report.Status);
         var obligation = Assert.Single(report.ConceptPmiObligations);
@@ -88,7 +88,7 @@ public sealed class FirmamentV2ValidationReportTests
     [Fact]
     public void ForgeCsA4_ConceptPmiObligation_MissingShaftDiameter_StaysValidAndWarns()
     {
-        var report = Report("Language/valid/concept-pmi-obligation-missing-warning.valid.firmfixture");
+        var report = Report("Regression/Language/valid/concept-pmi-obligation-missing-warning.valid.firmfixture");
 
         Assert.Equal("valid", report.Status);
         var obligation = Assert.Single(report.ConceptPmiObligations);
@@ -103,7 +103,7 @@ public sealed class FirmamentV2ValidationReportTests
     [Fact]
     public void ForgeCsA4_ConceptPmiObligation_MissingWarningDoesNotOverrideDeferredExportStatus()
     {
-        var report = Report("Language/valid/concept-pmi-obligation-with-deferred-export.valid.firmfixture");
+        var report = Report("Regression/Language/valid/concept-pmi-obligation-with-deferred-export.valid.firmfixture");
 
         Assert.Equal("valid-with-deferred-export", report.Status);
         Assert.Single(report.ConceptPmiObligations, obligation => obligation.Status == "missing");
@@ -114,12 +114,24 @@ public sealed class FirmamentV2ValidationReportTests
     [Fact]
     public void ForgeCsA4_ConceptPmiObligation_InvalidConceptDoesNotEmitMisleadingObligation()
     {
-        var report = Report("Language/invalid/concept-pmi-obligation-invalid-countersink.invalid.firmfixture");
+        var report = Report("Compatibility/LegacyAliases/Invalid/Language/concept-pmi-obligation-invalid-countersink.invalid.firmfixture");
 
         Assert.Equal("invalid", report.Status);
         Assert.Contains(report.Diagnostics, d => d.Code == "forge.hole.countersink.diameter-order" && d.Severity == "fatal");
         Assert.Empty(report.ConceptPmiObligations);
         Assert.DoesNotContain(report.Diagnostics, d => d.Code == "forge.pmi.obligation.missing");
+    }
+
+    [Theory]
+    [InlineData("Invalid/Features/pocket-through-depth.firmament", "firmament-pocket-through-depth")]
+    [InlineData("Invalid/Features/pocket-insufficient-floor.firmament", "firmament-pocket-minimum-floor-thickness")]
+    [InlineData("Invalid/Features/pocket-invalid-profile.firmament", "firmament-pocket-invalid-profile")]
+    public void ValidationReport_PocketSemanticFailuresAreFatal(string fixture, string diagnosticPrefix)
+    {
+        var report = Report(fixture);
+
+        Assert.Equal("invalid", report.Status);
+        Assert.Contains(report.Diagnostics, diagnostic => diagnostic.Code.StartsWith(diagnosticPrefix, StringComparison.Ordinal) && diagnostic.Severity == "fatal");
     }
 
     private static FirmamentV2ValidationReport Report(string relative)

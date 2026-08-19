@@ -274,7 +274,7 @@ public sealed class AirTraceCommandTests
         Assert.NotEqual(0, both.ExitCode); Assert.Contains("mutually exclusive", both.Stderr);
         var wrongPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".txt"); File.WriteAllText(wrongPath, "// case: nope");
         var wrong = Run("trace", "--fixture", wrongPath); Assert.NotEqual(0, wrong.ExitCode); Assert.Contains(".valid.firmfixture", wrong.Stderr);
-        var missing = Run("trace", "--fixture", "fixtures/Chamfer/missing.valid.firmfixture"); Assert.NotEqual(0, missing.ExitCode); Assert.Contains("not found", missing.Stderr);
+        var missing = Run("trace", "--fixture", "fixtures/Regression/Chamfer/missing.valid.firmfixture"); Assert.NotEqual(0, missing.ExitCode); Assert.Contains("not found", missing.Stderr);
         var unknownPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".valid.firmfixture"); File.WriteAllText(unknownPath, "// case: nope\n// expected: valid\n");
         var unknown = Run("trace", "--fixture", unknownPath); Assert.NotEqual(0, unknown.ExitCode); Assert.Contains("Supported fixture cases", unknown.Stderr);
     }
@@ -913,7 +913,7 @@ public sealed class AirTraceCommandTests
     [Fact]
     public void FirmamentV2Parser_Box_TraceReportsFeatureAir()
     {
-        var (exitCode, output, error) = Run("trace", "--fixture", FirmamentV2Fixture("Primitive/valid/box-v2.valid.firmfixture"));
+        var (exitCode, output, error) = Run("trace", "--fixture", FirmamentV2Fixture("Regression/Primitive/valid/box-v2.valid.firmfixture"));
         Assert.Equal(0, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(error));
         Assert.Contains("Firmament V2", output);
@@ -929,7 +929,7 @@ public sealed class AirTraceCommandTests
     [Fact]
     public void FirmamentV2Parser_Box_JsonIncludesStableFields()
     {
-        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Primitive/valid/box-v2.valid.firmfixture"), "--json");
+        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Regression/Primitive/valid/box-v2.valid.firmfixture"), "--json");
         Assert.Equal(0, exitCode);
         using var doc = JsonDocument.Parse(output);
         var root = doc.RootElement;
@@ -949,7 +949,7 @@ public sealed class AirTraceCommandTests
     [Fact]
     public void FirmamentV2Parser_ExposeBoxFaces_TraceJsonContainsSemanticRefs()
     {
-        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("SemanticRefs/valid/named-box-faces-v2.valid.firmfixture"), "--json");
+        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Regression/SemanticRefs/valid/named-box-faces-v2.valid.firmfixture"), "--json");
         Assert.Equal(0, exitCode);
         using var doc = JsonDocument.Parse(output);
         var exposures = doc.RootElement.GetProperty("firmamentV2").GetProperty("solids")[0].GetProperty("exposures");
@@ -967,7 +967,7 @@ public sealed class AirTraceCommandTests
     [Fact]
     public void FirmamentV2Parser_ExposeBoxFaces_TraceTextContainsFatArrowBindings()
     {
-        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("SemanticRefs/valid/named-box-faces-v2.valid.firmfixture"));
+        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Regression/SemanticRefs/valid/named-box-faces-v2.valid.firmfixture"));
         Assert.Equal(0, exitCode);
         Assert.Contains("face(+Z) => top : FaceRef", output);
         Assert.Contains("face(-Z) => bottom : FaceRef", output);
@@ -977,7 +977,7 @@ public sealed class AirTraceCommandTests
     [Fact]
     public void FirmamentV2Parser_MissingUnits_TraceReportsDiagnostic()
     {
-        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Primitive/invalid/box-v2-missing-units.invalid.firmfixture"), "--json");
+        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Compatibility/LegacyAliases/Invalid/Primitive/box-v2-missing-units.invalid.firmfixture"), "--json");
         Assert.Equal(0, exitCode);
         Assert.Contains("firmament-v2-missing-units", output);
     }
@@ -985,7 +985,7 @@ public sealed class AirTraceCommandTests
     [Fact]
     public void FirmamentV2Parser_NegativeSize_TraceReportsDegenerateDimension()
     {
-        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Primitive/invalid/box-v2-negative-size.invalid.firmfixture"), "--json");
+        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Compatibility/LegacyAliases/Invalid/Primitive/box-v2-negative-size.invalid.firmfixture"), "--json");
         Assert.Equal(0, exitCode);
         Assert.Contains("firmament-degenerate-dimension", output);
     }
@@ -993,7 +993,7 @@ public sealed class AirTraceCommandTests
     [Fact]
     public void FirmamentV2Parser_UnknownRecord_TraceReportsDiagnostic()
     {
-        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Primitive/invalid/box-v2-unknown-record.invalid.firmfixture"), "--json");
+        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Compatibility/LegacyAliases/Invalid/Primitive/box-v2-unknown-record.invalid.firmfixture"), "--json");
         Assert.Equal(0, exitCode);
         Assert.Contains("firmament-v2-unknown-record-type", output);
     }
@@ -1004,7 +1004,7 @@ public sealed class AirTraceCommandTests
     [Fact]
     public void FirmamentV2SideHoleCenter_TraceJsonPreservesCenter()
     {
-        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-center-y1-v2.valid.firmfixture"), "--json");
+        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Regression/Region/valid/side-hole-center-y1-v2.valid.firmfixture"), "--json");
         Assert.Equal(0, exitCode);
         using var doc = JsonDocument.Parse(output);
         var intent = doc.RootElement.GetProperty("firmamentV2").GetProperty("semanticIntent");
@@ -1018,7 +1018,7 @@ public sealed class AirTraceCommandTests
     [Fact]
     public void FirmamentV2SideHoleCenter_TraceTextPreservesCenter()
     {
-        var (_, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-center-y1-v2.valid.firmfixture"));
+        var (_, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Regression/Region/valid/side-hole-center-y1-v2.valid.firmfixture"));
         Assert.Contains("Center: [1, 0]", output);
         Assert.Contains("Center frame: face(+X) local u=+Y, v=+Z", output);
     }
@@ -1027,7 +1027,7 @@ public sealed class AirTraceCommandTests
     public void FirmamentV2SideHoleCenter_ArtifactsEmitForOffset()
     {
         var dir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
-        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-center-y1-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
+        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Regression/Region/valid/side-hole-center-y1-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
         foreach (var name in new[] { "side-hole-center-y1-v2.step", "side-hole-center-y1-v2.trace.json", "side-hole-center-y1-v2.trace.txt", "manifest.json" })
         {
             var path = Path.Combine(dir, name);
@@ -1043,16 +1043,16 @@ public sealed class AirTraceCommandTests
     [Fact]
     public void FirmamentV2SideHoleCenter_InvalidDiagnostics()
     {
-        Assert.Contains("firmament-v2-side-hole-center-exceeds-clearance", Run("trace", "--fixture", FirmamentV2Fixture("Region/invalid/side-hole-center-y-boundary-v2.invalid.firmfixture"), "--json").Stdout);
-        Assert.Contains("firmament-v2-side-hole-center-exceeds-clearance", Run("trace", "--fixture", FirmamentV2Fixture("Region/invalid/side-hole-center-z-boundary-v2.invalid.firmfixture"), "--json").Stdout);
-        Assert.Contains("firmament-v2-cylinder-center-arity-invalid", Run("trace", "--fixture", FirmamentV2Fixture("Region/invalid/side-hole-center-arity-one-v2.invalid.firmfixture"), "--json").Stdout);
-        Assert.Contains("firmament-v2-cylinder-center-arity-invalid", Run("trace", "--fixture", FirmamentV2Fixture("Region/invalid/side-hole-center-arity-three-v2.invalid.firmfixture"), "--json").Stdout);
+        Assert.Contains("firmament-v2-side-hole-center-exceeds-clearance", Run("trace", "--fixture", FirmamentV2Fixture("Compatibility/LegacyAliases/Invalid/Region/side-hole-center-y-boundary-v2.invalid.firmfixture"), "--json").Stdout);
+        Assert.Contains("firmament-v2-side-hole-center-exceeds-clearance", Run("trace", "--fixture", FirmamentV2Fixture("Compatibility/LegacyAliases/Invalid/Region/side-hole-center-z-boundary-v2.invalid.firmfixture"), "--json").Stdout);
+        Assert.Contains("firmament-v2-cylinder-center-arity-invalid", Run("trace", "--fixture", FirmamentV2Fixture("Compatibility/LegacyAliases/Invalid/Region/side-hole-center-arity-one-v2.invalid.firmfixture"), "--json").Stdout);
+        Assert.Contains("firmament-v2-cylinder-center-arity-invalid", Run("trace", "--fixture", FirmamentV2Fixture("Compatibility/LegacyAliases/Invalid/Region/side-hole-center-arity-three-v2.invalid.firmfixture"), "--json").Stdout);
     }
 
     [Fact]
     public void FirmamentV2SideHoleRadius_TraceJsonPreservesRadius()
     {
-        foreach (var (fixture, expected) in new[] { ("Region/valid/side-hole-radius-0_5-v2.valid.firmfixture", 0.5), ("Region/valid/side-hole-radius-1_5-v2.valid.firmfixture", 1.5) })
+        foreach (var (fixture, expected) in new[] { ("Regression/Region/valid/side-hole-radius-0_5-v2.valid.firmfixture", 0.5), ("Regression/Region/valid/side-hole-radius-1_5-v2.valid.firmfixture", 1.5) })
         {
             var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture(fixture), "--json");
             Assert.Equal(0, exitCode);
@@ -1067,8 +1067,8 @@ public sealed class AirTraceCommandTests
     [Fact]
     public void FirmamentV2SideHoleRadius_TraceTextPreservesRadius()
     {
-        var (_, radius05, _) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-radius-0_5-v2.valid.firmfixture"));
-        var (_, radius15, _) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-radius-1_5-v2.valid.firmfixture"));
+        var (_, radius05, _) = Run("trace", "--fixture", FirmamentV2Fixture("Regression/Region/valid/side-hole-radius-0_5-v2.valid.firmfixture"));
+        var (_, radius15, _) = Run("trace", "--fixture", FirmamentV2Fixture("Regression/Region/valid/side-hole-radius-1_5-v2.valid.firmfixture"));
         Assert.Contains("Tool: Cylinder", radius05);
         Assert.Contains("Radius: 0.5", radius05);
         Assert.Contains("Through: face(-X)", radius05);
@@ -1083,7 +1083,7 @@ public sealed class AirTraceCommandTests
     public void FirmamentV2SideHoleRadius_ArtifactsEmitForVariation()
     {
         var dir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
-        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-radius-0_5-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
+        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Regression/Region/valid/side-hole-radius-0_5-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
         foreach (var name in new[] { "side-hole-radius-0_5-v2.step", "side-hole-radius-0_5-v2.trace.json", "side-hole-radius-0_5-v2.trace.txt", "manifest.json" })
         {
             var path = Path.Combine(dir, name);
@@ -1099,9 +1099,9 @@ public sealed class AirTraceCommandTests
     [Fact]
     public void FirmamentV2SideHoleRadius_InvalidDiagnostics()
     {
-        Assert.Contains("firmament-v2-cylinder-radius-invalid", Run("trace", "--fixture", FirmamentV2Fixture("Region/invalid/side-hole-radius-zero-v2.invalid.firmfixture"), "--json").Stdout);
-        Assert.Contains("firmament-v2-cylinder-radius-invalid", Run("trace", "--fixture", FirmamentV2Fixture("Region/invalid/side-hole-radius-negative-v2.invalid.firmfixture"), "--json").Stdout);
-        Assert.Contains("firmament-v2-side-hole-radius-exceeds-clearance", Run("trace", "--fixture", FirmamentV2Fixture("Region/invalid/side-hole-radius-too-large-v2.invalid.firmfixture"), "--json").Stdout);
+        Assert.Contains("firmament-v2-cylinder-radius-invalid", Run("trace", "--fixture", FirmamentV2Fixture("Compatibility/LegacyAliases/Invalid/Region/side-hole-radius-zero-v2.invalid.firmfixture"), "--json").Stdout);
+        Assert.Contains("firmament-v2-cylinder-radius-invalid", Run("trace", "--fixture", FirmamentV2Fixture("Compatibility/LegacyAliases/Invalid/Region/side-hole-radius-negative-v2.invalid.firmfixture"), "--json").Stdout);
+        Assert.Contains("firmament-v2-side-hole-radius-exceeds-clearance", Run("trace", "--fixture", FirmamentV2Fixture("Compatibility/LegacyAliases/Invalid/Region/side-hole-radius-too-large-v2.invalid.firmfixture"), "--json").Stdout);
     }
 
 
@@ -1109,7 +1109,7 @@ public sealed class AirTraceCommandTests
     public void FirmamentV2SideHoleArtifacts_OutDirWritesStableFiles()
     {
         var dir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
-        var (exitCode, output, error) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-v2.valid.firmfixture"), "--out-dir", dir);
+        var (exitCode, output, error) = Run("trace", "--fixture", FirmamentV2Fixture("Regression/Region/valid/side-hole-v2.valid.firmfixture"), "--out-dir", dir);
 
         Assert.Equal(0, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(error));
@@ -1126,7 +1126,7 @@ public sealed class AirTraceCommandTests
     [Fact]
     public void FirmamentV2SideHoleAliases_TraceJsonContainsAliasResolution()
     {
-        var (_, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-aliases-v2.valid.firmfixture"), "--json");
+        var (_, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Regression/Region/valid/side-hole-aliases-v2.valid.firmfixture"), "--json");
         using var doc = JsonDocument.Parse(output);
         var region = doc.RootElement.GetProperty("firmamentV2").GetProperty("modifyBlocks")[0].GetProperty("regions")[0];
         Assert.Equal("right", region.GetProperty("on").GetString());
@@ -1140,7 +1140,7 @@ public sealed class AirTraceCommandTests
     [Fact]
     public void FirmamentV2SideHoleAliases_TraceTextContainsAliasResolution()
     {
-        var (_, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-aliases-v2.valid.firmfixture"));
+        var (_, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Regression/Region/valid/side-hole-aliases-v2.valid.firmfixture"));
         Assert.Contains("face(+X) => right", output);
         Assert.Contains("On: right", output);
         Assert.Contains("Resolved on: face(+X)", output);
@@ -1152,7 +1152,7 @@ public sealed class AirTraceCommandTests
     public void FirmamentV2SideHoleAliases_ArtifactsEmit()
     {
         var dir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
-        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-aliases-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
+        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Regression/Region/valid/side-hole-aliases-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
         Assert.All(new[] { "side-hole-aliases-v2.step", "side-hole-aliases-v2.trace.json", "side-hole-aliases-v2.trace.txt", "manifest.json" }, name => Assert.True(new FileInfo(Path.Combine(dir, name)).Length > 0, name));
         using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(dir, "manifest.json")));
         Assert.Equal("right", doc.RootElement.GetProperty("attachTargetSource").GetString());
@@ -1165,13 +1165,13 @@ public sealed class AirTraceCommandTests
     public void FirmamentV2SideHoleArtifacts_ManifestContainsGoldenPathFacts()
     {
         var dir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
-        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
+        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Regression/Region/valid/side-hole-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
 
         using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(dir, "manifest.json")));
         var root = doc.RootElement;
         Assert.Equal("AIR-FIRMAMENT-X6", root.GetProperty("milestone").GetString());
         Assert.Equal("FirmamentV2", root.GetProperty("syntaxVersion").GetString());
-        Assert.EndsWith("fixtures/Region/valid/side-hole-v2.valid.firmfixture", root.GetProperty("fixture").GetString()!.Replace('\\', '/'), StringComparison.Ordinal);
+        Assert.EndsWith("fixtures/Regression/Region/valid/side-hole-v2.valid.firmfixture", root.GetProperty("fixture").GetString()!.Replace('\\', '/'), StringComparison.Ordinal);
         Assert.Equal("region-parent-integrated", root.GetProperty("stage").GetString());
         Assert.Equal("Integrated", root.GetProperty("parentIntegration").GetString());
         Assert.Equal("Closed", root.GetProperty("shellClosure").GetString());
@@ -1184,7 +1184,7 @@ public sealed class AirTraceCommandTests
     public void FirmamentV2SideHoleArtifacts_TraceReportsArtifactPaths()
     {
         var dir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
-        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
+        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Regression/Region/valid/side-hole-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
 
         var text = File.ReadAllText(Path.Combine(dir, "side-hole-v2.trace.txt"));
         Assert.Contains("Artifacts", text);
@@ -1196,7 +1196,7 @@ public sealed class AirTraceCommandTests
     [Fact]
     public void FirmamentV2SideHoleArtifacts_ParityWithX13GoldenPath()
     {
-        var (_, v2Output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-v2.valid.firmfixture"), "--json");
+        var (_, v2Output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Regression/Region/valid/side-hole-v2.valid.firmfixture"), "--json");
         var (_, x13Output, _) = Run("trace", "--fixture", RegionFixture("valid/side-hole-face-attached-region.valid.firmfixture"), "--json");
         using var v2 = JsonDocument.Parse(v2Output);
         using var x13 = JsonDocument.Parse(x13Output);
@@ -1225,8 +1225,8 @@ public sealed class AirTraceCommandTests
     {
         var firstDir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
         var secondDir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
-        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-v2.valid.firmfixture"), "--out-dir", firstDir).ExitCode);
-        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-v2.valid.firmfixture"), "--out-dir", secondDir).ExitCode);
+        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Regression/Region/valid/side-hole-v2.valid.firmfixture"), "--out-dir", firstDir).ExitCode);
+        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Regression/Region/valid/side-hole-v2.valid.firmfixture"), "--out-dir", secondDir).ExitCode);
         var first = NormalizeOutDir(File.ReadAllText(Path.Combine(firstDir, "side-hole-v2.trace.json")), firstDir);
         var second = NormalizeOutDir(File.ReadAllText(Path.Combine(secondDir, "side-hole-v2.trace.json")), secondDir);
         Assert.Equal(first, second);
@@ -1236,14 +1236,14 @@ public sealed class AirTraceCommandTests
     public void FirmamentV2SideHoleArtifacts_DoNotDeleteOutDirFiles()
     {
         var dir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
-        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
+        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Regression/Region/valid/side-hole-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
         Assert.All(new[] { "side-hole-v2.step", "side-hole-v2.trace.json", "side-hole-v2.trace.txt", "manifest.json" }, name => Assert.True(File.Exists(Path.Combine(dir, name)), name));
     }
 
     [Fact]
     public void FirmamentV2SideHole_GoldenPathStillGreen()
     {
-        var (exitCode, output, error) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-v2.valid.firmfixture"));
+        var (exitCode, output, error) = Run("trace", "--fixture", FirmamentV2Fixture("Regression/Region/valid/side-hole-v2.valid.firmfixture"));
         Assert.Equal(0, exitCode);
         Assert.True(string.IsNullOrWhiteSpace(error));
         Assert.Contains("Actual stage: region-parent-integrated", output);
@@ -1256,7 +1256,7 @@ public sealed class AirTraceCommandTests
     [Fact]
     public void FirmamentV2SideHoleReverseX_TraceJsonContainsRouteEvidence()
     {
-        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-reverse-x-v2.valid.firmfixture"), "--json");
+        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Regression/Region/valid/side-hole-reverse-x-v2.valid.firmfixture"), "--json");
         Assert.Equal(0, exitCode);
         using var doc = JsonDocument.Parse(output);
         var intent = doc.RootElement.GetProperty("firmamentV2").GetProperty("semanticIntent");
@@ -1269,7 +1269,7 @@ public sealed class AirTraceCommandTests
     [Fact]
     public void FirmamentV2SideHoleReverseX_TraceTextContainsRouteEvidence()
     {
-        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-reverse-x-v2.valid.firmfixture"));
+        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Regression/Region/valid/side-hole-reverse-x-v2.valid.firmfixture"));
         Assert.Equal(0, exitCode);
         Assert.Contains("On: face(-X)", output);
         Assert.Contains("Through: face(+X)", output);
@@ -1281,7 +1281,7 @@ public sealed class AirTraceCommandTests
     public void FirmamentV2SideHoleReverseX_ArtifactsEmit()
     {
         var dir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
-        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-reverse-x-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
+        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Regression/Region/valid/side-hole-reverse-x-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
         foreach (var name in new[] { "side-hole-reverse-x-v2.step", "side-hole-reverse-x-v2.trace.json", "side-hole-reverse-x-v2.trace.txt", "manifest.json" })
         {
             var path = Path.Combine(dir, name);
@@ -1306,7 +1306,7 @@ public sealed class AirTraceCommandTests
     [Fact]
     public void FirmamentV2SideHoleYAxis_TraceJsonContainsRouteEvidence()
     {
-        var (_, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-y-axis-v2.valid.firmfixture"), "--json");
+        var (_, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Regression/Region/valid/side-hole-y-axis-v2.valid.firmfixture"), "--json");
         using var doc = JsonDocument.Parse(output);
         var intent = doc.RootElement.GetProperty("firmamentV2").GetProperty("semanticIntent");
         var route = intent.GetProperty("routeEvidence");
@@ -1320,7 +1320,7 @@ public sealed class AirTraceCommandTests
     [Fact]
     public void FirmamentV2SideHoleYAxis_TraceTextContainsRouteEvidence()
     {
-        var (_, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-y-axis-v2.valid.firmfixture"));
+        var (_, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Regression/Region/valid/side-hole-y-axis-v2.valid.firmfixture"));
         Assert.Contains("On: face(+Y)", output);
         Assert.Contains("Through: face(-Y)", output);
         Assert.Contains("Route: +Y -> -Y", output);
@@ -1331,7 +1331,7 @@ public sealed class AirTraceCommandTests
     public void FirmamentV2SideHoleYAxis_ArtifactsEmit()
     {
         var dir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
-        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-y-axis-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
+        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Regression/Region/valid/side-hole-y-axis-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
         Assert.All(new[] { "side-hole-y-axis-v2.step", "side-hole-y-axis-v2.trace.json", "side-hole-y-axis-v2.trace.txt", "manifest.json" }, name => Assert.True(new FileInfo(Path.Combine(dir, name)).Length > 0, name));
         using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(dir, "manifest.json")));
         var route = doc.RootElement.GetProperty("route");
@@ -1344,7 +1344,7 @@ public sealed class AirTraceCommandTests
     [Fact]
     public void FirmamentV2SideHoleZAxis_TraceJsonContainsRouteEvidence()
     {
-        var (_, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-z-axis-v2.valid.firmfixture"), "--json");
+        var (_, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Regression/Region/valid/side-hole-z-axis-v2.valid.firmfixture"), "--json");
         using var doc = JsonDocument.Parse(output);
         var intent = doc.RootElement.GetProperty("firmamentV2").GetProperty("semanticIntent");
         var route = intent.GetProperty("routeEvidence");
@@ -1358,7 +1358,7 @@ public sealed class AirTraceCommandTests
     [Fact]
     public void FirmamentV2SideHoleZAxis_TraceTextContainsRouteEvidence()
     {
-        var (_, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-z-axis-v2.valid.firmfixture"));
+        var (_, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Regression/Region/valid/side-hole-z-axis-v2.valid.firmfixture"));
         Assert.Contains("On: face(+Z)", output);
         Assert.Contains("Through: face(-Z)", output);
         Assert.Contains("Route: +Z -> -Z", output);
@@ -1369,7 +1369,7 @@ public sealed class AirTraceCommandTests
     public void FirmamentV2SideHoleZAxis_ArtifactsEmit()
     {
         var dir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
-        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-z-axis-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
+        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Regression/Region/valid/side-hole-z-axis-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
         Assert.All(new[] { "side-hole-z-axis-v2.step", "side-hole-z-axis-v2.trace.json", "side-hole-z-axis-v2.trace.txt", "manifest.json" }, name => Assert.True(new FileInfo(Path.Combine(dir, name)).Length > 0, name));
         using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(dir, "manifest.json")));
         var route = doc.RootElement.GetProperty("route");
@@ -1382,10 +1382,10 @@ public sealed class AirTraceCommandTests
     [Fact]
     public void FirmamentV2SideHoleZAxis_InvalidDiagnostics()
     {
-        Assert.Contains("firmament-v2-side-hole-route-unsupported", Run("trace", "--fixture", FirmamentV2Fixture("Region/invalid/side-hole-mixed-axis-z-to-x-v2.invalid.firmfixture"), "--json").Stdout);
-        Assert.Contains("firmament-v2-side-hole-center-exceeds-clearance", Run("trace", "--fixture", FirmamentV2Fixture("Region/invalid/side-hole-z-center-x-boundary-v2.invalid.firmfixture"), "--json").Stdout);
-        Assert.Contains("firmament-v2-side-hole-center-exceeds-clearance", Run("trace", "--fixture", FirmamentV2Fixture("Region/invalid/side-hole-z-center-y-boundary-v2.invalid.firmfixture"), "--json").Stdout);
-        Assert.Contains("firmament-v2-side-hole-route-unsupported", Run("trace", "--fixture", FirmamentV2Fixture("Region/invalid/side-hole-alias-z-wrong-through-v2.invalid.firmfixture"), "--json").Stdout);
+        Assert.Contains("firmament-v2-side-hole-route-unsupported", Run("trace", "--fixture", FirmamentV2Fixture("Compatibility/LegacyAliases/Invalid/Region/side-hole-mixed-axis-z-to-x-v2.invalid.firmfixture"), "--json").Stdout);
+        Assert.Contains("firmament-v2-side-hole-center-exceeds-clearance", Run("trace", "--fixture", FirmamentV2Fixture("Compatibility/LegacyAliases/Invalid/Region/side-hole-z-center-x-boundary-v2.invalid.firmfixture"), "--json").Stdout);
+        Assert.Contains("firmament-v2-side-hole-center-exceeds-clearance", Run("trace", "--fixture", FirmamentV2Fixture("Compatibility/LegacyAliases/Invalid/Region/side-hole-z-center-y-boundary-v2.invalid.firmfixture"), "--json").Stdout);
+        Assert.Contains("firmament-v2-side-hole-route-unsupported", Run("trace", "--fixture", FirmamentV2Fixture("Compatibility/LegacyAliases/Invalid/Region/side-hole-alias-z-wrong-through-v2.invalid.firmfixture"), "--json").Stdout);
     }
 
 
@@ -1393,7 +1393,7 @@ public sealed class AirTraceCommandTests
     public void FirmamentV2SideHoleRoutePolicy_ManifestContainsPolicyFacts()
     {
         var dir = Path.Combine(Path.GetTempPath(), "aetheris-trace-tests", Guid.NewGuid().ToString("N"));
-        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-z-axis-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
+        Assert.Equal(0, Run("trace", "--fixture", FirmamentV2Fixture("Regression/Region/valid/side-hole-z-axis-v2.valid.firmfixture"), "--out-dir", dir).ExitCode);
         using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(dir, "manifest.json")));
         var route = doc.RootElement.GetProperty("route");
         Assert.Equal("Z", route.GetProperty("axis").GetString());
@@ -1410,7 +1410,7 @@ public sealed class AirTraceCommandTests
     [Fact]
     public void FirmamentV2SideHoleRoutePolicy_TraceJsonContainsPolicyFacts()
     {
-        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Region/valid/side-hole-z-axis-v2.valid.firmfixture"), "--json");
+        var (exitCode, output, _) = Run("trace", "--fixture", FirmamentV2Fixture("Regression/Region/valid/side-hole-z-axis-v2.valid.firmfixture"), "--json");
         Assert.Equal(0, exitCode);
         using var doc = JsonDocument.Parse(output);
         var route = doc.RootElement.GetProperty("firmamentV2").GetProperty("semanticIntent").GetProperty("routeEvidence");

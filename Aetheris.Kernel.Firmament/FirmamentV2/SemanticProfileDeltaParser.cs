@@ -82,12 +82,13 @@ public static class SemanticProfileDeltaParser
         anchor=new(SemanticEdgeAnchorKind.FromStart,0);if(!match.Success)return false;
         anchor=new(Enum.Parse<SemanticEdgeAnchorKind>(match.Groups["kind"].Value),double.Parse(match.Groups["v"].Value,CultureInfo.InvariantCulture));return true;
     }
+    private const string FieldEnd=@"\s*(?:;|(?=\r?\n|$)|(?=\s+[A-Za-z_]\w*\s*:))";
     private static bool Length(string body,string name,out double value)
-    {var m=Regex.Match(body,$@"\b{Regex.Escape(name)}\s*:\s*(?<v>{Number})mm\s*;",Rx);value=m.Success?double.Parse(m.Groups["v"].Value,CultureInfo.InvariantCulture):0;return m.Success&&double.IsFinite(value);}
-    private static string? Field(string body,string name){var m=Regex.Match(body,$@"\b{Regex.Escape(name)}\s*:\s*(?<v>[^;]+)\s*;",Rx);return m.Success?m.Groups["v"].Value.Trim():null;}
-    private static string? Token(string body,string name){var m=Regex.Match(body,$@"\b{Regex.Escape(name)}\s*:\s*(?<v>[A-Za-z_]\w*)\s*;",Rx);return m.Success?m.Groups["v"].Value:null;}
-    private static string? TokenPath(string body,string name){var m=Regex.Match(body,$@"\b{Regex.Escape(name)}\s*:\s*(?<v>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*;",Rx);return m.Success?m.Groups["v"].Value:null;}
-    private static IReadOnlyList<string> List(string body,string name){var m=Regex.Match(body,$@"\b{Regex.Escape(name)}\s*:\s*\[(?<v>[^]]*)\]\s*;",Rx);return m.Success?m.Groups["v"].Value.Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries):[];}
+    {var m=Regex.Match(body,$@"\b{Regex.Escape(name)}\s*:\s*(?<v>{Number})mm{FieldEnd}",Rx);value=m.Success?double.Parse(m.Groups["v"].Value,CultureInfo.InvariantCulture):0;return m.Success&&double.IsFinite(value);}
+    private static string? Field(string body,string name){var m=Regex.Match(body,$@"\b{Regex.Escape(name)}\s*:\s*(?<v>.+?){FieldEnd}",Rx);return m.Success?m.Groups["v"].Value.Trim():null;}
+    private static string? Token(string body,string name){var m=Regex.Match(body,$@"\b{Regex.Escape(name)}\s*:\s*(?<v>[A-Za-z_]\w*){FieldEnd}",Rx);return m.Success?m.Groups["v"].Value:null;}
+    private static string? TokenPath(string body,string name){var m=Regex.Match(body,$@"\b{Regex.Escape(name)}\s*:\s*(?<v>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*){FieldEnd}",Rx);return m.Success?m.Groups["v"].Value:null;}
+    private static IReadOnlyList<string> List(string body,string name){var m=Regex.Match(body,$@"\b{Regex.Escape(name)}\s*:\s*\[(?<v>[^]]*)\]{FieldEnd}",Rx);return m.Success?m.Groups["v"].Value.Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries):[];}
     private static IReadOnlyList<Block> Blocks(string source,string keyword)
     {
         var result=new List<Block>();foreach(Match match in Regex.Matches(source,$@"\b{Regex.Escape(keyword)}\s+(?<name>[A-Za-z_]\w*)\s*\{{",Rx))

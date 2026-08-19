@@ -78,15 +78,15 @@ Reverse-X fixtures emit STEP, trace JSON, trace text, and manifest artifacts usi
 
 Valid fixtures added:
 
-- `fixtures/Region/valid/side-hole-reverse-x-v2.valid.firmfixture`
-- `fixtures/Region/valid/side-hole-aliases-reverse-x-v2.valid.firmfixture`
+- `fixtures/Regression/Region/valid/side-hole-reverse-x-v2.valid.firmfixture`
+- `fixtures/Regression/Region/valid/side-hole-aliases-reverse-x-v2.valid.firmfixture`
 
 Invalid fixtures added:
 
-- `fixtures/Region/invalid/side-hole-same-face-x-v2.invalid.firmfixture`
-- `fixtures/Region/invalid/side-hole-mixed-axis-x-to-y-v2.invalid.firmfixture`
-- `fixtures/Region/invalid/side-hole-y-axis-not-yet-supported-v2.invalid.firmfixture`
-- `fixtures/Region/invalid/side-hole-alias-reverse-x-wrong-through-v2.invalid.firmfixture`
+- `fixtures/Compatibility/LegacyAliases/Invalid/Region/side-hole-same-face-x-v2.invalid.firmfixture`
+- `fixtures/Compatibility/LegacyAliases/Invalid/Region/side-hole-mixed-axis-x-to-y-v2.invalid.firmfixture`
+- `fixtures/Compatibility/LegacyAliases/Invalid/Region/side-hole-y-axis-not-yet-supported-v2.invalid.firmfixture`
+- `fixtures/Compatibility/LegacyAliases/Invalid/Region/side-hole-alias-reverse-x-wrong-through-v2.invalid.firmfixture`
 
 ## What this proves
 

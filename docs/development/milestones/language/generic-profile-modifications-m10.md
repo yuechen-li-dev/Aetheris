@@ -45,9 +45,9 @@ only on `ProfileDelta`, levels, spans, and transitions; it contains no branch fo
 `Use Profile.Modifications;` loads the embedded generic `Recess<T>` and `Tab<T>`
 library. User-authored templates use the same mechanism and can introduce names the
 compiler has never seen. The canonical ordinary-extrusion dogfood is
-`fixtures/Canonical/valid/profile-template-delta-extrusion.firmament`;
+`fixtures/Regression/CanonicalGeometry/profile-template-delta-extrusion.firmament`;
 the Sheet Metal library dogfood is
-`fixtures/SheetMetal/m10-profile-delta-recess.firmament`.
+`fixtures/Canonical/SheetMetal/profile-delta-service-recess.firmament`.
 
 Sheet Metal consumes the same resolved delta on a flange `Outer` carrier. Delta,
 level, member, exposed attachment, formed-region, and flat-region paths retain stable

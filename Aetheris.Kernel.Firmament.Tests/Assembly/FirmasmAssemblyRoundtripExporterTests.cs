@@ -10,7 +10,7 @@ public sealed class FirmasmAssemblyRoundtripExporterTests
     public void ExportFromFile_NutBolt_WritesStepInteropPackageAndImportableParts()
     {
         var exporter = new FirmasmAssemblyRoundtripExporter();
-        var sourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Assembly/LegacyImports/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
+        var sourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Compatibility/Firmasm/LegacyAssembly/examples/occt-nut-bolt/nut-bolt-assembly.firmasm");
         var outputDirectory = CreateTempDirectory();
 
         try
@@ -46,7 +46,7 @@ public sealed class FirmasmAssemblyRoundtripExporterTests
     public void ExportFromFile_As1_PreservesFlatInstanceCountInPackage()
     {
         var exporter = new FirmasmAssemblyRoundtripExporter();
-        var sourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Assembly/LegacyImports/examples/occt-as1/as1-assembly.firmasm");
+        var sourcePath = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Compatibility/Firmasm/LegacyAssembly/examples/occt-as1/as1-assembly.firmasm");
         var outputDirectory = CreateTempDirectory();
 
         try

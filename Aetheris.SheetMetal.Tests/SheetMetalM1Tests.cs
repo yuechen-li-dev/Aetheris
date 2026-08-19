@@ -19,7 +19,7 @@ public sealed class SheetMetalM1Tests
     [Fact]
     public void AuthoredChannel_ProducesExactFormedBrepAndManufacturingFlatPattern()
     {
-        var path=Path.Combine(RepoRoot,"fixtures/SheetMetal/simple-u-channel.firmament");
+        var path=Path.Combine(RepoRoot,"fixtures/Canonical/SheetMetal/u-channel.firmament");
         var result=SheetMetalFirmament.CompileFile(path);
         Assert.True(result.IsSuccess,string.Join("\n",result.Diagnostics.Select(d=>d.Message)));
         var part=Assert.IsType<SheetMetalPartIr>(result.Part);var flat=Assert.IsType<SheetMetalFlatPatternIr>(result.FlatPattern);
@@ -70,7 +70,7 @@ public sealed class SheetMetalM1Tests
     [Fact]
     public void AuthoredFormedBody_IsRecognizedByTheSameImportedBrepSystem()
     {
-        var authored=SheetMetalFirmament.CompileFile(Path.Combine(RepoRoot,"fixtures/SheetMetal/simple-u-channel.firmament"));
+        var authored=SheetMetalFirmament.CompileFile(Path.Combine(RepoRoot,"fixtures/Canonical/SheetMetal/u-channel.firmament"));
         var recognized=SheetMetalRecognizer.Recognize(authored.Part!.FormedBody!,"authored-roundtrip.step");
         Assert.True(recognized.Thickness.IsPlausible);Assert.Equal(1.5,recognized.Thickness.NominalThickness!.Value,8);Assert.NotNull(recognized.Part);Assert.Equal(2,recognized.Part!.Bends.Count);
     }
@@ -85,7 +85,7 @@ public sealed class SheetMetalM1Tests
     [Fact]
     public void DisconnectedSheetGraph_ProducesPartialFlatWithDiagnostic()
     {
-        var authored=SheetMetalFirmament.CompileFile(Path.Combine(RepoRoot,"fixtures/SheetMetal/simple-u-channel.firmament"));var part=authored.Part!;
+        var authored=SheetMetalFirmament.CompileFile(Path.Combine(RepoRoot,"fixtures/Canonical/SheetMetal/u-channel.firmament"));var part=authored.Part!;
         var orphan=part.Regions.First(r=>r.StableId=="region-left-flange") with { StableId="region-orphan" };
         var disconnected=part with { Regions=[..part.Regions,orphan] };
         var flat=SheetMetalFlattener.Flatten(disconnected);Assert.Equal(FlatPatternStatus.Partial,flat.Status);Assert.Contains(flat.Diagnostics,d=>d.Code==SheetMetalDiagnosticCodes.DisconnectedGraph);

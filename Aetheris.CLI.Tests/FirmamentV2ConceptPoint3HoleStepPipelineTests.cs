@@ -105,7 +105,7 @@ public sealed class FirmamentV2ConceptPoint3HoleStepPipelineTests
         Directory.CreateDirectory(dir);
         try
         {
-            var source = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Canonical/valid/box-holes-pmi-chamfer.firmament"));
+            var source = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Canonical/PMI/multiple-hole-dimensions-with-chamfer.firmament"));
             var step = Path.Combine(dir, "mounting-plate.step");
             var output = new StringWriter();
 
@@ -141,5 +141,5 @@ public sealed class FirmamentV2ConceptPoint3HoleStepPipelineTests
         Assert.Contains("CombinedFeatureInteractionUnsupported", stdout.ToString(), StringComparison.Ordinal);
     }
 
-    private static string Source => File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/DemoRegression/concept-materialization-m2.firmament")));
+    private static string Source => File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Regression/DemoRegression/concept-materialization-m2.firmament")));
 }

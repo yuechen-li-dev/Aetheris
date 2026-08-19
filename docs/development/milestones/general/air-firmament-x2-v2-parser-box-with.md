@@ -67,9 +67,9 @@ X2 does not implement general `with`. Unsupported constructs include nested `wit
 
 ## 9. Fixture changes
 
-`fixtures/RecordDerivation/valid/box-with-size-variant-v2.valid.firmfixture` advanced from A2.2 metadata-only design intent to `implementation: parser-backed` with `expected-stage: feature-air`, `expected-feature-air: CreateBox`, `expected-solid: tall`, `expected-size: [10, 8, 12]`, and `expected-derived-from: base`.
+`fixtures/Regression/RecordDerivation/valid/box-with-size-variant-v2.valid.firmfixture` advanced from A2.2 metadata-only design intent to `implementation: parser-backed` with `expected-stage: feature-air`, `expected-feature-air: CreateBox`, `expected-solid: tall`, `expected-size: [10, 8, 12]`, and `expected-derived-from: base`.
 
-Invalid parser-backed fixtures now cover degenerate derived size, selector-like override fields, unknown fields, undefined bases, and duplicate solid names under `fixtures/RecordDerivation/invalid/`.
+Invalid parser-backed fixtures now cover degenerate derived size, selector-like override fields, unknown fields, undefined bases, and duplicate solid names under `fixtures/Compatibility/LegacyAliases/Invalid/RecordDerivation/`.
 
 ## 10. Diagnostics
 

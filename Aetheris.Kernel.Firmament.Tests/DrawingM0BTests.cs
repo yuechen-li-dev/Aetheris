@@ -107,7 +107,7 @@ public sealed class DrawingM0BTests
         Assert.Equal(a.Artifacts!.DrawingIrSha256, b.Artifacts!.DrawingIrSha256); Assert.Equal(a.Artifacts.PdfSha256, b.Artifacts.PdfSha256);
     }
 
-    private static string Fixture() => Path.Combine(RepositoryRoot(), "fixtures", "DrawingM0B", "machine-assembly-drawing.firmament");
+    private static string Fixture() => Path.Combine(RepositoryRoot(), "fixtures", "Regression", "Drawing", "machine-assembly-production-drawing-legacy-placement.firmament");
     private static string RepositoryRoot() { var directory = new DirectoryInfo(AppContext.BaseDirectory); while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Aetheris.slnx"))) directory = directory.Parent; return directory?.FullName ?? throw new InvalidOperationException("Repository root not found."); }
     private sealed class TemporaryDirectory : IDisposable { public TemporaryDirectory() { Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"aetheris-drawing-m0b-{Guid.NewGuid():N}"); Directory.CreateDirectory(Path); } public string Path { get; } public void Dispose() { if (Directory.Exists(Path)) Directory.Delete(Path, true); } }
 }

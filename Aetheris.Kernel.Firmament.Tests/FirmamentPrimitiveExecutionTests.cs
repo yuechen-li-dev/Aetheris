@@ -14,7 +14,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Executes_Box_Primitive_Into_Real_Body()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m3c-valid-box-exec.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m3c-valid-box-exec.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var executed = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives);
@@ -28,7 +28,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Executes_Cylinder_Primitive_Into_Real_Body()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m3c-valid-cylinder-exec.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m3c-valid-cylinder-exec.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var executed = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives);
@@ -41,7 +41,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Executes_Sphere_Primitive_Into_Real_Body()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m3c-valid-sphere-exec.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m3c-valid-sphere-exec.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var executed = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives);
@@ -54,7 +54,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Executes_Torus_Primitive_Into_Real_Body_With_Truthful_Topology()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Examples/torus_basic.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Examples/torus_basic.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var executed = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives);
@@ -68,7 +68,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Executes_Cone_Primitive_Into_Real_Body_With_Truthful_Frustum_Topology()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m10e-valid-cone-exec.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m10e-valid-cone-exec.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var executed = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives);
@@ -107,7 +107,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Executes_PointedCone_With_TopRadiusZero_Into_Truthful_Topology()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m10f2-valid-cone-pointed-top-zero-exec.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m10f2-valid-cone-pointed-top-zero-exec.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var executed = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives);
@@ -137,7 +137,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Executes_PointedCone_With_BottomRadiusZero_Into_Truthful_Topology()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m10f2-valid-cone-pointed-bottom-zero-exec.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m10f2-valid-cone-pointed-bottom-zero-exec.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var executed = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives);
@@ -201,7 +201,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Executes_Multiple_Primitives_In_Source_Order_With_Preserved_Ids()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m3c-valid-multiple-primitives-exec.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m3c-valid-multiple-primitives-exec.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var executed = result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives;
@@ -231,7 +231,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Executes_TriangularPrism_Primitive_Into_Real_Body()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Examples/triangular_prism_basic.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Examples/triangular_prism_basic.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var executed = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives);
@@ -243,7 +243,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Executes_HexagonalPrism_Primitive_Into_Real_Body()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Examples/hexagonal_prism_basic.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Examples/hexagonal_prism_basic.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var executed = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives);
@@ -255,7 +255,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Executes_StraightSlot_Primitive_Into_Real_Body()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Examples/straight_slot_basic.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Examples/straight_slot_basic.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var executed = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives);
@@ -267,7 +267,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Firmament_Routes_RoundedCornerBox_Through_Correct_Seam()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Examples/rounded_corner_box_basic.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Examples/rounded_corner_box_basic.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var plan = result.Compilation.Value.PrimitiveLoweringPlan!;
@@ -284,7 +284,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Firmament_Routes_SlotCut_Through_Correct_Seam()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Examples/slot_cut_basic.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Examples/slot_cut_basic.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var plan = result.Compilation.Value.PrimitiveLoweringPlan!;
@@ -301,7 +301,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Executes_Add_Boolean_Into_Real_Body()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m3d-valid-add-exec.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m3d-valid-add-exec.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var executedBoolean = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans);
@@ -314,7 +314,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Subtract_Boolean_Fails_Deterministically_When_Kernel_Cannot_Represent_Result()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m3d-valid-subtract-exec.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m3d-valid-subtract-exec.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
     }
@@ -322,7 +322,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Executes_Intersect_Boolean_Into_Real_Body()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m3d-valid-intersect-exec.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m3d-valid-intersect-exec.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var executedBoolean = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans);
@@ -335,7 +335,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Executes_BoundedDraft_On_BoxRoot_Into_Real_Body()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m4-valid-draft-box-exec.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m4-valid-draft-box-exec.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var executedBoolean = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans);
@@ -348,7 +348,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Rejects_BoundedDraft_On_UnsupportedRoot()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/m4-invalid-draft-cylinder-root.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/invalid/m4-invalid-draft-cylinder-root.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
@@ -358,7 +358,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Executes_BoundedChamfer_On_BoxRoot_Into_Real_Body()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m5a-valid-chamfer-box-edge-exec.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m5a-valid-chamfer-box-edge-exec.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var executedBoolean = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans);
@@ -371,7 +371,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Rejects_BoundedChamfer_When_Distance_TooLarge()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/m5a-invalid-chamfer-distance-too-large.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/invalid/m5a-invalid-chamfer-distance-too-large.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
@@ -381,7 +381,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Executes_BoundedChamfer_CornerIncidentEdgeSelector_On_BoxRoot_Into_Real_Body()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m5a-valid-chamfer-corner-incident-edge-selector.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m5a-valid-chamfer-corner-incident-edge-selector.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var executedBoolean = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans);
@@ -393,7 +393,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Rejects_BoundedChamfer_CornerIncidentEdgeSelector_When_Distance_TooLarge()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/m5a-invalid-chamfer-corner-incident-distance-too-large.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/invalid/m5a-invalid-chamfer-corner-incident-distance-too-large.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
@@ -403,7 +403,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Rejects_BoundedChamfer_CornerIncidentEdgeSelector_On_NonOrthogonal_Root()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/m5a-invalid-chamfer-corner-incident-nonorthogonal-root.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/invalid/m5a-invalid-chamfer-corner-incident-nonorthogonal-root.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
@@ -413,7 +413,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Executes_BoundedChamfer_SingleCorner_E2_On_BoxRoot_Into_Real_Body()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m5a-valid-chamfer-box-corner-e2-exec.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m5a-valid-chamfer-box-corner-e2-exec.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var executedBoolean = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans);
@@ -426,7 +426,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Rejects_BoundedChamfer_SingleCorner_For_UnsupportedCornerToken()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/deferred/m5a-invalid-chamfer-corner-unsupported-token.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/deferred/m5a-invalid-chamfer-corner-unsupported-token.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
@@ -436,7 +436,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Executes_BoundedChamfer_SingleCorner_For_NonOrthogonalTriangularPrism()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m5a-valid-chamfer-triangular-prism-nonorth-corner.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m5a-valid-chamfer-triangular-prism-nonorth-corner.firmament");
 
         Assert.True(result.Compilation.IsSuccess);
         var executedBoolean = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans);
@@ -449,7 +449,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Rejects_BoundedChamfer_SingleCorner_For_NonOrthogonalTriangularPrism_When_Distance_TooLarge()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/m5a-invalid-chamfer-triangular-prism-corner-distance-too-large.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/invalid/m5a-invalid-chamfer-triangular-prism-corner-distance-too-large.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
@@ -460,7 +460,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Executes_BoundedConcaveChamfer_For_CanonicalLRootInternalEdge()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/e7-valid-chamfer-concave-overlap-lroot.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/e7-valid-chamfer-concave-overlap-lroot.firmament");
 
         Assert.True(result.Compilation.IsSuccess, string.Join(Environment.NewLine, result.Compilation.Diagnostics.Select(d => d.Message)));
         var executedBoolean = Assert.Single(
@@ -474,7 +474,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Rejects_BoundedConcaveChamfer_When_Source_Has_NoOccupiedCellMetadata()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/e7-invalid-chamfer-concave-lroot-not-implemented.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/invalid/e7-invalid-chamfer-concave-lroot-not-implemented.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
@@ -485,7 +485,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Diagnoses_E8_MixedZ_AdditiveRoot_Metadata_As_NonPrismatic()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/e8b-diagnostic-additive-root-mixed-z.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/e8b-diagnostic-additive-root-mixed-z.firmament");
 
         Assert.True(result.Compilation.IsSuccess, string.Join(Environment.NewLine, result.Compilation.Diagnostics.Select(d => d.Message)));
         var croot = Assert.Single(
@@ -503,7 +503,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Rejects_BoundedConcaveChamfer_For_E8_MixedZ_TwoEdgeFixture()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/e8-invalid-chamfer-concave-2edge-mixed-z.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/invalid/e8-invalid-chamfer-concave-2edge-mixed-z.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
@@ -514,7 +514,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Executes_BoundedConcaveChamfer_For_E8b_TwoEdgeInteraction_Firmament_Case()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/e8b-valid-chamfer-concave-2edge-interaction.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/e8b-valid-chamfer-concave-2edge-interaction.firmament");
 
         Assert.True(result.Compilation.IsSuccess, string.Join(Environment.NewLine, result.Compilation.Diagnostics.Select(d => d.Message)));
         var execution = result.Compilation.Value.PrimitiveExecutionResult!;
@@ -527,7 +527,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_BoundedFilletCanonicalInternalCase_Executes_With_CylindricalFace()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m5b-valid-fillet-concave-overlap-lroot.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m5b-valid-fillet-concave-overlap-lroot.firmament");
 
         Assert.True(result.Compilation.IsSuccess, string.Join(Environment.NewLine, result.Compilation.Diagnostics.Select(d => d.Message)));
         var execution = result.Compilation.Value.PrimitiveExecutionResult!;
@@ -543,7 +543,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_BoundedFilletChainedAdjacentPair_Executes_With_MultipleCylindricalFaces()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m5b-valid-fillet-concave-chained-adjacent-pair.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m5b-valid-fillet-concave-chained-adjacent-pair.firmament");
 
         Assert.True(result.Compilation.IsSuccess, string.Join(Environment.NewLine, result.Compilation.Diagnostics.Select(d => d.Message)));
         var execution = result.Compilation.Value.PrimitiveExecutionResult!;
@@ -559,7 +559,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Rejects_BoundedFillet_When_Source_Has_NoOccupiedCellMetadata()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m5b-canonical-internal-fillet-lroot.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m5b-canonical-internal-fillet-lroot.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
@@ -570,7 +570,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Rejects_BoundedFillet_On_BoxRoot()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/m5b-invalid-fillet-radius-too-large.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/invalid/m5b-invalid-fillet-radius-too-large.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
@@ -581,7 +581,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Rejects_BoundedFillet_ThreeEdgeChain_Request()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/m5b-invalid-fillet-three-edge-chain.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/invalid/m5b-invalid-fillet-three-edge-chain.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
@@ -592,7 +592,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Executes_BoundedFillet_ChainedCylindricalTermination_ForSameRadiusFollowOnPair()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m5b-valid-fillet-chained-cylindrical-termination-followon.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m5b-valid-fillet-chained-cylindrical-termination-followon.firmament");
 
         Assert.True(result.Compilation.IsSuccess, string.Join(Environment.NewLine, result.Compilation.Diagnostics.Select(d => d.Message)));
         var execution = result.Compilation.Value.PrimitiveExecutionResult!;
@@ -606,7 +606,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Rejects_BoundedFillet_ChainedCylindricalTermination_Attempt_ForMismatchedRadius()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/m5b-invalid-fillet-chained-cylindrical-termination-mismatched-radius.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/invalid/m5b-invalid-fillet-chained-cylindrical-termination-mismatched-radius.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
@@ -618,7 +618,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Executes_BoundedFillet_ChainedCylindricalTermination_ForCrossRadiusFollowOnPair()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m5b-valid-fillet-chained-cross-radius-cylindrical-termination.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m5b-valid-fillet-chained-cross-radius-cylindrical-termination.firmament");
 
         Assert.True(result.Compilation.IsSuccess, string.Join(Environment.NewLine, result.Compilation.Diagnostics.Select(d => d.Message)));
         var execution = result.Compilation.Value.PrimitiveExecutionResult!;
@@ -636,7 +636,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Rejects_BoundedFillet_ChainedCylindricalTermination_Attempt_WhenAnchorRadiusIsSmaller()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/m5b-invalid-fillet-chained-cross-radius-cylindrical-termination-smaller-anchor.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/invalid/m5b-invalid-fillet-chained-cross-radius-cylindrical-termination-smaller-anchor.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
@@ -649,7 +649,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Mixed_Document_With_Unsupported_Boolean_Fails_Before_Publishing_Success_Artifact()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m3d-mixed-primitive-boolean-validation.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m3d-mixed-primitive-boolean-validation.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
     }
@@ -657,7 +657,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Boolean_Chain_Fails_When_Earlier_Requested_Boolean_Could_Not_Execute()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m3d-valid-boolean-chain-exec.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m3d-valid-boolean-chain-exec.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
     }
@@ -665,7 +665,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Nested_Primitive_Tool_Missing_Required_Field_Fails_Before_Execution()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/m3d-invalid-with-box-missing-size.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/invalid/m3d-invalid-with-box-missing-size.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         var diagnostic = Assert.Single(result.Compilation.Diagnostics);
@@ -677,7 +677,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Boolean_Nested_With_Only_Supports_Primitive_Tool_Ops()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/deferred/m3d-invalid-with-unsupported-tool-op.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/deferred/m3d-invalid-with-unsupported-tool-op.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         var diagnostic = Assert.Single(result.Compilation.Diagnostics);
@@ -686,9 +686,9 @@ public sealed class FirmamentPrimitiveExecutionTests
     }
 
     [Theory]
-    [InlineData("fixtures/LegacyV1/Corpus/deferred/m10n-unsupported-box-subtract-torus.firmament", "ring_cut", "subtract")]
-    [InlineData("fixtures/LegacyV1/Corpus/deferred/m10n-unsupported-box-add-torus.firmament", "joined", "add")]
-    [InlineData("fixtures/LegacyV1/Corpus/deferred/m10n-unsupported-box-intersect-torus.firmament", "overlap", "intersect")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/deferred/m10n-unsupported-box-subtract-torus.firmament", "ring_cut", "subtract")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/deferred/m10n-unsupported-box-add-torus.firmament", "joined", "add")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/deferred/m10n-unsupported-box-intersect-torus.firmament", "overlap", "intersect")]
     public void Compile_BoxTorusBooleanFixtures_Reach_Kernel_And_Fail_Loudly(string fixturePath, string expectedFeatureId, string expectedKind)
     {
         var result = CompileFixture(fixturePath);
@@ -706,9 +706,9 @@ public sealed class FirmamentPrimitiveExecutionTests
     }
 
     [Theory]
-    [InlineData("fixtures/LegacyV1/Corpus/valid/m3b-valid-box-subtract-triangular-prism.firmament", "tri_cut")]
-    [InlineData("fixtures/LegacyV1/Corpus/valid/m3b-valid-box-subtract-hexagonal-prism.firmament", "hex_cut")]
-    [InlineData("fixtures/LegacyV1/Corpus/valid/m3b-valid-box-subtract-straight-slot.firmament", "slot_cut")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/valid/m3b-valid-box-subtract-triangular-prism.firmament", "tri_cut")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/valid/m3b-valid-box-subtract-hexagonal-prism.firmament", "hex_cut")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/valid/m3b-valid-box-subtract-straight-slot.firmament", "slot_cut")]
     public void Compile_BoxRoot_PrismSubtract_CanonicalCases_Succeed(string fixturePath, string featureId)
     {
         var result = CompileFixture(fixturePath);
@@ -722,9 +722,9 @@ public sealed class FirmamentPrimitiveExecutionTests
     }
 
     [Theory]
-    [InlineData("fixtures/LegacyV1/Corpus/deferred/m3b-unsupported-cylinder-subtract-triangular-prism.firmament", "tri_cut")]
-    [InlineData("fixtures/LegacyV1/Corpus/deferred/m3b-unsupported-cylinder-subtract-hexagonal-prism.firmament", "hex_cut")]
-    [InlineData("fixtures/LegacyV1/Corpus/deferred/m3b-unsupported-cylinder-subtract-straight-slot.firmament", "slot_cut")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/deferred/m3b-unsupported-cylinder-subtract-triangular-prism.firmament", "tri_cut")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/deferred/m3b-unsupported-cylinder-subtract-hexagonal-prism.firmament", "hex_cut")]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/deferred/m3b-unsupported-cylinder-subtract-straight-slot.firmament", "slot_cut")]
     public void Compile_PrismSubtract_Rejects_NonBoxRoot_Inputs(string fixturePath, string featureId)
     {
         var result = CompileFixture(fixturePath);
@@ -738,7 +738,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_PrismSubtract_Uses_Shared_BoundedPath_Diagnostics()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/deferred/m3b-unsupported-cylinder-subtract-triangular-prism.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/deferred/m3b-unsupported-cylinder-subtract-triangular-prism.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
         Assert.Contains(result.Compilation.Diagnostics, diagnostic =>
@@ -746,8 +746,8 @@ public sealed class FirmamentPrimitiveExecutionTests
     }
 
     [Theory]
-    [InlineData("fixtures/LegacyV1/Corpus/invalid/m3b-invalid-box-subtract-triangular-prism-short-height.firmament", "through-cut tool") ]
-    [InlineData("fixtures/LegacyV1/Corpus/invalid/m3b-invalid-box-subtract-hexagonal-prism-out-of-bounds.firmament", "strictly inside the box-root XY bounds") ]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/invalid/m3b-invalid-box-subtract-triangular-prism-short-height.firmament", "through-cut tool") ]
+    [InlineData("fixtures/Compatibility/LegacyV1/Corpus/invalid/m3b-invalid-box-subtract-hexagonal-prism-out-of-bounds.firmament", "strictly inside the box-root XY bounds") ]
     public void Compile_PrismSubtract_Rejects_Invalid_BoundedConfigurations(string fixturePath, string expectedMessagePart)
     {
         var result = CompileFixture(fixturePath);
@@ -761,7 +761,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_ValidationFailure_Still_Fails_Before_Execution()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/invalid/m1a-invalid-sphere-missing-radius.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/invalid/m1a-invalid-sphere-missing-radius.firmament");
 
         Assert.False(result.Compilation.IsSuccess);
     }
@@ -769,7 +769,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Compile_Primitive_And_Boolean_Execution_Output_Is_Deterministic_For_Metadata()
     {
-        var fixture = "fixtures/LegacyV1/Corpus/valid/m10h1-valid-mixed-primitive-boolean-validation.firmament";
+        var fixture = "fixtures/Compatibility/LegacyV1/Corpus/valid/m10h1-valid-mixed-primitive-boolean-validation.firmament";
 
         var first = CompileFixture(fixture);
         var second = CompileFixture(fixture);
@@ -798,7 +798,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Default_Box_Frame_Is_Centered_In_XY_And_Bottom_On_Z0()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m3c-valid-box-exec.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m3c-valid-box-exec.firmament");
         Assert.True(result.Compilation.IsSuccess);
 
         var body = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives).Body;
@@ -811,7 +811,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Default_Cylinder_Frame_Is_Centered_In_XY_And_Bottom_On_Z0()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m3c-valid-cylinder-exec.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m3c-valid-cylinder-exec.firmament");
         Assert.True(result.Compilation.IsSuccess);
 
         var body = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives).Body;
@@ -838,7 +838,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Default_Sphere_Frame_Is_Centered_At_Origin()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m3c-valid-sphere-exec.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m3c-valid-sphere-exec.firmament");
         Assert.True(result.Compilation.IsSuccess);
 
         var body = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives).Body;
@@ -849,7 +849,7 @@ public sealed class FirmamentPrimitiveExecutionTests
     [Fact]
     public void Default_Torus_Frame_Is_Centered_At_Origin()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Examples/torus_basic.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Examples/torus_basic.firmament");
         Assert.True(result.Compilation.IsSuccess);
 
         var body = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives).Body;
@@ -1081,7 +1081,7 @@ ops[4]:
     [Fact]
     public void Boolean_Without_Placement_Behaves_As_Before()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m3d-valid-add-exec.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m3d-valid-add-exec.firmament");
         Assert.True(result.Compilation.IsSuccess);
 
         var executedBoolean = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedBooleans);
@@ -1104,14 +1104,14 @@ ops[4]:
     [Fact]
     public void Boolean_Selector_Placement_Fixture_Uses_ToolAnchoring_Semantics()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m7d-valid-boolean-selector-placement.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m7d-valid-boolean-selector-placement.firmament");
         Assert.True(result.Compilation.IsSuccess);
     }
 
     [Fact]
     public void Boolean_Placement_Does_Not_Mutate_Referenced_Source_Bodies()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m7d-valid-boolean-origin-placement.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m7d-valid-boolean-origin-placement.firmament");
         Assert.True(result.Compilation.IsSuccess);
 
         var primitive = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives);
@@ -1123,14 +1123,14 @@ ops[4]:
     [Fact]
     public void Chained_Primitive_And_Placed_Boolean_Fixture_Reports_Unsupported_Add_Family()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m7d-valid-boolean-chain-placement.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m7d-valid-boolean-chain-placement.firmament");
         Assert.True(result.Compilation.IsSuccess);
     }
 
     [Fact]
     public void Origin_Placement_With_Offset_Translates_Primitive()
     {
-        var result = CompileFixture("fixtures/LegacyV1/Corpus/valid/m7c-valid-origin-placement-offset.firmament");
+        var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m7c-valid-origin-placement-offset.firmament");
         Assert.True(result.Compilation.IsSuccess);
 
         var body = Assert.Single(result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives).Body;

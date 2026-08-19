@@ -26,8 +26,8 @@ The declaration identity is the entry name (`mountDiameter`, `A`), the kind is e
 
 ## Fixture paths
 
-* `fixtures/PMI/valid/pmi-v2-hole-diameter-callout-emits-in-step.valid.firmfixture`
-* `fixtures/PMI/valid/pmi-v2-datum-plane-emits-in-step.valid.firmfixture`
+* `fixtures/Regression/PMI/valid/pmi-v2-hole-diameter-callout-emits-in-step.valid.firmfixture`
+* `fixtures/Regression/PMI/valid/pmi-v2-datum-plane-emits-in-step.valid.firmfixture`
 
 Both fixtures are `tier: 6`, `current-stage: step-verified`, `semantic-pmi-required: true`, and `graphical-pmi-required: false`.
 
@@ -36,8 +36,8 @@ Both fixtures are `tier: 6`, `current-stage: step-verified`, `semantic-pmi-requi
 The fixtures are built through the real CLI path:
 
 ```bash
-aetheris build fixtures/PMI/valid/pmi-v2-hole-diameter-callout-emits-in-step.valid.firmfixture --out <tmp>/pmi-v2-hole-diameter.step --json
-aetheris build fixtures/PMI/valid/pmi-v2-datum-plane-emits-in-step.valid.firmfixture --out <tmp>/pmi-v2-datum-plane.step --json
+aetheris build fixtures/Regression/PMI/valid/pmi-v2-hole-diameter-callout-emits-in-step.valid.firmfixture --out <tmp>/pmi-v2-hole-diameter.step --json
+aetheris build fixtures/Regression/PMI/valid/pmi-v2-datum-plane-emits-in-step.valid.firmfixture --out <tmp>/pmi-v2-datum-plane.step --json
 ```
 
 The route remains:

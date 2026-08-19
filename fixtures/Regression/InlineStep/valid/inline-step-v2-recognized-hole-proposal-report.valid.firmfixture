@@ -1,0 +1,67 @@
+// fixture-id: inline-step-v2-recognized-hole-proposal-report
+// case: inline-step-v2-recognized-hole-proposal-report
+// category: InlineStep
+// syntax-version: FirmamentV2
+// validity: valid
+// implementation: parser-backed
+// expected: valid
+// expected-stage: step-verified
+// current-stage: step-verified
+// feature-area: inline-step-recognition-evidence-proposal
+// build-command: aetheris build
+// roundtrip-required: true
+// expected-volume: 461.15044407846125
+// expected-topology: canonical through-hole re-export; no replacement or geometry mutation
+// canonical-input-required: true
+// recognized-region-required: true
+// recognition-evidence-required: true
+// semantic-proposal-required: true
+// replacement-required: false
+// graphical-pmi-required: false
+// input-step: ../../../../testdata/firmament/inline-step/canonical-through-hole.step
+// migration-report-required: true
+// migration-original-face-count: 7
+// migration-recognized-region-count: 1
+// migration-recognized-evidence-count: 1
+// migration-recognized-proposal-count: 1
+// migration-replaced-face-count: 0
+// migration-residual-face-count: 7
+// migration-emission-strategy: canonical-reexport
+// migration-residual-surgery: false
+// notes: INLINE-STEP-X6 recognition evidence/proposal metadata is descriptive only; no automatic recognition or replacement is executed.
+model InlineStepRecognizedHoleProposalReport {
+    units mm
+
+    solid importedPart: InlineStep {
+        path: "../../../../testdata/firmament/inline-step/canonical-through-hole.step"
+    }
+
+    recognize importedPart {
+        region mountHole {
+            kind: hole<shaft>
+            faces: ["#191"]
+            confidence: high
+
+            evidence {
+                surfaceFamily: cylindrical
+                radius: 1mm
+                axis: +Z
+                through: true
+            }
+
+            proposes hole<shaft> {
+                on: importedPart.face("#51")
+                center: [0mm, 0mm]
+                radius: 1mm
+                end: throughAll
+            }
+        }
+    }
+
+    pmi {
+        diameter mountHoleDiameter {
+            target: importedPart.region("mountHole")
+            value: 2mm
+        }
+    }
+}

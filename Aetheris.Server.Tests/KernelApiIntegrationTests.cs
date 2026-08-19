@@ -888,7 +888,7 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
     [Fact]
     public async Task AssemblyDisplay_HistoricalOcctFirmasm_ReusesDefinitionsAndPublishesProductTree()
     {
-        var path = Path.Combine(RepositoryRoot(), "fixtures", "Assembly", "LegacyImports", "examples", "occt-as1", "as1-assembly.firmasm");
+        var path = Path.Combine(RepositoryRoot(), "fixtures", "Compatibility", "Firmasm", "LegacyAssembly", "examples", "occt-as1", "as1-assembly.firmasm");
         var response = await _client.PostAsJsonAsync("/api/v1/assemblies/display", new AssemblyDisplayRequestDto(path));
         response.EnsureSuccessStatusCode();
         var envelope = await response.Content.ReadFromJsonAsync<ApiResponseDto<AssemblyDisplayPacketDto>>();
@@ -922,7 +922,7 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
     [Fact]
     public async Task AssemblyDisplay_NativeTemplateAssembly_PublishesMateAndToleranceEvidence()
     {
-        var path = Path.Combine(RepositoryRoot(), "fixtures", "AssemblyM1", "template-block-pair.firmament");
+        var path = Path.Combine(RepositoryRoot(), "fixtures", "Canonical", "Assembly", "template-block-pair.firmament");
         var response = await _client.PostAsJsonAsync("/api/v1/assemblies/display", new AssemblyDisplayRequestDto(path));
         response.EnsureSuccessStatusCode();
         var envelope = await response.Content.ReadFromJsonAsync<ApiResponseDto<AssemblyDisplayPacketDto>>();
@@ -938,7 +938,7 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
     [Fact]
     public async Task AssemblyDisplay_TemplateSubassemblyPublishesNestedTreeSelectionAndPublicSurface()
     {
-        var path = Path.Combine(RepositoryRoot(), "fixtures", "AssemblyM3", "bearing-module.firmament");
+        var path = Path.Combine(RepositoryRoot(), "fixtures", "Regression", "Assembly", "bearing-module-family-with-legacy-placement.firmament");
         var response = await _client.PostAsJsonAsync("/api/v1/assemblies/display", new AssemblyDisplayRequestDto(path));
         response.EnsureSuccessStatusCode();
         var envelope = await response.Content.ReadFromJsonAsync<ApiResponseDto<AssemblyDisplayPacketDto>>();

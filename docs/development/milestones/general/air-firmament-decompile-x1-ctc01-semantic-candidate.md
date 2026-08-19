@@ -52,11 +52,11 @@ The exact authoring sequence cannot be proven from STEP BRep alone. The candidat
 
 ## 5. Candidate Firmament V2 source
 
-The candidate fixture is `fixtures/Decompile/ctc-01-candidate-v2.firmfixture`. It is marked `validity: semantic-candidate`, `implementation: design-only-not-implemented`, `expected-stage: semantic-candidate`, and `parser-backed: false`.
+The candidate fixture is `fixtures/Regression/Decompile/ctc-01-candidate-v2.firmfixture`. It is marked `validity: semantic-candidate`, `implementation: design-only-not-implemented`, `expected-stage: semantic-candidate`, and `parser-backed: false`.
 
 The candidate intentionally uses readable future-oriented Firmament V2 constructs such as `profile`, `ProfileExtrude`, `ThroughSlot`, `PrismaticThroughCut`, `HolePattern`, `Mirror`, and `round Edges`. These constructs are explicitly marked with `FIRMAMENT-V2-MISSING` comments where they are not parser-backed/lowerable today.
 
-The machine-readable gap matrix is `fixtures/Decompile/ctc-01-missing-capabilities.json`.
+The machine-readable gap matrix is `fixtures/Regression/Decompile/ctc-01-missing-capabilities.json`.
 
 ## 6. Feature decomposition
 

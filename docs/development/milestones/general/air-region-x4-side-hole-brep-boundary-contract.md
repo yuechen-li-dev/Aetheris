@@ -2,7 +2,7 @@
 
 ## Purpose and scope
 
-AIR-REGION-X4 adds a trace-only topology-side boundary contract for the metadata-driven side-hole `FaceAttachedRegion` fixture at `fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture`.
+AIR-REGION-X4 adds a trace-only topology-side boundary contract for the metadata-driven side-hole `FaceAttachedRegion` fixture at `fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture`.
 
 The contract records what a future BRepPlan integration would need to know without performing that integration. It does not implement side-hole geometry, invoke Boolean, emit BRep, emit STEP, mutate parent topology, or materialize BRepPlan elements.
 

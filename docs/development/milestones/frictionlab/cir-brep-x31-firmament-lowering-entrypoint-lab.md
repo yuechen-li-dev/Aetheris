@@ -21,7 +21,7 @@
 
 ## 3) Experiment 1: real Firmament fixture lowering shape
 
-Fixture: `fixtures/LegacyV1/Examples/boolean_box_cylinder_hole.firmament`.
+Fixture: `fixtures/Compatibility/LegacyV1/Examples/boolean_box_cylinder_hole.firmament`.
 
 Result:
 - Lowered CIR root is `SdfSubtractNode`.

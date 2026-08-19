@@ -1,0 +1,13 @@
+// fixture-id: inline-step-v2-pmi-invalid-diameter
+// case: inline-step-v2-pmi-invalid-diameter
+// category: InlineStep
+// syntax-version: FirmamentV2
+// validity: invalid
+// implementation: rejected
+// expected: invalid
+// expected-stage: rejected
+// expected-diagnostic: firmament-fixture-rejected
+// canonical-input-required: true
+// semantic-pmi-required: true
+// graphical-pmi-required: false
+model InlineStepPmiInvalidDiameter { units mm solid importedPart: InlineStep { path: "../../../../../testdata/firmament/inline-step/canonical-through-hole.step" } pmi { diameter holeDiameter { target: importedPart.face("#191") value: -2mm } } }

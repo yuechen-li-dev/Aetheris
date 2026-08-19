@@ -91,7 +91,7 @@ public sealed class ForgeCsA2StandardConceptTests
     [Fact]
     public void ForgeCsA2_ExistingFirmamentV2ConceptFixtures_StillPassWithoutBehaviorChange()
     {
-        var conceptFixture = ParseFixture("Language/valid/concept-applications-forge.valid.firmfixture");
+        var conceptFixture = ParseFixture("Regression/Language/valid/concept-applications-forge.valid.firmfixture");
         Assert.True(conceptFixture.IsSuccess, string.Join(", ", conceptFixture.Diagnostics));
         var conceptReport = FirmamentV2ValidationReportBuilder.Build(conceptFixture, "concept-applications-forge.valid.firmfixture");
         Assert.Equal("valid", conceptReport.Status);
@@ -104,7 +104,7 @@ public sealed class ForgeCsA2StandardConceptTests
             Assert.Equal("valid", concept.RuntimeValidation.Status);
         });
 
-        var reportFixture = ParseFixture("Language/valid/v2-phase1-validation-report.valid.firmfixture");
+        var reportFixture = ParseFixture("Regression/Language/valid/v2-phase1-validation-report.valid.firmfixture");
         Assert.True(reportFixture.IsSuccess, string.Join(", ", reportFixture.Diagnostics));
         var report = FirmamentV2ValidationReportBuilder.Build(reportFixture, "v2-phase1-validation-report.valid.firmfixture");
         Assert.Equal("valid-with-deferred-export", report.Status);

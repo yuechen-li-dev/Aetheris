@@ -60,6 +60,41 @@
     "body": ["Profile ${1:Section} From ${2:Outline}"],
     "description": "Profile derived from a Concept Path"
   },
+  "Static Table with Override": {
+    "prefix": "table-with",
+    "body": [
+      "Record ${1:PartSpec} {",
+      "    Width: Length",
+      "    Height: Length",
+      "}",
+      "Static Table ${2:Standards}: ${1:PartSpec} {",
+      "    Width: [${3:40mm}, ${4:60mm}]",
+      "    Height: [${5:20mm}, ${6:30mm}]",
+      "}",
+      "Static ${7:Standard} = ${2:Standards}[${8:0}]",
+      "Static ${9:Configured}: ${1:PartSpec} = ${7:Standard} with {",
+      "    Width: ${10:50mm}",
+      "}"
+    ],
+    "description": "Typed Static Table lookup followed by an immutable with override"
+  },
+  "Profile Delta": {
+    "prefix": "profile-delta",
+    "body": [
+      "Template<P: ${1:ProfileDeltaSpec}, Owner: ProfilePath>",
+      "ProfileDelta ${2:LocalChange} {",
+      "    On: Owner",
+      "    Anchor: CenteredAt P.${3:Center}",
+      "    Side: ${4:Inward}",
+      "    Level Carrier { Offset: 0mm; }",
+      "    Level Changed { Offset: P.${5:Depth}; }",
+      "    Transition LeadIn { Kind: Diagonal; Run: P.${6:Lead}; To: Changed; }",
+      "    Span Working { Run: P.${7:Run}; At: Changed; }",
+      "    Transition LeadOut { Kind: Diagonal; Run: P.${6:Lead}; To: Carrier; }",
+      "}"
+    ],
+    "description": "Reusable semantic ProfileDelta applicable to an ordinary Profile path"
+  },
   "Boss": {
     "prefix": "boss",
     "body": [

@@ -11,14 +11,14 @@ AIR-REGION-X12 proved the controlled side-hole trace could reach parent integrat
 ## Fixture
 
 ```text
-fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture
+fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture
 ```
 
 ## Generate artifacts
 
 ```bash
 dotnet run --project Aetheris.CLI -f net10.0 -- trace \
-  --fixture fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture \
+  --fixture fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture \
   --out-dir artifacts/air-region-x13/side-hole
 ```
 
@@ -69,9 +69,9 @@ Recommended checks for this milestone:
 dotnet build Aetheris.CLI/Aetheris.CLI.csproj -f net10.0
 dotnet run --project Aetheris.CLI -f net10.0 -- --help
 dotnet run --project Aetheris.CLI -f net10.0 -- trace --help
-dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture
-dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture --json
-dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture --out-dir artifacts/air-region-x13/side-hole
+dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture
+dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture --json
+dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture --out-dir artifacts/air-region-x13/side-hole
 dotnet test Aetheris.CLI.Tests/Aetheris.CLI.Tests.csproj --filter "Trace|Fixture|FirmFixture|Region|AirRegion|GoldenPath|Artifact|SideHole|ParserBacked|Firmament|AIR|Air|CIR|Cir|Step"
 ```
 
@@ -81,7 +81,7 @@ AIR-REGION-X14 — Controlled side-hole parameter variation. Start with the same
 
 ## AIR-FIRMAMENT-A1 corpus status
 
-AIR-FIRMAMENT-A1 promotes the controlled side-hole fixture into the language-level Firmament corpus taxonomy. The fixture remains at `fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture` with explicit metadata for source validity, implementation state, expected lowering stage, integration status, shell closure, STEP smoke, and artifact evidence. This is still the same controlled golden path only: it does not admit general side-hole support, arbitrary face/axis support, production Boolean fallback, CIR topology authority, STEP exporter/importer changes, or BRep topology behavior changes.
+AIR-FIRMAMENT-A1 promotes the controlled side-hole fixture into the language-level Firmament corpus taxonomy. The fixture remains at `fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture` with explicit metadata for source validity, implementation state, expected lowering stage, integration status, shell closure, STEP smoke, and artifact evidence. This is still the same controlled golden path only: it does not admit general side-hole support, arbitrary face/axis support, production Boolean fallback, CIR topology authority, STEP exporter/importer changes, or BRep topology behavior changes.
 
 ## Firmament V2 syntax note
 

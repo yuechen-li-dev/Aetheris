@@ -11,11 +11,11 @@ The release ZIP is the complete product path: run the commands below from its `A
 
 ## Build a first part
 
-The qualified first part is [`box-hole-pmi.firmament`](../../fixtures/Canonical/valid/box-hole-pmi.firmament). It is a nontrivial plate with a through hole, datum, and toleranced diameter.
+The qualified first part is [`hole-diameter-and-datum.firmament`](../../fixtures/Canonical/PMI/hole-diameter-and-datum.firmament). It is a nontrivial plate with a through hole, datum, and toleranced diameter.
 
 ```powershell
-aetheris validate fixtures/Canonical/valid/box-hole-pmi.firmament --json
-aetheris build fixtures/Canonical/valid/box-hole-pmi.firmament --output artifacts/first-part.step --json
+aetheris validate fixtures/Canonical/PMI/hole-diameter-and-datum.firmament --json
+aetheris build fixtures/Canonical/PMI/hole-diameter-and-datum.firmament --output artifacts/first-part.step --json
 aetheris analyze artifacts/first-part.step --json
 ```
 
@@ -25,20 +25,20 @@ Use `aetheris view ...` to open Firmament or STEP in Cadmata when using the Wind
 
 ## Build the canonical ordinary-CAD example
 
-[`a4-machined-mounting-block.firmament`](../../fixtures/Canonical/valid/a4-machined-mounting-block.firmament) is the first serious example after the small plate. It combines a base, connected Boss, finite Pocket, shaft hole, two counterbores, perimeter EdgeFinish, and semantic PMI while remaining a single readable source file:
+[`machined-mounting-block.firmament`](../../fixtures/Canonical/Integration/machined-mounting-block.firmament) is the first serious example after the small plate. It combines a base, connected Boss, finite Pocket, shaft hole, two counterbores, perimeter EdgeFinish, and semantic PMI while remaining a single readable source file:
 
 ```powershell
-aetheris build fixtures/Canonical/valid/a4-machined-mounting-block.firmament --output artifacts/mounting-block.step --json
+aetheris build fixtures/Canonical/Integration/machined-mounting-block.firmament --output artifacts/mounting-block.step --json
 aetheris analyze artifacts/mounting-block.step --json
 aetheris view artifacts/mounting-block.step
 ```
 
 ## Invoke a Template
 
-[`record-array-pattern-holes.firmament`](../../fixtures/Canonical/valid/record-array-pattern-holes.firmament) demonstrates typed Records, a static array, a Template, and `Pattern ... Over`:
+[`record-array-hole-pattern.firmament`](../../fixtures/Canonical/Patterns/record-array-hole-pattern.firmament) demonstrates typed Records, a static array, a Template, and `Pattern ... Over`:
 
 ```powershell
-aetheris build fixtures/Canonical/valid/record-array-pattern-holes.firmament --output artifacts/pattern.step --json
+aetheris build fixtures/Canonical/Patterns/record-array-hole-pattern.firmament --output artifacts/pattern.step --json
 ```
 
 Continue with [geometry](firmament/geometry.md), [materials](firmament/materials.md), [PMI](firmament/pmi.md), [Sheet Metal](firmament/sheet-metal.md), [FEA](firmament/fea.md), [STEP import](firmament/step-import.md), or [Forge interop](forge/interop.md).

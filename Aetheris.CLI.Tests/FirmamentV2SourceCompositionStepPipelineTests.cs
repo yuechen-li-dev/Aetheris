@@ -9,16 +9,16 @@ public sealed class FirmamentV2SourceCompositionStepPipelineTests
 {
     public static TheoryData<string, string, double> DerivationCases => new()
     {
-        { "RecordDerivation/valid/derivation-v2-with-size-override-step-verified.valid.firmfixture", "derivation-v2-with-size-override-step-verified", 12d * 8d * 6d },
-        { "RecordDerivation/valid/derivation-v2-with-chained-twice-step-verified.valid.firmfixture", "derivation-v2-with-chained-twice-step-verified", 12d * 8d * 7d }
+        { "Regression/RecordDerivation/valid/derivation-v2-with-size-override-step-verified.valid.firmfixture", "derivation-v2-with-size-override-step-verified", 12d * 8d * 6d },
+        { "Regression/RecordDerivation/valid/derivation-v2-with-chained-twice-step-verified.valid.firmfixture", "derivation-v2-with-chained-twice-step-verified", 12d * 8d * 7d }
     };
 
 
     public static TheoryData<string, string, double> CompositeCases => new()
     {
-        { "Composite/valid/composite-v2-two-independent-holes-step-verified.valid.firmfixture", "composite-v2-two-independent-holes-step-verified", 480d - 2d * Math.PI * 1d * 1d * 6d },
-        { "Composite/valid/composite-v2-adjacent-non-overlapping-holes-step-verified.valid.firmfixture", "composite-v2-adjacent-non-overlapping-holes-step-verified", 480d - 2d * Math.PI * 1d * 1d * 6d },
-        { "Composite/valid/composite-v2-hole-plus-derived-variant-step-verified.valid.firmfixture", "composite-v2-hole-plus-derived-variant-step-verified", 12d * 8d * 6d - Math.PI * 1d * 1d * 6d }
+        { "Regression/Composite/valid/composite-v2-two-independent-holes-step-verified.valid.firmfixture", "composite-v2-two-independent-holes-step-verified", 480d - 2d * Math.PI * 1d * 1d * 6d },
+        { "Regression/Composite/valid/composite-v2-adjacent-non-overlapping-holes-step-verified.valid.firmfixture", "composite-v2-adjacent-non-overlapping-holes-step-verified", 480d - 2d * Math.PI * 1d * 1d * 6d },
+        { "Regression/Composite/valid/composite-v2-hole-plus-derived-variant-step-verified.valid.firmfixture", "composite-v2-hole-plus-derived-variant-step-verified", 12d * 8d * 6d - Math.PI * 1d * 1d * 6d }
     };
 
     [Theory]
@@ -68,7 +68,7 @@ public sealed class FirmamentV2SourceCompositionStepPipelineTests
     public void STEP_V2_X4_overlapping_composite_holes_reject_with_clear_diagnostic()
     {
         const string fixtureId = "composite-v2-overlapping-holes-rejected-with-clear-diagnostic";
-        var fixturePath = Fixture("Composite/invalid/composite-v2-overlapping-holes-rejected-with-clear-diagnostic.invalid.firmfixture");
+        var fixturePath = Fixture("Compatibility/LegacyAliases/Invalid/Composite/composite-v2-overlapping-holes-rejected-with-clear-diagnostic.invalid.firmfixture");
         var stepPath = TempStep(fixtureId);
         var stdout = new StringWriter();
         var stderr = new StringWriter();
@@ -86,8 +86,8 @@ public sealed class FirmamentV2SourceCompositionStepPipelineTests
 
 
     [Theory]
-    [InlineData("Templates/invalid/template-v2-cnc-min-tool-radius-enforced.invalid.firmfixture", "template-v2-cnc-min-tool-radius-enforced", "firmament-v2-dfm-minimum-tool-radius-violation")]
-    [InlineData("Templates/invalid/template-v2-concept-unit-mismatch-rejected-at-build.invalid.firmfixture", "template-v2-concept-unit-mismatch-rejected-at-build", "firmament-v2-dfm-concept-unit-mismatch")]
+    [InlineData("Compatibility/LegacyAliases/Invalid/Templates/template-v2-cnc-min-tool-radius-enforced.invalid.firmfixture", "template-v2-cnc-min-tool-radius-enforced", "firmament-v2-dfm-minimum-tool-radius-violation")]
+    [InlineData("Compatibility/LegacyAliases/Invalid/Templates/template-v2-concept-unit-mismatch-rejected-at-build.invalid.firmfixture", "template-v2-concept-unit-mismatch-rejected-at-build", "firmament-v2-dfm-concept-unit-mismatch")]
     public void STEP_V2_X6_template_dfm_concept_invalid_fixtures_reject_during_real_build(string fixtureRelativePath, string fixtureId, string expectedDiagnostic)
     {
         var fixturePath = Fixture(fixtureRelativePath);
@@ -138,7 +138,7 @@ public sealed class FirmamentV2SourceCompositionStepPipelineTests
     public void STEP_V2_X3_semantic_face_alias_fixture_builds_emits_reimports_and_matches_hole_evidence()
     {
         const string fixtureId = "semanticref-v2-expose-face-alias-resolves-in-step";
-        var fixturePath = Fixture("SemanticRefs/valid/semanticref-v2-expose-face-alias-resolves-in-step.valid.firmfixture");
+        var fixturePath = Fixture("Regression/SemanticRefs/valid/semanticref-v2-expose-face-alias-resolves-in-step.valid.firmfixture");
         var stepPath = TempStep(fixtureId);
 
         var (stepText, fixtureText) = BuildAndReadStep(fixturePath, stepPath, fixtureId);

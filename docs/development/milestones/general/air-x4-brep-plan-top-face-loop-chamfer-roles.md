@@ -106,7 +106,7 @@ AIR-X5 adds an internal/test-visible AIR-to-CIR mirror adapter envelope for gene
 
 ## AIR-X7 fixture note
 
-The AIR-X7 valid Chamfer corpus includes `fixtures/Chamfer/valid/top-face-loop-chamfer.valid.firmfixture`, which traces the Class B top-face boundary-loop uniform chamfer through the existing `TopFaceLoopChamferPrismatic` route and preserves the AIR-X4 BRepPlan chamfer-face role count of four.
+The AIR-X7 valid Chamfer corpus includes `fixtures/Regression/Chamfer/valid/top-face-loop-chamfer.valid.firmfixture`, which traces the Class B top-face boundary-loop uniform chamfer through the existing `TopFaceLoopChamferPrismatic` route and preserves the AIR-X4 BRepPlan chamfer-face role count of four.
 
 ## AIR-REGION-X4 contract-only region role note
 

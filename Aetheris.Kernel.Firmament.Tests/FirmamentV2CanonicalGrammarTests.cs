@@ -9,7 +9,7 @@ public sealed class FirmamentV2CanonicalGrammarTests
     [Fact]
     public void CanonicalBarePrimitives_ParseIntoTheNormalizedV2Document()
     {
-        foreach (var fixture in new[] { "bare-box.firmament", "bare-cylinder.firmament", "bare-rounded-box.firmament", "bare-frustum.firmament" })
+        foreach (var fixture in new[] { "box.firmament", "cylinder.firmament", "rounded-box.firmament", "frustum.firmament" })
         {
             var parsed = FirmamentV2Parser.Parse(File.ReadAllText(Fixture(fixture)));
             Assert.True(parsed.IsSuccess, string.Join(Environment.NewLine, parsed.Diagnostics));
@@ -60,7 +60,7 @@ public sealed class FirmamentV2CanonicalGrammarTests
         var output = Path.Combine(Path.GetTempPath(), $"aetheris-canonical-frustum-{Guid.NewGuid():N}.step");
         try
         {
-            var build = FirmamentBuildAndExport.Run(Fixture("bare-frustum.firmament"), output);
+            var build = FirmamentBuildAndExport.Run(Fixture("frustum.firmament"), output);
 
             Assert.True(build.IsSuccess, string.Join(Environment.NewLine, build.Diagnostics.Select(d => d.Message)));
             Assert.True(File.Exists(output));
@@ -75,7 +75,7 @@ public sealed class FirmamentV2CanonicalGrammarTests
     [Fact]
     public void CanonicalModify_AdmitsHoleAndEdgeFinishInTheSameBlock()
     {
-        var parsed = FirmamentV2Parser.Parse(File.ReadAllText(Fixture("box-hole-chamfer.firmament")));
+        var parsed = FirmamentV2Parser.Parse(File.ReadAllText(Fixture("boundary-chamfer.firmament")));
 
         Assert.True(parsed.IsSuccess, string.Join(Environment.NewLine, parsed.Diagnostics));
         var modify = Assert.Single(parsed.Document!.ModifyBlocks!);
@@ -93,7 +93,7 @@ public sealed class FirmamentV2CanonicalGrammarTests
         var output = Path.Combine(Path.GetTempPath(), $"aetheris-canonical-{Guid.NewGuid():N}.step");
         try
         {
-            var build = FirmamentBuildAndExport.Run(Fixture("box-hole-chamfer.firmament"), output);
+            var build = FirmamentBuildAndExport.Run(Fixture("boundary-chamfer.firmament"), output);
             Assert.True(build.IsSuccess, string.Join(Environment.NewLine, build.Diagnostics.Select(d => d.Message)));
             Assert.Equal("CombinedHoleEdgeFinish", build.Value.Export.Combined!.Route);
             Assert.True(File.Exists(output));
@@ -111,7 +111,7 @@ public sealed class FirmamentV2CanonicalGrammarTests
         var secondOutput = Path.Combine(Path.GetTempPath(), $"aetheris-canonical-pmi-edge-{Guid.NewGuid():N}.step");
         try
         {
-            var fixture = Fixture("box-holes-pmi-chamfer.firmament");
+            var fixture = Fixture("multiple-hole-dimensions-with-chamfer.firmament");
             var parsed = FirmamentV2Parser.Parse(File.ReadAllText(fixture));
             Assert.True(parsed.IsSuccess, string.Join(Environment.NewLine, parsed.Diagnostics));
             Assert.Equal(3, parsed.Document!.Pmi!.Count);
@@ -144,7 +144,7 @@ public sealed class FirmamentV2CanonicalGrammarTests
         var output = Path.Combine(Path.GetTempPath(), $"aetheris-canonical-counterbore-{Guid.NewGuid():N}.step");
         try
         {
-            var build = FirmamentBuildAndExport.Run(Fixture("counterbore-hole.firmament"), output);
+            var build = FirmamentBuildAndExport.Run(Fixture("counterbore.firmament"), output);
             Assert.True(build.IsSuccess, string.Join(Environment.NewLine, build.Diagnostics.Select(d => d.Message)));
 
             var imported = Step242Importer.ImportBody(File.ReadAllText(output));
@@ -163,12 +163,24 @@ public sealed class FirmamentV2CanonicalGrammarTests
     [Fact]
     public void CanonicalPoint2_RejectsTheLegacyBracketLiteralWithASpecificDiagnostic()
     {
-        var source = File.ReadAllText(Fixture("box-through-hole.firmament")).Replace("Point2(0mm, 0mm)", "[0mm, 0mm]", StringComparison.Ordinal);
+        var source = File.ReadAllText(Fixture("through-hole.firmament")).Replace("Point2(0mm, 0mm)", "[0mm, 0mm]", StringComparison.Ordinal);
         var parsed = FirmamentV2Parser.Parse(source);
 
         Assert.False(parsed.IsSuccess);
         Assert.Contains(FirmamentV2Parser.CanonicalPoint2Invalid, parsed.Diagnostics);
     }
 
-    private static string Fixture(string name) => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Canonical/valid", name));
+    private static string Fixture(string name)
+    {
+        var domain = name switch
+        {
+            "box.firmament" or "cylinder.firmament" => "Basics",
+            "rounded-box.firmament" or "frustum.firmament" => "Primitives",
+            "boundary-chamfer.firmament" => "Features/EdgeFinish",
+            "counterbore.firmament" or "through-hole.firmament" => "Features/Holes",
+            "multiple-hole-dimensions-with-chamfer.firmament" => "PMI",
+            _ => throw new ArgumentOutOfRangeException(nameof(name), name, "Unknown canonical fixture")
+        };
+        return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Canonical", domain, name));
+    }
 }

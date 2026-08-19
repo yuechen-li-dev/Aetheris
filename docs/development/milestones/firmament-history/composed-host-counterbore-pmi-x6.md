@@ -27,7 +27,7 @@ larger counterbore relief. Datum targets continue to resolve through the
 canonical face selector binder.
 
 The acceptance source is
-`fixtures/Canonical/valid/profile-compose-l-bracket-counterbore-pmi.firmament`.
+`fixtures/Canonical/PMI/counterbore-shaft-diameter.firmament`.
 It has two Pattern-generated shaft holes, one Counterbore, Datum A, and a
 toleranced HoleDiameter callout. Its analytic volume is
 `28800 - 540π = 27103.539816... mm³`.

@@ -166,7 +166,7 @@ test-support/Aetheris.TestForgePack.Duplicate/
 Fixture:
 
 ```text
-fixtures/Language/invalid/concept-external-boss-hole.invalid.firmfixture
+fixtures/Compatibility/LegacyAliases/Invalid/Language/concept-external-boss-hole.invalid.firmfixture
 ```
 
 Without `--forge-pack`, it remains invalid with unknown-concept diagnostics.

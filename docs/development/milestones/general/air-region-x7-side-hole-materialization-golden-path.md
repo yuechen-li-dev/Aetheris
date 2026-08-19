@@ -20,7 +20,7 @@ The path remains the AIR Region path:
 
 ## Golden-path fixture geometry
 
-The controlled fixture is `fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture`:
+The controlled fixture is `fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture`:
 
 - parent box: width 10, depth 8, height 6;
 - attachment: `+X` side face;
@@ -83,8 +83,8 @@ No Boolean backend is used. Boolean remains not generally admitted as the AIR Re
 ## Tests run
 
 - `dotnet build Aetheris.CLI/Aetheris.CLI.csproj -f net10.0`
-- `dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture`
-- `dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture --json`
+- `dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture`
+- `dotnet run --project Aetheris.CLI -f net10.0 -- trace --fixture fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture --json`
 - Focused xUnit filters documented in the PR summary.
 
 ## Recommended next milestone

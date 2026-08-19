@@ -3,7 +3,7 @@
 Drawing M0B compiles Part or AssemblyIR products into deterministic DrawingIR, SVG/React preview, and native vector A4 PDF.
 
 ```powershell
-aetheris drawing compile fixtures/DrawingM0B/machine-assembly-drawing.firmament --out-dir docs/development/milestones/drawing/artifacts/m0b --json
+aetheris drawing compile fixtures/Regression/Drawing/machine-assembly-production-drawing-legacy-placement.firmament --out-dir docs/development/milestones/drawing/artifacts/m0b --json
 ```
 
 The canonical `Machine` fixture contains two occurrences of the reusable `BearingModule` subassembly. Drawing compilation uses AssemblyIR's resolved world transforms and projects each leaf Part body separately. Every projected primitive retains occurrence path, definition identity, and source edge identity; no Boolean flattening is performed.

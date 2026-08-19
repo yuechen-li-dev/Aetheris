@@ -10,7 +10,7 @@ public sealed partial class NativeGeometryStateTests
     [Fact]
     public void NativeGeometryState_BoxBasic_IsBRepActive()
     {
-        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Examples/box_basic.firmament"));
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Compatibility/LegacyV1/Examples/box_basic.firmament"));
 
         Assert.True(result.Compilation.IsSuccess);
         var state = result.Compilation.Value.PrimitiveExecutionResult!.NativeGeometryState;
@@ -23,7 +23,7 @@ public sealed partial class NativeGeometryStateTests
     [Fact]
     public void ReplayLog_BoxMinusCylinder_RecordsOps()
     {
-        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Examples/boolean_box_cylinder_hole.firmament"));
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Compatibility/LegacyV1/Examples/boolean_box_cylinder_hole.firmament"));
 
         Assert.True(result.Compilation.IsSuccess);
         var log = result.Compilation.Value.PrimitiveExecutionResult!.NativeGeometryState.ReplayLog;
@@ -50,7 +50,7 @@ public sealed partial class NativeGeometryStateTests
     [Fact]
     public void ProductionPath_Unchanged()
     {
-        var export = FirmamentStepExporter.Export(new FirmamentCompileRequest(new FirmamentSourceDocument(FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Examples/box_basic.firmament"))));
+        var export = FirmamentStepExporter.Export(new FirmamentCompileRequest(new FirmamentSourceDocument(FirmamentCorpusHarness.ReadFixtureText("fixtures/Compatibility/LegacyV1/Examples/box_basic.firmament"))));
 
         Assert.True(export.IsSuccess);
         Assert.Equal("base", export.Value.ExportedFeatureId);
@@ -86,7 +86,7 @@ public sealed partial class NativeGeometryStateTests
     [Fact]
     public void NativeGeometryState_CirMirror_BoxBasic_Available()
     {
-        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Examples/box_basic.firmament"));
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Compatibility/LegacyV1/Examples/box_basic.firmament"));
         var state = result.Compilation.Value.PrimitiveExecutionResult!.NativeGeometryState;
 
         Assert.Equal(NativeGeometryExecutionMode.BRepActive, state.ExecutionMode);
@@ -99,7 +99,7 @@ public sealed partial class NativeGeometryStateTests
     [Fact]
     public void NativeGeometryState_CirMirror_BoxMinusCylinder_Available()
     {
-        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Examples/boolean_box_cylinder_hole.firmament"));
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Compatibility/LegacyV1/Examples/boolean_box_cylinder_hole.firmament"));
         var state = result.Compilation.Value.PrimitiveExecutionResult!.NativeGeometryState;
 
         Assert.True(result.Compilation.IsSuccess);
@@ -110,7 +110,7 @@ public sealed partial class NativeGeometryStateTests
     [Fact]
     public void NativeGeometryState_CirMirror_Unsupported_DoesNotFailProduction()
     {
-        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Examples/rounded_corner_box_basic.firmament"));
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Compatibility/LegacyV1/Examples/rounded_corner_box_basic.firmament"));
         var state = result.Compilation.Value.PrimitiveExecutionResult!.NativeGeometryState;
 
         Assert.True(result.Compilation.IsSuccess);
@@ -122,7 +122,7 @@ public sealed partial class NativeGeometryStateTests
     [Fact]
     public void StateBackedDifferential_UsesNativeGeometryState()
     {
-        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Examples/box_basic.firmament"));
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Compatibility/LegacyV1/Examples/box_basic.firmament"));
         var state = result.Compilation.Value.PrimitiveExecutionResult!.NativeGeometryState;
 
         var differential = NativeGeometryStateDifferentialHelper.CompareBoundsAndVolumeFromState(state);
@@ -134,7 +134,7 @@ public sealed partial class NativeGeometryStateTests
     [Fact]
     public void ReplayPlacement_None_IsResolvedZero()
     {
-        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Examples/box_basic.firmament"));
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Compatibility/LegacyV1/Examples/box_basic.firmament"));
         var op = result.Compilation.Value.PrimitiveExecutionResult!.NativeGeometryState.ReplayLog.Operations.Single(o => o.FeatureId == "base");
 
         Assert.Equal(NativeGeometryPlacementKind.None, op.ResolvedPlacement.Kind);
@@ -145,7 +145,7 @@ public sealed partial class NativeGeometryStateTests
     [Fact]
     public void ReplayPlacement_Offset_CapturesTranslation()
     {
-        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Examples/boolean_add_basic.firmament"));
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Compatibility/LegacyV1/Examples/boolean_add_basic.firmament"));
         var op = result.Compilation.Value.PrimitiveExecutionResult!.NativeGeometryState.ReplayLog.Operations.Single(o => o.FeatureId == "shifted");
 
         Assert.Equal(NativeGeometryPlacementKind.Offset, op.ResolvedPlacement.Kind);
@@ -157,7 +157,7 @@ public sealed partial class NativeGeometryStateTests
     [Fact]
     public void ReplayPlacement_OnFace_CapturesAnchorAndTranslation()
     {
-        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Examples/p1_blind_hole_on_face_semantic.firmament"));
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Compatibility/LegacyV1/Examples/p1_blind_hole_on_face_semantic.firmament"));
         var op = result.Compilation.Value.PrimitiveExecutionResult!.NativeGeometryState.ReplayLog.Operations.Single(o => o.FeatureId == "blind_hole_tool");
 
         Assert.Equal(NativeGeometryPlacementKind.OnFace, op.ResolvedPlacement.Kind);
@@ -170,7 +170,7 @@ public sealed partial class NativeGeometryStateTests
     [Fact]
     public void ReplayPlacement_Unsupported_DoesNotFailProduction()
     {
-        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Examples/p1_flange_radial_hole_semantic.firmament"));
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Compatibility/LegacyV1/Examples/p1_flange_radial_hole_semantic.firmament"));
         Assert.True(result.Compilation.IsSuccess);
 
         var op = result.Compilation.Value.PrimitiveExecutionResult!.NativeGeometryState.ReplayLog.Operations.Single(o => o.FeatureId == "radial_hole_tool");
@@ -182,7 +182,7 @@ public sealed partial class NativeGeometryStateTests
     [Fact]
     public void FallForward_EligibleUnsupportedBRep_TransitionsToCirOnly()
     {
-        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Corpus/deferred/m10l-unsupported-box-subtract-sphere-touching-boundary.firmament"));
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Compatibility/LegacyV1/Corpus/deferred/m10l-unsupported-box-subtract-sphere-touching-boundary.firmament"));
         Assert.True(result.Compilation.IsSuccess);
 
         var state = result.Compilation.Value.PrimitiveExecutionResult!.NativeGeometryState;
@@ -199,7 +199,7 @@ public sealed partial class NativeGeometryStateTests
     [Fact]
     public void FallForward_CirOnly_CanAnalyze()
     {
-        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Corpus/deferred/m10l-unsupported-box-subtract-sphere-touching-boundary.firmament"));
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Compatibility/LegacyV1/Corpus/deferred/m10l-unsupported-box-subtract-sphere-touching-boundary.firmament"));
         var state = result.Compilation.Value.PrimitiveExecutionResult!.NativeGeometryState;
         Assert.Equal(NativeGeometryExecutionMode.CirOnly, state.ExecutionMode);
         Assert.Equal(CirMirrorStatus.Available, state.CirMirror.Status);
@@ -210,14 +210,14 @@ public sealed partial class NativeGeometryStateTests
     [Fact]
     public void FallForward_InvalidIntent_DoesNotTransition()
     {
-        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Corpus/deferred/p1-invalid-unsupported-placement-semantic.firmament"));
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Compatibility/LegacyV1/Corpus/deferred/p1-invalid-unsupported-placement-semantic.firmament"));
         Assert.False(result.Compilation.IsSuccess);
     }
 
     [Fact]
     public void FallForward_BoxMinusTorus_DoesNotMaskUpstreamCompileFailure()
     {
-        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/LegacyV1/Corpus/deferred/m10n-unsupported-box-subtract-torus.firmament"));
+        var result = FirmamentCorpusHarness.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Compatibility/LegacyV1/Corpus/deferred/m10n-unsupported-box-subtract-torus.firmament"));
         Assert.False(result.Compilation.IsSuccess);
         Assert.DoesNotContain(result.Compilation.Diagnostics, d => d.Message.Contains("CIR fallback lowering failed", StringComparison.Ordinal));
     }

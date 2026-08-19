@@ -112,7 +112,7 @@ Use only documented shapes.
 
 Files in:
 
-`fixtures/LegacyV1/Corpus/`
+`fixtures/Compatibility/LegacyV1/Corpus/`
 
 serve as language examples.
 

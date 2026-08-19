@@ -4,8 +4,8 @@ This bundle is the qualified `win-x64` Preview 3 product. Run commands from the 
 
 ```powershell
 .\aetheris.exe --help
-.\aetheris.exe validate .\fixtures\Canonical\valid\box-hole-pmi.firmament --json
-.\aetheris.exe build .\fixtures\Canonical\valid\box-hole-pmi.firmament --output .\out\first-part.step --json
+.\aetheris.exe validate .\fixtures\Canonical\PMI\hole-diameter-and-datum.firmament --json
+.\aetheris.exe build .\fixtures\Canonical\PMI\hole-diameter-and-datum.firmament --output .\out\first-part.step --json
 .\aetheris.exe analyze .\out\first-part.step --json
 .\aetheris.exe view .\out\first-part.step
 .\forge-host\Aetheris.Forge.Host.exe info

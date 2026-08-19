@@ -19,7 +19,7 @@ public sealed class FirmamentV2SemanticHoleStepPipelineTests
     [MemberData(nameof(Cases))]
     public void STEP_V2_X2_semantic_hole_step_verified_builds_emits_reimports_and_matches_volume(string fixtureId, double expectedVolume, int expectedCylinders, int expectedCones)
     {
-        var fixturePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, $"../../../../fixtures/Hole/valid/{fixtureId}.valid.firmfixture"));
+        var fixturePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, $"../../../../fixtures/Regression/Hole/valid/{fixtureId}.valid.firmfixture"));
         var outDir = Path.Combine(Path.GetTempPath(), "aetheris-step-v2-x2", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(outDir);
         var stepPath = Path.Combine(outDir, fixtureId + ".step");

@@ -25,7 +25,7 @@ The final correspondence retains each Hole's mouth loop, exit loop, and wall fac
 
 ## Fixture and evidence
 
-[`combined-hole-edgefinish-x1.firmament`](../../../../fixtures/Composite/combined-hole-edgefinish-x1.firmament) is the real Concept/Struct proof: an 80 x 50 x 25 Box, two 8.5 mm ThroughAll holes, and a 1.5 mm top outer chamfer. `aetheris build --json` reports `combined.route = CombinedHoleEdgeFinish`, ordered stages, `Disjoint`, plan ID, descendant counts, analytic volume, and STEP SHA-256.
+[`combined-hole-edgefinish-x1.firmament`](../../../../fixtures/Regression/Composite/combined-hole-edgefinish-x1.firmament) is the real Concept/Struct proof: an 80 x 50 x 25 Box, two 8.5 mm ThroughAll holes, and a 1.5 mm top outer chamfer. `aetheris build --json` reports `combined.route = CombinedHoleEdgeFinish`, ordered stages, `Disjoint`, plan ID, descendant counts, analytic volume, and STEP SHA-256.
 
 For this fixture the Hole removal is `2 * pi * 4.25^2 * 25 = 2837.250865273282 mm^3`. The final plan's analytic volume is `96874.61608145387 mm^3`, less than both the `100000 mm^3` host and the `97162.74913472672 mm^3` post-Hole body, so the chamfer cannot erase or duplicate the Hole volume. STEP SHA-256 is `38fffde63140f2f845d2fd18e7d8eb2498217f235e7e879d717f4a9205139d02`; production-canonical STEP SHA-256 is `13e27980cc9c1769fbc39b2baf7cc6e126ed3ab0a7058773c005d3cf44c0c988`. STEP reimport reports one enclosed, orientation-consistent manifold body with 16 vertices, 26 edges, 12 faces, 10 planar surfaces, and 2 cylinders. Independent trimmed-face verification returns `96907.04859870145 mm^3` with its conservative `6149.914566321924` numerical bound.
 

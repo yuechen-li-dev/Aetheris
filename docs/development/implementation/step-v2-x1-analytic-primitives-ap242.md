@@ -23,10 +23,10 @@ This keeps the current seam clear:
 
 ## Fixtures and formulas
 
-- `fixtures/Primitive/valid/primitive-v2-cylinder-step-verified.valid.firmfixture`: volume `πr²h`, with `r=2`, `h=10`.
-- `fixtures/Primitive/valid/primitive-v2-cone-step-verified.valid.firmfixture`: frustum volume `(πh/3)(r1² + r1r2 + r2²)`, with `r1=3`, `r2=1`, `h=10`.
-- `fixtures/Primitive/valid/primitive-v2-sphere-step-verified.valid.firmfixture`: volume `(4/3)πr³`, with `r=5`.
-- `fixtures/Primitive/valid/primitive-v2-torus-step-verified.valid.firmfixture`: volume `2π²Rr²`, with `R=8`, `r=2`.
+- `fixtures/Regression/Primitive/valid/primitive-v2-cylinder-step-verified.valid.firmfixture`: volume `πr²h`, with `r=2`, `h=10`.
+- `fixtures/Regression/Primitive/valid/primitive-v2-cone-step-verified.valid.firmfixture`: frustum volume `(πh/3)(r1² + r1r2 + r2²)`, with `r1=3`, `r2=1`, `h=10`.
+- `fixtures/Regression/Primitive/valid/primitive-v2-sphere-step-verified.valid.firmfixture`: volume `(4/3)πr³`, with `r=5`.
+- `fixtures/Regression/Primitive/valid/primitive-v2-torus-step-verified.valid.firmfixture`: volume `2π²Rr²`, with `R=8`, `r=2`.
 
 Canonical topology follows the current Aetheris exporter/importer representation: cylinder and frustum use three faces; sphere and torus use one analytic face. Vertex markers are emitted by the exporter for vertexless whole analytic bodies so STEP smoke checks can consistently prove topology marker presence without using hardcoded STEP templates.
 

@@ -175,11 +175,11 @@ For the side-hole region fixture, `aetheris trace` now renders a `Region yield` 
 
 ## AIR-REGION-X3 trace note
 
-`aetheris trace --fixture fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture` now prints a `Region CIR mirror` section for the side-hole `FaceAttachedRegion`. The JSON region entry includes `cirMirror` with stable status, backend, fields, capabilities, losses, diagnostics, and guarantees.
+`aetheris trace --fixture fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture` now prints a `Region CIR mirror` section for the side-hole `FaceAttachedRegion`. The JSON region entry includes `cirMirror` with stable status, backend, fields, capabilities, losses, diagnostics, and guarantees.
 
 ## AIR-REGION-X4 region BRep boundary trace note
 
-For `fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture`, `aetheris trace` now reports a `Region BRepPlan boundary` text section and a structured `regions.regions[].brepBoundary` JSON object. The summary is contract-only: it records affected parent face, circular entry intent, deferred exit intent, deferred cylindrical cut-wall intent, planned role strings, losses, and guarantees while keeping integration deferred and materializing no topology.
+For `fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture`, `aetheris trace` now reports a `Region BRepPlan boundary` text section and a structured `regions.regions[].brepBoundary` JSON object. The summary is contract-only: it records affected parent face, circular entry intent, deferred exit intent, deferred cylindrical cut-wall intent, planned role strings, losses, and guarantees while keeping integration deferred and materializing no topology.
 
 ## AIR-REGION-X5 note
 
@@ -200,12 +200,12 @@ The side-hole region fixture now includes a `Region parent integration` text sec
 
 ## AIR-REGION-X9 side-hole face split trace section
 
-For `fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture`, `aetheris trace` now includes a `Region face split` text section and a JSON `regions.regions[].faceSplit` object. The section records the controlled `+X` affected face, `SplitCreated` face split status, `EntryLoopMaterialized` entry loop status, `Circle(radius=1)`, consumed `CutEntryLoop` placeholder identity, and bounded loop evidence. Parent integration remains partial with a more specific `ExitLoopInsertion` blocker.
+For `fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture`, `aetheris trace` now includes a `Region face split` text section and a JSON `regions.regions[].faceSplit` object. The section records the controlled `+X` affected face, `SplitCreated` face split status, `EntryLoopMaterialized` entry loop status, `Circle(radius=1)`, consumed `CutEntryLoop` placeholder identity, and bounded loop evidence. Parent integration remains partial with a more specific `ExitLoopInsertion` blocker.
 
 
 ## AIR-REGION-X10 side-hole exit loop trace section
 
-For `fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture`, `aetheris trace` now includes a `Region exit loop` text section and a JSON `regions.regions[].exitLoop` object. The section records deterministic `-X` exit face selection, `ExitLoopMaterialized`, `Circle(radius=1)`, consumed `CutExitLoop` placeholder identity, and bounded loop evidence. Parent integration remains partial and now reports `CutWallAttachment` as the next blocker.
+For `fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture`, `aetheris trace` now includes a `Region exit loop` text section and a JSON `regions.regions[].exitLoop` object. The section records deterministic `-X` exit face selection, `ExitLoopMaterialized`, `Circle(radius=1)`, consumed `CutExitLoop` placeholder identity, and bounded loop evidence. Parent integration remains partial and now reports `CutWallAttachment` as the next blocker.
 
 ## AIR-REGION-X11 trace note
 
@@ -217,7 +217,7 @@ For the controlled side-hole fixture, `trace --out-dir` writes a persistent gene
 
 ```bash
 dotnet run --project Aetheris.CLI -f net10.0 -- trace \
-  --fixture fixtures/Region/valid/side-hole-face-attached-region.valid.firmfixture \
+  --fixture fixtures/Regression/Region/valid/side-hole-face-attached-region.valid.firmfixture \
   --out-dir artifacts/air-region-x13/side-hole
 ```
 

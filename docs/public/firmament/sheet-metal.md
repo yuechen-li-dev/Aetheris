@@ -27,12 +27,14 @@ SheetMetal MountingBracket {
 
 Sheet Metal does not use a Model `Units` declaration in this authored route; dimensional fields carry explicit units. `Thickness`, `Material`, `KFactor`, and `Base` belong directly in the `SheetMetal` body, alongside `Flange` and `Hole` declarations.
 
-[`preview3-l-bracket-hole.firmament`](../../../fixtures/SheetMetal/preview3-l-bracket-hole.firmament) is the practical first example. Build the formed part and then flatten the same source:
+[`l-bracket-with-hole.firmament`](../../../fixtures/Canonical/SheetMetal/l-bracket-with-hole.firmament) is the practical first example. Build the formed part and then flatten the same source:
 
 ```powershell
-aetheris build fixtures/SheetMetal/preview3-l-bracket-hole.firmament --output artifacts/bracket-formed.step --json
-aetheris sheetmetal flatten fixtures/SheetMetal/preview3-l-bracket-hole.firmament --step artifacts/bracket-flat.step --svg artifacts/bracket-flat.svg --json
+aetheris build fixtures/Canonical/SheetMetal/l-bracket-with-hole.firmament --output artifacts/bracket-formed.step --json
+aetheris sheetmetal flatten fixtures/Canonical/SheetMetal/l-bracket-with-hole.firmament --step artifacts/bracket-flat.step --svg artifacts/bracket-flat.svg --json
 ```
+
+[`profile-delta-tab-family.firmament`](../../../fixtures/Canonical/SheetMetal/profile-delta-tab-family.firmament) is the modern data-driven profile example: a finite Table selects `ProfileTabSpec`, `with` derives the shop variant, and the standard-library `ProfileDelta Tab` modifies the wall edge while preserving formed/flat semantic identity.
 
 Sheet Metal holes use `Hole Mount { On: Base; Center: (40mm, 20mm); Diameter: 8mm; }`. Model-domain `Hole<Shaft>` is deliberately rejected here with `sheetmetal-hole-domain-syntax`. `On` targets a named planar semantic region (`Base`, a named flange, or a verified exposed region/path), not `face(+Z)`. Manufacturing PMI likewise uses `DatumFeature A { Target: Base; }` inside `Pmi`, together with a named `Manufacturing` block; Model-domain `Datum`/`face(-Z)` syntax is rejected with `sheetmetal-pmi-domain-syntax`.
 

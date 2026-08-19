@@ -62,14 +62,14 @@ The generated-on-demand artifact workflow writes `side-hole-aliases-v2.step`, `s
 
 Valid fixture:
 
-- `fixtures/Region/valid/side-hole-aliases-v2.valid.firmfixture`
+- `fixtures/Regression/Region/valid/side-hole-aliases-v2.valid.firmfixture`
 
 Invalid fixtures:
 
-- `fixtures/Region/invalid/side-hole-alias-unknown-on-v2.invalid.firmfixture`
-- `fixtures/Region/invalid/side-hole-alias-unknown-through-v2.invalid.firmfixture`
-- `fixtures/Region/invalid/side-hole-alias-loopref-on-v2.invalid.firmfixture`
-- `fixtures/Region/invalid/side-hole-alias-wrong-face-v2.invalid.firmfixture`
+- `fixtures/Compatibility/LegacyAliases/Invalid/Region/side-hole-alias-unknown-on-v2.invalid.firmfixture`
+- `fixtures/Compatibility/LegacyAliases/Invalid/Region/side-hole-alias-unknown-through-v2.invalid.firmfixture`
+- `fixtures/Compatibility/LegacyAliases/Invalid/Region/side-hole-alias-loopref-on-v2.invalid.firmfixture`
+- `fixtures/Compatibility/LegacyAliases/Invalid/Region/side-hole-alias-wrong-face-v2.invalid.firmfixture`
 
 ## What this proves
 

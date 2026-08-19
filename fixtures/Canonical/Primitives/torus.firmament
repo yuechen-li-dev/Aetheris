@@ -1,0 +1,8 @@
+Model TorusExample {
+    Units: mm
+
+    Torus Body {
+        MajorRadius: 12mm
+        MinorRadius: 3mm
+    }
+}

@@ -342,12 +342,12 @@ A2.2 adds metadata-only Firmament V2 fixtures under `fixtures/RecordDerivation/`
 The pilot fixture set is:
 
 ```text
-fixtures/RecordDerivation/valid/box-with-size-variant-v2.valid.firmfixture
-fixtures/RecordDerivation/valid/feature-with-radius-variant-v2.valid.firmfixture
-fixtures/RecordDerivation/valid/material-with-property-variant-v2.valid.firmfixture
-fixtures/RecordDerivation/invalid/with-degenerate-box-v2.invalid.firmfixture
-fixtures/RecordDerivation/invalid/with-selector-target-v2.invalid.firmfixture
-fixtures/RecordDerivation/invalid/with-unknown-field-v2.invalid.firmfixture
+fixtures/Regression/RecordDerivation/valid/box-with-size-variant-v2.valid.firmfixture
+fixtures/Speculative/RecordDerivation/valid/feature-with-radius-variant-v2.valid.firmfixture
+fixtures/Speculative/RecordDerivation/valid/material-with-property-variant-v2.valid.firmfixture
+fixtures/Compatibility/LegacyAliases/Invalid/RecordDerivation/with-degenerate-box-v2.invalid.firmfixture
+fixtures/Compatibility/LegacyAliases/Invalid/RecordDerivation/with-selector-target-v2.invalid.firmfixture
+fixtures/Compatibility/LegacyAliases/Invalid/RecordDerivation/with-unknown-field-v2.invalid.firmfixture
 ```
 
 ## 15. Tests

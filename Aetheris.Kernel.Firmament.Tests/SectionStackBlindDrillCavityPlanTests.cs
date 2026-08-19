@@ -11,7 +11,7 @@ public sealed class SectionStackBlindDrillCavityPlanTests
     [Fact]
     public void ComposeSource_ConstructionPlaneBlindDrill_UsesFullRadiusClearanceAndExportsOneBlindCavity()
     {
-        var source = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/ProfileComposition/valid/construction-plane-blind-drill-clearance.firmament"));
+        var source = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Regression/ProfileComposition/valid/construction-plane-blind-drill-clearance.firmament"));
         var output = Path.Combine(Path.GetTempPath(), "aetheris-compose-blind-drill-" + Guid.NewGuid().ToString("N") + ".step");
         try
         {
@@ -34,7 +34,7 @@ public sealed class SectionStackBlindDrillCavityPlanTests
     [Fact]
     public void ComposeSource_MouthCrossingInternalSlab_IsOneExactMultiFaceMouth()
     {
-        var source = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/ProfileComposition/valid/construction-plane-blind-drill-mouth-crosses-slab.firmament"));
+        var source = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Regression/ProfileComposition/valid/construction-plane-blind-drill-mouth-crosses-slab.firmament"));
         var output = Path.Combine(Path.GetTempPath(), "aetheris-seam-mouth-" + Guid.NewGuid().ToString("N") + ".step");
 
         try
@@ -57,7 +57,7 @@ public sealed class SectionStackBlindDrillCavityPlanTests
     [Fact]
     public void ComposeSource_MouthTangentToInternalSlab_IsRejectedWithTypedDiagnostic()
     {
-        var source = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/ProfileComposition/invalid/construction-plane-blind-drill-mouth-crosses-slab.firmament"));
+        var source = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Invalid/ProfileComposition/construction-plane-blind-drill-mouth-crosses-slab.firmament"));
         var exported = FirmamentBuildAndExport.Run(source, Path.Combine(Path.GetTempPath(), "aetheris-tangent-unreachable.step"));
         Assert.False(exported.IsSuccess);
         Assert.Contains(exported.Diagnostics, x => x.Message == "SectionStackMouthSeamTangent");

@@ -106,7 +106,7 @@ The viewport does not infer the cylinder from tessellation.
 ## Evidence
 
 The production fixture is
-`fixtures/Hole/valid/construction-plane-through-hole.firmament`.
+`fixtures/Regression/Hole/valid/construction-plane-through-hole.firmament`.
 Its exact source build exports a STEP artifact with SHA-256
 `A6B557BD3DC54A6FF88686B82FA96F7CCFA4F40FC00E3353F40A59704204FB8C`.
 The published local interval is `[0, 100]`, so the analytic removed volume is

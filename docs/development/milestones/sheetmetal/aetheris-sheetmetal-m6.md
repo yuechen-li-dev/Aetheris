@@ -25,7 +25,7 @@ Two stale statements were corrected in place: `README.md` called all `.firmasm` 
 
 ## Canonical product source
 
-The complete passing source is `fixtures/SheetMetal/m6-network-appliance-product.firmasm`. Its essential shape is:
+The complete passing source is `fixtures/Compatibility/Firmasm/SheetMetal/network-appliance-product-m6.firmasm`. Its essential shape is:
 
 ```firmament
 Concept EnclosureProduct { Body: Part Lid: Part Closure: Mate Attachments: Mate }

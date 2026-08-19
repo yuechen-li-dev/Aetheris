@@ -8,7 +8,7 @@ public sealed class AssemblyM1Tests
     [Fact]
     public void TemplateRecordParts_ExecuteAsReusedExactWorldGeometryWithResidualValidation()
     {
-        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/AssemblyM1/template-block-pair.firmament");
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/Assembly/template-block-pair.firmament");
         var first = new AssemblyM1Pipeline().CompileFile(path);
         var second = new AssemblyM1Pipeline().CompileFile(path);
 
@@ -42,7 +42,7 @@ public sealed class AssemblyM1Tests
     [Fact]
     public void PositiveVolumeOccurrenceOverlap_IsFatalAfterExactMaterialization()
     {
-        var canonicalPath = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/AssemblyM1/template-block-pair.firmament");
+        var canonicalPath = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/Assembly/template-block-pair.firmament");
         var source = File.ReadAllText(canonicalPath).Replace(
             "Lower PlaneCoincident Moving.Base Fixed.Seat;",
             "Lower PlaneCoincident Moving.Seat Fixed.Seat;",

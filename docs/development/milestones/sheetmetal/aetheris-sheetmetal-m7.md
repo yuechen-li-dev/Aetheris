@@ -2,7 +2,7 @@
 
 ## M6 diagnosis and retained regression
 
-The original source remains at `fixtures/SheetMetal/m6-network-appliance-product.firmasm`. Its Body and Lid parts are valid, but the `Closure` semantic repeats nominal coordinates independently of the formed geometry:
+The original source remains at `fixtures/Compatibility/Firmasm/SheetMetal/network-appliance-product-m6.firmasm`. Its Body and Lid parts are valid, but the `Closure` semantic repeats nominal coordinates independently of the formed geometry:
 
 ```firmament
 Axis Axis = [80,55,36] -> [0,0,1];
@@ -28,7 +28,7 @@ The same syntax is tested by the non-Sheet-Metal `Plate` + `Bracket` fixture in 
 
 ## Canonical M7 source and Mate
 
-The passing source is `fixtures/SheetMetal/m7-network-appliance-product.firmasm`. Its closure is:
+The passing source is `fixtures/Compatibility/Firmasm/SheetMetal/network-appliance-product-m7.firmasm`. Its closure is:
 
 ```firmament
 Interface LidClosure {

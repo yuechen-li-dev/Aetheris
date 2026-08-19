@@ -85,7 +85,7 @@ public sealed class DrawingM0Tests
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(System.IO.Path.Combine(directory.FullName, "Aetheris.slnx"))) directory = directory.Parent;
-        return System.IO.Path.Combine(directory?.FullName ?? throw new InvalidOperationException("Repository root not found."), "fixtures", "DrawingM0", "bearing-block-drawing.firmament");
+        return System.IO.Path.Combine(directory?.FullName ?? throw new InvalidOperationException("Repository root not found."), "fixtures", "Canonical", "Drawings", "bearing-block-production-drawing.firmament");
     }
 
     private sealed class TemporaryDirectory : IDisposable

@@ -160,7 +160,7 @@ public sealed class Step242HoleSemanticsTests
                 "..",
                 "..",
                 "..",
-                "fixtures", "Assembly", "LegacyImports", "examples",
+                "fixtures", "Compatibility", "Firmasm", "LegacyAssembly", "examples",
                 "occt-nut-bolt",
                 "_nut_extract.step"));
         return File.ReadAllText(fullPath, Encoding.UTF8);

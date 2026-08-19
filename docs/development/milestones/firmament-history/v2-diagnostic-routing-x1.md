@@ -24,7 +24,7 @@ Once Firmament V2 recognizes a document and produces fatal diagnostics, those di
 
 ## Regression fixture
 
-`fixtures/Language/invalid/concept-struct-diagnostic-routing-x1.invalid.firmfixture` is a minimized Concept/Struct document with a malformed construction-plane `Hole<Shaft>` center and an omitted required Concept member. Both `validate` and `build` surface `HoleLocalCenterInvalid` and `firmament-concept-missing-member:BracketConcept.RequiredExpose`; build does not surface `FIRM-PARSE-0001` or the canonical TOON/JSON-root wording.
+`fixtures/Compatibility/LegacyAliases/Invalid/Language/concept-struct-diagnostic-routing-x1.invalid.firmfixture` is a minimized Concept/Struct document with a malformed construction-plane `Hole<Shaft>` center and an omitted required Concept member. Both `validate` and `build` surface `HoleLocalCenterInvalid` and `firmament-concept-missing-member:BracketConcept.RequiredExpose`; build does not surface `FIRM-PARSE-0001` or the canonical TOON/JSON-root wording.
 
 ## Remaining boundary
 

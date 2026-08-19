@@ -1,0 +1,63 @@
+namespace Aetheris.Kernel.Firmament.FirmamentV2;
+
+/// <summary>The first bounded public Standard Products template family.</summary>
+public static class PaperclipTemplateLibrary
+{
+    public const string TemplateId = "Standard.Products.Office.Paperclip";
+
+    public const string Source = """
+        Model StandardProductsOfficePaperclip {
+            Units: mm
+
+            Record PaperclipPolicy {
+                WireDiameter: Length
+                OverallLength: Length
+                OuterWidth: Length
+                InnerWidth: Length
+                BendRadius: Length
+                LoopGap: Length
+                Material: String
+            }
+
+            Static StandardPaperclip: PaperclipPolicy = PaperclipPolicy {
+                WireDiameter: 0.8mm
+                OverallLength: 33mm
+                OuterWidth: 9mm
+                InnerWidth: 5mm
+                BendRadius: 1mm
+                LoopGap: 1mm
+                Material: "Standard.Materials.StainlessSteel.304_Annealed"
+            }
+
+            Template < P: PaperclipPolicy >
+            Struct PaperclipTemplate {
+                Require PositiveWireDiameter => P.WireDiameter > 0mm
+                Require LengthExceedsWidth => P.OverallLength > P.OuterWidth
+                Require OuterWidthExceedsInnerWidth => P.OuterWidth > P.InnerWidth
+                Require InnerLoopClearsWire => P.InnerWidth > P.WireDiameter
+                Require BendClearsWire => P.BendRadius > P.WireDiameter
+                Require EndsHaveClearance => P.LoopGap >= P.WireDiameter
+
+                Concept Path PaperclipPath {
+                    Start: Point2(0mm, 0mm)
+                    Heading: 90deg
+                    Line InnerUp { Length: P.OverallLength - P.InnerWidth / 2 - P.LoopGap }
+                    Arc InnerTop { Radius: P.InnerWidth / 2; Turn: -180deg }
+                    Line InnerDown { Length: P.OverallLength - P.InnerWidth / 2 - P.OuterWidth / 2 - P.LoopGap }
+                    Arc BottomTransition { Radius: P.BendRadius; Turn: 180deg }
+                    Line OuterUp { Length: P.OverallLength - P.OuterWidth }
+                    Arc OuterTop { Radius: P.OuterWidth / 2; Turn: 180deg }
+                    Line OuterDown { Length: P.OverallLength - P.OuterWidth / 2 - P.LoopGap }
+                }
+
+                Sweep Paperclip {
+                    Path: PaperclipPath
+                    Diameter: P.WireDiameter
+                    Material: P.Material
+                }
+            }
+
+            Struct Paperclip = PaperclipTemplate < P: StandardPaperclip >
+        }
+        """;
+}

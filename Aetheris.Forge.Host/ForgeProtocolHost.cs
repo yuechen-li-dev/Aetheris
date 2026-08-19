@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Aetheris.Kernel.Core.Step242;
+using Aetheris.Kernel.Firmament;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.SheetMetal;
 
@@ -99,18 +100,32 @@ public sealed class ForgeProtocolHost
             if (expansion is null || diagnostics.Any(item => item.Severity == ForgeProtocolDiagnosticSeverity.Error))
                 return Failure(diagnostics.ToArray());
 
-            var compilation = SheetMetalFirmament.Compile(expansion.ExpandedSource, $"forge-host:{known.Id}");
-            diagnostics.AddRange(compilation.Diagnostics.Select(FromSheetMetalDiagnostic));
-            if (!compilation.IsSuccess || compilation.Part?.FormedBody is null || compilation.FlatPattern is null)
-                return Failure(diagnostics.ToArray());
+            SheetMetalAuthoringResult? sheetMetalCompilation = null;
+            FirmamentStepExportResult? nativeCompilation = null;
+            if (known.NativeFirmament)
+            {
+                var compiled = FirmamentBuildAndExport.CompileSource(expansion.ExpandedSource);
+                diagnostics.AddRange(compiled.Diagnostics.Select(item => new ForgeProtocolDiagnostic(item.Code.ToString(),
+                    item.Severity == Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error ? ForgeProtocolDiagnosticSeverity.Error : ForgeProtocolDiagnosticSeverity.Warning,
+                    item.Message, item.Source, "FirmamentV2")));
+                if (!compiled.IsSuccess) return Failure(diagnostics.ToArray());
+                nativeCompilation = compiled.Value;
+            }
+            else
+            {
+                sheetMetalCompilation = SheetMetalFirmament.Compile(expansion.ExpandedSource, $"forge-host:{known.Id}");
+                diagnostics.AddRange(sheetMetalCompilation.Diagnostics.Select(FromSheetMetalDiagnostic));
+                if (!sheetMetalCompilation.IsSuccess || sheetMetalCompilation.Part?.FormedBody is null || sheetMetalCompilation.FlatPattern is null)
+                    return Failure(diagnostics.ToArray());
 
-            var dfm = SheetMetalDfm.Evaluate(compilation.Part, compilation.FlatPattern);
-            diagnostics.AddRange(dfm.Findings.Where(item => item.Status is SheetMetalDfmStatus.Warning or SheetMetalDfmStatus.Fail)
-                .Select(item => new ForgeProtocolDiagnostic(item.RuleId,
-                    item.Status == SheetMetalDfmStatus.Fail ? ForgeProtocolDiagnosticSeverity.Error : ForgeProtocolDiagnosticSeverity.Warning,
-                    item.Message, item.SubjectId, "SheetMetalDfm")));
-            if (diagnostics.Any(item => item.Severity == ForgeProtocolDiagnosticSeverity.Error))
-                return Failure(diagnostics.ToArray());
+                var dfm = SheetMetalDfm.Evaluate(sheetMetalCompilation.Part, sheetMetalCompilation.FlatPattern);
+                diagnostics.AddRange(dfm.Findings.Where(item => item.Status is SheetMetalDfmStatus.Warning or SheetMetalDfmStatus.Fail)
+                    .Select(item => new ForgeProtocolDiagnostic(item.RuleId,
+                        item.Status == SheetMetalDfmStatus.Fail ? ForgeProtocolDiagnosticSeverity.Error : ForgeProtocolDiagnosticSeverity.Warning,
+                        item.Message, item.SubjectId, "SheetMetalDfm")));
+                if (diagnostics.Any(item => item.Severity == ForgeProtocolDiagnosticSeverity.Error))
+                    return Failure(diagnostics.ToArray());
+            }
 
             try
             {
@@ -119,7 +134,9 @@ public sealed class ForgeProtocolHost
                 var artifacts = new List<ForgeArtifact>();
                 foreach (var kind in requestedArtifacts)
                 {
-                    var (name, contentType, content) = GenerateArtifact(kind, compilation);
+                    var (name, contentType, content) = nativeCompilation is null
+                        ? GenerateArtifact(kind, sheetMetalCompilation!)
+                        : GenerateNativeArtifact(kind, nativeCompilation);
                     var path = Path.Combine(root, name);
                     var resolved = Path.GetFullPath(path);
                     if (!string.Equals(Path.GetDirectoryName(resolved), root, StringComparison.OrdinalIgnoreCase))
@@ -152,7 +169,7 @@ public sealed class ForgeProtocolHost
         if (diagnostics.Count > 0)
             throw new InvalidOperationException("Standard Firmament template catalog is invalid: " + string.Join("; ", diagnostics));
         var version = "1+" + Convert.ToHexString(SHA256.HashData(Utf8.GetBytes(source)))[..12].ToLowerInvariant();
-        return module.Templates.Where(item => string.Equals(item.TargetKind, "SheetMetal", StringComparison.Ordinal))
+        var sheetMetal = module.Templates.Where(item => string.Equals(item.TargetKind, "SheetMetal", StringComparison.Ordinal))
             .Select(item => new RegisteredTemplate(
                 "Standard.SheetMetal." + item.Name,
                 Humanize(item.Name),
@@ -162,8 +179,19 @@ public sealed class ForgeProtocolHost
                 item,
                 module.Records.ToDictionary(record => record.Name, StringComparer.Ordinal),
                 module.Enums.ToDictionary(value => value.Name, StringComparer.Ordinal),
-                [ForgeArtifactKind.StepAp242, ForgeArtifactKind.FlatStep, ForgeArtifactKind.Svg]))
+                [ForgeArtifactKind.StepAp242, ForgeArtifactKind.FlatStep, ForgeArtifactKind.Svg], false))
             .ToArray();
+        var productSource = PaperclipTemplateLibrary.Source;
+        var products = FirmamentTemplateHostBridge.InspectModule(productSource, out var productDiagnostics);
+        if (productDiagnostics.Count > 0)
+            throw new InvalidOperationException("Standard Products Firmament template catalog is invalid: " + string.Join("; ", productDiagnostics));
+        var productVersion = "1+" + Convert.ToHexString(SHA256.HashData(Utf8.GetBytes(productSource)))[..12].ToLowerInvariant();
+        var paperclip = products.Templates.Where(item => string.Equals(item.Name, "PaperclipTemplate", StringComparison.Ordinal))
+            .Select(item => new RegisteredTemplate(PaperclipTemplateLibrary.TemplateId, "Paperclip", productVersion,
+                "A bounded parametric office paperclip compiled from a semantic planar path and constant circular Sweep.",
+                productSource, item, products.Records.ToDictionary(record => record.Name, StringComparer.Ordinal),
+                products.Enums.ToDictionary(value => value.Name, StringComparer.Ordinal), [ForgeArtifactKind.StepAp242], true));
+        return sheetMetal.Concat(paperclip).ToArray();
     }
 
     private static ForgeTemplateParameterDescription DescribeParameter(RegisteredTemplate template, FirmamentTemplateParameterMetadata parameter)
@@ -318,6 +346,11 @@ public sealed class ForgeProtocolHost
         throw new InvalidOperationException($"Artifact kind '{kind}' has no generator.");
     }
 
+    private static (string Name, string ContentType, string Content) GenerateNativeArtifact(ForgeArtifactKind kind, FirmamentStepExportResult result) =>
+        kind == ForgeArtifactKind.StepAp242
+            ? ("paperclip.step", "model/step", result.StepText)
+            : throw new InvalidOperationException($"Native Firmament artifact kind '{kind}' has no generator.");
+
     private static ForgeProtocolDiagnostic FromFirmamentDiagnostic(string value)
     {
         var parts = value.Split(':', 3);
@@ -372,5 +405,6 @@ public sealed class ForgeProtocolHost
         FirmamentTemplateMetadata Metadata,
         IReadOnlyDictionary<string, FirmamentTemplateRecordMetadata> Records,
         IReadOnlyDictionary<string, FirmamentTemplateEnumMetadata> Enums,
-        IReadOnlyList<ForgeArtifactKind> Artifacts);
+        IReadOnlyList<ForgeArtifactKind> Artifacts,
+        bool NativeFirmament);
 }

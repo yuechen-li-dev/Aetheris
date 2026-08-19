@@ -454,6 +454,7 @@ public static class CliRunner
                 lattice = build.Value.Export.Lattice,
                 combined = build.Value.Export.Combined,
                 standardPart = build.Value.Export.StandardPart,
+                sweep = build.Value.Export.Sweep,
                 assertions = build.Value.Export.Assertions,
                 features = build.Value.Export.Features,
                 engineeringFeatures = build.Value.Export.EngineeringFeatures,
@@ -475,6 +476,8 @@ public static class CliRunner
             stdout.WriteLine($"Model: {build.Value.Export.ExportedFeatureId}");
             if (build.Value.Export.StandardPart is { } standardPart)
                 stdout.WriteLine($"Standard part: {standardPart.Family} via {standardPart.Template ?? "direct record"} ({standardPart.SemanticDescendants.Count} semantic descendants)");
+            if (build.Value.Export.Sweep is { } sweep)
+                stdout.WriteLine($"Sweep: {sweep.SegmentCount} analytic path segments, {sweep.Diameter:G6} mm diameter, {sweep.CenterlineLength:G6} mm centerline ({sweep.Cylinders} cylinders, {sweep.Tori} tori)");
             foreach (var diagnostic in build.Diagnostics.Where(diagnostic => diagnostic.Severity == KernelDiagnosticSeverity.Warning))
                 stderr.WriteLine($"- [Warning] {diagnostic.Source}: {diagnostic.Message}");
         }
@@ -983,6 +986,27 @@ Model CanonicalPanel {
         }
 
         var source = File.ReadAllText(fullPath);
+        var sweepSource = ExpandSweepInspectionSource(source, out var sweepExpansionDiagnostics);
+        if (CircularSweepAuthoring.IsSweepSource(source))
+        {
+            var authored = sweepSource is null ? null : CircularSweepAuthoring.Parse(sweepSource);
+            var sweepDiagnostics = sweepExpansionDiagnostics.Concat(authored is null ? [] : authored.IsSuccess ? CircularSweepBRepMaterializer.Validate(authored.Value) : authored.Diagnostics.Select(item => item.Message)).ToArray();
+            var sweepSuccess = authored?.IsSuccess == true && sweepDiagnostics.Length == 0;
+            var sweepReport = new
+            {
+                command = "inspect", success = sweepSuccess, input = fullPath,
+                model = Path.GetFileNameWithoutExtension(fullPath), units = "mm",
+                sweep = authored?.IsSuccess == true ? new { authored.Value.Name, diameter = authored.Value.Diameter, radius = authored.Value.Radius,
+                    material = authored.Value.Material.Identity.FirmamentPath, path = authored.Value.Path.Name,
+                    segments = authored.Value.Path.Segments.Select(segment => new { segment.Name, segment.SemanticKind, geometry = segment.Geometry.GetType().Name, segment.StableId }),
+                    provenance = authored.Value.Provenance } : null,
+                conceptPaths = sweepSource is null ? [] : ProfileAuthoringParser.InspectConceptPaths(sweepSource), diagnostics = sweepDiagnostics
+            };
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(sweepReport, JsonOptions));
+            else if (sweepSuccess) stdout.WriteLine($"Sweep {authored!.Value.Name}: {authored.Value.Path.Segments.Count} segments, {authored.Value.Diameter:G6} mm diameter");
+            else foreach (var diagnostic in sweepDiagnostics) stderr.WriteLine($"error: {diagnostic}");
+            return sweepSuccess ? 0 : 1;
+        }
         var parse = FirmamentV2Parser.Parse(source, Path.GetDirectoryName(fullPath));
         var document = parse.Document;
         var success = parse.IsSuccess && document is not null;
@@ -1515,6 +1539,27 @@ Model CanonicalPanel {
         return 0;
     }
 
+    private static string? ExpandSweepInspectionSource(string source, out IReadOnlyList<string> diagnostics)
+    {
+        var expansion = FirmamentTemplateSourceCompiler.Expand(source, out var templateDiagnostics);
+        if (expansion is null)
+        {
+            diagnostics = templateDiagnostics;
+            return null;
+        }
+
+        if (!FirmamentV2Parser.TryExpandCanonicalStaticAuthoring(expansion.ExpandedSource, out var expandedSource, out var staticDiagnostics))
+        {
+            diagnostics = templateDiagnostics.Concat(staticDiagnostics).Distinct(StringComparer.Ordinal).ToArray();
+            return null;
+        }
+
+        diagnostics = templateDiagnostics.Concat(staticDiagnostics).Distinct(StringComparer.Ordinal).ToArray();
+        return FirmamentV2Parser.TryGetCanonicalAdvancedBody(expandedSource, out var canonicalBody)
+            ? canonicalBody
+            : expandedSource;
+    }
+
     private static int RunValidate(string[] args, TextWriter stdout, TextWriter stderr)
     {
         if (args.Length == 0)
@@ -1564,6 +1609,19 @@ Model CanonicalPanel {
         }
 
         var validationSource=File.ReadAllText(sourcePath);
+        if (CircularSweepAuthoring.IsSweepSource(validationSource))
+        {
+            var sweepSource = ExpandSweepInspectionSource(validationSource, out var sweepExpansionDiagnostics);
+            var authored = sweepSource is null ? null : CircularSweepAuthoring.Parse(sweepSource);
+            var sweepDiagnostics = sweepExpansionDiagnostics.Concat(authored is null ? [] : authored.IsSuccess ? CircularSweepBRepMaterializer.Validate(authored.Value) : authored.Diagnostics.Select(item => item.Message)).ToArray();
+            var valid = authored?.IsSuccess == true && sweepDiagnostics.Length == 0;
+            var payload = new { source = sourcePath, status = valid ? "valid" : "invalid", domain = "CircularSweep",
+                summary = new { fatalDiagnosticCount = sweepDiagnostics.Length, warningDiagnosticCount = 0,
+                    segmentCount = authored?.IsSuccess == true ? authored.Value.Path.Segments.Count : 0 }, diagnostics = sweepDiagnostics };
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
+            else stdout.WriteLine($"Firmament V2 Circular Sweep validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");
+            return valid ? 0 : 1;
+        }
         if(SheetMetalFirmament.LooksLikeSheetMetal(validationSource))
         {
             var sheet=SheetMetalFirmament.Compile(validationSource,Path.GetFullPath(sourcePath));

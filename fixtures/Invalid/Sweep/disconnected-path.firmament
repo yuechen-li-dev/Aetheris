@@ -1,0 +1,9 @@
+Model InvalidDisconnected {
+    Units: mm
+    Concept Path P {
+        Start: Point2(0mm, 0mm)
+        Line A { Length: 10mm }
+        Line B { From: Point2(20mm, 0mm); Length: 5mm }
+    }
+    Sweep Wire { Path: P; Diameter: 1mm }
+}

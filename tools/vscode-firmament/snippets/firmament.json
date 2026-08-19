@@ -60,6 +60,17 @@
     "body": ["Profile ${1:Section} From ${2:Outline}"],
     "description": "Profile derived from a Concept Path"
   },
+  "Circular Sweep": {
+    "prefix": "sweep-circular",
+    "body": [
+      "Sweep ${1:Wire} {",
+      "    Path: ${2:Centerline}",
+      "    Diameter: ${3:1mm}",
+      "    Material: ${4:Standard.Materials.StainlessSteel.304_Annealed}",
+      "}"
+    ],
+    "description": "Bounded constant circular Sweep along a planar Concept Path"
+  },
   "Static Table with Override": {
     "prefix": "table-with",
     "body": [

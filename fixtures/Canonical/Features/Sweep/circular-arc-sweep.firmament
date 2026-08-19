@@ -1,0 +1,13 @@
+Model BentWireArc {
+    Units: mm
+    Concept Path Centerline {
+        Start: Point2(0mm, 0mm)
+        Heading: 0deg
+        Arc Bend { Radius: 8mm; Turn: 180deg }
+    }
+    Sweep Wire {
+        Path: Centerline
+        Diameter: 1mm
+        Material: Standard.Materials.StainlessSteel.304_Annealed
+    }
+}

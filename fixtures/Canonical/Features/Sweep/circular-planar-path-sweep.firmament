@@ -1,0 +1,15 @@
+Model UWire {
+    Units: mm
+    Concept Path Centerline {
+        Start: Point2(0mm, 0mm)
+        Heading: 90deg
+        Line LeftLeg { Length: 25mm }
+        Arc Return { Radius: 6mm; Turn: -180deg }
+        Line RightLeg { Length: 25mm }
+    }
+    Sweep Wire {
+        Path: Centerline
+        Diameter: 1.2mm
+        Material: Standard.Materials.StainlessSteel.304_Annealed
+    }
+}

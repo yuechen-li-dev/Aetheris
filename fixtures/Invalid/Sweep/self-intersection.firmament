@@ -1,0 +1,11 @@
+Model InvalidOverlap {
+    Units: mm
+    Concept Path P {
+        Start: Point2(0mm, 0mm)
+        Heading: 0deg
+        Arc A { Radius: 5mm; Turn: 120deg }
+        Arc B { Radius: 5mm; Turn: 120deg }
+        Arc C { Radius: 5mm; Turn: 120deg }
+    }
+    Sweep Wire { Path: P; Diameter: 1mm }
+}

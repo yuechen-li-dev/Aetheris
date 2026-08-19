@@ -1,5 +1,15 @@
 # Diagnostics and failure recovery
 
+## Circular Sweep (X0)
+
+- `firmament-sweep-section-invalid`: circular diameter is missing, non-finite, or non-positive.
+- `firmament-sweep-path-disconnected`: a segment does not continue from its predecessor.
+- `firmament-sweep-path-not-tangent`: adjacent segments meet at a sharp corner.
+- `firmament-sweep-path-nonplanar`: the path is outside X0's planar XY boundary.
+- `firmament-sweep-bend-radius-too-small`: an arc radius does not exceed the section radius.
+- `firmament-sweep-self-intersection`: nonadjacent centerline regions violate required clearance.
+- `firmament-sweep-material-unresolved`: the material identity is absent from the deployed catalog.
+
 Start with `aetheris validate source.firmament --json`; use `build` when geometry, AP242, assertions, or artifacts are involved. A diagnostic code is the stable automation key, while its message identifies the value/target and expected category where useful.
 
 Common recovery patterns:

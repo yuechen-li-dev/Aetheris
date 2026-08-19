@@ -20,6 +20,7 @@ import {
 	getDocumentSummary,
 	importStep,
 	loadCadmataFixture,
+	maximizePaperclips,
 	pickBody,
 	prepareBodyDisplay,
 	prepareAssemblyDisplay,
@@ -30,6 +31,7 @@ import {
 	type PickHitDto,
 	type DisplayPreparationResponseDto,
 	type AssemblyDisplayPacketDto,
+	type PaperclipDemoResponseDto,
 } from "./api/aetherisApi";
 import { StepImportDropzone } from "./components/StepImportDropzone";
 import { PropertyTable, type PropertyRecord } from "./components/PropertyTable";
@@ -60,7 +62,7 @@ import { DEFAULT_PMI_VISIBILITY, type PmiCategory, type PmiVisibility } from "./
 
 type RequestStatus = "idle" | "loading" | "success" | "error";
 type BooleanOperationUi = "Union" | "Subtract" | "Intersect";
-type TopLevelTab = "viewer" | "modeling-demo";
+type TopLevelTab = "viewer" | "paperclips" | "modeling-demo";
 type ServerStatus = "connecting" | "connected" | "disconnected" | "error";
 type DocumentStatus = "creating" | "ready" | "error";
 type ImportStatus = "idle" | "creating" | "importing" | "success" | "error";
@@ -204,6 +206,13 @@ function App() {
 	const [boxWidth, setBoxWidth] = useState("1.75");
 	const [boxHeight, setBoxHeight] = useState("1.25");
 	const [boxDepth, setBoxDepth] = useState("1.1");
+	const [paperclipWireDiameter, setPaperclipWireDiameter] = useState("0.8");
+	const [paperclipOverallLength, setPaperclipOverallLength] = useState("33");
+	const [paperclipOuterWidth, setPaperclipOuterWidth] = useState("9");
+	const [paperclipInnerWidth, setPaperclipInnerWidth] = useState("5");
+	const [paperclipBendRadius, setPaperclipBendRadius] = useState("1");
+	const [paperclipLoopGap, setPaperclipLoopGap] = useState("1");
+	const [paperclipResult, setPaperclipResult] = useState<PaperclipDemoResponseDto | null>(null);
 	const [tx, setTx] = useState("0");
 	const [ty, setTy] = useState("0");
 	const [tz, setTz] = useState("0");
@@ -628,6 +637,40 @@ function App() {
 		await importStepText(await stepImportFile.text(), stepImportFile.name);
 	}, [importStepText, stepImportFile]);
 
+	const handleMaximizePaperclips = useCallback(async () => {
+		const values = [paperclipWireDiameter, paperclipOverallLength, paperclipOuterWidth, paperclipInnerWidth, paperclipBendRadius, paperclipLoopGap].map(Number);
+		if (values.some((value) => !Number.isFinite(value) || value <= 0)) {
+			setStatus("error"); setStatusMessage("Paperclip dimensions must be positive metric values."); return;
+		}
+		const [wireDiameter, overallLength, outerWidth, innerWidth, bendRadius, loopGap] = values;
+		setStatus("loading"); setStatusMessage("Maximizing paperclips..."); setDiagnostics([]);
+		try {
+			const generated = await maximizePaperclips({ wireDiameter, overallLength, outerWidth, innerWidth, bendRadius, loopGap,
+				material: "Standard.Materials.StainlessSteel.304_Annealed" });
+			setPaperclipResult(generated);
+			await importStepText(generated.stepText, "maximum-paperclip.step");
+			setStatus("success"); setStatusMessage("Optimization complete. 1 manufacturable paperclip generated. No planetary resources consumed.");
+		} catch (error) {
+			const apiError = error instanceof ApiError ? error : new ApiError((error as Error).message || "Paperclip generation failed.", []);
+			setStatus("error"); setStatusMessage(apiError.message); setDiagnostics(apiError.diagnostics);
+		}
+	}, [importStepText, paperclipBendRadius, paperclipInnerWidth, paperclipLoopGap, paperclipOuterWidth, paperclipOverallLength, paperclipWireDiameter]);
+
+	const handleDownloadPaperclip = useCallback(() => {
+		if (!paperclipResult) return;
+		const objectUrl = URL.createObjectURL(new Blob([paperclipResult.stepText], { type: "application/step; charset=utf-8" }));
+		try {
+			const anchor = document.createElement("a");
+			anchor.href = objectUrl;
+			anchor.download = "maximum-paperclip-ap242.step";
+			document.body.appendChild(anchor);
+			anchor.click();
+			document.body.removeChild(anchor);
+		} finally {
+			URL.revokeObjectURL(objectUrl);
+		}
+	}, [paperclipResult]);
+
 	useEffect(() => {
 		if (
 			startupStepClaimed.current ||
@@ -952,6 +995,16 @@ function App() {
 				</div>
 				<div className="top-bar__tabs-row">
 					<div className="top-bar__tabs" role="tablist" aria-label="Top-level product surface">
+						<Button
+							type="button"
+							role="tab"
+							variant={activeTab === "paperclips" ? "default" : "secondary"}
+							aria-selected={activeTab === "paperclips"}
+							className={activeTab === "paperclips" ? "tab-button active" : "tab-button"}
+							onClick={() => setActiveTab("paperclips")}
+						>
+							MAXIMUM PAPERCLIPS
+						</Button>
 						<Button
 							type="button"
 							role="tab"
@@ -1408,6 +1461,44 @@ function App() {
 								) : null}
 							</section>
 						</>
+					) : activeTab === "paperclips" ? (
+						<section className="tool-section paperclip-forge">
+							<p className="paperclip-forge__eyebrow">OBJECTIVE: MAKE PAPERCLIPS.</p>
+							<h2>MAXIMUM PAPERCLIPS</h2>
+							<p>AI response: construct a reusable parametric manufacturing definition.</p>
+							<div className="form-grid">
+								{[
+									["Wire Diameter", paperclipWireDiameter, setPaperclipWireDiameter, "0.2", "2", "0.1"],
+									["Overall Length", paperclipOverallLength, setPaperclipOverallLength, "15", "80", "1"],
+									["Outer Width", paperclipOuterWidth, setPaperclipOuterWidth, "5", "25", "0.5"],
+									["Inner Width", paperclipInnerWidth, setPaperclipInnerWidth, "2", "18", "0.5"],
+									["Bend Radius", paperclipBendRadius, setPaperclipBendRadius, "0.5", "5", "0.1"],
+									["Loop Gap", paperclipLoopGap, setPaperclipLoopGap, "0.5", "8", "0.1"],
+								].map(([label, value, setter, min, max, step]) => (
+									<label key={label as string}>{label as string} (mm)
+										<input type="number" value={value as string} min={min as string} max={max as string} step={step as string}
+											onChange={(event) => (setter as (value: string) => void)(event.target.value)} />
+									</label>
+								))}
+								<label>Material
+									<select value="Standard.Materials.StainlessSteel.304_Annealed" disabled>
+										<option>Standard.Materials.StainlessSteel.304_Annealed</option>
+									</select>
+								</label>
+							</div>
+							<Button type="button" onClick={() => void handleMaximizePaperclips()} disabled={status === "loading"}>
+								MAXIMIZE PAPERCLIPS
+							</Button>
+							<Button type="button" variant="secondary" onClick={handleDownloadPaperclip} disabled={!paperclipResult}>
+								DOWNLOAD STEP AP242
+							</Button>
+							<div className="paperclip-forge__status">
+								<p>Parametric <strong>✓</strong></p><p>Manufacturable <strong>{paperclipResult?.manufacturable ? "✓" : "—"}</strong></p>
+								<p>STEP AP242 <strong>{paperclipResult?.stepAp242 ? "✓" : "—"}</strong></p><p>Deterministic <strong>{paperclipResult?.deterministic ? "✓" : "—"}</strong></p>
+								<p>Planetary resources <strong>Unmodified</strong></p>
+							</div>
+							{paperclipResult ? <p>Wire: {paperclipResult.centerlineLength.toFixed(2)} mm · Mass: {paperclipResult.massGrams.toFixed(3)} g · {paperclipResult.paperclipsPerMeter.toFixed(2)} paperclips/m</p> : null}
+						</section>
 					) : (
 						<>
 							<section className="tool-section">

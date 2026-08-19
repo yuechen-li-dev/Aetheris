@@ -1,0 +1,13 @@
+Model StraightWire {
+    Units: mm
+    Concept Path Centerline {
+        Start: Point2(0mm, 0mm)
+        Heading: 0deg
+        Line Stock { Length: 40mm }
+    }
+    Sweep Wire {
+        Path: Centerline
+        Diameter: 1mm
+        Material: Standard.Materials.StainlessSteel.304_Annealed
+    }
+}

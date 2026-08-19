@@ -8,6 +8,7 @@ namespace Aetheris.Forge.Host.Tests;
 public sealed class ForgeProtocolV1Tests
 {
     private const string Enclosure = "Standard.SheetMetal.ElectronicsEnclosure";
+    private const string Paperclip = "Standard.Products.Office.Paperclip";
 
     [Fact]
     public void InfoListAndDescriptionAreStableAndDerivedFromFirmamentSchema()
@@ -20,6 +21,7 @@ public sealed class ForgeProtocolV1Tests
         var list = host.ListTemplates();
         Assert.Equal(list.Templates.OrderBy(item => item.Id, StringComparer.Ordinal), list.Templates);
         Assert.Contains(list.Templates, item => item.Id == Enclosure);
+        Assert.Contains(list.Templates, item => item.Id == Paperclip);
         Assert.DoesNotContain(list.Templates, item => item.Id.Contains("Aetheris.", StringComparison.Ordinal));
 
         var description = host.DescribeTemplate(Enclosure)!;
@@ -32,6 +34,32 @@ public sealed class ForgeProtocolV1Tests
         Assert.Equal("mm", spec.Fields!.Single(item => item.Name == "Width").Unit);
         Assert.Equal(["Auto", "Rectangular", "Round"], spec.Fields!.Single(item => item.Name == "ReliefPolicy").AllowedValues);
         Assert.Equal([ForgeArtifactKind.StepAp242, ForgeArtifactKind.FlatStep, ForgeArtifactKind.Svg], description.Artifacts);
+    }
+
+    [Fact]
+    public void PaperclipDescribeAndInvokeExposePolicyAndDeterministicStep()
+    {
+        using var first = TempDirectory.Create(); using var second = TempDirectory.Create();
+        var host = new ForgeProtocolHost();
+        var description = Assert.IsType<ForgeTemplateDescription>(host.DescribeTemplate(Paperclip));
+        Assert.Equal([ForgeArtifactKind.StepAp242], description.Artifacts);
+        var policy = Assert.Single(description.Parameters);
+        Assert.Equal("PaperclipPolicy", policy.Type == "record" ? policy.Fields is null ? string.Empty : "PaperclipPolicy" : string.Empty);
+        Assert.Contains(policy.Fields!, field => field.Name == "WireDiameter" && field.Unit == "mm");
+        Assert.Contains(description.Constraints, constraint => constraint.Name == "OuterWidthExceedsInnerWidth");
+        var arguments = new Dictionary<string, object?>
+        {
+            ["wireDiameter"] = "1.0 mm", ["overallLength"] = "35 mm", ["outerWidth"] = "10 mm",
+            ["innerWidth"] = "6 mm", ["bendRadius"] = "1.2 mm", ["loopGap"] = "1.2 mm",
+            ["material"] = "Standard.Materials.StainlessSteel.304_Annealed",
+        };
+        var a = host.InvokeTemplate(Paperclip, Request(arguments, ForgeArtifactKind.StepAp242), first.Path);
+        var b = host.InvokeTemplate(Paperclip, Request(arguments, ForgeArtifactKind.StepAp242), second.Path);
+        Assert.True(a.Success, string.Join(Environment.NewLine, a.Diagnostics.Select(item => item.Code + ": " + item.Message)));
+        Assert.True(b.Success, string.Join(Environment.NewLine, b.Diagnostics.Select(item => item.Code + ": " + item.Message)));
+        Assert.Equal(a.Identity.Specialization, b.Identity.Specialization);
+        Assert.Equal(a.Artifacts.Single().Sha256, b.Artifacts.Single().Sha256);
+        Assert.True(Step242Importer.ImportBody(File.ReadAllText(System.IO.Path.Combine(first.Path, "paperclip.step"))).IsSuccess);
     }
 
     [Fact]

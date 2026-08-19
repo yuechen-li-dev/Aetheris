@@ -66,6 +66,29 @@ export interface StepImportResponseDto {
 	semanticPresentation?: unknown | null;
 }
 
+export interface PaperclipDemoRequestDto {
+	wireDiameter: number;
+	overallLength: number;
+	outerWidth: number;
+	innerWidth: number;
+	bendRadius: number;
+	loopGap: number;
+	material: string;
+}
+
+export interface PaperclipDemoResponseDto {
+	stepText: string;
+	specializationIdentity: string;
+	centerlineLength: number;
+	massGrams: number;
+	paperclipsPerMeter: number;
+	bounds: number[];
+	material: string;
+	manufacturable: boolean;
+	stepAp242: boolean;
+	deterministic: boolean;
+}
+
 export type BooleanOperation = "union" | "subtract" | "intersect";
 
 export interface BooleanRequestDto {
@@ -561,6 +584,15 @@ export async function claimStartupStep(): Promise<StartupStepDto | null> {
 	}
 
 	return parseEnvelope<StartupStepDto>(response);
+}
+
+export async function maximizePaperclips(
+	parameters: PaperclipDemoRequestDto,
+): Promise<PaperclipDemoResponseDto> {
+	return request<PaperclipDemoResponseDto>("/api/v1/demos/maximum-paperclips", {
+		method: "POST",
+		body: JSON.stringify(parameters),
+	});
 }
 
 export async function prepareAssemblyDisplay(path: string): Promise<AssemblyDisplayPacketDto> {

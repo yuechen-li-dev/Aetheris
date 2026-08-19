@@ -23,6 +23,33 @@ public static class ProfileAuthoringParser
 
     public static bool IsProfileSource(string source) => Regex.IsMatch(source, @"\bProfile\s+[A-Za-z_]\w*", RegexOptions.CultureInvariant);
 
+    /// <summary>
+    /// Resolves one domain-neutral Concept Path without converting it into a closed Profile.
+    /// Sweep and other ordered-path consumers use this boundary so authored line/arc identity
+    /// and provenance survive independently of the profile-extrusion frontend.
+    /// </summary>
+    public static ResolvedConceptPath2D? ResolveConceptPath(string source, string pathName, out IReadOnlyList<string> reportedDiagnostics)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentException.ThrowIfNullOrWhiteSpace(pathName);
+        var diagnostics = new List<string>();
+        var points = new Dictionary<string, (double X, double Y)>(StringComparer.Ordinal);
+        var guides = new Dictionary<string, LineArcProfileCurve2D>(StringComparer.Ordinal);
+        AddOrdinaryGuides(source, points, guides, diagnostics);
+        var paths = BindPaths(source, points, guides, diagnostics);
+        if (!paths.TryGetValue(pathName, out var path))
+            diagnostics.Add($"concept-path-missing:{pathName}");
+        reportedDiagnostics = diagnostics;
+        return path is null ? null : new ResolvedConceptPath2D(
+            path.Name,
+            path.Steps.SelectMany(step => step.Curves.Select((curve, ordinal) => new ResolvedConceptPathSegment2D(
+                step.Curves.Count == 1 ? step.Name : $"{step.Name}.curve{ordinal:D2}",
+                step.Kind,
+                curve,
+                $"concept-path:{path.Name}.{step.Name}"))).ToArray(),
+            $"concept-path:{path.Name}");
+    }
+
     public static IReadOnlyList<ConceptPathInspection> InspectConceptPaths(string source)
     {
         var diagnostics = new List<string>();
@@ -524,8 +551,18 @@ public static class ProfileAuthoringParser
         return entries.OrderBy(x => x.Index);
     }
 
-    private static string? Property(string body, string name) { var match = Regex.Match(body, $@"\b{name}\s*:\s*(?<v>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)?|[-+.\deE]+(?:mm|deg)?)", RegexOptions.CultureInvariant); return match.Success ? match.Groups["v"].Value : null; }
-    private static bool TryMeasure(string text, string unit, out double value) { value = default; var match = Regex.Match(text, $@"^(?<v>[-+.\deE]+){unit}$", RegexOptions.CultureInvariant); return match.Success && TryNumber(match.Groups["v"].Value, out value); }
+    private static string? Property(string body, string name)
+    {
+        // A property expression may contain whitespace (for example P.Length - P.Gap),
+        // while legacy compact authoring may put the next Name: property on the same line.
+        var match = Regex.Match(body, $@"\b{name}\s*:\s*(?<v>.*?)(?=\s+[A-Za-z_]\w*\s*:|[;\r\n}}]|$)", RegexOptions.CultureInvariant);
+        return match.Success ? match.Groups["v"].Value.Trim() : null;
+    }
+    private static bool TryMeasure(string text, string unit, out double value)
+    {
+        var parser = new BoundedMeasureExpression(text, unit);
+        return parser.TryEvaluate(out value);
+    }
     private static bool TryNumber(string text, out double value) => double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) && double.IsFinite(value);
     private static (double X, double Y) Advance((double X, double Y) point, double heading, double length) { var radians = DegreesToRadians(heading); return (point.X + length * Math.Cos(radians), point.Y + length * Math.Sin(radians)); }
     private static double DegreesToRadians(double value) => value * Math.PI / 180d;
@@ -541,4 +578,54 @@ public static class ProfileAuthoringParser
     private sealed record PathStep(string Kind, string Name, string Body, int Index);
     private sealed record BoundPathStep(string Name, string Kind, string GuideName, string EndpointName, IReadOnlyList<LineArcProfileCurve2D> Curves, (double X, double Y) Start, (double X, double Y) End, double Heading);
     private sealed record BoundPath(string Name, (double X, double Y) Start, double InitialHeading, List<BoundPathStep> Steps);
+
+    /// <summary>Small deterministic dimensional expression evaluator used after Template specialization.</summary>
+    /// <remarks>Admits only numeric literals, one requested unit, parentheses, and + - * /.</remarks>
+    private sealed class BoundedMeasureExpression(string source, string unit)
+    {
+        private int index;
+        public bool TryEvaluate(out double value)
+        {
+            value = default; index = 0;
+            if (!Expression(out var result) || result.Dimension != 1) return false;
+            Space();
+            if (index != source.Length || !double.IsFinite(result.Value)) return false;
+            value = result.Value; return true;
+        }
+        private bool Expression(out Quantity result)
+        {
+            if (!Term(out result)) return false;
+            while (true)
+            {
+                Space(); if (index >= source.Length || source[index] is not ('+' or '-')) return true;
+                var operation = source[index++]; if (!Term(out var right) || result.Dimension != right.Dimension) return false;
+                result = new(operation == '+' ? result.Value + right.Value : result.Value - right.Value, result.Dimension);
+            }
+        }
+        private bool Term(out Quantity result)
+        {
+            if (!Factor(out result)) return false;
+            while (true)
+            {
+                Space(); if (index >= source.Length || source[index] is not ('*' or '/')) return true;
+                var operation = source[index++]; if (!Factor(out var right)) return false;
+                var dimension = operation == '*' ? result.Dimension + right.Dimension : result.Dimension - right.Dimension;
+                if (dimension is < 0 or > 1 || operation == '/' && Math.Abs(right.Value) <= double.Epsilon) return false;
+                result = new(operation == '*' ? result.Value * right.Value : result.Value / right.Value, dimension);
+            }
+        }
+        private bool Factor(out Quantity result)
+        {
+            Space(); result = default; if (index >= source.Length) return false;
+            if (source[index] == '(') { index++; if (!Expression(out result)) return false; Space(); return index < source.Length && source[index++] == ')'; }
+            var sign = 1d; if (source[index] is '+' or '-') sign = source[index++] == '-' ? -1d : 1d;
+            Space(); var start = index;
+            while (index < source.Length && (char.IsDigit(source[index]) || source[index] is '.' or 'e' or 'E' || source[index] is '+' or '-' && index > start && source[index - 1] is 'e' or 'E')) index++;
+            if (start == index || !TryNumber(source[start..index], out var number)) return false;
+            var dimension = 0; if (source.AsSpan(index).StartsWith(unit, StringComparison.Ordinal)) { index += unit.Length; dimension = 1; }
+            result = new(sign * number, dimension); return true;
+        }
+        private void Space() { while (index < source.Length && char.IsWhiteSpace(source[index])) index++; }
+        private readonly record struct Quantity(double Value, int Dimension);
+    }
 }

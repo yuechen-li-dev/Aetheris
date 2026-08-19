@@ -193,7 +193,9 @@ public static class FirmamentBuildAndExport
         // parser admission alone is insufficient because the profile/composition
         // materializers read source declarations directly.
         var staticDiagnostics = new List<string>();
+        var templateBindWatch = System.Diagnostics.Stopwatch.StartNew();
         var templateExpansion = FirmamentV2TemplateExpansion.Expand(sourceText, staticDiagnostics);
+        templateBindWatch.Stop();
         if (templateExpansion is null)
         {
             return KernelResult<FirmamentStepExportResult>.Failure(staticDiagnostics.Select(diagnostic => new Kernel.Core.Diagnostics.KernelDiagnostic(
@@ -216,9 +218,52 @@ public static class FirmamentBuildAndExport
         // Parse the canonical document before selecting the materializer.  Advanced
         // Profile/Compose hosts still use their bounded section-stack materializer,
         // but their normalized PMI records must follow the same AP242 route.
+        var canonicalParseWatch = System.Diagnostics.Stopwatch.StartNew();
         var v2Parse = FirmamentV2Parser.Parse(sourceText, sourceDirectory);
+        canonicalParseWatch.Stop();
         var canonicalAdvanced = FirmamentV2Parser.TryGetCanonicalAdvancedBody(materializerInput, out var canonicalBody);
         var materializerSource = canonicalAdvanced ? canonicalBody : materializerInput;
+        if (CircularSweepAuthoring.IsSweepSource(materializerSource))
+        {
+            var airWatch = System.Diagnostics.Stopwatch.StartNew();
+            var authored = CircularSweepAuthoring.Parse(materializerSource);
+            airWatch.Stop();
+            if (!authored.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(authored.Diagnostics);
+            var brepWatch = System.Diagnostics.Stopwatch.StartNew();
+            var built = CircularSweepBRepMaterializer.Build(authored.Value);
+            brepWatch.Stop();
+            if (!built.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(built.Diagnostics);
+            var stepWatch = System.Diagnostics.Stopwatch.StartNew();
+            var step = Step242Exporter.ExportBody(built.Value.Body, new Step242ExportOptions { ProductName = authored.Value.Name });
+            stepWatch.Stop();
+            if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+            var reimportWatch = System.Diagnostics.Stopwatch.StartNew();
+            var reimport = Step242Importer.ImportBody(step.Value);
+            reimportWatch.Stop();
+            if (!reimport.IsSuccess || reimport.Value is null)
+                return KernelResult<FirmamentStepExportResult>.Failure(reimport.Diagnostics);
+            var reimportedManifold = reimport.Value.Topology.Edges.All(edge => reimport.Value.Topology.Coedges.Count(use => use.EdgeId == edge.Id) == 2);
+            if (!reimportedManifold)
+                return KernelResult<FirmamentStepExportResult>.Failure([new Kernel.Core.Diagnostics.KernelDiagnostic(
+                    Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+                    "firmament-sweep-step-reimport-not-manifold: exported Sweep did not reimport as an enclosed manifold.", "FirmamentV2.Sweep")]);
+            var surfaces = built.Value.Body.Topology.Faces.Select(face => built.Value.Body.GetFaceSurface(face.Id).Kind).ToArray();
+            var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))).ToLowerInvariant();
+            var report = new FirmamentSweepReport(
+                authored.Value.Path.Name, authored.Value.Path.Segments.Count, authored.Value.Diameter, built.Value.CenterlineLength,
+                built.Value.Volume, built.Value.MassKilograms, built.Value.Bounds, authored.Value.Material.Identity.FirmamentPath,
+                surfaces.Count(kind => kind == SurfaceGeometryKind.Cylinder), surfaces.Count(kind => kind == SurfaceGeometryKind.Torus),
+                surfaces.Count(kind => kind == SurfaceGeometryKind.Plane), true, hash, true, true,
+                "Nonadjacent line pairs are exact; arc-involving clearance uses a deterministic conservative chord witness.",
+                new(templateBindWatch.Elapsed.TotalMilliseconds, canonicalParseWatch.Elapsed.TotalMilliseconds,
+                    airWatch.Elapsed.TotalMilliseconds, brepWatch.Elapsed.TotalMilliseconds, stepWatch.Elapsed.TotalMilliseconds,
+                    reimportWatch.Elapsed.TotalMilliseconds));
+            return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, authored.Value.Name, 0,
+                "circular-sweep", "sweep", Sweep: report,
+                EngineeringFeatures: [new(authored.Value.Name, "Sweep", "sweep:" + authored.Value.Name, authored.Value.Name,
+                    authored.Value.Path.StableId, "Circle", authored.Value.Diameter, "Diameter", "Add", PolicySource: "CircularSweepFeatureAir", MaterializationRoute: "CircularSweepBRepPlan")]),
+                []);
+        }
         if (PrismaticProfileCompositionParser.IsCompositionSource(materializerSource))
         {
             var parsed = PrismaticProfileCompositionParser.Parse(materializerSource);

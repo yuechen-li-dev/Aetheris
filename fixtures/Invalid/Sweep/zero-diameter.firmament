@@ -1,0 +1,1 @@
+Model InvalidZeroDiameter { Units: mm Concept Path P { Start: Point2(0mm, 0mm) Line A { Length: 10mm } } Sweep Wire { Path: P; Diameter: 0mm } }

@@ -4,10 +4,39 @@ import {
 	executeBoolean,
 	exportDefinitionStep,
 	importStep,
+	maximizePaperclips,
 	parseEnvelope,
 	pickBody,
 	translateBody,
 } from "../api/aetherisApi";
+
+describe("maximum paperclips", () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	it("posts dimensional policy to the canonical demo endpoint", async () => {
+		const data = {
+			stepText: "ISO-10303-21;END-ISO-10303-21;",
+			specializationIdentity: "paperclip:test",
+			centerlineLength: 101,
+			massGrams: 0.62,
+			paperclipsPerMeter: 9.9,
+			bounds: [-1, -1, -0.5, 10, 34, 0.5],
+			material: "Standard.Materials.StainlessSteel.304_Annealed",
+			manufacturable: true,
+			stepAp242: true,
+			deterministic: true,
+		};
+		const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ success: true, data, diagnostics: [] }), { status: 200 }));
+		vi.stubGlobal("fetch", fetchMock);
+
+		const request = { wireDiameter: 1, overallLength: 40, outerWidth: 11, innerWidth: 6, bendRadius: 1.5, loopGap: 1.2, material: data.material };
+		await expect(maximizePaperclips(request)).resolves.toEqual(data);
+		expect(fetchMock).toHaveBeenCalledWith("/api/v1/demos/maximum-paperclips", expect.objectContaining({
+			method: "POST",
+			body: JSON.stringify(request),
+		}));
+	});
+});
 
 describe("parseEnvelope", () => {
 	it("returns data when envelope success is true", async () => {

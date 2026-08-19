@@ -6,6 +6,7 @@
 |---|---|---|
 | Firmament V2 native primitives/profiles | Bounded | Named Box/Cylinder/Frustum/RoundedBox and admitted line/arc profile construction/composition |
 | Firmament V2 analytic primitives | Bounded | Direct named Sphere, Cone (including zero-radius pointed end), and Torus routes round-trip through AP242; legacy `solid` declarations remain compatibility inputs, not canonical authoring |
+| Circular Sweep | Bounded (X0) | Open planar XY Concept Path, tangent line/arc segments, constant circular diameter, analytic cylinder/torus faces, capped solid; no general 3D/variable/rail/twist sweep |
 | Boss | Bounded | First-class connected finite `On: Top` profile addition on an admitted Compose host; positive height; lowers through existing `Add`; no arbitrary solid union |
 | Pocket | Bounded | First-class enclosed finite-depth `On: Top` profile removal; positive depth, non-through termination, and minimum remaining floor enforced; lowers through existing `Remove` |
 | Lower-level profile composition | Bounded | Existing prismatic `Compose` `Add`/`Remove` remains compatible for bounded blockout authoring |
@@ -24,7 +25,7 @@
 | Assemblies | Bounded | Typed Firmament assembly inspection plus explicitly identified legacy `.firmasm` compatibility |
 | Platform qualification | Supported | Windows x64 bundle; NativeAOT Forge Host on `win-x64` |
 | Linux/macOS release binaries | Not in Preview 3 | Framework logic tests do not constitute binary qualification |
-| New geometry/PMI/FEA/Forge families | Not in Preview 3 | Feature-frozen until after Preview 3 |
+| Post-Preview-3 feature families | X0 exception | Circular Sweep and Standard Products Paperclip are the bounded X0 additions; other new geometry/PMI/FEA/Forge families remain frozen |
 | General loft, helix, and freeform surface features | Not in Preview 3 | No public native V2 authoring and qualification route |
 | Through profile removal | Bounded semantic operations | Use qualified `Hole`, `Slot`, or another documented opening feature; Pocket never means through-all |
 | Arbitrary solid Boolean subtraction / hemispherical cavity | Not in Preview 3 | No public `Union`, `Subtract`, `Intersect`, CSG tree, Sphere-from-Block subtraction, or hemisphere special case |

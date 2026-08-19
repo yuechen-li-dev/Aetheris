@@ -21,7 +21,7 @@ Structured CLI diagnostics populate VS Code Problems. Validate and build remain 
 
 ## Snippets
 
-Use `model`, `template`, `box`, `cylinder`, `concept-path`, `profile-from-path`, `table-with`, `profile-delta`, `hole-shaft`, `hole-counterbore`, `hole-countersink`, `slot-capsule`, `edgefinish-chamfer`, `edgefinish-fillet`, `require`, `pmi-projection`, `assert-volume`, and `inline-step`. The Template snippet always emits canonical `Template<...>` generic syntax. `profile-delta` is deliberately domain-neutral; the same semantic profile programming applies to ordinary profiles and Sheet Metal owners.
+Use `model`, `template`, `box`, `cylinder`, `concept-path`, `profile-from-path`, `sweep-circular`, `table-with`, `profile-delta`, `hole-shaft`, `hole-counterbore`, `hole-countersink`, `slot-capsule`, `edgefinish-chamfer`, `edgefinish-fillet`, `require`, `pmi-projection`, `assert-volume`, and `inline-step`. The Template snippet always emits canonical `Template<...>` generic syntax. `profile-delta` is deliberately domain-neutral; the same semantic profile programming applies to ordinary profiles and Sheet Metal owners. `sweep-circular` emits X0's bounded constant circular section over an existing planar Concept Path.
 
 ## Preview 3 limits
 

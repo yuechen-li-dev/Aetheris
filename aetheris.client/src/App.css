@@ -186,6 +186,11 @@
 	letter-spacing: 0.06em;
 }
 
+.paperclip-forge__eyebrow { color: var(--shell-text-secondary); letter-spacing: 0.12em; font-size: 0.72rem; }
+.paperclip-forge h2 { margin: 0.25rem 0; letter-spacing: 0.06em; }
+.paperclip-forge__status { margin-top: 1rem; border: 1px solid var(--shell-border); padding: 0.75rem; }
+.paperclip-forge__status p { display: flex; justify-content: space-between; margin: 0.2rem 0; }
+
 .main-layout {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr) min(var(--layout-rail-width), 30%);

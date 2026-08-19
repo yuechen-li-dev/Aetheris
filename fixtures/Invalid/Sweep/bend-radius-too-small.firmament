@@ -1,0 +1,1 @@
+Model InvalidBend { Units: mm Concept Path P { Start: Point2(0mm, 0mm) Arc A { Radius: 0.4mm; Turn: 90deg } } Sweep Wire { Path: P; Diameter: 1mm } }

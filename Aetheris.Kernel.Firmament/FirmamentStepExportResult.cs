@@ -21,7 +21,35 @@ public sealed record FirmamentStepExportResult(
     FirmamentCombinedFeaturePlanReport? Combined = null,
     IReadOnlyList<Aetheris.Kernel.Firmament.FirmamentV2.FirmamentV2VolumeAssertionResult>? Assertions = null,
     FirmamentStandardPartReport? StandardPart = null,
-    IReadOnlyList<FirmamentEngineeringFeatureReport>? EngineeringFeatures = null);
+    IReadOnlyList<FirmamentEngineeringFeatureReport>? EngineeringFeatures = null,
+    FirmamentSweepReport? Sweep = null);
+
+public sealed record FirmamentSweepReport(
+    string Path,
+    int SegmentCount,
+    double Diameter,
+    double CenterlineLength,
+    double Volume,
+    double MassKilograms,
+    IReadOnlyList<double> Bounds,
+    string Material,
+    int Cylinders,
+    int Tori,
+    int Planes,
+    bool EnclosedManifold,
+    string StepSha256,
+    bool StepReimportSucceeded,
+    bool StepReimportedManifold,
+    string SelfIntersectionPolicy,
+    FirmamentSweepTimingReport Timings);
+
+public sealed record FirmamentSweepTimingReport(
+    double TemplateBindMilliseconds,
+    double CanonicalParseMilliseconds,
+    double AirLoweringMilliseconds,
+    double BrepConstructionMilliseconds,
+    double StepExportMilliseconds,
+    double StepReimportMilliseconds);
 
 /// <summary>Public semantic feature inventory; geometry implementation details are deliberately omitted.</summary>
 public sealed record FirmamentEngineeringFeatureReport(

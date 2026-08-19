@@ -1,0 +1,8 @@
+Model InvalidNonplanar {
+    Units: mm
+    Concept Path P On XZ {
+        Start: Point2(0mm, 0mm)
+        Line A { Length: 10mm }
+    }
+    Sweep Wire { Path: P; Diameter: 1mm }
+}

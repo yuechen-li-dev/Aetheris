@@ -35,6 +35,7 @@ test("critical canonical syntax receives stable TextMate scopes", async () => {
     Sphere Ball { Radius: 5mm }
     Analysis LinearElastic Check { Body: Ball }
     Concept Path Outline On XY { Start: Point2(0mm, 0mm) }
+    Sweep Wire { Path: Outline Diameter: 1mm }
     Profile Face From Outline
     Static Table Standards: ProfileSpec { Width: [20mm, 30mm] }
     Static Configured = Standards[0] with { Width: 24mm }
@@ -67,6 +68,7 @@ test("critical canonical syntax receives stable TextMate scopes", async () => {
   assert.ok(scopeAt("Boss").includes("keyword.declaration.firmament"));
   assert.ok(scopeAt("Pocket").includes("keyword.declaration.firmament"));
   assert.ok(scopeAt("Concept Path").includes("keyword.declaration.compound.firmament"));
+  assert.ok(scopeAt("Sweep").includes("keyword.declaration.firmament"));
   assert.ok(scopeAt("Table").includes("keyword.declaration.firmament"));
   assert.ok(scopeAt("with").includes("keyword.control.firmament"));
   assert.ok(scopeAt("ProfileDelta").includes("keyword.declaration.firmament"));

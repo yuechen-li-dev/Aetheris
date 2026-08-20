@@ -266,4 +266,55 @@ Model StandardProducts {
             Size: [4mm,4mm,4mm,4mm,4mm,4mm,4mm,4mm,4mm,4mm,4mm,4mm]
         }
     }
+
+    // X3 generic dimensional piping products. These are intentionally not ASME/DIN claims;
+    // the PipingSystem lowering binds the policies and realizes named assembly components.
+    Record PipeProductPolicy { OuterDiameter: Length WallThickness: Length Material: String }
+    Static StandardPipe: PipeProductPolicy = PipeProductPolicy { OuterDiameter: 25mm WallThickness: 2mm Material: "Standard.Materials.StainlessSteel.304_Annealed" }
+    Template<P: PipeProductPolicy = StandardPipe>
+    Struct PipeTemplate {
+        Require PositiveDiameter => P.OuterDiameter > 0mm
+        Require PositiveWall => P.WallThickness > 0mm
+        Require WallFitsDiameter => P.WallThickness * 2 < P.OuterDiameter
+    }
+
+    Record Elbow90Policy { OuterDiameter: Length WallThickness: Length BendRadius: Length Material: String }
+    Static StandardElbow90: Elbow90Policy = Elbow90Policy { OuterDiameter: 25mm WallThickness: 2mm BendRadius: 50mm Material: "Standard.Materials.StainlessSteel.304_Annealed" }
+    Template<P: Elbow90Policy = StandardElbow90>
+    Struct Elbow90Template {
+        Require PositiveDiameter => P.OuterDiameter > 0mm
+        Require WallFitsDiameter => P.WallThickness > 0mm && P.WallThickness < P.OuterDiameter / 2
+        Require BendClearsPipe => P.BendRadius > P.OuterDiameter / 2
+    }
+
+    Record TeePolicy { RunOuterDiameter: Length BranchOuterDiameter: Length WallThickness: Length Material: String }
+    Static StandardTee: TeePolicy = TeePolicy { RunOuterDiameter: 25mm BranchOuterDiameter: 25mm WallThickness: 2mm Material: "Standard.Materials.StainlessSteel.304_Annealed" }
+    Template<P: TeePolicy = StandardTee>
+    Struct TeeTemplate {
+        Require PositiveRun => P.RunOuterDiameter > 0mm
+        Require PositiveBranch => P.BranchOuterDiameter > 0mm
+        Require WallFitsRun => P.WallThickness > 0mm && P.WallThickness * 2 < P.RunOuterDiameter
+    }
+
+    Record PumpSkidPolicy { OuterDiameter: Length WallThickness: Length Clearance: Length Material: String }
+    Static StandardPumpSkid: PumpSkidPolicy = PumpSkidPolicy { OuterDiameter: 25mm WallThickness: 2mm Clearance: 30mm Material: "Standard.Materials.StainlessSteel.304_Annealed" }
+    Template<P: PumpSkidPolicy = StandardPumpSkid>
+    Struct PumpSkidTemplate {
+        Require PositiveDiameter => P.OuterDiameter > 0mm
+        Require PositiveWall => P.WallThickness > 0mm
+        Require NonnegativeClearance => P.Clearance >= 0mm
+        PipingSystem PumpCoolingSkid {
+            PipePolicy ProcessPipe { OuterDiameter: P.OuterDiameter; WallThickness: P.WallThickness; Material: P.Material; }
+            Port PumpDischarge { Position: [0mm,0mm,0mm]; Direction: [1,0,0]; PipePolicy: ProcessPipe; ConnectionType: Flange; Equipment: Pump; NozzleLength: 50mm; }
+            Port CoolerInlet { Position: [1000mm,0mm,0mm]; Direction: [-1,0,0]; PipePolicy: ProcessPipe; ConnectionType: Flange; Equipment: Cooler; NozzleLength: 50mm; }
+            Connection Supply { From: PumpDischarge; To: CoolerInlet; PipePolicy: ProcessPipe; Service: "CoolingSupply"; }
+            KeepOut Frame { Min: [400mm,-100mm,-100mm]; Max: [600mm,100mm,100mm]; Concept: StructureMember; }
+            KeepOut PumpBody { Min: [-100mm,-100mm,-100mm]; Max: [-50mm,100mm,100mm]; Concept: EquipmentProxy; }
+            KeepOut CoolerBody { Min: [1050mm,-100mm,-100mm]; Max: [1100mm,100mm,100mm]; Concept: EquipmentProxy; }
+            Equipment Pump { KeepOut: PumpBody; }
+            Equipment Cooler { KeepOut: CoolerBody; }
+            RouteSpace SkidRouting { Clearance: P.Clearance; }
+            RouteRequest SupplyRequest { Connection: Supply; Clearance: P.Clearance; BendRadius: 50mm; HardWaypoints: []; AcceptAs: SupplyRoute; }
+        }
+    }
 }

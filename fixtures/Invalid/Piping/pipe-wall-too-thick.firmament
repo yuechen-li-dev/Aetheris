@@ -1,0 +1,1 @@
+Model InvalidWall { PipingSystem Invalid { PipePolicy P { OuterDiameter: 25mm; WallThickness: 13mm; Material: "Standard.Materials.StainlessSteel.304_Annealed"; } } }

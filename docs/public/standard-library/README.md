@@ -13,6 +13,8 @@ The Standard Library is a shipped, curated catalog of typed Firmament product fa
 | Rack Panel | `Standard.Products.Electronics.RackPanel` | planar stock, symmetric mounting holes |
 | Standoff | `Standard.Products.Mechanical.Standoff` | circular spacer, clearance bore |
 | Welded Workbench | `Standard.Structural.WeldedWorkbench` | structure graph, generated Member/Joint/Weld tables, AP242 assembly, Cut List JSON |
+| Generic Pipe / Elbow90 / Tee | `Standard.Piping` | dimensional, non-standards-claim piping product policies |
+| Pump Cooling Skid | `Standard.Piping.PumpSkid` | equipment-owned nozzle ports, scoped KeepOut exemptions, endpoint mates, deterministic accepted route, AP242 assembly |
 | Electronics Enclosure | `Standard.SheetMetal.ElectronicsEnclosure` | Sheet Metal, DFM, formed STEP, flat STEP, SVG |
 
 The namespace taxonomy is intentionally shallow: `Standard.Products.Mechanical`, `.Electronics`, and `.Office` identify ordinary products; `Standard.Structural` owns structure-first weldments; the existing `Standard.SheetMetal` namespace remains stable for manufacturing Templates.

@@ -25,6 +25,7 @@ using Aetheris.Surfacing;
 using Aetheris.Geometry;
 using Aetheris.SheetMetal;
 using Aetheris.Kernel.Firmament.Structural;
+using Aetheris.Kernel.Firmament.Piping;
 
 namespace Aetheris.CLI;
 
@@ -461,6 +462,7 @@ public static class CliRunner
                 engineeringFeatures = build.Value.Export.EngineeringFeatures,
                 patterns = build.Value.Export.Patterns,
                 structural = build.Value.Export.Structural,
+                piping = build.Value.Export.Piping,
                 featureCount = (build.Value.Export.Features?.Count ?? 0) + (build.Value.Export.EngineeringFeatures?.Count ?? 0),
                 inlineStepMigration = build.Value.Export.InlineStepMigration,
                 inlineStepReplacementAssist = build.Value.Export.InlineStepReplacementAssist,
@@ -483,6 +485,8 @@ public static class CliRunner
                 stdout.WriteLine($"Sweep: {sweep.SegmentCount} analytic path segments, {sweep.Diameter:G6} mm diameter, {sweep.CenterlineLength:G6} mm centerline ({sweep.Cylinders} cylinders, {sweep.Tori} tori)");
             if (build.Value.Export.Structural is { } structure)
                 stdout.WriteLine($"Structure: {structure.Members.Count} members, {structure.Joints.Count} joints, {structure.CutList.Count} cut-list groups; cut list: {structure.CutListArtifactPath}");
+            if (build.Value.Export.Piping is { } piping)
+                stdout.WriteLine($"Piping system: {piping.Connections.Count} connections, {piping.Routes.Count} routes, {piping.PipeSegments.Count} pipe segments, {piping.Fittings.Count} fittings, {piping.Nozzles.Count} equipment nozzles, {piping.Mates.Count} endpoint mates; routing report: {piping.RoutingReportArtifactPath}");
             foreach (var diagnostic in build.Diagnostics.Where(diagnostic => diagnostic.Severity == KernelDiagnosticSeverity.Warning))
                 stderr.WriteLine($"- [Warning] {diagnostic.Source}: {diagnostic.Message}");
         }
@@ -991,6 +995,14 @@ Model CanonicalPanel {
         }
 
         var source = File.ReadAllText(fullPath);
+        if (PipingAuthoring.IsPipingSource(source))
+        {
+            var piping = PipingAuthoring.Compile(source, fullPath);
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "inspect", success = piping.IsSuccess, input = fullPath, domain = "Piping", piping = piping.Report, diagnostics = piping.Diagnostics }, JsonOptions));
+            else if (piping.IsSuccess && piping.Report is { } pipingReport) stdout.WriteLine($"Piping system {pipingReport.PipingSystem}: {pipingReport.Connections.Count} connections, {pipingReport.Routes.Count} routes, {pipingReport.PipeSegments.Count} pipe segments, {pipingReport.Fittings.Count} fittings, {pipingReport.Nozzles.Count} equipment nozzles, {pipingReport.Mates.Count} endpoint mates");
+            else foreach (var diagnostic in piping.Diagnostics) stderr.WriteLine($"error: {diagnostic}");
+            return piping.IsSuccess ? 0 : 1;
+        }
         if (StructuralAuthoring.IsStructuralSource(source))
         {
             var structural = StructuralAuthoring.Compile(source, fullPath);
@@ -1635,6 +1647,14 @@ Model CanonicalPanel {
         }
 
         var validationSource=File.ReadAllText(sourcePath);
+        if (PipingAuthoring.IsPipingSource(validationSource))
+        {
+            var piping = PipingAuthoring.Compile(validationSource, Path.GetFullPath(sourcePath));
+            var payload = new { source = sourcePath, status = piping.IsSuccess ? "valid" : "invalid", domain = "Piping", summary = new { fatalDiagnosticCount = piping.Diagnostics.Count, warningDiagnosticCount = 0, connections = piping.Report?.Connections.Count ?? 0, routes = piping.Report?.Routes.Count ?? 0 }, diagnostics = piping.Diagnostics };
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
+            else stdout.WriteLine($"Firmament V2 Piping validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");
+            return piping.IsSuccess ? 0 : 1;
+        }
         if (StructuralAuthoring.IsStructuralSource(validationSource))
         {
             var structural = StructuralAuthoring.Compile(validationSource, Path.GetFullPath(sourcePath));

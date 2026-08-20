@@ -1,0 +1,10 @@
+Model ExplicitRouteWitness {
+    Units: mm
+    PipingSystem ExplicitWitness {
+        PipePolicy Pipe25 { OuterDiameter: 25mm; WallThickness: 2mm; Material: "Standard.Materials.StainlessSteel.304_Annealed"; }
+        Port PumpDischarge { Position: [0mm,0mm,100mm]; Direction: [1,0,0]; PipePolicy: Pipe25; ConnectionType: Flange; }
+        Port CoolerInlet { Position: [700mm,350mm,100mm]; Direction: [0,-1,0]; PipePolicy: Pipe25; ConnectionType: Flange; }
+        Connection Supply { From: PumpDischarge; To: CoolerInlet; PipePolicy: Pipe25; Service: "CoolingSupply"; }
+        Route SupplyRoute { Connection: Supply; Through: [[0mm,0mm,100mm],[400mm,0mm,100mm],[400mm,200mm,100mm],[700mm,200mm,100mm],[700mm,350mm,100mm]]; BendRadius: 50mm; Provenance: Explicit; }
+    }
+}

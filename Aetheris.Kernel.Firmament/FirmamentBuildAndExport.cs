@@ -19,6 +19,7 @@ using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Kernel.Firmament.Materializer;
 using Aetheris.Kernel.StandardLibrary;
 using Aetheris.Kernel.Firmament.Structural;
+using Aetheris.Kernel.Firmament.Piping;
 
 namespace Aetheris.Kernel.Firmament;
 
@@ -38,6 +39,24 @@ public static class FirmamentBuildAndExport
 
         var fullSourcePath = Path.GetFullPath(sourcePath);
         var sourceText = NormalizeLf(File.ReadAllText(fullSourcePath, Encoding.UTF8));
+        if (PipingAuthoring.IsPipingSource(sourceText))
+        {
+            var piping = PipingAuthoring.Compile(sourceText, fullSourcePath);
+            if (!piping.IsSuccess || piping.StepText is null || piping.Report is null)
+                return KernelResult<FirmamentBuildAndExportResult>.Failure(piping.Diagnostics.Select(message => new Kernel.Core.Diagnostics.KernelDiagnostic(
+                    Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, message, "Piping.X3")).ToArray());
+            var pipingOutputPath = string.IsNullOrWhiteSpace(outputPath) ? ResolveDefaultOutputPath(fullSourcePath) : Path.GetFullPath(outputPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(pipingOutputPath)!);
+            File.WriteAllText(pipingOutputPath, piping.StepText, new UTF8Encoding(false));
+            var stem = Path.Combine(Path.GetDirectoryName(pipingOutputPath)!, Path.GetFileNameWithoutExtension(pipingOutputPath));
+            var routingPath = stem + ".routing.json"; var cutListPath = stem + ".cutlist.json"; var bomPath = stem + ".bom.json";
+            File.WriteAllText(routingPath, PipingAuthoring.RoutingJson(piping.Report), new UTF8Encoding(false));
+            File.WriteAllText(cutListPath, PipingAuthoring.CutListJson(piping.Report), new UTF8Encoding(false));
+            File.WriteAllText(bomPath, PipingAuthoring.BomJson(piping.Report), new UTF8Encoding(false));
+            var report = piping.Report with { RoutingReportArtifactPath = routingPath, CutListArtifactPath = cutListPath, BomArtifactPath = bomPath };
+            return KernelResult<FirmamentBuildAndExportResult>.Success(new(fullSourcePath, pipingOutputPath,
+                new(piping.StepText, "piping-system:" + report.PipingSystem, -1, "Assembly", "PipingSystem", Piping: report)));
+        }
         if (StructuralAuthoring.IsStructuralSource(sourceText))
         {
             var structural = StructuralAuthoring.Compile(sourceText, fullSourcePath);
@@ -101,6 +120,14 @@ public static class FirmamentBuildAndExport
     {
         ArgumentNullException.ThrowIfNull(sourceText);
         var normalized = NormalizeLf(sourceText);
+        if (PipingAuthoring.IsPipingSource(normalized))
+        {
+            var piping = PipingAuthoring.Compile(normalized, sourceDirectory ?? "memory");
+            return piping.IsSuccess && piping.StepText is not null && piping.Report is not null
+                ? KernelResult<FirmamentStepExportResult>.Success(new(piping.StepText, "piping-system:" + piping.Report.PipingSystem, -1, "Assembly", "PipingSystem", Piping: piping.Report))
+                : KernelResult<FirmamentStepExportResult>.Failure(piping.Diagnostics.Select(message => new Kernel.Core.Diagnostics.KernelDiagnostic(
+                    Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, message, "Piping.X3")).ToArray());
+        }
         if (StructuralAuthoring.IsStructuralSource(normalized))
         {
             var structural = StructuralAuthoring.Compile(normalized, sourceDirectory ?? "memory");

@@ -28,6 +28,7 @@ Everything in this directory is current authoring guidance. Examples progress fr
 | run FEA | `FEA/cantilever.firmament` | material, `Fixed`, `Force`, four result families |
 | analyze imported STEP | `FEA/inline-step-cantilever.firmament` | repository-stable `inlineSTEP`, face selection, FEA |
 | author an assembly | `Assembly/bearing-module.firmament` | Interface, Mate, nested identity, tolerance stack |
+| route a piping system | `Piping/pump-skid.firmament` | logical Connection, equipment-owned nozzle Interfaces/mates, scoped owner exemption, explicit/accepted Routes, strict foreign KeepOut clearance, fittings, BOM/Cut List |
 | combine machining operations | `Integration/machined-mounting-block.firmament` | Boss, Pocket, holes, counterbores, chamfer, PMI |
 
 `Pocket` never means through-all; use a supported `Hole` or `Slot` for through removal. General loft, helix, arbitrary Boolean authoring, and freeform surface features are not in Preview 3; see [`docs/public/reference/supported-features.md`](../../docs/public/reference/supported-features.md).
@@ -41,6 +42,7 @@ Everything in this directory is current authoring guidance. Examples progress fr
 | Sheet Metal | `Aetheris.SheetMetal.Tests` |
 | FEA and Materials | `Aetheris.FEA.Tests` |
 | Assembly | `Aetheris.Kernel.Firmament.Tests` assembly suite |
+| Piping | `PipingX3Tests` |
 | Drawings | `Aetheris.CLI.Tests` drawing suite |
 
 The compact action map is `qualification.json`; `coverage.json` is the public-operation guard. Generated outputs go to `artifacts/local/`, never beside these sources.

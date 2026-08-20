@@ -7,6 +7,7 @@
     { "path": "Materials", "operation": "fea-solve" },
     { "path": "SheetMetal", "operation": "sheet-metal-flatten" },
     { "path": "Structural", "operation": "build-step" },
+    { "path": "Piping", "operation": "build-step" },
     { "path": "Basics", "operation": "build-step" },
     { "path": "Primitives", "operation": "build-step" },
     { "path": "Profiles", "operation": "build-step" },

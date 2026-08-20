@@ -1,0 +1,14 @@
+Model NozzleCrossesForeignKeepOut {
+    Units: mm
+    PipingSystem InvalidNozzleClearance {
+        PipePolicy Pipe25 { OuterDiameter: 25mm; WallThickness: 2mm; Material: "Standard.Materials.StainlessSteel.304_Annealed"; }
+        KeepOut PumpBody { Min: [0mm,0mm,0mm]; Max: [50mm,200mm,200mm]; Concept: EquipmentProxy; }
+        KeepOut ForeignBracket { Min: [55mm,90mm,90mm]; Max: [60mm,110mm,110mm]; Concept: StructureMember; }
+        Equipment Pump { KeepOut: PumpBody; }
+        Port PumpOut { Position: [100mm,100mm,100mm]; Direction: [1,0,0]; PipePolicy: Pipe25; ConnectionType: Flange; Equipment: Pump; NozzleLength: 50mm; }
+        Port Sink { Position: [500mm,100mm,100mm]; Direction: [-1,0,0]; PipePolicy: Pipe25; ConnectionType: Flange; }
+        Connection Supply { From: PumpOut; To: Sink; PipePolicy: Pipe25; }
+        RouteSpace Space { Clearance: 25mm; }
+        Route SupplyRoute { Connection: Supply; Through: [[100mm,100mm,100mm],[500mm,100mm,100mm]]; BendRadius: 50mm; Provenance: Explicit; }
+    }
+}

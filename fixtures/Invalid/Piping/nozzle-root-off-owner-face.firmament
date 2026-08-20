@@ -1,0 +1,12 @@
+Model NozzleRootOffOwnerFace {
+    Units: mm
+    PipingSystem InvalidNozzleRoot {
+        PipePolicy Pipe25 { OuterDiameter: 25mm; WallThickness: 2mm; Material: "Standard.Materials.StainlessSteel.304_Annealed"; }
+        KeepOut PumpBody { Min: [0mm,0mm,0mm]; Max: [50mm,200mm,200mm]; Concept: EquipmentProxy; }
+        Equipment Pump { KeepOut: PumpBody; }
+        Port PumpOut { Position: [100mm,100mm,100mm]; Direction: [1,0,0]; PipePolicy: Pipe25; ConnectionType: Flange; Equipment: Pump; NozzleLength: 40mm; }
+        Port Sink { Position: [500mm,100mm,100mm]; Direction: [-1,0,0]; PipePolicy: Pipe25; ConnectionType: Flange; }
+        Connection Supply { From: PumpOut; To: Sink; PipePolicy: Pipe25; }
+        Route SupplyRoute { Connection: Supply; Through: [[100mm,100mm,100mm],[500mm,100mm,100mm]]; BendRadius: 50mm; Provenance: Explicit; }
+    }
+}

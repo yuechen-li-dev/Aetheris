@@ -24,7 +24,8 @@ public sealed record FirmamentStepExportResult(
     IReadOnlyList<FirmamentEngineeringFeatureReport>? EngineeringFeatures = null,
     FirmamentSweepReport? Sweep = null,
     IReadOnlyList<FirmamentSemanticPatternReport>? Patterns = null,
-    Aetheris.Kernel.Firmament.Structural.StructuralReport? Structural = null);
+    Aetheris.Kernel.Firmament.Structural.StructuralReport? Structural = null,
+    Aetheris.Kernel.Firmament.Piping.PipingReport? Piping = null);
 
 public sealed record FirmamentSemanticPatternReport(
     string Name,

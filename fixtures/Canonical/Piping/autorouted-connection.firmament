@@ -1,0 +1,12 @@
+Model AutoRouteWitness {
+    Units: mm
+    PipingSystem AutoWitness {
+        PipePolicy Pipe25 { OuterDiameter: 25mm; WallThickness: 2mm; Material: "Standard.Materials.StainlessSteel.304_Annealed"; }
+        Port Pump { Position: [0mm,0mm,0mm]; Direction: [1,0,0]; PipePolicy: Pipe25; ConnectionType: Flange; }
+        Port Cooler { Position: [1000mm,0mm,0mm]; Direction: [-1,0,0]; PipePolicy: Pipe25; ConnectionType: Flange; }
+        Connection Supply { From: Pump; To: Cooler; PipePolicy: Pipe25; }
+        KeepOut Frame { Min: [400mm,-100mm,-100mm]; Max: [600mm,100mm,100mm]; Concept: StructureMember; }
+        RouteSpace Skid { Clearance: 30mm; }
+        RouteRequest SupplyRequest { Connection: Supply; Clearance: 30mm; BendRadius: 50mm; HardWaypoints: []; AcceptAs: SupplyRoute; }
+    }
+}

@@ -1,0 +1,10 @@
+Model PipeSegmentWitness {
+    Units: mm
+    PipingSystem SegmentWitness {
+        PipePolicy Pipe25 { OuterDiameter: 25mm; WallThickness: 2mm; Material: "Standard.Materials.StainlessSteel.304_Annealed"; }
+        Port Inlet { Position: [0mm,0mm,0mm]; Direction: [1,0,0]; PipePolicy: Pipe25; ConnectionType: Weld; }
+        Port Outlet { Position: [500mm,0mm,0mm]; Direction: [-1,0,0]; PipePolicy: Pipe25; ConnectionType: Weld; }
+        Connection Run { From: Inlet; To: Outlet; PipePolicy: Pipe25; Service: "CoolingWater"; }
+        Route RunRoute { Connection: Run; Through: [[0mm,0mm,0mm],[500mm,0mm,0mm]]; BendRadius: 50mm; Provenance: Explicit; }
+    }
+}

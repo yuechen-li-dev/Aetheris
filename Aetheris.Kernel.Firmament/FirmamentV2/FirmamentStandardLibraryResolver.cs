@@ -36,6 +36,10 @@ public static class FirmamentStandardLibraryResolver
         new("Standard.Products.Mechanical", "FlangedAdapter", "FlangedAdapterTemplate", "FlangedAdapterPolicy", "StandardFlangedAdapter"),
         new("Standard.Products.Mechanical", "Standoff", "StandoffTemplate", "StandoffPolicy", "StandardStandoff"),
         new("Standard.Products.Electronics", "RackPanel", "RackPanelTemplate", "RackPanelPolicy", "StandardRackPanel"),
+        new("Standard.Piping", "Pipe", "PipeTemplate", "PipeProductPolicy", "StandardPipe"),
+        new("Standard.Piping", "Elbow90", "Elbow90Template", "Elbow90Policy", "StandardElbow90"),
+        new("Standard.Piping", "Tee", "TeeTemplate", "TeePolicy", "StandardTee"),
+        new("Standard.Piping", "PumpSkid", "PumpSkidTemplate", "PumpSkidPolicy", "StandardPumpSkid"),
     ];
 
     public static FirmamentLibraryResolution? Resolve(string source, out IReadOnlyList<string> diagnostics)
@@ -56,7 +60,7 @@ public static class FirmamentStandardLibraryResolver
             errors.Add($"{UnknownModule}:{module}: shipped Standard Library module could not be resolved");
 
         var references = Regex.Matches(source,
-                @"\bStandard\.Products\.(?:Office|Mechanical|Electronics)\.[A-Za-z_][A-Za-z0-9_]*\b",
+                @"\b(?:Standard\.Products\.(?:Office|Mechanical|Electronics)|Standard\.Piping)\.[A-Za-z_][A-Za-z0-9_]*\b",
                 RegexOptions.CultureInvariant)
             .Cast<Match>().Select(match => match.Value).Distinct(StringComparer.Ordinal).ToArray();
         var selected = new HashSet<Export>();

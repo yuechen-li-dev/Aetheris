@@ -1,0 +1,12 @@
+Model RouteAroundKeepOut {
+    Units: mm
+    PipingSystem KeepOutWitness {
+        PipePolicy Pipe25 { OuterDiameter: 25mm; WallThickness: 2mm; Material: "Standard.Materials.StainlessSteel.304_Annealed"; }
+        Port Pump { Position: [0mm,0mm,0mm]; Direction: [1,0,0]; PipePolicy: Pipe25; ConnectionType: Flange; }
+        Port Cooler { Position: [1000mm,0mm,0mm]; Direction: [-1,0,0]; PipePolicy: Pipe25; ConnectionType: Flange; }
+        Connection Supply { From: Pump; To: Cooler; PipePolicy: Pipe25; }
+        KeepOut Frame { Min: [400mm,-100mm,-100mm]; Max: [600mm,100mm,100mm]; Concept: StructureMember; }
+        RouteSpace Skid { Clearance: 30mm; }
+        Route SupplyRoute { Connection: Supply; Through: [[0mm,0mm,0mm],[300mm,0mm,0mm],[300mm,200mm,0mm],[700mm,200mm,0mm],[700mm,0mm,0mm],[1000mm,0mm,0mm]]; BendRadius: 50mm; Provenance: Explicit; }
+    }
+}

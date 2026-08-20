@@ -63,6 +63,7 @@ if (app.Environment.IsDevelopment())
 app.MapKernelApi();
 app.MapCadmataStartupApi();
 app.MapPaperclipDemoApi();
+app.MapStandardProductGalleryApi();
 
 app.UseDefaultFiles();
 app.UseStaticFiles();

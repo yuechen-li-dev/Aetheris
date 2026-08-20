@@ -19,5 +19,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Aetheris.Server\Aetheris.Server.csproj" />
+    <ProjectReference Include="..\Aetheris.Forge.Host\Aetheris.Forge.Host.csproj" />
   </ItemGroup>
 </Project>

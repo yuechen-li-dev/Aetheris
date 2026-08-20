@@ -1,0 +1,5 @@
+Model UnknownStandardLibraryModule {
+    Units: mm
+    Use Standard.Products.Unknown
+    Box Part { Size: [10mm, 10mm, 10mm] }
+}

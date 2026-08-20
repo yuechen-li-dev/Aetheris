@@ -661,3 +661,37 @@ strong {
 	letter-spacing: 0.02em;
 	color: hsl(var(--muted-foreground));
 }
+
+.product-gallery {
+	display: grid;
+	gap: 10px;
+}
+
+.product-gallery__eyebrow {
+	font-size: var(--ui-small);
+	letter-spacing: 0.12em;
+	color: var(--shell-accent);
+}
+
+.product-gallery__cards {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 6px;
+}
+
+.product-card {
+	display: grid;
+	gap: 3px;
+	text-align: left;
+	min-height: 54px;
+	padding: 8px;
+}
+
+.product-card span {
+	font-size: var(--ui-small);
+	color: var(--shell-text-secondary);
+}
+
+.product-gallery__form {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}

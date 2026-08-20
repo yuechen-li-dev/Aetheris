@@ -89,6 +89,12 @@ export interface PaperclipDemoResponseDto {
 	deterministic: boolean;
 }
 
+export type ForgeArtifactKindDto = "StepAp242" | "FlatStep" | "Svg";
+export interface ForgeTemplateParameterDto { name: string; type: string; required: boolean; default?: string | null; dimension?: string | null; unit?: string | null; allowedValues?: string[] | null; fields?: ForgeTemplateParameterDto[] | null; category: string; constraint?: string | null; }
+export interface ForgeTemplateDescriptionDto { id: string; displayName: string; version: string; documentation: string; parameters: ForgeTemplateParameterDto[]; artifacts: ForgeArtifactKindDto[]; signature: string; outputKind: string; constraints: { name: string; expression: string }[]; }
+export interface GalleryArtifactDto { kind: ForgeArtifactKindDto; name: string; contentType: string; size: number; sha256: string; content: string; }
+export interface GalleryInvocationResponseDto { success: boolean; identity: { template: string; templateVersion: string; specialization?: string | null }; diagnostics: { code: string; severity: string; message: string; target?: string | null }[]; artifacts: GalleryArtifactDto[]; executionMilliseconds: number; }
+
 export type BooleanOperation = "union" | "subtract" | "intersect";
 
 export interface BooleanRequestDto {
@@ -592,6 +598,16 @@ export async function maximizePaperclips(
 	return request<PaperclipDemoResponseDto>("/api/v1/demos/maximum-paperclips", {
 		method: "POST",
 		body: JSON.stringify(parameters),
+	});
+}
+
+export async function listGalleryTemplates(): Promise<ForgeTemplateDescriptionDto[]> {
+	return request<ForgeTemplateDescriptionDto[]>("/api/v1/gallery/templates", {});
+}
+
+export async function invokeGalleryTemplate(templateId: string, parameters: Record<string, unknown>, artifacts: ForgeArtifactKindDto[]): Promise<GalleryInvocationResponseDto> {
+	return request<GalleryInvocationResponseDto>(`/api/v1/gallery/templates/${encodeURIComponent(templateId)}`, {
+		method: "POST", body: JSON.stringify({ arguments: parameters, artifacts }),
 	});
 }
 

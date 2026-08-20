@@ -104,4 +104,5 @@ public sealed record ForgeProtocolErrorResponse(
 [JsonSerializable(typeof(ForgeTemplateInvocationRequest))]
 [JsonSerializable(typeof(ForgeTemplateInvocationResult))]
 [JsonSerializable(typeof(ForgeProtocolErrorResponse))]
+[JsonSerializable(typeof(string))]
 internal partial class ForgeProtocolJsonContext : JsonSerializerContext;

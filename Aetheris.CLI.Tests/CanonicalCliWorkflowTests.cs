@@ -58,6 +58,61 @@ public sealed class CanonicalCliWorkflowTests
     }
 
     [Fact]
+    public void Inspect_Firmament_Resolves_Shipped_Standard_Library_Consumers()
+    {
+        var root = FindRepositoryRoot();
+        var source = Path.Combine(root, "fixtures", "Canonical", "Integration", "standard-products", "mounting-plate-library-use.firmament");
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = Aetheris.CLI.CliRunner.Run(["inspect", source, "--json"], stdout, stderr);
+
+        Assert.Equal(0, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()), stderr.ToString());
+        using var document = JsonDocument.Parse(stdout.ToString());
+        Assert.True(document.RootElement.GetProperty("success").GetBoolean());
+        Assert.Contains(document.RootElement.GetProperty("templateInstances").EnumerateArray(),
+            instance => instance.GetProperty("template").GetString() == "MountingPlateTemplate");
+        Assert.DoesNotContain(document.RootElement.GetProperty("diagnostics").EnumerateArray(),
+            diagnostic => diagnostic.GetString() == "firmament-v2-parse-failed");
+    }
+
+    [Fact]
+    public void Validate_Firmament_Resolves_Shipped_Standard_Library_Consumers()
+    {
+        var root = FindRepositoryRoot();
+        var source = Path.Combine(root, "fixtures", "Canonical", "Integration", "standard-products", "mounting-plate-library-use.firmament");
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = Aetheris.CLI.CliRunner.Run(["validate", source, "--json"], stdout, stderr);
+
+        Assert.Equal(0, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()), stderr.ToString());
+        using var document = JsonDocument.Parse(stdout.ToString());
+        Assert.Equal("valid", document.RootElement.GetProperty("firmamentV2Validation").GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public void Inspect_Firmament_Reports_Retained_Pattern_Inventory()
+    {
+        var root = FindRepositoryRoot();
+        var source = Path.Combine(root, "fixtures", "Canonical", "Integration", "standard-products", "flanged-adapter-eight-pattern.firmament");
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exitCode = Aetheris.CLI.CliRunner.Run(["inspect", source, "--json"], stdout, stderr);
+
+        Assert.Equal(0, exitCode);
+        Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()), stderr.ToString());
+        using var document = JsonDocument.Parse(stdout.ToString());
+        var pattern = Assert.Single(document.RootElement.GetProperty("patterns").EnumerateArray());
+        Assert.Equal("BoltPattern", pattern.GetProperty("name").GetString());
+        Assert.Equal("FlangeBolt", pattern.GetProperty("generator").GetString());
+        Assert.Equal(8, pattern.GetProperty("count").GetInt32());
+    }
+
+    [Fact]
     public void Inspect_ConceptPath_ReportsTypedCapabilitiesMembersAndConsumers()
     {
         var root = FindRepositoryRoot();

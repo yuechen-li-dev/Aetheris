@@ -30,11 +30,18 @@ public sealed record FirmamentTemplateEnumMetadata(
     string Name,
     IReadOnlyList<string> Cases);
 
+public sealed record FirmamentTemplateStaticRecordMetadata(
+    string Name,
+    string TypeName,
+    IReadOnlyDictionary<string, string> Fields,
+    string Provenance);
+
 /// <summary>Authoritative public Template schema extracted from Firmament binder IR.</summary>
 public sealed record FirmamentTemplateModuleMetadata(
     IReadOnlyList<FirmamentTemplateMetadata> Templates,
     IReadOnlyList<FirmamentTemplateRecordMetadata> Records,
-    IReadOnlyList<FirmamentTemplateEnumMetadata> Enums);
+    IReadOnlyList<FirmamentTemplateEnumMetadata> Enums,
+    IReadOnlyList<FirmamentTemplateStaticRecordMetadata> StaticRecords);
 
 public enum FirmamentTemplateParameterKind
 {
@@ -123,8 +130,12 @@ public static class FirmamentTemplateHostBridge
         var enums = FirmamentV2TemplateExpansion.InspectEnums(moduleSource)
             .Select(item => new FirmamentTemplateEnumMetadata(item.Key, item.Value.ToArray()))
             .ToArray();
+        var staticRecords = FirmamentV2TemplateExpansion.InspectStaticRecords(moduleSource, collected)
+            .Select(record => new FirmamentTemplateStaticRecordMetadata(
+                record.Name, record.TypeName, record.Fields, record.Provenance))
+            .ToArray();
         diagnostics = collected.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
-        return new(templates, records, enums);
+        return new(templates, records, enums, staticRecords);
     }
 
     public static FirmamentHostTemplateExpansion? Expand(
@@ -157,7 +168,9 @@ public static class FirmamentTemplateHostBridge
             moduleSource, templateName, instanceName, hostArguments, collected);
         diagnostics = collected.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
         if (expansion is null) return null;
-        var instance = expansion.Instantiations.Single();
+        var instance = expansion.Instantiations.First(item =>
+            string.Equals(item.Template, templateName, StringComparison.Ordinal)
+            && string.Equals(item.Instance, instanceName, StringComparison.Ordinal));
         return new FirmamentHostTemplateExpansion(
             expansion.Source,
             templateName,

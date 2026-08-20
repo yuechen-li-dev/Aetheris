@@ -92,7 +92,15 @@ Record EnclosureSpec {
     ReliefPolicy: SheetMetalReliefPolicy
 }
 
-Template<Spec: LBracketSpec>
+// Canonical gallery/client defaults. These records are the single source used by
+// template binding, Forge describe, and zero-argument invocation.
+Static StandardLBracket: LBracketSpec = LBracketSpec { Width: 100mm Depth: 60mm FlangeHeight: 30mm Thickness: 2mm InsideRadius: 2mm KFactor: 0.42 ReliefPolicy: Auto }
+Static StandardUChannel: UChannelSpec = UChannelSpec { Width: 100mm Depth: 60mm WallHeight: 30mm Thickness: 2mm InsideRadius: 2mm KFactor: 0.42 ReliefPolicy: Auto }
+Static StandardFourWallTray: TraySpec = TraySpec { Width: 120mm Depth: 80mm WallHeight: 25mm Thickness: 2mm InsideRadius: 2mm KFactor: 0.42 ReliefPolicy: Auto }
+Static StandardRemovablePanLid: LidSpec = LidSpec { Width: 120mm Depth: 80mm SkirtHeight: 15mm Clearance: 0.5mm Thickness: 2mm InsideRadius: 2mm KFactor: 0.42 ReliefPolicy: Auto }
+Static StandardElectronicsEnclosure: EnclosureSpec = EnclosureSpec { Width: 120mm Depth: 80mm Height: 40mm LidLipHeight: 8mm Thickness: 1.5mm InsideRadius: 2mm KFactor: 0.42 ReliefPolicy: Rectangular }
+
+Template<Spec: LBracketSpec = StandardLBracket>
 SheetMetal LBracket: SheetMetalPart {
     Require Positive => Spec.Width > 0mm && Spec.Depth > 0mm && Spec.FlangeHeight > 0mm && Spec.Thickness > 0mm
     Thickness: Spec.Thickness;
@@ -101,7 +109,7 @@ SheetMetal LBracket: SheetMetalPart {
     Flange Wall { From: Base.Front; Height: Spec.FlangeHeight; Angle: 90deg; Radius: Spec.InsideRadius; Relief: Spec.ReliefPolicy; }
 }
 
-Template<Spec: UChannelSpec>
+Template<Spec: UChannelSpec = StandardUChannel>
 SheetMetal UChannel: SheetMetalPart {
     Require Positive => Spec.Width > 0mm && Spec.Depth > 0mm && Spec.WallHeight > 0mm && Spec.Thickness > 0mm
     Thickness: Spec.Thickness;
@@ -111,7 +119,7 @@ SheetMetal UChannel: SheetMetalPart {
     Flange RightWall { From: Base.Right; Height: Spec.WallHeight; Angle: 90deg; Radius: Spec.InsideRadius; Relief: Spec.ReliefPolicy; }
 }
 
-Template<Spec: TraySpec>
+Template<Spec: TraySpec = StandardFourWallTray>
 SheetMetal FourWallTray: Tray {
     Require Positive => Spec.Width > 0mm && Spec.Depth > 0mm && Spec.WallHeight > 0mm && Spec.Thickness > 0mm
     Require ManufacturableWall => Spec.WallHeight > Spec.InsideRadius
@@ -124,7 +132,7 @@ SheetMetal FourWallTray: Tray {
     Flange Left { From: Base.Left; Height: Spec.WallHeight; Angle: 90deg; Radius: Spec.InsideRadius; Relief: Spec.ReliefPolicy; }
 }
 
-Template<Spec: LidSpec>
+Template<Spec: LidSpec = StandardRemovablePanLid>
 SheetMetal RemovablePanLid: RemovableLid {
     Require Positive => Spec.Width > 0mm && Spec.Depth > 0mm && Spec.SkirtHeight > 0mm && Spec.Thickness > 0mm
     Thickness: Spec.Thickness;
@@ -136,7 +144,7 @@ SheetMetal RemovablePanLid: RemovableLid {
     Flange Left { From: Top.Left; Height: Spec.SkirtHeight; Angle: 90deg; Radius: Spec.InsideRadius; Direction: Down; Relief: Spec.ReliefPolicy; }
 }
 
-Template<Spec: EnclosureSpec>
+Template<Spec: EnclosureSpec = StandardElectronicsEnclosure>
 SheetMetal ElectronicsEnclosure: Enclosure {
     Require Positive => Spec.Width > 0mm && Spec.Depth > 0mm && Spec.Height > 0mm && Spec.Thickness > 0mm
     Require LipFits => Spec.LidLipHeight > Spec.InsideRadius

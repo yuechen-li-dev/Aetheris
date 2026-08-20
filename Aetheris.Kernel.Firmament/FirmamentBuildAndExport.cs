@@ -37,6 +37,10 @@ public static class FirmamentBuildAndExport
 
         var fullSourcePath = Path.GetFullPath(sourcePath);
         var sourceText = NormalizeLf(File.ReadAllText(fullSourcePath, Encoding.UTF8));
+        var library = FirmamentStandardLibraryResolver.Resolve(sourceText, out var libraryDiagnostics);
+        if (library is null)
+            return KernelResult<FirmamentBuildAndExportResult>.Failure(LibraryDiagnostics(libraryDiagnostics));
+        sourceText = library.Source;
         var exportResult = ExportSource(sourceText, Path.GetDirectoryName(fullSourcePath), allowV1Compatibility: true);
         if (!exportResult.IsSuccess)
         {
@@ -81,6 +85,10 @@ public static class FirmamentBuildAndExport
     {
         ArgumentNullException.ThrowIfNull(sourceText);
         var normalized = NormalizeLf(sourceText);
+        var library = FirmamentStandardLibraryResolver.Resolve(normalized, out var libraryDiagnostics);
+        if (library is null)
+            return KernelResult<FirmamentStepExportResult>.Failure(LibraryDiagnostics(libraryDiagnostics));
+        normalized = library.Source;
         // In-memory compilation is the canonical V2 boundary used by Forge,
         // assemblies, and drawings. Historical V1 execution is intentionally
         // available only to the explicitly versioned file compatibility route.
@@ -100,7 +108,7 @@ public static class FirmamentBuildAndExport
         string? sourceDirectory,
         FirmamentStepExportResult export)
     {
-        var parsed = FirmamentV2Parser.Parse(source, sourceDirectory);
+        var parsed = ParseSemanticSource(source, sourceDirectory);
         if (!parsed.IsSuccess || parsed.Document is null) return export;
 
         var edgeFinishes = (parsed.Document.ModifyBlocks ?? [])
@@ -117,7 +125,17 @@ public static class FirmamentBuildAndExport
                 PolicySource: finish.Kind,
                 MaterializationRoute: "SemanticEdgeFinish")))
             .ToArray();
-        if (edgeFinishes.Length == 0) return export;
+        var patterns = (parsed.Document.StaticAuthoring?.Patterns ?? [])
+            .Select(pattern => new FirmamentSemanticPatternReport(
+                pattern.Name,
+                pattern.Source,
+                pattern.Template,
+                pattern.GeneratedCount,
+                pattern.GeneratedIds,
+                "FiniteStaticArray"))
+            .OrderBy(pattern => pattern.Name, StringComparer.Ordinal)
+            .ToArray();
+        if (edgeFinishes.Length == 0 && patterns.Length == 0) return export;
 
         var existing = export.EngineeringFeatures ?? [];
         return export with
@@ -126,13 +144,14 @@ public static class FirmamentBuildAndExport
                 .Concat(edgeFinishes)
                 .DistinctBy(feature => feature.FeatureId, StringComparer.Ordinal)
                 .OrderBy(feature => feature.FeatureId, StringComparer.Ordinal)
-                .ToArray()
+                .ToArray(),
+            Patterns = patterns
         };
     }
 
     private static KernelResult<IReadOnlyList<FirmamentV2VolumeAssertionResult>> EvaluateVolumeAssertions(string source, string? sourceDirectory, FirmamentStepExportResult export)
     {
-        var parsed = FirmamentV2Parser.Parse(source, sourceDirectory);
+        var parsed = ParseSemanticSource(source, sourceDirectory);
         if (!parsed.IsSuccess || parsed.Document?.VolumeAssertions is not { Count: > 0 } assertions) return KernelResult<IReadOnlyList<FirmamentV2VolumeAssertionResult>>.Success([]);
         var imported = Step242Importer.ImportBody(export.StepText);
         if (!imported.IsSuccess || imported.Value is null)
@@ -157,7 +176,7 @@ public static class FirmamentBuildAndExport
 
     private static KernelResult<bool> VerifyV2PmiExportParity(string source, string? sourceDirectory, FirmamentStepExportResult export)
     {
-        var parsed = FirmamentV2Parser.Parse(source, sourceDirectory);
+        var parsed = ParseSemanticSource(source, sourceDirectory);
         if (!parsed.IsSuccess || parsed.Document is null || parsed.Document.Pmi is not { Count: > 0 } pmi)
             return KernelResult<bool>.Success(true);
 
@@ -297,7 +316,7 @@ public static class FirmamentBuildAndExport
                 if (!support.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(support.Diagnostics);
                 var features = (stack.Feature.ShaftHoles ?? []).ToDictionary(hole => hole.Name, hole => hole.StableId, StringComparer.Ordinal);
                 foreach (var hole in stack.Feature.CounterboreHoles ?? []) features[hole.Name] = hole.StableId;
-                semanticPmi = BuildV2SemanticPmi(v2Parse.Document, [], stack.Feature.Name, features).ToArray();
+                semanticPmi = BuildV2SemanticPmi(v2Parse.Document, [], stack.Feature.Name, features, emitted.Correspondence).ToArray();
             }
             var step = Step242Exporter.ExportBody(completedBody, semanticPmi);
             if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
@@ -470,6 +489,16 @@ public static class FirmamentBuildAndExport
         return ExportV1CompatibilitySource(sourceText);
     }
 
+    private static FirmamentV2ParseResult ParseSemanticSource(string source, string? sourceDirectory)
+        => FirmamentV2Parser.Parse(source, sourceDirectory);
+
+    private static IReadOnlyList<Kernel.Core.Diagnostics.KernelDiagnostic> LibraryDiagnostics(IEnumerable<string> diagnostics) =>
+        diagnostics.Select(message => new Kernel.Core.Diagnostics.KernelDiagnostic(
+            Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed,
+            Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+            message,
+            "FirmamentV2.LibraryResolution")).ToArray();
+
     private static KernelResult<FirmamentStepExportResult> V2SourceRequired(FirmamentV2ParseResult parse)
     {
         var fatal = parse.Diagnostics
@@ -605,7 +634,7 @@ public static class FirmamentBuildAndExport
                 if (!support.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(support.Diagnostics);
                 var features = (stack.Feature.ShaftHoles ?? []).ToDictionary(hole => hole.Name, hole => hole.StableId, StringComparer.Ordinal);
                 foreach (var hole in stack.Feature.CounterboreHoles ?? []) features[hole.Name] = hole.StableId;
-                semanticPmi = BuildV2SemanticPmi(canonicalDocument, [], stack.Feature.Name, features).ToArray();
+                semanticPmi = BuildV2SemanticPmi(canonicalDocument, [], stack.Feature.Name, features, plannedEmission.Correspondence).ToArray();
             }
             var plannedStep = Step242Exporter.ExportBody(plannedEmission.Body, semanticPmi, new Step242ExportOptions { ProductName = target.StableId, ApplicationName = "Aetheris.Firmament.ComposedProfileBoundaryChamfer.M3", BrepExportPreflightMode = BrepExportPreflightMode.Enforce, BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute });
             if (!plannedStep.IsSuccess || plannedStep.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(plannedStep.Diagnostics);
@@ -1923,7 +1952,12 @@ public static class FirmamentBuildAndExport
             "FirmamentV2.PmiExport")).ToArray());
     }
 
-    private static IReadOnlyList<Step242SemanticPmi> BuildV2SemanticPmi(FirmamentV2Document document, IReadOnlyList<Core.Air.AirHoleFeature> semanticHoles, string targetSolid, IReadOnlyDictionary<string, string>? explicitFeatureIds = null)
+    private static IReadOnlyList<Step242SemanticPmi> BuildV2SemanticPmi(
+        FirmamentV2Document document,
+        IReadOnlyList<Core.Air.AirHoleFeature> semanticHoles,
+        string targetSolid,
+        IReadOnlyDictionary<string, string>? explicitFeatureIds = null,
+        SemanticTopologyCorrespondence? correspondence = null)
     {
         if (document.Pmi is null || document.Pmi.Count == 0)
         {
@@ -1961,7 +1995,18 @@ public static class FirmamentBuildAndExport
             }
         }
 
-        return result;
+        if (correspondence is null) return result;
+        return result.Select(item => item with
+        {
+            GeometricFaceIds = correspondence.Descendants
+                .Where(descendant => descendant.Face.HasValue
+                    && (string.Equals(descendant.SourceStableId, item.FeatureId, StringComparison.Ordinal)
+                        || string.Equals(descendant.ParentStableId, item.FeatureId, StringComparison.Ordinal)))
+                .Select(descendant => descendant.Face!.Value.Value)
+                .Distinct()
+                .Order()
+                .ToArray()
+        }).ToArray();
     }
 
 

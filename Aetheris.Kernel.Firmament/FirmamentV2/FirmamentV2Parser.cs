@@ -1060,6 +1060,16 @@ public static class FirmamentV2Parser
 
         var concept = ParseConceptModelingDocument(adapterSource, diagnostics, templateInstantiations);
         if (!concept.IsSuccess || concept.Document is null) return concept;
+        var conceptSolids = concept.Document.Solids.ToDictionary(solid => solid.Name, StringComparer.Ordinal);
+        var (conceptPmi, conceptPmiBlock, conceptBoundPmi) = ParsePmi(
+            source,
+            conceptSolids,
+            concept.Document.ModifyBlocks ?? [],
+            concept.Document.RecognizedRegions ?? [],
+            concept.Document.BoundLets ?? [],
+            concept.Document.BoundLetRecords ?? [],
+            diagnostics);
+        if (diagnostics.Any(IsFatalDiagnosticCode)) return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
         var conceptSelectionDiagnostics = new List<string>();
         var conceptSelections = ParseCanonicalSelections(body, rootOpen + 1, conceptSelectionDiagnostics);
         ValidateCanonicalSelectionSources(body, conceptSelections, [], conceptSelectionDiagnostics);
@@ -1071,7 +1081,10 @@ public static class FirmamentV2Parser
         var normalized = concept.Document with
         {
             ModelName = model.Groups["name"].Value,
-            Selections = conceptSelections
+            Selections = conceptSelections,
+            Pmi = conceptPmi,
+            PmiBlock = conceptPmiBlock,
+            BoundPmi = conceptBoundPmi
         };
         diagnostics.Add("firmament-v2-unified-canonical-advanced-parsed");
         diagnostics.Sort(StringComparer.Ordinal);

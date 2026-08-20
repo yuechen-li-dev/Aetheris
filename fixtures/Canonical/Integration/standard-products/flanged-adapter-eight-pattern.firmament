@@ -1,0 +1,10 @@
+Model ImportedEightHoleFlange {
+    Units: mm
+    Use Standard.Products.Mechanical
+
+    Static EightHoleFlange = Standard.Products.Mechanical.StandardFlangedAdapter with {
+        BoltCount: 8
+    }
+
+    Struct Flange = Standard.Products.Mechanical.FlangedAdapter<P: EightHoleFlange>
+}

@@ -1,0 +1,6 @@
+Model InvalidFlangePatternCount {
+    Units: mm
+    Use Standard.Products.Mechanical
+    Static Invalid = Standard.Products.Mechanical.StandardFlangedAdapter with { BoltCount: 9 }
+    Struct Flange = Standard.Products.Mechanical.FlangedAdapter<P: Invalid>
+}

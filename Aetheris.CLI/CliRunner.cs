@@ -458,6 +458,7 @@ public static class CliRunner
                 assertions = build.Value.Export.Assertions,
                 features = build.Value.Export.Features,
                 engineeringFeatures = build.Value.Export.EngineeringFeatures,
+                patterns = build.Value.Export.Patterns,
                 featureCount = (build.Value.Export.Features?.Count ?? 0) + (build.Value.Export.EngineeringFeatures?.Count ?? 0),
                 inlineStepMigration = build.Value.Export.InlineStepMigration,
                 inlineStepReplacementAssist = build.Value.Export.InlineStepReplacementAssist,
@@ -986,6 +987,8 @@ Model CanonicalPanel {
         }
 
         var source = File.ReadAllText(fullPath);
+        var library = FirmamentStandardLibraryResolver.Resolve(source, out var libraryDiagnostics);
+        var inspectionSource = library?.Source ?? source;
         var sweepSource = ExpandSweepInspectionSource(source, out var sweepExpansionDiagnostics);
         if (CircularSweepAuthoring.IsSweepSource(source))
         {
@@ -1007,19 +1010,19 @@ Model CanonicalPanel {
             else foreach (var diagnostic in sweepDiagnostics) stderr.WriteLine($"error: {diagnostic}");
             return sweepSuccess ? 0 : 1;
         }
-        var parse = FirmamentV2Parser.Parse(source, Path.GetDirectoryName(fullPath));
+        var parse = FirmamentV2Parser.Parse(inspectionSource, Path.GetDirectoryName(fullPath));
         var document = parse.Document;
-        var success = parse.IsSuccess && document is not null;
+        var success = library is not null && parse.IsSuccess && document is not null;
         var features = (document?.ModifyBlocks?.SelectMany(block =>
             block.SemanticHoles.Select(hole => $"Hole<{hole.Variant}> {hole.Name}")
             .Concat((block.EdgeFinishes ?? []).Select(finish => $"{finish.Kind} {finish.Name}"))) ?? [])
             .Concat((document?.Bosses ?? []).Select(feature => $"Boss {feature.Name}"))
             .Concat((document?.Pockets ?? []).Select(feature => $"Pocket {feature.Name}"))
             .ToList();
-        var semanticValues = FirmamentSemanticValues.FromProfilesAndConceptPaths(source, fullPath).ToList();
-        if (PrismaticProfileCompositionParser.IsCompositionSource(source))
+        var semanticValues = FirmamentSemanticValues.FromProfilesAndConceptPaths(inspectionSource, fullPath).ToList();
+        if (PrismaticProfileCompositionParser.IsCompositionSource(inspectionSource))
         {
-            var composition = PrismaticProfileCompositionParser.Parse(source);
+            var composition = PrismaticProfileCompositionParser.Parse(inspectionSource);
             if (composition.Feature is { } compositionFeature)
             {
                 features.AddRange((compositionFeature.ShaftHoles ?? []).Select(feature => $"Hole<Shaft> {feature.Name}"));
@@ -1029,11 +1032,12 @@ Model CanonicalPanel {
                 FirmamentSemanticValues.FromProfile(profile, SemanticSourceSpan.Generated(fullPath),
                     [new("firmament-profile", profile.Name, "named Profile normalized before consumer")])));
         }
-        else if (ProfileAuthoringParser.IsProfileSource(source) && ProfileAuthoringParser.Parse(source).Profile is { } directProfile)
+        else if (ProfileAuthoringParser.IsProfileSource(inspectionSource) && ProfileAuthoringParser.Parse(inspectionSource).Profile is { } directProfile)
             semanticValues.Add(FirmamentSemanticValues.FromProfile(directProfile, SemanticSourceSpan.Generated(fullPath),
                 [new("firmament-profile", directProfile.Name, "named Profile normalized before consumer")]));
         if (document?.ConceptIr is { } conceptIr) semanticValues.AddRange(FirmamentSemanticValues.FromConceptIr(conceptIr, fullPath));
-        if (document?.RecognizedRegions?.Count > 0) semanticValues.AddRange(FirmamentSemanticValues.FromRecognizedRegions(document, fullPath, source));
+        if (document?.RecognizedRegions?.Count > 0) semanticValues.AddRange(FirmamentSemanticValues.FromRecognizedRegions(document, fullPath, inspectionSource));
+        var inspectionDiagnostics = libraryDiagnostics.Concat(parse.Diagnostics).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
         var report = new
         {
             command = "inspect",
@@ -1051,6 +1055,16 @@ Model CanonicalPanel {
                 columns = table.Columns,
                 table.SourceSpan
             }).ToArray() ?? [],
+            patterns = document?.StaticAuthoring?.Patterns?.Select(pattern => new
+            {
+                pattern.Name,
+                pattern.Source,
+                generator = pattern.Template,
+                count = pattern.GeneratedCount,
+                generatedInstances = pattern.GeneratedIds,
+                distribution = "AuthoredSourceOrder",
+                status = "PreservedThroughFeatureAir;InstancesMaterializedAtBRepPlan"
+            }).ToArray() ?? [],
             templateInstances = (document?.TemplateInstantiations ?? document?.ConceptIr?.TemplateInstantiations)?.Select(instance => new
             {
                 instance.Template,
@@ -1064,7 +1078,7 @@ Model CanonicalPanel {
                     members = pair.Value.Members.OrderBy(member => member.Key, StringComparer.Ordinal).ToDictionary(member => member.Key, member => member.Value, StringComparer.Ordinal)
                 }, StringComparer.Ordinal)
             }).ToArray() ?? [],
-            conceptPaths = ProfileAuthoringParser.InspectConceptPaths(source),
+            conceptPaths = ProfileAuthoringParser.InspectConceptPaths(inspectionSource),
             semanticValues = semanticValues.OrderBy(value => value.StableIdentity, StringComparer.Ordinal).Select(SemanticValueDescriptor.From).ToArray(),
             recognizedRegions = document?.RecognizedRegions?.Select(region => new
             {
@@ -1079,13 +1093,13 @@ Model CanonicalPanel {
             features,
             pmi = document?.Pmi?.Select(item => new { item.Kind, item.Name, item.Target }).ToArray() ?? [],
             assertions = document?.VolumeAssertions?.Select(assertion => new { assertion.Id, assertion.TargetBodyId, assertion.ExpectedMm3, assertion.ToleranceMm3 }).ToArray() ?? [],
-            diagnostics = parse.Diagnostics.Order(StringComparer.Ordinal).ToArray()
+            diagnostics = inspectionDiagnostics
         };
         if (json) stdout.WriteLine(JsonSerializer.Serialize(report, JsonOptions));
         else if (!success)
         {
             stderr.WriteLine($"Inspect failed for {fullPath}.");
-            foreach (var diagnostic in parse.Diagnostics.Order(StringComparer.Ordinal)) stderr.WriteLine($"error: {diagnostic}");
+            foreach (var diagnostic in inspectionDiagnostics) stderr.WriteLine($"error: {diagnostic}");
         }
         else
         {
@@ -1637,9 +1651,24 @@ Model CanonicalPanel {
             return sheet.IsSuccess?0:1;
         }
 
+        var library = FirmamentStandardLibraryResolver.Resolve(validationSource, out var libraryDiagnostics);
+        if (library is null)
+        {
+            var payload = new
+            {
+                Source = sourcePath,
+                Status = "invalid",
+                Summary = new { FatalDiagnosticCount = libraryDiagnostics.Count, WarningDiagnosticCount = 0 },
+                Diagnostics = libraryDiagnostics
+            };
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
+            else stdout.WriteLine($"Firmament V2 validation: invalid ({libraryDiagnostics.Count} fatal, 0 warning)");
+            return 1;
+        }
+
         var runtimeConfiguration = CreateValidateForgeRuntimeConfiguration(forgePackPaths);
         var parse = FirmamentV2Parser.Parse(
-            validationSource,
+            library.Source,
             Path.GetDirectoryName(Path.GetFullPath(sourcePath)),
             runtimeConfiguration.Catalog);
         var runtimeValidation = FirmamentV2RuntimeConceptValidation.Validate(parse.Document, runtimeConfiguration);

@@ -159,6 +159,17 @@ internal static class CanonicalStaticAuthoring
             }
             patterns.Add(new(pattern.Groups["name"].Value, array.Name, template.Name, generated.Count, generated, new(pattern.Index, close - pattern.Index + 1)));
             changes.Add((pattern.Index, close - pattern.Index + 1, string.Join(Environment.NewLine, output)));
+            // PMI may target a semantic Pattern instance. Resolve that declaration identity
+            // through the same deterministic materialization map used for generated features.
+            for (var index = 0; index < generated.Count; index++)
+            {
+                var semanticId = generated[index];
+                var materializedId = semanticId.Replace("[", "_", StringComparison.Ordinal).Replace("]", string.Empty, StringComparison.Ordinal);
+                foreach (Match target in Regex.Matches(source,
+                             $@"\bTarget\s*:\s*(?<id>{Regex.Escape(semanticId)})\b",
+                             RegexOptions.CultureInvariant))
+                    changes.Add((target.Groups["id"].Index, target.Groups["id"].Length, materializedId));
+            }
         }
 
         // A direct invocation is the same static expansion route as Pattern, with an

@@ -1,0 +1,12 @@
+Model ImportedMountingPlate {
+    Units: mm
+    Use Standard.Products.Mechanical
+
+    Static MyPlate = Standard.Products.Mechanical.StandardMountingPlate with {
+        Width: 120mm
+        Height: 80mm
+        Material: "Standard.Materials.Aluminum.6061_T6"
+    }
+
+    Struct Plate = Standard.Products.Mechanical.MountingPlate<P: MyPlate>
+}

@@ -136,7 +136,7 @@ public sealed class ForgeProtocolHost
                 {
                     var (name, contentType, content) = nativeCompilation is null
                         ? GenerateArtifact(kind, sheetMetalCompilation!)
-                        : GenerateNativeArtifact(kind, nativeCompilation);
+                        : GenerateNativeArtifact(kind, nativeCompilation, known.Id);
                     var path = Path.Combine(root, name);
                     var resolved = Path.GetFullPath(path);
                     if (!string.Equals(Path.GetDirectoryName(resolved), root, StringComparison.OrdinalIgnoreCase))
@@ -179,31 +179,61 @@ public sealed class ForgeProtocolHost
                 item,
                 module.Records.ToDictionary(record => record.Name, StringComparer.Ordinal),
                 module.Enums.ToDictionary(value => value.Name, StringComparer.Ordinal),
+                module.StaticRecords.ToDictionary(value => value.Name, StringComparer.Ordinal),
                 [ForgeArtifactKind.StepAp242, ForgeArtifactKind.FlatStep, ForgeArtifactKind.Svg], false))
             .ToArray();
-        var productSource = PaperclipTemplateLibrary.Source;
-        var products = FirmamentTemplateHostBridge.InspectModule(productSource, out var productDiagnostics);
+        var productCatalogSource = StandardProductTemplateLibrary.Source;
+        var products = FirmamentTemplateHostBridge.InspectModule(productCatalogSource, out var productDiagnostics);
         if (productDiagnostics.Count > 0)
             throw new InvalidOperationException("Standard Products Firmament template catalog is invalid: " + string.Join("; ", productDiagnostics));
-        var productVersion = "1+" + Convert.ToHexString(SHA256.HashData(Utf8.GetBytes(productSource)))[..12].ToLowerInvariant();
-        var paperclip = products.Templates.Where(item => string.Equals(item.Name, "PaperclipTemplate", StringComparison.Ordinal))
-            .Select(item => new RegisteredTemplate(PaperclipTemplateLibrary.TemplateId, "Paperclip", productVersion,
-                "A bounded parametric office paperclip compiled from a semantic planar path and constant circular Sweep.",
-                productSource, item, products.Records.ToDictionary(record => record.Name, StringComparer.Ordinal),
-                products.Enums.ToDictionary(value => value.Name, StringComparer.Ordinal), [ForgeArtifactKind.StepAp242], true));
-        return sheetMetal.Concat(paperclip).ToArray();
+        var productVersion = "1+" + Convert.ToHexString(SHA256.HashData(Utf8.GetBytes(productCatalogSource)))[..12].ToLowerInvariant();
+        var definitions = new Dictionary<string, (string Id, string Name, string Documentation)>(StringComparer.Ordinal)
+        {
+            ["PaperclipTemplate"] = (PaperclipTemplateLibrary.TemplateId, "Paperclip", "A bounded parametric office paperclip compiled from a semantic planar path and constant circular Sweep."),
+            ["MountingPlateTemplate"] = ("Standard.Products.Mechanical.MountingPlate", "Mounting Plate", "General-purpose machined plate with a four-corner counterbored mounting-hole layout and manufacturing PMI."),
+            ["BearingBlockTemplate"] = ("Standard.Products.Mechanical.BearingBlock", "Bearing Block", "Generic machined bearing-support block with a base, circular boss, shaft bore, mounting holes, and bore PMI."),
+            ["MachinedAngleBracketTemplate"] = ("Standard.Products.Mechanical.MachinedAngleBracket", "Machined Angle Bracket", "Prismatic machined L-bracket with two mounting holes and explicit leg proportions."),
+            ["ShaftCollarTemplate"] = ("Standard.Products.Mechanical.ShaftCollar", "Shaft Collar", "Simple solid shaft collar with a through bore; split and clamp mechanics are intentionally outside this family."),
+            ["FlangedAdapterTemplate"] = ("Standard.Products.Mechanical.FlangedAdapter", "Flanged Adapter", "Six-hole circular flanged adapter with a central bore, bolt-circle constraints, and bore PMI."),
+            ["RackPanelTemplate"] = ("Standard.Products.Electronics.RackPanel", "Rack Panel", "Metric planar equipment panel with symmetric mounting holes and configurable edge inset."),
+            ["StandoffTemplate"] = ("Standard.Products.Mechanical.Standoff", "Standoff", "Compact cylindrical spacer with a concentric fastener-clearance bore."),
+        };
+        var records = products.Records.ToDictionary(record => record.Name, StringComparer.Ordinal);
+        var enums = products.Enums.ToDictionary(value => value.Name, StringComparer.Ordinal);
+        var staticRecords = products.StaticRecords.ToDictionary(value => value.Name, StringComparer.Ordinal);
+        var productTemplates = products.Templates.Where(item => definitions.ContainsKey(item.Name)).Select(item =>
+        {
+            var definition = definitions[item.Name];
+            var recordName = item.Parameters.Single().TypeName;
+            var isolatedSource = StandardProductTemplateLibrary.GetTemplateSource(item.Name, recordName);
+            return new RegisteredTemplate(definition.Id, definition.Name, productVersion, definition.Documentation,
+                isolatedSource, item, records, enums, staticRecords, [ForgeArtifactKind.StepAp242], true);
+        });
+        return sheetMetal.Concat(productTemplates).ToArray();
     }
 
     private static ForgeTemplateParameterDescription DescribeParameter(RegisteredTemplate template, FirmamentTemplateParameterMetadata parameter)
     {
+        var defaults = parameter.DefaultExpression is not null
+            && template.StaticRecords.TryGetValue(parameter.DefaultExpression, out var defaultRecord)
+            && string.Equals(defaultRecord.TypeName, parameter.TypeName, StringComparison.Ordinal)
+                ? defaultRecord.Fields
+                : null;
         var fields = template.Records.TryGetValue(parameter.TypeName, out var record)
-            ? record.Fields.Select(field => DescribeValue(template, field.Name, field.TypeName, true, null)).ToArray()
+            ? record.Fields.Select(field => DescribeValue(template, field.Name, field.TypeName,
+                defaults is null || !defaults.ContainsKey(field.Name),
+                defaults is not null && defaults.TryGetValue(field.Name, out var value) ? Unquote(value) : null)).ToArray()
             : null;
         return DescribeValue(template, parameter.Name, parameter.TypeName, parameter.DefaultExpression is null,
             parameter.DefaultExpression, fields,
             parameter.Kind == FirmamentTemplateParameterKind.Type ? "type" : fields is null ? "value" : "record",
             parameter.ConstraintConcept);
     }
+
+    private static string Unquote(string value) =>
+        value.Length >= 2 && value[0] == '"' && value[^1] == '"'
+            ? JsonSerializer.Deserialize(value, ForgeProtocolJsonContext.Default.String) ?? string.Empty
+            : value;
 
     private static ForgeTemplateParameterDescription DescribeValue(RegisteredTemplate template, string name, string type,
         bool required, string? defaultValue, IReadOnlyList<ForgeTemplateParameterDescription>? fields = null,
@@ -232,7 +262,12 @@ public sealed class ForgeProtocolHost
         var projectedRecord = parameters.Count == 1 && template.Records.TryGetValue(parameters[0].TypeName, out onlyRecord);
         if (projectedRecord && !TryGet(supplied, parameters[0].Name, out _))
         {
-            BindRecordFields(parameters[0].Name, parameters[0].TypeName, onlyRecord!, supplied, result, template, diagnostics);
+            if (supplied.Count == 0 && parameters[0].DefaultExpression is not null) return result;
+            IReadOnlyDictionary<string, string>? defaults = null;
+            if (parameters[0].DefaultExpression is { } defaultExpression
+                && template.StaticRecords.TryGetValue(defaultExpression, out var defaultRecord))
+                defaults = defaultRecord.Fields;
+            BindRecordFields(parameters[0].Name, parameters[0].TypeName, onlyRecord!, supplied, result, template, diagnostics, defaults);
             return result;
         }
 
@@ -271,9 +306,12 @@ public sealed class ForgeProtocolHost
 
     private static void BindRecordFields(string parameterName, string recordType, FirmamentTemplateRecordMetadata record,
         IEnumerable<KeyValuePair<string, JsonElement>> values, IDictionary<string, FirmamentHostArgument> result,
-        RegisteredTemplate template, ICollection<ForgeProtocolDiagnostic> diagnostics)
+        RegisteredTemplate template, ICollection<ForgeProtocolDiagnostic> diagnostics,
+        IReadOnlyDictionary<string, string>? defaults = null)
     {
-        var fields = new Dictionary<string, string>(StringComparer.Ordinal);
+        var fields = defaults is null
+            ? new Dictionary<string, string>(StringComparer.Ordinal)
+            : new Dictionary<string, string>(defaults, StringComparer.Ordinal);
         foreach (var property in values)
         {
             var field = record.Fields.FirstOrDefault(item => string.Equals(item.Name, property.Key, StringComparison.OrdinalIgnoreCase));
@@ -346,9 +384,9 @@ public sealed class ForgeProtocolHost
         throw new InvalidOperationException($"Artifact kind '{kind}' has no generator.");
     }
 
-    private static (string Name, string ContentType, string Content) GenerateNativeArtifact(ForgeArtifactKind kind, FirmamentStepExportResult result) =>
+    private static (string Name, string ContentType, string Content) GenerateNativeArtifact(ForgeArtifactKind kind, FirmamentStepExportResult result, string templateId) =>
         kind == ForgeArtifactKind.StepAp242
-            ? ("paperclip.step", "model/step", result.StepText)
+            ? (templateId == PaperclipTemplateLibrary.TemplateId ? "paperclip.step" : "part.step", "model/step", result.StepText)
             : throw new InvalidOperationException($"Native Firmament artifact kind '{kind}' has no generator.");
 
     private static ForgeProtocolDiagnostic FromFirmamentDiagnostic(string value)
@@ -405,6 +443,7 @@ public sealed class ForgeProtocolHost
         FirmamentTemplateMetadata Metadata,
         IReadOnlyDictionary<string, FirmamentTemplateRecordMetadata> Records,
         IReadOnlyDictionary<string, FirmamentTemplateEnumMetadata> Enums,
+        IReadOnlyDictionary<string, FirmamentTemplateStaticRecordMetadata> StaticRecords,
         IReadOnlyList<ForgeArtifactKind> Artifacts,
         bool NativeFirmament);
 }

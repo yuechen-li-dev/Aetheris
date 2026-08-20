@@ -90,6 +90,12 @@ internal static class FirmamentV2TemplateExpansion
 
     internal sealed record HostRecord(string Name, IReadOnlyDictionary<string, string> Fields);
 
+    internal sealed record HostStaticRecord(
+        string Name,
+        string TypeName,
+        IReadOnlyDictionary<string, string> Fields,
+        string Provenance);
+
     internal static IReadOnlyList<HostTemplate> Inspect(string source, List<string> diagnostics) =>
         ParseDeclarations(source, diagnostics)
             .Select(template => new HostTemplate(
@@ -124,6 +130,22 @@ internal static class FirmamentV2TemplateExpansion
             .ToDictionary(item => item.Key,
                 item => (IReadOnlyList<string>)item.Value.OrderBy(value => value, StringComparer.Ordinal).ToArray(),
                 StringComparer.Ordinal);
+
+    internal static IReadOnlyList<HostStaticRecord> InspectStaticRecords(string source, List<string> diagnostics)
+    {
+        var enums = ParseEnums(source);
+        var recordTypes = ParseRecordTypes(source, diagnostics);
+        var tables = ParseStaticTables(source, recordTypes, enums, diagnostics);
+        var staticRecords = ParseStaticRecords(source, recordTypes, enums, tables, diagnostics);
+        return staticRecords.Values
+            .OrderBy(record => record.Name, StringComparer.Ordinal)
+            .Select(record => new HostStaticRecord(
+                record.Name,
+                record.TypeName,
+                FlattenRecordFields(record, recordTypes, staticRecords),
+                record.Provenance))
+            .ToArray();
+    }
 
     /// <summary>
     /// Expands one host-supplied Template invocation from typed arguments. The invocation is
@@ -195,10 +217,12 @@ internal static class FirmamentV2TemplateExpansion
         var bound = Bind(template, application, source, enums, recordTypes, staticRecords, diagnostics);
         if (bound is null || HasErrors(diagnostics)) return null;
 
+        if (!ValidateRecordMembers(template.Body, bound, diagnostics)) return null;
+        if (!EvaluateRequires(Substitute(template.Body, bound), application.InstanceName,
+                DisplaySignature(template), diagnostics, out var requireResults)) return null;
         var body = ResolveTemplateMatches(template.Body, bound, diagnostics, out var selectedMatches);
-        if (body is null || !ValidateRecordMembers(body, bound, diagnostics)) return null;
+        if (body is null) return null;
         body = Substitute(body, bound);
-        if (!EvaluateRequires(body, application.InstanceName, DisplaySignature(template), diagnostics, out var requireResults)) return null;
         body = RemoveRequires(body);
 
         var specialization = new TemplateSpecializationIr(
@@ -229,19 +253,24 @@ internal static class FirmamentV2TemplateExpansion
             SelectedMatchArms: selectedMatches,
             RecordArguments: recordArguments,
             RequireResults: requireResults);
+        var nestedInstantiations = new List<ConceptIrTemplateInstantiation>();
+        body = ExpandNestedApplications(body, byName, source, enums, recordTypes, staticRecords,
+            diagnostics, nestedInstantiations, [template.Name]);
+        if (HasErrors(diagnostics)) return null;
+        var liftedPmi = LiftPmi(body, out body);
 
         var changes = declarations
             .Select(declaration => (
                 Start: declaration.SourceSpan.Start,
                 Length: declaration.SourceSpan.Length,
                 Text: string.Equals(declaration.Name, template.Name, StringComparison.Ordinal)
-                    ? $"{template.TargetKind} {instanceName}{template.HeaderTail} {{{body}}}"
+                    ? $"{template.TargetKind} {instanceName}{template.HeaderTail} {{{body}}}{liftedPmi}"
                     : string.Empty))
             .OrderByDescending(change => change.Start)
             .ToArray();
         foreach (var change in changes)
             source = source.Remove(change.Start, change.Length).Insert(change.Start, change.Text);
-        return HasErrors(diagnostics) ? null : new Result(source, [instantiation]);
+        return HasErrors(diagnostics) ? null : new Result(source, new[] { instantiation }.Concat(nestedInstantiations).ToArray());
 
         void ValidateSyntheticRecord(string recordName, TemplateRecordTypeIr definition,
             IReadOnlyDictionary<string, string> fields, string prefix)
@@ -276,7 +305,11 @@ internal static class FirmamentV2TemplateExpansion
         var declarations = ParseDeclarations(source, diagnostics);
         var byName = declarations.ToDictionary(d => d.Name, StringComparer.Ordinal);
         DetectTemplateCycles(declarations, byName, diagnostics);
-        var applications = ParseApplications(source, byName, diagnostics);
+        var applications = ParseApplications(source, byName, diagnostics)
+            .Where(application => !declarations.Any(declaration =>
+                application.SourceSpan.Start > declaration.SourceSpan.Start
+                && application.SourceSpan.Start < declaration.SourceSpan.Start + declaration.SourceSpan.Length))
+            .ToImmutableArray();
         if (HasErrors(diagnostics)) return null;
 
         var enums = ParseEnums(source);
@@ -292,18 +325,22 @@ internal static class FirmamentV2TemplateExpansion
             var bound = Bind(template, application, source, enums, recordTypes, staticRecords, diagnostics);
             if (bound is null) continue;
             var specialization = new TemplateSpecializationIr(template, application, bound, Identity(template, application, bound), GeneratedPaths(template.Body, application.InstanceName));
+            if (!ValidateRecordMembers(template.Body, bound, diagnostics)) continue;
+            if (!EvaluateRequires(Substitute(template.Body, bound), application.InstanceName,
+                    DisplaySignature(template), diagnostics, out var requireResults)) continue;
             var body = ResolveTemplateMatches(template.Body, bound, diagnostics, out var selectedMatches);
             if (body is null) continue;
-            if (!ValidateRecordMembers(body, bound, diagnostics)) continue;
             body = Substitute(body, bound);
-            if (!EvaluateRequires(body, application.InstanceName, DisplaySignature(template), diagnostics, out var requireResults)) continue;
             body = RemoveRequires(body);
-            changes.Add((application.SourceSpan.Start, application.SourceSpan.Length, $"{template.TargetKind} {application.InstanceName}{template.HeaderTail} {{{body}}}"));
             var recordArguments = bound.RecordArguments.ToDictionary(pair => pair.Key, pair => new ConceptIrTemplateRecordArgument(
                 pair.Value.TypeName, pair.Value.StaticName, pair.Value.Fields, pair.Value.SourceSpan, pair.Value.Provenance), StringComparer.Ordinal);
             instantiations.Add(new(template.Name, application.InstanceName, bound.TypeArguments, bound.ValueArguments, bound.DefaultedArguments,
                 specialization.SpecializationIdentity, specialization.GeneratedDeclarationPaths, template.SourceSpan, application.SourceSpan,
                 SelectedMatchArms: selectedMatches, RecordArguments: recordArguments, RequireResults: requireResults));
+            body = ExpandNestedApplications(body, byName, source, enums, recordTypes, staticRecords,
+                diagnostics, instantiations, [template.Name]);
+            var liftedPmi = LiftPmi(body, out body);
+            changes.Add((application.SourceSpan.Start, application.SourceSpan.Length, $"{template.TargetKind} {application.InstanceName}{template.HeaderTail} {{{body}}}{liftedPmi}"));
         }
         if (HasErrors(diagnostics)) return null;
         foreach (var change in changes.OrderByDescending(c => c.Start)) source = source.Remove(change.Start, change.Length).Insert(change.Start, change.Text);
@@ -669,10 +706,17 @@ internal static class FirmamentV2TemplateExpansion
         var selected = new Dictionary<string, string>(StringComparer.Ordinal);
         while (true)
         {
-            var match = Regex.Match(body, @"\bMatch\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+            var match = Regex.Match(body, @"\bMatch\s+(?<name>[A-Za-z_][A-Za-z0-9_]*(?:\s*\.\s*[A-Za-z_][A-Za-z0-9_]*)?)\s*\{", RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
             if (!match.Success) { selectedMatches = selected; return body; }
-            var name = match.Groups["name"].Value;
-            if (!bound.ValueArguments.TryGetValue(name, out var selectedArm)) { selectedMatches = selected; return body; }
+            var name = Regex.Replace(match.Groups["name"].Value, @"\s+", string.Empty, RegexOptions.CultureInvariant);
+            string? selectedArm = null;
+            if (!bound.ValueArguments.TryGetValue(name, out selectedArm))
+            {
+                var dot = name.IndexOf('.');
+                if (dot > 0 && bound.RecordArguments.TryGetValue(name[..dot], out var record))
+                    record.Fields.TryGetValue(name[(dot + 1)..], out selectedArm);
+            }
+            if (selectedArm is null) { selectedMatches = selected; return body; }
             var open = match.Index + match.Value.LastIndexOf('{'); var close = Matching(body, open, '{', '}');
             if (close < 0) { diagnostics.Add(FirmamentV2Parser.UnsupportedConstruct); selectedMatches = selected; return null; }
             var arm = Regex.Match(body[(open + 1)..close], $@"(?m)^\s*{Regex.Escape(selectedArm)}\s*=>\s*", RegexOptions.CultureInvariant);
@@ -756,6 +800,73 @@ internal static class FirmamentV2TemplateExpansion
     })) + ">";
     private static ImmutableArray<string> GeneratedPaths(string body, string instance) => Regex.Matches(body, @"\b(?:Concept\s+Struct|Box|Modify|EdgeFinish)\s+(?<n>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant).Select(m => instance + "::" + m.Groups["n"].Value).Distinct().ToImmutableArray();
     private static string RemoveRequires(string body) => Regex.Replace(body, @"(?m)^\s*Require\s+[A-Za-z_][A-Za-z0-9_]*\s*=>\s*[^\r\n}]+\s*$", string.Empty);
+    private static string LiftPmi(string body, out string withoutPmi)
+    {
+        var blocks = new List<(int Start, int Length, string Text)>();
+        foreach (Match header in Regex.Matches(body, @"\bPmi\s*\{", RegexOptions.CultureInvariant))
+        {
+            if (blocks.Any(block => header.Index >= block.Start && header.Index < block.Start + block.Length)) continue;
+            var open = body.IndexOf('{', header.Index);
+            var close = Matching(body, open, '{', '}');
+            if (close >= 0) blocks.Add((header.Index, close - header.Index + 1, body[header.Index..(close + 1)]));
+        }
+        withoutPmi = body;
+        foreach (var block in blocks.OrderByDescending(block => block.Start))
+            withoutPmi = withoutPmi.Remove(block.Start, block.Length);
+        return blocks.Count == 0 ? string.Empty : Environment.NewLine + string.Join(Environment.NewLine, blocks.Select(block => block.Text));
+    }
+
+    private static string ExpandNestedApplications(
+        string body,
+        IReadOnlyDictionary<string, TemplateDeclarationIr> templates,
+        string moduleSource,
+        IReadOnlyDictionary<string, ImmutableHashSet<string>> enums,
+        IReadOnlyDictionary<string, TemplateRecordTypeIr> recordTypes,
+        IReadOnlyDictionary<string, TemplateStaticRecordIr> staticRecords,
+        List<string> diagnostics,
+        ICollection<ConceptIrTemplateInstantiation> instantiations,
+        IReadOnlyList<string> stack)
+    {
+        var applications = ParseApplications(body, templates, diagnostics);
+        var changes = new List<(int Start, int Length, string Text)>();
+        foreach (var application in applications)
+        {
+            var template = templates[application.TemplateName];
+            if (stack.Contains(template.Name, StringComparer.Ordinal))
+            {
+                diagnostics.Add(Recursive + ":" + string.Join(" -> ", stack.Append(template.Name)));
+                continue;
+            }
+            var bound = Bind(template, application, moduleSource, enums, recordTypes, staticRecords, diagnostics);
+            if (bound is null) continue;
+            if (!ValidateRecordMembers(template.Body, bound, diagnostics)) continue;
+            if (!EvaluateRequires(Substitute(template.Body, bound), application.InstanceName,
+                    DisplaySignature(template), diagnostics, out var requireResults)) continue;
+            var specializedBody = ResolveTemplateMatches(template.Body, bound, diagnostics, out var selectedMatches);
+            if (specializedBody is null) continue;
+            specializedBody = Substitute(specializedBody, bound);
+            specializedBody = RemoveRequires(specializedBody);
+            var specialization = new TemplateSpecializationIr(template, application, bound,
+                Identity(template, application, bound), GeneratedPaths(template.Body, application.InstanceName));
+            var recordArguments = bound.RecordArguments.ToDictionary(pair => pair.Key, pair => new ConceptIrTemplateRecordArgument(
+                pair.Value.TypeName, pair.Value.StaticName, pair.Value.Fields, pair.Value.SourceSpan, pair.Value.Provenance), StringComparer.Ordinal);
+            instantiations.Add(new(template.Name, application.InstanceName, bound.TypeArguments, bound.ValueArguments,
+                bound.DefaultedArguments, specialization.SpecializationIdentity, specialization.GeneratedDeclarationPaths,
+                template.SourceSpan, application.SourceSpan, SelectedMatchArms: selectedMatches,
+                RecordArguments: recordArguments, RequireResults: requireResults));
+            specializedBody = ExpandNestedApplications(specializedBody, templates, moduleSource, enums, recordTypes,
+                staticRecords, diagnostics, instantiations, stack.Append(template.Name).ToArray());
+            var liftedPmi = LiftPmi(specializedBody, out specializedBody);
+            // Nested finite specializations flatten into the containing declaration before
+            // Feature AIR. The instantiation record above preserves the semantic boundary;
+            // material grammar receives concrete declarations without unsupported nested Structs.
+            changes.Add((application.SourceSpan.Start, application.SourceSpan.Length,
+                specializedBody + liftedPmi));
+        }
+        foreach (var change in changes.OrderByDescending(change => change.Start))
+            body = body.Remove(change.Start, change.Length).Insert(change.Start, change.Text);
+        return body;
+    }
     private static bool HasErrors(IEnumerable<string> diagnostics) => diagnostics.Any(d => d.StartsWith(Prefix, StringComparison.Ordinal));
     private static int Matching(string source, int open, char begin, char end) { var depth = 0; for (var i = open; i < source.Length; i++) { if (source[i] == begin) depth++; else if (source[i] == end && --depth == 0) return i; } return -1; }
 }

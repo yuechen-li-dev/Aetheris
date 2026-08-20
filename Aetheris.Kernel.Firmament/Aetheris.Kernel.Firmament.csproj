@@ -19,5 +19,6 @@
   <ItemGroup>
     <EmbeddedResource Include="Resources\Inter-Regular.ttf" LogicalName="Aetheris.Drawing.Inter.ttf" />
     <EmbeddedResource Include="Resources\ProfileModifications.firmament" />
+    <EmbeddedResource Include="Standard\StandardProducts.firmament" LogicalName="Aetheris.Standard.StandardProducts.firmament" />
   </ItemGroup>
 </Project>

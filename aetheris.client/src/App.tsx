@@ -34,6 +34,7 @@ import {
 	type PaperclipDemoResponseDto,
 } from "./api/aetherisApi";
 import { StepImportDropzone } from "./components/StepImportDropzone";
+import { ProductGallery } from "./components/ProductGallery";
 import { PropertyTable, type PropertyRecord } from "./components/PropertyTable";
 import { SemanticInspector } from "./components/SemanticInspector";
 import { Button } from "./components/ui/button";
@@ -62,7 +63,7 @@ import { DEFAULT_PMI_VISIBILITY, type PmiCategory, type PmiVisibility } from "./
 
 type RequestStatus = "idle" | "loading" | "success" | "error";
 type BooleanOperationUi = "Union" | "Subtract" | "Intersect";
-type TopLevelTab = "viewer" | "paperclips" | "modeling-demo";
+type TopLevelTab = "gallery" | "viewer" | "paperclips" | "modeling-demo";
 type ServerStatus = "connecting" | "connected" | "disconnected" | "error";
 type DocumentStatus = "creating" | "ready" | "error";
 type ImportStatus = "idle" | "creating" | "importing" | "success" | "error";
@@ -998,6 +999,16 @@ function App() {
 						<Button
 							type="button"
 							role="tab"
+							variant={activeTab === "gallery" ? "default" : "secondary"}
+							aria-selected={activeTab === "gallery"}
+							className={activeTab === "gallery" ? "tab-button active" : "tab-button"}
+							onClick={() => setActiveTab("gallery")}
+						>
+							Product Gallery
+						</Button>
+						<Button
+							type="button"
+							role="tab"
 							variant={activeTab === "paperclips" ? "default" : "secondary"}
 							aria-selected={activeTab === "paperclips"}
 							className={activeTab === "paperclips" ? "tab-button active" : "tab-button"}
@@ -1461,6 +1472,8 @@ function App() {
 								) : null}
 							</section>
 						</>
+					) : activeTab === "gallery" ? (
+						<ProductGallery onPreview={async (step, name) => { await importStepText(step, name); }} />
 					) : activeTab === "paperclips" ? (
 						<section className="tool-section paperclip-forge">
 							<p className="paperclip-forge__eyebrow">OBJECTIVE: MAKE PAPERCLIPS.</p>

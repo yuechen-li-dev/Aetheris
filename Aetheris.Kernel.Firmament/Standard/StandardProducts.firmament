@@ -1,0 +1,227 @@
+// Aetheris Standard Library product families. Forge.Host assigns public identities.
+Model StandardProducts {
+    Units: mm
+
+    Record PaperclipPolicy { WireDiameter: Length OverallLength: Length OuterWidth: Length InnerWidth: Length BendRadius: Length LoopGap: Length Material: String }
+    Static StandardPaperclip: PaperclipPolicy = PaperclipPolicy { WireDiameter: 0.8mm OverallLength: 33mm OuterWidth: 9mm InnerWidth: 5mm BendRadius: 1mm LoopGap: 1mm Material: "Standard.Materials.StainlessSteel.304_Annealed" }
+    Template<P: PaperclipPolicy = StandardPaperclip>
+    Struct PaperclipTemplate {
+        Require PositiveWireDiameter => P.WireDiameter > 0mm
+        Require LengthExceedsWidth => P.OverallLength > P.OuterWidth
+        Require OuterWidthExceedsInnerWidth => P.OuterWidth > P.InnerWidth
+        Require InnerLoopClearsWire => P.InnerWidth > P.WireDiameter
+        Require BendClearsWire => P.BendRadius > P.WireDiameter
+        Require EndsHaveClearance => P.LoopGap >= P.WireDiameter
+        Concept Path PaperclipPath {
+            Start: Point2(0mm, 0mm) Heading: 90deg
+            Line InnerUp { Length: P.OverallLength - P.InnerWidth / 2 - P.LoopGap }
+            Arc InnerTop { Radius: P.InnerWidth / 2; Turn: -180deg }
+            Line InnerDown { Length: P.OverallLength - P.InnerWidth / 2 - P.OuterWidth / 2 - P.LoopGap }
+            Arc BottomTransition { Radius: P.BendRadius; Turn: 180deg }
+            Line OuterUp { Length: P.OverallLength - P.OuterWidth }
+            Arc OuterTop { Radius: P.OuterWidth / 2; Turn: 180deg }
+            Line OuterDown { Length: P.OverallLength - P.OuterWidth / 2 - P.LoopGap }
+        }
+        Sweep Paperclip { Path: PaperclipPath; Diameter: P.WireDiameter; Material: P.Material; }
+    }
+
+    Record MountingPlatePolicy { Width: Length Height: Length Thickness: Length HoleDiameter: Length HoleSpacingX: Length HoleSpacingY: Length CounterboreDiameter: Length CounterboreDepth: Length Material: String }
+    Static StandardMountingPlate: MountingPlatePolicy = MountingPlatePolicy { Width: 120mm Height: 80mm Thickness: 10mm HoleDiameter: 6.6mm HoleSpacingX: 90mm HoleSpacingY: 50mm CounterboreDiameter: 11mm CounterboreDepth: 4mm Material: "Standard.Materials.Aluminum.6061_T6" }
+    Template<P: MountingPlatePolicy = StandardMountingPlate>
+    Struct MountingPlateTemplate {
+        Require PositiveDimensions => P.Width > 0mm && P.Height > 0mm && P.Thickness > 0mm
+        Require PositiveMountingHoles => P.HoleDiameter > 0mm && P.CounterboreDiameter > P.HoleDiameter && P.CounterboreDepth > 0mm
+        Require CounterboreLeavesFloor => P.CounterboreDepth < P.Thickness
+        Require HoleSpacingXFitsPlate => P.HoleSpacingX < P.Width
+        Require HoleSpacingYFitsPlate => P.HoleSpacingY < P.Height
+        Concept Struct Layout On XY { Rect2 Stock { Center: [0mm, 0mm]; Size: [P.Width, P.Height] } }
+        Profile PlateProfile Using Layout { Loop Outer {
+            Segment Bottom { Trace: Stock.Bottom; From: Stock.BottomLeft; To: Stock.BottomRight } Segment Right { Trace: Stock.Right; From: Stock.BottomRight; To: Stock.TopRight }
+            Segment Top { Trace: Stock.Top; From: Stock.TopRight; To: Stock.TopLeft } Segment Left { Trace: Stock.Left; From: Stock.TopLeft; To: Stock.BottomLeft }
+        } }
+        Compose Body {
+            Base Plate { Profile: PlateProfile; From: 0mm; To: P.Thickness; Role: Stock }
+            Hole<Counterbore> MountSouthWest { On: +Z; Center: [-45mm, -25mm]; Diameter: P.HoleDiameter; CounterboreDiameter: P.CounterboreDiameter; CounterboreDepth: P.CounterboreDepth; End: ThroughAll; Role: MountingHole }
+            Hole<Counterbore> MountSouthEast { On: +Z; Center: [45mm, -25mm]; Diameter: P.HoleDiameter; CounterboreDiameter: P.CounterboreDiameter; CounterboreDepth: P.CounterboreDepth; End: ThroughAll; Role: MountingHole }
+            Hole<Counterbore> MountNorthEast { On: +Z; Center: [45mm, 25mm]; Diameter: P.HoleDiameter; CounterboreDiameter: P.CounterboreDiameter; CounterboreDepth: P.CounterboreDepth; End: ThroughAll; Role: MountingHole }
+            Hole<Counterbore> MountNorthWest { On: +Z; Center: [-45mm, 25mm]; Diameter: P.HoleDiameter; CounterboreDiameter: P.CounterboreDiameter; CounterboreDepth: P.CounterboreDepth; End: ThroughAll; Role: MountingHole }
+        }
+        Pmi {
+            Datum A { Target: face(+Z) }
+            HoleDiameter MountingHoleDiameter {
+                Target: MountSouthWest
+                Value: P.HoleDiameter
+                Tolerance: PlusMinus(0.10mm, 0.00mm)
+                DatumRefs: [A]
+            }
+        }
+    }
+
+    Record BearingBlockPolicy { BaseWidth: Length BaseDepth: Length BaseThickness: Length BossDiameter: Length BossHeight: Length BoreDiameter: Length MountSpacing: Length MountHoleDiameter: Length Material: String }
+    Static StandardBearingBlock: BearingBlockPolicy = BearingBlockPolicy { BaseWidth: 100mm BaseDepth: 50mm BaseThickness: 14mm BossDiameter: 36mm BossHeight: 18mm BoreDiameter: 20mm MountSpacing: 72mm MountHoleDiameter: 8.5mm Material: "Standard.Materials.Aluminum.6061_T6" }
+    Template<P: BearingBlockPolicy = StandardBearingBlock>
+    Struct BearingBlockTemplate {
+        Require PositiveDimensions => P.BaseWidth > 0mm && P.BaseDepth > 0mm && P.BaseThickness > 0mm && P.BossHeight > 0mm
+        Require BoreFitsBoss => P.BoreDiameter > 0mm && P.BoreDiameter < P.BossDiameter
+        Require BossFitsBase => P.BossDiameter < P.BaseDepth
+        Require PositiveMountHoles => P.MountHoleDiameter > 0mm
+        Require MountSpacingFitsBase => P.MountSpacing < P.BaseWidth
+        Concept Struct Layout On XY {
+            Rect2 Stock { Center: [0mm, 0mm]; Size: [P.BaseWidth, P.BaseDepth] }
+            Point2 BossCenter { Position: [0mm, 0mm] }
+            Point2 BossEast { Position: [18mm, 0mm] } Point2 BossNorth { Position: [0mm, 18mm] }
+            Point2 BossWest { Position: [-18mm, 0mm] } Point2 BossSouth { Position: [0mm, -18mm] }
+            Circle2 BossCircle { Center: BossCenter; Radius: 18mm }
+        }
+        Profile BaseProfile Using Layout { Loop Outer {
+            Segment Bottom { Trace: Stock.Bottom; From: Stock.BottomLeft; To: Stock.BottomRight } Segment Right { Trace: Stock.Right; From: Stock.BottomRight; To: Stock.TopRight }
+            Segment Top { Trace: Stock.Top; From: Stock.TopRight; To: Stock.TopLeft } Segment Left { Trace: Stock.Left; From: Stock.TopLeft; To: Stock.BottomLeft }
+        } }
+        Profile BossProfile Using Layout { Loop Outer {
+            Segment Q1 { Trace: BossCircle; From: BossEast; To: BossNorth; Sweep: CounterClockwise } Segment Q2 { Trace: BossCircle; From: BossNorth; To: BossWest; Sweep: CounterClockwise }
+            Segment Q3 { Trace: BossCircle; From: BossWest; To: BossSouth; Sweep: CounterClockwise } Segment Q4 { Trace: BossCircle; From: BossSouth; To: BossEast; Sweep: CounterClockwise }
+        } }
+        Compose Body {
+            Base Stock { Profile: BaseProfile; From: 0mm; To: P.BaseThickness; Role: Stock }
+            Boss BearingBoss { On: Top; Profile: BossProfile; Height: P.BossHeight }
+            Hole<Shaft> BearingBore { On: +Z; Center: [0mm, 0mm]; Diameter: P.BoreDiameter; End: ThroughAll; Role: ShaftBore }
+            Hole<Shaft> MountLeft { On: +Z; Center: [-36mm, 0mm]; Diameter: P.MountHoleDiameter; End: ThroughAll; Role: MountingHole }
+            Hole<Shaft> MountRight { On: +Z; Center: [36mm, 0mm]; Diameter: P.MountHoleDiameter; End: ThroughAll; Role: MountingHole }
+        }
+        Pmi {
+            Datum A { Target: face(+Z) }
+            HoleDiameter BoreDiameter {
+                Target: BearingBore
+                Value: P.BoreDiameter
+                Tolerance: PlusMinus(0.05mm, 0.02mm)
+                DatumRefs: [A]
+            }
+        }
+    }
+
+    Record MachinedAngleBracketPolicy { Width: Length Height: Length LegWidth: Length Thickness: Length HoleDiameter: Length Material: String }
+    Static StandardMachinedAngleBracket: MachinedAngleBracketPolicy = MachinedAngleBracketPolicy { Width: 80mm Height: 60mm LegWidth: 20mm Thickness: 10mm HoleDiameter: 8.5mm Material: "Standard.Materials.Steel.ASTM_A36" }
+    Template<P: MachinedAngleBracketPolicy = StandardMachinedAngleBracket>
+    Struct MachinedAngleBracketTemplate {
+        Require PositiveDimensions => P.Width > 0mm && P.Height > 0mm && P.LegWidth > 0mm && P.Thickness > 0mm
+        Require LegFits => P.LegWidth < P.Width && P.LegWidth < P.Height
+        Require HolesFitLeg => P.HoleDiameter > 0mm && P.HoleDiameter < P.LegWidth
+        Concept Path Outline { Start: Point2(0mm, 0mm) Heading: 0deg Line South { Length: P.Width } Line EastShort { Turn: 90deg; Length: P.LegWidth } Line InnerWest { Turn: 90deg; Length: P.Width - P.LegWidth } Line InnerNorth { Turn: -90deg; Length: P.Height - P.LegWidth } Line North { Turn: 90deg; Length: P.LegWidth } Close West }
+        Profile BracketProfile From Outline
+        Compose Body {
+            Base Stock { Profile: BracketProfile; From: 0mm; To: P.Thickness; Role: Stock }
+            Hole<Shaft> HorizontalMount { On: +Z; Center: [70mm, 10mm]; Diameter: P.HoleDiameter; End: ThroughAll; Role: MountingHole }
+            Hole<Shaft> VerticalMount { On: +Z; Center: [10mm, 50mm]; Diameter: P.HoleDiameter; End: ThroughAll; Role: MountingHole }
+        }
+    }
+
+    Record ShaftCollarPolicy { OuterDiameter: Length BoreDiameter: Length Width: Length Material: String }
+    Static StandardShaftCollar: ShaftCollarPolicy = ShaftCollarPolicy { OuterDiameter: 32mm BoreDiameter: 16mm Width: 12mm Material: "Standard.Materials.StainlessSteel.304_Annealed" }
+    Template<P: ShaftCollarPolicy = StandardShaftCollar>
+    Struct ShaftCollarTemplate {
+        Require PositiveDimensions => P.OuterDiameter > 0mm && P.BoreDiameter > 0mm && P.Width > 0mm
+        Require BoreFitsBody => P.BoreDiameter < P.OuterDiameter
+        Concept Struct Layout On XY {
+            Point2 Center { Position: [0mm, 0mm] } Point2 East { Position: [16mm, 0mm] }
+            Point2 North { Position: [0mm, 16mm] } Point2 West { Position: [-16mm, 0mm] }
+            Point2 South { Position: [0mm, -16mm] } Circle2 Outer { Center: Center; Radius: 16mm }
+        }
+        Profile CollarProfile Using Layout { Loop Outer {
+            Segment Q1 { Trace: Outer; From: East; To: North; Sweep: CounterClockwise } Segment Q2 { Trace: Outer; From: North; To: West; Sweep: CounterClockwise }
+            Segment Q3 { Trace: Outer; From: West; To: South; Sweep: CounterClockwise } Segment Q4 { Trace: Outer; From: South; To: East; Sweep: CounterClockwise }
+        } }
+        Compose Body { Base Collar { Profile: CollarProfile; From: 0mm; To: P.Width; Role: Stock } Hole<Shaft> Bore { On: +Z; Center: [0mm, 0mm]; Diameter: P.BoreDiameter; End: ThroughAll; Role: ShaftBore } }
+    }
+
+    Record FlangedAdapterPolicy { OuterDiameter: Length BodyThickness: Length BoreDiameter: Length BoltHoleDiameter: Length BoltCount: int Material: String }
+    Static StandardFlangedAdapter: FlangedAdapterPolicy = FlangedAdapterPolicy { OuterDiameter: 80mm BodyThickness: 12mm BoreDiameter: 30mm BoltHoleDiameter: 6.6mm BoltCount: 6 Material: "Standard.Materials.Aluminum.6061_T6" }
+    Template<P: FlangedAdapterPolicy = StandardFlangedAdapter>
+    Struct FlangedAdapterTemplate {
+        Require PositiveDimensions => P.OuterDiameter > 0mm && P.BodyThickness > 0mm && P.BoreDiameter > 0mm && P.BoltHoleDiameter > 0mm
+        Require BoreFitsBody => P.BoreDiameter < P.OuterDiameter
+        Require FixedBoltCircleFitsFlange => P.OuterDiameter > 52mm
+        Require BoltCountMinimum => P.BoltCount >= 4
+        Require BoltCountMaximum => P.BoltCount <= 8
+        Record BoltSpec { Center: Point2 }
+        Static Bolt4: BoltSpec[] = [
+            BoltSpec { Center: Point2(22mm, 0mm) } BoltSpec { Center: Point2(0mm, 22mm) }
+            BoltSpec { Center: Point2(-22mm, 0mm) } BoltSpec { Center: Point2(0mm, -22mm) }
+        ]
+        Static Bolt6: BoltSpec[] = [
+            BoltSpec { Center: Point2(22mm, 0mm) } BoltSpec { Center: Point2(11mm, 19.052558883mm) }
+            BoltSpec { Center: Point2(-11mm, 19.052558883mm) } BoltSpec { Center: Point2(-22mm, 0mm) }
+            BoltSpec { Center: Point2(-11mm, -19.052558883mm) } BoltSpec { Center: Point2(11mm, -19.052558883mm) }
+        ]
+        Static Bolt8: BoltSpec[] = [
+            BoltSpec { Center: Point2(22mm, 0mm) } BoltSpec { Center: Point2(15.556349186mm, 15.556349186mm) }
+            BoltSpec { Center: Point2(0mm, 22mm) } BoltSpec { Center: Point2(-15.556349186mm, 15.556349186mm) }
+            BoltSpec { Center: Point2(-22mm, 0mm) } BoltSpec { Center: Point2(-15.556349186mm, -15.556349186mm) }
+            BoltSpec { Center: Point2(0mm, -22mm) } BoltSpec { Center: Point2(15.556349186mm, -15.556349186mm) }
+        ]
+        Template<spec: BoltSpec> FlangeBolt { Hole<Shaft> Bolt { On: +Z; Center: spec.Center; Diameter: P.BoltHoleDiameter; End: ThroughAll; Role: MountingHole } }
+        Concept Struct Layout On XY {
+            Point2 Center { Position: [0mm, 0mm] } Point2 East { Position: [40mm, 0mm] }
+            Point2 North { Position: [0mm, 40mm] } Point2 West { Position: [-40mm, 0mm] }
+            Point2 South { Position: [0mm, -40mm] } Circle2 Outer { Center: Center; Radius: 40mm }
+        }
+        Profile FlangeProfile Using Layout { Loop Outer {
+            Segment Q1 { Trace: Outer; From: East; To: North; Sweep: CounterClockwise } Segment Q2 { Trace: Outer; From: North; To: West; Sweep: CounterClockwise }
+            Segment Q3 { Trace: Outer; From: West; To: South; Sweep: CounterClockwise } Segment Q4 { Trace: Outer; From: South; To: East; Sweep: CounterClockwise }
+        } }
+        Compose Body {
+            Base Flange { Profile: FlangeProfile; From: 0mm; To: P.BodyThickness; Role: Stock }
+            Hole<Shaft> Bore { On: +Z; Center: [0mm, 0mm]; Diameter: P.BoreDiameter; End: ThroughAll; Role: ShaftBore }
+            Pattern BoltPattern Over Match P.BoltCount {
+                4 => Bolt4
+                6 => Bolt6
+                8 => Bolt8
+            } { FlangeBolt<Current> }
+        }
+        Pmi {
+            Datum A { Target: face(+Z) }
+            HoleDiameter BoreDiameter {
+                Target: Bore
+                Value: P.BoreDiameter
+                Tolerance: PlusMinus(0.10mm, 0.00mm)
+                DatumRefs: [A]
+            }
+        }
+    }
+
+    Record RackPanelPolicy { Width: Length Height: Length Thickness: Length MountHoleDiameter: Length MountInset: Length Material: String }
+    Static StandardRackPanel: RackPanelPolicy = RackPanelPolicy { Width: 482.6mm Height: 44.45mm Thickness: 3mm MountHoleDiameter: 6.5mm MountInset: 12.7mm Material: "Standard.Materials.Aluminum.5052_H32" }
+    Template<P: RackPanelPolicy = StandardRackPanel>
+    Struct RackPanelTemplate {
+        Require PositiveDimensions => P.Width > 0mm && P.Height > 0mm && P.Thickness > 0mm && P.MountHoleDiameter > 0mm
+        Require MountInsetFitsWidth => P.MountInset < P.Width
+        Require MountingHoleFitsHeight => P.MountHoleDiameter < P.Height
+        Concept Struct Layout On XY { Rect2 Stock { Center: [0mm, 0mm]; Size: [P.Width, P.Height] } }
+        Profile PanelProfile Using Layout { Loop Outer {
+            Segment Bottom { Trace: Stock.Bottom; From: Stock.BottomLeft; To: Stock.BottomRight } Segment Right { Trace: Stock.Right; From: Stock.BottomRight; To: Stock.TopRight }
+            Segment Top { Trace: Stock.Top; From: Stock.TopRight; To: Stock.TopLeft } Segment Left { Trace: Stock.Left; From: Stock.TopLeft; To: Stock.BottomLeft }
+        } }
+        Compose Body {
+            Base Panel { Profile: PanelProfile; From: 0mm; To: P.Thickness; Role: Stock }
+            Hole<Shaft> MountLeft { On: +Z; Center: [-228.6mm, 0mm]; Diameter: P.MountHoleDiameter; End: ThroughAll; Role: MountingHole }
+            Hole<Shaft> MountRight { On: +Z; Center: [228.6mm, 0mm]; Diameter: P.MountHoleDiameter; End: ThroughAll; Role: MountingHole }
+        }
+    }
+
+    Record StandoffPolicy { OuterDiameter: Length Length: Length BoreDiameter: Length Material: String }
+    Static StandardStandoff: StandoffPolicy = StandoffPolicy { OuterDiameter: 10mm Length: 25mm BoreDiameter: 4.2mm Material: "Standard.Materials.StainlessSteel.304_Annealed" }
+    Template<P: StandoffPolicy = StandardStandoff>
+    Struct StandoffTemplate {
+        Require PositiveDimensions => P.OuterDiameter > 0mm && P.Length > 0mm && P.BoreDiameter > 0mm
+        Require BoreFitsBody => P.BoreDiameter < P.OuterDiameter
+        Concept Struct Layout On XY {
+            Point2 Center { Position: [0mm, 0mm] } Point2 East { Position: [5mm, 0mm] }
+            Point2 North { Position: [0mm, 5mm] } Point2 West { Position: [-5mm, 0mm] }
+            Point2 South { Position: [0mm, -5mm] } Circle2 Outer { Center: Center; Radius: 5mm }
+        }
+        Profile StandoffProfile Using Layout { Loop Outer {
+            Segment Q1 { Trace: Outer; From: East; To: North; Sweep: CounterClockwise } Segment Q2 { Trace: Outer; From: North; To: West; Sweep: CounterClockwise }
+            Segment Q3 { Trace: Outer; From: West; To: South; Sweep: CounterClockwise } Segment Q4 { Trace: Outer; From: South; To: East; Sweep: CounterClockwise }
+        } }
+        Compose Body { Base Standoff { Profile: StandoffProfile; From: 0mm; To: P.Length; Role: Stock } Hole<Shaft> Bore { On: +Z; Center: [0mm, 0mm]; Diameter: P.BoreDiameter; End: ThroughAll; Role: FastenerClearance } }
+    }
+}

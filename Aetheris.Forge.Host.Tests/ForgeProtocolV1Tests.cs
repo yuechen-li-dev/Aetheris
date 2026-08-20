@@ -32,6 +32,8 @@ public sealed class ForgeProtocolV1Tests
         var spec = Assert.Single(description.Parameters);
         Assert.Equal("record", spec.Type);
         Assert.Equal("mm", spec.Fields!.Single(item => item.Name == "Width").Unit);
+        Assert.Equal("120mm", spec.Fields!.Single(item => item.Name == "Width").Default);
+        Assert.All(spec.Fields!, field => Assert.False(field.Required));
         Assert.Equal(["Auto", "Rectangular", "Round"], spec.Fields!.Single(item => item.Name == "ReliefPolicy").AllowedValues);
         Assert.Equal([ForgeArtifactKind.StepAp242, ForgeArtifactKind.FlatStep, ForgeArtifactKind.Svg], description.Artifacts);
     }
@@ -88,6 +90,18 @@ public sealed class ForgeProtocolV1Tests
         Assert.True(Step242Importer.ImportBody(File.ReadAllText(System.IO.Path.Combine(first.Path, "part.flat.step"))).IsSuccess);
     }
 
+    [Fact]
+    public void EnclosureCanonicalStaticDefaultCanBeInvokedWithoutDuplicatedFields()
+    {
+        using var output = TempDirectory.Create();
+        var result = new ForgeProtocolHost().InvokeTemplate(Enclosure,
+            new ForgeTemplateInvocationRequest(1, new Dictionary<string, JsonElement>(), [ForgeArtifactKind.StepAp242]),
+            output.Path);
+
+        Assert.True(result.Success, string.Join(Environment.NewLine, result.Diagnostics.Select(item => item.Code + ": " + item.Message)));
+        Assert.True(File.Exists(System.IO.Path.Combine(output.Path, "part.step")));
+    }
+
     [Theory]
     [MemberData(nameof(InvalidRequests))]
     public void InvalidInvocationsReturnCanonicalStructuredDiagnostics(
@@ -103,7 +117,6 @@ public sealed class ForgeProtocolV1Tests
     public static TheoryData<string, IReadOnlyDictionary<string, object?>, string> InvalidRequests() => new()
     {
         { "Standard.SheetMetal.DoesNotExist", ValidArguments(), "forge-host-template-not-found" },
-        { Enclosure, Without("width"), "firmament-template-record-missing-field" },
         { Enclosure, With("mystery", "1 mm"), "firmament-template-record-extra-field" },
         { Enclosure, With("width", true), "forge-host-argument-transport-type" },
         { Enclosure, With("width", "12 kg"), "firmament-template-record-field-type-mismatch" },

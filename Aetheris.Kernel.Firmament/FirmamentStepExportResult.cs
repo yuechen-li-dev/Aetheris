@@ -22,7 +22,17 @@ public sealed record FirmamentStepExportResult(
     IReadOnlyList<Aetheris.Kernel.Firmament.FirmamentV2.FirmamentV2VolumeAssertionResult>? Assertions = null,
     FirmamentStandardPartReport? StandardPart = null,
     IReadOnlyList<FirmamentEngineeringFeatureReport>? EngineeringFeatures = null,
-    FirmamentSweepReport? Sweep = null);
+    FirmamentSweepReport? Sweep = null,
+    IReadOnlyList<FirmamentSemanticPatternReport>? Patterns = null);
+
+public sealed record FirmamentSemanticPatternReport(
+    string Name,
+    string Source,
+    string Generator,
+    int Count,
+    IReadOnlyList<string> GeneratedInstances,
+    string Distribution,
+    string Status = "PreservedThroughFeatureAir;InstancesMaterializedAtBRepPlan");
 
 public sealed record FirmamentSweepReport(
     string Path,

@@ -8,4 +8,4 @@ Units are part of values and types. Lengths such as `8mm`, forces such as `500N`
 
 Named semantic features survive beyond geometry construction. Supported PMI is emitted as AP242 product-definition semantics; feature and topology correspondence is available to inspection consumers such as Cadmata. Presentation orientation is not authoritative engineering state.
 
-Canonical authoring is Firmament V2. V1 and JSON-shaped `.firmasm` exist only as explicitly identified compatibility inputs. See [syntax](syntax.md), [targets](../reference/targets.md), and the [support matrix](../reference/supported-features.md).
+Canonical authoring is Firmament V2. V1 and JSON-shaped `.firmasm` exist only as explicitly identified compatibility inputs. See [syntax](syntax.md), [structural members and weldments](structural.md), [targets](../reference/targets.md), and the [support matrix](../reference/supported-features.md).

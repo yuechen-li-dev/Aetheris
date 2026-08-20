@@ -24,6 +24,7 @@ using Aetheris.Piping;
 using Aetheris.Surfacing;
 using Aetheris.Geometry;
 using Aetheris.SheetMetal;
+using Aetheris.Kernel.Firmament.Structural;
 
 namespace Aetheris.CLI;
 
@@ -459,6 +460,7 @@ public static class CliRunner
                 features = build.Value.Export.Features,
                 engineeringFeatures = build.Value.Export.EngineeringFeatures,
                 patterns = build.Value.Export.Patterns,
+                structural = build.Value.Export.Structural,
                 featureCount = (build.Value.Export.Features?.Count ?? 0) + (build.Value.Export.EngineeringFeatures?.Count ?? 0),
                 inlineStepMigration = build.Value.Export.InlineStepMigration,
                 inlineStepReplacementAssist = build.Value.Export.InlineStepReplacementAssist,
@@ -479,6 +481,8 @@ public static class CliRunner
                 stdout.WriteLine($"Standard part: {standardPart.Family} via {standardPart.Template ?? "direct record"} ({standardPart.SemanticDescendants.Count} semantic descendants)");
             if (build.Value.Export.Sweep is { } sweep)
                 stdout.WriteLine($"Sweep: {sweep.SegmentCount} analytic path segments, {sweep.Diameter:G6} mm diameter, {sweep.CenterlineLength:G6} mm centerline ({sweep.Cylinders} cylinders, {sweep.Tori} tori)");
+            if (build.Value.Export.Structural is { } structure)
+                stdout.WriteLine($"Structure: {structure.Members.Count} members, {structure.Joints.Count} joints, {structure.CutList.Count} cut-list groups; cut list: {structure.CutListArtifactPath}");
             foreach (var diagnostic in build.Diagnostics.Where(diagnostic => diagnostic.Severity == KernelDiagnosticSeverity.Warning))
                 stderr.WriteLine($"- [Warning] {diagnostic.Source}: {diagnostic.Message}");
         }
@@ -987,6 +991,14 @@ Model CanonicalPanel {
         }
 
         var source = File.ReadAllText(fullPath);
+        if (StructuralAuthoring.IsStructuralSource(source))
+        {
+            var structural = StructuralAuthoring.Compile(source, fullPath);
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "inspect", success = structural.IsSuccess, input = fullPath, domain = "Structural", structural = structural.Report, diagnostics = structural.Diagnostics }, JsonOptions));
+            else if (structural.IsSuccess && structural.Report is { } structuralReport) stdout.WriteLine($"Structure {structuralReport.Structure}: {structuralReport.Members.Count} members, {structuralReport.Joints.Count} joints, {structuralReport.Welds.Count} welds, {structuralReport.CutList.Count} cut-list groups");
+            else foreach (var diagnostic in structural.Diagnostics) stderr.WriteLine($"error: {diagnostic}");
+            return structural.IsSuccess ? 0 : 1;
+        }
         var library = FirmamentStandardLibraryResolver.Resolve(source, out var libraryDiagnostics);
         var inspectionSource = library?.Source ?? source;
         var sweepSource = ExpandSweepInspectionSource(source, out var sweepExpansionDiagnostics);
@@ -1623,6 +1635,14 @@ Model CanonicalPanel {
         }
 
         var validationSource=File.ReadAllText(sourcePath);
+        if (StructuralAuthoring.IsStructuralSource(validationSource))
+        {
+            var structural = StructuralAuthoring.Compile(validationSource, Path.GetFullPath(sourcePath));
+            var payload = new { source = sourcePath, status = structural.IsSuccess ? "valid" : "invalid", domain = "Structural", summary = new { fatalDiagnosticCount = structural.Diagnostics.Count, warningDiagnosticCount = 0, members = structural.Report?.Members.Count ?? 0, joints = structural.Report?.Joints.Count ?? 0 }, diagnostics = structural.Diagnostics };
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
+            else stdout.WriteLine($"Firmament V2 Structural validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");
+            return structural.IsSuccess ? 0 : 1;
+        }
         if (CircularSweepAuthoring.IsSweepSource(validationSource))
         {
             var sweepSource = ExpandSweepInspectionSource(validationSource, out var sweepExpansionDiagnostics);

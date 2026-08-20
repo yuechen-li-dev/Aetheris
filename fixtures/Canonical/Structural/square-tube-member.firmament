@@ -1,0 +1,6 @@
+Model SquareTubeMember {
+  Units: mm
+  Structure Beam { Node A = [0mm,0mm,0mm]; Node B = [750mm,0mm,0mm]; Path Axis: A -> B; }
+  Section RHS { Kind: SquareTube; Width: 40mm; Thickness: 3mm; }
+  Member Beam { Path: Axis; Section: RHS; Material: Standard.Materials.Steel.ASTM_A36; Orientation: [0,0,1]; }
+}

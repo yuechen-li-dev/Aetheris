@@ -12,9 +12,10 @@ The Standard Library is a shipped, curated catalog of typed Firmament product fa
 | Flanged Adapter | `Standard.Products.Mechanical.FlangedAdapter` | circular flange, 4/6/8-hole semantic Pattern, bore PMI |
 | Rack Panel | `Standard.Products.Electronics.RackPanel` | planar stock, symmetric mounting holes |
 | Standoff | `Standard.Products.Mechanical.Standoff` | circular spacer, clearance bore |
+| Welded Workbench | `Standard.Structural.WeldedWorkbench` | structure graph, generated Member/Joint/Weld tables, AP242 assembly, Cut List JSON |
 | Electronics Enclosure | `Standard.SheetMetal.ElectronicsEnclosure` | Sheet Metal, DFM, formed STEP, flat STEP, SVG |
 
-The namespace taxonomy is intentionally shallow: `Standard.Products.Mechanical`, `.Electronics`, and `.Office` identify ordinary products; the existing `Standard.SheetMetal` namespace remains stable for manufacturing Templates.
+The namespace taxonomy is intentionally shallow: `Standard.Products.Mechanical`, `.Electronics`, and `.Office` identify ordinary products; `Standard.Structural` owns structure-first weldments; the existing `Standard.SheetMetal` namespace remains stable for manufacturing Templates.
 
 ## Invoke a family
 

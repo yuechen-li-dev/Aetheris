@@ -1,0 +1,9 @@
+Model ButtJoint {
+  Units: mm
+  Structure Tee { Node A = [0mm,0mm,0mm]; Node B = [800mm,0mm,0mm]; Node C = [400mm,-400mm,0mm]; Node D = [400mm,0mm,0mm]; Path ThroughAxis: A -> B; Path TerminatingAxis: C -> D; }
+  Section RHS { Kind: SquareTube; Width: 40mm; Thickness: 3mm; }
+  Member Through { Path: ThroughAxis; Section: RHS; Material: Standard.Materials.Steel.ASTM_A36; Orientation: [0,0,1]; }
+  Member Terminating { Path: TerminatingAxis; Section: RHS; Material: Standard.Materials.Steel.ASTM_A36; Orientation: [0,0,1]; }
+  Joint TeeButt { Members: [Through.Start, Terminating.End]; Type: Butt; Primary: Through; }
+  Weld TeeWeld { Joint: TeeButt; Type: Fillet; Size: 4mm; }
+}

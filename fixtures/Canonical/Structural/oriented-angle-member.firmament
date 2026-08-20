@@ -1,0 +1,6 @@
+Model OrientedAngleMember {
+  Units: mm
+  Structure Brace { Node A = [0mm,0mm,0mm]; Node B = [0mm,0mm,500mm]; Path Axis: A -> B; }
+  Section L40 { Kind: Angle; Width: 40mm; Height: 40mm; Thickness: 4mm; }
+  Member Brace { Path: Axis; Section: L40; Material: Standard.Materials.Steel.ASTM_A36; Orientation: [1,0,0]; }
+}

@@ -1,0 +1,1 @@
+Model InvalidZeroLength { Units: mm Structure S { Node A = [0mm,0mm,0mm]; Node B = [0mm,0mm,0mm]; Path P: A -> B; } Section Q { Kind: SquareTube; Width: 40mm; Thickness: 3mm; } Member M { Path: P; Section: Q; Material: Standard.Materials.Steel.ASTM_A36; Orientation: Auto; } }

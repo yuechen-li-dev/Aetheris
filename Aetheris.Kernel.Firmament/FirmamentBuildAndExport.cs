@@ -18,6 +18,7 @@ using Aetheris.Kernel.Firmament.Execution;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Kernel.Firmament.Materializer;
 using Aetheris.Kernel.StandardLibrary;
+using Aetheris.Kernel.Firmament.Structural;
 
 namespace Aetheris.Kernel.Firmament;
 
@@ -37,6 +38,21 @@ public static class FirmamentBuildAndExport
 
         var fullSourcePath = Path.GetFullPath(sourcePath);
         var sourceText = NormalizeLf(File.ReadAllText(fullSourcePath, Encoding.UTF8));
+        if (StructuralAuthoring.IsStructuralSource(sourceText))
+        {
+            var structural = StructuralAuthoring.Compile(sourceText, fullSourcePath);
+            if (!structural.IsSuccess || structural.StepText is null || structural.Report is null)
+                return KernelResult<FirmamentBuildAndExportResult>.Failure(structural.Diagnostics.Select(message => new Kernel.Core.Diagnostics.KernelDiagnostic(
+                    Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, message, "Structural.X2")).ToArray());
+            var structuralOutputPath = string.IsNullOrWhiteSpace(outputPath) ? ResolveDefaultOutputPath(fullSourcePath) : Path.GetFullPath(outputPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(structuralOutputPath)!);
+            File.WriteAllText(structuralOutputPath, structural.StepText, new UTF8Encoding(false));
+            var cutListPath = Path.Combine(Path.GetDirectoryName(structuralOutputPath)!, Path.GetFileNameWithoutExtension(structuralOutputPath) + ".cutlist.json");
+            File.WriteAllText(cutListPath, StructuralAuthoring.CutListJson(structural.Report), new UTF8Encoding(false));
+            var report = structural.Report with { CutListArtifactPath = cutListPath };
+            var structuralExport = new FirmamentStepExportResult(structural.StepText, "structure:" + report.Structure, -1, "Assembly", "Structure", Structural: report);
+            return KernelResult<FirmamentBuildAndExportResult>.Success(new(fullSourcePath, structuralOutputPath, structuralExport));
+        }
         var library = FirmamentStandardLibraryResolver.Resolve(sourceText, out var libraryDiagnostics);
         if (library is null)
             return KernelResult<FirmamentBuildAndExportResult>.Failure(LibraryDiagnostics(libraryDiagnostics));
@@ -85,6 +101,14 @@ public static class FirmamentBuildAndExport
     {
         ArgumentNullException.ThrowIfNull(sourceText);
         var normalized = NormalizeLf(sourceText);
+        if (StructuralAuthoring.IsStructuralSource(normalized))
+        {
+            var structural = StructuralAuthoring.Compile(normalized, sourceDirectory ?? "memory");
+            return structural.IsSuccess && structural.StepText is not null && structural.Report is not null
+                ? KernelResult<FirmamentStepExportResult>.Success(new(structural.StepText, "structure:" + structural.Report.Structure, -1, "Assembly", "Structure", Structural: structural.Report))
+                : KernelResult<FirmamentStepExportResult>.Failure(structural.Diagnostics.Select(message => new Kernel.Core.Diagnostics.KernelDiagnostic(
+                    Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, message, "Structural.X2")).ToArray());
+        }
         var library = FirmamentStandardLibraryResolver.Resolve(normalized, out var libraryDiagnostics);
         if (library is null)
             return KernelResult<FirmamentStepExportResult>.Failure(LibraryDiagnostics(libraryDiagnostics));

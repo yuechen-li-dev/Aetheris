@@ -1,0 +1,13 @@
+Model SimpleStructuralFrame {
+  Units: mm
+  Structure Frame { Node A = [0mm,0mm,0mm]; Node B = [1000mm,0mm,0mm]; Node C = [1000mm,600mm,0mm]; Node D = [0mm,600mm,0mm]; Path AB: A -> B; Path BC: B -> C; Path CD: C -> D; Path DA: D -> A; }
+  Section RHS { Kind: SquareTube; Width: 40mm; Thickness: 3mm; }
+  Member AB { Path: AB; Section: RHS; Material: Standard.Materials.Steel.ASTM_A36; Orientation: [0,0,1]; }
+  Member BC { Path: BC; Section: RHS; Material: Standard.Materials.Steel.ASTM_A36; Orientation: [0,0,1]; }
+  Member CD { Path: CD; Section: RHS; Material: Standard.Materials.Steel.ASTM_A36; Orientation: [0,0,1]; }
+  Member DA { Path: DA; Section: RHS; Material: Standard.Materials.Steel.ASTM_A36; Orientation: [0,0,1]; }
+  Joint J1 { Members: [AB.End, BC.Start]; Type: Miter; }
+  Joint J2 { Members: [BC.End, CD.Start]; Type: Miter; }
+  Joint J3 { Members: [CD.End, DA.Start]; Type: Miter; }
+  Joint J4 { Members: [DA.End, AB.Start]; Type: Miter; }
+}

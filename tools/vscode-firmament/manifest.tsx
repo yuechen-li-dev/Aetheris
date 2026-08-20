@@ -88,7 +88,13 @@ export default define(
           {
             name: "package",
             runtime: "node",
-            command: ["vsce", "package", "--no-dependencies", "--out", "dist/aetheris-firmament-0.3.0-preview.3.vsix"],
+            command: [
+              "vsce",
+              "package",
+              "--no-dependencies",
+              "--out",
+              "../../artifacts/local/vscode-firmament/aetheris-firmament-0.3.0-preview.3.vsix",
+            ],
           },
         ]}
       />

@@ -224,4 +224,46 @@ Model StandardProducts {
         } }
         Compose Body { Base Standoff { Profile: StandoffProfile; From: 0mm; To: P.Length; Role: Stock } Hole<Shaft> Bore { On: +Z; Center: [0mm, 0mm]; Diameter: P.BoreDiameter; End: ThroughAll; Role: FastenerClearance } }
     }
+
+    Record WeldedWorkbenchPolicy { Width: Length Depth: Length Height: Length TubeSize: Length WallThickness: Length Material: String }
+    Static StandardWeldedWorkbench: WeldedWorkbenchPolicy = WeldedWorkbenchPolicy { Width: 1000mm Depth: 600mm Height: 800mm TubeSize: 40mm WallThickness: 3mm Material: "Standard.Materials.Steel.ASTM_A36" }
+    Template<P: WeldedWorkbenchPolicy = StandardWeldedWorkbench>
+    Struct WeldedWorkbenchTemplate {
+        Require PositiveEnvelope => P.Width > 0mm && P.Depth > 0mm && P.Height > 0mm
+        Require PositiveSection => P.TubeSize > 0mm && P.WallThickness > 0mm
+        Structure WorkbenchFrame {
+            Node FLL = [0mm,0mm,0mm]; Node FRL = [P.Width,0mm,0mm]; Node BRL = [P.Width,P.Depth,0mm]; Node BLL = [0mm,P.Depth,0mm];
+            Node FLT = [0mm,0mm,P.Height]; Node FRT = [P.Width,0mm,P.Height]; Node BRT = [P.Width,P.Depth,P.Height]; Node BLT = [0mm,P.Depth,P.Height];
+            Node CAF = [P.Width / 3,0mm,P.Height]; Node CAB = [P.Width / 3,P.Depth,P.Height]; Node CBF = [P.Width * 2 / 3,0mm,P.Height]; Node CBB = [P.Width * 2 / 3,P.Depth,P.Height];
+            Path FrontRail: FLT -> FRT; Path RightRail: FRT -> BRT; Path BackRail: BRT -> BLT; Path LeftRail: BLT -> FLT;
+            Path FrontLeftLeg: FLL -> FLT; Path FrontRightLeg: FRL -> FRT; Path BackRightLeg: BRL -> BRT; Path BackLeftLeg: BLL -> BLT;
+            Path CrossmemberA: CAF -> CAB; Path CrossmemberB: CBF -> CBB;
+        }
+        Section Tube { Kind: Standard.Structural.SquareTube; Width: P.TubeSize; Thickness: P.WallThickness; }
+        StructuralDefaults Defaults { Material: P.Material; }
+        Record StructuralMemberRow { Name: String Path: String Section: String Orientation: String }
+        Static Table Members: StructuralMemberRow Key: Name {
+            Name: ["FrontRail","RightRail","BackRail","LeftRail","FrontLeftLeg","FrontRightLeg","BackRightLeg","BackLeftLeg","CrossmemberA","CrossmemberB"]
+            Path: ["FrontRail","RightRail","BackRail","LeftRail","FrontLeftLeg","FrontRightLeg","BackRightLeg","BackLeftLeg","CrossmemberA","CrossmemberB"]
+            Section: ["Tube","Tube","Tube","Tube","Tube","Tube","Tube","Tube","Tube","Tube"]
+            Orientation: ["UpZ","UpZ","UpZ","UpZ","UpX","UpX","UpX","UpX","UpZ","UpZ"]
+        }
+        Record StructuralJointRow { Name: String Type: String FirstMember: String FirstEnd: String SecondMember: String SecondEnd: String Primary: String }
+        Static Table Joints: StructuralJointRow Key: Name {
+            Name: ["J1","J2","J3","J4","J5","J6","J7","J8","J9","J10","J11","J12"]
+            Type: ["Miter","Miter","Miter","Miter","Butt","Butt","Butt","Butt","Butt","Butt","Butt","Butt"]
+            FirstMember: ["FrontRail","RightRail","BackRail","LeftRail","FrontRail","FrontRail","BackRail","BackRail","FrontRail","BackRail","FrontRail","BackRail"]
+            FirstEnd: ["End","End","End","End","Start","End","Start","End","Start","Start","Start","Start"]
+            SecondMember: ["RightRail","BackRail","LeftRail","FrontRail","FrontLeftLeg","FrontRightLeg","BackRightLeg","BackLeftLeg","CrossmemberA","CrossmemberA","CrossmemberB","CrossmemberB"]
+            SecondEnd: ["Start","Start","Start","Start","End","End","End","End","Start","End","Start","End"]
+            Primary: ["FrontRail","RightRail","BackRail","LeftRail","FrontRail","FrontRail","BackRail","BackRail","FrontRail","BackRail","FrontRail","BackRail"]
+        }
+        Record StructuralWeldRow { Name: String Joint: String Type: String Size: Length }
+        Static Table Welds: StructuralWeldRow Key: Name {
+            Name: ["W1","W2","W3","W4","W5","W6","W7","W8","W9","W10","W11","W12"]
+            Joint: ["J1","J2","J3","J4","J5","J6","J7","J8","J9","J10","J11","J12"]
+            Type: ["Fillet","Fillet","Fillet","Fillet","Fillet","Fillet","Fillet","Fillet","Fillet","Fillet","Fillet","Fillet"]
+            Size: [4mm,4mm,4mm,4mm,4mm,4mm,4mm,4mm,4mm,4mm,4mm,4mm]
+        }
+    }
 }

@@ -1,0 +1,1 @@
+Model InvalidUnknownMember { Units: mm Structure S { Node A = [0mm,0mm,0mm]; Node B = [100mm,0mm,0mm]; Path P: A -> B; } Section T { Kind: SquareTube; Width: 40mm; Thickness: 3mm; } Member M1 { Path: P; Section: T; Material: Standard.Materials.Steel.ASTM_A36; Orientation: Auto; } Joint J { Members: [M1.End, Missing.Start]; Type: Butt; Primary: M1; } }

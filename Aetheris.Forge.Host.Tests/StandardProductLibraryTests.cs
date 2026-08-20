@@ -6,7 +6,7 @@ namespace Aetheris.Forge.Host.Tests;
 public sealed class StandardProductLibraryTests
 {
     [Fact]
-    public void CatalogExposesEightCoherentStandardProductFamilies()
+    public void CatalogExposesEightProductFamiliesAlongsideOtherTemplateDomains()
     {
         var products = new ForgeProtocolHost().ListTemplates().Templates
             .Where(item => item.Id.StartsWith("Standard.Products.", StringComparison.Ordinal)).ToArray();

@@ -10,7 +10,7 @@ public static class ForgeHostProtocol
 }
 
 public enum ForgeProtocolDiagnosticSeverity { Info, Warning, Error }
-public enum ForgeArtifactKind { StepAp242, FlatStep, Svg }
+public enum ForgeArtifactKind { StepAp242, FlatStep, Svg, CutListJson }
 
 public sealed record ForgeHostInfo(
     int ProtocolVersion,

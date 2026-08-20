@@ -7,6 +7,7 @@
 | Firmament V2 native primitives/profiles | Bounded | Named Box/Cylinder/Frustum/RoundedBox and admitted line/arc profile construction/composition |
 | Firmament V2 analytic primitives | Bounded | Direct named Sphere, Cone (including zero-radius pointed end), and Torus routes round-trip through AP242; legacy `solid` declarations remain compatibility inputs, not canonical authoring |
 | Circular Sweep | Bounded (X0) | Open planar XY Concept Path, tangent line/arc segments, constant circular diameter, analytic cylinder/torus faces, capped solid; no general 3D/variable/rail/twist sweep |
+| Structural / weldment | Bounded (X2) | Explicit 3D nodes and straight paths; identifiable members; square/rectangular/round tube, angle, flat/round bar; orientation; catalog material; two-member butt and polygonal miter joints; semantic fillet welds; AP242 member assembly and deterministic JSON Cut List. No coping, curved routing, multi-member miter, connection design, weld analysis, or structural FEA. See [guide](../firmament/structural.md). |
 | Boss | Bounded | First-class connected finite `On: Top` profile addition on an admitted Compose host; positive height; lowers through existing `Add`; no arbitrary solid union |
 | Pocket | Bounded | First-class enclosed finite-depth `On: Top` profile removal; positive depth, non-through termination, and minimum remaining floor enforced; lowers through existing `Remove` |
 | Lower-level profile composition | Bounded | Existing prismatic `Compose` `Add`/`Remove` remains compatible for bounded blockout authoring |

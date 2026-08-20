@@ -1,0 +1,9 @@
+Model MiterJoint {
+  Units: mm
+  Structure Corner { Node A = [0mm,0mm,0mm]; Node B = [600mm,0mm,0mm]; Node C = [600mm,400mm,0mm]; Path Horizontal: A -> B; Path Vertical: B -> C; }
+  Section RHS { Kind: SquareTube; Width: 40mm; Thickness: 3mm; }
+  Member Horizontal { Path: Horizontal; Section: RHS; Material: Standard.Materials.Steel.ASTM_A36; Orientation: [0,0,1]; }
+  Member Vertical { Path: Vertical; Section: RHS; Material: Standard.Materials.Steel.ASTM_A36; Orientation: [0,0,1]; }
+  Joint CornerMiter { Members: [Horizontal.End, Vertical.Start]; Type: Miter; }
+  Weld CornerWeld { Joint: CornerMiter; Type: Fillet; Size: 4mm; }
+}

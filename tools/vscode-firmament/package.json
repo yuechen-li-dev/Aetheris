@@ -25,7 +25,7 @@
     "onCommand:aetheris.verify"
   ],
   "files": [
-    "dist/**",
+    "dist/extension.cjs",
     "syntaxes/**",
     "snippets/**",
     "language-configuration.json",

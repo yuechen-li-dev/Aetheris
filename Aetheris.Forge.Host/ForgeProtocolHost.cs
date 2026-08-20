@@ -197,6 +197,7 @@ public sealed class ForgeProtocolHost
             ["FlangedAdapterTemplate"] = ("Standard.Products.Mechanical.FlangedAdapter", "Flanged Adapter", "Six-hole circular flanged adapter with a central bore, bolt-circle constraints, and bore PMI."),
             ["RackPanelTemplate"] = ("Standard.Products.Electronics.RackPanel", "Rack Panel", "Metric planar equipment panel with symmetric mounting holes and configurable edge inset."),
             ["StandoffTemplate"] = ("Standard.Products.Mechanical.Standoff", "Standoff", "Compact cylindrical spacer with a concentric fastener-clearance bore."),
+            ["WeldedWorkbenchTemplate"] = ("Standard.Structural.WeldedWorkbench", "Welded Workbench", "Semantic square-tube workbench frame with miter/butt joints, A36 defaults, AP242 member assembly, and deterministic Cut List."),
         };
         var records = products.Records.ToDictionary(record => record.Name, StringComparer.Ordinal);
         var enums = products.Enums.ToDictionary(value => value.Name, StringComparer.Ordinal);
@@ -206,8 +207,9 @@ public sealed class ForgeProtocolHost
             var definition = definitions[item.Name];
             var recordName = item.Parameters.Single().TypeName;
             var isolatedSource = StandardProductTemplateLibrary.GetTemplateSource(item.Name, recordName);
+            var artifacts = item.Name == "WeldedWorkbenchTemplate" ? new[] { ForgeArtifactKind.StepAp242, ForgeArtifactKind.CutListJson } : [ForgeArtifactKind.StepAp242];
             return new RegisteredTemplate(definition.Id, definition.Name, productVersion, definition.Documentation,
-                isolatedSource, item, records, enums, staticRecords, [ForgeArtifactKind.StepAp242], true);
+                isolatedSource, item, records, enums, staticRecords, artifacts, true);
         });
         return sheetMetal.Concat(productTemplates).ToArray();
     }
@@ -386,8 +388,10 @@ public sealed class ForgeProtocolHost
 
     private static (string Name, string ContentType, string Content) GenerateNativeArtifact(ForgeArtifactKind kind, FirmamentStepExportResult result, string templateId) =>
         kind == ForgeArtifactKind.StepAp242
-            ? (templateId == PaperclipTemplateLibrary.TemplateId ? "paperclip.step" : "part.step", "model/step", result.StepText)
-            : throw new InvalidOperationException($"Native Firmament artifact kind '{kind}' has no generator.");
+            ? (templateId == PaperclipTemplateLibrary.TemplateId ? "paperclip.step" : templateId == "Standard.Structural.WeldedWorkbench" ? "welded-workbench.step" : "part.step", "model/step", result.StepText)
+            : kind == ForgeArtifactKind.CutListJson && result.Structural is not null
+                ? ("welded-workbench.cutlist.json", "application/json", Aetheris.Kernel.Firmament.Structural.StructuralAuthoring.CutListJson(result.Structural))
+                : throw new InvalidOperationException($"Native Firmament artifact kind '{kind}' has no generator.");
 
     private static ForgeProtocolDiagnostic FromFirmamentDiagnostic(string value)
     {

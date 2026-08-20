@@ -262,6 +262,22 @@ public static class CliRunner
         }
         if (string.Equals(Path.GetExtension(stepPath), ".firmament", StringComparison.OrdinalIgnoreCase))
         {
+            var sourceText = File.Exists(stepPath) ? File.ReadAllText(stepPath) : string.Empty;
+            if (SculptingAuthoring.IsSculptingSource(sourceText))
+            {
+                var sculpt = SculptingAuthoring.Compile(sourceText);
+                var sculptExport = sculpt.OutputState is null ? null : SculptStepExporter.Export(sculpt.OutputState, sculpt.ModelName);
+                if (!sculpt.IsSuccess || sculptExport?.IsSuccess != true || sculptExport.Step is null)
+                {
+                    var messages = sculpt.Diagnostics.Select(x => $"{x.Code}: {x.Message}").Concat(sculptExport?.Diagnostics.Select(x => $"{x.Code}: {x.Message}") ?? []);
+                    if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "verify", success = false, input = Path.GetFullPath(stepPath), diagnostics = messages }, JsonOptions));
+                    else foreach (var message in messages) stderr.WriteLine($"error: {message}");
+                    return 1;
+                }
+                var sculptStepPath = Path.ChangeExtension(Path.GetFullPath(stepPath), ".step"); File.WriteAllText(sculptStepPath, sculptExport.Step); stepPath = sculptStepPath;
+            }
+            else
+            {
             var build = FirmamentBuildAndExport.Run(stepPath);
             if (!build.IsSuccess)
             {
@@ -270,6 +286,7 @@ public static class CliRunner
                 return 1;
             }
             stepPath = build.Value.OutputPath;
+            }
         }
         else if (!string.Equals(Path.GetExtension(stepPath), ".step", StringComparison.OrdinalIgnoreCase) && !string.Equals(Path.GetExtension(stepPath), ".stp", StringComparison.OrdinalIgnoreCase))
         {
@@ -413,6 +430,8 @@ public static class CliRunner
 
         if (File.Exists(sourcePath) && SheetMetalFirmament.LooksLikeSheetMetal(File.ReadAllText(sourcePath)))
             return RunSheetMetalAuthoredBuild(sourcePath, outPath, json, stdout, stderr);
+        if (File.Exists(sourcePath) && SculptingAuthoring.IsSculptingSource(File.ReadAllText(sourcePath)))
+            return RunSculptingBuild(sourcePath, outPath, json, stdout, stderr);
 
         var build = FirmamentBuildAndExport.Run(sourcePath, outPath);
         if (!build.IsSuccess)
@@ -493,6 +512,52 @@ public static class CliRunner
 
         return 0;
     }
+
+    private static int RunSculptingBuild(string sourcePath, string? outPath, bool json, TextWriter stdout, TextWriter stderr)
+    {
+        var compile = SculptingAuthoring.CompileFile(sourcePath);
+        if (!compile.IsSuccess || compile.OutputState is null)
+        {
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "build", success = false, input = Path.GetFullPath(sourcePath), domain = "Sculpting", diagnostics = compile.Diagnostics }, JsonOptions));
+            else { stderr.WriteLine("Build failed:"); foreach (var diagnostic in compile.Diagnostics) stderr.WriteLine($"- [Error] {diagnostic.Code}: {diagnostic.Message}"); }
+            return 1;
+        }
+        var exportClock = Stopwatch.StartNew(); var export = SculptStepExporter.Export(compile.OutputState, compile.ModelName); exportClock.Stop();
+        if (!export.IsSuccess || export.Step is null)
+        {
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "build", success = false, input = Path.GetFullPath(sourcePath), domain = "Sculpting", diagnostics = export.Diagnostics, surfaceInventory = export.Inventory }, JsonOptions));
+            else foreach (var diagnostic in export.Diagnostics) stderr.WriteLine($"- [Error] {diagnostic.Code}: {diagnostic.Message}");
+            return 1;
+        }
+        var output = Path.GetFullPath(outPath ?? Path.ChangeExtension(sourcePath, ".step")); Directory.CreateDirectory(Path.GetDirectoryName(output)!); File.WriteAllText(output, export.Step);
+        var deltaPath = Path.ChangeExtension(output, ".delta.json");
+        File.WriteAllText(deltaPath, JsonSerializer.Serialize(new
+        {
+            inputState = compile.OutputState.PredecessorStateId,
+            outputState = compile.OutputState.StateId,
+            compile.OutputState.Delta,
+            validationEvidence = compile.OutputState.ValidationEvidence,
+            surfaceInventory = export.Inventory,
+            productBoundary = new { rationalNurbs = export.Inventory.RationalNurbs, admitted = export.Inventory.RationalNurbs == 0 },
+            timingsMilliseconds = compile.Timings with { StepExportMilliseconds = exportClock.Elapsed.TotalMilliseconds }
+        }, JsonOptions));
+        if (json) stdout.WriteLine(JsonSerializer.Serialize(new
+        {
+            command = "build", success = true, input = Path.GetFullPath(sourcePath), output, domain = "Sculpting", model = compile.ModelName,
+            state = DescribeSculptState(compile.OutputState), states = compile.States.Values.Select(DescribeSculptState), geometricDelta = compile.OutputState.Delta,
+            validationEvidence = compile.OutputState.ValidationEvidence, surfaceInventory = export.Inventory, rationalNurbs = export.Inventory.RationalNurbs,
+            deltaArtifact = deltaPath, timingsMilliseconds = compile.Timings with { StepExportMilliseconds = exportClock.Elapsed.TotalMilliseconds }, diagnostics = compile.Diagnostics
+        }, JsonOptions));
+        else { stdout.WriteLine($"Built {Path.GetFileName(sourcePath)}"); stdout.WriteLine($"STEP: {output}"); stdout.WriteLine($"State: {compile.OutputState.AuthoredName} ({compile.OutputState.StateId}) <- {compile.OutputState.PredecessorStateId}"); stdout.WriteLine($"Geometric delta: {deltaPath}"); stdout.WriteLine($"STEP surfaces: Plane={export.Inventory.Plane}, Cylinder={export.Inventory.Cylinder}, NonRationalBSpline={export.Inventory.NonRationalBSpline}, RationalNURBS={export.Inventory.RationalNurbs}"); }
+        return 0;
+    }
+
+    private static object DescribeSculptState(BodyState state) => new
+    {
+        state.AuthoredName, state.StateId, state.PredecessorStateId, state.BodyStableId,
+        construction = new { state.Construction.Width, state.Construction.Depth, state.Construction.BaseHeight, state.Construction.CrownWidth, state.Construction.CrownDepth, state.Construction.CrownOffset, state.Construction.FinalHeight },
+        semanticInventory = state.SemanticInventory.Values, hasDelta = state.Delta is not null
+    };
 
     private static int RunSheetMetalAuthoredBuild(string sourcePath, string? outPath, bool json, TextWriter stdout, TextWriter stderr)
     {
@@ -995,6 +1060,17 @@ Model CanonicalPanel {
         }
 
         var source = File.ReadAllText(fullPath);
+        if (SculptingAuthoring.IsSculptingSource(source))
+        {
+            var sculpt = SculptingAuthoring.Compile(source);
+            var sculptReport = new { command = "inspect", success = sculpt.IsSuccess, input = fullPath, domain = "Sculpting", model = sculpt.ModelName,
+                states = sculpt.States.Values.Select(state => new { state = DescribeSculptState(state), geometricDelta = state.Delta, validationEvidence = state.ValidationEvidence }),
+                outputState = sculpt.OutputState?.StateId, timingsMilliseconds = sculpt.Timings, diagnostics = sculpt.Diagnostics };
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(sculptReport, JsonOptions));
+            else if (sculpt.IsSuccess) { stdout.WriteLine($"Sculpting model {sculpt.ModelName}: {sculpt.States.Count} immutable states; output {sculpt.OutputState!.AuthoredName} ({sculpt.OutputState.StateId})"); foreach (var state in sculpt.States.Values) stdout.WriteLine($"State {state.AuthoredName}: {state.StateId} <- {state.PredecessorStateId?.Value ?? "<initial>"}"); }
+            else foreach (var diagnostic in sculpt.Diagnostics) stderr.WriteLine($"error: {diagnostic.Code}: {diagnostic.Message}");
+            return sculpt.IsSuccess ? 0 : 1;
+        }
         if (PipingAuthoring.IsPipingSource(source))
         {
             var piping = PipingAuthoring.Compile(source, fullPath);
@@ -1154,14 +1230,28 @@ Model CanonicalPanel {
         string stepPath;
         if (string.Equals(extension, ".firmament", StringComparison.OrdinalIgnoreCase))
         {
-            var build = FirmamentBuildAndExport.Run(fullInput);
-            if (!build.IsSuccess)
+            var viewSource = File.ReadAllText(fullInput);
+            if (SculptingAuthoring.IsSculptingSource(viewSource))
             {
-                if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "view", success = false, input = fullInput, diagnostics = build.Diagnostics.Select(d => new { d.Source, d.Message, severity = d.Severity.ToString() }) }, JsonOptions));
-                else { stderr.WriteLine("View stopped because build failed."); foreach (var diagnostic in build.Diagnostics) stderr.WriteLine($"error: {diagnostic.Message}"); }
-                return 1;
+                var sculpt = SculptingAuthoring.Compile(viewSource); var export = sculpt.OutputState is null ? null : SculptStepExporter.Export(sculpt.OutputState, sculpt.ModelName);
+                if (!sculpt.IsSuccess || export?.IsSuccess != true || export.Step is null)
+                {
+                    var messages = sculpt.Diagnostics.Select(x => $"{x.Code}: {x.Message}").Concat(export?.Diagnostics.Select(x => $"{x.Code}: {x.Message}") ?? []).ToArray();
+                    if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "view", success = false, input = fullInput, diagnostics = messages }, JsonOptions)); else foreach (var message in messages) stderr.WriteLine($"error: {message}"); return 1;
+                }
+                stepPath = Path.ChangeExtension(fullInput, ".step"); File.WriteAllText(stepPath, export.Step);
             }
-            stepPath = build.Value.OutputPath;
+            else
+            {
+                var build = FirmamentBuildAndExport.Run(fullInput);
+                if (!build.IsSuccess)
+                {
+                    if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "view", success = false, input = fullInput, diagnostics = build.Diagnostics.Select(d => new { d.Source, d.Message, severity = d.Severity.ToString() }) }, JsonOptions));
+                    else { stderr.WriteLine("View stopped because build failed."); foreach (var diagnostic in build.Diagnostics) stderr.WriteLine($"error: {diagnostic.Message}"); }
+                    return 1;
+                }
+                stepPath = build.Value.OutputPath;
+            }
             if (!json)
             {
                 stdout.WriteLine($"✓ Built {Path.GetFileName(fullInput)}");
@@ -1647,6 +1737,14 @@ Model CanonicalPanel {
         }
 
         var validationSource=File.ReadAllText(sourcePath);
+        if (SculptingAuthoring.IsSculptingSource(validationSource))
+        {
+            var sculpt = SculptingAuthoring.Compile(validationSource);
+            var payload = new { source = sourcePath, status = sculpt.IsSuccess ? "valid" : "invalid", domain = "Sculpting", summary = new { fatalDiagnosticCount = sculpt.Diagnostics.Count, warningDiagnosticCount = 0, states = sculpt.States.Count }, diagnostics = sculpt.Diagnostics };
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
+            else stdout.WriteLine($"Firmament V2 Sculpting validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");
+            return sculpt.IsSuccess ? 0 : 1;
+        }
         if (PipingAuthoring.IsPipingSource(validationSource))
         {
             var piping = PipingAuthoring.Compile(validationSource, Path.GetFullPath(sourcePath));

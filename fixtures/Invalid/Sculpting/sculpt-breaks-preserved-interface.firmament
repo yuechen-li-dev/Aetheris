@@ -1,0 +1,29 @@
+Model BreakPreserved {
+  Units: mm
+  BodyState Base {
+    Size: [100mm, 80mm, 20mm]
+    Hole H1 { Center: [-20mm, -12mm]
+      Diameter: 4mm }
+    Hole H2 { Center: [20mm, -12mm]
+      Diameter: 4mm }
+    Hole H3 { Center: [20mm, 12mm]
+      Diameter: 4mm }
+    Hole H4 { Center: [-20mm, 12mm]
+      Diameter: 4mm }
+  }
+  SculptState CrownRaised {
+    Input: Base
+    OffsetRegion {
+      Target: HousingCrown
+      Offset: 6mm
+      Region: [60mm, 40mm]
+      InfluenceEnvelope: [-50mm, -40mm, 20mm, 50mm, 40mm, 26mm]
+      Boundary: G0
+    }
+    MayModify: [HousingCrown, CrownTransitionZone, BottomMountingInterface]
+    Preserve: [BottomMountingInterface, MountingHolePattern, OuterFootprintBoundary]
+    Require: [ClosedManifold, OrientationConsistency, NoSelfIntersection]
+  }
+  Output: CrownRaised
+}
+

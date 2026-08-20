@@ -24,6 +24,7 @@ Everything in this directory is current authoring guidance. Examples progress fr
 | build a Paperclip Template | `Templates/paperclip.firmament` | `Record`, `Static`, `with`, `Template<PaperclipPolicy>`, circular `Sweep` |
 | use a CNC policy | `Templates/cnc-dfm-policy.firmament` | Record defaults, `with`, `Template<Policy>`, enforcement |
 | make Sheet Metal | `SheetMetal/l-bracket-with-hole.firmament` | material, bend, planar hole, formed/flat output |
+| apply a bounded mathematical sculpt | `Sculpting/sculpted-housing.firmament` | immutable `BodyState`, `OffsetRegion`, locality, preservation contracts |
 | make a data-driven Sheet Metal tab | `SheetMetal/profile-delta-tab-family.firmament` | Table, `with`, reusable `ProfileDelta Tab` |
 | run FEA | `FEA/cantilever.firmament` | material, `Fixed`, `Force`, four result families |
 | analyze imported STEP | `FEA/inline-step-cantilever.firmament` | repository-stable `inlineSTEP`, face selection, FEA |
@@ -40,6 +41,7 @@ Everything in this directory is current authoring guidance. Examples progress fr
 | Basics, Primitives, Profiles, Features, Patterns, Templates | `Aetheris.Kernel.Firmament.Tests` |
 | PMI and STEP round-trip | `Aetheris.CLI.Tests` and `Aetheris.Kernel.Firmament.Tests` |
 | Sheet Metal | `Aetheris.SheetMetal.Tests` |
+| Sculpting | `Aetheris.Modules.Tests` and `Aetheris.CLI.Tests` |
 | FEA and Materials | `Aetheris.FEA.Tests` |
 | Assembly | `Aetheris.Kernel.Firmament.Tests` assembly suite |
 | Piping | `PipingX3Tests` |

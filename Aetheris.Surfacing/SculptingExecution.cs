@@ -16,6 +16,11 @@ public static class SculptedHousingFactory
     public const string BottomMountingInterface = "BottomMountingInterface";
     public const string MountingHolePattern = "MountingHolePattern";
     public const string OuterFootprintBoundary = "OuterFootprintBoundary";
+    public const string SideWallsLower = "SideWallsLower";
+    public const string CrownBoundarySouth = "CrownBoundarySouth";
+    public const string CrownBoundaryEast = "CrownBoundaryEast";
+    public const string CrownBoundaryNorth = "CrownBoundaryNorth";
+    public const string CrownBoundaryWest = "CrownBoundaryWest";
 
     public static SculptResult CreateBase(string stateName, double width, double depth, double height, IReadOnlyList<HousingHole> holes)
     {
@@ -32,14 +37,23 @@ public static class SculptedHousingFactory
     }
 
     internal static IReadOnlyDictionary<string, SculptSemanticEntity> Inventory(HousingConstruction c)
-        => new Dictionary<string, SculptSemanticEntity>(StringComparer.Ordinal)
+    {
+        var inventory = new Dictionary<string, SculptSemanticEntity>(StringComparer.Ordinal)
         {
             [CrownRegion] = new(CrownRegion, SculptEntityKind.Region, $"rect:{c.CrownWidth:R}x{c.CrownDepth:R}@z={c.FinalHeight:R}", "Bounded top/crown support."),
             [TransitionZone] = new(TransitionZone, SculptEntityKind.Region, $"transition:z={c.BaseHeight:R}..{c.FinalHeight:R}", "G0 crown reconnection zone."),
             [BottomMountingInterface] = new(BottomMountingInterface, SculptEntityKind.Interface, $"plane:z=0;rect={c.Width:R}x{c.Depth:R};holes={HolePattern(c.Holes)}", "Protected planar mounting interface."),
             [MountingHolePattern] = new(MountingHolePattern, SculptEntityKind.Pattern, HolePattern(c.Holes), "Protected mounting-hole axes, centers, and diameters."),
             [OuterFootprintBoundary] = new(OuterFootprintBoundary, SculptEntityKind.Region, $"rect:{c.Width:R}x{c.Depth:R}@z=0", "Protected lower outer footprint boundary."),
+            [SideWallsLower] = new(SideWallsLower, SculptEntityKind.Region, $"vertical:rect={c.Width:R}x{c.Depth:R};z=0..{c.BaseHeight:R}", "Protected lower side-wall region."),
+            [CrownBoundarySouth] = new(CrownBoundarySouth, SculptEntityKind.Region, $"south:{c.CrownWidth:R}@y={-c.CrownDepth / 2d:R};z={c.BaseHeight:R}", "South replacement boundary."),
+            [CrownBoundaryEast] = new(CrownBoundaryEast, SculptEntityKind.Region, $"east:{c.CrownDepth:R}@x={c.CrownWidth / 2d:R};z={c.BaseHeight:R}", "East replacement boundary."),
+            [CrownBoundaryNorth] = new(CrownBoundaryNorth, SculptEntityKind.Region, $"north:{c.CrownWidth:R}@y={c.CrownDepth / 2d:R};z={c.BaseHeight:R}", "North replacement boundary."),
+            [CrownBoundaryWest] = new(CrownBoundaryWest, SculptEntityKind.Region, $"west:{c.CrownDepth:R}@x={-c.CrownWidth / 2d:R};z={c.BaseHeight:R}", "West replacement boundary."),
         };
+        foreach (var hole in c.Holes) inventory[hole.StableId] = new(hole.StableId, SculptEntityKind.Region, HoleFingerprint(hole), "Stable mounting-hole feature.");
+        return inventory;
+    }
 
     internal static IReadOnlyList<SculptValidationEvidence> ValidateBody(BrepBody body, double localityTolerance)
     {
@@ -120,6 +134,190 @@ public static class OffsetRegionSculptor
             [SculptedHousingFactory.CrownRegion], [], [SculptedHousingFactory.TransitionZone], operation.MayModify, operation.InfluenceEnvelope, correspondence);
         var output = new BodyState(outputId, input.StateId, input.BodyStableId, outputName, built.Body, outputConstruction, inventory, delta, evidence);
         return new(true, output, delta, evidence, []);
+    }
+}
+
+public static class ReplaceRegionSculptor
+{
+    public static SculptResult Apply(BodyState input, string outputName, ReplaceRegionOperation operation)
+    {
+        ArgumentNullException.ThrowIfNull(input); ArgumentNullException.ThrowIfNull(operation);
+        var diagnostics = operation.ReplacementPatch.Validate().ToList();
+        var evidence = new List<SculptValidationEvidence>();
+        if (!input.SemanticInventory.ContainsKey(operation.TargetRegion))
+        {
+            var replacement = input.Delta?.Correspondence.FirstOrDefault(x => x.InputEntity == operation.TargetRegion && x.Change == GeometricChangeKind.Replaced);
+            diagnostics.Add(replacement is null
+                ? new("sculpt-target-unresolved", $"Target region '{operation.TargetRegion}' does not exist in the input state.", operation.TargetRegion)
+                : new("surf-selector-target-replaced", $"'{operation.TargetRegion}' was replaced in {input.StateId.Value} by {string.Join(", ", replacement.OutputEntities)}; select a current-state entity.", operation.TargetRegion));
+        }
+        if (!operation.MayModify.Contains(operation.TargetRegion, StringComparer.Ordinal))
+            diagnostics.Add(new("sculpt-target-not-authorized", "ReplaceRegion target is not present in MayModify.", operation.TargetRegion));
+        foreach (var contract in operation.Preserves)
+        {
+            if (!input.SemanticInventory.ContainsKey(contract.EntityId)) diagnostics.Add(new("sculpt-preserve-unresolved", $"Preserved entity '{contract.EntityId}' does not exist.", contract.EntityId));
+            if (operation.MayModify.Contains(contract.EntityId, StringComparer.Ordinal)) diagnostics.Add(new("sculpt-breaks-preserved-interface", $"'{contract.EntityId}' cannot be both modified and preserved.", contract.EntityId));
+        }
+        var expected = new Dictionary<PatchBoundarySide, string>
+        {
+            [PatchBoundarySide.South] = SculptedHousingFactory.CrownBoundarySouth,
+            [PatchBoundarySide.East] = SculptedHousingFactory.CrownBoundaryEast,
+            [PatchBoundarySide.North] = SculptedHousingFactory.CrownBoundaryNorth,
+            [PatchBoundarySide.West] = SculptedHousingFactory.CrownBoundaryWest,
+        };
+        foreach (var boundary in operation.ReplacementPatch.BoundaryLoop.Boundaries)
+            if (!string.Equals(boundary.ExistingBoundary, expected[boundary.PatchSide], StringComparison.Ordinal))
+                diagnostics.Add(new("surf-boundary-correspondence-invalid", $"{boundary.PatchSide} must correspond to '{expected[boundary.PatchSide]}', not '{boundary.ExistingBoundary}'.", boundary.StableId));
+        if (diagnostics.Count > 0) return SculptResult.Failure(diagnostics, evidence);
+
+        var domain = operation.ReplacementPatch.ParameterDomain;
+        var corners = new[]
+        {
+            operation.ReplacementPatch.Evaluate(domain.UMin, domain.VMin), operation.ReplacementPatch.Evaluate(domain.UMax, domain.VMin),
+            operation.ReplacementPatch.Evaluate(domain.UMax, domain.VMax), operation.ReplacementPatch.Evaluate(domain.UMin, domain.VMax),
+        };
+        var width = Math.Abs(corners[1].X - corners[0].X); var depth = Math.Abs(corners[3].Y - corners[0].Y);
+        var rectangular = width > operation.GeometricTolerance && depth > operation.GeometricTolerance
+            && corners.All(x => Math.Abs(x.Z - input.Construction.BaseHeight) <= operation.GeometricTolerance)
+            && Math.Abs(corners[0].Y - corners[1].Y) <= operation.GeometricTolerance
+            && Math.Abs(corners[1].X - corners[2].X) <= operation.GeometricTolerance
+            && Math.Abs(corners[2].Y - corners[3].Y) <= operation.GeometricTolerance
+            && Math.Abs(corners[3].X - corners[0].X) <= operation.GeometricTolerance;
+        if (!rectangular) diagnostics.Add(new("surf-boundary-mismatch", "Patch corners must form the declared axis-aligned rectangular boundary on the existing crown plane."));
+        if (width > input.Construction.Width || depth > input.Construction.Depth) diagnostics.Add(new("surf-patch-outside-target", "Replacement patch boundary exceeds the housing top region."));
+
+        var sampled = Sample(operation.ReplacementPatch, 17);
+        var maximumZ = sampled.Max(x => x.Z);
+        var envelopePoints = operation.ReplacementPatch is BSplineSurfacePatch splinePatch
+            ? sampled.Concat(splinePatch.Spline.ControlPoints.SelectMany(x => x)).ToArray() : sampled.ToArray();
+        var actual = new SpatialInfluenceEnvelope(envelopePoints.Min(x => x.X), envelopePoints.Min(x => x.Y), Math.Min(input.Construction.BaseHeight, envelopePoints.Min(x => x.Z)),
+            envelopePoints.Max(x => x.X), envelopePoints.Max(x => x.Y), Math.Max(input.Construction.BaseHeight, envelopePoints.Max(x => x.Z)));
+        if (!operation.InfluenceEnvelope.Contains(actual, operation.GeometricTolerance)) diagnostics.Add(new("sculpt-outside-authorized-region", "The declared influence envelope does not contain the replacement patch."));
+        if (actual.MinZ < input.Construction.BaseHeight - operation.GeometricTolerance) diagnostics.Add(new("surf-patch-self-intersection", "The replacement patch enters the preserved housing volume below the original crown plane."));
+
+        foreach (var boundary in operation.ReplacementPatch.BoundaryLoop.Boundaries.OrderBy(x => x.PatchSide))
+        {
+            var (g0, angle) = MeasureBoundary(operation.ReplacementPatch, boundary.PatchSide, input.Construction.BaseHeight, 33);
+            var g0Ok = g0 <= operation.GeometricTolerance;
+            evidence.Add(new($"Boundary:{boundary.StableId}:G0", g0Ok, LocalityEvidenceLevel.CertifiedBounded, g0, operation.GeometricTolerance, $"Maximum sampled positional error over 33 deterministic parameters is {g0:R} mm."));
+            if (!g0Ok) diagnostics.Add(new("surf-boundary-g0-violation", $"Boundary '{boundary.StableId}' has G0 error {g0:R} mm, exceeding {operation.GeometricTolerance:R} mm.", boundary.StableId));
+            if (boundary.Continuity == PatchBoundaryContinuity.G1)
+            {
+                var g1Ok = angle <= operation.G1AngularToleranceDegrees;
+                evidence.Add(new($"Boundary:{boundary.StableId}:G1", g1Ok, LocalityEvidenceLevel.CertifiedBounded, angle, operation.G1AngularToleranceDegrees, $"Maximum sampled tangent-plane angular error over 33 deterministic parameters is {angle:R} degrees."));
+                if (!g1Ok) diagnostics.Add(new("surf-boundary-g1-violation", $"Boundary '{boundary.StableId}' has tangent-plane error {angle:R} degrees, exceeding {operation.G1AngularToleranceDegrees:R} degrees.", boundary.StableId));
+            }
+        }
+        if (diagnostics.Count > 0) return SculptResult.Failure(diagnostics, evidence);
+
+        var construction = input.Construction with { CrownWidth = width, CrownDepth = depth, CrownOffset = maximumZ - input.Construction.BaseHeight, ReplacementPatch = operation.ReplacementPatch };
+        var built = SculptedHousingBrepBuilder.Build(construction);
+        if (built.Body is null) return SculptResult.Failure(built.Diagnostics, evidence);
+        var inventory = SculptedHousingFactory.Inventory(construction).ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal);
+        inventory.Remove(SculptedHousingFactory.CrownRegion);
+        inventory[operation.ReplacementPatch.PatchId] = new(operation.ReplacementPatch.PatchId, SculptEntityKind.Surface,
+            $"{operation.ReplacementPatch.ExportClass}:{operation.ReplacementPatch.DegreeU}x{operation.ReplacementPatch.DegreeV}:{operation.ReplacementPatch.ControlCountU}x{operation.ReplacementPatch.ControlCountV}", "Accepted bounded replacement patch.");
+        foreach (var contract in operation.Preserves)
+        {
+            var before = input.SemanticInventory[contract.EntityId]; var after = inventory[contract.EntityId];
+            var satisfied = before.StableId == after.StableId && before.GeometryFingerprint == after.GeometryFingerprint;
+            evidence.Add(new($"Preserve:{contract.EntityId}", satisfied, LocalityEvidenceLevel.ExactSemantic, satisfied ? 0d : null, operation.GeometricTolerance,
+                satisfied ? $"Stable identity and {contract.Mode} fingerprint are identical." : "Protected identity or geometry fingerprint changed."));
+            if (!satisfied) diagnostics.Add(new("sculpt-preservation-failed", $"Preservation contract failed for '{contract.EntityId}'.", contract.EntityId));
+        }
+        var locality = SculptLocalityVerifier.CompareOutsideTopEnvelope(input.Body, built.Body, input.Construction.BaseHeight, operation.GeometricTolerance);
+        evidence.Add(locality); if (!locality.Satisfied) diagnostics.Add(new("sculpt-outside-authorized-region", locality.Detail));
+        evidence.AddRange(SculptedHousingFactory.ValidateBody(built.Body, operation.GeometricTolerance));
+        var shared = VerifySharedBoundaryTopology(built.Body);
+        evidence.Add(shared); if (!shared.Satisfied) diagnostics.Add(new("surf-boundary-not-shared", shared.Detail));
+        foreach (var requirement in operation.Requirements)
+            if (!evidence.Any(x => x.Check == requirement.ToString() && x.Satisfied)) diagnostics.Add(new("sculpt-postcondition-failed", $"Required postcondition '{requirement}' was not proven."));
+        if (diagnostics.Count > 0 || evidence.Any(x => !x.Satisfied)) return SculptResult.Failure(diagnostics, evidence);
+
+        var outputId = BodyStateId.Derive($"{input.StateId.Value}|ReplaceRegion|{operation.Canonical}");
+        var correspondence = operation.Preserves.Select(x => new GeometricDeltaEntry(x.EntityId, GeometricChangeKind.Preserved, [x.EntityId], "Exact semantic identity and geometry fingerprint."))
+            .Append(new(SculptedHousingFactory.CrownRegion, GeometricChangeKind.Replaced, [operation.ReplacementPatch.PatchId], "Explicit outer-loop boundary correspondence; G0/G1 contracts verified."))
+            .Concat(operation.ReplacementPatch.BoundaryLoop.Boundaries.Select(x => new GeometricDeltaEntry(x.ExistingBoundary, GeometricChangeKind.Preserved, [x.StableId], $"Shared edge correspondence with {x.Continuity}."))).ToArray();
+        var delta = new GeometricDelta(input.StateId, outputId, [operation.TargetRegion, .. operation.Preserves.Select(x => x.EntityId)], operation.Preserves.Select(x => x.EntityId).ToArray(),
+            [operation.TargetRegion], [], [operation.ReplacementPatch.PatchId], operation.MayModify, operation.InfluenceEnvelope, correspondence);
+        return new(true, new(outputId, input.StateId, input.BodyStableId, outputName, built.Body, construction, inventory, delta, evidence), delta, evidence, []);
+    }
+
+    private static IReadOnlyList<Point3D> Sample(BoundedSurfacePatch patch, int count)
+    {
+        var result = new List<Point3D>(count * count); var d = patch.ParameterDomain;
+        for (var i = 0; i < count; i++) for (var j = 0; j < count; j++)
+            result.Add(patch.Evaluate(d.UMin + (d.UMax - d.UMin) * i / (count - 1d), d.VMin + (d.VMax - d.VMin) * j / (count - 1d)));
+        return result;
+    }
+
+    private static (double G0, double G1Degrees) MeasureBoundary(BoundedSurfacePatch patch, PatchBoundarySide side, double planeZ, int count)
+    {
+        var domain = patch.ParameterDomain; var g0 = 0d; var g1 = 0d;
+        var corners = new[] { patch.Evaluate(domain.UMin, domain.VMin), patch.Evaluate(domain.UMax, domain.VMin), patch.Evaluate(domain.UMax, domain.VMax), patch.Evaluate(domain.UMin, domain.VMax) };
+        var du = (domain.UMax - domain.UMin) * 1e-5; var dv = (domain.VMax - domain.VMin) * 1e-5;
+        for (var i = 0; i < count; i++)
+        {
+            var t = i / (count - 1d); var u = domain.UMin + (domain.UMax - domain.UMin) * t; var v = domain.VMin + (domain.VMax - domain.VMin) * t;
+            (u, v) = side switch { PatchBoundarySide.South => (u, domain.VMin), PatchBoundarySide.East => (domain.UMax, v), PatchBoundarySide.North => (u, domain.VMax), _ => (domain.UMin, v) };
+            var p = patch.Evaluate(u, v);
+            var (a, b) = side switch { PatchBoundarySide.South => (corners[0], corners[1]), PatchBoundarySide.East => (corners[1], corners[2]), PatchBoundarySide.North => (corners[3], corners[2]), _ => (corners[0], corners[3]) };
+            a = new(a.X, a.Y, planeZ); b = new(b.X, b.Y, planeZ);
+            var segment = b - a; var parameter = Math.Clamp((p - a).Dot(segment) / segment.Dot(segment), 0d, 1d); var closest = a + segment * parameter;
+            g0 = Math.Max(g0, (p - closest).Length);
+            var ua = Math.Max(domain.UMin, u - du); var ub = Math.Min(domain.UMax, u + du); var va = Math.Max(domain.VMin, v - dv); var vb = Math.Min(domain.VMax, v + dv);
+            var tu = patch.Evaluate(ub, v) - patch.Evaluate(ua, v); var tv = patch.Evaluate(u, vb) - patch.Evaluate(u, va);
+            var normal = tu.Cross(tv); if (normal.Length <= 1e-14) { g1 = 180d; continue; }
+            var cosine = Math.Clamp(Math.Abs(normal.Z) / normal.Length, 0d, 1d); g1 = Math.Max(g1, Math.Acos(cosine) * 180d / Math.PI);
+        }
+        return (g0, g1);
+    }
+
+    private static SculptValidationEvidence VerifySharedBoundaryTopology(BrepBody body)
+    {
+        var counts = body.Topology.Coedges.GroupBy(x => x.EdgeId).ToDictionary(x => x.Key, x => x.Count());
+        var invalid = counts.Where(x => x.Value != 2).ToArray();
+        return new("SharedBoundaryTopology", invalid.Length == 0, LocalityEvidenceLevel.CertifiedBounded, invalid.Length, 0d,
+            invalid.Length == 0 ? "Every replacement, trim, and preserved-neighbor edge has exactly two coedge uses; vertices are shared topology objects." : $"{invalid.Length} edges do not have exactly two coedge uses.");
+    }
+}
+
+public static class SafeHoleSculptor
+{
+    public static SculptResult Apply(BodyState input, string outputName, SafeHoleOperation operation)
+    {
+        var diagnostics = new List<SculptDiagnostic>(); var evidence = new List<SculptValidationEvidence>();
+        if (!input.SemanticInventory.ContainsKey(operation.TargetRegion))
+            diagnostics.Add(new("sculpt-target-unresolved", $"Hole target '{operation.TargetRegion}' does not exist in the current BodyState.", operation.TargetRegion));
+        if (input.SemanticInventory.ContainsKey(operation.Hole.StableId)) diagnostics.Add(new("sculpt-hole-duplicate", $"Hole '{operation.Hole.StableId}' already exists.", operation.Hole.StableId));
+        foreach (var contract in operation.Preserves) if (!input.SemanticInventory.ContainsKey(contract.EntityId)) diagnostics.Add(new("sculpt-preserve-unresolved", $"Preserved entity '{contract.EntityId}' does not exist in the current BodyState.", contract.EntityId));
+        var radius = operation.Hole.Diameter / 2d;
+        var actual = new SpatialInfluenceEnvelope(operation.Hole.CenterX - radius, operation.Hole.CenterY - radius, 0d, operation.Hole.CenterX + radius, operation.Hole.CenterY + radius, input.Construction.BaseHeight);
+        if (!operation.InfluenceEnvelope.Contains(actual, 1e-6)) diagnostics.Add(new("sculpt-outside-authorized-region", "HoleFeature influence envelope does not contain the full through-hole cylinder."));
+        if (diagnostics.Count > 0) return SculptResult.Failure(diagnostics);
+
+        var construction = input.Construction with { Holes = [.. input.Construction.Holes, operation.Hole] };
+        var built = SculptedHousingBrepBuilder.Build(construction);
+        if (built.Body is null) return SculptResult.Failure(built.Diagnostics);
+        var inventory = SculptedHousingFactory.Inventory(construction).ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal);
+        if (construction.ReplacementPatch is { } patch)
+        {
+            inventory.Remove(SculptedHousingFactory.CrownRegion);
+            inventory[patch.PatchId] = new(patch.PatchId, SculptEntityKind.Surface, $"{patch.ExportClass}:{patch.DegreeU}x{patch.DegreeV}:{patch.ControlCountU}x{patch.ControlCountV}", "Accepted bounded replacement patch.");
+        }
+        foreach (var contract in operation.Preserves)
+        {
+            var before = input.SemanticInventory[contract.EntityId]; var after = inventory[contract.EntityId]; var satisfied = before.GeometryFingerprint == after.GeometryFingerprint;
+            evidence.Add(new($"Preserve:{contract.EntityId}", satisfied, LocalityEvidenceLevel.ExactSemantic, satisfied ? 0d : null, 1e-6, satisfied ? "Current-state semantic identity and geometry fingerprint are unchanged." : "Preserved geometry changed."));
+            if (!satisfied) diagnostics.Add(new("sculpt-preservation-failed", $"Preservation contract failed for '{contract.EntityId}'.", contract.EntityId));
+        }
+        evidence.AddRange(SculptedHousingFactory.ValidateBody(built.Body, 1e-6));
+        if (diagnostics.Count > 0 || evidence.Any(x => !x.Satisfied)) return SculptResult.Failure(diagnostics, evidence);
+        var outputId = BodyStateId.Derive($"{input.StateId.Value}|HoleFeature|{operation.Canonical}");
+        var correspondence = operation.Preserves.Select(x => new GeometricDeltaEntry(x.EntityId, GeometricChangeKind.Preserved, [x.EntityId], "Resolved and verified against the current BodyState."))
+            .Append(new("<none>", GeometricChangeKind.Introduced, [operation.Hole.StableId], "Exact cylindrical through-hole on the current planar frame.")).ToArray();
+        var delta = new GeometricDelta(input.StateId, outputId, [operation.TargetRegion], operation.Preserves.Select(x => x.EntityId).ToArray(), [], [], [operation.Hole.StableId], [operation.TargetRegion], operation.InfluenceEnvelope, correspondence);
+        return new(true, new(outputId, input.StateId, input.BodyStableId, outputName, built.Body, construction, inventory, delta, evidence), delta, evidence, []);
     }
 }
 

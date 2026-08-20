@@ -1899,6 +1899,21 @@ public sealed record VolumeAnalysisResult(
             points.Add(new Point3D(torus.Center.X + xExtent, torus.Center.Y + yExtent, torus.Center.Z + zExtent));
         }
 
+        // A bounded polynomial B-spline can reach extrema away from every trim vertex.
+        // Sample its native knot domain deterministically so a freeform crown does not
+        // collapse to the height of its planar boundary in structured inspection.
+        foreach (var surface in body.Geometry.Surfaces.Select(x => x.Value.BSplineSurfaceWithKnots).Where(x => x is not null).Select(x => x!))
+        {
+            const int samples = 33;
+            for (var i = 0; i < samples; i++)
+            for (var j = 0; j < samples; j++)
+            {
+                var u = surface.DomainStartU + (surface.DomainEndU - surface.DomainStartU) * i / (samples - 1d);
+                var v = surface.DomainStartV + (surface.DomainEndV - surface.DomainStartV) * j / (samples - 1d);
+                points.Add(surface.Evaluate(u, v));
+            }
+        }
+
         if (points.Count > 0)
         {
             return ComputeBoundingBox(points);

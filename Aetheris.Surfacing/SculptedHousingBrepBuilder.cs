@@ -15,6 +15,7 @@ internal static class SculptedHousingBrepBuilder
     {
         var diagnostics = Validate(construction);
         if (diagnostics.Count > 0) return new(null, diagnostics);
+        if (construction.ReplacementPatch is not null) return BuildReplacement(construction);
 
         var sections = construction.HasCrown
             ? new[] { Section(construction.Width, construction.Depth, 0d), Section(construction.Width, construction.Depth, construction.BaseHeight), Section(construction.CrownWidth, construction.CrownDepth, construction.FinalHeight) }
@@ -98,6 +99,104 @@ internal static class SculptedHousingBrepBuilder
         return new(body, []);
     }
 
+    private static BuildResult BuildReplacement(HousingConstruction c)
+    {
+        var patch = c.ReplacementPatch!;
+        var patchDiagnostics = patch.Validate();
+        if (patchDiagnostics.Count > 0) return new(null, patchDiagnostics);
+
+        var builder = new TopologyBuilder();
+        var points = new Dictionary<VertexId, Point3D>();
+        var curves = new Dictionary<EdgeId, (CurveGeometry Curve, ParameterInterval Interval)>();
+        var faces = new List<(FaceId Face, SurfaceGeometry Surface, bool Reversed)>();
+        var bottom = Section(c.Width, c.Depth, 0d);
+        var top = Section(c.Width, c.Depth, c.BaseHeight);
+        var vb = bottom.Select(p => { var id = builder.AddVertex(); points[id] = p; return id; }).ToArray();
+        var vt = top.Select(p => { var id = builder.AddVertex(); points[id] = p; return id; }).ToArray();
+        var eb = Enumerable.Range(0, 4).Select(i => AddLine(builder, curves, vb[i], vb[(i + 1) % 4], points)).ToArray();
+        var et = Enumerable.Range(0, 4).Select(i => AddLine(builder, curves, vt[i], vt[(i + 1) % 4], points)).ToArray();
+        var ev = Enumerable.Range(0, 4).Select(i => AddLine(builder, curves, vb[i], vt[i], points)).ToArray();
+
+        var corners = new[]
+        {
+            patch.Evaluate(patch.ParameterDomain.UMin, patch.ParameterDomain.VMin),
+            patch.Evaluate(patch.ParameterDomain.UMax, patch.ParameterDomain.VMin),
+            patch.Evaluate(patch.ParameterDomain.UMax, patch.ParameterDomain.VMax),
+            patch.Evaluate(patch.ParameterDomain.UMin, patch.ParameterDomain.VMax),
+        };
+        var vi = corners.Select(p => { var id = builder.AddVertex(); points[id] = p; return id; }).ToArray();
+        var ei = Enumerable.Range(0, 4).Select(i => AddLine(builder, curves, vi[i], vi[(i + 1) % 4], points)).ToArray();
+
+        var bhv = new VertexId[c.Holes.Count]; var thv = new VertexId[c.Holes.Count];
+        var bhe = new EdgeId[c.Holes.Count]; var the = new EdgeId[c.Holes.Count]; var seams = new EdgeId[c.Holes.Count];
+        for (var i = 0; i < c.Holes.Count; i++)
+        {
+            var h = c.Holes[i]; var seamX = h.CenterX + h.Diameter / 2d;
+            bhv[i] = builder.AddVertex(); thv[i] = builder.AddVertex();
+            points[bhv[i]] = new(seamX, h.CenterY, 0d); points[thv[i]] = new(seamX, h.CenterY, c.BaseHeight);
+            bhe[i] = AddCircle(builder, curves, bhv[i], h, 0d); the[i] = AddCircle(builder, curves, thv[i], h, c.BaseHeight);
+            seams[i] = AddLine(builder, curves, bhv[i], thv[i], points);
+        }
+
+        var bottomLoops = new List<LoopId> { AddLoop(builder, eb.Select(x => new Use(x, false)).ToArray()) };
+        for (var i = 0; i < c.Holes.Count; i++) bottomLoops.Add(AddLoop(builder, [new(bhe[i], true)]));
+        faces.Add((builder.AddFace(bottomLoops), SurfaceGeometry.FromPlane(new PlaneSurface(Point3D.Origin, Dir(0, 0, -1), Dir(1, 0, 0))), false));
+
+        var frameLoops = new List<LoopId>
+        {
+            AddLoop(builder, et.Select(x => new Use(x, true)).Reverse().ToArray()),
+            AddLoop(builder, ei.Select(x => new Use(x, false)).ToArray()),
+        };
+        for (var i = 0; i < c.Holes.Count; i++) frameLoops.Add(AddLoop(builder, [new(the[i], false)]));
+        faces.Add((builder.AddFace(frameLoops), SurfaceGeometry.FromPlane(new PlaneSurface(new(0, 0, c.BaseHeight), Dir(0, 0, 1), Dir(1, 0, 0))), false));
+
+        for (var i = 0; i < 4; i++)
+        {
+            var n = (i + 1) % 4;
+            var loop = AddLoop(builder, [new(eb[i], false), new(ev[n], false), new(et[i], true), new(ev[i], true)]);
+            var edge = bottom[n] - bottom[i]; var rise = top[i] - bottom[i];
+            faces.Add((builder.AddFace([loop]), SurfaceGeometry.FromPlane(new PlaneSurface(bottom[i], Direction3D.Create(edge.Cross(rise)), Direction3D.Create(edge))), false));
+        }
+
+        var patchLoop = AddLoop(builder, ei.Select(x => new Use(x, true)).Reverse().ToArray());
+        faces.Add((builder.AddFace([patchLoop]), patch.Support, patch.ReversedOrientation));
+        for (var i = 0; i < c.Holes.Count; i++)
+        {
+            var loop = AddLoop(builder, [new(bhe[i], false), new(seams[i], false), new(the[i], true), new(seams[i], true)]);
+            var h = c.Holes[i];
+            faces.Add((builder.AddFace([loop]), SurfaceGeometry.FromCylinder(new CylinderSurface(new(h.CenterX, h.CenterY, 0d), Dir(0, 0, 1), h.Diameter / 2d, Dir(1, 0, 0))), false));
+        }
+
+        var shell = builder.AddShell(faces.Select(x => x.Face).ToArray()); builder.AddBody([shell]);
+        var geometry = new BrepGeometryStore(); var bindings = new BrepBindingModel(); var curveId = 1;
+        foreach (var pair in curves.OrderBy(x => x.Key.Value))
+        {
+            var id = new CurveGeometryId(curveId++); geometry.AddCurve(id, pair.Value.Curve); bindings.AddEdgeBinding(new(pair.Key, id, pair.Value.Interval));
+        }
+        var surfaceId = 1;
+        foreach (var face in faces)
+        {
+            var id = new SurfaceGeometryId(surfaceId++); geometry.AddSurface(id, face.Surface); bindings.AddFaceBinding(new(face.Face, id, face.Reversed));
+        }
+        var body = new BrepBody(builder.Model, geometry, bindings, points);
+        var validation = BrepBindingValidator.Validate(body, true);
+        return validation.IsSuccess ? new(body, []) : new(null, validation.Diagnostics.Select(x => new SculptDiagnostic("sculpt-brep-binding-invalid", x.Message)).ToArray());
+    }
+
+    private static EdgeId AddLine(TopologyBuilder builder, IDictionary<EdgeId, (CurveGeometry, ParameterInterval)> curves, VertexId start, VertexId end, IReadOnlyDictionary<VertexId, Point3D> points)
+    {
+        var edge = builder.AddEdge(start, end); var vector = points[end] - points[start];
+        curves[edge] = (CurveGeometry.FromLine(new Line3Curve(points[start], Direction3D.Create(vector))), new(0d, vector.Length));
+        return edge;
+    }
+
+    private static EdgeId AddCircle(TopologyBuilder builder, IDictionary<EdgeId, (CurveGeometry, ParameterInterval)> curves, VertexId seam, HousingHole hole, double z)
+    {
+        var edge = builder.AddEdge(seam, seam);
+        curves[edge] = (CurveGeometry.FromCircle(new Circle3Curve(new(hole.CenterX, hole.CenterY, z), Dir(0, 0, 1), hole.Diameter / 2d, Dir(1, 0, 0))), new(0d, 2d * double.Pi));
+        return edge;
+    }
+
     private static List<SculptDiagnostic> Validate(HousingConstruction c)
     {
         var d = new List<SculptDiagnostic>();
@@ -107,8 +206,12 @@ internal static class SculptedHousingBrepBuilder
         foreach (var h in c.Holes)
         {
             var r = h.Diameter / 2d;
-            if (!Positive(h.Diameter) || Math.Abs(h.CenterX) + r >= c.CrownWidth / 2d || Math.Abs(h.CenterY) + r >= c.CrownDepth / 2d)
+            if (!Positive(h.Diameter) || Math.Abs(h.CenterX) + r >= c.Width / 2d || Math.Abs(h.CenterY) + r >= c.Depth / 2d)
+                d.Add(new("sculpt-hole-pattern-outside-body", $"Mounting hole '{h.StableId}' must remain inside the housing footprint.", h.StableId));
+            if (c.ReplacementPatch is null && (Math.Abs(h.CenterX) + r >= c.CrownWidth / 2d || Math.Abs(h.CenterY) + r >= c.CrownDepth / 2d))
                 d.Add(new("sculpt-hole-pattern-outside-crown", $"Mounting hole '{h.StableId}' must remain inside the bounded crown support.", h.StableId));
+            if (c.ReplacementPatch is not null && Math.Abs(h.CenterX) - r < c.CrownWidth / 2d && Math.Abs(h.CenterY) - r < c.CrownDepth / 2d)
+                d.Add(new("surf-patch-intersects-protected-hole", $"Replacement patch intersects protected mounting hole '{h.StableId}'. Move the hole or reduce the patch boundary.", h.StableId));
         }
         for (var i = 0; i < c.Holes.Count; i++) for (var j = i + 1; j < c.Holes.Count; j++)
         { var a = c.Holes[i]; var h = c.Holes[j]; if (Math.Sqrt(Math.Pow(a.CenterX - h.CenterX, 2) + Math.Pow(a.CenterY - h.CenterY, 2)) <= (a.Diameter + h.Diameter) / 2d) d.Add(new("sculpt-self-intersection", $"Mounting holes '{a.StableId}' and '{h.StableId}' overlap.")); }

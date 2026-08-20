@@ -31,6 +31,10 @@
     "FEA": "FEA/cantilever.firmament",
     "inlineSTEP": "FEA/inline-step-cantilever.firmament",
     "Assembly": "Assembly/bearing-module.firmament",
-    "Piping": "Piping/pump-skid.firmament"
+    "Piping": "Piping/pump-skid.firmament",
+    "SurfacePatch": "Sculpting/surf-x1-freeform-housing.firmament",
+    "ReplaceRegion": "Sculpting/surf-x1-freeform-housing.firmament",
+    "PatchG1": "Sculpting/surf-x1-freeform-housing.firmament",
+    "PostSculptHole": "Sculpting/surf-x1-freeform-housing.firmament"
   }
 }

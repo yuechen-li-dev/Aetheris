@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using Aetheris.Kernel.Core.Geometry.Surfaces;
+using Aetheris.Kernel.Core.Math;
 
 namespace Aetheris.Surfacing;
 
@@ -17,8 +19,30 @@ public static class SculptingAuthoring
     public static SculptingCompileResult Compile(string source)
     {
         var total = Stopwatch.StartNew(); var diagnostics = new List<SculptDiagnostic>(); var states = new Dictionary<string, BodyState>(StringComparer.Ordinal);
+        var patches = new Dictionary<string, BoundedSurfacePatch>(StringComparer.Ordinal);
         var model = ModelHeader.Match(source); if (!model.Success) return Fail("<unknown>", "sculpt-source-malformed", "Sculpting source requires 'Model Name { ... }'.");
         if (!Regex.IsMatch(source, @"\bUnits\s*:\s*mm\b", RegexOptions.CultureInvariant)) diagnostics.Add(new("sculpt-units-invalid", "SURF-X0 authoring requires millimetres."));
+        foreach (var block in Blocks(source, "SurfacePatch"))
+        {
+            var degree = NumberVector(block.Body, "Degree", 2, diagnostics); var domain = NumberVector(block.Body, "Domain", 4, diagnostics);
+            var knotsU = NumberVectorAny(block.Body, "KnotsU", diagnostics); var knotsV = NumberVectorAny(block.Body, "KnotsV", diagnostics);
+            var rows = ControlRows(block.Body, diagnostics); var boundaries = ParseBoundaries(block.Body, diagnostics);
+            if (degree is null || domain is null || knotsU is null || knotsV is null || rows is null || boundaries is null) continue;
+            try
+            {
+                var du = checked((int)degree[0]); var dv = checked((int)degree[1]);
+                if (degree[0] != du || degree[1] != dv) throw new ArgumentException("Patch degrees must be integers.");
+                var (mu, ku) = CompressKnots(knotsU); var (mv, kv) = CompressKnots(knotsV);
+                var spline = new BSplineSurfaceWithKnots(du, dv, rows, "UNSPECIFIED", false, false, false, mu, mv, ku, kv, "UNSPECIFIED");
+                var patch = new BSplineSurfacePatch(block.Name, spline, new(domain[0], domain[1], domain[2], domain[3]), new(block.Name + ".OuterLoop", boundaries));
+                var patchDiagnostics = patch.Validate(); diagnostics.AddRange(patchDiagnostics);
+                if (patchDiagnostics.Count == 0 && !patches.TryAdd(block.Name, patch)) diagnostics.Add(new("surf-patch-duplicate", $"SurfacePatch '{block.Name}' is declared more than once.", block.Name));
+            }
+            catch (Exception exception) when (exception is ArgumentException or OverflowException)
+            {
+                diagnostics.Add(new("surf-patch-invalid", $"SurfacePatch '{block.Name}' is invalid: {exception.Message}", block.Name));
+            }
+        }
         var baseClock = Stopwatch.StartNew();
         foreach (var block in Blocks(source, "BodyState"))
         {
@@ -35,8 +59,43 @@ public static class SculptingAuthoring
             var inputName = ScalarText(block.Body, "Input");
             if (inputName is null || !states.TryGetValue(inputName, out var input)) { diagnostics.Add(new("sculpt-predecessor-unresolved", $"SculptState '{block.Name}' must name one previously accepted Input state.")); continue; }
             var operationBlock = Blocks(block.Body, "OffsetRegion").SingleOrDefault();
-            if (operationBlock is null) { diagnostics.Add(new("sculpt-operation-unsupported", $"SculptState '{block.Name}' requires exactly one OffsetRegion operation.")); continue; }
-            var target = ScalarText(operationBlock.Body, "Target") ?? string.Empty;
+            var replaceBlock = Blocks(block.Body, "ReplaceRegion").SingleOrDefault();
+            var holeBlock = Blocks(block.Body, "HoleFeature").SingleOrDefault();
+            if (new[] { operationBlock, replaceBlock, holeBlock }.Count(x => x is not null) != 1) { diagnostics.Add(new("sculpt-operation-unsupported", $"SculptState '{block.Name}' requires exactly one OffsetRegion, ReplaceRegion, or HoleFeature operation.")); continue; }
+            if (holeBlock is not null)
+            {
+                var holeTarget = ScalarText(holeBlock.Body, "Target") ?? string.Empty; var holeId = ScalarText(holeBlock.Body, "Id") ?? string.Empty;
+                var center = Vector(holeBlock.Body, "Center", 2, diagnostics); var diameter = Length(holeBlock.Body, "Diameter", diagnostics); var holeEnvelope = Vector(holeBlock.Body, "InfluenceEnvelope", 6, diagnostics);
+                var preserveCurrent = List(block.Body, "Preserve"); var holeRequirements = ParseRequirements(List(block.Body, "Require"), diagnostics);
+                operationClock.Stop(); opConstruction += operationClock.Elapsed;
+                if (center is null || diameter is null || holeEnvelope is null) continue;
+                var holeOperation = new SafeHoleOperation(block.Name + ".HoleFeature", holeTarget, new(holeId, center[0], center[1], diameter.Value),
+                    new(holeEnvelope[0], holeEnvelope[1], holeEnvelope[2], holeEnvelope[3], holeEnvelope[4], holeEnvelope[5]), preserveCurrent.Select(Preservation).ToArray(), holeRequirements);
+                var holeClock = Stopwatch.StartNew(); var holeResult = SafeHoleSculptor.Apply(input, block.Name, holeOperation); holeClock.Stop(); verification += holeClock.Elapsed;
+                if (!holeResult.IsSuccess || holeResult.OutputState is null) diagnostics.AddRange(holeResult.Diagnostics);
+                else if (!states.TryAdd(block.Name, holeResult.OutputState)) diagnostics.Add(new("sculpt-state-duplicate", $"State '{block.Name}' is declared more than once."));
+                continue;
+            }
+            if (replaceBlock is not null)
+            {
+                var replaceTarget = ScalarText(replaceBlock.Body, "Target") ?? string.Empty; var patchName = ScalarText(replaceBlock.Body, "Patch");
+                var replaceEnvelope = Vector(replaceBlock.Body, "InfluenceEnvelope", 6, diagnostics);
+                var replaceMayModify = List(block.Body, "MayModify"); var replacePreserve = List(block.Body, "Preserve"); var replaceRequirements = ParseRequirements(List(block.Body, "Require"), diagnostics);
+                operationClock.Stop(); opConstruction += operationClock.Elapsed;
+                if (replaceEnvelope is null || patchName is null || !patches.TryGetValue(patchName, out var patch))
+                {
+                    if (patchName is null || !patches.ContainsKey(patchName ?? string.Empty)) diagnostics.Add(new("surf-patch-unresolved", $"ReplaceRegion in '{block.Name}' must reference a declared SurfacePatch."));
+                    continue;
+                }
+                var replaceContracts = replacePreserve.Select(Preservation).ToArray();
+                var replaceOperation = new ReplaceRegionOperation(block.Name + ".ReplaceRegion", replaceTarget, patch, replaceMayModify,
+                    new(replaceEnvelope[0], replaceEnvelope[1], replaceEnvelope[2], replaceEnvelope[3], replaceEnvelope[4], replaceEnvelope[5]), replaceContracts, replaceRequirements);
+                var replaceApplyClock = Stopwatch.StartNew(); var replaceResult = ReplaceRegionSculptor.Apply(input, block.Name, replaceOperation); replaceApplyClock.Stop(); verification += replaceApplyClock.Elapsed;
+                if (!replaceResult.IsSuccess || replaceResult.OutputState is null) diagnostics.AddRange(replaceResult.Diagnostics);
+                else if (!states.TryAdd(block.Name, replaceResult.OutputState)) diagnostics.Add(new("sculpt-state-duplicate", $"State '{block.Name}' is declared more than once."));
+                continue;
+            }
+            var target = ScalarText(operationBlock!.Body, "Target") ?? string.Empty;
             var offset = Length(operationBlock.Body, "Offset", diagnostics);
             var region = Vector(operationBlock.Body, "Region", 2, diagnostics);
             var envelope = Vector(operationBlock.Body, "InfluenceEnvelope", 6, diagnostics);
@@ -44,10 +103,8 @@ public static class SculptingAuthoring
             var boundary = ScalarText(operationBlock.Body, "Boundary") ?? "G0";
             operationClock.Stop(); opConstruction += operationClock.Elapsed;
             if (offset is null || region is null || envelope is null) continue;
-            var contracts = preserve.Select(x => new PreservationContract(x, x == SculptedHousingFactory.MountingHolePattern ? PreservationMode.PatternPlacementAndDiameter : PreservationMode.ExactGeometry)).ToArray();
-            var parsedRequirements = new List<SculptRequirement>();
-            foreach (var requirement in requirements)
-                if (Enum.TryParse<SculptRequirement>(requirement, out var parsed)) parsedRequirements.Add(parsed); else diagnostics.Add(new("sculpt-requirement-unsupported", $"Requirement '{requirement}' is not supported by SURF-X0."));
+            var contracts = preserve.Select(Preservation).ToArray();
+            var parsedRequirements = ParseRequirements(requirements, diagnostics);
             var operation = new OffsetRegionOperation(block.Name + ".OffsetRegion", target, offset.Value, region[0], region[1], mayModify,
                 new(envelope[0], envelope[1], envelope[2], envelope[3], envelope[4], envelope[5]), contracts, parsedRequirements, boundary);
             var applyClock = Stopwatch.StartNew(); var result = OffsetRegionSculptor.Apply(input, block.Name, operation); applyClock.Stop(); verification += applyClock.Elapsed;
@@ -107,6 +164,65 @@ public static class SculptingAuthoring
     {
         var m = Regex.Match(body, $@"(?m)^\s*{Regex.Escape(field)}\s*:\s*\[(?<v>[^\]]*)\]\s*$", RegexOptions.CultureInvariant);
         return m.Success ? m.Groups["v"].Value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) : [];
+    }
+    private static PreservationContract Preservation(string entity) => new(entity, entity == SculptedHousingFactory.MountingHolePattern ? PreservationMode.PatternPlacementAndDiameter : PreservationMode.ExactGeometry);
+    private static IReadOnlyList<SculptRequirement> ParseRequirements(IReadOnlyList<string> values, List<SculptDiagnostic> diagnostics)
+    {
+        var parsed = new List<SculptRequirement>();
+        foreach (var value in values)
+            if (Enum.TryParse<SculptRequirement>(value, out var requirement)) parsed.Add(requirement); else diagnostics.Add(new("sculpt-requirement-unsupported", $"Requirement '{value}' is not supported."));
+        return parsed;
+    }
+    private static double[]? NumberVector(string body, string field, int count, List<SculptDiagnostic> diagnostics)
+    {
+        var values = NumberVectorAny(body, field, diagnostics); if (values is not null && values.Length == count) return values;
+        if (values is not null) diagnostics.Add(new("sculpt-field-invalid", $"Field '{field}' requires {count} dimensionless numbers.")); return null;
+    }
+    private static double[]? NumberVectorAny(string body, string field, List<SculptDiagnostic> diagnostics)
+    {
+        var match = Regex.Match(body, $@"(?m)^\s*{Regex.Escape(field)}\s*:\s*\[(?<v>[^\]]+)\]\s*$", RegexOptions.CultureInvariant);
+        if (!match.Success) { diagnostics.Add(new("sculpt-field-invalid", $"Field '{field}' requires a dimensionless number list.")); return null; }
+        var tokens = match.Groups["v"].Value.Split(',', StringSplitOptions.TrimEntries); var values = new double[tokens.Length];
+        for (var i = 0; i < tokens.Length; i++) if (!double.TryParse(tokens[i], NumberStyles.Float, CultureInfo.InvariantCulture, out values[i]))
+        { diagnostics.Add(new("sculpt-field-invalid", $"Field '{field}' contains invalid number '{tokens[i]}'.")); return null; }
+        return values;
+    }
+    private static IReadOnlyList<IReadOnlyList<Point3D>>? ControlRows(string body, List<SculptDiagnostic> diagnostics)
+    {
+        var matches = Regex.Matches(body, @"(?m)^\s*ControlRow\s*:\s*\[(?<v>.*)\]\s*$", RegexOptions.CultureInvariant);
+        var rows = new List<IReadOnlyList<Point3D>>();
+        foreach (Match match in matches)
+        {
+            var points = new List<Point3D>();
+            foreach (Match point in Regex.Matches(match.Groups["v"].Value, @"\[\s*(?<x>[-+]?\d+(?:\.\d+)?)mm\s*,\s*(?<y>[-+]?\d+(?:\.\d+)?)mm\s*,\s*(?<z>[-+]?\d+(?:\.\d+)?)mm\s*\]", RegexOptions.CultureInvariant))
+                points.Add(new(double.Parse(point.Groups["x"].Value, CultureInfo.InvariantCulture), double.Parse(point.Groups["y"].Value, CultureInfo.InvariantCulture), double.Parse(point.Groups["z"].Value, CultureInfo.InvariantCulture)));
+            if (points.Count == 0) { diagnostics.Add(new("surf-control-row-invalid", "Each ControlRow requires one or more [xmm, ymm, zmm] points.")); return null; }
+            rows.Add(points);
+        }
+        if (rows.Count == 0) { diagnostics.Add(new("surf-control-net-required", "A non-rational SurfacePatch requires explicit ControlRow entries.")); return null; }
+        return rows;
+    }
+    private static IReadOnlyList<PatchBoundaryCorrespondence>? ParseBoundaries(string body, List<SculptDiagnostic> diagnostics)
+    {
+        var result = new List<PatchBoundaryCorrespondence>();
+        foreach (var block in Blocks(body, "Boundary"))
+        {
+            if (!Enum.TryParse<PatchBoundarySide>(block.Name, true, out var side)) { diagnostics.Add(new("surf-boundary-side-invalid", $"Unknown patch boundary side '{block.Name}'.")); continue; }
+            var existing = ScalarText(block.Body, "Existing") ?? string.Empty; var continuityText = ScalarText(block.Body, "Continuity") ?? "G0";
+            if (!Enum.TryParse<PatchBoundaryContinuity>(continuityText, true, out var continuity)) { diagnostics.Add(new("surf-boundary-continuity-invalid", $"Boundary '{block.Name}' continuity must be G0 or G1.")); continue; }
+            result.Add(new($"Boundary{block.Name}", side, existing, continuity));
+        }
+        return result;
+    }
+    private static (IReadOnlyList<int> Multiplicities, IReadOnlyList<double> Values) CompressKnots(IReadOnlyList<double> expanded)
+    {
+        var multiplicities = new List<int>(); var values = new List<double>();
+        foreach (var knot in expanded)
+        {
+            if (values.Count > 0 && knot == values[^1]) multiplicities[^1]++;
+            else { values.Add(knot); multiplicities.Add(1); }
+        }
+        return (multiplicities, values);
     }
     private sealed record Block(string Name, string Body);
 }

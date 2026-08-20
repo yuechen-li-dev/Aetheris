@@ -25,6 +25,7 @@ Everything in this directory is current authoring guidance. Examples progress fr
 | use a CNC policy | `Templates/cnc-dfm-policy.firmament` | Record defaults, `with`, `Template<Policy>`, enforcement |
 | make Sheet Metal | `SheetMetal/l-bracket-with-hole.firmament` | material, bend, planar hole, formed/flat output |
 | apply a bounded mathematical sculpt | `Sculpting/sculpted-housing.firmament` | immutable `BodyState`, `OffsetRegion`, locality, preservation contracts |
+| replace a housing region with a freeform patch | `Sculpting/surf-x1-freeform-housing.firmament` | direct non-rational 6x6 B-spline patch, `ReplaceRegion`, explicit boundary correspondence, mixed G0/G1, downstream current-state hole |
 | make a data-driven Sheet Metal tab | `SheetMetal/profile-delta-tab-family.firmament` | Table, `with`, reusable `ProfileDelta Tab` |
 | run FEA | `FEA/cantilever.firmament` | material, `Fixed`, `Force`, four result families |
 | analyze imported STEP | `FEA/inline-step-cantilever.firmament` | repository-stable `inlineSTEP`, face selection, FEA |

@@ -56,7 +56,8 @@ public sealed record HousingConstruction(
     double CrownWidth,
     double CrownDepth,
     double CrownOffset,
-    IReadOnlyList<HousingHole> Holes)
+    IReadOnlyList<HousingHole> Holes,
+    BoundedSurfacePatch? ReplacementPatch = null)
 {
     public double FinalHeight => BaseHeight + CrownOffset;
     public bool HasCrown => CrownOffset > 0d && (CrownWidth < Width || CrownDepth < Depth);
@@ -71,7 +72,11 @@ public sealed record BodyState(
     HousingConstruction Construction,
     IReadOnlyDictionary<string, SculptSemanticEntity> SemanticInventory,
     GeometricDelta? Delta,
-    IReadOnlyList<SculptValidationEvidence> ValidationEvidence);
+    IReadOnlyList<SculptValidationEvidence> ValidationEvidence)
+{
+    public IReadOnlyList<SurfacePatchMetadata> SurfacePatches => Construction.ReplacementPatch is { } patch
+        ? [SurfacePatchMetadata.From(patch)] : [];
+}
 
 public sealed record OffsetRegionOperation(
     string StableId,
@@ -90,6 +95,39 @@ public sealed record OffsetRegionOperation(
         $"{InfluenceEnvelope.MinX:R},{InfluenceEnvelope.MinY:R},{InfluenceEnvelope.MinZ:R},{InfluenceEnvelope.MaxX:R},{InfluenceEnvelope.MaxY:R},{InfluenceEnvelope.MaxZ:R}",
         string.Join(',', Preserves.OrderBy(x => x.EntityId, StringComparer.Ordinal).Select(x => $"{x.EntityId}:{x.Mode}")),
         string.Join(',', Requirements.Order()), BoundaryContinuity);
+}
+
+public sealed record ReplaceRegionOperation(
+    string StableId,
+    string TargetRegion,
+    BoundedSurfacePatch ReplacementPatch,
+    IReadOnlyList<string> MayModify,
+    SpatialInfluenceEnvelope InfluenceEnvelope,
+    IReadOnlyList<PreservationContract> Preserves,
+    IReadOnlyList<SculptRequirement> Requirements,
+    double GeometricTolerance = 1e-6,
+    double G1AngularToleranceDegrees = 0.1)
+{
+    public string Canonical => string.Join('|', StableId, TargetRegion, ReplacementPatch.PatchId,
+        ReplacementPatch.SurfaceClass, ReplacementPatch.DegreeU, ReplacementPatch.DegreeV,
+        ReplacementPatch.ControlCountU, ReplacementPatch.ControlCountV,
+        $"{ReplacementPatch.ParameterDomain.UMin:R},{ReplacementPatch.ParameterDomain.UMax:R},{ReplacementPatch.ParameterDomain.VMin:R},{ReplacementPatch.ParameterDomain.VMax:R}",
+        string.Join(';', ReplacementPatch.BoundaryLoop.Boundaries.OrderBy(x => x.PatchSide).Select(x => $"{x.PatchSide}:{x.ExistingBoundary}:{x.Continuity}")),
+        string.Join(',', MayModify.Order(StringComparer.Ordinal)),
+        $"{InfluenceEnvelope.MinX:R},{InfluenceEnvelope.MinY:R},{InfluenceEnvelope.MinZ:R},{InfluenceEnvelope.MaxX:R},{InfluenceEnvelope.MaxY:R},{InfluenceEnvelope.MaxZ:R}",
+        string.Join(',', Preserves.OrderBy(x => x.EntityId, StringComparer.Ordinal).Select(x => $"{x.EntityId}:{x.Mode}")),
+        string.Join(',', Requirements.Order()), GeometricTolerance.ToString("R"), G1AngularToleranceDegrees.ToString("R"));
+}
+
+public sealed record SafeHoleOperation(
+    string StableId,
+    string TargetRegion,
+    HousingHole Hole,
+    SpatialInfluenceEnvelope InfluenceEnvelope,
+    IReadOnlyList<PreservationContract> Preserves,
+    IReadOnlyList<SculptRequirement> Requirements)
+{
+    public string Canonical => $"{StableId}|{TargetRegion}|{Hole.StableId}|{Hole.CenterX:R}|{Hole.CenterY:R}|{Hole.Diameter:R}|{InfluenceEnvelope.MinX:R},{InfluenceEnvelope.MinY:R},{InfluenceEnvelope.MinZ:R},{InfluenceEnvelope.MaxX:R},{InfluenceEnvelope.MaxY:R},{InfluenceEnvelope.MaxZ:R}";
 }
 
 public sealed record SculptDiagnostic(string Code, string Message, string? Entity = null);

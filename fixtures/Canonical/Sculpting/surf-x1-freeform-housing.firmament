@@ -1,0 +1,63 @@
++Model FreeformControllerCover {
+  Units: mm
+
+  SurfacePatch CrownPatch {
+    Degree: [3, 3]
+    Domain: [0, 1, 0, 1]
+    KnotsU: [0, 0, 0, 0, 0.3333333333333333, 0.6666666666666666, 1, 1, 1, 1]
+    KnotsV: [0, 0, 0, 0, 0.3333333333333333, 0.6666666666666666, 1, 1, 1, 1]
+    ControlRow: [[-30mm, -20mm, 20mm], [-30mm, -12mm, 20mm], [-30mm, -4mm, 20mm], [-30mm, 4mm, 20mm], [-30mm, 12mm, 20mm], [-30mm, 20mm, 20mm]]
+    ControlRow: [[-20mm, -20mm, 20mm], [-20mm, -12mm, 20mm], [-20mm, -4mm, 20mm], [-20mm, 4mm, 20mm], [-20mm, 12mm, 20mm], [-20mm, 20mm, 20mm]]
+    ControlRow: [[-8mm, -20mm, 20mm], [-8mm, -12mm, 22mm], [-8mm, -4mm, 27mm], [-8mm, 4mm, 27mm], [-8mm, 12mm, 22mm], [-8mm, 20mm, 20mm]]
+    ControlRow: [[8mm, -20mm, 20mm], [8mm, -12mm, 22mm], [8mm, -4mm, 27mm], [8mm, 4mm, 27mm], [8mm, 12mm, 22mm], [8mm, 20mm, 20mm]]
+    ControlRow: [[20mm, -20mm, 20mm], [20mm, -12mm, 20mm], [20mm, -4mm, 20mm], [20mm, 4mm, 20mm], [20mm, 12mm, 20mm], [20mm, 20mm, 20mm]]
+    ControlRow: [[30mm, -20mm, 20mm], [30mm, -12mm, 20mm], [30mm, -4mm, 20mm], [30mm, 4mm, 20mm], [30mm, 12mm, 20mm], [30mm, 20mm, 20mm]]
+    Boundary South { Existing: CrownBoundarySouth
+      Continuity: G0 }
+    Boundary East { Existing: CrownBoundaryEast
+      Continuity: G1 }
+    Boundary North { Existing: CrownBoundaryNorth
+      Continuity: G0 }
+    Boundary West { Existing: CrownBoundaryWest
+      Continuity: G1 }
+  }
+
+  BodyState Base {
+    Size: [100mm, 80mm, 20mm]
+    Hole H1 { Center: [-38mm, -28mm]
+      Diameter: 4mm }
+    Hole H2 { Center: [38mm, -28mm]
+      Diameter: 4mm }
+    Hole H3 { Center: [38mm, 28mm]
+      Diameter: 4mm }
+    Hole H4 { Center: [-38mm, 28mm]
+      Diameter: 4mm }
+  }
+
+  SculptState FreeformCrown {
+    Input: Base
+    ReplaceRegion {
+      Target: HousingCrown
+      Patch: CrownPatch
+      InfluenceEnvelope: [-30mm, -20mm, 20mm, 30mm, 20mm, 28mm]
+    }
+    MayModify: [HousingCrown, CrownTransitionZone]
+    Preserve: [BottomMountingInterface, MountingHolePattern, OuterFootprintBoundary, SideWallsLower]
+    Require: [ClosedManifold, OrientationConsistency, NoSelfIntersection]
+  }
+
+  SculptState CrownWithServiceHole {
+    Input: FreeformCrown
+    HoleFeature {
+      Target: OuterFootprintBoundary
+      Id: H5
+      Center: [40mm, 0mm]
+      Diameter: 4mm
+      InfluenceEnvelope: [38mm, -2mm, 0mm, 42mm, 2mm, 20mm]
+    }
+    Preserve: [CrownPatch, H1, H2, H3, H4, SideWallsLower, CrownBoundarySouth, CrownBoundaryEast, CrownBoundaryNorth, CrownBoundaryWest]
+    Require: [ClosedManifold, OrientationConsistency, NoSelfIntersection]
+  }
+
+  Output: FreeformCrown
+}

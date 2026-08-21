@@ -123,12 +123,86 @@ public sealed record SurfacePatchMetadata(
     IReadOnlyList<PatchBoundaryCorrespondence> ContinuityContracts,
     string ExportClass)
 {
-    public static SurfacePatchMetadata From(BoundedSurfacePatch patch) => new(
+    public static SurfacePatchMetadata From(BoundedSurfacePatch patch, int boundaryLoops = 1) => new(
         patch.PatchId, patch.SurfaceClass, patch.DegreeU, patch.DegreeV, patch.ControlCountU, patch.ControlCountV,
-        patch.ParameterDomain, 1, patch.BoundaryLoop.Boundaries, patch.ExportClass);
+        patch.ParameterDomain, boundaryLoops, patch.BoundaryLoop.Boundaries, patch.ExportClass);
 }
 
 public sealed record TrimRegionResult(bool IsSuccess, BoundedSurfacePatch? Patch, IReadOnlyList<SculptDiagnostic> Diagnostics);
+
+public enum SurfaceExtensionMethod { AnalyticIdentity, EndpointTangentContinuation }
+
+public sealed record ExtendedSurfaceSupport(
+    SurfaceGeometry OriginalSupport,
+    SurfaceParameterDomain OriginalDomain,
+    SurfaceParameterDomain ExtendedDomain,
+    SurfaceExtensionMethod Method,
+    string ContinuityAtOriginalBoundary,
+    Func<double, double, Point3D> Evaluator)
+{
+    public Point3D Evaluate(double u, double v)
+    {
+        if (u < ExtendedDomain.UMin || u > ExtendedDomain.UMax || v < ExtendedDomain.VMin || v > ExtendedDomain.VMax)
+            throw new ArgumentOutOfRangeException(nameof(u), "Evaluation is outside the authorized extension domain.");
+        return Evaluator(u, v);
+    }
+}
+
+public sealed record SurfaceExtensionResult(bool IsSuccess, ExtendedSurfaceSupport? Support, IReadOnlyList<SculptDiagnostic> Diagnostics);
+
+public static class SurfaceSupportExtension
+{
+    public static SurfaceExtensionResult Extend(SurfaceGeometry support, SurfaceParameterDomain original, SurfaceParameterDomain requested,
+        double maximumRelativeExtension = .25d)
+    {
+        if (!original.IsValid || !requested.IsValid || requested.UMin > original.UMin || requested.UMax < original.UMax
+            || requested.VMin > original.VMin || requested.VMax < original.VMax)
+            return Failure("surf-extension-domain-invalid", "The requested domain must finitely contain the original domain.");
+        var uSpan = original.UMax - original.UMin;
+        var vSpan = original.VMax - original.VMin;
+        if (original.UMin - requested.UMin > uSpan * maximumRelativeExtension
+            || requested.UMax - original.UMax > uSpan * maximumRelativeExtension
+            || original.VMin - requested.VMin > vSpan * maximumRelativeExtension
+            || requested.VMax - original.VMax > vSpan * maximumRelativeExtension)
+            return Failure("surf-extension-unsupported", $"Extension exceeds the bounded {maximumRelativeExtension:P0} per-side stability envelope.");
+
+        if (support.Kind is SurfaceGeometryKind.Plane or SurfaceGeometryKind.Cylinder or SurfaceGeometryKind.Cone)
+        {
+            Point3D EvaluateAnalytic(double u, double v) => support.Kind switch
+            {
+                SurfaceGeometryKind.Plane => support.Plane!.Value.Evaluate(u, v),
+                SurfaceGeometryKind.Cylinder => support.Cylinder!.Value.Evaluate(u, v),
+                SurfaceGeometryKind.Cone => support.Cone!.Value.Evaluate(u, v),
+                _ => throw new InvalidOperationException()
+            };
+            return new(true, new(support, original, requested, SurfaceExtensionMethod.AnalyticIdentity, "Exact analytic continuation", EvaluateAnalytic), []);
+        }
+        if (support.BSplineSurfaceWithKnots is not { } spline)
+            return Failure("surf-extension-unsupported", $"Surface family {support.Kind} is not in the bounded extension matrix.");
+        if (spline.DegreeU > 3 || spline.DegreeV > 3 || spline.SelfIntersect)
+            return Failure("surf-extension-unsupported", "Endpoint-tangent continuation is limited to non-self-intersecting degree <= 3 B-spline supports.");
+
+        Point3D EvaluateSpline(double u, double v)
+        {
+            var uc = System.Math.Clamp(u, original.UMin, original.UMax);
+            var vc = System.Math.Clamp(v, original.VMin, original.VMax);
+            var basePoint = spline.Evaluate(uc, vc);
+            var hu = double.Max(uSpan * 1e-4d, 1e-7d);
+            var hv = double.Max(vSpan * 1e-4d, 1e-7d);
+            var u0 = System.Math.Clamp(uc - hu, original.UMin, original.UMax);
+            var u1 = System.Math.Clamp(uc + hu, original.UMin, original.UMax);
+            var v0 = System.Math.Clamp(vc - hv, original.VMin, original.VMax);
+            var v1 = System.Math.Clamp(vc + hv, original.VMin, original.VMax);
+            var du = (spline.Evaluate(u1, vc) - spline.Evaluate(u0, vc)) / (u1 - u0);
+            var dv = (spline.Evaluate(uc, v1) - spline.Evaluate(uc, v0)) / (v1 - v0);
+            return basePoint + (du * (u - uc)) + (dv * (v - vc));
+        }
+        return new(true, new(support, original, requested, SurfaceExtensionMethod.EndpointTangentContinuation,
+            "C1 by endpoint first-derivative continuation; mixed outside-corner term intentionally zero", EvaluateSpline), []);
+    }
+
+    private static SurfaceExtensionResult Failure(string code, string message) => new(false, null, [new(code, message)]);
+}
 
 public static class SurfacePatchOperations
 {

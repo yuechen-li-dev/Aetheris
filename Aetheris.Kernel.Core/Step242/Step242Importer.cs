@@ -778,6 +778,16 @@ public static class Step242Importer
         int edgeCurveEntityId)
     {
         ParameterInterval? explicitTrim = null;
+        var surfaceCurveConstructor = Step242SubsetDecoder.TryGetConstructor(curveEntity.Instance, "SURFACE_CURVE");
+        if (surfaceCurveConstructor is not null)
+        {
+            if (surfaceCurveConstructor.Arguments.ElementAtOrDefault(1) is not Step242EntityReference curve3dReference)
+                return FailureCurveBinding("SURFACE_CURVE must reference its authoritative 3D curve.", SourceFor(edgeCurveEntityId, "Importer.Geometry.SurfaceCurve"));
+            var curve3dResult = document.TryGetEntity(curve3dReference.TargetId);
+            if (!curve3dResult.IsSuccess)
+                return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(curve3dResult.Diagnostics);
+            curveEntity = curve3dResult.Value;
+        }
         var trimmedConstructor = Step242SubsetDecoder.TryGetConstructor(curveEntity.Instance, "TRIMMED_CURVE");
         if (trimmedConstructor is not null)
         {
@@ -1709,6 +1719,10 @@ public static class Step242Importer
                 SurfaceGeometryKind.Cylinder => ClassifyAndNormalizeCylindricalLoops(faceEntityId, loops, surface.Cylinder!.Value),
                 SurfaceGeometryKind.Torus => ClassifyAndNormalizeToroidalLoops(faceEntityId, loops, surface.Torus!.Value),
                 SurfaceGeometryKind.Cone => ClassifyAndNormalizeConicalLoops(faceEntityId, loops, surface.Cone!.Value),
+                // A non-rational B-spline has no universal planar containment projection.
+                // Preserve the explicit FACE_OUTER_BOUND/FACE_BOUND contract; pcurve and
+                // curve-on-surface qualification is handled independently by the BRep layer.
+                SurfaceGeometryKind.BSplineSurfaceWithKnots => KernelResult<IReadOnlyList<LoopBuildData>>.Success(loops),
                 _ => LoopRoleFailure<IReadOnlyList<LoopBuildData>>(
                     $"Multi-loop hole classification is unsupported for surface type '{surface.Kind}'.",
                     $"Importer.LoopRole.UnsupportedSurfaceForHoles.{surface.Kind}")

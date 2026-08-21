@@ -5,7 +5,7 @@
 | Area | Status | Preview 3 boundary |
 |---|---|---|
 | Firmament V2 native primitives/profiles | Bounded | Named Box/Cylinder/Frustum/RoundedBox and admitted line/arc profile construction/composition |
-| Bounded mathematical sculpting | Bounded (SURF-X1 subset) | Immutable single-predecessor `BodyState`; rectangular-housing `OffsetRegion`; and one-loop rectangular `ReplaceRegion` using a direct non-rational B-spline patch, mixed G0/G1 contracts, exact lower-body locality, current-state downstream holes, and rational-free STEP. General trim/intersection surfacing and AP242 PMI/interface persistence remain unsupported. See the [sculpting guide](../firmament/sculpting.md). |
+| Bounded mathematical sculpting | Bounded (SURF-X1a subset) | Immutable single-predecessor `BodyState`; rectangular-housing `OffsetRegion`; direct or imported-face `ReplaceRegion`; qualified Plane/Plane, normal Plane/Cylinder, and Plane/non-rational-B-spline boundary intersections; face-local pcurves; circular inner loops; bounded support extension; exact lower-body locality; AP242 PMI/interface geometry associations; and rational-free STEP. General surface networks remain unsupported. See the [sculpting guide](../firmament/sculpting.md). |
 | Firmament V2 analytic primitives | Bounded | Direct named Sphere, Cone (including zero-radius pointed end), and Torus routes round-trip through AP242; legacy `solid` declarations remain compatibility inputs, not canonical authoring |
 | Circular Sweep | Bounded (X0) | Open planar XY Concept Path, tangent line/arc segments, constant circular diameter, analytic cylinder/torus faces, capped solid; no general 3D/variable/rail/twist sweep |
 | Structural / weldment | Bounded (X2) | Explicit 3D nodes and straight paths; identifiable members; square/rectangular/round tube, angle, flat/round bar; orientation; catalog material; two-member butt and polygonal miter joints; semantic fillet welds; AP242 member assembly and deterministic JSON Cut List. No coping, curved routing, multi-member miter, connection design, weld analysis, or structural FEA. See [guide](../firmament/structural.md). |
@@ -29,7 +29,7 @@
 | Platform qualification | Supported | Windows x64 bundle; NativeAOT Forge Host on `win-x64` |
 | Linux/macOS release binaries | Not in Preview 3 | Framework logic tests do not constitute binary qualification |
 | Post-Preview-3 feature families | X0 exception | Circular Sweep and Standard Products Paperclip are the bounded X0 additions; other new geometry/PMI/FEA/Forge families remain frozen |
-| General loft, helix, and freeform surface features | Not in Preview 3 | The bounded SURF-X1 rectangular `ReplaceRegion` exception is not a general Loft, surface network, or imported-face editing route. |
+| General loft, helix, and freeform surface features | Not in Preview 3 | The bounded SURF-X1a housing `ReplaceRegion` and imported `ADVANCED_FACE` graft are not a general Loft, arbitrary dumb-solid editor, or surface-network route. |
 | Through profile removal | Bounded semantic operations | Use qualified `Hole`, `Slot`, or another documented opening feature; Pocket never means through-all |
 | Arbitrary solid Boolean subtraction / hemispherical cavity | Not in Preview 3 | No public `Union`, `Subtract`, `Intersect`, CSG tree, Sphere-from-Block subtraction, or hemisphere special case |
 

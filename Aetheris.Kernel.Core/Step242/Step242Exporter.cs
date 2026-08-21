@@ -67,8 +67,11 @@ public static class Step242Exporter
         var hyperbolaIds = new Dictionary<EdgeId, string>();
         var surfaceIds = new Dictionary<SurfaceGeometryId, string>();
         var advancedFaceIds = new Dictionary<FaceId, string>();
+        var pcurveContextId = body.Bindings.PcurveBindings.Any()
+            ? writer.AddEntity("REPRESENTATION_CONTEXT", Step242TextWriter.String("2D"), Step242TextWriter.String("parameter space"))
+            : null;
 
-        var outerClosedShellId = BuildClosedShell(writer, body, model, shellRepresentation.OuterShellId, vertexPoints, cartesianPointIds, vertexPointIds, edgeCurveIds, orientedEdgeIds, lineIds, circleIds, bsplineIds, ellipseIds, hyperbolaIds, surfaceIds, advancedFaceIds, options.EmitFullCircleTrimmedCurves);
+        var outerClosedShellId = BuildClosedShell(writer, body, model, shellRepresentation.OuterShellId, vertexPoints, cartesianPointIds, vertexPointIds, edgeCurveIds, orientedEdgeIds, lineIds, circleIds, bsplineIds, ellipseIds, hyperbolaIds, surfaceIds, advancedFaceIds, pcurveContextId, options.EmitFullCircleTrimmedCurves);
         EmitAuxiliaryVertexPointForVertexlessAnalyticBody(writer, body, model);
         if (outerClosedShellId is null)
         {
@@ -85,7 +88,7 @@ public static class Step242Exporter
             var orientedVoidShellIds = new List<string>();
             foreach (var innerShellId in shellRepresentation.InnerShellIds.OrderBy(id => id.Value))
             {
-                var innerClosedShellId = BuildClosedShell(writer, body, model, innerShellId, vertexPoints, cartesianPointIds, vertexPointIds, edgeCurveIds, orientedEdgeIds, lineIds, circleIds, bsplineIds, ellipseIds, hyperbolaIds, surfaceIds, advancedFaceIds, options.EmitFullCircleTrimmedCurves);
+                var innerClosedShellId = BuildClosedShell(writer, body, model, innerShellId, vertexPoints, cartesianPointIds, vertexPointIds, edgeCurveIds, orientedEdgeIds, lineIds, circleIds, bsplineIds, ellipseIds, hyperbolaIds, surfaceIds, advancedFaceIds, pcurveContextId, options.EmitFullCircleTrimmedCurves);
                 if (innerClosedShellId is null)
                 {
                     return Failure($"Shell {innerShellId.Value} could not be exported.", $"Shell:{innerShellId.Value}");
@@ -164,11 +167,28 @@ public static class Step242Exporter
         Dictionary<EdgeId, string> hyperbolaIds,
         Dictionary<SurfaceGeometryId, string> surfaceIds,
         Dictionary<FaceId, string> advancedFaceIds,
+        string? pcurveContextId,
         bool emitFullCircleTrimmedCurves)
     {
         if (!model.TryGetShell(shellId, out var shell) || shell is null)
         {
             return null;
+        }
+
+        // Pcurves for an edge may reference both adjacent supports, including a face
+        // visited later in shell order, so materialize every support first. Retain
+        // the legacy lazy ordering when no pcurves exist so canonical exports stay
+        // byte-for-byte stable.
+        foreach (var face in pcurveContextId is null
+                     ? []
+                     : shell.FaceIds.OrderBy(id => id.Value).Select(model.GetFace))
+        {
+            if (!body.Bindings.TryGetFaceBinding(face.Id, out var binding)
+                || !body.Geometry.TryGetSurface(binding.SurfaceGeometryId, out var support) || support is null) return null;
+            if (surfaceIds.ContainsKey(binding.SurfaceGeometryId)) continue;
+            var built = BuildSurface(writer, support, face.Id);
+            if (!built.IsSuccess) return null;
+            surfaceIds[binding.SurfaceGeometryId] = built.Value;
         }
 
         var faceIds = new List<string>();
@@ -211,7 +231,7 @@ public static class Step242Exporter
 
                     if (!edgeCurveIds.TryGetValue(coedge.EdgeId, out var edgeCurveId))
                     {
-                        var edgeResult = BuildEdgeCurve(body, model, writer, coedge.EdgeId, vertexPoints, cartesianPointIds, vertexPointIds, lineIds, circleIds, bsplineIds, ellipseIds, hyperbolaIds, emitFullCircleTrimmedCurves);
+                        var edgeResult = BuildEdgeCurve(body, model, writer, coedge.EdgeId, vertexPoints, cartesianPointIds, vertexPointIds, lineIds, circleIds, bsplineIds, ellipseIds, hyperbolaIds, surfaceIds, pcurveContextId, emitFullCircleTrimmedCurves);
                         if (!edgeResult.IsSuccess)
                         {
                             return null;
@@ -815,6 +835,8 @@ public static class Step242Exporter
         IDictionary<EdgeId, string> bsplineIds,
         IDictionary<EdgeId, string> ellipseIds,
         IDictionary<EdgeId, string> hyperbolaIds,
+        IReadOnlyDictionary<SurfaceGeometryId, string> surfaceIds,
+        string? pcurveContextId,
         bool emitFullCircleTrimmedCurves)
     {
         var edge = model.GetEdge(edgeId);
@@ -981,6 +1003,19 @@ public static class Step242Exporter
             return Failure($"Unsupported curve kind '{curve.Kind}'.", $"Edge:{edgeId.Value}");
         }
 
+        var pcurveIds = pcurveContextId is null
+            ? []
+            : body.Bindings.PcurveBindings
+                .Where(binding => model.GetCoedge(binding.CoedgeId).EdgeId == edgeId)
+                .OrderBy(binding => binding.FaceId.Value)
+                .ThenBy(binding => binding.CoedgeId.Value)
+                .Select(binding => BuildStepPcurve(writer, binding, surfaceIds, pcurveContextId))
+                .Where(id => id is not null)
+                .Select(id => id!)
+                .ToArray();
+        if (pcurveIds.Length > 0)
+            geometryCurveId = writer.AddEntity("SURFACE_CURVE", "$", Step242TextWriter.Ref(geometryCurveId), Step242TextWriter.List(pcurveIds), Step242TextWriter.Enum("PCURVE_S1"));
+
         // EDGE_CURVE.same_sense is the binding between the parametric curve and
         // the topology edge, not a blanket export constant. In particular, a
         // clockwise Profile arc has an increasing trim interval whose geometric
@@ -989,6 +1024,30 @@ public static class Step242Exporter
         // faces at reflex arcs were trimmed through the complementary sweep.
         var edgeCurveId = writer.AddEntity("EDGE_CURVE", "$", Step242TextWriter.Ref(startVertexId), Step242TextWriter.Ref(endVertexId), Step242TextWriter.Ref(geometryCurveId), Step242TextWriter.BooleanLogical(edgeBinding.OrientedEdgeSense));
         return KernelResult<string>.Success(edgeCurveId);
+    }
+
+    private static string? BuildStepPcurve(
+        Step242TextWriter writer,
+        CoedgePcurveBinding binding,
+        IReadOnlyDictionary<SurfaceGeometryId, string> surfaceIds,
+        string contextId)
+    {
+        if (!surfaceIds.TryGetValue(binding.SurfaceGeometryId, out var surfaceId)) return null;
+        var samples = binding.Pcurve.Kind switch
+        {
+            PcurveGeometryKind.Line => 2,
+            PcurveGeometryKind.Polyline => binding.Pcurve.Points.Count,
+            _ => 1025
+        };
+        var points = Enumerable.Range(0, samples).Select(index =>
+        {
+            var parameter = binding.Pcurve.Domain.Start + ((binding.Pcurve.Domain.End - binding.Pcurve.Domain.Start) * index / (samples - 1d));
+            return binding.Pcurve.Evaluate(parameter);
+        }).Select(point => writer.AddEntity("CARTESIAN_POINT", "$", Step242TextWriter.List(Step242TextWriter.Number(point.U), Step242TextWriter.Number(point.V))))
+          .ToArray();
+        var curve2dId = writer.AddEntity("POLYLINE", "$", Step242TextWriter.List(points));
+        var representationId = writer.AddEntity("DEFINITIONAL_REPRESENTATION", Step242TextWriter.String("pcurve"), Step242TextWriter.List(curve2dId), Step242TextWriter.Ref(contextId));
+        return writer.AddEntity("PCURVE", "$", Step242TextWriter.Ref(surfaceId), Step242TextWriter.Ref(representationId));
     }
 
     private static string EnsureVertex(

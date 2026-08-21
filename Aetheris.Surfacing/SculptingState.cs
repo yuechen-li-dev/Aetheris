@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Core.Step242;
 
 namespace Aetheris.Surfacing;
 
@@ -48,6 +49,11 @@ public sealed record SculptValidationEvidence(
     double Tolerance,
     string Detail);
 
+public enum PersistentAssociationState { Preserved, ReplacedBy, Removed }
+public sealed record PersistentGeometryAssociation(string SemanticTarget, PersistentAssociationState State, IReadOnlyList<int> FaceIds, string Evidence);
+public sealed record PersistentAssociationRemapResult(bool IsSuccess, IReadOnlyList<PersistentGeometryAssociation> Associations, IReadOnlyList<SculptDiagnostic> Diagnostics);
+public sealed record SculptAssemblyInterface(string StableId, string SemanticTarget, IReadOnlyList<int> FaceIds, string Description);
+
 public sealed record HousingHole(string StableId, double CenterX, double CenterY, double Diameter);
 public sealed record HousingConstruction(
     double Width,
@@ -72,10 +78,14 @@ public sealed record BodyState(
     HousingConstruction Construction,
     IReadOnlyDictionary<string, SculptSemanticEntity> SemanticInventory,
     GeometricDelta? Delta,
-    IReadOnlyList<SculptValidationEvidence> ValidationEvidence)
+    IReadOnlyList<SculptValidationEvidence> ValidationEvidence,
+    IReadOnlyList<PersistentGeometryAssociation>? GeometryAssociations = null,
+    IReadOnlyList<Step242SemanticPmi>? SemanticPmi = null,
+    IReadOnlyList<SculptAssemblyInterface>? AssemblyInterfaces = null)
 {
     public IReadOnlyList<SurfacePatchMetadata> SurfacePatches => Construction.ReplacementPatch is { } patch
-        ? [SurfacePatchMetadata.From(patch)] : [];
+        ? [SurfacePatchMetadata.From(patch, Body.Topology.Faces.FirstOrDefault(face =>
+            Body.TryGetFaceSurfaceGeometry(face.Id, out var support) && Equals(support, patch.Support))?.LoopIds.Count ?? 1)] : [];
 }
 
 public sealed record OffsetRegionOperation(

@@ -94,8 +94,12 @@ internal static class SculptedHousingBrepBuilder
         var surfaceId = 1;
         foreach (var (face, surface) in faces) { var id = new SurfaceGeometryId(surfaceId++); geometry.AddSurface(id, surface); bindings.AddFaceBinding(new(face, id)); }
         var body = new BrepBody(b.Model, geometry, bindings, points);
+        var pcurves = BoundedPcurveBuilder.Populate(b.Model, geometry, bindings);
+        if (!pcurves.IsSuccess) return new(null, pcurves.Diagnostics);
         var binding = BrepBindingValidator.Validate(body, true);
         if (!binding.IsSuccess) return new(null, binding.Diagnostics.Select(x => new SculptDiagnostic("sculpt-brep-binding-invalid", x.Message)).ToArray());
+        var pcurveEvidence = BrepPcurveValidator.Validate(body, 1e-5, requireEveryCoedge: true);
+        if (!pcurveEvidence.IsValid) return new(null, pcurveEvidence.Diagnostics.Select(message => new SculptDiagnostic("surf-pcurve-invalid", message)).ToArray());
         return new(body, []);
     }
 
@@ -124,8 +128,11 @@ internal static class SculptedHousingBrepBuilder
             patch.Evaluate(patch.ParameterDomain.UMax, patch.ParameterDomain.VMax),
             patch.Evaluate(patch.ParameterDomain.UMin, patch.ParameterDomain.VMax),
         };
-        var vi = corners.Select(p => { var id = builder.AddVertex(); points[id] = p; return id; }).ToArray();
-        var ei = Enumerable.Range(0, 4).Select(i => AddLine(builder, curves, vi[i], vi[(i + 1) % 4], points)).ToArray();
+        var coversWholeTop = corners.Zip(top).All(pair => (pair.First - pair.Second).Length <= 1e-6d);
+        var vi = coversWholeTop ? vt : corners.Select(p => { var id = builder.AddVertex(); points[id] = p; return id; }).ToArray();
+        var ei = coversWholeTop ? et : Enumerable.Range(0, 4).Select(i => AddLine(builder, curves, vi[i], vi[(i + 1) % 4], points)).ToArray();
+        if (coversWholeTop && patch is BSplineSurfacePatch wholeSpline)
+            BindExactSplineBoundaryCurves(curves, et, wholeSpline.Spline);
 
         var bhv = new VertexId[c.Holes.Count]; var thv = new VertexId[c.Holes.Count];
         var bhe = new EdgeId[c.Holes.Count]; var the = new EdgeId[c.Holes.Count]; var seams = new EdgeId[c.Holes.Count];
@@ -142,13 +149,16 @@ internal static class SculptedHousingBrepBuilder
         for (var i = 0; i < c.Holes.Count; i++) bottomLoops.Add(AddLoop(builder, [new(bhe[i], true)]));
         faces.Add((builder.AddFace(bottomLoops), SurfaceGeometry.FromPlane(new PlaneSurface(Point3D.Origin, Dir(0, 0, -1), Dir(1, 0, 0))), false));
 
-        var frameLoops = new List<LoopId>
+        if (!coversWholeTop)
         {
-            AddLoop(builder, et.Select(x => new Use(x, true)).Reverse().ToArray()),
-            AddLoop(builder, ei.Select(x => new Use(x, false)).ToArray()),
-        };
-        for (var i = 0; i < c.Holes.Count; i++) frameLoops.Add(AddLoop(builder, [new(the[i], false)]));
-        faces.Add((builder.AddFace(frameLoops), SurfaceGeometry.FromPlane(new PlaneSurface(new(0, 0, c.BaseHeight), Dir(0, 0, 1), Dir(1, 0, 0))), false));
+            var frameLoops = new List<LoopId>
+            {
+                AddLoop(builder, et.Select(x => new Use(x, true)).Reverse().ToArray()),
+                AddLoop(builder, ei.Select(x => new Use(x, false)).ToArray()),
+            };
+            for (var i = 0; i < c.Holes.Count; i++) frameLoops.Add(AddLoop(builder, [new(the[i], false)]));
+            faces.Add((builder.AddFace(frameLoops), SurfaceGeometry.FromPlane(new PlaneSurface(new(0, 0, c.BaseHeight), Dir(0, 0, 1), Dir(1, 0, 0))), false));
+        }
 
         for (var i = 0; i < 4; i++)
         {
@@ -158,8 +168,10 @@ internal static class SculptedHousingBrepBuilder
             faces.Add((builder.AddFace([loop]), SurfaceGeometry.FromPlane(new PlaneSurface(bottom[i], Direction3D.Create(edge.Cross(rise)), Direction3D.Create(edge))), false));
         }
 
-        var patchLoop = AddLoop(builder, ei.Select(x => new Use(x, true)).Reverse().ToArray());
-        faces.Add((builder.AddFace([patchLoop]), patch.Support, patch.ReversedOrientation));
+        var patchLoops = new List<LoopId> { AddLoop(builder, ei.Select(x => new Use(x, true)).Reverse().ToArray()) };
+        if (coversWholeTop)
+            for (var i = 0; i < c.Holes.Count; i++) patchLoops.Add(AddLoop(builder, [new(the[i], false)]));
+        faces.Add((builder.AddFace(patchLoops), patch.Support, patch.ReversedOrientation));
         for (var i = 0; i < c.Holes.Count; i++)
         {
             var loop = AddLoop(builder, [new(bhe[i], false), new(seams[i], false), new(the[i], true), new(seams[i], true)]);
@@ -179,8 +191,12 @@ internal static class SculptedHousingBrepBuilder
             var id = new SurfaceGeometryId(surfaceId++); geometry.AddSurface(id, face.Surface); bindings.AddFaceBinding(new(face.Face, id, face.Reversed));
         }
         var body = new BrepBody(builder.Model, geometry, bindings, points);
+        var pcurves = BoundedPcurveBuilder.Populate(builder.Model, geometry, bindings);
+        if (!pcurves.IsSuccess) return new(null, pcurves.Diagnostics);
         var validation = BrepBindingValidator.Validate(body, true);
-        return validation.IsSuccess ? new(body, []) : new(null, validation.Diagnostics.Select(x => new SculptDiagnostic("sculpt-brep-binding-invalid", x.Message)).ToArray());
+        if (!validation.IsSuccess) return new(null, validation.Diagnostics.Select(x => new SculptDiagnostic("sculpt-brep-binding-invalid", x.Message)).ToArray());
+        var pcurveEvidence = BrepPcurveValidator.Validate(body, 1e-5, requireEveryCoedge: true);
+        return pcurveEvidence.IsValid ? new(body, []) : new(null, pcurveEvidence.Diagnostics.Select(message => new SculptDiagnostic("surf-pcurve-invalid", message)).ToArray());
     }
 
     private static EdgeId AddLine(TopologyBuilder builder, IDictionary<EdgeId, (CurveGeometry, ParameterInterval)> curves, VertexId start, VertexId end, IReadOnlyDictionary<VertexId, Point3D> points)
@@ -197,6 +213,24 @@ internal static class SculptedHousingBrepBuilder
         return edge;
     }
 
+    private static void BindExactSplineBoundaryCurves(IDictionary<EdgeId, (CurveGeometry, ParameterInterval)> curves, IReadOnlyList<EdgeId> edges, BSplineSurfaceWithKnots spline)
+    {
+        var south = spline.ControlPoints.Select(row => row[0]).ToArray();
+        var east = spline.ControlPoints[^1].ToArray();
+        var north = spline.ControlPoints.Select(row => row[^1]).Reverse().ToArray();
+        var west = spline.ControlPoints[0].Reverse().ToArray();
+        curves[edges[0]] = (CurveGeometry.FromBSpline(new BSpline3Curve(spline.DegreeU, south, spline.KnotMultiplicitiesU, spline.KnotValuesU, "UNSPECIFIED", false, false, spline.KnotSpec)), new(spline.DomainStartU, spline.DomainEndU));
+        curves[edges[1]] = (CurveGeometry.FromBSpline(new BSpline3Curve(spline.DegreeV, east, spline.KnotMultiplicitiesV, spline.KnotValuesV, "UNSPECIFIED", false, false, spline.KnotSpec)), new(spline.DomainStartV, spline.DomainEndV));
+        curves[edges[2]] = (CurveGeometry.FromBSpline(new BSpline3Curve(spline.DegreeU, north, spline.KnotMultiplicitiesU.Reverse().ToArray(), ReverseKnots(spline.KnotValuesU), "UNSPECIFIED", false, false, spline.KnotSpec)), new(spline.DomainStartU, spline.DomainEndU));
+        curves[edges[3]] = (CurveGeometry.FromBSpline(new BSpline3Curve(spline.DegreeV, west, spline.KnotMultiplicitiesV.Reverse().ToArray(), ReverseKnots(spline.KnotValuesV), "UNSPECIFIED", false, false, spline.KnotSpec)), new(spline.DomainStartV, spline.DomainEndV));
+    }
+
+    private static IReadOnlyList<double> ReverseKnots(IReadOnlyList<double> knots)
+    {
+        var sum = knots[0] + knots[^1];
+        return knots.Reverse().Select(value => sum - value).ToArray();
+    }
+
     private static List<SculptDiagnostic> Validate(HousingConstruction c)
     {
         var d = new List<SculptDiagnostic>();
@@ -210,7 +244,8 @@ internal static class SculptedHousingBrepBuilder
                 d.Add(new("sculpt-hole-pattern-outside-body", $"Mounting hole '{h.StableId}' must remain inside the housing footprint.", h.StableId));
             if (c.ReplacementPatch is null && (Math.Abs(h.CenterX) + r >= c.CrownWidth / 2d || Math.Abs(h.CenterY) + r >= c.CrownDepth / 2d))
                 d.Add(new("sculpt-hole-pattern-outside-crown", $"Mounting hole '{h.StableId}' must remain inside the bounded crown support.", h.StableId));
-            if (c.ReplacementPatch is not null && Math.Abs(h.CenterX) - r < c.CrownWidth / 2d && Math.Abs(h.CenterY) - r < c.CrownDepth / 2d)
+            if (c.ReplacementPatch is not null && (c.CrownWidth < c.Width - 1e-9d || c.CrownDepth < c.Depth - 1e-9d)
+                && Math.Abs(h.CenterX) - r < c.CrownWidth / 2d && Math.Abs(h.CenterY) - r < c.CrownDepth / 2d)
                 d.Add(new("surf-patch-intersects-protected-hole", $"Replacement patch intersects protected mounting hole '{h.StableId}'. Move the hole or reduce the patch boundary.", h.StableId));
         }
         for (var i = 0; i < c.Holes.Count; i++) for (var j = i + 1; j < c.Holes.Count; j++)

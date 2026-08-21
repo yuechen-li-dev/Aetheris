@@ -35,6 +35,10 @@
     "SurfacePatch": "Sculpting/surf-x1-freeform-housing.firmament",
     "ReplaceRegion": "Sculpting/surf-x1-freeform-housing.firmament",
     "PatchG1": "Sculpting/surf-x1-freeform-housing.firmament",
-    "PostSculptHole": "Sculpting/surf-x1-freeform-housing.firmament"
+    "PostSculptHole": "Sculpting/surf-x1-freeform-housing.firmament",
+    "SurfaceIntersection": "Sculpting/surf-x1a-trimmed-freeform-housing.firmament",
+    "Pcurve": "Sculpting/surf-x1a-trimmed-freeform-housing.firmament",
+    "InnerTrimLoops": "Sculpting/surf-x1a-trimmed-freeform-housing.firmament",
+    "PersistentGeometryAssociation": "Sculpting/surf-x1a-trimmed-freeform-housing.firmament"
   }
 }

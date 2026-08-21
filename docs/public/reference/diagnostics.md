@@ -10,6 +10,19 @@
 - `firmament-sweep-self-intersection`: nonadjacent centerline regions violate required clearance.
 - `firmament-sweep-material-unresolved`: the material identity is absent from the deployed catalog.
 
+## Surface trim closure (SURF-X1a)
+
+- `surf-intersection-none`: the qualified supports do not intersect inside the bounded domains.
+- `surf-intersection-ambiguous`: multiple branches exist without an admissible seed/reference boundary.
+- `surf-pcurve-invalid`: a face-local UV curve is missing, outside its domain, misoriented, or reconstructs away from the shared 3D edge.
+- `surf-trim-loop-open`: ordered trim coedges do not close through shared topology vertices.
+- `surf-inner-loop-invalid`: an opening loop is not a valid bounded hole in the replacement face.
+- `surf-extension-unsupported`: the surface family, degree, stability envelope, or requested extension is outside the qualified matrix.
+- `surf-imported-selector-unresolved`: a STEP `ADVANCED_FACE` identity does not resolve to exactly one current face.
+- `surf-association-target-removed`: PMI or an Assembly Interface has no explicit `Preserved` correspondence; Aetheris refuses name- or proximity-based rebinding.
+- `surf-association-current-geometry-missing`: an explicitly preserved association references a face absent from the output `BodyState`.
+- `surf-selector-target-replaced`: a historical native or imported selector has an explicit successor and cannot be reused.
+
 Start with `aetheris validate source.firmament --json`; use `build` when geometry, AP242, assertions, or artifacts are involved. A diagnostic code is the stable automation key, while its message identifies the value/target and expected category where useful.
 
 Common recovery patterns:

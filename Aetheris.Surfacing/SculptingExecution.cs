@@ -33,7 +33,9 @@ public static class SculptedHousingFactory
         var evidence = ValidateBody(built.Body, height);
         if (evidence.Any(x => !x.Satisfied)) return SculptResult.Failure(
             [new("sculpt-base-invalid", "Initial body did not satisfy the body-state validity contract: " + string.Join("; ", evidence.Where(x => !x.Satisfied).Select(x => $"{x.Check}: {x.Detail}")))], evidence);
-        return new(true, new(stateId, null, "housing-body", stateName, built.Body, construction, inventory, null, evidence), null, evidence, []);
+        var associations = PersistentAssociations(built.Body, construction);
+        return new(true, new(stateId, null, "housing-body", stateName, built.Body, construction, inventory, null, evidence,
+            associations, SemanticPmi(associations, construction), AssemblyInterfaces(associations)), null, evidence, []);
     }
 
     internal static IReadOnlyDictionary<string, SculptSemanticEntity> Inventory(HousingConstruction c)
@@ -59,12 +61,76 @@ public static class SculptedHousingFactory
     {
         var preflight = BrepExportPreflight.Validate(body);
         var mass = BrepMassProperties.Evaluate(body);
+        var pcurves = BrepPcurveValidator.Validate(body, 1e-5d, requireEveryCoedge: true);
         return
         [
-            new("ClosedManifold", preflight.IsValid && mass.IsEnclosed, LocalityEvidenceLevel.CertifiedBounded, null, 1e-6, $"BRep preflight errors={preflight.ErrorCount}; independent edge-incidence enclosure={mass.IsEnclosed}."),
+            new("ClosedManifold", preflight.IsValid && mass.IsEnclosed, LocalityEvidenceLevel.CertifiedBounded, null, 1e-6, $"BRep preflight errors={preflight.ErrorCount}; independent edge-incidence enclosure={mass.IsEnclosed}. {string.Join(" | ", preflight.Diagnostics.Where(item => item.Severity == BrepExportPreflightSeverity.Error).Select(item => $"{item.Code}[edge={item.EdgeId}]:{item.Message}"))}"),
             new("OrientationConsistency", mass.IsOrientationConsistent, LocalityEvidenceLevel.CertifiedBounded, null, 1e-9, $"Independent boundary verifier orientationConsistent={mass.IsOrientationConsistent}."),
             new("NoSelfIntersection", preflight.IsValid, LocalityEvidenceLevel.CertifiedBounded, null, 1e-6, "Bounded analytic construction validation plus BRep export preflight; this is not a general-purpose global intersection proof."),
+            new("PcurveConsistency", pcurves.IsValid, LocalityEvidenceLevel.CertifiedBounded, pcurves.MaximumReconstructionDeviation, 1e-5d,
+                $"Independent reconstruction: edges={pcurves.EdgeCount}, pcurves={pcurves.PcurveCount}, domainValid={pcurves.DomainValid}, orientationConsistent={pcurves.OrientationConsistent}. {string.Join(" | ", pcurves.Diagnostics)}"),
         ];
+    }
+
+    internal static IReadOnlyList<PersistentGeometryAssociation> PersistentAssociations(BrepBody body, HousingConstruction construction)
+    {
+        var bottom = body.Topology.Faces.Where(face => body.TryGetFaceSurfaceGeometry(face.Id, out var support)
+            && support?.Plane is { } plane && Math.Abs(plane.Origin.Z) <= 1e-8d && plane.Normal.ToVector().Z < 0d).Select(face => face.Id.Value).ToArray();
+        var cylinders = body.Topology.Faces.Where(face => body.TryGetFaceSurfaceGeometry(face.Id, out var support) && support?.Cylinder is not null)
+            .Select(face => face.Id.Value).Order().ToArray();
+        return
+        [
+            new(BottomMountingInterface, PersistentAssociationState.Preserved, bottom, "Explicit protected bottom-plane association."),
+            new(MountingHolePattern, PersistentAssociationState.Preserved, cylinders, "Explicit protected cylindrical-face association."),
+        ];
+    }
+
+    public static PersistentAssociationRemapResult RemapPersistentAssociations(BodyState input, BrepBody outputBody, GeometricDelta delta)
+    {
+        var remapped = new List<PersistentGeometryAssociation>();
+        var diagnostics = new List<SculptDiagnostic>();
+        foreach (var association in input.GeometryAssociations ?? [])
+        {
+            var correspondence = delta.Correspondence.SingleOrDefault(item => item.InputEntity == association.SemanticTarget);
+            if (correspondence is null || correspondence.Change != GeometricChangeKind.Preserved)
+            {
+                diagnostics.Add(new("surf-association-target-removed",
+                    $"Association target '{association.SemanticTarget}' has no explicit Preserved correspondence in {delta.OutputState.Value}; semantic rebinding was not guessed.", association.SemanticTarget));
+                continue;
+            }
+            var missing = association.FaceIds.Where(id => !outputBody.Topology.TryGetFace(new(id), out _)).ToArray();
+            if (missing.Length > 0)
+            {
+                diagnostics.Add(new("surf-association-current-geometry-missing",
+                    $"Preserved target '{association.SemanticTarget}' references absent current faces: {string.Join(", ", missing)}.", association.SemanticTarget));
+                continue;
+            }
+            remapped.Add(association with
+            {
+                State = PersistentAssociationState.Preserved,
+                Evidence = $"Explicit GeometricDelta Preserved correspondence into {delta.OutputState.Value}; retained current face IDs {string.Join(", ", association.FaceIds)}."
+            });
+        }
+        return new(diagnostics.Count == 0, remapped, diagnostics);
+    }
+
+    internal static IReadOnlyList<Step242SemanticPmi> SemanticPmi(IReadOnlyList<PersistentGeometryAssociation> associations, HousingConstruction construction)
+    {
+        var bottom = associations.Single(item => item.SemanticTarget == BottomMountingInterface).FaceIds;
+        var holes = associations.Single(item => item.SemanticTarget == MountingHolePattern).FaceIds;
+        var diameter = construction.Holes[0].Diameter;
+        return
+        [
+            new Step242SemanticPmiDatum("DatumA", "plane", "A", BottomMountingInterface) { GeometricFaceIds = bottom },
+            new Step242SemanticPmiHole(MountingHolePattern, diameter, construction.BaseHeight, "through", .05d, -.05d, construction.Holes.Count) { GeometricFaceIds = holes },
+            new Step242SemanticPmiGeometricTolerance(MountingHolePattern, "HolePatternPosition", "position", .1d, ["A"], construction.Holes.Count) { GeometricFaceIds = holes },
+        ];
+    }
+
+    internal static IReadOnlyList<SculptAssemblyInterface> AssemblyInterfaces(IReadOnlyList<PersistentGeometryAssociation> associations)
+    {
+        var bottom = associations.Single(item => item.SemanticTarget == BottomMountingInterface);
+        return [new(BottomMountingInterface, bottom.SemanticTarget, bottom.FaceIds, "Protected assembly mounting interface on the bottom planar face.")];
     }
 
     private static string HolePattern(IEnumerable<HousingHole> holes) => string.Join(';', holes.OrderBy(x => x.StableId, StringComparer.Ordinal).Select(HoleFingerprint));
@@ -132,7 +198,11 @@ public static class OffsetRegionSculptor
         };
         var delta = new GeometricDelta(input.StateId, outputId, [operation.TargetRegion, .. operation.Preserves.Select(x => x.EntityId)], operation.Preserves.Select(x => x.EntityId).ToArray(),
             [SculptedHousingFactory.CrownRegion], [], [SculptedHousingFactory.TransitionZone], operation.MayModify, operation.InfluenceEnvelope, correspondence);
-        var output = new BodyState(outputId, input.StateId, input.BodyStableId, outputName, built.Body, outputConstruction, inventory, delta, evidence);
+        var associationRemap = SculptedHousingFactory.RemapPersistentAssociations(input, built.Body, delta);
+        if (!associationRemap.IsSuccess) return SculptResult.Failure(associationRemap.Diagnostics, evidence);
+        var outputAssociations = associationRemap.Associations;
+        var output = new BodyState(outputId, input.StateId, input.BodyStableId, outputName, built.Body, outputConstruction, inventory, delta, evidence,
+            outputAssociations, SculptedHousingFactory.SemanticPmi(outputAssociations, outputConstruction), SculptedHousingFactory.AssemblyInterfaces(outputAssociations));
         return new(true, output, delta, evidence, []);
     }
 }
@@ -186,6 +256,19 @@ public static class ReplaceRegionSculptor
         if (!rectangular) diagnostics.Add(new("surf-boundary-mismatch", "Patch corners must form the declared axis-aligned rectangular boundary on the existing crown plane."));
         if (width > input.Construction.Width || depth > input.Construction.Depth) diagnostics.Add(new("surf-patch-outside-target", "Replacement patch boundary exceeds the housing top region."));
 
+        if (operation.ReplacementPatch is BSplineSurfacePatch trimSplinePatch
+            && Math.Abs(width - input.Construction.Width) <= operation.GeometricTolerance
+            && Math.Abs(depth - input.Construction.Depth) <= operation.GeometricTolerance)
+        {
+            var intersections = DeriveOuterTrimIntersections(trimSplinePatch, input.Construction, operation);
+            var derived = intersections.Count == 4 && intersections.All(result => result.IsSuccess && result.SelectedBranch is not null);
+            evidence.Add(new("DerivedTrimIntersections", derived, LocalityEvidenceLevel.CertifiedBounded,
+                intersections.Sum(result => result.Branches.Count), 4d,
+                derived ? "Four outer trim edges were derived by qualified Plane/non-rational-B-spline intersections and deterministic branch selection."
+                    : string.Join(" | ", intersections.SelectMany(result => result.Diagnostics))));
+            if (!derived) diagnostics.Add(new("surf-intersection-ambiguous", "The whole-top replacement could not derive all four outer trim branches."));
+        }
+
         var sampled = Sample(operation.ReplacementPatch, 17);
         var maximumZ = sampled.Max(x => x.Z);
         var envelopePoints = operation.ReplacementPatch is BSplineSurfacePatch splinePatch
@@ -227,7 +310,10 @@ public static class ReplaceRegionSculptor
         }
         var locality = SculptLocalityVerifier.CompareOutsideTopEnvelope(input.Body, built.Body, input.Construction.BaseHeight, operation.GeometricTolerance);
         evidence.Add(locality); if (!locality.Satisfied) diagnostics.Add(new("sculpt-outside-authorized-region", locality.Detail));
-        evidence.AddRange(SculptedHousingFactory.ValidateBody(built.Body, operation.GeometricTolerance));
+        var bodyEvidence = SculptedHousingFactory.ValidateBody(built.Body, operation.GeometricTolerance);
+        evidence.AddRange(bodyEvidence);
+        foreach (var failed in bodyEvidence.Where(item => !item.Satisfied))
+            diagnostics.Add(new("surf-body-invalid", $"{failed.Check}: {failed.Detail}"));
         var shared = VerifySharedBoundaryTopology(built.Body);
         evidence.Add(shared); if (!shared.Satisfied) diagnostics.Add(new("surf-boundary-not-shared", shared.Detail));
         foreach (var requirement in operation.Requirements)
@@ -240,7 +326,11 @@ public static class ReplaceRegionSculptor
             .Concat(operation.ReplacementPatch.BoundaryLoop.Boundaries.Select(x => new GeometricDeltaEntry(x.ExistingBoundary, GeometricChangeKind.Preserved, [x.StableId], $"Shared edge correspondence with {x.Continuity}."))).ToArray();
         var delta = new GeometricDelta(input.StateId, outputId, [operation.TargetRegion, .. operation.Preserves.Select(x => x.EntityId)], operation.Preserves.Select(x => x.EntityId).ToArray(),
             [operation.TargetRegion], [], [operation.ReplacementPatch.PatchId], operation.MayModify, operation.InfluenceEnvelope, correspondence);
-        return new(true, new(outputId, input.StateId, input.BodyStableId, outputName, built.Body, construction, inventory, delta, evidence), delta, evidence, []);
+        var associationRemap = SculptedHousingFactory.RemapPersistentAssociations(input, built.Body, delta);
+        if (!associationRemap.IsSuccess) return SculptResult.Failure(associationRemap.Diagnostics, evidence);
+        var outputAssociations = associationRemap.Associations;
+        return new(true, new(outputId, input.StateId, input.BodyStableId, outputName, built.Body, construction, inventory, delta, evidence,
+            outputAssociations, SculptedHousingFactory.SemanticPmi(outputAssociations, construction), SculptedHousingFactory.AssemblyInterfaces(outputAssociations)), delta, evidence, []);
     }
 
     private static IReadOnlyList<Point3D> Sample(BoundedSurfacePatch patch, int count)
@@ -249,6 +339,22 @@ public static class ReplaceRegionSculptor
         for (var i = 0; i < count; i++) for (var j = 0; j < count; j++)
             result.Add(patch.Evaluate(d.UMin + (d.UMax - d.UMin) * i / (count - 1d), d.VMin + (d.VMax - d.VMin) * j / (count - 1d)));
         return result;
+    }
+
+    private static IReadOnlyList<SurfaceIntersectionResult> DeriveOuterTrimIntersections(BSplineSurfacePatch patch, HousingConstruction construction, ReplaceRegionOperation operation)
+    {
+        var z = construction.BaseHeight; var x = construction.Width / 2d; var y = construction.Depth / 2d;
+        var sideDomain = new SurfaceParameterDomain(-construction.Width, construction.Width, -construction.Depth, construction.Depth);
+        var sides = new[]
+        {
+            ("South", new PlaneSurface(new(0, -y, z), Direction3D.Create(new Vector3D(0, -1, 0)), Direction3D.Create(new Vector3D(1, 0, 0))), new SurfaceParameterPoint(0, 0)),
+            ("East", new PlaneSurface(new(x, 0, z), Direction3D.Create(new Vector3D(1, 0, 0)), Direction3D.Create(new Vector3D(0, 1, 0))), new SurfaceParameterPoint(0, 0)),
+            ("North", new PlaneSurface(new(0, y, z), Direction3D.Create(new Vector3D(0, 1, 0)), Direction3D.Create(new Vector3D(1, 0, 0))), new SurfaceParameterPoint(0, 1)),
+            ("West", new PlaneSurface(new(-x, 0, z), Direction3D.Create(new Vector3D(-1, 0, 0)), Direction3D.Create(new Vector3D(0, 1, 0))), new SurfaceParameterPoint(0, 1)),
+        };
+        return sides.Select(side => BoundedSurfaceIntersector.Intersect(new SurfaceIntersectionRequest(
+            $"Preserved{side.Item1}Plane", SurfaceGeometry.FromPlane(side.Item2), sideDomain,
+            patch.PatchId, patch.Support, patch.ParameterDomain, operation.GeometricTolerance, operation.GeometricTolerance, side.Item3))).ToArray();
     }
 
     private static (double G0, double G1Degrees) MeasureBoundary(BoundedSurfacePatch patch, PatchBoundarySide side, double planeZ, int count)
@@ -317,7 +423,9 @@ public static class SafeHoleSculptor
         var correspondence = operation.Preserves.Select(x => new GeometricDeltaEntry(x.EntityId, GeometricChangeKind.Preserved, [x.EntityId], "Resolved and verified against the current BodyState."))
             .Append(new("<none>", GeometricChangeKind.Introduced, [operation.Hole.StableId], "Exact cylindrical through-hole on the current planar frame.")).ToArray();
         var delta = new GeometricDelta(input.StateId, outputId, [operation.TargetRegion], operation.Preserves.Select(x => x.EntityId).ToArray(), [], [], [operation.Hole.StableId], [operation.TargetRegion], operation.InfluenceEnvelope, correspondence);
-        return new(true, new(outputId, input.StateId, input.BodyStableId, outputName, built.Body, construction, inventory, delta, evidence), delta, evidence, []);
+        var outputAssociations = SculptedHousingFactory.PersistentAssociations(built.Body, construction);
+        return new(true, new(outputId, input.StateId, input.BodyStableId, outputName, built.Body, construction, inventory, delta, evidence,
+            outputAssociations, SculptedHousingFactory.SemanticPmi(outputAssociations, construction), SculptedHousingFactory.AssemblyInterfaces(outputAssociations)), delta, evidence, []);
     }
 }
 
@@ -387,7 +495,11 @@ public static class SculptStepExporter
 {
     public static SculptStepResult Export(BodyState state, string productName)
     {
-        var export = Step242Exporter.ExportBody(state.Body, options: new Step242ExportOptions { BrepExportPreflightMode = BrepExportPreflightMode.Enforce, ProductName = productName });
+        var semanticPmi = new List<Step242SemanticPmi>(state.SemanticPmi ?? []);
+        foreach (var assemblyInterface in state.AssemblyInterfaces ?? [])
+            semanticPmi.Add(new Step242SemanticPmiNote($"assembly-interface:{assemblyInterface.StableId}", assemblyInterface.SemanticTarget, assemblyInterface.Description)
+            { GeometricFaceIds = assemblyInterface.FaceIds });
+        var export = Step242Exporter.ExportBody(state.Body, semanticPmi, new Step242ExportOptions { BrepExportPreflightMode = BrepExportPreflightMode.Enforce, ProductName = productName });
         if (!export.IsSuccess) return new(false, null, Empty(), export.Diagnostics.Select(x => new SculptDiagnostic("surf-step-export-failed", x.Message)).ToArray());
         var text = export.Value;
         var inventory = new StepSurfaceInventory(Count(text, "=PLANE("), Count(text, "=CYLINDRICAL_SURFACE("), Count(text, "=CONICAL_SURFACE("), Count(text, "=SPHERICAL_SURFACE("), Count(text, "=TOROIDAL_SURFACE("), Count(text, "=B_SPLINE_SURFACE_WITH_KNOTS("), 0, Count(text, "RATIONAL_B_SPLINE_SURFACE"));

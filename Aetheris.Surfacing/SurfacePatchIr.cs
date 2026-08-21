@@ -12,7 +12,7 @@ public readonly record struct SurfaceParameterDomain(double UMin, double UMax, d
 
 public enum SurfacePatchClass { Analytic, NonRationalBSpline, InternalRationalNormalized }
 public enum PatchBoundarySide { South, East, North, West }
-public enum PatchBoundaryContinuity { G0, G1 }
+public enum PatchBoundaryContinuity { G0, G1, G2 }
 
 public sealed record PatchBoundaryCorrespondence(
     string StableId,

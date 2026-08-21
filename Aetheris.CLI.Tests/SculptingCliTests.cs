@@ -46,5 +46,26 @@ public sealed class SculptingCliTests
         finally { if (File.Exists(output)) File.Delete(output); var delta = Path.ChangeExtension(output, ".delta.json"); if (File.Exists(delta)) File.Delete(delta); }
     }
 
+    [Fact]
+    public void JudgedBlendBuildExposesCompactCandidateTraceAndProvenance()
+    {
+        var fixture = Path.Combine(Root(), "fixtures", "Canonical", "Sculpting", "surf-x2-judged-housing.firmament");
+        var output = Path.Combine(Path.GetTempPath(), "aetheris-surf-x2-" + Guid.NewGuid().ToString("N") + ".step");
+        try
+        {
+            var buildOut = new StringWriter(); var buildErr = new StringWriter();
+            Assert.Equal(0, CliRunner.Run(["build", fixture, "--output", output, "--json"], buildOut, buildErr));
+            using var build = JsonDocument.Parse(buildOut.ToString()); var root = build.RootElement;
+            var judgment = root.GetProperty("blendJudgment");
+            Assert.Equal("PowerM3Degree6", judgment.GetProperty("selectedCandidateId").GetString());
+            Assert.Equal(4, judgment.GetProperty("candidates").GetArrayLength());
+            Assert.Contains(judgment.GetProperty("candidates").EnumerateArray(), item => item.GetProperty("disposition").GetString() == "Rejected");
+            Assert.Equal(0, root.GetProperty("rationalNurbs").GetInt32());
+            using var delta = JsonDocument.Parse(File.ReadAllText(Path.ChangeExtension(output, ".delta.json")));
+            Assert.Equal("PowerM3Degree6", delta.RootElement.GetProperty("delta").GetProperty("blendJudgment").GetProperty("selectedCandidateId").GetString());
+        }
+        finally { if (File.Exists(output)) File.Delete(output); var delta = Path.ChangeExtension(output, ".delta.json"); if (File.Exists(delta)) File.Delete(delta); }
+    }
+
     private static string Root() { var d = new DirectoryInfo(AppContext.BaseDirectory); while (d is not null && !File.Exists(Path.Combine(d.FullName, "Aetheris.slnx"))) d = d.Parent; return d!.FullName; }
 }

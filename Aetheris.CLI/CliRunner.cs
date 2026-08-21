@@ -538,6 +538,7 @@ public static class CliRunner
             compile.OutputState.Delta,
             validationEvidence = compile.OutputState.ValidationEvidence,
             surfacePatches = compile.OutputState.SurfacePatches,
+            blendJudgment = compile.OutputState.BlendJudgment,
             surfaceInventory = export.Inventory,
             productBoundary = new { rationalNurbs = export.Inventory.RationalNurbs, admitted = export.Inventory.RationalNurbs == 0 },
             timingsMilliseconds = compile.Timings with { StepExportMilliseconds = exportClock.Elapsed.TotalMilliseconds }
@@ -546,10 +547,20 @@ public static class CliRunner
         {
             command = "build", success = true, input = Path.GetFullPath(sourcePath), output, domain = "Sculpting", model = compile.ModelName,
             state = DescribeSculptState(compile.OutputState), states = compile.States.Values.Select(DescribeSculptState), geometricDelta = compile.OutputState.Delta,
-            validationEvidence = compile.OutputState.ValidationEvidence, surfacePatches = compile.OutputState.SurfacePatches, surfaceInventory = export.Inventory, rationalNurbs = export.Inventory.RationalNurbs,
+            validationEvidence = compile.OutputState.ValidationEvidence, surfacePatches = compile.OutputState.SurfacePatches, blendJudgment = compile.OutputState.BlendJudgment, surfaceInventory = export.Inventory, rationalNurbs = export.Inventory.RationalNurbs,
             deltaArtifact = deltaPath, timingsMilliseconds = compile.Timings with { StepExportMilliseconds = exportClock.Elapsed.TotalMilliseconds }, diagnostics = compile.Diagnostics
         }, JsonOptions));
-        else { stdout.WriteLine($"Built {Path.GetFileName(sourcePath)}"); stdout.WriteLine($"STEP: {output}"); stdout.WriteLine($"State: {compile.OutputState.AuthoredName} ({compile.OutputState.StateId}) <- {compile.OutputState.PredecessorStateId}"); stdout.WriteLine($"Geometric delta: {deltaPath}"); stdout.WriteLine($"STEP surfaces: Plane={export.Inventory.Plane}, Cylinder={export.Inventory.Cylinder}, NonRationalBSpline={export.Inventory.NonRationalBSpline}, RationalNURBS={export.Inventory.RationalNurbs}"); }
+        else
+        {
+            stdout.WriteLine($"Built {Path.GetFileName(sourcePath)}"); stdout.WriteLine($"STEP: {output}"); stdout.WriteLine($"State: {compile.OutputState.AuthoredName} ({compile.OutputState.StateId}) <- {compile.OutputState.PredecessorStateId}"); stdout.WriteLine($"Geometric delta: {deltaPath}"); stdout.WriteLine($"STEP surfaces: Plane={export.Inventory.Plane}, Cylinder={export.Inventory.Cylinder}, NonRationalBSpline={export.Inventory.NonRationalBSpline}, RationalNURBS={export.Inventory.RationalNurbs}");
+            if (compile.OutputState.BlendJudgment is { } judgment)
+            {
+                stdout.WriteLine($"Blend judgment: {judgment.Request}");
+                foreach (var candidate in judgment.Candidates)
+                    stdout.WriteLine($"  {candidate.CandidateId}: {candidate.Disposition}" + (candidate.Metrics is null ? $" — {candidate.RejectionReason}" : $"; utility={candidate.Metrics.Utility:F6}, fairness={candidate.Metrics.Fairness:F6}, curvature={candidate.Metrics.CurvatureSmoothness:F6}, compactness={candidate.Metrics.Compactness:F6}, complexity={candidate.Metrics.Complexity:F6}"));
+                stdout.WriteLine($"  Selected: {judgment.SelectedCandidateId} ({(judgment.ManualOverride ? "manual override" : judgment.JudgmentPolicyId)})");
+            }
+        }
         return 0;
     }
 
@@ -557,7 +568,7 @@ public static class CliRunner
     {
         state.AuthoredName, state.StateId, state.PredecessorStateId, state.BodyStableId,
         construction = new { state.Construction.Width, state.Construction.Depth, state.Construction.BaseHeight, state.Construction.CrownWidth, state.Construction.CrownDepth, state.Construction.CrownOffset, state.Construction.FinalHeight },
-        semanticInventory = state.SemanticInventory.Values, surfacePatches = state.SurfacePatches, hasDelta = state.Delta is not null
+        semanticInventory = state.SemanticInventory.Values, surfacePatches = state.SurfacePatches, blendJudgment = state.BlendJudgment, hasDelta = state.Delta is not null
     };
 
     private static int RunSheetMetalAuthoredBuild(string sourcePath, string? outPath, bool json, TextWriter stdout, TextWriter stderr)

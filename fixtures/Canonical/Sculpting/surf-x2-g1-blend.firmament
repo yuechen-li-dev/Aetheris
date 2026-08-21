@@ -1,0 +1,26 @@
++Model QualifiedG1Blend {
+  Units: mm
+  BodyState Base {
+    Size: [100mm, 80mm, 20mm]
+    Hole H1 { Center: [-47mm, -32mm]
+      Diameter: 4mm }
+  }
+  SculptState G1Crown {
+    Input: Base
+    BlendBoundary {
+      Between: [HousingCrown, PlanarTopShoulder]
+      Region: CrownTransitionZone
+      Preferred: G1
+      Minimum: G1
+      RegionSize: [80mm, 50mm]
+      Height: 8mm
+      MaximumDegree: 4
+      Policy: StandardBlendJudgment
+      InfluenceEnvelope: [-40mm, -25mm, 20mm, 40mm, 25mm, 28mm]
+    }
+    MayModify: [HousingCrown, CrownTransitionZone]
+    Preserve: [BottomMountingInterface, MountingHolePattern, OuterFootprintBoundary, SideWallsLower]
+    Require: [ClosedManifold, OrientationConsistency, NoSelfIntersection]
+  }
+  Output: G1Crown
+}

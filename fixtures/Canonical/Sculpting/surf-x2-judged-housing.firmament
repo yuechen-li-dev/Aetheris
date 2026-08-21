@@ -1,0 +1,35 @@
++Model JudgedBlendHousing {
+  Units: mm
+
+  BodyState Base {
+    Size: [100mm, 80mm, 20mm]
+    Hole H1 { Center: [-47mm, -32mm]
+      Diameter: 4mm }
+    Hole H2 { Center: [47mm, -32mm]
+      Diameter: 4mm }
+    Hole H3 { Center: [47mm, 32mm]
+      Diameter: 4mm }
+    Hole H4 { Center: [-47mm, 32mm]
+      Diameter: 4mm }
+  }
+
+  SculptState JudgedCrown {
+    Input: Base
+    BlendBoundary {
+      Between: [HousingCrown, PlanarTopShoulder]
+      Region: CrownTransitionZone
+      Preferred: G2
+      Minimum: G2
+      RegionSize: [80mm, 50mm]
+      Height: 8mm
+      MaximumDegree: 10
+      Policy: StandardBlendJudgment
+      InfluenceEnvelope: [-40mm, -25mm, 20mm, 40mm, 25mm, 28mm]
+    }
+    MayModify: [HousingCrown, CrownTransitionZone]
+    Preserve: [BottomMountingInterface, MountingHolePattern, OuterFootprintBoundary, SideWallsLower]
+    Require: [ClosedManifold, OrientationConsistency, NoSelfIntersection]
+  }
+
+  Output: JudgedCrown
+}

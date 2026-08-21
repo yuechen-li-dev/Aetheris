@@ -21,6 +21,13 @@
 - `surf-imported-selector-unresolved`: a STEP `ADVANCED_FACE` identity does not resolve to exactly one current face.
 - `surf-association-target-removed`: PMI or an Assembly Interface has no explicit `Preserved` correspondence; Aetheris refuses name- or proximity-based rebinding.
 - `surf-association-current-geometry-missing`: an explicitly preserved association references a face absent from the output `BodyState`.
+- `surf-blend-g2-unsatisfied`: a constructible blend candidate fails the hard transverse normal-curvature contract and is rejected before scoring.
+- `surf-blend-candidate-rejected`: compact per-candidate evidence emitted when the complete request has no selectable candidate.
+- `surf-blend-no-eligible-candidates`: representation, continuity, topology, locality, or preservation gates leave no candidate at the declared minimum continuity.
+- `surf-blend-override-ineligible`: `UseCandidate` names an absent candidate or one that fails the active hard requirements.
+- `surf-blend-locality-violation`: a candidate exceeds the authorized transition envelope and cannot enter utility judgment.
+- `surf-boundary-g2-violation`: realized exact boundary second-difference evidence exceeds the planar-shoulder normal-curvature tolerance.
+- `surf-certified-bounds-invalid`: a claimed exact polynomial bounds certificate does not contain deterministic surface samples.
 - `surf-selector-target-replaced`: a historical native or imported selector has an explicit successor and cannot be reused.
 
 Start with `aetheris validate source.firmament --json`; use `build` when geometry, AP242, assertions, or artifacts are involved. A diagnostic code is the stable automation key, while its message identifies the value/target and expected category where useful.

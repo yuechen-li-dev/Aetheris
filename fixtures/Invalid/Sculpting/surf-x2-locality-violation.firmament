@@ -1,0 +1,24 @@
++Model BlendLocalityViolation {
+  Units: mm
+  BodyState Base {
+    Size: [100mm, 80mm, 20mm]
+    Hole H1 { Center: [-47mm, -32mm]
+      Diameter: 4mm }
+  }
+  SculptState InvalidBlend {
+    Input: Base
+    BlendBoundary {
+      Between: [HousingCrown, PlanarTopShoulder]
+      Region: CrownTransitionZone
+      Preferred: G2
+      Minimum: G2
+      RegionSize: [80mm, 50mm]
+      Height: 8mm
+      InfluenceEnvelope: [-40mm, -25mm, 20mm, 40mm, 25mm, 27mm]
+    }
+    MayModify: [HousingCrown, CrownTransitionZone]
+    Preserve: [BottomMountingInterface, MountingHolePattern, OuterFootprintBoundary, SideWallsLower]
+    Require: [ClosedManifold, OrientationConsistency, NoSelfIntersection]
+  }
+  Output: InvalidBlend
+}

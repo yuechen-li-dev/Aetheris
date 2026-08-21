@@ -43,7 +43,7 @@ public static class SculptedHousingFactory
         var inventory = new Dictionary<string, SculptSemanticEntity>(StringComparer.Ordinal)
         {
             [CrownRegion] = new(CrownRegion, SculptEntityKind.Region, $"rect:{c.CrownWidth:R}x{c.CrownDepth:R}@z={c.FinalHeight:R}", "Bounded top/crown support."),
-            [TransitionZone] = new(TransitionZone, SculptEntityKind.Region, $"transition:z={c.BaseHeight:R}..{c.FinalHeight:R}", "G0 crown reconnection zone."),
+            [TransitionZone] = new(TransitionZone, SculptEntityKind.Region, $"transition:z={c.BaseHeight:R}..{c.FinalHeight:R}", "Bounded crown reconnection zone."),
             [BottomMountingInterface] = new(BottomMountingInterface, SculptEntityKind.Interface, $"plane:z=0;rect={c.Width:R}x{c.Depth:R};holes={HolePattern(c.Holes)}", "Protected planar mounting interface."),
             [MountingHolePattern] = new(MountingHolePattern, SculptEntityKind.Pattern, HolePattern(c.Holes), "Protected mounting-hole axes, centers, and diameters."),
             [OuterFootprintBoundary] = new(OuterFootprintBoundary, SculptEntityKind.Region, $"rect:{c.Width:R}x{c.Depth:R}@z=0", "Protected lower outer footprint boundary."),
@@ -210,6 +210,12 @@ public static class OffsetRegionSculptor
 public static class ReplaceRegionSculptor
 {
     public static SculptResult Apply(BodyState input, string outputName, ReplaceRegionOperation operation)
+        => ApplyCore(input, outputName, operation, null);
+
+    internal static SculptResult ApplyWithCertifiedPolynomialBounds(BodyState input, string outputName, ReplaceRegionOperation operation, SpatialInfluenceEnvelope certifiedBounds)
+        => ApplyCore(input, outputName, operation, certifiedBounds);
+
+    private static SculptResult ApplyCore(BodyState input, string outputName, ReplaceRegionOperation operation, SpatialInfluenceEnvelope? certifiedBounds)
     {
         ArgumentNullException.ThrowIfNull(input); ArgumentNullException.ThrowIfNull(operation);
         var diagnostics = operation.ReplacementPatch.Validate().ToList();
@@ -271,10 +277,16 @@ public static class ReplaceRegionSculptor
 
         var sampled = Sample(operation.ReplacementPatch, 17);
         var maximumZ = sampled.Max(x => x.Z);
-        var envelopePoints = operation.ReplacementPatch is BSplineSurfacePatch splinePatch
+        var envelopePoints = operation.ReplacementPatch is BSplineSurfacePatch splinePatch && certifiedBounds is null
             ? sampled.Concat(splinePatch.Spline.ControlPoints.SelectMany(x => x)).ToArray() : sampled.ToArray();
-        var actual = new SpatialInfluenceEnvelope(envelopePoints.Min(x => x.X), envelopePoints.Min(x => x.Y), Math.Min(input.Construction.BaseHeight, envelopePoints.Min(x => x.Z)),
+        var actual = certifiedBounds ?? new SpatialInfluenceEnvelope(envelopePoints.Min(x => x.X), envelopePoints.Min(x => x.Y), Math.Min(input.Construction.BaseHeight, envelopePoints.Min(x => x.Z)),
             envelopePoints.Max(x => x.X), envelopePoints.Max(x => x.Y), Math.Max(input.Construction.BaseHeight, envelopePoints.Max(x => x.Z)));
+        if (certifiedBounds is { } certified)
+        {
+            var observed = new SpatialInfluenceEnvelope(sampled.Min(point => point.X), sampled.Min(point => point.Y), sampled.Min(point => point.Z),
+                sampled.Max(point => point.X), sampled.Max(point => point.Y), sampled.Max(point => point.Z));
+            if (!certified.Contains(observed, operation.GeometricTolerance)) diagnostics.Add(new("surf-certified-bounds-invalid", "The supplied exact patch-bounds certificate does not contain deterministic surface samples."));
+        }
         if (!operation.InfluenceEnvelope.Contains(actual, operation.GeometricTolerance)) diagnostics.Add(new("sculpt-outside-authorized-region", "The declared influence envelope does not contain the replacement patch."));
         if (actual.MinZ < input.Construction.BaseHeight - operation.GeometricTolerance) diagnostics.Add(new("surf-patch-self-intersection", "The replacement patch enters the preserved housing volume below the original crown plane."));
 
@@ -284,11 +296,19 @@ public static class ReplaceRegionSculptor
             var g0Ok = g0 <= operation.GeometricTolerance;
             evidence.Add(new($"Boundary:{boundary.StableId}:G0", g0Ok, LocalityEvidenceLevel.CertifiedBounded, g0, operation.GeometricTolerance, $"Maximum sampled positional error over 33 deterministic parameters is {g0:R} mm."));
             if (!g0Ok) diagnostics.Add(new("surf-boundary-g0-violation", $"Boundary '{boundary.StableId}' has G0 error {g0:R} mm, exceeding {operation.GeometricTolerance:R} mm.", boundary.StableId));
-            if (boundary.Continuity == PatchBoundaryContinuity.G1)
+            if (boundary.Continuity is PatchBoundaryContinuity.G1 or PatchBoundaryContinuity.G2)
             {
                 var g1Ok = angle <= operation.G1AngularToleranceDegrees;
                 evidence.Add(new($"Boundary:{boundary.StableId}:G1", g1Ok, LocalityEvidenceLevel.CertifiedBounded, angle, operation.G1AngularToleranceDegrees, $"Maximum sampled tangent-plane angular error over 33 deterministic parameters is {angle:R} degrees."));
                 if (!g1Ok) diagnostics.Add(new("surf-boundary-g1-violation", $"Boundary '{boundary.StableId}' has tangent-plane error {angle:R} degrees, exceeding {operation.G1AngularToleranceDegrees:R} degrees.", boundary.StableId));
+            }
+            if (boundary.Continuity == PatchBoundaryContinuity.G2)
+            {
+                var curvature = MeasurePlanarBoundarySecondDifference(operation.ReplacementPatch, boundary.PatchSide);
+                var g2Ok = curvature <= operation.G2CurvatureTolerance;
+                evidence.Add(new($"Boundary:{boundary.StableId}:G2", g2Ok, LocalityEvidenceLevel.ExactAnalytic, curvature, operation.G2CurvatureTolerance,
+                    $"Exact clamped B-spline boundary control-net second-difference evidence is {curvature:R}; zero proves transverse normal-curvature equality to the planar shoulder."));
+                if (!g2Ok) diagnostics.Add(new("surf-boundary-g2-violation", $"Boundary '{boundary.StableId}' has planar normal-curvature control residual {curvature:R}, exceeding {operation.G2CurvatureTolerance:R}.", boundary.StableId));
             }
         }
         if (diagnostics.Count > 0) return SculptResult.Failure(diagnostics, evidence);
@@ -322,7 +342,7 @@ public static class ReplaceRegionSculptor
 
         var outputId = BodyStateId.Derive($"{input.StateId.Value}|ReplaceRegion|{operation.Canonical}");
         var correspondence = operation.Preserves.Select(x => new GeometricDeltaEntry(x.EntityId, GeometricChangeKind.Preserved, [x.EntityId], "Exact semantic identity and geometry fingerprint."))
-            .Append(new(SculptedHousingFactory.CrownRegion, GeometricChangeKind.Replaced, [operation.ReplacementPatch.PatchId], "Explicit outer-loop boundary correspondence; G0/G1 contracts verified."))
+            .Append(new(SculptedHousingFactory.CrownRegion, GeometricChangeKind.Replaced, [operation.ReplacementPatch.PatchId], "Explicit outer-loop boundary correspondence; declared G0/G1/G2 contracts verified."))
             .Concat(operation.ReplacementPatch.BoundaryLoop.Boundaries.Select(x => new GeometricDeltaEntry(x.ExistingBoundary, GeometricChangeKind.Preserved, [x.StableId], $"Shared edge correspondence with {x.Continuity}."))).ToArray();
         var delta = new GeometricDelta(input.StateId, outputId, [operation.TargetRegion, .. operation.Preserves.Select(x => x.EntityId)], operation.Preserves.Select(x => x.EntityId).ToArray(),
             [operation.TargetRegion], [], [operation.ReplacementPatch.PatchId], operation.MayModify, operation.InfluenceEnvelope, correspondence);
@@ -377,6 +397,20 @@ public static class ReplaceRegionSculptor
             var cosine = Math.Clamp(Math.Abs(normal.Z) / normal.Length, 0d, 1d); g1 = Math.Max(g1, Math.Acos(cosine) * 180d / Math.PI);
         }
         return (g0, g1);
+    }
+
+    private static double MeasurePlanarBoundarySecondDifference(BoundedSurfacePatch patch, PatchBoundarySide side)
+    {
+        if (patch is not BSplineSurfacePatch spline) return double.PositiveInfinity;
+        var points = spline.Spline.ControlPoints; var uCount = points.Count; var vCount = points[0].Count;
+        IEnumerable<Vector3D> differences = side switch
+        {
+            PatchBoundarySide.South => Enumerable.Range(0, uCount).Select(i => (points[i][2] - points[i][1]) - (points[i][1] - points[i][0])),
+            PatchBoundarySide.North => Enumerable.Range(0, uCount).Select(i => (points[i][vCount - 3] - points[i][vCount - 2]) - (points[i][vCount - 2] - points[i][vCount - 1])),
+            PatchBoundarySide.West => Enumerable.Range(0, vCount).Select(j => (points[2][j] - points[1][j]) - (points[1][j] - points[0][j])),
+            _ => Enumerable.Range(0, vCount).Select(j => (points[uCount - 3][j] - points[uCount - 2][j]) - (points[uCount - 2][j] - points[uCount - 1][j]))
+        };
+        return differences.Max(vector => vector.Length);
     }
 
     private static SculptValidationEvidence VerifySharedBoundaryTopology(BrepBody body)

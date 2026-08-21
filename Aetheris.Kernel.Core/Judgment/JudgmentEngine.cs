@@ -15,6 +15,29 @@ public static class When
         => context => !predicate(context);
 }
 
+/// <summary>Small normalized utility primitives shared by bounded static judgments.</summary>
+public static class Utility
+{
+    public static double Clamp01(double value) => double.Clamp(value, 0d, 1d);
+
+    public static double Remap(double value, double minimum, double maximum)
+    {
+        if (!double.IsFinite(value) || !double.IsFinite(minimum) || !double.IsFinite(maximum) || maximum <= minimum)
+            return 0d;
+        return Clamp01((value - minimum) / (maximum - minimum));
+    }
+
+    public static double Pow(double value, double exponent)
+        => Clamp01(double.Pow(Clamp01(value), exponent));
+
+    public static double Weighted(params (double Value, double Weight)[] considerations)
+    {
+        var admitted = considerations.Where(item => double.IsFinite(item.Value) && double.IsFinite(item.Weight) && item.Weight > 0d).ToArray();
+        var total = admitted.Sum(item => item.Weight);
+        return total <= 0d ? 0d : Clamp01(admitted.Sum(item => Clamp01(item.Value) * item.Weight) / total);
+    }
+}
+
 /// <summary>
 /// Generic bounded candidate contract for deterministic judgment.
 /// </summary>

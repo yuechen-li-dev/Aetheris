@@ -1,6 +1,6 @@
 # Bounded mathematical sculpting and patch replacement
 
-SURF-X0 supports bounded mathematical sculpting and locality-preserving region modification. SURF-X1 adds direct rectangular patch replacement. SURF-X1a closes the trim path for the admitted housing: qualified surface intersections derive the outer boundary, face-local pcurves qualify every trim, circular inner loops preserve openings, and an imported `ADVANCED_FACE` can receive a bounded support-surface graft. This is not full general surfacing.
+SURF-X0 supports bounded mathematical sculpting and locality-preserving region modification. SURF-X1 adds direct rectangular patch replacement. SURF-X1a closes the trim path for the admitted housing: qualified surface intersections derive the outer boundary, face-local pcurves qualify every trim, circular inner loops preserve openings, and an imported `ADVANCED_FACE` can receive a bounded support-surface graft. SURF-X2 adds a qualified two-support crown-to-planar-shoulder `BlendBoundary` that generates and deterministically judges exact non-rational polynomial candidates. This is not full general surfacing.
 
 Sculpting is a lower-authority escape hatch for geometry that an engineering feature such as `Boss`, `Pocket`, `Hole`, `Sweep`, `Fillet`, or `Chamfer` cannot express. Prefer those features whenever they carry the intended engineering meaning.
 
@@ -124,6 +124,54 @@ An ordinary safe cylindrical `HoleFeature` can follow replacement on a surviving
 
 For low/high freeform alternatives, declare two complete `SurfacePatch` values and two sibling `SculptState` blocks whose `Input` is the same base state. Do not derive the high version from the accepted low version or edit an accepted control net in place. A model has one `Output`; select the sibling to build there, or keep separate small model files when both STEP variants are release artifacts.
 
+## X2 judged blend authoring
+
+Use `BlendBoundary` when the admitted housing crown must transition into its preserved planar top shoulder under an explicit continuity and quality policy. The canonical witness is [`surf-x2-judged-housing.firmament`](../../../fixtures/Canonical/Sculpting/surf-x2-judged-housing.firmament).
+
+```firmament
+SculptState JudgedCrown {
+  Input: Base
+  BlendBoundary {
+    Between: [HousingCrown, PlanarTopShoulder]
+    Region: CrownTransitionZone
+    Preferred: G2
+    Minimum: G2
+    RegionSize: [80mm, 50mm]
+    Height: 8mm
+    MaximumDegree: 10
+    Policy: StandardBlendJudgment
+    InfluenceEnvelope: [-40mm, -25mm, 20mm, 40mm, 25mm, 28mm]
+  }
+  MayModify: [HousingCrown, CrownTransitionZone]
+  Preserve: [BottomMountingInterface, MountingHolePattern, OuterFootprintBoundary, SideWallsLower]
+  Require: [ClosedManifold, OrientationConsistency, NoSelfIntersection]
+}
+```
+
+The qualified candidates are tensor-product polynomial Bézier patches
+
+```text
+z(u,v) = baseZ + height * g_m(u) * g_m(v)
+g_m(t) = 4^m [t(1-t)]^m
+```
+
+with edge-vanishing orders `m=2,3,4,5`. They are genuinely different curvature distributions and materialize as degrees 4, 6, 8, and 10 with 25, 49, 81, and 121 control points. `m=2` is G1 but not G2; `m>=3` has zero first and second transverse derivatives at all four shoulder boundaries.
+
+Aetheris' bounded X2 G2 contract is precise: boundary positions coincide, tangent planes coincide, and the transition's transverse normal curvature equals the planar shoulder's zero normal curvature. Exact polynomial first and second jets are evaluated at 33 deterministic parameters per side. This formulation does not claim principal-direction matching, arbitrary cross-boundary reparameterization, or general G2 between unrelated supports.
+
+Candidate processing is strictly ordered:
+
+```text
+construct -> normalize to non-rational B-spline -> validate trim/BRep/pcurves
+          -> validate continuity/locality/preservation -> score -> select -> ReplaceRegion
+```
+
+An invalid candidate never receives utility. The standard policy scores only eligible candidates with documented weights: bending fairness `0.40`, mean-curvature variation `0.30`, changed-area compactness `0.20`, and materialized control-point complexity `0.10`. Bending fairness is the deterministic 25×25 quadrature of `integral(k1^2+k2^2)dA`; curvature variation sums adjacent mean-curvature changes on the same grid. Considerations are min/max normalized within the canonical candidate set and clamped to `[0,1]`. Highest composite utility wins; ties use lower actual control-point count, then ordinal `CandidateId`.
+
+`Preferred: G2, Minimum: G1` explicitly permits fallback. `Minimum: G2` never does. `MaximumDegree` is a hard representation gate, not a scoring preference. `UseCandidate: PowerM4Degree8` may override policy only when that candidate is eligible for the active continuity request. JSON build/inspect output and the sibling `.delta.json` retain the policy ID, candidate-set ID, rejected and eligible candidates, boundary evidence, considerations, score, selected ID, and whether selection was overridden.
+
+This utility judgment is a repeatable engineering selector, not proof of aesthetic superiority. Review highlight flow, unexpected flat spots, curvature bumps, creases, symmetry, locality, and mounting-interface preservation in a capable STEP viewer before aesthetic approval.
+
 ## Guarantees and evidence
 
 The housing lane verifies:
@@ -151,4 +199,4 @@ The X0 housing emits only `PLANE` and `CYLINDRICAL_SURFACE`. The X1 flagship add
 
 ## Current limits
 
-The admitted X1a materializer is limited to rectangular housing-top replacement, four qualified boundary intersections, and circular inner openings whose existing 3D edges lie on the replacement support. It does not provide arbitrary intersection networks, general Cylinder/B-spline or B-spline/B-spline discovery, arbitrary nested islands, G2, Blend, Loft, Shell, Draft, fitting, fairness optimization, or arbitrary patch networks. Direct Firmament patch authoring admits the non-rational B-spline form only; imported replacement is an advanced API path over an already imported BRep.
+The admitted X2 materializer is limited to one rectangular housing crown transitioning to its coplanar analytic shoulder through the exact polynomial family above. It does not provide arbitrary intersection networks, general Plane/Cylinder or Cylinder/Cylinder blends, general Cylinder/B-spline or B-spline/B-spline discovery, arbitrary nested islands, variable blend laws, a free control-net optimizer, N-way junctions, Loft, Shell, Draft, or arbitrary patch networks. Existing exact Fillet and Chamfer authoring and materializers are unchanged: a fillet is conceptually a constrained blend specialization, while a planar chamfer should remain planar rather than being forced through freeform machinery.

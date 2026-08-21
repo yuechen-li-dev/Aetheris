@@ -39,7 +39,8 @@ public sealed record GeometricDelta(
     IReadOnlyList<string> Introduces,
     IReadOnlyList<string> AuthorizedRegion,
     SpatialInfluenceEnvelope InfluenceEnvelope,
-    IReadOnlyList<GeometricDeltaEntry> Correspondence);
+    IReadOnlyList<GeometricDeltaEntry> Correspondence,
+    BlendJudgmentProvenance? BlendJudgment = null);
 
 public sealed record SculptValidationEvidence(
     string Check,
@@ -81,7 +82,8 @@ public sealed record BodyState(
     IReadOnlyList<SculptValidationEvidence> ValidationEvidence,
     IReadOnlyList<PersistentGeometryAssociation>? GeometryAssociations = null,
     IReadOnlyList<Step242SemanticPmi>? SemanticPmi = null,
-    IReadOnlyList<SculptAssemblyInterface>? AssemblyInterfaces = null)
+    IReadOnlyList<SculptAssemblyInterface>? AssemblyInterfaces = null,
+    BlendJudgmentTrace? BlendJudgment = null)
 {
     public IReadOnlyList<SurfacePatchMetadata> SurfacePatches => Construction.ReplacementPatch is { } patch
         ? [SurfacePatchMetadata.From(patch, Body.Topology.Faces.FirstOrDefault(face =>
@@ -116,7 +118,8 @@ public sealed record ReplaceRegionOperation(
     IReadOnlyList<PreservationContract> Preserves,
     IReadOnlyList<SculptRequirement> Requirements,
     double GeometricTolerance = 1e-6,
-    double G1AngularToleranceDegrees = 0.1)
+    double G1AngularToleranceDegrees = 0.1,
+    double G2CurvatureTolerance = 1e-6)
 {
     public string Canonical => string.Join('|', StableId, TargetRegion, ReplacementPatch.PatchId,
         ReplacementPatch.SurfaceClass, ReplacementPatch.DegreeU, ReplacementPatch.DegreeV,
@@ -126,7 +129,7 @@ public sealed record ReplaceRegionOperation(
         string.Join(',', MayModify.Order(StringComparer.Ordinal)),
         $"{InfluenceEnvelope.MinX:R},{InfluenceEnvelope.MinY:R},{InfluenceEnvelope.MinZ:R},{InfluenceEnvelope.MaxX:R},{InfluenceEnvelope.MaxY:R},{InfluenceEnvelope.MaxZ:R}",
         string.Join(',', Preserves.OrderBy(x => x.EntityId, StringComparer.Ordinal).Select(x => $"{x.EntityId}:{x.Mode}")),
-        string.Join(',', Requirements.Order()), GeometricTolerance.ToString("R"), G1AngularToleranceDegrees.ToString("R"));
+        string.Join(',', Requirements.Order()), GeometricTolerance.ToString("R"), G1AngularToleranceDegrees.ToString("R"), G2CurvatureTolerance.ToString("R"));
 }
 
 public sealed record SafeHoleOperation(

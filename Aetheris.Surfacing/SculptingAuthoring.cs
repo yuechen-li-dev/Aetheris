@@ -60,8 +60,9 @@ public static class SculptingAuthoring
             if (inputName is null || !states.TryGetValue(inputName, out var input)) { diagnostics.Add(new("sculpt-predecessor-unresolved", $"SculptState '{block.Name}' must name one previously accepted Input state.")); continue; }
             var operationBlock = Blocks(block.Body, "OffsetRegion").SingleOrDefault();
             var replaceBlock = Blocks(block.Body, "ReplaceRegion").SingleOrDefault();
+            var blendBlock = Blocks(block.Body, "BlendBoundary").SingleOrDefault();
             var holeBlock = Blocks(block.Body, "HoleFeature").SingleOrDefault();
-            if (new[] { operationBlock, replaceBlock, holeBlock }.Count(x => x is not null) != 1) { diagnostics.Add(new("sculpt-operation-unsupported", $"SculptState '{block.Name}' requires exactly one OffsetRegion, ReplaceRegion, or HoleFeature operation.")); continue; }
+            if (new[] { operationBlock, replaceBlock, blendBlock, holeBlock }.Count(x => x is not null) != 1) { diagnostics.Add(new("sculpt-operation-unsupported", $"SculptState '{block.Name}' requires exactly one OffsetRegion, ReplaceRegion, BlendBoundary, or HoleFeature operation.")); continue; }
             if (holeBlock is not null)
             {
                 var holeTarget = ScalarText(holeBlock.Body, "Target") ?? string.Empty; var holeId = ScalarText(holeBlock.Body, "Id") ?? string.Empty;
@@ -93,6 +94,32 @@ public static class SculptingAuthoring
                 var replaceApplyClock = Stopwatch.StartNew(); var replaceResult = ReplaceRegionSculptor.Apply(input, block.Name, replaceOperation); replaceApplyClock.Stop(); verification += replaceApplyClock.Elapsed;
                 if (!replaceResult.IsSuccess || replaceResult.OutputState is null) diagnostics.AddRange(replaceResult.Diagnostics);
                 else if (!states.TryAdd(block.Name, replaceResult.OutputState)) diagnostics.Add(new("sculpt-state-duplicate", $"State '{block.Name}' is declared more than once."));
+                continue;
+            }
+            if (blendBlock is not null)
+            {
+                var between = List(blendBlock.Body, "Between"); var regionName = ScalarText(blendBlock.Body, "Region") ?? string.Empty;
+                var preferredText = ScalarText(blendBlock.Body, "Preferred") ?? ScalarText(blendBlock.Body, "Continuity") ?? "G2";
+                var minimumText = ScalarText(blendBlock.Body, "Minimum") ?? preferredText;
+                var size = Vector(blendBlock.Body, "RegionSize", 2, diagnostics); var height = Length(blendBlock.Body, "Height", diagnostics);
+                var blendEnvelope = Vector(blendBlock.Body, "InfluenceEnvelope", 6, diagnostics);
+                var blendMayModify = List(block.Body, "MayModify"); var blendPreserve = List(block.Body, "Preserve");
+                var blendRequirements = ParseRequirements(List(block.Body, "Require"), diagnostics);
+                var policyText = ScalarText(blendBlock.Body, "Policy") ?? "StandardBlendJudgment";
+                var useCandidate = ScalarText(blendBlock.Body, "UseCandidate"); var maximumDegree = Integer(blendBlock.Body, "MaximumDegree") ?? 10;
+                operationClock.Stop(); opConstruction += operationClock.Elapsed;
+                if (between.Count != 2) diagnostics.Add(new("surf-blend-supports-invalid", $"BlendBoundary in '{block.Name}' requires exactly two Between supports."));
+                if (!Enum.TryParse<BlendContinuity>(preferredText, true, out var preferred)) diagnostics.Add(new("surf-blend-continuity-invalid", $"Preferred continuity '{preferredText}' must be G0, G1, or G2."));
+                if (!Enum.TryParse<BlendContinuity>(minimumText, true, out var minimum)) diagnostics.Add(new("surf-blend-continuity-invalid", $"Minimum continuity '{minimumText}' must be G0, G1, or G2."));
+                if (!StringComparer.Ordinal.Equals(policyText, "StandardBlendJudgment")) diagnostics.Add(new("surf-blend-policy-unresolved", $"Blend policy '{policyText}' is not defined; use StandardBlendJudgment."));
+                if (between.Count != 2 || size is null || height is null || blendEnvelope is null || !Enum.TryParse<BlendContinuity>(preferredText, true, out preferred)
+                    || !Enum.TryParse<BlendContinuity>(minimumText, true, out minimum) || !StringComparer.Ordinal.Equals(policyText, "StandardBlendJudgment")) continue;
+                var blendOperation = new BlendBoundaryOperation(block.Name + ".BlendBoundary", between[0], between[1], regionName, preferred, minimum,
+                    size[0], size[1], height.Value, blendMayModify, new(blendEnvelope[0], blendEnvelope[1], blendEnvelope[2], blendEnvelope[3], blendEnvelope[4], blendEnvelope[5]),
+                    blendPreserve.Select(Preservation).ToArray(), blendRequirements, BlendJudgmentPolicy.StandardBlendJudgment, useCandidate, maximumDegree);
+                var blendClock = Stopwatch.StartNew(); var blendResult = BlendBoundarySculptor.Apply(input, block.Name, blendOperation); blendClock.Stop(); verification += blendClock.Elapsed;
+                if (!blendResult.IsSuccess || blendResult.OutputState is null) diagnostics.AddRange(blendResult.Diagnostics);
+                else if (!states.TryAdd(block.Name, blendResult.OutputState)) diagnostics.Add(new("sculpt-state-duplicate", $"State '{block.Name}' is declared more than once."));
                 continue;
             }
             var target = ScalarText(operationBlock!.Body, "Target") ?? string.Empty;
@@ -145,6 +172,11 @@ public static class SculptingAuthoring
     }
     private static int MatchingBrace(string source, int open) { var depth = 0; var quoted = false; for (var i = open; i < source.Length; i++) { if (source[i] == '"' && (i == 0 || source[i - 1] != '\\')) quoted = !quoted; if (quoted) continue; if (source[i] == '{') depth++; else if (source[i] == '}' && --depth == 0) return i; } return -1; }
     private static string? ScalarText(string body, string field) { var m = Regex.Match(body, $@"(?m)^\s*{Regex.Escape(field)}\s*:\s*(?<v>[A-Za-z_]\w*)\s*$", RegexOptions.CultureInvariant); return m.Success ? m.Groups["v"].Value : null; }
+    private static int? Integer(string body, string field)
+    {
+        var match = Regex.Match(body, $@"(?m)^\s*{Regex.Escape(field)}\s*:\s*(?<v>\d+)\s*$", RegexOptions.CultureInvariant);
+        return match.Success && int.TryParse(match.Groups["v"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var value) ? value : null;
+    }
     private static double? Length(string body, string field, List<SculptDiagnostic> diagnostics)
     {
         var m = Regex.Match(body, $@"(?m)^\s*{Regex.Escape(field)}\s*:\s*(?<v>[-+]?\d+(?:\.\d+)?)mm\s*$", RegexOptions.CultureInvariant);
@@ -209,7 +241,11 @@ public static class SculptingAuthoring
         {
             if (!Enum.TryParse<PatchBoundarySide>(block.Name, true, out var side)) { diagnostics.Add(new("surf-boundary-side-invalid", $"Unknown patch boundary side '{block.Name}'.")); continue; }
             var existing = ScalarText(block.Body, "Existing") ?? string.Empty; var continuityText = ScalarText(block.Body, "Continuity") ?? "G0";
-            if (!Enum.TryParse<PatchBoundaryContinuity>(continuityText, true, out var continuity)) { diagnostics.Add(new("surf-boundary-continuity-invalid", $"Boundary '{block.Name}' continuity must be G0 or G1.")); continue; }
+            if (!Enum.TryParse<PatchBoundaryContinuity>(continuityText, true, out var continuity) || continuity == PatchBoundaryContinuity.G2)
+            {
+                diagnostics.Add(new("surf-boundary-continuity-invalid", $"Direct SurfacePatch boundary '{block.Name}' continuity must be G0 or G1; use BlendBoundary for qualified G2 construction and evidence."));
+                continue;
+            }
             result.Add(new($"Boundary{block.Name}", side, existing, continuity));
         }
         return result;

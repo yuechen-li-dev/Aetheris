@@ -39,6 +39,16 @@
     "SurfaceIntersection": "Sculpting/surf-x1a-trimmed-freeform-housing.firmament",
     "Pcurve": "Sculpting/surf-x1a-trimmed-freeform-housing.firmament",
     "InnerTrimLoops": "Sculpting/surf-x1a-trimmed-freeform-housing.firmament",
-    "PersistentGeometryAssociation": "Sculpting/surf-x1a-trimmed-freeform-housing.firmament"
+    "PersistentGeometryAssociation": "Sculpting/surf-x1a-trimmed-freeform-housing.firmament",
+    "PlasticShell": "PlasticShell/plastic-shell-enclosure.firmament",
+    "PlasticWallPolicy": "PlasticShell/plastic-shell-enclosure.firmament",
+    "MoldPartingPlane": "PlasticShell/plastic-shell-enclosure.firmament",
+    "MoldGate": "PlasticShell/plastic-shell-enclosure.firmament",
+    "MoldStandoff": "PlasticShell/plastic-shell-enclosure.firmament",
+    "MoldEjectorPin": "PlasticShell/plastic-shell-enclosure.firmament",
+    "AutoRib": "PlasticShell/plastic-shell-enclosure.firmament",
+    "MaterializedStandoff": "PlasticShell/plastic-shell-materialized-standoff.firmament",
+    "MaterializedRib": "PlasticShell/plastic-shell-materialized-rib.firmament",
+    "MoldedRibStandoffJunction": "PlasticShell/plastic-shell-rib-standoff-junction.firmament"
   }
 }

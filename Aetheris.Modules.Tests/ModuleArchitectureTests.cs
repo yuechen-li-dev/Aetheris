@@ -17,7 +17,7 @@ public sealed class ModuleArchitectureTests
     [Fact] public void BuiltInsHaveStableIdentityVersionAndDeterministicOrder()
     {
         var first=BuiltInModules.Catalog;var second=AetherisModuleCatalog.Create(first.Modules.Reverse());
-        Assert.Equal(["Aetheris.Core","Aetheris.Piping","Aetheris.Surfacing","Aetheris.SheetMetal"],first.Modules.Select(m=>m.Id.Value));
+        Assert.Equal(["Aetheris.Core","Aetheris.Piping","Aetheris.Surfacing","Aetheris.PlasticShell","Aetheris.SheetMetal"],first.Modules.Select(m=>m.Id.Value));
         Assert.Equal(first.Modules.Select(m=>m.Id.Value),second.Modules.Select(m=>m.Id.Value));
         Assert.Equal("0.3.0",first.Modules.Single(m=>m.Id==SurfacingModule.Id).Version.ToString());
         Assert.Equal(first.Capabilities.Select(c=>c.Id).Order(StringComparer.Ordinal),first.Capabilities.Select(c=>c.Id));

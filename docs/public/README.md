@@ -4,7 +4,7 @@ This directory is the only authoritative in-repository guide to behavior shipped
 
 Start with [Getting Started](getting-started.md), then use these guides:
 
-- Firmament: [overview](firmament/overview.md), [language style](firmament/language-style.md), [syntax](firmament/syntax.md), [geometry](firmament/geometry.md), [bounded mathematical sculpting](firmament/sculpting.md), [Circular Sweep](firmament/sweep.md), [Structural members and weldments](firmament/structural.md), [Semantic piping and local autorouting](firmament/piping.md), [Paperclip Template](firmament/paperclip.md), [Templates](firmament/templates.md), [materials](firmament/materials.md), [PMI](firmament/pmi.md), [Sheet Metal](firmament/sheet-metal.md), [FEA](firmament/fea.md), and [STEP import](firmament/step-import.md)
+- Firmament: [overview](firmament/overview.md), [language style](firmament/language-style.md), [syntax](firmament/syntax.md), [geometry](firmament/geometry.md), [bounded mathematical sculpting](firmament/sculpting.md), [PlasticShell](firmament/plastic-shell.md), [Circular Sweep](firmament/sweep.md), [Structural members and weldments](firmament/structural.md), [Semantic piping and local autorouting](firmament/piping.md), [Paperclip Template](firmament/paperclip.md), [Templates](firmament/templates.md), [materials](firmament/materials.md), [PMI](firmament/pmi.md), [Sheet Metal](firmament/sheet-metal.md), [FEA](firmament/fea.md), and [STEP import](firmament/step-import.md)
 - Standard Library: [product-family index, invocation, authoring, and compatibility](standard-library/README.md)
 - Interoperability: [Forge Host Protocol v1](forge/interop.md)
 - Inspection: [Cadmata](cadmata/overview.md) and [Cadmata PMI](cadmata/pmi.md)

@@ -1,0 +1,17 @@
+Model PlasticShellBasic {
+  Units: mm
+  PlasticShell Cup {
+    Exterior: Frustum
+    BottomRadius: 30 mm
+    TopRadius: 29 mm
+    Height: 15 mm
+    Material: ABS
+    ToolingDirection: [0, 0, 1]
+    MinimumDraftAngle: 3 deg
+    Preserve: [ExteriorDesignSurface]
+    WallPolicy { NominalThickness: 2 mm MinimumThickness: 1.9 mm MaximumThickness: 2.1 mm ThicknessTolerance: 0.05 mm }
+    PartingPlane MainParting { Origin: [0, 0, 15] Normal: [0, 0, 1] }
+    Gate RearGate { Kind: Point Position: [0, 29, 15] Target: TopAnnularRim Size: 1 mm }
+    EjectorPin CenterPin { Position: [0, 0, 2] Diameter: 3 mm Target: InnerBottom }
+  }
+}

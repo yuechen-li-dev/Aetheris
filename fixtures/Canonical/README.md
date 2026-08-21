@@ -24,6 +24,7 @@ Everything in this directory is current authoring guidance. Examples progress fr
 | build a Paperclip Template | `Templates/paperclip.firmament` | `Record`, `Static`, `with`, `Template<PaperclipPolicy>`, circular `Sweep` |
 | use a CNC policy | `Templates/cnc-dfm-policy.firmament` | Record defaults, `with`, `Template<Policy>`, enforcement |
 | make Sheet Metal | `SheetMetal/l-bracket-with-hole.firmament` | material, bend, planar hole, formed/flat output |
+| define a molded plastic shell | `PlasticShell/plastic-shell-enclosure.firmament` | inherent wall policy, tooling direction, parting plane, gate, standoffs, ejectors, AutoRib judgment |
 | apply a bounded mathematical sculpt | `Sculpting/sculpted-housing.firmament` | immutable `BodyState`, `OffsetRegion`, locality, preservation contracts |
 | replace a housing region with a freeform patch | `Sculpting/surf-x1-freeform-housing.firmament` | direct non-rational 6x6 B-spline patch, `ReplaceRegion`, explicit boundary correspondence, mixed G0/G1, downstream current-state hole |
 | trim a freeform replacement around preserved openings | `Sculpting/surf-x1a-trimmed-freeform-housing.firmament` | derived Plane/B-spline outer trims, four circular inner loops, face-local pcurves, PMI/interface associations, rational-free AP242 |

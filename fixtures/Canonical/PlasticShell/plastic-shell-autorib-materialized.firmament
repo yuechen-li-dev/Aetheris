@@ -1,0 +1,16 @@
+Model PlasticShellAutoRibMaterialized {
+  Units: mm
+  PlasticShell Housing {
+    Exterior: Frustum BottomRadius: 50 mm TopRadius: 52 mm Height: 20 mm Material: ABS
+    ToolingDirection: [0, 0, 1] MinimumDraftAngle: 3 deg Preserve: [ExteriorDesignSurface]
+    WallPolicy { NominalThickness: 2.2 mm MinimumThickness: 2.1 mm MaximumThickness: 2.3 mm ThicknessTolerance: 0.05 mm }
+    PartingPlane MainParting { Origin: [0, 0, 20] Normal: [0, 0, 1] }
+    Gate RearGate { Kind: Edge Position: [0, 52, 20] Target: TopAnnularRim Size: 1 mm }
+    Standoff A { Position: [-20, -20, 2.2] Height: 8 mm OuterDiameter: 7 mm HoleDiameter: 3 mm SupportIntent: Pcb }
+    Standoff B { Position: [20, -20, 2.2] Height: 8 mm OuterDiameter: 7 mm HoleDiameter: 3 mm SupportIntent: Pcb }
+    Standoff C { Position: [20, 20, 2.2] Height: 8 mm OuterDiameter: 7 mm HoleDiameter: 3 mm SupportIntent: Pcb }
+    Standoff D { Position: [-20, 20, 2.2] Height: 8 mm OuterDiameter: 7 mm HoleDiameter: 3 mm SupportIntent: Pcb }
+    EjectorPin E1 { Position: [0, -30, 2.2] Diameter: 3 mm Target: InnerBottom }
+    AutoRib Support { Support: [A, B, C, D] Gate: RearGate KeepOut: [] RibPolicy { ThicknessRatio: 1.0 MinimumHeight: 3 mm MaximumHeight: 7 mm MinimumSpacing: 4 mm DraftAngle: 3 deg BaseBlendRadius: 0.8 mm } }
+  }
+}

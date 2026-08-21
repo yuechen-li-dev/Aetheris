@@ -1,0 +1,7 @@
+Model InvalidStandoffBreaksExterior { Units: mm PlasticShell Housing {
+  Exterior: Frustum BottomRadius: 40 mm TopRadius: 42 mm Height: 18 mm Material: ABS ToolingDirection: [0,0,1] MinimumDraftAngle: 3 deg Preserve: [ExteriorDesignSurface]
+  WallPolicy { NominalThickness: 2 mm MinimumThickness: 1.9 mm MaximumThickness: 2.1 mm ThicknessTolerance: 0.05 mm }
+  PartingPlane P { Origin: [0,0,18] Normal: [0,0,1] } Gate G { Kind: Edge Position: [0,42,18] Target: TopAnnularRim Size: 1 mm }
+  Standoff Outside { Position: [38,0,2] Height: 7 mm OuterDiameter: 7 mm HoleDiameter: 3 mm SupportIntent: Pcb }
+  EjectorPin E { Position: [0,10,2] Diameter: 3 mm Target: InnerBottom }
+} }

@@ -28,6 +28,7 @@
     <ProjectReference Include="..\Aetheris.Modules.BuiltIn\Aetheris.Modules.BuiltIn.csproj" />
     <ProjectReference Include="..\Aetheris.Reconstruction\Aetheris.Reconstruction.csproj" />
     <ProjectReference Include="..\Aetheris.SheetMetal\Aetheris.SheetMetal.csproj" />
+    <ProjectReference Include="..\Aetheris.PlasticShell\Aetheris.PlasticShell.csproj" />
   </ItemGroup>
 
   <ItemGroup>

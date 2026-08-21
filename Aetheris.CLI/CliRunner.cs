@@ -21,6 +21,7 @@ using Aetheris.FEA.Mechanics;
 using Aetheris.Semantics;
 using Aetheris.Modules.BuiltIn;
 using Aetheris.Piping;
+using Aetheris.PlasticShell;
 using Aetheris.Surfacing;
 using Aetheris.Geometry;
 using Aetheris.SheetMetal;
@@ -153,7 +154,8 @@ public static class CliRunner
     private const string AsmInspectUsage = "Usage: aetheris asm inspect <assembly.firmament|assembly.firmasm> [--json] [--profile] [--out <report.json>]";
     private const string AsmImportStepUsage = "Usage: aetheris asm import-step <assembly.step> --out <directory> [--json]";
     private const string AsmExportAp242Usage = "Usage: aetheris asm export-ap242 <assembly.firmament|assembly.firmasm> --out <assembly.step> [--json]";
-    private const string ExperimentalUsage = "Usage: aetheris experimental <airchamfer-cube|airchamfer-corpus|prismatic-corpus|prismatic-map|loop-chamfer-corpus> [options]";
+    private const string ExperimentalUsage = "Usage: aetheris experimental <airchamfer-cube|airchamfer-corpus|prismatic-corpus|prismatic-map|loop-chamfer-corpus|heightfield-art> [options]";
+    private const string ExperimentalHeightFieldArtUsage = "Usage: aetheris experimental heightfield-art <plastic-shell.firmament> --out <art.step> [--json]";
     private const string ExperimentalAirChamferCubeUsage = "Usage: aetheris experimental airchamfer-cube --out <path> [--json]";
     private const string ExperimentalAirChamferCorpusUsage = "Usage: aetheris experimental airchamfer-corpus --out-dir <dir> [--json]";
     private const string ExperimentalPrismaticCorpusUsage = "Usage: aetheris experimental prismatic-corpus --out-dir <dir> [--json]";
@@ -263,7 +265,20 @@ public static class CliRunner
         if (string.Equals(Path.GetExtension(stepPath), ".firmament", StringComparison.OrdinalIgnoreCase))
         {
             var sourceText = File.Exists(stepPath) ? File.ReadAllText(stepPath) : string.Empty;
-            if (SculptingAuthoring.IsSculptingSource(sourceText))
+            if (PlasticShellFirmament.LooksLikePlasticShell(sourceText))
+            {
+                var plastic = PlasticShellFirmament.Compile(sourceText, Path.GetFullPath(stepPath));
+                var plasticExport = plastic.State is null ? null : PlasticShellStepExporter.Export(plastic.State, plastic.ModelName);
+                if (!plastic.IsSuccess || plasticExport?.IsSuccess != true || plasticExport.Step is null)
+                {
+                    var messages = plastic.Diagnostics.Select(x => $"{x.Code}: {x.Message}").Concat(plasticExport?.Diagnostics.Select(x => $"{x.Code}: {x.Message}") ?? []);
+                    if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "verify", success = false, input = Path.GetFullPath(stepPath), diagnostics = messages }, JsonOptions));
+                    else foreach (var message in messages) stderr.WriteLine($"error: {message}");
+                    return 1;
+                }
+                var plasticStepPath = Path.ChangeExtension(Path.GetFullPath(stepPath), ".step"); File.WriteAllText(plasticStepPath, plasticExport.Step); stepPath = plasticStepPath;
+            }
+            else if (SculptingAuthoring.IsSculptingSource(sourceText))
             {
                 var sculpt = SculptingAuthoring.Compile(sourceText);
                 var sculptExport = sculpt.OutputState is null ? null : SculptStepExporter.Export(sculpt.OutputState, sculpt.ModelName);
@@ -428,6 +443,8 @@ public static class CliRunner
             }
         }
 
+        if (File.Exists(sourcePath) && PlasticShellFirmament.LooksLikePlasticShell(File.ReadAllText(sourcePath)))
+            return RunPlasticShellBuild(sourcePath, outPath, json, stdout, stderr);
         if (File.Exists(sourcePath) && SheetMetalFirmament.LooksLikeSheetMetal(File.ReadAllText(sourcePath)))
             return RunSheetMetalAuthoredBuild(sourcePath, outPath, json, stdout, stderr);
         if (File.Exists(sourcePath) && SculptingAuthoring.IsSculptingSource(File.ReadAllText(sourcePath)))
@@ -561,6 +578,31 @@ public static class CliRunner
                 stdout.WriteLine($"  Selected: {judgment.SelectedCandidateId} ({(judgment.ManualOverride ? "manual override" : judgment.JudgmentPolicyId)})");
             }
         }
+        return 0;
+    }
+
+    private static int RunPlasticShellBuild(string sourcePath, string? outPath, bool json, TextWriter stdout, TextWriter stderr)
+    {
+        var compile = PlasticShellFirmament.CompileFile(sourcePath);
+        if (!compile.IsSuccess || compile.State is null)
+        {
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "build", success = false, input = Path.GetFullPath(sourcePath), domain = "PlasticShell", diagnostics = compile.Diagnostics }, JsonOptions));
+            else { stderr.WriteLine("Build failed:"); foreach (var diagnostic in compile.Diagnostics) stderr.WriteLine($"- [{diagnostic.Severity}] {diagnostic.Code}: {diagnostic.Message}"); }
+            return 1;
+        }
+        var export = PlasticShellStepExporter.Export(compile.State, compile.ModelName);
+        if (!export.IsSuccess || export.Step is null)
+        {
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "build", success = false, input = Path.GetFullPath(sourcePath), domain = "PlasticShell", diagnostics = export.Diagnostics, surfaceInventory = export.Inventory }, JsonOptions));
+            else foreach (var diagnostic in export.Diagnostics) stderr.WriteLine($"- [{diagnostic.Severity}] {diagnostic.Code}: {diagnostic.Message}");
+            return 1;
+        }
+        var output = Path.GetFullPath(outPath ?? Path.ChangeExtension(sourcePath, ".step")); Directory.CreateDirectory(Path.GetDirectoryName(output)!); File.WriteAllText(output, export.Step);
+        var evidencePath = Path.ChangeExtension(output, ".plastic-shell.json");
+        File.WriteAllText(evidencePath, JsonSerializer.Serialize(new { compile.ModelName, compile.State.Intent, compile.State.StateId, compile.State.Delta, compile.State.Evidence, surfaceInventory = export.Inventory, productBoundary = new { bodies = compile.State.Body.Topology.Bodies.Count(), shells = compile.State.Body.Topology.Shells.Count(), rationalProductSurfaces = export.Inventory.RationalProductSurfaces } }, JsonOptions));
+        var report = new { command = "build", success = true, input = Path.GetFullPath(sourcePath), output, evidence = evidencePath, domain = "PlasticShell", model = compile.ModelName, plasticShell = compile.State.Intent, state = compile.State.StateId, geometricDelta = compile.State.Delta, manufacturingEvidence = compile.State.Evidence, surfaceInventory = export.Inventory, rationalProductSurfaces = export.Inventory.RationalProductSurfaces, diagnostics = compile.Diagnostics };
+        if (json) stdout.WriteLine(JsonSerializer.Serialize(report, JsonOptions));
+        else { stdout.WriteLine($"Built {Path.GetFileName(sourcePath)}"); stdout.WriteLine($"STEP: {output}"); stdout.WriteLine($"PlasticShell: {compile.State.Intent.PlasticShellId}; wall {compile.State.Evidence.WallThickness.Minimum:G6}..{compile.State.Evidence.WallThickness.Maximum:G6} mm; selected ribs {compile.State.Evidence.RibNetwork?.SelectedCandidate ?? "none"}"); stdout.WriteLine($"Manufacturing evidence: {evidencePath}"); }
         return 0;
     }
 
@@ -1072,6 +1114,21 @@ Model CanonicalPanel {
         }
 
         var source = File.ReadAllText(fullPath);
+        if (PlasticShellFirmament.LooksLikePlasticShell(source))
+        {
+            var plastic = PlasticShellFirmament.Compile(source, fullPath);
+            var plasticReport = new { command = "inspect", success = plastic.IsSuccess, input = fullPath, domain = "PlasticShell", model = plastic.ModelName,
+                plasticShell = plastic.Intent, state = plastic.State?.StateId, geometricDelta = plastic.State?.Delta, manufacturingEvidence = plastic.State?.Evidence, diagnostics = plastic.Diagnostics };
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(plasticReport, JsonOptions));
+            else if (plastic.IsSuccess && plastic.State is { } state)
+            {
+                stdout.WriteLine($"PlasticShell {state.Intent.PlasticShellId}: wall {state.Evidence.WallThickness.Minimum:G6}..{state.Evidence.WallThickness.Maximum:G6} mm; draft minimum {state.Evidence.Draft.Min(x => x.DraftAngleDegrees):G6} deg; undercuts {state.Evidence.Pullability.Undercuts.Count}; ribs {state.Evidence.RibNetwork?.SelectedCandidate ?? "none"}");
+                if (state.Evidence.RibNetwork is { } ribs)
+                    foreach (var candidate in ribs.Candidates) stdout.WriteLine($"  {candidate.CandidateId}: eligible={candidate.Eligible}; support={candidate.Metrics.SupportProxy:F6}; flow={candidate.Metrics.FlowCompatibility:F6}; sink={candidate.Metrics.SinkProxy:F6}; length={candidate.Metrics.RibLength:F6}; complexity={candidate.Metrics.Complexity:F6}; utility={candidate.Metrics.Utility:F6}");
+            }
+            else foreach (var diagnostic in plastic.Diagnostics) stderr.WriteLine($"error: {diagnostic.Code}: {diagnostic.Message}");
+            return plastic.IsSuccess ? 0 : 1;
+        }
         if (SculptingAuthoring.IsSculptingSource(source))
         {
             var sculpt = SculptingAuthoring.Compile(source);
@@ -1749,6 +1806,14 @@ Model CanonicalPanel {
         }
 
         var validationSource=File.ReadAllText(sourcePath);
+        if (PlasticShellFirmament.LooksLikePlasticShell(validationSource))
+        {
+            var plastic = PlasticShellFirmament.Compile(validationSource, Path.GetFullPath(sourcePath));
+            var payload = new { source = sourcePath, status = plastic.IsSuccess ? "valid" : "invalid", domain = "PlasticShell", summary = new { fatalDiagnosticCount = plastic.Diagnostics.Count(x => x.Severity == PlasticDiagnosticSeverity.Error), warningDiagnosticCount = plastic.Diagnostics.Count(x => x.Severity == PlasticDiagnosticSeverity.Warning), gates = plastic.Intent?.Gates.Count ?? 0, standoffs = plastic.Intent?.Standoffs.Count ?? 0, ejectors = plastic.Intent?.Ejectors.Count ?? 0, ribCandidates = plastic.State?.Evidence.RibNetwork?.Candidates.Count ?? 0 }, diagnostics = plastic.Diagnostics };
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { plasticShellValidation = payload }, JsonOptions));
+            else stdout.WriteLine($"PlasticShell validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, {payload.summary.warningDiagnosticCount} warning)");
+            return plastic.IsSuccess ? 0 : 1;
+        }
         if (SculptingAuthoring.IsSculptingSource(validationSource))
         {
             var sculpt = SculptingAuthoring.Compile(validationSource);
@@ -2744,6 +2809,11 @@ Model CanonicalPanel {
             return RunExperimentalLoopChamferCorpus(args.Skip(1).ToArray(), stdout, stderr);
         }
 
+        if (string.Equals(args[0], "heightfield-art", StringComparison.Ordinal))
+        {
+            return RunExperimentalHeightFieldArt(args.Skip(1).ToArray(), stdout, stderr);
+        }
+
         stderr.WriteLine($"Unknown experimental subcommand '{args[0]}'.");
         stderr.WriteLine(ExperimentalUsage);
         return 1;
@@ -3133,6 +3203,44 @@ Model CanonicalPanel {
         stderr.WriteLine(AsmExportUsage);
         stderr.WriteLine(AsmInspectUsage);
         return 1;
+    }
+
+    private static int RunExperimentalHeightFieldArt(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0 || IsHelpFlag(args[0]))
+        {
+            stdout.WriteLine("Generate the retired polar PlasticShell height field as mathematical computer art.");
+            stdout.WriteLine("This path is explicitly non-manufacturing and never participates in normal build.");
+            stdout.WriteLine(ExperimentalHeightFieldArtUsage);
+            return args.Length == 0 ? 1 : 0;
+        }
+        var source = args[0]; string? output = null; var json = false;
+        for (var i = 1; i < args.Length; i++)
+        {
+            if (args[i] == "--out" && i + 1 < args.Length) output = args[++i];
+            else if (args[i] == "--json") json = true;
+            else { stderr.WriteLine(ExperimentalHeightFieldArtUsage); return 1; }
+        }
+        if (!File.Exists(source) || string.IsNullOrWhiteSpace(output)) { stderr.WriteLine(ExperimentalHeightFieldArtUsage); return 1; }
+        var compiled = PlasticShellFirmament.CompileFile(source);
+        if (!compiled.IsSuccess || compiled.State is null)
+        {
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "experimental heightfield-art", success = false, diagnostics = compiled.Diagnostics }, JsonOptions));
+            else foreach (var diagnostic in compiled.Diagnostics) stderr.WriteLine($"- [{diagnostic.Severity}] {diagnostic.Code}: {diagnostic.Message}");
+            return 1;
+        }
+        var art = PlasticShellHeightFieldArt.Export(compiled.State, compiled.ModelName);
+        if (!art.IsSuccess || art.Step is null)
+        {
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "experimental heightfield-art", success = false, diagnostics = art.Diagnostics }, JsonOptions));
+            else foreach (var diagnostic in art.Diagnostics) stderr.WriteLine($"- [{diagnostic.Severity}] {diagnostic.Code}: {diagnostic.Message}");
+            return 1;
+        }
+        var fullOutput = Path.GetFullPath(output); Directory.CreateDirectory(Path.GetDirectoryName(fullOutput)!); File.WriteAllText(fullOutput, art.Step);
+        var report = new { command = "experimental heightfield-art", success = true, input = Path.GetFullPath(source), output = fullOutput, classification = "non-manufacturing mathematical computer art", productBuildUnaffected = true, art.BoundaryFaces, surfaceInventory = art.Inventory };
+        if (json) stdout.WriteLine(JsonSerializer.Serialize(report, JsonOptions));
+        else { stdout.WriteLine($"Happy little accident: {fullOutput}"); stdout.WriteLine("Classification: non-manufacturing mathematical computer art; normal PlasticShell build is unaffected."); }
+        return 0;
     }
 
     private static int RunAsmInspect(string[] args, TextWriter stdout, TextWriter stderr)
@@ -4279,6 +4387,7 @@ Model CanonicalPanel {
         stdout.WriteLine("  prismatic-corpus   Generate the EDGE-PRISMATIC-X5 split-preserving prismatic corpus.");
         stdout.WriteLine("  prismatic-map      Inspect EDGE-PRISMATIC-X9 generated-source-only prismatic map JSON.");
         stdout.WriteLine("  loop-chamfer-corpus Generate the EDGE-LOOP-X2 top-face loop chamfer STEP/JSON corpus.");
+        stdout.WriteLine("  heightfield-art     Export the retired polar PlasticShell height field as non-manufacturing computer art.");
         stdout.WriteLine();
         stdout.WriteLine("Notes:");
         stdout.WriteLine("  - Experimental only; does not route production Firmament chamfer operations through AirChamfer.");
@@ -4287,6 +4396,7 @@ Model CanonicalPanel {
         stdout.WriteLine("  - The prismatic corpus preserves section-boundary split faces and performs no coplanar merge.");
         stdout.WriteLine("  - experimental prismatic-map is generated-source-only, not normal analyze map, and accepts no STEP input.");
         stdout.WriteLine("  - loop-chamfer-corpus is a lab-only Class B top-face outer-loop route and does not change production chamfer or fillet behavior.");
+        stdout.WriteLine("  - heightfield-art is a visual Easter egg and never participates in normal PlasticShell build or manufacturing evidence.");
         stdout.WriteLine();
         stdout.WriteLine("Examples:");
         stdout.WriteLine("  aetheris experimental airchamfer-cube --out edge-x10-airchamfer-cube-one-edge.step --json");
@@ -4294,6 +4404,7 @@ Model CanonicalPanel {
         stdout.WriteLine("  aetheris experimental prismatic-corpus --out-dir artifacts/edge-prismatic-x5 --json");
         stdout.WriteLine("  aetheris experimental prismatic-map --case rectangle-inset --rows 16 --cols 16 --json");
         stdout.WriteLine("  aetheris experimental loop-chamfer-corpus --out-dir artifacts/edge-loop-x2 --json");
+        stdout.WriteLine("  aetheris experimental heightfield-art enclosure.firmament --out artifacts/local/happy-little-accident.step --json");
     }
 
     private static void WriteExperimentalLoopChamferCorpusHelp(TextWriter stdout)

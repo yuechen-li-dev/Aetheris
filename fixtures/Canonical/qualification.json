@@ -9,6 +9,7 @@
     { "path": "Sculpting", "operation": "build-step" },
     { "path": "Structural", "operation": "build-step" },
     { "path": "Piping", "operation": "build-step" },
+    { "path": "PlasticShell", "operation": "build-step" },
     { "path": "Basics", "operation": "build-step" },
     { "path": "Primitives", "operation": "build-step" },
     { "path": "Profiles", "operation": "build-step" },

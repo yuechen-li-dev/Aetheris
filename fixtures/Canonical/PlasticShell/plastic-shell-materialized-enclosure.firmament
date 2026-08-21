@@ -1,0 +1,20 @@
+// X0a flagship alias: the physical result is generated from the same manufacturing intent as MOLD-X0.
+Model MoldX0aMaterializedEnclosure {
+  Units: mm
+  PlasticShell EnclosureHalf {
+    Exterior: Frustum BottomRadius: 55 mm TopRadius: 57 mm Height: 20 mm Material: ABS
+    ToolingDirection: [0, 0, 1] MinimumDraftAngle: 3 deg Preserve: [ExteriorDesignSurface, MountingInterface]
+    WallPolicy { NominalThickness: 2.2 mm MinimumThickness: 2.1 mm MaximumThickness: 2.3 mm ThicknessTolerance: 0.05 mm }
+    PartingPlane MainParting { Origin: [0, 0, 20] Normal: [0, 0, 1] }
+    Gate MainGate { Kind: Edge Position: [0, 57, 20] Target: TopAnnularRim Size: 1.2 mm }
+    Standoff PcbA { Position: [-25, -25, 2.2] Height: 8 mm OuterDiameter: 7 mm HoleDiameter: 3 mm SupportIntent: Pcb }
+    Standoff PcbB { Position: [25, -25, 2.2] Height: 8 mm OuterDiameter: 7 mm HoleDiameter: 3 mm SupportIntent: Pcb }
+    Standoff PcbC { Position: [25, 25, 2.2] Height: 8 mm OuterDiameter: 7 mm HoleDiameter: 3 mm SupportIntent: Pcb }
+    Standoff PcbD { Position: [-25, 25, 2.2] Height: 8 mm OuterDiameter: 7 mm HoleDiameter: 3 mm SupportIntent: Pcb }
+    EjectorPin E1 { Position: [-12, 0, 2.2] Diameter: 4 mm Target: InnerBottom }
+    EjectorPin E2 { Position: [12, 0, 2.2] Diameter: 4 mm Target: InnerBottom }
+    EjectorPin E3 { Position: [0, -12, 2.2] Diameter: 4 mm Target: InnerBottom }
+    EjectorPin E4 { Position: [0, 12, 2.2] Diameter: 4 mm Target: InnerBottom }
+    AutoRib PcbSupportNetwork { Support: [PcbA, PcbB, PcbC, PcbD] Gate: MainGate KeepOut: [] RibPolicy { ThicknessRatio: 1.0 MinimumHeight: 3 mm MaximumHeight: 7 mm MinimumSpacing: 4 mm DraftAngle: 3 deg BaseBlendRadius: 0.8 mm } }
+  }
+}

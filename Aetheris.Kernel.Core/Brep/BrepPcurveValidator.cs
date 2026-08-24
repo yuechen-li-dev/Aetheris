@@ -10,7 +10,12 @@ public sealed record BrepPcurveEvidence(
     double MaximumReconstructionDeviation,
     bool DomainValid,
     bool OrientationConsistent,
-    IReadOnlyList<string> Diagnostics);
+    IReadOnlyList<string> Diagnostics)
+{
+    public bool LoopClosureValid { get; init; }
+    public double MaximumUvLoopClosure { get; init; }
+    public double RootMeanSquareReconstructionDeviation { get; init; }
+}
 
 /// <summary>Independently samples face-local pcurves against their shared 3D edge geometry.</summary>
 public static class BrepPcurveValidator
@@ -24,6 +29,10 @@ public static class BrepPcurveValidator
         var maximum = 0d;
         var domainValid = true;
         var orientationValid = true;
+        var loopClosureValid = true;
+        var maximumUvClosure = 0d;
+        var squaredResidual = 0d;
+        var residualSamples = 0;
 
         foreach (var coedge in body.Topology.Coedges.OrderBy(item => item.Id.Value))
         {
@@ -60,6 +69,12 @@ public static class BrepPcurveValidator
                 var parameter = interval.Start + ((interval.End - interval.Start) * fraction);
                 var curveParameter = binding.SameSense ? parameter : interval.End - ((parameter - interval.Start));
                 var uv = binding.Pcurve.Evaluate(curveParameter);
+                if (!WithinSurfaceDomain(surface, uv, tolerance))
+                {
+                    domainValid = false;
+                    diagnostics.Add($"surf-pcurve-invalid:coedge={coedge.Id.Value}:surface-domain:u={uv.U:R}:v={uv.V:R}");
+                    break;
+                }
                 var onSurface = Evaluate(surface, uv);
                 var onCurve = Evaluate(curve, parameter);
                 if (onSurface is null || onCurve is null)
@@ -68,6 +83,8 @@ public static class BrepPcurveValidator
                     break;
                 }
                 coedgeMaximum = double.Max(coedgeMaximum, (onSurface.Value - onCurve.Value).Length);
+                squaredResidual += (onSurface.Value - onCurve.Value).LengthSquared;
+                residualSamples++;
             }
             maximum = double.Max(maximum, coedgeMaximum);
             if (coedgeMaximum > tolerance)
@@ -84,11 +101,68 @@ public static class BrepPcurveValidator
                     diagnostics.Add($"surf-pcurve-invalid:coedge={coedge.Id.Value}:orientation");
                 }
             }
+
+            var edge = body.Topology.GetEdge(coedge.EdgeId);
+            var endVertex = coedge.IsReversed ? edge.StartVertexId : edge.EndVertexId;
+            if (body.TryGetVertexPoint(endVertex, out var endPoint))
+            {
+                var parameter = coedge.IsReversed ? interval.Start : interval.End;
+                var uv = binding.Pcurve.Evaluate(binding.SameSense ? parameter : interval.End - (parameter - interval.Start));
+                var reconstructed = Evaluate(surface, uv);
+                if (reconstructed is null || (reconstructed.Value - endPoint).Length > tolerance)
+                {
+                    orientationValid = false;
+                    diagnostics.Add($"surf-pcurve-invalid:coedge={coedge.Id.Value}:end-orientation");
+                }
+            }
+
+            var next = body.Topology.GetCoedge(coedge.NextCoedgeId);
+            if (body.Bindings.TryGetPcurveBinding(next.Id, out var nextBinding)
+                && body.Bindings.TryGetEdgeBinding(next.EdgeId, out var nextEdgeBinding)
+                && nextEdgeBinding.TrimInterval is { } nextInterval)
+            {
+                var currentLoopParameter = coedge.IsReversed ? interval.Start : interval.End;
+                var nextLoopParameter = next.IsReversed ? nextInterval.End : nextInterval.Start;
+                var currentUv = binding.Pcurve.Evaluate(binding.SameSense ? currentLoopParameter : interval.End - (currentLoopParameter - interval.Start));
+                var nextUv = nextBinding.Pcurve.Evaluate(nextBinding.SameSense ? nextLoopParameter : nextInterval.End - (nextLoopParameter - nextInterval.Start));
+                var closure = UvDistance(surface, currentUv, nextUv);
+                maximumUvClosure = double.Max(maximumUvClosure, closure);
+                if (closure > tolerance)
+                {
+                    loopClosureValid = false;
+                    diagnostics.Add($"surf-pcurve-invalid:coedge={coedge.Id.Value}:uv-loop-closure={closure:R}:tolerance={tolerance:R}");
+                }
+            }
         }
 
         var count = body.Bindings.PcurveBindings.Count();
-        var valid = diagnostics.Count == 0 && maximum <= tolerance && domainValid && orientationValid;
-        return new(valid, body.Topology.Edges.Count(), count, maximum, domainValid, orientationValid, diagnostics);
+        var valid = diagnostics.Count == 0 && maximum <= tolerance && domainValid && orientationValid && loopClosureValid;
+        return new(valid, body.Topology.Edges.Count(), count, maximum, domainValid, orientationValid, diagnostics)
+        {
+            LoopClosureValid = loopClosureValid,
+            MaximumUvLoopClosure = maximumUvClosure,
+            RootMeanSquareReconstructionDeviation = residualSamples == 0 ? 0d : double.Sqrt(squaredResidual / residualSamples)
+        };
+    }
+
+    private static bool WithinSurfaceDomain(SurfaceGeometry surface, SurfaceParameterPoint uv, double tolerance)
+    {
+        if (!double.IsFinite(uv.U) || !double.IsFinite(uv.V)) return false;
+        if (surface.BSplineSurfaceWithKnots is not { } spline) return true;
+        return uv.U >= spline.DomainStartU - tolerance && uv.U <= spline.DomainEndU + tolerance
+            && uv.V >= spline.DomainStartV - tolerance && uv.V <= spline.DomainEndV + tolerance;
+    }
+
+    private static double UvDistance(SurfaceGeometry surface, SurfaceParameterPoint a, SurfaceParameterPoint b)
+    {
+        var du = a.U - b.U;
+        if (surface.Kind == SurfaceGeometryKind.Cylinder)
+        {
+            while (du > double.Pi) du -= 2d * double.Pi;
+            while (du < -double.Pi) du += 2d * double.Pi;
+        }
+        var dv = a.V - b.V;
+        return double.Sqrt((du * du) + (dv * dv));
     }
 
     private static bool FiniteOrdered(ParameterInterval interval) => double.IsFinite(interval.Start) && double.IsFinite(interval.End) && interval.End >= interval.Start;

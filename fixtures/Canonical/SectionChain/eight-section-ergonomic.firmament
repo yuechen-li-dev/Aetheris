@@ -1,0 +1,58 @@
+Model EightSectionErgonomic {
+ Units: mm
+ Concept Struct Stations {
+  D0: Plane { Origin: [0mm,0mm,0mm]; Normal: [1,0,0]; Up: [0,0,1] }
+  D1: Plane { Origin: [12mm,0mm,0mm]; Normal: [1,0,0]; Up: [0,0,1] }
+  D2: Plane { Origin: [27mm,1mm,1mm]; Normal: [1,0,0]; Up: [0,0,1] }
+  D3: Plane { Origin: [43mm,2mm,2mm]; Normal: [1,0,0]; Up: [0,0,1] }
+  D4: Plane { Origin: [59mm,2mm,2mm]; Normal: [1,0,0]; Up: [0,0,1] }
+  D5: Plane { Origin: [75mm,1mm,1mm]; Normal: [1,0,0]; Up: [0,0,1] }
+  D6: Plane { Origin: [89mm,0mm,0mm]; Normal: [1,0,0]; Up: [0,0,1] }
+  D7: Plane { Origin: [100mm,0mm,0mm]; Normal: [1,0,0]; Up: [0,0,1] }
+ }
+ Construction Plane F0 { Trace: Stations.D0 }
+ Construction Plane F1 { Trace: Stations.D1 }
+ Construction Plane F2 { Trace: Stations.D2 }
+ Construction Plane F3 { Trace: Stations.D3 }
+ Construction Plane F4 { Trace: Stations.D4 }
+ Construction Plane F5 { Trace: Stations.D5 }
+ Construction Plane F6 { Trace: Stations.D6 }
+ Construction Plane F7 { Trace: Stations.D7 }
+ Concept Path Small { Start: Point2(-4mm,-3mm) Heading: 0deg Line Bottom { Length: 8mm } Line Right { Turn: 90deg; Length: 6mm } Line Top { Turn: 90deg; Length: 8mm } Close Left }
+ Concept Path Medium { Start: Point2(-10mm,-7mm) Heading: 0deg Line Bottom { Length: 20mm } Line Right { Turn: 90deg; Length: 14mm } Line Top { Turn: 90deg; Length: 20mm } Close Left }
+ Concept Path Large { Start: Point2(-14mm,-10mm) Heading: 0deg Line Bottom { Length: 28mm } Line Right { Turn: 90deg; Length: 20mm } Line Top { Turn: 90deg; Length: 28mm } Close Left }
+ Concept Path Peak { Start: Point2(-16mm,-11mm) Heading: 0deg Line Bottom { Length: 32mm } Line Right { Turn: 90deg; Length: 22mm } Line Top { Turn: 90deg; Length: 32mm } Close Left }
+ Profile PSmall From Small
+ Profile PMedium From Medium
+ Profile PLarge From Large
+ Profile PPeak From Peak
+ SectionChain EightSectionErgonomic {
+  Transition: Ruled
+  Section Nose { Frame: F0
+   Profile: PSmall
+   Seam: Bottom }
+  Section Front { Frame: F1
+   Profile: PMedium
+   Seam: Bottom }
+  Section PalmFront { Frame: F2
+   Profile: PLarge
+   Seam: Bottom }
+  Section Rise { Frame: F3
+   Profile: PPeak
+   Seam: Bottom }
+  Section Peak { Frame: F4
+   Profile: PPeak
+   Seam: Bottom }
+  Section PalmRear { Frame: F5
+   Profile: PLarge
+   Seam: Bottom }
+  Section Rear { Frame: F6
+   Profile: PMedium
+   Seam: Bottom }
+  Section Tail { Frame: F7
+   Profile: PSmall
+   Seam: Bottom }
+  Start: Cap
+  End: Cap
+ }
+}

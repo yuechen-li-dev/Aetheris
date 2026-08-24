@@ -138,6 +138,9 @@ public static class ProfileAuthoringParser
         return profiles;
     }
 
+    internal static ConstructionPlane? ResolveNamedConstructionPlane(string source, string frame, List<string> diagnostics)
+        => ResolveConstructionPlane(source, frame, diagnostics);
+
     private static void AddOrdinaryGuides(string source, Dictionary<string, (double X, double Y)> points, Dictionary<string, LineArcProfileCurve2D> guides, List<string> diagnostics)
     {
         foreach (Match match in Point.Matches(source))

@@ -1,0 +1,45 @@
+Model TwoSectionRuled {
+    Units: mm
+
+    Concept Struct Stations {
+        StartDatum: Plane { Origin: [0mm, 0mm, 0mm]; Normal: [1, 0, 0]; Up: [0, 0, 1] }
+        EndDatum: Plane { Origin: [30mm, 0mm, 0mm]; Normal: [1, 0, 0]; Up: [0, 0, 1] }
+    }
+    Construction Plane StartFrame { Trace: Stations.StartDatum }
+    Construction Plane EndFrame { Trace: Stations.EndDatum }
+
+    Concept Path StartOutline {
+        Start: Point2(-10mm, -6mm)
+        Heading: 0deg
+        Line Bottom { Length: 20mm }
+        Line Right { Turn: 90deg; Length: 12mm }
+        Line Top { Turn: 90deg; Length: 20mm }
+        Close Left
+    }
+    Concept Path EndOutline {
+        Start: Point2(-8mm, -5mm)
+        Heading: 0deg
+        Line Bottom { Length: 16mm }
+        Line Right { Turn: 90deg; Length: 10mm }
+        Line Top { Turn: 90deg; Length: 16mm }
+        Close Left
+    }
+    Profile StartProfile From StartOutline
+    Profile EndProfile From EndOutline
+
+    SectionChain TwoSectionRuled {
+        Transition: Ruled
+        Section Start {
+            Frame: StartFrame
+            Profile: StartProfile
+            Seam: Bottom
+        }
+        Section End {
+            Frame: EndFrame
+            Profile: EndProfile
+            Seam: Bottom
+        }
+        Start: Cap
+        End: Cap
+    }
+}

@@ -1,0 +1,54 @@
+Model SixSectionErgonomic {
+ Units: mm
+ Concept Struct Stations {
+  P0: Plane { Origin: [0mm,0mm,0mm]; Normal: [1,0,0]; Up: [0,0,1] }
+  P1: Plane { Origin: [14mm,0mm,0mm]; Normal: [1,0,0]; Up: [0,0,1] }
+  P2: Plane { Origin: [30mm,1mm,1mm]; Normal: [1,0,0]; Up: [0,0,1] }
+  P3: Plane { Origin: [48mm,2mm,2mm]; Normal: [1,0,0]; Up: [0,0,1] }
+  P4: Plane { Origin: [66mm,1mm,1mm]; Normal: [1,0,0]; Up: [0,0,1] }
+  P5: Plane { Origin: [82mm,0mm,0mm]; Normal: [1,0,0]; Up: [0,0,1] }
+ }
+ Construction Plane F0 { Trace: Stations.P0 }
+ Construction Plane F1 { Trace: Stations.P1 }
+ Construction Plane F2 { Trace: Stations.P2 }
+ Construction Plane F3 { Trace: Stations.P3 }
+ Construction Plane F4 { Trace: Stations.P4 }
+ Construction Plane F5 { Trace: Stations.P5 }
+
+ Concept Path O0 { Start: Point2(-4mm,-3mm) Heading: 0deg Line Bottom { Length: 8mm } Line Right { Turn: 90deg; Length: 6mm } Line Top { Turn: 90deg; Length: 8mm } Close Left }
+ Concept Path O1 { Start: Point2(-9mm,-6mm) Heading: 0deg Line Bottom { Length: 18mm } Line Right { Turn: 90deg; Length: 12mm } Line Top { Turn: 90deg; Length: 18mm } Close Left }
+ Concept Path O2 { Start: Point2(-13mm,-9mm) Heading: 0deg Line Bottom { Length: 26mm } Line Right { Turn: 90deg; Length: 18mm } Line Top { Turn: 90deg; Length: 26mm } Close Left }
+ Concept Path O3 { Start: Point2(-15mm,-10mm) Heading: 0deg Line Bottom { Length: 30mm } Line Right { Turn: 90deg; Length: 20mm } Line Top { Turn: 90deg; Length: 30mm } Close Left }
+ Concept Path O4 { Start: Point2(-11mm,-7mm) Heading: 0deg Line Bottom { Length: 22mm } Line Right { Turn: 90deg; Length: 14mm } Line Top { Turn: 90deg; Length: 22mm } Close Left }
+ Concept Path O5 { Start: Point2(-5mm,-3.5mm) Heading: 0deg Line Bottom { Length: 10mm } Line Right { Turn: 90deg; Length: 7mm } Line Top { Turn: 90deg; Length: 10mm } Close Left }
+ Profile R0 From O0
+ Profile R1 From O1
+ Profile R2 From O2
+ Profile R3 From O3
+ Profile R4 From O4
+ Profile R5 From O5
+
+ SectionChain SixSectionErgonomic {
+  Transition: Ruled
+  Section Nose { Frame: F0
+   Profile: R0
+   Seam: Bottom }
+  Section Front { Frame: F1
+   Profile: R1
+   Seam: Bottom }
+  Section PalmFront { Frame: F2
+   Profile: R2
+   Seam: Bottom }
+  Section Peak { Frame: F3
+   Profile: R3
+   Seam: Bottom }
+  Section PalmRear { Frame: F4
+   Profile: R4
+   Seam: Bottom }
+  Section Tail { Frame: F5
+   Profile: R5
+   Seam: Bottom }
+  Start: Cap
+  End: Cap
+ }
+}

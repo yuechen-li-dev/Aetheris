@@ -14,6 +14,7 @@ public static class SurfacingModule
     public const string PanelCapability = "Surfacing.Panel";
     public const string BoundedSculptingCapability = "Surfacing.BoundedSculpting";
     public const string JudgedBlendCapability = "Surfacing.JudgedBlend";
+    public const string SectionChainCapability = "Surfacing.SectionChain";
 
     public static AetherisModule Definition { get; } = new(
         Id, "Surfacing", Version,
@@ -24,7 +25,8 @@ public static class SurfacingModule
          new(BoundaryPatchCapability,Id,Version,"Four-boundary G0 patch preserving boundary intent."),
          new(PanelCapability,Id,Version,"Bounded oriented engineering surface with ordered semantic boundary edges and developability evidence."),
          new(BoundedSculptingCapability,Id,Version,"Immutable single-predecessor BodyState derivation with bounded OffsetRegion and trimmed ReplaceRegion authority, qualified intersection-derived boundaries, face-local pcurves, inner openings, imported-face grafting, mixed G0/G1/G2 contracts, persistent associations, and inspectable GeometricDelta evidence."),
-         new(JudgedBlendCapability,Id,Version,"Qualified crown-to-planar-shoulder BlendBoundary with exact polynomial G1/G2 candidates, validity-before-utility fairness judgment, deterministic trace, and rational-free STEP realization.")],
+         new(JudgedBlendCapability,Id,Version,"Qualified crown-to-planar-shoulder BlendBoundary with exact polynomial G1/G2 candidates, validity-before-utility fairness judgment, deterministic trace, and rational-free STEP realization."),
+         new(SectionChainCapability,Id,Version,"Ordered framed profiles with explicit semantic one-to-one span correspondence, ruled adjacent transitions, shared-section topology, and Cap/Open termination.")],
         ["Surfacing.PanelConcept", "Surfacing.SurfacePatchConcept"], ["Surfacing.RuledCanopyPanel","Surfacing.HyperbolicParaboloid","Surfacing.ParabolicCylinder","Surfacing.EllipticParaboloid","Surfacing.Helicoid"],
         ["Surface construction -> PanelIR -> semantic edges", "Panel edge Interface/Mate -> deterministic G0 evidence", "PanelIR -> bounded BRep-backed STEP export envelope"],
         ["panel-incomplete-boundary", "panel-boundary-orientation-inconsistent","panel-mate-endpoint-mismatch","panel-mate-g0-failure","panel-mate-g1-failure","panel-mate-g1-unknown","panel-mate-g2-failure","panel-mate-g2-unknown","surfacing-panel-thickness-invalid","sculpt-outside-authorized-region","sculpt-preservation-failed","sculpt-self-intersection","surf-boundary-g0-violation","surf-boundary-g1-violation","surf-boundary-g2-violation","surf-blend-g2-unsatisfied","surf-blend-no-eligible-candidates","surf-blend-locality-violation","surf-selector-target-replaced","surf-surface-export-normalization-failed"],

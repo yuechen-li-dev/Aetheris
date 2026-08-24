@@ -32,6 +32,9 @@ public static class RuledSurfaceLowering
         var developability=ClassifyDevelopability(evaluateA!,evaluateB!,tangentA!,tangentB!);
         if (ir.BoundaryA is RuledBoundary.Line a && ir.BoundaryB is RuledBoundary.Line b)
         {
+            if (TryPlane(a, b, out var plane))
+                return Success(ir, SurfaceGeometry.FromPlane(plane), Evaluate, developability,
+                    SurfaceMaterializationKind.ExactAnalytic, null);
             var surface = Bilinear(a.Start, a.End, b.Start, b.End);
             return Success(ir, SurfaceGeometry.FromBSplineSurfaceWithKnots(surface), Evaluate,developability,SurfaceMaterializationKind.ExactPolynomialBSpline,null);
         }
@@ -57,6 +60,9 @@ public static class RuledSurfaceLowering
             }
             return Success(ir, exact, Evaluate,developability,SurfaceMaterializationKind.ExactAnalytic,null);
         }
+        if (TryCompatiblePolynomialRuled(ir.BoundaryA, ir.BoundaryB, out var exactRuled))
+            return Success(ir, SurfaceGeometry.FromBSplineSurfaceWithKnots(exactRuled), Evaluate, developability,
+                SurfaceMaterializationKind.ExactPolynomialBSpline, null);
         var approximation=MaterializeRuled(ir.StableId,Evaluate,9);
         return Success(ir,SurfaceGeometry.FromBSplineSurfaceWithKnots(approximation.Surface),Evaluate,developability,
             SurfaceMaterializationKind.ApproximatedNonRationalBSpline,approximation.Certificate);
@@ -73,6 +79,77 @@ public static class RuledSurfaceLowering
 
     internal static BSplineSurfaceWithKnots Bilinear(Point3D a0, Point3D a1, Point3D b0, Point3D b1) =>
         new(1, 1, [[a0, b0], [a1, b1]], "RULED_SURFACE", false, false, false, [2, 2], [2, 2], [0, 1], [0, 1], "UNSPECIFIED");
+
+    private static bool TryPlane(RuledBoundary.Line a, RuledBoundary.Line b, out PlaneSurface plane)
+    {
+        var u = a.End - a.Start;
+        var candidates = new[] { b.Start - a.Start, b.End - a.Start, b.End - b.Start };
+        foreach (var candidate in candidates)
+        {
+            var cross = u.Cross(candidate);
+            if (!cross.TryNormalize(out var normal)) continue;
+            if (double.Abs((b.Start - a.Start).Dot(normal)) > 1e-10
+                || double.Abs((b.End - a.Start).Dot(normal)) > 1e-10) continue;
+            plane = new PlaneSurface(a.Start, Direction3D.Create(normal), Direction3D.Create(u));
+            return true;
+        }
+        plane = default;
+        return false;
+    }
+
+    private static bool TryCompatiblePolynomialRuled(RuledBoundary a, RuledBoundary b, out BSplineSurfaceWithKnots surface)
+    {
+        var spline = a as RuledBoundary.BSpline ?? b as RuledBoundary.BSpline;
+        if (spline is null)
+        {
+            surface = null!;
+            return false;
+        }
+
+        var basis = spline.Curve;
+        if (!TryControls(a, basis, out var controlsA) || !TryControls(b, basis, out var controlsB))
+        {
+            surface = null!;
+            return false;
+        }
+
+        var controls = controlsA.Select((point, index) => new[] { point, controlsB[index] }).ToArray();
+        surface = new BSplineSurfaceWithKnots(basis.Degree, 1, controls, "RULED_SURFACE", false, false, false,
+            basis.KnotMultiplicities, [2, 2], basis.KnotValues, [0d, 1d], "UNSPECIFIED");
+        return true;
+
+        static bool TryControls(RuledBoundary boundary, BSpline3Curve basis, out IReadOnlyList<Point3D> controls)
+        {
+            switch (boundary)
+            {
+                case RuledBoundary.BSpline candidate when Compatible(candidate.Curve, basis):
+                    controls = candidate.Curve.ControlPoints;
+                    return true;
+                case RuledBoundary.Line line:
+                    var fullKnots = basis.FullKnots;
+                    var domain = basis.DomainEnd - basis.DomainStart;
+                    controls = Enumerable.Range(0, basis.ControlPoints.Count).Select(index =>
+                    {
+                        var greville = Enumerable.Range(1, basis.Degree)
+                            .Average(offset => fullKnots[index + offset]);
+                        var parameter = (greville - basis.DomainStart) / domain;
+                        return Lerp(line.Start, line.End, parameter);
+                    }).ToArray();
+                    return true;
+                default:
+                    controls = [];
+                    return false;
+            }
+        }
+
+        static bool Compatible(BSpline3Curve candidate, BSpline3Curve basis) =>
+            candidate.Degree == basis.Degree
+            && candidate.ControlPoints.Count == basis.ControlPoints.Count
+            && candidate.KnotMultiplicities.SequenceEqual(basis.KnotMultiplicities)
+            && candidate.KnotValues.SequenceEqual(basis.KnotValues)
+            && double.Abs(candidate.DomainStart - basis.DomainStart) <= 1e-12
+            && double.Abs(candidate.DomainEnd - basis.DomainEnd) <= 1e-12;
+    }
     private static Vector3D CircleOffset(RuledBoundary.Circle c, double u) => ArcOffset(c.Normal,c.ReferenceAxis,c.Radius,u*2d*double.Pi);
     private static Vector3D ArcOffset(Direction3D normal,Direction3D reference,double radius,double angle) =>
         reference.ToVector()*(radius*double.Cos(angle))+normal.ToVector().Cross(reference.ToVector())*(radius*double.Sin(angle));

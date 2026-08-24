@@ -166,6 +166,7 @@ public static class CliRunner
     private const string SheetMetalUsage = "Usage: aetheris sheetmetal recognize <part.step> [--plan <recognition.json>] [--json] | aetheris sheetmetal recover-flat <part.step> --out-dir <directory> [--recognition-plan <recognition.json>] [--json] | aetheris sheetmetal compare-flat <recovered-flat.json> <native.firmament> [--semantic] [--json] | aetheris sheetmetal inspect <part.step|part.firmament> [--k-factor <0..1>] [--json] | aetheris sheetmetal paths <part.firmament> [--json] | aetheris sheetmetal recover <part.step> --out-dir <directory> [--json] | aetheris sheetmetal compare <part.step|part.firmament> <intent.firmament> [--semantic] [--json] | aetheris sheetmetal flatten <part.step|part.firmament> [--step <flat.step>] [--firmament <recovered.firmament>] [--svg <flat.svg>] [--k-factor <0..1>] [--json]";
     private const string ExperimentalLoopChamferCorpusUsage = "Usage: aetheris experimental loop-chamfer-corpus --out-dir <dir> [--json]";
     private const string SculptureUsage = "Usage: aetheris sculpture build <sol-1.sculpture.json> [--out <sol-1.step>] [--evidence <sol-1.evidence.json>] [--preview <sol-1.preview.svg>] [--json]";
+    private const string SectionChainUsage = "Usage: aetheris section-chain <build|inspect|validate> <file.firmament|flagship|twist|two-profile> [--out <model.step>] [--json]";
 
     internal static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -229,6 +230,7 @@ public static class CliRunner
                 "modules" => RunModules(args.Skip(1).ToArray(), stdout, stderr),
                 "sheetmetal" => RunSheetMetal(args.Skip(1).ToArray(), stdout, stderr),
                 "sculpture" => RunSculpture(args.Skip(1).ToArray(), stdout, stderr),
+                "section-chain" => RunSectionChain(args.Skip(1).ToArray(), stdout, stderr),
                 "reconstruct" => ReconstructionCli.Run(args.Skip(1).ToArray(), stdout, stderr, JsonOptions),
                 _ => UnknownCommand(args[0], stderr)
             };
@@ -531,6 +533,115 @@ public static class CliRunner
         }
 
         return 0;
+    }
+
+    private static int RunSectionChain(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0 || IsHelpFlag(args[0]))
+        {
+            stdout.WriteLine("Materialize an ordered semantic SectionChain through ruled pairwise transitions.");
+            stdout.WriteLine(SectionChainUsage);
+            return args.Length == 0 ? 1 : 0;
+        }
+        if (args.Length < 2 || args[0] is not ("build" or "inspect" or "validate")) { stderr.WriteLine(SectionChainUsage); return 1; }
+        var operation = args[0]; var witness = args[1]; string? output = null; var json = false;
+        for (var index = 2; index < args.Length; index++)
+        {
+            if (args[index] == "--json") json = true;
+            else if (args[index] == "--out" && index + 1 < args.Length) output = Path.GetFullPath(args[++index]);
+            else { stderr.WriteLine(SectionChainUsage); return 1; }
+        }
+        SectionChainMaterializationResult materialized;
+        SectionChain chain;
+        if (File.Exists(witness))
+        {
+            var authored = SectionChainAuthoringParser.Compile(File.ReadAllText(witness));
+            if (!authored.IsSuccess || authored.Chain is null || authored.Materialization is null)
+            {
+                var failure = new { command = $"section-chain {operation}", success = false, input = Path.GetFullPath(witness), diagnostics = authored.Diagnostics };
+                if (json) stdout.WriteLine(JsonSerializer.Serialize(failure, JsonOptions)); else foreach (var diagnostic in authored.Diagnostics) stderr.WriteLine("error: " + diagnostic);
+                return 1;
+            }
+            chain = authored.Chain; materialized = authored.Materialization;
+        }
+        else
+        {
+            chain = witness switch
+            {
+                "flagship" => SectionChainTemplates.ErgonomicFairing(),
+                "twist" => SectionChainTemplates.TwistWitness(),
+                "two-profile" => SectionChainTemplates.TwoProfileRuled(),
+                _ => throw new ArgumentException($"Unknown SectionChain witness '{witness}'.")
+            };
+            materialized = SectionChainMaterializer.Materialize(chain);
+        }
+        output ??= Path.GetFullPath(Path.Combine("artifacts", "local", "surf-x3", chain.StableId + ".step"));
+        if (!materialized.IsSuccess)
+        {
+            var failure = new { command = "section-chain build", success = false, witness, diagnostics = materialized.Diagnostics };
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(failure, JsonOptions));
+            else foreach (var diagnostic in materialized.Diagnostics) stderr.WriteLine($"error: {diagnostic.Code}: {diagnostic.Message}");
+            return 1;
+        }
+        if (operation is "inspect" or "validate")
+        {
+            var inspection = new
+            {
+                command = $"section-chain {operation}", success = true, chain.StableId,
+                sections = chain.Sections.Select(section => new { section.SectionId, section.Frame, profile = section.Profile.StableId, spans = section.Profile.Spans.Select(span => span.SpanId), seam = section.Profile.SeamSpanId }),
+                chain.Correspondence,
+                resolvedCorrespondence = Enumerable.Range(0, chain.Sections.Count - 1).Select(index => new
+                {
+                    source = chain.Sections[index].SectionId, target = chain.Sections[index + 1].SectionId,
+                    resolution = chain.Correspondence.Any(item => item.SourceSectionId == chain.Sections[index].SectionId && item.TargetSectionId == chain.Sections[index + 1].SectionId) ? "Explicit" : "InferredSemanticIdentity",
+                    spans = chain.Sections[index].Profile.Spans.Select((span, spanIndex) => new { source = span.SpanId, target = chain.Sections[index + 1].Profile.Spans[spanIndex].SpanId })
+                }),
+                chain.TransitionPolicy, chain.StartTermination, chain.EndTermination,
+                transitions = materialized.Transitions, pcurves = materialized.Pcurves, selfIntersection = materialized.SelfIntersection,
+                diagnostics = materialized.Diagnostics
+            };
+            stdout.WriteLine(JsonSerializer.Serialize(inspection, JsonOptions));
+            return 0;
+        }
+        var export = Step242Exporter.ExportBody(materialized.Body!, options: new Step242ExportOptions { ProductName = chain.StableId });
+        if (!export.IsSuccess)
+        {
+            foreach (var diagnostic in export.Diagnostics) stderr.WriteLine($"error: {diagnostic.Message}");
+            return 1;
+        }
+        Directory.CreateDirectory(Path.GetDirectoryName(output)!); File.WriteAllText(output, export.Value);
+        var reimport = Step242Importer.ImportBody(export.Value);
+        var surfaces = materialized.Body!.Geometry.Surfaces.Select(item => item.Value.Kind).GroupBy(kind => kind)
+            .ToDictionary(group => group.Key.ToString(), group => group.Count(), StringComparer.Ordinal);
+        var report = new
+        {
+            command = "section-chain build", success = true, witness, output, sha256 = Hash(export.Value),
+            sectionChain = new
+            {
+                chain.StableId, sectionCount = chain.Sections.Count, transitionCount = materialized.Transitions.Count,
+                sections = chain.Sections.Select(section => new { section.SectionId, frame = section.Frame, profile = section.Profile.StableId, spans = section.Profile.Spans.Select(span => span.SpanId), seam = section.Profile.SeamSpanId }),
+                correspondence = chain.Correspondence,
+                resolvedCorrespondence = Enumerable.Range(0, chain.Sections.Count - 1).Select(index => new
+                {
+                    source = chain.Sections[index].SectionId, target = chain.Sections[index + 1].SectionId,
+                    resolution = chain.Correspondence.Any(item => item.SourceSectionId == chain.Sections[index].SectionId && item.TargetSectionId == chain.Sections[index + 1].SectionId) ? "Explicit" : "InferredSemanticIdentity",
+                    spans = chain.Sections[index].Profile.Spans.Select((span, spanIndex) => new { source = span.SpanId, target = chain.Sections[index + 1].Profile.Spans[spanIndex].SpanId })
+                }),
+                transitionPolicy = chain.TransitionPolicy,
+                startTermination = chain.StartTermination, endTermination = chain.EndTermination,
+                structure = materialized.StructureKind, transitions = materialized.Transitions
+            },
+            topology = new { bodies = materialized.Body.Topology.Bodies.Count(), shells = materialized.Body.Topology.Shells.Count(), faces = materialized.Body.Topology.Faces.Count(), edges = materialized.Body.Topology.Edges.Count(), vertices = materialized.Body.Topology.Vertices.Count() },
+            surfaceInventory = surfaces, rationalProductSurfaces = 0, facetedProductFallback = 0, pcurves = materialized.Pcurves,
+            selfIntersection = materialized.SelfIntersection,
+            stepReimport = new { success = reimport.IsSuccess, diagnostics = reimport.Diagnostics.Select(item => item.Message) },
+            timingsMilliseconds = materialized.Timing
+        };
+        var evidencePath = Path.ChangeExtension(output, ".evidence.json");
+        File.WriteAllText(evidencePath, JsonSerializer.Serialize(report, JsonOptions));
+        if (json) stdout.WriteLine(JsonSerializer.Serialize(report, JsonOptions));
+        else stdout.WriteLine($"Built SectionChain '{chain.StableId}' ({chain.Sections.Count} sections, {materialized.Transitions.Count} transitions).\nSTEP: {output}\nEvidence: {evidencePath}\nSHA-256: {Hash(export.Value)}\nSTEP reimport: {(reimport.IsSuccess ? "succeeded" : "failed")}");
+        return reimport.IsSuccess ? 0 : 1;
     }
 
     private static int RunSculptingBuild(string sourcePath, string? outPath, bool json, TextWriter stdout, TextWriter stderr)
@@ -4194,6 +4305,7 @@ Model CanonicalPanel {
         stdout.WriteLine("  modules    Inspect built-in engineering Modules and capabilities.");
         stdout.WriteLine("  sheetmetal Inspect/recover sheet semantics and generate manufacturing flat-pattern SVG.");
         stdout.WriteLine("  sculpture  Build bounded non-manufacturing virtual sculpture artifacts.");
+        stdout.WriteLine("  section-chain  Build bounded ruled SectionChain qualification artifacts.");
         stdout.WriteLine("  verify     Build/reimport and verify a model.");
         stdout.WriteLine("  reconstruct  Experimentally reconstruct a structured mesh from triangle PLY input.");
         stdout.WriteLine();
@@ -4211,6 +4323,7 @@ Model CanonicalPanel {
         stdout.WriteLine("  aetheris asm inspect bearing-module.firmament --json");
         stdout.WriteLine("  aetheris sheetmetal flatten bracket.firmament --step bracket-flat.step --svg bracket-flat.svg --json");
         stdout.WriteLine("  aetheris sculpture build fixtures/Canonical/VirtualSculpture/sol-1.sculpture.json");
+        stdout.WriteLine("  aetheris section-chain build flagship --json");
         stdout.WriteLine("  aetheris reconstruct mesh scan.ply --mode fast --out scan-remesh.obj --report scan-report.json");
         stdout.WriteLine();
         stdout.WriteLine("Run 'aetheris <command> --help' for command-specific usage.");

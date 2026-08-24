@@ -1,0 +1,22 @@
+Model OpenSectionChain {
+ Units: mm
+ Concept Struct Stations {
+  A: Plane { Origin: [0mm,0mm,0mm]; Normal: [1,0,0]; Up: [0,0,1] }
+  B: Plane { Origin: [20mm,0mm,0mm]; Normal: [1,0,0]; Up: [0,0,1] }
+ }
+ Construction Plane FA { Trace: Stations.A }
+ Construction Plane FB { Trace: Stations.B }
+ Concept Path Outline { Start: Point2(-5mm,-4mm) Heading: 0deg Line Bottom { Length: 10mm } Line Right { Turn: 90deg; Length: 8mm } Line Top { Turn: 90deg; Length: 10mm } Close Left }
+ Profile P From Outline
+ SectionChain OpenSectionChain {
+  Transition: Ruled
+  Section A { Frame: FA
+   Profile: P
+   Seam: Bottom }
+  Section B { Frame: FB
+   Profile: P
+   Seam: Bottom }
+  Start: Open
+  End: Open
+ }
+}

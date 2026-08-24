@@ -38,8 +38,14 @@ public sealed record BlendBoundaryOperation(
     int MaximumDegree = 10,
     double GeometricTolerance = 1e-6,
     double G1AngularToleranceDegrees = .1d,
-    double G2CurvatureTolerance = 1e-6)
+    double G2CurvatureTolerance = 1e-6) : IConstructionOperation
 {
+    public string OperationKind => "BlendBoundary";
+    public int SchemaVersion => 1;
+    public IReadOnlyList<string> Reads => [SupportA, SupportB, .. Preserves.Select(item => item.EntityId)];
+    public IReadOnlyList<string> MayModifySet => MayModify;
+    public SpatialInfluenceEnvelope AuthorizedEnvelope => InfluenceEnvelope;
+    public IReadOnlyList<PreservationContract> PreservationContracts => Preserves;
     public BlendJudgmentPolicy EffectivePolicy => Policy ?? BlendJudgmentPolicy.StandardBlendJudgment;
     public string Canonical => string.Join('|', StableId, SupportA, SupportB, Region, PreferredContinuity, MinimumContinuity,
         RegionWidth.ToString("R"), RegionDepth.ToString("R"), CrownHeight.ToString("R"), MaximumDegree,
@@ -202,7 +208,8 @@ public static class BlendBoundarySculptor
             });
         var outputId = BodyStateId.Derive($"{input.StateId.Value}|BlendBoundary|{operation.Canonical}|{selected.CandidateId}");
         var delta = realized.Delta with { OutputState = outputId, BlendJudgment = provenance };
-        var state = realized.OutputState with { StateId = outputId, Delta = delta, BlendJudgment = trace };
+        var authority = ConstructionAuthorityEvolution.Append(input, outputName, operation, outputId, delta, realized.Evidence);
+        var state = realized.OutputState with { StateId = outputId, Delta = delta, BlendJudgment = trace, ConstructionAuthority = authority };
         return new(true, state, delta, trace, []);
     }
 

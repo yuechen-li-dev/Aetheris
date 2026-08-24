@@ -44,6 +44,22 @@ public sealed class SurfX2BlendBoundaryTests
     }
 
     [Fact]
+    public void BlendPersistsAsBlendIntentAndReplaysWithoutCollapsingToReplaceRegion()
+    {
+        var compiled = SculptingAuthoring.CompileFile(Fixture("Canonical", "Sculpting", "surf-x2-judged-housing.firmament"));
+        Assert.True(compiled.IsSuccess);
+        var authority = Assert.IsType<ConstructionState>(compiled.OutputState!.ConstructionAuthority);
+        var operation = Assert.Single(authority.Operations);
+        Assert.Equal("BlendBoundary", operation.OperationKind);
+        Assert.IsType<BlendBoundaryOperation>(operation.Payload);
+
+        var replay = ConstructionStateReplayer.Replay(authority);
+        Assert.True(replay.IsSuccess, string.Join(" | ", replay.Diagnostics.Select(item => item.Message)));
+        Assert.Equal(compiled.OutputState.StateId, replay.OutputState!.StateId);
+        Assert.Equal(compiled.OutputState.BlendJudgment!.SelectedCandidateId, replay.OutputState.BlendJudgment!.SelectedCandidateId);
+    }
+
+    [Fact]
     public void ExplicitFallbackAndEligibleManualOverrideAreVisible()
     {
         var source = File.ReadAllText(Fixture("Canonical", "Sculpting", "surf-x2-judged-housing.firmament"));

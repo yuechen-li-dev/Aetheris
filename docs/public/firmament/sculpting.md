@@ -15,6 +15,10 @@ Base -> CrownHigh
 
 Both variants can share `Base`; neither mutates it or the other. State IDs are deterministic hashes of the predecessor and canonical operation contract. Ordinary authoring always references the current predecessor, not topology from an arbitrary historical state.
 
+`BodyState` is reconstructed from a versioned typed `ConstructionState`. Its authority is a `BaseConstruction` plus an ordered list of semantic operations such as `OffsetRegion`, `ReplaceRegion`, `BlendBoundary`, `HoleFeature`, `AddSectionChain`, and `RemoveSectionChain`. Each retained operation records stable identity, payload version, authored inputs, predecessor/output relationship, reads, `MayModify`, authorized envelope, preservation contracts, `GeometricDelta`, and validation evidence. The BRep and effective housing recipe are realized evidence, not design-history authority.
+
+Rebuild means realizing the base and replaying operations in order. Each operation validates against its newly realized predecessor. If operation N fails, no State N is returned and State N-1 remains authoritative with `bodystate-operation-replay-failed` evidence. Serialization uses the explicit `aetheris.surfacing.construction-state` schema; opaque delegates and generic Boolean history are not admitted.
+
 ## X0 authoring
 
 The current operation is `OffsetRegion`. The canonical controller-cover example is [`fixtures/Canonical/Sculpting/sculpted-housing.firmament`](../../../fixtures/Canonical/Sculpting/sculpted-housing.firmament):
@@ -172,6 +176,29 @@ An invalid candidate never receives utility. The standard policy scores only eli
 
 This utility judgment is a repeatable engineering selector, not proof of aesthetic superiority. Review highlight flow, unexpected flat spots, curvature bumps, creases, symmetry, locality, and mounting-interface preservation in a capable STEP viewer before aesthetic approval.
 
+## X3b persistent SectionChain sculpting
+
+The bounded additive form is:
+
+```firmament
+SculptState GripAdded {
+  Input: Base
+  AddSectionChain Grip {
+    Chain: GripChain
+    Support: HousingSideEast
+    Terminal: Attach
+    InfluenceEnvelope: [40mm, -20mm, 0mm, 100mm, 20mm, 20mm]
+  }
+  MayModify: [HousingSideEast]
+  Preserve: [BottomMountingInterface, MountingHolePattern]
+  Require: [ClosedManifold, OrientationConsistency, NoSelfIntersection]
+}
+```
+
+In sculpting sources, the qualified compact chain form contains ordered `Station` blocks with +X `Origin` and rectangular `Size`; the first additive station is support-relative. The complete canonical fixture has five changing stations. `RemoveSectionChain` instead declares `Supports: [HousingSideWest, HousingSideEast]` and uses absolute monotonically increasing X stations for the through-duct corridor.
+
+Support identity is semantic. Deleting or replacing it does not trigger nearest-face discovery; replay fails with `bodystate-operation-support-missing`. A wider housing keeps `HousingSideEast`, so the relative additive attachment translates deterministically when its authorized envelope still contains the result. Preservation and locality are rechecked on every replay. A safe `HoleFeature` after the admitted additive lane reconstructs the retained chain rather than erasing it.
+
 ## Guarantees and evidence
 
 The housing lane verifies:
@@ -199,4 +226,4 @@ The X0 housing emits only `PLANE` and `CYLINDRICAL_SURFACE`. The X1 flagship add
 
 ## Current limits
 
-The admitted X2 materializer is limited to one rectangular housing crown transitioning to its coplanar analytic shoulder through the exact polynomial family above. It does not provide arbitrary intersection networks, general Plane/Cylinder or Cylinder/Cylinder blends, general Cylinder/B-spline or B-spline/B-spline discovery, arbitrary nested islands, variable blend laws, a free control-net optimizer, N-way junctions, Shell, Draft, or arbitrary patch networks. [SectionChain](section-chains.md) now has standalone Firmament text authoring and a ruled-loft materialization path, but BodyState `AddSectionChain`/`RemoveSectionChain` remain unqualified. Existing exact Fillet and Chamfer authoring and materializers are unchanged: a fillet is conceptually a constrained blend specialization, while a planar chamfer should remain planar rather than being forced through freeform machinery.
+The admitted X2 materializer is limited to one rectangular housing crown transitioning to its coplanar analytic shoulder through the exact polynomial family above. It does not provide arbitrary intersection networks, general Plane/Cylinder or Cylinder/Cylinder blends, general Cylinder/B-spline or B-spline/B-spline discovery, arbitrary nested islands, variable blend laws, a free control-net optimizer, N-way junctions, Shell, Draft, or arbitrary patch networks. [SectionChain](section-chains.md) BodyState composition is limited to the documented planar east attachment and west-to-east through-duct lanes. Existing exact Fillet and Chamfer authoring and materializers are unchanged: a fillet is conceptually a constrained blend specialization, while a planar chamfer should remain planar rather than being forced through freeform machinery.

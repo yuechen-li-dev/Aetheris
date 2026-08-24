@@ -1,5 +1,13 @@
 {
   "schemaVersion": 1,
+  "expectedDiagnostics": [
+    { "path": "PlasticShell/plastic-shell-autorib-materialized.firmament", "codes": ["plastic-shell-constant-section-feature-zero-draft"] },
+    { "path": "PlasticShell/plastic-shell-enclosure.firmament", "codes": ["plastic-shell-constant-section-feature-zero-draft"] },
+    { "path": "PlasticShell/plastic-shell-materialized-enclosure.firmament", "codes": ["plastic-shell-constant-section-feature-zero-draft"] },
+    { "path": "PlasticShell/plastic-shell-materialized-rib.firmament", "codes": ["plastic-shell-constant-section-feature-zero-draft"] },
+    { "path": "PlasticShell/plastic-shell-materialized-standoff.firmament", "codes": ["plastic-shell-constant-section-feature-zero-draft"] },
+    { "path": "PlasticShell/plastic-shell-rib-standoff-junction.firmament", "codes": ["plastic-shell-constant-section-feature-zero-draft"] }
+  ],
   "actions": [
     { "path": "Assembly", "operation": "assembly-inspect" },
     { "path": "Drawings", "operation": "drawing-compile" },
@@ -7,6 +15,8 @@
     { "path": "Materials", "operation": "fea-solve" },
     { "path": "SheetMetal", "operation": "sheet-metal-flatten" },
     { "path": "Sculpting", "operation": "build-step" },
+    { "path": "BodyState", "operation": "build-step" },
+    { "path": "SectionChain", "operation": "section-chain-build" },
     { "path": "Structural", "operation": "build-step" },
     { "path": "Piping", "operation": "build-step" },
     { "path": "PlasticShell", "operation": "build-step" },

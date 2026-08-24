@@ -62,6 +62,46 @@ public sealed class SurfX0SculptingTests
     }
 
     [Fact]
+    public void TypedConstructionAuthorityRoundTripsAndReplaysDeterministically()
+    {
+        var compiled = Compile("Canonical/Sculpting/sculpted-housing.firmament");
+        var authored = Assert.IsType<ConstructionState>(compiled.OutputState!.ConstructionAuthority);
+        var operation = Assert.Single(authored.Operations);
+        Assert.Equal("OffsetRegion", operation.OperationKind);
+        Assert.IsType<OffsetRegionOperation>(operation.Payload);
+
+        var serialized = ConstructionStateSerializer.Serialize(authored);
+        Assert.True(serialized.IsSuccess, string.Join(" | ", serialized.Diagnostics.Select(item => item.Message)));
+        var deserialized = ConstructionStateSerializer.Deserialize(serialized.Json!);
+        Assert.True(deserialized.IsSuccess, string.Join(" | ", deserialized.Diagnostics.Select(item => item.Message)));
+
+        var replay = ConstructionStateReplayer.Replay(deserialized.ConstructionState!);
+        Assert.True(replay.IsSuccess, string.Join(" | ", replay.Diagnostics.Select(item => item.Message)));
+        Assert.Equal(compiled.OutputState.StateId, replay.OutputState!.StateId);
+        Assert.Equal(SculptStepExporter.Export(compiled.OutputState, compiled.ModelName).Step,
+            SculptStepExporter.Export(replay.OutputState, compiled.ModelName).Step);
+        Assert.All(replay.OutputState.ConstructionAuthority!.Operations,
+            item => Assert.Equal(ConstructionReplayStatus.ReplayedAndValidated, item.ReplayStatus));
+    }
+
+    [Fact]
+    public void ReplayFailureIsAtomicAndLeavesPredecessorAuthoritative()
+    {
+        var authored = Compile("Canonical/Sculpting/sculpted-housing.firmament").OutputState!.ConstructionAuthority!;
+        var operation = authored.Operations.Single();
+        var unsupported = operation with { PayloadVersion = 99 };
+        var replay = ConstructionStateReplayer.Replay(authored with { Operations = [unsupported] });
+
+        Assert.False(replay.IsSuccess);
+        Assert.Null(replay.OutputState);
+        Assert.NotNull(replay.AuthoritativePredecessor);
+        Assert.Null(replay.AuthoritativePredecessor!.PredecessorStateId);
+        Assert.Equal(operation.OperationId, replay.FailedOperation!.OperationId);
+        Assert.Contains(replay.Diagnostics, item => item.Code == "bodystate-operation-replay-failed");
+        Assert.Contains(replay.Diagnostics, item => item.Code == "bodystate-operation-version-unsupported");
+    }
+
+    [Fact]
     public void TemporaryEqualWeightRationalSurfaceRecoversExactPlaneAndNonRemovableRationalityBlocks()
     {
         var points = new[] { new[] { new Aetheris.Kernel.Core.Math.Point3D(0, 0, 0), new(0, 1, 0) }, new[] { new Aetheris.Kernel.Core.Math.Point3D(1, 0, 0), new(1, 1, 0) } };

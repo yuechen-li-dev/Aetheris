@@ -30,6 +30,19 @@
 - `surf-certified-bounds-invalid`: a claimed exact polynomial bounds certificate does not contain deterministic surface samples.
 - `surf-selector-target-replaced`: a historical native or imported selector has an explicit successor and cannot be reused.
 
+## Construction-state replay and SectionChain sculpting (SURF-X3b)
+
+- `bodystate-operation-replay-failed`: replay stopped atomically at the named typed operation; the reported predecessor remains authoritative.
+- `bodystate-operation-order-invalid`: an operation's authored predecessor does not equal the preceding operation's authored output; replay does not reorder or guess intent.
+- `bodystate-operation-version-unsupported`: the retained operation payload version is not admitted.
+- `bodystate-operation-support-missing`: a semantic support read by an operation is absent; Aetheris does not guess a nearest face.
+- `bodystate-preserved-region-modified`: realized construction touched a protected semantic region.
+- `section-chain-add-not-attached`: the additive terminal does not exactly correspond to its support, or no positive connected volume resulted.
+- `section-chain-add-remote-intersection`: a non-terminal additive section crosses the predecessor outside the intended attachment.
+- `section-chain-remove-no-material`: the admitted removal corridor does not remove positive bounded material.
+- `section-chain-remove-disconnects-body`: a duct reaches the protected outer boundary and would sever the admitted housing result.
+- `section-chain-housing-base-unsupported`: an upstream crown/patch changed the predecessor outside the currently qualified planar composition lane.
+
 Start with `aetheris validate source.firmament --json`; use `build` when geometry, AP242, assertions, or artifacts are involved. A diagnostic code is the stable automation key, while its message identifies the value/target and expected category where useful.
 
 Common recovery patterns:

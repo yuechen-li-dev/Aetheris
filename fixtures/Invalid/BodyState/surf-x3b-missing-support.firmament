@@ -1,0 +1,27 @@
+Model SurfX3bMissingSupport {
+  Units: mm
+  SectionChain GripChain {
+    StartTermination: Open
+    EndTermination: Cap
+    Station Attach { Origin: [0mm, 0mm, 10mm]
+      Size: [40mm, 20mm] }
+    Station Tail { Origin: [20mm, 0mm, 10mm]
+      Size: [12mm, 8mm] }
+  }
+  BodyState Base {
+    Size: [80mm, 40mm, 20mm]
+    Hole MountA { Center: [-25mm, -12mm]
+      Diameter: 4mm }
+  }
+  SculptState InvalidGrip {
+    Input: Base
+    AddSectionChain Grip { Chain: GripChain
+      Support: DeletedSupport
+      Terminal: Attach
+      InfluenceEnvelope: [40mm, -20mm, 0mm, 60mm, 20mm, 20mm] }
+    MayModify: [DeletedSupport]
+    Preserve: [BottomMountingInterface]
+    Require: [ClosedManifold]
+  }
+  Output: InvalidGrip
+}

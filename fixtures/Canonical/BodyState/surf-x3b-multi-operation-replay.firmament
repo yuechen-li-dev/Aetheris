@@ -1,0 +1,55 @@
+Model SurfX3bMultiOperationReplay {
+  Units: mm
+
+  SectionChain GripChain {
+    StartTermination: Open
+    EndTermination: Cap
+    Station Attach { Origin: [0mm, 0mm, 10mm]
+      Size: [40mm, 20mm] }
+    Station Neck { Origin: [12mm, 0mm, 10mm]
+      Size: [32mm, 18mm] }
+    Station Palm { Origin: [28mm, 0mm, 10mm]
+      Size: [25mm, 15mm] }
+    Station Tail { Origin: [45mm, 0mm, 10mm]
+      Size: [12mm, 9mm] }
+  }
+
+  BodyState Base {
+    Size: [80mm, 40mm, 20mm]
+    Hole MountA { Center: [-25mm, -12mm]
+      Diameter: 4mm }
+    Hole MountB { Center: [25mm, 12mm]
+      Diameter: 4mm }
+  }
+  SculptState HoleOne {
+    Input: Base
+    HoleFeature AuxOne { Target: HousingCrown
+      Id: AuxOne
+      Center: [-10mm, 10mm]
+      Diameter: 3mm
+      InfluenceEnvelope: [-11.5mm, 8.5mm, 0mm, -8.5mm, 11.5mm, 20mm] }
+    Preserve: [OuterFootprintBoundary]
+    Require: [ClosedManifold, OrientationConsistency, NoSelfIntersection]
+  }
+  SculptState HoleTwo {
+    Input: HoleOne
+    HoleFeature AuxTwo { Target: HousingCrown
+      Id: AuxTwo
+      Center: [10mm, -10mm]
+      Diameter: 3mm
+      InfluenceEnvelope: [8.5mm, -11.5mm, 0mm, 11.5mm, -8.5mm, 20mm] }
+    Preserve: [OuterFootprintBoundary]
+    Require: [ClosedManifold, OrientationConsistency, NoSelfIntersection]
+  }
+  SculptState GripAdded {
+    Input: HoleTwo
+    AddSectionChain Grip { Chain: GripChain
+      Support: HousingSideEast
+      Terminal: Attach
+      InfluenceEnvelope: [40mm, -20mm, 0mm, 85mm, 20mm, 20mm] }
+    MayModify: [HousingSideEast]
+    Preserve: [BottomMountingInterface, MountingHolePattern]
+    Require: [ClosedManifold, OrientationConsistency, NoSelfIntersection]
+  }
+  Output: GripAdded
+}

@@ -28,7 +28,7 @@ $forbidden = @(
 )
 
 $failures = [Collections.Generic.List[string]]::new()
-$requiredFeatures = @('Box', 'Cylinder', 'Sphere', 'Cone', 'Torus', 'Profile', 'Sweep', 'Paperclip', 'Boss', 'Pocket', 'Hole', 'BlindHole', 'Counterbore', 'Countersink', 'Slot', 'Pattern', 'Chamfer', 'Fillet', 'Material', 'PMI', 'Template', 'SheetMetal', 'FEA', 'inlineSTEP', 'Assembly', 'Piping')
+$requiredFeatures = @('Box', 'Cylinder', 'Sphere', 'Cone', 'Torus', 'Profile', 'Sweep', 'Paperclip', 'Boss', 'Pocket', 'Hole', 'BlindHole', 'Counterbore', 'Countersink', 'Slot', 'Pattern', 'Chamfer', 'Fillet', 'Material', 'PMI', 'Template', 'SheetMetal', 'FEA', 'inlineSTEP', 'Assembly', 'Piping', 'ConstructionStateReplay', 'AddSectionChain', 'RemoveSectionChain', 'PostSectionChainHole')
 foreach ($feature in $requiredFeatures) {
     $entry = $coverage.features.$feature
     if ([string]::IsNullOrWhiteSpace($entry)) { $failures.Add("coverage: missing $feature"); continue }
@@ -52,6 +52,7 @@ foreach ($file in Get-ChildItem -LiteralPath $canonicalRoot -Recurse -Filter '*.
     New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
     $arguments = switch ($action.operation) {
         'build-step' { @('build', $file.FullName, '--output', (Join-Path $outputDirectory "$stem.step"), '--json') }
+        'section-chain-build' { @('section-chain', 'build', $file.FullName, '--out', (Join-Path $outputDirectory "$stem.step"), '--json') }
         'sheet-metal-flatten' { @('sheetmetal', 'flatten', $file.FullName, '--step', (Join-Path $outputDirectory "$stem-flat.step"), '--svg', (Join-Path $outputDirectory "$stem-flat.svg"), '--json') }
         'fea-solve' { @('fea', $file.FullName, '--out-dir', $outputDirectory, '--json') }
         'assembly-inspect' { @('asm', 'inspect', $file.FullName, '--json') }
@@ -63,8 +64,22 @@ foreach ($file in Get-ChildItem -LiteralPath $canonicalRoot -Recurse -Filter '*.
         $failures.Add("${relative}: $($action.operation) exited $LASTEXITCODE`n$output")
         continue
     }
-    if ($output -match '"severity"\s*:\s*"(?:warning|error|fatal)"') {
-        $failures.Add("${relative}: qualification emitted a warning/error diagnostic`n$output")
+    try {
+        $result = $output | ConvertFrom-Json
+    }
+    catch {
+        $failures.Add("${relative}: qualification did not emit valid JSON`n$output")
+        continue
+    }
+    $expectedEntry = $manifest.expectedDiagnostics | Where-Object { $_.path -eq $relative } | Select-Object -First 1
+    $expectedCodes = @($expectedEntry.codes)
+    $emitted = @($result.diagnostics | Where-Object { $_.severity -in @('warning', 'error', 'fatal') })
+    $unexpected = @($emitted | Where-Object { $_.code -notin $expectedCodes })
+    $missing = @($expectedCodes | Where-Object { $_ -notin @($emitted.code) })
+    if ($unexpected.Count -gt 0 -or $missing.Count -gt 0) {
+        $unexpectedCodes = @($unexpected.code) -join ', '
+        $missingCodes = $missing -join ', '
+        $failures.Add("${relative}: diagnostic contract mismatch (unexpected: [$unexpectedCodes]; missing: [$missingCodes])`n$output")
         continue
     }
     $qualified++

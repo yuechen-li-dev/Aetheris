@@ -21,6 +21,8 @@ public static class SculptedHousingFactory
     public const string CrownBoundaryEast = "CrownBoundaryEast";
     public const string CrownBoundaryNorth = "CrownBoundaryNorth";
     public const string CrownBoundaryWest = "CrownBoundaryWest";
+    public const string HousingSideEast = "HousingSideEast";
+    public const string HousingSideWest = "HousingSideWest";
 
     public static SculptResult CreateBase(string stateName, double width, double depth, double height, IReadOnlyList<HousingHole> holes)
     {
@@ -35,7 +37,7 @@ public static class SculptedHousingFactory
             [new("sculpt-base-invalid", "Initial body did not satisfy the body-state validity contract: " + string.Join("; ", evidence.Where(x => !x.Satisfied).Select(x => $"{x.Check}: {x.Detail}")))], evidence);
         var associations = PersistentAssociations(built.Body, construction);
         return new(true, new(stateId, null, "housing-body", stateName, built.Body, construction, inventory, null, evidence,
-            associations, SemanticPmi(associations, construction), AssemblyInterfaces(associations)), null, evidence, []);
+            associations, SemanticPmi(associations, construction), AssemblyInterfaces(associations), ConstructionAuthority: ConstructionState.FromHousing(construction)), null, evidence, []);
     }
 
     internal static IReadOnlyDictionary<string, SculptSemanticEntity> Inventory(HousingConstruction c)
@@ -52,6 +54,8 @@ public static class SculptedHousingFactory
             [CrownBoundaryEast] = new(CrownBoundaryEast, SculptEntityKind.Region, $"east:{c.CrownDepth:R}@x={c.CrownWidth / 2d:R};z={c.BaseHeight:R}", "East replacement boundary."),
             [CrownBoundaryNorth] = new(CrownBoundaryNorth, SculptEntityKind.Region, $"north:{c.CrownWidth:R}@y={c.CrownDepth / 2d:R};z={c.BaseHeight:R}", "North replacement boundary."),
             [CrownBoundaryWest] = new(CrownBoundaryWest, SculptEntityKind.Region, $"west:{c.CrownDepth:R}@x={-c.CrownWidth / 2d:R};z={c.BaseHeight:R}", "West replacement boundary."),
+            [HousingSideEast] = new(HousingSideEast, SculptEntityKind.Region, $"plane:x={c.Width / 2d:R};y={-c.Depth / 2d:R}..{c.Depth / 2d:R};z=0..{c.BaseHeight:R}", "Semantic east housing support region."),
+            [HousingSideWest] = new(HousingSideWest, SculptEntityKind.Region, $"plane:x={-c.Width / 2d:R};y={-c.Depth / 2d:R}..{c.Depth / 2d:R};z=0..{c.BaseHeight:R}", "Semantic west housing support region."),
         };
         foreach (var hole in c.Holes) inventory[hole.StableId] = new(hole.StableId, SculptEntityKind.Region, HoleFingerprint(hole), "Stable mounting-hole feature.");
         return inventory;
@@ -74,8 +78,10 @@ public static class SculptedHousingFactory
 
     internal static IReadOnlyList<PersistentGeometryAssociation> PersistentAssociations(BrepBody body, HousingConstruction construction)
     {
-        var bottom = body.Topology.Faces.Where(face => body.TryGetFaceSurfaceGeometry(face.Id, out var support)
-            && support?.Plane is { } plane && Math.Abs(plane.Origin.Z) <= 1e-8d && plane.Normal.ToVector().Z < 0d).Select(face => face.Id.Value).ToArray();
+        var bottomCandidates = body.Topology.Faces.Where(face => body.TryGetFaceSurfaceGeometry(face.Id, out var support)
+            && support?.Plane is { } plane && Math.Abs(plane.Origin.Z) <= 1e-8d && plane.Normal.ToVector().Z < -1d + 1e-8d).ToArray();
+        var maximumLoopCount = bottomCandidates.Select(face => face.LoopIds.Count).DefaultIfEmpty().Max();
+        var bottom = bottomCandidates.Where(face => face.LoopIds.Count == maximumLoopCount).Select(face => face.Id.Value).ToArray();
         var cylinders = body.Topology.Faces.Where(face => body.TryGetFaceSurfaceGeometry(face.Id, out var support) && support?.Cylinder is not null)
             .Select(face => face.Id.Value).Order().ToArray();
         return
@@ -201,8 +207,9 @@ public static class OffsetRegionSculptor
         var associationRemap = SculptedHousingFactory.RemapPersistentAssociations(input, built.Body, delta);
         if (!associationRemap.IsSuccess) return SculptResult.Failure(associationRemap.Diagnostics, evidence);
         var outputAssociations = associationRemap.Associations;
+        var authority = ConstructionAuthorityEvolution.Append(input, outputName, operation, outputId, delta, evidence);
         var output = new BodyState(outputId, input.StateId, input.BodyStableId, outputName, built.Body, outputConstruction, inventory, delta, evidence,
-            outputAssociations, SculptedHousingFactory.SemanticPmi(outputAssociations, outputConstruction), SculptedHousingFactory.AssemblyInterfaces(outputAssociations));
+            outputAssociations, SculptedHousingFactory.SemanticPmi(outputAssociations, outputConstruction), SculptedHousingFactory.AssemblyInterfaces(outputAssociations), ConstructionAuthority: authority);
         return new(true, output, delta, evidence, []);
     }
 }
@@ -349,8 +356,9 @@ public static class ReplaceRegionSculptor
         var associationRemap = SculptedHousingFactory.RemapPersistentAssociations(input, built.Body, delta);
         if (!associationRemap.IsSuccess) return SculptResult.Failure(associationRemap.Diagnostics, evidence);
         var outputAssociations = associationRemap.Associations;
+        var authority = ConstructionAuthorityEvolution.Append(input, outputName, operation, outputId, delta, evidence);
         return new(true, new(outputId, input.StateId, input.BodyStableId, outputName, built.Body, construction, inventory, delta, evidence,
-            outputAssociations, SculptedHousingFactory.SemanticPmi(outputAssociations, construction), SculptedHousingFactory.AssemblyInterfaces(outputAssociations)), delta, evidence, []);
+            outputAssociations, SculptedHousingFactory.SemanticPmi(outputAssociations, construction), SculptedHousingFactory.AssemblyInterfaces(outputAssociations), ConstructionAuthority: authority), delta, evidence, []);
     }
 
     private static IReadOnlyList<Point3D> Sample(BoundedSurfacePatch patch, int count)
@@ -437,13 +445,30 @@ public static class SafeHoleSculptor
         if (diagnostics.Count > 0) return SculptResult.Failure(diagnostics);
 
         var construction = input.Construction with { Holes = [.. input.Construction.Holes, operation.Hole] };
-        var built = SculptedHousingBrepBuilder.Build(construction);
-        if (built.Body is null) return SculptResult.Failure(built.Diagnostics);
+        var retainedAdd = input.ConstructionAuthority?.Operations.LastOrDefault()?.Payload as AddSectionChainOperation;
+        BrepBody? realizedBody; IReadOnlyList<SculptDiagnostic> buildDiagnostics;
+        if (retainedAdd is not null)
+        {
+            var retained = SectionChainHousingBrepBuilder.BuildAddEast(construction, retainedAdd.Chain);
+            realizedBody = retained.Body; buildDiagnostics = retained.Diagnostics;
+        }
+        else
+        {
+            var built = SculptedHousingBrepBuilder.Build(construction);
+            realizedBody = built.Body; buildDiagnostics = built.Diagnostics;
+        }
+        if (realizedBody is null) return SculptResult.Failure(buildDiagnostics);
         var inventory = SculptedHousingFactory.Inventory(construction).ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal);
         if (construction.ReplacementPatch is { } patch)
         {
             inventory.Remove(SculptedHousingFactory.CrownRegion);
             inventory[patch.PatchId] = new(patch.PatchId, SculptEntityKind.Surface, $"{patch.ExportClass}:{patch.DegreeU}x{patch.DegreeV}:{patch.ControlCountU}x{patch.ControlCountV}", "Accepted bounded replacement patch.");
+        }
+        if (retainedAdd is not null)
+        {
+            inventory.Remove(retainedAdd.Attachment.SupportRegion);
+            var successor = $"{retainedAdd.Chain.StableId}.AttachedSurface";
+            inventory[successor] = input.SemanticInventory[successor];
         }
         foreach (var contract in operation.Preserves)
         {
@@ -451,15 +476,16 @@ public static class SafeHoleSculptor
             evidence.Add(new($"Preserve:{contract.EntityId}", satisfied, LocalityEvidenceLevel.ExactSemantic, satisfied ? 0d : null, 1e-6, satisfied ? "Current-state semantic identity and geometry fingerprint are unchanged." : "Preserved geometry changed."));
             if (!satisfied) diagnostics.Add(new("sculpt-preservation-failed", $"Preservation contract failed for '{contract.EntityId}'.", contract.EntityId));
         }
-        evidence.AddRange(SculptedHousingFactory.ValidateBody(built.Body, 1e-6));
+        evidence.AddRange(SculptedHousingFactory.ValidateBody(realizedBody, 1e-6));
         if (diagnostics.Count > 0 || evidence.Any(x => !x.Satisfied)) return SculptResult.Failure(diagnostics, evidence);
         var outputId = BodyStateId.Derive($"{input.StateId.Value}|HoleFeature|{operation.Canonical}");
         var correspondence = operation.Preserves.Select(x => new GeometricDeltaEntry(x.EntityId, GeometricChangeKind.Preserved, [x.EntityId], "Resolved and verified against the current BodyState."))
             .Append(new("<none>", GeometricChangeKind.Introduced, [operation.Hole.StableId], "Exact cylindrical through-hole on the current planar frame.")).ToArray();
         var delta = new GeometricDelta(input.StateId, outputId, [operation.TargetRegion], operation.Preserves.Select(x => x.EntityId).ToArray(), [], [], [operation.Hole.StableId], [operation.TargetRegion], operation.InfluenceEnvelope, correspondence);
-        var outputAssociations = SculptedHousingFactory.PersistentAssociations(built.Body, construction);
-        return new(true, new(outputId, input.StateId, input.BodyStableId, outputName, built.Body, construction, inventory, delta, evidence,
-            outputAssociations, SculptedHousingFactory.SemanticPmi(outputAssociations, construction), SculptedHousingFactory.AssemblyInterfaces(outputAssociations)), delta, evidence, []);
+        var outputAssociations = SculptedHousingFactory.PersistentAssociations(realizedBody, construction);
+        var authority = ConstructionAuthorityEvolution.Append(input, outputName, operation, outputId, delta, evidence);
+        return new(true, new(outputId, input.StateId, input.BodyStableId, outputName, realizedBody, construction, inventory, delta, evidence,
+            outputAssociations, SculptedHousingFactory.SemanticPmi(outputAssociations, construction), SculptedHousingFactory.AssemblyInterfaces(outputAssociations), ConstructionAuthority: authority), delta, evidence, []);
     }
 }
 

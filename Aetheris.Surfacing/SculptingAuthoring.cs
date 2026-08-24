@@ -20,6 +20,7 @@ public static class SculptingAuthoring
     {
         var total = Stopwatch.StartNew(); var diagnostics = new List<SculptDiagnostic>(); var states = new Dictionary<string, BodyState>(StringComparer.Ordinal);
         var patches = new Dictionary<string, BoundedSurfacePatch>(StringComparer.Ordinal);
+        var sectionChains = new Dictionary<string, SectionChain>(StringComparer.Ordinal);
         var model = ModelHeader.Match(source); if (!model.Success) return Fail("<unknown>", "sculpt-source-malformed", "Sculpting source requires 'Model Name { ... }'.");
         if (!Regex.IsMatch(source, @"\bUnits\s*:\s*mm\b", RegexOptions.CultureInvariant)) diagnostics.Add(new("sculpt-units-invalid", "SURF-X0 authoring requires millimetres."));
         foreach (var block in Blocks(source, "SurfacePatch"))
@@ -43,6 +44,18 @@ public static class SculptingAuthoring
                 diagnostics.Add(new("surf-patch-invalid", $"SurfacePatch '{block.Name}' is invalid: {exception.Message}", block.Name));
             }
         }
+        foreach (var block in Blocks(source, "SectionChain"))
+        {
+            var chain = ParseSectionChain(block, diagnostics);
+            if (chain is null) continue;
+            var qualification = SectionChainMaterializer.Materialize(chain);
+            if (!qualification.IsSuccess)
+            {
+                diagnostics.AddRange(qualification.Diagnostics.Select(item => new SculptDiagnostic(item.Code, item.Message, block.Name)));
+                continue;
+            }
+            if (!sectionChains.TryAdd(block.Name, chain)) diagnostics.Add(new("section-chain-duplicate", $"SectionChain '{block.Name}' is declared more than once.", block.Name));
+        }
         var baseClock = Stopwatch.StartNew();
         foreach (var block in Blocks(source, "BodyState"))
         {
@@ -62,7 +75,41 @@ public static class SculptingAuthoring
             var replaceBlock = Blocks(block.Body, "ReplaceRegion").SingleOrDefault();
             var blendBlock = Blocks(block.Body, "BlendBoundary").SingleOrDefault();
             var holeBlock = Blocks(block.Body, "HoleFeature").SingleOrDefault();
-            if (new[] { operationBlock, replaceBlock, blendBlock, holeBlock }.Count(x => x is not null) != 1) { diagnostics.Add(new("sculpt-operation-unsupported", $"SculptState '{block.Name}' requires exactly one OffsetRegion, ReplaceRegion, BlendBoundary, or HoleFeature operation.")); continue; }
+            var addChainBlock = Blocks(block.Body, "AddSectionChain").SingleOrDefault();
+            var removeChainBlock = Blocks(block.Body, "RemoveSectionChain").SingleOrDefault();
+            if (new[] { operationBlock, replaceBlock, blendBlock, holeBlock, addChainBlock, removeChainBlock }.Count(x => x is not null) != 1) { diagnostics.Add(new("sculpt-operation-unsupported", $"SculptState '{block.Name}' requires exactly one OffsetRegion, ReplaceRegion, BlendBoundary, HoleFeature, AddSectionChain, or RemoveSectionChain operation.")); continue; }
+            if (addChainBlock is not null)
+            {
+                var chainName = ScalarText(addChainBlock.Body, "Chain"); var support = ScalarText(addChainBlock.Body, "Support") ?? string.Empty;
+                var terminal = ScalarText(addChainBlock.Body, "Terminal") ?? string.Empty; var chainEnvelope = Vector(addChainBlock.Body, "InfluenceEnvelope", 6, diagnostics);
+                var addMayModify = List(block.Body, "MayModify"); var addPreserve = List(block.Body, "Preserve"); var addRequirements = ParseRequirements(List(block.Body, "Require"), diagnostics);
+                operationClock.Stop(); opConstruction += operationClock.Elapsed;
+                if (chainName is null || !sectionChains.TryGetValue(chainName, out var chain)) diagnostics.Add(new("section-chain-unresolved", $"AddSectionChain in '{block.Name}' must reference a declared SectionChain."));
+                if (chainEnvelope is null || chainName is null || !sectionChains.TryGetValue(chainName, out chain)) continue;
+                var correspondence = chain.Sections[0].Profile.Spans.Select(span => new SectionSpanCorrespondence(span.SpanId, span.SpanId)).ToArray();
+                var addOperation = new AddSectionChainOperation(block.Name + ".AddSectionChain", chain,
+                    new(support, terminal, SectionChainAttachmentPlacement.RelativeToSupport, correspondence), addMayModify,
+                    new(chainEnvelope[0], chainEnvelope[1], chainEnvelope[2], chainEnvelope[3], chainEnvelope[4], chainEnvelope[5]), addPreserve.Select(Preservation).ToArray(), addRequirements);
+                var addResult = AddSectionChainSculptor.Apply(input, block.Name, addOperation);
+                if (!addResult.IsSuccess || addResult.OutputState is null) diagnostics.AddRange(addResult.Diagnostics);
+                else if (!states.TryAdd(block.Name, addResult.OutputState)) diagnostics.Add(new("sculpt-state-duplicate", $"State '{block.Name}' is declared more than once."));
+                continue;
+            }
+            if (removeChainBlock is not null)
+            {
+                var chainName = ScalarText(removeChainBlock.Body, "Chain"); var supports = List(removeChainBlock.Body, "Supports");
+                var chainEnvelope = Vector(removeChainBlock.Body, "InfluenceEnvelope", 6, diagnostics);
+                var removeMayModify = List(block.Body, "MayModify"); var removePreserve = List(block.Body, "Preserve"); var removeRequirements = ParseRequirements(List(block.Body, "Require"), diagnostics);
+                operationClock.Stop(); opConstruction += operationClock.Elapsed;
+                if (chainName is null || !sectionChains.TryGetValue(chainName, out var chain)) diagnostics.Add(new("section-chain-unresolved", $"RemoveSectionChain in '{block.Name}' must reference a declared SectionChain."));
+                if (chainEnvelope is null || chainName is null || !sectionChains.TryGetValue(chainName, out chain)) continue;
+                var removeOperation = new RemoveSectionChainOperation(block.Name + ".RemoveSectionChain", chain, supports, removeMayModify,
+                    new(chainEnvelope[0], chainEnvelope[1], chainEnvelope[2], chainEnvelope[3], chainEnvelope[4], chainEnvelope[5]), removePreserve.Select(Preservation).ToArray(), removeRequirements);
+                var removeResult = RemoveSectionChainSculptor.Apply(input, block.Name, removeOperation);
+                if (!removeResult.IsSuccess || removeResult.OutputState is null) diagnostics.AddRange(removeResult.Diagnostics);
+                else if (!states.TryAdd(block.Name, removeResult.OutputState)) diagnostics.Add(new("sculpt-state-duplicate", $"State '{block.Name}' is declared more than once."));
+                continue;
+            }
             if (holeBlock is not null)
             {
                 var holeTarget = ScalarText(holeBlock.Body, "Target") ?? string.Empty; var holeId = ScalarText(holeBlock.Body, "Id") ?? string.Empty;
@@ -158,6 +205,29 @@ public static class SculptingAuthoring
         }
         if (result.Count == 0) diagnostics.Add(new("sculpt-hole-pattern-required", "The X0 housing witness requires at least one bounded mounting hole."));
         return result;
+    }
+
+    private static SectionChain? ParseSectionChain(Block block, List<SculptDiagnostic> diagnostics)
+    {
+        var stations = new List<Section>(); var spanIds = new[] { "South", "East", "North", "West" };
+        foreach (var station in Blocks(block.Body, "Station"))
+        {
+            var origin = Vector(station.Body, "Origin", 3, diagnostics); var size = Vector(station.Body, "Size", 2, diagnostics);
+            if (origin is null || size is null) continue;
+            if (size[0] <= 0d || size[1] <= 0d) { diagnostics.Add(new("section-chain-profile-size-invalid", $"Station '{station.Name}' Size must be positive.", station.Name)); continue; }
+            var halfWidth = size[0] / 2d; var halfHeight = size[1] / 2d;
+            var points = new[] { new SectionPoint2D(-halfWidth, -halfHeight), new(halfWidth, -halfHeight), new(halfWidth, halfHeight), new(-halfWidth, halfHeight) };
+            var profile = new SectionProfile(station.Name + ".Profile", Enumerable.Range(0, 4).Select(index => new SectionProfileSpan(spanIds[index],
+                new SectionProfileCurve.Line(points[index], points[(index + 1) % 4]) as SectionProfileCurve)).ToArray(), spanIds[0]);
+            stations.Add(new(station.Name, SectionFrame.Create(new(origin[0], origin[1], origin[2]), new(0, 1, 0), new(0, 0, 1)), profile));
+        }
+        if (stations.Count < 2) { diagnostics.Add(new("section-chain-section-count-invalid", $"SectionChain '{block.Name}' requires at least two Station blocks.", block.Name)); return null; }
+        var startText = ScalarText(block.Body, "StartTermination") ?? "Open"; var endText = ScalarText(block.Body, "EndTermination") ?? "Open";
+        if (!Enum.TryParse<SectionTermination>(startText, true, out var start) || !Enum.TryParse<SectionTermination>(endText, true, out var end))
+        { diagnostics.Add(new("section-chain-termination-invalid", $"SectionChain '{block.Name}' terminations must be Open or Cap.", block.Name)); return null; }
+        var correspondence = stations.Zip(stations.Skip(1), (source, target) => new AdjacentSectionCorrespondence(source.SectionId, target.SectionId,
+            spanIds.Select(span => new SectionSpanCorrespondence(span, span)).ToArray())).ToArray();
+        return new(block.Name, stations, correspondence, SectionTransitionPolicy.Ruled, start, end);
     }
 
     private static IReadOnlyList<Block> Blocks(string source, string keyword)

@@ -23,6 +23,22 @@ public sealed class SurfX1PatchSurfacingTests
     }
 
     [Fact]
+    public void ReplaceRegionPersistsAsTypedIntentAndReplaysByteIdentically()
+    {
+        var compiled = CompileFlagship();
+        var authored = compiled.States["FreeformCrown"];
+        var authority = Assert.IsType<ConstructionState>(authored.ConstructionAuthority);
+        Assert.Equal("ReplaceRegion", Assert.Single(authority.Operations).OperationKind);
+
+        var replay = ConstructionStateReplayer.Replay(authority);
+
+        Assert.True(replay.IsSuccess, string.Join(" | ", replay.Diagnostics.Select(item => item.Message)));
+        Assert.Equal(authored.StateId, replay.OutputState!.StateId);
+        Assert.Equal(SculptStepExporter.Export(authored, "SURF-X1 replay").Step,
+            SculptStepExporter.Export(replay.OutputState, "SURF-X1 replay").Step);
+    }
+
+    [Fact]
     public void TrimAndExtendRemainBoundedByExistingNonRationalSupport()
     {
         var patch = Assert.IsType<BSplineSurfacePatch>(CompileFlagship().OutputState!.Construction.ReplacementPatch);

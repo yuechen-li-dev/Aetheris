@@ -667,6 +667,7 @@ public static class CliRunner
             inputState = compile.OutputState.PredecessorStateId,
             outputState = compile.OutputState.StateId,
             compile.OutputState.Delta,
+            constructionState = compile.OutputState.ConstructionAuthority,
             validationEvidence = compile.OutputState.ValidationEvidence,
             surfacePatches = compile.OutputState.SurfacePatches,
             blendJudgment = compile.OutputState.BlendJudgment,
@@ -723,7 +724,20 @@ public static class CliRunner
     private static object DescribeSculptState(BodyState state) => new
     {
         state.AuthoredName, state.StateId, state.PredecessorStateId, state.BodyStableId,
-        construction = new { state.Construction.Width, state.Construction.Depth, state.Construction.BaseHeight, state.Construction.CrownWidth, state.Construction.CrownDepth, state.Construction.CrownOffset, state.Construction.FinalHeight },
+        constructionState = state.ConstructionAuthority is null ? null : new
+        {
+            schema = new { state.ConstructionAuthority.SchemaId, state.ConstructionAuthority.SchemaVersion },
+            @base = new { state.ConstructionAuthority.Base.BaseId, state.ConstructionAuthority.Base.BaseKind, state.ConstructionAuthority.Base.SchemaVersion },
+            operations = state.ConstructionAuthority.Operations.Select(operation => new
+            {
+                operation.OperationId, operation.OperationKind, operation.PayloadVersion,
+                operation.PredecessorStateId, operation.OutputStateId, operation.Reads, operation.MayModify,
+                authorizedRegion = operation.AuthorizedRegion, preserve = operation.Preserves,
+                operation.ReplayStatus,
+                delta = new { operation.Delta.Preserves, operation.Delta.Replaces, operation.Delta.Removes, operation.Delta.Introduces }
+            })
+        },
+        realizedHousingEvidence = new { state.Construction.Width, state.Construction.Depth, state.Construction.BaseHeight, state.Construction.CrownWidth, state.Construction.CrownDepth, state.Construction.CrownOffset, state.Construction.FinalHeight },
         semanticInventory = state.SemanticInventory.Values, surfacePatches = state.SurfacePatches, blendJudgment = state.BlendJudgment, hasDelta = state.Delta is not null
     };
 

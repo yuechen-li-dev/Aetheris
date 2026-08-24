@@ -5,6 +5,7 @@ using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Topology;
+using System.Text.Json.Serialization;
 
 namespace Aetheris.Surfacing;
 
@@ -25,6 +26,10 @@ public sealed record SectionFrame(Point3D Origin, Direction3D XAxis, Direction3D
     public Point3D Transform(SectionPoint2D point) => Origin + XAxis.ToVector() * point.X + YAxis.ToVector() * point.Y;
 }
 
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "$curveKind")]
+[JsonDerivedType(typeof(SectionProfileCurve.Line), "Line")]
+[JsonDerivedType(typeof(SectionProfileCurve.Arc), "Arc")]
+[JsonDerivedType(typeof(SectionProfileCurve.PolynomialBSpline), "PolynomialBSpline")]
 public abstract record SectionProfileCurve
 {
     public sealed record Line(SectionPoint2D Start, SectionPoint2D End) : SectionProfileCurve;
@@ -57,6 +62,25 @@ public sealed record SectionChain(
     SectionTransitionPolicy TransitionPolicy,
     SectionTermination StartTermination,
     SectionTermination EndTermination);
+
+public static class SectionChainCanonical
+{
+    public static string Fingerprint(SectionChain chain)
+    {
+        var sections = chain.Sections.Select(section =>
+        {
+            var spans = section.Profile.Spans.Select(span => span.Curve switch
+            {
+                SectionProfileCurve.Line line => $"{span.SpanId}:L:{line.Start.X:R},{line.Start.Y:R}>{line.End.X:R},{line.End.Y:R}",
+                SectionProfileCurve.Arc arc => $"{span.SpanId}:A:{arc.Center.X:R},{arc.Center.Y:R},{arc.Radius:R},{arc.StartAngleRadians:R},{arc.SweepAngleRadians:R}",
+                SectionProfileCurve.PolynomialBSpline spline => $"{span.SpanId}:B:{spline.Degree}:{string.Join('/', spline.ControlPoints.Select(point => $"{point.X:R},{point.Y:R}"))}",
+                _ => span.SpanId
+            });
+            return $"{section.SectionId}@{section.Frame.Origin.X:R},{section.Frame.Origin.Y:R},{section.Frame.Origin.Z:R}:{string.Join(',', spans)}";
+        });
+        return string.Join('|', chain.StableId, chain.TransitionPolicy, chain.StartTermination, chain.EndTermination, string.Join(';', sections));
+    }
+}
 
 public sealed record SectionTransitionSurfaceEvidence(
     string SpanId,

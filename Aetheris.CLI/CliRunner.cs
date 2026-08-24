@@ -500,6 +500,7 @@ public static class CliRunner
                 lattice = build.Value.Export.Lattice,
                 combined = build.Value.Export.Combined,
                 standardPart = build.Value.Export.StandardPart,
+                wireForm = build.Value.Export.WireForm,
                 sweep = build.Value.Export.Sweep,
                 assertions = build.Value.Export.Assertions,
                 features = build.Value.Export.Features,
@@ -525,6 +526,8 @@ public static class CliRunner
             stdout.WriteLine($"Model: {build.Value.Export.ExportedFeatureId}");
             if (build.Value.Export.StandardPart is { } standardPart)
                 stdout.WriteLine($"Standard part: {standardPart.Family} via {standardPart.Template ?? "direct record"} ({standardPart.SemanticDescendants.Count} semantic descendants)");
+            if (build.Value.Export.WireForm is { } wireForm)
+                stdout.WriteLine($"WireForm: {wireForm.OperationCount} operations, {wireForm.DiameterMm:G6} mm diameter, {wireForm.TotalWireLengthMm:G12} mm stock length ({wireForm.Cylinders} cylinders, {wireForm.Tori} tori)");
             if (build.Value.Export.Sweep is { } sweep)
                 stdout.WriteLine($"Sweep: {sweep.SegmentCount} analytic path segments, {sweep.Diameter:G6} mm diameter, {sweep.CenterlineLength:G6} mm centerline ({sweep.Cylinders} cylinders, {sweep.Tori} tori)");
             if (build.Value.Export.Structural is { } structure)
@@ -1347,6 +1350,33 @@ Model CanonicalPanel {
         var library = FirmamentStandardLibraryResolver.Resolve(source, out var libraryDiagnostics);
         var inspectionSource = library?.Source ?? source;
         var sweepSource = ExpandSweepInspectionSource(source, out var sweepExpansionDiagnostics);
+        if (WireFormAuthoring.IsWireFormSource(source))
+        {
+            var authored = sweepSource is null ? null : WireFormAuthoring.Parse(sweepSource);
+            var wireDiagnostics = sweepExpansionDiagnostics.Concat(authored is null ? [] : authored.IsSuccess ? WireFormBRepMaterializer.Validate(authored.Value) : authored.Diagnostics.Select(item => item.Message)).ToArray();
+            var wireSuccess = authored?.IsSuccess == true && wireDiagnostics.Length == 0;
+            var wire = authored?.IsSuccess == true ? authored.Value : null;
+            var wireReportPayload = new
+            {
+                command = "inspect", success = wireSuccess, input = fullPath, domain = "WireForm", model = Path.GetFileNameWithoutExtension(fullPath), units = "mm",
+                wireForm = wire is null ? null : new
+                {
+                    wireFormId = wire.Name, diameter = wire.DiameterMm, material = wire.Material.Identity.FirmamentPath,
+                    operationCount = wire.Operations.Count, straightCount = wire.Operations.Count(x => x is WireStraightAir), bendCount = wire.Operations.Count(x => x is WireBendAir),
+                    totalStraightLength = wire.TotalStraightLengthMm, totalBendLength = wire.TotalBendLengthMm, totalWireLength = wire.TotalWireLengthMm,
+                    bendRadiusSemantics = "CenterlineRadius", frameTransportPolicy = wire.FrameTransportPolicy,
+                    startTerminal = new { position = new[] { wire.StartState.Position.X, wire.StartState.Position.Y, wire.StartState.Position.Z }, tangent = new[] { wire.StartState.Tangent.X, wire.StartState.Tangent.Y, wire.StartState.Tangent.Z }, diameter = wire.DiameterMm },
+                    endTerminal = new { position = new[] { wire.EndState.Position.X, wire.EndState.Position.Y, wire.EndState.Position.Z }, tangent = new[] { wire.EndState.Tangent.X, wire.EndState.Tangent.Y, wire.EndState.Tangent.Z }, diameter = wire.DiameterMm },
+                    operations = wire.Operations.Select(operation => new { operation.Ordinal, operation.Name, kind = operation is WireStraightAir ? "Straight" : "Bend", operation.LengthMm,
+                        radius = operation is WireBendAir bend ? bend.RadiusMm : (double?)null, angleDegrees = operation is WireBendAir angle ? angle.AngleRadians * 180d / Math.PI : (double?)null,
+                        plane = operation is WireBendAir plane ? plane.Plane : null, stableId = operation.StableId(wire.Name), input = operation.Input, output = operation.Output })
+                }, diagnostics = wireDiagnostics
+            };
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(wireReportPayload, JsonOptions));
+            else if (wireSuccess) stdout.WriteLine($"WireForm {wire!.Name}: {wire.Operations.Count} operations, {wire.TotalWireLengthMm:G12} mm stock length");
+            else foreach (var diagnostic in wireDiagnostics) stderr.WriteLine($"error: {diagnostic}");
+            return wireSuccess ? 0 : 1;
+        }
         if (CircularSweepAuthoring.IsSweepSource(source))
         {
             var authored = sweepSource is null ? null : CircularSweepAuthoring.Parse(sweepSource);
@@ -2025,6 +2055,18 @@ Model CanonicalPanel {
             if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
             else stdout.WriteLine($"Firmament V2 Structural validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");
             return structural.IsSuccess ? 0 : 1;
+        }
+        if (WireFormAuthoring.IsWireFormSource(validationSource))
+        {
+            var wireSource = ExpandSweepInspectionSource(validationSource, out var expansionDiagnostics);
+            var authored = wireSource is null ? null : WireFormAuthoring.Parse(wireSource);
+            var diagnostics = expansionDiagnostics.Concat(authored is null ? [] : authored.IsSuccess ? WireFormBRepMaterializer.Validate(authored.Value) : authored.Diagnostics.Select(item => item.Message)).ToArray();
+            var valid = authored?.IsSuccess == true && diagnostics.Length == 0;
+            var payload = new { source = sourcePath, status = valid ? "valid" : "invalid", domain = "WireForm",
+                summary = new { fatalDiagnosticCount = diagnostics.Length, warningDiagnosticCount = 0, operationCount = authored?.IsSuccess == true ? authored.Value.Operations.Count : 0 }, diagnostics };
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
+            else stdout.WriteLine($"Firmament V2 WireForm validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");
+            return valid ? 0 : 1;
         }
         if (CircularSweepAuthoring.IsSweepSource(validationSource))
         {

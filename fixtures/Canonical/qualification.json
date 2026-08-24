@@ -19,6 +19,7 @@
     { "path": "SectionChain", "operation": "section-chain-build" },
     { "path": "Structural", "operation": "build-step" },
     { "path": "Piping", "operation": "build-step" },
+    { "path": "WireForm", "operation": "build-step" },
     { "path": "PlasticShell", "operation": "build-step" },
     { "path": "Basics", "operation": "build-step" },
     { "path": "Primitives", "operation": "build-step" },

@@ -1,0 +1,11 @@
+Model SingleBend90 {
+    Units: mm
+    WireForm Wire {
+        Diameter: 1mm
+        Material: Standard.Materials.StainlessSteel.304_Annealed
+        StartFrame { Origin: [0mm, 0mm, 0mm]; Tangent: [1, 0, 0]; Up: [0, 0, 1] }
+        Straight Lead { Length: 20mm }
+        Bend Corner { Radius: 5mm; Angle: 90deg; Plane: Up }
+        Straight Tail { Length: 30mm }
+    }
+}

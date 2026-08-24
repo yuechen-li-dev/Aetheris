@@ -28,7 +28,7 @@ $forbidden = @(
 )
 
 $failures = [Collections.Generic.List[string]]::new()
-$requiredFeatures = @('Box', 'Cylinder', 'Sphere', 'Cone', 'Torus', 'Profile', 'Sweep', 'Paperclip', 'Boss', 'Pocket', 'Hole', 'BlindHole', 'Counterbore', 'Countersink', 'Slot', 'Pattern', 'Chamfer', 'Fillet', 'Material', 'PMI', 'Template', 'SheetMetal', 'FEA', 'inlineSTEP', 'Assembly', 'Piping', 'ConstructionStateReplay', 'AddSectionChain', 'RemoveSectionChain', 'PostSectionChainHole')
+$requiredFeatures = @('Box', 'Cylinder', 'Sphere', 'Cone', 'Torus', 'Profile', 'Sweep', 'WireForm', 'Paperclip', 'Boss', 'Pocket', 'Hole', 'BlindHole', 'Counterbore', 'Countersink', 'Slot', 'Pattern', 'Chamfer', 'Fillet', 'Material', 'PMI', 'Template', 'SheetMetal', 'FEA', 'inlineSTEP', 'Assembly', 'Piping', 'ConstructionStateReplay', 'AddSectionChain', 'RemoveSectionChain', 'PostSectionChainHole')
 foreach ($feature in $requiredFeatures) {
     $entry = $coverage.features.$feature
     if ([string]::IsNullOrWhiteSpace($entry)) { $failures.Add("coverage: missing $feature"); continue }

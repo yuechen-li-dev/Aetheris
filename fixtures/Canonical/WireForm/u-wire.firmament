@@ -1,0 +1,11 @@
+Model StandardUWire {
+    Units: mm
+    WireForm UWire {
+        Diameter: 1mm
+        Material: Standard.Materials.StainlessSteel.304_Annealed
+        StartFrame { Origin: [5mm, 0mm, 0mm]; Tangent: [0, 1, 0]; Up: [0, 0, 1] }
+        Straight RightLeg { Length: 20mm }
+        Bend Crown { Radius: 5mm; Angle: 180deg; Plane: Up }
+        Straight LeftLeg { Length: 20mm }
+    }
+}

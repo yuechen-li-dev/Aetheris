@@ -12,6 +12,7 @@ Everything in this directory is current authoring guidance. Examples progress fr
 | add a rectangular boss | `Features/Boss/rectangular-boss.firmament` | first-class finite `Boss` |
 | sweep a circular profile | `Features/Sweep/circular-planar-path-sweep.firmament` | bounded planar `Concept Path`, line/arc, constant circular `Sweep` |
 | make wire geometry | `Features/Sweep/` | tangent open paths, analytic cylinders/tori, capped solid |
+| author formed wire or rod | `WireForm/` | stock, `StartFrame`, ordered `Straight`/`Bend`, 3D frame transport, derived cut length |
 | add a boss and bore | `Features/Boss/circular-boss-through-hole.firmament` | circular `Boss`, through shaft `Hole` |
 | machine a finite pocket | `Features/Pocket/rectangular-pocket.firmament` | finite depth and minimum floor |
 | make a through or blind hole | `Features/Holes/through-hole.firmament`, `blind-hole.firmament` | shaft end conditions |
@@ -21,7 +22,7 @@ Everything in this directory is current authoring guidance. Examples progress fr
 | repeat features from data | `Patterns/record-array-hole-pattern.firmament` | Record array, finite `Pattern` |
 | add semantic PMI | `PMI/multiple-hole-dimensions-with-chamfer.firmament` | Datum, tolerances, `DatumRefs` |
 | use a typed product Template | `Templates/generic-mounting-plate.firmament` | value parameters, `Require`, Concept Struct output |
-| build a Paperclip Template | `Templates/paperclip.firmament` | `Record`, `Static`, `with`, `Template<PaperclipPolicy>`, circular `Sweep` |
+| build a Paperclip Template | `Templates/paperclip.firmament` | `Record`, `Static`, `with`, `Template<PaperclipPolicy>`, semantic `WireForm` |
 | use a CNC policy | `Templates/cnc-dfm-policy.firmament` | Record defaults, `with`, `Template<Policy>`, enforcement |
 | make Sheet Metal | `SheetMetal/l-bracket-with-hole.firmament` | material, bend, planar hole, formed/flat output |
 | define a molded plastic shell | `PlasticShell/plastic-shell-enclosure.firmament` | inherent wall policy, tooling direction, parting plane, gate, standoffs, ejectors, AutoRib judgment |

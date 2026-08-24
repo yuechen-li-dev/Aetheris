@@ -1,0 +1,9 @@
+Model StraightWire {
+    Units: mm
+    WireForm Wire {
+        Diameter: 1mm
+        Material: Standard.Materials.StainlessSteel.304_Annealed
+        StartFrame { Origin: [0mm, 0mm, 0mm]; Tangent: [1, 0, 0]; Up: [0, 0, 1] }
+        Straight Body { Length: 20mm }
+    }
+}

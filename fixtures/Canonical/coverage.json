@@ -12,6 +12,7 @@
     "Profile": "Profiles/concept-path-line-arc-profile.firmament",
     "ProfileDelta": "Profiles/profile-delta-recess-extrusion.firmament",
     "Sweep": "Features/Sweep/circular-planar-path-sweep.firmament",
+    "WireForm": "WireForm/single-bend-90.firmament",
     "Paperclip": "Templates/paperclip.firmament",
     "Boss": "Features/Boss/rectangular-boss.firmament",
     "Pocket": "Features/Pocket/rectangular-pocket.firmament",

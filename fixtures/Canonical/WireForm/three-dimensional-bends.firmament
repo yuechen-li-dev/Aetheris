@@ -1,0 +1,15 @@
+Model ThreeDimensionalBentWire {
+    Units: mm
+    WireForm BentWire3D {
+        Diameter: 1mm
+        Material: Standard.Materials.StainlessSteel.304_Annealed
+        StartFrame { Origin: [0mm, 0mm, 0mm]; Tangent: [1, 0, 0]; Up: [0, 0, 1] }
+        Straight Lead { Length: 20mm }
+        // Plane names the current local normal: Up makes this bend lie in XY.
+        Bend XYBend { Radius: 5mm; Angle: 90deg; Plane: Up }
+        Straight Middle { Length: 15mm }
+        // After frame transport, Right makes this bend perpendicular in YZ.
+        Bend YZBend { Radius: 5mm; Angle: 90deg; Plane: Right }
+        Straight Tail { Length: 10mm }
+    }
+}

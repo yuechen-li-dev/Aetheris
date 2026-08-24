@@ -12,18 +12,18 @@ Model StandardProducts {
         Require PositiveBendRadii => P.OuterBendRadius > 0mm && P.InnerBendRadius > 0mm
         Require OuterBendExceedsInnerBend => P.OuterBendRadius > P.InnerBendRadius
         Require InnerBendClearsWire => P.InnerBendRadius > P.WireDiameter
-        Concept Path PaperclipPath {
-            // The reference frame places the inner-right terminal at X=8 mm.
-            Start: Point2(8mm, 0mm) Heading: 90deg
-            Line InnerRightUp { Length: P.InnerLegLength }
-            Arc InnerTop { Radius: P.InnerBendRadius; Turn: 180deg }
-            Line InnerLeftDown { Length: P.InnerLegLength }
-            Arc LowerReturn { Radius: (P.OuterBendRadius + P.InnerBendRadius) / 2; Turn: 180deg }
-            Line OuterRightUp { Length: P.OuterLegLength }
-            Arc OuterTop { Radius: P.OuterBendRadius; Turn: 180deg }
-            Line OuterLeftDown { Length: P.OuterLegLength }
+        WireForm Paperclip {
+            Diameter: P.WireDiameter
+            Material: P.Material
+            StartFrame { Origin: [8mm, 0mm, 0mm]; Tangent: [0, 1, 0]; Up: [0, 0, 1] }
+            Straight InnerRight { Length: P.InnerLegLength }
+            Bend InnerTop { Radius: P.InnerBendRadius; Angle: 180deg; Plane: Up }
+            Straight InnerLeft { Length: P.InnerLegLength }
+            Bend LowerReturn { Radius: (P.OuterBendRadius + P.InnerBendRadius) / 2; Angle: 180deg; Plane: Up }
+            Straight OuterRight { Length: P.OuterLegLength }
+            Bend OuterTop { Radius: P.OuterBendRadius; Angle: 180deg; Plane: Up }
+            Straight OuterLeft { Length: P.OuterLegLength }
         }
-        Sweep Paperclip { Path: PaperclipPath; Diameter: P.WireDiameter; Material: P.Material; }
     }
 
     Record MountingPlatePolicy { Width: Length Height: Length Thickness: Length HoleDiameter: Length HoleSpacingX: Length HoleSpacingY: Length CounterboreDiameter: Length CounterboreDepth: Length Material: String }

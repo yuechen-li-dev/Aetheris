@@ -27,12 +27,12 @@ public static class PaperclipDemoEndpoints
                 new Dictionary<string, FirmamentHostArgument>(StringComparer.Ordinal) { ["P"] = new(string.Empty, "PaperclipPolicy", fields) }, out var diagnostics);
             if (expansion is null) return ApiMappings.BadRequestFromMessage(string.Join("; ", diagnostics), "maximum-paperclips.bind");
             var compiled = FirmamentBuildAndExport.CompileSource(expansion.ExpandedSource);
-            if (!compiled.IsSuccess || compiled.Value.Sweep is null)
+            if (!compiled.IsSuccess || compiled.Value.WireForm is null)
                 return ApiMappings.KernelFailure(compiled.Diagnostics);
-            var sweep = compiled.Value.Sweep;
+            var wire = compiled.Value.WireForm;
             return ApiMappings.Ok(new PaperclipDemoResponse(compiled.Value.StepText, expansion.SpecializationIdentity,
-                sweep.CenterlineLength, sweep.MassKilograms * 1000d, 1000d / sweep.CenterlineLength, sweep.Bounds,
-                sweep.Material, sweep.EnclosedManifold, sweep.StepReimportSucceeded, true));
+                wire.TotalWireLengthMm, wire.MassKilograms * 1000d, 1000d / wire.TotalWireLengthMm, wire.Bounds,
+                wire.Material, wire.EnclosedManifold, wire.StepReimportSucceeded, true));
         });
     }
 

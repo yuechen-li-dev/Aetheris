@@ -4,7 +4,7 @@ The Standard Library is a shipped, curated catalog of typed Firmament product fa
 
 | Product family | Public Template ID | Main capabilities |
 | --- | --- | --- |
-| Paperclip | `Standard.Products.Office.Paperclip` | Path, circular Sweep, material, deterministic AP242 |
+| Paperclip | `Standard.Products.Office.Paperclip` | WireForm Straight/Bend program, exact circular Sweep, stock/mass evidence, deterministic AP242 |
 | Mounting Plate | `Standard.Products.Mechanical.MountingPlate` | prismatic stock, four counterbores, PMI |
 | Bearing Block | `Standard.Products.Mechanical.BearingBlock` | base, Boss, bore, mounting holes, PMI |
 | Machined Angle Bracket | `Standard.Products.Mechanical.MachinedAngleBracket` | prismatic L profile, mounting holes |

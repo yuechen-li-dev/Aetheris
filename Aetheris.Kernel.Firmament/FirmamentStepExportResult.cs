@@ -22,10 +22,33 @@ public sealed record FirmamentStepExportResult(
     IReadOnlyList<Aetheris.Kernel.Firmament.FirmamentV2.FirmamentV2VolumeAssertionResult>? Assertions = null,
     FirmamentStandardPartReport? StandardPart = null,
     IReadOnlyList<FirmamentEngineeringFeatureReport>? EngineeringFeatures = null,
+    FirmamentWireFormReport? WireForm = null,
     FirmamentSweepReport? Sweep = null,
     IReadOnlyList<FirmamentSemanticPatternReport>? Patterns = null,
     Aetheris.Kernel.Firmament.Structural.StructuralReport? Structural = null,
     Aetheris.Kernel.Firmament.Piping.PipingReport? Piping = null);
+
+public sealed record FirmamentWireStateReport(
+    IReadOnlyList<double> Position, IReadOnlyList<double> Tangent, IReadOnlyList<double> Up,
+    IReadOnlyList<double> Right, double AccumulatedLengthMm);
+
+public sealed record FirmamentWireOperationReport(
+    int Ordinal, string Name, string Kind, double LengthMm, double? RadiusMm, double? AngleDegrees,
+    string? Plane, string StableId, FirmamentWireStateReport Input, FirmamentWireStateReport Output,
+    string CenterlineSegment, string SweepSurface);
+
+public sealed record FirmamentWireTerminalReport(
+    string Name, IReadOnlyList<double> Position, IReadOnlyList<double> Tangent, IReadOnlyList<double> Up, double DiameterMm);
+
+public sealed record FirmamentWireFormReport(
+    string WireFormId, double DiameterMm, string Material, int OperationCount, int StraightCount, int BendCount,
+    double TotalStraightLengthMm, double TotalBendLengthMm, double TotalWireLengthMm, double VolumeMm3,
+    double MassKilograms, FirmamentWireTerminalReport StartTerminal, FirmamentWireTerminalReport EndTerminal,
+    double MinimumBendRadiusMm, string BendRadiusSemantics, string MinimumBendRadiusValidation,
+    string SelfIntersectionValidation, string FrameTransportPolicy, IReadOnlyList<FirmamentWireOperationReport> Operations,
+    IReadOnlyList<double> Bounds, int Cylinders, int Tori, int Planes, int OtherSurfaces,
+    int RationalProductSurfaces, int FacetedFallback, bool EnclosedManifold, string StepSha256,
+    bool StepReimportSucceeded, bool StepReimportedManifold);
 
 public sealed record FirmamentSemanticPatternReport(
     string Name,

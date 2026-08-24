@@ -10,6 +10,19 @@
 - `firmament-sweep-self-intersection`: nonadjacent centerline regions violate required clearance.
 - `firmament-sweep-material-unresolved`: the material identity is absent from the deployed catalog.
 
+## Formed Wire (WIRE-X0)
+
+- `wireform-diameter-invalid`: stock diameter is missing, non-finite, or non-positive.
+- `wireform-start-frame-invalid`: Origin/Tangent/Up is missing, the tangent is zero, or Up is parallel to the tangent.
+- `wireform-straight-length-invalid:<operation>`: Straight length is not finite and positive.
+- `wireform-bend-radius-invalid:<operation>`: centerline bend radius is not positive or does not exceed `Diameter / 2`. This local geometric check runs before body construction.
+- `wireform-bend-angle-invalid:<operation>`: Bend angle is zero or exceeds ±180°.
+- `wireform-bend-plane-invalid:<operation>`: Plane is not current local `Up` or `Right`.
+- `wireform-material-unresolved`: the material identity is absent from the deployed catalog.
+- `wireform-self-intersection:<opA>:<opB>`: nonadjacent wire portions violate diameter clearance. This later global check uses conservative 3D chord/sagitta bounds and rejects intentional contact.
+
+The Standard Paperclip template has stricter product policy (`InnerBendRadius > WireDiameter`) than generic WireForm's geometric `Radius > Diameter / 2`; named Template `Require` clauses can therefore reject a Paperclip specialization before WireForm lowering.
+
 ## Surface trim closure (SURF-X1a)
 
 - `surf-intersection-none`: the qualified supports do not intersect inside the bounded domains.

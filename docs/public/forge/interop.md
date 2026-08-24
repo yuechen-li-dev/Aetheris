@@ -2,7 +2,7 @@
 
 Forge interop has three operations: list Templates, describe one Template, and invoke it. The host owns Firmament types, units, defaults, `Require` checks, specialization, geometry, and artifact production. Foreign clients only exchange explicit JSON and files.
 
-X0 also publishes `Standard.Products.Office.Paperclip`. `describe` exposes its `PaperclipPolicy` Record fields and metric units; `invoke` accepts those fields and emits `paperclip.step` through the same deterministic AP242 path as direct Firmament compilation.
+X0 also publishes `Standard.Products.Office.Paperclip`. `describe` exposes its `PaperclipPolicy` Record fields and metric units; `invoke` accepts those fields, lowers them to a semantic WireForm Straight/Bend sequence, and emits `paperclip.step` through deterministic analytic AP242.
 
 C# can use the direct Forge API. Python, Go, Rust, and TypeScript/Node use the process protocol:
 

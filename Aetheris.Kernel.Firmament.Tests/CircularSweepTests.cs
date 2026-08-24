@@ -30,16 +30,19 @@ public sealed class CircularSweepTests
     {
         var result = FirmamentBuildAndExport.CompileSource(PaperclipTemplateLibrary.Source);
         Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(x => x.Message)));
-        var report = Assert.IsType<FirmamentSweepReport>(result.Value.Sweep);
-        Assert.Equal(7, report.SegmentCount);
-        Assert.Equal(1, report.Diameter, 9);
+        var report = Assert.IsType<FirmamentWireFormReport>(result.Value.WireForm);
+        Assert.Equal(7, report.OperationCount);
+        Assert.Equal(1, report.DiameterMm, 9);
         Assert.Equal("Standard.Materials.StainlessSteel.304_Annealed", report.Material);
         Assert.Equal(4, report.Cylinders);
         Assert.Equal(3, report.Tori);
         Assert.Equal(11, report.Bounds[3] - report.Bounds[0], 9);
         Assert.Equal(25, report.Bounds[4] - report.Bounds[1], 9);
         Assert.Equal(1, report.Bounds[5] - report.Bounds[2], 9);
-        Assert.Equal(58 + 12 * Math.PI, report.CenterlineLength, 9);
+        Assert.Equal(58 + 12 * Math.PI, report.TotalWireLengthMm, 9);
+        Assert.Equal(95.6991118431, report.TotalWireLengthMm, 9);
+        Assert.Equal(0, report.RationalProductSurfaces);
+        Assert.Equal(0, report.FacetedFallback);
         Assert.True(report.EnclosedManifold);
         Assert.True(report.StepReimportSucceeded);
         Assert.True(report.StepReimportedManifold);

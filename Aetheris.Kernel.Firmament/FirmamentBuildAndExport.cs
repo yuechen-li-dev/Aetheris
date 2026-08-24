@@ -293,6 +293,29 @@ public static class FirmamentBuildAndExport
         canonicalParseWatch.Stop();
         var canonicalAdvanced = FirmamentV2Parser.TryGetCanonicalAdvancedBody(materializerInput, out var canonicalBody);
         var materializerSource = canonicalAdvanced ? canonicalBody : materializerInput;
+        if (WireFormAuthoring.IsWireFormSource(materializerSource))
+        {
+            var authored = WireFormAuthoring.Parse(materializerSource);
+            if (!authored.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(authored.Diagnostics);
+            var built = WireFormBRepMaterializer.Build(authored.Value);
+            if (!built.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(built.Diagnostics);
+            var step = Step242Exporter.ExportBody(built.Value.Body, new Step242ExportOptions { ProductName = authored.Value.Name });
+            if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+            var reimport = Step242Importer.ImportBody(step.Value);
+            if (!reimport.IsSuccess || reimport.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(reimport.Diagnostics);
+            var manifold = reimport.Value.Topology.Edges.All(edge => reimport.Value.Topology.Coedges.Count(use => use.EdgeId == edge.Id) == 2);
+            if (!manifold) return KernelResult<FirmamentStepExportResult>.Failure([new Kernel.Core.Diagnostics.KernelDiagnostic(
+                Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+                "wireform-step-reimport-not-manifold: exported WireForm did not reimport as an enclosed manifold.", "FirmamentV2.WireForm")]);
+            var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))).ToLowerInvariant();
+            var report = WireFormReportFactory.Create(built.Value, hash, manifold);
+            return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, authored.Value.Name, 0,
+                "wire-form", "wireform", WireForm: report,
+                EngineeringFeatures: authored.Value.Operations.Select(operation => new FirmamentEngineeringFeatureReport(
+                    operation.Name, operation is WireStraightAir ? "Straight" : "Bend", operation.StableId(authored.Value.Name),
+                    authored.Value.Name, "WireState", "CircularSection", operation.LengthMm, "CenterlineLength", "Add",
+                    PolicySource: "WireFormFeatureAir", MaterializationRoute: "WireFormCenterlineAir->CircularSweepBRepPlan")).ToArray()), []);
+        }
         if (CircularSweepAuthoring.IsSweepSource(materializerSource))
         {
             var airWatch = System.Diagnostics.Stopwatch.StartNew();

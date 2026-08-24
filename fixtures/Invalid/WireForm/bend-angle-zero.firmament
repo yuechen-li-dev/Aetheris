@@ -1,0 +1,1 @@
+Model InvalidWire { Units: mm WireForm Wire { Diameter: 1mm; StartFrame { Origin: [0mm,0mm,0mm]; Tangent: [1,0,0]; Up: [0,0,1] } Bend Invalid { Radius: 5mm; Angle: 0deg; Plane: Up } } }

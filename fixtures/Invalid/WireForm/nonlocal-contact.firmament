@@ -1,0 +1,1 @@
+Model InvalidWire { Units: mm WireForm Wire { Diameter: 1mm; StartFrame { Origin: [0mm,0mm,0mm]; Tangent: [1,0,0]; Up: [0,0,1] } Straight A { Length: 10mm } Bend B { Radius: 2mm; Angle: 180deg; Plane: Up } Straight C { Length: 10mm } Bend D { Radius: 2mm; Angle: 180deg; Plane: Up } Straight Contact { Length: 10mm } } }

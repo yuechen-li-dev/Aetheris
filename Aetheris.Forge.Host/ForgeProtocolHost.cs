@@ -189,7 +189,7 @@ public sealed class ForgeProtocolHost
         var productVersion = "1+" + Convert.ToHexString(SHA256.HashData(Utf8.GetBytes(productCatalogSource)))[..12].ToLowerInvariant();
         var definitions = new Dictionary<string, (string Id, string Name, string Documentation)>(StringComparer.Ordinal)
         {
-            ["PaperclipTemplate"] = (PaperclipTemplateLibrary.TemplateId, "Paperclip", "A bounded parametric office paperclip compiled from a semantic planar path and constant circular Sweep."),
+            ["PaperclipTemplate"] = (PaperclipTemplateLibrary.TemplateId, "Paperclip", "A bounded parametric office paperclip compiled from an ordered semantic WireForm Straight/Bend program and exact circular Sweep."),
             ["MountingPlateTemplate"] = ("Standard.Products.Mechanical.MountingPlate", "Mounting Plate", "General-purpose machined plate with a four-corner counterbored mounting-hole layout and manufacturing PMI."),
             ["BearingBlockTemplate"] = ("Standard.Products.Mechanical.BearingBlock", "Bearing Block", "Generic machined bearing-support block with a base, circular boss, shaft bore, mounting holes, and bore PMI."),
             ["MachinedAngleBracketTemplate"] = ("Standard.Products.Mechanical.MachinedAngleBracket", "Machined Angle Bracket", "Prismatic machined L-bracket with two mounting holes and explicit leg proportions."),

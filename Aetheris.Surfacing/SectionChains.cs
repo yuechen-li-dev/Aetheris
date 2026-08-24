@@ -6,6 +6,8 @@ using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Topology;
 using System.Text.Json.Serialization;
+using Aetheris.Kernel.Core.Judgment;
+using Aetheris.Kernel.Core.Visualization;
 
 namespace Aetheris.Surfacing;
 
@@ -51,7 +53,9 @@ public sealed record AdjacentSectionCorrespondence(
     IReadOnlyList<SectionSpanCorrespondence> Spans,
     string Resolution = "Explicit");
 
-public enum SectionTransitionPolicy { Ruled }
+public enum SectionTransitionPolicy { Ruled, SmoothPolynomial }
+public enum SectionChainContinuity { G0, G1 }
+public enum SectionChainSmoothPolicy { Fair }
 public enum SectionTermination { Cap, Open }
 public enum SectionChainStructureKind { ClosedSolid, OpenShell }
 
@@ -61,7 +65,9 @@ public sealed record SectionChain(
     IReadOnlyList<AdjacentSectionCorrespondence> Correspondence,
     SectionTransitionPolicy TransitionPolicy,
     SectionTermination StartTermination,
-    SectionTermination EndTermination);
+    SectionTermination EndTermination,
+    SectionChainContinuity Continuity = SectionChainContinuity.G0,
+    SectionChainSmoothPolicy SmoothPolicy = SectionChainSmoothPolicy.Fair);
 
 public static class SectionChainCanonical
 {
@@ -78,7 +84,7 @@ public static class SectionChainCanonical
             });
             return $"{section.SectionId}@{section.Frame.Origin.X:R},{section.Frame.Origin.Y:R},{section.Frame.Origin.Z:R}:{string.Join(',', spans)}";
         });
-        return string.Join('|', chain.StableId, chain.TransitionPolicy, chain.StartTermination, chain.EndTermination, string.Join(';', sections));
+        return string.Join('|', chain.StableId, chain.TransitionPolicy, chain.Continuity, chain.SmoothPolicy, chain.StartTermination, chain.EndTermination, string.Join(';', sections));
     }
 }
 
@@ -130,10 +136,25 @@ public sealed record SectionChainMaterializationResult(
     public bool IsSuccess => Body is not null && Diagnostics.Count == 0;
     public SectionChainPcurveEvidence? Pcurves { get; init; }
     public SectionChainSelfIntersectionEvidence? SelfIntersection { get; init; }
+    public SectionChainContinuityEvidence? ContinuityEvidence { get; init; }
+    public SectionChainSmoothSelectionEvidence? SmoothSelection { get; init; }
+    public string? PreviewSvg { get; init; }
 }
+
+public sealed record SectionChainBoundaryContinuityEvidence(string SectionId, double MaximumPositionError,
+    double MaximumNormalAngleDegrees, double MaximumTangentPlaneAngleDegrees);
+public sealed record SectionChainContinuityEvidence(double MaximumPositionError, double MaximumNormalAngleDegrees,
+    double MaximumTangentPlaneAngleDegrees, string? WorstBoundary,
+    IReadOnlyList<SectionChainBoundaryContinuityEvidence> Boundaries);
+public sealed record SectionChainSmoothCandidateEvidence(string Policy, double MagnitudeScale, bool Eligible,
+    double BendingEnergy, double CurvatureVariation, double MaximumOvershoot, string? RejectionReason, double Utility);
+public sealed record SectionChainSmoothSelectionEvidence(string TangentDerivation, string StationSpacingMetric,
+    string EndpointPolicy, int CandidateCount, string SelectedPolicy,
+    IReadOnlyList<SectionChainSmoothCandidateEvidence> Candidates);
 
 public sealed record SectionChainEditDelta(
     string ReplacedSection,
+    IReadOnlyList<string> RecomputedTangentFields,
     IReadOnlyList<string> RebuiltTransitions,
     IReadOnlyList<string> PreservedTransitions,
     IReadOnlyList<string> PreservedTerminations);
@@ -146,13 +167,18 @@ public static class SectionChainEditor
         if (index < 0) throw new ArgumentException($"Section '{replacement.SectionId}' does not exist.", nameof(replacement));
         var sections = source.Sections.ToArray();
         sections[index] = replacement;
-        var rebuilt = new List<string>();
-        if (index > 0) rebuilt.Add(TransitionId(sections[index - 1].SectionId, sections[index].SectionId));
-        if (index < sections.Length - 1) rebuilt.Add(TransitionId(sections[index].SectionId, sections[index + 1].SectionId));
+        var tangentIndices = source.Continuity == SectionChainContinuity.G1
+            ? Enumerable.Range(Math.Max(0, index - 1), Math.Min(sections.Length - 1, index + 1) - Math.Max(0, index - 1) + 1).ToArray()
+            : Array.Empty<int>();
+        var transitionIndices = source.Continuity == SectionChainContinuity.G1
+            ? tangentIndices.SelectMany(i => new[] { i - 1, i }).Where(i => i >= 0 && i < sections.Length - 1).Distinct().Order().ToArray()
+            : new[] { index - 1, index }.Where(i => i >= 0 && i < sections.Length - 1).ToArray();
+        var rebuilt = transitionIndices.Select(i => TransitionId(sections[i].SectionId, sections[i + 1].SectionId)).ToList();
         var preserved = Enumerable.Range(0, sections.Length - 1)
             .Select(i => TransitionId(sections[i].SectionId, sections[i + 1].SectionId))
             .Where(id => !rebuilt.Contains(id, StringComparer.Ordinal)).ToArray();
-        return (source with { Sections = sections }, new(replacement.SectionId, rebuilt, preserved,
+        return (source with { Sections = sections }, new(replacement.SectionId,
+            tangentIndices.Select(i => sections[i].SectionId).ToArray(), rebuilt, preserved,
             ["StartTermination", "EndTermination"]));
     }
 
@@ -183,13 +209,27 @@ public static class SectionChainMaterializer
             return Failure(chain, diagnostics, profileMs, correspondenceMs);
 
         var transitionStarted = Stopwatch.GetTimestamp();
-        var transitionPatches = new List<(PreparedTransition Transition, RuledSurfacePatch[] Patches)>();
-        for (var transitionIndex = 0; transitionIndex < chain.Sections.Count - 1; transitionIndex++)
+        var transitionPatches = new List<(PreparedTransition Transition, ISectionChainTransitionPatch[] Patches)>();
+        SectionChainSmoothSelectionEvidence? smoothSelection = null;
+        if (chain.TransitionPolicy == SectionTransitionPolicy.SmoothPolynomial)
+        {
+            var smooth = SmoothSectionChainBuilder.Build(chain, prepared.Select(item => item.Boundaries).ToArray(), resolved);
+            if (!smooth.IsSuccess)
+            {
+                diagnostics.AddRange(smooth.Diagnostics);
+                return Failure(chain, diagnostics, profileMs, correspondenceMs,
+                    Stopwatch.GetElapsedTime(transitionStarted).TotalMilliseconds);
+            }
+            smoothSelection = smooth.Selection;
+            for (var index = 0; index < smooth.Patches.Count; index++)
+                transitionPatches.Add((new(index, prepared[index], prepared[index + 1], resolved[index]), smooth.Patches[index]));
+        }
+        else for (var transitionIndex = 0; transitionIndex < chain.Sections.Count - 1; transitionIndex++)
         {
             var source = prepared[transitionIndex];
             var target = prepared[transitionIndex + 1];
             var map = resolved[transitionIndex];
-            var patches = new RuledSurfacePatch[source.Boundaries.Length];
+            var patches = new ISectionChainTransitionPatch[source.Boundaries.Length];
             for (var spanIndex = 0; spanIndex < source.Boundaries.Length; spanIndex++)
             {
                 var targetIndex = map[spanIndex];
@@ -203,8 +243,8 @@ public static class SectionChainMaterializer
                     foreach (var item in lowered.Diagnostics)
                         diagnostics.Add(new SurfacingDiagnostic("section-chain-transition-invalid",
                             $"{transitionId}/{source.Section.Profile.Spans[spanIndex].SpanId}: {item.Message}"));
-                else patches[spanIndex] = lowered.Patch;
-                if (lowered.Patch is { } patch && HasFoldover(patch))
+                else patches[spanIndex] = new RuledSectionChainTransitionPatch(lowered.Patch);
+                if (lowered.Patch is { } patch && HasFoldover(new RuledSectionChainTransitionPatch(patch)))
                     diagnostics.Add(new("section-chain-transition-foldover",
                         $"{transitionId}/{source.Section.Profile.Spans[spanIndex].SpanId}: sampled ruled Jacobian is singular or reverses orientation."));
             }
@@ -260,17 +300,24 @@ public static class SectionChainMaterializer
                     diagnostics.Add(new("section-chain-pcurve-error", item));
         }
         var validationMs = Stopwatch.GetElapsedTime(validationStarted).TotalMilliseconds;
+        var continuityEvidence = body is null ? null : MeasureContinuity(chain, transitionPatches);
+        if (chain.Continuity == SectionChainContinuity.G1 && continuityEvidence is { MaximumTangentPlaneAngleDegrees: > 1e-3d })
+            diagnostics.Add(new("section-chain-g1-verification-failed", $"Maximum tangent-plane discontinuity {continuityEvidence.MaximumTangentPlaneAngleDegrees:R} degrees exceeds 0.001 degrees."));
         if (diagnostics.Count > 0) body = null;
         return new(chain, body, Structure(chain), evidence, diagnostics,
             new(profileMs, correspondenceMs, transitionMs, stitchMs, validationMs))
-        { Pcurves = pcurveEvidence, SelfIntersection = selfIntersection.Evidence };
+        { Pcurves = pcurveEvidence, SelfIntersection = selfIntersection.Evidence, ContinuityEvidence = continuityEvidence,
+            SmoothSelection = smoothSelection, PreviewSvg = body is null ? null : BrepWireframeSvgRenderer.Render(body).Svg };
     }
 
     private static IReadOnlyList<SurfacingDiagnostic> Validate(SectionChain chain, IReadOnlyList<PreparedSection> sections)
     {
         var diagnostics = new List<SurfacingDiagnostic>();
         if (string.IsNullOrWhiteSpace(chain.StableId)) diagnostics.Add(new("section-chain-id-invalid", "SectionChain requires a stable identity."));
-        if (chain.TransitionPolicy != SectionTransitionPolicy.Ruled) diagnostics.Add(new("section-chain-transition-policy-invalid", "X3 qualifies Ruled transitions only."));
+        if (chain.TransitionPolicy == SectionTransitionPolicy.Ruled && chain.Continuity != SectionChainContinuity.G0)
+            diagnostics.Add(new("section-chain-continuity-transition-incompatible", "Ruled transitions require Continuity G0."));
+        if (chain.TransitionPolicy == SectionTransitionPolicy.SmoothPolynomial && chain.Continuity != SectionChainContinuity.G1)
+            diagnostics.Add(new("section-chain-continuity-transition-incompatible", "SmoothPolynomial transitions currently require Continuity G1."));
         if (sections.Count < 2) diagnostics.Add(new("section-chain-section-count-invalid", "SectionChain requires at least two ordered sections."));
         if (sections.Select(section => section.Section.SectionId).Distinct(StringComparer.Ordinal).Count() != sections.Count)
             diagnostics.Add(new("section-chain-section-id-duplicate", "Section identities must be unique."));
@@ -352,7 +399,7 @@ public static class SectionChainMaterializer
     private static (BrepBody Body, IReadOnlyList<SectionTransitionEvidence> Evidence) BuildBody(
         SectionChain chain,
         IReadOnlyList<PreparedSection> sections,
-        IReadOnlyList<(PreparedTransition Transition, RuledSurfacePatch[] Patches)> transitions)
+        IReadOnlyList<(PreparedTransition Transition, ISectionChainTransitionPatch[] Patches)> transitions)
     {
         var builder = new TopologyBuilder(); var geometry = new BrepGeometryStore(); var bindings = new BrepBindingModel();
         var points = new Dictionary<VertexId, Point3D>(); var nextCurve = 1; var nextSurface = 1;
@@ -381,7 +428,9 @@ public static class SectionChainMaterializer
             for (var vertex = 0; vertex < longitudinal.Length; vertex++)
             {
                 longitudinal[vertex] = builder.AddEdge(vertices[sourceIndex][vertex], vertices[targetIndex][vertex]);
-                BindLine(longitudinal[vertex], points[vertices[sourceIndex][vertex]], points[vertices[targetIndex][vertex]]);
+                var curve = entry.Patches[vertex].LongitudinalBoundary(false);
+                if (curve is null) BindLine(longitudinal[vertex], points[vertices[sourceIndex][vertex]], points[vertices[targetIndex][vertex]]);
+                else BindSpline(longitudinal[vertex], curve.Value);
             }
             var surfaces = new List<SectionTransitionSurfaceEvidence>();
             for (var span = 0; span < transition.Source.Boundaries.Length; span++)
@@ -455,6 +504,12 @@ public static class SectionChainMaterializer
             var curveId = new CurveGeometryId(nextCurve++); var delta = end - start;
             geometry.AddCurve(curveId, CurveGeometry.FromLine(new Line3Curve(start, Direction3D.Create(delta))));
             bindings.AddEdgeBinding(new(edge, curveId, new(0, delta.Length)));
+        }
+        void BindSpline(EdgeId edge, BSpline3Curve curve)
+        {
+            var curveId = new CurveGeometryId(nextCurve++);
+            geometry.AddCurve(curveId, CurveGeometry.FromBSpline(curve));
+            bindings.AddEdgeBinding(new(edge, curveId, new(curve.DomainStart, curve.DomainEnd)));
         }
     }
 
@@ -564,7 +619,7 @@ public static class SectionChainMaterializer
         return o1 * o2 < -Tolerance && o3 * o4 < -Tolerance;
     }
 
-    private static bool HasFoldover(RuledSurfacePatch patch)
+    internal static bool HasFoldover(ISectionChainTransitionPatch patch)
     {
         var normals = new Vector3D[17, 5];
         for (var uIndex = 0; uIndex <= 16; uIndex++)
@@ -584,6 +639,40 @@ public static class SectionChainMaterializer
             }
         }
         return false;
+    }
+
+    private static SectionChainContinuityEvidence MeasureContinuity(SectionChain chain,
+        IReadOnlyList<(PreparedTransition Transition, ISectionChainTransitionPatch[] Patches)> transitions)
+    {
+        var boundaries = new List<SectionChainBoundaryContinuityEvidence>();
+        for (var section = 1; section < chain.Sections.Count - 1; section++)
+        {
+            var maxPosition = 0d; var maxNormal = 0d; var maxTangent = 0d;
+            for (var span = 0; span < transitions[section - 1].Patches.Length; span++)
+            for (var sample = 0; sample <= 32; sample++)
+            {
+                var u = sample / 32d; const double h = 1e-6d;
+                var incoming = transitions[section - 1].Patches[span];
+                var outgoing = transitions[section].Patches[span];
+                maxPosition = Math.Max(maxPosition, (incoming.Evaluate(u, 1d) - outgoing.Evaluate(u, 0d)).Length);
+                var incomingDu = incoming.Evaluate(Math.Min(1d, u + h), 1d) - incoming.Evaluate(Math.Max(0d, u - h), 1d);
+                var outgoingDu = outgoing.Evaluate(Math.Min(1d, u + h), 0d) - outgoing.Evaluate(Math.Max(0d, u - h), 0d);
+                var incomingDv = incoming.Evaluate(u, 1d) - incoming.Evaluate(u, 1d - h);
+                var outgoingDv = outgoing.Evaluate(u, h) - outgoing.Evaluate(u, 0d);
+                if (incomingDv.TryNormalize(out var ti) && outgoingDv.TryNormalize(out var to))
+                    maxTangent = Math.Max(maxTangent, AngleDegrees(ti, to));
+                var ni = incomingDu.Cross(incomingDv); var no = outgoingDu.Cross(outgoingDv);
+                if (ni.TryNormalize(out var nui) && no.TryNormalize(out var nuo))
+                    maxNormal = Math.Max(maxNormal, AngleDegrees(nui, nuo));
+            }
+            boundaries.Add(new(chain.Sections[section].SectionId, maxPosition, maxNormal, maxTangent));
+        }
+        var worst = boundaries.OrderByDescending(item => item.MaximumTangentPlaneAngleDegrees).ThenBy(item => item.SectionId, StringComparer.Ordinal).FirstOrDefault();
+        return new(boundaries.Count == 0 ? 0d : boundaries.Max(item => item.MaximumPositionError),
+            boundaries.Count == 0 ? 0d : boundaries.Max(item => item.MaximumNormalAngleDegrees),
+            boundaries.Count == 0 ? 0d : boundaries.Max(item => item.MaximumTangentPlaneAngleDegrees), worst?.SectionId, boundaries);
+
+        static double AngleDegrees(Vector3D a, Vector3D b) => Math.Acos(Math.Clamp(a.Dot(b), -1d, 1d)) * 180d / Math.PI;
     }
 
     private static SectionPoint2D Lerp(SectionPoint2D a, SectionPoint2D b, double t) =>

@@ -66,6 +66,8 @@ public sealed class SurfX3bConstructionStateTests
     [Theory]
     [InlineData("surf-x3b-add-section-chain-grip.firmament", "AddSectionChain")]
     [InlineData("surf-x3b-remove-section-chain-duct.firmament", "RemoveSectionChain")]
+    [InlineData("surf-x4-add-section-chain-g1-grip.firmament", "AddSectionChain")]
+    [InlineData("surf-x4-remove-section-chain-g1-duct.firmament", "RemoveSectionChain")]
     public void FirmamentFlagshipsLowerToTypedOperationsAndReplay(string fixture, string kind)
     {
         var compiled = SculptingAuthoring.CompileFile(Fixture("Canonical", "BodyState", fixture));

@@ -9,7 +9,7 @@ Start with [Getting Started](getting-started.md), then use these guides:
 - Standard Library: [product-family index, invocation, authoring, and compatibility](standard-library/README.md)
 - Interoperability: [Forge Host Protocol v1](forge/interop.md)
 - Inspection: [Cadmata](cadmata/overview.md) and [Cadmata PMI](cadmata/pmi.md)
-- Reference: [CLI](reference/cli.md), [targets/selectors](reference/targets.md), [diagnostics](reference/diagnostics.md), [supported features](reference/supported-features.md), [known issues](reference/known-issues.md), and [release notes](reference/release-notes.md)
+- Reference: [CLI](reference/cli.md), [wireframe SVG previews](reference/wireframe.md), [targets/selectors](reference/targets.md), [diagnostics](reference/diagnostics.md), [supported features](reference/supported-features.md), [known issues](reference/known-issues.md), and [release notes](reference/release-notes.md)
 
 The Windows ZIP begins with the tested [release-bundle walkthrough](release-bundle.md).
 

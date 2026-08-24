@@ -1,6 +1,6 @@
 # Section chains
 
-A SectionChain builds a surface or closed body from an ordered sequence of framed profiles. It is the low-level ruled-loft substrate for cases where the profile itself changes from station to station.
+A SectionChain builds a surface or closed body from an ordered sequence of framed profiles. G1 is the normal freeform authoring default; explicit G0/Ruled remains available when straight generators are intentional.
 
 ```text
 Section0 -> Section1 -> Section2 -> Section3
@@ -10,9 +10,13 @@ Each `Section` owns a stable `SectionId`, a complete right-handed frame (`Origin
 
 Adjacent sections use one-to-one semantic span correspondence. Matching IDs may establish strong semantic identity, while explicit `AdjacentSectionCorrespondence` records the mapping in the flagship. Aetheris does not silently use nearest points, nearest edges, or tessellated vertex indices to define topology. The X3 lane requires the same span count and seam-relative order on both sides of a transition.
 
-`Ruled` is the only qualified transition policy. Each matched pair is sent through the existing `RuledSurfaceIr` lowering path, so there is one mathematical ruled implementation. Exact planar line pairs become `PLANE`; compatible line/B-spline and B-spline/B-spline pairs become exact non-rational `B_SPLINE_SURFACE_WITH_KNOTS`; coaxial compatible circles retain existing cylinder/cone recognition. Rational product surfaces are prohibited.
+Continuity intent and transition law are separate. `Continuity: G0` selects the existing `Ruled` law. `Continuity: G1` selects local `SmoothPolynomial` transitions. G0 makes adjacent surfaces meet. G1 also makes their tangent planes agree, so highlights and silhouettes flow smoothly across section boundaries.
 
-Every internal section edge is allocated once. The preceding and following transition faces use that same edge, curve, vertices, and parameter direction. Editing one section therefore rebuilds only its two adjacent transition identities; distant transitions and terminal conditions remain preserved in `SectionChainEditDelta`.
+For G1, Aetheris transforms corresponding polynomial controls into world space and derives a shared tangent field at every section. Interior tangents use a nonuniform three-section quadratic-derivative stencil; cumulative frame-origin chord length is the station metric, and endpoints use a bounded one-sided chord derivative. Three deterministic magnitude policies are qualified for foldover and overshoot before the Judgment Engine compares bending energy and normal variation. Continuity is a hard eligibility constraint, never an aesthetic score.
+
+Each matched span becomes an exact non-rational cubic transition in the longitudinal direction. Lines are exactly degree-elevated to cubic when needed; compatible polynomial B-splines retain their boundary geometry and knot structure. Circular-arc G1 normalization and mixed incompatible knot structures currently fail with `section-chain-g1-degree-limit`; Aetheris never introduces rational weights or a faceted fallback. The G0 path still preserves exact plane/cylinder/cone recognition where applicable.
+
+Every internal section edge is allocated once. The preceding and following transition faces use that same edge, curve, vertices, and parameter direction. For G0, editing one section rebuilds its two adjacent transitions. G1 has a bounded dependency neighborhood: editing section `i` recomputes tangent fields `i-1..i+1` and may rebuild transitions `i-2->i-1` through `i+1->i+2`. Distant transitions and terminal conditions remain preserved in `SectionChainEditDelta`; there is no global loft solve.
 
 Every transition and cap coedge also owns a face-local pcurve. Aetheris builds these through the same bounded Plane/Cylinder/non-rational-B-spline machinery used by trimmed SURF faces, then independently checks reconstruction deviation, surface-domain containment, both oriented endpoints, and UV loop closure. The two faces meeting at an internal section therefore share one authoritative 3D edge while retaining separate local 2D representations.
 
@@ -38,7 +42,7 @@ Concept Path NoseOutline {
 Profile NoseProfile From NoseOutline
 
 SectionChain Fairing {
-    Transition: Ruled
+    Continuity: G1
     Section Nose {
         Frame: NoseFrame
         Profile: NoseProfile
@@ -54,7 +58,7 @@ SectionChain Fairing {
 }
 ```
 
-Equal ordered span identities infer correspondence. When identities differ, author a `Correspond` block with `From`, `To`, and explicit `Source -> Target` rows. Missing, incomplete, reordered, or duplicate mappings fail before BRep construction. `Ruled`, `Cap`, and `Open` are the only currently qualified transition/termination vocabulary.
+Equal ordered span identities infer correspondence. When identities differ, author a `Correspond` block with `From`, `To`, and explicit `Source -> Target` rows. Missing, incomplete, reordered, or duplicate mappings fail before BRep construction. Omit `Continuity` for the G1 default, or write `Continuity: G0` and `Transition: Ruled` for intentionally faceted/straight-generator construction. G2 is not claimed. `Cap` and `Open` remain separate termination intent; planar caps meet the transition at G0 unless separately designed.
 
 ```firmament
 Correspond NoseToFront {
@@ -76,14 +80,14 @@ A SectionChain is useful as a geometric generator: each framed profile is an ord
 Generate and inspect the eight-section flagship through the production BRep/STEP path:
 
 ```powershell
-aetheris section-chain validate fixtures/Canonical/SectionChain/eight-section-ergonomic.firmament --json
-aetheris section-chain inspect fixtures/Canonical/SectionChain/eight-section-ergonomic.firmament --json
-aetheris section-chain build fixtures/Canonical/SectionChain/eight-section-ergonomic.firmament --out artifacts/local/surf-x3a/fairing.step --json
+aetheris section-chain inspect flagship --json
+aetheris section-chain build flagship-g0 --out artifacts/local/surf-x4/surf-x4-ergonomic-g0.step --json
+aetheris section-chain build flagship --out artifacts/local/surf-x4/surf-x4-ergonomic-g1.step --json
 ```
 
 On a source checkout where the tool is not installed, replace `aetheris` with `dotnet run --project Aetheris.CLI -c Release --`.
 
-The compatibility `section-chain build` command also supports the generated `flagship`, `twist`, and `two-profile` witnesses. That standalone command writes sibling `.evidence.json` containing section frames, spans, correspondence, transition classes, terminations, topology, pcurve qualification, conservative intersection evidence, timings, SHA-256, rational-surface count, and STEP reimport evidence. Ordinary X3b BodyState `build` instead writes the sculpting `.delta.json` construction/delta evidence described in the sculpting guide; it does not write both sibling formats.
+The compatibility command supports `flagship` (G1), `flagship-g0`, `twist`, and `two-profile`. Its structured inspection/evidence includes continuity intent, tangent derivation, candidate/rejection metrics, the selected policy, measured G0/G1 errors, representation, pcurves, topology, SHA-256, and STEP reimport. Its sibling preview uses the same general [BRep wireframe renderer](../reference/wireframe.md) exposed by `aetheris wireframe`; SectionChains no longer own a private visualization implementation.
 
 SURF-X3b adds a bounded `BodyState` composition lane. `AddSectionChain` retains the chain, terminal Section, semantic support, span correspondence, authorized envelope, preservation contracts, and requirements as one typed replay operation. `RemoveSectionChain` retains the changing-profile tool and both explicit penetration supports. Neither lowers to public `Union` or `Difference`; a SectionChain-specific builder emits the known shared topology directly.
 
@@ -100,6 +104,6 @@ The current canonical grip qualifies 24 faces, 50 edges, 28 vertices, and 100 pc
 
 ## Current limits
 
-The standalone lane has one closed outer loop, no holes, same-topology one-to-one correspondence, ruled transitions, and Cap/Open terminals. It checks frame handedness, loop closure and orientation, sampled profile self-intersection, section spacing, semantic mapping order, sampled transition Jacobian foldover, non-neighbour transition crossings, and remote cap penetration using a deterministic validation-only triangle proxy. The proxy is conservative detection evidence, not a global proof. BodyState composition is additionally limited to the planar housing support lanes described above; arbitrary supports, rotated/non-four-line profiles, crown/patch predecessors, branches, G1/G2 continuity, and arbitrary freeform Boolean composition fail closed. Invalid chains never produce a faceted product fallback.
+The standalone lane has one closed outer loop, no holes, same-topology one-to-one correspondence, G0/G1 pairwise transitions, and Cap/Open terminals. It checks frame handedness, loop closure/orientation, profile self-intersection, physical spacing, semantic mapping order, transition Jacobian foldover, bounded overshoot, non-neighbour crossings, remote cap penetration, pcurves, and realized continuity. The triangle proxy is conservative detection evidence, not a global proof. BodyState composition remains limited to the planar housing support lanes; arbitrary supports, branches, G2, rail lofts, topology-changing correspondence, and arbitrary freeform Boolean composition fail closed.
 
 Stable diagnostic families include `section-chain-correspondence-missing`, `section-chain-correspondence-duplicate`, `section-chain-profile-orientation-mismatch`, `section-chain-transition-foldover`, `section-chain-self-intersection`, and `section-chain-pcurve-error`. `section-chain validate` returns a nonzero exit status and emits no STEP when any of these blocks materialization. Transition identities are formatted `SourceSection->TargetSection` in structured evidence and diagnostic detail.

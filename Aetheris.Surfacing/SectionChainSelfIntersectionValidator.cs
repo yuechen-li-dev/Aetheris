@@ -3,7 +3,7 @@ using Aetheris.Kernel.Core.Math;
 
 namespace Aetheris.Surfacing;
 
-internal sealed record SectionChainValidationPatch(int TransitionIndex, string TransitionId, string SpanId, RuledSurfacePatch Patch);
+internal sealed record SectionChainValidationPatch(int TransitionIndex, string TransitionId, string SpanId, ISectionChainTransitionPatch Patch);
 internal sealed record SectionChainSelfIntersectionValidationResult(bool Passed, SectionChainSelfIntersectionEvidence Evidence, string Detail);
 
 /// <summary>
@@ -34,7 +34,7 @@ internal static class SectionChainSelfIntersectionValidator
             return Result(false, candidates, qualified, detail);
         }
         return Result(true, candidates, qualified,
-            $"No non-neighbour transition or remote cap crossings were detected by the deterministic {UDivisions}x{VDivisions} ruled-surface proxy.");
+            $"No non-neighbour transition or remote cap crossings were detected by the deterministic {UDivisions}x{VDivisions} surface proxy.");
 
         static bool SameOrAuthorizedNeighbor(Triangle a, Triangle b)
         {

@@ -10,6 +10,8 @@ public sealed class SectionChainAuthoringTests
     [InlineData("six-section-ergonomic.firmament", 6, SectionTermination.Cap, SectionTermination.Cap)]
     [InlineData("eight-section-ergonomic.firmament", 8, SectionTermination.Cap, SectionTermination.Cap)]
     [InlineData("open-chain.firmament", 2, SectionTermination.Open, SectionTermination.Open)]
+    [InlineData("g1-two-transition.firmament", 3, SectionTermination.Cap, SectionTermination.Cap)]
+    [InlineData("g0-explicit-ruled.firmament", 2, SectionTermination.Cap, SectionTermination.Cap)]
     public void CanonicalFixtureCorpusQualifies(string name, int count, SectionTermination start, SectionTermination end)
     {
         var result = SectionChainAuthoringParser.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/" + name));
@@ -17,6 +19,19 @@ public sealed class SectionChainAuthoringTests
         Assert.Equal(count, result.Chain!.Sections.Count);
         Assert.Equal(start, result.Chain.StartTermination);
         Assert.Equal(end, result.Chain.EndTermination);
+    }
+
+    [Fact]
+    public void ContinuityIntentSelectsTheSeparatedTransitionLaw()
+    {
+        var g1 = SectionChainAuthoringParser.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/g1-two-transition.firmament"));
+        var g0 = SectionChainAuthoringParser.Compile(FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/g0-explicit-ruled.firmament"));
+        Assert.True(g1.IsSuccess, string.Join(Environment.NewLine, g1.Diagnostics));
+        Assert.True(g0.IsSuccess, string.Join(Environment.NewLine, g0.Diagnostics));
+        Assert.Equal(SectionChainContinuity.G1, g1.Chain!.Continuity);
+        Assert.Equal(SectionTransitionPolicy.SmoothPolynomial, g1.Chain.TransitionPolicy);
+        Assert.Equal(SectionChainContinuity.G0, g0.Chain!.Continuity);
+        Assert.Equal(SectionTransitionPolicy.Ruled, g0.Chain.TransitionPolicy);
     }
 
     [Fact]

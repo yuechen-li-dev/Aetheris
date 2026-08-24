@@ -7,7 +7,7 @@ public static class SectionChainTemplates
     private static readonly string[] SpanIds = ["South", "East", "North", "West"];
 
     /// <summary>Eight changing, explicitly framed stations for the SURF-X3 flagship fairing.</summary>
-    public static SectionChain ErgonomicFairing(string stableId = "surf-x3-section-chain-ergonomic-body")
+    public static SectionChain ErgonomicFairing(string stableId = "surf-x3-section-chain-ergonomic-body", bool smooth = false)
     {
         var stations = new[]
         {
@@ -20,9 +20,12 @@ public static class SectionChainTemplates
             Station("Rear",       new(0, 0, 89),   17,  9.0, 3.0, -1,  1),
             Station("Tail",       new(0, 0, 100),   6,  4.0, 0.0, -1,  0),
         };
-        return new(stableId, stations, ExplicitCorrespondence(stations), SectionTransitionPolicy.Ruled,
-            SectionTermination.Cap, SectionTermination.Cap);
+        return new(stableId, stations, ExplicitCorrespondence(stations), smooth ? SectionTransitionPolicy.SmoothPolynomial : SectionTransitionPolicy.Ruled,
+            SectionTermination.Cap, SectionTermination.Cap, smooth ? SectionChainContinuity.G1 : SectionChainContinuity.G0);
     }
+
+    public static SectionChain ErgonomicFairingG1(string stableId = "surf-x4-section-chain-ergonomic-g1") =>
+        ErgonomicFairing(stableId, smooth: true);
 
     public static SectionChain TwistWitness(string stableId = "section-chain-twist")
     {

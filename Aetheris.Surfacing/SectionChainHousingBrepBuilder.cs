@@ -73,6 +73,10 @@ internal static class SectionChainHousingBrepBuilder
         if (!tool.IsSuccess)
             return new(null, chain, tool.Pcurves, tool.Diagnostics.Select(item => new SculptDiagnostic(item.Code, item.Message, chain.StableId)).ToArray());
 
+        var transitionSupports = tool.Body!.Geometry.Surfaces.OrderBy(pair => pair.Key.Value)
+            .Take((chain.Sections.Count - 1) * 4).Select(pair => pair.Value).ToArray();
+        var longitudinalSupports = tool.Body.Geometry.Curves.OrderBy(pair => pair.Key.Value)
+            .Skip(chain.Sections.Count * 4).Take((chain.Sections.Count - 1) * 4).Select(pair => pair.Value).ToArray();
         var builder = new TopologyBuilder();
         var points = new Dictionary<VertexId, Point3D>();
         var curves = new Dictionary<EdgeId, (CurveGeometry Curve, ParameterInterval Interval)>();
@@ -116,7 +120,8 @@ internal static class SectionChainHousingBrepBuilder
 
         var longitudinal = new EdgeId[chain.Sections.Count - 1][];
         for (var transition = 0; transition < longitudinal.Length; transition++)
-            longitudinal[transition] = Enumerable.Range(0, 4).Select(index => AddLine(chainVertices[transition][index], chainVertices[transition + 1][index])).ToArray();
+            longitudinal[transition] = Enumerable.Range(0, 4).Select(index => AddCurve(chainVertices[transition][index], chainVertices[transition + 1][index],
+                longitudinalSupports[transition * 4 + index])).ToArray();
 
         var bottomLoops = new List<LoopId> { AddLoop(eb.Select(edge => new Use(edge, false)).ToArray()) };
         var topLoops = new List<LoopId> { AddLoop(et.Select(edge => new Use(edge, true)).Reverse().ToArray()) };
@@ -151,8 +156,7 @@ internal static class SectionChainHousingBrepBuilder
             else
                 uses = [Cycle(chainEdges[transition][span], false), new(longitudinal[transition][span], false),
                     Cycle(chainEdges[transition + 1][span], true), new(longitudinal[transition][next], true)];
-            faces.Add((builder.AddFace([AddLoop(uses)]), TransitionSurface(chainPoints[transition][span], chainPoints[transition][next],
-                chainPoints[transition + 1][span], chainPoints[transition + 1][next])));
+            faces.Add((builder.AddFace([AddLoop(uses)]), transitionSupports[transition * 4 + span]));
         }
 
         if (additive)
@@ -194,6 +198,17 @@ internal static class SectionChainHousingBrepBuilder
             var edge = builder.AddEdge(start, end); var vector = points[end] - points[start];
             curves[edge] = (CurveGeometry.FromLine(new Line3Curve(points[start], Direction3D.Create(vector))), new(0d, vector.Length)); return edge;
         }
+        EdgeId AddCurve(VertexId start, VertexId end, CurveGeometry curve)
+        {
+            var edge = builder.AddEdge(start, end);
+            var interval = curve.Kind switch
+            {
+                CurveGeometryKind.Line3 => new ParameterInterval(0d, (points[end] - points[start]).Length),
+                CurveGeometryKind.BSpline3 => new ParameterInterval(curve.BSpline3!.Value.DomainStart, curve.BSpline3.Value.DomainEnd),
+                _ => throw new InvalidOperationException($"Unsupported SectionChain longitudinal curve {curve.Kind}.")
+            };
+            curves[edge] = (curve, interval); return edge;
+        }
         EdgeId AddCircle(VertexId seam, HousingHole hole, double z)
         {
             var edge = builder.AddEdge(seam, seam);
@@ -213,7 +228,8 @@ internal static class SectionChainHousingBrepBuilder
         if (construction.HasCrown || construction.ReplacementPatch is not null)
             yield return new("section-chain-housing-base-unsupported", "The admitted X3b composition lane requires a planar uncrowned Housing base; replay fails closed for upstream crown/patch changes.");
         if (chain.Sections.Count < 2) yield return new("section-chain-section-count-invalid", "SectionChain requires at least two sections.");
-        if (chain.TransitionPolicy != SectionTransitionPolicy.Ruled) yield return new("section-chain-transition-policy-invalid", "Only Ruled transitions are admitted.");
+        if (chain.TransitionPolicy is not (SectionTransitionPolicy.Ruled or SectionTransitionPolicy.SmoothPolynomial))
+            yield return new("section-chain-transition-policy-invalid", "Only Ruled/G0 and SmoothPolynomial/G1 transitions are admitted.");
         foreach (var section in chain.Sections)
         {
             if (section.Profile.Spans.Count != 4 || section.Profile.Spans.Any(span => span.Curve is not SectionProfileCurve.Line))

@@ -32,7 +32,12 @@ public static class SectionChainAuthoringParser
 
         var declaration = declarations[0];
         var profiles = ProfileAuthoringParser.BindPathDerivedProfiles(source, diagnostics);
-        var transitionText = Field(declaration.Body, "Transition") ?? "Ruled";
+        var authoredTransition = Field(declaration.Body, "Transition");
+        var continuityText = Field(declaration.Body, "Continuity") ?? (authoredTransition == "Ruled" ? "G0" : "G1");
+        if (!Enum.TryParse<SectionChainContinuity>(continuityText, false, out var continuity))
+            diagnostics.Add($"section-chain-continuity-invalid:{continuityText}");
+        var transitionText = authoredTransition
+            ?? (continuity == SectionChainContinuity.G0 ? "Ruled" : "SmoothPolynomial");
         if (!Enum.TryParse<SectionTransitionPolicy>(transitionText, false, out var transition))
             diagnostics.Add($"section-chain-transition-policy-invalid:{transitionText}");
         var startText = Field(declaration.Body, "Start") ?? "Open";
@@ -76,7 +81,7 @@ public static class SectionChainAuthoringParser
         }
 
         if (diagnostics.Count != 0) return Fail(diagnostics);
-        var chain = new SectionChain(declaration.Name, sections, correspondence, transition, start, end);
+        var chain = new SectionChain(declaration.Name, sections, correspondence, transition, start, end, continuity);
         if (!materialize) return new(true, chain, null, []);
         var result = SectionChainMaterializer.Materialize(chain);
         if (!result.IsSuccess)

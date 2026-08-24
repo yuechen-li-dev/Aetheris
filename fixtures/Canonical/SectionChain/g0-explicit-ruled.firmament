@@ -1,0 +1,27 @@
+Model G0ExplicitRuled {
+ Units: mm
+ Concept Struct Stations {
+  D0: Plane { Origin: [0mm,0mm,0mm]; Normal: [1,0,0]; Up: [0,0,1] }
+  D1: Plane { Origin: [20mm,0mm,0mm]; Normal: [1,0,0]; Up: [0,0,1] }
+ }
+ Construction Plane F0 { Trace: Stations.D0 }
+ Construction Plane F1 { Trace: Stations.D1 }
+ Concept Path Box { Start: Point2(-4mm,-3mm) Heading: 0deg Line Bottom { Length: 8mm } Line Right { Turn: 90deg; Length: 6mm } Line Top { Turn: 90deg; Length: 8mm } Close Left }
+ Profile PBox From Box
+ SectionChain G0ExplicitRuled {
+  Continuity: G0
+  Transition: Ruled
+  Section A {
+   Frame: F0
+   Profile: PBox
+   Seam: Bottom
+  }
+  Section B {
+   Frame: F1
+   Profile: PBox
+   Seam: Bottom
+  }
+  Start: Cap
+  End: Cap
+ }
+}

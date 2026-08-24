@@ -1,0 +1,37 @@
+Model SurfX4RemoveSectionChainG1Duct {
+  Units: mm
+  SectionChain DuctChain {
+    Continuity: G1
+    StartTermination: Open
+    EndTermination: Open
+    Station West { Origin: [-40mm, 0mm, 10mm]
+      Size: [10mm, 8mm] }
+    Station Entry { Origin: [-20mm, 0mm, 10mm]
+      Size: [13mm, 9mm] }
+    Station Center { Origin: [0mm, 0mm, 10mm]
+      Size: [12mm, 10mm] }
+    Station Exit { Origin: [20mm, 0mm, 10mm]
+      Size: [9mm, 7mm] }
+    Station East { Origin: [40mm, 0mm, 10mm]
+      Size: [11mm, 8mm] }
+  }
+  BodyState Base {
+    Size: [80mm, 40mm, 20mm]
+    Hole MountA { Center: [-25mm, -12mm]
+      Diameter: 4mm }
+    Hole MountB { Center: [25mm, 12mm]
+      Diameter: 4mm }
+  }
+  SculptState DuctRemoved {
+    Input: Base
+    RemoveSectionChain Duct {
+      Chain: DuctChain
+      Supports: [HousingSideWest, HousingSideEast]
+      InfluenceEnvelope: [-40mm, -7mm, 5mm, 40mm, 7mm, 15mm]
+    }
+    MayModify: [HousingSideWest, HousingSideEast]
+    Preserve: [BottomMountingInterface, MountingHolePattern]
+    Require: [ClosedManifold, OrientationConsistency, NoSelfIntersection]
+  }
+  Output: DuctRemoved
+}

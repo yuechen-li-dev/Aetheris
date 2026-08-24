@@ -227,7 +227,13 @@ public static class SculptingAuthoring
         { diagnostics.Add(new("section-chain-termination-invalid", $"SectionChain '{block.Name}' terminations must be Open or Cap.", block.Name)); return null; }
         var correspondence = stations.Zip(stations.Skip(1), (source, target) => new AdjacentSectionCorrespondence(source.SectionId, target.SectionId,
             spanIds.Select(span => new SectionSpanCorrespondence(span, span)).ToArray())).ToArray();
-        return new(block.Name, stations, correspondence, SectionTransitionPolicy.Ruled, start, end);
+        // The compact X3b sculpt-operation grammar predates SURF-X4; absence remains G0 for replay compatibility.
+        var continuityText = ScalarText(block.Body, "Continuity") ?? "G0";
+        if (!Enum.TryParse<SectionChainContinuity>(continuityText, true, out var continuity))
+        { diagnostics.Add(new("section-chain-continuity-invalid", $"SectionChain '{block.Name}' Continuity must be G0 or G1.", block.Name)); return null; }
+        return new(block.Name, stations, correspondence,
+            continuity == SectionChainContinuity.G1 ? SectionTransitionPolicy.SmoothPolynomial : SectionTransitionPolicy.Ruled,
+            start, end, continuity);
     }
 
     private static IReadOnlyList<Block> Blocks(string source, string keyword)

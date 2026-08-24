@@ -9,6 +9,7 @@ using Aetheris.Kernel.Core.Brep.Verification;
 using Aetheris.Kernel.Core.Brep.Tessellation;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
+using Aetheris.Kernel.Core.Visualization;
 using Aetheris.Kernel.Firmament;
 using Aetheris.Kernel.Firmament.Assembly;
 using Aetheris.Kernel.Firmament.Drawing;
@@ -166,7 +167,8 @@ public static class CliRunner
     private const string SheetMetalUsage = "Usage: aetheris sheetmetal recognize <part.step> [--plan <recognition.json>] [--json] | aetheris sheetmetal recover-flat <part.step> --out-dir <directory> [--recognition-plan <recognition.json>] [--json] | aetheris sheetmetal compare-flat <recovered-flat.json> <native.firmament> [--semantic] [--json] | aetheris sheetmetal inspect <part.step|part.firmament> [--k-factor <0..1>] [--json] | aetheris sheetmetal paths <part.firmament> [--json] | aetheris sheetmetal recover <part.step> --out-dir <directory> [--json] | aetheris sheetmetal compare <part.step|part.firmament> <intent.firmament> [--semantic] [--json] | aetheris sheetmetal flatten <part.step|part.firmament> [--step <flat.step>] [--firmament <recovered.firmament>] [--svg <flat.svg>] [--k-factor <0..1>] [--json]";
     private const string ExperimentalLoopChamferCorpusUsage = "Usage: aetheris experimental loop-chamfer-corpus --out-dir <dir> [--json]";
     private const string SculptureUsage = "Usage: aetheris sculpture build <sol-1.sculpture.json> [--out <sol-1.step>] [--evidence <sol-1.evidence.json>] [--preview <sol-1.preview.svg>] [--json]";
-    private const string SectionChainUsage = "Usage: aetheris section-chain <build|inspect|validate> <file.firmament|flagship|twist|two-profile> [--out <model.step>] [--json]";
+    private const string SectionChainUsage = "Usage: aetheris section-chain <build|inspect|validate> <file.firmament|flagship|flagship-g0|twist|two-profile> [--out <model.step>] [--json]";
+    private const string WireframeUsage = "Usage: aetheris wireframe <model.step> [--out <preview.svg>] [--view <iso|front|top|right>] [--density <2..32>] [--samples <8..256>] [--json]";
 
     internal static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -231,6 +233,7 @@ public static class CliRunner
                 "sheetmetal" => RunSheetMetal(args.Skip(1).ToArray(), stdout, stderr),
                 "sculpture" => RunSculpture(args.Skip(1).ToArray(), stdout, stderr),
                 "section-chain" => RunSectionChain(args.Skip(1).ToArray(), stdout, stderr),
+                "wireframe" => RunWireframe(args.Skip(1).ToArray(), stdout, stderr),
                 "reconstruct" => ReconstructionCli.Run(args.Skip(1).ToArray(), stdout, stderr, JsonOptions),
                 _ => UnknownCommand(args[0], stderr)
             };
@@ -539,7 +542,7 @@ public static class CliRunner
     {
         if (args.Length == 0 || IsHelpFlag(args[0]))
         {
-            stdout.WriteLine("Materialize an ordered semantic SectionChain through ruled pairwise transitions.");
+            stdout.WriteLine("Materialize an ordered semantic SectionChain through local ruled/G0 or polynomial/G1 pairwise transitions.");
             stdout.WriteLine(SectionChainUsage);
             return args.Length == 0 ? 1 : 0;
         }
@@ -568,7 +571,8 @@ public static class CliRunner
         {
             chain = witness switch
             {
-                "flagship" => SectionChainTemplates.ErgonomicFairing(),
+                "flagship" => SectionChainTemplates.ErgonomicFairingG1(),
+                "flagship-g0" => SectionChainTemplates.ErgonomicFairing("surf-x4-section-chain-ergonomic-g0", smooth: false),
                 "twist" => SectionChainTemplates.TwistWitness(),
                 "two-profile" => SectionChainTemplates.TwoProfileRuled(),
                 _ => throw new ArgumentException($"Unknown SectionChain witness '{witness}'.")
@@ -596,8 +600,9 @@ public static class CliRunner
                     resolution = chain.Correspondence.Any(item => item.SourceSectionId == chain.Sections[index].SectionId && item.TargetSectionId == chain.Sections[index + 1].SectionId) ? "Explicit" : "InferredSemanticIdentity",
                     spans = chain.Sections[index].Profile.Spans.Select((span, spanIndex) => new { source = span.SpanId, target = chain.Sections[index + 1].Profile.Spans[spanIndex].SpanId })
                 }),
-                chain.TransitionPolicy, chain.StartTermination, chain.EndTermination,
+                chain.TransitionPolicy, chain.Continuity, chain.SmoothPolicy, chain.StartTermination, chain.EndTermination,
                 transitions = materialized.Transitions, pcurves = materialized.Pcurves, selfIntersection = materialized.SelfIntersection,
+                continuityEvidence = materialized.ContinuityEvidence, smoothSelection = materialized.SmoothSelection,
                 diagnostics = materialized.Diagnostics
             };
             stdout.WriteLine(JsonSerializer.Serialize(inspection, JsonOptions));
@@ -610,12 +615,14 @@ public static class CliRunner
             return 1;
         }
         Directory.CreateDirectory(Path.GetDirectoryName(output)!); File.WriteAllText(output, export.Value);
+        var previewPath = Path.ChangeExtension(output, ".preview.svg");
+        if (materialized.PreviewSvg is not null) File.WriteAllText(previewPath, materialized.PreviewSvg);
         var reimport = Step242Importer.ImportBody(export.Value);
         var surfaces = materialized.Body!.Geometry.Surfaces.Select(item => item.Value.Kind).GroupBy(kind => kind)
             .ToDictionary(group => group.Key.ToString(), group => group.Count(), StringComparer.Ordinal);
         var report = new
         {
-            command = "section-chain build", success = true, witness, output, sha256 = Hash(export.Value),
+            command = "section-chain build", success = true, witness, output, preview = previewPath, sha256 = Hash(export.Value),
             sectionChain = new
             {
                 chain.StableId, sectionCount = chain.Sections.Count, transitionCount = materialized.Transitions.Count,
@@ -628,12 +635,14 @@ public static class CliRunner
                     spans = chain.Sections[index].Profile.Spans.Select((span, spanIndex) => new { source = span.SpanId, target = chain.Sections[index + 1].Profile.Spans[spanIndex].SpanId })
                 }),
                 transitionPolicy = chain.TransitionPolicy,
+                continuity = chain.Continuity, smoothPolicy = chain.SmoothPolicy,
                 startTermination = chain.StartTermination, endTermination = chain.EndTermination,
                 structure = materialized.StructureKind, transitions = materialized.Transitions
             },
             topology = new { bodies = materialized.Body.Topology.Bodies.Count(), shells = materialized.Body.Topology.Shells.Count(), faces = materialized.Body.Topology.Faces.Count(), edges = materialized.Body.Topology.Edges.Count(), vertices = materialized.Body.Topology.Vertices.Count() },
             surfaceInventory = surfaces, rationalProductSurfaces = 0, facetedProductFallback = 0, pcurves = materialized.Pcurves,
             selfIntersection = materialized.SelfIntersection,
+            continuityEvidence = materialized.ContinuityEvidence, smoothSelection = materialized.SmoothSelection,
             stepReimport = new { success = reimport.IsSuccess, diagnostics = reimport.Diagnostics.Select(item => item.Message) },
             timingsMilliseconds = materialized.Timing
         };
@@ -642,6 +651,57 @@ public static class CliRunner
         if (json) stdout.WriteLine(JsonSerializer.Serialize(report, JsonOptions));
         else stdout.WriteLine($"Built SectionChain '{chain.StableId}' ({chain.Sections.Count} sections, {materialized.Transitions.Count} transitions).\nSTEP: {output}\nEvidence: {evidencePath}\nSHA-256: {Hash(export.Value)}\nSTEP reimport: {(reimport.IsSuccess ? "succeeded" : "failed")}");
         return reimport.IsSuccess ? 0 : 1;
+    }
+
+    private static int RunWireframe(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0 || IsHelpFlag(args[0]))
+        {
+            stdout.WriteLine("Render deterministic trim-aware SVG isolines and exact topology edges from a STEP BRep.");
+            stdout.WriteLine(WireframeUsage);
+            stdout.WriteLine("The result is diagnostic visualization, not a tessellated product or hidden-line engineering drawing.");
+            return args.Length == 0 ? 1 : 0;
+        }
+        var input = Path.GetFullPath(args[0]); string? output = null; var json = false;
+        var view = WireframeView.Isometric; var density = 8; var samples = 48;
+        for (var index = 1; index < args.Length; index++)
+        {
+            if (args[index] == "--json") json = true;
+            else if (args[index] == "--out" && index + 1 < args.Length) output = Path.GetFullPath(args[++index]);
+            else if (args[index] == "--density" && index + 1 < args.Length && int.TryParse(args[++index], out density)) { }
+            else if (args[index] == "--samples" && index + 1 < args.Length && int.TryParse(args[++index], out samples)) { }
+            else if (args[index] == "--view" && index + 1 < args.Length)
+            {
+                view = args[++index].ToLowerInvariant() switch
+                {
+                    "iso" or "isometric" => WireframeView.Isometric,
+                    "front" => WireframeView.Front,
+                    "top" => WireframeView.Top,
+                    "right" => WireframeView.Right,
+                    _ => throw new ArgumentException(WireframeUsage)
+                };
+            }
+            else { stderr.WriteLine(WireframeUsage); return 1; }
+        }
+        if (density is < 2 or > 32 || samples is < 8 or > 256) { stderr.WriteLine(WireframeUsage); return 1; }
+        if (!File.Exists(input)) { stderr.WriteLine($"STEP file not found: {input}"); return 1; }
+        output ??= Path.Combine(Path.GetDirectoryName(input)!, Path.GetFileNameWithoutExtension(input) + ".wireframe.svg");
+        var imported = Step242Importer.ImportBody(File.ReadAllText(input));
+        if (!imported.IsSuccess || imported.Value is null)
+        {
+            foreach (var diagnostic in imported.Diagnostics) stderr.WriteLine($"error: {diagnostic.Message}");
+            return 1;
+        }
+        PcurveBuildResult? recoveredPcurves = null;
+        if (!imported.Value.Bindings.PcurveBindings.Any())
+            recoveredPcurves = BoundedPcurveBuilder.Populate(imported.Value.Topology, imported.Value.Geometry, imported.Value.Bindings);
+        var rendered = BrepWireframeSvgRenderer.Render(imported.Value, new(view, density, samples));
+        Directory.CreateDirectory(Path.GetDirectoryName(output)!); File.WriteAllText(output, rendered.Svg);
+        var report = new { command = "wireframe", success = true, input, output, rendered.Evidence,
+            pcurveRecovery = recoveredPcurves is null ? null : new { recoveredPcurves.IsSuccess, recoveredPcurves.Count, recoveredPcurves.MaximumResidual, recoveredPcurves.Diagnostics } };
+        if (json) stdout.WriteLine(JsonSerializer.Serialize(report, JsonOptions));
+        else stdout.WriteLine($"Wireframe SVG: {output}\nFaces: {rendered.Evidence.FaceCount}; edges: {rendered.Evidence.EdgeCount}; trimmed faces: {rendered.Evidence.FacesWithTrimmedIsolines}\nSHA-256: {rendered.Evidence.Sha256}");
+        return 0;
     }
 
     private static int RunSculptingBuild(string sourcePath, string? outPath, bool json, TextWriter stdout, TextWriter stderr)
@@ -4319,7 +4379,8 @@ Model CanonicalPanel {
         stdout.WriteLine("  modules    Inspect built-in engineering Modules and capabilities.");
         stdout.WriteLine("  sheetmetal Inspect/recover sheet semantics and generate manufacturing flat-pattern SVG.");
         stdout.WriteLine("  sculpture  Build bounded non-manufacturing virtual sculpture artifacts.");
-        stdout.WriteLine("  section-chain  Build bounded ruled SectionChain qualification artifacts.");
+        stdout.WriteLine("  section-chain  Build bounded G0/G1 SectionChain qualification artifacts.");
+        stdout.WriteLine("  wireframe  Render a deterministic trim-aware SVG preview from a STEP BRep.");
         stdout.WriteLine("  verify     Build/reimport and verify a model.");
         stdout.WriteLine("  reconstruct  Experimentally reconstruct a structured mesh from triangle PLY input.");
         stdout.WriteLine();
@@ -4338,6 +4399,7 @@ Model CanonicalPanel {
         stdout.WriteLine("  aetheris sheetmetal flatten bracket.firmament --step bracket-flat.step --svg bracket-flat.svg --json");
         stdout.WriteLine("  aetheris sculpture build fixtures/Canonical/VirtualSculpture/sol-1.sculpture.json");
         stdout.WriteLine("  aetheris section-chain build flagship --json");
+        stdout.WriteLine("  aetheris wireframe model.step --out model.wireframe.svg --view iso --density 8");
         stdout.WriteLine("  aetheris reconstruct mesh scan.ply --mode fast --out scan-remesh.obj --report scan-report.json");
         stdout.WriteLine();
         stdout.WriteLine("Run 'aetheris <command> --help' for command-specific usage.");

@@ -68,11 +68,10 @@ export interface StepImportResponseDto {
 
 export interface PaperclipDemoRequestDto {
 	wireDiameter: number;
-	overallLength: number;
-	outerWidth: number;
-	innerWidth: number;
-	bendRadius: number;
-	loopGap: number;
+	outerLegLength: number;
+	innerLegLength: number;
+	outerBendRadius: number;
+	innerBendRadius: number;
 	material: string;
 }
 

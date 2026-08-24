@@ -32,13 +32,17 @@ public sealed class CircularSweepTests
         Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics.Select(x => x.Message)));
         var report = Assert.IsType<FirmamentSweepReport>(result.Value.Sweep);
         Assert.Equal(7, report.SegmentCount);
-        Assert.Equal(0.8, report.Diameter, 9);
+        Assert.Equal(1, report.Diameter, 9);
         Assert.Equal("Standard.Materials.StainlessSteel.304_Annealed", report.Material);
         Assert.Equal(4, report.Cylinders);
         Assert.Equal(3, report.Tori);
-        Assert.InRange(report.Bounds[3] - report.Bounds[0], 9.79, 9.81);
-        Assert.InRange(report.Bounds[4] - report.Bounds[1], 33.79, 33.81);
-        Assert.True(report.CenterlineLength > 100);
+        Assert.Equal(11, report.Bounds[3] - report.Bounds[0], 9);
+        Assert.Equal(25, report.Bounds[4] - report.Bounds[1], 9);
+        Assert.Equal(1, report.Bounds[5] - report.Bounds[2], 9);
+        Assert.Equal(58 + 12 * Math.PI, report.CenterlineLength, 9);
+        Assert.True(report.EnclosedManifold);
+        Assert.True(report.StepReimportSucceeded);
+        Assert.True(report.StepReimportedManifold);
         Assert.True(report.MassKilograms > 0);
     }
 

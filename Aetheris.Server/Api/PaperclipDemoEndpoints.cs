@@ -3,8 +3,8 @@ using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.Server.Api;
 
-public sealed record PaperclipDemoRequest(double WireDiameter, double OverallLength, double OuterWidth,
-    double InnerWidth, double BendRadius, double LoopGap, string? Material);
+public sealed record PaperclipDemoRequest(double WireDiameter, double OuterLegLength, double InnerLegLength,
+    double OuterBendRadius, double InnerBendRadius, string? Material);
 
 public sealed record PaperclipDemoResponse(string StepText, string SpecializationIdentity, double CenterlineLength,
     double MassGrams, double PaperclipsPerMeter, IReadOnlyList<double> Bounds, string Material,
@@ -18,9 +18,9 @@ public static class PaperclipDemoEndpoints
         {
             var fields = new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ["WireDiameter"] = Mm(request.WireDiameter), ["OverallLength"] = Mm(request.OverallLength),
-                ["OuterWidth"] = Mm(request.OuterWidth), ["InnerWidth"] = Mm(request.InnerWidth),
-                ["BendRadius"] = Mm(request.BendRadius), ["LoopGap"] = Mm(request.LoopGap),
+                ["WireDiameter"] = Mm(request.WireDiameter), ["OuterLegLength"] = Mm(request.OuterLegLength),
+                ["InnerLegLength"] = Mm(request.InnerLegLength), ["OuterBendRadius"] = Mm(request.OuterBendRadius),
+                ["InnerBendRadius"] = Mm(request.InnerBendRadius),
                 ["Material"] = System.Text.Json.JsonSerializer.Serialize(request.Material ?? "Standard.Materials.StainlessSteel.304_Annealed"),
             };
             var expansion = FirmamentTemplateHostBridge.Expand(PaperclipTemplateLibrary.Source, "PaperclipTemplate", "InteractivePaperclip",

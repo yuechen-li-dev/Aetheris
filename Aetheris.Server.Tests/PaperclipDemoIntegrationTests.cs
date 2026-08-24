@@ -15,7 +15,7 @@ public sealed class PaperclipDemoIntegrationTests : IClassFixture<WebApplication
     public async Task MaximumPaperclips_CompilesParametricTemplateThroughStepRoundTrip()
     {
         var response = await _client.PostAsJsonAsync("/api/v1/demos/maximum-paperclips",
-            new PaperclipDemoRequest(1, 40, 11, 6, 1.5, 1.2, "Standard.Materials.StainlessSteel.304_Annealed"));
+            new PaperclipDemoRequest(1, 17.25, 16.1, 5, 3, "Standard.Materials.StainlessSteel.304_Annealed"));
         response.EnsureSuccessStatusCode();
 
         var envelope = await response.Content.ReadFromJsonAsync<ApiResponseDto<PaperclipDemoResponse>>();

@@ -2,40 +2,39 @@ Model StandardProductsOfficePaperclip {
     Units: mm
     Record PaperclipPolicy {
         WireDiameter: Length
-        OverallLength: Length
-        OuterWidth: Length
-        InnerWidth: Length
-        BendRadius: Length
-        LoopGap: Length
+        OuterLegLength: Length
+        InnerLegLength: Length
+        OuterBendRadius: Length
+        InnerBendRadius: Length
         Material: String
     }
     Static StandardPaperclip: PaperclipPolicy = PaperclipPolicy {
-        WireDiameter: 0.8mm
-        OverallLength: 33mm
-        OuterWidth: 9mm
-        InnerWidth: 5mm
-        BendRadius: 1mm
-        LoopGap: 1mm
+        WireDiameter: 1mm
+        OuterLegLength: 15mm
+        InnerLegLength: 14mm
+        OuterBendRadius: 5mm
+        InnerBendRadius: 3mm
         Material: "Standard.Materials.StainlessSteel.304_Annealed"
     }
     Template < P: PaperclipPolicy >
     Struct PaperclipTemplate {
         Require PositiveWireDiameter => P.WireDiameter > 0mm
-        Require LengthExceedsWidth => P.OverallLength > P.OuterWidth
-        Require OuterWidthExceedsInnerWidth => P.OuterWidth > P.InnerWidth
-        Require InnerLoopClearsWire => P.InnerWidth > P.WireDiameter
-        Require BendClearsWire => P.BendRadius > P.WireDiameter
-        Require EndsHaveClearance => P.LoopGap >= P.WireDiameter
+        Require PositiveLegLengths => P.OuterLegLength > 0mm && P.InnerLegLength > 0mm
+        Require OuterLegExceedsInnerLeg => P.OuterLegLength > P.InnerLegLength
+        Require PositiveBendRadii => P.OuterBendRadius > 0mm && P.InnerBendRadius > 0mm
+        Require OuterBendExceedsInnerBend => P.OuterBendRadius > P.InnerBendRadius
+        Require InnerBendClearsWire => P.InnerBendRadius > P.WireDiameter
         Concept Path PaperclipPath {
-            Start: Point2(0mm, 0mm)
+            // The reference frame places the inner-right terminal at X=8 mm.
+            Start: Point2(8mm, 0mm)
             Heading: 90deg
-            Line InnerUp { Length: P.OverallLength - P.InnerWidth / 2 - P.LoopGap }
-            Arc InnerTop { Radius: P.InnerWidth / 2; Turn: -180deg }
-            Line InnerDown { Length: P.OverallLength - P.InnerWidth / 2 - P.OuterWidth / 2 - P.LoopGap }
-            Arc BottomTransition { Radius: P.BendRadius; Turn: 180deg }
-            Line OuterUp { Length: P.OverallLength - P.OuterWidth }
-            Arc OuterTop { Radius: P.OuterWidth / 2; Turn: 180deg }
-            Line OuterDown { Length: P.OverallLength - P.OuterWidth / 2 - P.LoopGap }
+            Line InnerRightUp { Length: P.InnerLegLength }
+            Arc InnerTop { Radius: P.InnerBendRadius; Turn: 180deg }
+            Line InnerLeftDown { Length: P.InnerLegLength }
+            Arc LowerReturn { Radius: (P.OuterBendRadius + P.InnerBendRadius) / 2; Turn: 180deg }
+            Line OuterRightUp { Length: P.OuterLegLength }
+            Arc OuterTop { Radius: P.OuterBendRadius; Turn: 180deg }
+            Line OuterLeftDown { Length: P.OuterLegLength }
         }
         Sweep Paperclip {
             Path: PaperclipPath

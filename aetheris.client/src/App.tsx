@@ -207,12 +207,11 @@ function App() {
 	const [boxWidth, setBoxWidth] = useState("1.75");
 	const [boxHeight, setBoxHeight] = useState("1.25");
 	const [boxDepth, setBoxDepth] = useState("1.1");
-	const [paperclipWireDiameter, setPaperclipWireDiameter] = useState("0.8");
-	const [paperclipOverallLength, setPaperclipOverallLength] = useState("33");
-	const [paperclipOuterWidth, setPaperclipOuterWidth] = useState("9");
-	const [paperclipInnerWidth, setPaperclipInnerWidth] = useState("5");
-	const [paperclipBendRadius, setPaperclipBendRadius] = useState("1");
-	const [paperclipLoopGap, setPaperclipLoopGap] = useState("1");
+	const [paperclipWireDiameter, setPaperclipWireDiameter] = useState("1");
+	const [paperclipOuterLegLength, setPaperclipOuterLegLength] = useState("15");
+	const [paperclipInnerLegLength, setPaperclipInnerLegLength] = useState("14");
+	const [paperclipOuterBendRadius, setPaperclipOuterBendRadius] = useState("5");
+	const [paperclipInnerBendRadius, setPaperclipInnerBendRadius] = useState("3");
 	const [paperclipResult, setPaperclipResult] = useState<PaperclipDemoResponseDto | null>(null);
 	const [tx, setTx] = useState("0");
 	const [ty, setTy] = useState("0");
@@ -639,14 +638,14 @@ function App() {
 	}, [importStepText, stepImportFile]);
 
 	const handleMaximizePaperclips = useCallback(async () => {
-		const values = [paperclipWireDiameter, paperclipOverallLength, paperclipOuterWidth, paperclipInnerWidth, paperclipBendRadius, paperclipLoopGap].map(Number);
+		const values = [paperclipWireDiameter, paperclipOuterLegLength, paperclipInnerLegLength, paperclipOuterBendRadius, paperclipInnerBendRadius].map(Number);
 		if (values.some((value) => !Number.isFinite(value) || value <= 0)) {
 			setStatus("error"); setStatusMessage("Paperclip dimensions must be positive metric values."); return;
 		}
-		const [wireDiameter, overallLength, outerWidth, innerWidth, bendRadius, loopGap] = values;
+		const [wireDiameter, outerLegLength, innerLegLength, outerBendRadius, innerBendRadius] = values;
 		setStatus("loading"); setStatusMessage("Maximizing paperclips..."); setDiagnostics([]);
 		try {
-			const generated = await maximizePaperclips({ wireDiameter, overallLength, outerWidth, innerWidth, bendRadius, loopGap,
+			const generated = await maximizePaperclips({ wireDiameter, outerLegLength, innerLegLength, outerBendRadius, innerBendRadius,
 				material: "Standard.Materials.StainlessSteel.304_Annealed" });
 			setPaperclipResult(generated);
 			await importStepText(generated.stepText, "maximum-paperclip.step");
@@ -655,7 +654,7 @@ function App() {
 			const apiError = error instanceof ApiError ? error : new ApiError((error as Error).message || "Paperclip generation failed.", []);
 			setStatus("error"); setStatusMessage(apiError.message); setDiagnostics(apiError.diagnostics);
 		}
-	}, [importStepText, paperclipBendRadius, paperclipInnerWidth, paperclipLoopGap, paperclipOuterWidth, paperclipOverallLength, paperclipWireDiameter]);
+	}, [importStepText, paperclipInnerBendRadius, paperclipInnerLegLength, paperclipOuterBendRadius, paperclipOuterLegLength, paperclipWireDiameter]);
 
 	const handleDownloadPaperclip = useCallback(() => {
 		if (!paperclipResult) return;
@@ -1482,11 +1481,10 @@ function App() {
 							<div className="form-grid">
 								{[
 									["Wire Diameter", paperclipWireDiameter, setPaperclipWireDiameter, "0.2", "2", "0.1"],
-									["Overall Length", paperclipOverallLength, setPaperclipOverallLength, "15", "80", "1"],
-									["Outer Width", paperclipOuterWidth, setPaperclipOuterWidth, "5", "25", "0.5"],
-									["Inner Width", paperclipInnerWidth, setPaperclipInnerWidth, "2", "18", "0.5"],
-									["Bend Radius", paperclipBendRadius, setPaperclipBendRadius, "0.5", "5", "0.1"],
-									["Loop Gap", paperclipLoopGap, setPaperclipLoopGap, "0.5", "8", "0.1"],
+									["Outer Leg Length", paperclipOuterLegLength, setPaperclipOuterLegLength, "5", "80", "0.5"],
+									["Inner Leg Length", paperclipInnerLegLength, setPaperclipInnerLegLength, "5", "80", "0.5"],
+									["Outer Bend Radius", paperclipOuterBendRadius, setPaperclipOuterBendRadius, "1", "15", "0.5"],
+									["Inner Bend Radius", paperclipInnerBendRadius, setPaperclipInnerBendRadius, "1", "12", "0.5"],
 								].map(([label, value, setter, min, max, step]) => (
 									<label key={label as string}>{label as string} (mm)
 										<input type="number" value={value as string} min={min as string} max={max as string} step={step as string}

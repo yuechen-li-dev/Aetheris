@@ -48,11 +48,11 @@ public sealed class ForgeProtocolV1Tests
         var policy = Assert.Single(description.Parameters);
         Assert.Equal("PaperclipPolicy", policy.Type == "record" ? policy.Fields is null ? string.Empty : "PaperclipPolicy" : string.Empty);
         Assert.Contains(policy.Fields!, field => field.Name == "WireDiameter" && field.Unit == "mm");
-        Assert.Contains(description.Constraints, constraint => constraint.Name == "OuterWidthExceedsInnerWidth");
+        Assert.Contains(description.Constraints, constraint => constraint.Name == "OuterBendExceedsInnerBend");
         var arguments = new Dictionary<string, object?>
         {
-            ["wireDiameter"] = "1.0 mm", ["overallLength"] = "35 mm", ["outerWidth"] = "10 mm",
-            ["innerWidth"] = "6 mm", ["bendRadius"] = "1.2 mm", ["loopGap"] = "1.2 mm",
+            ["wireDiameter"] = "1.0 mm", ["outerLegLength"] = "17.25 mm", ["innerLegLength"] = "16.1 mm",
+            ["outerBendRadius"] = "5 mm", ["innerBendRadius"] = "3 mm",
             ["material"] = "Standard.Materials.StainlessSteel.304_Annealed",
         };
         var a = host.InvokeTemplate(Paperclip, Request(arguments, ForgeArtifactKind.StepAp242), first.Path);

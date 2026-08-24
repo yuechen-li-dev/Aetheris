@@ -2,29 +2,27 @@ Model InvalidPaperclipPolicy {
     Units: mm
     Record PaperclipPolicy {
         WireDiameter: Length
-        OverallLength: Length
-        OuterWidth: Length
-        InnerWidth: Length
-        BendRadius: Length
-        LoopGap: Length
+        OuterLegLength: Length
+        InnerLegLength: Length
+        OuterBendRadius: Length
+        InnerBendRadius: Length
         Material: String
     }
     Static Invalid: PaperclipPolicy = PaperclipPolicy {
         WireDiameter: 1mm
-        OverallLength: 20mm
-        OuterWidth: 5mm
-        InnerWidth: 8mm
-        BendRadius: 2mm
-        LoopGap: 1mm
+        OuterLegLength: 15mm
+        InnerLegLength: 14mm
+        OuterBendRadius: 3mm
+        InnerBendRadius: 5mm
         Material: "Standard.Materials.StainlessSteel.304_Annealed"
     }
     Template < P: PaperclipPolicy >
     Struct PaperclipTemplate {
-        Require OuterWidthExceedsInnerWidth => P.OuterWidth > P.InnerWidth
+        Require OuterBendExceedsInnerBend => P.OuterBendRadius > P.InnerBendRadius
         Concept Path Centerline {
             Start: Point2(0mm, 0mm)
             Heading: 0deg
-            Line Stem { Length: P.OverallLength }
+            Line Stem { Length: P.OuterLegLength }
         }
         Sweep Wire {
             Path: Centerline

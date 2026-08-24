@@ -29,7 +29,7 @@ describe("maximum paperclips", () => {
 		const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ success: true, data, diagnostics: [] }), { status: 200 }));
 		vi.stubGlobal("fetch", fetchMock);
 
-		const request = { wireDiameter: 1, overallLength: 40, outerWidth: 11, innerWidth: 6, bendRadius: 1.5, loopGap: 1.2, material: data.material };
+		const request = { wireDiameter: 1, outerLegLength: 17.25, innerLegLength: 16.1, outerBendRadius: 5, innerBendRadius: 3, material: data.material };
 		await expect(maximizePaperclips(request)).resolves.toEqual(data);
 		expect(fetchMock).toHaveBeenCalledWith("/api/v1/demos/maximum-paperclips", expect.objectContaining({
 			method: "POST",

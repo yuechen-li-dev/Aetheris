@@ -11,6 +11,7 @@ Primary public commands:
 | `view <file>` | Open in bundled Cadmata |
 | `fea <file> --out-dir dir [--json]` | Compile and solve the bounded linear-elastic analysis |
 | `sheetmetal ...` | Inspect, recognize, recover, compare, or flatten Sheet Metal |
+| `sculpture build <source> ...` | Build the bounded non-manufacturing Sol 1 AP242 artwork, evidence, and SVG preview |
 | `asm ...` | Inspect/execute/import/export assemblies |
 
 Run `aetheris <command> --help` for exact options. JSON is a public automation surface, but its root is command-specific: process exit status is authoritative, `validate` reports `firmamentV2Validation.status`, and materializing/analysis commands report `success` where documented. Diagnostics are structured; artifact paths are explicit; Sheet Metal reports regions, bends, and lowered features separately; FEA reports requested/result artifacts; sculpting builds report every `BodyState`, `GeometricDelta`, validation evidence, surface-family inventory, and the sibling `.delta.json` path; other builds report emitted features and PMI export evidence. Counts describe semantic items at the stated layer, not arbitrary STEP entity counts.

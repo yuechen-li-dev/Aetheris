@@ -25,6 +25,7 @@ using Aetheris.PlasticShell;
 using Aetheris.Surfacing;
 using Aetheris.Geometry;
 using Aetheris.SheetMetal;
+using Aetheris.Sculpture;
 using Aetheris.Kernel.Firmament.Structural;
 using Aetheris.Kernel.Firmament.Piping;
 
@@ -164,6 +165,7 @@ public static class CliRunner
     private const string DrawingUsage = "Usage: aetheris drawing compile <drawing.firmament> --out-dir <directory> [--json]";
     private const string SheetMetalUsage = "Usage: aetheris sheetmetal recognize <part.step> [--plan <recognition.json>] [--json] | aetheris sheetmetal recover-flat <part.step> --out-dir <directory> [--recognition-plan <recognition.json>] [--json] | aetheris sheetmetal compare-flat <recovered-flat.json> <native.firmament> [--semantic] [--json] | aetheris sheetmetal inspect <part.step|part.firmament> [--k-factor <0..1>] [--json] | aetheris sheetmetal paths <part.firmament> [--json] | aetheris sheetmetal recover <part.step> --out-dir <directory> [--json] | aetheris sheetmetal compare <part.step|part.firmament> <intent.firmament> [--semantic] [--json] | aetheris sheetmetal flatten <part.step|part.firmament> [--step <flat.step>] [--firmament <recovered.firmament>] [--svg <flat.svg>] [--k-factor <0..1>] [--json]";
     private const string ExperimentalLoopChamferCorpusUsage = "Usage: aetheris experimental loop-chamfer-corpus --out-dir <dir> [--json]";
+    private const string SculptureUsage = "Usage: aetheris sculpture build <sol-1.sculpture.json> [--out <sol-1.step>] [--evidence <sol-1.evidence.json>] [--preview <sol-1.preview.svg>] [--json]";
 
     internal static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -226,6 +228,7 @@ public static class CliRunner
                 "experimental" => RunExperimental(args.Skip(1).ToArray(), stdout, stderr),
                 "modules" => RunModules(args.Skip(1).ToArray(), stdout, stderr),
                 "sheetmetal" => RunSheetMetal(args.Skip(1).ToArray(), stdout, stderr),
+                "sculpture" => RunSculpture(args.Skip(1).ToArray(), stdout, stderr),
                 "reconstruct" => ReconstructionCli.Run(args.Skip(1).ToArray(), stdout, stderr, JsonOptions),
                 _ => UnknownCommand(args[0], stderr)
             };
@@ -3205,6 +3208,86 @@ Model CanonicalPanel {
         return 1;
     }
 
+    private static int RunSculpture(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0 || IsHelpFlag(args[0]))
+        {
+            WriteSculptureHelp(stdout);
+            return args.Length == 0 ? 1 : 0;
+        }
+        if (!string.Equals(args[0], "build", StringComparison.Ordinal) || args.Length < 2 || args[1].StartsWith("-", StringComparison.Ordinal))
+        {
+            stderr.WriteLine(SculptureUsage);
+            return 1;
+        }
+
+        var sourcePath = Path.GetFullPath(args[1]);
+        string? output = null, evidencePath = null, previewPath = null;
+        var json = false;
+        for (var i = 2; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--out" when i + 1 < args.Length: output = Path.GetFullPath(args[++i]); break;
+                case "--evidence" when i + 1 < args.Length: evidencePath = Path.GetFullPath(args[++i]); break;
+                case "--preview" when i + 1 < args.Length: previewPath = Path.GetFullPath(args[++i]); break;
+                case "--json": json = true; break;
+                case "-h":
+                case "--help": WriteSculptureHelp(stdout); return 0;
+                default: stderr.WriteLine($"Unknown sculpture option '{args[i]}'."); stderr.WriteLine(SculptureUsage); return 1;
+            }
+        }
+        if (!File.Exists(sourcePath)) { stderr.WriteLine($"Sol 1 source was not found: {sourcePath}"); return 1; }
+
+        output ??= Path.GetFullPath(Path.Combine("artifacts", "local", "virtual-sculpture", "sol-1.step"));
+        evidencePath ??= Path.ChangeExtension(output, ".evidence.json");
+        previewPath ??= Path.ChangeExtension(output, ".preview.svg");
+        var loaded = Sol1Source.Load(sourcePath);
+        if (!loaded.IsSuccess)
+        {
+            foreach (var diagnostic in loaded.Diagnostics) stderr.WriteLine($"- [Error] {diagnostic.Source}: {diagnostic.Message}");
+            return 1;
+        }
+        var built = Sol1Materializer.Build(loaded.Value);
+        if (!built.IsSuccess)
+        {
+            foreach (var diagnostic in built.Diagnostics) stderr.WriteLine($"- [Error] {diagnostic.Source}: {diagnostic.Message}");
+            return 1;
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(output)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(evidencePath)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(previewPath)!);
+        File.WriteAllText(output, built.Value.Step);
+        File.WriteAllText(evidencePath, JsonSerializer.Serialize(built.Value.Evidence, JsonOptions));
+        File.WriteAllText(previewPath, built.Value.PreviewSvg);
+        if (json)
+        {
+            stdout.WriteLine(JsonSerializer.Serialize(new
+            {
+                command = "sculpture build",
+                success = true,
+                domain = "VirtualSculpture",
+                mode = "Virtual",
+                source = sourcePath,
+                step = output,
+                evidencePath,
+                preview = previewPath,
+                report = built.Value.Evidence
+            }, JsonOptions));
+        }
+        else
+        {
+            stdout.WriteLine("Built Sol 1 — ART-X0 virtual mathematical sculpture");
+            stdout.WriteLine($"STEP: {output}");
+            stdout.WriteLine($"Evidence: {evidencePath}");
+            stdout.WriteLine($"Preview: {previewPath}");
+            stdout.WriteLine($"SHA-256: {built.Value.Evidence.StepSha256}");
+            stdout.WriteLine($"Geometry: {built.Value.Evidence.PhyllotaxisNodes} phyllotaxis nodes, {built.Value.Evidence.LatticeConnections} Fibonacci connections, {built.Value.Evidence.ExactClosedBodyOccurrences} exact closed-body occurrences");
+        }
+        return 0;
+    }
+
     private static int RunExperimentalHeightFieldArt(string[] args, TextWriter stdout, TextWriter stderr)
     {
         if (args.Length == 0 || IsHelpFlag(args[0]))
@@ -4110,6 +4193,7 @@ Model CanonicalPanel {
         stdout.WriteLine("  asm        Inspect, execute, import, and export Firmament V2 assemblies.");
         stdout.WriteLine("  modules    Inspect built-in engineering Modules and capabilities.");
         stdout.WriteLine("  sheetmetal Inspect/recover sheet semantics and generate manufacturing flat-pattern SVG.");
+        stdout.WriteLine("  sculpture  Build bounded non-manufacturing virtual sculpture artifacts.");
         stdout.WriteLine("  verify     Build/reimport and verify a model.");
         stdout.WriteLine("  reconstruct  Experimentally reconstruct a structured mesh from triangle PLY input.");
         stdout.WriteLine();
@@ -4126,9 +4210,22 @@ Model CanonicalPanel {
         stdout.WriteLine("  aetheris drawing compile bearing-block-drawing.firmament --out-dir artifacts/drawing --json");
         stdout.WriteLine("  aetheris asm inspect bearing-module.firmament --json");
         stdout.WriteLine("  aetheris sheetmetal flatten bracket.firmament --step bracket-flat.step --svg bracket-flat.svg --json");
+        stdout.WriteLine("  aetheris sculpture build fixtures/Canonical/VirtualSculpture/sol-1.sculpture.json");
         stdout.WriteLine("  aetheris reconstruct mesh scan.ply --mode fast --out scan-remesh.obj --report scan-report.json");
         stdout.WriteLine();
         stdout.WriteLine("Run 'aetheris <command> --help' for command-specific usage.");
+    }
+
+    private static void WriteSculptureHelp(TextWriter stdout)
+    {
+        stdout.WriteLine("Build the bounded ART-X0 flagship virtual sculpture, Sol 1.");
+        stdout.WriteLine("This lane is explicitly non-manufacturing and does not alter Firmament engineering domains.");
+        stdout.WriteLine();
+        stdout.WriteLine(SculptureUsage);
+        stdout.WriteLine("  --out <path>       STEP/AP242 assembly output; defaults under artifacts/local/virtual-sculpture/.");
+        stdout.WriteLine("  --evidence <path>  Structured deterministic and representation evidence JSON.");
+        stdout.WriteLine("  --preview <path>   Deterministic authored SVG composition preview.");
+        stdout.WriteLine("  --json             Emit machine-readable command output.");
     }
 
     private static void WriteBuildHelp(TextWriter stdout)

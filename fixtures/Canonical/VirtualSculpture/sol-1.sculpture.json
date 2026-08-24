@@ -1,0 +1,36 @@
+{
+  "schema": "aetheris.virtual-sculpture/1",
+  "id": "sol-1",
+  "title": "Sol 1",
+  "mode": "Virtual",
+  "outerFrame": {
+    "majorRadiusMm": 58.0,
+    "minorRadiusMm": 2.25,
+    "zMm": 0.0
+  },
+  "eye": {
+    "majorRadiusMm": 8.5,
+    "minorRadiusMm": 1.45,
+    "zMm": 0.5
+  },
+  "lattice": {
+    "nodeCount": 233,
+    "innerRadiusMm": 11.25,
+    "outerRadiusMm": 51.5,
+    "nodeRadiusMm": 0.67,
+    "strandRadiusMm": 0.34,
+    "fibonacciOffsets": [13, 21],
+    "wave": {
+      "primaryAmplitudeMm": 1.65,
+      "secondaryAmplitudeMm": 0.48,
+      "angularFrequency": 5,
+      "radialFrequency": 0.29
+    },
+    "prominences": {
+      "residues": [0, 7, 14],
+      "modulus": 21,
+      "startFraction": 0.62,
+      "riseMm": 9.0
+    }
+  }
+}

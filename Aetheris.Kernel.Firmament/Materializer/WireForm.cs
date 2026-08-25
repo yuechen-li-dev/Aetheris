@@ -30,6 +30,53 @@ public sealed record WireBendAir(string Name, int Ordinal, double RadiusMm, doub
     Direction3D PlaneNormal, Point3D Center, Direction3D StartRadial, WireState Input, WireState Output)
     : WireFormOperationAir(Name, Ordinal, Input, Output, RadiusMm * Math.Abs(AngleRadians));
 
+public enum WireCoilHandedness { RightHanded, LeftHanded }
+public enum WireSurfaceSide { Outside, Inside }
+
+/// <summary>An evaluable winding law retained as semantic authority; samples are never authoring input.</summary>
+public abstract record WireCoilAir(string Name, int Ordinal, double Turns, WireCoilHandedness Handedness,
+    double StartPhaseRadians, WireState Input, WireState Output, double LengthMm, double MinimumSelfClearanceMm,
+    double ApproximationToleranceMm) : WireFormOperationAir(Name, Ordinal, Input, Output, LengthMm)
+{
+    public abstract Point3D Evaluate(double parameter);
+    public abstract Direction3D Tangent(double parameter);
+    public abstract string CoilKind { get; }
+    public abstract string ProgressionLaw { get; }
+    public virtual double? SupportClearanceMm => null;
+    public int ApproximationSegmentCount => Math.Max(16, (int)Math.Ceiling(Turns * 32d));
+    public (double MaxMm, double RmsMm) ApproximationError => WireCoilGeometry.MeasureCenterlineApproximation(this, ApproximationSegmentCount);
+}
+
+public sealed record WireAxisCoilAir(string Name, int Ordinal, double RadiusMm, double Turns, double PitchMm,
+    double HeightMm, WireCoilHandedness Handedness, double StartPhaseRadians, Point3D AxisOrigin,
+    Direction3D Axis, Direction3D StartRadial, WireState Input, WireState Output, double LengthMm,
+    double MinimumSelfClearanceMm, double ApproximationToleranceMm)
+    : WireCoilAir(Name, Ordinal, Turns, Handedness, StartPhaseRadians, Input, Output, LengthMm,
+        MinimumSelfClearanceMm, ApproximationToleranceMm)
+{
+    public override string CoilKind => "AxisCoil";
+    public override string ProgressionLaw => "AxialPitch";
+    public override Point3D Evaluate(double t) => WireCoilGeometry.EvaluateAxis(this, t);
+    public override Direction3D Tangent(double t) => WireCoilGeometry.TangentAxis(this, t);
+}
+
+public sealed record WireSurfaceCoilAir(string Name, int Ordinal, string SupportName, string SupportKind,
+    WireSurfaceSide Side, double ClearanceMm, double CenterlineOffsetMm, double Turns, double AxialPitchMm,
+    double StartLatitudeRadians, double EndLatitudeRadians, WireCoilHandedness Handedness,
+    double StartPhaseRadians, double SupportRadius0Mm, double SupportRadius1Mm, double SupportHeightMm,
+    Point3D SupportOrigin, Direction3D SupportAxis, Direction3D StartRadial, Direction3D LongitudeDirection,
+    Direction3D LatitudeDirection, WireState Input, WireState Output, double LengthMm,
+    double MinimumSelfClearanceMm, double MeasuredSupportClearanceMm, double ApproximationToleranceMm)
+    : WireCoilAir(Name, Ordinal, Turns, Handedness, StartPhaseRadians, Input, Output, LengthMm,
+        MinimumSelfClearanceMm, ApproximationToleranceMm)
+{
+    public override string CoilKind => $"SurfaceCoil.{SupportKind}";
+    public override string ProgressionLaw => SupportKind == "Sphere" ? "LatitudeProgression" : "AxialPitch";
+    public override double? SupportClearanceMm => MeasuredSupportClearanceMm;
+    public override Point3D Evaluate(double t) => WireCoilGeometry.EvaluateSurface(this, t);
+    public override Direction3D Tangent(double t) => WireCoilGeometry.TangentSurface(this, t);
+}
+
 /// <summary>WireForm semantic AIR. Bend radii are centerline radii.</summary>
 public sealed record WireFormFeatureAir(string Name, double DiameterMm, string MaterialReference, ResolvedMaterial Material,
     WireState StartState, IReadOnlyList<WireFormOperationAir> Operations, string FrameTransportPolicy)
@@ -37,6 +84,7 @@ public sealed record WireFormFeatureAir(string Name, double DiameterMm, string M
     public double WireRadiusMm => DiameterMm / 2d;
     public double TotalStraightLengthMm => Operations.OfType<WireStraightAir>().Sum(x => x.LengthMm);
     public double TotalBendLengthMm => Operations.OfType<WireBendAir>().Sum(x => x.LengthMm);
+    public double TotalCoilLengthMm => Operations.OfType<WireCoilAir>().Sum(x => x.LengthMm);
     public double TotalWireLengthMm => Operations.Sum(x => x.LengthMm);
     public WireState EndState => Operations.Count == 0 ? StartState : Operations[^1].Output;
 }
@@ -49,7 +97,7 @@ public static class WireFormAuthoring
 {
     public const string FrameTransportPolicy = "The authored local Up/Right bend-plane axis is rotated with the tangent through each bend (rotation-minimal rigid transport about the bend normal); Straight preserves the frame.";
     private static readonly Regex Declaration = new(@"\bWireForm\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
-    private static readonly Regex Operation = new(@"\b(?<kind>Straight|Bend)\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
+    private static readonly Regex Operation = new(@"\b(?<kind>Straight|Bend|AxisCoil|SurfaceCoil|Coil)\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
 
     public static bool IsWireFormSource(string source) => Declaration.IsMatch(source);
 
@@ -101,6 +149,19 @@ public static class WireFormAuthoring
                 continue;
             }
 
+            if (match.Groups["kind"].Value is "AxisCoil" or "Coil")
+            {
+                var coil = WireCoilAuthoring.CreateAxis(operationName, ordinal, operationBody, state, diameter);
+                if (!coil.IsSuccess) return KernelResult<WireFormFeatureAir>.Failure(coil.Diagnostics);
+                operations.Add(coil.Value); state = coil.Value.Output; continue;
+            }
+            if (match.Groups["kind"].Value == "SurfaceCoil")
+            {
+                var coil = WireCoilAuthoring.CreateSurface(source, operationName, ordinal, operationBody, state, diameter);
+                if (!coil.IsSuccess) return KernelResult<WireFormFeatureAir>.Failure(coil.Diagnostics);
+                operations.Add(coil.Value); state = coil.Value.Output; continue;
+            }
+
             if (!TryLength(Property(operationBody, "Radius"), out var radius) || radius <= 0d)
                 return Fail("wireform-bend-radius-invalid", $"{operationName}: centerline Radius must be finite and greater than zero.");
             if (radius <= diameter / 2d + ToleranceContext.Default.Linear)
@@ -123,22 +184,22 @@ public static class WireFormAuthoring
             operations.Add(new WireBendAir(operationName, ordinal, radius, angle, plane, axis, center, startRadial, state, bendOutput));
             state = bendOutput;
         }
-        if (operations.Count == 0) return Fail("wireform-operations-empty", $"WireForm '{name}' requires at least one Straight or Bend operation.");
+        if (operations.Count == 0) return Fail("wireform-operations-empty", $"WireForm '{name}' requires at least one Straight, Bend, AxisCoil, or SurfaceCoil operation.");
         return KernelResult<WireFormFeatureAir>.Success(new(name, diameter, materialReference, material.Material,
             new WireState(new(origin.X, origin.Y, origin.Z), tangent, up, 0d), operations, FrameTransportPolicy));
     }
 
-    private static string? Property(string body, string name)
+    internal static string? Property(string body, string name)
     {
         var match = Regex.Match(body, $@"\b{Regex.Escape(name)}\s*:\s*(?<value>\[[^\]]+\]|[^;\r\n}}]+)", RegexOptions.CultureInvariant);
         return match.Success ? match.Groups["value"].Value.Trim() : null;
     }
-    private static bool TryLength(string? text, out double value)
+    internal static bool TryLength(string? text, out double value)
     {
         value = default;
         return text is not null && new BoundedMeasureExpression(text, "mm").TryEvaluate(out value);
     }
-    private static bool TryAngle(string? text, out double value)
+    internal static bool TryAngle(string? text, out double value)
     {
         value = default;
         if (!TryUnit(text, "deg", out var degrees)) return false;
@@ -198,6 +259,8 @@ public static class WireFormBRepMaterializer
     {
         var diagnostics = Validate(feature);
         if (diagnostics.Count > 0) return KernelResult<WireFormBuildResult>.Failure(diagnostics.Select(Error).ToArray());
+        if (feature.Operations.Any(operation => operation is WireCoilAir))
+            return WireCoilBRepMaterializer.Build(feature);
         try
         {
             var count = feature.Operations.Count;
@@ -271,6 +334,10 @@ public static class WireFormBRepMaterializer
             if (operation.LengthMm <= Tolerance.Linear) diagnostics.Add($"wireform-operation-degenerate:{operation.Name}");
             if (operation is WireBendAir bend && bend.RadiusMm <= feature.WireRadiusMm + Tolerance.Linear)
                 diagnostics.Add($"wireform-bend-radius-invalid:{bend.Name}: centerline radius must exceed wire radius.");
+            if (operation is WireCoilAir coil && coil.MinimumSelfClearanceMm + Tolerance.Linear < 0d)
+                diagnostics.Add($"wireform-coil-turn-clearance:{coil.Name}: adjacent turns overlap by {-coil.MinimumSelfClearanceMm:G6} mm.");
+            if (operation is WireCoilAir approximated && approximated.ApproximationError.MaxMm > approximated.ApproximationToleranceMm)
+                diagnostics.Add($"wireform-coil-approximation-tolerance:{approximated.Name}: measured centerline error {approximated.ApproximationError.MaxMm:G6} mm exceeds {approximated.ApproximationToleranceMm:G6} mm.");
         }
         var clearance = feature.DiameterMm;
         for (var i = 0; i + 1 < feature.Operations.Count; i++)
@@ -315,10 +382,11 @@ public static class WireFormBRepMaterializer
     }
     private static double Sagitta(WireFormOperationAir operation, int count) => operation is WireBendAir bend
         ? bend.RadiusMm * (1d - Math.Cos(Math.Abs(bend.AngleRadians) / (2d * count))) : 0d;
-    private static IReadOnlyList<Point3D> Sample(WireFormOperationAir operation, int count) => operation switch
+    internal static IReadOnlyList<Point3D> Sample(WireFormOperationAir operation, int count) => operation switch
     {
         WireStraightAir line => [line.Input.Position, line.Output.Position],
         WireBendAir bend => Enumerable.Range(0, count + 1).Select(i => bend.Center + Rotate(bend.StartRadial.ToVector(), bend.PlaneNormal.ToVector(), Math.Abs(bend.AngleRadians) * i / count) * bend.RadiusMm).ToArray(),
+        WireCoilAir coil => Enumerable.Range(0, count + 1).Select(i => coil.Evaluate((double)i / count)).ToArray(),
         _ => []
     };
     private static double SegmentDistance(Point3D p1, Point3D q1, Point3D p2, Point3D q2)
@@ -342,12 +410,26 @@ public static class WireFormReportFactory
         var feature = built.Feature;
         var surfaces = built.Body.Topology.Faces.Select(face => built.Body.GetFaceSurface(face.Id).Kind).ToArray();
         var operations = feature.Operations.Select(operation => new FirmamentWireOperationReport(
-            operation.Ordinal, operation.Name, operation is WireStraightAir ? "Straight" : "Bend", operation.LengthMm,
+            operation.Ordinal, operation.Name, operation switch { WireStraightAir => "Straight", WireBendAir => "Bend", WireAxisCoilAir => "AxisCoil", WireSurfaceCoilAir => "SurfaceCoil", _ => "Unknown" }, operation.LengthMm,
             operation is WireBendAir bend ? bend.RadiusMm : null,
             operation is WireBendAir bendAngle ? bendAngle.AngleRadians * 180d / Math.PI : null,
             operation is WireBendAir bendPlane ? bendPlane.Plane : null, operation.StableId(feature.Name),
-            State(operation.Input), State(operation.Output), operation is WireStraightAir ? "LineSegment" : "CircularArc",
-            operation is WireStraightAir ? "Cylinder" : "Torus")).ToArray();
+            State(operation.Input), State(operation.Output), operation switch { WireStraightAir => "LineSegment", WireBendAir => "CircularArc", WireCoilAir => "EvaluableWindingLaw", _ => "Unknown" },
+            operation switch { WireStraightAir => "Cylinder", WireBendAir => "Torus", WireCoilAir => "NonRationalBSplineTube", _ => "Unknown" },
+            operation is WireCoilAir coil ? coil.CoilKind : null, operation is WireCoilAir turns ? turns.Turns : null,
+            operation is WireCoilAir handed ? handed.Handedness.ToString() : null,
+            operation switch { WireAxisCoilAir axis => axis.PitchMm, WireSurfaceCoilAir surface => surface.AxialPitchMm, _ => null },
+            operation is WireAxisCoilAir height ? height.HeightMm : null,
+            operation is WireCoilAir phase ? phase.StartPhaseRadians * 180d / Math.PI : null,
+            operation is WireSurfaceCoilAir support ? support.SupportName : null,
+            operation is WireSurfaceCoilAir side ? side.Side.ToString() : null,
+            operation is WireCoilAir progression ? progression.ProgressionLaw : null,
+            operation is WireCoilAir self ? self.MinimumSelfClearanceMm : null,
+            operation is WireCoilAir supportClearance ? supportClearance.SupportClearanceMm : null,
+            operation is WireCoilAir approximation ? approximation.ApproximationToleranceMm : null,
+            operation is WireCoilAir segmentCount ? segmentCount.ApproximationSegmentCount : null,
+            operation is WireCoilAir maximumError ? maximumError.ApproximationError.MaxMm : null,
+            operation is WireCoilAir rmsError ? rmsError.ApproximationError.RmsMm : null)).ToArray();
         return new(feature.Name, feature.DiameterMm, feature.Material.Identity.FirmamentPath, feature.Operations.Count,
             feature.Operations.Count(x => x is WireStraightAir), feature.Operations.Count(x => x is WireBendAir),
             feature.TotalStraightLengthMm, feature.TotalBendLengthMm, feature.TotalWireLengthMm, built.VolumeMm3, built.MassKilograms,
@@ -358,7 +440,11 @@ public static class WireFormReportFactory
             feature.FrameTransportPolicy, operations, built.Bounds,
             surfaces.Count(x => x == SurfaceGeometryKind.Cylinder), surfaces.Count(x => x == SurfaceGeometryKind.Torus),
             surfaces.Count(x => x == SurfaceGeometryKind.Plane), surfaces.Count(x => x is not (SurfaceGeometryKind.Cylinder or SurfaceGeometryKind.Torus or SurfaceGeometryKind.Plane)),
-            surfaces.Count(x => x == SurfaceGeometryKind.BSplineSurfaceWithKnots), 0, true, stepSha256, true, reimportedManifold);
+            0, 0, true, stepSha256, true, reimportedManifold,
+            feature.Operations.Count(x => x is WireCoilAir), feature.TotalCoilLengthMm,
+            feature.Operations.OfType<WireCoilAir>().Select(x => (double?)x.MinimumSelfClearanceMm).DefaultIfEmpty(null).Min(),
+            surfaces.Count(x => x == SurfaceGeometryKind.BSplineSurfaceWithKnots), feature.Operations.Any(x => x is WireCoilAir) ? 3 : 0,
+            feature.Operations.Any(x => x is WireCoilAir) ? "ExactEvaluableWindingLaw->DeterministicCubicNonRationalBSplineTube" : "ExactAnalyticLineArcSweep");
     }
 
     private static FirmamentWireStateReport State(WireState state) => new(V(state.Position), V(state.Tangent), V(state.Up), V(state.Right), state.AccumulatedLengthMm);

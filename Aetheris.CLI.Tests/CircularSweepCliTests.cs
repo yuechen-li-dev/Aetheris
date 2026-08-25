@@ -5,6 +5,15 @@ namespace Aetheris.CLI.Tests;
 public sealed class CircularSweepCliTests
 {
     [Fact]
+    public void AxisCoilInspectExposesWindingAndApproximationEvidence()
+    {
+        var fixture = Path.Combine(RepoRoot(), "fixtures", "Canonical", "WireForm", "axis-coil.firmament");
+        var output = new StringWriter(); var error = new StringWriter();
+        Assert.Equal(0, Aetheris.CLI.CliRunner.Run(["inspect", fixture, "--json"], output, error)); Assert.Empty(error.ToString());
+        using var json = JsonDocument.Parse(output.ToString()); var wire = json.RootElement.GetProperty("wireForm"); Assert.Equal(1, wire.GetProperty("coilCount").GetInt32());
+        var operation = wire.GetProperty("operations")[0]; Assert.Equal("AxisCoil", operation.GetProperty("kind").GetString()); Assert.Equal(8d, operation.GetProperty("turns").GetDouble()); Assert.Equal("RightHanded", operation.GetProperty("handedness").GetString()); Assert.Equal(256, operation.GetProperty("approximationSegmentCount").GetInt32()); Assert.True(operation.GetProperty("approximationMaxError").GetDouble() <= operation.GetProperty("approximationTolerance").GetDouble());
+    }
+    [Fact]
     public void PaperclipValidateAndInspectUseWireFormSemanticRoute()
     {
         var fixture = Path.Combine(RepoRoot(), "fixtures", "Canonical", "Templates", "paperclip.firmament");

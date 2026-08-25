@@ -8,6 +8,65 @@ namespace Aetheris.Kernel.Firmament.Tests;
 public sealed class WireFormTests
 {
     [Fact]
+    public void AxisCoil_LowersSemanticHelixToNonRationalSplineTube()
+    {
+        var source = File.ReadAllText(Fixture("Canonical", "WireForm", "axis-coil.firmament"));
+        var authored = WireFormAuthoring.Parse(source);
+        Assert.True(authored.IsSuccess, string.Join(Environment.NewLine, authored.Diagnostics.Select(x => x.Message)));
+        var coil = Assert.IsType<WireAxisCoilAir>(Assert.Single(authored.Value.Operations));
+        Assert.Equal(12d, coil.RadiusMm); Assert.Equal(8d, coil.Turns); Assert.Equal(5d, coil.PitchMm); Assert.Equal(40d, coil.HeightMm);
+        Assert.Equal(Math.Sqrt(Math.Pow(2d * Math.PI * 12d * 8d, 2d) + 1600d), coil.LengthMm, 10);
+        Assert.Equal(3d, coil.MinimumSelfClearanceMm, 10);
+        var built = WireFormBRepMaterializer.Build(authored.Value); Assert.True(built.IsSuccess, string.Join(Environment.NewLine, built.Diagnostics.Select(x => x.Message)));
+        Assert.All(built.Value.Body.Topology.Edges, edge => Assert.Equal(2, built.Value.Body.Topology.Coedges.Count(use => use.EdgeId == edge.Id)));
+        var step = Step242Exporter.ExportBody(built.Value.Body); Assert.True(step.IsSuccess);
+        var imported = Step242Importer.ImportBody(step.Value); Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(x => x.Message)));
+        var bad = imported.Value!.Topology.Edges.Select(edge => (edge, count: imported.Value.Topology.Coedges.Count(use => use.EdgeId == edge.Id))).Where(x => x.count != 2).ToArray();
+        Assert.True(bad.Length == 0, $"Nonmanifold imported edges: {string.Join(",", bad.Take(20).Select(x => $"{x.edge.Id.Value}:{x.count}"))}; edges={imported.Value.Topology.Edges.Count()}, coedges={imported.Value.Topology.Coedges.Count()}");
+    }
+    [Fact]
+    public void CoilParameterResolution_HandednessAndTerminalCompositionAreDeterministic()
+    {
+        var right = WireFormAuthoring.Parse(File.ReadAllText(Fixture("Canonical", "WireForm", "axis-coil.firmament"))).Value;
+        var left = WireFormAuthoring.Parse(File.ReadAllText(Fixture("Canonical", "WireForm", "left-handed-axis-coil.firmament"))).Value;
+        Assert.Equal(WireCoilHandedness.RightHanded, Assert.IsType<WireAxisCoilAir>(right.Operations[0]).Handedness);
+        var leftCoil = Assert.IsType<WireAxisCoilAir>(left.Operations[0]); Assert.Equal(5d, leftCoil.PitchMm); Assert.Equal(WireCoilHandedness.LeftHanded, leftCoil.Handedness);
+        var composed = WireFormAuthoring.Parse(File.ReadAllText(Fixture("Canonical", "WireForm", "straight-coil-straight.firmament"))).Value;
+        Assert.Equal(composed.Operations[0].Output, composed.Operations[1].Input); Assert.Equal(composed.Operations[1].Output, composed.Operations[2].Input);
+        Assert.True(Math.Abs(WireFormAuthoring.Dot(composed.Operations[0].Output.Tangent.ToVector(), composed.Operations[1].Input.Tangent.ToVector()) - 1d) < 1e-12);
+    }
+
+    [Fact]
+    public void CylinderSurfaceCoil_IsAxisCoilEquivalentAndSurfaceFamiliesRetainClearanceLaw()
+    {
+        var surface = WireFormAuthoring.Parse(File.ReadAllText(Fixture("Canonical", "WireForm", "cylinder-surface-coil.firmament"))).Value;
+        var cylinder = Assert.IsType<WireSurfaceCoilAir>(surface.Operations[0]); Assert.Equal("Cylinder", cylinder.SupportKind); Assert.Equal(1d, cylinder.MeasuredSupportClearanceMm);
+        var axisSource = File.ReadAllText(Fixture("Canonical", "WireForm", "axis-coil.firmament")).Replace("Radius: 12mm", "Radius: 12mm").Replace("Turns: 8", "Turns: 6").Replace("Pitch: 5mm", "Pitch: 5mm");
+        var axis = Assert.IsType<WireAxisCoilAir>(WireFormAuthoring.Parse(axisSource).Value.Operations[0]);
+        for (var i = 0; i <= 100; i++) Assert.True((axis.Evaluate(i / 100d) - cylinder.Evaluate(i / 100d)).Length < 1e-9);
+        foreach (var fixture in new[] { "frustum-surface-coil", "sphere-surface-coil" }) { var parsed = WireFormAuthoring.Parse(File.ReadAllText(Fixture("Canonical", "WireForm", fixture + ".firmament"))); Assert.True(parsed.IsSuccess); var coil = Assert.IsType<WireSurfaceCoilAir>(parsed.Value.Operations[0]); Assert.Equal(1d, coil.MeasuredSupportClearanceMm); Assert.True(coil.MinimumSelfClearanceMm > 0d); Assert.True(coil.ApproximationError.MaxMm <= coil.ApproximationToleranceMm); }
+        var blender = Assert.IsType<WireSurfaceCoilAir>(WireFormAuthoring.Parse(File.ReadAllText(Fixture("Canonical", "WireForm", "blender-ball-coil.firmament"))).Value.Operations[0]);
+        Assert.Equal("Sphere", blender.SupportKind); Assert.Equal("CaptiveBallProxy", blender.SupportName); Assert.Equal("LatitudeProgression", blender.ProgressionLaw);
+    }
+
+    [Theory]
+    [InlineData("coil-radius-zero.firmament", "wireform-coil-radius-invalid")]
+    [InlineData("coil-turns-zero.firmament", "wireform-coil-turns-invalid")]
+    [InlineData("coil-parameters-inconsistent.firmament", "wireform-coil-parameters-inconsistent")]
+    [InlineData("surfacecoil-offset-invalid.firmament", "wireform-surfacecoil-offset-invalid")]
+    [InlineData("surfacecoil-pole-singularity.firmament", "wireform-surfacecoil-pole-singularity")]
+    [InlineData("surfacecoil-support-unsupported.firmament", "wireform-surfacecoil-support-unsupported")]
+    public void InvalidCoils_FailWithTypedActionableDiagnostics(string fixture, string code)
+    {
+        var result = WireFormAuthoring.Parse(File.ReadAllText(Fixture("Invalid", "WireForm", fixture))); Assert.False(result.IsSuccess); Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Message.Contains(code, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void OverlappingTurnsFailValidation()
+    {
+        var parsed = WireFormAuthoring.Parse(File.ReadAllText(Fixture("Invalid", "WireForm", "coil-turn-overlap.firmament"))); Assert.True(parsed.IsSuccess); Assert.Contains(WireFormBRepMaterializer.Validate(parsed.Value), diagnostic => diagnostic.Contains("wireform-coil-turn-clearance", StringComparison.Ordinal));
+    }
+    [Fact]
     public void Paperclip_ReplaysExactSemanticProgramAndStockAccounting()
     {
         var result = FirmamentBuildAndExport.CompileSource(PaperclipTemplateLibrary.Source);

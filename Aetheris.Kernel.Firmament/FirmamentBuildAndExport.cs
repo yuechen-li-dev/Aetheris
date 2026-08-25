@@ -312,7 +312,7 @@ public static class FirmamentBuildAndExport
             return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, authored.Value.Name, 0,
                 "wire-form", "wireform", WireForm: report,
                 EngineeringFeatures: authored.Value.Operations.Select(operation => new FirmamentEngineeringFeatureReport(
-                    operation.Name, operation is WireStraightAir ? "Straight" : "Bend", operation.StableId(authored.Value.Name),
+                    operation.Name, operation switch { WireStraightAir => "Straight", WireBendAir => "Bend", WireAxisCoilAir => "AxisCoil", WireSurfaceCoilAir => "SurfaceCoil", _ => "Unknown" }, operation.StableId(authored.Value.Name),
                     authored.Value.Name, "WireState", "CircularSection", operation.LengthMm, "CenterlineLength", "Add",
                     PolicySource: "WireFormFeatureAir", MaterializationRoute: "WireFormCenterlineAir->CircularSweepBRepPlan")).ToArray()), []);
         }

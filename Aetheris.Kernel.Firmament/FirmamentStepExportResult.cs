@@ -35,7 +35,12 @@ public sealed record FirmamentWireStateReport(
 public sealed record FirmamentWireOperationReport(
     int Ordinal, string Name, string Kind, double LengthMm, double? RadiusMm, double? AngleDegrees,
     string? Plane, string StableId, FirmamentWireStateReport Input, FirmamentWireStateReport Output,
-    string CenterlineSegment, string SweepSurface);
+    string CenterlineSegment, string SweepSurface,
+    string? CoilKind = null, double? Turns = null, string? Handedness = null, double? PitchMm = null,
+    double? HeightMm = null, double? StartPhaseDegrees = null, string? Support = null, string? Side = null,
+    string? ProgressionLaw = null, double? MinimumSelfClearanceMm = null, double? SupportClearanceMm = null,
+    double? CenterlineApproximationToleranceMm = null, int? CenterlineApproximationSegmentCount = null,
+    double? CenterlineApproximationMaxErrorMm = null, double? CenterlineApproximationRmsErrorMm = null);
 
 public sealed record FirmamentWireTerminalReport(
     string Name, IReadOnlyList<double> Position, IReadOnlyList<double> Tangent, IReadOnlyList<double> Up, double DiameterMm);
@@ -48,7 +53,10 @@ public sealed record FirmamentWireFormReport(
     string SelfIntersectionValidation, string FrameTransportPolicy, IReadOnlyList<FirmamentWireOperationReport> Operations,
     IReadOnlyList<double> Bounds, int Cylinders, int Tori, int Planes, int OtherSurfaces,
     int RationalProductSurfaces, int FacetedFallback, bool EnclosedManifold, string StepSha256,
-    bool StepReimportSucceeded, bool StepReimportedManifold);
+    bool StepReimportSucceeded, bool StepReimportedManifold,
+    int CoilCount = 0, double TotalCoilLengthMm = 0d, double? MinimumSelfClearanceMm = null,
+    int NonRationalBSplineSurfaces = 0, int MaximumPolynomialDegree = 0,
+    string CoilRepresentation = "NotApplicable");
 
 public sealed record FirmamentSemanticPatternReport(
     string Name,

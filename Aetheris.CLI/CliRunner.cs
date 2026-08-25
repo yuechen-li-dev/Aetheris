@@ -1362,14 +1362,23 @@ Model CanonicalPanel {
                 wireForm = wire is null ? null : new
                 {
                     wireFormId = wire.Name, diameter = wire.DiameterMm, material = wire.Material.Identity.FirmamentPath,
-                    operationCount = wire.Operations.Count, straightCount = wire.Operations.Count(x => x is WireStraightAir), bendCount = wire.Operations.Count(x => x is WireBendAir),
-                    totalStraightLength = wire.TotalStraightLengthMm, totalBendLength = wire.TotalBendLengthMm, totalWireLength = wire.TotalWireLengthMm,
+                    operationCount = wire.Operations.Count, straightCount = wire.Operations.Count(x => x is WireStraightAir), bendCount = wire.Operations.Count(x => x is WireBendAir), coilCount = wire.Operations.Count(x => x is WireCoilAir),
+                    totalStraightLength = wire.TotalStraightLengthMm, totalBendLength = wire.TotalBendLengthMm, totalCoilLength = wire.TotalCoilLengthMm, totalWireLength = wire.TotalWireLengthMm,
                     bendRadiusSemantics = "CenterlineRadius", frameTransportPolicy = wire.FrameTransportPolicy,
                     startTerminal = new { position = new[] { wire.StartState.Position.X, wire.StartState.Position.Y, wire.StartState.Position.Z }, tangent = new[] { wire.StartState.Tangent.X, wire.StartState.Tangent.Y, wire.StartState.Tangent.Z }, diameter = wire.DiameterMm },
                     endTerminal = new { position = new[] { wire.EndState.Position.X, wire.EndState.Position.Y, wire.EndState.Position.Z }, tangent = new[] { wire.EndState.Tangent.X, wire.EndState.Tangent.Y, wire.EndState.Tangent.Z }, diameter = wire.DiameterMm },
-                    operations = wire.Operations.Select(operation => new { operation.Ordinal, operation.Name, kind = operation is WireStraightAir ? "Straight" : "Bend", operation.LengthMm,
+                    operations = wire.Operations.Select(operation => new { operation.Ordinal, operation.Name, kind = operation switch { WireStraightAir => "Straight", WireBendAir => "Bend", WireAxisCoilAir => "AxisCoil", WireSurfaceCoilAir => "SurfaceCoil", _ => "Unknown" }, operation.LengthMm,
                         radius = operation is WireBendAir bend ? bend.RadiusMm : (double?)null, angleDegrees = operation is WireBendAir angle ? angle.AngleRadians * 180d / Math.PI : (double?)null,
-                        plane = operation is WireBendAir plane ? plane.Plane : null, stableId = operation.StableId(wire.Name), input = operation.Input, output = operation.Output })
+                        plane = operation is WireBendAir plane ? plane.Plane : null, coilKind = operation is WireCoilAir coil ? coil.CoilKind : null,
+                        turns = operation is WireCoilAir turns ? turns.Turns : (double?)null, handedness = operation is WireCoilAir handed ? handed.Handedness.ToString() : null,
+                        pitch = operation switch { WireAxisCoilAir axis => axis.PitchMm, WireSurfaceCoilAir surface => surface.AxialPitchMm, _ => (double?)null },
+                        progressionLaw = operation is WireCoilAir progression ? progression.ProgressionLaw : null, selfClearance = operation is WireCoilAir self ? self.MinimumSelfClearanceMm : (double?)null,
+                        supportClearance = operation is WireCoilAir support ? support.SupportClearanceMm : null, representation = operation is WireCoilAir ? "ExactEvaluableWindingLaw->NonRationalBSplineTube" : "Analytic",
+                        approximationTolerance = operation is WireCoilAir tolerance ? tolerance.ApproximationToleranceMm : (double?)null,
+                        approximationSegmentCount = operation is WireCoilAir segments ? segments.ApproximationSegmentCount : (int?)null,
+                        approximationMaxError = operation is WireCoilAir maxError ? maxError.ApproximationError.MaxMm : (double?)null,
+                        approximationRmsError = operation is WireCoilAir rmsError ? rmsError.ApproximationError.RmsMm : (double?)null,
+                        stableId = operation.StableId(wire.Name), input = operation.Input, output = operation.Output })
                 }, diagnostics = wireDiagnostics
             };
             if (json) stdout.WriteLine(JsonSerializer.Serialize(wireReportPayload, JsonOptions));

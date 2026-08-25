@@ -1,0 +1,19 @@
+Model BlenderBallCoilWitness {
+    Units: mm
+    Frustum CupInterior { BottomRadius: 20mm; TopRadius: 34mm; Height: 64mm }
+    Sphere CaptiveBallProxy { Radius: 9mm }
+    WireForm BlenderBallCoil {
+        Diameter: 2mm
+        Material: Standard.Materials.StainlessSteel.304_Annealed
+        StartFrame { Origin: [0mm,0mm,0mm]; Tangent: [1,0,0]; Up: [0,0,1] }
+        SurfaceCoil Winding {
+            Surface: CaptiveBallProxy
+            Side: Outside
+            Clearance: 1mm
+            Turns: 7
+            StartLatitude: 65deg
+            EndLatitude: -65deg
+            Handedness: RightHanded
+        }
+    }
+}

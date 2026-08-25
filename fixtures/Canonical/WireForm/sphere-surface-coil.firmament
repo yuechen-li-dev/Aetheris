@@ -1,0 +1,18 @@
+Model SphereSurfaceCoilWitness {
+    Units: mm
+    Sphere BallSupport { Radius: 24mm }
+    WireForm SphereWinding {
+        Diameter: 2mm
+        Material: Standard.Materials.StainlessSteel.304_Annealed
+        StartFrame { Origin: [0mm,0mm,0mm]; Tangent: [1,0,0]; Up: [0,0,1] }
+        SurfaceCoil Winding {
+            Surface: BallSupport
+            Side: Outside
+            Clearance: 1mm
+            Turns: 6
+            StartLatitude: 55deg
+            EndLatitude: -55deg
+            Handedness: RightHanded
+        }
+    }
+}

@@ -29,8 +29,38 @@ Circular area times total length gives volume; density from the Material DB give
 
 The centerline lowers to explicit line and circular-arc AIR, then to exact circular Sweep geometry. Straights become cylinders, bends become toroidal patches, and open terminals become planar caps. Canonical WireForms have no rational B-spline surfaces and no faceted fallback. Both terminals retain position, tangent/frame, and section diameter.
 
-X0 supports one continuous, unbranched, open wire with constant circular section. Nonadjacent contact or overlap fails closed. Coils, springs, helices, arbitrary splines, mathematical or physical knots, branching, variable section, deliberate contact, and closed-wire authoring are deferred. Direct `Concept Path` plus `Sweep` remains the lower-level choice for explicitly authored trajectories.
+WIRE-X1 adds semantic winding generators without weakening the exact Straight/Bend route. `AxisCoil` authors a cylindrical helix from `Radius`, `Turns`, either `Pitch` or `Height`, explicit `Handedness`, and an optional stable `StartPhase`. If both Pitch and Height are supplied they must agree with `Height = Turns × Pitch`. The compiler derives the missing value, exact helix length, terminal position/tangent/transported frame, turn clearance, volume, and mass.
 
-See the canonical [90-degree bend](../../../fixtures/Canonical/WireForm/single-bend-90.firmament), [U-wire](../../../fixtures/Canonical/WireForm/u-wire.firmament), [two-plane 3D wire](../../../fixtures/Canonical/WireForm/three-dimensional-bends.firmament), and [Paperclip](../../../fixtures/Canonical/WireForm/paperclip.firmament).
+```firmament
+AxisCoil Winding {
+    Radius: 12mm
+    Turns: 8
+    Pitch: 5mm
+    Handedness: RightHanded
+    StartPhase: 0deg
+}
+```
+
+`SurfaceCoil` generates a wire centerline by winding around a known support surface while maintaining a requested side and clearance. The author specifies winding intent; Aetheris derives the changing 3D path. X1 admits authored analytic `Cylinder`, `Frustum`/`Cone`, and `Sphere` supports. Cylinder/frustum winding uses `AxialPitch`. Sphere winding uses honest linear-latitude progression between `StartLatitude` and `EndLatitude`; it does not claim equal geodesic spacing and excludes the exact poles.
+
+```firmament
+Frustum CupInnerFrustum { BottomRadius: 18mm; TopRadius: 30mm; Height: 60mm }
+SurfaceCoil Winding {
+    Surface: CupInnerFrustum
+    Side: Inside
+    Clearance: 1mm
+    Turns: 6
+    AxialPitch: 8mm
+    Handedness: RightHanded
+}
+```
+
+`Clearance` is support-to-wire clearance; the compiler uses `Diameter / 2 + Clearance` as centerline offset. `CenterlineOffset` is the mutually exclusive mathematical alternative. Collapsing inward offsets, pole singularities, turn overlap, and unsupported surfaces fail with typed diagnostics. CLI inspection reports the winding kind/law, handedness, resolved pitch/height, exact or deterministically integrated stock length, start/end terminals, self/support clearance, and polynomial realization evidence.
+
+The semantic/evaluable winding law remains authoritative. Coil-containing forms lower through deterministic rotation-minimal frame transport to cubic non-rational B-spline tube patches and planar caps; STEP uses no rational product surfaces and no faceted fallback. Coil-free forms still use exact cylinders and tori. The current approximation uses 32 longitudinal cubic spans per turn and four cubic polynomial quarter patches around the circular section; the compiler measures maximum/RMS centerline error against the winding law and fails if its 0.01 mm bound is exceeded.
+
+X1 supports one continuous, unbranched, open wire with constant circular section. It does not support arbitrary/freeform supports, variable pitch or section, intentional turn contact, spring mechanics, contact dynamics, knots, branching, or closed-wire authoring. Surface support identity is authored rather than imported-face-ID based. Direct `Concept Path` plus `Sweep` remains the lower-level choice for explicitly authored line/arc trajectories.
+
+See the canonical [axis coil](../../../fixtures/Canonical/WireForm/axis-coil.firmament), [frustum SurfaceCoil](../../../fixtures/Canonical/WireForm/frustum-surface-coil.firmament), [sphere SurfaceCoil](../../../fixtures/Canonical/WireForm/sphere-surface-coil.firmament), [composed Straight/Coil/Straight](../../../fixtures/Canonical/WireForm/straight-coil-straight.firmament), [90-degree bend](../../../fixtures/Canonical/WireForm/single-bend-90.firmament), and [Paperclip](../../../fixtures/Canonical/WireForm/paperclip.firmament).
 
 `aetheris inspect source.firmament --json` reports the semantic `wireForm` object, including `operations`, `totalStraightLength`, `totalBendLength`, and compiler-derived `totalWireLength`. A materializing `build --json` adds volume, mass, surface inventory, manifold/reimport status, rational/faceted counts, and the STEP hash.

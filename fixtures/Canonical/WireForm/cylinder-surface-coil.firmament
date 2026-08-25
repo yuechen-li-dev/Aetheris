@@ -1,0 +1,10 @@
+Model CylinderSurfaceCoilWitness {
+    Units: mm
+    Cylinder Drum { Radius: 10mm; Height: 40mm }
+    WireForm DrumWinding {
+        Diameter: 2mm
+        Material: Standard.Materials.StainlessSteel.304_Annealed
+        StartFrame { Origin: [0mm,0mm,0mm]; Tangent: [1,0,0]; Up: [0,0,1] }
+        SurfaceCoil Winding { Surface: Drum; Side: Outside; Clearance: 1mm; Turns: 6; AxialPitch: 5mm; Handedness: RightHanded }
+    }
+}

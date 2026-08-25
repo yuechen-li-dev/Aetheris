@@ -1,0 +1,1 @@
+Model Invalid { WireForm Wire { Diameter: 2mm; StartFrame { Origin: [0,0,0]; Tangent: [1,0,0]; Up: [0,0,1] } AxisCoil Bad { Radius: 0mm; Turns: 3; Pitch: 5mm } } }

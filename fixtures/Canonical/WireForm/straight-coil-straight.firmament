@@ -1,0 +1,11 @@
+Model ComposedCoilWitness {
+    Units: mm
+    WireForm ComposedSpring {
+        Diameter: 2mm
+        Material: Standard.Materials.StainlessSteel.304_Annealed
+        StartFrame { Origin: [0mm,0mm,0mm]; Tangent: [1,0,0]; Up: [0,0,1] }
+        Straight Lead { Length: 10mm }
+        AxisCoil Winding { Radius: 10mm; Turns: 4; Pitch: 5mm; Handedness: RightHanded }
+        Straight Tail { Length: 10mm }
+    }
+}

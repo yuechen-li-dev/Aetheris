@@ -1,0 +1,9 @@
+Model LeftAxisCoilWitness {
+    Units: mm
+    WireForm LeftSpring {
+        Diameter: 2mm
+        Material: Standard.Materials.StainlessSteel.304_Annealed
+        StartFrame { Origin: [0mm,0mm,0mm]; Tangent: [1,0,0]; Up: [0,0,1] }
+        AxisCoil Winding { Radius: 12mm; Turns: 6; Height: 30mm; Handedness: LeftHanded }
+    }
+}

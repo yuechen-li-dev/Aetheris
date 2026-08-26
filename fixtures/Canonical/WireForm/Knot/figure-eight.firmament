@@ -1,0 +1,9 @@
+Model KnotFigureEight {
+    Units: mm
+    WireForm FigureEightSculpture {
+        Diameter: 6mm
+        Material: Standard.Materials.StainlessSteel.304_Annealed
+        StartFrame { Origin: [0mm,0mm,0mm]; Tangent: [1,0,0]; Up: [0,0,1] }
+        Knot Sculpture { Family: FigureEight; Scale: 18mm; Phase: 0deg }
+    }
+}

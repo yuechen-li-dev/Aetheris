@@ -1,0 +1,14 @@
+Model ComposeMultipleBase {
+  Units: mm
+  Concept Struct Layout On XY { Rect2 StockRect { Center: [0mm, 0mm]; Size: [20mm, 20mm] } }
+  Profile StockProfile Using Layout { Loop Outer {
+    Segment B { Trace: StockRect.Bottom; From: StockRect.BottomLeft; To: StockRect.BottomRight }
+    Segment R { Trace: StockRect.Right; From: StockRect.BottomRight; To: StockRect.TopRight }
+    Segment T { Trace: StockRect.Top; From: StockRect.TopRight; To: StockRect.TopLeft }
+    Segment L { Trace: StockRect.Left; From: StockRect.TopLeft; To: StockRect.BottomLeft }
+  } }
+  Struct Part { Compose Body {
+    Base First { Profile: StockProfile; From: 0mm; To: 5mm }
+    Base Second { Profile: StockProfile; From: 5mm; To: 10mm }
+  } }
+}

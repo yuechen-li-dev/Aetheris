@@ -1,0 +1,31 @@
+Model BossStackCurrentTop {
+  Units: mm
+  Concept Struct Layout On XY {
+    Rect2 BaseRect { Center: [0mm, 0mm]; Size: [40mm, 30mm] }
+    Rect2 MiddleRect { Center: [0mm, 0mm]; Size: [24mm, 18mm] }
+    Rect2 UpperRect { Center: [0mm, 0mm]; Size: [12mm, 8mm] }
+  }
+  Profile BaseProfile Using Layout { Loop Outer {
+    Segment B { Trace: BaseRect.Bottom; From: BaseRect.BottomLeft; To: BaseRect.BottomRight }
+    Segment R { Trace: BaseRect.Right; From: BaseRect.BottomRight; To: BaseRect.TopRight }
+    Segment T { Trace: BaseRect.Top; From: BaseRect.TopRight; To: BaseRect.TopLeft }
+    Segment L { Trace: BaseRect.Left; From: BaseRect.TopLeft; To: BaseRect.BottomLeft }
+  } }
+  Profile MiddleProfile Using Layout { Loop Outer {
+    Segment B { Trace: MiddleRect.Bottom; From: MiddleRect.BottomLeft; To: MiddleRect.BottomRight }
+    Segment R { Trace: MiddleRect.Right; From: MiddleRect.BottomRight; To: MiddleRect.TopRight }
+    Segment T { Trace: MiddleRect.Top; From: MiddleRect.TopRight; To: MiddleRect.TopLeft }
+    Segment L { Trace: MiddleRect.Left; From: MiddleRect.TopLeft; To: MiddleRect.BottomLeft }
+  } }
+  Profile UpperProfile Using Layout { Loop Outer {
+    Segment B { Trace: UpperRect.Bottom; From: UpperRect.BottomLeft; To: UpperRect.BottomRight }
+    Segment R { Trace: UpperRect.Right; From: UpperRect.BottomRight; To: UpperRect.TopRight }
+    Segment T { Trace: UpperRect.Top; From: UpperRect.TopRight; To: UpperRect.TopLeft }
+    Segment L { Trace: UpperRect.Left; From: UpperRect.TopLeft; To: UpperRect.BottomLeft }
+  } }
+  Struct Part { Compose Body {
+    Base Stock { Profile: BaseProfile; From: 0mm; To: 10mm; Role: Stock }
+    Boss Middle { On: Top; Profile: MiddleProfile; Height: 6mm }
+    Boss Upper { On: Top; Profile: UpperProfile; Height: 4mm }
+  } }
+}

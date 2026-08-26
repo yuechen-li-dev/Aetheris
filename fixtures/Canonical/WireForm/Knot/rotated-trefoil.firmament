@@ -1,0 +1,9 @@
+Model RotatedTrefoil {
+    Units: mm
+    WireForm RotatedTrefoil {
+        Diameter: 6mm
+        Material: Standard.Materials.StainlessSteel.304_Annealed
+        StartFrame { Origin: [10mm,20mm,30mm]; Tangent: [0,1,0]; Up: [1,0,0] }
+        Knot Sculpture { Family: Trefoil; Scale: 20mm }
+    }
+}

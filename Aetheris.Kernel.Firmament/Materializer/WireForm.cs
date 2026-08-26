@@ -23,6 +23,17 @@ public abstract record WireFormOperationAir(string Name, int Ordinal, WireState 
     public string StableId(string wireFormName) => $"wireform:{wireFormName}:operation:{Ordinal}:{Name}";
 }
 
+/// <summary>Shared semantic authority for bounded evaluable wire paths. Samples are evidence, never authoring input.</summary>
+public abstract record WireEvaluablePathAir(string Name, int Ordinal, WireState Input, WireState Output, double LengthMm,
+    double ApproximationToleranceMm) : WireFormOperationAir(Name, Ordinal, Input, Output, LengthMm)
+{
+    public abstract Point3D Evaluate(double parameter);
+    public abstract Direction3D Tangent(double parameter);
+    public abstract int ApproximationSegmentCount { get; }
+    public abstract bool Closed { get; }
+    public (double MaxMm, double RmsMm) ApproximationError => WireEvaluablePathGeometry.MeasureCenterlineApproximation(this, ApproximationSegmentCount);
+}
+
 public sealed record WireStraightAir(string Name, int Ordinal, double AuthoredLengthMm, WireState Input, WireState Output)
     : WireFormOperationAir(Name, Ordinal, Input, Output, AuthoredLengthMm);
 
@@ -36,15 +47,13 @@ public enum WireSurfaceSide { Outside, Inside }
 /// <summary>An evaluable winding law retained as semantic authority; samples are never authoring input.</summary>
 public abstract record WireCoilAir(string Name, int Ordinal, double Turns, WireCoilHandedness Handedness,
     double StartPhaseRadians, WireState Input, WireState Output, double LengthMm, double MinimumSelfClearanceMm,
-    double ApproximationToleranceMm) : WireFormOperationAir(Name, Ordinal, Input, Output, LengthMm)
+    double ApproximationToleranceMm) : WireEvaluablePathAir(Name, Ordinal, Input, Output, LengthMm, ApproximationToleranceMm)
 {
-    public abstract Point3D Evaluate(double parameter);
-    public abstract Direction3D Tangent(double parameter);
     public abstract string CoilKind { get; }
     public abstract string ProgressionLaw { get; }
     public virtual double? SupportClearanceMm => null;
-    public int ApproximationSegmentCount => Math.Max(16, (int)Math.Ceiling(Turns * 32d));
-    public (double MaxMm, double RmsMm) ApproximationError => WireCoilGeometry.MeasureCenterlineApproximation(this, ApproximationSegmentCount);
+    public override int ApproximationSegmentCount => Math.Max(16, (int)Math.Ceiling(Turns * 32d));
+    public override bool Closed => false;
 }
 
 public sealed record WireAxisCoilAir(string Name, int Ordinal, double RadiusMm, double Turns, double PitchMm,
@@ -97,7 +106,7 @@ public static class WireFormAuthoring
 {
     public const string FrameTransportPolicy = "The authored local Up/Right bend-plane axis is rotated with the tangent through each bend (rotation-minimal rigid transport about the bend normal); Straight preserves the frame.";
     private static readonly Regex Declaration = new(@"\bWireForm\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
-    private static readonly Regex Operation = new(@"\b(?<kind>Straight|Bend|AxisCoil|SurfaceCoil|Coil)\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
+    private static readonly Regex Operation = new(@"\b(?<kind>Straight|Bend|AxisCoil|SurfaceCoil|Coil|Knot)\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
 
     public static bool IsWireFormSource(string source) => Declaration.IsMatch(source);
 
@@ -161,6 +170,14 @@ public static class WireFormAuthoring
                 if (!coil.IsSuccess) return KernelResult<WireFormFeatureAir>.Failure(coil.Diagnostics);
                 operations.Add(coil.Value); state = coil.Value.Output; continue;
             }
+            if (match.Groups["kind"].Value == "Knot")
+            {
+                if (operations.Count != 0 || Operation.Matches(body).Count != 1)
+                    return Fail("wireform-knot-composition-unsupported", $"{operationName}: X2 KnotPath must be the sole closed operation in a WireForm.");
+                var knotResult = WireKnotAuthoring.Create(operationName, ordinal, operationBody, state, diameter);
+                if (!knotResult.IsSuccess) return KernelResult<WireFormFeatureAir>.Failure(knotResult.Diagnostics);
+                operations.Add(knotResult.Value); state = knotResult.Value.Output; continue;
+            }
 
             if (!TryLength(Property(operationBody, "Radius"), out var radius) || radius <= 0d)
                 return Fail("wireform-bend-radius-invalid", $"{operationName}: centerline Radius must be finite and greater than zero.");
@@ -184,9 +201,11 @@ public static class WireFormAuthoring
             operations.Add(new WireBendAir(operationName, ordinal, radius, angle, plane, axis, center, startRadial, state, bendOutput));
             state = bendOutput;
         }
-        if (operations.Count == 0) return Fail("wireform-operations-empty", $"WireForm '{name}' requires at least one Straight, Bend, AxisCoil, or SurfaceCoil operation.");
+        if (operations.Count == 0) return Fail("wireform-operations-empty", $"WireForm '{name}' requires at least one Straight, Bend, AxisCoil, SurfaceCoil, or Knot operation.");
+        var authoredStart = new WireState(new(origin.X, origin.Y, origin.Z), tangent, up, 0d);
         return KernelResult<WireFormFeatureAir>.Success(new(name, diameter, materialReference, material.Material,
-            new WireState(new(origin.X, origin.Y, origin.Z), tangent, up, 0d), operations, FrameTransportPolicy));
+            operations[0] is WireKnotPathAir ? operations[0].Input : authoredStart, operations,
+            operations[0] is WireKnotPathAir knot ? knot.FrameClosure.Policy : FrameTransportPolicy));
     }
 
     internal static string? Property(string body, string name)
@@ -259,6 +278,8 @@ public static class WireFormBRepMaterializer
     {
         var diagnostics = Validate(feature);
         if (diagnostics.Count > 0) return KernelResult<WireFormBuildResult>.Failure(diagnostics.Select(Error).ToArray());
+        if (feature.Operations.Any(operation => operation is WireKnotPathAir))
+            return WireKnotBRepMaterializer.Build(feature);
         if (feature.Operations.Any(operation => operation is WireCoilAir))
             return WireCoilBRepMaterializer.Build(feature);
         try
@@ -338,6 +359,17 @@ public static class WireFormBRepMaterializer
                 diagnostics.Add($"wireform-coil-turn-clearance:{coil.Name}: adjacent turns overlap by {-coil.MinimumSelfClearanceMm:G6} mm.");
             if (operation is WireCoilAir approximated && approximated.ApproximationError.MaxMm > approximated.ApproximationToleranceMm)
                 diagnostics.Add($"wireform-coil-approximation-tolerance:{approximated.Name}: measured centerline error {approximated.ApproximationError.MaxMm:G6} mm exceeds {approximated.ApproximationToleranceMm:G6} mm.");
+            if (operation is WireKnotPathAir knot)
+            {
+                if (knot.ApproximationError.MaxMm > knot.ApproximationToleranceMm)
+                    diagnostics.Add($"wireform-knot-approximation-limit:{knot.Name}: measured centerline error {knot.ApproximationError.MaxMm:G6} mm exceeds {knot.ApproximationToleranceMm:G6} mm.");
+                if (feature.WireRadiusMm + Tolerance.Linear >= knot.Qualification.TubeRadiusLimitMm)
+                {
+                    var code = knot.Qualification.MinimumCurvatureRadiusMm < knot.Qualification.MinimumNonlocalDistanceMm / 2d
+                        ? "wireform-knot-local-curvature-limit" : "wireform-knot-tube-self-intersection";
+                    diagnostics.Add($"{code}:{knot.Name}: requested diameter {feature.DiameterMm:G12} mm exceeds the admitted maximum {knot.Qualification.MaximumAdmittedDiameterMm:G12} mm; closest nonlocal parameters t1={knot.Qualification.ClosestParameter1:G9}, t2={knot.Qualification.ClosestParameter2:G9}.");
+                }
+            }
         }
         var clearance = feature.DiameterMm;
         for (var i = 0; i + 1 < feature.Operations.Count; i++)
@@ -386,7 +418,7 @@ public static class WireFormBRepMaterializer
     {
         WireStraightAir line => [line.Input.Position, line.Output.Position],
         WireBendAir bend => Enumerable.Range(0, count + 1).Select(i => bend.Center + Rotate(bend.StartRadial.ToVector(), bend.PlaneNormal.ToVector(), Math.Abs(bend.AngleRadians) * i / count) * bend.RadiusMm).ToArray(),
-        WireCoilAir coil => Enumerable.Range(0, count + 1).Select(i => coil.Evaluate((double)i / count)).ToArray(),
+        WireEvaluablePathAir path => Enumerable.Range(0, count + 1).Select(i => path.Evaluate((double)i / count)).ToArray(),
         _ => []
     };
     private static double SegmentDistance(Point3D p1, Point3D q1, Point3D p2, Point3D q2)
@@ -410,12 +442,12 @@ public static class WireFormReportFactory
         var feature = built.Feature;
         var surfaces = built.Body.Topology.Faces.Select(face => built.Body.GetFaceSurface(face.Id).Kind).ToArray();
         var operations = feature.Operations.Select(operation => new FirmamentWireOperationReport(
-            operation.Ordinal, operation.Name, operation switch { WireStraightAir => "Straight", WireBendAir => "Bend", WireAxisCoilAir => "AxisCoil", WireSurfaceCoilAir => "SurfaceCoil", _ => "Unknown" }, operation.LengthMm,
+            operation.Ordinal, operation.Name, operation switch { WireStraightAir => "Straight", WireBendAir => "Bend", WireAxisCoilAir => "AxisCoil", WireSurfaceCoilAir => "SurfaceCoil", WireKnotPathAir => "KnotPath", _ => "Unknown" }, operation.LengthMm,
             operation is WireBendAir bend ? bend.RadiusMm : null,
             operation is WireBendAir bendAngle ? bendAngle.AngleRadians * 180d / Math.PI : null,
             operation is WireBendAir bendPlane ? bendPlane.Plane : null, operation.StableId(feature.Name),
-            State(operation.Input), State(operation.Output), operation switch { WireStraightAir => "LineSegment", WireBendAir => "CircularArc", WireCoilAir => "EvaluableWindingLaw", _ => "Unknown" },
-            operation switch { WireStraightAir => "Cylinder", WireBendAir => "Torus", WireCoilAir => "NonRationalBSplineTube", _ => "Unknown" },
+            State(operation.Input), State(operation.Output), operation switch { WireStraightAir => "LineSegment", WireBendAir => "CircularArc", WireCoilAir => "EvaluableWindingLaw", WireKnotPathAir => "EvaluablePeriodicKnotLaw", _ => "Unknown" },
+            operation switch { WireStraightAir => "Cylinder", WireBendAir => "Torus", WireEvaluablePathAir => "NonRationalBSplineTube", _ => "Unknown" },
             operation is WireCoilAir coil ? coil.CoilKind : null, operation is WireCoilAir turns ? turns.Turns : null,
             operation is WireCoilAir handed ? handed.Handedness.ToString() : null,
             operation switch { WireAxisCoilAir axis => axis.PitchMm, WireSurfaceCoilAir surface => surface.AxialPitchMm, _ => null },
@@ -426,25 +458,50 @@ public static class WireFormReportFactory
             operation is WireCoilAir progression ? progression.ProgressionLaw : null,
             operation is WireCoilAir self ? self.MinimumSelfClearanceMm : null,
             operation is WireCoilAir supportClearance ? supportClearance.SupportClearanceMm : null,
-            operation is WireCoilAir approximation ? approximation.ApproximationToleranceMm : null,
-            operation is WireCoilAir segmentCount ? segmentCount.ApproximationSegmentCount : null,
-            operation is WireCoilAir maximumError ? maximumError.ApproximationError.MaxMm : null,
-            operation is WireCoilAir rmsError ? rmsError.ApproximationError.RmsMm : null)).ToArray();
+            operation is WireEvaluablePathAir approximation ? approximation.ApproximationToleranceMm : null,
+            operation is WireEvaluablePathAir segmentCount ? segmentCount.ApproximationSegmentCount : null,
+            operation is WireEvaluablePathAir maximumError ? maximumError.ApproximationError.MaxMm : null,
+            operation is WireEvaluablePathAir rmsError ? rmsError.ApproximationError.RmsMm : null,
+            operation is WireKnotPathAir knot ? knot.Family.ToString() : null,
+            operation is WireKnotPathAir knotP ? knotP.P : null,
+            operation is WireKnotPathAir knotQ ? knotQ.Q : null,
+            operation is WireKnotPathAir knotComponents ? knotComponents.ComponentCount : null,
+            operation is WireKnotPathAir knotClosed ? knotClosed.Closed : null,
+            operation is WireKnotPathAir knotScale ? knotScale.ScaleMm : null,
+            operation is WireKnotPathAir knotMajor ? knotMajor.MajorRadiusMm : null,
+            operation is WireKnotPathAir knotMinor ? knotMinor.MinorRadiusMm : null,
+            operation is WireKnotPathAir knotMinDistance ? knotMinDistance.Qualification.MinimumNonlocalDistanceMm : null,
+            operation is WireKnotPathAir knotMinRadius ? knotMinRadius.Qualification.MinimumCurvatureRadiusMm : null,
+            operation is WireKnotPathAir knotLimit ? knotLimit.Qualification.TubeRadiusLimitMm : null,
+            operation is WireKnotPathAir knotRawFrame ? knotRawFrame.FrameClosure.RawClosureRotationRadians : null,
+            operation is WireKnotPathAir knotCorrection ? knotCorrection.FrameClosure.AppliedCorrectionRadians : null,
+            operation is WireKnotPathAir knotFinalFrame ? knotFinalFrame.FrameClosure.FinalClosureErrorRadians : null,
+            operation is WireKnotPathAir knotError ? knotError.ApproximationError.MaxMm : null,
+            operation is WireKnotPathAir knotRms ? knotRms.ApproximationError.RmsMm : null,
+            operation is WireKnotPathAir knotT1 ? knotT1.Qualification.ClosestParameter1 : null,
+            operation is WireKnotPathAir knotT2 ? knotT2.Qualification.ClosestParameter2 : null)).ToArray();
         return new(feature.Name, feature.DiameterMm, feature.Material.Identity.FirmamentPath, feature.Operations.Count,
             feature.Operations.Count(x => x is WireStraightAir), feature.Operations.Count(x => x is WireBendAir),
             feature.TotalStraightLengthMm, feature.TotalBendLengthMm, feature.TotalWireLengthMm, built.VolumeMm3, built.MassKilograms,
             Terminal("TerminalStart", feature.StartState, feature.DiameterMm), Terminal("TerminalEnd", feature.EndState, feature.DiameterMm),
             feature.Operations.OfType<WireBendAir>().Select(x => x.RadiusMm).DefaultIfEmpty(double.NaN).Min(),
             "CenterlineRadius", "GeometricOnly: centerline bend radius must exceed Diameter/2",
-            "Nonadjacent operations use deterministic 3D chord witnesses with arc-sagitta error bounds; contact/overlap fails closed.",
+            feature.Operations.Any(x => x is WireKnotPathAir) ? "Closed KnotPath uses deterministic nonlocal periodic separation plus local curvature-radius qualification; excessive tube diameter fails closed." : "Nonadjacent operations use deterministic 3D chord witnesses with arc-sagitta error bounds; contact/overlap fails closed.",
             feature.FrameTransportPolicy, operations, built.Bounds,
             surfaces.Count(x => x == SurfaceGeometryKind.Cylinder), surfaces.Count(x => x == SurfaceGeometryKind.Torus),
             surfaces.Count(x => x == SurfaceGeometryKind.Plane), surfaces.Count(x => x is not (SurfaceGeometryKind.Cylinder or SurfaceGeometryKind.Torus or SurfaceGeometryKind.Plane)),
             0, 0, true, stepSha256, true, reimportedManifold,
             feature.Operations.Count(x => x is WireCoilAir), feature.TotalCoilLengthMm,
             feature.Operations.OfType<WireCoilAir>().Select(x => (double?)x.MinimumSelfClearanceMm).DefaultIfEmpty(null).Min(),
-            surfaces.Count(x => x == SurfaceGeometryKind.BSplineSurfaceWithKnots), feature.Operations.Any(x => x is WireCoilAir) ? 3 : 0,
-            feature.Operations.Any(x => x is WireCoilAir) ? "ExactEvaluableWindingLaw->DeterministicCubicNonRationalBSplineTube" : "ExactAnalyticLineArcSweep");
+            surfaces.Count(x => x == SurfaceGeometryKind.BSplineSurfaceWithKnots), feature.Operations.Any(x => x is WireEvaluablePathAir) ? 3 : 0,
+            feature.Operations.Any(x => x is WireKnotPathAir) ? "ExactEvaluablePeriodicKnotLaw->ClosureCorrectedDeterministicCubicNonRationalBSplineTube" : feature.Operations.Any(x => x is WireCoilAir) ? "ExactEvaluableWindingLaw->DeterministicCubicNonRationalBSplineTube" : "ExactAnalyticLineArcSweep",
+            feature.Operations.Count(x => x is WireKnotPathAir), feature.Operations.OfType<WireKnotPathAir>().SingleOrDefault()?.Family.ToString(),
+            feature.Operations.OfType<WireKnotPathAir>().SingleOrDefault()?.Qualification.MinimumNonlocalDistanceMm,
+            feature.Operations.OfType<WireKnotPathAir>().SingleOrDefault()?.Qualification.MinimumCurvatureRadiusMm,
+            feature.Operations.OfType<WireKnotPathAir>().SingleOrDefault()?.Qualification.TubeRadiusLimitMm,
+            feature.Operations.OfType<WireKnotPathAir>().SingleOrDefault()?.FrameClosure.FinalClosureErrorRadians,
+            built.Body.Topology.Vertices.Count(), built.Body.Topology.Edges.Count(), built.Body.Topology.Faces.Count(),
+            built.Body.Bindings.PcurveBindings.Count(), BrepPcurveValidator.Validate(built.Body, 1e-6).MaximumReconstructionDeviation);
     }
 
     private static FirmamentWireStateReport State(WireState state) => new(V(state.Position), V(state.Tangent), V(state.Up), V(state.Right), state.AccumulatedLengthMm);

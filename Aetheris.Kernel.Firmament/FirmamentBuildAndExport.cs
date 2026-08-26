@@ -312,7 +312,7 @@ public static class FirmamentBuildAndExport
             return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, authored.Value.Name, 0,
                 "wire-form", "wireform", WireForm: report,
                 EngineeringFeatures: authored.Value.Operations.Select(operation => new FirmamentEngineeringFeatureReport(
-                    operation.Name, operation switch { WireStraightAir => "Straight", WireBendAir => "Bend", WireAxisCoilAir => "AxisCoil", WireSurfaceCoilAir => "SurfaceCoil", _ => "Unknown" }, operation.StableId(authored.Value.Name),
+                    operation.Name, operation switch { WireStraightAir => "Straight", WireBendAir => "Bend", WireAxisCoilAir => "AxisCoil", WireSurfaceCoilAir => "SurfaceCoil", WireKnotPathAir => "KnotPath", _ => "Unknown" }, operation.StableId(authored.Value.Name),
                     authored.Value.Name, "WireState", "CircularSection", operation.LengthMm, "CenterlineLength", "Add",
                     PolicySource: "WireFormFeatureAir", MaterializationRoute: "WireFormCenterlineAir->CircularSweepBRepPlan")).ToArray()), []);
         }
@@ -980,7 +980,7 @@ public static class FirmamentBuildAndExport
             ? new AirHoleSimpleShaftHost(box.Size[0], box.Size[1], -box.Size[2] / 2d, box.Size[2] / 2d)
             : new AirHoleSimpleShaftHost(box.Size[0], box.Size[1], 0d, box.Size[2]);
         var holeStages = holes.Select(h => AirHoleSimpleShaftMaterializer.Execute(h, host)).ToArray();
-        if (holeStages.Any(stage => !stage.Succeeded || stage.Plan is null || stage.Correspondence is null))
+        if (holeStages.Any(stage => !stage.Succeeded || stage.Plan is null))
         {
             return CombinedFailure("CombinedFeatureMaterializerDiverged: admitted semantic Hole stage did not materialize its authoritative plan.", holeStages.SelectMany(stage => stage.Diagnostics));
         }
@@ -988,11 +988,12 @@ public static class FirmamentBuildAndExport
         var combinedHoles = new List<CombinedTopBoundaryChamferThroughHole>(holes.Count);
         foreach (var (hole, stage) in holes.Zip(holeStages))
         {
-            if (hole.EndCondition is not AirHoleEndCondition.ThroughAll || hole.Stack.Kind != AirHoleStackKind.SimpleShaft || hole.Placement is not AirFaceLocalHolePlacement placement || hole.Axis.Direction.Z < 1d - 1e-9)
+            if (hole.EndCondition is not AirHoleEndCondition.ThroughAll || hole.Stack.Kind is not (AirHoleStackKind.SimpleShaft or AirHoleStackKind.Counterbore) || hole.Placement is not AirFaceLocalHolePlacement placement || hole.Axis.Direction.Z < 1d - 1e-9)
             {
-                return CombinedFailure($"CombinedFeaturePlanChainInvalid: Hole '{hole.FeatureId}' is outside X1; only top/+Z simple-shaft ThroughAll holes are admitted.");
+                return CombinedFailure($"CombinedFeaturePlanChainInvalid: Hole '{hole.FeatureId}' is outside the shared combined route; only top/+Z shaft or counterbore ThroughAll holes are admitted.");
             }
-            combinedHoles.Add(new CombinedTopBoundaryChamferThroughHole(hole.FeatureId, placement.U, placement.V, hole.Shaft.Radius));
+            var counterbore=hole.Stack.Components.OfType<AirHoleCounterboreComponent>().SingleOrDefault();
+            combinedHoles.Add(new CombinedTopBoundaryChamferThroughHole(hole.FeatureId, placement.U, placement.V, hole.Shaft.Radius,counterbore?.Radius,counterbore?.Depth));
         }
 
         // Resolve and admit the exact EdgeFinish family after the Hole stage.  X1's
@@ -1044,12 +1045,15 @@ public static class FirmamentBuildAndExport
         var descendants = new List<SemanticTopologyDescendant>();
         var finalTop = body.Topology.Faces.Single(f => f.Id.Value == 2);
         var finalBottom = body.Topology.Faces.Single(f => f.Id.Value == 1);
+        var wallFaceId=11;
         for (var i = 0; i < holes.Count; i++)
         {
             var source = $"hole:{holes[i].FeatureId}";
             descendants.Add(new($"combined:{source}:mouth-loop", "Loop", SemanticTopologyRole.HoleEntryLoop, source, Loop: finalTop.LoopIds[i + 1], ParentStableId: holes[i].FeatureId));
             descendants.Add(new($"combined:{source}:exit-loop", "Loop", SemanticTopologyRole.HoleExitLoop, source, Loop: finalBottom.LoopIds[i + 1], ParentStableId: holes[i].FeatureId));
-            descendants.Add(new($"combined:{source}:wall", "Face", SemanticTopologyRole.HoleWallFace, source, Face: new FaceId(11 + i), ParentStableId: holes[i].FeatureId));
+            descendants.Add(new($"combined:{source}:shaft-wall", "Face", SemanticTopologyRole.HoleWallFace, source, Face: new FaceId(wallFaceId++), ParentStableId: holes[i].FeatureId));
+            if(combinedHoles[i].IsCounterbore)
+                descendants.Add(new($"combined:{source}:counterbore-wall", "Face", SemanticTopologyRole.HoleWallFace, source, Face: new FaceId(wallFaceId++), ParentStableId: holes[i].FeatureId));
         }
         descendants.Add(new($"combined:edgefinish:{finish.Name}:replacement", "Face", SemanticTopologyRole.EdgeFinishReplacementFace, $"edgefinish:{finish.Name}", Face: new FaceId(7), ParentStableId: finish.Name));
         var correspondence = new SemanticTopologyCorrespondence(solid.Name, descendants, ["HostBRepPlan", "HoleChangedBRepPlan", "EdgeFinishChangedBRepPlan", "AuthoritativeBRepPlan"]);
@@ -1058,14 +1062,15 @@ public static class FirmamentBuildAndExport
             return CombinedFailure("CombinedFeaturePlanChainInvalid: final plan lost Hole mouth or exit correspondence.");
         }
 
-        var holeRemoved = combinedHoles.Sum(h => System.Math.PI * h.Radius * h.Radius * (host.ZMax - host.ZMin));
+        var holeRemoved = combinedHoles.Sum(h => System.Math.PI * h.Radius * h.Radius * (host.ZMax - host.ZMin)
+            +(h.CounterboreRadius is { } reliefRadius&&h.CounterboreDepth is { } reliefDepth?System.Math.PI*(reliefRadius*reliefRadius-h.Radius*h.Radius)*reliefDepth:0d));
         var report = new FirmamentCombinedFeaturePlanReport(
             "CombinedHoleEdgeFinish", "Succeeded", finalPlan.ParentHostPlanId!, finalPlan.AppliedFeatureIds, finalPlan.PlanId, "Disjoint",
             descendants.Count(d => d.SourceStableId.StartsWith("hole:", StringComparison.Ordinal)), 1,
             box.Size[0] * box.Size[1] * (host.ZMax - host.ZMin), holeRemoved, finalPlan.AnalyticVolume,
             Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))), body.Topology.Vertices.Count(), body.Topology.Edges.Count(), body.Topology.Faces.Count(),
             body.Geometry.Surfaces.Count(s => s.Value.Kind == SurfaceGeometryKind.Plane), body.Geometry.Surfaces.Count(s => s.Value.Kind == SurfaceGeometryKind.Cylinder), true, true);
-        var featureReports = holes.Select(h => new FirmamentHoleFeatureReport(h.Name, "Hole", h.FeatureId, h.Shaft.Diameter, h.Placement.U, h.Placement.V, null, null, null, null, "top", null, nameof(AirHoleSimpleShaftMaterializer), "HoleChangedBRepPlan", h.Stack.Kind.ToString(), "CombinedHoleEdgeFinish", 1, 0, 0, report.StepSha256, true)).ToArray();
+        var featureReports = holes.Select(h => new FirmamentHoleFeatureReport(h.Name, "Hole", h.FeatureId, h.Shaft.Diameter, h.Placement.U, h.Placement.V, null, null, null, null, "top", null, nameof(AirHoleSimpleShaftMaterializer), "HoleChangedBRepPlan", h.Stack.Kind.ToString(), "CombinedHoleEdgeFinish", h.Stack.Kind==AirHoleStackKind.Counterbore?2:1, 0, h.Stack.Kind==AirHoleStackKind.Counterbore?1:0, report.StepSha256, true)).ToArray();
         return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(
             step.Value,
             finish.Name,

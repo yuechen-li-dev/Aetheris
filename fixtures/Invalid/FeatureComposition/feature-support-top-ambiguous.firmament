@@ -1,0 +1,19 @@
+Model FeatureSupportTopAmbiguous {
+  Units: mm
+  Concept Struct Layout On XY {
+    Rect2 BaseRect { Center: [0mm, 0mm]; Size: [50mm, 24mm] }
+    Rect2 LeftRect { Center: [-10mm, 0mm]; Size: [12mm, 10mm] }
+    Rect2 RightRect { Center: [10mm, 0mm]; Size: [12mm, 10mm] }
+    Rect2 BridgeRect { Center: [0mm, 0mm]; Size: [30mm, 8mm] }
+  }
+  Profile BaseProfile From BaseRect
+  Profile LeftProfile From LeftRect
+  Profile RightProfile From RightRect
+  Profile BridgeProfile From BridgeRect
+  Struct Part { Compose Body {
+    Base Stock { Profile: BaseProfile; From: 0mm; To: 10mm }
+    Boss Left { On: Base.Top; Profile: LeftProfile; Height: 5mm }
+    Boss Right { On: Base.Top; Profile: RightProfile; Height: 5mm }
+    Boss Bridge { On: Top; Profile: BridgeProfile; Height: 3mm }
+  } }
+}

@@ -490,8 +490,12 @@ internal static class AuthoredSheetMetalLowering
                     correspondence.Add(new(corner.Source.CornerPath,"ProfileCorner",corner.Source.CornerPath,$"flat-{corner.Source.CornerPath}"));
                 var plane = new SheetPlaneReference(tangentA, normal, axis, direction, true);
                 var flangeId=stableRegions[flange.Name];
-                var fragmentArea=tabs.Sum(x=>x.Width*x.Extension)-steppedNotches.Sum(x=>x.Width*x.Depth)-profileDeltas.Sum(x=>DeltaArea(x.Program));
-                regions.Add(new(flangeId, SheetRegionKind.Planar, Developable("Authored planar flange."), plane, null, boundary, (edge.B-edge.A).Length * flange.Length+fragmentArea, source, evidence,exactContour));
+                // The resolved exact contour is the material-region authority. It
+                // already contains tabs, notches, ProfileDelta overlap/clipping, and
+                // corner programs; reconstructing a signed feature-area ledger here
+                // previously treated every ProfileDelta as a removal.
+                var materialArea=PlanarContourKernel.Area(exactContour);
+                regions.Add(new(flangeId, SheetRegionKind.Planar, Developable("Authored planar flange."), plane, null, boundary, materialArea, source, evidence,exactContour));
                 patches.Add(PlanePatch(flangeId, SheetRegionKind.Planar, boundary, normal, t,plane,exactContour));
 
                 // Bend termination is finite bend-strip authority.  It must not
@@ -650,11 +654,6 @@ internal static class AuthoredSheetMetalLowering
             _=>delta.Anchor
         };
         return delta with { Anchor=anchor,Side=-delta.Side,Members=reversed };
-    }
-    private static double DeltaArea(SemanticProfileDeltaIr delta)
-    {
-        var levels=delta.Levels.ToDictionary(level=>level.Name,level=>Math.Abs(level.Offset),StringComparer.Ordinal);var current=0d;var area=0d;
-        foreach(var member in delta.Members){var target=levels.GetValueOrDefault(member.ToLevel);area+=(current+target)*member.Run/2d;current=target;}return area;
     }
     private static (double X,double Y) End(LineArcProfileCurve2D curve)=>curve switch
     {

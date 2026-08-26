@@ -1,0 +1,9 @@
+Model TorusKnot35 {
+    Units: mm
+    WireForm TorusKnotSculpture {
+        Diameter: 5mm
+        Material: Standard.Materials.StainlessSteel.304_Annealed
+        StartFrame { Origin: [0mm,0mm,0mm]; Tangent: [1,0,0]; Up: [0,0,1] }
+        Knot Sculpture { Family: TorusKnot; P: 3; Q: 5; MajorRadius: 42mm; MinorRadius: 14mm; Phase: 0deg }
+    }
+}

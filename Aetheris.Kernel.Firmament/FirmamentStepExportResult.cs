@@ -40,7 +40,14 @@ public sealed record FirmamentWireOperationReport(
     double? HeightMm = null, double? StartPhaseDegrees = null, string? Support = null, string? Side = null,
     string? ProgressionLaw = null, double? MinimumSelfClearanceMm = null, double? SupportClearanceMm = null,
     double? CenterlineApproximationToleranceMm = null, int? CenterlineApproximationSegmentCount = null,
-    double? CenterlineApproximationMaxErrorMm = null, double? CenterlineApproximationRmsErrorMm = null);
+    double? CenterlineApproximationMaxErrorMm = null, double? CenterlineApproximationRmsErrorMm = null,
+    string? KnotFamily = null, int? P = null, int? Q = null, int? ComponentCount = null, bool? Closed = null,
+    double? ScaleMm = null, double? MajorRadiusMm = null, double? MinorRadiusMm = null,
+    double? MinimumNonlocalCenterlineDistanceMm = null, double? MinimumLocalCurvatureRadiusMm = null,
+    double? TubeRadiusLimitMm = null, double? RawClosureRotationRadians = null,
+    double? AppliedDistributedCorrectionRadians = null, double? FinalClosureRotationErrorRadians = null,
+    double? KnotApproximationMaxErrorMm = null, double? KnotApproximationRmsErrorMm = null,
+    double? ClosestParameter1 = null, double? ClosestParameter2 = null);
 
 public sealed record FirmamentWireTerminalReport(
     string Name, IReadOnlyList<double> Position, IReadOnlyList<double> Tangent, IReadOnlyList<double> Up, double DiameterMm);
@@ -56,7 +63,10 @@ public sealed record FirmamentWireFormReport(
     bool StepReimportSucceeded, bool StepReimportedManifold,
     int CoilCount = 0, double TotalCoilLengthMm = 0d, double? MinimumSelfClearanceMm = null,
     int NonRationalBSplineSurfaces = 0, int MaximumPolynomialDegree = 0,
-    string CoilRepresentation = "NotApplicable");
+    string CoilRepresentation = "NotApplicable", int KnotCount = 0, string? KnotFamily = null,
+    double? MinimumNonlocalCenterlineDistanceMm = null, double? MinimumLocalCurvatureRadiusMm = null,
+    double? TubeRadiusLimitMm = null, double? FinalFrameClosureErrorRadians = null,
+    int Vertices = 0, int Edges = 0, int Faces = 0, int PcurveCount = 0, double MaximumPcurveErrorMm = 0d);
 
 public sealed record FirmamentSemanticPatternReport(
     string Name,

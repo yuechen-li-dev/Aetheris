@@ -1,0 +1,16 @@
+ProfileDelta ServiceNotch {
+  On: Wall.Outer;
+  Anchor: CenteredAt 50mm;
+  Side: Inward;
+  Level Carrier { Offset: 0mm; }
+  Level Cut { Offset: 6mm; }
+  Transition Enter { Kind: Step; To: Cut; }
+  Span Land { Run: 15mm; At: Cut; }
+  Transition Exit { Kind: Step; To: Carrier; }
+}
+
+SheetMetal NotchAreaWitness {
+  Thickness: 1mm;
+  Base Deck { Profile: Rectangle { Width: 100mm; Height: 50mm; }; }
+  Flange Wall { From: Deck.Front; Height: 35mm; Angle: 90deg; Radius: 2mm; }
+}

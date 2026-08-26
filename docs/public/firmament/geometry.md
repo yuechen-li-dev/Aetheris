@@ -19,7 +19,7 @@ Compose Body {
 }
 ```
 
-The active Compose body is the semantic target; `On: Top` is its admitted support face. The boss footprint must overlap the host with a proper connected region. A disjoint or point-tangent footprint, missing profile, unsupported support, or non-positive height fails with a `firmament-boss-*` diagnostic. Boss retains a stable `boss:<host>.<name>` identity, then lowers to the existing section-stack `Add` operation. It never emits an arbitrary second solid and does not introduce public Boolean authoring.
+The active Compose body is the semantic target. Relative `On: Top` resolves against the current semantic body state under the authored footprint: a later Boss over an earlier Boss therefore starts at the earlier Boss top, while a feature elsewhere on an exposed base plateau still resolves that plateau. Equal highest semantic supports fail with `feature-support-ambiguous:Top`; topology order is never a tie-break. Named `<feature>.Top` retains explicit support identity, and `Base.Top` explicitly selects the original Base operation. The boss footprint must overlap the selected support with a proper connected region. A disjoint or point-tangent footprint, missing profile, unsupported support, or non-positive height fails typed. Boss retains a stable `boss:<host>.<name>` identity, then lowers to the existing section-stack `Add` operation. It never emits an arbitrary second solid and does not introduce public Boolean authoring.
 
 ### Complete Boss + through-hole source
 
@@ -114,7 +114,7 @@ Model PocketBlock {
 }
 ```
 
-To author a block containing both features, declare all three profiles in one `Concept Struct ... On XY`, then place both the documented `Boss` and `Pocket` declarations after the unique `Base` in the same Compose. Feature declaration order does not replace their explicit finite intervals. Apply post-construction `EdgeFinish` in `Modify Body`; its semantic profile target is such as `BaseProfile.Outer`, not the primitive-only `Boundary` selector.
+To author a block containing both features, declare all three profiles in one `Concept Struct ... On XY`, then place both the documented `Boss` and `Pocket` declarations after the unique `Base` in the same Compose. `Base` cardinality is validated explicitly; zero or multiple Base operations produce `compose-role-cardinality:Base:expected=1:actual=<n>`, never a raw LINQ exception. Apply post-construction `EdgeFinish` in `Modify Body`; its semantic profile target is such as `BaseProfile.Outer`, not the primitive-only `Boundary` selector.
 
 The canonical [Boss + Pocket block](../../../fixtures/Canonical/Features/Boss/boss-pocket-block.firmament) combines a cylindrical boss, through shaft hole, and shallow rectangular pocket using public Firmament only. The focused [rectangular Pocket](../../../fixtures/Canonical/Features/Pocket/rectangular-pocket.firmament) reinforces finite depth and minimum-floor intent. Existing lower-level `Compose Add` / `Remove` remains compatible for bounded blockout work.
 

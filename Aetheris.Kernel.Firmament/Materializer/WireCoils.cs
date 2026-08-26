@@ -182,17 +182,7 @@ public static class WireCoilGeometry
         for (var i = 0; i < points.Length; i++) for (var j = i + exclusion; j < points.Length; j++) best = Math.Min(best, (points[i] - points[j]).Length);
         return best - diameter;
     }
-    public static (double MaxMm, double RmsMm) MeasureCenterlineApproximation(WireCoilAir coil, int segments)
-    {
-        var squared = 0d; var maximum = 0d; var count = 0;
-        for (var segment = 0; segment < segments; segment++)
-        {
-            var t0 = (double)segment / segments; var t1 = (double)(segment + 1) / segments; var p0 = coil.Evaluate(t0); var p1 = coil.Evaluate(t1); var chord = (p1 - p0).Length;
-            var controls = new[] { p0, p0 + coil.Tangent(t0).ToVector() * (chord / 3d), p1 - coil.Tangent(t1).ToVector() * (chord / 3d), p1 };
-            foreach (var local in new[] { .25d, .5d, .75d }) { var inverse = 1d - local; var approximate = new Point3D(controls[0].X * inverse * inverse * inverse + 3d * controls[1].X * inverse * inverse * local + 3d * controls[2].X * inverse * local * local + controls[3].X * local * local * local, controls[0].Y * inverse * inverse * inverse + 3d * controls[1].Y * inverse * inverse * local + 3d * controls[2].Y * inverse * local * local + controls[3].Y * local * local * local, controls[0].Z * inverse * inverse * inverse + 3d * controls[1].Z * inverse * inverse * local + 3d * controls[2].Z * inverse * local * local + controls[3].Z * local * local * local); var exact = coil.Evaluate(t0 + (t1 - t0) * local); var error = (approximate - exact).Length; maximum = Math.Max(maximum, error); squared += error * error; count++; }
-        }
-        return (maximum, Math.Sqrt(squared / count));
-    }
+    public static (double MaxMm, double RmsMm) MeasureCenterlineApproximation(WireCoilAir coil, int segments) => WireEvaluablePathGeometry.MeasureCenterlineApproximation(coil, segments);
     public static Direction3D TransportUp(Direction3D initial, Func<double, Direction3D> tangent, int count)
     {
         var up = initial.ToVector(); var previous = tangent(0d).ToVector(); for (var i = 1; i <= count; i++) { var next = tangent((double)i / count).ToVector(); up = RotateFromTo(up, previous, next); up -= next * WireFormAuthoring.Dot(up, next); up = Direction3D.Create(up).ToVector(); previous = next; } return Direction3D.Create(up);
@@ -204,6 +194,23 @@ public static class WireCoilGeometry
         return Rotate(value, Direction3D.Create(cross).ToVector(), Math.Acos(dot));
     }
     internal static Vector3D Rotate(Vector3D v, Vector3D a, double angle) => v * Math.Cos(angle) + WireFormAuthoring.Cross(a, v) * Math.Sin(angle) + a * (WireFormAuthoring.Dot(a, v) * (1d - Math.Cos(angle)));
+}
+
+public static class WireEvaluablePathGeometry
+{
+    public static (double MaxMm, double RmsMm) MeasureCenterlineApproximation(WireEvaluablePathAir path, int segments)
+    {
+        var squared = 0d; var maximum = 0d; var count = 0;
+        for (var segment = 0; segment < segments; segment++)
+        {
+            var t0 = (double)segment / segments; var t1 = (double)(segment + 1) / segments; var p0 = path.Evaluate(t0); var p1 = path.Evaluate(t1); var chord = (p1 - p0).Length;
+            var d0 = path is WireKnotPathAir knot0 ? WireKnotGeometry.Derivative(knot0, t0) / segments : path.Tangent(t0).ToVector() * chord;
+            var d1 = path is WireKnotPathAir knot1 ? WireKnotGeometry.Derivative(knot1, t1) / segments : path.Tangent(t1).ToVector() * chord;
+            var controls = new[] { p0, p0 + d0 / 3d, p1 - d1 / 3d, p1 };
+            foreach (var local in new[] { .25d, .5d, .75d }) { var inverse = 1d - local; var approximate = new Point3D(controls[0].X * inverse * inverse * inverse + 3d * controls[1].X * inverse * inverse * local + 3d * controls[2].X * inverse * local * local + controls[3].X * local * local * local, controls[0].Y * inverse * inverse * inverse + 3d * controls[1].Y * inverse * inverse * local + 3d * controls[2].Y * inverse * local * local + controls[3].Y * local * local * local, controls[0].Z * inverse * inverse * inverse + 3d * controls[1].Z * inverse * inverse * local + 3d * controls[2].Z * inverse * local * local + controls[3].Z * local * local * local); var exact = path.Evaluate(t0 + (t1 - t0) * local); var error = (approximate - exact).Length; maximum = Math.Max(maximum, error); squared += error * error; count++; }
+        }
+        return (maximum, Math.Sqrt(squared / count));
+    }
 }
 
 internal static class WireCoilBRepMaterializer

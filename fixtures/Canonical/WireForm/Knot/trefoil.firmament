@@ -1,0 +1,9 @@
+Model Knot1Trefoil {
+    Units: mm
+    WireForm Knot1 {
+        Diameter: 6mm
+        Material: Standard.Materials.StainlessSteel.304_Annealed
+        StartFrame { Origin: [0mm,0mm,0mm]; Tangent: [1,0,0]; Up: [0,0,1] }
+        Knot Sculpture { Family: Trefoil; Scale: 20mm; Handedness: RightHanded; Phase: 0deg }
+    }
+}

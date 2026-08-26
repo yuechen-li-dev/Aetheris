@@ -119,6 +119,18 @@ public static class PlanarContourKernel
     }
 
     /// <summary>
+    /// Exact signed-loop integration of the final material contour. Outer material
+    /// is positive and inner loops are voids; lines, circular arcs, and full circles
+    /// are integrated analytically.
+    /// </summary>
+    public static double Area(PlanarContour2 contour)
+    {
+        ArgumentNullException.ThrowIfNull(contour);
+        return Math.Abs(SignedArea(contour.OuterLoop))
+            - contour.InnerLoops.Sum(loop => Math.Abs(SignedArea(loop)));
+    }
+
+    /// <summary>
     /// Offsets a known closed line/arc chain and resolves each neighboring support
     /// intersection as a miter. Collapsed arcs and ambiguous/self-intersecting results
     /// are rejected with typed diagnostics; no repair is applied.

@@ -344,7 +344,13 @@ public sealed record SheetMetalFlatPatternIr(
     string DeterministicHash,
     PlanarContour2? ExactBlankContour = null,
     IReadOnlyList<FlatReliefLoop>? ReliefLoops = null,
-    BlankCompositionPlan? CompositionPlan = null);
+    BlankCompositionPlan? CompositionPlan = null)
+{
+    /// <summary>Actual material area from the authoritative final flat region.</summary>
+    public double? MaterialArea => ExactBlankContour is null ? null : PlanarContourKernel.Area(ExactBlankContour);
+    /// <summary>Rectangular nesting envelope area; not material usage.</summary>
+    public double? BoundingArea => Bounds is null ? null : Bounds.Width * Bounds.Height;
+}
 
 public sealed record SheetMetalRecognitionResult(
     SheetMetalPartIr? Part,

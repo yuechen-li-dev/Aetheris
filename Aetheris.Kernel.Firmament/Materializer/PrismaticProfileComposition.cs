@@ -108,7 +108,7 @@ public static class PrismaticProfileCompositionParser
     private static readonly Regex BossHeader = new(@"\bBoss\s+(?<n>\w+)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex PocketHeader = new(@"\bPocket\s+(?<n>\w+)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex SemanticProfile = new(@"\bProfile\s*:\s*(?<profile>\w+)", RegexOptions.CultureInvariant);
-    private static readonly Regex SemanticSupport = new(@"\bOn\s*:\s*(?<face>\w+|[+-][XYZ])", RegexOptions.CultureInvariant);
+    private static readonly Regex SemanticSupport = new(@"\bOn\s*:\s*(?<face>[A-Za-z_]\w*(?:\.Top)?|[+-][XYZ])", RegexOptions.CultureInvariant);
     private static readonly Regex BossHeight = new(@"\bHeight\s*:\s*(?<value>[-+.\d]+)mm", RegexOptions.CultureInvariant);
     private static readonly Regex PocketDepth = new(@"\bDepth\s*:\s*(?<value>[-+.\d]+)mm", RegexOptions.CultureInvariant);
     private static readonly Regex PocketMinimumFloor = new(@"\bMinimumFloorThickness\s*:\s*(?<value>[-+.\d]+)mm", RegexOptions.CultureInvariant);
@@ -240,10 +240,14 @@ public static class PrismaticProfileCompositionParser
             if (!double.IsFinite(from) || !double.IsFinite(to) || from >= to) diagnostics.Add($"compose-invalid-interval:{name}:{from:R}:{to:R}");
             operations.Add(new(name, Enum.Parse<PrismaticProfileIntent>(match.Groups["intent"].Value), profile, from, to, match.Groups["role"].Success ? match.Groups["role"].Value : match.Groups["intent"].Value, $"offset:{match.Index}"));
         }
-        if (operations.Count(o => o.Intent == PrismaticProfileIntent.Base) != 1) diagnostics.Add("compose-requires-exactly-one-base-operation");
+        var baseOperations = operations.Where(o => o.Intent == PrismaticProfileIntent.Base).ToArray();
+        if (baseOperations.Length != 1)
+            diagnostics.Add($"compose-role-cardinality:Base:expected=1:actual={baseOperations.Length}");
         var bosses = new List<PrismaticBossFeature>();
         var pockets = new List<PrismaticPocketFeature>();
-        var stock = operations.SingleOrDefault(operation => operation.Intent == PrismaticProfileIntent.Base);
+        // Cardinality is authored semantics, not a LINQ assertion. Never call
+        // Single/SingleOrDefault while malformed input can still reach this boundary.
+        var stock = baseOperations.Length == 1 ? baseOperations[0] : null;
         if (stock is not null)
         {
             foreach (Match header in BossHeader.Matches(composeBody))
@@ -256,12 +260,17 @@ public static class PrismaticProfileCompositionParser
                 var profileName = profileMatch.Groups["profile"].Value; var face = support.Groups["face"].Value; var height = N(heightMatch, "value");
                 if (!names.Add(name)) { diagnostics.Add($"compose-duplicate-operation:{name}"); continue; }
                 if (!profiles.TryGetValue(profileName, out var bossProfile)) { diagnostics.Add($"firmament-boss-invalid-profile:{name}:profile={profileName}"); continue; }
-                if (face is not ("Top" or "+Z")) { diagnostics.Add($"firmament-boss-invalid-target:{name}:On={face}:supported=Top"); continue; }
+                if (!IsTopSelector(face)) { diagnostics.Add($"firmament-boss-invalid-target:{name}:On={face}:supported=Top-or-<feature>.Top"); continue; }
                 if (!double.IsFinite(height) || height <= 0d) { diagnostics.Add($"firmament-boss-height-must-be-positive:{name}:height={height:R}mm"); continue; }
-                if (!HasConnectedBossSupport(stock, bossProfile, profiles)) { diagnostics.Add($"firmament-boss-disconnected-from-host:{name}:host={compose.Groups["n"].Value}:profile={profileName}:support=Top"); continue; }
+                var candidates = ResolveTopSupports(face, stock, operations, bossProfile, profiles);
+                if (candidates.Count == 0) { diagnostics.Add(face.EndsWith(".Top", StringComparison.Ordinal)
+                    ? $"feature-support-not-found:{name}:{face}:host={compose.Groups["n"].Value}:profile={profileName}"
+                    : $"firmament-boss-disconnected-from-host:{name}:host={compose.Groups["n"].Value}:profile={profileName}:support=Top"); continue; }
+                if (candidates.Count > 1) { diagnostics.Add($"feature-support-ambiguous:Top:feature={name}:candidates={string.Join(",", candidates.Select(x => x.Name).Order(StringComparer.Ordinal))}"); continue; }
+                var selectedSupport = candidates[0];
                 var stableId = $"boss:{compose.Groups["n"].Value}.{name}"; var sourceSpan = $"offset:{header.Index}";
-                bosses.Add(new(name, stableId, compose.Groups["n"].Value, "Top", profileName, height, stock.To, stock.To + height, sourceSpan));
-                operations.Add(new(name, PrismaticProfileIntent.Add, profileName, stock.To, stock.To + height, "Boss", sourceSpan, stableId, "Boss"));
+                bosses.Add(new(name, stableId, compose.Groups["n"].Value, face, profileName, height, selectedSupport.To, selectedSupport.To + height, sourceSpan));
+                operations.Add(new(name, PrismaticProfileIntent.Add, profileName, selectedSupport.To, selectedSupport.To + height, "Boss", sourceSpan, stableId, "Boss"));
             }
 
             foreach (Match header in PocketHeader.Matches(composeBody))
@@ -274,10 +283,13 @@ public static class PrismaticProfileCompositionParser
                 var profileName = profileMatch.Groups["profile"].Value; var face = support.Groups["face"].Value; var depth = N(depthMatch, "value");
                 if (!names.Add(name)) { diagnostics.Add($"compose-duplicate-operation:{name}"); continue; }
                 if (!profiles.TryGetValue(profileName, out var pocketProfile)) { diagnostics.Add($"firmament-pocket-invalid-profile:{name}:profile={profileName}"); continue; }
-                if (face is not ("Top" or "+Z")) { diagnostics.Add($"firmament-pocket-invalid-target:{name}:On={face}:supported=Top"); continue; }
+                if (!IsTopSelector(face)) { diagnostics.Add($"firmament-pocket-invalid-target:{name}:On={face}:supported=Top-or-<feature>.Top"); continue; }
                 if (!double.IsFinite(depth) || depth <= 0d) { diagnostics.Add($"firmament-pocket-depth-must-be-positive:{name}:depth={depth:R}mm"); continue; }
-                if (!IsPocketFootprintInsideStock(stock, pocketProfile, profiles)) { diagnostics.Add($"firmament-pocket-invalid-profile:{name}:profile={profileName}:footprint-must-be-enclosed-by-host"); continue; }
-                var hostThickness = stock.To - stock.From; var remaining = hostThickness - depth;
+                var candidates = ResolveTopSupports(face, stock, operations, pocketProfile, profiles, requireContainment: true);
+                if (candidates.Count == 0) { diagnostics.Add($"feature-support-not-found:{name}:{face}:profile={profileName}:footprint-must-be-enclosed-by-support"); continue; }
+                if (candidates.Count > 1) { diagnostics.Add($"feature-support-ambiguous:Top:feature={name}:candidates={string.Join(",", candidates.Select(x => x.Name).Order(StringComparer.Ordinal))}"); continue; }
+                var selectedSupport = candidates[0];
+                var hostThickness = selectedSupport.To - selectedSupport.From; var remaining = hostThickness - depth;
                 var (minimumFloor, policySource) = ResolveMinimumFloor(source, body);
                 if (!double.IsFinite(minimumFloor) || minimumFloor <= 0d)
                 {
@@ -295,8 +307,8 @@ public static class PrismaticProfileCompositionParser
                     continue;
                 }
                 var stableId = $"pocket:{compose.Groups["n"].Value}.{name}"; var sourceSpan = $"offset:{header.Index}";
-                pockets.Add(new(name, stableId, compose.Groups["n"].Value, "Top", profileName, depth, hostThickness, remaining, minimumFloor, policySource, stock.To - depth, stock.To, sourceSpan));
-                operations.Add(new(name, PrismaticProfileIntent.Remove, profileName, stock.To - depth, stock.To, "Pocket", sourceSpan, stableId, "Pocket"));
+                pockets.Add(new(name, stableId, compose.Groups["n"].Value, face, profileName, depth, hostThickness, remaining, minimumFloor, policySource, selectedSupport.To - depth, selectedSupport.To, sourceSpan));
+                operations.Add(new(name, PrismaticProfileIntent.Remove, profileName, selectedSupport.To - depth, selectedSupport.To, "Pocket", sourceSpan, stableId, "Pocket"));
             }
         }
         var shaftHoles = new List<PrismaticShaftHoleFeature>();
@@ -431,6 +443,43 @@ public static class PrismaticProfileCompositionParser
         var levels = operations.SelectMany(o => new[] { o.From, o.To }).Distinct().Order().ToArray();
         var feature = diagnostics.Count == 0 ? new PrismaticProfileCompositionFeature(compose.Groups["n"].Value, "XY", "+Z", placement, operations, levels, "parser-backed-scaffold-profile-composition", shaftHoles, capsuleSlots, roundedRectangleSlots, constructionPlaneBlindDrills, counterboreHoles, bosses, pockets) : null;
         return new(feature, profiles, diagnostics.Distinct().ToArray(), expansion.Evidence);
+    }
+
+    private static bool IsTopSelector(string selector) => selector is "Top" or "+Z" || selector.EndsWith(".Top", StringComparison.Ordinal);
+
+    private static IReadOnlyList<PrismaticProfileOperation> ResolveTopSupports(
+        string selector,
+        PrismaticProfileOperation stock,
+        IReadOnlyList<PrismaticProfileOperation> operations,
+        ResolvedProfile2D footprint,
+        IReadOnlyDictionary<string, ResolvedProfile2D> profiles,
+        bool requireContainment = false)
+    {
+        IEnumerable<PrismaticProfileOperation> supports;
+        var relative = !selector.EndsWith(".Top", StringComparison.Ordinal);
+        if (selector.EndsWith(".Top", StringComparison.Ordinal))
+        {
+            var owner = selector[..^4];
+            supports = owner == "Base"
+                ? [stock]
+                : operations.Where(operation => operation.Intent != PrismaticProfileIntent.Remove
+                    && string.Equals(operation.Name, owner, StringComparison.Ordinal));
+        }
+        else supports = operations.Where(operation => operation.Intent != PrismaticProfileIntent.Remove);
+
+        var admitted = supports.Where(support => profiles.TryGetValue(support.ProfileReference, out var supportProfile)
+                && (requireContainment
+                    ? IsPocketFootprintInsideStock(support, footprint, profiles)
+                    : HasConnectedBossSupport(support, footprint, profiles)))
+            .ToArray();
+        if (!relative || admitted.Length == 0) return admitted;
+
+        // A stepped current body can retain several upward plateaus. Resolve the
+        // highest semantic support under this feature footprint, not the globally
+        // largest Z face and not the original Base. Equal highest supports are a
+        // typed ambiguity rather than topology-order selection.
+        var currentTop = admitted.Max(operation => operation.To);
+        return admitted.Where(operation => Math.Abs(operation.To - currentTop) <= 1e-9d).ToArray();
     }
 
     private static bool HasConnectedBossSupport(PrismaticProfileOperation stock, ResolvedProfile2D boss, IReadOnlyDictionary<string, ResolvedProfile2D> profiles)

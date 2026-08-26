@@ -36,6 +36,8 @@ aetheris sheetmetal flatten fixtures/Canonical/SheetMetal/l-bracket-with-hole.fi
 
 [`profile-delta-tab-family.firmament`](../../../fixtures/Canonical/SheetMetal/profile-delta-tab-family.firmament) is the modern data-driven profile example: a finite Table selects `ProfileTabSpec`, `with` derives the shop variant, and the standard-library `ProfileDelta Tab` modifies the wall edge while preserving formed/flat semantic identity.
 
+Flat inspection distinguishes `MaterialArea` from `BoundingArea`. `MaterialArea` is exact line/arc integration of the final flat material contour after additive ProfileDelta regions, notches, holes, cutouts, and overlap clipping. `BoundingArea` is only the rectangular nesting envelope. If no validated exact blank contour exists, material area is reported as unavailable rather than reconstructed from feature bookkeeping.
+
 Sheet Metal holes use `Hole Mount { On: Base; Center: (40mm, 20mm); Diameter: 8mm; }`. Model-domain `Hole<Shaft>` is deliberately rejected here with `sheetmetal-hole-domain-syntax`. `On` targets a named planar semantic region (`Base`, a named flange, or a verified exposed region/path), not `face(+Z)`. Manufacturing PMI likewise uses `DatumFeature A { Target: Base; }` inside `Pmi`, together with a named `Manufacturing` block; Model-domain `Datum`/`face(-Z)` syntax is rejected with `sheetmetal-pmi-domain-syntax`.
 
 The JSON `part.features` count is the number of lowered cuts/openings in `SheetMetalPartIr`; bends are reported separately as `part.bends`. Authoring and imported reconstruction are separate workflows. Commands such as `sheetmetal recognize`, `recover-flat`, and `recover` operate on imported STEP and may be partial; they do not turn arbitrary geometry into authoritative authored intent.

@@ -1,0 +1,14 @@
+Use Profile.Modifications;
+
+Static AddedTab: ProfileTabSpec = ProfileTabSpec {
+  Center: 50mm
+  Width: 15mm
+  Extension: 6mm
+}
+ProfileDelta ServiceTab = Tab < P: AddedTab, Owner: Wall.Outer >
+
+SheetMetal TabAreaWitness {
+  Thickness: 1mm;
+  Base Deck { Profile: Rectangle { Width: 100mm; Height: 50mm; }; }
+  Flange Wall { From: Deck.Front; Height: 35mm; Angle: 90deg; Radius: 2mm; }
+}

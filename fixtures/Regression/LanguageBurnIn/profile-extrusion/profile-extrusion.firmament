@@ -1,0 +1,6 @@
+Model Extruded {
+ Units: mm
+Concept Path OutlineOutline { Start: Point2(-18.0mm,-9.0mm) Heading: 0deg Line Bottom { Length: 36mm } Line Right { Turn: 90deg; Length: 18mm } Line Top { Turn: 90deg; Length: 36mm } Close Left }
+Profile Outline From OutlineOutline
+Struct Body { Extrude Plate { Profile: Outline; From: 0mm; To: 7mm } }
+}

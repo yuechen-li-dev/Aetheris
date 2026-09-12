@@ -1,0 +1,1 @@
+Model Selected { Units: mm Box Body { Size: [60mm,40mm,12mm] } Modify Body { Hole<Shaft> Bore { On: Bottom; Center: [0mm,0mm]; Diameter: 4mm; End: ThroughAll } } }

@@ -1,0 +1,4 @@
+Model ball {
+ Units: mm
+Sphere Body { Radius: 13mm }
+}

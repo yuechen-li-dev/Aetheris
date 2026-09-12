@@ -1,0 +1,6 @@
+Model SideDrill { Units: mm
+ Concept Struct Layout { Datum: Plane { Origin: [-50mm,0mm,0mm]; Normal: [1,0,0.25]; Up: [0,0,1] } }
+ Construction Plane Work { Trace: Layout.Datum }
+ Struct Bracket { Box Base { Size: [100mm,60mm,40mm] }
+ Modify Base { Hole<Shaft> Bore { From: Work; Center: Point2(10mm,6mm); Diameter: 6mm; End: ShaftDepth(25mm); Termination: DrillPoint } } }
+}

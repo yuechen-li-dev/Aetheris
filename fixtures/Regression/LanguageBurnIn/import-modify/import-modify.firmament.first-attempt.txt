@@ -1,0 +1,1 @@
+Model Imported { Units: mm Solid Body: InlineStep { Path: "../stock-block/stock-block.step" } Modify Body { Hole<Shaft> Bore { On: Top; Center: [0mm,0mm]; Diameter: 4mm; End: ThroughAll } } }

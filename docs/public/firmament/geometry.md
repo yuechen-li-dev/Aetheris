@@ -10,6 +10,8 @@ Use named features and selectors, never raw internal B-rep IDs in native authori
 
 ## Boss
 
+Known placement inconsistency: a plain direct `Box` currently exports from Z = 0 to its height, while the direct semantic Hole route without Concept IR centers the stock about Z = 0. Adding a hole can therefore change world placement even when dimensions are unchanged. Inspect STEP bounds when composing these parts; the [LANG-BURN-X1 report](../../release/LANG-BURN-X1-FIRMAMENT-BURN-IN.md) preserves the repro and proposed compatibility-aware repair. Explicit Profile/Compose `From`/`To` intervals avoid this route-dependent placement.
+
 `Boss` is the first-class finite profile feature for adding connected material. In Preview 3 it is declared inside the active profile-based `Compose` body, targets that body's top support (`On: Top`), consumes an already-admitted line/arc `Profile`, and extrudes outward along `+Z` by a positive `Height`. A `Compose` does not reopen or augment a separately declared direct `Box`; use a rectangular Base Profile when the stock is box-shaped.
 
 ```firmament

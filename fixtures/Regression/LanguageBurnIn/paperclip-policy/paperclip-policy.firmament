@@ -1,0 +1,41 @@
+Model StandardProductsOfficePaperclip {
+    Units: mm
+    Record PaperclipPolicy {
+        WireDiameter: Length
+        OuterLegLength: Length
+        InnerLegLength: Length
+        OuterBendRadius: Length
+        InnerBendRadius: Length
+        Material: String
+    }
+    Static StandardPaperclip: PaperclipPolicy = PaperclipPolicy {
+        WireDiameter: 1mm
+        OuterLegLength: 19mm
+        InnerLegLength: 16mm
+        OuterBendRadius: 5mm
+        InnerBendRadius: 3mm
+        Material: "Standard.Materials.StainlessSteel.304_Annealed"
+    }
+    Template < P: PaperclipPolicy >
+    Struct PaperclipTemplate {
+        Require PositiveWireDiameter => P.WireDiameter > 0mm
+        Require PositiveLegLengths => P.OuterLegLength > 0mm && P.InnerLegLength > 0mm
+        Require OuterLegExceedsInnerLeg => P.OuterLegLength > P.InnerLegLength
+        Require PositiveBendRadii => P.OuterBendRadius > 0mm && P.InnerBendRadius > 0mm
+        Require OuterBendExceedsInnerBend => P.OuterBendRadius > P.InnerBendRadius
+        Require InnerBendClearsWire => P.InnerBendRadius > P.WireDiameter
+        WireForm Paperclip {
+            Diameter: P.WireDiameter
+            Material: P.Material
+            StartFrame { Origin: [8mm, 0mm, 0mm]; Tangent: [0, 1, 0]; Up: [0, 0, 1] }
+            Straight InnerRight { Length: P.InnerLegLength }
+            Bend InnerTop { Radius: P.InnerBendRadius; Angle: 180deg; Plane: Up }
+            Straight InnerLeft { Length: P.InnerLegLength }
+            Bend LowerReturn { Radius: (P.OuterBendRadius + P.InnerBendRadius) / 2; Angle: 180deg; Plane: Up }
+            Straight OuterRight { Length: P.OuterLegLength }
+            Bend OuterTop { Radius: P.OuterBendRadius; Angle: 180deg; Plane: Up }
+            Straight OuterLeft { Length: P.OuterLegLength }
+        }
+    }
+    Struct Paperclip = PaperclipTemplate < P: StandardPaperclip >
+}

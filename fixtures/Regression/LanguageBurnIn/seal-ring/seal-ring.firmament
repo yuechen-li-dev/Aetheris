@@ -1,0 +1,4 @@
+Model sealring {
+ Units: mm
+Torus Body { MajorRadius: 15mm; MinorRadius: 2mm }
+}

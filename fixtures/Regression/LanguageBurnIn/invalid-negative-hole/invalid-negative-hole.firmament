@@ -1,0 +1,4 @@
+Model Bad {
+ Units: mm
+Box Body { Size: [40mm,30mm,10mm] } Modify Body { Hole<Shaft> Broken { On: Top; Diameter: -4mm; Center: [0mm,0mm]; End: ThroughAll } }
+}

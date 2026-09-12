@@ -1,0 +1,4 @@
+Model taper {
+ Units: mm
+Cone Body { BottomRadius: 12mm; TopRadius: 0mm; Height: 25mm }
+}

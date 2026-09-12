@@ -1,0 +1,4 @@
+Model Stock {
+ Units: mm
+Box Body { Size: [60mm,40mm,12mm] }
+}

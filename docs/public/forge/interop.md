@@ -7,14 +7,14 @@ X0 also publishes `Standard.Products.Office.Paperclip`. `describe` exposes its `
 C# can use the direct Forge API. Python, Go, Rust, and TypeScript/Node use the process protocol:
 
 ```powershell
-$host = ".\forge-host\Aetheris.Forge.Host.exe"
-& $host list
-& $host describe Standard.SheetMetal.ElectronicsEnclosure
-python .\samples\forge-interop-x1\python\client.py $host .\samples\forge-interop-x1\request.json .\out\forge-python
-go run .\samples\forge-interop-x1\go\main.go $host .\samples\forge-interop-x1\request.json .\out\forge-go
+$forgeHost = ".\forge-host\Aetheris.Forge.Host.exe"
+& $forgeHost list
+& $forgeHost describe Standard.SheetMetal.ElectronicsEnclosure
+python .\samples\forge-interop-x1\python\client.py $forgeHost .\samples\forge-interop-x1\request.json .\out\forge-python
+go run .\samples\forge-interop-x1\go\main.go $forgeHost .\samples\forge-interop-x1\request.json .\out\forge-go
 rustc .\samples\forge-interop-x1\rust\client.rs -o .\out\forge-rust.exe
-.\out\forge-rust.exe $host .\samples\forge-interop-x1\request.json .\out\forge-rust
-node .\samples\forge-interop-x1\typescript\client.ts $host .\samples\forge-interop-x1\request.json .\out\forge-typescript
+.\out\forge-rust.exe $forgeHost .\samples\forge-interop-x1\request.json .\out\forge-rust
+node .\samples\forge-interop-x1\typescript\client.ts $forgeHost .\samples\forge-interop-x1\request.json .\out\forge-typescript
 ```
 
 These commands run from the extracted `Aetheris-win-x64` directory and require no source checkout. Repository developers can publish the same host from `Aetheris.Forge.Host`; the released NativeAOT executable above is the qualified product path.
@@ -49,5 +49,7 @@ assert response["success"]
 ```
 
 `describe` is the authority for argument names, categories, units, required/default state, enum cases, nested Record fields, named constraints, output kind, and artifacts. The stable ID is the invocation identity; the human-readable generic signature is descriptive metadata. Protocol callers never send Firmament source or compiler AST nodes.
+
+For record-valued parameters, omitting the whole parameter selects its default record. Supplying a record currently requires every field; it does not merge a partial object with that default. For example, an explicit Paperclip `P` must include `WireDiameter`, both leg lengths, both bend radii, and `Material`. Nested `required: false` and `default` metadata currently describe the default record projection, not partial-object acceptance; a partial `P` fails with `firmament-template-record-missing-field`.
 
 The shared production request is [`request.json`](../../../samples/forge-interop-x1/request.json), and the tiny clients are under [`samples/forge-interop-x1`](../../../samples/forge-interop-x1). Protocol v1 is language-neutral. The shipped NativeAOT binary and release bundle are qualified only for `win-x64`; framework-dependent tests on other operating systems establish protocol logic, not release-binary qualification.

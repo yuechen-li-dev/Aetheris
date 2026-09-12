@@ -1,0 +1,272 @@
+[
+  {
+    "name": "angled-drill",
+    "operation": "build",
+    "intent": "angled-drill",
+    "origin": "follow-up probe; see report"
+  },
+  {
+    "name": "attached-grip",
+    "operation": "build",
+    "intent": "housing with longer attached grip and preserved mounting holes",
+    "origin": "parameter variation of BodyState/surf-x3b-add-section-chain-grip.firmament"
+  },
+  {
+    "name": "ball",
+    "operation": "build",
+    "intent": "Sphere Body { Radius: 13mm }",
+    "origin": "fresh public-doc authoring"
+  },
+  {
+    "name": "boss-hole",
+    "operation": "build",
+    "intent": "60x40x12 stock; boss-hole; pads at z12..17 and crown z17..21 where present",
+    "origin": "fresh public-doc authoring"
+  },
+  {
+    "name": "boss-hole-unique",
+    "operation": "build",
+    "intent": "boss-hole-unique",
+    "origin": "follow-up probe; see report"
+  },
+  {
+    "name": "boss-stack",
+    "operation": "build",
+    "intent": "60x40x12 stock; boss-stack; pads at z12..17 and crown z17..21 where present",
+    "origin": "fresh public-doc authoring"
+  },
+  {
+    "name": "boss-stack-hole",
+    "operation": "build",
+    "intent": "60x40x12 stock; boss-stack-hole; pads at z12..17 and crown z17..21 where present",
+    "origin": "fresh public-doc authoring"
+  },
+  {
+    "name": "boss-stack-hole-unique",
+    "operation": "build",
+    "intent": "boss-stack-hole-unique",
+    "origin": "follow-up probe; see report"
+  },
+  {
+    "name": "boss-stack-unique",
+    "operation": "build",
+    "intent": "boss-stack-unique",
+    "origin": "follow-up probe; see report"
+  },
+  {
+    "name": "bottom-hole",
+    "operation": "build",
+    "intent": "bottom-hole",
+    "origin": "follow-up probe; see report"
+  },
+  {
+    "name": "coil",
+    "operation": "build",
+    "intent": "constant 1.5mm wire; coil",
+    "origin": "fresh public-doc authoring"
+  },
+  {
+    "name": "direct-concept-frame",
+    "operation": "section-chain",
+    "intent": "probe direct Concept Plane without construction alias",
+    "origin": "fresh public-doc authoring"
+  },
+  {
+    "name": "finish-hole",
+    "operation": "build",
+    "intent": "center counterbore through shaft and 1mm outer top chamfer",
+    "origin": "fresh public-doc authoring"
+  },
+  {
+    "name": "finish-pattern",
+    "operation": "build",
+    "intent": "outer chamfer followed by four through holes",
+    "origin": "parameter variation of Patterns/four-hole-pattern.firmament"
+  },
+  {
+    "name": "frame",
+    "operation": "build",
+    "intent": "700x450 centerline miter frame; outside 740x490; four hollow members",
+    "origin": "parameter variation of Structural/simple-structural-frame.firmament"
+  },
+  {
+    "name": "handle-g0",
+    "operation": "section-chain",
+    "intent": "four changing framed rectangles, G0 transitions, capped ends",
+    "origin": "fresh public-doc authoring"
+  },
+  {
+    "name": "handle-g1",
+    "operation": "section-chain",
+    "intent": "four changing framed rectangles, G1 transitions, capped ends",
+    "origin": "fresh public-doc authoring"
+  },
+  {
+    "name": "hexbolt",
+    "operation": "build",
+    "intent": "hexbolt",
+    "origin": "follow-up probe; see report"
+  },
+  {
+    "name": "hole-finish",
+    "operation": "build",
+    "intent": "center counterbore through shaft and 1mm outer top chamfer",
+    "origin": "fresh public-doc authoring"
+  },
+  {
+    "name": "import-fea",
+    "operation": "fea",
+    "intent": "import-fea",
+    "origin": "follow-up probe; see report"
+  },
+  {
+    "name": "import-modify",
+    "operation": "build",
+    "intent": "import-modify",
+    "origin": "follow-up probe; see report"
+  },
+  {
+    "name": "import-roundtrip",
+    "operation": "build",
+    "intent": "import-roundtrip",
+    "origin": "follow-up probe; see report"
+  },
+  {
+    "name": "invalid-negative-hole",
+    "operation": "build",
+    "intent": "typed diagnostic naming invalid hole",
+    "origin": "fresh public-doc authoring"
+  },
+  {
+    "name": "invalid-wire-frame",
+    "operation": "build",
+    "intent": "reject parallel frame axes",
+    "origin": "fresh public-doc authoring"
+  },
+  {
+    "name": "molded-enclosure",
+    "operation": "build",
+    "intent": "frustum enclosure, four taller standoffs, ribs and core holes",
+    "origin": "parameter variation of PlasticShell/plastic-shell-enclosure.firmament"
+  },
+  {
+    "name": "mount-counterbore",
+    "operation": "build",
+    "intent": "center counterbore through shaft",
+    "origin": "fresh public-doc authoring"
+  },
+  {
+    "name": "paperclip-policy",
+    "operation": "build",
+    "intent": "paperclip with 19mm outer and 16mm inner legs",
+    "origin": "parameter variation of Templates/paperclip.firmament"
+  },
+  {
+    "name": "pattern-finish",
+    "operation": "build",
+    "intent": "four through holes followed by outer chamfer",
+    "origin": "parameter variation of Patterns/four-hole-pattern.firmament"
+  },
+  {
+    "name": "pipe-obstacle",
+    "operation": "build",
+    "intent": "hollow six-anchor route around obstacle, four elbows",
+    "origin": "parameter variation of Piping/route-around-keepout.firmament"
+  },
+  {
+    "name": "pipe-reroute",
+    "operation": "build",
+    "intent": "local reroute with locked segment preserved",
+    "origin": "parameter variation of Piping/local-reroute.firmament"
+  },
+  {
+    "name": "pocket-hole",
+    "operation": "build",
+    "intent": "60x40x12 stock; pocket-hole; pads at z12..17 and crown z17..21 where present",
+    "origin": "fresh public-doc authoring"
+  },
+  {
+    "name": "profile-extrusion",
+    "operation": "build",
+    "intent": "36x18x7 prism, volume 4536",
+    "origin": "fresh public-doc authoring"
+  },
+  {
+    "name": "removed-duct",
+    "operation": "build",
+    "intent": "baseline subtractive changing-section duct; boundary witness",
+    "origin": "parameter variation of BodyState/surf-x3b-remove-section-chain-duct.firmament"
+  },
+  {
+    "name": "seal-ring",
+    "operation": "build",
+    "intent": "Torus Body { MajorRadius: 15mm; MinorRadius: 2mm }",
+    "origin": "fresh public-doc authoring"
+  },
+  {
+    "name": "sheet-bracket",
+    "operation": "build",
+    "intent": "90x55 sheet bracket, 35mm flange, circular mounting hole",
+    "origin": "parameter variation of SheetMetal/l-bracket-with-hole.firmament"
+  },
+  {
+    "name": "sheet-tab",
+    "operation": "build",
+    "intent": "sheet tab 18x8 plus hole; area and flat pattern",
+    "origin": "parameter variation of SheetMetal/profiledelta-add-hole-area.firmament"
+  },
+  {
+    "name": "side-drill",
+    "operation": "build",
+    "intent": "side-drill",
+    "origin": "follow-up probe; see report"
+  },
+  {
+    "name": "side-hole",
+    "operation": "build",
+    "intent": "side-hole",
+    "origin": "follow-up probe; see report"
+  },
+  {
+    "name": "sphere-coil",
+    "operation": "build",
+    "intent": "three-turn spherical winding, outside support by 1mm clearance",
+    "origin": "parameter variation of WireForm/sphere-surface-coil.firmament"
+  },
+  {
+    "name": "steel-beam",
+    "operation": "fea",
+    "intent": "steel beam clamped -X, 350N load -Y at +X",
+    "origin": "parameter variation of FEA/material-resolved-cantilever.firmament"
+  },
+  {
+    "name": "stock-block",
+    "operation": "build",
+    "intent": "60 x 40 x 12 centered block; volume 28800",
+    "origin": "fresh public-doc authoring"
+  },
+  {
+    "name": "taper",
+    "operation": "build",
+    "intent": "Cone Body { BottomRadius: 12mm; TopRadius: 0mm; Height: 25mm }",
+    "origin": "fresh public-doc authoring"
+  },
+  {
+    "name": "turned-spacer",
+    "operation": "build",
+    "intent": "Cylinder Body { Radius: 9mm; Height: 22mm }",
+    "origin": "fresh public-doc authoring"
+  },
+  {
+    "name": "wire-bend",
+    "operation": "build",
+    "intent": "constant 1.5mm wire; wire-bend",
+    "origin": "fresh public-doc authoring"
+  },
+  {
+    "name": "wire-spatial",
+    "operation": "build",
+    "intent": "constant 1.5mm wire; wire-spatial",
+    "origin": "fresh public-doc authoring"
+  }
+]

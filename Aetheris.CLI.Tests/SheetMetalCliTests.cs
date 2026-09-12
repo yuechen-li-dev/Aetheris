@@ -11,6 +11,24 @@ public sealed class SheetMetalCliTests
     private static readonly string RepoRoot=FindRepoRoot();
 
     [Fact]
+    public void GenericInspect_UsesAuthoredSheetMetalInspection()
+    {
+        var input = Path.Combine(RepoRoot, "fixtures/Canonical/SheetMetal/l-bracket-with-hole.firmament");
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exit = CliRunner.Run(["inspect", input, "--json"], output, error);
+
+        Assert.Equal(0, exit);
+        Assert.Empty(error.ToString());
+        using var json = JsonDocument.Parse(output.ToString());
+        var root = json.RootElement;
+        Assert.True(root.GetProperty("success").GetBoolean());
+        Assert.Single(root.GetProperty("sheetMetal").GetProperty("bends").EnumerateArray());
+        Assert.Single(root.GetProperty("sheetMetal").GetProperty("cuts").EnumerateArray());
+        Assert.Equal(1.5, root.GetProperty("thickness").GetProperty("nominal").GetDouble());
+    }
+
+    [Fact]
     public void InspectCtc03_ReportsRecoveredManufacturingSemantics()
     {
         var output=new StringWriter();var error=new StringWriter();var input=Path.Combine(RepoRoot,"testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp");

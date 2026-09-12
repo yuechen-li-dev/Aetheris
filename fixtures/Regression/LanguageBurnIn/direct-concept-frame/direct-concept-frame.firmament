@@ -1,0 +1,39 @@
+Model Handle {
+ Units: mm
+Concept Struct Stations {
+D0: Plane { Origin: [0mm,0mm,0mm]; Normal: [1,0,0]; Up: [0,0,1] }
+D1: Plane { Origin: [18mm,0mm,0mm]; Normal: [1,0,0]; Up: [0,0,1] }
+D2: Plane { Origin: [40mm,2mm,0mm]; Normal: [1,0,0]; Up: [0,0,1] }
+D3: Plane { Origin: [64mm,0mm,0mm]; Normal: [1,0,0]; Up: [0,0,1] }
+}
+Construction Plane F0 { Trace: Stations.D0 }
+Construction Plane F1 { Trace: Stations.D1 }
+Construction Plane F2 { Trace: Stations.D2 }
+Construction Plane F3 { Trace: Stations.D3 }
+Concept Path P0Outline { Start: Point2(-5.0mm,-4.0mm) Heading: 0deg Line Bottom { Length: 10mm } Line Right { Turn: 90deg; Length: 8mm } Line Top { Turn: 90deg; Length: 10mm } Close Left }
+Profile P0 From P0Outline
+Concept Path P1Outline { Start: Point2(-9.0mm,-6.0mm) Heading: 0deg Line Bottom { Length: 18mm } Line Right { Turn: 90deg; Length: 12mm } Line Top { Turn: 90deg; Length: 18mm } Close Left }
+Profile P1 From P1Outline
+Concept Path P2Outline { Start: Point2(-10.0mm,-7.0mm) Heading: 0deg Line Bottom { Length: 20mm } Line Right { Turn: 90deg; Length: 14mm } Line Top { Turn: 90deg; Length: 20mm } Close Left }
+Profile P2 From P2Outline
+Concept Path P3Outline { Start: Point2(-6.0mm,-4.0mm) Heading: 0deg Line Bottom { Length: 12mm } Line Right { Turn: 90deg; Length: 8mm } Line Top { Turn: 90deg; Length: 12mm } Close Left }
+Profile P3 From P3Outline
+SectionChain Handle {
+Continuity: G0
+Transition: Ruled
+Section S0 { Frame: Stations.D0
+Profile: P0
+Seam: Bottom }
+Section S1 { Frame: F1
+Profile: P1
+Seam: Bottom }
+Section S2 { Frame: F2
+Profile: P2
+Seam: Bottom }
+Section S3 { Frame: F3
+Profile: P3
+Seam: Bottom }
+Start: Cap
+End: Cap
+}
+}

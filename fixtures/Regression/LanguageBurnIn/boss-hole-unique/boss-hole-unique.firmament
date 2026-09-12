@@ -1,0 +1,15 @@
+Model Composed {
+ Units: mm
+Concept Path StockOutline { Start: Point2(-30.0mm,-20.0mm) Heading: 0deg Line Bottom { Length: 60mm } Line Right { Turn: 90deg; Length: 40mm } Line Top { Turn: 90deg; Length: 60mm } Close Left }
+Profile Stock From StockOutline
+Concept Path PadOutline { Start: Point2(-12.0mm,-10.0mm) Heading: 0deg Line Bottom { Length: 24mm } Line Right { Turn: 90deg; Length: 20mm } Line Top { Turn: 90deg; Length: 24mm } Close Left }
+Profile Pad From PadOutline
+Concept Path CrownOutline { Start: Point2(-6.0mm,-5.0mm) Heading: 0deg Line Bottom { Length: 12mm } Line Right { Turn: 90deg; Length: 10mm } Line Top { Turn: 90deg; Length: 12mm } Close Left }
+Profile Crown From CrownOutline
+Concept Path RecessOutline { Start: Point2(-8.0mm,-6.0mm) Heading: 0deg Line Bottom { Length: 16mm } Line Right { Turn: 90deg; Length: 12mm } Line Top { Turn: 90deg; Length: 16mm } Close Left }
+Profile Recess From RecessOutline
+Struct Part { Compose Body { Base Stock { Profile: Stock; From: 0mm; To: 12mm; Role: Stock }
+Boss RaisedPad { On: Top; Profile: Pad; Height: 5mm }
+Hole<Shaft> Bore { On: Top; Center: [0mm,0mm]; Diameter: 4mm; End: ThroughAll }
+ } }
+}

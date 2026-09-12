@@ -1,0 +1,4 @@
+Model turnedspacer {
+ Units: mm
+Cylinder Body { Radius: 9mm; Height: 22mm }
+}

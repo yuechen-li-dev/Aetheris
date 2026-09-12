@@ -1,0 +1,25 @@
+Model FourHolePlate {
+    Units: mm
+
+    Record MountSpec { Center: Point2 Diameter: Length }
+    Static Mounts: MountSpec[] = [
+        MountSpec { Center: Point2(-30mm, -15mm) Diameter: 6mm }
+        MountSpec { Center: Point2(30mm, -15mm) Diameter: 6mm }
+        MountSpec { Center: Point2(30mm, 15mm) Diameter: 6mm }
+        MountSpec { Center: Point2(-30mm, 15mm) Diameter: 6mm }
+    ]
+    Template<spec: MountSpec> MountHole {
+        Hole<Shaft> Mount {
+            On: +Z
+            Center: spec.Center
+            Diameter: spec.Diameter
+            End: ThroughAll
+        }
+    }
+
+    Box Plate { Size: [80mm, 50mm, 8mm] }
+    Modify Plate {
+        Pattern MountPattern Over Mounts { MountHole<Current> }
+EdgeFinish Break { Face: +Z; Target: Boundary; Kind: Chamfer; Distance: 1mm }
+    }
+}

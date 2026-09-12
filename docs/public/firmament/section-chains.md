@@ -77,6 +77,14 @@ A SectionChain is useful as a geometric generator: each framed profile is an ord
 
 ## CLI
 
+For an authored standalone SectionChain, use the domain command:
+
+```powershell
+aetheris section-chain build fixtures/Canonical/SectionChain/eight-section-ergonomic.firmament --out artifacts/local/handle.step --json
+```
+
+Ordinary `build` currently routes standalone Profile/SectionChain source into the extrusion parser and can report `profile-extrude-missing-or-mismatched`. This does not mean the chain needs an Extrude. BodyState `AddSectionChain` and `RemoveSectionChain` use ordinary `build` as shown below. A Section's `Frame` currently names a `Construction Plane` alias; a direct `ConceptStruct.PlaneMember` reference is not accepted there.
+
 Generate and inspect the eight-section flagship through the production BRep/STEP path:
 
 ```powershell

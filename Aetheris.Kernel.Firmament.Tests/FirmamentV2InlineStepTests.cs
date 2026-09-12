@@ -8,6 +8,25 @@ public sealed class FirmamentV2InlineStepTests
     private const string FixturePath = "fixtures/Regression/InlineStep/valid/inline-step-v2-canonical-box-reexport-step-verified.valid.firmfixture";
     private const string InputStepPath = "testdata/firmament/inline-step/canonical-box-10x8x6.step";
 
+    [Theory]
+    [InlineData("modify")]
+    [InlineData("Modify")]
+    [InlineData("MODIFY")]
+    public void InlineStep_UnsupportedModification_IsRejectedRegardlessOfKeywordCase(string keyword)
+    {
+        var repo = FindRepoRoot();
+        var source = "model Imported { units mm solid Body: InlineStep { path: \""
+            + InputStepPath + "\" } " + keyword
+            + " Body { Hole<Shaft> Bore { On: +Z; Center: [0mm,0mm]; Diameter: 4mm; End: ThroughAll } } }";
+        var parsed = FirmamentV2Parser.Parse(source, repo);
+        Assert.False(parsed.IsSuccess);
+        Assert.Contains(FirmamentV2Parser.ModifyTargetNotSolid, parsed.Diagnostics);
+
+        var exported = FirmamentBuildAndExport.CompileSource(source, repo);
+        Assert.False(exported.IsSuccess);
+        Assert.Contains(exported.Diagnostics, diagnostic => diagnostic.Message == FirmamentV2Parser.ModifyTargetNotSolid);
+    }
+
     [Fact]
     public void InlineStep_CanonicalBox_ReexportsAndRoundTripsThroughAp242()
     {

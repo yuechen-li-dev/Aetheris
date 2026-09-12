@@ -1305,6 +1305,8 @@ Model CanonicalPanel {
         }
 
         var source = File.ReadAllText(fullPath);
+        if (SheetMetalFirmament.LooksLikeSheetMetal(source))
+            return RunSheetMetal(["inspect", fullPath, .. args.Skip(1)], stdout, stderr);
         if (PlasticShellFirmament.LooksLikePlasticShell(source))
         {
             var plastic = PlasticShellFirmament.Compile(source, fullPath);

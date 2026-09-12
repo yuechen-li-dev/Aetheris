@@ -1,0 +1,7 @@
+Model Formed {
+ Units: mm
+WireForm Wire { Diameter: 1.5mm
+Material: Standard.Materials.StainlessSteel.304_Annealed
+StartFrame { Origin: [0mm,0mm,0mm]; Tangent: [1,0,0]; Up: [0,0,1] }
+Straight Lead { Length: 25mm } Bend Turn { Radius: 6mm; Angle: 90deg; Plane: Up } Straight Tail { Length: 18mm } }
+}

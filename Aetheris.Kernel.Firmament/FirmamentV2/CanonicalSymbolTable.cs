@@ -43,7 +43,10 @@ public sealed record FirmamentV2CanonicalSymbolTable(
     IReadOnlyList<FirmamentV2CanonicalSymbolBinding> Bindings)
 {
     public FirmamentV2CanonicalSymbol? Resolve(string name) =>
-        Symbols.SingleOrDefault(symbol => string.Equals(symbol.Name, name, StringComparison.Ordinal));
+        Symbols.FirstOrDefault(symbol => string.Equals(symbol.Name, name, StringComparison.Ordinal));
+
+    public FirmamentV2CanonicalSymbol? Resolve(string name, FirmamentV2CanonicalSymbolKind kind) =>
+        Symbols.SingleOrDefault(symbol => string.Equals(symbol.Name, name, StringComparison.Ordinal) && symbol.Kind == kind);
 }
 
 internal static class FirmamentV2CanonicalSymbolBinder
@@ -66,6 +69,14 @@ internal static class FirmamentV2CanonicalSymbolBinder
                 if (kind == FirmamentV2CanonicalSymbolKind.Body
                     && previous.Kind is FirmamentV2CanonicalSymbolKind.Profile or FirmamentV2CanonicalSymbolKind.Compose)
                     return;
+                // Profiles are construction inputs while Boss/Pocket names identify materialized
+                // product features. Their references are typed (`Profile:`), so equal display
+                // names are unambiguous and intentionally live in separate namespaces.
+                if (CanShareName(previous.Kind, kind))
+                {
+                    symbols.Add(new FirmamentV2CanonicalSymbol(name, kind, span));
+                    return;
+                }
                 diagnostics.Add($"{Duplicate}:{name}:{previous.Kind}:{kind}");
                 return;
             }
@@ -132,6 +143,10 @@ internal static class FirmamentV2CanonicalSymbolBinder
 
         return new(new(symbols, bindings), diagnostics.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray());
     }
+
+    private static bool CanShareName(FirmamentV2CanonicalSymbolKind left, FirmamentV2CanonicalSymbolKind right) =>
+        (left == FirmamentV2CanonicalSymbolKind.Profile && right is FirmamentV2CanonicalSymbolKind.Boss or FirmamentV2CanonicalSymbolKind.Pocket)
+        || (right == FirmamentV2CanonicalSymbolKind.Profile && left is FirmamentV2CanonicalSymbolKind.Boss or FirmamentV2CanonicalSymbolKind.Pocket);
 
     private static (string Name, FirmamentV2CanonicalSymbolKind Kind)? ParseSelectionReference(string source)
     {

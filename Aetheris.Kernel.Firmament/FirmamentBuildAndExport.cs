@@ -39,6 +39,9 @@ public static class FirmamentBuildAndExport
 
         var fullSourcePath = Path.GetFullPath(sourcePath);
         var sourceText = NormalizeLf(File.ReadAllText(fullSourcePath, Encoding.UTF8));
+        var frontend = FirmamentFrontendSchemas.Select(sourceText);
+        if (!frontend.IsSuccess) return KernelResult<FirmamentBuildAndExportResult>.Failure(frontend.Diagnostics.Select(SchemaDiagnostic).ToArray());
+        sourceText = frontend.Source;
         if (PipingAuthoring.IsPipingSource(sourceText))
         {
             var piping = PipingAuthoring.Compile(sourceText, fullSourcePath);
@@ -76,7 +79,7 @@ public static class FirmamentBuildAndExport
         if (library is null)
             return KernelResult<FirmamentBuildAndExportResult>.Failure(LibraryDiagnostics(libraryDiagnostics));
         sourceText = library.Source;
-        var exportResult = ExportSource(sourceText, Path.GetDirectoryName(fullSourcePath), allowV1Compatibility: true);
+        var exportResult = ExportSource(sourceText, Path.GetDirectoryName(fullSourcePath), allowV1Compatibility: true, frontend.Schema);
         if (!exportResult.IsSuccess)
         {
             return KernelResult<FirmamentBuildAndExportResult>.Failure(exportResult.Diagnostics);
@@ -120,6 +123,9 @@ public static class FirmamentBuildAndExport
     {
         ArgumentNullException.ThrowIfNull(sourceText);
         var normalized = NormalizeLf(sourceText);
+        var frontend = FirmamentFrontendSchemas.Select(normalized);
+        if (!frontend.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(frontend.Diagnostics.Select(SchemaDiagnostic).ToArray());
+        normalized = frontend.Source;
         if (PipingAuthoring.IsPipingSource(normalized))
         {
             var piping = PipingAuthoring.Compile(normalized, sourceDirectory ?? "memory");
@@ -143,7 +149,7 @@ public static class FirmamentBuildAndExport
         // In-memory compilation is the canonical V2 boundary used by Forge,
         // assemblies, and drawings. Historical V1 execution is intentionally
         // available only to the explicitly versioned file compatibility route.
-        var export = ExportSource(normalized, sourceDirectory, allowV1Compatibility: false);
+        var export = ExportSource(normalized, sourceDirectory, allowV1Compatibility: false, frontend.Schema);
         if (!export.IsSuccess) return export;
         var enrichedExport = AttachAuthoredFeatureReports(normalized, sourceDirectory, export.Value);
         var pmiParity = VerifyV2PmiExportParity(normalized, sourceDirectory, enrichedExport);
@@ -254,8 +260,19 @@ public static class FirmamentBuildAndExport
     private static KernelResult<FirmamentStepExportResult> ExportSource(
         string sourceText,
         string? sourceDirectory = null,
-        bool allowV1Compatibility = false)
+        bool allowV1Compatibility = false,
+        FirmamentFrontendSchema? explicitSchema = null)
     {
+        if (explicitSchema == FirmamentFrontendSchema.SectionChain)
+        {
+            var authored = SectionChainAuthoringParser.Compile(sourceText);
+            if (!authored.IsSuccess || authored.Materialization?.Body is null)
+                return KernelResult<FirmamentStepExportResult>.Failure(authored.Diagnostics.Select(SchemaDiagnostic).ToArray());
+            var step = Step242Exporter.ExportBody(authored.Materialization.Body, new Step242ExportOptions { ProductName = authored.Chain!.StableId });
+            return step.IsSuccess
+                ? KernelResult<FirmamentStepExportResult>.Success(new(step.Value, authored.Chain!.StableId, 0, "section-chain", "section-chain"))
+                : KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+        }
         // The V2 parser owns canonical-root admission.  Profile/composition
         // materializers consume only the extracted normalized declaration body,
         // so their historical top-level spelling is no longer author-visible.
@@ -293,7 +310,7 @@ public static class FirmamentBuildAndExport
         canonicalParseWatch.Stop();
         var canonicalAdvanced = FirmamentV2Parser.TryGetCanonicalAdvancedBody(materializerInput, out var canonicalBody);
         var materializerSource = canonicalAdvanced ? canonicalBody : materializerInput;
-        if (WireFormAuthoring.IsWireFormSource(materializerSource))
+        if (explicitSchema == FirmamentFrontendSchema.WireForm || WireFormAuthoring.IsWireFormSource(materializerSource))
         {
             var authored = WireFormAuthoring.Parse(materializerSource);
             if (!authored.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(authored.Diagnostics);
@@ -316,7 +333,7 @@ public static class FirmamentBuildAndExport
                     authored.Value.Name, "WireState", "CircularSection", operation.LengthMm, "CenterlineLength", "Add",
                     PolicySource: "WireFormFeatureAir", MaterializationRoute: "WireFormCenterlineAir->CircularSweepBRepPlan")).ToArray()), []);
         }
-        if (CircularSweepAuthoring.IsSweepSource(materializerSource))
+        if (explicitSchema == FirmamentFrontendSchema.Sweep || CircularSweepAuthoring.IsSweepSource(materializerSource))
         {
             var airWatch = System.Diagnostics.Stopwatch.StartNew();
             var authored = CircularSweepAuthoring.Parse(materializerSource);
@@ -565,6 +582,12 @@ public static class FirmamentBuildAndExport
 
     private static FirmamentV2ParseResult ParseSemanticSource(string source, string? sourceDirectory)
         => FirmamentV2Parser.Parse(source, sourceDirectory);
+
+    private static Kernel.Core.Diagnostics.KernelDiagnostic SchemaDiagnostic(string message) => new(
+        Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed,
+        Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+        message,
+        "Firmament.Schema");
 
     private static IReadOnlyList<Kernel.Core.Diagnostics.KernelDiagnostic> LibraryDiagnostics(IEnumerable<string> diagnostics) =>
         diagnostics.Select(message => new Kernel.Core.Diagnostics.KernelDiagnostic(

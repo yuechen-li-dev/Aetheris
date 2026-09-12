@@ -179,6 +179,19 @@ public sealed class FirmamentV2CanonicalAdvancedGrammarTests
         Assert.Contains("firmament-v2-symbol-duplicate:Plate:Profile:Compose", parse.Diagnostics);
     }
 
+    [Fact]
+    public void CanonicalSymbolTable_AllowsProfileAndMaterializedFeatureNamesToCoincide()
+    {
+        var parse = FirmamentV2Parser.Parse(File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../fixtures/Regression/LanguageBurnIn/boss-stack/boss-stack.firmament"))));
+
+        Assert.True(parse.IsSuccess, string.Join(Environment.NewLine, parse.Diagnostics));
+        var symbols = Assert.IsType<FirmamentV2CanonicalSymbolTable>(parse.Document!.SymbolTable);
+        Assert.Equal(FirmamentV2CanonicalSymbolKind.Profile, symbols.Resolve("Pad", FirmamentV2CanonicalSymbolKind.Profile)!.Kind);
+        Assert.Equal(FirmamentV2CanonicalSymbolKind.Boss, symbols.Resolve("Pad", FirmamentV2CanonicalSymbolKind.Boss)!.Kind);
+        Assert.Equal(FirmamentV2CanonicalSymbolKind.Profile, symbols.Resolve("Crown", FirmamentV2CanonicalSymbolKind.Profile)!.Kind);
+        Assert.Equal(FirmamentV2CanonicalSymbolKind.Boss, symbols.Resolve("Crown", FirmamentV2CanonicalSymbolKind.Boss)!.Kind);
+    }
+
     [Theory]
     [InlineData("Features/Slots/straight-slot.firmament", "ReliefEntry")]
     [InlineData("Features/Slots/rounded-rectangle-opening.firmament", "OpeningEntry")]

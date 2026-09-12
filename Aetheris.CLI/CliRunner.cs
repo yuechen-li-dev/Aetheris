@@ -1305,6 +1305,14 @@ Model CanonicalPanel {
         }
 
         var source = File.ReadAllText(fullPath);
+        var frontend = FirmamentFrontendSchemas.Select(source);
+        if (!frontend.IsSuccess)
+        {
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "inspect", success = false, input = fullPath, diagnostics = frontend.Diagnostics }, JsonOptions));
+            else foreach (var diagnostic in frontend.Diagnostics) stderr.WriteLine("error: " + diagnostic);
+            return 1;
+        }
+        source = frontend.Source;
         if (SheetMetalFirmament.LooksLikeSheetMetal(source))
             return RunSheetMetal(["inspect", fullPath, .. args.Skip(1)], stdout, stderr);
         if (PlasticShellFirmament.LooksLikePlasticShell(source))
@@ -1348,6 +1356,14 @@ Model CanonicalPanel {
             else if (structural.IsSuccess && structural.Report is { } structuralReport) stdout.WriteLine($"Structure {structuralReport.Structure}: {structuralReport.Members.Count} members, {structuralReport.Joints.Count} joints, {structuralReport.Welds.Count} welds, {structuralReport.CutList.Count} cut-list groups");
             else foreach (var diagnostic in structural.Diagnostics) stderr.WriteLine($"error: {diagnostic}");
             return structural.IsSuccess ? 0 : 1;
+        }
+        if (frontend.Schema == FirmamentFrontendSchema.SectionChain)
+        {
+            var section = SectionChainAuthoringParser.Compile(source);
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "inspect", success = section.IsSuccess, input = fullPath, domain = "SectionChain", sectionChain = section.Chain?.StableId, diagnostics = section.Diagnostics }, JsonOptions));
+            else if (section.IsSuccess) stdout.WriteLine($"SectionChain {section.Chain!.StableId}: {section.Chain.Sections.Count} sections");
+            else foreach (var diagnostic in section.Diagnostics) stderr.WriteLine("error: " + diagnostic);
+            return section.IsSuccess ? 0 : 1;
         }
         var library = FirmamentStandardLibraryResolver.Resolve(source, out var libraryDiagnostics);
         var inspectionSource = library?.Source ?? source;
@@ -2039,6 +2055,14 @@ Model CanonicalPanel {
         }
 
         var validationSource=File.ReadAllText(sourcePath);
+        var frontend = FirmamentFrontendSchemas.Select(validationSource);
+        if (!frontend.IsSuccess)
+        {
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = new { source = sourcePath, status = "invalid", diagnostics = frontend.Diagnostics } }, JsonOptions));
+            else foreach (var diagnostic in frontend.Diagnostics) stderr.WriteLine("error: " + diagnostic);
+            return 1;
+        }
+        validationSource = frontend.Source;
         if (PlasticShellFirmament.LooksLikePlasticShell(validationSource))
         {
             var plastic = PlasticShellFirmament.Compile(validationSource, Path.GetFullPath(sourcePath));
@@ -2070,6 +2094,14 @@ Model CanonicalPanel {
             if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
             else stdout.WriteLine($"Firmament V2 Structural validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");
             return structural.IsSuccess ? 0 : 1;
+        }
+        if (frontend.Schema == FirmamentFrontendSchema.SectionChain)
+        {
+            var section = SectionChainAuthoringParser.Compile(validationSource);
+            var payload = new { source = sourcePath, status = section.IsSuccess ? "valid" : "invalid", domain = "SectionChain", summary = new { fatalDiagnosticCount = section.Diagnostics.Count, warningDiagnosticCount = 0, sections = section.Chain?.Sections.Count ?? 0 }, diagnostics = section.Diagnostics };
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
+            else stdout.WriteLine($"Firmament V2 SectionChain validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");
+            return section.IsSuccess ? 0 : 1;
         }
         if (WireFormAuthoring.IsWireFormSource(validationSource))
         {

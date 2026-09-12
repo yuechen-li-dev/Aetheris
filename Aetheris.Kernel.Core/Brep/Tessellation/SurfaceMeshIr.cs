@@ -1263,7 +1263,7 @@ public static class SurfaceMeshIrTessellator
         public CurveGeometryKind RightKind => RightPlan.CurveKind;
     }
 
-    private static bool TryGetFourSidedBoundary(BrepBody body, FaceId faceId, IReadOnlyDictionary<EdgeId, SharedEdgeSamplePlan> plans, out FourSidedBoundary boundary, int startOffset = 0)
+    private static bool TryGetFourSidedBoundary(BrepBody body, FaceId faceId, IReadOnlyDictionary<EdgeId, SharedEdgeSamplePlan> plans, out FourSidedBoundary boundary, int startOffset = 0, bool allowClosed = false)
     {
         boundary = default!;
         var loops = body.GetLoopIds(faceId);
@@ -1272,7 +1272,7 @@ public static class SurfaceMeshIrTessellator
         var coedges = sourceCoedges.Length == 4
             ? Enumerable.Range(0, 4).Select(index => sourceCoedges[(index + startOffset) % 4]).ToArray()
             : sourceCoedges;
-        if (coedges.Length != 4 || coedges.Any(coedge => plans[coedge.EdgeId].IsClosed)) return false;
+        if (coedges.Length != 4 || (!allowClosed && coedges.Any(coedge => plans[coedge.EdgeId].IsClosed))) return false;
         IReadOnlyList<SurfaceMeshVertex> Samples(Coedge coedge)
         {
             var samples = plans[coedge.EdgeId].Samples.ToArray();
@@ -1403,6 +1403,44 @@ public static class SurfaceMeshIrTessellator
         List<SurfaceMeshVertex> vertices,
         ref int nextVertexId)
     {
+        // A swept bend has two closed minor rings and one bounded major arc
+        // used twice as a seam. Those rings do not imply a complete torus.
+        for (var offset = 0; offset < 4; offset++)
+        {
+            if (!TryGetFourSidedBoundary(body, faceId, plans, out var band, offset, allowClosed: true)
+                || !band.TopPlan.IsClosed || !band.BottomPlan.IsClosed
+                || band.LeftPlan.IsClosed || band.RightPlan.IsClosed
+                || band.LeftPlan.EdgeId != band.RightPlan.EdgeId
+                || band.TopKind != CurveGeometryKind.Circle3 || band.BottomKind != CurveGeometryKind.Circle3
+                || band.LeftKind != CurveGeometryKind.Circle3) continue;
+            var ring = band.Top.Select(sample => TryProjectPointToTorusUv(torus, sample.Position)).ToArray();
+            var seam = band.Left.Select(sample => TryProjectPointToTorusUv(torus, sample.Position)).ToArray();
+            if (ring.Any(uv => uv is null) || seam.Any(uv => uv is null)) return null;
+            // Validate ring correspondence before adding any vertices.
+            for (var column = 0; column < ring.Length; column++)
+                if ((torus.Evaluate(seam[^1]!.Value.U, ring[column]!.Value.V) - band.Bottom[column].Position).Length > 1e-7d)
+                    return null;
+            var bandGrid = new int[seam.Length, ring.Length];
+            for (var row = 0; row < seam.Length; row++)
+                for (var column = 0; column < ring.Length; column++)
+                {
+                    if (row == 0) bandGrid[row, column] = band.Top[column].Id;
+                    else if (row == seam.Length - 1) bandGrid[row, column] = band.Bottom[column].Id;
+                    else if (column == 0) bandGrid[row, column] = band.Left[row].Id;
+                    else if (column == ring.Length - 1) bandGrid[row, column] = band.Right[row].Id;
+                    else
+                    {
+                        var u = seam[row]!.Value.U; var v = ring[column]!.Value.V;
+                        bandGrid[row, column] = nextVertexId++;
+                        vertices.Add(new SurfaceMeshVertex(bandGrid[row, column], torus.Evaluate(u, v), u, v));
+                    }
+                }
+            var bandCells = new List<SurfaceMeshCell>();
+            for (var row = 0; row < seam.Length - 1; row++)
+                for (var column = 0; column < ring.Length - 1; column++)
+                    bandCells.Add(new QuadCell(Orient([bandGrid[row,column],bandGrid[row,column+1],bandGrid[row+1,column+1],bandGrid[row+1,column]],sameSense)));
+            return new SurfacePatch(faceId, new SurfaceMeshSupport(SurfaceMeshSupportKind.Torus,Torus:torus), body.GetLoopIds(faceId), bandCells, sameSense, HasPeriodicVSeam:true);
+        }
         // Root/concave fillet: four directed circle uses delimit a genuine
         // bounded torus domain (major-angle across each split face, minor-angle
         // across the fillet).  Preserve that coedge ordering; reversing both

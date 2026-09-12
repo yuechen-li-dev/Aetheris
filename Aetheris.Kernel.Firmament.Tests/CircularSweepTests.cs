@@ -9,6 +9,35 @@ namespace Aetheris.Kernel.Firmament.Tests;
 public sealed class CircularSweepTests
 {
     [Fact]
+    public void PaperclipDisplayMesh_PreservesBoundedBendsAndClosedTopology()
+    {
+        var compiled = FirmamentBuildAndExport.CompileSource(PaperclipTemplateLibrary.Source);
+        Assert.True(compiled.IsSuccess);
+        var body = Step242Importer.ImportBody(compiled.Value.StepText).Value;
+        var options = Aetheris.Kernel.Core.Brep.Tessellation.DisplayTessellationOptions.Default;
+        Assert.True(Aetheris.Kernel.Core.Brep.Tessellation.SurfaceMeshIrTessellator.TryBuild(body,
+            Aetheris.Kernel.Core.Brep.Tessellation.SurfaceMeshPolicy.FromDisplayOptions(options), out var mesh));
+        var bends = mesh.Patches.Where(patch => patch.Support.Kind == Aetheris.Kernel.Core.Brep.Tessellation.SurfaceMeshSupportKind.Torus).ToArray();
+        Assert.Equal(3, bends.Length);
+        Assert.All(bends, patch => { Assert.False(patch.HasPeriodicUSeam); Assert.True(patch.HasPeriodicVSeam); });
+        Assert.True(Aetheris.Kernel.Core.Brep.Tessellation.SurfaceMeshIrTessellator.TryLowerToTriangleMesh(mesh, out _, out var topology));
+        Assert.True(topology.IsWatertight);
+        var byId = mesh.Vertices.ToDictionary(vertex => vertex.Id);
+        // The centerline bend joins all occur at y >= 14 mm, except the lower
+        // return at y = 0. No bend may complete its un-authored other half.
+        foreach (var patch in bends)
+        {
+            var centerY = patch.Support.Torus!.Value.Center.Y;
+            foreach (var id in patch.Cells.SelectMany(cell => cell.VertexIds).Distinct())
+            {
+                var y = byId[id].Position.Y;
+                if (centerY > 1) Assert.True(y >= centerY - 0.500001);
+                else Assert.True(y <= centerY + 0.500001);
+            }
+        }
+    }
+
+    [Fact]
     public void ConceptPathCircularSweep_ProducesAnalyticEnclosedStepRoundTrip()
     {
         var result = FirmamentBuildAndExport.CompileSource(SimpleSweep);

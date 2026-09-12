@@ -1,0 +1,9 @@
+Model PitchPaperclipWider {
+    Units: mm
+    Use Standard.Products.Office
+    Static Wider = Standard.Products.Office.StandardPaperclip with {
+        OuterBendRadius: 6mm
+        InnerBendRadius: 3.5mm
+    }
+    Struct Clip = Standard.Products.Office.Paperclip<P: Wider>
+}

@@ -1,0 +1,9 @@
+Model PitchPaperclipLonger {
+    Units: mm
+    Use Standard.Products.Office
+    Static Longer = Standard.Products.Office.StandardPaperclip with {
+        OuterLegLength: 17.25mm
+        InnerLegLength: 16.1mm
+    }
+    Struct Clip = Standard.Products.Office.Paperclip<P: Longer>
+}

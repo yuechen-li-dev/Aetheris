@@ -1,0 +1,13 @@
+Model PitchLoadedPlate {
+    Units: mm
+    Box Plate { Size: [120mm, 40mm, 8mm] }
+    Modify Plate {
+        Hole<Shaft> ServiceOpening {
+            On: +Z
+            Center: Point2(0mm, 0mm)
+            Diameter: 12mm
+            End: ThroughAll
+        }
+    }
+}
+

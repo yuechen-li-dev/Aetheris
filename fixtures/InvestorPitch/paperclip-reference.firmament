@@ -1,0 +1,5 @@
+Model PitchPaperclipReference {
+    Units: mm
+    Use Standard.Products.Office
+    Struct Clip = Standard.Products.Office.Paperclip<P: Standard.Products.Office.StandardPaperclip>
+}

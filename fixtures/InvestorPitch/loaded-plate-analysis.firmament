@@ -1,0 +1,17 @@
+Model PitchLoadedPlateAnalysis {
+    Analysis LinearElastic ServiceLoad {
+        Body: inlineSTEP("../../artifacts/local/vc-pitch/engineering/loaded-plate.step")
+        Material: Standard.Materials.Aluminum.6061_T6
+        Fixed Root {
+            Region: body.face(#170)
+            Components: [X, Y, Z]
+        }
+        Force Pull {
+            Region: body.face(#141)
+            Vector: [1000N, 0N, 0N]
+        }
+        Results: [Displacement, Strain, Stress, ReactionForce]
+        Lattice: [12, 4, 2]
+    }
+}
+

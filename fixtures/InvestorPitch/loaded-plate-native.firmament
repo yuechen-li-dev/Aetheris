@@ -1,0 +1,29 @@
+Model PitchLoadedPlate {
+    Units: mm
+    Box Plate { Size: [120mm, 40mm, 8mm] }
+    Modify Plate {
+        Hole<Shaft> ServiceOpening {
+            On: +Z
+            Center: Point2(0mm, 0mm)
+            Diameter: 12mm
+            End: ThroughAll
+        }
+    }
+
+    Analysis LinearElastic ServiceLoad {
+        Body: Plate
+        Material: Standard.Materials.Aluminum.6061_T6
+        Fixed Root {
+            Region: Plate.face(-X)
+            Components: [X, Y, Z]
+        }
+        Force Pull {
+            Region: Plate.face(+X)
+            Vector: [1000N, 0N, 0N]
+        }
+        Results: [Displacement, Strain, Stress, ReactionForce]
+        Lattice: [24, 8, 4]
+    }
+}
+
+

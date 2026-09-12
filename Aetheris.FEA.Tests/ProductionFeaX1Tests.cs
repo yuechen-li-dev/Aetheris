@@ -9,6 +9,37 @@ namespace Aetheris.FEA.Tests;
 
 public sealed class ProductionFeaX1Tests
 {
+    [Fact]
+    public void CanonicalShaftHole_RemovesMaterialAndChangesMechanics()
+    {
+        var source = CanonicalBeam.Replace("Analysis LinearElastic", """
+            Modify beam {
+                Hole<Shaft> Opening {
+                    On: +Z
+                    Center: Point2(4mm, 0mm)
+                    Diameter: 8mm
+                    End: ThroughAll
+                }
+            }
+            Analysis LinearElastic
+            """);
+        var compilation = FirmamentAnalysisCompiler.Compile(source);
+        Assert.True(compilation.IsSuccess, Describe(compilation));
+        var region = Assert.IsType<Aetheris.Continuum.Regions.Analytic.BlockWithCylindricalHoleRegion>(compilation.Analysis!.Body.ContinuumRegion);
+        Assert.Equal(.004, region.HoleRadius, 12);
+        Assert.Equal(.064, region.HoleCenter.X, 12);
+        Assert.Equal(Aetheris.Continuum.Cir.ContinuumPointClassification.Outside, region.Classify(region.HoleCenter));
+        var withHole = Solve(compilation.Analysis);
+        var plain = Solve(FirmamentAnalysisCompiler.Compile(CanonicalBeam).Analysis!);
+        Assert.True(withHole.IsSuccess, Describe(withHole));
+        Assert.True(withHole.System.CutCells > 0);
+        Assert.True(withHole.MaximumDisplacementMeters > plain.MaximumDisplacementMeters);
+        Assert.InRange(withHole.Equilibrium.ResidualNewton.Length, 0, 1e-4);
+        var sideHole = FirmamentAnalysisCompiler.Compile(source.Replace("On: +Z", "On: +X"));
+        Assert.False(sideHole.IsSuccess);
+        Assert.Contains(sideHole.Diagnostics, item => item.Code == "firmament-analysis-native-feature-unsupported");
+    }
+
     private const string CanonicalBeam = """
         Model CantileverWitness {
             Units: mm

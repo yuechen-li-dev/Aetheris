@@ -118,8 +118,33 @@ public static class FirmamentAnalysisCompiler
             var scale=UnitScale(units);if(scale is null){diagnostics.Add(Error("firmament-analysis-length-unit-unsupported",$"Analysis body length unit '{units}' is unsupported; use mm, cm, or m.",sourcePath));return Done(null,diagnostics,started);}
             var size=sizeRaw.Select(value=>value*scale.Value).ToArray();var bounds=new BoundingBox3D(new(0,0,0),new(size[0],size[1],size[2]));
             var modify=Regex.Match(stripped,$@"\bmodify\s+{Regex.Escape(bodyName)}\s*\{{",RegexOptions.CultureInvariant|RegexOptions.IgnoreCase);double? holeRadius=null;
-            if(modify.Success){var modifyOpen=stripped.IndexOf('{',modify.Index);var modifyClose=MatchingBrace(stripped,modifyOpen);var radiusMatch=Regex.Match(stripped[(modifyOpen+1)..modifyClose],@"\bradius\s*:\s*(?<v>[-+0-9.eE]+)",RegexOptions.CultureInvariant);if(radiusMatch.Success)holeRadius=Number(radiusMatch.Groups["v"].Value)*scale.Value;}
-            region=holeRadius is null?new AxisAlignedBoxRegion(new RegionId(bodyName+":cir"),bounds):new BlockWithCylindricalHoleRegion(new RegionId(bodyName+":cir"),bounds,holeRadius.Value);
+            Point3D? holeCenter = null;
+            var modifications = parse.Document?.ModifyBlocks?.Where(item => item.TargetSolid == bodyName).ToArray() ?? [];
+            var semanticHoles = modifications.SelectMany(item => item.SemanticHoles).ToArray();
+            if (semanticHoles.Length > 0)
+            {
+                // Consume the parser's normalized engineering feature, not a textual radius
+                // search: canonical Hole<Shaft> expresses Diameter and otherwise vanished.
+                var hole = semanticHoles[0];
+                if (semanticHoles.Length != 1 || modifications.Any(item => item.Regions.Count > 0 || item.EdgeFinishes?.Count > 0)
+                    || hole.Variant != FirmamentV2SemanticHoleVariant.Shaft
+                    || hole.EndCondition.Kind != FirmamentV2SemanticHoleEndKind.ThroughAll
+                    || hole.EntryFace.Axis is not ("+Z" or "-Z")
+                    || hole.Placement is FirmamentV2ConstructionPlaneHolePlacement)
+                    return Done(null, [Error("firmament-analysis-native-feature-unsupported",
+                        "Native analysis admits one face-local Z through-shaft hole in a Box. Analyze exported STEP for other feature combinations.", sourcePath)], started);
+                holeRadius = hole.ShaftDiameter * scale.Value / 2;
+                // Native analysis retains its established [0, size] coordinates. CAD's
+                // face-local coordinates are relative to the center of the Box face.
+                holeCenter = new(size[0] / 2 + hole.Center.U * scale.Value,
+                    size[1] / 2 + hole.Center.V * scale.Value, size[2] / 2);
+                if (!double.IsFinite(holeRadius.Value) || holeRadius <= 0
+                    || holeCenter.Value.X - holeRadius <= 0 || holeCenter.Value.X + holeRadius >= size[0]
+                    || holeCenter.Value.Y - holeRadius <= 0 || holeCenter.Value.Y + holeRadius >= size[1])
+                    return Done(null, [Error("firmament-analysis-native-hole-outside", "The analysis hole must remain strictly inside the Box's XY boundary.", sourcePath)], started);
+            }
+            else if(modify.Success){var modifyOpen=stripped.IndexOf('{',modify.Index);var modifyClose=MatchingBrace(stripped,modifyOpen);var radiusMatch=Regex.Match(stripped[(modifyOpen+1)..modifyClose],@"\bradius\s*:\s*(?<v>[-+0-9.eE]+)",RegexOptions.CultureInvariant);if(radiusMatch.Success)holeRadius=Number(radiusMatch.Groups["v"].Value)*scale.Value;}
+            region=holeRadius is null?new AxisAlignedBoxRegion(new RegionId(bodyName+":cir"),bounds):new BlockWithCylindricalHoleRegion(new RegionId(bodyName+":cir"),bounds,holeRadius.Value,holeCenter);
             if(!parse.IsSuccess) diagnostics.Add(new("firmament-analysis-geometry-parser-fallback",AnalysisDiagnosticSeverity.Warning,"The bounded analysis body recognizer admitted Box/through-cylinder syntax while the general geometry parser reported: "+string.Join(",",parse.Diagnostics),analysisSpan));
             bodyId=bodyName;sourceKind="FirmamentNative";
         }

@@ -1,0 +1,76 @@
+// Investor demonstration: manufacturing-authoritative 5052-H32 formed bracket.
+// The prompt is intentionally terse; the assumptions below remain explicit review items.
+
+Concept Struct InvestorBracketLayout {
+    Datum BaseMountCenter { On: BasePlate; At: (50mm, 25mm); }
+    Datum UprightMountCenter { On: Upright; At: (50mm, 25mm); }
+
+    Pattern BaseMountPattern {
+        On: BasePlate;
+        Feature: Circle { Diameter: 6.6mm; };
+        Center: BaseMountCenter;
+        Count: 2;
+        Pitch: (50mm, 0mm);
+    }
+
+    Pattern UprightMountPattern {
+        On: Upright;
+        Feature: Circle { Diameter: 6.6mm; };
+        Center: UprightMountCenter;
+        Count: 2;
+        Pitch: (50mm, 0mm);
+    }
+}
+
+Manufacturing InvestorBracketRelease {
+    MaterialSpecification: "ASTM B209 5052-H32 aluminium sheet, mill finish";
+    ThicknessTolerance: PlusMinus(0.12mm, 0.12mm);
+    BlankProcess: "CNC laser cut or CNC punch; cut all holes before forming";
+    FormingProcess: "CNC press brake; 3 mm inside radius tooling; K-factor 0.42";
+    GeneralCutTolerance: 0.25mm;
+    GeneralFormedTolerance: 0.5mm;
+    GeneralAngularTolerance: 1deg;
+}
+
+Pmi InvestorBracketPmi {
+    DatumFeature A { Target: BasePlate; }
+    DatumFeature B { Target: Upright; }
+
+    Dimension SheetThickness { Kind: Thickness; Target: InvestorBracket; Value: 2mm; Tolerance: PlusMinus(0.12mm, 0.12mm); }
+    Dimension BaseWidth { Kind: Linear; Target: BasePlate; Value: 100mm; Tolerance: PlusMinus(0.25mm, 0.25mm); }
+    Dimension BaseDepth { Kind: Linear; Target: BasePlate; Value: 70mm; Tolerance: PlusMinus(0.25mm, 0.25mm); }
+    Dimension BaseMountDiameter { Kind: Diameter; Target: InvestorBracketLayout.BaseMountPattern; Value: 6.6mm; Tolerance: PlusMinus(0.10mm, 0.10mm); Quantity: 2; }
+    Dimension UprightMountDiameter { Kind: Diameter; Target: InvestorBracketLayout.UprightMountPattern; Value: 6.6mm; Tolerance: PlusMinus(0.10mm, 0.10mm); Quantity: 2; }
+
+    Position BaseMountPosition { Target: InvestorBracketLayout.BaseMountPattern; Tolerance: 0.30mm; DatumRefs: [A, B]; Quantity: 2; }
+    Position UprightMountPosition { Target: InvestorBracketLayout.UprightMountPattern; Tolerance: 0.40mm; DatumRefs: [A, B]; Quantity: 2; }
+
+    Annotation MaterialAndFinish { Target: InvestorBracket; Text: "ASTM B209 5052-H32 aluminium sheet, 2.0 +/-0.12 mm, mill finish."; }
+    Annotation CutAndDeburr { Target: InvestorBracket; Text: "Cut before forming. Remove burrs and sharp edges; break edges 0.2-0.5 mm."; }
+    Annotation Forming { Target: UprightBend; Text: "Form to 90 +/-1 degree with 3 mm inside radius; reject visible cracking."; }
+    Annotation CounterboreReview { Target: InvestorBracketLayout.UprightMountPattern; Text: "Counterbores are intentionally not applied to 2 mm sheet. Confirm fastener head strategy; use washers, countersink-qualified tooling, or captive hardware as appropriate."; }
+}
+
+SheetMetal InvestorBracket {
+    Intent: Manufacturing;
+    Thickness: 2mm;
+    KFactor: 0.42;
+    Material: "ASTM B209 5052-H32 aluminium sheet";
+
+    Base BasePlate {
+        Profile: Rectangle { Width: 100mm; Height: 70mm; };
+    }
+
+    Flange Upright {
+        From: BasePlate.Rear;
+        Height: 60mm;
+        Angle: 90deg;
+        Radius: 3mm;
+        Direction: Up;
+        StartTermination: Rounded;
+        StartTerminationRadius: 2mm;
+        EndTermination: Rounded;
+        EndTerminationRadius: 2mm;
+    }
+
+}

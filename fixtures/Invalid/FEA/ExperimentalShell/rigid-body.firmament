@@ -1,0 +1,12 @@
+Model InvalidUnsupportedShell {
+    Units: mm
+    Box Plate { Size: [100mm, 20mm, 2mm] }
+    Analysis LinearElastic UnconstrainedShell {
+        Mode: ExperimentalShell
+        Body: Plate
+        Material: Standard.Materials.Steel.ASTM_A36
+        Thickness: 2mm
+        MasterGrid: [2, 1]
+        Force Tip { Region: Plate.face(+X) Vector: [0N, 0N, -10N] }
+    }
+}

@@ -1,0 +1,24 @@
+Model InvestorBracketAnalysis {
+    Analysis LinearElastic ServiceLoad {
+        Body: inlineSTEP("../../artifacts/local/sheet-metal-bracket-demo/engineering/investor-bracket-formed.step")
+        Material: Standard.Materials.Aluminum.5052_H32
+
+        Fixed BaseMountLeft {
+            Region: body.face(#574)
+            Components: [X, Y, Z]
+        }
+
+        Fixed BaseMountRight {
+            Region: body.face(#586)
+            Components: [X, Y, Z]
+        }
+
+        Force UprightServiceLoad {
+            Region: body.face(#206)
+            Vector: [0N, -250N, 0N]
+        }
+
+        Results: [Displacement, Strain, Stress, ReactionForce]
+        Lattice: [16, 12, 12]
+    }
+}

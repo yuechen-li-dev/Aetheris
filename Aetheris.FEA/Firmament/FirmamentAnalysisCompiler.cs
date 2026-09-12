@@ -199,9 +199,32 @@ public static class FirmamentAnalysisCompiler
         var latticeValues=Numbers(Scalar(block,"lattice"));
         if(latticeValues.Length is not (0 or 3)||latticeValues.Any(value=>!double.IsInteger(value)||value<1)){diagnostics.Add(Error("fea-invalid-lattice-dimensions","Lattice must contain exactly three positive integer dimensions.",sourcePath));return Done(null,diagnostics,started);}
         var lattice=latticeValues.Length==3?new LatticeSpec(region.Bounds,(int)latticeValues[0],(int)latticeValues[1],(int)latticeValues[2]):new LatticeSpec(region.Bounds,12,6,2);
+        var modeText=Scalar(block,"mode")??nameof(AnalysisMode.ProductionSolid);
+        if(!Enum.TryParse<AnalysisMode>(modeText,true,out var mode)){diagnostics.Add(Error("fea-analysis-mode-invalid",$"Analysis mode '{modeText}' is unsupported.",sourcePath));return Done(null,diagnostics,started);}
+        ExperimentalShellSettings? shellSettings=null;
+        if(mode==AnalysisMode.ExperimentalShell)
+        {
+            var thicknessText=Scalar(block,"thickness");
+            if(string.IsNullOrWhiteSpace(thicknessText)){diagnostics.Add(Error("thinwall-thickness-missing","ExperimentalShell requires an explicit Thickness for synthetic/native Box geometry in X0.",sourcePath));return Done(null,diagnostics,started);}
+            var masterValues=Numbers(Scalar(block,"masterGrid"));
+            if(masterValues.Length!=2||masterValues.Any(value=>!double.IsInteger(value)||value<1)){diagnostics.Add(Error("thinwall-master-grid-invalid","ExperimentalShell MasterGrid must contain exactly two positive integer dimensions.",sourcePath));return Done(null,diagnostics,started);}
+            var orderText=Scalar(block,"order");var order=OptionalInteger(orderText,3);
+            var alphaText=Scalar(block,"alphaFictitious");var alpha=string.IsNullOrWhiteSpace(alphaText)?1e-12:ScalarNumber(alphaText);
+            var depthText=Scalar(block,"maxSubdivisionDepth");var depth=OptionalInteger(depthText,4);
+            var quadratureText=Scalar(block,"quadratureOrder");int? quadrature=string.IsNullOrWhiteSpace(quadratureText)?null:OptionalInteger(quadratureText,int.MinValue);
+            var mapText=Scalar(block,"geometryMap")??nameof(ThinWallGeometryMapKind.Flat);
+            if(!Enum.TryParse<ThinWallGeometryMapKind>(mapText,true,out var map)){diagnostics.Add(Error("thinwall-geometry-unsupported",$"ExperimentalShell geometry map '{mapText}' is unsupported.",sourcePath));return Done(null,diagnostics,started);}
+            var radiusText=Scalar(block,"cylinderRadius");var angleText=Scalar(block,"cylinderAngle");
+            shellSettings=new ExperimentalShellSettings(Length(thicknessText),order,(int)masterValues[0],(int)masterValues[1],alpha,depth,quadrature,map,
+                string.IsNullOrWhiteSpace(radiusText)?null:Length(radiusText),string.IsNullOrWhiteSpace(angleText)?null:Angle(angleText));
+            lattice=new LatticeSpec(region.Bounds,shellSettings.MasterCellsR,shellSettings.MasterCellsS,1);
+            var sourceThickness=region.Bounds.Max.Z-region.Bounds.Min.Z;
+            if(double.IsFinite(shellSettings.ThicknessMeters)&&double.Abs(sourceThickness-shellSettings.ThicknessMeters)>double.Max(1e-12,sourceThickness*1e-9))
+                diagnostics.Add(Error("thinwall-thickness-source-mismatch",$"ExperimentalShell Thickness ({shellSettings.ThicknessMeters:R} m) must match the native/synthetic body's semantic thickness ({sourceThickness:R} m) in X0.",sourcePath));
+        }
         var requested=new HashSet<AnalysisResultField>();foreach(var item in (Scalar(block,"results")??"Displacement,Strain,Stress,ReactionForce").Trim('[',']').Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries)){if(Enum.TryParse<AnalysisResultField>(item,true,out var field))requested.Add(field);else diagnostics.Add(Error("fea-invalid-result-request",$"Analysis result '{item}' is unsupported.",sourcePath));}
         if(requested.Count==0){diagnostics.Add(Error("fea-invalid-result-request","Analysis must request at least one supported result field.",sourcePath));return Done(null,diagnostics,started);}
-        var bodyProv=new AnalysisProvenance(sourcePath??"<memory>",match.Index,match.Length,"body "+bodyId,ExactBrepFaceId:brepBodyId);var ir=new LinearElasticAnalysisIr(match.Groups["name"].Value,AnalysisKind.LinearStaticElasticity,new(bodyId,sourceKind,region,brepBodyId,resourceHash,bodyProv),[material],constraints,loads,requested,lattice,analysisSpan);
+        var bodyProv=new AnalysisProvenance(sourcePath??"<memory>",match.Index,match.Length,"body "+bodyId,ExactBrepFaceId:brepBodyId);var ir=new LinearElasticAnalysisIr(match.Groups["name"].Value,AnalysisKind.LinearStaticElasticity,new(bodyId,sourceKind,region,brepBodyId,resourceHash,bodyProv),[material],constraints,loads,requested,lattice,analysisSpan,mode,shellSettings);
         diagnostics.AddRange(AnalysisIrValidator.Validate(ir));return Done(ir,diagnostics,started);
     }
 
@@ -212,6 +235,10 @@ public static class FirmamentAnalysisCompiler
     private static int MatchingBrace(string source,int open){var depth=0;for(var i=open;i<source.Length;i++){if(source[i]=='{')depth++;else if(source[i]=='}'&&--depth==0)return i;}return-1;}
     private static double? UnitScale(string unit)=>unit.ToLowerInvariant() switch{"m"=>1,"cm"=>.01,"mm"=>.001,_=>null};
     private static double Number(string? text)=>double.Parse(text??"NaN",NumberStyles.Float,CultureInfo.InvariantCulture);
+    private static double ScalarNumber(string? text)=>double.TryParse(text,NumberStyles.Float,CultureInfo.InvariantCulture,out var value)?value:double.NaN;
+    private static int OptionalInteger(string? text,int defaultValue){if(string.IsNullOrWhiteSpace(text))return defaultValue;var value=ScalarNumber(text);return double.IsInteger(value)&&value>=int.MinValue&&value<=int.MaxValue?(int)value:int.MinValue;}
+    private static double Length(string? text){if(text is null)return double.NaN;var m=Regex.Match(text,@"^(?<v>[-+0-9.eE]+)\s*(?<u>mm|cm|m)$",RegexOptions.IgnoreCase);if(!m.Success)return double.NaN;return Number(m.Groups["v"].Value)*(UnitScale(m.Groups["u"].Value)??double.NaN);}
+    private static double Angle(string? text){if(text is null)return double.NaN;var m=Regex.Match(text,@"^(?<v>[-+0-9.eE]+)\s*(?<u>deg|rad)$",RegexOptions.IgnoreCase);if(!m.Success)return double.NaN;var value=Number(m.Groups["v"].Value);return m.Groups["u"].Value.Equals("deg",StringComparison.OrdinalIgnoreCase)?value*double.Pi/180:value;}
     private static double Stress(string? text){if(text is null)return double.NaN;var m=Regex.Match(text,@"^(?<v>[-+0-9.eE]+)\s*(?<u>GPa|MPa|kPa|Pa)$",RegexOptions.IgnoreCase);if(!m.Success)return double.NaN;var v=Number(m.Groups["v"].Value);return v*(m.Groups["u"].Value.ToLowerInvariant() switch{"gpa"=>1e9,"mpa"=>1e6,"kpa"=>1e3,_=>1});}
     private static double? Density(string? text){if(string.IsNullOrWhiteSpace(text))return null;var m=Regex.Match(text,@"^(?<v>[-+0-9.eE]+)\s*kg/m3$",RegexOptions.IgnoreCase);return m.Success?Number(m.Groups["v"].Value):double.NaN;}
     private static double[] Numbers(string? text)=>Regex.Matches(text??"",@"[-+0-9.eE]+").Select(m=>Number(m.Value)).ToArray();

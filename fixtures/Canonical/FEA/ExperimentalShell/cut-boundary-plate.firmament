@@ -1,0 +1,40 @@
+Model ExperimentalPerforatedPlate {
+    Units: mm
+    Box Plate { Size: [4000mm, 4000mm, 1000mm] }
+    Modify Plate {
+        Hole<Shaft> Opening {
+            On: +Z
+            Center: Point2(0mm, 0mm)
+            Diameter: 2000mm
+            End: ThroughAll
+        }
+    }
+
+    Analysis LinearElastic PerforatedPlatePull {
+        Mode: ExperimentalShell
+        Body: Plate
+        Material BenchmarkSteel {
+            YoungsModulus: 206.9GPa
+            PoissonRatio: 0.29
+        }
+        Thickness: 1000mm
+        MasterGrid: [2, 2]
+        Order: 2
+        AlphaFictitious: 1e-12
+        MaxSubdivisionDepth: 5
+
+        Fixed SymmetryLeft {
+            Region: Plate.face(-X)
+            Components: [X]
+        }
+        Fixed SymmetryBottom {
+            Region: Plate.face(-Y)
+            Components: [Y, Z]
+        }
+        Traction Pull {
+            Region: Plate.face(+Y)
+            Vector: [0Pa, 100Pa, 0Pa]
+        }
+        Results: [Displacement, Strain, Stress, ReactionForce, StrainEnergy]
+    }
+}

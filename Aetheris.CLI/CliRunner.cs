@@ -1116,7 +1116,8 @@ Model CanonicalPanel {
         // Generic imported BReps classify every intersecting site through exact kernel containment;
         // use the production default order while analytic domains retain the higher CLI verification order.
         var quadratureOrder=compiled.Analysis.Body.ContinuumRegion is Aetheris.FEA.Geometry.ImportedBrepAnalysisRegion?4:6;
-        var solveOptions=new MechanicsSolveOptions(CutCellQuadraturePerAxis:quadratureOrder,DomainTransform:orientation,PreserveNominalCellVolumeUnderTransform:orientation is not null,
+        var isExperimentalShell=compiled.Analysis.Mode==Aetheris.FEA.Analysis.AnalysisMode.ExperimentalShell;
+        var solveOptions=new MechanicsSolveOptions(CutCellQuadraturePerAxis:quadratureOrder,RelativeResidualTolerance:isExperimentalShell?1e-8:1e-9,MaximumIterations:isExperimentalShell?10000:null,DomainTransform:orientation,PreserveNominalCellVolumeUnderTransform:orientation is not null,
             RetryEmptyCutCells:compiled.Analysis.Body.ContinuumRegion is not Aetheris.FEA.Geometry.ImportedBrepAnalysisRegion);var result = LinearElasticSolver.Solve(compiled.Analysis,solveOptions);
         if (!result.IsSuccess)
         {
@@ -1133,20 +1134,28 @@ Model CanonicalPanel {
                 foreach (var diagnostic in errors) stderr.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
             return 1;
         }
-        var abaqus = AbaqusInpExporter.Export(compiled.Analysis,orientation); var validation = AbaqusInpValidator.Validate(abaqus.Text);
+        var experimental=compiled.Analysis.Mode==Aetheris.FEA.Analysis.AnalysisMode.ExperimentalShell;
+        string? abaqusText=null;string? abaqusHash=null;object? abaqusReport=null;var verificationValid=true;
+        if(!experimental)
+        {
+            var abaqus=AbaqusInpExporter.Export(compiled.Analysis,orientation);var validation=AbaqusInpValidator.Validate(abaqus.Text);
+            abaqusText=abaqus.Text;abaqusHash=abaqus.Sha256;verificationValid=validation.IsValid;
+            abaqusReport=new{abaqus.Sha256,abaqus.NodeCount,abaqus.ElementCount,validation.IsValid,validation.Diagnostics};
+        }
         var report = new
         {
-            analysis = new { compiled.Analysis.Id, kind = compiled.Analysis.Kind.ToString(), body = compiled.Analysis.Body.Id, compiled.Analysis.Body.SourceKind,
+            analysis = new { compiled.Analysis.Id, kind = compiled.Analysis.Kind.ToString(),mode=compiled.Analysis.Mode.ToString(),qualification=experimental?"Experimental - not production-qualified":"Production", body = compiled.Analysis.Body.Id, compiled.Analysis.Body.SourceKind,
                 geometryIdentity=compiled.Analysis.Body.ContinuumRegion.Id.Value,geometryHash=compiled.Analysis.Body.ResourceHash,brepBodyId=compiled.Analysis.Body.BrepBodyId,
                 material = compiled.Analysis.Materials.Select(item => new { item.Id, item.StableMaterialId, item.ConstitutiveClass, item.YoungsModulusPascal, item.PoissonRatio, item.DensityKilogramsPerCubicMeter, item.YieldStrengthPascal }),
                 constraints = compiled.Analysis.Constraints.Select(item => new { item.Id, region = item.Region.Path, components = item.Components }),
                 loads = compiled.Analysis.Loads.Select(item => new { item.Id, kind = item.Kind.ToString(), distribution=item.Distribution.ToString(), region = item.Region.Path, item.VectorSi, item.PressurePascal }),
                 requestedResults=compiled.Analysis.RequestedFields.Order().Select(Aetheris.FEA.Analysis.AnalysisResultContracts.Describe),
-                lattice = new { compiled.Analysis.Lattice.CountX, compiled.Analysis.Lattice.CountY, compiled.Analysis.Lattice.CountZ } },
+                lattice = new { compiled.Analysis.Lattice.CountX, compiled.Analysis.Lattice.CountY, compiled.Analysis.Lattice.CountZ },experimentalShell=compiled.Analysis.ExperimentalShell },
             solverSettings=new{solveOptions.CutCellQuadraturePerAxis,solveOptions.RelativeResidualTolerance,solveOptions.MaximumIterations,solveOptions.RetryEmptyCutCells},
             orientationDegrees=rotationDegrees,result.System, result.Solver, result.Equilibrium, result.TinyCells, result.Performance,boundaryLoads=result.BoundaryLoads,numericalLowering=result.NumericalLowering,strainEnergy=result.StrainEnergy,stressProbes=result.StressProbes,
+            experimentalShell=result.ExperimentalShell,
             maximumDisplacementMeters = result.MaximumDisplacementMeters, maximumVonMisesPascal = result.MaximumVonMisesPascal,
-            abaqus = new { abaqus.Sha256, abaqus.NodeCount, abaqus.ElementCount, validation.IsValid, validation.Diagnostics }
+            abaqus = abaqusReport
         };
         if (outDir is not null)
         {
@@ -1158,10 +1167,18 @@ Model CanonicalPanel {
             File.WriteAllText(Path.Combine(outDir, "displacement-stress-summary.json"), JsonSerializer.Serialize(new { maximumDisplacementMeters = result.MaximumDisplacementMeters, maximumVonMisesPascal = result.MaximumVonMisesPascal, result.Equilibrium }, JsonOptions));
             File.WriteAllText(Path.Combine(outDir,"boundary-quadrature.json"),JsonSerializer.Serialize(result.BoundaryLoads,JsonOptions));
             File.WriteAllText(Path.Combine(outDir,"numerical-lowering-strategy-map.json"),JsonSerializer.Serialize(result.NumericalLowering,JsonOptions));
-            File.WriteAllText(Path.Combine(outDir, "verification.inp"), abaqus.Text);
+            if(experimental)
+            {
+                File.WriteAllText(Path.Combine(outDir,"experimental-shell-evidence.json"),JsonSerializer.Serialize(result.ExperimentalShell,JsonOptions));
+                File.WriteAllText(Path.Combine(outDir,"parameter-domain-grid.svg"),ThinWallDebugArtifacts.ParameterDomainSvg(compiled.Analysis));
+                File.WriteAllText(Path.Combine(outDir,"mapped-deformed-cells.svg"),ThinWallDebugArtifacts.MappedAndDeformedSvg(compiled.Analysis,result));
+            }
+            else File.WriteAllText(Path.Combine(outDir, "verification.inp"), abaqusText!);
         }
-        stdout.WriteLine(json ? JsonSerializer.Serialize(report, JsonOptions) : $"{compiled.Analysis.Id}: converged in {result.Solver.Iterations} iterations; max |u|={result.MaximumDisplacementMeters:R} m; max von Mises={result.MaximumVonMisesPascal:R} Pa; Abaqus SHA-256={abaqus.Sha256}");
-        return validation.IsValid ? 0 : 1;
+        stdout.WriteLine(json ? JsonSerializer.Serialize(report, JsonOptions) : experimental
+            ? $"{compiled.Analysis.Id}: ExperimentalShell converged in {result.Solver.Iterations} iterations; max |u|={result.MaximumDisplacementMeters:R} m; max von Mises={result.MaximumVonMisesPascal:R} Pa"
+            : $"{compiled.Analysis.Id}: converged in {result.Solver.Iterations} iterations; max |u|={result.MaximumDisplacementMeters:R} m; max von Mises={result.MaximumVonMisesPascal:R} Pa; Abaqus SHA-256={abaqusHash}");
+        return verificationValid ? 0 : 1;
     }
 
     private static int RunMesh(string[] args, TextWriter stdout, TextWriter stderr)

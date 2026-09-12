@@ -6,7 +6,9 @@ using Aetheris.Kernel.StandardLibrary.Materials;
 namespace Aetheris.FEA.Analysis;
 
 public enum AnalysisKind { LinearStaticElasticity }
-public enum AnalysisResultField { Displacement, Strain, Stress, ReactionForce }
+public enum AnalysisMode { ProductionSolid, ExperimentalShell }
+public enum ThinWallGeometryMapKind { Flat, Cylindrical }
+public enum AnalysisResultField { Displacement, Strain, Stress, ReactionForce, StrainEnergy }
 public enum BoundaryLoadKind { Traction, ResultantForce, Pressure }
 public enum LoadDistributionPolicy { TotalResultantOverSelectedArea, TractionPerUnitArea, PressureNormalToSurface }
 public enum AnalysisGeometrySourceKind { FirmamentNative, InlineStep }
@@ -77,12 +79,26 @@ public static class AnalysisResultContracts
     public static AnalysisResultSemantics Describe(AnalysisResultField field)=>field switch
     {
         AnalysisResultField.Displacement=>new(field,"Vector3","m","admitted lattice node","primary solved degrees of freedom; aggregated nodes are affine extensions"),
-        AnalysisResultField.Strain=>new(field,"symmetric tensor","1","occupied cell center","small-strain tensor recovered from the Q1 displacement gradient"),
+        AnalysisResultField.Strain=>new(field,"symmetric tensor","1","occupied cell center","small-strain tensor recovered from the displacement gradient"),
         AnalysisResultField.Stress=>new(field,"Cauchy symmetric tensor plus von Mises scalar","Pa","occupied cell center","linear isotropic constitutive recovery; no nodal interpolation"),
         AnalysisResultField.ReactionForce=>new(field,"Vector3 per constraint","N","selected boundary condition","assembled constrained residual or consistent Nitsche boundary reaction"),
+        AnalysisResultField.StrainEnergy=>new(field,"Scalar","J","analysis domain","one half of displacement transpose times assembled elastic stiffness times displacement"),
         _=>throw new ArgumentOutOfRangeException(nameof(field)),
     };
 }
+
+/// <summary>Explicit settings for the experimental full-3D thin-wall finite-cell discretization.</summary>
+public sealed record ExperimentalShellSettings(
+    double ThicknessMeters,
+    int PolynomialOrder,
+    int MasterCellsR,
+    int MasterCellsS,
+    double FictitiousStiffnessFactor = 1e-12,
+    int MaxSubdivisionDepth = 4,
+    int? QuadratureOrder = null,
+    ThinWallGeometryMapKind GeometryMap = ThinWallGeometryMapKind.Flat,
+    double? CylinderRadiusMeters = null,
+    double? CylinderAngleRadians = null);
 
 public sealed record LinearElasticAnalysisIr(
     string Id,
@@ -93,7 +109,9 @@ public sealed record LinearElasticAnalysisIr(
     IReadOnlyList<BoundaryLoadIr> Loads,
     IReadOnlySet<AnalysisResultField> RequestedFields,
     LatticeSpec Lattice,
-    AnalysisProvenance Provenance);
+    AnalysisProvenance Provenance,
+    AnalysisMode Mode = AnalysisMode.ProductionSolid,
+    ExperimentalShellSettings? ExperimentalShell = null);
 
 public enum AnalysisDiagnosticSeverity { Info, Warning, Error }
 public sealed record AnalysisDiagnostic(string Code, AnalysisDiagnosticSeverity Severity, string Message, AnalysisProvenance? Provenance = null);
@@ -124,6 +142,26 @@ public static class AnalysisIrValidator
             diagnostics.Add(Error("fea-empty-region-selection", $"Load '{load.Id}' has no semantic region.", load.Provenance));
         foreach(var load in analysis.Loads.Where(load=>!double.IsFinite(load.VectorSi.X)||!double.IsFinite(load.VectorSi.Y)||!double.IsFinite(load.VectorSi.Z)||!double.IsFinite(load.PressurePascal)))
             diagnostics.Add(Error("fea-invalid-load",$"Load '{load.Id}' contains a non-finite or unit-incompatible value.",load.Provenance));
+        if(analysis.Mode==AnalysisMode.ExperimentalShell)
+        {
+            var shell=analysis.ExperimentalShell;
+            if(shell is null)diagnostics.Add(Error("thinwall-settings-missing","ExperimentalShell requires thin-wall discretization settings.",analysis.Provenance));
+            else
+            {
+                if(!double.IsFinite(shell.ThicknessMeters)||shell.ThicknessMeters<=0)diagnostics.Add(Error("thinwall-thickness-invalid","ExperimentalShell thickness must be finite and positive.",analysis.Provenance));
+                if(shell.PolynomialOrder is <1 or >6)diagnostics.Add(Error("thinwall-basis-order-invalid","ExperimentalShell X0 supports polynomial orders 1 through 6.",analysis.Provenance));
+                if(shell.MasterCellsR<1||shell.MasterCellsS<1)diagnostics.Add(Error("thinwall-master-grid-invalid","ExperimentalShell master-grid dimensions must be positive.",analysis.Provenance));
+                if(!double.IsFinite(shell.FictitiousStiffnessFactor)||shell.FictitiousStiffnessFactor<=0||shell.FictitiousStiffnessFactor>=1)diagnostics.Add(Error("thinwall-alpha-invalid","ExperimentalShell fictitious stiffness factor must be finite and strictly between zero and one.",analysis.Provenance));
+                if(shell.MaxSubdivisionDepth is <0 or >8)diagnostics.Add(Error("thinwall-subdivision-depth-invalid","ExperimentalShell X0 supports subdivision depths 0 through 8.",analysis.Provenance));
+                if(shell.QuadratureOrder is <2 or >12)diagnostics.Add(Error("thinwall-quadrature-order-invalid","ExperimentalShell quadrature order must be between 2 and 12.",analysis.Provenance));
+                if(shell.GeometryMap==ThinWallGeometryMapKind.Cylindrical&&
+                   (shell.CylinderRadiusMeters is null||!double.IsFinite(shell.CylinderRadiusMeters.Value)||shell.CylinderRadiusMeters<=shell.ThicknessMeters/2||
+                    shell.CylinderAngleRadians is null||!double.IsFinite(shell.CylinderAngleRadians.Value)||shell.CylinderAngleRadians<=0))
+                    diagnostics.Add(Error("thinwall-map-singular","Cylindrical ExperimentalShell geometry requires a finite positive angle and a radius greater than half-thickness.",analysis.Provenance));
+            }
+            if(analysis.Body.GeometrySource==AnalysisGeometrySourceKind.InlineStep)
+                diagnostics.Add(Error("thinwall-geometry-unsupported","ExperimentalShell X0 does not infer midsurfaces or thickness from imported STEP.",analysis.Body.Provenance));
+        }
         return diagnostics;
     }
 

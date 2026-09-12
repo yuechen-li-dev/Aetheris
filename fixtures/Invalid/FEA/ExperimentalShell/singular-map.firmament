@@ -1,0 +1,16 @@
+Model InvalidCylindricalMap {
+    Units: mm
+    Box PatchParameters { Size: [100mm, 160mm, 2mm] }
+    Analysis LinearElastic InconsistentCylinderSpan {
+        Mode: ExperimentalShell
+        Body: PatchParameters
+        Material: Standard.Materials.Steel.ASTM_A36
+        Thickness: 2mm
+        MasterGrid: [2, 2]
+        Order: 2
+        GeometryMap: Cylindrical
+        CylinderRadius: 100mm
+        CylinderAngle: 90deg
+        Fixed Root { Region: PatchParameters.face(-X) }
+    }
+}

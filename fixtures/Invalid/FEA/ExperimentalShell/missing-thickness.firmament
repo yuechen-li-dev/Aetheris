@@ -1,0 +1,12 @@
+Model InvalidThinWall {
+    Units: mm
+    Box Plate { Size: [100mm, 20mm, 2mm] }
+    Analysis LinearElastic MissingThickness {
+        Mode: ExperimentalShell
+        Body: Plate
+        Material: Standard.Materials.Steel.ASTM_A36
+        MasterGrid: [2, 1]
+        Order: 2
+        Fixed Root { Region: Plate.face(-X) }
+    }
+}

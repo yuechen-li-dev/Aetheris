@@ -37,6 +37,27 @@ public sealed record SparseSystemMetrics(int DegreesOfFreedom, int Nonzeros, dou
 public sealed record EquilibriumResult(Vector3D AppliedForceNewton, Vector3D ReactionForceNewton, Vector3D ResidualNewton);
 public sealed record StrainEnergyConsistency(double AlgebraicJoule,double IntegratedContinuumJoule,double AbsoluteResidualJoule,double RelativeResidual);
 public sealed record ExactStressProbe(string Label,Point3D Position,SymmetricTensor StressPascal,double HoopStressPascal,double KirschReferencePascal,double AbsoluteErrorPascal,string ReferenceAssumptions);
+public sealed record ExperimentalShellEvidence(
+    string Qualification,
+    string GeometryMapType,
+    BoundingBox3D MasterDomain,
+    int MasterCellsR,
+    int MasterCellsS,
+    int PolynomialOrder,
+    string Basis,
+    double ThicknessMeters,
+    double FictitiousStiffnessFactor,
+    int QuadratureOrder,
+    int MaxSubdivisionDepth,
+    int InteriorCells,
+    int CutCells,
+    int FictitiousCells,
+    int CutSubcellCount,
+    double MinimumPhysicalCutFraction,
+    double MinimumJacobianDeterminant,
+    double MaximumJacobianDeterminant,
+    IReadOnlyList<double> StressEvaluationThroughThicknessCoordinates,
+    string DeterministicDiscretizationHash);
 
 public enum ImmersedBasisTreatmentKind { Ordinary, Aggregated }
 public enum BoundaryEnforcementKind { StrongNearestNode, SymmetricNitsche }
@@ -64,7 +85,8 @@ public sealed record LinearElasticAnalysisResult(
     StrainEnergyConsistency? StrainEnergy=null,
     IReadOnlyList<ExactStressProbe>? StressProbes=null,
     IReadOnlyList<CellStrainResult>? StrainFields=null,
-    IReadOnlyList<CellStressResult>? StressFields=null)
+    IReadOnlyList<CellStressResult>? StressFields=null,
+    ExperimentalShellEvidence? ExperimentalShell=null)
 {
     public double MaximumDisplacementMeters => Displacements.Count == 0 ? 0 : Displacements.Max(item => item.DisplacementMeters.Length);
     public double MaximumVonMisesPascal => StressFields is { Count: >0 }?StressFields.Max(item=>item.VonMisesPascal):CellFields.Count == 0 ? 0 : CellFields.Max(item => item.VonMisesPascal);

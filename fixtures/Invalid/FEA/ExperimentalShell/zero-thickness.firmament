@@ -1,0 +1,12 @@
+Model InvalidZeroThickness {
+    Units: mm
+    Box Plate { Size: [100mm, 20mm, 2mm] }
+    Analysis LinearElastic ZeroThickness {
+        Mode: ExperimentalShell
+        Body: Plate
+        Material: Standard.Materials.Steel.ASTM_A36
+        Thickness: 0mm
+        MasterGrid: [2, 1]
+        Fixed Root { Region: Plate.face(-X) }
+    }
+}

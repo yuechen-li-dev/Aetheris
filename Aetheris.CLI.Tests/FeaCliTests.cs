@@ -68,5 +68,26 @@ public sealed class FeaCliTests
         finally { if(Directory.Exists(temp))Directory.Delete(temp,true); }
     }
 
+    [Fact]
+    public void FeaCommand_ExperimentalShellIsExplicitAndWritesDiagnosticArtifacts()
+    {
+        var root=FindRoot();var source=Path.Combine(root,"fixtures","Canonical","FEA","ExperimentalShell","flat-cantilever.firmament");var output=Path.Combine(Path.GetTempPath(),"aetheris-fea-shell-x0-"+Guid.NewGuid().ToString("N"));
+        try
+        {
+            var stdout=new StringWriter();var stderr=new StringWriter();
+            var exit=CliRunner.Run(["fea",source,"--out-dir",output,"--json"],stdout,stderr);
+            Assert.Equal(0,exit);Assert.Empty(stderr.ToString());
+            using var report=JsonDocument.Parse(stdout.ToString());var rootElement=report.RootElement;
+            Assert.Equal("ExperimentalShell",rootElement.GetProperty("analysis").GetProperty("mode").GetString());
+            Assert.Contains("not production-qualified",rootElement.GetProperty("analysis").GetProperty("qualification").GetString(),StringComparison.Ordinal);
+            Assert.Equal(3,rootElement.GetProperty("experimentalShell").GetProperty("polynomialOrder").GetInt32());
+            Assert.True(File.Exists(Path.Combine(output,"experimental-shell-evidence.json")));
+            Assert.NotNull(System.Xml.Linq.XDocument.Load(Path.Combine(output,"parameter-domain-grid.svg")).Root);
+            Assert.NotNull(System.Xml.Linq.XDocument.Load(Path.Combine(output,"mapped-deformed-cells.svg")).Root);
+            Assert.False(File.Exists(Path.Combine(output,"verification.inp")));
+        }
+        finally { if(Directory.Exists(output))Directory.Delete(output,true); }
+    }
+
     private static string FindRoot(){var directory=new DirectoryInfo(AppContext.BaseDirectory);while(directory is not null&&!File.Exists(Path.Combine(directory.FullName,"Aetheris.slnx")))directory=directory.Parent;return directory?.FullName??throw new DirectoryNotFoundException();}
 }

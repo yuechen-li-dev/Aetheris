@@ -1,0 +1,25 @@
+Model ExperimentalThinPlate {
+    Units: mm
+    Box Plate { Size: [100mm, 20mm, 2mm] }
+
+    Analysis LinearElastic ThinPlateCantilever {
+        Mode: ExperimentalShell
+        Body: Plate
+        Material: Standard.Materials.Steel.ASTM_A36
+        Thickness: 2mm
+        MasterGrid: [4, 1]
+        Order: 3
+        AlphaFictitious: 1e-12
+        MaxSubdivisionDepth: 4
+
+        Fixed Root {
+            Region: Plate.face(-X)
+            Components: [X, Y, Z]
+        }
+        Force Tip {
+            Region: Plate.face(+X)
+            Vector: [0N, 0N, -10N]
+        }
+        Results: [Displacement, Strain, Stress, ReactionForce, StrainEnergy]
+    }
+}

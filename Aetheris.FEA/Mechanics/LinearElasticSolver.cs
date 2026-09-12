@@ -30,6 +30,7 @@ public static class LinearElasticSolver
 
     public static LinearElasticAnalysisResult Solve(LinearElasticAnalysisIr analysis, MechanicsSolveOptions? options = null)
     {
+        if(analysis.Mode==AnalysisMode.ExperimentalShell)return ThinWallFiniteCellSolver.Solve(analysis,options);
         options ??= new MechanicsSolveOptions();
         var diagnostics = AnalysisIrValidator.Validate(analysis).ToList();
         if (diagnostics.Any(item => item.Severity == AnalysisDiagnosticSeverity.Error)) return Failure(analysis, diagnostics);

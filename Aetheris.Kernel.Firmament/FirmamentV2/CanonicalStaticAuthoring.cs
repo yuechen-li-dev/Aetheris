@@ -8,6 +8,7 @@ namespace Aetheris.Kernel.Firmament.FirmamentV2;
 internal static class CanonicalStaticAuthoring
 {
     internal const string Prefix = "firmament-v2-static-";
+    private const int MaxPatternExpansion = 1024;
     internal sealed record Result(string Source, FirmamentV2StaticAuthoringDocument? Document);
     private sealed record Template(string Name, string Type, string Parameter, string Body, FirmamentV2SourceSpan Span);
 
@@ -20,6 +21,7 @@ internal static class CanonicalStaticAuthoring
         var names = new HashSet<string>(StringComparer.Ordinal);
         var recordTypes = new List<FirmamentV2RecordTypeDecl>();
         var arrays = new List<FirmamentV2StaticArrayDecl>();
+        var sets = new List<FirmamentV2StaticSetDecl>();
         var staticRecords = new List<FirmamentV2StaticRecordDecl>();
         var tables = new List<FirmamentV2StaticTableDecl>();
         var templates = new List<Template>();
@@ -46,6 +48,24 @@ internal static class CanonicalStaticAuthoring
             changes.Add((header.Index, close - header.Index + 1, string.Empty));
         }
         var recordByName = recordTypes.ToDictionary(x => x.Name, StringComparer.Ordinal);
+
+        foreach (Match nested in Regex.Matches(source, @"\bStatic\s+(?<name>[A-Za-z_]\w*)\s*:\s*Set\s*<\s*Set\s*<", RegexOptions.CultureInvariant))
+            diagnostics.Add(Prefix + "set-element-type-unsupported:" + nested.Groups["name"].Value + ":nested-Set");
+
+        // Set<T> is a built-in finite value form, not a general generic or runtime collection.
+        // Entry order and names are retained as semantic evidence while values are erased before AIR.
+        foreach (Match header in Regex.Matches(source, @"\bStatic\s+(?<name>[A-Za-z_]\w*)\s*:\s*Set\s*<\s*(?<type>[A-Za-z_]\w*)\s*>\s*\{", RegexOptions.CultureInvariant))
+        {
+            var open = source.IndexOf('{', header.Index); var close = MatchPair(source, open, '{', '}');
+            var name = header.Groups["name"].Value; var type = header.Groups["type"].Value;
+            if (close < 0) { diagnostics.Add(Prefix + "set-malformed:" + name); continue; }
+            if (!IsSupportedSetElementType(type, recordByName)) { diagnostics.Add(Prefix + "set-element-type-unsupported:" + name + ":" + type); continue; }
+            if (!names.Add(name)) { diagnostics.Add(FirmamentV2Parser.DuplicateName + ":Static:" + name); continue; }
+            var entries = ParseSetEntries(source, open + 1, close, name, type, recordByName, diagnostics);
+            sets.Add(new(name, type, entries, new(header.Index, close - header.Index + 1)));
+            changes.Add((header.Index, close - header.Index + 1, string.Empty));
+        }
+        var setByName = sets.ToDictionary(x => x.Name, StringComparer.Ordinal);
 
         // Tables share Record typing with Static values, but intentionally preserve their
         // columnar spelling for source inspection. The template binder has already checked
@@ -110,6 +130,22 @@ internal static class CanonicalStaticAuthoring
         }
         var arrayByName = arrays.ToDictionary(x => x.Name, StringComparer.Ordinal);
 
+        // Named access is canonical. It substitutes the authored typed value (or a Record
+        // member) before Profile/Compose parsing; no public index operation is introduced.
+        foreach (var set in sets)
+        {
+            AddPointConsumerDeclarations(source, changes, set);
+            foreach (var entry in set.Entries)
+            {
+                if (entry.RecordFields is null)
+                    AddSetValueSubstitutions(source, changes, set, entry);
+                else
+                    foreach (var field in entry.RecordFields)
+                        AddSubstitutions(source, changes, $@"\b{Regex.Escape(set.Name)}\s*\.\s*{Regex.Escape(entry.Name)}\s*\.\s*{Regex.Escape(field.Key)}\b", field.Value);
+            }
+            AddSubstitutions(source, changes, $@"\b{Regex.Escape(set.Name)}\s*\.\s*Count\b", set.Entries.Count.ToString(CultureInfo.InvariantCulture));
+        }
+
         // Canonical finite feature Template: Template<Parameter: RecordType> Name { ... }.
         // The former Template Name(RecordType parameter) spelling remains warning-free
         // compatibility syntax for persisted Preview sources.
@@ -147,7 +183,13 @@ internal static class CanonicalStaticAuthoring
         foreach (Match pattern in Regex.Matches(source, @"\bPattern\s+(?<name>[A-Za-z_]\w*)\s+Over\s+(?<array>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant))
         {
             var open = source.IndexOf('{', pattern.Index); var close = MatchPair(source, open, '{', '}');
-            if (close < 0 || !arrayByName.TryGetValue(pattern.Groups["array"].Value, out var array)) { diagnostics.Add(Prefix + "pattern-source-invalid:" + pattern.Groups["name"].Value); continue; }
+            var sourceName = pattern.Groups["array"].Value;
+            if (close >= 0 && setByName.TryGetValue(sourceName, out var set))
+            {
+                ExpandSetPattern(source, pattern, open, close, set, templateByName, changes, patterns, diagnostics);
+                continue;
+            }
+            if (close < 0 || !arrayByName.TryGetValue(sourceName, out var array)) { diagnostics.Add(Prefix + "pattern-source-invalid:" + pattern.Groups["name"].Value); continue; }
             var invocation = Regex.Match(source[(open + 1)..close], @"^(?:\s)*(?<template>[A-Za-z_]\w*)\s*(?:<\s*Current\s*>|\(\s*Current\s*\))\s*$", RegexOptions.CultureInvariant);
             if (!invocation.Success || !templateByName.TryGetValue(invocation.Groups["template"].Value, out var template) || template.Type != array.ElementType) { diagnostics.Add(Prefix + "pattern-body-invalid:" + pattern.Groups["name"].Value); continue; }
             var generated = new List<string>(); var output = new List<string>();
@@ -221,12 +263,148 @@ internal static class CanonicalStaticAuthoring
         // A static declaration / Require is erased as a whole. Do not also apply a
         // substitution nested inside that erased span: applying the nested edit first
         // changes the parent span's offsets and corrupts the following declaration.
-        var erasures = changes.Where(change => change.Text.Length == 0).ToArray();
+        var erasures = changes.Where(change => change.Text.Length == 0
+            || Regex.IsMatch(source.Substring(change.Start, Math.Min(change.Length, source.Length - change.Start)), @"^\s*(?:Static\s+\w+\s*:\s*Set\s*<|Pattern\s+\w+\s+Over\b)", RegexOptions.CultureInvariant)).ToArray();
         foreach (var change in changes
             .Where(change => !erasures.Any(erase => erase.Start < change.Start && change.Start < erase.Start + erase.Length))
             .OrderByDescending(change => change.Start))
             source = source.Remove(change.Start, change.Length).Insert(change.Start, change.Text);
-        return new(source, new(recordTypes, arrays, templates.Select(t => new FirmamentV2CanonicalTemplateDecl(t.Name, t.Type, t.Parameter, t.Body, t.Span)).ToArray(), patterns, requires, semanticConstraints, projections, staticRecords, tables));
+        return new(source, new(recordTypes, arrays, templates.Select(t => new FirmamentV2CanonicalTemplateDecl(t.Name, t.Type, t.Parameter, t.Body, t.Span)).ToArray(), patterns, requires, semanticConstraints, projections, staticRecords, tables, sets));
+    }
+
+    private static IReadOnlyList<FirmamentV2StaticSetEntry> ParseSetEntries(string source, int start, int end, string setName, string elementType,
+        IReadOnlyDictionary<string, FirmamentV2RecordTypeDecl> recordTypes, List<string> diagnostics)
+    {
+        var body = source[start..end];
+        var headers = Regex.Matches(body, @"(?<![A-Za-z0-9_])(?<name>[A-Za-z_]\w*)\s*=>", RegexOptions.CultureInvariant).Cast<Match>().ToArray();
+        var result = new List<FirmamentV2StaticSetEntry>(); var names = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < headers.Length; index++)
+        {
+            var header = headers[index]; var entryName = header.Groups["name"].Value;
+            var valueStart = header.Index + header.Length; var valueEnd = index + 1 < headers.Length ? headers[index + 1].Index : body.Length;
+            var value = body[valueStart..valueEnd].Trim().TrimEnd(',', ';').Trim();
+            var span = new FirmamentV2SourceSpan(start + header.Index, valueEnd - header.Index);
+            if (!names.Add(entryName)) { diagnostics.Add(Prefix + "set-duplicate-entry:" + setName + ":" + entryName); continue; }
+            IReadOnlyDictionary<string, string>? fields = null;
+            if (recordTypes.TryGetValue(elementType, out var record))
+            {
+                var literal = Regex.Match(value, $@"^{Regex.Escape(elementType)}\s*\{{(?<body>[\s\S]*)\}}$", RegexOptions.CultureInvariant);
+                if (!literal.Success) { diagnostics.Add(Prefix + "set-entry-type-mismatch:" + setName + ":" + entryName + ":expected-" + elementType); continue; }
+                fields = Fields(literal.Groups["body"].Value);
+                var missing = record.Fields.Keys.Where(field => !fields.ContainsKey(field)).ToArray();
+                var extra = fields.Keys.Where(field => !record.Fields.ContainsKey(field)).ToArray();
+                if (missing.Length > 0) diagnostics.Add(Prefix + "record-missing-field:" + setName + "." + entryName + ":" + string.Join(",", missing));
+                if (extra.Length > 0) diagnostics.Add(Prefix + "record-extra-field:" + setName + "." + entryName + ":" + string.Join(",", extra));
+                foreach (var field in fields)
+                    if (record.Fields.TryGetValue(field.Key, out var fieldType) && !ValueMatchesType(field.Value, fieldType))
+                        diagnostics.Add(Prefix + "set-entry-field-type-mismatch:" + setName + ":" + entryName + ":" + field.Key + ":expected-" + fieldType);
+            }
+            else if (!ValueMatchesType(value, elementType))
+            { diagnostics.Add(Prefix + "set-entry-type-mismatch:" + setName + ":" + entryName + ":expected-" + elementType); continue; }
+            result.Add(new(entryName, value, index, span, fields));
+        }
+        return result;
+    }
+
+    private static void ExpandSetPattern(string source, Match pattern, int open, int close, FirmamentV2StaticSetDecl set,
+        IReadOnlyDictionary<string, Template> templates, List<(int Start, int Length, string Text)> changes,
+        List<FirmamentV2CanonicalPatternDecl> patterns, List<string> diagnostics)
+    {
+        var patternName = pattern.Groups["name"].Value;
+        if (set.Entries.Count > MaxPatternExpansion) { diagnostics.Add(Prefix + "pattern-expansion-limit:" + patternName + ":" + set.Entries.Count); return; }
+        var body = source[(open + 1)..close].Trim();
+        var arrow = Regex.Match(body, @"^(?<binder>[A-Za-z_]\w*)\s*=>\s*(?<mapping>[\s\S]+)$", RegexOptions.CultureInvariant);
+        if (!arrow.Success) { diagnostics.Add(Prefix + "pattern-body-invalid:" + patternName); return; }
+        var binder = arrow.Groups["binder"].Value; var mapping = arrow.Groups["mapping"].Value.Trim();
+        var output = new List<string>(); var generated = new List<string>(); var associations = new List<FirmamentV2PatternAssociation>();
+        foreach (var entry in set.Entries)
+        {
+            var semanticId = patternName + "." + entry.Name;
+            var materializedId = patternName + "_" + entry.Name;
+            string? declaration;
+            var templateCall = Regex.Match(mapping, @"^(?<template>[A-Za-z_]\w*)\s*(?:<\s*Current\s*>|\(\s*Current\s*\))$", RegexOptions.CultureInvariant);
+            if (templateCall.Success && templates.TryGetValue(templateCall.Groups["template"].Value, out var template) && entry.RecordFields is not null && template.Type == set.ElementType)
+                declaration = Instantiate(template, entry.RecordFields, materializedId, true, diagnostics);
+            else
+            {
+                declaration = mapping;
+                if (entry.RecordFields is not null)
+                    foreach (var field in entry.RecordFields)
+                        declaration = Regex.Replace(declaration, $@"\b{Regex.Escape(binder)}\s*\.\s*{Regex.Escape(field.Key)}\b", field.Value, RegexOptions.CultureInvariant);
+                else declaration = Regex.Replace(declaration, $@"\b{Regex.Escape(binder)}\b", entry.Value, RegexOptions.CultureInvariant);
+                var construction = Regex.Match(declaration, @"\b(?:Hole\s*<\s*(?:Shaft|Counterbore|Countersink)\s*>|Slot\s*<\s*(?:Capsule|RoundedRectangle)\s*>|Boss|Pocket|EdgeFinish)\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
+                if (!construction.Success) { diagnostics.Add(Prefix + "pattern-body-invalid:" + patternName); return; }
+                declaration = declaration.Remove(construction.Groups["name"].Index, construction.Groups["name"].Length).Insert(construction.Groups["name"].Index, materializedId);
+                var openingBrace = declaration.IndexOf('{', construction.Index);
+                declaration = declaration.Insert(openingBrace + 1, " PatternIdentity: " + semanticId + " ");
+            }
+            if (declaration is null) continue;
+            output.Add(declaration); generated.Add(semanticId);
+            associations.Add(new(semanticId, set.Name, entry.Name, entry.Value, entry.SourceOrder, entry.Provenance));
+        }
+        patterns.Add(new(patternName, set.Name, Regex.Match(mapping, @"^[A-Za-z_]\w*").Value, generated.Count, generated,
+            new(pattern.Index, close - pattern.Index + 1), associations));
+        changes.Add((pattern.Index, close - pattern.Index + 1, string.Join(Environment.NewLine, output)));
+    }
+
+    private static bool IsSupportedSetElementType(string type, IReadOnlyDictionary<string, FirmamentV2RecordTypeDecl> records) =>
+        type is "Point2" or "Point3" or "Vector2" or "Length" or "Angle" or "Int" or "Float" or "Bool" || records.ContainsKey(type);
+
+    private static bool ValueMatchesType(string value, string type)
+    {
+        value = value.Trim();
+        return type switch
+        {
+            "Point2" => Regex.IsMatch(value, @"^Point2\s*\(\s*[-+]?\d+(?:\.\d+)?mm\s*,\s*[-+]?\d+(?:\.\d+)?mm\s*\)$", RegexOptions.CultureInvariant),
+            "Point3" => Regex.IsMatch(value, @"^Point3\s*\(\s*[-+]?\d+(?:\.\d+)?mm\s*,\s*[-+]?\d+(?:\.\d+)?mm\s*,\s*[-+]?\d+(?:\.\d+)?mm\s*\)$", RegexOptions.CultureInvariant),
+            "Vector2" => Regex.IsMatch(value, @"^Vector2\s*\(\s*[-+]?\d+(?:\.\d+)?\s*,\s*[-+]?\d+(?:\.\d+)?\s*\)$", RegexOptions.CultureInvariant),
+            "Length" => Regex.IsMatch(value, @"^[-+]?\d+(?:\.\d+)?mm$", RegexOptions.CultureInvariant),
+            "Angle" => Regex.IsMatch(value, @"^[-+]?\d+(?:\.\d+)?deg$", RegexOptions.CultureInvariant),
+            "Int" => Regex.IsMatch(value, @"^[-+]?\d+$", RegexOptions.CultureInvariant),
+            "Float" => Regex.IsMatch(value, @"^[-+]?\d+(?:\.\d+)?$", RegexOptions.CultureInvariant),
+            "Bool" => value is "true" or "false",
+            _ => Regex.IsMatch(value, $@"^{Regex.Escape(type)}\s*\{{", RegexOptions.CultureInvariant)
+        };
+    }
+
+    private static void AddSubstitutions(string source, List<(int Start, int Length, string Text)> changes, string pattern, string replacement)
+    {
+        foreach (Match match in Regex.Matches(source, pattern, RegexOptions.CultureInvariant)) changes.Add((match.Index, match.Length, replacement));
+    }
+
+    private static void AddSetValueSubstitutions(string source, List<(int Start, int Length, string Text)> changes,
+        FirmamentV2StaticSetDecl set, FirmamentV2StaticSetEntry entry)
+    {
+        var pattern = $@"\b{Regex.Escape(set.Name)}\s*\.\s*{Regex.Escape(entry.Name)}\b";
+        foreach (Match match in Regex.Matches(source, pattern, RegexOptions.CultureInvariant))
+        {
+            var prefix = source[Math.Max(0, match.Index - 12)..match.Index];
+            var needsNamedPoint = set.ElementType == "Point2" && Regex.IsMatch(prefix, @"(?:From|To)\s*:\s*$", RegexOptions.CultureInvariant);
+            changes.Add((match.Index, match.Length, needsNamedPoint ? set.Name + "_" + entry.Name : entry.Value));
+        }
+    }
+
+    private static string PointDeclarations(string setName, string elementType, IReadOnlyList<FirmamentV2StaticSetEntry> entries)
+    {
+        if (elementType != "Point2") return string.Empty;
+        return string.Join(Environment.NewLine, entries.Select(entry =>
+        {
+            var match = Regex.Match(entry.Value, @"^Point2\s*\((?<body>[^)]+)\)$", RegexOptions.CultureInvariant);
+            return match.Success ? $"Point2 {setName}_{entry.Name} {{ Position: [{match.Groups["body"].Value}] }}" : string.Empty;
+        }));
+    }
+
+    private static void AddPointConsumerDeclarations(string source, List<(int Start, int Length, string Text)> changes, FirmamentV2StaticSetDecl set)
+    {
+        if (set.ElementType != "Point2" || !Regex.IsMatch(source,
+                $@"(?:From|To)\s*:\s*{Regex.Escape(set.Name)}\s*\.", RegexOptions.CultureInvariant)) return;
+        foreach (Match layout in Regex.Matches(source, @"\bConcept\s+Struct\s+[A-Za-z_]\w*(?:\s+On\s+[A-Za-z_]\w*)?\s*\{", RegexOptions.CultureInvariant))
+        {
+            var open = source.IndexOf('{', layout.Index); var close = MatchPair(source, open, '{', '}');
+            if (close < 0 || !Regex.IsMatch(source[(open + 1)..close], $@"(?:From|To)\s*:\s*{Regex.Escape(set.Name)}\s*\.", RegexOptions.CultureInvariant)) continue;
+            changes.Add((open + 1, 0, Environment.NewLine + PointDeclarations(set.Name, set.ElementType, set.Entries) + Environment.NewLine));
+            return;
+        }
     }
 
     private static string? Instantiate(Template template, IReadOnlyDictionary<string, string> values, string id, bool patterned, List<string> diagnostics)

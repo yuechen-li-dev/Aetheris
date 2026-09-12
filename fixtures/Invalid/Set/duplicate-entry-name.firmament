@@ -1,0 +1,8 @@
+Model DuplicateSetEntry {
+    Units: mm
+    Static Points: Set<Point2> {
+        A => Point2(0mm, 0mm)
+        A => Point2(10mm, 0mm)
+    }
+    Box Base { Size: [20mm, 20mm, 2mm] }
+}

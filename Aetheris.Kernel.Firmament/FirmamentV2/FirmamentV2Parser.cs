@@ -305,6 +305,15 @@ public static class FirmamentV2Parser
             sourceText=ProfileModificationTemplateLibrary.Source+Environment.NewLine+Regex.Replace(sourceText,@"\bUse\s+Profile\.Modifications\s*;",string.Empty,RegexOptions.CultureInvariant);
         var diagnostics = new List<string> { "firmament-v2-parser-invoked" };
         var source = StripLineComments(sourceText);
+        var polygonExpansion = Polygon2RhombusAuthoring.Expand(source, diagnostics);
+        if (polygonExpansion is null)
+        {
+            diagnostics.Add("firmament-v2-parse-failed");
+            return FirmamentV2ParseResult.Failure(
+                diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray(),
+                FirmamentV2ParseDisposition.RecognizedInvalid);
+        }
+        source = polygonExpansion.Source;
         var pipelineContextDiagnostics = ProfileAuthoringParser.ValidatePipelineContexts(source);
         if (pipelineContextDiagnostics.Count > 0)
         {
@@ -363,7 +372,7 @@ public static class FirmamentV2Parser
             var panelDocument = new FirmamentV2Document(panelCompilation.ModelName, "mm", [],
                 TemplateInstantiations: templateExpansion.Instantiations, Panels: panelCompilation.Panels,
                 FeatureDefinitions: featureExpansion.Definitions, FeatureInvocations: featureExpansion.Invocations,
-                FeatureExpansion: featureExpansion.Metrics);
+                FeatureExpansion: featureExpansion.Metrics, Polygons: polygonExpansion.Polygons);
             return FirmamentV2ParseResult.Success(panelDocument, diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray());
         }
 
@@ -384,7 +393,7 @@ public static class FirmamentV2Parser
             if (parsed.Document is null) return parsed;
 
             return WithFeatureMetadata(
-                AttachVolumeAssertionsAndSymbols(parsed, source, canonicalStaticExpansion.Document, diagnostics),
+                AttachVolumeAssertionsAndSymbols(WithPolygonMetadata(parsed, polygonExpansion), source, canonicalStaticExpansion.Document, diagnostics),
                 featureExpansion);
         }
 
@@ -397,7 +406,7 @@ public static class FirmamentV2Parser
         if (Regex.IsMatch(source, @"\bConcept\s+(?:Struct\s+)?[A-Za-z_]", RegexOptions.CultureInvariant)
             || Regex.IsMatch(source, @"\b(?:Struct|Model)\s+[A-Za-z_][A-Za-z0-9_]*\s*(?::\s*[A-Za-z_][A-Za-z0-9_]*)?\s*\{", RegexOptions.CultureInvariant))
             return Recognized(WithFeatureMetadata(
-                AttachVolumeAssertionsAndSymbols(ParseConceptModelingDocument(RemoveCanonicalVolumeAssertions(source), diagnostics, templateExpansion.Instantiations), source, canonicalStaticExpansion.Document, diagnostics),
+                AttachVolumeAssertionsAndSymbols(WithPolygonMetadata(ParseConceptModelingDocument(RemoveCanonicalVolumeAssertions(source), diagnostics, templateExpansion.Instantiations), polygonExpansion), source, canonicalStaticExpansion.Document, diagnostics),
                 featureExpansion));
 
         if (Regex.IsMatch(source, @"^\s*Model\b", RegexOptions.CultureInvariant))
@@ -496,6 +505,13 @@ public static class FirmamentV2Parser
                     FeatureExpansion = expansion.Metrics
                 }
             };
+
+    private static FirmamentV2ParseResult WithPolygonMetadata(
+        FirmamentV2ParseResult result,
+        Polygon2RhombusAuthoring.Result expansion) =>
+        result.Document is null
+            ? result
+            : result with { Document = result.Document with { Polygons = expansion.Polygons } };
 
     private static bool IsV2AdmissionCandidate(string source) =>
         ModelRegex.IsMatch(source)
@@ -1550,9 +1566,9 @@ public static class FirmamentV2Parser
 
             var knownFields = variant switch
             {
-                FirmamentV2SemanticHoleVariant.Counterbore => new[] { "On", "Center", "Diameter", "CounterboreDiameter", "CounterboreDepth", "End" },
-                FirmamentV2SemanticHoleVariant.Countersink => new[] { "On", "Center", "Diameter", "CountersinkDiameter", "CountersinkAngle", "End" },
-                _ => new[] { "On", "Center", "Diameter", "End" }
+                FirmamentV2SemanticHoleVariant.Counterbore => new[] { "On", "Center", "Diameter", "CounterboreDiameter", "CounterboreDepth", "End", "PatternIdentity" },
+                FirmamentV2SemanticHoleVariant.Countersink => new[] { "On", "Center", "Diameter", "CountersinkDiameter", "CountersinkAngle", "End", "PatternIdentity" },
+                _ => new[] { "On", "Center", "Diameter", "End", "PatternIdentity" }
             };
             if (CanonicalBodyHasUnknownField(holeBody, knownFields))
             {

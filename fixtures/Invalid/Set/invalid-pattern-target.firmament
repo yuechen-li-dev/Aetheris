@@ -1,0 +1,6 @@
+Model InvalidSetPatternTarget {
+    Units: mm
+    Static Points: Set<Point2> { A => Point2(0mm, 0mm) }
+    Box Base { Size: [20mm, 20mm, 2mm] }
+    Modify Base { Pattern Bad Over Missing { point => Hole<Shaft> H { On: +Z Center: point Diameter: 2mm End: ThroughAll } } }
+}

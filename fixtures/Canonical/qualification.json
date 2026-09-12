@@ -28,6 +28,8 @@
     { "path": "Feature", "operation": "build-step" },
     { "path": "Schema", "operation": "build-step" },
     { "path": "Patterns", "operation": "build-step" },
+    { "path": "Set", "operation": "build-step" },
+    { "path": "Span", "operation": "build-step" },
     { "path": "PMI", "operation": "build-step" },
     { "path": "Templates", "operation": "build-step" },
     { "path": "Integration", "operation": "build-step" }

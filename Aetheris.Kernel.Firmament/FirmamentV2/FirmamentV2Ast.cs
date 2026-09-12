@@ -3,7 +3,7 @@ using Aetheris.Surfacing;
 
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
-public sealed record FirmamentV2Document(string ModelName, string Units, IReadOnlyList<FirmamentV2SolidBinding> Solids, IReadOnlyList<FirmamentV2ModifyBlock>? ModifyBlocks = null, IReadOnlyList<FirmamentV2TemplateDecl>? Templates = null, IReadOnlyList<FirmamentV2PmiDecl>? Pmi = null, IReadOnlyList<FirmamentV2RecognizedRegion>? RecognizedRegions = null, IReadOnlyList<FirmamentV2ReplacementDecl>? Replacements = null, IReadOnlyList<FirmamentV2LetDeclaration>? Lets = null, IReadOnlyList<FirmamentV2BoundLet>? BoundLets = null, IReadOnlyList<FirmamentV2LetRecordDeclaration>? LetRecords = null, IReadOnlyList<FirmamentV2BoundLetRecord>? BoundLetRecords = null, IReadOnlyList<FirmamentV2ManufacturingConceptDeclaration>? ManufacturingConcepts = null, IReadOnlyList<FirmamentV2FeatureConceptDeclaration>? FeatureConcepts = null, FirmamentV2PmiBlock? PmiBlock = null, FirmamentV2BoundPmiBlock? BoundPmi = null, ConceptIrDocument? ConceptIr = null, IReadOnlyList<FirmamentV2LatticeFillDecl>? LatticeFills = null, IReadOnlyList<FirmamentV2StandaloneLatticeFillDecl>? StandaloneLatticeFills = null, IReadOnlyList<FirmamentV2ProfileDecl>? Profiles = null, IReadOnlyList<FirmamentV2ComposeDecl>? Composes = null, IReadOnlyList<FirmamentV2SelectionDecl>? Selections = null, FirmamentV2StaticAuthoringDocument? StaticAuthoring = null, FirmamentV2CanonicalSymbolTable? SymbolTable = null, IReadOnlyList<FirmamentV2VolumeAssertion>? VolumeAssertions = null, IReadOnlyList<ConceptIrTemplateInstantiation>? TemplateInstantiations = null, IReadOnlyList<PanelIr>? Panels = null, IReadOnlyList<FirmamentV2BossDecl>? Bosses = null, IReadOnlyList<FirmamentV2PocketDecl>? Pockets = null, IReadOnlyList<FirmamentV2FeatureDefinition>? FeatureDefinitions = null, IReadOnlyList<FirmamentV2FeatureInvocation>? FeatureInvocations = null, FirmamentV2FeatureExpansionMetrics? FeatureExpansion = null)
+public sealed record FirmamentV2Document(string ModelName, string Units, IReadOnlyList<FirmamentV2SolidBinding> Solids, IReadOnlyList<FirmamentV2ModifyBlock>? ModifyBlocks = null, IReadOnlyList<FirmamentV2TemplateDecl>? Templates = null, IReadOnlyList<FirmamentV2PmiDecl>? Pmi = null, IReadOnlyList<FirmamentV2RecognizedRegion>? RecognizedRegions = null, IReadOnlyList<FirmamentV2ReplacementDecl>? Replacements = null, IReadOnlyList<FirmamentV2LetDeclaration>? Lets = null, IReadOnlyList<FirmamentV2BoundLet>? BoundLets = null, IReadOnlyList<FirmamentV2LetRecordDeclaration>? LetRecords = null, IReadOnlyList<FirmamentV2BoundLetRecord>? BoundLetRecords = null, IReadOnlyList<FirmamentV2ManufacturingConceptDeclaration>? ManufacturingConcepts = null, IReadOnlyList<FirmamentV2FeatureConceptDeclaration>? FeatureConcepts = null, FirmamentV2PmiBlock? PmiBlock = null, FirmamentV2BoundPmiBlock? BoundPmi = null, ConceptIrDocument? ConceptIr = null, IReadOnlyList<FirmamentV2LatticeFillDecl>? LatticeFills = null, IReadOnlyList<FirmamentV2StandaloneLatticeFillDecl>? StandaloneLatticeFills = null, IReadOnlyList<FirmamentV2ProfileDecl>? Profiles = null, IReadOnlyList<FirmamentV2ComposeDecl>? Composes = null, IReadOnlyList<FirmamentV2SelectionDecl>? Selections = null, FirmamentV2StaticAuthoringDocument? StaticAuthoring = null, FirmamentV2CanonicalSymbolTable? SymbolTable = null, IReadOnlyList<FirmamentV2VolumeAssertion>? VolumeAssertions = null, IReadOnlyList<ConceptIrTemplateInstantiation>? TemplateInstantiations = null, IReadOnlyList<PanelIr>? Panels = null, IReadOnlyList<FirmamentV2BossDecl>? Bosses = null, IReadOnlyList<FirmamentV2PocketDecl>? Pockets = null, IReadOnlyList<FirmamentV2FeatureDefinition>? FeatureDefinitions = null, IReadOnlyList<FirmamentV2FeatureInvocation>? FeatureInvocations = null, FirmamentV2FeatureExpansionMetrics? FeatureExpansion = null, IReadOnlyList<FirmamentV2Polygon2Decl>? Polygons = null)
 {
     public FirmamentV2SolidBinding Solid => Solids[^1];
     public FirmamentV2SideHoleIntent? SideHoleIntent => ModifyBlocks?.SelectMany(m => m.Regions.Select(r =>
@@ -103,6 +103,18 @@ public sealed record ImportedStepTopologyMap(IReadOnlyDictionary<string, string>
         return false;
     }
 }
+
+/// <summary>A closed, typed planar shape declaration retained across its lowering to ordinary guides.</summary>
+public sealed record FirmamentV2Polygon2Decl(
+    string Name,
+    string Variant,
+    double CenterX,
+    double CenterY,
+    double DiagonalX,
+    double DiagonalY,
+    IReadOnlyList<string> GeneratedPoints,
+    IReadOnlyList<string> GeneratedEdges,
+    FirmamentV2SourceSpan SourceSpan);
 
 public sealed record FirmamentV2FeatureParameter(string Name, string Type, string? DefaultExpression = null);
 public sealed record FirmamentV2FeatureDefinition(string Name, IReadOnlyList<FirmamentV2FeatureParameter> Parameters,
@@ -241,14 +253,18 @@ public sealed record FirmamentV2BossDecl(string Name, string Host, string On, st
 public sealed record FirmamentV2PocketDecl(string Name, string Host, string On, string Profile, double Depth, double HostThickness, double RemainingFloor, double MinimumFloorThickness, string MinimumFloorPolicySource, string StableId, FirmamentV2SourceSpan SourceSpan);
 public sealed record FirmamentV2SelectionDecl(string Name, string Target, string Source, string Requirement, FirmamentV2SourceSpan SourceSpan);
 /// <summary>Normalized, erased-before-materialization evidence for canonical static authoring.</summary>
-public sealed record FirmamentV2StaticAuthoringDocument(IReadOnlyList<FirmamentV2RecordTypeDecl> RecordTypes, IReadOnlyList<FirmamentV2StaticArrayDecl> Arrays, IReadOnlyList<FirmamentV2CanonicalTemplateDecl> Templates, IReadOnlyList<FirmamentV2CanonicalPatternDecl> Patterns, IReadOnlyList<FirmamentV2RequireDecl> Requires, IReadOnlyList<FirmamentV2SemanticConstraint>? SemanticConstraints = null, IReadOnlyDictionary<string, FirmamentV2PmiProjection>? PmiProjections = null, IReadOnlyList<FirmamentV2StaticRecordDecl>? StaticRecords = null, IReadOnlyList<FirmamentV2StaticTableDecl>? Tables = null);
+public sealed record FirmamentV2StaticAuthoringDocument(IReadOnlyList<FirmamentV2RecordTypeDecl> RecordTypes, IReadOnlyList<FirmamentV2StaticArrayDecl> Arrays, IReadOnlyList<FirmamentV2CanonicalTemplateDecl> Templates, IReadOnlyList<FirmamentV2CanonicalPatternDecl> Patterns, IReadOnlyList<FirmamentV2RequireDecl> Requires, IReadOnlyList<FirmamentV2SemanticConstraint>? SemanticConstraints = null, IReadOnlyDictionary<string, FirmamentV2PmiProjection>? PmiProjections = null, IReadOnlyList<FirmamentV2StaticRecordDecl>? StaticRecords = null, IReadOnlyList<FirmamentV2StaticTableDecl>? Tables = null, IReadOnlyList<FirmamentV2StaticSetDecl>? Sets = null);
 public sealed record FirmamentV2RecordTypeDecl(string Name, IReadOnlyDictionary<string, string> Fields, FirmamentV2SourceSpan SourceSpan);
 public sealed record FirmamentV2StaticArrayDecl(string Name, string ElementType, IReadOnlyList<IReadOnlyDictionary<string, string>> Elements, FirmamentV2SourceSpan SourceSpan);
+/// <summary>A finite immutable source-ordered collection whose entry names are semantic identity.</summary>
+public sealed record FirmamentV2StaticSetDecl(string Name, string ElementType, IReadOnlyList<FirmamentV2StaticSetEntry> Entries, FirmamentV2SourceSpan SourceSpan);
+public sealed record FirmamentV2StaticSetEntry(string Name, string Value, int SourceOrder, FirmamentV2SourceSpan Provenance, IReadOnlyDictionary<string, string>? RecordFields = null);
 public sealed record FirmamentV2StaticRecordDecl(string Name, string RecordType, IReadOnlyDictionary<string, string> Fields, FirmamentV2SourceSpan SourceSpan);
 /// <summary>Columnar compile-time table evidence. Rows are created only on static lookup and never enter AIR.</summary>
 public sealed record FirmamentV2StaticTableDecl(string Name, string RowType, string? KeyField, IReadOnlyDictionary<string, IReadOnlyList<string>> Columns, int RowCount, FirmamentV2SourceSpan SourceSpan);
 public sealed record FirmamentV2CanonicalTemplateDecl(string Name, string ParameterType, string ParameterName, string Body, FirmamentV2SourceSpan SourceSpan);
-public sealed record FirmamentV2CanonicalPatternDecl(string Name, string Source, string Template, int GeneratedCount, IReadOnlyList<string> GeneratedIds, FirmamentV2SourceSpan SourceSpan);
+public sealed record FirmamentV2CanonicalPatternDecl(string Name, string Source, string Template, int GeneratedCount, IReadOnlyList<string> GeneratedIds, FirmamentV2SourceSpan SourceSpan, IReadOnlyList<FirmamentV2PatternAssociation>? Associations = null);
+public sealed record FirmamentV2PatternAssociation(string GeneratedId, string SourceSet, string SourceEntry, string SourceValue, int ExpansionOrdinal, FirmamentV2SourceSpan Provenance);
 public sealed record FirmamentV2RequireDecl(string Name, string Expression, bool Value, FirmamentV2SourceSpan SourceSpan, string? Provenance = null, string? Subject = null, string? Expected = null, string? ToleranceSource = null);
 public sealed record FirmamentV2LatticeFillDecl(string Name, string Host, FirmamentV2FillRegionDecl Region, string Pattern, double CellSize, double StrutRadius, string BoundaryPolicy, FirmamentV2SourceSpan SourceSpan);
 /// <summary>M9R's admitted standalone material body. It is intentionally distinct from the deferred host-replacement Fill.</summary>

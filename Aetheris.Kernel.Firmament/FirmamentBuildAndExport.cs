@@ -189,7 +189,8 @@ public static class FirmamentBuildAndExport
                 pattern.Template,
                 pattern.GeneratedCount,
                 pattern.GeneratedIds,
-                "FiniteStaticArray"))
+                pattern.Associations is null ? "FiniteStaticArray" : "NamedSetAuthoredSourceOrder",
+                Associations: pattern.Associations))
             .OrderBy(pattern => pattern.Name, StringComparer.Ordinal)
             .ToArray();
         if (edgeFinishes.Length == 0 && patterns.Length == 0) return export;

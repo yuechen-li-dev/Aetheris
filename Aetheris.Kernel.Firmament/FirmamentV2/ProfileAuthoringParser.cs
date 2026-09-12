@@ -30,6 +30,7 @@ public static class ProfileAuthoringParser
     {
         ArgumentNullException.ThrowIfNull(source);
         var diagnostics = new List<string>();
+        source = ExpandBuiltInPolygons(source, diagnostics);
         var expansion = FirmamentV2TemplateExpansion.Expand(source, diagnostics);
         if (expansion is not null) source = expansion.Source;
         var staticExpansion = CanonicalStaticAuthoring.Expand(source, diagnostics);
@@ -47,6 +48,7 @@ public static class ProfileAuthoringParser
         ArgumentNullException.ThrowIfNull(source);
         ArgumentException.ThrowIfNullOrWhiteSpace(profileName);
         var diagnostics = new List<string>();
+        source = ExpandBuiltInPolygons(source, diagnostics);
         var expansion = FirmamentV2TemplateExpansion.Expand(source, diagnostics);
         if (expansion is not null) source = expansion.Source;
         var declaration = FindProfiles(source).FirstOrDefault(profile => profile.Name == profileName);
@@ -88,6 +90,7 @@ public static class ProfileAuthoringParser
         ArgumentNullException.ThrowIfNull(source);
         ArgumentException.ThrowIfNullOrWhiteSpace(pathName);
         var diagnostics = new List<string>();
+        source = ExpandBuiltInPolygons(source, diagnostics);
         var points = new Dictionary<string, (double X, double Y)>(StringComparer.Ordinal);
         var guides = new Dictionary<string, LineArcProfileCurve2D>(StringComparer.Ordinal);
         AddOrdinaryGuides(source, points, guides, diagnostics);
@@ -112,6 +115,7 @@ public static class ProfileAuthoringParser
     public static IReadOnlyList<ConceptPathInspection> InspectConceptPaths(string source)
     {
         var diagnostics = new List<string>();
+        source = ExpandBuiltInPolygons(source, diagnostics);
         var expansion = FirmamentV2TemplateExpansion.Expand(source, diagnostics);
         if (expansion is not null) source = expansion.Source;
         var points = new Dictionary<string, (double X, double Y)>(StringComparer.Ordinal);
@@ -151,6 +155,7 @@ public static class ProfileAuthoringParser
     public static (ResolvedProfile2D? Profile, double Height, IReadOnlyList<string> Diagnostics) Parse(string source)
     {
         var diagnostics = new List<string>();
+        source = ExpandBuiltInPolygons(source, diagnostics);
         var profile = FindProfiles(source).FirstOrDefault();
         if (profile is null)
             return (null, 0, ["profile-source-missing-profile"]);
@@ -178,6 +183,7 @@ public static class ProfileAuthoringParser
     {
         // This is the canonical semantic-profile adapter used by Compose and SectionChain.
         // Its historical name remains source-compatible; pipeline syntax is erased here too.
+        source = ExpandBuiltInPolygons(source, diagnostics);
         var authoredProfiles = FindProfiles(source).Where(candidate => candidate.FromPath is not null || candidate.Body?.Contains("|>", StringComparison.Ordinal) == true).ToArray();
         if (authoredProfiles.Length == 0) return new Dictionary<string, ResolvedProfile2D>();
         var points = new Dictionary<string, (double X, double Y)>(StringComparer.Ordinal);
@@ -198,6 +204,9 @@ public static class ProfileAuthoringParser
         }
         return profiles;
     }
+
+    private static string ExpandBuiltInPolygons(string source, List<string> diagnostics) =>
+        Polygon2RhombusAuthoring.Expand(source, diagnostics)?.Source ?? source;
 
     internal static ConstructionPlane? ResolveNamedConstructionPlane(string source, string frame, List<string> diagnostics)
         => ResolveConstructionPlane(source, frame, diagnostics);

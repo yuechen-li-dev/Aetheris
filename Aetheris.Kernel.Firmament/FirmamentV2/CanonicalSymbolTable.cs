@@ -9,6 +9,8 @@ public enum FirmamentV2CanonicalSymbolKind
 {
     Record,
     StaticArray,
+    StaticSet,
+    Polygon2,
     Template,
     Pattern,
     Require,
@@ -89,12 +91,14 @@ internal static class FirmamentV2CanonicalSymbolBinder
         {
             foreach (var record in staticAuthoring.RecordTypes) Add(record.Name, FirmamentV2CanonicalSymbolKind.Record, record.SourceSpan);
             foreach (var array in staticAuthoring.Arrays) Add(array.Name, FirmamentV2CanonicalSymbolKind.StaticArray, array.SourceSpan);
+            foreach (var set in staticAuthoring.Sets ?? []) Add(set.Name, FirmamentV2CanonicalSymbolKind.StaticSet, set.SourceSpan);
             foreach (var template in staticAuthoring.Templates) Add(template.Name, FirmamentV2CanonicalSymbolKind.Template, template.SourceSpan);
             foreach (var pattern in staticAuthoring.Patterns) Add(pattern.Name, FirmamentV2CanonicalSymbolKind.Pattern, pattern.SourceSpan);
             foreach (var require in staticAuthoring.Requires) Add(require.Name, FirmamentV2CanonicalSymbolKind.Require, require.SourceSpan);
         }
 
         foreach (var profile in document.Profiles ?? []) Add(profile.Name, FirmamentV2CanonicalSymbolKind.Profile, profile.SourceSpan);
+        foreach (var polygon in document.Polygons ?? []) Add(polygon.Name, FirmamentV2CanonicalSymbolKind.Polygon2, polygon.SourceSpan);
         foreach (var compose in document.Composes ?? []) Add(compose.Name, FirmamentV2CanonicalSymbolKind.Compose, compose.SourceSpan);
         foreach (var boss in document.Bosses ?? []) Add(boss.Name, FirmamentV2CanonicalSymbolKind.Boss, boss.SourceSpan);
         foreach (var pocket in document.Pockets ?? []) Add(pocket.Name, FirmamentV2CanonicalSymbolKind.Pocket, pocket.SourceSpan);

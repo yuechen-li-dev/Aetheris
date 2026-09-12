@@ -1,0 +1,14 @@
+Model SetFeaturePattern {
+    Units: mm
+    Feature Drill(Center: Point2) -> Hole<Shaft> {
+        return Hole<Shaft> { On: +Z Center: Center Diameter: 6mm End: ThroughAll }
+    }
+    Static Points: Set<Point2> {
+        First => Point2(-12mm, 0mm)
+        Second => Point2(12mm, 0mm)
+    }
+    Box Base { Size: [50mm, 30mm, 8mm] }
+    Modify Base {
+        Pattern Drills Over Points { point => Drill(point) }
+    }
+}

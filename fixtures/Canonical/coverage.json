@@ -22,6 +22,7 @@
     "Countersink": "Features/Holes/countersink.firmament",
     "Slot": "Features/Slots/straight-slot.firmament",
     "Pattern": "Patterns/record-array-hole-pattern.firmament",
+    "NamedSet": "Set/mounting-points.firmament",
     "Chamfer": "Features/EdgeFinish/boundary-chamfer.firmament",
     "Fillet": "Features/EdgeFinish/single-edge-fillet.firmament",
     "RecordStaticTableWith": "Profiles/profile-delta-recess-extrusion.firmament",
@@ -55,6 +56,7 @@
     "AutoRib": "PlasticShell/plastic-shell-enclosure.firmament",
     "MaterializedStandoff": "PlasticShell/plastic-shell-materialized-standoff.firmament",
     "MaterializedRib": "PlasticShell/plastic-shell-materialized-rib.firmament",
-    "MoldedRibStandoffJunction": "PlasticShell/plastic-shell-rib-standoff-junction.firmament"
+    "MoldedRibStandoffJunction": "PlasticShell/plastic-shell-rib-standoff-junction.firmament",
+    "Polygon2Rhombus": "Set/mounting-points.firmament"
   }
 }

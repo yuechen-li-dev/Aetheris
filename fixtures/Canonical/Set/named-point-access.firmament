@@ -1,0 +1,19 @@
+Model NamedPointAccess {
+    Units: mm
+    Static BoundaryPoints: Set<Point2> {
+        South => Point2(0mm, -32mm)
+        East => Point2(45mm, 0mm)
+        North => Point2(0mm, 32mm)
+        West => Point2(-45mm, 0mm)
+    }
+    Concept Struct Layout On XY {
+        Line2 SE { From: BoundaryPoints.South; To: BoundaryPoints.East }
+        Line2 EN { From: BoundaryPoints.East; To: BoundaryPoints.North }
+        Line2 NW { From: BoundaryPoints.North; To: BoundaryPoints.West }
+        Line2 WS { From: BoundaryPoints.West; To: BoundaryPoints.South }
+    }
+    Profile Boundary Using Layout {
+        Loop Outer { SE |> EN |> NW |> WS |> Close }
+    }
+    Struct PlateBody { Extrude Body { Profile: Boundary; From: 0mm; To: 4mm } }
+}

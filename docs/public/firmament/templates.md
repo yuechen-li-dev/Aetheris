@@ -77,7 +77,7 @@ This matrix describes the compiler today. It is not a roadmap.
 
 ## Records, `with`, Static, Tables, and Patterns
 
-`Record` defines grouped engineering-data shape. `Static` binds immutable compile-time data. `with` derives a new Record value by replacing checked fields; it is neither inheritance nor mutation. A keyed `Static Table` is finite engineering data, and a Table lookup produces a Record that can be passed to a Template. `Pattern ... Over` expands a finite static collection into admitted semantic features.
+`Record` defines grouped engineering-data shape. `Static` binds immutable compile-time data. `with` derives a new Record value by replacing checked fields; it is neither inheritance nor mutation. A keyed `Static Table` is finite engineering data, and a Table lookup produces a Record that can be passed to a Template. `Set<T>` is the source-ordered named form for finite immutable data; arrays remain the anonymous form. `Pattern ... Over` expands either compatible source through the existing finite semantic feature route.
 
 ```text
 Record EnclosureSpec {

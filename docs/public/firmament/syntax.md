@@ -76,6 +76,7 @@ Use each abstraction for its single role:
 | `|>` | Finite semantic composition of compatible Profile/Path geometry. |
 | `Concept` | Semantic contract or capability. |
 | `Record` / `Struct` | Typed data and semantic structure. |
+| `Set<T>` | Finite immutable source-ordered data whose entries have stable names. |
 
 Feature composes with an existing bounded Pattern without exposing its internals:
 
@@ -105,6 +106,50 @@ Pattern Mounts {
 ```
 
 The two-column, two-row Grid is the explicit four-hole rectangular distribution. This semantic PointSet Pattern uses `Item`. The older `Pattern Name Over Records { Template<Current> }` form remains the record-array composition syntax for finite feature Templates; `Current` is the selected record. Feature functions do not replace that compatibility form.
+
+## Finite named sets and mapping
+
+`Set<T>` is a finite immutable collection of named typed values. Use it when entries have semantic identity and should be addressable by name; use `T[]` for an anonymous ordered sequence.
+
+```firmament
+Static MountPoints: Set<Point2> {
+    LowerLeft  => Point2(-16mm, -9mm)
+    LowerRight => Point2(16mm, -9mm)
+    UpperLeft  => Point2(-16mm, 9mm)
+    UpperRight => Point2(16mm, 9mm)
+}
+
+Pattern Mounts Over MountPoints {
+    point => M8Counterbore(Center: point)
+}
+```
+
+`MountPoints.LowerLeft` has type `Point2`; Record-valued entries compose naturally, for example `MountSpecs.Left.Center`. Set entry names are unique, values may be equal, and authored order is authoritative. An empty typed Set is valid and a Pattern over it produces zero instances. Inspection exposes the element type, cardinality, entries, source order, provenance, and generated associations.
+
+Inside a Set, `Name => Value` is a named association. Inside Pattern, `value => construction` maps every member of that finite Set to one semantic construction. Neither spelling is conditional control flow. Set has no mutation, indexing, filtering, sorting, `Map`, `Fold`, arbitrary keys, or runtime collection API, and Pattern retains the existing 1,024-instance safety bound.
+
+Choose among the closed data forms by meaning: a `Record` is one structured value; an `Enum` is one-of-N alternatives; `T[]` is anonymous ordered data; `Set<T>` is a dataset in which all N named entries exist simultaneously. Pattern performs finite construction mapping, Feature supplies a reusable semantic transformation, and `|>` composes finite compatible geometry. Match is unchanged.
+
+### Built-in closed polygons
+
+`Polygon2<Rhombus>` is the first bounded closed-polygon authoring form. A rhombus is specified by its center and full horizontal/vertical diagonal lengths:
+
+```firmament
+Concept Struct Layout On XY {
+    Polygon2<Rhombus> MountBoundaryShape {
+        Center: [0mm, 0mm]
+        Diagonals: [90mm, 64mm]
+    }
+}
+
+Profile MountBoundary Using Layout {
+    Loop Outer { MountBoundaryShape |> TraceLoop }
+}
+```
+
+This produces vertices at south, east, north, and west half-diagonal offsets and a counter-clockwise closed boundary. It lowers before pipeline validation to the ordinary typed `Point2`, `Line2`, and Profile path, so closure, orientation, Span containment, materialization, and STEP export keep their existing owners.
+
+The angle-bracket argument is a closed built-in shape variant, not a general generic or user-defined type. X1 admits only `Rhombus`; both diagonals must be finite positive lengths. It intentionally does not add arbitrary vertex arrays, `Connect`, a scene graph, or a second polygon materializer. Use `Rect2` when the four sides are axis-aligned; unequal horizontal and vertical rhombus diagonals do not describe that rectangle.
 
 A Feature may return a call to another Feature with the same declared result type:
 

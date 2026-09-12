@@ -343,6 +343,8 @@ public static class PrismaticProfileCompositionParser
             var name = header.Groups["n"].Value;
             var body = Block(composeBody, header.Index + header.Length - 1);
             if (body is null) { diagnostics.Add($"compose-hole-unclosed:{name}"); continue; }
+            var patternIdentityMatch = Regex.Match(body, @"\bPatternIdentity\s*:\s*(?<id>[A-Za-z_]\w*\.[A-Za-z_]\w*)", RegexOptions.CultureInvariant);
+            var diagnosticName = patternIdentityMatch.Success ? patternIdentityMatch.Groups["id"].Value : name;
             var center = HoleCenter.Match(body); if (!center.Success) center = HolePoint2Center.Match(body);
             var diameter = HoleDiameter.Match(body); var end = HoleEnd.Match(body); var role = HoleRole.Match(body);
             var counterboreDiameter = HoleCounterboreDiameter.Match(body); var counterboreDepth = HoleCounterboreDepth.Match(body); var on = HoleOn.Match(body);
@@ -399,7 +401,7 @@ public static class PrismaticProfileCompositionParser
                         || Math.Abs(supportSpan.ParentPlane.Origin.Z - materialTo) > 1e-7d)
                     { diagnostics.Add($"firmament-feature-support-parent-mismatch:{name}:{supportSpan.SpanId}"); continue; }
                     if (!PlanarSpanContainment.ContainsCircle(supportSpan, counterboreX, counterboreY, boreDiameter / 2d, out var margin))
-                    { diagnostics.Add($"firmament-feature-footprint-outside-span:{name}:{supportSpan.SpanId}:center=[{counterboreX:R},{counterboreY:R}]:radius={boreDiameter / 2d:R}:margin={margin:R}"); continue; }
+                    { diagnostics.Add($"firmament-feature-footprint-outside-span:{diagnosticName}:{supportSpan.SpanId}:center=[{counterboreX:R},{counterboreY:R}]:radius={boreDiameter / 2d:R}:margin={margin:R}"); continue; }
                     supportMargin = margin;
                 }
                 if (IntersectsExistingCircularCavity(shaftHoles, counterboreHoles, counterboreX, counterboreY, boreDiameter / 2d))
@@ -434,7 +436,7 @@ public static class PrismaticProfileCompositionParser
                     || Math.Abs(shaftSupport.ParentPlane.Origin.Z - materialTo) > 1e-7d)
                 { diagnostics.Add($"firmament-feature-support-parent-mismatch:{name}:{shaftSupport.SpanId}"); continue; }
                 if (!PlanarSpanContainment.ContainsCircle(shaftSupport, x, y, d / 2d, out var margin))
-                { diagnostics.Add($"firmament-feature-footprint-outside-span:{name}:{shaftSupport.SpanId}:center=[{x:R},{y:R}]:radius={d / 2d:R}:margin={margin:R}"); continue; }
+                { diagnostics.Add($"firmament-feature-footprint-outside-span:{diagnosticName}:{shaftSupport.SpanId}:center=[{x:R},{y:R}]:radius={d / 2d:R}:margin={margin:R}"); continue; }
                 shaftSupportMargin = margin;
             }
             var holeProfile = CircleProfile(profileName, x, y, d / 2d, stableId, $"offset:{header.Index}");

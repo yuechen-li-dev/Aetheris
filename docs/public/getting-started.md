@@ -37,6 +37,8 @@ aetheris view artifacts/mounting-block.step
 
 [`record-array-hole-pattern.firmament`](../../fixtures/Canonical/Patterns/record-array-hole-pattern.firmament) demonstrates typed Records, a static array, a Template, and `Pattern ... Over`:
 
+When the elements need stable semantic names, use [`mounting-points.firmament`](../../fixtures/Canonical/Set/mounting-points.firmament): `Set<Point2>` preserves authored names and order, `MountPoints.UpperRight` addresses one value, and Pattern maps the complete finite set into construction.
+
 ```powershell
 aetheris build fixtures/Canonical/Patterns/record-array-hole-pattern.firmament --output artifacts/pattern.step --json
 ```

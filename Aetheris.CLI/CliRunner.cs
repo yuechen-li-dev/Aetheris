@@ -1474,6 +1474,29 @@ Model CanonicalPanel {
                 columns = table.Columns,
                 table.SourceSpan
             }).ToArray() ?? [],
+            sets = document?.StaticAuthoring?.Sets?.Select(set => new
+            {
+                setId = set.Name,
+                elementType = set.ElementType,
+                count = set.Entries.Count,
+                entries = set.Entries.Select(entry => new
+                {
+                    entry.Name,
+                    entry.Value,
+                    entry.SourceOrder,
+                    provenance = entry.Provenance
+                })
+            }).ToArray() ?? [],
+            polygons = document?.Polygons?.Select(polygon => new
+            {
+                polygon.Name,
+                polygon.Variant,
+                center = new[] { polygon.CenterX, polygon.CenterY },
+                diagonals = new[] { polygon.DiagonalX, polygon.DiagonalY },
+                polygon.GeneratedPoints,
+                polygon.GeneratedEdges,
+                polygon.SourceSpan
+            }).ToArray() ?? [],
             patterns = document?.StaticAuthoring?.Patterns?.Select(pattern => new
             {
                 pattern.Name,
@@ -1481,6 +1504,7 @@ Model CanonicalPanel {
                 generator = pattern.Template,
                 count = pattern.GeneratedCount,
                 generatedInstances = pattern.GeneratedIds,
+                associations = pattern.Associations,
                 distribution = "AuthoredSourceOrder",
                 status = "PreservedThroughFeatureAir;InstancesMaterializedAtBRepPlan"
             }).ToArray() ?? [],

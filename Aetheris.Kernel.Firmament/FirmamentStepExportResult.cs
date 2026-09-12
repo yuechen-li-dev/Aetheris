@@ -75,7 +75,8 @@ public sealed record FirmamentSemanticPatternReport(
     int Count,
     IReadOnlyList<string> GeneratedInstances,
     string Distribution,
-    string Status = "PreservedThroughFeatureAir;InstancesMaterializedAtBRepPlan");
+    string Status = "PreservedThroughFeatureAir;InstancesMaterializedAtBRepPlan",
+    IReadOnlyList<FirmamentV2.FirmamentV2PatternAssociation>? Associations = null);
 
 public sealed record FirmamentSweepReport(
     string Path,

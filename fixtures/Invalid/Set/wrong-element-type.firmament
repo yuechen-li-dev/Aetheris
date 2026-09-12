@@ -1,0 +1,7 @@
+Model WrongSetElementType {
+    Units: mm
+    Static Points: Set<Point2> {
+        A => 10mm
+    }
+    Box Base { Size: [20mm, 20mm, 2mm] }
+}

@@ -304,7 +304,12 @@ public static class FirmamentV2ValidationReportBuilder
     }
 
     private static FirmamentV2ValidationDiagnostic ToParserDiagnostic(string code) =>
-        new(code, FirmamentV2Parser.IsFatalDiagnosticCode(code) ? "fatal" : "warning", Message(code));
+        new(code, IsFatal(code) ? "fatal" : "warning", Message(code));
+
+    private static bool IsFatal(string code) =>
+        code.StartsWith("firmament-span-", StringComparison.Ordinal)
+        || code.StartsWith("firmament-feature-footprint-outside-span:", StringComparison.Ordinal)
+        || FirmamentV2Parser.IsFatalDiagnosticCode(code);
 
     private static bool IsParserTraceDiagnostic(string code) =>
         code is "firmament-v2-parser-invoked" or "firmament-v2-parse-succeeded"

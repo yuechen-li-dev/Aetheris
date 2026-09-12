@@ -1,0 +1,56 @@
+schema Mechanical
+
+Model InvalidPlaneHoleSupport {
+    Units: mm
+
+    Concept Struct Supports {
+        Top: Plane { Origin: [0mm,0mm,8mm]; Normal: [0,0,1]; Up: [0,1,0] }
+    }
+    Construction Plane TopSupport { Trace: Supports.Top }
+
+    Record MountSpec { Center: Point2 }
+    Static Mounts: MountSpec[] = [
+        MountSpec { Center: Point2(-16mm, -9mm) }
+        MountSpec { Center: Point2(16mm, -9mm) }
+        MountSpec { Center: Point2(-16mm, 9mm) }
+        MountSpec { Center: Point2(28mm, 9mm) }
+    ]
+    Template<spec: MountSpec> M8Counterbore {
+        Hole<Counterbore> Mount {
+            On: MountingArea
+            Center: spec.Center
+            Diameter: 8mm
+            CounterboreDiameter: 16mm
+            CounterboreDepth: 3mm
+            End: ThroughAll
+        }
+    }
+
+    Concept Struct Layout On XY {
+        Rect2 Stock { Center: [0mm,0mm]; Size: [100mm,80mm] }
+        Point2 South { Position: [0mm,-32mm] }
+        Point2 East { Position: [45mm,0mm] }
+        Point2 North { Position: [0mm,32mm] }
+        Point2 West { Position: [-45mm,0mm] }
+        Line2 SE { From: South; To: East }
+        Line2 EN { From: East; To: North }
+        Line2 NW { From: North; To: West }
+        Line2 WS { From: West; To: South }
+    }
+
+    Profile StockProfile Using Layout {
+        Loop Outer { Stock.Bottom |> Stock.Right |> Stock.Top |> Stock.Left |> Close }
+    }
+    Profile MountBoundary Using Layout {
+        Loop Outer { SE |> EN |> NW |> WS |> Close }
+    }
+
+    Span<Plane> MountingArea { On: TopSupport; Boundary: MountBoundary }
+
+    Struct Part {
+        Compose Plate {
+            Base StockBody { Profile: StockProfile; From: 0mm; To: 8mm; Role: Stock }
+            Pattern MountPattern Over Mounts { M8Counterbore<Current> }
+        }
+    }
+}

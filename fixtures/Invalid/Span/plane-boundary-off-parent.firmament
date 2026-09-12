@@ -1,0 +1,16 @@
+schema Mechanical
+
+Model OffParentSurfaceSpanBoundary {
+    Units: mm
+    Concept Struct Supports {
+        Top: Plane { Origin: [0mm,0mm,8mm]; Normal: [0,0,1]; Up: [0,1,0] }
+        Offset: Plane { Origin: [0mm,0mm,9mm]; Normal: [0,0,1]; Up: [0,1,0] }
+    }
+    Construction Plane TopSupport { Trace: Supports.Top }
+    Construction Plane OffsetSupport { Trace: Supports.Offset }
+    Concept Struct Layout On XY { Rect2 Stock { Center: [0mm,0mm]; Size: [40mm,30mm] } }
+    Profile StockProfile Using Layout { Loop Outer { Stock.Bottom |> Stock.Right |> Stock.Top |> Stock.Left |> Close } }
+    Profile OffsetBoundary Using OffsetSupport { Loop Outer { Stock.Bottom |> Stock.Right |> Stock.Top |> Stock.Left |> Close } }
+    Span<Plane> InvalidArea { On: TopSupport; Boundary: OffsetBoundary }
+    Struct Part { Compose Body { Base StockBody { Profile: StockProfile; From: 0mm; To: 8mm; Role: Stock } } }
+}

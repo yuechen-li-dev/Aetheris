@@ -2182,11 +2182,12 @@ public static class FirmamentBuildAndExport
     private static IReadOnlyList<FirmamentEngineeringFeatureReport> EngineeringFeatureReports(PrismaticProfileCompositionFeature feature) =>
         (feature.Bosses ?? []).Select(item => new FirmamentEngineeringFeatureReport(
             item.Name, "Boss", item.StableId, item.Host, item.SupportFace, item.ProfileReference,
-            item.Height, "Height", "Add", MaterializationRoute: "PrismaticSectionStack/Add"))
+            item.Height, "Height", "Add", MaterializationRoute: "PrismaticSectionStack/Add",
+            SupportSpan: item.SupportSpan, ParentSupport: item.ParentSupport))
         .Concat((feature.Pockets ?? []).Select(item => new FirmamentEngineeringFeatureReport(
             item.Name, "Pocket", item.StableId, item.Host, item.SupportFace, item.ProfileReference,
             item.Depth, "Depth", "Remove", item.RemainingFloor, item.MinimumFloorThickness,
-            item.MinimumFloorPolicySource, "PrismaticSectionStack/Remove")))
+            item.MinimumFloorPolicySource, "PrismaticSectionStack/Remove", item.SupportSpan, item.ParentSupport)))
         .OrderBy(item => item.FeatureId, StringComparer.Ordinal)
         .ToArray();
 
@@ -2194,11 +2195,13 @@ public static class FirmamentBuildAndExport
         (feature.ShaftHoles ?? []).Select(item => new FirmamentHoleFeatureReport(
             item.Name, "Hole<Shaft>", item.StableId, item.Diameter, item.CenterX, item.CenterY,
             null, "ProfileCompose.Center", null, null, "+Z", item.SourceSpan,
-            "PrismaticSectionStack/Remove", "SemanticShaftProfile", "ThroughAll"))
+            "PrismaticSectionStack/Remove", "SemanticShaftProfile", "ThroughAll",
+            SupportSpan: item.SupportSpan, ParentSupport: item.ParentSupport, SupportBoundaryMargin: item.SupportBoundaryMargin))
         .Concat((feature.CounterboreHoles ?? []).Select(item => new FirmamentHoleFeatureReport(
             item.Name, "Hole<Counterbore>", item.StableId, item.Diameter, item.CenterX, item.CenterY,
             null, "ProfileCompose.Center", null, null, "+Z", item.SourceSpan,
-            "PrismaticSectionStack/Remove", "SemanticCounterboreProfiles", "ThroughAll")))
+            "PrismaticSectionStack/Remove", "SemanticCounterboreProfiles", "ThroughAll",
+            SupportSpan: item.SupportSpan, ParentSupport: item.ParentSupport, SupportBoundaryMargin: item.SupportBoundaryMargin)))
         .OrderBy(item => item.FeatureId, StringComparer.Ordinal)
         .ToArray();
 

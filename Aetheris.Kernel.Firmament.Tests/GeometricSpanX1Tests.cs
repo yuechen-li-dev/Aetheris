@@ -62,8 +62,10 @@ public sealed class GeometricSpanX1Tests
     public void PlaneSpan_PreservesPlaneAndBoundaryIdentity_WithoutCreatingAFace()
     {
         var source = """
+            Concept Struct Plate { TopPlane: Plane { Origin: [0mm,0mm,0mm]; Normal: [0,0,1]; Up: [0,1,0] } }
             Construction Plane MountPlane { Trace: Plate.TopPlane }
-            Profile MountBoundary { Loop Outer { } }
+            Rect2 Boundary { Center: [0mm,0mm]; Size: [10mm,10mm] }
+            Profile MountBoundary { Loop Outer { Boundary.Bottom |> Boundary.Right |> Boundary.Top |> Boundary.Left |> Close } }
             Span<Plane> MountArea { On: MountPlane; Boundary: MountBoundary }
             """;
         var span = Assert.Single(ProfileAuthoringParser.InspectGeometricSpans(source).Spans);

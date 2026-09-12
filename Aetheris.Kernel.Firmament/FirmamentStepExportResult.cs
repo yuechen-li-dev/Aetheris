@@ -118,7 +118,9 @@ public sealed record FirmamentEngineeringFeatureReport(
     double? RemainingFloor = null,
     double? MinimumFloorThickness = null,
     string? PolicySource = null,
-    string MaterializationRoute = "PrismaticSectionStack");
+    string MaterializationRoute = "PrismaticSectionStack",
+    string? SupportSpan = null,
+    string? ParentSupport = null);
 
 public sealed record FirmamentStandardPartReport(
     string Family,
@@ -248,7 +250,10 @@ public sealed record FirmamentHoleFeatureReport(
     int ConicalFaces = 0,
     int PlanarFaces = 0,
     string? StepSha256 = null,
-    bool StepReimportSucceeded = false);
+    bool StepReimportSucceeded = false,
+    string? SupportSpan = null,
+    string? ParentSupport = null,
+    double? SupportBoundaryMargin = null);
 
 public sealed record FirmamentAirChamferReport(
     FirmamentAirChamferFeatureReport Feature,

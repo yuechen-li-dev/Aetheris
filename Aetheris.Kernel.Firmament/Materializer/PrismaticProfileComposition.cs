@@ -18,15 +18,18 @@ public sealed record PrismaticProfileOperation(
 /// <summary>First-class connected material addition lowered through the section-stack Add operation.</summary>
 public sealed record PrismaticBossFeature(
     string Name, string StableId, string Host, string SupportFace, string ProfileReference,
-    double Height, double From, double To, string SourceSpan);
+    double Height, double From, double To, string SourceSpan,
+    string? SupportSpan = null, string? ParentSupport = null);
 /// <summary>First-class finite material removal lowered through the section-stack Remove operation.</summary>
 public sealed record PrismaticPocketFeature(
     string Name, string StableId, string Host, string SupportFace, string ProfileReference,
     double Depth, double HostThickness, double RemainingFloor, double MinimumFloorThickness,
-    string MinimumFloorPolicySource, double From, double To, string SourceSpan);
+    string MinimumFloorPolicySource, double From, double To, string SourceSpan,
+    string? SupportSpan = null, string? ParentSupport = null);
 public sealed record PrismaticShaftHoleFeature(
     string Name, string StableId, string ProfileReference, double CenterX, double CenterY, double Diameter,
-    double From, double To, string SemanticRole, string SourceSpan);
+    double From, double To, string SemanticRole, string SourceSpan,
+    string? SupportSpan = null, string? ParentSupport = null, double? SupportBoundaryMargin = null);
 /// <summary>
 /// A bounded stepped through cavity in an admitted +Z prismatic compose host.
 /// The two profile references are planner-owned section cuts, not Boolean tools.
@@ -34,7 +37,8 @@ public sealed record PrismaticShaftHoleFeature(
 public sealed record PrismaticCounterboreHoleFeature(
     string Name, string StableId, string ShaftProfileReference, string CounterboreProfileReference,
     double CenterX, double CenterY, double Diameter, double CounterboreDiameter, double CounterboreDepth,
-    double From, double To, string SemanticRole, string SourceSpan);
+    double From, double To, string SemanticRole, string SourceSpan,
+    string? SupportSpan = null, string? ParentSupport = null, double? SupportBoundaryMargin = null);
 /// <summary>Source-owned transverse blind drill; its cavity is planned after host construction.</summary>
 public sealed record PrismaticConstructionPlaneBlindDrillFeature(
     string Name, string StableId, string ConstructionPlaneId, string SourceConceptPlaneId,
@@ -120,7 +124,7 @@ public static class PrismaticProfileCompositionParser
     private static readonly Regex HoleDiameter = new(@"\bDiameter\s*:\s*(?<d>[-+.\d]+)mm", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex HoleCounterboreDiameter = new(@"\bCounterboreDiameter\s*:\s*(?<d>[-+.\d]+)mm", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex HoleCounterboreDepth = new(@"\bCounterboreDepth\s*:\s*(?<d>[-+.\d]+)mm", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
-    private static readonly Regex HoleOn = new(@"\bOn\s*:\s*(?<face>[+-][XYZ])", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    private static readonly Regex HoleOn = new(@"\bOn\s*:\s*(?<face>[+-][XYZ]|[A-Za-z_]\w*)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex HoleEnd = new(@"\bEnd\s*:\s*(?<end>\w+)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex HoleDepthEnd = new(@"\bEnd\s*:\s*(?<kind>ShaftDepth|TotalDepth)\s*\(\s*(?<depth>[-+.\d]+)mm\s*\)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex HoleFrom = new(@"\bFrom\s*:\s*(?<plane>\w+)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
@@ -221,6 +225,9 @@ public static class PrismaticProfileCompositionParser
         var composeBody = Block(source, compose.Index + compose.Length - 1);
         if (composeBody is null) return new(null, profiles, diagnostics.Append("compose-source-unclosed-compose").ToArray());
         composeBody = BindExternalModifyFeatures(source, compose.Groups["n"].Value, composeBody, diagnostics);
+        var spanInspection = ProfileAuthoringParser.InspectGeometricSpans(source);
+        diagnostics.AddRange(spanInspection.Diagnostics);
+        var surfaceSpans = spanInspection.Spans.Where(span => span.SpanType == "Plane").ToDictionary(span => span.SpanId, StringComparer.Ordinal);
         var placementMatch = Placement.Match(composeBody);
         var placement = new PrismaticProfilePlacement("LegacyImplicitWorldXY", 0d, 0d, 0d, "XY", "+Z", "+X", false);
         if (placementMatch.Success)
@@ -263,16 +270,21 @@ public static class PrismaticProfileCompositionParser
                 var profileName = profileMatch.Groups["profile"].Value; var face = support.Groups["face"].Value; var height = N(heightMatch, "value");
                 if (!names.Add(name)) { diagnostics.Add($"compose-duplicate-operation:{name}"); continue; }
                 if (!profiles.TryGetValue(profileName, out var bossProfile)) { diagnostics.Add($"firmament-boss-invalid-profile:{name}:profile={profileName}"); continue; }
-                if (!IsTopSelector(face)) { diagnostics.Add($"firmament-boss-invalid-target:{name}:On={face}:supported=Top-or-<feature>.Top"); continue; }
                 if (!double.IsFinite(height) || height <= 0d) { diagnostics.Add($"firmament-boss-height-must-be-positive:{name}:height={height:R}mm"); continue; }
-                var candidates = ResolveTopSupports(face, stock, operations, bossProfile, profiles);
+                surfaceSpans.TryGetValue(face, out var supportSpan);
+                if (supportSpan is null && !IsTopSelector(face)) { diagnostics.Add($"firmament-boss-invalid-target:{name}:On={face}:supported=Top-or-<feature>.Top-or-Span<Plane>"); continue; }
+                if (supportSpan is not null && !IsProfileFootprintInsideSpan(supportSpan, bossProfile, profiles))
+                { diagnostics.Add($"firmament-feature-footprint-outside-span:{name}:{face}:profile={profileName}"); continue; }
+                var candidates = supportSpan is null
+                    ? ResolveTopSupports(face, stock, operations, bossProfile, profiles)
+                    : ResolveSpanTopSupports(supportSpan, operations, bossProfile, profiles);
                 if (candidates.Count == 0) { diagnostics.Add(face.EndsWith(".Top", StringComparison.Ordinal)
                     ? $"feature-support-not-found:{name}:{face}:host={compose.Groups["n"].Value}:profile={profileName}"
                     : $"firmament-boss-disconnected-from-host:{name}:host={compose.Groups["n"].Value}:profile={profileName}:support=Top"); continue; }
                 if (candidates.Count > 1) { diagnostics.Add($"feature-support-ambiguous:Top:feature={name}:candidates={string.Join(",", candidates.Select(x => x.Name).Order(StringComparer.Ordinal))}"); continue; }
                 var selectedSupport = candidates[0];
                 var stableId = $"boss:{compose.Groups["n"].Value}.{name}"; var sourceSpan = $"offset:{header.Index}";
-                bosses.Add(new(name, stableId, compose.Groups["n"].Value, face, profileName, height, selectedSupport.To, selectedSupport.To + height, sourceSpan));
+                bosses.Add(new(name, stableId, compose.Groups["n"].Value, face, profileName, height, selectedSupport.To, selectedSupport.To + height, sourceSpan, supportSpan?.SpanId, supportSpan?.ParentId));
                 operations.Add(new(name, PrismaticProfileIntent.Add, profileName, selectedSupport.To, selectedSupport.To + height, "Boss", sourceSpan, stableId, "Boss"));
             }
 
@@ -286,9 +298,14 @@ public static class PrismaticProfileCompositionParser
                 var profileName = profileMatch.Groups["profile"].Value; var face = support.Groups["face"].Value; var depth = N(depthMatch, "value");
                 if (!names.Add(name)) { diagnostics.Add($"compose-duplicate-operation:{name}"); continue; }
                 if (!profiles.TryGetValue(profileName, out var pocketProfile)) { diagnostics.Add($"firmament-pocket-invalid-profile:{name}:profile={profileName}"); continue; }
-                if (!IsTopSelector(face)) { diagnostics.Add($"firmament-pocket-invalid-target:{name}:On={face}:supported=Top-or-<feature>.Top"); continue; }
                 if (!double.IsFinite(depth) || depth <= 0d) { diagnostics.Add($"firmament-pocket-depth-must-be-positive:{name}:depth={depth:R}mm"); continue; }
-                var candidates = ResolveTopSupports(face, stock, operations, pocketProfile, profiles, requireContainment: true);
+                surfaceSpans.TryGetValue(face, out var supportSpan);
+                if (supportSpan is null && !IsTopSelector(face)) { diagnostics.Add($"firmament-pocket-invalid-target:{name}:On={face}:supported=Top-or-<feature>.Top-or-Span<Plane>"); continue; }
+                if (supportSpan is not null && !IsProfileFootprintInsideSpan(supportSpan, pocketProfile, profiles))
+                { diagnostics.Add($"firmament-feature-footprint-outside-span:{name}:{face}:profile={profileName}"); continue; }
+                var candidates = supportSpan is null
+                    ? ResolveTopSupports(face, stock, operations, pocketProfile, profiles, requireContainment: true)
+                    : ResolveSpanTopSupports(supportSpan, operations, pocketProfile, profiles);
                 if (candidates.Count == 0) { diagnostics.Add($"feature-support-not-found:{name}:{face}:profile={profileName}:footprint-must-be-enclosed-by-support"); continue; }
                 if (candidates.Count > 1) { diagnostics.Add($"feature-support-ambiguous:Top:feature={name}:candidates={string.Join(",", candidates.Select(x => x.Name).Order(StringComparer.Ordinal))}"); continue; }
                 var selectedSupport = candidates[0];
@@ -310,7 +327,7 @@ public static class PrismaticProfileCompositionParser
                     continue;
                 }
                 var stableId = $"pocket:{compose.Groups["n"].Value}.{name}"; var sourceSpan = $"offset:{header.Index}";
-                pockets.Add(new(name, stableId, compose.Groups["n"].Value, face, profileName, depth, hostThickness, remaining, minimumFloor, policySource, selectedSupport.To - depth, selectedSupport.To, sourceSpan));
+                pockets.Add(new(name, stableId, compose.Groups["n"].Value, face, profileName, depth, hostThickness, remaining, minimumFloor, policySource, selectedSupport.To - depth, selectedSupport.To, sourceSpan, supportSpan?.SpanId, supportSpan?.ParentId));
                 operations.Add(new(name, PrismaticProfileIntent.Remove, profileName, selectedSupport.To - depth, selectedSupport.To, "Pocket", sourceSpan, stableId, "Pocket"));
             }
         }
@@ -358,8 +375,10 @@ public static class PrismaticProfileCompositionParser
             {
                 if (!end.Success || !string.Equals(end.Groups["end"].Value, "ThroughAll", StringComparison.OrdinalIgnoreCase))
                 { diagnostics.Add($"ComposeCounterboreEndUnsupported:{name}:supported=ThroughAll"); continue; }
-                if (!on.Success || !string.Equals(on.Groups["face"].Value, "+Z", StringComparison.OrdinalIgnoreCase))
-                { diagnostics.Add($"ComposeCounterboreAxisUnsupported:{name}:supported=+Z"); continue; }
+                var supportName = on.Success ? on.Groups["face"].Value : null;
+                surfaceSpans.TryGetValue(supportName ?? string.Empty, out var supportSpan);
+                if (!on.Success || (!string.Equals(supportName, "+Z", StringComparison.OrdinalIgnoreCase) && supportSpan is null))
+                { diagnostics.Add($"ComposeCounterboreAxisUnsupported:{name}:supported=+Z-or-Span<Plane>"); continue; }
                 if (!center.Success || !diameter.Success || !counterboreDiameter.Success || !counterboreDepth.Success)
                 { diagnostics.Add($"ComposeCounterboreMissingRequiredField:{name}"); continue; }
                 var counterboreX = N(center, "x"); var counterboreY = N(center, "y"); var shaftDiameter = N(diameter, "d"); var boreDiameter = N(counterboreDiameter, "d"); var boreDepth = N(counterboreDepth, "d");
@@ -372,6 +391,17 @@ public static class PrismaticProfileCompositionParser
                 var counterboreStableId = $"hole:{compose.Groups["n"].Value}.{name}";
                 if (!CircleContainedInBaseProfile(operations, profiles, counterboreX, counterboreY, boreDiameter / 2d))
                 { diagnostics.Add($"ComposeCounterboreFootprintLeavesProfileMaterial:{name}:radius={boreDiameter / 2d:R}"); continue; }
+                double? supportMargin = null;
+                if (supportSpan is not null)
+                {
+                    var parentNormal = supportSpan.ParentPlane!.AxisZ.ToVector();
+                    if (Math.Abs(parentNormal.X) > 1e-8d || Math.Abs(parentNormal.Y) > 1e-8d || parentNormal.Z < 1d - 1e-8d
+                        || Math.Abs(supportSpan.ParentPlane.Origin.Z - materialTo) > 1e-7d)
+                    { diagnostics.Add($"firmament-feature-support-parent-mismatch:{name}:{supportSpan.SpanId}"); continue; }
+                    if (!PlanarSpanContainment.ContainsCircle(supportSpan, counterboreX, counterboreY, boreDiameter / 2d, out var margin))
+                    { diagnostics.Add($"firmament-feature-footprint-outside-span:{name}:{supportSpan.SpanId}:center=[{counterboreX:R},{counterboreY:R}]:radius={boreDiameter / 2d:R}:margin={margin:R}"); continue; }
+                    supportMargin = margin;
+                }
                 if (IntersectsExistingCircularCavity(shaftHoles, counterboreHoles, counterboreX, counterboreY, boreDiameter / 2d))
                 { diagnostics.Add($"ComposeCounterboreIntersectsExistingCavity:{name}"); continue; }
                 var shaftProfile = $"{name}ShaftProfile"; var boreProfile = $"{name}CounterboreProfile";
@@ -379,7 +409,7 @@ public static class PrismaticProfileCompositionParser
                 profiles.Add(shaftProfile, CircleProfile(shaftProfile, counterboreX, counterboreY, shaftDiameter / 2d, counterboreStableId, $"offset:{header.Index}"));
                 profiles.Add(boreProfile, CircleProfile(boreProfile, counterboreX, counterboreY, boreDiameter / 2d, counterboreStableId, $"offset:{header.Index}"));
                 var counterboreSourceSpan = $"offset:{header.Index}"; var counterboreSemanticRole = role.Success ? role.Groups["role"].Value : "CounterboreHole";
-                counterboreHoles.Add(new(name, counterboreStableId, shaftProfile, boreProfile, counterboreX, counterboreY, shaftDiameter, boreDiameter, boreDepth, materialFrom, materialTo, counterboreSemanticRole, counterboreSourceSpan));
+                counterboreHoles.Add(new(name, counterboreStableId, shaftProfile, boreProfile, counterboreX, counterboreY, shaftDiameter, boreDiameter, boreDepth, materialFrom, materialTo, counterboreSemanticRole, counterboreSourceSpan, supportSpan?.SpanId, supportSpan?.ParentId, supportMargin));
                 operations.Add(new($"{name}Shaft", PrismaticProfileIntent.Remove, shaftProfile, materialFrom, materialTo, counterboreSemanticRole, counterboreSourceSpan, counterboreStableId, "Hole<Counterbore>", shaftDiameter));
                 operations.Add(new($"{name}Counterbore", PrismaticProfileIntent.Remove, boreProfile, materialTo - boreDepth, materialTo, counterboreSemanticRole, counterboreSourceSpan, counterboreStableId, "Hole<Counterbore>", boreDiameter));
                 continue;
@@ -394,6 +424,19 @@ public static class PrismaticProfileCompositionParser
             var profileName = $"{name}ShaftProfile";
             if (profiles.ContainsKey(profileName)) { diagnostics.Add($"compose-hole-profile-name-collision:{name}:{profileName}"); continue; }
             var stableId = $"hole:{compose.Groups["n"].Value}.{name}";
+            GeometricSpanView? shaftSupport = null; double? shaftSupportMargin = null;
+            if (on.Success && !string.Equals(on.Groups["face"].Value, "+Z", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!surfaceSpans.TryGetValue(on.Groups["face"].Value, out shaftSupport))
+                { diagnostics.Add($"compose-hole-support-not-found:{name}:{on.Groups["face"].Value}"); continue; }
+                var parentNormal = shaftSupport.ParentPlane!.AxisZ.ToVector();
+                if (Math.Abs(parentNormal.X) > 1e-8d || Math.Abs(parentNormal.Y) > 1e-8d || parentNormal.Z < 1d - 1e-8d
+                    || Math.Abs(shaftSupport.ParentPlane.Origin.Z - materialTo) > 1e-7d)
+                { diagnostics.Add($"firmament-feature-support-parent-mismatch:{name}:{shaftSupport.SpanId}"); continue; }
+                if (!PlanarSpanContainment.ContainsCircle(shaftSupport, x, y, d / 2d, out var margin))
+                { diagnostics.Add($"firmament-feature-footprint-outside-span:{name}:{shaftSupport.SpanId}:center=[{x:R},{y:R}]:radius={d / 2d:R}:margin={margin:R}"); continue; }
+                shaftSupportMargin = margin;
+            }
             var holeProfile = CircleProfile(profileName, x, y, d / 2d, stableId, $"offset:{header.Index}");
             var validation = ResolvedProfile2DValidator.Validate(holeProfile);
             diagnostics.AddRange(validation.Diagnostics);
@@ -401,7 +444,7 @@ public static class PrismaticProfileCompositionParser
             profiles.Add(profileName, holeProfile);
             var semanticRole = role.Success ? role.Groups["role"].Value : "ShaftHole";
             var sourceSpan = $"offset:{header.Index}";
-            shaftHoles.Add(new(name, stableId, profileName, x, y, d, materialFrom, materialTo, semanticRole, sourceSpan));
+            shaftHoles.Add(new(name, stableId, profileName, x, y, d, materialFrom, materialTo, semanticRole, sourceSpan, shaftSupport?.SpanId, shaftSupport?.ParentId, shaftSupportMargin));
             operations.Add(new(name, PrismaticProfileIntent.Remove, profileName, materialFrom, materialTo, semanticRole, sourceSpan, stableId, "Hole<Shaft>", d));
         }
         // Source order must not decide whether an intersecting shaft/counterbore
@@ -449,6 +492,33 @@ public static class PrismaticProfileCompositionParser
     }
 
     private static bool IsTopSelector(string selector) => selector is "Top" or "+Z" || selector.EndsWith(".Top", StringComparison.Ordinal);
+
+    private static IReadOnlyList<PrismaticProfileOperation> ResolveSpanTopSupports(
+        GeometricSpanView span,
+        IReadOnlyList<PrismaticProfileOperation> operations,
+        ResolvedProfile2D footprint,
+        IReadOnlyDictionary<string, ResolvedProfile2D> profiles)
+    {
+        if (span.ParentPlane is null) return [];
+        var top = span.ParentPlane.Origin.Z;
+        return operations.Where(operation => operation.Intent != PrismaticProfileIntent.Remove
+                && Math.Abs(operation.To - top) <= PlanarSpanContainment.Tolerance
+                && IsPocketFootprintInsideStock(operation, footprint, profiles))
+            .ToArray();
+    }
+
+    private static bool IsProfileFootprintInsideSpan(
+        GeometricSpanView span,
+        ResolvedProfile2D footprint,
+        IReadOnlyDictionary<string, ResolvedProfile2D> profiles)
+    {
+        if (span.Boundary is null) return false;
+        var available = profiles.ContainsKey(span.Boundary.Name)
+            ? profiles
+            : new Dictionary<string, ResolvedProfile2D>(profiles, StringComparer.Ordinal) { [span.Boundary.Name] = span.Boundary };
+        var support = new PrismaticProfileOperation("SpanSupport", PrismaticProfileIntent.Base, span.Boundary.Name, 0d, 1d, "SpanSupport", span.Provenance);
+        return IsPocketFootprintInsideStock(support, footprint, available);
+    }
 
     private static IReadOnlyList<PrismaticProfileOperation> ResolveTopSupports(
         string selector,

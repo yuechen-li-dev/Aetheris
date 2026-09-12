@@ -231,7 +231,7 @@ internal static class CanonicalStaticAuthoring
 
     private static string? Instantiate(Template template, IReadOnlyDictionary<string, string> values, string id, bool patterned, List<string> diagnostics)
     {
-        var declaration = Regex.Match(template.Body, @"\b(?<kind>Hole\s*<\s*Shaft\s*>|Slot\s*<\s*(?:Capsule|RoundedRectangle)\s*>|Profile|StandardPart)\s+(?<name>[A-Za-z_]\w*)(?<tail>\s+Using\s+[A-Za-z_]\w*)?\s*\{", RegexOptions.CultureInvariant);
+        var declaration = Regex.Match(template.Body, @"\b(?<kind>Hole\s*<\s*(?:Shaft|Counterbore)\s*>|Slot\s*<\s*(?:Capsule|RoundedRectangle)\s*>|Profile|StandardPart)\s+(?<name>[A-Za-z_]\w*)(?<tail>\s+Using\s+[A-Za-z_]\w*)?\s*\{", RegexOptions.CultureInvariant);
         if (!declaration.Success) { diagnostics.Add(Prefix + "template-output-unsupported:" + template.Name); return null; }
         var kind = declaration.Groups["kind"].Value;
         if (patterned && string.Equals(kind, "Profile", StringComparison.Ordinal))

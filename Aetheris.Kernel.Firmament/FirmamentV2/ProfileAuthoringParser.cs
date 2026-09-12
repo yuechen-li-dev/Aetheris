@@ -30,11 +30,42 @@ public static class ProfileAuthoringParser
     {
         ArgumentNullException.ThrowIfNull(source);
         var diagnostics = new List<string>();
+        var expansion = FirmamentV2TemplateExpansion.Expand(source, diagnostics);
+        if (expansion is not null) source = expansion.Source;
+        var staticExpansion = CanonicalStaticAuthoring.Expand(source, diagnostics);
+        if (staticExpansion is not null) source = staticExpansion.Source;
         var points = new Dictionary<string, (double X, double Y)>(StringComparer.Ordinal);
         var guides = new Dictionary<string, LineArcProfileCurve2D>(StringComparer.Ordinal);
         AddOrdinaryGuides(source, points, guides, diagnostics, applySpans: false);
         var spans = ApplyGeometricSpans(source, points, guides, diagnostics, addGuides: false);
         return new(spans, diagnostics.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray());
+    }
+
+    /// <summary>Resolves one named Profile without requiring an Extrude consumer.</summary>
+    public static ResolvedProfile2D? ResolveNamedProfile(string source, string profileName, out IReadOnlyList<string> reportedDiagnostics)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentException.ThrowIfNullOrWhiteSpace(profileName);
+        var diagnostics = new List<string>();
+        var expansion = FirmamentV2TemplateExpansion.Expand(source, diagnostics);
+        if (expansion is not null) source = expansion.Source;
+        var declaration = FindProfiles(source).FirstOrDefault(profile => profile.Name == profileName);
+        if (declaration is null) { reportedDiagnostics = [$"profile-source-missing-profile:{profileName}"]; return null; }
+        var points = new Dictionary<string, (double X, double Y)>(StringComparer.Ordinal);
+        var guides = new Dictionary<string, LineArcProfileCurve2D>(StringComparer.Ordinal);
+        AddOrdinaryGuides(source, points, guides, diagnostics, applySpans: false);
+        var paths = BindPaths(source, points, guides, diagnostics);
+        var plane = ResolveConstructionPlane(source, declaration.Frame, diagnostics);
+        var loops = BindProfileLoops(declaration, paths, points, guides, diagnostics);
+        var profile = plane is null || loops.Count == 0 ? null : new ResolvedProfile2D(declaration.Name, declaration.Frame ?? "XY", loops, plane);
+        if (profile is not null)
+        {
+            var validation = ResolvedProfile2DValidator.Validate(profile);
+            diagnostics.AddRange(validation.Diagnostics);
+            if (!validation.IsValid) profile = null;
+        }
+        reportedDiagnostics = diagnostics.Distinct(StringComparer.Ordinal).ToArray();
+        return profile;
     }
 
     internal static IReadOnlyList<string> ValidatePipelineContexts(string source)
@@ -236,12 +267,35 @@ public static class ProfileAuthoringParser
             if (type == "Plane")
             {
                 var boundary = Property(body, "Boundary");
-                var knownPlanes = ConstructionPlaneDeclaration.Matches(source).Cast<Match>()
-                    .Select(match => match.Groups["name"].Value).ToHashSet(StringComparer.Ordinal);
-                if (!knownPlanes.Contains(parent)) { diagnostics.Add($"firmament-span-parent-not-found:{name}"); continue; }
-                if (boundary is null || !FindProfiles(source).Any(profile => profile.Name == boundary))
-                { diagnostics.Add($"firmament-span-boundary-not-closed:{name}"); continue; }
-                result.Add(new(name, type, parent, "Plane", $"Boundary:{boundary}", "Forward", null, null, boundary, null, $"span:{name};parent:{parent};boundary:{boundary}"));
+                var planeDiagnostics = new List<string>();
+                var parentPlane = ResolveConstructionPlane(source, parent, planeDiagnostics);
+                if (!ConstructionPlaneDeclaration.Matches(source).Cast<Match>().Any(match => match.Groups["name"].Value == parent) || parentPlane is null)
+                { diagnostics.Add($"firmament-span-parent-not-found:{name}"); continue; }
+                if (boundary is null) { diagnostics.Add($"firmament-span-surface-boundary-open:{name}"); continue; }
+                var boundaryProfile = ResolveNamedProfile(source, boundary, out var boundaryDiagnostics);
+                if (boundaryProfile is null)
+                {
+                    diagnostics.Add(boundaryDiagnostics.Any(item => item.Contains("self-intersection", StringComparison.Ordinal))
+                        ? $"firmament-span-surface-self-intersection:{name}"
+                        : $"firmament-span-surface-boundary-open:{name}");
+                    continue;
+                }
+                // An unqualified XY Profile is interpreted in the parent-local 2D frame by
+                // the Span declaration. An explicitly qualified different frame is invalid.
+                if (!string.Equals(boundaryProfile.PlaneFrame, "XY", StringComparison.Ordinal)
+                    && !string.Equals(boundaryProfile.PlaneFrame, parent, StringComparison.Ordinal)
+                    && !IsWorldXyLayout(source, boundaryProfile.PlaneFrame))
+                { diagnostics.Add($"firmament-span-surface-boundary-off-parent:{name}"); continue; }
+                var area = boundaryProfile.Loops.Sum(loop =>
+                    (loop.IsOuter ? 1d : -1d) * Math.Abs(PrismaticSectionStackCompiler.ProfileArea(boundaryProfile with { Loops = [loop] })));
+                if (!double.IsFinite(area) || area <= Tolerance) { diagnostics.Add($"firmament-span-surface-domain-invalid:{name}"); continue; }
+                var normal = parentPlane.AxisZ.ToVector();
+                var orientation = string.Equals(Property(body, "Orientation"), "Reverse", StringComparison.Ordinal) ? "Reverse" : "Forward";
+                var consumers = FindSpanConsumers(source, name);
+                result.Add(new(name, type, parent, "Plane", $"Boundary:{boundary}", orientation, null, null, boundary, null,
+                    $"span:{name};parent:{parent};boundary:{boundary}", Area: area,
+                    Normal: orientation == "Reverse" ? [-normal.X, -normal.Y, -normal.Z] : [normal.X, normal.Y, normal.Z],
+                    LocalFrame: parentPlane.StableId, ConsumerReferences: consumers, Boundary: boundaryProfile, ParentPlane: parentPlane));
                 continue;
             }
 
@@ -271,6 +325,23 @@ public static class ProfileAuthoringParser
             if (addGuides) guides[name] = curve;
         }
         return result;
+    }
+
+    private static bool IsWorldXyLayout(string source, string frame) =>
+        Regex.IsMatch(source, $@"\bConcept\s+Struct\s+{Regex.Escape(frame)}\s+On\s+XY\s*\{{", RegexOptions.CultureInvariant);
+
+    private static IReadOnlyList<string> FindSpanConsumers(string source, string spanName)
+    {
+        var consumers = new List<string>();
+        foreach (var kind in new[] { "Hole", "Boss", "Pocket", "Fixed", "Force", "Pressure", "Traction" })
+        foreach (Match header in Regex.Matches(source, $@"\b{kind}(?:\s*<[^>]+>)?\s+(?<name>[A-Za-z_]\w*)\s*\{{", RegexOptions.CultureInvariant))
+        {
+            var open = source.IndexOf('{', header.Index, header.Length);
+            var close = FindMatchingBrace(source, open);
+            if (close > open && string.Equals(Property(source[(open + 1)..close], "On") ?? Property(source[(open + 1)..close], "region"), spanName, StringComparison.Ordinal))
+                consumers.Add($"{kind}:{header.Groups["name"].Value}");
+        }
+        return consumers.Order(StringComparer.Ordinal).ToArray();
     }
 
     private static double CurveLength(LineArcProfileCurve2D curve) => curve switch

@@ -928,7 +928,7 @@ public static class FirmamentV2Parser
     /// and feature semantics, never the spelling that introduced them.
     /// </summary>
     private static bool ContainsCanonicalAdvancedDeclaration(string source) =>
-        Regex.IsMatch(source, @"\b(?:Concept|Struct|Construction\s+Plane|Profile|Compose|Selection|Template|Enum|Pattern|Require|Match)\b", RegexOptions.CultureInvariant);
+        Regex.IsMatch(source, @"\b(?:Concept|Struct|Construction\s+Plane|Profile|Span|Compose|Selection|Template|Enum|Pattern|Require|Match)\b", RegexOptions.CultureInvariant);
 
     /// <summary>
     /// Canonical roots have one owner for every declaration-shaped block.  This
@@ -944,7 +944,7 @@ public static class FirmamentV2Parser
 
         var known = new HashSet<string>(StringComparer.Ordinal)
         {
-            "Box", "Cylinder", "Cone", "Sphere", "Torus", "RoundedBox", "Frustum", "StandardPart", "ExactCoaxialPart", "Concept", "Struct", "Construction", "Profile", "Compose", "Boss", "Pocket", "EdgeFinish",
+            "Box", "Cylinder", "Cone", "Sphere", "Torus", "RoundedBox", "Frustum", "StandardPart", "ExactCoaxialPart", "Concept", "Struct", "Construction", "Profile", "Span", "Compose", "Boss", "Pocket", "EdgeFinish",
             "Record", "Static", "Template", "template", "ProfileDelta", "Selection", "InlineStep", "Recognize", "Replace", "Pmi", "Modify", "Match", "Require", "Assert"
         };
         var compatibilityOnly = new HashSet<string>(StringComparer.Ordinal)

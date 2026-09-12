@@ -1,5 +1,7 @@
 # LANG-SPAN-X1 — geometric span views
 
+> Subsequent planar-support qualification: [LANG-SPAN-SURFACE-X1](LANG-SPAN-SURFACE-X1.md). This document retains the original curve-view milestone verdict.
+
 ## Verdict
 
 **Meaningful progression.** Firmament can now name a bounded curve view over an existing planar line or circle guide and compose that view into the established Profile/Path pipeline without creating a copied guide. It also has a semantic `Span<Plane>` declaration that retains a named boundary Profile, but planar support validation and feature/FEA consumption are intentionally not claimed yet.

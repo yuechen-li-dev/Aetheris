@@ -305,7 +305,7 @@ public static class FirmamentV2Parser
             sourceText=ProfileModificationTemplateLibrary.Source+Environment.NewLine+Regex.Replace(sourceText,@"\bUse\s+Profile\.Modifications\s*;",string.Empty,RegexOptions.CultureInvariant);
         var diagnostics = new List<string> { "firmament-v2-parser-invoked" };
         var source = StripLineComments(sourceText);
-        var polygonExpansion = Polygon2RhombusAuthoring.Expand(source, diagnostics);
+        var polygonExpansion = ClosedBoundary2Authoring.Expand(source, diagnostics);
         if (polygonExpansion is null)
         {
             diagnostics.Add("firmament-v2-parse-failed");
@@ -372,7 +372,7 @@ public static class FirmamentV2Parser
             var panelDocument = new FirmamentV2Document(panelCompilation.ModelName, "mm", [],
                 TemplateInstantiations: templateExpansion.Instantiations, Panels: panelCompilation.Panels,
                 FeatureDefinitions: featureExpansion.Definitions, FeatureInvocations: featureExpansion.Invocations,
-                FeatureExpansion: featureExpansion.Metrics, Polygons: polygonExpansion.Polygons);
+                FeatureExpansion: featureExpansion.Metrics, Polygons: polygonExpansion.Polygons, Boundaries: polygonExpansion.Boundaries);
             return FirmamentV2ParseResult.Success(panelDocument, diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray());
         }
 
@@ -508,10 +508,10 @@ public static class FirmamentV2Parser
 
     private static FirmamentV2ParseResult WithPolygonMetadata(
         FirmamentV2ParseResult result,
-        Polygon2RhombusAuthoring.Result expansion) =>
+        ClosedBoundary2Authoring.Result expansion) =>
         result.Document is null
             ? result
-            : result with { Document = result.Document with { Polygons = expansion.Polygons } };
+            : result with { Document = result.Document with { Polygons = expansion.Polygons, Boundaries = expansion.Boundaries } };
 
     private static bool IsV2AdmissionCandidate(string source) =>
         ModelRegex.IsMatch(source)
@@ -960,7 +960,7 @@ public static class FirmamentV2Parser
 
         var known = new HashSet<string>(StringComparer.Ordinal)
         {
-            "Box", "Cylinder", "Cone", "Sphere", "Torus", "RoundedBox", "Frustum", "StandardPart", "ExactCoaxialPart", "Concept", "Struct", "Construction", "Profile", "Span", "Compose", "Boss", "Pocket", "EdgeFinish",
+            "Box", "Cylinder", "Cone", "Sphere", "Torus", "RoundedBox", "Frustum", "StandardPart", "ExactCoaxialPart", "Point2", "Line2", "Rect2", "Circle2", "Circle2Guide", "Ellipse2Guide", "Concept", "Struct", "Construction", "Profile", "Span", "Compose", "Boss", "Pocket", "EdgeFinish",
             "Record", "Static", "Template", "template", "ProfileDelta", "Selection", "InlineStep", "Recognize", "Replace", "Pmi", "Modify", "Match", "Require", "Assert"
         };
         var compatibilityOnly = new HashSet<string>(StringComparer.Ordinal)

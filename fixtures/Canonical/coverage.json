@@ -57,6 +57,7 @@
     "MaterializedStandoff": "PlasticShell/plastic-shell-materialized-standoff.firmament",
     "MaterializedRib": "PlasticShell/plastic-shell-materialized-rib.firmament",
     "MoldedRibStandoffJunction": "PlasticShell/plastic-shell-rib-standoff-junction.firmament",
-    "Polygon2Rhombus": "Set/mounting-points.firmament"
+    "Polygon2Rhombus": "Set/mounting-points.firmament",
+    "ClosedBoundary2": "Boundary2/closed-boundary-family.firmament"
   }
 }

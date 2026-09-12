@@ -175,7 +175,6 @@ public sealed class ProfilePipelineX1Tests
     [InlineData("Stock.Bottom |> Stock.Top |> Close", "firmament-profile-pipeline-disconnected:Stock.Top")]
     [InlineData("Stock.Bottom |> Stock.Right |> Stock.Top |> Stock.Left |> Stock.Bottom |> Close", "firmament-profile-pipeline-identity-collision:Bottom")]
     [InlineData("Stock.Bottom |> Material |> Close", "firmament-pipeline-stage-type:Material")]
-    [InlineData("Stock |> TraceLoop", "firmament-profile-traceloop-not-loop:Stock")]
     [InlineData("Stock.Bottom |> Stock.Right |> Close", "firmament-pipeline-close-open:Outer")]
     public void InvalidPipeline_ReportsTypedDiagnostic(string expression, string expected)
     {

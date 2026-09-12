@@ -1,0 +1,1 @@
+Model Invalid { Units: mm Static V: Set<Point2> { A => Point2(0mm,0mm) B => Point2(2mm,2mm) C => Point2(0mm,2mm) D => Point2(2mm,0mm) } Polygon2<Explicit> Bad { Vertices: V } Box Base { Size: [2mm,2mm,2mm] } }

@@ -1,0 +1,1 @@
+Model Invalid { Units: mm Rect2 Bad { Center: [0mm,0mm] Size: [-1mm,2mm] } Box Base { Size: [2mm,2mm,2mm] } }

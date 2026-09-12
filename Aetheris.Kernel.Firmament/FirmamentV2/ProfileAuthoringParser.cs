@@ -16,6 +16,8 @@ public static class ProfileAuthoringParser
     private static readonly Regex Point = new(@"\bPoint2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*Position\s*:\s*(?:\[|Point2\s*\()\s*(?<x>[-+.\deE]+)mm\s*,\s*(?<y>[-+.\deE]+)mm\s*(?:\]|\))", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex Line = new(@"\bLine2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*From\s*:\s*(?<a>[\w.]+)\s*;?\s*To\s*:\s*(?<b>[\w.]+)", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex Circle = new(@"\bCircle2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*Center\s*:\s*(?<c>[\w.]+)\s*;?\s*Radius\s*:\s*(?<r>[-+.\deE]+)mm", RegexOptions.Singleline | RegexOptions.CultureInvariant);
+    private static readonly Regex CircleGuide = new(@"\bCircle2Guide\s+(?<n>[A-Za-z_]\w*)\s*\{\s*Center\s*:\s*(?<c>[\w.]+)\s*;?\s*Radius\s*:\s*(?<r>[-+.\deE]+)mm", RegexOptions.Singleline | RegexOptions.CultureInvariant);
+    private static readonly Regex EllipseGuide = new(@"\bEllipse2Guide\s+(?<n>[A-Za-z_]\w*)\s*\{\s*Center\s*:\s*(?<c>[\w.]+)\s*;?\s*SemiAxes\s*:\s*\[\s*(?<a>[-+.\deE]+)mm\s*,\s*(?<b>[-+.\deE]+)mm\s*\]\s*;?\s*Rotation\s*:\s*(?<r>[-+.\deE]+)deg", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex Rect = new(@"\bRect2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*Center\s*:\s*(?:\[|Point2\s*\()\s*(?<x>[-+.\deE]+)mm\s*,\s*(?<y>[-+.\deE]+)mm\s*(?:\]|\))\s*;?\s*Size\s*:\s*\[(?<w>[-+.\deE]+)mm\s*,\s*(?<h>[-+.\deE]+)mm\]", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex ConstructionPlaneDeclaration = new(@"\bConstruction\s+Plane\s+(?<name>\w+)\s*\{\s*Trace\s*:\s*(?<trace>[\w.]+)\s*;?\s*\}", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex Segment = new(@"\bSegment\s+(?<n>\w+)\s*\{\s*Trace\s*:\s*(?<trace>[\w.]+)\s*;?\s*From\s*:\s*(?<from>[\w.]+)\s*;?\s*To\s*:\s*(?<to>[\w.]+)(?:\s*;?\s*Sweep\s*:\s*(?<sweep>Clockwise|CounterClockwise))?", RegexOptions.Singleline | RegexOptions.CultureInvariant);
@@ -206,7 +208,7 @@ public static class ProfileAuthoringParser
     }
 
     private static string ExpandBuiltInPolygons(string source, List<string> diagnostics) =>
-        Polygon2RhombusAuthoring.Expand(source, diagnostics)?.Source ?? source;
+        ClosedBoundary2Authoring.Expand(source, diagnostics)?.Source ?? source;
 
     internal static ConstructionPlane? ResolveNamedConstructionPlane(string source, string frame, List<string> diagnostics)
         => ResolveConstructionPlane(source, frame, diagnostics);
@@ -241,11 +243,17 @@ public static class ProfileAuthoringParser
                 guides[$"{name}.Top"] = new LineArcLineSegment2D(tr, tl); guides[$"{name}.Left"] = new LineArcLineSegment2D(tl, bl);
             }
         }
-        foreach (Match match in Circle.Matches(source))
+        foreach (Match match in Circle.Matches(source).Cast<Match>().Concat(CircleGuide.Matches(source).Cast<Match>()))
         {
             if (!points.TryGetValue(match.Groups["c"].Value, out var center) || !TryNumber(match.Groups["r"].Value, out var radius) || radius <= 0) { diagnostics.Add($"profile-layout-unresolved-circle:{match.Groups["n"].Value}"); continue; }
             // A circle remains a guide; segments choose its directed arc below.
             guides[match.Groups["n"].Value] = new LineArcFullCircle2D(center, radius);
+        }
+        foreach (Match match in EllipseGuide.Matches(source))
+        {
+            if (!points.TryGetValue(match.Groups["c"].Value, out var center) || !TryNumber(match.Groups["a"].Value, out var major) || !TryNumber(match.Groups["b"].Value, out var minor) || !TryNumber(match.Groups["r"].Value, out var rotation) || major <= 0 || minor <= 0 || minor > major)
+            { diagnostics.Add($"profile-layout-unresolved-ellipse:{match.Groups["n"].Value}"); continue; }
+            guides[match.Groups["n"].Value] = new LineArcFullEllipse2D(center, major, minor, rotation * Math.PI / 180d);
         }
         if (applySpans) ApplyGeometricSpans(source, points, guides, diagnostics, addGuides: true);
     }
@@ -692,6 +700,8 @@ public static class ProfileAuthoringParser
         var stages = ParsePipelineStages(match.Groups["expression"].Value);
         if (stages.Count == 2 && stages[1].Kind == PipelineStageKind.TraceLoop)
         {
+            if (guides.TryGetValue(stages[0].Reference!, out var closedGuide) && closedGuide is LineArcFullCircle2D or LineArcFullEllipse2D)
+                return [PipelineSegment(profile, loopName, "Boundary", closedGuide, $"concept:{profile.Frame ?? "XY"}.{stages[0].Reference}", stages[0].Reference!, false, 0, match.Index)];
             if (!paths.TryGetValue(stages[0].Reference!, out var path))
             {
                 diagnostics.Add($"firmament-profile-traceloop-not-loop:{stages[0].Reference}");

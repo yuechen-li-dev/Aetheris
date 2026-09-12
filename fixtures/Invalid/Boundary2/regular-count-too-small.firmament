@@ -1,0 +1,1 @@
+Model Invalid { Units: mm RegularPolygon2<2> Bad { Center: [0mm,0mm] Circumradius: 1mm } Box Base { Size: [2mm,2mm,2mm] } }

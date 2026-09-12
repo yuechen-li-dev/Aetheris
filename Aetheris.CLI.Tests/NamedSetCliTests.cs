@@ -37,6 +37,23 @@ public sealed class NamedSetCliTests
         Assert.Contains("firmament-feature-footprint-outside-span:Mounts.UpperRight:MountingArea", stdout.ToString(), StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Inspect_ReportsClosedBoundaryFamilyAndStableGuides()
+    {
+        var stdout = new StringWriter(); var stderr = new StringWriter();
+        var exit = Aetheris.CLI.CliRunner.Run(["inspect", Fixture("Canonical", "Boundary2", "closed-boundary-family.firmament"), "--json"], stdout, stderr);
+        Assert.Equal(0, exit); Assert.Equal(string.Empty, stderr.ToString());
+        using var json = JsonDocument.Parse(stdout.ToString());
+        var boundaries = json.RootElement.GetProperty("boundaries").EnumerateArray().ToArray();
+        Assert.Equal(15, boundaries.Length);
+        Assert.All(boundaries, x => Assert.Equal("ClosedBoundary2", x.GetProperty("capability").GetString()));
+        var rounded = boundaries.Single(x => x.GetProperty("shapeId").GetString() == "MountingRegion");
+        Assert.Equal("RoundedRect2", rounded.GetProperty("shapeType").GetString());
+        Assert.Contains("TopRightCorner", rounded.GetProperty("generatedGuides").EnumerateArray().Select(x => x.GetString()));
+        var hex = boundaries.Single(x => x.GetProperty("shapeId").GetString() == "Hex");
+        Assert.Equal(6d, hex.GetProperty("dimensions").GetProperty("VertexCount").GetDouble());
+    }
+
     private static string Fixture(params string[] parts) =>
         Path.GetFullPath(Path.Combine([AppContext.BaseDirectory, "../../../../fixtures", .. parts]));
 }

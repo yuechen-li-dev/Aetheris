@@ -1,0 +1,1 @@
+Model Invalid { Units: mm Slot2 Bad { Center: [0mm,0mm] Length: 10mm Width: 12mm } Box Base { Size: [2mm,2mm,2mm] } }

@@ -1,0 +1,30 @@
+Model ClosedBoundaryFamily {
+    Units: mm
+
+    Static OutlinePoints: Set<Point2> {
+        A => Point2(-18mm, -10mm)
+        B => Point2(12mm, -10mm)
+        Nose => Point2(20mm, 0mm)
+        C => Point2(12mm, 12mm)
+        D => Point2(-18mm, 8mm)
+    }
+
+    Rect2 Plate { Center: [0mm, 0mm] Size: [100mm, 60mm] }
+    Square2 Pad { Center: [0mm, 0mm] Size: 40mm }
+    Triangle2<Equilateral> Equilateral { Center: [0mm, 0mm] Side: 40mm }
+    Triangle2<Isosceles> Isosceles { Center: [0mm, 0mm] Base: 40mm Height: 30mm }
+    Triangle2<Right> RightAngle { Origin: [0mm, 0mm] Legs: [30mm, 40mm] }
+    Triangle2<Explicit> ExplicitTriangle { A: [0mm, 0mm] B: [30mm, 0mm] C: [0mm, 20mm] }
+    Circle2 Bore { Center: [0mm, 0mm] Diameter: 12mm }
+    Ellipse2 Opening { Center: [0mm, 0mm] AxisLengths: [40mm, 20mm] Rotation: 15deg }
+    Slot2 CableSlot { Center: [0mm, 0mm] Length: 50mm Width: 12mm }
+    RoundedRect2 MountingRegion { Center: [0mm, 0mm] Size: [80mm, 44mm] Radius: 8mm }
+    Polygon2<Rhombus> Diamond { Center: [0mm, 0mm] Diagonals: [50mm, 32mm] }
+    Polygon2<Parallelogram> Leaning { Center: [0mm, 0mm] Base: 40mm Height: 24mm Shear: 10mm }
+    Polygon2<Trapezoid> Tapered { Center: [0mm, 0mm] BottomWidth: 44mm TopWidth: 28mm Height: 24mm }
+    Polygon2<Explicit> AuthoredOutline { Vertices: OutlinePoints }
+    RegularPolygon2<6> Hex { Center: [0mm, 0mm] AcrossFlats: 32mm Rotation: 30deg }
+
+    Profile PlateProfile { Loop Outer { Plate |> TraceLoop } Loop BoreLoop { Bore |> TraceLoop } }
+    Struct Part { Extrude Solid { Profile: PlateProfile From: 0mm To: 5mm } }
+}

@@ -11,6 +11,7 @@ public enum FirmamentV2CanonicalSymbolKind
     StaticArray,
     StaticSet,
     Polygon2,
+    ClosedBoundary2,
     Template,
     Pattern,
     Require,
@@ -99,6 +100,7 @@ internal static class FirmamentV2CanonicalSymbolBinder
 
         foreach (var profile in document.Profiles ?? []) Add(profile.Name, FirmamentV2CanonicalSymbolKind.Profile, profile.SourceSpan);
         foreach (var polygon in document.Polygons ?? []) Add(polygon.Name, FirmamentV2CanonicalSymbolKind.Polygon2, polygon.SourceSpan);
+        foreach (var boundary in (document.Boundaries ?? []).Where(x => x.ShapeType != "Polygon2")) Add(boundary.Name, FirmamentV2CanonicalSymbolKind.ClosedBoundary2, boundary.SourceSpan);
         foreach (var compose in document.Composes ?? []) Add(compose.Name, FirmamentV2CanonicalSymbolKind.Compose, compose.SourceSpan);
         foreach (var boss in document.Bosses ?? []) Add(boss.Name, FirmamentV2CanonicalSymbolKind.Boss, boss.SourceSpan);
         foreach (var pocket in document.Pockets ?? []) Add(pocket.Name, FirmamentV2CanonicalSymbolKind.Pocket, pocket.SourceSpan);

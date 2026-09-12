@@ -153,6 +153,20 @@ public static class ProfileExtrusionBRepPlanner
                         sideSurface = SurfaceGeometry.FromCylinder(new CylinderSurface(sv0.WorldPoint, frame.AxisZ, circle.Radius, frame.AxisX));
                         break;
                     }
+                    case LineArcFullEllipse2D ellipse:
+                    {
+                        sv0 = Vertex(ellipse.Center, false, segmentSource); sv1 = sv0; ev0 = Vertex(ellipse.Center, true, segmentSource); ev1 = ev0;
+                        var trim = new ParameterInterval(0, 2 * Math.PI);
+                        var localAxis = new Vector3D(Math.Cos(ellipse.RotationRadians), Math.Sin(ellipse.RotationRadians), 0);
+                        var axis = Direction3D.Create(frame.ToWorldDirection(localAxis));
+                        var startEllipse = CurveGeometry.FromEllipse(new Ellipse3Curve(sv0.WorldPoint, frame.AxisZ, ellipse.MajorRadius, ellipse.MinorRadius, axis));
+                        var endEllipse = CurveGeometry.FromEllipse(new Ellipse3Curve(ev0.WorldPoint, frame.AxisZ, ellipse.MajorRadius, ellipse.MinorRadius, axis));
+                        startEdge = Edge(prefix + ":edge:local-start", sv0, sv0, Curve(prefix + ":curve:local-start", startEllipse, trim, segmentSource), segmentSource, ProfileExtrusionPlanRole.LocalStartBoundary);
+                        endEdge = Edge(prefix + ":edge:local-end", ev0, ev0, Curve(prefix + ":curve:local-end", endEllipse, trim, segmentSource), segmentSource, ProfileExtrusionPlanRole.LocalEndBoundary);
+                        startLongitudinal = Vertical(ellipse.Center, sv0, ev0, segmentSource); endLongitudinal = startLongitudinal;
+                        sideSurface = SurfaceGeometry.FromLinearExtrusion(new LinearExtrusionSurface(startEllipse, frame.AxisZ.ToVector() * (end - start)));
+                        break;
+                    }
                     default: throw new InvalidOperationException("ProfileExtrusionUnsupportedCurve");
                 }
                 // Loop winding is authored in local Profile coordinates (outer CCW, inner CW).
@@ -226,7 +240,8 @@ public static class ProfileExtrusionBRepPlanner
                     case LineArcLineSegment2D line when Distance(line.Start, line.End) <= Tol: d.Add("ProfileExtrusionPlanInvalid: zero length line"); return false;
                     case LineArcCircularArc2D arc when !double.IsFinite(arc.Radius) || arc.Radius <= Tol || Math.Abs(arc.SweepAngleRadians) <= Tol: d.Add("ProfileExtrusionUnsupportedCurve: invalid arc"); return false;
                     case LineArcFullCircle2D circle when !double.IsFinite(circle.Radius) || circle.Radius <= Tol: d.Add("ProfileExtrusionUnsupportedCurve: invalid circle"); return false;
-                    case not (LineArcLineSegment2D or LineArcCircularArc2D or LineArcFullCircle2D): d.Add("ProfileExtrusionUnsupportedCurve"); return false;
+                    case LineArcFullEllipse2D ellipse when !double.IsFinite(ellipse.MajorRadius) || !double.IsFinite(ellipse.MinorRadius) || ellipse.MajorRadius <= Tol || ellipse.MinorRadius <= Tol || ellipse.MinorRadius > ellipse.MajorRadius: d.Add("ProfileExtrusionUnsupportedCurve: invalid ellipse"); return false;
+                    case not (LineArcLineSegment2D or LineArcCircularArc2D or LineArcFullCircle2D or LineArcFullEllipse2D): d.Add("ProfileExtrusionUnsupportedCurve"); return false;
                 }
         }
         return true;

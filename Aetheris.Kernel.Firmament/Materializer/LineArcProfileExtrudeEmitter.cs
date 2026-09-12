@@ -6,6 +6,8 @@ public abstract record LineArcProfileCurve2D;
 public sealed record LineArcLineSegment2D((double X, double Y) Start, (double X, double Y) End) : LineArcProfileCurve2D;
 public sealed record LineArcCircularArc2D((double X, double Y) Center, double Radius, double StartAngleRadians, double SweepAngleRadians) : LineArcProfileCurve2D;
 public sealed record LineArcFullCircle2D((double X, double Y) Center, double Radius) : LineArcProfileCurve2D;
+/// <summary>Exact full planar ellipse; RotationRadians locates its major axis in local XY.</summary>
+public sealed record LineArcFullEllipse2D((double X, double Y) Center, double MajorRadius, double MinorRadius, double RotationRadians) : LineArcProfileCurve2D;
 public sealed record LineArcProfileLoop2D(IReadOnlyList<LineArcProfileCurve2D> Curves, bool IsHole);
 
 /// <summary>Local profile and local depth interval. Height-only callers retain the historic centered interval.</summary>

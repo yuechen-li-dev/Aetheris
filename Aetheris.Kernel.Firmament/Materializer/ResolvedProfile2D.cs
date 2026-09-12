@@ -31,11 +31,11 @@ public static class ResolvedProfile2DValidator
         var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (var loop in profile.Loops)
         {
-            if (loop.Segments.Count == 0 || (loop.Segments.Count < 3 && !(loop.Segments.Count == 1 && loop.Segments[0].Geometry is LineArcFullCircle2D))) d.Add($"profile:{profile.Name}: loop '{loop.Name}' requires a closed boundary");
+            if (loop.Segments.Count == 0 || (loop.Segments.Count < 3 && !(loop.Segments.Count == 1 && loop.Segments[0].Geometry is LineArcFullCircle2D or LineArcFullEllipse2D))) d.Add($"profile:{profile.Name}: loop '{loop.Name}' requires a closed boundary");
             for (var i=0;i<loop.Segments.Count;i++)
             {
                 var s=loop.Segments[i]; if(!names.Add(s.Name))d.Add($"profile:{profile.Name}: duplicate segment '{s.Name}'");
-                if (s.Geometry is LineArcFullCircle2D && loop.Segments.Count == 1) continue;
+                if (s.Geometry is LineArcFullCircle2D or LineArcFullEllipse2D && loop.Segments.Count == 1) continue;
                 if(!Endpoints(s.Geometry,out var start,out var end)){d.Add($"profile:{profile.Name}: unsupported unbounded segment '{s.Name}'");continue;}
                 if(Distance(start,end)<=Tol)d.Add($"profile:{profile.Name}: zero-length segment '{s.Name}'");
                 var next=loop.Segments[(i+1)%loop.Segments.Count]; if(Endpoints(next.Geometry,out var ns,out _)&&Distance(end,ns)>Tol)d.Add($"profile:{profile.Name}: endpoint mismatch '{s.Name}' -> '{next.Name}'");
@@ -47,7 +47,9 @@ public static class ResolvedProfile2DValidator
                 if (!Adjacent(i,j,loop.Segments.Count) && a.Geometry is LineArcLineSegment2D && b.Geometry is LineArcLineSegment2D && Endpoints(a.Geometry,out var as_,out var ae) && Endpoints(b.Geometry,out var bs,out var be) && ProperIntersection(as_,ae,bs,be)) d.Add($"profile:{profile.Name}: self-intersection '{a.Name}' / '{b.Name}'");
             }
         }
-        var area=outer.Segments.Sum(s=>Endpoints(s.Geometry,out var a,out var b)?a.X*b.Y-b.X*a.Y:0)/2d;
+        var area=outer.Segments.Count == 1 && outer.Segments[0].Geometry is LineArcFullCircle2D circle ? Math.PI * circle.Radius * circle.Radius
+            : outer.Segments.Count == 1 && outer.Segments[0].Geometry is LineArcFullEllipse2D ellipse ? Math.PI * ellipse.MajorRadius * ellipse.MinorRadius
+            : outer.Segments.Sum(s=>Endpoints(s.Geometry,out var a,out var b)?a.X*b.Y-b.X*a.Y:0)/2d;
         if(area<=Tol)d.Add($"profile:{profile.Name}: outer winding must be CounterClockwise with nonzero area");
         return new(d.Count==0,area,d);
     }

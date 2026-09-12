@@ -1,0 +1,1 @@
+Model Invalid { Units: mm Triangle2<Explicit> Bad { A: [0mm,0mm] B: [1mm,0mm] C: [2mm,0mm] } Box Base { Size: [2mm,2mm,2mm] } }

@@ -127,6 +127,8 @@ public static class PrismaticSectionStackCompiler
             {
                 LineArcLineSegment2D line => line.Start.X * line.End.Y - line.End.X * line.Start.Y,
                 LineArcCircularArc2D arc => ArcArea(arc),
+                LineArcFullCircle2D circle => 2d * Math.PI * circle.Radius * circle.Radius,
+                LineArcFullEllipse2D ellipse => 2d * Math.PI * ellipse.MajorRadius * ellipse.MinorRadius,
                 _ => 0d
             };
         return sum / 2d;

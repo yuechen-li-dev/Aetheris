@@ -112,7 +112,7 @@ public sealed class FirmamentV2NamedSetTests
     {
         var source = File.ReadAllText(Fixture("Canonical", "Set", "mounting-points.firmament"));
         var expansionDiagnostics = new List<string>();
-        var expansion = Polygon2RhombusAuthoring.Expand(source, expansionDiagnostics);
+        var expansion = ClosedBoundary2Authoring.Expand(source, expansionDiagnostics);
         Assert.NotNull(expansion);
         var featureExpansion = FirmamentV2FeatureExpansion.Expand(expansion.Source, expansionDiagnostics);
         Assert.NotNull(featureExpansion);

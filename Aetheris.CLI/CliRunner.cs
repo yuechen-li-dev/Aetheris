@@ -1497,6 +1497,21 @@ Model CanonicalPanel {
                 polygon.GeneratedEdges,
                 polygon.SourceSpan
             }).ToArray() ?? [],
+            boundaries = document?.Boundaries?.Select(boundary => new
+            {
+                shapeId = boundary.Name,
+                boundary.ShapeType,
+                boundary.Variant,
+                boundary.Capability,
+                center = new[] { boundary.CenterX, boundary.CenterY },
+                rotationDegrees = boundary.RotationDegrees,
+                boundary.Dimensions,
+                area = boundary.Area,
+                perimeter = boundary.Perimeter,
+                generatedGuides = boundary.GeneratedPoints.Concat(boundary.GeneratedEdges),
+                exactCarrier = boundary.ExactCarrier,
+                provenance = boundary.SourceSpan
+            }).ToArray() ?? [],
             patterns = document?.StaticAuthoring?.Patterns?.Select(pattern => new
             {
                 pattern.Name,

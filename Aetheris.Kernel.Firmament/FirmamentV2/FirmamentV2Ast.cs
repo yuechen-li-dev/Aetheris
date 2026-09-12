@@ -3,7 +3,7 @@ using Aetheris.Surfacing;
 
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
-public sealed record FirmamentV2Document(string ModelName, string Units, IReadOnlyList<FirmamentV2SolidBinding> Solids, IReadOnlyList<FirmamentV2ModifyBlock>? ModifyBlocks = null, IReadOnlyList<FirmamentV2TemplateDecl>? Templates = null, IReadOnlyList<FirmamentV2PmiDecl>? Pmi = null, IReadOnlyList<FirmamentV2RecognizedRegion>? RecognizedRegions = null, IReadOnlyList<FirmamentV2ReplacementDecl>? Replacements = null, IReadOnlyList<FirmamentV2LetDeclaration>? Lets = null, IReadOnlyList<FirmamentV2BoundLet>? BoundLets = null, IReadOnlyList<FirmamentV2LetRecordDeclaration>? LetRecords = null, IReadOnlyList<FirmamentV2BoundLetRecord>? BoundLetRecords = null, IReadOnlyList<FirmamentV2ManufacturingConceptDeclaration>? ManufacturingConcepts = null, IReadOnlyList<FirmamentV2FeatureConceptDeclaration>? FeatureConcepts = null, FirmamentV2PmiBlock? PmiBlock = null, FirmamentV2BoundPmiBlock? BoundPmi = null, ConceptIrDocument? ConceptIr = null, IReadOnlyList<FirmamentV2LatticeFillDecl>? LatticeFills = null, IReadOnlyList<FirmamentV2StandaloneLatticeFillDecl>? StandaloneLatticeFills = null, IReadOnlyList<FirmamentV2ProfileDecl>? Profiles = null, IReadOnlyList<FirmamentV2ComposeDecl>? Composes = null, IReadOnlyList<FirmamentV2SelectionDecl>? Selections = null, FirmamentV2StaticAuthoringDocument? StaticAuthoring = null, FirmamentV2CanonicalSymbolTable? SymbolTable = null, IReadOnlyList<FirmamentV2VolumeAssertion>? VolumeAssertions = null, IReadOnlyList<ConceptIrTemplateInstantiation>? TemplateInstantiations = null, IReadOnlyList<PanelIr>? Panels = null, IReadOnlyList<FirmamentV2BossDecl>? Bosses = null, IReadOnlyList<FirmamentV2PocketDecl>? Pockets = null, IReadOnlyList<FirmamentV2FeatureDefinition>? FeatureDefinitions = null, IReadOnlyList<FirmamentV2FeatureInvocation>? FeatureInvocations = null, FirmamentV2FeatureExpansionMetrics? FeatureExpansion = null, IReadOnlyList<FirmamentV2Polygon2Decl>? Polygons = null)
+public sealed record FirmamentV2Document(string ModelName, string Units, IReadOnlyList<FirmamentV2SolidBinding> Solids, IReadOnlyList<FirmamentV2ModifyBlock>? ModifyBlocks = null, IReadOnlyList<FirmamentV2TemplateDecl>? Templates = null, IReadOnlyList<FirmamentV2PmiDecl>? Pmi = null, IReadOnlyList<FirmamentV2RecognizedRegion>? RecognizedRegions = null, IReadOnlyList<FirmamentV2ReplacementDecl>? Replacements = null, IReadOnlyList<FirmamentV2LetDeclaration>? Lets = null, IReadOnlyList<FirmamentV2BoundLet>? BoundLets = null, IReadOnlyList<FirmamentV2LetRecordDeclaration>? LetRecords = null, IReadOnlyList<FirmamentV2BoundLetRecord>? BoundLetRecords = null, IReadOnlyList<FirmamentV2ManufacturingConceptDeclaration>? ManufacturingConcepts = null, IReadOnlyList<FirmamentV2FeatureConceptDeclaration>? FeatureConcepts = null, FirmamentV2PmiBlock? PmiBlock = null, FirmamentV2BoundPmiBlock? BoundPmi = null, ConceptIrDocument? ConceptIr = null, IReadOnlyList<FirmamentV2LatticeFillDecl>? LatticeFills = null, IReadOnlyList<FirmamentV2StandaloneLatticeFillDecl>? StandaloneLatticeFills = null, IReadOnlyList<FirmamentV2ProfileDecl>? Profiles = null, IReadOnlyList<FirmamentV2ComposeDecl>? Composes = null, IReadOnlyList<FirmamentV2SelectionDecl>? Selections = null, FirmamentV2StaticAuthoringDocument? StaticAuthoring = null, FirmamentV2CanonicalSymbolTable? SymbolTable = null, IReadOnlyList<FirmamentV2VolumeAssertion>? VolumeAssertions = null, IReadOnlyList<ConceptIrTemplateInstantiation>? TemplateInstantiations = null, IReadOnlyList<PanelIr>? Panels = null, IReadOnlyList<FirmamentV2BossDecl>? Bosses = null, IReadOnlyList<FirmamentV2PocketDecl>? Pockets = null, IReadOnlyList<FirmamentV2FeatureDefinition>? FeatureDefinitions = null, IReadOnlyList<FirmamentV2FeatureInvocation>? FeatureInvocations = null, FirmamentV2FeatureExpansionMetrics? FeatureExpansion = null, IReadOnlyList<FirmamentV2Polygon2Decl>? Polygons = null, IReadOnlyList<FirmamentV2ClosedBoundary2Decl>? Boundaries = null)
 {
     public FirmamentV2SolidBinding Solid => Solids[^1];
     public FirmamentV2SideHoleIntent? SideHoleIntent => ModifyBlocks?.SelectMany(m => m.Regions.Select(r =>
@@ -114,6 +114,23 @@ public sealed record FirmamentV2Polygon2Decl(
     double DiagonalY,
     IReadOnlyList<string> GeneratedPoints,
     IReadOnlyList<string> GeneratedEdges,
+    FirmamentV2SourceSpan SourceSpan);
+
+/// <summary>One qualified, deterministic, oriented boundary before its syntax is erased.</summary>
+public sealed record FirmamentV2ClosedBoundary2Decl(
+    string Name,
+    string ShapeType,
+    string? Variant,
+    string Capability,
+    double CenterX,
+    double CenterY,
+    double RotationDegrees,
+    IReadOnlyDictionary<string, double> Dimensions,
+    IReadOnlyList<string> GeneratedPoints,
+    IReadOnlyList<string> GeneratedEdges,
+    string ExactCarrier,
+    double Area,
+    double Perimeter,
     FirmamentV2SourceSpan SourceSpan);
 
 public sealed record FirmamentV2FeatureParameter(string Name, string Type, string? DefaultExpression = null);

@@ -106,6 +106,13 @@ public static class FirmamentSemanticValues
             var exposedProfileName = exposedProfileNames.Length == 1 ? exposedProfileNames[0] : null;
             values.Add(new SemanticValue(inspection.Provenance ?? "concept-path:" + inspection.Name, new(bindings.Count > 0 ? "SemanticProfile" : "ConceptPath"), capabilities, bindings, members, provenance, authoredSpan, expansion is null ? null : span, exposedName: exposedProfileName ?? inspection.Name));
         }
+        var pathBackedProfileNames = inspections.SelectMany(inspection => inspection.Consumers ?? []).Where(consumer => consumer.Kind == "Profile").Select(consumer => consumer.Name).ToHashSet(StringComparer.Ordinal);
+        foreach (var profile in profiles.Values.Where(profile => !pathBackedProfileNames.Contains(profile.Name)).OrderBy(profile => profile.Name, StringComparer.Ordinal))
+        {
+            var match = Regex.Match(expanded, $@"\bProfile\s+{Regex.Escape(profile.Name)}\b", RegexOptions.CultureInvariant);
+            var span = new SemanticSourceSpan(sourceIdentity, match.Success ? match.Index : 0, match.Success ? DeclarationLength(expanded, match.Index) : 0);
+            values.Add(FromProfile(profile, span, [new("profile-pipeline", profile.Name, "finite semantic composition lowered before consumption", span)], profile.Name));
+        }
         values.AddRange(CanonicalPrimitiveSemanticValues(expanded, sourceIdentity));
         return values;
     }

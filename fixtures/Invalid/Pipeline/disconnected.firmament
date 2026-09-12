@@ -1,0 +1,4 @@
+schema Mechanical
+Rect2 Stock { Center: [0mm, 0mm]; Size: [40mm, 30mm] }
+Profile Plate { Loop Outer { Stock.Bottom |> Stock.Top |> Close } }
+Extrude Solid { Profile: Plate; From: 0mm; To: 5mm }

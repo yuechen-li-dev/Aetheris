@@ -12,4 +12,8 @@ public sealed record ResolvedConceptPathSegment2D(
     string Name,
     string SemanticKind,
     LineArcProfileCurve2D Geometry,
-    string StableId);
+    string StableId,
+    string? TracedFrom = null,
+    bool Reversed = false,
+    int? PipelineIndex = null,
+    string? InvocationSourceRange = null);

@@ -40,10 +40,11 @@ Model BossPlate {
         Circle2 BossCircle { Center: C; Radius: 8mm }
     }
     Profile BaseProfile Using Layout { Loop Outer {
-        Segment Bottom { Trace: Stock.Bottom; From: Stock.BottomLeft; To: Stock.BottomRight }
-        Segment Right { Trace: Stock.Right; From: Stock.BottomRight; To: Stock.TopRight }
-        Segment Top { Trace: Stock.Top; From: Stock.TopRight; To: Stock.TopLeft }
-        Segment Left { Trace: Stock.Left; From: Stock.TopLeft; To: Stock.BottomLeft }
+        Stock.Bottom
+        |> Stock.Right
+        |> Stock.Top
+        |> Stock.Left
+        |> Close
     } }
     Profile BossProfile Using Layout { Loop Outer {
         Segment Q1 { Trace: BossCircle; From: E; To: N; Sweep: CounterClockwise }
@@ -98,16 +99,18 @@ Model PocketBlock {
         Rect2 Recess { Center: [0mm, 0mm]; Size: [20mm, 14mm] }
     }
     Profile BaseProfile Using Layout { Loop Outer {
-        Segment Bottom { Trace: Stock.Bottom; From: Stock.BottomLeft; To: Stock.BottomRight }
-        Segment Right { Trace: Stock.Right; From: Stock.BottomRight; To: Stock.TopRight }
-        Segment Top { Trace: Stock.Top; From: Stock.TopRight; To: Stock.TopLeft }
-        Segment Left { Trace: Stock.Left; From: Stock.TopLeft; To: Stock.BottomLeft }
+        Stock.Bottom
+        |> Stock.Right
+        |> Stock.Top
+        |> Stock.Left
+        |> Close
     } }
     Profile PocketProfile Using Layout { Loop Outer {
-        Segment Bottom { Trace: Recess.Bottom; From: Recess.BottomLeft; To: Recess.BottomRight }
-        Segment Right { Trace: Recess.Right; From: Recess.BottomRight; To: Recess.TopRight }
-        Segment Top { Trace: Recess.Top; From: Recess.TopRight; To: Recess.TopLeft }
-        Segment Left { Trace: Recess.Left; From: Recess.TopLeft; To: Recess.BottomLeft }
+        Recess.Bottom
+        |> Recess.Right
+        |> Recess.Top
+        |> Recess.Left
+        |> Close
     } }
     Struct Block { Compose Body {
         Base Stock { Profile: BaseProfile; From: 0mm; To: 10mm; Role: Stock }
@@ -121,6 +124,8 @@ To author a block containing both features, declare all three profiles in one `C
 The canonical [Boss + Pocket block](../../../fixtures/Canonical/Features/Boss/boss-pocket-block.firmament) combines a cylindrical boss, through shaft hole, and shallow rectangular pocket using public Firmament only. The focused [rectangular Pocket](../../../fixtures/Canonical/Features/Pocket/rectangular-pocket.firmament) reinforces finite depth and minimum-floor intent. Existing lower-level `Compose Add` / `Remove` remains compatible for bounded blockout work.
 
 For readable local geometry, start with the [line/arc Concept Path](../../../fixtures/Canonical/Profiles/concept-path-line-arc-profile.firmament). The [profile-delta recess](../../../fixtures/Canonical/Profiles/profile-delta-recess-extrusion.firmament) then shows that semantic `ProfileDelta` programming is not Sheet-Metal-specific: a Table row, `with` override, and typed Template modify an ordinary extruded profile.
+
+For geometry that already exposes named spans, prefer the finite [Profile pipeline flagship](../../../fixtures/Canonical/Pipeline/profile-pipeline-flagship.firmament). `Stock.Bottom |> Stock.Right |> Stock.Top |> Stock.Left |> Close` inherits segment identities and derives endpoint continuity and orientation from the named source geometry. The [mixed line/arc witness](../../../fixtures/Canonical/Pipeline/line-arc-profile.firmament), [inner-loop witness](../../../fixtures/Canonical/Pipeline/profile-with-inner-loop.firmament), [open Concept Path](../../../fixtures/Canonical/Pipeline/open-path.firmament), and [whole-loop trace](../../../fixtures/Canonical/Pipeline/traceloop-profile.firmament) exercise the same resolved Profile/Path boundary. Use manual `Segment` declarations when bespoke endpoints, circle-arc sweep selection, or debugging requires explicit low-level control.
 
 Sheet Metal has its own `Hole Name` syntax for planar circular openings; countersink and counterbore forms are Model-domain features and deliberately fail in Sheet Metal rather than being ignored.
 

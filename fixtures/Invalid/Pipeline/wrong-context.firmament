@@ -1,0 +1,6 @@
+schema Mechanical
+Model WrongPipelineContext {
+    Units: mm
+    Box Body { Size: [10mm, 10mm, 10mm] }
+    Material |> Close
+}

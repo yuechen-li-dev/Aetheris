@@ -1,7 +1,16 @@
 namespace Aetheris.Kernel.Firmament.Materializer;
 
 /// <summary>Immutable, resolved material boundary. It is neither a sketch nor a constraint solver.</summary>
-public sealed record ProfileSegmentProvenance(string StableId, string ConceptStableId, string SourceSpan, string Derivation, string SourceFrame);
+public sealed record ProfileSegmentProvenance(
+    string StableId,
+    string ConceptStableId,
+    string SourceSpan,
+    string Derivation,
+    string SourceFrame,
+    string? TracedFrom = null,
+    bool Reversed = false,
+    int? PipelineIndex = null,
+    string? InvocationSourceRange = null);
 public sealed record ResolvedProfileSegment2D(string Name, LineArcProfileCurve2D Geometry, ProfileSegmentProvenance Provenance);
 public sealed record ResolvedProfileLoop2D(string Name, bool IsOuter, IReadOnlyList<ResolvedProfileSegment2D> Segments);
 public sealed record ResolvedProfile2D(string Name, string PlaneFrame, IReadOnlyList<ResolvedProfileLoop2D> Loops, ConstructionPlane? ConstructionPlane = null, double? LocalStartDepth = null, double? LocalEndDepth = null)

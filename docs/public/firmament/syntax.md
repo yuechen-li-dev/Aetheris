@@ -73,6 +73,7 @@ Use each abstraction for its single role:
 | `Feature` | Function-like reusable semantic construction. |
 | `Pattern` | Bounded finite geometric repetition; it is the loop substitute. |
 | `Template` | Compile-time product/configuration specialization; it is the structural branch substitute. |
+| `|>` | Finite semantic composition of compatible Profile/Path geometry. |
 | `Concept` | Semantic contract or capability. |
 | `Record` / `Struct` | Typed data and semantic structure. |
 
@@ -127,3 +128,35 @@ Feature M8Counterbore(Center: Point2) -> Hole<Counterbore> {
 Structurally different edge finishes should be separate Features in X1—for example, `StandardChamfer` and `StandardFillet`. A caller may instead select a specialized product with Template where that owning Template grammar admits the returned construction. Feature itself cannot branch between them.
 
 For X1, Feature is supported by the `Mechanical` frontend. `WireForm`, `Sweep`, and `SectionChain` reject Feature declarations explicitly; shared cross-schema Feature IR and module/library packaging are deferred.
+
+## Finite Profile and Path composition
+
+`|>` composes compatible semantic geometry in a finite authoring pipeline. In a Profile loop, each source span is traced in authored order and automatically oriented to continue from the preceding endpoint:
+
+```firmament
+Profile BaseProfile Using Layout {
+    Loop Outer {
+        Stock.Bottom
+        |> Stock.Right
+        |> Stock.Top
+        |> Stock.Left
+        |> Close
+    }
+}
+```
+
+The first stage uses its source direction. Later stages match the current endpoint against the candidate span's endpoints. A unique end match reverses the traced geometry automatically; no match reports `firmament-profile-pipeline-disconnected`, and a degenerate two-way match reports `firmament-profile-pipeline-orientation-ambiguous`. `Reverse Stock.Left` is the explicit escape hatch. `Stock.Bottom As MountingEdge` changes the output segment identity while retaining source provenance. Unrenamed outer spans inherit their source leaf name; inner-loop spans are qualified by the loop name to preserve Profile-wide uniqueness.
+
+`|> Close` validates that the authored chain already closes. It never invents a missing line. A real closed `Concept Path` may be copied as a whole with `Outline |> TraceLoop`; a rectangle, Body, Face, open path, or multi-loop container is not guessed into a loop. `TraceLoop` preserves span identities and normalizes winding for the target outer or inner loop when required.
+
+A `Concept Path` may also compose existing named spans and remain open:
+
+```firmament
+Concept Path Guide {
+    Stock.Bottom
+    |> Stock.Right
+    |> Stock.Top As Return
+}
+```
+
+Pipeline source order is semantic order. Stages are limited to qualified geometry references, optional `Reverse`, optional `As`, `Close`, and `TraceLoop` in their admitted contexts. The operator has lower binding precedence than member access and does not admit arithmetic stages, calls, lambdas, conditionals, filtering, mutation, runtime execution, or repetition. Use Feature for a reusable semantic transformation, Pattern for bounded repetition, Template for specialization, and `|>` for finite semantic composition. Manual `Segment { Trace/From/To }` remains the explicit low-level Profile escape hatch.

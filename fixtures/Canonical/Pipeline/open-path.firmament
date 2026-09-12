@@ -1,0 +1,25 @@
+schema Sweep
+
+Model PipelineSweep {
+    Units: mm
+
+    Concept Path Source {
+        Start: Point2(0mm, 0mm)
+        Heading: 90deg
+        Line LeftLeg { Length: 25mm }
+        Arc Return { Radius: 6mm; Turn: -180deg }
+        Line RightLeg { Length: 25mm }
+    }
+
+    Concept Path Centerline {
+        Source.LeftLeg
+        |> Source.Return
+        |> Source.RightLeg
+    }
+
+    Sweep Wire {
+        Path: Centerline
+        Diameter: 1.2mm
+        Material: Standard.Materials.StainlessSteel.304_Annealed
+    }
+}

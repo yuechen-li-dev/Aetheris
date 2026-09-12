@@ -1,0 +1,36 @@
+schema Mechanical
+
+Model ProfilePipelineFlagship {
+    Units: mm
+
+    Concept Struct Layout On XY {
+        Rect2 Stock { Center: [0mm, 0mm]; Size: [40mm, 24mm] }
+        Rect2 Pad { Center: [-10mm, 0mm]; Size: [10mm, 10mm] }
+        Rect2 Cutout { Center: [10mm, 0mm]; Size: [8mm, 8mm] }
+    }
+
+    Profile BaseProfile Using Layout { Loop Outer {
+        Segment Bottom { Trace: Stock.Bottom; From: Stock.BottomLeft; To: Stock.BottomRight }
+        Segment Right { Trace: Stock.Right; From: Stock.BottomRight; To: Stock.TopRight }
+        Segment Top { Trace: Stock.Top; From: Stock.TopRight; To: Stock.TopLeft }
+        Segment Left { Trace: Stock.Left; From: Stock.TopLeft; To: Stock.BottomLeft }
+    } }
+    Profile PadProfile Using Layout { Loop Outer {
+        Segment Bottom { Trace: Pad.Bottom; From: Pad.BottomLeft; To: Pad.BottomRight }
+        Segment Right { Trace: Pad.Right; From: Pad.BottomRight; To: Pad.TopRight }
+        Segment Top { Trace: Pad.Top; From: Pad.TopRight; To: Pad.TopLeft }
+        Segment Left { Trace: Pad.Left; From: Pad.TopLeft; To: Pad.BottomLeft }
+    } }
+    Profile CutoutProfile Using Layout { Loop Outer {
+        Segment Bottom { Trace: Cutout.Bottom; From: Cutout.BottomLeft; To: Cutout.BottomRight }
+        Segment Right { Trace: Cutout.Right; From: Cutout.BottomRight; To: Cutout.TopRight }
+        Segment Top { Trace: Cutout.Top; From: Cutout.TopRight; To: Cutout.TopLeft }
+        Segment Left { Trace: Cutout.Left; From: Cutout.TopLeft; To: Cutout.BottomLeft }
+    } }
+
+    Struct Part { Compose Body {
+        Base StockBody { Profile: BaseProfile; From: 0mm; To: 8mm; Role: Stock }
+        Add RaisedPad { Profile: PadProfile; From: 8mm; To: 12mm; Role: Boss }
+        Remove ThroughCutout { Profile: CutoutProfile; From: 0mm; To: 8mm; Role: ThroughCut }
+    } }
+}

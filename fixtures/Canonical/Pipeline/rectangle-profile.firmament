@@ -1,0 +1,15 @@
+schema Mechanical
+
+Rect2 Stock { Center: [0mm, 0mm]; Size: [40mm, 24mm] }
+
+Profile BaseProfile {
+    Loop Outer {
+        Stock.Bottom
+        |> Stock.Right
+        |> Stock.Top
+        |> Stock.Left
+        |> Close
+    }
+}
+
+Extrude Solid { Profile: BaseProfile; From: 0mm; To: 8mm }

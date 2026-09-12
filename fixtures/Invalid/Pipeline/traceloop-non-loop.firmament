@@ -1,0 +1,4 @@
+schema Mechanical
+Rect2 Stock { Center: [0mm, 0mm]; Size: [10mm, 4mm] }
+Profile Plate { Loop Outer { Stock |> TraceLoop } }
+Extrude Solid { Profile: Plate; From: 0mm; To: 1mm }

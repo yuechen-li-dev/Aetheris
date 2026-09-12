@@ -174,6 +174,9 @@ public static class PrismaticProfileCompositionParser
         {
             var body = Block(source, header.Index + header.Length - 1);
             if (body is null) { diagnostics.Add($"compose-profile-unclosed:{header.Groups["n"].Value}"); continue; }
+            // Pipeline authoring is normalized by ProfileAuthoringParser below and
+            // enters Compose through the ordinary ProfileCapability boundary.
+            if (body.Contains("|>", StringComparison.Ordinal)) continue;
             foreach (Match rawSegment in Regex.Matches(body, @"\bSegment\s+(?<name>\w+)\s*\{[\s\S]*?\b(?<endpoint>From|To)\s*:\s*(?<value>\[[^\]]*\]|Point2\s*\([^)]*\))", RegexOptions.CultureInvariant))
                 diagnostics.Add($"{SegmentEndpointMustReferenceNamedPoint}:{rawSegment.Groups["name"].Value}:{rawSegment.Groups["endpoint"].Value}");
             var segments = new List<ResolvedProfileSegment2D>();

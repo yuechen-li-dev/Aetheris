@@ -110,6 +110,6 @@
         }
       ]
     },
-    "operators": { "patterns": [{ "name": "keyword.operator.firmament", "match": "==|!=|<=|>=|=>|[=+\\-*/<>]" }] }
+    "operators": { "patterns": [{ "name": "keyword.operator.firmament", "match": "\\|>|==|!=|<=|>=|=>|[=+\\-*/<>]" }] }
   }
 }

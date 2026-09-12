@@ -1646,7 +1646,7 @@ Model CanonicalPanel {
                     arcSegments = profile.Loops.SelectMany(x => x.Segments).Count(x => x.Geometry is LineArcCircularArc2D),
                     validation.IsValid, validation.SignedArea, validation.Diagnostics,
                     junctions = DescribeProfileJunctions(profile, source, profile.Name),
-                    provenance = profile.Loops.SelectMany(x => x.Segments).Select(x => new { x.Name, x.Provenance.StableId, x.Provenance.ConceptStableId, x.Provenance.Derivation })
+                    provenance = profile.Loops.SelectMany(x => x.Segments).Select(x => new { x.Name, x.Provenance.StableId, x.Provenance.ConceptStableId, x.Provenance.Derivation, x.Provenance.TracedFrom, x.Provenance.Reversed, x.Provenance.PipelineIndex, x.Provenance.InvocationSourceRange })
                 };
             }).ToArray();
             stdout.WriteLine(JsonSerializer.Serialize(new { profiles, expansion = composition.Expansion, diagnostics = composition.Diagnostics }, JsonOptions));
@@ -1669,7 +1669,7 @@ Model CanonicalPanel {
                 segments = parsed.Profile.Loops.SelectMany(x => x.Segments).Select(x =>
                 {
                     var guide = DescribeProfileGuide(x.Provenance.ConceptStableId);
-                    return new { x.Name, guide = guide.Name, guideKind = guide.Kind, parentGuide = guide.Parent, stableId = x.Provenance.StableId, derivation = x.Provenance.Derivation, geometry = x.Geometry.GetType().Name };
+                    return new { x.Name, guide = guide.Name, guideKind = guide.Kind, parentGuide = guide.Parent, stableId = x.Provenance.StableId, derivation = x.Provenance.Derivation, tracedFrom = x.Provenance.TracedFrom, reversed = x.Provenance.Reversed, pipelineIndex = x.Provenance.PipelineIndex, invocationSourceRange = x.Provenance.InvocationSourceRange, geometry = x.Geometry.GetType().Name };
                 }),
                 validation.IsValid, validation.SignedArea, validation.Diagnostics,
                 junctions = DescribeProfileJunctions(parsed.Profile, source, parsed.Profile.Name),

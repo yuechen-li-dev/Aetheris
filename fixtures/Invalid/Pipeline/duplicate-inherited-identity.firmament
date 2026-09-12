@@ -1,0 +1,5 @@
+schema Mechanical
+Rect2 A { Center: [0mm, 0mm]; Size: [10mm, 4mm] }
+Rect2 B { Center: [10mm, 0mm]; Size: [10mm, 4mm] }
+Profile Plate { Loop Outer { A.Bottom |> B.Bottom |> Close } }
+Extrude Solid { Profile: Plate; From: 0mm; To: 1mm }

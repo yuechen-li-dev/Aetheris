@@ -1,0 +1,7 @@
+schema Mechanical
+Point2 A { Position: [0mm, 0mm] }
+Point2 B { Position: [1mm, 0mm] }
+Line2 AB { From: A; To: B }
+Line2 Same { From: B; To: B }
+Profile Plate { Loop Outer { AB |> Same |> Close } }
+Extrude Solid { Profile: Plate; From: 0mm; To: 1mm }

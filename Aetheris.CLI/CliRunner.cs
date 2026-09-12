@@ -137,6 +137,7 @@ public static class CliRunner
     private const string MeshUsage = "Usage: aetheris mesh <file.firmament|file.firmfixture|file.step> [--format stl|obj] [--output <path>] [--debug-ir <path>] [--json]";
     private const string ValidateUsage = "Usage: aetheris validate <file.firmament|file.firmfixture> [--forge-pack <path>] [--json]";
     private const string InspectProfileUsage = "Usage: aetheris inspect-profile <file.firmament> [--json]";
+    private const string InspectSpansUsage = "Usage: aetheris inspect-spans <file.firmament> --json";
     private const string InspectComposeUsage = "Usage: aetheris inspect-compose <file.firmament> --json [--materialize]";
     private const string InspectSelectionsUsage = "Usage: aetheris inspect-selections <file.firmament> --json";
     private const string AnalyzeUsage = "Usage: aetheris analyze <file.step> [--face <id>] [--edge <id>] [--vertex <id>] [--json]";
@@ -216,6 +217,7 @@ public static class CliRunner
                 "validate" => RunValidate(args.Skip(1).ToArray(), stdout, stderr),
                 "inspect" => RunInspect(args.Skip(1).ToArray(), stdout, stderr),
                 "inspect-profile" => RunInspectProfile(args.Skip(1).ToArray(), stdout, stderr),
+                "inspect-spans" => RunInspectSpans(args.Skip(1).ToArray(), stdout, stderr),
                 "inspect-compose" => RunInspectCompose(args.Skip(1).ToArray(), stdout, stderr),
                 "inspect-selections" => RunInspectSelections(args.Skip(1).ToArray(), stdout, stderr),
                 "sections" => RunSections(args.Skip(1).ToArray(), stdout, stderr),
@@ -1664,6 +1666,7 @@ Model CanonicalPanel {
             {
                 parsed.Profile.Name, parsed.Profile.PlaneFrame,
                 constructionPlane = DescribeConstructionPlane(parsed.Profile.EffectiveConstructionPlane),
+                spans = ProfileAuthoringParser.InspectGeometricSpans(source).Spans,
                 conceptPaths = ProfileAuthoringParser.InspectConceptPaths(source),
                 loops = parsed.Profile.Loops.Count,
                 segments = parsed.Profile.Loops.SelectMany(x => x.Segments).Select(x =>
@@ -1691,6 +1694,16 @@ Model CanonicalPanel {
         };
         if (json) stdout.WriteLine(JsonSerializer.Serialize(report, JsonOptions)); else stdout.WriteLine($"Profile {parsed.Profile.Name}: {(validation.IsValid ? "valid" : "invalid")}");
         return validation.IsValid ? 0 : 1;
+    }
+
+    private static int RunInspectSpans(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0 || IsHelpFlag(args[0])) { stdout.WriteLine(InspectSpansUsage); return args.Length == 0 ? 1 : 0; }
+        if (args.Length != 2 || args[1] != "--json") { stderr.WriteLine(InspectSpansUsage); return 1; }
+        if (!File.Exists(args[0])) { stderr.WriteLine($"Span source was not found: {args[0]}"); return 1; }
+        var inspection = ProfileAuthoringParser.InspectGeometricSpans(File.ReadAllText(args[0]));
+        stdout.WriteLine(JsonSerializer.Serialize(new { command = "inspect-spans", success = inspection.Diagnostics.Count == 0, spans = inspection.Spans, diagnostics = inspection.Diagnostics }, JsonOptions));
+        return inspection.Diagnostics.Count == 0 ? 0 : 1;
     }
 
     private static object DescribeConstructionPlane(ConstructionPlane plane) => new

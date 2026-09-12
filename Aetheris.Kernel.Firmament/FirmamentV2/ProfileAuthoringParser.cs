@@ -19,10 +19,23 @@ public static class ProfileAuthoringParser
     private static readonly Regex Rect = new(@"\bRect2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*Center\s*:\s*(?:\[|Point2\s*\()\s*(?<x>[-+.\deE]+)mm\s*,\s*(?<y>[-+.\deE]+)mm\s*(?:\]|\))\s*;?\s*Size\s*:\s*\[(?<w>[-+.\deE]+)mm\s*,\s*(?<h>[-+.\deE]+)mm\]", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex ConstructionPlaneDeclaration = new(@"\bConstruction\s+Plane\s+(?<name>\w+)\s*\{\s*Trace\s*:\s*(?<trace>[\w.]+)\s*;?\s*\}", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex Segment = new(@"\bSegment\s+(?<n>\w+)\s*\{\s*Trace\s*:\s*(?<trace>[\w.]+)\s*;?\s*From\s*:\s*(?<from>[\w.]+)\s*;?\s*To\s*:\s*(?<to>[\w.]+)(?:\s*;?\s*Sweep\s*:\s*(?<sweep>Clockwise|CounterClockwise))?", RegexOptions.Singleline | RegexOptions.CultureInvariant);
+    private static readonly Regex SpanHeader = new(@"\bSpan\s*<\s*(?<type>[A-Za-z_]\w*)\s*>\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex Pipeline = new(@"(?<expression>(?:Reverse\s+)?[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*(?:\s+As\s+[A-Za-z_]\w*)?\s*(?:\|>\s*(?:(?:Reverse\s+)?[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*(?:\s+As\s+[A-Za-z_]\w*)?|Close|TraceLoop)\s*)+)", RegexOptions.CultureInvariant);
     private static readonly Regex Extrude = new(@"\bExtrude\s+\w+\s*\{\s*Profile\s*:\s*(?<p>\w+)\s*;?\s*From\s*:\s*(?<a>[-+.\deE]+)mm\s*;?\s*To\s*:\s*(?<b>[-+.\deE]+)mm", RegexOptions.Singleline | RegexOptions.CultureInvariant);
 
     public static bool IsProfileSource(string source) => Regex.IsMatch(source, @"\bProfile\s+[A-Za-z_]\w*", RegexOptions.CultureInvariant);
+
+    /// <summary>Inspects first-class geometric views without materializing independent guides.</summary>
+    public static GeometricSpanInspection InspectGeometricSpans(string source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        var diagnostics = new List<string>();
+        var points = new Dictionary<string, (double X, double Y)>(StringComparer.Ordinal);
+        var guides = new Dictionary<string, LineArcProfileCurve2D>(StringComparer.Ordinal);
+        AddOrdinaryGuides(source, points, guides, diagnostics, applySpans: false);
+        var spans = ApplyGeometricSpans(source, points, guides, diagnostics, addGuides: false);
+        return new(spans, diagnostics.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray());
+    }
 
     internal static IReadOnlyList<string> ValidatePipelineContexts(string source)
     {
@@ -158,7 +171,7 @@ public static class ProfileAuthoringParser
     internal static ConstructionPlane? ResolveNamedConstructionPlane(string source, string frame, List<string> diagnostics)
         => ResolveConstructionPlane(source, frame, diagnostics);
 
-    private static void AddOrdinaryGuides(string source, Dictionary<string, (double X, double Y)> points, Dictionary<string, LineArcProfileCurve2D> guides, List<string> diagnostics)
+    private static void AddOrdinaryGuides(string source, Dictionary<string, (double X, double Y)> points, Dictionary<string, LineArcProfileCurve2D> guides, List<string> diagnostics, bool applySpans = true)
     {
         foreach (Match match in Point.Matches(source))
             if (TryNumber(match.Groups["x"].Value, out var x) && TryNumber(match.Groups["y"].Value, out var y))
@@ -194,7 +207,78 @@ public static class ProfileAuthoringParser
             // A circle remains a guide; segments choose its directed arc below.
             guides[match.Groups["n"].Value] = new LineArcFullCircle2D(center, radius);
         }
+        if (applySpans) ApplyGeometricSpans(source, points, guides, diagnostics, addGuides: true);
     }
+
+    private static IReadOnlyList<GeometricSpanView> ApplyGeometricSpans(
+        string source,
+        IReadOnlyDictionary<string, (double X, double Y)> points,
+        IDictionary<string, LineArcProfileCurve2D> guides,
+        List<string> diagnostics,
+        bool addGuides)
+    {
+        var result = new List<GeometricSpanView>();
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (Match header in SpanHeader.Matches(source))
+        {
+            var open = source.IndexOf('{', header.Index, header.Length);
+            var close = FindMatchingBrace(source, open);
+            var name = header.Groups["name"].Value;
+            var type = header.Groups["type"].Value;
+            if (close < 0) { diagnostics.Add($"firmament-span-domain-invalid:{name}"); continue; }
+            if (!names.Add(name) || guides.ContainsKey(name)) { diagnostics.Add($"firmament-span-duplicate:{name}"); continue; }
+            var body = source[(open + 1)..close];
+            var parent = Property(body, "On");
+            if (parent is null) { diagnostics.Add($"firmament-span-parent-not-found:{name}"); continue; }
+
+            // Plane spans are semantic surface views only in X1: a named, already-authored
+            // Profile is their boundary authority. They intentionally do not create a face.
+            if (type == "Plane")
+            {
+                var boundary = Property(body, "Boundary");
+                var knownPlanes = ConstructionPlaneDeclaration.Matches(source).Cast<Match>()
+                    .Select(match => match.Groups["name"].Value).ToHashSet(StringComparer.Ordinal);
+                if (!knownPlanes.Contains(parent)) { diagnostics.Add($"firmament-span-parent-not-found:{name}"); continue; }
+                if (boundary is null || !FindProfiles(source).Any(profile => profile.Name == boundary))
+                { diagnostics.Add($"firmament-span-boundary-not-closed:{name}"); continue; }
+                result.Add(new(name, type, parent, "Plane", $"Boundary:{boundary}", "Forward", null, null, boundary, null, $"span:{name};parent:{parent};boundary:{boundary}"));
+                continue;
+            }
+
+            if (type is not ("Line" or "Arc" or "Curve")) { diagnostics.Add($"firmament-span-type-invalid:{type}"); continue; }
+            if (!guides.TryGetValue(parent, out var parentGeometry)) { diagnostics.Add($"firmament-span-parent-not-found:{name}"); continue; }
+            var parentType = parentGeometry switch { LineArcLineSegment2D => "Line", LineArcFullCircle2D => "Arc", LineArcCircularArc2D => "Arc", _ => parentGeometry.GetType().Name };
+            if ((type == "Line" && parentGeometry is not LineArcLineSegment2D) || (type == "Arc" && parentGeometry is not LineArcFullCircle2D and not LineArcCircularArc2D))
+            { diagnostics.Add($"firmament-span-type-invalid:{type}"); continue; }
+            var fromName = Property(body, "From"); var toName = Property(body, "To");
+            if (fromName is null || toName is null || !points.TryGetValue(fromName, out var from) || !points.TryGetValue(toName, out var to))
+            { diagnostics.Add($"firmament-span-domain-invalid:{name}"); continue; }
+            var sweep = Property(body, "Sweep") ?? "CounterClockwise";
+            var curve = SelectGuide(parentGeometry, from, to, sweep, name, parent, diagnostics);
+            if (curve is null) continue;
+            var length = CurveLength(curve);
+            if (!double.IsFinite(length) || length <= Tolerance) { diagnostics.Add($"firmament-span-zero-length:{name}"); continue; }
+            var reverse = string.Equals(Property(body, "Orientation"), "Reverse", StringComparison.Ordinal);
+            if (reverse) curve = Reverse(curve);
+            var domain = curve switch
+            {
+                LineArcLineSegment2D => $"Endpoints:{fromName}..{toName}",
+                LineArcCircularArc2D arc => $"NativeRadians:{arc.StartAngleRadians:R}..{(arc.StartAngleRadians + arc.SweepAngleRadians):R}",
+                _ => "Endpoints"
+            };
+            var view = new GeometricSpanView(name, type, parent, parentType, domain, reverse ? "Reverse" : "Forward", fromName, toName, null, length, $"span:{name};parent:{parent};parentType:{parentType}", curve);
+            result.Add(view);
+            if (addGuides) guides[name] = curve;
+        }
+        return result;
+    }
+
+    private static double CurveLength(LineArcProfileCurve2D curve) => curve switch
+    {
+        LineArcLineSegment2D line => Distance(line.Start, line.End),
+        LineArcCircularArc2D arc => Math.Abs(arc.Radius * arc.SweepAngleRadians),
+        _ => double.NaN
+    };
 
     private static IReadOnlyDictionary<string, BoundPath> BindPaths(string source, Dictionary<string, (double X, double Y)> points, Dictionary<string, LineArcProfileCurve2D> guides, List<string> diagnostics)
     {
@@ -760,6 +844,17 @@ public static class ProfileAuthoringParser
             for (var index = open; index >= 0 && index < source.Length; index++) { if (source[index] == '{') depth++; else if (source[index] == '}' && --depth == 0) { end = index; break; } }
             if (open >= 0 && end > open) yield return new(match, source[(open + 1)..end], end);
         }
+    }
+
+    private static int FindMatchingBrace(string source, int open)
+    {
+        var depth = 0;
+        for (var index = open; index >= 0 && index < source.Length; index++)
+        {
+            if (source[index] == '{') depth++;
+            else if (source[index] == '}' && --depth == 0) return index;
+        }
+        return -1;
     }
 
     private static IEnumerable<PathStep> FindPathSteps(string body)

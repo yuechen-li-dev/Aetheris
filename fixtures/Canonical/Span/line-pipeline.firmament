@@ -1,0 +1,20 @@
+// LANG-SPAN-X1: MountingEdge is a view of Stock.Bottom, not helper geometry.
+Rect2 Stock { Center: [50mm, 20mm]; Size: [100mm, 40mm] }
+Point2 MountLeft { Position: [30mm, 0mm] }
+Point2 MountRight { Position: [70mm, 0mm] }
+Point2 UpperRight { Position: [70mm, 20mm] }
+Point2 UpperLeft { Position: [30mm, 20mm] }
+Line2 Rise { From: MountRight; To: UpperRight }
+Line2 Top { From: UpperRight; To: UpperLeft }
+Line2 Down { From: UpperLeft; To: MountLeft }
+
+Span<Line> MountingEdge {
+    On: Stock.Bottom
+    From: MountLeft
+    To: MountRight
+}
+
+Profile MountingPlate {
+    Loop Outer { MountingEdge |> Rise |> Top |> Down |> Close }
+}
+Extrude Plate { Profile: MountingPlate; From: 0mm; To: 2mm }

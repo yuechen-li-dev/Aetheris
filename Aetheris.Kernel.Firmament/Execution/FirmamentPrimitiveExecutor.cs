@@ -612,7 +612,10 @@ internal static class FirmamentPrimitiveExecutor
     {
         return primitive.Kind switch
         {
-            FirmamentLoweredPrimitiveKind.Box => TranslateBody(body, new Vector3D(0d, 0d, ((FirmamentLoweredBoxParameters)primitive.Parameters).SizeZ * 0.5d)),
+            FirmamentLoweredPrimitiveKind.Box => TranslateBody(body, new Vector3D(0d, 0d, FirmamentStockFrame.ForBox(
+                ((FirmamentLoweredBoxParameters)primitive.Parameters).SizeX,
+                ((FirmamentLoweredBoxParameters)primitive.Parameters).SizeY,
+                ((FirmamentLoweredBoxParameters)primitive.Parameters).SizeZ).KernelCenteredToStockZ)),
             FirmamentLoweredPrimitiveKind.Cylinder => TranslateBody(body, new Vector3D(0d, 0d, ((FirmamentLoweredCylinderParameters)primitive.Parameters).Height * 0.5d)),
             FirmamentLoweredPrimitiveKind.Cone => TranslateBody(body, new Vector3D(0d, 0d, ((FirmamentLoweredConeParameters)primitive.Parameters).Height * 0.5d)),
             FirmamentLoweredPrimitiveKind.TriangularPrism => TranslateBody(body, new Vector3D(0d, 0d, ((FirmamentLoweredTriangularPrismParameters)primitive.Parameters).Height * 0.5d)),

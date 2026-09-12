@@ -14,7 +14,8 @@ public sealed record SemanticHoleSourceInspectionEvidence(
     double[] LocalCenter, double[]? WorldMouthCenter, double Diameter, double Radius,
     string Extent, double[]? HostInterval, string? PlanId, string? SourceSpan,
     double? DeclaredDepth = null, double? ShaftDepth = null, double? TipLength = null, double? TotalDepth = null, double? PointAngle = null,
-    HoleHostTraversalEvidence? HostTraversal = null, HoleEndConditionContractEvidence? Contract = null);
+    HoleHostTraversalEvidence? HostTraversal = null, HoleEndConditionContractEvidence? Contract = null,
+    FirmamentStockFrame? StockFrame = null);
 public sealed record SemanticHoleInspectionResult(bool Succeeded, string? HoleId, BrepBody? Body, SemanticTopologyCorrespondence? Correspondence, IReadOnlyList<string> Diagnostics, SemanticHoleSourceInspectionEvidence? Evidence = null);
 public static class SemanticHoleInspection
 {
@@ -23,7 +24,7 @@ public static class SemanticHoleInspection
         var holes = FirmamentV2SemanticHoleLowering.LowerSemanticHoles(document);
         var binding = document.Solids.FirstOrDefault();
         if (holes.Count != 1 || binding?.Primitive is not FirmamentV2BoxRecord box || box.Size.Count != 3) return new(false, null, null, null, ["MissingCorrespondenceEvidence: bounded inspection requires one shaft hole in one Box host."]);
-        var host = document.ConceptIr is null ? new AirHoleSimpleShaftHost(box.Size[0], box.Size[1], -box.Size[2] / 2d, box.Size[2] / 2d) : new AirHoleSimpleShaftHost(box.Size[0], box.Size[1], 0d, box.Size[2]);
+        var host = FirmamentStockFrame.ForBox(box.Size[0], box.Size[1], box.Size[2]).CreateHoleHost();
         var result = AirHoleSimpleShaftMaterializer.Execute(holes[0], host);
         var feature = holes[0]; var placement = feature.ConstructionPlanePlacement;
         var drill = feature.Termination as AirHoleTermination.DrillPoint;
@@ -40,7 +41,7 @@ public static class SemanticHoleInspection
                 [placement.LocalCenterX, placement.LocalCenterY], [placement.WorldMouthCenter.X, placement.WorldMouthCenter.Y, placement.WorldMouthCenter.Z],
                 feature.Shaft.Diameter, feature.Shaft.Radius, feature.EndCondition.Kind.ToString(), result.Plan?.HoleBRepPlan is { } plan ? [plan.HostMaterialInterval.Start, plan.HostMaterialInterval.End] : null,
                 result.Plan?.HoleBRepPlan?.StableId, placement.SourceSpan, declaredDepth, shaftDepth, tipLength, totalDepth, drill?.PointAngleDegrees,
-                result.Plan?.HoleBRepPlan?.TraversalEvidence, result.Plan?.HoleBRepPlan?.ContractEvidence);
+                result.Plan?.HoleBRepPlan?.TraversalEvidence, result.Plan?.HoleBRepPlan?.ContractEvidence, host.StockFrame);
         return new(result.Succeeded && result.Correspondence is not null, feature.FeatureId, result.Body, result.Correspondence, result.Diagnostics, evidence);
     }
 }
@@ -59,7 +60,8 @@ internal sealed record AirHoleSimpleShaftHost(
     double ZMin,
     double ZMax,
     string TopFaceName = "top",
-    string BottomFaceName = "bottom")
+    string BottomFaceName = "bottom",
+    FirmamentStockFrame? StockFrame = null)
 {
     public double Thickness => ZMax - ZMin;
 }

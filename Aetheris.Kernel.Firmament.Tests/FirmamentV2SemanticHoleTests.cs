@@ -7,6 +7,38 @@ namespace Aetheris.Kernel.Firmament.Tests;
 public sealed class FirmamentV2SemanticHoleTests
 {
     [Fact]
+    public void CounterboreStockFrame_IsBottomAnchored()
+    {
+        const string source = """
+            Model Mount {
+              Units: mm
+              Box Body { Size: [60mm,40mm,12mm] }
+              Modify Body { Hole<Counterbore> Mount { On: +Z; Center: Point2(0mm,0mm); Diameter: 6mm; CounterboreDiameter: 12mm; CounterboreDepth: 4mm; End: ThroughAll } }
+            }
+            """;
+        var parsed = FirmamentV2Parser.Parse(source);
+        Assert.True(parsed.IsSuccess, string.Join(" | ", parsed.Diagnostics));
+
+        var frame = FirmamentStockFrame.ForBox(60, 40, 12);
+        var feature = Assert.Single(FirmamentV2SemanticHoleLowering.LowerSemanticHoles(parsed.Document!));
+        var materialized = AirHoleSimpleShaftMaterializer.Execute(feature, frame.CreateHoleHost());
+
+        Assert.True(materialized.Succeeded, string.Join(" | ", materialized.Diagnostics));
+        Assert.Equal(0d, materialized.Plan!.Host.ZMin, 9);
+        Assert.Equal(12d, materialized.Plan.Host.ZMax, 9);
+        Assert.Equal("FirmamentBoxBottomAnchoredV2", frame.Authority);
+        Assert.Equal(0d, frame.ZMin, 9);
+        Assert.Equal(12d, frame.ZMax, 9);
+        var z = materialized.Body!.Topology.Vertices.Select(vertex =>
+        {
+            Assert.True(materialized.Body.TryGetVertexPoint(vertex.Id, out var point));
+            return point.Z;
+        }).ToArray();
+        Assert.Equal(0d, z.Min(), 9);
+        Assert.Equal(12d, z.Max(), 9);
+    }
+
+    [Fact]
     public void FirmamentV2SemanticHole_ParsesShaftCounterboreCountersink()
     {
         AssertHole("Regression/Hole/valid/hole-x4-shaft-through.valid.firmfixture", FirmamentV2SemanticHoleVariant.Shaft);

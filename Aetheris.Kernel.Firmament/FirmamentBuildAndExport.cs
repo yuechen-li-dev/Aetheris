@@ -976,9 +976,7 @@ public static class FirmamentBuildAndExport
         // Hole is intentionally the first construction stage.  Existing materialization
         // is used as the semantic/host proof; the bounded final plan below then consumes
         // its same source intent alongside the admitted outer-boundary finish.
-        var host = document.ConceptIr is null
-            ? new AirHoleSimpleShaftHost(box.Size[0], box.Size[1], -box.Size[2] / 2d, box.Size[2] / 2d)
-            : new AirHoleSimpleShaftHost(box.Size[0], box.Size[1], 0d, box.Size[2]);
+        var host = FirmamentStockFrame.ForBox(box.Size[0], box.Size[1], box.Size[2]).CreateHoleHost();
         var holeStages = holes.Select(h => AirHoleSimpleShaftMaterializer.Execute(h, host)).ToArray();
         if (holeStages.Any(stage => !stage.Succeeded || stage.Plan is null))
         {
@@ -1708,7 +1706,7 @@ public static class FirmamentBuildAndExport
 
         var semanticHoles = FirmamentV2SemanticHoleLowering.LowerSemanticHoles(syntheticDocument);
         var feature = semanticHoles[0];
-        var host = new AirHoleSimpleShaftHost(size[0], size[1], -size[2] / 2d, size[2] / 2d);
+        var host = FirmamentStockFrame.ForBox(size[0], size[1], size[2]).CreateHoleHost();
         var materialized = AirHoleSimpleShaftMaterializer.Execute(feature, host);
         if (!materialized.Succeeded || materialized.Body is null) return SemanticHoleFailure(materialized.Diagnostics);
 
@@ -1927,11 +1925,8 @@ public static class FirmamentBuildAndExport
         }
 
         var feature = semanticHoles[0];
-        // Concept Box3 uses an XY-centered frame with Z in [0, height]. Preserve that frame for
-        // Concept-driven holes so the materialized face and resolved Point3 share coordinates.
-        var host = document.ConceptIr is null
-            ? new AirHoleSimpleShaftHost(box.Size[0], box.Size[1], -box.Size[2] / 2d, box.Size[2] / 2d)
-            : new AirHoleSimpleShaftHost(box.Size[0], box.Size[1], 0d, box.Size[2]);
+        // The stock frame is authored by the Box, never inferred from ConceptIr presence.
+        var host = FirmamentStockFrame.ForBox(box.Size[0], box.Size[1], box.Size[2]).CreateHoleHost();
         Aetheris.Kernel.Core.Brep.BrepBody? body;
         IReadOnlyList<string> diagnostics;
         if (semanticHoles.Count == 1)

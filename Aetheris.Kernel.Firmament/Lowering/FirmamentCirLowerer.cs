@@ -139,7 +139,7 @@ internal static class FirmamentCirLowerer
     {
         var zShift = primitive switch
         {
-            { Kind: FirmamentLoweredPrimitiveKind.Box, Parameters: FirmamentLoweredBoxParameters box } => box.SizeZ * 0.5d,
+            { Kind: FirmamentLoweredPrimitiveKind.Box, Parameters: FirmamentLoweredBoxParameters box } => FirmamentStockFrame.ForBox(box.SizeX, box.SizeY, box.SizeZ).KernelCenteredToStockZ,
             { Kind: FirmamentLoweredPrimitiveKind.Cylinder, Parameters: FirmamentLoweredCylinderParameters cylinder } => cylinder.Height * 0.5d,
             { Kind: FirmamentLoweredPrimitiveKind.Cone, Parameters: FirmamentLoweredConeParameters cone } => cone.Height * 0.5d,
             { Kind: FirmamentLoweredPrimitiveKind.TriangularPrism, Parameters: FirmamentLoweredTriangularPrismParameters prism } => prism.Height * 0.5d,

@@ -20,4 +20,6 @@ Canonical fields use a colon between name and value. Braces delimit declarations
 
 Firmament V1 is compatibility history rather than canonical V2 authoring. Bodies embedded in `.firmfixture` entries marked future, not implemented, or invalid are corpus evidence and do not define the public language.
 
+An untransformed `Box` stock is centered in X/Y with `Bottom` at Z=0 and `Top` at Z=`Height`. Its local feature coordinates use that same stock frame: adding holes or edge finishes does not translate the stock.
+
 Use `aetheris validate file.firmament --json` before building. Diagnostics are codes intended for automation plus short corrective messages. See [diagnostics](../reference/diagnostics.md).

@@ -53,8 +53,9 @@ public sealed class ChamferM6FixturePipelineTests
     }
 
     [Theory]
-    [InlineData("air-hole-entry-chamfer.valid.firmament", 6, 5)]
-    [InlineData("air-hole-entry-chamfer-variant.valid.firmament", 4.5, 4.25)]
+    // Entry geometry is expressed in the Box stock frame: Bottom=Z0 and Top=Z12.
+    [InlineData("air-hole-entry-chamfer.valid.firmament", 6, 11)]
+    [InlineData("air-hole-entry-chamfer-variant.valid.firmament", 4.5, 9.25)]
     public void InternalHoleEntryFixture_UsesProfileStackAndContainsRealConeAndShaft(string fixture, double shaftDiameter, double transitionZ)
     {
         var built = BuildFixture(fixture);

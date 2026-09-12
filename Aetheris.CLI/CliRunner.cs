@@ -1792,6 +1792,7 @@ Model CanonicalPanel {
                 sourceDeclaration = new { kind = "Hole<Shaft>", featureId = hole.HoleId, sourceSpan = hole.Evidence?.SourceSpan },
                 boundPlacement = hole.Evidence is null ? null : new { kind = hole.Evidence.PlacementKind, hole.Evidence.ConstructionPlaneId, hole.Evidence.SourceConceptPlaneId, hole.Evidence.LocalCenter },
                 airPlacement = hole.Evidence is null ? null : new { kind = hole.Evidence.PlacementKind == "ConstructionPlane" ? "AirConstructionPlaneHolePlacement" : "AirFaceLocalHolePlacement", featureId = hole.Evidence.FeatureId, hole.Evidence.ConstructionPlaneId, hole.Evidence.LocalCenter },
+                stockFrame = hole.Evidence?.StockFrame,
                 plan = hole.Evidence?.PlanId is null ? null : new { kind = "LocalFrameHoleBRepPlan", stableId = hole.Evidence.PlanId, hostInterval = hole.Evidence.HostInterval },
                 holeContract = hole.Evidence?.Contract is null ? null : new
                 {

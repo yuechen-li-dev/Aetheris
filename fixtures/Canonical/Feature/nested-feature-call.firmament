@@ -1,0 +1,19 @@
+schema Mechanical
+Model NestedFeatureCall {
+    Units: mm
+    Feature CoreCounterbore(Center: Point2, Depth: Length) -> Hole<Counterbore> {
+        return Hole<Counterbore> {
+            On: +Z
+            Center: Center
+            Diameter: 8.5mm
+            CounterboreDiameter: 14mm
+            CounterboreDepth: Depth
+            End: ThroughAll
+        }
+    }
+    Feature M8Counterbore(Center: Point2) -> Hole<Counterbore> {
+        return CoreCounterbore(Center: Center, Depth: 4mm)
+    }
+    Box Plate { Size: [30mm, 20mm, 8mm] }
+    Modify Plate { M8Counterbore(Center: Point2(0mm, 0mm)) }
+}

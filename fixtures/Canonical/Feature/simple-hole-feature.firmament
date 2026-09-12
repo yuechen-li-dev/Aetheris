@@ -1,0 +1,17 @@
+schema Mechanical
+Model SimpleHoleFeature {
+    Units: mm
+    Feature MountHole(Center: Point2, Diameter: Length = 6mm) -> Hole<Shaft> {
+        return Hole<Shaft> {
+            On: +Z
+            Center: Center
+            Diameter: Diameter
+            End: ThroughAll
+        }
+    }
+    Box Plate { Size: [60mm, 30mm, 8mm] }
+    Modify Plate {
+        MountHole(Center: Point2(-18mm, 0mm))
+        MountHole(Center: Point2(18mm, 0mm))
+    }
+}

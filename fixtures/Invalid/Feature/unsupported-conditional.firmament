@@ -1,0 +1,1 @@
+Feature Broken() -> Hole<Shaft> { if true return Hole<Shaft> { On: +Z Center: Point2(0mm, 0mm) Diameter: 6mm End: ThroughAll } }

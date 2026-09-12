@@ -1,0 +1,2 @@
+Feature Broken(Center: Point2) -> Hole<Counterbore> { return Hole<Shaft> { On: +Z Center: Center Diameter: 6mm End: ThroughAll } }
+Model WrongReturn { Units: mm Box Plate { Size: [20mm, 20mm, 5mm] } Modify Plate { Broken(Point2(0mm, 0mm)) } }

@@ -1,0 +1,17 @@
+schema Mechanical
+Model DerivedCounterboreFeature {
+    Units: mm
+    Feature M8Counterbore(Center: Point2, Depth: Length = 4mm) -> Hole<Counterbore> {
+        let CounterboreDiameter: Length = 8.5mm + 5.5mm
+        return Hole<Counterbore> {
+            On: +Z
+            Center: Center
+            Diameter: 8.5mm
+            CounterboreDiameter: CounterboreDiameter
+            CounterboreDepth: Depth
+            End: ThroughAll
+        }
+    }
+    Box Plate { Size: [30mm, 20mm, 8mm] }
+    Modify Plate { M8Counterbore(Center: Point2(0mm, 0mm)) }
+}

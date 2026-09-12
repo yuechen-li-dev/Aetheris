@@ -38,3 +38,92 @@ An untransformed `Box` stock is centered in X/Y with `Bottom` at Z=0 and `Top` a
 Firmament admits declarations through typed semantic namespaces. Construction `Profile` names may coincide with `Boss` or `Pocket` feature names because feature `Profile:` references are explicitly typed; these identities remain distinct in structured inspection. Names may not otherwise shadow another declaration in the same semantic namespace.
 
 Use `aetheris validate file.firmament --json` before building. Diagnostics are codes intended for automation plus short corrective messages. See [diagnostics](../reference/diagnostics.md).
+
+## Reusable semantic construction with Feature
+
+`Feature` is Firmament's function-like abstraction for reusable semantic construction. It accepts typed inputs and returns exactly one typed semantic output. Feature evaluation is pure, deterministic, file-local in X1, and expanded before Feature AIR; a definition does not materialize geometry until it is invoked.
+
+```firmament
+Feature M8Counterbore(Center: Point2, Depth: Length = 4mm) -> Hole<Counterbore> {
+    let CounterboreDiameter: Length = 8.5mm + 5.5mm
+    return Hole<Counterbore> {
+        On: +Z
+        Center: Center
+        Diameter: 8.5mm
+        CounterboreDiameter: CounterboreDiameter
+        CounterboreDepth: Depth
+        End: ThroughAll
+    }
+}
+
+Modify Plate {
+    M8Counterbore(Center: Point2(-20mm, 0mm))
+    M8Counterbore(Center: Point2(20mm, 0mm), Depth: 5mm)
+}
+```
+
+Parameters are strongly typed and calls may use positional or named arguments. Defaults are optional. A body contains immutable typed `let` derivations followed by one terminal `return`. A Feature may return `Hole<Shaft>`, `Hole<Counterbore>`, `Hole<Countersink>`, `Boss`, `Pocket`, or `EdgeFinish`, and may call another Feature with the same return type. Direct and indirect recursion are rejected. Feature names occupy the callable namespace, separate from typed construction declarations such as `Profile`.
+
+Firmament intentionally does not provide general runtime control flow. `if`/`else`, conditional expressions, `match` inside Feature, mutable variables, exceptions, and `for`/`while` loops are rejected. A Firmament program describes one deterministic engineering construction, not a runtime family of topologically unrelated outputs.
+
+Use each abstraction for its single role:
+
+| Construct | Role |
+| --- | --- |
+| `Feature` | Function-like reusable semantic construction. |
+| `Pattern` | Bounded finite geometric repetition; it is the loop substitute. |
+| `Template` | Compile-time product/configuration specialization; it is the structural branch substitute. |
+| `Concept` | Semantic contract or capability. |
+| `Record` / `Struct` | Typed data and semantic structure. |
+
+Feature composes with an existing bounded Pattern without exposing its internals:
+
+```firmament
+Feature MountHole(Center: Point3, Diameter: Length = 6mm) -> Hole<Shaft> {
+    return Hole<Shaft> {
+        On: Base.Top
+        Center: Center
+        Diameter: Diameter
+        End: ThroughAll
+    }
+}
+
+Concept Struct Design {
+    Bounds: Box3 { Size: [60mm, 40mm, 10mm] }
+    Points: Grid {
+        Within: Bounds.Face(+Z).Inset(8mm)
+        Columns: 2
+        Rows: 2
+    }
+}
+
+Pattern Mounts {
+    Source: Design.Points
+    MountHole(Center: Item)
+}
+```
+
+The two-column, two-row Grid is the explicit four-hole rectangular distribution. This semantic PointSet Pattern uses `Item`. The older `Pattern Name Over Records { Template<Current> }` form remains the record-array composition syntax for finite feature Templates; `Current` is the selected record. Feature functions do not replace that compatibility form.
+
+A Feature may return a call to another Feature with the same declared result type:
+
+```firmament
+Feature CoreCounterbore(Center: Point2, Depth: Length) -> Hole<Counterbore> {
+    return Hole<Counterbore> {
+        On: +Z
+        Center: Center
+        Diameter: 8.5mm
+        CounterboreDiameter: 14mm
+        CounterboreDepth: Depth
+        End: ThroughAll
+    }
+}
+
+Feature M8Counterbore(Center: Point2) -> Hole<Counterbore> {
+    return CoreCounterbore(Center: Center, Depth: 4mm)
+}
+```
+
+Structurally different edge finishes should be separate Features in X1—for example, `StandardChamfer` and `StandardFillet`. A caller may instead select a specialized product with Template where that owning Template grammar admits the returned construction. Feature itself cannot branch between them.
+
+For X1, Feature is supported by the `Mechanical` frontend. `WireForm`, `Sweep`, and `SectionChain` reject Feature declarations explicitly; shared cross-schema Feature IR and module/library packaging are deferred.

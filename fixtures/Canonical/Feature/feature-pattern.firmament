@@ -1,0 +1,26 @@
+schema Mechanical
+Feature MountHole(Center: Point3, Diameter: Length = 6mm) -> Hole<Shaft> {
+    return Hole<Shaft> {
+        On: Base.Top
+        Center: Center
+        Diameter: Diameter
+        End: ThroughAll
+    }
+}
+Concept Struct Design {
+    Bounds: Box3 { Size: [60mm, 40mm, 10mm] }
+    Points: Grid {
+        Within: Bounds.Face(+Z).Inset(8mm)
+        Columns: 2
+        Rows: 2
+    }
+}
+Struct PatternPlate {
+    Box Base { Bounds: Design.Bounds }
+    Modify Base {
+        Pattern Mounts {
+            Source: Design.Points
+            MountHole(Center: Item)
+        }
+    }
+}

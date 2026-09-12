@@ -25,6 +25,8 @@
     { "path": "Primitives", "operation": "build-step" },
     { "path": "Profiles", "operation": "build-step" },
     { "path": "Features", "operation": "build-step" },
+    { "path": "Feature", "operation": "build-step" },
+    { "path": "Schema", "operation": "build-step" },
     { "path": "Patterns", "operation": "build-step" },
     { "path": "PMI", "operation": "build-step" },
     { "path": "Templates", "operation": "build-step" },

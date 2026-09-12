@@ -3,7 +3,7 @@ using Aetheris.Surfacing;
 
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
-public sealed record FirmamentV2Document(string ModelName, string Units, IReadOnlyList<FirmamentV2SolidBinding> Solids, IReadOnlyList<FirmamentV2ModifyBlock>? ModifyBlocks = null, IReadOnlyList<FirmamentV2TemplateDecl>? Templates = null, IReadOnlyList<FirmamentV2PmiDecl>? Pmi = null, IReadOnlyList<FirmamentV2RecognizedRegion>? RecognizedRegions = null, IReadOnlyList<FirmamentV2ReplacementDecl>? Replacements = null, IReadOnlyList<FirmamentV2LetDeclaration>? Lets = null, IReadOnlyList<FirmamentV2BoundLet>? BoundLets = null, IReadOnlyList<FirmamentV2LetRecordDeclaration>? LetRecords = null, IReadOnlyList<FirmamentV2BoundLetRecord>? BoundLetRecords = null, IReadOnlyList<FirmamentV2ManufacturingConceptDeclaration>? ManufacturingConcepts = null, IReadOnlyList<FirmamentV2FeatureConceptDeclaration>? FeatureConcepts = null, FirmamentV2PmiBlock? PmiBlock = null, FirmamentV2BoundPmiBlock? BoundPmi = null, ConceptIrDocument? ConceptIr = null, IReadOnlyList<FirmamentV2LatticeFillDecl>? LatticeFills = null, IReadOnlyList<FirmamentV2StandaloneLatticeFillDecl>? StandaloneLatticeFills = null, IReadOnlyList<FirmamentV2ProfileDecl>? Profiles = null, IReadOnlyList<FirmamentV2ComposeDecl>? Composes = null, IReadOnlyList<FirmamentV2SelectionDecl>? Selections = null, FirmamentV2StaticAuthoringDocument? StaticAuthoring = null, FirmamentV2CanonicalSymbolTable? SymbolTable = null, IReadOnlyList<FirmamentV2VolumeAssertion>? VolumeAssertions = null, IReadOnlyList<ConceptIrTemplateInstantiation>? TemplateInstantiations = null, IReadOnlyList<PanelIr>? Panels = null, IReadOnlyList<FirmamentV2BossDecl>? Bosses = null, IReadOnlyList<FirmamentV2PocketDecl>? Pockets = null)
+public sealed record FirmamentV2Document(string ModelName, string Units, IReadOnlyList<FirmamentV2SolidBinding> Solids, IReadOnlyList<FirmamentV2ModifyBlock>? ModifyBlocks = null, IReadOnlyList<FirmamentV2TemplateDecl>? Templates = null, IReadOnlyList<FirmamentV2PmiDecl>? Pmi = null, IReadOnlyList<FirmamentV2RecognizedRegion>? RecognizedRegions = null, IReadOnlyList<FirmamentV2ReplacementDecl>? Replacements = null, IReadOnlyList<FirmamentV2LetDeclaration>? Lets = null, IReadOnlyList<FirmamentV2BoundLet>? BoundLets = null, IReadOnlyList<FirmamentV2LetRecordDeclaration>? LetRecords = null, IReadOnlyList<FirmamentV2BoundLetRecord>? BoundLetRecords = null, IReadOnlyList<FirmamentV2ManufacturingConceptDeclaration>? ManufacturingConcepts = null, IReadOnlyList<FirmamentV2FeatureConceptDeclaration>? FeatureConcepts = null, FirmamentV2PmiBlock? PmiBlock = null, FirmamentV2BoundPmiBlock? BoundPmi = null, ConceptIrDocument? ConceptIr = null, IReadOnlyList<FirmamentV2LatticeFillDecl>? LatticeFills = null, IReadOnlyList<FirmamentV2StandaloneLatticeFillDecl>? StandaloneLatticeFills = null, IReadOnlyList<FirmamentV2ProfileDecl>? Profiles = null, IReadOnlyList<FirmamentV2ComposeDecl>? Composes = null, IReadOnlyList<FirmamentV2SelectionDecl>? Selections = null, FirmamentV2StaticAuthoringDocument? StaticAuthoring = null, FirmamentV2CanonicalSymbolTable? SymbolTable = null, IReadOnlyList<FirmamentV2VolumeAssertion>? VolumeAssertions = null, IReadOnlyList<ConceptIrTemplateInstantiation>? TemplateInstantiations = null, IReadOnlyList<PanelIr>? Panels = null, IReadOnlyList<FirmamentV2BossDecl>? Bosses = null, IReadOnlyList<FirmamentV2PocketDecl>? Pockets = null, IReadOnlyList<FirmamentV2FeatureDefinition>? FeatureDefinitions = null, IReadOnlyList<FirmamentV2FeatureInvocation>? FeatureInvocations = null, FirmamentV2FeatureExpansionMetrics? FeatureExpansion = null)
 {
     public FirmamentV2SolidBinding Solid => Solids[^1];
     public FirmamentV2SideHoleIntent? SideHoleIntent => ModifyBlocks?.SelectMany(m => m.Regions.Select(r =>
@@ -103,6 +103,18 @@ public sealed record ImportedStepTopologyMap(IReadOnlyDictionary<string, string>
         return false;
     }
 }
+
+public sealed record FirmamentV2FeatureParameter(string Name, string Type, string? DefaultExpression = null);
+public sealed record FirmamentV2FeatureDefinition(string Name, IReadOnlyList<FirmamentV2FeatureParameter> Parameters,
+    string ReturnType, FirmamentV2SourceSpan SourceSpan, string Scope, string Evaluation);
+public sealed record FirmamentV2FeatureInvocation(string Feature, int Ordinal, string ReturnType,
+    IReadOnlyDictionary<string, string> Arguments, FirmamentV2SourceSpan SourceSpan,
+    string ExpandedSemanticKind, string Status)
+{
+    public string GeneratedByFeature => Feature;
+}
+public sealed record FirmamentV2FeatureExpansionMetrics(int DefinitionCount, int InvocationCount,
+    int ExpandedSemanticNodeCount, string ExpansionOrder);
 public sealed record FirmamentV2RecognizedRegion(string BodyName, string RegionName, string Kind, IReadOnlyList<string> FaceRefs, string Confidence, FirmamentV2RecognitionEvidence? Evidence = null, FirmamentV2SemanticProposal? Proposal = null)
 {
     public string TargetSource => $"{BodyName}.region(\"{RegionName}\")";

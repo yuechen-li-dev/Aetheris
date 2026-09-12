@@ -28,6 +28,7 @@
     "Material": "Materials/material-catalog-coupon.firmament",
     "PMI": "PMI/multiple-hole-dimensions-with-chamfer.firmament",
     "Template": "Templates/generic-mounting-plate.firmament",
+    "FeatureFunction": "Feature/feature-with-derived-values.firmament",
     "SheetMetal": "SheetMetal/l-bracket-with-hole.firmament",
     "FEA": "FEA/cantilever.firmament",
     "inlineSTEP": "FEA/inline-step-cantilever.firmament",

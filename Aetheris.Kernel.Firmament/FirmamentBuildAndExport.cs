@@ -280,8 +280,14 @@ public static class FirmamentBuildAndExport
         // parser admission alone is insufficient because the profile/composition
         // materializers read source declarations directly.
         var staticDiagnostics = new List<string>();
+        var featureExpansion = FirmamentV2FeatureExpansion.Expand(sourceText, staticDiagnostics);
+        if (featureExpansion is null)
+        {
+            return KernelResult<FirmamentStepExportResult>.Failure(staticDiagnostics.Select(diagnostic => new Kernel.Core.Diagnostics.KernelDiagnostic(
+                Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, diagnostic, "FirmamentV2.FeatureExpansion")).ToArray());
+        }
         var templateBindWatch = System.Diagnostics.Stopwatch.StartNew();
-        var templateExpansion = FirmamentV2TemplateExpansion.Expand(sourceText, staticDiagnostics);
+        var templateExpansion = FirmamentV2TemplateExpansion.Expand(featureExpansion.Source, staticDiagnostics);
         templateBindWatch.Stop();
         if (templateExpansion is null)
         {

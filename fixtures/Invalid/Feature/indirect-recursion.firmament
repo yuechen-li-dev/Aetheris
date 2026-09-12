@@ -1,0 +1,2 @@
+Feature A() -> Hole<Shaft> { return B() }
+Feature B() -> Hole<Shaft> { return A() }

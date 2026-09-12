@@ -1,0 +1,2 @@
+Feature MountHole(Center: Point2) -> Hole<Shaft> { return Hole<Shaft> { On: +Z Center: Center Diameter: 6mm End: ThroughAll } }
+Model WrongArgument { Units: mm Box Plate { Size: [20mm, 20mm, 5mm] } Modify Plate { MountHole(Center: 4mm) } }

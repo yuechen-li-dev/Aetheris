@@ -1495,6 +1495,25 @@ Model CanonicalPanel {
                     members = pair.Value.Members.OrderBy(member => member.Key, StringComparer.Ordinal).ToDictionary(member => member.Key, member => member.Value, StringComparer.Ordinal)
                 }, StringComparer.Ordinal)
             }).ToArray() ?? [],
+            featureDefinitions = document?.FeatureDefinitions?.Select(definition => new
+            {
+                definition.Name,
+                parameters = definition.Parameters,
+                definition.ReturnType,
+                definition.Scope,
+                definition.Evaluation
+            }).ToArray() ?? [],
+            featureInvocations = document?.FeatureInvocations?.Select(invocation => new
+            {
+                invocation.Feature,
+                invocation.Ordinal,
+                invocation.Arguments,
+                invocation.ReturnType,
+                invocation.ExpandedSemanticKind,
+                invocation.GeneratedByFeature,
+                invocation.Status
+            }).ToArray() ?? [],
+            featureExpansion = document?.FeatureExpansion,
             conceptPaths = ProfileAuthoringParser.InspectConceptPaths(inspectionSource),
             semanticValues = semanticValues.OrderBy(value => value.StableIdentity, StringComparer.Ordinal).Select(SemanticValueDescriptor.From).ToArray(),
             recognizedRegions = document?.RecognizedRegions?.Select(region => new

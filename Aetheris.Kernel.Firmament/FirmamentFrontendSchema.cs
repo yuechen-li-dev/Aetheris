@@ -33,6 +33,9 @@ public static class FirmamentFrontendSchemas
         if (!Enum.TryParse<FirmamentFrontendSchema>(name, false, out var schema))
             return new(null, source, [$"firmament-schema-unknown:{name}:available={string.Join(',', Names)}"]);
         var normalized = source.Remove(declaration.Index, declaration.Length);
+        if (schema != FirmamentFrontendSchema.Mechanical
+            && Regex.IsMatch(normalized, @"\bFeature\s+[A-Za-z_]\w*\s*\(", RegexOptions.CultureInvariant))
+            return new(schema, normalized, [$"firmament-feature-schema-unsupported:{schema}"]);
         var detected = DetectDistinctFrontend(normalized);
         if (detected is not null && detected != schema)
             return new(schema, normalized, [$"firmament-schema-mismatch:declared={schema}:source={detected}"]);

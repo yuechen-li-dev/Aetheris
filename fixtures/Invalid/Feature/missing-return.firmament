@@ -1,0 +1,1 @@
+Feature Broken(Center: Point2) -> Hole<Shaft> { let Diameter: Length = 6mm }

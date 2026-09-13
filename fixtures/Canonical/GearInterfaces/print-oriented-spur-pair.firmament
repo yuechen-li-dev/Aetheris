@@ -1,0 +1,6 @@
+Model PrintOrientedSpurPair {
+    Units: mm
+    SpurGear Driver { Module: 2mm Teeth: 20 PressureAngle: 20deg FaceWidth: 8mm BoreDiameter: 8.4mm Backlash: 0.15mm }
+    SpurGear Driven { Module: 2mm Teeth: 40 PressureAngle: 20deg FaceWidth: 8mm BoreDiameter: 8.4mm Backlash: 0.15mm Phase: 4.5deg }
+    Interface<Gear> Mesh { A: Driver B: Driven }
+}

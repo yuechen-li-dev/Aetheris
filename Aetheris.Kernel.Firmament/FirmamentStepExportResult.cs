@@ -27,7 +27,64 @@ public sealed record FirmamentStepExportResult(
     IReadOnlyList<FirmamentSemanticPatternReport>? Patterns = null,
     Aetheris.Kernel.Firmament.Structural.StructuralReport? Structural = null,
     Aetheris.Kernel.Firmament.Piping.PipingReport? Piping = null,
-    FirmamentRevolveReport? Revolve = null);
+    FirmamentRevolveReport? Revolve = null,
+    FirmamentGearReport? Gear = null);
+
+public sealed record FirmamentGearItemReport(
+    string Name,
+    string Family,
+    int? Teeth,
+    double? Module,
+    double? PressureAngle,
+    double? PitchDiameter,
+    double? BaseDiameter,
+    double? OutsideDiameter,
+    double? RootDiameter,
+    double FaceWidth,
+    double BoreDiameter,
+    double Phase,
+    double Backlash,
+    double? PitchConeAngle,
+    IReadOnlyList<double> Axis,
+    int ToothProfileCurveCount,
+    int InvoluteSpanCount,
+    double MaximumInvoluteApproximationError,
+    string ToothConstruction,
+    IReadOnlyList<string> StableToothIds);
+
+public sealed record FirmamentGearInterfaceReport(
+    string Name,
+    string GearA,
+    string GearB,
+    string Kind,
+    bool Compatible,
+    double? ExpectedCenterDistance,
+    double? Ratio,
+    int RotationSign,
+    string AxisRelation,
+    double? ShaftAngle,
+    double? EngagementPhase,
+    string? AllowedDirection,
+    IReadOnlyList<string> RejectionReasons);
+
+public sealed record FirmamentGearReport(
+    string Model,
+    IReadOnlyList<FirmamentGearItemReport> Gears,
+    IReadOnlyList<FirmamentGearInterfaceReport> Interfaces,
+    int Vertices,
+    int Edges,
+    int Faces,
+    int Planes,
+    int Cylinders,
+    int Cones,
+    int BSplineSurfaces,
+    int LinearExtrusionSurfaces,
+    bool EnclosedManifold,
+    bool StepReimportSucceeded,
+    bool StepReimportedManifold,
+    string StepSha256,
+    string Representation,
+    string Qualification);
 
 public sealed record FirmamentRevolveReport(
     string Profile, string Axis, double SweepRadians, double SweepDegrees, string? Alias,

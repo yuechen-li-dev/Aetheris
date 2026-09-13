@@ -1,0 +1,11 @@
+Model RatchetBasic {
+    Units: mm
+    RatchetGear IndexWheel {
+        Teeth: 60
+        OutsideDiameter: 40mm
+        FaceWidth: 6mm
+        BoreDiameter: 10mm
+        DriveFaceAngle: 0deg
+        Phase: 0deg
+    }
+}

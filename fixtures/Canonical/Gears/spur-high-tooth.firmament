@@ -1,0 +1,4 @@
+Model SpurHighTooth {
+    Units: mm
+    SpurGear TimingWheel { Module: 0.8mm Teeth: 100 PressureAngle: 20deg FaceWidth: 6mm BoreDiameter: 12mm Backlash: 0.05mm }
+}

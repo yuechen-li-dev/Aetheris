@@ -1,0 +1,6 @@
+Model RatchetPawl {
+    Units: mm
+    RatchetGear Wheel { Teeth: 60 OutsideDiameter: 40mm FaceWidth: 6mm BoreDiameter: 10mm DriveFaceAngle: 0deg }
+    Pawl Stop { Width: 16mm Length: 38mm Thickness: 6mm PivotDiameter: 5mm NoseLength: 6mm EngagementAngle: 15deg }
+    Interface<Gear> OneWay { A: Wheel B: Stop EngagementPhase: 2deg AllowedDirection: Clockwise }
+}

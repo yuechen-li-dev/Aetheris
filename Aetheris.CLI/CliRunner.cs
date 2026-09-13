@@ -511,6 +511,7 @@ public static class CliRunner
                 patterns = build.Value.Export.Patterns,
                 structural = build.Value.Export.Structural,
                 piping = build.Value.Export.Piping,
+                gear = build.Value.Export.Gear,
                 featureCount = (build.Value.Export.Features?.Count ?? 0) + (build.Value.Export.EngineeringFeatures?.Count ?? 0),
                 inlineStepMigration = build.Value.Export.InlineStepMigration,
                 inlineStepReplacementAssist = build.Value.Export.InlineStepReplacementAssist,
@@ -537,6 +538,8 @@ public static class CliRunner
                 stdout.WriteLine($"Structure: {structure.Members.Count} members, {structure.Joints.Count} joints, {structure.CutList.Count} cut-list groups; cut list: {structure.CutListArtifactPath}");
             if (build.Value.Export.Piping is { } piping)
                 stdout.WriteLine($"Piping system: {piping.Connections.Count} connections, {piping.Routes.Count} routes, {piping.PipeSegments.Count} pipe segments, {piping.Fittings.Count} fittings, {piping.Nozzles.Count} equipment nozzles, {piping.Mates.Count} endpoint mates; routing report: {piping.RoutingReportArtifactPath}");
+            if (build.Value.Export.Gear is { } gear)
+                stdout.WriteLine($"Gear: {gear.Gears[0].Family} {gear.Gears[0].Name}, {gear.Gears[0].Teeth?.ToString() ?? "n/a"} teeth ({gear.Representation})");
             foreach (var diagnostic in build.Diagnostics.Where(diagnostic => diagnostic.Severity == KernelDiagnosticSeverity.Warning))
                 stderr.WriteLine($"- [Warning] {diagnostic.Source}: {diagnostic.Message}");
         }
@@ -1411,6 +1414,33 @@ Model CanonicalPanel {
             else foreach (var diagnostic in section.Diagnostics) stderr.WriteLine("error: " + diagnostic);
             return section.IsSuccess ? 0 : 1;
         }
+        if (GearAuthoring.IsGearSource(source))
+        {
+            var gear = GearAuthoring.Parse(source);
+            var payload = new
+            {
+                command = "inspect", success = gear.IsSuccess, input = fullPath, domain = "GearLibrary", model = gear.ModelName, units = "mm",
+                gears = gear.Gears.Select(item => new
+                {
+                    item.Name, family = item.Family.ToString(), item.Teeth, module = item.ModuleMm,
+                    pressureAngle = item.PressureAngleDegrees, pitchDiameter = item.PitchDiameterMm,
+                    baseDiameter = item.BaseDiameterMm, outsideDiameter = item.AddendumDiameterMm,
+                    rootDiameter = item.RootDiameterMm, faceWidth = item.FaceWidthMm, boreDiameter = item.BoreDiameterMm,
+                    axis = item.Axis, phase = item.PhaseDegrees, backlash = item.BacklashMm,
+                    pitchConeAngle = item.PitchConeAngleDegrees,
+                    stableToothIds = item.Teeth is { } count ? Enumerable.Range(0, count).Select(index => $"{item.Name}.Tooth{index}") : []
+                }),
+                interfaces = gear.Interfaces.Select(item => new { item.Name, gearA = item.A.Name, gearB = item.B.Name, item.Kind, item.Compatible,
+                    expectedCenterDistance = item.ExpectedCenterDistanceMm, item.Ratio, item.RotationSign,
+                    item.AxisRelation, shaftAngle = item.ShaftAngleDegrees, engagementPhase = item.EngagementPhaseDegrees,
+                    item.AllowedDirection, item.RejectionReasons }),
+                diagnostics = gear.Diagnostics
+            };
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(payload, JsonOptions));
+            else if (gear.IsSuccess) foreach (var item in gear.Gears) stdout.WriteLine($"{item.Family} {item.Name}: {item.Teeth?.ToString() ?? "n/a"} teeth, pitch diameter {item.PitchDiameterMm?.ToString("G12") ?? "n/a"} mm");
+            else foreach (var diagnostic in gear.Diagnostics) stderr.WriteLine("error: " + diagnostic);
+            return gear.IsSuccess ? 0 : 1;
+        }
         var library = FirmamentStandardLibraryResolver.Resolve(source, out var libraryDiagnostics);
         var inspectionSource = library?.Source ?? source;
         var sweepSource = ExpandSweepInspectionSource(source, out var sweepExpansionDiagnostics);
@@ -2260,6 +2290,16 @@ Model CanonicalPanel {
             if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
             else stdout.WriteLine($"Firmament V2 SectionChain validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");
             return section.IsSuccess ? 0 : 1;
+        }
+        if (GearAuthoring.IsGearSource(validationSource))
+        {
+            var gear = GearAuthoring.Parse(validationSource);
+            var payload = new { source = sourcePath, status = gear.IsSuccess ? "valid" : "invalid", domain = "GearLibrary",
+                summary = new { fatalDiagnosticCount = gear.Diagnostics.Count, warningDiagnosticCount = 0, gears = gear.Gears.Count, interfaces = gear.Interfaces.Count },
+                gears = gear.Gears, interfaces = gear.Interfaces, diagnostics = gear.Diagnostics };
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
+            else stdout.WriteLine($"Firmament Gear validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");
+            return gear.IsSuccess ? 0 : 1;
         }
         if (RevolveAuthoringParser.IsRevolveSource(validationSource))
         {

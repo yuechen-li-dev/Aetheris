@@ -16,8 +16,12 @@ The Standard Library is a shipped, curated catalog of typed Firmament product fa
 | Generic Pipe / Elbow90 / Tee | `Standard.Piping` | dimensional, non-standards-claim piping product policies |
 | Pump Cooling Skid | `Standard.Piping.PumpSkid` | equipment-owned nozzle ports, scoped KeepOut exemptions, endpoint mates, deterministic accepted route, AP242 assembly |
 | Electronics Enclosure | `Standard.SheetMetal.ElectronicsEnclosure` | Sheet Metal, DFM, formed STEP, flat STEP, SVG |
+| Gear families | compiler-owned `PowerTransmission.Gears` declarations | Spur/internal involute, bounded straight bevel/miter, typed `Interface<Gear>`, deterministic AP242 |
+| Ratchet and pawl | compiler-owned `PowerTransmission.Ratchets` declarations | Asymmetric ratchet teeth, pawl/pivot geometry, one-way interface metadata |
 
 The namespace taxonomy is intentionally shallow: `Standard.Products.Mechanical`, `.Electronics`, and `.Office` identify ordinary products; `Standard.Structural` owns structure-first weldments; the existing `Standard.SheetMetal` namespace remains stable for manufacturing Templates.
+
+Gear families use concise built-in typed declarations rather than Templates because the compiler must own exact tooth construction and finite radial lowering. Their discoverable metadata lives in `GearFamilyCatalog`; see the [Gear Standard Library guide](../firmament/gears.md).
 
 ## Invoke a family
 

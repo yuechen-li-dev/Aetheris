@@ -1,0 +1,1 @@
+Model Invalid { Units: mm SpurGear Bad { Module: 0mm Teeth: 24 PressureAngle: 20deg FaceWidth: 5mm BoreDiameter: 4mm } }

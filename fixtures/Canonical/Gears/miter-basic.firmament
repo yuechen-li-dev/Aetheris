@@ -1,0 +1,12 @@
+Model MiterBasic {
+    Units: mm
+    MiterGear EqualRedirect {
+        Module: 1.5mm
+        Teeth: 20
+        PressureAngle: 20deg
+        FaceWidth: 11mm
+        PitchConeAngle: 45deg
+        BoreDiameter: 8mm
+        Phase: 0deg
+    }
+}

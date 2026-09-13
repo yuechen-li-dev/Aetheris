@@ -1,0 +1,11 @@
+Model SpurBasic {
+    Units: mm
+    SpurGear DriveGear {
+        Module: 2mm
+        Teeth: 24
+        PressureAngle: 20deg
+        FaceWidth: 10mm
+        BoreDiameter: 8mm
+        Phase: 0deg
+    }
+}

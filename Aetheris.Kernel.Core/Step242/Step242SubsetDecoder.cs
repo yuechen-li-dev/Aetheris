@@ -329,6 +329,16 @@ internal static class Step242SubsetDecoder
                 : KernelResult<CurveGeometry>.Success(CurveGeometry.FromHyperbola(hyperbolaResult.Value));
         }
 
+        var splineConstructor = TryGetConstructor(curveEntity.Instance, "B_SPLINE_CURVE_WITH_KNOTS");
+        if (splineConstructor is not null)
+        {
+            var splineResult = ReadBSplineCurveWithKnots(document,
+                new Step242ParsedEntity(curveEntity.Id, new Step242SimpleEntityInstance(splineConstructor)));
+            return !splineResult.IsSuccess
+                ? KernelResult<CurveGeometry>.Failure(splineResult.Diagnostics)
+                : KernelResult<CurveGeometry>.Success(CurveGeometry.FromBSpline(splineResult.Value));
+        }
+
         return Failure<CurveGeometry>($"{context}: directrix curve '{curveEntity.Name}' is unsupported.", source);
     }
 

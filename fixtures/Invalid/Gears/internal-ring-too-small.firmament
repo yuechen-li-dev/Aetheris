@@ -1,0 +1,1 @@
+Model Invalid { Units: mm InternalSpurGear Bad { Module: 1mm Teeth: 40 PressureAngle: 20deg FaceWidth: 5mm OutsideDiameter: 41mm } }

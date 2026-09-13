@@ -1,0 +1,6 @@
+Model InternalSpurPair {
+    Units: mm
+    SpurGear Pinion { Module: 1mm Teeth: 20 PressureAngle: 20deg FaceWidth: 6mm BoreDiameter: 5mm }
+    InternalSpurGear Ring { Module: 1mm Teeth: 60 PressureAngle: 20deg FaceWidth: 6mm OutsideDiameter: 65mm Phase: 3deg }
+    Interface<Gear> Mesh { A: Pinion B: Ring }
+}

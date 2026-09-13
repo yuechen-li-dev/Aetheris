@@ -1,0 +1,6 @@
+Model Invalid {
+    Units: mm
+    BevelGear A { Module: 1mm Teeth: 20 PressureAngle: 20deg FaceWidth: 5mm PitchConeAngle: 30deg }
+    BevelGear B { Module: 1mm Teeth: 30 PressureAngle: 20deg FaceWidth: 5mm PitchConeAngle: 50deg }
+    Interface<Gear> BadMesh { A: A B: B ShaftAngle: 90deg }
+}

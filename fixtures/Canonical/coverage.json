@@ -35,6 +35,8 @@
     "inlineSTEP": "FEA/inline-step-cantilever.firmament",
     "Assembly": "Assembly/bearing-module.firmament",
     "Piping": "Piping/pump-skid.firmament",
+    "Gear": "Gears/spur-basic.firmament",
+    "Interface<Gear>": "GearInterfaces/spur-pair.firmament",
     "SurfacePatch": "Sculpting/surf-x1-freeform-housing.firmament",
     "ReplaceRegion": "Sculpting/surf-x1-freeform-housing.firmament",
     "PatchG1": "Sculpting/surf-x1-freeform-housing.firmament",

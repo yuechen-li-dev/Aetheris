@@ -1,0 +1,6 @@
+Model SpurPair {
+    Units: mm
+    SpurGear Driver { Module: 2mm Teeth: 24 PressureAngle: 20deg FaceWidth: 10mm BoreDiameter: 8mm }
+    SpurGear Driven { Module: 2mm Teeth: 48 PressureAngle: 20deg FaceWidth: 10mm BoreDiameter: 12mm Phase: 3.75deg }
+    Interface<Gear> Mesh { A: Driver B: Driven }
+}

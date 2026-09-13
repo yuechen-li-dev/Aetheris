@@ -1,0 +1,11 @@
+Model PawlBasic {
+    Units: mm
+    Pawl StopPawl {
+        Width: 16mm
+        Length: 38mm
+        Thickness: 6mm
+        PivotDiameter: 5mm
+        NoseLength: 6mm
+        EngagementAngle: 15deg
+    }
+}

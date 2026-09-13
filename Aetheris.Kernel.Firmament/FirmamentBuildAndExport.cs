@@ -264,6 +264,10 @@ public static class FirmamentBuildAndExport
         bool allowV1Compatibility = false,
         FirmamentFrontendSchema? explicitSchema = null)
     {
+        if (GearAuthoring.IsGearSource(sourceText))
+        {
+            return ExportGearSource(sourceText);
+        }
         if (explicitSchema == FirmamentFrontendSchema.SectionChain)
         {
             var authored = SectionChainAuthoringParser.Compile(sourceText);
@@ -627,6 +631,55 @@ public static class FirmamentBuildAndExport
         }
 
         return ExportV1CompatibilitySource(sourceText);
+    }
+
+    private static KernelResult<FirmamentStepExportResult> ExportGearSource(string sourceText)
+    {
+        var authored = GearAuthoring.Parse(sourceText);
+        if (!authored.IsSuccess)
+            return KernelResult<FirmamentStepExportResult>.Failure(authored.Diagnostics.Select(message => new Kernel.Core.Diagnostics.KernelDiagnostic(
+                Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+                message, "Firmament.GearAir")).ToArray());
+        if (authored.Gears.Count != 1)
+            return KernelResult<FirmamentStepExportResult>.Failure([new Kernel.Core.Diagnostics.KernelDiagnostic(
+                Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+                $"{GearAuthoring.Prefix}build-body-count-invalid:expected=1:actual={authored.Gears.Count}:use-Assembly-for-a-gear-train",
+                "Firmament.GearAir")]);
+        var gear = authored.Gears[0];
+        var materialized = GearAuthoring.Materialize(gear, out var materializationDiagnostics);
+        if (materialized is null)
+            return KernelResult<FirmamentStepExportResult>.Failure(materializationDiagnostics.Select(message => new Kernel.Core.Diagnostics.KernelDiagnostic(
+                Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+                message, "Firmament.GearBRep")).ToArray());
+        var step = Step242Exporter.ExportBody(materialized.Body, new Step242ExportOptions
+        {
+            ProductName = gear.Name,
+            ApplicationName = "Aetheris.Firmament.GearLibrary.X0"
+        });
+        if (!step.IsSuccess || step.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+        var reimport = Step242Importer.ImportBody(step.Value);
+        var reimportedManifold = reimport.IsSuccess && reimport.Value is not null && FirmamentManifoldChecker.IsManifold(reimport.Value);
+        if (!reimportedManifold)
+            return KernelResult<FirmamentStepExportResult>.Failure(reimport.Diagnostics.Append(new Kernel.Core.Diagnostics.KernelDiagnostic(
+                Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+                $"{GearAuthoring.Prefix}step-reimport-not-manifold:{gear.Name}", "Firmament.GearBRep")).ToArray());
+        var surfaces = materialized.Body.Topology.Faces.Select(face => materialized.Body.GetFaceSurface(face.Id).Kind).ToArray();
+        var item = new FirmamentGearItemReport(gear.Name, gear.Family.ToString(), gear.Teeth, gear.ModuleMm, gear.PressureAngleDegrees,
+            gear.PitchDiameterMm, gear.BaseDiameterMm, gear.AddendumDiameterMm, gear.RootDiameterMm, gear.FaceWidthMm,
+            gear.BoreDiameterMm, gear.PhaseDegrees, gear.BacklashMm, gear.PitchConeAngleDegrees, gear.Axis,
+            materialized.ToothProfileCurveCount, materialized.InvoluteSpanCount, materialized.MaximumInvoluteApproximationErrorMm,
+            materialized.ToothConstruction, materialized.StableToothIds);
+        var interfaces = authored.Interfaces.Select(value => new FirmamentGearInterfaceReport(value.Name, value.A.Name, value.B.Name,
+            value.Kind, value.Compatible, value.ExpectedCenterDistanceMm, value.Ratio, value.RotationSign,
+            value.AxisRelation, value.ShaftAngleDegrees, value.EngagementPhaseDegrees, value.AllowedDirection, value.RejectionReasons)).ToArray();
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))).ToLowerInvariant();
+        var report = new FirmamentGearReport(authored.ModelName, [item], interfaces,
+            materialized.Body.Topology.Vertices.Count(), materialized.Body.Topology.Edges.Count(), materialized.Body.Topology.Faces.Count(),
+            surfaces.Count(kind => kind == SurfaceGeometryKind.Plane), surfaces.Count(kind => kind == SurfaceGeometryKind.Cylinder),
+            surfaces.Count(kind => kind == SurfaceGeometryKind.Cone), surfaces.Count(kind => kind == SurfaceGeometryKind.BSplineSurfaceWithKnots),
+            surfaces.Count(kind => kind == SurfaceGeometryKind.LinearExtrusion), FirmamentManifoldChecker.IsManifold(materialized.Body),
+            true, true, hash, "DeterministicExactBRepAP242", gear.Family is GearFamily.BevelGear or GearFamily.MiterGear ? "BoundedStraightBevel" : "QualifiedX0");
+        return KernelResult<FirmamentStepExportResult>.Success(new(step.Value, $"gear:{gear.Name}", 0, "gear", gear.Family.ToString(), Gear: report));
     }
 
     private static FirmamentV2ParseResult ParseSemanticSource(string source, string? sourceDirectory)

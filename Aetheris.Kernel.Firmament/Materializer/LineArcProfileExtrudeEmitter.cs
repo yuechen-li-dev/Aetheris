@@ -8,6 +8,16 @@ public sealed record LineArcCircularArc2D((double X, double Y) Center, double Ra
 public sealed record LineArcFullCircle2D((double X, double Y) Center, double Radius) : LineArcProfileCurve2D;
 /// <summary>Exact full planar ellipse; RotationRadians locates its major axis in local XY.</summary>
 public sealed record LineArcFullEllipse2D((double X, double Y) Center, double MajorRadius, double MinorRadius, double RotationRadians) : LineArcProfileCurve2D;
+/// <summary>
+/// One non-rational cubic Bezier span.  It is stored as a clamped degree-three
+/// B-spline during B-rep planning, so faithful authored/generated curves do not
+/// have to collapse to line segments before exact STEP export.
+/// </summary>
+public sealed record LineArcCubicBezier2D(
+    (double X, double Y) Start,
+    (double X, double Y) Control1,
+    (double X, double Y) Control2,
+    (double X, double Y) End) : LineArcProfileCurve2D;
 public sealed record LineArcProfileLoop2D(IReadOnlyList<LineArcProfileCurve2D> Curves, bool IsHole);
 
 /// <summary>Local profile and local depth interval. Height-only callers retain the historic centered interval.</summary>

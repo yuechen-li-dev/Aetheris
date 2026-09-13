@@ -1,0 +1,1 @@
+Model Invalid { Units: mm RatchetGear Bad { Teeth: 4 OutsideDiameter: 0mm FaceWidth: 5mm BoreDiameter: 10mm } }

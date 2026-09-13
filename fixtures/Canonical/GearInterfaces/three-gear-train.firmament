@@ -1,0 +1,8 @@
+Model ThreeGearTrain {
+    Units: mm
+    SpurGear A { Module: 1mm Teeth: 20 PressureAngle: 20deg FaceWidth: 6mm BoreDiameter: 5mm }
+    SpurGear Idler { Module: 1mm Teeth: 30 PressureAngle: 20deg FaceWidth: 6mm BoreDiameter: 5mm Phase: 6deg }
+    SpurGear C { Module: 1mm Teeth: 40 PressureAngle: 20deg FaceWidth: 6mm BoreDiameter: 5mm }
+    Interface<Gear> AToIdler { A: A B: Idler }
+    Interface<Gear> IdlerToC { A: Idler B: C }
+}

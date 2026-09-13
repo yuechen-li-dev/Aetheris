@@ -1,0 +1,4 @@
+Model BevelPairGear {
+    Units: mm
+    BevelGear Gear { Module: 1mm Teeth: 40 PressureAngle: 20deg FaceWidth: 5mm BoreDiameter: 8mm PitchConeAngle: 63.434948823deg }
+}

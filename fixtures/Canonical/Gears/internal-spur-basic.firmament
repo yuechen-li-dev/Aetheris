@@ -1,0 +1,11 @@
+Model InternalSpurBasic {
+    Units: mm
+    InternalSpurGear Ring {
+        Module: 0.5mm
+        Teeth: 100
+        PressureAngle: 20deg
+        FaceWidth: 5mm
+        OutsideDiameter: 70mm
+        Phase: 0deg
+    }
+}

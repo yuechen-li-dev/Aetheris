@@ -1,0 +1,12 @@
+Model BevelBasic {
+    Units: mm
+    BevelGear RedirectGear {
+        Module: 1mm
+        Teeth: 45
+        PressureAngle: 20deg
+        FaceWidth: 6mm
+        PitchConeAngle: 71.565051177deg
+        BoreDiameter: 8mm
+        Phase: 0deg
+    }
+}

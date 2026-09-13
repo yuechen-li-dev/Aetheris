@@ -1,0 +1,6 @@
+Model Invalid {
+    Units: mm
+    SpurGear Pinion { Module: 1mm Teeth: 40 PressureAngle: 20deg FaceWidth: 5mm }
+    InternalSpurGear Ring { Module: 1mm Teeth: 30 PressureAngle: 20deg FaceWidth: 5mm OutsideDiameter: 35mm }
+    Interface<Gear> BadMesh { A: Pinion B: Ring }
+}

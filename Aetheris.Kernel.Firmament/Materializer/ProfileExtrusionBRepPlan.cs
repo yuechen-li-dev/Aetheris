@@ -169,6 +169,24 @@ public static class ProfileExtrusionBRepPlanner
                         sideSurface = SurfaceGeometry.FromLinearExtrusion(new LinearExtrusionSurface(startEllipse, frame.AxisZ.ToVector() * (end - start)));
                         break;
                     }
+                    case LineArcCubicBezier2D bezier:
+                    {
+                        sv0 = Vertex(bezier.Start, false, segmentSource); sv1 = Vertex(bezier.End, false, segmentSource);
+                        ev0 = Vertex(bezier.Start, true, segmentSource); ev1 = Vertex(bezier.End, true, segmentSource);
+                        BSpline3Curve Spline(double depth) => new(3,
+                            [frame.ToWorld(bezier.Start, depth), frame.ToWorld(bezier.Control1, depth), frame.ToWorld(bezier.Control2, depth), frame.ToWorld(bezier.End, depth)],
+                            [4, 4], [0d, 1d], "UNSPECIFIED", false, false, "PIECEWISE_BEZIER_KNOTS");
+                        var startSpline = CurveGeometry.FromBSpline(Spline(start));
+                        var endSpline = CurveGeometry.FromBSpline(Spline(end));
+                        startEdge = Edge(prefix + ":edge:local-start", sv0, sv1,
+                            Curve(prefix + ":curve:local-start", startSpline, new(0d, 1d), segmentSource), segmentSource, ProfileExtrusionPlanRole.LocalStartBoundary);
+                        endEdge = Edge(prefix + ":edge:local-end", ev0, ev1,
+                            Curve(prefix + ":curve:local-end", endSpline, new(0d, 1d), segmentSource), segmentSource, ProfileExtrusionPlanRole.LocalEndBoundary);
+                        startLongitudinal = Vertical(bezier.Start, sv0, ev0, segmentSource);
+                        endLongitudinal = Vertical(bezier.End, sv1, ev1, segmentSource);
+                        sideSurface = SurfaceGeometry.FromLinearExtrusion(new LinearExtrusionSurface(startSpline, frame.AxisZ.ToVector() * (end - start)));
+                        break;
+                    }
                     default: throw new InvalidOperationException("ProfileExtrusionUnsupportedCurve");
                 }
                 // Loop winding is authored in local Profile coordinates (outer CCW, inner CW).
@@ -243,13 +261,15 @@ public static class ProfileExtrusionBRepPlanner
                     case LineArcCircularArc2D arc when !double.IsFinite(arc.Radius) || arc.Radius <= Tol || Math.Abs(arc.SweepAngleRadians) <= Tol: d.Add("ProfileExtrusionUnsupportedCurve: invalid arc"); return false;
                     case LineArcFullCircle2D circle when !double.IsFinite(circle.Radius) || circle.Radius <= Tol: d.Add("ProfileExtrusionUnsupportedCurve: invalid circle"); return false;
                     case LineArcFullEllipse2D ellipse when !double.IsFinite(ellipse.MajorRadius) || !double.IsFinite(ellipse.MinorRadius) || ellipse.MajorRadius <= Tol || ellipse.MinorRadius <= Tol || ellipse.MinorRadius > ellipse.MajorRadius: d.Add("ProfileExtrusionUnsupportedCurve: invalid ellipse"); return false;
-                    case not (LineArcLineSegment2D or LineArcCircularArc2D or LineArcFullCircle2D or LineArcFullEllipse2D): d.Add("ProfileExtrusionUnsupportedCurve"); return false;
+                    case LineArcCubicBezier2D bezier when !Finite(bezier.Start) || !Finite(bezier.Control1) || !Finite(bezier.Control2) || !Finite(bezier.End) || Distance(bezier.Start, bezier.End) <= Tol: d.Add("ProfileExtrusionUnsupportedCurve: invalid cubic bezier"); return false;
+                    case not (LineArcLineSegment2D or LineArcCircularArc2D or LineArcFullCircle2D or LineArcFullEllipse2D or LineArcCubicBezier2D): d.Add("ProfileExtrusionUnsupportedCurve"); return false;
                 }
         }
         return true;
     }
 
     private static double Distance((double X, double Y) a, (double X, double Y) b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
+    private static bool Finite((double X, double Y) point) => double.IsFinite(point.X) && double.IsFinite(point.Y);
 }
 
 /// <summary>Strict plan consumer. It has no geometric matching, adjacency inference, or semantic planning branch.</summary>

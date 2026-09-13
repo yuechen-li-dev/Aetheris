@@ -819,6 +819,25 @@ public static class Step242Exporter
             return KernelResult<string>.Success(writer.AddEntity("HYPERBOLA", "$", Step242TextWriter.Ref(axisPlacementId), Step242TextWriter.Number(hyperbola.SemiAxisA), Step242TextWriter.Number(hyperbola.SemiAxisB)));
         }
 
+        if (curve.Kind == CurveGeometryKind.BSpline3 && curve.BSpline3 is BSpline3Curve spline)
+        {
+            var controlPointIds = spline.ControlPoints
+                .Select(point => writer.AddEntity("CARTESIAN_POINT", "$", PointList(point)))
+                .Select(Step242TextWriter.Ref)
+                .ToArray();
+            return KernelResult<string>.Success(writer.AddEntity(
+                "B_SPLINE_CURVE_WITH_KNOTS",
+                "$",
+                spline.Degree.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                Step242TextWriter.List(controlPointIds),
+                Step242TextWriter.Enum(spline.CurveForm),
+                Step242TextWriter.BooleanLogical(spline.ClosedCurve),
+                Step242TextWriter.BooleanLogical(spline.SelfIntersect),
+                Step242TextWriter.List(spline.KnotMultiplicities.Select(value => value.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToArray()),
+                Step242TextWriter.List(spline.KnotValues.Select(Step242TextWriter.Number).ToArray()),
+                Step242TextWriter.Enum(spline.KnotSpec)));
+        }
+
         return Failure($"Unsupported swept directrix curve kind '{curve.Kind}'.", source);
     }
 

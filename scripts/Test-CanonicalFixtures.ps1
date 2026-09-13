@@ -28,7 +28,7 @@ $forbidden = @(
 )
 
 $failures = [Collections.Generic.List[string]]::new()
-$requiredFeatures = @('Box', 'Cylinder', 'Sphere', 'Cone', 'Torus', 'Profile', 'Sweep', 'WireForm', 'Paperclip', 'Boss', 'Pocket', 'Hole', 'BlindHole', 'Counterbore', 'Countersink', 'Slot', 'Pattern', 'Chamfer', 'Fillet', 'Material', 'PMI', 'Template', 'SheetMetal', 'FEA', 'inlineSTEP', 'Assembly', 'Piping', 'ConstructionStateReplay', 'AddSectionChain', 'RemoveSectionChain', 'PostSectionChainHole')
+$requiredFeatures = @('Box', 'Cylinder', 'Sphere', 'Cone', 'Torus', 'Profile', 'Sweep', 'WireForm', 'Paperclip', 'Boss', 'Pocket', 'Hole', 'BlindHole', 'Counterbore', 'Countersink', 'Slot', 'Pattern', 'Chamfer', 'Fillet', 'Material', 'PMI', 'Template', 'SheetMetal', 'FEA', 'inlineSTEP', 'Assembly', 'Piping', 'Gear', 'Interface<Gear>', 'ConstructionStateReplay', 'AddSectionChain', 'RemoveSectionChain', 'PostSectionChainHole')
 foreach ($feature in $requiredFeatures) {
     $entry = $coverage.features.$feature
     if ([string]::IsNullOrWhiteSpace($entry)) { $failures.Add("coverage: missing $feature"); continue }
@@ -57,6 +57,7 @@ foreach ($file in Get-ChildItem -LiteralPath $canonicalRoot -Recurse -Filter '*.
         'fea-solve' { @('fea', $file.FullName, '--out-dir', $outputDirectory, '--json') }
         'assembly-inspect' { @('asm', 'inspect', $file.FullName, '--json') }
         'drawing-compile' { @('drawing', 'compile', $file.FullName, '--out-dir', $outputDirectory, '--json') }
+        'validate' { @('validate', $file.FullName, '--json') }
         default { $failures.Add("${relative}: unknown operation $($action.operation)"); continue }
     }
     $output = & dotnet $cli @arguments 2>&1 | Out-String

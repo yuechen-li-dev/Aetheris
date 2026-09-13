@@ -1,0 +1,6 @@
+Model Invalid {
+    Units: mm
+    SpurGear A { Module: 1mm Teeth: 20 PressureAngle: 20deg FaceWidth: 5mm }
+    SpurGear B { Module: 2mm Teeth: 20 PressureAngle: 20deg FaceWidth: 5mm }
+    Interface<Gear> BadMesh { A: A B: B }
+}

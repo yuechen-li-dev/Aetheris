@@ -1,0 +1,6 @@
+Model MiterPair {
+    Units: mm
+    MiterGear A { Module: 1.5mm Teeth: 20 PressureAngle: 20deg FaceWidth: 8mm BoreDiameter: 8mm PitchConeAngle: 45deg }
+    MiterGear B { Module: 1.5mm Teeth: 20 PressureAngle: 20deg FaceWidth: 8mm BoreDiameter: 8mm PitchConeAngle: 45deg Phase: 9deg }
+    Interface<Gear> Mesh { A: A B: B ShaftAngle: 90deg }
+}

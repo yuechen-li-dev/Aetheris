@@ -1,0 +1,4 @@
+Model BevelPairPinion {
+    Units: mm
+    BevelGear Pinion { Module: 1mm Teeth: 20 PressureAngle: 20deg FaceWidth: 5mm BoreDiameter: 5mm PitchConeAngle: 26.565051177deg }
+}

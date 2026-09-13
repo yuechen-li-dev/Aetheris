@@ -11,5 +11,6 @@
     <ProjectReference Include="..\Aetheris.Semantics\Aetheris.Semantics.csproj" />
     <ProjectReference Include="..\Aetheris.Kernel.Firmament\Aetheris.Kernel.Firmament.csproj" />
     <ProjectReference Include="..\Aetheris.Kernel.StandardLibrary\Aetheris.Kernel.StandardLibrary.csproj" />
+    <ProjectReference Include="..\Aetheris.SheetMetal\Aetheris.SheetMetal.csproj" />
   </ItemGroup>
 </Project>

@@ -1,0 +1,29 @@
+// Native SheetMetal AIR is the sole geometry, thickness, material, and adjacency authority.
+SheetMetal LBracket {
+    Thickness: 1.5mm;
+    Material: "Standard.Materials.Aluminum.5052_H32";
+    KFactor: 0.42;
+    Base Main { Profile: Rectangle { Width: 80mm; Height: 40mm; }; }
+    Flange Wall {
+        From: Main.Left;
+        Length: 25mm;
+        Angle: 90deg;
+        InsideRadius: 2mm;
+        Direction: Up;
+    }
+}
+
+Analysis LinearElastic NativeLBracket {
+    Body: LBracket
+    Mode: ExperimentalShell
+    MasterGrid: [2, 2]
+    Order: 2
+    AlphaFictitious: 1e-12
+    MaxSubdivisionDepth: 4
+    Fixed Clamp { Region: LBracket.Main.r-max }
+    Force Tip {
+        Region: LBracket.Wall.s-max
+        Vector: [0N, 0N, -10N]
+    }
+    Results: [Displacement, Strain, Stress, ReactionForce, StrainEnergy]
+}

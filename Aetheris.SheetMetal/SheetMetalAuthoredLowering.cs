@@ -160,7 +160,9 @@ internal static class AuthoredSheetMetalCompiler
                 reliefWidth > 0 ? reliefWidth : null, reliefDepth > 0 ? reliefDepth : null,
                 spanLength > 0 ? spanLength : null, spanOffset,startTermination,endTermination));
         }
-        if (flanges.Count == 0) return Fail("At least one Flange is required.");
+        // A flat blank is still a complete native SheetMetal part. Keeping it in
+        // the same AIR is important for manufacturing and analysis parity; bends
+        // are capabilities of a sheet-metal part, not a validity requirement.
         var duplicate = flanges.GroupBy(f => (f.ParentRegion.ToLowerInvariant(), f.EdgeName.ToLowerInvariant())).FirstOrDefault(g => g.Count() > 1);
         if (duplicate is not null)
             return Fail($"Multiple flanges target {duplicate.First().ParentRegion}.{duplicate.First().EdgeName}.", SheetMetalDiagnosticCodes.DuplicateFlange);

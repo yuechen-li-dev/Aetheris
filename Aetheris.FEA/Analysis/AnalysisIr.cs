@@ -11,7 +11,7 @@ public enum ThinWallGeometryMapKind { Flat, Cylindrical }
 public enum AnalysisResultField { Displacement, Strain, Stress, ReactionForce, StrainEnergy }
 public enum BoundaryLoadKind { Traction, ResultantForce, Pressure }
 public enum LoadDistributionPolicy { TotalResultantOverSelectedArea, TractionPerUnitArea, PressureNormalToSurface }
-public enum AnalysisGeometrySourceKind { FirmamentNative, InlineStep }
+public enum AnalysisGeometrySourceKind { FirmamentNative, InlineStep, NativeSheetMetal }
 public enum DisplacementComponent { X, Y, Z }
 
 public sealed record AnalysisProvenance(
@@ -62,6 +62,12 @@ public sealed record BoundaryLoadIr(
     AnalysisProvenance Provenance,
     LoadDistributionPolicy Distribution = LoadDistributionPolicy.TotalResultantOverSelectedArea);
 
+/// <summary>A uniform acceleration applied to the physical material volume.</summary>
+public sealed record BodyForceIr(
+    string Id,
+    Vector3D AccelerationMetersPerSecondSquared,
+    AnalysisProvenance Provenance);
+
 public sealed record AnalysisBodyIr(
     string Id,
     string SourceKind,
@@ -111,7 +117,9 @@ public sealed record LinearElasticAnalysisIr(
     LatticeSpec Lattice,
     AnalysisProvenance Provenance,
     AnalysisMode Mode = AnalysisMode.ProductionSolid,
-    ExperimentalShellSettings? ExperimentalShell = null);
+    ExperimentalShellSettings? ExperimentalShell = null,
+    MidsurfacePatchGraph? MidsurfacePatchGraph = null,
+    IReadOnlyList<BodyForceIr>? BodyForces = null);
 
 public enum AnalysisDiagnosticSeverity { Info, Warning, Error }
 public sealed record AnalysisDiagnostic(string Code, AnalysisDiagnosticSeverity Severity, string Message, AnalysisProvenance? Provenance = null);
@@ -142,6 +150,16 @@ public static class AnalysisIrValidator
             diagnostics.Add(Error("fea-empty-region-selection", $"Load '{load.Id}' has no semantic region.", load.Provenance));
         foreach(var load in analysis.Loads.Where(load=>!double.IsFinite(load.VectorSi.X)||!double.IsFinite(load.VectorSi.Y)||!double.IsFinite(load.VectorSi.Z)||!double.IsFinite(load.PressurePascal)))
             diagnostics.Add(Error("fea-invalid-load",$"Load '{load.Id}' contains a non-finite or unit-incompatible value.",load.Provenance));
+        foreach(var load in analysis.BodyForces??[])
+        {
+            var acceleration=load.AccelerationMetersPerSecondSquared;
+            if(!double.IsFinite(acceleration.X)||!double.IsFinite(acceleration.Y)||!double.IsFinite(acceleration.Z))
+                diagnostics.Add(Error("fea-invalid-body-force",$"Body force '{load.Id}' contains a non-finite or unit-incompatible acceleration.",load.Provenance));
+            if(analysis.Materials.Any(material=>material.DensityKilogramsPerCubicMeter is null or <=0))
+                diagnostics.Add(Error("fea-body-force-density-missing",$"Body force '{load.Id}' requires a finite positive material density.",load.Provenance));
+        }
+        if(analysis.Mode!=AnalysisMode.ExperimentalShell&&(analysis.BodyForces?.Count??0)>0)
+            diagnostics.Add(Error("fea-body-force-mode-unsupported","BodyForce is currently qualified only for ExperimentalShell.",analysis.Provenance));
         if(analysis.Mode==AnalysisMode.ExperimentalShell)
         {
             var shell=analysis.ExperimentalShell;

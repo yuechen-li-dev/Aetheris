@@ -1,0 +1,36 @@
+SheetMetal NativeUChannel {
+    Thickness: 1.5mm;
+    Material: "Standard.Materials.Aluminum.5052_H32";
+    KFactor: 0.42;
+    Base Base { Profile: Rectangle { Width: 100mm; Height: 60mm; }; }
+    Flange LeftFlange {
+        From: Base.Left;
+        Length: 25mm;
+        Angle: 90deg;
+        InsideRadius: 2mm;
+        Direction: Up;
+    }
+    Flange RightFlange {
+        From: Base.Right;
+        Length: 20mm;
+        Angle: 90deg;
+        InsideRadius: 2mm;
+        Direction: Up;
+    }
+    Hole MountA { On: Base; Center: (25mm, 30mm); Diameter: 8mm; }
+    Hole MountB { On: Base; Center: (75mm, 30mm); Diameter: 8mm; }
+}
+
+Analysis LinearElastic NativeUChannelLoad {
+    Body: NativeUChannel
+    Mode: ExperimentalShell
+    MasterGrid: [2, 2]
+    Order: 2
+    MaxSubdivisionDepth: 4
+    Fixed Clamp { Region: NativeUChannel.Base.s-min }
+    Force Tip {
+        Region: NativeUChannel.LeftFlange.s-max
+        Vector: [0N, 0N, -10N]
+    }
+    Results: [Displacement, Strain, Stress, ReactionForce, StrainEnergy]
+}

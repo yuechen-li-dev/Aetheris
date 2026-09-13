@@ -1,0 +1,16 @@
+SheetMetal InvalidNativeThickness {
+    Thickness: 2mm;
+    Material: "Standard.Materials.Steel.ASTM_A36";
+    Base Plate { Profile: Rectangle { Width: 100mm; Height: 20mm; }; }
+}
+Analysis LinearElastic InvalidNativeThicknessAnalysis {
+    Body: InvalidNativeThickness
+    Mode: ExperimentalShell
+    Thickness: 3mm
+    MasterGrid: [2, 1]
+    Fixed Root { Region: InvalidNativeThickness.Plate.r-min }
+    Force Tip {
+        Region: InvalidNativeThickness.Plate.r-max
+        Vector: [0N, 0N, -1N]
+    }
+}

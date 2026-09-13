@@ -13,6 +13,7 @@ using Aetheris.Kernel.Core.Topology;
 using Aetheris.Semantics;
 using Aetheris.Kernel.StandardLibrary.Materials;
 using Aetheris.FEA.Geometry;
+using Aetheris.SheetMetal;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -35,12 +36,29 @@ public static class FirmamentAnalysisCompiler
         var open=source.IndexOf('{',match.Index);var close=MatchingBrace(source,open);if(close<0)return Done(null,[Error("firmament-analysis-malformed","Analysis block has no closing brace.",sourcePath)],started);
         var block=source[(open+1)..close];var analysisSpan=new AnalysisProvenance(sourcePath??"<memory>",match.Index,close-match.Index+1,match.Value);
         var stripped=source.Remove(match.Index,close-match.Index+1);
+        var modeText=Scalar(block,"mode")??nameof(AnalysisMode.ProductionSolid);
+        if(!Enum.TryParse<AnalysisMode>(modeText,true,out var mode)){diagnostics.Add(Error("fea-analysis-mode-invalid",$"Analysis mode '{modeText}' is unsupported.",sourcePath));return Done(null,diagnostics,started);}
         var bodyExpression=Scalar(block,"body")??string.Empty;
         var inlineCall=Regex.Match(bodyExpression,@"^(?:inlineSTEP|InlineStep)\s*\(\s*""(?<path>[^""]+)""\s*\)$",RegexOptions.CultureInvariant);
         var bodyName=inlineCall.Success?"body":bodyExpression;var resourceName=(Scalar(block,"bodyResource")??string.Empty).TrimStart('$');
-        IContinuumRegion? region=null;string sourceKind;string? resourceHash=null;string? brepBodyId=null;string bodyId;IReadOnlyDictionary<string,string> semanticFaceIds=new Dictionary<string,string>();var namedRegions=new Dictionary<string,SemanticValue>(StringComparer.Ordinal);
+        IContinuumRegion? region=null;string sourceKind;string? resourceHash=null;string? brepBodyId=null;string bodyId;IReadOnlyDictionary<string,string> semanticFaceIds=new Dictionary<string,string>();var namedRegions=new Dictionary<string,SemanticValue>(StringComparer.Ordinal);MidsurfacePatchGraph? midsurfacePatchGraph=null;SheetMetalPartIr? sheetMetalPart=null;
         var sourceParse=FirmamentV2Parser.Parse(stripped,sourceDirectory);var directInline=sourceParse.Document?.Solids.SingleOrDefault(item=>item.Name==bodyName)?.InlineStep;
-        if(resourceName.Length>0||directInline is not null||inlineCall.Success)
+        if(SheetMetalFirmament.LooksLikeSheetMetal(stripped))
+        {
+            if(mode!=AnalysisMode.ExperimentalShell){diagnostics.Add(Error("thinwall-mode-required","Native SheetMetal analysis requires explicit Mode: ExperimentalShell.",sourcePath));return Done(null,diagnostics,started);}
+            var authored=SheetMetalFirmament.Compile(stripped,sourcePath??"<memory>");
+            if(!authored.IsSuccess||authored.Part is null){diagnostics.AddRange(authored.Diagnostics.Select(x=>new AnalysisDiagnostic(x.Code,AnalysisDiagnosticSeverity.Error,x.Message,analysisSpan)));return Done(null,diagnostics,started);}
+            sheetMetalPart=authored.Part;bodyId=bodyName;sourceKind=nameof(AnalysisGeometrySourceKind.NativeSheetMetal);
+            var expectedBody=sheetMetalPart.StableId.StartsWith("sheetmetal-",StringComparison.Ordinal)?sheetMetalPart.StableId[11..]:sheetMetalPart.StableId;
+            if(!bodyId.Equals(expectedBody,StringComparison.Ordinal)){diagnostics.Add(Error("thinwall-sheetmetal-body-mismatch",$"Analysis Body '{bodyId}' does not name native SheetMetal body '{expectedBody}'.",sourcePath));return Done(null,diagnostics,started);}
+            var projected=ThinWallAnalysisAuthority.Project(sheetMetalPart,analysisSpan);diagnostics.AddRange(projected.Diagnostics);
+            if(!projected.IsSuccess)return Done(null,diagnostics,started);
+            midsurfacePatchGraph=projected.Graph;
+            var combined=midsurfacePatchGraph!.Patches.Select(x=>x.ParameterDomain.Bounds).ToArray();
+            var maxR=combined.Max(x=>x.Max.X-x.Min.X);var maxS=combined.Max(x=>x.Max.Y-x.Min.Y);
+            region=new AxisAlignedBoxRegion(new RegionId(bodyId+":sheetmetal-analysis-projection"),new(new(0,0,-1),new(maxR,maxS,1)));
+        }
+        else if(resourceName.Length>0||directInline is not null||inlineCall.Success)
         {
             bodyId=bodyName.Length>0?bodyName:resourceName;sourceKind="InlineStep";
             FirmamentAnalysisResource resource;
@@ -149,7 +167,7 @@ public static class FirmamentAnalysisCompiler
             bodyId=bodyName;sourceKind="FirmamentNative";
         }
         var materialBlock=Nested(block,"material",out var materialName,out var materialStart);
-        var materialReference=materialBlock is null?Scalar(block,"material"):null;
+        var materialReference=materialBlock is null?(Scalar(block,"material")??sheetMetalPart?.Material):null;
         if(materialBlock is null&&string.IsNullOrWhiteSpace(materialReference)){diagnostics.Add(Error("fea-missing-material","Analysis has no material declaration or catalog material reference.",sourcePath));return Done(null,diagnostics,started);}
         LinearElasticMaterialIr material;
         if(materialBlock is not null)
@@ -162,7 +180,7 @@ public static class FirmamentAnalysisCompiler
         {
             materialReference=materialReference!.Trim();
             var referenceOffset=block.IndexOf(materialReference,StringComparison.Ordinal);var materialProv=new AnalysisProvenance(sourcePath??"<memory>",open+1+referenceOffset,materialReference.Length,"material: "+materialReference);
-            var resolution=(materialResolver??new MaterialResolver()).Resolve(materialReference);
+            var materialLookup=sheetMetalPart is null?materialReference:NativeSheetMetalMaterialReference(materialReference);var resolution=(materialResolver??new MaterialResolver()).Resolve(materialLookup);
             if(!resolution.IsSuccess)
             {
                 var code=resolution.Error switch{MaterialResolutionError.UnknownMaterial=>"firmament-material-unknown",MaterialResolutionError.AmbiguousMaterial=>"firmament-material-ambiguous",MaterialResolutionError.MissingRequiredStructuralProperty=>"fea-material-missing-structural-properties",_=>"firmament-material-invalid"};
@@ -174,6 +192,14 @@ public static class FirmamentAnalysisCompiler
         }
         (SemanticRegionBinding? Region,AnalysisDiagnostic? Diagnostic) NormalizeRegion(string path,AnalysisProvenance provenance)
         {
+            if(midsurfacePatchGraph is not null)
+            {
+                var prefix=bodyId+".";var relative=path.StartsWith(prefix,StringComparison.Ordinal)?path[prefix.Length..]:path;
+                var split=relative.LastIndexOf('.');
+                if(split>0&&midsurfacePatchGraph.Patches.Any(x=>x.Identity.Equals(relative[..split],StringComparison.Ordinal))&&TryPatchEdge(relative[(split+1)..],out _))
+                    return(new(bodyId,path,Provenance:provenance,SemanticStableId:relative,CapabilityEvidence:["NativeSheetMetal","ExactPatchEdge"],ExactBindingKind:"MidsurfacePatchEdge"),null);
+                return(null,new("thinwall-sheetmetal-boundary-unknown",AnalysisDiagnosticSeverity.Error,$"Native SheetMetal boundary '{path}' must identify an exact patch edge as '<Body>.<Patch>.r-min|r-max|s-min|s-max'.",provenance));
+            }
             if(namedRegions.TryGetValue(path,out var semantic))
             {
                 var span=new SemanticSourceSpan(provenance.Source,provenance.Start,provenance.Length);var normalized=AnalysisSemanticRegionNormalizer.Normalize(new(semantic,[new(path,span)],span));
@@ -196,16 +222,20 @@ public static class FirmamentAnalysisCompiler
             var distribution=keyword.Item2 switch{BoundaryLoadKind.ResultantForce=>LoadDistributionPolicy.TotalResultantOverSelectedArea,BoundaryLoadKind.Traction=>LoadDistributionPolicy.TractionPerUnitArea,_=>LoadDistributionPolicy.PressureNormalToSurface};
             loads.Add(new(nested.Name,keyword.Item2,normalized.Region!,vector,pressure,prov,distribution));
         }
+        var bodyForces=new List<BodyForceIr>();
+        foreach(var nested in NestedAll(block,"BodyForce"))
+        {
+            var prov=new AnalysisProvenance(sourcePath??"<memory>",open+nested.Start,nested.Length,"BodyForce "+nested.Name);
+            bodyForces.Add(new(nested.Name,Acceleration(Scalar(nested.Body,"acceleration")),prov));
+        }
         var latticeValues=Numbers(Scalar(block,"lattice"));
         if(latticeValues.Length is not (0 or 3)||latticeValues.Any(value=>!double.IsInteger(value)||value<1)){diagnostics.Add(Error("fea-invalid-lattice-dimensions","Lattice must contain exactly three positive integer dimensions.",sourcePath));return Done(null,diagnostics,started);}
         var lattice=latticeValues.Length==3?new LatticeSpec(region.Bounds,(int)latticeValues[0],(int)latticeValues[1],(int)latticeValues[2]):new LatticeSpec(region.Bounds,12,6,2);
-        var modeText=Scalar(block,"mode")??nameof(AnalysisMode.ProductionSolid);
-        if(!Enum.TryParse<AnalysisMode>(modeText,true,out var mode)){diagnostics.Add(Error("fea-analysis-mode-invalid",$"Analysis mode '{modeText}' is unsupported.",sourcePath));return Done(null,diagnostics,started);}
         ExperimentalShellSettings? shellSettings=null;
         if(mode==AnalysisMode.ExperimentalShell)
         {
             var thicknessText=Scalar(block,"thickness");
-            if(string.IsNullOrWhiteSpace(thicknessText)){diagnostics.Add(Error("thinwall-thickness-missing","ExperimentalShell requires an explicit Thickness for synthetic/native Box geometry in X0.",sourcePath));return Done(null,diagnostics,started);}
+            if(string.IsNullOrWhiteSpace(thicknessText)&&sheetMetalPart is null){diagnostics.Add(Error("thinwall-thickness-missing","ExperimentalShell requires an explicit Thickness for synthetic/native Box geometry in X0.",sourcePath));return Done(null,diagnostics,started);}
             var masterValues=Numbers(Scalar(block,"masterGrid"));
             if(masterValues.Length!=2||masterValues.Any(value=>!double.IsInteger(value)||value<1)){diagnostics.Add(Error("thinwall-master-grid-invalid","ExperimentalShell MasterGrid must contain exactly two positive integer dimensions.",sourcePath));return Done(null,diagnostics,started);}
             var orderText=Scalar(block,"order");var order=OptionalInteger(orderText,3);
@@ -215,16 +245,19 @@ public static class FirmamentAnalysisCompiler
             var mapText=Scalar(block,"geometryMap")??nameof(ThinWallGeometryMapKind.Flat);
             if(!Enum.TryParse<ThinWallGeometryMapKind>(mapText,true,out var map)){diagnostics.Add(Error("thinwall-geometry-unsupported",$"ExperimentalShell geometry map '{mapText}' is unsupported.",sourcePath));return Done(null,diagnostics,started);}
             var radiusText=Scalar(block,"cylinderRadius");var angleText=Scalar(block,"cylinderAngle");
-            shellSettings=new ExperimentalShellSettings(Length(thicknessText),order,(int)masterValues[0],(int)masterValues[1],alpha,depth,quadrature,map,
+            var resolvedThickness=sheetMetalPart is null?Length(thicknessText):sheetMetalPart.Thickness*.001;
+            shellSettings=new ExperimentalShellSettings(resolvedThickness,order,(int)masterValues[0],(int)masterValues[1],alpha,depth,quadrature,map,
                 string.IsNullOrWhiteSpace(radiusText)?null:Length(radiusText),string.IsNullOrWhiteSpace(angleText)?null:Angle(angleText));
             lattice=new LatticeSpec(region.Bounds,shellSettings.MasterCellsR,shellSettings.MasterCellsS,1);
-            var sourceThickness=region.Bounds.Max.Z-region.Bounds.Min.Z;
+            var sourceThickness=sheetMetalPart is null?region.Bounds.Max.Z-region.Bounds.Min.Z:sheetMetalPart.Thickness*.001;
             if(double.IsFinite(shellSettings.ThicknessMeters)&&double.Abs(sourceThickness-shellSettings.ThicknessMeters)>double.Max(1e-12,sourceThickness*1e-9))
                 diagnostics.Add(Error("thinwall-thickness-source-mismatch",$"ExperimentalShell Thickness ({shellSettings.ThicknessMeters:R} m) must match the native/synthetic body's semantic thickness ({sourceThickness:R} m) in X0.",sourcePath));
+            if(sheetMetalPart is not null&&!string.IsNullOrWhiteSpace(thicknessText)&&double.Abs(Length(thicknessText)-sourceThickness)>double.Max(1e-12,sourceThickness*1e-9))
+                diagnostics.Add(Error("thinwall-thickness-source-mismatch",$"Analysis Thickness must not override native SheetMetal thickness {sourceThickness:R} m.",sourcePath));
         }
         var requested=new HashSet<AnalysisResultField>();foreach(var item in (Scalar(block,"results")??"Displacement,Strain,Stress,ReactionForce").Trim('[',']').Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries)){if(Enum.TryParse<AnalysisResultField>(item,true,out var field))requested.Add(field);else diagnostics.Add(Error("fea-invalid-result-request",$"Analysis result '{item}' is unsupported.",sourcePath));}
         if(requested.Count==0){diagnostics.Add(Error("fea-invalid-result-request","Analysis must request at least one supported result field.",sourcePath));return Done(null,diagnostics,started);}
-        var bodyProv=new AnalysisProvenance(sourcePath??"<memory>",match.Index,match.Length,"body "+bodyId,ExactBrepFaceId:brepBodyId);var ir=new LinearElasticAnalysisIr(match.Groups["name"].Value,AnalysisKind.LinearStaticElasticity,new(bodyId,sourceKind,region,brepBodyId,resourceHash,bodyProv),[material],constraints,loads,requested,lattice,analysisSpan,mode,shellSettings);
+        var bodyProv=new AnalysisProvenance(sourcePath??"<memory>",match.Index,match.Length,"body "+bodyId,ExactBrepFaceId:brepBodyId);var ir=new LinearElasticAnalysisIr(match.Groups["name"].Value,AnalysisKind.LinearStaticElasticity,new(bodyId,sourceKind,region,brepBodyId,resourceHash,bodyProv),[material],constraints,loads,requested,lattice,analysisSpan,mode,shellSettings,midsurfacePatchGraph,bodyForces);
         diagnostics.AddRange(AnalysisIrValidator.Validate(ir));return Done(ir,diagnostics,started);
     }
 
@@ -243,7 +276,14 @@ public static class FirmamentAnalysisCompiler
     private static double? Density(string? text){if(string.IsNullOrWhiteSpace(text))return null;var m=Regex.Match(text,@"^(?<v>[-+0-9.eE]+)\s*kg/m3$",RegexOptions.IgnoreCase);return m.Success?Number(m.Groups["v"].Value):double.NaN;}
     private static double[] Numbers(string? text)=>Regex.Matches(text??"",@"[-+0-9.eE]+").Select(m=>Number(m.Value)).ToArray();
     private static Vector3D Vector(string? text,bool force){var parts=(text??"").Trim('[',']').Split(',',StringSplitOptions.TrimEntries);if(parts.Length!=3)return new(double.NaN,double.NaN,double.NaN);double Parse(string p){var m=Regex.Match(p,@"^(?<v>[-+0-9.eE]+)\s*(?<u>N|Pa)$",RegexOptions.IgnoreCase);return m.Success&&((force&&m.Groups["u"].Value.Equals("N",StringComparison.OrdinalIgnoreCase))||(!force&&m.Groups["u"].Value.Equals("Pa",StringComparison.OrdinalIgnoreCase)))?Number(m.Groups["v"].Value):double.NaN;}return new(Parse(parts[0]),Parse(parts[1]),Parse(parts[2]));}
+    private static Vector3D Acceleration(string? text){var parts=(text??"").Trim('[',']').Split(',',StringSplitOptions.TrimEntries);if(parts.Length!=3)return new(double.NaN,double.NaN,double.NaN);double Parse(string p){var m=Regex.Match(p,@"^(?<v>[-+0-9.eE]+)\s*m/s(?:\^?2|²)$",RegexOptions.IgnoreCase);return m.Success?Number(m.Groups["v"].Value):double.NaN;}return new(Parse(parts[0]),Parse(parts[1]),Parse(parts[2]));}
     private static HashSet<DisplacementComponent> Components(string? text){var result=new HashSet<DisplacementComponent>();foreach(var item in (text??"").Trim('[',']').Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries))if(Enum.TryParse<DisplacementComponent>(item,true,out var value))result.Add(value);return result;}
+    private static bool TryPatchEdge(string token,out MidsurfacePatchEdge edge)=>Enum.TryParse(token.Replace("-minimum","Minimum",StringComparison.OrdinalIgnoreCase).Replace("-maximum","Maximum",StringComparison.OrdinalIgnoreCase).Replace("-min","Minimum",StringComparison.OrdinalIgnoreCase).Replace("-max","Maximum",StringComparison.OrdinalIgnoreCase),true,out edge);
+    private static string NativeSheetMetalMaterialReference(string reference)
+    {
+        if(reference.Contains("5052",StringComparison.OrdinalIgnoreCase)&&reference.Contains("H32",StringComparison.OrdinalIgnoreCase)&&(reference.Contains("Aluminum",StringComparison.OrdinalIgnoreCase)||reference.Contains("Aluminium",StringComparison.OrdinalIgnoreCase)))return "Standard.Materials.Aluminum.5052_H32";
+        return reference;
+    }
     private static FirmamentAnalysisCompilation Done(LinearElasticAnalysisIr? ir,IReadOnlyList<AnalysisDiagnostic> d,long started)=>new(ir,d,System.Diagnostics.Stopwatch.GetElapsedTime(started));
     private static AnalysisDiagnostic Error(string code,string message,string? source)=>new(code,AnalysisDiagnosticSeverity.Error,message,new(source??"<memory>",0,0,code));
 }

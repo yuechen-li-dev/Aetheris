@@ -18,6 +18,7 @@ public sealed record MechanicsBoundaryQuadraturePlan(string RegionPath,string Bo
     public int QuadraturePointCount=>Fragments.Sum(item=>item.Points.Count);
 }
 public sealed record BoundaryLoadEvidence(string LoadId,string RegionPath,string BoundaryId,string? ExactBrepFaceId,double ExactArea,double IntegratedArea,Vector3D ExpectedResultant,Vector3D IntegratedResultant,Vector3D ExpectedMoment,Vector3D IntegratedMoment,double ResultantResidual,double MomentResidual,int OwnedFragments,int QuadraturePoints,string MaterialSideEvidence);
+public sealed record BodyLoadEvidence(string LoadId,Vector3D AccelerationMetersPerSecondSquared,double DensityKilogramsPerCubicMeter,double IntegratedVolumeCubicMeters,Vector3D IntegratedResultantNewton,Vector3D IntegratedMomentNewtonMeters,int QuadraturePoints,string IntegrationPolicy);
 
 public readonly record struct MechanicsNode(int Id, Point3D Position);
 public readonly record struct SymmetricTensor(double XX, double YY, double ZZ, double XY, double YZ, double XZ);
@@ -26,7 +27,7 @@ public sealed record CellStrainResult(int I,int J,int K,Point3D Position,Symmetr
 public sealed record CellStressResult(int I,int J,int K,Point3D Position,SymmetricTensor CauchyStressPascal,double VonMisesPascal);
 public sealed record NodalDisplacement(int NodeId, Point3D Position, Vector3D DisplacementMeters);
 public sealed record ReactionResult(string ConstraintId, Vector3D ForceNewton);
-public sealed record SolverConvergence(bool Converged, int Iterations, double InitialResidual, double FinalResidual, IReadOnlyList<double> ResidualHistory, TimeSpan Runtime);
+public sealed record SolverConvergence(bool Converged, int Iterations, double InitialResidual, double FinalResidual, IReadOnlyList<double> ResidualHistory, TimeSpan Runtime,IReadOnlyList<double>? PreconditionedResidualHistory=null);
 public sealed record MechanicsPerformance(
     TimeSpan DomainSetup,TimeSpan QuadratureSetup,TimeSpan Assembly,TimeSpan BoundaryAssembly,TimeSpan Solve,TimeSpan Recovery,
     long SparseBytes,long ResultBytes,
@@ -37,6 +38,38 @@ public sealed record SparseSystemMetrics(int DegreesOfFreedom, int Nonzeros, dou
 public sealed record EquilibriumResult(Vector3D AppliedForceNewton, Vector3D ReactionForceNewton, Vector3D ResidualNewton);
 public sealed record StrainEnergyConsistency(double AlgebraicJoule,double IntegratedContinuumJoule,double AbsoluteResidualJoule,double RelativeResidual);
 public sealed record ExactStressProbe(string Label,Point3D Position,SymmetricTensor StressPascal,double HoopStressPascal,double KirschReferencePascal,double AbsoluteErrorPascal,string ReferenceAssumptions);
+public enum ExperimentalPreconditionerKind { Identity, Jacobi, BlockJacobi3, IncompleteCholeskyZero }
+public sealed record ExperimentalLinearSolverEvidence(
+    bool SymmetricDiagonalEquilibration,
+    double MinimumScale,
+    double MaximumScale,
+    string Preconditioner,
+    double DiagonalShift,
+    int FactorizationRetries,
+    TimeSpan PreconditionerBuildTime,
+    string ConvergenceReason,
+    int? StagnationOnsetIteration,
+    double InitialSolverResidual,
+    double FinalSolverResidual,
+    double FinalPhysicalResidual,
+    IReadOnlyList<double> SolverResidualHistory,
+    string SelectionPolicy="Explicit",
+    double? SelectedUtility=null,
+    IReadOnlyList<string>? RejectedCandidates=null,
+    IReadOnlyList<double>? PreconditionedResidualHistory=null);
+public sealed record NativeSheetMetalShellEvidence(
+    string AnalysisSource,
+    string SheetMetalBody,
+    string Material,
+    int PatchCount,
+    int PanelPatchCount,
+    int BendPatchCount,
+    int OpeningCount,
+    int InterfaceCount,
+    int SharedDisplacementDegreesOfFreedom,
+    double MaximumInterfaceMismatchMeters,
+    IReadOnlyList<string> PatchIdentities,
+    IReadOnlyList<string> InterfaceOrientations);
 public sealed record ExperimentalShellEvidence(
     string Qualification,
     string GeometryMapType,
@@ -57,7 +90,9 @@ public sealed record ExperimentalShellEvidence(
     double MinimumJacobianDeterminant,
     double MaximumJacobianDeterminant,
     IReadOnlyList<double> StressEvaluationThroughThicknessCoordinates,
-    string DeterministicDiscretizationHash);
+    string DeterministicDiscretizationHash,
+    ExperimentalLinearSolverEvidence? Solver=null,
+    NativeSheetMetalShellEvidence? NativeSheetMetal=null);
 
 public enum ImmersedBasisTreatmentKind { Ordinary, Aggregated }
 public enum BoundaryEnforcementKind { StrongNearestNode, SymmetricNitsche }
@@ -86,7 +121,8 @@ public sealed record LinearElasticAnalysisResult(
     IReadOnlyList<ExactStressProbe>? StressProbes=null,
     IReadOnlyList<CellStrainResult>? StrainFields=null,
     IReadOnlyList<CellStressResult>? StressFields=null,
-    ExperimentalShellEvidence? ExperimentalShell=null)
+    ExperimentalShellEvidence? ExperimentalShell=null,
+    IReadOnlyList<BodyLoadEvidence>? BodyLoads=null)
 {
     public double MaximumDisplacementMeters => Displacements.Count == 0 ? 0 : Displacements.Max(item => item.DisplacementMeters.Length);
     public double MaximumVonMisesPascal => StressFields is { Count: >0 }?StressFields.Max(item=>item.VonMisesPascal):CellFields.Count == 0 ? 0 : CellFields.Max(item => item.VonMisesPascal);

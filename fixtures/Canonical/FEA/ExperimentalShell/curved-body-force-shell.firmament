@@ -1,0 +1,35 @@
+Model CurvedBodyForceWitness {
+    Units: mm
+    Box Patch { Size: [400mm, 139.626340159546mm, 2mm] }
+    Modify Patch {
+        Hole<Shaft> Opening {
+            On: +Z
+            Center: Point2(0mm, 0mm)
+            Diameter: 60mm
+            End: ThroughAll
+        }
+    }
+
+    Analysis LinearElastic CurvedBodyForceShell {
+        Mode: ExperimentalShell
+        Body: Patch
+        Material: Standard.Materials.Steel.ASTM_A36
+        Thickness: 2mm
+        MasterGrid: [4, 4]
+        Order: 2
+        AlphaFictitious: 1e-12
+        MaxSubdivisionDepth: 5
+        GeometryMap: Cylindrical
+        CylinderRadius: 200mm
+        CylinderAngle: 40deg
+
+        Fixed Root {
+            Region: Patch.face(-X)
+            Components: [X, Y, Z]
+        }
+        BodyForce Gravity {
+            Acceleration: [0m/s2, 0m/s2, -10m/s2]
+        }
+        Results: [Displacement, Strain, Stress, ReactionForce, StrainEnergy]
+    }
+}

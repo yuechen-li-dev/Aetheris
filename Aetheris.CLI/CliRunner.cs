@@ -163,7 +163,7 @@ public static class CliRunner
     private const string ExperimentalAirChamferCorpusUsage = "Usage: aetheris experimental airchamfer-corpus --out-dir <dir> [--json]";
     private const string ExperimentalPrismaticCorpusUsage = "Usage: aetheris experimental prismatic-corpus --out-dir <dir> [--json]";
     private const string ExperimentalPrismaticMapUsage = "Usage: aetheris experimental prismatic-map --case <case> --rows <N> --cols <N> --json";
-    private const string FeaUsage = "Usage: aetheris fea <analysis.firmament> [--lattice <nx,ny,nz>] [--rotate <x,y,z-degrees>] [--out-dir <directory>] [--json]";
+    private const string FeaUsage = "Usage: aetheris fea <analysis.firmament> [--lattice <nx,ny,nz>] [--rotate <x,y,z-degrees>] [--experimental-preconditioner <identity|jacobi|block-jacobi|ic0>] [--experimental-equilibration <true|false>] [--out-dir <directory>] [--json]";
     private const string DrawingUsage = "Usage: aetheris drawing compile <drawing.firmament> --out-dir <directory> [--json]";
     private const string SheetMetalUsage = "Usage: aetheris sheetmetal recognize <part.step> [--plan <recognition.json>] [--json] | aetheris sheetmetal recover-flat <part.step> --out-dir <directory> [--recognition-plan <recognition.json>] [--json] | aetheris sheetmetal compare-flat <recovered-flat.json> <native.firmament> [--semantic] [--json] | aetheris sheetmetal inspect <part.step|part.firmament> [--k-factor <0..1>] [--json] | aetheris sheetmetal paths <part.firmament> [--json] | aetheris sheetmetal recover <part.step> --out-dir <directory> [--json] | aetheris sheetmetal compare <part.step|part.firmament> <intent.firmament> [--semantic] [--json] | aetheris sheetmetal flatten <part.step|part.firmament> [--step <flat.step>] [--firmament <recovered.firmament>] [--svg <flat.svg>] [--k-factor <0..1>] [--json]";
     private const string ExperimentalLoopChamferCorpusUsage = "Usage: aetheris experimental loop-chamfer-corpus --out-dir <dir> [--json]";
@@ -1080,13 +1080,15 @@ Model CanonicalPanel {
     private static int RunFea(string[] args, TextWriter stdout, TextWriter stderr)
     {
         if (args.Length == 0 || IsHelpFlag(args[0])) { stdout.WriteLine(FeaUsage); return args.Length == 0 ? 1 : 0; }
-        var input = Path.GetFullPath(args[0]); string? outDir = null; var json = false;Vector3D? rotationDegrees=null;(int X,int Y,int Z)? latticeOverride=null;
+        var input = Path.GetFullPath(args[0]); string? outDir = null; var json = false;Vector3D? rotationDegrees=null;(int X,int Y,int Z)? latticeOverride=null;ExperimentalPreconditionerKind? experimentalPreconditioner=null;bool? experimentalEquilibration=null;
         for (var index = 1; index < args.Length; index++)
         {
             if (args[index] == "--json") json = true;
             else if (args[index] == "--out-dir" && index + 1 < args.Length) outDir = Path.GetFullPath(args[++index]);
             else if(args[index]=="--rotate"&&index+1<args.Length){var values=args[++index].Split(',').Select(value=>double.Parse(value,System.Globalization.CultureInfo.InvariantCulture)).ToArray();if(values.Length!=3){stderr.WriteLine(FeaUsage);return 1;}rotationDegrees=new(values[0],values[1],values[2]);}
             else if(args[index]=="--lattice"&&index+1<args.Length){var values=args[++index].Split(',').Select(value=>int.TryParse(value,out var parsed)?parsed:0).ToArray();if(values.Length!=3||values.Any(value=>value<1)){stderr.WriteLine("Lattice override requires three positive integers.");return 1;}latticeOverride=(values[0],values[1],values[2]);}
+            else if(args[index]=="--experimental-preconditioner"&&index+1<args.Length){var value=args[++index];experimentalPreconditioner=value.ToLowerInvariant() switch{"identity"=>ExperimentalPreconditionerKind.Identity,"jacobi"=>ExperimentalPreconditionerKind.Jacobi,"block-jacobi"=>ExperimentalPreconditionerKind.BlockJacobi3,"ic0"=>ExperimentalPreconditionerKind.IncompleteCholeskyZero,_=>(ExperimentalPreconditionerKind?)null};if(experimentalPreconditioner is null){stderr.WriteLine("Experimental preconditioner must be identity, jacobi, block-jacobi, or ic0.");return 1;}}
+            else if(args[index]=="--experimental-equilibration"&&index+1<args.Length){if(!bool.TryParse(args[++index],out var value)){stderr.WriteLine("Experimental equilibration must be true or false.");return 1;}experimentalEquilibration=value;}
             else { stderr.WriteLine(FeaUsage); return 1; }
         }
         if (!File.Exists(input))
@@ -1118,7 +1120,7 @@ Model CanonicalPanel {
         var quadratureOrder=compiled.Analysis.Body.ContinuumRegion is Aetheris.FEA.Geometry.ImportedBrepAnalysisRegion?4:6;
         var isExperimentalShell=compiled.Analysis.Mode==Aetheris.FEA.Analysis.AnalysisMode.ExperimentalShell;
         var solveOptions=new MechanicsSolveOptions(CutCellQuadraturePerAxis:quadratureOrder,RelativeResidualTolerance:isExperimentalShell?1e-8:1e-9,MaximumIterations:isExperimentalShell?10000:null,DomainTransform:orientation,PreserveNominalCellVolumeUnderTransform:orientation is not null,
-            RetryEmptyCutCells:compiled.Analysis.Body.ContinuumRegion is not Aetheris.FEA.Geometry.ImportedBrepAnalysisRegion);var result = LinearElasticSolver.Solve(compiled.Analysis,solveOptions);
+            RetryEmptyCutCells:compiled.Analysis.Body.ContinuumRegion is not Aetheris.FEA.Geometry.ImportedBrepAnalysisRegion,ExperimentalPreconditioner:experimentalPreconditioner,ExperimentalSymmetricEquilibration:experimentalEquilibration);var result = LinearElasticSolver.Solve(compiled.Analysis,solveOptions);
         if (!result.IsSuccess)
         {
             var errors = result.Diagnostics.Where(item => item.Severity == Aetheris.FEA.Analysis.AnalysisDiagnosticSeverity.Error).ToArray();
@@ -1128,7 +1130,7 @@ Model CanonicalPanel {
                     command = "fea",
                     success = false,
                     input,
-                    diagnostics = errors.Select(diagnostic => new { diagnostic.Code, severity = diagnostic.Severity.ToString(), diagnostic.Message })
+                    diagnostics = errors.Select(diagnostic => new { diagnostic.Code, severity = diagnostic.Severity.ToString(), diagnostic.Message }),result.System,result.Solver,experimentalShell=result.ExperimentalShell
                 }, JsonOptions));
             else
                 foreach (var diagnostic in errors) stderr.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
@@ -1149,10 +1151,12 @@ Model CanonicalPanel {
                 material = compiled.Analysis.Materials.Select(item => new { item.Id, item.StableMaterialId, item.ConstitutiveClass, item.YoungsModulusPascal, item.PoissonRatio, item.DensityKilogramsPerCubicMeter, item.YieldStrengthPascal }),
                 constraints = compiled.Analysis.Constraints.Select(item => new { item.Id, region = item.Region.Path, components = item.Components }),
                 loads = compiled.Analysis.Loads.Select(item => new { item.Id, kind = item.Kind.ToString(), distribution=item.Distribution.ToString(), region = item.Region.Path, item.VectorSi, item.PressurePascal }),
+                bodyForces = (compiled.Analysis.BodyForces??[]).Select(item=>new{item.Id,item.AccelerationMetersPerSecondSquared}),
                 requestedResults=compiled.Analysis.RequestedFields.Order().Select(Aetheris.FEA.Analysis.AnalysisResultContracts.Describe),
-                lattice = new { compiled.Analysis.Lattice.CountX, compiled.Analysis.Lattice.CountY, compiled.Analysis.Lattice.CountZ },experimentalShell=compiled.Analysis.ExperimentalShell },
-            solverSettings=new{solveOptions.CutCellQuadraturePerAxis,solveOptions.RelativeResidualTolerance,solveOptions.MaximumIterations,solveOptions.RetryEmptyCutCells},
-            orientationDegrees=rotationDegrees,result.System, result.Solver, result.Equilibrium, result.TinyCells, result.Performance,boundaryLoads=result.BoundaryLoads,numericalLowering=result.NumericalLowering,strainEnergy=result.StrainEnergy,stressProbes=result.StressProbes,
+                lattice = new { compiled.Analysis.Lattice.CountX, compiled.Analysis.Lattice.CountY, compiled.Analysis.Lattice.CountZ },experimentalShell=compiled.Analysis.ExperimentalShell,
+                midsurfacePatchGraph=compiled.Analysis.MidsurfacePatchGraph is null?null:new{analysisSource=compiled.Analysis.MidsurfacePatchGraph.AnalysisSource.ToString(),compiled.Analysis.MidsurfacePatchGraph.SheetMetalBody,compiled.Analysis.MidsurfacePatchGraph.ThicknessMeters,compiled.Analysis.MidsurfacePatchGraph.Material,patchCount=compiled.Analysis.MidsurfacePatchGraph.Patches.Count,compiled.Analysis.MidsurfacePatchGraph.PanelPatchCount,compiled.Analysis.MidsurfacePatchGraph.BendPatchCount,compiled.Analysis.MidsurfacePatchGraph.OpeningCount,interfaceCount=compiled.Analysis.MidsurfacePatchGraph.Interfaces.Count,patches=compiled.Analysis.MidsurfacePatchGraph.Patches.Select(x=>new{x.Identity,kind=x.Kind.ToString(),bounds=x.ParameterDomain.Bounds,x.OpeningCount,x.SourceAuthority}),interfaces=compiled.Analysis.MidsurfacePatchGraph.Interfaces.Select(x=>new{x.Identity,x.PatchA,edgeA=x.EdgeA.ToString(),x.PatchB,edgeB=x.EdgeB.ToString(),orientation=x.Orientation.ToString(),x.StartMeters,x.EndMeters,x.MaximumMismatchMeters,x.SemanticBendId})} },
+            solverSettings=new{solveOptions.CutCellQuadraturePerAxis,solveOptions.RelativeResidualTolerance,solveOptions.MaximumIterations,solveOptions.RetryEmptyCutCells,solveOptions.ExperimentalPreconditioner,solveOptions.ExperimentalSymmetricEquilibration},
+            orientationDegrees=rotationDegrees,result.System, result.Solver, result.Equilibrium, result.TinyCells, result.Performance,boundaryLoads=result.BoundaryLoads,bodyLoads=result.BodyLoads,numericalLowering=result.NumericalLowering,strainEnergy=result.StrainEnergy,stressProbes=result.StressProbes,
             experimentalShell=result.ExperimentalShell,
             maximumDisplacementMeters = result.MaximumDisplacementMeters, maximumVonMisesPascal = result.MaximumVonMisesPascal,
             abaqus = abaqusReport
@@ -1166,10 +1170,12 @@ Model CanonicalPanel {
             File.WriteAllText(Path.Combine(outDir, "residual-history.json"), JsonSerializer.Serialize(result.Solver.ResidualHistory, JsonOptions));
             File.WriteAllText(Path.Combine(outDir, "displacement-stress-summary.json"), JsonSerializer.Serialize(new { maximumDisplacementMeters = result.MaximumDisplacementMeters, maximumVonMisesPascal = result.MaximumVonMisesPascal, result.Equilibrium }, JsonOptions));
             File.WriteAllText(Path.Combine(outDir,"boundary-quadrature.json"),JsonSerializer.Serialize(result.BoundaryLoads,JsonOptions));
+            File.WriteAllText(Path.Combine(outDir,"body-force-quadrature.json"),JsonSerializer.Serialize(result.BodyLoads,JsonOptions));
             File.WriteAllText(Path.Combine(outDir,"numerical-lowering-strategy-map.json"),JsonSerializer.Serialize(result.NumericalLowering,JsonOptions));
             if(experimental)
             {
                 File.WriteAllText(Path.Combine(outDir,"experimental-shell-evidence.json"),JsonSerializer.Serialize(result.ExperimentalShell,JsonOptions));
+                if(compiled.Analysis.MidsurfacePatchGraph is not null)File.WriteAllText(Path.Combine(outDir,"midsurface-patch-graph.json"),JsonSerializer.Serialize(report.analysis.midsurfacePatchGraph,JsonOptions));
                 File.WriteAllText(Path.Combine(outDir,"parameter-domain-grid.svg"),ThinWallDebugArtifacts.ParameterDomainSvg(compiled.Analysis));
                 File.WriteAllText(Path.Combine(outDir,"mapped-deformed-cells.svg"),ThinWallDebugArtifacts.MappedAndDeformedSvg(compiled.Analysis,result));
             }

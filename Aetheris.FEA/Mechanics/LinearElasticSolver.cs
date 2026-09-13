@@ -15,7 +15,9 @@ public sealed record MechanicsSolveOptions(
     int? MaximumIterations = null,
     Transform3D? DomainTransform = null,
     bool PreserveNominalCellVolumeUnderTransform = false,
-    bool RetryEmptyCutCells = true);
+    bool RetryEmptyCutCells = true,
+    ExperimentalPreconditionerKind? ExperimentalPreconditioner = null,
+    bool? ExperimentalSymmetricEquilibration = null);
 
 public static class LinearElasticSolver
 {

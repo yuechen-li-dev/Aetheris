@@ -1,0 +1,21 @@
+SheetMetal NativeFlatPlate {
+    Thickness: 2mm;
+    Material: "Standard.Materials.Steel.ASTM_A36";
+    KFactor: 0.42;
+    Base Plate { Profile: Rectangle { Width: 100mm; Height: 20mm; }; }
+}
+
+Analysis LinearElastic NativeFlatCantilever {
+    Body: NativeFlatPlate
+    Mode: ExperimentalShell
+    MasterGrid: [4, 1]
+    Order: 3
+    AlphaFictitious: 1e-12
+    MaxSubdivisionDepth: 4
+    Fixed Root { Region: NativeFlatPlate.Plate.r-min }
+    Force Tip {
+        Region: NativeFlatPlate.Plate.r-max
+        Vector: [0N, 0N, -10N]
+    }
+    Results: [Displacement, Strain, Stress, ReactionForce, StrainEnergy]
+}

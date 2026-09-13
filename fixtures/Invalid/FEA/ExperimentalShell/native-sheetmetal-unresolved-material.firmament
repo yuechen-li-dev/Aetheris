@@ -1,0 +1,15 @@
+SheetMetal InvalidNativeMaterial {
+    Thickness: 2mm;
+    Material: "Mystery Alloy QX-999";
+    Base Plate { Profile: Rectangle { Width: 100mm; Height: 20mm; }; }
+}
+Analysis LinearElastic InvalidNativeMaterialAnalysis {
+    Body: InvalidNativeMaterial
+    Mode: ExperimentalShell
+    MasterGrid: [2, 1]
+    Fixed Root { Region: InvalidNativeMaterial.Plate.r-min }
+    Force Tip {
+        Region: InvalidNativeMaterial.Plate.r-max
+        Vector: [0N, 0N, -1N]
+    }
+}

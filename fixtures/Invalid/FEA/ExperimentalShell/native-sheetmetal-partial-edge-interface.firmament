@@ -1,0 +1,27 @@
+SheetMetal PartialEdgeBracket {
+    Thickness: 2mm;
+    Material: "Standard.Materials.Aluminum.5052_H32";
+    Base BasePlate { Profile: Rectangle { Width: 100mm; Height: 70mm; }; }
+    Flange Upright {
+        From: BasePlate.Rear;
+        Height: 60mm;
+        Angle: 90deg;
+        Radius: 3mm;
+        Direction: Up;
+        StartTermination: Rounded;
+        StartTerminationRadius: 2mm;
+        EndTermination: Rounded;
+        EndTerminationRadius: 2mm;
+    }
+}
+
+Analysis LinearElastic PartialEdgeAnalysis {
+    Body: PartialEdgeBracket
+    Mode: ExperimentalShell
+    MasterGrid: [2, 2]
+    Fixed Clamp { Region: PartialEdgeBracket.BasePlate.s-min }
+    Force Tip {
+        Region: PartialEdgeBracket.Upright.s-max
+        Vector: [0N, 0N, -10N]
+    }
+}

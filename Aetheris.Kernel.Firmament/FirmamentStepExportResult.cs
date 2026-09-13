@@ -47,7 +47,12 @@ public sealed record FirmamentWireOperationReport(
     double? TubeRadiusLimitMm = null, double? RawClosureRotationRadians = null,
     double? AppliedDistributedCorrectionRadians = null, double? FinalClosureRotationErrorRadians = null,
     double? KnotApproximationMaxErrorMm = null, double? KnotApproximationRmsErrorMm = null,
-    double? ClosestParameter1 = null, double? ClosestParameter2 = null);
+    double? ClosestParameter1 = null, double? ClosestParameter2 = null,
+    FirmamentWireAxisDatum? AxisDatum = null);
+
+/// <summary>The actual winding axis, independent of the wire start tangent and part origin.</summary>
+public sealed record FirmamentWireAxisDatum(IReadOnlyList<double> Origin, IReadOnlyList<double> Direction,
+    IReadOnlyList<double> Radial, double ClearDiameterMm);
 
 public sealed record FirmamentWireTerminalReport(
     string Name, IReadOnlyList<double> Position, IReadOnlyList<double> Tangent, IReadOnlyList<double> Up, double DiameterMm);

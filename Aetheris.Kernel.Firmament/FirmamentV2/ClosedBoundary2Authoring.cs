@@ -29,9 +29,14 @@ internal static class ClosedBoundary2Authoring
 
     public static Result? Expand(string source, List<string> diagnostics)
     {
+        // Template bodies have local names and unbound dimensions. Their selected
+        // specializations pass through this lowering after ordinary template binding.
+        var templates = FirmamentV2TemplateExpansion.DeclarationSpans(source, diagnostics);
+        bool InTemplate(int offset) => templates.Any(span => offset >= span.Start && offset < span.Start + span.Length);
         var shapes = new List<Shape>(); var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (Match header in Header.Matches(source))
         {
+            if (InTemplate(header.Index)) continue;
             var open = source.IndexOf('{', header.Index); var close = Matching(source, open); var name = header.Groups["name"].Value;
             if (close < 0) { diagnostics.Add(Prefix + "malformed:" + name); continue; }
             if (!names.Add(name)) { diagnostics.Add(Prefix + "duplicate-name:" + name); continue; }
@@ -44,10 +49,10 @@ internal static class ClosedBoundary2Authoring
         {
             if (shape.LoweredSource is not null) changes.Add((shape.Start, shape.Length, shape.LoweredSource));
             foreach (Match trace in Regex.Matches(source, $@"\b{Regex.Escape(shape.Declaration.Name)}\s*\|>\s*TraceLoop\b", RegexOptions.CultureInvariant))
-                if (!Inside(trace.Index, shapes)) changes.Add((trace.Index, trace.Length, shape.TraceExpression));
+                if (!Inside(trace.Index, shapes) && !InTemplate(trace.Index)) changes.Add((trace.Index, trace.Length, shape.TraceExpression));
             foreach (var member in shape.MemberMap)
                 foreach (Match reference in Regex.Matches(source, $@"\b{Regex.Escape(shape.Declaration.Name)}\s*\.\s*{Regex.Escape(member.Key)}\b", RegexOptions.CultureInvariant))
-                    if (!Inside(reference.Index, shapes)) changes.Add((reference.Index, reference.Length, member.Value));
+                    if (!Inside(reference.Index, shapes) && !InTemplate(reference.Index)) changes.Add((reference.Index, reference.Length, member.Value));
         }
         foreach (var change in changes.OrderByDescending(x => x.Start)) source = source.Remove(change.Start, change.Length).Insert(change.Start, change.Text);
         return new(source, shapes.Select(x => x.Declaration).ToArray());

@@ -64,6 +64,10 @@
     <Deploy />
   </Project>
   <Project Path="Aetheris.CLI/Aetheris.CLI.csproj" />
+  <Folder Name="/demos/">
+    <Project Path="demos/Aetheris.EditableV8.Tests/Aetheris.EditableV8.Tests.csproj" />
+    <Project Path="demos/Aetheris.EditableV8/Aetheris.EditableV8.csproj" />
+  </Folder>
   <Project Path="Aetheris.CLI.Tests/Aetheris.CLI.Tests.csproj" />
   <Project Path="Aetheris.Kernel.Core.Tests/Aetheris.Kernel.Core.Tests.csproj" />
   <Project Path="test-support/Aetheris.TestForgePack/Aetheris.TestForgePack.csproj" />

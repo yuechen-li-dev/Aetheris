@@ -246,9 +246,9 @@ public sealed class AssemblyM0Compiler
                 var parent = instance.ParentStableId is null ? null : instances.Single(candidate => candidate.StableId == instance.ParentStableId);
                 AssemblyTransform? parentWorld = null;
                 if (parent is not null && !known.TryGetValue(parent.StableId, out parentWorld)) continue;
-                var local = ToMatrix(instance.LocalTransform!);
-                var world = parent is null ? local : local * ToMatrix(parentWorld!);
-                known[instance.StableId] = FromMatrix(world);
+                var local = Aetheris.Kernel.Core.Math.Transform3D.FromRowMajor(instance.LocalTransform!.Matrix);
+                var world = parent is null ? local : local * Aetheris.Kernel.Core.Math.Transform3D.FromRowMajor(parentWorld!.Matrix);
+                known[instance.StableId] = new(world.ToRowMajor());
                 explicitPending.Remove(instance);
                 explicitProgress = true;
             }
@@ -313,8 +313,9 @@ public sealed class AssemblyM0Compiler
                 var parent = instance.ParentStableId is null ? null : instances.Single(candidate => candidate.StableId == instance.ParentStableId);
                 AssemblyTransform? parentWorld = null;
                 if (parent is not null && !known.TryGetValue(parent.StableId, out parentWorld)) continue;
-                var world = parent is null ? ToMatrix(instance.LocalTransform!) : ToMatrix(instance.LocalTransform!) * ToMatrix(parentWorld!);
-                known[instance.StableId] = FromMatrix(world); explicitPending.Remove(instance); explicitProgress = true;
+                var local = Aetheris.Kernel.Core.Math.Transform3D.FromRowMajor(instance.LocalTransform!.Matrix);
+                var world = parent is null ? local : local * Aetheris.Kernel.Core.Math.Transform3D.FromRowMajor(parentWorld!.Matrix);
+                known[instance.StableId] = new(world.ToRowMajor()); explicitPending.Remove(instance); explicitProgress = true;
             }
         }
 
@@ -373,10 +374,9 @@ public sealed class AssemblyM0Compiler
         {
             var source = FrameMatrix(sourceFrame, DatumOrientationRelation.SameDirection);
             var targetFrameMatrix = FrameMatrix(targetFrame, frameConstraint.Orientation);
-            if (!Matrix4x4.Invert(source, out var inverse)) return targetWorld ?? AssemblyTransform.Identity;
-            var transform = inverse * targetFrameMatrix;
-            if (targetWorld is not null) transform *= ToMatrix(targetWorld);
-            return FromMatrix(transform);
+            var transform = source.Inverse() * targetFrameMatrix;
+            if (targetWorld is not null) transform *= Aetheris.Kernel.Core.Math.Transform3D.FromRowMajor(targetWorld.Matrix);
+            return new(transform.ToRowMajor());
         }
         var axis = constraints.FirstOrDefault(x => x.Kind == PlacementConstraintKind.AxisCoincident);
         if (axis is null || !values[axis.FirstSemanticValueId].TryBinding<ExactAxisBinding>(out var a) || !values[axis.SecondSemanticValueId].TryBinding<ExactAxisBinding>(out var b))
@@ -405,14 +405,14 @@ public sealed class AssemblyM0Compiler
             rotation.M31, rotation.M32, rotation.M33, rotation.M34, rotation.M41, rotation.M42, rotation.M43, rotation.M44]);
     }
 
-    private static Matrix4x4 FrameMatrix(ExactDatumFrameBinding frame, DatumOrientationRelation orientation)
+    private static Aetheris.Kernel.Core.Math.Transform3D FrameMatrix(ExactDatumFrameBinding frame, DatumOrientationRelation orientation)
     {
-        var x = Vector3.Normalize(new((float)frame.XAxisX, (float)frame.XAxisY, (float)frame.XAxisZ));
-        var y = Vector3.Normalize(new((float)frame.YAxisX, (float)frame.YAxisY, (float)frame.YAxisZ));
-        var z = Vector3.Normalize(new((float)frame.ZAxisX, (float)frame.ZAxisY, (float)frame.ZAxisZ));
+        new Aetheris.Kernel.Core.Math.Vector3D(frame.XAxisX, frame.XAxisY, frame.XAxisZ).TryNormalize(out var x);
+        new Aetheris.Kernel.Core.Math.Vector3D(frame.YAxisX, frame.YAxisY, frame.YAxisZ).TryNormalize(out var y);
+        new Aetheris.Kernel.Core.Math.Vector3D(frame.ZAxisX, frame.ZAxisY, frame.ZAxisZ).TryNormalize(out var z);
         if (orientation == DatumOrientationRelation.OpposedDirection) { y = -y; z = -z; }
-        return new(x.X, x.Y, x.Z, 0, y.X, y.Y, y.Z, 0, z.X, z.Y, z.Z, 0,
-            (float)frame.OriginX, (float)frame.OriginY, (float)frame.OriginZ, 1);
+        return Aetheris.Kernel.Core.Math.Transform3D.FromRowMajor([x.X, x.Y, x.Z, 0, y.X, y.Y, y.Z, 0, z.X, z.Y, z.Z, 0,
+            frame.OriginX, frame.OriginY, frame.OriginZ, 1]);
     }
 
     private static Matrix4x4 ToMatrix(AssemblyTransform transform) => new(

@@ -701,7 +701,7 @@ public static class ProfileAuthoringParser
         if (stages.Count == 2 && stages[1].Kind == PipelineStageKind.TraceLoop)
         {
             if (guides.TryGetValue(stages[0].Reference!, out var closedGuide) && closedGuide is LineArcFullCircle2D or LineArcFullEllipse2D)
-                return [PipelineSegment(profile, loopName, "Boundary", closedGuide, $"concept:{profile.Frame ?? "XY"}.{stages[0].Reference}", stages[0].Reference!, false, 0, match.Index)];
+                return [PipelineSegment(profile, loopName, loopName == "Outer" ? "Boundary" : $"{loopName}.Boundary", closedGuide, $"concept:{profile.Frame ?? "XY"}.{stages[0].Reference}", stages[0].Reference!, false, 0, match.Index)];
             if (!paths.TryGetValue(stages[0].Reference!, out var path))
             {
                 diagnostics.Add($"firmament-profile-traceloop-not-loop:{stages[0].Reference}");

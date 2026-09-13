@@ -1,0 +1,14 @@
+Model LocalClosedBoundaries {
+    Units: mm
+    Template < R: Length > Struct Disc {
+        Circle2 Outside { Center: [0mm,0mm] Radius: R }
+        Profile Section { Loop Outer { Outside |> TraceLoop } }
+        Extrude Body { Profile: Section From: 0mm To: 8mm }
+    }
+    Template < Width: Length > Struct Plate {
+        Rect2 Outside { Center: [0mm,0mm] Size: [Width,20mm] }
+        Profile Section { Loop Outer { Outside |> TraceLoop } }
+        Extrude Body { Profile: Section From: 0mm To: 8mm }
+    }
+    Struct Selected = Disc<R: 20mm>
+}

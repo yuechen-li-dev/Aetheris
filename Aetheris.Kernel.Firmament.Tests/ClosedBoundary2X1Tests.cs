@@ -7,6 +7,21 @@ namespace Aetheris.Kernel.Firmament.Tests;
 
 public sealed class ClosedBoundary2X1Tests
 {
+    [Fact]
+    public void TemplateLocalBoundariesAreLoweredOnlyAfterSpecialization()
+    {
+        var source = File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/Templates/local-closed-boundaries.firmament"));
+        var parsed = FirmamentV2Parser.Parse(source);
+        Assert.True(parsed.IsSuccess, string.Join("\n", parsed.Diagnostics));
+        var boundary = Assert.Single(parsed.Document!.Boundaries!);
+        Assert.Equal(20, boundary.Dimensions["Radius"]);
+        var build = FirmamentBuildAndExport.CompileSource(source);
+        Assert.True(build.IsSuccess, string.Join("\n", build.Diagnostics.Select(d => d.Message)));
+        var revised = FirmamentBuildAndExport.CompileSource(source.Replace("Disc<R: 20mm>", "Disc<R: 24mm>", StringComparison.Ordinal));
+        Assert.True(revised.IsSuccess, string.Join("\n", revised.Diagnostics.Select(d => d.Message)));
+        Assert.NotEqual(build.Value.StepText, revised.Value.StepText);
+    }
+
     public static TheoryData<string, string, int> LinearFamilies => new()
     {
         { "Rect2 Shape { Center: [0mm,0mm] Size: [40mm,20mm] }", "Rect2", 4 },

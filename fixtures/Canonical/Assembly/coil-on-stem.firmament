@@ -1,0 +1,34 @@
+Template < R: Length > Struct Stem {
+    Circle2 Outside { Center: [0mm,0mm] Radius: R }
+    Profile Section { Loop Outer { Outside |> TraceLoop } }
+    Extrude Body { Profile: Section From: -10mm To: 60mm }
+}
+Template < P: Length > Struct Spring {
+    WireForm SpringWire {
+        Diameter: 2mm
+        Material: Standard.Materials.StainlessSteel.304_Annealed
+        StartFrame { Origin: [0mm,0mm,0mm]; Tangent: [1,0,0]; Up: [0,0,1] }
+        AxisCoil Winding { Radius: 9mm; Turns: 6; Pitch: P; Handedness: RightHanded; StartPhase: 0deg }
+    }
+}
+Interface SpringOnRod {
+    Role Spring requires AxisCapable, DatumFrameCapable, DimensionalCapable;
+    Role Rod requires AxisCapable, DatumFrameCapable, DimensionalCapable;
+    Lower AxisCoincident Spring.Axis Rod.Axis;
+    Lower FrameCoincident Spring.Frame Rod.Frame SameDirection;
+    Fit Rod.Diameter inside Spring.ClearDiameter;
+}
+Assembly GuidedSpring {
+    <Assembly GuidedSpring>
+        <Part Rod = Stem<R: 4mm>>
+            Semantic SpringSeat {
+                Axis Axis = [0,0,0] -> [0,0,1];
+                DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1];
+                Dimension Diameter = 8mm;
+            }
+        </Part>
+        <Part Coil = Spring<P: 6mm>> </Part>
+    </Assembly>
+    Anchor: GuidedSpring.Rod.SpringSeat;
+    Mate Install: SpringOnRod { Spring: GuidedSpring.Coil.Winding; Rod: GuidedSpring.Rod.SpringSeat; }
+}

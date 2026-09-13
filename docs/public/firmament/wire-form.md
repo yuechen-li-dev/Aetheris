@@ -64,3 +64,23 @@ X1 coils remain continuous, unbranched, open paths. WIRE-X2 adds a distinct clos
 See the canonical [axis coil](../../../fixtures/Canonical/WireForm/axis-coil.firmament), [frustum SurfaceCoil](../../../fixtures/Canonical/WireForm/frustum-surface-coil.firmament), [sphere SurfaceCoil](../../../fixtures/Canonical/WireForm/sphere-surface-coil.firmament), [composed Straight/Coil/Straight](../../../fixtures/Canonical/WireForm/straight-coil-straight.firmament), [90-degree bend](../../../fixtures/Canonical/WireForm/single-bend-90.firmament), and [Paperclip](../../../fixtures/Canonical/WireForm/paperclip.firmament).
 
 `aetheris inspect source.firmament --json` reports the semantic `wireForm` object, including `operations`, `totalStraightLength`, `totalBendLength`, and compiler-derived `totalWireLength`. A materializing `build --json` adds volume, mass, surface inventory, manifold/reimport status, rational/faceted counts, and the STEP hash.
+
+## Mating a coil to a rod
+
+An `AxisCoil` starts at the current wire point and preserves its tangent. Its winding axis is generally **offset from that point and tilted from StartFrame.Up**: pitch contributes an axial component to the tangent. Do not mate the part origin or assume local Z is the spring axis.
+
+Executable Assembly template occurrences now expose each `AxisCoil` operation by its authored name. For `AxisCoil Winding`, the public semantic members are `Winding.Axis`, `Winding.Frame` and `Winding.ClearDiameter`. They come from the same compiler-derived axis origin, direction, start radial and wire radius that build the coil. The frame's Z axis is the winding axis, X is its start radial, and its origin is the winding-axis base. Clear diameter is twice the coil centerline radius minus wire diameter. The build report retains these values as `wireForm.operations[].axisDatum`.
+
+A bounded spring-to-rod interface can combine axial alignment with a seating frame:
+
+```firmament
+Interface SpringOnRod {
+    Role Spring requires AxisCapable, DatumFrameCapable, DimensionalCapable;
+    Role Rod requires AxisCapable, DatumFrameCapable, DimensionalCapable;
+    Lower AxisCoincident Spring.Axis Rod.Axis;
+    Lower FrameCoincident Spring.Frame Rod.Frame SameDirection;
+    Fit Rod.Diameter inside Spring.ClearDiameter;
+}
+```
+
+The datum frame fixes axial seat position and roll; the explicit axis constraint independently validates coaxiality after materialization. Fit analysis classifies diameter compatibility. See the executable [coil-on-stem fixture](../../../fixtures/Canonical/Assembly/coil-on-stem.firmament). This automatic datum exposure currently covers `AxisCoil`; it does not infer an axis for knots or arbitrary SurfaceCoil supports.

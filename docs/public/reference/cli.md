@@ -17,3 +17,7 @@ Primary public commands:
 | `asm ...` | Inspect/execute/import/export assemblies |
 
 Run `aetheris <command> --help` for exact options. JSON is a public automation surface, but its root is command-specific: process exit status is authoritative, `validate` reports `firmamentV2Validation.status`, and materializing/analysis commands report `success` where documented. Diagnostics are structured; artifact paths are explicit; wireframe reports trim/pcurve coverage and a deterministic SVG hash; Sheet Metal reports regions, bends, and lowered features separately; FEA reports requested/result artifacts; sculpting builds report every `BodyState`, `GeometricDelta`, validation evidence, surface-family inventory, and the sibling `.delta.json` path; other builds report emitted features and PMI export evidence. Counts describe semantic items at the stated layer, not arbitrary STEP entity counts.
+
+## Assembly display meshes
+
+`aetheris mesh <assembly.firmament|assembly.firmasm> --format assembly-json --output <file.mesh.json> --json` exports shared local definition meshes and stable world-space occurrences. Failed geometry is not omitted. The default destination is `artifacts/local/mesh/<name>.mesh.json`. See [editable mechanisms](../firmament/editable-mechanisms.md) for the schema and a working consumer.

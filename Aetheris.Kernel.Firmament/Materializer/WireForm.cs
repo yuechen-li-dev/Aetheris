@@ -479,7 +479,12 @@ public static class WireFormReportFactory
             operation is WireKnotPathAir knotError ? knotError.ApproximationError.MaxMm : null,
             operation is WireKnotPathAir knotRms ? knotRms.ApproximationError.RmsMm : null,
             operation is WireKnotPathAir knotT1 ? knotT1.Qualification.ClosestParameter1 : null,
-            operation is WireKnotPathAir knotT2 ? knotT2.Qualification.ClosestParameter2 : null)).ToArray();
+            operation is WireKnotPathAir knotT2 ? knotT2.Qualification.ClosestParameter2 : null,
+            operation is WireAxisCoilAir datum ? new FirmamentWireAxisDatum(
+                [datum.AxisOrigin.X, datum.AxisOrigin.Y, datum.AxisOrigin.Z],
+                [datum.Axis.X, datum.Axis.Y, datum.Axis.Z],
+                [datum.StartRadial.X, datum.StartRadial.Y, datum.StartRadial.Z],
+                2 * datum.RadiusMm - feature.DiameterMm) : null)).ToArray();
         return new(feature.Name, feature.DiameterMm, feature.Material.Identity.FirmamentPath, feature.Operations.Count,
             feature.Operations.Count(x => x is WireStraightAir), feature.Operations.Count(x => x is WireBendAir),
             feature.TotalStraightLengthMm, feature.TotalBendLengthMm, feature.TotalWireLengthMm, built.VolumeMm3, built.MassKilograms,

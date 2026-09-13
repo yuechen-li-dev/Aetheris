@@ -134,7 +134,7 @@ public static class CliRunner
         int? RigidRootCount = null);
     private const string TopLevelUsage = "Usage: aetheris <command> [options]";
     private const string BuildUsage = "Usage: aetheris build <file.firmament> [--output <path>] [--json]";
-    private const string MeshUsage = "Usage: aetheris mesh <file.firmament|file.firmfixture|file.step> [--format stl|obj] [--output <path>] [--debug-ir <path>] [--json]";
+    private const string MeshUsage = "Usage: aetheris mesh <file.firmament|file.firmfixture|file.firmasm|file.step> [--format stl|obj|assembly-json] [--output <path>] [--debug-ir <path>] [--json]";
     private const string ValidateUsage = "Usage: aetheris validate <file.firmament|file.firmfixture> [--forge-pack <path>] [--json]";
     private const string InspectProfileUsage = "Usage: aetheris inspect-profile <file.firmament> [--json]";
     private const string InspectSpansUsage = "Usage: aetheris inspect-spans <file.firmament> --json";
@@ -1202,9 +1202,29 @@ Model CanonicalPanel {
                 default: stderr.WriteLine($"Unknown mesh option '{args[i]}'."); stderr.WriteLine(MeshUsage); return 1;
             }
         }
+        if (string.Equals(format, "assembly-json", StringComparison.OrdinalIgnoreCase))
+        {
+            if (debugIr is not null) { stderr.WriteLine("assembly-json does not support --debug-ir."); return 1; }
+            var compilation = Path.GetExtension(input).Equals(".firmasm", StringComparison.OrdinalIgnoreCase)
+                ? new FirmamentAssemblyDocumentCompiler().CompileFile(input).Compilation
+                : new AssemblyM1Pipeline().CompileFile(input);
+            if (!compilation.IsSuccess)
+                return WriteMeshFailure(compilation.Diagnostics.Select(d => d.Code + ": " + d.Message), json, input, stdout, stderr);
+            try
+            {
+                var assemblyDocument = AssemblyDisplayMeshExporter.Export(compilation);
+                var destination = Path.GetFullPath(output ?? Path.Combine("artifacts", "local", "mesh", Path.GetFileNameWithoutExtension(input) + ".mesh.json"));
+                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                File.WriteAllText(destination, AssemblyDisplayMeshExporter.Serialize(assemblyDocument));
+                stdout.WriteLine(JsonSerializer.Serialize(new { status = "success", output = destination, definitions = assemblyDocument.Definitions.Count,
+                    occurrences = assemblyDocument.Occurrences.Count, triangles = assemblyDocument.Definitions.Sum(d => d.Indices.Length / 3) }));
+                return 0;
+            }
+            catch (InvalidOperationException error) { return WriteMeshFailure([error.Message], json, input, stdout, stderr); }
+        }
         if (!string.Equals(format, "stl", StringComparison.OrdinalIgnoreCase) && !string.Equals(format, "obj", StringComparison.OrdinalIgnoreCase))
         {
-            stderr.WriteLine("Mesh supports binary STL and topology-preserving OBJ.");
+            stderr.WriteLine("Mesh supports binary STL, topology-preserving OBJ, and assembly-json definition/occurrence meshes.");
             return 1;
         }
         var fullInput = Path.GetFullPath(input);

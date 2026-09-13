@@ -145,25 +145,27 @@ public static class ProfileExtrusionBRepPlanner
                     }
                     case LineArcFullCircle2D circle:
                     {
-                        sv0 = Vertex(circle.Center, false, segmentSource); sv1 = sv0; ev0 = Vertex(circle.Center, true, segmentSource); ev1 = ev0;
+                        var seam = (circle.Center.X + circle.Radius, circle.Center.Y);
+                        sv0 = Vertex(seam, false, segmentSource); sv1 = sv0; ev0 = Vertex(seam, true, segmentSource); ev1 = ev0;
                         var trim = new ParameterInterval(0, 2 * Math.PI);
-                        startEdge = Edge(prefix + ":edge:local-start", sv0, sv0, Curve(prefix + ":curve:local-start", CurveGeometry.FromCircle(new Circle3Curve(sv0.WorldPoint, frame.AxisZ, circle.Radius, frame.AxisX)), trim, segmentSource), segmentSource, ProfileExtrusionPlanRole.LocalStartBoundary);
-                        endEdge = Edge(prefix + ":edge:local-end", ev0, ev0, Curve(prefix + ":curve:local-end", CurveGeometry.FromCircle(new Circle3Curve(ev0.WorldPoint, frame.AxisZ, circle.Radius, frame.AxisX)), trim, segmentSource), segmentSource, ProfileExtrusionPlanRole.LocalEndBoundary);
-                        startLongitudinal = Vertical(circle.Center, sv0, ev0, segmentSource); endLongitudinal = startLongitudinal;
-                        sideSurface = SurfaceGeometry.FromCylinder(new CylinderSurface(sv0.WorldPoint, frame.AxisZ, circle.Radius, frame.AxisX));
+                        startEdge = Edge(prefix + ":edge:local-start", sv0, sv0, Curve(prefix + ":curve:local-start", CurveGeometry.FromCircle(new Circle3Curve(frame.ToWorld(circle.Center, start), frame.AxisZ, circle.Radius, frame.AxisX)), trim, segmentSource), segmentSource, ProfileExtrusionPlanRole.LocalStartBoundary);
+                        endEdge = Edge(prefix + ":edge:local-end", ev0, ev0, Curve(prefix + ":curve:local-end", CurveGeometry.FromCircle(new Circle3Curve(frame.ToWorld(circle.Center, end), frame.AxisZ, circle.Radius, frame.AxisX)), trim, segmentSource), segmentSource, ProfileExtrusionPlanRole.LocalEndBoundary);
+                        startLongitudinal = Vertical(seam, sv0, ev0, segmentSource); endLongitudinal = startLongitudinal;
+                        sideSurface = SurfaceGeometry.FromCylinder(new CylinderSurface(frame.ToWorld(circle.Center, start), frame.AxisZ, circle.Radius, frame.AxisX));
                         break;
                     }
                     case LineArcFullEllipse2D ellipse:
                     {
-                        sv0 = Vertex(ellipse.Center, false, segmentSource); sv1 = sv0; ev0 = Vertex(ellipse.Center, true, segmentSource); ev1 = ev0;
+                        var seam = (ellipse.Center.X + ellipse.MajorRadius * Math.Cos(ellipse.RotationRadians), ellipse.Center.Y + ellipse.MajorRadius * Math.Sin(ellipse.RotationRadians));
+                        sv0 = Vertex(seam, false, segmentSource); sv1 = sv0; ev0 = Vertex(seam, true, segmentSource); ev1 = ev0;
                         var trim = new ParameterInterval(0, 2 * Math.PI);
                         var localAxis = new Vector3D(Math.Cos(ellipse.RotationRadians), Math.Sin(ellipse.RotationRadians), 0);
                         var axis = Direction3D.Create(frame.ToWorldDirection(localAxis));
-                        var startEllipse = CurveGeometry.FromEllipse(new Ellipse3Curve(sv0.WorldPoint, frame.AxisZ, ellipse.MajorRadius, ellipse.MinorRadius, axis));
-                        var endEllipse = CurveGeometry.FromEllipse(new Ellipse3Curve(ev0.WorldPoint, frame.AxisZ, ellipse.MajorRadius, ellipse.MinorRadius, axis));
+                        var startEllipse = CurveGeometry.FromEllipse(new Ellipse3Curve(frame.ToWorld(ellipse.Center, start), frame.AxisZ, ellipse.MajorRadius, ellipse.MinorRadius, axis));
+                        var endEllipse = CurveGeometry.FromEllipse(new Ellipse3Curve(frame.ToWorld(ellipse.Center, end), frame.AxisZ, ellipse.MajorRadius, ellipse.MinorRadius, axis));
                         startEdge = Edge(prefix + ":edge:local-start", sv0, sv0, Curve(prefix + ":curve:local-start", startEllipse, trim, segmentSource), segmentSource, ProfileExtrusionPlanRole.LocalStartBoundary);
                         endEdge = Edge(prefix + ":edge:local-end", ev0, ev0, Curve(prefix + ":curve:local-end", endEllipse, trim, segmentSource), segmentSource, ProfileExtrusionPlanRole.LocalEndBoundary);
-                        startLongitudinal = Vertical(ellipse.Center, sv0, ev0, segmentSource); endLongitudinal = startLongitudinal;
+                        startLongitudinal = Vertical(seam, sv0, ev0, segmentSource); endLongitudinal = startLongitudinal;
                         sideSurface = SurfaceGeometry.FromLinearExtrusion(new LinearExtrusionSurface(startEllipse, frame.AxisZ.ToVector() * (end - start)));
                         break;
                     }

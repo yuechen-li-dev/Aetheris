@@ -347,6 +347,9 @@ internal static class FirmamentV2TemplateExpansion
         return new(source, instantiations);
     }
 
+    internal static IReadOnlyList<FirmamentV2SourceSpan> DeclarationSpans(string source, List<string> diagnostics)
+        => ParseDeclarations(source, diagnostics).Select(item => item.SourceSpan).ToArray();
+
     private static ImmutableArray<TemplateDeclarationIr> ParseDeclarations(string source, List<string> diagnostics)
     {
         var result = ImmutableArray.CreateBuilder<TemplateDeclarationIr>(); var names = new HashSet<string>(StringComparer.Ordinal);

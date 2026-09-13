@@ -352,6 +352,16 @@ public static class FirmamentV2Parser
         }
         source = templateExpansion.Source;
 
+        var specializedBoundaries = ClosedBoundary2Authoring.Expand(source, diagnostics);
+        if (specializedBoundaries is null)
+        {
+            diagnostics.Add("firmament-v2-parse-failed");
+            return FirmamentV2ParseResult.Failure(diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray(), FirmamentV2ParseDisposition.RecognizedInvalid);
+        }
+        source = specializedBoundaries.Source;
+        polygonExpansion = new(source, polygonExpansion.Boundaries.Concat(specializedBoundaries.Boundaries)
+            .DistinctBy(boundary => boundary.Name, StringComparer.Ordinal).ToArray());
+
         var canonicalStaticExpansion = CanonicalStaticAuthoring.Expand(source, diagnostics);
         if (canonicalStaticExpansion is null)
         {

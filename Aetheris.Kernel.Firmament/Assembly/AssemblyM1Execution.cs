@@ -116,11 +116,35 @@ internal static class AssemblyDefinitionMaterializer
         if (build.Value.ConceptIr?.TemplateInstantiations?.LastOrDefault()?.RecordArguments is { Count: > 0 } records)
             provenance.AddRange(records.OrderBy(pair => pair.Key, StringComparer.Ordinal).Select(pair =>
                 new SemanticProvenance("static-record", pair.Value.StaticValue, $"{pair.Key}:{pair.Value.RecordType};{pair.Value.Provenance}", SemanticSourceSpan.Generated(sourceIdentity))));
-        var semantics = build.Value.ConceptIr is null ? Array.Empty<SemanticValue>() : SemanticValues(build.Value.ConceptIr, provenance, sourceIdentity);
+        var semantics = (build.Value.ConceptIr is null ? Array.Empty<SemanticValue>() : SemanticValues(build.Value.ConceptIr, provenance, sourceIdentity))
+            .Concat(WindingSemantics(build.Value.WireForm, provenance, sourceIdentity)).ToArray();
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(build.Value.StepText)));
         var stableId = "assembly-definition:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(definitionIdentity)))[..16];
         var artifact = new AssemblyDefinitionArtifactIr(stableId, definitionIdentity, specialization, hash, Metrics(import.Value), provenance);
         return new(definitionIdentity, specialization, import.Value, semantics, artifact);
+    }
+
+    private static IEnumerable<SemanticValue> WindingSemantics(FirmamentWireFormReport? wire,
+        IReadOnlyList<SemanticProvenance> provenance, string sourceIdentity)
+    {
+        foreach (var operation in wire?.Operations ?? [])
+        {
+            if (operation.AxisDatum is not { } datum) continue;
+            var id = operation.StableId + ":winding-datum";
+            var o = datum.Origin; var x = datum.Radial; var z = datum.Direction;
+            var y = new Vector3D(z[0], z[1], z[2]).Cross(new(x[0], x[1], x[2]));
+            var span = SemanticSourceSpan.Generated(sourceIdentity);
+            SemanticValue[] members = [
+                new(id + ":axis", new("Axis"), [new AxisCapability()],
+                    [new ExactAxisBinding(o[0], o[1], o[2], z[0], z[1], z[2], id + ":axis")], exposedName: "Axis"),
+                new(id + ":frame", new("DatumFrame"), [new DatumFrameCapability()],
+                    [new ExactDatumFrameBinding(o[0], o[1], o[2], x[0], x[1], x[2], y.X, y.Y, y.Z, z[0], z[1], z[2], id + ":frame")], exposedName: "Frame"),
+                new(id + ":clear-diameter", new("Length"), [new DimensionalCapability()],
+                    [new TolerancedDimensionBinding(datum.ClearDiameterMm, 0, 0, "mm", id + ":clear-diameter")], exposedName: "ClearDiameter")
+            ];
+            yield return new(id, new("Semantic"), [new AxisCapability(), new DatumFrameCapability(), new DimensionalCapability()],
+                exposedMembers: members, provenance: provenance, authoredSourceSpan: span, exposedName: operation.Name);
+        }
     }
 
     private static IReadOnlyList<SemanticValue> SemanticValues(ConceptIrDocument ir, IReadOnlyList<SemanticProvenance> provenance, string sourceIdentity)
@@ -359,13 +383,13 @@ public static class AssemblyWorldQuery
             var ad = Unit(new(a.DirectionX, a.DirectionY, a.DirectionZ)); var bd = Unit(new(b.DirectionX, b.DirectionY, b.DirectionZ));
             var delta = new Vector3D(a.OriginX - b.OriginX, a.OriginY - b.OriginY, a.OriginZ - b.OriginZ);
             var cross = Cross(delta, bd);
-            return (cross.Length, double.Acos(Math.Clamp(Math.Abs(ad.Dot(bd)), -1, 1)));
+            return (cross.Length, UndirectedAngle(ad, bd));
         }
         if (first is ExactPlaneBinding p && second is ExactPlaneBinding q)
         {
             var pn = Unit(new(p.NormalX, p.NormalY, p.NormalZ)); var qn = Unit(new(q.NormalX, q.NormalY, q.NormalZ));
             var delta = new Vector3D(p.OriginX - q.OriginX, p.OriginY - q.OriginY, p.OriginZ - q.OriginZ);
-            return (Math.Abs(delta.Dot(qn) - offset), double.Acos(Math.Clamp(Math.Abs(pn.Dot(qn)), -1, 1)));
+            return (Math.Abs(delta.Dot(qn) - offset), UndirectedAngle(pn, qn));
         }
         if (first is ExactPointBinding x && second is ExactPointBinding y)
         {
@@ -378,11 +402,15 @@ public static class AssemblyWorldQuery
             var fx = Unit(new(f.XAxisX, f.XAxisY, f.XAxisZ)); var gx = Unit(new(g.XAxisX, g.XAxisY, g.XAxisZ));
             var fz = Unit(new(f.ZAxisX, f.ZAxisY, f.ZAxisZ)); var gz = Unit(new(g.ZAxisX, g.ZAxisY, g.ZAxisZ));
             var expectedZDot = orientation == DatumOrientationRelation.OpposedDirection ? -1d : 1d;
-            return (delta.Length, Math.Max(Math.Acos(Math.Clamp(fx.Dot(gx), -1, 1)), Math.Acos(Math.Clamp(expectedZDot * fz.Dot(gz), -1, 1))));
+            return (delta.Length, Math.Max(DirectedAngle(fx, gx), DirectedAngle(fz, gz * expectedZDot)));
         }
         return (double.PositiveInfinity, double.PositiveInfinity);
     }
 
+    // atan2 retains precision near aligned axes; acos(dot) turns rounding at 1 into
+    // a spurious ~1e-8 rad residual even for identical oblique datum frames.
+    private static double DirectedAngle(Vector3D a, Vector3D b) => double.Atan2(Cross(a, b).Length, a.Dot(b));
+    private static double UndirectedAngle(Vector3D a, Vector3D b) => double.Atan2(Cross(a, b).Length, double.Abs(a.Dot(b)));
     private static Vector3D Unit(Vector3D value) => value / value.Length;
     private static Vector3D Cross(Vector3D a, Vector3D b) => new(a.Y * b.Z - a.Z * b.Y, a.Z * b.X - a.X * b.Z, a.X * b.Y - a.Y * b.X);
     private static IEnumerable<SemanticValue> Flatten(SemanticValue root)

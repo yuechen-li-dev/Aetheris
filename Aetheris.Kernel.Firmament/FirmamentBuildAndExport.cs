@@ -301,7 +301,10 @@ public static class FirmamentBuildAndExport
             return KernelResult<FirmamentStepExportResult>.Failure(staticDiagnostics.Select(diagnostic => new Kernel.Core.Diagnostics.KernelDiagnostic(
                 Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, diagnostic, "FirmamentV2.TemplateExpansion")).ToArray());
         }
-        var staticExpansion = CanonicalStaticAuthoring.Expand(templateExpansion.Source, staticDiagnostics);
+        var specializedBoundaries = ClosedBoundary2Authoring.Expand(templateExpansion.Source, staticDiagnostics);
+        if (specializedBoundaries is null)
+            return KernelResult<FirmamentStepExportResult>.Failure(staticDiagnostics.Select(SchemaDiagnostic).ToArray());
+        var staticExpansion = CanonicalStaticAuthoring.Expand(specializedBoundaries.Source, staticDiagnostics);
         if (staticExpansion is null)
         {
             return KernelResult<FirmamentStepExportResult>.Failure(staticDiagnostics

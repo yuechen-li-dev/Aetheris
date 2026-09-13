@@ -1590,6 +1590,26 @@ Model CanonicalPanel {
                 distribution = "AuthoredSourceOrder",
                 status = "PreservedThroughFeatureAir;InstancesMaterializedAtBRepPlan"
             }).ToArray() ?? [],
+            mirrors = document?.StaticAuthoring?.Mirrors?.Select(mirror => new
+            {
+                kind = "Mirrored",
+                mirror.Destination,
+                mirror.Source,
+                acrossPlane = mirror.AcrossPlane,
+                mirror.HandednessCorrection,
+                mirror.Provenance,
+                members = mirror.Members
+            }).ToArray() ?? [],
+            radialPatterns = document?.StaticAuthoring?.RadialPatterns?.Select(pattern => new
+            {
+                pattern.Name,
+                pattern.Source,
+                pattern.Axis,
+                pattern.Count,
+                pattern.AngleRadians,
+                pattern.Distribution,
+                instanceTransforms = pattern.Instances
+            }).ToArray() ?? [],
             templateInstances = (document?.TemplateInstantiations ?? document?.ConceptIr?.TemplateInstantiations)?.Select(instance => new
             {
                 instance.Template,

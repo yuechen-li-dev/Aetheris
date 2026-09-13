@@ -1,0 +1,10 @@
+schema Mechanical
+Model MirroredMountingHoles {
+    Units: mm
+    Plane CenterPlane { Origin: [0mm,0mm,0mm]; Normal: [1,0,0]; Up: [0,0,1] }
+    Box Plate { Size: [80mm, 40mm, 8mm] }
+    Modify Plate {
+        Hole<Shaft> LeftMount { On: +Z Center: Point2(24mm, 0mm) Diameter: 6mm End: ThroughAll }
+        Mirrored Feature RightMount From LeftMount { Across: CenterPlane }
+    }
+}

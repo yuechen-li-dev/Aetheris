@@ -1,0 +1,10 @@
+schema Mechanical
+Model MirroredRevolve {
+    Units: mm
+    Plane MidPlane { Origin: [0mm,0mm,0mm]; Normal: [0,1,0]; Up: [0,0,1] }
+    Axis MainAxis { Origin: [0mm,0mm,0mm]; Direction: [0,1,0] }
+    Rect2 LowerBoundary { Center: [9mm, -14mm] Size: [6mm, 12mm] }
+    Profile LowerSection { Loop Outer { LowerBoundary |> TraceLoop } }
+    Mirrored Profile UpperSection From LowerSection { Across: MidPlane }
+    Revolve UpperRing { Profile: UpperSection; About: MainAxis; Angle: half }
+}

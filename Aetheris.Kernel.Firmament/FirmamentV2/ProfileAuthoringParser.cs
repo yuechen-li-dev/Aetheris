@@ -157,7 +157,9 @@ public static class ProfileAuthoringParser
     {
         var diagnostics = new List<string>();
         source = ExpandBuiltInPolygons(source, diagnostics);
-        var profile = FindProfiles(source).FirstOrDefault();
+        var authoredProfiles = FindProfiles(source).ToArray();
+        var extrudeProfile = Extrude.Match(source).Groups["p"].Value;
+        var profile = authoredProfiles.FirstOrDefault(candidate => candidate.Name == extrudeProfile) ?? authoredProfiles.FirstOrDefault();
         if (profile is null)
             return (null, 0, ["profile-source-missing-profile"]);
 

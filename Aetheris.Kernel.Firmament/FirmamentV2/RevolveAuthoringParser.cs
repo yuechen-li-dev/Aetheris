@@ -28,6 +28,13 @@ public static class RevolveAuthoringParser
     {
         ArgumentNullException.ThrowIfNull(source);
         var diagnostics = new List<string>();
+        var normalized = NormalizeSemanticSource(source, diagnostics);
+        if (normalized is null)
+        {
+            reportedDiagnostics = diagnostics.Distinct(StringComparer.Ordinal).ToArray();
+            return null;
+        }
+        source = normalized;
         var feature = Revolve.Match(source);
         if (!feature.Success) { reportedDiagnostics = [Prefix + "missing"]; return null; }
         var name = feature.Groups["name"].Value;
@@ -94,6 +101,23 @@ public static class RevolveAuthoringParser
             : null;
     }
 
+    private static string? NormalizeSemanticSource(string source, List<string> diagnostics)
+    {
+        // Revolve is inspected and validated through a dedicated CLI lane. Keep that lane
+        // aligned with the production build ordering so semantic boundaries and Mirror are
+        // resolved before the profile binder, just as they are for actual materialization.
+        var boundaries = ClosedBoundary2Authoring.Expand(source, diagnostics);
+        if (boundaries is null) return null;
+        var features = FirmamentV2FeatureExpansion.Expand(boundaries.Source, diagnostics);
+        if (features is null) return null;
+        var templates = FirmamentV2TemplateExpansion.Expand(features.Source, diagnostics);
+        if (templates is null) return null;
+        var specializedBoundaries = ClosedBoundary2Authoring.Expand(templates.Source, diagnostics);
+        if (specializedBoundaries is null) return null;
+        var staticAuthoring = CanonicalStaticAuthoring.Expand(specializedBoundaries.Source, diagnostics);
+        return staticAuthoring?.Source;
+    }
+
     private static string? Field(string body, string name)
     {
         var match = Regex.Match(body, $@"\b{Regex.Escape(name)}\s*:\s*(?<value>[^;\r\n}}]+)", RegexOptions.CultureInvariant);
@@ -108,7 +132,7 @@ public static class RevolveAuthoringParser
         return true;
     }
 
-    private static bool TryAngle(string text, out double radians, out string? alias)
+    internal static bool TryAngle(string text, out double radians, out string? alias)
     {
         radians = 0d; alias = null;
         var normalized = text.Trim().ToLowerInvariant();

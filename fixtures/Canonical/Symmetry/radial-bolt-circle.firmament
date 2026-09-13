@@ -1,0 +1,10 @@
+schema Mechanical
+Model RadialBoltCircle {
+    Units: mm
+    Axis MainAxis { Origin: [0mm,0mm,0mm]; Direction: [0,0,1] }
+    Box Flange { Size: [80mm, 80mm, 8mm] }
+    Modify Flange {
+        Hole<Shaft> BoltSeed { On: +Z Center: Point2(26mm, 0mm) Diameter: 6mm End: ThroughAll }
+        Radial Pattern BoltCircle { Source: BoltSeed About: MainAxis Count: 6 Angle: full }
+    }
+}

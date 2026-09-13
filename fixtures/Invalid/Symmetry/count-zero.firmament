@@ -1,0 +1,6 @@
+Model InvalidRadialCount {
+    Units: mm
+    Axis MainAxis { Origin: [0mm,0mm,0mm]; Direction: [0,0,1] }
+    Hole<Shaft> Seed { On: +Z Center: Point2(10mm, 0mm) Diameter: 4mm End: ThroughAll }
+    Radial Pattern Invalid { Source: Seed About: MainAxis Count: 0 Angle: full }
+}

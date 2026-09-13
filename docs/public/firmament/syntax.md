@@ -131,6 +131,43 @@ Inside a Set, `Name => Value` is a named association. Inside Pattern, `value => 
 
 Choose among the closed data forms by meaning: a `Record` is one structured value; an `Enum` is one-of-N alternatives; `T[]` is anonymous ordered data; `Set<T>` is a dataset in which all N named entries exist simultaneously. Pattern performs finite construction mapping, Feature supplies a reusable semantic transformation, and `|>` composes finite compatible geometry. Match is unchanged.
 
+## Mirror and radial symmetry
+
+Mirror and radial Pattern are resolved before geometry materialization. They transform semantic construction intent, not finished BRep topology.
+
+An explicitly named destination derives from an existing Profile or concrete feature and an existing Plane:
+
+```firmament
+Plane CenterPlane { Origin: [0mm,0mm,0mm]; Normal: [1,0,0]; Up: [0,0,1] }
+Hole<Shaft> LeftMount { On: +Z; Center: Point2(24mm,0mm); Diameter: 6mm; End: ThroughAll }
+Mirrored Feature RightMount From LeftMount { Across: CenterPlane }
+```
+
+Profiles may use either that direct Plane spelling or a `Construction Plane` traced from a `Concept Struct` Plane. Reflection analytically transforms points and curves, reverses arc traversal, then restores the Profile's canonical outer/inner winding. Frames use reflected origin/X/Z followed by canonical right-handed Y reconstruction; negative-determinant frames never reach a consumer. Mirroring an already-materialized STEP/BRep is not safe authoring and is not provided by this syntax.
+
+Keep the source Profile semantic too. For example, an arbitrary triangular source should be authored as `Triangle2<Explicit> LeftBoundary { A: [...] B: [...] C: [...] }` and consumed with `LeftBoundary |> TraceLoop`; an axis-aligned four-sided section should use `Rect2`. Use `Polygon2<Explicit>` only when the linear boundary is genuinely an otherwise-unconstrained polygon. Closed boundaries lower to ordinary named Profile guides before Mirror resolves them.
+
+A radial feature Pattern uses an existing Axis and includes the source construction as instance zero:
+
+```firmament
+Axis MainAxis { Origin: [0mm,0mm,0mm]; Direction: [0,0,1] }
+Hole<Shaft> BoltSeed { On: +Z; Center: Point2(26mm,0mm); Diameter: 6mm; End: ThroughAll }
+Radial Pattern BoltCircle { Source: BoltSeed About: MainAxis Count: 6 Angle: full }
+```
+
+`Count` is in `1..1024`; one is a valid trivial Pattern. `full` uses `theta[i] = i * 2*pi/Count` and omits the full-angle duplicate endpoint. Partial angles use inclusive endpoints, `theta[i] = i * Angle/(Count-1)`. Angles reuse Revolve spellings (`radians`, `deg`, `quarter`, `half`, `full`). Current radial feature lowering is deliberately bounded to planar Point2-centered Hole semantics about the support-normal Axis. Profile radial Pattern, whole Model/Struct derivation, arbitrary selector rebinding, Boss/Pocket radial derivation, and assembly occurrence symmetry remain explicit future qualifications.
+
+Intentional asymmetry uses immutable `with`, not a mirror-exception mini-language:
+
+```firmament
+Mirrored Feature RightMount From LeftMount { Across: CenterPlane }
+Feature RightMountCustom = RightMount with { Diameter: 8mm }
+```
+
+The derived feature retains the source/mirror/override provenance chain in `inspect --json`. Material, scalar magnitudes, and enum tags are invariant values; meaningless declarations such as `Mirrored Material` fail typed.
+
+A Profile exactly on its reflection line may be retained as an equivalent named semantic derivation because it has not yet created material. A concrete feature whose center is unchanged is rejected as `firmament-symmetry-redundant-feature-mirror` so a Compose/Modify cannot silently create coincident duplicate material.
+
 ### Built-in closed polygons
 
 `Polygon2<Rhombus>` is the first bounded closed-polygon authoring form. A rhombus is specified by its center and full horizontal/vertical diagonal lengths:

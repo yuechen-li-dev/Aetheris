@@ -1,0 +1,7 @@
+Model InvalidMirrorIdentity {
+    Units: mm
+    Plane CenterPlane { Origin: [0mm,0mm,0mm]; Normal: [1,0,0]; Up: [0,0,1] }
+    Hole<Shaft> Left { On: +Z; Center: Point2(10mm,0mm); Diameter: 4mm; End: ThroughAll }
+    Hole<Shaft> Right { On: +Z; Center: Point2(-10mm,0mm); Diameter: 4mm; End: ThroughAll }
+    Mirrored Feature Right From Left { Across: CenterPlane }
+}

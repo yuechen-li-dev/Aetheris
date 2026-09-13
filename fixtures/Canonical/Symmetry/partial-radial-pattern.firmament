@@ -1,0 +1,10 @@
+schema Mechanical
+Model PartialRadialPattern {
+    Units: mm
+    Axis MainAxis { Origin: [0mm,0mm,0mm]; Direction: [0,0,1] }
+    Box Plate { Size: [80mm, 80mm, 8mm] }
+    Modify Plate {
+        Hole<Shaft> HoleSeed { On: +Z Center: Point2(24mm, 0mm) Diameter: 4mm End: ThroughAll }
+        Radial Pattern HalfArc { Source: HoleSeed About: MainAxis Count: 5 Angle: half }
+    }
+}

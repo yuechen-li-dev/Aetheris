@@ -50,6 +50,7 @@
 | Language Concept constraint | Supported | explicit `type T satisfies Concept`; distinct from an ordinary value parameter |
 | `Require` | Supported | finite specialization-time boolean admissibility; no runtime scripting |
 | Static arrays, Tables, Pattern | Bounded | finite checked data and admitted feature expansion; no query language |
+| Semantic Mirror and radial Pattern | Bounded | authoring-time Profile and planar feature reflection; full/partial radial Hole/feature replication; right-handed frame correction and retained provenance; no post-BRep reflection, generic affine transform, whole-Model, or assembly occurrence symmetry |
 | Materials | Bounded by consuming domain | semantic identity can flow through existing Firmament/Forge paths; no SQLite or catalog queries in Templates |
 | Sheet Metal product families | Supported | five embedded public families and Forge Protocol v1 exposure |
 | Nested Templates | Bounded | acyclic concrete specialization only; Templates are not values |

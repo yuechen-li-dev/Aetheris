@@ -1,0 +1,4 @@
+Model InvalidMirrorType {
+    Units: mm
+    Mirrored Material RightMaterial From LeftMaterial { Across: CenterPlane }
+}

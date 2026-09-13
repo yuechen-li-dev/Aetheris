@@ -33,6 +33,7 @@
     { "path": "Span", "operation": "build-step" },
     { "path": "Boundary2", "operation": "build-step" },
     { "path": "Revolve", "operation": "build-step" },
+    { "path": "Symmetry", "operation": "build-step" },
     { "path": "PMI", "operation": "build-step" },
     { "path": "Templates", "operation": "build-step" },
     { "path": "Integration", "operation": "build-step" }

@@ -307,7 +307,8 @@ public static class FirmamentV2ValidationReportBuilder
         new(code, IsFatal(code) ? "fatal" : "warning", Message(code));
 
     private static bool IsFatal(string code) =>
-        code.StartsWith("firmament-span-", StringComparison.Ordinal)
+        code.StartsWith(SemanticSymmetryAuthoring.Prefix, StringComparison.Ordinal)
+        || code.StartsWith("firmament-span-", StringComparison.Ordinal)
         || code.StartsWith("firmament-feature-footprint-outside-span:", StringComparison.Ordinal)
         || FirmamentV2Parser.IsFatalDiagnosticCode(code);
 

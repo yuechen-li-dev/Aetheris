@@ -1,0 +1,4 @@
+Axis MainAxis { Origin: [0mm,0mm,1mm]; Direction: [0,1,0] }
+Rect2 Section { Center: [15mm,0mm]; Size: [10mm,20mm] }
+Profile P { Loop Outer { Section |> TraceLoop } }
+Revolve Bad { Profile: P; About: MainAxis; Angle: full }

@@ -1,0 +1,16 @@
+schema Mechanical
+
+Model RevolvedSphere {
+    Units: mm
+    Axis MainAxis { Origin: [0mm, 0mm, 0mm]; Direction: [0, 1, 0] }
+    Point2 South { Position: [0mm, -20mm] }
+    Point2 North { Position: [0mm, 20mm] }
+    Point2 Center { Position: [0mm, 0mm] }
+    Concept Circle2 Meridian { Center: Center; Radius: 20mm }
+    Line2 Diameter { From: North; To: South }
+    Profile SphereSection { Loop Outer {
+        Segment Arc { Trace: Meridian; From: South; To: North; Sweep: CounterClockwise }
+        Segment AxisClosure { Trace: Diameter; From: North; To: South }
+    } }
+    Revolve Ball { Profile: SphereSection; About: MainAxis; Angle: full }
+}

@@ -1,0 +1,11 @@
+schema Mechanical
+
+Model ArbitraryAxisTurn {
+    Units: mm
+    Axis Tilted { Origin: [3mm, 4mm, 5mm]; Direction: [1, 1, 0] }
+    Concept Struct Supports { Datum: Plane { Origin: [3mm,4mm,5mm]; Normal: [1,-1,0]; Up: [0,0,1] } }
+    Construction Plane SectionFrame { Trace: Supports.Datum }
+    Rect2 Section { Center: [0mm, 15mm]; Size: [20mm, 10mm] }
+    Profile SectionProfile Using SectionFrame { Loop Outer { Section |> TraceLoop } }
+    Revolve TiltedRing { Profile: SectionProfile; About: Tilted; Angle: half }
+}

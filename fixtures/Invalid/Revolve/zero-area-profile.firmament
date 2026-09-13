@@ -1,0 +1,7 @@
+Axis MainAxis { Origin: [0mm,0mm,0mm]; Direction: [0,1,0] }
+Point2 A { Position: [10mm,0mm] }
+Point2 B { Position: [10mm,10mm] }
+Line2 AB { From: A; To: B }
+Line2 BA { From: B; To: A }
+Profile P { Loop Outer { Segment Up { Trace: AB; From: A; To: B } Segment Down { Trace: BA; From: B; To: A } } }
+Revolve Bad { Profile: P; About: MainAxis; Angle: full }

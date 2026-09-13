@@ -1,0 +1,19 @@
+schema Mechanical
+
+Model SteppedShaft {
+    Units: mm
+    Axis MainAxis { Origin: [0mm, 0mm, 0mm]; Direction: [0, 1, 0] }
+    Static SectionPoints: Set<Point2> {
+        InnerBottom => Point2(5mm, -30mm)
+        OuterBottom => Point2(15mm, -30mm)
+        LowerShoulder => Point2(15mm, -10mm)
+        WideLower => Point2(20mm, -10mm)
+        WideUpper => Point2(20mm, 10mm)
+        UpperShoulder => Point2(12mm, 10mm)
+        OuterTop => Point2(12mm, 30mm)
+        InnerTop => Point2(5mm, 30mm)
+    }
+    Polygon2<Explicit> ShaftBoundary { Vertices: SectionPoints }
+    Profile ShaftSection { Loop Outer { ShaftBoundary |> TraceLoop } }
+    Revolve Shaft { Profile: ShaftSection; About: MainAxis; Angle: full }
+}

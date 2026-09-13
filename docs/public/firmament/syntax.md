@@ -9,6 +9,7 @@
 | `Mechanical` | Ordinary V2 mechanical parts and features. |
 | `WireForm` | Formed wire, bends, coils, and knots. |
 | `Sweep` | Circular-section Concept Path sweeps. |
+| `Revolve` | Bounded Profile revolution about an explicit coplanar Axis. |
 | `SectionChain` | Standalone ruled/G1 section-chain bodies. |
 
 For example, begin a formed-wire program with `schema WireForm`. An explicit schema is authoritative: if its frontend rejects the program, Firmament does not retry another frontend. Historical V1 `schema:` mappings remain compatibility metadata; they are distinct from this `schema <Name>` header.

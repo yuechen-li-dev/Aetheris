@@ -26,7 +26,14 @@ public sealed record FirmamentStepExportResult(
     FirmamentSweepReport? Sweep = null,
     IReadOnlyList<FirmamentSemanticPatternReport>? Patterns = null,
     Aetheris.Kernel.Firmament.Structural.StructuralReport? Structural = null,
-    Aetheris.Kernel.Firmament.Piping.PipingReport? Piping = null);
+    Aetheris.Kernel.Firmament.Piping.PipingReport? Piping = null,
+    FirmamentRevolveReport? Revolve = null);
+
+public sealed record FirmamentRevolveReport(
+    string Profile, string Axis, double SweepRadians, double SweepDegrees, string? Alias,
+    string Direction, string Classification, string DeterministicSignature, IReadOnlyList<string> SurfaceRoles,
+    int Vertices, int Edges, int Faces, int Planes, int Cylinders, int Cones, int Spheres, int Tori,
+    int SurfacesOfRevolution, bool StepReimportedManifold, string StepSha256);
 
 public sealed record FirmamentWireStateReport(
     IReadOnlyList<double> Position, IReadOnlyList<double> Tangent, IReadOnlyList<double> Up,

@@ -15,8 +15,7 @@ public static class ProfileAuthoringParser
     private const double Tolerance = 1e-9;
     private static readonly Regex Point = new(@"\bPoint2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*Position\s*:\s*(?:\[|Point2\s*\()\s*(?<x>[-+.\deE]+)mm\s*,\s*(?<y>[-+.\deE]+)mm\s*(?:\]|\))", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex Line = new(@"\bLine2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*From\s*:\s*(?<a>[\w.]+)\s*;?\s*To\s*:\s*(?<b>[\w.]+)", RegexOptions.Singleline | RegexOptions.CultureInvariant);
-    private static readonly Regex Circle = new(@"\bCircle2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*Center\s*:\s*(?<c>[\w.]+)\s*;?\s*Radius\s*:\s*(?<r>[-+.\deE]+)mm", RegexOptions.Singleline | RegexOptions.CultureInvariant);
-    private static readonly Regex CircleGuide = new(@"\bCircle2Guide\s+(?<n>[A-Za-z_]\w*)\s*\{\s*Center\s*:\s*(?<c>[\w.]+)\s*;?\s*Radius\s*:\s*(?<r>[-+.\deE]+)mm", RegexOptions.Singleline | RegexOptions.CultureInvariant);
+    private static readonly Regex Circle = new(@"(?:\bConcept\s+)?\bCircle2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*Center\s*:\s*(?<c>[\w.]+)\s*;?\s*Radius\s*:\s*(?<r>[-+.\deE]+)mm", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex EllipseGuide = new(@"\bEllipse2Guide\s+(?<n>[A-Za-z_]\w*)\s*\{\s*Center\s*:\s*(?<c>[\w.]+)\s*;?\s*SemiAxes\s*:\s*\[\s*(?<a>[-+.\deE]+)mm\s*,\s*(?<b>[-+.\deE]+)mm\s*\]\s*;?\s*Rotation\s*:\s*(?<r>[-+.\deE]+)deg", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex Rect = new(@"\bRect2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*Center\s*:\s*(?:\[|Point2\s*\()\s*(?<x>[-+.\deE]+)mm\s*,\s*(?<y>[-+.\deE]+)mm\s*(?:\]|\))\s*;?\s*Size\s*:\s*\[(?<w>[-+.\deE]+)mm\s*,\s*(?<h>[-+.\deE]+)mm\]", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex ConstructionPlaneDeclaration = new(@"\bConstruction\s+Plane\s+(?<name>\w+)\s*\{\s*Trace\s*:\s*(?<trace>[\w.]+)\s*;?\s*\}", RegexOptions.Singleline | RegexOptions.CultureInvariant);
@@ -243,7 +242,7 @@ public static class ProfileAuthoringParser
                 guides[$"{name}.Top"] = new LineArcLineSegment2D(tr, tl); guides[$"{name}.Left"] = new LineArcLineSegment2D(tl, bl);
             }
         }
-        foreach (Match match in Circle.Matches(source).Cast<Match>().Concat(CircleGuide.Matches(source).Cast<Match>()))
+        foreach (Match match in Circle.Matches(source))
         {
             if (!points.TryGetValue(match.Groups["c"].Value, out var center) || !TryNumber(match.Groups["r"].Value, out var radius) || radius <= 0) { diagnostics.Add($"profile-layout-unresolved-circle:{match.Groups["n"].Value}"); continue; }
             // A circle remains a guide; segments choose its directed arc below.

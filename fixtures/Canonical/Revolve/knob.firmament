@@ -1,0 +1,19 @@
+schema Mechanical
+
+Model TurnedKnob {
+    Units: mm
+    Axis MainAxis { Origin: [0mm, 0mm, 0mm]; Direction: [0, 1, 0] }
+    Static KnobPoints: Set<Point2> {
+        StemBottomInner => Point2(5mm, -18mm)
+        StemBottomOuter => Point2(15mm, -18mm)
+        StemShoulder => Point2(15mm, -8mm)
+        HeadLower => Point2(24mm, -2mm)
+        HeadUpper => Point2(24mm, 8mm)
+        CrownOuter => Point2(18mm, 16mm)
+        CrownInner => Point2(6mm, 16mm)
+        StemTopInner => Point2(5mm, 10mm)
+    }
+    Polygon2<Explicit> KnobBoundary { Vertices: KnobPoints }
+    Profile KnobSection { Loop Outer { KnobBoundary |> TraceLoop } }
+    Revolve Knob { Profile: KnobSection; About: MainAxis; Angle: full }
+}

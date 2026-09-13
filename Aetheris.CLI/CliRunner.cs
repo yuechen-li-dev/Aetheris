@@ -1414,6 +1414,29 @@ Model CanonicalPanel {
         var library = FirmamentStandardLibraryResolver.Resolve(source, out var libraryDiagnostics);
         var inspectionSource = library?.Source ?? source;
         var sweepSource = ExpandSweepInspectionSource(source, out var sweepExpansionDiagnostics);
+        if (RevolveAuthoringParser.IsRevolveSource(inspectionSource))
+        {
+            var revolve = RevolveAuthoringParser.Parse(inspectionSource, out var revolveDiagnostics);
+            var revolveSuccess = revolve is not null && revolveDiagnostics.Count == 0;
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new
+            {
+                command = "inspect", success = revolveSuccess, input = fullPath, domain = "Revolve",
+                revolve = revolve is null ? null : new
+                {
+                    revolve.Name, profile = revolve.Profile.Name, axis = revolve.AxisName,
+                    axisOrigin = new[] { revolve.Axis.Origin.X, revolve.Axis.Origin.Y, revolve.Axis.Origin.Z },
+                    axisDirection = new[] { revolve.Axis.Direction.X, revolve.Axis.Direction.Y, revolve.Axis.Direction.Z },
+                    sweepRadians = revolve.SweepRadians, sweepDegrees = revolve.SweepRadians * 180d / Math.PI,
+                    alias = revolve.AuthoredAlias, direction = revolve.SweepRadians < 0d ? "Negative" : "Positive",
+                    classification = Math.Abs(Math.Abs(revolve.SweepRadians) - 2d * Math.PI) <= 1e-9 ? "Full" : "Partial",
+                    profileFrame = revolve.Profile.PlaneFrame
+                },
+                diagnostics = revolveDiagnostics
+            }, JsonOptions));
+            else if (revolveSuccess) stdout.WriteLine($"Revolve {revolve!.Name}: {revolve.Profile.Name} about {revolve.AxisName}, {revolve.SweepRadians * 180d / Math.PI:R}deg ({(Math.Abs(Math.Abs(revolve.SweepRadians) - 2d * Math.PI) <= 1e-9 ? "Full" : "Partial")})");
+            else foreach (var diagnostic in revolveDiagnostics) stderr.WriteLine("error: " + diagnostic);
+            return revolveSuccess ? 0 : 1;
+        }
         if (WireFormAuthoring.IsWireFormSource(source))
         {
             var authored = sweepSource is null ? null : WireFormAuthoring.Parse(sweepSource);
@@ -2217,6 +2240,18 @@ Model CanonicalPanel {
             if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
             else stdout.WriteLine($"Firmament V2 SectionChain validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");
             return section.IsSuccess ? 0 : 1;
+        }
+        if (RevolveAuthoringParser.IsRevolveSource(validationSource))
+        {
+            var revolve = RevolveAuthoringParser.Parse(validationSource, out var bindDiagnostics);
+            var materializationDiagnostics = revolve is null ? [] : ResolvedProfileRevolveEmitter.TryEmit(revolve).Diagnostics;
+            var diagnostics = bindDiagnostics.Concat(materializationDiagnostics.Where(message => message.StartsWith(RevolveAuthoringParser.Prefix, StringComparison.Ordinal))).Distinct(StringComparer.Ordinal).ToArray();
+            var valid = revolve is not null && diagnostics.Length == 0;
+            var payload = new { source = sourcePath, status = valid ? "valid" : "invalid", domain = "Revolve",
+                summary = new { fatalDiagnosticCount = diagnostics.Length, warningDiagnosticCount = 0 }, diagnostics };
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
+            else stdout.WriteLine($"Firmament V2 Revolve validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");
+            return valid ? 0 : 1;
         }
         if (WireFormAuthoring.IsWireFormSource(validationSource))
         {

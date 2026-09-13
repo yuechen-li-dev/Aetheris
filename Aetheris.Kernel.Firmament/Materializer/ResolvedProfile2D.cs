@@ -31,7 +31,7 @@ public static class ResolvedProfile2DValidator
         var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (var loop in profile.Loops)
         {
-            if (loop.Segments.Count == 0 || (loop.Segments.Count < 3 && !(loop.Segments.Count == 1 && loop.Segments[0].Geometry is LineArcFullCircle2D or LineArcFullEllipse2D))) d.Add($"profile:{profile.Name}: loop '{loop.Name}' requires a closed boundary");
+            if (loop.Segments.Count == 0 || (loop.Segments.Count < 2 && !(loop.Segments.Count == 1 && loop.Segments[0].Geometry is LineArcFullCircle2D or LineArcFullEllipse2D))) d.Add($"profile:{profile.Name}: loop '{loop.Name}' requires a closed boundary");
             for (var i=0;i<loop.Segments.Count;i++)
             {
                 var s=loop.Segments[i]; if(!names.Add(s.Name))d.Add($"profile:{profile.Name}: duplicate segment '{s.Name}'");
@@ -49,7 +49,7 @@ public static class ResolvedProfile2DValidator
         }
         var area=outer.Segments.Count == 1 && outer.Segments[0].Geometry is LineArcFullCircle2D circle ? Math.PI * circle.Radius * circle.Radius
             : outer.Segments.Count == 1 && outer.Segments[0].Geometry is LineArcFullEllipse2D ellipse ? Math.PI * ellipse.MajorRadius * ellipse.MinorRadius
-            : outer.Segments.Sum(s=>Endpoints(s.Geometry,out var a,out var b)?a.X*b.Y-b.X*a.Y:0)/2d;
+            : outer.Segments.Sum(s=>SignedAreaContribution(s.Geometry));
         if(area<=Tol)d.Add($"profile:{profile.Name}: outer winding must be CounterClockwise with nonzero area");
         return new(d.Count==0,area,d);
     }
@@ -60,6 +60,16 @@ public static class ResolvedProfile2DValidator
     }
     private static bool Endpoints(LineArcProfileCurve2D c,out (double X,double Y) a,out (double X,double Y) b){switch(c){case LineArcLineSegment2D l:a=l.Start;b=l.End;return true;case LineArcCircularArc2D x:a=(x.Center.X+x.Radius*Math.Cos(x.StartAngleRadians),x.Center.Y+x.Radius*Math.Sin(x.StartAngleRadians));b=(x.Center.X+x.Radius*Math.Cos(x.StartAngleRadians+x.SweepAngleRadians),x.Center.Y+x.Radius*Math.Sin(x.StartAngleRadians+x.SweepAngleRadians));return true;default:a=default;b=default;return false;}}
     private static double Distance((double X,double Y)a,(double X,double Y)b)=>Math.Sqrt((a.X-b.X)*(a.X-b.X)+(a.Y-b.Y)*(a.Y-b.Y));
+    private static double SignedAreaContribution(LineArcProfileCurve2D curve)
+    {
+        if (curve is LineArcCircularArc2D arc)
+        {
+            var a=(X:arc.Center.X+arc.Radius*Math.Cos(arc.StartAngleRadians),Y:arc.Center.Y+arc.Radius*Math.Sin(arc.StartAngleRadians));
+            var b=(X:arc.Center.X+arc.Radius*Math.Cos(arc.StartAngleRadians+arc.SweepAngleRadians),Y:arc.Center.Y+arc.Radius*Math.Sin(arc.StartAngleRadians+arc.SweepAngleRadians));
+            return 0.5d*(arc.Center.X*(b.Y-a.Y)-arc.Center.Y*(b.X-a.X)+arc.Radius*arc.Radius*arc.SweepAngleRadians);
+        }
+        return Endpoints(curve,out var start,out var end)?0.5d*(start.X*end.Y-end.X*start.Y):0d;
+    }
     private static bool Adjacent(int i,int j,int count)=>j==i+1 || (i==0 && j==count-1);
     private static bool SameLine(LineArcProfileCurve2D a,LineArcProfileCurve2D b)=>a is LineArcLineSegment2D x&&b is LineArcLineSegment2D y&&((Distance(x.Start,y.Start)<=Tol&&Distance(x.End,y.End)<=Tol)||(Distance(x.Start,y.End)<=Tol&&Distance(x.End,y.Start)<=Tol));
     private static bool ProperIntersection((double X,double Y)a,(double X,double Y)b,(double X,double Y)c,(double X,double Y)d)

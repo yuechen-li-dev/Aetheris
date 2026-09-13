@@ -36,6 +36,11 @@ internal static class ClosedBoundary2Authoring
         var shapes = new List<Shape>(); var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (Match header in Header.Matches(source))
         {
+            // `Concept Circle2 Name { ... }` is a concise reusable curve concept, not a
+            // closed material boundary declaration. Its Circle2 payload is consumed by
+            // the ordinary profile-guide binder and must not be rewritten here.
+            var prefix = source[..header.Index].TrimEnd();
+            if (prefix.EndsWith("Concept", StringComparison.Ordinal) && (prefix.Length == 7 || !char.IsLetterOrDigit(prefix[^8]) && prefix[^8] != '_')) continue;
             if (InTemplate(header.Index)) continue;
             var open = source.IndexOf('{', header.Index); var close = Matching(source, open); var name = header.Groups["name"].Value;
             if (close < 0) { diagnostics.Add(Prefix + "malformed:" + name); continue; }
@@ -126,7 +131,7 @@ internal static class ClosedBoundary2Authoring
         if (!inline && (centerRef is null || !ResolvePoint(source, centerRef, out c))) return null; // legacy/template Circle2 remains on its existing binder path
         var hasRadius = Length(body, "Radius", out var radius); var hasDiameter = Length(body, "Diameter", out var diameter);
         if (hasRadius == hasDiameter || (radius = hasRadius ? radius : diameter / 2) <= 0) return Invalid(name, "invalid-dimensions", diagnostics);
-        var lowered = inline || hasDiameter ? $"Point2 {name}_Center {{ Position: [{N(c.X)}, {N(c.Y)}] }}\nCircle2Guide {name}_Curve {{ Center: {name}_Center; Radius: {N(radius)} }}" : null;
+        var lowered = inline || hasDiameter ? $"Point2 {name}_Center {{ Position: [{N(c.X)}, {N(c.Y)}] }}\nConcept Circle2 {name}_Curve {{ Center: {name}_Center; Radius: {N(radius)} }}" : null;
         var guide = lowered is null ? name : name + "_Curve"; var map = new Dictionary<string, string>(StringComparer.Ordinal) { ["Center"] = inline || hasDiameter ? name + "_Center" : centerRef! };
         return Make(name, "Circle2", null, c, rotation, new Dictionary<string, double> { ["Radius"] = radius, ["Diameter"] = 2 * radius }, ["Center"], ["Boundary"], "Circle", span, lowered, map, guide + " |> TraceLoop", Math.PI * radius * radius, 2 * Math.PI * radius);
     }
@@ -148,7 +153,7 @@ internal static class ClosedBoundary2Authoring
         var straight = length - width; var r = width / 2; var start = Rotate((c.X - straight / 2, c.Y - r), c, rotation);
         if (straight <= Tol)
         {
-            var lowerCircle = $"Point2 {name}_Center {{ Position: [{N(c.X)}, {N(c.Y)}] }}\nCircle2Guide {name}_Curve {{ Center: {name}_Center; Radius: {N(r)} }}";
+            var lowerCircle = $"Point2 {name}_Center {{ Position: [{N(c.X)}, {N(c.Y)}] }}\nConcept Circle2 {name}_Curve {{ Center: {name}_Center; Radius: {N(r)} }}";
             return Make(name, "Slot2", null, c, rotation, new Dictionary<string, double> { ["OverallLength"] = length, ["Width"] = width }, ["Center"], ["Boundary"], "Circle", span, lowerCircle,
                 new Dictionary<string, string> { ["Center"] = name + "_Center", ["Boundary"] = name + "_Curve" }, name + "_Curve |> TraceLoop", Math.PI * r * r, 2 * Math.PI * r);
         }

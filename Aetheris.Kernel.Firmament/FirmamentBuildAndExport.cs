@@ -326,6 +326,39 @@ public static class FirmamentBuildAndExport
         canonicalParseWatch.Stop();
         var canonicalAdvanced = FirmamentV2Parser.TryGetCanonicalAdvancedBody(materializerInput, out var canonicalBody);
         var materializerSource = canonicalAdvanced ? canonicalBody : materializerInput;
+        if (RevolveAuthoringParser.IsRevolveSource(materializerSource))
+        {
+            var authored = RevolveAuthoringParser.Parse(materializerSource, out var revolveDiagnostics);
+            if (authored is null)
+                return KernelResult<FirmamentStepExportResult>.Failure(revolveDiagnostics.Select(message => new Kernel.Core.Diagnostics.KernelDiagnostic(
+                    Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, message, "FirmamentV2.Revolve")).ToArray());
+            var built = ResolvedProfileRevolveEmitter.TryEmit(authored);
+            if (!built.Succeeded || built.Body is null || built.Plan is null)
+                return KernelResult<FirmamentStepExportResult>.Failure(built.Diagnostics.Select(message => new Kernel.Core.Diagnostics.KernelDiagnostic(
+                    Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, message, "FirmamentV2.Revolve")).ToArray());
+            var step = Step242Exporter.ExportBody(built.Body, new Step242ExportOptions { ProductName = authored.Name });
+            if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+            var reimport = Step242Importer.ImportBody(step.Value);
+            if (!reimport.IsSuccess || reimport.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(reimport.Diagnostics);
+            var reimportedManifold = reimport.Value.Topology.Edges.All(edge => reimport.Value.Topology.Coedges.Count(use => use.EdgeId == edge.Id) == 2);
+            if (!reimportedManifold)
+                return KernelResult<FirmamentStepExportResult>.Failure([new Kernel.Core.Diagnostics.KernelDiagnostic(
+                    Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+                    $"firmament-revolve-step-reimport-not-manifold:{authored.Name}", "FirmamentV2.Revolve")]);
+            var surfaces = built.Body.Topology.Faces.Select(face => built.Body.GetFaceSurface(face.Id).Kind).ToArray();
+            var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))).ToLowerInvariant();
+            var report = new FirmamentRevolveReport(authored.Profile.Name, authored.AxisName, authored.SweepRadians,
+                authored.SweepRadians * 180d / Math.PI, authored.AuthoredAlias, authored.SweepRadians < 0d ? "Negative" : "Positive",
+                built.Plan.IsFull ? "Full" : "Partial", built.Plan.DeterministicSignature, built.Plan.SurfaceRoles,
+                built.Body.Topology.Vertices.Count(), built.Body.Topology.Edges.Count(), built.Body.Topology.Faces.Count(),
+                surfaces.Count(kind => kind == SurfaceGeometryKind.Plane), surfaces.Count(kind => kind == SurfaceGeometryKind.Cylinder),
+                surfaces.Count(kind => kind == SurfaceGeometryKind.Cone), surfaces.Count(kind => kind == SurfaceGeometryKind.Sphere),
+                surfaces.Count(kind => kind == SurfaceGeometryKind.Torus), surfaces.Count(kind => kind == SurfaceGeometryKind.SurfaceOfRevolution),
+                reimportedManifold, hash);
+            return KernelResult<FirmamentStepExportResult>.Success(new(step.Value, authored.Name, 0, "bounded-revolve", "revolve", Revolve: report,
+                EngineeringFeatures: [new(authored.Name, "Revolve", authored.StableId, authored.Name, authored.Axis.StableId, authored.Profile.Name,
+                    authored.SweepRadians, "SweepRadians", "Base", PolicySource: "ResolvedProfileRevolveEmitter", MaterializationRoute: "RevolveBRepPlan")]));
+        }
         if (explicitSchema == FirmamentFrontendSchema.WireForm || WireFormAuthoring.IsWireFormSource(materializerSource))
         {
             var authored = WireFormAuthoring.Parse(materializerSource);

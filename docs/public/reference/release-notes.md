@@ -9,6 +9,8 @@ Preview 3 is the feature-frozen Windows x64 release of Aetheris's integrated sem
 
 ## Geometry
 
+- GEOM-OFFSET-X1 meaningful progression: typed `AddOffset<Prism>` / `RemoveOffset<Prism>` authoring through exact Profile/Compose section-stack construction, with explicit target/support/termination/authorized-region evidence and fail-closed safety diagnostics. Cylinder and Sphere remain explicitly unqualified pending bounded curved-topology builders.
+
 - Bounded analytic and prismatic modeling: named primitives and profiles, semantic holes, slots and patterns, admitted chamfer/fillet routes, hollow/lattice routes, and deterministic AP242 output.
 - First-class connected finite Boss and finite-depth Pocket operations on the documented Compose host, with explicit through-depth and minimum-floor rejection.
 - Parser-backed Sphere, Cone, and Torus single-solid AP242 routes. This is not general freeform or Boolean authoring.

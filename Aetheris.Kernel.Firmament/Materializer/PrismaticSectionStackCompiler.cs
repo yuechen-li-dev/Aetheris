@@ -280,7 +280,8 @@ public static class PrismaticSectionStackEmitter
             descendants.Add(new($"construction:{stack.Feature.Name}:{fragment.StableId}", "ArrangementFragment", SemanticTopologyRole.Unknown, source, ParentStableId: fragment.Source.StableId));
         }
         foreach (var feature in (stack.Feature.Bosses ?? []).Select(item => (item.StableId, item.ProfileReference, Kind: "Boss"))
-                     .Concat((stack.Feature.Pockets ?? []).Select(item => (item.StableId, item.ProfileReference, Kind: "Pocket"))))
+                     .Concat((stack.Feature.Pockets ?? []).Select(item => (item.StableId, item.ProfileReference, Kind: "Pocket")))
+                     .Concat((stack.Feature.MaterialOffsets ?? []).Select(item => (item.StableId, item.ProfileReference, Kind: $"{item.OperationKind}Offset<{item.ToolFamily}>"))))
         {
             var prefix = $"profile:{feature.ProfileReference}.Outer.";
             foreach (var item in sideFaces.Select((side, index) => (Side: side, Face: faces[capFaces.Count + index]))

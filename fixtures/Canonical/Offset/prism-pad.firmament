@@ -1,0 +1,11 @@
+Model PrismPad {
+    Units: mm
+    Rect2 Stock { Center: [0mm,0mm]; Size: [40mm,30mm] }
+    Rect2 Pad { Center: [10mm,0mm]; Size: [10mm,8mm] }
+    Profile StockProfile { Loop Outer { Stock.Bottom |> Stock.Right |> Stock.Top |> Stock.Left |> Close } }
+    Profile PadProfile { Loop Outer { Pad.Bottom |> Pad.Right |> Pad.Top |> Pad.Left |> Close } }
+    Compose Plate {
+        Base StockBody { Profile: StockProfile; From: 0mm; To: 10mm; Role: Stock }
+        AddOffset<Prism> LocalPad { Target: Plate; On: Top; Profile: PadProfile; Height: 3mm }
+    }
+}

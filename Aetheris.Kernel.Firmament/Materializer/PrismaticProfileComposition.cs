@@ -26,6 +26,19 @@ public sealed record PrismaticPocketFeature(
     double Depth, double HostThickness, double RemainingFloor, double MinimumFloorThickness,
     string MinimumFloorPolicySource, double From, double To, string SourceSpan,
     string? SupportSpan = null, string? ParentSupport = null);
+/// <summary>
+/// Typed AIR for a bounded local material delta. The profile remains semantic
+/// authority until section-stack planning; no public tool body reaches B-rep.
+/// </summary>
+public sealed record PrismaticMaterialOffsetFeature(
+    string Name, string StableId, PrismaticProfileIntent Intent, string ToolFamily,
+    string Target, string Support, string ProfileReference, string Direction,
+    string Termination, double From, double To, double Extent, string SourceSpan,
+    IReadOnlyList<double> AuthorizedRegion,
+    string? SupportSpan = null, string? ParentSupport = null)
+{
+    public string OperationKind => Intent == PrismaticProfileIntent.Add ? "Add" : "Remove";
+}
 public sealed record PrismaticShaftHoleFeature(
     string Name, string StableId, string ProfileReference, double CenterX, double CenterY, double Diameter,
     double From, double To, string SemanticRole, string SourceSpan,
@@ -125,7 +138,8 @@ public sealed record PrismaticProfileCompositionFeature(
     IReadOnlyList<PrismaticConstructionPlaneBlindDrillFeature>? ConstructionPlaneBlindDrills = null,
     IReadOnlyList<PrismaticCounterboreHoleFeature>? CounterboreHoles = null,
     IReadOnlyList<PrismaticBossFeature>? Bosses = null,
-    IReadOnlyList<PrismaticPocketFeature>? Pockets = null)
+    IReadOnlyList<PrismaticPocketFeature>? Pockets = null,
+    IReadOnlyList<PrismaticMaterialOffsetFeature>? MaterialOffsets = null)
 {
     public IEnumerable<(string Name, string StableId, string ProfileReference)> AllSlotProfiles =>
         (CapsuleSlots ?? []).Select(x => (x.Name, x.StableId, x.ProfileReference))
@@ -165,6 +179,10 @@ public static class PrismaticProfileCompositionParser
     private static readonly Regex Operation = new(@"\b(?<intent>Base|Add|Remove)\s+(?<n>\w+)\s*\{\s*Profile\s*:\s*(?<profile>\w+)\s*;?\s*From\s*:\s*(?<from>[-+.\d]+)mm\s*;?\s*To\s*:\s*(?<to>[-+.\d]+)mm(?:\s*;?\s*Role\s*:\s*(?<role>\w+))?", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex BossHeader = new(@"\bBoss\s+(?<n>\w+)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex PocketHeader = new(@"\bPocket\s+(?<n>\w+)\s*\{", RegexOptions.CultureInvariant);
+    private static readonly Regex OffsetHeader = new(@"\b(?<intent>AddOffset|RemoveOffset)\s*<\s*(?<tool>[A-Za-z_]\w*)\s*>\s+(?<n>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
+    private static readonly Regex OffsetTarget = new(@"\bTarget\s*:\s*(?<value>[A-Za-z_]\w*)", RegexOptions.CultureInvariant);
+    private static readonly Regex OffsetDirection = new(@"\b(?:Along|Axis|Direction)\s*:\s*(?<value>[+-][XYZ])", RegexOptions.CultureInvariant);
+    private static readonly Regex OffsetThroughAll = new(@"\b(?:Termination|Extent)\s*:\s*ThroughAll\b", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex SemanticProfile = new(@"\bProfile\s*:\s*(?<profile>\w+)", RegexOptions.CultureInvariant);
     private static readonly Regex SemanticSupport = new(@"\bOn\s*:\s*(?<face>[A-Za-z_]\w*(?:\.Top)?|[+-][XYZ])", RegexOptions.CultureInvariant);
     private static readonly Regex BossHeight = new(@"\bHeight\s*:\s*(?<value>[-+.\d]+)mm", RegexOptions.CultureInvariant);
@@ -307,6 +325,7 @@ public static class PrismaticProfileCompositionParser
             diagnostics.Add($"compose-role-cardinality:Base:expected=1:actual={baseOperations.Length}");
         var bosses = new List<PrismaticBossFeature>();
         var pockets = new List<PrismaticPocketFeature>();
+        var materialOffsets = new List<PrismaticMaterialOffsetFeature>();
         // Cardinality is authored semantics, not a LINQ assertion. Never call
         // Single/SingleOrDefault while malformed input can still reach this boundary.
         var stock = baseOperations.Length == 1 ? baseOperations[0] : null;
@@ -381,6 +400,127 @@ public static class PrismaticProfileCompositionParser
                 var stableId = $"pocket:{compose.Groups["n"].Value}.{name}"; var sourceSpan = $"offset:{header.Index}";
                 pockets.Add(new(name, stableId, compose.Groups["n"].Value, face, profileName, depth, hostThickness, remaining, minimumFloor, policySource, selectedSupport.To - depth, selectedSupport.To, sourceSpan, supportSpan?.SpanId, supportSpan?.ParentId));
                 operations.Add(new(name, PrismaticProfileIntent.Remove, profileName, selectedSupport.To - depth, selectedSupport.To, "Pocket", sourceSpan, stableId, "Pocket"));
+            }
+
+            foreach (Match header in OffsetHeader.Matches(composeBody))
+            {
+                var name = header.Groups["n"].Value;
+                var intentText = header.Groups["intent"].Value;
+                var toolFamily = header.Groups["tool"].Value;
+                var intent = intentText == "AddOffset" ? PrismaticProfileIntent.Add : PrismaticProfileIntent.Remove;
+                var body = Block(composeBody, header.Index + header.Length - 1);
+                if (body is null) { diagnostics.Add($"offset-malformed:{name}:unclosed"); continue; }
+                if (!string.Equals(toolFamily, "Prism", StringComparison.Ordinal))
+                { diagnostics.Add($"offset-tool-family-not-qualified:{name}:tool={toolFamily}:qualified=Prism"); continue; }
+
+                var targetMatch = OffsetTarget.Match(body);
+                var profileMatch = SemanticProfile.Match(body);
+                var supportMatch = SemanticSupport.Match(body);
+                var directionMatch = OffsetDirection.Match(body);
+                var heightMatch = BossHeight.Match(body);
+                var depthMatch = PocketDepth.Match(body);
+                var throughAll = OffsetThroughAll.IsMatch(body);
+                if (!targetMatch.Success || !profileMatch.Success || !supportMatch.Success)
+                { diagnostics.Add($"offset-missing-required-field:{name}:required=Target,On,Profile"); continue; }
+                var target = targetMatch.Groups["value"].Value;
+                var profileName = profileMatch.Groups["profile"].Value;
+                var support = supportMatch.Groups["face"].Value;
+                var direction = directionMatch.Success ? directionMatch.Groups["value"].Value : "+Z";
+                if (!string.Equals(target, compose.Groups["n"].Value, StringComparison.Ordinal))
+                { diagnostics.Add($"offset-target-not-found:{name}:target={target}:active={compose.Groups["n"].Value}"); continue; }
+                if (!string.Equals(direction, "+Z", StringComparison.Ordinal))
+                { diagnostics.Add($"offset-axis-invalid:{name}:axis={direction}:qualified=+Z-prismatic-compose"); continue; }
+                if (!names.Add(name)) { diagnostics.Add($"compose-duplicate-operation:{name}"); continue; }
+                if (!profiles.TryGetValue(profileName, out var offsetProfile))
+                { diagnostics.Add($"offset-profile-not-found:{name}:profile={profileName}"); continue; }
+                var profileArea = Math.Abs(PrismaticSectionStackCompiler.ProfileArea(offsetProfile));
+                if (!double.IsFinite(profileArea) || profileArea <= 1e-9d)
+                { diagnostics.Add($"offset-profile-zero-area:{name}:profile={profileName}"); continue; }
+                if (offsetProfile.Loops.SelectMany(loop => loop.Segments)
+                    .Any(segment => segment.Geometry is not (LineArcLineSegment2D or LineArcCircularArc2D)))
+                { diagnostics.Add($"offset-profile-curve-not-qualified:{name}:profile={profileName}:qualified=line,circular-arc"); continue; }
+
+                surfaceSpans.TryGetValue(support, out var supportSpan);
+                if (supportSpan is null && !IsTopSelector(support))
+                { diagnostics.Add($"offset-support-invalid:{name}:On={support}:qualified=Top-or-<feature>.Top-or-Span<Plane>"); continue; }
+                // A Span is an authored support contract. Both operations fail
+                // closed if their tool footprint escapes it. Edge notches remain
+                // available by naming the whole Top support.
+                if (supportSpan is not null && !IsProfileFootprintInsideSpan(supportSpan, offsetProfile, profiles))
+                { diagnostics.Add($"offset-support-invalid:{name}:profile={profileName}:outside-span={supportSpan.SpanId}"); continue; }
+                var candidates = supportSpan is null
+                    ? ResolveTopSupports(support, stock, operations, offsetProfile, profiles)
+                    : ResolveSpanTopSupportsForOffset(supportSpan, operations, offsetProfile, profiles);
+                if (candidates.Count == 0)
+                {
+                    var tangent = operations.Where(operation => operation.Intent != PrismaticProfileIntent.Remove)
+                        .Any(operation => profiles.TryGetValue(operation.ProfileReference, out var supportProfile)
+                            && ProfilesTouch(supportProfile, offsetProfile));
+                    diagnostics.Add(tangent
+                        ? $"offset-tangent-contact:{name}:target={target}:profile={profileName}"
+                        : intent == PrismaticProfileIntent.Add
+                            ? $"offset-add-disconnected:{name}:target={target}:profile={profileName}"
+                            : $"offset-no-intersection:{name}:target={target}:profile={profileName}");
+                    continue;
+                }
+                if (candidates.Count > 1)
+                { diagnostics.Add($"offset-support-ambiguous:{name}:candidates={string.Join(",", candidates.Select(x => x.Name).Order(StringComparer.Ordinal))}"); continue; }
+                var selectedSupport = candidates[0];
+
+                double extent;
+                string termination;
+                double from;
+                double to;
+                if (intent == PrismaticProfileIntent.Add)
+                {
+                    if (!heightMatch.Success || throughAll || depthMatch.Success)
+                    { diagnostics.Add($"offset-missing-required-field:{name}:AddOffset<Prism>-requires=Height"); continue; }
+                    extent = N(heightMatch, "value");
+                    if (!double.IsFinite(extent) || extent <= 0d)
+                    { diagnostics.Add($"offset-tool-zero-dimension:{name}:Height={extent:R}mm"); continue; }
+                    termination = "Height";
+                    from = selectedSupport.To;
+                    to = from + extent;
+                }
+                else
+                {
+                    if (throughAll == depthMatch.Success)
+                    { diagnostics.Add($"offset-missing-required-field:{name}:RemoveOffset<Prism>-requires-exactly-one-of=Depth,Termination:ThroughAll"); continue; }
+                    to = selectedSupport.To;
+                    if (throughAll)
+                    {
+                        termination = "ThroughAll";
+                        from = operations.Where(operation => operation.Intent != PrismaticProfileIntent.Remove).Min(operation => operation.From);
+                        extent = to - from;
+                    }
+                    else
+                    {
+                        extent = N(depthMatch, "value");
+                        if (!double.IsFinite(extent) || extent <= 0d)
+                        { diagnostics.Add($"offset-tool-zero-dimension:{name}:Depth={extent:R}mm"); continue; }
+                        termination = "Depth";
+                        from = to - extent;
+                    }
+                }
+                if (!(from < to)) { diagnostics.Add($"offset-tool-zero-dimension:{name}:extent={extent:R}mm"); continue; }
+                if (intent == PrismaticProfileIntent.Remove && throughAll)
+                {
+                    if (ToolContainsProfile(offsetProfile, profiles[stock.ProfileReference]))
+                    { diagnostics.Add($"offset-remove-entire-body:{name}:target={target}"); continue; }
+                    var splitProbe = ProfileArrangementBuilder.Compose("XY",
+                        [stock with { From = 0d, To = 1d }, new(name, PrismaticProfileIntent.Remove, profileName, 0d, 1d, "MaterialOffset", $"offset:{header.Index}")],
+                        profiles, $"offset-split-probe:{name}");
+                    if (splitProbe.Region is null || splitProbe.Arrangement.Diagnostics.Any(item => item.Contains("disconnected", StringComparison.OrdinalIgnoreCase)))
+                    { diagnostics.Add($"offset-remove-splits-body:{name}:target={target}"); continue; }
+                }
+
+                var bounds = ProfileBounds(offsetProfile);
+                var stableId = $"offset:{compose.Groups["n"].Value}.{name}";
+                var sourceSpan = $"offset:{header.Index}";
+                materialOffsets.Add(new(name, stableId, intent, "Prism", target, support, profileName, direction,
+                    termination, from, to, extent, sourceSpan,
+                    [bounds.MinX, bounds.MinY, from, bounds.MaxX, bounds.MaxY, to], supportSpan?.SpanId, supportSpan?.ParentId));
+                operations.Add(new(name, intent, profileName, from, to, "MaterialOffset", sourceSpan, stableId, $"{intentText}<Prism>"));
             }
         }
         var shaftHoles = new List<PrismaticShaftHoleFeature>();
@@ -541,7 +681,7 @@ public static class PrismaticProfileCompositionParser
             }
         }
         var levels = operations.SelectMany(o => new[] { o.From, o.To }).Distinct().Order().ToArray();
-        var feature = diagnostics.Count == 0 ? new PrismaticProfileCompositionFeature(compose.Groups["n"].Value, placement.ProfilePlane, placement.Axis, placement, operations, levels, "parser-backed-scaffold-profile-composition", shaftHoles, capsuleSlots, roundedRectangleSlots, constructionPlaneBlindDrills, counterboreHoles, bosses, pockets) : null;
+        var feature = diagnostics.Count == 0 ? new PrismaticProfileCompositionFeature(compose.Groups["n"].Value, placement.ProfilePlane, placement.Axis, placement, operations, levels, "parser-backed-scaffold-profile-composition", shaftHoles, capsuleSlots, roundedRectangleSlots, constructionPlaneBlindDrills, counterboreHoles, bosses, pockets, materialOffsets) : null;
         return new(feature, profiles, diagnostics.Distinct().ToArray(), expansion.Evidence);
     }
 
@@ -560,6 +700,103 @@ public static class PrismaticProfileCompositionParser
                 && IsPocketFootprintInsideStock(operation, footprint, profiles))
             .ToArray();
     }
+
+    private static IReadOnlyList<PrismaticProfileOperation> ResolveSpanTopSupportsForOffset(
+        GeometricSpanView span,
+        IReadOnlyList<PrismaticProfileOperation> operations,
+        ResolvedProfile2D footprint,
+        IReadOnlyDictionary<string, ResolvedProfile2D> profiles)
+    {
+        if (span.ParentPlane is null) return [];
+        var top = span.ParentPlane.Origin.Z;
+        return operations.Where(operation => operation.Intent != PrismaticProfileIntent.Remove
+                && Math.Abs(operation.To - top) <= PlanarSpanContainment.Tolerance
+                && HasConnectedBossSupport(operation, footprint, profiles))
+            .ToArray();
+    }
+
+    private static (double MinX, double MinY, double MaxX, double MaxY) ProfileBounds(ResolvedProfile2D profile)
+    {
+        var points = profile.Loops.SelectMany(loop => loop.Segments).SelectMany(segment => segment.Geometry switch
+        {
+            LineArcLineSegment2D line => new[] { line.Start, line.End }.AsEnumerable(),
+            LineArcCircularArc2D arc => ArcBoundsPoints(arc),
+            _ => Enumerable.Empty<(double X, double Y)>()
+        }).ToArray();
+        return (points.Min(point => point.Item1), points.Min(point => point.Item2), points.Max(point => point.Item1), points.Max(point => point.Item2));
+    }
+
+    private static IEnumerable<(double X, double Y)> ArcBoundsPoints(LineArcCircularArc2D arc)
+    {
+        var endAngle = arc.StartAngleRadians + arc.SweepAngleRadians;
+        var candidateAngles = new[]
+        {
+            arc.StartAngleRadians,
+            endAngle,
+            0d,
+            Math.PI / 2d,
+            Math.PI,
+            3d * Math.PI / 2d
+        };
+        return candidateAngles
+            .Where(angle => angle == arc.StartAngleRadians || angle == endAngle || IsAngleOnArc(angle, arc.StartAngleRadians, arc.SweepAngleRadians))
+            .Select(angle => ArcPoint(arc, angle));
+    }
+
+    private static (double X, double Y) ArcPoint(LineArcCircularArc2D arc, double angle)
+    {
+        const double tolerance = 1e-12d;
+        var normalized = NormalizeAngle(angle);
+        if (Math.Abs(normalized) <= tolerance || Math.Abs(normalized - 2d * Math.PI) <= tolerance) return (arc.Center.X + arc.Radius, arc.Center.Y);
+        if (Math.Abs(normalized - Math.PI / 2d) <= tolerance) return (arc.Center.X, arc.Center.Y + arc.Radius);
+        if (Math.Abs(normalized - Math.PI) <= tolerance) return (arc.Center.X - arc.Radius, arc.Center.Y);
+        if (Math.Abs(normalized - 3d * Math.PI / 2d) <= tolerance) return (arc.Center.X, arc.Center.Y - arc.Radius);
+        return (arc.Center.X + arc.Radius * Math.Cos(angle), arc.Center.Y + arc.Radius * Math.Sin(angle));
+    }
+
+    private static bool IsAngleOnArc(double angle, double start, double sweep)
+    {
+        const double tolerance = 1e-12d;
+        if (Math.Abs(sweep) >= 2d * Math.PI - tolerance) return true;
+        var directedDelta = sweep >= 0d ? NormalizeAngle(angle - start) : NormalizeAngle(start - angle);
+        return directedDelta <= Math.Abs(sweep) + tolerance;
+    }
+
+    private static double NormalizeAngle(double angle)
+    {
+        var normalized = angle % (2d * Math.PI);
+        return normalized < 0d ? normalized + 2d * Math.PI : normalized;
+    }
+
+    private static bool ProfilesTouch(ResolvedProfile2D left, ResolvedProfile2D right)
+    {
+        const double tolerance = 1e-8d;
+        var leftSegments = left.Loops.SelectMany(loop => loop.Segments).ToArray();
+        var rightSegments = right.Loops.SelectMany(loop => loop.Segments).ToArray();
+        return Endpoints(leftSegments).Any(point => rightSegments.Any(segment => DistanceToCurve(point, segment.Geometry) <= tolerance))
+            || Endpoints(rightSegments).Any(point => leftSegments.Any(segment => DistanceToCurve(point, segment.Geometry) <= tolerance));
+    }
+
+    private static bool ToolContainsProfile(ResolvedProfile2D tool, ResolvedProfile2D target)
+    {
+        var toolArea = Math.Abs(PrismaticSectionStackCompiler.ProfileArea(tool));
+        var targetArea = Math.Abs(PrismaticSectionStackCompiler.ProfileArea(target));
+        return toolArea + 1e-8d >= targetArea
+            && Endpoints(target.Loops.SelectMany(loop => loop.Segments)).All(point =>
+                ProfileArrangementBuilder.PointInProfile(tool, point) is not ArrangementPointLocation.Outside);
+    }
+
+    private static IEnumerable<(double X, double Y)> Endpoints(IEnumerable<ResolvedProfileSegment2D> segments) =>
+        segments.SelectMany(segment => segment.Geometry switch
+        {
+            LineArcLineSegment2D line => new[] { line.Start, line.End }.AsEnumerable(),
+            LineArcCircularArc2D arc => new[]
+            {
+                (arc.Center.X + arc.Radius * Math.Cos(arc.StartAngleRadians), arc.Center.Y + arc.Radius * Math.Sin(arc.StartAngleRadians)),
+                (arc.Center.X + arc.Radius * Math.Cos(arc.StartAngleRadians + arc.SweepAngleRadians), arc.Center.Y + arc.Radius * Math.Sin(arc.StartAngleRadians + arc.SweepAngleRadians))
+            },
+            _ => Enumerable.Empty<(double X, double Y)>()
+        });
 
     private static bool IsProfileFootprintInsideSpan(
         GeometricSpanView span,

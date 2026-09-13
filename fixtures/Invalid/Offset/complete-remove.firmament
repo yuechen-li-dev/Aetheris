@@ -1,0 +1,9 @@
+Model CompleteOffsetRemove {
+    Units: mm
+    Rect2 Stock { Center: [0mm,0mm]; Size: [40mm,30mm] }
+    Profile StockProfile { Loop Outer { Stock.Bottom |> Stock.Right |> Stock.Top |> Stock.Left |> Close } }
+    Compose Plate {
+        Base StockBody { Profile: StockProfile; From: 0mm; To: 10mm }
+        RemoveOffset<Prism> Invalid { Target: Plate; On: Top; Profile: StockProfile; Termination: ThroughAll }
+    }
+}

@@ -32,7 +32,8 @@ public static class FirmamentV2DiagnosticAdapter
         string? fieldName = null) =>
         new(
             diagnosticCode,
-            FirmamentV2Parser.IsFatalDiagnosticCode(diagnosticCode) ? FirmamentDiagnosticSeverity.Fatal : FirmamentDiagnosticSeverity.Warning,
+            diagnosticCode.StartsWith("offset-", StringComparison.Ordinal) || FirmamentV2Parser.IsFatalDiagnosticCode(diagnosticCode)
+                ? FirmamentDiagnosticSeverity.Fatal : FirmamentDiagnosticSeverity.Warning,
             MessageFor(diagnosticCode),
             FirmamentV2InteropValueAdapter.AdaptSourceSpan(sourceSpan),
             target,

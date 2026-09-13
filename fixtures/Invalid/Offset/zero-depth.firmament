@@ -1,0 +1,11 @@
+Model ZeroDepthOffset {
+    Units: mm
+    Rect2 Stock { Center: [0mm,0mm]; Size: [40mm,30mm] }
+    Rect2 Tool { Center: [18mm,0mm]; Size: [10mm,6mm] }
+    Profile StockProfile { Loop Outer { Stock.Bottom |> Stock.Right |> Stock.Top |> Stock.Left |> Close } }
+    Profile ToolProfile { Loop Outer { Tool.Bottom |> Tool.Right |> Tool.Top |> Tool.Left |> Close } }
+    Compose Plate {
+        Base StockBody { Profile: StockProfile; From: 0mm; To: 10mm }
+        RemoveOffset<Prism> Invalid { Target: Plate; On: Top; Profile: ToolProfile; Depth: 0mm }
+    }
+}

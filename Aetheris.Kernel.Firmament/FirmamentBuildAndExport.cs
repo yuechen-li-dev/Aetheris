@@ -2231,6 +2231,14 @@ public static class FirmamentBuildAndExport
             item.Name, "Pocket", item.StableId, item.Host, item.SupportFace, item.ProfileReference,
             item.Depth, "Depth", "Remove", item.RemainingFloor, item.MinimumFloorThickness,
             item.MinimumFloorPolicySource, "PrismaticSectionStack/Remove", item.SupportSpan, item.ParentSupport)))
+        .Concat((feature.MaterialOffsets ?? []).Select(item => new FirmamentEngineeringFeatureReport(
+            item.Name, $"{item.OperationKind}Offset<{item.ToolFamily}>", item.StableId, item.Target, item.Support,
+            item.ProfileReference, item.Extent, item.Termination, item.OperationKind,
+            PolicySource: "BoundedMaterialOffsetX1",
+            MaterializationRoute: $"MaterialOffsetAir/{item.ToolFamily}->PrismaticSectionStack/{item.OperationKind}",
+            SupportSpan: item.SupportSpan, ParentSupport: item.ParentSupport,
+            ToolFamily: item.ToolFamily, Direction: item.Direction, Termination: item.Termination,
+            AuthorizedRegion: item.AuthorizedRegion)))
         .OrderBy(item => item.FeatureId, StringComparer.Ordinal)
         .ToArray();
 

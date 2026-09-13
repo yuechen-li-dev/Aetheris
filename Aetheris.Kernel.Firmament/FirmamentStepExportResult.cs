@@ -133,7 +133,12 @@ public sealed record FirmamentEngineeringFeatureReport(
     string? PolicySource = null,
     string MaterializationRoute = "PrismaticSectionStack",
     string? SupportSpan = null,
-    string? ParentSupport = null);
+    string? ParentSupport = null,
+    string? ToolFamily = null,
+    string? Direction = null,
+    string? Termination = null,
+    IReadOnlyList<double>? AuthorizedRegion = null,
+    string Validity = "Valid");
 
 public sealed record FirmamentStandardPartReport(
     string Family,

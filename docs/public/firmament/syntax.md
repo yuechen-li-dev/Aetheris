@@ -16,6 +16,8 @@ For example, begin a formed-wire program with `schema WireForm`. An explicit sch
 
 A canonical native part begins with `Model`, declares `Units`, creates named solids, and applies semantic features in `Modify` or `Compose`:
 
+The bounded material-offset subset is `AddOffset<Prism>` and `RemoveOffset<Prism>` inside an active `Compose`; see [bounded material offsets](material-offsets.md). `Cylinder` and `Sphere` offset families are reserved but not qualified.
+
 ```firmament
 Model Plate {
     Units: mm

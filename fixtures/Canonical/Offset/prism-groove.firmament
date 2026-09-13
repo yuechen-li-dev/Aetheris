@@ -1,0 +1,11 @@
+Model PrismGroove {
+    Units: mm
+    Rect2 Stock { Center: [0mm,0mm]; Size: [40mm,30mm] }
+    Rect2 Groove { Center: [18mm,0mm]; Size: [10mm,6mm] }
+    Profile StockProfile { Loop Outer { Stock.Bottom |> Stock.Right |> Stock.Top |> Stock.Left |> Close } }
+    Profile GrooveProfile { Loop Outer { Groove.Bottom |> Groove.Right |> Groove.Top |> Groove.Left |> Close } }
+    Compose Plate {
+        Base StockBody { Profile: StockProfile; From: 0mm; To: 10mm; Role: Stock }
+        RemoveOffset<Prism> GrooveCut { Target: Plate; On: Top; Profile: GrooveProfile; Depth: 4mm }
+    }
+}

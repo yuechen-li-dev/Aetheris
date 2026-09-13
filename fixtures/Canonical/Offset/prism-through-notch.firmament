@@ -1,0 +1,11 @@
+Model PrismThroughNotch {
+    Units: mm
+    Rect2 Stock { Center: [0mm,0mm]; Size: [40mm,30mm] }
+    Rect2 Notch { Center: [19mm,0mm]; Size: [10mm,10mm] }
+    Profile StockProfile { Loop Outer { Stock.Bottom |> Stock.Right |> Stock.Top |> Stock.Left |> Close } }
+    Profile NotchProfile { Loop Outer { Notch.Bottom |> Notch.Right |> Notch.Top |> Notch.Left |> Close } }
+    Compose Plate {
+        Base StockBody { Profile: StockProfile; From: 0mm; To: 10mm; Role: Stock }
+        RemoveOffset<Prism> EdgeNotch { Target: Plate; On: Top; Profile: NotchProfile; Termination: ThroughAll }
+    }
+}

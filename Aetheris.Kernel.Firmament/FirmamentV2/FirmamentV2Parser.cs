@@ -970,7 +970,7 @@ public static class FirmamentV2Parser
 
         var known = new HashSet<string>(StringComparer.Ordinal)
         {
-            "Box", "Cylinder", "Cone", "Sphere", "Torus", "RoundedBox", "Frustum", "StandardPart", "ExactCoaxialPart", "Point2", "Line2", "Rect2", "Circle2", "Ellipse2Guide", "Concept", "Struct", "Construction", "Profile", "Span", "Compose", "Boss", "Pocket", "EdgeFinish",
+            "Box", "Cylinder", "Cone", "Sphere", "Torus", "RoundedBox", "Frustum", "StandardPart", "ExactCoaxialPart", "Point2", "Line2", "Rect2", "Circle2", "Ellipse2Guide", "Concept", "Struct", "Construction", "Profile", "Span", "Compose", "Boss", "Pocket", "AddOffset", "RemoveOffset", "EdgeFinish",
             "Record", "Static", "Template", "template", "ProfileDelta", "Selection", "InlineStep", "Recognize", "Replace", "Pmi", "Modify", "Match", "Require", "Assert"
         };
         var compatibilityOnly = new HashSet<string>(StringComparer.Ordinal)

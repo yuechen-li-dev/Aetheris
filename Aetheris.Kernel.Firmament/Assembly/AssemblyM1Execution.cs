@@ -87,11 +87,19 @@ internal static class AssemblyDefinitionMaterializer
         // Assembly files keep reusable declarations beside relational assembly syntax.
         // Wrap that declaration catalog in the ordinary V2 Model root for the exact
         // same compiler/build path used by standalone Firmament parts.
-        var module = "Model __AssemblyDefinition {" + Environment.NewLine
-            + "Units: mm" + Environment.NewLine
-            + definitionSource + Environment.NewLine
-            + $"Struct __AssemblyPart = {definitionIdentity}" + Environment.NewLine
-            + "}" + Environment.NewLine;
+        var templateName = definitionIdentity[..definitionIdentity.IndexOf('<')];
+        var inspectionDiagnostics = new List<string>();
+        var targetKind = FirmamentV2TemplateExpansion.Inspect(definitionSource, inspectionDiagnostics)
+            .SingleOrDefault(template => string.Equals(template.Name, templateName, StringComparison.Ordinal))?.TargetKind
+            ?? "Struct";
+        var application = $"{targetKind} __AssemblyPart = {definitionIdentity}" + Environment.NewLine;
+        var module = targetKind == "Model"
+            ? definitionSource + Environment.NewLine + application
+            : "Model __AssemblyDefinition {" + Environment.NewLine
+              + "Units: mm" + Environment.NewLine
+              + definitionSource + Environment.NewLine
+              + application
+              + "}" + Environment.NewLine;
         var build = FirmamentBuildAndExport.CompileSource(module, Path.GetDirectoryName(Path.GetFullPath(sourceIdentity)));
         if (!build.IsSuccess || build.Value is null)
         {

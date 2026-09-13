@@ -62,7 +62,61 @@ public sealed record PrismaticRoundedRectangleSlotFeature(
     string Extent, string SemanticRole, string SourceSpan);
 public sealed record PrismaticProfilePlacement(
     string Name, double AnchorX, double AnchorY, double AnchorZ,
-    string ProfilePlane, string Axis, string ReferenceDirection, bool IsExplicit);
+    string ProfilePlane, string Axis, string ReferenceDirection, bool IsExplicit)
+{
+    /// <summary>
+    /// Resolves the legacy textual placement through the shared construction-plane
+    /// authority. ReferenceDirection is the local profile X axis; local Y is derived
+    /// by the right-handed frame law rather than by world-plane special cases.
+    /// </summary>
+    public bool TryResolveConstructionPlane(out ConstructionPlane? frame, out string? diagnostic)
+    {
+        frame = null;
+        diagnostic = null;
+        if (!TryAxis(Axis, out var normal) || !TryAxis(ReferenceDirection, out var reference))
+        {
+            diagnostic = $"compose-placement-invalid-axis:{Name}:axis={Axis}:reference={ReferenceDirection}";
+            return false;
+        }
+        if (Math.Abs(normal.Dot(reference)) > 1e-12d)
+        {
+            diagnostic = $"compose-placement-reference-parallel-to-axis:{Name}:axis={Axis}:reference={ReferenceDirection}";
+            return false;
+        }
+        var expectedNormal = ProfilePlane switch
+        {
+            "XY" => new Vector3D(0d, 0d, 1d),
+            "XZ" => new Vector3D(0d, 1d, 0d),
+            "YZ" => new Vector3D(1d, 0d, 0d),
+            _ => default
+        };
+        if (expectedNormal.LengthSquared == 0d || Math.Abs(Math.Abs(normal.Dot(expectedNormal)) - 1d) > 1e-12d)
+        {
+            diagnostic = $"compose-placement-plane-axis-mismatch:{Name}:plane={ProfilePlane}:axis={Axis}";
+            return false;
+        }
+        var axisZ = Direction3D.Create(normal);
+        var axisX = Direction3D.Create(reference);
+        var axisY = Direction3D.Create(normal.Cross(reference));
+        frame = new ConstructionPlane(
+            $"construction:compose:{Name}", $"placement:{Name}",
+            new Point3D(AnchorX, AnchorY, AnchorZ), axisX, axisY, axisZ,
+            "PrismaticProfilePlacement", "ComposePlacementToConstructionPlane");
+        return true;
+    }
+
+    private static bool TryAxis(string value, out Vector3D axis)
+    {
+        axis = value switch
+        {
+            "+X" => new Vector3D(1d, 0d, 0d), "-X" => new Vector3D(-1d, 0d, 0d),
+            "+Y" => new Vector3D(0d, 1d, 0d), "-Y" => new Vector3D(0d, -1d, 0d),
+            "+Z" => new Vector3D(0d, 0d, 1d), "-Z" => new Vector3D(0d, 0d, -1d),
+            _ => default
+        };
+        return axis.LengthSquared > 0d;
+    }
+}
 public sealed record PrismaticProfileCompositionFeature(
     string Name, string Frame, string Axis, PrismaticProfilePlacement Placement, IReadOnlyList<PrismaticProfileOperation> Operations,
     IReadOnlyList<double> CriticalLevels, string Provenance, IReadOnlyList<PrismaticShaftHoleFeature>? ShaftHoles = null,
@@ -233,10 +287,8 @@ public static class PrismaticProfileCompositionParser
         if (placementMatch.Success)
         {
             placement = new(placementMatch.Groups["n"].Value, N(placementMatch, "x"), N(placementMatch, "y"), N(placementMatch, "z"), placementMatch.Groups["plane"].Value, placementMatch.Groups["axis"].Value, placementMatch.Groups["reference"].Value, true);
-            if (placement.ProfilePlane != "XY" || placement.Axis != "+Z" || placement.ReferenceDirection != "+X")
-                diagnostics.Add($"compose-placement-unsupported-orientation:{placement.Name}:plane={placement.ProfilePlane}:axis={placement.Axis}:reference={placement.ReferenceDirection}");
-            if (Math.Abs(placement.AnchorX) > 1e-12d || Math.Abs(placement.AnchorY) > 1e-12d || Math.Abs(placement.AnchorZ) > 1e-12d)
-                diagnostics.Add($"compose-placement-unsupported-nonzero-anchor:{placement.Name}:[{placement.AnchorX:R},{placement.AnchorY:R},{placement.AnchorZ:R}]");
+            if (!placement.TryResolveConstructionPlane(out _, out var placementDiagnostic))
+                diagnostics.Add(placementDiagnostic!);
         }
         var operations = new List<PrismaticProfileOperation>();
         var names = new HashSet<string>(StringComparer.Ordinal);
@@ -489,7 +541,7 @@ public static class PrismaticProfileCompositionParser
             }
         }
         var levels = operations.SelectMany(o => new[] { o.From, o.To }).Distinct().Order().ToArray();
-        var feature = diagnostics.Count == 0 ? new PrismaticProfileCompositionFeature(compose.Groups["n"].Value, "XY", "+Z", placement, operations, levels, "parser-backed-scaffold-profile-composition", shaftHoles, capsuleSlots, roundedRectangleSlots, constructionPlaneBlindDrills, counterboreHoles, bosses, pockets) : null;
+        var feature = diagnostics.Count == 0 ? new PrismaticProfileCompositionFeature(compose.Groups["n"].Value, placement.ProfilePlane, placement.Axis, placement, operations, levels, "parser-backed-scaffold-profile-composition", shaftHoles, capsuleSlots, roundedRectangleSlots, constructionPlaneBlindDrills, counterboreHoles, bosses, pockets) : null;
         return new(feature, profiles, diagnostics.Distinct().ToArray(), expansion.Evidence);
     }
 

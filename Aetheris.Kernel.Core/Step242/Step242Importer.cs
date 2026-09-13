@@ -14,6 +14,38 @@ namespace Aetheris.Kernel.Core.Step242;
 
 public static class Step242Importer
 {
+    /// <summary>
+    /// Imports every exact rigid B-rep root without assigning part or assembly semantics.
+    /// This is the inspection boundary for compound serialization; <see cref="ImportBody(string)"/>
+    /// deliberately remains strict about its single-part contract.
+    /// </summary>
+    public static KernelResult<IReadOnlyList<Step242RigidRootBody>> ImportRigidRoots(string stepText)
+    {
+        ArgumentNullException.ThrowIfNull(stepText);
+        var parsed = Step242SubsetParser.Parse(stepText);
+        if (!parsed.IsSuccess || parsed.Value is null)
+            return KernelResult<IReadOnlyList<Step242RigidRootBody>>.Failure(parsed.Diagnostics);
+
+        var classification = Step242RigidRootClassifier.Classify(parsed.Value);
+        if (classification.Kind == Step242RigidRootClassificationKind.MissingRigidRoot)
+            return Step242ImportSharedUtilities.NotImplementedFailure<IReadOnlyList<Step242RigidRootBody>>(
+                "Missing MANIFOLD_SOLID_BREP or BREP_WITH_VOIDS root entity.",
+                "Importer.TopologyRoot");
+
+        var roots = new List<Step242RigidRootBody>(classification.RigidRoots.Count);
+        var diagnostics = new List<KernelDiagnostic>();
+        foreach (var root in classification.RigidRoots.OrderBy(entity => entity.Id))
+        {
+            var imported = ImportExactBrepCore(parsed.Value, root.Id, includeOrphanPlanarFaces: classification.RigidRoots.Count == 1);
+            diagnostics.AddRange(imported.Diagnostics);
+            if (!imported.IsSuccess || imported.Value is null)
+                return KernelResult<IReadOnlyList<Step242RigidRootBody>>.Failure(diagnostics);
+            roots.Add(new Step242RigidRootBody(root.Id, root.Name, imported.Value));
+        }
+
+        return KernelResult<IReadOnlyList<Step242RigidRootBody>>.Success(roots, diagnostics);
+    }
+
     private const double AreaEps = 1e-8d;
     private const double PointOnSurfaceEps = 1e-5d;
     private const double TinyCoedgeGapSnapEps = 2.5e-5d;
@@ -778,11 +810,12 @@ public static class Step242Importer
         int edgeCurveEntityId)
     {
         ParameterInterval? explicitTrim = null;
-        var surfaceCurveConstructor = Step242SubsetDecoder.TryGetConstructor(curveEntity.Instance, "SURFACE_CURVE");
+        var surfaceCurveConstructor = Step242SubsetDecoder.TryGetConstructor(curveEntity.Instance, "SURFACE_CURVE")
+            ?? Step242SubsetDecoder.TryGetConstructor(curveEntity.Instance, "SEAM_CURVE");
         if (surfaceCurveConstructor is not null)
         {
             if (surfaceCurveConstructor.Arguments.ElementAtOrDefault(1) is not Step242EntityReference curve3dReference)
-                return FailureCurveBinding("SURFACE_CURVE must reference its authoritative 3D curve.", SourceFor(edgeCurveEntityId, "Importer.Geometry.SurfaceCurve"));
+                return FailureCurveBinding("SURFACE_CURVE/SEAM_CURVE must reference its authoritative 3D curve.", SourceFor(edgeCurveEntityId, "Importer.Geometry.SurfaceCurve"));
             var curve3dResult = document.TryGetEntity(curve3dReference.TargetId);
             if (!curve3dResult.IsSuccess)
                 return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(curve3dResult.Diagnostics);

@@ -106,6 +106,28 @@ public sealed class Step242ImporterTests
     }
 
     [Fact]
+    public void ImportRigidRoots_MultipleSolidRoots_ImportsEveryRootWithoutWeakeningPartContract()
+    {
+        var box = BrepPrimitives.CreateBox(2, 4, 6).Value;
+        var sphere = BrepPrimitives.CreateSphere(3).Value;
+        var exported = Step242AssemblyExporter.Export(new Step242AssemblyExportModel("Pair", "root", [
+            new("box-def", "Box", box), new("sphere-def", "Sphere", sphere)], [
+            new("root", "Pair", null, null, Identity()),
+            new("box-occ", "Box", "root", "box-def", Identity()),
+            new("sphere-occ", "Sphere", "root", "sphere-def", Identity())]));
+        Assert.True(exported.IsSuccess);
+
+        var strictPart = Step242Importer.ImportBody(exported.Value);
+        Assert.False(strictPart.IsSuccess);
+        var roots = Step242Importer.ImportRigidRoots(exported.Value);
+        Assert.True(roots.IsSuccess, string.Join("; ", roots.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(2, roots.Value.Count);
+        Assert.Equal([6, 1], roots.Value.Select(root => root.Body.Topology.Faces.Count()).OrderDescending().ToArray());
+    }
+
+    private static double[] Identity() => [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+
+    [Fact]
     public void ImportBody_TessellatedSolidWithComplexTriangulatedFace_ImportsWithoutManifoldSolidBrep()
     {
         const string tessellated = "ISO-10303-21;\nHEADER;\nENDSEC;\nDATA;\n#1=TESSELLATED_SOLID('part',(#2));\n#2=TESSELLATED_SHELL('shell',(#3));\n#3=COMPLEX_TRIANGULATED_FACE('',#10,3,((0,0,1)),#20,(1,2,3),((1,2,3)),());\n#10=COORDINATES_LIST('',3,((0,0,0),(1,0,0),(0,1,0)));\n#20=PLANE('',#30);\n#30=AXIS2_PLACEMENT_3D('',#31,#32,#33);\n#31=CARTESIAN_POINT('',(0,0,0));\n#32=DIRECTION('',(0,0,1));\n#33=DIRECTION('',(1,0,0));\nENDSEC;\nEND-ISO-10303-21;";

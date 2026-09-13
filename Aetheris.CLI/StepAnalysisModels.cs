@@ -43,7 +43,9 @@ public sealed record FaceDetail(
     double? MinorRadius,
     double? SemiAngleRadians,
     IReadOnlyList<int> AdjacentEdgeIds,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? StepEntity = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? StepEntity = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] double? AxialExtent = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] double? BoundaryAngularExtentRadians = null);
 
 public sealed record EdgeDetail(
     int EdgeId,
@@ -55,7 +57,13 @@ public sealed record EdgeDetail(
     IReadOnlyList<int> AdjacentFaceIds,
     double? ParameterRange,
     double? ArcLength,
-    string ArcLengthStatus);
+    string ArcLengthStatus,
+    Point3D? Center = null,
+    Vector3D? Direction = null,
+    Vector3D? PlaneNormal = null,
+    double? Radius = null,
+    double? SweepRadians = null,
+    string? Orientation = null);
 
 public sealed record VertexDetail(
     int VertexId,
@@ -70,6 +78,28 @@ public sealed record AnalyzeResult(
     VertexDetail? Vertex,
     IReadOnlyList<string> Notes,
     Step242SemanticPmiInspectionResult? SemanticPmi = null);
+
+public sealed record CompoundSolidInspection(
+    int Ordinal,
+    int RootEntityId,
+    string RootEntityKind,
+    int SolidCount,
+    BoundingBox3D? BoundingBox,
+    double? Volume,
+    bool VolumeExact,
+    IReadOnlyDictionary<string, int> SurfaceFamilies,
+    Point3D PlacementCenter,
+    Vector3D OffsetFromFirst);
+
+public sealed record CompoundAnalysisResult(
+    string StepPath,
+    int RootCount,
+    int SolidCount,
+    IReadOnlyList<CompoundSolidInspection> Solids,
+    BoundingBox3D? AggregateBoundingBox,
+    double? AggregateVolume,
+    IReadOnlyDictionary<string, int> AggregateSurfaceFamilies,
+    IReadOnlyList<string> Notes);
 
 public enum OrthographicView
 {
@@ -156,7 +186,8 @@ public enum SectionPlaneFamily
 {
     XY,
     XZ,
-    YZ
+    YZ,
+    Custom
 }
 
 public sealed record SectionAnalysisMetadata(
@@ -168,7 +199,9 @@ public sealed record SectionAnalysisMetadata(
     string OffsetEquation,
     string SectionAxisU,
     string SectionAxisV,
-    string WorldToSectionMapping);
+    string WorldToSectionMapping,
+    Point3D? PlaneOrigin = null,
+    Vector3D? PlaneNormal = null);
 
 public sealed record SectionAnalysisSummary(
     int LoopCount,

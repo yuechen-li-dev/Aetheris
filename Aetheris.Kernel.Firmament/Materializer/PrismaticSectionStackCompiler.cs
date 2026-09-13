@@ -160,6 +160,9 @@ public static class PrismaticSectionStackEmitter
     public static PrismaticSectionStackPlanResult TryPlan(PrismaticSectionStackConstruction stack)
     {
         var d = stack.Diagnostics.ToList();
+        if (!stack.Feature.Placement.TryResolveConstructionPlane(out var resolvedFrame, out var frameDiagnostic))
+            return new(null, d.Append(frameDiagnostic!).Distinct().ToArray());
+        var frame = resolvedFrame!;
         var builder = new TopologyBuilder(); var points = new Dictionary<VertexId, Point3D>(); var curves = new Dictionary<EdgeId, CurveGeometry>(); var profileCurves = new Dictionary<EdgeId, LineArcProfileCurve2D>();
         var vertices = new Dictionary<(long X, long Y, long Z), VertexId>(); var edges = new Dictionary<string, EdgeId>();
         var sideFaces = new List<(LoopId Loop, SurfaceGeometry Surface, bool SameSense, string Source, string Construction, double From, double To)>(); var capFaces = new List<(FaceId Face, double Z, bool Up)>();
@@ -237,14 +240,14 @@ public static class PrismaticSectionStackEmitter
         foreach (var edge in builder.Model.Edges.OrderBy(e => e.Id.Value))
         {
             var curve = curves[edge.Id];
-            geometry.AddCurve(new CurveGeometryId(curveId), curve);
+            geometry.AddCurve(new CurveGeometryId(curveId), Transform(curve, frame));
             var (trim, oriented) = profileCurves.TryGetValue(edge.Id, out var sourceCurve) ? CurveTrim(sourceCurve) : (new ParameterInterval(0d, (points[edge.EndVertexId] - points[edge.StartVertexId]).Length), true);
             bindings.AddEdgeBinding(new EdgeGeometryBinding(edge.Id, new CurveGeometryId(curveId), trim, OrientedEdgeSense: oriented));
             curveId++;
         }
         var surfaceId = 1;
-        foreach (var cap in capFaces) { geometry.AddSurface(new SurfaceGeometryId(surfaceId), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(0, 0, cap.Z), Direction3D.Create(new Vector3D(0, 0, cap.Up ? 1 : -1)), Direction3D.Create(new Vector3D(1, 0, 0))))); bindings.AddFaceBinding(new FaceGeometryBinding(cap.Face, new SurfaceGeometryId(surfaceId++))); }
-        foreach (var side in sideFaces) { var face = faces[capFaces.Count + sideFaces.IndexOf(side)]; geometry.AddSurface(new SurfaceGeometryId(surfaceId), side.Surface); bindings.AddFaceBinding(new FaceGeometryBinding(face, new SurfaceGeometryId(surfaceId++), side.SameSense)); }
+        foreach (var cap in capFaces) { geometry.AddSurface(new SurfaceGeometryId(surfaceId), SurfaceGeometry.FromPlane(new PlaneSurface(frame.ToWorld((0d, 0d), cap.Z), cap.Up ? frame.AxisZ : Direction3D.Create(-frame.AxisZ.ToVector()), frame.AxisX))); bindings.AddFaceBinding(new FaceGeometryBinding(cap.Face, new SurfaceGeometryId(surfaceId++))); }
+        foreach (var side in sideFaces) { var face = faces[capFaces.Count + sideFaces.IndexOf(side)]; geometry.AddSurface(new SurfaceGeometryId(surfaceId), Transform(side.Surface, frame)); bindings.AddFaceBinding(new FaceGeometryBinding(face, new SurfaceGeometryId(surfaceId++), side.SameSense)); }
         foreach (var incidence in builder.Model.Coedges.GroupBy(x => x.EdgeId).Where(x => x.Count() != 2))
         {
             var edge = builder.Model.Edges.Single(x => x.Id == incidence.Key);
@@ -388,7 +391,7 @@ public static class PrismaticSectionStackEmitter
                 ["PrismaticSectionStackConstruction", "ProfileArrangement2D", side.Source, side.Construction]));
         }
         var topologyPlan = new PrismaticSectionStackTopologyPlan($"compose-plan:{stack.Feature.Name}", builder.Model, geometry, bindings,
-            points.ToDictionary(x => x.Key, x => x.Value), faceMappings, correspondence, provenance);
+            points.ToDictionary(x => x.Key, x => frame.ToWorld((x.Value.X, x.Value.Y), x.Value.Z)), faceMappings, correspondence, provenance);
         var plan = new PrismaticSectionStackBrepPlan($"compose:{stack.Feature.Name}:slabs={stack.Slabs.Count}:transitions={stack.Transitions.Count}", points.Count, builder.Model.Edges.Count(), faces.Count, "deterministic-slab-partitions", true, correspondence, topologyPlan);
         d.Add("compose-authoritative-section-stack-brep-plan"); d.Add("compose-no-3d-boolean-used");
         d.Add("compose-plan-first-materialization-boundary");
@@ -446,6 +449,18 @@ public static class PrismaticSectionStackEmitter
     };
     private static CurveGeometry Curve(LineArcProfileCurve2D curve, double z) => curve switch { LineArcLineSegment2D l => CurveGeometry.FromLine(new Line3Curve(new Point3D(l.Start.X, l.Start.Y, z), Direction3D.Create(new Vector3D(l.End.X - l.Start.X, l.End.Y - l.Start.Y, 0)))), LineArcCircularArc2D a => CurveGeometry.FromCircle(new Circle3Curve(new Point3D(a.Center.X, a.Center.Y, z), Direction3D.Create(new Vector3D(0, 0, 1)), a.Radius, Direction3D.Create(new Vector3D(1, 0, 0)))), _ => throw new NotSupportedException() };
     private static SurfaceGeometry SideSurface(LineArcProfileCurve2D curve, double z, bool hole) => curve switch { LineArcLineSegment2D l => SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(l.Start.X, l.Start.Y, z), Direction3D.Create(new Vector3D(hole ? l.Start.Y - l.End.Y : l.End.Y - l.Start.Y, hole ? l.End.X - l.Start.X : l.Start.X - l.End.X, 0)), Direction3D.Create(new Vector3D(0, 0, 1)))), LineArcCircularArc2D a => SurfaceGeometry.FromCylinder(new CylinderSurface(new Point3D(a.Center.X, a.Center.Y, z), Direction3D.Create(new Vector3D(0, 0, 1)), a.Radius, Direction3D.Create(new Vector3D(1, 0, 0)))), _ => throw new NotSupportedException() };
+    private static CurveGeometry Transform(CurveGeometry curve, ConstructionPlane frame) => curve.Kind switch
+    {
+        CurveGeometryKind.Line3 => CurveGeometry.FromLine(new Line3Curve(frame.ToWorld((curve.Line3!.Value.Origin.X, curve.Line3.Value.Origin.Y), curve.Line3.Value.Origin.Z), Direction3D.Create(frame.ToWorldDirection(curve.Line3.Value.Direction.ToVector())))),
+        CurveGeometryKind.Circle3 => CurveGeometry.FromCircle(new Circle3Curve(frame.ToWorld((curve.Circle3!.Value.Center.X, curve.Circle3.Value.Center.Y), curve.Circle3.Value.Center.Z), Direction3D.Create(frame.ToWorldDirection(curve.Circle3.Value.Normal.ToVector())), curve.Circle3.Value.Radius, Direction3D.Create(frame.ToWorldDirection(curve.Circle3.Value.XAxis.ToVector())))),
+        _ => throw new NotSupportedException($"Section-stack frame transform does not support curve {curve.Kind}.")
+    };
+    private static SurfaceGeometry Transform(SurfaceGeometry surface, ConstructionPlane frame) => surface.Kind switch
+    {
+        SurfaceGeometryKind.Plane => SurfaceGeometry.FromPlane(new PlaneSurface(frame.ToWorld((surface.Plane!.Value.Origin.X, surface.Plane.Value.Origin.Y), surface.Plane.Value.Origin.Z), Direction3D.Create(frame.ToWorldDirection(surface.Plane.Value.Normal.ToVector())), Direction3D.Create(frame.ToWorldDirection(surface.Plane.Value.UAxis.ToVector())))),
+        SurfaceGeometryKind.Cylinder => SurfaceGeometry.FromCylinder(new CylinderSurface(frame.ToWorld((surface.Cylinder!.Value.Origin.X, surface.Cylinder.Value.Origin.Y), surface.Cylinder.Value.Origin.Z), Direction3D.Create(frame.ToWorldDirection(surface.Cylinder.Value.Axis.ToVector())), surface.Cylinder.Value.Radius, Direction3D.Create(frame.ToWorldDirection(surface.Cylinder.Value.XAxis.ToVector())))),
+        _ => throw new NotSupportedException($"Section-stack frame transform does not support surface {surface.Kind}.")
+    };
     private static LoopId AddLoop(TopologyBuilder builder, IReadOnlyList<Use> uses) { var id = builder.AllocateLoopId(); var coedges = uses.Select(_ => builder.AllocateCoedgeId()).ToArray(); for (var i = 0; i < uses.Count; i++) builder.AddCoedge(new Coedge(coedges[i], uses[i].Edge, id, coedges[(i + 1) % coedges.Length], coedges[(i + coedges.Length - 1) % coedges.Length], uses[i].Reverse)); builder.AddLoop(new Loop(id, coedges)); return id; }
     private readonly record struct Use(EdgeId Edge, bool Reverse);
 }

@@ -1,10 +1,48 @@
 using Aetheris.Kernel.Firmament.Assembly;
+using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Step242;
 using Aetheris.Semantics;
 
 namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 
 public sealed class AssemblyM1Tests
 {
+    [Fact]
+    public void ModelTargetTemplates_MaterializeAnalyticPrimitiveDefinitionsAndExportProductOccurrences()
+    {
+        const string source = """
+            Template < R: Length > Model Ball { Units: mm Sphere Body { Radius: R } }
+            Template < R: Length > Model Stem { Units: mm Cylinder Body { Radius: R; Height: 20mm } }
+            Assembly Pair {
+              <Assembly Pair>
+                <Part Knob = Ball<R: 5mm>> Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]; </Part>
+                <Part Shaft = Stem<R: 2mm>> Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,-25,1]; </Part>
+              </Assembly>
+              Anchor: Pair;
+            }
+            """;
+        var path = Path.Combine(Path.GetTempPath(), "aetheris-model-template-assembly-" + Guid.NewGuid().ToString("N") + ".firmament");
+        try
+        {
+            File.WriteAllText(path, source);
+            var compilation = new AssemblyM1Pipeline().CompileFile(path);
+            Assert.True(compilation.IsSuccess, string.Join(Environment.NewLine, compilation.Diagnostics.Select(item => $"{item.Code}: {item.Message}")));
+            Assert.Equal(2, compilation.Geometry!.DefinitionBodies.Count);
+            Assert.Contains(compilation.Geometry.DefinitionBodies.Values, body => body.Geometry.Surfaces.Any(surface => surface.Value.Kind == SurfaceGeometryKind.Sphere));
+            Assert.Contains(compilation.Geometry.DefinitionBodies.Values, body => body.Geometry.Surfaces.Any(surface => surface.Value.Kind == SurfaceGeometryKind.Cylinder));
+
+            var exported = AssemblyIrAp242Exporter.Export(compilation);
+            Assert.True(exported.IsSuccess, string.Join(Environment.NewLine, exported.Diagnostics.Select(item => item.Message)));
+            var product = Step242AssemblyImporter.Import(exported.Value);
+            Assert.True(product.IsSuccess, string.Join(Environment.NewLine, product.Diagnostics.Select(item => item.Message)));
+            Assert.Equal(2, product.Value.Occurrences.Count);
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
     [Fact]
     public void TemplateRecordParts_ExecuteAsReusedExactWorldGeometryWithResidualValidation()
     {

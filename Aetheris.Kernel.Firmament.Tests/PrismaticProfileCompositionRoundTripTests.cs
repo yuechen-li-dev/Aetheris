@@ -155,14 +155,69 @@ public sealed class PrismaticProfileCompositionRoundTripTests
     }
 
     [Theory]
-    [InlineData("Anchor: [0mm, 0mm, 0mm]", "Anchor: [1mm, 0mm, 0mm]", "compose-placement-unsupported-nonzero-anchor")]
-    [InlineData("Axis: +Z", "Axis: -Z", "compose-placement-unsupported-orientation")]
-    public void ExplicitComposePlacement_RejectsUnsupportedTransformInsteadOfIgnoringIt(string before, string after, string expected)
+    [InlineData("ProfilePlane: XY", "ProfilePlane: YZ", "compose-placement-plane-axis-mismatch")]
+    [InlineData("ReferenceDirection: +X", "ReferenceDirection: +Z", "compose-placement-reference-parallel-to-axis")]
+    public void ExplicitComposePlacement_RejectsInvalidFrameInsteadOfIgnoringIt(string before, string after, string expected)
     {
         var source = File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "fixtures", "Compatibility", "LegacyV1", "Reconstruction", "nist_ctc_01", "ctc01_prismatic_blockout_x2.firmament")));
         var parsed = PrismaticProfileCompositionParser.Parse(source.Replace(before, after, StringComparison.Ordinal));
         Assert.Null(parsed.Feature);
         Assert.Contains(parsed.Diagnostics, diagnostic => diagnostic.Contains(expected, StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("XY", "+Z", "+X", 9d, 18d, 30d, 11d, 22d, 36d)]
+    [InlineData("XY", "-Z", "+X", 9d, 18d, 24d, 11d, 22d, 30d)]
+    [InlineData("YZ", "+X", "+Y", 10d, 19d, 28d, 16d, 21d, 32d)]
+    [InlineData("YZ", "-X", "+Y", 4d, 19d, 28d, 10d, 21d, 32d)]
+    [InlineData("XZ", "+Y", "+X", 9d, 20d, 28d, 11d, 26d, 32d)]
+    [InlineData("XZ", "-Y", "+X", 9d, 14d, 28d, 11d, 20d, 32d)]
+    public void ExplicitComposePlacement_EmbedsOneLocalSectionStackAlongEverySignedPrincipalAxis(
+        string plane, string axis, string reference,
+        double minX, double minY, double minZ, double maxX, double maxY, double maxZ)
+    {
+        var source = $$"""
+            Model OrientedCompose {
+              Units: mm
+              Concept Struct Layout On XY { Rect2 Stock { Center: [0mm, 0mm]; Size: [2mm, 4mm] } }
+              Profile StockProfile Using Layout { Loop Outer {
+                Segment South { Trace: Stock.Bottom; From: Stock.BottomLeft; To: Stock.BottomRight }
+                Segment East { Trace: Stock.Right; From: Stock.BottomRight; To: Stock.TopRight }
+                Segment North { Trace: Stock.Top; From: Stock.TopRight; To: Stock.TopLeft }
+                Segment West { Trace: Stock.Left; From: Stock.TopLeft; To: Stock.BottomLeft }
+              } }
+              Struct Body { Compose Body {
+                Placement Frame { Anchor: [10mm, 20mm, 30mm]; ProfilePlane: {{plane}}; Axis: {{axis}}; ReferenceDirection: {{reference}} }
+                Base Stock { Profile: StockProfile; From: 0mm; To: 6mm; Role: Stock }
+              } }
+            }
+            """;
+        var parsed = PrismaticProfileCompositionParser.Parse(source);
+        Assert.Empty(parsed.Diagnostics);
+        var stack = Assert.IsType<PrismaticSectionStackConstruction>(PrismaticSectionStackCompiler.Normalize(parsed, out var diagnostics));
+        Assert.Empty(diagnostics);
+        var body = Assert.IsType<Aetheris.Kernel.Core.Brep.BrepBody>(PrismaticSectionStackEmitter.Emit(stack).Body);
+        var bounds = VertexBounds(body);
+        Assert.Equal(new Aetheris.Kernel.Core.Math.Point3D(minX, minY, minZ), bounds.Min);
+        Assert.Equal(new Aetheris.Kernel.Core.Math.Point3D(maxX, maxY, maxZ), bounds.Max);
+
+        var step = Step242Exporter.ExportBody(body, new Step242ExportOptions { BrepExportPreflightMode = BrepExportPreflightMode.Enforce });
+        Assert.True(step.IsSuccess, string.Join(" | ", step.Diagnostics.Select(item => item.Message)));
+        var imported = Step242Importer.ImportBody(step.Value);
+        Assert.True(imported.IsSuccess, string.Join(" | ", imported.Diagnostics.Select(item => item.Message)));
+        Assert.Equal(bounds, VertexBounds(imported.Value));
+    }
+
+    private static Aetheris.Kernel.Core.Math.BoundingBox3D VertexBounds(Aetheris.Kernel.Core.Brep.BrepBody body)
+    {
+        var points = body.Topology.Vertices.Select(vertex =>
+        {
+            Assert.True(body.TryGetVertexPoint(vertex.Id, out var point));
+            return point;
+        }).ToArray();
+        return new(
+            new(points.Min(point => point.X), points.Min(point => point.Y), points.Min(point => point.Z)),
+            new(points.Max(point => point.X), points.Max(point => point.Y), points.Max(point => point.Z)));
     }
 
     [Theory]

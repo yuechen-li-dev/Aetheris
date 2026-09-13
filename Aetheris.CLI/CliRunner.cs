@@ -142,9 +142,10 @@ public static class CliRunner
     private const string InspectSelectionsUsage = "Usage: aetheris inspect-selections <file.firmament> --json";
     private const string AnalyzeUsage = "Usage: aetheris analyze <file.step> [--face <id>] [--edge <id>] [--vertex <id>] [--json]";
     private const string AnalyzeMapUsage = "Usage: aetheris analyze map <file.step> (--plane <xy|xz|yz> --direction <+x|-x|+y|-y|+z|-z> | --views six --llm) --resolution <NxM> [--point <u,v>] [--rank-probes|--evidence-bundle] --json";
-    private const string AnalyzeSectionUsage = "Usage: aetheris analyze section <file.step> (--xy|--xz|--yz) --offset <value> --json";
+    private const string AnalyzeSectionUsage = "Usage: aetheris analyze section <file.step> ((--xy|--xz|--yz) --offset <value>|--origin <x,y,z> --normal <x,y,z>) [--out <section.svg>] [--json]";
     private const string AnalyzeVolumeUsage = "Usage: aetheris analyze volume <file.step> [--approximate --resolution <N>] [--json]";
     private const string AnalyzeCompareUsage = "Usage: aetheris analyze compare <reference.step> <candidate.step> [--approximate-volume --resolution <N>] [--json]";
+    private const string AnalyzeCompoundUsage = "Usage: aetheris analyze compound <file.step> [--json]";
     private const string SectionsUsage = "Usage: aetheris sections <artifact.step> --axis Z --levels <z,...> [--epsilon <mm>] --json";
     private const string VerifyUsage = "Usage: aetheris verify <file.firmament|file.step> [--expected-volume <value>] [--cad-assistant] [--cad-assistant-path <path>] [--timeout <seconds>] [--evidence-dir <path>] [--require-external] [--json]";
     private const string InspectUsage = "Usage: aetheris inspect <file.firmament|file.step> [--json]";
@@ -2739,6 +2740,7 @@ Model CanonicalPanel {
             stderr.WriteLine($"   or: {AnalyzeSectionUsage[7..]}");
             stderr.WriteLine($"   or: {AnalyzeVolumeUsage[7..]}");
             stderr.WriteLine($"   or: {AnalyzeCompareUsage[7..]}");
+            stderr.WriteLine($"   or: {AnalyzeCompoundUsage[7..]}");
             stderr.WriteLine("Run 'aetheris analyze --help' for examples.");
             return 1;
         }
@@ -2763,6 +2765,10 @@ Model CanonicalPanel {
         {
             return RunAnalyzeVolume(args.Skip(1).ToArray(), stdout, stderr);
         }
+        if (string.Equals(args[0], "compound", StringComparison.Ordinal))
+        {
+            return RunAnalyzeCompound(args.Skip(1).ToArray(), stdout, stderr);
+        }
         if (string.Equals(args[0], "compare", StringComparison.Ordinal))
         {
             return RunAnalyzeCompare(args.Skip(1).ToArray(), stdout, stderr);
@@ -2770,7 +2776,7 @@ Model CanonicalPanel {
 
         if (args[0].StartsWith("-", StringComparison.Ordinal))
         {
-            stderr.WriteLine("Analyze requires <file.step> as the first argument, or a subcommand ('map', 'section', 'volume', or 'compare').");
+            stderr.WriteLine("Analyze requires <file.step> as the first argument, or a subcommand ('map', 'section', 'volume', 'compound', or 'compare').");
             stderr.WriteLine(AnalyzeUsage);
             return 1;
         }
@@ -4268,6 +4274,39 @@ Model CanonicalPanel {
         return 0;
     }
 
+    private static int RunAnalyzeCompound(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0 || IsHelpFlag(args[0]))
+        {
+            stdout.WriteLine("Inspect every exact rigid root in a STEP serialization without assigning Part or Assembly semantics.");
+            stdout.WriteLine(AnalyzeCompoundUsage);
+            return args.Length == 0 ? 1 : 0;
+        }
+        var json = args.Skip(1).Any(arg => arg == "--json");
+        if (args.Skip(1).Any(arg => arg != "--json"))
+        {
+            stderr.WriteLine(AnalyzeCompoundUsage);
+            return 1;
+        }
+        try
+        {
+            var result = StepAnalyzer.AnalyzeCompound(args[0]);
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(result, JsonOptions));
+            else
+            {
+                stdout.WriteLine($"Roots: {result.RootCount}; solids: {result.SolidCount}; aggregate volume: {result.AggregateVolume?.ToString("G12", System.Globalization.CultureInfo.InvariantCulture) ?? "unavailable"}");
+                foreach (var solid in result.Solids)
+                    stdout.WriteLine($"  #{solid.RootEntityId}: solids={solid.SolidCount}, volume={solid.Volume?.ToString("G12", System.Globalization.CultureInfo.InvariantCulture) ?? "unavailable"}, center=({solid.PlacementCenter.X:G6},{solid.PlacementCenter.Y:G6},{solid.PlacementCenter.Z:G6})");
+            }
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            WriteAnalyzeFailureJson(stdout, args[0], ex);
+            return 1;
+        }
+    }
+
     private static int RunAnalyzeSection(string[] args, TextWriter stdout, TextWriter stderr)
     {
         if (args.Length == 0)
@@ -4294,6 +4333,9 @@ Model CanonicalPanel {
         SectionPlaneFamily? plane = null;
         var planeOptionCount = 0;
         double? offset = null;
+        Point3D? customOrigin = null;
+        Vector3D? customNormal = null;
+        string? outputSvg = null;
         var json = false;
 
         for (var i = 1; i < args.Length; i++)
@@ -4319,6 +4361,22 @@ Model CanonicalPanel {
                     stderr.WriteLine("Analyze section option --offset requires a numeric value.");
                     stderr.WriteLine(AnalyzeSectionUsage);
                     return 1;
+                case "--origin" when i + 1 < args.Length && TryParseTriple(args[++i], out var parsedOrigin):
+                    customOrigin = new Point3D(parsedOrigin.X, parsedOrigin.Y, parsedOrigin.Z);
+                    break;
+                case "--normal" when i + 1 < args.Length && TryParseTriple(args[++i], out var parsedNormal):
+                    customNormal = new Vector3D(parsedNormal.X, parsedNormal.Y, parsedNormal.Z);
+                    break;
+                case "--origin":
+                case "--normal":
+                    stderr.WriteLine($"Analyze section option {args[i]} requires x,y,z numeric values.");
+                    return 1;
+                case "--out" when i + 1 < args.Length:
+                    outputSvg = Path.GetFullPath(args[++i]);
+                    break;
+                case "--out":
+                    stderr.WriteLine("Analyze section option --out requires an SVG path.");
+                    return 1;
                 case "--json":
                     json = true;
                     break;
@@ -4333,28 +4391,31 @@ Model CanonicalPanel {
             }
         }
 
-        if (!plane.HasValue || planeOptionCount != 1)
+        var custom = customOrigin.HasValue || customNormal.HasValue;
+        if (custom && (!customOrigin.HasValue || !customNormal.HasValue || planeOptionCount != 0 || offset.HasValue))
         {
-            stderr.WriteLine("Analyze section requires exactly one plane selector (--xy|--xz|--yz).");
+            stderr.WriteLine("Custom section requires both --origin and --normal, without a principal plane or --offset.");
             return 1;
         }
-
-        if (!offset.HasValue)
+        if (!custom && (!plane.HasValue || planeOptionCount != 1 || !offset.HasValue))
         {
-            stderr.WriteLine("Analyze section requires --offset <value>.");
+            stderr.WriteLine(planeOptionCount == 1 && !offset.HasValue
+                ? "Analyze section requires --offset <value>."
+                : "Principal section requires exactly one of --xy|--xz|--yz and --offset <value>.");
             return 1;
         }
-
-        if (!json)
+        if (!json && outputSvg is null)
         {
-            stderr.WriteLine("Analyze section currently requires --json output. Re-run with --json.");
+            stderr.WriteLine("Analyze section requires --json, --out <section.svg>, or both.");
             return 1;
         }
 
         SectionAnalysisResult section;
         try
         {
-            section = StepAnalyzer.AnalyzeSection(stepPath, plane.Value, offset.Value);
+            section = custom
+                ? StepAnalyzer.AnalyzeSection(stepPath, customOrigin!.Value, customNormal!.Value)
+                : StepAnalyzer.AnalyzeSection(stepPath, plane!.Value, offset!.Value);
         }
         catch (Exception ex)
         {
@@ -4362,7 +4423,13 @@ Model CanonicalPanel {
             return 1;
         }
 
-        stdout.WriteLine(JsonSerializer.Serialize(section, JsonOptions));
+        if (outputSvg is not null)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(outputSvg)!);
+            File.WriteAllText(outputSvg, StepSectionSvgRenderer.Render(section));
+        }
+        if (json) stdout.WriteLine(JsonSerializer.Serialize(section, JsonOptions));
+        else stdout.WriteLine($"Section SVG: {outputSvg}");
         return 0;
     }
 
@@ -4546,6 +4613,17 @@ Model CanonicalPanel {
         if (!double.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v)) return false;
         point = (u, v);
         return true;
+    }
+
+    private static bool TryParseTriple(string value, out (double X, double Y, double Z) triple)
+    {
+        triple = default;
+        var parts = value.Split(',');
+        return parts.Length == 3
+            && double.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out triple.X)
+            && double.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out triple.Y)
+            && double.TryParse(parts[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out triple.Z)
+            && double.IsFinite(triple.X) && double.IsFinite(triple.Y) && double.IsFinite(triple.Z);
     }
 
     private static bool IsVersionFlag(string value) =>
@@ -4746,6 +4824,7 @@ Model CanonicalPanel {
         stdout.WriteLine(AnalyzeUsage);
         stdout.WriteLine($"   or: {AnalyzeMapUsage[7..]}");
         stdout.WriteLine($"   or: {AnalyzeSectionUsage[7..]}");
+        stdout.WriteLine($"   or: {AnalyzeCompoundUsage[7..]}");
         stdout.WriteLine();
         stdout.WriteLine("Options (summary mode):");
         stdout.WriteLine("  --face <id>     Inspect one face.");
@@ -4759,7 +4838,7 @@ Model CanonicalPanel {
         stdout.WriteLine("  - Use 'aetheris analyze map --help' for orthographic map options.");
         stdout.WriteLine("  - Use 'aetheris analyze section --help' for section options.");
         stdout.WriteLine("  - Use 'aetheris analyze volume --help' for volume options.");
-        stdout.WriteLine("  - Assembly-like multi-root STEP is rejected here with a route hint to assembly extraction/import.");
+        stdout.WriteLine("  - Summary mode remains single-part; use 'analyze compound' to inspect every multi-root solid without assigning product semantics.");
         stdout.WriteLine();
         stdout.WriteLine("Examples:");
         stdout.WriteLine("  aetheris analyze part.step");
@@ -4768,6 +4847,7 @@ Model CanonicalPanel {
         stdout.WriteLine("  aetheris analyze part.step --face 12 --json");
         stdout.WriteLine("  aetheris analyze map part.step --right --rows 20 --cols 30 --json");
         stdout.WriteLine("  aetheris analyze section part.step --yz --offset 1.25 --json");
+        stdout.WriteLine("  aetheris analyze compound multi-solid.step --json");
     }
 
     private static void WriteAnalyzeMapHelp(TextWriter stdout)
@@ -4794,17 +4874,19 @@ Model CanonicalPanel {
 
     private static void WriteAnalyzeSectionHelp(TextWriter stdout)
     {
-        stdout.WriteLine("Analyze STEP body by intersecting a principal section plane.");
+        stdout.WriteLine("Analyze STEP body by intersecting a principal or arbitrary section plane.");
         stdout.WriteLine();
         stdout.WriteLine(AnalyzeSectionUsage);
         stdout.WriteLine();
         stdout.WriteLine("Required:");
-        stdout.WriteLine("  exactly one plane: --xy | --xz | --yz");
-        stdout.WriteLine("  --offset <value>  Plane offset along the orthogonal axis.");
-        stdout.WriteLine("  --json            Required output mode.");
+        stdout.WriteLine("  principal: exactly one of --xy | --xz | --yz plus --offset <value>");
+        stdout.WriteLine("  arbitrary: --origin <x,y,z> plus --normal <x,y,z>");
+        stdout.WriteLine("  --out <path>      Write deterministic 2D SVG evidence.");
+        stdout.WriteLine("  --json            Emit ordered analytic loops and provenance.");
         stdout.WriteLine();
         stdout.WriteLine("Example:");
         stdout.WriteLine("  aetheris analyze section part.step --xz --offset 5.0 --json");
+        stdout.WriteLine("  aetheris analyze section part.step --origin 1,2,3 --normal 1,1,0 --out section.svg --json");
     }
 
     private static void WriteAnalyzeVolumeHelp(TextWriter stdout)

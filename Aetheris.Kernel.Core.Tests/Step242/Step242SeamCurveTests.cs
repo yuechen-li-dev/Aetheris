@@ -1,0 +1,57 @@
+using Aetheris.Kernel.Core.Step242;
+using Aetheris.Kernel.Core.Geometry;
+
+namespace Aetheris.Kernel.Core.Tests.Step242;
+
+public sealed class Step242SeamCurveTests
+{
+    [Fact]
+    public void ImportBody_SeamCurve_UsesAuthoritativeThreeDimensionalCurve()
+    {
+        const string cylinderFace = @"ISO-10303-21;
+HEADER;
+ENDSEC;
+DATA;
+#1=MANIFOLD_SOLID_BREP('solid',#2);
+#2=CLOSED_SHELL($,(#3));
+#3=ADVANCED_FACE((#4),#5,.T.);
+#4=FACE_OUTER_BOUND($,#6,.T.);
+#5=CYLINDRICAL_SURFACE($,#30,1.0);
+#6=EDGE_LOOP($,(#7,#8,#9,#10));
+#7=ORIENTED_EDGE($,$,$,#11,.T.);
+#8=ORIENTED_EDGE($,$,$,#12,.T.);
+#9=ORIENTED_EDGE($,$,$,#13,.T.);
+#10=ORIENTED_EDGE($,$,$,#14,.T.);
+#11=EDGE_CURVE($,#15,#16,#17,.T.);
+#12=EDGE_CURVE($,#16,#16,#40,.T.);
+#13=EDGE_CURVE($,#16,#15,#19,.T.);
+#14=EDGE_CURVE($,#15,#15,#20,.T.);
+#15=VERTEX_POINT($,#21);
+#16=VERTEX_POINT($,#22);
+#17=LINE($,#21,#23);
+#18=CIRCLE($,#31,1.0);
+#19=LINE($,#22,#24);
+#20=CIRCLE($,#30,1.0);
+#21=CARTESIAN_POINT($,(1,0,0));
+#22=CARTESIAN_POINT($,(1,0,1));
+#23=VECTOR($,#25,1.0);
+#24=VECTOR($,#26,1.0);
+#25=DIRECTION($,(0,0,1));
+#26=DIRECTION($,(0,0,-1));
+#30=AXIS2_PLACEMENT_3D($,#27,#28,#29);
+#31=AXIS2_PLACEMENT_3D($,#32,#28,#29);
+#32=CARTESIAN_POINT($,(0,0,1));
+#27=CARTESIAN_POINT($,(0,0,0));
+#28=DIRECTION($,(0,0,1));
+#29=DIRECTION($,(1,0,0));
+#40=SEAM_CURVE('',#18,(),.PCURVE_S1.);
+ENDSEC;
+END-ISO-10303-21;";
+
+        var import = Step242Importer.ImportBody(cylinderFace);
+
+        Assert.True(import.IsSuccess);
+        Assert.Equal(4, import.Value.Topology.Edges.Count());
+        Assert.Contains(import.Value.Geometry.Curves.Select(binding => binding.Value), curve => curve.Kind == CurveGeometryKind.Circle3);
+    }
+}

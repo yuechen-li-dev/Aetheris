@@ -1,0 +1,48 @@
+Concept CellBlockConcept {
+    Bounds: Box3
+    Axis: Axis
+    Seat: Plane
+    Base: Plane
+    Height: Length
+}
+
+Record CellBlockSpec { Width: Length Depth: Length Height: Length }
+Static CellBlockValue: CellBlockSpec = CellBlockSpec { Width: 10mm Depth: 10mm Height: 10mm }
+
+Template < Spec: CellBlockSpec >
+Struct CellBlock: CellBlockConcept {
+    Require Positive => Spec.Width > 0mm && Spec.Depth > 0mm && Spec.Height > 0mm
+    Concept Struct Design: CellBlockConcept {
+        Bounds: Box3 { Size: [Spec.Width, Spec.Depth, Spec.Height] }
+        Axis: Bounds.Center.Axis(+Z)
+        Seat: Bounds.Face(+Z)
+        Base: Bounds.Face(-Z)
+        Height: Spec.Height
+    }
+    Box Body { Bounds: Design.Bounds }
+    Modify Body {
+        EdgeFinish ProofBreak {
+            Face: Design.Seat
+            Target: Boundary
+            Kind: Chamfer
+            Distance: 1mm
+        }
+    }
+    Expose {
+        Bounds: Design.Bounds
+        Axis: Design.Axis
+        Seat: Design.Seat
+        Base: Design.Base
+        Height: Design.Height
+    }
+}
+
+Subassembly ExecutableCell {
+    <Assembly ExecutableCell>
+        <Part Body = CellBlock<Spec: CellBlockValue>>
+            Semantic Port { Axis Axis = [0,0,0] -> [0,0,1]; }
+        </Part>
+    </Assembly>
+    Anchor: ExecutableCell.Body.Port;
+    Expose { Semantic Port = Body.Port; }
+}

@@ -51,6 +51,21 @@ Interface<Gear> Indexing {
 
 This relationship is ideal geometry and kinematics. It is not a contact, dynamics, torque, wear, or stress solver.
 
+## Gear ports in subassemblies
+
+A gear does not stop being a Gear inside a Subassembly. Expose it without copying its parameters, then use ordinary `Interface<Gear>` in the parent:
+
+```firmament
+Expose { Gear Output = OutputGear; }
+
+Interface<Gear> Transfer {
+    A: RegisterA.Output;
+    B: RegisterB.Input;
+}
+```
+
+The endpoint holds a typed reference to the existing Gear AIR. Definition-level dimensions and phase remain Gear-owned; the Assembly occurrence supplies the world transform. Module, pressure angle, family, ratio, rotation sign, bevel closure, and ratchet rules still come from the one Gear evaluator. Assembly adds only occurrence-space axis and actual center-distance validation.
+
 ## Parameters and boundaries
 
 | Family | Status | Required | Optional | Boundary |
@@ -74,6 +89,7 @@ Gear AIR always carries an explicit axis. Omitted source uses `[0,0,1]`; X0 also
 aetheris validate fixtures/Canonical/Gears/spur-basic.firmament --json
 aetheris inspect fixtures/Canonical/GearInterfaces/spur-pair.firmament --json
 aetheris build fixtures/Canonical/Gears/spur-basic.firmament --out artifacts/local/spur.step --json
+aetheris asm inspect fixtures/Canonical/AssemblyInterfaces/exposed-gear-port.firmament --json
 ```
 
 `inspect` reports the authored and derived diameters, axis, phase, backlash, stable `Tooth0` through `ToothN-1` identities, and interface results. `build` adds topology and surface counts, involute approximation error, manifold STEP re-import evidence, and a SHA-256 digest. A build emits one gear body; use the typed interfaces as assembly/placement authority for trains rather than treating a multi-gear source as one fused solid.

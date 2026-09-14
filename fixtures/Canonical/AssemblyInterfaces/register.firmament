@@ -1,0 +1,26 @@
+Include "digit-module.firmament";
+
+// One definition contains two occurrences of the shared DigitModule definition.
+Subassembly Register {
+    <Assembly Register>
+        <Assembly Digit0 = DigitModule></Assembly>
+        <Assembly Digit1 = DigitModule></Assembly>
+    </Assembly>
+
+    Anchor: Register.Digit0.Output;
+
+    Interface<Custom> CarryLink {
+        A: Register.Digit1.Input;
+        B: Register.Digit0.Output;
+        Mate AxisCoincident A.Axis B.Axis;
+        Mate PlaneCoincident A.Seat B.Seat;
+        Mate PointCoincident A.Locator B.Locator;
+        Require PositiveClearance => 1mm > 0mm;
+        Allow rotation:about-axis;
+    }
+
+    Expose {
+        Semantic Input = Digit0.Input;
+        Semantic Output = Digit1.Output;
+    }
+}

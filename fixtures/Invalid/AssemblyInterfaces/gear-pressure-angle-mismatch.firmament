@@ -1,0 +1,4 @@
+Units: mm
+SpurGear A { Module: 2mm Teeth: 20 PressureAngle: 20deg FaceWidth: 6mm BoreDiameter: 5mm }
+SpurGear B { Module: 2mm Teeth: 20 PressureAngle: 25deg FaceWidth: 6mm BoreDiameter: 5mm }
+Assembly PressureMismatch { <Assembly PressureMismatch><Part A = A></Part><Part B = B>Placement ImportedOccurrence = [1,0,0,0,0,1,0,0,0,0,1,0,40,0,0,1];</Part></Assembly> Anchor: PressureMismatch.A; Interface<Gear> Mesh { A: PressureMismatch.A; B: PressureMismatch.B; } }

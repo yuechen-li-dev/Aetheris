@@ -1,0 +1,13 @@
+Units: mm
+BevelGear Pinion { Module: 1mm Teeth: 20 PressureAngle: 20deg FaceWidth: 5mm BoreDiameter: 5mm PitchConeAngle: 26.565051177deg }
+BevelGear Gear { Module: 1mm Teeth: 40 PressureAngle: 20deg FaceWidth: 5mm BoreDiameter: 8mm PitchConeAngle: 63.434948823deg }
+Subassembly BevelInput { <Assembly BevelInput><Part Gear = Pinion></Part></Assembly> Anchor: BevelInput.Gear; Expose { Gear Port = Gear; } }
+Subassembly BevelOutput { <Assembly BevelOutput><Part Gear = Gear></Part></Assembly> Anchor: BevelOutput.Gear; Expose { Gear Port = Gear; } }
+Assembly BevelBridge {
+  <Assembly BevelBridge>
+    <Assembly A = BevelInput></Assembly>
+    <Assembly B = BevelOutput>Placement ImportedOccurrence = [1,0,0,0, 0,0,1,0, 0,-1,0,0, 0,0,0,1];</Assembly>
+  </Assembly>
+  Anchor: BevelBridge.A.Port;
+  Interface<Gear> Mesh { A: BevelBridge.A.Port; B: BevelBridge.B.Port; ShaftAngle: 90deg }
+}

@@ -1,0 +1,8 @@
+Units: mm
+SpurGear Wheel { Module: 2mm Teeth: 20 PressureAngle: 20deg FaceWidth: 6mm BoreDiameter: 5mm }
+Subassembly DigitModule {
+  <Assembly DigitModule><Part OutputGear = Wheel></Part></Assembly>
+  Anchor: DigitModule.OutputGear;
+  Expose { Gear Input = OutputGear; Gear Output = OutputGear; }
+}
+Assembly DigitModuleExample { <Assembly DigitModuleExample><Assembly Digit = DigitModule></Assembly></Assembly> Anchor: DigitModuleExample.Digit.Input; }

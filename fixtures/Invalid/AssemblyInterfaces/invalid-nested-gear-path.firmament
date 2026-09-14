@@ -1,0 +1,8 @@
+Units: mm
+SpurGear G { Module: 2mm Teeth: 20 PressureAngle: 20deg FaceWidth: 6mm BoreDiameter: 5mm }
+Subassembly Cell {
+  <Assembly Cell><Part Gear = G></Part></Assembly>
+  Anchor: Cell.Gear;
+  Expose { Gear Missing = Gear.DoesNotExist; }
+}
+Assembly InvalidPath { <Assembly InvalidPath><Assembly Cell = Cell></Assembly></Assembly> }

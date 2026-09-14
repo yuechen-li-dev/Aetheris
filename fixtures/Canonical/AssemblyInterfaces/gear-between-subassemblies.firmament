@@ -1,0 +1,15 @@
+Units: mm
+SpurGear Wheel { Module: 2mm Teeth: 20 PressureAngle: 20deg FaceWidth: 6mm BoreDiameter: 5mm Phase: 3deg }
+Subassembly GearCell {
+  <Assembly GearCell><Part Wheel = Wheel></Part></Assembly>
+  Anchor: GearCell.Wheel;
+  Expose { Gear Port = Wheel; }
+}
+Assembly GearCells {
+  <Assembly GearCells>
+    <Assembly A = GearCell></Assembly>
+    <Assembly B = GearCell>Placement ImportedOccurrence = [1,0,0,0, 0,1,0,0, 0,0,1,0, 40,0,0,1];</Assembly>
+  </Assembly>
+  Anchor: GearCells.A.Port;
+  Interface<Gear> Transfer { A: GearCells.A.Port; B: GearCells.B.Port; }
+}

@@ -111,6 +111,21 @@ public static class GearAuthoring
         RegexOptions.CultureInvariant);
 
     public static bool IsGearSource(string source) => Header.IsMatch(source) || InterfaceHeader.IsMatch(source);
+    public static bool HasGearDefinitions(string source) => Header.IsMatch(source);
+
+    /// <summary>Parses only the compiler-owned Gear declarations in a mixed-domain source.</summary>
+    public static GearAuthoringDocument ParseDefinitions(string source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        var diagnostics = new List<string>();
+        var modelMatch = Regex.Match(source, @"\bModel\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
+        var modelName = modelMatch.Success ? modelMatch.Groups["name"].Value : "GearModel";
+        if (!Regex.IsMatch(source, @"\bUnits\s*:\s*mm\b", RegexOptions.CultureInvariant))
+            diagnostics.Add(Prefix + "units-invalid:mm-required");
+        var gears = ParseGearDeclarations(source, diagnostics);
+        if (gears.Count == 0) diagnostics.Add(Prefix + "declaration-missing");
+        return new(modelName, gears, [], diagnostics.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray());
+    }
 
     public static GearAuthoringDocument Parse(string source)
     {
@@ -121,6 +136,28 @@ public static class GearAuthoring
         if (!Regex.IsMatch(source, @"\bUnits\s*:\s*mm\b", RegexOptions.CultureInvariant))
             diagnostics.Add(Prefix + "units-invalid:mm-required");
 
+        var gears = ParseGearDeclarations(source, diagnostics);
+
+        var interfaces = new List<InterfaceAir<GearAir>>();
+        foreach (Match header in InterfaceHeader.Matches(source))
+        {
+            var open = source.IndexOf('{', header.Index); var close = MatchingBrace(source, open);
+            if (close < 0) { diagnostics.Add(Prefix + "interface-unclosed:" + header.Groups["name"].Value); continue; }
+            var body = source[(open + 1)..close]; var aName = Identifier(body, "A"); var bName = Identifier(body, "B");
+            if (aName is null || bName is null) { diagnostics.Add(Prefix + "interface-endpoint-missing:" + header.Groups["name"].Value); continue; }
+            var a = gears.SingleOrDefault(gear => gear.Name == aName); var b = gears.SingleOrDefault(gear => gear.Name == bName);
+            if (a is null || b is null) { diagnostics.Add(Prefix + "interface-endpoint-unresolved:" + header.Groups["name"].Value); continue; }
+            interfaces.Add(EvaluateInterface(header.Groups["name"].Value, a, b,
+                Angle(body, "ShaftAngle"), Angle(body, "EngagementPhase"), Identifier(body, "AllowedDirection"),
+                new(header.Index, close - header.Index + 1)));
+        }
+        diagnostics.AddRange(interfaces.Where(item => !item.Compatible).SelectMany(item => item.RejectionReasons.Select(reason => $"{Prefix}interface-incompatible:{item.Name}:{reason}")));
+        if (gears.Count == 0) diagnostics.Add(Prefix + "declaration-missing");
+        return new(modelName, gears, interfaces, diagnostics.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray());
+    }
+
+    private static List<GearAir> ParseGearDeclarations(string source, List<string> diagnostics)
+    {
         var gears = new List<GearAir>();
         foreach (Match header in Header.Matches(source))
         {
@@ -148,23 +185,7 @@ public static class GearAuthoring
         }
         foreach (var duplicate in gears.GroupBy(gear => gear.Name, StringComparer.Ordinal).Where(group => group.Count() > 1))
             diagnostics.Add(Prefix + "duplicate-identity:" + duplicate.Key);
-
-        var interfaces = new List<InterfaceAir<GearAir>>();
-        foreach (Match header in InterfaceHeader.Matches(source))
-        {
-            var open = source.IndexOf('{', header.Index); var close = MatchingBrace(source, open);
-            if (close < 0) { diagnostics.Add(Prefix + "interface-unclosed:" + header.Groups["name"].Value); continue; }
-            var body = source[(open + 1)..close]; var aName = Identifier(body, "A"); var bName = Identifier(body, "B");
-            if (aName is null || bName is null) { diagnostics.Add(Prefix + "interface-endpoint-missing:" + header.Groups["name"].Value); continue; }
-            var a = gears.SingleOrDefault(gear => gear.Name == aName); var b = gears.SingleOrDefault(gear => gear.Name == bName);
-            if (a is null || b is null) { diagnostics.Add(Prefix + "interface-endpoint-unresolved:" + header.Groups["name"].Value); continue; }
-            interfaces.Add(BindInterface(header.Groups["name"].Value, a, b,
-                Angle(body, "ShaftAngle"), Angle(body, "EngagementPhase"), Identifier(body, "AllowedDirection"),
-                new(header.Index, close - header.Index + 1)));
-        }
-        diagnostics.AddRange(interfaces.Where(item => !item.Compatible).SelectMany(item => item.RejectionReasons.Select(reason => $"{Prefix}interface-incompatible:{item.Name}:{reason}")));
-        if (gears.Count == 0) diagnostics.Add(Prefix + "declaration-missing");
-        return new(modelName, gears, interfaces, diagnostics.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray());
+        return gears;
     }
 
     public static GearMaterialization? Materialize(GearAir gear, out IReadOnlyList<string> diagnostics)
@@ -215,7 +236,7 @@ public static class GearAuthoring
             toothIds);
     }
 
-    private static InterfaceAir<GearAir> BindInterface(string name, GearAir a, GearAir b, double? shaftAngle,
+    public static InterfaceAir<GearAir> EvaluateInterface(string name, GearAir a, GearAir b, double? shaftAngle,
         double? engagementPhase, string? allowedDirection, FirmamentV2SourceSpan span)
     {
         var rejection = new List<string>();

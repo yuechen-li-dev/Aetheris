@@ -1,0 +1,21 @@
+Units: mm
+SpurGear Driver { Module: 1mm Teeth: 20 PressureAngle: 20deg FaceWidth: 6mm BoreDiameter: 5mm }
+SpurGear Idler { Module: 1mm Teeth: 30 PressureAngle: 20deg FaceWidth: 6mm BoreDiameter: 5mm Phase: 6deg }
+SpurGear Output { Module: 1mm Teeth: 40 PressureAngle: 20deg FaceWidth: 6mm BoreDiameter: 5mm }
+Subassembly InputStage {
+  <Assembly InputStage>
+    <Part Driver = Driver></Part>
+    <Part Idler = Idler>Placement ImportedOccurrence = [1,0,0,0, 0,1,0,0, 0,0,1,0, 25,0,0,1];</Part>
+  </Assembly>
+  Anchor: InputStage.Driver;
+  Interface<Gear> FirstMesh { A: InputStage.Driver; B: InputStage.Idler; }
+  Expose { Gear Output = Idler; }
+}
+Assembly GearTrain {
+  <Assembly GearTrain>
+    <Assembly Stage = InputStage></Assembly>
+    <Part Output = Output>Placement ImportedOccurrence = [1,0,0,0, 0,1,0,0, 0,0,1,0, 60,0,0,1];</Part>
+  </Assembly>
+  Anchor: GearTrain.Stage.Output;
+  Interface<Gear> SecondMesh { A: GearTrain.Stage.Output; B: GearTrain.Output; }
+}

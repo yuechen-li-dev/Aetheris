@@ -10,6 +10,7 @@
   ],
   "actions": [
     { "path": "Assembly", "operation": "assembly-inspect" },
+    { "path": "AssemblyInterfaces", "operation": "assembly-inspect" },
     { "path": "Drawings", "operation": "drawing-compile" },
     { "path": "FEA", "operation": "fea-solve" },
     { "path": "Materials", "operation": "fea-solve" },

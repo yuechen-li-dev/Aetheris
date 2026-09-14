@@ -1,4 +1,5 @@
 using Aetheris.Semantics;
+using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.Kernel.Firmament.Assembly;
 
@@ -8,6 +9,7 @@ public enum PlacementConstraintKind { AxisCoincident, AxisAligned, PlaneCoincide
 public enum DatumOrientationRelation { SameDirection, OpposedDirection }
 public enum PlacementStatus { Anchored, Resolved, Underconstrained, Overconstrained, Unresolved }
 public enum PlacementAuthority { MateDerived, ImportedOccurrence, LegacyExplicit }
+public enum MechanicalInterfaceFamily { Custom, Fixed, Axial, Revolute, Gear }
 
 public sealed record AssemblyDiagnostic(string Code, string Message, AssemblyDiagnosticSeverity Severity = AssemblyDiagnosticSeverity.Error);
 public sealed record AssemblyPath(IReadOnlyList<string> Segments)
@@ -27,6 +29,7 @@ public sealed record ManufacturingVariationDefinition(double LinearToleranceMm, 
     double CoatingThicknessToleranceMm, double EngagementLengthMm);
 public sealed record InterfaceFitDefinition(string ShaftRole, string ShaftDimension, string BoreRole, string BoreDimension,
     double ClearanceScale = 1d, InterfaceClearancePolicyDefinition? Policy = null, ManufacturingVariationDefinition? Variation = null);
+public sealed record InterfacePredicateRequirementDefinition(string Name, string Expression, bool Passed);
 public enum FitClassification { GuaranteedClearance, PossibleContact, PossibleInterference, GuaranteedInterference, Unknown }
 public sealed record InterfaceDefinition(
     string StableId, string Name, IReadOnlyList<InterfaceRoleDefinition> Roles,
@@ -36,7 +39,13 @@ public sealed record InterfaceDefinition(
     SemanticSourceSpan? SourceSpan = null,
     string? Continuity = null,
     string EdgeCorrespondence = "OppositeDirections",
-    double GapToleranceMm = 1e-6);
+    double GapToleranceMm = 1e-6,
+    MechanicalInterfaceFamily Family = MechanicalInterfaceFamily.Custom,
+    bool CompilerOwnedExpansion = false,
+    IReadOnlyList<InterfacePredicateRequirementDefinition>? PredicateRequirements = null,
+    GearInterfaceOptions? GearOptions = null);
+
+public sealed record GearInterfaceOptions(double? ShaftAngleDegrees, double? EngagementPhaseDegrees, string? AllowedDirection);
 
 public sealed record AssemblyMemberSource(
     string Name, AssemblyInstanceKind Kind, string DefinitionIdentity,
@@ -47,7 +56,8 @@ public sealed record AssemblyMemberSource(
     AssemblyTransform? ExplicitTransform = null,
     PlacementAuthority PlacementAuthority = PlacementAuthority.MateDerived,
     bool IsEncapsulatedDefinition = false,
-    AssemblyDefinitionIr? SolvedAssemblyDefinition = null);
+    AssemblyDefinitionIr? SolvedAssemblyDefinition = null,
+    SemanticValue? TypedEndpoint = null);
 
 /// <summary>A reusable, locally-authored Assembly product definition.  Its children
 /// remain product-visible, while only <see cref="AssemblyMemberSource.ExposedSemantics"/>
@@ -76,7 +86,10 @@ public sealed record AssemblySource(
     IReadOnlyList<ToleranceStackupAssertSource> StackupAsserts,
     string SourceIdentity,
     string? DefinitionSource = null,
-    IReadOnlyList<AssemblyDefinitionSource>? AssemblyDefinitions = null);
+    IReadOnlyList<AssemblyDefinitionSource>? AssemblyDefinitions = null,
+    IReadOnlyList<AssemblySourceDependencyIr>? SourceDependencies = null);
+
+public sealed record AssemblySourceDependencyIr(string Path, string Sha256, bool IsRoot);
 
 public sealed record AssemblyTransform(double[] Matrix)
 {
@@ -92,7 +105,18 @@ public sealed record AssemblyInstanceIr(
     bool IsEncapsulatedDefinition = false);
 
 public sealed record MateEndpointIr(string Role, AssemblyPath ParticipantPath, string ParticipantSemanticValueId, IReadOnlyList<string> RequiredCapabilities);
-public sealed record MateIr(string StableId, string Name, string InterfaceStableId, IReadOnlyList<MateEndpointIr> Roles, IReadOnlyList<string> ConstraintIds, string ValidationStatus);
+public sealed record InterfaceRequirementResultIr(string Name, string Expression, string Status);
+public sealed record GearEndpointIr(
+    string ExposedPortPath, string HierarchicalPath, string DefinitionIdentity, string OccurrenceIdentity,
+    GearFamily Family, int? Teeth, double? ModuleMm, double? PressureAngleDegrees,
+    double? PitchDiameterMm, double PhaseDegrees, double[] Origin, double[] Axis);
+public sealed record GearInterfaceResultIr(
+    GearEndpointIr A, GearEndpointIr B, string Kind, double? Ratio, int RotationSign,
+    string AxisRelation, double? ExpectedCenterDistanceMm, double ActualCenterDistanceMm,
+    string CompatibilityStatus, IReadOnlyList<string> RejectionReasons);
+public sealed record MateIr(string StableId, string Name, string InterfaceStableId, IReadOnlyList<MateEndpointIr> Roles, IReadOnlyList<string> ConstraintIds, string ValidationStatus,
+    IReadOnlyList<InterfaceRequirementResultIr>? RequirementResults = null,
+    GearInterfaceResultIr? GearResult = null);
 public sealed record PanelMateEvidenceIr(string MateStableId,string FirstEdgeStableId,string SecondEdgeStableId,string Continuity,string Correspondence,double EndpointResidualMm,double G0ResidualMm,string Status);
 public sealed record PlacementConstraintIr(
     string StableId, PlacementConstraintKind Kind, string MateStableId,
@@ -160,7 +184,8 @@ public sealed record AssemblyIr(
     IReadOnlyList<AssemblyDefinitionIr>? AssemblyDefinitions = null,
     IReadOnlyList<PanelMateEvidenceIr>? PanelMateEvidence = null,
     IReadOnlyList<AssemblyDatumIr>? Datums = null,
-    IReadOnlyList<DatumMateSolutionIr>? DatumMateSolutions = null);
+    IReadOnlyList<DatumMateSolutionIr>? DatumMateSolutions = null,
+    IReadOnlyList<AssemblySourceDependencyIr>? SourceDependencies = null);
 
 public sealed record AssemblyCompilationResult(AssemblyIr? Ir, IReadOnlyList<AssemblyDiagnostic> Diagnostics, AssemblyPerformanceIr? Performance = null)
 {

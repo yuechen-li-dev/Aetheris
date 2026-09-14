@@ -38,6 +38,8 @@ public sealed record CurveCapability : ISemanticCapability { public string Name 
 public sealed record BoundaryEdgeCapability : ISemanticCapability { public string Name => "BoundaryEdgeCapable"; }
 /// <summary>A fully oriented, authoring-stable rigid assembly datum.</summary>
 public sealed record DatumFrameCapability : ISemanticCapability { public string Name => "DatumFrameCapable"; }
+/// <summary>A semantic endpoint backed by the owning gear-domain authority.</summary>
+public sealed record GearCapability : ISemanticCapability { public string Name => "GearCapable"; }
 
 public sealed class SemanticCapabilitySet
 {
@@ -55,6 +57,22 @@ public sealed class SemanticCapabilitySet
 
 /// <summary>A bounded exact downstream representation. It is not a service locator.</summary>
 public abstract record SemanticBinding(string Kind, string StableBindingIdentity);
+
+/// <summary>
+/// A compile-time typed reference to a producer-owned semantic authority. Hierarchical
+/// consumers may add an occurrence path, but never copy or reinterpret the authority.
+/// </summary>
+public interface ITypedSemanticAuthorityBinding
+{
+    SemanticType AuthorityType { get; }
+}
+
+public sealed record TypedSemanticAuthorityBinding<TAuthority>(
+    SemanticType AuthorityType,
+    TAuthority Authority,
+    string AuthorityStableId,
+    IReadOnlyList<string>? RelativeOccurrencePath = null)
+    : SemanticBinding("TypedSemanticAuthority<" + AuthorityType.Name + ">", AuthorityStableId), ITypedSemanticAuthorityBinding;
 
 public sealed record ExactBrepBodyBinding(BrepBody Body, string BodyStableId)
     : SemanticBinding("ExactBrepBody", BodyStableId);
@@ -241,6 +259,9 @@ public static class SemanticValueValidator
         RequireBinding<CurveCapability, ExactCurveBinding>(value, diagnostics);
         RequireBinding<BoundaryEdgeCapability, ExactCurveBinding>(value, diagnostics);
         RequireBinding<DatumFrameCapability, ExactDatumFrameBinding>(value, diagnostics);
+        if (value.Capabilities.Supports<GearCapability>()
+            && !value.Bindings.OfType<ITypedSemanticAuthorityBinding>().Any(binding => binding.AuthorityType.Name == "Gear"))
+            diagnostics.Add(new(NoExactBinding, $"GearCapable on '{value.StableIdentity}' requires TypedSemanticAuthorityBinding<Gear>.", value.AuthoredSourceSpan));
         RequireAnyExactBinding<ExactGeometryCapability>(value, diagnostics);
         RequireAnyExactBinding<SelectableCapability>(value, diagnostics);
         RequireBinding<ComposeOperandCapability, ExactProfileBinding>(value, diagnostics);

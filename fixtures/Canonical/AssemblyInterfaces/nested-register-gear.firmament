@@ -1,0 +1,20 @@
+Units: mm
+SpurGear Wheel { Module: 2mm Teeth: 20 PressureAngle: 20deg FaceWidth: 6mm BoreDiameter: 5mm Phase: 9deg }
+Subassembly DigitModule {
+  <Assembly DigitModule><Part Gear = Wheel></Part></Assembly>
+  Anchor: DigitModule.Gear;
+  Expose { Gear Input = Gear; Gear Output = Gear; }
+}
+Subassembly Register {
+  <Assembly Register><Assembly Digit = DigitModule></Assembly></Assembly>
+  Anchor: Register.Digit.Input;
+  Expose { Gear Input = Digit.Input; Gear Output = Digit.Output; }
+}
+Assembly Machine {
+  <Assembly Machine>
+    <Assembly RegisterA = Register></Assembly>
+    <Assembly RegisterB = Register>Placement ImportedOccurrence = [1,0,0,0, 0,1,0,0, 0,0,1,0, 40,0,0,1];</Assembly>
+  </Assembly>
+  Anchor: Machine.RegisterA.Output;
+  Interface<Gear> RegisterTransfer { A: Machine.RegisterA.Output; B: Machine.RegisterB.Input; }
+}

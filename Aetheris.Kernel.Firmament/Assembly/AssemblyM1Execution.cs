@@ -59,6 +59,29 @@ internal static class AssemblyDefinitionMaterializer
 {
     public static MaterializedAssemblyDefinition? TryMaterialize(string definitionIdentity, string? definitionSource, string sourceIdentity, List<AssemblyDiagnostic> diagnostics)
     {
+        if (!string.IsNullOrWhiteSpace(definitionSource))
+        {
+            var gearDocument = GearAuthoring.ParseDefinitions(definitionSource);
+            var gear = gearDocument.Gears.SingleOrDefault(candidate => string.Equals(candidate.Name, definitionIdentity, StringComparison.Ordinal));
+            if (gear is not null)
+            {
+                var materialization = GearAuthoring.Materialize(gear, out var gearDiagnostics);
+                if (materialization is null)
+                {
+                    foreach (var diagnostic in gearDiagnostics)
+                        diagnostics.Add(new("assembly-definition-materialization-failed", $"Gear definition '{definitionIdentity}' failed Gear-authoritative materialization: {diagnostic}"));
+                    return null;
+                }
+                var step = Step242Exporter.ExportBody(materialization.Body);
+                var gearHash = step.IsSuccess
+                    ? Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value)))
+                    : Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(definitionIdentity)));
+                var gearStableId = "assembly-definition:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(definitionIdentity)))[..16];
+                var gearProvenance = new[] { new SemanticProvenance("gear-definition", definitionIdentity, "GearAuthoring.Materialize", SemanticSourceSpan.Generated(sourceIdentity)) };
+                return new(definitionIdentity, "gear:" + definitionIdentity, materialization.Body, [],
+                    new(gearStableId, definitionIdentity, "gear:" + definitionIdentity, gearHash, Metrics(materialization.Body), gearProvenance));
+            }
+        }
         var externalStep = System.Text.RegularExpressions.Regex.Match(definitionIdentity, "^ExternalStep<\\\"(?<path>[^\\\"]+)\\\">$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
         if (externalStep.Success)
         {

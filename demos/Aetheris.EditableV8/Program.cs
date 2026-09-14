@@ -351,11 +351,7 @@ public sealed class EngineAuthor(V8Spec spec)
                 Lower FrameCoincident Spring.Frame Stem.Frame SameDirection;
                 Fit Stem.Diameter inside Spring.ClearDiameter;
             }
-            Interface RegisteredSeat {
-                Role Moving requires DatumFrameCapable;
-                Role Fixed requires DatumFrameCapable;
-                Lower FrameCoincident Moving Fixed SameDirection;
-            }
+            Interface<Fixed> RegisteredSeat { }
             Interface JournalBoreSeat {
                 Role Moving requires DatumFrameCapable, DimensionalCapable;
                 Role Fixed requires DatumFrameCapable, DimensionalCapable;
@@ -395,7 +391,9 @@ public sealed class EngineAuthor(V8Spec spec)
                 continue;
             }
             var contract = b.Kind == "Rod" ? "JournalBoreSeat" : b.Name.StartsWith("WristPin", StringComparison.Ordinal) && b.Cylinder > 0 ? "WristPinSeat" : "RegisteredSeat";
-            text.AppendLine($"Mate Install{b.Name}: {contract} {{ Moving: {root}.{b.Name}.Mount; Fixed: {root}.{parent[b.Name]}.Seat{b.Name}; }}");
+            text.AppendLine(contract == "RegisteredSeat"
+                ? $"Mate Install{b.Name}: {contract} {{ A: {root}.{b.Name}.Mount; B: {root}.{parent[b.Name]}.Seat{b.Name}; }}"
+                : $"Mate Install{b.Name}: {contract} {{ Moving: {root}.{b.Name}.Mount; Fixed: {root}.{parent[b.Name]}.Seat{b.Name}; }}");
         }
         text.AppendLine("}");
         return text.ToString();

@@ -1,0 +1,41 @@
+Units: mm
+
+SpurGear InputGear {
+    Module: 2mm Teeth: 20 PressureAngle: 20deg FaceWidth: 8mm BoreDiameter: 5mm Phase: 0deg
+}
+
+SpurGear OutputGear {
+    Module: 2mm Teeth: 40 PressureAngle: 20deg FaceWidth: 8mm BoreDiameter: 8mm Phase: 4.5deg
+}
+
+Subassembly DigitModule {
+    <Assembly DigitModule>
+        <Part InputGear = InputGear></Part>
+        <Part OutputGear = OutputGear>
+            Placement ImportedOccurrence = [1,0,0,0, 0,1,0,0, 0,0,1,0, 60,0,0,1];
+        </Part>
+    </Assembly>
+    Anchor: DigitModule.InputGear;
+    Interface<Gear> InternalMesh {
+        A: DigitModule.InputGear;
+        B: DigitModule.OutputGear;
+    }
+    Expose {
+        Gear Input = InputGear;
+        Gear Output = OutputGear;
+    }
+}
+
+Assembly Register {
+    <Assembly Register>
+        <Assembly Digit0 = DigitModule></Assembly>
+        <Assembly Digit1 = DigitModule>
+            Placement ImportedOccurrence = [1,0,0,0, 0,1,0,0, 0,0,1,0, 120,0,0,1];
+        </Assembly>
+    </Assembly>
+    Anchor: Register.Digit0.Output;
+    Interface<Gear> Transfer {
+        A: Register.Digit0.Output;
+        B: Register.Digit1.Input;
+    }
+}

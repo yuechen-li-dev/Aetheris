@@ -1,0 +1,31 @@
+// Reusable leaf definition. Internal shaft/bearing details are private.
+Subassembly DigitModule {
+    <Assembly DigitModule>
+        <Part Shaft = DigitShaft>
+            Semantic Joint {
+                Axis Axis = [0,0,0] -> [0,0,1];
+                Plane Seat = [0,0,0] normal [0,0,1];
+                Point Locator = [0,0,0];
+            }
+        </Part>
+        <Part Bearing = DigitBearing>
+            Semantic Joint {
+                Axis Axis = [0,0,0] -> [0,0,1];
+                Plane Seat = [0,0,0] normal [0,0,1];
+                Point Locator = [0,0,0];
+            }
+        </Part>
+    </Assembly>
+
+    Anchor: DigitModule.Bearing.Joint;
+
+    Interface<Revolute> ShaftBearing {
+        A: DigitModule.Shaft.Joint;
+        B: DigitModule.Bearing.Joint;
+    }
+
+    Expose {
+        Semantic Input = Bearing.Joint;
+        Semantic Output = Shaft.Joint;
+    }
+}

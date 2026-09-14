@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Numerics;
 using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Semantics;
 
 namespace Aetheris.Kernel.Firmament.Assembly;
@@ -32,6 +33,7 @@ public sealed class AssemblyM0Compiler
 
         var mateWatch = Stopwatch.StartNew();
         var mates = BindMates(source, interfaces, byPath, diagnostics);
+        mates = ValidateInterfaceRequirements(mates, interfaces, diagnostics);
         var panelMateEvidence = ValidatePanelEdgeMates(mates, interfaces, instances, diagnostics);
         mateWatch.Stop();
 
@@ -43,6 +45,7 @@ public sealed class AssemblyM0Compiler
         {
             ResolvedTransform = placements.First(x => x.InstanceStableId == instance.StableId).Transform
         }).ToArray();
+        mates = ValidateGearInterfaces(mates, interfaces, instances, diagnostics);
         placementWatch.Stop();
 
         var graphWatch = Stopwatch.StartNew();
@@ -75,7 +78,7 @@ public sealed class AssemblyM0Compiler
             .OrderBy(solution => solution.MateStableId, StringComparer.Ordinal).ToArray();
         var ir = new AssemblyIr("aetheris/assembly-ir/m0", $"assembly:{source.Name}", source.Name,
             instances.Single(x => x.ParentStableId is null).StableId, instances, source.Interfaces, mates,
-            constraints, placements, relations, stackups, fits, diagnostics, assemblyDefinitions, panelMateEvidence, datums, datumSolutions);
+            constraints, placements, relations, stackups, fits, diagnostics, assemblyDefinitions, panelMateEvidence, datums, datumSolutions, source.SourceDependencies);
         return new(ir, diagnostics, perf);
 
         static string SemanticPath(AssemblyInstanceIr instance, SemanticValue value)
@@ -85,6 +88,27 @@ public sealed class AssemblyM0Compiler
                 ? instance.Path + "." + value.StableIdentity[prefix.Length..]
                 : instance.Path + "." + (value.ExposedName ?? value.StableIdentity);
         }
+    }
+
+    private static IReadOnlyList<MateIr> ValidateInterfaceRequirements(IReadOnlyList<MateIr> mates,
+        IReadOnlyDictionary<string, InterfaceDefinition> interfaces, List<AssemblyDiagnostic> diagnostics)
+    {
+        return mates.Select(mate =>
+        {
+            var definition = interfaces.Values.Single(item => item.StableId == mate.InterfaceStableId);
+            var results = (definition.PredicateRequirements ?? []).Select(requirement =>
+            {
+                if (!requirement.Passed)
+                    diagnostics.Add(new("assembly-interface-requirement-failed",
+                        $"Interface '{definition.Name}' on Mate '{mate.Name}' failed Require '{requirement.Name}': {requirement.Expression}."));
+                return new InterfaceRequirementResultIr(requirement.Name, requirement.Expression, requirement.Passed ? "passed" : "failed");
+            }).ToArray();
+            return mate with
+            {
+                RequirementResults = results,
+                ValidationStatus = mate.ValidationStatus == "valid" && results.All(item => item.Status == "passed") ? "valid" : "invalid"
+            };
+        }).ToArray();
     }
 
     private static IReadOnlyList<AssemblyInstanceIr> BindInstances(AssemblySource source, List<AssemblyDiagnostic> diagnostics)
@@ -115,9 +139,11 @@ public sealed class AssemblyM0Compiler
             value.ExposedMembers.OrderBy(x => x.Key, StringComparer.Ordinal).Select(x => Clone(x.Value, semanticPath + "." + x.Key, x.Key)),
             [.. value.Provenance, new("assembly-instance", path.ToString(), value.StableIdentity, SemanticSourceSpan.Generated(sourceIdentity))],
             value.AuthoredSourceSpan, SemanticSourceSpan.Generated(sourceIdentity), exposedName);
-        return new SemanticValue($"assembly-semantic:{path}", new(member.Kind.ToString()),
+        var endpoint = member.TypedEndpoint;
+        return new SemanticValue($"assembly-semantic:{path}", endpoint?.Type ?? new(member.Kind.ToString()),
+            endpoint?.Capabilities.Values, endpoint?.Bindings,
             exposedMembers: member.ExposedSemantics.OrderBy(x => x.ExposedName, StringComparer.Ordinal).Select(x => Clone(x, x.ExposedName ?? x.StableIdentity, x.ExposedName)),
-            provenance: [new("assembly-instance", path.ToString(), member.DefinitionIdentity, SemanticSourceSpan.Generated(sourceIdentity))],
+            provenance: [.. endpoint?.Provenance ?? [], new("assembly-instance", path.ToString(), member.DefinitionIdentity, SemanticSourceSpan.Generated(sourceIdentity))],
             generatedSourceSpan: SemanticSourceSpan.Generated(sourceIdentity));
     }
 
@@ -131,32 +157,111 @@ public sealed class AssemblyM0Compiler
             { diagnostics.Add(new("assembly-interface-unknown", $"Mate '{mate.Name}' references unknown Interface '{mate.InterfaceName}'.")); continue; }
             var duplicate = mate.Roles.GroupBy(x => x.Role, StringComparer.Ordinal).FirstOrDefault(x => x.Count() > 1);
             if (duplicate is not null) diagnostics.Add(new(DuplicateRole, $"Mate '{mate.Name}' assigns Role '{duplicate.Key}' more than once."));
+            var valid = duplicate is null;
             var endpoints = new List<MateEndpointIr>();
             foreach (var role in definition.Roles)
             {
                 var assignment = mate.Roles.FirstOrDefault(x => x.Role == role.Name);
-                if (assignment is null) { diagnostics.Add(new(MissingRole, $"Mate '{mate.Name}' is missing required Role '{role.Name}'.")); continue; }
+                if (assignment is null) { valid = false; diagnostics.Add(new(MissingRole, $"Mate '{mate.Name}' is missing required Role '{role.Name}'.")); continue; }
                 if (!TryResolve(assignment.Participant, byPath.Values, out var reference))
                 {
                     var boundary = EncapsulationBoundary(assignment.Participant, byPath.Values);
                     diagnostics.Add(boundary is null
                         ? new(OutsideScope, $"Mate '{mate.Name}' Role '{role.Name}' participant '{assignment.Participant}' is not reachable in the Assembly tree.")
                         : new("assembly-internal-member-hidden", $"'{assignment.Participant}' crosses the private boundary of Assembly '{boundary.Path}'. Expose a semantic member from the Assembly if parent assemblies must depend on it."));
+                    valid = false;
                     continue;
                 }
                 var missing = role.RequiredCapabilities.Where(c => !HasCapability(reference!.Value, c)).ToArray();
+                if (reference!.Value.Type.Name == "Gear" && definition.Family != MechanicalInterfaceFamily.Gear)
+                    missing = [.. missing, $"endpoint type {definition.Family} (Gear is not implicitly coerced)"];
                 if (missing.Length > 0)
+                {
+                    valid = false;
                     diagnostics.Add(new(CapabilityMismatch, $"Mate '{mate.Name}' Role '{role.Name}' participant '{assignment.Participant}' lacks: {string.Join(", ", missing)}."));
+                }
                 endpoints.Add(new(role.Name, assignment.Participant, reference!.Value.StableIdentity, role.RequiredCapabilities));
             }
             result.Add(new($"mate:{source.Name}:{mate.Name}", mate.Name, definition.StableId, endpoints, [],
-                endpoints.Count == definition.Roles.Count ? "valid" : "invalid"));
+                valid && endpoints.Count == definition.Roles.Count ? "valid" : "invalid"));
         }
         return result;
     }
 
     private static bool HasCapability(SemanticValue value, string capability) =>
         value.Capabilities.Values.Any(x => string.Equals(x.Name, capability, StringComparison.Ordinal));
+
+    private static IReadOnlyList<MateIr> ValidateGearInterfaces(IReadOnlyList<MateIr> mates,
+        IReadOnlyDictionary<string, InterfaceDefinition> interfaces, IReadOnlyList<AssemblyInstanceIr> instances,
+        List<AssemblyDiagnostic> diagnostics)
+    {
+        var values = Flatten(instances.Select(instance => instance.SemanticRoot)).ToDictionary(value => value.StableIdentity, StringComparer.Ordinal);
+        return mates.Select(mate =>
+        {
+            var definition = interfaces.Values.Single(item => item.StableId == mate.InterfaceStableId);
+            if (definition.Family != MechanicalInterfaceFamily.Gear || mate.Roles.Count != 2) return mate;
+            var endpointA = mate.Roles.SingleOrDefault(role => role.Role == "A");
+            var endpointB = mate.Roles.SingleOrDefault(role => role.Role == "B");
+            if (endpointA is null || endpointB is null
+                || !values.TryGetValue(endpointA.ParticipantSemanticValueId, out var valueA)
+                || !values.TryGetValue(endpointB.ParticipantSemanticValueId, out var valueB)
+                || !valueA.TryBinding<TypedSemanticAuthorityBinding<GearAir>>(out var bindingA)
+                || !valueB.TryBinding<TypedSemanticAuthorityBinding<GearAir>>(out var bindingB)) return mate;
+
+            var options = definition.GearOptions ?? new(null, null, null);
+            var evaluated = GearAuthoring.EvaluateInterface(mate.Name, bindingA.Authority, bindingB.Authority,
+                options.ShaftAngleDegrees, options.EngagementPhaseDegrees, options.AllowedDirection,
+                new(0, 0));
+            var ownerA = OwnerInstance(valueA.StableIdentity, instances)!;
+            var ownerB = OwnerInstance(valueB.StableIdentity, instances)!;
+            var spatialA = Spatial(endpointA, ownerA, valueA, bindingA.Authority);
+            var spatialB = Spatial(endpointB, ownerB, valueB, bindingB.Authority);
+            var delta = new Vector3((float)(spatialB.Origin[0] - spatialA.Origin[0]), (float)(spatialB.Origin[1] - spatialA.Origin[1]), (float)(spatialB.Origin[2] - spatialA.Origin[2]));
+            var actualCenter = delta.Length();
+            var axisA = Vector3.Normalize(new((float)spatialA.Axis[0], (float)spatialA.Axis[1], (float)spatialA.Axis[2]));
+            var axisB = Vector3.Normalize(new((float)spatialB.Axis[0], (float)spatialB.Axis[1], (float)spatialB.Axis[2]));
+            var angle = Math.Acos(Math.Clamp(Math.Abs(Vector3.Dot(axisA, axisB)), -1f, 1f)) * 180d / Math.PI;
+            var rejection = evaluated.RejectionReasons.ToList();
+            var bevel = bindingA.Authority.Family is GearFamily.BevelGear or GearFamily.MiterGear
+                && bindingB.Authority.Family is GearFamily.BevelGear or GearFamily.MiterGear;
+            if (!bevel && evaluated.Kind != "RatchetPawl" && angle > 1e-5) rejection.Add("axis-relation-mismatch");
+            if (!bevel && evaluated.Kind != "RatchetPawl" && Math.Abs(Vector3.Dot(delta, axisA)) > 1e-5)
+                rejection.Add("axis-relation-mismatch");
+            if (bevel && evaluated.ShaftAngleDegrees is { } expectedAngle
+                && Math.Abs(angle - Math.Min(expectedAngle, 180d - expectedAngle)) > 1e-5) rejection.Add("axis-relation-mismatch");
+            var axisCross = Vector3.Cross(axisA, axisB);
+            if (bevel && axisCross.Length() > 1e-6f && Math.Abs(Vector3.Dot(delta, Vector3.Normalize(axisCross))) > 1e-5)
+                rejection.Add("axis-relation-mismatch");
+            if (evaluated.ExpectedCenterDistanceMm is { } expectedCenter && Math.Abs(actualCenter - expectedCenter) > 1e-5)
+                rejection.Add("center-distance-mismatch");
+            rejection = rejection.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
+            foreach (var reason in rejection)
+                diagnostics.Add(new("firmament-gear-interface-incompatible", $"Interface<Gear> '{mate.Name}' between '{spatialA.HierarchicalPath}' and '{spatialB.HierarchicalPath}' is incompatible: {reason}."));
+            var result = new GearInterfaceResultIr(spatialA, spatialB, evaluated.Kind, evaluated.Ratio, evaluated.RotationSign,
+                evaluated.AxisRelation, evaluated.ExpectedCenterDistanceMm, actualCenter, rejection.Count == 0 ? "compatible" : "incompatible", rejection);
+            return mate with { GearResult = result, ValidationStatus = mate.ValidationStatus == "valid" && rejection.Count == 0 ? "valid" : "invalid" };
+        }).ToArray();
+
+        static GearEndpointIr Spatial(MateEndpointIr endpoint, AssemblyInstanceIr owner, SemanticValue value, GearAir gear)
+        {
+            var matrix = owner.ResolvedTransform is null ? Matrix4x4.Identity : ToMatrix(owner.ResolvedTransform);
+            value.TryBinding<ExactAxisBinding>(out var localAxis);
+            var localOrigin = localAxis is null ? Vector3.Zero : new((float)localAxis.OriginX, (float)localAxis.OriginY, (float)localAxis.OriginZ);
+            var localDirection = localAxis is null ? new Vector3((float)gear.Axis[0], (float)gear.Axis[1], (float)gear.Axis[2])
+                : new((float)localAxis.DirectionX, (float)localAxis.DirectionY, (float)localAxis.DirectionZ);
+            var origin = Vector3.Transform(localOrigin, matrix);
+            var direction = Vector3.Normalize(Vector3.TransformNormal(localDirection, matrix));
+            var exposedPath = string.Join('/', endpoint.ParticipantPath.Segments);
+            var occurrenceSegments = bindingPath(value) is { Count: > 0 } relative ? owner.Path.Segments.Concat(relative).ToArray() : owner.Path.Segments.ToArray();
+            var hierarchyPath = string.Join('/', occurrenceSegments);
+            return new(exposedPath, hierarchyPath, gear.Name, "assembly-instance:" + string.Join('.', occurrenceSegments), gear.Family, gear.Teeth,
+                gear.ModuleMm, gear.PressureAngleDegrees, gear.PitchDiameterMm, gear.PhaseDegrees,
+                [origin.X, origin.Y, origin.Z], [direction.X, direction.Y, direction.Z]);
+
+            static IReadOnlyList<string>? bindingPath(SemanticValue semantic) =>
+                semantic.TryBinding<TypedSemanticAuthorityBinding<GearAir>>(out var binding) ? binding.RelativeOccurrencePath : null;
+        }
+    }
 
     private static IReadOnlyList<PanelMateEvidenceIr> ValidatePanelEdgeMates(
         IReadOnlyList<MateIr> mates,IReadOnlyDictionary<string,InterfaceDefinition> interfaces,
@@ -446,11 +551,12 @@ public sealed class AssemblyM0Compiler
     private static IReadOnlyList<DimensionalRelationIr> LowerAssemblyDefinitionRelations(AssemblySource source, IReadOnlyList<AssemblyInstanceIr> instances)
     {
         var definitions = source.Root.Flatten().Where(member => member.SolvedAssemblyDefinition is not null)
-            .ToDictionary(member => member.Name, member => member.SolvedAssemblyDefinition!, StringComparer.Ordinal);
+            .Select(member => member.SolvedAssemblyDefinition!).DistinctBy(definition => definition.DefinitionIdentity)
+            .ToDictionary(definition => definition.DefinitionIdentity, StringComparer.Ordinal);
         var result = new List<DimensionalRelationIr>();
         foreach (var instance in instances.Where(item => item.IsEncapsulatedDefinition))
         {
-            if (!definitions.TryGetValue(instance.Path.Segments.Last(), out var definition)) continue;
+            if (!definitions.TryGetValue(instance.DefinitionIdentity, out var definition)) continue;
             foreach (var relation in definition.PublicDimensionalRelations)
             {
                 if (!instance.SemanticRoot.ExposedMembers.TryGetValue(relation.FromSemanticValueId, out var from)

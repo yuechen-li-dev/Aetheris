@@ -3837,6 +3837,7 @@ Model CanonicalPanel {
         if (!File.Exists(path)) { stderr.WriteLine($"Assembly source '{path}' was not found."); return 1; }
         var sourceText = File.ReadAllText(path);
         var usesTemplateInstances = Regex.IsMatch(sourceText, @"<Part\s+[A-Za-z_]\w*\s*=\s*[A-Za-z_]\w*\s*<", RegexOptions.CultureInvariant);
+        var usesGearParts = GearAuthoring.ParseDefinitions(sourceText).Gears.Count > 0;
         var usesSheetMetalParts = sourceText.Contains("Use SheetMetal.ProductFamilies", StringComparison.Ordinal);
         AssemblyIr? assemblyIr;
         AssemblyGeometryArtifactIr? geometryArtifact;
@@ -3852,7 +3853,7 @@ Model CanonicalPanel {
             assemblyPerformance = document.Compilation.Performance;
             success = document.IsSuccess;
         }
-        else if (usesTemplateInstances)
+        else if (usesTemplateInstances || usesGearParts)
         {
             var m1 = new AssemblyM1Pipeline().CompileFile(path, usesSheetMetalParts ? EnclosureProductFamilies.MaterializeAssemblyPart : null);
             assemblyIr = m1.Ir;
@@ -3889,7 +3890,36 @@ Model CanonicalPanel {
                 stdout.WriteLine($"{new string(' ', (instance.Path.Segments.Count - 1) * 2)}- {instance.Path.Segments[^1]} [{instance.Kind}] = {instance.DefinitionIdentity}; placement={instance.PlacementAuthority}");
             stdout.WriteLine("Mates:");
             foreach (var mate in ir.Mates.Concat((ir.AssemblyDefinitions ?? []).SelectMany(definition => definition.LocalMates)).DistinctBy(mate => mate.StableId))
-                stdout.WriteLine($"- {mate.Name}: {mate.InterfaceStableId} ({string.Join(", ", mate.Roles.Select(x => x.Role + "=" + x.ParticipantPath))})");
+            {
+                var definition = ir.Interfaces.Single(item => item.StableId == mate.InterfaceStableId);
+                stdout.WriteLine($"- {mate.Name}: Interface<{definition.Family}> {mate.InterfaceStableId} ({string.Join(", ", mate.Roles.Select(x => x.Role + "=" + x.ParticipantPath))}); status={mate.ValidationStatus}");
+                foreach (var constraint in definition.Requirements)
+                    stdout.WriteLine($"    Expanded Mate {constraint.Kind}: {constraint.FirstRole}.{constraint.FirstMember} -> {constraint.SecondRole}.{constraint.SecondMember}");
+                foreach (var requirement in mate.RequirementResults ?? [])
+                    stdout.WriteLine($"    Require {requirement.Name}: {requirement.Expression} ({requirement.Status})");
+                if (mate.GearResult is { } gear)
+                {
+                    WriteGearEndpoint("A", gear.A);
+                    WriteGearEndpoint("B", gear.B);
+                    stdout.WriteLine($"    Derived: ratio={gear.Ratio:G6}; rotation-sign={gear.RotationSign}; center expected={gear.ExpectedCenterDistanceMm:G6}mm actual={gear.ActualCenterDistanceMm:G6}mm; {gear.CompatibilityStatus}");
+                }
+            }
+            var definitions = ir.AssemblyDefinitions ?? [];
+            if (definitions.Count > 0)
+            {
+                stdout.WriteLine("Shared definitions:");
+                foreach (var definition in definitions.OrderBy(item => item.DefinitionIdentity, StringComparer.Ordinal))
+                {
+                    var uses = ir.Instances.Count(item => item.DefinitionIdentity == definition.DefinitionIdentity);
+                    stdout.WriteLine($"- {definition.DefinitionIdentity}: occurrences={uses}; local-instances={definition.LocalInstances.Count}; public=[{string.Join(",", definition.PublicSemantics.Select(item => item.ExposedName))}]");
+                }
+            }
+            if (ir.SourceDependencies is { Count: > 0 })
+            {
+                stdout.WriteLine("Source dependencies:");
+                foreach (var dependency in ir.SourceDependencies)
+                    stdout.WriteLine($"- {(dependency.IsRoot ? "root" : "include")}: {dependency.Path}; sha256={dependency.Sha256}");
+            }
             var datums = (ir.Datums ?? []).Concat((ir.AssemblyDefinitions ?? []).SelectMany(definition => definition.LocalDatums ?? []))
                 .DistinctBy(datum => datum.SemanticPath).OrderBy(datum => datum.SemanticPath, StringComparer.Ordinal).ToArray();
             var rootDatums = datums.Where(datum => datum.SemanticPath.StartsWith(ir.Name + ".", StringComparison.Ordinal)).ToArray();
@@ -3943,6 +3973,9 @@ Model CanonicalPanel {
             foreach (var diagnostic in assemblyDiagnostics) stderr.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
         }
         return success ? 0 : 1;
+
+        void WriteGearEndpoint(string role, GearEndpointIr endpoint) => stdout.WriteLine(
+            $"    {role}: port={endpoint.ExposedPortPath}; source={endpoint.HierarchicalPath}; definition={endpoint.DefinitionIdentity}; occurrence={endpoint.OccurrenceIdentity}; family={endpoint.Family}; teeth={endpoint.Teeth}; module={endpoint.ModuleMm:G6}mm; pressure-angle={endpoint.PressureAngleDegrees:G6}deg; axis=[{string.Join(',', endpoint.Axis.Select(value => value.ToString("G6", System.Globalization.CultureInfo.InvariantCulture)))}]; phase={endpoint.PhaseDegrees:G6}deg");
     }
 
     private static int RunAsmExec(string[] args, TextWriter stdout, TextWriter stderr)

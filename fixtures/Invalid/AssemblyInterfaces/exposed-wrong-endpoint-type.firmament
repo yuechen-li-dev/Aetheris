@@ -1,0 +1,7 @@
+Units: mm
+SpurGear G { Module: 2mm Teeth: 20 PressureAngle: 20deg FaceWidth: 6mm BoreDiameter: 5mm }
+Assembly WrongType {
+  <Assembly WrongType><Part Gear = G></Part><Part Shaft = Block>Semantic Port { Axis Axis = [0,0,0] -> [0,0,1]; }</Part></Assembly>
+  Anchor: WrongType.Gear;
+  Interface<Gear> Invalid { A: WrongType.Gear; B: WrongType.Shaft.Port; }
+}

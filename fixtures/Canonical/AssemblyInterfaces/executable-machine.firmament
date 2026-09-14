@@ -1,0 +1,17 @@
+Include "executable-cell.firmament";
+
+Interface<Axial> InstallCell { Role A requires AxisCapable; Role B requires AxisCapable; }
+
+Assembly ExecutableMachine {
+    <Assembly ExecutableMachine>
+        <Part Frame = CellBlock<Spec: CellBlockValue>>
+            Semantic Left { Axis Axis = [-30,0,0] -> [0,0,1]; }
+            Semantic Right { Axis Axis = [30,0,0] -> [0,0,1]; }
+        </Part>
+        <Assembly CellA = ExecutableCell></Assembly>
+        <Assembly CellB = ExecutableCell></Assembly>
+    </Assembly>
+    Anchor: ExecutableMachine.Frame.Left;
+    Mate PlaceA: InstallCell { A: ExecutableMachine.CellA.Port; B: ExecutableMachine.Frame.Left; }
+    Mate PlaceB: InstallCell { A: ExecutableMachine.CellB.Port; B: ExecutableMachine.Frame.Right; }
+}

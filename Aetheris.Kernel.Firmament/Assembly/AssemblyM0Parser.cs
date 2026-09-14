@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using System.Numerics;
+using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Semantics;
 
 namespace Aetheris.Kernel.Firmament.Assembly;
@@ -11,17 +13,49 @@ public sealed class AssemblyM0Parser
     public sealed record ParseResult(AssemblySource? Source, IReadOnlyList<AssemblyDiagnostic> Diagnostics, double ElapsedMilliseconds)
     { public bool IsSuccess => Source is not null && Diagnostics.All(x => x.Severity != AssemblyDiagnosticSeverity.Error); }
 
-    public ParseResult ParseFile(string path) => Parse(File.ReadAllText(path), Path.GetFullPath(path));
+    public ParseResult ParseFile(string path)
+    {
+        var fullPath = Path.GetFullPath(path);
+        var loadDiagnostics = new List<AssemblyDiagnostic>();
+        var dependencies = new List<AssemblySourceDependencyIr>();
+        var allowedRoot = FindAllowedSourceRoot(fullPath);
+        var source = LoadSourceGraph(fullPath, allowedRoot, [], dependencies, loadDiagnostics);
+        if (source is null) return new(null, loadDiagnostics, 0);
+        var parsed = Parse(source, fullPath);
+        var diagnostics = loadDiagnostics.Concat(parsed.Diagnostics).ToArray();
+        return new(parsed.Source is null ? null : parsed.Source with { SourceDependencies = dependencies }, diagnostics, parsed.ElapsedMilliseconds);
+    }
+
+    private static string FindAllowedSourceRoot(string path)
+    {
+        var directory = new DirectoryInfo(Path.GetDirectoryName(path)!);
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "Aetheris.slnx"))) return directory.FullName;
+            directory = directory.Parent;
+        }
+        return Path.GetDirectoryName(path)!;
+    }
 
     public ParseResult Parse(string input, string sourceIdentity = "<memory>")
     {
         var watch = Stopwatch.StartNew();
         var diagnostics = new List<AssemblyDiagnostic>();
         var source = Regex.Replace(input, @"//[^\r\n]*", string.Empty);
+        // Subassembly is a first-class non-parameterized Assembly definition. It
+        // lowers through the existing, locally solved definition authority.
+        source = Regex.Replace(source, @"\bSubassembly\s+(?<name>[A-Za-z_]\w*)\s*\{",
+            "Template < __Unit: __Unit > Assembly ${name} {", RegexOptions.CultureInvariant);
+        var gearDocument = GearAuthoring.HasGearDefinitions(source)
+            ? GearAuthoring.ParseDefinitions(source)
+            : new GearAuthoringDocument("GearModel", [], [], []);
+        var gearAuthorities = gearDocument.Gears.ToDictionary(gear => gear.Name, StringComparer.Ordinal);
+        foreach (var diagnostic in gearDocument.Diagnostics.Where(item => item != GearAuthoring.Prefix + "declaration-missing"))
+            diagnostics.Add(new("assembly-" + diagnostic.Split(':')[0], diagnostic));
         var concepts = ParseAssemblyConcepts(source, sourceIdentity, diagnostics);
         var interfaces = ParseInterfaces(source, sourceIdentity, diagnostics);
         var templateRanges = new List<(int Start, int Length)>();
-        var assemblyDefinitions = ParseAssemblyDefinitions(source, sourceIdentity, interfaces, concepts, diagnostics, templateRanges);
+        var assemblyDefinitions = ParseAssemblyDefinitions(source, sourceIdentity, interfaces, concepts, gearAuthorities, diagnostics, templateRanges);
         // Template-produced Assembly bodies are declarations, not exported roots.
         // Blank them without changing offsets, then locate the single root Assembly.
         var rootSearch = source.ToCharArray();
@@ -33,7 +67,7 @@ public sealed class AssemblyM0Parser
         var body = BalancedBody(source, assemblyHeader.Index + assemblyHeader.Length - 1, diagnostics, "Assembly");
         if (body is null) return Done(null);
         var specializationCache = new Dictionary<string, AssemblyMemberSource>(StringComparer.Ordinal);
-        var tree = ParseTree(body, sourceIdentity, diagnostics, assemblyDefinitions, interfaces, specializationCache);
+        var tree = ParseTree(body, sourceIdentity, diagnostics, assemblyDefinitions, interfaces, specializationCache, gearAuthorities);
         if (tree is null) return Done(null);
         var mates = ParseMates(body, sourceIdentity, diagnostics);
         var relations = ParseRelations(body, diagnostics);
@@ -42,7 +76,8 @@ public sealed class AssemblyM0Parser
         var anchor = anchorMatch.Success ? AssemblyPath.Parse(anchorMatch.Groups["path"].Value) : new AssemblyPath([tree.Name]);
         var definitionBoundary = new[]
         {
-            Regex.Match(source, @"^[ \t]*Interface\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant | RegexOptions.Multiline),
+            Regex.Match(source, @"^[ \t]*Interface(?:\s*<[^>]+>)?\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant | RegexOptions.Multiline),
+            Regex.Match(source, @"^[ \t]*Template\s*<[^>]+>\s*Assembly\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant | RegexOptions.Multiline),
             Regex.Match(source, @"^[ \t]*Assembly\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant | RegexOptions.Multiline)
         }.Where(match => match.Success).Select(match => match.Index).DefaultIfEmpty(0).Min();
         var declarationChars = source.ToCharArray();
@@ -53,6 +88,42 @@ public sealed class AssemblyM0Parser
         return Done(result);
 
         ParseResult Done(AssemblySource? value) { watch.Stop(); return new(value, diagnostics, watch.Elapsed.TotalMilliseconds); }
+    }
+
+    private static string? LoadSourceGraph(string path, string allowedRoot, IReadOnlyList<string> stack,
+        List<AssemblySourceDependencyIr> dependencies, List<AssemblyDiagnostic> diagnostics)
+    {
+        var fullPath = Path.GetFullPath(path);
+        var rootPrefix = Path.TrimEndingDirectorySeparator(Path.GetFullPath(allowedRoot)) + Path.DirectorySeparatorChar;
+        if (!fullPath.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase) && !string.Equals(fullPath, Path.TrimEndingDirectorySeparator(Path.GetFullPath(allowedRoot)), StringComparison.OrdinalIgnoreCase))
+        { diagnostics.Add(new("assembly-include-outside-root", $"Include '{path}' resolves outside allowed root '{allowedRoot}'.")); return null; }
+        var cycleAt = stack.ToList().FindIndex(item => string.Equals(item, fullPath, StringComparison.OrdinalIgnoreCase));
+        if (cycleAt >= 0)
+        {
+            var cycle = stack.Skip(cycleAt).Append(fullPath).Select(Path.GetFileName);
+            diagnostics.Add(new("assembly-include-cycle", $"Compile-time Include cycle: {string.Join(" -> ", cycle)}."));
+            return null;
+        }
+        if (!File.Exists(fullPath))
+        { diagnostics.Add(new("assembly-include-file-not-found", $"Included Firmament source '{fullPath}' was not found.")); return null; }
+        if (stack.Count > 0 && !string.Equals(Path.GetExtension(fullPath), ".firmament", StringComparison.OrdinalIgnoreCase))
+        { diagnostics.Add(new("assembly-include-extension-invalid", $"Compile-time Include '{fullPath}' must reference a .firmament semantic source file.")); return null; }
+        var text = File.ReadAllText(fullPath);
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(text)));
+        if (dependencies.Any(item => string.Equals(item.Path, fullPath, StringComparison.OrdinalIgnoreCase))) return string.Empty;
+        dependencies.Add(new(fullPath, hash, stack.Count == 0));
+        var declarations = new List<string>();
+        foreach (Match include in Regex.Matches(text, @"^[ \t]*Include\s+""(?<path>[^""]+)""\s*;", RegexOptions.CultureInvariant | RegexOptions.Multiline))
+        {
+            var relative = include.Groups["path"].Value;
+            var childPath = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(fullPath)!, relative));
+            var child = LoadSourceGraph(childPath, allowedRoot, [.. stack, fullPath], dependencies, diagnostics);
+            if (child is null) return null;
+            declarations.Add(child);
+        }
+        var local = Regex.Replace(text, @"^[ \t]*Include\s+""[^""]+""\s*;[ \t]*(?:\r?\n)?", string.Empty, RegexOptions.CultureInvariant | RegexOptions.Multiline);
+        declarations.Add(local);
+        return string.Join(Environment.NewLine, declarations);
     }
 
     private static IReadOnlyList<AssemblyConceptDefinition> ParseAssemblyConcepts(string source, string sourceIdentity, List<AssemblyDiagnostic> diagnostics)
@@ -73,11 +144,12 @@ public sealed class AssemblyM0Parser
     private static IReadOnlyList<InterfaceDefinition> ParseInterfaces(string source, string sourceIdentity, List<AssemblyDiagnostic> diagnostics)
     {
         var result = new List<InterfaceDefinition>();
-        foreach (Match header in Regex.Matches(source, @"\bInterface\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant))
+        foreach (Match header in Regex.Matches(source, @"\bInterface(?:\s*<\s*(?<family>Custom|Fixed|Axial|Revolute|Gear)\s*>)?\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant))
         {
             var body = BalancedBody(source, header.Index + header.Length - 1, diagnostics, "Interface");
             if (body is null) continue;
             var name = header.Groups["name"].Value;
+            var family = header.Groups["family"].Success ? Enum.Parse<MechanicalInterfaceFamily>(header.Groups["family"].Value) : MechanicalInterfaceFamily.Custom;
             var roles = Regex.Matches(body, @"\bRole\s+(?<name>[A-Za-z_]\w*)\s+requires\s+(?<caps>[A-Za-z, ]+)\s*;", RegexOptions.CultureInvariant)
                 .Select(m => new InterfaceRoleDefinition(m.Groups["name"].Value,
                     m.Groups["caps"].Value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))).ToArray();
@@ -91,6 +163,11 @@ public sealed class AssemblyM0Parser
                     m.Groups["b"].Value, m.Groups["bm"].Success ? m.Groups["bm"].Value : ".", 0,
                     m.Groups["orientation"].Success ? Enum.Parse<DatumOrientationRelation>(m.Groups["orientation"].Value) : DatumOrientationRelation.SameDirection));
             requirements = requirements.Concat(frameRequirements).ToArray();
+            var atomicRequirements = Regex.Matches(body, @"\bMate\s+(?<kind>AxisCoincident|AxisAligned|PlaneCoincident|PointCoincident|OffsetAlongAxis|FrameCoincident)\s+(?<a>A|B)\.(?<am>[A-Za-z_]\w*)\s+(?<b>A|B)\.(?<bm>[A-Za-z_]\w*)(?:\s+(?<offset>[-+]?\d+(?:\.\d+)?)mm)?\s*;", RegexOptions.CultureInvariant)
+                .Select(m => new InterfaceRequirementDefinition(Enum.Parse<PlacementConstraintKind>(m.Groups["kind"].Value),
+                    m.Groups["a"].Value, m.Groups["am"].Value, m.Groups["b"].Value, m.Groups["bm"].Value,
+                    m.Groups["offset"].Success ? Number(m.Groups["offset"].Value) : 0)).ToArray();
+            requirements = requirements.Concat(atomicRequirements).ToArray();
             var fitMatch = Regex.Match(body, @"\bFit\s+(?<a>[A-Za-z_]\w*)\.(?<am>[A-Za-z_]\w*)\s+inside\s+(?<b>[A-Za-z_]\w*)\.(?<bm>[A-Za-z_]\w*)(?:\s+(?<perSide>per-side))?\s*;", RegexOptions.CultureInvariant);
             var policyMatch = Regex.Match(body, @"\bClearancePolicy\s+Minimum\s+(?<min>[-+]?\d+(?:\.\d+)?)mm\s+Maximum\s+(?<max>[-+]?\d+(?:\.\d+)?)mm\s*;", RegexOptions.CultureInvariant);
             var variationMatch = Regex.Match(body, @"\bVariation\s+Linear\s+(?<linear>\d+(?:\.\d+)?)mm\s+Thickness\s+(?<thickness>\d+(?:\.\d+)?)mm\s+BendAngle\s+(?<angle>\d+(?:\.\d+)?)deg\s+BendLocation\s+(?<location>\d+(?:\.\d+)?)mm\s+Coating\s+(?<coating>\d+(?:\.\d+)?)mm\s+CoatingTolerance\s+(?<coatingTol>\d+(?:\.\d+)?)mm\s+Engagement\s+(?<engagement>\d+(?:\.\d+)?)mm\s*;", RegexOptions.CultureInvariant);
@@ -102,14 +179,54 @@ public sealed class AssemblyM0Parser
                 fitMatch.Groups["perSide"].Success ? .5d : 1d, policy, variation) : null;
             var free = Regex.Matches(body, @"\bAllow\s+(?<kind>rotation|translation):(?<axis>[A-Za-z-]+)\s*;", RegexOptions.CultureInvariant)
                 .Select(m => m.Groups["kind"].Value + ":" + m.Groups["axis"].Value).ToArray();
+            if (header.Groups["family"].Success && roles.Length == 0)
+            {
+                var capabilities = family switch
+                {
+                    MechanicalInterfaceFamily.Fixed => new[] { "DatumFrameCapable" },
+                    MechanicalInterfaceFamily.Revolute => new[] { "AxisCapable", "PlaneCapable" },
+                    MechanicalInterfaceFamily.Axial => new[] { "AxisCapable" },
+                    MechanicalInterfaceFamily.Gear => new[] { "GearCapable" },
+                    _ => Array.Empty<string>()
+                };
+                roles = [new("A", capabilities), new("B", capabilities)];
+            }
+            if (header.Groups["family"].Success && requirements.Length == 0)
+            {
+                requirements = family switch
+                {
+                    MechanicalInterfaceFamily.Fixed => [new(PlacementConstraintKind.FrameCoincident, "A", ".", "B", ".")],
+                    MechanicalInterfaceFamily.Axial => [new(PlacementConstraintKind.AxisCoincident, "A", "Axis", "B", "Axis")],
+                    MechanicalInterfaceFamily.Revolute => [new(PlacementConstraintKind.AxisCoincident, "A", "Axis", "B", "Axis"), new(PlacementConstraintKind.PlaneCoincident, "A", "Seat", "B", "Seat")],
+                    _ => []
+                };
+            }
+            if (header.Groups["family"].Success && free.Length == 0)
+                free = family switch
+                {
+                    MechanicalInterfaceFamily.Axial => ["translation:along-axis", "rotation:about-axis"],
+                    MechanicalInterfaceFamily.Revolute => ["rotation:about-axis"],
+                    _ => []
+                };
+            var predicates = Regex.Matches(body, @"\bRequire\s+(?<name>[A-Za-z_]\w*)\s*=>\s*(?<left>[-+]?\d+(?:\.\d+)?)mm\s*(?<op>>=|<=|>|<|==)\s*(?<right>[-+]?\d+(?:\.\d+)?)mm\s*;", RegexOptions.CultureInvariant)
+                .Select(m =>
+                {
+                    var left = Number(m.Groups["left"].Value); var right = Number(m.Groups["right"].Value); var op = m.Groups["op"].Value;
+                    var passed = op switch { ">" => left > right, "<" => left < right, ">=" => left >= right, "<=" => left <= right, "==" => Math.Abs(left - right) <= 1e-12, _ => false };
+                    return new InterfacePredicateRequirementDefinition(m.Groups["name"].Value, $"{left:R}mm {op} {right:R}mm", passed);
+                }).ToArray();
             var continuity = Regex.Match(body,@"\bContinuity\s*:\s*(?<value>G0|G1)\s*;",RegexOptions.CultureInvariant);
             var correspondence = Regex.Match(body,@"\bCorrespondence\s*:\s*(?<value>OppositeDirections|SameDirection)\s*;",RegexOptions.CultureInvariant);
             var gap = Regex.Match(body,@"\bGapTolerance\s*:\s*(?<value>[-+]?[0-9.]+)mm\s*;",RegexOptions.CultureInvariant);
-            if (roles.Length == 0) diagnostics.Add(new("assembly-interface-no-roles", $"Interface '{name}' must define at least one Role."));
+            if (roles.Length == 0) diagnostics.Add(new("assembly-interface-no-roles", $"Interface '{name}' must define at least one Role or use a compiler-owned typed family."));
+            if (result.Any(item => item.Name == name)) { diagnostics.Add(new("assembly-interface-duplicate-name", $"Interface '{name}' is declared more than once.")); continue; }
+            var gearOptions = family == MechanicalInterfaceFamily.Gear
+                ? new GearInterfaceOptions(OptionalAngle(body, "ShaftAngle"), OptionalAngle(body, "EngagementPhase"), OptionalIdentifier(body, "AllowedDirection"))
+                : null;
             result.Add(new($"interface:{name}", name, roles, requirements, fit, free, SemanticSourceSpan.Generated(sourceIdentity),
                 continuity.Success?continuity.Groups["value"].Value:null,
                 correspondence.Success?correspondence.Groups["value"].Value:"OppositeDirections",
-                gap.Success?Number(gap.Groups["value"].Value):1e-6));
+                gap.Success?Number(gap.Groups["value"].Value):1e-6, family, header.Groups["family"].Success, predicates, gearOptions));
         }
         return result.OrderBy(x => x.Name, StringComparer.Ordinal).ToArray();
     }
@@ -126,10 +243,12 @@ public sealed class AssemblyM0Parser
         public PlacementAuthority PlacementAuthority { get; set; } = PlacementAuthority.MateDerived;
         public bool IsEncapsulatedDefinition { get; set; }
         public AssemblyDefinitionIr? SolvedAssemblyDefinition { get; set; }
+        public SemanticValue? TypedEndpoint { get; set; }
     }
 
     private static IReadOnlyList<AssemblyDefinitionSource> ParseAssemblyDefinitions(string source, string sourceIdentity,
         IReadOnlyList<InterfaceDefinition> interfaces, IReadOnlyList<AssemblyConceptDefinition> concepts,
+        IReadOnlyDictionary<string, GearAir> gearAuthorities,
         List<AssemblyDiagnostic> diagnostics, List<(int Start, int Length)> ranges)
     {
         var result = new List<AssemblyDefinitionSource>();
@@ -141,7 +260,7 @@ public sealed class AssemblyM0Parser
             if (body is null) continue;
             var close = template.Index + template.Length + body.Length + 1;
             ranges.Add((template.Index, close - template.Index));
-            var root = ParseTree(body, sourceIdentity, diagnostics);
+            var root = ParseTree(body, sourceIdentity, diagnostics, result, interfaces, new Dictionary<string, AssemblyMemberSource>(StringComparer.Ordinal), gearAuthorities);
             if (root is null) continue;
             var exposed = ParseAssemblyExposes(body, root, sourceIdentity, diagnostics);
             root = root with { ExposedSemantics = exposed, IsEncapsulatedDefinition = true };
@@ -216,17 +335,24 @@ public sealed class AssemblyM0Parser
         if (!header.Success) return [];
         var block = BalancedBody(body, header.Index + header.Length - 1, diagnostics, "Assembly Expose") ?? string.Empty;
         var result = new List<SemanticValue>();
-        foreach (Match expose in Regex.Matches(block, @"\b(?:Semantic|Axis|Plane|Point|Dimension|DatumFrame)\s+(?<name>[A-Za-z_]\w*)\s*=\s*(?<path>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*;", RegexOptions.CultureInvariant))
+        foreach (Match expose in Regex.Matches(block, @"\b(?<type>Semantic|Axis|Plane|Point|Dimension|DatumFrame|Gear)\s+(?<name>[A-Za-z_]\w*)\s*=\s*(?<path>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*;", RegexOptions.CultureInvariant))
         {
             var alias = expose.Groups["name"].Value;
             if (result.Any(value => value.ExposedName == alias)) { diagnostics.Add(new("assembly-expose-duplicate-name", $"Assembly Expose declares '{alias}' more than once.")); continue; }
             var segments = expose.Groups["path"].Value.Split('.');
             var child = root.Children.SingleOrDefault(item => item.Name == segments[0]);
-            SemanticValue? value = child is null ? null : child.ExposedSemantics.SingleOrDefault(item => item.ExposedName == segments.ElementAtOrDefault(1));
+            SemanticValue? value = child is null ? null : segments.Length == 1 ? child.TypedEndpoint : child.ExposedSemantics.SingleOrDefault(item => item.ExposedName == segments[1]);
             for (var i = 2; value is not null && i < segments.Length; i++) value = value.ExposedMembers.GetValueOrDefault(segments[i]);
             if (value is null)
             {
                 diagnostics.Add(new("assembly-expose-unresolved-path", $"Assembly Expose '{alias}' references nonexistent internal path '{expose.Groups["path"].Value}'."));
+                continue;
+            }
+            var expectedType = expose.Groups["type"].Value;
+            var semanticType = expectedType switch { "DatumFrame" => "AssemblyDatumFrame", "Dimension" => "Length", _ => expectedType };
+            if (expectedType != "Semantic" && !string.Equals(value.Type.Name, semanticType, StringComparison.Ordinal))
+            {
+                diagnostics.Add(new("assembly-expose-type-mismatch", $"Assembly Expose '{alias}' declares {expectedType} but '{expose.Groups["path"].Value}' is {value.Type}."));
                 continue;
             }
             result.Add(new SemanticValue(value.StableIdentity + ":expose:" + alias, value.Type, value.Capabilities.Values, value.Bindings,
@@ -241,12 +367,14 @@ public sealed class AssemblyM0Parser
         IDictionary<string, AssemblyMemberSource> specializationCache, string sourceIdentity, List<AssemblyDiagnostic> diagnostics)
     {
         var application = Regex.Match(identity, @"^(?<name>[A-Za-z_]\w*)\s*<\s*(?<parameter>[A-Za-z_]\w*)\s*:\s*(?<argument>[^>]+)\s*>$", RegexOptions.CultureInvariant);
-        if (!application.Success) { diagnostics.Add(new("assembly-template-unresolved-definition", $"Assembly occurrence '{occurrenceName}' references unresolved definition '{identity}'.")); return null; }
-        var definition = definitions.SingleOrDefault(item => item.Name == application.Groups["name"].Value);
-        if (definition is null) { diagnostics.Add(new("assembly-template-unresolved-definition", $"Assembly Template '{application.Groups["name"].Value}' was not found.")); return null; }
-        if (application.Groups["parameter"].Value != definition.ParameterName) { diagnostics.Add(new("assembly-template-argument-mismatch", $"Assembly Template '{definition.Name}' expects argument '{definition.ParameterName}'.")); return null; }
-        var argument = application.Groups["argument"].Value.Trim();
-        var specializationIdentity = NormalizeIdentity(identity);
+        var bareName = Regex.Match(identity, @"^(?<name>[A-Za-z_]\w*)$", RegexOptions.CultureInvariant);
+        var definitionName = application.Success ? application.Groups["name"].Value : bareName.Success ? bareName.Groups["name"].Value : string.Empty;
+        var definition = definitions.SingleOrDefault(item => item.Name == definitionName);
+        if (definition is null) { diagnostics.Add(new("assembly-template-unresolved-definition", $"Assembly definition '{definitionName}' was not found.")); return null; }
+        if (application.Success && application.Groups["parameter"].Value != definition.ParameterName) { diagnostics.Add(new("assembly-template-argument-mismatch", $"Assembly Template '{definition.Name}' expects argument '{definition.ParameterName}'.")); return null; }
+        if (!application.Success && definition.ParameterName != "__Unit") { diagnostics.Add(new("assembly-template-argument-mismatch", $"Parameterized Assembly Template '{definition.Name}' requires '{definition.ParameterName}: ...'.")); return null; }
+        var argument = application.Success ? application.Groups["argument"].Value.Trim() : "__Unit";
+        var specializationIdentity = application.Success ? NormalizeIdentity(identity) : definition.Name;
         if (specializationCache.TryGetValue(specializationIdentity, out var cached))
             return RenameOccurrence(cached, occurrenceName);
         AssemblyMemberSource Replace(AssemblyMemberSource item) => item with
@@ -258,9 +386,9 @@ public sealed class AssemblyM0Parser
             DefinitionIdentity = Regex.Replace(item.DefinitionIdentity, $@"(?<prefix>:\s*)\b{Regex.Escape(definition.ParameterName)}\b", "${prefix}" + argument),
             Children = item.Children.Select(Replace).ToArray(),
             Provenance = [.. item.Provenance ?? [], new("assembly-template-specialization", definition.Name, specializationIdentity, SemanticSourceSpan.Generated(sourceIdentity))],
-            IsEncapsulatedDefinition = false
+            IsEncapsulatedDefinition = item.IsEncapsulatedDefinition
         };
-        var specializedRoot = Replace(definition.LocalRoot);
+        var specializedRoot = Replace(definition.LocalRoot) with { IsEncapsulatedDefinition = false };
         var localSource = new AssemblySource(definition.Name, specializedRoot, interfaces, definition.LocalMates ?? [], definition.LocalAnchor ?? new([definition.Name]),
             definition.LocalDimensionalRelations ?? [], definition.LocalStackupAsserts ?? [], sourceIdentity);
         var watch = Stopwatch.StartNew();
@@ -302,9 +430,22 @@ public sealed class AssemblyM0Parser
         var internalPath = exposed.Provenance.LastOrDefault(item => item.Stage == "assembly-expose")?.Evidence;
         if (internalPath is null || !AssemblyM0Compiler.TryResolve(AssemblyPath.Parse(localIr.Name + "." + internalPath), localIr.Instances, out var reference)) return exposed;
         var bindings = exposed.Bindings.Where(binding => binding is TolerancedDimensionBinding).ToList();
+        if (reference!.Value.TryBinding<TypedSemanticAuthorityBinding<GearAir>>(out var gear))
+        {
+            var owner = localIr.Instances.Where(instance => Flatten(instance.SemanticRoot).Any(value => value.StableIdentity == reference.Value.StableIdentity))
+                .OrderByDescending(instance => instance.Path.Segments.Count).First();
+            bindings.Add(gear with { RelativeOccurrencePath = [.. owner.Path.Segments.Skip(1), .. gear.RelativeOccurrencePath ?? []] });
+        }
         try { bindings.Add(AssemblyWorldQuery.Resolve(localIr, reference!.Value.StableIdentity)); } catch (InvalidOperationException) { }
         return new(exposed.StableIdentity, exposed.Type, exposed.Capabilities.Values, bindings, exposed.ExposedMembers.Values, exposed.Provenance,
             exposed.AuthoredSourceSpan, SemanticSourceSpan.Generated(sourceIdentity), exposed.ExposedName);
+
+        static IEnumerable<SemanticValue> Flatten(SemanticValue value)
+        {
+            yield return value;
+            foreach (var child in value.ExposedMembers.Values)
+                foreach (var descendant in Flatten(child)) yield return descendant;
+        }
     }
 
     private static IReadOnlyList<DimensionalRelationIr> BuildPublicRelations(AssemblyDefinitionSource definition, string specializationIdentity,
@@ -352,7 +493,8 @@ public sealed class AssemblyM0Parser
 
     private static AssemblyMemberSource? ParseTree(string body, string sourceIdentity, List<AssemblyDiagnostic> diagnostics,
         IReadOnlyList<AssemblyDefinitionSource>? definitions = null, IReadOnlyList<InterfaceDefinition>? interfaces = null,
-        IDictionary<string, AssemblyMemberSource>? specializationCache = null)
+        IDictionary<string, AssemblyMemberSource>? specializationCache = null,
+        IReadOnlyDictionary<string, GearAir>? gearAuthorities = null)
     {
         // One bounded generic argument list is admitted in a Part definition. The
         // inner '>' belongs to the Firmament Template application, not the XML-like tag.
@@ -384,6 +526,7 @@ public sealed class AssemblyM0Parser
                         node.PlacementAuthority = instantiated.PlacementAuthority;
                         node.IsEncapsulatedDefinition = true;
                         node.SolvedAssemblyDefinition = instantiated.SolvedAssemblyDefinition;
+                        node.TypedEndpoint = instantiated.TypedEndpoint;
                     }
                 }
                 if (stack.Count > 0) { node.Parent = stack.Peek().node; node.Parent.Children.Add(node); }
@@ -400,6 +543,12 @@ public sealed class AssemblyM0Parser
                 if (open.node.Kind is AssemblyInstanceKind.Part or AssemblyInstanceKind.Panel)
                 {
                     open.node.Semantics.AddRange(ParseSemantics(nodeBody, open.node.Definition, sourceIdentity, diagnostics));
+                    if (open.node.Kind == AssemblyInstanceKind.Part && gearAuthorities?.GetValueOrDefault(open.node.Definition) is { } gear)
+                    {
+                        var endpoint = GearEndpoint(gear, sourceIdentity);
+                        open.node.Semantics.Add(endpoint);
+                        open.node.TypedEndpoint = endpoint;
+                    }
                 }
                 var nestedTag = nodeBody.IndexOf('<');
                 var placementBody = open.node.Kind == AssemblyInstanceKind.Assembly && nestedTag >= 0 ? nodeBody[..nestedTag] : nodeBody;
@@ -422,16 +571,44 @@ public sealed class AssemblyM0Parser
         if (root is null) diagnostics.Add(new("assembly-tree-missing", "Assembly body requires a nested <Assembly Name> product tree."));
         AssemblyMemberSource Freeze(MutableNode node) => new(node.Name, node.Kind, node.Definition,
             node.Children.Select(Freeze).ToArray(), node.Semantics, [], [new("assembly-source", node.Name, node.Definition, SemanticSourceSpan.Generated(sourceIdentity))],
-            node.ExplicitTransform, node.PlacementAuthority, node.IsEncapsulatedDefinition, node.SolvedAssemblyDefinition);
+            node.ExplicitTransform, node.PlacementAuthority, node.IsEncapsulatedDefinition, node.SolvedAssemblyDefinition, node.TypedEndpoint);
         return root is null ? null : Freeze(root);
 
         MutableNode ToMutable(AssemblyMemberSource source)
         {
-            var mutable = new MutableNode(source.Name, source.Kind, source.DefinitionIdentity) { ExplicitTransform = source.ExplicitTransform, PlacementAuthority = source.PlacementAuthority, IsEncapsulatedDefinition = source.IsEncapsulatedDefinition, SolvedAssemblyDefinition = source.SolvedAssemblyDefinition };
+            var mutable = new MutableNode(source.Name, source.Kind, source.DefinitionIdentity) { ExplicitTransform = source.ExplicitTransform, PlacementAuthority = source.PlacementAuthority, IsEncapsulatedDefinition = source.IsEncapsulatedDefinition, SolvedAssemblyDefinition = source.SolvedAssemblyDefinition, TypedEndpoint = source.TypedEndpoint };
             mutable.Semantics.AddRange(source.ExposedSemantics);
             mutable.Children.AddRange(source.Children.Select(ToMutable));
             return mutable;
         }
+    }
+
+    private static SemanticValue GearEndpoint(GearAir gear, string sourceIdentity)
+    {
+        var id = "gear-definition:" + gear.Name;
+        var axis = new ExactAxisBinding(0, 0, 0, gear.Axis[0], gear.Axis[1], gear.Axis[2], id + ":axis");
+        var direction = Vector3.Normalize(new((float)gear.Axis[0], (float)gear.Axis[1], (float)gear.Axis[2]));
+        var x = Math.Abs(Vector3.Dot(direction, Vector3.UnitX)) < .9f ? Vector3.Normalize(Vector3.Cross(Vector3.UnitY, direction)) : Vector3.Normalize(Vector3.Cross(Vector3.UnitZ, direction));
+        var y = Vector3.Normalize(Vector3.Cross(direction, x));
+        var frame = new ExactDatumFrameBinding(0, 0, 0, x.X, x.Y, x.Z, y.X, y.Y, y.Z, direction.X, direction.Y, direction.Z, id + ":frame");
+        return new(id, new("Gear"), [new GearCapability(), new AxisCapability(), new DatumFrameCapability()],
+            [new TypedSemanticAuthorityBinding<GearAir>(new("Gear"), gear, id), axis, frame],
+            [new SemanticValue(id + ":Axis", new("Axis"), [new AxisCapability()], [axis], exposedName: "Axis"),
+             new SemanticValue(id + ":Frame", new("AssemblyDatumFrame"), [new DatumFrameCapability()], [frame], exposedName: "Frame")],
+            [new("gear-authority", gear.Name, gear.Family.ToString(), new(sourceIdentity, gear.SourceSpan.Start, gear.SourceSpan.Length))],
+            new(sourceIdentity, gear.SourceSpan.Start, gear.SourceSpan.Length), exposedName: "Gear");
+    }
+
+    private static double? OptionalAngle(string body, string name)
+    {
+        var match = Regex.Match(body, $@"\b{Regex.Escape(name)}\s*:\s*(?<value>[-+]?\d+(?:\.\d+)?)deg\s*;?", RegexOptions.CultureInvariant);
+        return match.Success ? Number(match.Groups["value"].Value) : null;
+    }
+
+    private static string? OptionalIdentifier(string body, string name)
+    {
+        var match = Regex.Match(body, $@"\b{Regex.Escape(name)}\s*:\s*(?<value>[A-Za-z_]\w*)\s*;?", RegexOptions.CultureInvariant);
+        return match.Success ? match.Groups["value"].Value : null;
     }
 
     private static IEnumerable<SemanticValue> ParseSemantics(string body, string definition, string sourceIdentity, List<AssemblyDiagnostic> diagnostics)
@@ -498,6 +675,13 @@ public sealed class AssemblyM0Parser
             var roles = Regex.Matches(block, @"\b(?<role>[A-Za-z_]\w*)\s*:\s*(?<path>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*;", RegexOptions.CultureInvariant)
                 .Select(m => new MateRoleAssignment(m.Groups["role"].Value, AssemblyPath.Parse(m.Groups["path"].Value))).ToArray();
             result.Add(new(header.Groups["name"].Value, header.Groups["interface"].Value, roles, SemanticSourceSpan.Generated(sourceIdentity)));
+        }
+        foreach (Match header in Regex.Matches(body, @"\bInterface\s*<\s*(?<family>Custom|Fixed|Axial|Revolute|Gear)\s*>\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant))
+        {
+            var block = BalancedBody(body, header.Index + header.Length - 1, diagnostics, "typed Interface"); if (block is null || Regex.IsMatch(block, @"\bRole\s+", RegexOptions.CultureInvariant)) continue;
+            var roles = Regex.Matches(block, @"\b(?<role>A|B)\s*:\s*(?<path>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*;", RegexOptions.CultureInvariant)
+                .Select(m => new MateRoleAssignment(m.Groups["role"].Value, AssemblyPath.Parse(m.Groups["path"].Value))).ToArray();
+            if (roles.Length > 0) result.Add(new(header.Groups["name"].Value, header.Groups["name"].Value, roles, SemanticSourceSpan.Generated(sourceIdentity)));
         }
         return result;
     }

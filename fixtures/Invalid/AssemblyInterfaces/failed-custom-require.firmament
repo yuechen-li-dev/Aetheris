@@ -1,0 +1,19 @@
+Assembly FailedCustomRequire {
+    <Assembly FailedCustomRequire>
+        <Part A = Shaft>
+            Semantic Joint { Axis Axis = [0,0,0] -> [0,0,1]; }
+        </Part>
+        <Part B = Bearing>
+            Semantic Joint { Axis Axis = [0,0,0] -> [0,0,1]; }
+        </Part>
+    </Assembly>
+    Anchor: FailedCustomRequire.A.Joint;
+    Interface<Custom> ImpossibleClearance {
+        A: FailedCustomRequire.B.Joint;
+        B: FailedCustomRequire.A.Joint;
+        Mate AxisCoincident A.Axis B.Axis;
+        Require ClearancePositive => -1mm > 0mm;
+        Allow translation:along-axis;
+        Allow rotation:about-axis;
+    }
+}

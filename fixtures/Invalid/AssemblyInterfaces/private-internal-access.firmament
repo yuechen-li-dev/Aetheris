@@ -1,0 +1,13 @@
+Include "../../Canonical/AssemblyInterfaces/register.firmament";
+
+Assembly PrivateAccess {
+    <Assembly PrivateAccess>
+        <Assembly RegisterA = Register></Assembly>
+        <Assembly RegisterB = Register></Assembly>
+    </Assembly>
+    Anchor: PrivateAccess.RegisterA.Input;
+    Interface<Axial> InvalidPrivateReach {
+        A: PrivateAccess.RegisterB.Digit0.Input;
+        B: PrivateAccess.RegisterA.Output;
+    }
+}

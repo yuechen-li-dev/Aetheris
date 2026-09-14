@@ -16,3 +16,5 @@ Start with [Getting Started](getting-started.md), then use these guides:
 The Windows ZIP begins with the tested [release-bundle walkthrough](release-bundle.md).
 
 All linked example source files are exercised by the public-example qualification tests. Preview 3's reliability rule is simple: a supported requested semantic operation is produced, and an unsupported operation fails with a named diagnostic; successful builds must not silently discard engineering intent.
+
+For source-traceable PDF markup and LLM handoff before CAD reconstruction, see [Reading engineering drawings with Drawing Notes](drawing-notes.md).

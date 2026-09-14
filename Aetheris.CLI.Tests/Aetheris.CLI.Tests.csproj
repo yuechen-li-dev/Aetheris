@@ -20,6 +20,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Aetheris.CLI\Aetheris.CLI.csproj" />
     <ProjectReference Include="..\Aetheris.Kernel.StandardLibrary\Aetheris.Kernel.StandardLibrary.csproj" />
+    <ProjectReference Include="..\Aetheris.Drawing\Aetheris.Drawing.csproj" />
     <ProjectReference Include="..\test-support\Aetheris.TestForgePack\Aetheris.TestForgePack.csproj" />
     <ProjectReference Include="..\test-support\Aetheris.TestForgePack.Duplicate\Aetheris.TestForgePack.Duplicate.csproj" />
   </ItemGroup>

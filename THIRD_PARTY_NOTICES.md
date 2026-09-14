@@ -35,6 +35,11 @@ AGPL-licensed or authored by Aetheris.
 
 ## Other dependencies
 
+Drawing Notes uses the MIT-licensed `PDFtoImage` .NET package, which wraps the
+BSD-licensed PDFium renderer and MIT-licensed SkiaSharp graphics library. Their
+binary packages and license metadata are restored from NuGet and retain their
+authors' terms.
+
 NuGet dependencies and JavaScript dependencies resolved by TSPack are restored
 from their respective package feeds and retain the licenses and notices
 supplied by their authors. This file does not attempt to replace the dependency

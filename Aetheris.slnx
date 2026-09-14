@@ -1,5 +1,7 @@
 <Solution>
   <Project Path="Aetheris.Server/Aetheris.Server.csproj" />
+  <Project Path="Aetheris.Drawing/Aetheris.Drawing.csproj" />
+  <Project Path="Aetheris.Drawing.Tests/Aetheris.Drawing.Tests.csproj" />
   <Project Path="Aetheris.Server.Tests/Aetheris.Server.Tests.csproj" />
   <Project Path="Aetheris.Kernel.Core/Aetheris.Kernel.Core.csproj" />
   <Project Path="Aetheris.Geometry/Aetheris.Geometry.csproj" />

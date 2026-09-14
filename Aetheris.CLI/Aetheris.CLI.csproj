@@ -30,6 +30,7 @@
     <ProjectReference Include="..\Aetheris.SheetMetal\Aetheris.SheetMetal.csproj" />
     <ProjectReference Include="..\Aetheris.PlasticShell\Aetheris.PlasticShell.csproj" />
     <ProjectReference Include="..\Aetheris.Sculpture\Aetheris.Sculpture.csproj" />
+    <ProjectReference Include="..\Aetheris.Drawing\Aetheris.Drawing.csproj" />
   </ItemGroup>
 
   <ItemGroup>

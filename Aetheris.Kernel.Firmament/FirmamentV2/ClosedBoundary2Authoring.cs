@@ -236,9 +236,22 @@ internal static class ClosedBoundary2Authoring
     private static double Cross((double X, double Y) a, (double X, double Y) b, (double X, double Y) c) => (b.X - a.X) * (c.Y - a.Y) - (b.Y - a.Y) * (c.X - a.X);
     private static double Distance((double X, double Y) a, (double X, double Y) b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
     private static double EllipsePerimeter(double a, double b) => Math.PI * (3 * (a + b) - Math.Sqrt((3 * a + b) * (a + 3 * b)));
-    private static bool Point(string body, string field, out (double X, double Y) value) { var m = Regex.Match(body, $@"\b{field}\s*:\s*(?:\[|Point2\s*\()\s*(?<x>[-+.\deE]+)mm\s*,\s*(?<y>[-+.\deE]+)mm\s*(?:\]|\))", RegexOptions.CultureInvariant); value = default; return m.Success && Number(m.Groups["x"].Value, out value.X) && Number(m.Groups["y"].Value, out value.Y); }
+    private static bool Point(string body, string field, out (double X, double Y) value)
+    {
+        value = default;
+        var expression = ProfileAuthoringParser.Property(body, field)?.Trim();
+        if (expression is null) return false;
+        string components;
+        if (expression.StartsWith("[") && expression.EndsWith("]")) components = expression[1..^1];
+        else if (expression.StartsWith("Point2(") && expression.EndsWith(")")) components = expression[7..^1];
+        else return false;
+        var items = components.Split(',');
+        return items.Length == 2 && ProfileAuthoringParser.TryMeasure(items[0], "mm", out value.X)
+            && ProfileAuthoringParser.TryMeasure(items[1], "mm", out value.Y);
+    }
     private static bool Vector(string body, string field, out (double X, double Y) value) => Point(body, field, out value);
-    private static bool Length(string body, string field, out double value) { var m = Regex.Match(body, $@"\b{field}\s*:\s*(?<v>[-+.\deE]+)mm\b", RegexOptions.CultureInvariant); return Number(m.Groups["v"].Value, out value); }
+    private static bool Length(string body, string field, out double value) =>
+        ProfileAuthoringParser.TryMeasure(ProfileAuthoringParser.Property(body, field) ?? "", "mm", out value);
     private static double Angle(string body, string field, double fallback, out bool valid) { var m = Regex.Match(body, $@"\b{field}\s*:\s*(?<v>[-+.\deE]+)deg\b", RegexOptions.CultureInvariant); if (!m.Success) { valid = true; return fallback; } valid = Number(m.Groups["v"].Value, out var value); return value; }
     private static string? Identifier(string body, string field) { var m = Regex.Match(body, $@"\b{field}\s*:\s*(?<v>[A-Za-z_]\w*)\b", RegexOptions.CultureInvariant); return m.Success ? m.Groups["v"].Value : null; }
     private static bool ResolvePoint(string source, string name, out (double X, double Y) p) { var m = Regex.Match(source, $@"\bPoint2\s+{Regex.Escape(name)}\s*\{{\s*Position\s*:\s*(?:\[|Point2\s*\()\s*(?<x>[-+.\deE]+)mm\s*,\s*(?<y>[-+.\deE]+)mm", RegexOptions.CultureInvariant); p = default; return m.Success && Number(m.Groups["x"].Value, out p.X) && Number(m.Groups["y"].Value, out p.Y); }

@@ -8,6 +8,41 @@ namespace Aetheris.Kernel.Firmament.Tests;
 public sealed class ClosedBoundary2X1Tests
 {
     [Fact]
+    public void DimensionalArithmetic_ReachesBoundaryAndExtrusionWithoutTruncation()
+    {
+        const string source = """
+            Model ArithmeticPlate {
+            Units: mm
+            Template < W: Length > Struct Plate {
+                RoundedRect2 Outline { Center: [W / 2, -30mm / 2] Size: [W - 2mm, 30mm] Radius: 2mm + 1mm }
+                Profile Section { Loop Outer { Outline |> TraceLoop } }
+                Extrude Body { Profile: Section From: 1mm + 2mm To: 8mm + 2mm }
+            }
+            Struct Item = Plate<W: 40mm>
+            }
+            """;
+        var build = FirmamentBuildAndExport.CompileSource(source);
+        Assert.True(build.IsSuccess, string.Join("\n", build.Diagnostics.Select(x => x.Message)));
+        var literal = source.Replace("W / 2", "20mm").Replace("-30mm / 2", "-15mm")
+            .Replace("W - 2mm", "38mm").Replace("2mm + 1mm", "3mm")
+            .Replace("1mm + 2mm", "3mm").Replace("8mm + 2mm", "10mm");
+        var expected = FirmamentBuildAndExport.CompileSource(literal);
+        Assert.True(expected.IsSuccess, string.Join("\n", expected.Diagnostics.Select(x => x.Message)));
+        Assert.Equal(expected.Value.StepText, build.Value.StepText);
+    }
+
+    [Theory]
+    [InlineData("2mm + 1deg")]
+    [InlineData("2mm / 0")]
+    [InlineData("2mm + Missing")]
+    public void BoundaryLength_DoesNotAcceptValidPrefixOfInvalidExpression(string radius)
+    {
+        var result = FirmamentBuildAndExport.CompileSource(Source(
+            $"RoundedRect2 Shape {{ Center: [0mm,0mm] Size: [40mm,30mm] Radius: {radius} }}"));
+        Assert.False(result.IsSuccess);
+    }
+
+    [Fact]
     public void TemplateLocalBoundariesAreLoweredOnlyAfterSpecialization()
     {
         var source = File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/Templates/local-closed-boundaries.firmament"));

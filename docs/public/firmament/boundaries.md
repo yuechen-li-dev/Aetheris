@@ -52,6 +52,8 @@ RegularPolygon2<6> Hex { Center: [0mm,0mm] AcrossFlats: 32mm Rotation: 30deg }
 
 `Rotation: Angle` rotates a shape in its local XY plane. Placement remains owned by the existing `Concept Struct ... On XY` / `Profile ... Using ...` frame architecture; the shape declarations do not introduce a second frame system.
 
+After Template specialization, boundary coordinate and length fields accept bounded dimensional arithmetic through the existing Profile evaluator, for example `Center: [Spec.Width / 2, -Spec.Length / 2]` and `Radius: 2mm + 1mm`. Extrusion `From`/`To` intervals use the same evaluator. Expressions must consume the entire field and yield a length; incompatible units, unknown names, and division by zero fail rather than accepting a numeric prefix. This does not add arbitrary functions or a new expression language.
+
 `Slot2.Length` is the overall end-to-end length and must be at least `Width`; equality lowers deterministically to one circular boundary. `Ellipse2.AxisLengths` are full lengths, not semi-axes. `RoundedRect2` accepts radius zero as rectangle-equivalent geometry. All sizes must be finite and positive, and rounded radius cannot exceed half the smaller size.
 
 `RegularPolygon2<N>` is a bounded built-in structural parameter (`3 <= N <= 1024`), not general const generics. `Polygon2<T>` admits only the documented constrained variants. Add another named polygon variant only when it supplies meaningful geometric constraints or substantially better engineering dimensions than `Polygon2<Explicit>`.

@@ -22,7 +22,6 @@ public static class ProfileAuthoringParser
     private static readonly Regex Segment = new(@"\bSegment\s+(?<n>\w+)\s*\{\s*Trace\s*:\s*(?<trace>[\w.]+)\s*;?\s*From\s*:\s*(?<from>[\w.]+)\s*;?\s*To\s*:\s*(?<to>[\w.]+)(?:\s*;?\s*Sweep\s*:\s*(?<sweep>Clockwise|CounterClockwise))?", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex SpanHeader = new(@"\bSpan\s*<\s*(?<type>[A-Za-z_]\w*)\s*>\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex Pipeline = new(@"(?<expression>(?:Reverse\s+)?[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*(?:\s+As\s+[A-Za-z_]\w*)?\s*(?:\|>\s*(?:(?:Reverse\s+)?[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*(?:\s+As\s+[A-Za-z_]\w*)?|Close|TraceLoop)\s*)+)", RegexOptions.CultureInvariant);
-    private static readonly Regex Extrude = new(@"\bExtrude\s+\w+\s*\{\s*Profile\s*:\s*(?<p>\w+)\s*;?\s*From\s*:\s*(?<a>[-+.\deE]+)mm\s*;?\s*To\s*:\s*(?<b>[-+.\deE]+)mm", RegexOptions.Singleline | RegexOptions.CultureInvariant);
 
     public static bool IsProfileSource(string source) => Regex.IsMatch(source, @"\bProfile\s+[A-Za-z_]\w*", RegexOptions.CultureInvariant);
 
@@ -158,7 +157,8 @@ public static class ProfileAuthoringParser
         var diagnostics = new List<string>();
         source = ExpandBuiltInPolygons(source, diagnostics);
         var authoredProfiles = FindProfiles(source).ToArray();
-        var extrudeProfile = Extrude.Match(source).Groups["p"].Value;
+        var extrusion = FindBlocks(source, @"\bExtrude\s+\w+\s*\{").FirstOrDefault();
+        var extrudeProfile = extrusion is null ? null : Property(extrusion.Body, "Profile");
         var profile = authoredProfiles.FirstOrDefault(candidate => candidate.Name == extrudeProfile) ?? authoredProfiles.FirstOrDefault();
         if (profile is null)
             return (null, 0, ["profile-source-missing-profile"]);
@@ -916,8 +916,11 @@ public static class ProfileAuthoringParser
 
     private static (double Start, double End, double Height) ResolveExtrude(string source, string profileName, List<string> diagnostics)
     {
-        var match = Extrude.Matches(source).Cast<Match>().FirstOrDefault(x => x.Groups["p"].Value == profileName);
-        if (match is null || !TryNumber(match.Groups["a"].Value, out var start) || !TryNumber(match.Groups["b"].Value, out var end)) { diagnostics.Add("profile-extrude-missing-or-mismatched"); return default; }
+        var block = FindBlocks(source, @"\bExtrude\s+\w+\s*\{")
+            .FirstOrDefault(x => Property(x.Body, "Profile") == profileName);
+        if (block is null || !TryMeasure(Property(block.Body, "From") ?? "", "mm", out var start)
+            || !TryMeasure(Property(block.Body, "To") ?? "", "mm", out var end))
+        { diagnostics.Add("profile-extrude-missing-or-mismatched"); return default; }
         return (start, end, Math.Abs(end - start));
     }
 
@@ -956,14 +959,14 @@ public static class ProfileAuthoringParser
         return entries.OrderBy(x => x.Index);
     }
 
-    private static string? Property(string body, string name)
+    internal static string? Property(string body, string name)
     {
         // A property expression may contain whitespace (for example P.Length - P.Gap),
         // while legacy compact authoring may put the next Name: property on the same line.
         var match = Regex.Match(body, $@"\b{name}\s*:\s*(?<v>.*?)(?=\s+[A-Za-z_]\w*\s*:|[;\r\n}}]|$)", RegexOptions.CultureInvariant);
         return match.Success ? match.Groups["v"].Value.Trim() : null;
     }
-    private static bool TryMeasure(string text, string unit, out double value)
+    internal static bool TryMeasure(string text, string unit, out double value)
     {
         var parser = new BoundedMeasureExpression(text, unit);
         return parser.TryEvaluate(out value);

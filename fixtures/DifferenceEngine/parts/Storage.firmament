@@ -1,0 +1,42 @@
+// Dimensional arguments are supplied by the typed design author.
+// These ordinary templates are also usable without the demo executable.
+Template < Rout: Length, Rin: Length, Zlow: Length, Zhigh: Length >
+Struct Annulus {
+    Circle2 Outside { Center: [0mm,0mm] Radius: Rout }
+    Circle2 Inside { Center: [0mm,0mm] Radius: Rin }
+    Profile Section { Loop Outer { Outside |> TraceLoop } Loop Inner { Inside |> TraceLoop } }
+    Extrude Body { Profile: Section From: Zlow To: Zhigh }
+}
+
+Template < R: Length, Zlow: Length, Zhigh: Length >
+Struct RoundBar {
+    Circle2 Outside { Center: [0mm,0mm] Radius: R }
+    Profile Section { Loop Outer { Outside |> TraceLoop } }
+    Extrude Body { Profile: Section From: Zlow To: Zhigh }
+}
+
+Template < Rout: Length, Rin: Length, PitchR: Length, HoleD: Length, Zlow: Length, Zhigh: Length >
+Struct DecimalIndexPlate {
+    Circle2 Outside { Center: [0mm,0mm] Radius: Rout }
+    Circle2 Inside { Center: [0mm,0mm] Radius: Rin }
+    Profile Section { Loop Outer { Outside |> TraceLoop } Loop Inner { Inside |> TraceLoop } }
+    Axis IndexAxis { Origin: [0mm,0mm,0mm]; Direction: [0,0,1] }
+    Compose Body {
+        Base Stock { Profile: Section From: Zlow To: Zhigh Role: Stock }
+        Hole<Shaft> IndexZero { On: +Z Center: Point2(PitchR,0mm) Diameter: HoleD End: ThroughAll }
+        Radial Pattern IndexPositions { Source: IndexZero About: IndexAxis Count: 10 Angle: full }
+    }
+}
+
+Template < W: Length, D: Length, H: Length, ShaftD: Length, PinX: Length, PinD: Length, MountX: Length, MountY: Length >
+Struct StorageSupport {
+    Rect2 Outside { Center: [0mm,0mm] Size: [W,D] }
+    Profile Section { Loop Outer { Outside |> TraceLoop } }
+    Compose Body {
+        Base Stock { Profile: Section From: 0mm To: H Role: Stock }
+        Hole<Shaft> ShaftBore { On: +Z Center: Point2(0mm,0mm) Diameter: ShaftD End: ThroughAll }
+        Hole<Shaft> PlungerGuide { On: +Z Center: Point2(PinX,0mm) Diameter: PinD End: ThroughAll }
+        Hole<Shaft> MountLeft { On: +Z Center: Point2(-MountX,MountY) Diameter: 4.5mm End: ThroughAll }
+        Hole<Shaft> MountRight { On: +Z Center: Point2(MountX,MountY) Diameter: 4.5mm End: ThroughAll }
+    }
+}

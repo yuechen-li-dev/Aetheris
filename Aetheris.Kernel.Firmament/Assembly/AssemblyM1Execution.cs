@@ -81,6 +81,18 @@ internal static class AssemblyDefinitionMaterializer
                 return new(definitionIdentity, "gear:" + definitionIdentity, materialization.Body, [],
                     new(gearStableId, definitionIdentity, "gear:" + definitionIdentity, gearHash, Metrics(materialization.Body), gearProvenance));
             }
+            // An ordinary template specialization must not see sibling Gear roots:
+            // the standalone build route would otherwise select the Gear profile and
+            // successfully return that gear for every shaft, support and wheel.
+            // Use producer-owned declaration spans; retain offsets for diagnostics.
+            if (gearDocument.Gears.Count > 0)
+            {
+                var ordinaryDeclarations = definitionSource.ToCharArray();
+                foreach (var sibling in gearDocument.Gears)
+                    for (var i = sibling.SourceSpan.Start; i < sibling.SourceSpan.Start + sibling.SourceSpan.Length; i++)
+                        if (ordinaryDeclarations[i] is not ('\r' or '\n')) ordinaryDeclarations[i] = ' ';
+                definitionSource = new string(ordinaryDeclarations);
+            }
         }
         var externalStep = System.Text.RegularExpressions.Regex.Match(definitionIdentity, "^ExternalStep<\\\"(?<path>[^\\\"]+)\\\">$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
         if (externalStep.Success)

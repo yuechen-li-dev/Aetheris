@@ -49,7 +49,7 @@ Interface<Gear> Indexing {
 }
 ```
 
-This relationship is ideal geometry and kinematics. It is not a contact, dynamics, torque, wear, or stress solver.
+This relationship is ideal geometry and kinematics. It is not a contact, dynamics, torque, wear, or stress solver. It also does not acquire a clutch state automatically: a permanent mesh still transmits reader return motion. See the [Difference Engine storage gate](difference-engine.md) for the corresponding reset counterexample.
 
 ## Gear ports in subassemblies
 

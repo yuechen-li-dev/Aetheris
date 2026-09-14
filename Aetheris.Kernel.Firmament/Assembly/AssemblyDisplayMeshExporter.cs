@@ -1,9 +1,11 @@
 using System.Text.Json;
 using Aetheris.Kernel.Core.Brep.Tessellation;
+using Aetheris.Kernel.Core.Geometry;
 
 namespace Aetheris.Kernel.Firmament.Assembly;
 
-public sealed record AssemblyDisplayMeshDefinition(string Id, string Identity, double[] Positions, double[] Normals, int[] Indices);
+public sealed record AssemblyDisplayMeshDefinition(string Id, string Identity, double[] Positions, double[] Normals, int[] Indices,
+    string MeshPipeline = "LegacyTessellator");
 public sealed record AssemblyDisplayMeshOccurrence(string Id, string Path, string? ParentId, string? DefinitionId, double[] Transform);
 public sealed record AssemblyDisplayMeshDocument(string Schema, string Name, string Units,
     IReadOnlyList<AssemblyDisplayMeshDefinition> Definitions, IReadOnlyList<AssemblyDisplayMeshOccurrence> Occurrences);
@@ -20,13 +22,24 @@ public static class AssemblyDisplayMeshExporter
         var definitions = new List<AssemblyDisplayMeshDefinition>();
         foreach (var (identity, body) in geometry.DefinitionBodies.OrderBy(p => p.Key, StringComparer.Ordinal))
         {
-            var tessellation = BrepDisplayTessellator.TessellateBounded(body, options ?? new DisplayTessellationOptions(double.Pi / 16, .3, 6, 64));
+            var effectiveOptions = options ?? new DisplayTessellationOptions(double.Pi / 16, .3, 6, 64);
+            // Reuse the OBJ export's shared-boundary mesher for planar/cylindrical
+            // parts. A failure on this admitted family must remain visible; do not
+            // silently replace a failed cap or bore with the legacy mesh.
+            var useSurfaceMeshIr = body.Topology.Faces.All(face =>
+                body.TryGetFaceSurfaceGeometry(face.Id, out var surface)
+                && surface?.Kind is SurfaceGeometryKind.Plane or SurfaceGeometryKind.Cylinder);
+            var tessellation = useSurfaceMeshIr
+                ? BrepDisplayTessellator.TessellateSurfaceMeshIr(body, effectiveOptions)
+                : BrepDisplayTessellator.TessellateBounded(body, effectiveOptions);
             if (!tessellation.IsSuccess || tessellation.Value.FacePatches.Count != body.Topology.Faces.Count())
                 throw new InvalidOperationException($"assembly-mesh-definition-failed:{identity}:" + string.Join(";", tessellation.Diagnostics.Select(d => d.Message)));
             var positions = new List<double>(); var normals = new List<double>(); var indices = new List<int>();
             foreach (var rawFace in tessellation.Value.FacePatches.OrderBy(p => p.FaceId.Value))
             {
-                var face = DisplayMeshOrientation.Orient(body, rawFace);
+                // SurfaceMeshIR already applies the B-rep face sense to both
+                // normals and winding; the legacy patch contains support normals.
+                var face = useSurfaceMeshIr ? rawFace : DisplayMeshOrientation.Orient(body, rawFace);
                 if (face.Positions.Count == 0 || face.Normals.Count != face.Positions.Count || face.TriangleIndices.Count == 0
                     || face.TriangleIndices.Count % 3 != 0 || face.TriangleIndices.Any(i => i < 0 || i >= face.Positions.Count))
                     throw new InvalidOperationException($"assembly-mesh-face-invalid:{identity}:{face.FaceId}:positions={face.Positions.Count};normals={face.Normals.Count};indices={face.TriangleIndices.Count};" + string.Join(";", tessellation.Diagnostics.Select(d => d.Message)));
@@ -37,7 +50,8 @@ public static class AssemblyDisplayMeshExporter
             }
             if (positions.Concat(normals).Any(v => !double.IsFinite(v)))
                 throw new InvalidOperationException($"assembly-mesh-nonfinite:{identity}");
-            definitions.Add(new(ids[identity], identity, positions.ToArray(), normals.ToArray(), indices.ToArray()));
+            definitions.Add(new(ids[identity], identity, positions.ToArray(), normals.ToArray(), indices.ToArray(),
+                tessellation.Value.MeshPipeline.ToString()));
         }
         var occurrences = compilation.Ir.Instances.OrderBy(i => i.Path.ToString(), StringComparer.Ordinal).Select(instance =>
         {

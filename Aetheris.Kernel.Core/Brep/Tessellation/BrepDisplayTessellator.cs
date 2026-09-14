@@ -263,6 +263,12 @@ public static class BrepDisplayTessellator
             SurfaceGeometryKind.Sphere => TessellateSphereFace(body, faceId, surface.Sphere!.Value, options),
             SurfaceGeometryKind.Torus => TessellateTorusFace(body, faceId, surface.Torus!.Value, options, executionBudget),
             SurfaceGeometryKind.BSplineSurfaceWithKnots => TessellateBSplineSurfaceFace(body, faceId, surface.BSplineSurfaceWithKnots!, options, executionBudget),
+            SurfaceGeometryKind.LinearExtrusion when surface.LinearExtrusion!.Value.Directrix.BSpline3 is { } curve
+                => TessellateBSplineSurfaceFace(body, faceId, new BSplineSurfaceWithKnots(
+                    curve.Degree, 1,
+                    curve.ControlPoints.Select(p => (IReadOnlyList<Point3D>)new[] { p, p + surface.LinearExtrusion.Value.ExtrusionVector }).ToArray(),
+                    "RULED_SURF", curve.ClosedCurve, false, curve.SelfIntersect,
+                    curve.KnotMultiplicities, [2, 2], curve.KnotValues, [0d, 1d], curve.KnotSpec), options, executionBudget),
             _ => KernelResult<DisplayFaceMeshPatch>.Failure([CreateNotImplemented($"Face {faceId.Value} has unsupported surface kind '{surface.Kind}'.")]),
         };
     }
@@ -1572,6 +1578,18 @@ public static class BrepDisplayTessellator
 
         var tangentU = surface.Evaluate(uPlus, v) - surface.Evaluate(uMinus, v);
         var tangentV = surface.Evaluate(u, vPlus) - surface.Evaluate(u, vMinus);
+        // Finite-difference lengths depend on parameter scale. Rescale before
+        // the cross product so a regular, small ruled face is not mistaken for
+        // a singularity (notably near an involute's zero-speed base endpoint).
+        static Vector3D Rescale(Vector3D t)
+        {
+            var scale = System.Math.Max(System.Math.Abs(t.X), System.Math.Max(System.Math.Abs(t.Y), System.Math.Abs(t.Z)));
+            // Component division is intentional: Vector3D's geometric division
+            // guard treats small physical lengths as zero; this scale is relative.
+            return scale > 0 && double.IsFinite(scale) ? new(t.X / scale, t.Y / scale, t.Z / scale) : t;
+        }
+        tangentU = Rescale(tangentU);
+        tangentV = Rescale(tangentV);
         var normal = tangentU.Cross(tangentV);
         if (!normal.TryNormalize(out var normalized))
         {

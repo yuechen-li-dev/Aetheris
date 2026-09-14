@@ -225,6 +225,14 @@ public static class ProfileArrangementBuilder
 
     private static ProfileArrangementResult Build(string frame, IReadOnlyList<ArrangementSourceCurve2D> sources, Func<(double X, double Y), bool> material, string context, bool rejectAmbiguousTangencies, bool allowMultipleRegions)
     {
+        // Full circles are exact profile boundaries. Adapt them into finite arcs
+        // before the existing line/arc intersection and graph machinery runs.
+        sources = sources.SelectMany(source => source.Geometry is LineArcFullCircle2D circle
+            ? Enumerable.Range(0, 4).Select(i => source with
+            {
+                StableId = source.StableId + $".quarter{i}",
+                Geometry = new LineArcCircularArc2D(circle.Center, circle.Radius, i * Math.PI / 2d, Math.PI / 2d)
+            }) : new[] { source }).ToArray();
         var diagnostics = new List<string>();
         var intersectionClock = Stopwatch.StartNew();
         var parameters = sources.ToDictionary(x => x.StableId, _ => new List<double> { 0d, 1d }, StringComparer.Ordinal);
@@ -551,6 +559,12 @@ public static class ProfileArrangementBuilder
     private static double Length(LineArcProfileCurve2D curve) => curve switch { LineArcLineSegment2D line => Distance(line.Start, line.End), LineArcCircularArc2D arc => Math.Abs(arc.Radius * arc.SweepAngleRadians), _ => 0d };
     private static ArrangementPointLocation PointInLoop(IReadOnlyList<LineArcProfileCurve2D> curves, (double X, double Y) point)
     {
+        if (curves.Count == 1 && curves[0] is LineArcFullCircle2D circle)
+        {
+            var radialDistance = Distance(circle.Center, point) - circle.Radius;
+            return Math.Abs(radialDistance) <= Tol ? ArrangementPointLocation.OnBoundary
+                : radialDistance < 0 ? ArrangementPointLocation.Inside : ArrangementPointLocation.Outside;
+        }
         if (curves.Any(curve => OnCurve(curve, point, out _))) return ArrangementPointLocation.OnBoundary;
         // A horizontal ray to +X; half-open endpoint ownership avoids ray-through-vertex double counting.
         var crossings = 0;

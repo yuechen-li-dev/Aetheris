@@ -1,0 +1,12 @@
+Units: mm
+Include "../../DifferenceEngine/parts/Storage.firmament";
+SpurGear Drive { Module: 2mm Teeth: 20 PressureAngle: 20deg FaceWidth: 8mm BoreDiameter: 8.4mm }
+Assembly IndexedGear {
+    <Assembly IndexedGear>
+        <Part Wheel = Drive></Part>
+        <Part Plate = DecimalIndexPlate<Rout: 32mm, Rin: 6.15mm, PitchR: 26mm, HoleD: 4.4mm, Zlow: 0mm, Zhigh: 6mm>>
+            Placement ImportedOccurrence = [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,10,1];
+        </Part>
+    </Assembly>
+    Anchor: IndexedGear.Wheel;
+}

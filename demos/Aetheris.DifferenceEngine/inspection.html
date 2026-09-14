@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Difference Engine · storage geometry inspection</title>
+<style>
+body{margin:0;background:#eff2f5;color:#213641;font:16px system-ui}header,footer{padding:24px 36px}h1{margin:4px 0 10px;font-size:30px}p{margin:8px 0}button{padding:8px 16px;border:1px solid #9badb8;border-radius:5px;background:white;cursor:pointer;margin-right:6px}main{display:flex}section{width:50%;text-align:center}canvas{display:block;width:100%;height:60vh}footer{font-size:14px;color:#87502e}#status{font-size:13px}
+</style>
+<header><h1>DIFF-ENGINE-X0 · storage geometry</h1><p>Two independent indexed disks, authored and meshed in Aetheris.</p>
+<button id="iso">Isometric</button><button id="top">Top</button><button id="bottom">Underside</button><button id="wire">Toggle mesh edges</button><p id="status">Loading exported geometry…</p></header>
+<main><section><h3>Two storage occurrences</h3><canvas id="assembly"></canvas></section><section><h3>Ten-hole indexing plate · isolated</h3><canvas id="plate"></canvas></section></main>
+<footer>Static geometry inspection. Transfer, carry, cycle control and a complete Difference Engine remain unqualified.</footer>
+<script>const THREE=(()=>{const exports={};/*THREE_RUNTIME*/;return exports;})();</script>
+<script>
+const documentMesh=/*ASSEMBLY_DOCUMENT*/;
+const definitions=new Map(documentMesh.definitions.map(d=>[d.id,d]));
+const panels=[];
+for(const id of ['assembly','plate']){
+ const canvas=document.getElementById(id),renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+ renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setClearColor(0xeff2f5);
+ const scene=new THREE.Scene(),group=new THREE.Group();scene.add(group);
+ scene.add(new THREE.HemisphereLight(0xffffff,0x61717b,2));
+ const light=new THREE.DirectionalLight(0xffffff,3);light.position.set(30,-60,120);scene.add(light);
+ const materials=[],geometries=new Map();
+ for(const occurrence of documentMesh.occurrences){
+  if(!occurrence.definitionId)continue;
+  const name=occurrence.path.split('.').pop();
+  if(id==='plate'&&(!occurrence.path.includes('.Source.')||name!=='IndexPlate'))continue;
+  const d=definitions.get(occurrence.definitionId);
+  let geometry=geometries.get(d.id);
+  if(!geometry){geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(d.positions,3));geometry.setAttribute('normal',new THREE.Float32BufferAttribute(d.normals,3));geometry.setIndex(d.indices);geometries.set(d.id,geometry);}
+  const color=name==='Gear'?0xc29b3b:['IndexPlate','Display'].includes(name)?0x327f9f:['IndexPin','PinHead'].includes(name)?0xe27448:0xa6b1b9;
+  const glass=name.includes('Support');
+  const material=new THREE.MeshStandardMaterial({color,metalness:.15,roughness:.65,transparent:glass,opacity:glass?.2:1,depthWrite:!glass});materials.push(material);
+  const mesh=new THREE.Mesh(geometry,material);mesh.matrix.fromArray(occurrence.transform);mesh.matrixAutoUpdate=false;group.add(mesh);
+ }
+ const box=new THREE.Box3().setFromObject(group),center=box.getCenter(new THREE.Vector3()),size=box.getSize(new THREE.Vector3()),radius=size.length()*.62;
+ const camera=new THREE.PerspectiveCamera(35,1,.1,2000);camera.up.set(0,0,1);
+ const panel={renderer,scene,camera,center,radius,materials,canvas};panels.push(panel);
+}
+function render(){for(const p of panels){const w=p.canvas.clientWidth,h=p.canvas.clientHeight;p.renderer.setSize(w,h,false);p.camera.aspect=w/h;p.camera.updateProjectionMatrix();p.renderer.render(p.scene,p.camera);}}
+function view(x,y,z){for(const p of panels){p.camera.up.set(0,z===1||z===-1?1:0,z===1||z===-1?0:1);p.camera.position.copy(p.center).addScaledVector(new THREE.Vector3(x,y,z).normalize(),p.radius*2.2);p.camera.lookAt(p.center);}render();}
+document.getElementById('iso').onclick=()=>view(1,-1,.85);
+document.getElementById('top').onclick=()=>view(0,0,1);
+document.getElementById('bottom').onclick=()=>view(0,0,-1);
+document.getElementById('wire').onclick=()=>{for(const p of panels)for(const m of p.materials)m.wireframe=!m.wireframe;render();};
+window.onresize=render;view(1,-1,.85);
+const count=documentMesh.definitions.filter(d=>d.meshPipeline==='SurfaceMeshIr').length;
+document.getElementById('status').textContent=`${documentMesh.definitions.length} shared definitions · ${documentMesh.occurrences.filter(o=>o.definitionId).length} physical occurrences · ${count} definitions use the OBJ SurfaceMeshIR path`;
+</script></html>

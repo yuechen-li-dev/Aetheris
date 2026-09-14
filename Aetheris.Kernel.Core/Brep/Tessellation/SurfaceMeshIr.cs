@@ -698,7 +698,9 @@ public static class SurfaceMeshIrTessellator
             var coedges = body.GetCoedgeIds(outer.LoopId).Select(body.Topology.GetCoedge).ToArray();
             if (coedges.Length == 4 && coedges.All(c => plans[c.EdgeId].CurveKind == CurveGeometryKind.Line3) && outer.VertexIds.Count == 4)
                 return new SurfacePatch(faceId, new SurfaceMeshSupport(SurfaceMeshSupportKind.Plane, Plane: plane), loops,
-                    [new QuadCell(Orient(outer.VertexIds, sameSense))], sameSense, TrimLoopData: annotatedLoops, PlanarPlannerPath: "PlanarDomain.RectangleQuad");
+                    // Trim loops may already run against the support normal (e.g. an extrusion bottom).
+                    // Keep their order only when its measured sense matches the face sense.
+                    [new QuadCell(Orient(outer.VertexIds, (outer.SignedArea > 0d) == sameSense))], sameSense, TrimLoopData: annotatedLoops, PlanarPlannerPath: "PlanarDomain.RectangleQuad");
         }
         PlanarFeatureDecompositionPlan? failedFeaturePlan = null;
         if (inners.Length > 0)

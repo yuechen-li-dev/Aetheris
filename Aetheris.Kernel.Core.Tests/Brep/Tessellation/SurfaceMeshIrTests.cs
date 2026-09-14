@@ -10,6 +10,28 @@ namespace Aetheris.Kernel.Core.Tests.Brep.Tessellation;
 
 public sealed class SurfaceMeshIrTests
 {
+    [Theory]
+    [InlineData(0d, 0d, 0d)]
+    [InlineData(96d, 14d, -36d)]
+    public void ExtrudedRectangle_RespectsExistingTrimSense_InDisplayAndExport(double x, double y, double z)
+    {
+        var frame = new ExtrudeFrame3D(new Point3D(x, y, z),
+            Direction3D.Create(new Vector3D(0, 0, 1)), Direction3D.Create(new Vector3D(1, 0, 0)));
+        var body = BrepExtrude.Create(PolylineProfile2D.Rectangle(484, 188), frame, 16).Value;
+        Assert.True(SurfaceMeshIrTessellator.TryBuild(body, SurfaceMeshPolicy.FromDisplayOptions(DisplayTessellationOptions.Default), out var document));
+        Assert.True(SurfaceMeshIrTessellator.TryLowerToTriangleMesh(document, out _, out var report));
+        Assert.Equal(484d * 188d * 16d, report.SignedVolume, 6);
+        var display = BrepDisplayTessellator.TessellateSurfaceMeshIr(body);
+        Assert.True(display.IsSuccess);
+        foreach (var face in display.Value.FacePatches)
+        for (var i = 0; i < face.TriangleIndices.Count; i += 3)
+        {
+            var a = face.TriangleIndices[i]; var b = face.TriangleIndices[i + 1]; var c = face.TriangleIndices[i + 2];
+            var cross = (face.Positions[b] - face.Positions[a]).Cross(face.Positions[c] - face.Positions[a]);
+            Assert.True(cross.Dot(face.Normals[a]) > 0);
+        }
+    }
+
     [Fact]
     public void Box_UsesSharedLinePlans_AndMostlyQuadPatchCells()
     {

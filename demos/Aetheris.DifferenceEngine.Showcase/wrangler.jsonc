@@ -1,0 +1,5 @@
+{
+  "name": "aetheris-difference-engine-showcase",
+  "compatibility_date": "2026-09-13",
+  "assets": { "directory": "../../artifacts/local/demos/difference-engine-showcase/dist" }
+}

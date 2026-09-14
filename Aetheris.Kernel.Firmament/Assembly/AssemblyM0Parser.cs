@@ -407,7 +407,18 @@ public sealed class AssemblyM0Parser
         AssemblyMemberSource ApplyLocal(AssemblyMemberSource item, AssemblyPath path)
         {
             var localInstance = local.Ir.Instances.Single(instance => instance.Path.ToString() == path.ToString());
-            return item with { Children = item.Children.Select(child => ApplyLocal(child, path.Append(child.Name))).ToArray(), ExplicitTransform = item == specializedRoot ? null : localInstance.ResolvedTransform };
+            // The solved definition stores world frames within its local root.
+            // A reusable member tree must store parent-relative frames, otherwise
+            // each nested occurrence applies its ancestors' transforms again.
+            AssemblyTransform? relative = null;
+            if (item != specializedRoot)
+            {
+                var world = Aetheris.Kernel.Core.Math.Transform3D.FromRowMajor(localInstance.ResolvedTransform!.Matrix);
+                var parent = local.Ir.Instances.Single(instance => instance.StableId == localInstance.ParentStableId);
+                var parentWorld = Aetheris.Kernel.Core.Math.Transform3D.FromRowMajor(parent.ResolvedTransform!.Matrix);
+                relative = new((world * parentWorld.Inverse()).ToRowMajor());
+            }
+            return item with { Children = item.Children.Select(child => ApplyLocal(child, path.Append(child.Name))).ToArray(), ExplicitTransform = relative };
         }
         specializedRoot = ApplyLocal(specializedRoot, new([specializedRoot.Name]));
         var publicSemantics = specializedRoot.ExposedSemantics.Select(value => BindPublicSemantic(value, local.Ir, sourceIdentity)).ToArray();

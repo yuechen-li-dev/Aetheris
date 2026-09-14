@@ -1,3 +1,71 @@
+# DIFF-ENGINE-SHOWCASE-X0 — the Difference Engine showcase
+
+## Current verdict
+
+**Success for the prescribed-animation showcase. Human visual design accepted.** The complete three-register, four-digit machine is real hierarchical Aetheris CAD. The local static site supplies numbered wheels, squares, triangular numbers, a chained-carry lesson, play/pause, speed, single turns, reset, smooth cameras, hierarchy-aware explosion/reassembly, transparency, register/digit isolation, gear-only and carry views, short history and an AP242 download. Production assets are prepared locally for Cloudflare and have not been deployed. Public copy remains provisional.
+
+The user identified the gantry/crown overlap during visual review. Three `Interface<Fixed>` mounts now place the bridge bottom at Z=356 mm, 10 mm above each brass crown. Extended supported shafts project 4 mm above the 8 mm bridges. Compiled instance end-face Z values enforce these clearances at every generation, including the 96 mm digit-pitch variant. This is an Aetheris mate/geometry repair. The user subsequently answered: “Accept the updated visual design.”
+
+The original indexed-storage research, rejected permanent-mesh transfer and unqualified physical adder remain intact below and in the original demo. Prescribed browser arithmetic does not qualify contact, clutch operation, torque, friction or manufacturing.
+
+## Assembly inventory
+
+| Measured item | Baseline |
+|---|---:|
+| Physical occurrences / shared body definitions | 409 / 49 |
+| Registers / digit modules | 3 / 12 |
+| Spur gears / ratchets / pawls | 30 / 12 / 12 |
+| Shaft and axle occurrences | 21 |
+| Stationary frame/support members under the manifest role rule | 253 |
+| Reusable subassembly definitions / occurrences | 8 / 51 |
+| Complete occurrence tree including root / depth | 461 / 5 |
+| Included Firmament files / Gear interfaces | 11 / 26 |
+| Unique / instanced mechanical triangles | 63,672 / 843,944 |
+| Complete AP242 STEP | 1,106,062 bytes |
+
+DigitWheel, DigitModule and CarryVisualModule each have 12 occurrences; Register has 3, TransferModule 8, TransferBank 2, FrameBay 1 and CrankDrive 1. Gear Standard Library definitions own spur, ratchet and pawl geometry. Include/Subassembly/Expose carry hierarchical Gear ports; Revolute journals and Fixed bearing/gantry interfaces retain ordinary compiler authority.
+
+Example identity: `assembly-instance:DifferenceEngine.ResultRegister.Digit2.DriveGear` survives Firmament, compiled assembly, shared mesh occurrence, motion binding and Three.js object name. BufferGeometry is created directly from exported positions, normals and indices. Browser primitives are restricted to labels, floor and lighting helpers.
+
+Visual gear ratios combine compiled `GearResult.Ratio` and `RotationSign`. Authored demonstration states project through a pure `(program, step, phase)` function. No second HFSM or workflow stack was added. Explosion sums offsets through actual exported `parentId` ancestry; reassembly starts from the original CAD rest matrices.
+
+## Artifact-driven repairs
+
+- Nested reusable members previously retained definition-root transforms at every tree level, applying ancestor offsets repeatedly. The compiler now stores parent-relative frames. A rotated, translated canonical witness checks world point `[93,235,351]`, shared definitions, mesh parity and STEP export.
+- SurfaceMeshIR's rectangle fast path assumed every trim loop followed the support normal before applying face sense. Extrusion bottoms can already run oppositely. Comparing measured loop signed area with face sense fixes reversed underside triangles in both polygon export and display lowering. Origin and translated plinth witnesses verify outward triangles and exact oriented volume `484 × 188 × 16 mm³`.
+- Forty-seven definitions use the existing OBJ SurfaceMeshIR planar/cylindrical route, including disks, rings and bores. Two involute gear definitions retain the admitted spline tessellator. Failed admitted meshing does not silently fall back.
+- Browser QA repaired a flattened vendor import, mobile fog obscuring the machine, clipped inspection cameras and material recompilation on transparency changes. These changes do not relocate CAD parts.
+- Fresh-agent feedback corrected CLI help to name canonical `.firmament` alongside the `.firmasm` assembly profile.
+
+Raw assembly metrics expose topology-vertex extents; these are not complete radial bounds for periodic surfaces. Gantry checks use their exact planar end Z values. Display extents are checked from all mesh vertices. No general interference or mass-property qualification is claimed.
+
+## Validation and human review
+
+- Release build and full serial non-SlowCorpus .NET lane pass; final counts are recorded in the local validation summary. All 17 focused SurfaceMeshIR/OBJ cases pass, including the new extrusion orientation witnesses.
+- Headless presentation checks cover 201 transitions, deterministic evaluation, all 26 signed gear relationships, units-before-tens carry pulses, occurrence coverage, hierarchy offsets, positive mesh extents/oriented volume and unit normals across all 49 definitions.
+- Repeat generation matches all source, STEP, mesh, design, motion and receipt hashes.
+- A fresh explicitly versioned CLI installed outside the checkout inspects, exports and reimports copied source. STEP and mesh bytes match; reimport preserves 49 definitions and 460 non-root occurrences.
+- A fresh agent independently chose DigitPitch=96 mm using public docs and the README. Regeneration, hierarchy IDs, STEP reimport and headless verification pass without source changes, tooth reconstruction, hierarchy flattening or browser geometry. It reran after the underside repair and verified all 16 hashes.
+- Actual production browser tested at 1440×900, the app's ordinary viewport and 375×812. One turn produces `0001 / 0003 / 0002`; carry reaches `0100`. Playback, speed, reset, orbit, camera/isolation modes, explosion/reassembly, story, receipts and the actual STEP download event were exercised. Reduced-motion preference starts paused; otherwise playback starts automatically.
+- Seven review views, active carry, transparency and mobile screenshots are retained under `review/`. Human visual design accepted. The final underside correction preserves that CAD design.
+- Warm localhost first-frame observation: 343 ms. This is not a cold-network or device benchmark. Bundle approximately 8.2 MB uncompressed including STEP and preview; exact sizes and hashes are in `bundle-manifest.json`. STEP and social preview are not fetched during ordinary machine startup.
+- Canonical qualification remains non-clean: the existing annular-pair LegacyExplicit policy violation is the first error; three existing include-only AssemblyInterfaces catalogs independently report `assembly-parse-missing-root`. The new nested occurrence fixture passes. These are not reported as a clean lane.
+- Repository layout guard and diff whitespace checks pass. No remote CI or deployment was run.
+
+## Reproduction and deliverables
+
+`./demos/Aetheris.DifferenceEngine.Showcase/Run.ps1` generates CAD, runs presentation checks, prepares the static bundle and starts a foreground localhost preview. `-NoServe` generates only. `Verify-Packaged.ps1` performs a fresh outside-checkout package/parity test. Read the [demo README](../../demos/Aetheris.DifferenceEngine.Showcase/README.md) and [public guide](../public/demos/difference-engine-showcase.md) for prerequisites and the admitted 80–100 mm configuration.
+
+Ignored output under `artifacts/local/demos/difference-engine-showcase/` contains STEP, meshes, motion, receipts, hashes, private compiler inspection, logs, screenshots and `dist/`. The site includes local Three.js and its license, relative URLs, social metadata and a real browser hero preview. `wrangler.jsonc` prepares a future static deployment only.
+
+**Browser visualizations communicate. Headless analysis validates.** Future physical mechanism research remains separate.
+
+---
+
+# Historical physical-storage checkpoint — preserved
+
+The earlier report below concerns the original physically computing mechanism, not the completed prescribed-animation showcase above. Its research findings are retained unchanged.
+
 # DIFF-ENGINE-X0 — storage gate and assembly repairs
 
 ## Executive verdict

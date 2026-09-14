@@ -1,0 +1,33 @@
+Units: mm
+Template < H: Length > Struct Pin {
+    Circle2 Circle { Center: [0mm,0mm] Radius: 1mm }
+    Profile Section { Loop Outer { Circle |> TraceLoop } }
+    Extrude Body { Profile: Section From: 0mm To: H }
+}
+Subassembly Inner {
+    <Assembly Inner>
+        <Part Origin = Pin<H: 1mm>></Part>
+        <Part Tip = Pin<H: 4mm>>
+            Placement ImportedOccurrence = [1,0,0,0, 0,1,0,0, 0,0,1,0, 5,7,11,1];
+        </Part>
+    </Assembly>
+    Anchor: Inner.Origin;
+}
+Subassembly Middle {
+    <Assembly Middle>
+        <Part Origin = Pin<H: 1mm>></Part>
+        <Assembly Offset = Inner>
+            Placement ImportedOccurrence = [1,0,0,0, 0,1,0,0, 0,0,1,0, 30,0,40,1];
+        </Assembly>
+    </Assembly>
+    Anchor: Middle.Origin;
+}
+Assembly NestedFrames {
+    <Assembly NestedFrames>
+        <Part Origin = Pin<H: 1mm>></Part>
+        <Assembly Rotated = Middle>
+            Placement ImportedOccurrence = [0,1,0,0, -1,0,0,0, 0,0,1,0, 100,200,300,1];
+        </Assembly>
+    </Assembly>
+    Anchor: NestedFrames.Origin;
+}

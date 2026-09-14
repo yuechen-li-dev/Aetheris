@@ -1,0 +1,38 @@
+// Ordinary reusable mechanical stock. No viewer-generated product geometry.
+Template < W: Length, D: Length, H: Length > Struct RectangularStock {
+    Rect2 Outline { Center: [0mm,0mm] Size: [W,D] }
+    Profile Section { Loop Outer { Outline |> TraceLoop } }
+    Extrude Body { Profile: Section From: 0mm To: H }
+}
+Template < W: Length, D: Length, H: Length, BoreD: Length > Struct BearingBridge {
+    Rect2 Outline { Center: [0mm,0mm] Size: [W,D] }
+    Profile Section { Loop Outer { Outline |> TraceLoop } }
+    Compose Body {
+        Base Stock { Profile: Section From: 0mm To: H Role: Stock }
+        Hole<Shaft> Bore { On: +Z Center: Point2(0mm,0mm) Diameter: BoreD End: ThroughAll }
+    }
+}
+Template < X: Length, Y: Length, Zlow: Length, Zhigh: Length, W: Length, D: Length > Struct PositionedStock {
+    Rect2 Outline { Center: [X,Y] Size: [W,D] }
+    Profile Section { Loop Outer { Outline |> TraceLoop } }
+    Extrude Body { Profile: Section From: Zlow To: Zhigh }
+}
+Template < X: Length, Y: Length, R: Length, BoreR: Length, Zlow: Length, Zhigh: Length > Struct PositionedRing {
+    Circle2 Outside { Center: [X,Y] Radius: R }
+    Circle2 Inside { Center: [X,Y] Radius: BoreR }
+    Profile Section { Loop Outer { Outside |> TraceLoop } Loop Inner { Inside |> TraceLoop } }
+    Extrude Body { Profile: Section From: Zlow To: Zhigh }
+}
+Template < W: Length > Struct DoubleBearingBridge {
+    Rect2 Outline { Center: [64mm,0mm] Size: [W,18mm] }
+    Profile Section { Loop Outer { Outline |> TraceLoop } }
+    Compose Body {
+        Base Stock { Profile: Section From: -18mm To: -12mm Role: Stock }
+        Hole<Shaft> Left { On: +Z Center: Point2(44mm,0mm) Diameter: 6.4mm End: ThroughAll }
+        Hole<Shaft> Right { On: +Z Center: Point2(84mm,0mm) Diameter: 6.4mm End: ThroughAll }
+    }
+}
+SpurGear RegisterDrive { Module: 2mm Teeth: 24 PressureAngle: 20deg FaceWidth: 7mm BoreDiameter: 8.8mm Backlash: 0.15mm Phase: 0deg }
+SpurGear TransferIdler { Module: 2mm Teeth: 20 PressureAngle: 20deg FaceWidth: 7mm BoreDiameter: 6.6mm Backlash: 0.15mm Phase: 9deg }
+RatchetGear DecimalRatchet { Teeth: 20 OutsideDiameter: 52mm FaceWidth: 5mm BoreDiameter: 8.8mm DriveFaceAngle: 0deg Phase: 0deg }
+Pawl CarryPawl { Width: 8mm Length: 22mm Thickness: 4mm PivotDiameter: 4.4mm NoseLength: 4mm EngagementAngle: 15deg }

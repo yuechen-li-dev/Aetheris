@@ -5229,7 +5229,7 @@ Model CanonicalPanel {
 
     private static void WriteAsmHelp(TextWriter stdout)
     {
-        stdout.WriteLine("Inspect Firmament V2 assemblies. .firmasm is the supported Assembly document profile; only its historical JSON-shaped syntax is legacy.");
+        stdout.WriteLine("Inspect Firmament V2 assemblies authored in .firmament or the .firmasm Assembly document profile. Historical JSON-shaped .firmasm syntax is legacy.");
         stdout.WriteLine();
         stdout.WriteLine(AsmExecUsage);
         stdout.WriteLine($"   or: {AsmExportUsage[7..]}");

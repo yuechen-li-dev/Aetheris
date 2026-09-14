@@ -65,6 +65,7 @@
   </Project>
   <Project Path="Aetheris.CLI/Aetheris.CLI.csproj" />
   <Folder Name="/demos/">
+    <Project Path="demos/Aetheris.DifferenceEngine.Showcase/Aetheris.DifferenceEngine.Showcase.csproj" />
     <Project Path="demos/Aetheris.DifferenceEngine/Aetheris.DifferenceEngine.csproj" />
     <Project Path="demos/Aetheris.EditableV8.Tests/Aetheris.EditableV8.Tests.csproj" />
     <Project Path="demos/Aetheris.EditableV8/Aetheris.EditableV8.csproj" />

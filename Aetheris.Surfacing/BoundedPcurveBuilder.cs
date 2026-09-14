@@ -1,3 +1,4 @@
+using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Surfaces;
@@ -29,6 +30,13 @@ public static class BoundedPcurveBuilder
                     diagnostics.Add(new("surf-pcurve-invalid", $"Coedge {coedge.Id.Value} has no bounded 3D edge curve.", coedge.Id.Value.ToString()));
                     continue;
                 }
+                if (bindings.TryGetPcurveBinding(coedge.Id, out var retained))
+                {
+                    var residual = MaximumResidual(surface, curve, retained.Pcurve, interval, sampleCount);
+                    if (retained.FaceId != face.Id || retained.SurfaceGeometryId != faceBinding.SurfaceGeometryId || residual > tolerance)
+                        diagnostics.Add(new("surf-pcurve-invalid", "Retained pcurve has inconsistent ownership or geometry.", coedge.Id.Value.ToString()));
+                    maximum = double.Max(maximum, residual); count++; continue;
+                }
                 var built = Build(surface, curve, interval, tolerance, sampleCount);
                 if (built.Pcurve is null)
                 {
@@ -59,6 +67,17 @@ public static class BoundedPcurveBuilder
                 return (PcurveGeometry.Ellipse(interval, center,
                     new(cosinePoint.U - center.U, cosinePoint.V - center.V),
                     new(sinePoint.U - center.U, sinePoint.V - center.V)), 0d, null);
+            }
+            if (curve.BSpline3 is { } polynomial)
+            {
+                // Affine projection commutes with B-spline evaluation. The hull bound
+                // certifies the whole 3D curve lies on this support, without fitting.
+                var bound = polynomial.ControlPoints.Max(p => double.Abs((p - plane.Origin).Dot(plane.Normal.ToVector())));
+                if (bound > tolerance) return (null, bound, "Polynomial edge control hull is not on the planar support.");
+                var controls = polynomial.ControlPoints.Select(p => { var uv = PlaneUv(plane, p); return new Point3D(uv.U, uv.V, 0); }).ToArray();
+                var uvCurve = new BSpline3Curve(polynomial.Degree, controls, polynomial.KnotMultiplicities, polynomial.KnotValues,
+                    polynomial.CurveForm, polynomial.ClosedCurve, polynomial.SelfIntersect, polynomial.KnotSpec);
+                return (PcurveGeometry.Polynomial(interval, uvCurve), bound, null);
             }
             var lineCandidate = PcurveGeometry.Line(interval, start, end);
             var lineResidual = MaximumResidual(surface, curve, lineCandidate, interval, 67);

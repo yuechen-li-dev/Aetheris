@@ -1,4 +1,4 @@
-// Minimal public-authoring probe: expected section-chain-g1-degree-limit.
+// Smooth footprint witness: polynomial corners remove the line/arc curvature jump.
 // No claim that this is the phone's finished plateau or a G2 transition.
 Model SmoothPlateauWitness {
     Units: mm
@@ -8,7 +8,7 @@ Model SmoothPlateauWitness {
     }
     Construction Plane BaseFrame { Trace: Frames.Base }
     Construction Plane TopFrame { Trace: Frames.Top }
-    RoundedRect2 BaseOutline { Center: [0mm,0mm] Size: [72.76mm,43mm] Radius: 11.5mm }
+    SmoothRoundedRect2 BaseOutline { Center: [0mm,0mm] Size: [72.76mm,43mm] CornerExtent: 11.5mm }
     Profile BaseProfile { Loop Outer { BaseOutline |> TraceLoop } }
     SectionChain Transition {
         Continuity: G1

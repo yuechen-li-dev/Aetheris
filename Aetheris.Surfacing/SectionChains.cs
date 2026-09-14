@@ -67,7 +67,8 @@ public sealed record SectionChain(
     SectionTermination StartTermination,
     SectionTermination EndTermination,
     SectionChainContinuity Continuity = SectionChainContinuity.G0,
-    SectionChainSmoothPolicy SmoothPolicy = SectionChainSmoothPolicy.Fair);
+    SectionChainSmoothPolicy SmoothPolicy = SectionChainSmoothPolicy.Fair,
+    double ProfileApproximationTolerance = 1e-5);
 
 public static class SectionChainCanonical
 {
@@ -84,7 +85,8 @@ public static class SectionChainCanonical
             });
             return $"{section.SectionId}@{section.Frame.Origin.X:R},{section.Frame.Origin.Y:R},{section.Frame.Origin.Z:R}:{string.Join(',', spans)}";
         });
-        return string.Join('|', chain.StableId, chain.TransitionPolicy, chain.Continuity, chain.SmoothPolicy, chain.StartTermination, chain.EndTermination, string.Join(';', sections));
+        var fingerprint = string.Join('|', chain.StableId, chain.TransitionPolicy, chain.Continuity, chain.SmoothPolicy, chain.StartTermination, chain.EndTermination, string.Join(';', sections));
+        return chain.ProfileApproximationTolerance == 1e-5 ? fingerprint : fingerprint + "|ApproximationTolerance:" + chain.ProfileApproximationTolerance.ToString("R", System.Globalization.CultureInfo.InvariantCulture);
     }
 }
 
@@ -134,6 +136,8 @@ public sealed record SectionChainMaterializationResult(
     SectionChainTiming Timing)
 {
     public bool IsSuccess => Body is not null && Diagnostics.Count == 0;
+    public SectionProfileNormalizationResult? ProfileNormalization { get; init; }
+    public IReadOnlyList<SectionChainGeometricJoinEvidence> GeometricJoins { get; init; } = [];
     public SectionChainPcurveEvidence? Pcurves { get; init; }
     public SectionChainSelfIntersectionEvidence? SelfIntersection { get; init; }
     public SectionChainContinuityEvidence? ContinuityEvidence { get; init; }
@@ -173,13 +177,26 @@ public static class SectionChainEditor
         var transitionIndices = source.Continuity == SectionChainContinuity.G1
             ? tangentIndices.SelectMany(i => new[] { i - 1, i }).Where(i => i >= 0 && i < sections.Length - 1).Distinct().Order().ToArray()
             : new[] { index - 1, index }.Where(i => i >= 0 && i < sections.Length - 1).ToArray();
+        var normalizationChanged = false;
+        if (source.TransitionPolicy == SectionTransitionPolicy.SmoothPolynomial && source.Sections.Any(s => s.Profile.Spans.Any(p => p.Curve is SectionProfileCurve.Arc)))
+        {
+            var before = SectionProfileNormalizer.Normalize(source);
+            var after = SectionProfileNormalizer.Normalize(source with { Sections = sections });
+            normalizationChanged = !before.IsSuccess || !after.IsSuccess ||
+                !before.Decisions.Select(d => d.SelectedSegmentCount).SequenceEqual(after.Decisions.Select(d => d.SelectedSegmentCount));
+            if (normalizationChanged)
+            {
+                tangentIndices = Enumerable.Range(0, sections.Length).ToArray();
+                transitionIndices = Enumerable.Range(0, sections.Length - 1).ToArray();
+            }
+        }
         var rebuilt = transitionIndices.Select(i => TransitionId(sections[i].SectionId, sections[i + 1].SectionId)).ToList();
         var preserved = Enumerable.Range(0, sections.Length - 1)
             .Select(i => TransitionId(sections[i].SectionId, sections[i + 1].SectionId))
             .Where(id => !rebuilt.Contains(id, StringComparer.Ordinal)).ToArray();
         return (source with { Sections = sections }, new(replacement.SectionId,
             tangentIndices.Select(i => sections[i].SectionId).ToArray(), rebuilt, preserved,
-            ["StartTermination", "EndTermination"]));
+            normalizationChanged ? [] : ["StartTermination", "EndTermination"]));
     }
 
     internal static string TransitionId(string source, string target) => $"{source}->{target}";
@@ -198,7 +215,13 @@ public static class SectionChainMaterializer
     {
         ArgumentNullException.ThrowIfNull(chain);
         var profileStarted = Stopwatch.GetTimestamp();
-        var prepared = chain.Sections.Select(Prepare).ToArray();
+        PreparedSection[] prepared;
+        try { prepared = chain.Sections.Select(Prepare).ToArray(); }
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or NotSupportedException)
+        {
+            return Failure(chain, [new("section-chain-profile-invalid", exception.Message)],
+                Stopwatch.GetElapsedTime(profileStarted).TotalMilliseconds, 0);
+        }
         var profileMs = Stopwatch.GetElapsedTime(profileStarted).TotalMilliseconds;
 
         var correspondenceStarted = Stopwatch.GetTimestamp();
@@ -208,6 +231,16 @@ public static class SectionChainMaterializer
         if (diagnostics.Count > 0)
             return Failure(chain, diagnostics, profileMs, correspondenceMs);
 
+        var authoredChain = chain;
+        SectionProfileNormalizationResult? normalization = null;
+        if (chain.TransitionPolicy == SectionTransitionPolicy.SmoothPolynomial)
+        {
+            normalization = SectionProfileNormalizer.Normalize(chain);
+            if (!normalization.IsSuccess)
+                return Failure(chain, normalization.Diagnostics, profileMs, correspondenceMs) with { ProfileNormalization = normalization };
+            chain = normalization.NormalizedChain!;
+            prepared = chain.Sections.Select(Prepare).ToArray();
+        }
         var transitionStarted = Stopwatch.GetTimestamp();
         var transitionPatches = new List<(PreparedTransition Transition, ISectionChainTransitionPatch[] Patches)>();
         SectionChainSmoothSelectionEvidence? smoothSelection = null;
@@ -303,10 +336,30 @@ public static class SectionChainMaterializer
         var continuityEvidence = body is null ? null : MeasureContinuity(chain, transitionPatches);
         if (chain.Continuity == SectionChainContinuity.G1 && continuityEvidence is { MaximumTangentPlaneAngleDegrees: > 1e-3d })
             diagnostics.Add(new("section-chain-g1-verification-failed", $"Maximum tangent-plane discontinuity {continuityEvidence.MaximumTangentPlaneAngleDegrees:R} degrees exceeds 0.001 degrees."));
+        var geometricJoins = new List<SectionChainGeometricJoinEvidence>();
+        if (chain.TransitionPolicy == SectionTransitionPolicy.SmoothPolynomial)
+        {
+            for (var transition = 0; transition < transitionPatches.Count; transition++)
+            {
+                var patches = transitionPatches[transition].Patches;
+                for (var span = 0; span < patches.Length; span++)
+                {
+                    var current = (SmoothSectionChainTransitionPatch)patches[span];
+                    var next = (SmoothSectionChainTransitionPatch)patches[(span + 1) % patches.Length];
+                    geometricJoins.Add(SectionChainDifferentialInspection.Measure(
+                        $"{chain.Sections[transition].SectionId}->{chain.Sections[transition+1].SectionId}/{chain.Sections[transition].Profile.Spans[span].SpanId}.End",
+                        "NeighboringProfileSpans", current, next, false));
+                    if (transition+1 < transitionPatches.Count)
+                        geometricJoins.Add(SectionChainDifferentialInspection.Measure(
+                            $"{chain.Sections[transition+1].SectionId}/{chain.Sections[transition].Profile.Spans[span].SpanId}",
+                            "InternalSection", current, (SmoothSectionChainTransitionPatch)transitionPatches[transition+1].Patches[span], true));
+                }
+            }
+        }
         if (diagnostics.Count > 0) body = null;
-        return new(chain, body, Structure(chain), evidence, diagnostics,
+        return new(authoredChain, body, Structure(chain), evidence, diagnostics,
             new(profileMs, correspondenceMs, transitionMs, stitchMs, validationMs))
-        { Pcurves = pcurveEvidence, SelfIntersection = selfIntersection.Evidence, ContinuityEvidence = continuityEvidence,
+        { GeometricJoins = geometricJoins, ProfileNormalization = normalization, Pcurves = pcurveEvidence, SelfIntersection = selfIntersection.Evidence, ContinuityEvidence = continuityEvidence,
             SmoothSelection = smoothSelection, PreviewSvg = body is null ? null : BrepWireframeSvgRenderer.Render(body).Svg };
     }
 

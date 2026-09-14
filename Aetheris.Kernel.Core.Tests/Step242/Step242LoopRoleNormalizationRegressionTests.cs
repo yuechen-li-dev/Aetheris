@@ -184,7 +184,7 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
         Assert.All(first, s =>
         {
             Assert.True(s.AdaptivePointCount >= s.LegacyPointCount);
-            var expected = System.Math.Max(2, (int)System.Math.Ceiling(System.Math.Abs(s.TrimSpan) / (System.Math.PI / 4d))) + 1;
+            var expected = System.Math.Max(2, (int)System.Math.Ceiling(System.Math.Abs(s.TrimSpan) / (System.Math.PI / 64d))) + 1;
             Assert.Equal(expected, s.AdaptivePointCount);
         });
 

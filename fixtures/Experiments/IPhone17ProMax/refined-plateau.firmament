@@ -1,0 +1,187 @@
+// Refined plateau authoring witness. Width 2mm is an explicit design assumption, not drawing evidence. Homothetic inset preserves the outer 72.76 x 43mm footprint; smooth corner extent 11.5mm replaces the circular proxy for G2 continuity. Remaining dimensions and occurrences match Pass A. Rear-view datum: X right, Y up, Z toward rear.
+Record PhoneSpec {
+    ProductWidth: Length
+    ProductLength: Length
+    ProductThickness: Length
+    BodyCornerRadius: Length
+    CameraPlateauWidth: Length
+    CameraPlateauHeight: Length
+    CameraPlateauRise: Length
+    CameraGlassRise: Length
+    CameraDiameter: Length
+    CameraLeftX: Length
+    CameraMiddleX: Length
+    CameraRightX: Length
+}
+Static Standard: PhoneSpec = PhoneSpec {
+    ProductWidth: 77.98mm
+    ProductLength: 163.43mm
+    ProductThickness: 8.75mm
+    BodyCornerRadius: 13.90mm
+    CameraPlateauWidth: 72.76mm
+    CameraPlateauHeight: 43mm
+    CameraPlateauRise: 2.55mm
+    CameraGlassRise: 1.88mm
+    CameraDiameter: 16.20mm
+    CameraLeftX: 14.37mm
+    CameraMiddleX: 32.36mm
+    CameraRightX: 64.16mm
+}
+
+Template < Spec: PhoneSpec > Struct BodyPart {
+    RoundedRect2 Outline { Center: [Spec.ProductWidth / 2,-Spec.ProductLength / 2] Size: [Spec.ProductWidth,Spec.ProductLength] Radius: Spec.BodyCornerRadius }
+    Profile Section { Loop Outer { Outline |> TraceLoop } }
+    Extrude Solid { Profile: Section From: 0mm To: Spec.ProductThickness }
+    SmoothRoundedRect2 PlateauOutline { Center: [Spec.ProductWidth / 2,-23.99mm] Size: [Spec.CameraPlateauWidth,Spec.CameraPlateauHeight] CornerExtent: 11.5mm }
+    Profile PlateauFootprint { Loop Outer { PlateauOutline |> TraceLoop } }
+    Plateau CameraPlateau {
+        Base: Solid
+        Footprint: PlateauFootprint
+        Height: Spec.CameraPlateauRise
+        Width: 2mm
+        Inset: Homothetic
+        Continuity: G2
+    }
+}
+Template < Spec: PhoneSpec > Struct FrontGlassPart {
+    RoundedRect2 Outline { Center: [Spec.ProductWidth / 2,-Spec.ProductLength / 2] Size: [Spec.ProductWidth - 2.40mm,Spec.ProductLength - 2.40mm] Radius: Spec.BodyCornerRadius - 1.20mm }
+    Profile Section { Loop Outer { Outline |> TraceLoop } }
+    Extrude Solid { Profile: Section From: 0mm To: 0.10mm }
+}
+Template < Spec: PhoneSpec > Struct DisplayPart {
+    RoundedRect2 Outline { Center: [Spec.ProductWidth / 2,-Spec.ProductLength / 2] Size: [Spec.ProductWidth - 5.12mm,Spec.ProductLength - 5.12mm] Radius: Spec.BodyCornerRadius - 2.56mm }
+    Profile Section { Loop Outer { Outline |> TraceLoop } }
+    Extrude Solid { Profile: Section From: 0mm To: 0.05mm }
+}
+Template < Spec: PhoneSpec > Struct FrontSensorPart {
+    Slot2 Outline { Center: [Spec.ProductWidth / 2,-7.91mm] Length: 20.76mm Width: 6.07mm }
+    Profile Section { Loop Outer { Outline |> TraceLoop } }
+    Extrude Solid { Profile: Section From: 0mm To: 0.02mm }
+}
+Template < Spec: PhoneSpec > Struct RearCamera1Part {
+    Circle2 Outline { Center: [Spec.CameraLeftX,-14.37mm] Diameter: Spec.CameraDiameter }
+    Profile Section { Loop Outer { Outline |> TraceLoop } }
+    Extrude Solid { Profile: Section From: Spec.ProductThickness + Spec.CameraPlateauRise To: Spec.ProductThickness + Spec.CameraPlateauRise + Spec.CameraGlassRise }
+}
+Template < Spec: PhoneSpec > Struct RearCamera2Part {
+    Circle2 Outline { Center: [Spec.CameraLeftX,-33.61mm] Diameter: Spec.CameraDiameter }
+    Profile Section { Loop Outer { Outline |> TraceLoop } }
+    Extrude Solid { Profile: Section From: Spec.ProductThickness + Spec.CameraPlateauRise To: Spec.ProductThickness + Spec.CameraPlateauRise + Spec.CameraGlassRise }
+}
+Template < Spec: PhoneSpec > Struct RearCamera3Part {
+    Circle2 Outline { Center: [Spec.CameraMiddleX,-23.99mm] Diameter: Spec.CameraDiameter }
+    Profile Section { Loop Outer { Outline |> TraceLoop } }
+    Extrude Solid { Profile: Section From: Spec.ProductThickness + Spec.CameraPlateauRise To: Spec.ProductThickness + Spec.CameraPlateauRise + Spec.CameraGlassRise }
+}
+Template < Spec: PhoneSpec > Struct FlashPart {
+    Circle2 Outline { Center: [Spec.CameraRightX,-13.82mm] Diameter: 6.80mm }
+    Profile Section { Loop Outer { Outline |> TraceLoop } }
+    Extrude Solid { Profile: Section From: Spec.ProductThickness + Spec.CameraPlateauRise To: Spec.ProductThickness + Spec.CameraPlateauRise + 0.02mm }
+}
+Template < Spec: PhoneSpec > Struct RearSensorPart {
+    Circle2 Outline { Center: [Spec.CameraRightX,-34.16mm] Diameter: 6.65mm }
+    Profile Section { Loop Outer { Outline |> TraceLoop } }
+    Extrude Solid { Profile: Section From: Spec.ProductThickness + Spec.CameraPlateauRise To: Spec.ProductThickness + Spec.CameraPlateauRise + 0.02mm }
+}
+Template < Spec: PhoneSpec > Struct RearMicPart {
+    Circle2 Outline { Center: [Spec.CameraRightX,-23.99mm] Diameter: 1.15mm }
+    Profile Section { Loop Outer { Outline |> TraceLoop } }
+    Extrude Solid { Profile: Section From: Spec.ProductThickness + Spec.CameraPlateauRise To: Spec.ProductThickness + Spec.CameraPlateauRise + 0.02mm }
+}
+// Simple side controls and dark opening proxies; local XY maps onto the side face.
+Template < L: Length, W: Length, T: Length > Struct SideDetail {
+    Slot2 Outline { Center: [0mm,0mm] Length: L Width: W }
+    Profile Section { Loop Outer { Outline |> TraceLoop } }
+    Extrude Solid { Profile: Section From: 0mm To: T }
+}
+Assembly IPhone17ProMax {
+    <Assembly IPhone17ProMax>
+        <Part Body = BodyPart<Spec: Standard>>
+            Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+        </Part>
+        <Part FrontGlass = FrontGlassPart<Spec: Standard>>
+            Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+        </Part>
+        <Part Display = DisplayPart<Spec: Standard>>
+            Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+        </Part>
+        <Part FrontSensor = FrontSensorPart<Spec: Standard>>
+            Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+        </Part>
+        <Part RearCamera1 = RearCamera1Part<Spec: Standard>>
+            Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+        </Part>
+        <Part RearCamera2 = RearCamera2Part<Spec: Standard>>
+            Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+        </Part>
+        <Part RearCamera3 = RearCamera3Part<Spec: Standard>>
+            Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+        </Part>
+        <Part Flash = FlashPart<Spec: Standard>>
+            Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+        </Part>
+        <Part RearSensor = RearSensorPart<Spec: Standard>>
+            Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+        </Part>
+        <Part RearMic = RearMicPart<Spec: Standard>>
+            Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+        </Part>
+        <Part ActionButton = SideDetail<L: 6.9mm, W: 2.66mm, T: 0.45mm>>
+            Placement LegacyExplicit = [0,-1,0,0,0,0,1,0,-1,0,0,0,0,-34.28,4.375,1];
+        </Part>
+        <Part VolumeUp = SideDetail<L: 11.2mm, W: 2.66mm, T: 0.45mm>>
+            Placement LegacyExplicit = [0,-1,0,0,0,0,1,0,-1,0,0,0,0,-48.43,4.375,1];
+        </Part>
+        <Part VolumeDown = SideDetail<L: 11.2mm, W: 2.66mm, T: 0.45mm>>
+            Placement LegacyExplicit = [0,-1,0,0,0,0,1,0,-1,0,0,0,0,-62.63,4.375,1];
+        </Part>
+        <Part SideButton = SideDetail<L: 17.7mm, W: 2.66mm, T: 0.45mm>>
+            Placement LegacyExplicit = [0,1,0,0,0,0,1,0,1,0,0,0,77.98,-55.53,4.375,1];
+        </Part>
+        <Part CameraControl = SideDetail<L: 17.1mm, W: 3.13mm, T: 0.02mm>>
+            Placement LegacyExplicit = [0,1,0,0,0,0,1,0,1,0,0,0,77.98,-111.82,4.375,1];
+        </Part>
+        <Part ConnectorOpeningProxy = SideDetail<L: 9.0mm, W: 3.12mm, T: 0.02mm>>
+            Placement LegacyExplicit = [1,0,0,0,0,0,1,0,0,-1,0,0,38.99,-163.43,4.375,1];
+        </Part>
+        <Part PortOpeningProxy1 = SideDetail<L: 1.53mm, W: 1.53mm, T: 0.02mm>>
+            Placement LegacyExplicit = [1,0,0,0,0,0,1,0,0,-1,0,0,15.48,-163.43,4.375,1];
+        </Part>
+        <Part PortOpeningProxy2 = SideDetail<L: 1.53mm, W: 1.53mm, T: 0.02mm>>
+            Placement LegacyExplicit = [1,0,0,0,0,0,1,0,0,-1,0,0,17.96,-163.43,4.375,1];
+        </Part>
+        <Part PortOpeningProxy3 = SideDetail<L: 1.53mm, W: 1.53mm, T: 0.02mm>>
+            Placement LegacyExplicit = [1,0,0,0,0,0,1,0,0,-1,0,0,20.44,-163.43,4.375,1];
+        </Part>
+        <Part PortOpeningProxy4 = SideDetail<L: 1.53mm, W: 1.53mm, T: 0.02mm>>
+            Placement LegacyExplicit = [1,0,0,0,0,0,1,0,0,-1,0,0,22.92,-163.43,4.375,1];
+        </Part>
+        <Part PortOpeningProxy5 = SideDetail<L: 1.53mm, W: 1.53mm, T: 0.02mm>>
+            Placement LegacyExplicit = [1,0,0,0,0,0,1,0,0,-1,0,0,25.4,-163.43,4.375,1];
+        </Part>
+        <Part PortOpeningProxy6 = SideDetail<L: 1.53mm, W: 1.53mm, T: 0.02mm>>
+            Placement LegacyExplicit = [1,0,0,0,0,0,1,0,0,-1,0,0,32.09,-163.43,4.375,1];
+        </Part>
+        <Part PortOpeningProxy7 = SideDetail<L: 1.53mm, W: 1.53mm, T: 0.02mm>>
+            Placement LegacyExplicit = [1,0,0,0,0,0,1,0,0,-1,0,0,45.08,-163.43,4.375,1];
+        </Part>
+        <Part PortOpeningProxy8 = SideDetail<L: 1.53mm, W: 1.53mm, T: 0.02mm>>
+            Placement LegacyExplicit = [1,0,0,0,0,0,1,0,0,-1,0,0,51.3,-163.43,4.375,1];
+        </Part>
+        <Part PortOpeningProxy9 = SideDetail<L: 1.53mm, W: 1.53mm, T: 0.02mm>>
+            Placement LegacyExplicit = [1,0,0,0,0,0,1,0,0,-1,0,0,53.56,-163.43,4.375,1];
+        </Part>
+        <Part PortOpeningProxy10 = SideDetail<L: 1.53mm, W: 1.53mm, T: 0.02mm>>
+            Placement LegacyExplicit = [1,0,0,0,0,0,1,0,0,-1,0,0,55.81,-163.43,4.375,1];
+        </Part>
+        <Part PortOpeningProxy11 = SideDetail<L: 1.53mm, W: 1.53mm, T: 0.02mm>>
+            Placement LegacyExplicit = [1,0,0,0,0,0,1,0,0,-1,0,0,58.07,-163.43,4.375,1];
+        </Part>
+        <Part PortOpeningProxy12 = SideDetail<L: 1.53mm, W: 1.53mm, T: 0.02mm>>
+            Placement LegacyExplicit = [1,0,0,0,0,0,1,0,0,-1,0,0,60.32,-163.43,4.375,1];
+        </Part>
+    </Assembly>
+    Anchor: IPhone17ProMax;
+}
+
+

@@ -80,8 +80,12 @@ public static class SectionChainAuthoringParser
             correspondence.Add(new(from, to, mappings));
         }
 
+        var tolerance = 1e-5;
+        var toleranceText = ProfileAuthoringParser.Property(declaration.Body, "ApproximationTolerance");
+        if (toleranceText is not null && (!ProfileAuthoringParser.TryMeasure(toleranceText, "mm", out tolerance) || tolerance <= 0))
+            diagnostics.Add("section-chain-normalization-tolerance-invalid:positive-length-required");
         if (diagnostics.Count != 0) return Fail(diagnostics);
-        var chain = new SectionChain(declaration.Name, sections, correspondence, transition, start, end, continuity);
+        var chain = new SectionChain(declaration.Name, sections, correspondence, transition, start, end, continuity, ProfileApproximationTolerance: tolerance);
         if (!materialize) return new(true, chain, null, []);
         var result = SectionChainMaterializer.Materialize(chain);
         if (!result.IsSuccess)
@@ -93,6 +97,7 @@ public static class SectionChainAuthoringParser
 
     private static SectionProfileSpan? Convert(ResolvedProfileSegment2D segment, List<string> diagnostics, string section) => segment.Geometry switch
     {
+        LineArcCubicBezier2D cubic => new(segment.Name, new SectionProfileCurve.PolynomialBSpline(3, [new(cubic.Start.X, cubic.Start.Y), new(cubic.Control1.X, cubic.Control1.Y), new(cubic.Control2.X, cubic.Control2.Y), new(cubic.End.X, cubic.End.Y)], [4, 4], [0, 1])),
         LineArcLineSegment2D line => new(segment.Name, new SectionProfileCurve.Line(new(line.Start.X, line.Start.Y), new(line.End.X, line.End.Y))),
         LineArcCircularArc2D arc => new(segment.Name, new SectionProfileCurve.Arc(new(arc.Center.X, arc.Center.Y), arc.Radius, arc.StartAngleRadians, arc.SweepAngleRadians)),
         _ => Unsupported(segment, diagnostics, section)

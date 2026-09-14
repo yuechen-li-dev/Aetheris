@@ -498,6 +498,7 @@ public static class CliRunner
                 outputPath = build.Value.OutputPath,
                 conceptIr = build.Value.Export.ConceptIr,
                 air = build.Value.Export.Air,
+                plateau = build.Value.Export.Plateau,
                 roundedBox = build.Value.Export.RoundedBox,
                 hollow = build.Value.Export.Hollow,
                 lattice = build.Value.Export.Lattice,
@@ -612,6 +613,7 @@ public static class CliRunner
                 chain.TransitionPolicy, chain.Continuity, chain.SmoothPolicy, chain.StartTermination, chain.EndTermination,
                 transitions = materialized.Transitions, pcurves = materialized.Pcurves, selfIntersection = materialized.SelfIntersection,
                 continuityEvidence = materialized.ContinuityEvidence, smoothSelection = materialized.SmoothSelection,
+                profileNormalization = materialized.ProfileNormalization, geometricJoins = materialized.GeometricJoins,
                 diagnostics = materialized.Diagnostics
             };
             stdout.WriteLine(JsonSerializer.Serialize(inspection, JsonOptions));
@@ -652,6 +654,7 @@ public static class CliRunner
             surfaceInventory = surfaces, rationalProductSurfaces = 0, facetedProductFallback = 0, pcurves = materialized.Pcurves,
             selfIntersection = materialized.SelfIntersection,
             continuityEvidence = materialized.ContinuityEvidence, smoothSelection = materialized.SmoothSelection,
+                profileNormalization = materialized.ProfileNormalization, geometricJoins = materialized.GeometricJoins,
             stepReimport = new { success = reimport.IsSuccess, diagnostics = reimport.Diagnostics.Select(item => item.Message) },
             timingsMilliseconds = materialized.Timing
         };
@@ -1414,6 +1417,15 @@ Model CanonicalPanel {
             else if (section.IsSuccess) stdout.WriteLine($"SectionChain {section.Chain!.StableId}: {section.Chain.Sections.Count} sections");
             else foreach (var diagnostic in section.Diagnostics) stderr.WriteLine("error: " + diagnostic);
             return section.IsSuccess ? 0 : 1;
+        }
+        if (PlateauAuthoring.IsSource(source) && !System.Text.RegularExpressions.Regex.IsMatch(source, @"\bAssembly\s+"))
+        {
+            var plateau = FirmamentBuildAndExport.CompileSource(source, Path.GetDirectoryName(fullPath));
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "inspect", success = plateau.IsSuccess, input = fullPath,
+                plateau = plateau.IsSuccess ? plateau.Value.Plateau : null, diagnostics = plateau.Diagnostics }, JsonOptions));
+            else if (plateau.IsSuccess) stdout.WriteLine($"Plateau: {plateau.Value.Plateau!.FaceCount} faces; G2 contact/trim report available with --json.");
+            else foreach (var d in plateau.Diagnostics) stderr.WriteLine(d.Message);
+            return plateau.IsSuccess ? 0 : 1;
         }
         if (GearAuthoring.IsGearSource(source))
         {
@@ -2267,6 +2279,14 @@ Model CanonicalPanel {
             if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
             else stdout.WriteLine($"Firmament V2 Sculpting validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");
             return sculpt.IsSuccess ? 0 : 1;
+        }
+        if (PlateauAuthoring.IsSource(validationSource) && !System.Text.RegularExpressions.Regex.IsMatch(validationSource, @"\bAssembly\s+"))
+        {
+            var plateau = FirmamentBuildAndExport.CompileSource(validationSource, Path.GetDirectoryName(Path.GetFullPath(sourcePath)));
+            var payload = new { source = sourcePath, status = plateau.IsSuccess ? "valid" : "invalid", domain = "Plateau", diagnostics = plateau.Diagnostics };
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
+            else stdout.WriteLine($"Plateau validation: {payload.status}");
+            return plateau.IsSuccess ? 0 : 1;
         }
         if (PipingAuthoring.IsPipingSource(validationSource))
         {

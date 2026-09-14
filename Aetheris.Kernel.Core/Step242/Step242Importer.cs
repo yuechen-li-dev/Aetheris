@@ -3413,7 +3413,9 @@ public static class Step242Importer
 
     private static int ComputeAdaptiveCircleSegmentCount(double span)
     {
-        const double maxSegmentAngle = double.Pi / 4d;
+        // Classification polygon only; exact edge geometry is retained. The former
+        // two-chord quarter arc falsely rejected close polynomial inner trims.
+        const double maxSegmentAngle = double.Pi / 64d;
         var normalizedSpan = double.Abs(span);
         var segmentCount = (int)double.Ceiling(normalizedSpan / maxSegmentAngle);
         return System.Math.Max(2, segmentCount);

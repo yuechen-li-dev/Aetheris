@@ -1460,6 +1460,22 @@ public static class BrepDisplayTessellator
         foreach (var coedge in coedges)
         {
             executionBudget?.ThrowIfExpired("TrimLoopSampling", faceId, surfaceKind);
+            // Consume the bound face-space authority when available. Numerical 3D
+            // reprojection is only the legacy fallback for bodies without pcurves.
+            if (body.Bindings.TryGetPcurveBinding(coedge.Id, out var pc) && pc.FaceId == faceId)
+            {
+                var edge = body.Bindings.GetEdgeBinding(coedge.EdgeId);
+                var reversed = coedge.IsReversed ^ !edge.OrientedEdgeSense ^ !pc.SameSense;
+                var segments = pc.Pcurve.Kind == PcurveGeometryKind.Line ? 1 : System.Math.Max(32, options.MinimumSegments);
+                for (var i = 0; i <= segments; i++)
+                {
+                    var fraction = (double)i / segments;
+                    if (reversed) fraction = 1 - fraction;
+                    var uv = pc.Pcurve.Evaluate(pc.Pcurve.Domain.Start + fraction * (pc.Pcurve.Domain.End - pc.Pcurve.Domain.Start));
+                    AppendUniqueUvPoint(uvPoints, (uv.U, uv.V));
+                }
+                continue;
+            }
             var sampledCurve = TrySampleCoedgeForTrimEvaluation(body, faceId, coedge, vertexPointsResult.Value, options, executionBudget, surfaceKind);
             if (!sampledCurve.IsSuccess)
             {

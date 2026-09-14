@@ -1052,6 +1052,19 @@ public static class Step242Exporter
         string contextId)
     {
         if (!surfaceIds.TryGetValue(binding.SurfaceGeometryId, out var surfaceId)) return null;
+        if (binding.Pcurve.PolynomialCurve is { } polynomial)
+        {
+            var controls = polynomial.ControlPoints.Select(p => writer.AddEntity("CARTESIAN_POINT", "$",
+                Step242TextWriter.List(Step242TextWriter.Number(p.X), Step242TextWriter.Number(p.Y))))
+                .Select(Step242TextWriter.Ref).ToArray();
+            var curve = writer.AddEntity("B_SPLINE_CURVE_WITH_KNOTS", "$", polynomial.Degree.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                Step242TextWriter.List(controls), Step242TextWriter.Enum(polynomial.CurveForm),
+                Step242TextWriter.BooleanLogical(polynomial.ClosedCurve), Step242TextWriter.BooleanLogical(polynomial.SelfIntersect),
+                Step242TextWriter.List(polynomial.KnotMultiplicities.Select(n => n.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToArray()),
+                Step242TextWriter.List(polynomial.KnotValues.Select(Step242TextWriter.Number).ToArray()), Step242TextWriter.Enum(polynomial.KnotSpec));
+            var representation = writer.AddEntity("DEFINITIONAL_REPRESENTATION", Step242TextWriter.String("pcurve"), Step242TextWriter.List(curve), Step242TextWriter.Ref(contextId));
+            return writer.AddEntity("PCURVE", "$", Step242TextWriter.Ref(surfaceId), Step242TextWriter.Ref(representation));
+        }
         var samples = binding.Pcurve.Kind switch
         {
             PcurveGeometryKind.Line => 2,

@@ -1,6 +1,6 @@
 # Closed 2D boundaries
 
-`ClosedBoundary2` is the semantic contract for one deterministic, oriented, non-self-intersecting 2D boundary. It is not a public inheritance hierarchy or a sketch solver. Canonical declarations lower through the existing `Point2`, `Line2`, circular/elliptical curve, `Profile`, AIR, and STEP path.
+`ClosedBoundary2` is the semantic contract for one deterministic, oriented, non-self-intersecting 2D boundary. It is not a public inheritance hierarchy or a sketch solver. Canonical declarations lower through the existing `Point2`, `Line2`, circular/elliptical and polynomial curve, `Profile`, AIR, and STEP path.
 
 Use the most semantic available noun:
 
@@ -16,6 +16,7 @@ Use the most semantic available noun:
 | `Ellipse2` | elliptical boundary | `Center`, full `AxisLengths` | center/extrema and one analytic `Boundary` |
 | `Slot2` | straight engineering slot | `Center`, overall `Length`, `Width` | `Top`, `EndArc`, `Bottom`, `StartArc` |
 | `RoundedRect2` | rounded rectangular region | `Center`, `Size`, `Radius` | four lines and four named corner arcs |
+| `SmoothRoundedRect2` | squircle-style corners with straight sides | `Center`, `Size`, `CornerExtent` | four sides; `BottomRightCornerA/B`, `TopRightCornerA/B`, `TopLeftCornerA/B`, `BottomLeftCornerA/B` |
 | `Polygon2<Rhombus>` | diagonal-defined rhombus | `Center`, full `Diagonals` | four compass vertices and derived edges |
 | `Polygon2<Parallelogram>` | sheared parallel-sided boundary | `Center`, `Base`, `Height`, `Shear` | four corners and derived edges |
 | `Polygon2<Trapezoid>` | centered parallel-sided taper | `Center`, `BottomWidth`, `TopWidth`, `Height` | four corners and derived edges |
@@ -59,3 +60,22 @@ After Template specialization, boundary coordinate and length fields accept boun
 `RegularPolygon2<N>` is a bounded built-in structural parameter (`3 <= N <= 1024`), not general const generics. `Polygon2<T>` admits only the documented constrained variants. Add another named polygon variant only when it supplies meaningful geometric constraints or substantially better engineering dimensions than `Polygon2<Explicit>`.
 
 `Polygon2<Explicit>` preserves the source order and names of its `Set<Point2>` entries, rejects duplicates, degenerate area, and self-intersection, and derives stable edge identities from adjacent names.
+
+## Smooth polynomial corners
+
+```firmament
+SmoothRoundedRect2 Outline {
+    Center: [0mm,0mm]
+    Size: [77.98mm,163.43mm]
+    CornerExtent: 19.43mm
+}
+Profile Section { Loop Outer { Outline |> TraceLoop } }
+```
+
+This bounded primitive provides four straight sides and eight cubic Bézier spans. `CornerExtent` is the distance from the sharp envelope corner to each side tangency point, not a circular radius. It must be strictly between zero and half the smaller size. Rotation and dimensional arithmetic work as for the other boundaries. Closure and orientation are constructed internally; users do not author control points.
+
+The fixed corner law is polynomial, inspired by a fourth-power superellipse; it is not an exact Lamé curve or a certified Apple contour. In a unit corner from (0,0) to (1,1), let `b = 2^(-1/4)`, `q = 1-b`, and `a = b-1/2`. The first cubic has controls `(0,0), (a,0), (2a,0), (b,q)`. Reflect it across the corner bisector and reverse traversal for the second half. Endpoint speed is nonzero, collinear endpoint controls give zero side curvature, and reflection gives matching tangent and signed curvature at the midpoint. Monotone convex corner spans remain inside their envelope. Area is integrated exactly; the inspection perimeter is a fixed Simpson quadrature estimate.
+
+The existing Profile binder owns the resolved curves, and ordinary extrusion and SectionChain consume them as polynomial B-splines. No guide body is exported. [The SectionChain witness](../../../fixtures/Canonical/SectionChain/smooth-corner-sections.firmament) checks realized surface position, normals, and geometric curvature at every span and section join. Its straight extrusion has G2 side joins; its planar caps meet the sides with sharp edges. General `Continuity: G2` surface construction and plateau-to-body support matching remain separate work.
+
+Use a smooth boundary as the footprint of a [G2 planar plateau](plateaus.md) to blend a raised region into a planar base.

@@ -1,3 +1,5 @@
+using Aetheris.Kernel.Core.Geometry.Curves;
+using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Boolean;
 using Aetheris.Kernel.Core.Brep.EdgeFinishing;
@@ -7,6 +9,56 @@ namespace Aetheris.Kernel.Core.Tests.Brep.EdgeFinishing;
 
 public sealed class BrepBoundedFilletTests
 {
+    [Theory]
+    [InlineData(0.5)]
+    [InlineData(1.5)]
+    [InlineData(3)]
+    public void CurvatureContinuousModeReusesTopologyAndMatchesPlanarSupports(double radius)
+    {
+        var source = CreatePlanarSourceWithLRootComposition();
+        var selection = BrepBoundedManufacturingFilletPreflight.ResolveInternalConcaveVerticalEdge(
+            source.SafeBooleanComposition!, BrepBoundedManufacturingFilletEdge.InnerXMaxYMax, radius).Value;
+        var circular = BrepBoundedFillet.FilletTrustedPolyhedralSingleInternalConcaveEdge(source, selection, radius);
+        var smooth = BrepBoundedFillet.FilletTrustedPolyhedralSingleInternalConcaveEdge(source, selection, radius, BoundedFilletProfile.CurvatureContinuous);
+        Assert.True(smooth.IsSuccess, string.Join("\n", smooth.Diagnostics.Select(d => d.Message)));
+        Assert.Equal(circular.Value.Topology.Faces.Count(), smooth.Value.Topology.Faces.Count());
+        Assert.Equal(circular.Value.Topology.Edges.Count(), smooth.Value.Topology.Edges.Count());
+        var surface = Assert.Single(smooth.Value.Bindings.FaceBindings.Select(b => smooth.Value.Geometry.GetSurface(b.SurfaceGeometryId)),
+            s => s.Kind == SurfaceGeometryKind.BSplineSurfaceWithKnots).BSplineSurfaceWithKnots!;
+        foreach (var v in new[] { 0d, 0.25, 0.5, 0.75, 1d })
+        {
+            var controls = surface.ControlPoints.Select(row => row[0] + (row[1] - row[0]) * v).ToArray();
+            var section = new BSpline3Curve(5, controls, [6, 6], [0, 1], "UNSPECIFIED", false, false, "UNSPECIFIED");
+            foreach (var u in new[] { 0d, 1d })
+            {
+                var tangent = section.EvaluateTangent(u);
+                var second = section.EvaluateSecondDerivative(u);
+                Assert.True(tangent.Length > 0.1);
+                var curvature = tangent.Cross(second).Length / System.Math.Pow(tangent.Length, 3);
+                Assert.True(curvature < 1e-12, $"curvature={curvature:R}");
+                var point = section.Evaluate(u);
+                var sideNormal = tangent.Cross(new Vector3D(0, 0, 1));
+                Assert.Contains(smooth.Value.Bindings.FaceBindings.Select(b => smooth.Value.Geometry.GetSurface(b.SurfaceGeometryId)),
+                    support => support.Kind == SurfaceGeometryKind.Plane &&
+                        System.Math.Abs((point - support.Plane!.Value.Origin).Dot(support.Plane.Value.Normal.ToVector())) < 1e-9 &&
+                        sideNormal.Cross(support.Plane.Value.Normal.ToVector()).Length < 1e-9 &&
+                        sideNormal.Dot(support.Plane.Value.Normal.ToVector()) > 0);
+            }
+        }
+    }
+
+    [Fact]
+    public void SmoothModeRejectsCircularTerminationContract()
+    {
+        var source = CreatePlanarSourceWithNotchComposition();
+        var selection = BrepBoundedManufacturingFilletPreflight.ResolveInternalConcaveVerticalEdges(source.SafeBooleanComposition!,
+            [BrepBoundedManufacturingFilletEdge.InnerXMaxYMin, BrepBoundedManufacturingFilletEdge.InnerXMaxYMax], 1).Value;
+        var circular = BrepBoundedFillet.FilletTrustedPolyhedralSingleInternalConcaveEdge(source, selection, 1).Value;
+        var result = BrepBoundedFillet.FilletTrustedPolyhedralSingleInternalConcaveEdge(circular, selection, 1, BoundedFilletProfile.CurvatureContinuous);
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, d => d.Message == "BoundedFilletSmoothCylindricalTerminationUnsupported");
+    }
+
     [Fact]
     public void FilletTrustedPolyhedralSingleInternalConcaveEdge_Builds_CylindricalFace_ForCanonicalSelection()
     {

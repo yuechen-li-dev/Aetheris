@@ -6,6 +6,69 @@ namespace Aetheris.Kernel.Firmament.Tests;
 public sealed class SectionChainAuthoringTests
 {
     [Theory]
+    [InlineData(60, 40, 8, 0)]
+    [InlineData(77.98, 163.43, 19.43, 0)]
+    [InlineData(64, 44, 9, 27)]
+    public void SmoothCornersRemoveFootprintCurvatureJump(double width, double height, double extent, double rotation)
+    {
+        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/smooth-corner-sections.firmament")
+            .Replace("Size: [60mm,40mm] CornerExtent: 8mm", FormattableString.Invariant($"Size: [{width}mm,{height}mm] CornerExtent: {extent}mm Rotation: {rotation}deg"));
+        var result = SectionChainAuthoringParser.Compile(source);
+        Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics));
+        Assert.Equal(12, result.Chain!.Sections[0].Profile.Spans.Count);
+        Assert.Equal(36, result.Materialization!.GeometricJoins.Count);
+        Assert.All(result.Materialization.GeometricJoins, join =>
+        {
+            Assert.Equal("G2WithinSampledTolerance", join.Status);
+            Assert.True(join.MaximumShapeOperatorResidual < 1e-9);
+        });
+        Assert.True(result.Materialization.Pcurves!.LoopClosureValid);
+    }
+
+    [Theory]
+    [InlineData("0mm")]
+    [InlineData("-1mm")]
+    [InlineData("20mm")]
+    [InlineData("21mm")]
+    public void SmoothCornersRejectDegenerateSideSpans(string extent)
+    {
+        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/smooth-corner-sections.firmament")
+            .Replace("CornerExtent: 8mm", "CornerExtent: " + extent);
+        var result = SectionChainAuthoringParser.Compile(source);
+        Assert.False(result.IsSuccess);
+        Assert.Contains("firmament-boundary2-invalid-dimensions:Outline", result.Diagnostics);
+        Assert.Null(result.Materialization);
+    }
+
+    [Fact]
+    public void RoundedProfileNormalizationReachesStepAndReportsRealCurvatureJump()
+    {
+        var result = SectionChainAuthoringParser.Compile(FirmamentCorpusHarness.ReadFixtureText(
+            "fixtures/Canonical/SectionChain/normalized-rounded-sections.firmament"));
+        Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics));
+        Assert.Equal(12, result.Materialization!.ProfileNormalization!.Curves.Count);
+        Assert.All(result.Materialization.GeometricJoins.Where(j => j.BoundaryKind == "NeighboringProfileSpans"), j =>
+        {
+            Assert.Equal("G1", j.Status);
+            Assert.True(j.MaximumPositionError < 1e-10);
+            Assert.True(j.MaximumNormalAngleDegrees < 1e-8);
+            Assert.InRange(j.MaximumShapeOperatorResidual!.Value, 0.125-1e-9, 0.125+1e-9);
+        });
+        Assert.All(result.Materialization.GeometricJoins.Where(j => j.BoundaryKind == "InternalSection"),
+            j => Assert.Equal("G2WithinSampledTolerance", j.Status));
+    }
+
+    [Fact]
+    public void G2RequestIsNotSilentlyDowngradedToNormalizedG1()
+    {
+        var result = SectionChainAuthoringParser.Compile(FirmamentCorpusHarness.ReadFixtureText(
+            "fixtures/Canonical/SectionChain/normalized-rounded-sections.firmament").Replace("Continuity: G1", "Continuity: G2"));
+        Assert.False(result.IsSuccess);
+        Assert.Contains("section-chain-continuity-invalid:G2", result.Diagnostics);
+        Assert.Null(result.Materialization);
+    }
+
+    [Theory]
     [InlineData("two-section-ruled.firmament", 2, SectionTermination.Cap, SectionTermination.Cap)]
     [InlineData("six-section-ergonomic.firmament", 6, SectionTermination.Cap, SectionTermination.Cap)]
     [InlineData("eight-section-ergonomic.firmament", 8, SectionTermination.Cap, SectionTermination.Cap)]

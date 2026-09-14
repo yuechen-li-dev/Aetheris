@@ -28,7 +28,8 @@ public sealed record FirmamentStepExportResult(
     Aetheris.Kernel.Firmament.Structural.StructuralReport? Structural = null,
     Aetheris.Kernel.Firmament.Piping.PipingReport? Piping = null,
     FirmamentRevolveReport? Revolve = null,
-    FirmamentGearReport? Gear = null);
+    FirmamentGearReport? Gear = null,
+    Aetheris.Kernel.Firmament.FirmamentV2.FirmamentPlateauReport? Plateau = null);
 
 public sealed record FirmamentGearItemReport(
     string Name,

@@ -11,8 +11,12 @@ using Aetheris.Kernel.Core.Topology;
 
 namespace Aetheris.Kernel.Core.Brep.EdgeFinishing;
 
+/// <summary>Cross-section law for an admitted bounded concave fillet.</summary>
+public enum BoundedFilletProfile { Circular, CurvatureContinuous }
+
 /// <summary>
-/// F0/F1 bounded constant-radius cylindrical fillet builder for explicit internal concave planar-planar vertical edges.
+/// F0/F1 bounded fillet builder for explicit internal concave planar-planar vertical edges.
+/// Circular remains the default; CurvatureContinuous changes only the admitted section law.
 /// </summary>
 public static class BrepBoundedFillet
 {
@@ -24,8 +28,11 @@ public static class BrepBoundedFillet
     public static KernelResult<BrepBody> FilletTrustedPolyhedralSingleInternalConcaveEdge(
         BrepBody sourceBody,
         BoundedManufacturingFilletSelection selection,
-        double radius)
+        double radius,
+        BoundedFilletProfile profile = BoundedFilletProfile.Circular)
     {
+        if (!Enum.IsDefined(profile))
+            return KernelResult<BrepBody>.Failure([Failure("BoundedFilletProfileUnsupported", "firmament.fillet-profile")]);
         var contextResult = BrepBoundedFilletContext.TryCreate(sourceBody, selection, radius);
         if (!contextResult.IsSuccess)
         {
@@ -33,6 +40,9 @@ public static class BrepBoundedFillet
         }
 
         var context = contextResult.Value;
+        // Existing cylinder termination contracts describe circular sections only.
+        if (profile == BoundedFilletProfile.CurvatureContinuous && context.HasCylindricalSourceFaces)
+            return KernelResult<BrepBody>.Failure([Failure("BoundedFilletSmoothCylindricalTerminationUnsupported", "firmament.fillet-profile")]);
         var engine = new JudgmentEngine<BrepBoundedFilletContext>();
         var judgment = engine.Evaluate(context, BuildCandidates());
         if (!judgment.IsSuccess || !judgment.Selection.HasValue || judgment.Selection.Value.Candidate.Name == RejectCandidate)
@@ -45,9 +55,9 @@ public static class BrepBoundedFillet
 
         return judgment.Selection.Value.Candidate.Name switch
         {
-            SingleEdgeCylindricalFilletCandidate => BuildConcaveFilletBody(sourceBody, context),
-            ChainedSameRadiusCylindricalFilletCandidate => BuildConcaveFilletBody(sourceBody, context),
-            ChainedSameRadiusCylindricalTerminationCandidate => BuildConcaveFilletBody(sourceBody, context),
+            SingleEdgeCylindricalFilletCandidate => BuildConcaveFilletBody(sourceBody, context, profile),
+            ChainedSameRadiusCylindricalFilletCandidate => BuildConcaveFilletBody(sourceBody, context, profile),
+            ChainedSameRadiusCylindricalTerminationCandidate => BuildConcaveFilletBody(sourceBody, context, profile),
             _ => KernelResult<BrepBody>.Failure([Failure($"Bounded fillet selected unsupported candidate '{judgment.Selection.Value.Candidate.Name}'.", "firmament.fillet-bounded")])
         };
     }
@@ -110,7 +120,7 @@ public static class BrepBoundedFillet
         return "No bounded single-edge/chained fillet candidate was admissible.";
     }
 
-    private static KernelResult<BrepBody> BuildConcaveFilletBody(BrepBody sourceBody, BrepBoundedFilletContext context)
+    private static KernelResult<BrepBody> BuildConcaveFilletBody(BrepBody sourceBody, BrepBoundedFilletContext context, BoundedFilletProfile profile)
     {
         if (!TryBuildOrthogonalFootprintLoop(context.OccupiedCells, out var loop, out var loopFailure))
         {
@@ -131,14 +141,14 @@ public static class BrepBoundedFillet
             filletedLoop,
             context.Selection.MinZ,
             context.Selection.MaxZ,
-            sourceBody.SafeBooleanComposition);
+            sourceBody.SafeBooleanComposition, profile);
     }
 
     private static KernelResult<BrepBody> BuildExtrudedBodyWithArcs(
         IReadOnlyList<LoopSegment2D> segments,
         double minZ,
         double maxZ,
-        SafeBooleanComposition? safeBooleanComposition)
+        SafeBooleanComposition? safeBooleanComposition, BoundedFilletProfile profile)
     {
         var height = maxZ - minZ;
         if (height <= 0d)
@@ -221,6 +231,13 @@ public static class BrepBoundedFillet
                 bindings.AddEdgeBinding(new EdgeGeometryBinding(topEdge, new CurveGeometryId(curveId), new ParameterInterval(0d, segment.Length)));
                 curveId++;
             }
+            else if (profile == BoundedFilletProfile.CurvatureContinuous)
+            {
+                geometry.AddCurve(new CurveGeometryId(curveId), CurveGeometry.FromBSpline(SmoothSection(segment, minZ)));
+                bindings.AddEdgeBinding(new EdgeGeometryBinding(bottomEdge, new CurveGeometryId(curveId++), new ParameterInterval(0, 1)));
+                geometry.AddCurve(new CurveGeometryId(curveId), CurveGeometry.FromBSpline(SmoothSection(segment, maxZ)));
+                bindings.AddEdgeBinding(new EdgeGeometryBinding(topEdge, new CurveGeometryId(curveId++), new ParameterInterval(0, 1)));
+            }
             else
             {
                 var centerBottom = new Point3D(segment.Center!.Value.X, segment.Center.Value.Y, minZ);
@@ -259,6 +276,14 @@ public static class BrepBoundedFillet
                 var outwardNormal = Direction3D.Create(new Vector3D(segment.End.Y - segment.Start.Y, -(segment.End.X - segment.Start.X), 0d));
                 geometry.AddSurface(new SurfaceGeometryId(surfaceId), SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(segment.Start.X, segment.Start.Y, minZ), outwardNormal, direction)));
             }
+            else if (profile == BoundedFilletProfile.CurvatureContinuous)
+            {
+                var bottom = SmoothSection(segment, minZ).ControlPoints;
+                var top = SmoothSection(segment, maxZ).ControlPoints;
+                var net = bottom.Select((point, index) => (IReadOnlyList<Point3D>)new[] { point, top[index] }).ToArray();
+                geometry.AddSurface(new SurfaceGeometryId(surfaceId), SurfaceGeometry.FromBSplineSurfaceWithKnots(
+                    new BSplineSurfaceWithKnots(5, 1, net, "UNSPECIFIED", false, false, false, [6, 6], [2, 2], [0, 1], [0, 1], "UNSPECIFIED")));
+            }
             else
             {
                 var center = segment.Center!.Value;
@@ -283,6 +308,13 @@ public static class BrepBoundedFillet
         return validation.IsSuccess
             ? KernelResult<BrepBody>.Success(body, validation.Diagnostics)
             : KernelResult<BrepBody>.Failure(validation.Diagnostics);
+    }
+
+    private static BSpline3Curve SmoothSection(LoopSegment2D segment, double z)
+    {
+        var center = segment.Center!.Value;
+        return CurvatureContinuousFilletSection.CreateQuarter(
+            new(segment.Start.X, segment.Start.Y, z), new(segment.End.X, segment.End.Y, z), new(center.X, center.Y, z));
     }
 
     private static (double Start, double End) ComputeArcParameterRange((double X, double Y) center, (double X, double Y) start, (double X, double Y) end, bool clockwise)

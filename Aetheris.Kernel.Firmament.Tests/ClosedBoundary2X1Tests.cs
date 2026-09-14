@@ -8,6 +8,32 @@ namespace Aetheris.Kernel.Firmament.Tests;
 public sealed class ClosedBoundary2X1Tests
 {
     [Fact]
+    public void SmoothBoundaryCompilesThroughOrdinaryExtrusionAndTemplateBinding()
+    {
+        const string source = """
+            Model SmoothPlate {
+            Units: mm
+            Template < W: Length > Struct Plate {
+                SmoothRoundedRect2 Outline { Center: [W / 2, -30mm / 2] Size: [W, 30mm] CornerExtent: 6mm }
+                Profile Section { Loop Outer { Outline |> TraceLoop } }
+                Extrude Body { Profile: Section From: 0mm To: 3mm }
+            }
+            Struct Item = Plate<W: 40mm>
+            }
+            """;
+        var build = FirmamentBuildAndExport.CompileSource(source);
+        Assert.True(build.IsSuccess, string.Join("\n", build.Diagnostics.Select(d => d.Message)));
+        Assert.Contains("B_SPLINE_CURVE_WITH_KNOTS", build.Value.StepText);
+        var profileSource = Source("SmoothRoundedRect2 Shape { Center: [0mm,0mm] Size: [40mm,30mm] CornerExtent: 6mm }");
+        var parsed = FirmamentV2Parser.Parse(profileSource);
+        Assert.True(parsed.IsSuccess, string.Join("\n", parsed.Diagnostics));
+        Assert.Equal("SmoothRoundedRect2", Assert.Single(parsed.Document!.Boundaries!).ShapeType);
+        var profile = ProfileAuthoringParser.ResolveNamedProfile(profileSource, "Boundary", out var diagnostics);
+        Assert.Empty(diagnostics);
+        Assert.Equal(8, profile!.Loops.Single().Segments.Count(s => s.Geometry is LineArcCubicBezier2D));
+    }
+
+    [Fact]
     public void DimensionalArithmetic_ReachesBoundaryAndExtrusionWithoutTruncation()
     {
         const string source = """

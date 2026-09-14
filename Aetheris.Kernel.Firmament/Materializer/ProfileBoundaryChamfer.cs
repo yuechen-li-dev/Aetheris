@@ -85,6 +85,12 @@ public static class ProfileBoundaryChamferSourceBinder
         target = null; radius = 0d; endClearance = 0d; diagnostic = null;
         var finish = EdgeFinishHeader.Matches(source).Cast<Match>().Select(match => (Match: match, Body: Block(source, match.Index + match.Length - 1))).FirstOrDefault(x => x.Body is not null && On.IsMatch(x.Body) && string.Equals(Kind.Match(x.Body).Groups["value"].Value, "Fillet", StringComparison.Ordinal));
         if (finish.Body is null) { diagnostic = "ProfileBoundaryFilletBoundaryRequired"; return false; }
+        var profileMode = Regex.Match(finish.Body, @"\bProfile\s*:\s*(?<mode>[^\s;}]+)", RegexOptions.CultureInvariant);
+        if (profileMode.Success && profileMode.Groups["mode"].Value != "Circular")
+        {
+            diagnostic = $"ProfileBoundaryFilletProfileModeUnsupported:{profileMode.Groups["mode"].Value}:polynomial-contact-shell-required";
+            return false;
+        }
         var radiusMatch = Radius.Match(finish.Body); var clearanceMatch = EndClearance.Match(finish.Body);
         if (!radiusMatch.Success || !double.TryParse(radiusMatch.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out radius) || !double.IsFinite(radius) || radius <= 0d) { diagnostic = "ProfileBoundaryFilletRadiusMustBePositive"; return false; }
         var targetMatch = Target.Match(finish.Body); var on = On.Match(finish.Body);

@@ -1,3 +1,4 @@
+using Aetheris.Kernel.Firmament.Materializer;
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -13,7 +14,7 @@ internal static class ClosedBoundary2Authoring
     internal const string Prefix = "firmament-boundary2-";
     private const double Tol = 1e-9;
     private static readonly Regex Header = new(
-        @"\b(?:(?<plain>Rect2|Square2|Circle2|Ellipse2|Slot2|RoundedRect2)|(?<family>Triangle2|Polygon2)\s*<\s*(?<variant>[A-Za-z_]\w*)\s*>|RegularPolygon2\s*<\s*(?<count>[-+]?\d+)\s*>)\s+(?<name>[A-Za-z_]\w*)\s*\{",
+        @"\b(?:(?<plain>Rect2|Square2|Circle2|Ellipse2|Slot2|RoundedRect2|SmoothRoundedRect2)|(?<family>Triangle2|Polygon2)\s*<\s*(?<variant>[A-Za-z_]\w*)\s*>|RegularPolygon2\s*<\s*(?<count>[-+]?\d+)\s*>)\s+(?<name>[A-Za-z_]\w*)\s*\{",
         RegexOptions.CultureInvariant);
 
     internal sealed record Result(string Source, IReadOnlyList<FirmamentV2ClosedBoundary2Decl> Boundaries)
@@ -88,6 +89,7 @@ internal static class ClosedBoundary2Authoring
             "Circle2" => Circle(source, name, body, rotation, span, diagnostics),
             "Ellipse2" => Ellipse(name, body, rotation, span, diagnostics),
             "Slot2" => Slot(name, body, rotation, span, diagnostics),
+            "SmoothRoundedRect2" => SmoothRoundedRect(name, body, rotation, span, diagnostics),
             "RoundedRect2" => RoundedRect(name, body, rotation, span, diagnostics),
             "Polygon2" => Polygon(source, name, variant!, body, rotation, span, diagnostics),
             _ => RegularPolygon(name, variant!, body, rotation, span, diagnostics)
@@ -171,6 +173,78 @@ internal static class ClosedBoundary2Authoring
         var guides = new[] { "Bottom", "BottomRightCorner", "Right", "TopRightCorner", "Top", "TopLeftCorner", "Left", "BottomLeftCorner" }; var map = guides.ToDictionary(x => x, x => name + "_Path." + x, StringComparer.Ordinal);
         var area = size.X * size.Y - (4 - Math.PI) * r * r; var perimeter = 2 * (size.X + size.Y - 4 * r) + 2 * Math.PI * r;
         return Make(name, "RoundedRect2", null, c, rotation, new Dictionary<string, double> { ["Width"] = size.X, ["Height"] = size.Y, ["Radius"] = r }, [], guides, "Line+Circle", span, path, map, name + "_Path |> TraceLoop", area, perimeter);
+    }
+
+    // A fixed polynomial corner law. The two cubic halves have collinear first
+    // three controls at the side, and reflection symmetry gives G2 at the bisector.
+    internal static IReadOnlyDictionary<string, LineArcProfileCurve2D> SmoothGuides(string source, List<string> diagnostics)
+    {
+        var guides = new Dictionary<string, LineArcProfileCurve2D>();
+        var templates = FirmamentV2TemplateExpansion.DeclarationSpans(source, diagnostics);
+        foreach (Match header in Header.Matches(source))
+        {
+            if (templates.Any(span => header.Index >= span.Start && header.Index < span.Start + span.Length)) continue;
+            if (header.Groups["plain"].Value != "SmoothRoundedRect2") continue;
+            var open = source.IndexOf('{', header.Index); var close = Matching(source, open);
+            if (close < 0) continue;
+            var body = source[(open + 1)..close];
+            var rotation = Angle(body, "Rotation", 0d, out _);
+            var shape = SmoothRoundedRect(header.Groups["name"].Value, body, rotation,
+                new(header.Index, close - header.Index + 1), diagnostics);
+            if (shape is null) continue;
+            Point(body, "Center", out var center); Vector(body, "Size", out var size); Length(body, "CornerExtent", out var extent);
+            foreach (var curve in SmoothCurves(center, size, extent, rotation)) guides.TryAdd(shape.Declaration.Name + "." + curve.Key, curve.Value);
+        }
+        return guides;
+    }
+
+    private static Shape? SmoothRoundedRect(string name, string body, double rotation, FirmamentV2SourceSpan span, List<string> diagnostics)
+    {
+        if (!Point(body, "Center", out var c) || !Vector(body, "Size", out var size) ||
+            !Length(body, "CornerExtent", out var r) || !Positive(size.X, size.Y, r) || r >= Math.Min(size.X, size.Y) / 2)
+            return Invalid(name, "invalid-dimensions", diagnostics);
+        var curves = SmoothCurves(c, size, r, rotation);
+        var edges = curves.Keys.ToArray();
+        var map = edges.ToDictionary(edge => edge, edge => name + "." + edge);
+        // Cubic area integration is exact; perimeter uses fixed 256-interval Simpson quadrature (an estimate).
+        var area = curves.Values.Sum(ResolvedProfile2DValidator.SignedAreaContribution);
+        var perimeter = curves.Values.Sum(curve => curve is LineArcLineSegment2D line ? Distance(line.Start, line.End)
+            : SmoothCubicLength((LineArcCubicBezier2D)curve));
+        return Make(name, "SmoothRoundedRect2", null, c, rotation,
+            new Dictionary<string, double> { ["Width"] = size.X, ["Height"] = size.Y, ["CornerExtent"] = r },
+            [], edges, "Line+CubicBezier", span, null, map,
+            string.Join(" |> ", edges.Select(edge => name + "." + edge + " As " + edge)) + " |> Close", area, perimeter);
+    }
+
+    private static Dictionary<string, LineArcProfileCurve2D> SmoothCurves((double X, double Y) c, (double X, double Y) size, double r, double rotation)
+    {
+        var result = new Dictionary<string, LineArcProfileCurve2D>();
+        var sides = new[] { "Bottom", "Right", "Top", "Left" };
+        var corners = new[] { "BottomRightCorner", "TopRightCorner", "TopLeftCorner", "BottomLeftCorner" };
+        var b = Math.Pow(0.5, 0.25); var q = 1 - b; var a = b - 0.5;
+        for (var i = 0; i < 4; i++)
+        {
+            var w = i % 2 == 0 ? size.X : size.Y; var h = i % 2 == 0 ? size.Y : size.X;
+            (double X, double Y) Transform(double x, double y) => Rotate((c.X + x, c.Y + y), c, rotation + 90 * i);
+            (double X, double Y) Corner(double x, double y) => Transform(w / 2 - r + r * x, -h / 2 + r * y);
+            result.Add(sides[i], new LineArcLineSegment2D(Transform(-w / 2 + r, -h / 2), Corner(0, 0)));
+            result.Add(corners[i] + "A", new LineArcCubicBezier2D(Corner(0, 0), Corner(a, 0), Corner(2 * a, 0), Corner(b, q)));
+            result.Add(corners[i] + "B", new LineArcCubicBezier2D(Corner(b, q), Corner(1, 1 - 2 * a), Corner(1, 1 - a), Corner(1, 1)));
+        }
+        return result;
+    }
+
+    private static double SmoothCubicLength(LineArcCubicBezier2D curve)
+    {
+        double Speed(double t)
+        {
+            var u = 1 - t;
+            var x = 3 * (u * u * (curve.Control1.X - curve.Start.X) + 2 * u * t * (curve.Control2.X - curve.Control1.X) + t * t * (curve.End.X - curve.Control2.X));
+            var y = 3 * (u * u * (curve.Control1.Y - curve.Start.Y) + 2 * u * t * (curve.Control2.Y - curve.Control1.Y) + t * t * (curve.End.Y - curve.Control2.Y));
+            return Math.Sqrt(x * x + y * y);
+        }
+        const int n = 256;
+        return (Speed(0) + Speed(1) + Enumerable.Range(1, n - 1).Sum(i => (i % 2 == 0 ? 2 : 4) * Speed((double)i / n))) / (3 * n);
     }
 
     private static Shape? Polygon(string source, string name, string variant, string body, double rotation, FirmamentV2SourceSpan span, List<string> diagnostics)

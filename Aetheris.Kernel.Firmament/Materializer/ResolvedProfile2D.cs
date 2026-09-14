@@ -58,10 +58,25 @@ public static class ResolvedProfile2DValidator
         var validation=Validate(profile); if(!validation.IsValid)return new(LineArcProfileExtrudeStatus.Rejected,null,validation.Diagnostics);
         return LineArcProfileExtrudeEmitter.TryEmit(profile, height);
     }
-    private static bool Endpoints(LineArcProfileCurve2D c,out (double X,double Y) a,out (double X,double Y) b){switch(c){case LineArcLineSegment2D l:a=l.Start;b=l.End;return true;case LineArcCircularArc2D x:a=(x.Center.X+x.Radius*Math.Cos(x.StartAngleRadians),x.Center.Y+x.Radius*Math.Sin(x.StartAngleRadians));b=(x.Center.X+x.Radius*Math.Cos(x.StartAngleRadians+x.SweepAngleRadians),x.Center.Y+x.Radius*Math.Sin(x.StartAngleRadians+x.SweepAngleRadians));return true;default:a=default;b=default;return false;}}
+    private static bool Endpoints(LineArcProfileCurve2D c,out (double X,double Y) a,out (double X,double Y) b){switch(c){case LineArcCubicBezier2D z:a=z.Start;b=z.End;return true;case LineArcLineSegment2D l:a=l.Start;b=l.End;return true;case LineArcCircularArc2D x:a=(x.Center.X+x.Radius*Math.Cos(x.StartAngleRadians),x.Center.Y+x.Radius*Math.Sin(x.StartAngleRadians));b=(x.Center.X+x.Radius*Math.Cos(x.StartAngleRadians+x.SweepAngleRadians),x.Center.Y+x.Radius*Math.Sin(x.StartAngleRadians+x.SweepAngleRadians));return true;default:a=default;b=default;return false;}}
     private static double Distance((double X,double Y)a,(double X,double Y)b)=>Math.Sqrt((a.X-b.X)*(a.X-b.X)+(a.Y-b.Y)*(a.Y-b.Y));
-    private static double SignedAreaContribution(LineArcProfileCurve2D curve)
+    internal static double SignedAreaContribution(LineArcProfileCurve2D curve)
     {
+        if (curve is LineArcCubicBezier2D cubic)
+        {
+            // Three-point Gauss integrates x*y' - y*x' (degree <= 5) exactly.
+            double Integrand(double t)
+            {
+                var u = 1 - t;
+                var x = u*u*u*cubic.Start.X + 3*u*u*t*cubic.Control1.X + 3*u*t*t*cubic.Control2.X + t*t*t*cubic.End.X;
+                var y = u*u*u*cubic.Start.Y + 3*u*u*t*cubic.Control1.Y + 3*u*t*t*cubic.Control2.Y + t*t*t*cubic.End.Y;
+                var dx = 3*(u*u*(cubic.Control1.X-cubic.Start.X)+2*u*t*(cubic.Control2.X-cubic.Control1.X)+t*t*(cubic.End.X-cubic.Control2.X));
+                var dy = 3*(u*u*(cubic.Control1.Y-cubic.Start.Y)+2*u*t*(cubic.Control2.Y-cubic.Control1.Y)+t*t*(cubic.End.Y-cubic.Control2.Y));
+                return x*dy-y*dx;
+            }
+            var d = Math.Sqrt(3d/5)/2;
+            return (5*Integrand(0.5-d)+8*Integrand(0.5)+5*Integrand(0.5+d))/36;
+        }
         if (curve is LineArcCircularArc2D arc)
         {
             var a=(X:arc.Center.X+arc.Radius*Math.Cos(arc.StartAngleRadians),Y:arc.Center.Y+arc.Radius*Math.Sin(arc.StartAngleRadians));

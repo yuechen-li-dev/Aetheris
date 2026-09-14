@@ -57,7 +57,7 @@ public static class BrepPcurveValidator
                 continue;
             }
             var interval = edgeBinding.TrimInterval ?? binding.Pcurve.Domain;
-            if (!FiniteOrdered(binding.Pcurve.Domain) || binding.Pcurve.Points.Count == 0)
+            if (!FiniteOrdered(binding.Pcurve.Domain) || (binding.Pcurve.Points.Count == 0 && binding.Pcurve.PolynomialCurve is null))
             {
                 domainValid = false;
                 diagnostics.Add($"surf-pcurve-invalid:coedge={coedge.Id.Value}:domain");

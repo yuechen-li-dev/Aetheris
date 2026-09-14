@@ -1,0 +1,16 @@
+// Isolates the next blocker: a source-bound polynomial contact shell.
+Model SmoothLoopContactShell {
+ Units: mm
+ SmoothRoundedRect2 Outline { Center: [0mm,0mm] Size: [72.76mm,43mm] CornerExtent: 11.5mm }
+ Profile Section { Loop Outer { Outline |> TraceLoop } }
+ Extrude Body { Profile: Section From: 0mm To: 2.55mm }
+ Modify Body {
+  EdgeFinish Rim {
+   Target: Section.Outer
+   On: Top
+   Kind: Fillet
+   Radius: 1mm
+   Profile: CurvatureContinuous
+  }
+ }
+}

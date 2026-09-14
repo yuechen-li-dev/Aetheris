@@ -256,6 +256,7 @@ public static class ProfileAuthoringParser
             { diagnostics.Add($"profile-layout-unresolved-ellipse:{match.Groups["n"].Value}"); continue; }
             guides[match.Groups["n"].Value] = new LineArcFullEllipse2D(center, major, minor, rotation * Math.PI / 180d);
         }
+        foreach (var guide in ClosedBoundary2Authoring.SmoothGuides(source, diagnostics)) guides[guide.Key] = guide.Value;
         if (applySpans) ApplyGeometricSpans(source, points, guides, diagnostics, addGuides: true);
     }
 
@@ -853,12 +854,14 @@ public static class ProfileAuthoringParser
     private static bool IsClosed(IReadOnlyList<LineArcProfileCurve2D> curves) => curves.Count > 0 && Distance(Start(curves[0]), End(curves[^1])) <= Tolerance && curves.Zip(curves.Skip(1)).All(pair => Distance(End(pair.First), Start(pair.Second)) <= Tolerance);
     private static double SignedArea(IEnumerable<LineArcProfileCurve2D> curves) => curves.Sum(curve => curve switch
     {
+        LineArcCubicBezier2D cubic => ResolvedProfile2DValidator.SignedAreaContribution(cubic),
         LineArcLineSegment2D line => (line.Start.X * line.End.Y - line.End.X * line.Start.Y) / 2d,
         LineArcCircularArc2D arc => (arc.Radius * arc.Center.X * (Math.Sin(arc.StartAngleRadians + arc.SweepAngleRadians) - Math.Sin(arc.StartAngleRadians)) + arc.Radius * arc.Center.Y * (Math.Cos(arc.StartAngleRadians) - Math.Cos(arc.StartAngleRadians + arc.SweepAngleRadians)) + arc.Radius * arc.Radius * arc.SweepAngleRadians) / 2d,
         _ => 0d
     });
     private static LineArcProfileCurve2D Reverse(LineArcProfileCurve2D curve) => curve switch
     {
+        LineArcCubicBezier2D cubic => new LineArcCubicBezier2D(cubic.End, cubic.Control2, cubic.Control1, cubic.Start),
         LineArcLineSegment2D line => new LineArcLineSegment2D(line.End, line.Start),
         LineArcCircularArc2D arc => new LineArcCircularArc2D(arc.Center, arc.Radius, arc.StartAngleRadians + arc.SweepAngleRadians, -arc.SweepAngleRadians),
         _ => curve
@@ -976,8 +979,8 @@ public static class ProfileAuthoringParser
     private static double DegreesToRadians(double value) => value * Math.PI / 180d;
     private static double Heading((double X, double Y) from, (double X, double Y) to) => Math.Atan2(to.Y - from.Y, to.X - from.X) * 180d / Math.PI;
     private static double Distance((double X, double Y) a, (double X, double Y) b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
-    private static (double X,double Y) Start(LineArcProfileCurve2D curve)=>curve switch{LineArcLineSegment2D line=>line.Start,LineArcCircularArc2D arc=>(arc.Center.X+arc.Radius*Math.Cos(arc.StartAngleRadians),arc.Center.Y+arc.Radius*Math.Sin(arc.StartAngleRadians)),_=>throw new InvalidOperationException()};
-    private static (double X,double Y) End(LineArcProfileCurve2D curve)=>curve switch{LineArcLineSegment2D line=>line.End,LineArcCircularArc2D arc=>(arc.Center.X+arc.Radius*Math.Cos(arc.StartAngleRadians+arc.SweepAngleRadians),arc.Center.Y+arc.Radius*Math.Sin(arc.StartAngleRadians+arc.SweepAngleRadians)),_=>throw new InvalidOperationException()};
+    private static (double X,double Y) Start(LineArcProfileCurve2D curve)=>curve switch{LineArcCubicBezier2D cubic=>cubic.Start,LineArcLineSegment2D line=>line.Start,LineArcCircularArc2D arc=>(arc.Center.X+arc.Radius*Math.Cos(arc.StartAngleRadians),arc.Center.Y+arc.Radius*Math.Sin(arc.StartAngleRadians)),_=>throw new InvalidOperationException()};
+    private static (double X,double Y) End(LineArcProfileCurve2D curve)=>curve switch{LineArcCubicBezier2D cubic=>cubic.End,LineArcLineSegment2D line=>line.End,LineArcCircularArc2D arc=>(arc.Center.X+arc.Radius*Math.Cos(arc.StartAngleRadians+arc.SweepAngleRadians),arc.Center.Y+arc.Radius*Math.Sin(arc.StartAngleRadians+arc.SweepAngleRadians)),_=>throw new InvalidOperationException()};
     private static bool OnLine((double X, double Y) point, LineArcLineSegment2D line) => Math.Abs((line.End.X - line.Start.X) * (point.Y - line.Start.Y) - (line.End.Y - line.Start.Y) * (point.X - line.Start.X)) < 1e-7;
     private static bool OnCircle((double X, double Y) point, (double X, double Y) center, double radius) => Math.Abs(Distance(point, center) - radius) < 1e-7;
 

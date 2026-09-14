@@ -29,6 +29,12 @@ public static class AssemblyDisplayMeshExporter
             var useSurfaceMeshIr = body.Topology.Faces.All(face =>
                 body.TryGetFaceSurfaceGeometry(face.Id, out var surface)
                 && surface?.Kind is SurfaceGeometryKind.Plane or SurfaceGeometryKind.Cylinder);
+            if (body.Geometry.Surfaces.Any(s => s.Value.Kind == SurfaceGeometryKind.BSplineSurfaceWithKnots))
+            {
+                var trims = Aetheris.Surfacing.BoundedPcurveBuilder.Populate(body.Topology, body.Geometry, body.Bindings);
+                if (!trims.IsSuccess)
+                    throw new InvalidOperationException($"assembly-mesh-pcurve-failed:{identity}:" + string.Join(";", trims.Diagnostics));
+            }
             var tessellation = useSurfaceMeshIr
                 ? BrepDisplayTessellator.TessellateSurfaceMeshIr(body, effectiveOptions)
                 : BrepDisplayTessellator.TessellateBounded(body, effectiveOptions);

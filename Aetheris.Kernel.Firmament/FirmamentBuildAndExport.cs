@@ -330,6 +330,11 @@ public static class FirmamentBuildAndExport
         canonicalParseWatch.Stop();
         var canonicalAdvanced = FirmamentV2Parser.TryGetCanonicalAdvancedBody(materializerInput, out var canonicalBody);
         var materializerSource = canonicalAdvanced ? canonicalBody : materializerInput;
+        if (PlateauAuthoring.IsSource(materializerSource))
+        {
+            if (!v2Parse.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(v2Parse.Diagnostics.Select(SchemaDiagnostic).ToArray());
+            return PlateauAuthoring.Compile(materializerSource);
+        }
         if (RevolveAuthoringParser.IsRevolveSource(materializerSource))
         {
             var authored = RevolveAuthoringParser.Parse(materializerSource, out var revolveDiagnostics);

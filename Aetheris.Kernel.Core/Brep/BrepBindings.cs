@@ -1,3 +1,4 @@
+using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Topology;
 
@@ -17,7 +18,7 @@ public readonly record struct FaceGeometryBinding(
 
 public readonly record struct SurfaceParameterPoint(double U, double V);
 
-public enum PcurveGeometryKind { Line, Circle, Ellipse, Polyline }
+public enum PcurveGeometryKind { Line, Circle, Ellipse, Polyline, Polynomial }
 
 /// <summary>A face-local parameter-space curve with the same parameter as its bound 3D edge.</summary>
 public sealed record PcurveGeometry
@@ -29,6 +30,7 @@ public sealed record PcurveGeometry
         Points = points;
     }
 
+    public BSpline3Curve? PolynomialCurve { get; private init; }
     public PcurveGeometryKind Kind { get; }
     public ParameterInterval Domain { get; }
     public IReadOnlyList<SurfaceParameterPoint> Points { get; }
@@ -46,10 +48,25 @@ public sealed record PcurveGeometry
     public static PcurveGeometry Polyline(ParameterInterval domain, IReadOnlyList<SurfaceParameterPoint> points)
         => new(PcurveGeometryKind.Polyline, domain, points.ToArray());
 
+    /// <summary>Reuses the polynomial curve authority in the UV plane (Z must be zero).</summary>
+    public static PcurveGeometry Polynomial(ParameterInterval domain, BSpline3Curve curve)
+    {
+        if (!double.IsFinite(domain.Start) || !double.IsFinite(domain.End) || domain.Start == domain.End ||
+            System.Math.Min(domain.Start, domain.End) < curve.DomainStart || System.Math.Max(domain.Start, domain.End) > curve.DomainEnd ||
+            curve.ControlPoints.Any(p => !double.IsFinite(p.X) || !double.IsFinite(p.Y) || p.Z != 0))
+            throw new ArgumentException("Polynomial pcurve requires a finite in-domain trim and UV-plane controls.");
+        return new(PcurveGeometryKind.Polynomial, domain, []) { PolynomialCurve = curve };
+    }
+
     public SurfaceParameterPoint Evaluate(double parameter)
     {
         var span = Domain.End - Domain.Start;
         var fraction = double.Abs(span) <= 1e-15d ? 0d : System.Math.Clamp((parameter - Domain.Start) / span, 0d, 1d);
+        if (PolynomialCurve is { } polynomial)
+        {
+            var point = polynomial.Evaluate(Domain.Start + span * fraction);
+            return new(point.X, point.Y);
+        }
         if (Kind == PcurveGeometryKind.Circle)
         {
             var angle = Domain.Start + (span * fraction);

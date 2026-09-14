@@ -1404,7 +1404,12 @@ internal static class FirmamentPrimitiveExecutor
         }
 
         var selection = preflight.Value;
-        return BrepBoundedFillet.FilletTrustedPolyhedralSingleInternalConcaveEdge(baseBody, selection, radius);
+        var profile = BoundedFilletProfile.Circular;
+        if (boolean.Tool.RawFields.TryGetValue("profile", out var profileText) &&
+            (!Enum.TryParse(profileText, false, out profile) || !Enum.IsDefined(profile) || profileText != profile.ToString()))
+            return KernelResult<BrepBody>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed,
+                KernelDiagnosticSeverity.Error, "BoundedFilletProfileUnsupported", Source: "firmament.fillet-profile")]);
+        return BrepBoundedFillet.FilletTrustedPolyhedralSingleInternalConcaveEdge(baseBody, selection, radius, profile);
     }
 
     private static bool TryParseDraftFaces(

@@ -13,6 +13,8 @@ static int Run(string[] args)
         return args[0] switch
         {
             "generate"=>Generate(args[1..]),
+            "adopt-antonia"=>AdoptAntonia(args[1..]),
+            "constrained-antonia"=>ConstrainedQualification.Run(Required(args, "--input"), Value(args, "--out-dir") ?? Path.Combine("artifacts", "local", "humanoid-x2")),
             "inspect"=>Inspect(args[1..]),
             "morph"=>Morph(args[1..]),
             "pose"=>Pose(args[1..]),
@@ -22,6 +24,57 @@ static int Run(string[] args)
     }
     catch(HumanoidDomainException ex){Console.Error.WriteLine($"{ex.Diagnostic.Code}: {ex.Message}");return 2;}
     catch(Exception ex){Console.Error.WriteLine(ex.Message);return 1;}
+}
+
+static int AdoptAntonia(string[] args)
+{
+    var candidate = AntoniaSurfaceAdoption.Prepare(Required(args, "--source"), Required(args, "--notice"));
+    var directory = Value(args, "--out-dir") ?? Path.Combine("artifacts", "local", "humanoid-x1");
+    Directory.CreateDirectory(directory);
+    var artifact = Path.Combine(directory, "antonia-adoption-candidate.json");
+    File.WriteAllText(artifact, JsonSerializer.Serialize(candidate, HumanoidArtifactIO.JsonOptions));
+    Export("source-pose.obj", candidate.SourcePoseSurface.Vertices.Select(v => v.Position).ToArray());
+    Export("prepared-apose.obj", candidate.PreparedPositions);
+    var preparedSurface = candidate.SourcePoseSurface with { Vertices = candidate.SourcePoseSurface.Vertices.Select((v, i) => v with { Position = candidate.PreparedPositions[i] }).ToArray() };
+    foreach (var pose in AntoniaSurfaceAdoption.QualificationPoses())
+        Export(pose.PoseId + ".obj", HumanoidPosing.EvaluateVertices(preparedSurface, candidate.PreparedSkeleton, pose));
+    var evidence = new
+    {
+        schema = "aetheris.humanoid.x1-adoption-evidence.v1", candidate.Status,
+        sourceRevision = AntoniaSurfaceAdoption.Revision, sourceSha256 = AntoniaSurfaceAdoption.SourceSha256,
+        sourceVertices = 38822, sourceQuads = 38614,
+        selectedVertices = candidate.SourcePoseSurface.Vertices.Count, selectedQuads = candidate.SourcePolygons.Count,
+        bindingTriangles = candidate.SourcePoseSurface.Faces.Count,
+        candidate.SourcePoseSurface.TopologyId, candidate.SourcePoseSurface.ConnectivityHash,
+        components = candidate.SourcePoseSurface.Components.Select(c => new { c.Id, c.Kind, triangles = c.FaceIndices.Count }),
+        regions = candidate.SourcePoseSurface.Faces.GroupBy(f => f.Region).Select(g => new { region = g.Key, triangles = g.Count() }),
+        joints = candidate.SourcePoseSkeleton.Joints.Count, candidate.ScaleToMm, candidate.SourceSoleY, candidate.SourcePelvisZ,
+        candidate.SymmetryMaximumMm, candidate.PreparedSymmetryMaximumMm, candidate.PreparationEvidence, candidate.PoseSweep,
+        minimumWeight = candidate.SourcePoseSurface.SkinWeights.SelectMany(w => w.Weights).Min(w => w.Weight),
+        maximumWeightSumError = candidate.SourcePoseSurface.SkinWeights.Max(w => Math.Abs(w.Weights.Sum(x => x.Weight) - 1)),
+        uncoveredVertices = candidate.SourcePoseSurface.SkinWeights.Count(w => w.Weights.Count == 0),
+        artifactSha256 = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(artifact))),
+        sourcePoseObjSha256 = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(Path.Combine(directory, "source-pose.obj")))),
+        preparedObjSha256 = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(Path.Combine(directory, "prepared-apose.obj")))),
+        canonicalPromotion = false,
+        missingGates = new[] { "reviewed A-pose preparation", "canonical region and anatomical proxy review", "landmarks, measurements and attachment migration", "morph and pose qualification", "human visual review" }
+    };
+    File.WriteAllText(Path.Combine(directory, "adoption-evidence.json"), JsonSerializer.Serialize(evidence, HumanoidArtifactIO.JsonOptions));
+    Console.WriteLine(JsonSerializer.Serialize(evidence, HumanoidArtifactIO.JsonOptions));
+    // Candidate generation succeeded; this command never claims runtime qualification.
+    return 0;
+
+    void Export(string name, IReadOnlyList<Aetheris.Kernel.Core.Math.Point3D> positions)
+    {
+        using var writer = new StreamWriter(Path.Combine(directory, name), false, new System.Text.UTF8Encoding(false));
+        writer.WriteLine("# NONCANONICAL Antonia Polygon adoption candidate; CC-BY-3.0; Olaf Delgado-Friedrichs; no endorsement implied");
+        foreach (var p in positions) writer.WriteLine(FormattableString.Invariant($"v {p.X:R} {p.Y:R} {p.Z:R}"));
+        foreach (var group in candidate.SourcePoseSurface.Faces.GroupBy(f => f.Region))
+        {
+            writer.WriteLine("g " + group.Key);
+            foreach (var f in group) writer.WriteLine($"f {f.A + 1} {f.B + 1} {f.C + 1}");
+        }
+    }
 }
 
 static int Generate(string[] args)
@@ -51,10 +104,10 @@ static int Sweep(string[] args)
 }
 static void WriteSummary(CanonicalHumanoid h,HumanoidValidationResult validation,string path,double ms)
 {
-    var evidence=new{milestone="HUMANOID-X0",status=validation.IsValid?"AuthoredTemplateValid":"AuthoredTemplateInvalid",generatorMilliseconds=ms,authority="Aetheris-authored implicit semantic primitives and fixed tetrahedral lattice; no external connectivity",topology=new{h.Surface.TopologyId,h.Surface.BindingTriangulationId,h.Surface.ConnectivityHash,vertices=h.Surface.Vertices.Count,faces=h.Surface.Faces.Count,regions=h.Surface.Vertices.Select(x=>x.Region).Distinct().Count(),components=h.Surface.Components.Select(x=>new{x.Id,x.Kind,faces=x.FaceIndices.Count})},skeleton=new{h.Skeleton.SkeletonId,joints=h.Skeleton.Joints.Count,h.Skeleton.RestPoseId,h.Skeleton.SkinningConvention},landmarks=new{total=h.Landmarks.Count,surface=h.Landmarks.OfType<SurfaceLandmark>().Count(),joint=h.Landmarks.OfType<JointLandmark>().Count()},measurements=HumanoidMeasurements.Evaluate(h),morphs=h.MorphChannels,attachments=h.Attachments.Select(x=>x.Id),validation};File.WriteAllText(path,JsonSerializer.Serialize(evidence,HumanoidArtifactIO.JsonOptions));
+    var evidence=new{milestone="HUMANOID-X0",status=validation.IsValid?"NONCANONICAL-SyntheticRegressionFixtureValid":"NONCANONICAL-SyntheticRegressionFixtureInvalid",generatorMilliseconds=ms,authority="Aetheris-authored implicit semantic primitives and fixed tetrahedral lattice; no external connectivity",topology=new{h.Surface.TopologyId,h.Surface.BindingTriangulationId,h.Surface.ConnectivityHash,vertices=h.Surface.Vertices.Count,faces=h.Surface.Faces.Count,regions=h.Surface.Vertices.Select(x=>x.Region).Distinct().Count(),components=h.Surface.Components.Select(x=>new{x.Id,x.Kind,faces=x.FaceIndices.Count})},skeleton=new{h.Skeleton.SkeletonId,joints=h.Skeleton.Joints.Count,h.Skeleton.RestPoseId,h.Skeleton.SkinningConvention},landmarks=new{total=h.Landmarks.Count,surface=h.Landmarks.OfType<SurfaceLandmark>().Count(),joint=h.Landmarks.OfType<JointLandmark>().Count()},measurements=HumanoidMeasurements.Evaluate(h),morphs=h.MorphChannels,attachments=h.Attachments.Select(x=>x.Id),validation};File.WriteAllText(path,JsonSerializer.Serialize(evidence,HumanoidArtifactIO.JsonOptions));
 }
 static string? Value(string[] args,string name){var i=Array.IndexOf(args,name);return i>=0&&i+1<args.Length?args[i+1]:null;}
 static string Required(string[] args,string name)=>Value(args,name)??throw new ArgumentException($"Missing {name}.");
 static string Kebab(string s)=>string.Concat(s.Select((c,i)=>char.IsUpper(c)&&i>0?"-"+char.ToLowerInvariant(c):char.ToLowerInvariant(c).ToString()));
 static int Fail(string message){Console.Error.WriteLine(message);Usage();return 1;}
-static void Usage()=>Console.WriteLine("Aetheris.Humanoid.X0\n  generate [--out-dir <dir>]\n  inspect --input <canonical.json>\n  morph --input <canonical.json> --output <variant.json> [--height <mm>] [--arm-length <delta-mm>] [--leg-length <delta-mm>] [--shoulder-width <delta-mm>]\n  pose --input <canonical.json> --output <posed.obj> [--left-elbow-deg <deg>] [--left-shoulder-deg <deg>] [--left-hip-deg <deg>] [--left-knee-deg <deg>]\n  sweep --input <canonical.json> --output <evidence.json>");
+static void Usage()=>Console.WriteLine("Aetheris.Humanoid research tooling (X0 synthetic / X1 unpromoted / X2 constrained progression)\n  constrained-antonia --input <candidate.json> [--out-dir <dir>]\n  adopt-antonia --source <Antonia-1.2.obj> --notice <original-README> [--out-dir <dir>]\n  generate [--out-dir <dir>]\n  inspect --input <canonical.json>\n  morph --input <canonical.json> --output <variant.json> [--height <mm>] [--arm-length <delta-mm>] [--leg-length <delta-mm>] [--shoulder-width <delta-mm>]\n  pose --input <canonical.json> --output <posed.obj> [--left-elbow-deg <deg>] [--left-shoulder-deg <deg>] [--left-hip-deg <deg>] [--left-knee-deg <deg>]\n  sweep --input <canonical.json> --output <evidence.json>");

@@ -1,0 +1,21 @@
+{
+  "schema": "aetheris.humanoid.original-source-admission.v1",
+  "assetId": "antonia-polygon-original-1.2.0",
+  "source": "https://github.com/odf/Antonia.Polygon",
+  "revision": "08c9767691daad1382dfc6980ee83e31514b4879",
+  "files": [
+    { "path": "Runtime/geometries/Antonia/Antonia-1.2.obj", "localName": "Antonia-1.2.obj", "sha256": "0d9e918f19a497adebb51dc8f4ac921c41753b157c50809a1d760dd45ec01194" },
+    { "path": "Runtime/Docs/Antonia/README", "localName": "README", "sha256": "e9385525cf613450e8673703f7959cd869e2d9c1290d474a99ca4863d734f4ae" }
+  ],
+  "license": "CC-BY-3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+  "preservedNotice": "antonia-original-LICENSE.txt",
+  "author": "Olaf Delgado-Friedrichs",
+  "additionalCredits": "phantom3D, MikeJ and others credited in the original notice",
+  "admittedComponent": "Original Antonia 1.2.0 OBJ base figure: skin_ARMS, skin_BODY, skin_HEAD, skin_LEGS, lips, nailsFingers, nailsToes, bilateral sclera/iris/pupil/cornea polygons.",
+  "excluded": ["CharMorph conversion and code", "source rigs and skin weights", "morphs", "textures", "shared libraries", "mouth interior", "teeth", "tongue", "toeCap", "invisible", "brows", "lashes", "lacrimals", "separately distributed extras"],
+  "sourceAdmission": "Original base-figure geometry and connectivity admitted with attribution under its original notice; no inference about CharMorph conversion components.",
+  "runtimeAdmission": "NOT PROMOTED: numerical and visual deformation gates fail; candidate is not CanonicalHumanoid.",
+  "candidateTopologyId": "aetheris.humanoid.antonia.adoption-candidate.v1",
+  "attribution": "Based on Antonia Polygon by Olaf Delgado-Friedrichs, with phantom3D, MikeJ and others credited in the preserved original notice. Aetheris adapts the base figure by selecting body/eye components, converting its coordinate frame, freezing a binding triangulation, mapping semantic group/joint proxies, generating skin weights and experimenting with A-pose preparation. Source: https://github.com/odf/Antonia.Polygon/tree/08c9767691daad1382dfc6980ee83e31514b4879 . CC BY 3.0: https://creativecommons.org/licenses/by/3.0/ . No endorsement implied. No exclusive authorship claim over source topology."
+}

@@ -1,0 +1,449 @@
+{
+  "schema": "aetheris.humanoid.x1-adoption-evidence.v1",
+  "status": "FailedDeformationGate-NONCANONICAL",
+  "sourceRevision": "08c9767691daad1382dfc6980ee83e31514b4879",
+  "sourceSha256": "0d9e918f19a497adebb51dc8f4ac921c41753b157c50809a1d760dd45ec01194",
+  "sourceVertices": 38822,
+  "sourceQuads": 38614,
+  "selectedVertices": 27193,
+  "selectedQuads": 27112,
+  "bindingTriangles": 54224,
+  "topologyId": "aetheris.humanoid.antonia.adoption-candidate.v1",
+  "connectivityHash": "2e2f787499ba2da1f02bab14f352b86070938fbb5d7cae60e8bd7d59edb2b7a2",
+  "components": [
+    {
+      "id": "antonia:OuterSkin",
+      "kind": "OuterSkin",
+      "triangles": 51408
+    },
+    {
+      "id": "antonia:LeftEye",
+      "kind": "LeftEye",
+      "triangles": 1408
+    },
+    {
+      "id": "antonia:RightEye",
+      "kind": "RightEye",
+      "triangles": 1408
+    }
+  ],
+  "regions": [
+    {
+      "region": "Abdomen",
+      "triangles": 1424
+    },
+    {
+      "region": "Chest",
+      "triangles": 1936
+    },
+    {
+      "region": "Head",
+      "triangles": 10336
+    },
+    {
+      "region": "Pelvis",
+      "triangles": 3056
+    },
+    {
+      "region": "LeftToes",
+      "triangles": 3392
+    },
+    {
+      "region": "LeftShoulder",
+      "triangles": 1992
+    },
+    {
+      "region": "LeftEye",
+      "triangles": 1408
+    },
+    {
+      "region": "LeftFoot",
+      "triangles": 1456
+    },
+    {
+      "region": "LeftForearm",
+      "triangles": 864
+    },
+    {
+      "region": "LeftHand",
+      "triangles": 2168
+    },
+    {
+      "region": "LeftIndex",
+      "triangles": 848
+    },
+    {
+      "region": "LeftMiddle",
+      "triangles": 848
+    },
+    {
+      "region": "LeftLittle",
+      "triangles": 848
+    },
+    {
+      "region": "LeftRing",
+      "triangles": 848
+    },
+    {
+      "region": "LeftShin",
+      "triangles": 1224
+    },
+    {
+      "region": "LeftUpperArm",
+      "triangles": 592
+    },
+    {
+      "region": "LeftThigh",
+      "triangles": 1104
+    },
+    {
+      "region": "LeftThumb",
+      "triangles": 976
+    },
+    {
+      "region": "Neck",
+      "triangles": 336
+    },
+    {
+      "region": "RightToes",
+      "triangles": 3392
+    },
+    {
+      "region": "RightShoulder",
+      "triangles": 1992
+    },
+    {
+      "region": "RightEye",
+      "triangles": 1408
+    },
+    {
+      "region": "RightFoot",
+      "triangles": 1456
+    },
+    {
+      "region": "RightForearm",
+      "triangles": 864
+    },
+    {
+      "region": "RightHand",
+      "triangles": 2168
+    },
+    {
+      "region": "RightIndex",
+      "triangles": 848
+    },
+    {
+      "region": "RightMiddle",
+      "triangles": 848
+    },
+    {
+      "region": "RightLittle",
+      "triangles": 848
+    },
+    {
+      "region": "RightRing",
+      "triangles": 848
+    },
+    {
+      "region": "RightShin",
+      "triangles": 1224
+    },
+    {
+      "region": "RightUpperArm",
+      "triangles": 592
+    },
+    {
+      "region": "RightThigh",
+      "triangles": 1104
+    },
+    {
+      "region": "RightThumb",
+      "triangles": 976
+    }
+  ],
+  "joints": 55,
+  "scaleToMm": 2504.5606618474717,
+  "sourceSoleY": 0.00089007,
+  "sourcePelvisZ": -0.00950344604166667,
+  "symmetryMaximumMm": 4.3380263155391075E-05,
+  "preparedSymmetryMaximumMm": 0.0003063418047014443,
+  "preparationEvidence": {
+    "finite": true,
+    "orientationReversalProxies": 0,
+    "collapsedTriangles": 0,
+    "maximumEdgeLengthRatio": 2.2665780012181385,
+    "bindReconstructionMaximumMm": 0.00030851712518765426,
+    "reversalsByRegion": {},
+    "reversalFaceIds": [],
+    "worstEdgeVertexIds": [
+      "antonia:v:006169",
+      "antonia:v:016044"
+    ]
+  },
+  "poseSweep": {
+    "shoulder-abduction-35": {
+      "finite": true,
+      "orientationReversalProxies": 0,
+      "collapsedTriangles": 0,
+      "maximumEdgeLengthRatio": 1.615976768497449,
+      "bindReconstructionMaximumMm": 0.0002441410906608432,
+      "reversalsByRegion": {},
+      "reversalFaceIds": [],
+      "worstEdgeVertexIds": [
+        "antonia:v:006169",
+        "antonia:v:016044"
+      ]
+    },
+    "shoulder-abduction-70": {
+      "finite": true,
+      "orientationReversalProxies": 0,
+      "collapsedTriangles": 0,
+      "maximumEdgeLengthRatio": 2.4654790254997345,
+      "bindReconstructionMaximumMm": 0.0002441410906608432,
+      "reversalsByRegion": {},
+      "reversalFaceIds": [],
+      "worstEdgeVertexIds": [
+        "antonia:v:024548",
+        "antonia:v:031634"
+      ]
+    },
+    "shoulder-flexion-35": {
+      "finite": true,
+      "orientationReversalProxies": 0,
+      "collapsedTriangles": 0,
+      "maximumEdgeLengthRatio": 1.3971647542797778,
+      "bindReconstructionMaximumMm": 0.0002441410906608432,
+      "reversalsByRegion": {},
+      "reversalFaceIds": [],
+      "worstEdgeVertexIds": [
+        "antonia:v:026132",
+        "antonia:v:025233"
+      ]
+    },
+    "shoulder-flexion-70": {
+      "finite": true,
+      "orientationReversalProxies": 0,
+      "collapsedTriangles": 0,
+      "maximumEdgeLengthRatio": 1.972669663302808,
+      "bindReconstructionMaximumMm": 0.0002441410906608432,
+      "reversalsByRegion": {},
+      "reversalFaceIds": [],
+      "worstEdgeVertexIds": [
+        "antonia:v:026132",
+        "antonia:v:025233"
+      ]
+    },
+    "elbow-flexion-35": {
+      "finite": true,
+      "orientationReversalProxies": 0,
+      "collapsedTriangles": 0,
+      "maximumEdgeLengthRatio": 2.135178683330794,
+      "bindReconstructionMaximumMm": 0.0002441410906608432,
+      "reversalsByRegion": {},
+      "reversalFaceIds": [],
+      "worstEdgeVertexIds": [
+        "antonia:v:006381",
+        "antonia:v:024319"
+      ]
+    },
+    "elbow-flexion-70": {
+      "finite": true,
+      "orientationReversalProxies": 5,
+      "collapsedTriangles": 0,
+      "maximumEdgeLengthRatio": 5.7263823055339325,
+      "bindReconstructionMaximumMm": 0.0002441410906608432,
+      "reversalsByRegion": {
+        "LeftUpperArm": 5
+      },
+      "reversalFaceIds": [
+        "antonia:f:024241:t0",
+        "antonia:f:024241:t1",
+        "antonia:f:024372:t0",
+        "antonia:f:024380:t1",
+        "antonia:f:024424:t1"
+      ],
+      "worstEdgeVertexIds": [
+        "antonia:v:032044",
+        "antonia:v:022895"
+      ]
+    },
+    "hip-flexion-35": {
+      "finite": true,
+      "orientationReversalProxies": 0,
+      "collapsedTriangles": 0,
+      "maximumEdgeLengthRatio": 2.9603444726168817,
+      "bindReconstructionMaximumMm": 0.0002441410906608432,
+      "reversalsByRegion": {},
+      "reversalFaceIds": [],
+      "worstEdgeVertexIds": [
+        "antonia:v:031782",
+        "antonia:v:012979"
+      ]
+    },
+    "hip-flexion-70": {
+      "finite": true,
+      "orientationReversalProxies": 12,
+      "collapsedTriangles": 0,
+      "maximumEdgeLengthRatio": 16.444624569815698,
+      "bindReconstructionMaximumMm": 0.0002441410906608432,
+      "reversalsByRegion": {
+        "Pelvis": 10,
+        "LeftThigh": 2
+      },
+      "reversalFaceIds": [
+        "antonia:f:009382:t0",
+        "antonia:f:009382:t1",
+        "antonia:f:009397:t0",
+        "antonia:f:009397:t1",
+        "antonia:f:009398:t1",
+        "antonia:f:009427:t0",
+        "antonia:f:009428:t1",
+        "antonia:f:009449:t1",
+        "antonia:f:009495:t0",
+        "antonia:f:009498:t1",
+        "antonia:f:024620:t1",
+        "antonia:f:024625:t0"
+      ],
+      "worstEdgeVertexIds": [
+        "antonia:v:031783",
+        "antonia:v:008100"
+      ]
+    },
+    "hip-abduction-35": {
+      "finite": true,
+      "orientationReversalProxies": 2,
+      "collapsedTriangles": 0,
+      "maximumEdgeLengthRatio": 4.852287949995794,
+      "bindReconstructionMaximumMm": 0.0002441410906608432,
+      "reversalsByRegion": {
+        "Pelvis": 2
+      },
+      "reversalFaceIds": [
+        "antonia:f:009393:t1",
+        "antonia:f:009435:t0"
+      ],
+      "worstEdgeVertexIds": [
+        "antonia:v:023450",
+        "antonia:v:031503"
+      ]
+    },
+    "hip-abduction-70": {
+      "finite": true,
+      "orientationReversalProxies": 56,
+      "collapsedTriangles": 0,
+      "maximumEdgeLengthRatio": 7.128263390099271,
+      "bindReconstructionMaximumMm": 0.0002441410906608432,
+      "reversalsByRegion": {
+        "Pelvis": 31,
+        "LeftThigh": 25
+      },
+      "reversalFaceIds": [
+        "antonia:f:009384:t0",
+        "antonia:f:009385:t0",
+        "antonia:f:009385:t1",
+        "antonia:f:009386:t0",
+        "antonia:f:009386:t1",
+        "antonia:f:009391:t0",
+        "antonia:f:009391:t1",
+        "antonia:f:009392:t0",
+        "antonia:f:009392:t1",
+        "antonia:f:009393:t0",
+        "antonia:f:009393:t1",
+        "antonia:f:009403:t0",
+        "antonia:f:009403:t1",
+        "antonia:f:009404:t0",
+        "antonia:f:009404:t1",
+        "antonia:f:009405:t0",
+        "antonia:f:009431:t0",
+        "antonia:f:009431:t1",
+        "antonia:f:009435:t0",
+        "antonia:f:009435:t1",
+        "antonia:f:009438:t0",
+        "antonia:f:009439:t1",
+        "antonia:f:009452:t1",
+        "antonia:f:009456:t0",
+        "antonia:f:009456:t1",
+        "antonia:f:009457:t0",
+        "antonia:f:009457:t1",
+        "antonia:f:009474:t0",
+        "antonia:f:009474:t1",
+        "antonia:f:009503:t0",
+        "antonia:f:009503:t1",
+        "antonia:f:024579:t0",
+        "antonia:f:024579:t1",
+        "antonia:f:024580:t1",
+        "antonia:f:024622:t0",
+        "antonia:f:024622:t1",
+        "antonia:f:024624:t0",
+        "antonia:f:024630:t0",
+        "antonia:f:024630:t1",
+        "antonia:f:024631:t0",
+        "antonia:f:024631:t1",
+        "antonia:f:024632:t0",
+        "antonia:f:024632:t1",
+        "antonia:f:024758:t0",
+        "antonia:f:024758:t1",
+        "antonia:f:024789:t0",
+        "antonia:f:024789:t1",
+        "antonia:f:024809:t0",
+        "antonia:f:024809:t1",
+        "antonia:f:024874:t0",
+        "antonia:f:024875:t0",
+        "antonia:f:024875:t1",
+        "antonia:f:024961:t0",
+        "antonia:f:024961:t1",
+        "antonia:f:024962:t1",
+        "antonia:f:024973:t0"
+      ],
+      "worstEdgeVertexIds": [
+        "antonia:v:024486",
+        "antonia:v:006089"
+      ]
+    },
+    "knee-flexion-35": {
+      "finite": true,
+      "orientationReversalProxies": 0,
+      "collapsedTriangles": 0,
+      "maximumEdgeLengthRatio": 2.052043899704688,
+      "bindReconstructionMaximumMm": 0.0002441410906608432,
+      "reversalsByRegion": {},
+      "reversalFaceIds": [],
+      "worstEdgeVertexIds": [
+        "antonia:v:017276",
+        "antonia:v:031427"
+      ]
+    },
+    "knee-flexion-70": {
+      "finite": true,
+      "orientationReversalProxies": 2,
+      "collapsedTriangles": 0,
+      "maximumEdgeLengthRatio": 4.611195016571972,
+      "bindReconstructionMaximumMm": 0.0002441410906608432,
+      "reversalsByRegion": {
+        "LeftThigh": 2
+      },
+      "reversalFaceIds": [
+        "antonia:f:024445:t0",
+        "antonia:f:024829:t1"
+      ],
+      "worstEdgeVertexIds": [
+        "antonia:v:015607",
+        "antonia:v:005787"
+      ]
+    }
+  },
+  "minimumWeight": 1.0328554793659351E-08,
+  "maximumWeightSumError": 3.3306690738754696E-16,
+  "uncoveredVertices": 0,
+  "artifactSha256": "af45c535ab21d93ae2c23f7a63f71925f3c6cfc6a68e5af9c04e1ab0033834dd",
+  "sourcePoseObjSha256": "099572385a643aa369eb0a999a90c49a507a1818adae52730c76f7f5993fb764",
+  "preparedObjSha256": "fe3b785bfaab444a01b3a9f8d89ef422a6eade69cc05adf5e290fff9d270675f",
+  "canonicalPromotion": false,
+  "missingGates": [
+    "reviewed A-pose preparation",
+    "canonical region and anatomical proxy review",
+    "landmarks, measurements and attachment migration",
+    "morph and pose qualification",
+    "human visual review"
+  ]
+}

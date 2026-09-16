@@ -1,5 +1,6 @@
 {
   "schema": "aetheris.humanoid.fixture.v1",
+  "status": "NONCANONICAL-SyntheticRegressionFixture",
   "templateId": "aetheris.humanoid.adult.standard.v1",
   "generator": "Aetheris.Humanoid.CanonicalAdultTemplate",
   "generatorVersion": "aetheris-humanoid-implicit-tetra-v1",
@@ -9,5 +10,5 @@
   "frame": "millimeters; right-handed; +X anatomical right; +Y forward; +Z up",
   "restPose": "aetheris.humanoid.adult.apose.v1",
   "reproduction": "dotnet run --project tools/Aetheris.Humanoid.X0 -- generate --out-dir artifacts/local/humanoid-x0",
-  "note": "This compact descriptor is tracked authority. The full deterministic surface artifact is generated under ignored artifacts/local; no third-party geometry is stored here."
+  "note": "Failed X0 procedural surface retained for synthetic qualification, regression and registration stress tests. Historical topology ID is retained for replay only, not production promotion. Full output is ignored artifacts/local; no third-party geometry is stored here."
 }

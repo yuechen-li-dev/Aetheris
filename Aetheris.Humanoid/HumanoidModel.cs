@@ -74,7 +74,7 @@ public sealed record HumanoidSurface(
     IReadOnlyList<HumanoidComponent> Components,
     IReadOnlyDictionary<HumanoidRegionKind, HumanoidRegionKind> RegionSymmetry);
 
-/// <summary>Column-vector rigid transform. Local joint transforms map child-local coordinates into the parent frame.</summary>
+/// <summary>System.Numerics row-vector rigid transform. Local joint transforms map child-local coordinates into the parent frame.</summary>
 public readonly record struct HumanoidTransform(Point3D Translation, Quaternion Rotation)
 {
     public static HumanoidTransform Identity => new(Point3D.Origin, Quaternion.Identity);

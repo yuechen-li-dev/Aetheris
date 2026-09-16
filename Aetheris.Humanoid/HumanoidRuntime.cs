@@ -88,14 +88,21 @@ public static class HumanoidMeasurements
 public static class HumanoidPosing
 {
     public static IReadOnlyList<Matrix4x4> GlobalPose(CanonicalHumanoid h,HumanoidPoseState pose)
+        => GlobalPose(h.Skeleton, pose);
+
+    public static IReadOnlyList<Matrix4x4> GlobalPose(HumanoidSkeleton skeleton,HumanoidPoseState pose)
     {
-        var rotations=pose.LocalRotations.ToDictionary(x=>x.Joint,x=>x.LocalRotation);var result=new Matrix4x4[h.Skeleton.Joints.Count];
-        for(var i=0;i<result.Length;i++){var j=h.Skeleton.Joints[i];var q=rotations.GetValueOrDefault(j.Kind,Quaternion.Identity);var local=Matrix4x4.CreateFromQuaternion(q)*j.LocalRest.Matrix;result[i]=j.ParentIndex is int parent?local*result[parent]:local*pose.RootTransform.Matrix;}return result;
+        var rotations=pose.LocalRotations.ToDictionary(x=>x.Joint,x=>x.LocalRotation);var result=new Matrix4x4[skeleton.Joints.Count];
+        for(var i=0;i<result.Length;i++){var j=skeleton.Joints[i];var q=rotations.GetValueOrDefault(j.Kind,Quaternion.Identity);var local=Matrix4x4.CreateFromQuaternion(q)*j.LocalRest.Matrix;result[i]=j.ParentIndex is int parent?local*result[parent]:local*pose.RootTransform.Matrix;}return result;
     }
     public static IReadOnlyList<Point3D> EvaluateVertices(CanonicalHumanoid h,HumanoidPoseState pose)
+        => EvaluateVertices(h.Surface, h.Skeleton, pose);
+
+    /// <summary>Shared skin evaluator for canonical instances and explicitly unpromoted adoption candidates.</summary>
+    public static IReadOnlyList<Point3D> EvaluateVertices(HumanoidSurface surface,HumanoidSkeleton skeleton,HumanoidPoseState pose)
     {
-        var globals=GlobalPose(h,pose);var output=new Point3D[h.Surface.Vertices.Count];
-        foreach(var skin in h.Surface.SkinWeights){var source=h.Surface.Vertices[skin.VertexIndex].Position;var p=new Vector3((float)source.X,(float)source.Y,(float)source.Z);var sum=Vector3.Zero;foreach(var w in skin.Weights){var transformed=Vector3.Transform(p,h.Skeleton.Joints[w.JointIndex].InverseBind*globals[w.JointIndex]);sum+=transformed*(float)w.Weight;}output[skin.VertexIndex]=new(sum.X,sum.Y,sum.Z);}return output;
+        var globals=GlobalPose(skeleton,pose);var output=new Point3D[surface.Vertices.Count];
+        foreach(var skin in surface.SkinWeights){var source=surface.Vertices[skin.VertexIndex].Position;var p=new Vector3((float)source.X,(float)source.Y,(float)source.Z);var sum=Vector3.Zero;foreach(var w in skin.Weights){var transformed=Vector3.Transform(p,skeleton.Joints[w.JointIndex].InverseBind*globals[w.JointIndex]);sum+=transformed*(float)w.Weight;}output[skin.VertexIndex]=new(sum.X,sum.Y,sum.Z);}return output;
     }
     public static AttachmentFrame EvaluateAttachment(CanonicalHumanoid h,string siteId,HumanoidPoseState pose)
     {
@@ -132,7 +139,17 @@ public static class HumanoidArtifactIO
     public static JsonSerializerOptions JsonOptions { get; }=CreateOptions();
     private static JsonSerializerOptions CreateOptions(){var o=new JsonSerializerOptions{WriteIndented=true,PropertyNamingPolicy=JsonNamingPolicy.CamelCase,IncludeFields=true};o.Converters.Add(new JsonStringEnumConverter());return o;}
     public static void Save(CanonicalHumanoid humanoid,string path){Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);File.WriteAllText(path,JsonSerializer.Serialize(humanoid,JsonOptions));}
-    public static CanonicalHumanoid Load(string path)=>JsonSerializer.Deserialize<CanonicalHumanoid>(File.ReadAllText(path),JsonOptions)??throw new InvalidDataException("Canonical humanoid artifact was empty.");
+    public static CanonicalHumanoid Load(string path)
+    {
+        var json = File.ReadAllText(path);
+        using var document = JsonDocument.Parse(json);
+        if (!document.RootElement.TryGetProperty("schemaVersion", out var schema) || schema.GetString() != "aetheris.humanoid.canonical.v1")
+            throw new InvalidDataException("Expected a canonical humanoid artifact; an adoption candidate is not a canonical runtime instance.");
+        var result = JsonSerializer.Deserialize<CanonicalHumanoid>(json, JsonOptions);
+        if (result?.Surface is null || result.Skeleton is null || result.Provenance is null)
+            throw new InvalidDataException("Canonical humanoid artifact is incomplete.");
+        return result;
+    }
     public static void SaveObj(CanonicalHumanoid humanoid,string path,IReadOnlyList<Point3D>? positions=null)
     {
         positions??=humanoid.Surface.Vertices.Select(x=>x.Position).ToArray();Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);using var w=new StreamWriter(path,false,new UTF8Encoding(false));w.WriteLine("# Aetheris canonical humanoid display mesh; millimeters; +X anatomical right +Y forward +Z up");foreach(var p in positions)w.WriteLine(FormattableString.Invariant($"v {p.X:R} {p.Y:R} {p.Z:R}"));foreach(var group in humanoid.Surface.Faces.Select((f,i)=>(f,i)).GroupBy(x=>x.f.Region)){w.WriteLine("g "+group.Key);foreach(var (f,_) in group)w.WriteLine($"f {f.A+1} {f.B+1} {f.C+1}");}

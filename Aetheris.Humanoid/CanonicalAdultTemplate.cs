@@ -7,7 +7,7 @@ using Aetheris.Kernel.Core.Math;
 namespace Aetheris.Humanoid;
 
 /// <summary>
-/// Independently authored X0 topology. Connectivity comes from a fixed tetrahedral lattice over explicit
+/// NONCANONICAL synthetic X0 regression topology. Connectivity comes from a fixed tetrahedral lattice over explicit
 /// semantic anatomical primitives; no external mesh positions or connectivity participate in generation.
 /// </summary>
 public static class CanonicalAdultTemplate
@@ -62,11 +62,11 @@ public static class CanonicalAdultTemplate
             GeneratorVersion,
             configHash,
             connectivityHash,
-            "AuthoredTemplate",
-            ["X0 topology and facial/hand/foot quality require visual review; no third-party connectivity used."]);
+            "NONCANONICAL-SyntheticRegressionFixture",
+            ["Failed X0 surface retained only for synthetic qualification, regression and registration stress tests. Not a usable canonical human. No third-party connectivity used."]);
         return new CanonicalHumanoid(
             "aetheris.humanoid.canonical.v1",
-            new("adult-standard-v1", "Canonical Adult Standard V1", "adult-v1", "Adult-only engineering humanoid foundation; not medical or population-statistical authority."),
+            new("adult-standard-v1", "NONCANONICAL X0 Synthetic Regression Body", "adult-v1", "Legacy X0 identity retained for regression replay only; failed procedural surface, not a production canonical adult."),
             new("mm", "right-handed", new(1, 0, 0), new(0, 1, 0), new(0, 0, 1), Point3D.Origin, CanonicalAdultStandardV1.NeutralHeightMm),
             surface,
             skeleton,

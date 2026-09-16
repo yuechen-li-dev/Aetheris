@@ -3,6 +3,13 @@
 Date: 2026-09-16  
 Verdict: **Meaningful progression**
 
+**X1 status correction:** The procedural body below is now explicitly
+`NONCANONICAL-SyntheticRegressionFixture`; historical identity and test APIs
+remain for replay only. The earlier proposed follow-up of improving its Antonia
+fit is superseded by [HUMANOID-X1](HUMANOID-X1.md), which adopts original
+Antonia topology as an unpromoted candidate. Historical descriptions of the X0
+surface as canonical are not a current usability or production-admission claim.
+
 > Did Aetheris successfully create and validate an independently authored canonical adult humanoid topology that can be deterministically fitted to a screened licensed reference and used as a stable semantic humanoid substrate?
 
 **Partly.** Aetheris now owns and validates a real canonical adult domain: independently generated topology, stable identity, semantic regions, skeleton, skin weights, typed landmarks, measurement protocols, morphs, attachment frames, display export, diagnostics, and provenance. Deterministic Antonia registration runs and preserves connectivity, but it does not meet X0 fit budgets. The pose sweep also reports orientation-reversal proxies at the major joints. In addition, the recon review does not clear the converted `char.blend` component as canonical output. The authored neutral template therefore remains canonical; fitted positions are local research evidence only.

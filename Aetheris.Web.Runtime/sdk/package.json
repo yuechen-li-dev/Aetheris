@@ -1,0 +1,25 @@
+{
+  "name": "@aetheris/cad",
+  "version": "2.0.0-preview.3",
+  "description": "Browser-embeddable Aetheris semantic CAD runtime",
+  "type": "module",
+  "license": "AGPL-3.0-only",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./vite": {
+      "types": "./dist/vite.d.ts",
+      "import": "./dist/vite.js"
+    }
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "pack:local": "npm run build && npm pack"
+  },
+  "engines": { "node": ">=20" },
+  "keywords": ["cad", "wasm", "firmament", "step", "ap242"]
+}

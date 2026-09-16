@@ -1,0 +1,7 @@
+Model WebBracket {
+    Units: mm
+    Box Plate { Size: [50mm, 40mm, 8mm] }
+    Modify Plate {
+        Hole<Shaft> CenterMount { On: +Z Center: Point2(0mm, 0mm) Diameter: 8mm End: ThroughAll }
+    }
+}

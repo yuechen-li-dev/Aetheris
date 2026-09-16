@@ -1,0 +1,23 @@
+import { cp, mkdir, rm, copyFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const sdk = resolve(here, '..');
+const runtime = resolve(sdk, '..');
+const repo = resolve(runtime, '..');
+const result = spawnSync('dotnet', ['build', join(runtime, 'Aetheris.Web.Runtime.csproj'), '-c', 'Release', '--nologo'], { cwd: repo, stdio: 'inherit' });
+if (result.status !== 0) process.exit(result.status ?? 1);
+const app = join(runtime, 'bin', 'Release', 'net10.0', 'wwwroot');
+const dist = join(sdk, 'dist');
+await rm(dist, { recursive: true, force: true });
+await mkdir(dist, { recursive: true });
+await cp(join(app, '_framework'), join(dist, 'runtime', '_framework'), { recursive: true });
+await copyFile(join(sdk, 'src', 'index.js'), join(dist, 'index.js'));
+await copyFile(join(sdk, 'src', 'worker.js'), join(dist, 'worker.js'));
+await copyFile(join(sdk, 'src', 'runtime.js'), join(dist, 'runtime.js'));
+await copyFile(join(sdk, 'src', 'index.d.ts'), join(dist, 'index.d.ts'));
+await copyFile(join(sdk, 'src', 'vite.js'), join(dist, 'vite.js'));
+await copyFile(join(sdk, 'src', 'vite.d.ts'), join(dist, 'vite.d.ts'));
+console.log(`Built @aetheris/cad at ${dist}`);

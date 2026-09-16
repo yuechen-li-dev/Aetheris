@@ -76,5 +76,6 @@
   <Project Path="Aetheris.Kernel.Core.Tests/Aetheris.Kernel.Core.Tests.csproj" />
   <Project Path="test-support/Aetheris.TestForgePack/Aetheris.TestForgePack.csproj" />
   <Project Path="test-support/Aetheris.TestForgePack.Duplicate/Aetheris.TestForgePack.Duplicate.csproj" />
+  <Project Path="Aetheris.Web.Runtime/Aetheris.Web.Runtime.csproj" />
   <Project Path="demos/Aetheris.PmiInjectionDemo/Aetheris.PmiInjectionDemo.csproj" />
 </Solution>

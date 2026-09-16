@@ -7,7 +7,7 @@ using Aetheris.Kernel.Firmament.FirmamentV2;
 namespace Aetheris.DifferenceEngine.Showcase;
 
 public sealed record PresentationBinding(string OccurrenceId,string Kind,double[] Pivot,double Ratio,int Register,int Digit,string Role);
-public sealed record PresentationGearLink(string A,string B,double Ratio,int TeethA,int TeethB,double CenterDistanceMm,string Interface);
+public sealed record PresentationGearLink(string A,string B,double Ratio,int TeethA,int TeethB,double CenterDistanceMm,string Interface,double PhaseADegrees,double PhaseBDegrees);
 public sealed record ExplosionBinding(string OccurrenceId,double[] Offset);
 public sealed record DemonstrationState(int Result,int FirstDifference,int SecondDifference);
 public sealed record DemonstrationProgram(string Id,string Name,IReadOnlyList<DemonstrationState> States);
@@ -27,7 +27,8 @@ public static class PresentationManifest
             string Resolve(string id)=>localRoot is null?id:"assembly-instance:"+occurrencePath+id[("assembly-instance:"+localRoot).Length..];
             var a=Resolve(g.A.OccurrenceIdentity);var b=Resolve(g.B.OccurrenceIdentity);
             if(!byId.ContainsKey(a)||!byId.ContainsKey(b))throw new InvalidOperationException("presentation-gear-endpoint-missing");
-            links.Add(new(a,b,ratio*g.RotationSign,g.A.Teeth!.Value,g.B.Teeth!.Value,g.ActualCenterDistanceMm,mate.Name));
+            double WorldPhase(string id,double phase) => phase+Math.Atan2(byId[id].Transform[1],byId[id].Transform[0])*180/Math.PI;
+            links.Add(new(a,b,ratio*g.RotationSign,g.A.Teeth!.Value,g.B.Teeth!.Value,g.ActualCenterDistanceMm,mate.Name,WorldPhase(a,g.A.PhaseDegrees),WorldPhase(b,g.B.PhaseDegrees)));
         }
         foreach(var mate in ir.Mates)Add(mate);
         foreach(var definition in ir.AssemblyDefinitions!)foreach(var occurrence in ir.Instances.Where(i=>i.DefinitionIdentity==definition.DefinitionIdentity))

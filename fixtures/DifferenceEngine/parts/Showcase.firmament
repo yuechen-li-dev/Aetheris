@@ -33,6 +33,7 @@ Template < W: Length > Struct DoubleBearingBridge {
     }
 }
 SpurGear RegisterDrive { Module: 2mm Teeth: 24 PressureAngle: 20deg FaceWidth: 7mm BoreDiameter: 8.8mm Backlash: 0.15mm Phase: 0deg }
+SpurGear RegisterDrivePhased { Module: 2mm Teeth: 24 PressureAngle: 20deg FaceWidth: 7mm BoreDiameter: 8.8mm Backlash: 0.15mm Phase: 7.5deg }
 SpurGear TransferIdler { Module: 2mm Teeth: 20 PressureAngle: 20deg FaceWidth: 7mm BoreDiameter: 6.6mm Backlash: 0.15mm Phase: 9deg }
 RatchetGear DecimalRatchet { Teeth: 20 OutsideDiameter: 52mm FaceWidth: 5mm BoreDiameter: 8.8mm DriveFaceAngle: 0deg Phase: 0deg }
 Pawl CarryPawl { Width: 8mm Length: 22mm Thickness: 4mm PivotDiameter: 4.4mm NoseLength: 4mm EngagementAngle: 15deg }

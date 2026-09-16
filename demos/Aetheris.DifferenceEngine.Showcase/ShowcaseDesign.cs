@@ -55,8 +55,8 @@ public sealed record ShowcaseDesign(double DigitPitch = 80)
         var pivotX=34-8*.24*double.Cos(double.Pi/12);var pivotY=-8*.24*double.Sin(double.Pi/12);
         var carry = Part("Pawl","CarryPawl",x:34,z:36,angle:double.Pi)
             + Part("Pivot",Rod(2,33,44),pivotX,pivotY) + Part("PivotCollar",Ring(4,2.2,40,42),pivotX,pivotY)
-            + Part("Pedestal",StockAt(46,0,8,8,10,25))
-            + Part("Tongue",Box(22,10,3),39,0,33)
+            + Part("Pedestal",StockAt(46,12,8,8,10,25))
+            + Part("Tongue",Box(22,34,3),39,0,33)
             + Part("Lever",Box(7,50,4),pivotX,20,42) + Part("LinkPin",Rod(2,44,59),pivotX,40)
             + Part("ResetLink",Box(7,7,17),pivotX,40,59);
         Write("CarryVisualModule.firmament",stock+Module("CarryVisualModule",carry,"Pedestal.Joint","","Semantic Mount = Pedestal.Joint;"));
@@ -71,15 +71,20 @@ public sealed record ShowcaseDesign(double DigitPitch = 80)
             digit += Part(name+"Tie",Rod(2.5,-20,62),0,y)+Part(name+"Cap",Ring(4.5,2.5,60,63),0,y);
         }
         var revolute="Interface<Revolute> DriveJournal { A: DigitModule.DriveGear.Joint; B: DigitModule.Bearing.Joint; }";
+        // The middle register follows an odd number of external meshes. Phase only
+        // its drive gears; supports, decimal wheels and carry parts retain their frames.
+        var phasedDigit=digit.Replace(Part("DriveGear","RegisterDrive"),Part("DriveGear","RegisterDrivePhased"),StringComparison.Ordinal);
         Write("DigitModule.firmament","Include \"DigitWheel.firmament\";\nInclude \"CarryVisualModule.firmament\";\n"
-            +Module("DigitModule",digit,"Bearing.Joint",revolute,"Semantic Mount = Bearing.Joint; Gear Drive = DriveGear;"));
+            +Module("DigitModule",digit,"Bearing.Joint",revolute,"Semantic Mount = Bearing.Joint; Gear Drive = DriveGear;")
+            +Module("DigitModulePhased",phasedDigit,"Bearing.Joint",revolute.Replace("DigitModule.","DigitModulePhased.",StringComparison.Ordinal).Replace("DriveJournal {","DriveJournalPhased {",StringComparison.Ordinal),"Semantic Mount = Bearing.Joint; Gear Drive = DriveGear;"));
 
         var register = Part("Shaft",Rod(4,-20,ShaftTop-FirstLevel));
         var expose="Semantic Mount = Shaft.Joint;\n";
         for(var i=0;i<Digits;i++) {register+=Child("Digit"+i,"DigitModule",z:i*DigitPitch); expose+=$"Gear Drive{i} = Digit{i}.Drive;\n";}
         register+=Part("Crown",Ring(14,4,Top-FirstLevel-8,Top-FirstLevel))+Part("Foot",Ring(14,4,-20,-12))
             +Part("TopRetainer",Ring(8,4,GantryBottom+GantryThickness-FirstLevel,ShaftTop-FirstLevel));
-        Write("Register.firmament","Include \"DigitModule.firmament\";\n"+Module("Register",register,"Shaft.Joint","",expose));
+        Write("Register.firmament","Include \"DigitModule.firmament\";\n"+Module("Register",register,"Shaft.Joint","",expose)
+            +Module("RegisterPhased",register.Replace(" = DigitModule>"," = DigitModulePhased>",StringComparison.Ordinal),"Shaft.Joint","",expose));
 
         var transfer="";
         foreach(var (name,x) in new[]{("Input",44d),("Output",84d)}) {
@@ -87,12 +92,20 @@ public sealed record ShowcaseDesign(double DigitPitch = 80)
                 +Part(name+"Bearing",Ring(7,3.2,-12,-5),x)+Part(name+"Collar",Ring(6,3.2,8,11),x);
         }
         transfer+=Part("Bridge","DoubleBearingBridge<W: 56mm>")+Part("RearSupport",Box(12,60,6),64,30,-24);
-        Write("TransferModule.firmament",stock+Module("TransferModule",transfer,"Bridge.Joint",
+        // TransferIdler's shared body has a 9-degree authored phase. Rotate one
+        // occurrence another half tooth (9 degrees), giving alternating tooth/gap alignment.
+        var transfer0=transfer.Replace(Part("OutputGear","TransferIdler",84),Part("OutputGear","TransferIdler",84,angle:double.Pi/20),StringComparison.Ordinal);
+        var transfer1=transfer.Replace(Part("InputGear","TransferIdler",44),Part("InputGear","TransferIdler",44,angle:double.Pi/20),StringComparison.Ordinal);
+        Write("TransferModule.firmament",stock+Module("TransferModule",transfer0,"Bridge.Joint",
             "Interface<Gear> IdlerMesh { A: TransferModule.InputGear; B: TransferModule.OutputGear; }",
+            "Semantic Mount = Bridge.Joint; Gear Input = InputGear; Gear Output = OutputGear;")
+            +Module("TransferModulePhased",transfer1,"Bridge.Joint",
+            "Interface<Gear> IdlerMeshPhased { A: TransferModulePhased.InputGear; B: TransferModulePhased.OutputGear; }",
             "Semantic Mount = Bridge.Joint; Gear Input = InputGear; Gear Output = OutputGear;"));
         var bank="";var ports="";
         for(var i=0;i<Digits;i++){bank+=Child("Level"+i,"TransferModule",z:i*DigitPitch);ports+=$"Gear Input{i} = Level{i}.Input; Gear Output{i} = Level{i}.Output;\n";}
-        Write("TransferBank.firmament","Include \"TransferModule.firmament\";\n"+Module("TransferBank",bank,"Level0.Mount","",ports));
+        Write("TransferBank.firmament","Include \"TransferModule.firmament\";\n"+Module("TransferBank",bank,"Level0.Mount","",ports)
+            +Module("TransferBankPhased",bank.Replace(" = TransferModule>"," = TransferModulePhased>",StringComparison.Ordinal),"Level0.Mount","",ports));
 
         var gantrySeats=string.Join("\n",Enumerable.Range(0,3).Select(r=>$"Semantic GantrySeat{r} {{ DatumFrame Frame = [{N(r*RegisterPitch)},0,{N(GantryBottom)}] x [1,0,0] y [0,1,0] z [0,0,1]; }}"));
         var frame=Part("Plinth",StockAt(96,14,-36,484,188,16),semantics:gantrySeats)+Part("BaseDeck",Box(464,168,8),96,14,-20);
@@ -123,8 +136,8 @@ public sealed record ShowcaseDesign(double DigitPitch = 80)
         var root=new StringBuilder("Units: mm\nInclude \"modules/Register.firmament\";\nInclude \"modules/TransferBank.firmament\";\nInclude \"modules/Frame.firmament\";\nInclude \"modules/CrankDrive.firmament\";\nAssembly DifferenceEngine {\n<Assembly DifferenceEngine>\n");
         root.Append(Child("Frame","FrameBay")); root.Append(Child("MainCrank","CrankDrive"));
         var names=new[]{"ResultRegister","FirstDifferenceRegister","SecondDifferenceRegister"};
-        for(var r=0;r<Registers;r++)root.Append(Child(names[r],"Register",r*RegisterPitch,0,FirstLevel));
-        for(var b=0;b<2;b++)root.Append(Child("Transfer"+b,"TransferBank",b*RegisterPitch,0,FirstLevel));
+        for(var r=0;r<Registers;r++)root.Append(Child(names[r],r==1?"RegisterPhased":"Register",r*RegisterPitch,0,FirstLevel));
+        for(var b=0;b<2;b++)root.Append(Child("Transfer"+b,b==1?"TransferBankPhased":"TransferBank",b*RegisterPitch,0,FirstLevel));
         root.AppendLine("</Assembly>\nAnchor: DifferenceEngine.Frame.Mount;");
         root.AppendLine("Interface<Gear> CrankInput { A: DifferenceEngine.MainCrank.Output; B: DifferenceEngine.ResultRegister.Drive0; }");
         for(var b=0;b<2;b++)for(var d=0;d<Digits;d++){

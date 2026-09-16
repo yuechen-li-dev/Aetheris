@@ -20,9 +20,33 @@ const pulses=[0,1].map(d=>Array.from({length:1001},(_,i)=>({t:i/1000,p:evaluate(
 assert.ok(pulses[0]<pulses[1],'Units carry must precede tens carry');
 assert.deepEqual(evaluate(carry,0,1).values,[100,1,0]);
 const bindings=new Map(manifest.bindings.map(b=>[b.occurrenceId,b]));
+const occurrences=new Map(mesh.occurrences.map(o=>[o.id,o]));
 for(const link of manifest.gearLinks){
  assert.ok(Math.abs(link.ratio+link.teethA/link.teethB)<1e-10);
  assert.ok(Math.abs(bindings.get(link.b).ratio-bindings.get(link.a).ratio*link.ratio)<1e-10);
+ const a=occurrences.get(link.a).transform,b=occurrences.get(link.b).transform;
+ const direction=Math.atan2(b[13]-a[13],b[12]-a[12])/(2*Math.PI);
+ for(let sample=0;sample<=100;sample++){
+  const turn=sample/100;
+  const contact=(direction-link.phaseADegrees/360-turn*bindings.get(link.a).ratio)*link.teethA
+   +(direction+.5-link.phaseBDegrees/360-turn*bindings.get(link.b).ratio)*link.teethB;
+  assert.ok(Math.abs(contact-Math.floor(contact)-.5)<1e-6,'Tooth-to-gap phase: '+link.a+' / '+link.b);
+ }
+}
+const definitions=new Map(mesh.definitions.map(d=>[d.id,d]));
+function yBounds(path){
+ const o=mesh.occurrences.find(o=>o.path===path),m=o.transform,p=definitions.get(o.definitionId).positions;
+ let min=Infinity,max=-Infinity;
+ for(let i=0;i<p.length;i+=3){const y=m[1]*p[i]+m[5]*p[i+1]+m[9]*p[i+2]+m[13];min=Math.min(min,y);max=Math.max(max,y);}
+ return [min,max];
+}
+const collarClearances=[];
+for(let bank=0;bank<2;bank++)for(let digit=0;digit<4;digit++){
+ const register=['ResultRegister','FirstDifferenceRegister'][bank];
+ const support=yBounds(`DifferenceEngine.${register}.Digit${digit}.Carry.Pedestal`);
+ const collar=yBounds(`DifferenceEngine.Transfer${bank}.Level${digit}.InputCollar`);
+ const gap=support[0]-collar[1];
+ assert.ok(gap>=1-1e-8,'Carry support must clear the complete collar mesh');collarClearances.push(gap);
 }
 const offsets=hierarchyOffsets(mesh.occurrences,manifest.explosions);
 assert.deepEqual(offsets.get('assembly-instance:DifferenceEngine.ResultRegister.Digit0.Wheel.Drum'),[-90,0,-30]);
@@ -40,4 +64,4 @@ for(const definition of mesh.definitions){
  }
  assert.ok(volume>0,'Positive oriented display volume: '+definition.identity);
 }
-console.log(JSON.stringify({passed:true,transitions,gearLinks:manifest.gearLinks.length,carryPulseTimes:pulses,occurrences:bindings.size,gantryClearances:receipts.gantryClearances.map(c=>c.clearanceMm)}));
+console.log(JSON.stringify({passed:true,transitions,gearLinks:manifest.gearLinks.length,gearPhaseSamples:101,collarClearances,carryPulseTimes:pulses,occurrences:bindings.size,gantryClearances:receipts.gantryClearances.map(c=>c.clearanceMm)}));

@@ -1,0 +1,32 @@
+{
+  "name": "@aetheris/helios",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sdk:install": "node scripts/install-local-sdk.mjs",
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@aetheris/cad": "file:../../artifacts/local/helios-sdk/aetheris-cad-2.0.0-preview.3.tgz",
+    "@vitejs/plugin-react": "latest",
+    "vite": "latest",
+    "typescript": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "three": "latest"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "latest",
+    "@testing-library/react": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "@types/three": "latest",
+    "jsdom": "latest",
+    "vitest": "latest"
+  }
+}

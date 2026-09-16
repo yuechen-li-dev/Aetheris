@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aetheris Pocket View</title>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <p class="eyebrow">@aetheris/cad external consumer</p>
+          <h1>Pocket View</h1>
+        </div>
+        <button id="export" type="button" disabled>Export STEP</button>
+      </header>
+
+      <p id="status" role="status">Starting the Aetheris runtime…</p>
+
+      <section class="layout" aria-live="polite">
+        <article>
+          <h2>Mesh projection</h2>
+          <canvas id="viewport" width="720" height="440" aria-label="Wireframe projection of the compiled bracket"></canvas>
+          <dl id="mesh-summary"></dl>
+        </article>
+        <article>
+          <h2>Semantic nodes</h2>
+          <ol id="semantic-tree"></ol>
+        </article>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

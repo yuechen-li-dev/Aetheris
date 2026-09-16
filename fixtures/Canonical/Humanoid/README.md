@@ -4,6 +4,8 @@
 
 `antonia-reference.sidecar.json` records the exact external reference and the narrow research-fit scope. It does not contain Antonia geometry and does not upgrade the unresolved conversion-component scope identified by HUMANOID-RECON-X0. A fit result remains research evidence until that gate is reviewed.
 
+`antonia-reference-skeleton-v1.json` is the deterministic X5 rest-frame baseline extracted from the hash-pinned Blender metarig. It inventories all 182 source bones while mapping only 55 semantic joints into Aetheris; generated Rigify controls and source weights remain excluded. Normal runtime reads this JSON and does not load Blender, Rigify, or CharMorph Python. Reproduce the extraction with `scripts/extract-antonia-x5-rig.py` and the qualification with `scripts/qualify-humanoid-x5.ps1`.
+
 `x0-registration-config.json` freezes the first deterministic fitting baseline. Raw qualification output belongs under `artifacts/local/humanoid-x0/`.
 
 `antonia-original.sidecar.json` admits the original author's Antonia 1.2.0 OBJ,

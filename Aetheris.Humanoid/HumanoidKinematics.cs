@@ -22,7 +22,8 @@ public sealed record AnatomicalHingeInterface(HumanoidJointKind Joint, HumanoidJ
     : AnatomicalJointInterface(Joint, Parent, ParentSocket, MinimumFlexion, MaximumFlexion);
 public sealed record AnatomicalBallInterface(HumanoidJointKind Joint, HumanoidJointKind Parent,
     Point3D ParentSocket, double MinimumFlexion, double MaximumFlexion,
-    double MinimumAbduction, double MaximumAbduction, double MaximumTwist)
+    double MinimumAbduction, double MaximumAbduction, double MaximumTwist,
+    Vector3 FlexionAxis, Vector3 AbductionAxis, Vector3 TwistAxis)
     : AnatomicalJointInterface(Joint, Parent, ParentSocket, MinimumFlexion, MaximumFlexion);
 
 /// <summary>Unforgeable through public constructors; immutable snapshots bind a solve to one rest skeleton.</summary>
@@ -49,14 +50,14 @@ public sealed record HumanoidSolveResult(SolvedHumanoidPose? Pose,
 }
 
 /// <summary>
-/// Bounded X2 progression: hip ball and elbow/knee hinge interfaces. Other joints remain at rest.
-/// Shoulder requests fail closed until a qualified compound shoulder interface exists.
-/// Angles are engineering coordinates relative to the supplied rest pose, not clinical measurements.
+/// Bounded hip/shoulder ball and elbow/knee hinge interfaces. Axes are expressed in each
+/// adopted joint's source-derived rest frame. Angles are engineering coordinates relative
+/// to that rest pose, not clinical measurements or a general biomechanics model.
 /// </summary>
 public static class HumanoidKinematicSolver
 {
     public const double LinearToleranceMm = .001;
-    public const string Version = "humanoid.x2.lower-limb-and-hinge.v1";
+    public const string Version = "humanoid.x5.reference-frame-pose.v1";
 
     public static IReadOnlyList<AnatomicalJointInterface> Interfaces(HumanoidSkeleton skeleton)
     {
@@ -65,9 +66,14 @@ public static class HumanoidKinematicSolver
         {
             if (joint.ParentIndex is not int parent) continue;
             var kind = joint.Kind.ToString();
-            if (kind.EndsWith("Hip"))
+            if (kind.EndsWith("Hip") || kind.EndsWith("Shoulder"))
+            {
+                var shoulder = kind.EndsWith("Shoulder");
                 result.Add(new AnatomicalBallInterface(joint.Kind, skeleton.Joints[parent].Kind,
-                    joint.LocalRest.Translation, -20, 120, -25, 45, 45));
+                    joint.LocalRest.Translation, shoulder ? -30 : -20, 120, shoulder ? -30 : -25,
+                    shoulder ? 120 : 45, 45,
+                    ToLocalAxis(joint, Vector3.UnitX), ToLocalAxis(joint, Vector3.UnitY), ToLocalAxis(joint, -Vector3.UnitZ)));
+            }
             if (kind.EndsWith("Knee") || kind.EndsWith("Elbow"))
             {
                 var isKnee = kind.EndsWith("Knee");
@@ -77,7 +83,7 @@ public static class HumanoidKinematicSolver
                 var direction = Position(next.GlobalBind) - Position(joint.GlobalBind);
                 var axis = Vector3.Cross(direction, Vector3.UnitY);
                 if (axis.LengthSquared() < 1e-10f) continue;
-                axis = Vector3.Normalize(axis) * (isKnee ? -1 : 1);
+                axis = ToLocalAxis(joint, Vector3.Normalize(axis) * (isKnee ? -1 : 1));
                 result.Add(new AnatomicalHingeInterface(joint.Kind, skeleton.Joints[parent].Kind,
                     joint.LocalRest.Translation, axis, 0, isKnee ? 140 : 145));
             }
@@ -137,10 +143,12 @@ public static class HumanoidKinematicSolver
                 // Exponential-map swing in the anatomical sagittal/coronal plane, followed by axial twist.
                 // This is a coupled ellipse, not independent Euler limits.
                 var sign = input.Joint.ToString().StartsWith("Left") ? 1 : -1;
-                var swing = new Vector3((float)solved.FlexionDegrees, (float)(sign * solved.AbductionDegrees), 0);
+                var ball = (AnatomicalBallInterface)joint;
+                var swing = ball.FlexionAxis * (float)solved.FlexionDegrees +
+                    ball.AbductionAxis * (float)(sign * solved.AbductionDegrees);
                 var angle = swing.Length();
                 var q = angle == 0 ? Quaternion.Identity : Rotate(swing / angle, angle);
-                rotation = Quaternion.Concatenate(Rotate(-Vector3.UnitZ, sign * solved.TwistDegrees), q);
+                rotation = Quaternion.Concatenate(Rotate(ball.TwistAxis, sign * solved.TwistDegrees), q);
             }
             rotations.Add(new(input.Joint, rotation));
         }
@@ -187,7 +195,9 @@ public static class HumanoidKinematicSolver
             var j = skeleton.Joints[i];
             if (j.ParentIndex is int p && (p < 0 || p >= i)) return "Skeleton parents must precede children.";
             if (i == 0 ? j.ParentIndex is not null : j.ParentIndex is null) return "Skeleton must have exactly one root in first position.";
-            if (j.LocalRest.Rotation != Quaternion.Identity) return "X2 progression requires translation-only rest frames; rotated rest frames are not silently reinterpreted.";
+            var rotation = j.LocalRest.Rotation;
+            if (!float.IsFinite(rotation.X) || !float.IsFinite(rotation.Y) || !float.IsFinite(rotation.Z) || !float.IsFinite(rotation.W) ||
+                Math.Abs(rotation.LengthSquared() - 1) > .0001f) return "Rest-frame rotation must be finite and normalized.";
             var expectedSide = j.Kind.ToString().StartsWith("Left") ? AnatomicalSide.Left : j.Kind.ToString().StartsWith("Right") ? AnatomicalSide.Right : AnatomicalSide.Center;
             if (!Enum.IsDefined(j.Kind) || j.Side != expectedSide) return "Invalid joint kind or anatomical side.";
             var expected = j.ParentIndex is int parent ? j.LocalRest.Matrix * skeleton.Joints[parent].GlobalBind : j.LocalRest.Matrix;
@@ -204,9 +214,18 @@ public static class HumanoidKinematicSolver
     internal static bool Near(Matrix4x4 a, Matrix4x4 b)
     {
         float[] Values(Matrix4x4 m) => [m.M11,m.M12,m.M13,m.M14,m.M21,m.M22,m.M23,m.M24,m.M31,m.M32,m.M33,m.M34,m.M41,m.M42,m.M43,m.M44];
-        return Values(a).Zip(Values(b)).All(x => float.IsFinite(x.First) && float.IsFinite(x.Second) && Math.Abs(x.First - x.Second) <= .0001);
+        // System.Numerics stores transforms as float; at human-scale millimetre translations
+        // the representable step is larger than 0.0001 mm. Keep this consistent with the
+        // public kinematic residual contract instead of rejecting valid decomposed rest frames.
+        return Values(a).Zip(Values(b)).All(x => float.IsFinite(x.First) && float.IsFinite(x.Second) && Math.Abs(x.First - x.Second) <= LinearToleranceMm);
     }
     private static Quaternion Rotate(Vector3 axis, double degrees) => Quaternion.CreateFromAxisAngle(axis, (float)(degrees * Math.PI / 180));
+    private static Vector3 ToLocalAxis(HumanoidJoint joint, Vector3 canonicalAxis)
+    {
+        var local = Vector3.TransformNormal(canonicalAxis, joint.InverseBind);
+        if (local.LengthSquared() < 1e-10f) throw new InvalidDataException("Degenerate adopted joint axis: " + joint.Kind);
+        return Vector3.Normalize(local);
+    }
     private static double Square(double x) => x * x;
     internal static Vector3 Position(Matrix4x4 m) => new(m.M41, m.M42, m.M43);
 }

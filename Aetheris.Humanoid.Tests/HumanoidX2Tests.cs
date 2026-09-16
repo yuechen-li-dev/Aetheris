@@ -105,7 +105,8 @@ public sealed class HumanoidX2Tests
         Assert.False(HumanoidKinematicSolver.Solve(s, Request(j) with { ShapeRevision = 1 }).IsSolved);
         Assert.False(HumanoidKinematicSolver.Solve(s, Request(j) with { RestPoseId = "other" }).IsSolved);
         Assert.False(HumanoidKinematicSolver.Solve(s, Request(new AnatomicalJointRequest((HumanoidJointKind)999))).IsSolved);
-        Assert.Equal("HUM209", Assert.Single(HumanoidKinematicSolver.Solve(s, Request(new AnatomicalJointRequest(HumanoidJointKind.LeftShoulder, 90))).Diagnostics).Code);
+        Assert.True(HumanoidKinematicSolver.Solve(s, Request(new AnatomicalJointRequest(HumanoidJointKind.LeftShoulder, AbductionDegrees: 90))).IsSolved);
+        Assert.Equal("HUM209", Assert.Single(HumanoidKinematicSolver.Solve(s, Request(new AnatomicalJointRequest(HumanoidJointKind.LeftWrist, 90))).Diagnostics).Code);
     }
     [Fact]
     public void CorruptBindSideAndHierarchyAreRejected()

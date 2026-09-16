@@ -91,7 +91,17 @@ public sealed record HumanoidJoint(
     Matrix4x4 GlobalBind,
     Matrix4x4 InverseBind,
     bool IsAuxiliary = false);
-public sealed record HumanoidSkeleton(string SkeletonId, string RestPoseId, string SkinningConvention, IReadOnlyList<HumanoidJoint> Joints, IReadOnlyDictionary<HumanoidJointKind, HumanoidJointKind> Symmetry);
+public sealed record CanonicalJointSourceEvidence(HumanoidJointKind CanonicalJoint, string? SourceJointId,
+    string? SourceParentJointId, string MappingConfidence, string SemanticRole, IReadOnlyList<string> CollapsedSourceHelpers);
+public sealed record CanonicalSkeletonReference(string AdapterId, string SourceRigType, string SourceAssetSha256,
+    string ExtractedFrameSha256, string MappedArtifactSha256, string CoordinateConversion,
+    IReadOnlyList<CanonicalJointSourceEvidence> JointMappings);
+public sealed record HumanoidSkeleton(string SkeletonId, string RestPoseId, string SkinningConvention, IReadOnlyList<HumanoidJoint> Joints, IReadOnlyDictionary<HumanoidJointKind, HumanoidJointKind> Symmetry)
+{
+    public CanonicalSkeletonReference? Reference { get; init; }
+    public HumanoidJoint GetJoint(HumanoidJointKind kind) => Joints.Single(joint => joint.Kind == kind);
+    public HumanoidTransform GetRestFrame(HumanoidJointKind kind) => GetJoint(kind).LocalRest;
+}
 
 public sealed record SurfaceBinding(string TopologyId, string FaceId, int TriangleWithinFace, double BarycentricA, double BarycentricB, double BarycentricC);
 public sealed record JointBinding(string SkeletonId, HumanoidJointKind Joint, Vector3D LocalOffset);

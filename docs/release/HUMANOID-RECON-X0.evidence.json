@@ -1,0 +1,1248 @@
+{
+  "schema": "aetheris.humanoid-research-evidence.v1",
+  "method": "Raw Blender datablocks; no finalized rig; normalized symmetry is not registration error",
+  "blender": "5.2.2 LTS",
+  "candidates": {
+    "antonia": {
+      "mesh": {
+        "name": "cm_antonia",
+        "vertices": 36030,
+        "faces": 35990,
+        "polygon_sizes": {
+          "4": 35990
+        },
+        "boundary_edges": 64,
+        "nonmanifold_edges_gt2": 0,
+        "zero_area_faces": 0,
+        "finite": true,
+        "bounds": [
+          [
+            -0.7742249965667725,
+            -0.16318129003047943,
+            0.0022251771297305822
+          ],
+          [
+            0.7742249965667725,
+            0.18085308372974396,
+            1.749038577079773
+          ]
+        ],
+        "normalized_height_mm": 1750,
+        "reflected_nearest_vertex_rms_mm": 9.66037889335859e-06,
+        "reflected_nearest_vertex_max_mm": 0.00024008223029836284,
+        "uv_layers": [
+          "UVMap"
+        ],
+        "materials": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "modifiers": [
+          {
+            "name": "particles_eyelashes",
+            "type": "PARTICLE_SYSTEM"
+          }
+        ]
+      },
+      "rigs": [
+        {
+          "name": "metarig-antonia",
+          "count": 182,
+          "roots": [
+            "spine"
+          ],
+          "sample_bones": [
+            {
+              "name": "spine",
+              "parent": null,
+              "head": [
+                0.0,
+                0.06005537882447243,
+                0.9003554582595825
+              ],
+              "tail": [
+                0.0,
+                0.03434957191348076,
+                1.0291093587875366
+              ],
+              "deform": true
+            },
+            {
+              "name": "spine.006",
+              "parent": "spine.005",
+              "head": [
+                0.0027553015388548374,
+                0.030516216531395912,
+                1.5711500644683838
+              ],
+              "tail": [
+                0.0027553013060241938,
+                0.029615486040711403,
+                1.7483394145965576
+              ],
+              "deform": true
+            },
+            {
+              "name": "upper_arm.L",
+              "parent": "shoulder.L",
+              "head": [
+                0.15509401261806488,
+                0.08006268739700317,
+                1.4144974946975708
+              ],
+              "tail": [
+                0.4173124432563782,
+                0.0646008774638176,
+                1.3992137908935547
+              ],
+              "deform": true
+            },
+            {
+              "name": "forearm.L",
+              "parent": "upper_arm.L",
+              "head": [
+                0.4173124432563782,
+                0.0646008774638176,
+                1.3992137908935547
+              ],
+              "tail": [
+                0.6172803044319153,
+                -0.04025842249393463,
+                1.4854042530059814
+              ],
+              "deform": true
+            },
+            {
+              "name": "hand.L",
+              "parent": "forearm.L",
+              "head": [
+                0.6172803044319153,
+                -0.04025842249393463,
+                1.4854042530059814
+              ],
+              "tail": [
+                0.6770659685134888,
+                -0.06749109923839569,
+                1.5097986459732056
+              ],
+              "deform": true
+            },
+            {
+              "name": "thigh.L",
+              "parent": "spine",
+              "head": [
+                0.09095527976751328,
+                0.05775907635688782,
+                0.9634787440299988
+              ],
+              "tail": [
+                0.14499278366565704,
+                0.032180480659008026,
+                0.5296229720115662
+              ],
+              "deform": true
+            },
+            {
+              "name": "shin.L",
+              "parent": "thigh.L",
+              "head": [
+                0.14499278366565704,
+                0.032180480659008026,
+                0.5296229720115662
+              ],
+              "tail": [
+                0.19620490074157715,
+                0.03593076020479202,
+                0.0931142270565033
+              ],
+              "deform": true
+            },
+            {
+              "name": "foot.L",
+              "parent": "shin.L",
+              "head": [
+                0.19620490074157715,
+                0.03593076020479202,
+                0.0931142270565033
+              ],
+              "tail": [
+                0.21377956867218018,
+                -0.07418125867843628,
+                0.027269771322607994
+              ],
+              "deform": true
+            },
+            {
+              "name": "toe.L",
+              "parent": "foot.L",
+              "head": [
+                0.21377956867218018,
+                -0.07418125867843628,
+                0.027269771322607994
+              ],
+              "tail": [
+                0.22165296971797943,
+                -0.10813260078430176,
+                0.020006846636533737
+              ],
+              "deform": true
+            }
+          ]
+        }
+      ],
+      "morphs": {
+        "L2": {
+          "count": 261,
+          "examples": [
+            "Arms petite",
+            "Athletic body only",
+            "Athletic head only",
+            "Athletic",
+            "Aureola big",
+            "Aureola",
+            "Backbone define",
+            "Belly flat",
+            "Belly move down",
+            "Belly relax",
+            "Belly thick lower",
+            "Belly thick"
+          ],
+          "storage": "packed"
+        },
+        "L3": {
+          "count": 33,
+          "examples": [
+            "BrowDownLeft",
+            "BrowDownRight",
+            "BrowMidDn",
+            "BrowMidUp",
+            "BrowOutUpLeft",
+            "BrowOutUpRight",
+            "BrowSqueeze",
+            "FrownLeft",
+            "FrownRight",
+            "LwrLidUpLeft",
+            "LwrLidUpRight",
+            "LwrLipDnLeft"
+          ],
+          "storage": "packed"
+        }
+      },
+      "groups": {
+        "weights/rigify.npz": {
+          "count": 183,
+          "entries": 91523,
+          "index_min": 0,
+          "index_max": 36029,
+          "weights_finite": true,
+          "weight_min": 0.0,
+          "weight_max": 1.0,
+          "per_vertex_sum_min": 0.9999998575076461,
+          "per_vertex_sum_max": 2.1380726993083954,
+          "unweighted_vertices": 0,
+          "examples": [
+            "corrective_smooth_inv",
+            "DEF-abdomen",
+            "DEF-abdomen.001",
+            "DEF-big_toe.01.L",
+            "DEF-big_toe.01.R",
+            "DEF-big_toe.02.L",
+            "DEF-big_toe.02.R",
+            "DEF-breast.L",
+            "DEF-breast.R",
+            "DEF-brow.B.L"
+          ]
+        },
+        "joints/rigify.npz": {
+          "count": 250,
+          "entries": 726,
+          "index_min": 153,
+          "index_max": 35946,
+          "weights_finite": true,
+          "weight_min": 0.022757450118660927,
+          "weight_max": 1.0,
+          "per_vertex_sum_min": 0.0,
+          "per_vertex_sum_max": 4.0,
+          "unweighted_vertices": 35454,
+          "examples": [
+            "joint_abdomen.001_head",
+            "joint_abdomen.001_tail",
+            "joint_abdomen_head",
+            "joint_abdomen_tail",
+            "joint_big_toe.01.L_head",
+            "joint_big_toe.01.L_tail",
+            "joint_big_toe.01.R_head",
+            "joint_big_toe.01.R_tail",
+            "joint_big_toe.02.L_tail",
+            "joint_big_toe.02.R_tail"
+          ]
+        }
+      }
+    },
+    "reom": {
+      "mesh": {
+        "name": "cm_reom",
+        "vertices": 8434,
+        "faces": 8438,
+        "polygon_sizes": {
+          "3": 248,
+          "4": 8076,
+          "5": 112,
+          "6": 2
+        },
+        "boundary_edges": 76,
+        "nonmanifold_edges_gt2": 0,
+        "zero_area_faces": 0,
+        "finite": true,
+        "bounds": [
+          [
+            -0.3740953207015991,
+            -0.07778224349021912,
+            0.008778597228229046
+          ],
+          [
+            0.3740953207015991,
+            0.21823033690452576,
+            1.833769679069519
+          ]
+        ],
+        "normalized_height_mm": 1750,
+        "reflected_nearest_vertex_rms_mm": 0.9343774903578188,
+        "reflected_nearest_vertex_max_mm": 9.308555552233907,
+        "uv_layers": [
+          "UVMap"
+        ],
+        "materials": [
+          null,
+          null,
+          null,
+          null,
+          "Sclera_Cornea",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "modifiers": []
+      },
+      "rigs": [
+        {
+          "name": "metarig",
+          "count": 177,
+          "roots": [
+            "spine"
+          ],
+          "sample_bones": [
+            {
+              "name": "spine",
+              "parent": null,
+              "head": [
+                0.0,
+                0.05669240280985832,
+                0.8876895904541016
+              ],
+              "tail": [
+                8.313482680044615e-10,
+                0.06002780795097351,
+                1.0673725605010986
+              ],
+              "deform": true
+            },
+            {
+              "name": "spine.006",
+              "parent": "spine.005",
+              "head": [
+                2.9036526516534877e-09,
+                0.05351733788847923,
+                1.6378669738769531
+              ],
+              "tail": [
+                1.768161866921858e-10,
+                0.05336906388401985,
+                1.8207441568374634
+              ],
+              "deform": true
+            },
+            {
+              "name": "upper_arm.L",
+              "parent": "shoulder.L",
+              "head": [
+                0.16125307977199554,
+                0.11870060861110687,
+                1.505091905593872
+              ],
+              "tail": [
+                0.2629782557487488,
+                0.14826565980911255,
+                1.239350438117981
+              ],
+              "deform": true
+            },
+            {
+              "name": "forearm.L",
+              "parent": "upper_arm.L",
+              "head": [
+                0.2629782557487488,
+                0.14826565980911255,
+                1.239350438117981
+              ],
+              "tail": [
+                0.3526487648487091,
+                0.10961830615997314,
+                1.0042293071746826
+              ],
+              "deform": true
+            },
+            {
+              "name": "hand.L",
+              "parent": "forearm.L",
+              "head": [
+                0.3526487648487091,
+                0.10961830615997314,
+                1.0042293071746826
+              ],
+              "tail": [
+                0.35722821950912476,
+                0.09634482115507126,
+                0.9442331194877625
+              ],
+              "deform": true
+            },
+            {
+              "name": "thigh.L",
+              "parent": "spine",
+              "head": [
+                0.09664301574230194,
+                0.05327561870217323,
+                1.0414117574691772
+              ],
+              "tail": [
+                0.10421765595674515,
+                0.04496069997549057,
+                0.5373614430427551
+              ],
+              "deform": true
+            },
+            {
+              "name": "shin.L",
+              "parent": "thigh.L",
+              "head": [
+                0.10421765595674515,
+                0.04496069997549057,
+                0.5373614430427551
+              ],
+              "tail": [
+                0.11876049637794495,
+                0.1336178332567215,
+                0.10397345572710037
+              ],
+              "deform": true
+            },
+            {
+              "name": "foot.L",
+              "parent": "shin.L",
+              "head": [
+                0.11876049637794495,
+                0.1336178332567215,
+                0.10397345572710037
+              ],
+              "tail": [
+                0.1375041902065277,
+                0.055164139717817307,
+                0.043507084250450134
+              ],
+              "deform": true
+            },
+            {
+              "name": "toe.L",
+              "parent": "foot.L",
+              "head": [
+                0.1375041902065277,
+                0.055164139717817307,
+                0.043507084250450134
+              ],
+              "tail": [
+                0.1528882086277008,
+                -0.05481908470392227,
+                0.02283920906484127
+              ],
+              "deform": true
+            }
+          ]
+        },
+        {
+          "name": "metarig_legacy",
+          "count": 163,
+          "roots": [
+            "spine"
+          ],
+          "sample_bones": [
+            {
+              "name": "spine",
+              "parent": null,
+              "head": [
+                0.0,
+                0.05669240280985832,
+                0.8876895904541016
+              ],
+              "tail": [
+                8.313482680044615e-10,
+                0.06002780795097351,
+                1.0673725605010986
+              ],
+              "deform": true
+            },
+            {
+              "name": "spine.006",
+              "parent": "spine.005",
+              "head": [
+                2.9036526516534877e-09,
+                0.05351733788847923,
+                1.6378669738769531
+              ],
+              "tail": [
+                1.768161866921858e-10,
+                0.05336906388401985,
+                1.8207441568374634
+              ],
+              "deform": true
+            },
+            {
+              "name": "upper_arm.L",
+              "parent": "shoulder.L",
+              "head": [
+                0.16889388859272003,
+                0.12324777990579605,
+                1.505091905593872
+              ],
+              "tail": [
+                0.27061906456947327,
+                0.15281283855438232,
+                1.239350438117981
+              ],
+              "deform": true
+            },
+            {
+              "name": "forearm.L",
+              "parent": "upper_arm.L",
+              "head": [
+                0.27061906456947327,
+                0.15281283855438232,
+                1.239350438117981
+              ],
+              "tail": [
+                0.3526487648487091,
+                0.10961830615997314,
+                1.0042293071746826
+              ],
+              "deform": true
+            },
+            {
+              "name": "hand.L",
+              "parent": "forearm.L",
+              "head": [
+                0.3526487648487091,
+                0.10961830615997314,
+                1.0042293071746826
+              ],
+              "tail": [
+                0.35722821950912476,
+                0.09634482115507126,
+                0.9442331194877625
+              ],
+              "deform": true
+            },
+            {
+              "name": "thigh.L",
+              "parent": "spine",
+              "head": [
+                0.09664301574230194,
+                0.05327561870217323,
+                1.0414117574691772
+              ],
+              "tail": [
+                0.10421765595674515,
+                0.04496069997549057,
+                0.5373614430427551
+              ],
+              "deform": true
+            },
+            {
+              "name": "shin.L",
+              "parent": "thigh.L",
+              "head": [
+                0.10421765595674515,
+                0.04496069997549057,
+                0.5373614430427551
+              ],
+              "tail": [
+                0.11876049637794495,
+                0.1336178332567215,
+                0.10397345572710037
+              ],
+              "deform": true
+            },
+            {
+              "name": "foot.L",
+              "parent": "shin.L",
+              "head": [
+                0.11876049637794495,
+                0.1336178332567215,
+                0.10397345572710037
+              ],
+              "tail": [
+                0.1375041902065277,
+                0.055164139717817307,
+                0.043507084250450134
+              ],
+              "deform": true
+            },
+            {
+              "name": "toe.L",
+              "parent": "foot.L",
+              "head": [
+                0.1375041902065277,
+                0.055164139717817307,
+                0.043507084250450134
+              ],
+              "tail": [
+                0.1528882086277008,
+                -0.05481908470392227,
+                0.02283920906484127
+              ],
+              "deform": true
+            }
+          ]
+        },
+        {
+          "name": "rig",
+          "count": 553,
+          "roots": [
+            "c_pos",
+            "c_arms_pole.l",
+            "c_arms_pole.r",
+            "c_foot_ik.r",
+            "c_leg_pole.r",
+            "c_foot_ik.l",
+            "c_leg_pole.l",
+            "c_hand_ik.r",
+            "c_hand_ik.l",
+            "root_ref.x",
+            "c_eye_target.x",
+            "eyebrow_full_ref.r",
+            "eyebrow_full_ref.l",
+            "lips_top_ref.x",
+            "lips_bot_ref.x",
+            "lips_roll_top_ref.x",
+            "lips_roll_bot_ref.x",
+            "tong_01_ref.x",
+            "teeth_bot_ref.x",
+            "chin_02_ref.x",
+            "teeth_top_ref.x",
+            "eye_offset_ref.l",
+            "eye_offset_ref.r",
+            "cheek_smile_ref.l",
+            "cheek_smile_ref.r",
+            "nose_01_ref.x",
+            "jaw_ref.x"
+          ],
+          "sample_bones": []
+        }
+      ],
+      "morphs": {
+        "L2": {
+          "count": 110,
+          "examples": [
+            "Age_Baby",
+            "Age_Child",
+            "Age_Teen",
+            "Arms_Armpit_Loc_Z",
+            "Arms_BicepSize",
+            "Arms_ForearmGirth",
+            "Arms_TricepSize",
+            "Body_Age",
+            "Body_FemaleNew",
+            "Body_Height",
+            "Body_ReomFat",
+            "Body_ReomMuscle"
+          ],
+          "storage": "individual dense/sparse",
+          "dense_count": 5,
+          "sparse_count": 105
+        },
+        "L3": {
+          "count": 51,
+          "examples": [
+            "browDownLeft",
+            "browDownRight",
+            "browInnerUp",
+            "browOuterUpLeft",
+            "browOuterUpRight",
+            "cheekPuff",
+            "cheekSquintLeft",
+            "cheekSquintRight",
+            "eyeBlinkLeft",
+            "eyeBlinkRight",
+            "eyeLookDownLeft",
+            "eyeLookDownRight"
+          ],
+          "storage": "individual dense/sparse",
+          "dense_count": 0,
+          "sparse_count": 51
+        }
+      },
+      "groups": {
+        "weights/rigify.npz": {
+          "count": 165,
+          "entries": 19564,
+          "index_min": 0,
+          "index_max": 8433,
+          "weights_finite": true,
+          "weight_min": 0.0,
+          "weight_max": 1.0,
+          "per_vertex_sum_min": 0.9990161880850792,
+          "per_vertex_sum_max": 2.000001102569513,
+          "unweighted_vertices": 0,
+          "examples": [
+            "DEF-spine",
+            "DEF-spine.001",
+            "DEF-spine.002",
+            "DEF-spine.003",
+            "DEF-spine.004",
+            "DEF-spine.005",
+            "DEF-spine.006",
+            "DEF-pelvis.L",
+            "DEF-pelvis.R",
+            "DEF-thigh.L"
+          ]
+        },
+        "joints/rigify.npz": {
+          "count": 267,
+          "entries": 2474,
+          "index_min": 0,
+          "index_max": 7503,
+          "weights_finite": true,
+          "weight_min": 0.0012863746378570795,
+          "weight_max": 1.0,
+          "per_vertex_sum_min": 0.0,
+          "per_vertex_sum_max": 4.723505258560181,
+          "unweighted_vertices": 6686,
+          "examples": [
+            "joint_breast.L_head",
+            "joint_breast.L_tail",
+            "joint_breast.R_head",
+            "joint_breast.R_tail",
+            "joint_brow.B.L.001_tail",
+            "joint_brow.B.L.002_tail",
+            "joint_brow.B.L.003_tail",
+            "joint_brow.B.L.004_head",
+            "joint_brow.B.L.004_tail",
+            "joint_brow.B.L_head"
+          ]
+        }
+      }
+    }
+  },
+  "vrmSamples": [
+    {
+      "path": "samples/Seed-san/vrm/Seed-san.vrm",
+      "sha256": "624d0d554bc205bbdc33e22a68a2c3c20edebb3e573011ead8878a65e5329b23",
+      "generator": null,
+      "meta": {
+        "allowAntisocialOrHateUsage": true,
+        "allowExcessivelySexualUsage": true,
+        "allowExcessivelyViolentUsage": true,
+        "allowPoliticalOrReligiousUsage": true,
+        "allowRedistribution": true,
+        "authors": [
+          "VirtualCast, Inc."
+        ],
+        "avatarPermission": "everyone",
+        "commercialUsage": "corporation",
+        "copyrightInformation": "VirtualCast, Inc.",
+        "creditNotation": "required",
+        "licenseUrl": "https://vrm.dev/licenses/1.0/",
+        "modification": "allowModificationRedistribution",
+        "name": "Seed-san",
+        "thumbnailImage": 14,
+        "version": "1"
+      },
+      "version": "1.0",
+      "extensions": [
+        "VRMC_springBone",
+        "VRMC_vrm",
+        "KHR_materials_unlit",
+        "VRMC_materials_mtoon",
+        "KHR_texture_transform",
+        "KHR_materials_emissive_strength",
+        "VRMC_node_constraint"
+      ],
+      "human_bones": 51,
+      "meshes": 5,
+      "primitives": 21,
+      "primitive_morph_target_counts": [
+        0,
+        0,
+        0,
+        43,
+        43,
+        43,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "skins": 5,
+      "skin_joint_counts": [
+        23,
+        7,
+        1,
+        21,
+        80
+      ],
+      "materials": 17,
+      "expressions": {
+        "preset": [
+          "aa",
+          "angry",
+          "blink",
+          "blinkLeft",
+          "blinkRight",
+          "ee",
+          "happy",
+          "ih",
+          "lookDown",
+          "lookLeft",
+          "lookRight",
+          "lookUp",
+          "neutral",
+          "oh",
+          "ou",
+          "relaxed",
+          "sad",
+          "surprised"
+        ]
+      },
+      "look_at": {
+        "offsetFromHeadBone": [
+          0,
+          0.07764859,
+          0.100730225
+        ],
+        "rangeMapHorizontalInner": {
+          "inputMaxValue": 90,
+          "outputScale": 1
+        },
+        "rangeMapHorizontalOuter": {
+          "inputMaxValue": 90,
+          "outputScale": 1
+        },
+        "rangeMapVerticalDown": {
+          "inputMaxValue": 90,
+          "outputScale": 1
+        },
+        "rangeMapVerticalUp": {
+          "inputMaxValue": 90,
+          "outputScale": 1
+        },
+        "type": "expression"
+      },
+      "first_person": {
+        "meshAnnotations": [
+          {
+            "node": 0,
+            "type": "thirdPersonOnly"
+          },
+          {
+            "node": 1,
+            "type": "thirdPersonOnly"
+          },
+          {
+            "node": 2,
+            "type": "thirdPersonOnly"
+          },
+          {
+            "node": 144,
+            "type": "both"
+          },
+          {
+            "node": 145,
+            "type": "both"
+          }
+        ]
+      },
+      "springs": 9,
+      "colliders": 8,
+      "collider_groups": 2,
+      "constrained_nodes": 23
+    },
+    {
+      "path": "samples/VRM1_Constraint_Twist_Sample/vrm/VRM1_Constraint_Twist_Sample.vrm",
+      "sha256": "12c2b97e95e700783a6a550dc0eee2d7880aeedccef9ae67bc4c5a2f0f2631a2",
+      "generator": null,
+      "meta": {
+        "allowAntisocialOrHateUsage": false,
+        "allowExcessivelySexualUsage": true,
+        "allowExcessivelyViolentUsage": true,
+        "allowPoliticalOrReligiousUsage": true,
+        "allowRedistribution": true,
+        "authors": [
+          "pixiv Inc."
+        ],
+        "avatarPermission": "everyone",
+        "commercialUsage": "corporation",
+        "copyrightInformation": "(c) 2022 pixiv Inc.",
+        "creditNotation": "unnecessary",
+        "licenseUrl": "https://vrm.dev/licenses/1.0/",
+        "modification": "allowModificationRedistribution",
+        "name": "VRM1_Constraint_Twist_Sample",
+        "thumbnailImage": 18,
+        "version": "v1.0.1"
+      },
+      "version": "1.0",
+      "extensions": [
+        "VRMC_springBone",
+        "VRMC_vrm",
+        "KHR_materials_unlit",
+        "VRMC_materials_mtoon",
+        "VRMC_node_constraint"
+      ],
+      "human_bones": 54,
+      "meshes": 3,
+      "primitives": 13,
+      "primitive_morph_target_counts": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        57,
+        57,
+        57,
+        57,
+        57,
+        57,
+        57,
+        0
+      ],
+      "skins": 3,
+      "skin_joint_counts": [
+        83,
+        137,
+        137
+      ],
+      "materials": 13,
+      "expressions": {
+        "preset": [
+          "aa",
+          "angry",
+          "blink",
+          "blinkLeft",
+          "blinkRight",
+          "ee",
+          "happy",
+          "ih",
+          "lookDown",
+          "lookLeft",
+          "lookRight",
+          "lookUp",
+          "neutral",
+          "oh",
+          "ou",
+          "relaxed",
+          "sad",
+          "surprised"
+        ]
+      },
+      "look_at": {
+        "offsetFromHeadBone": [
+          0.059,
+          0.061,
+          0
+        ],
+        "rangeMapHorizontalInner": {
+          "inputMaxValue": 90,
+          "outputScale": 10
+        },
+        "rangeMapHorizontalOuter": {
+          "inputMaxValue": 90,
+          "outputScale": 10
+        },
+        "rangeMapVerticalDown": {
+          "inputMaxValue": 90,
+          "outputScale": 10
+        },
+        "rangeMapVerticalUp": {
+          "inputMaxValue": 90,
+          "outputScale": 10
+        },
+        "type": "bone"
+      },
+      "first_person": {
+        "meshAnnotations": [
+          {
+            "node": 0,
+            "type": "auto"
+          },
+          {
+            "node": 1,
+            "type": "auto"
+          },
+          {
+            "node": 2,
+            "type": "auto"
+          }
+        ]
+      },
+      "springs": 22,
+      "colliders": 13,
+      "collider_groups": 12,
+      "constrained_nodes": 14
+    },
+    {
+      "path": "samples/VRMC_materials_mtoon_UV_Animation_Test/vrm/VRMC_materials_mtoon_UV_Animation_Test.vrm",
+      "sha256": "23933c7aa9f2b1515bf44835d50080baa8d9698202cf20eb652f28c3d4537c81",
+      "generator": "Khronos glTF Blender I/O v1.7.33",
+      "meta": {
+        "allowAntisocialOrHateUsage": false,
+        "allowExcessivelySexualUsage": true,
+        "allowExcessivelyViolentUsage": true,
+        "allowPoliticalOrReligiousUsage": true,
+        "allowRedistribution": true,
+        "authors": [
+          "pixiv Inc."
+        ],
+        "avatarPermission": "everyone",
+        "commercialUsage": "corporation",
+        "creditNotation": "unnecessary",
+        "licenseUrl": "https://vrm.dev/licenses/1.0/",
+        "modification": "allowModificationRedistribution",
+        "name": "VRMC_materials_mtoon UV Animation Test",
+        "version": "v1.0.0"
+      },
+      "version": "1.0",
+      "extensions": [
+        "VRMC_vrm",
+        "KHR_materials_unlit",
+        "VRMC_materials_mtoon"
+      ],
+      "human_bones": 53,
+      "meshes": 3,
+      "primitives": 3,
+      "primitive_morph_target_counts": [
+        0,
+        0,
+        0
+      ],
+      "skins": 0,
+      "skin_joint_counts": [],
+      "materials": 3,
+      "expressions": {},
+      "look_at": null,
+      "first_person": null,
+      "springs": 0,
+      "colliders": 0,
+      "collider_groups": 0,
+      "constrained_nodes": 0
+    },
+    {
+      "path": "samples/VRMC_vrm_expressions_isBinary_Overridden/vrm/VRMC_vrm_expressions_isBinary_Overridden.vrm",
+      "sha256": "cbcc19d23f98fbe4a70d20387cb745b28135265240c6922b74213285db1ef8af",
+      "generator": "Handwritten",
+      "meta": {
+        "name": "isBinary overridden",
+        "version": "v1.0.0",
+        "authors": [
+          "pixiv Inc."
+        ],
+        "copyrightInformation": "(c) 2025 pixiv Inc.",
+        "contactInformation": "(c) 2025 pixiv Inc.",
+        "references": [],
+        "licenseUrl": "https://vrm.dev/licenses/1.0/",
+        "avatarPermission": "everyone",
+        "allowExcessivelyViolentUsage": true,
+        "allowExcessivelySexualUsage": true,
+        "commercialUsage": "corporation",
+        "allowPoliticalOrReligiousUsage": true,
+        "allowAntisocialOrHateUsage": false,
+        "creditNotation": "unnecessary",
+        "allowRedistribution": true,
+        "modification": "allowModificationRedistribution"
+      },
+      "version": "1.0",
+      "extensions": [
+        "KHR_texture_transform",
+        "VRMC_vrm"
+      ],
+      "human_bones": 22,
+      "meshes": 4,
+      "primitives": 4,
+      "primitive_morph_target_counts": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "skins": 0,
+      "skin_joint_counts": [],
+      "materials": 4,
+      "expressions": {
+        "preset": [
+          "happy",
+          "blink"
+        ]
+      },
+      "look_at": {
+        "offsetFromHeadBone": [
+          0,
+          0.06,
+          0
+        ],
+        "type": "expression",
+        "rangeMapHorizontalInner": {
+          "inputMaxValue": 90,
+          "outputScale": 1
+        },
+        "rangeMapHorizontalOuter": {
+          "inputMaxValue": 90,
+          "outputScale": 1
+        },
+        "rangeMapVerticalDown": {
+          "inputMaxValue": 90,
+          "outputScale": 1
+        },
+        "rangeMapVerticalUp": {
+          "inputMaxValue": 90,
+          "outputScale": 1
+        }
+      },
+      "first_person": {
+        "meshAnnotations": [
+          {
+            "node": 22,
+            "type": "thirdPersonOnly"
+          }
+        ]
+      },
+      "springs": 0,
+      "colliders": 0,
+      "collider_groups": 0,
+      "constrained_nodes": 0
+    },
+    {
+      "path": "samples/VRMC_vrm_expressions_isBinary_Overrides/vrm/VRMC_vrm_expressions_isBinary_Overrides.vrm",
+      "sha256": "574171bca604608dd8b3197b3424d4b46b1ca0e8a417c4ab5547c011439a4fda",
+      "generator": "Handwritten",
+      "meta": {
+        "name": "isBinary overrides",
+        "version": "v1.0.0",
+        "authors": [
+          "pixiv Inc."
+        ],
+        "copyrightInformation": "(c) 2025 pixiv Inc.",
+        "contactInformation": "(c) 2025 pixiv Inc.",
+        "references": [],
+        "licenseUrl": "https://vrm.dev/licenses/1.0/",
+        "avatarPermission": "everyone",
+        "allowExcessivelyViolentUsage": true,
+        "allowExcessivelySexualUsage": true,
+        "commercialUsage": "corporation",
+        "allowPoliticalOrReligiousUsage": true,
+        "allowAntisocialOrHateUsage": false,
+        "creditNotation": "unnecessary",
+        "allowRedistribution": true,
+        "modification": "allowModificationRedistribution"
+      },
+      "version": "1.0",
+      "extensions": [
+        "KHR_texture_transform",
+        "VRMC_vrm"
+      ],
+      "human_bones": 22,
+      "meshes": 4,
+      "primitives": 4,
+      "primitive_morph_target_counts": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "skins": 0,
+      "skin_joint_counts": [],
+      "materials": 4,
+      "expressions": {
+        "preset": [
+          "happy",
+          "blink"
+        ]
+      },
+      "look_at": {
+        "offsetFromHeadBone": [
+          0,
+          0.06,
+          0
+        ],
+        "type": "expression",
+        "rangeMapHorizontalInner": {
+          "inputMaxValue": 90,
+          "outputScale": 1
+        },
+        "rangeMapHorizontalOuter": {
+          "inputMaxValue": 90,
+          "outputScale": 1
+        },
+        "rangeMapVerticalDown": {
+          "inputMaxValue": 90,
+          "outputScale": 1
+        },
+        "rangeMapVerticalUp": {
+          "inputMaxValue": 90,
+          "outputScale": 1
+        }
+      },
+      "first_person": {
+        "meshAnnotations": [
+          {
+            "node": 22,
+            "type": "thirdPersonOnly"
+          }
+        ]
+      },
+      "springs": 0,
+      "colliders": 0,
+      "collider_groups": 0,
+      "constrained_nodes": 0
+    }
+  ],
+  "fitExperiment": {
+    "performed": false,
+    "reason": "No independently authorized canonical template; second reference license unresolved"
+  }
+}

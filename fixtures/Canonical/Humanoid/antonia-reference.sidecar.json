@@ -1,0 +1,22 @@
+{
+  "schema": "aetheris.humanoid.reference-sidecar.v1",
+  "assetId": "antonia-polygon-charmorph-db-a8512ac",
+  "source": "https://github.com/Upliner/CharMorph-db",
+  "revision": "a8512ac299c0cb1724c7b5417267c94bef024d64",
+  "path": "characters/antonia/char.blend",
+  "object": "cm_antonia",
+  "sha256": "4bc468c44c8ca7c6971cac3692c5d670b09f6723687e89cd49f258c2a8251c69",
+  "licenseEvidence": [
+    "characters/antonia/config.yaml: CC-BY 3.0",
+    "characters/antonia/license.txt: Creative Commons Attribution 3.0 Unported"
+  ],
+  "author": "Olaf Delgado-Friedrichs",
+  "additionalAuthors": ["phantom3D", "MikeJ", "DieTrying (morphs)", "Fenrissa", "others credited by source package"],
+  "admittedComponent": "Read-only local research use of cm_antonia outer-skin geometry in char.blend, material indices 5, 6, 9, 10, 11, 12; no source connectivity, textures, morph arrays, rigs, scripts, shared materials, clothes, or hair enter the canonical artifact.",
+  "fitResearchAdmission": "approved-by-HUMANOID-X0-mission-with-attribution",
+  "canonicalOutputAdmission": "blocked-pending-review-of-char-blend-conversion-component-scope",
+  "sourceFrame": "Blender local coordinates; meters inferred from 1.7468134 vertical extent and original figure convention; +Z up; normalized to 1750 mm only for registration study",
+  "sourcePose": "source-authored abducted-arm neutral pose; canonical template is posed to it for fitting",
+  "unsupportedMaterialIndices": [0, 1, 2, 3, 4, 7, 8, 13, 14, 15],
+  "attribution": "Based on Antonia Polygon by Olaf Delgado-Friedrichs, with contributors credited in the source package. Source and CC-BY 3.0 license retained; no endorsement implied."
+}

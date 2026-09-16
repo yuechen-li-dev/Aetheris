@@ -17,6 +17,8 @@
   <Project Path="Aetheris.SheetMetal.Tests/Aetheris.SheetMetal.Tests.csproj" />
   <Project Path="Aetheris.PlasticShell/Aetheris.PlasticShell.csproj" />
   <Project Path="Aetheris.PlasticShell.Tests/Aetheris.PlasticShell.Tests.csproj" />
+  <Project Path="Aetheris.Humanoid/Aetheris.Humanoid.csproj" />
+  <Project Path="Aetheris.Humanoid.Tests/Aetheris.Humanoid.Tests.csproj" />
   <Project Path="Aetheris.Sculpture/Aetheris.Sculpture.csproj" />
   <Project Path="Aetheris.Sculpture.Tests/Aetheris.Sculpture.Tests.csproj" />
   <Project Path="Aetheris.Modules.BuiltIn/Aetheris.Modules.BuiltIn.csproj" />
@@ -44,6 +46,7 @@
   <Project Path="tools/Aetheris.BunnyM1/Aetheris.BunnyM1.csproj" />
   <Project Path="tools/Aetheris.BunnyM2/Aetheris.BunnyM2.csproj" />
   <Project Path="tools/Aetheris.BunnyM3/Aetheris.BunnyM3.csproj" />
+  <Project Path="tools/Aetheris.Humanoid.X0/Aetheris.Humanoid.X0.csproj" />
   <Project Path="tools/Aetheris.Continuum.AttentionE0/Aetheris.Continuum.AttentionE0.csproj" />
   <Project Path="tools/Aetheris.Continuum.AttentionE1/Aetheris.Continuum.AttentionE1.csproj" />
   <Project Path="Aetheris.Forge/Aetheris.Forge.csproj" />

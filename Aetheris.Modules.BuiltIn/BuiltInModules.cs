@@ -2,6 +2,7 @@ using Aetheris.Piping;
 using Aetheris.PlasticShell;
 using Aetheris.SheetMetal;
 using Aetheris.Surfacing;
+using Aetheris.Humanoid;
 
 namespace Aetheris.Modules.BuiltIn;
 
@@ -9,6 +10,6 @@ namespace Aetheris.Modules.BuiltIn;
 public static class BuiltInModules
 {
     private static readonly Lazy<AetherisModuleCatalog> CatalogValue = new(() => AetherisModuleCatalog.Create(
-        [CoreModule.Definition, SurfacingModule.Definition, PipingModule.Definition, SheetMetalModule.Definition, PlasticShellModule.Definition]));
+        [CoreModule.Definition, SurfacingModule.Definition, PipingModule.Definition, SheetMetalModule.Definition, PlasticShellModule.Definition, HumanoidModule.Definition]));
     public static AetherisModuleCatalog Catalog => CatalogValue.Value;
 }

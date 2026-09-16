@@ -1,0 +1,46 @@
+{
+  "schema": "aetheris.humanoid.registration-config.v1",
+  "id": "aetheris.humanoid.registration.antonia-x0.v1",
+  "templateId": "aetheris.humanoid.adult.standard.v1",
+  "referenceId": "antonia-polygon-charmorph-db-a8512ac",
+  "randomSeed": 0,
+  "fitPose": {
+    "leftShoulderDegreesY": -43.0,
+    "rightShoulderDegreesY": 43.0,
+    "leftElbowDegreesY": -8.0,
+    "rightElbowDegreesY": 8.0
+  },
+  "objective": {
+    "landmarkWeight": 4.0,
+    "surfaceDistanceWeight": 1.0,
+    "regularizationWeight": 0.15,
+    "symmetryWeight": 0.2,
+    "robustLoss": "Huber",
+    "huberDeltaMm": 20.0
+  },
+  "correspondence": {
+    "sameRegionRequired": true,
+    "sideIdentityRequired": true,
+    "maximumDistanceMm": 160.0,
+    "minimumNormalDot": -0.25,
+    "tieBreak": "lowest target polygon index then lexicographic point coordinates"
+  },
+  "iterations": [
+    { "projectionFraction": 0.45, "laplacianFraction": 0.10, "maximumStepMm": 55.0 },
+    { "projectionFraction": 0.55, "laplacianFraction": 0.08, "maximumStepMm": 40.0 },
+    { "projectionFraction": 0.65, "laplacianFraction": 0.06, "maximumStepMm": 28.0 },
+    { "projectionFraction": 0.75, "laplacianFraction": 0.04, "maximumStepMm": 18.0 },
+    { "projectionFraction": 0.85, "laplacianFraction": 0.02, "maximumStepMm": 10.0 }
+  ],
+  "convergence": { "minimumRmsImprovementMm": 0.01, "maximumIterations": 5 },
+  "projection": { "preserveConnectivity": true, "crossMidline": false },
+  "validation": {
+    "landmarkRmsBudgetMm": 5.0,
+    "landmarkMaxBudgetMm": 15.0,
+    "surfaceRmsBudgetMm": 5.0,
+    "surfaceP95BudgetMm": 10.0,
+    "minimumTriangleAreaMm2": 0.0001,
+    "maximumEdgeStretchRatio": 3.0,
+    "selfIntersection": "not-implemented-x0"
+  }
+}

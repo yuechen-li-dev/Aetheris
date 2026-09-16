@@ -1,0 +1,13 @@
+{
+  "schema": "aetheris.humanoid.fixture.v1",
+  "templateId": "aetheris.humanoid.adult.standard.v1",
+  "generator": "Aetheris.Humanoid.CanonicalAdultTemplate",
+  "generatorVersion": "aetheris-humanoid-implicit-tetra-v1",
+  "expectedConnectivityHash": "1d4828e1966c6be96409b1bc9f285ae8a5b1f6ded2ba0c523da61d71bc51e2eb",
+  "expectedVertexCount": 16868,
+  "expectedFaceCount": 33716,
+  "frame": "millimeters; right-handed; +X anatomical right; +Y forward; +Z up",
+  "restPose": "aetheris.humanoid.adult.apose.v1",
+  "reproduction": "dotnet run --project tools/Aetheris.Humanoid.X0 -- generate --out-dir artifacts/local/humanoid-x0",
+  "note": "This compact descriptor is tracked authority. The full deterministic surface artifact is generated under ignored artifacts/local; no third-party geometry is stored here."
+}

@@ -1,4 +1,8 @@
-# Humanoid X2 constrained kinematics research
+# Humanoid X2 constrained kinematics research (historical)
+
+> REST-X1 supersedes the relative-to-rest angle convention described below.
+> Current `RequestedHumanoidPose` values are absolute anatomical states. See
+> [Semantic humanoid pose normalization](humanoid-pose-normalization.md).
 
 **Status: Meaningful progression, not an accepted humanoid.** Antonia remains
 the X1 adoption candidate. The new solve admits hip, elbow and knee requests;
@@ -74,13 +78,12 @@ new Firmament `Concept<T>` or `Interface<T>` compiler family.
 | Elbow | Flexion 0..145° | Hinge axis from rest forearm × forward; abduction and twist zero |
 | Knee | Flexion 0..140° | Hinge axis opposite rest lower leg × forward; abduction and twist zero |
 
-Hip uses an exponential-map swing vector `(flexion, side*abduction, 0)` and
-axial rotation around −Z. This is an engineering approximation in the supplied
-translation-only anatomical rest frame, not a clinically calibrated femoral
-coordinate system. Positive hip flexion moves the leg forward; positive knee
-flexion moves the lower leg backward. The elbow axis is rebuilt from rest
-geometry. The X1 sweep used +X at the knee (opposite the X2 knee direction), and
-+Y at the elbow (abduction rather than a forearm flexion hinge).
+The original X2 implementation used an exponential-map delta from the supplied
+rest. REST-X1 replaced that behavior with a direct solve from absolute flexion
+and abduction to the canonical bone direction. Positive hip flexion moves the
+leg forward; positive knee flexion moves the lower leg backward. Source elbow
+and knee bends are removed in their measured source plane before canonical
+flexion is applied.
 
 These bounds are explicit engineering assumptions. The
 [CDC reference study](https://archive.cdc.gov/www_cdc_gov/ncbddd/jointrom/index.html)
@@ -96,12 +99,10 @@ hierarchy, side consistency and current revision are checked before skinning.
 Input order is canonicalized by joint kind. Unsupported joints remain at rest
 when omitted; explicitly requesting one returns `HUM209`, even at zero.
 
-The current shoulder is deliberately **unsupported**. There is no qualified
-clavicle/scapular coupling. A request for `LeftShoulder` abduction 90° returns
-`HUM209` with no solved pose; it does not silently use a ball joint. Wrist,
-ankle, neck, spine and finger requests are also unsupported. Collision,
-self-contact, scapular frames and full anatomical pose-concept validation
-remain unimplemented.
+Shoulder ball coordinates are now admitted for bounded REST-X1 comparison.
+They do not model clavicle/scapular coupling. Wrist, ankle, neck, spine and
+finger requests remain unsupported. Collision, self-contact, scapular motion,
+and a complete clinical biomechanics model remain unimplemented.
 
 ## Surface screening and migration boundary
 

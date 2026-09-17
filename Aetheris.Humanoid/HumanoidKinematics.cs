@@ -11,6 +11,12 @@ public sealed record RequestedHumanoidPose(string PoseId, string SkeletonId, str
 public sealed record KinematicDiagnostic(string Code, string Message, HumanoidJointKind? Joint = null);
 public sealed record AnatomicalLink(string Id, HumanoidJointKind Parent, HumanoidJointKind Child, double LengthMm);
 public sealed record JointConstraintResidual(HumanoidJointKind Joint, double CenterMm, double LinkLengthMm);
+public sealed record SemanticPoseResidual(HumanoidJointKind Joint,
+    double FlexionDegrees, double AbductionDegrees, double TwistDegrees)
+{
+    public double MaximumAbsoluteDegrees => Math.Max(Math.Abs(FlexionDegrees),
+        Math.Max(Math.Abs(AbductionDegrees), Math.Abs(TwistDegrees)));
+}
 public sealed record JointProjection(AnatomicalJointRequest Requested, AnatomicalJointRequest Solved,
     double ParameterCorrectionDegrees);
 
@@ -30,18 +36,22 @@ public sealed record AnatomicalBallInterface(HumanoidJointKind Joint, HumanoidJo
 public sealed class SolvedHumanoidPose
 {
     internal SolvedHumanoidPose(HumanoidSkeleton skeleton, long revision, HumanoidPoseState state,
-        Matrix4x4[] globals, AnatomicalJointRequest[] joints, JointConstraintResidual[] residuals)
+        Matrix4x4[] globals, AnatomicalJointRequest[] joints, JointConstraintResidual[] residuals,
+        SemanticPoseResidual[] semanticResiduals)
     {
         Skeleton = skeleton; ShapeRevision = revision; State = state;
         GlobalTransforms = Array.AsReadOnly(globals); Joints = Array.AsReadOnly(joints);
         Residuals = Array.AsReadOnly(residuals);
+        SemanticResiduals = Array.AsReadOnly(semanticResiduals);
     }
     internal HumanoidSkeleton Skeleton { get; }
     internal HumanoidPoseState State { get; }
+    public HumanoidPoseState PoseState => State;
     public long ShapeRevision { get; }
     public IReadOnlyList<Matrix4x4> GlobalTransforms { get; }
     public IReadOnlyList<AnatomicalJointRequest> Joints { get; }
     public IReadOnlyList<JointConstraintResidual> Residuals { get; }
+    public IReadOnlyList<SemanticPoseResidual> SemanticResiduals { get; }
 }
 public sealed record HumanoidSolveResult(SolvedHumanoidPose? Pose,
     IReadOnlyList<KinematicDiagnostic> Diagnostics, IReadOnlyList<JointProjection> Projections)
@@ -51,13 +61,13 @@ public sealed record HumanoidSolveResult(SolvedHumanoidPose? Pose,
 
 /// <summary>
 /// Bounded hip/shoulder ball and elbow/knee hinge interfaces. Axes are expressed in each
-/// adopted joint's source-derived rest frame. Angles are engineering coordinates relative
-/// to that rest pose, not clinical measurements or a general biomechanics model.
+/// adopted joint's source-derived rest frame. Public angles are absolute canonical anatomical
+/// states; source-rest offsets are measured and removed inside the adapter.
 /// </summary>
 public static class HumanoidKinematicSolver
 {
     public const double LinearToleranceMm = .001;
-    public const string Version = "humanoid.x5.reference-frame-pose.v1";
+    public const string Version = "aetheris.humanoid.semantic-pose.v1";
 
     public static IReadOnlyList<AnatomicalJointInterface> Interfaces(HumanoidSkeleton skeleton)
     {
@@ -136,19 +146,25 @@ public static class HumanoidKinematicSolver
                 diagnostics.Add(new("HUM205", "Projected joint coordinates into the engineering domain.", input.Joint));
             }
             states.Add(solved);
+            // Legacy reduced test mechanisms may omit the distal measurement child. Their
+            // historical zero remains the only available adapter state; complete source rigs
+            // are measured geometrically and never expose this fallback publicly.
+            HumanoidPoseSemantics.TryMeasure(skeleton, skeleton.Joints.Select(j => j.GlobalBind).ToArray(),
+                input.Joint, out var native);
             Quaternion rotation;
-            if (joint is AnatomicalHingeInterface hinge) rotation = Rotate(hinge.Axis, solved.FlexionDegrees);
+            if (joint is AnatomicalHingeInterface hinge)
+            {
+                var restCorrection = HingeRestCorrection(skeleton, input.Joint, native.FlexionDegrees);
+                rotation = Quaternion.Concatenate(restCorrection, Rotate(hinge.Axis, solved.FlexionDegrees));
+            }
             else
             {
-                // Exponential-map swing in the anatomical sagittal/coronal plane, followed by axial twist.
-                // This is a coupled ellipse, not independent Euler limits.
+                // Solve the absolute anatomical direction directly. This deliberately does not
+                // apply equal deltas to unlike source rests.
                 var sign = input.Joint.ToString().StartsWith("Left") ? 1 : -1;
                 var ball = (AnatomicalBallInterface)joint;
-                var swing = ball.FlexionAxis * (float)solved.FlexionDegrees +
-                    ball.AbductionAxis * (float)(sign * solved.AbductionDegrees);
-                var angle = swing.Length();
-                var q = angle == 0 ? Quaternion.Identity : Rotate(swing / angle, angle);
-                rotation = Quaternion.Concatenate(Rotate(ball.TwistAxis, sign * solved.TwistDegrees), q);
+                var q = BallSwing(skeleton, input.Joint, solved.FlexionDegrees, solved.AbductionDegrees);
+                rotation = Quaternion.Concatenate(Rotate(ball.TwistAxis, sign * (solved.TwistDegrees - native.TwistDegrees)), q);
             }
             rotations.Add(new(input.Joint, rotation));
         }
@@ -168,7 +184,17 @@ public static class HumanoidKinematicSolver
             if (!double.IsFinite(center) || center > LinearToleranceMm) return Reject("HUM201", "Joint center residual exceeds 0.001 mm.", j.Kind);
             if (!double.IsFinite(length) || length > LinearToleranceMm) return Reject("HUM202", "Link length residual exceeds 0.001 mm.", j.Kind);
         }
-        return new(new(skeleton, shapeRevision, state, globals, states.ToArray(), residuals.ToArray()), diagnostics.AsReadOnly(), projections.AsReadOnly());
+        var semanticResiduals = new List<SemanticPoseResidual>();
+        foreach (var target in states)
+        {
+            if (!HumanoidPoseSemantics.TryMeasure(skeleton, globals, target.Joint, out var actual))
+                continue;
+            semanticResiduals.Add(new SemanticPoseResidual(target.Joint,
+                actual.FlexionDegrees - target.FlexionDegrees,
+                actual.AbductionDegrees - target.AbductionDegrees,
+                actual.TwistDegrees - target.TwistDegrees));
+        }
+        return new(new(skeleton, shapeRevision, state, globals, states.ToArray(), residuals.ToArray(), semanticResiduals.ToArray()), diagnostics.AsReadOnly(), projections.AsReadOnly());
     }
 
     private static AnatomicalJointRequest Project(AnatomicalJointRequest input, AnatomicalJointInterface joint)
@@ -220,6 +246,51 @@ public static class HumanoidKinematicSolver
         return Values(a).Zip(Values(b)).All(x => float.IsFinite(x.First) && float.IsFinite(x.Second) && Math.Abs(x.First - x.Second) <= LinearToleranceMm);
     }
     private static Quaternion Rotate(Vector3 axis, double degrees) => Quaternion.CreateFromAxisAngle(axis, (float)(degrees * Math.PI / 180));
+    private static Quaternion HingeRestCorrection(HumanoidSkeleton skeleton, HumanoidJointKind kind, double nativeFlexionDegrees)
+    {
+        if (nativeFlexionDegrees < 1e-6) return Quaternion.Identity;
+        var jointIndex = skeleton.Joints.ToList().FindIndex(joint => joint.Kind == kind);
+        var joint = skeleton.Joints[jointIndex];
+        if (joint.ParentIndex is not int parent) return Quaternion.Identity;
+        var childName = (kind.ToString().StartsWith("Left") ? "Left" : "Right") +
+            (kind.ToString().EndsWith("Elbow") ? "Wrist" : "Ankle");
+        var child = skeleton.Joints.ToList().FindIndex(candidate => candidate.Kind.ToString() == childName);
+        if (child < 0) return Quaternion.Identity;
+        var proximal = Vector3.Normalize(Position(joint.GlobalBind) - Position(skeleton.Joints[parent].GlobalBind));
+        var distal = Vector3.Normalize(Position(skeleton.Joints[child].GlobalBind) - Position(joint.GlobalBind));
+        var axis = Vector3.Cross(distal, proximal);
+        if (axis.LengthSquared() < 1e-10f) return Quaternion.Identity;
+        return Rotate(ToLocalAxis(joint, Vector3.Normalize(axis)), nativeFlexionDegrees);
+    }
+    private static Quaternion BallSwing(HumanoidSkeleton skeleton, HumanoidJointKind kind,
+        double flexionDegrees, double abductionDegrees)
+    {
+        var jointIndex = skeleton.Joints.ToList().FindIndex(joint => joint.Kind == kind);
+        var joint = skeleton.Joints[jointIndex];
+        var childName = (kind.ToString().StartsWith("Left") ? "Left" : "Right") +
+            (kind.ToString().EndsWith("Shoulder") ? "Elbow" : "Knee");
+        var child = skeleton.Joints.ToList().FindIndex(candidate => candidate.Kind.ToString() == childName);
+        if (child < 0)
+        {
+            var sign = kind.ToString().StartsWith("Left") ? 1f : -1f;
+            var fallback = ToLocalAxis(joint, Vector3.UnitX) * (float)flexionDegrees +
+                ToLocalAxis(joint, Vector3.UnitY) * (float)(sign * abductionDegrees);
+            var fallbackAngle = fallback.Length();
+            return fallbackAngle == 0 ? Quaternion.Identity : Rotate(fallback / fallbackAngle, fallbackAngle);
+        }
+        var source = Vector3.Normalize(Position(skeleton.Joints[child].GlobalBind) - Position(joint.GlobalBind));
+        var flexion = flexionDegrees * Math.PI / 180d;
+        var abduction = abductionDegrees * Math.PI / 180d;
+        var side = kind.ToString().StartsWith("Left") ? -1d : 1d;
+        var target = Vector3.Normalize(new((float)(side * Math.Cos(flexion) * Math.Sin(abduction)),
+            (float)Math.Sin(flexion), (float)(-Math.Cos(flexion) * Math.Cos(abduction))));
+        var dot = Math.Clamp(Vector3.Dot(source, target), -1f, 1f);
+        if (dot > 1 - 1e-7f) return Quaternion.Identity;
+        var axis = Vector3.Cross(source, target);
+        if (axis.LengthSquared() < 1e-10f)
+            axis = Math.Abs(source.X) < .9f ? Vector3.Cross(source, Vector3.UnitX) : Vector3.Cross(source, Vector3.UnitY);
+        return Rotate(ToLocalAxis(joint, Vector3.Normalize(axis)), Math.Acos(dot) * 180d / Math.PI);
+    }
     private static Vector3 ToLocalAxis(HumanoidJoint joint, Vector3 canonicalAxis)
     {
         var local = Vector3.TransformNormal(canonicalAxis, joint.InverseBind);

@@ -41,6 +41,11 @@ The Blender column-vector matrix is transposed during extraction. Local transfor
 
 `RequestedHumanoidPose` addresses canonical joint kinds. Hip and shoulder use bounded ball interfaces; knee and elbow use bounded hinge interfaces. Their axes are converted into each adopted source-derived local rest frame. The X2 constraint architecture and X3 Judgment candidate architecture remain in place.
 
+REST-X1 now treats those request values as absolute anatomical states. The
+adapter measures the source rest from canonical joint centers, solves the
+requested canonical bone direction, and keeps the resulting source-local
+rotation private. See [Semantic humanoid pose normalization](humanoid-pose-normalization.md).
+
 The X5 frame baseline is qualified, but the entire Antonia surface is not yet an accepted production humanoid. Existing X1-generated weights were deliberately retained to isolate the effect of corrected frames. Neutral, hip 30°, hip abduction 15°/30°, and shoulder 30° pass the mechanical screen; larger poses expose downstream weight/deformation failures. Landmarks, attachments, measurements, and morph channels were never migrated into the Antonia research candidate, so there is nothing valid to recompute yet. Shape-aware propagation remains a later bounded task.
 
 Reproduce locally:

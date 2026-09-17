@@ -1,38 +1,32 @@
-// Local reference only. Run in a separate headless DAZ instance; never the user's scene.
-// Arguments: content library root, ignored output directory. No morph/weight payload is read.
+// HUMANOID-REST-X2 local Genesis 9 oracle. Run in a separate headless DAZ process.
+// Arguments: installed content-library root, ignored artifacts/local output directory.
 (function(){
  var library=App.scriptArgs[0], out=App.scriptArgs[1];
  function save(name,value){var f=new DzFile(out+'/'+name);if(!f.open(DzFile.WriteOnly))throw 'write failed';f.writeLine(JSON.stringify(value,null,2));f.close();}
+ function clamp(x,a,b){return Math.max(a,Math.min(b,x));}
+ function sub(a,b){return [a[0]-b[0],a[1]-b[1],a[2]-b[2]];}
+ function unit(a){var z=Math.sqrt(a[0]*a[0]+a[1]*a[1]+a[2]*a[2]);return [a[0]/z,a[1]/z,a[2]/z];}
+ function dot(a,b){return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];}
+ function deg(x){return x*180/Math.PI;}
+ function canonical(node){var p=node.getWSPos();return [-p.x,p.z,p.y];}
+ function direction(a,b){return unit(sub(canonical(b),canonical(a)));}
+ function ball(a,b,side){var d=direction(a,b),flex=deg(Math.asin(clamp(d[1],-1,1)));var abd=Math.abs(Math.abs(d[1])-1)<1e-7?0:deg(Math.atan2(side*d[0],-d[2]));return {flexionDegrees:flex,abductionDegrees:abd,twistDegrees:0};}
+ function hinge(a,b,c){return {flexionDegrees:deg(Math.acos(clamp(dot(direction(a,b),direction(b,c)),-1,1))),abductionDegrees:0,twistDegrees:0};}
+ function measure(kind,n){if(kind=='LeftShoulder')return ball(n.l_upperarm,n.l_forearm,-1);if(kind=='RightShoulder')return ball(n.r_upperarm,n.r_forearm,1);if(kind=='LeftHip')return ball(n.l_thigh,n.l_shin,-1);if(kind=='RightHip')return ball(n.r_thigh,n.r_shin,1);if(kind=='LeftElbow')return hinge(n.l_upperarm,n.l_forearm,n.l_hand);if(kind=='RightElbow')return hinge(n.r_upperarm,n.r_forearm,n.r_hand);if(kind=='LeftKnee')return hinge(n.l_thigh,n.l_shin,n.l_foot);if(kind=='RightKnee')return hinge(n.r_thigh,n.r_shin,n.r_foot);throw 'unsupported role '+kind;}
+ function reset(controls){for(var i=0;i<controls.length;i++)controls[i].setValue(0);Scene.update();}
+ function calibrate(spec,target,n){var c=spec.control,best=null,lo=c.getMin(),hi=c.getMax();for(var i=0;i<=80;i++){var v=lo+(hi-lo)*i/80;c.setValue(v);Scene.update();var a=measure(spec.kind,n)[spec.component],e=Math.abs(a-target);if(best===null||e<best.error)best={value:c.getValue(),actual:a,error:e};}var step=(hi-lo)/80;for(var pass=0;pass<5;pass++){lo=Math.max(c.getMin(),best.value-step);hi=Math.min(c.getMax(),best.value+step);for(var j=0;j<=12;j++){var v=lo+(hi-lo)*j/12;c.setValue(v);Scene.update();var a=measure(spec.kind,n)[spec.component],e=Math.abs(a-target);if(e<best.error)best={value:c.getValue(),actual:a,error:e};}step=(hi-lo)/12;}c.setValue(best.value);Scene.update();return best;}
  try {
   App.getContentMgr().addContentDirectory(library,false);
   if(!App.getContentMgr().openFile(library+'/People/Genesis 9/Genesis 9.duf',true))throw 'Genesis 9 load failed';
-  var nodes=Scene.getNodeList(), byName={}, controls=[];
-  for(var i=0;i<nodes.length;i++)byName[nodes[i].getName()]=nodes[i];
-  var names=['l_thigh','l_shin','l_upperarm','l_forearm'];
-  for(var i=0;i<names.length;i++){
-   var n=byName[names[i]], properties=[n.getXRotControl(),n.getYRotControl(),n.getZRotControl()];
-   for(var j=0;j<properties.length;j++)controls.push({bone:names[i],axis:['x','y','z'][j],label:properties[j].getLabel(),minimum:properties[j].getMin(),maximum:properties[j].getMax()});
-  }
-  save('control-observations.json',controls);
-  var exporter=App.getExportMgr().findExporterByClassName('DzObjExporter');
-  var settings=new DzFileIOSettings();exporter.getDefaultOptions(settings);
-  settings.setIntValue('RunSilent',1);settings.setFloatValue('Scale',1);
-  settings.setStringValue('LatAxis','X');settings.setStringValue('VertAxis','Y');settings.setStringValue('DepthAxis','Z');
-  settings.setBoolValue('InvertLat',false);settings.setBoolValue('InvertVert',false);settings.setBoolValue('InvertDepth',false);
-  settings.setBoolValue('WriteVT',false);settings.setBoolValue('WriteVN',false);settings.setBoolValue('WriteMtllib',false);
-  settings.setBoolValue('CollectMaps',false);settings.setBoolValue('SelectedOnly',false);settings.setBoolValue('IgnoreInvisible',true);
-  var poses=[['neutral',null,0,0],['hip70','l_thigh',0,-70],['hip90','l_thigh',0,-90],['abduction45','l_thigh',2,45],
-             ['knee90','l_shin',0,90],['shoulder60','l_upperarm',2,60],['shoulder90','l_upperarm',2,90],['elbow90','l_forearm',1,-90]];
-  var results=[];
-  for(var k=0;k<poses.length;k++){
-   for(var i=0;i<names.length;i++){var n=byName[names[i]];n.getXRotControl().setValue(0);n.getYRotControl().setValue(0);n.getZRotControl().setValue(0);}
-   var pose=poses[k],value=0;
-   if(pose[1]){var n=byName[pose[1]],control=[n.getXRotControl(),n.getYRotControl(),n.getZRotControl()][pose[2]];control.setValue(pose[3]);value=control.getValue();}
-   Scene.update();
-   var code=exporter.writeFile(out+'/'+pose[0]+'.obj',settings);
-   results.push({pose:pose[0],bone:pose[1],axis:pose[2],requested:pose[3],actual:value,exportCode:code});
-  }
-  save('pose-observations.json',results);
+  var nodes=Scene.getNodeList(),n={};for(var i=0;i<nodes.length;i++)n[nodes[i].getName()]=nodes[i];
+  var needed=['l_thigh','l_shin','l_foot','l_upperarm','l_forearm','l_hand','r_thigh','r_shin','r_foot','r_upperarm','r_forearm','r_hand'];for(var i=0;i<needed.length;i++)if(!n[needed[i]])throw 'missing Genesis node '+needed[i];
+  var controls=[];for(var i=0;i<needed.length;i++){controls.push(n[needed[i]].getXRotControl(),n[needed[i]].getYRotControl(),n[needed[i]].getZRotControl());}
+  var specs={shoulder:{kind:'LeftShoulder',component:'abductionDegrees',control:n.l_upperarm.getZRotControl()},shoulderFlex:{kind:'LeftShoulder',component:'flexionDegrees',control:n.l_upperarm.getYRotControl()},elbow:{kind:'LeftElbow',component:'flexionDegrees',control:n.l_forearm.getYRotControl()},hip:{kind:'LeftHip',component:'flexionDegrees',control:n.l_thigh.getXRotControl()},abduction:{kind:'LeftHip',component:'abductionDegrees',control:n.l_thigh.getZRotControl()},knee:{kind:'LeftKnee',component:'flexionDegrees',control:n.l_shin.getXRotControl()},rightShoulder:{kind:'RightShoulder',component:'abductionDegrees',control:n.r_upperarm.getZRotControl()},rightShoulderFlex:{kind:'RightShoulder',component:'flexionDegrees',control:n.r_upperarm.getYRotControl()},rightElbow:{kind:'RightElbow',component:'flexionDegrees',control:n.r_forearm.getYRotControl()},rightHip:{kind:'RightHip',component:'flexionDegrees',control:n.r_thigh.getXRotControl()},rightAbduction:{kind:'RightHip',component:'abductionDegrees',control:n.r_thigh.getZRotControl()},rightKnee:{kind:'RightKnee',component:'flexionDegrees',control:n.r_shin.getXRotControl()}};
+  var observations=[];for(var key in specs){var s=specs[key];observations.push({semantic:key,bone:s.control.getOwner().getName(),label:s.control.getLabel(),minimum:s.control.getMin(),maximum:s.control.getMax(),nativeNeutral:measure(s.kind,n)[s.component]});}save('control-observations.json',observations);
+  var exporter=App.getExportMgr().findExporterByClassName('DzObjExporter'),settings=new DzFileIOSettings();exporter.getDefaultOptions(settings);settings.setIntValue('RunSilent',1);settings.setFloatValue('Scale',1);settings.setStringValue('LatAxis','X');settings.setStringValue('VertAxis','Y');settings.setStringValue('DepthAxis','Z');settings.setBoolValue('InvertLat',false);settings.setBoolValue('InvertVert',false);settings.setBoolValue('InvertDepth',false);settings.setBoolValue('WriteVT',false);settings.setBoolValue('WriteVN',false);settings.setBoolValue('WriteMtllib',false);settings.setBoolValue('CollectMaps',false);settings.setBoolValue('SelectedOnly',false);settings.setBoolValue('IgnoreInvisible',true);
+  var cases=[['canonical-apose',[]],['shoulder60',[['shoulderFlex',0],['shoulder',60]]],['shoulder90',[['shoulderFlex',0],['shoulder',90]]],['shoulder120',[['shoulderFlex',0],['shoulder',120]]],['elbow45',[['shoulderFlex',0],['shoulder',35],['elbow',45]]],['elbow90',[['shoulderFlex',0],['shoulder',35],['elbow',90]]],['elbow120',[['shoulderFlex',0],['shoulder',35],['elbow',120]]],['hip45',[['hip',45],['abduction',0]]],['hip70',[['hip',70],['abduction',0]]],['hip90',[['hip',90]]],['abduction30',[['hip',0],['abduction',30]]],['abduction45',[['hip',0],['abduction',45]]],['knee45',[['knee',45]]],['knee90',[['knee',90]]],['walking',[['hip',30],['abduction',0],['knee',35]]],['balance-kick',[['hip',70],['abduction',0],['knee',35],['rightShoulderFlex',0],['rightShoulder',55]]],['reach',[['shoulderFlex',35],['shoulder',105],['elbow',25]]]];
+  var neutralTargets=[['shoulderFlex',0],['shoulder',35],['elbow',0],['hip',0],['abduction',0],['knee',0],['rightShoulderFlex',0],['rightShoulder',35],['rightElbow',0],['rightHip',0],['rightAbduction',0],['rightKnee',0]];reset(controls);for(var pass=0;pass<4;pass++)for(var q=0;q<neutralTargets.length;q++)calibrate(specs[neutralTargets[q][0]],neutralTargets[q][1],n);var neutralValues=[];for(var q=0;q<neutralTargets.length;q++)neutralValues.push({key:neutralTargets[q][0],value:specs[neutralTargets[q][0]].control.getValue()});var neutralCenters={l_upperarm:canonical(n.l_upperarm),l_forearm:canonical(n.l_forearm),l_hand:canonical(n.l_hand),l_thigh:canonical(n.l_thigh),l_shin:canonical(n.l_shin),l_foot:canonical(n.l_foot)};
+  var results=[];for(var k=0;k<cases.length;k++){reset(controls);for(var q=0;q<neutralValues.length;q++)specs[neutralValues[q].key].control.setValue(neutralValues[q].value);Scene.update();var requested=cases[k][1],fits=[];for(var pass=0;pass<(requested.length>1?4:1);pass++){fits=[];for(var q=0;q<requested.length;q++){var key=requested[q][0],target=requested[q][1],fit=calibrate(specs[key],target,n);fits.push({semantic:key,target:target,nativeControl:fit.value,measured:fit.actual,residualDegrees:fit.actual-target});}}var measured={LeftShoulder:measure('LeftShoulder',n),RightShoulder:measure('RightShoulder',n),LeftElbow:measure('LeftElbow',n),RightElbow:measure('RightElbow',n),LeftHip:measure('LeftHip',n),RightHip:measure('RightHip',n),LeftKnee:measure('LeftKnee',n),RightKnee:measure('RightKnee',n)},roundtrip=[],targets=requested.length?requested:neutralTargets;for(var q=0;q<targets.length;q++){var key=targets[q][0],s=specs[key],actual=measure(s.kind,n)[s.component];roundtrip.push({semantic:key,target:targets[q][1],actual:actual,residualDegrees:actual-targets[q][1]});}var code=exporter.writeFile(out+'/'+cases[k][0]+'.obj',settings);results.push({pose:cases[k][0],requested:requested,calibrations:fits,measured:measured,roundtrip:roundtrip,maximumResidualDegrees:roundtrip.length?Math.max.apply(Math,roundtrip.map(function(x){return Math.abs(x.residualDegrees);})):0,exportCode:code});}
+  save('pose-observations.json',results);save('adapter-metadata.json',{schema:'aetheris.humanoid.rest-x2.genesis-local.v1',nativeRest:'Genesis 9 installed figure A-pose',worldConversion:'(-X,+Z,+Y)',unit:'DAZ centimeters exported with local OBJ settings',jointCenters:neutralCenters,coupledCorrectives:'ordinary Genesis runtime and JCM behavior left enabled',proprietaryPayloadCommitted:false});
  }catch(e){save('error.json',{error:String(e),line:e.lineNumber});}
- App.exit();
 })();

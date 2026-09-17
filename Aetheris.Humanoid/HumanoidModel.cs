@@ -9,7 +9,7 @@ public static class CanonicalAdultStandardV1
     public const string TopologyId = "aetheris.humanoid.adult.standard.v1";
     public const string BindingTriangulationId = "aetheris.humanoid.adult.standard.v1.binding-triangles.v1";
     public const string SkeletonId = "aetheris.humanoid.adult.skeleton.v1";
-    public const string RestPoseId = "aetheris.humanoid.adult.apose.v1";
+    public const string RestPoseId = CanonicalHumanoidRestPose.Id;
     public const string MeasurementPoseId = "aetheris.humanoid.adult.measurement.v1";
     public const string MeasurementProtocolVersion = "aetheris.humanoid.measurements.v1";
     public const double NeutralHeightMm = 1750d;

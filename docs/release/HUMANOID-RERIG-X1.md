@@ -48,7 +48,7 @@ Manual paint strokes: **0**. Manual per-vertex assignments: **0**. Artistic scul
 
 ## Visual qualification
 
-The local `comparison.html` contains X5 / X0 automatic / X1 cleaned / Mixamo, plus Genesis 9 where available. X5, X0, X1 and Mixamo use the same orthographic camera. Front/side/rear closeups accompany the difficult X1 poses. Overview silhouette alone is insufficient to qualify the groin or hinge crease.
+**PRE-NORMALIZATION / NONCOMPARABLE.** The local `comparison.html` contains X5 / X0 automatic / X1 cleaned / Mixamo, plus Genesis 9 where available. Its source-local pose deltas are retained as historical evidence only and must not be used for cross-rig acceptance. Front/side/rear closeups accompany the difficult X1 poses. Overview silhouette alone is insufficient to qualify the groin or hinge crease.
 
 [Open the local comparison gallery](../../artifacts/local/humanoid-rerig-x1/comparison.html). These links resolve after generating the ignored local evidence; reference images are not distributed with this report.
 

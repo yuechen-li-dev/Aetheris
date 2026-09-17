@@ -1,0 +1,38 @@
+// Local reference only. Run in a separate headless DAZ instance; never the user's scene.
+// Arguments: content library root, ignored output directory. No morph/weight payload is read.
+(function(){
+ var library=App.scriptArgs[0], out=App.scriptArgs[1];
+ function save(name,value){var f=new DzFile(out+'/'+name);if(!f.open(DzFile.WriteOnly))throw 'write failed';f.writeLine(JSON.stringify(value,null,2));f.close();}
+ try {
+  App.getContentMgr().addContentDirectory(library,false);
+  if(!App.getContentMgr().openFile(library+'/People/Genesis 9/Genesis 9.duf',true))throw 'Genesis 9 load failed';
+  var nodes=Scene.getNodeList(), byName={}, controls=[];
+  for(var i=0;i<nodes.length;i++)byName[nodes[i].getName()]=nodes[i];
+  var names=['l_thigh','l_shin','l_upperarm','l_forearm'];
+  for(var i=0;i<names.length;i++){
+   var n=byName[names[i]], properties=[n.getXRotControl(),n.getYRotControl(),n.getZRotControl()];
+   for(var j=0;j<properties.length;j++)controls.push({bone:names[i],axis:['x','y','z'][j],label:properties[j].getLabel(),minimum:properties[j].getMin(),maximum:properties[j].getMax()});
+  }
+  save('control-observations.json',controls);
+  var exporter=App.getExportMgr().findExporterByClassName('DzObjExporter');
+  var settings=new DzFileIOSettings();exporter.getDefaultOptions(settings);
+  settings.setIntValue('RunSilent',1);settings.setFloatValue('Scale',1);
+  settings.setStringValue('LatAxis','X');settings.setStringValue('VertAxis','Y');settings.setStringValue('DepthAxis','Z');
+  settings.setBoolValue('InvertLat',false);settings.setBoolValue('InvertVert',false);settings.setBoolValue('InvertDepth',false);
+  settings.setBoolValue('WriteVT',false);settings.setBoolValue('WriteVN',false);settings.setBoolValue('WriteMtllib',false);
+  settings.setBoolValue('CollectMaps',false);settings.setBoolValue('SelectedOnly',false);settings.setBoolValue('IgnoreInvisible',true);
+  var poses=[['neutral',null,0,0],['hip70','l_thigh',0,-70],['hip90','l_thigh',0,-90],['abduction45','l_thigh',2,45],
+             ['knee90','l_shin',0,90],['shoulder60','l_upperarm',2,60],['shoulder90','l_upperarm',2,90],['elbow90','l_forearm',1,-90]];
+  var results=[];
+  for(var k=0;k<poses.length;k++){
+   for(var i=0;i<names.length;i++){var n=byName[names[i]];n.getXRotControl().setValue(0);n.getYRotControl().setValue(0);n.getZRotControl().setValue(0);}
+   var pose=poses[k],value=0;
+   if(pose[1]){var n=byName[pose[1]],control=[n.getXRotControl(),n.getYRotControl(),n.getZRotControl()][pose[2]];control.setValue(pose[3]);value=control.getValue();}
+   Scene.update();
+   var code=exporter.writeFile(out+'/'+pose[0]+'.obj',settings);
+   results.push({pose:pose[0],bone:pose[1],axis:pose[2],requested:pose[3],actual:value,exportCode:code});
+  }
+  save('pose-observations.json',results);
+ }catch(e){save('error.json',{error:String(e),line:e.lineNumber});}
+ App.exit();
+})();

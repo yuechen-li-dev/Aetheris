@@ -1,0 +1,15 @@
+Model DcsdSharpWedgePrism {
+    Units: mm
+
+    Triangle2<Explicit> WedgeSection {
+        A: [-30mm, -20mm]
+        B: [30mm, -20mm]
+        C: [-30mm, 20mm]
+    }
+    Profile WedgeProfile {
+        Loop Outer { WedgeSection |> TraceLoop }
+    }
+    Struct Body {
+        Extrude Wedge { Profile: WedgeProfile; From: 0mm; To: 20mm }
+    }
+}

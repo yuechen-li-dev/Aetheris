@@ -1,0 +1,7 @@
+Model PatSlab {
+    Units: mm
+
+    Box Body {
+        Size: [40mm, 30mm, 3mm]
+    }
+}

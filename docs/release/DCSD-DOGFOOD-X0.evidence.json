@@ -1,0 +1,90 @@
+{
+  "schema": "aetheris.dcsd-dogfood-x0.compact.v1",
+  "upstream": {
+    "repository": "https://github.com/xianacarrera/dual-contouring-of-signed-distance-data",
+    "revision": "fa1962cd5825cfc9bb698569714f579e1d75a4e8",
+    "nativeModuleSha256": "765A67BC0BC2393163873B4E2B58876142EEF2499DDDFCEE134A7C059871C79F",
+    "codeLicenseFile": "MIT text; copyright notice says Nick Sharp (2019), so provenance needs legal confirmation",
+    "learnedModel": null
+  },
+  "seed": 20260917,
+  "units": "mm",
+  "normalization": "longest source bbox dimension mapped to 1.0 before the fixed-weight optimizer; output transformed back to mm",
+  "grid": { "paddingFraction": 0.08, "layout": "regular full grid", "sign": "negative inside", "exactZeroPolicy": "strict sign change; grid-aligned exact zeros alone do not activate a cell" },
+  "publishedProfile": { "outerIterations": 100, "innerIterations": 100, "hermiteUpdate": true, "mu": 0.1, "dcWeight": 0.02, "sphereWeight": 1.0, "svdThreshold": 0.01, "blendWeights": [0.2, 0.2, 0.2] },
+  "authorDemo": {
+    "input": "upstream/data/cube.obj",
+    "cells": 32,
+    "dcsdSeconds": 40.0024,
+    "dcsdVertices": 3878,
+    "dcsdTrianglesAfterQuadSplit": 7756,
+    "errorUnits": "normalized longest-bbox units",
+    "rotationSeed": 919993,
+    "dcsdRms": 0.01528,
+    "marchingCubesSeconds": 0.00623,
+    "visual": "artifacts/local/dcsd-x0/demo/author-cube.png"
+  },
+  "benchmarkRotation": { "generator": "NumPy default_rng PCG64", "seed": 919993 },
+  "primary": [
+    { "fixture": "sphere", "cells": 32, "voxel": 0.54196, "method": "MarchingCubes", "seconds": 0.0070, "rms": 0.00804, "p95": 0.01145, "max": 0.01411, "nonmanifoldEdges": 0 },
+    { "fixture": "sphere", "cells": 32, "voxel": 0.54196, "method": "DCSD", "seconds": 79.3490, "rms": 0.00242, "p95": 0.00460, "max": 0.01012, "nonmanifoldEdges": 0 },
+    { "fixture": "sharp_box", "cells": 32, "voxel": 3.52975, "method": "MarchingCubes", "seconds": 0.0068, "rms": 0.17003, "p95": 0.42487, "max": 1.49898, "nonmanifoldEdges": 0 },
+    { "fixture": "sharp_box", "cells": 32, "voxel": 3.52975, "method": "DCSD", "seconds": 96.2720, "rms": 0.02015, "p95": 0.02800, "max": 0.75531, "nonmanifoldEdges": 6 },
+    { "fixture": "sharp_box", "cells": 64, "voxel": 1.76488, "method": "MarchingCubes", "seconds": 0.0519, "rms": 0.06282, "p95": 0.09308, "max": 0.66674, "nonmanifoldEdges": 0 },
+    { "fixture": "sharp_box", "cells": 64, "voxel": 1.76488, "method": "DCSD", "seconds": 619.5276, "rms": 0.00994, "p95": 0.00950, "max": 0.50864, "nonmanifoldEdges": 12 },
+    { "fixture": "thin_plate_0.5mm", "cells": 32, "voxel": 1.77753, "method": "MarchingCubes", "seconds": 0.0064, "rms": 0.13225, "p95": 0.23444, "max": 0.24999, "components": 13, "nonmanifoldEdges": 0 },
+    { "fixture": "thin_plate_0.5mm", "cells": 32, "voxel": 1.77753, "method": "DCSD", "seconds": 141.8875, "rms": 0.11606, "p95": 0.23058, "max": 0.84998, "components": 1, "nonmanifoldEdges": 162 },
+    { "fixture": "bent_sheet_profile_delta", "cells": 32, "voxel": 4.20534, "method": "MarchingCubes", "seconds": 0.0067, "rms": 0.91113, "p95": 1.42699, "max": 2.33314, "components": 8, "nonmanifoldEdges": 0 },
+    { "fixture": "bent_sheet_profile_delta", "cells": 32, "voxel": 4.20534, "method": "DCSD", "seconds": 173.0698, "rms": 0.90178, "p95": 1.44770, "max": 3.46214, "components": 4, "nonmanifoldEdges": 318 }
+  ],
+  "sharpWedgeScreening": {
+    "source": "fixtures/Experiments/DCSDDogfoodX0/sharp-wedge-prism.firmament",
+    "field": "exact analytic signed distance to the closed triangular prism",
+    "cells": 32,
+    "voxel": 2.31788,
+    "profile": "10x20 screening",
+    "marchingCubes": { "seconds": 0.00636, "rms": 0.13587, "p95": 0.34546, "max": 1.07219, "components": 1, "nonmanifoldEdges": 0 },
+    "dcsd": { "seconds": 4.42075, "rms": 0.05336, "p95": 0.03039, "max": 1.11736, "components": 1, "nonmanifoldEdges": 9 },
+    "raw": "artifacts/local/dcsd-x0/benchmark/sharp-wedge-prism-screen.json"
+  },
+  "sharpBoxFeatures": {
+    "32": {
+      "marchingCubes": { "edgeRms": 1.63191, "edgeP95": 2.71510, "cornerRms": 2.11742, "cornerMax": 2.98231, "meanDihedralAbsErrorDegrees": 38.537 },
+      "dcsd": { "edgeRms": 1.11271, "edgeP95": 1.30689, "cornerRms": 0.02157, "cornerMax": 0.03629, "meanDihedralAbsErrorDegrees": 19.113, "planeResidualRms": 0.01092 }
+    },
+    "64": {
+      "marchingCubes": { "edgeRms": 0.82995, "edgeP95": 1.36665, "cornerRms": 1.20737, "cornerMax": 1.41485, "meanDihedralAbsErrorDegrees": 37.545 },
+      "dcsd": { "edgeRms": 0.92004, "edgeP95": 0.74538, "cornerRms": 0.01052, "cornerMax": 0.01519, "meanDihedralAbsErrorDegrees": 18.578, "planeResidualRms": 0.00398 }
+    },
+    "protocol": "candidate adjacency edges with unsigned normal angle >30 degrees; midpoint-to-nearest exact box segment; exact-corner-to-nearest reconstructed vertex"
+  },
+  "thinSweepScreening": [
+    { "thickness": 10.0, "cells": 32, "voxel": 1.84, "dcsdRms": 0.01, "dcsdComponents": 1 },
+    { "thickness": 3.0, "cells": 32, "voxel": 1.79, "dcsdRms": 0.02, "dcsdComponents": 1 },
+    { "thickness": 1.0, "cells": 32, "voxel": 1.78, "dcsdRms": 0.21, "dcsdComponents": 1 },
+    { "thickness": 0.5, "cells": 32, "voxel": 1.78, "dcsdRms": 0.11, "dcsdComponents": 1 },
+    { "thickness": 0.25, "cells": 32, "voxel": 1.78, "dcsdRms": 0.07, "dcsdComponents": 41 },
+    { "thickness": 0.25, "cells": 64, "voxel": 0.89, "dcsdRms": 0.06, "dcsdComponents": 1 }
+  ],
+  "noiseScreening": [
+    { "noiseVoxels": 0.05, "marchingCubesRms": 0.19895, "dcsdRms": 0.08608, "dcsdNonmanifoldEdges": 4 },
+    { "noiseVoxels": 0.20, "marchingCubesRms": 0.45467, "dcsdRms": 0.38387, "dcsdNonmanifoldEdges": 24 },
+    { "quantization": "float16", "marchingCubesRms": 0.17005, "dcsdRms": 0.03118, "dcsdNonmanifoldEdges": 6 }
+  ],
+  "openSurface": { "field": "phi=z cannot encode the finite rectangle boundary", "dcsdBoundaryEdges": 192, "intendedFootprint": [40.0, 30.0], "reconstructedFootprint": [48.56384, 35.52896] },
+  "determinism": { "profile": "10x20", "facesEqual": true, "maxVertexDeltaMm": 0.0 },
+  "reconstructionSha256": {
+    "sphere32Published": "D52F36E3CCA22B8BDA84E1A7677C5DCB99E0049365ACB0123C734D44660EB73B",
+    "sharpBox32Published": "D7F5E40C4A62957F4DE1B163409578CB0A6F9F581087C1DAF258E3460F09652E",
+    "sharpBox64Published": "C141F4E998ECA0D1E8F010A2472AA79FCD362B3908B06D4F307B9329033EBA92",
+    "thinPlate32Published": "E21BFD78234D4C0CCA2CC94491D95E7AE8F4ED6B367F21F6927C92D3804CE891",
+    "bentSheet32Published": "470316AFEFE1819FC3D2D094301F05BBA8EEA29EA036A434CF799E440C07E64B"
+  },
+  "raw": {
+    "summary": "artifacts/local/dcsd-x0/benchmark/summary.json",
+    "metricsCsv": "artifacts/local/dcsd-x0/benchmark/metrics.csv",
+    "thinSweep": "artifacts/local/dcsd-x0/benchmark/thin-sweep.json",
+    "sharpFeatures": "artifacts/local/dcsd-x0/benchmark/sharp-feature-metrics.json",
+    "openSurface": "artifacts/local/dcsd-x0/benchmark/open-surface.json"
+  }
+}

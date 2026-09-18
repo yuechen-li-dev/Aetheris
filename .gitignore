@@ -118,6 +118,10 @@ artifacts/release/*
 !docs/release/2.0.0-preview.1-notes.md
 !docs/release/2.0.0-preview.1-release.md
 !docs/release/preview1-baseline-stabilization-x1.md
+!docs/release/PAT-DOGFOOD-X0.md
+!docs/release/PAT-DOGFOOD-X0.evidence.json
+!docs/release/DCSD-DOGFOOD-X0.md
+!docs/release/DCSD-DOGFOOD-X0.evidence.json
 
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt

@@ -1,0 +1,19 @@
+Model PatRoundedRectanglePrism {
+    Units: mm
+
+    RoundedRect2 Outline {
+        Center: [0mm, 0mm]
+        Size: [40mm, 24mm]
+        Radius: 5mm
+    }
+    Profile Section {
+        Loop Outer {
+            Outline |> TraceLoop
+        }
+    }
+    Extrude Body {
+        Profile: Section
+        From: 0mm
+        To: 8mm
+    }
+}

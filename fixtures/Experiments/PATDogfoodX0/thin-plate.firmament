@@ -1,0 +1,7 @@
+Model PatThinPlate {
+    Units: mm
+
+    Box Body {
+        Size: [40mm, 30mm, 0.5mm]
+    }
+}

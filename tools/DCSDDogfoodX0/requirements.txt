@@ -1,0 +1,7 @@
+gpytoolbox==0.3.7
+libigl==2.6.1
+matplotlib==3.10.8
+numpy==2.2.0
+scipy==1.15.0
+trimesh==4.11.1
+

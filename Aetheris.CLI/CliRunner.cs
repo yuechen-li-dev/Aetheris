@@ -238,6 +238,7 @@ public static class CliRunner
                 "section-chain" => RunSectionChain(args.Skip(1).ToArray(), stdout, stderr),
                 "wireframe" => RunWireframe(args.Skip(1).ToArray(), stdout, stderr),
                 "reconstruct" => ReconstructionCli.Run(args.Skip(1).ToArray(), stdout, stderr, JsonOptions),
+                "continuum" => ContinuumToolsCli.Run(args.Skip(1).ToArray(), stdout, stderr, JsonOptions),
                 _ => UnknownCommand(args[0], stderr)
             };
         }
@@ -4813,6 +4814,7 @@ Model CanonicalPanel {
         stdout.WriteLine("  wireframe  Render a deterministic trim-aware SVG preview from a STEP BRep.");
         stdout.WriteLine("  verify     Build/reimport and verify a model.");
         stdout.WriteLine("  reconstruct  Experimentally reconstruct a structured mesh from triangle PLY input.");
+        stdout.WriteLine("  continuum    Run bounded point-torus queries or sharp sampled-grid contouring.");
         stdout.WriteLine();
         stdout.WriteLine("Global options:");
         stdout.WriteLine("  -h, --help       Show help.");
@@ -4832,6 +4834,7 @@ Model CanonicalPanel {
         stdout.WriteLine("  aetheris section-chain build flagship --json");
         stdout.WriteLine("  aetheris wireframe model.step --out model.wireframe.svg --view iso --density 8");
         stdout.WriteLine("  aetheris reconstruct mesh scan.ply --mode fast --out scan-remesh.obj --report scan-report.json");
+        stdout.WriteLine("  aetheris continuum --help");
         stdout.WriteLine();
         stdout.WriteLine("Run 'aetheris <command> --help' for command-specific usage.");
     }

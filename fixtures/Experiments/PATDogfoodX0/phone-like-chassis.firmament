@@ -1,0 +1,21 @@
+// Smooth, phone-scale Aetheris geometry for PAT generalization testing. It is
+// intentionally a bounded chassis witness, not a device reconstruction claim.
+Model PatPhoneLikeChassis {
+    Units: mm
+
+    RoundedRect2 Outline {
+        Center: [38.99mm, -81.715mm]
+        Size: [77.98mm, 163.43mm]
+        Radius: 13.9mm
+    }
+    Profile Section {
+        Loop Outer {
+            Outline |> TraceLoop
+        }
+    }
+    Extrude Body {
+        Profile: Section
+        From: 0mm
+        To: 8.75mm
+    }
+}

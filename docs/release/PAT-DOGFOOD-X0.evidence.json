@@ -1,0 +1,45 @@
+{
+  "schema": "aetheris.pat-dogfood-x0.compact.v1",
+  "upstreamRevision": "253bf9fc5e79831a03f0486e0c42feeb67c1c546",
+  "modelSha256": "AAA2F3882C36AC32D57361377A73AC830C47D03D6167D51249127A6C40EF7FF9",
+  "seed": 20260917,
+  "units": "mm",
+  "queryNeighbors": 32,
+  "clean2048": [
+    {"fixture":"sphere","truth":"analytic","rms":0.0051,"p95":0.0090,"max":0.0172,"signErrorRate":0.0000,"zeroRms":0.0057,"baselineRms":0.0103,"precomputeSeconds":3.29},
+    {"fixture":"cylinder","truth":"analytic","rms":0.1996,"p95":0.5681,"max":0.9476,"signErrorRate":0.0150,"zeroRms":0.1600,"baselineRms":1.0845,"precomputeSeconds":2.22},
+    {"fixture":"torus","truth":"analytic","rms":0.0196,"p95":0.0372,"max":0.1080,"signErrorRate":0.0004,"zeroRms":0.0150,"baselineRms":0.0517,"precomputeSeconds":2.22},
+    {"fixture":"frustum","truth":"analytic","rms":0.2283,"p95":0.6459,"max":1.2756,"signErrorRate":0.0135,"zeroRms":0.0546,"zeroRootCount":115,"zeroProbeCount":128,"baselineRms":1.7830,"precomputeSeconds":2.31},
+    {"fixture":"slab","truth":"analytic","rms":0.1381,"p95":0.3258,"max":0.8764,"signErrorRate":0.0306,"zeroRms":0.3066,"baselineRms":1.5518,"precomputeSeconds":2.22},
+    {"fixture":"filleted_box","truth":"qualified-mesh","rms":0.7185,"p95":1.1183,"max":8.2177,"signErrorRate":0.0577,"zeroRms":0.4915,"baselineRms":2.4165,"precomputeSeconds":2.22},
+    {"fixture":"rounded_rectangle_prism","truth":"qualified-mesh","rms":0.1528,"p95":0.4099,"max":0.8805,"signErrorRate":0.0263,"zeroRms":0.2805,"baselineRms":0.7547,"precomputeSeconds":2.27},
+    {"fixture":"sharp_box","truth":"analytic","rms":0.5736,"p95":1.3367,"max":2.1009,"signErrorRate":0.0504,"zeroRms":0.4446,"baselineRms":2.1047,"precomputeSeconds":2.21},
+    {"fixture":"chamfered_box","truth":"qualified-mesh","rms":0.0639,"p95":0.1597,"max":0.3637,"signErrorRate":0.0301,"zeroRms":0.0568,"baselineRms":0.4496,"precomputeSeconds":2.22},
+    {"fixture":"through_hole","truth":"qualified-mesh","rms":0.9530,"p95":1.2365,"max":19.2282,"signErrorRate":0.0499,"zeroRms":0.4284,"baselineRms":2.2173,"precomputeSeconds":2.22},
+    {"fixture":"counterbore","truth":"qualified-mesh","rms":0.6337,"p95":1.0304,"max":13.0835,"signErrorRate":0.0496,"zeroRms":0.4388,"baselineRms":1.7753,"precomputeSeconds":2.22},
+    {"fixture":"thin_plate","truth":"analytic","rms":0.3129,"p95":0.5693,"max":1.1880,"signErrorRate":0.1644,"zeroRms":0.4090,"baselineRms":2.6613,"precomputeSeconds":2.21},
+    {"fixture":"bent_sheet_profile_delta","truth":"qualified-mesh","rms":1.6104,"p95":2.7820,"max":17.8555,"signErrorRate":0.1337,"zeroRms":4.2494,"baselineRms":12.6771,"precomputeSeconds":2.23},
+    {"fixture":"phone_like_chassis","truth":"qualified-mesh","rms":0.4115,"p95":0.9548,"max":2.3914,"signErrorRate":0.0300,"zeroRms":0.6991,"baselineRms":2.3416,"precomputeSeconds":2.29}
+  ],
+  "sphereRobustness": [
+    {"scenario":"position-noise","level":0.01,"rms":0.0058,"p95":0.0104,"signErrorRate":0.0000},
+    {"scenario":"position-noise","level":0.05,"rms":0.0205,"p95":0.0390,"signErrorRate":0.0000},
+    {"scenario":"position-noise","level":0.10,"rms":0.0390,"p95":0.0778,"signErrorRate":0.0272},
+    {"scenario":"position-noise","level":0.50,"rms":0.5859,"p95":0.7111,"signErrorRate":0.1502},
+    {"scenario":"normal-noise-deg","level":25.0,"rms":0.0803,"p95":0.1469,"signErrorRate":0.0110},
+    {"scenario":"normal-flips-fraction","level":0.05,"rms":0.1684,"p95":0.1535,"signErrorRate":0.0143},
+    {"scenario":"missing-cap-fraction","level":0.25,"rms":0.3544,"p95":0.8342,"signErrorRate":0.0521},
+    {"scenario":"random-missing-fraction","level":0.25,"rms":0.0055,"p95":0.0104,"signErrorRate":0.0000},
+    {"scenario":"nonuniform-density","level":1.0,"rms":0.0100,"p95":0.0170,"signErrorRate":0.0000}
+  ],
+  "queryPerformance": [
+    {"queries":1,"seconds":0.0000781,"queriesPerSecond":12804},
+    {"queries":1000,"seconds":0.007900,"queriesPerSecond":126577},
+    {"queries":100000,"seconds":0.5365,"queriesPerSecond":186403},
+    {"queries":1000000,"seconds":5.5440,"queriesPerSecond":180374}
+  ],
+  "sphereTracing": {"rays":961,"expectedHits":489,"missed":8,"falseHits":0,"meanHitSteps":13.70,"maxSteps":73},
+  "deterministicRepeatMaxDeltaMm": 0.0,
+  "rawEvidence": "artifacts/local/pat-x0/benchmark/query-evidence.csv",
+  "rawSummary": "artifacts/local/pat-x0/benchmark/summary.json"
+}

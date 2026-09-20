@@ -2,7 +2,7 @@
 <img width="256" height="256" alt="image" src="https://github.com/user-attachments/assets/98eac13c-d7b3-4726-979a-877417499f44" />
 </p>
 
-<p align="center"><i>Gordian Knot</i> - by Claude 5 Sonnet </p>
+<p align="center"><i>Gordian Knot</i> - virtual sculpture, by Claude 5 Sonnet</p>
 
 <h1 align="center">Aetheris</h1>
 

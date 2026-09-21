@@ -18,7 +18,7 @@ public sealed class BrepSurgeryRecipeParityTests
             new AxisAlignedBoxExtents(2d, 4d, 0d, 2d, 0d, 1d),
         ]).Value;
 
-        AssertCanonical(body, 8, 12, 6, "39692ac0ea3c48d9f2f6fb1155e3b494c1b946bf56cd8dd2ade2c9005cd38048", expectClosedManifold: true);
+        AssertCanonical(body, 8, 12, 6, "90cfba06396e6d4ad535585b50b18a7e1fdfae6adb36b7e5a127b40a59a5d496", expectClosedManifold: true);
     }
 
     [Fact]

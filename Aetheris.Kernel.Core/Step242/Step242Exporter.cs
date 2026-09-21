@@ -920,6 +920,9 @@ public static class Step242Exporter
         var endVertexId = EnsureVertex(writer, edge.EndVertexId, endPoint, vertexPoints, cartesianPointIds, vertexPointIds);
 
         string geometryCurveId;
+        // EDGE_CURVE.same_sense relates the curve that is actually written to the vertex order that is actually
+        // written. Most kinds are emitted exactly as stored, so the stored flag still describes them; a line is not.
+        var emittedSameSense = edgeBinding.OrientedEdgeSense;
         if (curve.Kind == CurveGeometryKind.Line3 && curve.Line3 is Line3Curve line)
         {
             if (!lineIds.TryGetValue(edgeId, out var lineId))
@@ -948,6 +951,13 @@ public static class Step242Exporter
                 lineIds[edgeId] = lineId;
             }
 
+            // The line above is rebuilt from the endpoints: it starts at the start vertex and runs towards the end
+            // vertex, in both branches, because the stored direction is kept only when it already agrees. So the
+            // emitted curve agrees with the vertex order by construction, whatever the stored flag said. Writing the
+            // stored flag here told a reader that a curve running start-to-end actually ran end-to-start, and the
+            // reader then walked those edges backwards - which is what made a re-imported loop's consecutive coedges
+            // land an edge-length apart.
+            emittedSameSense = true;
             geometryCurveId = lineId;
         }
         else if (curve.Kind == CurveGeometryKind.Circle3 && curve.Circle3 is Circle3Curve circle)
@@ -1058,7 +1068,7 @@ public static class Step242Exporter
         // direction is opposite the edge's authored start/end vertices. Writing
         // .T. here inverted that relation for downstream CAD, so cylindrical
         // faces at reflex arcs were trimmed through the complementary sweep.
-        var edgeCurveId = writer.AddEntity("EDGE_CURVE", "$", Step242TextWriter.Ref(startVertexId), Step242TextWriter.Ref(endVertexId), Step242TextWriter.Ref(geometryCurveId), Step242TextWriter.BooleanLogical(edgeBinding.OrientedEdgeSense));
+        var edgeCurveId = writer.AddEntity("EDGE_CURVE", "$", Step242TextWriter.Ref(startVertexId), Step242TextWriter.Ref(endVertexId), Step242TextWriter.Ref(geometryCurveId), Step242TextWriter.BooleanLogical(emittedSameSense));
         return KernelResult<string>.Success(edgeCurveId);
     }
 

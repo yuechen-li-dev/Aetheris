@@ -33,8 +33,13 @@ public sealed class Step242OrientationSemanticsTests
         Assert.Equal(forwardCoedge.IsReversed, reversedCoedge.IsReversed);
     }
 
+    /// <summary>
+    /// ADVANCED_FACE.same_sense is carried by the face binding, never folded into the stored support. Folding it in
+    /// for planes alone made them the one kind a consumer had to special-case, and inverted their normal on every
+    /// export/import cycle.
+    /// </summary>
     [Fact]
-    public void ImportBody_AdvancedFaceSameSenseFalse_FlipsPlaneNormal()
+    public void ImportBody_AdvancedFaceSameSenseFalse_KeepsTheStatedPlane_AndRecordsTheSenseOnTheBinding()
     {
         var forward = Step242Importer.ImportBody(BuildSingleTriangleStep(edgeCurveSameSense: true, faceBoundOrientation: true, advancedFaceSameSense: true));
         var reversed = Step242Importer.ImportBody(BuildSingleTriangleStep(edgeCurveSameSense: true, faceBoundOrientation: true, advancedFaceSameSense: false));
@@ -49,7 +54,9 @@ public sealed class Step242OrientationSemanticsTests
         Assert.True(reversed.Value.TryGetFaceSurfaceGeometry(reversedFace.Id, out var reversedSurface));
 
         Assert.Equal(1d, forwardSurface!.Plane!.Value.Normal.Z);
-        Assert.Equal(-1d, reversedSurface!.Plane!.Value.Normal.Z);
+        Assert.Equal(1d, reversedSurface!.Plane!.Value.Normal.Z);
+        Assert.True(forward.Value.Bindings.GetFaceBinding(forwardFace.Id).SameSense);
+        Assert.False(reversed.Value.Bindings.GetFaceBinding(reversedFace.Id).SameSense);
     }
 
     [Fact]

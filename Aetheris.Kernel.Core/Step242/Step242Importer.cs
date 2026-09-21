@@ -1126,20 +1126,14 @@ public static class Step242Importer
                 return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Failure(planeResult.Diagnostics);
             }
 
-            var faceSurface = planeResult.Value;
-            if (!faceSameSense)
-            {
-                if (!Direction3D.TryCreate(-faceSurface.Normal.ToVector(), out var reversedNormal))
-                {
-                    return OrientationFailure<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>(
-                        "ADVANCED_FACE same_sense not supported for this face",
-                        SourceFor(surfaceToDecode.Id, "Importer.Orientation.AdvancedFaceSense"));
-                }
-
-                faceSurface = new PlaneSurface(faceSurface.Origin, reversedNormal, faceSurface.UAxis);
-            }
-
-            return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Success((geometryId, SurfaceGeometry.FromPlane(faceSurface)));
+            // ADVANCED_FACE.same_sense is not folded into the stored surface. It used to be, for planes only, which
+            // made planes the one surface kind whose stored normal already carried the face sense while the binding
+            // recorded it as well - so every consumer that honoured the binding flipped a plane twice, and a plane
+            // face with same_sense=.F. inverted its normal on every export/import cycle. The stored surface is now
+            // exactly what the file stated for every kind, and FaceGeometryBinding.SameSense is the only carrier of
+            // face orientation. It cannot be the other way round: a cylinder normal cannot be negated without
+            // flipping its axis, which would change the parameterization the trim intervals are written against.
+            return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Success((geometryId, SurfaceGeometry.FromPlane(planeResult.Value)));
         }
 
         if (string.Equals(normalizedName, "CYLINDRICAL_SURFACE", StringComparison.Ordinal))

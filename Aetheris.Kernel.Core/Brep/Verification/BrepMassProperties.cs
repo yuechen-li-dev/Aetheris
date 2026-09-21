@@ -752,15 +752,10 @@ public static class BrepMassProperties
                 var b = patch.Positions[patch.TriangleIndices[i + 1]];
                 var c = patch.Positions[patch.TriangleIndices[i + 2]];
                 var cross = (b - a).Cross(c - a);
-                // STEP import normalizes planar ADVANCED_FACE same_sense by
-                // reversing the decoded PlaneSurface itself. Applying the binding
-                // flag a second time would invert an equivalent imported plane;
-                // canonical producer plans therefore use material-facing plane
-                // supports. Curved grid patches retain native parameter normals and
-                // require their explicit SameSense binding here.
+                // Display patches arrive already oriented to the face: the tessellator projects the face sense once,
+                // for every surface kind. This used to apply the binding flag here and exempt planes, because import
+                // folded the flag into the plane support itself; both halves of that workaround are gone.
                 var normal = patch.Normals[patch.TriangleIndices[i]] + patch.Normals[patch.TriangleIndices[i + 1]] + patch.Normals[patch.TriangleIndices[i + 2]];
-                var isPlanar = body.TryGetFaceSurfaceGeometry(patch.FaceId, out var surfaceForSense) && surfaceForSense?.Kind == SurfaceGeometryKind.Plane;
-                if (!isPlanar && !binding.SameSense) normal = -normal;
                 if (cross.Dot(normal) < 0d)
                 {
                     (b, c) = (c, b);

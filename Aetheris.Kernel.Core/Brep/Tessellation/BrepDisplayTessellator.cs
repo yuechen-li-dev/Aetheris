@@ -255,6 +255,17 @@ public static class BrepDisplayTessellator
 
         executionBudget?.ThrowIfExpired("FaceSurfaceDispatch", faceId, surface.Kind);
 
+        // Every surface kind is tessellated in its own parameterization, whose normal is the support's, not the
+        // face's. Projecting the face sense here - once, at the only place face patches are produced - is what makes
+        // a body's display mesh consistently outward-oriented instead of per-face arbitrary.
+        var patch = TessellateFaceSupport(body, faceId, surface, options, executionBudget);
+        return patch.IsSuccess
+            ? KernelResult<DisplayFaceMeshPatch>.Success(DisplayMeshOrientation.Orient(body, patch.Value), patch.Diagnostics)
+            : patch;
+    }
+
+    private static KernelResult<DisplayFaceMeshPatch> TessellateFaceSupport(BrepBody body, FaceId faceId, SurfaceGeometry surface, DisplayTessellationOptions options, DisplayTessellationExecutionBudget? executionBudget)
+    {
         return surface.Kind switch
         {
             SurfaceGeometryKind.Plane => TessellatePlanarFace(body, faceId, surface.Plane!.Value, options, executionBudget),

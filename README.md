@@ -1,33 +1,43 @@
-# Aetheris 2.0.0-preview.3
+<p align="center">
+<img width="256" height="256" alt="image" src="https://github.com/user-attachments/assets/98eac13c-d7b3-4726-979a-877417499f44" />
+</p>
 
-Aetheris is a semantic, compiler-style CAD system. You author engineering intent in **Firmament**; Aetheris lowers it through geometry, manufacturing, and analysis subsystems; **STEP AP242** is the primary exchange and product-definition artifact; **Cadmata** presents the resulting geometry and semantic PMI; and **Forge.Host** lets any process invoke qualified Firmament Templates without embedding the kernel.
+<p align="center"><i>Gordian Knot</i> - virtual sculpture, by Claude 5 Sonnet</p>
 
-```text
-Firmament intent -> Aetheris lowering -> STEP AP242 / manufacturing / analysis
-                              |                    |
-                              +-> Forge.Host       +-> Cadmata
-```
+<h1 align="center">Aetheris</h1>
 
-Preview 3 is feature-frozen and qualified for **Windows x64**. Its public surface is deliberately bounded: supported operations produce inspectable artifacts, while unsupported intent fails with named diagnostics. See the [support matrix](docs/public/reference/supported-features.md) for the exact boundary.
+## Showcase Demo - THE DIFFERENCE ENGINE STUDY
+<img width="2497" height="1279" alt="image" src="https://github.com/user-attachments/assets/e1fe63d5-9ce1-4a84-8e71-6046f2a40df3" />
 
-![A machined mounting block with Boss, Pocket, shaft and counterbored holes, EdgeFinish, and semantic PMI in Cadmata](docs/public/assets/ordinary-cad-mounting-block.png)
+[See the Aetheris difference, designed/created by GPT-6 Astra.](https://aetheris-difference-engine-showcase.yuechenli.workers.dev/)
 
-*The canonical ordinary-CAD witness: Boss, finite Pocket, hole family, perimeter EdgeFinish, AP242, and semantic PMI in Cadmata.*
+## About
 
-## What Preview 3 supports
+Aetheris is a next generation open-source geometric modeling kernel/engineering runtime platform, currently primarily used for mechanical computer aided design (mCAD) applications, similar to Parasolid/ACIS/OpenCascade, developed solo by Yuechen Li with the assistance of GPT-5/6, Claude 4/5, and Gemini 3 from scratch over the course of the year 2026. 
 
-- Firmament V2 semantic authoring with typed Records, Templates, Static specialization, tables, and engineering references
-- bounded analytic and prismatic solid modeling, including connected Boss, finite Pocket, holes, slots, patterns, and admitted EdgeFinish routes
-- deterministic STEP AP242 import/export and semantic manufacturing PMI
-- formed and flat Sheet Metal workflows with material, bend, opening, DFM, STEP, and SVG outputs
-- Cadmata 3D inspection with PMI filtering, associations, and selection
-- a deployed Standard Library material catalog
-- bounded cut-cell/vector-lattice linear-elastic FEA over native Firmament or qualified `inlineSTEP`
-- Firmament Template discovery and invocation through Forge Host Protocol v1, qualified with Python, Go, Rust, and TypeScript clients
+Think of it as the operating system for software such as SolidWorks/Creo/Catia/NX/Fusion 360/Inventor/FreeCAD, and long has it been considered "one of the most complex software engineering challenges, requiring deep expertise in computational geometry, topology, and numerical stability". This repo stands as the testament that it is now a solved problem.
 
-![CTC-03 formed Sheet Metal with semantic manufacturing PMI in Cadmata](docs/public/assets/semantic-pmi-ctc03.png)
+Aetheris ships with Cadmata, a webpage-based viewer. Visual editor support currently in development. 
 
-*CTC-03 manufacturing AP242 in Cadmata: formed geometry, datums, dimensions, position controls, annotations, and geometry associations.*
+Aetheris supports a variety of standard modules for different industries and manufacturing processes: sheet metal, weldaments, piping auto-routing, injection molding (alpha), advanced surfacing, wire forming, and virtual sculpting/3D art.
+
+<img width="2506" height="1274" alt="image" src="https://github.com/user-attachments/assets/768ff11d-5c57-4f73-b1ae-fee5223d251c" />
+
+Automated design-for-manufacturing (DFM) checks, finite element analysis (FEA), GD&T style product manufacturing information (PMI),  material/parts database, and 2D drawing/PowerPoint review slide generation are included runtime features.
+
+## Architecture
+
+Aetheris' native representation format is **Firmament**, a domain specific programming language designed specifically for 3D modeling applications. Unlike other CAD software, Aetheris is AI-native and so designed to be **code-first**, enabling full headless usage from the CLI.
+
+Similar to OpenSCAD, the simplified core architecture description of Aetheris is that it's a compiler for 3D object, you can also think of it as LLVM for CAD. Unlike OpenSCAD, Aetheris emits 3D objects in exact boundary representations instead of SCAD's mesh. The native export format of Aetheris is industry standard STEP AP242, enabling full interop with any other 3D parametric CAD software.
+
+Unlike most other vibe coded geometry kernel, C# and .NET are used as the primary development language/runtime from the beginning instead of Rust/C++ due to the strength of the .NET tooling and ecosystem instead of prematurely optimize for theoretical performance. As such, Aetheris is available for download on Nuget [here](https://www.nuget.org/packages/Aetheris.Kernel.Core/).
+
+Aetheris does not use 2D constraint solving as legacy CAD kernels do. Instead, inspired by TypeScript, constraints are defined ahead of time in code and erased at compile time.
+
+Unlike the current industry standard reckless usage of non-uniform rational B-spline (NURBS), Aetheris uses exact analytical geometry as its foundation, the generated STEP artifacts are exact and requires no post-import healing/patching. 
+
+Dangerous operations which may generate degenerate/sliver/zero-dimension geometries are instead blocked from materializing to 3D at a compiler level. 
 
 ## Try it
 
@@ -40,15 +50,17 @@ aetheris build fixtures/Canonical/PMI/hole-diameter-and-datum.firmament --output
 aetheris analyze out/first-part.step --json
 ```
 
-Go next to [Getting Started](docs/public/getting-started.md), the [public documentation](docs/public/README.md), or the [CLI reference](docs/public/reference/cli.md). The [machined mounting block](fixtures/Canonical/Integration/machined-mounting-block.firmament) is the canonical first serious CAD example; the [L-bracket](fixtures/Canonical/SheetMetal/l-bracket-with-hole.firmament) is the introductory Sheet Metal example; and the [A36 cantilever](fixtures/Canonical/FEA/material-resolved-cantilever.firmament) is the analytically interpretable FEA witness.
+Go next to [Getting Started](docs/public/getting-started.md), the [public documentation](docs/public/README.md), or the [CLI reference](docs/public/reference/cli.md). 
 
-![Qualified CTC-03 Sheet Metal flat pattern with bend and opening evidence](docs/public/assets/sheet-metal-flat-pattern.png)
+The [machined mounting block](fixtures/Canonical/Integration/machined-mounting-block.firmament) is the canonical first serious CAD example; 
 
-*A qualified flat-pattern artifact. Preview 3 emits formed STEP, flat STEP, SVG, bend identity, material identity, and DFM evidence on the documented Sheet Metal routes.*
+See the [L-bracket](fixtures/Canonical/SheetMetal/l-bracket-with-hole.firmament) for the introductory Sheet Metal example; 
 
-## Why Aetheris?
+See [cantilever](fixtures/Canonical/FEA/material-resolved-cantilever.firmament) for the analytically interpretable meshless cut-cell FEA witness.
 
-Aetheris keeps engineering semantics alive through lowering instead of treating them as labels added after geometry. STEP AP242 is a primary artifact, PMI is semantic and associated with geometry, Sheet Metal carries formed/flat/fabrication meaning, and FEA consumes native or qualified imported STEP geometry. Forge.Host keeps cross-language integration small: clients list, describe, and invoke Templates through files and JSON.
+![GPT authored sheet metal](docs/public/assets/sheet-metal-flat-pattern.png)
+
+*A qualified flat-pattern sheet metal artifact, created entirely by GPT 5.6 Sol with human guidance, including formed STEP, flat STEP, SVG, bend identity, material identity, and DFM evidence on the documented Sheet Metal routes.*
 
 ```powershell
 $host = ".\forge-host\Aetheris.Forge.Host.exe"

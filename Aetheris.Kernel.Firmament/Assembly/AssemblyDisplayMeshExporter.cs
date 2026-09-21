@@ -46,9 +46,12 @@ public static class AssemblyDisplayMeshExporter
             var ranges = new List<AssemblyDisplayMeshRange>();
             foreach (var rawFace in tessellation.Value.FacePatches.OrderBy(p => p.FaceId.Value))
             {
-                // SurfaceMeshIR already applies the B-rep face sense to both
-                // normals and winding; the legacy patch contains support normals.
-                var face = useSurfaceMeshIr ? rawFace : DisplayMeshOrientation.Orient(body, rawFace);
+                // Both tessellation paths now emit face-oriented patches: SurfaceMeshIR always did,
+                // and BrepDisplayTessellator projects the face sense once, for every surface kind, at
+                // the single place face patches are produced. Re-orienting here flipped every face whose
+                // binding says same_sense=.F. a second time - one bore cylinder was enough to put this
+                // gear's enclosed volume 6.25% over its cap-area-times-height value.
+                var face = rawFace;
                 if (face.Positions.Count == 0 || face.Normals.Count != face.Positions.Count || face.TriangleIndices.Count == 0
                     || face.TriangleIndices.Count % 3 != 0 || face.TriangleIndices.Any(i => i < 0 || i >= face.Positions.Count))
                     throw new InvalidOperationException($"assembly-mesh-face-invalid:{identity}:{face.FaceId}:positions={face.Positions.Count};normals={face.Normals.Count};indices={face.TriangleIndices.Count};" + string.Join(";", tessellation.Diagnostics.Select(d => d.Message)));

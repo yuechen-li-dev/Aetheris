@@ -4,23 +4,26 @@ Concept Struct Layout On XY {
   Rect2 RightGuide { Center: [5mm, 15mm]; Size: [10mm, 10mm]; Role: ProfileGuide }
 }
 Profile BaseProfile Using Layout { Loop Outer {
-  Segment S { Trace: BaseGuide.Bottom; From: BaseGuide.BottomLeft; To: BaseGuide.BottomRight }
-  Segment E { Trace: BaseGuide.Right; From: BaseGuide.BottomRight; To: BaseGuide.TopRight }
-  Segment N { Trace: BaseGuide.Top; From: BaseGuide.TopRight; To: BaseGuide.TopLeft }
-  Segment W { Trace: BaseGuide.Left; From: BaseGuide.TopLeft; To: BaseGuide.BottomLeft }
-} }
+     BaseGuide.Bottom As S
+     |> BaseGuide.Right As E
+     |> BaseGuide.Top As N
+     |> BaseGuide.Left As W
+     |> Close
+ } }
 Profile LeftAdd Using Layout { Loop Outer {
-  Segment S { Trace: LeftGuide.Bottom; From: LeftGuide.BottomLeft; To: LeftGuide.BottomRight }
-  Segment E { Trace: LeftGuide.Right; From: LeftGuide.BottomRight; To: LeftGuide.TopRight }
-  Segment N { Trace: LeftGuide.Top; From: LeftGuide.TopRight; To: LeftGuide.TopLeft }
-  Segment W { Trace: LeftGuide.Left; From: LeftGuide.TopLeft; To: LeftGuide.BottomLeft }
-} }
+     LeftGuide.Bottom As S
+     |> LeftGuide.Right As E
+     |> LeftGuide.Top As N
+     |> LeftGuide.Left As W
+     |> Close
+ } }
 Profile RightAdd Using Layout { Loop Outer {
-  Segment S { Trace: RightGuide.Bottom; From: RightGuide.BottomLeft; To: RightGuide.BottomRight }
-  Segment E { Trace: RightGuide.Right; From: RightGuide.BottomRight; To: RightGuide.TopRight }
-  Segment N { Trace: RightGuide.Top; From: RightGuide.TopRight; To: RightGuide.TopLeft }
-  Segment W { Trace: RightGuide.Left; From: RightGuide.TopLeft; To: RightGuide.BottomLeft }
-} }
+     RightGuide.Bottom As S
+     |> RightGuide.Right As E
+     |> RightGuide.Top As N
+     |> RightGuide.Left As W
+     |> Close
+ } }
 Struct Composition { Compose SharedBoundaryAdds {
   Base Stock { Profile: BaseProfile; From: 0mm; To: 10mm; Role: Stock }
   Add Left { Profile: LeftAdd; From: 5mm; To: 10mm; Role: Pad }

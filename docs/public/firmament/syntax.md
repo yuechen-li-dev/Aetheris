@@ -244,4 +244,9 @@ Concept Path Guide {
 }
 ```
 
-Pipeline source order is semantic order. Stages are limited to qualified geometry references, optional `Reverse`, optional `As`, `Close`, and `TraceLoop` in their admitted contexts. The operator has lower binding precedence than member access and does not admit arithmetic stages, calls, lambdas, conditionals, filtering, mutation, runtime execution, or repetition. Use Feature for a reusable semantic transformation, Pattern for bounded repetition, Template for specialization, and `|>` for finite semantic composition. Manual `Segment { Trace/From/To }` remains the explicit low-level Profile escape hatch.
+Pipeline source order is semantic order. Stages are limited to geometry references (qualified or unqualified), optional `Reverse`, optional `As`, `Close`, and `TraceLoop` in their admitted contexts. The operator has lower binding precedence than member access and does not admit arithmetic stages, calls, lambdas, conditionals, filtering, mutation, runtime execution, or repetition. Use Feature for a reusable semantic transformation, Pattern for bounded repetition, Template for specialization, and `|>` for finite semantic composition. Manual `Segment { Trace/From/To }` remains the explicit low-level Profile escape hatch, and is not yet
+fully subsumed by `|>`: a pipeline stage always traces a source span end to end, while `Segment`'s
+`From:`/`To:` may select a *partial* span between named interior points, and `Sweep:` may pick an arc
+direction on a partial circle. Profiles that need either - the L-bracket family in
+`Regression/CanonicalGeometry`, and `Canonical/Revolve/sphere.firmament` - have no pipeline spelling
+today. See `docs/development/firmament-v2-language-audit.md` for the proposed sub-span stage.

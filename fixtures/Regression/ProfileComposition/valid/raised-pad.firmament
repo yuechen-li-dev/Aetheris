@@ -12,14 +12,20 @@ Concept Struct RaisedPadLayout On XY {
 }
 Profile Plate Using RaisedPadLayout {
     Loop Outer {
-        Segment AB { Trace: AB; From: A; To: B } Segment BC { Trace: BC; From: B; To: C }
-        Segment CD { Trace: CD; From: C; To: D } Segment DA { Trace: DA; From: D; To: A }
+        AB
+        |> BC
+        |> CD
+        |> DA
+        |> Close
     }
 }
 Profile Pad Using RaisedPadLayout {
     Loop Outer {
-        Segment EF { Trace: EF; From: E; To: F } Segment FG { Trace: FG; From: F; To: G }
-        Segment GH { Trace: GH; From: G; To: H } Segment HE { Trace: HE; From: H; To: E }
+        EF
+        |> FG
+        |> GH
+        |> HE
+        |> Close
     }
 }
 Struct RaisedPad {

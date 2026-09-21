@@ -11,16 +11,14 @@ Model CircularBossThroughHole {
         Circle2 Pad { Center: Center; Radius: 8mm }
     }
     Profile BaseProfile Using Layout { Loop Outer {
-        Segment Bottom { Trace: Stock.Bottom; From: Stock.BottomLeft; To: Stock.BottomRight }
-        Segment Right { Trace: Stock.Right; From: Stock.BottomRight; To: Stock.TopRight }
-        Segment Top { Trace: Stock.Top; From: Stock.TopRight; To: Stock.TopLeft }
-        Segment Left { Trace: Stock.Left; From: Stock.TopLeft; To: Stock.BottomLeft }
-    } }
+     Stock.Bottom
+     |> Stock.Right
+     |> Stock.Top
+     |> Stock.Left
+     |> Close
+ } }
     Profile BossProfile Using Layout { Loop Outer {
-        Segment Q1 { Trace: Pad; From: East; To: North; Sweep: CounterClockwise }
-        Segment Q2 { Trace: Pad; From: North; To: West; Sweep: CounterClockwise }
-        Segment Q3 { Trace: Pad; From: West; To: South; Sweep: CounterClockwise }
-        Segment Q4 { Trace: Pad; From: South; To: East; Sweep: CounterClockwise }
+        Pad |> TraceLoop
     } }
 
     Struct BearingMount {

@@ -8,23 +8,26 @@ Model MachinedMountingBlock {
     }
 
     Profile BaseProfile Using Layout { Loop Outer {
-        Segment Bottom { Trace: Stock.Bottom; From: Stock.BottomLeft; To: Stock.BottomRight }
-        Segment Right { Trace: Stock.Right; From: Stock.BottomRight; To: Stock.TopRight }
-        Segment Top { Trace: Stock.Top; From: Stock.TopRight; To: Stock.TopLeft }
-        Segment Left { Trace: Stock.Left; From: Stock.TopLeft; To: Stock.BottomLeft }
-    } }
+     Stock.Bottom
+     |> Stock.Right
+     |> Stock.Top
+     |> Stock.Left
+     |> Close
+ } }
     Profile BossProfile Using Layout { Loop Outer {
-        Segment Bottom { Trace: BossPad.Bottom; From: BossPad.BottomLeft; To: BossPad.BottomRight }
-        Segment Right { Trace: BossPad.Right; From: BossPad.BottomRight; To: BossPad.TopRight }
-        Segment Top { Trace: BossPad.Top; From: BossPad.TopRight; To: BossPad.TopLeft }
-        Segment Left { Trace: BossPad.Left; From: BossPad.TopLeft; To: BossPad.BottomLeft }
-    } }
+     BossPad.Bottom
+     |> BossPad.Right
+     |> BossPad.Top
+     |> BossPad.Left
+     |> Close
+ } }
     Profile PocketProfile Using Layout { Loop Outer {
-        Segment Bottom { Trace: Recess.Bottom; From: Recess.BottomLeft; To: Recess.BottomRight }
-        Segment Right { Trace: Recess.Right; From: Recess.BottomRight; To: Recess.TopRight }
-        Segment Top { Trace: Recess.Top; From: Recess.TopRight; To: Recess.TopLeft }
-        Segment Left { Trace: Recess.Left; From: Recess.TopLeft; To: Recess.BottomLeft }
-    } }
+     Recess.Bottom
+     |> Recess.Right
+     |> Recess.Top
+     |> Recess.Left
+     |> Close
+ } }
 
     Struct MountingBlock {
         Compose Body {

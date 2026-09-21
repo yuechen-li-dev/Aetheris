@@ -7,10 +7,11 @@ Model GeneratedProfile {
     Template<spec: ProfileSpec> PlateProfile {
         Profile Plate Using Layout {
             Loop Outer {
-                Segment South { Trace: Stock.Bottom; From: Stock.BottomLeft; To: Stock.BottomRight }
-                Segment East { Trace: Stock.Right; From: Stock.BottomRight; To: Stock.TopRight }
-                Segment North { Trace: Stock.Top; From: Stock.TopRight; To: Stock.TopLeft }
-                Segment West { Trace: Stock.Left; From: Stock.TopLeft; To: Stock.BottomLeft }
+                Stock.Bottom As South
+                |> Stock.Right As East
+                |> Stock.Top As North
+                |> Stock.Left As West
+                |> Close
             }
         }
     }

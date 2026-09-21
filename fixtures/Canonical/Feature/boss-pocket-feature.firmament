@@ -13,23 +13,26 @@ Model BossPocketFeature {
         Rect2 Cutout { Center: [10mm, 0mm] Size: [8mm, 8mm] }
     }
     Profile BaseProfile Using Layout { Loop Outer {
-        Segment Bottom { Trace: Stock.Bottom From: Stock.BottomLeft To: Stock.BottomRight }
-        Segment Right { Trace: Stock.Right From: Stock.BottomRight To: Stock.TopRight }
-        Segment Top { Trace: Stock.Top From: Stock.TopRight To: Stock.TopLeft }
-        Segment Left { Trace: Stock.Left From: Stock.TopLeft To: Stock.BottomLeft }
-    } }
+     Stock.Bottom
+     |> Stock.Right
+     |> Stock.Top
+     |> Stock.Left
+     |> Close
+ } }
     Profile PadProfile Using Layout { Loop Outer {
-        Segment Bottom { Trace: Pad.Bottom From: Pad.BottomLeft To: Pad.BottomRight }
-        Segment Right { Trace: Pad.Right From: Pad.BottomRight To: Pad.TopRight }
-        Segment Top { Trace: Pad.Top From: Pad.TopRight To: Pad.TopLeft }
-        Segment Left { Trace: Pad.Left From: Pad.TopLeft To: Pad.BottomLeft }
-    } }
+     Pad.Bottom
+     |> Pad.Right
+     |> Pad.Top
+     |> Pad.Left
+     |> Close
+ } }
     Profile CutoutProfile Using Layout { Loop Outer {
-        Segment Bottom { Trace: Cutout.Bottom From: Cutout.BottomLeft To: Cutout.BottomRight }
-        Segment Right { Trace: Cutout.Right From: Cutout.BottomRight To: Cutout.TopRight }
-        Segment Top { Trace: Cutout.Top From: Cutout.TopRight To: Cutout.TopLeft }
-        Segment Left { Trace: Cutout.Left From: Cutout.TopLeft To: Cutout.BottomLeft }
-    } }
+     Cutout.Bottom
+     |> Cutout.Right
+     |> Cutout.Top
+     |> Cutout.Left
+     |> Close
+ } }
     Struct Product {
         Compose Body {
             Base Stock { Profile: BaseProfile From: 0mm To: 10mm Role: Stock }

@@ -11,10 +11,11 @@ Concept Struct RectangleLayout On XY {
 
 Profile Bracket Using RectangleLayout {
     Loop Outer {
-        Segment South { Trace: South; From: SouthWest; To: SouthEast }
-        Segment East { Trace: East; From: SouthEast; To: NorthEast }
-        Segment North { Trace: North; From: NorthEast; To: NorthWest }
-        Segment West { Trace: West; From: NorthWest; To: SouthWest }
+        South
+        |> East
+        |> North
+        |> West
+        |> Close
     }
 }
 

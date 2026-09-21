@@ -21,10 +21,7 @@ Model BossPocketMountingBlock {
         |> Close
     } }
     Profile BossProfile Using Layout { Loop Outer {
-        Segment Q1 { Trace: BossCircle; From: BossEast; To: BossNorth; Sweep: CounterClockwise }
-        Segment Q2 { Trace: BossCircle; From: BossNorth; To: BossWest; Sweep: CounterClockwise }
-        Segment Q3 { Trace: BossCircle; From: BossWest; To: BossSouth; Sweep: CounterClockwise }
-        Segment Q4 { Trace: BossCircle; From: BossSouth; To: BossEast; Sweep: CounterClockwise }
+        BossCircle |> TraceLoop
     } }
     Profile PocketProfile Using Layout { Loop Outer {
         Recess.Bottom

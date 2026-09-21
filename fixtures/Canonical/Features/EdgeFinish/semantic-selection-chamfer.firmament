@@ -11,11 +11,12 @@ Model SelectionChamferPart {
         Line2 West { From: NorthWest; To: SouthWest }
     }
     Profile MainPlate Using RectangleLayout { Loop Outer {
-        Segment SouthEdge { Trace: South; From: SouthWest; To: SouthEast }
-        Segment EastEdge { Trace: East; From: SouthEast; To: NorthEast }
-        Segment NorthEdge { Trace: North; From: NorthEast; To: NorthWest }
-        Segment WestEdge { Trace: West; From: NorthWest; To: SouthWest }
-    } }
+     South As SouthEdge
+     |> East As EastEdge
+     |> North As NorthEdge
+     |> West As WestEdge
+     |> Close
+ } }
     Struct Plate { Extrude MainPlate { Profile: MainPlate; From: -2mm; To: 0mm } }
     Selection OuterTopBoundary {
         Target: TopBoundary

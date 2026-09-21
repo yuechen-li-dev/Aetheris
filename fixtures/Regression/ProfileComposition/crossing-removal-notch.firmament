@@ -3,17 +3,19 @@ Concept Struct Layout On XY {
   Rect2 NotchGuide { Center: [8mm, 0mm]; Size: [8mm, 8mm]; Role: ProfileGuide }
 }
 Profile BaseProfile Using Layout { Loop Outer {
-  Segment S { Trace: BaseGuide.Bottom; From: BaseGuide.BottomLeft; To: BaseGuide.BottomRight }
-  Segment E { Trace: BaseGuide.Right; From: BaseGuide.BottomRight; To: BaseGuide.TopRight }
-  Segment N { Trace: BaseGuide.Top; From: BaseGuide.TopRight; To: BaseGuide.TopLeft }
-  Segment W { Trace: BaseGuide.Left; From: BaseGuide.TopLeft; To: BaseGuide.BottomLeft }
-} }
+     BaseGuide.Bottom As S
+     |> BaseGuide.Right As E
+     |> BaseGuide.Top As N
+     |> BaseGuide.Left As W
+     |> Close
+ } }
 Profile NotchProfile Using Layout { Loop Outer {
-  Segment S { Trace: NotchGuide.Bottom; From: NotchGuide.BottomLeft; To: NotchGuide.BottomRight }
-  Segment E { Trace: NotchGuide.Right; From: NotchGuide.BottomRight; To: NotchGuide.TopRight }
-  Segment N { Trace: NotchGuide.Top; From: NotchGuide.TopRight; To: NotchGuide.TopLeft }
-  Segment W { Trace: NotchGuide.Left; From: NotchGuide.TopLeft; To: NotchGuide.BottomLeft }
-} }
+     NotchGuide.Bottom As S
+     |> NotchGuide.Right As E
+     |> NotchGuide.Top As N
+     |> NotchGuide.Left As W
+     |> Close
+ } }
 Struct Composition { Compose CrossingRemovalNotch {
   Base Stock { Profile: BaseProfile; From: 0mm; To: 10mm; Role: Stock }
   Remove Notch { Profile: NotchProfile; From: 5mm; To: 10mm; Role: Relief }

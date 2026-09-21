@@ -5,8 +5,11 @@ Concept Struct RectangleLayout On XY {
     Line2 North { From: C; To: D } Line2 West { From: D; To: A }
 }
 Profile Bracket Using RectangleLayout { Loop Outer {
-    Segment South { Trace: South; From: A; To: B } Segment East { Trace: East; From: B; To: C }
-    Segment North { Trace: North; From: C; To: D } Segment West { Trace: West; From: D; To: A }
-} }
+     South
+     |> East
+     |> North
+     |> West
+     |> Close
+ } }
 Struct Body { Extrude Bracket { Profile: Bracket; From: 0mm; To: 8mm } }
 Modify Body { EdgeFinish SouthTopBreak { Target: Bracket.Outer.South On: Top Kind: Chamfer Distance: 1mm } }

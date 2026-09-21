@@ -97,7 +97,7 @@
       "edges": 331,
       "faces": 156
     },
-    "canonicalSha256": "deaddaaefd102199a26aadf3cc6551d4f1337f90f04c2b6103febcf8f499d731"
+    "canonicalSha256": "863e3de993d60f8dbdd002575807b1326288b55b8a9bebf8228b486f82ef4e8a"
   },
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_06_asme1_ap242-e2",
@@ -337,6 +337,6 @@
       "edges": 551,
       "faces": 256
     },
-    "canonicalSha256": "0eee08920035167420c527992ee2fcad8b9091fb644f4b21e8438eac5aa1b845"
+    "canonicalSha256": "7117d051431956f4e59f67c2ea95075e87b5bad28f1d0a7136d3a8b74ec135d0"
   }
 ]

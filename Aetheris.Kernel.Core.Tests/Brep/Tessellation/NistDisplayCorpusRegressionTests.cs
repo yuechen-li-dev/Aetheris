@@ -46,37 +46,73 @@ public sealed class NistDisplayCorpusRegressionTests
         Assert.DoesNotContain(display.Value.FacePatches, patch => patch.TriangleIndices.Count == 0);
     }
 
+    /// <summary>
+    /// The weights decide where the surface actually is, so they have to be read even though the reduction means they
+    /// do not survive import: the stored non-rational surface must follow the geometry the file stated, not the
+    /// different polynomial surface you get by ignoring them.
+    /// </summary>
     [Fact]
-    public void RationalBSplineSurface_ImportKeepsWeights_SoTheFaceMatchesItsBoundaryEdges()
+    public void RationalBSplineSurface_WeightsAreHonoured_EvenThoughTheyDoNotSurviveImport()
     {
-        var import = Step242Importer.ImportBody(File.ReadAllText(Path.Combine(FindRepoRoot(), "testdata", "step242", "nist", "CTC", "nist_ctc_05_asme1_ap242-e1.stp")));
-        Assert.True(import.IsSuccess);
+        var stepText = File.ReadAllText(Path.Combine(FindRepoRoot(), "testdata", "step242", "nist", "CTC", "nist_ctc_05_asme1_ap242-e1.stp"));
 
-        var rational = import.Value.Topology.Faces
-            .Select(face => import.Value.TryGetFaceSurfaceGeometry(face.Id, out var geometry) ? geometry.BSplineSurfaceWithKnots : null)
-            .Where(surface => surface is not null)
-            .ToArray();
+        BSplineSurfaceWithKnots[] asStated;
+        using (Step242Importer.PreserveRationalSurfaces())
+        {
+            var preserved = Step242Importer.ImportBody(stepText);
+            Assert.True(preserved.IsSuccess);
+            asStated = SplineSurfaces(preserved.Value);
+        }
 
-        Assert.NotEmpty(rational);
-        Assert.Contains(rational, surface => surface!.IsRational);
+        var stored = SplineSurfaces(Step242Importer.ImportBody(stepText).Value);
+
+        Assert.NotEmpty(asStated);
+        Assert.All(asStated, surface => Assert.True(surface.IsRational));
+        Assert.All(stored, surface => Assert.False(surface.IsRational));
+        Assert.Equal(asStated.Length, stored.Length);
+
+        // One tenth of the 0.0165 mm accuracy this file declares for its own geometry.
+        const double budget = 1.655e-3d;
+        foreach (var (rational, reduced) in asStated.Zip(stored))
+        {
+            for (var indexU = 0; indexU <= 8; indexU++)
+            {
+                var u = rational.DomainStartU + ((rational.DomainEndU - rational.DomainStartU) * indexU / 8d);
+                for (var indexV = 0; indexV <= 8; indexV++)
+                {
+                    var v = rational.DomainStartV + ((rational.DomainEndV - rational.DomainStartV) * indexV / 8d);
+                    Assert.True((rational.Evaluate(u, v) - reduced.Evaluate(u, v)).Length <= budget);
+                }
+            }
+        }
     }
 
+    /// <summary>The debug path has to stay whole: preserved rationals must export and come back as rationals.</summary>
     [Fact]
-    public void RationalBSplineSurface_SurvivesStepRoundTrip()
+    public void PreservedRationalSurfaces_SurviveAStepRoundTrip()
     {
-        var import = Step242Importer.ImportBody(File.ReadAllText(Path.Combine(FindRepoRoot(), "testdata", "step242", "nist", "CTC", "nist_ctc_05_asme1_ap242-e1.stp")));
+        var stepText = File.ReadAllText(Path.Combine(FindRepoRoot(), "testdata", "step242", "nist", "CTC", "nist_ctc_05_asme1_ap242-e1.stp"));
+
+        using var scope = Step242Importer.PreserveRationalSurfaces();
+        var import = Step242Importer.ImportBody(stepText);
         Assert.True(import.IsSuccess);
+
         var exported = Step242Exporter.ExportBody(import.Value);
         Assert.True(exported.IsSuccess, string.Join(" | ", exported.Diagnostics.Select(d => d.Message)));
         Assert.Contains("RATIONAL_B_SPLINE_SURFACE", exported.Value);
 
         var reimport = Step242Importer.ImportBody(exported.Value);
         Assert.True(reimport.IsSuccess, string.Join(" | ", reimport.Diagnostics.Select(d => d.Message)));
-
-        static int RationalCount(Aetheris.Kernel.Core.Brep.BrepBody body) => body.Topology.Faces.Count(face =>
-            body.TryGetFaceSurfaceGeometry(face.Id, out var geometry) && geometry.BSplineSurfaceWithKnots is { IsRational: true });
-        Assert.Equal(RationalCount(import.Value), RationalCount(reimport.Value));
+        Assert.Equal(SplineSurfaces(import.Value).Count(surface => surface.IsRational), SplineSurfaces(reimport.Value).Count(surface => surface.IsRational));
     }
+
+    private static BSplineSurfaceWithKnots[] SplineSurfaces(Aetheris.Kernel.Core.Brep.BrepBody body)
+        => body.Geometry.Surfaces
+            .OrderBy(surface => surface.Key.Value)
+            .Select(surface => surface.Value.BSplineSurfaceWithKnots)
+            .Where(surface => surface is not null)
+            .Select(surface => surface!)
+            .ToArray();
 
     [Fact]
     public void RationalBSplineSurface_EvaluatesExactCircularArc()

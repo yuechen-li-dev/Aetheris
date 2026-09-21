@@ -59,6 +59,23 @@ public static class Step242Importer
     private static readonly AsyncLocal<ICollection<LoopRoleTorusProjectionDiagnostic>?> TorusProjectionDiagnosticsSink = new();
     private static readonly AsyncLocal<ICollection<PlanarMultiBoundJudgmentDiagnostic>?> PlanarMultiBoundJudgmentDiagnosticsSink = new();
 
+    private static readonly AsyncLocal<bool> PreserveRationalSurfacesFlag = new();
+
+    /// <summary>
+    /// Debug escape hatch: keeps rational surfaces exactly as the file stated them, instead of reducing the ones no
+    /// analytic primitive covers to the non-rational form the kernel otherwise guarantees. Export writes whatever the
+    /// body holds, so this is also what puts RATIONAL_B_SPLINE_SURFACE back into an Aetheris file. It exists to give a
+    /// degenerate legacy surface somewhere to land while it is being diagnosed, and is off by default.
+    /// </summary>
+    public static IDisposable PreserveRationalSurfaces()
+    {
+        var previous = PreserveRationalSurfacesFlag.Value;
+        PreserveRationalSurfacesFlag.Value = true;
+        return new PreserveRationalSurfacesScope(previous);
+    }
+
+    internal static bool RationalSurfacesArePreserved => PreserveRationalSurfacesFlag.Value;
+
     public static IDisposable CaptureLoopRoleCircularSamplingDiagnostics(ICollection<LoopRoleCircularSamplingDiagnostic> sink)
     {
         var previous = CircularSamplingDiagnosticsSink.Value;
@@ -1238,14 +1255,40 @@ public static class Step242Importer
                         SourceFor(surfaceToDecode.Id, "Importer.Geometry.BsplineSurfaceRecovery"))]);
             }
 
+            // What is left is a genuine free-form blend. It still must not enter the kernel as a NURBS, so it is
+            // reduced to a non-rational spline that follows it well inside the accuracy the source file declares.
+            if (bSplineSurface.IsRational && !RationalSurfacesArePreserved)
+            {
+                var reductionTolerance = BSplineSurfaceRationalReduction.ResolveTolerance(bSplineSurface, document.SourceDistanceAccuracyMillimetres);
+                if (BSplineSurfaceRationalReduction.TryReduce(bSplineSurface, reductionTolerance, out var reducedSurface, out _, out var reductionReason)
+                    && reducedSurface is not null)
+                {
+                    return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Success(
+                        (geometryId, SurfaceGeometry.FromBSplineSurfaceWithKnots(reducedSurface)),
+                        [new KernelDiagnostic(
+                            KernelDiagnosticCode.Unknown,
+                            KernelDiagnosticSeverity.Info,
+                            $"Spline surface #{surfaceToDecode.Id} is a free-form blend that no analytic primitive covers ({recoveryDecision.Reason}), and was reduced to a non-rational spline that {reductionReason}.",
+                            SourceFor(surfaceToDecode.Id, "Importer.Geometry.RationalBSplineReduced"))]);
+                }
+
+                return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Success(
+                    (geometryId, SurfaceGeometry.FromBSplineSurfaceWithKnots(bSplineSurface)),
+                    [new KernelDiagnostic(
+                        KernelDiagnosticCode.Unknown,
+                        KernelDiagnosticSeverity.Warning,
+                        $"Spline surface #{surfaceToDecode.Id} stays a rational B-spline: no analytic primitive verified ({recoveryDecision.Reason}), and reduction to a non-rational spline {reductionReason}.",
+                        SourceFor(surfaceToDecode.Id, "Importer.Geometry.RationalBSplineRetained"))]);
+            }
+
             var retentionDiagnostics = bSplineSurface.IsRational
                 ? new[]
                 {
                     new KernelDiagnostic(
                         KernelDiagnosticCode.Unknown,
                         KernelDiagnosticSeverity.Info,
-                        $"Spline surface #{surfaceToDecode.Id} is retained as a rational B-spline because no analytic primitive verified: {recoveryDecision.Reason}",
-                        SourceFor(surfaceToDecode.Id, "Importer.Geometry.RationalBSplineRetained"))
+                        $"Spline surface #{surfaceToDecode.Id} is retained as a rational B-spline because rational surfaces are preserved for this import: {recoveryDecision.Reason}",
+                        SourceFor(surfaceToDecode.Id, "Importer.Geometry.RationalBSplinePreserved"))
                 }
                 : [];
 
@@ -3767,6 +3810,14 @@ public static class Step242Importer
         public void Dispose()
         {
             PlanarMultiBoundJudgmentDiagnosticsSink.Value = previous;
+        }
+    }
+
+    private sealed class PreserveRationalSurfacesScope(bool previous) : IDisposable
+    {
+        public void Dispose()
+        {
+            PreserveRationalSurfacesFlag.Value = previous;
         }
     }
 

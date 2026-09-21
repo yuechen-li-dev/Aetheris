@@ -88,20 +88,21 @@ public sealed class Step242BsplineSurfaceRecoveryTests
     }
 
     /// <summary>
-    /// CTC-05's rational faces are five-sided vertex blends, not primitives. Import keeps them and says so with the
-    /// measurement it rejected them on, rather than leaving a silent NURBS in an otherwise analytic body.
+    /// CTC-05's rational faces are five-sided vertex blends, not primitives. Import says which primitives it weighed
+    /// and on what measurement it rejected each, rather than reporting an unexplained "unsupported".
     /// </summary>
     [Fact]
-    public void NistCtc05VertexBlends_AreRetainedWithAMeasuredReason()
+    public void NistCtc05VertexBlends_ReportEveryPrimitiveTheyWereMeasuredAgainst()
     {
         var import = Step242Importer.ImportBody(ReadFixture("testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp"));
 
         Assert.True(import.IsSuccess);
-        var retained = import.Diagnostics
-            .Where(diagnostic => (diagnostic.Source ?? string.Empty).Contains("RationalBSplineRetained", StringComparison.Ordinal))
+        var rejected = import.Diagnostics
+            .Where(diagnostic => (diagnostic.Source ?? string.Empty).Contains("RationalBSplineReduced", StringComparison.Ordinal))
             .ToArray();
-        Assert.Equal(4, retained.Length);
-        Assert.All(retained, diagnostic => Assert.Contains("analytic_torus", diagnostic.Message, StringComparison.Ordinal));
+        Assert.Equal(4, rejected.Length);
+        Assert.All(rejected, diagnostic => Assert.Contains("analytic_torus", diagnostic.Message, StringComparison.Ordinal));
+        Assert.All(rejected, diagnostic => Assert.Contains("analytic_cylinder", diagnostic.Message, StringComparison.Ordinal));
     }
 
     [Fact]

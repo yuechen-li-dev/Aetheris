@@ -1572,11 +1572,20 @@ public static class Step242Importer
         return System.Math.Max(1e-6d, scale * 1e-8d);
     }
 
-    private static KernelResult<ParameterInterval> ComputeCircleTrim(Circle3Curve circle, Point3D startPoint, Point3D endPoint, bool edgeSameSense)
+    internal static KernelResult<ParameterInterval> ComputeCircleTrim(Circle3Curve circle, Point3D startPoint, Point3D endPoint, bool edgeSameSense)
     {
         var tolerance = ComputeCircleTrimTolerance(circle, startPoint, endPoint);
         if ((startPoint - endPoint).Length <= tolerance)
         {
+            // A closed circular edge starts wherever its vertex sits (CAD exporters frequently put the seam
+            // vertex away from the circle's parameter origin), so the full-circle trim must begin at that angle or
+            // the curve's trim endpoints no longer coincide with the edge's vertices.
+            var seamAngle = ProjectPointToCircleAngle(circle, startPoint, tolerance);
+            if (seamAngle.IsSuccess && seamAngle.Value > 1e-9d && seamAngle.Value < (2d * double.Pi) - 1e-9d)
+            {
+                return KernelResult<ParameterInterval>.Success(new ParameterInterval(seamAngle.Value, seamAngle.Value + (2d * double.Pi)));
+            }
+
             return KernelResult<ParameterInterval>.Success(new ParameterInterval(0d, 2d * double.Pi));
         }
 
@@ -1592,7 +1601,10 @@ public static class Step242Importer
             return KernelResult<ParameterInterval>.Failure(endAngleResult.Diagnostics);
         }
 
-        var intervalResult = CanonicalizeCircleTrimInterval(startAngleResult.Value, endAngleResult.Value, tolerance, edgeSameSense);
+        // The tolerance is a linear distance. Coincident endpoints were already treated as a full circle above, so the
+        // angular threshold for "empty" or "full" spans must be that distance divided by the radius; using the raw
+        // linear value made every arc shorter than ~0.0123 rad on a 25 mm circle (gear-tooth sub-arcs) look like a full circle.
+        var intervalResult = CanonicalizeCircleTrimInterval(startAngleResult.Value, endAngleResult.Value, tolerance / double.Max(circle.Radius, tolerance), edgeSameSense);
         if (!intervalResult.IsSuccess)
         {
             return KernelResult<ParameterInterval>.Failure(intervalResult.Diagnostics);

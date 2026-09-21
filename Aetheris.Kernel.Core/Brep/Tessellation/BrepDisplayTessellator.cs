@@ -928,7 +928,7 @@ public static class BrepDisplayTessellator
             body,
             faceId,
             loopIds,
-            point => TryProjectPointToBSplineUv(surface, point),
+            new BSplineUvProjector(surface).Project,
             options,
             executionBudget,
             SurfaceGeometryKind.BSplineSurfaceWithKnots);
@@ -956,114 +956,175 @@ public static class BrepDisplayTessellator
             SurfaceGeometryKind.BSplineSurfaceWithKnots);
     }
 
-    private static (double U, double V)? TryProjectPointToBSplineUv(BSplineSurfaceWithKnots surface, Point3D point)
+    /// <summary>
+    /// Projects 3D loop samples onto a B-spline surface. One instance serves all samples of a face: the coarse seed
+    /// grid is evaluated once, and consecutive samples along a trim loop are near each other, so each projection first
+    /// refines from the previous result and only falls back to the grid search when that fails.
+    /// </summary>
+    private sealed class BSplineUvProjector
     {
-        var uStart = surface.DomainStartU;
-        var uEnd = surface.DomainEndU;
-        var vStart = surface.DomainStartV;
-        var vEnd = surface.DomainEndV;
+        private readonly BSplineSurfaceWithKnots _surface;
+        private readonly int _coarseSegments;
+        private readonly double _tolerance;
+        private Point3D[]? _grid;
+        private (double U, double V)? _last;
 
-        // Coarse grid seed. Scale with the control net so long, thin or heavily curved patches
-        // (e.g. gear tooth flanks) still seed inside the correct basin.
-        var controlRows = surface.ControlPoints.Count;
-        var controlColumns = controlRows > 0 ? surface.ControlPoints[0].Count : 0;
-        var coarseSegments = System.Math.Clamp(System.Math.Max(controlRows, controlColumns) * 4, 16, 32);
-        var bestU = uStart;
-        var bestV = vStart;
-        var bestDistanceSquared = double.PositiveInfinity;
-
-        for (var iu = 0; iu <= coarseSegments; iu++)
+        public BSplineUvProjector(BSplineSurfaceWithKnots surface)
         {
-            var u = uStart + ((uEnd - uStart) * iu / coarseSegments);
-            for (var iv = 0; iv <= coarseSegments; iv++)
+            _surface = surface;
+            // Coarse grid seed. Scale with the control net so long, thin or heavily curved patches
+            // (e.g. gear tooth flanks) still seed inside the correct basin.
+            var controlRows = surface.ControlPoints.Count;
+            var controlColumns = controlRows > 0 ? surface.ControlPoints[0].Count : 0;
+            _coarseSegments = System.Math.Clamp(System.Math.Max(controlRows, controlColumns) * 4, 16, 32);
+            _tolerance = ComputeBSplineProjectionTolerance(surface);
+        }
+
+        public (double U, double V)? Project(Point3D point)
+        {
+            if (_last is { } seed)
             {
-                var v = vStart + ((vEnd - vStart) * iv / coarseSegments);
-                var delta = surface.Evaluate(u, v) - point;
-                var distanceSquared = delta.Dot(delta);
-                if (distanceSquared < bestDistanceSquared)
+                var warm = Refine(seed.U, seed.V, point);
+                if (warm.HasValue)
                 {
-                    bestDistanceSquared = distanceSquared;
-                    bestU = u;
-                    bestV = v;
+                    _last = warm;
+                    return warm;
                 }
             }
+
+            var cold = SeedFromGrid(point);
+            var result = Refine(cold.U, cold.V, point);
+            if (result.HasValue)
+            {
+                _last = result;
+            }
+
+            return result;
+        }
+
+        private (double U, double V) SeedFromGrid(Point3D point)
+        {
+            var surface = _surface;
+            var n = _coarseSegments;
+            var uStart = surface.DomainStartU;
+            var vStart = surface.DomainStartV;
+            var uStep = (surface.DomainEndU - uStart) / n;
+            var vStep = (surface.DomainEndV - vStart) / n;
+            if (_grid is null)
+            {
+                var grid = new Point3D[(n + 1) * (n + 1)];
+                for (var iu = 0; iu <= n; iu++)
+                {
+                    for (var iv = 0; iv <= n; iv++)
+                    {
+                        grid[(iu * (n + 1)) + iv] = surface.Evaluate(uStart + (uStep * iu), vStart + (vStep * iv));
+                    }
+                }
+
+                _grid = grid;
+            }
+
+            var bestU = uStart;
+            var bestV = vStart;
+            var bestDistanceSquared = double.PositiveInfinity;
+            for (var iu = 0; iu <= n; iu++)
+            {
+                for (var iv = 0; iv <= n; iv++)
+                {
+                    var delta = _grid[(iu * (n + 1)) + iv] - point;
+                    var distanceSquared = delta.Dot(delta);
+                    if (distanceSquared < bestDistanceSquared)
+                    {
+                        bestDistanceSquared = distanceSquared;
+                        bestU = uStart + (uStep * iu);
+                        bestV = vStart + (vStep * iv);
+                    }
+                }
+            }
+
+            return (bestU, bestV);
         }
 
         // Levenberg-Marquardt refinement of |S(u,v) - P|^2, clamped to the surface domain. The previous
         // fixed 6-step pattern search only resolved ~1/640 of the domain, which left residuals above the
         // acceptance tolerance for perfectly valid boundary samples and dropped whole faces.
-        var uSpan = uEnd - uStart;
-        var vSpan = vEnd - vStart;
-        var lambda = 1e-3d;
-        var done = false;
-        for (var iteration = 0; iteration < 60 && !done; iteration++)
+        private (double U, double V)? Refine(double startU, double startV, Point3D point)
         {
-            var uPlus = System.Math.Min(bestU + (uSpan * 1e-6d), uEnd);
-            var uMinus = System.Math.Max(bestU - (uSpan * 1e-6d), uStart);
-            var vPlus = System.Math.Min(bestV + (vSpan * 1e-6d), vEnd);
-            var vMinus = System.Math.Max(bestV - (vSpan * 1e-6d), vStart);
-            if (uPlus - uMinus <= 0d || vPlus - vMinus <= 0d)
+            var surface = _surface;
+            var uStart = surface.DomainStartU;
+            var uEnd = surface.DomainEndU;
+            var vStart = surface.DomainStartV;
+            var vEnd = surface.DomainEndV;
+            var uSpan = uEnd - uStart;
+            var vSpan = vEnd - vStart;
+            var bestU = startU;
+            var bestV = startV;
+            var startDelta = surface.Evaluate(bestU, bestV) - point;
+            var bestDistanceSquared = startDelta.Dot(startDelta);
+            var lambda = 1e-3d;
+            var done = false;
+            for (var iteration = 0; iteration < 60 && !done; iteration++)
             {
-                break;
-            }
-
-            var tangentU = (surface.Evaluate(uPlus, bestV) - surface.Evaluate(uMinus, bestV)) * (1d / (uPlus - uMinus));
-            var tangentV = (surface.Evaluate(bestU, vPlus) - surface.Evaluate(bestU, vMinus)) * (1d / (vPlus - vMinus));
-            var residualVector = surface.Evaluate(bestU, bestV) - point;
-            var a11 = tangentU.Dot(tangentU);
-            var a12 = tangentU.Dot(tangentV);
-            var a22 = tangentV.Dot(tangentV);
-            var b1 = -tangentU.Dot(residualVector);
-            var b2 = -tangentV.Dot(residualVector);
-
-            var accepted = false;
-            for (var attempt = 0; attempt < 10 && !accepted; attempt++)
-            {
-                var m11 = (a11 * (1d + lambda)) + 1e-30d;
-                var m22 = (a22 * (1d + lambda)) + 1e-30d;
-                var determinant = (m11 * m22) - (a12 * a12);
-                if (!(System.Math.Abs(determinant) > 1e-300d))
+                var uPlus = System.Math.Min(bestU + (uSpan * 1e-6d), uEnd);
+                var uMinus = System.Math.Max(bestU - (uSpan * 1e-6d), uStart);
+                var vPlus = System.Math.Min(bestV + (vSpan * 1e-6d), vEnd);
+                var vMinus = System.Math.Max(bestV - (vSpan * 1e-6d), vStart);
+                if (uPlus - uMinus <= 0d || vPlus - vMinus <= 0d)
                 {
-                    lambda *= 10d;
-                    continue;
+                    break;
                 }
 
-                var stepU = ((b1 * m22) - (a12 * b2)) / determinant;
-                var stepV = ((m11 * b2) - (a12 * b1)) / determinant;
-                var candidateU = System.Math.Clamp(bestU + stepU, uStart, uEnd);
-                var candidateV = System.Math.Clamp(bestV + stepV, vStart, vEnd);
-                var candidateDelta = surface.Evaluate(candidateU, candidateV) - point;
-                var candidateDistanceSquared = candidateDelta.Dot(candidateDelta);
-                if (candidateDistanceSquared < bestDistanceSquared)
+                var tangentU = (surface.Evaluate(uPlus, bestV) - surface.Evaluate(uMinus, bestV)) * (1d / (uPlus - uMinus));
+                var tangentV = (surface.Evaluate(bestU, vPlus) - surface.Evaluate(bestU, vMinus)) * (1d / (vPlus - vMinus));
+                var residualVector = surface.Evaluate(bestU, bestV) - point;
+                var a11 = tangentU.Dot(tangentU);
+                var a12 = tangentU.Dot(tangentV);
+                var a22 = tangentV.Dot(tangentV);
+                var b1 = -tangentU.Dot(residualVector);
+                var b2 = -tangentV.Dot(residualVector);
+
+                var accepted = false;
+                for (var attempt = 0; attempt < 10 && !accepted; attempt++)
                 {
-                    done = System.Math.Abs(candidateU - bestU) <= uSpan * 1e-13d
-                        && System.Math.Abs(candidateV - bestV) <= vSpan * 1e-13d;
-                    bestU = candidateU;
-                    bestV = candidateV;
-                    bestDistanceSquared = candidateDistanceSquared;
-                    lambda = System.Math.Max(lambda * 0.3d, 1e-12d);
-                    accepted = true;
+                    var m11 = (a11 * (1d + lambda)) + 1e-30d;
+                    var m22 = (a22 * (1d + lambda)) + 1e-30d;
+                    var determinant = (m11 * m22) - (a12 * a12);
+                    if (!(System.Math.Abs(determinant) > 1e-300d))
+                    {
+                        lambda *= 10d;
+                        continue;
+                    }
+
+                    var stepU = ((b1 * m22) - (a12 * b2)) / determinant;
+                    var stepV = ((m11 * b2) - (a12 * b1)) / determinant;
+                    var candidateU = System.Math.Clamp(bestU + stepU, uStart, uEnd);
+                    var candidateV = System.Math.Clamp(bestV + stepV, vStart, vEnd);
+                    var candidateDelta = surface.Evaluate(candidateU, candidateV) - point;
+                    var candidateDistanceSquared = candidateDelta.Dot(candidateDelta);
+                    if (candidateDistanceSquared < bestDistanceSquared)
+                    {
+                        done = System.Math.Abs(candidateU - bestU) <= uSpan * 1e-13d
+                            && System.Math.Abs(candidateV - bestV) <= vSpan * 1e-13d;
+                        bestU = candidateU;
+                        bestV = candidateV;
+                        bestDistanceSquared = candidateDistanceSquared;
+                        lambda = System.Math.Max(lambda * 0.3d, 1e-12d);
+                        accepted = true;
+                    }
+                    else
+                    {
+                        lambda *= 10d;
+                    }
                 }
-                else
+
+                if (!accepted)
                 {
-                    lambda *= 10d;
+                    break;
                 }
             }
 
-            if (!accepted)
-            {
-                break;
-            }
+            return System.Math.Sqrt(bestDistanceSquared) > _tolerance ? null : (bestU, bestV);
         }
-
-        var residualDistance = System.Math.Sqrt(bestDistanceSquared);
-        var tolerance = ComputeBSplineProjectionTolerance(surface);
-        if (residualDistance > tolerance)
-        {
-            return null;
-        }
-
-        return (bestU, bestV);
     }
 
     private static KernelResult<IReadOnlyList<IReadOnlyList<(double U, double V)>>> TryBuildDoublyPeriodicTrimmedSurfaceUvLoops(

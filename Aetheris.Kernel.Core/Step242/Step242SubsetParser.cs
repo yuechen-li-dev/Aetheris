@@ -55,7 +55,9 @@ internal static class Step242SubsetParser
             return Failure($"Duplicate entity id #{duplicateId.Key} detected.", "Parser.Semantics");
         }
 
-        return KernelResult<Step242ParsedDocument>.Success(new Step242ParsedDocument(entities));
+        var millimetresPerUnit = Step242LengthUnitNormalizer.ResolveMillimetresPerUnit(entities);
+        var normalizedEntities = Step242LengthUnitNormalizer.Normalize(entities, millimetresPerUnit);
+        return KernelResult<Step242ParsedDocument>.Success(new Step242ParsedDocument(normalizedEntities, millimetresPerUnit));
     }
 
     private static KernelResult<Step242ParsedDocument> Failure(string message, string source)
@@ -580,9 +582,10 @@ internal sealed class Step242ParsedDocument
 {
     private readonly Dictionary<int, Step242ParsedEntity> _entitiesById;
 
-    public Step242ParsedDocument(IReadOnlyList<Step242ParsedEntity> entities)
+    public Step242ParsedDocument(IReadOnlyList<Step242ParsedEntity> entities, double sourceMillimetresPerUnit = 1d)
     {
         Entities = entities;
+        SourceMillimetresPerUnit = sourceMillimetresPerUnit;
         _entitiesById = entities.ToDictionary(e => e.Id);
         PlaneAngleToRadiansScale = ResolvePlaneAngleToRadiansScale();
     }
@@ -590,6 +593,9 @@ internal sealed class Step242ParsedDocument
     public IReadOnlyList<Step242ParsedEntity> Entities { get; }
 
     public double PlaneAngleToRadiansScale { get; }
+
+    /// <summary>Millimetres per length unit declared by the source file; entity lengths have already been multiplied by this.</summary>
+    public double SourceMillimetresPerUnit { get; }
 
     public KernelResult<Step242ParsedEntity> TryGetEntity(int id, string? expectedName = null)
     {

@@ -1609,7 +1609,11 @@ public static class BrepDisplayTessellator
         var maxY = points.Max(point => point.Y);
         var maxZ = points.Max(point => point.Z);
         var diagonal = new Vector3D(maxX - minX, maxY - minY, maxZ - minZ).Length;
-        return System.Math.Max(1e-5d, diagonal * 1e-4d);
+        // Vendor STEP files carry edge curves that only agree with their face surfaces to the exporting CAD
+        // system's accuracy; measured on a McMaster bevel pinion the worst edge-to-surface gap is about 7 microns.
+        // Loop samples that close to a surface are still unambiguously on it, so the tolerance has a 20 micron
+        // floor (model units are mm after import normalization).
+        return System.Math.Max(2e-2d, diagonal * 1e-4d);
     }
 
     private static Vector3D EvaluateBSplineNormal(BSplineSurfaceWithKnots surface, double u, double v)

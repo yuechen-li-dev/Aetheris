@@ -85,12 +85,16 @@ public sealed class Step242BsplineUvGridScaffoldBuilderTests
                 ReferencePositions: referencePatch.Positions,
                 ReferenceTriangleCount: referencePatch.TriangleIndices.Count / 3,
                 Acceptance: new BsplineUvGridScaffoldAcceptanceThresholds(
-                    MaxFidelityError: 0.10d,
+                    // This case checks hole masking, not density or vertex-proximity gating. The reference patch now
+                    // comes from the boundary-conforming, curvature-adaptive tessellator, which is much sparser than
+                    // the uniform grid for this flat patch (a planar patch needs only its boundary triangulated), so
+                    // nearest-reference-vertex fidelity and the density gate are effectively disabled.
+                    MaxFidelityError: 1d,
                     MaxBoundaryDeviationUv: 0.051d,
-                    MaxTriangleDensityRatioVsFallback: 1.10d)));
+                    MaxTriangleDensityRatioVsFallback: 1000d)));
 
-        Assert.Equal(BsplineUvGridScaffoldAcceptance.Accepted, result.Acceptance);
         Assert.Equal(BsplineUvGridScaffoldRejectionReason.None, result.RejectionReason);
+        Assert.Equal(BsplineUvGridScaffoldAcceptance.Accepted, result.Acceptance);
         Assert.Equal(0, result.Metrics.LeakageTriangleCount);
     }
 

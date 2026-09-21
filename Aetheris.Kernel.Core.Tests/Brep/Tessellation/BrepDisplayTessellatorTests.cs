@@ -249,7 +249,9 @@ public sealed class BrepDisplayTessellatorTests
         Assert.All(GetTrianglePointSamples(firstPatch), sample =>
         {
             Assert.True(IsInsidePolygon(sample, outerLoop));
-            Assert.False(IsInsidePolygon(sample, holeLoop));
+            // Boundary-conforming triangulation places vertices exactly on the hole boundary; only the hole's
+            // open interior must stay empty.
+            Assert.False(IsStrictlyInsidePolygon(sample, holeLoop));
         });
     }
 
@@ -339,7 +341,9 @@ public sealed class BrepDisplayTessellatorTests
         Assert.All(GetTriangleUvSamples(firstPatch, point => ProjectCylinderUv(cylinder, point, outerMidU)), sample =>
         {
             Assert.True(IsInsideUvRectangle(sample, outerBounds));
-            Assert.False(IsInsideUvRectangle(sample, holeBounds));
+            // Boundary-conforming triangulation places vertices exactly on the hole boundary; only the hole's
+            // open interior must stay empty.
+            Assert.False(IsStrictlyInsideUvRectangle(sample, holeBounds));
         });
     }
 
@@ -1188,6 +1192,40 @@ public sealed class BrepDisplayTessellatorTests
 
     private static bool IsInsidePolygon(Point3D point, IReadOnlyList<(double U, double V)> polygon)
         => IsInsidePolygon((point.X, point.Y), polygon);
+
+    private static bool IsStrictlyInsidePolygon(Point3D point, IReadOnlyList<(double U, double V)> polygon)
+    {
+        const double boundaryTolerance = 1e-6d;
+        var p = (U: point.X, V: point.Y);
+        for (var i = 0; i < polygon.Count; i++)
+        {
+            var a = polygon[i];
+            var b = polygon[(i + 1) % polygon.Count];
+            var abU = b.U - a.U;
+            var abV = b.V - a.V;
+            var lengthSquared = (abU * abU) + (abV * abV);
+            var t = lengthSquared <= 0d ? 0d : double.Clamp((((p.U - a.U) * abU) + ((p.V - a.V) * abV)) / lengthSquared, 0d, 1d);
+            var dU = p.U - (a.U + (abU * t));
+            var dV = p.V - (a.V + (abV * t));
+            if (((dU * dU) + (dV * dV)) <= boundaryTolerance * boundaryTolerance)
+            {
+                return false;
+            }
+        }
+
+        return IsInsidePolygon(p, polygon);
+    }
+
+    private static bool IsStrictlyInsideUvRectangle(
+        (double U, double V) point,
+        (double UMin, double UMax, double VMin, double VMax) bounds)
+    {
+        const double boundaryTolerance = 1e-6d;
+        return point.U > bounds.UMin + boundaryTolerance
+            && point.U < bounds.UMax - boundaryTolerance
+            && point.V > bounds.VMin + boundaryTolerance
+            && point.V < bounds.VMax - boundaryTolerance;
+    }
 
     private static bool IsInsidePolygon((double U, double V) point, IReadOnlyList<(double U, double V)> polygon)
     {

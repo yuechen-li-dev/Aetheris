@@ -26,6 +26,26 @@ public sealed class AnalyticDisplayPacketBuilderTests
     }
 
     [Fact]
+    public void Build_CylinderBody_PopulatesPlanarCapBoundaryForCircularLoops()
+    {
+        // Loops containing Circle3 edges used to be rejected by the line-only boundary reconstruction, which left
+        // the planar face with no outer boundary and made the viewer silently drop the face.
+        var body = BrepPrimitives.CreateCylinder(2d, 5d).Value;
+
+        var packet = AnalyticDisplayPacketBuilder.Build(body);
+
+        var caps = packet.AnalyticFaces.Where(face => face.SurfaceKind == SurfaceGeometryKind.Plane).ToArray();
+        Assert.Equal(2, caps.Length);
+        Assert.All(caps, cap =>
+        {
+            var boundary = Assert.IsAssignableFrom<IReadOnlyList<Point3D>>(cap.PlanarOuterBoundary);
+            Assert.True(boundary.Count >= 12);
+            var centre = new Point3D(boundary.Average(p => p.X), boundary.Average(p => p.Y), boundary.Average(p => p.Z));
+            Assert.All(boundary, point => Assert.Equal(2d, (point - centre).Length, 1e-6d));
+        });
+    }
+
+    [Fact]
     public void Build_BoxBody_PopulatesPlanarOuterBoundaryWithRealFaceExtent()
     {
         var body = BrepPrimitives.CreateBox(2d, 2d, 2d).Value;

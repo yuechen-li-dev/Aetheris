@@ -47,7 +47,7 @@ public sealed class DisplayPreparationFallbackBuilderTests
     }
 
     [Fact]
-    public void Build_SingleFaceBsplineBodyWithHole_UsesAcceptedScaffoldPatch()
+    public void Build_SingleFaceBsplineBodyWithHole_PrefersBoundaryConformingTessellatorPatch()
     {
         var body = UvTrimMaskExtractorTests.ImportBsplineBodyWithHole();
 
@@ -58,8 +58,10 @@ public sealed class DisplayPreparationFallbackBuilderTests
         Assert.True(second.IsSuccess);
         var firstPatch = Assert.Single(first.Value.FacePatches);
         var secondPatch = Assert.Single(second.Value.FacePatches);
-        Assert.Equal(DisplayFaceMeshSource.BsplineUvScaffold, firstPatch.Source);
-        Assert.Null(firstPatch.ScaffoldRejectionReason);
+        // A trimmed face with a hole is now tessellated boundary-conforming (no staircase along the hole), which is
+        // sparser than the uniform scaffold grid, so the scaffold lane is correctly declined for it.
+        Assert.Equal(DisplayFaceMeshSource.Tessellator, firstPatch.Source);
+        Assert.NotEmpty(firstPatch.TriangleIndices);
         Assert.Equal(CreateSignature(first.Value), CreateSignature(second.Value));
     }
 
@@ -120,12 +122,14 @@ public sealed class DisplayPreparationFallbackBuilderTests
 
         Assert.Equal(CreateSweepSignature(first), CreateSweepSignature(second));
         Assert.Equal(3, first.TotalCases);
-        Assert.Equal(2, first.AcceptedCases);
-        Assert.Equal(1, first.RejectedCases);
-        Assert.Equal(2, first.SourceHistogram[DisplayFaceMeshSource.BsplineUvScaffold]);
-        Assert.Equal(1, first.SourceHistogram[DisplayFaceMeshSource.Tessellator]);
+        Assert.Equal(1, first.AcceptedCases);
+        Assert.Equal(2, first.RejectedCases);
+        Assert.Equal(1, first.SourceHistogram[DisplayFaceMeshSource.BsplineUvScaffold]);
+        Assert.Equal(2, first.SourceHistogram[DisplayFaceMeshSource.Tessellator]);
         Assert.Equal(1, first.RejectionReasonHistogram["TrimMaskExtraction:MissingVertexPoint"]);
-        Assert.Contains(first.Cases, c => c.Name == "two-loop-hole-accepted" && c.Accepted && c.Source == DisplayFaceMeshSource.BsplineUvScaffold);
+        Assert.Contains(first.Cases, c => c.Name == "single-loop-accepted" && c.Accepted && c.Source == DisplayFaceMeshSource.BsplineUvScaffold);
+        // The hole case is served by the boundary-conforming tessellator instead of the uniform scaffold grid.
+        Assert.Contains(first.Cases, c => c.Name == "two-loop-hole-accepted" && !c.Accepted && c.Source == DisplayFaceMeshSource.Tessellator);
         Assert.Contains(first.Cases, c => c.Name == "missing-vertex-rejected" && !c.Accepted && c.RejectionReason == "TrimMaskExtraction:MissingVertexPoint");
     }
 

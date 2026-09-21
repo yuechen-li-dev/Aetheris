@@ -400,10 +400,24 @@ internal sealed class AnalyticPlanarFaceDomain
         {
             var coedge = body.Topology.GetCoedge(coedgeId);
             var edge = body.Topology.GetEdge(coedge.EdgeId);
-            if (!body.TryGetVertexPoint(edge.StartVertexId, out var edgeStart)
-                || !body.TryGetVertexPoint(edge.EndVertexId, out var edgeEnd)
-                || !body.TryGetEdgeCurveGeometry(coedge.EdgeId, out var curve)
-                || curve is null)
+            if (!body.TryGetEdgeCurveGeometry(coedge.EdgeId, out var curve) || curve is null)
+            {
+                return false;
+            }
+
+            Point3D edgeStart;
+            Point3D edgeEnd;
+            if (body.TryGetVertexPoint(edge.StartVertexId, out edgeStart)
+                && body.TryGetVertexPoint(edge.EndVertexId, out edgeEnd))
+            {
+            }
+            else if (edge.StartVertexId == edge.EndVertexId && curve.Circle3 is { } selfLoopCircle)
+            {
+                // Revolved primitives carry no vertex points; a closed circle self-loop starts at its X axis.
+                edgeStart = selfLoopCircle.Center + (selfLoopCircle.XAxis.ToVector() * selfLoopCircle.Radius);
+                edgeEnd = edgeStart;
+            }
+            else
             {
                 return false;
             }

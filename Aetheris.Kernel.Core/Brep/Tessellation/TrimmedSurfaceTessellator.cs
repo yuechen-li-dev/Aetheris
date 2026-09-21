@@ -70,6 +70,24 @@ internal static class TrimmedSurfaceTessellator
         var uSegments = ResolveSegmentCount(uEnd - uStart, options);
         var vSegments = ResolveSegmentCount(vEnd - vStart, options);
 
+        // Prefer a boundary-conforming triangulation: the uniform-grid mask below leaves a staircase along every
+        // trim curve and a gap of up to one cell between neighbouring faces. It stays as the fallback for loop sets
+        // that are not a simple "outer minus holes" region (for example periodic wrap-around rings).
+        var conformingPatch = BoundaryConformingTrimTessellator.TryTessellate(
+            faceId,
+            normalizedLoops,
+            outerLoopIndex,
+            evaluate,
+            evaluateNormal,
+            (uEnd - uStart) / uSegments,
+            (vEnd - vStart) / vSegments,
+            options,
+            () => executionBudget?.ThrowIfExpired("TrimmedSurface.Conforming", faceId, surfaceKind));
+        if (conformingPatch is not null)
+        {
+            return KernelResult<DisplayFaceMeshPatch>.Success(conformingPatch);
+        }
+
         var positions = new List<Point3D>((uSegments + 1) * (vSegments + 1));
         var normals = new List<Vector3D>((uSegments + 1) * (vSegments + 1));
         var uvGrid = new List<(double U, double V)>((uSegments + 1) * (vSegments + 1));

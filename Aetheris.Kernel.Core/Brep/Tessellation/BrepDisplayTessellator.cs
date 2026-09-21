@@ -364,6 +364,14 @@ public static class BrepDisplayTessellator
         var triangulationResult = ExecuteWithinOptionalBudget(
             () =>
             {
+                // The hole-bridging triangulator is super-linear in the number of holes and can exhaust the whole
+                // display budget on a plate with dozens of holes; earcut handles those directly and cheaply.
+                if (holes.Length >= ManyHolesEarCutThreshold
+                    && TryEarCutPlanarLoops(plane, outerLoop, holes, out var manyHolesPoints, out var manyHolesIndices))
+                {
+                    return KernelResult<(IReadOnlyList<Point3D> Points, IReadOnlyList<int> Indices, PlanarPolygonTriangulationFailure? Failure)>.Success((manyHolesPoints, manyHolesIndices, null));
+                }
+
                 if (!PlanarPolygonTriangulator.TryTriangulateWithHoles(
                         outerLoop,
                         holes,
@@ -372,6 +380,13 @@ public static class BrepDisplayTessellator
                         out var indices,
                         out var failure))
                 {
+                    // The primary triangulator declines some long, finely sampled but simple loops; earcut is the second opinion.
+                    if (failure == PlanarPolygonTriangulationFailure.TriangulationFailed
+                        && TryEarCutPlanarLoops(plane, outerLoop, holes, out var earCutPoints, out var earCutIndices))
+                    {
+                        return KernelResult<(IReadOnlyList<Point3D> Points, IReadOnlyList<int> Indices, PlanarPolygonTriangulationFailure? Failure)>.Success((earCutPoints, earCutIndices, null));
+                    }
+
                     return KernelResult<(IReadOnlyList<Point3D> Points, IReadOnlyList<int> Indices, PlanarPolygonTriangulationFailure? Failure)>.Failure([
                         CreateValidationWarning(
                             $"Face {faceId.Value} planar multi-loop tessellation could not be resolved ({failure?.ToString() ?? "Unknown"}); skipping face patch to avoid misleading filled geometry.",
@@ -396,6 +411,66 @@ public static class BrepDisplayTessellator
         }
 
         return KernelResult<DisplayFaceMeshPatch>.Success(CreatePlanarPatch(faceId, triangulationResult.Value.Points, plane.Normal.ToVector(), triangulationResult.Value.Indices));
+    }
+
+    private const int ManyHolesEarCutThreshold = 8;
+
+    internal static bool TryEarCutPlanarLoops(
+        PlaneSurface plane,
+        IReadOnlyList<Point3D> outerLoop,
+        IReadOnlyList<IReadOnlyList<Point3D>> holes,
+        out IReadOnlyList<Point3D> points,
+        out IReadOnlyList<int> indices)
+    {
+        points = Array.Empty<Point3D>();
+        indices = Array.Empty<int>();
+        var uAxis = plane.UAxis.ToVector();
+        var vAxis = plane.VAxis.ToVector();
+        var origin = plane.Origin;
+        (double X, double Y) Project(Point3D point)
+        {
+            var offset = point - origin;
+            return (offset.Dot(uAxis), offset.Dot(vAxis));
+        }
+
+        var outer2d = outerLoop.Select(Project).ToList();
+        var holes2d = holes.Select(hole => (IReadOnlyList<(double X, double Y)>)hole.Select(Project).ToList()).ToList();
+        if (!EarCutTriangulator.TryTriangulate(outer2d, holes2d, out var points2d, out var earCutIndices))
+        {
+            return false;
+        }
+
+        var points3d = outerLoop.Concat(holes.SelectMany(hole => hole)).ToArray();
+        if (points3d.Length != points2d.Count)
+        {
+            return false;
+        }
+
+        // Emit every triangle counter-clockwise about the plane normal.
+        var oriented = new List<int>(earCutIndices.Count);
+        for (var i = 0; i + 2 < earCutIndices.Count; i += 3)
+        {
+            var a = points2d[earCutIndices[i]];
+            var b = points2d[earCutIndices[i + 1]];
+            var c = points2d[earCutIndices[i + 2]];
+            var cross = ((b.X - a.X) * (c.Y - a.Y)) - ((b.Y - a.Y) * (c.X - a.X));
+            if (cross >= 0d)
+            {
+                oriented.Add(earCutIndices[i]);
+                oriented.Add(earCutIndices[i + 1]);
+                oriented.Add(earCutIndices[i + 2]);
+            }
+            else
+            {
+                oriented.Add(earCutIndices[i]);
+                oriented.Add(earCutIndices[i + 2]);
+                oriented.Add(earCutIndices[i + 1]);
+            }
+        }
+
+        points = points3d;
+        indices = oriented;
+        return true;
     }
 
     private static KernelResult<DisplayFaceMeshPatch> TriangulatePlanarPatch(FaceId faceId, PlaneSurface plane, IReadOnlyList<Point3D> polygonPoints)
@@ -590,6 +665,15 @@ public static class BrepDisplayTessellator
     private static KernelResult<DisplayFaceMeshPatch> TessellateCylinderFace(BrepBody body, FaceId faceId, CylinderSurface cylinder, DisplayTessellationOptions options, DisplayTessellationExecutionBudget? executionBudget = null)
     {
         var loopIds = body.GetLoopIds(faceId);
+        if (loopIds.Count == 2
+            && TryResolveDualSingleCoedgeClosedCircleCylinderTrimPatch(body, faceId, cylinder, loopIds, cylinder.Axis.ToVector(), 1e-8d).IsSuccess)
+        {
+            // A seamless cylindrical band (hole wall or boss) is bounded by two full circles. In UV those are two
+            // zero-area lines, not an outer loop plus a hole, so the generic multi-loop trim path derives a degenerate
+            // domain and drops the face. The dedicated dual-circle resolution knows the band is the strip between them.
+            return TessellateLegacyCylinderFace(body, faceId, cylinder, options);
+        }
+
         if (loopIds.Count > 1)
         {
             var uvLoopsResult = TryBuildPeriodicTrimmedSurfaceUvLoops(body, faceId, loopIds, point => TryProjectPointToCylinderUv(cylinder, point), options, executionBudget, SurfaceGeometryKind.Cylinder);
@@ -598,7 +682,7 @@ public static class BrepDisplayTessellator
                 return KernelResult<DisplayFaceMeshPatch>.Success(
                     CreateEmptyPlanarPatch(faceId),
                     [CreateValidationWarning(
-                        $"Face {faceId.Value} cylinder trim evaluation failed; skipping face patch to avoid misleading untrimmed geometry.",
+                        $"Face {faceId.Value} cylinder trim evaluation failed; skipping face patch to avoid misleading untrimmed geometry. Cause: {uvLoopsResult.Diagnostics.FirstOrDefault()?.Message}",
                         TrimEvaluationFailedSource)]);
             }
 
@@ -636,7 +720,7 @@ public static class BrepDisplayTessellator
                 return KernelResult<DisplayFaceMeshPatch>.Success(
                     CreateEmptyPlanarPatch(faceId),
                     [CreateValidationWarning(
-                        $"Face {faceId.Value} cone trim evaluation failed; skipping face patch to avoid misleading untrimmed geometry.",
+                        $"Face {faceId.Value} cone trim evaluation failed; skipping face patch to avoid misleading untrimmed geometry. Cause: {uvLoopsResult.Diagnostics.FirstOrDefault()?.Message}",
                         TrimEvaluationFailedSource)]);
             }
 
@@ -747,7 +831,8 @@ public static class BrepDisplayTessellator
         }
 
         var angularSegments = CalculateSegmentCount(2d * double.Pi, ordered.Max(level => level.Radius), options);
-        var axialSegments = CalculateAxialSegments(ordered[0].Axial, ordered[1].Axial, options);
+        // Cone generators are straight and the normal is constant along them: one row of quads is exact.
+        var axialSegments = 1;
         patch = CreatePeriodicGridPatch(
             faceId,
             angularSegments,
@@ -787,10 +872,11 @@ public static class BrepDisplayTessellator
                 axialParameterFromPoint: point => (point - cylinder.Origin).Dot(cylinder.Axis.ToVector()));
             if (periodicParameters.IsSuccess)
             {
+                // Cylinder generators are straight: axial subdivision adds triangles but no accuracy.
                 return KernelResult<DisplayFaceMeshPatch>.Success(CreatePeriodicGridPatch(
                     faceId,
                     periodicParameters.Value.AngularSegments,
-                    periodicParameters.Value.AxialSegments,
+                    1,
                     (u, v) => cylinder.Evaluate(u, v),
                     (u, _) => cylinder.Normal(u).ToVector(),
                     periodicParameters.Value.VStart,
@@ -800,7 +886,7 @@ public static class BrepDisplayTessellator
         }
 
         var angularSegments = CalculateSegmentCount(angularSpan, System.Math.Max(1e-6d, cylinder.Radius), options);
-        var axialSegments = System.Math.Max(1, System.Math.Clamp((int)double.Ceiling(axialSpan / options.ChordTolerance), 1, options.MaximumSegments));
+        const int axialSegments = 1;
 
         return KernelResult<DisplayFaceMeshPatch>.Success(CreateBoundedGridPatch(
             faceId,
@@ -832,7 +918,7 @@ public static class BrepDisplayTessellator
         return KernelResult<DisplayFaceMeshPatch>.Success(CreatePeriodicGridPatch(
             faceId,
             parameters.Value.AngularSegments,
-            parameters.Value.AxialSegments,
+            1,
             (u, v) => cone.Evaluate(u, v),
             (u, _) => cone.Normal(u).ToVector(),
             parameters.Value.VStart,
@@ -1399,6 +1485,55 @@ public static class BrepDisplayTessellator
         return KernelResult<double>.Success(wrappedValue + currentOffset);
     }
 
+    /// <summary>
+    /// Recognizes a torus face bounded by exactly two single-edge full-circle loops that are coaxial with the torus
+    /// (constant minor angle v). The band between them is the shorter tube arc; a face wider than half the tube is
+    /// ambiguous without orientation analysis and is left to the generic path.
+    /// </summary>
+    private static bool TryResolveCoaxialCirclePairTorusBand(BrepBody body, TorusSurface torus, IReadOnlyList<LoopId> loopIds, out double vStart, out double vEnd)
+    {
+        vStart = 0d;
+        vEnd = 0d;
+        var angles = new double[2];
+        for (var i = 0; i < 2; i++)
+        {
+            var coedgeIds = body.GetCoedgeIds(loopIds[i]);
+            if (coedgeIds.Count != 1)
+            {
+                return false;
+            }
+
+            var edge = body.Topology.GetCoedge(coedgeIds[0]).EdgeId;
+            var curve = body.GetEdgeCurve(edge);
+            if (curve.Kind != CurveGeometryKind.Circle3 || curve.Circle3 is not { } circle)
+            {
+                return false;
+            }
+
+            var axis = torus.Axis.ToVector();
+            var offset = circle.Center - torus.Center;
+            var alongAxis = offset.Dot(axis);
+            var offAxis = (offset - (axis * alongAxis)).Length;
+            if (offAxis > 1e-6d || double.Abs(circle.Normal.ToVector().Dot(axis)) < 1d - 1e-9d)
+            {
+                return false;
+            }
+
+            angles[i] = TorusMinorAngleOf(torus, circle.Evaluate(0d));
+        }
+
+        var delta = angles[1] - angles[0];
+        delta -= 2d * double.Pi * double.Round(delta / (2d * double.Pi));
+        if (double.Abs(delta) < 1e-9d || double.Abs(delta) > double.Pi - 1e-6d)
+        {
+            return false;
+        }
+
+        vStart = delta > 0d ? angles[0] : angles[1];
+        vEnd = vStart + double.Abs(delta);
+        return true;
+    }
+
     private static (double U, double V)? TryProjectPointToTorusUv(TorusSurface torus, Point3D point)
     {
         var axis = torus.Axis.ToVector();
@@ -1433,7 +1568,10 @@ public static class BrepDisplayTessellator
 
         var residual = torus.Evaluate(u, v) - point;
         var residualDistance = System.Math.Sqrt(residual.Dot(residual));
-        var tolerance = System.Math.Max(1e-5d, System.Math.Max(torus.MajorRadius, torus.MinorRadius) * 1e-4d);
+        // Boundary curves of fillet/blend faces are frequently B-spline approximations of the true intersection and
+        // sit up to ~1e-3 mm off the analytic torus; this is a display projection, so accept deviations well below
+        // visual resolution instead of dropping the face.
+        var tolerance = System.Math.Max(AnalyticProjectionDeviationFloor, System.Math.Max(System.Math.Max(torus.MajorRadius, torus.MinorRadius) * 1e-4d, torus.MinorRadius * 1e-2d));
         if (!double.IsFinite(residualDistance) || residualDistance > tolerance)
         {
             return null;
@@ -1441,6 +1579,10 @@ public static class BrepDisplayTessellator
 
         return (u, v);
     }
+
+    // Boundary edges of fillet/blend faces are often B-spline approximations of the true intersection and sit a few
+    // 1e-3 mm off the analytic surface. UV projection here is for display, so accept anything below visual resolution.
+    private const double AnalyticProjectionDeviationFloor = 1e-2d;
 
     private static (double U, double V)? TryProjectPointToCylinderUv(CylinderSurface cylinder, Point3D point)
     {
@@ -1451,7 +1593,7 @@ public static class BrepDisplayTessellator
         var axial = offset.Dot(axis);
         var radial = offset - (axis * axial);
         var radialLength = radial.Length;
-        var tolerance = System.Math.Max(1e-5d, cylinder.Radius * 1e-4d);
+        var tolerance = System.Math.Max(AnalyticProjectionDeviationFloor, cylinder.Radius * 1e-4d);
         if (!double.IsFinite(radialLength) || System.Math.Abs(radialLength - cylinder.Radius) > tolerance)
         {
             return null;
@@ -1486,7 +1628,7 @@ public static class BrepDisplayTessellator
         var radial = offset - (axis * axial);
         var radialLength = radial.Length;
         var expectedRadius = axial * double.Tan(cone.SemiAngleRadians);
-        var tolerance = System.Math.Max(1e-5d, expectedRadius * 1e-4d);
+        var tolerance = System.Math.Max(AnalyticProjectionDeviationFloor, expectedRadius * 1e-4d);
         if (System.Math.Abs(radialLength - expectedRadius) > tolerance)
         {
             return null;
@@ -1672,9 +1814,10 @@ public static class BrepDisplayTessellator
         var diagonal = new Vector3D(maxX - minX, maxY - minY, maxZ - minZ).Length;
         // Vendor STEP files carry edge curves that only agree with their face surfaces to the exporting CAD
         // system's accuracy; measured on a McMaster bevel pinion the worst edge-to-surface gap is about 7 microns.
-        // Loop samples that close to a surface are still unambiguously on it, so the tolerance has a 20 micron
-        // floor (model units are mm after import normalization).
-        return System.Math.Max(2e-2d, diagonal * 1e-4d);
+        // Loop samples that close to a surface are still unambiguously on it, so the tolerance has a 50 micron
+        // floor (model units are mm after import normalization). NIST rational patches sit up to ~20 microns off
+        // their boundary edges even with exact NURBS evaluation.
+        return System.Math.Max(5e-2d, diagonal * 1e-4d);
     }
 
     private static Vector3D EvaluateBSplineNormal(BSplineSurfaceWithKnots surface, double u, double v)
@@ -1739,6 +1882,20 @@ public static class BrepDisplayTessellator
     private static KernelResult<DisplayFaceMeshPatch> TessellateTorusFace(BrepBody body, FaceId faceId, TorusSurface torus, DisplayTessellationOptions options, DisplayTessellationExecutionBudget? executionBudget = null)
     {
         var loopIds = body.GetLoopIds(faceId);
+        if (loopIds.Count == 2 && TryResolveCoaxialCirclePairTorusBand(body, torus, loopIds, out var bandVStart, out var bandVEnd))
+        {
+            // Two full parallel circles bound a band of the tube: the generic trim path sees two degenerate
+            // (zero-area) loops in UV, so tessellate the band directly as a periodic grid.
+            return KernelResult<DisplayFaceMeshPatch>.Success(CreatePeriodicGridPatch(
+                faceId,
+                CalculateSegmentCount(2d * double.Pi, System.Math.Max(1e-6d, torus.MajorRadius + torus.MinorRadius), options),
+                CalculateSegmentCount(bandVEnd - bandVStart, System.Math.Max(1e-6d, torus.MinorRadius), options),
+                (u, v) => torus.Evaluate(u, v),
+                (u, v) => torus.Normal(u, v).ToVector(),
+                bandVStart,
+                bandVEnd));
+        }
+
         if (loopIds.Count > 0)
         {
             var uvLoopsResult = TryBuildDoublyPeriodicTrimmedSurfaceUvLoops(body, faceId, loopIds, point => TryProjectPointToTorusUv(torus, point), options, executionBudget, SurfaceGeometryKind.Torus);
@@ -1747,7 +1904,7 @@ public static class BrepDisplayTessellator
                 return KernelResult<DisplayFaceMeshPatch>.Success(
                     CreateEmptyPlanarPatch(faceId),
                     [CreateValidationWarning(
-                        $"Face {faceId.Value} torus trim evaluation failed; skipping face patch to avoid misleading untrimmed geometry.",
+                        $"Face {faceId.Value} torus trim evaluation failed; skipping face patch to avoid misleading untrimmed geometry. Cause: {uvLoopsResult.Diagnostics.FirstOrDefault()?.Message}",
                         TrimEvaluationFailedSource)]);
             }
 
@@ -1775,7 +1932,7 @@ public static class BrepDisplayTessellator
         return KernelResult<DisplayFaceMeshPatch>.Success(CreatePeriodicGridPatch(
             faceId,
             parameters.Value.AngularSegments,
-            parameters.Value.AxialSegments,
+            CalculateSegmentCount(parameters.Value.VEnd - parameters.Value.VStart, System.Math.Max(1e-6d, torus.MinorRadius), options),
             (u, v) => torus.Evaluate(u, v),
             (u, v) => torus.Normal(u, v).ToVector(),
             parameters.Value.VStart,
@@ -2962,14 +3119,14 @@ public static class BrepDisplayTessellator
         {
             return KernelResult<(double, double, double, double)>.Success(
                 generalResolution.Value,
-                [CreateValidationWarning(
+                [CreateClassificationInfo(
                     $"Face {faceId.Value} spherical two-coedge trim classified as bi-arc circle lune with two shared vertices (edges {coedges[0].EdgeId.Value}/{coedges[1].EdgeId.Value}).",
                     SphereTrimTwoCoedgeBiArcLuneSource)]);
         }
 
         return KernelResult<(double, double, double, double)>.Success(
             generalResolution.Value,
-            [CreateValidationWarning(
+            [CreateClassificationInfo(
                 $"Face {faceId.Value} spherical two-coedge trim classified as bspline bi-arc surrogate pair with two shared vertices (edges {coedges[0].EdgeId.Value}/{coedges[1].EdgeId.Value}).",
                 SphereTrimTwoCoedgeBsplineBiArcSurrogateSource)]);
     }
@@ -3144,7 +3301,7 @@ public static class BrepDisplayTessellator
 
         return KernelResult<(double, double, double, double)>.Success(
             (0d, 2d * double.Pi, vStart, vEnd),
-            [CreateValidationWarning(
+            [CreateClassificationInfo(
                 $"Face {faceId.Value} spherical single-coedge trim classified as closed full-wrap constant-latitude cap (edge {coedge.EdgeId.Value}, latitude {latitude:R}, pole {(pole > 0d ? "+pi/2" : "-pi/2")}).",
                 SphereTrimSingleCoedgeLatitudeCapSource)]);
     }
@@ -3738,6 +3895,74 @@ public static class BrepDisplayTessellator
         return KernelResult<IReadOnlyList<Point3D>>.Success(pointsFallback);
     }
 
+    /// <summary>
+    /// Cuts an open sampled polyline at the points nearest to <paramref name="start"/> and <paramref name="end"/>,
+    /// returning the portion between them in start-to-end order, or null when that is ambiguous or degenerate.
+    /// </summary>
+    private static Point3D[]? TrimPolylineBetween(Point3D[] samples, Point3D start, Point3D end)
+    {
+        if (samples.Length < 2)
+        {
+            return null;
+        }
+
+        static (int Segment, double T, double Distance) Locate(Point3D[] points, Point3D target)
+        {
+            var best = (Segment: 0, T: 0d, Distance: double.PositiveInfinity);
+            for (var i = 0; i + 1 < points.Length; i++)
+            {
+                var edge = points[i + 1] - points[i];
+                var lengthSquared = edge.Dot(edge);
+                var t = lengthSquared <= 0d ? 0d : double.Clamp((target - points[i]).Dot(edge) / lengthSquared, 0d, 1d);
+                var closest = points[i] + (edge * t);
+                var distance = (target - closest).Length;
+                if (distance < best.Distance)
+                {
+                    best = (i, t, distance);
+                }
+            }
+
+            return best;
+        }
+
+        var startLocation = Locate(samples, start);
+        var endLocation = Locate(samples, end);
+        const double locateTolerance = 5e-2d;
+        if (startLocation.Distance > locateTolerance || endLocation.Distance > locateTolerance)
+        {
+            return null;
+        }
+
+        var startPosition = startLocation.Segment + startLocation.T;
+        var endPosition = endLocation.Segment + endLocation.T;
+        if (double.Abs(endPosition - startPosition) < 1e-9d)
+        {
+            return null;
+        }
+
+        var forward = startPosition < endPosition;
+        var lowPosition = forward ? startPosition : endPosition;
+        var highPosition = forward ? endPosition : startPosition;
+        var slice = new List<Point3D>();
+        var firstWhole = (int)double.Floor(lowPosition) + 1;
+        var lastWhole = (int)double.Ceiling(highPosition) - 1;
+        for (var i = firstWhole; i <= lastWhole && i < samples.Length; i++)
+        {
+            slice.Add(samples[i]);
+        }
+
+        slice.Insert(0, start);
+        slice.Add(end);
+        if (!forward)
+        {
+            // slice is currently [start, interior (ascending), end]; interior must run from start toward end.
+            var interior = slice.Skip(1).Take(slice.Count - 2).Reverse().ToList();
+            slice = [start, .. interior, end];
+        }
+
+        return slice.Count >= 2 ? slice.ToArray() : null;
+    }
+
     private static KernelResult<IReadOnlyList<Point3D>> SamplePlanarBSpline(
         BrepBody body,
         Coedge coedge,
@@ -3769,6 +3994,24 @@ public static class BrepDisplayTessellator
         {
             return KernelResult<IReadOnlyList<Point3D>>.Failure([
                 CreateInvalidArgument($"Edge {coedge.EdgeId.Value} planar BSpline flattening produced an invalid sample set.", PlanarCurveFlatteningFailedSource)]);
+        }
+
+        // Orientation flags (coedge sense, edge sense, chain swap) can disagree with the curve's own parameter
+        // direction. The snap below would then pin the wrong ends and leave a spike that self-intersects the loop,
+        // so let the geometry have the last word for open curves.
+        var forwardMisfit = (sampled[0] - start).Length + (sampled[^1] - end).Length;
+        var reversedMisfit = (sampled[^1] - start).Length + (sampled[0] - end).Length;
+        if (reversedMisfit + 1e-9d < forwardMisfit)
+        {
+            Array.Reverse(sampled);
+        }
+
+        if (System.Math.Min(forwardMisfit, reversedMisfit) > 1e-3d
+            && TrimPolylineBetween(sampled, start, end) is { } trimmed)
+        {
+            // The edge only covers part of its B-spline curve and no trim interval was recorded, so sampling the
+            // whole domain and snapping the ends would spike across the loop. Cut the polyline at the vertices.
+            sampled = trimmed;
         }
 
         sampled[0] = start;
@@ -4373,6 +4616,10 @@ public static class BrepDisplayTessellator
 
     private static KernelDiagnostic CreateValidationError(string message, string source)
         => new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, source);
+
+    // A successful, informational classification of a trim (not a skipped or degraded face): must not surface as a warning.
+    private static KernelDiagnostic CreateClassificationInfo(string message, string source)
+        => new(KernelDiagnosticCode.Unknown, KernelDiagnosticSeverity.Info, message, source);
 
     private static KernelDiagnostic CreateValidationWarning(string message, string source)
         => new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Warning, message, source);

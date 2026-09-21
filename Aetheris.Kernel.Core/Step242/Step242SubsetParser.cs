@@ -57,7 +57,8 @@ internal static class Step242SubsetParser
 
         var millimetresPerUnit = Step242LengthUnitNormalizer.ResolveMillimetresPerUnit(entities);
         var normalizedEntities = Step242LengthUnitNormalizer.Normalize(entities, millimetresPerUnit);
-        return KernelResult<Step242ParsedDocument>.Success(new Step242ParsedDocument(normalizedEntities, millimetresPerUnit));
+        var declaredAccuracy = Step242LengthUnitNormalizer.ResolveDistanceAccuracyMillimetres(entities, millimetresPerUnit);
+        return KernelResult<Step242ParsedDocument>.Success(new Step242ParsedDocument(normalizedEntities, millimetresPerUnit, declaredAccuracy));
     }
 
     private static KernelResult<Step242ParsedDocument> Failure(string message, string source)
@@ -582,10 +583,14 @@ internal sealed class Step242ParsedDocument
 {
     private readonly Dictionary<int, Step242ParsedEntity> _entitiesById;
 
-    public Step242ParsedDocument(IReadOnlyList<Step242ParsedEntity> entities, double sourceMillimetresPerUnit = 1d)
+    public Step242ParsedDocument(
+        IReadOnlyList<Step242ParsedEntity> entities,
+        double sourceMillimetresPerUnit = 1d,
+        double? sourceDistanceAccuracyMillimetres = null)
     {
         Entities = entities;
         SourceMillimetresPerUnit = sourceMillimetresPerUnit;
+        SourceDistanceAccuracyMillimetres = sourceDistanceAccuracyMillimetres;
         _entitiesById = entities.ToDictionary(e => e.Id);
         PlaneAngleToRadiansScale = ResolvePlaneAngleToRadiansScale();
     }
@@ -596,6 +601,9 @@ internal sealed class Step242ParsedDocument
 
     /// <summary>Millimetres per length unit declared by the source file; entity lengths have already been multiplied by this.</summary>
     public double SourceMillimetresPerUnit { get; }
+
+    /// <summary>Distance accuracy the source file declares for its geometry, in millimetres, or null when it declares none.</summary>
+    public double? SourceDistanceAccuracyMillimetres { get; }
 
     public KernelResult<Step242ParsedEntity> TryGetEntity(int id, string? expectedName = null)
     {

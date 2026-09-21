@@ -73,14 +73,30 @@ internal static class TrimmedSurfaceTessellator
         // Prefer a boundary-conforming triangulation: the uniform-grid mask below leaves a staircase along every
         // trim curve and a gap of up to one cell between neighbouring faces. It stays as the fallback for loop sets
         // that are not a simple "outer minus holes" region (for example periodic wrap-around rings).
+        // The conforming mesh refines by bisecting the longest edge in cell-normalized UV space. If the cells are
+        // isotropic in UV although the surface only curves in one direction (a cone or cylinder), every needed split
+        // across the curved direction also forces the same number of splits along the straight one. Size the cells
+        // from the surface's actual turning in each direction instead.
+        // Free-form B-spline patches can curve anywhere between the sampled iso-curves, so they keep the uniform
+        // seed grid; the estimate is only trusted for analytic surfaces whose curvature is constant per direction.
+        var (curvedU, curvedV) = surfaceKind == SurfaceGeometryKind.BSplineSurfaceWithKnots
+            ? (uSegments, vSegments)
+            : EstimateCurvatureSegments(evaluate, evaluateNormal, uStart, uEnd, vStart, vEnd, options);
+        // Sampled straight trim edges (cone generators, cylinder rulings) arrive as many UV-collinear points. They
+        // add nothing but sliver triangles, so drop vertices that lie exactly on the segment between their neighbours.
+        var cellUForSimplify = (uEnd - uStart) / curvedU;
+        var cellVForSimplify = (vEnd - vStart) / curvedV;
+        var simplifiedLoops = normalizedLoops
+            .Select(loop => RemoveCollinearVertices(loop, cellUForSimplify, cellVForSimplify))
+            .ToList();
         var conformingPatch = BoundaryConformingTrimTessellator.TryTessellate(
             faceId,
-            normalizedLoops,
+            simplifiedLoops,
             outerLoopIndex,
             evaluate,
             evaluateNormal,
-            (uEnd - uStart) / uSegments,
-            (vEnd - vStart) / vSegments,
+            (uEnd - uStart) / curvedU,
+            (vEnd - vStart) / curvedV,
             options,
             () => executionBudget?.ThrowIfExpired("TrimmedSurface.Conforming", faceId, surfaceKind));
         if (conformingPatch is not null)
@@ -268,6 +284,116 @@ internal static class TrimmedSurfaceTessellator
         }
 
         return normalized;
+    }
+
+    /// <summary>
+    /// Estimates how many segments each parameter direction needs to satisfy the angular and chord tolerances, from
+    /// the normal turning along a few sampled iso-curves. A direction with no curvature needs a single segment.
+    /// </summary>
+    private static (int USegments, int VSegments) EstimateCurvatureSegments(
+        Func<double, double, Point3D> evaluate,
+        Func<double, double, Vector3D> evaluateNormal,
+        double uStart,
+        double uEnd,
+        double vStart,
+        double vEnd,
+        DisplayTessellationOptions options)
+    {
+        const int samples = 16;
+        const int rows = 5;
+
+        int Estimate(bool alongU)
+        {
+            var bestSegments = 1;
+            for (var row = 0; row < rows; row++)
+            {
+                var fixedT = (row + 0.5d) / rows;
+                var turning = 0d;
+                var length = 0d;
+                Point3D? previousPoint = null;
+                Vector3D? previousNormal = null;
+                for (var i = 0; i <= samples; i++)
+                {
+                    var t = (double)i / samples;
+                    var u = alongU ? uStart + ((uEnd - uStart) * t) : uStart + ((uEnd - uStart) * fixedT);
+                    var v = alongU ? vStart + ((vEnd - vStart) * fixedT) : vStart + ((vEnd - vStart) * t);
+                    var point = evaluate(u, v);
+                    var normal = evaluateNormal(u, v);
+                    if (previousPoint is { } p)
+                    {
+                        length += (point - p).Length;
+                    }
+
+                    if (previousNormal is { } n && n.Length > 1e-12d && normal.Length > 1e-12d)
+                    {
+                        turning += double.Acos(double.Clamp(n.Dot(normal) / (n.Length * normal.Length), -1d, 1d));
+                    }
+
+                    previousPoint = point;
+                    previousNormal = normal;
+                }
+
+                if (turning <= 1e-6d)
+                {
+                    continue;
+                }
+
+                var byAngle = (int)double.Ceiling(turning / options.AngularToleranceRadians);
+                var radius = length / turning;
+                var ratio = double.Clamp(1d - (options.ChordTolerance / System.Math.Max(radius, 1e-9d)), -1d, 1d);
+                var halfStep = double.Acos(ratio);
+                var byChord = halfStep > 0d ? (int)double.Ceiling(turning / (2d * halfStep)) : 1;
+                bestSegments = System.Math.Max(bestSegments, System.Math.Max(byAngle, byChord));
+            }
+
+            // Sampling can miss localized curvature; keep a small floor so bumpy patches still get a usable seed grid.
+            return System.Math.Clamp(bestSegments, 1, options.MaximumSegments);
+        }
+
+        return (Estimate(alongU: true), Estimate(alongU: false));
+    }
+
+    private static List<(double U, double V)> RemoveCollinearVertices(List<(double U, double V)> loop, double cellU, double cellV)
+    {
+        if (loop.Count <= 3 || !(cellU > 0d) || !(cellV > 0d))
+        {
+            return loop;
+        }
+
+        var kept = new List<(double U, double V)>(loop);
+        var changed = true;
+        while (changed && kept.Count > 3)
+        {
+            changed = false;
+            for (var i = 0; i < kept.Count && kept.Count > 3; i++)
+            {
+                var previous = kept[(i + kept.Count - 1) % kept.Count];
+                var current = kept[i];
+                var next = kept[(i + 1) % kept.Count];
+
+                // Work in cell units so anisotropic (radians x millimetres) parameter spaces compare fairly.
+                var ax = (next.U - previous.U) / cellU;
+                var ay = (next.V - previous.V) / cellV;
+                var bx = (current.U - previous.U) / cellU;
+                var by = (current.V - previous.V) / cellV;
+                var chordLengthSquared = (ax * ax) + (ay * ay);
+                if (chordLengthSquared <= 1e-24d)
+                {
+                    continue;
+                }
+
+                var along = ((ax * bx) + (ay * by)) / chordLengthSquared;
+                var deviation = double.Abs((ax * by) - (ay * bx)) / double.Sqrt(chordLengthSquared);
+                if (along > 0d && along < 1d && deviation <= 1e-7d)
+                {
+                    kept.RemoveAt(i);
+                    i--;
+                    changed = true;
+                }
+            }
+        }
+
+        return kept;
     }
 
     private static int ResolveSegmentCount(double span, DisplayTessellationOptions options)

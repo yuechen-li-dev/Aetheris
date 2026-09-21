@@ -336,9 +336,25 @@ public static class KernelEndpoints
                         ? completeBoundedMesh.Value
                         : BrepDisplayTessellator.TessellateBoundedPartial(body, options);
 
+                    // Kernel tessellation reports skipped or degraded faces as warnings on an otherwise successful
+                    // result. They used to be dropped here, so a face the kernel gave up on showed up as a silent hole.
+                    if (completeBoundedMesh.IsSuccess)
+                    {
+                        displayDiagnostics.AddRange(completeBoundedMesh.Diagnostics
+                            .Where(diagnostic => diagnostic.Severity != Aetheris.Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Info)
+                            .Select(diagnostic => ToKernelWarningDisplayDiagnostic(body, diagnostic)));
+                    }
+
                     tessellationFallback = document.TryGetBodyTransform(bodyId, out var fallbackTransform)
                         ? ApiMappings.ToTessellationResponse(boundedMeshResult, fallbackTransform)
                         : ApiMappings.ToTessellationResponse(boundedMeshResult);
+
+                    // A patch with no triangles is a face the kernel skipped; treat it as absent so the face falls back
+                    // to wireframe/diagnostic display instead of claiming to be a rendered mesh.
+                    tessellationFallback = tessellationFallback with
+                    {
+                        FacePatches = tessellationFallback.FacePatches.Where(patch => patch.TriangleIndices.Count > 0).ToArray(),
+                    };
 
                     if (!completeBoundedMesh.IsSuccess && boundedMeshResult.FaceDiagnostics is { Count: > 0 })
                     {
@@ -407,7 +423,7 @@ public static class KernelEndpoints
 
                 if (boundedMeshResult is not null)
                 {
-                    var boundedMeshDiagnostics = boundedMeshResult.FaceDiagnostics?.Count ?? 0;
+                    var boundedMeshDiagnostics = (boundedMeshResult.FaceDiagnostics?.Count ?? 0) + displayDiagnostics.Count(diagnostic => diagnostic.Phase == "FaceTessellation" && diagnostic.Code.StartsWith("Viewer.Tessellation", StringComparison.Ordinal));
                     var boundedMeshFaceCount = faces.Count(face => face.MaterializationLane == "BoundedMesh" && face.Status == "Mesh");
                     var boundedMeshStatus = boundedMeshDiagnostics > 0 ? (boundedMeshFaceCount > 0 ? "Partial" : "Failed") : "Complete";
                     displayLanes.Add(new DisplayLaneDto(
@@ -623,6 +639,30 @@ public static class KernelEndpoints
         }
 
         return new DisplayEdgeDto(edgeId.Value, points, sourceCurveKind, points.Count, diagnostics);
+    }
+
+    private static DisplayDiagnosticDto ToKernelWarningDisplayDiagnostic(BrepBody body, Aetheris.Kernel.Core.Diagnostics.KernelDiagnostic diagnostic)
+    {
+        int? faceId = null;
+        string? surfaceKind = null;
+        var match = System.Text.RegularExpressions.Regex.Match(diagnostic.Message, @"\bFace (\d+)\b");
+        if (match.Success && int.TryParse(match.Groups[1].Value, out var parsedFaceId))
+        {
+            faceId = parsedFaceId;
+            var face = body.Topology.Faces.FirstOrDefault(candidate => candidate.Id.Value == parsedFaceId);
+            if (face is not null && body.TryGetFaceSurfaceGeometry(face.Id, out var surface) && surface is not null)
+            {
+                surfaceKind = surface.Kind.ToString();
+            }
+        }
+
+        return new DisplayDiagnosticDto(
+            diagnostic.Source ?? diagnostic.Code.ToString(),
+            diagnostic.Message,
+            faceId,
+            surfaceKind,
+            "FaceTessellation",
+            "Face was skipped or degraded by kernel tessellation; check the trim loops and surface of this face.");
     }
 
     private static string ResolveDisplayLane(AnalyticDisplayPacket packet)

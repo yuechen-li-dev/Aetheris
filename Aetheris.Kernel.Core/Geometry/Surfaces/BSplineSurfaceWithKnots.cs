@@ -16,7 +16,8 @@ public sealed record BSplineSurfaceWithKnots
         IReadOnlyList<int> knotMultiplicitiesV,
         IReadOnlyList<double> knotValuesU,
         IReadOnlyList<double> knotValuesV,
-        string knotSpec)
+        string knotSpec,
+        IReadOnlyList<IReadOnlyList<double>>? weights = null)
     {
         if (degreeU < 1 || degreeV < 1)
         {
@@ -64,8 +65,46 @@ public sealed record BSplineSurfaceWithKnots
         EnsureNonDecreasing(fullKnotsU, "U");
         EnsureNonDecreasing(fullKnotsV, "V");
 
+        if (weights is not null)
+        {
+            if (weights.Count != controlPoints.Count)
+            {
+                throw new ArgumentException("Weight net must have the same U cardinality as the control net.", nameof(weights));
+            }
+
+            for (var i = 0; i < weights.Count; i++)
+            {
+                if (weights[i] is null || weights[i].Count != controlCountV)
+                {
+                    throw new ArgumentException("Weight net rows must have the same V cardinality as the control net.", nameof(weights));
+                }
+
+                if (weights[i].Any(w => !double.IsFinite(w) || w <= 0d))
+                {
+                    throw new ArgumentException("Weights must be finite and strictly positive.", nameof(weights));
+                }
+            }
+
+            // All-unit weights are an ordinary polynomial surface; keep that representation canonical.
+            if (weights.All(row => row.All(w => double.Abs(w - 1d) <= 1e-12d)))
+            {
+                weights = null;
+            }
+        }
+
         DegreeU = degreeU;
         DegreeV = degreeV;
+        if (weights is not null)
+        {
+            Weights = weights.Select(row => row.ToArray()).ToArray();
+            _weightedNet = controlPoints
+                .Select((row, i) => (IReadOnlyList<Point3D>)row.Select((p, j) => new Point3D(p.X * weights[i][j], p.Y * weights[i][j], p.Z * weights[i][j])).ToArray())
+                .ToArray();
+            _weightNet = weights
+                .Select(row => (IReadOnlyList<Point3D>)row.Select(w => new Point3D(w, 0d, 0d)).ToArray())
+                .ToArray();
+        }
+
         ControlPoints = controlPoints.Select(row => row.ToArray()).ToArray();
         SurfaceForm = surfaceForm;
         UClosed = uClosed;
@@ -79,6 +118,19 @@ public sealed record BSplineSurfaceWithKnots
         FullKnotsV = fullKnotsV;
         KnotSpec = knotSpec;
     }
+
+    private readonly IReadOnlyList<IReadOnlyList<Point3D>>? _weightedNet;
+    private readonly IReadOnlyList<IReadOnlyList<Point3D>>? _weightNet;
+
+    /// <summary>Rational (NURBS) weights parallel to <see cref="ControlPoints"/>; null for a polynomial surface.</summary>
+    public IReadOnlyList<IReadOnlyList<double>>? Weights { get; }
+
+    public bool IsRational => Weights is not null;
+
+    /// <summary>Returns a copy of this surface carrying the given weight net.</summary>
+    public BSplineSurfaceWithKnots WithWeights(IReadOnlyList<IReadOnlyList<double>>? weights) => new(
+        DegreeU, DegreeV, ControlPoints, SurfaceForm, UClosed, VClosed, SelfIntersect,
+        KnotMultiplicitiesU, KnotMultiplicitiesV, KnotValuesU, KnotValuesV, KnotSpec, weights);
 
     public int DegreeU { get; }
     public int DegreeV { get; }
@@ -113,16 +165,28 @@ public sealed record BSplineSurfaceWithKnots
         var uClamped = ClampToDomain(u, DomainStartU, DomainEndU);
         var vClamped = ClampToDomain(v, DomainStartV, DomainEndV);
 
-        if (double.Abs(uClamped - DomainEndU) <= 1e-12d && double.Abs(vClamped - DomainEndV) <= 1e-12d)
+        if (_weightedNet is not null && _weightNet is not null)
         {
-            return ControlPoints[^1][^1];
+            var numerator = EvaluateNet(_weightedNet, uClamped, vClamped);
+            var weight = EvaluateNet(_weightNet, uClamped, vClamped).X;
+            return new Point3D(numerator.X / weight, numerator.Y / weight, numerator.Z / weight);
         }
 
-        var rowPoints = new Point3D[ControlPoints.Count];
-        for (var i = 0; i < ControlPoints.Count; i++)
+        return EvaluateNet(ControlPoints, uClamped, vClamped);
+    }
+
+    private Point3D EvaluateNet(IReadOnlyList<IReadOnlyList<Point3D>> net, double uClamped, double vClamped)
+    {
+        if (double.Abs(uClamped - DomainEndU) <= 1e-12d && double.Abs(vClamped - DomainEndV) <= 1e-12d)
+        {
+            return net[^1][^1];
+        }
+
+        var rowPoints = new Point3D[net.Count];
+        for (var i = 0; i < net.Count; i++)
         {
             rowPoints[i] = EvaluateCurve(
-                ControlPoints[i],
+                net[i],
                 DegreeV,
                 FullKnotsV,
                 DomainStartV,

@@ -140,6 +140,9 @@ public static class Step242Importer
             && !string.Equals(brepEntity.Name, "BREP_WITH_VOIDS", StringComparison.OrdinalIgnoreCase))
             return Step242ImportSharedUtilities.NotImplementedFailure<BrepBody>($"Entity #{rigidRootEntityId} is not an exact rigid BRep root.", "Importer.Assembly.ProductDefinitionGeometry");
         var shellRoleDiagnostics = new List<KernelDiagnostic>();
+        // Surface binding reports what it did with each spline face (recovered as a primitive, or retained); those
+        // findings are the record of how faithfully the file was read, so they travel with the imported body.
+        var surfaceBindingDiagnostics = new List<KernelDiagnostic>();
         var shellFaceEntityIds = new List<IReadOnlyList<int>>();
 
         var isBrepWithVoids = string.Equals(brepEntity.Name, "BREP_WITH_VOIDS", StringComparison.OrdinalIgnoreCase);
@@ -264,6 +267,8 @@ public static class Step242Importer
             {
                 return KernelResult<BrepBody>.Failure(bindSurfaceResult.Diagnostics);
             }
+
+            surfaceBindingDiagnostics.AddRange(bindSurfaceResult.Diagnostics);
 
             var loopData = new List<LoopBuildData>(boundRefsResult.Value.Count);
             foreach (var boundRef in boundRefsResult.Value)
@@ -575,7 +580,7 @@ public static class Step242Importer
             return KernelResult<BrepBody>.Failure(validation.Diagnostics);
         }
 
-        return KernelResult<BrepBody>.Success(body, validation.Diagnostics.Concat(shellRoleDiagnostics).ToArray());
+        return KernelResult<BrepBody>.Success(body, validation.Diagnostics.Concat(shellRoleDiagnostics).Concat(surfaceBindingDiagnostics).ToArray());
     }
 
     private static KernelResult<IReadOnlyList<int>> ReadShellFaceIds(Step242ParsedDocument document, int shellEntityId, string role, ICollection<KernelDiagnostic> diagnostics)
@@ -1199,18 +1204,55 @@ public static class Step242Importer
                 return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Failure(surfaceResult.Diagnostics);
             }
 
-            var recoveryDecision = Step242BsplineSurfaceRecoveryLane.Decide(surfaceToDecode, surfaceResult.Value);
-            if (string.Equals(recoveryDecision.CandidateName, "analytic_cylinder", StringComparison.Ordinal)
-                && recoveryDecision.RecoveredSurface is not null)
+            var bSplineSurface = surfaceResult.Value;
+            var rationalSurface = Step242SubsetDecoder.TryGetConstructor(surfaceToDecode.Instance, "RATIONAL_B_SPLINE_SURFACE");
+            if (rationalSurface is not null)
             {
-                return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Success((
-                    geometryId,
-                    recoveryDecision.RecoveredSurface));
+                // The weights have to be read before recovery runs: dropping them turns a NURBS face into a
+                // different polynomial surface, and recovery would then be judging geometry the file never stated.
+                var weightsResult = Step242SubsetDecoder.ReadRationalBSplineSurfaceWeights(WithConstructor(surfaceToDecode, rationalSurface));
+                if (!weightsResult.IsSuccess)
+                {
+                    return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Failure(weightsResult.Diagnostics);
+                }
+
+                try
+                {
+                    bSplineSurface = bSplineSurface.WithWeights(weightsResult.Value);
+                }
+                catch (ArgumentException ex)
+                {
+                    return FailureSurfaceBinding($"RATIONAL_B_SPLINE_SURFACE weights are inconsistent with the control net: {ex.Message}", SourceFor(surfaceToDecode.Id, "Importer.Geometry.RationalBSplineSurface"));
+                }
             }
+
+            var recoveryDecision = Step242BsplineSurfaceRecoveryLane.Decide(bSplineSurface, document.SourceDistanceAccuracyMillimetres);
+            if (recoveryDecision.RecoveredSurface is { } recoveredSurface)
+            {
+                return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Success(
+                    (geometryId, recoveredSurface),
+                    [new KernelDiagnostic(
+                        KernelDiagnosticCode.Unknown,
+                        KernelDiagnosticSeverity.Info,
+                        $"Spline surface #{surfaceToDecode.Id} was recovered as an analytic {recoveredSurface.Kind}: {recoveryDecision.Reason}",
+                        SourceFor(surfaceToDecode.Id, "Importer.Geometry.BsplineSurfaceRecovery"))]);
+            }
+
+            var retentionDiagnostics = bSplineSurface.IsRational
+                ? new[]
+                {
+                    new KernelDiagnostic(
+                        KernelDiagnosticCode.Unknown,
+                        KernelDiagnosticSeverity.Info,
+                        $"Spline surface #{surfaceToDecode.Id} is retained as a rational B-spline because no analytic primitive verified: {recoveryDecision.Reason}",
+                        SourceFor(surfaceToDecode.Id, "Importer.Geometry.RationalBSplineRetained"))
+                }
+                : [];
 
             return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Success((
                 geometryId,
-                SurfaceGeometry.FromBSplineSurfaceWithKnots(surfaceResult.Value)));
+                SurfaceGeometry.FromBSplineSurfaceWithKnots(bSplineSurface)),
+                retentionDiagnostics);
         }
 
         return FailureSurfaceBinding($"ADVANCED_FACE surface '{surfaceName}' is unsupported.", SourceFor(surfaceToDecode.Id, "Importer.EntityFamily"));
@@ -3407,15 +3449,30 @@ public static class Step242Importer
             case CurveGeometryKind.BSpline3:
                 var spline = curve.BSpline3!.Value;
                 var splineTrim = edgeBinding.TrimInterval ?? new ParameterInterval(spline.DomainStart, spline.DomainEnd);
-                var splineMid = splineTrim.Start + ((splineTrim.End - splineTrim.Start) * 0.5d);
-                points = [spline.Evaluate(splineTrim.Start), spline.Evaluate(splineMid), spline.Evaluate(splineTrim.End)];
+                // A start/mid/end polyline cuts corners of any curved B-spline by up to ~1e-2 mm, which is enough to
+                // make a hole loop that hugs its outer loop look like it crosses it. Sample densely enough that the
+                // classification polygon follows the curve.
+                const int splineClassificationSegments = 32;
+                points = new List<Point3D>(splineClassificationSegments + 1);
+                for (var i = 0; i <= splineClassificationSegments; i++)
+                {
+                    var t = i == splineClassificationSegments
+                        ? splineTrim.End
+                        : splineTrim.Start + ((splineTrim.End - splineTrim.Start) * i / splineClassificationSegments);
+                    points.Add(spline.Evaluate(t));
+                }
+
                 break;
             default:
                 points = [];
                 break;
         }
 
-        if (isReversed)
+        // Samples above run in curve-parameter order. ORIENTED_EDGE orientation is relative to the edge's vertex
+        // order, and EDGE_CURVE same_sense says whether the curve parameter runs with or against that order, so the
+        // traversal direction is the XOR of both. Ignoring same_sense=.F. reversed the samples of those edges and
+        // produced huge fake gaps between consecutive coedges.
+        if (isReversed ^ !edgeBinding.OrientedEdgeSense)
         {
             points.Reverse();
         }

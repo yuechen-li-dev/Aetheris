@@ -44,7 +44,7 @@ public sealed class Step242CylinderTrimDualSingleCoedgeClosedCircleRegressionTes
     }
 
     [Fact]
-    public void Step242_Ftc11_AdvancesPastCylinderTrimDegenerate_ToNextExplicitBlocker_Deterministically()
+    public void Step242_Ftc11_TessellatesDualSingleCoedgeClosedCircleCylinders_AndReachesPickerSuccess_Deterministically()
     {
         const string relativePath = "testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp";
         var first = Step242CorpusManifestRunner.RunOne(new Step242CorpusManifestEntry("ftc11", relativePath, "nist-regression", null, null, null, null, null), includeDisplayAudit: true);
@@ -52,10 +52,9 @@ public sealed class Step242CylinderTrimDualSingleCoedgeClosedCircleRegressionTes
 
         Assert.Equal("success", first.Status);
         Assert.Equal(string.Empty, first.FirstFailureLayer);
-        Assert.Equal("pickerBlockedByTessellationSkip", first.DisplayStatus);
-        Assert.Equal("picker", first.DisplayFirstFailureLayer);
-        Assert.Equal("Audit.Picker", first.DisplayFirstDiagnostic.Source);
-        Assert.Equal("Picker smoke ray produced no hit.", first.DisplayFirstDiagnostic.MessagePrefix);
+        // Seamless dual-circle cylinder walls used to be skipped by tessellation, which starved the picker. They now tessellate.
+        Assert.Equal("success", first.DisplayStatus);
+        Assert.Equal(string.Empty, first.DisplayFirstFailureLayer);
 
         Assert.Equal(first.DisplayStatus, second.DisplayStatus);
         Assert.Equal(first.DisplayFirstFailureLayer, second.DisplayFirstFailureLayer);

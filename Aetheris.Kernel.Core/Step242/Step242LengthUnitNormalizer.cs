@@ -54,6 +54,42 @@ internal static class Step242LengthUnitNormalizer
         return 1d;
     }
 
+    /// <summary>
+    /// Resolves the distance accuracy the source file declares for its geometry, in millimetres, or null when it
+    /// declares none. This is the exporter's own statement of how exactly its entities agree, which makes it the
+    /// right yardstick for deciding whether an approximated entity may be replaced by the primitive it encodes.
+    /// The smallest declaration wins, and the value is scaled because unit normalization does not touch it.
+    /// </summary>
+    public static double? ResolveDistanceAccuracyMillimetres(IReadOnlyList<Step242ParsedEntity> entities, double millimetresPerUnit)
+    {
+        double? smallest = null;
+        foreach (var entity in entities)
+        {
+            var uncertainty = Step242SubsetDecoder.TryGetConstructor(entity.Instance, "UNCERTAINTY_MEASURE_WITH_UNIT");
+            if (uncertainty is null || uncertainty.Arguments.Count == 0)
+            {
+                continue;
+            }
+
+            var measure = uncertainty.Arguments[0] switch
+            {
+                Step242TypedValue typed when typed.Arguments.Count > 0 && typed.Arguments[0] is Step242NumberValue typedNumber => typedNumber.Value,
+                Step242NumberValue number => number.Value,
+                _ => double.NaN
+            };
+
+            var millimetres = measure * millimetresPerUnit;
+            if (!double.IsFinite(millimetres) || millimetres <= 0d)
+            {
+                continue;
+            }
+
+            smallest = smallest is { } current ? double.Min(current, millimetres) : millimetres;
+        }
+
+        return smallest;
+    }
+
     public static IReadOnlyList<Step242ParsedEntity> Normalize(IReadOnlyList<Step242ParsedEntity> entities, double scale)
     {
         if (double.Abs(scale - 1d) <= 1e-12d || scale <= 0d || !double.IsFinite(scale))

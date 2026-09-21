@@ -27,47 +27,57 @@ public sealed class Step242OcctCylinderRecoveryTests
         Assert.Equal(0, import.Value.Geometry.Surfaces.Count(surface => surface.Value.Kind == SurfaceGeometryKind.BSplineSurfaceWithKnots));
     }
 
+    /// <summary>
+    /// A polynomial cubic through the corners of a half-circle looks like a cylinder to any test that only reads the
+    /// control net, but it bulges 2.5 mm away from one. Recovery has to measure the surface it would replace, not the
+    /// shape of its net, or it silently swaps a blend for a primitive that is nowhere near it.
+    /// </summary>
     [Fact]
-    public void BsplineRecoveryLane_NonRationalCylinderLikeSurface_ExplicitlyRejectsRecovery()
+    public void BsplineRecoveryLane_PolynomialApproximationOfAHalfCircle_IsRejectedInsteadOfSnappedToACylinder()
     {
-        var decision = Step242BsplineSurfaceRecoveryLane.Decide(
-            CreateNonRationalSurfaceEntity(),
-            CreateCylinderLikeSurface());
+        var decision = Step242BsplineSurfaceRecoveryLane.Decide(CreateCylinderLikeSurface());
 
         Assert.Equal("reject", decision.CandidateName);
         Assert.Null(decision.RecoveredSurface);
-        Assert.Contains("not a rational", decision.Reason, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("exact", decision.Reason, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void BsplineRecoveryLane_RationalCylinderLikeSurface_UsesJudgmentToSelectAnalyticCylinder()
+    public void BsplineRecoveryLane_ExactRationalCylinder_UsesJudgmentToSelectAnalyticCylinder()
     {
-        var decision = Step242BsplineSurfaceRecoveryLane.Decide(
-            CreateRationalSurfaceEntity(),
-            CreateCylinderLikeSurface());
+        var decision = Step242BsplineSurfaceRecoveryLane.Decide(CreateExactRationalCylinder(radius: 5d, height: 10d));
 
         Assert.Equal("analytic_cylinder", decision.CandidateName);
         Assert.NotNull(decision.RecoveredSurface);
         Assert.Equal(SurfaceGeometryKind.Cylinder, decision.RecoveredSurface!.Kind);
+        Assert.Equal(5d, decision.RecoveredSurface.Cylinder!.Value.Radius, 9);
     }
 
-    private static Step242ParsedEntity CreateRationalSurfaceEntity()
+    /// <summary>Quarter circle as a rational quadratic - the exact NURBS arc every exporter writes - swept along z.</summary>
+    internal static BSplineSurfaceWithKnots CreateExactRationalCylinder(double radius, double height)
     {
-        var constructors = new[]
-        {
-            new Step242EntityConstructor("B_SPLINE_SURFACE_WITH_KNOTS", []),
-            new Step242EntityConstructor("RATIONAL_B_SPLINE_SURFACE", [new Step242ListValue([])]),
-            new Step242EntityConstructor("SURFACE", [])
-        };
+        var weight = double.Sqrt(0.5d);
+        IReadOnlyList<Point3D> Ring(double z) =>
+        [
+            new Point3D(radius, 0d, z),
+            new Point3D(radius, radius, z),
+            new Point3D(0d, radius, z)
+        ];
 
-        return new Step242ParsedEntity(1, new Step242ComplexEntityInstance(constructors));
-    }
-
-    private static Step242ParsedEntity CreateNonRationalSurfaceEntity()
-    {
-        return new Step242ParsedEntity(
-            1,
-            new Step242SimpleEntityInstance(new Step242EntityConstructor("B_SPLINE_SURFACE_WITH_KNOTS", [])));
+        return new BSplineSurfaceWithKnots(
+            degreeU: 1,
+            degreeV: 2,
+            controlPoints: [Ring(0d), Ring(height)],
+            surfaceForm: "CYLINDRICAL_SURF",
+            uClosed: false,
+            vClosed: false,
+            selfIntersect: false,
+            knotMultiplicitiesU: [2, 2],
+            knotMultiplicitiesV: [3, 3],
+            knotValuesU: [0d, 1d],
+            knotValuesV: [0d, 1d],
+            knotSpec: "PIECEWISE_BEZIER_KNOTS",
+            weights: [[1d, weight, 1d], [1d, weight, 1d]]);
     }
 
     private static BSplineSurfaceWithKnots CreateCylinderLikeSurface()

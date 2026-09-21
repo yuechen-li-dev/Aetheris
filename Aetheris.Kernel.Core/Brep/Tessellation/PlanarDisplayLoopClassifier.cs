@@ -45,9 +45,13 @@ internal sealed class PlanarDisplayLoopClassifier
 
     public IReadOnlyList<PlanarLoopClassification> Classify(int sourceFaceId, IReadOnlyList<(int LoopId, IReadOnlyList<Point3D> Points)> loops)
     {
+        // All loops of a face lie in one plane, so they must share one 2D projection. Choosing the dropped axis per
+        // loop (from each loop's own Newell normal) puts loops into unrelated coordinate systems whenever the plane
+        // is oblique, and holes then appear "outside" the primary loop.
+        var projectionAxis = SelectProjectionAxis(loops.Select(loop => loop.Points).ToArray());
         var descriptors = loops
             .OrderBy(loop => loop.LoopId)
-            .Select(loop => Describe(sourceFaceId, loop.LoopId, loop.Points))
+            .Select(loop => Describe(sourceFaceId, loop.LoopId, loop.Points, projectionAxis))
             .ToArray();
 
         if (descriptors.Length == 0)
@@ -107,7 +111,7 @@ internal sealed class PlanarDisplayLoopClassifier
         }).ToArray();
     }
 
-    private static PlanarLoop2D Describe(int sourceFaceId, int loopId, IReadOnlyList<Point3D> points)
+    private static PlanarLoop2D Describe(int sourceFaceId, int loopId, IReadOnlyList<Point3D> points, int projectionAxis)
     {
         var diagnostics = new List<string>();
         if (points.Count < 3)
@@ -116,7 +120,7 @@ internal sealed class PlanarDisplayLoopClassifier
             return new PlanarLoop2D(loopId, sourceFaceId, Array.Empty<PlanarDisplayPoint2D>(), points, 0d, PlanarDisplayLoopOrientation.Degenerate, default, PlanarDisplayLoopRole.Degenerate, diagnostics);
         }
 
-        var points2D = Project(points);
+        var points2D = Project(points, projectionAxis);
         var area = SignedArea(points2D);
         for (var i = 0; i < points2D.Count; i++)
         {
@@ -147,15 +151,40 @@ internal sealed class PlanarDisplayLoopClassifier
 
     private static PlanarDisplayBoundingBox Bounds(IReadOnlyList<PlanarDisplayPoint2D> points) => new(points.Min(p => p.X), points.Min(p => p.Y), points.Max(p => p.X), points.Max(p => p.Y));
 
-    private static IReadOnlyList<PlanarDisplayPoint2D> Project(IReadOnlyList<Point3D> points)
+    /// <summary>Returns the coordinate axis (0=X, 1=Y, 2=Z) to drop, from the loop with the largest Newell normal.</summary>
+    private static int SelectProjectionAxis(IReadOnlyList<IReadOnlyList<Point3D>> loops)
     {
-        var normal = NewellNormal(points);
-        var ax = System.Math.Abs(normal.X);
-        var ay = System.Math.Abs(normal.Y);
-        var az = System.Math.Abs(normal.Z);
+        var bestMagnitude = -1d;
+        var bestAxis = 2;
+        foreach (var points in loops)
+        {
+            if (points.Count < 3)
+            {
+                continue;
+            }
+
+            var normal = NewellNormal(points);
+            var magnitude = (normal.X * normal.X) + (normal.Y * normal.Y) + (normal.Z * normal.Z);
+            if (magnitude <= bestMagnitude)
+            {
+                continue;
+            }
+
+            bestMagnitude = magnitude;
+            var ax = System.Math.Abs(normal.X);
+            var ay = System.Math.Abs(normal.Y);
+            var az = System.Math.Abs(normal.Z);
+            bestAxis = az >= ax && az >= ay ? 2 : ay >= ax ? 1 : 0;
+        }
+
+        return bestAxis;
+    }
+
+    private static IReadOnlyList<PlanarDisplayPoint2D> Project(IReadOnlyList<Point3D> points, int projectionAxis)
+    {
         return points.Select(point =>
-            az >= ax && az >= ay ? new PlanarDisplayPoint2D(point.X, point.Y) :
-            ay >= ax ? new PlanarDisplayPoint2D(point.X, point.Z) :
+            projectionAxis == 2 ? new PlanarDisplayPoint2D(point.X, point.Y) :
+            projectionAxis == 1 ? new PlanarDisplayPoint2D(point.X, point.Z) :
             new PlanarDisplayPoint2D(point.Y, point.Z)).ToArray();
     }
 

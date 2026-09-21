@@ -90,14 +90,14 @@
       "source": "Audit.None",
       "messagePrefix": "No diagnostics."
     },
-    "diagnosticCount": 0,
+    "diagnosticCount": 4,
     "exceptionEscaped": false,
     "topologyCounts": {
       "vertices": 239,
       "edges": 331,
       "faces": 156
     },
-    "canonicalSha256": "677c52bac98905f0a8ca68b5163d641820aa6ee633016181d96a6db0be6912c6"
+    "canonicalSha256": "deaddaaefd102199a26aadf3cc6551d4f1337f90f04c2b6103febcf8f499d731"
   },
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_06_asme1_ap242-e2",
@@ -163,21 +163,21 @@
     "fileId": "testdata_step242_nist_FTC_nist_ftc_08_asme1_ap242-e2",
     "path": "testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e2.stp",
     "sizeBytes": 4658022,
-    "status": "importFail",
-    "firstFailureLayer": "importer-topology",
+    "status": "success",
+    "firstFailureLayer": "",
     "firstDiagnostic": {
-      "code": "ValidationFailed",
-      "source": "Importer.LoopRole.DisconnectedCoedges",
-      "messagePrefix": "Planar loop contains disconnected consecutive coedges and cannot be normalized safely. innerLoopId=1, outerLoopId=2, out"
+      "code": "Unknown",
+      "source": "Audit.None",
+      "messagePrefix": "No diagnostics."
     },
-    "diagnosticCount": 1,
+    "diagnosticCount": 0,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 0,
-      "edges": 0,
-      "faces": 0
+      "vertices": 396,
+      "edges": 616,
+      "faces": 247
     },
-    "canonicalSha256": null
+    "canonicalSha256": "9c816376544b3555f98e0f1885285d73a27364148e54e4ee2e3d90457f7c1893"
   },
   {
     "fileId": "testdata_step242_nist_FTC_nist_ftc_09_asme1_ap242-e1",
@@ -263,21 +263,21 @@
     "fileId": "testdata_step242_nist_STC_nist_stc_07_asme1_ap242-e3",
     "path": "testdata/step242/nist/STC/nist_stc_07_asme1_ap242-e3.stp",
     "sizeBytes": 1927905,
-    "status": "importFail",
-    "firstFailureLayer": "importer-topology",
+    "status": "success",
+    "firstFailureLayer": "",
     "firstDiagnostic": {
-      "code": "ValidationFailed",
-      "source": "Importer.LoopRole.DisconnectedCoedges",
-      "messagePrefix": "Planar loop contains disconnected consecutive coedges and cannot be normalized safely. innerLoopId=328, outerLoopId=326,"
+      "code": "Unknown",
+      "source": "Audit.None",
+      "messagePrefix": "No diagnostics."
     },
-    "diagnosticCount": 1,
+    "diagnosticCount": 0,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 0,
-      "edges": 0,
-      "faces": 0
+      "vertices": 588,
+      "edges": 871,
+      "faces": 306
     },
-    "canonicalSha256": null
+    "canonicalSha256": "07ebd127a871a8d36ef34b153ee2435cdaf5031463c1eb36ce42fa5d40b5ba6c"
   },
   {
     "fileId": "testdata_step242_nist_STC_nist_stc_08_asme1_ap242-e3",
@@ -323,20 +323,20 @@
     "fileId": "testdata_step242_nist_STC_nist_stc_10_asme1_ap242-e2",
     "path": "testdata/step242/nist/STC/nist_stc_10_asme1_ap242-e2.stp",
     "sizeBytes": 4807322,
-    "status": "importFail",
-    "firstFailureLayer": "importer-topology",
+    "status": "success",
+    "firstFailureLayer": "",
     "firstDiagnostic": {
-      "code": "ValidationFailed",
-      "source": "Importer.LoopRole.DisconnectedCoedges",
-      "messagePrefix": "Planar loop contains disconnected consecutive coedges and cannot be normalized safely. innerLoopId=4, outerLoopId=2, out"
+      "code": "Unknown",
+      "source": "Audit.None",
+      "messagePrefix": "No diagnostics."
     },
     "diagnosticCount": 1,
     "exceptionEscaped": false,
     "topologyCounts": {
-      "vertices": 0,
-      "edges": 0,
-      "faces": 0
+      "vertices": 368,
+      "edges": 551,
+      "faces": 256
     },
-    "canonicalSha256": null
+    "canonicalSha256": "0eee08920035167420c527992ee2fcad8b9091fb644f4b21e8438eac5aa1b845"
   }
 ]

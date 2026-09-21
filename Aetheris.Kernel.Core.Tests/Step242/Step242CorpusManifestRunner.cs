@@ -297,13 +297,15 @@ internal static class Step242CorpusManifestRunner
 
     private static Step242AuditDiagnostic FirstDiagnostic(IReadOnlyList<KernelDiagnostic> diagnostics)
     {
-        if (diagnostics.Count == 0)
+        // The audit uses this to name what blocked a file, so it reports the first finding. Informational notes -
+        // such as import recording that a spline face was recovered as a primitive - are not blockers and are skipped.
+        var finding = diagnostics.FirstOrDefault(diagnostic => diagnostic.Severity != KernelDiagnosticSeverity.Info);
+        if (finding is null)
         {
             return new Step242AuditDiagnostic("Unknown", "Audit.None", "No diagnostics.");
         }
 
-        var d = diagnostics[0];
-        return new Step242AuditDiagnostic(d.Code.ToString(), NormalizeSource(d.Source ?? string.Empty), StableMessagePrefix(d.Message));
+        return new Step242AuditDiagnostic(finding.Code.ToString(), NormalizeSource(finding.Source ?? string.Empty), StableMessagePrefix(finding.Message));
     }
 
     private static string DetermineImportFailureLayer(IReadOnlyList<KernelDiagnostic> diagnostics)

@@ -67,7 +67,7 @@ public sealed class Step242NistAuditHarnessTests
     }
 
     [Fact]
-    public void NistCorpus_RepresentativeDisplayBlocker_RemainsVisibleInDisplayLane()
+    public void NistCorpus_FormerDisplayBlocker_Ftc11_NowPassesDisplayLane()
     {
         const string relativePath = "testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp";
         var entry = BuildNistEntry(relativePath);
@@ -77,8 +77,8 @@ public sealed class Step242NistAuditHarnessTests
 
         Assert.Equal("success", first.Status);
         Assert.Equal(string.Empty, first.FirstFailureLayer);
-        Assert.Equal("pickerBlockedByTessellationSkip", first.DisplayStatus);
-        Assert.Equal("picker", first.DisplayFirstFailureLayer);
+        Assert.Equal("success", first.DisplayStatus);
+        Assert.Equal(string.Empty, first.DisplayFirstFailureLayer);
         Assert.Equal(first.DisplayStatus, second.DisplayStatus);
         Assert.Equal(first.DisplayFirstFailureLayer, second.DisplayFirstFailureLayer);
         Assert.Equal(first.DisplayFirstDiagnostic.Source, second.DisplayFirstDiagnostic.Source);

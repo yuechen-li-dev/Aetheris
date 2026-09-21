@@ -19,7 +19,9 @@ namespace Aetheris.Kernel.Core.Brep.Tessellation;
 /// </summary>
 internal static class BoundaryConformingTrimTessellator
 {
-    private const int MaxTriangles = 200_000;
+    // Soft cap: refinement stops (leaving a valid, conforming, slightly coarser mesh) once a face reaches this size,
+    // so dense B-spline faces cannot consume the whole display budget.
+    private const int MaxTriangles = 12_000;
     // Never split edges shorter than this fraction of a nominal grid cell (guarantees termination).
     private const double MinimumSplitLength = 0.125d;
     // Safety net: triangles with an edge longer than this many nominal grid cells are always split.
@@ -35,7 +37,8 @@ internal static class BoundaryConformingTrimTessellator
         double cellU,
         double cellV,
         DisplayTessellationOptions options,
-        Action? checkBudget)
+        Action? checkBudget,
+        double maximumCellLength = MaximumCellLength)
     {
         if (!(cellU > 0d) || !(cellV > 0d) || !double.IsFinite(cellU) || !double.IsFinite(cellV))
         {
@@ -108,7 +111,7 @@ internal static class BoundaryConformingTrimTessellator
             return null;
         }
 
-        var mesh = new RefinableMesh(cellU, cellV, evaluate, evaluateNormal, options.ChordTolerance, options.AngularToleranceRadians);
+        var mesh = new RefinableMesh(cellU, cellV, evaluate, evaluateNormal, options.ChordTolerance, options.AngularToleranceRadians, maximumCellLength);
         var pointMap = new int[seedPoints.Count];
         for (var i = 0; i < seedPoints.Count; i++)
         {
@@ -235,6 +238,7 @@ internal static class BoundaryConformingTrimTessellator
         private readonly Func<double, double, Vector3D> _evaluateNormal;
         private readonly double _chordTolerance;
         private readonly double _angularTolerance;
+        private readonly double _maximumCellLength;
         private readonly List<Point3D?> _positions = new();
         private readonly List<Vector3D?> _normals = new();
         private readonly List<(double U, double V)> _vertices = new();
@@ -251,7 +255,8 @@ internal static class BoundaryConformingTrimTessellator
             Func<double, double, Point3D> evaluate,
             Func<double, double, Vector3D> evaluateNormal,
             double chordTolerance,
-            double angularTolerance)
+            double angularTolerance,
+            double maximumCellLength)
         {
             _cellU = cellU;
             _cellV = cellV;
@@ -259,6 +264,7 @@ internal static class BoundaryConformingTrimTessellator
             _evaluateNormal = evaluateNormal;
             _chordTolerance = chordTolerance;
             _angularTolerance = angularTolerance;
+            _maximumCellLength = maximumCellLength;
         }
 
         public Point3D Position(int index)
@@ -347,7 +353,7 @@ internal static class BoundaryConformingTrimTessellator
 
                 if (_alive.Count > MaxTriangles)
                 {
-                    return false;
+                    return true;
                 }
 
                 var t = _work.Pop();
@@ -395,7 +401,7 @@ internal static class BoundaryConformingTrimTessellator
                 return false;
             }
 
-            if (longest > MaximumCellLength)
+            if (longest > _maximumCellLength)
             {
                 return true;
             }

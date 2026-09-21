@@ -82,7 +82,7 @@ public sealed class Step242TessellationRobustnessTests
 
     [Fact]
     [Trait("Category", "SlowCorpus")]
-    public void Step242_Tessellate_UnsupportedComplexPlanarMultiLoop_DoesNotFallbackToOuterLoopFill()
+    public void Step242_Tessellate_ComplexPlanarMultiLoop_IsResolvedByEarCutFallback_WithoutOuterLoopFill()
     {
         var text = LoadFixture("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp");
 
@@ -94,17 +94,24 @@ public sealed class Step242TessellationRobustnessTests
 
         Assert.True(tessellation.IsSuccess);
 
-        var diagnostics = tessellation.Diagnostics
-            .Where(d => string.Equals(d.Source, "Viewer.Tessellation.PlanarMultiLoopTriangulationSkipped", StringComparison.Ordinal))
-            .ToArray();
-        Assert.NotEmpty(diagnostics);
-        var diagnostic = Assert.Single(diagnostics, d => d.Message.Contains("Face 2 ", StringComparison.Ordinal));
-        Assert.Equal(KernelDiagnosticCode.ValidationFailed, diagnostic.Code);
-        Assert.Contains("skipping face patch", diagnostic.Message, StringComparison.Ordinal);
+        // The primary planar triangulator declines this long multi-loop face; the earcut fallback resolves it instead of
+        // the face being skipped.
+        Assert.DoesNotContain(tessellation.Diagnostics, d =>
+            string.Equals(d.Source, "Viewer.Tessellation.PlanarMultiLoopTriangulationSkipped", StringComparison.Ordinal)
+            && d.Message.Contains("Face 2 ", StringComparison.Ordinal));
 
-        var skippedPatch = Assert.Single(tessellation.Value.FacePatches, patch => patch.FaceId.Value == 2);
-        Assert.Empty(skippedPatch.Positions);
-        Assert.Empty(skippedPatch.TriangleIndices);
+        var patch = Assert.Single(tessellation.Value.FacePatches, p => p.FaceId.Value == 2);
+        Assert.NotEmpty(patch.TriangleIndices);
+        var area = 0d;
+        for (var i = 0; i + 2 < patch.TriangleIndices.Count; i += 3)
+        {
+            var a = patch.Positions[patch.TriangleIndices[i]];
+            var b = patch.Positions[patch.TriangleIndices[i + 1]];
+            var c = patch.Positions[patch.TriangleIndices[i + 2]];
+            area += (b - a).Cross(c - a).Length * 0.5d;
+        }
+
+        Assert.True(area > 0d);
     }
 
     [Fact]

@@ -708,6 +708,23 @@ public static class Step242Exporter
         var knotValuesU = surface.KnotValuesU.Select(Step242TextWriter.Number).ToArray();
         var knotValuesV = surface.KnotValuesV.Select(Step242TextWriter.Number).ToArray();
 
+        if (surface.Weights is { } weights)
+        {
+            // Rational surfaces are a complex entity; the weights must survive the round trip or the face changes shape.
+            var degreeU = surface.DegreeU.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var degreeV = surface.DegreeV.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var weightRows = weights.Select(row => Step242TextWriter.List(row.Select(Step242TextWriter.Number).ToArray())).ToArray();
+            var pointNet = Step242TextWriter.List(controlPointRows);
+            var flags = $"{Step242TextWriter.Enum(surface.SurfaceForm)},{Step242TextWriter.BooleanLogical(surface.UClosed)},{Step242TextWriter.BooleanLogical(surface.VClosed)},{Step242TextWriter.BooleanLogical(surface.SelfIntersect)}";
+            return writer.AddRawEntity(
+                "(BOUNDED_SURFACE()"
+                + $"B_SPLINE_SURFACE({degreeU},{degreeV},{pointNet},{flags})"
+                + $"B_SPLINE_SURFACE_WITH_KNOTS({Step242TextWriter.List(multiplicitiesU)},{Step242TextWriter.List(multiplicitiesV)},{Step242TextWriter.List(knotValuesU)},{Step242TextWriter.List(knotValuesV)},{Step242TextWriter.Enum(surface.KnotSpec)})"
+                + "GEOMETRIC_REPRESENTATION_ITEM()"
+                + $"RATIONAL_B_SPLINE_SURFACE({Step242TextWriter.List(weightRows)})"
+                + "REPRESENTATION_ITEM('')SURFACE())");
+        }
+
         return writer.AddEntity(
             "B_SPLINE_SURFACE_WITH_KNOTS",
             "$",

@@ -625,6 +625,42 @@ internal static class Step242SubsetDecoder
         }
     }
 
+    /// <summary>Reads the weights_data net of a RATIONAL_B_SPLINE_SURFACE constructor.</summary>
+    internal static KernelResult<IReadOnlyList<IReadOnlyList<double>>> ReadRationalBSplineSurfaceWeights(Step242ParsedEntity rationalSurfaceEntity)
+    {
+        const string context = "RATIONAL_B_SPLINE_SURFACE weights_data";
+        const string source = "Importer.Geometry.RationalBSplineSurface";
+        if (rationalSurfaceEntity.Arguments.Count < 1 || rationalSurfaceEntity.Arguments[0] is not Step242ListValue rows)
+        {
+            return Failure<IReadOnlyList<IReadOnlyList<double>>>(KernelDiagnosticCode.InvalidArgument, $"{context}: expected aggregate of aggregates.", source);
+        }
+
+        var net = new List<IReadOnlyList<double>>(rows.Items.Count);
+        foreach (var rowValue in rows.Items)
+        {
+            if (rowValue is not Step242ListValue row)
+            {
+                return Failure<IReadOnlyList<IReadOnlyList<double>>>(KernelDiagnosticCode.InvalidArgument, $"{context}: expected aggregate rows.", source);
+            }
+
+            var values = new List<double>(row.Items.Count);
+            foreach (var item in row.Items)
+            {
+                var number = ReadNumberCode(item, context, source);
+                if (!number.IsSuccess)
+                {
+                    return KernelResult<IReadOnlyList<IReadOnlyList<double>>>.Failure(number.Diagnostics);
+                }
+
+                values.Add(number.Value);
+            }
+
+            net.Add(values);
+        }
+
+        return KernelResult<IReadOnlyList<IReadOnlyList<double>>>.Success(net);
+    }
+
     public static KernelResult<BSplineSurfaceWithKnots> ReadBSplineSurfaceWithKnots(Step242ParsedDocument document, Step242ParsedEntity splineEntity)
     {
         var degreeUResult = ReadIntArgument(splineEntity, 1, "B_SPLINE_SURFACE_WITH_KNOTS degree_u", "Importer.Geometry.BSplineSurface");

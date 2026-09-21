@@ -293,6 +293,28 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
     }
 
     [Fact]
+    public async Task DisplayPrepare_SurfacesKernelTessellationWarnings_InsteadOfSilentlyDroppingFaces()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var stepText = await File.ReadAllTextAsync(GetRepositoryPath("testdata/step242/generated/v0-expectedfail/cylinder_hole_unsupported.step"));
+        var importResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/documents/{document.Data!.DocumentId}/import/step",
+            new StepImportRequestDto(stepText, "CylinderHole"));
+        importResponse.EnsureSuccessStatusCode();
+        var imported = await importResponse.Content.ReadFromJsonAsync<ApiResponseDto<StepImportResponseDto>>();
+        Assert.True(imported!.Success);
+
+        var prepared = await PrepareDisplayAsync(document.Data.DocumentId, imported.Data!.OccurrenceId);
+
+        // The kernel skips the cylinder wall here and reports it only as a warning on an otherwise successful tessellation.
+        var skipped = (prepared.Data!.Diagnostics ?? []).Where(d => d.Code.StartsWith("Viewer.Tessellation.", StringComparison.Ordinal)).ToArray();
+        Assert.NotEmpty(skipped);
+        Assert.All(skipped, d => Assert.NotNull(d.FaceId));
+        Assert.All(skipped, d => Assert.DoesNotContain(prepared.Data.Faces ?? [], face => face.FaceId == d.FaceId && face.Status == "Mesh"));
+        Assert.NotEqual("Complete", prepared.Data.Status);
+    }
+
+    [Fact]
     public async Task DisplayPrepare_SameBodyTwice_IsDeterministic()
     {
         var document = await CreateDocumentAsync("/api/v1/documents");

@@ -94,7 +94,8 @@ internal sealed class AnalyticPlanarFaceDomain
         foreach (var loopId in face.LoopIds)
         {
             var loop = body.Topology.GetLoop(loopId);
-            if (!TryBuildPolygonLoopDetailed(body, loop, plane, out var vertices, out var projected))
+            if (!TryBuildPolygonLoopDetailed(body, loop, plane, out var vertices, out var projected)
+                && !TryBuildLoopPolylineDetailed(body, loop, plane, out vertices, out projected))
             {
                 return false;
             }
@@ -372,6 +373,109 @@ internal sealed class AnalyticPlanarFaceDomain
         vertices3d = vertices;
         projected = uvVertices;
         return true;
+    }
+
+    /// <summary>
+    /// Display-oriented loop flattening: walks the loop's coedges in order and emits their actual
+    /// vertices, sampling circular arcs. Unlike <see cref="TryBuildPolygonLoopDetailed"/>, which only
+    /// accepts all-line loops and reconstructs corners by intersecting consecutive lines, this accepts
+    /// loops containing Circle3 edges (fillets, rounded corners) and collinear consecutive lines.
+    /// </summary>
+    private static bool TryBuildLoopPolylineDetailed(
+        BrepBody body,
+        Loop loop,
+        PlaneSurface plane,
+        out IReadOnlyList<Point3D> vertices3d,
+        out IReadOnlyList<(double U, double V)> projected)
+    {
+        vertices3d = [];
+        projected = [];
+        if (loop.CoedgeIds.Count == 0)
+        {
+            return false;
+        }
+
+        var points = new List<Point3D>(loop.CoedgeIds.Count * 4);
+        foreach (var coedgeId in loop.CoedgeIds)
+        {
+            var coedge = body.Topology.GetCoedge(coedgeId);
+            var edge = body.Topology.GetEdge(coedge.EdgeId);
+            if (!body.TryGetVertexPoint(edge.StartVertexId, out var edgeStart)
+                || !body.TryGetVertexPoint(edge.EndVertexId, out var edgeEnd)
+                || !body.TryGetEdgeCurveGeometry(coedge.EdgeId, out var curve)
+                || curve is null)
+            {
+                return false;
+            }
+
+            var traversalStart = coedge.IsReversed ? edgeEnd : edgeStart;
+            var traversalEnd = coedge.IsReversed ? edgeStart : edgeEnd;
+
+            switch (curve.Kind)
+            {
+                case CurveGeometryKind.Line3:
+                    AppendDistinct(points, traversalStart);
+                    break;
+
+                case CurveGeometryKind.Circle3 when curve.Circle3 is { } circle:
+                    if (!body.Bindings.TryGetEdgeBinding(coedge.EdgeId, out var binding)
+                        || !CurveSampler.TrySampleTrimmedCircleArc(
+                            circle,
+                            traversalStart,
+                            traversalEnd,
+                            coedge.IsReversed ? !binding.OrientedEdgeSense : binding.OrientedEdgeSense,
+                            out var arcPoints,
+                            out _,
+                            out _))
+                    {
+                        return false;
+                    }
+
+                    // The last sample coincides with the next coedge's start, so it is emitted there.
+                    for (var i = 0; i < arcPoints.Count - 1; i++)
+                    {
+                        AppendDistinct(points, arcPoints[i]);
+                    }
+
+                    break;
+
+                default:
+                    return false;
+            }
+        }
+
+        if (points.Count > 1 && PointsAlmostEqual(points[0], points[^1]))
+        {
+            points.RemoveAt(points.Count - 1);
+        }
+
+        if (points.Count < 3)
+        {
+            return false;
+        }
+
+        var uv = new List<(double U, double V)>(points.Count);
+        foreach (var point in points)
+        {
+            uv.Add(ProjectToPlane(point, plane));
+        }
+
+        if (double.Abs(SignedArea(uv)) <= 1e-9d)
+        {
+            return false;
+        }
+
+        vertices3d = points;
+        projected = uv;
+        return true;
+    }
+
+    private static void AppendDistinct(List<Point3D> points, Point3D point)
+    {
+        if (points.Count == 0 || !PointsAlmostEqual(points[^1], point))
+        {
+            points.Add(point);
+        }
     }
 
     private static bool TryIntersectLines2D(

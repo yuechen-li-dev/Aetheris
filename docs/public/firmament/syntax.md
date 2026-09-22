@@ -230,9 +230,58 @@ Profile BaseProfile Using Layout {
 }
 ```
 
-The first stage uses its source direction. Later stages match the current endpoint against the candidate span's endpoints. A unique end match reverses the traced geometry automatically; no match reports `firmament-profile-pipeline-disconnected`, and a degenerate two-way match reports `firmament-profile-pipeline-orientation-ambiguous`. `Reverse Stock.Left` is the explicit escape hatch. `Stock.Bottom As MountingEdge` changes the output segment identity while retaining source provenance. Unrenamed outer spans inherit their source leaf name; inner-loop spans are qualified by the loop name to preserve Profile-wide uniqueness.
+The first stage uses its source direction. Later stages match the current endpoint against the candidate span's endpoints. A unique end match reverses the traced geometry automatically; no match reports `firmament-profile-pipeline-disconnected`, and a degenerate two-way match reports `firmament-profile-pipeline-orientation-ambiguous`. `Reverse Stock.Left` prefers reversed orientation first and then falls back to the normal connectable orientation; on the opening stage it selects the initial direction. `Stock.Bottom As MountingEdge` changes the output segment identity while retaining source provenance.
 
-`|> Close` validates that the authored chain already closes. It never invents a missing line. A real closed `Concept Path` may be copied as a whole with `Outline |> TraceLoop`; a rectangle, Body, Face, open path, or multi-loop container is not guessed into a loop. `TraceLoop` preserves span identities and normalizes winding for the target outer or inner loop when required.
+To trace only part of a guide, use `Guide To Point`. The current pipeline endpoint is the implicit start. On the opening stage, use `Guide From Start To End`; `Guide To End` may omit `From` when the guide's natural start is intended. Endpoints must be named points on the guide. This is bounded selection, not a general slicing expression:
+
+```firmament
+Profile Bracket Using Layout {
+    Horizontal.Bottom As South
+        |> Horizontal.Right As East
+        |> Horizontal.Top To Notch As Inner
+        |> Vertical.Right To Vertical.TopRight As Upright
+        |> Vertical.Top As North
+        |> Vertical.Left To Horizontal.BottomLeft As West
+        |> Close
+}
+```
+
+The same form traces partial circular arcs. Endpoint order chooses the normal counter-clockwise circle span; `Reverse` selects the clockwise span. No pipeline `Sweep` keyword is needed.
+
+A half-circle revolve meridian uses the same syntax through the ordinary Mechanical schema:
+
+```firmament
+schema Mechanical
+
+Model RevolvedSphere {
+    Units: mm
+    Axis MainAxis { Origin: [0mm, 0mm, 0mm]; Direction: [0, 1, 0] }
+    Point2 South { Position: [0mm, -20mm] }
+    Point2 North { Position: [0mm, 20mm] }
+    Point2 Center { Position: [0mm, 0mm] }
+    Concept Circle2 Meridian { Center: Center; Radius: 20mm }
+    Line2 Diameter { From: North; To: South }
+    Profile SphereSection {
+        Meridian From South To North As Arc
+            |> Diameter As AxisClosure
+            |> Close
+    }
+    Revolve Ball { Profile: SphereSection; About: MainAxis; Angle: full }
+}
+```
+
+`|> Close` validates that the authored chain already closes. It never invents a missing line. Any admitted closed ordered guide family may be copied with `Outline |> TraceLoop`, including `Rect2`, `Square2`, `RoundedRect2`, `Polygon2`, `RegularPolygon2`, a closed `Concept Path`, `Circle2`, and `Ellipse2`. The resulting identities are the family's ordinary named edges; full circles and ellipses retain the single `Boundary` identity. `TraceLoop` normalizes winding for the target outer or inner loop when required.
+
+Recognized guide declarations may appear at the start of an implicit-loop Profile body, followed by exactly one pipeline expression:
+
+```firmament
+Profile SideProfile Using PositiveXWorkplane {
+    Rect2 Outline { Center: [0mm, 0mm]; Size: [20mm, 10mm] }
+    Outline |> TraceLoop
+}
+```
+
+Segment names are Profile-wide identities. Manual `Segment` and pipeline stages both preserve their authored or inherited leaf names; loops do not silently qualify them. If two loops would introduce the same name, binding reports `firmament-profile-segment-identity-collision`. Resolve the collision explicitly with `As` on the pipeline stages (for example, `Cutout.Bottom As CutoutBottom`) or by renaming a manual Segment.
 
 A `Concept Path` may also compose existing named spans and remain open:
 
@@ -244,9 +293,4 @@ Concept Path Guide {
 }
 ```
 
-Pipeline source order is semantic order. Stages are limited to geometry references (qualified or unqualified), optional `Reverse`, optional `As`, `Close`, and `TraceLoop` in their admitted contexts. The operator has lower binding precedence than member access and does not admit arithmetic stages, calls, lambdas, conditionals, filtering, mutation, runtime execution, or repetition. Use Feature for a reusable semantic transformation, Pattern for bounded repetition, Template for specialization, and `|>` for finite semantic composition. Manual `Segment { Trace/From/To }` remains the explicit low-level Profile escape hatch, and is not yet
-fully subsumed by `|>`: a pipeline stage always traces a source span end to end, while `Segment`'s
-`From:`/`To:` may select a *partial* span between named interior points, and `Sweep:` may pick an arc
-direction on a partial circle. Profiles that need either - the L-bracket family in
-`Regression/CanonicalGeometry`, and `Canonical/Revolve/sphere.firmament` - have no pipeline spelling
-today. See `docs/development/firmament-v2-language-audit.md` for the proposed sub-span stage.
+Pipeline source order is semantic order. Stages are limited to geometry references (qualified or unqualified), bounded `From`/`To` named endpoints, optional `Reverse`, optional `As`, `Close`, and `TraceLoop` in their admitted contexts. The operator has lower binding precedence than member access and does not admit arithmetic stages, calls, lambdas, conditionals, filtering, mutation, runtime execution, or repetition. Use Feature for a reusable semantic transformation, Pattern for bounded repetition, Template for specialization, and `|>` for finite semantic composition. Manual `Segment { Trace/From/To }` remains supported for compatibility and deliberate low-level parity tests; ordinary canonical Profile authoring does not require it.

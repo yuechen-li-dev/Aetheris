@@ -185,7 +185,7 @@ public sealed class SurfaceSpanSupportX1Tests
         Rect2 Outer { Center: [0mm,0mm]; Size: [40mm,40mm] }
         Rect2 Inner { Center: [0mm,0mm]; Size: [20mm,10mm] }
         Profile Ring { Loop Outer { Outer.Bottom |> Outer.Right |> Outer.Top |> Outer.Left |> Close }
-            Loop Inner { Reverse Inner.Bottom |> Reverse Inner.Left |> Reverse Inner.Top |> Reverse Inner.Right |> Close } }
+            Loop Inner { Reverse Inner.Bottom As InnerBottom |> Reverse Inner.Left As InnerLeft |> Reverse Inner.Top As InnerTop |> Reverse Inner.Right As InnerRight |> Close } }
         Span<Plane> RingArea { On: TopSupport; Boundary: Ring }
         """;
 

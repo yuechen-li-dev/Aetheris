@@ -21,7 +21,7 @@ public static class ProfileAuthoringParser
     private static readonly Regex ConstructionPlaneDeclaration = new(@"\bConstruction\s+Plane\s+(?<name>\w+)\s*\{\s*Trace\s*:\s*(?<trace>[\w.]+)\s*;?\s*\}", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex Segment = new(@"\bSegment\s+(?<n>\w+)\s*\{\s*Trace\s*:\s*(?<trace>[\w.]+)\s*;?\s*From\s*:\s*(?<from>[\w.]+)\s*;?\s*To\s*:\s*(?<to>[\w.]+)(?:\s*;?\s*Sweep\s*:\s*(?<sweep>Clockwise|CounterClockwise))?", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex SpanHeader = new(@"\bSpan\s*<\s*(?<type>[A-Za-z_]\w*)\s*>\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
-    private static readonly Regex Pipeline = new(@"(?<expression>(?:Reverse\s+)?[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*(?:\s+As\s+[A-Za-z_]\w*)?\s*(?:\|>\s*(?:(?:Reverse\s+)?[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*(?:\s+As\s+[A-Za-z_]\w*)?|Close|TraceLoop)\s*)+)", RegexOptions.CultureInvariant);
+    private static readonly Regex Pipeline = new(@"(?<expression>(?:Reverse\s+)?[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*(?:\s+From\s+[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)?(?:\s+To\s+[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)?(?:\s+As\s+[A-Za-z_]\w*)?\s*(?:\|>\s*(?:(?:Reverse\s+)?[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*(?:\s+From\s+[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)?(?:\s+To\s+[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)?(?:\s+As\s+[A-Za-z_]\w*)?|Close|TraceLoop)\s*)+)", RegexOptions.CultureInvariant);
 
     public static bool IsProfileSource(string source) => Regex.IsMatch(source, @"\bProfile\s+[A-Za-z_]\w*", RegexOptions.CultureInvariant);
 
@@ -379,7 +379,7 @@ public static class ProfileAuthoringParser
             if (!result.TryAdd(name, default!)) { diagnostics.Add($"concept-path-duplicate:{name}"); continue; }
             if (block.Body.Contains("|>", StringComparison.Ordinal))
             {
-                var pipelinePath = BindPathPipeline(name, block.Body, guides, diagnostics);
+                var pipelinePath = BindPathPipeline(name, block.Body, points, guides, diagnostics);
                 if (pipelinePath is not null)
                 {
                     result[name] = pipelinePath;
@@ -676,6 +676,12 @@ public static class ProfileAuthoringParser
         if (loops.Count == 0 && !string.IsNullOrWhiteSpace(profile.Body))
             loops.Add(new ResolvedProfileLoop2D("Outer", true, BindSegments(profile, "Outer", profile.Body, paths, points, guides, diagnostics)));
         if (loops.Count == 0) diagnostics.Add($"profile-loop-missing:{profile.Name}");
+        foreach (var collision in loops.SelectMany(loop => loop.Segments.Select(segment => (Loop: loop.Name, Segment: segment.Name)))
+                     .GroupBy(entry => entry.Segment, StringComparer.Ordinal).Where(group => group.Select(entry => entry.Loop).Distinct(StringComparer.Ordinal).Count() > 1))
+        {
+            var loopNames = collision.Select(entry => entry.Loop).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal);
+            diagnostics.Add($"firmament-profile-segment-identity-collision:{collision.Key}:loops={string.Join(',', loopNames)}:use As alias or rename source guide/stage");
+        }
         return loops;
     }
 
@@ -689,6 +695,7 @@ public static class ProfileAuthoringParser
         }
         var matches = Pipeline.Matches(body).Cast<Match>().ToArray();
         var unconsumed = matches.Aggregate(body, (remaining, pipeline) => remaining.Replace(pipeline.Value, string.Empty, StringComparison.Ordinal));
+        unconsumed = RemoveRecognizedProfileDeclarations(unconsumed);
         if (matches.Length != 1 || unconsumed.Any(character => !char.IsWhiteSpace(character) && character != ';'))
         {
             diagnostics.Add($"firmament-profile-pipeline-expression-required:{profile.Name}:{loopName}");
@@ -702,8 +709,13 @@ public static class ProfileAuthoringParser
         var stages = ParsePipelineStages(match.Groups["expression"].Value);
         if (stages.Count == 2 && stages[1].Kind == PipelineStageKind.TraceLoop)
         {
+            if (stages[0].Kind != PipelineStageKind.Trace || stages[0].From is not null || stages[0].To is not null)
+            {
+                diagnostics.Add("firmament-pipeline-stage-type:TraceLoop");
+                return [];
+            }
             if (guides.TryGetValue(stages[0].Reference!, out var closedGuide) && closedGuide is LineArcFullCircle2D or LineArcFullEllipse2D)
-                return [PipelineSegment(profile, loopName, loopName == "Outer" ? "Boundary" : $"{loopName}.Boundary", closedGuide, $"concept:{profile.Frame ?? "XY"}.{stages[0].Reference}", stages[0].Reference!, false, 0, match.Index)];
+                return [PipelineSegment(profile, loopName, stages[0].Alias ?? "Boundary", closedGuide, $"concept:{profile.Frame ?? "XY"}.{stages[0].Reference}", stages[0].Reference!, false, 0, match.Index)];
             if (!paths.TryGetValue(stages[0].Reference!, out var path))
             {
                 diagnostics.Add($"firmament-profile-traceloop-not-loop:{stages[0].Reference}");
@@ -721,7 +733,7 @@ public static class ProfileAuthoringParser
             return curves.Select((entry, index) =>
             {
                 var inherited = entry.Step.Curves.Count == 1 ? entry.Step.Name : $"{entry.Step.Name}.curve{entry.Ordinal:D2}";
-                var name = string.Equals(loopName, "Outer", StringComparison.Ordinal) ? inherited : $"{loopName}.{inherited}";
+                var name = inherited;
                 return PipelineSegment(profile, loopName, name, entry.Curve, $"concept-path:{path.Name}.{entry.Step.Name}", $"{path.Name}.{entry.Step.Name}", reversedLoop, index, match.Index);
             }).ToArray();
         }
@@ -745,19 +757,27 @@ public static class ProfileAuthoringParser
         for (var index = 0; index < traceStages.Length; index++)
         {
             var stage = traceStages[index];
-            if (stage.Kind != PipelineStageKind.Trace || !guides.TryGetValue(stage.Reference!, out var source))
+            if (stage.Kind != PipelineStageKind.Trace)
             {
                 diagnostics.Add($"firmament-pipeline-stage-type:{stage.Reference}");
                 continue;
             }
-            var oriented = OrientPipelineCurve(source, stage.Reverse, current, stage.Reference!, points, diagnostics, out var reversed);
+            if (!guides.TryGetValue(stage.Reference!, out var source))
+            {
+                diagnostics.Add($"firmament-pipeline-unknown-guide:{stage.Reference}");
+                continue;
+            }
+            bool reversed;
+            var oriented = stage.To is null
+                ? OrientPipelineCurve(source, stage.Reverse, current, stage.Reference!, points, diagnostics, out reversed)
+                : SelectPipelineSubspan(source, stage, current, points, diagnostics, out reversed);
             if (oriented is null) continue;
             var start = Start(oriented); var end = End(oriented);
             first ??= start;
             current = end;
             currentIdentity = DescribeEndpoint(end, points);
             var inheritedName = stage.Reference!.Split('.').Last();
-            var name = stage.Alias ?? (string.Equals(loopName, "Outer", StringComparison.Ordinal) ? inheritedName : $"{loopName}.{inheritedName}");
+            var name = stage.Alias ?? inheritedName;
             if (!names.Add(name)) { diagnostics.Add($"firmament-profile-pipeline-identity-collision:{name}"); continue; }
             result.Add(PipelineSegment(profile, loopName, name, oriented, $"concept:{profile.Frame ?? "XY"}.{stage.Reference}", stage.Reference!, reversed, index, match.Index + stage.Offset));
         }
@@ -766,7 +786,7 @@ public static class ProfileAuthoringParser
         return result;
     }
 
-    private static BoundPath? BindPathPipeline(string name, string body, IReadOnlyDictionary<string, LineArcProfileCurve2D> guides, List<string> diagnostics)
+    private static BoundPath? BindPathPipeline(string name, string body, IReadOnlyDictionary<string, (double X, double Y)> points, IReadOnlyDictionary<string, LineArcProfileCurve2D> guides, List<string> diagnostics)
     {
         var match = Pipeline.Match(body);
         var unconsumed = match.Success ? body.Replace(match.Value, string.Empty, StringComparison.Ordinal) : body;
@@ -786,8 +806,12 @@ public static class ProfileAuthoringParser
         (double X, double Y)? current = null;
         foreach (var stage in stages)
         {
-            if (!guides.TryGetValue(stage.Reference!, out var source)) { diagnostics.Add($"firmament-pipeline-stage-type:{stage.Reference}"); continue; }
-            var oriented = OrientPipelineCurve(source, stage.Reverse, current, stage.Reference!, null, diagnostics, out var reversed);
+            if (stage.Kind != PipelineStageKind.Trace) { diagnostics.Add($"firmament-pipeline-stage-type:{stage.Reference}"); continue; }
+            if (!guides.TryGetValue(stage.Reference!, out var source)) { diagnostics.Add($"firmament-pipeline-unknown-guide:{stage.Reference}"); continue; }
+            bool reversed;
+            var oriented = stage.To is null
+                ? OrientPipelineCurve(source, stage.Reverse, current, stage.Reference!, points, diagnostics, out reversed)
+                : SelectPipelineSubspan(source, stage, current, points, diagnostics, out reversed);
             if (oriented is null) continue;
             var stepName = stage.Alias ?? stage.Reference!.Split('.').Last();
             if (!names.Add(stepName)) { diagnostics.Add($"firmament-profile-pipeline-identity-collision:{stepName}"); continue; }
@@ -811,15 +835,114 @@ public static class ProfileAuthoringParser
         var matchesStart = Distance(current.Value, Start(candidate)) <= Tolerance;
         var matchesEnd = Distance(current.Value, End(candidate)) <= Tolerance;
         if (matchesStart && matchesEnd) { diagnostics.Add($"firmament-profile-pipeline-orientation-ambiguous:{reference}"); return null; }
-        if (explicitReverse)
-        {
-            if (!matchesStart) diagnostics.Add(Disconnected(current.Value, reference, candidate, points));
-            return matchesStart ? candidate : null;
-        }
+        if (explicitReverse && matchesStart) return candidate;
         if (matchesStart) return candidate;
-        if (matchesEnd) { reversed = true; return Reverse(candidate); }
+        if (matchesEnd) { reversed = !explicitReverse; return Reverse(candidate); }
         diagnostics.Add(Disconnected(current.Value, reference, candidate, points));
         return null;
+    }
+
+    private static LineArcProfileCurve2D? SelectPipelineSubspan(
+        LineArcProfileCurve2D source,
+        PipelineStage stage,
+        (double X, double Y)? current,
+        IReadOnlyDictionary<string, (double X, double Y)> points,
+        List<string> diagnostics,
+        out bool reversed)
+    {
+        reversed = false;
+        if (stage.From is not null && !points.TryGetValue(stage.From, out _))
+        {
+            diagnostics.Add($"firmament-pipeline-unknown-endpoint:{stage.From}");
+            return null;
+        }
+        if (stage.To is null || !points.TryGetValue(stage.To, out var end))
+        {
+            diagnostics.Add($"firmament-pipeline-unknown-endpoint:{stage.To}");
+            return null;
+        }
+
+        var start = stage.From is not null
+            ? points[stage.From]
+            : current ?? (stage.Reverse ? End(source) : Start(source));
+        if (current is not null && Distance(current.Value, start) > Tolerance)
+        {
+            diagnostics.Add(Disconnected(current.Value, stage.Reference!, source, points));
+            return null;
+        }
+
+        if (source is LineArcLineSegment2D line)
+        {
+            if (!OnBoundedLine(start, line) || !OnBoundedLine(end, line) || Distance(start, end) <= Tolerance)
+            {
+                diagnostics.Add($"firmament-pipeline-endpoint-not-on-guide:{stage.Reference}:{stage.From ?? DescribeEndpoint(start, points)}:{stage.To}");
+                return null;
+            }
+            var dx = line.End.X - line.Start.X; var dy = line.End.Y - line.Start.Y;
+            reversed = (end.X - start.X) * dx + (end.Y - start.Y) * dy < 0;
+            return new LineArcLineSegment2D(start, end);
+        }
+        if (source is LineArcFullCircle2D circle)
+        {
+            if (!OnCircle(start, circle.Center, circle.Radius) || !OnCircle(end, circle.Center, circle.Radius) || Distance(start, end) <= Tolerance)
+            {
+                diagnostics.Add($"firmament-pipeline-endpoint-not-on-guide:{stage.Reference}:{stage.From ?? DescribeEndpoint(start, points)}:{stage.To}");
+                return null;
+            }
+            var startAngle = Math.Atan2(start.Y - circle.Center.Y, start.X - circle.Center.X);
+            var sweep = Math.Atan2(end.Y - circle.Center.Y, end.X - circle.Center.X) - startAngle;
+            if (stage.Reverse) { while (sweep >= 0) sweep -= 2 * Math.PI; reversed = true; }
+            else while (sweep <= 0) sweep += 2 * Math.PI;
+            return new LineArcCircularArc2D(circle.Center, circle.Radius, startAngle, sweep);
+        }
+        if (source is LineArcCircularArc2D arc)
+        {
+            if (TrySelectArcSubspan(stage.Reverse ? (LineArcCircularArc2D)Reverse(arc) : arc, start, end, out var selected))
+            {
+                reversed = stage.Reverse;
+                return selected;
+            }
+            if (TrySelectArcSubspan(stage.Reverse ? arc : (LineArcCircularArc2D)Reverse(arc), start, end, out selected))
+            {
+                reversed = !stage.Reverse;
+                return selected;
+            }
+        }
+        diagnostics.Add($"firmament-pipeline-endpoint-not-on-guide:{stage.Reference}:{stage.From ?? DescribeEndpoint(start, points)}:{stage.To}");
+        return null;
+    }
+
+    private static bool TrySelectArcSubspan(LineArcCircularArc2D arc, (double X, double Y) start, (double X, double Y) end, out LineArcCircularArc2D? selected)
+    {
+        selected = null;
+        if (!OnCircle(start, arc.Center, arc.Radius) || !OnCircle(end, arc.Center, arc.Radius)) return false;
+        var direction = Math.Sign(arc.SweepAngleRadians);
+        var span = Math.Abs(arc.SweepAngleRadians);
+        double Progress((double X, double Y) point)
+        {
+            var angle = Math.Atan2(point.Y - arc.Center.Y, point.X - arc.Center.X);
+            var delta = direction * (angle - arc.StartAngleRadians);
+            while (delta < 0) delta += 2 * Math.PI;
+            while (delta >= 2 * Math.PI) delta -= 2 * Math.PI;
+            return delta;
+        }
+        var fromProgress = Progress(start); var toProgress = Progress(end);
+        if (fromProgress > span + 1e-7 || toProgress > span + 1e-7 || toProgress <= fromProgress + Tolerance) return false;
+        selected = new LineArcCircularArc2D(arc.Center, arc.Radius, Math.Atan2(start.Y - arc.Center.Y, start.X - arc.Center.X), direction * (toProgress - fromProgress));
+        return true;
+    }
+
+    private static bool OnBoundedLine((double X, double Y) point, LineArcLineSegment2D line) =>
+        OnLine(point, line) && point.X >= Math.Min(line.Start.X, line.End.X) - Tolerance && point.X <= Math.Max(line.Start.X, line.End.X) + Tolerance
+        && point.Y >= Math.Min(line.Start.Y, line.End.Y) - Tolerance && point.Y <= Math.Max(line.Start.Y, line.End.Y) + Tolerance;
+
+    private static string RemoveRecognizedProfileDeclarations(string body)
+    {
+        var declarationPattern = @"\b(?:(?:Concept\s+)?(?:Point2|Line2|Rect2|Square2|Circle2|Ellipse2|Ellipse2Guide|Slot2|RoundedRect2|SmoothRoundedRect2)|(?:Triangle2|Polygon2|RegularPolygon2)\s*<[^>]+>|Concept\s+Path)\s+[A-Za-z_]\w*\s*\{";
+        var blocks = FindBlocks(body, declarationPattern).OrderByDescending(block => block.Match.Index).ToArray();
+        foreach (var block in blocks) body = body.Remove(block.Match.Index, block.EndIndex - block.Match.Index + 1);
+        body = Regex.Replace(body, @"//[^\r\n]*|/\*[\s\S]*?\*/", string.Empty, RegexOptions.CultureInvariant);
+        return body;
     }
 
     private static string Disconnected((double X, double Y) current, string reference, LineArcProfileCurve2D candidate, IReadOnlyDictionary<string, (double X, double Y)>? points) =>
@@ -842,10 +965,11 @@ public static class ProfileAuthoringParser
             else if (raw == "TraceLoop") stages.Add(new(PipelineStageKind.TraceLoop, null, null, false, localOffset));
             else
             {
-                var parsed = Regex.Match(raw, @"^(?<reverse>Reverse\s+)?(?<reference>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)(?:\s+As\s+(?<alias>[A-Za-z_]\w*))?$", RegexOptions.CultureInvariant);
-                stages.Add(parsed.Success
-                    ? new(PipelineStageKind.Trace, parsed.Groups["reference"].Value, parsed.Groups["alias"].Success ? parsed.Groups["alias"].Value : null, parsed.Groups["reverse"].Success, localOffset)
-                    : new(PipelineStageKind.Invalid, raw, null, false, localOffset));
+                var parsed = Regex.Match(raw, @"^(?<reverse>Reverse\s+)?(?<reference>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)(?:\s+From\s+(?<from>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*))?(?:\s+To\s+(?<to>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*))?(?:\s+As\s+(?<alias>[A-Za-z_]\w*))?$", RegexOptions.CultureInvariant);
+                stages.Add(parsed.Success && (!parsed.Groups["from"].Success || parsed.Groups["to"].Success)
+                    ? new(PipelineStageKind.Trace, parsed.Groups["reference"].Value, parsed.Groups["alias"].Success ? parsed.Groups["alias"].Value : null, parsed.Groups["reverse"].Success, localOffset,
+                        parsed.Groups["from"].Success ? parsed.Groups["from"].Value : null, parsed.Groups["to"].Success ? parsed.Groups["to"].Value : null)
+                    : new(PipelineStageKind.Invalid, raw, null, false, localOffset, null, null));
             }
         }
         return stages;
@@ -888,7 +1012,7 @@ public static class ProfileAuthoringParser
         if (!paths.TryGetValue(pathName, out var path)) { diagnostics.Add($"profile-path-missing:{profile.Name}:{pathName}"); return; }
         loops.Add(new ResolvedProfileLoop2D(loopName, outer, path.Steps.SelectMany(step => step.Curves.Select((curve, ordinal) => SegmentResult(
             profile, loopName,
-            outer ? (step.Curves.Count == 1 ? step.Name : $"{step.Name}.curve{ordinal:D2}") : $"{loopName}.{step.Name}.curve{ordinal:D2}",
+            step.Curves.Count == 1 ? step.Name : $"{step.Name}.curve{ordinal:D2}",
             curve, $"concept-path:{pathName}.{step.Name}", $"SemanticProfileMIR:{step.Kind}"))).ToArray()));
     }
 
@@ -990,7 +1114,7 @@ public static class ProfileAuthoringParser
     private sealed record BoundPathStep(string Name, string Kind, string GuideName, string EndpointName, IReadOnlyList<LineArcProfileCurve2D> Curves, (double X, double Y) Start, (double X, double Y) End, double Heading, string? SourceReference = null, bool WasReversed = false, int? PipelineIndex = null, string? SourceRange = null);
     private sealed record BoundPath(string Name, (double X, double Y) Start, double InitialHeading, List<BoundPathStep> Steps);
     private enum PipelineStageKind { Trace, Close, TraceLoop, Invalid }
-    private sealed record PipelineStage(PipelineStageKind Kind, string? Reference, string? Alias, bool Reverse, int Offset);
+    private sealed record PipelineStage(PipelineStageKind Kind, string? Reference, string? Alias, bool Reverse, int Offset, string? From = null, string? To = null);
 
     /// <summary>Small deterministic dimensional expression evaluator used after Template specialization.</summary>
     /// <remarks>Admits only numeric literals, one requested unit, parentheses, and + - * /.</remarks>

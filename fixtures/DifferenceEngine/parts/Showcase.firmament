@@ -20,7 +20,7 @@ Template < X: Length, Y: Length, Zlow: Length, Zhigh: Length, W: Length, D: Leng
 Template < X: Length, Y: Length, R: Length, BoreR: Length, Zlow: Length, Zhigh: Length > Struct PositionedRing {
     Circle2 Outside { Center: [X,Y] Radius: R }
     Circle2 Inside { Center: [X,Y] Radius: BoreR }
-    Profile Section { Loop Outer { Outside |> TraceLoop } Loop Inner { Inside |> TraceLoop } }
+    Profile Section { Loop Outer { Outside |> TraceLoop } Loop Inner { Inside As InnerBoundary |> TraceLoop } }
     Extrude Body { Profile: Section From: Zlow To: Zhigh }
 }
 Template < W: Length > Struct DoubleBearingBridge {

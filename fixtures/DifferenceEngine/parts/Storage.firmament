@@ -4,7 +4,7 @@ Template < Rout: Length, Rin: Length, Zlow: Length, Zhigh: Length >
 Struct Annulus {
     Circle2 Outside { Center: [0mm,0mm] Radius: Rout }
     Circle2 Inside { Center: [0mm,0mm] Radius: Rin }
-    Profile Section { Loop Outer { Outside |> TraceLoop } Loop Inner { Inside |> TraceLoop } }
+    Profile Section { Loop Outer { Outside |> TraceLoop } Loop Inner { Inside As InnerBoundary |> TraceLoop } }
     Extrude Body { Profile: Section From: Zlow To: Zhigh }
 }
 
@@ -19,7 +19,7 @@ Template < Rout: Length, Rin: Length, PitchR: Length, HoleD: Length, Zlow: Lengt
 Struct DecimalIndexPlate {
     Circle2 Outside { Center: [0mm,0mm] Radius: Rout }
     Circle2 Inside { Center: [0mm,0mm] Radius: Rin }
-    Profile Section { Loop Outer { Outside |> TraceLoop } Loop Inner { Inside |> TraceLoop } }
+    Profile Section { Loop Outer { Outside |> TraceLoop } Loop Inner { Inside As InnerBoundary |> TraceLoop } }
     Axis IndexAxis { Origin: [0mm,0mm,0mm]; Direction: [0,0,1] }
     Compose Body {
         Base Stock { Profile: Section From: Zlow To: Zhigh Role: Stock }

@@ -22,12 +22,13 @@ Model ProfileComposeLBracketExternalModifyCounterbore {
     }
 
     Profile Bracket Using Layout { Loop Outer {
-        Segment South { Trace: Horizontal.Bottom; From: Horizontal.BottomLeft; To: Horizontal.BottomRight }
-        Segment East { Trace: Horizontal.Right; From: Horizontal.BottomRight; To: Horizontal.TopRight }
-        Segment Inner { Trace: Horizontal.Top; From: Horizontal.TopRight; To: Notch }
-        Segment Upright { Trace: Vertical.Right; From: Notch; To: Vertical.TopRight }
-        Segment North { Trace: Vertical.Top; From: Vertical.TopRight; To: Vertical.TopLeft }
-        Segment West { Trace: Vertical.Left; From: Vertical.TopLeft; To: Horizontal.BottomLeft }
+        Horizontal.Bottom As South
+            |> Horizontal.Right As East
+            |> Horizontal.Top To Notch As Inner
+            |> Vertical.Right To Vertical.TopRight As Upright
+            |> Vertical.Top As North
+            |> Vertical.Left To Horizontal.BottomLeft As West
+            |> Close
     } }
 
     Struct BracketBody {

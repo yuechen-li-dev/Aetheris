@@ -54,8 +54,14 @@ internal static class ClosedBoundary2Authoring
         foreach (var shape in shapes)
         {
             if (shape.LoweredSource is not null) changes.Add((shape.Start, shape.Length, shape.LoweredSource));
-            foreach (Match trace in Regex.Matches(source, $@"\b{Regex.Escape(shape.Declaration.Name)}\s*\|>\s*TraceLoop\b", RegexOptions.CultureInvariant))
-                if (!Inside(trace.Index, shapes) && !InTemplate(trace.Index)) changes.Add((trace.Index, trace.Length, shape.TraceExpression));
+            foreach (Match trace in Regex.Matches(source, $@"\b{Regex.Escape(shape.Declaration.Name)}(?:\s+As\s+(?<alias>[A-Za-z_]\w*))?\s*\|>\s*TraceLoop\b", RegexOptions.CultureInvariant))
+            {
+                if (Inside(trace.Index, shapes) || InTemplate(trace.Index)) continue;
+                var replacement = shape.TraceExpression;
+                if (trace.Groups["alias"].Success && replacement.Count(character => character == '|') == 1)
+                    replacement = replacement.Replace(" |> TraceLoop", $" As {trace.Groups["alias"].Value} |> TraceLoop", StringComparison.Ordinal);
+                changes.Add((trace.Index, trace.Length, replacement));
+            }
             foreach (var member in shape.MemberMap)
                 foreach (Match reference in Regex.Matches(source, $@"\b{Regex.Escape(shape.Declaration.Name)}\s*\.\s*{Regex.Escape(member.Key)}\b", RegexOptions.CultureInvariant))
                     if (!Inside(reference.Index, shapes) && !InTemplate(reference.Index)) changes.Add((reference.Index, reference.Length, member.Value));

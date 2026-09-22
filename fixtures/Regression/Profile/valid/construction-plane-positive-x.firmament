@@ -6,10 +6,7 @@ Construction Plane PositiveXWorkplane { Trace: SideLayout.PositiveXDatum }
 
 Profile SideProfile Using PositiveXWorkplane {
     Rect2 Outline { Center: [0mm, 0mm]; Size: [20mm, 10mm] }
-    Segment Bottom { Trace: Outline.Bottom; From: Outline.BottomLeft; To: Outline.BottomRight }
-    Segment Right { Trace: Outline.Right; From: Outline.BottomRight; To: Outline.TopRight }
-    Segment Top { Trace: Outline.Top; From: Outline.TopRight; To: Outline.TopLeft }
-    Segment Left { Trace: Outline.Left; From: Outline.TopLeft; To: Outline.BottomLeft }
+    Outline |> TraceLoop
 }
 
 Extrude Solid { Profile: SideProfile; From: -5mm; To: 5mm }

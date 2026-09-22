@@ -9,8 +9,9 @@ Model RevolvedSphere {
     Concept Circle2 Meridian { Center: Center; Radius: 20mm }
     Line2 Diameter { From: North; To: South }
     Profile SphereSection { Loop Outer {
-        Segment Arc { Trace: Meridian; From: South; To: North; Sweep: CounterClockwise }
-        Segment AxisClosure { Trace: Diameter; From: North; To: South }
+        Meridian From South To North As Arc
+            |> Diameter As AxisClosure
+            |> Close
     } }
     Revolve Ball { Profile: SphereSection; About: MainAxis; Angle: full }
 }

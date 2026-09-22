@@ -1,7 +1,7 @@
 Template < R: Length > Struct Sleeve {
     Circle2 Outside { Center: [0mm,0mm] Radius: R }
     Circle2 Inside { Center: [0mm,0mm] Radius: 15mm }
-    Profile Section { Loop Outer { Outside |> TraceLoop } Loop Inner { Inside |> TraceLoop } }
+    Profile Section { Loop Outer { Outside |> TraceLoop } Loop Inner { Inside As InnerBoundary |> TraceLoop } }
     Extrude Body { Profile: Section From: -10mm To: 10mm }
 }
 Assembly AnnularPair {

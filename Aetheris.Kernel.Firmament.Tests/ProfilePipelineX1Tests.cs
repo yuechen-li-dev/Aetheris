@@ -104,7 +104,7 @@ public sealed class ProfilePipelineX1Tests
             Profile Plate { Loop Outer {
                 Stock.Bottom |> Stock.Right |> Stock.Top |> Stock.Left |> Close
             } Loop Inner {
-                Reverse Cutout.Bottom |> Reverse Cutout.Left |> Reverse Cutout.Top |> Reverse Cutout.Right |> Close
+                Reverse Cutout.Bottom As CutoutBottom |> Reverse Cutout.Left As CutoutLeft |> Reverse Cutout.Top As CutoutTop |> Reverse Cutout.Right As CutoutRight |> Close
             } }
             Extrude Solid { Profile: Plate; From: 0mm; To: 2mm }
             """);
@@ -152,11 +152,11 @@ public sealed class ProfilePipelineX1Tests
     }
 
     [Fact]
-    public void TraceLoop_NormalizesInnerWindingAndQualifiesInheritedIdentity()
+    public void TraceLoop_NormalizesInnerWindingAndPreservesLeafIdentity()
     {
         var parsed = ProfileAuthoringParser.Parse("""
             Concept Path OuterPath { Start: Point2(0mm, 0mm) Heading: 0deg Line Bottom { Length: 20mm } Line Right { Turn: 90deg; Length: 20mm } Line Top { Turn: 90deg; Length: 20mm } Close Left }
-            Concept Path InnerPath { Start: Point2(5mm, 5mm) Heading: 0deg Line Bottom { Length: 10mm } Line Right { Turn: 90deg; Length: 10mm } Line Top { Turn: 90deg; Length: 10mm } Close Left }
+            Concept Path InnerPath { Start: Point2(5mm, 5mm) Heading: 0deg Line InnerBottom { Length: 10mm } Line InnerRight { Turn: 90deg; Length: 10mm } Line InnerTop { Turn: 90deg; Length: 10mm } Close InnerLeft }
             Profile Plate { Loop Outer { OuterPath |> TraceLoop } Loop Inner { InnerPath |> TraceLoop } }
             Extrude Solid { Profile: Plate; From: 0mm; To: 2mm }
             """);
@@ -165,7 +165,7 @@ public sealed class ProfilePipelineX1Tests
         Assert.Empty(parsed.Diagnostics);
         Assert.All(profile.Loops.Single(loop => !loop.IsOuter).Segments, segment =>
         {
-            Assert.StartsWith("Inner.", segment.Name, StringComparison.Ordinal);
+            Assert.StartsWith("Inner", segment.Name, StringComparison.Ordinal);
             Assert.True(segment.Provenance.Reversed);
         });
         Assert.True(ResolvedProfile2DValidator.Validate(profile).IsValid);
@@ -174,7 +174,7 @@ public sealed class ProfilePipelineX1Tests
     [Theory]
     [InlineData("Stock.Bottom |> Stock.Top |> Close", "firmament-profile-pipeline-disconnected:Stock.Top")]
     [InlineData("Stock.Bottom |> Stock.Right |> Stock.Top |> Stock.Left |> Stock.Bottom |> Close", "firmament-profile-pipeline-identity-collision:Bottom")]
-    [InlineData("Stock.Bottom |> Material |> Close", "firmament-pipeline-stage-type:Material")]
+    [InlineData("Stock.Bottom |> Material |> Close", "firmament-pipeline-unknown-guide:Material")]
     [InlineData("Stock.Bottom |> Stock.Right |> Close", "firmament-pipeline-close-open:Outer")]
     public void InvalidPipeline_ReportsTypedDiagnostic(string expression, string expected)
     {
@@ -205,7 +205,7 @@ public sealed class ProfilePipelineX1Tests
     [Theory]
     [InlineData("Stock.Bottom + 1mm |> Stock.Right", "firmament-profile-pipeline-expression-required")]
     [InlineData("Stock.Bottom |> If(Stock.Right)", "firmament-profile-pipeline-expression-required")]
-    [InlineData("Stock.Bottom |> Pattern", "firmament-pipeline-stage-type:Pattern")]
+    [InlineData("Stock.Bottom |> Pattern", "firmament-pipeline-unknown-guide:Pattern")]
     public void PipelineGrammar_IsLowPrecedenceQualifiedGeometryOnly(string expression, string expected)
     {
         var parsed = ProfileAuthoringParser.Parse($$"""
@@ -250,6 +250,225 @@ public sealed class ProfilePipelineX1Tests
         Assert.Contains("firmament-pipeline-context-type:Material", parsed.Diagnostics);
     }
 
+    [Fact]
+    public void SubspanPipeline_AuthorsCanonicalLBracketWithPreservedIdentity()
+    {
+        var parsed = ProfileAuthoringParser.Parse("""
+            Rect2 Horizontal { Center: [0mm, -10mm]; Size: [80mm, 20mm] }
+            Rect2 Vertical { Center: [-30mm, 10mm]; Size: [20mm, 60mm] }
+            Point2 Notch { Position: [-20mm, 0mm] }
+            Profile Bracket { Loop Outer {
+                Horizontal.Bottom As South
+                |> Horizontal.Right As East
+                |> Horizontal.Top To Notch As Inner
+                |> Vertical.Right To Vertical.TopRight As Upright
+                |> Vertical.Top As North
+                |> Vertical.Left To Horizontal.BottomLeft As West
+                |> Close
+            } }
+            Extrude Solid { Profile: Bracket; From: 0mm; To: 12mm }
+            """);
+
+        var profile = Assert.IsType<ResolvedProfile2D>(parsed.Profile);
+        Assert.Empty(parsed.Diagnostics);
+        Assert.Equal(["South", "East", "Inner", "Upright", "North", "West"], profile.Loops.Single().Segments.Select(segment => segment.Name));
+        Assert.Equal(new LineArcLineSegment2D((-40, -20), (40, -20)), profile.Loops.Single().Segments[0].Geometry);
+        Assert.Equal(new LineArcLineSegment2D((40, 0), (-20, 0)), profile.Loops.Single().Segments[2].Geometry);
+    }
+
+    [Fact]
+    public void SubspanMigrationOracle_LBracketAndSphereAreCanonicalDumpIdentical()
+    {
+        const string layout = """
+            Rect2 Horizontal { Center: [0mm, -10mm]; Size: [80mm, 20mm] }
+            Rect2 Vertical { Center: [-30mm, 10mm]; Size: [20mm, 60mm] }
+            Point2 Notch { Position: [-20mm, 0mm] }
+            """;
+        var manualBracket = ProfileAuthoringParser.ResolveNamedProfile(layout + """
+            Profile Bracket { Loop Outer {
+                Segment South { Trace: Horizontal.Bottom; From: Horizontal.BottomLeft; To: Horizontal.BottomRight }
+                Segment East { Trace: Horizontal.Right; From: Horizontal.BottomRight; To: Horizontal.TopRight }
+                Segment Inner { Trace: Horizontal.Top; From: Horizontal.TopRight; To: Notch }
+                Segment Upright { Trace: Vertical.Right; From: Notch; To: Vertical.TopRight }
+                Segment North { Trace: Vertical.Top; From: Vertical.TopRight; To: Vertical.TopLeft }
+                Segment West { Trace: Vertical.Left; From: Vertical.TopLeft; To: Horizontal.BottomLeft }
+            } }
+            """, "Bracket", out var manualBracketDiagnostics);
+        var pipelineBracket = ProfileAuthoringParser.ResolveNamedProfile(layout + """
+            Profile Bracket { Loop Outer {
+                Horizontal.Bottom As South |> Horizontal.Right As East |> Horizontal.Top To Notch As Inner
+                |> Vertical.Right To Vertical.TopRight As Upright |> Vertical.Top As North
+                |> Vertical.Left To Horizontal.BottomLeft As West |> Close
+            } }
+            """, "Bracket", out var pipelineBracketDiagnostics);
+
+        const string sphereLayout = """
+            Point2 South { Position: [0mm, -20mm] } Point2 North { Position: [0mm, 20mm] }
+            Point2 Center { Position: [0mm, 0mm] } Concept Circle2 Meridian { Center: Center; Radius: 20mm }
+            Line2 Diameter { From: North; To: South }
+            """;
+        var manualSphere = ProfileAuthoringParser.ResolveNamedProfile(sphereLayout + """
+            Profile SphereSection { Loop Outer {
+                Segment Arc { Trace: Meridian; From: South; To: North; Sweep: CounterClockwise }
+                Segment AxisClosure { Trace: Diameter; From: North; To: South }
+            } }
+            """, "SphereSection", out var manualSphereDiagnostics);
+        var pipelineSphere = ProfileAuthoringParser.ResolveNamedProfile(sphereLayout + """
+            Profile SphereSection { Loop Outer { Meridian From South To North As Arc |> Diameter As AxisClosure |> Close } }
+            """, "SphereSection", out var pipelineSphereDiagnostics);
+
+        Assert.Empty(manualBracketDiagnostics); Assert.Empty(pipelineBracketDiagnostics);
+        Assert.Empty(manualSphereDiagnostics); Assert.Empty(pipelineSphereDiagnostics);
+        Assert.Equal(CanonicalDump(Assert.IsType<ResolvedProfile2D>(manualBracket)), CanonicalDump(Assert.IsType<ResolvedProfile2D>(pipelineBracket)));
+        Assert.Equal(CanonicalDump(Assert.IsType<ResolvedProfile2D>(manualSphere)), CanonicalDump(Assert.IsType<ResolvedProfile2D>(pipelineSphere)));
+    }
+
+    [Fact]
+    public void OpeningSubspan_UsesExplicitFromAndReverseCanSelectNaturalEnd()
+    {
+        var forward = ProfileAuthoringParser.Parse("""
+            Point2 A { Position: [0mm, 0mm] } Point2 B { Position: [10mm, 0mm] }
+            Point2 M { Position: [5mm, 0mm] } Point2 C { Position: [5mm, 5mm] }
+            Line2 Base { From: A; To: B } Line2 MC { From: M; To: C } Line2 CA { From: C; To: A }
+            Profile P { Base From A To M As Partial |> MC |> CA |> Close }
+            Extrude Solid { Profile: P; From: 0mm; To: 1mm }
+            """);
+        var reverse = ProfileAuthoringParser.Parse("""
+            Point2 A { Position: [0mm, 0mm] } Point2 B { Position: [10mm, 0mm] } Point2 C { Position: [0mm, 5mm] }
+            Line2 Base { From: A; To: B } Line2 AC { From: A; To: C } Line2 CB { From: C; To: B }
+            Profile P { Reverse Base To A As Partial |> AC |> CB |> Close }
+            Extrude Solid { Profile: P; From: 0mm; To: 1mm }
+            """);
+
+        Assert.Empty(forward.Diagnostics);
+        Assert.Equal(new LineArcLineSegment2D((0, 0), (5, 0)), Assert.IsType<ResolvedProfile2D>(forward.Profile).Loops.Single().Segments[0].Geometry);
+        Assert.Empty(reverse.Diagnostics);
+        Assert.Equal(new LineArcLineSegment2D((10, 0), (0, 0)), Assert.IsType<ResolvedProfile2D>(reverse.Profile).Loops.Single().Segments[0].Geometry);
+    }
+
+    [Fact]
+    public void CircleSubspan_ExpressesHalfCircleWithoutSweep()
+    {
+        var parsed = ProfileAuthoringParser.Parse("""
+            Point2 South { Position: [0mm, -20mm] } Point2 North { Position: [0mm, 20mm] } Point2 Center { Position: [0mm, 0mm] }
+            Concept Circle2 Meridian { Center: Center; Radius: 20mm }
+            Line2 Diameter { From: North; To: South }
+            Profile SphereSection { Meridian From South To North As Arc |> Diameter As AxisClosure |> Close }
+            Extrude Solid { Profile: SphereSection; From: 0mm; To: 1mm }
+            """);
+
+        var profile = Assert.IsType<ResolvedProfile2D>(parsed.Profile);
+        Assert.Empty(parsed.Diagnostics);
+        var arc = Assert.IsType<LineArcCircularArc2D>(profile.Loops.Single().Segments[0].Geometry);
+        Assert.Equal(Math.PI, arc.SweepAngleRadians, 12);
+        Assert.Equal(["Arc", "AxisClosure"], profile.Loops.Single().Segments.Select(segment => segment.Name));
+    }
+
+    [Fact]
+    public void InlineGuideDeclarations_CoexistWithOneImplicitPipeline()
+    {
+        var parsed = ProfileAuthoringParser.Parse("""
+            Profile SideProfile {
+                Rect2 Outline { Center: [0mm, 0mm]; Size: [20mm, 10mm] }
+                Point2 Witness { Position: [0mm, 0mm] }
+                Outline |> TraceLoop
+            }
+            Extrude Solid { Profile: SideProfile; From: -5mm; To: 5mm }
+            """);
+
+        Assert.Empty(parsed.Diagnostics);
+        Assert.Equal(4, Assert.IsType<ResolvedProfile2D>(parsed.Profile).Loops.Single().Segments.Count);
+    }
+
+    [Fact]
+    public void InlineDeclaration_WithSecondPipeline_IsRejectedAsAmbiguous()
+    {
+        var parsed = ProfileAuthoringParser.Parse("""
+            Profile P {
+                Rect2 A { Center: [0mm, 0mm]; Size: [10mm, 10mm] }
+                Rect2 B { Center: [20mm, 0mm]; Size: [10mm, 10mm] }
+                A |> TraceLoop
+                B |> TraceLoop
+            }
+            Extrude Solid { Profile: P; From: 0mm; To: 1mm }
+            """);
+
+        Assert.Null(parsed.Profile);
+        Assert.Contains("firmament-profile-pipeline-expression-required:P:Outer", parsed.Diagnostics);
+    }
+
+    [Theory]
+    [InlineData("Rect2 Shape { Center: [0mm, 0mm]; Size: [10mm, 6mm] }")]
+    [InlineData("Square2 Shape { Center: [0mm, 0mm]; Size: 10mm }")]
+    [InlineData("Polygon2<Rhombus> Shape { Center: [0mm, 0mm]; Diagonals: [10mm, 6mm] }")]
+    [InlineData("RegularPolygon2<5> Shape { Center: [0mm, 0mm]; Circumradius: 5mm }")]
+    [InlineData("Circle2 Shape { Center: [0mm, 0mm]; Radius: 5mm }")]
+    [InlineData("Ellipse2 Shape { Center: [0mm, 0mm]; AxisLengths: [10mm, 6mm] }")]
+    public void TraceLoop_AdmitsClosedOrderedGuideFamilies(string declaration)
+    {
+        var parsed = ProfileAuthoringParser.Parse($$"""
+            {{declaration}}
+            Profile P { Shape |> TraceLoop }
+            Extrude Solid { Profile: P; From: 0mm; To: 1mm }
+            """);
+
+        Assert.Empty(parsed.Diagnostics);
+        Assert.NotEmpty(Assert.IsType<ResolvedProfile2D>(parsed.Profile).Loops.Single().Segments);
+    }
+
+    [Fact]
+    public void ReverseMidChain_IsPreferenceAndFallsBackToForwardConnectivity()
+    {
+        var parsed = ProfileAuthoringParser.Parse("""
+            Rect2 Stock { Center: [0mm, 0mm]; Size: [10mm, 5mm] }
+            Profile Plate { Stock.Bottom |> Reverse Stock.Right |> Stock.Top |> Stock.Left |> Close }
+            Extrude Solid { Profile: Plate; From: 0mm; To: 1mm }
+            """);
+
+        var profile = Assert.IsType<ResolvedProfile2D>(parsed.Profile);
+        Assert.Empty(parsed.Diagnostics);
+        Assert.False(profile.Loops.Single().Segments[1].Provenance.Reversed);
+    }
+
+    [Fact]
+    public void CrossLoopLeafCollision_IsExplicitAndAliasesResolveIt()
+    {
+        var collision = ProfileAuthoringParser.Parse("""
+            Rect2 OuterBox { Center: [0mm, 0mm]; Size: [20mm, 20mm] }
+            Rect2 InnerBox { Center: [0mm, 0mm]; Size: [6mm, 6mm] }
+            Profile Plate { Loop Outer { OuterBox |> TraceLoop } Loop Inner { InnerBox |> TraceLoop } }
+            Extrude Solid { Profile: Plate; From: 0mm; To: 1mm }
+            """);
+        Assert.Null(collision.Profile);
+        Assert.Contains(collision.Diagnostics, diagnostic => diagnostic.StartsWith("firmament-profile-segment-identity-collision:Bottom:loops=Inner,Outer", StringComparison.Ordinal));
+
+        var aliased = ProfileAuthoringParser.Parse("""
+            Rect2 OuterBox { Center: [0mm, 0mm]; Size: [20mm, 20mm] }
+            Rect2 InnerBox { Center: [0mm, 0mm]; Size: [6mm, 6mm] }
+            Profile Plate { Loop Outer { OuterBox |> TraceLoop } Loop Inner {
+                Reverse InnerBox.Bottom As CutoutBottom |> Reverse InnerBox.Left As CutoutLeft |> Reverse InnerBox.Top As CutoutTop |> Reverse InnerBox.Right As CutoutRight |> Close
+            } }
+            Extrude Solid { Profile: Plate; From: 0mm; To: 1mm }
+            """);
+        Assert.Empty(aliased.Diagnostics);
+        Assert.NotNull(aliased.Profile);
+    }
+
+    [Theory]
+    [InlineData("Stock.Bottom To Missing |> Stock.Right |> Close", "firmament-pipeline-unknown-endpoint:Missing")]
+    [InlineData("Missing |> Close", "firmament-pipeline-unknown-guide:Missing")]
+    [InlineData("Stock.Bottom |> Close |> Stock.Right", "firmament-pipeline-stage-type:Close")]
+    public void PipelineDiagnostics_DistinguishEndpointGuideAndStageErrors(string expression, string expected)
+    {
+        var parsed = ProfileAuthoringParser.Parse($$"""
+            Rect2 Stock { Center: [0mm, 0mm]; Size: [10mm, 5mm] }
+            Profile Plate { {{expression}} }
+            Extrude Solid { Profile: Plate; From: 0mm; To: 1mm }
+            """);
+        Assert.Null(parsed.Profile);
+        Assert.Contains(parsed.Diagnostics, diagnostic => diagnostic.StartsWith(expected, StringComparison.Ordinal));
+    }
+
     private static string RectanglePipeline() => """
         Rect2 Stock { Center: [0mm, 0mm]; Size: [10mm, 5mm] }
         Profile Plate { Loop Outer {
@@ -270,5 +489,8 @@ public sealed class ProfilePipelineX1Tests
         """;
 
     private static string Signature(ResolvedProfile2D profile) => string.Join("|", profile.Loops.SelectMany(loop => loop.Segments).Select(segment => segment.Geometry.ToString()));
+    private static string CanonicalDump(ResolvedProfile2D profile) => string.Join("\n", new[] { $"frame:{profile.PlaneFrame}" }.Concat(
+        profile.Loops.SelectMany(loop => new[] { $"loop:{loop.Name}:{loop.IsOuter}" }.Concat(
+            loop.Segments.Select(segment => $"segment:{segment.Name}:{segment.Geometry}")))));
     private static bool AreSame(LineArcProfileCurve2D left, LineArcProfileCurve2D right) => left == right;
 }

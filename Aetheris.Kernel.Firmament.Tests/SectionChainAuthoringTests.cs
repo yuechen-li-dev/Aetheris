@@ -5,6 +5,92 @@ namespace Aetheris.Kernel.Firmament.Tests;
 
 public sealed class SectionChainAuthoringTests
 {
+    [Fact]
+    public void SolidLoftBuildsCappedRuledCircleToEllipse()
+    {
+        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/solid-loft-common-ray.firmament");
+        var result = SectionChainAuthoringParser.Compile(source);
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics));
+        Assert.Equal(4, result.Chain!.Sections[0].Profile.Spans.Count);
+        Assert.Equal(4, result.Chain.Sections[1].Profile.Spans.Count);
+        Assert.Equal(SectionTransitionPolicy.Ruled, result.Chain.TransitionPolicy);
+        Assert.NotNull(result.Materialization?.Body);
+        Assert.True(result.Materialization!.Pcurves!.LoopClosureValid);
+    }
+
+    [Fact]
+    public void HollowLoftCommonRayRemovesLampShadePhaseTwist()
+    {
+        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/ThreeDm/lamp-shade-loft.firmament");
+        var result = SectionChainAuthoringParser.Compile(source);
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics));
+        Assert.Equal(SectionTransitionPolicy.Ruled, result.Chain!.TransitionPolicy);
+        Assert.NotNull(result.Materialization?.Body);
+        Assert.True(result.Materialization!.Pcurves!.LoopClosureValid);
+
+        var rear = result.Chain.Sections[0];
+        var front = result.Chain.Sections[1];
+        var rearStart = Assert.IsType<SectionProfileCurve.PolynomialBSpline>(rear.Profile.Spans[0].Curve).ControlPoints[0];
+        var frontStart = Assert.IsType<SectionProfileCurve.PolynomialBSpline>(front.Profile.Spans[0].Curve).ControlPoints[0];
+        var rearRay = rear.Frame.Transform(rearStart) - rear.Frame.Transform(new(0, 0));
+        var frontRay = front.Frame.Transform(frontStart) - front.Frame.Transform(new(-0.374, 0));
+        Assert.True(rearRay.Y / rearRay.Length > 0.999999);
+        Assert.True(frontRay.Y / frontRay.Length > 0.999999);
+    }
+
+    [Fact]
+    public void HollowLoftTwistBuildsRuledHyperboloidWithMeasuredWaist()
+    {
+        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/hollow-loft-twist.firmament");
+        var result = SectionChainAuthoringParser.Compile(source);
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics));
+        var rear = result.Chain!.Sections[0];
+        var front = result.Chain.Sections[1];
+        var rearStart = Assert.IsType<SectionProfileCurve.PolynomialBSpline>(rear.Profile.Spans[0].Curve).ControlPoints[0];
+        var frontStart = Assert.IsType<SectionProfileCurve.PolynomialBSpline>(front.Profile.Spans[0].Curve).ControlPoints[0];
+        var rearPoint = rear.Frame.Transform(rearStart);
+        var frontPoint = front.Frame.Transform(frontStart);
+        var angle = Math.Atan2(frontPoint.Y, frontPoint.X) - Math.Atan2(rearPoint.Y, rearPoint.X);
+        Assert.InRange(angle * 180 / Math.PI, 62.999999, 63.000001);
+        var waistX = (rearPoint.X + frontPoint.X) / 2;
+        var waistY = (rearPoint.Y + frontPoint.Y) / 2;
+        Assert.InRange(Math.Sqrt(waistX*waistX + waistY*waistY), 25*Math.Cos(63*Math.PI/360)-1e-8, 25*Math.Cos(63*Math.PI/360)+1e-8);
+        Assert.True(result.Materialization!.Pcurves!.LoopClosureValid);
+    }
+
+    [Fact]
+    public void HollowLoftRejectsTwistBeyondBound()
+    {
+        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/hollow-loft-twist.firmament")
+            .Replace("Twist: 63deg", "Twist: 181deg", StringComparison.Ordinal);
+        var result = SectionChainAuthoringParser.Compile(source);
+        Assert.False(result.IsSuccess);
+        Assert.Contains("loft-twist-invalid:range=-180..180deg", result.Diagnostics);
+    }
+
+    [Fact]
+    public void HollowLoftRejectsMalformedTwistInsteadOfUsingZero()
+    {
+        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/hollow-loft-twist.firmament")
+            .Replace("Twist: 63deg", "Twist: accidental", StringComparison.Ordinal);
+        var result = SectionChainAuthoringParser.Compile(source);
+        Assert.False(result.IsSuccess);
+        Assert.Contains("loft-twist-invalid:range=-180..180deg", result.Diagnostics);
+    }
+
+    [Fact]
+    public void ExplicitSketchProfilesSupportTiltedRuledTransitions()
+    {
+        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/SectionChain/explicit-sketch-ruled.firmament");
+        var result = SectionChainAuthoringParser.Compile(source);
+
+        Assert.True(result.IsSuccess, string.Join(Environment.NewLine, result.Diagnostics));
+        Assert.Equal(2, result.Chain!.Sections.Count);
+        Assert.Equal(SectionTransitionPolicy.Ruled, result.Chain.TransitionPolicy);
+        Assert.NotNull(result.Materialization?.Body);
+        Assert.True(result.Materialization!.Pcurves!.DomainValid);
+    }
+
     [Theory]
     [InlineData(60, 40, 8, 0)]
     [InlineData(77.98, 163.43, 19.43, 0)]

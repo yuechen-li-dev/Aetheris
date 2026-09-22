@@ -11,8 +11,9 @@ namespace Aetheris.Kernel.Core.Tests.Step242;
 /// then wrote the stored EDGE_CURVE.same_sense anyway. On the edges where that flag said otherwise, a reader walked
 /// the edge backwards and the loop's consecutive coedges landed an edge-length apart.
 /// <para>
-/// Face and edge counts alone would not have caught it - the topology survives - so the volume of the display mesh
-/// is compared too: a loop walked backwards changes the shape, not the counts.
+/// Face and edge counts alone would not have caught it - the topology survives - so a representative
+/// round trip also compares display-mesh volume. The separate NIST display and orientation corpus tests
+/// exercise mesh preparation across the wider corpus without repeating it twice per exported model here.
 /// </para>
 /// </summary>
 public sealed class Step242RoundTripCorpusTests
@@ -35,7 +36,8 @@ public sealed class Step242RoundTripCorpusTests
 
     [Theory]
     [MemberData(nameof(CorpusFiles))]
-    public void ExportedBody_IsReadableByAetheris_AndKeepsItsShape(string fileName)
+    [Trait("Category", "SlowCorpus")]
+    public void ExportedBody_IsReadableByAetheris_AndKeepsItsTopology(string fileName)
     {
         var source = Step242Importer.ImportBody(ReadCorpusFile(fileName));
         Assert.True(source.IsSuccess, string.Join(" | ", source.Diagnostics.Select(diagnostic => diagnostic.Message)));
@@ -49,6 +51,19 @@ public sealed class Step242RoundTripCorpusTests
         Assert.Equal(source.Value.Topology.Faces.Count(), reimported.Value.Topology.Faces.Count());
         Assert.Equal(source.Value.Topology.Edges.Count(), reimported.Value.Topology.Edges.Count());
 
+    }
+
+    [Fact]
+    [Trait("Category", "SlowCorpus")]
+    public void ExportedBody_KeepsRepresentativeDisplayVolume()
+    {
+        const string fileName = "nist_ctc_01_asme1_ap242-e1.stp";
+        var source = Step242Importer.ImportBody(ReadCorpusFile(fileName));
+        Assert.True(source.IsSuccess);
+        var exported = Step242Exporter.ExportBody(source.Value);
+        Assert.True(exported.IsSuccess);
+        var reimported = Step242Importer.ImportBody(exported.Value);
+        Assert.True(reimported.IsSuccess);
         var before = EnclosedVolume(source.Value);
         var after = EnclosedVolume(reimported.Value);
         Assert.True(
@@ -59,7 +74,7 @@ public sealed class Step242RoundTripCorpusTests
     /// <summary>Signed volume of the display mesh, which changes if any loop is walked in the wrong direction.</summary>
     private static double EnclosedVolume(BrepBody body)
     {
-        var display = DisplayPreparationFallbackBuilder.Build(body, null);
+        var display = DisplayPreparationFallbackBuilder.Build(body, null, null, TimeSpan.FromSeconds(30));
         Assert.True(display.IsSuccess);
 
         var volume = 0d;

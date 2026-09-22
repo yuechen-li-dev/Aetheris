@@ -27,6 +27,7 @@ public sealed class KnotPathTests
     [InlineData("trefoil.firmament")]
     [InlineData("figure-eight.firmament")]
     [InlineData("torus-knot-3-5.firmament")]
+    [Trait("Category", "SlowCorpus")]
     public void ClosedTubeHasNoCapsAndExportsPcurveCompletePolynomialStep(string fixture)
     {
         var built = WireFormBRepMaterializer.Build(Parse(fixture)); Assert.True(built.IsSuccess, Messages(built.Diagnostics));
@@ -78,6 +79,7 @@ public sealed class KnotPathTests
     }
 
     [Fact]
+    [Trait("Category", "SlowCorpus")]
     public void RepeatExportAndStockAccountingAreDeterministic()
     {
         var source = File.ReadAllText(Fixture("trefoil.firmament")); var first = FirmamentBuildAndExport.CompileSource(source); var second = FirmamentBuildAndExport.CompileSource(source);

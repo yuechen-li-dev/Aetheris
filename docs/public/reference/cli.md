@@ -7,6 +7,8 @@ Primary public commands:
 | `validate <file> [--json]` | Parse, bind, check units/targets/static semantics without geometry |
 | `build <file> [--output path] [--json]` | Materialize and export exact STEP AP242 |
 | `inspect <firmament-or-step> [--json]` | Inspect source semantics or route STEP to analysis |
+| `inspect-3dm <file.3dm> [--json]` | Inventory Rhino/OpenNURBS metadata, units, BRep topology, and unsupported objects |
+| `recover-3dm <file.3dm> [--body N [--edge N\|--face N]] [--json]` | Measure provisional analytic/non-rational recovery candidates; see [3DM recovery evidence](3dm-recovery.md) |
 | `analyze <step> [--json]` | Reinspect topology, surfaces, bounds, manifold state, and PMI |
 | `analyze section <step> ((--xy\|--xz\|--yz) --offset value\|--origin x,y,z --normal x,y,z) [--out section.svg] [--json]` | Extract trim-aware analytic section loops in a principal or arbitrary plane and optionally render deterministic SVG evidence |
 | `analyze compound <step> [--json]` | Inspect every disconnected rigid root without silently selecting or merging one |
@@ -14,7 +16,7 @@ Primary public commands:
 | `fea <file> --out-dir dir [--json]` | Compile and solve the bounded linear-elastic analysis |
 | `sheetmetal ...` | Inspect, recognize, recover, compare, or flatten Sheet Metal |
 | `sculpture build <source> ...` | Build the bounded non-manufacturing Sol 1 AP242 artwork, evidence, and SVG preview |
-| `section-chain <build\|inspect\|validate> <file.firmament\|flagship\|twist\|two-profile> ...` | Lower authored profiles into SectionChain IR and report frames, spans, correspondence, pcurves, conservative intersection qualification, STEP, and reimport evidence |
+| `section-chain <build\|inspect\|validate> <file.firmament\|flagship\|twist\|two-profile> ...` | Lower authored SectionChain, `Loft`, or `Loft<Hollow>` into SectionChain IR and report frames, spans, correspondence, pcurves, conservative intersection qualification, STEP, and reimport evidence |
 | `wireframe <model.step> [--out preview.svg] [--view iso\|front\|top\|right] [--density N] [--json]` | Render deterministic exact-edge and trim-clipped surface-isoline SVG evidence |
 | `asm ...` | Inspect/execute/import/export assemblies |
 

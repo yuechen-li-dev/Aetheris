@@ -265,6 +265,7 @@ END-ISO-10303-21;";
     }
 
     [Fact]
+    [Trait("Category", "SlowCorpus")]
     public void ExportBody_Ctc02RoundTrip_ShallowCones_PreserveApexCoordinates()
     {
         var fixturePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), "testdata", "step242", "nist", "CTC", "nist_ctc_02_asme1_ap242-e2.stp");
@@ -313,6 +314,7 @@ END-ISO-10303-21;";
     }
 
     [Fact]
+    [Trait("Category", "SlowCorpus")]
     public void ExportBody_Ctc02RoundTrip_PreservesPlanarFaceWithCircularBoundaryNearExpectedCenter()
     {
         var fixturePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), "testdata", "step242", "nist", "CTC", "nist_ctc_02_asme1_ap242-e2.stp");

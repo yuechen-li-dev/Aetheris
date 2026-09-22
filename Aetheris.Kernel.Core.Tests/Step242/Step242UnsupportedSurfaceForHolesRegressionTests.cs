@@ -18,6 +18,7 @@ public sealed class Step242UnsupportedSurfaceForHolesRegressionTests
         null,
         null)]
 
+    [Trait("Category", "SlowCorpus")]
     public void Step242_NistTargets_AdvancePastGenericUnsupportedSurfaceForHoles_Deterministically(
         string relativePath,
         string? expectedLayer,

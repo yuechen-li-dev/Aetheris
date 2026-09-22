@@ -86,6 +86,7 @@ public sealed class Step242ConicalSurfaceRegressionTests
     [InlineData("testdata/step242/nist/FTC/nist_ftc_09_asme1_ap242-e1.stp", "", "Audit.None", "No diagnostics.")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp", "", "Audit.None", "No diagnostics.")]
     [InlineData("testdata/step242/nist/STC/nist_stc_09_asme1_ap242-e3.stp", "", "", "")]
+    [Trait("Category", "SlowCorpus")]
     public void Step242_NistCurvedRevolvedTargets_AdvancePastOldTopologyFamily_AndReportDeterministicNextBlocker(
         string relativePath,
         string expectedLayer,
@@ -153,6 +154,7 @@ public sealed class Step242ConicalSurfaceRegressionTests
         "",
         "Audit.None",
         "No diagnostics.")]
+    [Trait("Category", "SlowCorpus")]
     public void Step242_NistTargets_AdvancePastCircleTrim_AndKeepDeterministicNextBlocker(
         string relativePath,
         string expectedLayer,
@@ -222,6 +224,7 @@ public sealed class Step242ConicalSurfaceRegressionTests
     }
 
     [Fact]
+    [Trait("Category", "SlowCorpus")]
     public void Step242_ConicalSurfaceImport_RadianContextFromGlobalUnits_RemainsRadians()
     {
         var fixturePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), "testdata", "step242", "nist", "STC", "nist_stc_09_asme1_ap242-e3.stp");

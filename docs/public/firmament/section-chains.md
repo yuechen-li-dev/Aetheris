@@ -2,6 +2,8 @@
 
 A SectionChain builds a surface or closed body from an ordered sequence of framed profiles. G1 is the normal freeform authoring default; explicit G0/Ruled remains available when straight generators are intentional.
 
+For two framed circle or ellipse profiles, [`Loft` and `Loft<Hollow>`](loft.md) provide concise ruled authoring with explicit point correspondence and optional twist. They lower into the same SectionChain path.
+
 ```text
 Section0 -> Section1 -> Section2 -> Section3
 ```
@@ -28,7 +30,7 @@ A Sweep transports one profile through a trajectory. A SectionChain allows the p
 
 ## Firmament authoring
 
-SectionChain authoring reuses ordinary `Concept Path` and `Profile` declarations. A `Section` associates that reusable 2D profile with a named right-handed `Construction Plane`; it does not expose vertices, faces, or raw BRep surfaces.
+SectionChain authoring reuses ordinary `Concept Path` and `Profile` declarations, including `Profile ... Using` an explicit `Concept Struct ... On XY` sketch. A `Section` associates that reusable 2D profile with a named right-handed `Construction Plane`; it does not expose vertices, faces, or raw BRep surfaces. The [explicit sketch fixture](../../../fixtures/Canonical/SectionChain/explicit-sketch-ruled.firmament) shows two differently sized sections on tilted frames.
 
 ```firmament
 Concept Path NoseOutline {

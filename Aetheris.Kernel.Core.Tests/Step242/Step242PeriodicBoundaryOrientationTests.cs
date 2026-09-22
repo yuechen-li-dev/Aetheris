@@ -17,6 +17,7 @@ public sealed class Step242PeriodicBoundaryOrientationTests
 
     [Theory]
     [MemberData(nameof(FormerRedCases))]
+    [Trait("Category", "SlowCorpus")]
     public void PeriodicBoundaryOrientation_SurvivesExportImport(string relativePath)
     {
         var imported = Step242Importer.ImportBody(ReadNist(relativePath));

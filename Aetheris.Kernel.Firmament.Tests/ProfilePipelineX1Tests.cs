@@ -431,6 +431,20 @@ public sealed class ProfilePipelineX1Tests
     }
 
     [Fact]
+    public void TracedCircleLoopsInheritDistinctGuideIdentities()
+    {
+        var parsed = ProfileAuthoringParser.Parse("""
+            Circle2 Outside { Center: [0mm, 0mm] Radius: 10mm }
+            Circle2 Inside { Center: [0mm, 0mm] Radius: 5mm }
+            Profile Ring { Loop Outer { Outside |> TraceLoop } Loop Inner { Inside |> TraceLoop } }
+            Extrude Solid { Profile: Ring; From: 0mm; To: 1mm }
+            """);
+        Assert.Empty(parsed.Diagnostics);
+        var profile = Assert.IsType<ResolvedProfile2D>(parsed.Profile);
+        Assert.Equal(["Outside_Curve", "Inside_Curve"], profile.Loops.SelectMany(loop => loop.Segments).Select(segment => segment.Name));
+    }
+
+    [Fact]
     public void CrossLoopLeafCollision_IsExplicitAndAliasesResolveIt()
     {
         var collision = ProfileAuthoringParser.Parse("""

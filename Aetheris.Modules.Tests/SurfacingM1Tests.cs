@@ -110,9 +110,11 @@ public sealed class SurfacingM1Tests
         Assert.Contains(BoundaryPatchLowering.Lower(new("g1",s,n,w,new RuledBoundary.Line("e2",new(5,0,0),new(5,5,0)),p,BoundaryContinuity.TangentG1)).Diagnostics,d=>d.Code=="surfacing-tangent-constraint-unsupported");
     }
 
-    [Fact] public void NonRationalBSplineContractRejectsInvalidDataAndHasNoWeights()
+    [Fact] public void PolynomialBSplineContractRejectsInvalidDataAndHasNoWeights()
     {
-        Assert.DoesNotContain(typeof(BSplineSurfaceWithKnots).GetProperties(),property=>property.Name.Contains("Weight",StringComparison.OrdinalIgnoreCase));
+        var polynomial = new BSplineSurfaceWithKnots(1,1,[[Point3D.Origin,new(1,0,0)],[new(0,1,0),new(1,1,0)]],"x",false,false,false,[2,2],[2,2],[0,1],[0,1],"x");
+        Assert.False(polynomial.IsRational);
+        Assert.Null(polynomial.Weights);
         Assert.Throws<ArgumentException>(()=>new BSplineSurfaceWithKnots(1,1,[[new(double.NaN,0,0),Point3D.Origin],[Point3D.Origin,Point3D.Origin]],"x",false,false,false,[2,2],[2,2],[0,1],[0,1],"x"));
     }
 

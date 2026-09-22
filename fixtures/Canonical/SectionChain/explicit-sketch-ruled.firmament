@@ -1,0 +1,65 @@
+Model ExplicitSketchRuled {
+    Units: mm
+
+    Concept Struct Frames {
+        Near: Plane { Origin: [0mm, 0mm, 0mm]; Normal: [0, 0, 1]; Up: [0, 1, 0] }
+        Far: Plane { Origin: [4mm, 0mm, 12mm]; Normal: [0.2, 0, 0.9797958971132712]; Up: [0, 1, 0] }
+    }
+    Construction Plane NearFrame { Trace: Frames.Near }
+    Construction Plane FarFrame { Trace: Frames.Far }
+
+    Concept Struct NearSketch On XY {
+        Point2 A { Position: [-2mm, -2mm] }
+        Point2 B { Position: [2mm, -2mm] }
+        Point2 C { Position: [2mm, 2mm] }
+        Point2 D { Position: [-2mm, 2mm] }
+        Line2 South { From: A; To: B }
+        Line2 East { From: B; To: C }
+        Line2 North { From: C; To: D }
+        Line2 West { From: D; To: A }
+    }
+    Profile NearProfile Using NearSketch {
+        Loop Outer {
+            Segment South { Trace: South; From: A; To: B }
+            Segment East { Trace: East; From: B; To: C }
+            Segment North { Trace: North; From: C; To: D }
+            Segment West { Trace: West; From: D; To: A }
+        }
+    }
+
+    Concept Struct FarSketch On XY {
+        Point2 A { Position: [-5mm, -5mm] }
+        Point2 B { Position: [5mm, -5mm] }
+        Point2 C { Position: [5mm, 5mm] }
+        Point2 D { Position: [-5mm, 5mm] }
+        Line2 South { From: A; To: B }
+        Line2 East { From: B; To: C }
+        Line2 North { From: C; To: D }
+        Line2 West { From: D; To: A }
+    }
+    Profile FarProfile Using FarSketch {
+        Loop Outer {
+            Segment South { Trace: South; From: A; To: B }
+            Segment East { Trace: East; From: B; To: C }
+            Segment North { Trace: North; From: C; To: D }
+            Segment West { Trace: West; From: D; To: A }
+        }
+    }
+
+    SectionChain Transition {
+        Continuity: G0
+        Transition: Ruled
+        Section Near {
+            Frame: NearFrame
+            Profile: NearProfile
+            Seam: South
+        }
+        Section Far {
+            Frame: FarFrame
+            Profile: FarProfile
+            Seam: South
+        }
+        Start: Cap
+        End: Cap
+    }
+}

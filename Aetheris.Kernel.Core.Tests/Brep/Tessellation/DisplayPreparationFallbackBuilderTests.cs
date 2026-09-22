@@ -17,7 +17,7 @@ public sealed class DisplayPreparationFallbackBuilderTests
     {
         var body = UvTrimMaskExtractorTests.ImportSingleLoopBsplineBody();
 
-        var result = DisplayPreparationFallbackBuilder.Build(body);
+        var result = BuildWithTestBudget(body);
 
         Assert.True(result.IsSuccess);
         var patch = Assert.Single(result.Value.FacePatches);
@@ -51,8 +51,8 @@ public sealed class DisplayPreparationFallbackBuilderTests
     {
         var body = UvTrimMaskExtractorTests.ImportBsplineBodyWithHole();
 
-        var first = DisplayPreparationFallbackBuilder.Build(body);
-        var second = DisplayPreparationFallbackBuilder.Build(body);
+        var first = BuildWithTestBudget(body);
+        var second = BuildWithTestBudget(body);
 
         Assert.True(first.IsSuccess);
         Assert.True(second.IsSuccess);
@@ -70,7 +70,7 @@ public sealed class DisplayPreparationFallbackBuilderTests
     {
         var body = BrepPrimitives.CreateBox(2d, 2d, 2d).Value;
 
-        var result = DisplayPreparationFallbackBuilder.Build(body);
+        var result = BuildWithTestBudget(body);
 
         Assert.True(result.IsSuccess);
         Assert.All(result.Value.FacePatches, patch =>
@@ -85,8 +85,8 @@ public sealed class DisplayPreparationFallbackBuilderTests
     {
         var body = UvTrimMaskExtractorTests.CreateBodyWithMissingVertexPoint(UvTrimMaskExtractorTests.ImportSingleLoopBsplineBody());
 
-        var first = DisplayPreparationFallbackBuilder.Build(body);
-        var second = DisplayPreparationFallbackBuilder.Build(body);
+        var first = BuildWithTestBudget(body);
+        var second = BuildWithTestBudget(body);
 
         Assert.True(first.IsSuccess);
         Assert.True(second.IsSuccess);
@@ -106,8 +106,8 @@ public sealed class DisplayPreparationFallbackBuilderTests
     {
         var body = UvTrimMaskExtractorTests.ImportSingleLoopBsplineBody();
 
-        var first = DisplayPreparationFallbackBuilder.Build(body);
-        var second = DisplayPreparationFallbackBuilder.Build(body);
+        var first = BuildWithTestBudget(body);
+        var second = BuildWithTestBudget(body);
 
         Assert.True(first.IsSuccess);
         Assert.True(second.IsSuccess);
@@ -139,7 +139,7 @@ public sealed class DisplayPreparationFallbackBuilderTests
         foreach (var sweepCase in BoundedRealCaseSweepCases)
         {
             var body = sweepCase.CreateBody();
-            var result = DisplayPreparationFallbackBuilder.Build(body);
+            var result = BuildWithTestBudget(body);
             Assert.True(result.IsSuccess);
             var patch = Assert.Single(result.Value.FacePatches);
             caseResults.Add(new BoundedRealCaseSweepCaseResult(
@@ -180,6 +180,9 @@ public sealed class DisplayPreparationFallbackBuilderTests
             "|",
             result.FacePatches.Select(patch =>
                 $"{patch.FaceId.Value}:{patch.Source}:{patch.ScaffoldRejectionReason}:{patch.Positions.Count}:{patch.TriangleIndices.Count}:{string.Join(',', patch.TriangleIndices.Take(24))}"));
+
+    private static Aetheris.Kernel.Core.Results.KernelResult<DisplayTessellationResult> BuildWithTestBudget(BrepBody body)
+        => DisplayPreparationFallbackBuilder.Build(body, null, null, TimeSpan.FromSeconds(30));
 }
 
 internal sealed record DisplayPreparationSweepCase(

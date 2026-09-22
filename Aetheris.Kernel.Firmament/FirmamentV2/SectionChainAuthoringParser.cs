@@ -12,17 +12,20 @@ public sealed record SectionChainAuthoringResult(
 
 /// <summary>
 /// Domain binder for Firmament SectionChain declarations. Profiles remain ordinary
-/// Concept Path-derived Profiles; this layer only associates them with ordered frames,
+/// named Profiles; this layer only associates them with ordered frames,
 /// seams, correspondence, transition law, and termination intent.
 /// </summary>
 public static class SectionChainAuthoringParser
 {
     public static bool IsSectionChainSource(string source) =>
-        Regex.IsMatch(source, @"\bSectionChain\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant);
+        Regex.IsMatch(source, @"\bSectionChain\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant)
+        || LoftAuthoringParser.IsLoftSource(source);
 
     public static SectionChainAuthoringResult Compile(string source, bool materialize = true)
     {
         ArgumentNullException.ThrowIfNull(source);
+        if (LoftAuthoringParser.IsLoftSource(source))
+            return LoftAuthoringParser.Compile(source, materialize);
         var diagnostics = new List<string>();
         if (!Regex.IsMatch(source, @"\bUnits\s*:\s*mm\b", RegexOptions.CultureInvariant))
             diagnostics.Add("section-chain-units-invalid:millimetres-required");
@@ -55,7 +58,12 @@ public static class SectionChainAuthoringParser
             var seam = Field(authored.Body, "Seam");
             if (frameName is null) diagnostics.Add($"section-chain-frame-missing:{authored.Name}");
             ResolvedProfile2D? profile = null;
-            if (profileName is null || !profiles.TryGetValue(profileName ?? string.Empty, out profile))
+            if (profileName is not null && !profiles.TryGetValue(profileName, out profile))
+            {
+                profile = ProfileAuthoringParser.ResolveNamedProfile(source, profileName, out var profileDiagnostics);
+                if (profile is null) diagnostics.AddRange(profileDiagnostics);
+            }
+            if (profile is null)
                 diagnostics.Add($"section-chain-profile-unresolved:{authored.Name}:{profileName ?? "<missing>"}");
             var plane = frameName is null ? null : ProfileAuthoringParser.ResolveNamedConstructionPlane(source, frameName, diagnostics);
             if (frameName is not null && plane is null) diagnostics.Add($"section-chain-frame-unresolved:{authored.Name}:{frameName}");

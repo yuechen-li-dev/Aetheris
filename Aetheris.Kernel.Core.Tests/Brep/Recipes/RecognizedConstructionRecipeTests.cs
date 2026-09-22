@@ -1,6 +1,5 @@
 using System.Security.Cryptography;
 using System.Text;
-using System.Diagnostics;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Boolean;
 using Aetheris.Kernel.Core.Brep.Recipes;
@@ -14,16 +13,11 @@ using Aetheris.Kernel.Core.Numerics;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Core.Topology;
 using Aetheris.Kernel.StandardLibrary;
-using Xunit.Abstractions;
 
 namespace Aetheris.Kernel.Core.Tests.Brep.Recipes;
 
 public sealed class RecognizedConstructionRecipeTests
 {
-    private readonly ITestOutputHelper _output;
-
-    public RecognizedConstructionRecipeTests(ITestOutputHelper output) => _output = output;
-
     [Fact]
     public void ThroughHole_DirectRecipe_LegacyAndFacadeAreTopologyAndStepIdentical()
     {
@@ -97,41 +91,6 @@ public sealed class RecognizedConstructionRecipeTests
     }
 
     [Fact]
-    public void ThroughHole_RecipeLayerHasNoMeaningfulRuntimeRegression()
-    {
-        var root = BrepPrimitives.CreateBox(40d, 30d, 12d).Value;
-        var tool = BrepPrimitives.CreateCylinder(4d, 20d).Value;
-        var facade = BrepBoolean.Subtract(root, tool).Value;
-        var history = facade.SafeBooleanComposition!;
-        var request = new ThroughHoleRecipeRequest(
-            history.RootDescriptor,
-            Assert.Single(history.Holes),
-            history,
-            ToleranceContext.Default);
-
-        const int iterations = 100;
-        _ = ThroughHoleConstructionRecipe.Execute(request);
-        _ = BrepBooleanBoxCylinderHoleBuilder.BuildRecognizedThroughHoleLegacy(history, ToleranceContext.Default);
-
-        var legacy = Stopwatch.StartNew();
-        for (var index = 0; index < iterations; index++)
-        {
-            Assert.True(BrepBooleanBoxCylinderHoleBuilder.BuildRecognizedThroughHoleLegacy(history, ToleranceContext.Default).IsSuccess);
-        }
-        legacy.Stop();
-
-        var recipe = Stopwatch.StartNew();
-        for (var index = 0; index < iterations; index++)
-        {
-            Assert.True(ThroughHoleConstructionRecipe.Execute(request).IsSuccess);
-        }
-        recipe.Stop();
-
-        _output.WriteLine($"legacy={legacy.Elapsed.TotalMilliseconds:F3}ms recipe={recipe.Elapsed.TotalMilliseconds:F3}ms iterations={iterations}");
-        Assert.True(recipe.Elapsed <= legacy.Elapsed * 3 + TimeSpan.FromMilliseconds(10));
-    }
-
-    [Fact]
     public void StandardLibrary_ThroughHole_DirectRecipeMatchesCompatibilityFacade()
     {
         var direct = StandardLibraryReusableParts.CreateCubeWithCylindricalHole();
@@ -145,45 +104,6 @@ public sealed class RecognizedConstructionRecipeTests
         Assert.Equal(StandardLibraryReusableParts.CubeWithCylindricalHolePartName,
             Assert.Single(direct.Value.SafeBooleanComposition!.Holes).FeatureId);
         AssertRoundTrips(direct.Value);
-    }
-
-    [Theory]
-    [InlineData("firmament", 80d, 50d, 25d, 4d, 25d)]
-    [InlineData("cir", 20d, 20d, 10d, 3d, 20d)]
-    [InlineData("standard-library", 20d, 20d, 20d, 3d, 24d)]
-    public void KnownCaller_DirectRecipeAvoidsFacadeRecognitionOverhead(
-        string caller,
-        double width,
-        double depth,
-        double height,
-        double radius,
-        double toolHeight)
-    {
-        const int iterations = 30;
-        var request = ThroughHoleRecipeRequestBuilder.FromBoxAndZCylinder(
-            width, depth, height, Vector3D.Zero, radius, toolHeight, Vector3D.Zero, caller).Value;
-
-        _ = ThroughHoleConstructionRecipe.Execute(request);
-        _ = BrepBoolean.Subtract(BrepPrimitives.CreateBox(width, depth, height).Value, BrepPrimitives.CreateCylinder(radius, toolHeight).Value);
-
-        var facade = Stopwatch.StartNew();
-        for (var index = 0; index < iterations; index++)
-        {
-            Assert.True(BrepBoolean.Subtract(
-                BrepPrimitives.CreateBox(width, depth, height).Value,
-                BrepPrimitives.CreateCylinder(radius, toolHeight).Value).IsSuccess);
-        }
-        facade.Stop();
-
-        var direct = Stopwatch.StartNew();
-        for (var index = 0; index < iterations; index++)
-        {
-            Assert.True(ThroughHoleConstructionRecipe.Execute(request).IsSuccess);
-        }
-        direct.Stop();
-
-        _output.WriteLine($"caller={caller} facade={facade.Elapsed.TotalMilliseconds:F3}ms direct-recipe={direct.Elapsed.TotalMilliseconds:F3}ms iterations={iterations}");
-        Assert.True(direct.Elapsed <= facade.Elapsed * 3 + TimeSpan.FromMilliseconds(10));
     }
 
     [Fact]

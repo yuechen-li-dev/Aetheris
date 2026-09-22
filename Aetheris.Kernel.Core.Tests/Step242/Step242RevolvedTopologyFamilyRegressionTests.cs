@@ -8,6 +8,7 @@ public sealed class Step242RevolvedTopologyFamilyRegressionTests
     [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", "No diagnostics.")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", "No diagnostics.")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp", "No diagnostics.")]
+    [Trait("Category", "SlowCorpus")]
     public void Step242_RepeatedCurvedRevolvedTargets_AdvanceWithExplicitDeterministicNextBlocker(
         string relativePath,
         string expectedMessagePrefix)
@@ -92,6 +93,7 @@ public sealed class Step242RevolvedTopologyFamilyRegressionTests
     [Theory]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp", "No diagnostics.")]
     [InlineData("testdata/step242/nist/STC/nist_stc_08_asme1_ap242-e3.stp", "No diagnostics.")]
+    [Trait("Category", "SlowCorpus")]
     public void Step242_RevolvedTopologyFamilyBlockers_StayDeterministic_AndRemainExplicit(string relativePath, string expectedMessagePrefix)
     {
         var entry = new Step242CorpusManifestEntry(
@@ -120,6 +122,7 @@ public sealed class Step242RevolvedTopologyFamilyRegressionTests
     }
 
     [Fact]
+    [Trait("Category", "SlowCorpus")]
     public void Step242_RepeatedCurvedRevolvedTargets_AdvanceToSuccess_Deterministically()
     {
         const string relativePath = "testdata/step242/nist/FTC/nist_ftc_09_asme1_ap242-e1.stp";

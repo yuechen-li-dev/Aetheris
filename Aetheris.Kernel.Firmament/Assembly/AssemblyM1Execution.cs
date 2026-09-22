@@ -8,6 +8,7 @@ using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament.FirmamentV2;
+using Aetheris.Surfacing;
 using Aetheris.Semantics;
 
 namespace Aetheris.Kernel.Firmament.Assembly;
@@ -61,6 +62,49 @@ internal static class AssemblyDefinitionMaterializer
     {
         if (!string.IsNullOrWhiteSpace(definitionSource))
         {
+            // Keep the authored SectionChain in its own source document so sibling
+            // assembly templates cannot leak unrelated profiles into its binder.
+            var sectionFile = System.Text.RegularExpressions.Regex.Match(definitionIdentity,
+                "^(?:SectionChainFile|LoftFile)<\\\"(?<path>[^\\\"]+)\\\">$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+            if (sectionFile.Success)
+            {
+                var baseDirectory = Path.GetDirectoryName(Path.GetFullPath(sourceIdentity)) ?? Directory.GetCurrentDirectory();
+                var sectionPath = Path.GetFullPath(Path.Combine(baseDirectory, sectionFile.Groups["path"].Value.Replace('/', Path.DirectorySeparatorChar)));
+                if (!File.Exists(sectionPath))
+                {
+                    diagnostics.Add(new("assembly-profile-unresolved-resource", $"SectionChain source '{sectionFile.Groups["path"].Value}' was not found at '{sectionPath}'."));
+                    return null;
+                }
+                var section = SectionChainAuthoringParser.Compile(File.ReadAllText(sectionPath));
+                if (!section.IsSuccess || section.Materialization?.Body is not { } sectionBody ||
+                    section.Materialization.StructureKind != SectionChainStructureKind.ClosedSolid)
+                {
+                    foreach (var diagnostic in section.Diagnostics)
+                        diagnostics.Add(new("assembly-definition-materialization-failed", $"SectionChain source '{sectionPath}': {diagnostic}"));
+                    if (section.IsSuccess)
+                        diagnostics.Add(new("assembly-definition-materialization-failed", $"SectionChain source '{sectionPath}' must materialize one capped closed solid."));
+                    return null;
+                }
+                var sectionStep = Step242Exporter.ExportBody(sectionBody);
+                if (!sectionStep.IsSuccess || sectionStep.Value is null)
+                {
+                    foreach (var diagnostic in sectionStep.Diagnostics)
+                        diagnostics.Add(new("assembly-definition-materialization-failed", $"SectionChain source '{sectionPath}' STEP export failed: {diagnostic.Message}"));
+                    return null;
+                }
+                var sectionImport = Step242Importer.ImportBody(sectionStep.Value);
+                if (!sectionImport.IsSuccess || sectionImport.Value is null)
+                {
+                    foreach (var diagnostic in sectionImport.Diagnostics)
+                        diagnostics.Add(new("assembly-definition-reimport-failed", $"SectionChain source '{sectionPath}' STEP reimport failed: {diagnostic.Message}"));
+                    return null;
+                }
+                var sectionHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sectionStep.Value)));
+                var sectionStableId = "assembly-definition:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(definitionIdentity)))[..16];
+                var sectionProvenance = new[] { new SemanticProvenance("section-chain-source", sectionPath, section.Chain!.StableId, SemanticSourceSpan.Generated(sourceIdentity)) };
+                return new(definitionIdentity, "section-chain:" + sectionHash[..16], sectionImport.Value, [],
+                    new(sectionStableId, definitionIdentity, "section-chain:" + sectionHash[..16], sectionHash, Metrics(sectionImport.Value), sectionProvenance));
+            }
             var gearDocument = GearAuthoring.ParseDefinitions(definitionSource);
             var gear = gearDocument.Gears.SingleOrDefault(candidate => string.Equals(candidate.Name, definitionIdentity, StringComparison.Ordinal));
             if (gear is not null)

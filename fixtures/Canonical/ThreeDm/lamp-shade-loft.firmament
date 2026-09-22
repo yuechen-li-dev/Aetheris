@@ -1,0 +1,29 @@
+schema SectionChain
+Model CartesianLampShade {
+    Units: mm
+
+    Concept Struct Stations {
+        RearDatum: Plane { Origin: [-39mm, 0mm, 451.4mm]; Normal: [0.8, 0, -0.6]; Up: [0, 1, 0] }
+        FrontDatum: Plane { Origin: [56.665mm, 0mm, 339.933mm]; Normal: [0.138648, 0, -0.990342]; Up: [0, 1, 0] }
+    }
+    Construction Plane RearFrame { Trace: Stations.RearDatum }
+    Construction Plane FrontFrame { Trace: Stations.FrontDatum }
+
+    Circle2 RearContour { Center: [0mm, 0mm] Radius: 27mm }
+    Ellipse2 FrontContour { Center: [-0.374mm, 0mm] AxisLengths: [162.284mm, 157.836mm] Rotation: 174.97169564455444deg }
+    Profile RearOutline { Loop Outer { RearContour |> TraceLoop } }
+    Profile FrontOutline { Loop Outer { FrontContour |> TraceLoop } }
+
+    Loft<Hollow> Shade {
+        RearProfile: RearOutline
+        RearFrame: RearFrame
+        FrontProfile: FrontOutline
+        FrontFrame: FrontFrame
+        Thickness: 1mm
+        Rule: Ruled
+        Correspondence: CommonRay
+        Reference: [0, 1, 0]
+        Twist: 0deg
+        SeamGap: 0.1deg
+    }
+}

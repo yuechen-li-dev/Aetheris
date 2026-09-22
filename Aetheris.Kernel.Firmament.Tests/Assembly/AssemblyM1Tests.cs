@@ -8,6 +8,26 @@ namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 public sealed class AssemblyM1Tests
 {
     [Fact]
+    public void AuthoredSectionChainFile_MaterializesRuledPartInProductStep()
+    {
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/ThreeDm/lamp-visible-intent.firmament");
+        var compilation = new AssemblyM1Pipeline().CompileFile(path);
+        Assert.True(compilation.IsSuccess, string.Join(Environment.NewLine, compilation.Diagnostics.Select(item => item.Message)));
+
+        Assert.Equal(7, compilation.Geometry!.InstanceBodies.Count);
+        Assert.DoesNotContain(compilation.Geometry.InstanceBodies.Keys, name =>
+            name.Contains("Cable", StringComparison.OrdinalIgnoreCase) || name.Contains("Bulb", StringComparison.OrdinalIgnoreCase));
+        var shade = compilation.Geometry.InstanceBodies.Single(item => item.Key.EndsWith(".Shade", StringComparison.Ordinal)).Value;
+        Assert.Contains(shade.Geometry.Surfaces, item => item.Value.Kind == SurfaceGeometryKind.BSplineSurfaceWithKnots);
+
+        var step = AssemblyIrAp242Exporter.Export(compilation);
+        Assert.True(step.IsSuccess, string.Join(Environment.NewLine, step.Diagnostics.Select(item => item.Message)));
+        var imported = Step242AssemblyImporter.Import(step.Value);
+        Assert.True(imported.IsSuccess, string.Join(Environment.NewLine, imported.Diagnostics.Select(item => item.Message)));
+        Assert.Equal(7, imported.Value.Occurrences.Count);
+    }
+
+    [Fact]
     public void ModelTargetTemplates_MaterializeAnalyticPrimitiveDefinitionsAndExportProductOccurrences()
     {
         const string source = """

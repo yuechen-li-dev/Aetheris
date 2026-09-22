@@ -15,6 +15,7 @@ public static class ProfileAuthoringParser
     private const double Tolerance = 1e-9;
     private static readonly Regex Point = new(@"\bPoint2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*Position\s*:\s*(?:\[|Point2\s*\()\s*(?<x>[-+.\deE]+)mm\s*,\s*(?<y>[-+.\deE]+)mm\s*(?:\]|\))", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex Line = new(@"\bLine2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*From\s*:\s*(?<a>[\w.]+)\s*;?\s*To\s*:\s*(?<b>[\w.]+)", RegexOptions.Singleline | RegexOptions.CultureInvariant);
+    private static readonly Regex CubicBezier = new(@"\bCubicBezier2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*From\s*:\s*(?<a>[\w.]+)\s*;?\s*Control1\s*:\s*(?<c1>[\w.]+)\s*;?\s*Control2\s*:\s*(?<c2>[\w.]+)\s*;?\s*To\s*:\s*(?<b>[\w.]+)", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex Circle = new(@"(?:\bConcept\s+)?\bCircle2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*Center\s*:\s*(?<c>[\w.]+)\s*;?\s*Radius\s*:\s*(?<r>[-+.\deE]+)mm", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex EllipseGuide = new(@"\bEllipse2Guide\s+(?<n>[A-Za-z_]\w*)\s*\{\s*Center\s*:\s*(?<c>[\w.]+)\s*;?\s*SemiAxes\s*:\s*\[\s*(?<a>[-+.\deE]+)mm\s*,\s*(?<b>[-+.\deE]+)mm\s*\]\s*;?\s*Rotation\s*:\s*(?<r>[-+.\deE]+)deg", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex Rect = new(@"\bRect2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*Center\s*:\s*(?:\[|Point2\s*\()\s*(?<x>[-+.\deE]+)mm\s*,\s*(?<y>[-+.\deE]+)mm\s*(?:\]|\))\s*;?\s*Size\s*:\s*\[(?<w>[-+.\deE]+)mm\s*,\s*(?<h>[-+.\deE]+)mm\]", RegexOptions.Singleline | RegexOptions.CultureInvariant);
@@ -234,6 +235,16 @@ public static class ProfileAuthoringParser
             var name = match.Groups["n"].Value;
             if (!points.TryGetValue(match.Groups["a"].Value, out var from) || !points.TryGetValue(match.Groups["b"].Value, out var to)) diagnostics.Add($"profile-layout-unresolved-line:{name}");
             else guides[name] = new LineArcLineSegment2D(from, to);
+        }
+        foreach (Match match in CubicBezier.Matches(source))
+        {
+            var name = match.Groups["n"].Value;
+            if (!points.TryGetValue(match.Groups["a"].Value, out var from) ||
+                !points.TryGetValue(match.Groups["c1"].Value, out var control1) ||
+                !points.TryGetValue(match.Groups["c2"].Value, out var control2) ||
+                !points.TryGetValue(match.Groups["b"].Value, out var to))
+                diagnostics.Add($"profile-layout-unresolved-cubic-bezier:{name}");
+            else guides[name] = new LineArcCubicBezier2D(from, control1, control2, to);
         }
         foreach (Match match in Rect.Matches(source))
         {
@@ -715,7 +726,7 @@ public static class ProfileAuthoringParser
                 return [];
             }
             if (guides.TryGetValue(stages[0].Reference!, out var closedGuide) && closedGuide is LineArcFullCircle2D or LineArcFullEllipse2D)
-                return [PipelineSegment(profile, loopName, stages[0].Alias ?? "Boundary", closedGuide, $"concept:{profile.Frame ?? "XY"}.{stages[0].Reference}", stages[0].Reference!, false, 0, match.Index)];
+                return [PipelineSegment(profile, loopName, stages[0].Alias ?? stages[0].Reference!.Split('.').Last(), closedGuide, $"concept:{profile.Frame ?? "XY"}.{stages[0].Reference}", stages[0].Reference!, false, 0, match.Index)];
             if (!paths.TryGetValue(stages[0].Reference!, out var path))
             {
                 diagnostics.Add($"firmament-profile-traceloop-not-loop:{stages[0].Reference}");
@@ -1021,6 +1032,12 @@ public static class ProfileAuthoringParser
     private static LineArcProfileCurve2D? SelectGuide(LineArcProfileCurve2D guide, (double X, double Y) from, (double X, double Y) to, string sweep, string segment, string trace, List<string> diagnostics)
     {
         if (guide is LineArcLineSegment2D line) { if (!OnLine(from, line) || !OnLine(to, line)) diagnostics.Add($"profile-endpoint-not-on-guide:{segment}:{trace}"); return new LineArcLineSegment2D(from, to); }
+        if (guide is LineArcCubicBezier2D cubic)
+        {
+            if (!string.IsNullOrWhiteSpace(sweep) || Distance(from, cubic.Start) > Tolerance || Distance(to, cubic.End) > Tolerance)
+            { diagnostics.Add($"profile-cubic-bezier-invalid:{segment}:{trace}"); return null; }
+            return cubic;
+        }
         if (guide is LineArcFullCircle2D circle)
         {
             if (!OnCircle(from, circle.Center, circle.Radius) || !OnCircle(to, circle.Center, circle.Radius) || string.IsNullOrWhiteSpace(sweep)) { diagnostics.Add($"profile-arc-invalid:{segment}:{trace}"); return null; }

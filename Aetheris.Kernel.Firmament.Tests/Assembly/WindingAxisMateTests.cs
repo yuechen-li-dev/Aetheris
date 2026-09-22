@@ -8,6 +8,7 @@ public sealed class WindingAxisMateTests
     [Theory]
     [InlineData(6)]
     [InlineData(4.5)]
+    [Trait("Category", "SlowCorpus")]
     public void WindingDatumMatesActualPitchedCoilAxisToStem(double pitch)
     {
         var fixture = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/Assembly/coil-on-stem.firmament");
@@ -26,6 +27,14 @@ public sealed class WindingAxisMateTests
         Assert.Equal(2, result.Geometry!.Artifact.MateResiduals.Count);
         Assert.All(result.Geometry.Artifact.MateResiduals, r => Assert.True(r.Passed));
         Assert.Single(result.Ir.FitResults);
+    }
+
+    [Fact]
+    [Trait("Category", "SlowCorpus")]
+    public void WindingDatumRejectsOversizeFitAndWrongMateAxis()
+    {
+        var fixture = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/Assembly/coil-on-stem.firmament");
+        var source = File.ReadAllText(fixture);
         // Fit classification uses the compiler-derived clear diameter, not the part origin.
         var invalid = new AssemblyM1Pipeline().Compile(source.Replace("Diameter = 8mm", "Diameter = 17mm", StringComparison.Ordinal), fixture);
         Assert.False(Assert.Single(invalid.Ir!.FitResults).Compatible);

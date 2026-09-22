@@ -8,6 +8,7 @@ namespace Aetheris.Kernel.Firmament.Tests;
 public sealed class WireFormTests
 {
     [Fact]
+    [Trait("Category", "SlowCorpus")]
     public void AxisCoil_LowersSemanticHelixToNonRationalSplineTube()
     {
         var source = File.ReadAllText(Fixture("Canonical", "WireForm", "axis-coil.firmament"));

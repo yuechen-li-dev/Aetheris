@@ -29,6 +29,7 @@ public sealed class GearLibraryX0Tests
     [InlineData("miter-basic.firmament", "MiterGear", 20)]
     [InlineData("ratchet-basic.firmament", "RatchetGear", 60)]
     [InlineData("pawl-basic.firmament", "Pawl", null)]
+    [Trait("Category", "SlowCorpus")]
     public void CanonicalFamiliesMaterializeAndReimport(string file, string family, int? teeth)
     {
         var source = File.ReadAllText(Fixture("Canonical", "Gears", file));

@@ -21,6 +21,24 @@ public static class Step242Exporter
     {
         options ??= new Step242ExportOptions();
 
+        // The legacy interchange route still supports rational evidence for
+        // compatibility and debugging. Trusted production routes must first
+        // recover a canonical analytic or non-rational representation.
+        if (options.BrepExportPreflightPolicy == BrepExportPreflightPolicy.TrustedProductionRoute)
+        {
+            foreach (var face in body.Bindings.FaceBindings)
+            {
+                if (body.Geometry.TryGetSurface(face.SurfaceGeometryId, out var support)
+                    && support?.BSplineSurfaceWithKnots?.IsRational == true)
+                    return RationalGeometryNotCanonical($"Face:{face.FaceId.Value}", "rational B-spline surface");
+            }
+            foreach (var pcurve in body.Bindings.PcurveBindings)
+            {
+                if (pcurve.Pcurve.RationalWeights is not null)
+                    return RationalGeometryNotCanonical($"Coedge:{pcurve.CoedgeId.Value}", "rational B-spline pcurve");
+            }
+        }
+
         var preflight = options.BrepExportPreflightMode == BrepExportPreflightMode.Disabled
             ? null
             : BrepExportPreflight.Validate(body);
@@ -1445,6 +1463,15 @@ public static class Step242Exporter
                 KernelDiagnosticCode.NotImplemented,
                 KernelDiagnosticSeverity.Error,
                 message,
+                source)
+        ]);
+
+    private static KernelResult<string> RationalGeometryNotCanonical(string source, string kind) =>
+        KernelResult<string>.Failure([
+            new KernelDiagnostic(
+                KernelDiagnosticCode.ValidationFailed,
+                KernelDiagnosticSeverity.Error,
+                $"RationalGeometryNotCanonical: trusted production STEP cannot emit {kind}; recover a qualified canonical carrier first.",
                 source)
         ]);
 

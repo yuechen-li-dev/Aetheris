@@ -33,12 +33,13 @@ public sealed class NistDisplayCorpusRegressionTests
 
     [Theory]
     [MemberData(nameof(Files))]
+    [Trait("Category", "SlowCorpus")]
     public void NistModel_DisplaysEveryFace_WithoutTessellationWarnings(string relativePath)
     {
         var import = Step242Importer.ImportBody(File.ReadAllText(Path.Combine(FindRepoRoot(), "testdata", "step242", "nist", relativePath)));
         Assert.True(import.IsSuccess, string.Join(" | ", import.Diagnostics.Select(d => d.Message)));
 
-        var display = DisplayPreparationFallbackBuilder.Build(import.Value, null);
+        var display = DisplayPreparationFallbackBuilder.Build(import.Value, null, null, TimeSpan.FromSeconds(30));
 
         Assert.True(display.IsSuccess, string.Join(" | ", display.Diagnostics.Select(d => d.Message)));
         var warnings = display.Diagnostics.Where(d => d.Severity != KernelDiagnosticSeverity.Info).Select(d => d.Message).ToArray();

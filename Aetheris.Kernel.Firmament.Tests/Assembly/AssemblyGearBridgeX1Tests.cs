@@ -170,6 +170,7 @@ public sealed class AssemblyGearBridgeX1Tests
     }
 
     [Fact]
+    [Trait("Category", "SlowCorpus")]
     public void GearGeometryUsesOrdinaryWholeTreeAp242LoweringDeterministically()
     {
         var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/AssemblyInterfaces/exposed-gear-port.firmament");

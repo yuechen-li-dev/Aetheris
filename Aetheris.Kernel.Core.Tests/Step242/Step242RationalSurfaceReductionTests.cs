@@ -27,6 +27,7 @@ public sealed class Step242RationalSurfaceReductionTests
     /// <summary>The invariant the whole lane exists to hold: an imported body carries no rational surface.</summary>
     [Theory]
     [MemberData(nameof(CorpusFiles))]
+    [Trait("Category", "SlowCorpus")]
     public void ImportedBody_CarriesNoRationalSurface(string relativePath)
     {
         var import = Step242Importer.ImportBody(ReadFixture(relativePath));
@@ -37,6 +38,7 @@ public sealed class Step242RationalSurfaceReductionTests
 
     [Theory]
     [MemberData(nameof(CorpusFiles))]
+    [Trait("Category", "SlowCorpus")]
     public void ExportedFile_ContainsNoRationalSurface(string relativePath)
     {
         var import = Step242Importer.ImportBody(ReadFixture(relativePath));

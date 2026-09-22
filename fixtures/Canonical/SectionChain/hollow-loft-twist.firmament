@@ -1,0 +1,27 @@
+schema SectionChain
+Model TwistedRuledShell {
+    Units: mm
+    Concept Struct Stations {
+        Lower: Plane { Origin: [0mm, 0mm, 0mm]; Normal: [0, 0, 1]; Up: [0, 1, 0] }
+        Upper: Plane { Origin: [0mm, 0mm, 50mm]; Normal: [0, 0, 1]; Up: [0, 1, 0] }
+    }
+    Construction Plane LowerFrame { Trace: Stations.Lower }
+    Construction Plane UpperFrame { Trace: Stations.Upper }
+    Circle2 LowerCircle { Center: [0mm, 0mm] Radius: 25mm }
+    Circle2 UpperCircle { Center: [0mm, 0mm] Radius: 25mm }
+    Profile LowerOutline { Loop Outer { LowerCircle |> TraceLoop } }
+    Profile UpperOutline { Loop Outer { UpperCircle |> TraceLoop } }
+
+    Loft<Hollow> Hyperboloid {
+        RearProfile: LowerOutline
+        RearFrame: LowerFrame
+        FrontProfile: UpperOutline
+        FrontFrame: UpperFrame
+        Thickness: 1mm
+        Rule: Ruled
+        Correspondence: CommonRay
+        Reference: [1, 0, 0]
+        Twist: 63deg
+        SeamGap: 0.1deg
+    }
+}

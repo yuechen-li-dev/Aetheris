@@ -78,6 +78,7 @@ public sealed class Step242BsplineSurfaceRecoveryTests
     /// tolerance-based test would swap them for one. They are spline faces and must stay spline faces.
     /// </summary>
     [Fact]
+    [Trait("Category", "SlowCorpus")]
     public void NistCtc02FreeFormBlends_AreNotRecovered()
     {
         var import = Step242Importer.ImportBody(ReadFixture("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp"));

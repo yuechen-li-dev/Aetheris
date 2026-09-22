@@ -41,6 +41,7 @@ public sealed class DisplayMeshOrientationCorpusTests
 
     [Theory]
     [MemberData(nameof(ClosedBrepFiles))]
+    [Trait("Category", "SlowCorpus")]
     public void DisplayMesh_OfAClosedBody_IsOutwardOriented(string relativePath)
     {
         var import = Step242Importer.ImportBody(ReadFixture(relativePath));
@@ -68,7 +69,7 @@ public sealed class DisplayMeshOrientationCorpusTests
 
     private static (double WindingVolume, double NormalVolume) MeasureVolumes(BrepBody body)
     {
-        var display = DisplayPreparationFallbackBuilder.Build(body, null);
+        var display = DisplayPreparationFallbackBuilder.Build(body, null, null, TimeSpan.FromSeconds(30));
         Assert.True(display.IsSuccess);
 
         var windingVolume = 0d;

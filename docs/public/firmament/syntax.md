@@ -281,7 +281,7 @@ Profile SideProfile Using PositiveXWorkplane {
 }
 ```
 
-Segment names are Profile-wide identities. Manual `Segment` and pipeline stages both preserve their authored or inherited leaf names; loops do not silently qualify them. If two loops would introduce the same name, binding reports `firmament-profile-segment-identity-collision`. Resolve the collision explicitly with `As` on the pipeline stages (for example, `Cutout.Bottom As CutoutBottom`) or by renaming a manual Segment.
+Segment names are Profile-wide identities. Manual `Segment` and pipeline stages both preserve their authored or inherited leaf names; loops do not silently qualify them. A traced full `Circle2` or `Ellipse2` derives its segment identity from the guide name, so `Outside |> TraceLoop` and `Inside |> TraceLoop` have distinct identities. If two loops would introduce the same name, binding reports `firmament-profile-segment-identity-collision`. Resolve the collision explicitly with `As` on the pipeline stages (for example, `Cutout.Bottom As CutoutBottom`) or by renaming a manual Segment.
 
 A `Concept Path` may also compose existing named spans and remain open:
 

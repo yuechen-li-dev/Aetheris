@@ -1,0 +1,109 @@
+Units: mm
+
+Template<OpeningRadius: Length>
+Struct LampBase {
+
+    // The large opening is the XY datum. Source XY is translated by (-38, 0) mm.
+    Concept Struct BaseSketch On XY {
+        Point2 Nose { Position: [-144.9mm, 0mm] }
+        Point2 UpperNoseHandle { Position: [-144.9mm, 53.96mm] }
+        Point2 UpperShoulderHandle { Position: [-47.32mm, 74.4mm] }
+        Point2 UpperShoulder { Position: [-5.5mm, 74.4mm] }
+        Point2 LowerShoulder { Position: [-5.5mm, -74.4mm] }
+        Point2 LowerShoulderHandle { Position: [-47.32mm, -74.4mm] }
+        Point2 LowerNoseHandle { Position: [-144.9mm, -53.96mm] }
+        Point2 RoundCenter { Position: [-5.5mm, 0mm] }
+        Point2 OpeningCenter { Position: [0mm, 0mm] }
+        Point2 PostMountCenter { Position: [-116mm, 0mm] }
+        Point2 AuxiliaryMountCenter { Position: [-82mm, -25mm] }
+
+        CubicBezier2 UpperFlank { From: UpperShoulder; Control1: UpperShoulderHandle; Control2: UpperNoseHandle; To: Nose }
+        Circle2 RoundEnd { Center: RoundCenter; Radius: 74.4mm }
+        CubicBezier2 LowerFlank { From: Nose; Control1: LowerNoseHandle; Control2: LowerShoulderHandle; To: LowerShoulder }
+        Circle2 LargeOpening { Center: OpeningCenter; Radius: OpeningRadius }
+        Circle2 PostMount { Center: PostMountCenter; Radius: 7mm }
+        Circle2 AuxiliaryMount { Center: AuxiliaryMountCenter; Radius: 3.5mm }
+    }
+
+    Profile PlateSection Using BaseSketch {
+        Loop Outer {
+            Segment Lower { Trace: LowerFlank; From: Nose; To: LowerShoulder }
+            Segment Round { Trace: RoundEnd; From: LowerShoulder; To: UpperShoulder; Sweep: CounterClockwise }
+            Segment Upper { Trace: UpperFlank; From: UpperShoulder; To: Nose }
+        }
+        Loop Inner { LargeOpening As OpeningBoundary |> TraceLoop }
+        Loop Inner { PostMount As PostBoundary |> TraceLoop }
+        Loop Inner { AuxiliaryMount As AuxiliaryBoundary |> TraceLoop }
+    }
+
+    Struct Base { Extrude PrimaryPlate { Profile: PlateSection; From: 0mm; To: 12mm } }
+}
+
+
+// Product frame follows the source millimetre XY/Z axes. The base profile has its own opening-centered datum.
+Template<PoleRadius: Length, PoleHeight: Length>
+Struct Upright {
+    Circle2 SectionCircle { Center: [0mm,0mm] Radius: PoleRadius }
+    Profile Section { Loop Outer { SectionCircle |> TraceLoop } }
+    Extrude Shaft { Profile: Section From: 0mm To: PoleHeight }
+}
+
+Template<OuterRadius: Length, InnerRadius: Length, CollarHeight: Length>
+Struct AnnularCollar {
+    Circle2 Outside { Center: [0mm,0mm] Radius: OuterRadius }
+    Circle2 Inside { Center: [0mm,0mm] Radius: InnerRadius }
+    Profile Section { Loop Outer { Outside |> TraceLoop } Loop Inner { Inside As BoreBoundary |> TraceLoop } }
+    Extrude Body { Profile: Section From: 0mm To: CollarHeight }
+}
+
+// The original underside nut sits within the omitted recessed pocket. This
+// canonical fitting is placed immediately below the flat replacement plate.
+Template<WidthAcrossFlats: Length, BoreRadius: Length, NutHeight: Length>
+Struct HexNut {
+    RegularPolygon2<6> Outside { Center: [0mm, 0mm] AcrossFlats: WidthAcrossFlats Rotation: 0deg }
+    Circle2 Bore { Center: [0mm, 0mm] Radius: BoreRadius }
+    Profile Section { Loop Outer { Outside |> TraceLoop } Loop Inner { Bore As BoreBoundary |> TraceLoop } }
+    Extrude Body { Profile: Section From: 0mm To: NutHeight }
+}
+
+Template<PivotRadius: Length, PivotLength: Length>
+Struct PivotPin {
+    Circle2 SectionCircle { Center: [0mm,0mm] Radius: PivotRadius }
+    Profile Section { Loop Outer { SectionCircle |> TraceLoop } }
+    Extrude Body { Profile: Section From: 0mm To: PivotLength }
+}
+
+Template<OutsideRadius: Length, InsideRadius: Length, TubeLength: Length>
+Struct HeadTube {
+    Circle2 Outside { Center: [0mm,0mm] Radius: OutsideRadius }
+    Circle2 Inside { Center: [0mm,0mm] Radius: InsideRadius }
+    Profile Section { Loop Outer { Outside |> TraceLoop } Loop Inner { Inside As InteriorBoundary |> TraceLoop } }
+    Extrude Body { Profile: Section From: 0mm To: TubeLength }
+}
+
+Assembly CartesianLamp {
+    <Assembly CartesianLamp>
+        <Part Base = LampBase<OpeningRadius: 61.6mm>>
+            Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,38,0,0,1];
+        </Part>
+        <Part Pole = Upright<PoleRadius: 5.5mm, PoleHeight: 429mm>>
+            Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,-78,0,2,1];
+        </Part>
+        <Part LowerCollar = AnnularCollar<OuterRadius: 9mm, InnerRadius: 5.5mm, CollarHeight: 11mm>>
+            Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,-78,0,12,1];
+        </Part>
+        <Part MountNut = HexNut<WidthAcrossFlats: 17.32mm, BoreRadius: 5.5mm, NutHeight: 3mm>>
+            Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,-78,0,-3,1];
+        </Part>
+        <Part Pivot = PivotPin<PivotRadius: 10mm, PivotLength: 20mm>>
+            Placement LegacyExplicit = [1,0,0,0,0,0,-1,0,0,1,0,0,-78,-10,441,1];
+        </Part>
+        <Part LampBody = HeadTube<OutsideRadius: 27mm, InsideRadius: 26mm, TubeLength: 143.5mm>>
+            Placement LegacyExplicit = [-0.6,0,-0.8,0,0,1,0,0,0.8,0,-0.6,0,-153.8,0,537.5,1];
+        </Part>
+        <Part Shade = LoftFile<"lamp-shade-loft.firmament">>
+            Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+        </Part>
+    </Assembly>
+    Anchor: CartesianLamp;
+}

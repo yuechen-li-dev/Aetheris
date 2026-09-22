@@ -218,6 +218,8 @@ public static class CliRunner
                 "mesh" => RunMesh(args.Skip(1).ToArray(), stdout, stderr),
                 "validate" => RunValidate(args.Skip(1).ToArray(), stdout, stderr),
                 "inspect" => RunInspect(args.Skip(1).ToArray(), stdout, stderr),
+                "inspect-3dm" => ThreeDmCli.Run(args.Skip(1).ToArray(), stdout, stderr, JsonOptions),
+                "recover-3dm" => ThreeDmCli.Recover(args.Skip(1).ToArray(), stdout, stderr, JsonOptions),
                 "inspect-profile" => RunInspectProfile(args.Skip(1).ToArray(), stdout, stderr),
                 "inspect-spans" => RunInspectSpans(args.Skip(1).ToArray(), stdout, stderr),
                 "inspect-compose" => RunInspectCompose(args.Skip(1).ToArray(), stdout, stderr),
@@ -4813,6 +4815,8 @@ Model CanonicalPanel {
         stdout.WriteLine("  mesh       Export a supported exact B-rep as STL or topology-preserving OBJ.");
         stdout.WriteLine("  view       Build/open a model in Cadmata.");
         stdout.WriteLine("  inspect    Inspect Firmament semantics or STEP topology.");
+        stdout.WriteLine("  inspect-3dm Inventory local Rhino 3DM geometry and import blockers.");
+        stdout.WriteLine("  recover-3dm Measure analytic recovery candidates from Rhino 3DM geometry.");
         stdout.WriteLine("  analyze    Analyze STEP topology and analytic surfaces.");
         stdout.WriteLine("  fea        Compile and solve a Firmament linear-elastic analysis and export Abaqus verification input.");
         stdout.WriteLine("  drawing    Compile production drawings or inspect/highlight PDFs with source-linked Drawing Notes.");

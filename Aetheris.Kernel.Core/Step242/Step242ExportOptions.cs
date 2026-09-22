@@ -35,7 +35,10 @@ public sealed class Step242ExportOptions
     /// </summary>
     public BrepExportPreflightMode BrepExportPreflightMode { get; init; } = BrepExportPreflightMode.Audit;
 
-    /// <summary>Records why this route selected its preflight mode.</summary>
+    /// <summary>
+    /// TrustedProductionRoute rejects rational B-spline supports and pcurves.
+    /// LegacyRoute retains interchange/debug compatibility, including rational evidence.
+    /// </summary>
     public BrepExportPreflightPolicy BrepExportPreflightPolicy { get; init; } = BrepExportPreflightPolicy.LegacyRoute;
 
     /// <summary>Preserve a full circular edge's declared parameter interval as TRIMMED_CURVE.</summary>

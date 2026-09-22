@@ -1,0 +1,24 @@
+schema SectionChain
+Model RuledSolidLoft {
+    Units: mm
+    Concept Struct Stations {
+        Lower: Plane { Origin: [0mm, 0mm, 0mm]; Normal: [0, 0, 1]; Up: [0, 1, 0] }
+        Upper: Plane { Origin: [0mm, 0mm, 50mm]; Normal: [0, 0, 1]; Up: [0, 1, 0] }
+    }
+    Construction Plane LowerFrame { Trace: Stations.Lower }
+    Construction Plane UpperFrame { Trace: Stations.Upper }
+    Circle2 LowerCircle { Center: [0mm, 0mm] Radius: 25mm }
+    Ellipse2 UpperEllipse { Center: [0mm, 0mm] AxisLengths: [60mm, 40mm] Rotation: 25deg }
+    Profile LowerOutline { Loop Outer { LowerCircle |> TraceLoop } }
+    Profile UpperOutline { Loop Outer { UpperEllipse |> TraceLoop } }
+
+    Loft Body {
+        RearProfile: LowerOutline
+        RearFrame: LowerFrame
+        FrontProfile: UpperOutline
+        FrontFrame: UpperFrame
+        Rule: Ruled
+        Correspondence: CommonRay
+        Reference: [1, 0, 0]
+    }
+}

@@ -13,6 +13,7 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
     [InlineData("testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp", null, null)]
     [InlineData("testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp", null, null)]
     [InlineData("testdata/step242/nist/STC/nist_stc_09_asme1_ap242-e3.stp", null, null)]
+    [Trait("Category", "SlowCorpus")]
     public void Step242_NistLoopRoleTargets_ProgressDeterministically_WithExplicitNormalizedBoundaries(
         string relativePath,
         string? expectedSource,
@@ -140,6 +141,7 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
     [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp")]
+    [Trait("Category", "SlowCorpus")]
     public void Step242_PlanarLoopRole_CoedgeGapDiagnostics_AreDeterministic(string relativePath)
     {
         var first = CaptureCoedgeGaps(relativePath);
@@ -154,6 +156,7 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
     [InlineData("testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp", 259, 977)]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", 11, 35)]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp", 3, 20)]
+    [Trait("Category", "SlowCorpus")]
     public void Step242_PlanarLoopRole_KnownWorstLoopJoinGaps_CollapseToNearZero(
         string relativePath,
         int loopId,
@@ -175,6 +178,7 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
     [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp")]
+    [Trait("Category", "SlowCorpus")]
     public void Step242_PlanarLoopRole_CircularSampling_IsAdaptiveAndDeterministic(string relativePath)
     {
         var first = CaptureCircularSampling(relativePath);

@@ -36,6 +36,8 @@ bld/
 # Repository-local generated output (source fixtures and checked-in docs evidence live elsewhere).
 .tmp/
 artifacts/local/
+# Local Cartesian qualification inputs have unverified redistribution rights.
+/testdata/3DM/*.3dm
 demo-output/
 docs/preview2/
 

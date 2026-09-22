@@ -23,6 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Aetheris.Kernel.Firmament\Aetheris.Kernel.Firmament.csproj" />
     <ProjectReference Include="..\Aetheris.Kernel.Core\Aetheris.Kernel.Core.csproj" />
+    <ProjectReference Include="..\Aetheris.ThreeDm\Aetheris.ThreeDm.csproj" />
     <ProjectReference Include="..\Aetheris.Firmament.FrictionLab\Aetheris.Firmament.FrictionLab.csproj" />
     <ProjectReference Include="..\Aetheris.FEA\Aetheris.FEA.csproj" />
     <ProjectReference Include="..\Aetheris.Modules.BuiltIn\Aetheris.Modules.BuiltIn.csproj" />

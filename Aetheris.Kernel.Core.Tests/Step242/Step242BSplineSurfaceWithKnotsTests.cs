@@ -21,6 +21,7 @@ public sealed class Step242BSplineSurfaceWithKnotsTests
     }
 
     [Fact]
+    [Trait("Category", "SlowCorpus")]
     public void Step242_NistCtc02_BSplineSurfaces_ObservedAsNonRationalWithExpectedDegreeFamilies()
     {
         var path = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), "testdata", "step242", "nist", "CTC", "nist_ctc_02_asme1_ap242-e2.stp");
@@ -60,6 +61,7 @@ public sealed class Step242BSplineSurfaceWithKnotsTests
     [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp")]
+    [Trait("Category", "SlowCorpus")]
     public void Step242_NistTargets_DoNotFirstFailOnUnsupportedBSplineSurfaceWithKnots(string relativePath)
     {
         var entry = new Step242CorpusManifestEntry(
@@ -85,6 +87,7 @@ public sealed class Step242BSplineSurfaceWithKnotsTests
     [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp")]
+    [Trait("Category", "SlowCorpus")]
     public void Step242_NistTargets_FirstBlockerIsExplicitAfterBSplineSurfaceProgression(string relativePath)
     {
         var entry = new Step242CorpusManifestEntry(
@@ -110,6 +113,7 @@ public sealed class Step242BSplineSurfaceWithKnotsTests
     [InlineData("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp", "", "Audit.None", "No diagnostics.")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp", "", "Audit.None", "No diagnostics.")]
     [InlineData("testdata/step242/nist/STC/nist_stc_08_asme1_ap242-e3.stp", "", "Audit.None", "No diagnostics.")]
+    [Trait("Category", "SlowCorpus")]
     public void Step242_TrimmedSphereTargets_AdvancePastOldUntrimmedSphereBlocker_AndRemainDeterministic(
         string relativePath,
         string expectedLayer,

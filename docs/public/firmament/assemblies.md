@@ -81,4 +81,6 @@ The hierarchical Gear flagship is [`fixtures/Canonical/AssemblyInterfaces/expose
 
 Subassembly composition never exports a child STEP and imports it into its parent. Included definitions form one semantic source graph, the existing Assembly compiler solves the whole tree, and the existing AP242 exporter lowers the resulting hierarchy once when every leaf has executable geometry.
 
+A capped, closed `SectionChain` or bounded `Loft<Hollow>` can serve as a ruled assembly part from a separate authored `.firmament` file. Write `<Part Shade = LoftFile<"lamp-shade-loft.firmament">>` (or `SectionChainFile` for a directly authored chain); the path is relative to the assembly source. Both use the SectionChain materializer, and assembly imports its AP242 body into the ordinary product tree. Open shells are rejected as part definitions. The [Cartesian lamp fixture](../../../fixtures/Canonical/ThreeDm/lamp-visible-intent.firmament) exercises this path with a tilted ruled shade.
+
 Legacy JSON `.firmasm` remains a compatibility/import lane. Canonical reusable semantic authoring uses `.firmament`; the compatibility format does not gain runtime inclusion or become the design authority.

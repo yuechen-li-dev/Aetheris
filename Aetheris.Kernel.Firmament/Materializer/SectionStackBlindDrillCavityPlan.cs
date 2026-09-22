@@ -127,7 +127,7 @@ internal static class SectionStackBlindDrillCavityPlanner
         var transitionLoop = Loop((transitionArcA, false), (transitionArcB, false));
         var shaftLoop = Loop((mouthArcA, false), (mouthArcB, false), (shaftSeam, false), (transitionArcB, true), (transitionArcA, true), (shaftSeam, true));
         var coneLoop = Loop((transitionArcA, false), (transitionArcB, false), (coneSeam, false), (coneSeam, true));
-        var replacementFace = Face(originalFace!.LoopIds.Concat([mouthLoop]).ToArray(), originalSurface, originalBinding.SameSense);
+        var replacementFace = Face(originalFace!.LoopIds.Concat([mouthLoop]).ToArray(), originalSurface, originalBinding.Orientation.IsAlignedWithSurface);
         var shaftFace = Face([shaftLoop], SurfaceGeometry.FromCylinder(new CylinderSurface(mouth, input.Placement.AxisZ, r, input.Placement.AxisX)), false);
         var coneFace = Face([coneLoop], SurfaceGeometry.FromCone(new ConeSurface(points[tip], Direction3D.Create(-axis), point!.PointAngleDegrees * Math.PI / 360d, input.Placement.AxisX)), false);
 
@@ -278,7 +278,7 @@ internal static class SectionStackBlindDrillCavityPlanner
             return Loop(uses.ToArray());
         }
         var hostLoops = new[] { ReplaceSeam(loops[0], arcForFace[0]), ReplaceSeam(loops[1], arcForFace[1]) };
-        var replacementFaces = new[] { Face([hostLoops[0]], surfaces[0]!, bindings[0]!.Value.SameSense), Face([hostLoops[1]], surfaces[1]!, bindings[1]!.Value.SameSense) };
+        var replacementFaces = new[] { Face([hostLoops[0]], surfaces[0]!, bindings[0]!.Value.Orientation.IsAlignedWithSurface), Face([hostLoops[1]], surfaces[1]!, bindings[1]!.Value.Orientation.IsAlignedWithSurface) };
 
         var radial = input.Placement.AxisX.ToVector(); var shaft = input.Corridor.ShaftDepth; var tipLength = input.Corridor.TipLength;
         var transitionCenter = mouth + axis * shaft; var transitionA = Vertex(transitionCenter + radial * input.Hole.Shaft.Radius); var transitionB = Vertex(transitionCenter - radial * input.Hole.Shaft.Radius); var tip = Vertex(transitionCenter + axis * tipLength);

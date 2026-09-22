@@ -60,7 +60,7 @@ RunData Run(string orientation,Transform3D transform,int n,bool fine)
 
 object RunAdversarial()
 {
-    var source=BrepPrimitives.CreateBox(2,1.5,1).Value!;var bindings=new BrepBindingModel();foreach(var e in source.Bindings.EdgeBindings)bindings.AddEdgeBinding(e);foreach(var f in source.Bindings.FaceBindings)bindings.AddFaceBinding(f with{SameSense=!f.SameSense});
+    var source=BrepPrimitives.CreateBox(2,1.5,1).Value!;var bindings=new BrepBindingModel();foreach(var e in source.Bindings.EdgeBindings)bindings.AddEdgeBinding(e);foreach(var f in source.Bindings.FaceBindings)bindings.AddFaceBinding(f with{Orientation=f.Orientation.Reversed()});
     var body=new BrepBody(source.Topology,source.Geometry,bindings,vertexPoints:null,shellRepresentation:source.ShellRepresentation);var transform=Transform3D.CreateRotationY(.27);var region=new ExactBrepBoxContinuumRegion(new("m4-box"),2,1.5,1,transform);
     var assoc=new CirBrepAssociation(region.Id,"reversed-face-orientation-box",body.ShellRepresentation!.OuterShellId.Value.ToString());var shell=new WholeShellBoundaryQuery(body,assoc,transform);var composer=new WholePartCutCellComposer(region,shell);
     var evidence=shell.Faces.Select(f=>composer.Compose(default,Around(Average(f.OuterTrimVertices),1e-3)).Contributors.Single().MaterialSide).ToArray();

@@ -42,7 +42,7 @@ public sealed class ExactBrepBoundaryQuery
         if (!body.Bindings.TryGetFaceBinding(faceId, out var binding))
             throw new ArgumentException($"BRep face {faceId.Value} has no geometry binding.", nameof(faceId));
 
-        _sameSense = binding.SameSense;
+        _sameSense = binding.Orientation.IsAlignedWithSurface;
         _transform = transform;
         _inverse = transform.Inverse();
     }

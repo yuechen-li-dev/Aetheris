@@ -62,7 +62,7 @@ public sealed class ContinuumM4Tests
     {
         var original=BrepPrimitives.CreateBox(2d,1.5d,1d).Value!; var bindings=new BrepBindingModel();
         foreach(var edge in original.Bindings.EdgeBindings) bindings.AddEdgeBinding(edge);
-        foreach(var face in original.Bindings.FaceBindings) bindings.AddFaceBinding(face with { SameSense=!face.SameSense });
+        foreach(var face in original.Bindings.FaceBindings) bindings.AddFaceBinding(face with { Orientation=face.Orientation.Reversed() });
         var reversed=new BrepBody(original.Topology,original.Geometry,bindings,
             vertexPoints:null,
             original.SafeBooleanComposition,original.ShellRepresentation);

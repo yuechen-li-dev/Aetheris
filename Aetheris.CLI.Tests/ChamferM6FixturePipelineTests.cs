@@ -67,7 +67,7 @@ public sealed class ChamferM6FixturePipelineTests
         var coneBinding = Assert.Single(imported.Value.Bindings.FaceBindings,
             binding => imported.Value.Geometry.GetSurface(binding.SurfaceGeometryId).Kind == SurfaceGeometryKind.Cone);
         var cone = imported.Value.Geometry.GetSurface(coneBinding.SurfaceGeometryId).Cone!.Value;
-        Assert.False(coneBinding.SameSense);
+        Assert.False(coneBinding.Orientation.IsAlignedWithSurface);
         Assert.Equal(transitionZ, cone.PlacementOrigin.Z, 9);
         Assert.Equal(shaftDiameter / 2d, cone.PlacementRadius, 9);
         Assert.Equal(1d, cone.Axis.ToVector().Z, 9);

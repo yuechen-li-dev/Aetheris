@@ -48,7 +48,7 @@ public static class PlateauAuthoring
         if (baseBody.Body is null) return Fail(baseBody.Diagnostics);
         var frame = parsed.Profile.EffectiveConstructionPlane;
         var origin = frame.Origin + frame.AxisZ.ToVector() * (parsed.Profile.LocalEndDepth ?? parsed.Height);
-        var candidates = baseBody.Body.Bindings.FaceBindings.Where(b => b.SameSense && baseBody.Body.Geometry.GetSurface(b.SurfaceGeometryId).Plane is { } p &&
+        var candidates = baseBody.Body.Bindings.FaceBindings.Where(b => b.Orientation.IsAlignedWithSurface && baseBody.Body.Geometry.GetSurface(b.SurfaceGeometryId).Plane is { } p &&
             (p.Normal.ToVector() - frame.AxisZ.ToVector()).Length < 1e-10 && Math.Abs((p.Origin - origin).Dot(frame.AxisZ.ToVector())) < 1e-8).ToArray();
         if (candidates.Length != 1) return Fail(["plateau-base-face-unresolved"]);
         var spans = new List<SectionProfileSpan>();

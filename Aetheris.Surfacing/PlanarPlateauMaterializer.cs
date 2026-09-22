@@ -20,7 +20,7 @@ public static class PlanarPlateauMaterializer
     public static PlanarPlateauMaterializationResult Apply(BrepBody source, FaceId supportFace, PlanarPlateauContactPlan plan)
     {
         PlanarPlateauMaterializationResult Fail(string message) => new(null, null, [], ["plateau-" + message]);
-        if (!source.Bindings.TryGetFaceBinding(supportFace, out var supportBinding) || !supportBinding.SameSense ||
+        if (!source.Bindings.TryGetFaceBinding(supportFace, out var supportBinding) || !supportBinding.Orientation.IsAlignedWithSurface ||
             source.Geometry.GetSurface(supportBinding.SurfaceGeometryId).Plane is not { } plane ||
             (plane.Normal.ToVector() - plan.Frame.Normal.ToVector()).Length > 1e-10 ||
             Math.Abs((plan.Frame.Origin - plane.Origin).Dot(plane.Normal.ToVector())) > 1e-8)

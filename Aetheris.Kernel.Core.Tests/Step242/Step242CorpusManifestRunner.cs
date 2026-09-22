@@ -101,6 +101,15 @@ internal static class Step242CorpusManifestRunner
             var displayAudit = includeDisplayAudit
                 ? RunDisplayAudit(body)
                 : DisplayAuditResult.NotRun;
+            // Orientation evidence has its own typed import report and CLI
+            // summary.  Keep this legacy blocker snapshot focused on parser,
+            // topology, binding and export regressions so newly visible
+            // non-fatal source disagreements do not masquerade as import
+            // failures or rewrite the historical canonical corpus hashes.
+            var legacyImportDiagnostics = import.Diagnostics
+                .Where(diagnostic => diagnostic.Source is null
+                    || !diagnostic.Source.StartsWith("Importer.StepOrientation.", StringComparison.Ordinal))
+                .ToArray();
             return new Step242CorpusReportEntry(
                 entry.Id,
                 entry.Path,
@@ -108,8 +117,8 @@ internal static class Step242CorpusManifestRunner
                 sizeBytes,
                 Status: "success",
                 FirstFailureLayer: string.Empty,
-                FirstDiagnostic: FirstDiagnostic(import.Diagnostics),
-                DiagnosticCount: import.Diagnostics.Count,
+                FirstDiagnostic: FirstDiagnostic(legacyImportDiagnostics),
+                DiagnosticCount: legacyImportDiagnostics.Length,
                 ExceptionEscaped: false,
                 DisplayStatus: displayAudit.Status,
                 DisplayFirstFailureLayer: displayAudit.FirstFailureLayer,

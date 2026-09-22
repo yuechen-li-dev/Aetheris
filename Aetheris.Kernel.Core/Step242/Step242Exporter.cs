@@ -218,8 +218,11 @@ public static class Step242Exporter
             }
 
             var loopBoundIds = new List<string>();
-            foreach (var loopId in face.LoopIds.OrderBy(id => id.Value))
+            var boundaryDecision = StepFaceBoundaryExportPolicy.Decide(body, face);
+            if (boundaryDecision is null) return null;
+            foreach (var boundary in boundaryDecision.Boundaries)
             {
+                var loopId = boundary.LoopId;
                 var loop = model.GetLoop(loopId);
                 var oriented = new List<string>();
 
@@ -254,7 +257,7 @@ public static class Step242Exporter
                 }
 
                 var edgeLoopId = writer.AddEntity("EDGE_LOOP", "$", Step242TextWriter.List(oriented.ToArray()));
-                var boundEntity = loopBoundIds.Count == 0 ? "FACE_OUTER_BOUND" : "FACE_BOUND";
+                var boundEntity = boundary.Role == FaceBoundaryRole.Outer ? "FACE_OUTER_BOUND" : "FACE_BOUND";
                 var boundId = writer.AddEntity(boundEntity, Step242TextWriter.String(string.Empty), Step242TextWriter.Ref(edgeLoopId), Step242TextWriter.BooleanLogical(true));
                 loopBoundIds.Add(boundId);
             }
@@ -264,7 +267,7 @@ public static class Step242Exporter
                 Step242TextWriter.String(string.Empty),
                 Step242TextWriter.List(loopBoundIds.ToArray()),
                 Step242TextWriter.Ref(surfaceEntityId),
-                Step242TextWriter.BooleanLogical(faceBinding.SameSense));
+                Step242TextWriter.BooleanLogical(faceBinding.Orientation.IsAlignedWithSurface));
 
             advancedFaceIds[face.Id] = advancedFaceId;
             faceIds.Add(advancedFaceId);

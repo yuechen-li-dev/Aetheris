@@ -1,5 +1,6 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Tessellation;
+using Aetheris.Kernel.Core.Brep.Verification;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
@@ -104,6 +105,23 @@ public sealed class DifferenceEngineStorageGateTests
                 capArea += (b - a).Cross(c - a).Z / 2;
         }
         Assert.InRange(volume / (capArea * 8), .995, 1.005);
+
+        // Mandatory STEP-ORIENTATION-X1 witness: the Difference Engine drive
+        // gear's central bore historically serialized same_sense=false.  The
+        // import records that source flag as evidence while retaining the
+        // independently derived inward-facing cavity wall.
+        var step = Step242Exporter.ExportBody(gear);
+        Assert.True(step.IsSuccess);
+        var imported = Step242Importer.ImportBody(step.Value);
+        Assert.True(imported.IsSuccess, string.Join("\n", imported.Diagnostics.Select(d => d.Message)));
+        var boreFace = Assert.Single(imported.Value.Bindings.FaceBindings, binding =>
+            imported.Value.Geometry.GetSurface(binding.SurfaceGeometryId).Cylinder is { Radius: > 4.19 and < 4.21 });
+        var boreReport = Assert.Single(imported.Value.FaceOrientationReport!.Faces, face => face.FaceId == boreFace.FaceId);
+        Assert.False(boreReport.Orientation.IsAlignedWithSurface);
+        Assert.False(boreReport.SourceEvidence.StepSameSense);
+        var importedMass = BrepMassProperties.Evaluate(imported.Value);
+        Assert.True(importedMass.IsEnclosed);
+        Assert.True(importedMass.SignedVolume > 0d);
     }
 
     private static AssemblyM1CompilationResult Compile(string name)

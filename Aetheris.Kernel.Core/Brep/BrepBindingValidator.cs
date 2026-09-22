@@ -53,6 +53,24 @@ public static class BrepBindingValidator
             }
         }
 
+        foreach (var boundaryRole in body.Bindings.FaceBoundaryRoleBindings)
+        {
+            if (!body.Topology.TryGetFace(boundaryRole.FaceId, out var face) || face is null)
+            {
+                diagnostics.Add(Error($"Face-boundary role references missing face {boundaryRole.FaceId.Value}."));
+                continue;
+            }
+
+            if (!body.Topology.TryGetLoop(boundaryRole.LoopId, out _))
+            {
+                diagnostics.Add(Error($"Face-boundary role references missing loop {boundaryRole.LoopId.Value}."));
+            }
+            else if (!face.LoopIds.Contains(boundaryRole.LoopId))
+            {
+                diagnostics.Add(Error($"Face-boundary role assigns loop {boundaryRole.LoopId.Value} to face {boundaryRole.FaceId.Value}, but that face does not own the loop."));
+            }
+        }
+
         if (requireAllEdgeAndFaceBindings)
         {
             foreach (var edge in body.Topology.Edges)

@@ -10,11 +10,50 @@ public readonly record struct EdgeGeometryBinding(
     ParameterInterval? TrimInterval = null,
     bool OrientedEdgeSense = true);
 
-public readonly record struct FaceGeometryBinding(
-    FaceId FaceId,
-    SurfaceGeometryId SurfaceGeometryId,
-    bool SameSense = true,
-    int? SourceStepEntityId = null);
+/// <summary>
+/// Canonical face orientation after topology/material-side resolution.  This is
+/// intentionally not a STEP <c>same_sense</c> flag: interchange evidence is
+/// retained separately on <see cref="BrepBody.FaceOrientationReport"/>.
+/// </summary>
+public readonly record struct ResolvedFaceOrientation(bool IsAlignedWithSurface)
+{
+    public static ResolvedFaceOrientation Aligned { get; } = new(true);
+    public static ResolvedFaceOrientation Opposed { get; } = new(false);
+
+    public ResolvedFaceOrientation Reversed() => new(!IsAlignedWithSurface);
+}
+
+/// <summary>A topology-to-surface binding whose face orientation is already resolved.</summary>
+public readonly record struct FaceGeometryBinding
+{
+    // Keep the historical bool constructor shape for authored kernel geometry,
+    // while exposing only the resolved typed value to consumers.
+    public FaceGeometryBinding(
+        FaceId FaceId,
+        SurfaceGeometryId SurfaceGeometryId,
+        bool IsAlignedWithSurface = true,
+        int? SourceStepEntityId = null)
+        : this(FaceId, SurfaceGeometryId, new ResolvedFaceOrientation(IsAlignedWithSurface), SourceStepEntityId)
+    {
+    }
+
+    public FaceGeometryBinding(
+        FaceId FaceId,
+        SurfaceGeometryId SurfaceGeometryId,
+        ResolvedFaceOrientation Orientation,
+        int? SourceStepEntityId = null)
+    {
+        this.FaceId = FaceId;
+        this.SurfaceGeometryId = SurfaceGeometryId;
+        this.Orientation = Orientation;
+        this.SourceStepEntityId = SourceStepEntityId;
+    }
+
+    public FaceId FaceId { get; init; }
+    public SurfaceGeometryId SurfaceGeometryId { get; init; }
+    public ResolvedFaceOrientation Orientation { get; init; }
+    public int? SourceStepEntityId { get; init; }
+}
 
 public readonly record struct SurfaceParameterPoint(double U, double V);
 
@@ -99,6 +138,18 @@ public readonly record struct CoedgePcurveBinding(
     PcurveGeometry Pcurve,
     bool SameSense = true);
 
+public enum FaceBoundaryRole { Outer, Inner }
+
+/// <summary>
+/// Semantic role of one loop within one face. The role is use-context evidence:
+/// it must not be reconstructed from LoopId ordering during STEP export.
+/// </summary>
+public readonly record struct FaceBoundaryRoleBinding(
+    FaceId FaceId,
+    LoopId LoopId,
+    FaceBoundaryRole Role,
+    int? SourceStepEntityId = null);
+
 /// <summary>
 /// Explicit topology-to-geometry binding container.
 /// </summary>
@@ -107,24 +158,29 @@ public sealed class BrepBindingModel
     private readonly Dictionary<EdgeId, EdgeGeometryBinding> _edgeBindings = [];
     private readonly Dictionary<FaceId, FaceGeometryBinding> _faceBindings = [];
     private readonly Dictionary<CoedgeId, CoedgePcurveBinding> _pcurveBindings = [];
+    private readonly Dictionary<LoopId, FaceBoundaryRoleBinding> _faceBoundaryRoleBindings = [];
 
     public IEnumerable<EdgeGeometryBinding> EdgeBindings => _edgeBindings.Values;
 
     public IEnumerable<FaceGeometryBinding> FaceBindings => _faceBindings.Values;
     public IEnumerable<CoedgePcurveBinding> PcurveBindings => _pcurveBindings.Values;
+    public IEnumerable<FaceBoundaryRoleBinding> FaceBoundaryRoleBindings => _faceBoundaryRoleBindings.Values;
 
     public void AddEdgeBinding(EdgeGeometryBinding binding) => _edgeBindings.Add(binding.EdgeId, binding);
 
     public void AddFaceBinding(FaceGeometryBinding binding) => _faceBindings.Add(binding.FaceId, binding);
     public void AddPcurveBinding(CoedgePcurveBinding binding) => _pcurveBindings.Add(binding.CoedgeId, binding);
+    public void AddFaceBoundaryRoleBinding(FaceBoundaryRoleBinding binding) => _faceBoundaryRoleBindings.Add(binding.LoopId, binding);
 
     public bool TryGetEdgeBinding(EdgeId edgeId, out EdgeGeometryBinding binding) => _edgeBindings.TryGetValue(edgeId, out binding);
 
     public bool TryGetFaceBinding(FaceId faceId, out FaceGeometryBinding binding) => _faceBindings.TryGetValue(faceId, out binding);
     public bool TryGetPcurveBinding(CoedgeId coedgeId, out CoedgePcurveBinding binding) => _pcurveBindings.TryGetValue(coedgeId, out binding);
+    public bool TryGetFaceBoundaryRoleBinding(LoopId loopId, out FaceBoundaryRoleBinding binding) => _faceBoundaryRoleBindings.TryGetValue(loopId, out binding);
 
     public EdgeGeometryBinding GetEdgeBinding(EdgeId edgeId) => _edgeBindings[edgeId];
 
     public FaceGeometryBinding GetFaceBinding(FaceId faceId) => _faceBindings[faceId];
     public CoedgePcurveBinding GetPcurveBinding(CoedgeId coedgeId) => _pcurveBindings[coedgeId];
+    public FaceBoundaryRoleBinding GetFaceBoundaryRoleBinding(LoopId loopId) => _faceBoundaryRoleBindings[loopId];
 }

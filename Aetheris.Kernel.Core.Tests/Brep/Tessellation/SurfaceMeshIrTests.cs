@@ -274,7 +274,7 @@ public sealed class SurfaceMeshIrTests
                 var offset = centroid - cylinder.Origin;
                 var angle = double.Atan2(offset.Dot(cylinder.YAxis.ToVector()), offset.Dot(cylinder.XAxis.ToVector()));
                 var exactNormal = cylinder.Normal(angle).ToVector();
-                if (!patch.SameSense) exactNormal = -exactNormal;
+                if (!patch.IsAlignedWithSupport) exactNormal = -exactNormal;
                 Assert.True((b - a).Cross(c - a).Dot(exactNormal) > 0d, $"Face {patch.FaceId.Value} contains a reversed trim cell.");
             });
         }

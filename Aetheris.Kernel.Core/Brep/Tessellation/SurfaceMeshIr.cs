@@ -123,7 +123,7 @@ public sealed record SurfacePatch(
     SurfaceMeshSupport Support,
     IReadOnlyList<LoopId> TrimLoops,
     IReadOnlyList<SurfaceMeshCell> Cells,
-    bool SameSense,
+    bool IsAlignedWithSupport,
     string? SemanticOwner = null,
     bool HasPeriodicUSeam = false,
     bool HasPeriodicVSeam = false,
@@ -424,26 +424,26 @@ public static class SurfaceMeshIrTessellator
             switch (surface.Kind)
             {
                 case SurfaceGeometryKind.Plane:
-                    var planePatch = TryBuildPlanePatch(body, face.Id, faceBinding.SameSense, surface.Plane!.Value, byEdge, vertices, ref nextVertexId);
+                    var planePatch = TryBuildPlanePatch(body, face.Id, faceBinding.Orientation.IsAlignedWithSurface, surface.Plane!.Value, byEdge, vertices, ref nextVertexId);
                     if (planePatch is null) { failure = $"SurfaceMeshIR does not support trim topology on planar face {face.Id.Value}."; return false; }
                     patches.Add(planePatch);
                     break;
                 case SurfaceGeometryKind.Cylinder:
-                    var cylinderPatch = TryBuildCylinderPatch(body, face.Id, faceBinding.SameSense, surface.Cylinder!.Value, byEdge, policy, vertices, ref nextVertexId);
+                    var cylinderPatch = TryBuildCylinderPatch(body, face.Id, faceBinding.Orientation.IsAlignedWithSurface, surface.Cylinder!.Value, byEdge, policy, vertices, ref nextVertexId);
                     if (cylinderPatch is null) { failure = $"SurfaceMeshIR does not support trim topology on cylindrical face {face.Id.Value}."; return false; }
                     patches.Add(cylinderPatch);
                     break;
                 case SurfaceGeometryKind.Cone:
-                    var conePatch = TryBuildConePatch(body, face.Id, faceBinding.SameSense, surface.Cone!.Value, byEdge, policy, vertices, ref nextVertexId);
+                    var conePatch = TryBuildConePatch(body, face.Id, faceBinding.Orientation.IsAlignedWithSurface, surface.Cone!.Value, byEdge, policy, vertices, ref nextVertexId);
                     if (conePatch is null) { failure = $"SurfaceMeshIR does not support trim topology on conical face {face.Id.Value}."; return false; }
                     patches.Add(conePatch);
                     break;
                 case SurfaceGeometryKind.Sphere:
-                    if (!TryBuildSphereCharts(body, face.Id, faceBinding.SameSense, surface.Sphere!.Value, vertices, ref nextVertexId, out var spherePatches)) { failure = $"SurfaceMeshIR does not support chart/trim topology on spherical face {face.Id.Value}."; return false; }
+                    if (!TryBuildSphereCharts(body, face.Id, faceBinding.Orientation.IsAlignedWithSurface, surface.Sphere!.Value, vertices, ref nextVertexId, out var spherePatches)) { failure = $"SurfaceMeshIR does not support chart/trim topology on spherical face {face.Id.Value}."; return false; }
                     patches.AddRange(spherePatches);
                     break;
                 case SurfaceGeometryKind.Torus:
-                    var torusPatch = TryBuildTorusPatch(body, face.Id, faceBinding.SameSense, surface.Torus!.Value, byEdge, policy, vertices, ref nextVertexId);
+                    var torusPatch = TryBuildTorusPatch(body, face.Id, faceBinding.Orientation.IsAlignedWithSurface, surface.Torus!.Value, byEdge, policy, vertices, ref nextVertexId);
                     if (torusPatch is null) { failure = $"SurfaceMeshIR does not support trim topology on toroidal face {face.Id.Value}."; return false; }
                     patches.Add(torusPatch);
                     break;
@@ -1810,13 +1810,13 @@ public static class SurfaceMeshIrTessellator
     {
         return patch.Support.Kind switch
         {
-            SurfaceMeshSupportKind.Plane when patch.Support.Plane is { } plane => _ => patch.SameSense ? plane.Normal.ToVector() : -plane.Normal.ToVector(),
+            SurfaceMeshSupportKind.Plane when patch.Support.Plane is { } plane => _ => patch.IsAlignedWithSupport ? plane.Normal.ToVector() : -plane.Normal.ToVector(),
             SurfaceMeshSupportKind.Cylinder when patch.Support.Cylinder is { } cylinder => p =>
             {
                 var offset = p - cylinder.Origin;
                 var angle = double.Atan2(offset.Dot(cylinder.YAxis.ToVector()), offset.Dot(cylinder.XAxis.ToVector()));
                 var exact = cylinder.Normal(angle).ToVector();
-                return patch.SameSense ? exact : -exact;
+                return patch.IsAlignedWithSupport ? exact : -exact;
             },
             SurfaceMeshSupportKind.Cone when patch.Support.Cone is { } cone => p =>
             {
@@ -1828,18 +1828,18 @@ public static class SurfaceMeshIrTessellator
                 var yAxis = axis.Cross(xAxis);
                 var angle = radial.Length <= Epsilon ? 0d : double.Atan2(radial.Dot(yAxis), radial.Dot(xAxis));
                 var exact = cone.Normal(angle).ToVector();
-                return patch.SameSense ? exact : -exact;
+                return patch.IsAlignedWithSupport ? exact : -exact;
             },
             SurfaceMeshSupportKind.Sphere when patch.Support.Sphere is { } sphere => p =>
             {
                 var exact = Direction3D.Create(p - sphere.Center).ToVector();
-                return patch.SameSense ? exact : -exact;
+                return patch.IsAlignedWithSupport ? exact : -exact;
             },
             SurfaceMeshSupportKind.Torus when patch.Support.Torus is { } torus => p =>
             {
                 var uv = TryProjectPointToTorusUv(torus, p) ?? throw new InvalidOperationException("Torus mesh vertex is not on its exact support.");
                 var exact = torus.Normal(uv.U, uv.V).ToVector();
-                return patch.SameSense ? exact : -exact;
+                return patch.IsAlignedWithSupport ? exact : -exact;
             },
             _ => throw new InvalidOperationException($"Patch {patch.FaceId.Value} has no exact support evaluator."),
         };

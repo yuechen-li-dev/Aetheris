@@ -4,7 +4,7 @@
 
 **Edge sense is interpreted once. Every later layer consumes the same directed topology contract.**
 
-`Edge.StartVertexId -> Edge.EndVertexId` is the canonical topology direction. A coedge reverses that pair exactly once through `DirectedEdgeUse.Resolve`. `EDGE_CURVE.same_sense` is curve-parameter sense only; it does not alter the topology edge or an `ORIENTED_EDGE` traversal. `ADVANCED_FACE.same_sense` is material-facing surface orientation only and never changes connectivity.
+`Edge.StartVertexId -> Edge.EndVertexId` is the canonical topology direction. A coedge reverses that pair exactly once through `DirectedEdgeUse.Resolve`. `EDGE_CURVE.same_sense` is curve-parameter sense only; it does not alter the topology edge or an `ORIENTED_EDGE` traversal. Historical note: this milestone described `ADVANCED_FACE.same_sense` as material-facing authority. STEP-ORIENTATION-X1 supersedes that statement: the flag is retained only as source evidence, while canonical face orientation is derived from topology and geometry.
 
 A loop is connected when the end of each resolved use matches the next resolved use, including closing back to the first. Binding-aware gates also admit coincident, distinct vertices at a periodic seam. The currently supported circle forms are a one-edge full circle with coincident endpoints and the existing seam-plus-full-circle wall representation. Split arcs must be explicitly chained; unordered shared incidence is insufficient.
 

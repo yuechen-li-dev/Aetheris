@@ -9,7 +9,7 @@ namespace Aetheris.Kernel.Core.Tests.Step242;
 public sealed class Step242Ftc06SameSenseRegressionTests
 {
     [Fact]
-    public void ExportBody_ImportedCylindricalFaceWithFalseSameSense_PreservesAdvancedFaceSense()
+    public void ImportBody_OpenCylindricalFace_DemotesSourceSameSenseToEvidence()
     {
         const string cylinderFace = @"ISO-10303-21;
 HEADER;
@@ -55,7 +55,10 @@ END-ISO-10303-21;";
 
         var curvedFace = Assert.Single(import.Value.Topology.Faces);
         Assert.True(import.Value.Bindings.TryGetFaceBinding(curvedFace.Id, out var binding));
-        Assert.False(binding.SameSense);
+        Assert.False(binding.Orientation.IsAlignedWithSurface);
+        var orientation = Assert.Single(import.Value.FaceOrientationReport!.Faces);
+        Assert.False(orientation.SourceEvidence.StepSameSense);
+        Assert.Equal(FaceOrientationQualification.DerivedLocallyConsistentGlobalUnknown, orientation.Qualification);
 
         var export = Step242Exporter.ExportBody(import.Value);
         Assert.True(export.IsSuccess);
@@ -98,7 +101,7 @@ END-ISO-10303-21;";
     }
 
     [Fact]
-    public void Step242Ftc06ProblemFace_AdvancedFaceSameSense_Regression()
+    public void Step242Ftc06_SourceSameSenseIsCrossCheckedAgainstCanonicalOrientation()
     {
         var source = LoadFixture("testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp");
         var sourceSummary = SummarizeAdvancedFaceSense(source);
@@ -111,21 +114,24 @@ END-ISO-10303-21;";
         var import = Step242Importer.ImportBody(source);
         Assert.True(import.IsSuccess);
 
-        var importedBindingSummary = SummarizeCurvedFaceBindingSense(import.Value);
-        Assert.Equal(sourceSummary[("CYLINDRICAL_SURFACE", false)], importedBindingSummary[("CYLINDRICAL_SURFACE", false)]);
-        Assert.Equal(sourceSummary[("TOROIDAL_SURFACE", false)], importedBindingSummary[("TOROIDAL_SURFACE", false)]);
-        Assert.Equal(sourceSummary[("SPHERICAL_SURFACE", false)], importedBindingSummary[("SPHERICAL_SURFACE", false)]);
-        Assert.Equal(sourceSummary[("CONICAL_SURFACE", false)], importedBindingSummary[("CONICAL_SURFACE", false)]);
+        var report = Assert.IsType<FaceOrientationReport>(import.Value.FaceOrientationReport);
+        Assert.All(report.Faces, face => Assert.Equal(FaceOrientationQualification.DerivedQualified, face.Qualification));
+        Assert.True(report.SourceMismatchCount > 0);
+        Assert.Contains(import.Diagnostics, diagnostic => diagnostic.Source == "Importer.StepOrientation.SourceOrientationMismatch");
 
         var export = Step242Exporter.ExportBody(import.Value);
         Assert.True(export.IsSuccess);
 
         var exportSummary = SummarizeAdvancedFaceSense(export.Value);
-        Assert.Equal(sourceSummary, exportSummary);
+        var canonicalCurvedSummary = SummarizeCurvedFaceBindingSense(import.Value);
+        Assert.All(canonicalCurvedSummary, pair => Assert.Equal(pair.Value, exportSummary[pair.Key]));
+        Assert.Equal(canonicalCurvedSummary.Values.Sum(), exportSummary
+            .Where(pair => pair.Key.SurfaceType is "CYLINDRICAL_SURFACE" or "CONICAL_SURFACE" or "SPHERICAL_SURFACE" or "TOROIDAL_SURFACE")
+            .Sum(pair => pair.Value));
     }
 
     [Fact]
-    public void Step242Ftc06_DiagnosticsIdentifyNoKnownInvalidTrimCondition()
+    public void Step242Ftc06_RoundTripWritesCanonicalRatherThanSourceOrientation()
     {
         var source = LoadFixture("testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp");
         var import = Step242Importer.ImportBody(source);
@@ -134,8 +140,10 @@ END-ISO-10303-21;";
         var export = Step242Exporter.ExportBody(import.Value);
         Assert.True(export.IsSuccess);
 
-        var mismatches = FindCurvedAdvancedFaceSameSenseLosses(source, export.Value);
-        Assert.Empty(mismatches);
+        var roundTrip = Step242Importer.ImportBody(export.Value);
+        Assert.True(roundTrip.IsSuccess);
+        Assert.Equal(import.Value.Topology.Faces.Count(), roundTrip.Value.Topology.Faces.Count());
+        Assert.Equal(import.Value.FaceOrientationReport!.Faces.Select(face => face.Orientation), roundTrip.Value.FaceOrientationReport!.Faces.Select(face => face.Orientation));
     }
 
     private static Dictionary<(string SurfaceType, bool SameSense), int> SummarizeAdvancedFaceSense(string stepText)
@@ -173,7 +181,7 @@ END-ISO-10303-21;";
                 continue;
             }
 
-            var key = (surfaceType, binding.SameSense);
+            var key = (surfaceType, binding.Orientation.IsAlignedWithSurface);
             summary[key] = summary.TryGetValue(key, out var count) ? count + 1 : 1;
         }
 

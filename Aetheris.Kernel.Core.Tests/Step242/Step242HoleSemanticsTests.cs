@@ -99,7 +99,8 @@ public sealed class Step242HoleSemanticsTests
         var import = Step242Importer.ImportBody(Step242FixtureCorpus.CylindricalFaceWithTwoLoops);
 
         Assert.True(import.IsSuccess);
-        Assert.Empty(import.Diagnostics);
+        Assert.Contains(import.Diagnostics, diagnostic =>
+            diagnostic.Source == "Importer.StepOrientation.GlobalOrientationUnknown");
 
         var body = import.Value;
         var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);

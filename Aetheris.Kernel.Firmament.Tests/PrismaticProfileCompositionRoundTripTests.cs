@@ -271,7 +271,7 @@ public sealed class PrismaticProfileCompositionRoundTripTests
             .Distinct()
             .ToArray();
         Assert.Equal(32, holeWalls.Length);
-        Assert.All(holeWalls, face => Assert.False(body.Bindings.FaceBindings.Single(binding => binding.FaceId == face).SameSense));
+        Assert.All(holeWalls, face => Assert.False(body.Bindings.FaceBindings.Single(binding => binding.FaceId == face).Orientation.IsAlignedWithSurface));
 
         var m8 = BrepMassProperties.Evaluate(body);
         Assert.NotEqual(BrepMassPropertiesStatus.Unavailable, m8.Status);

@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Core.Diagnostics;
+using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Step242;
 
 namespace Aetheris.Kernel.Core.Tests.Step242;
@@ -34,12 +35,11 @@ public sealed class Step242OrientationSemanticsTests
     }
 
     /// <summary>
-    /// ADVANCED_FACE.same_sense is carried by the face binding, never folded into the stored support. Folding it in
-    /// for planes alone made them the one kind a consumer had to special-case, and inverted their normal on every
-    /// export/import cycle.
+    /// ADVANCED_FACE.same_sense is retained as source evidence and never folded into the stored support or exposed as
+    /// canonical orientation. An open one-face shell has deterministic local orientation but no global outwardness.
     /// </summary>
     [Fact]
-    public void ImportBody_AdvancedFaceSameSenseFalse_KeepsTheStatedPlane_AndRecordsTheSenseOnTheBinding()
+    public void ImportBody_AdvancedFaceSameSenseFalse_KeepsTheStatedPlane_AndRecordsSourceEvidenceSeparately()
     {
         var forward = Step242Importer.ImportBody(BuildSingleTriangleStep(edgeCurveSameSense: true, faceBoundOrientation: true, advancedFaceSameSense: true));
         var reversed = Step242Importer.ImportBody(BuildSingleTriangleStep(edgeCurveSameSense: true, faceBoundOrientation: true, advancedFaceSameSense: false));
@@ -55,8 +55,12 @@ public sealed class Step242OrientationSemanticsTests
 
         Assert.Equal(1d, forwardSurface!.Plane!.Value.Normal.Z);
         Assert.Equal(1d, reversedSurface!.Plane!.Value.Normal.Z);
-        Assert.True(forward.Value.Bindings.GetFaceBinding(forwardFace.Id).SameSense);
-        Assert.False(reversed.Value.Bindings.GetFaceBinding(reversedFace.Id).SameSense);
+        Assert.True(forward.Value.Bindings.GetFaceBinding(forwardFace.Id).Orientation.IsAlignedWithSurface);
+        Assert.True(reversed.Value.Bindings.GetFaceBinding(reversedFace.Id).Orientation.IsAlignedWithSurface);
+        var evidence = Assert.Single(reversed.Value.FaceOrientationReport!.Faces);
+        Assert.False(evidence.SourceEvidence.StepSameSense);
+        Assert.Equal(FaceOrientationQualification.DerivedLocallyConsistentGlobalUnknown, evidence.Qualification);
+        Assert.Equal(SourceFaceOrientationComparison.Disagrees, evidence.SourceComparison);
     }
 
     [Fact]
@@ -65,7 +69,7 @@ public sealed class Step242OrientationSemanticsTests
         var result = Step242Importer.ImportBody(BuildSingleEdgeStep(edgeCurveSameSense: false, orientedEdgeOrientation: true, lineDirectionX: -1d));
 
         Assert.True(result.IsSuccess, string.Join(" | ", result.Diagnostics.Select(d => $"{d.Source}:{d.Message}")));
-        Assert.Empty(result.Diagnostics);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Source == "Importer.StepOrientation.GlobalOrientationUnknown");
     }
 
     [Fact]

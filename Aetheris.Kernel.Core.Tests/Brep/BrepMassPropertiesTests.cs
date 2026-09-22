@@ -66,8 +66,8 @@ public sealed class BrepMassPropertiesTests
             .ToArray();
 
         Assert.Equal(2, coneFaces.Length);
-        Assert.True(body.Bindings.GetFaceBinding(coneFaces[0].Id).SameSense);
-        Assert.False(body.Bindings.GetFaceBinding(coneFaces[1].Id).SameSense);
+        Assert.True(body.Bindings.GetFaceBinding(coneFaces[0].Id).Orientation.IsAlignedWithSurface);
+        Assert.False(body.Bindings.GetFaceBinding(coneFaces[1].Id).Orientation.IsAlignedWithSurface);
         foreach (var face in coneFaces)
         {
             var patch = Assert.Single(first.FacePatches, candidate => candidate.FaceId == face.Id);

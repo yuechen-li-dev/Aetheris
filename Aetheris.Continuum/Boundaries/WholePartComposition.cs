@@ -231,11 +231,11 @@ public sealed class WholePartCutCellComposer
         {
             if(_region.Classify(point,scale*1e-7d)!=ContinuumPointClassification.Boundary)continue;
             var normal=ExactSupportBoundaryQuery.ExactSupportNormal(_shell.Body,face.FaceId,point,_shell.Transform);
-            var evidence=MaterialSideClassifier.ClassifyMaterialSide(face.FaceId,point,normal,_region,scale,face.SameSense);
+            var evidence=MaterialSideClassifier.ClassifyMaterialSide(face.FaceId,point,normal,_region,scale,face.IsAlignedWithSurface);
             if(evidence.Status==MaterialSideStatus.Resolved)return evidence;
         }
         var fallback=face.ExactBoundarySamples[0];var fallbackNormal=ExactSupportBoundaryQuery.ExactSupportNormal(_shell.Body,face.FaceId,fallback,_shell.Transform);
-        return MaterialSideClassifier.ClassifyMaterialSide(face.FaceId,fallback,fallbackNormal,_region,scale,face.SameSense);
+        return MaterialSideClassifier.ClassifyMaterialSide(face.FaceId,fallback,fallbackNormal,_region,scale,face.IsAlignedWithSurface);
     }
 
     private CutCellCompositionKind Classify(IReadOnlyList<WholeShellBoundaryCandidate> faces)

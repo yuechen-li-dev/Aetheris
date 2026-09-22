@@ -3,14 +3,14 @@ namespace Aetheris.Kernel.Core.Brep.Tessellation;
 /// <summary>Projects the exact face sense into render normals and front-face triangle winding.</summary>
 public static class DisplayMeshOrientation
 {
-    public static DisplayFaceMeshPatch Orient(BrepBody body, DisplayFaceMeshPatch patch)
+    public static DisplayFaceMeshPatch ProjectCanonicalOrientation(BrepBody body, DisplayFaceMeshPatch patch)
     {
         if (patch.Normals.Count != patch.Positions.Count || patch.TriangleIndices.Count % 3 != 0
             || patch.TriangleIndices.Any(i => i < 0 || i >= patch.Positions.Count))
             throw new InvalidOperationException($"display-mesh-invalid-patch:{patch.FaceId}");
         if (!body.Bindings.TryGetFaceBinding(patch.FaceId, out var binding))
             throw new InvalidOperationException($"display-mesh-missing-face-binding:{patch.FaceId}");
-        var normals = patch.Normals.Select(normal => binding.SameSense ? normal : -normal).ToArray();
+        var normals = patch.Normals.Select(normal => binding.Orientation.IsAlignedWithSurface ? normal : -normal).ToArray();
         var indices = patch.TriangleIndices.ToArray();
         for (var i = 0; i < indices.Length; i += 3)
         {

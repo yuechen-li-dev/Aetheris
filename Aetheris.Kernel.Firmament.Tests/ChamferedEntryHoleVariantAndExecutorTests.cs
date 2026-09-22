@@ -69,7 +69,7 @@ public sealed class ChamferedEntryHoleVariantAndExecutorTests
                 Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Cylinder)
             .ToArray();
         Assert.Equal(2, inwardFaces.Length);
-        Assert.All(inwardFaces, binding => Assert.False(binding.SameSense));
+        Assert.All(inwardFaces, binding => Assert.False(binding.Orientation.IsAlignedWithSurface));
         AssertConeBoundaryVerticesLieOnSupport(result.Body!);
         Assert.Contains(result.Diagnostics, d => d.Contains("cylinder subtract invoked", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(result.Diagnostics, d => d.Contains("chamfer cone subtract invoked", StringComparison.OrdinalIgnoreCase));

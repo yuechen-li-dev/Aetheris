@@ -112,7 +112,7 @@ public static class SurfaceMeshObjExporter
             SurfaceMeshSupportKind.BoundedParametricPatch when patch.Support.BoundedPatch is { } bounded && bounded.Evaluate(uv.U, uv.V).TryNormal(out var evaluated) => evaluated,
             _ => throw new InvalidOperationException($"Patch {patch.FaceId.Value} has no exact normal evaluator."),
         };
-        return patch.SameSense ? normal : -normal;
+        return patch.IsAlignedWithSupport ? normal : -normal;
     }
 
     private static (double U, double V) PolarUv(Vector3D offset, Vector3D axis, Vector3D xAxis, Vector3D yAxis)

@@ -25,7 +25,17 @@ public sealed record AnalyzeSummary(
     string LengthUnitBasis,
     IdRangeSummary FaceIds,
     IdRangeSummary EdgeIds,
-    IdRangeSummary VertexIds);
+    IdRangeSummary VertexIds,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FaceOrientationSummary? FaceOrientation = null);
+
+public sealed record FaceOrientationSummary(
+    int DerivedFaces,
+    int SourceAgreements,
+    int SourceMismatches,
+    int AmbiguousComponents,
+    int GlobalFlips,
+    IReadOnlyDictionary<string, int> SourceSameSenseDistribution,
+    IReadOnlyDictionary<string, int> Qualifications);
 
 public sealed record FaceDetail(
     int FaceId,

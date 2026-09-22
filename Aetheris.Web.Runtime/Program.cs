@@ -335,9 +335,9 @@ internal static class WebMeshBuilder
         var tessellation = BrepDisplayTessellator.Tessellate(body, new DisplayTessellationOptions(double.Pi / 16, .3, 6, 64));
         if (!tessellation.IsSuccess) throw new InvalidOperationException(string.Join("; ", tessellation.Diagnostics.Select(item => item.Message)));
         var positions = new List<double>(); var normals = new List<double>(); var indices = new List<int>(); var ranges = new List<object>();
-        foreach (var raw in tessellation.Value.FacePatches.OrderBy(face => face.FaceId.Value))
+        foreach (var face in tessellation.Value.FacePatches.OrderBy(face => face.FaceId.Value))
         {
-            var face = DisplayMeshOrientation.Orient(body, raw); var vertexOffset = positions.Count / 3; var triangleStart = indices.Count / 3;
+            var vertexOffset = positions.Count / 3; var triangleStart = indices.Count / 3;
             positions.AddRange(face.Positions.SelectMany(point => new[] { point.X, point.Y, point.Z }));
             normals.AddRange(face.Normals.SelectMany(normal => new[] { normal.X, normal.Y, normal.Z }));
             indices.AddRange(face.TriangleIndices.Select(index => index + vertexOffset));

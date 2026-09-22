@@ -1175,8 +1175,8 @@ public static class BrepBooleanBoxCylinderHoleBuilder
         // The analytic cone/cylinder normals point radially away from the hole axis.
         // For an internal void the solid's outward normal points toward the axis, so
         // these faces must reverse the support-surface sense in STEP.
-        bindings.AddFaceBinding(new FaceGeometryBinding(countersinkConeFace, new SurfaceGeometryId(7), SameSense: false));
-        bindings.AddFaceBinding(new FaceGeometryBinding(continuationCylinderFace, new SurfaceGeometryId(8), SameSense: false));
+        bindings.AddFaceBinding(new FaceGeometryBinding(countersinkConeFace, new SurfaceGeometryId(7), IsAlignedWithSurface: false));
+        bindings.AddFaceBinding(new FaceGeometryBinding(continuationCylinderFace, new SurfaceGeometryId(8), IsAlignedWithSurface: false));
         if (deepBottomFace is FaceId deepBottomBinding)
         {
             bindings.AddFaceBinding(new FaceGeometryBinding(deepBottomBinding, new SurfaceGeometryId(9)));

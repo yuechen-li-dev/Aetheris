@@ -37,7 +37,7 @@ public sealed record BrepMassPropertiesFaceContribution(
     double SurfaceArea,
     int TriangleCount,
     bool FaceSenseAvailable,
-    bool FaceSameSense,
+    bool FaceAlignedWithSurface,
     bool TriangleOrientationCoherent);
 
 public sealed record BrepMassPropertiesTopologyDiagnostics(
@@ -275,7 +275,7 @@ public static class BrepMassProperties
         foreach (var face in faces)
         {
             var kind = body.TryGetFaceSurfaceGeometry(face.Id, out var surface) ? surface?.Kind : null;
-            contributions.Add(new(face.Id, kind, 0d, 0d, 0, body.Bindings.TryGetFaceBinding(face.Id, out var binding), binding.SameSense, true));
+            contributions.Add(new(face.Id, kind, 0d, 0d, 0, body.Bindings.TryGetFaceBinding(face.Id, out var binding), binding.Orientation.IsAlignedWithSurface, true));
         }
         var analyticRoundoffBound = System.Math.Max(1e-8d, System.Math.Abs(total) * 1e-14d);
         result = new BrepMassPropertiesResult(
@@ -775,7 +775,7 @@ public static class BrepMassProperties
             area += faceArea;
             moment += faceMoment;
             body.TryGetFaceSurfaceGeometry(patch.FaceId, out var surface);
-            contributions.Add(new(patch.FaceId, surface?.Kind, faceVolume, faceArea, patch.TriangleIndices.Count / 3, senseAvailable, binding.SameSense, coherent));
+            contributions.Add(new(patch.FaceId, surface?.Kind, faceVolume, faceArea, patch.TriangleIndices.Count / 3, senseAvailable, binding.Orientation.IsAlignedWithSurface, coherent));
         }
         return new(volume, area, moment, contributions, null);
     }

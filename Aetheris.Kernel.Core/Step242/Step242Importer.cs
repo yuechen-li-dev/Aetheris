@@ -217,6 +217,9 @@ public static class Step242Importer
         var nextSurfaceGeometryId = 1;
         var faceIds = new List<FaceId>();
         var faceEntityToFaceId = new Dictionary<int, FaceId>();
+        var importedFacePatches = new List<ImportedFacePatch>();
+        var supportAlignedBoundary = new Dictionary<FaceId, bool>();
+        var supportAlignedLoopBoundary = new Dictionary<LoopId, bool>();
 
         foreach (var faceEntityId in faceEntityIds)
         {
@@ -279,7 +282,7 @@ public static class Step242Importer
                 return KernelResult<BrepBody>.Failure(faceSameSenseResult.Diagnostics);
             }
 
-            var bindSurfaceResult = DecodeSurfaceGeometry(document, surfaceEntity, surfaceName, inlineSurfaceArguments, faceSameSenseResult.Value, nextSurfaceGeometryId, faceEntity.Id);
+            var bindSurfaceResult = DecodeSurfaceGeometry(document, surfaceEntity, surfaceName, inlineSurfaceArguments, nextSurfaceGeometryId, faceEntity.Id);
             if (!bindSurfaceResult.IsSuccess)
             {
                 return KernelResult<BrepBody>.Failure(bindSurfaceResult.Diagnostics);
@@ -494,7 +497,7 @@ public static class Step242Importer
                     hasDisconnectedCoedgeGap = true;
                 }
 
-                loopData.Add(new LoopBuildData(loopId, loopCoedges, loopSamples, hasDisconnectedCoedgeGap, isDeclaredOuter));
+                loopData.Add(new LoopBuildData(loopId, loopCoedges, loopSamples, hasDisconnectedCoedgeGap, isDeclaredOuter, boundEntity.Id));
             }
 
             var classifyResult = ClassifyAndNormalizeFaceLoops(faceEntity.Id, loopData, bindSurfaceResult.Value.SurfaceGeometry);
@@ -535,8 +538,27 @@ public static class Step242Importer
             bindings.AddFaceBinding(new FaceGeometryBinding(
                 faceId,
                 surfaceGeometryId,
-                faceSameSenseResult.Value,
+                ResolvedFaceOrientation.Aligned,
                 SourceStepEntityId: faceEntity.Id));
+            var hasDeclaredOuter = classifyResult.Value.Any(loop => loop.IsDeclaredOuter);
+            for (var loopIndex = 0; loopIndex < classifyResult.Value.Count; loopIndex++)
+            {
+                var loop = classifyResult.Value[loopIndex];
+                var role = hasDeclaredOuter
+                    ? loop.IsDeclaredOuter ? FaceBoundaryRole.Outer : FaceBoundaryRole.Inner
+                    : loopIndex == 0 ? FaceBoundaryRole.Outer : FaceBoundaryRole.Inner;
+                bindings.AddFaceBoundaryRoleBinding(new FaceBoundaryRoleBinding(faceId, loop.LoopId, role, loop.SourceBoundEntityId));
+            }
+            importedFacePatches.Add(new ImportedFacePatch(
+                faceId,
+                surfaceGeometryId,
+                new SourceFaceOrientationEvidence(
+                faceSameSenseResult.Value,
+                faceEntity.Id,
+                surfaceResult.Value.ReferenceId)));
+            var loopOrientation = DeriveSupportAlignedBoundaries(classifyResult.Value, surfaceGeometry);
+            supportAlignedBoundary[faceId] = loopOrientation.FaceAligned;
+            foreach (var pair in loopOrientation.Loops) supportAlignedLoopBoundary[pair.Key] = pair.Value;
         }
 
         foreach (var coedge in coedges)
@@ -591,13 +613,28 @@ public static class Step242Importer
         }
 
         var body = new BrepBody(builder.Model, geometry, bindings, vertexMap.Values.ToDictionary(entry => entry.VertexId, entry => entry.Point), shellRepresentation: shellRepresentation);
-        var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
-        if (!validation.IsSuccess)
+        var orientation = StepFaceOrientationResolver.Resolve(body, importedFacePatches, supportAlignedBoundary, supportAlignedLoopBoundary);
+        if (!orientation.IsSuccess)
         {
-            return KernelResult<BrepBody>.Failure(validation.Diagnostics);
+            return KernelResult<BrepBody>.Failure(shellRoleDiagnostics
+                .Concat(surfaceBindingDiagnostics)
+                .Concat(orientation.Diagnostics));
         }
 
-        return KernelResult<BrepBody>.Success(body, validation.Diagnostics.Concat(shellRoleDiagnostics).Concat(surfaceBindingDiagnostics).ToArray());
+        var validation = BrepBindingValidator.Validate(orientation.Value, requireAllEdgeAndFaceBindings: true);
+        if (!validation.IsSuccess)
+        {
+            return KernelResult<BrepBody>.Failure(validation.Diagnostics
+                .Concat(shellRoleDiagnostics)
+                .Concat(surfaceBindingDiagnostics)
+                .Concat(orientation.Diagnostics));
+        }
+
+        return KernelResult<BrepBody>.Success(orientation.Value, validation.Diagnostics
+            .Concat(shellRoleDiagnostics)
+            .Concat(surfaceBindingDiagnostics)
+            .Concat(orientation.Diagnostics)
+            .ToArray());
     }
 
     private static KernelResult<IReadOnlyList<int>> ReadShellFaceIds(Step242ParsedDocument document, int shellEntityId, string role, ICollection<KernelDiagnostic> diagnostics)
@@ -1102,7 +1139,6 @@ public static class Step242Importer
         Step242ParsedEntity? surfaceEntity,
         string surfaceName,
         IReadOnlyList<Step242Value>? inlineSurfaceArguments,
-        bool faceSameSense,
         int nextSurfaceGeometryId,
         int faceEntityId)
     {
@@ -1130,8 +1166,8 @@ public static class Step242Importer
             // made planes the one surface kind whose stored normal already carried the face sense while the binding
             // recorded it as well - so every consumer that honoured the binding flipped a plane twice, and a plane
             // face with same_sense=.F. inverted its normal on every export/import cycle. The stored surface is now
-            // exactly what the file stated for every kind, and FaceGeometryBinding.SameSense is the only carrier of
-            // face orientation. It cannot be the other way round: a cylinder normal cannot be negated without
+            // exactly what the file stated for every kind. The shell solver records source orientation separately
+            // and projects one ResolvedFaceOrientation. A cylinder normal cannot be negated without
             // flipping its axis, which would change the parameterization the trim intervals are written against.
             return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Success((geometryId, SurfaceGeometry.FromPlane(planeResult.Value)));
         }
@@ -2330,6 +2366,164 @@ public static class Step242Importer
         return KernelResult<IReadOnlyList<LoopBuildData>>.Success(ordered);
     }
 
+    private static (bool FaceAligned, IReadOnlyDictionary<LoopId, bool> Loops) DeriveSupportAlignedBoundaries(
+        IReadOnlyList<LoopBuildData> loops,
+        SurfaceGeometry surface)
+    {
+        if (loops.Count == 0) return (true, new Dictionary<LoopId, bool>());
+        var outer = loops.SingleOrDefault(loop => loop.IsDeclaredOuter) ?? loops[0];
+        var resolved = new Dictionary<LoopId, bool>();
+        foreach (var loop in loops)
+        {
+            var isOuter = loop.LoopId == outer.LoopId;
+            IReadOnlyList<UvPoint>? projected = surface.Kind switch
+            {
+                SurfaceGeometryKind.Plane => SimplifyClosedPolygon(ProjectLoopToPlane(loop.Samples, surface.Plane!.Value), ContainmentEps),
+                SurfaceGeometryKind.Cylinder => ProjectLoopToCylinder(loop.Samples, surface.Cylinder!.Value),
+                SurfaceGeometryKind.Cone => ProjectLoopToCone(loop.Samples, surface.Cone!.Value),
+                SurfaceGeometryKind.Sphere => ProjectLoopToSphere(loop.Samples, surface.Sphere!.Value),
+                SurfaceGeometryKind.Torus => ProjectLoopToTorus(loop.Samples, surface.Torus!.Value),
+                _ => null,
+            };
+            var signedArea = projected is null ? 0d : ComputeSignedArea(projected);
+            var periodicity = SurfacePeriodicity.Of(surface);
+            var boundaryAligned = surface.Kind == SurfaceGeometryKind.Sphere
+                && TryDeriveSupportAlignmentFromBoundaryNormal(loop.Samples, surface, out var sphericalAligned)
+                ? sphericalAligned
+                : surface.Kind != SurfaceGeometryKind.Sphere
+                && projected is not null
+                && TryDeriveFullPeriodTraversalAlignment(projected, periodicity, out var periodicAligned)
+                ? periodicAligned
+                : surface.Kind == SurfaceGeometryKind.Cone
+                    && TryDeriveSupportAlignmentFromBoundaryNormal(loop.Samples, surface, out var conicalAligned)
+                    ? conicalAligned
+                : projected is not null && double.Abs(signedArea) > ComputeAreaTolerance(projected)
+                    ? signedArea > 0d
+                : TryDeriveSupportAlignmentFromBoundaryNormal(loop.Samples, surface, out var aligned)
+                    ? aligned
+                    : isOuter;
+            resolved[loop.LoopId] = isOuter ? boundaryAligned : !boundaryAligned;
+        }
+        return (resolved[outer.LoopId], resolved);
+    }
+
+    private static bool TryDeriveFullPeriodTraversalAlignment(
+        IReadOnlyList<UvPoint> projected,
+        SurfacePeriodicity periodicity,
+        out bool aligned)
+    {
+        aligned = true;
+        if (!periodicity.IsPeriodic || projected.Count < 2) return false;
+
+        var endIndex = projected.Count - 1;
+        if (SegmentLengthSquared(projected[0], projected[endIndex]) <= ContainmentEps * ContainmentEps)
+            endIndex--;
+        if (endIndex <= 0) return false;
+
+        var active = projected.Take(endIndex + 1).ToArray();
+        var uSpan = active[^1].X - active[0].X;
+        var vSpan = active[^1].Y - active[0].Y;
+        var uRange = active.Max(point => point.X) - active.Min(point => point.X);
+        var vRange = active.Max(point => point.Y) - active.Min(point => point.Y);
+        var constantAxisTolerance = ContainmentEps * 8d;
+
+        if (periodicity.UPeriod is { } uPeriod
+            && double.Abs(uSpan) >= uPeriod - AngleUnwrapEps
+            && SurfacePeriodicity.EquivalentModuloPeriod(active[0].X, active[^1].X, uPeriod, AngleUnwrapEps)
+            && vRange <= constantAxisTolerance)
+        {
+            aligned = uSpan > 0d;
+            return true;
+        }
+
+        if (periodicity.VPeriod is { } vPeriod
+            && double.Abs(vSpan) >= vPeriod - AngleUnwrapEps
+            && SurfacePeriodicity.EquivalentModuloPeriod(active[0].Y, active[^1].Y, vPeriod, AngleUnwrapEps)
+            && uRange <= constantAxisTolerance)
+        {
+            aligned = vSpan > 0d;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryDeriveSupportAlignmentFromBoundaryNormal(
+        IReadOnlyList<Point3D> samples,
+        SurfaceGeometry surface,
+        out bool aligned)
+    {
+        aligned = true;
+        var points = samples
+            .Where((point, index) => index == 0 || (point - samples[index - 1]).Length > ContainmentEps)
+            .ToArray();
+        if (points.Length < 3) return false;
+        var boundaryNormal = Vector3D.Zero;
+        for (var index = 0; index < points.Length; index++)
+        {
+            var current = points[index];
+            var next = points[(index + 1) % points.Length];
+            boundaryNormal += new Vector3D(
+                (current.Y - next.Y) * (current.Z + next.Z),
+                (current.Z - next.Z) * (current.X + next.X),
+                (current.X - next.X) * (current.Y + next.Y));
+        }
+        if (!boundaryNormal.TryNormalize(out var normalizedBoundary)) return false;
+        var center = new Point3D(points.Average(point => point.X), points.Average(point => point.Y), points.Average(point => point.Z));
+        Vector3D supportNormal;
+        switch (surface.Kind)
+        {
+            case SurfaceGeometryKind.Plane:
+                supportNormal = surface.Plane!.Value.Normal.ToVector();
+                break;
+            case SurfaceGeometryKind.Cylinder:
+            {
+                var cylinder = surface.Cylinder!.Value;
+                var delta = center - cylinder.Origin;
+                supportNormal = delta - (cylinder.Axis.ToVector() * delta.Dot(cylinder.Axis.ToVector()));
+                break;
+            }
+            case SurfaceGeometryKind.Sphere:
+                supportNormal = center - surface.Sphere!.Value.Center;
+                break;
+            case SurfaceGeometryKind.Cone:
+            {
+                var cone = surface.Cone!.Value;
+                var delta = center - cone.Apex;
+                var radial = delta - (cone.Axis.ToVector() * delta.Dot(cone.Axis.ToVector()));
+                if (!radial.TryNormalize(out var radialDirection)) return false;
+                supportNormal = radialDirection - (cone.Axis.ToVector() * double.Tan(cone.SemiAngleRadians));
+                break;
+            }
+            case SurfaceGeometryKind.Torus:
+            {
+                var torus = surface.Torus!.Value;
+                var delta = center - torus.Center;
+                var planar = delta - (torus.Axis.ToVector() * delta.Dot(torus.Axis.ToVector()));
+                if (!planar.TryNormalize(out var majorDirection)) return false;
+                var tubeCenter = torus.Center + (majorDirection * torus.MajorRadius);
+                supportNormal = center - tubeCenter;
+                break;
+            }
+            case SurfaceGeometryKind.BSplineSurfaceWithKnots:
+            {
+                var spline = surface.BSplineSurfaceWithKnots!;
+                var u = (spline.DomainStartU + spline.DomainEndU) * 0.5d;
+                var v = (spline.DomainStartV + spline.DomainEndV) * 0.5d;
+                var du = System.Math.Max((spline.DomainEndU - spline.DomainStartU) * 1e-5d, 1e-8d);
+                var dv = System.Math.Max((spline.DomainEndV - spline.DomainStartV) * 1e-5d, 1e-8d);
+                supportNormal = (spline.Evaluate(u + du, v) - spline.Evaluate(u - du, v))
+                    .Cross(spline.Evaluate(u, v + dv) - spline.Evaluate(u, v - dv));
+                break;
+            }
+            default:
+                return false;
+        }
+        if (!supportNormal.TryNormalize(out var normalizedSupport)) return false;
+        aligned = normalizedBoundary.Dot(normalizedSupport) > 0d;
+        return true;
+    }
+
     private static LoopBuildData NormalizeLoopWinding(LoopBuildData loop, double signedArea, bool shouldBePositive)
     {
         // STEP EDGE_LOOP order is topology, not presentation.  Classification
@@ -2850,6 +3044,37 @@ public static class Step242Importer
             uv.Add(uv[0]);
         }
 
+        return uv;
+    }
+
+    private static List<UvPoint> ProjectLoopToSphere(IReadOnlyList<Point3D> samples, SphereSurface sphere)
+    {
+        var uv = new List<UvPoint>(samples.Count + 1);
+        var previousAngle = 0d;
+        var revolutions = 0d;
+        var hasPrevious = false;
+        foreach (var sample in samples)
+        {
+            var offset = sample - sphere.Center;
+            var radial = offset.Length;
+            if (!double.IsFinite(radial) || radial <= PointOnSurfaceEps) continue;
+            var normalized = offset / radial;
+            var angle = double.Atan2(
+                normalized.Dot(sphere.YAxis.ToVector()),
+                normalized.Dot(sphere.XAxis.ToVector()));
+            if (hasPrevious)
+            {
+                var delta = angle - previousAngle;
+                if (delta > double.Pi) revolutions -= 2d * double.Pi;
+                else if (delta < -double.Pi) revolutions += 2d * double.Pi;
+            }
+            var elevation = double.Asin(double.Clamp(normalized.Dot(sphere.Axis.ToVector()), -1d, 1d));
+            uv.Add(new UvPoint(angle + revolutions, elevation));
+            previousAngle = angle;
+            hasPrevious = true;
+        }
+        if (uv.Count > 0 && SegmentLengthSquared(uv[0], uv[^1]) > ContainmentEps * ContainmentEps)
+            uv.Add(uv[0]);
         return uv;
     }
 
@@ -3853,7 +4078,13 @@ public static class Step242Importer
 
     private static string SourceFor(int _entityId, string stableSource) => stableSource;
 
-    private sealed record LoopBuildData(LoopId LoopId, IReadOnlyList<Coedge> Coedges, IReadOnlyList<Point3D> Samples, bool HasDisconnectedCoedgeGap = false, bool IsDeclaredOuter = false);
+    private sealed record LoopBuildData(
+        LoopId LoopId,
+        IReadOnlyList<Coedge> Coedges,
+        IReadOnlyList<Point3D> Samples,
+        bool HasDisconnectedCoedgeGap = false,
+        bool IsDeclaredOuter = false,
+        int? SourceBoundEntityId = null);
 
     private sealed record PlanarLoopInfo(LoopBuildData Loop, IReadOnlyList<UvPoint> ProjectedPoints, double SignedArea);
 

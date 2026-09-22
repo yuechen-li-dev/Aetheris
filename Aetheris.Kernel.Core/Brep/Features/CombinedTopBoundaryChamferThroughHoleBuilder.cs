@@ -204,7 +204,7 @@ public static class CombinedTopBoundaryChamferThroughHoleBuilder
         }
         foreach(var wall in holeFaces)
         {
-            var sid=new SurfaceGeometryId(surface++);geometry.AddSurface(sid,SurfaceGeometry.FromCylinder(new CylinderSurface(new(wall.Hole.Hole.CenterX,wall.Hole.Hole.CenterY,wall.ZMin),zAxis,wall.Radius,xAxis)));bindings.AddFaceBinding(new(wall.Face,sid,SameSense:false));
+            var sid=new SurfaceGeometryId(surface++);geometry.AddSurface(sid,SurfaceGeometry.FromCylinder(new CylinderSurface(new(wall.Hole.Hole.CenterX,wall.Hole.Hole.CenterY,wall.ZMin),zAxis,wall.Radius,xAxis)));bindings.AddFaceBinding(new(wall.Face,sid,IsAlignedWithSurface:false));
         }
         foreach(var shoulderBinding in shoulderFaces)BindPlane(shoulderBinding.Face,new(shoulderBinding.Hole.Hole.CenterX,shoulderBinding.Hole.Hole.CenterY,plan.ZMax-shoulderBinding.Hole.Hole.CounterboreDepth!.Value),new Vector3D(1,0,0),new Vector3D(0,1,0));
 

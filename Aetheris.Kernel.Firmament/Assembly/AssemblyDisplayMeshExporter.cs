@@ -46,11 +46,8 @@ public static class AssemblyDisplayMeshExporter
             var ranges = new List<AssemblyDisplayMeshRange>();
             foreach (var rawFace in tessellation.Value.FacePatches.OrderBy(p => p.FaceId.Value))
             {
-                // Both tessellation paths now emit face-oriented patches: SurfaceMeshIR always did,
-                // and BrepDisplayTessellator projects the face sense once, for every surface kind, at
-                // the single place face patches are produced. Re-orienting here flipped every face whose
-                // binding says same_sense=.F. a second time - one bore cylinder was enough to put this
-                // gear's enclosed volume 6.25% over its cap-area-times-height value.
+                // Both tessellation paths emit canonically oriented patches. Assembly placement transforms
+                // positions and normals but never reinterprets interchange orientation evidence.
                 var face = rawFace;
                 if (face.Positions.Count == 0 || face.Normals.Count != face.Positions.Count || face.TriangleIndices.Count == 0
                     || face.TriangleIndices.Count % 3 != 0 || face.TriangleIndices.Any(i => i < 0 || i >= face.Positions.Count))

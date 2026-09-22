@@ -260,7 +260,7 @@ public static class BrepDisplayTessellator
         // a body's display mesh consistently outward-oriented instead of per-face arbitrary.
         var patch = TessellateFaceSupport(body, faceId, surface, options, executionBudget);
         return patch.IsSuccess
-            ? KernelResult<DisplayFaceMeshPatch>.Success(DisplayMeshOrientation.Orient(body, patch.Value), patch.Diagnostics)
+            ? KernelResult<DisplayFaceMeshPatch>.Success(DisplayMeshOrientation.ProjectCanonicalOrientation(body, patch.Value), patch.Diagnostics)
             : patch;
     }
 

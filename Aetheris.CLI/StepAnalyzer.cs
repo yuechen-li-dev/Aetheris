@@ -1722,7 +1722,17 @@ public sealed record VolumeAnalysisResult(
             "assumed; STEP import length units not yet preserved",
             BuildIdRange(topology.Faces.Select(f => f.Id.Value)),
             BuildIdRange(topology.Edges.Select(e => e.Id.Value)),
-            BuildIdRange(topology.Vertices.Select(v => v.Id.Value)));
+            BuildIdRange(topology.Vertices.Select(v => v.Id.Value)),
+            body.FaceOrientationReport is not { } orientation ? null : new FaceOrientationSummary(
+                orientation.DerivedFaceCount,
+                orientation.SourceAgreementCount,
+                orientation.SourceMismatchCount,
+                orientation.AmbiguousComponentCount,
+                orientation.GlobalFlipCount,
+                orientation.Faces.GroupBy(face => face.SourceEvidence.StepSameSense switch { true => "true", false => "false", null => "missing" })
+                    .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal),
+                orientation.Faces.GroupBy(face => face.Qualification.ToString())
+                    .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal)));
     }
 
     private static bool AreOrderedLoopsConnected(BrepBody body, out int disconnectedLoop)
@@ -2292,8 +2302,8 @@ public sealed record VolumeAnalysisResult(
 
         var outward = facePlane.Normal.ToVector();
         var hasFaceBinding = body.Bindings.TryGetFaceBinding(face.Id, out var faceBinding);
-        if (hasFaceBinding && !faceBinding.SameSense) outward = -outward;
-        return Enumerable.Range(0, ordered.Length / 2).Select(i => OrientForMaterialLeft(RawSectionSegment.Line(ProjectPoint(frame, ordered[i * 2].Point), ProjectPoint(frame, ordered[i * 2 + 1].Point)) with { SourceFace = face.Id.Value, SurfaceFamily = "Plane", SourceEntity = $"ADVANCED_FACE:{face.Id.Value}", MaterialSideEvidence = $"faceSameSense={(hasFaceBinding ? faceBinding.SameSense : null)}" }, frame, outward)).ToArray();
+        if (hasFaceBinding && !faceBinding.Orientation.IsAlignedWithSurface) outward = -outward;
+        return Enumerable.Range(0, ordered.Length / 2).Select(i => OrientForMaterialLeft(RawSectionSegment.Line(ProjectPoint(frame, ordered[i * 2].Point), ProjectPoint(frame, ordered[i * 2 + 1].Point)) with { SourceFace = face.Id.Value, SurfaceFamily = "Plane", SourceEntity = $"ADVANCED_FACE:{face.Id.Value}", MaterialSideEvidence = $"canonicalFaceAligned={(hasFaceBinding ? faceBinding.Orientation.IsAlignedWithSurface : null)}" }, frame, outward)).ToArray();
     }
 
     private static IReadOnlyList<RawSectionSegment> BuildCylinderFaceSectionSegments(BrepBody body, Face face, CylinderSurface cylinder, SectionFrame frame, double epsilon, ICollection<string> notes)
@@ -2356,13 +2366,13 @@ public sealed record VolumeAnalysisResult(
             var sweep = boundedSweep > Math.PI + 1e-9d ? 2d * Math.PI - minorSweep : minorSweep;
             var start = new Point2D(center.U + cylinder.Radius * Math.Cos(startAngle), center.V + cylinder.Radius * Math.Sin(startAngle));
             var end = new Point2D(center.U + cylinder.Radius * Math.Cos(startAngle + sweep), center.V + cylinder.Radius * Math.Sin(startAngle + sweep));
-            var sameSense = body.Bindings.TryGetFaceBinding(face.Id, out var binding) && binding.SameSense;
+            var sameSense = body.Bindings.TryGetFaceBinding(face.Id, out var binding) && binding.Orientation.IsAlignedWithSurface;
             notes.Add($"section-fragment:cylinder:face={face.Id.Value}:sameSense={sameSense}:center=({center.U:R},{center.V:R}):radius={cylinder.Radius:R}:angles=({angles[0]:R},{angles[1]:R}):sweep={sweep:R}:start=({start.U:R},{start.V:R}):end=({end.U:R},{end.V:R})");
             var midAngle = startAngle + sweep * .5d;
             var radial = (center3D - cylinder.Origin) + (frame.UAxis * (cylinder.Radius * Math.Cos(midAngle))) + (frame.VAxis * (cylinder.Radius * Math.Sin(midAngle)));
             var hasCylinderBinding = body.Bindings.TryGetFaceBinding(face.Id, out var cylinderBinding);
-            if (hasCylinderBinding && !cylinderBinding.SameSense) radial = -radial;
-            return [OrientForMaterialLeft(RawSectionSegment.Arc(start, end, center, cylinder.Radius, "ccw", sweep) with { SourceFace = face.Id.Value, SurfaceFamily = "Cylinder", SourceEntity = $"ADVANCED_FACE:{face.Id.Value}", MaterialSideEvidence = $"faceSameSense={(hasCylinderBinding ? cylinderBinding.SameSense : null)}" }, frame, radial)];
+            if (hasCylinderBinding && !cylinderBinding.Orientation.IsAlignedWithSurface) radial = -radial;
+            return [OrientForMaterialLeft(RawSectionSegment.Arc(start, end, center, cylinder.Radius, "ccw", sweep) with { SourceFace = face.Id.Value, SurfaceFamily = "Cylinder", SourceEntity = $"ADVANCED_FACE:{face.Id.Value}", MaterialSideEvidence = $"canonicalFaceAligned={(hasCylinderBinding ? cylinderBinding.Orientation.IsAlignedWithSurface : null)}" }, frame, radial)];
         }
         if (angles.Count > 2) notes.Add($"UnsupportedSectionCurve:cylinder-trim-ambiguous:face={face.Id.Value}:angularVertices={angles.Count}");
         var fullStart = new Point2D(center.U + cylinder.Radius, center.V);

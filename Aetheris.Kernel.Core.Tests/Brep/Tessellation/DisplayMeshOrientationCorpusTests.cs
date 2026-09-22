@@ -46,6 +46,17 @@ public sealed class DisplayMeshOrientationCorpusTests
         var import = Step242Importer.ImportBody(ReadFixture(relativePath));
         Assert.True(import.IsSuccess);
 
+        var unresolvedShells = import.Value.FaceOrientationReport?.Shells
+            .Where(shell => shell.Qualification == FaceOrientationQualification.DerivedLocallyConsistentGlobalUnknown)
+            .ToArray() ?? [];
+        if (unresolvedShells.Length > 0)
+        {
+            Assert.All(unresolvedShells, shell => Assert.False(shell.IsClosedManifold));
+            Assert.Contains(import.Diagnostics, diagnostic =>
+                diagnostic.Source == "Importer.StepOrientation.GlobalOrientationUnknown");
+            return;
+        }
+
         var (windingVolume, normalVolume) = MeasureVolumes(import.Value);
 
         Assert.True(windingVolume > 0d, $"triangle winding encloses a negative volume ({windingVolume:G6}), so the mesh is not outward-oriented");

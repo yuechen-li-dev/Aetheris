@@ -321,7 +321,7 @@ public static class SheetMetalRecognizer
             if(loops.Length==0)continue;
             var measured=loops.Select(points=>(Points:points,Area:LoopArea(points,surface))).OrderByDescending(x=>x.Area).ToArray();
             var outer=measured[0].Points;var inner=measured.Skip(1).Select(x=>x.Points).ToArray();
-            var sameSense=!body.Bindings.TryGetFaceBinding(face.Id,out var binding)||binding.SameSense;
+            var sameSense=!body.Bindings.TryGetFaceBinding(face.Id,out var binding)||binding.Orientation.IsAlignedWithSurface;
             result.Add(new(face.Id,surface,sameSense,outer,inner,measured[0].Area,Centroid(outer),body.GetEdges(face.Id)));
         }
         return result;

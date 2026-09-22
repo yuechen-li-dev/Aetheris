@@ -235,7 +235,7 @@ public sealed class BrepTorusBoundarySupport : IAnalyticBoundarySupport
         var supportNormal = Query.ExactSupportNormal(parameters.U, parameters.V);
         var scale=double.Max(1d,(_region.Bounds.Max-_region.Bounds.Min).Length);
         var evidence=MaterialSideClassifier.ClassifyMaterialSide(Query.FaceId,boundaryPoint,supportNormal,_region,scale,
-            Query.Body.Bindings.GetFaceBinding(Query.FaceId).SameSense);
+            Query.Body.Bindings.GetFaceBinding(Query.FaceId).Orientation.IsAlignedWithSurface);
         if(evidence.MaterialSideNormal is { } material)return material;
         // Projection to the full analytic torus can put a local-map halo point outside this face's
         // bounded minor sector. Resolve the orientation at the same major parameter in the interior
@@ -243,7 +243,7 @@ public sealed class BrepTorusBoundarySupport : IAnalyticBoundarySupport
         var referencePoint=Query.Evaluate(parameters.U,.5d*(_minimumMinorParameter+_maximumMinorParameter));
         var referenceNormal=Query.ExactSupportNormal(parameters.U,.5d*(_minimumMinorParameter+_maximumMinorParameter));
         var referenceEvidence=MaterialSideClassifier.ClassifyMaterialSide(Query.FaceId,referencePoint,referenceNormal,_region,scale,
-            Query.Body.Bindings.GetFaceBinding(Query.FaceId).SameSense);
+            Query.Body.Bindings.GetFaceBinding(Query.FaceId).Orientation.IsAlignedWithSurface);
         if(referenceEvidence.MaterialSideNormal is not { } referenceMaterial)throw new InvalidOperationException($"CIR did not resolve material side for torus face {Query.FaceId.Value}.");
         return referenceMaterial.Dot(referenceNormal)>=0d?supportNormal:-supportNormal;
     }

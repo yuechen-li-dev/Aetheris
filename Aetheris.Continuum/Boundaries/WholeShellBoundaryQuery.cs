@@ -14,7 +14,7 @@ public sealed record WholeShellBoundaryCandidate(
     IReadOnlyList<VertexId> VertexIds,
     IReadOnlyList<Point3D> OuterTrimVertices,
     IReadOnlyList<FaceId> AdjacentFaceIds,
-    bool SameSense,
+    bool IsAlignedWithSurface,
     string? SemanticIdentity,
     BoundaryReference Reference);
 
@@ -57,7 +57,7 @@ public sealed class WholeShellBoundaryQuery
             candidates.Add(ExactSupportBoundaryQuery.ProjectToSupport(body,face.Id,centroid,transform));
             for(var i=0;i<points.Length;i+=int.Max(1,points.Length/8))
                 candidates.Add(ExactSupportBoundaryQuery.ProjectToSupport(body,face.Id,new Point3D((points[i].X+centroid.X)*.5d,(points[i].Y+centroid.Y)*.5d,(points[i].Z+centroid.Z)*.5d),transform));
-            rows.Add(new(face.Id, surface.Kind, bounds, candidates, edges, vertices, trim, adjacent, binding.SameSense, semantic, reference));
+            rows.Add(new(face.Id, surface.Kind, bounds, candidates, edges, vertices, trim, adjacent, binding.Orientation.IsAlignedWithSurface, semantic, reference));
         }
         _faces = rows;
         Bounds = BoundsOf(rows.SelectMany(row=>new[]{row.Bounds.Min,row.Bounds.Max}).ToArray());

@@ -23,7 +23,8 @@ public sealed class BrepBody
         BrepBindingModel bindings,
         IReadOnlyDictionary<VertexId, Point3D>? vertexPoints,
         SafeBooleanComposition? safeBooleanComposition = null,
-        BrepBodyShellRepresentation? shellRepresentation = null)
+        BrepBodyShellRepresentation? shellRepresentation = null,
+        FaceOrientationReport? faceOrientationReport = null)
     {
         Topology = topology;
         Geometry = geometry;
@@ -31,6 +32,7 @@ public sealed class BrepBody
         _vertexPoints = vertexPoints ?? new Dictionary<VertexId, Point3D>();
         SafeBooleanComposition = safeBooleanComposition;
         ShellRepresentation = shellRepresentation ?? TryCreateLegacySingleShellRepresentation(topology);
+        FaceOrientationReport = faceOrientationReport;
     }
 
     public TopologyModel Topology { get; }
@@ -42,6 +44,12 @@ public sealed class BrepBody
     public SafeBooleanComposition? SafeBooleanComposition { get; }
 
     public BrepBodyShellRepresentation? ShellRepresentation { get; }
+
+    /// <summary>
+    /// Import-boundary provenance and qualification. Null means the body was
+    /// authored canonically rather than resolved from interchange evidence.
+    /// </summary>
+    public FaceOrientationReport? FaceOrientationReport { get; }
 
     public bool TryGetVertexPoint(VertexId vertexId, out Point3D point) => _vertexPoints.TryGetValue(vertexId, out point);
 

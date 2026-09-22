@@ -139,7 +139,8 @@ internal static class StepFaceOrientationResolver
             }
 
             var isClosedParametricSurface = edgeUses.Count == 0 && faces.Length > 0
-                && faces.All(faceId => unresolvedBody.Topology.GetFace(faceId).LoopIds.Count == 0
+                && faces.All(faceId => unresolvedBody.Topology.GetFace(faceId).LoopIds.All(loopId =>
+                        unresolvedBody.Topology.GetLoop(loopId).Kind == LoopKind.Vertex)
                     && unresolvedBody.TryGetFaceSurfaceGeometry(faceId, out var surface)
                     && surface?.Kind == Aetheris.Kernel.Core.Geometry.SurfaceGeometryKind.Sphere);
             var isClosed = (edgeUses.Count > 0 && edgeUses.All(pair => pair.Value.Count == 2)) || isClosedParametricSurface;
@@ -291,6 +292,7 @@ internal static class StepFaceOrientationResolver
         foreach (var edge in body.Bindings.EdgeBindings) bindings.AddEdgeBinding(edge);
         foreach (var pcurve in body.Bindings.PcurveBindings) bindings.AddPcurveBinding(pcurve);
         foreach (var role in body.Bindings.FaceBoundaryRoleBindings) bindings.AddFaceBoundaryRoleBinding(role);
+        foreach (var vertexLoop in body.Bindings.VertexLoopParameterBindings) bindings.AddVertexLoopParameterBinding(vertexLoop);
         foreach (var face in body.Bindings.FaceBindings)
         {
             var orientation = orientations.TryGetValue(face.FaceId, out var aligned)

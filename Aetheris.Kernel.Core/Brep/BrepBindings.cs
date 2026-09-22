@@ -70,6 +70,7 @@ public sealed record PcurveGeometry
     }
 
     public BSpline3Curve? PolynomialCurve { get; private init; }
+    public IReadOnlyList<double>? RationalWeights { get; private init; }
     public PcurveGeometryKind Kind { get; }
     public ParameterInterval Domain { get; }
     public IReadOnlyList<SurfaceParameterPoint> Points { get; }
@@ -97,12 +98,22 @@ public sealed record PcurveGeometry
         return new(PcurveGeometryKind.Polynomial, domain, []) { PolynomialCurve = curve };
     }
 
+    public static PcurveGeometry RationalPolynomial(ParameterInterval domain, BSpline3Curve curve, IReadOnlyList<double> weights)
+    {
+        if (weights.Count != curve.ControlPoints.Count || weights.Any(weight => !double.IsFinite(weight) || weight <= 0d))
+            throw new ArgumentException("Rational pcurve weights must be finite, positive, and match the control points.");
+        var polynomial = Polynomial(domain, curve);
+        return polynomial with { RationalWeights = weights.ToArray() };
+    }
+
     public SurfaceParameterPoint Evaluate(double parameter)
     {
         var span = Domain.End - Domain.Start;
         var fraction = double.Abs(span) <= 1e-15d ? 0d : System.Math.Clamp((parameter - Domain.Start) / span, 0d, 1d);
         if (PolynomialCurve is { } polynomial)
         {
+            if (RationalWeights is { } weights)
+                return EvaluateRational(polynomial, weights, Domain.Start + span * fraction);
             var point = polynomial.Evaluate(Domain.Start + span * fraction);
             return new(point.X, point.Y);
         }
@@ -128,6 +139,42 @@ public sealed record PcurveGeometry
 
     private static SurfaceParameterPoint Lerp(SurfaceParameterPoint a, SurfaceParameterPoint b, double t)
         => new(a.U + ((b.U - a.U) * t), a.V + ((b.V - a.V) * t));
+
+    private static SurfaceParameterPoint EvaluateRational(BSpline3Curve curve, IReadOnlyList<double> weights, double parameter)
+    {
+        var u = System.Math.Clamp(parameter, curve.DomainStart, curve.DomainEnd);
+        var basis = new double[curve.ControlPoints.Count];
+        for (var i = 0; i < basis.Length; i++)
+            basis[i] = (u >= curve.FullKnots[i] && u < curve.FullKnots[i + 1])
+                || (u == curve.DomainEnd && i == basis.Length - 1) ? 1d : 0d;
+        for (var degree = 1; degree <= curve.Degree; degree++)
+        {
+            var next = new double[basis.Length];
+            for (var i = 0; i < basis.Length; i++)
+            {
+                var leftDenominator = curve.FullKnots[i + degree] - curve.FullKnots[i];
+                var rightDenominator = i + degree + 1 < curve.FullKnots.Count
+                    ? curve.FullKnots[i + degree + 1] - curve.FullKnots[i + 1] : 0d;
+                var left = leftDenominator == 0d ? 0d : (u - curve.FullKnots[i]) / leftDenominator * basis[i];
+                var right = i + 1 >= basis.Length || rightDenominator == 0d
+                    ? 0d : (curve.FullKnots[i + degree + 1] - u) / rightDenominator * basis[i + 1];
+                next[i] = left + right;
+            }
+            basis = next;
+        }
+        var sumU = 0d;
+        var sumV = 0d;
+        var denominator = 0d;
+        for (var i = 0; i < basis.Length; i++)
+        {
+            var weighted = basis[i] * weights[i];
+            sumU += curve.ControlPoints[i].X * weighted;
+            sumV += curve.ControlPoints[i].Y * weighted;
+            denominator += weighted;
+        }
+        if (double.Abs(denominator) <= 1e-15d) return default;
+        return new(sumU / denominator, sumV / denominator);
+    }
 }
 
 /// <summary>Associates one coedge use with its curve in the owning face's UV space.</summary>
@@ -136,7 +183,11 @@ public readonly record struct CoedgePcurveBinding(
     FaceId FaceId,
     SurfaceGeometryId SurfaceGeometryId,
     PcurveGeometry Pcurve,
-    bool SameSense = true);
+    bool SameSense = true,
+    int? SourceStepPcurveEntityId = null,
+    int? SourceStepCurveEntityId = null,
+    string? SourceCurveType = null,
+    int? SourceStepSurfaceEntityId = null);
 
 public enum FaceBoundaryRole { Outer, Inner }
 
@@ -150,6 +201,16 @@ public readonly record struct FaceBoundaryRoleBinding(
     FaceBoundaryRole Role,
     int? SourceStepEntityId = null);
 
+/// <summary>Face-local parameter location and provenance for an explicit STEP VERTEX_LOOP.</summary>
+public readonly record struct VertexLoopParameterBinding(
+    LoopId LoopId,
+    FaceId FaceId,
+    SurfaceGeometryId SurfaceGeometryId,
+    VertexId VertexId,
+    SurfaceParameterPoint? Parameter,
+    int? SourceStepLoopEntityId = null,
+    int? SourceStepVertexEntityId = null);
+
 /// <summary>
 /// Explicit topology-to-geometry binding container.
 /// </summary>
@@ -159,28 +220,33 @@ public sealed class BrepBindingModel
     private readonly Dictionary<FaceId, FaceGeometryBinding> _faceBindings = [];
     private readonly Dictionary<CoedgeId, CoedgePcurveBinding> _pcurveBindings = [];
     private readonly Dictionary<LoopId, FaceBoundaryRoleBinding> _faceBoundaryRoleBindings = [];
+    private readonly Dictionary<LoopId, VertexLoopParameterBinding> _vertexLoopParameterBindings = [];
 
     public IEnumerable<EdgeGeometryBinding> EdgeBindings => _edgeBindings.Values;
 
     public IEnumerable<FaceGeometryBinding> FaceBindings => _faceBindings.Values;
     public IEnumerable<CoedgePcurveBinding> PcurveBindings => _pcurveBindings.Values;
     public IEnumerable<FaceBoundaryRoleBinding> FaceBoundaryRoleBindings => _faceBoundaryRoleBindings.Values;
+    public IEnumerable<VertexLoopParameterBinding> VertexLoopParameterBindings => _vertexLoopParameterBindings.Values;
 
     public void AddEdgeBinding(EdgeGeometryBinding binding) => _edgeBindings.Add(binding.EdgeId, binding);
 
     public void AddFaceBinding(FaceGeometryBinding binding) => _faceBindings.Add(binding.FaceId, binding);
     public void AddPcurveBinding(CoedgePcurveBinding binding) => _pcurveBindings.Add(binding.CoedgeId, binding);
     public void AddFaceBoundaryRoleBinding(FaceBoundaryRoleBinding binding) => _faceBoundaryRoleBindings.Add(binding.LoopId, binding);
+    public void AddVertexLoopParameterBinding(VertexLoopParameterBinding binding) => _vertexLoopParameterBindings.Add(binding.LoopId, binding);
 
     public bool TryGetEdgeBinding(EdgeId edgeId, out EdgeGeometryBinding binding) => _edgeBindings.TryGetValue(edgeId, out binding);
 
     public bool TryGetFaceBinding(FaceId faceId, out FaceGeometryBinding binding) => _faceBindings.TryGetValue(faceId, out binding);
     public bool TryGetPcurveBinding(CoedgeId coedgeId, out CoedgePcurveBinding binding) => _pcurveBindings.TryGetValue(coedgeId, out binding);
     public bool TryGetFaceBoundaryRoleBinding(LoopId loopId, out FaceBoundaryRoleBinding binding) => _faceBoundaryRoleBindings.TryGetValue(loopId, out binding);
+    public bool TryGetVertexLoopParameterBinding(LoopId loopId, out VertexLoopParameterBinding binding) => _vertexLoopParameterBindings.TryGetValue(loopId, out binding);
 
     public EdgeGeometryBinding GetEdgeBinding(EdgeId edgeId) => _edgeBindings[edgeId];
 
     public FaceGeometryBinding GetFaceBinding(FaceId faceId) => _faceBindings[faceId];
     public CoedgePcurveBinding GetPcurveBinding(CoedgeId coedgeId) => _pcurveBindings[coedgeId];
     public FaceBoundaryRoleBinding GetFaceBoundaryRoleBinding(LoopId loopId) => _faceBoundaryRoleBindings[loopId];
+    public VertexLoopParameterBinding GetVertexLoopParameterBinding(LoopId loopId) => _vertexLoopParameterBindings[loopId];
 }

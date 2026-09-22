@@ -23,6 +23,6 @@ X1B makes boundary role and periodicity explicit. `FaceBoundaryRoleBinding` reco
 
 STEP export chooses its boundary serialization route through a bounded JudgmentEngine policy: complete explicit roles win, authored order is a fallback only when role evidence is absent, and malformed partial evidence is rejected. The numerical winding calculation itself is deterministic and is not utility-scored.
 
-Current limitation: the topology model can bind a pcurve to each coedge use, but STEP `SURFACE_CURVE`/`SEAM_CURVE` import does not yet populate those bindings, and singular pole/apex `VERTEX_LOOP`s are not yet materialized as explicit loop topology. Therefore X1B does not claim general pcurve or degenerate-boundary acceptance beyond the qualified corpus paths.
+X1C closes the representation gap without changing this authority. STEP `SURFACE_CURVE` and `SEAM_CURVE` associations populate face-local coedge pcurve bindings, including distinct UV uses of one seam edge. STEP `VERTEX_LOOP` imports as a distinct `LoopKind.Vertex` with the real vertex identity and an optional support-parameter binding; it is never expanded into a synthetic edge. Pcurve equivalence, seam assignment, periodic closure, and vertex-loop existence remain deterministic facts. They do not consult source `same_sense` and do not enter JudgmentEngine.
 
 This boundary does not alter stable face IDs, source STEP entity provenance, semantic PMI associations, support surfaces, trims, or pcurve parameterization.

@@ -118,6 +118,22 @@ public static class BrepExportPreflight
 
         void ValidateLoop(FaceId faceId, Loop loop, SurfaceGeometry surface)
         {
+            if (loop.Kind == LoopKind.Vertex)
+            {
+                if (loop.VertexLoopVertexId is not VertexId vertexId
+                    || !model.TryGetVertex(vertexId, out _)
+                    || !body.TryGetVertexPoint(vertexId, out var point))
+                {
+                    AddError("brep-preflight-vertex-loop-missing-vertex", "loop", "Vertex loop is missing its bound topology vertex or point.", faceId.Value, loop.Id.Value);
+                    return;
+                }
+
+                var deviation = SurfaceDeviation(surface, point, out var supported);
+                if (supported && deviation > Tolerances.Linear)
+                    AddError("brep-preflight-vertex-loop-off-surface", "loop", "Vertex-loop point is not on the owning support surface.", faceId.Value, loop.Id.Value, surface: surface.Kind.ToString(), deviation: deviation);
+                return;
+            }
+
             if (loop.CoedgeIds.Count == 0)
             {
                 AddError("brep-preflight-loop-not-closed", "loop", "Loop has no coedges.", faceId.Value, loop.Id.Value);

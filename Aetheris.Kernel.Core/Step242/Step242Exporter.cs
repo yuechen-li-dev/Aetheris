@@ -224,6 +224,16 @@ public static class Step242Exporter
             {
                 var loopId = boundary.LoopId;
                 var loop = model.GetLoop(loopId);
+                if (loop.Kind == LoopKind.Vertex)
+                {
+                    if (loop.VertexLoopVertexId is not VertexId vertexId || !body.TryGetVertexPoint(vertexId, out var point))
+                        return null;
+                    var vertexPointId = EnsureVertex(writer, vertexId, point, vertexPoints, cartesianPointIds, vertexPointIds);
+                    var vertexLoopId = writer.AddEntity("VERTEX_LOOP", Step242TextWriter.String(string.Empty), Step242TextWriter.Ref(vertexPointId));
+                    var vertexBoundEntity = boundary.Role == FaceBoundaryRole.Outer ? "FACE_OUTER_BOUND" : "FACE_BOUND";
+                    loopBoundIds.Add(writer.AddEntity(vertexBoundEntity, Step242TextWriter.String(string.Empty), Step242TextWriter.Ref(vertexLoopId), Step242TextWriter.BooleanLogical(true)));
+                    continue;
+                }
                 var oriented = new List<string>();
 
                 // Loop.CoedgeIds is the authoritative cyclic order. Sorting this list can
@@ -1052,18 +1062,26 @@ public static class Step242Exporter
             return Failure($"Unsupported curve kind '{curve.Kind}'.", $"Edge:{edgeId.Value}");
         }
 
-        var pcurveIds = pcurveContextId is null
+        var edgePcurveBindings = pcurveContextId is null
             ? []
             : body.Bindings.PcurveBindings
                 .Where(binding => model.GetCoedge(binding.CoedgeId).EdgeId == edgeId)
                 .OrderBy(binding => binding.FaceId.Value)
                 .ThenBy(binding => binding.CoedgeId.Value)
+                .ToArray();
+        var pcurveIds = pcurveContextId is null
+            ? []
+            : edgePcurveBindings
                 .Select(binding => BuildStepPcurve(writer, binding, surfaceIds, pcurveContextId))
                 .Where(id => id is not null)
                 .Select(id => id!)
                 .ToArray();
         if (pcurveIds.Length > 0)
-            geometryCurveId = writer.AddEntity("SURFACE_CURVE", "$", Step242TextWriter.Ref(geometryCurveId), Step242TextWriter.List(pcurveIds), Step242TextWriter.Enum("PCURVE_S1"));
+        {
+            var isSeam = edgePcurveBindings.GroupBy(binding => binding.SurfaceGeometryId)
+                .Any(group => group.Count() > 1);
+            geometryCurveId = writer.AddEntity(isSeam ? "SEAM_CURVE" : "SURFACE_CURVE", "$", Step242TextWriter.Ref(geometryCurveId), Step242TextWriter.List(pcurveIds), Step242TextWriter.Enum("PCURVE_S1"));
+        }
 
         // EDGE_CURVE.same_sense is the binding between the parametric curve and
         // the topology edge, not a blanket export constant. In particular, a
@@ -1087,12 +1105,79 @@ public static class Step242Exporter
             var controls = polynomial.ControlPoints.Select(p => writer.AddEntity("CARTESIAN_POINT", "$",
                 Step242TextWriter.List(Step242TextWriter.Number(p.X), Step242TextWriter.Number(p.Y))))
                 .Select(Step242TextWriter.Ref).ToArray();
-            var curve = writer.AddEntity("B_SPLINE_CURVE_WITH_KNOTS", "$", polynomial.Degree.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                Step242TextWriter.List(controls), Step242TextWriter.Enum(polynomial.CurveForm),
-                Step242TextWriter.BooleanLogical(polynomial.ClosedCurve), Step242TextWriter.BooleanLogical(polynomial.SelfIntersect),
-                Step242TextWriter.List(polynomial.KnotMultiplicities.Select(n => n.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToArray()),
-                Step242TextWriter.List(polynomial.KnotValues.Select(Step242TextWriter.Number).ToArray()), Step242TextWriter.Enum(polynomial.KnotSpec));
+            var curve = binding.Pcurve.RationalWeights is { } weights
+                ? writer.AddRawEntity($"(BOUNDED_CURVE()B_SPLINE_CURVE({polynomial.Degree.ToString(System.Globalization.CultureInfo.InvariantCulture)},{Step242TextWriter.List(controls)},{Step242TextWriter.Enum(polynomial.CurveForm)},{Step242TextWriter.BooleanLogical(polynomial.ClosedCurve)},{Step242TextWriter.BooleanLogical(polynomial.SelfIntersect)})B_SPLINE_CURVE_WITH_KNOTS({Step242TextWriter.List(polynomial.KnotMultiplicities.Select(n => n.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToArray())},{Step242TextWriter.List(polynomial.KnotValues.Select(Step242TextWriter.Number).ToArray())},{Step242TextWriter.Enum(polynomial.KnotSpec)})CURVE()GEOMETRIC_REPRESENTATION_ITEM()RATIONAL_B_SPLINE_CURVE({Step242TextWriter.List(weights.Select(Step242TextWriter.Number).ToArray())})REPRESENTATION_ITEM(''))")
+                : writer.AddEntity("B_SPLINE_CURVE_WITH_KNOTS", "$", polynomial.Degree.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    Step242TextWriter.List(controls), Step242TextWriter.Enum(polynomial.CurveForm),
+                    Step242TextWriter.BooleanLogical(polynomial.ClosedCurve), Step242TextWriter.BooleanLogical(polynomial.SelfIntersect),
+                    Step242TextWriter.List(polynomial.KnotMultiplicities.Select(n => n.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToArray()),
+                    Step242TextWriter.List(polynomial.KnotValues.Select(Step242TextWriter.Number).ToArray()), Step242TextWriter.Enum(polynomial.KnotSpec));
             var representation = writer.AddEntity("DEFINITIONAL_REPRESENTATION", Step242TextWriter.String("pcurve"), Step242TextWriter.List(curve), Step242TextWriter.Ref(contextId));
+            return writer.AddEntity("PCURVE", "$", Step242TextWriter.Ref(surfaceId), Step242TextWriter.Ref(representation));
+        }
+        if (binding.Pcurve.Kind == PcurveGeometryKind.Line)
+        {
+            var start = binding.Pcurve.Points[0];
+            var end = binding.Pcurve.Points[1];
+            var span = binding.Pcurve.Domain.End - binding.Pcurve.Domain.Start;
+            if (double.Abs(span) <= 1e-15d) return null;
+            var du = (end.U - start.U) / span;
+            var dv = (end.V - start.V) / span;
+            var magnitude = double.Sqrt(du * du + dv * dv);
+            if (!double.IsFinite(magnitude) || magnitude <= 1e-15d) return null;
+            var origin = new SurfaceParameterPoint(start.U - du * binding.Pcurve.Domain.Start, start.V - dv * binding.Pcurve.Domain.Start);
+            var originId = writer.AddEntity("CARTESIAN_POINT", "$", Step242TextWriter.List(Step242TextWriter.Number(origin.U), Step242TextWriter.Number(origin.V)));
+            var directionId = writer.AddEntity("DIRECTION", "$", Step242TextWriter.List(Step242TextWriter.Number(du / magnitude), Step242TextWriter.Number(dv / magnitude)));
+            var vectorId = writer.AddEntity("VECTOR", "$", Step242TextWriter.Ref(directionId), Step242TextWriter.Number(magnitude));
+            var lineId = writer.AddEntity("LINE", "$", Step242TextWriter.Ref(originId), Step242TextWriter.Ref(vectorId));
+            var representation = writer.AddEntity("DEFINITIONAL_REPRESENTATION", Step242TextWriter.String("pcurve"), Step242TextWriter.List(lineId), Step242TextWriter.Ref(contextId));
+            return writer.AddEntity("PCURVE", "$", Step242TextWriter.Ref(surfaceId), Step242TextWriter.Ref(representation));
+        }
+        if (binding.Pcurve.Kind is PcurveGeometryKind.Circle or PcurveGeometryKind.Ellipse)
+        {
+            var center = binding.Pcurve.Points[0];
+            var cosine = binding.Pcurve.Kind == PcurveGeometryKind.Circle
+                ? new SurfaceParameterPoint(binding.Pcurve.Points[1].U, 0d)
+                : binding.Pcurve.Points[1];
+            var sine = binding.Pcurve.Kind == PcurveGeometryKind.Circle
+                ? new SurfaceParameterPoint(0d, binding.Pcurve.Points[1].V)
+                : binding.Pcurve.Points[2];
+            var serializedSameSense = binding.SameSense;
+            if ((cosine.U * sine.V) - (cosine.V * sine.U) < 0d)
+            {
+                // AXIS2_PLACEMENT_2D defines a right-handed conic frame. Represent a
+                // left-handed coefficient frame by the exact reversed parameterization
+                // h(s)=g(domain.Start+domain.End-s), then retain its use direction with
+                // TRIMMED_CURVE.sense_agreement.
+                var phase = binding.Pcurve.Domain.Start + binding.Pcurve.Domain.End;
+                var phaseCosine = double.Cos(phase);
+                var phaseSine = double.Sin(phase);
+                var transformedCosine = new SurfaceParameterPoint(
+                    cosine.U * phaseCosine + sine.U * phaseSine,
+                    cosine.V * phaseCosine + sine.V * phaseSine);
+                var transformedSine = new SurfaceParameterPoint(
+                    cosine.U * phaseSine - sine.U * phaseCosine,
+                    cosine.V * phaseSine - sine.V * phaseCosine);
+                cosine = transformedCosine;
+                sine = transformedSine;
+                serializedSameSense = !serializedSameSense;
+            }
+            var major = double.Sqrt(cosine.U * cosine.U + cosine.V * cosine.V);
+            var minor = double.Sqrt(sine.U * sine.U + sine.V * sine.V);
+            if (major <= 1e-15d || minor <= 1e-15d) return null;
+            var centerId = writer.AddEntity("CARTESIAN_POINT", "$", Step242TextWriter.List(Step242TextWriter.Number(center.U), Step242TextWriter.Number(center.V)));
+            var axisId = writer.AddEntity("DIRECTION", "$", Step242TextWriter.List(Step242TextWriter.Number(cosine.U / major), Step242TextWriter.Number(cosine.V / major)));
+            var placementId = writer.AddEntity("AXIS2_PLACEMENT_2D", "$", Step242TextWriter.Ref(centerId), Step242TextWriter.Ref(axisId));
+            var basisConicId = double.Abs(major - minor) <= 1e-12d
+                ? writer.AddEntity("CIRCLE", "$", Step242TextWriter.Ref(placementId), Step242TextWriter.Number(major))
+                : writer.AddEntity("ELLIPSE", "$", Step242TextWriter.Ref(placementId), Step242TextWriter.Number(major), Step242TextWriter.Number(minor));
+            var conicId = serializedSameSense
+                ? basisConicId
+                : writer.AddEntity("TRIMMED_CURVE", "$", Step242TextWriter.Ref(basisConicId),
+                    Step242TextWriter.List($"PARAMETER_VALUE({Step242TextWriter.Number(binding.Pcurve.Domain.Start)})"),
+                    Step242TextWriter.List($"PARAMETER_VALUE({Step242TextWriter.Number(binding.Pcurve.Domain.End)})"),
+                    Step242TextWriter.BooleanLogical(false), Step242TextWriter.Enum("PARAMETER"));
+            var representation = writer.AddEntity("DEFINITIONAL_REPRESENTATION", Step242TextWriter.String("pcurve"), Step242TextWriter.List(conicId), Step242TextWriter.Ref(contextId));
             return writer.AddEntity("PCURVE", "$", Step242TextWriter.Ref(surfaceId), Step242TextWriter.Ref(representation));
         }
         var samples = binding.Pcurve.Kind switch

@@ -60,19 +60,21 @@ internal static class AnalyticDisplaySupportPolicy
         {
             return kind switch
             {
-                SurfaceGeometryKind.Sphere => body.Topology.GetFace(faceId).LoopIds.Count == 0,
+                SurfaceGeometryKind.Sphere => body.Topology.GetFace(faceId).LoopIds.All(loopId =>
+                    body.Topology.GetLoop(loopId).Kind == LoopKind.Vertex),
                 SurfaceGeometryKind.Torus => IsSupportedWholeNativeTorus(body, faceId),
                 _ => false,
             };
         }
 
         var face = body.Topology.GetFace(faceId);
-        if (face.LoopIds.Count != 1)
+        var edgeLoopIds = face.LoopIds.Where(loopId => body.Topology.GetLoop(loopId).Kind == LoopKind.Edge).ToArray();
+        if (edgeLoopIds.Length != 1)
         {
             return false;
         }
 
-        var loop = body.Topology.GetLoop(face.LoopIds[0]);
+        var loop = body.Topology.GetLoop(edgeLoopIds[0]);
         foreach (var coedgeId in loop.CoedgeIds)
         {
             var edgeId = body.Topology.GetCoedge(coedgeId).EdgeId;

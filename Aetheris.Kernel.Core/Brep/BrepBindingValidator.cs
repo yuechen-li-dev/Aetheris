@@ -71,6 +71,16 @@ public static class BrepBindingValidator
             }
         }
 
+        foreach (var vertexLoop in body.Bindings.VertexLoopParameterBindings)
+        {
+            if (!body.Topology.TryGetLoop(vertexLoop.LoopId, out var loop) || loop is null || loop.Kind != LoopKind.Vertex)
+                diagnostics.Add(Error($"Vertex-loop binding references missing or non-vertex loop {vertexLoop.LoopId.Value}."));
+            else if (loop.VertexLoopVertexId != vertexLoop.VertexId)
+                diagnostics.Add(Error($"Vertex-loop binding for loop {vertexLoop.LoopId.Value} disagrees with topology vertex."));
+            if (!body.Topology.TryGetFace(vertexLoop.FaceId, out var face) || face is null || !face.LoopIds.Contains(vertexLoop.LoopId))
+                diagnostics.Add(Error($"Vertex-loop binding references face {vertexLoop.FaceId.Value} which does not own loop {vertexLoop.LoopId.Value}."));
+        }
+
         if (requireAllEdgeAndFaceBindings)
         {
             foreach (var edge in body.Topology.Edges)

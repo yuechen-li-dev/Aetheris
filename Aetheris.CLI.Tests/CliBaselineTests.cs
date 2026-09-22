@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Features;
+using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
 
@@ -396,24 +397,18 @@ public sealed class CliBaselineTests
     public void Analyze_Command_Explains_Null_ArcLength_For_Unsupported_Curve_Kinds()
     {
         var stepPath = Path.Combine(RepoRoot, "testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp");
-        var summary = AnalyzeSummary(stepPath);
-        var maxEdgeId = summary.GetProperty("edgeIds").GetProperty("max").GetInt32();
+        var imported = Step242Importer.ImportBody(File.ReadAllText(stepPath));
+        Assert.True(imported.IsSuccess, string.Join(" | ", imported.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        var unsupportedEdgeId = imported.Value.Topology.Edges
+            .Select(edge => (edge.Id, Kind: imported.Value.GetEdgeCurve(edge.Id).Kind))
+            .First(edge => edge.Kind is not CurveGeometryKind.Line3 and not CurveGeometryKind.Circle3)
+            .Id.Value;
 
-        for (var edgeId = 1; edgeId <= maxEdgeId; edgeId++)
-        {
-            var edge = AnalyzeEdge(stepPath, edgeId);
-            var curveType = edge.GetProperty("curveType").GetString();
-            if (curveType is "Line3" or "Circle3")
-            {
-                continue;
-            }
-
-            Assert.True(edge.GetProperty("arcLength").ValueKind == JsonValueKind.Null);
-            Assert.Equal("unsupported-for-curve-kind", edge.GetProperty("arcLengthStatus").GetString());
-            return;
-        }
-
-        throw new Xunit.Sdk.XunitException("Expected at least one non-line/non-circle edge in NIST fixture.");
+        // One public CLI invocation is sufficient to qualify the detail contract. The former
+        // max-ID loop performed 310 complete STC-06 imports and dominated local test latency.
+        var detail = AnalyzeEdge(stepPath, unsupportedEdgeId);
+        Assert.Equal(JsonValueKind.Null, detail.GetProperty("arcLength").ValueKind);
+        Assert.Equal("unsupported-for-curve-kind", detail.GetProperty("arcLengthStatus").GetString());
     }
 
     [Fact]

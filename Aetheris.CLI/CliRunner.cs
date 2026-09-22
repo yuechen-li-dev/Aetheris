@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 using Aetheris.Kernel.Core.Diagnostics;
 using System.Text.RegularExpressions;
 using Aetheris.Forge.Abstractions.FirmamentInterop;
+using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Verification;
 using Aetheris.Kernel.Core.Brep.Tessellation;
 using Aetheris.Kernel.Core.Math;
@@ -708,10 +709,13 @@ public static class CliRunner
         PcurveBuildResult? recoveredPcurves = null;
         if (!imported.Value.Bindings.PcurveBindings.Any())
             recoveredPcurves = BoundedPcurveBuilder.Populate(imported.Value.Topology, imported.Value.Geometry, imported.Value.Bindings);
+        var importedPcurveEvidence = recoveredPcurves is null ? BrepPcurveValidator.Validate(imported.Value) : null;
         var rendered = BrepWireframeSvgRenderer.Render(imported.Value, new(view, density, samples));
         Directory.CreateDirectory(Path.GetDirectoryName(output)!); File.WriteAllText(output, rendered.Svg);
         var report = new { command = "wireframe", success = true, input, output, rendered.Evidence,
-            pcurveRecovery = recoveredPcurves is null ? null : new { recoveredPcurves.IsSuccess, recoveredPcurves.Count, recoveredPcurves.MaximumResidual, recoveredPcurves.Diagnostics } };
+            pcurveRecovery = recoveredPcurves is null
+                ? (object)new { IsSuccess = importedPcurveEvidence!.IsValid, Count = importedPcurveEvidence.PcurveCount, MaximumResidual = importedPcurveEvidence.MaximumReconstructionDeviation, Diagnostics = importedPcurveEvidence.Diagnostics }
+                : new { recoveredPcurves.IsSuccess, recoveredPcurves.Count, recoveredPcurves.MaximumResidual, recoveredPcurves.Diagnostics } };
         if (json) stdout.WriteLine(JsonSerializer.Serialize(report, JsonOptions));
         else stdout.WriteLine($"Wireframe SVG: {output}\nFaces: {rendered.Evidence.FaceCount}; edges: {rendered.Evidence.EdgeCount}; trimmed faces: {rendered.Evidence.FacesWithTrimmedIsolines}\nSHA-256: {rendered.Evidence.Sha256}");
         return 0;
@@ -4624,6 +4628,12 @@ Model CanonicalPanel {
         stdout.WriteLine($"Face IDs: min={summary.FaceIds.Min}, max={summary.FaceIds.Max}, count={summary.FaceIds.Count}, contiguous={summary.FaceIds.Contiguous}");
         stdout.WriteLine($"Edge IDs: min={summary.EdgeIds.Min}, max={summary.EdgeIds.Max}, count={summary.EdgeIds.Count}, contiguous={summary.EdgeIds.Contiguous}");
         stdout.WriteLine($"Vertex IDs: min={summary.VertexIds.Min}, max={summary.VertexIds.Max}, count={summary.VertexIds.Count}, contiguous={summary.VertexIds.Contiguous}");
+        if (summary.BoundaryTopology is { } boundaries)
+        {
+            stdout.WriteLine($"Boundary topology: edge-loops={boundaries.EdgeLoopCount}; vertex-loops={boundaries.VertexLoopCount}; pcurves={boundaries.PcurveCount}; seam-pairs={boundaries.SeamPcurvePairCount}");
+            if (boundaries.PcurveTypes.Count > 0)
+                stdout.WriteLine($"Pcurve types: {string.Join(", ", boundaries.PcurveTypes.OrderBy(pair => pair.Key).Select(pair => $"{pair.Key}={pair.Value}"))}");
+        }
         stdout.WriteLine("Surface Families:");
         foreach (var family in summary.SurfaceFamilies)
         {

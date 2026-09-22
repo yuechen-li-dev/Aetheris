@@ -291,6 +291,7 @@ public static class Step242Importer
             surfaceBindingDiagnostics.AddRange(bindSurfaceResult.Diagnostics);
 
             var loopData = new List<LoopBuildData>(boundRefsResult.Value.Count);
+            var vertexLoopData = new List<VertexLoopBuildData>();
             foreach (var boundRef in boundRefsResult.Value)
             {
                 var boundEntityResult = document.TryGetEntity(boundRef.TargetId);
@@ -336,29 +337,28 @@ public static class Step242Importer
                         return KernelResult<BrepBody>.Failure(vertexLoopRefResult.Diagnostics);
                     }
 
-                    var vertexPointResult = Step242SubsetDecoder.ReadVertexPoint(document, vertexLoopRefResult.Value.TargetId);
-                    if (!vertexPointResult.IsSuccess)
+                    var vertexResult = EnsureVertex(document, vertexLoopRefResult.Value.TargetId, builder, vertexMap);
+                    if (!vertexResult.IsSuccess)
                     {
-                        return KernelResult<BrepBody>.Failure(vertexPointResult.Diagnostics);
+                        return KernelResult<BrepBody>.Failure(vertexResult.Diagnostics);
                     }
 
-                    if (isSphericalFace)
-                    {
-                        // Singular spherical bounds can be represented with VERTEX_LOOP. They do not map
-                        // to edge/coedge topology in the current subset, so they are treated as degenerate trims.
-                        continue;
-                    }
-
-                    if (isConicalFace
+                    var isConeApex = isConicalFace
                         && bindSurfaceResult.Value.SurfaceGeometry.Cone is ConeSurface cone
-                        && (vertexPointResult.Value - cone.Apex).Length <= PointOnSurfaceEps)
-                    {
-                        // Narrow non-spherical support: singular conical apex trims represented as VERTEX_LOOP.
-                        // These are topologically degenerate and intentionally omitted from edge/coedge topology.
-                        continue;
-                    }
+                        && (vertexResult.Value.Point - cone.Apex).Length <= PointOnSurfaceEps;
+                    if (!isSphericalFace && !isConeApex)
+                        return Failure("VERTEX_LOOP is only admitted at a supported collapsed surface boundary.", "Importer.Topology.VertexLoopUnsupportedSupport");
 
-                    return Failure("FACE_BOUND loop type 'VERTEX_LOOP' is unsupported for this face in M23 import subset.", $"Entity:{loopEntityResult.Value.Id}");
+                    var vertexLoopId = builder.AllocateLoopId();
+                    vertexLoopData.Add(new VertexLoopBuildData(
+                        vertexLoopId,
+                        vertexResult.Value.VertexId,
+                        vertexResult.Value.Point,
+                        isDeclaredOuter,
+                        boundEntity.Id,
+                        loopEntityResult.Value.Id,
+                        vertexLoopRefResult.Value.TargetId));
+                    continue;
                 }
 
                 if (!string.Equals(loopEntityResult.Value.Name, "EDGE_LOOP", StringComparison.OrdinalIgnoreCase))
@@ -385,6 +385,7 @@ public static class Step242Importer
                 }
 
                 var loopCoedges = new List<Coedge>(orientedEdgeRefsResult.Value.Count);
+                var loopPcurveCandidates = new Dictionary<CoedgeId, IReadOnlyList<ImportedStepPcurve>>();
                 var loopSamples = new List<Point3D>();
                 var hasDisconnectedCoedgeGap = false;
 
@@ -446,6 +447,22 @@ public static class Step242Importer
                         IsReversed: isReversed);
 
                     loopCoedges.Add(coedge);
+                    if (surfaceResult.Value.ReferenceId is int sourceSurfaceEntityId)
+                    {
+                        var geometryReference = Step242SubsetDecoder.ReadReference(edgeCurveEntityResult.Value, 3, "EDGE_CURVE edge_geometry");
+                        if (!geometryReference.IsSuccess) return KernelResult<BrepBody>.Failure(geometryReference.Diagnostics);
+                        var edgeGeometryEntity = document.TryGetEntity(geometryReference.Value.TargetId);
+                        if (!edgeGeometryEntity.IsSuccess) return KernelResult<BrepBody>.Failure(edgeGeometryEntity.Diagnostics);
+                        var edgeBinding = bindings.GetEdgeBinding(edgeIdResult.Value);
+                        var pcurveCandidates = StepPcurveDecoder.DecodeForSurface(
+                            document,
+                            edgeGeometryEntity.Value,
+                            sourceSurfaceEntityId,
+                            edgeBinding.TrimInterval ?? new ParameterInterval(0d, 1d));
+                        if (!pcurveCandidates.IsSuccess) return KernelResult<BrepBody>.Failure(pcurveCandidates.Diagnostics);
+                        if (pcurveCandidates.Value.Count > 0)
+                            loopPcurveCandidates.Add(coedge.Id, pcurveCandidates.Value);
+                    }
                     var sampleResult = SampleCoedgePoints(
                         bindings.GetEdgeBinding(edgeIdResult.Value),
                         geometry,
@@ -497,7 +514,7 @@ public static class Step242Importer
                     hasDisconnectedCoedgeGap = true;
                 }
 
-                loopData.Add(new LoopBuildData(loopId, loopCoedges, loopSamples, hasDisconnectedCoedgeGap, isDeclaredOuter, boundEntity.Id));
+                loopData.Add(new LoopBuildData(loopId, loopCoedges, loopSamples, hasDisconnectedCoedgeGap, isDeclaredOuter, boundEntity.Id, loopPcurveCandidates));
             }
 
             var classifyResult = ClassifyAndNormalizeFaceLoops(faceEntity.Id, loopData, bindSurfaceResult.Value.SurfaceGeometry);
@@ -522,8 +539,11 @@ public static class Step242Importer
                 builder.AddLoop(new Loop(loop.LoopId, loop.Coedges.Select(c => c.Id).ToList()));
                 coedges.AddRange(loop.Coedges);
             }
+            foreach (var vertexLoop in vertexLoopData)
+                builder.AddLoop(Loop.VertexLoop(vertexLoop.LoopId, vertexLoop.VertexId));
 
-            var faceLoopIds = classifyResult.Value.Select(l => l.LoopId).ToList();
+            var faceLoopIds = classifyResult.Value.Select(l => l.LoopId)
+                .Concat(vertexLoopData.Select(loop => loop.LoopId)).ToList();
 
             var faceId = builder.AddFace(faceLoopIds);
             faceIds.Add(faceId);
@@ -540,7 +560,15 @@ public static class Step242Importer
                 surfaceGeometryId,
                 ResolvedFaceOrientation.Aligned,
                 SourceStepEntityId: faceEntity.Id));
-            var hasDeclaredOuter = classifyResult.Value.Any(loop => loop.IsDeclaredOuter);
+            foreach (var loop in classifyResult.Value)
+            {
+                var pcurveBindings = ResolveLoopPcurveBindings(loop, faceId, surfaceGeometryId, surfaceGeometry, bindings,
+                    double.Max(1e-6d, document.SourceDistanceAccuracyMillimetres ?? 0d));
+                if (!pcurveBindings.IsSuccess) return KernelResult<BrepBody>.Failure(pcurveBindings.Diagnostics);
+                foreach (var pcurve in pcurveBindings.Value) bindings.AddPcurveBinding(pcurve);
+            }
+            var hasDeclaredOuter = classifyResult.Value.Any(loop => loop.IsDeclaredOuter)
+                || vertexLoopData.Any(loop => loop.IsDeclaredOuter);
             for (var loopIndex = 0; loopIndex < classifyResult.Value.Count; loopIndex++)
             {
                 var loop = classifyResult.Value[loopIndex];
@@ -548,6 +576,21 @@ public static class Step242Importer
                     ? loop.IsDeclaredOuter ? FaceBoundaryRole.Outer : FaceBoundaryRole.Inner
                     : loopIndex == 0 ? FaceBoundaryRole.Outer : FaceBoundaryRole.Inner;
                 bindings.AddFaceBoundaryRoleBinding(new FaceBoundaryRoleBinding(faceId, loop.LoopId, role, loop.SourceBoundEntityId));
+            }
+            foreach (var vertexLoop in vertexLoopData)
+            {
+                var role = hasDeclaredOuter
+                    ? vertexLoop.IsDeclaredOuter ? FaceBoundaryRole.Outer : FaceBoundaryRole.Inner
+                    : faceLoopIds[0] == vertexLoop.LoopId ? FaceBoundaryRole.Outer : FaceBoundaryRole.Inner;
+                bindings.AddFaceBoundaryRoleBinding(new FaceBoundaryRoleBinding(faceId, vertexLoop.LoopId, role, vertexLoop.SourceBoundEntityId));
+                bindings.AddVertexLoopParameterBinding(new VertexLoopParameterBinding(
+                    vertexLoop.LoopId,
+                    faceId,
+                    surfaceGeometryId,
+                    vertexLoop.VertexId,
+                    TryProjectVertexLoopParameter(vertexLoop.Point, surfaceGeometry),
+                    vertexLoop.SourceLoopEntityId,
+                    vertexLoop.SourceVertexEntityId));
             }
             importedFacePatches.Add(new ImportedFacePatch(
                 faceId,
@@ -619,6 +662,20 @@ public static class Step242Importer
             return KernelResult<BrepBody>.Failure(shellRoleDiagnostics
                 .Concat(surfaceBindingDiagnostics)
                 .Concat(orientation.Diagnostics));
+        }
+
+        if (orientation.Value.Bindings.PcurveBindings.Any())
+        {
+            var pcurveTolerance = double.Max(1e-6d, document.SourceDistanceAccuracyMillimetres ?? 0d);
+            var pcurveEvidence = BrepPcurveValidator.Validate(orientation.Value, pcurveTolerance);
+            if (!pcurveEvidence.IsValid)
+            {
+                return KernelResult<BrepBody>.Failure(pcurveEvidence.Diagnostics.Select(message => new KernelDiagnostic(
+                    KernelDiagnosticCode.ValidationFailed,
+                    KernelDiagnosticSeverity.Error,
+                    message,
+                    "Importer.Pcurve.Consistency")).ToArray());
+            }
         }
 
         var validation = BrepBindingValidator.Validate(orientation.Value, requireAllEdgeAndFaceBindings: true);
@@ -1095,7 +1152,7 @@ public static class Step242Importer
         return KernelResult<ParameterInterval>.Success(new(start, end));
     }
 
-    private static Step242ParsedEntity? ResolveBSplineCurveEntity(Step242ParsedEntity curveEntity)
+    internal static Step242ParsedEntity? ResolveBSplineCurveEntity(Step242ParsedEntity curveEntity)
     {
         var splineWithKnotsConstructor = Step242SubsetDecoder.TryGetConstructor(curveEntity.Instance, "B_SPLINE_CURVE_WITH_KNOTS");
         if (splineWithKnotsConstructor is null)
@@ -3007,6 +3064,130 @@ public static class Step242Importer
         return uv;
     }
 
+    private static SurfaceParameterPoint? TryProjectVertexLoopParameter(Point3D point, SurfaceGeometry surface)
+    {
+        IReadOnlyList<UvPoint> projected = surface.Kind switch
+        {
+            SurfaceGeometryKind.Plane when surface.Plane is PlaneSurface plane => ProjectLoopToPlane([point], plane),
+            SurfaceGeometryKind.Cylinder when surface.Cylinder is CylinderSurface cylinder => ProjectLoopToCylinder([point], cylinder),
+            SurfaceGeometryKind.Cone when surface.Cone is ConeSurface cone => ProjectLoopToCone([point], cone),
+            SurfaceGeometryKind.Sphere when surface.Sphere is SphereSurface sphere => ProjectLoopToSphere([point], sphere),
+            SurfaceGeometryKind.Torus when surface.Torus is TorusSurface torus => ProjectLoopToTorus([point], torus),
+            _ => []
+        };
+        return projected.Count == 0 ? null : new SurfaceParameterPoint(projected[0].X, projected[0].Y);
+    }
+
+    private static KernelResult<IReadOnlyList<CoedgePcurveBinding>> ResolveLoopPcurveBindings(
+        LoopBuildData loop,
+        FaceId faceId,
+        SurfaceGeometryId surfaceGeometryId,
+        SurfaceGeometry surface,
+        BrepBindingModel bindings,
+        double tolerance)
+    {
+        if (loop.PcurveCandidates is null || loop.PcurveCandidates.Count == 0)
+            return KernelResult<IReadOnlyList<CoedgePcurveBinding>>.Success([]);
+
+        var uses = loop.Coedges.Where(coedge => loop.PcurveCandidates.ContainsKey(coedge.Id)).ToArray();
+        var solutions = new List<(double Score, ImportedStepPcurve[] Selection)>();
+        var selected = new ImportedStepPcurve[uses.Length];
+        var usedByEdge = new Dictionary<EdgeId, HashSet<int>>();
+
+        void Search(int index)
+        {
+            if (index == uses.Length)
+            {
+                var score = 0d;
+                for (var i = 0; i < uses.Length; i++)
+                {
+                    var current = TraversalEndpoints(uses[i], selected[i]);
+                    var next = TraversalEndpoints(uses[(i + 1) % uses.Length], selected[(i + 1) % uses.Length]);
+                    score += RawUvDistance(current.End, next.Start);
+                }
+                solutions.Add((score, selected.ToArray()));
+                return;
+            }
+
+            var use = uses[index];
+            if (!usedByEdge.TryGetValue(use.EdgeId, out var used)) usedByEdge[use.EdgeId] = used = [];
+            foreach (var candidate in loop.PcurveCandidates[use.Id].OrderBy(candidate => candidate.PcurveEntityId))
+            {
+                if (!used.Add(candidate.PcurveEntityId)) continue;
+                selected[index] = candidate;
+                Search(index + 1);
+                used.Remove(candidate.PcurveEntityId);
+            }
+        }
+
+        Search(0);
+        if (solutions.Count == 0)
+            return OrientationFailure<IReadOnlyList<CoedgePcurveBinding>>(
+                $"Loop {loop.LoopId.Value} cannot assign distinct pcurves to repeated edge uses.",
+                "Importer.Pcurve.SeamAssignment");
+        var ordered = solutions.OrderBy(solution => solution.Score).ToArray();
+        var best = ordered[0];
+        var scale = System.Math.Max(1d, best.Score);
+        if (ordered.Length > 1 && System.Math.Abs(ordered[1].Score - best.Score) <= 1e-12d * scale
+            && !ordered[1].Selection.Select(candidate => candidate.PcurveEntityId)
+                .SequenceEqual(best.Selection.Select(candidate => candidate.PcurveEntityId))
+            && !ordered[1].Selection.Zip(best.Selection)
+                .All(pair => EquivalentPcurveUse(pair.First, pair.Second)))
+            return OrientationFailure<IReadOnlyList<CoedgePcurveBinding>>(
+                $"Loop {loop.LoopId.Value} has ambiguous seam-side pcurve assignment; no source flag was used to guess.",
+                "Importer.Pcurve.SeamAssignmentAmbiguous");
+
+        var result = new List<CoedgePcurveBinding>(uses.Length);
+        for (var i = 0; i < uses.Length; i++)
+        {
+            var candidate = best.Selection[i];
+            result.Add(new CoedgePcurveBinding(
+                uses[i].Id,
+                faceId,
+                surfaceGeometryId,
+                candidate.Geometry,
+                SameSense: candidate.SameSense,
+                candidate.PcurveEntityId,
+                candidate.CurveEntityId,
+                candidate.CurveType,
+                candidate.SurfaceEntityId));
+        }
+        return KernelResult<IReadOnlyList<CoedgePcurveBinding>>.Success(result);
+
+        (SurfaceParameterPoint Start, SurfaceParameterPoint End) TraversalEndpoints(Coedge use, ImportedStepPcurve candidate)
+        {
+            var start = candidate.Geometry.Evaluate(candidate.Geometry.Domain.Start);
+            var end = candidate.Geometry.Evaluate(candidate.Geometry.Domain.End);
+            var edge = bindings.GetEdgeBinding(use.EdgeId);
+            return use.IsReversed ^ !edge.OrientedEdgeSense ^ !candidate.SameSense ? (end, start) : (start, end);
+        }
+
+        bool EquivalentPcurveUse(ImportedStepPcurve left, ImportedStepPcurve right)
+        {
+            if (left.SameSense != right.SameSense) return false;
+            for (var index = 0; index < 3; index++)
+            {
+                var fraction = index / 2d;
+                var leftParameter = left.Geometry.Domain.Start + (left.Geometry.Domain.End - left.Geometry.Domain.Start) * fraction;
+                var rightParameter = right.Geometry.Domain.Start + (right.Geometry.Domain.End - right.Geometry.Domain.Start) * fraction;
+                var a = left.Geometry.Evaluate(leftParameter);
+                var b = right.Geometry.Evaluate(rightParameter);
+                var coordinateScale = System.Math.Max(1d, System.Math.Max(
+                    System.Math.Max(double.Abs(a.U), double.Abs(a.V)),
+                    System.Math.Max(double.Abs(b.U), double.Abs(b.V))));
+                if (RawUvDistance(a, b) > tolerance * coordinateScale) return false;
+            }
+            return true;
+        }
+    }
+
+    private static double RawUvDistance(SurfaceParameterPoint left, SurfaceParameterPoint right)
+    {
+        var du = left.U - right.U;
+        var dv = left.V - right.V;
+        return double.Sqrt(du * du + dv * dv);
+    }
+
     private static List<UvPoint> ProjectLoopToCylinder(IReadOnlyList<Point3D> samples, CylinderSurface cylinder)
     {
         var axis = cylinder.Axis.ToVector();
@@ -4084,7 +4265,17 @@ public static class Step242Importer
         IReadOnlyList<Point3D> Samples,
         bool HasDisconnectedCoedgeGap = false,
         bool IsDeclaredOuter = false,
-        int? SourceBoundEntityId = null);
+        int? SourceBoundEntityId = null,
+        IReadOnlyDictionary<CoedgeId, IReadOnlyList<ImportedStepPcurve>>? PcurveCandidates = null);
+
+    private sealed record VertexLoopBuildData(
+        LoopId LoopId,
+        VertexId VertexId,
+        Point3D Point,
+        bool IsDeclaredOuter,
+        int SourceBoundEntityId,
+        int SourceLoopEntityId,
+        int SourceVertexEntityId);
 
     private sealed record PlanarLoopInfo(LoopBuildData Loop, IReadOnlyList<UvPoint> ProjectedPoints, double SignedArea);
 

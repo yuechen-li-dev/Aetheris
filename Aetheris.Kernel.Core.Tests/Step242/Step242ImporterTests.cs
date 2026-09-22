@@ -6,6 +6,7 @@ using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
+using Aetheris.Kernel.Core.Topology;
 
 namespace Aetheris.Kernel.Core.Tests.Step242;
 
@@ -469,7 +470,12 @@ public sealed class Step242ImporterTests
         Assert.True(import.IsSuccess);
         Assert.Single(import.Value.Topology.Faces);
         var face = Assert.Single(import.Value.Topology.Faces);
-        Assert.Empty(import.Value.GetLoopIds(face.Id));
+        var loop = import.Value.Topology.GetLoop(Assert.Single(import.Value.GetLoopIds(face.Id)));
+        Assert.Equal(LoopKind.Vertex, loop.Kind);
+        Assert.NotNull(loop.VertexLoopVertexId);
+        Assert.Empty(loop.CoedgeIds);
+        Assert.True(import.Value.Bindings.TryGetVertexLoopParameterBinding(loop.Id, out var vertexLoop));
+        Assert.Equal(face.Id, vertexLoop.FaceId);
     }
 
     [Fact]

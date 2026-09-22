@@ -29,6 +29,15 @@ public static class TopologyGraphValidator
 
         foreach (var loop in model.Loops)
         {
+            if (loop.Kind == LoopKind.Vertex)
+            {
+                if (loop.CoedgeIds.Count != 0)
+                    diagnostics.Add(Error($"Vertex loop {loop.Id.Value} must not reference coedges."));
+                if (loop.VertexLoopVertexId is not VertexId vertexId || !model.TryGetVertex(vertexId, out _))
+                    diagnostics.Add(Error($"Vertex loop {loop.Id.Value} references a missing vertex."));
+                continue;
+            }
+
             if (loop.CoedgeIds.Count == 0)
             {
                 diagnostics.Add(Error($"Loop {loop.Id.Value} does not reference any coedges."));

@@ -286,13 +286,15 @@ public static class BrepDisplayTessellator
 
     private static KernelResult<DisplayFaceMeshPatch> TessellatePlanarFace(BrepBody body, FaceId faceId, PlaneSurface plane, DisplayTessellationOptions options, DisplayTessellationExecutionBudget? executionBudget = null)
     {
-        var loopIds = body.GetLoopIds(faceId);
-        if (loopIds.Count == 0)
+        var loopIds = body.GetLoopIds(faceId)
+            .Where(loopId => body.Topology.GetLoop(loopId).Kind == LoopKind.Edge)
+            .ToArray();
+        if (loopIds.Length == 0)
         {
             return KernelResult<DisplayFaceMeshPatch>.Failure([CreateNotImplemented($"Face {faceId.Value} planar tessellation requires at least one loop.")]);
         }
 
-        if (loopIds.Count == 1)
+        if (loopIds.Length == 1)
         {
             var simpleLoopPoints = ExecuteWithinOptionalBudget(
                 () => FlattenPlanarLoop(body, faceId, plane, options, loopIds[0]),
@@ -675,8 +677,10 @@ public static class BrepDisplayTessellator
 
     private static KernelResult<DisplayFaceMeshPatch> TessellateCylinderFace(BrepBody body, FaceId faceId, CylinderSurface cylinder, DisplayTessellationOptions options, DisplayTessellationExecutionBudget? executionBudget = null)
     {
-        var loopIds = body.GetLoopIds(faceId);
-        if (loopIds.Count == 2
+        var loopIds = body.GetLoopIds(faceId)
+            .Where(loopId => body.Topology.GetLoop(loopId).Kind == LoopKind.Edge)
+            .ToArray();
+        if (loopIds.Length == 2
             && TryResolveDualSingleCoedgeClosedCircleCylinderTrimPatch(body, faceId, cylinder, loopIds, cylinder.Axis.ToVector(), 1e-8d).IsSuccess)
         {
             // A seamless cylindrical band (hole wall or boss) is bounded by two full circles. In UV those are two
@@ -685,7 +689,7 @@ public static class BrepDisplayTessellator
             return TessellateLegacyCylinderFace(body, faceId, cylinder, options);
         }
 
-        if (loopIds.Count > 1)
+        if (loopIds.Length > 1)
         {
             var uvLoopsResult = TryBuildPeriodicTrimmedSurfaceUvLoops(body, faceId, loopIds, point => TryProjectPointToCylinderUv(cylinder, point), options, executionBudget, SurfaceGeometryKind.Cylinder);
             if (!uvLoopsResult.IsSuccess)
@@ -717,13 +721,17 @@ public static class BrepDisplayTessellator
 
     private static KernelResult<DisplayFaceMeshPatch> TessellateConeFace(BrepBody body, FaceId faceId, ConeSurface cone, DisplayTessellationOptions options, DisplayTessellationExecutionBudget? executionBudget = null)
     {
-        var loopIds = body.GetLoopIds(faceId);
+        // A cone-apex VERTEX_LOOP is a preserved zero-dimensional boundary, not an
+        // area-trim curve. Only edge loops participate in UV polygon tessellation.
+        var loopIds = body.GetLoopIds(faceId)
+            .Where(loopId => body.Topology.GetLoop(loopId).Kind == LoopKind.Edge)
+            .ToArray();
         if (TryResolveFullPeriodicConeBetweenCircularTrimLoops(body, faceId, loopIds, cone, options, out var fullFrustumPatch, out var fullFrustumDiagnostics))
         {
             return KernelResult<DisplayFaceMeshPatch>.Success(fullFrustumPatch, fullFrustumDiagnostics);
         }
 
-        if (loopIds.Count > 0)
+        if (loopIds.Length > 0)
         {
             var uvLoopsResult = TryBuildPeriodicTrimmedSurfaceUvLoops(body, faceId, loopIds, point => TryProjectPointToConeUv(cone, point), options, executionBudget, SurfaceGeometryKind.Cone);
             if (!uvLoopsResult.IsSuccess)
@@ -735,7 +743,7 @@ public static class BrepDisplayTessellator
                         TrimEvaluationFailedSource)]);
             }
 
-            if (loopIds.Count == 1 && UsesFullPeriodicAngularSpan(uvLoopsResult.Value) && UsesSimpleAnalyticRevolvedLoopTopology(body, loopIds[0]))
+            if (loopIds.Length == 1 && UsesFullPeriodicAngularSpan(uvLoopsResult.Value) && UsesSimpleAnalyticRevolvedLoopTopology(body, loopIds[0]))
             {
                 return TessellateLegacyConeFace(body, faceId, cone, options);
             }
@@ -1006,8 +1014,10 @@ public static class BrepDisplayTessellator
     private static KernelResult<DisplayFaceMeshPatch> TessellateBSplineSurfaceFace(BrepBody body, FaceId faceId, BSplineSurfaceWithKnots surface, DisplayTessellationOptions options, DisplayTessellationExecutionBudget? executionBudget = null)
     {
         executionBudget?.ThrowIfExpired("BSplineSurface.Start", faceId, SurfaceGeometryKind.BSplineSurfaceWithKnots);
-        var loopIds = body.GetLoopIds(faceId);
-        if (loopIds.Count == 0)
+        var loopIds = body.GetLoopIds(faceId)
+            .Where(loopId => body.Topology.GetLoop(loopId).Kind == LoopKind.Edge)
+            .ToArray();
+        if (loopIds.Length == 0)
         {
             return KernelResult<DisplayFaceMeshPatch>.Success(CreateBoundedGridPatch(
                 faceId,
@@ -1892,8 +1902,10 @@ public static class BrepDisplayTessellator
 
     private static KernelResult<DisplayFaceMeshPatch> TessellateTorusFace(BrepBody body, FaceId faceId, TorusSurface torus, DisplayTessellationOptions options, DisplayTessellationExecutionBudget? executionBudget = null)
     {
-        var loopIds = body.GetLoopIds(faceId);
-        if (loopIds.Count == 2 && TryResolveCoaxialCirclePairTorusBand(body, torus, loopIds, out var bandVStart, out var bandVEnd))
+        var loopIds = body.GetLoopIds(faceId)
+            .Where(loopId => body.Topology.GetLoop(loopId).Kind == LoopKind.Edge)
+            .ToArray();
+        if (loopIds.Length == 2 && TryResolveCoaxialCirclePairTorusBand(body, torus, loopIds, out var bandVStart, out var bandVEnd))
         {
             // Two full parallel circles bound a band of the tube: the generic trim path sees two degenerate
             // (zero-area) loops in UV, so tessellate the band directly as a periodic grid.
@@ -1907,7 +1919,7 @@ public static class BrepDisplayTessellator
                 bandVEnd));
         }
 
-        if (loopIds.Count > 0)
+        if (loopIds.Length > 0)
         {
             var uvLoopsResult = TryBuildDoublyPeriodicTrimmedSurfaceUvLoops(body, faceId, loopIds, point => TryProjectPointToTorusUv(torus, point), options, executionBudget, SurfaceGeometryKind.Torus);
             if (!uvLoopsResult.IsSuccess)
@@ -2128,8 +2140,10 @@ public static class BrepDisplayTessellator
 
     private static KernelResult<IReadOnlyList<Coedge>> TryGetSupportedRevolvedCoedges(BrepBody body, FaceId faceId)
     {
-        var loopIds = body.GetLoopIds(faceId);
-        if (loopIds.Count == 1)
+        var loopIds = body.GetLoopIds(faceId)
+            .Where(loopId => body.Topology.GetLoop(loopId).Kind == LoopKind.Edge)
+            .ToArray();
+        if (loopIds.Length == 1)
         {
             var singleLoopCoedges = body.GetCoedgeIds(loopIds[0])
                 .Select(id => body.Topology.GetCoedge(id))
@@ -3034,16 +3048,18 @@ public static class BrepDisplayTessellator
         FaceId faceId,
         SphereSurface sphere)
     {
-        var loopIds = body.GetLoopIds(faceId);
-        if (loopIds.Count == 0)
+        var loopIds = body.GetLoopIds(faceId)
+            .Where(loopId => body.Topology.GetLoop(loopId).Kind == LoopKind.Edge)
+            .ToArray();
+        if (loopIds.Length == 0)
         {
             return KernelResult<(double, double, double, double)>.Success((0d, 2d * double.Pi, -double.Pi / 2d, double.Pi / 2d));
         }
 
-        if (loopIds.Count != 1)
+        if (loopIds.Length != 1)
         {
             return KernelResult<(double, double, double, double)>.Failure([
-                CreateNotImplemented($"Face {faceId.Value} sphere tessellation currently supports exactly one trim loop. Observed {loopIds.Count} loops.")]);
+                CreateNotImplemented($"Face {faceId.Value} sphere tessellation currently supports exactly one edge trim loop. Observed {loopIds.Length} edge loops.")]);
         }
 
         var coedges = body.GetCoedgeIds(loopIds[0]).Select(id => body.Topology.GetCoedge(id)).ToArray();

@@ -1732,6 +1732,15 @@ public sealed record VolumeAnalysisResult(
                 orientation.Faces.GroupBy(face => face.SourceEvidence.StepSameSense switch { true => "true", false => "false", null => "missing" })
                     .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal),
                 orientation.Faces.GroupBy(face => face.Qualification.ToString())
+                    .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal)),
+            new BoundaryTopologySummary(
+                topology.Loops.Count(loop => loop.Kind == LoopKind.Edge),
+                topology.Loops.Count(loop => loop.Kind == LoopKind.Vertex),
+                body.Bindings.PcurveBindings.Count(),
+                body.Bindings.PcurveBindings
+                    .GroupBy(binding => (topology.GetCoedge(binding.CoedgeId).EdgeId, binding.SurfaceGeometryId))
+                    .Count(group => group.Count() > 1),
+                body.Bindings.PcurveBindings.GroupBy(binding => binding.SourceCurveType ?? binding.Pcurve.Kind.ToString())
                     .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal)));
     }
 
@@ -1739,6 +1748,7 @@ public sealed record VolumeAnalysisResult(
     {
         foreach (var loop in body.Topology.Loops.OrderBy(loop => loop.Id.Value))
         {
+            if (loop.Kind == LoopKind.Vertex) continue;
             if (loop.CoedgeIds.Count == 0) { disconnectedLoop = loop.Id.Value; return false; }
             for (var index = 0; index < loop.CoedgeIds.Count; index++)
             {

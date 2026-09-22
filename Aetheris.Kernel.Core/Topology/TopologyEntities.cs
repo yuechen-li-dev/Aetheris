@@ -24,10 +24,21 @@ public sealed record Coedge(
     CoedgeId PrevCoedgeId,
     bool IsReversed);
 
+public enum LoopKind { Edge, Vertex }
+
 /// <summary>
-/// Topology-only loop that owns ordered coedges.
+/// Topology-only boundary loop. An edge loop owns ordered coedges; a vertex loop
+/// owns one explicit vertex at a collapsed support boundary.
 /// </summary>
-public sealed record Loop(LoopId Id, IReadOnlyList<CoedgeId> CoedgeIds);
+public sealed record Loop(
+    LoopId Id,
+    IReadOnlyList<CoedgeId> CoedgeIds,
+    VertexId? VertexLoopVertexId = null)
+{
+    public LoopKind Kind => VertexLoopVertexId is null ? LoopKind.Edge : LoopKind.Vertex;
+
+    public static Loop VertexLoop(LoopId id, VertexId vertexId) => new(id, [], vertexId);
+}
 
 /// <summary>
 /// Topology-only face that owns loops.

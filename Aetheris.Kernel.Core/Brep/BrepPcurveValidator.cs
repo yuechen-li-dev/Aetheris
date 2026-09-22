@@ -155,15 +155,16 @@ public static class BrepPcurveValidator
 
     private static double UvDistance(SurfaceGeometry surface, SurfaceParameterPoint a, SurfaceParameterPoint b)
     {
-        var du = a.U - b.U;
-        if (surface.Kind == SurfaceGeometryKind.Cylinder)
-        {
-            while (du > double.Pi) du -= 2d * double.Pi;
-            while (du < -double.Pi) du += 2d * double.Pi;
-        }
-        var dv = a.V - b.V;
+        var periodicity = SurfacePeriodicity.Of(surface);
+        var du = PeriodicDelta(a.U - b.U, periodicity.UPeriod);
+        var dv = PeriodicDelta(a.V - b.V, periodicity.VPeriod);
         return double.Sqrt((du * du) + (dv * dv));
     }
+
+    private static double PeriodicDelta(double delta, double? period)
+        => period is double value && value > 0d && double.IsFinite(value)
+            ? delta - double.Round(delta / value) * value
+            : delta;
 
     private static bool FiniteOrdered(ParameterInterval interval) => double.IsFinite(interval.Start) && double.IsFinite(interval.End) && interval.End >= interval.Start;
 
@@ -171,6 +172,9 @@ public static class BrepPcurveValidator
     {
         SurfaceGeometryKind.Plane => surface.Plane!.Value.Evaluate(uv.U, uv.V),
         SurfaceGeometryKind.Cylinder => surface.Cylinder!.Value.Evaluate(uv.U, uv.V),
+        SurfaceGeometryKind.Cone => surface.Cone!.Value.Evaluate(uv.U, uv.V),
+        SurfaceGeometryKind.Sphere => surface.Sphere!.Value.Evaluate(uv.U, uv.V),
+        SurfaceGeometryKind.Torus => surface.Torus!.Value.Evaluate(uv.U, uv.V),
         SurfaceGeometryKind.BSplineSurfaceWithKnots => surface.BSplineSurfaceWithKnots!.Evaluate(uv.U, uv.V),
         _ => null
     };

@@ -116,8 +116,9 @@ END-ISO-10303-21;";
 
         var report = Assert.IsType<FaceOrientationReport>(import.Value.FaceOrientationReport);
         Assert.All(report.Faces, face => Assert.Equal(FaceOrientationQualification.DerivedQualified, face.Qualification));
-        Assert.True(report.SourceMismatchCount > 0);
-        Assert.Contains(import.Diagnostics, diagnostic => diagnostic.Source == "Importer.StepOrientation.SourceOrientationMismatch");
+        Assert.Equal(report.Faces.Count, report.SourceAgreementCount + report.SourceMismatchCount);
+        Assert.Equal(report.SourceMismatchCount > 0,
+            import.Diagnostics.Any(diagnostic => diagnostic.Source == "Importer.StepOrientation.SourceOrientationMismatch"));
 
         var export = Step242Exporter.ExportBody(import.Value);
         Assert.True(export.IsSuccess);

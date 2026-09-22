@@ -799,7 +799,14 @@ public static class BrepMassProperties
                 if (!body.Topology.TryGetFace(faceId, out var face) || face is null) { loopsClosed = false; messages.Add($"Shell {shell.Id.Value} references missing face {faceId.Value}."); continue; }
                 foreach (var loopId in face.LoopIds)
                 {
-                    if (!body.Topology.TryGetLoop(loopId, out var loop) || loop is null || loop.CoedgeIds.Count == 0) { loopsClosed = false; messages.Add($"Face {faceId.Value} has missing or empty loop {loopId.Value}."); continue; }
+                    if (!body.Topology.TryGetLoop(loopId, out var loop) || loop is null) { loopsClosed = false; messages.Add($"Face {faceId.Value} has missing loop {loopId.Value}."); continue; }
+                    if (loop.Kind == LoopKind.Vertex)
+                    {
+                        if (loop.VertexLoopVertexId is not VertexId vertexId || !body.Topology.TryGetVertex(vertexId, out _))
+                        { loopsClosed = false; messages.Add($"Vertex loop {loopId.Value} has no valid vertex."); }
+                        continue;
+                    }
+                    if (loop.CoedgeIds.Count == 0) { loopsClosed = false; messages.Add($"Face {faceId.Value} has empty edge loop {loopId.Value}."); continue; }
                     for (var i = 0; i < loop.CoedgeIds.Count; i++)
                     {
                         if (!body.Topology.TryGetCoedge(loop.CoedgeIds[i], out var coedge) || coedge is null || !body.Topology.TryGetEdge(coedge.EdgeId, out var edge) || edge is null) { loopsClosed = false; messages.Add($"Loop {loopId.Value} references missing coedge or edge."); continue; }
@@ -828,7 +835,7 @@ public static class BrepMassProperties
         }
         var closedParametricSurface = edgeUses.Count == 0
             && body.Topology.Faces.Any()
-            && body.Topology.Faces.All(face => face.LoopIds.Count == 0
+            && body.Topology.Faces.All(face => face.LoopIds.All(loopId => body.Topology.GetLoop(loopId).Kind == LoopKind.Vertex)
                 && body.TryGetFaceSurfaceGeometry(face.Id, out var surface)
                 && surface?.Kind == SurfaceGeometryKind.Sphere);
         var manifold = (edgeUses.Count > 0 && edgeUses.All(pair => pair.Value.Count == 2)) || closedParametricSurface;

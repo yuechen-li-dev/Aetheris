@@ -26,7 +26,15 @@ public sealed record AnalyzeSummary(
     IdRangeSummary FaceIds,
     IdRangeSummary EdgeIds,
     IdRangeSummary VertexIds,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FaceOrientationSummary? FaceOrientation = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FaceOrientationSummary? FaceOrientation = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] BoundaryTopologySummary? BoundaryTopology = null);
+
+public sealed record BoundaryTopologySummary(
+    int EdgeLoopCount,
+    int VertexLoopCount,
+    int PcurveCount,
+    int SeamPcurvePairCount,
+    IReadOnlyDictionary<string, int> PcurveTypes);
 
 public sealed record FaceOrientationSummary(
     int DerivedFaces,

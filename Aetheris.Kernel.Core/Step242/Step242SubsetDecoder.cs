@@ -557,7 +557,7 @@ internal static class Step242SubsetDecoder
         }
     }
 
-    public static KernelResult<BSpline3Curve> ReadBSplineCurveWithKnots(Step242ParsedDocument document, Step242ParsedEntity splineEntity)
+    public static KernelResult<BSpline3Curve> ReadBSplineCurveWithKnots(Step242ParsedDocument document, Step242ParsedEntity splineEntity, bool allowTwoDimensionalControlPoints = false)
     {
         var degreeResult = ReadIntArgument(splineEntity, 1, "B_SPLINE_CURVE_WITH_KNOTS degree", "Importer.Geometry.BSplineCurve");
         if (!degreeResult.IsSuccess)
@@ -565,7 +565,7 @@ internal static class Step242SubsetDecoder
             return KernelResult<BSpline3Curve>.Failure(degreeResult.Diagnostics);
         }
 
-        var controlPointsResult = ReadCartesianPointReferenceList(document, splineEntity, 2, "B_SPLINE_CURVE_WITH_KNOTS control_points_list");
+        var controlPointsResult = ReadCartesianPointReferenceList(document, splineEntity, 2, "B_SPLINE_CURVE_WITH_KNOTS control_points_list", allowTwoDimensionalControlPoints);
         if (!controlPointsResult.IsSuccess)
         {
             return KernelResult<BSpline3Curve>.Failure(controlPointsResult.Diagnostics);
@@ -1184,7 +1184,8 @@ internal static class Step242SubsetDecoder
         Step242ParsedDocument document,
         Step242ParsedEntity ownerEntity,
         int argumentIndex,
-        string context)
+        string context,
+        bool allowTwoDimensional = false)
     {
         if (argumentIndex < 0 || argumentIndex >= ownerEntity.Arguments.Count)
         {
@@ -1210,7 +1211,9 @@ internal static class Step242SubsetDecoder
                 return KernelResult<IReadOnlyList<Point3D>>.Failure(pointEntityResult.Diagnostics);
             }
 
-            var pointResult = ReadCartesianPoint(pointEntityResult.Value, context);
+            var pointResult = allowTwoDimensional
+                ? ReadCartesianPoint2DOr3D(pointEntityResult.Value, context)
+                : ReadCartesianPoint(pointEntityResult.Value, context);
             if (!pointResult.IsSuccess)
             {
                 return KernelResult<IReadOnlyList<Point3D>>.Failure(pointResult.Diagnostics);
@@ -1220,6 +1223,22 @@ internal static class Step242SubsetDecoder
         }
 
         return KernelResult<IReadOnlyList<Point3D>>.Success(points);
+    }
+
+    private static KernelResult<Point3D> ReadCartesianPoint2DOr3D(Step242ParsedEntity pointEntity, string context)
+    {
+        if (pointEntity.Arguments.Count < 2 || pointEntity.Arguments[1] is not Step242ListValue coordinates
+            || coordinates.Items.Count is < 2 or > 3)
+            return FailurePoint($"{context}: CARTESIAN_POINT coordinates must be a 2- or 3-item list.", $"Entity:{pointEntity.Id}");
+        var x = ReadNumber(coordinates.Items[0], context, pointEntity.Id);
+        var y = ReadNumber(coordinates.Items[1], context, pointEntity.Id);
+        if (!x.IsSuccess) return KernelResult<Point3D>.Failure(x.Diagnostics);
+        if (!y.IsSuccess) return KernelResult<Point3D>.Failure(y.Diagnostics);
+        if (coordinates.Items.Count == 2) return KernelResult<Point3D>.Success(new Point3D(x.Value, y.Value, 0d));
+        var z = ReadNumber(coordinates.Items[2], context, pointEntity.Id);
+        return z.IsSuccess
+            ? KernelResult<Point3D>.Success(new Point3D(x.Value, y.Value, z.Value))
+            : KernelResult<Point3D>.Failure(z.Diagnostics);
     }
 
     private static KernelResult<IReadOnlyList<IReadOnlyList<Point3D>>> ReadCartesianPointReferenceNet(

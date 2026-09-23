@@ -7,18 +7,35 @@ using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Topology;
+using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.Kernel.Firmament.Materializer;
 
 internal static class WireCoilAuthoring
 {
+    private const string RadiusField = "Radius";
+    private const string TurnsField = "Turns";
+    private const string PitchField = "Pitch";
+    private const string HeightField = "Height";
+    private const string HandednessField = "Handedness";
+    private const string StartPhaseField = "StartPhase";
+    // This is the same bounded Axis/Helix contract consumed by CreateAxis below.
+    internal static readonly IReadOnlyList<FirmamentAuthoringField> AxisFields =
+    [
+        new(RadiusField, "Length", true, "Centerline radius."),
+        new(TurnsField, "Scalar", true, "Number of complete winding turns."),
+        new(PitchField, "Length", false, "Axial distance per turn. Supply Pitch or Height."),
+        new(HeightField, "Length", false, "Total axial span. Supply Height or Pitch."),
+        new(HandednessField, "Enum", false, "Winding direction.", "RightHanded", ["RightHanded", "LeftHanded"]),
+        new(StartPhaseField, "Angle", false, "Rotation of the starting radial frame.", "0deg")
+    ];
     private const double ApproximationTolerance = 0.01d;
 
     internal static KernelResult<WireAxisCoilAir> CreateAxis(string name, int ordinal, string body, WireState input, double diameter)
     {
-        if (!Length(body, "Radius", out var radius) || radius <= 0d) return FailAxis("wireform-coil-radius-invalid", name, "Radius must be finite and greater than zero.");
-        if (!Number(body, "Turns", out var turns) || turns <= 0d) return FailAxis("wireform-coil-turns-invalid", name, "Turns must be finite and greater than zero.");
-        var hasPitch = Length(body, "Pitch", out var pitch); var hasHeight = Length(body, "Height", out var height);
+        if (!Length(body, RadiusField, out var radius) || radius <= 0d) return FailAxis("wireform-coil-radius-invalid", name, "Radius must be finite and greater than zero.");
+        if (!Number(body, TurnsField, out var turns) || turns <= 0d) return FailAxis("wireform-coil-turns-invalid", name, "Turns must be finite and greater than zero.");
+        var hasPitch = Length(body, PitchField, out var pitch); var hasHeight = Length(body, HeightField, out var height);
         if (!hasPitch && !hasHeight) return FailAxis("wireform-coil-parameters-inconsistent", name, "Specify Turns and either Pitch or Height.");
         if (hasPitch && pitch <= 0d || hasHeight && height <= 0d) return FailAxis("wireform-coil-parameters-inconsistent", name, "Pitch and Height must be greater than zero.");
         if (!hasPitch) pitch = height / turns; else if (!hasHeight) height = pitch * turns;
@@ -134,8 +151,8 @@ internal static class WireCoilAuthoring
     private static bool Length(string body, string name, out double value) => WireFormAuthoring.TryLength(WireFormAuthoring.Property(body, name), out value);
     private static bool Angle(string body, string name, out double value) => WireFormAuthoring.TryAngle(WireFormAuthoring.Property(body, name), out value);
     private static bool Number(string body, string name, out double value) => double.TryParse(WireFormAuthoring.Property(body, name), NumberStyles.Float, CultureInfo.InvariantCulture, out value) && double.IsFinite(value);
-    private static bool Hand(string body, out WireCoilHandedness hand) => Enum.TryParse(WireFormAuthoring.Property(body, "Handedness") ?? "RightHanded", false, out hand);
-    private static bool Phase(string body, out double phase) { var text = WireFormAuthoring.Property(body, "StartPhase"); if (text is null) { phase = 0d; return true; } return WireFormAuthoring.TryAngle(text, out phase); }
+    private static bool Hand(string body, out WireCoilHandedness hand) => Enum.TryParse(WireFormAuthoring.Property(body, HandednessField) ?? "RightHanded", false, out hand);
+    private static bool Phase(string body, out double phase) { var text = WireFormAuthoring.Property(body, StartPhaseField); if (text is null) { phase = 0d; return true; } return WireFormAuthoring.TryAngle(text, out phase); }
     private static int MatchingBrace(string source, int open) { var depth = 0; for (var i = open; i >= 0 && i < source.Length; i++) { if (source[i] == '{') depth++; else if (source[i] == '}' && --depth == 0) return i; } return -1; }
     private static Vector3D Rotate(Vector3D v, Vector3D a, double angle) => v * Math.Cos(angle) + WireFormAuthoring.Cross(a, v) * Math.Sin(angle) + a * (WireFormAuthoring.Dot(a, v) * (1d - Math.Cos(angle)));
     private static KernelResult<WireAxisCoilAir> FailAxis(string code, string name, string message) => KernelResult<WireAxisCoilAir>.Failure([Diagnostic($"{code}:{name}: {message}")]);

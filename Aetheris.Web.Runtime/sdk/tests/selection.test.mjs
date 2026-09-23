@@ -17,6 +17,7 @@ test('display-only face identity never becomes a Firmament selector', () => {
   assert.equal(selection.sourceAddressability, 'RuntimeOnly');
   assert.equal(selection.selectorReason, 'No authored topology mapping');
   assert.equal(session.describeSelection('definition', 2, 'occurrence'), null);
+  assert.deepEqual(session.selectorCandidates(), []);
 });
 
 test('construction-owned face identity reaches picking and reverse source lookup', () => {
@@ -39,6 +40,7 @@ test('construction-owned face identity reaches picking and reverse source lookup
   assert.equal(session.selectionForSourceSymbol('Body').length, 1);
   assert.equal(session.geometrySourceMap()[0].semanticKey, 'Body.face(+Z)');
   assert.equal(session.geometrySourceMap()[0].source.start, 32);
+  assert.deepEqual(session.selectorCandidates().map(item => item.selector), ['face(+Z)']);
 });
 
 test('BRep edges preserve construction metadata without inventing source selectors', () => {
@@ -75,4 +77,5 @@ test('a feature face keeps its owner inside a body occurrence', () => {
   assert.equal(picked.selector, 'face(H.Wall)');
   assert.deepEqual(picked.source, source);
   assert.equal(session.selectionForEntity('Body.H').ranges.length, 1);
+  assert.deepEqual(session.selectorCandidates().map(item => item.selector), ['face(H.Wall)']);
 });

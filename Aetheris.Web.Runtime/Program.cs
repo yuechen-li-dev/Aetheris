@@ -10,6 +10,7 @@ using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament;
 using Aetheris.Kernel.Firmament.Assembly;
+using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.Web.Runtime;
 
@@ -33,6 +34,7 @@ public static partial class Program
             {
                 "info" => Info(),
                 "compile" => Compile(request),
+                "languageComplete" => LanguageComplete(request),
                 "snapshot" => Session(request).Snapshot,
                 "setProperty" => SetProperty(request),
                 "setSource" => SetSource(request),
@@ -80,6 +82,14 @@ public static partial class Program
         return result;
     }
 
+    private static object LanguageComplete(WebRequest request)
+    {
+        if (request.Source is null || request.Offset is null || string.IsNullOrWhiteSpace(request.SourceRevision))
+            throw new WebRuntimeException("language-input-required", "languageComplete requires source, offset, and sourceRevision.");
+        return FirmamentLanguageService.Complete(request.Source, request.SourceName ?? "model.firmament",
+            request.SourceRevision, request.Offset.Value);
+    }
+
     private static object SetProperty(WebRequest request)
     {
         var session = Session(request);
@@ -123,7 +133,8 @@ public static partial class Program
             ? session : throw new WebRuntimeException("session-not-found", "The model session was disposed or does not exist.");
 
     private sealed record WebRequest(string Operation, string? SessionId = null, string? Source = null,
-        string? SourceName = null, string? PropertyId = null, WebPropertyValue? Value = null);
+        string? SourceName = null, string? PropertyId = null, WebPropertyValue? Value = null,
+        string? SourceRevision = null, int? Offset = null);
 
     private sealed class WebRuntimeException(string code, string message) : Exception(message)
     {

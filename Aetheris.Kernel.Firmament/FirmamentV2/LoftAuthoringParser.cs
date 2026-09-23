@@ -16,6 +16,37 @@ public static class LoftAuthoringParser
 {
     private static readonly Regex Header = new(@"\bLoft(?:\s*<\s*(?<kind>Hollow)\s*>)?\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
 
+    public static readonly IReadOnlyList<FirmamentAuthoringField> SolidFields =
+    [
+        new("RearProfile", "Profile", true, "Closed rear section profile."),
+        new("RearFrame", "ConstructionPlane", true, "Placement of the rear section."),
+        new("FrontProfile", "Profile", true, "Closed front section profile."),
+        new("FrontFrame", "ConstructionPlane", true, "Placement of the front section."),
+        new("Rule", "Enum", true, "Section interpolation rule.", null, ["Ruled"]),
+        new("Correspondence", "Enum", true, "Point correspondence between sections.", null, ["CommonRay"]),
+        new("Reference", "Vector3", false, "Reference ray for section correspondence."),
+        new("Twist", "Angle", false, "Relative section rotation.", "0deg")
+    ];
+    public static readonly IReadOnlyList<FirmamentAuthoringField> HollowFields =
+    [.. SolidFields,
+        new("Thickness", "Length", true, "Hollow wall thickness."),
+        new("SeamGap", "Angle", false, "Angular seam clearance.", "0.1deg")];
+
+    public static bool TryGetAuthoringFields(string source, int offset, out IReadOnlyList<FirmamentAuthoringField> fields)
+    {
+        fields = [];
+        foreach (Match match in Header.Matches(source))
+        {
+            var open = match.Index + match.Length - 1;
+            if (offset <= open) continue;
+            var close = MatchingBrace(source, open);
+            if (close >= 0 && offset > close) continue;
+            fields = match.Groups["kind"].Success ? HollowFields : SolidFields;
+            return true;
+        }
+        return false;
+    }
+
     public static bool IsLoftSource(string source) => Header.IsMatch(source);
 
     public static SectionChainAuthoringResult Compile(string source, bool materialize = true)
@@ -37,12 +68,7 @@ public static class LoftAuthoringParser
         var body = source[(open + 1)..close];
         var name = declaration.Groups["name"].Value;
         var hollow = declaration.Groups["kind"].Success;
-        var allowed = new HashSet<string>(StringComparer.Ordinal)
-        {
-            "RearProfile", "RearFrame", "FrontProfile", "FrontFrame", "Rule",
-            "Correspondence", "Reference", "Twist"
-        };
-        if (hollow) { allowed.Add("Thickness"); allowed.Add("SeamGap"); }
+        var allowed = (hollow ? HollowFields : SolidFields).Select(field => field.Name).ToHashSet(StringComparer.Ordinal);
         var fields = Regex.Matches(body, @"(?m)^\s*(?<key>[A-Za-z_]\w*)\s*:", RegexOptions.CultureInvariant)
             .Cast<Match>().Select(match => match.Groups["key"].Value).ToArray();
         foreach (var field in fields.Where(field => !allowed.Contains(field)))

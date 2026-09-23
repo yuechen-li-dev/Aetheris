@@ -53,7 +53,13 @@ export class Aetheris {
     cad.runtimeInfo = await cad.info();
     return cad;
   }
-  constructor(transport, diagnostics) { this.transport = transport; this.diagnostics = diagnostics; }
+  constructor(transport, diagnostics) {
+    this.transport = transport; this.diagnostics = diagnostics;
+    this.language = {
+      complete: (source, offset, options = {}) => this.transport.request({ operation: 'languageComplete', source, offset,
+        sourceName: options.sourceName, sourceRevision: options.sourceRevision })
+    };
+  }
   info() { return this.transport.request({ operation: 'info' }); }
   async capabilities() { return (await this.info()).capabilities; }
   async compile(source, options = {}) {
@@ -147,6 +153,19 @@ export class ModelSession {
     return { occurrenceIds, ranges };
   }
   geometrySourceMap() { return this._geometrySourceMap; }
+  selectorCandidates(kind = 'Face') {
+    const admitted = new Set(['AuthoredStable', 'DerivedStable', 'ImportedStable']);
+    const seen = new Set();
+    return this._geometrySourceMap.filter(item => {
+      if (item.topologyKind !== kind || !item.selector || !item.source || !admitted.has(item.qualification)) return false;
+      const key = `${item.selector}\u0000${item.semanticKey ?? ''}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).map(item => ({ selector: item.selector, kind: item.topologyKind, semanticKey: item.semanticKey,
+      outputRole: item.outputRole, source: item.source, qualification: item.qualification, buildRevision: item.buildRevision }))
+      .sort((a, b) => a.selector < b.selector ? -1 : a.selector > b.selector ? 1 : 0);
+  }
   async exportSTEP(options = {}) {
     throwIfAborted(options.signal);
     const result = await this.transport.request({ operation: 'exportStep', sessionId: this.id });

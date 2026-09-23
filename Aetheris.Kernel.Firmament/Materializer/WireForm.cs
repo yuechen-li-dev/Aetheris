@@ -8,6 +8,7 @@ using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Numerics;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Topology;
+using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Kernel.StandardLibrary.Materials;
 
 namespace Aetheris.Kernel.Firmament.Materializer;
@@ -107,6 +108,28 @@ public static class WireFormAuthoring
     public const string FrameTransportPolicy = "The authored local Up/Right bend-plane axis is rotated with the tangent through each bend (rotation-minimal rigid transport about the bend normal); Straight preserves the frame.";
     private static readonly Regex Declaration = new(@"\bWireForm\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex Operation = new(@"\b(?<kind>Straight|Bend|Helix|AxisCoil|SurfaceCoil|Coil|Knot)\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
+
+    public static IReadOnlyList<FirmamentAuthoringField> HelixFields => WireCoilAuthoring.AxisFields;
+
+    public static bool IsInsideHelix(string source, int offset)
+    {
+        foreach (Match wireForm in Declaration.Matches(source))
+        {
+            var wireOpen = wireForm.Index + wireForm.Length - 1;
+            var wireClose = MatchingBrace(source, wireOpen);
+            if (offset <= wireOpen || wireClose >= 0 && offset > wireClose) continue;
+            foreach (Match match in Operation.Matches(source))
+            {
+                if (match.Groups["kind"].Value != "Helix") continue;
+                var open = match.Index + match.Length - 1;
+                if (open <= wireOpen || wireClose >= 0 && open >= wireClose) continue;
+                if (offset <= open) continue;
+                var close = MatchingBrace(source, open);
+                if (close < 0 || offset <= close) return true;
+            }
+        }
+        return false;
+    }
 
     public static bool IsWireFormSource(string source) => Declaration.IsMatch(source);
 

@@ -1,49 +1,69 @@
-# Firmament LX-X0 — language experience and semantic selector contract
+# FIRMAMENT-LX-X0 — language experience contract
 
-**Verdict: Blocked.** The requested accepted contract cannot be implemented within the mission's own constraints against new Firmament syntax, a second language definition, and selectors derived from transient mesh IDs. This report records the precise boundary; no compiler, Web SDK, or Helios behavior was changed.
+## Executive verdict
 
-## Decisive witnesses
+**Meaningful progression.** Aetheris now provides partial-source, compiler-owned Helix and Loft field completion through the Web SDK, plus selector candidates derived from the qualified geometry source map. This is not enough for an unfamiliar user to author representative Firmament entirely inside Helios. The editor still uses a textarea and has no Monaco completion, hover, or live language diagnostics.
 
-| Required witness | Current authoritative behavior | Evidence |
-| --- | --- | --- |
-| `Helix H { ... }` completion and valid snippet | The Mechanical parser rejects `Helix` as an unknown canonical declaration. | `dotnet run --project Aetheris.CLI -- validate artifacts/local/lx-x0/helix-probe.firmament --json` returned fatal `firmament-v2-canonical-declaration-unknown:Helix`. `FirmamentV2Parser.ScanCanonicalTopLevelDeclarations` has no Helix admission. |
-| Existing helical authoring | `AxisCoil` is valid inside a `WireForm`, with Radius, Turns, Pitch or Height, Handedness, and optional StartPhase. It is a different admitted construct, not a `Helix` alias. | `dotnet run --project Aetheris.CLI -- validate fixtures/Canonical/WireForm/axis-coil.firmament --json` returned `status: valid`, 0 diagnostics, 1 operation. See `docs/public/firmament/wire-form.md`. |
-| Runtime face → source selector | The Web SDK emits `face:<FaceId.Value>` from tessellated/reimported B-rep faces and returns it from `resolveSelection`. It has no compiler-owned correspondence from that ID to an authored axis/name/selector. | `Aetheris.Web.Runtime/Program.cs`, `WebMeshBuilder.Build`; `Aetheris.Web.Runtime/sdk/src/index.js`, `ModelSession.resolveSelection`. |
-| Runtime edge → source selector | The V2 parser explicitly rejects `edge(...)` exposure selectors. | `FirmamentV2Parser.ParseExposures` adds `SelectorUnsupported` for `edge(...)`; `FirmamentV2ParserTests` qualifies that rejection. |
-| Geometry → precise source | The Web part snapshot gives the root and body the entire source range. Engineering feature nodes have `source: null`; mesh ranges carry the same body entity ID. | `Aetheris.Web.Runtime/Program.cs`, `WebModelSession.CompilePart`. |
-| Precise diagnostics | The Web runtime maps `KernelDiagnostic.Source` to `details` and assigns every diagnostic a synthetic `SourceRef(sourceName, 0, 0)` (line 1, column 1). `KernelDiagnostic` has no range field. | `Aetheris.Web.Runtime/Program.cs`, `Diagnostics`; `Aetheris.Kernel.Core/Diagnostics/KernelDiagnostic.cs`. |
+## Language inventory and authority
 
-## Language intelligence
+| Area | Current authority | Available now | Gap |
+| --- | --- | --- | --- |
+| Top-level and canonical primitives | `FirmamentV2Parser`, feature/template expanders, specialist parsers | Grammar and diagnostics for complete input | No shared construct catalog or recovery tree for partial input |
+| Helix | `WireFormAuthoring` operation admission and `WireCoilAuthoring.CreateAxis` | Radius, Turns, Pitch/Height, Handedness, StartPhase; type, default, choices, meaning, required state | No diagnostic ranges or value completion; Pitch/Height is an either-or requirement |
+| Loft | `LoftAuthoringParser` | Solid/hollow field lists reused for field admission and completion | Cross-field validity and referenced profile/frame symbols are not exposed |
+| Hole | `FirmamentV2Parser.ParseCanonicalHoles` and related semantic hole binders | Variant-specific field admission and named Hole lowering | No public authoring metadata or partial Hole completion |
+| Feature, Concept, Interface, Pattern, Set, Span | Existing expansion, parsing, and lowering owners | Complete-source semantics and canonical fixtures | No unified authoring metadata or same-document symbol/reference index |
+| Source selectors | `GeometrySourceMap`, construction correspondence, Web SDK mesh provenance | Stable qualified selectors including Box axis faces and simple Hole walls | Completion is snapshot-derived and not yet filtered by a parsed expected-selector position |
+| Diagnostics | Firmament parser/binder/build results | Build diagnostics | Existing Web runtime fallback source range is zero-length at document start; no lightweight language diagnostic route |
 
-The existing V2 parser and specialized authoring parsers remain authoritative, but there is no public partial-source language-service API. `FirmamentV2Parser.Parse` is a whole-document parse and returns diagnostic codes and a semantic document after expansion. Its canonical construct admission list is internal to the parser. Many constructs are governed by separate specialized parsers and frontend schemas. A separate TypeScript completion table would drift immediately; a new C# table that merely restates these parsers would also be a second language definition.
+The language service is `FirmamentLanguageService.Complete`. It asks `WireFormAuthoring` or `LoftAuthoringParser` for context/fields. It uses a bounded prefix/field-presence scan on incomplete source and does not run BRep construction. `LoftAuthoringParser` uses the same field metadata for parser admission. `WireCoilAuthoring` keeps Helix field names beside the actual binder checks. Web SDK `ModelSession.selectorCandidates` filters the existing compiler construction correspondence exposed by `geometrySourceMap()`; it does not infer source selectors from display IDs.
 
-Current Web SDK methods are `compile`, session rebuild/property/source operations, tree and mesh inspection, selection resolution, and STEP export. It exposes no completion, hover, signature help, symbol/definition/reference query, or partial-source diagnostic request. No LX result shape or latency is claimed. There is no measured completion/hover/selector latency because the APIs do not exist.
+## Public Web SDK contract
 
-## Selector semantics
+```ts
+const result = await cad.language.complete(source, cursorOffset, {
+  sourceName: 'spring.firmament', sourceRevision: 'draft-7'
+});
+// result: { document, revision, context, replaceStart, replaceLength,
+//           fields: [{ name, type, required, meaning, default?, choices? }],
+//           missingRequiredFields }
 
-The parser accepts semantic axis forms such as `face(+Z)` in supported contexts, and imported STEP uses `Body.face("#entity")` only where an imported topology map resolves that entity. These are source expressions. A browser `face:5` identity is neither form. Mapping a selected face to `face(+Z)` would require compiler-owned evidence that the selected topology is the unique source-addressable +Z face for the relevant authored body and revision. The Web export currently retains no such mapping. Mapping an edge needs an admitted source selector form first; the parser currently rejects it.
+const faces = model.selectorCandidates('Face');
+// Each item carries selector, semanticKey, outputRole, source,
+// qualification, and buildRevision from the last valid model snapshot.
+```
 
-Therefore source-addressability cannot be asserted from the current Web selection result. A conservative API could report `Ambiguous` or `RuntimeOnly` with no selector, but it would not satisfy the mandatory face/edge acceptance witnesses or the fresh-agent Copy Selector task. Returning fabricated text would make the user paste invalid Firmament.
+Results are JSON-safe and deterministic for the same source and offset. The caller owns source revision tokens. A model's selector candidates carry build revision and must be discarded when their compiled source is stale relative to the editor draft.
 
-## Helios implication
+## Coverage and Helios
 
-Helios should keep **Copy Semantic ID** distinct from **Copy Selector**. The prior DFH-X1 UI-only walkthrough confirmed why: a selected top face displayed `face:5`; using that value as a Hole `On` expression failed. Go to Source selected model-level line 1 rather than the Box declaration at line 3. Helios's hardcoded Box/Hole snippets are a narrow interim authoring aid, not an LX contract. Replacing them requires authoritative snippet/field metadata and a partial-source analysis path in Aetheris.
+| Construct | X0 completion/help status |
+| --- | --- |
+| Box | Existing compiled selector correspondence; no field completion |
+| Helix | Partial-source field completion and required field hints |
+| Hole | Existing qualified wall selector and insertion; no field completion |
+| Feature | No LX metadata or completion |
+| Concept | No LX metadata or completion |
+| Loft | Partial-source solid/hollow field completion and required field hints |
+| Other constructs | No LX field metadata or completion |
 
-## Required upstream decisions and work
+Helios currently consumes qualified picking, Go to Source, Copy Selector, Box/Hole commands, and rebuild diagnostics. It does **not** consume the new language completion API. Monaco integration, Problems markers, source hover, go-to-definition, and LX-sourced command snippets remain open. No Helios release note is claimed for this Aetheris-only substrate change.
 
-1. Decide whether LX-X0 targets the currently admitted **AxisCoil** helical workflow or authorizes a separate **Helix** language and geometry milestone. The present mission asks for Helix while prohibiting the syntax/geometry work needed to make it legal.
-2. Retain authored declaration spans and generated semantic-to-topology provenance through Firmament AIR, B-rep, STEP reimport, and the Web mesh. This must support one source construct to many faces/edges and distinguish addressable from generated/runtime-only topology.
-3. Define and admit source-valid selector forms for the intended face and edge classes. The formatter must consume the compiler's stable identities, not reimported face numbers or mesh indexes.
-4. Add parser-adjacent authoring metadata or reusable parser queries for fields, value kinds, snippets, and partial-source contexts; expose revision-tagged JSON-safe results through the Web SDK. Preserve the actual parser/binder as the only language authority.
-5. Carry precise source spans through diagnostics instead of assigning line 1 to every Web diagnostic. Then qualify incomplete-source completion and diagnostics without B-rep rebuild.
+## Verification and performance
 
-This is upstream semantic/compiler work, not a safe Helios-only patch. The existing single-source Web contract and missing project context remain additional limitations. No multi-file work, language redesign, or geometry test weakening was introduced.
+- `dotnet build Aetheris.slnx -c Release --no-restore -m:1`: passed; existing SQLite WASM warnings remain.
+- `dotnet test Aetheris.slnx -c Release --no-build --no-restore -m:1`: passed across the test projects (3,857 reported tests); the separate FrictionLab project reported no test count.
+- Full Firmament suite: 1,599 passed. Targeted language service, semantic hole, and parser lane: 138 passed.
+- SDK transport and source-map selection tests: 5 passed.
+- Helios Vitest suite: 28 passed in 5 files. This verifies existing behavior only; Helios does not call LX yet.
+- Headless Chrome using the packaged WebAssembly runtime returned `Radius: Length` for an incomplete Helix and legal remaining fields for an incomplete Loft. A compiled plain Box yielded all six axis selectors; a compiled through-Hole model yielded `face(H.Wall)` with no runtime ID suggestions.
+- In one browser run after runtime initialization, first Helix completion took 33.5 ms and median of ten subsequent calls took 0.4 ms; first Loft completion took 2.5 ms and warm median took 0.6 ms. These are local observations, not an SLA. Top-level completion, hover, and language diagnostics do not yet exist to measure.
+- Fresh-agent Box/Helix/Hole authoring tasks were not run. The missing Helios editor integration would make the requested in-editor tasks fail today.
 
-## Qualification performed
+| Fresh-agent task | Result | Time | Wrong turns | Missing tooling | Fix |
+| --- | --- | --- | --- | --- | --- |
+| Box / Helix / Hole authoring and Hole-wall reference | Not run as fresh-agent tests | Not measured | Not measured | Monaco LX providers and broader compiler metadata | Complete editor consumption and rerun independently |
 
-- Aetheris CLI help inspected before assumptions, per repository guidance.
-- Canonical AxisCoil fixture validated through the real CLI: valid, 0 diagnostics.
-- A Mechanical `Helix` probe under ignored `artifacts/local/lx-x0/` validated through the real CLI: fatal unknown declaration.
-- Existing parser test source confirms `edge(...)` rejection. No implementation files changed, so full solution/browser/Helios regression was not run for this blocked audit.
+## Next blocker
 
-**Decision boundary:** Resume implementation after the Helix versus AxisCoil target and stable face/edge selector semantics are explicitly admitted by the owning compiler. An editor contract can then project those authorities without duplicating Firmament.
+Most Firmament construct legality is embedded in several specialist parser/binder branches rather than a reusable authoring catalog. The current service only covers Helix and Loft. Expanding it responsibly requires each owner to expose fields/types/choices and a shared partial-source context layer before wiring Monaco. Copying those signatures into Helios would violate the single-language-authority contract. Source-range diagnostics, symbols, definitions/references, and selector-position filtering still require compiler-owned semantics. X0 acceptance criteria are not met.

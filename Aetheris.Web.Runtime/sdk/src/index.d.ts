@@ -19,11 +19,16 @@ export interface RuntimeCapabilities { readonly compile: boolean; readonly solid
 export interface RuntimeInfo { readonly packageVersion: string; readonly runtimeVersion: string; readonly contractVersion: 'aetheris/web-editor-contract/1'; readonly language: 'Firmament'; readonly capabilities: RuntimeCapabilities }
 export interface OperationOptions { readonly signal?: AbortSignal }
 export interface CompileOptions extends OperationOptions { readonly sourceName?: string }
+export interface LanguageOptions { readonly sourceName?: string; readonly sourceRevision: string }
+export interface LanguageField { readonly name: string; readonly type: string; readonly required: boolean; readonly meaning: string; readonly default?: string | null; readonly choices?: readonly string[] | null }
+export interface LanguageCompletion { readonly document: string; readonly revision: string; readonly context: string; readonly replaceStart: number; readonly replaceLength: number; readonly fields: readonly LanguageField[]; readonly missingRequiredFields: readonly string[] }
+export interface SelectorCandidate { readonly selector: string; readonly kind: string; readonly semanticKey: string | null; readonly outputRole: string | null; readonly source: SourceReference; readonly qualification: SourceAddressability; readonly buildRevision: number }
 export interface AetherisOptions { readonly worker?: boolean; readonly wasmUrl?: string | URL; readonly diagnostics?: (diagnostics: readonly Diagnostic[]) => void }
 export class AetherisError extends Error { readonly code: string; readonly details?: string }
 export class Aetheris {
   static create(options?: AetherisOptions): Promise<Aetheris>;
   readonly runtimeInfo: RuntimeInfo;
+  readonly language: { complete(source: string, offset: number, options: LanguageOptions): Promise<LanguageCompletion> };
   info(): Promise<RuntimeInfo>;
   capabilities(): Promise<RuntimeCapabilities>;
   compile(source: string, options?: CompileOptions): Promise<{ model: ModelSession | null; diagnostics: readonly Diagnostic[] }>;
@@ -44,6 +49,7 @@ export class ModelSession {
   selectionForSourceSymbol(symbol: string): readonly ({ definitionId: string } & MeshRange)[];
   selectionForEntity(entityId: string): { occurrenceIds: readonly string[]; ranges: readonly ({ definitionId: string } & MeshRange)[] };
   geometrySourceMap(): readonly { definitionId: string; topologyId: string; topologyKind: string; semanticKey: string | null; outputRole: string | null; originFeature: string | null; source: SourceReference | null; selector: string | null; qualification: SourceAddressability; buildRevision: number }[];
+  selectorCandidates(kind?: 'Face' | 'Edge'): readonly SelectorCandidate[];
   exportSTEP(options?: OperationOptions): Promise<Uint8Array>;
   exportSTEPBlob(options?: OperationOptions): Promise<Blob>;
   dispose(): Promise<void>;

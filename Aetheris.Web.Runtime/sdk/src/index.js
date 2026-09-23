@@ -56,6 +56,7 @@ export class Aetheris {
   constructor(transport, diagnostics) {
     this.transport = transport; this.diagnostics = diagnostics;
     this.language = {
+      schema: () => this.transport.request({ operation: 'languageSchema' }),
       complete: (source, offset, options = {}) => this.transport.request({ operation: 'languageComplete', source, offset,
         sourceName: options.sourceName, sourceRevision: options.sourceRevision })
     };

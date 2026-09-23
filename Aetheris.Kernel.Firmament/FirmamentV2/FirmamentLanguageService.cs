@@ -26,7 +26,7 @@ public static class FirmamentLanguageService
         string context;
         if (WireFormAuthoring.IsInsideHelix(source, offset))
         {
-            fields = WireFormAuthoring.HelixFields;
+            fields = FirmamentSchemaAuthoringFields.For("Helix");
             context = "Helix";
         }
         else if (LoftAuthoringParser.TryGetAuthoringFields(source, offset, out fields)) context = "Loft";

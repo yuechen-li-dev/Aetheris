@@ -4,7 +4,7 @@ export interface SourceReference { readonly source: string; readonly line: numbe
 export interface Diagnostic { readonly severity: DiagnosticSeverity; readonly code: string; readonly message: string; readonly source?: SourceReference; readonly details?: string }
 export interface UnitValue { readonly value: number; readonly unit: Unit }
 export interface EditableProperty { readonly id: string; readonly ownerEntityId: string; readonly name: string; readonly type: 'Length' | 'Angle' | 'Integer' | 'Number' | 'Boolean' | 'Enum'; readonly unit: Unit; readonly value: number; readonly writable: boolean; readonly source: SourceReference }
-export interface ModelTreeNode { readonly id: string; readonly kind: string; readonly name: string; readonly parentId?: string; readonly children: readonly string[]; readonly visible: boolean; readonly source?: SourceReference; readonly holeDiameterMm?: number | null }
+export interface ModelTreeNode { readonly id: string; readonly kind: string; readonly name: string; readonly parentId?: string; readonly children: readonly string[]; readonly visible: boolean; readonly source?: SourceReference; readonly holeDiameterMm?: number | null; readonly semanticConstruct?: string | null }
 export interface ModelTree { readonly rootId: string; readonly nodes: readonly ModelTreeNode[] }
 export type SourceAddressability = 'AuthoredStable' | 'DerivedStable' | 'ImportedStable' | 'RuntimeOnly' | 'Ambiguous' | 'Unstable';
 export interface MeshRange { readonly startTriangle: number; readonly triangleCount: number; readonly faceId: string; readonly semanticEntityId: string; readonly semanticTopologyId?: string | null; readonly topologyKind?: 'Face'; readonly outputRole?: string | null; readonly originFeature?: string | null; readonly sourceAddressability?: SourceAddressability; readonly selector?: string | null; readonly selectorReason?: string | null; readonly source?: SourceReference | null; readonly buildRevision?: number }
@@ -22,13 +22,17 @@ export interface CompileOptions extends OperationOptions { readonly sourceName?:
 export interface LanguageOptions { readonly sourceName?: string; readonly sourceRevision: string }
 export interface LanguageField { readonly name: string; readonly type: string; readonly required: boolean; readonly meaning: string; readonly default?: string | null; readonly choices?: readonly string[] | null }
 export interface LanguageCompletion { readonly document: string; readonly revision: string; readonly context: string; readonly replaceStart: number; readonly replaceLength: number; readonly fields: readonly LanguageField[]; readonly missingRequiredFields: readonly string[] }
+export interface SemanticFieldSchema { readonly id: string; readonly name: string; readonly kind: string; readonly unit: 'None' | 'Length' | 'Angle'; readonly required: boolean; readonly default: string | null; readonly choices: readonly string[]; readonly description: string | null; readonly sourceEditable: boolean }
+export interface SemanticOutputSchema { readonly id: string; readonly name: string; readonly kind: string; readonly sourceAddressable: boolean; readonly sourceRole: string | null }
+export interface SemanticConstructSchema { readonly id: string; readonly name: string; readonly context: string | null; readonly entry: string | null; readonly description: string | null; readonly compatibilityAlias: string | null; readonly fields: readonly SemanticFieldSchema[]; readonly outputs: readonly SemanticOutputSchema[] }
+export interface SemanticSchema { readonly version: 'firmament-semantic-schema/1'; readonly constructs: readonly SemanticConstructSchema[] }
 export interface SelectorCandidate { readonly selector: string; readonly kind: string; readonly semanticKey: string | null; readonly outputRole: string | null; readonly source: SourceReference; readonly qualification: SourceAddressability; readonly buildRevision: number }
 export interface AetherisOptions { readonly worker?: boolean; readonly wasmUrl?: string | URL; readonly diagnostics?: (diagnostics: readonly Diagnostic[]) => void }
 export class AetherisError extends Error { readonly code: string; readonly details?: string }
 export class Aetheris {
   static create(options?: AetherisOptions): Promise<Aetheris>;
   readonly runtimeInfo: RuntimeInfo;
-  readonly language: { complete(source: string, offset: number, options: LanguageOptions): Promise<LanguageCompletion> };
+  readonly language: { complete(source: string, offset: number, options: LanguageOptions): Promise<LanguageCompletion>; schema(): Promise<SemanticSchema> };
   info(): Promise<RuntimeInfo>;
   capabilities(): Promise<RuntimeCapabilities>;
   compile(source: string, options?: CompileOptions): Promise<{ model: ModelSession | null; diagnostics: readonly Diagnostic[] }>;

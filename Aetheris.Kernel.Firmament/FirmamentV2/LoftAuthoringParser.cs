@@ -16,17 +16,7 @@ public static class LoftAuthoringParser
 {
     private static readonly Regex Header = new(@"\bLoft(?:\s*<\s*(?<kind>Hollow)\s*>)?\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
 
-    public static readonly IReadOnlyList<FirmamentAuthoringField> SolidFields =
-    [
-        new("RearProfile", "Profile", true, "Closed rear section profile."),
-        new("RearFrame", "ConstructionPlane", true, "Placement of the rear section."),
-        new("FrontProfile", "Profile", true, "Closed front section profile."),
-        new("FrontFrame", "ConstructionPlane", true, "Placement of the front section."),
-        new("Rule", "Enum", true, "Section interpolation rule.", null, ["Ruled"]),
-        new("Correspondence", "Enum", true, "Point correspondence between sections.", null, ["CommonRay"]),
-        new("Reference", "Vector3", false, "Reference ray for section correspondence."),
-        new("Twist", "Angle", false, "Relative section rotation.", "0deg")
-    ];
+    public static readonly IReadOnlyList<FirmamentAuthoringField> SolidFields = FirmamentSchemaAuthoringFields.For("Loft");
     public static readonly IReadOnlyList<FirmamentAuthoringField> HollowFields =
     [.. SolidFields,
         new("Thickness", "Length", true, "Hollow wall thickness."),

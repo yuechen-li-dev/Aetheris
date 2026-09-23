@@ -19,16 +19,7 @@ internal static class WireCoilAuthoring
     private const string HeightField = "Height";
     private const string HandednessField = "Handedness";
     private const string StartPhaseField = "StartPhase";
-    // This is the same bounded Axis/Helix contract consumed by CreateAxis below.
-    internal static readonly IReadOnlyList<FirmamentAuthoringField> AxisFields =
-    [
-        new(RadiusField, "Length", true, "Centerline radius."),
-        new(TurnsField, "Scalar", true, "Number of complete winding turns."),
-        new(PitchField, "Length", false, "Axial distance per turn. Supply Pitch or Height."),
-        new(HeightField, "Length", false, "Total axial span. Supply Height or Pitch."),
-        new(HandednessField, "Enum", false, "Winding direction.", "RightHanded", ["RightHanded", "LeftHanded"]),
-        new(StartPhaseField, "Angle", false, "Rotation of the starting radial frame.", "0deg")
-    ];
+    internal static readonly IReadOnlyList<FirmamentAuthoringField> AxisFields = FirmamentSchemaAuthoringFields.For("Helix");
     private const double ApproximationTolerance = 0.01d;
 
     internal static KernelResult<WireAxisCoilAir> CreateAxis(string name, int ordinal, string body, WireState input, double diameter)

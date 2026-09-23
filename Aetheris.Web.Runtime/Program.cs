@@ -35,6 +35,7 @@ public static partial class Program
                 "info" => Info(),
                 "compile" => Compile(request),
                 "languageComplete" => LanguageComplete(request),
+                "languageSchema" => LanguageSchema(),
                 "snapshot" => Session(request).Snapshot,
                 "setProperty" => SetProperty(request),
                 "setSource" => SetSource(request),
@@ -89,6 +90,25 @@ public static partial class Program
         return FirmamentLanguageService.Complete(request.Source, request.SourceName ?? "model.firmament",
             request.SourceRevision, request.Offset.Value);
     }
+
+    private static object LanguageSchema() => new
+    {
+        version = FirmamentSemanticSchemas.Version,
+        constructs = FirmamentSemanticSchemas.All.Select(construct => new
+        {
+            id = construct.Id.Value, construct.Name, construct.Context, construct.Entry,
+            construct.Description, construct.CompatibilityAlias,
+            fields = construct.Fields.Select(field => new
+            {
+                id = field.Id.Value, field.Name, kind = field.Kind.ToString(), unit = field.Unit.ToString(),
+                field.Required, field.Default, field.Choices, field.Description, field.SourceEditable
+            }),
+            outputs = construct.Outputs.Select(item => new
+            {
+                id = item.Id.Value, item.Name, item.Kind, item.SourceAddressable, item.SourceRole
+            })
+        })
+    };
 
     private static object SetProperty(WebRequest request)
     {
@@ -236,6 +256,9 @@ public static partial class Program
                 sourceMap?.TryGetSourceSpan(symbol, out var span) == true
                     ? SourceRefAt(_sourceName, effective, span.Start, span.Length) : null;
             var boxSource = CompilerSource(entityId);
+            // Preserve the exported body category in Kind; report the authored construct separately.
+            var semanticConstruct = boxSource is null ? null : FirmamentV2Parser.Parse(effective).Document?.Solids
+                .FirstOrDefault(solid => string.Equals(solid.Name, entityId, StringComparison.Ordinal))?.RecordType;
             var featureSources = (build.Value.Features ?? []).ToDictionary(feature => feature.FeatureId,
                 feature => CompilerSource(feature.FeatureId), StringComparer.Ordinal);
             var mesh = WebMeshBuilder.Build(Name, definitionId, entityId, displayBody,
@@ -243,7 +266,7 @@ public static partial class Program
             var meshMs = watch.Elapsed.TotalMilliseconds;
             var featureNodes = (build.Value.EngineeringFeatures ?? []).Select(feature => new WebTreeNode(feature.FeatureId, feature.Kind, feature.Name, entityId, [], true, null))
                 .Concat((build.Value.Features ?? []).Select(feature => new WebTreeNode(feature.FeatureId, feature.Kind, feature.Name, entityId, [], true, featureSources[feature.FeatureId], feature.Diameter))).ToArray();
-            var body = new WebTreeNode(entityId, build.Value.ExportedBodyCategory, Name, Id, featureNodes.Select(item => item.Id).ToArray(), true, boxSource ?? SourceRef(_sourceName, 0, effective.Length));
+            var body = new WebTreeNode(entityId, build.Value.ExportedBodyCategory, Name, Id, featureNodes.Select(item => item.Id).ToArray(), true, boxSource ?? SourceRef(_sourceName, 0, effective.Length), SemanticConstruct: semanticConstruct);
             var root = new WebTreeNode(Id, "Model", Name, null, [body.Id], true, SourceRef(_sourceName, 0, effective.Length));
             var tree = new { rootId = root.Id, nodes = new[] { root, body }.Concat(featureNodes).ToArray() };
             return WebBuildResult.Passed(step, tree, mesh, [Id, entityId, .. featureNodes.Select(item => item.Id)], compileMs, meshMs);
@@ -417,7 +440,7 @@ internal static class WebMeshBuilder
 internal sealed record WebPropertyValue(double Value, string Unit);
 internal sealed record WebSourceRef(string Source, int Line, int Column, int Start, int Length);
 internal sealed record WebProperty(string Id, string OwnerEntityId, string Name, string Type, string Unit, double Value, bool Writable, int Start, int Length, WebSourceRef Source);
-internal sealed record WebTreeNode(string Id, string Kind, string Name, string? ParentId, IReadOnlyList<string> Children, bool Visible, WebSourceRef? Source, double? HoleDiameterMm = null);
+internal sealed record WebTreeNode(string Id, string Kind, string Name, string? ParentId, IReadOnlyList<string> Children, bool Visible, WebSourceRef? Source, double? HoleDiameterMm = null, string? SemanticConstruct = null);
 internal sealed record WebDiagnostic(string Severity, string Code, string Message, WebSourceRef? Source = null, string? Details = null);
 internal sealed record WebBuildResult(bool Success, int Revision, object? Model, IReadOnlyList<WebDiagnostic> Diagnostics, bool RetainedPreviousGeometry,
     object? Tree = null, object? Mesh = null, IReadOnlyList<string>? EntityIds = null, object? Timings = null, object? Changes = null, string? StepText = null)

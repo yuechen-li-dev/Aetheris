@@ -6,7 +6,9 @@ namespace Aetheris.Kernel.Firmament.FirmamentV2;
 public sealed record FirmamentLanguageCompletion(
     string Document, string Revision, string Context, int ReplaceStart, int ReplaceLength,
     IReadOnlyList<FirmamentAuthoringField> Fields,
-    IReadOnlyList<string> MissingRequiredFields);
+    IReadOnlyList<string> MissingRequiredFields,
+    IReadOnlyList<FirmamentLanguageEntry>? Entries = null);
+public sealed record FirmamentLanguageEntry(string ConstructId, string Name, string Context, string Source);
 
 /// <summary>Bounded authoring help from construct owners; no BRep or export work.</summary>
 public static class FirmamentLanguageService
@@ -30,7 +32,14 @@ public static class FirmamentLanguageService
             context = "Helix";
         }
         else if (LoftAuthoringParser.TryGetAuthoringFields(source, offset, out fields)) context = "Loft";
-        else return new(document, revision, "Unsupported", prefixStart, prefix.Length, [], []);
+        else
+        {
+            var entries = FirmamentSemanticSchemas.All
+                .Where(item => item.Name is "Helix" or "Loft" && item.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && item.Entry is not null)
+                .Select(item => new FirmamentLanguageEntry(item.Id.Value, item.Name, item.Context ?? string.Empty, item.Entry!)).ToArray();
+            return new(document, revision, entries.Length > 0 ? "ConstructEntry" : "Unsupported",
+                prefixStart, prefix.Length, [], [], entries);
+        }
 
         var open = source.LastIndexOf('{', Math.Max(0, offset - 1));
         var body = open >= 0 ? source[(open + 1)..offset] : string.Empty;

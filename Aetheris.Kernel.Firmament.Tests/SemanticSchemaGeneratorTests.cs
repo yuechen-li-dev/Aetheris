@@ -10,7 +10,7 @@ public sealed class FirmamentSchemaGeneratorTests
         using System;
         namespace Aetheris.Kernel.Firmament.FirmamentV2 {
           [AttributeUsage(AttributeTargets.Class)] public sealed class FirmamentConstructAttribute(string id, string name) : Attribute { }
-          [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)] public sealed class FirmamentFieldAttribute(string id, string name, FirmamentSchemaValueKind kind) : Attribute { }
+          [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)] public sealed class FirmamentFieldAttribute(string id, string name, FirmamentSchemaValueKind kind) : Attribute { public bool SourceEditable { get; init; } public string? ProjectionMember { get; init; } }
           public enum FirmamentSchemaValueKind { Length, Angle, Scalar, Count, Boolean, String, Choice, Vector, Point, Profile, ConstructionPlane, FaceSelector, BodySelector, ConstructReference, Box3, TypeRequirement }
         }
         """;
@@ -45,6 +45,31 @@ public sealed class FirmamentSchemaGeneratorTests
             public class BoxSpec { }
             """;
         Assert.Contains(Generate(Prelude + source).Diagnostics, d => d.Id == "FMS001" && d.Severity == DiagnosticSeverity.Error);
+    }
+
+    [Fact]
+    public void SourceEditableFieldWithoutStaticProjector_IsCompileTimeError()
+    {
+        const string source = """
+            [Aetheris.Kernel.Firmament.FirmamentV2.FirmamentConstruct("Hole", "Hole")]
+            [Aetheris.Kernel.Firmament.FirmamentV2.FirmamentField("Diameter", "Diameter", Aetheris.Kernel.Firmament.FirmamentV2.FirmamentSchemaValueKind.Length, SourceEditable = true)]
+            public class HoleSpec { }
+            """;
+        Assert.Contains(Generate(Prelude + source).Diagnostics, d => d.Id == "FMS001" && d.Severity == DiagnosticSeverity.Error);
+    }
+
+    [Fact]
+    public void StaticProjectorEmitsTypedGeneratedGetter()
+    {
+        const string source = """
+            public sealed class HoleInstance { public double Diameter { get; init; } }
+            [Aetheris.Kernel.Firmament.FirmamentV2.FirmamentConstruct("Hole", "Hole")]
+            [Aetheris.Kernel.Firmament.FirmamentV2.FirmamentField("Diameter", "Diameter", Aetheris.Kernel.Firmament.FirmamentV2.FirmamentSchemaValueKind.Length, SourceEditable = true, ProjectionMember = nameof(ProjectDiameter))]
+            public class HoleSpec { public static double ProjectDiameter(HoleInstance instance) => instance.Diameter; }
+            """;
+        var generated = Generate(Prelude + source);
+        Assert.DoesNotContain(generated.Diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains("ProjectHoleDiameter(global::HoleInstance instance)", generated.Source);
     }
 
     private static (string Source, IReadOnlyList<Diagnostic> Diagnostics) Generate(string source)

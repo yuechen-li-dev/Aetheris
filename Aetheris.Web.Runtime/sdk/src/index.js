@@ -106,6 +106,16 @@ export class ModelSession {
   async setSource(source, options = {}) {
     return this.serial(async () => { throwIfAborted(options.signal); await this.transport.request({ operation: 'setSource', sessionId: this.id, source, sourceName: options.sourceName }); return this.rebuild(options); });
   }
+  async describeConstruct(semanticId, options = {}) {
+    throwIfAborted(options.signal);
+    return this.transport.request({ operation: 'describeConstruct', sessionId: this.id, constructSemanticId: semanticId });
+  }
+  async rewriteField(source, projection, fieldId, value, options = {}) {
+    throwIfAborted(options.signal);
+    return this.transport.request({ operation: 'rewriteField', sessionId: this.id, source,
+      sourceRevision: projection.sourceRevision, buildRevision: projection.buildRevision,
+      constructSemanticId: projection.semanticId, fieldId, fieldValue: value });
+  }
   async rebuild(options = {}) {
     throwIfAborted(options.signal);
     const result = await this.transport.request({ operation: 'rebuild', sessionId: this.id });

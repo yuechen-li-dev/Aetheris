@@ -26,6 +26,8 @@ public sealed class FirmamentFieldAttribute(string stableId, string name, Firmam
     public string? Default { get; init; }
     public string? Description { get; init; }
     public string[]? Choices { get; init; }
+    public bool SourceEditable { get; init; }
+    public string? ProjectionMember { get; init; }
 }
 
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]

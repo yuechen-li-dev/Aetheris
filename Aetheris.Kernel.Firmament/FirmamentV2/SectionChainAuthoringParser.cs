@@ -8,7 +8,12 @@ public sealed record SectionChainAuthoringResult(
     bool IsSuccess,
     SectionChain? Chain,
     SectionChainMaterializationResult? Materialization,
-    IReadOnlyList<string> Diagnostics);
+    IReadOnlyList<string> Diagnostics,
+    LoftAuthoredBinding? LoftBinding = null);
+
+public sealed record LoftAuthoredBinding(string Name, string RearProfile, string RearFrame,
+    string FrontProfile, string FrontFrame, IReadOnlyList<double> Reference, double TwistDegrees,
+    FirmamentV2SourceSpan ConstructSpan, IReadOnlyList<FirmamentV2AuthoredField> Fields);
 
 /// <summary>
 /// Domain binder for Firmament SectionChain declarations. Profiles remain ordinary

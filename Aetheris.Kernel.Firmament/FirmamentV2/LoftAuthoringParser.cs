@@ -117,10 +117,14 @@ public static class LoftAuthoringParser
         var chain = new SectionChain(name,
             [new Section("Rear", rearSectionFrame, rearProfile), new Section("Front", frontSectionFrame, frontProfile)],
             [], SectionTransitionPolicy.Ruled, SectionTermination.Cap, SectionTermination.Cap, SectionChainContinuity.G0);
-        if (!materialize) return new(true, chain, null, []);
+        var binding = new LoftAuthoredBinding(name, rearProfileName!, rearFrameName!, frontProfileName!, frontFrameName!,
+            [reference.X, reference.Y, reference.Z], twistDegrees,
+            new FirmamentV2SourceSpan(declaration.Index, close - declaration.Index + 1),
+            FirmamentV2Parser.ReadAuthoredFields(body, open + 1));
+        if (!materialize) return new(true, chain, null, [], binding);
         var result = SectionChainMaterializer.Materialize(chain);
         if (!result.IsSuccess) diagnostics.AddRange(result.Diagnostics.Select(item => $"{item.Code}:{item.Message}"));
-        return new(result.IsSuccess, chain, result, diagnostics);
+        return new(result.IsSuccess, chain, result, diagnostics, result.IsSuccess ? binding : null);
 
         SectionChainAuthoringResult Fail(params string[] messages) => new(false, null, null,
             diagnostics.Concat(messages).Distinct(StringComparer.Ordinal).ToArray());

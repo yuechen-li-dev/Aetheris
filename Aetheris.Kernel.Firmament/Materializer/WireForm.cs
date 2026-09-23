@@ -89,7 +89,8 @@ public sealed record WireSurfaceCoilAir(string Name, int Ordinal, string Support
 
 /// <summary>WireForm semantic AIR. Bend radii are centerline radii.</summary>
 public sealed record WireFormFeatureAir(string Name, double DiameterMm, string MaterialReference, ResolvedMaterial Material,
-    WireState StartState, IReadOnlyList<WireFormOperationAir> Operations, string FrameTransportPolicy)
+    WireState StartState, IReadOnlyList<WireFormOperationAir> Operations, string FrameTransportPolicy,
+    IReadOnlyList<WireFormOperationProvenance>? AuthoredOperations = null)
 {
     public double WireRadiusMm => DiameterMm / 2d;
     public double TotalStraightLengthMm => Operations.OfType<WireStraightAir>().Sum(x => x.LengthMm);
@@ -98,6 +99,9 @@ public sealed record WireFormFeatureAir(string Name, double DiameterMm, string M
     public double TotalWireLengthMm => Operations.Sum(x => x.LengthMm);
     public WireState EndState => Operations.Count == 0 ? StartState : Operations[^1].Output;
 }
+
+public sealed record WireFormOperationProvenance(string Name, FirmamentV2SourceSpan ConstructSpan,
+    IReadOnlyList<FirmamentV2AuthoredField> Fields);
 
 public sealed record WireFormBuildResult(WireFormFeatureAir Feature, BrepBody Body, double VolumeMm3,
     double MassKilograms, IReadOnlyList<double> Bounds, IReadOnlyList<string> ValidationEvidence);
@@ -163,6 +167,7 @@ public static class WireFormAuthoring
 
         var state = new WireState(new(origin.X, origin.Y, origin.Z), tangent, up, 0d);
         var operations = new List<WireFormOperationAir>();
+        var provenance = new List<WireFormOperationProvenance>();
         foreach (Match match in Operation.Matches(body))
         {
             var operationOpen = body.IndexOf('{', match.Index);
@@ -170,6 +175,9 @@ public static class WireFormAuthoring
             if (operationClose < 0) return Fail("wireform-operation-malformed", $"Operation '{match.Groups["name"].Value}' has no closing brace.");
             var operationBody = body[(operationOpen + 1)..operationClose];
             var operationName = match.Groups["name"].Value;
+            provenance.Add(new(operationName,
+                new FirmamentV2SourceSpan(open + 1 + match.Index, operationClose - match.Index + 1),
+                FirmamentV2Parser.ReadAuthoredFields(operationBody, open + 1 + operationOpen + 1)));
             var ordinal = operations.Count + 1;
             if (match.Groups["kind"].Value == "Straight")
             {
@@ -228,7 +236,7 @@ public static class WireFormAuthoring
         var authoredStart = new WireState(new(origin.X, origin.Y, origin.Z), tangent, up, 0d);
         return KernelResult<WireFormFeatureAir>.Success(new(name, diameter, materialReference, material.Material,
             operations[0] is WireKnotPathAir ? operations[0].Input : authoredStart, operations,
-            operations[0] is WireKnotPathAir knot ? knot.FrameClosure.Policy : FrameTransportPolicy));
+            operations[0] is WireKnotPathAir knot ? knot.FrameClosure.Policy : FrameTransportPolicy, provenance));
     }
 
     internal static string? Property(string body, string name)

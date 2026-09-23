@@ -21,11 +21,16 @@ export interface OperationOptions { readonly signal?: AbortSignal }
 export interface CompileOptions extends OperationOptions { readonly sourceName?: string }
 export interface LanguageOptions { readonly sourceName?: string; readonly sourceRevision: string }
 export interface LanguageField { readonly name: string; readonly type: string; readonly required: boolean; readonly meaning: string; readonly default?: string | null; readonly choices?: readonly string[] | null }
-export interface LanguageCompletion { readonly document: string; readonly revision: string; readonly context: string; readonly replaceStart: number; readonly replaceLength: number; readonly fields: readonly LanguageField[]; readonly missingRequiredFields: readonly string[] }
+export interface LanguageEntry { readonly constructId: string; readonly name: string; readonly context: string; readonly source: string }
+export interface LanguageCompletion { readonly document: string; readonly revision: string; readonly context: string; readonly replaceStart: number; readonly replaceLength: number; readonly fields: readonly LanguageField[]; readonly missingRequiredFields: readonly string[]; readonly entries?: readonly LanguageEntry[] | null }
 export interface SemanticFieldSchema { readonly id: string; readonly name: string; readonly kind: string; readonly unit: 'None' | 'Length' | 'Angle'; readonly required: boolean; readonly default: string | null; readonly choices: readonly string[]; readonly description: string | null; readonly sourceEditable: boolean }
 export interface SemanticOutputSchema { readonly id: string; readonly name: string; readonly kind: string; readonly sourceAddressable: boolean; readonly sourceRole: string | null }
 export interface SemanticConstructSchema { readonly id: string; readonly name: string; readonly context: string | null; readonly entry: string | null; readonly description: string | null; readonly compatibilityAlias: string | null; readonly fields: readonly SemanticFieldSchema[]; readonly outputs: readonly SemanticOutputSchema[] }
-export interface SemanticSchema { readonly version: 'firmament-semantic-schema/1'; readonly constructs: readonly SemanticConstructSchema[] }
+export interface SemanticSchema { readonly version: 'firmament-semantic-schema/1'; readonly projectionVersion: 'firmament-field-projection/1'; readonly constructs: readonly SemanticConstructSchema[] }
+export interface ProjectedValue { readonly valueKind: string; readonly text: string; readonly number?: number | null; readonly components?: readonly number[] | null; readonly unit?: string | null }
+export interface FieldProjection { readonly fieldId: string; readonly name: string; readonly kind: string; readonly unit: string; readonly effectiveValue: ProjectedValue | null; readonly authoredValue: string | null; readonly origin: 'Authored' | 'Defaulted' | 'Derived' | 'Inherited' | 'Unavailable'; readonly declaration: SourceReference | null; readonly source: SourceReference | null; readonly editable: boolean; readonly readOnlyReason: string | null }
+export interface ConstructProjection { readonly version: 'firmament-field-projection/1'; readonly constructId: string; readonly semanticId: string; readonly sourceRevision: string; readonly buildRevision: number; readonly source: SourceReference | null; readonly fields: readonly FieldProjection[]; readonly outputs: readonly SemanticOutputSchema[] }
+export interface FieldRewrite { readonly source: string; readonly sourceRevision: string; readonly replaced: SourceReference; readonly replacement: string }
 export interface SelectorCandidate { readonly selector: string; readonly kind: string; readonly semanticKey: string | null; readonly outputRole: string | null; readonly source: SourceReference; readonly qualification: SourceAddressability; readonly buildRevision: number }
 export interface AetherisOptions { readonly worker?: boolean; readonly wasmUrl?: string | URL; readonly diagnostics?: (diagnostics: readonly Diagnostic[]) => void }
 export class AetherisError extends Error { readonly code: string; readonly details?: string }
@@ -45,6 +50,8 @@ export class ModelSession {
   property(id: string): EditableProperty | undefined;
   setProperty(propertyId: string, value: UnitValue, options?: OperationOptions): Promise<RebuildResult>;
   setSource(source: string, options?: CompileOptions): Promise<RebuildResult>;
+  describeConstruct(semanticId: string, options?: OperationOptions): Promise<ConstructProjection>;
+  rewriteField(source: string, projection: ConstructProjection, fieldId: string, value: ProjectedValue, options?: OperationOptions): Promise<FieldRewrite>;
   rebuild(options?: OperationOptions): Promise<RebuildResult>;
   resolveSelection(definitionId: string, triangleIndex: number, occurrenceId?: string): Omit<SelectionDescription, 'sourceAddressable'> | null;
   describeSelection(definitionId: string, triangleIndex: number, occurrenceId?: string): SelectionDescription | null;

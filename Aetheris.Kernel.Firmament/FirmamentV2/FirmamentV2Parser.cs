@@ -1469,7 +1469,8 @@ public static class FirmamentV2Parser
             var record = ParseCanonicalPrimitive(primitive.Groups["type"].Value, primitiveBody, diagnostics);
             if (record is null) return CanonicalFailure(diagnostics, CanonicalPrimitiveMalformed);
             var solid = new FirmamentV2SolidBinding(name, primitive.Groups["type"].Value, record,
-                SourceSpan: new FirmamentV2SourceSpan(rootOpen + 1 + primitive.Index, close - primitive.Index + 1));
+                SourceSpan: new FirmamentV2SourceSpan(rootOpen + 1 + primitive.Index, close - primitive.Index + 1),
+                AuthoredFields: ReadAuthoredFields(primitiveBody, rootOpen + 1 + open + 1));
             byName[name] = solid;
             solids.Add(solid);
         }
@@ -1516,6 +1517,69 @@ public static class FirmamentV2Parser
         diagnostics.Add("firmament-v2-parse-succeeded");
         diagnostics.Sort(StringComparer.Ordinal);
         return FirmamentV2ParseResult.Success(new FirmamentV2Document(model.Groups["name"].Value, "mm", solids, modifies, Pmi: pmi, RecognizedRegions: recognizedRegions, Replacements: replacements, PmiBlock: pmiBlock, BoundPmi: boundPmi), diagnostics.Distinct(StringComparer.Ordinal).ToArray());
+    }
+
+    // Source provenance is read from lexical field boundaries, independently of the legacy
+    // recognition expressions. A duplicate or unbound field is never a rewrite target.
+    internal static IReadOnlyList<FirmamentV2AuthoredField> ReadAuthoredFields(string body, int baseOffset)
+    {
+        var result = new List<FirmamentV2AuthoredField>();
+        string? name = null;
+        var declarationStart = -1;
+        var valueStart = -1;
+        var valueEnd = -1;
+        var depth = 0;
+        void Finish()
+        {
+            if (name is not null && valueEnd >= valueStart)
+                result.Add(new FirmamentV2AuthoredField(name,
+                    new FirmamentV2SourceSpan(baseOffset + declarationStart, valueEnd - declarationStart + 1),
+                    new FirmamentV2SourceSpan(baseOffset + valueStart, valueEnd - valueStart + 1)));
+        }
+        for (var i = 0; i < body.Length; i++)
+        {
+            if (body[i] == '/' && i + 1 < body.Length && body[i + 1] == '/')
+            {
+                i = body.IndexOf('\n', i + 2) is var lineEnd && lineEnd >= 0 ? lineEnd : body.Length;
+                continue;
+            }
+            if (body[i] == '/' && i + 1 < body.Length && body[i + 1] == '*')
+            {
+                var commentEnd = body.IndexOf("*/", i + 2, StringComparison.Ordinal);
+                i = commentEnd >= 0 ? commentEnd + 1 : body.Length;
+                continue;
+            }
+            if (body[i] == '"')
+            {
+                var start = i++;
+                while (i < body.Length && (body[i] != '"' || body[i - 1] == '\\')) i++;
+                if (name is not null) valueEnd = Math.Min(i, body.Length - 1);
+                continue;
+            }
+            if (depth == 0 && (char.IsLetter(body[i]) || body[i] == '_'))
+            {
+                var start = i;
+                while (i + 1 < body.Length && (char.IsLetterOrDigit(body[i + 1]) || body[i + 1] == '_')) i++;
+                var afterName = i + 1;
+                while (afterName < body.Length && char.IsWhiteSpace(body[afterName])) afterName++;
+                if (afterName < body.Length && body[afterName] == ':')
+                {
+                    Finish();
+                    name = body[start..(i + 1)];
+                    declarationStart = start;
+                    valueStart = afterName + 1;
+                    while (valueStart < body.Length && char.IsWhiteSpace(body[valueStart])) valueStart++;
+                    valueEnd = valueStart - 1;
+                    i = afterName;
+                    continue;
+                }
+            }
+            if (body[i] is '(' or '[' or '{') depth++;
+            else if (body[i] is ')' or ']' or '}') depth--;
+            if (name is not null && !char.IsWhiteSpace(body[i]) && body[i] != ';') valueEnd = i;
+        }
+        Finish();
+        return result;
     }
 
     private static FirmamentV2PrimitiveRecord? ParseCanonicalPrimitive(string type, string body, List<string> diagnostics)
@@ -1586,12 +1650,13 @@ public static class FirmamentV2Parser
                 continue;
             }
 
-            var knownFields = variant switch
+            var variantFields = variant switch
             {
-                FirmamentV2SemanticHoleVariant.Counterbore => new[] { "On", "Center", "Diameter", "CounterboreDiameter", "CounterboreDepth", "End", "PatternIdentity" },
-                FirmamentV2SemanticHoleVariant.Countersink => new[] { "On", "Center", "Diameter", "CountersinkDiameter", "CountersinkAngle", "End", "PatternIdentity" },
-                _ => new[] { "On", "Center", "Diameter", "End", "PatternIdentity" }
+                FirmamentV2SemanticHoleVariant.Counterbore => new[] { "CounterboreDiameter", "CounterboreDepth" },
+                FirmamentV2SemanticHoleVariant.Countersink => new[] { "CountersinkDiameter", "CountersinkAngle" },
+                _ => []
             };
+            var knownFields = FirmamentSemanticSchemas.Get("Hole")!.Fields.Select(field => field.Name).Concat(variantFields).ToArray();
             if (CanonicalBodyHasUnknownField(holeBody, knownFields))
             {
                 diagnostics.Add(CanonicalFieldUnknown);
@@ -1642,7 +1707,8 @@ public static class FirmamentV2Parser
             var face = FirmamentV2FaceTarget.Direct(on.Groups["face"].Value);
             holes.Add(new(hole.Groups["name"].Value, variant, face, new FirmamentV2FaceLocalPoint2D(u, v, FirmamentV2FaceLocalPoint2D.ConventionFor(face.Axis)), shaft, endValue,
                 counterboreDiameter, counterboreDepth, countersinkDiameter, countersinkAngle,
-                SourceSpan: new FirmamentV2SourceSpan(bodyOffset + hole.Index, close - hole.Index + 1)));
+                SourceSpan: new FirmamentV2SourceSpan(bodyOffset + hole.Index, close - hole.Index + 1),
+                AuthoredFields: ReadAuthoredFields(holeBody, bodyOffset + open + 1)));
         }
         return holes;
     }

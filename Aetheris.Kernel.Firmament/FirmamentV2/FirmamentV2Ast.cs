@@ -15,6 +15,7 @@ public sealed record FirmamentV2Document(string ModelName, string Units, IReadOn
 }
 
 public sealed record FirmamentV2SourceSpan(int Start, int Length);
+public sealed record FirmamentV2AuthoredField(string Name, FirmamentV2SourceSpan DeclarationSpan, FirmamentV2SourceSpan ValueSpan);
 public enum FirmamentV2PrimitiveType { Int, Float, Length, Angle, String, Bool }
 public enum FirmamentV2ToleranceKind { Bilateral, Asymmetric }
 public sealed record FirmamentV2Tolerance(FirmamentV2ToleranceKind Kind, double Plus, double Minus, string Unit, FirmamentV2PrimitiveType Type, FirmamentV2SourceSpan SourceSpan);
@@ -48,7 +49,7 @@ public enum FirmamentV2ConstructionPolicy { Solid, Hollow }
 /// <summary>Source-owned hollow intent.  This is deliberately not a Boolean tool description.</summary>
 public sealed record FirmamentV2HollowIntent(double WallThickness, IReadOnlyList<string> Openings, FirmamentV2SourceSpan SourceSpan);
 
-public sealed record FirmamentV2SolidBinding(string Name, string RecordType, FirmamentV2PrimitiveRecord Primitive, string? DerivedFrom = null, IReadOnlyDictionary<string, IReadOnlyList<double>>? Overrides = null, IReadOnlyDictionary<string, string>? Provenance = null, FirmamentV2ConstructionPolicy ConstructionPolicy = FirmamentV2ConstructionPolicy.Solid, FirmamentV2HollowIntent? Hollow = null, FirmamentV2SourceSpan? SourceSpan = null)
+public sealed record FirmamentV2SolidBinding(string Name, string RecordType, FirmamentV2PrimitiveRecord Primitive, string? DerivedFrom = null, IReadOnlyDictionary<string, IReadOnlyList<double>>? Overrides = null, IReadOnlyDictionary<string, string>? Provenance = null, FirmamentV2ConstructionPolicy ConstructionPolicy = FirmamentV2ConstructionPolicy.Solid, FirmamentV2HollowIntent? Hollow = null, FirmamentV2SourceSpan? SourceSpan = null, IReadOnlyList<FirmamentV2AuthoredField>? AuthoredFields = null)
 {
     public bool IsDerived => !string.IsNullOrWhiteSpace(DerivedFrom);
     public FirmamentV2BoxRecord? Box => Primitive as FirmamentV2BoxRecord;
@@ -247,7 +248,8 @@ public sealed record FirmamentV2SemanticHoleDecl(
     FirmamentV2ResolvedPoint3? ResolvedCenter = null,
     FirmamentV2SourceSpan? SourceSpan = null,
     FirmamentV2BoundHolePlacement? Placement = null,
-    FirmamentV2SemanticHoleTermination? Termination = null);
+    FirmamentV2SemanticHoleTermination? Termination = null,
+    IReadOnlyList<FirmamentV2AuthoredField>? AuthoredFields = null);
 public enum FirmamentV2PmiKind { HoleDiameter, DatumPlane, Distance, Flatness, Parallel, Perpendicular, Coplanar }
 public sealed record FirmamentV2PmiDecl(string Name, FirmamentV2PmiKind Kind, string Target, double? Value = null);
 public sealed record FirmamentV2PmiBlock(IReadOnlyList<FirmamentV2PmiRecord> Records, FirmamentV2SourceSpan SourceSpan);

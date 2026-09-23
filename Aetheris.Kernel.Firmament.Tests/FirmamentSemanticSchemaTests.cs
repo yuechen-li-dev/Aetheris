@@ -46,6 +46,29 @@ public sealed class FirmamentSemanticSchemaTests
         Assert.All(box.Fields, f => Assert.False(f.Required)); // Size or Bounds is required, not either field alone.
     }
 
+    [Theory]
+    [InlineData("Helix", "WireForm Spring")]
+    [InlineData("Loft", "Construction Plane LowerFrame")]
+    public void BareConstructSearchReturnsGeneratedLegalEntry(string name, string requiredContext)
+    {
+        var source = $"Model Draft {{ Units: mm\n {name}";
+        var completion = FirmamentLanguageService.Complete(source, "draft.firmament", "1", source.Length);
+        Assert.Equal("ConstructEntry", completion.Context);
+        var entry = Assert.Single(completion.Entries!);
+        Assert.Equal(name, entry.Name);
+        Assert.Contains(requiredContext, entry.Source);
+        Assert.Equal(FirmamentSemanticSchemas.Get(name)!.Entry, entry.Source);
+    }
+
+    [Theory]
+    [InlineData("Helix")]
+    [InlineData("Loft")]
+    public void GeneratedEntryIsBuildable(string name)
+    {
+        var result = FirmamentBuildAndExport.CompileSource(FirmamentSemanticSchemas.Get(name)!.Entry!);
+        Assert.True(result.IsSuccess, string.Join("; ", result.Diagnostics.Select(item => item.Message)));
+    }
+
     private static FirmamentLanguageCompletion LoftOrHelixCompletion(string source, string expected)
     {
         var result = FirmamentLanguageService.Complete(source, "draft.firmament", "1", source.Length);

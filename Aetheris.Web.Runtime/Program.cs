@@ -11,6 +11,7 @@ using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament;
 using Aetheris.Kernel.Firmament.Assembly;
 using Aetheris.Kernel.Firmament.FirmamentV2;
+using Aetheris.Kernel.Firmament.Materializer;
 
 namespace Aetheris.Web.Runtime;
 
@@ -36,6 +37,8 @@ public static partial class Program
                 "compile" => Compile(request),
                 "languageComplete" => LanguageComplete(request),
                 "languageSchema" => LanguageSchema(),
+                "describeConstruct" => DescribeConstruct(request),
+                "rewriteField" => RewriteField(request),
                 "snapshot" => Session(request).Snapshot,
                 "setProperty" => SetProperty(request),
                 "setSource" => SetSource(request),
@@ -94,6 +97,7 @@ public static partial class Program
     private static object LanguageSchema() => new
     {
         version = FirmamentSemanticSchemas.Version,
+        projectionVersion = FirmamentFieldProjector.Version,
         constructs = FirmamentSemanticSchemas.All.Select(construct => new
         {
             id = construct.Id.Value, construct.Name, construct.Context, construct.Entry,
@@ -127,6 +131,22 @@ public static partial class Program
         return new { accepted = true, revision = session.Revision, dirty = true };
     }
 
+    private static object DescribeConstruct(WebRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.ConstructSemanticId))
+            throw new WebRuntimeException("construct-required", "describeConstruct requires a semantic ID.");
+        return Session(request).DescribeConstruct(request.ConstructSemanticId);
+    }
+
+    private static object RewriteField(WebRequest request)
+    {
+        if (request.Source is null || string.IsNullOrWhiteSpace(request.SourceRevision) ||
+            string.IsNullOrWhiteSpace(request.ConstructSemanticId) || string.IsNullOrWhiteSpace(request.FieldId) ||
+            request.FieldValue is null || request.BuildRevision is null)
+            throw new WebRuntimeException("rewrite-input-required", "rewriteField requires source, revisions, semantic ID, field ID, and a typed value.");
+        return Session(request).RewriteField(request);
+    }
+
     private static object Rebuild(WebRequest request) => Session(request).Rebuild();
 
     private static object ExportStep(WebRequest request)
@@ -154,7 +174,8 @@ public static partial class Program
 
     private sealed record WebRequest(string Operation, string? SessionId = null, string? Source = null,
         string? SourceName = null, string? PropertyId = null, WebPropertyValue? Value = null,
-        string? SourceRevision = null, int? Offset = null);
+        string? SourceRevision = null, int? Offset = null, string? ConstructSemanticId = null,
+        string? FieldId = null, FirmamentProjectedValue? FieldValue = null, int? BuildRevision = null);
 
     private sealed class WebRuntimeException(string code, string message) : Exception(message)
     {
@@ -166,6 +187,7 @@ public static partial class Program
         private string _source = source;
         private string _sourceName = sourceName;
         private IReadOnlyList<WebProperty> _properties = [];
+        private IReadOnlyList<FirmamentConstructProjection> _projections = [];
         private readonly Dictionary<string, WebPropertyValue> _overrides = new(StringComparer.Ordinal);
         private object? _lastSnapshot;
         public string Id { get; } = id;
@@ -179,6 +201,46 @@ public static partial class Program
             _source = nextSource;
             if (!string.IsNullOrWhiteSpace(nextSourceName)) _sourceName = nextSourceName;
             _overrides.Clear();
+            _projections = [];
+        }
+
+        public object DescribeConstruct(string semanticId)
+        {
+            var projection = _projections.SingleOrDefault(item => item.SemanticId == semanticId);
+            if (projection is null) throw new WebRuntimeException("construct-not-projected", $"No current field projection exists for '{semanticId}'.");
+            return new
+            {
+                version = FirmamentFieldProjector.Version,
+                constructId = projection.ConstructId.Value, semanticId = projection.SemanticId,
+                sourceRevision = projection.SourceRevision, buildRevision = projection.BuildRevision,
+                source = projection.ConstructSpan is { } span ? SourceRefAt(projection.SourceDocument, _source, span.Start, span.Length) : null,
+                outputs = FirmamentSemanticSchemas.Get(projection.ConstructId.Value)!.Outputs.Select(item => new
+                {
+                    id = item.Id.Value, item.Name, item.Kind, item.SourceAddressable, item.SourceRole
+                }),
+                fields = projection.Fields.Select(field => new
+                {
+                    fieldId = field.FieldId.Value, name = field.Name, kind = field.Kind.ToString(), unit = field.Unit.ToString(),
+                    effectiveValue = field.EffectiveValue, authoredValue = field.AuthoredValue, origin = field.Origin,
+                    declaration = field.DeclarationSpan is { } declaration ? SourceRefAt(projection.SourceDocument, _source, declaration.Start, declaration.Length) : null,
+                    source = field.ValueSpan is { } value ? SourceRefAt(projection.SourceDocument, _source, value.Start, value.Length) : null,
+                    field.Editable, field.ReadOnlyReason
+                })
+            };
+        }
+
+        public object RewriteField(WebRequest request)
+        {
+            if (request.Source != _source || request.BuildRevision != Revision)
+                throw new WebRuntimeException("stale_revision", "The requested source or build revision is stale.");
+            var construct = _projections.SingleOrDefault(item => item.SemanticId == request.ConstructSemanticId);
+            if (construct is null) throw new WebRuntimeException("construct-not-projected", "The construct has no current field projection.");
+            var result = FirmamentFieldProjector.Rewrite(_source, request.SourceRevision!, construct,
+                new FirmamentFieldId(request.FieldId!), request.FieldValue!);
+            if (!result.Success) throw new WebRuntimeException(result.Code!, result.Message!);
+            return new { source = result.NewSource, sourceRevision = result.NewSourceRevision,
+                replaced = SourceRefAt(_sourceName, _source, result.ReplacedSpan!.Start, result.ReplacedSpan.Length),
+                replacement = result.Replacement };
         }
 
         public void SetProperty(string propertyId, WebPropertyValue value)
@@ -211,6 +273,7 @@ public static partial class Program
 
             Revision++;
             _properties = nextProperties;
+            _projections = compiled.Projections ?? [];
             StepText = compiled.StepText;
             var changes = new
             {
@@ -257,19 +320,40 @@ public static partial class Program
                     ? SourceRefAt(_sourceName, effective, span.Start, span.Length) : null;
             var boxSource = CompilerSource(entityId);
             // Preserve the exported body category in Kind; report the authored construct separately.
-            var semanticConstruct = boxSource is null ? null : FirmamentV2Parser.Parse(effective).Document?.Solids
+            var parsed = FirmamentV2Parser.Parse(effective);
+            var semanticConstruct = boxSource is null ? null : parsed.Document?.Solids
                 .FirstOrDefault(solid => string.Equals(solid.Name, entityId, StringComparison.Ordinal))?.RecordType;
+            IReadOnlyList<FirmamentConstructProjection> projections = _overrides.Count == 0 && parsed.Document is { } document
+                ? FirmamentFieldProjector.Project(document, effective, _sourceName, Revision + 1) : [];
+            if (_overrides.Count == 0 && build.Value.WireForm is not null)
+            {
+                var wire = WireFormAuthoring.Parse(effective);
+                if (wire.IsSuccess && wire.Value is not null)
+                    projections = [.. projections, .. FirmamentFieldProjector.ProjectWireForm(wire.Value, effective, _sourceName, Revision + 1)];
+            }
+            if (_overrides.Count == 0 && build.Value.ExportedBodyCategory == "section-chain" && LoftAuthoringParser.IsLoftSource(effective))
+            {
+                var loft = LoftAuthoringParser.Compile(effective, materialize: false);
+                if (FirmamentFieldProjector.ProjectLoft(loft, effective, _sourceName, Revision + 1) is { } projection)
+                    projections = [.. projections, projection];
+            }
+            semanticConstruct ??= projections.FirstOrDefault(item => item.SemanticId == entityId)?.ConstructId.Value;
             var featureSources = (build.Value.Features ?? []).ToDictionary(feature => feature.FeatureId,
                 feature => CompilerSource(feature.FeatureId), StringComparer.Ordinal);
             var mesh = WebMeshBuilder.Build(Name, definitionId, entityId, displayBody,
                 build.Value.RuntimeCorrespondence, boxSource, Revision + 1, featureSources);
             var meshMs = watch.Elapsed.TotalMilliseconds;
-            var featureNodes = (build.Value.EngineeringFeatures ?? []).Select(feature => new WebTreeNode(feature.FeatureId, feature.Kind, feature.Name, entityId, [], true, null))
+            var featureNodes = (build.Value.EngineeringFeatures ?? []).Select(feature => new WebTreeNode(feature.FeatureId, feature.Kind, feature.Name, entityId, [], true,
+                    projections.FirstOrDefault(item => item.SemanticId == feature.FeatureId)?.ConstructSpan is { } span
+                        ? SourceRefAt(_sourceName, effective, span.Start, span.Length) : null))
                 .Concat((build.Value.Features ?? []).Select(feature => new WebTreeNode(feature.FeatureId, feature.Kind, feature.Name, entityId, [], true, featureSources[feature.FeatureId], feature.Diameter))).ToArray();
-            var body = new WebTreeNode(entityId, build.Value.ExportedBodyCategory, Name, Id, featureNodes.Select(item => item.Id).ToArray(), true, boxSource ?? SourceRef(_sourceName, 0, effective.Length), SemanticConstruct: semanticConstruct);
+            var projectedBodySource = projections.FirstOrDefault(item => item.SemanticId == entityId)?.ConstructSpan is { } bodySpan
+                ? SourceRefAt(_sourceName, effective, bodySpan.Start, bodySpan.Length) : null;
+            var body = new WebTreeNode(entityId, build.Value.ExportedBodyCategory, Name, Id, featureNodes.Select(item => item.Id).ToArray(), true,
+                boxSource ?? projectedBodySource ?? SourceRef(_sourceName, 0, effective.Length), SemanticConstruct: semanticConstruct);
             var root = new WebTreeNode(Id, "Model", Name, null, [body.Id], true, SourceRef(_sourceName, 0, effective.Length));
             var tree = new { rootId = root.Id, nodes = new[] { root, body }.Concat(featureNodes).ToArray() };
-            return WebBuildResult.Passed(step, tree, mesh, [Id, entityId, .. featureNodes.Select(item => item.Id)], compileMs, meshMs);
+            return WebBuildResult.Passed(step, tree, mesh, [Id, entityId, .. featureNodes.Select(item => item.Id)], compileMs, meshMs) with { Projections = projections };
         }
 
         private WebBuildResult CompileAssembly(string effective, List<WebProperty> properties)
@@ -443,7 +527,8 @@ internal sealed record WebProperty(string Id, string OwnerEntityId, string Name,
 internal sealed record WebTreeNode(string Id, string Kind, string Name, string? ParentId, IReadOnlyList<string> Children, bool Visible, WebSourceRef? Source, double? HoleDiameterMm = null, string? SemanticConstruct = null);
 internal sealed record WebDiagnostic(string Severity, string Code, string Message, WebSourceRef? Source = null, string? Details = null);
 internal sealed record WebBuildResult(bool Success, int Revision, object? Model, IReadOnlyList<WebDiagnostic> Diagnostics, bool RetainedPreviousGeometry,
-    object? Tree = null, object? Mesh = null, IReadOnlyList<string>? EntityIds = null, object? Timings = null, object? Changes = null, string? StepText = null)
+    object? Tree = null, object? Mesh = null, IReadOnlyList<string>? EntityIds = null, object? Timings = null, object? Changes = null, string? StepText = null,
+    IReadOnlyList<FirmamentConstructProjection>? Projections = null)
 {
     public static WebBuildResult Failed(IReadOnlyList<WebDiagnostic> diagnostics, double compileMs) => new(false, 0, null, diagnostics, false, Timings: new { compileMilliseconds = compileMs });
     public static WebBuildResult Passed(string step, object tree, object mesh, IReadOnlyList<string> ids, double compileMs, double meshMs) => new(true, 0, null, [], false, tree, mesh, ids, new { compileMilliseconds = compileMs, meshMilliseconds = meshMs }, StepText: step);

@@ -56,7 +56,18 @@ public sealed class SemanticSchemaGenerator : IIncrementalGenerator
                         || kind == "Length" && unit != "Length" || kind == "Angle" && unit != "Angle"
                         || kind is not ("Length" or "Angle" or "Vector" or "Point") && unit != "None")
                     { Error(output, symbol, $"field '{fieldName}' in {name} has a duplicate/missing ID, unsupported kind, or invalid choices"); continue; }
-                    fields.Add(new(fieldId, fieldName, kind, unit, Bool(attribute, "Required"), Str(attribute, "Default"), Str(attribute, "Description"), choices));
+                    var editable = Bool(attribute, "SourceEditable");
+                    var projectorName = Str(attribute, "ProjectionMember");
+                    IMethodSymbol? projector = null;
+                    if (projectorName is not null)
+                        projector = symbol.GetMembers(projectorName).OfType<IMethodSymbol>().SingleOrDefault(method =>
+                            method.IsStatic && method.DeclaredAccessibility == Accessibility.Public &&
+                            method.Parameters.Length == 1 && method.ReturnType.SpecialType == SpecialType.System_Double);
+                    if (editable != (projector is not null) || projectorName is not null && projector is null)
+                    { Error(output, symbol, $"source-editable field '{fieldName}' in {name} requires one public static double projector with one semantic-instance parameter"); continue; }
+                    fields.Add(new(fieldId, fieldName, kind, unit, Bool(attribute, "Required"), Str(attribute, "Default"), Str(attribute, "Description"), choices,
+                        editable, projectorName, projector?.Parameters[0].Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                        symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)));
                 }
                 else if (attribute.AttributeClass?.Name == "FirmamentOutputAttribute")
                 {
@@ -77,14 +88,20 @@ public sealed class SemanticSchemaGenerator : IIncrementalGenerator
             source.Append("        new(new FirmamentConstructId(").Append(Q(entry.Id)).Append("), ").Append(Q(entry.Name)).Append(", ").Append(Q(entry.Context)).Append(", ").Append(Q(entry.Snippet)).Append(", ").Append(Q(entry.Description)).Append(", ").Append(Q(entry.Alias)).Append(",\n            System.Array.AsReadOnly(new FirmamentFieldSchema[] {\n");
             foreach (var field in entry.Fields)
             {
-                source.Append("                new(new FirmamentFieldId(").Append(Q(entry.Id + "." + field.Id)).Append("), ").Append(Q(field.Name)).Append(", FirmamentSchemaValueKind.").Append(field.Kind).Append(", FirmamentUnitKind.").Append(field.Unit).Append(", ").Append(field.Required ? "true" : "false").Append(", ").Append(Q(field.Default)).Append(", System.Array.AsReadOnly(new string[] { ").Append(string.Join(", ", field.Choices.Select(Q))).Append(" }), ").Append(Q(field.Description)).Append(", true),\n");
+                source.Append("                new(new FirmamentFieldId(").Append(Q(entry.Id + "." + field.Id)).Append("), ").Append(Q(field.Name)).Append(", FirmamentSchemaValueKind.").Append(field.Kind).Append(", FirmamentUnitKind.").Append(field.Unit).Append(", ").Append(field.Required ? "true" : "false").Append(", ").Append(Q(field.Default)).Append(", System.Array.AsReadOnly(new string[] { ").Append(string.Join(", ", field.Choices.Select(Q))).Append(" }), ").Append(Q(field.Description)).Append(", ").Append(field.Editable ? "true" : "false").Append("),\n");
             }
             source.Append("            }), System.Array.AsReadOnly(new FirmamentOutputSchema[] {\n");
             foreach (var item in entry.Outputs)
                 source.Append("                new(new FirmamentOutputId(").Append(Q(entry.Id + "." + item.Id)).Append("), ").Append(Q(item.Name)).Append(", ").Append(Q(item.Kind)).Append(", ").Append(item.Addressable ? "true" : "false").Append(", ").Append(Q(item.Role)).Append("),\n");
             source.Append("            })),\n");
         }
-        source.Append("    });\n    public static FirmamentConstructSchema? Get(string name) => System.Linq.Enumerable.FirstOrDefault(All, x => x.Name == name);\n}\n");
+        source.Append("    });\n    public static FirmamentConstructSchema? Get(string name) => System.Linq.Enumerable.FirstOrDefault(All, x => x.Name == name);\n");
+        foreach (var entry in entries)
+        foreach (var field in entry.Fields.Where(field => field.Editable))
+            source.Append("    public static double Project").Append(entry.Id).Append(field.Id).Append("(")
+                .Append(field.ProjectorType).Append(" instance) => ").Append(field.ProjectorOwner).Append(".")
+                .Append(field.ProjectorName).Append("(instance);\n");
+        source.Append("}\n");
         output.AddSource("FirmamentSemanticSchemas.g.cs", source.ToString());
     }
 
@@ -98,7 +115,8 @@ public sealed class SemanticSchemaGenerator : IIncrementalGenerator
     private static void Error(SourceProductionContext output, INamedTypeSymbol symbol, string message) => output.ReportDiagnostic(Diagnostic.Create(Invalid, symbol.Locations.FirstOrDefault(), message));
 
     private sealed record Entry(string Id, string Name, string? Context, string? Snippet, string? Description, string? Alias, Field[] Fields, Output[] Outputs);
-    private sealed record Field(string Id, string Name, string Kind, string Unit, bool Required, string? Default, string? Description, string[] Choices);
+    private sealed record Field(string Id, string Name, string Kind, string Unit, bool Required, string? Default, string? Description, string[] Choices,
+        bool Editable, string? ProjectorName, string? ProjectorType, string ProjectorOwner);
     private sealed record Output(string Id, string Name, string Kind, bool Addressable, string? Role);
 }
 

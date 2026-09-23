@@ -304,7 +304,9 @@ internal static class FirmamentPlacementResolver
             if (curve.Kind == CurveGeometryKind.Line3)
             {
                 var line = curve.Line3!.Value;
-                point = edge.StartVertexId == vertexId ? line.Evaluate(0d) : line.Evaluate(1d);
+                if (!body.Bindings.TryGetEdgeBinding(edge.Id, out var binding) || binding.TrimInterval is not { } trim)
+                    continue;
+                point = edge.StartVertexId == vertexId ? line.Evaluate(trim.Start) : line.Evaluate(trim.End);
                 return true;
             }
 

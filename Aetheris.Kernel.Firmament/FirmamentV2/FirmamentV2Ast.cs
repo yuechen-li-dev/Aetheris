@@ -48,7 +48,7 @@ public enum FirmamentV2ConstructionPolicy { Solid, Hollow }
 /// <summary>Source-owned hollow intent.  This is deliberately not a Boolean tool description.</summary>
 public sealed record FirmamentV2HollowIntent(double WallThickness, IReadOnlyList<string> Openings, FirmamentV2SourceSpan SourceSpan);
 
-public sealed record FirmamentV2SolidBinding(string Name, string RecordType, FirmamentV2PrimitiveRecord Primitive, string? DerivedFrom = null, IReadOnlyDictionary<string, IReadOnlyList<double>>? Overrides = null, IReadOnlyDictionary<string, string>? Provenance = null, FirmamentV2ConstructionPolicy ConstructionPolicy = FirmamentV2ConstructionPolicy.Solid, FirmamentV2HollowIntent? Hollow = null)
+public sealed record FirmamentV2SolidBinding(string Name, string RecordType, FirmamentV2PrimitiveRecord Primitive, string? DerivedFrom = null, IReadOnlyDictionary<string, IReadOnlyList<double>>? Overrides = null, IReadOnlyDictionary<string, string>? Provenance = null, FirmamentV2ConstructionPolicy ConstructionPolicy = FirmamentV2ConstructionPolicy.Solid, FirmamentV2HollowIntent? Hollow = null, FirmamentV2SourceSpan? SourceSpan = null)
 {
     public bool IsDerived => !string.IsNullOrWhiteSpace(DerivedFrom);
     public FirmamentV2BoxRecord? Box => Primitive as FirmamentV2BoxRecord;
@@ -254,7 +254,7 @@ public sealed record FirmamentV2PmiBlock(IReadOnlyList<FirmamentV2PmiRecord> Rec
 public sealed record FirmamentV2PmiRecord(FirmamentV2PmiKind Kind, string Name, IReadOnlyDictionary<string, FirmamentV2PmiField> Fields, FirmamentV2SourceSpan SourceSpan, FirmamentV2BoundPmiRecord? Bound = null, FirmamentV2PmiProjection? Projection = null);
 public sealed record FirmamentV2PmiField(string Name, string Source, FirmamentV2SourceSpan SourceSpan, FirmamentV2ValueExpression? ValueExpression = null);
 public sealed record FirmamentV2BoundPmiBlock(IReadOnlyList<FirmamentV2BoundPmiRecord> Datums, IReadOnlyList<FirmamentV2BoundPmiRecord> Dimensions, IReadOnlyList<FirmamentV2BoundPmiRecord> Controls, IReadOnlyList<string> Diagnostics);
-public sealed record FirmamentV2BoundPmiRecord(FirmamentV2PmiKind Kind, string Name, IReadOnlyList<string> Targets, FirmamentV2LiteralValue? DimensionValue, FirmamentV2Tolerance? DimensionTolerance, FirmamentV2LiteralValue? ControlTolerance, IReadOnlyList<string> DatumRefs, FirmamentV2SourceSpan SourceSpan, string? ProjectionSource = null);
+public sealed record FirmamentV2BoundPmiRecord(FirmamentV2PmiKind Kind, string Name, IReadOnlyList<string> Targets, FirmamentV2LiteralValue? DimensionValue, FirmamentV2Tolerance? DimensionTolerance, FirmamentV2LiteralValue? ControlTolerance, IReadOnlyList<string> DatumRefs, FirmamentV2SourceSpan SourceSpan, string? ProjectionSource = null, FirmamentV2HoleWallSelector? HoleWallTarget = null);
 /// <summary>Reusable, validated dimensional intent. Only equality of a semantic feature property
 /// to a length expectation is admitted in Preview 1.</summary>
 public sealed record FirmamentV2SemanticConstraint(string Id, string Subject, string Property, FirmamentV2LiteralValue NominalValue, FirmamentV2Tolerance? Tolerance, bool ValidationSucceeded, FirmamentV2SourceSpan SourceSpan, string ExpectedProvenance);

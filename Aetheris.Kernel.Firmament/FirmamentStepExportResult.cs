@@ -1,3 +1,7 @@
+using System.Text.Json.Serialization;
+using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Firmament.Materializer;
+
 namespace Aetheris.Kernel.Firmament;
 
 public sealed record FirmamentStepExportResult(
@@ -29,7 +33,13 @@ public sealed record FirmamentStepExportResult(
     Aetheris.Kernel.Firmament.Piping.PipingReport? Piping = null,
     FirmamentRevolveReport? Revolve = null,
     FirmamentGearReport? Gear = null,
-    Aetheris.Kernel.Firmament.FirmamentV2.FirmamentPlateauReport? Plateau = null);
+    Aetheris.Kernel.Firmament.FirmamentV2.FirmamentPlateauReport? Plateau = null)
+{
+    // In-process display can use the exact body that was exported to STEP.
+    // It is intentionally absent from CLI/JSON artifact serialization.
+    [JsonIgnore] public BrepBody? RuntimeBody { get; init; }
+    [JsonIgnore] public SemanticTopologyCorrespondence? RuntimeCorrespondence { get; init; }
+}
 
 public sealed record FirmamentGearItemReport(
     string Name,

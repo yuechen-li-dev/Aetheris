@@ -4,6 +4,7 @@ using Aetheris.Kernel.Core.Brep.Boolean;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Numerics;
+using Aetheris.Kernel.Core.Topology;
 
 namespace Aetheris.Kernel.Firmament.Materializer;
 
@@ -11,7 +12,8 @@ internal sealed record AirHoleCompositeMaterializationResult(
     bool Succeeded,
     BrepBody? Body,
     IReadOnlyList<AirHoleSimpleShaftMaterializationPlan> Plans,
-    IReadOnlyList<string> Diagnostics);
+    IReadOnlyList<string> Diagnostics,
+    SemanticTopologyCorrespondence? Correspondence = null);
 
 internal static class AirHoleCompositeMaterializer
 {
@@ -70,7 +72,10 @@ internal static class AirHoleCompositeMaterializer
             diagnostics.Add($"air-hole-x4 accepted semantic feature {plan.SemanticFeatureId} center=({plan.CenterU:0.###},{plan.CenterV:0.###}) radius={plan.Radius:0.###}.");
         }
 
-        var built = BrepBooleanBoxCylinderHoleBuilder.BuildComposition(composition, ToleranceContext.Default);
+        var wallFaces = new Dictionary<string, FaceId>(StringComparer.Ordinal);
+        var duplicateWallOrigin = false;
+        var built = BrepBooleanBoxCylinderHoleBuilder.BuildComposition(composition, ToleranceContext.Default,
+            (featureId, faceId) => { if (!wallFaces.TryAdd(featureId, faceId)) duplicateWallOrigin = true; });
         if (!built.IsSuccess || built.Value is null)
         {
             diagnostics.Add("air-hole-x4 composite BRep build failed.");
@@ -78,7 +83,18 @@ internal static class AirHoleCompositeMaterializer
             return new(false, null, plans, diagnostics);
         }
 
+        if (duplicateWallOrigin || wallFaces.Count != plans.Count || plans.Any(plan => !wallFaces.ContainsKey(plan.SemanticFeatureId)))
+        {
+            diagnostics.Add("firmament-v2-hole-wall-role-unavailable: composite construction did not emit one wall role per semantic Hole.");
+            return new(false, null, plans, diagnostics);
+        }
+        var descendants = plans.Select(plan => new SemanticTopologyDescendant(
+            $"material:hole:{plan.SemanticFeatureId}:wall", "Face", SemanticTopologyRole.HoleWallFace,
+            $"hole:{plan.SemanticFeatureId}", Face: wallFaces[plan.SemanticFeatureId], ParentStableId: plan.SemanticFeatureId,
+            Addressability: SemanticTopologyAddressability.DerivedStable)).ToArray();
+        var correspondence = new SemanticTopologyCorrespondence(plans[0].SemanticFeature.TargetBodyId ?? "semantic-hole-host",
+            descendants, ["HoleAIR", "AirHoleCompositeMaterializer", "BrepBooleanBoxCylinderHoleBuilder"]);
         diagnostics.Add("air-hole-x4 composite materialization succeeded through semantic AirHoleFeature plans and safe boolean AP242 BRep composition.");
-        return new(true, built.Value, plans, diagnostics);
+        return new(true, built.Value, plans, diagnostics, correspondence);
     }
 }

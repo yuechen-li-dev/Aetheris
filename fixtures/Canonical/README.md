@@ -36,7 +36,7 @@ Everything in this directory is current authoring guidance. Examples progress fr
 | route a piping system | `Piping/pump-skid.firmament` | logical Connection, equipment-owned nozzle Interfaces/mates, scoped owner exemption, explicit/accepted Routes, strict foreign KeepOut clearance, fittings, BOM/Cut List |
 | combine machining operations | `Integration/machined-mounting-block.firmament` | Boss, Pocket, holes, counterbores, chamfer, PMI |
 
-`Pocket` never means through-all; use a supported `Hole` or `Slot` for through removal. Bounded two-section [`Loft` and `Loft<Hollow>`](../../docs/public/firmament/loft.md) are admitted; general smooth/rail loft, helix, arbitrary Boolean authoring, and freeform surface features are not in Preview 3; see [`docs/public/reference/supported-features.md`](../../docs/public/reference/supported-features.md).
+`Pocket` never means through-all; use a supported `Hole` or `Slot` for through removal. Bounded two-section [`Loft` and `Loft<Hollow>`](../../docs/public/firmament/loft.md) and WireForm [`Helix`](WireForm/helix.firmament) are admitted; general smooth/rail loft, arbitrary Boolean authoring, and freeform surface features are not in Preview 3; see [`docs/public/reference/supported-features.md`](../../docs/public/reference/supported-features.md).
 
 ## Ownership
 

@@ -48,7 +48,7 @@ internal static class FirmamentPrimitiveExecutor
                 return KernelResult<FirmamentPrimitiveExecutionResult>.Failure(bodyResult.Diagnostics);
             }
 
-            executedPrimitives.Add(new FirmamentExecutedPrimitive(primitive.OpIndex, primitive.FeatureId, primitive.Kind, bodyResult.Value.Published));
+            executedPrimitives.Add(new FirmamentExecutedPrimitive(primitive.OpIndex, primitive.FeatureId, primitive.Kind, bodyResult.Value.Published, bodyResult.Value.BoxConstructionTopology));
             resolvedPlacementByOpIndex[primitive.OpIndex] = BuildResolvedPlacement(primitive.Placement, bodyResult.Value.PlacementTranslation);
             publishedBodiesByFeatureId[primitive.FeatureId] = bodyResult.Value.Published;
             booleanExecutionBodiesByFeatureId[primitive.FeatureId] = bodyResult.Value.LegacyForBoolean;
@@ -591,7 +591,7 @@ internal static class FirmamentPrimitiveExecutor
 
     private static KernelResult<FirmamentExecutedPrimitiveBodies> ExecutePrimitive(FirmamentLoweredPrimitive primitive, IReadOnlyDictionary<string, BrepBody> publishedBodies)
     {
-        var legacyResult = ExecuteLegacyPrimitive(primitive);
+        var legacyResult = ExecuteLegacyPrimitive(primitive, out var boxTopology);
         if (!legacyResult.IsSuccess)
         {
             return KernelResult<FirmamentExecutedPrimitiveBodies>.Failure(legacyResult.Diagnostics);
@@ -605,7 +605,7 @@ internal static class FirmamentPrimitiveExecutor
         }
 
         var publishedBody = TranslateBody(defaultFrameBody, placementResult.Value);
-        return KernelResult<FirmamentExecutedPrimitiveBodies>.Success(new FirmamentExecutedPrimitiveBodies(publishedBody, legacyResult.Value, placementResult.Value));
+        return KernelResult<FirmamentExecutedPrimitiveBodies>.Success(new FirmamentExecutedPrimitiveBodies(publishedBody, legacyResult.Value, placementResult.Value, boxTopology));
     }
 
     private static BrepBody ApplyDefaultLocalFrame(FirmamentLoweredPrimitive primitive, BrepBody body)
@@ -627,11 +627,17 @@ internal static class FirmamentPrimitiveExecutor
         };
     }
 
-    private static KernelResult<BrepBody> ExecuteLegacyPrimitive(FirmamentLoweredPrimitive primitive)
+    private static KernelResult<BrepBody> ExecuteLegacyPrimitive(FirmamentLoweredPrimitive primitive,
+        out BrepExtrudeConstructionTopology? boxTopology)
     {
+        boxTopology = null;
+        if (primitive.Kind == FirmamentLoweredPrimitiveKind.Box)
+        {
+            var box = (FirmamentLoweredBoxParameters)primitive.Parameters;
+            return BrepPrimitives.CreateBoxWithTopology(box.SizeX, box.SizeY, box.SizeZ, out boxTopology);
+        }
         return primitive.Kind switch
         {
-            FirmamentLoweredPrimitiveKind.Box => BrepPrimitives.CreateBox(((FirmamentLoweredBoxParameters)primitive.Parameters).SizeX, ((FirmamentLoweredBoxParameters)primitive.Parameters).SizeY, ((FirmamentLoweredBoxParameters)primitive.Parameters).SizeZ),
             FirmamentLoweredPrimitiveKind.Cylinder => BrepPrimitives.CreateCylinder(((FirmamentLoweredCylinderParameters)primitive.Parameters).Radius, ((FirmamentLoweredCylinderParameters)primitive.Parameters).Height),
             FirmamentLoweredPrimitiveKind.Cone => ExecuteCone((FirmamentLoweredConeParameters)primitive.Parameters),
             FirmamentLoweredPrimitiveKind.Torus => BrepPrimitives.CreateTorus(((FirmamentLoweredTorusParameters)primitive.Parameters).MajorRadius, ((FirmamentLoweredTorusParameters)primitive.Parameters).MinorRadius),
@@ -1498,7 +1504,8 @@ internal static class FirmamentPrimitiveExecutor
         => FirmamentPrimitiveExecutionTranslation.TranslateBody(body, translation);
 }
 
-internal sealed record FirmamentExecutedPrimitiveBodies(BrepBody Published, BrepBody LegacyForBoolean, Vector3D PlacementTranslation);
+internal sealed record FirmamentExecutedPrimitiveBodies(BrepBody Published, BrepBody LegacyForBoolean, Vector3D PlacementTranslation,
+    BrepExtrudeConstructionTopology? BoxConstructionTopology = null);
 
 internal static class FirmamentPrimitiveToolParsing
 {

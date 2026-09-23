@@ -8,13 +8,23 @@ using Aetheris.Kernel.Core.Topology;
 
 namespace Aetheris.Kernel.Core.Brep.Features;
 
+/// <summary>Topology IDs captured at construction, before export or tessellation.</summary>
+public sealed record BrepExtrudeConstructionTopology(FaceId BottomFace, FaceId TopFace,
+    IReadOnlyList<FaceId> SideFaces, IReadOnlyList<EdgeId> BottomEdges,
+    IReadOnlyList<EdgeId> TopEdges, IReadOnlyList<EdgeId> VerticalEdges);
+
 /// <summary>
 /// M10 minimal programmatic extrusion for a single outer polyline profile.
 /// </summary>
 public static class BrepExtrude
 {
     public static KernelResult<BrepBody> Create(PolylineProfile2D profile, ExtrudeFrame3D frame, double depth)
+        => CreateWithTopology(profile, frame, depth, out _);
+
+    public static KernelResult<BrepBody> CreateWithTopology(PolylineProfile2D profile, ExtrudeFrame3D frame, double depth,
+        out BrepExtrudeConstructionTopology? constructionTopology)
     {
+        constructionTopology = null;
         var diagnostics = new List<KernelDiagnostic>();
         if (!double.IsFinite(depth) || depth <= 0d)
         {
@@ -139,6 +149,8 @@ public static class BrepExtrude
 
         var body = new BrepBody(builder.Model, geometry, bindings);
         var validation = BrepBindingValidator.Validate(body, requireAllEdgeAndFaceBindings: true);
+        if (validation.IsSuccess)
+            constructionTopology = new(faces[0], faces[1], faces.Skip(2).ToArray(), bottomEdges, topEdges, sideEdges);
         return validation.IsSuccess
             ? KernelResult<BrepBody>.Success(body, validation.Diagnostics)
             : KernelResult<BrepBody>.Failure(validation.Diagnostics);

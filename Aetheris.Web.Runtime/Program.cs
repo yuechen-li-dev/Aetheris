@@ -206,16 +206,33 @@ public static partial class Program
             if (!build.IsSuccess || build.Value is null)
                 return WebBuildResult.Failed(Diagnostics(build.Diagnostics, _sourceName), compileMs);
             var step = build.Value.StepText;
-            var import = Step242Importer.ImportBody(step);
-            if (!import.IsSuccess || import.Value is null)
-                return WebBuildResult.Failed(Diagnostics(import.Diagnostics, _sourceName), compileMs);
+            BrepBody displayBody;
+            if (build.Value.RuntimeBody is { } canonicalBody) displayBody = canonicalBody;
+            else
+            {
+                var import = Step242Importer.ImportBody(step);
+                if (!import.IsSuccess || import.Value is null)
+                    return WebBuildResult.Failed(Diagnostics(import.Diagnostics, _sourceName), compileMs);
+                displayBody = import.Value;
+            }
             watch.Restart();
             var definitionId = "definition:" + Sha(step)[..16].ToLowerInvariant();
-            var entityId = string.IsNullOrWhiteSpace(build.Value.ExportedFeatureId) ? Id + ":body" : build.Value.ExportedFeatureId;
-            var mesh = WebMeshBuilder.Build(Name, definitionId, entityId, import.Value);
+            var entityId = build.Value.RuntimeCorrespondence?.BodyStableId
+                ?? (string.IsNullOrWhiteSpace(build.Value.ExportedFeatureId) ? Id + ":body" : build.Value.ExportedFeatureId);
+            var sourceMap = build.Value.RuntimeCorrespondence is { } correspondence
+                ? new Aetheris.Kernel.Firmament.Materializer.GeometrySourceMap(correspondence) : null;
+            WebSourceRef? CompilerSource(string symbol) =>
+                sourceMap?.TryGetSourceSpan(symbol, out var span) == true
+                    ? SourceRefAt(_sourceName, effective, span.Start, span.Length) : null;
+            var boxSource = CompilerSource(entityId);
+            var featureSources = (build.Value.Features ?? []).ToDictionary(feature => feature.FeatureId,
+                feature => CompilerSource(feature.FeatureId), StringComparer.Ordinal);
+            var mesh = WebMeshBuilder.Build(Name, definitionId, entityId, displayBody,
+                build.Value.RuntimeCorrespondence, boxSource, Revision + 1, featureSources);
             var meshMs = watch.Elapsed.TotalMilliseconds;
-            var featureNodes = (build.Value.EngineeringFeatures ?? []).Select(feature => new WebTreeNode(feature.FeatureId, feature.Kind, feature.Name, entityId, [], true, null)).ToArray();
-            var body = new WebTreeNode(entityId, build.Value.ExportedBodyCategory, Name, Id, featureNodes.Select(item => item.Id).ToArray(), true, SourceRef(_sourceName, 0, effective.Length));
+            var featureNodes = (build.Value.EngineeringFeatures ?? []).Select(feature => new WebTreeNode(feature.FeatureId, feature.Kind, feature.Name, entityId, [], true, null))
+                .Concat((build.Value.Features ?? []).Select(feature => new WebTreeNode(feature.FeatureId, feature.Kind, feature.Name, entityId, [], true, featureSources[feature.FeatureId], feature.Diameter))).ToArray();
+            var body = new WebTreeNode(entityId, build.Value.ExportedBodyCategory, Name, Id, featureNodes.Select(item => item.Id).ToArray(), true, boxSource ?? SourceRef(_sourceName, 0, effective.Length));
             var root = new WebTreeNode(Id, "Model", Name, null, [body.Id], true, SourceRef(_sourceName, 0, effective.Length));
             var tree = new { rootId = root.Id, nodes = new[] { root, body }.Concat(featureNodes).ToArray() };
             return WebBuildResult.Passed(step, tree, mesh, [Id, entityId, .. featureNodes.Select(item => item.Id)], compileMs, meshMs);
@@ -260,6 +277,13 @@ public static partial class Program
             diagnostic.Code.ToString(), diagnostic.Message, SourceRef(source, 0, 0), diagnostic.Source)).ToArray();
 
     private static WebSourceRef SourceRef(string source, int start, int length) => new(source, 1, 1, start, length);
+    private static WebSourceRef SourceRefAt(string name, string text, int start, int length)
+    {
+        var prefix = text[..start];
+        var line = 1 + prefix.Count(character => character == '\n');
+        var lastBreak = prefix.LastIndexOf('\n');
+        return new(name, line, start - lastBreak, start, length);
+    }
     private static string Sha(string value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
 }
 
@@ -328,27 +352,52 @@ internal static class ParameterInspector
 
 internal static class WebMeshBuilder
 {
-    public static object Build(string name, string definitionId, string entityId, BrepBody body)
+    public static object Build(string name, string definitionId, string entityId, BrepBody body,
+        Aetheris.Kernel.Firmament.Materializer.SemanticTopologyCorrespondence? correspondence = null,
+        WebSourceRef? source = null, int buildRevision = 0, IReadOnlyDictionary<string, WebSourceRef?>? featureSources = null)
     {
         // Browser WASM has no blocking monitor wait. Use the existing synchronous
         // tessellator authority; the Worker transport supplies UI responsiveness.
         var tessellation = BrepDisplayTessellator.Tessellate(body, new DisplayTessellationOptions(double.Pi / 16, .3, 6, 64));
         if (!tessellation.IsSuccess) throw new InvalidOperationException(string.Join("; ", tessellation.Diagnostics.Select(item => item.Message)));
         var positions = new List<double>(); var normals = new List<double>(); var indices = new List<int>(); var ranges = new List<object>();
+        var sourceMap = correspondence is null ? null : new Aetheris.Kernel.Firmament.Materializer.GeometrySourceMap(correspondence);
         foreach (var face in tessellation.Value.FacePatches.OrderBy(face => face.FaceId.Value))
         {
             var vertexOffset = positions.Count / 3; var triangleStart = indices.Count / 3;
             positions.AddRange(face.Positions.SelectMany(point => new[] { point.X, point.Y, point.Z }));
             normals.AddRange(face.Normals.SelectMany(normal => new[] { normal.X, normal.Y, normal.Z }));
             indices.AddRange(face.TriangleIndices.Select(index => index + vertexOffset));
-            ranges.Add(new { startTriangle = triangleStart, triangleCount = face.TriangleIndices.Count / 3, faceId = $"face:{face.FaceId.Value}", semanticEntityId = entityId });
+            Aetheris.Kernel.Firmament.Materializer.SemanticTopologyDescendant? semanticFace = null;
+            if (sourceMap is not null && sourceMap.TryGetByBrepFace(face.FaceId, out var mappedFace)) semanticFace = mappedFace;
+            var owner = semanticFace?.ParentStableId is { } parent && featureSources?.ContainsKey(parent) == true ? parent : entityId;
+            var faceSource = owner == entityId ? source : featureSources![owner];
+            ranges.Add(new { startTriangle = triangleStart, triangleCount = face.TriangleIndices.Count / 3, faceId = $"face:{face.FaceId.Value}", semanticEntityId = owner,
+                semanticTopologyId = semanticFace?.StableId, topologyKind = "Face", outputRole = semanticFace?.Role.ToString(), originFeature = semanticFace?.SourceStableId,
+                sourceAddressability = semanticFace?.Addressability.ToString() ?? "RuntimeOnly",
+                selector = semanticFace?.FirmamentSelector,
+                selectorReason = semanticFace is null ? "No compiler-owned source topology mapping is available for this display face."
+                    : semanticFace.FirmamentSelector is null ? "Construction identity is known, but Firmament has no qualified source selector for this topology." : null,
+                source = semanticFace is null ? null : faceSource, buildRevision });
         }
         return new
         {
             schema = "aetheris/display-mesh/1",
             name,
             units = "mm",
-            definitions = new[] { new { id = definitionId, identity = entityId, positions = positions.ToArray(), normals = normals.ToArray(), indices = indices.ToArray(), ranges } },
+            definitions = new[] { new { id = definitionId, identity = entityId, positions = positions.ToArray(), normals = normals.ToArray(), indices = indices.ToArray(), ranges,
+                edges = tessellation.Value.EdgePolylines.Select(edge =>
+                {
+                    Aetheris.Kernel.Firmament.Materializer.SemanticTopologyDescendant? semanticEdge = null;
+                    if (sourceMap is not null && sourceMap.TryGetByBrepEdge(edge.EdgeId, out var mappedEdge)) semanticEdge = mappedEdge;
+                    var owner = semanticEdge?.ParentStableId is { } parent && featureSources?.ContainsKey(parent) == true ? parent : entityId;
+                    return new { edgeId = $"edge:{edge.EdgeId.Value}", points = edge.Points.Select(point => new[] { point.X, point.Y, point.Z }).ToArray(), closed = edge.IsClosed,
+                        semanticEntityId = owner, semanticTopologyId = semanticEdge?.StableId, topologyKind = "Edge", outputRole = semanticEdge?.Role.ToString(), originFeature = semanticEdge?.SourceStableId,
+                        sourceAddressability = semanticEdge?.Addressability.ToString() ?? "RuntimeOnly", selector = semanticEdge?.FirmamentSelector,
+                        selectorReason = semanticEdge is null ? "Display BRep edge has no construction-owned source correspondence."
+                            : semanticEdge.FirmamentSelector is null ? "Construction identity is known, but Firmament has no qualified source selector for this edge." : null,
+                        source = semanticEdge is null ? null : owner == entityId ? source : featureSources![owner], buildRevision };
+                }).ToArray() } },
             occurrences = new[] { new { id = entityId + ":occurrence", path = name, parentId = (string?)null, definitionId, semanticEntityId = entityId, transform = new double[] { 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 } } }
         };
     }
@@ -357,7 +406,7 @@ internal static class WebMeshBuilder
 internal sealed record WebPropertyValue(double Value, string Unit);
 internal sealed record WebSourceRef(string Source, int Line, int Column, int Start, int Length);
 internal sealed record WebProperty(string Id, string OwnerEntityId, string Name, string Type, string Unit, double Value, bool Writable, int Start, int Length, WebSourceRef Source);
-internal sealed record WebTreeNode(string Id, string Kind, string Name, string? ParentId, IReadOnlyList<string> Children, bool Visible, WebSourceRef? Source);
+internal sealed record WebTreeNode(string Id, string Kind, string Name, string? ParentId, IReadOnlyList<string> Children, bool Visible, WebSourceRef? Source, double? HoleDiameterMm = null);
 internal sealed record WebDiagnostic(string Severity, string Code, string Message, WebSourceRef? Source = null, string? Details = null);
 internal sealed record WebBuildResult(bool Success, int Revision, object? Model, IReadOnlyList<WebDiagnostic> Diagnostics, bool RetainedPreviousGeometry,
     object? Tree = null, object? Mesh = null, IReadOnlyList<string>? EntityIds = null, object? Timings = null, object? Changes = null, string? StepText = null)

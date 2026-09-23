@@ -8,6 +8,58 @@ namespace Aetheris.Kernel.Firmament.Tests;
 public sealed class WireFormTests
 {
     [Fact]
+    public void Helix_AndAxisCoilShareSemanticIdentityAndGeometry()
+    {
+        var legacy = File.ReadAllText(Fixture("Canonical", "WireForm", "axis-coil.firmament"));
+        var canonical = legacy.Replace("AxisCoil Winding", "Helix Winding", StringComparison.Ordinal);
+        var helixResult = WireFormAuthoring.Parse(canonical);
+        var legacyResult = WireFormAuthoring.Parse(legacy);
+        Assert.True(helixResult.IsSuccess);
+        Assert.True(legacyResult.IsSuccess);
+        var helix = Assert.IsType<WireAxisCoilAir>(Assert.Single(helixResult.Value.Operations));
+        var axisCoil = Assert.IsType<WireAxisCoilAir>(Assert.Single(legacyResult.Value.Operations));
+        Assert.Equal("Helix", helix.CoilKind);
+        Assert.Equal(axisCoil, helix);
+        Assert.Equal(axisCoil.StableId(legacyResult.Value.Name), helix.StableId(helixResult.Value.Name));
+        for (var sample = 0; sample <= 32; sample++)
+            Assert.True((helix.Evaluate(sample / 32d) - axisCoil.Evaluate(sample / 32d)).Length < 1e-12);
+        var built = FirmamentBuildAndExport.CompileSource(canonical);
+        Assert.True(built.IsSuccess, Messages(built));
+        Assert.Equal("Helix", Assert.Single(built.Value.WireForm!.Operations).Kind);
+    }
+
+    [Theory]
+    [InlineData("Radius: 12mm", "Radius: -12mm", "wireform-coil-radius-invalid")]
+    [InlineData("Pitch: 5mm", "Pitch: -5mm", "wireform-coil-parameters-inconsistent")]
+    [InlineData("Pitch: 5mm", "", "wireform-coil-parameters-inconsistent")]
+    [InlineData("Pitch: 5mm", "Pitch: 5mm; Height: 39mm", "wireform-coil-parameters-inconsistent")]
+    public void Helix_RejectsInvalidOrInconsistentDimensions(string oldText, string newText, string code)
+    {
+        var source = File.ReadAllText(Fixture("Canonical", "WireForm", "axis-coil.firmament"))
+            .Replace("AxisCoil Winding", "Helix Winding", StringComparison.Ordinal)
+            .Replace(oldText, newText, StringComparison.Ordinal);
+        var result = WireFormAuthoring.Parse(source);
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Message.Contains(code, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Helix_DerivesPitchFromHeightAndKeepsExplicitHandedness()
+    {
+        var source = File.ReadAllText(Fixture("Canonical", "WireForm", "axis-coil.firmament"))
+            .Replace("AxisCoil Winding", "Helix Winding", StringComparison.Ordinal)
+            .Replace("Pitch: 5mm", "Height: 40mm", StringComparison.Ordinal)
+            .Replace("RightHanded", "LeftHanded", StringComparison.Ordinal);
+        var result = WireFormAuthoring.Parse(source);
+        Assert.True(result.IsSuccess);
+        var helix = Assert.IsType<WireAxisCoilAir>(Assert.Single(result.Value.Operations));
+        Assert.Equal(8d, helix.Turns);
+        Assert.Equal(5d, helix.PitchMm);
+        Assert.Equal(40d, helix.HeightMm);
+        Assert.Equal(WireCoilHandedness.LeftHanded, helix.Handedness);
+    }
+
+    [Fact]
     [Trait("Category", "SlowCorpus")]
     public void AxisCoil_LowersSemanticHelixToNonRationalSplineTube()
     {

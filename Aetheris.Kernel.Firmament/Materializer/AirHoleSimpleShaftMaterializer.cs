@@ -238,11 +238,11 @@ internal static class AirHoleSimpleShaftMaterializer
         var source = $"hole:{plan.SemanticFeatureId}";
         var descendants = new SemanticTopologyDescendant[]
         {
-            new($"material:{source}:entry-loop", "Loop", SemanticTopologyRole.HoleEntryLoop, source, Loop: entryLoop, ParentStableId: plan.SemanticFeatureId),
-            new($"material:{source}:exit-loop", "Loop", SemanticTopologyRole.HoleExitLoop, source, Loop: exitLoop, ParentStableId: plan.SemanticFeatureId),
-            new($"material:{source}:entry-edge", "Edge", SemanticTopologyRole.TopBoundary, source, Edge: EdgeOf(entryLoop), ParentStableId: plan.SemanticFeatureId),
-            new($"material:{source}:exit-edge", "Edge", SemanticTopologyRole.BottomBoundary, source, Edge: EdgeOf(exitLoop), ParentStableId: plan.SemanticFeatureId),
-            new($"material:{source}:wall", "Face", SemanticTopologyRole.HoleWallFace, source, Face: wall.Id, ParentStableId: plan.SemanticFeatureId)
+            new($"material:{source}:entry-loop", "Loop", SemanticTopologyRole.HoleEntryLoop, source, Loop: entryLoop, ParentStableId: plan.SemanticFeatureId, Addressability: SemanticTopologyAddressability.DerivedStable),
+            new($"material:{source}:exit-loop", "Loop", SemanticTopologyRole.HoleExitLoop, source, Loop: exitLoop, ParentStableId: plan.SemanticFeatureId, Addressability: SemanticTopologyAddressability.DerivedStable),
+            new($"material:{source}:entry-edge", "Edge", SemanticTopologyRole.TopBoundary, source, Edge: EdgeOf(entryLoop), ParentStableId: plan.SemanticFeatureId, Addressability: SemanticTopologyAddressability.DerivedStable),
+            new($"material:{source}:exit-edge", "Edge", SemanticTopologyRole.BottomBoundary, source, Edge: EdgeOf(exitLoop), ParentStableId: plan.SemanticFeatureId, Addressability: SemanticTopologyAddressability.DerivedStable),
+            new($"material:{source}:wall", "Face", SemanticTopologyRole.HoleWallFace, source, Face: wall.Id, ParentStableId: plan.SemanticFeatureId, Addressability: SemanticTopologyAddressability.DerivedStable)
         };
         return new(plan.SemanticFeature.TargetBodyId ?? "semantic-hole-host", descendants, ["HoleAIR", "AirHoleSimpleShaftMaterializationPlan", "ThroughHoleConstructionRecipe", "BrepSurgery"]);
     }

@@ -15,6 +15,7 @@ using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Numerics;
 using Aetheris.Kernel.Core.Topology;
 using Aetheris.Kernel.Firmament.Execution;
+using Aetheris.Kernel.Firmament.Lowering;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Kernel.Firmament.Materializer;
 using Aetheris.Kernel.StandardLibrary;
@@ -387,7 +388,7 @@ public static class FirmamentBuildAndExport
             return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, authored.Value.Name, 0,
                 "wire-form", "wireform", WireForm: report,
                 EngineeringFeatures: authored.Value.Operations.Select(operation => new FirmamentEngineeringFeatureReport(
-                    operation.Name, operation switch { WireStraightAir => "Straight", WireBendAir => "Bend", WireAxisCoilAir => "AxisCoil", WireSurfaceCoilAir => "SurfaceCoil", WireKnotPathAir => "KnotPath", _ => "Unknown" }, operation.StableId(authored.Value.Name),
+                    operation.Name, operation switch { WireStraightAir => "Straight", WireBendAir => "Bend", WireAxisCoilAir => "Helix", WireSurfaceCoilAir => "SurfaceCoil", WireKnotPathAir => "KnotPath", _ => "Unknown" }, operation.StableId(authored.Value.Name),
                     authored.Value.Name, "WireState", "CircularSection", operation.LengthMm, "CenterlineLength", "Add",
                     PolicySource: "WireFormFeatureAir", MaterializationRoute: "WireFormCenterlineAir->CircularSweepBRepPlan")).ToArray()), []);
         }
@@ -577,15 +578,25 @@ public static class FirmamentBuildAndExport
                 return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
             }
 
-            return KernelResult<FirmamentStepExportResult>.Success(
-                new FirmamentStepExportResult(
+            var primitiveExport = new FirmamentStepExportResult(
                     step.Value,
                     executedPrimitive.FeatureId,
                     executedPrimitive.OpIndex,
                     "primitive",
                     v2Parse.Document.Solid.RecordType.ToLowerInvariant(),
                     DatumInspection: v2Parse.Document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.DatumPlane).Select(p => new FirmamentPmiInspectionDatum(p.Name, "planar", p.Target)).ToArray() ?? [],
-                    DimensionInspection: []));
+                    DimensionInspection: []);
+            if (executedPrimitive.Kind == FirmamentLoweredPrimitiveKind.Box
+                && executedPrimitive.BoxConstructionTopology is { } boxTopology
+                && v2Parse.Document.Solids.Count == 1
+                && execution.Value.ExecutedBooleans.Count == 0)
+                primitiveExport = primitiveExport with
+                {
+                    RuntimeBody = executedPrimitive.Body,
+                    RuntimeCorrespondence = BoxConstructionCorrespondence.Create(executedPrimitive.FeatureId, boxTopology,
+                        v2Parse.Document.Solids.Single(s => s.Name == executedPrimitive.FeatureId).SourceSpan)
+                };
+            return KernelResult<FirmamentStepExportResult>.Success(primitiveExport);
         }
 
         if (v2Parse.Diagnostics.Contains(FirmamentV2Parser.InlineStepRequiresCanonical, StringComparer.Ordinal))
@@ -2058,11 +2069,13 @@ public static class FirmamentBuildAndExport
         // The stock frame is authored by the Box, never inferred from ConceptIr presence.
         var host = FirmamentStockFrame.ForBox(box.Size[0], box.Size[1], box.Size[2]).CreateHoleHost();
         Aetheris.Kernel.Core.Brep.BrepBody? body;
+        SemanticTopologyCorrespondence? runtimeCorrespondence = null;
         IReadOnlyList<string> diagnostics;
         if (semanticHoles.Count == 1)
         {
             var materialized = AirHoleSimpleShaftMaterializer.Execute(feature, host);
             body = materialized.Body;
+            runtimeCorrespondence = materialized.Correspondence;
             diagnostics = materialized.Diagnostics;
             if (!materialized.Succeeded || body is null)
             {
@@ -2073,6 +2086,7 @@ public static class FirmamentBuildAndExport
         {
             var materialized = AirHoleCompositeMaterializer.Execute(semanticHoles, host);
             body = materialized.Body;
+            runtimeCorrespondence = materialized.Correspondence;
             diagnostics = materialized.Diagnostics;
             if (!materialized.Succeeded || body is null)
             {
@@ -2080,7 +2094,42 @@ public static class FirmamentBuildAndExport
             }
         }
 
-        var semanticPmi = BuildV2SemanticPmi(document, semanticHoles, modifyTargets[0]);
+        if (runtimeCorrespondence is not null)
+        {
+            var sourceSpans = new Dictionary<string, FirmamentV2SourceSpan>(StringComparer.Ordinal);
+            if (targetSolid.SourceSpan is { } bodySpan) sourceSpans[modifyTargets[0]] = bodySpan;
+            foreach (var modify in document.ModifyBlocks)
+                foreach (var hole in modify.SemanticHoles)
+                    if (hole.SourceSpan is { } holeSpan) sourceSpans[$"{modify.TargetSolid}.{hole.Name}"] = holeSpan;
+            runtimeCorrespondence = runtimeCorrespondence with
+            {
+                SourceSpans = sourceSpans,
+                Descendants = runtimeCorrespondence.Descendants.Select(descendant =>
+                {
+                    var owner = semanticHoles.FirstOrDefault(hole => descendant.SourceStableId == $"hole:{hole.FeatureId}");
+                    return descendant with
+                    {
+                        FirmamentSelector = owner is null ? descendant.FirmamentSelector
+                            : FirmamentV2HoleWallSelector.Format(descendant, owner.Name, owner.FeatureId) ?? descendant.FirmamentSelector
+                    };
+                }).ToArray()
+            };
+        }
+        foreach (var pmi in document.BoundPmi?.Dimensions ?? [])
+        {
+            if (pmi.HoleWallTarget is not { } selector) continue;
+            if (runtimeCorrespondence is null || body is null || selector.BodyName != runtimeCorrespondence.BodyStableId)
+                return SemanticHoleFailure([$"firmament-v2-hole-wall-role-unavailable:{selector.HoleName}"]);
+            var selectedFeature = semanticHoles.SingleOrDefault(hole => hole.Name == selector.HoleName);
+            if (selectedFeature is null) return SemanticHoleFailure([$"firmament-v2-hole-wall-unknown-hole:{selector.HoleName}"]);
+            var request = new SemanticSelectionRequest($"pmi:{pmi.Name}", pmi.Name, selector.BodyName,
+                [$"hole:{selectedFeature.FeatureId}"], SemanticTopologyRole.HoleWallFace,
+                SemanticSelectionRequirement.NonEmptyFaceSet, $"offset:{pmi.SourceSpan.Start}", "HoleDiameter");
+            var resolution = SemanticTopologySelectionResolver.Resolve(body, runtimeCorrespondence, request);
+            if (!resolution.Succeeded)
+                return SemanticHoleFailure([$"firmament-v2-hole-wall-role-unavailable:{selector.HoleName}:{resolution.Failure}"]);
+        }
+        var semanticPmi = BuildV2SemanticPmi(document, semanticHoles, modifyTargets[0], correspondence: runtimeCorrespondence);
         // Semantic-hole/profile-stack and bounded-Boolean routes remain Audit until their
         // historical coincident/seam topology is remediated producer-by-producer.
         var step = Step242Exporter.ExportBody(body, semanticPmi);
@@ -2138,7 +2187,11 @@ public static class FirmamentBuildAndExport
                 DatumInspection: document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.DatumPlane).Select(p => new FirmamentPmiInspectionDatum(p.Name, "planar", p.Target)).ToArray() ?? [],
                 DimensionInspection: document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.HoleDiameter).Select(p => new FirmamentPmiInspectionDimension("Diameter", p.Target, null, p.Value ?? 0d, "explicit-v2-semantic-pmi", p.Name)).ToArray() ?? [],
                 ConceptIr: document.ConceptIr,
-                Features: featureReports));
+                Features: featureReports)
+            {
+                RuntimeBody = runtimeCorrespondence is null ? null : body,
+                RuntimeCorrespondence = runtimeCorrespondence
+            });
     }
 
     private static KernelResult<bool> ValidateV2PmiExportSupport(FirmamentV2Document document)
@@ -2179,7 +2232,11 @@ public static class FirmamentBuildAndExport
                 boundPmiByName.TryGetValue(pmi.Name, out var boundPmi);
                 var tolerancePlus = boundPmi?.DimensionTolerance?.Plus;
                 var toleranceMinus = boundPmi?.DimensionTolerance?.Minus;
-                if (holeByName.TryGetValue(pmi.Target, out var pmiHole))
+                if (boundPmi?.HoleWallTarget is { } wallTarget && holeByName.TryGetValue(wallTarget.HoleName, out var wallHole))
+                {
+                    result.Add(new Step242SemanticPmiHole(wallHole.FeatureId, pmi.Value.Value, null, "explicit_v2_hole_wall_diameter", tolerancePlus, toleranceMinus));
+                }
+                else if (holeByName.TryGetValue(pmi.Target, out var pmiHole))
                 {
                     result.Add(new Step242SemanticPmiHole(pmiHole.FeatureId, pmi.Value.Value, null, "explicit_v2_semantic_hole_diameter", tolerancePlus, toleranceMinus));
                 }

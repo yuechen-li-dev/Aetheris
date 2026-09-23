@@ -4,10 +4,13 @@ export interface SourceReference { readonly source: string; readonly line: numbe
 export interface Diagnostic { readonly severity: DiagnosticSeverity; readonly code: string; readonly message: string; readonly source?: SourceReference; readonly details?: string }
 export interface UnitValue { readonly value: number; readonly unit: Unit }
 export interface EditableProperty { readonly id: string; readonly ownerEntityId: string; readonly name: string; readonly type: 'Length' | 'Angle' | 'Integer' | 'Number' | 'Boolean' | 'Enum'; readonly unit: Unit; readonly value: number; readonly writable: boolean; readonly source: SourceReference }
-export interface ModelTreeNode { readonly id: string; readonly kind: string; readonly name: string; readonly parentId?: string; readonly children: readonly string[]; readonly visible: boolean; readonly source?: SourceReference }
+export interface ModelTreeNode { readonly id: string; readonly kind: string; readonly name: string; readonly parentId?: string; readonly children: readonly string[]; readonly visible: boolean; readonly source?: SourceReference; readonly holeDiameterMm?: number | null }
 export interface ModelTree { readonly rootId: string; readonly nodes: readonly ModelTreeNode[] }
-export interface MeshRange { readonly startTriangle: number; readonly triangleCount: number; readonly faceId: string; readonly semanticEntityId: string }
-export interface DisplayMeshDefinition { readonly id: string; readonly identity: string; readonly positions: Float64Array; readonly normals: Float64Array; readonly indices: Uint32Array; readonly ranges: readonly MeshRange[] }
+export type SourceAddressability = 'AuthoredStable' | 'DerivedStable' | 'ImportedStable' | 'RuntimeOnly' | 'Ambiguous' | 'Unstable';
+export interface MeshRange { readonly startTriangle: number; readonly triangleCount: number; readonly faceId: string; readonly semanticEntityId: string; readonly semanticTopologyId?: string | null; readonly topologyKind?: 'Face'; readonly outputRole?: string | null; readonly originFeature?: string | null; readonly sourceAddressability?: SourceAddressability; readonly selector?: string | null; readonly selectorReason?: string | null; readonly source?: SourceReference | null; readonly buildRevision?: number }
+export interface SelectionDescription { readonly semanticEntityId: string; readonly faceId: string; readonly occurrenceId: string; readonly definitionId: string; readonly semanticTopologyId: string | null; readonly topologyKind: string; readonly outputRole: string | null; readonly originFeature: string | null; readonly selector: string | null; readonly sourceAddressability: SourceAddressability; readonly selectorReason: string | null; readonly source: SourceReference | null; readonly buildRevision: number; readonly sourceAddressable: boolean }
+export interface DisplayEdgePolyline { readonly edgeId: string; readonly points: readonly (readonly number[])[]; readonly closed: boolean; readonly semanticEntityId?: string; readonly semanticTopologyId?: string | null; readonly topologyKind?: 'Edge'; readonly outputRole?: string | null; readonly originFeature?: string | null; readonly sourceAddressability?: SourceAddressability; readonly selector?: string | null; readonly selectorReason?: string | null; readonly source?: SourceReference | null; readonly buildRevision?: number }
+export interface DisplayMeshDefinition { readonly id: string; readonly identity: string; readonly positions: Float64Array; readonly normals: Float64Array; readonly indices: Uint32Array; readonly ranges: readonly MeshRange[]; readonly edges?: readonly DisplayEdgePolyline[] }
 export interface DisplayMeshOccurrence { readonly id: string; readonly path: string; readonly parentId?: string; readonly definitionId?: string; readonly semanticEntityId: string; readonly transform: readonly number[] }
 export interface DisplayMesh { readonly schema: 'aetheris/display-mesh/1' | 'aetheris/assembly-display-mesh/1'; readonly name: string; readonly units: 'mm'; readonly definitions: readonly DisplayMeshDefinition[]; readonly occurrences: readonly DisplayMeshOccurrence[] }
 export interface ChangeSet { readonly changedEntityIds: readonly string[]; readonly addedEntityIds: readonly string[]; readonly removedEntityIds: readonly string[]; readonly meshChanged: boolean; readonly diagnosticsChanged: boolean }
@@ -34,8 +37,13 @@ export class ModelSession {
   setProperty(propertyId: string, value: UnitValue, options?: OperationOptions): Promise<RebuildResult>;
   setSource(source: string, options?: CompileOptions): Promise<RebuildResult>;
   rebuild(options?: OperationOptions): Promise<RebuildResult>;
-  resolveSelection(definitionId: string, triangleIndex: number, occurrenceId?: string): { semanticEntityId: string; faceId: string; occurrenceId: string; definitionId: string } | null;
+  resolveSelection(definitionId: string, triangleIndex: number, occurrenceId?: string): Omit<SelectionDescription, 'sourceAddressable'> | null;
+  describeSelection(definitionId: string, triangleIndex: number, occurrenceId?: string): SelectionDescription | null;
+  describeEdgeSelection(definitionId: string, edgeId: string, occurrenceId?: string): SelectionDescription | null;
+  selectionForSemanticId(semanticTopologyId: string): readonly ({ definitionId: string } & MeshRange)[];
+  selectionForSourceSymbol(symbol: string): readonly ({ definitionId: string } & MeshRange)[];
   selectionForEntity(entityId: string): { occurrenceIds: readonly string[]; ranges: readonly ({ definitionId: string } & MeshRange)[] };
+  geometrySourceMap(): readonly { definitionId: string; topologyId: string; topologyKind: string; semanticKey: string | null; outputRole: string | null; originFeature: string | null; source: SourceReference | null; selector: string | null; qualification: SourceAddressability; buildRevision: number }[];
   exportSTEP(options?: OperationOptions): Promise<Uint8Array>;
   exportSTEPBlob(options?: OperationOptions): Promise<Blob>;
   dispose(): Promise<void>;

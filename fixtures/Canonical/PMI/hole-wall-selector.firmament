@@ -1,0 +1,10 @@
+Model WallReference {
+    Units: mm
+    Box Body { Size: [40mm, 30mm, 8mm] }
+    Modify Body {
+        Hole<Shaft> H { On: +Z Center: Point2(0mm, 0mm) Diameter: 8mm End: ThroughAll }
+    }
+    Pmi {
+        HoleDiameter WallDiameter { Target: face(H.Wall) Value: 8mm }
+    }
+}

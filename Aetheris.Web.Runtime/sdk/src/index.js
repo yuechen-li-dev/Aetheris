@@ -67,7 +67,30 @@ export class Aetheris {
 
 export class ModelSession {
   constructor(transport, snapshot) { this.transport = transport; this.apply(snapshot); this.queue = Promise.resolve(); }
-  apply(snapshot) { Object.assign(this, snapshot); }
+  apply(snapshot) {
+    Object.assign(this, snapshot);
+    this._rangesBySemantic = new Map();
+    this._rangesBySource = new Map();
+    this._rangesByEntity = new Map();
+    this._rangesByDefinition = new Map();
+    this._geometrySourceMap = [];
+    const add = (index, key, value) => { if (key != null) { const items = index.get(key) ?? []; items.push(value); index.set(key, items); } };
+    for (const definition of this.mesh.definitions) {
+      for (const range of definition.ranges ?? []) {
+        const item = { definitionId: definition.id, ...range };
+        add(this._rangesBySemantic, range.semanticTopologyId, item);
+        add(this._rangesBySource, range.originFeature, item);
+        add(this._rangesByEntity, range.semanticEntityId, item);
+        add(this._rangesByDefinition, definition.id, item);
+        this._geometrySourceMap.push({ definitionId: definition.id, topologyId: range.faceId, topologyKind: 'Face', semanticKey: range.semanticTopologyId ?? null,
+          outputRole: range.outputRole ?? null, originFeature: range.originFeature ?? null, source: range.source ?? null,
+          selector: range.selector ?? null, qualification: range.sourceAddressability ?? 'RuntimeOnly', buildRevision: range.buildRevision ?? this.revision });
+      }
+      for (const edge of definition.edges ?? []) this._geometrySourceMap.push({ definitionId: definition.id, topologyId: edge.edgeId, topologyKind: 'Edge',
+        semanticKey: edge.semanticTopologyId ?? null, outputRole: edge.outputRole ?? null, originFeature: edge.originFeature ?? null,
+        source: edge.source ?? null, selector: edge.selector ?? null, qualification: edge.sourceAddressability ?? 'RuntimeOnly', buildRevision: edge.buildRevision ?? this.revision });
+    }
+  }
   entity(id) { return this.tree.nodes.find(node => node.id === id); }
   property(id) { return this.properties.find(property => property.id === id); }
   async setProperty(propertyId, value, options = {}) {
@@ -86,15 +109,44 @@ export class ModelSession {
     const definition = this.mesh.definitions.find(item => item.id === definitionId);
     const occurrence = occurrenceId ? this.mesh.occurrences.find(item => item.id === occurrenceId) : this.mesh.occurrences.find(item => item.definitionId === definitionId);
     const range = definition?.ranges?.find(item => triangleIndex >= item.startTriangle && triangleIndex < item.startTriangle + item.triangleCount);
-    return range && occurrence ? { semanticEntityId: occurrence.semanticEntityId ?? range.semanticEntityId, faceId: range.faceId, occurrenceId: occurrence.id, definitionId } : null;
+    return range && occurrence ? { semanticEntityId: range.semanticEntityId ?? occurrence.semanticEntityId, faceId: range.faceId, occurrenceId: occurrence.id, definitionId,
+      semanticTopologyId: range.semanticTopologyId ?? null, topologyKind: range.topologyKind ?? 'Face', outputRole: range.outputRole ?? null, originFeature: range.originFeature ?? null,
+      selector: range.selector ?? null, sourceAddressability: range.sourceAddressability ?? 'RuntimeOnly',
+      selectorReason: range.selectorReason ?? null, source: range.source ?? null, buildRevision: range.buildRevision ?? this.revision } : null;
+  }
+  describeSelection(definitionId, triangleIndex, occurrenceId) {
+    const selection = this.resolveSelection(definitionId, triangleIndex, occurrenceId);
+    if (!selection) return null;
+    return { ...selection, sourceAddressable: selection.source != null && ['AuthoredStable', 'DerivedStable'].includes(selection.sourceAddressability),
+      selectorReason: selection.selectorReason ?? (selection.selector ? null : 'No compiler-owned source selector mapping is available for this display face.') };
+  }
+  describeEdgeSelection(definitionId, edgeId, occurrenceId) {
+    const definition = this.mesh.definitions.find(item => item.id === definitionId);
+    const occurrence = occurrenceId ? this.mesh.occurrences.find(item => item.id === occurrenceId) : this.mesh.occurrences.find(item => item.definitionId === definitionId);
+    const edge = definition?.edges?.find(item => item.edgeId === edgeId);
+    if (!edge || !occurrence) return null;
+    return { semanticEntityId: edge.semanticEntityId ?? occurrence.semanticEntityId, faceId: edge.edgeId, occurrenceId: occurrence.id, definitionId,
+      semanticTopologyId: edge.semanticTopologyId ?? null, topologyKind: 'Edge', outputRole: edge.outputRole ?? null, originFeature: edge.originFeature ?? null,
+      selector: edge.selector ?? null, sourceAddressability: edge.sourceAddressability ?? 'RuntimeOnly',
+      selectorReason: edge.selectorReason ?? 'This edge has no qualified Firmament source selector.',
+      source: edge.source ?? null, buildRevision: edge.buildRevision ?? this.revision,
+      sourceAddressable: edge.source != null && ['AuthoredStable', 'DerivedStable'].includes(edge.sourceAddressability) };
+  }
+  selectionForSemanticId(semanticTopologyId) {
+    return this._rangesBySemantic.get(semanticTopologyId) ?? [];
+  }
+  selectionForSourceSymbol(symbol) {
+    return this._rangesBySource.get(symbol) ?? [];
   }
   selectionForEntity(entityId) {
     const occurrences = this.mesh.occurrences.filter(item => item.semanticEntityId === entityId || item.definitionId === entityId);
     const occurrenceIds = occurrences.map(item => item.id);
     const definitionIds = new Set(occurrences.map(item => item.definitionId).filter(Boolean));
-    const ranges = this.mesh.definitions.flatMap(definition => (definition.ranges ?? []).filter(range => range.semanticEntityId === entityId || definitionIds.has(definition.id)).map(range => ({ definitionId: definition.id, ...range })));
+    const ranges = [...(this._rangesByEntity.get(entityId) ?? [])];
+    for (const definitionId of definitionIds) for (const range of this._rangesByDefinition.get(definitionId) ?? []) if (!ranges.includes(range)) ranges.push(range);
     return { occurrenceIds, ranges };
   }
+  geometrySourceMap() { return this._geometrySourceMap; }
   async exportSTEP(options = {}) {
     throwIfAborted(options.signal);
     const result = await this.transport.request({ operation: 'exportStep', sessionId: this.id });

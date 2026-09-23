@@ -29,10 +29,10 @@ Circular area times total length gives volume; density from the Material DB give
 
 The centerline lowers to explicit line and circular-arc AIR, then to exact circular Sweep geometry. Straights become cylinders, bends become toroidal patches, and open terminals become planar caps. Canonical WireForms have no rational B-spline surfaces and no faceted fallback. Both terminals retain position, tangent/frame, and section diameter.
 
-WIRE-X1 adds semantic winding generators without weakening the exact Straight/Bend route. `AxisCoil` authors a cylindrical helix from `Radius`, `Turns`, either `Pitch` or `Height`, explicit `Handedness`, and an optional stable `StartPhase`. If both Pitch and Height are supplied they must agree with `Height = Turns × Pitch`. The compiler derives the missing value, exact helix length, terminal position/tangent/transported frame, turn clearance, volume, and mass.
+WIRE-X1 adds semantic winding generators without weakening the exact Straight/Bend route. `Helix` authors a cylindrical helix from `Radius`, `Turns`, either `Pitch` or `Height`, explicit `Handedness`, and an optional stable `StartPhase`. If both Pitch and Height are supplied they must agree with `Height = Turns × Pitch`. The compiler derives the missing value, exact helix length, terminal position/tangent/transported frame, turn clearance, volume, and mass. `AxisCoil` remains accepted as a compatibility spelling and lowers to the same semantic operation. The axis is derived from the current wire state rather than specified as an independent field.
 
 ```firmament
-AxisCoil Winding {
+Helix Winding {
     Radius: 12mm
     Turns: 8
     Pitch: 5mm
@@ -61,15 +61,15 @@ The semantic/evaluable winding law remains authoritative. Coil-containing forms 
 
 X1 coils remain continuous, unbranched, open paths. WIRE-X2 adds a distinct closed `Knot` operation for named mathematical knot families; it does not turn coils into closed paths or force Straight/Bend through spline approximation. See [Mathematical Knots](mathematical-knots.md). Arbitrary/freeform supports, variable pitch or section, intentional contact, spring mechanics, contact dynamics, and branching remain unsupported. Surface support identity is authored rather than imported-face-ID based. Direct `Concept Path` plus `Sweep` remains the lower-level choice for explicitly authored line/arc trajectories.
 
-See the canonical [axis coil](../../../fixtures/Canonical/WireForm/axis-coil.firmament), [frustum SurfaceCoil](../../../fixtures/Canonical/WireForm/frustum-surface-coil.firmament), [sphere SurfaceCoil](../../../fixtures/Canonical/WireForm/sphere-surface-coil.firmament), [composed Straight/Coil/Straight](../../../fixtures/Canonical/WireForm/straight-coil-straight.firmament), [90-degree bend](../../../fixtures/Canonical/WireForm/single-bend-90.firmament), and [Paperclip](../../../fixtures/Canonical/WireForm/paperclip.firmament).
+See the canonical [Helix](../../../fixtures/Canonical/WireForm/helix.firmament), [AxisCoil compatibility fixture](../../../fixtures/Canonical/WireForm/axis-coil.firmament), [frustum SurfaceCoil](../../../fixtures/Canonical/WireForm/frustum-surface-coil.firmament), [sphere SurfaceCoil](../../../fixtures/Canonical/WireForm/sphere-surface-coil.firmament), [composed Straight/Coil/Straight](../../../fixtures/Canonical/WireForm/straight-coil-straight.firmament), [90-degree bend](../../../fixtures/Canonical/WireForm/single-bend-90.firmament), and [Paperclip](../../../fixtures/Canonical/WireForm/paperclip.firmament).
 
 `aetheris inspect source.firmament --json` reports the semantic `wireForm` object, including `operations`, `totalStraightLength`, `totalBendLength`, and compiler-derived `totalWireLength`. A materializing `build --json` adds volume, mass, surface inventory, manifold/reimport status, rational/faceted counts, and the STEP hash.
 
 ## Mating a coil to a rod
 
-An `AxisCoil` starts at the current wire point and preserves its tangent. Its winding axis is generally **offset from that point and tilted from StartFrame.Up**: pitch contributes an axial component to the tangent. Do not mate the part origin or assume local Z is the spring axis.
+A `Helix` starts at the current wire point and preserves its tangent. Its winding axis is generally **offset from that point and tilted from StartFrame.Up**: pitch contributes an axial component to the tangent. Do not mate the part origin or assume local Z is the spring axis.
 
-Executable Assembly template occurrences now expose each `AxisCoil` operation by its authored name. For `AxisCoil Winding`, the public semantic members are `Winding.Axis`, `Winding.Frame` and `Winding.ClearDiameter`. They come from the same compiler-derived axis origin, direction, start radial and wire radius that build the coil. The frame's Z axis is the winding axis, X is its start radial, and its origin is the winding-axis base. Clear diameter is twice the coil centerline radius minus wire diameter. The build report retains these values as `wireForm.operations[].axisDatum`.
+Executable Assembly template occurrences expose each `Helix` operation by its authored name. For `Helix Winding`, the public semantic members are `Winding.Axis`, `Winding.Frame` and `Winding.ClearDiameter`. They come from the same compiler-derived axis origin, direction, start radial and wire radius that build the coil. The frame's Z axis is the winding axis, X is its start radial, and its origin is the winding-axis base. Clear diameter is twice the coil centerline radius minus wire diameter. The build report retains these values as `wireForm.operations[].axisDatum`.
 
 A bounded spring-to-rod interface can combine axial alignment with a seating frame:
 
@@ -83,4 +83,4 @@ Interface SpringOnRod {
 }
 ```
 
-The datum frame fixes axial seat position and roll; the explicit axis constraint independently validates coaxiality after materialization. Fit analysis classifies diameter compatibility. See the executable [coil-on-stem fixture](../../../fixtures/Canonical/Assembly/coil-on-stem.firmament). This automatic datum exposure currently covers `AxisCoil`; it does not infer an axis for knots or arbitrary SurfaceCoil supports.
+The datum frame fixes axial seat position and roll; the explicit axis constraint independently validates coaxiality after materialization. Fit analysis classifies diameter compatibility. See the executable [coil-on-stem fixture](../../../fixtures/Canonical/Assembly/coil-on-stem.firmament). This automatic datum exposure covers `Helix` and its `AxisCoil` compatibility spelling; it does not infer an axis for knots or arbitrary SurfaceCoil supports.

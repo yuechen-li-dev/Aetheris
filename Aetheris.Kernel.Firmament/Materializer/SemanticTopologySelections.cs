@@ -7,7 +7,8 @@ using Aetheris.Semantics;
 namespace Aetheris.Kernel.Firmament.Materializer;
 
 /// <summary>Stable roles assigned while an authoritative plan is materialized.  These are not geometric queries.</summary>
-public enum SemanticTopologyRole { Unknown, ProfileVertex, VerticalExtrusionEdge, LocalStartBoundary, LocalEndBoundary, LocalStartCapLoop, LocalEndCapLoop, TopBoundary, BottomBoundary, ExtrusionSideFace, TopFaceBoundaryLoop, BottomFaceBoundaryLoop, HoleEntryLoop, HoleExitLoop, HoleWallFace, HoleShaftToDrillPointLoop, HoleShaftToDrillPointEdge, HoleDrillPointFace, HoleTipVertex, HoleCounterboreMouthLoop, HoleCounterboreWallFace, HoleCounterboreShoulderLoop, HoleCounterboreShaftWallFace, SlotEntryLoop, SlotExitLoop, SlotWallFace, SlotStraightWallFace, SlotEndWallFace, ComposeTransition, EdgeFinishReplacementFace, FilletSurface, ConvexJunctionPatch, ReflexJunctionPatch, CapContactEdge, SideContactEdge, JunctionToRollA, JunctionToRollB, JunctionCapContact, JunctionSideAContact, JunctionSideBContact, StartTerminationFace, EndTerminationFace, StartEndpointArc, EndEndpointArc, RetainedStartSharpEdge, RetainedEndSharpEdge }
+public enum SemanticTopologyRole { Unknown, ProfileVertex, VerticalExtrusionEdge, LocalStartBoundary, LocalEndBoundary, LocalStartCapLoop, LocalEndCapLoop, TopBoundary, BottomBoundary, ExtrusionSideFace, TopFaceBoundaryLoop, BottomFaceBoundaryLoop, HoleEntryLoop, HoleExitLoop, HoleWallFace, HoleShaftToDrillPointLoop, HoleShaftToDrillPointEdge, HoleDrillPointFace, HoleTipVertex, HoleCounterboreMouthLoop, HoleCounterboreWallFace, HoleCounterboreShoulderLoop, HoleCounterboreShaftWallFace, SlotEntryLoop, SlotExitLoop, SlotWallFace, SlotStraightWallFace, SlotEndWallFace, ComposeTransition, EdgeFinishReplacementFace, FilletSurface, ConvexJunctionPatch, ReflexJunctionPatch, CapContactEdge, SideContactEdge, JunctionToRollA, JunctionToRollB, JunctionCapContact, JunctionSideAContact, JunctionSideBContact, StartTerminationFace, EndTerminationFace, StartEndpointArc, EndEndpointArc, RetainedStartSharpEdge, RetainedEndSharpEdge, BoxFace, BoxEdge }
+public enum SemanticTopologyAddressability { AuthoredStable, DerivedStable, ImportedStable, RuntimeOnly, Ambiguous, Unstable }
 public enum SemanticSelectionRequirement { ExactlyOne, OneOrMore, ConnectedChain, ClosedLoop, NonEmptyFaceSet }
 public enum SemanticSelectionFailure { None, SemanticSourceNotFound, NoMaterializedDescendants, AmbiguousBodyContext, SelectionCardinalityMismatch, DescendantsNotConnected, DescendantsBranch, DescendantsDoNotClose, MixedBoundaryRoles, UnsupportedTopologyChange, SelectionConsumerMismatch }
 
@@ -15,12 +16,15 @@ public enum SemanticSelectionFailure { None, SemanticSourceNotFound, NoMateriali
 public sealed record SemanticTopologyDescendant(
     string StableId, string Kind, SemanticTopologyRole Role, string SourceStableId,
     EdgeId? Edge = null, FaceId? Face = null, LoopId? Loop = null, VertexId? Vertex = null,
-    string? ParentStableId = null, string? GeometryPreview = null);
+    string? ParentStableId = null, string? GeometryPreview = null,
+    string? FirmamentSelector = null,
+    SemanticTopologyAddressability Addressability = SemanticTopologyAddressability.RuntimeOnly);
 
 public sealed record SemanticTopologyCorrespondence(
     string BodyStableId,
     IReadOnlyList<SemanticTopologyDescendant> Descendants,
-    IReadOnlyList<string> ProvenanceChain)
+    IReadOnlyList<string> ProvenanceChain,
+    IReadOnlyDictionary<string, FirmamentV2SourceSpan>? SourceSpans = null)
 {
     public IReadOnlyList<SemanticTopologyDescendant> FromSources(IEnumerable<string> sources, SemanticTopologyRole? role) =>
         Descendants.Where(x => sources.Contains(x.SourceStableId, StringComparer.Ordinal) && (role is null || x.Role == role)).ToArray();

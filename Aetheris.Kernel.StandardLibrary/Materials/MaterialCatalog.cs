@@ -84,6 +84,13 @@ public sealed class MaterialCatalog : IDisposable
             structural,
             new(values.GetValueOrDefault(MaterialPropertyKind.ThermalConductivity), values.GetValueOrDefault(MaterialPropertyKind.SpecificHeat), values.GetValueOrDefault(MaterialPropertyKind.CoefficientOfThermalExpansion)), values);
     }
+
+    // Browser WebAssembly cannot initialize the EF/SQLite compiled model. Use
+    // the very same immutable rows that seed the desktop catalog, with the
+    // same identity filter, validation, and ResolvedMaterial mapping.
+    internal static IReadOnlyList<ResolvedMaterial> FindBundledByReference(string reference) => MaterialSeedData.Create()
+        .Where(x => x.FirmamentPath == reference || x.StableId == reference || (x.CatalogId + ":" + x.StableId) == reference)
+        .OrderBy(x => x.StableId).Select(Map).ToArray();
 }
 
 public sealed class MaterialResolver(Func<MaterialCatalog> catalogFactory) : IMaterialResolver
@@ -95,8 +102,10 @@ public sealed class MaterialResolver(Func<MaterialCatalog> catalogFactory) : IMa
         if (string.IsNullOrWhiteSpace(reference)) return MaterialResolutionResult.Failure(MaterialResolutionError.UnknownMaterial, "Material reference is empty.");
         try
         {
-            using var catalog = catalogFactory();
-            var matches = catalog.FindByReference(reference.Trim());
+            var normalized = reference.Trim();
+            IReadOnlyList<ResolvedMaterial> matches;
+            if (OperatingSystem.IsBrowser()) matches = MaterialCatalog.FindBundledByReference(normalized);
+            else { using var catalog = catalogFactory(); matches = catalog.FindByReference(normalized); }
             return matches.Count switch
             {
                 0 => MaterialResolutionResult.Failure(MaterialResolutionError.UnknownMaterial, $"Unknown material reference '{reference}'. Use a stable catalog ID or Firmament material path."),

@@ -138,7 +138,12 @@ public static class BrepPrimitives
     }
 
     public static KernelResult<BrepBody> CreateBox(double width, double height, double depth)
+        => CreateBoxWithTopology(width, height, depth, out _);
+
+    public static KernelResult<BrepBody> CreateBoxWithTopology(double width, double height, double depth,
+        out BrepExtrudeConstructionTopology? constructionTopology)
     {
+        constructionTopology = null;
         var diagnostics = ValidatePositiveFinite((width, nameof(width)), (height, nameof(height)), (depth, nameof(depth)));
         if (diagnostics.Count > 0)
         {
@@ -161,7 +166,7 @@ public static class BrepPrimitives
             Direction3D.Create(new Vector3D(0d, 0d, 1d)),
             Direction3D.Create(new Vector3D(1d, 0d, 0d)));
 
-        return BrepExtrude.Create(profile.Value, frame, depth);
+        return BrepExtrude.CreateWithTopology(profile.Value, frame, depth, out constructionTopology);
     }
 
     public static KernelResult<BrepBody> CreateCylinder(double radius, double height)

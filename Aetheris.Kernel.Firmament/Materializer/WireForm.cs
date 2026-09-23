@@ -63,7 +63,7 @@ public sealed record WireAxisCoilAir(string Name, int Ordinal, double RadiusMm, 
     : WireCoilAir(Name, Ordinal, Turns, Handedness, StartPhaseRadians, Input, Output, LengthMm,
         MinimumSelfClearanceMm, ApproximationToleranceMm)
 {
-    public override string CoilKind => "AxisCoil";
+    public override string CoilKind => "Helix";
     public override string ProgressionLaw => "AxialPitch";
     public override Point3D Evaluate(double t) => WireCoilGeometry.EvaluateAxis(this, t);
     public override Direction3D Tangent(double t) => WireCoilGeometry.TangentAxis(this, t);
@@ -106,7 +106,7 @@ public static class WireFormAuthoring
 {
     public const string FrameTransportPolicy = "The authored local Up/Right bend-plane axis is rotated with the tangent through each bend (rotation-minimal rigid transport about the bend normal); Straight preserves the frame.";
     private static readonly Regex Declaration = new(@"\bWireForm\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
-    private static readonly Regex Operation = new(@"\b(?<kind>Straight|Bend|AxisCoil|SurfaceCoil|Coil|Knot)\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
+    private static readonly Regex Operation = new(@"\b(?<kind>Straight|Bend|Helix|AxisCoil|SurfaceCoil|Coil|Knot)\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
 
     public static bool IsWireFormSource(string source) => Declaration.IsMatch(source);
 
@@ -158,7 +158,7 @@ public static class WireFormAuthoring
                 continue;
             }
 
-            if (match.Groups["kind"].Value is "AxisCoil" or "Coil")
+            if (match.Groups["kind"].Value is "Helix" or "AxisCoil" or "Coil")
             {
                 var coil = WireCoilAuthoring.CreateAxis(operationName, ordinal, operationBody, state, diameter);
                 if (!coil.IsSuccess) return KernelResult<WireFormFeatureAir>.Failure(coil.Diagnostics);
@@ -201,7 +201,7 @@ public static class WireFormAuthoring
             operations.Add(new WireBendAir(operationName, ordinal, radius, angle, plane, axis, center, startRadial, state, bendOutput));
             state = bendOutput;
         }
-        if (operations.Count == 0) return Fail("wireform-operations-empty", $"WireForm '{name}' requires at least one Straight, Bend, AxisCoil, SurfaceCoil, or Knot operation.");
+        if (operations.Count == 0) return Fail("wireform-operations-empty", $"WireForm '{name}' requires at least one Straight, Bend, Helix, SurfaceCoil, or Knot operation.");
         var authoredStart = new WireState(new(origin.X, origin.Y, origin.Z), tangent, up, 0d);
         return KernelResult<WireFormFeatureAir>.Success(new(name, diameter, materialReference, material.Material,
             operations[0] is WireKnotPathAir ? operations[0].Input : authoredStart, operations,
@@ -442,7 +442,7 @@ public static class WireFormReportFactory
         var feature = built.Feature;
         var surfaces = built.Body.Topology.Faces.Select(face => built.Body.GetFaceSurface(face.Id).Kind).ToArray();
         var operations = feature.Operations.Select(operation => new FirmamentWireOperationReport(
-            operation.Ordinal, operation.Name, operation switch { WireStraightAir => "Straight", WireBendAir => "Bend", WireAxisCoilAir => "AxisCoil", WireSurfaceCoilAir => "SurfaceCoil", WireKnotPathAir => "KnotPath", _ => "Unknown" }, operation.LengthMm,
+            operation.Ordinal, operation.Name, operation switch { WireStraightAir => "Straight", WireBendAir => "Bend", WireAxisCoilAir => "Helix", WireSurfaceCoilAir => "SurfaceCoil", WireKnotPathAir => "KnotPath", _ => "Unknown" }, operation.LengthMm,
             operation is WireBendAir bend ? bend.RadiusMm : null,
             operation is WireBendAir bendAngle ? bendAngle.AngleRadians * 180d / Math.PI : null,
             operation is WireBendAir bendPlane ? bendPlane.Plane : null, operation.StableId(feature.Name),

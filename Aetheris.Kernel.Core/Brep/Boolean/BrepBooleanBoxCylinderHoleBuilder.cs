@@ -24,7 +24,8 @@ public static class BrepBooleanBoxCylinderHoleBuilder
         return BuildComposition(updatedComposition, tolerance);
     }
 
-    public static KernelResult<BrepBody> BuildComposition(SafeBooleanComposition composition, ToleranceContext tolerance)
+    public static KernelResult<BrepBody> BuildComposition(SafeBooleanComposition composition, ToleranceContext tolerance,
+        Action<string, FaceId>? onConstructedHoleWall = null)
     {
         ArgumentNullException.ThrowIfNull(composition);
         _ = tolerance;
@@ -127,7 +128,7 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             }
         }
 
-        return CreateComposedThroughHoleBody(composition, tolerance);
+        return CreateComposedThroughHoleBody(composition, tolerance, onConstructedHoleWall);
     }
 
     /// <summary>
@@ -719,7 +720,8 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             : KernelResult<BrepBody>.Failure(validation.Diagnostics);
     }
 
-    private static KernelResult<BrepBody> CreateComposedThroughHoleBody(SafeBooleanComposition composition, ToleranceContext tolerance)
+    private static KernelResult<BrepBody> CreateComposedThroughHoleBody(SafeBooleanComposition composition, ToleranceContext tolerance,
+        Action<string, FaceId>? onConstructedHoleWall = null)
     {
         var box = composition.OuterBox;
         var holes = composition.Holes;
@@ -812,9 +814,11 @@ public static class BrepBooleanBoxCylinderHoleBuilder
             // the bottom circle, back up the reversed seam, then the top
             // circle.  The previous top/bottom ordering was incidence-manifold
             // but disconnected in declared coedge traversal.
-            holeFaces.Add(AddKnownFace(builder, [
+            var wallFace = AddKnownFace(builder, [
                 AddSurgeryLoop(builder, [Forward(hole.Seam), Forward(hole.BottomCircle), Reversed(hole.Seam), Reversed(hole.TopCircle)])
-            ]));
+            ]);
+            holeFaces.Add(wallFace);
+            if (hole.Hole.FeatureId is { } featureId) onConstructedHoleWall?.Invoke(featureId, wallFace);
         }
 
         var blindBottomFaces = new List<FaceId>();

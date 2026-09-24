@@ -14,10 +14,10 @@ self.addEventListener('message', async event => {
     if (request.operation === 'exportStep') {
       const binary = atob(result.base64);
       const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
-      self.postMessage({ version, id, sourceRevision, result: { bytes }, executionMilliseconds, payloadBytes: bytes.byteLength }, { transfer: [bytes.buffer] });
+      self.postMessage({ version, id, sourceRevision, result: { bytes }, executionMilliseconds, initialization: invoke.initTiming, payloadBytes: bytes.byteLength }, { transfer: [bytes.buffer] });
     } else {
       const buffers = transferables(result);
-      self.postMessage({ version, id, sourceRevision, result, executionMilliseconds, payloadBytes: buffers.reduce((size, buffer) => size + buffer.byteLength, 0) }, { transfer: buffers });
+      self.postMessage({ version, id, sourceRevision, result, executionMilliseconds, initialization: invoke.initTiming, payloadBytes: buffers.reduce((size, buffer) => size + buffer.byteLength, 0) }, { transfer: buffers });
     }
   } catch (error) {
     self.postMessage({ version, id, sourceRevision, error: { name: error.name, code: error.code ?? 'internal-error', message: error.message, details: error.details } });

@@ -3,6 +3,9 @@ import { createRuntime } from './runtime.js';
 const defaultRuntimeBase = typeof __AETHERIS_RUNTIME_BASE__ !== 'undefined'
   ? new URL(__AETHERIS_RUNTIME_BASE__, globalThis.location?.href)
   : new URL('./runtime/', import.meta.url);
+const workerRuntimeBase = typeof __AETHERIS_WORKER_RUNTIME_BASE__ !== 'undefined'
+  ? new URL(__AETHERIS_WORKER_RUNTIME_BASE__, globalThis.location?.href)
+  : defaultRuntimeBase;
 
 export class AetherisError extends Error {
   constructor(code, message, details) { super(message); this.name = 'AetherisError'; this.code = code; this.details = details; }
@@ -30,7 +33,8 @@ class WorkerTransport {
       if (data.version !== 1) { pending.reject(new AetherisError('worker-protocol', `Unsupported Aetheris worker protocol ${data.version}.`)); return; }
       if (data.sourceRevision !== pending.sourceRevision) { pending.reject(new AetherisError('worker-revision', 'The Aetheris worker returned a mismatched source revision.')); return; }
       this.lastTiming = { operation: pending.operation, executionMilliseconds: data.executionMilliseconds ?? 0,
-        transportMilliseconds: Math.max(0, performance.now() - pending.started - (data.executionMilliseconds ?? 0)), payloadBytes: data.payloadBytes ?? 0 };
+        transportMilliseconds: Math.max(0, performance.now() - pending.started - (data.executionMilliseconds ?? 0)),
+        initialization: data.initialization ?? null, payloadBytes: data.payloadBytes ?? 0 };
       data.error ? pending.reject(new AetherisError(data.error.code, data.error.message, data.error.details)) : pending.resolve(data.result);
     };
     this.worker.onerror = event => {
@@ -66,7 +70,8 @@ class WorkerTransport {
 
 export class Aetheris {
   static async create(options = {}) {
-    const runtimeBase = options.wasmUrl ? new URL(options.wasmUrl, globalThis.location?.href) : defaultRuntimeBase;
+    const runtimeBase = options.wasmUrl ? new URL(options.wasmUrl, globalThis.location?.href)
+      : options.worker === true ? workerRuntimeBase : defaultRuntimeBase;
     const transport = options.worker === true ? new WorkerTransport(runtimeBase) : new DirectTransport(runtimeBase);
     const cad = new Aetheris(transport, options.diagnostics);
     try { cad.runtimeInfo = await cad.info(); }
@@ -88,7 +93,7 @@ export class Aetheris {
   async capabilities() { return (await this.info()).capabilities; }
   async compile(source, options = {}) {
     throwIfAborted(options.signal);
-    const result = await this.transport.request({ operation: 'compile', source, sourceName: options.sourceName, sourceRevision: options.sourceRevision });
+    const result = await this.transport.request({ operation: 'compile', source, sourceName: options.sourceName, sourceRevision: options.sourceRevision, performance: options.performance });
     this.diagnostics?.(result.diagnostics);
     return { model: result.success ? new ModelSession(this.transport, result.model) : null, diagnostics: result.diagnostics };
   }
@@ -144,7 +149,7 @@ export class ModelSession {
   }
   async rebuild(options = {}) {
     throwIfAborted(options.signal);
-    const result = await this.transport.request({ operation: 'rebuild', sessionId: this.id, sourceRevision: options.sourceRevision });
+    const result = await this.transport.request({ operation: 'rebuild', sessionId: this.id, sourceRevision: options.sourceRevision, performance: options.performance });
     if (result.success) this.apply(result.model);
     return result;
   }

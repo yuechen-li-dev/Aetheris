@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Curves;
 using Aetheris.Kernel.Core.Geometry.Surfaces;
@@ -228,7 +229,13 @@ internal static class WireCoilBRepMaterializer
     {
         try
         {
-            var stations = Stations(feature); var r = feature.WireRadiusMm; var builder = new TopologyBuilder(); var geometry = new BrepGeometryStore(); var bindings = new BrepBindingModel(); var points = new Dictionary<VertexId, Point3D>(); var curves = 1; var surfaces = 1;
+            var stationPhase = BuildPerfTrace.Phase("coil.helix-samples-and-frames");
+            var stations = Stations(feature);
+            stationPhase.Dispose();
+            BuildPerfTrace.Count("coil.stations", stations.Count);
+            BuildPerfTrace.Count("coil.section-quadrants", 4);
+            var brepPhase = BuildPerfTrace.Phase("coil.sweep-surfaces-and-topology");
+            var r = feature.WireRadiusMm; var builder = new TopologyBuilder(); var geometry = new BrepGeometryStore(); var bindings = new BrepBindingModel(); var points = new Dictionary<VertexId, Point3D>(); var curves = 1; var surfaces = 1;
             var vertices = new VertexId[stations.Count, 4]; var rings = new EdgeId[stations.Count, 4]; var ringControls = new Point3D[stations.Count, 4][];
             for (var i = 0; i < stations.Count; i++)
             {
@@ -256,7 +263,12 @@ internal static class WireCoilBRepMaterializer
             var startPlane = new PlaneSurface(stations[0].Point, Direction3D.Create(stations[0].Tangent.ToVector() * -1d), stations[0].Up); var endPlane = new PlaneSurface(stations[^1].Point, stations[^1].Tangent, stations[^1].Up);
             var start = AddFace(builder, Enumerable.Range(0, 4).Select(q => (rings[0, 3 - q], true)).ToArray()); geometry.AddSurface(new(surfaces), SurfaceGeometry.FromPlane(startPlane)); bindings.AddFaceBinding(new(start, new(surfaces++))); faces.Add(start);
             var end = AddFace(builder, Enumerable.Range(0, 4).Select(q => (rings[stations.Count - 1, q], false)).ToArray()); geometry.AddSurface(new(surfaces), SurfaceGeometry.FromPlane(endPlane)); bindings.AddFaceBinding(new(end, new(surfaces++))); faces.Add(end);
-            var shell = builder.AddShell(faces); builder.AddBody([shell]); var body = new BrepBody(builder.Model, geometry, bindings, points); var validation = BrepBindingValidator.Validate(body, true); if (!validation.IsSuccess) return KernelResult<WireFormBuildResult>.Failure(validation.Diagnostics);
+            var shell = builder.AddShell(faces); builder.AddBody([shell]); var body = new BrepBody(builder.Model, geometry, bindings, points);
+            brepPhase.Dispose();
+            var validationPhase = BuildPerfTrace.Phase("coil.brep-binding-validation");
+            var validation = BrepBindingValidator.Validate(body, true);
+            validationPhase.Dispose();
+            if (!validation.IsSuccess) return KernelResult<WireFormBuildResult>.Failure(validation.Diagnostics);
             var samples = stations.Select(x => x.Point).ToArray(); var bounds = new[] { samples.Min(p => p.X) - r, samples.Min(p => p.Y) - r, samples.Min(p => p.Z) - r, samples.Max(p => p.X) + r, samples.Max(p => p.Y) + r, samples.Max(p => p.Z) + r };
             var volume = Math.PI * r * r * feature.TotalWireLengthMm; var mass = volume * 1e-9 * feature.Material.Structural!.Density.SiValue;
             return KernelResult<WireFormBuildResult>.Success(new(feature, body, volume, mass, bounds, ["wireform-coil-evaluable-centerline-authority", "wireform-coil-parallel-transport", "wireform-coil-non-rational-bspline-sweep", "wireform-coil-deterministic-approximation"]));

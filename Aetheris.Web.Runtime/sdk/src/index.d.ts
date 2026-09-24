@@ -17,8 +17,8 @@ export interface ChangeSet { readonly changedEntityIds: readonly string[]; reado
 export interface RebuildResult { readonly success: boolean; readonly revision: number; readonly diagnostics: readonly Diagnostic[]; readonly retainedPreviousGeometry: boolean; readonly changes?: ChangeSet }
 export interface RuntimeCapabilities { readonly compile: boolean; readonly solidModeling: boolean; readonly assembly: boolean; readonly displayMesh: boolean; readonly propertyInspection: boolean; readonly parameterRebuild: boolean; readonly stepExport: boolean; readonly sheetMetal: boolean; readonly fea: boolean; readonly externalStepImport: boolean; readonly forgeSubprocess: boolean; readonly cancellation: boolean; readonly worker: boolean }
 export interface RuntimeInfo { readonly packageVersion: string; readonly runtimeVersion: string; readonly contractVersion: 'aetheris/web-editor-contract/1'; readonly language: 'Firmament'; readonly capabilities: RuntimeCapabilities }
-export interface WorkerTiming { readonly operation: string; readonly executionMilliseconds: number; readonly transportMilliseconds: number; readonly payloadBytes: number }
-export interface OperationOptions { readonly signal?: AbortSignal; readonly sourceRevision?: string }
+export interface WorkerTiming { readonly operation: string; readonly executionMilliseconds: number; readonly transportMilliseconds: number; readonly payloadBytes: number; readonly initialization?: { readonly moduleImportMilliseconds: number; readonly runtimeCreateMilliseconds: number; readonly assemblyExportsMilliseconds: number } | null }
+export interface OperationOptions { readonly signal?: AbortSignal; readonly sourceRevision?: string; readonly performance?: boolean }
 export interface CompileOptions extends OperationOptions { readonly sourceName?: string }
 export interface LanguageOptions { readonly sourceName?: string; readonly sourceRevision: string }
 export interface LanguageField { readonly name: string; readonly type: string; readonly required: boolean; readonly meaning: string; readonly default?: string | null; readonly choices?: readonly string[] | null }
@@ -49,7 +49,7 @@ export class Aetheris {
 export class ModelSession {
   readonly id: string; readonly name: string; readonly revision: number; readonly source: string; readonly sourceName: string;
   readonly tree: ModelTree; readonly properties: readonly EditableProperty[]; readonly mesh: DisplayMesh; readonly diagnostics: readonly Diagnostic[]; readonly changes: ChangeSet;
-  readonly timings?: { readonly compileMilliseconds: number; readonly meshMilliseconds?: number };
+  readonly timings?: { readonly compileMilliseconds: number; readonly meshMilliseconds?: number; readonly totalBeforeSnapshotMilliseconds?: number; readonly profile?: { readonly phases: readonly { readonly name: string; readonly inclusiveMilliseconds: number; readonly exclusiveMilliseconds: number; readonly allocatedBytes: number }[]; readonly counts: Readonly<Record<string, number>>; readonly gc0: number; readonly gc1: number; readonly gc2: number } };
   readonly workerTiming: WorkerTiming | null;
   entity(id: string): ModelTreeNode | undefined;
   property(id: string): EditableProperty | undefined;

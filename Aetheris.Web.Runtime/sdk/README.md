@@ -8,7 +8,7 @@ const cad = await Aetheris.create();
 const { model, diagnostics } = await cad.compile(source, { sourceName: 'bracket.firmament' });
 ```
 
-Vite projects add `aetherisCad()` from `@aetheris/cad/vite` to `vite.config.js`. The plugin serves the runtime during development and copies it into production builds.
+Vite projects add `aetherisCad()` from `@aetheris/cad/vite` to `vite.config.js`. `npm run build` builds the fast non-AOT development package. `npm run build:production` also publishes the Worker runtime with .NET browser WebAssembly AOT (`RunAOTCompilation=true`, `WasmStripILAfterAOT=false`) using the installed Microsoft `wasm-tools` workload. The production package contains both `runtime/` for page-thread language assistance and `runtime-aot/` for geometry in the Worker. A production Vite build requires that AOT package and copies both runtimes; Vite dev and a development-mode build use only the non-AOT runtime. The caller's `wasmUrl` option remains an explicit override.
 
 ## Selection correspondence
 

@@ -160,6 +160,7 @@ public static class BrepDisplayTessellator
         var facePatches = new List<DisplayFaceMeshPatch>();
         try
         {
+            var facePhase = BuildPerfTrace.Phase("tessellation.faces");
             foreach (var face in body.Topology.Faces.OrderBy(f => f.Id.Value))
             {
                 executionBudget?.ThrowIfExpired("FaceDispatch", face.Id);
@@ -178,8 +179,10 @@ public static class BrepDisplayTessellator
                 facePatches.Add(faceResult.Value);
                 accumulatedDiagnostics.AddRange(faceResult.Diagnostics);
             }
+            facePhase.Dispose();
 
             var edgePolylines = new List<DisplayEdgePolyline>();
+            var edgePhase = BuildPerfTrace.Phase("tessellation.display-edges");
             foreach (var edge in body.Topology.Edges.OrderBy(e => e.Id.Value))
             {
                 executionBudget?.ThrowIfExpired("EdgeDispatch");
@@ -195,6 +198,7 @@ public static class BrepDisplayTessellator
                 edgePolylines.Add(edgeResult.Value);
                 accumulatedDiagnostics.AddRange(edgeResult.Diagnostics);
             }
+            edgePhase.Dispose();
 
             return KernelResult<DisplayTessellationResult>.Success(new DisplayTessellationResult(facePatches, edgePolylines), accumulatedDiagnostics);
         }

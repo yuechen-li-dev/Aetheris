@@ -18,6 +18,7 @@
   "files": ["dist", "README.md"],
   "scripts": {
     "build": "node scripts/build.mjs",
+    "build:production": "node scripts/build.mjs --production",
     "pack:local": "npm run build && npm pack"
   },
   "engines": { "node": ">=20" },

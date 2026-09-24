@@ -18,17 +18,40 @@ export function transferables(value) {
 
 export async function createRuntime(runtimeBase = new URL('./runtime/', import.meta.url)) {
   const dotnetUrl = new URL('_framework/dotnet.js', runtimeBase);
+  const importStart = performance.now();
   const { dotnet } = await import(dotnetUrl.href);
+  const moduleImportMilliseconds = performance.now() - importStart;
+  const createStart = performance.now();
   const runtime = await dotnet.withApplicationArguments().create();
+  const runtimeCreateMilliseconds = performance.now() - createStart;
+  const exportsStart = performance.now();
   const exports = await runtime.getAssemblyExports('Aetheris.Web.Runtime.dll');
+  const assemblyExportsMilliseconds = performance.now() - exportsStart;
   const invoke = exports.Aetheris.Web.Runtime.Program.Invoke;
-  return request => {
-    const envelope = JSON.parse(invoke(JSON.stringify(request)));
+  const requestRuntime = request => {
+    const start = performance.now();
+    const requestJson = JSON.stringify(request);
+    const requestMilliseconds = performance.now() - start;
+    const invokeStart = performance.now();
+    const responseJson = invoke(requestJson);
+    const invokeMilliseconds = performance.now() - invokeStart;
+    const parseStart = performance.now();
+    const envelope = JSON.parse(responseJson);
+    const responseParseMilliseconds = performance.now() - parseStart;
     if (!envelope.ok) {
       const error = new Error(envelope.error.message);
       error.name = 'AetherisError'; error.code = envelope.error.code; error.details = envelope.error.details;
       throw error;
     }
-    return normalizeMesh(envelope.result);
+    const normalizeStart = performance.now();
+    const result = normalizeMesh(envelope.result);
+    const meshNormalizeMilliseconds = performance.now() - normalizeStart;
+    if (request.performance && result?.model?.timings) result.model.timings.bridge = {
+      requestMilliseconds, invokeMilliseconds, responseParseMilliseconds,
+      meshNormalizeMilliseconds, responseBytes: responseJson.length
+    };
+    return result;
   };
+  requestRuntime.initTiming = { moduleImportMilliseconds, runtimeCreateMilliseconds, assemblyExportsMilliseconds };
+  return requestRuntime;
 }

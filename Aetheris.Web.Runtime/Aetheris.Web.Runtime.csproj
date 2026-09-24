@@ -13,5 +13,8 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Aetheris.Kernel.Firmament\Aetheris.Kernel.Firmament.csproj" />
+    <!-- The JSON bridge serializes anonymous response shapes through reflection. -->
+    <TrimmerRootAssembly Include="Aetheris.Web.Runtime" />
+    <TrimmerRootAssembly Include="Aetheris.Kernel.Firmament" />
   </ItemGroup>
 </Project>

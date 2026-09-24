@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using Aetheris.Kernel.Core.Air;
 using Aetheris.Kernel.Core.Results;
+using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Verification;
@@ -371,26 +372,37 @@ public static class FirmamentBuildAndExport
         }
         if (explicitSchema == FirmamentFrontendSchema.WireForm || WireFormAuthoring.IsWireFormSource(materializerSource))
         {
+            var parsePhase = BuildPerfTrace.Phase("firmament.wire-parse-and-bind");
             var authored = WireFormAuthoring.Parse(materializerSource);
+            parsePhase.Dispose();
             if (!authored.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(authored.Diagnostics);
+            var buildPhase = BuildPerfTrace.Phase("firmament.wire-brep-materialize");
             var built = WireFormBRepMaterializer.Build(authored.Value);
+            buildPhase.Dispose();
             if (!built.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(built.Diagnostics);
+            var stepPhase = BuildPerfTrace.Phase("firmament.step-export");
             var step = Step242Exporter.ExportBody(built.Value.Body, new Step242ExportOptions { ProductName = authored.Value.Name });
+            stepPhase.Dispose();
             if (!step.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+            var importPhase = BuildPerfTrace.Phase("firmament.step-reimport");
             var reimport = Step242Importer.ImportBody(step.Value);
+            importPhase.Dispose();
             if (!reimport.IsSuccess || reimport.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(reimport.Diagnostics);
             var manifold = reimport.Value.Topology.Edges.All(edge => reimport.Value.Topology.Coedges.Count(use => use.EdgeId == edge.Id) == 2);
             if (!manifold) return KernelResult<FirmamentStepExportResult>.Failure([new Kernel.Core.Diagnostics.KernelDiagnostic(
                 Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
                 "wireform-step-reimport-not-manifold: exported WireForm did not reimport as an enclosed manifold.", "FirmamentV2.WireForm")]);
             var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))).ToLowerInvariant();
+            var reportPhase = BuildPerfTrace.Phase("firmament.wire-report-validation");
             var report = WireFormReportFactory.Create(built.Value, hash, manifold);
+            reportPhase.Dispose();
             return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, authored.Value.Name, 0,
                 "wire-form", "wireform", WireForm: report,
                 EngineeringFeatures: authored.Value.Operations.Select(operation => new FirmamentEngineeringFeatureReport(
                     operation.Name, operation switch { WireStraightAir => "Straight", WireBendAir => "Bend", WireAxisCoilAir => "Helix", WireSurfaceCoilAir => "SurfaceCoil", WireKnotPathAir => "KnotPath", _ => "Unknown" }, operation.StableId(authored.Value.Name),
                     authored.Value.Name, "WireState", "CircularSection", operation.LengthMm, "CenterlineLength", "Add",
-                    PolicySource: "WireFormFeatureAir", MaterializationRoute: "WireFormCenterlineAir->CircularSweepBRepPlan")).ToArray()), []);
+                    PolicySource: "WireFormFeatureAir", MaterializationRoute: "WireFormCenterlineAir->CircularSweepBRepPlan")).ToArray())
+                { RuntimeBody = reimport.Value }, []);
         }
         if (explicitSchema == FirmamentFrontendSchema.Sweep || CircularSweepAuthoring.IsSweepSource(materializerSource))
         {

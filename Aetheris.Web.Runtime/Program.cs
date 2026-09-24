@@ -31,6 +31,7 @@ public static partial class Program
         {
             var request = JsonSerializer.Deserialize<WebRequest>(requestJson, JsonOptions)
                 ?? throw new WebRuntimeException("invalid-request", "The runtime request was empty.");
+            if (request.Performance) BuildPerfTrace.Start();
             object result = request.Operation switch
             {
                 "info" => Info(),
@@ -48,14 +49,18 @@ public static partial class Program
                 "disposeRuntime" => DisposeRuntime(),
                 _ => throw new WebRuntimeException("unknown-operation", $"Unknown runtime operation '{request.Operation}'.")
             };
-            return JsonSerializer.Serialize(new { ok = true, result }, JsonOptions);
+            var response = JsonSerializer.Serialize(new { ok = true, result }, JsonOptions);
+            BuildPerfTrace.Stop();
+            return response;
         }
         catch (WebRuntimeException exception)
         {
+            BuildPerfTrace.Stop();
             return JsonSerializer.Serialize(new { ok = false, error = new { code = exception.Code, message = exception.Message } }, JsonOptions);
         }
         catch (Exception exception)
         {
+            BuildPerfTrace.Stop();
             return JsonSerializer.Serialize(new { ok = false, error = new { code = "internal-error", message = "Aetheris could not complete the operation.", details = exception.Message } }, JsonOptions);
         }
     }
@@ -175,7 +180,8 @@ public static partial class Program
     private sealed record WebRequest(string Operation, string? SessionId = null, string? Source = null,
         string? SourceName = null, string? PropertyId = null, WebPropertyValue? Value = null,
         string? SourceRevision = null, int? Offset = null, string? ConstructSemanticId = null,
-        string? FieldId = null, FirmamentProjectedValue? FieldValue = null, int? BuildRevision = null);
+        string? FieldId = null, FirmamentProjectedValue? FieldValue = null, int? BuildRevision = null,
+        bool Performance = false);
 
     private sealed class WebRuntimeException(string code, string message) : Exception(message)
     {
@@ -258,7 +264,11 @@ public static partial class Program
 
         public WebBuildResult Rebuild()
         {
+            using var rebuildPhase = BuildPerfTrace.Phase("web.rebuild");
+            var totalWatch = System.Diagnostics.Stopwatch.StartNew();
+            var inspectPhase = BuildPerfTrace.Phase("web.property-inspection");
             var sourceProperties = ParameterInspector.Inspect(Id, _sourceName, _source);
+            inspectPhase.Dispose();
             var effective = ApplyOverrides(_source, sourceProperties, _overrides);
             var nextProperties = sourceProperties;
             foreach (var (propertyId, value) in _overrides)
@@ -283,11 +293,17 @@ public static partial class Program
                 meshChanged = true,
                 diagnosticsChanged = false
             };
+            var perf = BuildPerfTrace.Snapshot();
+            var timings = new { compileMilliseconds = compiled.CompileMilliseconds, meshMilliseconds = compiled.MeshMilliseconds,
+                totalBeforeSnapshotMilliseconds = totalWatch.Elapsed.TotalMilliseconds,
+                profile = new { phases = perf.Phases.Select(sample => new { sample.Name, sample.InclusiveMilliseconds,
+                    sample.ExclusiveMilliseconds, sample.AllocatedBytes }).ToArray(), counts = perf.Counts,
+                    gc0 = perf.Gc0, gc1 = perf.Gc1, gc2 = perf.Gc2 } };
             _lastSnapshot = new
             {
                 id = Id, name = Name, revision = Revision, source = _source, sourceName = _sourceName,
                 tree = compiled.Tree, properties = _properties, mesh = compiled.Mesh,
-                diagnostics = compiled.Diagnostics, changes, timings = compiled.Timings
+                diagnostics = compiled.Diagnostics, changes, timings
             };
             return compiled with { Revision = Revision, Model = _lastSnapshot, Changes = changes, StepText = null };
         }
@@ -295,7 +311,9 @@ public static partial class Program
         private WebBuildResult CompilePart(string effective, List<WebProperty> properties)
         {
             var watch = System.Diagnostics.Stopwatch.StartNew();
+            var compilePhase = BuildPerfTrace.Phase("web.compile-and-export");
             var build = FirmamentBuildAndExport.CompileSource(effective);
+            compilePhase.Dispose();
             var compileMs = watch.Elapsed.TotalMilliseconds;
             if (!build.IsSuccess || build.Value is null)
                 return WebBuildResult.Failed(Diagnostics(build.Diagnostics, _sourceName), compileMs);
@@ -304,12 +322,15 @@ public static partial class Program
             if (build.Value.RuntimeBody is { } canonicalBody) displayBody = canonicalBody;
             else
             {
+                var displayImportPhase = BuildPerfTrace.Phase("web.display-step-reimport");
                 var import = Step242Importer.ImportBody(step);
+                displayImportPhase.Dispose();
                 if (!import.IsSuccess || import.Value is null)
                     return WebBuildResult.Failed(Diagnostics(import.Diagnostics, _sourceName), compileMs);
                 displayBody = import.Value;
             }
             watch.Restart();
+            var mappingPhase = BuildPerfTrace.Phase("web.source-projection");
             var definitionId = "definition:" + Sha(step)[..16].ToLowerInvariant();
             var entityId = build.Value.RuntimeCorrespondence?.BodyStableId
                 ?? (string.IsNullOrWhiteSpace(build.Value.ExportedFeatureId) ? Id + ":body" : build.Value.ExportedFeatureId);
@@ -340,8 +361,11 @@ public static partial class Program
             semanticConstruct ??= projections.FirstOrDefault(item => item.SemanticId == entityId)?.ConstructId.Value;
             var featureSources = (build.Value.Features ?? []).ToDictionary(feature => feature.FeatureId,
                 feature => CompilerSource(feature.FeatureId), StringComparer.Ordinal);
+            mappingPhase.Dispose();
+            var meshPhase = BuildPerfTrace.Phase("web.mesh-build");
             var mesh = WebMeshBuilder.Build(Name, definitionId, entityId, displayBody,
                 build.Value.RuntimeCorrespondence, boxSource, Revision + 1, featureSources);
+            meshPhase.Dispose();
             var meshMs = watch.Elapsed.TotalMilliseconds;
             var featureNodes = (build.Value.EngineeringFeatures ?? []).Select(feature => new WebTreeNode(feature.FeatureId, feature.Kind, feature.Name, entityId, [], true,
                     projections.FirstOrDefault(item => item.SemanticId == feature.FeatureId)?.ConstructSpan is { } span
@@ -476,8 +500,15 @@ internal static class WebMeshBuilder
     {
         // Browser WASM has no blocking monitor wait. Use the existing synchronous
         // tessellator authority; the Worker transport supplies UI responsiveness.
+        var tessPhase = BuildPerfTrace.Phase("web.tessellation");
         var tessellation = BrepDisplayTessellator.Tessellate(body, new DisplayTessellationOptions(double.Pi / 16, .3, 6, 64));
+        tessPhase.Dispose();
         if (!tessellation.IsSuccess) throw new InvalidOperationException(string.Join("; ", tessellation.Diagnostics.Select(item => item.Message)));
+        BuildPerfTrace.Count("brep.faces", body.Topology.Faces.Count());
+        BuildPerfTrace.Count("brep.edges", body.Topology.Edges.Count());
+        BuildPerfTrace.Count("display.triangles", tessellation.Value.FacePatches.Sum(face => face.TriangleIndices.Count / 3));
+        BuildPerfTrace.Count("display.edge-polylines", tessellation.Value.EdgePolylines.Count);
+        var mapPhase = BuildPerfTrace.Phase("web.mesh-source-map-and-arrays");
         var positions = new List<double>(); var normals = new List<double>(); var indices = new List<int>(); var ranges = new List<object>();
         var sourceMap = correspondence is null ? null : new Aetheris.Kernel.Firmament.Materializer.GeometrySourceMap(correspondence);
         foreach (var face in tessellation.Value.FacePatches.OrderBy(face => face.FaceId.Value))
@@ -498,6 +529,7 @@ internal static class WebMeshBuilder
                     : semanticFace.FirmamentSelector is null ? "Construction identity is known, but Firmament has no qualified source selector for this topology." : null,
                 source = semanticFace is null ? null : faceSource, buildRevision });
         }
+        mapPhase.Dispose();
         return new
         {
             schema = "aetheris/display-mesh/1",
@@ -528,8 +560,8 @@ internal sealed record WebTreeNode(string Id, string Kind, string Name, string? 
 internal sealed record WebDiagnostic(string Severity, string Code, string Message, WebSourceRef? Source = null, string? Details = null);
 internal sealed record WebBuildResult(bool Success, int Revision, object? Model, IReadOnlyList<WebDiagnostic> Diagnostics, bool RetainedPreviousGeometry,
     object? Tree = null, object? Mesh = null, IReadOnlyList<string>? EntityIds = null, object? Timings = null, object? Changes = null, string? StepText = null,
-    IReadOnlyList<FirmamentConstructProjection>? Projections = null)
+    IReadOnlyList<FirmamentConstructProjection>? Projections = null, double CompileMilliseconds = 0, double MeshMilliseconds = 0)
 {
-    public static WebBuildResult Failed(IReadOnlyList<WebDiagnostic> diagnostics, double compileMs) => new(false, 0, null, diagnostics, false, Timings: new { compileMilliseconds = compileMs });
-    public static WebBuildResult Passed(string step, object tree, object mesh, IReadOnlyList<string> ids, double compileMs, double meshMs) => new(true, 0, null, [], false, tree, mesh, ids, new { compileMilliseconds = compileMs, meshMilliseconds = meshMs }, StepText: step);
+    public static WebBuildResult Failed(IReadOnlyList<WebDiagnostic> diagnostics, double compileMs) => new(false, 0, null, diagnostics, false, Timings: new { compileMilliseconds = compileMs }, CompileMilliseconds: compileMs);
+    public static WebBuildResult Passed(string step, object tree, object mesh, IReadOnlyList<string> ids, double compileMs, double meshMs) => new(true, 0, null, [], false, tree, mesh, ids, new { compileMilliseconds = compileMs, meshMilliseconds = meshMs }, StepText: step, CompileMilliseconds: compileMs, MeshMilliseconds: meshMs);
 }

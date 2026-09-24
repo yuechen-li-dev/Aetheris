@@ -96,7 +96,9 @@ public static class PrismaticSectionStackCompiler
             d.AddRange(arrangement.Arrangement.Diagnostics);
             if (arrangement.Region is not null) slabs.Add(new(pair.First, pair.Second, arrangement.Region, active.Select(x => x.Name).Order().ToArray(), arrangement.Arrangement));
         }
-        if (slabs.Count == 0) d.Add("compose-no-material-slabs");
+        // An empty stack is usually the consequence of a rejected arrangement, which has already said why; reporting
+        // the consequence as well used to make it the last and most visible line.
+        if (slabs.Count == 0 && !d.Any(x => x.StartsWith("arrangement-rejected", StringComparison.Ordinal))) d.Add("compose-no-material-slabs");
         var transitions = new List<PrismaticSectionTransition>();
         foreach (var level in parsed.Feature.CriticalLevels)
         {

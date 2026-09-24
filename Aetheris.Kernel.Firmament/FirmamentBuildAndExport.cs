@@ -2445,12 +2445,28 @@ public static class FirmamentBuildAndExport
         .OrderBy(item => item.FeatureId, StringComparer.Ordinal)
         .ToArray();
 
-    private static KernelResult<FirmamentStepExportResult> SemanticHoleFailure(IEnumerable<string> diagnostics) =>
-        KernelResult<FirmamentStepExportResult>.Failure(diagnostics.Select(d => new Kernel.Core.Diagnostics.KernelDiagnostic(
+    /// <summary>
+    /// The hole planners narrate their route as they go ("planner started", "plan created", "execution route: ...")
+    /// and then state the one thing that stopped them. Reporting every line as an error buried that cause under the
+    /// narration, so only lines that state a cause are errors; the narration is kept, as information, for provenance.
+    /// </summary>
+    private static KernelResult<FirmamentStepExportResult> SemanticHoleFailure(IEnumerable<string> diagnostics)
+    {
+        var lines = diagnostics.ToArray();
+        var anyCause = lines.Any(IsSemanticHoleFailureCause);
+        return KernelResult<FirmamentStepExportResult>.Failure(lines.Select(d => new Kernel.Core.Diagnostics.KernelDiagnostic(
             Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed,
-            Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+            !anyCause || IsSemanticHoleFailureCause(d) ? Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error : Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Info,
             d,
             "FirmamentV2.SemanticHoleBuild")).ToArray());
+    }
+
+    private static bool IsSemanticHoleFailureCause(string line) =>
+        line.Contains("rejected", StringComparison.Ordinal)
+        || line.Contains("failed", StringComparison.Ordinal)
+        || line.Contains("Unsupported", StringComparison.Ordinal)
+        || line.StartsWith("semantic diagnostic", StringComparison.Ordinal)
+        || line.StartsWith("firmament-", StringComparison.Ordinal);
 
     private static string ResolveDefaultOutputPath(string fullSourcePath)
     {

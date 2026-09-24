@@ -6,6 +6,8 @@ Analytic single solids use the same direct named declaration family: `Sphere Bod
 
 Use named features and selectors, never raw internal B-rep IDs in native authoring. [`multiple-hole-dimensions-with-chamfer.firmament`](../../../fixtures/Canonical/PMI/multiple-hole-dimensions-with-chamfer.firmament) demonstrates two holes, an outer-boundary chamfer, and PMI surviving the same AP242 build. [`counterbore-shaft-diameter.firmament`](../../../fixtures/Canonical/PMI/counterbore-shaft-diameter.firmament) demonstrates a profile-composed part, pattern holes, a counterbore, a chamfer, and shaft-diameter PMI.
 
+A face-local `Hole<Shaft>` or `Hole<Counterbore>` on a `Box` may cross the edge of its entry face: a through hole drilled near an edge leaves a notch, and it builds as one. Only exact tangency is rejected, because the wall there would have zero thickness along a line; the diagnostic gives the threshold in your own terms (for example, "Put Center X below 19mm to keep a wall on that side, or above it to cut through the +X face"). Countersunk and drill-point holes, whose entries are conical, are not yet supported when they break out, and say so.
+
 `HoleDiameter` on a `Hole<Counterbore>` targets the shaft `Diameter`; `CounterboreDiameter` remains a distinct feature field and has no separate public PMI record kind in Preview 3. Pattern generation supports geometry as a semantic whole; authored names for generated instances are not a stable public instance-selector family in Preview 3.
 
 ## Boss

@@ -826,7 +826,7 @@ public sealed class BrepBooleanTests
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal("BrepBoolean.AnalyticHole.TangentContact", diagnostic.Source);
-        Assert.Contains("tangent to a box side wall", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("side wall, which would leave a wall of zero thickness", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1040,7 +1040,7 @@ public sealed class BrepBooleanTests
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal("BrepBoolean.AnalyticHole.RadiusExceedsBoundary", diagnostic.Source);
-        Assert.Equal("Boolean Subtract has top boundary circle extending outside the box side-wall footprint. Reduce the boundary radius or move the cone center farther inside the box XY boundary.", diagnostic.Message);
+        Assert.Equal("Boolean Subtract has top boundary circle (centre (13.7, 0), radius 6.4) extending outside the box side-wall footprint. This analytic-hole route builds only holes that stay inside the box; reduce the radius or move the centre inward.", diagnostic.Message);
     }
 
     [Fact]
@@ -1055,7 +1055,7 @@ public sealed class BrepBooleanTests
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(KernelDiagnosticCode.NotImplemented, diagnostic.Code);
         Assert.Equal("BrepBoolean.AnalyticHole.TangentContact", diagnostic.Source);
-        Assert.Equal("Boolean Subtract has top boundary circle tangent to a box side wall; tangent analytic-hole cases are rejected to avoid zero-thickness geometry. Move the cone inward or reduce the boundary radius at that plane.", diagnostic.Message);
+        Assert.Equal("Boolean Subtract has top boundary circle (centre (13.6, 0), radius 6.4) exactly tangent to the box's +X side wall, which would leave a wall of zero thickness along a line - neither machinable nor a manifold solid. Move the hole so it either leaves a wall of positive thickness or clearly cuts through the +X wall.", diagnostic.Message);
     }
 
     [Fact]

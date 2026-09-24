@@ -445,7 +445,13 @@ public static class BrepBooleanCylinderRecognition
             || ToleranceMath.AlmostEqual(maxFootprintY, box.MaxY, tolerance);
         if (tangentContact)
         {
-            diagnostic = CreateTangentContactDiagnostic(diagnosticContext, $"has {circleLabel} tangent to a box side wall; tangent analytic-hole cases are rejected to avoid zero-thickness geometry. Move the cone inward or reduce the boundary radius at that plane.");
+            var wall = ToleranceMath.AlmostEqual(maxFootprintX, box.MaxX, tolerance) ? "+X"
+                : ToleranceMath.AlmostEqual(minFootprintX, box.MinX, tolerance) ? "-X"
+                : ToleranceMath.AlmostEqual(maxFootprintY, box.MaxY, tolerance) ? "+Y" : "-Y";
+            diagnostic = CreateTangentContactDiagnostic(diagnosticContext,
+                $"has {circleLabel} (centre ({centerX:0.######}, {centerY:0.######}), radius {radius:0.######}) exactly tangent to the box's {wall} side wall, "
+                + "which would leave a wall of zero thickness along a line - neither machinable nor a manifold solid. "
+                + $"Move the hole so it either leaves a wall of positive thickness or clearly cuts through the {wall} wall.");
             return false;
         }
 
@@ -454,7 +460,9 @@ public static class BrepBooleanCylinderRecognition
             || minFootprintY < (box.MinY - tolerance.Linear)
             || maxFootprintY > (box.MaxY + tolerance.Linear))
         {
-            diagnostic = CreateRadiusExceedsBoundaryDiagnostic(diagnosticContext, $"has {circleLabel} extending outside the box side-wall footprint. Reduce the boundary radius or move the cone center farther inside the box XY boundary.");
+            diagnostic = CreateRadiusExceedsBoundaryDiagnostic(diagnosticContext,
+                $"has {circleLabel} (centre ({centerX:0.######}, {centerY:0.######}), radius {radius:0.######}) extending outside the box side-wall footprint. "
+                + "This analytic-hole route builds only holes that stay inside the box; reduce the radius or move the centre inward.");
             return false;
         }
 

@@ -99,10 +99,22 @@ internal static class AirHoleSimpleShaftMaterializer
 {
     private const double Tolerance = 1e-9;
 
+    /// <summary>
+    /// Wall thickness below which a hole is treated as tangent to a side face rather than as leaving a wall or cutting
+    /// through it. It matches the kernel's linear tolerance so every route agrees on where tangency is.
+    /// </summary>
+    internal const double FootprintTolerance = 1e-6;
+
     public static AirHoleSimpleShaftMaterializationResult Execute(AirHoleFeature feature, AirHoleSimpleShaftHost host)
     {
         if (feature.ConstructionPlanePlacement is { } constructionPlacement)
             return ExecuteConstructionPlaneThroughAll(feature, host, constructionPlacement);
+
+        var footprint = AirHoleFootprint.Classify(feature, host, FootprintTolerance);
+        if (footprint.Contact is AirHoleFootprintContact.Tangent or AirHoleFootprintContact.Misses)
+            return new(AirHoleSimpleShaftMaterializationStatus.UnsupportedPlacement, null, null, ["rejected: " + footprint.Explain(feature)]);
+        if (footprint.Contact == AirHoleFootprintContact.Breakout)
+            return AirHoleBreakoutMaterializer.Execute([feature], host);
 
         var planResult = TryCreatePlan(feature, host);
         if (planResult.Status != AirHoleSimpleShaftMaterializationStatus.Succeeded || planResult.Plan is null)
@@ -186,7 +198,9 @@ internal static class AirHoleSimpleShaftMaterializer
         if (Math.Abs(placement.U) + feature.Shaft.Radius > host.Width / 2d + Tolerance ||
             Math.Abs(placement.V) + feature.Shaft.Radius > host.Depth / 2d + Tolerance)
         {
-            diagnostics.Add("air-hole-x2 rejected: face-local center/radius does not fit within the supported rectangular entry face.");
+            // Execute classifies the footprint before planning and routes tangent and broken-out holes elsewhere, so
+            // only callers that plan directly - the combined EdgeFinish route - can still reach this.
+            diagnostics.Add($"air-hole-x2 rejected: hole '{feature.FeatureId}' crosses the edge of its entry face, and this route (a hole combined with an EdgeFinish) only builds holes that stay inside the face.");
             return new(AirHoleSimpleShaftMaterializationStatus.UnsupportedPlacement, null, null, diagnostics);
         }
 

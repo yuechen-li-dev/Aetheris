@@ -28,6 +28,21 @@ internal static class AirHoleCompositeMaterializer
             return new(false, null, [], diagnostics);
         }
 
+        // Classify every hole before planning any: one tangent hole rejects the set with its own reason, and one hole
+        // that breaks out moves the whole set onto the section-stack route, which resolves all of them together.
+        var footprints = features.Select(f => (Feature: f, Footprint: AirHoleFootprint.Classify(f, host, AirHoleSimpleShaftMaterializer.FootprintTolerance))).ToArray();
+        if (footprints.FirstOrDefault(x => x.Footprint.Contact is AirHoleFootprintContact.Tangent or AirHoleFootprintContact.Misses) is { Feature: not null } blocked)
+        {
+            diagnostics.Add("rejected: " + blocked.Footprint.Explain(blocked.Feature));
+            return new(false, null, [], diagnostics);
+        }
+        if (footprints.Any(x => x.Footprint.Contact == AirHoleFootprintContact.Breakout))
+        {
+            var breakout = AirHoleBreakoutMaterializer.Execute(features, host);
+            diagnostics.AddRange(breakout.Diagnostics);
+            return new(breakout.Succeeded, breakout.Body, [], diagnostics, breakout.Correspondence);
+        }
+
         var plans = new List<AirHoleSimpleShaftMaterializationPlan>(features.Count);
         foreach (var feature in features)
         {

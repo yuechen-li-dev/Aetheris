@@ -327,10 +327,12 @@ public static class ProfileArrangementBuilder
             var outCount = outgoing.GetValueOrDefault(vertex);
             if (inCount == 1 && outCount == 1) continue;
             if (inCount == 0 || outCount == 0)
-                diagnostics.Add($"arrangement-rejected:dangling-arrangement-fragment:vertex={vertex}:incoming={inCount}:outgoing={outCount}:context={context}");
+                diagnostics.Add($"arrangement-rejected:dangling-arrangement-fragment:vertex={vertex}:incoming={inCount}:outgoing={outCount}:context={context}: "
+                    + $"a boundary ends at {VertexMillimetres(vertex)} without continuing. This is an internal arrangement failure rather than a modelling error; please report it with the source.");
             else
             {
-                diagnostics.Add($"arrangement-rejected:point-only-tangent-or-zero-width-ligament:vertex={vertex}:incoming={inCount}:outgoing={outCount}:context={context}");
+                diagnostics.Add($"arrangement-rejected:point-only-tangent-or-zero-width-ligament:vertex={vertex}:incoming={inCount}:outgoing={outCount}:context={context}: "
+                    + $"two boundaries touch only at the point {VertexMillimetres(vertex)}, which would leave a wall of zero width there. Move one so they either stay apart or overlap by a real width.");
                 diagnostics.Add($"arrangement-rejected:unresolved-angular-order:vertex={vertex}:incoming={inCount}:outgoing={outCount}:context={context}");
             }
         }
@@ -517,12 +519,35 @@ public static class ProfileArrangementBuilder
         }
     }
 
+    /// <summary>
+    /// Normalized position of <paramref name="angle"/> along the arc: 0 at its start, 1 at its end, outside [0,1]
+    /// when the angle is not on the swept interval.
+    /// <para>
+    /// The angle comes from <c>atan2</c>, in (-pi, pi], while arc start angles are unbounded because trimming
+    /// accumulates them. The difference therefore has to be wrapped in <em>both</em> directions. This used to wrap
+    /// only one way per sweep sign - positive deltas were never reduced for a clockwise arc - so a clockwise arc
+    /// starting at or beyond pi reported points on its own lower half as t = 4.5 and the like. Region classification
+    /// then saw both sides of those fragments as the same material and dropped them, which is how a circular hole
+    /// breaking out through a straight boundary produced dangling-fragment rejections. A hole wholly inside the
+    /// boundary never tripped it because its circle stays a separate, counter-clockwise loop.
+    /// </para>
+    /// </summary>
     private static double ArcParameter(LineArcCircularArc2D arc, double angle)
     {
-        var delta = angle - arc.StartAngleRadians;
-        if (arc.SweepAngleRadians >= 0d) while (delta < 0d) delta += 2d * Math.PI;
-        else while (delta > 0d) delta -= 2d * Math.PI;
-        return delta / arc.SweepAngleRadians;
+        const double turn = 2d * Math.PI;
+        var sweep = arc.SweepAngleRadians;
+        var delta = Math.IEEERemainder(angle - arc.StartAngleRadians, turn);
+        // Pick the 2pi-representative nearest the swept interval: on-arc points land in [0, 1] whichever way the arc
+        // runs, and off-arc points stay outside it, so callers' [0, 1] range tests keep their meaning.
+        var best = delta / sweep;
+        var bestDistance = double.PositiveInfinity;
+        for (var k = -2; k <= 2; k++)
+        {
+            var candidate = (delta + k * turn) / sweep;
+            var distance = candidate < 0d ? -candidate : candidate > 1d ? candidate - 1d : 0d;
+            if (distance < bestDistance) { bestDistance = distance; best = candidate; }
+        }
+        return best;
     }
     private static LineArcProfileCurve2D Trim(LineArcProfileCurve2D curve, double from, double to) => curve switch
     {
@@ -614,6 +639,15 @@ public static class ProfileArrangementBuilder
                 _ => false
             };
     }
+    /// <summary>Renders a <see cref="VertexKey"/> back into model coordinates for people reading a diagnostic.</summary>
+    private static string VertexMillimetres(string key)
+    {
+        var parts = key.Split(',');
+        return parts.Length == 2 && double.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var x)
+            && double.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var y)
+            ? $"({x * VertexTol:0.#####}, {y * VertexTol:0.#####})" : key;
+    }
+
     private static string VertexKey((double X, double Y) p)
     {
         // IEEE-754 preserves the sign of zero and the fixed-point formatter renders

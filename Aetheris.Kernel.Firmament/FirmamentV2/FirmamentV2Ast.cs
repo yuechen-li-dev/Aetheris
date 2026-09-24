@@ -177,7 +177,8 @@ public sealed record FirmamentV2ModifyBlock(
     string TargetSolid,
     IReadOnlyList<FirmamentV2RegionDecl> Regions,
     IReadOnlyList<FirmamentV2SemanticHoleDecl> SemanticHoles,
-    IReadOnlyList<FirmamentV2EdgeFinishDecl>? EdgeFinishes = null)
+    IReadOnlyList<FirmamentV2EdgeFinishDecl>? EdgeFinishes = null,
+    IReadOnlyList<FirmamentV2PerforationDecl>? Perforations = null)
 {
     public FirmamentV2ModifyBlock(string TargetSolid, IReadOnlyList<FirmamentV2RegionDecl> Regions) : this(TargetSolid, Regions, []) { }
 }
@@ -300,6 +301,11 @@ public enum FirmamentV2ParseDisposition
     RecognizedInvalid,
     RecognizedValid
 }
+/// <summary>One source-owned field of circular through openings; instances are compiler derived.</summary>
+public sealed record FirmamentV2PerforationDecl(
+    string Name, string SupportFace, string Layout, double Diameter, double Pitch,
+    double Margin, double MinimumLigament, double OffsetX, double OffsetY,
+    FirmamentV2SourceSpan SourceSpan);
 
 public sealed record FirmamentV2ParseResult(
     bool IsSuccess,

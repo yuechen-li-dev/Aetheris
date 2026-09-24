@@ -895,7 +895,7 @@ public static class BrepBooleanBoxCylinderHoleBuilder
         var bindings = new BrepBindingModel();
         for (var i = 0; i < 12; i++)
         {
-            bindings.AddEdgeBinding(new EdgeGeometryBinding(new EdgeId(i + 1), new CurveGeometryId(i + 1), new ParameterInterval(0d, 1d)));
+            bindings.AddEdgeBinding(new EdgeGeometryBinding(new EdgeId(i + 1), new CurveGeometryId(i + 1), new ParameterInterval(0d, lineCurves[i].Item2.Length)));
         }
 
         bindings.AddFaceBinding(new FaceGeometryBinding(bottomFace, new SurfaceGeometryId(1)));

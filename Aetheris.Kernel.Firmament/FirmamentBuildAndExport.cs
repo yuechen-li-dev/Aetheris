@@ -540,6 +540,10 @@ public static class FirmamentBuildAndExport
             {
                 return standardPartExport;
             }
+            if (TryExportV2PerforationBody(v2Parse.Document) is { } perforationExport)
+            {
+                return perforationExport;
+            }
 
             // Do not let the existing semantic-hole route silently export the unmodified host.
             // M9 has an explicit AIR/graph contract, but the authoritative single-body merge
@@ -2049,6 +2053,64 @@ public static class FirmamentBuildAndExport
         }
 
         return new BrepBody(body.Topology, geometry, body.Bindings, vertexPoints, safeBooleanComposition: null, body.ShellRepresentation);
+    }
+
+    private static KernelResult<FirmamentStepExportResult>? TryExportV2PerforationBody(FirmamentV2Document document)
+    {
+        var features = (document.ModifyBlocks ?? []).SelectMany(block => (block.Perforations ?? []).Select(feature => (block.TargetSolid, Feature: feature))).ToArray();
+        if (features.Length == 0) return null;
+        KernelResult<FirmamentStepExportResult> Failure(string diagnostic) =>
+            KernelResult<FirmamentStepExportResult>.Failure([new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, diagnostic, "FirmamentV2.Perforation")]);
+        if (features.Length != 1 || document.Solids.Count != 1 || document.ModifyBlocks!.Any(block => block.SemanticHoles.Count > 0 || (block.EdgeFinishes?.Count ?? 0) > 0))
+            return Failure("perforation-composition-unsupported: X0 admits one Perforation on one Box without other Modify features");
+        var (target, feature) = features[0];
+        if (document.Solid.Name != target || document.Solid.Box is not { Size.Count: 3 } box)
+            return Failure("perforation-cylindrical-topology-unavailable: the piping authority constructs constant-thickness annular stock, but the current BRep Boolean route does not materialize radial cylinder-to-cylinder intersections on its wall");
+        var plan = FirmamentPerforationPlanner.Plan(box.Size[0], box.Size[1], feature);
+        if (!plan.Succeeded) return Failure(plan.Diagnostic!);
+        var featureId = $"{target}.{feature.Name}";
+        var axis = Direction3D.Create(new Vector3D(0, 0, 1));
+        var reference = Direction3D.Create(new Vector3D(1, 0, 0));
+        var extents = new AxisAlignedBoxExtents(-box.Size[0] / 2, box.Size[0] / 2, -box.Size[1] / 2, box.Size[1] / 2, 0, box.Size[2]);
+        var holes = plan.Instances.Select(instance =>
+        {
+            var center = new Point3D(instance.X, instance.Y, 0);
+            var cylinder = new RecognizedCylinder(center, axis, feature.Diameter / 2, 0, box.Size[2]);
+            return new SupportedBooleanHole(instance.StableId(featureId), new AnalyticSurface(AnalyticSurfaceKind.Cylinder, Cylinder: cylinder),
+                instance.X, instance.Y, center, new Point3D(instance.X, instance.Y, box.Size[2]), axis, reference,
+                feature.Diameter / 2, feature.Diameter / 2, SupportedBooleanHoleSpanKind.Through, 0, box.Size[2]);
+        }).ToArray();
+        var wallFaces = new Dictionary<string, FaceId>(StringComparer.Ordinal);
+        var duplicate = false;
+        // The regular layout planner proves non-interference and full edge clearance before this single topology build.
+        var built = BrepBooleanBoxCylinderHoleBuilder.BuildComposition(new SafeBooleanComposition(extents, holes), ToleranceContext.Default,
+            (id, face) => { if (!wallFaces.TryAdd(id, face)) duplicate = true; });
+        if (!built.IsSuccess || built.Value is null)
+            return Failure("perforation-brep-failed: " + string.Join(" | ", built.Diagnostics.Select(d => d.Message)));
+        var body = built.Value;
+        if (duplicate || wallFaces.Count != holes.Length || !FirmamentManifoldChecker.IsManifold(body))
+            return Failure("perforation-topology-invalid: wall provenance or manifold check failed");
+        var preflight = BrepExportPreflight.Validate(body);
+        if (!preflight.IsValid) return Failure("perforation-export-preflight-failed: " + string.Join(" | ", preflight.Diagnostics.Take(4).Select(d => $"{d.Code}: {d.Context}")));
+        var step = Step242Exporter.ExportBody(body);
+        if (!step.IsSuccess || step.Value is null) return Failure("perforation-step-export-failed: " + string.Join(" | ", step.Diagnostics.Select(d => d.Message)));
+        var reimport = Step242Importer.ImportBody(step.Value);
+        if (!reimport.IsSuccess || reimport.Value is null || !FirmamentManifoldChecker.IsManifold(reimport.Value))
+            return Failure("perforation-step-reimport-invalid: production STEP did not reimport as a manifold");
+        var descendants = holes.Select(hole => new SemanticTopologyDescendant(
+            $"material:perforation:{hole.FeatureId}:wall", "Face", SemanticTopologyRole.HoleWallFace,
+            $"perforation:{hole.FeatureId}", Face: wallFaces[hole.FeatureId!], ParentStableId: featureId,
+            Addressability: SemanticTopologyAddressability.DerivedStable)).ToArray();
+        var correspondence = new SemanticTopologyCorrespondence(featureId, descendants, ["Perforation", "BrepBooleanBoxCylinderHoleBuilder"])
+        {
+            SourceSpans = new Dictionary<string, FirmamentV2SourceSpan> { [featureId] = feature.SourceSpan }
+        };
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value)));
+        var report = new FirmamentPerforationReport(featureId, feature.SupportFace, feature.Layout, feature.Diameter, feature.Pitch,
+            feature.Margin, feature.MinimumLigament, plan.Instances.Count, holes.Select(hole => hole.FeatureId!).ToArray(),
+            body.Topology.Vertices.Count(), body.Topology.Edges.Count(), body.Topology.Faces.Count(), true, true, hash);
+        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(step.Value, featureId, 0,
+            "perforation", "circular-through", Perforation: report) { RuntimeBody = body, RuntimeCorrespondence = correspondence });
     }
 
     private static KernelResult<FirmamentStepExportResult>? TryExportV2SemanticHoleBody(FirmamentV2Document document)

@@ -26,7 +26,12 @@ public static class FirmamentLanguageService
 
         IReadOnlyList<FirmamentAuthoringField> fields;
         string context;
-        if (WireFormAuthoring.IsInsideHelix(source, offset))
+        if (IsInsidePerforation(source, offset))
+        {
+            fields = FirmamentSchemaAuthoringFields.For("Perforation");
+            context = "Perforation";
+        }
+        else if (WireFormAuthoring.IsInsideHelix(source, offset))
         {
             fields = FirmamentSchemaAuthoringFields.For("Helix");
             context = "Helix";
@@ -35,7 +40,7 @@ public static class FirmamentLanguageService
         else
         {
             var entries = FirmamentSemanticSchemas.All
-                .Where(item => item.Name is "Helix" or "Loft" && item.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && item.Entry is not null)
+                .Where(item => item.Name is "Helix" or "Loft" or "Perforation" && item.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && item.Entry is not null)
                 .Select(item => new FirmamentLanguageEntry(item.Id.Value, item.Name, item.Context ?? string.Empty, item.Entry!)).ToArray();
             return new(document, revision, entries.Length > 0 ? "ConstructEntry" : "Unsupported",
                 prefixStart, prefix.Length, [], [], entries);
@@ -49,5 +54,12 @@ public static class FirmamentLanguageService
         var missing = fields.Where(field => field.Required && !present.Contains(field.Name)).Select(field => field.Name).ToList();
         if (context == "Helix" && !present.Contains("Pitch") && !present.Contains("Height")) missing.Add("Pitch or Height");
         return new(document, revision, context, prefixStart, prefix.Length, candidates, missing);
+    }
+
+    private static bool IsInsidePerforation(string source, int offset)
+    {
+        var prefix = source[..offset];
+        var header = Regex.Matches(prefix, @"\bPerforation\s+[A-Za-z_][A-Za-z0-9_]*\s*\{", RegexOptions.CultureInvariant).Cast<Match>().LastOrDefault();
+        return header is not null && !prefix[(header.Index + header.Length)..].Contains('}');
     }
 }

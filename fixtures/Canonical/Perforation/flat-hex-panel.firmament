@@ -1,0 +1,14 @@
+Model FlatHexPanel {
+  Units: mm
+  Box Panel { Size: [90mm, 70mm, 3mm] }
+  Modify Panel {
+    Perforation Vent {
+      On: +Z
+      Diameter: 6mm
+      Layout: Hex
+      Pitch: 9mm
+      Margin: 8mm
+      MinimumLigament: 2mm
+    }
+  }
+}

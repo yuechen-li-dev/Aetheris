@@ -18,6 +18,19 @@ public static class HoleSemanticDeclaration
     public static double ProjectDiameter(FirmamentV2SemanticHoleDecl instance) => instance.ShaftDiameter;
 }
 
+[FirmamentConstruct("Perforation", "Perforation", Context = "Modify Box", Entry = "Modify Body { Perforation Vent { On: +Z; Diameter: 6mm; Layout: Hex; Pitch: 9mm; Margin: 8mm } }", Description = "One semantic field of circular through openings on a planar Box face.")]
+[FirmamentField("On", "On", FirmamentSchemaValueKind.FaceSelector, Required = true, Description = "Semantic support face; X0 admits +Z on Box.")]
+[FirmamentField("Diameter", "Diameter", FirmamentSchemaValueKind.Length, Required = true, Description = "Circular opening diameter.")]
+[FirmamentField("Layout", "Layout", FirmamentSchemaValueKind.Choice, Required = true, Choices = ["Grid", "Hex"], Description = "Grid rows or staggered hex rows.")]
+[FirmamentField("Pitch", "Pitch", FirmamentSchemaValueKind.Length, Required = true, Description = "Center spacing; Hex row spacing is sqrt(3)/2 times Pitch.")]
+[FirmamentField("Margin", "Margin", FirmamentSchemaValueKind.Length, Default = "0mm", Description = "Clear material from each support edge to opening rim.")]
+[FirmamentField("MinimumLigament", "MinimumLigament", FirmamentSchemaValueKind.Length, Default = "0mm", Description = "Additional minimum material between opening rims.")]
+[FirmamentField("OffsetX", "OffsetX", FirmamentSchemaValueKind.Length, Default = "0mm", Description = "Pattern shift in support X.")]
+[FirmamentField("OffsetY", "OffsetY", FirmamentSchemaValueKind.Length, Default = "0mm", Description = "Pattern shift in support Y.")]
+[FirmamentOutput("InstanceCount", "InstanceCount", "Count")]
+[FirmamentOutput("Wall", "Wall", "Face", SourceRole = nameof(Materializer.SemanticTopologyRole.HoleWallFace))]
+public static class PerforationSemanticDeclaration { }
+
 [FirmamentConstruct("Helix", "Helix", Context = "WireForm", Entry = "Model HelixWitness {\n    Units: mm\n    WireForm Spring {\n        Diameter: 2mm\n        Material: Standard.Materials.StainlessSteel.304_Annealed\n        StartFrame { Origin: [0mm, 0mm, 0mm]; Tangent: [1, 0, 0]; Up: [0, 0, 1] }\n        Helix Winding { Radius: 6mm; Turns: 1; Pitch: 5mm; Handedness: RightHanded; StartPhase: 0deg }\n    }\n}\n", CompatibilityAlias = "AxisCoil", Description = "WireForm centerline helix.")]
 [FirmamentField("Radius", "Radius", FirmamentSchemaValueKind.Length, Required = true, Description = "Centerline radius.")]
 [FirmamentField("Turns", "Turns", FirmamentSchemaValueKind.Scalar, Required = true, Description = "Number of winding turns.")]

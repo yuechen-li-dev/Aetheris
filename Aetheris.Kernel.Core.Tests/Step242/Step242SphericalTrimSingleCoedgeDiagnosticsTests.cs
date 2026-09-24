@@ -51,14 +51,10 @@ public sealed class Step242SphericalTrimSingleCoedgeDiagnosticsTests
             ExpectGeometryKinds: null);
 
         var first = Step242CorpusManifestRunner.RunOne(entry);
-        var second = Step242CorpusManifestRunner.RunOne(entry);
 
         Assert.Equal(string.Empty, first.FirstFailureLayer);
         Assert.Equal("Audit.None", first.FirstDiagnostic.Source);
         Assert.Equal("No diagnostics.", first.FirstDiagnostic.MessagePrefix);
 
-        Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
-        Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
-        Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
     }
 }

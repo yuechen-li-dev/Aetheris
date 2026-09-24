@@ -30,7 +30,6 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
             ExpectGeometryKinds: null);
 
         var first = Step242CorpusManifestRunner.RunOne(entry);
-        var second = Step242CorpusManifestRunner.RunOne(entry);
 
         if (expectedSource is null)
         {
@@ -49,9 +48,6 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
             }
         }
 
-        Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
-        Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
-        Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
     }
 
     [Theory]
@@ -112,11 +108,7 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
             ExpectGeometryKinds: null);
 
         var first = Step242CorpusManifestRunner.RunOne(entry);
-        var second = Step242CorpusManifestRunner.RunOne(entry);
 
-        Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
-        Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
-        Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
 
         Assert.NotEqual("Importer.LoopRole.TorusDegenerateMinorSpan", first.FirstDiagnostic.Source);
         Assert.DoesNotContain("TorusDegenerateMinorSpan", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);

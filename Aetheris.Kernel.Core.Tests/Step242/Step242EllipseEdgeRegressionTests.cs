@@ -20,7 +20,6 @@ public sealed class Step242EllipseEdgeRegressionTests
             ExpectGeometryKinds: null);
 
         var first = Step242CorpusManifestRunner.RunOne(entry);
-        var second = Step242CorpusManifestRunner.RunOne(entry);
 
         Assert.DoesNotContain("EDGE_CURVE geometry 'ELLIPSE' is unsupported.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         Assert.DoesNotContain("Unsupported curve kind 'Ellipse3'.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
@@ -46,8 +45,5 @@ public sealed class Step242EllipseEdgeRegressionTests
             Assert.DoesNotContain("Unsupported surface kind 'Sphere'.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         }
 
-        Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
-        Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
-        Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
     }
 }

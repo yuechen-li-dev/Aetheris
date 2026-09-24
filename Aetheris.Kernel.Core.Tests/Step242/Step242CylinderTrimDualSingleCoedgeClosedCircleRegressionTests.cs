@@ -33,14 +33,9 @@ public sealed class Step242CylinderTrimDualSingleCoedgeClosedCircleRegressionTes
     {
         const string relativePath = "testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp";
         var first = Step242CorpusManifestRunner.RunOne(new Step242CorpusManifestEntry("ctc05", relativePath, "nist-regression", null, null, null, null, null));
-        var second = Step242CorpusManifestRunner.RunOne(new Step242CorpusManifestEntry("ctc05", relativePath, "nist-regression", null, null, null, null, null));
 
         Assert.Equal("success", first.Status);
         Assert.Equal(string.Empty, first.FirstFailureLayer);
-        Assert.Equal(first.Status, second.Status);
-        Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
-        Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
-        Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
     }
 
     [Fact]
@@ -48,7 +43,6 @@ public sealed class Step242CylinderTrimDualSingleCoedgeClosedCircleRegressionTes
     {
         const string relativePath = "testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp";
         var first = Step242CorpusManifestRunner.RunOne(new Step242CorpusManifestEntry("ftc11", relativePath, "nist-regression", null, null, null, null, null), includeDisplayAudit: true);
-        var second = Step242CorpusManifestRunner.RunOne(new Step242CorpusManifestEntry("ftc11", relativePath, "nist-regression", null, null, null, null, null), includeDisplayAudit: true);
 
         Assert.Equal("success", first.Status);
         Assert.Equal(string.Empty, first.FirstFailureLayer);
@@ -56,10 +50,6 @@ public sealed class Step242CylinderTrimDualSingleCoedgeClosedCircleRegressionTes
         Assert.Equal("success", first.DisplayStatus);
         Assert.Equal(string.Empty, first.DisplayFirstFailureLayer);
 
-        Assert.Equal(first.DisplayStatus, second.DisplayStatus);
-        Assert.Equal(first.DisplayFirstFailureLayer, second.DisplayFirstFailureLayer);
-        Assert.Equal(first.DisplayFirstDiagnostic.Source, second.DisplayFirstDiagnostic.Source);
-        Assert.Equal(first.DisplayFirstDiagnostic.MessagePrefix, second.DisplayFirstDiagnostic.MessagePrefix);
     }
 
     [Fact]

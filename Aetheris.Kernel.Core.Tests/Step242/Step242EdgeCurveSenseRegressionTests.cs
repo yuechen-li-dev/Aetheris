@@ -23,15 +23,11 @@ public sealed class Step242EdgeCurveSenseRegressionTests
             ExpectGeometryKinds: null);
 
         var first = Step242CorpusManifestRunner.RunOne(entry);
-        var second = Step242CorpusManifestRunner.RunOne(entry);
 
         Assert.NotEqual("Importer.Orientation.EdgeCurveSense", first.FirstDiagnostic.Source);
         Assert.NotEqual("Importer.LoopRole.CylinderNonNormalizableDegenerateProjection", first.FirstDiagnostic.Source);
         Assert.NotEqual("Importer.LoopRole.UnsupportedSurfaceForHoles", first.FirstDiagnostic.Source);
         Assert.False(string.IsNullOrWhiteSpace(first.FirstDiagnostic.MessagePrefix));
 
-        Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
-        Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
-        Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
     }
 }

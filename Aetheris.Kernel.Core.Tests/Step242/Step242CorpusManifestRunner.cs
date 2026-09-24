@@ -31,22 +31,6 @@ internal static class Step242CorpusManifestRunner
         return manifest;
     }
 
-    public static string BuildReportJson(IEnumerable<Step242CorpusManifestEntry> entries)
-    {
-        var reportEntries = entries
-            .OrderBy(e => e.Path, StringComparer.Ordinal)
-            .Select(entry => RunOne(entry))
-            .ToArray();
-
-        var report = JsonSerializer.Serialize(reportEntries, new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = true
-        });
-
-        return NormalizeLf(report) + "\n";
-    }
-
     public static Step242CorpusReportEntry RunOne(Step242CorpusManifestEntry entry, bool includeDisplayAudit = false)
     {
         var fullPath = Path.Combine(RepoRoot(), entry.Path.Replace('/', Path.DirectorySeparatorChar));

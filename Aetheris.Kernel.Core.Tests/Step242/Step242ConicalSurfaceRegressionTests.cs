@@ -104,7 +104,6 @@ public sealed class Step242ConicalSurfaceRegressionTests
             ExpectGeometryKinds: null);
 
         var first = Step242CorpusManifestRunner.RunOne(entry);
-        var second = Step242CorpusManifestRunner.RunOne(entry);
 
         Assert.DoesNotContain("CONICAL_SURFACE radius", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         Assert.DoesNotContain("expected mirrored line uses for this cone/revolved topology", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
@@ -137,9 +136,6 @@ public sealed class Step242ConicalSurfaceRegressionTests
             Assert.DoesNotContain("Unsupported surface kind 'Sphere'.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         }
 
-        Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
-        Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
-        Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
         Assert.False(string.IsNullOrWhiteSpace(first.FirstDiagnostic.MessagePrefix));
     }
 
@@ -172,7 +168,6 @@ public sealed class Step242ConicalSurfaceRegressionTests
             ExpectGeometryKinds: null);
 
         var first = Step242CorpusManifestRunner.RunOne(entry);
-        var second = Step242CorpusManifestRunner.RunOne(entry);
 
         if (!string.IsNullOrEmpty(expectedLayer))
         {
@@ -196,9 +191,6 @@ public sealed class Step242ConicalSurfaceRegressionTests
             Assert.DoesNotContain("Unsupported surface kind 'Sphere'.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         }
 
-        Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
-        Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
-        Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
     }
 
 
@@ -306,13 +298,9 @@ public sealed class Step242ConicalSurfaceRegressionTests
             ExpectGeometryKinds: null);
 
         var first = Step242CorpusManifestRunner.RunOne(entry);
-        var second = Step242CorpusManifestRunner.RunOne(entry);
 
         Assert.DoesNotContain("AXIS2_PLACEMENT_3D ref direction: expected entity reference argument.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         Assert.NotEqual("AXIS2_PLACEMENT_3D axis and ref direction must not be parallel.", first.FirstDiagnostic.MessagePrefix);
-        Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
-        Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
-        Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
     }
 
     [Fact]

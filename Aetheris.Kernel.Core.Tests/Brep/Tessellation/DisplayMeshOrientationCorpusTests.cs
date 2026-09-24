@@ -1,5 +1,6 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Tessellation;
+using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Core.Tests.Step242;
@@ -21,22 +22,8 @@ public sealed class DisplayMeshOrientationCorpusTests
 {
     public static TheoryData<string> ClosedBrepFiles => new()
     {
-        "testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp",
-        "testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp",
-        "testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp",
-        "testdata/step242/nist/CTC/nist_ctc_04_asme1_ap242-e1.stp",
-        "testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp",
         "testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp",
-        "testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp",
-        "testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e2.stp",
-        "testdata/step242/nist/FTC/nist_ftc_09_asme1_ap242-e1.stp",
-        "testdata/step242/nist/FTC/nist_ftc_10_asme1_ap242-e2.stp",
-        "testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp",
         "testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp",
-        "testdata/step242/nist/STC/nist_stc_07_asme1_ap242-e3.stp",
-        "testdata/step242/nist/STC/nist_stc_08_asme1_ap242-e3.stp",
-        "testdata/step242/nist/STC/nist_stc_09_asme1_ap242-e3.stp",
-        "testdata/step242/nist/STC/nist_stc_10_asme1_ap242-e2.stp",
     };
 
     [Theory]
@@ -47,18 +34,25 @@ public sealed class DisplayMeshOrientationCorpusTests
         var import = Step242Importer.ImportBody(ReadFixture(relativePath));
         Assert.True(import.IsSuccess);
 
-        var unresolvedShells = import.Value.FaceOrientationReport?.Shells
+        var display = DisplayPreparationFallbackBuilder.Build(import.Value, null, null, TimeSpan.FromSeconds(30));
+        Assert.True(display.IsSuccess);
+        AssertOutwardOrientation(import.Value, import.Diagnostics, display.Value);
+    }
+
+    internal static void AssertOutwardOrientation(BrepBody body, IReadOnlyList<KernelDiagnostic> diagnostics, DisplayTessellationResult display)
+    {
+        var unresolvedShells = body.FaceOrientationReport?.Shells
             .Where(shell => shell.Qualification == FaceOrientationQualification.DerivedLocallyConsistentGlobalUnknown)
             .ToArray() ?? [];
         if (unresolvedShells.Length > 0)
         {
             Assert.All(unresolvedShells, shell => Assert.False(shell.IsClosedManifold));
-            Assert.Contains(import.Diagnostics, diagnostic =>
+            Assert.Contains(diagnostics, diagnostic =>
                 diagnostic.Source == "Importer.StepOrientation.GlobalOrientationUnknown");
             return;
         }
 
-        var (windingVolume, normalVolume) = MeasureVolumes(import.Value);
+        var (windingVolume, normalVolume) = MeasureVolumes(display);
 
         Assert.True(windingVolume > 0d, $"triangle winding encloses a negative volume ({windingVolume:G6}), so the mesh is not outward-oriented");
         // Winding and stored normals are two independent statements of the same orientation; they have to agree.
@@ -67,14 +61,11 @@ public sealed class DisplayMeshOrientationCorpusTests
             $"winding volume {windingVolume:G6} and stored-normal volume {normalVolume:G6} disagree");
     }
 
-    private static (double WindingVolume, double NormalVolume) MeasureVolumes(BrepBody body)
+    private static (double WindingVolume, double NormalVolume) MeasureVolumes(DisplayTessellationResult display)
     {
-        var display = DisplayPreparationFallbackBuilder.Build(body, null, null, TimeSpan.FromSeconds(30));
-        Assert.True(display.IsSuccess);
-
         var windingVolume = 0d;
         var normalVolume = 0d;
-        foreach (var patch in display.Value.FacePatches)
+        foreach (var patch in display.FacePatches)
         {
             for (var index = 0; index + 2 < patch.TriangleIndices.Count; index += 3)
             {

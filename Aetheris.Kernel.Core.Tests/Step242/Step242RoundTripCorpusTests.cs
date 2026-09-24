@@ -18,21 +18,14 @@ namespace Aetheris.Kernel.Core.Tests.Step242;
 /// </summary>
 public sealed class Step242RoundTripCorpusTests
 {
-    public static TheoryData<string> CorpusFiles
+    // The manifest audit imports and exports every NIST file. Reimport a bounded
+    // sample here to cover the edge-sense failure without a second corpus sweep.
+    public static TheoryData<string> CorpusFiles => new()
     {
-        get
-        {
-            var data = new TheoryData<string>();
-            foreach (var path in Directory
-                .EnumerateFiles(Path.Combine(Step242CorpusManifestRunner.RepoRoot(), "testdata", "step242", "nist"), "*.stp", SearchOption.AllDirectories)
-                .OrderBy(path => path, StringComparer.Ordinal))
-            {
-                data.Add(Path.GetFileName(path));
-            }
-
-            return data;
-        }
-    }
+        "nist_ctc_01_asme1_ap242-e1.stp",
+        "nist_ftc_08_asme1_ap242-e2.stp",
+        "nist_stc_08_asme1_ap242-e3.stp"
+    };
 
     [Theory]
     [MemberData(nameof(CorpusFiles))]

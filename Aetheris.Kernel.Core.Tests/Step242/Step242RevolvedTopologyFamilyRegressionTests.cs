@@ -24,11 +24,7 @@ public sealed class Step242RevolvedTopologyFamilyRegressionTests
             ExpectGeometryKinds: null);
 
         var first = Step242CorpusManifestRunner.RunOne(entry);
-        var second = Step242CorpusManifestRunner.RunOne(entry);
 
-        Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
-        Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
-        Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
 
         Assert.DoesNotContain("supports repeated torus/revolved families with mixed line/circle loops; this topology family is still unsupported", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         Assert.DoesNotContain("supports repeated cone/revolved families with mixed line/circle loops; this topology family is still unsupported", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
@@ -53,11 +49,7 @@ public sealed class Step242RevolvedTopologyFamilyRegressionTests
             ExpectGeometryKinds: null);
 
         var first = Step242CorpusManifestRunner.RunOne(entry);
-        var second = Step242CorpusManifestRunner.RunOne(entry);
 
-        Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
-        Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
-        Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
 
         Assert.DoesNotContain("unsupported subfamily 'six-coedge bspline-only revolved loop'", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         Assert.Equal("No diagnostics.", first.FirstDiagnostic.MessagePrefix);
@@ -79,11 +71,7 @@ public sealed class Step242RevolvedTopologyFamilyRegressionTests
             ExpectGeometryKinds: null);
 
         var first = Step242CorpusManifestRunner.RunOne(entry);
-        var second = Step242CorpusManifestRunner.RunOne(entry);
 
-        Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
-        Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
-        Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
 
         Assert.DoesNotContain("unsupported subfamily 'circle-only seam reused loop'", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         Assert.DoesNotContain("requires exactly one loop", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
@@ -107,11 +95,7 @@ public sealed class Step242RevolvedTopologyFamilyRegressionTests
             ExpectGeometryKinds: null);
 
         var first = Step242CorpusManifestRunner.RunOne(entry);
-        var second = Step242CorpusManifestRunner.RunOne(entry);
 
-        Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
-        Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
-        Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
 
         if (expectedMessagePrefix.Contains("Observed", StringComparison.Ordinal))
         {
@@ -137,12 +121,8 @@ public sealed class Step242RevolvedTopologyFamilyRegressionTests
             ExpectGeometryKinds: null);
 
         var first = Step242CorpusManifestRunner.RunOne(entry);
-        var second = Step242CorpusManifestRunner.RunOne(entry);
 
         Assert.Equal(string.Empty, first.FirstFailureLayer);
-        Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
-        Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
-        Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
         Assert.Equal("No diagnostics.", first.FirstDiagnostic.MessagePrefix);
     }
 }

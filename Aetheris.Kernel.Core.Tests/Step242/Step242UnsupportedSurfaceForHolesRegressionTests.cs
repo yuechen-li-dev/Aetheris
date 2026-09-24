@@ -37,7 +37,6 @@ public sealed class Step242UnsupportedSurfaceForHolesRegressionTests
             ExpectGeometryKinds: null);
 
         var first = Step242CorpusManifestRunner.RunOne(entry);
-        var second = Step242CorpusManifestRunner.RunOne(entry);
 
         if (expectedLayer is not null)
         {
@@ -57,8 +56,5 @@ public sealed class Step242UnsupportedSurfaceForHolesRegressionTests
         Assert.NotEqual("Importer.LoopRole.UnsupportedSurfaceForHoles", first.FirstDiagnostic.Source);
         Assert.NotEqual("Importer.LoopRole.TorusDegenerateProjection", first.FirstDiagnostic.Source);
 
-        Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
-        Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
-        Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
     }
 }

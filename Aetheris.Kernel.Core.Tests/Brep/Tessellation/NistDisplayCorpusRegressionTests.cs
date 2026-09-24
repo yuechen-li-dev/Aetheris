@@ -45,6 +45,7 @@ public sealed class NistDisplayCorpusRegressionTests
         var warnings = display.Diagnostics.Where(d => d.Severity != KernelDiagnosticSeverity.Info).Select(d => d.Message).ToArray();
         Assert.True(warnings.Length == 0, string.Join(Environment.NewLine, warnings.Take(5)));
         Assert.DoesNotContain(display.Value.FacePatches, patch => patch.TriangleIndices.Count == 0);
+        DisplayMeshOrientationCorpusTests.AssertOutwardOrientation(import.Value, import.Diagnostics, display.Value);
     }
 
     /// <summary>

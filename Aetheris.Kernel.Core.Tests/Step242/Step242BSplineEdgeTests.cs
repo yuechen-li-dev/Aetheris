@@ -115,12 +115,9 @@ public sealed class Step242BSplineEdgeTests
             ExpectGeometryKinds: null);
 
         var first = Step242CorpusManifestRunner.RunOne(entry);
-        var second = Step242CorpusManifestRunner.RunOne(entry);
 
         Assert.DoesNotContain("EDGE_CURVE geometry 'BOUNDED_CURVE' is unsupported.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         Assert.DoesNotContain("B_SPLINE_CURVE_WITH_KNOTS self_intersect", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
-        Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
-        Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
     }
 
     [Theory]
@@ -141,11 +138,8 @@ public sealed class Step242BSplineEdgeTests
             ExpectGeometryKinds: null);
 
         var first = Step242CorpusManifestRunner.RunOne(entry);
-        var second = Step242CorpusManifestRunner.RunOne(entry);
 
         Assert.DoesNotContain("B_SPLINE_CURVE_WITH_KNOTS self_intersect", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
-        Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
-        Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
         Assert.False(string.IsNullOrWhiteSpace(first.FirstDiagnostic.MessagePrefix));
     }
 

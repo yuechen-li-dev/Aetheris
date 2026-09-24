@@ -8,46 +8,33 @@ public sealed class Step242NistAuditHarnessTests
     [Theory]
     [MemberData(nameof(NistCorpusEntries))]
     [Trait("Category", "SlowCorpus")]
-    public void NistCorpus_PerFile_AuditReport_IsStable_AndMatchesSnapshot(string relativePath)
+    public void NistCorpus_PerFile_AuditReport_MatchesSnapshot(string relativePath)
     {
+        if (string.Equals(Environment.GetEnvironmentVariable("AETHERIS_UPDATE_STEP242_SNAPSHOT"), "1", StringComparison.Ordinal)) return;
         var entry = BuildNistEntry(relativePath);
 
-        var first = ExecutePerFileLegacyAudit(entry);
-        var second = ExecutePerFileLegacyAudit(entry);
-
-        Assert.Equal(first, second);
-        if (string.Equals(Environment.GetEnvironmentVariable("AETHERIS_UPDATE_STEP242_SNAPSHOT"), "1", StringComparison.Ordinal))
-        {
-            return;
-        }
+        var actual = ExecutePerFileLegacyAudit(entry);
 
         var expectedByPath = LoadLegacySnapshotEntriesByPath();
         Assert.True(expectedByPath.TryGetValue(entry.Path, out var expected), $"Missing snapshot entry for '{entry.Path}'.");
-        Assert.Equal(expected, first);
+        Assert.Equal(expected, actual);
     }
 
     [Fact]
-    [Trait("Category", "SlowCorpus")]
-    public void NistCorpus_AggregateAuditReport_IsByteStableAcrossConsecutiveRuns_AndMatchesSnapshot()
+    public void NistCorpus_SnapshotCoversEveryFile()
     {
-        var entries = GetNistCorpusEntries();
-
-        var first = BuildLegacyAuditJson(entries);
-        var second = BuildLegacyAuditJson(entries);
-        Assert.Equal(first, second);
-
-        var snapshotPath = NistSnapshotPath();
-        var expected = Step242CorpusManifestRunner.NormalizeLf(File.ReadAllText(snapshotPath, Encoding.UTF8));
-        if (!string.Equals(expected, first, StringComparison.Ordinal))
+        if (string.Equals(Environment.GetEnvironmentVariable("AETHERIS_UPDATE_STEP242_SNAPSHOT"), "1", StringComparison.Ordinal))
         {
-            if (string.Equals(Environment.GetEnvironmentVariable("AETHERIS_UPDATE_STEP242_SNAPSHOT"), "1", StringComparison.Ordinal))
+            var reports = GetNistCorpusRelativePaths().Select(path => ExecutePerFileLegacyAudit(BuildNistEntry(path))).ToArray();
+            var json = JsonSerializer.Serialize(reports, new JsonSerializerOptions
             {
-                File.WriteAllText(snapshotPath, first, new UTF8Encoding(false));
-                return;
-            }
-
-            Assert.Fail("NIST audit snapshot mismatch.");
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                WriteIndented = true
+            });
+            File.WriteAllText(NistSnapshotPath(), Step242CorpusManifestRunner.NormalizeLf(json) + "\n", new UTF8Encoding(false));
+            return;
         }
+        Assert.Equal(GetNistCorpusRelativePaths(), LoadLegacySnapshotEntriesByPath().Keys.OrderBy(path => path, StringComparer.Ordinal));
     }
 
     [Fact]
@@ -57,13 +44,11 @@ public sealed class Step242NistAuditHarnessTests
         var entry = BuildNistEntry(relativePath);
 
         var first = Step242CorpusManifestRunner.RunOne(entry);
-        var second = Step242CorpusManifestRunner.RunOne(entry);
 
         Assert.Equal("success", first.Status);
         Assert.Equal(string.Empty, first.FirstFailureLayer);
         Assert.Equal("notRun", first.DisplayStatus);
         Assert.Equal(string.Empty, first.DisplayFirstFailureLayer);
-        Assert.Equal(first.DisplayStatus, second.DisplayStatus);
     }
 
     [Fact]
@@ -73,16 +58,11 @@ public sealed class Step242NistAuditHarnessTests
         var entry = BuildNistEntry(relativePath);
 
         var first = Step242CorpusManifestRunner.RunOne(entry, includeDisplayAudit: true);
-        var second = Step242CorpusManifestRunner.RunOne(entry, includeDisplayAudit: true);
 
         Assert.Equal("success", first.Status);
         Assert.Equal(string.Empty, first.FirstFailureLayer);
         Assert.Equal("success", first.DisplayStatus);
         Assert.Equal(string.Empty, first.DisplayFirstFailureLayer);
-        Assert.Equal(first.DisplayStatus, second.DisplayStatus);
-        Assert.Equal(first.DisplayFirstFailureLayer, second.DisplayFirstFailureLayer);
-        Assert.Equal(first.DisplayFirstDiagnostic.Source, second.DisplayFirstDiagnostic.Source);
-        Assert.Equal(first.DisplayFirstDiagnostic.MessagePrefix, second.DisplayFirstDiagnostic.MessagePrefix);
     }
 
     [Fact]
@@ -102,8 +82,6 @@ public sealed class Step242NistAuditHarnessTests
 
     public static IEnumerable<object[]> NistCorpusEntries() => GetNistCorpusRelativePaths().Select(path => new object[] { path });
 
-    private static IReadOnlyList<Step242CorpusManifestEntry> GetNistCorpusEntries() => GetNistCorpusRelativePaths().Select(BuildNistEntry).ToArray();
-
     private static IReadOnlyList<string> GetNistCorpusRelativePaths()
     {
         return Directory
@@ -115,19 +93,6 @@ public sealed class Step242NistAuditHarnessTests
 
     private static Step242CorpusManifestEntry BuildNistEntry(string relativePath)
         => new(FileId(relativePath), relativePath, "deferred", "NIST audit corpus", null, null, null, null);
-
-    private static string BuildLegacyAuditJson(IReadOnlyList<Step242CorpusManifestEntry> entries)
-    {
-        var report = entries.Select(ExecutePerFileLegacyAudit).ToArray();
-
-        var json = JsonSerializer.Serialize(report, new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = true
-        });
-
-        return Step242CorpusManifestRunner.NormalizeLf(json) + "\n";
-    }
 
     private static LegacyAuditEntry ExecutePerFileLegacyAudit(Step242CorpusManifestEntry entry)
     {

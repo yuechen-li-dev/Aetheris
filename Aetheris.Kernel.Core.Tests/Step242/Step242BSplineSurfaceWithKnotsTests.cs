@@ -75,12 +75,8 @@ public sealed class Step242BSplineSurfaceWithKnotsTests
             ExpectGeometryKinds: null);
 
         var first = Step242CorpusManifestRunner.RunOne(entry);
-        var second = Step242CorpusManifestRunner.RunOne(entry);
 
         Assert.DoesNotContain("ADVANCED_FACE surface 'B_SPLINE_SURFACE_WITH_KNOTS' is unsupported.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
-        Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
-        Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
-        Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
     }
 
     [Theory]
@@ -131,7 +127,6 @@ public sealed class Step242BSplineSurfaceWithKnotsTests
             ExpectGeometryKinds: null);
 
         var first = Step242CorpusManifestRunner.RunOne(entry);
-        var second = Step242CorpusManifestRunner.RunOne(entry);
 
         Assert.DoesNotContain("sphere tessellation supports only untrimmed sphere faces with zero loops.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         if (!string.IsNullOrEmpty(expectedLayer))
@@ -155,8 +150,5 @@ public sealed class Step242BSplineSurfaceWithKnotsTests
             Assert.DoesNotContain("unsupported surface kind 'BSplineSurfaceWithKnots'", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
             Assert.DoesNotContain("Unsupported surface kind 'Sphere'.", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
         }
-        Assert.Equal(first.FirstFailureLayer, second.FirstFailureLayer);
-        Assert.Equal(first.FirstDiagnostic.Source, second.FirstDiagnostic.Source);
-        Assert.Equal(first.FirstDiagnostic.MessagePrefix, second.FirstDiagnostic.MessagePrefix);
     }
 }

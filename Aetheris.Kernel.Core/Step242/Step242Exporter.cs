@@ -1039,7 +1039,14 @@ public static class Step242Exporter
                 bsplineIds[edgeId] = bsplineId;
             }
 
-            geometryCurveId = bsplineId;
+            var trim = edgeBinding.TrimInterval.Value;
+            geometryCurveId = double.Abs(trim.Start - spline.DomainStart) <= 1e-12d
+                && double.Abs(trim.End - spline.DomainEnd) <= 1e-12d
+                ? bsplineId
+                : writer.AddEntity("TRIMMED_CURVE", "$", Step242TextWriter.Ref(bsplineId),
+                    Step242TextWriter.List($"PARAMETER_VALUE({Step242TextWriter.Number(trim.Start)})"),
+                    Step242TextWriter.List($"PARAMETER_VALUE({Step242TextWriter.Number(trim.End)})"),
+                    Step242TextWriter.BooleanLogical(true), Step242TextWriter.Enum("PARAMETER"));
         }
         else if (curve.Kind == CurveGeometryKind.Ellipse3 && curve.Ellipse3 is Ellipse3Curve ellipse)
         {

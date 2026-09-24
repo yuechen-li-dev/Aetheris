@@ -1103,7 +1103,7 @@ public static class Step242Importer
 
             return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Success((
                 CurveGeometry.FromBSpline(splineResult.Value),
-                new ParameterInterval(splineResult.Value.DomainStart, splineResult.Value.DomainEnd)));
+                explicitTrim ?? new ParameterInterval(splineResult.Value.DomainStart, splineResult.Value.DomainEnd)));
         }
 
         if (string.Equals(curveEntity.Name, "AETHERIS_PLANAR_UNSUPPORTED_CURVE", StringComparison.OrdinalIgnoreCase))

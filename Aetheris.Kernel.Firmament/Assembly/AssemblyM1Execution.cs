@@ -58,7 +58,7 @@ internal sealed record MaterializedAssemblyDefinition(
 /// </summary>
 internal static class AssemblyDefinitionMaterializer
 {
-    public static MaterializedAssemblyDefinition? TryMaterialize(string definitionIdentity, string? definitionSource, string sourceIdentity, List<AssemblyDiagnostic> diagnostics)
+    public static MaterializedAssemblyDefinition? TryMaterialize(string definitionIdentity, string? definitionSource, string sourceIdentity, List<AssemblyDiagnostic> diagnostics, FirmamentProjectSnapshot? project = null)
     {
         if (!string.IsNullOrWhiteSpace(definitionSource))
         {
@@ -68,14 +68,43 @@ internal static class AssemblyDefinitionMaterializer
                 "^(?:SectionChainFile|LoftFile)<\\\"(?<path>[^\\\"]+)\\\">$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
             if (sectionFile.Success)
             {
-                var baseDirectory = Path.GetDirectoryName(Path.GetFullPath(sourceIdentity)) ?? Directory.GetCurrentDirectory();
-                var sectionPath = Path.GetFullPath(Path.Combine(baseDirectory, sectionFile.Groups["path"].Value.Replace('/', Path.DirectorySeparatorChar)));
-                if (!File.Exists(sectionPath))
+                var requestedPath = sectionFile.Groups["path"].Value;
+                string sectionPath;
+                string sectionSource;
+                if (project is not null)
                 {
-                    diagnostics.Add(new("assembly-profile-unresolved-resource", $"SectionChain source '{sectionFile.Groups["path"].Value}' was not found at '{sectionPath}'."));
-                    return null;
+                    try
+                    {
+                        sectionPath = FirmamentProjectSnapshot.NormalizePath(requestedPath);
+                    }
+                    catch (ArgumentException)
+                    {
+                        diagnostics.Add(new("assembly-profile-invalid-resource-path", $"SectionChain source '{requestedPath}' escapes the project root or uses an invalid path."));
+                        return null;
+                    }
+                    if (!sectionPath.EndsWith(".firmament", StringComparison.OrdinalIgnoreCase))
+                    {
+                        diagnostics.Add(new("assembly-profile-resource-kind-invalid", $"SectionChain source '{sectionPath}' must be a .firmament document."));
+                        return null;
+                    }
+                    if (!project.TryResolve(sectionPath, out sectionSource!))
+                    {
+                        diagnostics.Add(new("assembly-profile-unresolved-resource", $"SectionChain source '{sectionPath}' was not found in the project snapshot."));
+                        return null;
+                    }
                 }
-                var section = SectionChainAuthoringParser.Compile(File.ReadAllText(sectionPath));
+                else
+                {
+                    var baseDirectory = Path.GetDirectoryName(Path.GetFullPath(sourceIdentity)) ?? Directory.GetCurrentDirectory();
+                    sectionPath = Path.GetFullPath(Path.Combine(baseDirectory, requestedPath.Replace('/', Path.DirectorySeparatorChar)));
+                    if (!File.Exists(sectionPath))
+                    {
+                        diagnostics.Add(new("assembly-profile-unresolved-resource", $"SectionChain source '{requestedPath}' was not found at '{sectionPath}'."));
+                        return null;
+                    }
+                    sectionSource = File.ReadAllText(sectionPath);
+                }
+                var section = SectionChainAuthoringParser.Compile(sectionSource);
                 if (!section.IsSuccess || section.Materialization?.Body is not { } sectionBody ||
                     section.Materialization.StructureKind != SectionChainStructureKind.ClosedSolid)
                 {
@@ -141,6 +170,11 @@ internal static class AssemblyDefinitionMaterializer
         var externalStep = System.Text.RegularExpressions.Regex.Match(definitionIdentity, "^ExternalStep<\\\"(?<path>[^\\\"]+)\\\">$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
         if (externalStep.Success)
         {
+            if (project is not null)
+            {
+                diagnostics.Add(new("assembly-profile-external-resource-unsupported", "ExternalStep is not a project source document and cannot be resolved from a Firmament project snapshot."));
+                return null;
+            }
             var baseDirectory = Path.GetDirectoryName(Path.GetFullPath(sourceIdentity)) ?? Directory.GetCurrentDirectory();
             var resolvedPath = Path.GetFullPath(Path.Combine(baseDirectory, externalStep.Groups["path"].Value.Replace('/', Path.DirectorySeparatorChar)));
             if (!File.Exists(resolvedPath))
@@ -295,14 +329,30 @@ public sealed class AssemblyM1Pipeline
         return CompileParsed(parsed, domainMaterializer);
     }
 
-    private static AssemblyM1CompilationResult CompileParsed(AssemblyM0Parser.ParseResult parsed, AssemblyPartMaterializer? domainMaterializer)
+    public AssemblyM1CompilationResult CompileProject(FirmamentProjectSnapshot project)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        var profile = project.TryResolve(project.RootDocument, out var root)
+            ? FirmamentAssemblyDocumentCompiler.ValidateProfile(root, FirmamentDocumentProfile.Assembly)
+            : [];
+        if (profile.Any(diagnostic => diagnostic.Severity == AssemblyDiagnosticSeverity.Error))
+            return new(null, null, profile);
+        var parsed = new AssemblyM0Parser().ParseProject(project);
+        if (parsed.Source?.DefinitionSource is { } declarations &&
+            System.Text.RegularExpressions.Regex.IsMatch(declarations, @"\bInlineStep\b", System.Text.RegularExpressions.RegexOptions.CultureInvariant))
+            return new(null, null, [new AssemblyDiagnostic("assembly-profile-external-resource-unsupported",
+                "InlineStep requires an external STEP asset and is unsupported in a Firmament project snapshot.")]);
+        return CompileParsed(parsed, null, project);
+    }
+
+    private static AssemblyM1CompilationResult CompileParsed(AssemblyM0Parser.ParseResult parsed, AssemblyPartMaterializer? domainMaterializer, FirmamentProjectSnapshot? project = null)
     {
         if (!parsed.IsSuccess || parsed.Source is null) return new(null, null, parsed.Diagnostics);
         var diagnostics = parsed.Diagnostics.ToList();
         var materializationWatch = Stopwatch.StartNew();
         var definitions = parsed.Source.Root.Flatten().Where(member => member.Kind == AssemblyInstanceKind.Part)
             .Select(member => member.DefinitionIdentity).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)
-            .Select(identity => Materialize(identity, parsed.Source.DefinitionSource, parsed.Source.SourceIdentity, diagnostics, domainMaterializer))
+            .Select(identity => Materialize(identity, parsed.Source.DefinitionSource, parsed.Source.SourceIdentity, diagnostics, domainMaterializer, project))
             .Where(definition => definition is not null).Cast<MaterializedAssemblyDefinition>().ToDictionary(definition => definition.DefinitionIdentity, StringComparer.Ordinal);
         materializationWatch.Stop();
         var enriched = parsed.Source with { Root = Enrich(parsed.Source.Root, definitions) };
@@ -321,7 +371,7 @@ public sealed class AssemblyM1Pipeline
     }
 
     private static MaterializedAssemblyDefinition? Materialize(string identity, string? declarations, string sourceIdentity,
-        List<AssemblyDiagnostic> diagnostics, AssemblyPartMaterializer? domainMaterializer)
+        List<AssemblyDiagnostic> diagnostics, AssemblyPartMaterializer? domainMaterializer, FirmamentProjectSnapshot? project)
     {
         if (domainMaterializer?.Invoke(identity, declarations, sourceIdentity, diagnostics) is { } supplied)
         {
@@ -334,7 +384,7 @@ public sealed class AssemblyM1Pipeline
                 AssemblyDefinitionMaterializer.Metrics(supplied.Body), supplied.Provenance);
             return new(identity, supplied.SpecializationIdentity, supplied.Body, supplied.Semantics ?? [], artifact);
         }
-        return AssemblyDefinitionMaterializer.TryMaterialize(identity, declarations, sourceIdentity, diagnostics);
+        return AssemblyDefinitionMaterializer.TryMaterialize(identity, declarations, sourceIdentity, diagnostics, project);
     }
 
     private static AssemblyMemberSource Enrich(AssemblyMemberSource member, IReadOnlyDictionary<string, MaterializedAssemblyDefinition> definitions)

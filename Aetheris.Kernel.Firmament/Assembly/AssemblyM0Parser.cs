@@ -26,6 +26,61 @@ public sealed class AssemblyM0Parser
         return new(parsed.Source is null ? null : parsed.Source with { SourceDependencies = dependencies }, diagnostics, parsed.ElapsedMilliseconds);
     }
 
+    public ParseResult ParseProject(FirmamentProjectSnapshot project)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+        var diagnostics = new List<AssemblyDiagnostic>();
+        var dependencies = new List<AssemblySourceDependencyIr>();
+        var source = LoadProjectSource(project.RootDocument, project, [], dependencies, diagnostics);
+        if (source is null) return new(null, diagnostics, 0);
+        var parsed = Parse(source, project.RootDocument);
+        return new(parsed.Source is null ? null : parsed.Source with { SourceDependencies = dependencies },
+            [.. diagnostics, .. parsed.Diagnostics], parsed.ElapsedMilliseconds);
+    }
+
+    private static string? LoadProjectSource(string path, FirmamentProjectSnapshot project,
+        IReadOnlyList<string> stack, List<AssemblySourceDependencyIr> dependencies, List<AssemblyDiagnostic> diagnostics)
+    {
+        var cycleAt = stack.ToList().FindIndex(item => string.Equals(item, path, StringComparison.Ordinal));
+        if (cycleAt >= 0)
+        {
+            diagnostics.Add(new("assembly-include-cycle", $"Compile-time Include cycle: {string.Join(" -> ", stack.Skip(cycleAt).Append(path))}."));
+            return null;
+        }
+        if (!project.TryResolve(path, out var text))
+        {
+            diagnostics.Add(new("assembly-include-file-not-found", $"Project document '{path}' was not found."));
+            return null;
+        }
+        if (stack.Count > 0 && !path.EndsWith(".firmament", StringComparison.OrdinalIgnoreCase))
+        {
+            diagnostics.Add(new("assembly-include-extension-invalid", $"Compile-time Include '{path}' must reference a .firmament semantic source file."));
+            return null;
+        }
+        if (dependencies.Any(item => string.Equals(item.Path, path, StringComparison.Ordinal))) return string.Empty;
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(text)));
+        dependencies.Add(new(path, hash, stack.Count == 0));
+        var declarations = new List<string>();
+        foreach (Match include in Regex.Matches(text, @"^[ \t]*Include\s+""(?<path>[^""]+)""\s*;", RegexOptions.CultureInvariant | RegexOptions.Multiline))
+        {
+            string childPath;
+            try
+            {
+                childPath = FirmamentProjectSnapshot.NormalizePath(include.Groups["path"].Value);
+            }
+            catch (ArgumentException)
+            {
+                diagnostics.Add(new("assembly-include-outside-root", $"Include '{include.Groups["path"].Value}' in '{path}' escapes the project root or uses an invalid path."));
+                return null;
+            }
+            var child = LoadProjectSource(childPath, project, [.. stack, path], dependencies, diagnostics);
+            if (child is null) return null;
+            declarations.Add(child);
+        }
+        declarations.Add(Regex.Replace(text, @"^[ \t]*Include\s+""[^""]+""\s*;[ \t]*(?:\r?\n)?", string.Empty, RegexOptions.CultureInvariant | RegexOptions.Multiline));
+        return string.Join(Environment.NewLine, declarations);
+    }
+
     private static string FindAllowedSourceRoot(string path)
     {
         var directory = new DirectoryInfo(Path.GetDirectoryName(path)!);

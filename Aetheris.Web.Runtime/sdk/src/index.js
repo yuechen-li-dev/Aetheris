@@ -27,30 +27,50 @@ class WorkerTransport {
     this.worker.onmessage = ({ data }) => {
       const pending = this.pending.get(data.id); if (!pending) return;
       this.pending.delete(data.id);
+      if (data.version !== 1) { pending.reject(new AetherisError('worker-protocol', `Unsupported Aetheris worker protocol ${data.version}.`)); return; }
+      if (data.sourceRevision !== pending.sourceRevision) { pending.reject(new AetherisError('worker-revision', 'The Aetheris worker returned a mismatched source revision.')); return; }
+      this.lastTiming = { operation: pending.operation, executionMilliseconds: data.executionMilliseconds ?? 0,
+        transportMilliseconds: Math.max(0, performance.now() - pending.started - (data.executionMilliseconds ?? 0)), payloadBytes: data.payloadBytes ?? 0 };
       data.error ? pending.reject(new AetherisError(data.error.code, data.error.message, data.error.details)) : pending.resolve(data.result);
     };
     this.worker.onerror = event => {
       const error = new AetherisError('worker-error', event.message || 'The Aetheris worker failed to start.');
+      this.failure = error;
+      for (const pending of this.pending.values()) pending.reject(error);
+      this.pending.clear();
+    };
+    this.worker.onmessageerror = () => {
+      const error = new AetherisError('worker-message-error', 'The Aetheris worker returned an unreadable result.');
+      this.failure = error;
       for (const pending of this.pending.values()) pending.reject(error);
       this.pending.clear();
     };
   }
   request(request) {
+    if (this.failure) return Promise.reject(this.failure);
     return new Promise((resolve, reject) => {
-      const id = ++this.nextId; this.pending.set(id, { resolve, reject });
-      this.worker.postMessage({ id, request, runtimeBase: this.runtimeBase?.href });
+      const id = ++this.nextId; const sourceRevision = request.sourceRevision ?? null;
+      this.pending.set(id, { resolve, reject, operation: request.operation, sourceRevision, started: performance.now() });
+      try { this.worker.postMessage({ version: 1, id, sourceRevision, request, runtimeBase: this.runtimeBase?.href }); }
+      catch (error) { this.pending.delete(id); reject(error); }
     });
   }
-  async dispose() { try { await this.request({ operation: 'disposeRuntime' }); } finally { this.worker.terminate(); } }
+  async dispose() { try { if (!this.failure) await this.request({ operation: 'disposeRuntime' }); } finally { this.terminate(); } }
+  terminate() {
+    this.worker.terminate();
+    this.failure = new AetherisError('worker-terminated', 'The Aetheris worker was restarted.');
+    for (const pending of this.pending.values()) pending.reject(this.failure);
+    this.pending.clear();
+  }
 }
 
 export class Aetheris {
   static async create(options = {}) {
-    if (options.worker === true) throw new AetherisError('worker-unavailable', 'Worker-backed execution is not qualified in Web SDK X1. Use the default in-page runtime.');
     const runtimeBase = options.wasmUrl ? new URL(options.wasmUrl, globalThis.location?.href) : defaultRuntimeBase;
-    const transport = new DirectTransport(runtimeBase);
+    const transport = options.worker === true ? new WorkerTransport(runtimeBase) : new DirectTransport(runtimeBase);
     const cad = new Aetheris(transport, options.diagnostics);
-    cad.runtimeInfo = await cad.info();
+    try { cad.runtimeInfo = await cad.info(); }
+    catch (error) { transport.terminate?.(); throw error; }
     return cad;
   }
   constructor(transport, diagnostics) {
@@ -61,19 +81,25 @@ export class Aetheris {
         sourceName: options.sourceName, sourceRevision: options.sourceRevision })
     };
   }
-  info() { return this.transport.request({ operation: 'info' }); }
+  async info() {
+    const info = await this.transport.request({ operation: 'info' });
+    return this.transport instanceof WorkerTransport ? { ...info, capabilities: { ...info.capabilities, worker: true } } : info;
+  }
   async capabilities() { return (await this.info()).capabilities; }
   async compile(source, options = {}) {
     throwIfAborted(options.signal);
-    const result = await this.transport.request({ operation: 'compile', source, sourceName: options.sourceName });
+    const result = await this.transport.request({ operation: 'compile', source, sourceName: options.sourceName, sourceRevision: options.sourceRevision });
     this.diagnostics?.(result.diagnostics);
     return { model: result.success ? new ModelSession(this.transport, result.model) : null, diagnostics: result.diagnostics };
   }
   dispose() { return this.transport.dispose(); }
+  terminate() { this.transport.terminate?.(); }
+  get workerTiming() { return this.transport.lastTiming ?? null; }
 }
 
 export class ModelSession {
   constructor(transport, snapshot) { this.transport = transport; this.apply(snapshot); this.queue = Promise.resolve(); }
+  get workerTiming() { return this.transport.lastTiming ?? null; }
   apply(snapshot) {
     Object.assign(this, snapshot);
     this._rangesBySemantic = new Map();
@@ -104,7 +130,7 @@ export class ModelSession {
     return this.serial(async () => { throwIfAborted(options.signal); await this.transport.request({ operation: 'setProperty', sessionId: this.id, propertyId, value }); return this.rebuild(options); });
   }
   async setSource(source, options = {}) {
-    return this.serial(async () => { throwIfAborted(options.signal); await this.transport.request({ operation: 'setSource', sessionId: this.id, source, sourceName: options.sourceName }); return this.rebuild(options); });
+    return this.serial(async () => { throwIfAborted(options.signal); await this.transport.request({ operation: 'setSource', sessionId: this.id, source, sourceName: options.sourceName, sourceRevision: options.sourceRevision }); return this.rebuild(options); });
   }
   async describeConstruct(semanticId, options = {}) {
     throwIfAborted(options.signal);
@@ -118,7 +144,7 @@ export class ModelSession {
   }
   async rebuild(options = {}) {
     throwIfAborted(options.signal);
-    const result = await this.transport.request({ operation: 'rebuild', sessionId: this.id });
+    const result = await this.transport.request({ operation: 'rebuild', sessionId: this.id, sourceRevision: options.sourceRevision });
     if (result.success) this.apply(result.model);
     return result;
   }
@@ -180,6 +206,7 @@ export class ModelSession {
   async exportSTEP(options = {}) {
     throwIfAborted(options.signal);
     const result = await this.transport.request({ operation: 'exportStep', sessionId: this.id });
+    if (result.bytes instanceof Uint8Array) return result.bytes;
     const binary = atob(result.base64); const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
     return bytes;

@@ -674,6 +674,28 @@ public static class SurfaceMeshIrTessellator
         return worst;
     }
 
+    /// <summary>
+    /// Reverses a trim loop when its measured winding contradicts the outer-CCW / inner-CW convention.
+    /// Reversal is purely a traversal change: the same vertices bound the same region.
+    /// </summary>
+    private static SurfaceMeshTrimLoop NormalizeTraversal(SurfaceMeshTrimLoop loop)
+    {
+        var wanted = loop.IsInner ? -1d : 1d;
+        if (loop.SignedArea == 0d || double.Sign(loop.SignedArea) == wanted) return loop;
+        // Reverse the cycle about its own base point: [a,b,c,d] becomes [a,d,c,b], not [d,c,b,a].
+        // Loop index 0 seeds guide construction and bridge candidate ordering, so moving it would make
+        // two mirror-image faces decompose differently for no geometric reason.
+        static T[] ReverseCycle<T>(IReadOnlyList<T> items) =>
+            items.Take(1).Concat(items.Skip(1).Reverse()).ToArray();
+        var ids = ReverseCycle(loop.VertexIds);
+        var local = ReverseCycle(loop.LocalCoordinates);
+        var spans = loop.BoundarySpans?
+            .Reverse()
+            .Select(span => span with { StartVertexId = span.EndVertexId, EndVertexId = span.StartVertexId })
+            .ToArray();
+        return loop with { VertexIds = ids, LocalCoordinates = local, SignedArea = -loop.SignedArea, BoundarySpans = spans };
+    }
+
     private static SurfacePatch? TryBuildPlanePatch(BrepBody body, FaceId faceId, bool sameSense, PlaneSurface plane, IReadOnlyDictionary<EdgeId, SharedEdgeSamplePlan> plans, List<SurfaceMeshVertex> vertices, ref int nextVertexId)
     {
         var loops = body.GetLoopIds(faceId);
@@ -692,7 +714,20 @@ public static class SurfaceMeshIrTessellator
 
         var outer = loopData.OrderByDescending(loop => double.Abs(loop.SignedArea)).First();
         var inners = loopData.Where(loop => loop.LoopId != outer.LoopId).ToArray();
-        var annotatedLoops = loopData.Select(loop => loop with { IsInner = loop.LoopId != outer.LoopId }).ToArray();
+        // A trimmed planar face has exactly one valid traversal convention: the outer loop runs
+        // counter-clockwise in the plane-local frame and every inner loop runs clockwise. The source
+        // topology does not guarantee it - a box's two caps carry their outer loops in the same 3D
+        // direction even though their normals oppose, so one cap arrives mirrored and, on a face with
+        // a hole, outer and inner can even agree in sign, which is geometrically impossible. Cell
+        // winding does not depend on this (every emitted cell is re-oriented by its own signed area),
+        // so the decomposition planners below were the first consumers to actually trust the traversal
+        // direction, and they silently produced a different, poorer decomposition when it was wrong.
+        // Normalize once, here, rather than teaching each planner to accept both handednesses.
+        var annotatedLoops = loopData
+            .Select(loop => NormalizeTraversal(loop with { IsInner = loop.LoopId != outer.LoopId }))
+            .ToArray();
+        outer = annotatedLoops.Single(loop => loop.LoopId == outer.LoopId);
+        inners = annotatedLoops.Where(loop => loop.LoopId != outer.LoopId).ToArray();
         if (inners.Length == 0)
         {
             var coedges = body.GetCoedgeIds(outer.LoopId).Select(body.Topology.GetCoedge).ToArray();

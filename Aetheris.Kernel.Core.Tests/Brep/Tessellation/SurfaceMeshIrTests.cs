@@ -171,11 +171,22 @@ public sealed class SurfaceMeshIrTests
         Assert.True(SurfaceMeshIrTessellator.TryBuild(body.Value, SurfaceMeshPolicy.FromDisplayOptions(DisplayTessellationOptions.Default), out var document));
         var caps = document.Patches.Where(patch => patch.Support.Kind == SurfaceMeshSupportKind.Plane && patch.TrimLoops.Count == 2).ToArray();
         Assert.Equal(2, caps.Length);
-        Assert.Equal(90, caps.Sum(cap => cap.Cells.Count));
+        // The two caps are mirror images, so their decompositions must agree structurally. A pinned
+        // total used to stand in for that and could not tell a real regression from a one-cell tie in
+        // the greedy remainder merge - it went 90 -> 87 when one cap silently lost its bridge.
         Assert.All(caps, cap =>
         {
             var plan = Assert.IsType<PlanarFeatureDecompositionPlan>(cap.PlanarFeaturePlan);
             Assert.False(plan.UsedM6Fallback, plan.FallbackReason);
+            // Outer runs counter-clockwise and every hole runs clockwise in the plane-local frame.
+            // Without this a hole can arrive wound as material, which no planner can bridge.
+            Assert.All(cap.TrimLoopData!, loop => Assert.Equal(loop.IsInner ? -1 : 1, double.Sign(loop.SignedArea)));
+            // Each hole is joined to the outer boundary, which is what makes the remainder simply connected.
+            Assert.Equal(cap.TrimLoopData!.Count(loop => loop.IsInner), plan.Bridges.Count);
+            Assert.Equal(29, plan.FeatureBandCellCount);
+            Assert.Equal(2, plan.BridgeCellCount);
+            Assert.Equal(10, plan.ResidualTransitionCellCount);
+            Assert.InRange(plan.CoarseRemainderCellCount, 3, 4);
             Assert.Contains(cap.Cells, cell => cell.Provenance == SurfaceMeshCellProvenance.FeatureBand);
             Assert.Contains(cap.Cells, cell => cell.Provenance == SurfaceMeshCellProvenance.CoarseRemainder);
             var incidence = cap.Cells.SelectMany(cell => Enumerable.Range(0, cell.VertexIds.Count)

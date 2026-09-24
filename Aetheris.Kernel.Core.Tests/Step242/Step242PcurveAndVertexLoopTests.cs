@@ -25,6 +25,7 @@ public sealed class Step242PcurveAndVertexLoopTests
         Assert.Contains(imported.Diagnostics, diagnostic => diagnostic.Source == "Importer.Pcurve.UnsupportedCurve");
     }
 
+    [Trait("Category", "SlowCorpus")]
     [Fact]
     public void ImportedPlateauPcurves_AreFirstClassAndRoundTrip()
     {
@@ -105,6 +106,7 @@ public sealed class Step242PcurveAndVertexLoopTests
         Assert.NotNull(binding.Parameter);
     }
 
+    [Trait("Category", "SlowCorpus")]
     [Fact]
     public void ConeApexVertexLoops_ArePreservedAndStc06RemainsAmbiguous()
     {

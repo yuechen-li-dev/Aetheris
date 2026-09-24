@@ -24,8 +24,7 @@ public sealed class Step242BSplineSurfaceWithKnotsTests
     [Trait("Category", "SlowCorpus")]
     public void Step242_NistCtc02_BSplineSurfaces_ObservedAsNonRationalWithExpectedDegreeFamilies()
     {
-        var path = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), "testdata", "step242", "nist", "CTC", "nist_ctc_02_asme1_ap242-e2.stp");
-        var import = Step242Importer.ImportBody(File.ReadAllText(path));
+        var import = Step242Corpus.Import("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp");
         Assert.True(import.IsSuccess);
 
         var splineSurfaces = import.Value.Geometry.Surfaces

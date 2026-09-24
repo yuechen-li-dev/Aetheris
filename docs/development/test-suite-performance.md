@@ -128,10 +128,40 @@ would bring the inner-loop suite under ~15s without touching coverage, provided 
 lane still runs before commit. This is the cheapest immediate win and needs no code change
 beyond attributes.
 
-## Suggested order
+## Results
 
-1. Extend `SlowCorpus` and document the two-lane workflow. Free, today.
-2. Memoized corpus fixture (text + body). Targets ~90% of Kernel.Core CPU.
+Applied: the memoized `Step242Corpus` fixture, conversion of the read-only import call sites to
+it, eleven more `SlowCorpus` traits, and the two-lane workflow written into CONTRIBUTING.md and
+AGENTS.md.
+
+| | before | after |
+|---|---|---|
+| Kernel.Core, full lane (wall) | 61s | 31s |
+| Kernel.Core, full lane (CPU) | 117s | 63s |
+| Kernel.Core, fast lane (wall) | 28s | 10s |
+| Kernel.Core, fast lane (tests) | 981 | 959 |
+| Firmament, full lane (wall) | 37-43s | 33s |
+
+Step242 fell from 98.2s to 51.4s of CPU. All suites green: Kernel.Core 1092/1092,
+Firmament 1624/1624, Server 59/59.
+
+Two things to know when reading per-class numbers after this change. Cost now migrates to
+whichever test touches a corpus file first, so individual classes move up or down between runs
+without anything having changed - only the total is meaningful. And `RunConfiguration.MaxCpuCount=1`
+in the canonical command controls parallelism *across* test assemblies, not xunit's parallelism
+within one, so a single-project run is the same speed with or without it.
+
+The largest remaining item is `Step242LoopRoleNormalizationRegressionTests` at 15s. It cannot
+share a body: each of its tests installs a `CaptureLoopRole*Diagnostics` scope that collects while
+the import runs, so each needs a real import, and several of them import the same file to collect
+different diagnostic families. Unifying capture so one import serves them all is the next step and
+is a real refactor rather than a mechanical one.
+
+## Suggested order## Suggested order
+
+1. ~~Extend `SlowCorpus` and document the two-lane workflow.~~ Done.
+2. ~~Memoized corpus fixture (text + body).~~ Done - Step242 CPU 98.2s to 51.4s.
 3. Split the large Step242 classes into separate collections; measure on real hardware.
 4. The torus classification-sampling constant, as its own investigation.
-5. Unify diagnostic capture so one import serves several capture-based tests.
+5. Unify diagnostic capture so one import serves several capture-based tests. Now the largest
+   single remaining item at 15s.

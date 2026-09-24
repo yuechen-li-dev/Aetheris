@@ -120,6 +120,7 @@ public sealed class Step242BSplineEdgeTests
         Assert.DoesNotContain("B_SPLINE_CURVE_WITH_KNOTS self_intersect", first.FirstDiagnostic.MessagePrefix, StringComparison.Ordinal);
     }
 
+    [Trait("Category", "SlowCorpus")]
     [Theory]
     [InlineData("testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_06_asme1_ap242-e2.stp")]

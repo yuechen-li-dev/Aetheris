@@ -11,6 +11,7 @@ namespace Aetheris.Kernel.Core.Tests.Brep.Tessellation;
 
 public sealed class UvTrimMaskExtractorTests
 {
+    [Trait("Category", "SlowCorpus")]
     [Fact]
     public void TryExtract_RealBsplineFace_BuildsDeterministicTrimMaskAndSupportsScaffold()
     {

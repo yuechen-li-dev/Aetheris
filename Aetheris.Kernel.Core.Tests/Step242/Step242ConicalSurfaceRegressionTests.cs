@@ -197,10 +197,7 @@ public sealed class Step242ConicalSurfaceRegressionTests
     [Fact]
     public void Step242_ConicalSurfaceImport_DegreeContextFromGlobalUnits_NormalizesToRadians()
     {
-        var fixturePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), "testdata", "step242", "nist", "CTC", "nist_ctc_01_asme1_ap242-e1.stp");
-        var source = File.ReadAllText(fixturePath);
-
-        var import = Step242Importer.ImportBody(source);
+        var import = Step242Corpus.Import("testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp");
         Assert.True(import.IsSuccess);
 
         var cones = import.Value.Geometry.Surfaces
@@ -219,10 +216,7 @@ public sealed class Step242ConicalSurfaceRegressionTests
     [Trait("Category", "SlowCorpus")]
     public void Step242_ConicalSurfaceImport_RadianContextFromGlobalUnits_RemainsRadians()
     {
-        var fixturePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), "testdata", "step242", "nist", "STC", "nist_stc_09_asme1_ap242-e3.stp");
-        var source = File.ReadAllText(fixturePath);
-
-        var import = Step242Importer.ImportBody(source);
+        var import = Step242Corpus.Import("testdata/step242/nist/STC/nist_stc_09_asme1_ap242-e3.stp");
         Assert.True(import.IsSuccess);
 
         var cones = import.Value.Geometry.Surfaces

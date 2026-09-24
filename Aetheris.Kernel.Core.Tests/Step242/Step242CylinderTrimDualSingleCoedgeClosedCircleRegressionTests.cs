@@ -14,8 +14,7 @@ public sealed class Step242CylinderTrimDualSingleCoedgeClosedCircleRegressionTes
     [InlineData("testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp")]
     public void Step242_Targets_ContainDualSingleCoedgeClosedCircleCylinderFamily(string relativePath)
     {
-        var fullPath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
-        var import = Step242Importer.ImportBody(File.ReadAllText(fullPath));
+        var import = Step242Corpus.Import(relativePath);
         Assert.True(import.IsSuccess);
 
         var body = import.Value;
@@ -56,8 +55,7 @@ public sealed class Step242CylinderTrimDualSingleCoedgeClosedCircleRegressionTes
     public void Step242_Stc06_AlsoMatchesDualSingleCoedgeClosedCircleCylinderFamily_AndNowAdvances()
     {
         const string relativePath = "testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp";
-        var fullPath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
-        var import = Step242Importer.ImportBody(File.ReadAllText(fullPath));
+        var import = Step242Corpus.Import(relativePath);
         Assert.True(import.IsSuccess);
 
         var body = import.Value;

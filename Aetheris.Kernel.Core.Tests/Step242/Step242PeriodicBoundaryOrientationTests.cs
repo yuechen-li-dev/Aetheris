@@ -20,7 +20,7 @@ public sealed class Step242PeriodicBoundaryOrientationTests
     [Trait("Category", "SlowCorpus")]
     public void PeriodicBoundaryOrientation_SurvivesExportImport(string relativePath)
     {
-        var imported = Step242Importer.ImportBody(ReadNist(relativePath));
+        var imported = Step242Corpus.Import(NistPath(relativePath));
         Assert.True(imported.IsSuccess, string.Join(" | ", imported.Diagnostics.Select(diagnostic => diagnostic.Message)));
 
         var exported = Step242Exporter.ExportBody(imported.Value);
@@ -38,7 +38,7 @@ public sealed class Step242PeriodicBoundaryOrientationTests
     [Fact]
     public void ImportedBoundaryRoles_SelectExplicitJudgmentCandidate()
     {
-        var imported = Step242Importer.ImportBody(ReadNist("FTC/nist_ftc_11_asme1_ap242-e2.stp"));
+        var imported = Step242Corpus.Import(NistPath("FTC/nist_ftc_11_asme1_ap242-e2.stp"));
         Assert.True(imported.IsSuccess);
 
         foreach (var face in imported.Value.Topology.Faces.Where(face => face.LoopIds.Count > 0))
@@ -91,16 +91,11 @@ public sealed class Step242PeriodicBoundaryOrientationTests
     [Fact]
     public void Stc06_RemainsExplicitlyAmbiguous()
     {
-        var imported = Step242Importer.ImportBody(ReadNist("STC/nist_stc_06_asme1_ap242-e3.stp"));
+        var imported = Step242Corpus.Import(NistPath("STC/nist_stc_06_asme1_ap242-e3.stp"));
         Assert.True(imported.IsSuccess);
         Assert.Contains(imported.Value.FaceOrientationReport!.Shells,
             shell => shell.Qualification == FaceOrientationQualification.Ambiguous);
     }
 
-    private static string ReadNist(string relativePath) => File.ReadAllText(Path.Combine(
-        Step242CorpusManifestRunner.RepoRoot(),
-        "testdata",
-        "step242",
-        "nist",
-        relativePath.Replace('/', Path.DirectorySeparatorChar)));
+    private static string NistPath(string relativePath) => $"testdata/step242/nist/{relativePath}";
 }

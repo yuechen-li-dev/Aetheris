@@ -7,13 +7,13 @@ namespace Aetheris.Kernel.Core.Tests.Step242;
 
 public sealed class Step242SphericalTrimSingleCoedgeDiagnosticsTests
 {
+    [Trait("Category", "SlowCorpus")]
     [Fact]
     public void Step242_Stc06_Face33_IsSingleCoedgeClosedFullCircleLatitudeLoop_OnSphere()
     {
         const string relativePath = "testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp";
-        var fullPath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
 
-        var import = Step242Importer.ImportBody(File.ReadAllText(fullPath));
+        var import = Step242Corpus.Import(relativePath);
         Assert.True(import.IsSuccess);
 
         var body = import.Value;
@@ -36,6 +36,7 @@ public sealed class Step242SphericalTrimSingleCoedgeDiagnosticsTests
         Assert.Equal(2d * double.Pi, trim.Value.End, 6);
     }
 
+    [Trait("Category", "SlowCorpus")]
     [Fact]
     public void Step242_Stc06_AdvancesPastSingleCoedgeSphereTrim_Deterministically()
     {

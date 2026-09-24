@@ -41,3 +41,19 @@ If the required .NET SDK/runtime is not installed:
 4. then run the full build/test commands.
 
 Do not report .NET tests as “not run due to missing dotnet” unless installation is impossible in the current environment, and if so, explain exactly why.
+
+## Test lanes
+
+Iterate with the fast lane and gate on the full one:
+
+```
+dotnet test Aetheris.Kernel.Core.Tests -c Release --no-build --filter "Category!=SlowCorpus"
+dotnet test Aetheris.slnx -c Release --no-build -m:1 -- RunConfiguration.MaxCpuCount=1
+```
+
+Never report a change as verified on the fast lane alone - it omits the corpus-driven tests,
+which are the ones that catch interchange regressions.
+
+When a test needs a STEP corpus file, take it from `Step242Corpus` (`Body`, `Import` or `Text`)
+rather than reading and importing it again. See CONTRIBUTING.md for when a test genuinely needs
+its own import.

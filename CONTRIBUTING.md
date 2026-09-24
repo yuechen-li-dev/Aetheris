@@ -16,6 +16,50 @@ dotnet build Aetheris.slnx -c Release -m:1
 dotnet test Aetheris.slnx -c Release --no-build -m:1 -- RunConfiguration.MaxCpuCount=1
 ```
 
+### Two test lanes
+
+The command above is the **full corpus** lane and is what has to be green before you commit.
+It imports the whole NIST and OCCT corpus, so it is the lane that actually protects the
+interchange behaviour.
+
+For the edit-run-edit inner loop there is a **fast lane** that skips the corpus-driven tests:
+
+```powershell
+dotnet test Aetheris.Kernel.Core.Tests -c Release --no-build --filter "Category!=SlowCorpus"
+```
+
+On a two-core machine that is roughly 9s against 31s for the full lane, over 959 of the 1092
+tests. Use it while iterating; never use it as the gate.
+
+A test belongs in `[Trait("Category", "SlowCorpus")]` when its cost is dominated by importing a
+large corpus file rather than by the behaviour it is checking. Keep at least one cheap test per
+behaviour outside the trait, so the fast lane still fails when something is broken rather than
+merely running fewer tests. `Aetheris.Kernel.Firmament.Tests` has the trait too, but its time is
+spread evenly across real geometry work rather than concentrated in corpus I/O, so the split
+buys much less there.
+
+### Importing corpus files in tests
+
+Do not call `File.ReadAllText` + `Step242Importer.ImportBody` directly in a test. Use the shared
+memoized fixture:
+
+```csharp
+var body = Step242Corpus.Body("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp");
+var import = Step242Corpus.Import(relativePath);   // when the diagnostics matter
+var text = Step242Corpus.Text(relativePath);       // when the file text itself matters
+```
+
+The corpus has 48 distinct files and the test project reads from it at roughly two hundred call
+sites. Importing every file exactly once costs about ten seconds; doing it per call site cost
+about ninety-eight. Parsing is under a second of that, so caching the parsed document would buy
+almost nothing - the body is what is expensive to build, so the body is what is cached. A
+`BrepBody` is read-only once constructed, which is what makes sharing it safe.
+
+Two cases must still import for themselves and should take only `Step242Corpus.Text`: tests that
+install a `Step242Importer.CaptureLoopRole*Diagnostics` scope, because it collects while the
+import runs, and tests under `Step242Importer.PreserveRationalSurfaces()`, because it changes
+what the import produces.
+
 Cadmata and the VS Code extension use TSPack and their checked-in lock files:
 
 ```powershell

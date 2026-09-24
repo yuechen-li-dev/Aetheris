@@ -10,6 +10,7 @@ public sealed class Step242Ftc07ViewMaterializationRegressionTests
     private static readonly TimeSpan Ftc07WallClockGuard = TimeSpan.FromSeconds(30);
     private const string RelativePath = "testdata/step242/nist/FTC/nist_ftc_07_asme1_ap242-e2.stp";
 
+    [Trait("Category", "SlowCorpus")]
     [Fact]
     public void Step242Ftc07ViewMaterialization_CompletesOrReportsBoundedDiagnostic()
     {
@@ -33,6 +34,7 @@ public sealed class Step242Ftc07ViewMaterializationRegressionTests
         Assert.Contains(tessellation.Diagnostics, diagnostic => string.Equals(diagnostic.Source, "Viewer.Tessellation.Timeout", StringComparison.Ordinal));
     }
 
+    [Trait("Category", "SlowCorpus")]
     [Fact]
     public void Step242Ftc07ViewMaterialization_ReportsPhaseAndFaceOnFailure()
     {
@@ -56,6 +58,7 @@ public sealed class Step242Ftc07ViewMaterializationRegressionTests
     }
 
 
+    [Trait("Category", "SlowCorpus")]
     [Fact]
     public void DisplayPrepare_Ftc07_ReturnsPartialDisplayInsteadOfWholeBodyFailure()
     {
@@ -83,8 +86,7 @@ public sealed class Step242Ftc07ViewMaterializationRegressionTests
 
     private static global::Aetheris.Kernel.Core.Brep.BrepBody ImportFixture()
     {
-        var absolutePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), RelativePath.Replace('/', Path.DirectorySeparatorChar));
-        var import = Step242Importer.ImportBody(File.ReadAllText(absolutePath));
+        var import = Step242Corpus.Import(RelativePath);
         Assert.True(import.IsSuccess);
         return import.Value;
     }

@@ -30,10 +30,7 @@ public sealed class Step242RationalSurfaceReductionTests
     [Trait("Category", "SlowCorpus")]
     public void ImportedBody_CarriesNoRationalSurface(string relativePath)
     {
-        var import = Step242Importer.ImportBody(ReadFixture(relativePath));
-
-        Assert.True(import.IsSuccess);
-        Assert.Equal(0, CountRationalSurfaces(import.Value));
+        Assert.Equal(0, CountRationalSurfaces(Step242Corpus.Body(relativePath)));
     }
 
     [Theory]
@@ -50,10 +47,11 @@ public sealed class Step242RationalSurfaceReductionTests
         Assert.DoesNotContain("RATIONAL_B_SPLINE_SURFACE", exported.Value, StringComparison.Ordinal);
     }
 
+    [Trait("Category", "SlowCorpus")]
     [Fact]
     public void NistVertexBlends_AreReducedAndSayHowCloselyTheyFollowTheOriginal()
     {
-        var import = Step242Importer.ImportBody(ReadFixture("testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp"));
+        var import = Step242Corpus.Import("testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp");
 
         Assert.True(import.IsSuccess);
         var reduced = import.Diagnostics
@@ -67,10 +65,11 @@ public sealed class Step242RationalSurfaceReductionTests
     /// The debug switch has to give back exactly what the file stated, rationals included, and export has to write
     /// them, or it is no use for diagnosing a surface that the reduction mishandled.
     /// </summary>
+    [Trait("Category", "SlowCorpus")]
     [Fact]
     public void PreserveRationalSurfaces_KeepsTheFileAsStated_AndExportsItRational()
     {
-        var stepText = ReadFixture("testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp");
+        var stepText = Step242Corpus.Text("testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp");
 
         using (Step242Importer.PreserveRationalSurfaces())
         {

@@ -92,6 +92,7 @@ public sealed class Step242BsplineSurfaceRecoveryTests
     /// CTC-05's rational faces are five-sided vertex blends, not primitives. Import says which primitives it weighed
     /// and on what measurement it rejected each, rather than reporting an unexplained "unsupported".
     /// </summary>
+    [Trait("Category", "SlowCorpus")]
     [Fact]
     public void NistCtc05VertexBlends_ReportEveryPrimitiveTheyWereMeasuredAgainst()
     {

@@ -3,6 +3,7 @@ using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
+using Aetheris.Kernel.Core.Tests.Step242;
 
 namespace Aetheris.Kernel.Core.Tests.Brep.Tessellation;
 
@@ -36,7 +37,7 @@ public sealed class NistDisplayCorpusRegressionTests
     [Trait("Category", "SlowCorpus")]
     public void NistModel_DisplaysEveryFace_WithoutTessellationWarnings(string relativePath)
     {
-        var import = Step242Importer.ImportBody(File.ReadAllText(Path.Combine(FindRepoRoot(), "testdata", "step242", "nist", relativePath)));
+        var import = Step242Corpus.Import($"testdata/step242/nist/{relativePath}");
         Assert.True(import.IsSuccess, string.Join(" | ", import.Diagnostics.Select(d => d.Message)));
 
         var display = DisplayPreparationFallbackBuilder.Build(import.Value, null, null, TimeSpan.FromSeconds(30));
@@ -53,10 +54,11 @@ public sealed class NistDisplayCorpusRegressionTests
     /// do not survive import: the stored non-rational surface must follow the geometry the file stated, not the
     /// different polynomial surface you get by ignoring them.
     /// </summary>
+    [Trait("Category", "SlowCorpus")]
     [Fact]
     public void RationalBSplineSurface_WeightsAreHonoured_EvenThoughTheyDoNotSurviveImport()
     {
-        var stepText = File.ReadAllText(Path.Combine(FindRepoRoot(), "testdata", "step242", "nist", "CTC", "nist_ctc_05_asme1_ap242-e1.stp"));
+        var stepText = Step242Corpus.Text("testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp");
 
         BSplineSurfaceWithKnots[] asStated;
         using (Step242Importer.PreserveRationalSurfaces())
@@ -90,10 +92,11 @@ public sealed class NistDisplayCorpusRegressionTests
     }
 
     /// <summary>The debug path has to stay whole: preserved rationals must export and come back as rationals.</summary>
+    [Trait("Category", "SlowCorpus")]
     [Fact]
     public void PreservedRationalSurfaces_SurviveAStepRoundTrip()
     {
-        var stepText = File.ReadAllText(Path.Combine(FindRepoRoot(), "testdata", "step242", "nist", "CTC", "nist_ctc_05_asme1_ap242-e1.stp"));
+        var stepText = Step242Corpus.Text("testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp");
 
         using var scope = Step242Importer.PreserveRationalSurfaces();
         var import = Step242Importer.ImportBody(stepText);

@@ -1,3 +1,4 @@
+using Aetheris.Kernel.Core.Tests.Step242;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.EdgeFinishing;
 using Aetheris.Kernel.Core.Brep.Boolean;
@@ -131,8 +132,7 @@ public sealed class BrepSpatialQueriesPointClassificationTests
 
     private static BrepBody ImportFixtureBody(string relativePath)
     {
-        var fullPath = Path.Combine(RepoRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
-        var import = Step242Importer.ImportBody(File.ReadAllText(fullPath));
+        var import = Step242Corpus.Import(relativePath);
         Assert.True(import.IsSuccess, string.Join(Environment.NewLine, import.Diagnostics.Select(d => d.Message)));
         return import.Value;
     }

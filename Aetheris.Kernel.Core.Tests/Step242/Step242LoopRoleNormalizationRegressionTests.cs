@@ -51,6 +51,7 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
     }
 
     [Theory]
+    [Trait("Category", "SlowCorpus")]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_08_asme1_ap242-e2.stp", true, false)]
     [InlineData("testdata/step242/nist/FTC/nist_ftc_11_asme1_ap242-e2.stp", true, true)]
     [InlineData("testdata/step242/nist/STC/nist_stc_06_asme1_ap242-e3.stp", true, true)]
@@ -192,8 +193,9 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
 
     private static IReadOnlyList<Step242Importer.LoopRoleCoedgeGapDiagnostic> CaptureCoedgeGaps(string relativePath)
     {
-        var absolutePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
-        var text = File.ReadAllText(absolutePath);
+        // The capture scope collects while the import runs, so this one cannot share a cached
+        // body - only the file text.
+        var text = Step242Corpus.Text(relativePath);
         var diagnostics = new List<Step242Importer.LoopRoleCoedgeGapDiagnostic>();
 
         using var captureScope = Step242Importer.CaptureLoopRoleCoedgeGapDiagnostics(diagnostics);
@@ -202,13 +204,7 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
     }
 
     private static global::Aetheris.Kernel.Core.Brep.BrepBody ImportFromCorpus(string relativePath)
-    {
-        var absolutePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
-        var text = File.ReadAllText(absolutePath);
-        var import = Step242Importer.ImportBody(text);
-        Assert.True(import.IsSuccess);
-        return import.Value;
-    }
+        => Step242Corpus.Body(relativePath);
 
     private static IReadOnlyList<string> BuildSharedClosedEdgeUseSignature(global::Aetheris.Kernel.Core.Brep.BrepBody body)
     {
@@ -242,8 +238,9 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
 
     private static IReadOnlyList<Step242Importer.LoopRoleCircularSamplingDiagnostic> CaptureCircularSampling(string relativePath)
     {
-        var absolutePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
-        var text = File.ReadAllText(absolutePath);
+        // The capture scope collects while the import runs, so this one cannot share a cached
+        // body - only the file text.
+        var text = Step242Corpus.Text(relativePath);
         var diagnostics = new List<Step242Importer.LoopRoleCircularSamplingDiagnostic>();
 
         using var captureScope = Step242Importer.CaptureLoopRoleCircularSamplingDiagnostics(diagnostics);
@@ -253,8 +250,9 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
 
     private static IReadOnlyList<Step242Importer.LoopRoleCylinderProjectionDiagnostic> CaptureCylinderProjectionDiagnostics(string relativePath)
     {
-        var absolutePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
-        var text = File.ReadAllText(absolutePath);
+        // The capture scope collects while the import runs, so this one cannot share a cached
+        // body - only the file text.
+        var text = Step242Corpus.Text(relativePath);
         var diagnostics = new List<Step242Importer.LoopRoleCylinderProjectionDiagnostic>();
 
         using var captureScope = Step242Importer.CaptureLoopRoleCylinderProjectionDiagnostics(diagnostics);
@@ -264,8 +262,9 @@ public sealed class Step242LoopRoleNormalizationRegressionTests
 
     private static IReadOnlyList<Step242Importer.LoopRoleTorusProjectionDiagnostic> CaptureTorusProjectionDiagnostics(string relativePath)
     {
-        var absolutePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar));
-        var text = File.ReadAllText(absolutePath);
+        // The capture scope collects while the import runs, so this one cannot share a cached
+        // body - only the file text.
+        var text = Step242Corpus.Text(relativePath);
         var diagnostics = new List<Step242Importer.LoopRoleTorusProjectionDiagnostic>();
 
         using var captureScope = Step242Importer.CaptureLoopRoleTorusProjectionDiagnostics(diagnostics);

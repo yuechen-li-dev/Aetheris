@@ -68,8 +68,7 @@ public sealed class StepSolidRootExportPlannerTests
     [Fact]
     public void Export_ThroughHole_RemainsManifold()
     {
-        var fixturePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), "testdata", "step242", "golden", "firmament-v1", "boolean_box_cylinder_hole.step");
-        var import = Step242Importer.ImportBody(File.ReadAllText(fixturePath));
+        var import = Step242Corpus.Import("testdata/step242/golden/firmament-v1/boolean_box_cylinder_hole.step");
         Assert.True(import.IsSuccess);
 
         var export = Step242Exporter.ExportBody(import.Value);
@@ -81,8 +80,7 @@ public sealed class StepSolidRootExportPlannerTests
 
     private static BrepBody LoadVoidFixture()
     {
-        var fixturePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), "testdata", "step242", "golden", "firmament-v1", "boolean_box_sphere_cavity_basic.step");
-        var import = Step242Importer.ImportBody(File.ReadAllText(fixturePath));
+        var import = Step242Corpus.Import("testdata/step242/golden/firmament-v1/boolean_box_sphere_cavity_basic.step");
         Assert.True(import.IsSuccess, string.Join(Environment.NewLine, import.Diagnostics.Select(d => d.Message)));
         return import.Value;
     }

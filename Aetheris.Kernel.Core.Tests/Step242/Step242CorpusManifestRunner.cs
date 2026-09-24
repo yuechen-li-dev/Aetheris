@@ -33,8 +33,7 @@ internal static class Step242CorpusManifestRunner
 
     public static Step242CorpusReportEntry RunOne(Step242CorpusManifestEntry entry, bool includeDisplayAudit = false)
     {
-        var fullPath = Path.Combine(RepoRoot(), entry.Path.Replace('/', Path.DirectorySeparatorChar));
-        var text = File.ReadAllText(fullPath, Encoding.UTF8);
+        var text = Step242Corpus.Text(entry.Path);
         var sizeBytes = Encoding.UTF8.GetByteCount(NormalizeLf(text));
 
         try
@@ -63,7 +62,7 @@ internal static class Step242CorpusManifestRunner
                 }
             }
 
-            var import = Step242Importer.ImportBody(text);
+            var import = Step242Corpus.Import(entry.Path);
             if (!import.IsSuccess)
             {
                 return BuildAp242Failure(entry, sizeBytes, DetermineImportFailureLayer(import.Diagnostics), import.Diagnostics);

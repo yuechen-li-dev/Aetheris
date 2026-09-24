@@ -243,10 +243,9 @@ END-ISO-10303-21;";
     [Fact]
     public void ExportBody_Ctc01RoundTrip_ConicalSurfaceSemiAngle_IsCanonicalRadiansConvention()
     {
-        var fixturePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), "testdata", "step242", "nist", "CTC", "nist_ctc_01_asme1_ap242-e1.stp");
-        var source = File.ReadAllText(fixturePath);
+        var source = Step242Corpus.Text("testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp");
 
-        var import = Step242Importer.ImportBody(source);
+        var import = Step242Corpus.Import("testdata/step242/nist/CTC/nist_ctc_01_asme1_ap242-e1.stp");
         Assert.True(import.IsSuccess);
 
         var export = Step242Exporter.ExportBody(import.Value);
@@ -268,10 +267,9 @@ END-ISO-10303-21;";
     [Trait("Category", "SlowCorpus")]
     public void ExportBody_Ctc02RoundTrip_ShallowCones_PreserveApexCoordinates()
     {
-        var fixturePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), "testdata", "step242", "nist", "CTC", "nist_ctc_02_asme1_ap242-e2.stp");
-        var source = File.ReadAllText(fixturePath);
+        var source = Step242Corpus.Text("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp");
 
-        var import = Step242Importer.ImportBody(source);
+        var import = Step242Corpus.Import("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp");
         Assert.True(import.IsSuccess);
 
         var expectedShallowCones = import.Value.Geometry.Surfaces
@@ -317,10 +315,9 @@ END-ISO-10303-21;";
     [Trait("Category", "SlowCorpus")]
     public void ExportBody_Ctc02RoundTrip_PreservesPlanarFaceWithCircularBoundaryNearExpectedCenter()
     {
-        var fixturePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), "testdata", "step242", "nist", "CTC", "nist_ctc_02_asme1_ap242-e2.stp");
-        var source = File.ReadAllText(fixturePath);
+        var source = Step242Corpus.Text("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp");
 
-        var import = Step242Importer.ImportBody(source);
+        var import = Step242Corpus.Import("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp");
         Assert.True(import.IsSuccess);
 
         var sourceFace = FindPlanarFaceWithCircle(import.Value, new Aetheris.Kernel.Core.Math.Point3D(0d, 812d, -140d), 42.5d);
@@ -417,10 +414,9 @@ END-ISO-10303-21;";
     [Fact]
     public void ExportBody_Ctc03RoundTrip_DoesNotOrphanInnerFaceBounds()
     {
-        var fixturePath = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), "testdata", "step242", "nist", "CTC", "nist_ctc_03_asme1_ap242-e2.stp");
-        var source = File.ReadAllText(fixturePath);
+        var source = Step242Corpus.Text("testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp");
 
-        var import = Step242Importer.ImportBody(source);
+        var import = Step242Corpus.Import("testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp");
         Assert.True(import.IsSuccess);
 
         var export = Step242Exporter.ExportBody(import.Value);
@@ -530,14 +526,9 @@ END-ISO-10303-21;";
     [Fact]
     public void ExportBody_OcctSimpleBracket_ExportImportRoundTrip_Succeeds()
     {
-        var fixturePath = Path.Combine(
-            Step242CorpusManifestRunner.RepoRoot(),
-            "fixtures", "Compatibility", "Firmasm", "LegacyAssembly", "examples",
-            "occt-l-bracket",
-            "_part_003_l_bracket.step");
-        var source = File.ReadAllText(fixturePath);
+        var source = Step242Corpus.Text("fixtures/Compatibility/Firmasm/LegacyAssembly/examples/occt-l-bracket/_part_003_l_bracket.step");
 
-        var import = Step242Importer.ImportBody(source);
+        var import = Step242Corpus.Import("fixtures/Compatibility/Firmasm/LegacyAssembly/examples/occt-l-bracket/_part_003_l_bracket.step");
         Assert.True(import.IsSuccess);
 
         var export = Step242Exporter.ExportBody(import.Value);

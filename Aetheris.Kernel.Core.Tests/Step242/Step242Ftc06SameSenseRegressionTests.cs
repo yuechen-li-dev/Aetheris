@@ -80,6 +80,7 @@ END-ISO-10303-21;";
         Assert.Equal(310, import.Value.Topology.Vertices.Count());
     }
 
+    [Trait("Category", "SlowCorpus")]
     [Fact]
     public void Step242Ftc06Export_HasStableTopologySummary()
     {

@@ -94,7 +94,7 @@ public static class PrismaticSectionStackCompiler
             if (active.Length == 0) continue;
             var arrangement = ProfileArrangementBuilder.Compose(parsed.Feature.Frame, active, parsed.Profiles, $"slab=({pair.First:R},{pair.Second:R})");
             d.AddRange(arrangement.Arrangement.Diagnostics);
-            if (arrangement.Region is not null) slabs.Add(new(pair.First, pair.Second, arrangement.Region, active.Select(x => x.Name).Order().ToArray(), arrangement.Arrangement));
+            if (arrangement.MaterialRegions.Count > 0) slabs.Add(new(pair.First, pair.Second, arrangement.MaterialRegions[0], active.Select(x => x.Name).Order().ToArray(), arrangement.Arrangement, arrangement.MaterialRegions));
         }
         // An empty stack is usually the consequence of a rejected arrangement, which has already said why; reporting
         // the consequence as well used to make it the last and most visible line.
@@ -102,8 +102,8 @@ public static class PrismaticSectionStackCompiler
         var transitions = new List<PrismaticSectionTransition>();
         foreach (var level in parsed.Feature.CriticalLevels)
         {
-            var below = slabs.SingleOrDefault(s => Math.Abs(s.To - level) < Tol)?.Region;
-            var above = slabs.SingleOrDefault(s => Math.Abs(s.From - level) < Tol)?.Region;
+            var below = slabs.SingleOrDefault(s => Math.Abs(s.To - level) < Tol)?.MaterialRegions ?? [];
+            var above = slabs.SingleOrDefault(s => Math.Abs(s.From - level) < Tol)?.MaterialRegions ?? [];
             var upwardResult = ProfileArrangementBuilder.Difference(parsed.Feature.Frame, below, above, $"transition={level:R}:below-minus-above");
             var downwardResult = ProfileArrangementBuilder.Difference(parsed.Feature.Frame, above, below, $"transition={level:R}:above-minus-below");
             d.AddRange(upwardResult.Arrangement.Diagnostics);
@@ -112,7 +112,7 @@ public static class PrismaticSectionStackCompiler
             var downward = downwardResult.MaterialRegions;
             if (upward.Count > 0 || downward.Count > 0) transitions.Add(new(level, upward, downward));
         }
-        var volume = slabs.Sum(s => Area(s.Region) * (s.To - s.From));
+        var volume = slabs.Sum(s => s.MaterialRegions.Sum(Area) * (s.To - s.From));
         diagnostics = d.Distinct().ToArray();
         return d.Any(x => x.Contains("rejected", StringComparison.Ordinal))
             ? null
@@ -131,7 +131,8 @@ public static class PrismaticSectionStackCompiler
                 LineArcCircularArc2D arc => ArcArea(arc),
                 LineArcFullCircle2D circle => 2d * Math.PI * circle.Radius * circle.Radius,
                 LineArcFullEllipse2D ellipse => 2d * Math.PI * ellipse.MajorRadius * ellipse.MinorRadius,
-                _ => 0d
+                LineArcCubicBezier2D cubic => BezierSectionCurve2D.SignedDoubleArea(cubic),
+                _ => throw new NotSupportedException($"Unsupported section boundary: {curve.GetType().Name}")
             };
         return sum / 2d;
     }
@@ -173,7 +174,7 @@ public static class PrismaticSectionStackEmitter
             d.AddRange(VariableOuterSectionIntervalValidator.Validate(interval).Diagnostics);
         if (d.Any(x => x.StartsWith("VariableOuterSectionInterval", StringComparison.Ordinal)))
             return new(null, d.Distinct().ToArray());
-        var splitPoints = stack.Slabs.SelectMany(s => Loops(s.Region)).Concat(stack.Transitions.SelectMany(t =>
+        var splitPoints = stack.Slabs.SelectMany(s => s.MaterialRegions.SelectMany(Loops)).Concat(stack.Transitions.SelectMany(t =>
                 t.UpwardRegions.Concat(t.DownwardRegions).SelectMany(Loops)))
             .SelectMany(x => x.Profile.Loops[0].Segments).Concat(variableIntervals.SelectMany(v => v.LowerOuter.Loops.Concat(v.UpperOuter.Loops).Concat(v.InnerLoops.SelectMany(i => i.LowerLoop.Loops))).SelectMany(x => x.Segments))
             .SelectMany(x => Ends(x.Geometry)).DistinctBy(p => $"{Math.Round(p.X / Tol):F0},{Math.Round(p.Y / Tol):F0}").ToArray();
@@ -200,7 +201,7 @@ public static class PrismaticSectionStackEmitter
             curves[created] = CurveGeometry.FromLine(new Line3Curve(points[Vertex(from, lower)], Direction3D.Create(points[Vertex(to, upper)] - points[Vertex(from, lower)]))); return (created, false);
         }
         foreach (var slab in stack.Slabs)
-            foreach (var item in Loops(slab.Region))
+            foreach (var item in slab.MaterialRegions.SelectMany(Loops))
                 foreach (var segment in item.Profile.Loops[0].Segments)
                 foreach (var curve in Split(segment.Geometry, splitPoints))
                 {
@@ -255,6 +256,32 @@ public static class PrismaticSectionStackEmitter
             var edge = builder.Model.Edges.Single(x => x.Id == incidence.Key);
             var a = points[edge.StartVertexId]; var b = points[edge.EndVertexId];
             d.Add($"compose-rejected:non-manifold-edge-use:edge={incidence.Key.Value}:uses={incidence.Count()}:curve={curves[incidence.Key].Kind}:from=({a.X:R},{a.Y:R},{a.Z:R}):to=({b.X:R},{b.Y:R},{b.Z:R})");
+        }
+        // Sections may have many material islands; only the completed shell must
+        // be connected. Shared topological edges link faces through slab floors.
+        var edgeFaces = builder.Model.Faces.SelectMany(face => face.LoopIds.SelectMany(loopId =>
+            builder.Model.Loops.Single(loop => loop.Id == loopId).CoedgeIds.Select(coedgeId =>
+                (Edge: builder.Model.Coedges.Single(coedge => coedge.Id == coedgeId).EdgeId, Face: face.Id))))
+            .GroupBy(x => x.Edge).ToDictionary(x => x.Key, x => x.Select(y => y.Face).Distinct().ToArray());
+        var neighbours = faces.ToDictionary(face => face, _ => new HashSet<FaceId>());
+        foreach (var incident in edgeFaces.Values)
+            foreach (var first in incident)
+                foreach (var second in incident)
+                    if (first != second) neighbours[first].Add(second);
+        var unseen = faces.ToHashSet();
+        var components = 0;
+        while (unseen.Count > 0)
+        {
+            components++;
+            var queue = new Queue<FaceId>(); var seed = unseen.First(); unseen.Remove(seed); queue.Enqueue(seed);
+            while (queue.TryDequeue(out var face))
+                foreach (var next in neighbours[face])
+                    if (unseen.Remove(next)) queue.Enqueue(next);
+        }
+        if (components != 1)
+        {
+            d.Add($"compose-rejected:disconnected-3d-solid:components={components}");
+            return new(null, d.Distinct().ToArray());
         }
         var descendants = new List<SemanticTopologyDescendant>();
         var topLevels = stack.Feature.Operations.GroupBy(x => x.ProfileReference, StringComparer.Ordinal).ToDictionary(x => x.Key, x => x.Max(y => y.To), StringComparer.Ordinal);
@@ -412,7 +439,7 @@ public static class PrismaticSectionStackEmitter
         return builder.AddFace(loops);
     }
     private static IEnumerable<(ResolvedProfile2D Profile, bool IsHole)> Loops(PrismaticSectionRegion region) { yield return (region.Outer, false); foreach (var h in region.Holes) yield return (h, true); }
-    private static (double X, double Y)[] Ends(LineArcProfileCurve2D curve) => curve switch { LineArcLineSegment2D l => [l.Start, l.End], LineArcCircularArc2D a => [(a.Center.X + a.Radius * Math.Cos(a.StartAngleRadians), a.Center.Y + a.Radius * Math.Sin(a.StartAngleRadians)), (a.Center.X + a.Radius * Math.Cos(a.StartAngleRadians + a.SweepAngleRadians), a.Center.Y + a.Radius * Math.Sin(a.StartAngleRadians + a.SweepAngleRadians))], _ => throw new NotSupportedException("X1 composition requires bounded line/arc segments.") };
+    private static (double X, double Y)[] Ends(LineArcProfileCurve2D curve) => curve switch { LineArcLineSegment2D l => [l.Start, l.End], LineArcCircularArc2D a => [(a.Center.X + a.Radius * Math.Cos(a.StartAngleRadians), a.Center.Y + a.Radius * Math.Sin(a.StartAngleRadians)), (a.Center.X + a.Radius * Math.Cos(a.StartAngleRadians + a.SweepAngleRadians), a.Center.Y + a.Radius * Math.Sin(a.StartAngleRadians + a.SweepAngleRadians))], LineArcCubicBezier2D c => [c.Start, c.End], _ => throw new NotSupportedException($"Unsupported section boundary: {curve.GetType().Name}") };
     private static IEnumerable<LineArcProfileCurve2D> Split(LineArcProfileCurve2D curve, IReadOnlyList<(double X, double Y)> points)
     {
         var parameters = points.Select(p => Parameter(curve, p)).Where(x => x is not null).Select(x => x!.Value).Append(0d).Append(1d).Order().Aggregate(new List<double>(), (list, value) => { if (list.Count == 0 || Math.Abs(list[^1] - value) > Tol) list.Add(value); return list; });
@@ -422,10 +449,11 @@ public static class PrismaticSectionStackEmitter
     {
         if (curve is LineArcLineSegment2D line) { var dx = line.End.X - line.Start.X; var dy = line.End.Y - line.Start.Y; var length2 = dx * dx + dy * dy; var t = ((p.X - line.Start.X) * dx + (p.Y - line.Start.Y) * dy) / length2; return t >= -Tol && t <= 1d + Tol && Math.Abs((line.Start.X + t * dx - p.X)) <= Tol && Math.Abs((line.Start.Y + t * dy - p.Y)) <= Tol ? Math.Clamp(t, 0d, 1d) : null; }
         if (curve is LineArcCircularArc2D arc) { if (Math.Abs(Math.Sqrt((p.X - arc.Center.X) * (p.X - arc.Center.X) + (p.Y - arc.Center.Y) * (p.Y - arc.Center.Y)) - arc.Radius) > Tol) return null; var delta = Math.Atan2(p.Y - arc.Center.Y, p.X - arc.Center.X) - arc.StartAngleRadians; if (arc.SweepAngleRadians >= 0d) while (delta < 0d) delta += 2d * Math.PI; else while (delta > 0d) delta -= 2d * Math.PI; var t = delta / arc.SweepAngleRadians; return t >= -Tol && t <= 1d + Tol ? Math.Clamp(t, 0d, 1d) : null; }
+        if (curve is LineArcCubicBezier2D cubic && BezierSectionCurve2D.OnCurve(cubic, p, Tol, out var parameter)) return parameter;
         return null;
     }
-    private static LineArcProfileCurve2D Trim(LineArcProfileCurve2D curve, double from, double to) => curve switch { LineArcLineSegment2D line => new LineArcLineSegment2D((line.Start.X + (line.End.X - line.Start.X) * from, line.Start.Y + (line.End.Y - line.Start.Y) * from), (line.Start.X + (line.End.X - line.Start.X) * to, line.Start.Y + (line.End.Y - line.Start.Y) * to)), LineArcCircularArc2D arc => new LineArcCircularArc2D(arc.Center, arc.Radius, arc.StartAngleRadians + arc.SweepAngleRadians * from, arc.SweepAngleRadians * (to - from)), _ => throw new NotSupportedException() };
-    private static LineArcProfileCurve2D Reverse(LineArcProfileCurve2D curve) => curve switch { LineArcLineSegment2D line => new LineArcLineSegment2D(line.End, line.Start), LineArcCircularArc2D arc => new LineArcCircularArc2D(arc.Center, arc.Radius, arc.StartAngleRadians + arc.SweepAngleRadians, -arc.SweepAngleRadians), _ => throw new NotSupportedException() };
+    private static LineArcProfileCurve2D Trim(LineArcProfileCurve2D curve, double from, double to) => curve switch { LineArcLineSegment2D line => new LineArcLineSegment2D((line.Start.X + (line.End.X - line.Start.X) * from, line.Start.Y + (line.End.Y - line.Start.Y) * from), (line.Start.X + (line.End.X - line.Start.X) * to, line.Start.Y + (line.End.Y - line.Start.Y) * to)), LineArcCircularArc2D arc => new LineArcCircularArc2D(arc.Center, arc.Radius, arc.StartAngleRadians + arc.SweepAngleRadians * from, arc.SweepAngleRadians * (to - from)), LineArcCubicBezier2D c => BezierSectionCurve2D.Trim(c, from, to), _ => throw new NotSupportedException() };
+    private static LineArcProfileCurve2D Reverse(LineArcProfileCurve2D curve) => curve switch { LineArcLineSegment2D line => new LineArcLineSegment2D(line.End, line.Start), LineArcCircularArc2D arc => new LineArcCircularArc2D(arc.Center, arc.Radius, arc.StartAngleRadians + arc.SweepAngleRadians, -arc.SweepAngleRadians), LineArcCubicBezier2D c => new LineArcCubicBezier2D(c.End, c.Control2, c.Control1, c.Start), _ => throw new NotSupportedException() };
     private static string CurveKey(LineArcProfileCurve2D curve, double z, (double X, double Y) a, (double X, double Y) b) => curve switch
     {
         LineArcLineSegment2D => $"L:{P(a)}:{P(b)}:{Q(z)}",
@@ -433,6 +461,7 @@ public static class PrismaticSectionStackEmitter
         // semicircles share the same unordered endpoint pair. Include the exact
         // domain midpoint so distinct cut-loop arcs never collapse to one edge.
         LineArcCircularArc2D arc => $"A:{P(arc.Center)}:{Q(arc.Radius)}:{P(a)}:{P(b)}:{P((arc.Center.X+arc.Radius*Math.Cos(arc.StartAngleRadians+arc.SweepAngleRadians*.5d),arc.Center.Y+arc.Radius*Math.Sin(arc.StartAngleRadians+arc.SweepAngleRadians*.5d)))}:{Q(z)}",
+        LineArcCubicBezier2D c => $"B:{P(a)}:{P(c.Control1)}:{P(c.Control2)}:{P(b)}:{Q(z)}",
         _ => throw new NotSupportedException()
     };
     private static string P((double X, double Y) point) => $"{Q(point.X)},{Q(point.Y)}";
@@ -448,20 +477,23 @@ public static class PrismaticSectionStackEmitter
         LineArcLineSegment2D line => (new ParameterInterval(0d, Math.Sqrt((line.End.X - line.Start.X) * (line.End.X - line.Start.X) + (line.End.Y - line.Start.Y) * (line.End.Y - line.Start.Y))), true),
         LineArcCircularArc2D arc when arc.SweepAngleRadians >= 0d => (new ParameterInterval(arc.StartAngleRadians, arc.StartAngleRadians + arc.SweepAngleRadians), true),
         LineArcCircularArc2D arc => (new ParameterInterval(arc.StartAngleRadians + arc.SweepAngleRadians, arc.StartAngleRadians), false),
+        LineArcCubicBezier2D => (new ParameterInterval(0d, 1d), true),
         _ => throw new NotSupportedException()
     };
-    private static CurveGeometry Curve(LineArcProfileCurve2D curve, double z) => curve switch { LineArcLineSegment2D l => CurveGeometry.FromLine(new Line3Curve(new Point3D(l.Start.X, l.Start.Y, z), Direction3D.Create(new Vector3D(l.End.X - l.Start.X, l.End.Y - l.Start.Y, 0)))), LineArcCircularArc2D a => CurveGeometry.FromCircle(new Circle3Curve(new Point3D(a.Center.X, a.Center.Y, z), Direction3D.Create(new Vector3D(0, 0, 1)), a.Radius, Direction3D.Create(new Vector3D(1, 0, 0)))), _ => throw new NotSupportedException() };
-    private static SurfaceGeometry SideSurface(LineArcProfileCurve2D curve, double z, bool hole) => curve switch { LineArcLineSegment2D l => SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(l.Start.X, l.Start.Y, z), Direction3D.Create(new Vector3D(hole ? l.Start.Y - l.End.Y : l.End.Y - l.Start.Y, hole ? l.End.X - l.Start.X : l.Start.X - l.End.X, 0)), Direction3D.Create(new Vector3D(0, 0, 1)))), LineArcCircularArc2D a => SurfaceGeometry.FromCylinder(new CylinderSurface(new Point3D(a.Center.X, a.Center.Y, z), Direction3D.Create(new Vector3D(0, 0, 1)), a.Radius, Direction3D.Create(new Vector3D(1, 0, 0)))), _ => throw new NotSupportedException() };
+    private static CurveGeometry Curve(LineArcProfileCurve2D curve, double z) => curve switch { LineArcLineSegment2D l => CurveGeometry.FromLine(new Line3Curve(new Point3D(l.Start.X, l.Start.Y, z), Direction3D.Create(new Vector3D(l.End.X - l.Start.X, l.End.Y - l.Start.Y, 0)))), LineArcCircularArc2D a => CurveGeometry.FromCircle(new Circle3Curve(new Point3D(a.Center.X, a.Center.Y, z), Direction3D.Create(new Vector3D(0, 0, 1)), a.Radius, Direction3D.Create(new Vector3D(1, 0, 0)))), LineArcCubicBezier2D c => CurveGeometry.FromBSpline(new BSpline3Curve(3, [new(c.Start.X,c.Start.Y,z),new(c.Control1.X,c.Control1.Y,z),new(c.Control2.X,c.Control2.Y,z),new(c.End.X,c.End.Y,z)], [4,4], [0d,1d], "UNSPECIFIED", false, false, "PIECEWISE_BEZIER_KNOTS")), _ => throw new NotSupportedException() };
+    private static SurfaceGeometry SideSurface(LineArcProfileCurve2D curve, double z, bool hole) => curve switch { LineArcLineSegment2D l => SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(l.Start.X, l.Start.Y, z), Direction3D.Create(new Vector3D(hole ? l.Start.Y - l.End.Y : l.End.Y - l.Start.Y, hole ? l.End.X - l.Start.X : l.Start.X - l.End.X, 0)), Direction3D.Create(new Vector3D(0, 0, 1)))), LineArcCircularArc2D a => SurfaceGeometry.FromCylinder(new CylinderSurface(new Point3D(a.Center.X, a.Center.Y, z), Direction3D.Create(new Vector3D(0, 0, 1)), a.Radius, Direction3D.Create(new Vector3D(1, 0, 0)))), LineArcCubicBezier2D => SurfaceGeometry.FromLinearExtrusion(new LinearExtrusionSurface(Curve(curve,z),new Vector3D(0,0,1))), _ => throw new NotSupportedException() };
     private static CurveGeometry Transform(CurveGeometry curve, ConstructionPlane frame) => curve.Kind switch
     {
         CurveGeometryKind.Line3 => CurveGeometry.FromLine(new Line3Curve(frame.ToWorld((curve.Line3!.Value.Origin.X, curve.Line3.Value.Origin.Y), curve.Line3.Value.Origin.Z), Direction3D.Create(frame.ToWorldDirection(curve.Line3.Value.Direction.ToVector())))),
         CurveGeometryKind.Circle3 => CurveGeometry.FromCircle(new Circle3Curve(frame.ToWorld((curve.Circle3!.Value.Center.X, curve.Circle3.Value.Center.Y), curve.Circle3.Value.Center.Z), Direction3D.Create(frame.ToWorldDirection(curve.Circle3.Value.Normal.ToVector())), curve.Circle3.Value.Radius, Direction3D.Create(frame.ToWorldDirection(curve.Circle3.Value.XAxis.ToVector())))),
+        CurveGeometryKind.BSpline3 => CurveGeometry.FromBSpline(new BSpline3Curve(curve.BSpline3!.Value.Degree, curve.BSpline3.Value.ControlPoints.Select(p => frame.ToWorld((p.X,p.Y),p.Z)).ToArray(), curve.BSpline3.Value.KnotMultiplicities, curve.BSpline3.Value.KnotValues, curve.BSpline3.Value.CurveForm, curve.BSpline3.Value.ClosedCurve, curve.BSpline3.Value.SelfIntersect, curve.BSpline3.Value.KnotSpec)),
         _ => throw new NotSupportedException($"Section-stack frame transform does not support curve {curve.Kind}.")
     };
     private static SurfaceGeometry Transform(SurfaceGeometry surface, ConstructionPlane frame) => surface.Kind switch
     {
         SurfaceGeometryKind.Plane => SurfaceGeometry.FromPlane(new PlaneSurface(frame.ToWorld((surface.Plane!.Value.Origin.X, surface.Plane.Value.Origin.Y), surface.Plane.Value.Origin.Z), Direction3D.Create(frame.ToWorldDirection(surface.Plane.Value.Normal.ToVector())), Direction3D.Create(frame.ToWorldDirection(surface.Plane.Value.UAxis.ToVector())))),
         SurfaceGeometryKind.Cylinder => SurfaceGeometry.FromCylinder(new CylinderSurface(frame.ToWorld((surface.Cylinder!.Value.Origin.X, surface.Cylinder.Value.Origin.Y), surface.Cylinder.Value.Origin.Z), Direction3D.Create(frame.ToWorldDirection(surface.Cylinder.Value.Axis.ToVector())), surface.Cylinder.Value.Radius, Direction3D.Create(frame.ToWorldDirection(surface.Cylinder.Value.XAxis.ToVector())))),
+        SurfaceGeometryKind.LinearExtrusion => SurfaceGeometry.FromLinearExtrusion(new LinearExtrusionSurface(Transform(surface.LinearExtrusion!.Value.Directrix, frame),frame.ToWorldDirection(surface.LinearExtrusion.Value.ExtrusionVector))),
         _ => throw new NotSupportedException($"Section-stack frame transform does not support surface {surface.Kind}.")
     };
     private static LoopId AddLoop(TopologyBuilder builder, IReadOnlyList<Use> uses) { var id = builder.AllocateLoopId(); var coedges = uses.Select(_ => builder.AllocateCoedgeId()).ToArray(); for (var i = 0; i < uses.Count; i++) builder.AddCoedge(new Coedge(coedges[i], uses[i].Edge, id, coedges[(i + 1) % coedges.Length], coedges[(i + coedges.Length - 1) % coedges.Length], uses[i].Reverse)); builder.AddLoop(new Loop(id, coedges)); return id; }

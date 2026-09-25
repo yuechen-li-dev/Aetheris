@@ -16,5 +16,5 @@ Profile SplitProfile Using Layout { Loop Outer {
 } }
 Struct Composition { Compose DisconnectedFinalMaterial {
   Base Stock { Profile: BaseProfile; From: 0mm; To: 10mm; Role: Stock }
-  Remove Split { Profile: SplitProfile; From: 5mm; To: 10mm; Role: Relief }
+  Remove Split { Profile: SplitProfile; From: 0mm; To: 10mm; Role: Relief }
 } }

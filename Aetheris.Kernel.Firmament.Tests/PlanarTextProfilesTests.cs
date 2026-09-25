@@ -113,16 +113,16 @@ public sealed class PlanarTextProfilesTests
     }
 
     [Fact]
-    public void SectionArrangementReportsItsExactCubicBoundary()
+    public void SectionArrangementAcceptsItsExactCubicBoundary()
     {
         var profile = Assert.Single(PlanarTextProfiles.Build("O", 3).Regions);
         var operation = new PrismaticProfileOperation("Text", PrismaticProfileIntent.Add,
             profile.Name, 0, 0.2, "Text", "test");
         var result = ProfileArrangementBuilder.Compose("XY", [operation],
             new Dictionary<string, ResolvedProfile2D> { [profile.Name] = profile }, "text-profile-probe");
-        Assert.Null(result.Region);
-        Assert.Contains(result.Arrangement.Diagnostics,
-            d => d.Contains("bounded-cubic-section-unsupported", StringComparison.Ordinal));
+        Assert.NotNull(result.Region);
+        Assert.DoesNotContain(result.Arrangement.Diagnostics,
+            d => d.StartsWith("arrangement-rejected", StringComparison.Ordinal));
     }
 
     [Fact]

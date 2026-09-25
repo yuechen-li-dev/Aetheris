@@ -149,7 +149,11 @@ public sealed record PrismaticSectionRegion(
     ResolvedProfile2D Outer, IReadOnlyList<ResolvedProfile2D> Holes, IReadOnlyList<string> Provenance);
 public sealed record PrismaticSectionSlab(
     double From, double To, PrismaticSectionRegion Region, IReadOnlyList<string> ActiveOperations,
-    ProfileArrangement2D? Arrangement = null);
+    ProfileArrangement2D? Arrangement = null,
+    IReadOnlyList<PrismaticSectionRegion>? RegionSet = null)
+{
+    public IReadOnlyList<PrismaticSectionRegion> MaterialRegions => RegionSet ?? [Region];
+}
 public sealed record PrismaticSectionTransition(
     double Level, IReadOnlyList<PrismaticSectionRegion> UpwardRegions, IReadOnlyList<PrismaticSectionRegion> DownwardRegions);
 public sealed record PrismaticSectionStackConstruction(
@@ -849,20 +853,20 @@ public static class PrismaticProfileCompositionParser
     private static bool HasConnectedBossSupport(PrismaticProfileOperation stock, ResolvedProfile2D boss, IReadOnlyDictionary<string, ResolvedProfile2D> profiles)
     {
         var probe = ProfileArrangementBuilder.Compose("XY", [stock with { From = 0d, To = 1d }, new("BossSupportProbe", PrismaticProfileIntent.Add, boss.Name, 0d, 1d, "Boss", "generated")], profiles, "boss-connectivity-probe");
-        if (probe.Region is null || probe.Arrangement.Diagnostics.Count > 0) return false;
+        if (probe.MaterialRegions.Count == 0 || probe.Arrangement.Diagnostics.Count > 0) return false;
         var stockArea = Math.Abs(PrismaticSectionStackCompiler.ProfileArea(profiles[stock.ProfileReference]));
         var bossArea = Math.Abs(PrismaticSectionStackCompiler.ProfileArea(boss));
-        var overlapArea = stockArea + bossArea - PrismaticSectionStackCompiler.Area(probe.Region);
+        var overlapArea = stockArea + bossArea - probe.MaterialRegions.Sum(PrismaticSectionStackCompiler.Area);
         return overlapArea > Math.Max(1e-7d, Math.Min(stockArea, bossArea) * 1e-8d);
     }
 
     private static bool IsPocketFootprintInsideStock(PrismaticProfileOperation stock, ResolvedProfile2D pocket, IReadOnlyDictionary<string, ResolvedProfile2D> profiles)
     {
         var probe = ProfileArrangementBuilder.Compose("XY", [stock with { From = 0d, To = 1d }, new("PocketContainmentProbe", PrismaticProfileIntent.Remove, pocket.Name, 0d, 1d, "Pocket", "generated")], profiles, "pocket-containment-probe");
-        if (probe.Region is null || probe.Arrangement.Diagnostics.Count > 0 || probe.Region.Holes.Count == 0) return false;
+        if (probe.MaterialRegions.Count == 0 || probe.Arrangement.Diagnostics.Count > 0) return false;
         var stockArea = Math.Abs(PrismaticSectionStackCompiler.ProfileArea(profiles[stock.ProfileReference]));
         var pocketArea = Math.Abs(PrismaticSectionStackCompiler.ProfileArea(pocket));
-        var retainedArea = PrismaticSectionStackCompiler.Area(probe.Region);
+        var retainedArea = probe.MaterialRegions.Sum(PrismaticSectionStackCompiler.Area);
         return Math.Abs((stockArea - retainedArea) - pocketArea) <= Math.Max(1e-7d, pocketArea * 1e-8d);
     }
 

@@ -2135,15 +2135,16 @@ Model CanonicalPanel {
                     x.From,
                     x.To,
                     x.ActiveOperations,
-                    area = PrismaticSectionStackCompiler.Area(x.Region), signature = ProfileSignature(x.Region.Outer),
-                    outerLoops = 1,
-                    innerLoops = x.Region.Holes.Count,
-                    loops = new[]
+                    area = x.MaterialRegions.Sum(PrismaticSectionStackCompiler.Area), signature = ProfileSignature(x.Region.Outer),
+                    outerLoops = x.MaterialRegions.Count,
+                    innerLoops = x.MaterialRegions.Sum(r => r.Holes.Count),
+                    regions = x.MaterialRegions.Select((region, index) => new { index, area = PrismaticSectionStackCompiler.Area(region), signature = ProfileSignature(region.Outer), innerLoops = region.Holes.Count, region.Provenance }),
+                    loops = x.MaterialRegions.SelectMany(region => new[]
                     {
-                        new { role = "Outer", signedAreaInProfileFrame = PrismaticSectionStackCompiler.ProfileArea(x.Region.Outer), sourceWinding = PrismaticSectionStackCompiler.ProfileArea(x.Region.Outer) >= 0d ? "CounterClockwise" : "Clockwise", materialFacingWinding = "CounterClockwise" }
-                    }.Concat(x.Region.Holes.Select(h => new { role = "Inner", signedAreaInProfileFrame = PrismaticSectionStackCompiler.ProfileArea(h), sourceWinding = PrismaticSectionStackCompiler.ProfileArea(h) >= 0d ? "CounterClockwise" : "Clockwise", materialFacingWinding = "Clockwise" })),
-                    lineSegments = x.Region.Outer.Loops[0].Segments.Count(s => s.Geometry is LineArcLineSegment2D),
-                    arcSegments = x.Region.Outer.Loops[0].Segments.Count(s => s.Geometry is LineArcCircularArc2D)
+                        new { role = "Outer", signedAreaInProfileFrame = PrismaticSectionStackCompiler.ProfileArea(region.Outer), sourceWinding = PrismaticSectionStackCompiler.ProfileArea(region.Outer) >= 0d ? "CounterClockwise" : "Clockwise", materialFacingWinding = "CounterClockwise" }
+                    }.Concat(region.Holes.Select(h => new { role = "Inner", signedAreaInProfileFrame = PrismaticSectionStackCompiler.ProfileArea(h), sourceWinding = PrismaticSectionStackCompiler.ProfileArea(h) >= 0d ? "CounterClockwise" : "Clockwise", materialFacingWinding = "Clockwise" }))),
+                    lineSegments = x.MaterialRegions.Sum(r => r.Outer.Loops[0].Segments.Count(s => s.Geometry is LineArcLineSegment2D)),
+                    arcSegments = x.MaterialRegions.Sum(r => r.Outer.Loops[0].Segments.Count(s => s.Geometry is LineArcCircularArc2D))
                     , arrangement = x.Arrangement is null ? null : new
                     {
                         sourceSegmentCount = x.Arrangement.SourceCurves.Count,
@@ -2154,7 +2155,7 @@ Model CanonicalPanel {
                         resultLoopCount = x.Arrangement.ResultLoops.Count,
                         perimeter = x.Arrangement.ResultLoops.Sum(loop => loop.Perimeter),
                         timingsMilliseconds = new { intersections = x.Arrangement.IntersectionTime.TotalMilliseconds, splitting = x.Arrangement.SplitTime.TotalMilliseconds, classification = x.Arrangement.ClassificationTime.TotalMilliseconds, reconstruction = x.Arrangement.ReconstructionTime.TotalMilliseconds },
-                        provenance = x.Region.Provenance,
+                        provenance = x.MaterialRegions.SelectMany(r => r.Provenance).Distinct().Order(StringComparer.Ordinal),
                         diagnostics = x.Arrangement.Diagnostics
                     }
                 }),
@@ -5377,7 +5378,8 @@ Model CanonicalPanel {
         _ => s.Geometry.GetType().Name
     }).OrderBy(x => x, StringComparer.Ordinal)));
 
-    private static string CompositionSignature(PrismaticSectionStackConstruction stack) => Hash(string.Join("|", stack.Slabs.Select(s => $"{Q(s.From)}:{Q(s.To)}:{ProfileSignature(s.Region.Outer)}:{Q(PrismaticSectionStackCompiler.Area(s.Region))}")));
+    private static string CompositionSignature(PrismaticSectionStackConstruction stack) => Hash(string.Join("|", stack.Slabs.Select(s =>
+        $"{Q(s.From)}:{Q(s.To)}:{string.Join(";", s.MaterialRegions.Select(r => $"{ProfileSignature(r.Outer)}:{Q(PrismaticSectionStackCompiler.Area(r))}"))}")));
     private static string Hash(string value) => Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
     private static long Q(double value) => (long)Math.Round(value * 1_000_000d, MidpointRounding.AwayFromZero);
 }

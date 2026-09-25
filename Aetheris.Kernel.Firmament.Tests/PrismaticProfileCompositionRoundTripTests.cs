@@ -226,7 +226,6 @@ public sealed class PrismaticProfileCompositionRoundTripTests
     [InlineData("contradictory-coincident-add-remove.firmament", "contradictory-coincident-add-remove-boundary")]
     [InlineData("ambiguous-tangent-crossing.firmament", "ambiguous-tangent-crossing")]
     [InlineData("dangling-arrangement-fragment.firmament", "endpoint mismatch")]
-    [InlineData("disconnected-final-material.firmament", "disconnected-or-invalid-material")]
     [InlineData("unresolved-angular-ordering.firmament", "unresolved-angular-order")]
     public void InvalidMaterialPolicies_RejectBeforeBrepEmission(string fixture, string expectedDiagnostic)
     {
@@ -234,6 +233,18 @@ public sealed class PrismaticProfileCompositionRoundTripTests
         var stack = PrismaticSectionStackCompiler.Normalize(parsed, out var diagnostics);
         Assert.Null(stack);
         Assert.Contains(diagnostics, diagnostic => diagnostic.Contains(expectedDiagnostic, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void DisconnectedFinalMaterialIsRejectedByThreeDimensionalConnectivity()
+    {
+        var parsed = PrismaticProfileCompositionParser.Parse(File.ReadAllText(CompositionFixture(Path.Combine("invalid", "disconnected-final-material.firmament"))));
+        var stack = PrismaticSectionStackCompiler.Normalize(parsed, out var diagnostics);
+        Assert.NotNull(stack);
+        Assert.Empty(diagnostics);
+        var emitted = PrismaticSectionStackEmitter.Emit(stack);
+        Assert.Null(emitted.Body);
+        Assert.Contains(emitted.Diagnostics, diagnostic => diagnostic.StartsWith("compose-rejected:disconnected-3d-solid", StringComparison.Ordinal));
     }
 
     [Fact]

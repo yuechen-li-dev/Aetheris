@@ -105,3 +105,16 @@ source in `TEXT-PLANAR-X0.md` remains non-executable.
   altered by this milestone.
 - No topology counts, manifold result, text STEP size, reimport result, or
   catalogue render can be reported for a bolt or plate that has not been built.
+
+## Downstream status (BREP-BEZIER-SECTION-X0)
+
+The later section-stack work now accepts valid cubic regions and constructs
+exact B-spline-directrix translation walls. Generic cubic Boss/Pocket and an
+`O` counter Boss are manifold and STEP-roundtrip. An `O` Pocket still exposes
+the section stack's single-material-region-per-slab limit; CODEX engraving
+and the plate witness remain unbuilt. See `BREP-BEZIER-SECTION-X0.md`. The
+X1 normalization verdict above remains its historical result.
+
+## Downstream status (BREP-MULTIREGION-SLAB-X0)
+
+The later multi-region slab path now accepts O and D counter Pockets, two O counters, and a multi-island AETHERIS Boss with STEP roundtrips. This does not change X1's normalization verdict. CODEX still fails during section arrangement on a short X-glyph fragment, before the threaded-bolt engraving or Text source syntax; see `BREP-MULTIREGION-SLAB-X0.md`.

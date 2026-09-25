@@ -56,7 +56,7 @@ public static class ProfileArrangementBuilder
     private const double SideSample = 1e-5;
 
     /// <summary>
-    /// Shared bounded line/arc intersection entry point for Profile, Drawing, and
+    /// Shared bounded intersection entry point for Profile, Drawing, and
     /// Sheet Metal construction. It never extends a source curve implicitly.
     /// </summary>
     public static PlanarCurveIntersectionResult IntersectBounded(LineArcProfileCurve2D first, LineArcProfileCurve2D second)
@@ -72,14 +72,14 @@ public static class ProfileArrangementBuilder
         return new(hits.OrderBy(x => x.FirstParameter).ThenBy(x => x.SecondParameter).ToArray(), coincident, coincident&&HasPositiveCoincidentOverlap(first,second), diagnostics);
     }
 
-    /// <summary>Splits a bounded line or circular arc at a known normalized parameter.</summary>
+    /// <summary>Splits a bounded line, circular arc, or cubic Bézier at a known normalized parameter.</summary>
     public static IReadOnlyList<LineArcProfileCurve2D> SplitBounded(LineArcProfileCurve2D curve, double parameter)
     {
         ArgumentNullException.ThrowIfNull(curve);
         if (!double.IsFinite(parameter) || parameter <= Tol || parameter >= 1d - Tol)
             throw new ArgumentOutOfRangeException(nameof(parameter), "Split parameter must lie strictly inside (0, 1).");
-        if (curve is not LineArcLineSegment2D and not LineArcCircularArc2D)
-            throw new NotSupportedException("Bounded split supports line segments and circular arcs.");
+        if (curve is not LineArcLineSegment2D and not LineArcCircularArc2D and not LineArcCubicBezier2D)
+            throw new NotSupportedException($"Unsupported bounded section curve: {curve.GetType().Name}");
         return [Trim(curve, 0d, parameter), Trim(curve, parameter, 1d)];
     }
 
@@ -89,8 +89,8 @@ public static class ProfileArrangementBuilder
         ArgumentNullException.ThrowIfNull(curve);
         if (!double.IsFinite(fromParameter) || !double.IsFinite(toParameter) || fromParameter < -Tol || toParameter > 1d + Tol || toParameter - fromParameter <= Tol)
             throw new ArgumentOutOfRangeException(nameof(fromParameter), "Trim interval must be a positive subset of [0, 1].");
-        if (curve is not LineArcLineSegment2D and not LineArcCircularArc2D)
-            throw new NotSupportedException("Bounded trim supports line segments and circular arcs.");
+        if (curve is not LineArcLineSegment2D and not LineArcCircularArc2D and not LineArcCubicBezier2D)
+            throw new NotSupportedException($"Unsupported bounded section curve: {curve.GetType().Name}");
         return Trim(curve, Math.Clamp(fromParameter, 0d, 1d), Math.Clamp(toParameter, 0d, 1d));
     }
 
@@ -109,17 +109,19 @@ public static class ProfileArrangementBuilder
         var negative = active.Where(x => x.Intent == PrismaticProfileIntent.Remove)
             .Select(x => profiles[x.ProfileReference]).ToArray();
         return Build(frame, sources, p => positive.Any(profile => PointInProfile(profile, p) == ArrangementPointLocation.Inside)
-            && !negative.Any(profile => PointInProfile(profile, p) == ArrangementPointLocation.Inside), context, rejectAmbiguousTangencies: true, allowMultipleRegions: false);
+            && !negative.Any(profile => PointInProfile(profile, p) == ArrangementPointLocation.Inside), context, rejectAmbiguousTangencies: true, allowMultipleRegions: true);
     }
 
     /// <summary>Exact region subtraction used only to derive horizontal section transitions.</summary>
     public static ProfileArrangementResult Difference(string frame, PrismaticSectionRegion? left, PrismaticSectionRegion? right, string context)
+        => Difference(frame, left is null ? [] : [left], right is null ? [] : [right], context);
+
+    public static ProfileArrangementResult Difference(string frame, IReadOnlyList<PrismaticSectionRegion> left, IReadOnlyList<PrismaticSectionRegion> right, string context)
     {
-        if (left is null) return Empty(frame, context);
-        var sourceRegions = new[] { (Name: "left", Region: left), (Name: "right", Region: right) }
-            .Where(x => x.Region is not null).ToArray();
-        var sources = sourceRegions.SelectMany(item => RegionSources(item.Name, item.Region!)).ToArray();
-        return Build(frame, sources, p => InRegion(left, p) && !InRegion(right, p), context, rejectAmbiguousTangencies: false, allowMultipleRegions: true);
+        if (left.Count == 0) return Empty(frame, context);
+        var sources = left.SelectMany((region, index) => RegionSources($"left{index}", region))
+            .Concat(right.SelectMany((region, index) => RegionSources($"right{index}", region))).ToArray();
+        return Build(frame, sources, p => left.Any(region => InRegion(region, p)) && !right.Any(region => InRegion(region, p)), context, rejectAmbiguousTangencies: false, allowMultipleRegions: true);
     }
 
     public static ArrangementPointLocation PointInProfile(ResolvedProfile2D profile, (double X, double Y) point)
@@ -233,16 +235,6 @@ public static class ProfileArrangementBuilder
                 StableId = source.StableId + $".quarter{i}",
                 Geometry = new LineArcCircularArc2D(circle.Center, circle.Radius, i * Math.PI / 2d, Math.PI / 2d)
             }) : new[] { source }).ToArray();
-        // Cubic profiles are valid exact BRep extrusion input, but the section
-        // arrangement below still owns only line/arc intersection and splitting.
-        // Reject before its line/arc-only Trim switch can throw or silently omit
-        // cubic intersections. The glyph normalizer does not weaken this boundary.
-        if (sources.FirstOrDefault(source => source.Geometry is LineArcCubicBezier2D) is { } cubic)
-        {
-            var diagnostic = $"arrangement-rejected:bounded-cubic-section-unsupported:{cubic.StableId}:context={context}";
-            return new(new(frame, sources, [], [], [], 0, [diagnostic],
-                TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero), null);
-        }
         var diagnostics = new List<string>();
         var intersectionClock = Stopwatch.StartNew();
         var parameters = sources.ToDictionary(x => x.StableId, _ => new List<double> { 0d, 1d }, StringComparer.Ordinal);
@@ -280,7 +272,18 @@ public static class ProfileArrangementBuilder
         foreach (var source in sources.OrderBy(x => x.StableId, StringComparer.Ordinal))
         {
             var ordered = parameters[source.StableId].OrderBy(x => x).Aggregate(new List<double>(), (list, value) =>
-            { if (list.Count == 0 || Math.Abs(list[^1] - value) > Tol) list.Add(Math.Clamp(value, 0d, 1d)); return list; });
+            {
+                // Nearby parameters whose points fall within the existing
+                // geometric tolerance are the same arrangement vertex. Keep
+                // distant parameters even on a closed curve with coincident ends.
+                if (list.Count == 0 || (Math.Abs(list[^1] - value) > Tol &&
+                    (Math.Abs(list[^1] - value) > 100d * Tol ||
+                     Distance(At(source.Geometry, list[^1]), At(source.Geometry, value)) > Tol)))
+                    list.Add(Math.Clamp(value, 0d, 1d));
+                else if (value >= 1d)
+                    list[^1] = 1d;
+                return list;
+            });
             for (var i = 0; i < ordered.Count - 1; i++)
             {
                 if (ordered[i + 1] - ordered[i] <= Tol) continue;
@@ -296,7 +299,15 @@ public static class ProfileArrangementBuilder
         {
             var midpoint = At(fragment.Geometry, .5d); var tangent = Tangent(fragment.Geometry, .5d);
             var length = Math.Sqrt(tangent.X * tangent.X + tangent.Y * tangent.Y);
-            if (length <= Tol) { diagnostics.Add($"arrangement-rejected:degenerate-fragment:{fragment.StableId}"); continue; }
+            // A trimmed cubic can have a stationary midpoint while its bounded
+            // endpoints still span a real edge. Use its chord for the side test.
+            if (length <= Tol)
+            {
+                var ends = Ends(fragment.Geometry);
+                tangent = (ends.End.X - ends.Start.X, ends.End.Y - ends.Start.Y);
+                length = Math.Sqrt(tangent.X * tangent.X + tangent.Y * tangent.Y);
+            }
+            if (length <= Tol) { diagnostics.Add($"arrangement-rejected:degenerate-fragment:{fragment.StableId}:length={length:R}"); continue; }
             var offset = SideSample;
             var left = (midpoint.X - tangent.Y / length * offset, midpoint.Y + tangent.X / length * offset);
             var right = (midpoint.X + tangent.Y / length * offset, midpoint.Y - tangent.X / length * offset);
@@ -394,7 +405,7 @@ public static class ProfileArrangementBuilder
         if (loops.Count == 0) return [];
         var result = new List<PrismaticSectionRegion>();
         var inner = loops.Where(x => !x.IsOuter).ToArray();
-        foreach (var outerLoop in loops.Where(x => x.IsOuter).OrderByDescending(x => x.SignedArea))
+        foreach (var outerLoop in loops.Where(x => x.IsOuter).OrderByDescending(x => x.SignedArea).ThenBy(x => x.Fragments.Min(f => f.Source.StableId), StringComparer.Ordinal))
         {
             var outer = ToProfile(outerLoop, "Outer");
             var nested = inner.Where(loop => PointInProfile(outer, Ends(loop.Fragments[0].Geometry).Start) == ArrangementPointLocation.Inside).ToArray();
@@ -431,6 +442,15 @@ public static class ProfileArrangementBuilder
     {
         coincident = false;
         tangent = false;
+        if (a is LineArcCubicBezier2D || b is LineArcCubicBezier2D)
+        {
+            if (a is LineArcCubicBezier2D ca && b is LineArcCubicBezier2D cb &&
+                (ca == cb || ca == new LineArcCubicBezier2D(cb.End, cb.Control2, cb.Control1, cb.Start)))
+            { coincident = true; return []; }
+            var hits = BezierSectionCurve2D.Intersections(a, b, Tol);
+            tangent = hits.Any(h => h.Tangent);
+            return hits.Select(h => h.Point).ToArray();
+        }
         return (a, b) switch
         {
             (LineArcLineSegment2D x, LineArcLineSegment2D y) => LineLine(x, y, ref coincident),
@@ -525,6 +545,8 @@ public static class ProfileArrangementBuilder
                 if (Math.Abs(Distance(arc.Center, p) - arc.Radius) > Tol) { parameter = 0; return false; }
                 var angle = Math.Atan2(p.Y - arc.Center.Y, p.X - arc.Center.X); parameter = ArcParameter(arc, angle);
                 return parameter >= -Tol && parameter <= 1d + Tol;
+            case LineArcCubicBezier2D cubic:
+                return BezierSectionCurve2D.OnCurve(cubic, p, Tol, out parameter);
             default: parameter = 0; return false;
         }
     }
@@ -563,24 +585,28 @@ public static class ProfileArrangementBuilder
     {
         LineArcLineSegment2D line => new LineArcLineSegment2D(At(line, from), At(line, to)),
         LineArcCircularArc2D arc => new LineArcCircularArc2D(arc.Center, arc.Radius, arc.StartAngleRadians + arc.SweepAngleRadians * from, arc.SweepAngleRadians * (to - from)),
+        LineArcCubicBezier2D cubic => BezierSectionCurve2D.Trim(cubic, from, to),
         _ => throw new NotSupportedException("Profile arrangements require bounded line or circular-arc source curves.")
     };
     private static LineArcProfileCurve2D Reverse(LineArcProfileCurve2D curve) => curve switch
     {
         LineArcLineSegment2D line => new LineArcLineSegment2D(line.End, line.Start),
         LineArcCircularArc2D arc => new LineArcCircularArc2D(arc.Center, arc.Radius, arc.StartAngleRadians + arc.SweepAngleRadians, -arc.SweepAngleRadians),
+        LineArcCubicBezier2D cubic => new LineArcCubicBezier2D(cubic.End, cubic.Control2, cubic.Control1, cubic.Start),
         _ => throw new NotSupportedException()
     };
     private static (double X, double Y) At(LineArcProfileCurve2D curve, double parameter) => curve switch
     {
         LineArcLineSegment2D line => (line.Start.X + (line.End.X - line.Start.X) * parameter, line.Start.Y + (line.End.Y - line.Start.Y) * parameter),
         LineArcCircularArc2D arc => (arc.Center.X + arc.Radius * Math.Cos(arc.StartAngleRadians + arc.SweepAngleRadians * parameter), arc.Center.Y + arc.Radius * Math.Sin(arc.StartAngleRadians + arc.SweepAngleRadians * parameter)),
+        LineArcCubicBezier2D cubic => BezierSectionCurve2D.At(cubic, parameter),
         _ => throw new NotSupportedException()
     };
     private static (double X, double Y) Tangent(LineArcProfileCurve2D curve, double parameter) => curve switch
     {
         LineArcLineSegment2D line => (line.End.X - line.Start.X, line.End.Y - line.Start.Y),
         LineArcCircularArc2D arc => (-arc.Radius * Math.Sin(arc.StartAngleRadians + arc.SweepAngleRadians * parameter) * Math.Sign(arc.SweepAngleRadians), arc.Radius * Math.Cos(arc.StartAngleRadians + arc.SweepAngleRadians * parameter) * Math.Sign(arc.SweepAngleRadians)),
+        LineArcCubicBezier2D cubic => BezierSectionCurve2D.Tangent(cubic, parameter),
         _ => throw new NotSupportedException()
     };
     private static ((double X, double Y) Start, (double X, double Y) End) Ends(LineArcProfileCurve2D curve) => (At(curve, 0d), At(curve, 1d));
@@ -588,10 +614,11 @@ public static class ProfileArrangementBuilder
     {
         LineArcLineSegment2D line => line.Start.X * line.End.Y - line.End.X * line.Start.Y,
         LineArcCircularArc2D arc => ArcArea(arc),
+        LineArcCubicBezier2D cubic => BezierSectionCurve2D.SignedDoubleArea(cubic),
         _ => 0d
     };
     private static double ArcArea(LineArcCircularArc2D arc) { var a = arc.StartAngleRadians; var b = a + arc.SweepAngleRadians; return arc.Center.X * arc.Radius * (Math.Sin(b) - Math.Sin(a)) - arc.Center.Y * arc.Radius * (Math.Cos(b) - Math.Cos(a)) + arc.Radius * arc.Radius * (b - a); }
-    private static double Length(LineArcProfileCurve2D curve) => curve switch { LineArcLineSegment2D line => Distance(line.Start, line.End), LineArcCircularArc2D arc => Math.Abs(arc.Radius * arc.SweepAngleRadians), _ => 0d };
+    private static double Length(LineArcProfileCurve2D curve) => curve switch { LineArcLineSegment2D line => Distance(line.Start, line.End), LineArcCircularArc2D arc => Math.Abs(arc.Radius * arc.SweepAngleRadians), LineArcCubicBezier2D cubic => Enumerable.Range(0, 32).Sum(i => { var t=(i+.5d)/32d;var d=BezierSectionCurve2D.Tangent(cubic,t);return Math.Sqrt(d.X*d.X+d.Y*d.Y)/32d; }), _ => 0d };
     private static ArrangementPointLocation PointInLoop(IReadOnlyList<LineArcProfileCurve2D> curves, (double X, double Y) point)
     {
         if (curves.Count == 1 && curves[0] is LineArcFullCircle2D circle)
@@ -607,6 +634,7 @@ public static class ProfileArrangementBuilder
         {
             if (curve is LineArcLineSegment2D line) crossings += RayLine(point, line);
             else if (curve is LineArcCircularArc2D arc) crossings += RayArc(point, arc);
+            else if (curve is LineArcCubicBezier2D cubic) crossings += BezierSectionCurve2D.RayCrossings(cubic, point, Tol);
         }
         return crossings % 2 == 1 ? ArrangementPointLocation.Inside : ArrangementPointLocation.Outside;
     }
@@ -624,6 +652,7 @@ public static class ProfileArrangementBuilder
         {
             LineArcLineSegment2D => $"L:{VertexKey(a)}:{VertexKey(b)}",
             LineArcCircularArc2D arc => $"A:{VertexKey(arc.Center)}:{arc.Radius:R}:{a.X:R}:{a.Y:R}:{b.X:R}:{b.Y:R}:{Math.Sign(arc.SweepAngleRadians)}",
+            LineArcCubicBezier2D cubic => $"B:{VertexKey(cubic.Start)}:{VertexKey(cubic.Control1)}:{VertexKey(cubic.Control2)}:{VertexKey(cubic.End)}",
             _ => throw new NotSupportedException()
         };
     }
@@ -635,6 +664,7 @@ public static class ProfileArrangementBuilder
         {
             LineArcLineSegment2D => $"L:{ka}:{kb}",
             LineArcCircularArc2D arc => $"A:{VertexKey(arc.Center)}:{Math.Round(arc.Radius / Tol):F0}:{ka}:{kb}",
+            LineArcCubicBezier2D cubic => $"B:{ka}:{kb}:{(string.CompareOrdinal(VertexKey(cubic.Start),VertexKey(cubic.End))<=0 ? VertexKey(cubic.Control1)+":"+VertexKey(cubic.Control2) : VertexKey(cubic.Control2)+":"+VertexKey(cubic.Control1))}",
             _ => throw new NotSupportedException()
         };
     }
@@ -646,6 +676,7 @@ public static class ProfileArrangementBuilder
             {
                 (LineArcLineSegment2D, LineArcLineSegment2D) => true,
                 (LineArcCircularArc2D aa, LineArcCircularArc2D bb) => Math.Sign(aa.SweepAngleRadians) == Math.Sign(bb.SweepAngleRadians),
+                (LineArcCubicBezier2D aa, LineArcCubicBezier2D bb) => VertexKey(aa.Control1)==VertexKey(bb.Control1) && VertexKey(aa.Control2)==VertexKey(bb.Control2),
                 _ => false
             };
     }

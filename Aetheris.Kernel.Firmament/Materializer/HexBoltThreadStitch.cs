@@ -20,6 +20,43 @@ internal static class HexBoltThreadStitch
         IReadOnlyDictionary<FaceId, FaceId> ThreadFaces,
         IReadOnlyDictionary<EdgeId, EdgeId> ThreadEdges);
 
+    /// <summary>Replaces only the planar head cap with section-stack pocket faces.</summary>
+    internal static BrepBody ImprintTop(BrepBody threaded, FaceId topCap,
+        BrepBody patch, IReadOnlyCollection<FaceId> patchFaces)
+    {
+        var retained = threaded.Topology.Faces.Where(face => face.Id != topCap).Select(face => face.Id).ToArray();
+        var shell = new ShellCopy();
+        var copied = shell.CopyFaces(threaded, retained);
+        var hostRim = EdgesOfFaces(threaded, [topCap]).Distinct().ToArray();
+        var patchRim = EdgesOfFaces(patch, patchFaces).Distinct()
+            .Where(edge => hostRim.Any(host => SameEdge(threaded, host, patch, edge))).ToArray();
+        if (patchRim.Length != hostRim.Length)
+            throw new InvalidOperationException($"Maker mark rim mismatch: patch={patchRim.Length}, head={hostRim.Length}.");
+        var shared = patchRim.ToDictionary(edge => edge,
+            edge => copied.Edges[hostRim.Single(host => SameEdge(threaded, host, patch, edge))]);
+        shell.CopyFaces(patch, patchFaces, shared);
+        var body = shell.Complete();
+        var nonManifold = body.Topology.Coedges.GroupBy(x => x.EdgeId).Where(x => x.Count() != 2).ToArray();
+        if (nonManifold.Length != 0)
+            throw new InvalidOperationException($"Maker mark shell has {nonManifold.Length} non-manifold edges.");
+        var mass = BrepMassProperties.Evaluate(body);
+        if (!mass.IsEnclosed || !mass.IsOrientationConsistent)
+            throw new InvalidOperationException("Maker mark shell is not enclosed and oriented: " + string.Join(" | ", mass.Diagnostics));
+        return body;
+    }
+
+    private static bool SameEdge(BrepBody firstBody, EdgeId firstId, BrepBody secondBody, EdgeId secondId)
+    {
+        var first = firstBody.Topology.GetEdge(firstId);
+        var second = secondBody.Topology.GetEdge(secondId);
+        firstBody.TryGetVertexPoint(first.StartVertexId, out var a);
+        firstBody.TryGetVertexPoint(first.EndVertexId, out var b);
+        secondBody.TryGetVertexPoint(second.StartVertexId, out var c);
+        secondBody.TryGetVertexPoint(second.EndVertexId, out var d);
+        static bool Near(Point3D x, Point3D y) => (x - y).Length < 1e-5d;
+        return (Near(a, c) && Near(b, d)) || (Near(a, d) && Near(b, c));
+    }
+
     internal static Result Create(HexBoltDefinition bolt, BrepHelicalRibResult rib)
     {
         var shank = bolt.Semantics.Descendants
@@ -96,10 +133,12 @@ internal static class HexBoltThreadStitch
 
         internal sealed record CopyMap(IReadOnlyDictionary<FaceId, FaceId> Faces, IReadOnlyDictionary<EdgeId, EdgeId> Edges);
 
-        internal CopyMap CopyFaces(BrepBody source, IReadOnlyCollection<FaceId> retained)
+        internal CopyMap CopyFaces(BrepBody source, IReadOnlyCollection<FaceId> retained,
+            IReadOnlyDictionary<EdgeId, EdgeId>? sharedEdges = null)
         {
             var vertexMap = new Dictionary<VertexId, VertexId>();
             var edgeMap = new Dictionary<EdgeId, EdgeId>();
+            var reversedShared = new HashSet<EdgeId>();
             var curveMap = new Dictionary<CurveGeometryId, CurveGeometryId>();
             var surfaceMap = new Dictionary<SurfaceGeometryId, SurfaceGeometryId>();
             var faceMap = new Dictionary<FaceId, FaceId>();
@@ -118,6 +157,15 @@ internal static class HexBoltThreadStitch
             {
                 if (edgeMap.TryGetValue(old, out var mapped)) return mapped;
                 var edge = source.Topology.GetEdge(old);
+                if (sharedEdges is not null && sharedEdges.TryGetValue(old, out mapped))
+                {
+                    edgeMap.Add(old, mapped);
+                    source.TryGetVertexPoint(edge.StartVertexId, out var oldStart);
+                    var mappedEdge = topology.Model.GetEdge(mapped);
+                    if ((oldStart - points[mappedEdge.StartVertexId]).Length > 1e-5d)
+                        reversedShared.Add(old);
+                    return mapped;
+                }
                 mapped = topology.AddEdge(Vertex(edge.StartVertexId), Vertex(edge.EndVertexId));
                 edgeMap.Add(old, mapped);
                 var binding = source.Bindings.GetEdgeBinding(old);
@@ -157,7 +205,7 @@ internal static class HexBoltThreadStitch
                         var oldCoedge = source.Topology.GetCoedge(loop.CoedgeIds[i]);
                         topology.AddCoedge(new Coedge(coedgeIds[i], Edge(oldCoedge.EdgeId), loopId,
                             coedgeIds[(i + 1) % coedgeIds.Length], coedgeIds[(i + coedgeIds.Length - 1) % coedgeIds.Length],
-                            oldCoedge.IsReversed));
+                            oldCoedge.IsReversed ^ reversedShared.Contains(oldCoedge.EdgeId)));
                         oldToNewCoedges.Add(oldCoedge.Id, coedgeIds[i]);
                     }
                     topology.AddLoop(new Loop(loopId, coedgeIds));

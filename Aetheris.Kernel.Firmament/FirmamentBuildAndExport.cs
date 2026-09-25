@@ -1,6 +1,7 @@
 using System.Text;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using System.Diagnostics;
 using Aetheris.Kernel.Core.Air;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Diagnostics;
@@ -1502,6 +1503,9 @@ public static class FirmamentBuildAndExport
     {
         if (document.Solids.Count != 1 || document.Solid.ConstructionPolicy != FirmamentV2ConstructionPolicy.Hollow)
             return null;
+        // A parsed Perforation must reach its own topology route. Exporting the
+        // unmodified Hollow here would silently lose the authored openings.
+        if ((document.ModifyBlocks ?? []).Any(block => (block.Perforations?.Count ?? 0) > 0)) return null;
         var solid = document.Solid;
         if (solid.Hollow is null || solid.Hollow.Openings.Count != 1 || solid.Hollow.Openings[0] != "Top")
             return HollowFailure("UnsupportedOpening");
@@ -1510,6 +1514,7 @@ public static class FirmamentBuildAndExport
         {
             FirmamentV2RoundedBoxRecord rounded when rounded.Size.Count == 3 => ThinWalledBodyBRepPlanner.CreateRoundedBox(rounded.Size[0], rounded.Size[1], rounded.Size[2], rounded.CornerRadius, solid.Hollow.WallThickness),
             FirmamentV2FrustumRecord frustum => ThinWalledBodyBRepPlanner.CreateFrustum(frustum.BottomRadius, frustum.TopRadius, frustum.Height, solid.Hollow.WallThickness),
+            FirmamentV2CylinderRecord cylinder => ThinWalledBodyBRepPlanner.CreateCylinder(cylinder.Radius, cylinder.Height, solid.Hollow.WallThickness, solid.Hollow.BottomBlendRadius),
             _ => throw new InvalidOperationException("Parser admitted a Hollow policy without a HollowConstructible witness.")
         };
         if (!realization.IsSuccess || realization.Value is null) return KernelResult<FirmamentStepExportResult>.Failure(realization.Diagnostics);
@@ -1531,9 +1536,13 @@ public static class FirmamentBuildAndExport
         if (!reimportedManifold) return HollowFailure("VerificationFailure: STEP reimport vessel boundary is not manifold");
         var surfaces = body.Geometry.Surfaces.Select(x => x.Value.Kind).ToArray();
         var r = realization.Value;
-        var volume = r.Feature.PrimitiveKind == "RoundedBox"
-            ? RoundedHollowVolume((FirmamentV2RoundedBoxRecord)solid.Primitive, r.Feature.WallThickness)
-            : FrustumHollowVolume((FirmamentV2FrustumRecord)solid.Primitive, r.Feature.WallThickness);
+        var volume = solid.Primitive switch
+        {
+            FirmamentV2RoundedBoxRecord rounded => RoundedHollowVolume(rounded, r.Feature.WallThickness),
+            FirmamentV2FrustumRecord frustum => FrustumHollowVolume(frustum, r.Feature.WallThickness),
+            FirmamentV2CylinderRecord cylinder => CylinderHollowVolume(cylinder, r.Feature.WallThickness, solid.Hollow.BottomBlendRadius),
+            _ => throw new InvalidOperationException("Unsupported Hollow volume witness.")
+        };
         var report = new FirmamentHollowBodyReport(r.Feature.PrimitiveKind, "Hollow", r.Feature.WallThickness, r.Feature.Openings, r.Feature.Witness.Kind, r.Feature.Witness.Exact,
             r.Feature.ThicknessPolicy, r.Construction.ThicknessWitnesses.All(w => w.Exact && double.Abs(w.Distance - r.Feature.WallThickness) <= 1e-9), r.Plan.Kind, r.Plan.IsAuthoritative, r.Plan.DeterministicSignature,
             body.Topology.Vertices.Count(), body.Topology.Edges.Count(), body.Topology.Faces.Count(), surfaces.Count(x => x == SurfaceGeometryKind.Plane), surfaces.Count(x => x == SurfaceGeometryKind.Cylinder), surfaces.Count(x => x == SurfaceGeometryKind.Cone), r.Plan.RimFaces.Count,
@@ -1549,6 +1558,25 @@ public static class FirmamentBuildAndExport
         var numerical = RoundedRectangleAreaNumerical(rounded.Size[0], rounded.Size[1], rounded.CornerRadius) * rounded.Size[2]
             - RoundedRectangleAreaNumerical(rounded.Size[0] - 2d * t, rounded.Size[1] - 2d * t, rounded.CornerRadius - t) * (rounded.Size[2] - t);
         return FormattableString.Invariant($"analytic={analytic:R};numericalSimpson={numerical:R};delta={double.Abs(analytic - numerical):R}");
+    }
+
+    private static string CylinderHollowVolume(FirmamentV2CylinderRecord cylinder, double t, double blendRadius)
+    {
+        var innerRadius = cylinder.Radius - t;
+        var analytic = blendRadius == 0
+            ? double.Pi * (cylinder.Radius * cylinder.Radius * cylinder.Height - innerRadius * innerRadius * (cylinder.Height - t))
+            : BlendedCylinderVolume(cylinder.Radius, innerRadius, cylinder.Height, t, blendRadius);
+        return FormattableString.Invariant($"analytic={analytic:R}");
+    }
+
+    private static double BlendedCylinderVolume(double outerRadius, double innerRadius, double height, double thickness, double blendRadius)
+    {
+        var major = outerRadius - blendRadius;
+        static double QuarterProfileIntegral(double majorRadius, double minorRadius) =>
+            majorRadius * majorRadius * minorRadius + majorRadius * double.Pi * minorRadius * minorRadius / 2d +
+            2d * minorRadius * minorRadius * minorRadius / 3d;
+        return double.Pi * (QuarterProfileIntegral(major, blendRadius) - QuarterProfileIntegral(major, blendRadius - thickness) +
+            (outerRadius * outerRadius - innerRadius * innerRadius) * (height - blendRadius));
     }
 
     private static string FrustumHollowVolume(FirmamentV2FrustumRecord frustum, double t)
@@ -2064,6 +2092,103 @@ public static class FirmamentBuildAndExport
         if (features.Length != 1 || document.Solids.Count != 1 || document.ModifyBlocks!.Any(block => block.SemanticHoles.Count > 0 || (block.EdgeFinishes?.Count ?? 0) > 0))
             return Failure("perforation-composition-unsupported: X0 admits one Perforation on one Box without other Modify features");
         var (target, feature) = features[0];
+        if (document.Solid.Name == target && document.Solid.ConstructionPolicy == FirmamentV2ConstructionPolicy.Hollow &&
+            document.Solid.Cylinder is { } cylinder && document.Solid.Hollow is { } hollow)
+        {
+            var cylindrical = FirmamentCylindricalPerforationPlanner.Plan(cylinder.Radius, cylinder.Height,
+                hollow.WallThickness, feature);
+            if (!cylindrical.Succeeded) return Failure(cylindrical.Diagnostic!);
+            var patternBuildStart = Stopwatch.GetTimestamp();
+            var hollowBody = ThinWalledBodyBRepPlanner.CreateCylinder(cylinder.Radius, cylinder.Height, hollow.WallThickness, hollow.BottomBlendRadius);
+            if (!hollowBody.IsSuccess || hollowBody.Value is null)
+                return Failure("perforation-cylindrical-host-invalid: " + string.Join(" | ", hollowBody.Diagnostics.Select(d => d.Message)));
+            var cylindricalFeatureId = $"{target}.{feature.Name}";
+            var placements = cylindrical.Instances.Select(instance => new HollowRadialCutPlacement(
+                instance.StableId(cylindricalFeatureId), feature.Diameter / 2, instance.Z, instance.AngleRadians)).ToArray();
+            var cut = BrepHollowRadialCutPattern.Build(hollowBody.Value, placements);
+            if (!cut.IsSuccess || cut.Value is null)
+                return Failure("perforation-cylindrical-brep-failed: " + string.Join(" | ", cut.Diagnostics.Select(d => $"{d.Source}: {d.Message}")));
+            var patternBuildMilliseconds = Stopwatch.GetElapsedTime(patternBuildStart).TotalMilliseconds;
+            var cylindricalBody = cut.Value.Body;
+            if (!FirmamentManifoldChecker.IsManifold(cylindricalBody))
+                return Failure("perforation-cylindrical-topology-invalid: the composed shell is not manifold");
+            var stepExportStart = Stopwatch.GetTimestamp();
+            var cylindricalStep = Step242Exporter.ExportBody(cylindricalBody, new Step242ExportOptions
+            {
+                ProductName = cylindricalFeatureId,
+                ApplicationName = "Aetheris.Firmament.Perforation.Cylindrical",
+                BrepExportPreflightMode = BrepExportPreflightMode.Enforce,
+                BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute,
+            });
+            if (!cylindricalStep.IsSuccess || cylindricalStep.Value is null)
+                return Failure("perforation-cylindrical-step-export-failed: " + string.Join(" | ", cylindricalStep.Diagnostics.Select(d => d.Message)));
+            var stepExportMilliseconds = Stopwatch.GetElapsedTime(stepExportStart).TotalMilliseconds;
+            var stepReimportStart = Stopwatch.GetTimestamp();
+            var cylindricalImport = Step242Importer.ImportBody(cylindricalStep.Value);
+            if (!cylindricalImport.IsSuccess || cylindricalImport.Value is null || !FirmamentManifoldChecker.IsManifold(cylindricalImport.Value))
+                return Failure("perforation-cylindrical-step-reimport-invalid: " + string.Join(" | ", cylindricalImport.Diagnostics.Select(d => d.Message)));
+            var stepReimportMilliseconds = Stopwatch.GetElapsedTime(stepReimportStart).TotalMilliseconds;
+            var importedCylinders = cylindricalImport.Value.Geometry.Surfaces
+                .Where(pair => pair.Value.Kind == SurfaceGeometryKind.Cylinder)
+                .Select(pair => pair.Value.Cylinder!.Value.Radius).ToArray();
+            var importedPlanes = cylindricalImport.Value.Geometry.Surfaces
+                .Where(pair => pair.Value.Kind == SurfaceGeometryKind.Plane)
+                .Select(pair => pair.Value.Plane!.Value.Origin.Z).ToArray();
+            var importedTori = cylindricalImport.Value.Geometry.Surfaces
+                .Where(pair => pair.Value.Kind == SurfaceGeometryKind.Torus)
+                .Select(pair => pair.Value.Torus!.Value).ToArray();
+            if (cylindricalImport.Value.Topology.Faces.Count() != placements.Length + (hollow.BottomBlendRadius > 0 ? 7 : 5) ||
+                importedCylinders.Length != placements.Length + 2 ||
+                importedPlanes.Length != 3 ||
+                importedTori.Length != (hollow.BottomBlendRadius > 0 ? 2 : 0) ||
+                (hollow.BottomBlendRadius > 0 &&
+                 (importedTori.Any(torus => System.Math.Abs(torus.MajorRadius - (cylinder.Radius - hollow.BottomBlendRadius)) > 1e-6) ||
+                  !importedTori.Any(torus => System.Math.Abs(torus.MinorRadius - hollow.BottomBlendRadius) < 1e-6) ||
+                  !importedTori.Any(torus => System.Math.Abs(torus.MinorRadius - (hollow.BottomBlendRadius - hollow.WallThickness)) < 1e-6))) ||
+                !new[] { 0d, hollow.WallThickness, cylinder.Height }.All(z => importedPlanes.Any(p => System.Math.Abs(p - z) < 1e-6)) ||
+                importedCylinders.Count(r => System.Math.Abs(r - feature.Diameter / 2) < 1e-6) != placements.Length ||
+                importedCylinders.Count(r => System.Math.Abs(r - cylinder.Radius) < 1e-6) != 1 ||
+                importedCylinders.Count(r => System.Math.Abs(r - (cylinder.Radius - hollow.WallThickness)) < 1e-6) != 1)
+                return Failure("perforation-cylindrical-step-reimport-invalid: opening count or analytic radii changed");
+            var cylindricalDescendants = placements.SelectMany(placement => new[]
+            {
+                new SemanticTopologyDescendant($"material:perforation:{placement.StableId}:wall", "Face", SemanticTopologyRole.HoleWallFace,
+                    $"perforation:{placement.StableId}", Face: cut.Value.TopologyMap.Faces[$"{placement.StableId}.Wall"],
+                    ParentStableId: cylindricalFeatureId, Addressability: SemanticTopologyAddressability.DerivedStable),
+                new SemanticTopologyDescendant($"material:perforation:{placement.StableId}:outer-opening", "Loop", SemanticTopologyRole.HoleEntryLoop,
+                    $"perforation:{placement.StableId}", Loop: cut.Value.TopologyMap.Loops[$"{placement.StableId}.OuterOpening"],
+                    ParentStableId: cylindricalFeatureId, Addressability: SemanticTopologyAddressability.DerivedStable),
+                new SemanticTopologyDescendant($"material:perforation:{placement.StableId}:inner-opening", "Loop", SemanticTopologyRole.HoleExitLoop,
+                    $"perforation:{placement.StableId}", Loop: cut.Value.TopologyMap.Loops[$"{placement.StableId}.InnerOpening"],
+                    ParentStableId: cylindricalFeatureId, Addressability: SemanticTopologyAddressability.DerivedStable),
+            }).ToArray();
+            var cylindricalCorrespondence = new SemanticTopologyCorrespondence(cylindricalFeatureId, cylindricalDescendants,
+                ["Perforation", "BrepHollowRadialCutPattern"])
+            {
+                SourceSpans = new Dictionary<string, FirmamentV2SourceSpan> { [cylindricalFeatureId] = feature.SourceSpan }
+            };
+            var cylindricalHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(cylindricalStep.Value)));
+            var realizedPitch = 2 * System.Math.PI * (cylinder.Radius - hollow.WallThickness / 2) / cylindrical.Columns;
+            var cylindricalReport = new FirmamentPerforationReport(cylindricalFeatureId, feature.SupportFace, feature.Layout,
+                feature.Diameter, feature.Pitch, feature.Margin, feature.MinimumLigament, placements.Length,
+                placements.Select(p => p.StableId).ToArray(), cylindricalBody.Topology.Vertices.Count(),
+                cylindricalBody.Topology.Edges.Count(), cylindricalBody.Topology.Faces.Count(), true, true, cylindricalHash)
+            {
+                Rows = cylindrical.Rows, Columns = cylindrical.Columns,
+                AngularPitchRadians = cylindrical.AngularPitchRadians,
+                RealizedCircumferentialPitch = realizedPitch,
+                MarginTop = feature.MarginTop ?? feature.Margin, MarginBottom = feature.MarginBottom ?? feature.Margin,
+                MaximumCurveBoundMm = cut.Value.Certificates.Values.Max(c => System.Math.Max(c.OuterCurveBoundMm, c.InnerCurveBoundMm)),
+                MaximumPcurveBoundMm = cut.Value.Certificates.Values.Max(c => new[] { c.OuterHostPcurveBoundMm, c.OuterToolPcurveBoundMm,
+                    c.InnerHostPcurveBoundMm, c.InnerToolPcurveBoundMm }.Max()),
+                PatternBuildMilliseconds = patternBuildMilliseconds,
+                StepExportMilliseconds = stepExportMilliseconds,
+                StepReimportMilliseconds = stepReimportMilliseconds
+            };
+            return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(cylindricalStep.Value,
+                cylindricalFeatureId, 0, "perforation-cylindrical", "local-radial-through-wall", Perforation: cylindricalReport)
+            { RuntimeBody = cylindricalBody, RuntimeCorrespondence = cylindricalCorrespondence });
+        }
         if (document.Solid.Name != target || document.Solid.Box is not { Size.Count: 3 } box)
             return Failure("perforation-cylindrical-topology-unavailable: the piping authority constructs constant-thickness annular stock, but the current BRep Boolean route does not materialize radial cylinder-to-cylinder intersections on its wall");
         var plan = FirmamentPerforationPlanner.Plan(box.Size[0], box.Size[1], feature);

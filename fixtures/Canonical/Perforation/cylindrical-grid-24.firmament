@@ -1,0 +1,21 @@
+Struct CylindricalGrid24 {
+  Cylinder<Hollow> Body {
+    Radius: 24mm
+    Height: 60mm
+    WallThickness: 0.8mm
+    Openings: [Top]
+  }
+  Modify Body {
+    Perforation Vents {
+      On: OuterWall
+      Diameter: 5mm
+      Layout: CylindricalGrid
+      Pitch: 14mm
+      CircumferentialPitch: 18.5mm
+      MarginTop: 13mm
+      MarginBottom: 13mm
+      MinimumLigament: 2mm
+      StartAngle: 0deg
+    }
+  }
+}

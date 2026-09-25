@@ -96,6 +96,36 @@ public static class ThinWalledBodyBRepPlanner
         return Validate(feature, construction, plan, body);
     }
 
+    public static KernelResult<ThinWalledBodyRealization> CreateCylinder(double radius, double height, double wallThickness, double bottomBlendRadius = 0)
+    {
+        if (!FinitePositive(radius, height, wallThickness) || radius <= wallThickness + Tol || height <= wallThickness + Tol)
+            return Failure("CylinderInnerBoundaryDegenerate");
+        if (!double.IsFinite(bottomBlendRadius) || bottomBlendRadius < 0 ||
+            (bottomBlendRadius > 0 && (bottomBlendRadius <= wallThickness + Tol || bottomBlendRadius >= radius - Tol || bottomBlendRadius >= height - Tol)))
+            return Failure("CylinderBottomBlendInvalid");
+        var blended = bottomBlendRadius > 0;
+        var witness = new HollowConstructionWitness("CoaxialCylindricalOffset", true,
+            blended ? "innerRadius=outerRadius-T; innerBottom=T; paired bottom torus radii=Rblend and Rblend-T; common major radius=outerRadius-Rblend" :
+                "innerRadius=outerRadius-T; innerBottom=outerBottom+T; innerTop=outerTop",
+            blended ? ["OuterCylindricalWall -> InnerCylindricalWall", "OuterBottomBlend -> InnerBottomBlend", "OuterBottomPlane -> InnerBottomPlane"] :
+                ["OuterCylindricalWall -> InnerCylindricalWall", "OuterBottomPlane -> InnerBottomPlane"],
+            blended ? ["T>0", "radius>Rblend>T", "height>Rblend"] : ["T>0", "radius>T", "height>T"]);
+        var feature = new HollowBodyFeature("Cylinder", new Dictionary<string, double> { ["Radius"] = radius, ["Height"] = height, ["BottomBlendRadius"] = bottomBlendRadius },
+            wallThickness, ["Top"], "ConstantNormalThickness", witness, "Firmament Primitive<Hollow>");
+        ThinWallThicknessWitness[] thickness =
+        [
+            new("CylindricalWall", "Cylinder", "Cylinder", wallThickness, "coaxial radial inward"),
+            new("Bottom", "Plane", "Plane", wallThickness, "+Z")
+        ];
+        if (blended) thickness = [.. thickness, new("BottomBlend", "Torus", "Torus", wallThickness, "paired normal offset")];
+        var construction = new ThinWalledBodyConstruction(feature,
+            blended ? ["OuterCylindricalWall", "OuterBottomBlend", "OuterBottom"] : ["OuterCylindricalWall", "OuterBottom"],
+            blended ? ["InnerCylindricalWall", "InnerBottomBlend", "InnerBottom"] : ["InnerCylindricalWall", "InnerBottom"],
+            ["TopAnnularRim"], ["OuterBottom", "InnerBottom"], thickness);
+        var plan = MakePlan("Cylinder", construction, blended ? 3 : 2, blended ? 3 : 2, 1, 2, $"{radius:R}|{height:R}|{wallThickness:R}|{bottomBlendRadius:R}");
+        return Validate(feature, construction, plan, BuildCylinder(radius, height, wallThickness, bottomBlendRadius));
+    }
+
     private static KernelResult<ThinWalledBodyRealization> Validate(HollowBodyFeature feature, ThinWalledBodyConstruction construction, ThinWalledBodyBRepPlan plan, BrepBody body)
     {
         var preflight = BrepExportPreflight.Validate(body);
@@ -150,6 +180,54 @@ public static class ThinWalledBodyBRepPlanner
         BindPlane(innerBottomFace, new Point3D(0, 0, t), PlusZ, g, bindings);
         BindPlane(rim, new Point3D(0, 0, h), PlusZ, g, bindings);
         var shell = b.AddShell([outerCone, innerCone, outerBottom, innerBottomFace, rim]); b.AddBody([shell]); return new BrepBody(b.Model, g, bindings, points);
+    }
+
+    private static BrepBody BuildCylinder(double radius, double height, double thickness, double blendRadius)
+    {
+        if (blendRadius > 0) return BuildBlendedCylinder(radius, height, thickness, blendRadius);
+        var b = new TopologyBuilder(); var g = new BrepGeometryStore(); var bindings = new BrepBindingModel(); var points = new Dictionary<VertexId, Point3D>();
+        var radii = new[] { radius, radius, radius - thickness, radius - thickness };
+        var zs = new[] { 0d, height, thickness, height }; var vertices = new VertexId[4]; var circles = new EdgeId[4];
+        for (var i = 0; i < 4; i++) { vertices[i] = b.AddVertex(); points[vertices[i]] = new Point3D(radii[i], 0, zs[i]); circles[i] = AddCircle(vertices[i], radii[i], zs[i], b, g, bindings); }
+        var outerWall = AddFace(b, [Forward([circles[0]]), Reverse([circles[1]])]);
+        var innerWall = AddFace(b, [Forward([circles[2]]), Reverse([circles[3]])]);
+        var outerBottom = AddFace(b, [Reverse([circles[0]])]);
+        var innerBottom = AddFace(b, [Forward([circles[2]])]);
+        var rim = AddFace(b, [Forward([circles[1]]), Reverse([circles[3]])]);
+        BindSurface(outerWall, SurfaceGeometry.FromCylinder(new CylinderSurface(new Point3D(0, 0, 0), PlusZ, radius, PlusX)), g, bindings);
+        BindSurface(innerWall, SurfaceGeometry.FromCylinder(new CylinderSurface(new Point3D(0, 0, thickness), PlusZ, radius - thickness, PlusX)), g, bindings, false);
+        BindPlane(outerBottom, new Point3D(0, 0, 0), MinusZ, g, bindings);
+        BindPlane(innerBottom, new Point3D(0, 0, thickness), PlusZ, g, bindings);
+        BindPlane(rim, new Point3D(0, 0, height), PlusZ, g, bindings);
+        var shell = b.AddShell([outerWall, innerWall, outerBottom, innerBottom, rim]); b.AddBody([shell]);
+        return new BrepBody(b.Model, g, bindings, points);
+    }
+
+    private static BrepBody BuildBlendedCylinder(double radius, double height, double thickness, double blendRadius)
+    {
+        var b = new TopologyBuilder(); var g = new BrepGeometryStore(); var bindings = new BrepBindingModel(); var points = new Dictionary<VertexId, Point3D>();
+        var major = radius - blendRadius;
+        var radii = new[] { radius, radius, radius - thickness, radius - thickness, major, major };
+        var zs = new[] { blendRadius, height, blendRadius, height, 0d, thickness };
+        var vertices = new VertexId[6]; var circles = new EdgeId[6];
+        for (var i = 0; i < 6; i++) { vertices[i] = b.AddVertex(); points[vertices[i]] = new Point3D(radii[i], 0, zs[i]); circles[i] = AddCircle(vertices[i], radii[i], zs[i], b, g, bindings); }
+        var outerWall = AddFace(b, [Forward([circles[0]]), Reverse([circles[1]])]);
+        var innerWall = AddFace(b, [Forward([circles[2]]), Reverse([circles[3]])]);
+        var outerBlend = AddFace(b, [Forward([circles[4]]), Reverse([circles[0]])]);
+        var innerBlend = AddFace(b, [Forward([circles[5]]), Reverse([circles[2]])]);
+        var outerBottom = AddFace(b, [Reverse([circles[4]])]);
+        var innerBottom = AddFace(b, [Forward([circles[5]])]);
+        var rim = AddFace(b, [Forward([circles[1]]), Reverse([circles[3]])]);
+        BindSurface(outerWall, SurfaceGeometry.FromCylinder(new CylinderSurface(new Point3D(0, 0, 0), PlusZ, radius, PlusX)), g, bindings);
+        BindSurface(innerWall, SurfaceGeometry.FromCylinder(new CylinderSurface(new Point3D(0, 0, thickness), PlusZ, radius - thickness, PlusX)), g, bindings, false);
+        var center = new Point3D(0, 0, blendRadius);
+        BindSurface(outerBlend, SurfaceGeometry.FromTorus(new TorusSurface(center, PlusZ, major, blendRadius, PlusX)), g, bindings);
+        BindSurface(innerBlend, SurfaceGeometry.FromTorus(new TorusSurface(center, PlusZ, major, blendRadius - thickness, PlusX)), g, bindings, false);
+        BindPlane(outerBottom, new Point3D(0, 0, 0), MinusZ, g, bindings);
+        BindPlane(innerBottom, new Point3D(0, 0, thickness), PlusZ, g, bindings);
+        BindPlane(rim, new Point3D(0, 0, height), PlusZ, g, bindings);
+        var shell = b.AddShell([outerWall, innerWall, outerBlend, innerBlend, outerBottom, innerBottom, rim]); b.AddBody([shell]);
+        return new BrepBody(b.Model, g, bindings, points);
     }
 
     private static ConeSurface Cone(double intercept, double slope)

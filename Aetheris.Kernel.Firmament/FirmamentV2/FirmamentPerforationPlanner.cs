@@ -20,6 +20,8 @@ public static class FirmamentPerforationPlanner
     public static FirmamentPerforationPlan Plan(double width, double height, FirmamentV2PerforationDecl feature)
     {
         if (feature.SupportFace != "+Z") return new([], "perforation-support-unsupported: only the planar +Z Box face is currently materialized");
+        if (feature.CircumferentialPitch is not null || feature.MarginTop is not null || feature.MarginBottom is not null || feature.StartAngleDegrees != 0)
+            return new([], "perforation-planar-cylindrical-field-unsupported: cylindrical-only fields cannot be applied to a planar Box");
         if (feature.Layout is not ("Grid" or "Hex")) return new([], "perforation-layout-invalid: expected Grid or Hex");
         if (!double.IsFinite(feature.Diameter) || feature.Diameter <= 0 || !double.IsFinite(feature.Pitch) || feature.Pitch <= 0)
             return new([], "perforation-dimension-invalid: Diameter and Pitch must be positive finite lengths");

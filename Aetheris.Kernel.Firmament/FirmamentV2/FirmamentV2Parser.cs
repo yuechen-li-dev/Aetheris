@@ -412,7 +412,7 @@ public static class FirmamentV2Parser
                 featureExpansion);
         }
 
-        if (Regex.IsMatch(source, @"\b(?:RoundedBox|Frustum|Box)\s*<\s*[A-Za-z_][A-Za-z0-9_]*\s*>\s+[A-Za-z_]", RegexOptions.CultureInvariant))
+        if (Regex.IsMatch(source, @"\b(?:RoundedBox|Frustum|Cylinder|Box)\s*<\s*[A-Za-z_][A-Za-z0-9_]*\s*>\s+[A-Za-z_]", RegexOptions.CultureInvariant))
             return Recognized(ParsePrimitiveConstructionPolicyDocument(source, diagnostics));
 
         if (Regex.IsMatch(source, @"\bRoundedBox\s+[A-Za-z_]", RegexOptions.CultureInvariant))
@@ -539,7 +539,7 @@ public static class FirmamentV2Parser
         ModelRegex.IsMatch(source)
         || Regex.IsMatch(source, @"^\s*model\s+[A-Za-z_][A-Za-z0-9_]*\b", RegexOptions.CultureInvariant)
         || TemplateHeaderRegex.IsMatch(source)
-        || Regex.IsMatch(source, @"\b(?:RoundedBox|Frustum|Box)\s*<\s*[A-Za-z_][A-Za-z0-9_]*\s*>\s+[A-Za-z_]", RegexOptions.CultureInvariant)
+        || Regex.IsMatch(source, @"\b(?:RoundedBox|Frustum|Cylinder|Box)\s*<\s*[A-Za-z_][A-Za-z0-9_]*\s*>\s+[A-Za-z_]", RegexOptions.CultureInvariant)
         || Regex.IsMatch(source, @"\bRoundedBox\s+[A-Za-z_]", RegexOptions.CultureInvariant)
         || Regex.IsMatch(source, @"\bConcept\s+(?:Struct\s+)?[A-Za-z_]", RegexOptions.CultureInvariant)
         || Regex.IsMatch(source, @"\b(?:Struct|Model)\s+[A-Za-z_][A-Za-z0-9_]*\s*(?::\s*[A-Za-z_][A-Za-z0-9_]*)?\s*\{", RegexOptions.CultureInvariant)
@@ -1645,7 +1645,7 @@ public static class FirmamentV2Parser
             var close = FindMatchingBrace(body, open);
             if (close < 0 || !names.Add(header.Groups["name"].Value)) { diagnostics.Add(CanonicalModifyMalformed); continue; }
             var featureBody = body[(open + 1)..close];
-            if (CanonicalBodyHasUnknownField(featureBody, ["On", "Diameter", "Layout", "Pitch", "Margin", "MinimumLigament", "OffsetX", "OffsetY"]))
+            if (CanonicalBodyHasUnknownField(featureBody, ["On", "Diameter", "Layout", "Pitch", "Margin", "MinimumLigament", "OffsetX", "OffsetY", "CircumferentialPitch", "MarginTop", "MarginBottom", "StartAngle"]))
             { diagnostics.Add(CanonicalFieldUnknown); continue; }
             string? ReadWord(string name) => Regex.Match(featureBody, $@"\b{name}\s*:\s*(?<value>[A-Za-z_+\-][A-Za-z_0-9+\-]*)\b", RegexOptions.CultureInvariant) is { Success: true } match ? match.Groups["value"].Value : null;
             double ReadLength(string name, double fallback)
@@ -1659,10 +1659,23 @@ public static class FirmamentV2Parser
             var diameter = ReadLength("Diameter", double.NaN); var pitch = ReadLength("Pitch", double.NaN);
             var margin = ReadLength("Margin", 0); var ligament = ReadLength("MinimumLigament", 0);
             var offsetX = ReadLength("OffsetX", 0); var offsetY = ReadLength("OffsetY", 0);
+            var circumferentialPitch = ReadLength("CircumferentialPitch", double.NaN);
+            var marginTop = ReadLength("MarginTop", double.NaN); var marginBottom = ReadLength("MarginBottom", double.NaN);
+            var startAngleMatch = Regex.Match(featureBody, @"\bStartAngle\s*:\s*(?<value>[-+0-9.eE]+)deg\b", RegexOptions.CultureInvariant);
+            var startAngle = !startAngleMatch.Success ? 0d : double.TryParse(startAngleMatch.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var degrees) ? degrees : double.NaN;
             if (on is null || layout is null || !double.IsFinite(diameter) || diameter <= 0 || !double.IsFinite(pitch) || pitch <= 0 || !double.IsFinite(margin) || margin < 0 || !double.IsFinite(ligament) || ligament < 0 || !double.IsFinite(offsetX) || !double.IsFinite(offsetY))
             { diagnostics.Add("perforation-field-invalid"); continue; }
+            if (Regex.IsMatch(featureBody, @"\bStartAngle\s*:", RegexOptions.CultureInvariant) && !startAngleMatch.Success || !double.IsFinite(startAngle))
+            { diagnostics.Add("perforation-field-invalid"); continue; }
+            if (new[] { "CircumferentialPitch", "MarginTop", "MarginBottom" }.Any(name =>
+                    Regex.IsMatch(featureBody, $@"\b{name}\s*:", RegexOptions.CultureInvariant) &&
+                    double.IsNaN(name switch { "CircumferentialPitch" => circumferentialPitch, "MarginTop" => marginTop, _ => marginBottom })))
+            { diagnostics.Add("perforation-field-invalid"); continue; }
             result.Add(new(header.Groups["name"].Value, on, layout, diameter, pitch, margin, ligament, offsetX, offsetY,
-                new FirmamentV2SourceSpan(bodyOffset + header.Index, close - header.Index + 1)));
+                new FirmamentV2SourceSpan(bodyOffset + header.Index, close - header.Index + 1),
+                double.IsNaN(circumferentialPitch) ? null : circumferentialPitch,
+                double.IsNaN(marginTop) ? null : marginTop,
+                double.IsNaN(marginBottom) ? null : marginBottom, startAngle));
         }
         return result;
     }
@@ -2062,15 +2075,46 @@ public static class FirmamentV2Parser
     {
         var model = Regex.Match(source, @"^\s*(?:Struct|Model)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
         var primitive = Regex.Match(source, @"\b(?<type>[A-Za-z_][A-Za-z0-9_]*)\s*<\s*(?<policy>[A-Za-z_][A-Za-z0-9_]*)\s*>\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
-        if (!model.Success || !primitive.Success || Regex.Matches(source, @"\b(?:RoundedBox|Frustum|Box)\s*<\s*[A-Za-z_][A-Za-z0-9_]*\s*>\s+[A-Za-z_]", RegexOptions.CultureInvariant).Count != 1)
+        if (!model.Success || !primitive.Success || Regex.Matches(source, @"\b(?:RoundedBox|Frustum|Cylinder|Box)\s*<\s*[A-Za-z_][A-Za-z0-9_]*\s*>\s+[A-Za-z_]", RegexOptions.CultureInvariant).Count != 1)
             return ConstructionPolicyParseFailure(diagnostics);
 
         var type = primitive.Groups["type"].Value;
         var policy = primitive.Groups["policy"].Value;
         if (policy != "Hollow") { diagnostics.Add(UnknownConstructionPolicy); return ConstructionPolicyParseFailure(diagnostics); }
-        if (type is not ("RoundedBox" or "Frustum")) { diagnostics.Add(PrimitiveDoesNotSatisfyHollowConstructible); return ConstructionPolicyParseFailure(diagnostics); }
+        if (type is not ("RoundedBox" or "Frustum" or "Cylinder")) { diagnostics.Add(PrimitiveDoesNotSatisfyHollowConstructible); return ConstructionPolicyParseFailure(diagnostics); }
         var open = source.IndexOf('{', primitive.Index); var close = FindMatchingBrace(source, open);
         if (close < 0) return ConstructionPolicyParseFailure(diagnostics);
+        FirmamentV2ModifyBlock? modification = null;
+        var modify = Regex.Match(source[(close + 1)..], @"\bModify\s+(?<target>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
+        if (modify.Success)
+        {
+            var absoluteOpen = close + 1 + modify.Index + modify.Length - 1;
+            var modifyClose = FindMatchingBrace(source, absoluteOpen);
+            if (type != "Cylinder" || modify.Groups["target"].Value != primitive.Groups["name"].Value || modifyClose < 0 ||
+                Regex.Matches(source[(close + 1)..], @"\bModify\s+[A-Za-z_]", RegexOptions.CultureInvariant).Count != 1)
+            {
+                diagnostics.Add("firmament-v2-hollow-modify-unsupported");
+                return ConstructionPolicyParseFailure(diagnostics);
+            }
+            var modifyBody = source[(absoluteOpen + 1)..modifyClose];
+            var perforationHeader = CanonicalPerforationHeaderRegex.Match(modifyBody);
+            var perforationOpen = perforationHeader.Success ? modifyBody.IndexOf('{', perforationHeader.Index) : -1;
+            var perforationClose = perforationOpen >= 0 ? FindMatchingBrace(modifyBody, perforationOpen) : -1;
+            var outsidePerforation = perforationClose < 0 ? modifyBody :
+                modifyBody[..perforationHeader.Index] + modifyBody[(perforationClose + 1)..];
+            var perforations = ParseCanonicalPerforations(modifyBody, absoluteOpen + 1, diagnostics);
+            if (perforations.Count != 1 || perforations[0].SupportFace != "OuterWall" ||
+                perforations[0].Layout is not ("CylindricalGrid" or "CylindricalStaggered") ||
+                CanonicalPerforationHeaderRegex.Matches(modifyBody).Count != 1 ||
+                outsidePerforation.Trim(' ', '\t', '\r', '\n', ';').Length != 0 ||
+                Regex.IsMatch(modifyBody, @"\b(?:Hole|Region|EdgeFinish|Fillet|Chamfer)\b", RegexOptions.CultureInvariant) ||
+                diagnostics.Any(IsFatalDiagnosticCode))
+            {
+                diagnostics.Add("firmament-v2-hollow-modify-unsupported");
+                return ConstructionPolicyParseFailure(diagnostics);
+            }
+            modification = new FirmamentV2ModifyBlock(primitive.Groups["name"].Value, [], [], Perforations: perforations);
+        }
         var body = source[(open + 1)..close];
         var thickness = Regex.Match(body, @"\bWallThickness\s*:\s*(?<value>[-+0-9.eE]+)mm\b", RegexOptions.CultureInvariant);
         if (!thickness.Success) { diagnostics.Add(WallThicknessRequired); return ConstructionPolicyParseFailure(diagnostics); }
@@ -2094,6 +2138,18 @@ public static class FirmamentV2Parser
                 return ConstructionPolicyParseFailure(diagnostics);
             record = new FirmamentV2RoundedBoxRecord(values, radius);
         }
+        else if (type == "Cylinder")
+        {
+            double Read(string field)
+            {
+                var m = Regex.Match(body, $@"\b{field}\s*:\s*(?<value>[-+0-9.eE]+)mm\b", RegexOptions.CultureInvariant);
+                return m.Success && double.TryParse(m.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? value : double.NaN;
+            }
+            var radius = Read("Radius"); var height = Read("Height");
+            if (!double.IsFinite(radius) || !double.IsFinite(height) || radius <= 0d || height <= 0d)
+                return ConstructionPolicyParseFailure(diagnostics);
+            record = new FirmamentV2CylinderRecord(radius, height);
+        }
         else
         {
             double Read(string field)
@@ -2107,10 +2163,28 @@ public static class FirmamentV2Parser
             record = new FirmamentV2FrustumRecord(bottom, top, height);
         }
 
-        var hollow = new FirmamentV2HollowIntent(wall, ["Top"], new FirmamentV2SourceSpan(primitive.Index, close - primitive.Index + 1));
+        var bottomBlend = Regex.Match(body, @"\bBottomBlendRadius\s*:\s*(?<value>[-+0-9.eE]+)mm\b", RegexOptions.CultureInvariant);
+        var bottomBlendRadius = 0d;
+        if (!bottomBlend.Success && Regex.IsMatch(body, @"\bBottomBlendRadius\b", RegexOptions.CultureInvariant))
+        {
+            diagnostics.Add("firmament-v2-hollow-bottom-blend-invalid");
+            return ConstructionPolicyParseFailure(diagnostics);
+        }
+        if (bottomBlend.Success)
+        {
+            if (type != "Cylinder" || !double.TryParse(bottomBlend.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out bottomBlendRadius) ||
+                !double.IsFinite(bottomBlendRadius) || bottomBlendRadius <= wall || record is not FirmamentV2CylinderRecord cylinder ||
+                bottomBlendRadius >= cylinder.Radius || bottomBlendRadius >= cylinder.Height)
+            {
+                diagnostics.Add("firmament-v2-hollow-bottom-blend-invalid");
+                return ConstructionPolicyParseFailure(diagnostics);
+            }
+        }
+        var hollow = new FirmamentV2HollowIntent(wall, ["Top"], new FirmamentV2SourceSpan(primitive.Index, close - primitive.Index + 1), bottomBlendRadius);
         var solid = new FirmamentV2SolidBinding(primitive.Groups["name"].Value, type, record, ConstructionPolicy: FirmamentV2ConstructionPolicy.Hollow, Hollow: hollow);
         diagnostics.Add("firmament-v2-hollow-policy-parsed"); diagnostics.Add("firmament-v2-parse-succeeded"); diagnostics.Sort(StringComparer.Ordinal);
-        return FirmamentV2ParseResult.Success(new FirmamentV2Document(model.Groups["name"].Value, "mm", [solid]), diagnostics.Distinct(StringComparer.Ordinal).ToArray());
+        return FirmamentV2ParseResult.Success(new FirmamentV2Document(model.Groups["name"].Value, "mm", [solid],
+            modification is null ? null : [modification]), diagnostics.Distinct(StringComparer.Ordinal).ToArray());
     }
 
     private static FirmamentV2ParseResult ConstructionPolicyParseFailure(List<string> diagnostics)

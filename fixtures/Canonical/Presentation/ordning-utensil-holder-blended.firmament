@@ -1,0 +1,23 @@
+Struct OrdningInspiredBlendedBlank {
+  Cylinder<Hollow> Body {
+    Radius: 56mm
+    Height: 142mm
+    WallThickness: 0.8mm
+    BottomBlendRadius: 8mm
+    Openings: [Top]
+  }
+  Modify Body {
+    Perforation SideVents {
+      On: OuterWall
+      Diameter: 9mm
+      Layout: CylindricalGrid
+      Pitch: 15mm
+      CircumferentialPitch: 18mm
+      MarginTop: 12mm
+      MarginBottom: 20mm
+      MinimumLigament: 2mm
+      StartAngle: 9deg
+    }
+  }
+}
+

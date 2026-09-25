@@ -1,0 +1,8 @@
+Struct OrdningInspiredUtensilHolderBody {
+  Cylinder<Hollow> Body {
+    Radius: 56mm
+    Height: 142mm
+    WallThickness: 0.8mm
+    Openings: [Top]
+  }
+}

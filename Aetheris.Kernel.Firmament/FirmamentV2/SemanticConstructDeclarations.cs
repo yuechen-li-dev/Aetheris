@@ -18,15 +18,19 @@ public static class HoleSemanticDeclaration
     public static double ProjectDiameter(FirmamentV2SemanticHoleDecl instance) => instance.ShaftDiameter;
 }
 
-[FirmamentConstruct("Perforation", "Perforation", Context = "Modify Box", Entry = "Modify Body { Perforation Vent { On: +Z; Diameter: 6mm; Layout: Hex; Pitch: 9mm; Margin: 8mm } }", Description = "One semantic field of circular through openings on a planar Box face.")]
-[FirmamentField("On", "On", FirmamentSchemaValueKind.FaceSelector, Required = true, Description = "Semantic support face; X0 admits +Z on Box.")]
+[FirmamentConstruct("Perforation", "Perforation", Context = "Modify body", Entry = "Modify Body { Perforation Vent { On: +Z; Diameter: 6mm; Layout: Hex; Pitch: 9mm; Margin: 8mm } }", Description = "One semantic field of circular through openings on a planar Box or cylindrical Hollow body.")]
+[FirmamentField("On", "On", FirmamentSchemaValueKind.FaceSelector, Required = true, Description = "Semantic support face: +Z on Box or OuterWall on Cylinder<Hollow>.")]
 [FirmamentField("Diameter", "Diameter", FirmamentSchemaValueKind.Length, Required = true, Description = "Circular opening diameter.")]
-[FirmamentField("Layout", "Layout", FirmamentSchemaValueKind.Choice, Required = true, Choices = ["Grid", "Hex"], Description = "Grid rows or staggered hex rows.")]
+[FirmamentField("Layout", "Layout", FirmamentSchemaValueKind.Choice, Required = true, Choices = ["Grid", "Hex", "CylindricalGrid", "CylindricalStaggered"], Description = "Planar or cylindrical grid and staggered layouts.")]
 [FirmamentField("Pitch", "Pitch", FirmamentSchemaValueKind.Length, Required = true, Description = "Center spacing; Hex row spacing is sqrt(3)/2 times Pitch.")]
 [FirmamentField("Margin", "Margin", FirmamentSchemaValueKind.Length, Default = "0mm", Description = "Clear material from each support edge to opening rim.")]
 [FirmamentField("MinimumLigament", "MinimumLigament", FirmamentSchemaValueKind.Length, Default = "0mm", Description = "Additional minimum material between opening rims.")]
 [FirmamentField("OffsetX", "OffsetX", FirmamentSchemaValueKind.Length, Default = "0mm", Description = "Pattern shift in support X.")]
 [FirmamentField("OffsetY", "OffsetY", FirmamentSchemaValueKind.Length, Default = "0mm", Description = "Pattern shift in support Y.")]
+[FirmamentField("CircumferentialPitch", "CircumferentialPitch", FirmamentSchemaValueKind.Length, Description = "Nominal circumferential pitch; full wrap is resolved to an integer number of columns.")]
+[FirmamentField("MarginTop", "MarginTop", FirmamentSchemaValueKind.Length, Description = "Minimum material between top opening rim and vessel top.")]
+[FirmamentField("MarginBottom", "MarginBottom", FirmamentSchemaValueKind.Length, Description = "Minimum material between bottom opening rim and vessel base.")]
+[FirmamentField("StartAngle", "StartAngle", FirmamentSchemaValueKind.Angle, Description = "Angular phase of the first cylindrical column.")]
 [FirmamentOutput("InstanceCount", "InstanceCount", "Count")]
 [FirmamentOutput("Wall", "Wall", "Face", SourceRole = nameof(Materializer.SemanticTopologyRole.HoleWallFace))]
 public static class PerforationSemanticDeclaration { }

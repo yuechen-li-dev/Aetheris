@@ -47,7 +47,7 @@ public sealed record FirmamentV2FeatureConceptDeclaration(string Name, Firmament
 public enum FirmamentV2ConstructionPolicy { Solid, Hollow }
 
 /// <summary>Source-owned hollow intent.  This is deliberately not a Boolean tool description.</summary>
-public sealed record FirmamentV2HollowIntent(double WallThickness, IReadOnlyList<string> Openings, FirmamentV2SourceSpan SourceSpan);
+public sealed record FirmamentV2HollowIntent(double WallThickness, IReadOnlyList<string> Openings, FirmamentV2SourceSpan SourceSpan, double BottomBlendRadius = 0);
 
 public sealed record FirmamentV2SolidBinding(string Name, string RecordType, FirmamentV2PrimitiveRecord Primitive, string? DerivedFrom = null, IReadOnlyDictionary<string, IReadOnlyList<double>>? Overrides = null, IReadOnlyDictionary<string, string>? Provenance = null, FirmamentV2ConstructionPolicy ConstructionPolicy = FirmamentV2ConstructionPolicy.Solid, FirmamentV2HollowIntent? Hollow = null, FirmamentV2SourceSpan? SourceSpan = null, IReadOnlyList<FirmamentV2AuthoredField>? AuthoredFields = null)
 {
@@ -305,7 +305,9 @@ public enum FirmamentV2ParseDisposition
 public sealed record FirmamentV2PerforationDecl(
     string Name, string SupportFace, string Layout, double Diameter, double Pitch,
     double Margin, double MinimumLigament, double OffsetX, double OffsetY,
-    FirmamentV2SourceSpan SourceSpan);
+    FirmamentV2SourceSpan SourceSpan,
+    double? CircumferentialPitch = null, double? MarginTop = null,
+    double? MarginBottom = null, double StartAngleDegrees = 0);
 
 public sealed record FirmamentV2ParseResult(
     bool IsSuccess,

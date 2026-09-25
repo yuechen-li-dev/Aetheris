@@ -46,7 +46,20 @@ public sealed record FirmamentPerforationReport(
     string FeatureId, string Support, string Layout, double Diameter, double Pitch,
     double Margin, double MinimumLigament, int InstanceCount,
     IReadOnlyList<string> InstanceIds, int Vertices, int Edges, int Faces,
-    bool Manifold, bool StepReimportedManifold, string StepSha256);
+    bool Manifold, bool StepReimportedManifold, string StepSha256)
+{
+    public int? Rows { get; init; }
+    public int? Columns { get; init; }
+    public double? AngularPitchRadians { get; init; }
+    public double? RealizedCircumferentialPitch { get; init; }
+    public double? MarginTop { get; init; }
+    public double? MarginBottom { get; init; }
+    public double? MaximumCurveBoundMm { get; init; }
+    public double? MaximumPcurveBoundMm { get; init; }
+    public double? PatternBuildMilliseconds { get; init; }
+    public double? StepExportMilliseconds { get; init; }
+    public double? StepReimportMilliseconds { get; init; }
+}
 
 public sealed record FirmamentGearItemReport(
     string Name,

@@ -8,7 +8,7 @@ public sealed class FirmamentSemanticSchemaTests
     public void GeneratedRegistry_IsStableOptInAndCoversFirstConstructs()
     {
         Assert.Equal("firmament-semantic-schema/1", FirmamentSemanticSchemas.Version);
-        Assert.Equal(["Box", "Concept", "Helix", "Hole", "Loft", "Perforation"], FirmamentSemanticSchemas.All.Select(s => s.Name));
+        Assert.Equal(["Box", "Concept", "Helix", "Hole", "Loft", "Perforation", "Thread"], FirmamentSemanticSchemas.All.Select(s => s.Name));
         var hole = Assert.IsType<FirmamentConstructSchema>(FirmamentSemanticSchemas.Get("Hole"));
         var diameter = Assert.Single(hole.Fields, f => f.Name == "Diameter");
         Assert.Equal("Hole.Diameter", diameter.Id.Value);

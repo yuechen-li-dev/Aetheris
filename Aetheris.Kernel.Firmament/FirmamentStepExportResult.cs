@@ -34,13 +34,21 @@ public sealed record FirmamentStepExportResult(
     FirmamentRevolveReport? Revolve = null,
     FirmamentGearReport? Gear = null,
     Aetheris.Kernel.Firmament.FirmamentV2.FirmamentPlateauReport? Plateau = null,
-    FirmamentPerforationReport? Perforation = null)
+    FirmamentPerforationReport? Perforation = null,
+    FirmamentThreadReport? Thread = null)
 {
     // In-process display can use the exact body that was exported to STEP.
     // It is intentionally absent from CLI/JSON artifact serialization.
     [JsonIgnore] public BrepBody? RuntimeBody { get; init; }
     [JsonIgnore] public SemanticTopologyCorrespondence? RuntimeCorrespondence { get; init; }
 }
+
+public sealed record FirmamentThreadReport(
+    string FeatureId, string Support, double MajorDiameterMm, double RootDiameterMm,
+    double PitchMm, double LeadMm, double LengthMm, double StartOffsetMm, double AxialStartMm,
+    string Hand, string ProfileFamily, int Turns,
+    int Faces, int Edges, int Vertices, int SeamSplits,
+    double ConstructionMilliseconds, double StepExportMilliseconds, string StepSha256);
 
 public sealed record FirmamentPerforationReport(
     string FeatureId, string Support, string Layout, double Diameter, double Pitch,

@@ -518,6 +518,7 @@ public static class CliRunner
                 structural = build.Value.Export.Structural,
                 piping = build.Value.Export.Piping,
                 gear = build.Value.Export.Gear,
+                thread = build.Value.Export.Thread,
                 featureCount = (build.Value.Export.Features?.Count ?? 0) + (build.Value.Export.EngineeringFeatures?.Count ?? 0) + (build.Value.Export.Perforation is null ? 0 : 1),
                 inlineStepMigration = build.Value.Export.InlineStepMigration,
                 inlineStepReplacementAssist = build.Value.Export.InlineStepReplacementAssist,
@@ -546,6 +547,8 @@ public static class CliRunner
                 stdout.WriteLine($"Piping system: {piping.Connections.Count} connections, {piping.Routes.Count} routes, {piping.PipeSegments.Count} pipe segments, {piping.Fittings.Count} fittings, {piping.Nozzles.Count} equipment nozzles, {piping.Mates.Count} endpoint mates; routing report: {piping.RoutingReportArtifactPath}");
             if (build.Value.Export.Gear is { } gear)
                 stdout.WriteLine($"Gear: {gear.Gears[0].Family} {gear.Gears[0].Name}, {gear.Gears[0].Teeth?.ToString() ?? "n/a"} teeth ({gear.Representation})");
+            if (build.Value.Export.Thread is { } thread)
+                stdout.WriteLine($"Thread: {thread.MajorDiameterMm:G6} mm major, {thread.RootDiameterMm:G6} mm root, {thread.PitchMm:G6} mm pitch, {thread.Turns} turns");
             foreach (var diagnostic in build.Diagnostics.Where(diagnostic => diagnostic.Severity == KernelDiagnosticSeverity.Warning))
                 stderr.WriteLine($"- [Warning] {diagnostic.Source}: {diagnostic.Message}");
         }

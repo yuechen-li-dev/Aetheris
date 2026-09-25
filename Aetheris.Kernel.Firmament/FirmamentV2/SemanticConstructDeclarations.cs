@@ -35,6 +35,20 @@ public static class HoleSemanticDeclaration
 [FirmamentOutput("Wall", "Wall", "Face", SourceRole = nameof(Materializer.SemanticTopologyRole.HoleWallFace))]
 public static class PerforationSemanticDeclaration { }
 
+[FirmamentConstruct("Thread", "Thread", Context = "Model on one cylindrical solid", Entry = "Thread MainThread {\n    Surface: face(Shank.OuterWall)\n    MajorDiameter: 8mm\n    Pitch: 1.25mm\n    Length: 30mm\n    StartOffset: 1mm\n}", Description = "Modeled right-hand, single-start external metric-style thread on cylindrical stock.")]
+[FirmamentField("Surface", "Surface", FirmamentSchemaValueKind.FaceSelector, Required = true, Description = "Semantic cylindrical support, such as face(Shank.OuterWall).")]
+[FirmamentField("MajorDiameter", "MajorDiameter", FirmamentSchemaValueKind.Length, Required = true, Description = "Crest envelope diameter.")]
+[FirmamentField("Pitch", "Pitch", FirmamentSchemaValueKind.Length, Required = true, Description = "Axial advance per turn; lead equals pitch.")]
+[FirmamentField("Length", "Length", FirmamentSchemaValueKind.Length, Required = true, Description = "Finite axial thread span; X1 materialization admits complete turns.")]
+[FirmamentField("StartOffset", "StartOffset", FirmamentSchemaValueKind.Length, Description = "Optional thread centerline offset from the support axial start; omission derives a stock margin.")]
+[FirmamentField("Hand", "Hand", FirmamentSchemaValueKind.Choice, Default = "Right", Choices = ["Right"], Description = "Right-hand thread in X1.")]
+[FirmamentOutput("RootDiameter", "RootDiameter", "Length")]
+[FirmamentOutput("TurnCount", "TurnCount", "Count")]
+[FirmamentOutput("Crest", "Crest", "Face", SourceRole = "ThreadCrest")]
+[FirmamentOutput("LeadingFlank", "LeadingFlank", "Face", SourceRole = "ThreadLeadingFlank")]
+[FirmamentOutput("TrailingFlank", "TrailingFlank", "Face", SourceRole = "ThreadTrailingFlank")]
+public static class ThreadSemanticDeclaration { }
+
 [FirmamentConstruct("Helix", "Helix", Context = "WireForm", Entry = "Model HelixWitness {\n    Units: mm\n    WireForm Spring {\n        Diameter: 2mm\n        Material: Standard.Materials.StainlessSteel.304_Annealed\n        StartFrame { Origin: [0mm, 0mm, 0mm]; Tangent: [1, 0, 0]; Up: [0, 0, 1] }\n        Helix Winding { Radius: 6mm; Turns: 1; Pitch: 5mm; Handedness: RightHanded; StartPhase: 0deg }\n    }\n}\n", CompatibilityAlias = "AxisCoil", Description = "WireForm centerline helix.")]
 [FirmamentField("Radius", "Radius", FirmamentSchemaValueKind.Length, Required = true, Description = "Centerline radius.")]
 [FirmamentField("Turns", "Turns", FirmamentSchemaValueKind.Scalar, Required = true, Description = "Number of winding turns.")]

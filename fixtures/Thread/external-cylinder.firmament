@@ -1,0 +1,16 @@
+Model ExternalThreadCylinder {
+    Units: mm
+
+    Cylinder Shank {
+        Radius: 4mm
+        Height: 34mm
+    }
+
+    Thread MainThread {
+        Surface: face(Shank.OuterWall)
+        MajorDiameter: 8mm
+        Pitch: 1.25mm
+        Length: 30mm
+        StartOffset: 1mm
+    }
+}

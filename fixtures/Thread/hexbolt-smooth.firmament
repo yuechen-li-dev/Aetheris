@@ -1,0 +1,19 @@
+Model ThreadExternalHexBolt {
+    Units: mm
+    StandardPart Bolt {
+        Family: HexBolt
+        StableId: "McMaster91280A546"
+        NominalDiameter: 8mm
+        Length: 50mm
+        HeadAcrossFlats: 13mm
+        HeadHeight: 5.3mm
+        TopFlatDiameter: 12.35mm
+        TopChamferAngle: 25deg
+        TipChamferLength: 0.9375mm
+        TipDiameter: 6.125mm
+        ThreadLength: 47.5mm
+        ThreadDesignation: "M8 x 1.25"
+        PropertyClass: "8.8"
+        UnderHeadRadius: 0.2mm
+    }
+}

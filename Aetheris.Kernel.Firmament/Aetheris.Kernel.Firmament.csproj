@@ -9,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Machina.Typography.OpenFont" Version="1.0.0" />
     <ProjectReference Include="..\Aetheris.Firmament.SchemaGenerator\Aetheris.Firmament.SchemaGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\Aetheris.Continuum\Aetheris.Continuum.csproj" />
     <ProjectReference Include="..\Aetheris.Kernel.Core\Aetheris.Kernel.Core.csproj" />

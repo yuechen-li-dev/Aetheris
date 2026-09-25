@@ -26,7 +26,12 @@ public static class FirmamentLanguageService
 
         IReadOnlyList<FirmamentAuthoringField> fields;
         string context;
-        if (IsInsidePerforation(source, offset))
+        if (IsInsideThread(source, offset))
+        {
+            fields = FirmamentSchemaAuthoringFields.For("Thread");
+            context = "Thread";
+        }
+        else if (IsInsidePerforation(source, offset))
         {
             fields = FirmamentSchemaAuthoringFields.For("Perforation");
             context = "Perforation";
@@ -40,7 +45,7 @@ public static class FirmamentLanguageService
         else
         {
             var entries = FirmamentSemanticSchemas.All
-                .Where(item => item.Name is "Helix" or "Loft" or "Perforation" && item.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && item.Entry is not null)
+                .Where(item => item.Name is "Helix" or "Loft" or "Perforation" or "Thread" && item.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && item.Entry is not null)
                 .Select(item => new FirmamentLanguageEntry(item.Id.Value, item.Name, item.Context ?? string.Empty, item.Entry!)).ToArray();
             return new(document, revision, entries.Length > 0 ? "ConstructEntry" : "Unsupported",
                 prefixStart, prefix.Length, [], [], entries);
@@ -60,6 +65,13 @@ public static class FirmamentLanguageService
     {
         var prefix = source[..offset];
         var header = Regex.Matches(prefix, @"\bPerforation\s+[A-Za-z_][A-Za-z0-9_]*\s*\{", RegexOptions.CultureInvariant).Cast<Match>().LastOrDefault();
+        return header is not null && !prefix[(header.Index + header.Length)..].Contains('}');
+    }
+
+    private static bool IsInsideThread(string source, int offset)
+    {
+        var prefix = source[..offset];
+        var header = Regex.Matches(prefix, @"\bThread\s+[A-Za-z_][A-Za-z0-9_]*\s*\{", RegexOptions.CultureInvariant).Cast<Match>().LastOrDefault();
         return header is not null && !prefix[(header.Index + header.Length)..].Contains('}');
     }
 }

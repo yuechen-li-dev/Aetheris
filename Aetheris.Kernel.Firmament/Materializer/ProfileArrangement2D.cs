@@ -233,6 +233,16 @@ public static class ProfileArrangementBuilder
                 StableId = source.StableId + $".quarter{i}",
                 Geometry = new LineArcCircularArc2D(circle.Center, circle.Radius, i * Math.PI / 2d, Math.PI / 2d)
             }) : new[] { source }).ToArray();
+        // Cubic profiles are valid exact BRep extrusion input, but the section
+        // arrangement below still owns only line/arc intersection and splitting.
+        // Reject before its line/arc-only Trim switch can throw or silently omit
+        // cubic intersections. The glyph normalizer does not weaken this boundary.
+        if (sources.FirstOrDefault(source => source.Geometry is LineArcCubicBezier2D) is { } cubic)
+        {
+            var diagnostic = $"arrangement-rejected:bounded-cubic-section-unsupported:{cubic.StableId}:context={context}";
+            return new(new(frame, sources, [], [], [], 0, [diagnostic],
+                TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero, TimeSpan.Zero), null);
+        }
         var diagnostics = new List<string>();
         var intersectionClock = Stopwatch.StartNew();
         var parameters = sources.ToDictionary(x => x.StableId, _ => new List<double> { 0d, 1d }, StringComparer.Ordinal);

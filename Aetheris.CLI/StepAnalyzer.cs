@@ -1650,10 +1650,17 @@ public sealed record VolumeAnalysisResult(
             ["bspline"] = 0,
             ["unsupported"] = 0
         };
+        var analyticEntities = 0;
+        var exactSplineEntities = 0;
+        var recoveredCurves = 0;
+        var recoveredSurfaces = 0;
+        var unsupportedEntities = 0;
+        var worstDeviation = 0d;
+        double? recoveryTolerance = null;
 
         foreach (var edge in topology.Edges)
         {
-            if (!body.TryGetEdgeCurveGeometry(edge.Id, out var curve) || curve is null) { curveFamilies["unsupported"]++; continue; }
+            if (!body.TryGetEdgeCurveGeometry(edge.Id, out var curve) || curve is null) { curveFamilies["unsupported"]++; unsupportedEntities++; continue; }
             var key = curve.Kind switch
             {
                 CurveGeometryKind.Line3 => "line",
@@ -1664,6 +1671,15 @@ public sealed record VolumeAnalysisResult(
                 _ => "unsupported"
             };
             curveFamilies[key]++;
+            if (curve.RecoveryProvenance is { } curveRecovery)
+            {
+                recoveredCurves++;
+                worstDeviation = double.Max(worstDeviation, curveRecovery.MeasuredMaxDeviationMillimetres);
+                recoveryTolerance = curveRecovery.RecoveryToleranceMillimetres;
+            }
+            else if (curve.Kind == CurveGeometryKind.BSpline3) exactSplineEntities++;
+            else if (curve.Kind == CurveGeometryKind.Unsupported) unsupportedEntities++;
+            else analyticEntities++;
         }
 
         foreach (var face in topology.Faces)
@@ -1671,8 +1687,18 @@ public sealed record VolumeAnalysisResult(
             if (!body.TryGetFaceSurface(face.Id, out var surface) || surface is null)
             {
                 surfaceFamilies["other"]++;
+                unsupportedEntities++;
                 continue;
             }
+
+            if (surface.RecoveryProvenance is { } surfaceRecovery)
+            {
+                recoveredSurfaces++;
+                worstDeviation = double.Max(worstDeviation, surfaceRecovery.MeasuredMaxDeviationMillimetres);
+                recoveryTolerance = surfaceRecovery.RecoveryToleranceMillimetres;
+            }
+            else if (surface.Kind == SurfaceGeometryKind.BSplineSurfaceWithKnots) exactSplineEntities++;
+            else analyticEntities++;
 
             switch (surface.Kind)
             {
@@ -1719,7 +1745,7 @@ public sealed record VolumeAnalysisResult(
             curveFamilies,
             basis,
             "mm",
-            "assumed; STEP import length units not yet preserved",
+            "STEP source lengths normalized to millimetres during import",
             BuildIdRange(topology.Faces.Select(f => f.Id.Value)),
             BuildIdRange(topology.Edges.Select(e => e.Id.Value)),
             BuildIdRange(topology.Vertices.Select(v => v.Id.Value)),
@@ -1741,7 +1767,31 @@ public sealed record VolumeAnalysisResult(
                     .GroupBy(binding => (topology.GetCoedge(binding.CoedgeId).EdgeId, binding.SurfaceGeometryId))
                     .Count(group => group.Count() > 1),
                 body.Bindings.PcurveBindings.GroupBy(binding => binding.SourceCurveType ?? binding.Pcurve.Kind.ToString())
-                    .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal)));
+                    .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal)),
+            new SplineRecoverySummary(analyticEntities, exactSplineEntities, recoveredCurves + recoveredSurfaces,
+                unsupportedEntities, recoveredCurves, recoveredSurfaces,
+                recoveredCurves + recoveredSurfaces == 0 ? null : worstDeviation, recoveryTolerance),
+            BuildPcurveQualificationSummary(body));
+    }
+
+    private static PcurveQualificationSummary BuildPcurveQualificationSummary(BrepBody body)
+    {
+        var bindings = body.Bindings.PcurveBindings.ToArray();
+        var total = body.Topology.Coedges.Count();
+        var evidence = BrepPcurveValidator.Validate(body, 1e-3d, requireEveryCoedge: true);
+        var recovered = bindings.Count(binding => binding.Qualification is { Origin: not PcurveBindingOrigin.SourceValidated });
+        var source = bindings.Count(binding => binding.SourceStepPcurveEntityId is not null
+            || binding.Qualification?.Origin == PcurveBindingOrigin.SourceValidated);
+        var failures = System.Math.Max(total - bindings.Length,
+            System.Math.Max(body.PcurveRecoveryReport?.Diagnostics.Count ?? 0, evidence.Diagnostics.Count));
+        var worst = bindings.Where(binding => binding.Qualification is not null)
+            .Select(binding => binding.Qualification!.MaximumLiftDeviationMillimetres).DefaultIfEmpty().Max();
+        var status = failures > 0 || !evidence.IsValid ? "inspectable-unqualified"
+            : total == bindings.Length ? "qualified" : "not-assessed";
+        return new PcurveQualificationSummary(status, total, source, recovered, failures,
+            bindings.Length == 0 ? null : double.Max(worst, evidence.MaximumReconstructionDeviation), 1e-3d,
+            bindings.GroupBy(binding => body.Geometry.Surfaces.Single(pair => pair.Key == binding.SurfaceGeometryId).Value.Kind.ToString())
+                .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal));
     }
 
     private static bool AreOrderedLoopsConnected(BrepBody body, out int disconnectedLoop)

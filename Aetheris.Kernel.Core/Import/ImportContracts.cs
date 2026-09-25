@@ -24,7 +24,10 @@ public enum ImportRepresentationTruthKind
 
 public sealed record ImportRequest(string SourceText, ImportPolicy? Policy = null);
 
-public sealed record ImportPolicy(ImportLaneKind PreferredLane = ImportLaneKind.Auto);
+public sealed record ImportPolicy(
+    ImportLaneKind PreferredLane = ImportLaneKind.Auto,
+    double RecoveryToleranceMillimetres = 0.1d,
+    double PcurveQualificationToleranceMillimetres = 1e-3d);
 
 public sealed record ImportResult(
     KernelResult<BrepBody> BodyResult,

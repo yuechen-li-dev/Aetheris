@@ -59,6 +59,8 @@ public sealed record SurfaceGeometry
 
     public BSplineSurfaceWithKnots? BSplineSurfaceWithKnots { get; }
 
+    public SplineRecoveryProvenance? RecoveryProvenance { get; private init; }
+
     public static SurfaceGeometry FromPlane(PlaneSurface plane) => new(SurfaceGeometryKind.Plane, plane, null, null, null, null, null, null, null);
 
     public static SurfaceGeometry FromCylinder(CylinderSurface cylinder) => new(SurfaceGeometryKind.Cylinder, null, cylinder, null, null, null, null, null, null);
@@ -74,4 +76,10 @@ public sealed record SurfaceGeometry
     public static SurfaceGeometry FromSurfaceOfRevolution(SurfaceOfRevolutionSurface surface) => new(SurfaceGeometryKind.SurfaceOfRevolution, null, null, null, null, null, null, surface, null);
 
     public static SurfaceGeometry FromBSplineSurfaceWithKnots(BSplineSurfaceWithKnots surface) => new(SurfaceGeometryKind.BSplineSurfaceWithKnots, null, null, null, null, null, null, null, surface);
+
+    public static SurfaceGeometry FromRecoveredBSplineSurfaceWithKnots(BSplineSurfaceWithKnots surface, SplineRecoveryProvenance provenance)
+    {
+        ArgumentNullException.ThrowIfNull(provenance);
+        return FromBSplineSurfaceWithKnots(surface) with { RecoveryProvenance = provenance };
+    }
 }

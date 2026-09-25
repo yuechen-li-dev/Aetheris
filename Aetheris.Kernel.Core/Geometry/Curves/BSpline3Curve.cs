@@ -121,6 +121,41 @@ public readonly record struct BSpline3Curve
         return d[p];
     }
 
+    /// <summary>Evaluates source rational evidence without promoting weights to authored curve authority.</summary>
+    public Point3D? EvaluateRational(IReadOnlyList<double> weights, double parameter)
+    {
+        if (weights.Count != ControlPoints.Count || !double.IsFinite(parameter)) return null;
+        var u = ClampToDomain(parameter);
+        var span = FindSpan(u);
+        var points = new (double X, double Y, double Z, double W)[Degree + 1];
+        for (var j = 0; j <= Degree; j++)
+        {
+            var index = span - Degree + j;
+            var weight = weights[index];
+            if (!double.IsFinite(weight) || weight <= 0d) return null;
+            var control = ControlPoints[index];
+            points[j] = (control.X * weight, control.Y * weight, control.Z * weight, weight);
+        }
+        for (var r = 1; r <= Degree; r++)
+        {
+            for (var j = Degree; j >= r; j--)
+            {
+                var left = FullKnots[span - Degree + j];
+                var right = FullKnots[span + 1 + j - r];
+                var denominator = right - left;
+                var alpha = double.Abs(denominator) <= 1e-15d ? 0d : (u - left) / denominator;
+                var a = points[j - 1];
+                var b = points[j];
+                points[j] = (a.X + (b.X - a.X) * alpha, a.Y + (b.Y - a.Y) * alpha,
+                    a.Z + (b.Z - a.Z) * alpha, a.W + (b.W - a.W) * alpha);
+            }
+        }
+        var result = points[Degree];
+        if (!double.IsFinite(result.W) || result.W <= 0d) return null;
+        var point = new Point3D(result.X / result.W, result.Y / result.W, result.Z / result.W);
+        return double.IsFinite(point.X) && double.IsFinite(point.Y) && double.IsFinite(point.Z) ? point : null;
+    }
+
     /// <summary>Evaluates the exact polynomial derivative of this non-rational B-spline.</summary>
     public Vector3D EvaluateTangent(double parameter)
     {

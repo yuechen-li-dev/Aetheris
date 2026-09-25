@@ -187,7 +187,19 @@ public readonly record struct CoedgePcurveBinding(
     int? SourceStepPcurveEntityId = null,
     int? SourceStepCurveEntityId = null,
     string? SourceCurveType = null,
-    int? SourceStepSurfaceEntityId = null);
+    int? SourceStepSurfaceEntityId = null,
+    PcurveQualification? Qualification = null);
+
+public enum PcurveBindingOrigin { SourceValidated, RecoveredAnalytic, RecoveredSpline }
+
+/// <summary>Measured edge-to-surface-lift evidence for one face-local trim.</summary>
+public sealed record PcurveQualification(
+    PcurveBindingOrigin Origin,
+    double MaximumLiftDeviationMillimetres,
+    double QualificationToleranceMillimetres,
+    int LiftSamples,
+    string RecoveryMethod,
+    string SurfaceFamily);
 
 public enum FaceBoundaryRole { Outer, Inner }
 

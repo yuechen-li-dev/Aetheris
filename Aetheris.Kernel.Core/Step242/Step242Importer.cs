@@ -111,10 +111,10 @@ public static class Step242Importer
         return new PlanarMultiBoundJudgmentDiagnosticsScope(previous);
     }
 
-    public static KernelResult<BrepBody> ImportBody(string stepText)
+    public static KernelResult<BrepBody> ImportBody(string stepText, ImportPolicy? policy = null)
     {
         var orchestrator = ImportOrchestrator.CreateDefault();
-        var result = orchestrator.Import(new ImportRequest(stepText));
+        var result = orchestrator.Import(new ImportRequest(stepText, policy));
         return result.BodyResult;
     }
 
@@ -678,6 +678,22 @@ public static class Step242Importer
             }
         }
 
+        if (orientation.Value.Geometry.Curves.Any(curve => curve.Value.RecoveryProvenance is not null)
+            || orientation.Value.Geometry.Surfaces.Any(surface => surface.Value.RecoveryProvenance is not null))
+        {
+            var recovery = BrepPcurveRecovery.Populate(
+                orientation.Value.Topology, orientation.Value.Geometry, orientation.Value.Bindings,
+                tolerance: document.PcurveQualificationToleranceMillimetres);
+            var pcurveEvidence = BrepPcurveValidator.Validate(orientation.Value,
+                document.PcurveQualificationToleranceMillimetres, requireEveryCoedge: true);
+            orientation.Value.PcurveRecoveryReport = pcurveEvidence.IsValid ? recovery : recovery with
+            {
+                IsSuccess = false,
+                Diagnostics = recovery.Diagnostics.Concat(pcurveEvidence.Diagnostics.Select(message =>
+                    new BrepPcurveRecoveryDiagnostic("surf-pcurve-invalid", message))).ToArray()
+            };
+        }
+
         var validation = BrepBindingValidator.Validate(orientation.Value, requireAllEdgeAndFaceBindings: true);
         if (!validation.IsSuccess)
         {
@@ -1074,15 +1090,22 @@ public static class Step242Importer
                     return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Failure(weightsResult.Diagnostics);
                 }
 
-                var hasMaterialRationalWeights = weightsResult.Value.Any(w => double.IsFinite(w) && double.Abs(w - 1d) > 1e-12d);
-                if (splineResult.Value.Degree != 2 || !hasMaterialRationalWeights)
+                var weights = weightsResult.Value;
+                if (weights.Count != splineResult.Value.ControlPoints.Count
+                    || weights.Any(w => !double.IsFinite(w) || w <= 0d))
+                    return FailureCurveBinding($"RATIONAL_B_SPLINE_CURVE #{curveEntity.Id} has invalid weights: expected one positive finite weight per control point.",
+                        SourceFor(curveEntity.Id, "Importer.Geometry.RationalBSplineCurve"));
+
+                // Uniform weights cancel in the rational quotient, even when their common value is not one.
+                var hasMaterialRationalWeights = weights.Any(w => double.Abs(w / weights[0] - 1d) > 1e-12d);
+                if (!hasMaterialRationalWeights)
                 {
                     return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Success((
                         CurveGeometry.FromBSpline(splineResult.Value),
-                        new ParameterInterval(splineResult.Value.DomainStart, splineResult.Value.DomainEnd)));
+                        explicitTrim ?? new ParameterInterval(splineResult.Value.DomainStart, splineResult.Value.DomainEnd)));
                 }
 
-                var recoveryDecision = Step242BsplineCurveRecoveryLane.Decide(curveEntity, splineResult.Value, weightsResult.Value);
+                var recoveryDecision = Step242BsplineCurveRecoveryLane.Decide(curveEntity, splineResult.Value, weights);
                 if (recoveryDecision.RecoveredCurve is CurveGeometry recoveredCurve)
                 {
                     var trimResult = recoveredCurve.Kind == CurveGeometryKind.Circle3 && recoveredCurve.Circle3 is Circle3Curve recoveredCircle
@@ -1096,8 +1119,21 @@ public static class Step242Importer
                     return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Success((recoveredCurve, trimResult.Value));
                 }
 
+                if (BSplineCurveRationalReduction.TryReduce(splineResult.Value, weights,
+                    document.RecoveryToleranceMillimetres, out var reduced, out var deviation, out var reductionReason))
+                {
+                    var provenance = new SplineRecoveryProvenance("RATIONAL_B_SPLINE_CURVE", "AdaptiveCubic",
+                        document.RecoveryToleranceMillimetres, deviation, true, recoveryDecision.Reason);
+                    return KernelResult<(CurveGeometry CurveGeometry, ParameterInterval TrimInterval)>.Success((
+                        CurveGeometry.FromRecoveredBSpline(reduced, provenance),
+                        explicitTrim ?? new ParameterInterval(reduced.DomainStart, reduced.DomainEnd)),
+                        [new KernelDiagnostic(KernelDiagnosticCode.Unknown, KernelDiagnosticSeverity.Info,
+                            $"Rational curve #{curveEntity.Id}: analytic recognition failed; generic spline recovered. {reductionReason}",
+                            SourceFor(curveEntity.Id, "Importer.Geometry.RationalBSplineRecovered"))]);
+                }
+
                 return FailureCurveBinding(
-                    $"RATIONAL_B_SPLINE_CURVE #{curveEntity.Id} cannot be imported exactly: the curve is not a qualified analytic circle, and CurveGeometry has no weighted B-spline curve representation. Do not discard its weights or substitute the polynomial control polygon. {recoveryDecision.Reason}",
+                    $"RATIONAL_B_SPLINE_CURVE #{curveEntity.Id}: analytic recognition failed ({recoveryDecision.Reason}); generic recovery failed: {reductionReason}",
                     SourceFor(curveEntity.Id, "Importer.Geometry.RationalBSplineCurve"));
             }
 
@@ -1346,12 +1382,21 @@ public static class Step242Importer
             // reduced to a non-rational spline that follows it well inside the accuracy the source file declares.
             if (bSplineSurface.IsRational && !RationalSurfacesArePreserved)
             {
-                var reductionTolerance = BSplineSurfaceRationalReduction.ResolveTolerance(bSplineSurface, document.SourceDistanceAccuracyMillimetres);
-                if (BSplineSurfaceRationalReduction.TryReduce(bSplineSurface, reductionTolerance, out var reducedSurface, out _, out var reductionReason)
+                var sourceReductionTolerance = BSplineSurfaceRationalReduction.ResolveTolerance(
+                    bSplineSurface, document.SourceDistanceAccuracyMillimetres);
+                // Source accuracies that would drive this approximate interchange conversion below
+                // 10 nm can require pathological control-net growth. Keep established source-accuracy
+                // behavior for ordinary files, and use the caller's engineering budget for that case.
+                var reductionTolerance = sourceReductionTolerance < 1e-5d
+                    ? document.RecoveryToleranceMillimetres
+                    : double.Min(document.RecoveryToleranceMillimetres, sourceReductionTolerance);
+                if (BSplineSurfaceRationalReduction.TryReduce(bSplineSurface, reductionTolerance, out var reducedSurface, out var deviation, out var reductionReason)
                     && reducedSurface is not null)
                 {
+                    var provenance = new SplineRecoveryProvenance("RATIONAL_B_SPLINE_SURFACE", "AdaptiveGreville",
+                        document.RecoveryToleranceMillimetres, deviation, true, recoveryDecision.Reason);
                     return KernelResult<(SurfaceGeometryId SurfaceGeometryId, SurfaceGeometry SurfaceGeometry)>.Success(
-                        (geometryId, SurfaceGeometry.FromBSplineSurfaceWithKnots(reducedSurface)),
+                        (geometryId, SurfaceGeometry.FromRecoveredBSplineSurfaceWithKnots(reducedSurface, provenance)),
                         [new KernelDiagnostic(
                             KernelDiagnosticCode.Unknown,
                             KernelDiagnosticSeverity.Info,
@@ -3150,7 +3195,10 @@ public static class Step242Importer
                 candidate.PcurveEntityId,
                 candidate.CurveEntityId,
                 candidate.CurveType,
-                candidate.SurfaceEntityId));
+                candidate.SurfaceEntityId,
+                candidate.DeclaredQualificationToleranceMillimetres is double declaredTolerance
+                    ? new PcurveQualification(PcurveBindingOrigin.SourceValidated, 0d, declaredTolerance,
+                        67, "source-qualified", surface.Kind.ToString()) : null));
         }
         return KernelResult<IReadOnlyList<CoedgePcurveBinding>>.Success(result);
 

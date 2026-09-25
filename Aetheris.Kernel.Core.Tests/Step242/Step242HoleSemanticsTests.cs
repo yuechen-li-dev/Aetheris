@@ -139,7 +139,7 @@ public sealed class Step242HoleSemanticsTests
     }
 
     [Fact]
-    public void ImportBody_OcctNutExtractPlanarMultiBound_UsesJudgmentEngineRecoveryCandidate()
+    public void ImportBody_OcctNutExtractUsesWeightedCurveGeometryWithoutPlanarCrossingRepair()
     {
         var diagnostics = new List<Step242Importer.PlanarMultiBoundJudgmentDiagnostic>();
         using var scope = Step242Importer.CapturePlanarMultiBoundJudgmentDiagnostics(diagnostics);
@@ -147,9 +147,10 @@ public sealed class Step242HoleSemanticsTests
         var import = Step242Importer.ImportBody(ReadNutExtractStepText());
 
         Assert.True(import.IsSuccess, string.Join(Environment.NewLine, import.Diagnostics.Select(d => d.Message)));
-        var selected = diagnostics.Where(d => d.SelectedCandidate == "planar_crossing_inside_recover_as_inner").ToList();
-        Assert.NotEmpty(selected);
-        Assert.All(selected, diagnostic => Assert.Equal(diagnostic.VertexCount, diagnostic.ContainedVertexCount));
+        // The source's weighted curves are now evaluated and recovered as geometry. The previous
+        // planar-crossing judgment was needed only when these weights were silently discarded.
+        Assert.DoesNotContain(diagnostics, d => d.SelectedCandidate == "planar_crossing_inside_recover_as_inner");
+        Assert.Contains(import.Value.Geometry.Curves, pair => pair.Value.RecoveryProvenance is not null);
     }
 
     private static string ReadNutExtractStepText()

@@ -42,6 +42,9 @@ public sealed record CurveGeometry
 
     public string? UnsupportedKind { get; }
 
+    /// <summary>Present only when import has promoted a measured generic recovery to geometric authority.</summary>
+    public SplineRecoveryProvenance? RecoveryProvenance { get; private init; }
+
     /// <summary>
     /// Exact parent-cylinder intersection and certified realization when this B-spline
     /// is only a finite representation of an analytic surface-intersection edge.
@@ -53,6 +56,12 @@ public sealed record CurveGeometry
     public static CurveGeometry FromCircle(Circle3Curve circle) => new(CurveGeometryKind.Circle3, null, circle, null, null, null, null);
 
     public static CurveGeometry FromBSpline(BSpline3Curve curve) => new(CurveGeometryKind.BSpline3, null, null, curve, null, null, null);
+
+    public static CurveGeometry FromRecoveredBSpline(BSpline3Curve curve, SplineRecoveryProvenance provenance)
+    {
+        ArgumentNullException.ThrowIfNull(provenance);
+        return FromBSpline(curve) with { RecoveryProvenance = provenance };
+    }
 
     public static CurveGeometry FromCertifiedIntersection(QualifiedCylinderIntersectionRepresentation representation)
     {

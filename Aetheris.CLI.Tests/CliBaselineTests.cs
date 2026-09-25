@@ -252,7 +252,7 @@ public sealed class CliBaselineTests
         Assert.Equal(0, summary.GetProperty("surfaceFamilies").GetProperty("bspline").GetInt32());
 
         Assert.Equal("mm", summary.GetProperty("lengthUnit").GetString());
-        Assert.Contains("assumed", summary.GetProperty("lengthUnitBasis").GetString(), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("normalized", summary.GetProperty("lengthUnitBasis").GetString(), StringComparison.OrdinalIgnoreCase);
 
         var faceIds = summary.GetProperty("faceIds");
         Assert.Equal(1, faceIds.GetProperty("min").GetInt32());

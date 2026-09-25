@@ -605,6 +605,12 @@ internal sealed class Step242ParsedDocument
     /// <summary>Distance accuracy the source file declares for its geometry, in millimetres, or null when it declares none.</summary>
     public double? SourceDistanceAccuracyMillimetres { get; }
 
+    /// <summary>Engineering budget for recovered geometry after source lengths have been normalized to millimetres.</summary>
+    public double RecoveryToleranceMillimetres { get; set; } = 0.1d;
+
+    /// <summary>Base edge-to-lift budget, separately configurable from geometry recovery.</summary>
+    public double PcurveQualificationToleranceMillimetres { get; set; } = 1e-3d;
+
     public KernelResult<Step242ParsedEntity> TryGetEntity(int id, string? expectedName = null)
     {
         if (!_entitiesById.TryGetValue(id, out var entity))

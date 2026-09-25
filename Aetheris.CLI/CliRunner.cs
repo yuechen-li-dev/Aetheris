@@ -714,12 +714,15 @@ public static class CliRunner
         }
         PcurveBuildResult? recoveredPcurves = null;
         if (!imported.Value.Bindings.PcurveBindings.Any())
-            recoveredPcurves = BoundedPcurveBuilder.Populate(imported.Value.Topology, imported.Value.Geometry, imported.Value.Bindings);
-        var importedPcurveEvidence = recoveredPcurves is null ? BrepPcurveValidator.Validate(imported.Value) : null;
+            recoveredPcurves = BoundedPcurveBuilder.Populate(imported.Value.Topology, imported.Value.Geometry, imported.Value.Bindings, tolerance: 1e-3d);
+        var importedPcurveEvidence = recoveredPcurves is null && imported.Value.PcurveRecoveryReport is null
+            ? BrepPcurveValidator.Validate(imported.Value) : null;
         var rendered = BrepWireframeSvgRenderer.Render(imported.Value, new(view, density, samples));
         Directory.CreateDirectory(Path.GetDirectoryName(output)!); File.WriteAllText(output, rendered.Svg);
         var report = new { command = "wireframe", success = true, input, output, rendered.Evidence,
-            pcurveRecovery = recoveredPcurves is null
+            pcurveRecovery = imported.Value.PcurveRecoveryReport is { } importRecovery
+                ? (object)new { importRecovery.IsSuccess, importRecovery.Count, importRecovery.MaximumResidual, importRecovery.Diagnostics }
+                : recoveredPcurves is null
                 ? (object)new { IsSuccess = importedPcurveEvidence!.IsValid, Count = importedPcurveEvidence.PcurveCount, MaximumResidual = importedPcurveEvidence.MaximumReconstructionDeviation, Diagnostics = importedPcurveEvidence.Diagnostics }
                 : new { recoveredPcurves.IsSuccess, recoveredPcurves.Count, recoveredPcurves.MaximumResidual, recoveredPcurves.Diagnostics } };
         if (json) stdout.WriteLine(JsonSerializer.Serialize(report, JsonOptions));

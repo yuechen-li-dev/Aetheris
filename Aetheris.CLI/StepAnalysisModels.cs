@@ -27,7 +27,29 @@ public sealed record AnalyzeSummary(
     IdRangeSummary EdgeIds,
     IdRangeSummary VertexIds,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FaceOrientationSummary? FaceOrientation = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] BoundaryTopologySummary? BoundaryTopology = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] BoundaryTopologySummary? BoundaryTopology = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SplineRecoverySummary? SplineRecovery = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] PcurveQualificationSummary? PcurveQualification = null);
+
+public sealed record PcurveQualificationSummary(
+    string Status,
+    int TotalFaceEdgeBindings,
+    int SourcePcurves,
+    int RecoveredPcurves,
+    int FailedBindings,
+    double? WorstLiftDeviationMillimetres,
+    double BaseToleranceMillimetres,
+    IReadOnlyDictionary<string, int> SurfaceFamilies);
+
+public sealed record SplineRecoverySummary(
+    int AnalyticEntities,
+    int ExactSplineEntities,
+    int RecoveredSplineEntities,
+    int UnsupportedEntities,
+    int RecoveredCurves,
+    int RecoveredSurfaces,
+    double? WorstMeasuredDeviationMillimetres,
+    double? RecoveryToleranceMillimetres);
 
 public sealed record BoundaryTopologySummary(
     int EdgeLoopCount,

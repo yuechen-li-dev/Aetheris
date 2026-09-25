@@ -100,35 +100,7 @@ internal static class Step242BsplineCurveRecoveryLane
     }
 
     internal static Point3D? EvaluateRational(BSpline3Curve curve, IReadOnlyList<double> weights, double parameter)
-    {
-        var p = curve.Degree;
-        var u = double.Min(double.Max(parameter, curve.DomainStart), curve.DomainEnd);
-        if (double.Abs(u - curve.DomainEnd) <= 1e-12d) return curve.ControlPoints[^1];
-        var span = FindSpan(curve, u);
-        var points = new (double X, double Y, double Z, double W)[p + 1];
-        for (var j = 0; j <= p; j++)
-        {
-            var index = span - p + j;
-            var w = weights[index];
-            var cp = curve.ControlPoints[index];
-            points[j] = (cp.X * w, cp.Y * w, cp.Z * w, w);
-        }
-
-        for (var r = 1; r <= p; r++)
-        {
-            for (var j = p; j >= r; j--)
-            {
-                var leftKnot = curve.FullKnots[span - p + j];
-                var rightKnot = curve.FullKnots[span + 1 + j - r];
-                var denominator = rightKnot - leftKnot;
-                var alpha = double.Abs(denominator) <= 1e-15d ? 0d : (u - leftKnot) / denominator;
-                points[j] = Lerp(points[j - 1], points[j], alpha);
-            }
-        }
-
-        if (double.Abs(points[p].W) <= DegenerateTolerance) return null;
-        return new Point3D(points[p].X / points[p].W, points[p].Y / points[p].W, points[p].Z / points[p].W);
-    }
+        => curve.EvaluateRational(weights, parameter);
 
     private static bool TryFitCircle(IReadOnlyList<Point3D> samples, out Circle3Curve circle, out string reason)
     {
@@ -171,24 +143,6 @@ internal static class Step242BsplineCurveRecoveryLane
         reason = string.Empty;
         return true;
     }
-
-    private static int FindSpan(BSpline3Curve curve, double u)
-    {
-        var n = curve.ControlPoints.Count - 1;
-        if (u >= curve.FullKnots[n + 1]) return n;
-        var low = curve.Degree;
-        var high = n + 1;
-        var mid = (low + high) / 2;
-        while (u < curve.FullKnots[mid] || u >= curve.FullKnots[mid + 1])
-        {
-            if (u < curve.FullKnots[mid]) high = mid; else low = mid;
-            mid = (low + high) / 2;
-        }
-        return mid;
-    }
-
-    private static (double X, double Y, double Z, double W) Lerp((double X, double Y, double Z, double W) a, (double X, double Y, double Z, double W) b, double t) =>
-        (a.X + ((b.X - a.X) * t), a.Y + ((b.Y - a.Y) * t), a.Z + ((b.Z - a.Z) * t), a.W + ((b.W - a.W) * t));
 
     private readonly record struct RecoveryContext(bool IsRationalLike, CircleProbe CircleProbe);
     private readonly record struct CircleProbe(Circle3Curve? Circle, string Reason);

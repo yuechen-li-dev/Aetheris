@@ -66,6 +66,29 @@ public sealed class Step242RationalBSplineCurveRecoveryTests
     }
 
     [Fact]
+    public void GenericRationalCurveRecoversWithinConfigurableEngineeringTolerance()
+    {
+        var source = new BSpline3Curve(2,
+            [new Point3D(0d, 0d, 0d), new Point3D(0.3d, 0.9d, 0.2d),
+                new Point3D(1d, 0d, 0d), new Point3D(1.5d, 0.4d, 0.6d)],
+            [3, 1, 3], [0d, 0.5d, 1d], "UNSPECIFIED", false, false, "UNSPECIFIED");
+        double[] weights = [1d, 0.8d, 1.2d, 1d];
+
+        Assert.True(BSplineCurveRationalReduction.TryReduce(source, weights, 0.1d,
+            out var coarse, out var coarseDeviation, out _));
+        Assert.True(BSplineCurveRationalReduction.TryReduce(source, weights, 0.001d,
+            out var fine, out var fineDeviation, out _));
+        Assert.InRange(coarseDeviation, 0d, 0.1d);
+        Assert.InRange(fineDeviation, 0d, 0.001d);
+        Assert.True(fine.ControlPoints.Count >= coarse.ControlPoints.Count);
+        for (var i = 0; i <= 100; i++)
+        {
+            var u = i / 100d;
+            Assert.InRange((source.EvaluateRational(weights, u)!.Value - fine.Evaluate(u)).Length, 0d, 0.001d);
+        }
+    }
+
+    [Fact]
     public void LeavesNonRationalBSplineUnchanged()
     {
         var curve = CreateQuarterCircleSpline(System.Math.Sqrt(0.5d));

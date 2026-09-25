@@ -51,6 +51,9 @@ public sealed class BrepBody
     /// </summary>
     public FaceOrientationReport? FaceOrientationReport { get; }
 
+    /// <summary>Present when an interchange body required reconstructed trim bindings.</summary>
+    public BrepPcurveRecoveryResult? PcurveRecoveryReport { get; internal set; }
+
     public bool TryGetVertexPoint(VertexId vertexId, out Point3D point) => _vertexPoints.TryGetValue(vertexId, out point);
 
     public bool TryGetEdgeCurveGeometry(EdgeId edgeId, out CurveGeometry? curve)

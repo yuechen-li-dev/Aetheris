@@ -42,6 +42,7 @@ public static class BrepPcurveValidator
                 if (requireEveryCoedge) diagnostics.Add($"surf-pcurve-missing:coedge={coedge.Id.Value}");
                 continue;
             }
+            var bindingTolerance = binding.Qualification?.QualificationToleranceMillimetres ?? tolerance;
             var face = body.Topology.Faces.SingleOrDefault(candidate => candidate.LoopIds.Contains(coedge.LoopId));
             if (face is null || face.Id != binding.FaceId)
             {
@@ -69,7 +70,7 @@ public static class BrepPcurveValidator
                 var parameter = interval.Start + ((interval.End - interval.Start) * fraction);
                 var curveParameter = binding.SameSense ? parameter : interval.End - ((parameter - interval.Start));
                 var uv = binding.Pcurve.Evaluate(curveParameter);
-                if (!WithinSurfaceDomain(surface, uv, tolerance))
+                if (!WithinSurfaceDomain(surface, uv, bindingTolerance))
                 {
                     domainValid = false;
                     diagnostics.Add($"surf-pcurve-invalid:coedge={coedge.Id.Value}:surface-domain:u={uv.U:R}:v={uv.V:R}");
@@ -87,15 +88,15 @@ public static class BrepPcurveValidator
                 residualSamples++;
             }
             maximum = double.Max(maximum, coedgeMaximum);
-            if (coedgeMaximum > tolerance)
-                diagnostics.Add($"surf-pcurve-invalid:coedge={coedge.Id.Value}:face={face.Id.Value}:surface={surface.Kind}:curve={curve.Kind}:pcurve={binding.Pcurve.Kind}:deviation={coedgeMaximum:R}:tolerance={tolerance:R}");
+            if (coedgeMaximum > bindingTolerance)
+                diagnostics.Add($"surf-pcurve-invalid:coedge={coedge.Id.Value}:face={face.Id.Value}:surface={surface.Kind}:curve={curve.Kind}:pcurve={binding.Pcurve.Kind}:deviation={coedgeMaximum:R}:tolerance={bindingTolerance:R}");
 
             if (body.TryGetVertexPoint(coedge.IsReversed ? body.Topology.GetEdge(coedge.EdgeId).EndVertexId : body.Topology.GetEdge(coedge.EdgeId).StartVertexId, out var start))
             {
                 var parameter = coedge.IsReversed ? interval.End : interval.Start;
                 var uv = binding.Pcurve.Evaluate(binding.SameSense ? parameter : interval.End - (parameter - interval.Start));
                 var reconstructed = Evaluate(surface, uv);
-                if (reconstructed is null || (reconstructed.Value - start).Length > tolerance)
+                if (reconstructed is null || (reconstructed.Value - start).Length > bindingTolerance)
                 {
                     orientationValid = false;
                     diagnostics.Add($"surf-pcurve-invalid:coedge={coedge.Id.Value}:orientation");
@@ -109,7 +110,7 @@ public static class BrepPcurveValidator
                 var parameter = coedge.IsReversed ? interval.Start : interval.End;
                 var uv = binding.Pcurve.Evaluate(binding.SameSense ? parameter : interval.End - (parameter - interval.Start));
                 var reconstructed = Evaluate(surface, uv);
-                if (reconstructed is null || (reconstructed.Value - endPoint).Length > tolerance)
+                if (reconstructed is null || (reconstructed.Value - endPoint).Length > bindingTolerance)
                 {
                     orientationValid = false;
                     diagnostics.Add($"surf-pcurve-invalid:coedge={coedge.Id.Value}:end-orientation");
@@ -127,16 +128,18 @@ public static class BrepPcurveValidator
                 var nextUv = nextBinding.Pcurve.Evaluate(nextBinding.SameSense ? nextLoopParameter : nextInterval.End - (nextLoopParameter - nextInterval.Start));
                 var closure = UvDistance(surface, currentUv, nextUv);
                 maximumUvClosure = double.Max(maximumUvClosure, closure);
-                if (closure > tolerance)
+                var closureTolerance = double.Max(bindingTolerance,
+                    nextBinding.Qualification?.QualificationToleranceMillimetres ?? tolerance);
+                if (closure > closureTolerance)
                 {
                     loopClosureValid = false;
-                    diagnostics.Add($"surf-pcurve-invalid:coedge={coedge.Id.Value}:uv-loop-closure={closure:R}:tolerance={tolerance:R}");
+                    diagnostics.Add($"surf-pcurve-invalid:coedge={coedge.Id.Value}:uv-loop-closure={closure:R}:tolerance={closureTolerance:R}");
                 }
             }
         }
 
         var count = body.Bindings.PcurveBindings.Count();
-        var valid = diagnostics.Count == 0 && maximum <= tolerance && domainValid && orientationValid && loopClosureValid;
+        var valid = diagnostics.Count == 0 && domainValid && orientationValid && loopClosureValid;
         return new(valid, body.Topology.Edges.Count(), count, maximum, domainValid, orientationValid, diagnostics)
         {
             LoopClosureValid = loopClosureValid,

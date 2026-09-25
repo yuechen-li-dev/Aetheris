@@ -12,7 +12,8 @@ internal sealed record ImportedStepPcurve(
     int PcurveEntityId,
     int CurveEntityId,
     string CurveType,
-    int SurfaceEntityId);
+    int SurfaceEntityId,
+    double? DeclaredQualificationToleranceMillimetres);
 
 internal static class StepPcurveDecoder
 {
@@ -51,8 +52,17 @@ internal static class StepPcurveDecoder
             if (!curveResult.IsSuccess) return KernelResult<IReadOnlyList<ImportedStepPcurve>>.Failure(curveResult.Diagnostics);
             var geometryResult = DecodeGeometry(document, curveResult.Value, edgeDomain);
             if (!geometryResult.IsSuccess) return KernelResult<IReadOnlyList<ImportedStepPcurve>>.Failure(geometryResult.Diagnostics);
+            const string qualifier = "aetheris-qualified-pcurve:";
+            var name = (representationResult.Value.Arguments.ElementAtOrDefault(0) as Step242StringValue)?.Value;
+            double? declaredTolerance = null;
+            if (name?.StartsWith(qualifier, StringComparison.Ordinal) == true
+                && double.TryParse(name[qualifier.Length..], System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var parsedTolerance)
+                && double.IsFinite(parsedTolerance) && parsedTolerance is > 0d and <= 0.1d)
+                declaredTolerance = parsedTolerance;
             result.Add(new ImportedStepPcurve(geometryResult.Value.Geometry, geometryResult.Value.SameSense,
-                pcurve.Id, curveResult.Value.Id, DescribeCurveType(curveResult.Value), supportReference.TargetId));
+                pcurve.Id, curveResult.Value.Id, DescribeCurveType(curveResult.Value), supportReference.TargetId,
+                declaredTolerance));
         }
         return KernelResult<IReadOnlyList<ImportedStepPcurve>>.Success(result);
     }
@@ -123,10 +133,15 @@ internal static class StepPcurveDecoder
         {
             var spline = Step242SubsetDecoder.ReadBSplineCurveWithKnots(document, splineEntity, allowTwoDimensionalControlPoints: true);
             if (!spline.IsSuccess) return KernelResult<DecodedPcurveGeometry>.Failure(spline.Diagnostics);
-            var splineDomain = new ParameterInterval(
-                System.Math.Max(domain.Start, spline.Value.DomainStart),
-                System.Math.Min(domain.End, spline.Value.DomainEnd));
-            if (fallbackDomain.Equals(domain)) splineDomain = new ParameterInterval(spline.Value.DomainStart, spline.Value.DomainEnd);
+            var splineStart = fallbackDomain.Equals(domain) ? spline.Value.DomainStart
+                : System.Math.Max(domain.Start, spline.Value.DomainStart);
+            var splineEnd = fallbackDomain.Equals(domain) ? spline.Value.DomainEnd
+                : System.Math.Min(domain.End, spline.Value.DomainEnd);
+            if (splineEnd < splineStart)
+                return Failure<DecodedPcurveGeometry>(
+                    $"Pcurve parameter interval [{domain.Start:R}, {domain.End:R}] does not overlap its spline domain [{spline.Value.DomainStart:R}, {spline.Value.DomainEnd:R}].",
+                    "Importer.Pcurve.SplineDomain");
+            var splineDomain = new ParameterInterval(splineStart, splineEnd);
             var rational = Step242SubsetDecoder.TryGetConstructor(source.Instance, "RATIONAL_B_SPLINE_CURVE");
             if (rational is null)
                 return Success(PcurveGeometry.Polynomial(splineDomain, spline.Value));

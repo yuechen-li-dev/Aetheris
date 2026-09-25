@@ -194,7 +194,7 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         var importResponse = await _client.PostAsJsonAsync(
             $"/api/v1/documents/{document.Data!.DocumentId}/import/step",
             new StepImportRequestDto(unsupportedStepText, "Unsupported"));
-        importResponse.EnsureSuccessStatusCode();
+        Assert.True(importResponse.IsSuccessStatusCode, await importResponse.Content.ReadAsStringAsync());
         var imported = await importResponse.Content.ReadFromJsonAsync<ApiResponseDto<StepImportResponseDto>>();
         Assert.NotNull(imported);
         Assert.True(imported!.Success);
@@ -338,7 +338,7 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         var importResponse = await _client.PostAsJsonAsync(
             $"/api/v1/documents/{document.Data!.DocumentId}/import/step",
             new StepImportRequestDto(unsupportedStepText, "Unsupported"));
-        importResponse.EnsureSuccessStatusCode();
+        Assert.True(importResponse.IsSuccessStatusCode, await importResponse.Content.ReadAsStringAsync());
         var imported = await importResponse.Content.ReadFromJsonAsync<ApiResponseDto<StepImportResponseDto>>();
 
         var displayPrepared = await PrepareDisplayAsync(document.Data.DocumentId, imported!.Data!.OccurrenceId);

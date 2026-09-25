@@ -46,6 +46,16 @@ internal sealed class StepSourceConnector : ISourceConnector
             return KernelResult<IParsedSourceDocument>.Failure(parseResult.Diagnostics);
         }
 
+        var tolerance = request.Policy?.RecoveryToleranceMillimetres ?? 0.1d;
+        if (!double.IsFinite(tolerance) || tolerance <= 0d)
+            return Step242ImportSharedUtilities.NotImplementedFailure<IParsedSourceDocument>(
+                "RecoveryToleranceMillimetres must be a positive finite distance.", "Importer.RecoveryTolerance");
+        parseResult.Value.RecoveryToleranceMillimetres = tolerance;
+        var pcurveTolerance = request.Policy?.PcurveQualificationToleranceMillimetres ?? 1e-3d;
+        if (!double.IsFinite(pcurveTolerance) || pcurveTolerance <= 0d)
+            return Step242ImportSharedUtilities.NotImplementedFailure<IParsedSourceDocument>(
+                "PcurveQualificationToleranceMillimetres must be a positive finite distance.", "Importer.PcurveQualificationTolerance");
+        parseResult.Value.PcurveQualificationToleranceMillimetres = double.Min(pcurveTolerance, tolerance);
         return KernelResult<IParsedSourceDocument>.Success(new StepParsedSourceDocument(parseResult.Value));
     }
 }

@@ -684,6 +684,31 @@ public static class BrepDisplayTessellator
         var loopIds = body.GetLoopIds(faceId)
             .Where(loopId => body.Topology.GetLoop(loopId).Kind == LoopKind.Edge)
             .ToArray();
+        // A one-loop helical gap is a narrow diagonal strip in cylinder UV.
+        // Its bounding rectangle covers the rib footprint and is not a valid
+        // display patch. Use the authored pcurves for this bounded trim family.
+        if (loopIds.Length == 1 && body.GetCoedgeIds(loopIds[0]).Any(id =>
+        {
+            if (!body.Bindings.TryGetPcurveBinding(id, out var binding) || binding.FaceId != faceId)
+                return false;
+            var domain = binding.Pcurve.Domain;
+            var start = binding.Pcurve.Evaluate(domain.Start);
+            var end = binding.Pcurve.Evaluate(domain.End);
+            return double.Abs(end.U - start.U) > 1e-8d && double.Abs(end.V - start.V) > 1e-8d;
+        }))
+        {
+            var uvLoops = TryBuildTrimmedSurfaceUvLoops(body, faceId, loopIds,
+                point => TryProjectPointToCylinderUv(cylinder, point), options, executionBudget,
+                SurfaceGeometryKind.Cylinder);
+            if (!uvLoops.IsSuccess)
+                return KernelResult<DisplayFaceMeshPatch>.Failure(uvLoops.Diagnostics);
+            return TrimmedSurfaceTessellator.Tessellate(faceId, uvLoops.Value,
+                (u, v) => cylinder.Evaluate(u, v),
+                (u, _) => cylinder.Normal(u).ToVector(), options,
+                double.NegativeInfinity, double.PositiveInfinity,
+                double.NegativeInfinity, double.PositiveInfinity,
+                CreateValidationWarning, executionBudget, SurfaceGeometryKind.Cylinder);
+        }
         if (loopIds.Length == 2
             && TryResolveDualSingleCoedgeClosedCircleCylinderTrimPatch(body, faceId, cylinder, loopIds, cylinder.Axis.ToVector(), 1e-8d).IsSuccess)
         {

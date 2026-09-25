@@ -156,14 +156,17 @@ public static class WireCoilGeometry
 {
     public static Point3D EvaluateAxis(WireAxisCoilAir coil, double t)
     {
-        var theta = (coil.Handedness == WireCoilHandedness.RightHanded ? 1d : -1d) * 2d * Math.PI * coil.Turns * Math.Clamp(t, 0d, 1d);
-        return coil.AxisOrigin + Rotate(coil.StartRadial.ToVector(), coil.Axis.ToVector(), theta) * coil.RadiusMm + coil.Axis.ToVector() * (coil.HeightMm * t);
+        var helix = AxisHelix(coil);
+        return helix.Evaluate(helix.EndAngleRadians * Math.Clamp(t, 0d, 1d));
     }
     public static Direction3D TangentAxis(WireAxisCoilAir coil, double t)
     {
-        var sign = coil.Handedness == WireCoilHandedness.RightHanded ? 1d : -1d; var radial = Rotate(coil.StartRadial.ToVector(), coil.Axis.ToVector(), sign * 2d * Math.PI * coil.Turns * t);
-        return Direction3D.Create(WireFormAuthoring.Cross(coil.Axis.ToVector(), radial) * (sign * 2d * Math.PI * coil.Turns * coil.RadiusMm) + coil.Axis.ToVector() * coil.HeightMm);
+        var helix = AxisHelix(coil);
+        return Direction3D.Create(helix.Derivative(helix.EndAngleRadians * Math.Clamp(t, 0d, 1d)));
     }
+    private static CylindricalHelix3 AxisHelix(WireAxisCoilAir coil) => new(
+        coil.AxisOrigin, coil.Axis, coil.StartRadial, coil.RadiusMm, coil.HeightMm / coil.Turns,
+        0d, 0d, 2d * Math.PI * coil.Turns, coil.Handedness == WireCoilHandedness.RightHanded);
     public static Point3D EvaluateSurface(WireSurfaceCoilAir coil, double t)
     {
         t = Math.Clamp(t, 0d, 1d); var sign = coil.Handedness == WireCoilHandedness.RightHanded ? 1d : -1d; var theta = sign * 2d * Math.PI * coil.Turns * t;

@@ -1097,7 +1097,7 @@ public static class Step242Importer
                 }
 
                 return FailureCurveBinding(
-                    $"RATIONAL_B_SPLINE_CURVE is unsupported unless it recovers as an analytic circle. {recoveryDecision.Reason}",
+                    $"RATIONAL_B_SPLINE_CURVE #{curveEntity.Id} cannot be imported exactly: the curve is not a qualified analytic circle, and CurveGeometry has no weighted B-spline curve representation. Do not discard its weights or substitute the polynomial control polygon. {recoveryDecision.Reason}",
                     SourceFor(curveEntity.Id, "Importer.Geometry.RationalBSplineCurve"));
             }
 

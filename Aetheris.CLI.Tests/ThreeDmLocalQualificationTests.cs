@@ -1,11 +1,10 @@
 using Aetheris.ThreeDm;
-using Xunit.Sdk;
 
 namespace Aetheris.CLI.Tests;
 
 public sealed class ThreeDmLocalQualificationTests
 {
-    [Fact]
+    [LocalThreeDmFact]
     public void CartesianProductInventoryUsesFileUnitsAndNeverClaimsConversion()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
@@ -13,7 +12,7 @@ public sealed class ThreeDmLocalQualificationTests
             directory = directory.Parent;
         if (directory is null) throw new DirectoryNotFoundException("Aetheris repository root was not found.");
         var path = Path.Combine(directory.FullName, "testdata", "3DM", "cartesian-product-metres.3dm");
-        if (!File.Exists(path)) throw SkipException.ForSkip("Local Cartesian 3DM qualification fixture is absent.");
+        Assert.True(File.Exists(path), "Local Cartesian 3DM fixture disappeared after test discovery.");
 
         var inventory = ThreeDmInspector.Inspect(path);
         Assert.Equal("Meters", inventory.SourceUnit);

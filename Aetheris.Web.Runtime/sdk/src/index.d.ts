@@ -23,7 +23,11 @@ export interface CompileOptions extends OperationOptions { readonly sourceName?:
 export interface LanguageOptions { readonly sourceName?: string; readonly sourceRevision: string }
 export interface LanguageField { readonly name: string; readonly type: string; readonly required: boolean; readonly meaning: string; readonly default?: string | null; readonly choices?: readonly string[] | null }
 export interface LanguageEntry { readonly constructId: string; readonly name: string; readonly context: string; readonly source: string }
-export interface LanguageCompletion { readonly document: string; readonly revision: string; readonly context: string; readonly replaceStart: number; readonly replaceLength: number; readonly fields: readonly LanguageField[]; readonly missingRequiredFields: readonly string[]; readonly entries?: readonly LanguageEntry[] | null }
+export interface LanguageCompletion { readonly document: string; readonly revision: string; readonly context: string; readonly replaceStart: number; readonly replaceLength: number; readonly fields: readonly LanguageField[]; readonly missingRequiredFields: readonly string[]; readonly entries?: readonly LanguageEntry[] | null; readonly values?: readonly string[] | null }
+export interface LanguageToken { readonly start: number; readonly length: number; readonly kind: 'keyword' | 'construct' | 'type' | 'identifier' | 'field' | 'number' | 'unit' | 'string' | 'comment' | 'punctuation' | 'selector' | 'value' }
+export interface LanguageAnalysis { readonly document: string; readonly revision: string; readonly tokens: readonly LanguageToken[]; readonly diagnostics: readonly Diagnostic[] }
+export interface LanguageHover { readonly document: string; readonly revision: string; readonly start: number; readonly length: number; readonly title: string; readonly description: string }
+export interface LanguageFormat { readonly document: string; readonly revision: string; readonly text: string; readonly changed: boolean }
 export interface SemanticFieldSchema { readonly id: string; readonly name: string; readonly kind: string; readonly unit: 'None' | 'Length' | 'Angle'; readonly required: boolean; readonly default: string | null; readonly choices: readonly string[]; readonly description: string | null; readonly sourceEditable: boolean }
 export interface SemanticOutputSchema { readonly id: string; readonly name: string; readonly kind: string; readonly sourceAddressable: boolean; readonly sourceRole: string | null }
 export interface SemanticConstructSchema { readonly id: string; readonly name: string; readonly context: string | null; readonly entry: string | null; readonly description: string | null; readonly compatibilityAlias: string | null; readonly fields: readonly SemanticFieldSchema[]; readonly outputs: readonly SemanticOutputSchema[] }
@@ -39,7 +43,7 @@ export class Aetheris {
   static create(options?: AetherisOptions): Promise<Aetheris>;
   readonly runtimeInfo: RuntimeInfo;
   readonly workerTiming: WorkerTiming | null;
-  readonly language: { complete(source: string, offset: number, options: LanguageOptions): Promise<LanguageCompletion>; schema(): Promise<SemanticSchema> };
+  readonly language: { complete(source: string, offset: number, options: LanguageOptions): Promise<LanguageCompletion>; analyze(source: string, options: LanguageOptions): Promise<LanguageAnalysis>; hover(source: string, offset: number, options: LanguageOptions): Promise<LanguageHover | null>; definition(source: string, offset: number, options: LanguageOptions): Promise<SourceReference | null>; format(source: string, options: LanguageOptions): Promise<LanguageFormat>; schema(): Promise<SemanticSchema> };
   info(): Promise<RuntimeInfo>;
   capabilities(): Promise<RuntimeCapabilities>;
   compile(source: string, options?: CompileOptions): Promise<{ model: ModelSession | null; diagnostics: readonly Diagnostic[] }>;

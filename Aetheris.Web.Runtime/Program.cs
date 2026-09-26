@@ -32,11 +32,15 @@ public static partial class Program
             var request = JsonSerializer.Deserialize<WebRequest>(requestJson, JsonOptions)
                 ?? throw new WebRuntimeException("invalid-request", "The runtime request was empty.");
             if (request.Performance) BuildPerfTrace.Start();
-            object result = request.Operation switch
+            object? result = request.Operation switch
             {
                 "info" => Info(),
                 "compile" => Compile(request),
                 "languageComplete" => LanguageComplete(request),
+                "languageAnalyze" => LanguageAnalyze(request),
+                "languageHover" => LanguageHover(request),
+                "languageDefinition" => LanguageDefinition(request),
+                "languageFormat" => LanguageFormat(request),
                 "languageSchema" => LanguageSchema(),
                 "describeConstruct" => DescribeConstruct(request),
                 "rewriteField" => RewriteField(request),
@@ -97,6 +101,40 @@ public static partial class Program
             throw new WebRuntimeException("language-input-required", "languageComplete requires source, offset, and sourceRevision.");
         return FirmamentLanguageService.Complete(request.Source, request.SourceName ?? "model.firmament",
             request.SourceRevision, request.Offset.Value);
+    }
+
+    private static object LanguageAnalyze(WebRequest request)
+    {
+        if (request.Source is null || string.IsNullOrWhiteSpace(request.SourceRevision))
+            throw new WebRuntimeException("language-input-required", "languageAnalyze requires source and sourceRevision.");
+        var name = request.SourceName ?? "model.firmament";
+        var analysis = FirmamentLanguageAnalysisService.Analyze(request.Source, name, request.SourceRevision);
+        return new { document = name, revision = request.SourceRevision, analysis.Tokens,
+            diagnostics = analysis.Diagnostics.Select(item => new WebDiagnostic(item.Severity, item.Code, item.Message,
+                SourceRefAt(name, request.Source, item.Start, item.Length))).ToArray() };
+    }
+
+    private static object? LanguageHover(WebRequest request)
+    {
+        if (request.Source is null || request.Offset is null || string.IsNullOrWhiteSpace(request.SourceRevision))
+            throw new WebRuntimeException("language-input-required", "languageHover requires source, offset, and sourceRevision.");
+        return FirmamentLanguageAnalysisService.Hover(request.Source, request.SourceName ?? "model.firmament", request.SourceRevision, request.Offset.Value);
+    }
+
+    private static object? LanguageDefinition(WebRequest request)
+    {
+        if (request.Source is null || request.Offset is null)
+            throw new WebRuntimeException("language-input-required", "languageDefinition requires source and offset.");
+        var location = FirmamentLanguageAnalysisService.Definition(request.Source, request.SourceName ?? "model.firmament", request.Offset.Value);
+        return location is null ? null : SourceRefAt(location.Document, request.Source, location.Start, location.Length);
+    }
+
+    private static object LanguageFormat(WebRequest request)
+    {
+        if (request.Source is null || string.IsNullOrWhiteSpace(request.SourceRevision))
+            throw new WebRuntimeException("language-input-required", "languageFormat requires source and sourceRevision.");
+        try { return FirmamentLanguageAnalysisService.Format(request.Source, request.SourceName ?? "model.firmament", request.SourceRevision); }
+        catch (InvalidOperationException exception) { throw new WebRuntimeException("format-refused", exception.Message); }
     }
 
     private static object LanguageSchema() => new

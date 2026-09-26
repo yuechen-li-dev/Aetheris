@@ -83,6 +83,14 @@ export class Aetheris {
     this.language = {
       schema: () => this.transport.request({ operation: 'languageSchema' }),
       complete: (source, offset, options = {}) => this.transport.request({ operation: 'languageComplete', source, offset,
+        sourceName: options.sourceName, sourceRevision: options.sourceRevision }),
+      analyze: (source, options = {}) => this.transport.request({ operation: 'languageAnalyze', source,
+        sourceName: options.sourceName, sourceRevision: options.sourceRevision }),
+      hover: (source, offset, options = {}) => this.transport.request({ operation: 'languageHover', source, offset,
+        sourceName: options.sourceName, sourceRevision: options.sourceRevision }),
+      definition: (source, offset, options = {}) => this.transport.request({ operation: 'languageDefinition', source, offset,
+        sourceName: options.sourceName, sourceRevision: options.sourceRevision }),
+      format: (source, options = {}) => this.transport.request({ operation: 'languageFormat', source,
         sourceName: options.sourceName, sourceRevision: options.sourceRevision })
     };
   }

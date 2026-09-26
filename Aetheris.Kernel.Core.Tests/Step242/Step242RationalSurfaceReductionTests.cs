@@ -38,10 +38,7 @@ public sealed class Step242RationalSurfaceReductionTests
     [Trait("Category", "SlowCorpus")]
     public void ExportedFile_ContainsNoRationalSurface(string relativePath)
     {
-        var import = Step242Importer.ImportBody(ReadFixture(relativePath));
-        Assert.True(import.IsSuccess);
-
-        var exported = Step242Exporter.ExportBody(import.Value);
+        var exported = Step242Exporter.ExportBody(Step242Corpus.Body(relativePath));
 
         Assert.True(exported.IsSuccess);
         Assert.DoesNotContain("RATIONAL_B_SPLINE_SURFACE", exported.Value, StringComparison.Ordinal);
@@ -147,6 +144,4 @@ public sealed class Step242RationalSurfaceReductionTests
     private static int CountRationalSurfaces(Aetheris.Kernel.Core.Brep.BrepBody body)
         => body.Geometry.Surfaces.Count(surface => surface.Value.BSplineSurfaceWithKnots is { IsRational: true });
 
-    private static string ReadFixture(string relativePath)
-        => File.ReadAllText(Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar)));
 }

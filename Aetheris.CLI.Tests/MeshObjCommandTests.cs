@@ -19,15 +19,30 @@ public sealed class MeshObjCommandTests
             Assert.Equal(0, exit);
             Assert.True(string.IsNullOrWhiteSpace(stderr.ToString()));
             using var result = JsonDocument.Parse(stdout.ToString());
-            Assert.Equal("obj", result.RootElement.GetProperty("format").GetString());
-            Assert.Equal(905, result.RootElement.GetProperty("quadCount").GetInt32());
-            Assert.Equal(7, result.RootElement.GetProperty("triangleCount").GetInt32());
-            Assert.True(result.RootElement.GetProperty("quadPercentage").GetDouble() > 90d);
+            var mesh = result.RootElement;
+            Assert.Equal("obj", mesh.GetProperty("format").GetString());
+            Assert.Equal("SurfaceMeshIR", mesh.GetProperty("pipeline").GetString());
+            Assert.Equal(21, mesh.GetProperty("coverage").GetProperty("faceCount").GetInt32());
+            Assert.Equal(21, mesh.GetProperty("patchCount").GetInt32());
+            Assert.Equal(
+                mesh.GetProperty("quadCount").GetInt32()
+                + mesh.GetProperty("triangleCount").GetInt32()
+                + mesh.GetProperty("boundaryPolygonCount").GetInt32(),
+                mesh.GetProperty("polygonCount").GetInt32());
+            Assert.True(mesh.GetProperty("quadPercentage").GetDouble() > 90d);
+            Assert.True(mesh.GetProperty("watertight").GetBoolean());
+            Assert.True(mesh.GetProperty("connected").GetBoolean());
+            Assert.True(mesh.GetProperty("outwardOriented").GetBoolean());
+            Assert.Equal(0, mesh.GetProperty("crackCount").GetInt32());
+            Assert.Equal(0, mesh.GetProperty("nonManifoldEdgeCount").GetInt32());
+            Assert.Equal(0, mesh.GetProperty("zeroAreaTriangleCount").GetInt32());
             var obj = File.ReadAllText(output);
             Assert.Contains("vt ", obj);
             Assert.Contains("vn ", obj);
             Assert.Contains("f ", obj);
             Assert.Contains("/", obj); // OBJ corners carry attribute identity separately from v identity.
+            Assert.Equal(mesh.GetProperty("polygonCount").GetInt32(),
+                obj.Split('\n').Count(line => line.StartsWith("f ", StringComparison.Ordinal)));
         }
         finally
         {

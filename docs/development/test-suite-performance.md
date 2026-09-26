@@ -1,5 +1,7 @@
 # Test-suite performance profile — 2026-09-24
 
+Historical baseline: the `Step242Corpus` memoized fixture described below is now implemented. The 2026-09-25 hardening pass removed further ordinary reimports and measured the current suite in [AETHERIS-HARDENING-X4](../release/AETHERIS-HARDENING-X4.md). The timings and recommendations below describe the earlier VM run, not the current tree.
+
 Measured on the Cowork Linux VM (`nproc` = 2), Release, `dotnet test` with a TRX logger.
 Wall-clock numbers are therefore parallelism-bound on this box and will differ on the
 dev machine. **CPU time is the machine-independent number and is what the analysis below

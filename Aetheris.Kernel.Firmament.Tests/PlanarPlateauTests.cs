@@ -129,6 +129,28 @@ public sealed class PlanarPlateauTests
     }
 
     [Fact]
+    public void PolynomialPcurvesKeepDegreeKnotsAndExactPlaneParameters()
+    {
+        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/Surfacing/g2-planar-plateau.firmament");
+        var built = FirmamentBuildAndExport.CompileSource(source);
+        Assert.True(built.IsSuccess);
+        Assert.True(built.Value.Plateau!.Pcurves.MaximumReconstructionDeviation < 1e-9);
+        // Export retains 2D B-spline entities; it no longer samples polynomial trims.
+        Assert.Contains("B_SPLINE_CURVE_WITH_KNOTS", built.Value.StepText);
+        Assert.Contains("DEFINITIONAL_REPRESENTATION", built.Value.StepText);
+    }
+}
+
+// The 35-face display export takes about one second alone but can consume the five-second
+// production budget under concurrent geometry tests. Keep its real-path budget and run this
+// integration case without competing test collections.
+[CollectionDefinition("PlanarPlateauDisplayExport", DisableParallelization = true)]
+public sealed class PlanarPlateauDisplayExportCollection;
+
+[Collection("PlanarPlateauDisplayExport")]
+public sealed class PlanarPlateauDisplayExportTests
+{
+    [Fact]
     public void FreshAuthoredPhoneUsesGenericPlateauAndMeshesEveryFace()
     {
         var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Experiments/IPhone17ProMax/refined-plateau.firmament");
@@ -140,17 +162,5 @@ public sealed class PlanarPlateauTests
         var mesh = Aetheris.Kernel.Firmament.Assembly.AssemblyDisplayMeshExporter.Export(compiled);
         Assert.Equal(16, mesh.Definitions.Count);
         Assert.All(mesh.Definitions, d => Assert.NotEmpty(d.Indices));
-    }
-
-    [Fact]
-    public void PolynomialPcurvesKeepDegreeKnotsAndExactPlaneParameters()
-    {
-        var source = FirmamentCorpusHarness.ReadFixtureText("fixtures/Canonical/Surfacing/g2-planar-plateau.firmament");
-        var built = FirmamentBuildAndExport.CompileSource(source);
-        Assert.True(built.IsSuccess);
-        Assert.True(built.Value.Plateau!.Pcurves.MaximumReconstructionDeviation < 1e-9);
-        // Export retains 2D B-spline entities; it no longer samples polynomial trims.
-        Assert.Contains("B_SPLINE_CURVE_WITH_KNOTS", built.Value.StepText);
-        Assert.Contains("DEFINITIONAL_REPRESENTATION", built.Value.StepText);
     }
 }

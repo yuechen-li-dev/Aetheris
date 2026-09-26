@@ -81,7 +81,7 @@ public sealed class Step242BsplineSurfaceRecoveryTests
     [Trait("Category", "SlowCorpus")]
     public void NistCtc02FreeFormBlends_AreNotRecovered()
     {
-        var import = Step242Importer.ImportBody(ReadFixture("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp"));
+        var import = Step242Corpus.Import("testdata/step242/nist/CTC/nist_ctc_02_asme1_ap242-e2.stp");
 
         Assert.True(import.IsSuccess);
         Assert.Equal(34, CountFaceSurfaces(import.Value, SurfaceGeometryKind.BSplineSurfaceWithKnots));
@@ -96,7 +96,7 @@ public sealed class Step242BsplineSurfaceRecoveryTests
     [Fact]
     public void NistCtc05VertexBlends_ReportEveryPrimitiveTheyWereMeasuredAgainst()
     {
-        var import = Step242Importer.ImportBody(ReadFixture("testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp"));
+        var import = Step242Corpus.Import("testdata/step242/nist/CTC/nist_ctc_05_asme1_ap242-e1.stp");
 
         Assert.True(import.IsSuccess);
         var rejected = import.Diagnostics
@@ -110,7 +110,7 @@ public sealed class Step242BsplineSurfaceRecoveryTests
     [Fact]
     public void RecoveredSurfaces_ReportWhatTheyReplacedAndHowCloselyTheyMatch()
     {
-        var import = Step242Importer.ImportBody(ReadFixture("testdata/step242/OCCT/rod.step"));
+        var import = Step242Corpus.Import("testdata/step242/OCCT/rod.step");
 
         Assert.True(import.IsSuccess);
         var recovered = import.Diagnostics
@@ -197,6 +197,4 @@ public sealed class Step242BsplineSurfaceRecoveryTests
 
     private static IReadOnlyList<double> ArcWeights() => [1d, ArcWeight, 1d];
 
-    private static string ReadFixture(string relativePath)
-        => File.ReadAllText(Path.Combine(Step242CorpusManifestRunner.RepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar)));
 }

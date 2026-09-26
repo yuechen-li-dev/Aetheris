@@ -39,6 +39,15 @@ jobs:
       - name: Test kernel
         run: dotnet test Aetheris.Kernel.Core.Tests/Aetheris.Kernel.Core.Tests.csproj --configuration Release --no-build --filter "Category!=SlowCorpus"
 
+      - name: Restore solution
+        run: dotnet restore Aetheris.slnx
+
+      - name: Build solution
+        run: dotnet build Aetheris.slnx --configuration Release --no-restore -m:1
+
+      - name: Test full solution
+        run: dotnet test Aetheris.slnx --configuration Release --no-build -m:1 -- RunConfiguration.MaxCpuCount=1
+
   public-library-build:
     if: github.event_name == 'workflow_dispatch'
     runs-on: windows-latest

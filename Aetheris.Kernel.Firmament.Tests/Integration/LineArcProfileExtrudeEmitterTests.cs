@@ -36,6 +36,17 @@ public class LineArcProfileExtrudeEmitterTests
     }
 
     [Fact]
+    public void RejectsNonFiniteProfileCoordinatesBeforePlanningTopology()
+    {
+        var result = LineArcProfileExtrudeEmitter.TryEmit(
+            new LineArcProfileExtrudeRequest([RectOuter(double.NaN, 10)], 5));
+
+        Assert.Equal(LineArcProfileExtrudeStatus.Rejected, result.Status);
+        Assert.Null(result.Body);
+        Assert.Contains(result.Diagnostics, x => x.Contains("non-finite line", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void StitchesAdjacentProfileSegmentsIntoSharedTopology()
     {
         var result = LineArcProfileExtrudeEmitter.TryEmit(new LineArcProfileExtrudeRequest([RectOuter(20, 10)], 5));

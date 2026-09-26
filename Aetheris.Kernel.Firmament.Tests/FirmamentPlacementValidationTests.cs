@@ -287,13 +287,28 @@ ops[2]:
         var result = CompileFixture("fixtures/Compatibility/LegacyV1/Corpus/valid/m7c-valid-selector-vertices-edges-anchors.firmament");
         Assert.True(result.Compilation.IsSuccess);
 
+        var baseBody = result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives.Single(p => p.FeatureId == "base").Body;
+        Aetheris.Kernel.Core.Math.Point3D Point(Aetheris.Kernel.Core.Topology.VertexId id)
+        {
+            Assert.True(baseBody.TryGetVertexPoint(id, out var point));
+            return point;
+        }
+        static Aetheris.Kernel.Core.Math.Point3D Centroid(IReadOnlyList<Aetheris.Kernel.Core.Math.Point3D> points)
+            => new(points.Average(p => p.X), points.Average(p => p.Y), points.Average(p => p.Z));
+
+        var vertexAnchor = Centroid(baseBody.Topology.Vertices.Select(v => Point(v.Id)).ToArray());
+        var edgeAnchor = Centroid(baseBody.Topology.Edges
+            .SelectMany(e => new[] { Point(e.StartVertexId), Point(e.EndVertexId) }).ToArray());
+        Assert.Equal(new Aetheris.Kernel.Core.Math.Point3D(0d, 0d, 2d), vertexAnchor);
+        Assert.Equal(vertexAnchor, edgeAnchor);
+
         var vertexPlaced = result.Compilation.Value.PrimitiveExecutionResult!.ExecutedPrimitives.Single(p => p.FeatureId == "on_vertices");
         Assert.True(vertexPlaced.Body.TryGetVertexPoint(new Aetheris.Kernel.Core.Topology.VertexId(1), out var v1));
-        Assert.Equal(new Aetheris.Kernel.Core.Math.Point3D(-0.5d, -1.25d, 2d), v1);
+        Assert.Equal(new Aetheris.Kernel.Core.Math.Point3D(vertexAnchor.X - 0.5d, vertexAnchor.Y - 0.5d, vertexAnchor.Z), v1);
 
         var edgePlaced = result.Compilation.Value.PrimitiveExecutionResult.ExecutedPrimitives.Single(p => p.FeatureId == "on_edges");
         Assert.True(edgePlaced.Body.TryGetVertexPoint(new Aetheris.Kernel.Core.Topology.VertexId(1), out var e1));
-        Assert.Equal(new Aetheris.Kernel.Core.Math.Point3D(-0.5d, -1.25d, 0d), e1);
+        Assert.Equal(new Aetheris.Kernel.Core.Math.Point3D(edgeAnchor.X - 0.5d, edgeAnchor.Y - 0.5d, edgeAnchor.Z - 2d), e1);
     }
 
     private static FirmamentCompileResult CompileFixture(string fixturePath)

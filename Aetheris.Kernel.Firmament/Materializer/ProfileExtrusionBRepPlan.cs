@@ -257,10 +257,11 @@ public static class ProfileExtrusionBRepPlanner
             foreach (var curve in loop.Curves)
                 switch (curve)
                 {
+                    case LineArcLineSegment2D line when !Finite(line.Start) || !Finite(line.End) || !double.IsFinite(Distance(line.Start, line.End)): d.Add("ProfileExtrusionPlanInvalid: non-finite line"); return false;
                     case LineArcLineSegment2D line when Distance(line.Start, line.End) <= Tol: d.Add("ProfileExtrusionPlanInvalid: zero length line"); return false;
-                    case LineArcCircularArc2D arc when !double.IsFinite(arc.Radius) || arc.Radius <= Tol || Math.Abs(arc.SweepAngleRadians) <= Tol: d.Add("ProfileExtrusionUnsupportedCurve: invalid arc"); return false;
-                    case LineArcFullCircle2D circle when !double.IsFinite(circle.Radius) || circle.Radius <= Tol: d.Add("ProfileExtrusionUnsupportedCurve: invalid circle"); return false;
-                    case LineArcFullEllipse2D ellipse when !double.IsFinite(ellipse.MajorRadius) || !double.IsFinite(ellipse.MinorRadius) || ellipse.MajorRadius <= Tol || ellipse.MinorRadius <= Tol || ellipse.MinorRadius > ellipse.MajorRadius: d.Add("ProfileExtrusionUnsupportedCurve: invalid ellipse"); return false;
+                    case LineArcCircularArc2D arc when !Finite(arc.Center) || !double.IsFinite(arc.Radius) || !double.IsFinite(arc.StartAngleRadians) || !double.IsFinite(arc.SweepAngleRadians) || !double.IsFinite(arc.StartAngleRadians + arc.SweepAngleRadians) || arc.Radius <= Tol || Math.Abs(arc.SweepAngleRadians) <= Tol: d.Add("ProfileExtrusionUnsupportedCurve: invalid arc"); return false;
+                    case LineArcFullCircle2D circle when !Finite(circle.Center) || !double.IsFinite(circle.Radius) || circle.Radius <= Tol: d.Add("ProfileExtrusionUnsupportedCurve: invalid circle"); return false;
+                    case LineArcFullEllipse2D ellipse when !Finite(ellipse.Center) || !double.IsFinite(ellipse.RotationRadians) || !double.IsFinite(ellipse.MajorRadius) || !double.IsFinite(ellipse.MinorRadius) || ellipse.MajorRadius <= Tol || ellipse.MinorRadius <= Tol || ellipse.MinorRadius > ellipse.MajorRadius: d.Add("ProfileExtrusionUnsupportedCurve: invalid ellipse"); return false;
                     case LineArcCubicBezier2D bezier when !Finite(bezier.Start) || !Finite(bezier.Control1) || !Finite(bezier.Control2) || !Finite(bezier.End) || Distance(bezier.Start, bezier.End) <= Tol: d.Add("ProfileExtrusionUnsupportedCurve: invalid cubic bezier"); return false;
                     case not (LineArcLineSegment2D or LineArcCircularArc2D or LineArcFullCircle2D or LineArcFullEllipse2D or LineArcCubicBezier2D): d.Add("ProfileExtrusionUnsupportedCurve"); return false;
                 }

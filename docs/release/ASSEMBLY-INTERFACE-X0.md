@@ -1,0 +1,42 @@
+# ASSEMBLY-INTERFACE-X0: audit and design
+
+## Audit before changes
+
+Assembly `Interface<T>` is currently a compiler-owned shorthand over the older `Mate` graph. `Fixed` expands to `FrameCoincident`; `Revolute` expands to `AxisCoincident` plus `PlaneCoincident`; `Axial` admits rotation and translation; `Custom` accepts authored atomic geometric relations. Inline `Interface<T> Name { A: path; B: path; }` also defines the participant assignment. Separate interface definitions declare `Role ... requires ...`, `Lower ...`, and `Mate Name: InterfaceName`. Bind resolves semantic source paths through occurrence-scoped `SemanticValue`s, checks role capabilities, then lowers atomic relations. Placement walks anchored instances and applies a direct candidate transform, with residual checks for conflicts. It stores admitted free motions but has no state-to-pose function.
+
+The awkwardness is that `Revolute` requires a separate axis and seat plane and leaves its angular zero chosen by the axis alignment fallback. `Axial` is deliberately two-DOF and cannot stand in for `Prismatic`. The generic atomic relation machinery remains useful for old fixtures and manufacturing/tolerance checks, but it is a poor authoring surface for deterministic joints. A missing member can also survive role capability validation until lowering. Multiple relationships to one moving occurrence are discovered as transform conflicts, rather than diagnosed as duplicate kinematic ownership.
+
+Firmament Concept IR already models named, typed member requirements, materialized structs, semantic references, and compile-time values for one object. The Assembly profile uses a narrower `Concept` declaration to check required `Part`, `Assembly`, `Mate`, or `Semantic` members of one template. Neither places instances. `Interface<T>` remains the relation between occurrence-qualified participants and does not duplicate Concept's single-object conformance machinery. The STEP AP242 graph owns shared part definitions, occurrence identity, and imported source transforms; it has no native Firmament joint authority. `ExternalStep` provides reusable geometry and a Firmament-authored `Semantic` datum can provide its interface port without editing the STEP file.
+
+## Chosen refinement
+
+Keep the concise inline `A`/`B` participant paths and existing `DatumFrame` syntax. For new `Fixed`, `Revolute`, and `Prismatic` contracts, each participant supplies one right-handed datum frame. Its origin defines the joint origin, Z the motion axis, and X the zero-angle direction. `A` is the parent and `B` the child for a movable contract. At state zero, the frames coincide exactly. Motion is a rotation about or translation along the coincident Z axis. This is one semantic frame per side and one scalar state per movable interface; authors need no explicit transform, seat plane, or geometric constraint list. Legacy `Revolute` axis/seat forms stay accepted for compatibility, with the new frame form selected by frame-capable endpoints.
+
+The assembly binder validates both participant frame bindings. Lowering derives one exact zero transform, records the occurrence-qualified parent/child and DOF, and rejects duplicate child ownership or loops. The pose evaluator composes immutable transforms along the tree; it never modifies or clones a BRep definition. `0deg` and `0mm` are default states. Gear, Axial, Custom, and existing Concept behavior remain unchanged.
+
+This maps directly to a future USD/robotics joint: the two local frames, joint family, axis, zero pose, state, and parent/child occurrence identities are already explicit. No USD or robotics serialization is part of X0.
+
+## Source, lowering, and pose
+
+The new source form keeps the existing inline syntax. The type selects the contract, while `A` and `B` bind source-addressable semantic ports on concrete assembly occurrences:
+
+```firmament
+Interface<Revolute> Shoulder { A: TwoLinkArm.Base.Hinge; B: TwoLinkArm.Link1.Input; }
+Interface<Revolute> Elbow { A: TwoLinkArm.Link1.Output; B: TwoLinkArm.Link2.Input; }
+```
+
+Each referenced `Semantic` port contains a `DatumFrame Frame = [origin] x [unit X] y [unit Y] z [unit Z]`. The binder rejects a missing frame or a non-finite, non-orthonormal, or left-handed frame. A malformed participant never falls through to runtime pose evaluation. The existing `Concept<T>` assembly-template satisfaction check remains separate: it validates required members of one reusable definition, not the relation between occurrences.
+
+The compiler lowers a frame contract to one direct frame alignment for its zero pose. `AssemblyJointIr` then carries the occurrence identities, semantic frame identities, two local frames, family, DOF, and default state. `AssemblyKinematics.Evaluate` accepts a finite state map by Interface name and computes a new set of world occurrence transforms. State zero is `0deg` or `0mm`. A read-only state snapshot is part of the pose result. The arm's parent/child transforms compose in joint order. Multiple movable drivers for one child and loops receive compile diagnostics. Bounds are intentionally deferred; unbounded finite state is valid in X0.
+
+The display path can apply the new pose with `AssemblyDisplayMeshExporter.WithPose` to an existing mesh document. It returns new occurrence transforms while retaining the exact same shared definition meshes. BReps, imported STEP definitions, and mesh data are neither mutated nor rebuilt by this operation. The AP242 definition/occurrence graph retains its separate imported source transforms and shared definition identities; Firmament's Interface declaration supplies the semantic mating authority. The external STEP slider witness uses one imported STEP definition twice and attaches its two authored datum ports at the occurrence sites.
+
+`Interface<Fixed>`, `Interface<Revolute>`, and `Interface<Prismatic>` plus their required `A`/`B` ports are generated into the static semantic schema. Firmament language completion reads that schema. CLI Assembly inspection reports the actual lowered frame relation and compiled joint; JSON inspection serializes `AssemblyIr.Joints`. No handwritten Helios table, constraint solver, USD emitter, physics, or loop closure was added.
+
+## Qualification
+
+The canonical arm is `fixtures/Canonical/AssemblyInterfaces/two-link-arm.firmament`. The imported-part witness is `fixtures/Canonical/AssemblyInterfaces/external-step-slider.firmament`. `AssemblyKinematicsX0Tests` checks Fixed zero placement, Revolute zero/+45/-45 and two-joint composition, Prismatic zero/positive displacement, immutable display-definition reuse, external STEP geometry sharing, deterministic repeat, missing frame, invalid state, duplicate driver, loop rejection, schema, and LX field discovery. Existing Assembly, Gear, Concept, STEP import/export, and Cadmata display tests remain in the serial solution test gate.
+
+The only intentional compatibility distinction is that the historical axis/seat `Revolute` form remains accepted for its old placement behavior but does not acquire state-driven kinematics: it lacks a fully specified angular zero. New frame-based declarations use the same concise `Interface<Revolute> { A: ...; B: ...; }` syntax. The compiler distinguishes them by the bound semantic port capabilities. `Axial`, `Custom`, `Gear`, and atomic manufacturing/tolerance relations retain their existing ownership. No general constraint solver was introduced; the new state path uses matrix composition from exact authored frames.
+
+Validation on the final checkout: `dotnet build Aetheris.slnx -c Release --no-restore -m:1` passed with existing WebAssembly warnings; the required fast lane passed 1,005 tests; `dotnet test Aetheris.slnx -c Release --no-build -m:1 -- RunConfiguration.MaxCpuCount=1` passed all 4,005 discovered tests across the serial project suites (the FrictionLab test assembly exposes no tests). `aetheris asm inspect fixtures/Canonical/AssemblyInterfaces/two-link-arm.firmament` reported two valid `FrameCoincident` relationships and two one-DOF Revolute joints. The external STEP witness uses the bounded cylinder evidence file under `fixtures/Regression/Chamfer/evidence/`; the larger G2 STEP part exceeded the display tessellation time budget under full-suite load, so it was removed from this timing-sensitive witness. `git diff --check` passed. These commands reproduce the compact evidence; generated test output remains local and untracked.

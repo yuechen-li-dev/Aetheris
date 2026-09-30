@@ -25,7 +25,13 @@ public static class FirmamentLanguageService
         var beforePrefix = source[lineStart..prefixStart];
         IReadOnlyList<FirmamentAuthoringField> fields;
         string context;
-        if (IsInsideThread(source, offset))
+        var interfaceFamily = ActiveFrameInterface(source, offset);
+        if (interfaceFamily is not null)
+        {
+            fields = FirmamentSchemaAuthoringFields.For($"Interface<{interfaceFamily}>");
+            context = $"Interface<{interfaceFamily}>";
+        }
+        else if (IsInsideThread(source, offset))
         {
             fields = FirmamentSchemaAuthoringFields.For("Thread");
             context = "Thread";
@@ -48,7 +54,10 @@ public static class FirmamentLanguageService
             if (beforePrefix.Contains(':')) return new(document, revision, "Value", prefixStart, prefix.Length, [], []);
             var inModify = IsInsideConstruct(source, offset, "Modify");
             var entries = FirmamentSemanticSchemas.All
-                .Where(item => item.Entry is not null && item.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) &&
+                .Where(item => item.Entry is not null &&
+                    (item.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+                     || beforePrefix.EndsWith("Interface<", StringComparison.Ordinal)
+                     && item.Name.StartsWith("Interface<" + prefix, StringComparison.OrdinalIgnoreCase)) &&
                     (!inModify || item.Context?.StartsWith("Modify", StringComparison.Ordinal) == true))
                 .Select(item => new FirmamentLanguageEntry(item.Id.Value, item.Name, item.Context ?? string.Empty, item.Entry!)).ToArray();
             return new(document, revision, entries.Length > 0 ? "ConstructEntry" : "Unsupported",
@@ -79,6 +88,15 @@ public static class FirmamentLanguageService
         var prefix = source[..offset];
         var header = Regex.Matches(prefix, @"\bPerforation\s+[A-Za-z_][A-Za-z0-9_]*\s*\{", RegexOptions.CultureInvariant).Cast<Match>().LastOrDefault();
         return header is not null && !prefix[(header.Index + header.Length)..].Contains('}');
+    }
+
+    private static string? ActiveFrameInterface(string source, int offset)
+    {
+        var prefix = source[..offset];
+        var header = Regex.Matches(prefix, @"\bInterface\s*<\s*(Fixed|Revolute|Prismatic)\s*>\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant)
+            .Cast<Match>().LastOrDefault();
+        return header is not null && !prefix[(header.Index + header.Length)..].Contains('}')
+            ? header.Groups[1].Value : null;
     }
 
     private static bool IsInsideThread(string source, int offset)

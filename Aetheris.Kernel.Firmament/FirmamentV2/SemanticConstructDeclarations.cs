@@ -72,4 +72,19 @@ public static class LoftSemanticDeclaration { }
 [FirmamentConstruct("Concept", "Concept", Context = "Document", Entry = "Concept MountingFrame { Bounds: Box3; TopPlane: Plane }", Description = "Named semantic requirements; member names and types are authored per Concept.")]
 public static class ConceptSemanticDeclaration { }
 
+[FirmamentConstruct("InterfaceFixed", "Interface<Fixed>", Context = "Assembly", Entry = "Interface<Fixed> Mount { A: Assembly.Base.Mount; B: Assembly.Link.Socket; }", Description = "Two semantic datum frames define one zero-DOF rigid relationship.")]
+[FirmamentField("A", "A", FirmamentSchemaValueKind.ConstructReference, Required = true, Description = "Parent occurrence's source-addressable DatumFrame-capable semantic port.")]
+[FirmamentField("B", "B", FirmamentSchemaValueKind.ConstructReference, Required = true, Description = "Child occurrence's source-addressable DatumFrame-capable semantic port.")]
+public static class FixedInterfaceSemanticDeclaration { }
+
+[FirmamentConstruct("InterfaceRevolute", "Interface<Revolute>", Context = "Assembly", Entry = "Interface<Revolute> Hinge { A: Assembly.Base.Hinge; B: Assembly.Link.Hinge; }", Description = "One angular DOF about frame Z; frame X defines the zero angle.")]
+[FirmamentField("A", "A", FirmamentSchemaValueKind.ConstructReference, Required = true, Description = "Parent occurrence's source-addressable DatumFrame-capable semantic port.")]
+[FirmamentField("B", "B", FirmamentSchemaValueKind.ConstructReference, Required = true, Description = "Child occurrence's source-addressable DatumFrame-capable semantic port.")]
+public static class RevoluteInterfaceSemanticDeclaration { }
+
+[FirmamentConstruct("InterfacePrismatic", "Interface<Prismatic>", Context = "Assembly", Entry = "Interface<Prismatic> Slide { A: Assembly.Rail.Slide; B: Assembly.Carriage.Slide; }", Description = "One translational DOF along frame Z; coincident frames define zero displacement.")]
+[FirmamentField("A", "A", FirmamentSchemaValueKind.ConstructReference, Required = true, Description = "Parent occurrence's source-addressable DatumFrame-capable semantic port.")]
+[FirmamentField("B", "B", FirmamentSchemaValueKind.ConstructReference, Required = true, Description = "Child occurrence's source-addressable DatumFrame-capable semantic port.")]
+public static class PrismaticInterfaceSemanticDeclaration { }
+
 

@@ -1,0 +1,17 @@
+Assembly TwoLinkArm {
+  <Assembly TwoLinkArm>
+    <Part Base = ArmBase>
+      Semantic Hinge { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+    </Part>
+    <Part Link1 = ArmLink>
+      Semantic Input { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+      Semantic Output { DatumFrame Frame = [20,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+    </Part>
+    <Part Link2 = ArmLink>
+      Semantic Input { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+    </Part>
+  </Assembly>
+  Anchor: TwoLinkArm.Base.Hinge;
+  Interface<Revolute> Shoulder { A: TwoLinkArm.Base.Hinge; B: TwoLinkArm.Link1.Input; }
+  Interface<Revolute> Elbow { A: TwoLinkArm.Link1.Output; B: TwoLinkArm.Link2.Input; }
+}

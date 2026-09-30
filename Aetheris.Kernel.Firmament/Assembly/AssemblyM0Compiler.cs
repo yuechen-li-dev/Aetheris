@@ -46,6 +46,7 @@ public sealed class AssemblyM0Compiler
             ResolvedTransform = placements.First(x => x.InstanceStableId == instance.StableId).Transform
         }).ToArray();
         mates = ValidateGearInterfaces(mates, interfaces, instances, diagnostics);
+        var joints = BindJoints(source.Anchor, mates, interfaces, instances, constraints, diagnostics);
         placementWatch.Stop();
 
         var graphWatch = Stopwatch.StartNew();
@@ -78,7 +79,7 @@ public sealed class AssemblyM0Compiler
             .OrderBy(solution => solution.MateStableId, StringComparer.Ordinal).ToArray();
         var ir = new AssemblyIr("aetheris/assembly-ir/m0", $"assembly:{source.Name}", source.Name,
             instances.Single(x => x.ParentStableId is null).StableId, instances, source.Interfaces, mates,
-            constraints, placements, relations, stackups, fits, diagnostics, assemblyDefinitions, panelMateEvidence, datums, datumSolutions, source.SourceDependencies);
+            constraints, placements, relations, stackups, fits, diagnostics, assemblyDefinitions, panelMateEvidence, datums, datumSolutions, source.SourceDependencies, joints);
         return new(ir, diagnostics, perf);
 
         static string SemanticPath(AssemblyInstanceIr instance, SemanticValue value)
@@ -172,7 +173,10 @@ public sealed class AssemblyM0Compiler
                     valid = false;
                     continue;
                 }
-                var missing = role.RequiredCapabilities.Where(c => !HasCapability(reference!.Value, c)).ToArray();
+                var frameRevolute = definition.Family == MechanicalInterfaceFamily.Revolute
+                    && reference!.Value.TryBinding<ExactDatumFrameBinding>(out _);
+                var requiredCapabilities = frameRevolute ? ["DatumFrameCapable"] : role.RequiredCapabilities;
+                var missing = requiredCapabilities.Where(c => !HasCapability(reference!.Value, c)).ToArray();
                 if (reference!.Value.Type.Name == "Gear" && definition.Family != MechanicalInterfaceFamily.Gear)
                     missing = [.. missing, $"endpoint type {definition.Family} (Gear is not implicitly coerced)"];
                 if (missing.Length > 0)
@@ -180,7 +184,7 @@ public sealed class AssemblyM0Compiler
                     valid = false;
                     diagnostics.Add(new(CapabilityMismatch, $"Mate '{mate.Name}' Role '{role.Name}' participant '{assignment.Participant}' lacks: {string.Join(", ", missing)}."));
                 }
-                endpoints.Add(new(role.Name, assignment.Participant, reference!.Value.StableIdentity, role.RequiredCapabilities));
+                endpoints.Add(new(role.Name, assignment.Participant, reference!.Value.StableIdentity, requiredCapabilities));
             }
             result.Add(new($"mate:{source.Name}:{mate.Name}", mate.Name, definition.StableId, endpoints, [],
                 valid && endpoints.Count == definition.Roles.Count ? "valid" : "invalid"));
@@ -303,7 +307,26 @@ public sealed class AssemblyM0Compiler
         foreach (var mate in mates)
         {
             var definition = interfaces.Values.Single(x => x.StableId == mate.InterfaceStableId);
-            foreach (var (requirement, index) in definition.Requirements.Select((x, i) => (x, i)))
+            var frameRevolute = definition.Family == MechanicalInterfaceFamily.Revolute && mate.Roles.Count == 2
+                && mate.Roles.All(role => Flatten(instances.Select(instance => instance.SemanticRoot))
+                    .FirstOrDefault(value => value.StableIdentity == role.ParticipantSemanticValueId)?
+                    .TryBinding<ExactDatumFrameBinding>(out _) == true);
+            var authoredFrame = definition.Requirements.Count == 1
+                && definition.Requirements[0].Kind == PlacementConstraintKind.FrameCoincident;
+            var defaultLegacyRevolute = definition.Requirements.Count == 2
+                && definition.Requirements[0] is { Kind: PlacementConstraintKind.AxisCoincident, FirstRole: "A", FirstMember: "Axis", SecondRole: "B", SecondMember: "Axis" }
+                && definition.Requirements[1] is { Kind: PlacementConstraintKind.PlaneCoincident, FirstRole: "A", FirstMember: "Seat", SecondRole: "B", SecondMember: "Seat" };
+            if (frameRevolute && !authoredFrame && !defaultLegacyRevolute)
+            {
+                diagnostics.Add(new("assembly-interface-invalid-contract-lowering",
+                    $"Interface<Revolute> '{definition.Name}' Mate '{mate.Name}' has frame-capable participants; use their DatumFrames directly or one authored FrameCoincident relation."));
+                continue;
+            }
+            var requirements = frameRevolute
+                ? authoredFrame ? definition.Requirements
+                    : [new InterfaceRequirementDefinition(PlacementConstraintKind.FrameCoincident, "A", ".", "B", ".")]
+                : definition.Requirements;
+            foreach (var (requirement, index) in requirements.Select((x, i) => (x, i)))
             {
                 var first = mate.Roles.FirstOrDefault(x => x.Role == requirement.FirstRole);
                 var second = mate.Roles.FirstOrDefault(x => x.Role == requirement.SecondRole);
@@ -312,10 +335,39 @@ public sealed class AssemblyM0Compiler
                 var secondId = ResolveRelativeSemantic(second.ParticipantSemanticValueId, requirement.SecondMember, instances);
                 if (firstId is null || secondId is null)
                 { diagnostics.Add(new(InvalidParticipant, $"Interface '{definition.Name}' requirement '{requirement.Kind}' cannot resolve exposed members '{requirement.FirstMember}'/'{requirement.SecondMember}'.")); continue; }
+                if (requirement.Kind == PlacementConstraintKind.FrameCoincident)
+                {
+                    var values = Flatten(instances.Select(instance => instance.SemanticRoot)).ToDictionary(value => value.StableIdentity, StringComparer.Ordinal);
+                    if (!values[firstId].TryBinding<ExactDatumFrameBinding>(out var firstFrame) || !values[secondId].TryBinding<ExactDatumFrameBinding>(out var secondFrame))
+                    {
+                        diagnostics.Add(new("assembly-interface-missing-frame", $"Interface '{definition.Name}' Mate '{mate.Name}' requires an exact DatumFrame on both participants."));
+                        continue;
+                    }
+                    if (!ValidJointFrame(firstFrame) || !ValidJointFrame(secondFrame))
+                    {
+                        diagnostics.Add(new("assembly-interface-invalid-frame", $"Interface '{definition.Name}' Mate '{mate.Name}' requires finite, orthonormal, right-handed participant frames."));
+                        continue;
+                    }
+                }
                 result.Add(new($"constraint:{mate.StableId}:{index:D2}", requirement.Kind, mate.StableId, firstId, secondId, requirement.OffsetMm, 0, "admitted", requirement.Orientation));
             }
         }
         return result;
+    }
+
+    private static bool ValidJointFrame(ExactDatumFrameBinding frame)
+    {
+        var x = new[] { frame.XAxisX, frame.XAxisY, frame.XAxisZ };
+        var y = new[] { frame.YAxisX, frame.YAxisY, frame.YAxisZ };
+        var z = new[] { frame.ZAxisX, frame.ZAxisY, frame.ZAxisZ };
+        if (x.Concat(y).Concat(z).Append(frame.OriginX).Append(frame.OriginY).Append(frame.OriginZ)
+            .Any(value => !double.IsFinite(value))) return false;
+        static double Dot(double[] a, double[] b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+        if (Math.Abs(Dot(x, x) - 1) > 1e-6 || Math.Abs(Dot(y, y) - 1) > 1e-6
+            || Math.Abs(Dot(z, z) - 1) > 1e-6 || Math.Abs(Dot(x, y)) > 1e-6
+            || Math.Abs(Dot(x, z)) > 1e-6 || Math.Abs(Dot(y, z)) > 1e-6) return false;
+        var cross = new[] { x[1] * y[2] - x[2] * y[1], x[2] * y[0] - x[0] * y[2], x[0] * y[1] - x[1] * y[0] };
+        return Dot(cross, z) > 1 - 1e-6;
     }
 
     private static string? ResolveRelativeSemantic(string rootId, string member, IReadOnlyList<AssemblyInstanceIr> instances)
@@ -327,6 +379,80 @@ public sealed class AssemblyM0Compiler
         foreach (var segment in member.Split('.', StringSplitOptions.RemoveEmptyEntries))
             if (!current.ExposedMembers.TryGetValue(segment, out current!)) return null;
         return current.StableIdentity;
+    }
+
+    private static IReadOnlyList<AssemblyJointIr> BindJoints(AssemblyPath anchorPath, IReadOnlyList<MateIr> mates,
+        IReadOnlyDictionary<string, InterfaceDefinition> interfaces, IReadOnlyList<AssemblyInstanceIr> instances,
+        IReadOnlyList<PlacementConstraintIr> constraints, List<AssemblyDiagnostic> diagnostics)
+    {
+        var values = Flatten(instances.Select(instance => instance.SemanticRoot))
+            .ToDictionary(value => value.StableIdentity, StringComparer.Ordinal);
+        var anchor = instances.Where(instance => anchorPath.ToString() == instance.Path.ToString()
+                || anchorPath.ToString().StartsWith(instance.Path + ".", StringComparison.Ordinal))
+            .OrderByDescending(instance => instance.Path.Segments.Count).FirstOrDefault();
+        var result = new List<AssemblyJointIr>();
+        foreach (var mate in mates.Where(mate => mate.ValidationStatus == "valid"))
+        {
+            var family = interfaces.Values.Single(definition => definition.StableId == mate.InterfaceStableId).Family;
+            if (family is not (MechanicalInterfaceFamily.Fixed or MechanicalInterfaceFamily.Revolute or MechanicalInterfaceFamily.Prismatic)) continue;
+            var frame = constraints.SingleOrDefault(constraint => constraint.MateStableId == mate.StableId
+                && constraint.Kind == PlacementConstraintKind.FrameCoincident);
+            if (frame is null) continue; // Legacy axis/seat Revolute retains its existing placement semantics.
+            var a = mate.Roles.SingleOrDefault(role => role.Role == "A");
+            var b = mate.Roles.SingleOrDefault(role => role.Role == "B");
+            if (a is null || b is null) continue;
+            var parent = OwnerInstance(a.ParticipantSemanticValueId, instances);
+            var child = OwnerInstance(b.ParticipantSemanticValueId, instances);
+            if (parent is null || child is null || parent.StableId == child.StableId)
+            {
+                diagnostics.Add(new("assembly-interface-invalid-occurrences", $"Interface '{mate.Name}' requires distinct occurrence participants."));
+                continue;
+            }
+            if (!values[frame.FirstSemanticValueId].TryBinding<ExactDatumFrameBinding>(out var aFrame)
+                || !values[frame.SecondSemanticValueId].TryBinding<ExactDatumFrameBinding>(out var bFrame)) continue;
+            var parentSemanticId = frame.FirstSemanticValueId;
+            var childSemanticId = frame.SecondSemanticValueId;
+            if (OwnerInstance(parentSemanticId, instances)?.StableId == child.StableId
+                && OwnerInstance(childSemanticId, instances)?.StableId == parent.StableId)
+            {
+                (aFrame, bFrame) = (bFrame, aFrame);
+                (parentSemanticId, childSemanticId) = (childSemanticId, parentSemanticId);
+            }
+            // Historical Fixed declarations often placed the moving endpoint in A.
+            // Preserve their anchored direction while new A-parent/B-child joints stay direct.
+            var reverseFixed = family == MechanicalInterfaceFamily.Fixed && anchor?.StableId == child.StableId;
+            if (reverseFixed)
+            {
+                (parent, child) = (child, parent);
+                (aFrame, bFrame) = (bFrame, aFrame);
+                (parentSemanticId, childSemanticId) = (childSemanticId, parentSemanticId);
+            }
+            result.Add(new(mate.StableId, mate.Name, family, parent.StableId, child.StableId,
+                parentSemanticId, childSemanticId,
+                new(FrameMatrix(aFrame, frame.Orientation).ToRowMajor()),
+                new(FrameMatrix(bFrame, DatumOrientationRelation.SameDirection).ToRowMajor()),
+                family == MechanicalInterfaceFamily.Fixed ? 0 : 1));
+        }
+        foreach (var group in result.Where(joint => joint.DegreesOfFreedom == 1)
+                     .GroupBy(joint => joint.ChildOccurrenceId).Where(group => group.Count() > 1))
+            diagnostics.Add(new("assembly-kinematic-duplicate-child", $"Occurrence '{group.Key}' is driven by multiple kinematic Interfaces: {string.Join(", ", group.Select(joint => joint.Name))}."));
+        var parentByChild = result.Where(joint => joint.DegreesOfFreedom == 1)
+            .GroupBy(joint => joint.ChildOccurrenceId).ToDictionary(group => group.Key, group => group.First().ParentOccurrenceId);
+        foreach (var child in parentByChild.Keys)
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            var current = child;
+            while (parentByChild.TryGetValue(current, out var parent))
+            {
+                if (!seen.Add(current))
+                {
+                    diagnostics.Add(new("assembly-kinematic-loop-unsupported", $"Kinematic loop through occurrence '{current}' requires loop closure, which X0 does not support."));
+                    break;
+                }
+                current = parent;
+            }
+        }
+        return result;
     }
 
     private static IReadOnlyList<PlacementResultIr> ResolvePlacements(AssemblySource source, IReadOnlyList<AssemblyInstanceIr> instances,

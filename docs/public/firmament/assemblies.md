@@ -12,11 +12,27 @@ The Assembly profile admits this bounded matrix:
 |---|---|---|---|
 | `Interface<Fixed>` | `FrameCoincident` | none | qualified |
 | `Interface<Axial>` | `AxisCoincident` | translation along and rotation about the axis | qualified |
-| `Interface<Revolute>` | `AxisCoincident` + `PlaneCoincident` | rotation about the axis | qualified |
+| `Interface<Revolute>` | two semantic datum frames | rotation about frame Z | qualified for state-driven poses; legacy axis/seat form remains accepted |
+| `Interface<Prismatic>` | two semantic datum frames | translation along frame Z | qualified for state-driven poses |
 | `Interface<Custom>` | authored atomic `Mate` lines and bounded numeric `Require` checks | explicitly authored | qualified escape hatch |
 | `Interface<Gear>` | the existing Gear evaluator plus occurrence-space axis and center-distance evidence | ideal ratio/sign metadata | qualified for direct and exposed hierarchical Gear endpoints |
 
 These are compiler-owned families, not user-defined generics. Atomic assembly relations remain the existing `AxisCoincident`, `AxisAligned`, `PlaneCoincident`, `PointCoincident`, `OffsetAlongAxis`, and `FrameCoincident` kinds. A typed family expands into those relations before the ordinary Assembly compiler runs.
+
+For `Fixed`, `Revolute`, and `Prismatic`, the preferred port is one `Semantic` value with a `DatumFrame`. `A` names the parent occurrence and `B` names the child. The two frame origins coincide at state zero; Z is the rotation or translation axis, and X fixes the angular reference. The compiler derives the zero transform directly. `Revolute` accepts angle state in degrees, `Prismatic` accepts position state in millimetres, and omitted state means zero. The compiled `AssemblyIr.Joints` and pure `AssemblyKinematics.Evaluate(ir, state)` expose the relationship, DOF, frames, and posed occurrence transforms. Changing state keeps part definitions and BReps shared. A cycle or multiple movable interfaces driving the same child is rejected.
+
+```firmament
+Assembly Arm {
+  <Assembly Arm>
+    <Part Base = BasePart> Semantic Hinge { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; } </Part>
+    <Part Link = LinkPart> Semantic Socket { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; } </Part>
+  </Assembly>
+  Anchor: Arm.Base.Hinge;
+  Interface<Revolute> Shoulder { A: Arm.Base.Hinge; B: Arm.Link.Socket; }
+}
+```
+
+The older `Revolute` axis/seat port continues to compile through the atomic relation path. It does not produce a state-driven joint because the axis/seat pair does not define a unique angular zero. For a deterministic movable interface, provide datum frames. Imported STEP part occurrences can declare these ports in Firmament; the STEP geometry need not contain mating metadata.
 
 ```firmament
 Interface<Revolute> ShaftBearing {

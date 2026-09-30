@@ -3935,8 +3935,10 @@ Model CanonicalPanel {
             {
                 var definition = ir.Interfaces.Single(item => item.StableId == mate.InterfaceStableId);
                 stdout.WriteLine($"- {mate.Name}: Interface<{definition.Family}> {mate.InterfaceStableId} ({string.Join(", ", mate.Roles.Select(x => x.Role + "=" + x.ParticipantPath))}); status={mate.ValidationStatus}");
-                foreach (var constraint in definition.Requirements)
-                    stdout.WriteLine($"    Expanded Mate {constraint.Kind}: {constraint.FirstRole}.{constraint.FirstMember} -> {constraint.SecondRole}.{constraint.SecondMember}");
+                foreach (var constraint in ir.PlacementConstraints.Concat((ir.AssemblyDefinitions ?? [])
+                             .SelectMany(item => item.LocalPlacementConstraints ?? []))
+                             .Where(constraint => constraint.MateStableId == mate.StableId))
+                    stdout.WriteLine($"    Expanded Mate {constraint.Kind}: {constraint.FirstSemanticValueId} -> {constraint.SecondSemanticValueId}");
                 foreach (var requirement in mate.RequirementResults ?? [])
                     stdout.WriteLine($"    Require {requirement.Name}: {requirement.Expression} ({requirement.Status})");
                 if (mate.GearResult is { } gear)
@@ -3946,6 +3948,8 @@ Model CanonicalPanel {
                     stdout.WriteLine($"    Derived: ratio={gear.Ratio:G6}; rotation-sign={gear.RotationSign}; center expected={gear.ExpectedCenterDistanceMm:G6}mm actual={gear.ActualCenterDistanceMm:G6}mm; {gear.CompatibilityStatus}");
                 }
             }
+            foreach (var joint in ir.Joints ?? [])
+                stdout.WriteLine($"    Joint {joint.Name}: {joint.Family}; parent={joint.ParentOccurrenceId}; child={joint.ChildOccurrenceId}; DOF={joint.DegreesOfFreedom}; default={joint.DefaultState:G6}{(joint.Family == MechanicalInterfaceFamily.Revolute ? "deg" : joint.Family == MechanicalInterfaceFamily.Prismatic ? "mm" : "")}");
             var definitions = ir.AssemblyDefinitions ?? [];
             if (definitions.Count > 0)
             {

@@ -33,7 +33,7 @@ public sealed class SemanticSchemaGenerator : IIncrementalGenerator
         {
             var construct = symbol.GetAttributes().Single(a => a.AttributeClass?.Name == "FirmamentConstructAttribute");
             var id = Arg(construct, 0); var name = Arg(construct, 1);
-            if (!ValidId(id) || !ValidId(name) || !constructIds.Add(id) || !names.Add(name))
+            if (!ValidId(id) || !ValidName(name) || !constructIds.Add(id) || !names.Add(name))
             { Error(output, symbol, $"construct '{name}' needs a unique, nonempty stable ID and name"); continue; }
             var fields = new List<Field>();
             var outputs = new List<Output>();
@@ -111,6 +111,9 @@ public sealed class SemanticSchemaGenerator : IIncrementalGenerator
     private static string? Str(AttributeData attribute, string name) => Named(attribute, name).Value?.ToString();
     private static bool Bool(AttributeData attribute, string name) => Named(attribute, name).Value is true;
     private static bool ValidId(string value) => !string.IsNullOrWhiteSpace(value) && value.All(c => char.IsLetterOrDigit(c) || c == '_');
+    private static bool ValidName(string value) => ValidId(value) ||
+        value.StartsWith("Interface<", StringComparison.Ordinal) && value.EndsWith(">", StringComparison.Ordinal)
+        && ValidId(value.Substring("Interface<".Length, value.Length - "Interface<".Length - 1));
     private static string Q(string? value) => value is null ? "null" : SymbolDisplay.FormatLiteral(value, true);
     private static void Error(SourceProductionContext output, INamedTypeSymbol symbol, string message) => output.ReportDiagnostic(Diagnostic.Create(Invalid, symbol.Locations.FirstOrDefault(), message));
 

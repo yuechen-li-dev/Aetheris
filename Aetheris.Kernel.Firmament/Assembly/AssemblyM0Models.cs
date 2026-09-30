@@ -9,7 +9,7 @@ public enum PlacementConstraintKind { AxisCoincident, AxisAligned, PlaneCoincide
 public enum DatumOrientationRelation { SameDirection, OpposedDirection }
 public enum PlacementStatus { Anchored, Resolved, Underconstrained, Overconstrained, Unresolved }
 public enum PlacementAuthority { MateDerived, ImportedOccurrence, LegacyExplicit }
-public enum MechanicalInterfaceFamily { Custom, Fixed, Axial, Revolute, Gear }
+public enum MechanicalInterfaceFamily { Custom, Fixed, Axial, Revolute, Prismatic, Gear }
 
 public sealed record AssemblyDiagnostic(string Code, string Message, AssemblyDiagnosticSeverity Severity = AssemblyDiagnosticSeverity.Error);
 public sealed record AssemblyPath(IReadOnlyList<string> Segments)
@@ -155,6 +155,12 @@ public sealed record AssemblyDatumIr(string SemanticValueId, string SemanticPath
 public sealed record DatumMateSolutionIr(string MateStableId, string FirstDatumSemanticValueId, string SecondDatumSemanticValueId,
     DatumOrientationRelation Orientation, int ConstrainedDegreesOfFreedom, string Status, AssemblyTransform? DerivedTransform);
 
+/// <summary>One occurrence relationship. Local frames are source-addressable semantic datums;
+/// Z is the motion axis and X fixes the angular zero. State is degrees or millimetres.</summary>
+public sealed record AssemblyJointIr(string MateStableId, string Name, MechanicalInterfaceFamily Family,
+    string ParentOccurrenceId, string ChildOccurrenceId, string ParentFrameSemanticId, string ChildFrameSemanticId,
+    AssemblyTransform ParentLocalFrame, AssemblyTransform ChildLocalFrame, int DegreesOfFreedom, double DefaultState = 0);
+
 public sealed record AssemblyDefinitionIr(
     string StableId, string DefinitionIdentity, string TemplateName, string SpecializationIdentity,
     IReadOnlyList<SemanticProvenance> Provenance, IReadOnlyList<AssemblyInstanceIr> LocalInstances,
@@ -185,7 +191,8 @@ public sealed record AssemblyIr(
     IReadOnlyList<PanelMateEvidenceIr>? PanelMateEvidence = null,
     IReadOnlyList<AssemblyDatumIr>? Datums = null,
     IReadOnlyList<DatumMateSolutionIr>? DatumMateSolutions = null,
-    IReadOnlyList<AssemblySourceDependencyIr>? SourceDependencies = null);
+    IReadOnlyList<AssemblySourceDependencyIr>? SourceDependencies = null,
+    IReadOnlyList<AssemblyJointIr>? Joints = null);
 
 public sealed record AssemblyCompilationResult(AssemblyIr? Ir, IReadOnlyList<AssemblyDiagnostic> Diagnostics, AssemblyPerformanceIr? Performance = null)
 {

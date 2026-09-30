@@ -1,0 +1,14 @@
+// One external STEP definition is reused by both occurrence identities.
+// Firmament owns the authored interface ports; the STEP part needs no mate metadata.
+Assembly ExternalSlider {
+  <Assembly ExternalSlider>
+    <Part Rail = ExternalStep<"../../Regression/Chamfer/evidence/cylinder-top-rim.step">>
+      Semantic Slide { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+    </Part>
+    <Part Carriage = ExternalStep<"../../Regression/Chamfer/evidence/cylinder-top-rim.step">>
+      Semantic Slide { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+    </Part>
+  </Assembly>
+  Anchor: ExternalSlider.Rail.Slide;
+  Interface<Prismatic> Travel { A: ExternalSlider.Rail.Slide; B: ExternalSlider.Carriage.Slide; }
+}

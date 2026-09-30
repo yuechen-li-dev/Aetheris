@@ -15,10 +15,34 @@ public sealed record AssemblyDisplayMeshDocument(string Schema, string Name, str
 /// <summary>Deterministic local-definition meshes plus world occurrence frames. Never drops failed geometry.</summary>
 public static class AssemblyDisplayMeshExporter
 {
-    public static AssemblyDisplayMeshDocument Export(AssemblyM1CompilationResult compilation, DisplayTessellationOptions? options = null)
+    /// <summary>Apply a new pure pose to an existing display document without tessellating
+    /// or rebuilding any shared part definition.</summary>
+    public static AssemblyDisplayMeshDocument WithPose(AssemblyDisplayMeshDocument document, AssemblyPoseResult pose)
+    {
+        if (!pose.IsSuccess) throw new InvalidOperationException("assembly-mesh-invalid-pose");
+        var transforms = pose.Instances.ToDictionary(instance => instance.StableId, instance => instance.ResolvedTransform, StringComparer.Ordinal);
+        if (transforms.Count != document.Occurrences.Count || document.Occurrences.Any(occurrence =>
+                !transforms.TryGetValue(occurrence.Id, out var transform) || transform is null))
+            throw new InvalidOperationException("assembly-mesh-pose-occurrence-mismatch");
+        return document with
+        {
+            Occurrences = document.Occurrences.Select(occurrence => occurrence with
+            {
+                Transform = transforms[occurrence.Id]!.Matrix.ToArray()
+            }).ToArray()
+        };
+    }
+
+    public static AssemblyDisplayMeshDocument Export(AssemblyM1CompilationResult compilation, DisplayTessellationOptions? options = null,
+        AssemblyPoseResult? pose = null)
     {
         if (!compilation.IsSuccess || compilation.Ir is null || compilation.Geometry is null)
             throw new InvalidOperationException("assembly-mesh-invalid-compilation");
+        if (pose is { IsSuccess: false }) throw new InvalidOperationException("assembly-mesh-invalid-pose");
+        if (pose is not null && (pose.Instances.Count != compilation.Ir.Instances.Count
+            || pose.Instances.Any(instance => !compilation.Ir.Instances.Any(original => original.StableId == instance.StableId
+                && original.DefinitionIdentity == instance.DefinitionIdentity))))
+            throw new InvalidOperationException("assembly-mesh-pose-occurrence-mismatch");
         var geometry = compilation.Geometry;
         var ids = geometry.Artifact.Definitions.ToDictionary(d => d.DefinitionIdentity, d => d.StableId, StringComparer.Ordinal);
         var definitions = new List<AssemblyDisplayMeshDefinition>();
@@ -58,7 +82,7 @@ public static class AssemblyDisplayMeshExporter
             definitions.Add(new(ids[identity], identity, positions.ToArray(), normals.ToArray(), indices.ToArray(),
                 tessellation.Value.MeshPipeline.ToString(), ranges));
         }
-        var occurrences = compilation.Ir.Instances.OrderBy(i => i.Path.ToString(), StringComparer.Ordinal).Select(instance =>
+        var occurrences = (pose?.Instances ?? compilation.Ir.Instances).OrderBy(i => i.Path.ToString(), StringComparer.Ordinal).Select(instance =>
         {
             var id = instance.Kind == AssemblyInstanceKind.Part
                 ? ids.GetValueOrDefault(instance.DefinitionIdentity) ?? throw new InvalidOperationException($"assembly-mesh-missing-definition:{instance.Path}") : null;

@@ -1,0 +1,203 @@
+Model MahoganyBack {
+ Units: mm
+ Concept Struct Frames {
+  S0: Plane { Origin: [0mm,0mm,0mm]; Normal: [0,0,1]; Up: [0,1,0] }
+  S1: Plane { Origin: [0mm,0mm,38mm]; Normal: [0,0,1]; Up: [0,1,0] }
+ }
+ Construction Plane F0 { Trace: Frames.S0 }
+ Point2 P0P0 { Position: [0mm,-220mm] }
+ Point2 P0A0 { Position: [38.333333mm,-220mm] }
+ Point2 P0B0 { Position: [-38.333333mm,-220mm] }
+ Point2 P0P1 { Position: [115mm,-195mm] }
+ Point2 P0A1 { Position: [143mm,-177.5mm] }
+ Point2 P0B1 { Position: [87mm,-212.5mm] }
+ Point2 P0P2 { Position: [168mm,-115mm] }
+ Point2 P0A2 { Position: [173.5mm,-88.333333mm] }
+ Point2 P0B2 { Position: [162.5mm,-141.666667mm] }
+ Point2 P0P3 { Position: [148mm,-35mm] }
+ Point2 P0A3 { Position: [137.5mm,-11.166667mm] }
+ Point2 P0B3 { Position: [158.5mm,-58.833333mm] }
+ Point2 P0P4 { Position: [105mm,28mm] }
+ Point2 P0A4 { Position: [100mm,49.666667mm] }
+ Point2 P0B4 { Position: [110mm,6.333333mm] }
+ Point2 P0P5 { Position: [118mm,95mm] }
+ Point2 P0A5 { Position: [121.166667mm,113.666667mm] }
+ Point2 P0B5 { Position: [114.833333mm,76.333333mm] }
+ Point2 P0P6 { Position: [124mm,140mm] }
+ Point2 P0A6 { Position: [123.166667mm,150.833333mm] }
+ Point2 P0B6 { Position: [124.833333mm,129.166667mm] }
+ Point2 P0P7 { Position: [113mm,160mm] }
+ Point2 P0A7 { Position: [107.5mm,160.333333mm] }
+ Point2 P0B7 { Position: [118.5mm,159.666667mm] }
+ Point2 P0P8 { Position: [91mm,142mm] }
+ Point2 P0A8 { Position: [80.166667mm,138.166667mm] }
+ Point2 P0B8 { Position: [101.833333mm,145.833333mm] }
+ Point2 P0P9 { Position: [48mm,137mm] }
+ Point2 P0A9 { Position: [37.5mm,147.333333mm] }
+ Point2 P0B9 { Position: [58.5mm,126.666667mm] }
+ Point2 P0P10 { Position: [28mm,204mm] }
+ Point2 P0A10 { Position: [13mm,215.333333mm] }
+ Point2 P0B10 { Position: [43mm,192.666667mm] }
+ Point2 P0P11 { Position: [-42mm,205mm] }
+ Point2 P0A11 { Position: [-65.166667mm,200mm] }
+ Point2 P0B11 { Position: [-18.833333mm,210mm] }
+ Point2 P0P12 { Position: [-111mm,174mm] }
+ Point2 P0A12 { Position: [-123.833333mm,159mm] }
+ Point2 P0B12 { Position: [-98.166667mm,189mm] }
+ Point2 P0P13 { Position: [-119mm,115mm] }
+ Point2 P0A13 { Position: [-116.333333mm,92.666667mm] }
+ Point2 P0B13 { Position: [-121.666667mm,137.333333mm] }
+ Point2 P0P14 { Position: [-95mm,40mm] }
+ Point2 P0A14 { Position: [-98mm,15.5mm] }
+ Point2 P0B14 { Position: [-92mm,64.5mm] }
+ Point2 P0P15 { Position: [-137mm,-32mm] }
+ Point2 P0A15 { Position: [-149.166667mm,-57.833333mm] }
+ Point2 P0B15 { Position: [-124.833333mm,-6.166667mm] }
+ Point2 P0P16 { Position: [-168mm,-115mm] }
+ Point2 P0A16 { Position: [-164.333333mm,-142.166667mm] }
+ Point2 P0B16 { Position: [-171.666667mm,-87.833333mm] }
+ Point2 P0P17 { Position: [-115mm,-195mm] }
+ Point2 P0A17 { Position: [-87mm,-212.5mm] }
+ Point2 P0B17 { Position: [-143mm,-177.5mm] }
+ CubicBezier2 P0C0 { From: P0P0; Control1: P0A0; Control2: P0B1; To: P0P1 }
+ CubicBezier2 P0C1 { From: P0P1; Control1: P0A1; Control2: P0B2; To: P0P2 }
+ CubicBezier2 P0C2 { From: P0P2; Control1: P0A2; Control2: P0B3; To: P0P3 }
+ CubicBezier2 P0C3 { From: P0P3; Control1: P0A3; Control2: P0B4; To: P0P4 }
+ CubicBezier2 P0C4 { From: P0P4; Control1: P0A4; Control2: P0B5; To: P0P5 }
+ CubicBezier2 P0C5 { From: P0P5; Control1: P0A5; Control2: P0B6; To: P0P6 }
+ CubicBezier2 P0C6 { From: P0P6; Control1: P0A6; Control2: P0B7; To: P0P7 }
+ CubicBezier2 P0C7 { From: P0P7; Control1: P0A7; Control2: P0B8; To: P0P8 }
+ CubicBezier2 P0C8 { From: P0P8; Control1: P0A8; Control2: P0B9; To: P0P9 }
+ CubicBezier2 P0C9 { From: P0P9; Control1: P0A9; Control2: P0B10; To: P0P10 }
+ CubicBezier2 P0C10 { From: P0P10; Control1: P0A10; Control2: P0B11; To: P0P11 }
+ CubicBezier2 P0C11 { From: P0P11; Control1: P0A11; Control2: P0B12; To: P0P12 }
+ CubicBezier2 P0C12 { From: P0P12; Control1: P0A12; Control2: P0B13; To: P0P13 }
+ CubicBezier2 P0C13 { From: P0P13; Control1: P0A13; Control2: P0B14; To: P0P14 }
+ CubicBezier2 P0C14 { From: P0P14; Control1: P0A14; Control2: P0B15; To: P0P15 }
+ CubicBezier2 P0C15 { From: P0P15; Control1: P0A15; Control2: P0B16; To: P0P16 }
+ CubicBezier2 P0C16 { From: P0P16; Control1: P0A16; Control2: P0B17; To: P0P17 }
+ CubicBezier2 P0C17 { From: P0P17; Control1: P0A17; Control2: P0B0; To: P0P0 }
+ Profile P0 { Loop Outer {
+  Segment Edge0 { Trace: P0C0; From: P0P0; To: P0P1 }
+  Segment Edge1 { Trace: P0C1; From: P0P1; To: P0P2 }
+  Segment Edge2 { Trace: P0C2; From: P0P2; To: P0P3 }
+  Segment Edge3 { Trace: P0C3; From: P0P3; To: P0P4 }
+  Segment Edge4 { Trace: P0C4; From: P0P4; To: P0P5 }
+  Segment Edge5 { Trace: P0C5; From: P0P5; To: P0P6 }
+  Segment Edge6 { Trace: P0C6; From: P0P6; To: P0P7 }
+  Segment Edge7 { Trace: P0C7; From: P0P7; To: P0P8 }
+  Segment Edge8 { Trace: P0C8; From: P0P8; To: P0P9 }
+  Segment Edge9 { Trace: P0C9; From: P0P9; To: P0P10 }
+  Segment Edge10 { Trace: P0C10; From: P0P10; To: P0P11 }
+  Segment Edge11 { Trace: P0C11; From: P0P11; To: P0P12 }
+  Segment Edge12 { Trace: P0C12; From: P0P12; To: P0P13 }
+  Segment Edge13 { Trace: P0C13; From: P0P13; To: P0P14 }
+  Segment Edge14 { Trace: P0C14; From: P0P14; To: P0P15 }
+  Segment Edge15 { Trace: P0C15; From: P0P15; To: P0P16 }
+  Segment Edge16 { Trace: P0C16; From: P0P16; To: P0P17 }
+  Segment Edge17 { Trace: P0C17; From: P0P17; To: P0P0 }
+ } }
+ Construction Plane F1 { Trace: Frames.S1 }
+ Point2 P1P0 { Position: [0mm,-220mm] }
+ Point2 P1A0 { Position: [38.333333mm,-220mm] }
+ Point2 P1B0 { Position: [-38.333333mm,-220mm] }
+ Point2 P1P1 { Position: [115mm,-195mm] }
+ Point2 P1A1 { Position: [143mm,-177.5mm] }
+ Point2 P1B1 { Position: [87mm,-212.5mm] }
+ Point2 P1P2 { Position: [168mm,-115mm] }
+ Point2 P1A2 { Position: [173.5mm,-88.333333mm] }
+ Point2 P1B2 { Position: [162.5mm,-141.666667mm] }
+ Point2 P1P3 { Position: [148mm,-35mm] }
+ Point2 P1A3 { Position: [137.5mm,-11.166667mm] }
+ Point2 P1B3 { Position: [158.5mm,-58.833333mm] }
+ Point2 P1P4 { Position: [105mm,28mm] }
+ Point2 P1A4 { Position: [100mm,49.666667mm] }
+ Point2 P1B4 { Position: [110mm,6.333333mm] }
+ Point2 P1P5 { Position: [118mm,95mm] }
+ Point2 P1A5 { Position: [121.166667mm,113.666667mm] }
+ Point2 P1B5 { Position: [114.833333mm,76.333333mm] }
+ Point2 P1P6 { Position: [124mm,140mm] }
+ Point2 P1A6 { Position: [123.166667mm,150.833333mm] }
+ Point2 P1B6 { Position: [124.833333mm,129.166667mm] }
+ Point2 P1P7 { Position: [113mm,160mm] }
+ Point2 P1A7 { Position: [107.5mm,160.333333mm] }
+ Point2 P1B7 { Position: [118.5mm,159.666667mm] }
+ Point2 P1P8 { Position: [91mm,142mm] }
+ Point2 P1A8 { Position: [80.166667mm,138.166667mm] }
+ Point2 P1B8 { Position: [101.833333mm,145.833333mm] }
+ Point2 P1P9 { Position: [48mm,137mm] }
+ Point2 P1A9 { Position: [37.5mm,147.333333mm] }
+ Point2 P1B9 { Position: [58.5mm,126.666667mm] }
+ Point2 P1P10 { Position: [28mm,204mm] }
+ Point2 P1A10 { Position: [13mm,215.333333mm] }
+ Point2 P1B10 { Position: [43mm,192.666667mm] }
+ Point2 P1P11 { Position: [-42mm,205mm] }
+ Point2 P1A11 { Position: [-65.166667mm,200mm] }
+ Point2 P1B11 { Position: [-18.833333mm,210mm] }
+ Point2 P1P12 { Position: [-111mm,174mm] }
+ Point2 P1A12 { Position: [-123.833333mm,159mm] }
+ Point2 P1B12 { Position: [-98.166667mm,189mm] }
+ Point2 P1P13 { Position: [-119mm,115mm] }
+ Point2 P1A13 { Position: [-116.333333mm,92.666667mm] }
+ Point2 P1B13 { Position: [-121.666667mm,137.333333mm] }
+ Point2 P1P14 { Position: [-95mm,40mm] }
+ Point2 P1A14 { Position: [-98mm,15.5mm] }
+ Point2 P1B14 { Position: [-92mm,64.5mm] }
+ Point2 P1P15 { Position: [-137mm,-32mm] }
+ Point2 P1A15 { Position: [-149.166667mm,-57.833333mm] }
+ Point2 P1B15 { Position: [-124.833333mm,-6.166667mm] }
+ Point2 P1P16 { Position: [-168mm,-115mm] }
+ Point2 P1A16 { Position: [-164.333333mm,-142.166667mm] }
+ Point2 P1B16 { Position: [-171.666667mm,-87.833333mm] }
+ Point2 P1P17 { Position: [-115mm,-195mm] }
+ Point2 P1A17 { Position: [-87mm,-212.5mm] }
+ Point2 P1B17 { Position: [-143mm,-177.5mm] }
+ CubicBezier2 P1C0 { From: P1P0; Control1: P1A0; Control2: P1B1; To: P1P1 }
+ CubicBezier2 P1C1 { From: P1P1; Control1: P1A1; Control2: P1B2; To: P1P2 }
+ CubicBezier2 P1C2 { From: P1P2; Control1: P1A2; Control2: P1B3; To: P1P3 }
+ CubicBezier2 P1C3 { From: P1P3; Control1: P1A3; Control2: P1B4; To: P1P4 }
+ CubicBezier2 P1C4 { From: P1P4; Control1: P1A4; Control2: P1B5; To: P1P5 }
+ CubicBezier2 P1C5 { From: P1P5; Control1: P1A5; Control2: P1B6; To: P1P6 }
+ CubicBezier2 P1C6 { From: P1P6; Control1: P1A6; Control2: P1B7; To: P1P7 }
+ CubicBezier2 P1C7 { From: P1P7; Control1: P1A7; Control2: P1B8; To: P1P8 }
+ CubicBezier2 P1C8 { From: P1P8; Control1: P1A8; Control2: P1B9; To: P1P9 }
+ CubicBezier2 P1C9 { From: P1P9; Control1: P1A9; Control2: P1B10; To: P1P10 }
+ CubicBezier2 P1C10 { From: P1P10; Control1: P1A10; Control2: P1B11; To: P1P11 }
+ CubicBezier2 P1C11 { From: P1P11; Control1: P1A11; Control2: P1B12; To: P1P12 }
+ CubicBezier2 P1C12 { From: P1P12; Control1: P1A12; Control2: P1B13; To: P1P13 }
+ CubicBezier2 P1C13 { From: P1P13; Control1: P1A13; Control2: P1B14; To: P1P14 }
+ CubicBezier2 P1C14 { From: P1P14; Control1: P1A14; Control2: P1B15; To: P1P15 }
+ CubicBezier2 P1C15 { From: P1P15; Control1: P1A15; Control2: P1B16; To: P1P16 }
+ CubicBezier2 P1C16 { From: P1P16; Control1: P1A16; Control2: P1B17; To: P1P17 }
+ CubicBezier2 P1C17 { From: P1P17; Control1: P1A17; Control2: P1B0; To: P1P0 }
+ Profile P1 { Loop Outer {
+  Segment Edge0 { Trace: P1C0; From: P1P0; To: P1P1 }
+  Segment Edge1 { Trace: P1C1; From: P1P1; To: P1P2 }
+  Segment Edge2 { Trace: P1C2; From: P1P2; To: P1P3 }
+  Segment Edge3 { Trace: P1C3; From: P1P3; To: P1P4 }
+  Segment Edge4 { Trace: P1C4; From: P1P4; To: P1P5 }
+  Segment Edge5 { Trace: P1C5; From: P1P5; To: P1P6 }
+  Segment Edge6 { Trace: P1C6; From: P1P6; To: P1P7 }
+  Segment Edge7 { Trace: P1C7; From: P1P7; To: P1P8 }
+  Segment Edge8 { Trace: P1C8; From: P1P8; To: P1P9 }
+  Segment Edge9 { Trace: P1C9; From: P1P9; To: P1P10 }
+  Segment Edge10 { Trace: P1C10; From: P1P10; To: P1P11 }
+  Segment Edge11 { Trace: P1C11; From: P1P11; To: P1P12 }
+  Segment Edge12 { Trace: P1C12; From: P1P12; To: P1P13 }
+  Segment Edge13 { Trace: P1C13; From: P1P13; To: P1P14 }
+  Segment Edge14 { Trace: P1C14; From: P1P14; To: P1P15 }
+  Segment Edge15 { Trace: P1C15; From: P1P15; To: P1P16 }
+  Segment Edge16 { Trace: P1C16; From: P1P16; To: P1P17 }
+  Segment Edge17 { Trace: P1C17; From: P1P17; To: P1P0 }
+ } }
+ SectionChain MahoganyBack { Continuity: G0
+  Section S0 { Frame: F0
+   Profile: P0
+   Seam: Edge0 }
+  Section S1 { Frame: F1
+   Profile: P1
+   Seam: Edge0 }
+  Start: Cap
+  End: Cap
+ }
+}

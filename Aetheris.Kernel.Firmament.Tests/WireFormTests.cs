@@ -8,6 +8,25 @@ namespace Aetheris.Kernel.Firmament.Tests;
 public sealed class WireFormTests
 {
     [Fact]
+    public void ThinGuitarStringNutBreakKeepsItsTangentJoinAndExactSweep()
+    {
+        var source = File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath(
+            "fixtures/Canonical/AssemblyInterfaces/GuitarX0/string-low-e.firmament"));
+        var parsed = WireFormAuthoring.Parse(source);
+        Assert.True(parsed.IsSuccess);
+        Assert.Empty(WireFormBRepMaterializer.Validate(parsed.Value));
+        var built = FirmamentBuildAndExport.CompileSource(source);
+        Assert.True(built.IsSuccess, Messages(built));
+        var report = built.Value.WireForm!;
+        Assert.Equal(2, report.StraightCount);
+        Assert.Equal(1, report.BendCount);
+        Assert.True(report.StepReimportedManifold);
+        Assert.Equal(0, report.NonRationalBSplineSurfaces);
+        Assert.True(report.Cylinders > 0);
+        Assert.True(report.Tori > 0);
+    }
+
+    [Fact]
     public void Helix_AndAxisCoilShareSemanticIdentityAndGeometry()
     {
         var legacy = File.ReadAllText(Fixture("Canonical", "WireForm", "axis-coil.firmament"));

@@ -420,7 +420,15 @@ public static class WireFormBRepMaterializer
 
     private static double AdjacentNonlocalDistance(WireFormOperationAir a, WireFormOperationAir b, double clearance)
     {
-        const int count = 192; var aa = Sample(a, count); var bb = Sample(b, count); var best = double.PositiveInfinity;
+        const int count = 192;
+        // The arclength exclusion below uses count intervals on both operations.
+        // Ordinary Sample represents a straight with only its two endpoints;
+        // using that here compared the entire line (including the shared join)
+        // against an arc outside the join neighborhood, causing false contact.
+        static IReadOnlyList<Point3D> AdjacentSamples(WireFormOperationAir operation) => operation is WireStraightAir line
+            ? Enumerable.Range(0, count + 1).Select(i => line.Input.Position + (line.Output.Position - line.Input.Position) * ((double)i / count)).ToArray()
+            : Sample(operation, count);
+        var aa = AdjacentSamples(a); var bb = AdjacentSamples(b); var best = double.PositiveInfinity;
         // A two-diameter arclength neighborhood around the common endpoint is the
         // intended continuous tube join. Compare every chord pair outside it so
         // adjacent operations cannot retrace/collide elsewhere.

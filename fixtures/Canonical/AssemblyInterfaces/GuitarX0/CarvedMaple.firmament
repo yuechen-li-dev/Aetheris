@@ -1,0 +1,494 @@
+Model CarvedMaple {
+ Units: mm
+ Concept Struct Frames {
+  S0: Plane { Origin: [0mm,0mm,40mm]; Normal: [0,0,1]; Up: [0,1,0] }
+  S1: Plane { Origin: [0mm,0mm,43mm]; Normal: [0,0,1]; Up: [0,1,0] }
+  S2: Plane { Origin: [0mm,0mm,48mm]; Normal: [0,0,1]; Up: [0,1,0] }
+  S3: Plane { Origin: [0mm,0mm,52mm]; Normal: [0,0,1]; Up: [0,1,0] }
+  S4: Plane { Origin: [0mm,0mm,53mm]; Normal: [0,0,1]; Up: [0,1,0] }
+ }
+ Construction Plane F0 { Trace: Frames.S0 }
+ Point2 P0P0 { Position: [0mm,-218.44mm] }
+ Point2 P0A0 { Position: [38.026667mm,-218.44mm] }
+ Point2 P0B0 { Position: [-38.026667mm,-218.44mm] }
+ Point2 P0P1 { Position: [114.08mm,-193.64mm] }
+ Point2 P0A1 { Position: [141.856mm,-176.28mm] }
+ Point2 P0B1 { Position: [86.304mm,-211mm] }
+ Point2 P0P2 { Position: [166.656mm,-114.28mm] }
+ Point2 P0A2 { Position: [172.112mm,-87.826667mm] }
+ Point2 P0B2 { Position: [161.2mm,-140.733333mm] }
+ Point2 P0P3 { Position: [146.816mm,-34.92mm] }
+ Point2 P0A3 { Position: [136.4mm,-11.277333mm] }
+ Point2 P0B3 { Position: [157.232mm,-58.562667mm] }
+ Point2 P0P4 { Position: [104.16mm,27.576mm] }
+ Point2 P0A4 { Position: [99.2mm,49.069333mm] }
+ Point2 P0B4 { Position: [109.12mm,6.082667mm] }
+ Point2 P0P5 { Position: [117.056mm,94.04mm] }
+ Point2 P0A5 { Position: [120.197333mm,112.557333mm] }
+ Point2 P0B5 { Position: [113.914667mm,75.522667mm] }
+ Point2 P0P6 { Position: [123.008mm,138.68mm] }
+ Point2 P0A6 { Position: [122.181333mm,149.426667mm] }
+ Point2 P0B6 { Position: [123.834667mm,127.933333mm] }
+ Point2 P0P7 { Position: [112.096mm,158.52mm] }
+ Point2 P0A7 { Position: [106.64mm,158.850667mm] }
+ Point2 P0B7 { Position: [117.552mm,158.189333mm] }
+ Point2 P0P8 { Position: [90.272mm,140.664mm] }
+ Point2 P0A8 { Position: [79.525333mm,136.861333mm] }
+ Point2 P0B8 { Position: [101.018667mm,144.466667mm] }
+ Point2 P0P9 { Position: [47.616mm,135.704mm] }
+ Point2 P0A9 { Position: [37.2mm,145.954667mm] }
+ Point2 P0B9 { Position: [58.032mm,125.453333mm] }
+ Point2 P0P10 { Position: [27.776mm,202.168mm] }
+ Point2 P0A10 { Position: [12.896mm,213.410667mm] }
+ Point2 P0B10 { Position: [42.656mm,190.925333mm] }
+ Point2 P0P11 { Position: [-41.664mm,203.16mm] }
+ Point2 P0A11 { Position: [-64.645333mm,198.2mm] }
+ Point2 P0B11 { Position: [-18.682667mm,208.12mm] }
+ Point2 P0P12 { Position: [-110.112mm,172.408mm] }
+ Point2 P0A12 { Position: [-122.842667mm,157.528mm] }
+ Point2 P0B12 { Position: [-97.381333mm,187.288mm] }
+ Point2 P0P13 { Position: [-118.048mm,113.88mm] }
+ Point2 P0A13 { Position: [-115.402667mm,91.725333mm] }
+ Point2 P0B13 { Position: [-120.693333mm,136.034667mm] }
+ Point2 P0P14 { Position: [-94.24mm,39.48mm] }
+ Point2 P0A14 { Position: [-97.216mm,15.176mm] }
+ Point2 P0B14 { Position: [-91.264mm,63.784mm] }
+ Point2 P0P15 { Position: [-135.904mm,-31.944mm] }
+ Point2 P0A15 { Position: [-147.973333mm,-57.570667mm] }
+ Point2 P0B15 { Position: [-123.834667mm,-6.317333mm] }
+ Point2 P0P16 { Position: [-166.656mm,-114.28mm] }
+ Point2 P0A16 { Position: [-163.018667mm,-141.229333mm] }
+ Point2 P0B16 { Position: [-170.293333mm,-87.330667mm] }
+ Point2 P0P17 { Position: [-114.08mm,-193.64mm] }
+ Point2 P0A17 { Position: [-86.304mm,-211mm] }
+ Point2 P0B17 { Position: [-141.856mm,-176.28mm] }
+ CubicBezier2 P0C0 { From: P0P0; Control1: P0A0; Control2: P0B1; To: P0P1 }
+ CubicBezier2 P0C1 { From: P0P1; Control1: P0A1; Control2: P0B2; To: P0P2 }
+ CubicBezier2 P0C2 { From: P0P2; Control1: P0A2; Control2: P0B3; To: P0P3 }
+ CubicBezier2 P0C3 { From: P0P3; Control1: P0A3; Control2: P0B4; To: P0P4 }
+ CubicBezier2 P0C4 { From: P0P4; Control1: P0A4; Control2: P0B5; To: P0P5 }
+ CubicBezier2 P0C5 { From: P0P5; Control1: P0A5; Control2: P0B6; To: P0P6 }
+ CubicBezier2 P0C6 { From: P0P6; Control1: P0A6; Control2: P0B7; To: P0P7 }
+ CubicBezier2 P0C7 { From: P0P7; Control1: P0A7; Control2: P0B8; To: P0P8 }
+ CubicBezier2 P0C8 { From: P0P8; Control1: P0A8; Control2: P0B9; To: P0P9 }
+ CubicBezier2 P0C9 { From: P0P9; Control1: P0A9; Control2: P0B10; To: P0P10 }
+ CubicBezier2 P0C10 { From: P0P10; Control1: P0A10; Control2: P0B11; To: P0P11 }
+ CubicBezier2 P0C11 { From: P0P11; Control1: P0A11; Control2: P0B12; To: P0P12 }
+ CubicBezier2 P0C12 { From: P0P12; Control1: P0A12; Control2: P0B13; To: P0P13 }
+ CubicBezier2 P0C13 { From: P0P13; Control1: P0A13; Control2: P0B14; To: P0P14 }
+ CubicBezier2 P0C14 { From: P0P14; Control1: P0A14; Control2: P0B15; To: P0P15 }
+ CubicBezier2 P0C15 { From: P0P15; Control1: P0A15; Control2: P0B16; To: P0P16 }
+ CubicBezier2 P0C16 { From: P0P16; Control1: P0A16; Control2: P0B17; To: P0P17 }
+ CubicBezier2 P0C17 { From: P0P17; Control1: P0A17; Control2: P0B0; To: P0P0 }
+ Profile P0 { Loop Outer {
+  Segment Edge0 { Trace: P0C0; From: P0P0; To: P0P1 }
+  Segment Edge1 { Trace: P0C1; From: P0P1; To: P0P2 }
+  Segment Edge2 { Trace: P0C2; From: P0P2; To: P0P3 }
+  Segment Edge3 { Trace: P0C3; From: P0P3; To: P0P4 }
+  Segment Edge4 { Trace: P0C4; From: P0P4; To: P0P5 }
+  Segment Edge5 { Trace: P0C5; From: P0P5; To: P0P6 }
+  Segment Edge6 { Trace: P0C6; From: P0P6; To: P0P7 }
+  Segment Edge7 { Trace: P0C7; From: P0P7; To: P0P8 }
+  Segment Edge8 { Trace: P0C8; From: P0P8; To: P0P9 }
+  Segment Edge9 { Trace: P0C9; From: P0P9; To: P0P10 }
+  Segment Edge10 { Trace: P0C10; From: P0P10; To: P0P11 }
+  Segment Edge11 { Trace: P0C11; From: P0P11; To: P0P12 }
+  Segment Edge12 { Trace: P0C12; From: P0P12; To: P0P13 }
+  Segment Edge13 { Trace: P0C13; From: P0P13; To: P0P14 }
+  Segment Edge14 { Trace: P0C14; From: P0P14; To: P0P15 }
+  Segment Edge15 { Trace: P0C15; From: P0P15; To: P0P16 }
+  Segment Edge16 { Trace: P0C16; From: P0P16; To: P0P17 }
+  Segment Edge17 { Trace: P0C17; From: P0P17; To: P0P0 }
+ } }
+ Construction Plane F1 { Trace: Frames.S1 }
+ Point2 P1P0 { Position: [0mm,-211.225mm] }
+ Point2 P1A0 { Position: [36.608333mm,-211.225mm] }
+ Point2 P1B0 { Position: [-36.608333mm,-211.225mm] }
+ Point2 P1P1 { Position: [109.825mm,-187.35mm] }
+ Point2 P1A1 { Position: [136.565mm,-170.6375mm] }
+ Point2 P1B1 { Position: [83.085mm,-204.0625mm] }
+ Point2 P1P2 { Position: [160.44mm,-110.95mm] }
+ Point2 P1A2 { Position: [165.6925mm,-85.483333mm] }
+ Point2 P1B2 { Position: [155.1875mm,-136.416667mm] }
+ Point2 P1P3 { Position: [141.34mm,-34.55mm] }
+ Point2 P1A3 { Position: [131.3125mm,-11.789167mm] }
+ Point2 P1B3 { Position: [151.3675mm,-57.310833mm] }
+ Point2 P1P4 { Position: [100.275mm,25.615mm] }
+ Point2 P1A4 { Position: [95.5mm,46.306667mm] }
+ Point2 P1B4 { Position: [105.05mm,4.923333mm] }
+ Point2 P1P5 { Position: [112.69mm,89.6mm] }
+ Point2 P1A5 { Position: [115.714167mm,107.426667mm] }
+ Point2 P1B5 { Position: [109.665833mm,71.773333mm] }
+ Point2 P1P6 { Position: [118.42mm,132.575mm] }
+ Point2 P1A6 { Position: [117.624167mm,142.920833mm] }
+ Point2 P1B6 { Position: [119.215833mm,122.229167mm] }
+ Point2 P1P7 { Position: [107.915mm,151.675mm] }
+ Point2 P1A7 { Position: [102.6625mm,151.993333mm] }
+ Point2 P1B7 { Position: [113.1675mm,151.356667mm] }
+ Point2 P1P8 { Position: [86.905mm,134.485mm] }
+ Point2 P1A8 { Position: [76.559167mm,130.824167mm] }
+ Point2 P1B8 { Position: [97.250833mm,138.145833mm] }
+ Point2 P1P9 { Position: [45.84mm,129.71mm] }
+ Point2 P1A9 { Position: [35.8125mm,139.578333mm] }
+ Point2 P1B9 { Position: [55.8675mm,119.841667mm] }
+ Point2 P1P10 { Position: [26.74mm,193.695mm] }
+ Point2 P1A10 { Position: [12.415mm,204.518333mm] }
+ Point2 P1B10 { Position: [41.065mm,182.871667mm] }
+ Point2 P1P11 { Position: [-40.11mm,194.65mm] }
+ Point2 P1A11 { Position: [-62.234167mm,189.875mm] }
+ Point2 P1B11 { Position: [-17.985833mm,199.425mm] }
+ Point2 P1P12 { Position: [-106.005mm,165.045mm] }
+ Point2 P1A12 { Position: [-118.260833mm,150.72mm] }
+ Point2 P1B12 { Position: [-93.749167mm,179.37mm] }
+ Point2 P1P13 { Position: [-113.645mm,108.7mm] }
+ Point2 P1A13 { Position: [-111.098333mm,87.371667mm] }
+ Point2 P1B13 { Position: [-116.191667mm,130.028333mm] }
+ Point2 P1P14 { Position: [-90.725mm,37.075mm] }
+ Point2 P1A14 { Position: [-93.59mm,13.6775mm] }
+ Point2 P1B14 { Position: [-87.86mm,60.4725mm] }
+ Point2 P1P15 { Position: [-130.835mm,-31.685mm] }
+ Point2 P1A15 { Position: [-142.454167mm,-56.355833mm] }
+ Point2 P1B15 { Position: [-119.215833mm,-7.014167mm] }
+ Point2 P1P16 { Position: [-160.44mm,-110.95mm] }
+ Point2 P1A16 { Position: [-156.938333mm,-136.894167mm] }
+ Point2 P1B16 { Position: [-163.941667mm,-85.005833mm] }
+ Point2 P1P17 { Position: [-109.825mm,-187.35mm] }
+ Point2 P1A17 { Position: [-83.085mm,-204.0625mm] }
+ Point2 P1B17 { Position: [-136.565mm,-170.6375mm] }
+ CubicBezier2 P1C0 { From: P1P0; Control1: P1A0; Control2: P1B1; To: P1P1 }
+ CubicBezier2 P1C1 { From: P1P1; Control1: P1A1; Control2: P1B2; To: P1P2 }
+ CubicBezier2 P1C2 { From: P1P2; Control1: P1A2; Control2: P1B3; To: P1P3 }
+ CubicBezier2 P1C3 { From: P1P3; Control1: P1A3; Control2: P1B4; To: P1P4 }
+ CubicBezier2 P1C4 { From: P1P4; Control1: P1A4; Control2: P1B5; To: P1P5 }
+ CubicBezier2 P1C5 { From: P1P5; Control1: P1A5; Control2: P1B6; To: P1P6 }
+ CubicBezier2 P1C6 { From: P1P6; Control1: P1A6; Control2: P1B7; To: P1P7 }
+ CubicBezier2 P1C7 { From: P1P7; Control1: P1A7; Control2: P1B8; To: P1P8 }
+ CubicBezier2 P1C8 { From: P1P8; Control1: P1A8; Control2: P1B9; To: P1P9 }
+ CubicBezier2 P1C9 { From: P1P9; Control1: P1A9; Control2: P1B10; To: P1P10 }
+ CubicBezier2 P1C10 { From: P1P10; Control1: P1A10; Control2: P1B11; To: P1P11 }
+ CubicBezier2 P1C11 { From: P1P11; Control1: P1A11; Control2: P1B12; To: P1P12 }
+ CubicBezier2 P1C12 { From: P1P12; Control1: P1A12; Control2: P1B13; To: P1P13 }
+ CubicBezier2 P1C13 { From: P1P13; Control1: P1A13; Control2: P1B14; To: P1P14 }
+ CubicBezier2 P1C14 { From: P1P14; Control1: P1A14; Control2: P1B15; To: P1P15 }
+ CubicBezier2 P1C15 { From: P1P15; Control1: P1A15; Control2: P1B16; To: P1P16 }
+ CubicBezier2 P1C16 { From: P1P16; Control1: P1A16; Control2: P1B17; To: P1P17 }
+ CubicBezier2 P1C17 { From: P1P17; Control1: P1A17; Control2: P1B0; To: P1P0 }
+ Profile P1 { Loop Outer {
+  Segment Edge0 { Trace: P1C0; From: P1P0; To: P1P1 }
+  Segment Edge1 { Trace: P1C1; From: P1P1; To: P1P2 }
+  Segment Edge2 { Trace: P1C2; From: P1P2; To: P1P3 }
+  Segment Edge3 { Trace: P1C3; From: P1P3; To: P1P4 }
+  Segment Edge4 { Trace: P1C4; From: P1P4; To: P1P5 }
+  Segment Edge5 { Trace: P1C5; From: P1P5; To: P1P6 }
+  Segment Edge6 { Trace: P1C6; From: P1P6; To: P1P7 }
+  Segment Edge7 { Trace: P1C7; From: P1P7; To: P1P8 }
+  Segment Edge8 { Trace: P1C8; From: P1P8; To: P1P9 }
+  Segment Edge9 { Trace: P1C9; From: P1P9; To: P1P10 }
+  Segment Edge10 { Trace: P1C10; From: P1P10; To: P1P11 }
+  Segment Edge11 { Trace: P1C11; From: P1P11; To: P1P12 }
+  Segment Edge12 { Trace: P1C12; From: P1P12; To: P1P13 }
+  Segment Edge13 { Trace: P1C13; From: P1P13; To: P1P14 }
+  Segment Edge14 { Trace: P1C14; From: P1P14; To: P1P15 }
+  Segment Edge15 { Trace: P1C15; From: P1P15; To: P1P16 }
+  Segment Edge16 { Trace: P1C16; From: P1P16; To: P1P17 }
+  Segment Edge17 { Trace: P1C17; From: P1P17; To: P1P0 }
+ } }
+ Construction Plane F2 { Trace: Frames.S2 }
+ Point2 P2P0 { Position: [0mm,-188.8mm] }
+ Point2 P2A0 { Position: [32.2mm,-188.8mm] }
+ Point2 P2B0 { Position: [-32.2mm,-188.8mm] }
+ Point2 P2P1 { Position: [96.6mm,-167.8mm] }
+ Point2 P2A1 { Position: [120.12mm,-153.1mm] }
+ Point2 P2B1 { Position: [73.08mm,-182.5mm] }
+ Point2 P2P2 { Position: [141.12mm,-100.6mm] }
+ Point2 P2A2 { Position: [145.74mm,-78.2mm] }
+ Point2 P2B2 { Position: [136.5mm,-123mm] }
+ Point2 P2P3 { Position: [124.32mm,-33.4mm] }
+ Point2 P2A3 { Position: [115.5mm,-13.38mm] }
+ Point2 P2B3 { Position: [133.14mm,-53.42mm] }
+ Point2 P2P4 { Position: [88.2mm,19.52mm] }
+ Point2 P2A4 { Position: [84mm,37.72mm] }
+ Point2 P2B4 { Position: [92.4mm,1.32mm] }
+ Point2 P2P5 { Position: [99.12mm,75.8mm] }
+ Point2 P2A5 { Position: [101.78mm,91.48mm] }
+ Point2 P2B5 { Position: [96.46mm,60.12mm] }
+ Point2 P2P6 { Position: [104.16mm,113.6mm] }
+ Point2 P2A6 { Position: [103.46mm,122.7mm] }
+ Point2 P2B6 { Position: [104.86mm,104.5mm] }
+ Point2 P2P7 { Position: [94.92mm,130.4mm] }
+ Point2 P2A7 { Position: [90.3mm,130.68mm] }
+ Point2 P2B7 { Position: [99.54mm,130.12mm] }
+ Point2 P2P8 { Position: [76.44mm,115.28mm] }
+ Point2 P2A8 { Position: [67.34mm,112.06mm] }
+ Point2 P2B8 { Position: [85.54mm,118.5mm] }
+ Point2 P2P9 { Position: [40.32mm,111.08mm] }
+ Point2 P2A9 { Position: [31.5mm,119.76mm] }
+ Point2 P2B9 { Position: [49.14mm,102.4mm] }
+ Point2 P2P10 { Position: [23.52mm,167.36mm] }
+ Point2 P2A10 { Position: [10.92mm,176.88mm] }
+ Point2 P2B10 { Position: [36.12mm,157.84mm] }
+ Point2 P2P11 { Position: [-35.28mm,168.2mm] }
+ Point2 P2A11 { Position: [-54.74mm,164mm] }
+ Point2 P2B11 { Position: [-15.82mm,172.4mm] }
+ Point2 P2P12 { Position: [-93.24mm,142.16mm] }
+ Point2 P2A12 { Position: [-104.02mm,129.56mm] }
+ Point2 P2B12 { Position: [-82.46mm,154.76mm] }
+ Point2 P2P13 { Position: [-99.96mm,92.6mm] }
+ Point2 P2A13 { Position: [-97.72mm,73.84mm] }
+ Point2 P2B13 { Position: [-102.2mm,111.36mm] }
+ Point2 P2P14 { Position: [-79.8mm,29.6mm] }
+ Point2 P2A14 { Position: [-82.32mm,9.02mm] }
+ Point2 P2B14 { Position: [-77.28mm,50.18mm] }
+ Point2 P2P15 { Position: [-115.08mm,-30.88mm] }
+ Point2 P2A15 { Position: [-125.3mm,-52.58mm] }
+ Point2 P2B15 { Position: [-104.86mm,-9.18mm] }
+ Point2 P2P16 { Position: [-141.12mm,-100.6mm] }
+ Point2 P2A16 { Position: [-138.04mm,-123.42mm] }
+ Point2 P2B16 { Position: [-144.2mm,-77.78mm] }
+ Point2 P2P17 { Position: [-96.6mm,-167.8mm] }
+ Point2 P2A17 { Position: [-73.08mm,-182.5mm] }
+ Point2 P2B17 { Position: [-120.12mm,-153.1mm] }
+ CubicBezier2 P2C0 { From: P2P0; Control1: P2A0; Control2: P2B1; To: P2P1 }
+ CubicBezier2 P2C1 { From: P2P1; Control1: P2A1; Control2: P2B2; To: P2P2 }
+ CubicBezier2 P2C2 { From: P2P2; Control1: P2A2; Control2: P2B3; To: P2P3 }
+ CubicBezier2 P2C3 { From: P2P3; Control1: P2A3; Control2: P2B4; To: P2P4 }
+ CubicBezier2 P2C4 { From: P2P4; Control1: P2A4; Control2: P2B5; To: P2P5 }
+ CubicBezier2 P2C5 { From: P2P5; Control1: P2A5; Control2: P2B6; To: P2P6 }
+ CubicBezier2 P2C6 { From: P2P6; Control1: P2A6; Control2: P2B7; To: P2P7 }
+ CubicBezier2 P2C7 { From: P2P7; Control1: P2A7; Control2: P2B8; To: P2P8 }
+ CubicBezier2 P2C8 { From: P2P8; Control1: P2A8; Control2: P2B9; To: P2P9 }
+ CubicBezier2 P2C9 { From: P2P9; Control1: P2A9; Control2: P2B10; To: P2P10 }
+ CubicBezier2 P2C10 { From: P2P10; Control1: P2A10; Control2: P2B11; To: P2P11 }
+ CubicBezier2 P2C11 { From: P2P11; Control1: P2A11; Control2: P2B12; To: P2P12 }
+ CubicBezier2 P2C12 { From: P2P12; Control1: P2A12; Control2: P2B13; To: P2P13 }
+ CubicBezier2 P2C13 { From: P2P13; Control1: P2A13; Control2: P2B14; To: P2P14 }
+ CubicBezier2 P2C14 { From: P2P14; Control1: P2A14; Control2: P2B15; To: P2P15 }
+ CubicBezier2 P2C15 { From: P2P15; Control1: P2A15; Control2: P2B16; To: P2P16 }
+ CubicBezier2 P2C16 { From: P2P16; Control1: P2A16; Control2: P2B17; To: P2P17 }
+ CubicBezier2 P2C17 { From: P2P17; Control1: P2A17; Control2: P2B0; To: P2P0 }
+ Profile P2 { Loop Outer {
+  Segment Edge0 { Trace: P2C0; From: P2P0; To: P2P1 }
+  Segment Edge1 { Trace: P2C1; From: P2P1; To: P2P2 }
+  Segment Edge2 { Trace: P2C2; From: P2P2; To: P2P3 }
+  Segment Edge3 { Trace: P2C3; From: P2P3; To: P2P4 }
+  Segment Edge4 { Trace: P2C4; From: P2P4; To: P2P5 }
+  Segment Edge5 { Trace: P2C5; From: P2P5; To: P2P6 }
+  Segment Edge6 { Trace: P2C6; From: P2P6; To: P2P7 }
+  Segment Edge7 { Trace: P2C7; From: P2P7; To: P2P8 }
+  Segment Edge8 { Trace: P2C8; From: P2P8; To: P2P9 }
+  Segment Edge9 { Trace: P2C9; From: P2P9; To: P2P10 }
+  Segment Edge10 { Trace: P2C10; From: P2P10; To: P2P11 }
+  Segment Edge11 { Trace: P2C11; From: P2P11; To: P2P12 }
+  Segment Edge12 { Trace: P2C12; From: P2P12; To: P2P13 }
+  Segment Edge13 { Trace: P2C13; From: P2P13; To: P2P14 }
+  Segment Edge14 { Trace: P2C14; From: P2P14; To: P2P15 }
+  Segment Edge15 { Trace: P2C15; From: P2P15; To: P2P16 }
+  Segment Edge16 { Trace: P2C16; From: P2P16; To: P2P17 }
+  Segment Edge17 { Trace: P2C17; From: P2P17; To: P2P0 }
+ } }
+ Construction Plane F3 { Trace: Frames.S3 }
+ Point2 P3P0 { Position: [0mm,-149.8mm] }
+ Point2 P3A0 { Position: [24.533333mm,-149.8mm] }
+ Point2 P3B0 { Position: [-24.533333mm,-149.8mm] }
+ Point2 P3P1 { Position: [73.6mm,-133.8mm] }
+ Point2 P3A1 { Position: [91.52mm,-122.6mm] }
+ Point2 P3B1 { Position: [55.68mm,-145mm] }
+ Point2 P3P2 { Position: [107.52mm,-82.6mm] }
+ Point2 P3A2 { Position: [111.04mm,-65.533333mm] }
+ Point2 P3B2 { Position: [104mm,-99.666667mm] }
+ Point2 P3P3 { Position: [94.72mm,-31.4mm] }
+ Point2 P3A3 { Position: [88mm,-16.146667mm] }
+ Point2 P3B3 { Position: [101.44mm,-46.653333mm] }
+ Point2 P3P4 { Position: [67.2mm,8.92mm] }
+ Point2 P3A4 { Position: [64mm,22.786667mm] }
+ Point2 P3B4 { Position: [70.4mm,-4.946667mm] }
+ Point2 P3P5 { Position: [75.52mm,51.8mm] }
+ Point2 P3A5 { Position: [77.546667mm,63.746667mm] }
+ Point2 P3B5 { Position: [73.493333mm,39.853333mm] }
+ Point2 P3P6 { Position: [79.36mm,80.6mm] }
+ Point2 P3A6 { Position: [78.826667mm,87.533333mm] }
+ Point2 P3B6 { Position: [79.893333mm,73.666667mm] }
+ Point2 P3P7 { Position: [72.32mm,93.4mm] }
+ Point2 P3A7 { Position: [68.8mm,93.613333mm] }
+ Point2 P3B7 { Position: [75.84mm,93.186667mm] }
+ Point2 P3P8 { Position: [58.24mm,81.88mm] }
+ Point2 P3A8 { Position: [51.306667mm,79.426667mm] }
+ Point2 P3B8 { Position: [65.173333mm,84.333333mm] }
+ Point2 P3P9 { Position: [30.72mm,78.68mm] }
+ Point2 P3A9 { Position: [24mm,85.293333mm] }
+ Point2 P3B9 { Position: [37.44mm,72.066667mm] }
+ Point2 P3P10 { Position: [17.92mm,121.56mm] }
+ Point2 P3A10 { Position: [8.32mm,128.813333mm] }
+ Point2 P3B10 { Position: [27.52mm,114.306667mm] }
+ Point2 P3P11 { Position: [-26.88mm,122.2mm] }
+ Point2 P3A11 { Position: [-41.706667mm,119mm] }
+ Point2 P3B11 { Position: [-12.053333mm,125.4mm] }
+ Point2 P3P12 { Position: [-71.04mm,102.36mm] }
+ Point2 P3A12 { Position: [-79.253333mm,92.76mm] }
+ Point2 P3B12 { Position: [-62.826667mm,111.96mm] }
+ Point2 P3P13 { Position: [-76.16mm,64.6mm] }
+ Point2 P3A13 { Position: [-74.453333mm,50.306667mm] }
+ Point2 P3B13 { Position: [-77.866667mm,78.893333mm] }
+ Point2 P3P14 { Position: [-60.8mm,16.6mm] }
+ Point2 P3A14 { Position: [-62.72mm,0.92mm] }
+ Point2 P3B14 { Position: [-58.88mm,32.28mm] }
+ Point2 P3P15 { Position: [-87.68mm,-29.48mm] }
+ Point2 P3A15 { Position: [-95.466667mm,-46.013333mm] }
+ Point2 P3B15 { Position: [-79.893333mm,-12.946667mm] }
+ Point2 P3P16 { Position: [-107.52mm,-82.6mm] }
+ Point2 P3A16 { Position: [-105.173333mm,-99.986667mm] }
+ Point2 P3B16 { Position: [-109.866667mm,-65.213333mm] }
+ Point2 P3P17 { Position: [-73.6mm,-133.8mm] }
+ Point2 P3A17 { Position: [-55.68mm,-145mm] }
+ Point2 P3B17 { Position: [-91.52mm,-122.6mm] }
+ CubicBezier2 P3C0 { From: P3P0; Control1: P3A0; Control2: P3B1; To: P3P1 }
+ CubicBezier2 P3C1 { From: P3P1; Control1: P3A1; Control2: P3B2; To: P3P2 }
+ CubicBezier2 P3C2 { From: P3P2; Control1: P3A2; Control2: P3B3; To: P3P3 }
+ CubicBezier2 P3C3 { From: P3P3; Control1: P3A3; Control2: P3B4; To: P3P4 }
+ CubicBezier2 P3C4 { From: P3P4; Control1: P3A4; Control2: P3B5; To: P3P5 }
+ CubicBezier2 P3C5 { From: P3P5; Control1: P3A5; Control2: P3B6; To: P3P6 }
+ CubicBezier2 P3C6 { From: P3P6; Control1: P3A6; Control2: P3B7; To: P3P7 }
+ CubicBezier2 P3C7 { From: P3P7; Control1: P3A7; Control2: P3B8; To: P3P8 }
+ CubicBezier2 P3C8 { From: P3P8; Control1: P3A8; Control2: P3B9; To: P3P9 }
+ CubicBezier2 P3C9 { From: P3P9; Control1: P3A9; Control2: P3B10; To: P3P10 }
+ CubicBezier2 P3C10 { From: P3P10; Control1: P3A10; Control2: P3B11; To: P3P11 }
+ CubicBezier2 P3C11 { From: P3P11; Control1: P3A11; Control2: P3B12; To: P3P12 }
+ CubicBezier2 P3C12 { From: P3P12; Control1: P3A12; Control2: P3B13; To: P3P13 }
+ CubicBezier2 P3C13 { From: P3P13; Control1: P3A13; Control2: P3B14; To: P3P14 }
+ CubicBezier2 P3C14 { From: P3P14; Control1: P3A14; Control2: P3B15; To: P3P15 }
+ CubicBezier2 P3C15 { From: P3P15; Control1: P3A15; Control2: P3B16; To: P3P16 }
+ CubicBezier2 P3C16 { From: P3P16; Control1: P3A16; Control2: P3B17; To: P3P17 }
+ CubicBezier2 P3C17 { From: P3P17; Control1: P3A17; Control2: P3B0; To: P3P0 }
+ Profile P3 { Loop Outer {
+  Segment Edge0 { Trace: P3C0; From: P3P0; To: P3P1 }
+  Segment Edge1 { Trace: P3C1; From: P3P1; To: P3P2 }
+  Segment Edge2 { Trace: P3C2; From: P3P2; To: P3P3 }
+  Segment Edge3 { Trace: P3C3; From: P3P3; To: P3P4 }
+  Segment Edge4 { Trace: P3C4; From: P3P4; To: P3P5 }
+  Segment Edge5 { Trace: P3C5; From: P3P5; To: P3P6 }
+  Segment Edge6 { Trace: P3C6; From: P3P6; To: P3P7 }
+  Segment Edge7 { Trace: P3C7; From: P3P7; To: P3P8 }
+  Segment Edge8 { Trace: P3C8; From: P3P8; To: P3P9 }
+  Segment Edge9 { Trace: P3C9; From: P3P9; To: P3P10 }
+  Segment Edge10 { Trace: P3C10; From: P3P10; To: P3P11 }
+  Segment Edge11 { Trace: P3C11; From: P3P11; To: P3P12 }
+  Segment Edge12 { Trace: P3C12; From: P3P12; To: P3P13 }
+  Segment Edge13 { Trace: P3C13; From: P3P13; To: P3P14 }
+  Segment Edge14 { Trace: P3C14; From: P3P14; To: P3P15 }
+  Segment Edge15 { Trace: P3C15; From: P3P15; To: P3P16 }
+  Segment Edge16 { Trace: P3C16; From: P3P16; To: P3P17 }
+  Segment Edge17 { Trace: P3C17; From: P3P17; To: P3P0 }
+ } }
+ Construction Plane F4 { Trace: Frames.S4 }
+ Point2 P4P0 { Position: [0mm,-99.1mm] }
+ Point2 P4A0 { Position: [14.566667mm,-99.1mm] }
+ Point2 P4B0 { Position: [-14.566667mm,-99.1mm] }
+ Point2 P4P1 { Position: [43.7mm,-89.6mm] }
+ Point2 P4A1 { Position: [54.34mm,-82.95mm] }
+ Point2 P4B1 { Position: [33.06mm,-96.25mm] }
+ Point2 P4P2 { Position: [63.84mm,-59.2mm] }
+ Point2 P4A2 { Position: [65.93mm,-49.066667mm] }
+ Point2 P4B2 { Position: [61.75mm,-69.333333mm] }
+ Point2 P4P3 { Position: [56.24mm,-28.8mm] }
+ Point2 P4A3 { Position: [52.25mm,-19.743333mm] }
+ Point2 P4B3 { Position: [60.23mm,-37.856667mm] }
+ Point2 P4P4 { Position: [39.9mm,-4.86mm] }
+ Point2 P4A4 { Position: [38mm,3.373333mm] }
+ Point2 P4B4 { Position: [41.8mm,-13.093333mm] }
+ Point2 P4P5 { Position: [44.84mm,20.6mm] }
+ Point2 P4A5 { Position: [46.043333mm,27.693333mm] }
+ Point2 P4B5 { Position: [43.636667mm,13.506667mm] }
+ Point2 P4P6 { Position: [47.12mm,37.7mm] }
+ Point2 P4A6 { Position: [46.803333mm,41.816667mm] }
+ Point2 P4B6 { Position: [47.436667mm,33.583333mm] }
+ Point2 P4P7 { Position: [42.94mm,45.3mm] }
+ Point2 P4A7 { Position: [40.85mm,45.426667mm] }
+ Point2 P4B7 { Position: [45.03mm,45.173333mm] }
+ Point2 P4P8 { Position: [34.58mm,38.46mm] }
+ Point2 P4A8 { Position: [30.463333mm,37.003333mm] }
+ Point2 P4B8 { Position: [38.696667mm,39.916667mm] }
+ Point2 P4P9 { Position: [18.24mm,36.56mm] }
+ Point2 P4A9 { Position: [14.25mm,40.486667mm] }
+ Point2 P4B9 { Position: [22.23mm,32.633333mm] }
+ Point2 P4P10 { Position: [10.64mm,62.02mm] }
+ Point2 P4A10 { Position: [4.94mm,66.326667mm] }
+ Point2 P4B10 { Position: [16.34mm,57.713333mm] }
+ Point2 P4P11 { Position: [-15.96mm,62.4mm] }
+ Point2 P4A11 { Position: [-24.763333mm,60.5mm] }
+ Point2 P4B11 { Position: [-7.156667mm,64.3mm] }
+ Point2 P4P12 { Position: [-42.18mm,50.62mm] }
+ Point2 P4A12 { Position: [-47.056667mm,44.92mm] }
+ Point2 P4B12 { Position: [-37.303333mm,56.32mm] }
+ Point2 P4P13 { Position: [-45.22mm,28.2mm] }
+ Point2 P4A13 { Position: [-44.206667mm,19.713333mm] }
+ Point2 P4B13 { Position: [-46.233333mm,36.686667mm] }
+ Point2 P4P14 { Position: [-36.1mm,-0.3mm] }
+ Point2 P4A14 { Position: [-37.24mm,-9.61mm] }
+ Point2 P4B14 { Position: [-34.96mm,9.01mm] }
+ Point2 P4P15 { Position: [-52.06mm,-27.66mm] }
+ Point2 P4A15 { Position: [-56.683333mm,-37.476667mm] }
+ Point2 P4B15 { Position: [-47.436667mm,-17.843333mm] }
+ Point2 P4P16 { Position: [-63.84mm,-59.2mm] }
+ Point2 P4A16 { Position: [-62.446667mm,-69.523333mm] }
+ Point2 P4B16 { Position: [-65.233333mm,-48.876667mm] }
+ Point2 P4P17 { Position: [-43.7mm,-89.6mm] }
+ Point2 P4A17 { Position: [-33.06mm,-96.25mm] }
+ Point2 P4B17 { Position: [-54.34mm,-82.95mm] }
+ CubicBezier2 P4C0 { From: P4P0; Control1: P4A0; Control2: P4B1; To: P4P1 }
+ CubicBezier2 P4C1 { From: P4P1; Control1: P4A1; Control2: P4B2; To: P4P2 }
+ CubicBezier2 P4C2 { From: P4P2; Control1: P4A2; Control2: P4B3; To: P4P3 }
+ CubicBezier2 P4C3 { From: P4P3; Control1: P4A3; Control2: P4B4; To: P4P4 }
+ CubicBezier2 P4C4 { From: P4P4; Control1: P4A4; Control2: P4B5; To: P4P5 }
+ CubicBezier2 P4C5 { From: P4P5; Control1: P4A5; Control2: P4B6; To: P4P6 }
+ CubicBezier2 P4C6 { From: P4P6; Control1: P4A6; Control2: P4B7; To: P4P7 }
+ CubicBezier2 P4C7 { From: P4P7; Control1: P4A7; Control2: P4B8; To: P4P8 }
+ CubicBezier2 P4C8 { From: P4P8; Control1: P4A8; Control2: P4B9; To: P4P9 }
+ CubicBezier2 P4C9 { From: P4P9; Control1: P4A9; Control2: P4B10; To: P4P10 }
+ CubicBezier2 P4C10 { From: P4P10; Control1: P4A10; Control2: P4B11; To: P4P11 }
+ CubicBezier2 P4C11 { From: P4P11; Control1: P4A11; Control2: P4B12; To: P4P12 }
+ CubicBezier2 P4C12 { From: P4P12; Control1: P4A12; Control2: P4B13; To: P4P13 }
+ CubicBezier2 P4C13 { From: P4P13; Control1: P4A13; Control2: P4B14; To: P4P14 }
+ CubicBezier2 P4C14 { From: P4P14; Control1: P4A14; Control2: P4B15; To: P4P15 }
+ CubicBezier2 P4C15 { From: P4P15; Control1: P4A15; Control2: P4B16; To: P4P16 }
+ CubicBezier2 P4C16 { From: P4P16; Control1: P4A16; Control2: P4B17; To: P4P17 }
+ CubicBezier2 P4C17 { From: P4P17; Control1: P4A17; Control2: P4B0; To: P4P0 }
+ Profile P4 { Loop Outer {
+  Segment Edge0 { Trace: P4C0; From: P4P0; To: P4P1 }
+  Segment Edge1 { Trace: P4C1; From: P4P1; To: P4P2 }
+  Segment Edge2 { Trace: P4C2; From: P4P2; To: P4P3 }
+  Segment Edge3 { Trace: P4C3; From: P4P3; To: P4P4 }
+  Segment Edge4 { Trace: P4C4; From: P4P4; To: P4P5 }
+  Segment Edge5 { Trace: P4C5; From: P4P5; To: P4P6 }
+  Segment Edge6 { Trace: P4C6; From: P4P6; To: P4P7 }
+  Segment Edge7 { Trace: P4C7; From: P4P7; To: P4P8 }
+  Segment Edge8 { Trace: P4C8; From: P4P8; To: P4P9 }
+  Segment Edge9 { Trace: P4C9; From: P4P9; To: P4P10 }
+  Segment Edge10 { Trace: P4C10; From: P4P10; To: P4P11 }
+  Segment Edge11 { Trace: P4C11; From: P4P11; To: P4P12 }
+  Segment Edge12 { Trace: P4C12; From: P4P12; To: P4P13 }
+  Segment Edge13 { Trace: P4C13; From: P4P13; To: P4P14 }
+  Segment Edge14 { Trace: P4C14; From: P4P14; To: P4P15 }
+  Segment Edge15 { Trace: P4C15; From: P4P15; To: P4P16 }
+  Segment Edge16 { Trace: P4C16; From: P4P16; To: P4P17 }
+  Segment Edge17 { Trace: P4C17; From: P4P17; To: P4P0 }
+ } }
+ SectionChain CarvedMaple { Continuity: G1
+  Section S0 { Frame: F0
+   Profile: P0
+   Seam: Edge0 }
+  Section S1 { Frame: F1
+   Profile: P1
+   Seam: Edge0 }
+  Section S2 { Frame: F2
+   Profile: P2
+   Seam: Edge0 }
+  Section S3 { Frame: F3
+   Profile: P3
+   Seam: Edge0 }
+  Section S4 { Frame: F4
+   Profile: P4
+   Seam: Edge0 }
+  Start: Cap
+  End: Cap
+ }
+}

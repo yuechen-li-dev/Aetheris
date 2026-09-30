@@ -7,9 +7,9 @@ using Aetheris.Kernel.Core.Topology;
 namespace Aetheris.Kernel.Core.Brep.Tessellation;
 
 /// <summary>
-/// Bounded display lane for natural rectangular spline patches and convex planar caps.
+/// Bounded display lane for natural rectangular spline patches and simple planar caps.
 /// Samples each source edge once; every face reuses those boundary positions. Arbitrary
-/// trimmed splines, concave caps and holes remain outside this lane. Never alters BRep.
+/// trimmed splines and holes remain outside this lane. Never alters BRep.
 /// </summary>
 public static class RectangularSplineDisplayTessellator
 {
@@ -66,19 +66,27 @@ public static class RectangularSplineDisplayTessellator
                 if (boundary.Length < 3) return false;
                 var center = new Point3D(boundary.Average(p => p.X), boundary.Average(p => p.Y), boundary.Average(p => p.Z));
                 var normal = plane.Normal.ToVector() * sign;
-                // A centroid fan is admitted only for a strictly star-shaped convex cap.
+                // Keep the existing convex fan. Concave caps reuse the ordinary
+                // simple-polygon triangulator over these same shared edge samples.
                 var winding = 0;
+                var convex = true;
                 for (var i = 0; i < boundary.Length; i++)
                 {
                     if (double.Abs((boundary[i] - plane.Origin).Dot(plane.Normal.ToVector())) > BoundaryTolerance) return false;
                     var cross = (boundary[i] - center).Cross(boundary[(i + 1) % boundary.Length] - center).Dot(normal);
-                    if (double.Abs(cross) < 1e-12) return false;
+                    if (double.Abs(cross) < 1e-12) { convex = false; continue; }
                     var direction = System.Math.Sign(cross);
-                    if (winding != 0 && winding != direction) return false;
+                    if (winding != 0 && winding != direction) convex = false;
                     winding = direction;
                     var a = boundary[(i + 1) % boundary.Length] - boundary[i];
                     var b = boundary[(i + 2) % boundary.Length] - boundary[(i + 1) % boundary.Length];
-                    if (a.Cross(b).Dot(normal) * winding < -1e-8) return false;
+                    if (a.Cross(b).Dot(normal) * winding < -1e-8) convex = false;
+                }
+                if (!convex)
+                {
+                    if (!PlanarPolygonTriangulator.TryTriangulate(boundary, normal, out var capIndices, out _)) return false;
+                    patches.Add(new(face.Id, boundary, Enumerable.Repeat(normal, boundary.Length).ToArray(), capIndices));
+                    continue;
                 }
                 var positions = boundary.Append(center).ToArray();
                 var indices = new List<int>();

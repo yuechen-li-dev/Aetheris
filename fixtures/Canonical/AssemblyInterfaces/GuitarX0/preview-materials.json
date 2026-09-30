@@ -1,0 +1,86 @@
+{
+  "SectionChainFile<\"CarvedMaple.firmament\">": {
+    "red": 0.65,
+    "green": 0.28,
+    "blue": 0.035,
+    "metallic": 0,
+    "roughness": 0.35
+  },
+  "SectionChainFile<\"MahoganyBack.firmament\">": {
+    "red": 0.15,
+    "green": 0.025,
+    "blue": 0.012,
+    "metallic": 0,
+    "roughness": 0.4
+  },
+  "SectionChainFile<\"IvoryBinding.firmament\">": {
+    "red": 0.72,
+    "green": 0.59,
+    "blue": 0.36,
+    "metallic": 0,
+    "roughness": 0.4
+  },
+  "SectionChainFile<\"Neck.firmament\">": {
+    "red": 0.15,
+    "green": 0.025,
+    "blue": 0.012,
+    "metallic": 0,
+    "roughness": 0.4
+  },
+  "Board<H:5mm>": {
+    "red": 0.72,
+    "green": 0.59,
+    "blue": 0.36,
+    "metallic": 0,
+    "roughness": 0.4
+  },
+  "Board<H:2mm>": {
+    "red": 0.055,
+    "green": 0.017,
+    "blue": 0.008,
+    "metallic": 0,
+    "roughness": 0.4
+  },
+  "Head<H:1mm>": {
+    "red": 0.008,
+    "green": 0.008,
+    "blue": 0.008,
+    "metallic": 0,
+    "roughness": 0.4
+  },
+  "Head<H:14mm>": {
+    "red": 0.15,
+    "green": 0.025,
+    "blue": 0.012,
+    "metallic": 0,
+    "roughness": 0.4
+  },
+  "Panel<L:70mm,W:17mm,H:5mm,R:3mm>": {
+    "red": 0.009,
+    "green": 0.007,
+    "blue": 0.006,
+    "metallic": 0,
+    "roughness": 0.4
+  },
+  "Surround<L:88mm,W:46mm,H:4mm>": {
+    "red": 0.72,
+    "green": 0.59,
+    "blue": 0.36,
+    "metallic": 0,
+    "roughness": 0.4
+  },
+  "Drum<R:9mm,H:9mm>": {
+    "red": 0.38,
+    "green": 0.13,
+    "blue": 0.013,
+    "metallic": 0.2,
+    "roughness": 0.3
+  },
+  "Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>": {
+    "red": 0.74,
+    "green": 0.73,
+    "blue": 0.62,
+    "metallic": 0.1,
+    "roughness": 0.3
+  }
+}

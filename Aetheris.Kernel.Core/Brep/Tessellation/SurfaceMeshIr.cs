@@ -1475,7 +1475,18 @@ public static class SurfaceMeshIrTessellator
             var bandCells = new List<SurfaceMeshCell>();
             for (var row = 0; row < seam.Length - 1; row++)
                 for (var column = 0; column < ring.Length - 1; column++)
-                    bandCells.Add(new QuadCell(Orient([bandGrid[row,column],bandGrid[row,column+1],bandGrid[row+1,column+1],bandGrid[row+1,column]],sameSense)));
+                {
+                    int[] ids = [bandGrid[row,column],bandGrid[row,column+1],bandGrid[row+1,column+1],bandGrid[row+1,column]];
+                    // Columns follow minor V and rows major U. Their traversal
+                    // can oppose the analytic support orientation; resolve the
+                    // chart winding before applying the authoritative face sign.
+                    var u = seam[row]!.Value.U; var v = ring[column]!.Value.V;
+                    var p = torus.Evaluate(u, v);
+                    var cross = (torus.Evaluate(u, ring[column+1]!.Value.V) - p)
+                        .Cross(torus.Evaluate(seam[row+1]!.Value.U, v) - p);
+                    if (cross.Dot(torus.Normal(u, v).ToVector()) < 0) Array.Reverse(ids);
+                    bandCells.Add(new QuadCell(Orient(ids, sameSense)));
+                }
             return new SurfacePatch(faceId, new SurfaceMeshSupport(SurfaceMeshSupportKind.Torus,Torus:torus), body.GetLoopIds(faceId), bandCells, sameSense, HasPeriodicVSeam:true);
         }
         // Root/concave fillet: four directed circle uses delimit a genuine

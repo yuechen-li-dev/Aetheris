@@ -1,0 +1,386 @@
+// GUITAR-SURFACING-X0. Original design inspired by the single-cut family.
+// Every visible product part is compiled Firmament geometry. Finish is downstream.
+Template<D: Length, Lead: Length, Tail: Length, Deflection: Angle> Struct GuitarString {
+ WireForm String {
+  Diameter: D
+  Material: Standard.Materials.StainlessSteel.304_Annealed
+  StartFrame { Origin: [0mm,0mm,0mm]; Tangent: [0,0,1]; Up: [1,0,0] }
+  Straight SpeakingLength { Length: Lead }
+  Bend NutBreak { Radius: 3mm; Angle: Deflection; Plane: Up }
+  Straight TunerLead { Length: Tail }
+ }
+}
+Template<L: Length, W: Length, H: Length, R: Length> Struct Panel {
+ RoundedRect2 Outline { Center: [0mm,0mm] Size: [L,W] Radius: R }
+ Profile P { Loop Outer { Outline |> TraceLoop } }
+ Extrude Body { Profile: P From: 0mm To: H }
+}
+Template<R: Length,H: Length> Struct Drum {
+ Circle2 Outline { Center: [0mm,0mm] Radius: R }
+ Profile P { Loop Outer { Outline |> TraceLoop } }
+ Extrude Body { Profile: P From: 0mm To: H }
+}
+Template<L: Length,W: Length,H: Length> Struct Surround {
+ RoundedRect2 Outer { Center: [0mm,0mm] Size: [L,W] Radius: 4mm }
+ // Solid decorative seat; the black bobbins sit on it. No routed opening claim.
+ Profile P { Loop Outer { Outer |> TraceLoop } }
+ Extrude Body { Profile: P From: 0mm To: H }
+}
+Template<H: Length> Struct Board {
+ Point2 RightNut { Position: [21.5mm,660mm] }
+ Point2 LeftNut { Position: [-21.5mm,660mm] }
+ Concept Path Outline { Start: Point2(-28mm,120mm) Heading: 0deg
+  Line End { Length: 56mm }
+  Line Right { To: RightNut }
+  Line Nut { To: LeftNut }
+  Close Left
+ }
+ Profile P From Outline
+ Extrude Body { Profile: P From: 0mm To: H }
+}
+Template<H: Length> Struct Head {
+ Point2 RFlare { Position: [34mm,40mm] }
+ Point2 RSide { Position: [39mm,154mm] }
+ Point2 RCrown { Position: [12mm,160mm] }
+ Point2 LCrown { Position: [-12mm,160mm] }
+ Point2 LSide { Position: [-39mm,154mm] }
+ Point2 LFlare { Position: [-34mm,40mm] }
+ Concept Path Outline { Start: Point2(-21.5mm,0mm) Heading: 0deg
+  Line Base { Length: 43mm }
+  Line FlareR { To: RFlare }
+  Line SideR { To: RSide }
+  Line CrownR { To: RCrown }
+  Line Crown { To: LCrown }
+  Line CrownL { To: LSide }
+  Line SideL { To: LFlare }
+  Close FlareL
+ }
+ Profile P From Outline
+ Extrude Body { Profile: P From: 0mm To: H }
+}
+Assembly GuitarX0 {
+ <Assembly GuitarX0>
+  <Part MahoganyBack = SectionChainFile<"MahoganyBack.firmament">>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,0,0,1];
+  </Part>
+  <Part IvoryBinding = SectionChainFile<"IvoryBinding.firmament">>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,0,0,1];
+  </Part>
+  <Part CarvedMaple = SectionChainFile<"CarvedMaple.firmament">>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,0,0,1];
+  </Part>
+  <Part Neck = SectionChainFile<"Neck.firmament">>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,0,0,1];
+  </Part>
+  <Part BoardBinding = Board<H:5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,0,55,1];
+  </Part>
+  <Part Rosewood = Board<H:2mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,0,60,1];
+  </Part>
+  <Part Headstock = Head<H:14mm>>
+   Placement LegacyExplicit = [1,0,0,0,0,0.974370064785235,-0.224951054343865,0,0,0.224951054343865,0.974370064785235,0,0,660,48,1];
+  </Part>
+  <Part HeadVeneer = Head<H:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,0,0.974370064785235,-0.224951054343865,0,0,0.224951054343865,0.974370064785235,0,0,663.149314760814,61.6411809069933,1];
+  </Part>
+  <Part Nut = Panel<L:44mm,W:4mm,H:3mm,R:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,658,62,1];
+  </Part>
+  <Part NeckPickupCream = Surround<L:88mm,W:46mm,H:4mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,98,53,1];
+  </Part>
+  <Part NeckPickupCoil0 = Panel<L:70mm,W:17mm,H:5mm,R:3mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,88,57,1];
+  </Part>
+  <Part NeckPickupCoil1 = Panel<L:70mm,W:17mm,H:5mm,R:3mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,108,57,1];
+  </Part>
+  <Part NeckPickupPole0 = Drum<R:2.2mm,H:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,-25.5,108,62,1];
+  </Part>
+  <Part NeckPickupPole1 = Drum<R:2.2mm,H:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,-15.3,108,62,1];
+  </Part>
+  <Part NeckPickupPole2 = Drum<R:2.2mm,H:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,-5.1,108,62,1];
+  </Part>
+  <Part NeckPickupPole3 = Drum<R:2.2mm,H:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,5.1,108,62,1];
+  </Part>
+  <Part NeckPickupPole4 = Drum<R:2.2mm,H:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,15.3,108,62,1];
+  </Part>
+  <Part NeckPickupPole5 = Drum<R:2.2mm,H:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,25.5,108,62,1];
+  </Part>
+  <Part BridgePickupCream = Surround<L:88mm,W:46mm,H:4mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,0,53,1];
+  </Part>
+  <Part BridgePickupCoil0 = Panel<L:70mm,W:17mm,H:5mm,R:3mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,-10,57,1];
+  </Part>
+  <Part BridgePickupCoil1 = Panel<L:70mm,W:17mm,H:5mm,R:3mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,10,57,1];
+  </Part>
+  <Part BridgePickupPole0 = Drum<R:2.2mm,H:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,-25.5,10,62,1];
+  </Part>
+  <Part BridgePickupPole1 = Drum<R:2.2mm,H:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,-15.3,10,62,1];
+  </Part>
+  <Part BridgePickupPole2 = Drum<R:2.2mm,H:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,-5.1,10,62,1];
+  </Part>
+  <Part BridgePickupPole3 = Drum<R:2.2mm,H:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,5.1,10,62,1];
+  </Part>
+  <Part BridgePickupPole4 = Drum<R:2.2mm,H:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,15.3,10,62,1];
+  </Part>
+  <Part BridgePickupPole5 = Drum<R:2.2mm,H:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,25.5,10,62,1];
+  </Part>
+  <Part Bridge = Panel<L:82mm,W:12mm,H:6mm,R:5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,-35,57,1];
+  </Part>
+  <Part Tailpiece = Panel<L:88mm,W:15mm,H:7mm,R:6mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,-75,53,1];
+  </Part>
+  <Part Saddle0 = Panel<L:7mm,W:9mm,H:2mm,R:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,-25.5,-35,63,1];
+  </Part>
+  <Part Saddle1 = Panel<L:7mm,W:9mm,H:2mm,R:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,-15.3,-35,63,1];
+  </Part>
+  <Part Saddle2 = Panel<L:7mm,W:9mm,H:2mm,R:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,-5.1,-35,63,1];
+  </Part>
+  <Part Saddle3 = Panel<L:7mm,W:9mm,H:2mm,R:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,5.1,-35,63,1];
+  </Part>
+  <Part Saddle4 = Panel<L:7mm,W:9mm,H:2mm,R:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,15.3,-35,63,1];
+  </Part>
+  <Part Saddle5 = Panel<L:7mm,W:9mm,H:2mm,R:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,25.5,-35,63,1];
+  </Part>
+  <Part KnobSkirt0 = Drum<R:12mm,H:3mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,79,-95,50,1];
+  </Part>
+  <Part AmberKnob0 = Drum<R:9mm,H:9mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,79,-95,53,1];
+  </Part>
+  <Part KnobCap0 = Drum<R:5mm,H:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,79,-95,62,1];
+  </Part>
+  <Part KnobSkirt1 = Drum<R:12mm,H:3mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,123,-70,45,1];
+  </Part>
+  <Part AmberKnob1 = Drum<R:9mm,H:9mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,123,-70,48,1];
+  </Part>
+  <Part KnobCap1 = Drum<R:5mm,H:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,123,-70,57,1];
+  </Part>
+  <Part KnobSkirt2 = Drum<R:12mm,H:3mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,75,-156,47,1];
+  </Part>
+  <Part AmberKnob2 = Drum<R:9mm,H:9mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,75,-156,50,1];
+  </Part>
+  <Part KnobCap2 = Drum<R:5mm,H:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,75,-156,59,1];
+  </Part>
+  <Part KnobSkirt3 = Drum<R:12mm,H:3mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,121,-131,43,1];
+  </Part>
+  <Part AmberKnob3 = Drum<R:9mm,H:9mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,121,-131,46,1];
+  </Part>
+  <Part KnobCap3 = Drum<R:5mm,H:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,121,-131,55,1];
+  </Part>
+  <Part SelectorRing = Drum<R:16mm,H:1.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,-73,137,43,1];
+  </Part>
+  <Part SelectorStem = Drum<R:2.5mm,H:12mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,-73,137,44.5,1];
+  </Part>
+  <Part SelectorTip = Drum<R:4mm,H:7mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,-73,137,54,1];
+  </Part>
+  <Part ControlCover = Panel<L:63mm,W:93mm,H:1mm,R:15mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,85,-115,-1,1];
+  </Part>
+  <Part SelectorCover = Drum<R:24mm,H:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,-73,137,-1,1];
+  </Part>
+  <Part Fret1 = Panel<L:42.896685mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,622.753068364104,62,1];
+  </Part>
+  <Part Fret2 = Panel<L:43.697598mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,589.484394992133,62,1];
+  </Part>
+  <Part Fret3 = Panel<L:44.453559mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,558.082948779333,62,1];
+  </Part>
+  <Part PearlInlay3 = Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,573.783671885733,62,1];
+  </Part>
+  <Part Fret4 = Panel<L:45.167091mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,528.443930318015,62,1];
+  </Part>
+  <Part Fret5 = Panel<L:45.840575mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,500.468422139278,62,1];
+  </Part>
+  <Part PearlInlay5 = Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,514.456176228646,62,1];
+  </Part>
+  <Part Fret6 = Panel<L:46.47626mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,474.063058585152,62,1];
+  </Part>
+  <Part Fret7 = Panel<L:47.076266mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,449.139714209391,62,1];
+  </Part>
+  <Part PearlInlay7 = Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,461.601386397271,62,1];
+  </Part>
+  <Part Fret8 = Panel<L:47.642597mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,425.61520966699,62,1];
+  </Part>
+  <Part Fret9 = Panel<L:48.177142mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,403.411034110854,62,1];
+  </Part>
+  <Part PearlInlay9 = Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,414.513121888922,62,1];
+  </Part>
+  <Part Fret10 = Panel<L:48.681685mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,382.453083169143,62,1];
+  </Part>
+  <Part Fret11 = Panel<L:49.15791mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,362.671411628819,62,1];
+  </Part>
+  <Part Fret12 = Panel<L:49.607407mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,344,62,1];
+  </Part>
+  <Part PearlInlay12 = Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,353.335705814409,62,1];
+  </Part>
+  <Part Fret13 = Panel<L:50.031676mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,326.376534182052,62,1];
+  </Part>
+  <Part Fret14 = Panel<L:50.432132mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,309.742197496067,62,1];
+  </Part>
+  <Part Fret15 = Panel<L:50.810113mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,294.041474389666,62,1];
+  </Part>
+  <Part PearlInlay15 = Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,301.891835942866,62,1];
+  </Part>
+  <Part Fret16 = Panel<L:51.166879mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,279.221965159007,62,1];
+  </Part>
+  <Part Fret17 = Panel<L:51.503621mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,265.234211069639,62,1];
+  </Part>
+  <Part PearlInlay17 = Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,272.228088114323,62,1];
+  </Part>
+  <Part Fret18 = Panel<L:51.821463mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,252.031529292576,62,1];
+  </Part>
+  <Part Fret19 = Panel<L:52.121466mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,239.569857104695,62,1];
+  </Part>
+  <Part PearlInlay19 = Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,245.800693198636,62,1];
+  </Part>
+  <Part Fret20 = Panel<L:52.404632mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,227.807604833495,62,1];
+  </Part>
+  <Part Fret21 = Panel<L:52.671904mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,216.705517055427,62,1];
+  </Part>
+  <Part PearlInlay21 = Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,222.256560944461,62,1];
+  </Part>
+  <Part Fret22 = Panel<L:52.924176mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,0,206.226541584572,62,1];
+  </Part>
+  <Part TunerPost00 = Drum<R:4mm,H:8mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,-27,716.513463757544,49.5683898198344,1];
+  </Part>
+  <Part TunerWasher00 = Drum<R:7mm,H:1.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,-27,716.513463757544,49.5683898198344,1];
+  </Part>
+  <Part TunerButton00 = Panel<L:15mm,W:19mm,H:6mm,R:5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,-49,716.513463757544,42.5683898198344,1];
+  </Part>
+  <Part String0 = GuitarString<D:0.28mm,Lead:732.679593mm,Tail:59.754816mm,Deflection:13.639458deg>>
+   Placement LegacyExplicit = [-0.735853071477427,0.00752919240938704,0.677099378569276,0,0.677063937819737,-0.00692766648519513,0.735891589530075,0,0.0102313880420824,0.999947657979523,0,0,-25.5,-75,65,1];
+  </Part>
+  <Part TunerPost01 = Drum<R:4mm,H:8mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,-27,751.590786089812,41.4701518634552,1];
+  </Part>
+  <Part TunerWasher01 = Drum<R:7mm,H:1.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,-27,751.590786089812,41.4701518634552,1];
+  </Part>
+  <Part TunerButton01 = Panel<L:15mm,W:19mm,H:6mm,R:5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,-49,751.590786089812,34.4701518634552,1];
+  </Part>
+  <Part String1 = GuitarString<D:0.36mm,Lead:732.619706mm,Tail:96.378981mm,Deflection:14.968066deg>>
+   Placement LegacyExplicit = [-0.741339625949553,0.00455119824934923,0.67111462924859,0,0.67110198271469,-0.00411999852962634,0.741353596071758,0,0.00613903847430546,0.999981155925756,0,0,-15.3,-75,65,1];
+  </Part>
+  <Part TunerPost02 = Drum<R:4mm,H:8mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,-27,786.668108422081,33.3719139070761,1];
+  </Part>
+  <Part TunerWasher02 = Drum<R:7mm,H:1.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,-27,786.668108422081,33.3719139070761,1];
+  </Part>
+  <Part TunerButton02 = Panel<L:15mm,W:19mm,H:6mm,R:5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,-49,786.668108422081,26.3719139070761,1];
+  </Part>
+  <Part String2 = GuitarString<D:0.44mm,Lead:732.593764mm,Tail:133.054198mm,Deflection:15.480813deg>>
+   Placement LegacyExplicit = [-0.747493541507803,0.001529659361885,0.664267314826162,0,0.664265923957594,-0.001359343637021,0.747495106641937,0,0.00204638043552803,0.999997906161364,0,0,-5.1,-75,65,1];
+  </Part>
+  <Part TunerPost20 = Drum<R:4mm,H:8mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,27,716.513463757544,49.5683898198344,1];
+  </Part>
+  <Part TunerWasher20 = Drum<R:7mm,H:1.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,27,716.513463757544,49.5683898198344,1];
+  </Part>
+  <Part TunerButton20 = Panel<L:15mm,W:19mm,H:6mm,R:5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,49,716.513463757544,42.5683898198344,1];
+  </Part>
+  <Part String5 = GuitarString<D:0.68mm,Lead:732.679593mm,Tail:59.754816mm,Deflection:13.639458deg>>
+   Placement LegacyExplicit = [-0.735853071477427,-0.00752919240938704,-0.677099378569276,0,-0.677063937819737,-0.00692766648519513,0.735891589530075,0,-0.0102313880420824,0.999947657979523,0,0,25.5,-75,65,1];
+  </Part>
+  <Part TunerPost21 = Drum<R:4mm,H:8mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,27,751.590786089812,41.4701518634552,1];
+  </Part>
+  <Part TunerWasher21 = Drum<R:7mm,H:1.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,27,751.590786089812,41.4701518634552,1];
+  </Part>
+  <Part TunerButton21 = Panel<L:15mm,W:19mm,H:6mm,R:5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,49,751.590786089812,34.4701518634552,1];
+  </Part>
+  <Part String4 = GuitarString<D:0.6mm,Lead:732.619706mm,Tail:96.378981mm,Deflection:14.968066deg>>
+   Placement LegacyExplicit = [-0.741339625949553,-0.00455119824934923,-0.67111462924859,0,-0.67110198271469,-0.00411999852962634,0.741353596071758,0,-0.00613903847430546,0.999981155925756,0,0,15.3,-75,65,1];
+  </Part>
+  <Part TunerPost22 = Drum<R:4mm,H:8mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,27,786.668108422081,33.3719139070761,1];
+  </Part>
+  <Part TunerWasher22 = Drum<R:7mm,H:1.5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,27,786.668108422081,33.3719139070761,1];
+  </Part>
+  <Part TunerButton22 = Panel<L:15mm,W:19mm,H:6mm,R:5mm>>
+   Placement LegacyExplicit = [1,0,0,0,-0,1,0,0,0,0,1,0,49,786.668108422081,26.3719139070761,1];
+  </Part>
+  <Part String3 = GuitarString<D:0.52mm,Lead:732.593764mm,Tail:133.054198mm,Deflection:15.480813deg>>
+   Placement LegacyExplicit = [-0.747493541507803,-0.001529659361885,-0.664267314826162,0,-0.664265923957594,-0.001359343637021,0.747495106641937,0,-0.00204638043552803,0.999997906161364,0,0,5.1,-75,65,1];
+  </Part>
+ </Assembly>
+ Anchor: GuitarX0;
+}

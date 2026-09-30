@@ -23,6 +23,8 @@ dotnet run --project Aetheris.CLI -c Release -- asm export-usd `
 
 `--materials file.json` supplies downstream preview appearances keyed by the exact compiled definition identity. Each appearance has `red`, `green`, `blue`, `metallic`, and `roughness` in `[0,1]`. Unknown definitions fail. The preset is visual presentation, not an engineering material or density declaration. Without a preset, parts receive a neutral metallic preview material and display color. `--evidence file.json` writes the authoritative display data, poses, and joint frames for independent external verification. `--json` prints counts, file size, and measured mesh/serialization timings.
 
+Analytic formed-wire definitions containing planes, cylinders and torus bends use the existing shared-boundary SurfaceMeshIR route. Unsupported trims fail rather than silently substituting a disconnected display mesh.
+
 The API is `AssemblyUsdExporter.Export(compilation, options)`. `Serialize(ir, mesh, options, evaluatedState)` reuses a prepared mesh; its occurrence transforms must match the declared state. The exporter rejects mismatched states, invalid meshes, unresolved placement, and reflected transforms. It never drops a failed part or replaces a failed mesh with debug geometry.
 
 ## Scene contract
@@ -56,7 +58,7 @@ pwsh -File scripts/qualify-usd-export-x0.ps1 -CaptureMotion
 
 ATLAS uses exact Aetheris pedestal, perforated housings, shared collars, and a two-finger gripper. The separate studio USD layer adds lights, camera, stage, and a reflective sphere; those are presentation-only. See [the milestone evidence report](../../release/USD-EXPORT-X0.md) for the pinned tool, source provenance, screenshots, physical-scale checks, and limits.
 
-The refined industrial ATLAS witness is authored in `fixtures/Canonical/AssemblyInterfaces/IndustrialAtlas/atlas-industrial.firmament`. Its tapered G1 housings use `SectionChainFile` definitions, alongside ordinary exact drums, rings, rounded panels and parallel jaws. Native shared instances retain the repeated fasteners. The assembly display exporter has a bounded structured tessellation lane for natural rectangular spline patches with convex planar caps: adjacent faces share sampled BRep edges, and sharp cap normals remain separate. General trimmed spline remeshing is outside that lane.
+The refined industrial ATLAS witness is authored in `fixtures/Canonical/AssemblyInterfaces/IndustrialAtlas/atlas-industrial.firmament`. Its tapered G1 housings use `SectionChainFile` definitions, alongside ordinary exact drums, rings, rounded panels and parallel jaws. Native shared instances retain the repeated fasteners. The assembly display exporter has a bounded structured tessellation lane for natural rectangular spline patches with simple planar caps: adjacent faces share sampled BRep edges, and sharp cap normals remain separate. Convex caps retain the centroid fan; concave single-loop caps use the existing simple-polygon triangulator over the same edge samples. General trimmed spline remeshing and caps with holes are outside that lane. The [single-cut guitar witness](../demos/guitar-surfacing-x0.md) exercises concave caps, carved G1 surfaces, formed strings, STEP, USD, and Cycles presentation.
 
 After the solution build and installation above, reproduce its external validation and slide render with:
 

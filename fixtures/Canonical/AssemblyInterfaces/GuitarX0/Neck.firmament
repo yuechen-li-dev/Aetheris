@@ -1,0 +1,159 @@
+Model Neck {
+ Units: mm
+ Concept Struct Frames {
+  S0: Plane { Origin: [0mm,145mm,55mm]; Normal: [0,1,0]; Up: [0,0,1] }
+  S1: Plane { Origin: [0mm,195mm,55mm]; Normal: [0,1,0]; Up: [0,0,1] }
+  S2: Plane { Origin: [0mm,220mm,55mm]; Normal: [0,1,0]; Up: [0,0,1] }
+  S3: Plane { Origin: [0mm,240mm,55mm]; Normal: [0,1,0]; Up: [0,0,1] }
+  S4: Plane { Origin: [0mm,440mm,55mm]; Normal: [0,1,0]; Up: [0,0,1] }
+  S5: Plane { Origin: [0mm,660mm,55mm]; Normal: [0,1,0]; Up: [0,0,1] }
+ }
+ Construction Plane F0 { Trace: Frames.S0 }
+ Point2 P0C0P0 { Position: [-27.699074mm,0mm] }
+ Point2 P0C0P1 { Position: [-27.699074mm,-22.09139mm] }
+ Point2 P0C0P2 { Position: [-15.297776mm,-40mm] }
+ Point2 P0C0P3 { Position: [0mm,-40mm] }
+ CubicBezier2 P0C0 { From: P0C0P0; Control1: P0C0P1; Control2: P0C0P2; To: P0C0P3 }
+ Point2 P0C1P0 { Position: [0mm,-40mm] }
+ Point2 P0C1P1 { Position: [15.297776mm,-40mm] }
+ Point2 P0C1P2 { Position: [27.699074mm,-22.09139mm] }
+ Point2 P0C1P3 { Position: [27.699074mm,0mm] }
+ CubicBezier2 P0C1 { From: P0C1P0; Control1: P0C1P1; Control2: P0C1P2; To: P0C1P3 }
+ Point2 P0C2P0 { Position: [27.699074mm,0mm] }
+ Point2 P0C2P1 { Position: [9.233025mm,0mm] }
+ Point2 P0C2P2 { Position: [-9.233025mm,0mm] }
+ Point2 P0C2P3 { Position: [-27.699074mm,0mm] }
+ CubicBezier2 P0C2 { From: P0C2P0; Control1: P0C2P1; Control2: P0C2P2; To: P0C2P3 }
+ Profile P0 { Loop Outer {
+  Segment Edge0 { Trace: P0C0; From: P0C0P0; To: P0C0P3 }
+  Segment Edge1 { Trace: P0C1; From: P0C1P0; To: P0C1P3 }
+  Segment Edge2 { Trace: P0C2; From: P0C2P0; To: P0C2P3 }
+ } }
+ Construction Plane F1 { Trace: Frames.S1 }
+ Point2 P1C0P0 { Position: [-27.097222mm,0mm] }
+ Point2 P1C0P1 { Position: [-27.097222mm,-19.882251mm] }
+ Point2 P1C0P2 { Position: [-14.965383mm,-36mm] }
+ Point2 P1C0P3 { Position: [0mm,-36mm] }
+ CubicBezier2 P1C0 { From: P1C0P0; Control1: P1C0P1; Control2: P1C0P2; To: P1C0P3 }
+ Point2 P1C1P0 { Position: [0mm,-36mm] }
+ Point2 P1C1P1 { Position: [14.965383mm,-36mm] }
+ Point2 P1C1P2 { Position: [27.097222mm,-19.882251mm] }
+ Point2 P1C1P3 { Position: [27.097222mm,0mm] }
+ CubicBezier2 P1C1 { From: P1C1P0; Control1: P1C1P1; Control2: P1C1P2; To: P1C1P3 }
+ Point2 P1C2P0 { Position: [27.097222mm,0mm] }
+ Point2 P1C2P1 { Position: [9.032407mm,0mm] }
+ Point2 P1C2P2 { Position: [-9.032407mm,0mm] }
+ Point2 P1C2P3 { Position: [-27.097222mm,0mm] }
+ CubicBezier2 P1C2 { From: P1C2P0; Control1: P1C2P1; Control2: P1C2P2; To: P1C2P3 }
+ Profile P1 { Loop Outer {
+  Segment Edge0 { Trace: P1C0; From: P1C0P0; To: P1C0P3 }
+  Segment Edge1 { Trace: P1C1; From: P1C1P0; To: P1C1P3 }
+  Segment Edge2 { Trace: P1C2; From: P1C2P0; To: P1C2P3 }
+ } }
+ Construction Plane F2 { Trace: Frames.S2 }
+ Point2 P2C0P0 { Position: [-26.796296mm,0mm] }
+ Point2 P2C0P1 { Position: [-26.796296mm,-7.337497mm] }
+ Point2 P2C0P2 { Position: [-14.799186mm,-13.285714mm] }
+ Point2 P2C0P3 { Position: [0mm,-13.285714mm] }
+ CubicBezier2 P2C0 { From: P2C0P0; Control1: P2C0P1; Control2: P2C0P2; To: P2C0P3 }
+ Point2 P2C1P0 { Position: [0mm,-13.285714mm] }
+ Point2 P2C1P1 { Position: [14.799186mm,-13.285714mm] }
+ Point2 P2C1P2 { Position: [26.796296mm,-7.337497mm] }
+ Point2 P2C1P3 { Position: [26.796296mm,0mm] }
+ CubicBezier2 P2C1 { From: P2C1P0; Control1: P2C1P1; Control2: P2C1P2; To: P2C1P3 }
+ Point2 P2C2P0 { Position: [26.796296mm,0mm] }
+ Point2 P2C2P1 { Position: [8.932099mm,0mm] }
+ Point2 P2C2P2 { Position: [-8.932099mm,0mm] }
+ Point2 P2C2P3 { Position: [-26.796296mm,0mm] }
+ CubicBezier2 P2C2 { From: P2C2P0; Control1: P2C2P1; Control2: P2C2P2; To: P2C2P3 }
+ Profile P2 { Loop Outer {
+  Segment Edge0 { Trace: P2C0; From: P2C0P0; To: P2C0P3 }
+  Segment Edge1 { Trace: P2C1; From: P2C1P0; To: P2C1P3 }
+  Segment Edge2 { Trace: P2C2; From: P2C2P0; To: P2C2P3 }
+ } }
+ Construction Plane F3 { Trace: Frames.S3 }
+ Point2 P3C0P0 { Position: [-26.555556mm,0mm] }
+ Point2 P3C0P1 { Position: [-26.555556mm,-7.179702mm] }
+ Point2 P3C0P2 { Position: [-14.666228mm,-13mm] }
+ Point2 P3C0P3 { Position: [0mm,-13mm] }
+ CubicBezier2 P3C0 { From: P3C0P0; Control1: P3C0P1; Control2: P3C0P2; To: P3C0P3 }
+ Point2 P3C1P0 { Position: [0mm,-13mm] }
+ Point2 P3C1P1 { Position: [14.666228mm,-13mm] }
+ Point2 P3C1P2 { Position: [26.555556mm,-7.179702mm] }
+ Point2 P3C1P3 { Position: [26.555556mm,0mm] }
+ CubicBezier2 P3C1 { From: P3C1P0; Control1: P3C1P1; Control2: P3C1P2; To: P3C1P3 }
+ Point2 P3C2P0 { Position: [26.555556mm,0mm] }
+ Point2 P3C2P1 { Position: [8.851852mm,0mm] }
+ Point2 P3C2P2 { Position: [-8.851852mm,0mm] }
+ Point2 P3C2P3 { Position: [-26.555556mm,0mm] }
+ CubicBezier2 P3C2 { From: P3C2P0; Control1: P3C2P1; Control2: P3C2P2; To: P3C2P3 }
+ Profile P3 { Loop Outer {
+  Segment Edge0 { Trace: P3C0; From: P3C0P0; To: P3C0P3 }
+  Segment Edge1 { Trace: P3C1; From: P3C1P0; To: P3C1P3 }
+  Segment Edge2 { Trace: P3C2; From: P3C2P0; To: P3C2P3 }
+ } }
+ Construction Plane F4 { Trace: Frames.S4 }
+ Point2 P4C0P0 { Position: [-24.148148mm,0mm] }
+ Point2 P4C0P1 { Position: [-24.148148mm,-5.601745mm] }
+ Point2 P4C0P2 { Position: [-13.336654mm,-10.142857mm] }
+ Point2 P4C0P3 { Position: [0mm,-10.142857mm] }
+ CubicBezier2 P4C0 { From: P4C0P0; Control1: P4C0P1; Control2: P4C0P2; To: P4C0P3 }
+ Point2 P4C1P0 { Position: [0mm,-10.142857mm] }
+ Point2 P4C1P1 { Position: [13.336654mm,-10.142857mm] }
+ Point2 P4C1P2 { Position: [24.148148mm,-5.601745mm] }
+ Point2 P4C1P3 { Position: [24.148148mm,0mm] }
+ CubicBezier2 P4C1 { From: P4C1P0; Control1: P4C1P1; Control2: P4C1P2; To: P4C1P3 }
+ Point2 P4C2P0 { Position: [24.148148mm,0mm] }
+ Point2 P4C2P1 { Position: [8.049383mm,0mm] }
+ Point2 P4C2P2 { Position: [-8.049383mm,0mm] }
+ Point2 P4C2P3 { Position: [-24.148148mm,0mm] }
+ CubicBezier2 P4C2 { From: P4C2P0; Control1: P4C2P1; Control2: P4C2P2; To: P4C2P3 }
+ Profile P4 { Loop Outer {
+  Segment Edge0 { Trace: P4C0; From: P4C0P0; To: P4C0P3 }
+  Segment Edge1 { Trace: P4C1; From: P4C1P0; To: P4C1P3 }
+  Segment Edge2 { Trace: P4C2; From: P4C2P0; To: P4C2P3 }
+ } }
+ Construction Plane F5 { Trace: Frames.S5 }
+ Point2 P5C0P0 { Position: [-21.5mm,0mm] }
+ Point2 P5C0P1 { Position: [-21.5mm,-3.865993mm] }
+ Point2 P5C0P2 { Position: [-11.874122mm,-7mm] }
+ Point2 P5C0P3 { Position: [0mm,-7mm] }
+ CubicBezier2 P5C0 { From: P5C0P0; Control1: P5C0P1; Control2: P5C0P2; To: P5C0P3 }
+ Point2 P5C1P0 { Position: [0mm,-7mm] }
+ Point2 P5C1P1 { Position: [11.874122mm,-7mm] }
+ Point2 P5C1P2 { Position: [21.5mm,-3.865993mm] }
+ Point2 P5C1P3 { Position: [21.5mm,0mm] }
+ CubicBezier2 P5C1 { From: P5C1P0; Control1: P5C1P1; Control2: P5C1P2; To: P5C1P3 }
+ Point2 P5C2P0 { Position: [21.5mm,0mm] }
+ Point2 P5C2P1 { Position: [7.166667mm,0mm] }
+ Point2 P5C2P2 { Position: [-7.166667mm,0mm] }
+ Point2 P5C2P3 { Position: [-21.5mm,0mm] }
+ CubicBezier2 P5C2 { From: P5C2P0; Control1: P5C2P1; Control2: P5C2P2; To: P5C2P3 }
+ Profile P5 { Loop Outer {
+  Segment Edge0 { Trace: P5C0; From: P5C0P0; To: P5C0P3 }
+  Segment Edge1 { Trace: P5C1; From: P5C1P0; To: P5C1P3 }
+  Segment Edge2 { Trace: P5C2; From: P5C2P0; To: P5C2P3 }
+ } }
+ SectionChain Neck { Continuity: G1
+  Section S0 { Frame: F0
+   Profile: P0
+   Seam: Edge0 }
+  Section S1 { Frame: F1
+   Profile: P1
+   Seam: Edge0 }
+  Section S2 { Frame: F2
+   Profile: P2
+   Seam: Edge0 }
+  Section S3 { Frame: F3
+   Profile: P3
+   Seam: Edge0 }
+  Section S4 { Frame: F4
+   Profile: P4
+   Seam: Edge0 }
+  Section S5 { Frame: F5
+   Profile: P5
+   Seam: Edge0 }
+  Start: Cap
+  End: Cap
+ }
+}

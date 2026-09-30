@@ -65,6 +65,8 @@ See the canonical [Helix](../../../fixtures/Canonical/WireForm/helix.firmament),
 
 `aetheris inspect source.firmament --json` reports the semantic `wireForm` object, including `operations`, `totalStraightLength`, `totalBendLength`, and compiler-derived `totalWireLength`. A materializing `build --json` adds volume, mass, surface inventory, manifold/reimport status, rational/faceted counts, and the STEP hash.
 
+The [single-cut guitar witness](../demos/guitar-surfacing-x0.md) reuses this exact Straight/Bend route for six thin strings. Each speaking length and tuner lead meets through a 3 mm centerline-radius bend at the nut. This is geometric routing, without string tension, vibration, wound-wire microgeometry, or tuner mechanics. Adjacent-operation clearance samples straight and curved operations on the same arclength interval count before excluding the intended tangent-join neighborhood.
+
 ## Mating a coil to a rod
 
 A `Helix` starts at the current wire point and preserves its tangent. Its winding axis is generally **offset from that point and tilted from StartFrame.Up**: pitch contributes an axial component to the tangent. Do not mate the part origin or assume local Z is the spring axis.

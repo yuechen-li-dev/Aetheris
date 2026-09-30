@@ -50,11 +50,11 @@ public static class AssemblyDisplayMeshExporter
         {
             var effectiveOptions = options ?? new DisplayTessellationOptions(double.Pi / 16, .3, 6, 64);
             // Reuse the OBJ export's shared-boundary mesher for planar/cylindrical
-            // parts. A failure on this admitted family must remain visible; do not
+            // and formed-wire torus parts. A failure on this admitted family must remain visible; do not
             // silently replace a failed cap or bore with the legacy mesh.
             var useSurfaceMeshIr = body.Topology.Faces.All(face =>
                 body.TryGetFaceSurfaceGeometry(face.Id, out var surface)
-                && surface?.Kind is SurfaceGeometryKind.Plane or SurfaceGeometryKind.Cylinder);
+                && surface?.Kind is SurfaceGeometryKind.Plane or SurfaceGeometryKind.Cylinder or SurfaceGeometryKind.Torus);
             var structuredSpline = !useSurfaceMeshIr && RectangularSplineDisplayTessellator.TryTessellate(body, effectiveOptions, out var splineMesh)
                 ? splineMesh : null;
             var tessellation = structuredSpline is not null

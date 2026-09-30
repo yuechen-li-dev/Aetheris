@@ -96,7 +96,12 @@ public sealed class AssemblyM0Parser
     {
         var watch = Stopwatch.StartNew();
         var diagnostics = new List<AssemblyDiagnostic>();
-        var source = Regex.Replace(input, @"//[^\r\n]*", string.Empty);
+        var source = Regex.Replace(input, @"//[^\r\n]*", m => new string(' ',m.Length));
+        var patternDiagnostics = new List<string>();
+        var expandedPatterns = CanonicalStaticAuthoring.ExpandAssemblyPatterns(source,patternDiagnostics);
+        foreach (var error in patternDiagnostics) diagnostics.Add(new("assembly-pattern-invalid",error));
+        if (expandedPatterns is null || patternDiagnostics.Count>0) return new(null,diagnostics,watch.Elapsed.TotalMilliseconds);
+        source = expandedPatterns.Source;
         // Subassembly is a first-class non-parameterized Assembly definition. It
         // lowers through the existing, locally solved definition authority.
         source = Regex.Replace(source, @"\bSubassembly\s+(?<name>[A-Za-z_]\w*)\s*\{",
@@ -139,10 +144,23 @@ public sealed class AssemblyM0Parser
         foreach (var range in templateRanges) Array.Fill(declarationChars, ' ', range.Start, range.Length);
         var declarations = new string(declarationChars);
         var definitionSource = definitionBoundary > 0 ? declarations[..definitionBoundary].Trim() : null;
-        var result = new AssemblySource(assemblyHeader.Groups["name"].Value, tree, interfaces, mates, anchor, relations, asserts, sourceIdentity, definitionSource, assemblyDefinitions);
+        var frames = ParseFrameTransforms(body, sourceIdentity, diagnostics);
+        var result = new AssemblySource(assemblyHeader.Groups["name"].Value, tree, interfaces, mates, anchor, relations, asserts, sourceIdentity, definitionSource, assemblyDefinitions, FrameTransforms: frames, Patterns: expandedPatterns.Document?.Patterns);
         return Done(result);
 
         ParseResult Done(AssemblySource? value) { watch.Stop(); return new(value, diagnostics, watch.Elapsed.TotalMilliseconds); }
+    }
+
+    private static IReadOnlyList<AssemblyFrameTransformSource> ParseFrameTransforms(string body, string sourceIdentity, List<AssemblyDiagnostic> diagnostics)
+    {
+        var frames = new List<AssemblyFrameTransformSource>();
+        foreach (Match header in Regex.Matches(body, @"\bFrameTransform\s+(?<name>[A-Za-z_]\w*)\s*\{"))
+        {
+            var fields = BalancedBody(body, header.Index + header.Length - 1, diagnostics, "FrameTransform");
+            if (fields is not null && AssemblyFrameAuthoring.Parse(header.Groups["name"].Value, fields, "From", sourceIdentity, diagnostics) is { } frame)
+                frames.Add(frame);
+        }
+        return frames;
     }
 
     private static string? LoadSourceGraph(string path, string allowedRoot, IReadOnlyList<string> stack,
@@ -286,10 +304,34 @@ public sealed class AssemblyM0Parser
             var gearOptions = family == MechanicalInterfaceFamily.Gear
                 ? new GearInterfaceOptions(OptionalAngle(body, "ShaftAngle"), OptionalAngle(body, "EngagementPhase"), OptionalIdentifier(body, "AllowedDirection"))
                 : null;
+            FixedSeatingOptions? seating = null;
+            if (Regex.IsMatch(body,@"\b(?:Gap|Clocking|Orientation)\s*:"))
+            {
+                double Scalar(string field,string unit)
+                {
+                    var values=Regex.Matches(body,$@"\b{field}\s*:\s*(?<value>[^;}}\r\n]+)\s*;?");
+                    if (values.Count==0) return 0;
+                    var value=values[0].Groups["value"].Value.Trim();
+                    if (values.Count>1 || !value.EndsWith(unit,StringComparison.Ordinal)
+                        || !double.TryParse(value[..^Math.Min(unit.Length,value.Length)],NumberStyles.Float,CultureInfo.InvariantCulture,out var number) || !double.IsFinite(number))
+                    { diagnostics.Add(new("assembly-interface-invalid-seating",$"Interface '{name}' requires one finite {field} in {unit}.")); return 0; }
+                    return number;
+                }
+                var gapValue=Scalar("Gap","mm"); var clocking=Scalar("Clocking","deg");
+                var orientationFields=Regex.Matches(body,@"\bOrientation\s*:\s*(?<value>[^;}\r\n]+)");
+                var orientationText=orientationFields.Count==0 ? "SameDirection" : orientationFields[0].Groups["value"].Value.Trim();
+                if (orientationFields.Count>1 || !Enum.TryParse<DatumOrientationRelation>(orientationText,out var orientationValue)
+                    || !Enum.IsDefined(orientationValue))
+                    diagnostics.Add(new("assembly-interface-invalid-seating",$"Interface '{name}' has invalid Orientation '{orientationText}'."));
+                var orientation=orientationText=="OpposedDirection" ? DatumOrientationRelation.OpposedDirection : DatumOrientationRelation.SameDirection;
+                if (family!=MechanicalInterfaceFamily.Fixed)
+                    diagnostics.Add(new("assembly-interface-seating-family-unsupported","Gap/Clocking/Orientation seating fields are admitted only on Interface<Fixed>."));
+                seating=new(gapValue,clocking,orientation);
+            }
             result.Add(new($"interface:{name}", name, roles, requirements, fit, free, SemanticSourceSpan.Generated(sourceIdentity),
                 continuity.Success?continuity.Groups["value"].Value:null,
                 correspondence.Success?correspondence.Groups["value"].Value:"OppositeDirections",
-                gap.Success?Number(gap.Groups["value"].Value):1e-6, family, header.Groups["family"].Success, predicates, gearOptions));
+                gap.Success?Number(gap.Groups["value"].Value):1e-6, family, header.Groups["family"].Success, predicates, gearOptions, seating));
         }
         return result.OrderBy(x => x.Name, StringComparer.Ordinal).ToArray();
     }
@@ -307,6 +349,7 @@ public sealed class AssemblyM0Parser
         public bool IsEncapsulatedDefinition { get; set; }
         public AssemblyDefinitionIr? SolvedAssemblyDefinition { get; set; }
         public SemanticValue? TypedEndpoint { get; set; }
+        public AssemblyFramePlacementSource? FramePlacement { get; set; }
     }
 
     private static IReadOnlyList<AssemblyDefinitionSource> ParseAssemblyDefinitions(string source, string sourceIdentity,
@@ -351,7 +394,8 @@ public sealed class AssemblyM0Parser
                 [new("assembly-template-definition", name, template.Groups["parameter"].Value + ":" + template.Groups["type"].Value, SemanticSourceSpan.Generated(sourceIdentity)),
                  .. claimedConcept is null ? [] : new[] { new SemanticProvenance("assembly-concept-satisfaction", claimedConcept, name, SemanticSourceSpan.Generated(sourceIdentity)) },
                  .. staticProvenance],
-                anchor, localMates, ParseRelations(body, diagnostics), ParseAsserts(body, sourceIdentity, diagnostics), exposedRelations, claimedConcept));
+                anchor, localMates, ParseRelations(body, diagnostics), ParseAsserts(body, sourceIdentity, diagnostics), exposedRelations, claimedConcept,
+                ParseFrameTransforms(body, sourceIdentity, diagnostics)));
         }
         return result;
     }
@@ -453,7 +497,7 @@ public sealed class AssemblyM0Parser
         };
         var specializedRoot = Replace(definition.LocalRoot) with { IsEncapsulatedDefinition = false };
         var localSource = new AssemblySource(definition.Name, specializedRoot, interfaces, definition.LocalMates ?? [], definition.LocalAnchor ?? new([definition.Name]),
-            definition.LocalDimensionalRelations ?? [], definition.LocalStackupAsserts ?? [], sourceIdentity);
+            definition.LocalDimensionalRelations ?? [], definition.LocalStackupAsserts ?? [], sourceIdentity, FrameTransforms: definition.FrameTransforms);
         var watch = Stopwatch.StartNew();
         var local = new AssemblyM0Compiler().Compile(localSource);
         watch.Stop();
@@ -481,7 +525,7 @@ public sealed class AssemblyM0Parser
                 var parentWorld = Aetheris.Kernel.Core.Math.Transform3D.FromRowMajor(parent.ResolvedTransform!.Matrix);
                 relative = new((world * parentWorld.Inverse()).ToRowMajor());
             }
-            return item with { Children = item.Children.Select(child => ApplyLocal(child, path.Append(child.Name))).ToArray(), ExplicitTransform = relative };
+            return item with { Children = item.Children.Select(child => ApplyLocal(child, path.Append(child.Name))).ToArray(), ExplicitTransform = relative, FramePlacement = null };
         }
         specializedRoot = ApplyLocal(specializedRoot, new([specializedRoot.Name]));
         var publicSemantics = specializedRoot.ExposedSemantics.Select(value => BindPublicSemantic(value, local.Ir, sourceIdentity)).ToArray();
@@ -627,6 +671,24 @@ public sealed class AssemblyM0Parser
                 var nestedTag = nodeBody.IndexOf('<');
                 var placementBody = open.node.Kind == AssemblyInstanceKind.Assembly && nestedTag >= 0 ? nodeBody[..nestedTag] : nodeBody;
                 var placement = Regex.Match(placementBody, @"\bPlacement\s+(?<authority>ImportedOccurrence|LegacyExplicit)\s*=\s*\[(?<matrix>[^]]+)\]\s*;", RegexOptions.CultureInvariant);
+                var readable = Regex.Matches(placementBody, @"\bPlacement\s*\{");
+                if (readable.Count > 1 || (readable.Count > 0 && placement.Success))
+                    diagnostics.Add(new("assembly-placement-authority-conflict", $"Instance '{open.node.Name}' declares multiple placements."));
+                if (readable.Count > 0)
+                {
+                    var fields = BalancedBody(placementBody, readable[0].Index + readable[0].Length - 1, diagnostics, "Placement");
+                    if (fields is not null)
+                    {
+                        var from = Regex.Match(fields, @"\bFrom\s*:\s*(?<path>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*;?");
+                        if (!from.Success) diagnostics.Add(new("assembly-placement-missing-source", $"Placement '{open.node.Name}' requires From."));
+                        var targetFields = from.Success ? fields.Remove(from.Index,from.Length) : fields;
+                        if (AssemblyFrameAuthoring.Parse(open.node.Name, targetFields, "To", sourceIdentity, diagnostics) is { } target)
+                        {
+                            open.node.FramePlacement = new(from.Groups["path"].Value, target);
+                            open.node.PlacementAuthority = PlacementAuthority.AuthoredFrame;
+                        }
+                    }
+                }
                 if (placement.Success)
                 {
                     var matrix = placement.Groups["matrix"].Value.Split(',', StringSplitOptions.TrimEntries)
@@ -645,12 +707,12 @@ public sealed class AssemblyM0Parser
         if (root is null) diagnostics.Add(new("assembly-tree-missing", "Assembly body requires a nested <Assembly Name> product tree."));
         AssemblyMemberSource Freeze(MutableNode node) => new(node.Name, node.Kind, node.Definition,
             node.Children.Select(Freeze).ToArray(), node.Semantics, [], [new("assembly-source", node.Name, node.Definition, SemanticSourceSpan.Generated(sourceIdentity))],
-            node.ExplicitTransform, node.PlacementAuthority, node.IsEncapsulatedDefinition, node.SolvedAssemblyDefinition, node.TypedEndpoint);
+            node.ExplicitTransform, node.PlacementAuthority, node.IsEncapsulatedDefinition, node.SolvedAssemblyDefinition, node.TypedEndpoint, node.FramePlacement);
         return root is null ? null : Freeze(root);
 
         MutableNode ToMutable(AssemblyMemberSource source)
         {
-            var mutable = new MutableNode(source.Name, source.Kind, source.DefinitionIdentity) { ExplicitTransform = source.ExplicitTransform, PlacementAuthority = source.PlacementAuthority, IsEncapsulatedDefinition = source.IsEncapsulatedDefinition, SolvedAssemblyDefinition = source.SolvedAssemblyDefinition, TypedEndpoint = source.TypedEndpoint };
+            var mutable = new MutableNode(source.Name, source.Kind, source.DefinitionIdentity) { ExplicitTransform = source.ExplicitTransform, PlacementAuthority = source.PlacementAuthority, IsEncapsulatedDefinition = source.IsEncapsulatedDefinition, SolvedAssemblyDefinition = source.SolvedAssemblyDefinition, TypedEndpoint = source.TypedEndpoint, FramePlacement = source.FramePlacement };
             mutable.Semantics.AddRange(source.ExposedSemantics);
             mutable.Children.AddRange(source.Children.Select(ToMutable));
             return mutable;
@@ -685,7 +747,7 @@ public sealed class AssemblyM0Parser
         return match.Success ? match.Groups["value"].Value : null;
     }
 
-    private static IEnumerable<SemanticValue> ParseSemantics(string body, string definition, string sourceIdentity, List<AssemblyDiagnostic> diagnostics)
+    internal static IEnumerable<SemanticValue> ParseSemantics(string body, string definition, string sourceIdentity, List<AssemblyDiagnostic> diagnostics)
     {
         foreach (Match header in Regex.Matches(body, @"\bSemantic\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant))
         {
@@ -735,6 +797,15 @@ public sealed class AssemblyM0Parser
                     provenance: [new("Firmament-tol", dim.Groups["name"].Value, dim.Value, SemanticSourceSpan.Generated(sourceIdentity))]));
                 caps.Add(new DimensionalCapability()); if (!bindings.OfType<TolerancedDimensionBinding>().Any()) bindings.Add(binding);
             }
+            var duplicate = members.GroupBy(m => m.ExposedName).FirstOrDefault(g => g.Count() > 1);
+            if (duplicate is not null)
+            {
+                diagnostics.Add(new("assembly-semantic-duplicate-member", $"Semantic '{name}' repeats member '{duplicate.Key}'."));
+                continue;
+            }
+            var authoredMembers = Regex.Matches(block, @"\b[A-Za-z_]\w*\s+[A-Za-z_]\w*\s*=");
+            if (authoredMembers.Count != members.Count)
+                diagnostics.Add(new("assembly-semantic-unresolved-member", $"Semantic '{name}' contains an unresolved or malformed member."));
             yield return new SemanticValue($"definition:{definition}:{name}", new("Concept"), caps.DistinctBy(x => x.GetType()), bindings, members,
                 [new("part-definition", definition, name, SemanticSourceSpan.Generated(sourceIdentity))], exposedName: name);
         }
@@ -778,7 +849,7 @@ public sealed class AssemblyM0Parser
         return result;
     }
 
-    private static string? BalancedBody(string source, int openingBrace, List<AssemblyDiagnostic> diagnostics, string construct)
+    internal static string? BalancedBody(string source, int openingBrace, List<AssemblyDiagnostic> diagnostics, string construct)
     {
         var depth = 0;
         for (var i = openingBrace; i < source.Length; i++)

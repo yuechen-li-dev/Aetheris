@@ -8,7 +8,7 @@ public enum AssemblyDiagnosticSeverity { Warning, Error }
 public enum PlacementConstraintKind { AxisCoincident, AxisAligned, PlaneCoincident, PointCoincident, OffsetAlongAxis, FrameCoincident }
 public enum DatumOrientationRelation { SameDirection, OpposedDirection }
 public enum PlacementStatus { Anchored, Resolved, Underconstrained, Overconstrained, Unresolved }
-public enum PlacementAuthority { MateDerived, ImportedOccurrence, LegacyExplicit }
+public enum PlacementAuthority { MateDerived, ImportedOccurrence, LegacyExplicit, AuthoredFrame }
 public enum MechanicalInterfaceFamily { Custom, Fixed, Axial, Revolute, Prismatic, Gear }
 
 public sealed record AssemblyDiagnostic(string Code, string Message, AssemblyDiagnosticSeverity Severity = AssemblyDiagnosticSeverity.Error);
@@ -43,7 +43,10 @@ public sealed record InterfaceDefinition(
     MechanicalInterfaceFamily Family = MechanicalInterfaceFamily.Custom,
     bool CompilerOwnedExpansion = false,
     IReadOnlyList<InterfacePredicateRequirementDefinition>? PredicateRequirements = null,
-    GearInterfaceOptions? GearOptions = null);
+    GearInterfaceOptions? GearOptions = null,
+    FixedSeatingOptions? Seating = null);
+
+public sealed record FixedSeatingOptions(double GapMm, double ClockingDegrees, DatumOrientationRelation Orientation);
 
 public sealed record GearInterfaceOptions(double? ShaftAngleDegrees, double? EngagementPhaseDegrees, string? AllowedDirection);
 
@@ -57,7 +60,13 @@ public sealed record AssemblyMemberSource(
     PlacementAuthority PlacementAuthority = PlacementAuthority.MateDerived,
     bool IsEncapsulatedDefinition = false,
     AssemblyDefinitionIr? SolvedAssemblyDefinition = null,
-    SemanticValue? TypedEndpoint = null);
+    SemanticValue? TypedEndpoint = null,
+    AssemblyFramePlacementSource? FramePlacement = null);
+
+public sealed record AssemblyFrameTransformSource(string Name, string From, double[] Translation,
+    string RotationAxis, double RotationDegrees, double[]? Normal = null, double[]? Up = null,
+    SemanticSourceSpan? SourceSpan = null);
+public sealed record AssemblyFramePlacementSource(string From, AssemblyFrameTransformSource Target);
 
 /// <summary>A reusable, locally-authored Assembly product definition.  Its children
 /// remain product-visible, while only <see cref="AssemblyMemberSource.ExposedSemantics"/>
@@ -70,7 +79,8 @@ public sealed record AssemblyDefinitionSource(
     IReadOnlyList<DimensionalRelationSource>? LocalDimensionalRelations = null,
     IReadOnlyList<ToleranceStackupAssertSource>? LocalStackupAsserts = null,
     IReadOnlyList<AssemblyExposedRelationSource>? ExposedRelations = null,
-    string? ClaimedConcept = null);
+    string? ClaimedConcept = null,
+    IReadOnlyList<AssemblyFrameTransformSource>? FrameTransforms = null);
 
 public sealed record AssemblyExposedRelationSource(
     string Name, string PublicFrom, string PublicTo, AssemblyPath InternalFrom, AssemblyPath InternalTo);
@@ -87,7 +97,9 @@ public sealed record AssemblySource(
     string SourceIdentity,
     string? DefinitionSource = null,
     IReadOnlyList<AssemblyDefinitionSource>? AssemblyDefinitions = null,
-    IReadOnlyList<AssemblySourceDependencyIr>? SourceDependencies = null);
+    IReadOnlyList<AssemblySourceDependencyIr>? SourceDependencies = null,
+    IReadOnlyList<AssemblyFrameTransformSource>? FrameTransforms = null,
+    IReadOnlyList<FirmamentV2CanonicalPatternDecl>? Patterns = null);
 
 public sealed record AssemblySourceDependencyIr(string Path, string Sha256, bool IsRoot);
 
@@ -122,7 +134,9 @@ public sealed record PlacementConstraintIr(
     string StableId, PlacementConstraintKind Kind, string MateStableId,
     string FirstSemanticValueId, string SecondSemanticValueId, double OffsetMm,
     double Residual, string Status,
-    DatumOrientationRelation Orientation = DatumOrientationRelation.SameDirection);
+    DatumOrientationRelation Orientation = DatumOrientationRelation.SameDirection,
+    string? SeatFrameSemanticId = null,
+    FixedSeatingOptions? Seating = null);
 public sealed record PlacementResultIr(string InstanceStableId, PlacementStatus Status, AssemblyTransform? Transform, IReadOnlyList<string> FreeTranslations, IReadOnlyList<string> FreeRotations, IReadOnlyList<string> ConstraintIds, PlacementAuthority Authority = PlacementAuthority.MateDerived);
 
 public sealed record DimensionalRelationIr(
@@ -192,7 +206,8 @@ public sealed record AssemblyIr(
     IReadOnlyList<AssemblyDatumIr>? Datums = null,
     IReadOnlyList<DatumMateSolutionIr>? DatumMateSolutions = null,
     IReadOnlyList<AssemblySourceDependencyIr>? SourceDependencies = null,
-    IReadOnlyList<AssemblyJointIr>? Joints = null);
+    IReadOnlyList<AssemblyJointIr>? Joints = null,
+    IReadOnlyList<FirmamentV2CanonicalPatternDecl>? Patterns = null);
 
 public sealed record AssemblyCompilationResult(AssemblyIr? Ir, IReadOnlyList<AssemblyDiagnostic> Diagnostics, AssemblyPerformanceIr? Performance = null)
 {

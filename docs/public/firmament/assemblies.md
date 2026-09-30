@@ -1,5 +1,9 @@
 # Typed interfaces and reusable subassemblies
 
+For readable placement, named FrameTransform composition, definition-owned ports,
+keyed occurrence patterns and Fixed Gap/Clocking seating, see the
+[assembly authoring foundation](assembly-authoring-foundation.md).
+
 Firmament assemblies have two independent structures: the product tree owns definition/occurrence identity, while the Interface graph owns mechanical relationships. Tree nesting never implies a Mate.
 
 Executable assemblies can also [export to OpenUSD](openusd.md), preserving nested hierarchy, shared display geometry, occurrence placement, and the accepted frame-based Fixed/Revolute/Prismatic contracts. STEP remains the engineering/manufacturing interchange output.

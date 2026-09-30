@@ -27,6 +27,7 @@ public sealed class AssemblyM0Compiler
         var diagnostics = new List<AssemblyDiagnostic>();
         var bindWatch = Stopwatch.StartNew();
         var instances = BindInstances(source, diagnostics);
+        (source, instances) = AssemblyFrameAuthoring.Lower(source, instances, diagnostics);
         bindWatch.Stop();
         var byPath = instances.ToDictionary(x => x.Path.ToString(), StringComparer.Ordinal);
         var interfaces = source.Interfaces.ToDictionary(x => x.Name, StringComparer.Ordinal);
@@ -79,7 +80,7 @@ public sealed class AssemblyM0Compiler
             .OrderBy(solution => solution.MateStableId, StringComparer.Ordinal).ToArray();
         var ir = new AssemblyIr("aetheris/assembly-ir/m0", $"assembly:{source.Name}", source.Name,
             instances.Single(x => x.ParentStableId is null).StableId, instances, source.Interfaces, mates,
-            constraints, placements, relations, stackups, fits, diagnostics, assemblyDefinitions, panelMateEvidence, datums, datumSolutions, source.SourceDependencies, joints);
+            constraints, placements, relations, stackups, fits, diagnostics, assemblyDefinitions, panelMateEvidence, datums, datumSolutions, source.SourceDependencies, joints, source.Patterns);
         return new(ir, diagnostics, perf);
 
         static string SemanticPath(AssemblyInstanceIr instance, SemanticValue value)
@@ -130,7 +131,16 @@ public sealed class AssemblyM0Compiler
             diagnostics.Add(new("assembly-instance-path-collision", "Assembly contains duplicate deterministic instance paths."));
         return flat.Select(x => new AssemblyInstanceIr(x.id, x.path, x.member.Kind, x.member.DefinitionIdentity, x.parent,
             flat.Where(c => c.parent == x.id).Select(c => c.id).Order(StringComparer.Ordinal).ToArray(), x.semantic,
-            x.member.ExplicitTransform, null, x.member.Provenance ?? [], x.member.PlacementAuthority, x.member.IsEncapsulatedDefinition)).ToArray();
+            x.member.ExplicitTransform, null, [.. x.member.Provenance ?? [], .. PatternProvenance(x.path)], x.member.PlacementAuthority, x.member.IsEncapsulatedDefinition)).ToArray();
+
+        IEnumerable<SemanticProvenance> PatternProvenance(AssemblyPath path)
+        {
+            foreach (var pattern in source.Patterns ?? [])
+                foreach (var association in pattern.Associations ?? [])
+                    if (Enumerable.Range(0,Math.Max(0,path.Segments.Count-1)).Any(i => path.Segments[i]==pattern.Name && path.Segments[i+1]==association.SourceEntry))
+                        yield return new("assembly-pattern",association.GeneratedId,$"Set:{association.SourceSet};Key:{association.SourceEntry};Row:{association.SourceValue}",
+                            new(source.SourceIdentity,association.Provenance.Start,association.Provenance.Length));
+        }
     }
 
     private static SemanticValue InstanceScope(AssemblyMemberSource member, AssemblyPath path, string sourceIdentity)
@@ -159,6 +169,11 @@ public sealed class AssemblyM0Compiler
             var duplicate = mate.Roles.GroupBy(x => x.Role, StringComparer.Ordinal).FirstOrDefault(x => x.Count() > 1);
             if (duplicate is not null) diagnostics.Add(new(DuplicateRole, $"Mate '{mate.Name}' assigns Role '{duplicate.Key}' more than once."));
             var valid = duplicate is null;
+            foreach (var assignment in mate.Roles.Where(r => !definition.Roles.Any(d => d.Name == r.Role)))
+            {
+                valid = false;
+                diagnostics.Add(new("assembly-mate-unknown-role", $"Mate '{mate.Name}' assigns undeclared Role '{assignment.Role}'."));
+            }
             var endpoints = new List<MateEndpointIr>();
             foreach (var role in definition.Roles)
             {
@@ -176,6 +191,12 @@ public sealed class AssemblyM0Compiler
                 var frameRevolute = definition.Family == MechanicalInterfaceFamily.Revolute
                     && reference!.Value.TryBinding<ExactDatumFrameBinding>(out _);
                 var requiredCapabilities = frameRevolute ? ["DatumFrameCapable"] : role.RequiredCapabilities;
+                if (definition.Seating is not null && (reference!.Value.Type.Name != "AssemblyDatumFrame"
+                    || !reference.Value.TryBinding<ExactDatumFrameBinding>(out _)))
+                {
+                    valid = false;
+                    diagnostics.Add(new("assembly-interface-seating-member-type", $"Fixed seating Role '{role.Name}' requires an exact DatumFrame member."));
+                }
                 var missing = requiredCapabilities.Where(c => !HasCapability(reference!.Value, c)).ToArray();
                 if (reference!.Value.Type.Name == "Gear" && definition.Family != MechanicalInterfaceFamily.Gear)
                     missing = [.. missing, $"endpoint type {definition.Family} (Gear is not implicitly coerced)"];
@@ -349,7 +370,8 @@ public sealed class AssemblyM0Compiler
                         continue;
                     }
                 }
-                result.Add(new($"constraint:{mate.StableId}:{index:D2}", requirement.Kind, mate.StableId, firstId, secondId, requirement.OffsetMm, 0, "admitted", requirement.Orientation));
+                result.Add(new($"constraint:{mate.StableId}:{index:D2}", requirement.Kind, mate.StableId, firstId, secondId, requirement.OffsetMm, 0, "admitted", requirement.Orientation,
+                    definition.Seating is null ? null : firstId,definition.Seating));
             }
         }
         return result;
@@ -429,8 +451,8 @@ public sealed class AssemblyM0Compiler
             }
             result.Add(new(mate.StableId, mate.Name, family, parent.StableId, child.StableId,
                 parentSemanticId, childSemanticId,
-                new(FrameMatrix(aFrame, frame.Orientation).ToRowMajor()),
-                new(FrameMatrix(bFrame, DatumOrientationRelation.SameDirection).ToRowMajor()),
+                new((frame.Seating is null ? FrameMatrix(aFrame,frame.Orientation) : frame.SeatFrameSemanticId==parentSemanticId ? SeatMatrix(aFrame,frame.Seating) : FrameMatrix(aFrame,DatumOrientationRelation.SameDirection)).ToRowMajor()),
+                new((frame.Seating is not null && frame.SeatFrameSemanticId==childSemanticId ? SeatMatrix(bFrame,frame.Seating) : FrameMatrix(bFrame, DatumOrientationRelation.SameDirection)).ToRowMajor()),
                 family == MechanicalInterfaceFamily.Fixed ? 0 : 1));
         }
         foreach (var group in result.Where(joint => joint.DegreesOfFreedom == 1)
@@ -562,7 +584,11 @@ public sealed class AssemblyM0Compiler
             if (overconstrained.Contains(instance.StableId))
             { results.Add(new(instance.StableId, PlacementStatus.Overconstrained, null, [], [], relevant.Select(x => x.StableId).ToArray())); continue; }
             if (relevant.Length == 0 || !known.TryGetValue(instance.StableId, out var transform))
-            { results.Add(new(instance.StableId, PlacementStatus.Unresolved, null, ["X", "Y", "Z"], ["X", "Y", "Z"], relevant.Select(x => x.StableId).ToArray())); continue; }
+            {
+                if (instance.PlacementAuthority==PlacementAuthority.AuthoredFrame)
+                    diagnostics.Add(new("assembly-layout-unresolved",$"Authored frame placement '{instance.Path}' is unresolved; check dependency cycles."));
+                results.Add(new(instance.StableId, PlacementStatus.Unresolved, null, ["X", "Y", "Z"], ["X", "Y", "Z"], relevant.Select(x => x.StableId).ToArray())); continue;
+            }
             var hasFrame = relevant.Any(x => x.Kind == PlacementConstraintKind.FrameCoincident);
             var hasAxis = relevant.Any(x => x.Kind is PlacementConstraintKind.AxisCoincident or PlacementConstraintKind.AxisAligned);
             var hasPlane = relevant.Any(x => x.Kind == PlacementConstraintKind.PlaneCoincident);
@@ -577,7 +603,9 @@ public sealed class AssemblyM0Compiler
             var status = unadmittedT.Length == 0 && unadmittedR.Length == 0 ? PlacementStatus.Resolved : PlacementStatus.Underconstrained;
             if (status == PlacementStatus.Underconstrained)
                 diagnostics.Add(new(Underconstrained, $"Instance '{instance.Path}' retains translations [{string.Join(",", unadmittedT)}] and rotations [{string.Join(",", unadmittedR)}].", AssemblyDiagnosticSeverity.Warning));
-            results.Add(new(instance.StableId, status, transform, unadmittedT, unadmittedR, relevant.Select(x => x.StableId).ToArray(), PlacementAuthority.MateDerived));
+            if (instance.PlacementAuthority == PlacementAuthority.AuthoredFrame && status != PlacementStatus.Resolved)
+                diagnostics.Add(new("assembly-layout-unresolved", $"Authored frame placement '{instance.Path}' is not resolved; check placement dependency cycles."));
+            results.Add(new(instance.StableId, status, transform, unadmittedT, unadmittedR, relevant.Select(x => x.StableId).ToArray(), instance.PlacementAuthority));
         }
         return results;
     }
@@ -605,6 +633,11 @@ public sealed class AssemblyM0Compiler
         {
             var source = FrameMatrix(sourceFrame, DatumOrientationRelation.SameDirection);
             var targetFrameMatrix = FrameMatrix(targetFrame, frameConstraint.Orientation);
+            if (frameConstraint.Seating is { } seating)
+            {
+                source = frameConstraint.SeatFrameSemanticId==frameConstraint.FirstSemanticValueId ? SeatMatrix(sourceFrame,seating) : FrameMatrix(sourceFrame,DatumOrientationRelation.SameDirection);
+                targetFrameMatrix = frameConstraint.SeatFrameSemanticId==frameConstraint.SecondSemanticValueId ? SeatMatrix(targetFrame,seating) : FrameMatrix(targetFrame,DatumOrientationRelation.SameDirection);
+            }
             var transform = source.Inverse() * targetFrameMatrix;
             if (targetWorld is not null) transform *= Aetheris.Kernel.Core.Math.Transform3D.FromRowMajor(targetWorld.Matrix);
             return new(transform.ToRowMajor());
@@ -634,6 +667,15 @@ public sealed class AssemblyM0Compiler
         if (targetWorld is not null) rotation *= ToMatrix(targetWorld);
         return new([rotation.M11, rotation.M12, rotation.M13, rotation.M14, rotation.M21, rotation.M22, rotation.M23, rotation.M24,
             rotation.M31, rotation.M32, rotation.M33, rotation.M34, rotation.M41, rotation.M42, rotation.M43, rotation.M44]);
+    }
+
+    internal static Aetheris.Kernel.Core.Math.Transform3D SeatMatrix(ExactDatumFrameBinding frame,FixedSeatingOptions seating)
+    {
+        var flip=seating.Orientation==DatumOrientationRelation.OpposedDirection
+            ? Aetheris.Kernel.Core.Math.Transform3D.CreateRotationX(Math.PI) : Aetheris.Kernel.Core.Math.Transform3D.Identity;
+        return flip * Aetheris.Kernel.Core.Math.Transform3D.CreateRotationZ(seating.ClockingDegrees*Math.PI/180)
+            * Aetheris.Kernel.Core.Math.Transform3D.CreateTranslation(new(0,0,seating.GapMm))
+            * FrameMatrix(frame,DatumOrientationRelation.SameDirection);
     }
 
     private static Aetheris.Kernel.Core.Math.Transform3D FrameMatrix(ExactDatumFrameBinding frame, DatumOrientationRelation orientation)

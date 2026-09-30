@@ -6,6 +6,7 @@ exports and renders belong under artifacts/local/guitar-x0.
 from pathlib import Path
 import math
 import json
+import re
 
 ROOT = Path('fixtures/Canonical/AssemblyInterfaces/GuitarX0')
 ROOT.mkdir(parents=True, exist_ok=True)
@@ -88,7 +89,9 @@ for i,(y,depth) in enumerate(neck_stations):
 rows.append(' SectionChain Neck { Continuity: G1')
 for i in range(len(neck_stations)):
     rows.append(f'  Section S{i} {{ Frame: F{i}\n   Profile: P{i}\n   Seam: Edge0 }}')
-rows.extend(['  Start: Cap','  End: Cap',' }','}'])
+rows.extend(['  Start: Cap','  End: Cap',' }',
+             ' Expose { Semantic NutMount { DatumFrame Frame = Neck.Section.S5.Frame; }',
+             ' Semantic HeelMount { DatumFrame Frame = Neck.Section.S0.Frame; } }','}'])
 (ROOT/'Neck.firmament').write_text('\n'.join(rows)+'\n')
 
 templates='''// GUITAR-SURFACING-X0. Original design inspired by the single-cut family.
@@ -132,6 +135,8 @@ Template<H: Length> Struct Board {
  Extrude Body { Profile: P From: 0mm To: H }
 }
 Template<H: Length> Struct Head {
+ Expose { Semantic Base { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+  Semantic Front { DatumFrame Frame = [0mm,0mm,H] x [1,0,0] y [0,1,0] z [0,0,1]; } }
  Point2 RFlare { Position: [34mm,40mm] }
  Point2 RSide { Position: [39mm,154mm] }
  Point2 RCrown { Position: [12mm,160mm] }
@@ -154,10 +159,9 @@ Template<H: Length> Struct Head {
 '''
 parts=[]
 def part(name,definition,x=0,y=0,z=0,angle=0,axis='z'):
-    c,s=math.cos(math.radians(angle)),math.sin(math.radians(angle))
-    rot=[c,s,0,0,-s,c,0,0,0,0,1,0] if axis=='z' else [1,0,0,0,0,c,s,0,0,-s,c,0]
-    matrix=','.join(f'{v:.15g}' for v in rot+[x,y,z,1])
-    parts.append(f'  <Part {name} = {definition}>\n   Placement LegacyExplicit = [{matrix}];\n  </Part>')
+    rotate=f' RotateLocal: {{ Axis: {axis.upper()}; Angle: {number(angle)}deg }}' if angle else ''
+    translation=','.join(number(v)+'mm' for v in (x,y,z))
+    parts.append(f'  <Part {name} = {definition}>\n   Placement {{ From: Origin; To: World; TranslateLocal: [{translation}];{rotate} }}\n  </Part>')
 
 def formed_string(name, start, nut, end, diameter):
     def subtract(a,b):return [x-y for x,y in zip(a,b)]
@@ -170,9 +174,9 @@ def formed_string(name, start, nut, end, diameter):
     yaxis=[zaxis[1]*xaxis[2]-zaxis[2]*xaxis[1],zaxis[2]*xaxis[0]-zaxis[0]*xaxis[2],zaxis[0]*xaxis[1]-zaxis[1]*xaxis[0]]
     angle=math.acos(sum(a*b for a,b in zip(zaxis,target)))
     setback=3*math.tan(angle/2)
-    matrix=','.join(f'{v:.15g}' for v in xaxis+[0]+yaxis+[0]+zaxis+[0]+list(start)+[1])
     definition=f'GuitarString<D:{number(diameter)}mm,Lead:{number(lead_length-setback)}mm,Tail:{number(tail_length-setback)}mm,Deflection:{number(math.degrees(angle))}deg>'
-    parts.append(f'  <Part {name} = {definition}>\n   Placement LegacyExplicit = [{matrix}];\n  </Part>')
+    vector=lambda vs:','.join(f'{v:.15g}' for v in vs)
+    parts.append(f'  <Part {name} = {definition}>\n   Placement {{ From: Origin; To: World; TranslateLocal: [{",".join(number(v)+"mm" for v in start)}]; Normal: [{vector(zaxis)}]; Up: [{vector(yaxis)}]; }}\n  </Part>')
     if name=='String5':
         # The same formed route as a standalone CLI inspection/STEP witness.
         vector=lambda vs:','.join(f'{v:.15g}' for v in vs)
@@ -194,8 +198,11 @@ for name in ['MahoganyBack','IvoryBinding','CarvedMaple','Neck']:
     part(name,f'SectionChainFile<"{name}.firmament">')
 part('BoardBinding','Board<H:5mm>',z=55)
 part('Rosewood','Board<H:2mm>',z=60)
-part('Headstock','Head<H:14mm>',y=660,z=48,angle=-13,axis='x')
-part('HeadVeneer','Head<H:1mm>',y=660+14*math.sin(math.radians(13)),z=48+14*math.cos(math.radians(13)),angle=-13,axis='x')
+parts.append('''<Part Headstock = Head<H:14mm>>
+ Placement { From: Base.Frame; To: HeadTilt.Frame; }
+</Part>
+<Part HeadVeneer = Head<H:1mm>>
+</Part>''')
 part('Nut','Panel<L:44mm,W:4mm,H:3mm,R:1mm>',y=658,z=62)
 for name,y in [('NeckPickup',98),('BridgePickup',0)]:
     part(name+'Cream','Surround<L:88mm,W:46mm,H:4mm>',y=y,z=53)
@@ -234,7 +241,41 @@ for side in [-1,1]:
         part(f'TunerButton{side+1}{i}','Panel<L:15mm,W:19mm,H:6mm,R:5mm>',x=side*49,y=y,z=z-7)
         string_index=i if side==-1 else 5-i
         formed_string(f'String{string_index}',((string_index-2.5)*10.2,-75,65),((string_index-2.5)*7.2,658,65),(side*27,y,z+5),.28+string_index*.08)
-assembly=templates+'Assembly GuitarX0 {\n <Assembly GuitarX0>\n'+'\n'.join(parts)+'\n </Assembly>\n Anchor: GuitarX0;\n}\n'
+# Finite keyed occurrence families. Values remain ordinary checked Firmament
+# Records; the compiler owns expansion, identities, and definition sharing.
+catalog=['Record HardwareSite { X: Length; Y: Length; Z: Length }']
+for family,matcher in [
+    ('PickupSeats',r'(?:Neck|Bridge)PickupCream'),
+    ('PickupCoils',r'(?:Neck|Bridge)PickupCoil[01]'),
+    ('PickupPoles',r'(?:Neck|Bridge)PickupPole[0-5]'),
+    ('Saddles',r'Saddle[0-5]'),
+    ('TunerPosts',r'TunerPost[02][0-2]'),
+    ('TunerWashers',r'TunerWasher[02][0-2]'),
+    ('TunerButtons',r'TunerButton[02][0-2]')]:
+    selected=[]
+    for declaration in parts:
+        match=re.fullmatch(r'\s*<Part (\w+) = (.+)>\n\s*Placement \{ From: Origin; To: World; TranslateLocal: \[([^,]+),([^,]+),([^]]+)\]; \}\n\s*</Part>',declaration)
+        if match and re.fullmatch(matcher,match[1]):
+            selected.append((declaration,match))
+    assert selected, family
+    definitions={m[2] for _,m in selected}
+    assert len(definitions)==1, family
+    catalog.append(f'Static {family}Sites: Set<HardwareSite> {{\n'+ '\n'.join(
+        f' {m[1]} => HardwareSite {{ X: {m[3]}; Y: {m[4]}; Z: {m[5]} }}' for _,m in selected)+'\n}')
+    for declaration,_ in selected: parts.remove(declaration)
+    leaf='PickupCream' if family=='PickupSeats' else family.removesuffix('s')
+    parts.append(f'''Pattern {family} Over {family}Sites {{
+ site => <Part {leaf} = {next(iter(definitions))}>
+  Placement {{ From: Origin; To: World; TranslateLocal: [site.X,site.Y,site.Z]; }}
+ </Part>
+}}''')
+assembly=templates+'\n'.join(catalog)+'\nAssembly GuitarX0 {\n <Assembly GuitarX0>\n'+'\n'.join(parts)+'''\n </Assembly>
+ FrameTransform NutWorld { From: GuitarX0.Neck.NutMount.Frame; Normal: [0,1,0]; Up: [0,0,1]; TranslateLocal: [0mm,-7mm,0mm]; }
+ FrameTransform HeadTilt { From: NutWorld.Frame; RotateLocal: { Axis: X; Angle: -13deg } }
+ Interface<Fixed> VeneerSeat { A: GuitarX0.Headstock.Front.Frame; B: GuitarX0.HeadVeneer.Base.Frame; Gap: 0mm; Clocking: 0deg; }
+ Anchor: GuitarX0;
+}
+'''
 (ROOT/'guitar-x0.firmament').write_text(assembly)
 looks={
  'SectionChainFile<"CarvedMaple.firmament">':(.65,.28,.035,0,.35),
@@ -251,4 +292,4 @@ looks={
  'Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>':(.74,.73,.62,.1,.3),
 }
 (ROOT/'preview-materials.json').write_text(json.dumps({k:dict(zip(['red','green','blue','metallic','roughness'],v)) for k,v in looks.items()},indent=2)+'\n')
-print(f'Authored {len(parts)} part occurrences in {ROOT}')
+print(f'Authored guitar with seven keyed hardware patterns in {ROOT}; inspect via Aetheris.CLI for expanded occurrence counts.')

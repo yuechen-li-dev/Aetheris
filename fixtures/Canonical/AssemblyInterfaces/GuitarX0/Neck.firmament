@@ -156,4 +156,6 @@ Model Neck {
   Start: Cap
   End: Cap
  }
+ Expose { Semantic NutMount { DatumFrame Frame = Neck.Section.S5.Frame; }
+ Semantic HeelMount { DatumFrame Frame = Neck.Section.S0.Frame; } }
 }

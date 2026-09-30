@@ -75,7 +75,28 @@ public static class ConceptSemanticDeclaration { }
 [FirmamentConstruct("InterfaceFixed", "Interface<Fixed>", Context = "Assembly", Entry = "Interface<Fixed> Mount { A: Assembly.Base.Mount; B: Assembly.Link.Socket; }", Description = "Two semantic datum frames define one zero-DOF rigid relationship.")]
 [FirmamentField("A", "A", FirmamentSchemaValueKind.ConstructReference, Required = true, Description = "Parent occurrence's source-addressable DatumFrame-capable semantic port.")]
 [FirmamentField("B", "B", FirmamentSchemaValueKind.ConstructReference, Required = true, Description = "Child occurrence's source-addressable DatumFrame-capable semantic port.")]
+[FirmamentField("Gap", "Gap", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Default = "0mm", Description = "Seat translation along A's positive Z.")]
+[FirmamentField("Clocking", "Clocking", FirmamentSchemaValueKind.Angle, Unit = FirmamentUnitKind.Angle, Default = "0deg", Description = "Right-handed rotation about A's positive Z.")]
+[FirmamentField("Orientation", "Orientation", FirmamentSchemaValueKind.Choice, Default = "SameDirection", Choices = ["SameDirection", "OpposedDirection"])]
 public static class FixedInterfaceSemanticDeclaration { }
+
+[FirmamentConstruct("AssemblyPlacement", "Placement", Context = "Assembly", Entry = "Placement { From: Origin; To: World; TranslateLocal: [0mm,0mm,0mm]; }", Description = "One authored rigid layout authority; lowered through the existing frame solver.")]
+[FirmamentField("From", "From", FirmamentSchemaValueKind.ConstructReference, Required = true)]
+[FirmamentField("To", "To", FirmamentSchemaValueKind.ConstructReference, Required = true)]
+[FirmamentField("TranslateLocal", "TranslateLocal", FirmamentSchemaValueKind.Vector, Unit = FirmamentUnitKind.Length)]
+[FirmamentField("Normal", "Normal", FirmamentSchemaValueKind.Vector)]
+[FirmamentField("Up", "Up", FirmamentSchemaValueKind.Vector)]
+[FirmamentField("RotateLocal", "RotateLocal", FirmamentSchemaValueKind.ConstructReference)]
+public static class AssemblyPlacementSemanticDeclaration { }
+
+[FirmamentConstruct("AssemblyFrameTransform", "FrameTransform", Context = "Assembly", Entry = "FrameTransform Mount { From: World; TranslateLocal: [0mm,0mm,0mm]; }", Description = "A named definition-local composition of an exact published frame.")]
+[FirmamentField("From", "From", FirmamentSchemaValueKind.ConstructReference, Required = true)]
+[FirmamentField("TranslateLocal", "TranslateLocal", FirmamentSchemaValueKind.Vector, Unit = FirmamentUnitKind.Length)]
+[FirmamentField("Normal", "Normal", FirmamentSchemaValueKind.Vector)]
+[FirmamentField("Up", "Up", FirmamentSchemaValueKind.Vector)]
+[FirmamentField("RotateLocal", "RotateLocal", FirmamentSchemaValueKind.ConstructReference)]
+[FirmamentOutput("Frame", "Frame", "DatumFrame", SourceAddressable = true)]
+public static class AssemblyFrameTransformSemanticDeclaration { }
 
 [FirmamentConstruct("InterfaceRevolute", "Interface<Revolute>", Context = "Assembly", Entry = "Interface<Revolute> Hinge { A: Assembly.Base.Hinge; B: Assembly.Link.Hinge; }", Description = "One angular DOF about frame Z; frame X defines the zero angle.")]
 [FirmamentField("A", "A", FirmamentSchemaValueKind.ConstructReference, Required = true, Description = "Parent occurrence's source-addressable DatumFrame-capable semantic port.")]

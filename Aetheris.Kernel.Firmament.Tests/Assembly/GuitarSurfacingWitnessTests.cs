@@ -14,6 +14,14 @@ public sealed class GuitarSurfacingWitnessTests
         Assert.True(compiled.IsSuccess, string.Join("\n", compiled.Diagnostics.Select(d => d.Message)));
         var mesh = AssemblyDisplayMeshExporter.Export(compiled);
         Assert.Equal(107, mesh.Occurrences.Count(o => o.DefinitionId is not null));
+        Assert.Equal(7, compiled.Ir!.Patterns!.Count);
+        Assert.Single(compiled.Ir.Joints!);
+        Assert.DoesNotContain(File.ReadAllText(path), "LegacyExplicit");
+        Assert.Contains(compiled.Ir.Instances, i => i.Path.ToString() == "GuitarX0.TunerPosts.TunerPost00.TunerPost"
+            && i.Provenance.Any(p => p.Stage == "assembly-pattern"));
+        var head = compiled.Ir.Instances.Single(i => i.Path.ToString() == "GuitarX0.Headstock");
+        Assert.Equal(660, head.ResolvedTransform!.Matrix[13], 6);
+        Assert.Equal(48, head.ResolvedTransform.Matrix[14], 6);
         Assert.Equal(6, mesh.Definitions.Count(d => d.Identity.StartsWith("GuitarString<", StringComparison.Ordinal)));
         var surfaced = mesh.Definitions.Where(d => d.Identity.StartsWith("SectionChainFile", StringComparison.Ordinal)).ToArray();
         Assert.Equal(4, surfaced.Length);

@@ -104,7 +104,7 @@ internal static class AssemblyDefinitionMaterializer
                     }
                     sectionSource = File.ReadAllText(sectionPath);
                 }
-                var section = SectionChainAuthoringParser.Compile(sectionSource);
+                var section = SectionChainAuthoringParser.Compile(AssemblyPublishedPorts.Strip(sectionSource, diagnostics));
                 if (!section.IsSuccess || section.Materialization?.Body is not { } sectionBody ||
                     section.Materialization.StructureKind != SectionChainStructureKind.ClosedSolid)
                 {
@@ -131,7 +131,8 @@ internal static class AssemblyDefinitionMaterializer
                 var sectionHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sectionStep.Value)));
                 var sectionStableId = "assembly-definition:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(definitionIdentity)))[..16];
                 var sectionProvenance = new[] { new SemanticProvenance("section-chain-source", sectionPath, section.Chain!.StableId, SemanticSourceSpan.Generated(sourceIdentity)) };
-                return new(definitionIdentity, "section-chain:" + sectionHash[..16], sectionImport.Value, [],
+                var ports = AssemblyPublishedPorts.Read(sectionSource,section.Chain.StableId,definitionIdentity,sectionPath,diagnostics,section.Chain);
+                return new(definitionIdentity, "section-chain:" + sectionHash[..16], sectionImport.Value, ports,
                     new(sectionStableId, definitionIdentity, "section-chain:" + sectionHash[..16], sectionHash, Metrics(sectionImport.Value), sectionProvenance));
             }
             var gearDocument = GearAuthoring.ParseDefinitions(definitionSource);
@@ -213,6 +214,18 @@ internal static class AssemblyDefinitionMaterializer
               + definitionSource + Environment.NewLine
               + application
               + "}" + Environment.NewLine;
+        IReadOnlyList<SemanticValue> publishedPorts = [];
+        if (System.Text.RegularExpressions.Regex.IsMatch(module,@"\bExpose\s*\{\s*Semantic\s+[A-Za-z_]\w*\s*\{"))
+        {
+            var expansion = FirmamentTemplateSourceCompiler.Expand(module,out var expansionDiagnostics);
+            if (expansion is null || expansionDiagnostics.Count > 0)
+            {
+                foreach (var error in expansionDiagnostics) diagnostics.Add(new("assembly-port-specialization-failed",error));
+                return null;
+            }
+            publishedPorts = AssemblyPublishedPorts.Read(expansion.ExpandedSource,"__AssemblyPart",definitionIdentity,sourceIdentity,diagnostics);
+            module = AssemblyPublishedPorts.Strip(module,diagnostics);
+        }
         var build = FirmamentBuildAndExport.CompileSource(module, Path.GetDirectoryName(Path.GetFullPath(sourceIdentity)));
         if (!build.IsSuccess || build.Value is null)
         {
@@ -238,7 +251,7 @@ internal static class AssemblyDefinitionMaterializer
             provenance.AddRange(records.OrderBy(pair => pair.Key, StringComparer.Ordinal).Select(pair =>
                 new SemanticProvenance("static-record", pair.Value.StaticValue, $"{pair.Key}:{pair.Value.RecordType};{pair.Value.Provenance}", SemanticSourceSpan.Generated(sourceIdentity))));
         var semantics = (build.Value.ConceptIr is null ? Array.Empty<SemanticValue>() : SemanticValues(build.Value.ConceptIr, provenance, sourceIdentity))
-            .Concat(WindingSemantics(build.Value.WireForm, provenance, sourceIdentity)).ToArray();
+            .Concat(WindingSemantics(build.Value.WireForm, provenance, sourceIdentity)).Concat(publishedPorts).ToArray();
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(build.Value.StepText)));
         var stableId = "assembly-definition:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(definitionIdentity)))[..16];
         var artifact = new AssemblyDefinitionArtifactIr(stableId, definitionIdentity, specialization, hash, Metrics(import.Value), provenance);
@@ -507,7 +520,12 @@ public static class AssemblyWorldQuery
             if (owners.Length != 2 || owners.Any(owner => !materializedInstanceIds.Contains(owner.StableId))) continue;
             var first = Resolve(ir, constraint.FirstSemanticValueId);
             var second = Resolve(ir, constraint.SecondSemanticValueId);
-            var (position, angle) = Residual(constraint.Kind, first, second, constraint.OffsetMm, constraint.Orientation);
+            if (constraint.Seating is { } seating && first is ExactDatumFrameBinding seatFrame)
+            {
+                var m=AssemblyM0Compiler.SeatMatrix(seatFrame,seating).ToRowMajor();
+                first=new ExactDatumFrameBinding(m[12],m[13],m[14],m[0],m[1],m[2],m[4],m[5],m[6],m[8],m[9],m[10],seatFrame.FrameStableId+":seat");
+            }
+            var (position, angle) = Residual(constraint.Kind, first, second, constraint.OffsetMm, constraint.Seating is null ? constraint.Orientation : DatumOrientationRelation.SameDirection);
             result.Add(new(constraint.StableId, constraint.Kind, position, angle, position <= positionToleranceMm && angle <= angularToleranceRadians, "world exact semantic binding over materialized BRep instance"));
         }
         return result;

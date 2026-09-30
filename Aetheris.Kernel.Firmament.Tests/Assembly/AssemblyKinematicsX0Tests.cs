@@ -181,8 +181,9 @@ public sealed class AssemblyKinematicsX0Tests
         {
             var schema = FirmamentSemanticSchemas.Get($"Interface<{family}>");
             Assert.NotNull(schema);
-            Assert.Equal(["A", "B"], schema.Fields.Select(field => field.Name));
-            Assert.All(schema.Fields, field => Assert.True(field.Required));
+            Assert.Equal(["A", "B"], schema.Fields.Where(field => field.Required).Select(field => field.Name));
+            Assert.Equal(family == "Fixed" ? ["Clocking", "Gap", "Orientation"] : Array.Empty<string>(),
+                schema.Fields.Where(field => !field.Required).Select(field => field.Name));
         }
         const string source = "Assembly A { Interface<Revolute> Joint { ";
         var completion = FirmamentLanguageService.Complete(source, "arm.firmament", "1", source.Length);

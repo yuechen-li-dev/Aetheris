@@ -12,6 +12,61 @@ internal static class CanonicalStaticAuthoring
     internal sealed record Result(string Source, FirmamentV2StaticAuthoringDocument? Document);
     private sealed record Template(string Name, string Type, string Parameter, string Body, FirmamentV2SourceSpan Span);
 
+    /// <summary>Assembly consumes the same checked Record/Set values, but yields product-tree declarations.</summary>
+    internal static Result? ExpandAssemblyPatterns(string source, List<string> diagnostics)
+    {
+        var headers = Regex.Matches(source,@"\bPattern\s+(?<name>[A-Za-z_]\w*)\s+Over\s+(?<set>[A-Za-z_]\w*)\s*\{").Cast<Match>()
+            .Where(h => Regex.IsMatch(source[(h.Index+h.Length)..],@"^\s*[A-Za-z_]\w*\s*=>\s*<(?:Part|Assembly)\b")).ToArray();
+        if (headers.Length == 0) return new(source,null);
+        var catalog = source.Select(c => c is '\r' or '\n' ? c : ' ').ToArray();
+        foreach (Match header in Regex.Matches(source,@"\b(?:Record\s+[A-Za-z_]\w*|Static\s+[A-Za-z_]\w*\s*:\s*Set\s*<\s*[A-Za-z_]\w*\s*>)\s*\{"))
+        {
+            var open=source.IndexOf('{',header.Index); var close=MatchPair(source,open,'{','}');
+            if (close<0) { diagnostics.Add(Prefix+"assembly-pattern-catalog-malformed"); return null; }
+            source.CopyTo(header.Index,catalog,header.Index,close-header.Index+1);
+        }
+        var data=Expand(new string(catalog),diagnostics);
+        if (data?.Document is null || diagnostics.Count>0) return null;
+        var sets=(data.Document.Sets ?? []).ToDictionary(s=>s.Name,StringComparer.Ordinal);
+        var changes=new List<(int Start,int Length,string Text)>();
+        var patterns=new List<FirmamentV2CanonicalPatternDecl>(); var names=new HashSet<string>(); var total=0;
+        foreach (var header in headers)
+        {
+            var name=header.Groups["name"].Value; var open=source.IndexOf('{',header.Index); var close=MatchPair(source,open,'{','}');
+            if (!names.Add(name)) { diagnostics.Add(Prefix+"assembly-pattern-duplicate:"+name); continue; }
+            if (close<0 || !sets.TryGetValue(header.Groups["set"].Value,out var set)) { diagnostics.Add(Prefix+"pattern-source-invalid:"+name); continue; }
+            var body=source[(open+1)..close].Trim();
+            var arrow=Regex.Match(body,@"^(?<binder>[A-Za-z_]\w*)\s*=>\s*(?<mapping>[\s\S]+)$");
+            if (!arrow.Success || !Regex.IsMatch(arrow.Groups["mapping"].Value,@"^\s*<(?:Part|Assembly)\b") || Regex.IsMatch(body,@"\bPattern\s+"))
+            { diagnostics.Add(Prefix+"assembly-pattern-body-invalid:"+name); continue; }
+            total+=set.Entries.Count;
+            if (set.Entries.Count>MaxPatternExpansion || total>4096) { diagnostics.Add(Prefix+"pattern-expansion-limit:"+name); continue; }
+            var output=new List<string>(); var associations=new List<FirmamentV2PatternAssociation>();
+            const string identity="Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];";
+            foreach (var entry in set.Entries)
+            {
+                var mapping=SubstituteSetMapping(arrow.Groups["mapping"].Value,arrow.Groups["binder"].Value,entry);
+                if (Regex.IsMatch(mapping,$@"\b{Regex.Escape(arrow.Groups["binder"].Value)}\."))
+                { diagnostics.Add(Prefix+"assembly-pattern-member-unresolved:"+name+"."+entry.Name); continue; }
+                output.Add($"<Assembly {entry.Name}> {identity}\n{mapping}\n</Assembly>");
+                associations.Add(new(name+"."+entry.Name,set.Name,entry.Name,entry.Value,entry.SourceOrder,entry.Provenance));
+            }
+            changes.Add((header.Index,close-header.Index+1,$"<Assembly {name}> {identity}\n{string.Join(Environment.NewLine,output)}\n</Assembly>"));
+            patterns.Add(new(name,set.Name,"Assembly",set.Entries.Count,associations.Select(a=>a.GeneratedId).ToArray(),new(header.Index,close-header.Index+1),associations));
+        }
+        foreach (var change in changes.OrderByDescending(c=>c.Start)) source=source.Remove(change.Start,change.Length).Insert(change.Start,change.Text);
+        return new(source,data.Document with { Patterns=patterns });
+    }
+
+    private static string SubstituteSetMapping(string mapping,string binder,FirmamentV2StaticSetEntry entry)
+    {
+        if (entry.RecordFields is not null)
+            foreach (var field in entry.RecordFields)
+                mapping=Regex.Replace(mapping,$@"\b{Regex.Escape(binder)}\s*\.\s*{Regex.Escape(field.Key)}\b",field.Value,RegexOptions.CultureInvariant);
+        else mapping=Regex.Replace(mapping,$@"\b{Regex.Escape(binder)}\b",entry.Value,RegexOptions.CultureInvariant);
+        return mapping;
+    }
+
     public static Result? Expand(string source, List<string> diagnostics)
     {
         var symmetry = SemanticSymmetryAuthoring.Expand(source, diagnostics);
@@ -332,10 +387,7 @@ internal static class CanonicalStaticAuthoring
             else
             {
                 declaration = mapping;
-                if (entry.RecordFields is not null)
-                    foreach (var field in entry.RecordFields)
-                        declaration = Regex.Replace(declaration, $@"\b{Regex.Escape(binder)}\s*\.\s*{Regex.Escape(field.Key)}\b", field.Value, RegexOptions.CultureInvariant);
-                else declaration = Regex.Replace(declaration, $@"\b{Regex.Escape(binder)}\b", entry.Value, RegexOptions.CultureInvariant);
+                declaration = SubstituteSetMapping(declaration,binder,entry);
                 var construction = Regex.Match(declaration, @"\b(?:Hole\s*<\s*(?:Shaft|Counterbore|Countersink)\s*>|Slot\s*<\s*(?:Capsule|RoundedRectangle)\s*>|Boss|Pocket|EdgeFinish)\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
                 if (!construction.Success) { diagnostics.Add(Prefix + "pattern-body-invalid:" + patternName); return; }
                 declaration = declaration.Remove(construction.Groups["name"].Index, construction.Groups["name"].Length).Insert(construction.Groups["name"].Index, materializedId);

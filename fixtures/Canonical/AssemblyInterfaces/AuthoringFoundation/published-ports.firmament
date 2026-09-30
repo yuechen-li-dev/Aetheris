@@ -1,0 +1,20 @@
+Template<H: Length> Struct Post {
+    Circle2 Outline { Center: [0mm,0mm] Radius: 4mm }
+    Profile P { Loop Outer { Outline |> TraceLoop } }
+    Extrude Body { Profile: P From: 0mm To: H }
+    Expose {
+        Semantic Top { DatumFrame Frame = [0mm,0mm,H] x [1,0,0] y [0,1,0] z [0,0,1]; }
+        Semantic Bottom { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+    }
+}
+Assembly PublishedPorts {
+    <Assembly PublishedPorts>
+        <Part Base = Post<H:14mm>>
+            Placement { From: Origin; To: World; }
+        </Part>
+        <Part Child = Post<H:14mm>>
+            Placement { From: Bottom.Frame; To: PublishedPorts.Base.Top.Frame; }
+        </Part>
+    </Assembly>
+    Anchor: PublishedPorts;
+}

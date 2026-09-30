@@ -1,0 +1,88 @@
+// ATLAS: exact Aetheris SCARA demonstrator. Appearance is a downstream USD override.
+Template<R: Length, H: Length> Struct Pedestal {
+ Circle2 Outside { Center: [0mm,0mm] Radius: R }
+ Circle2 Inside { Center: [0mm,0mm] Radius: 36mm }
+ Profile Section { Loop Outer { Outside |> TraceLoop } Loop Inner { Inside As InnerBoundary |> TraceLoop } }
+ Extrude Body { Profile: Section From: 0mm To: H }
+}
+Template<L: Length, W: Length, H: Length> Struct GuardLink {
+ Rect2 Stock { Center: [70mm,0mm] Size: [L,W] }
+ Circle2 Vent1 { Center: [40mm,0mm] Radius: 7mm }
+ Circle2 Vent2 { Center: [60mm,0mm] Radius: 7mm }
+ Circle2 Vent3 { Center: [80mm,0mm] Radius: 7mm }
+ Profile Section {
+  Loop Outer { Stock.Bottom |> Stock.Right |> Stock.Top |> Stock.Left |> Close }
+  Loop Vent1 { Vent1 As Vent1Boundary |> TraceLoop }
+  Loop Vent2 { Vent2 As Vent2Boundary |> TraceLoop }
+  Loop Vent3 { Vent3 As Vent3Boundary |> TraceLoop }
+ }
+ Extrude Body { Profile: Section From: 0mm To: H }
+}
+Template<R: Length> Struct JointRing {
+ Circle2 Outside { Center: [0mm,0mm] Radius: R }
+ Circle2 Inside { Center: [0mm,0mm] Radius: 13mm }
+ Profile Section { Loop Outer { Outside |> TraceLoop } Loop Inner { Inside As InnerBoundary |> TraceLoop } }
+ Extrude Body { Profile: Section From: -3mm To: 3mm }
+}
+Template<W: Length> Struct GripperHead {
+ Rect2 Stock { Center: [0mm,0mm] Size: [28mm,W] }
+ Profile Section { Loop Outer { Stock.Bottom |> Stock.Right |> Stock.Top |> Stock.Left |> Close } }
+ Extrude Body { Profile: Section From: 0mm To: 18mm }
+}
+Template<L: Length> Struct Finger {
+ Rect2 Stock { Center: [22.5mm,0mm] Size: [L,8mm] }
+ Profile Section { Loop Outer { Stock.Bottom |> Stock.Right |> Stock.Top |> Stock.Left |> Close } }
+ Extrude Body { Profile: Section From: -20mm To: 0mm }
+}
+Assembly Atlas {
+ <Assembly Atlas>
+  <Part Base = Pedestal<R: 50mm, H: 60mm>>
+   Semantic Hinge { DatumFrame Frame = [0,0,60] x [1,0,0] y [0,1,0] z [0,0,1]; }
+  </Part>
+  <Assembly UpperArm>
+   Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+   <Part Housing = GuardLink<L: 160mm, W: 44mm, H: 22mm>>
+    Semantic Input { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+    Semantic Output { DatumFrame Frame = [150,0,24] x [1,0,0] y [0,1,0] z [0,0,1]; }
+    Semantic Collar { DatumFrame Frame = [0,0,24] x [1,0,0] y [0,1,0] z [0,0,1]; }
+   </Part>
+   <Part ShoulderCollar = JointRing<R: 26mm>>
+    Semantic Mount { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+   </Part>
+   <Part ElbowCollar = JointRing<R: 26mm>>
+    Semantic Mount { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+   </Part>
+  </Assembly>
+  <Assembly ForeArm>
+   Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+   <Part Housing = GuardLink<L: 130mm, W: 34mm, H: 16mm>>
+    Semantic Input { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+    Semantic Output { DatumFrame Frame = [130,0,20] x [1,0,0] y [0,1,0] z [0,0,1]; }
+    Semantic Collar { DatumFrame Frame = [0,0,20] x [1,0,0] y [0,1,0] z [0,0,1]; }
+   </Part>
+   <Part WristCollar = JointRing<R: 26mm>>
+    Semantic Mount { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+   </Part>
+  </Assembly>
+  <Part Wrist = GripperHead<W: 54mm>>
+   Semantic Mount { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+   Semantic Left { DatumFrame Frame = [0,12,0] x [1,0,0] y [0,0,-1] z [0,1,0]; }
+   Semantic Right { DatumFrame Frame = [0,-12,0] x [1,0,0] y [0,0,1] z [0,-1,0]; }
+  </Part>
+  <Part LeftFinger = Finger<L: 45mm>>
+   Semantic Slide { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,0,-1] z [0,1,0]; }
+  </Part>
+  <Part RightFinger = Finger<L: 45mm>>
+   Semantic Slide { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,0,1] z [0,-1,0]; }
+  </Part>
+ </Assembly>
+ Anchor: Atlas.Base.Hinge;
+ Interface<Revolute> Shoulder { A: Atlas.Base.Hinge; B: Atlas.UpperArm.Housing.Input; }
+ Interface<Revolute> Elbow { A: Atlas.UpperArm.Housing.Output; B: Atlas.ForeArm.Housing.Input; }
+ Interface<Fixed> WristMount { A: Atlas.ForeArm.Housing.Output; B: Atlas.Wrist.Mount; }
+ Interface<Prismatic> GripLeft { A: Atlas.Wrist.Left; B: Atlas.LeftFinger.Slide; }
+ Interface<Prismatic> GripRight { A: Atlas.Wrist.Right; B: Atlas.RightFinger.Slide; }
+ Interface<Fixed> ShoulderTrim { A: Atlas.UpperArm.Housing.Collar; B: Atlas.UpperArm.ShoulderCollar.Mount; }
+ Interface<Fixed> ElbowTrim { A: Atlas.UpperArm.Housing.Output; B: Atlas.UpperArm.ElbowCollar.Mount; }
+ Interface<Fixed> WristTrim { A: Atlas.ForeArm.Housing.Output; B: Atlas.ForeArm.WristCollar.Mount; }
+}

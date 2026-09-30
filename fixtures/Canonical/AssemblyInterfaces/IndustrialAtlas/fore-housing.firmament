@@ -1,0 +1,55 @@
+// Smooth, tapered mechanical housing. Exact capped SectionChain; millimetres.
+Model AtlasForeHousing {
+ Units: mm
+ Concept Struct Stations {
+  A: Plane { Origin: [0mm,0mm,0mm] Normal: [1,0,0] Up: [0,0,1] }
+  B: Plane { Origin: [25mm,0mm,0mm] Normal: [1,0,0] Up: [0,0,1] }
+  C: Plane { Origin: [90mm,0mm,0mm] Normal: [1,0,0] Up: [0,0,1] }
+  D: Plane { Origin: [160mm,0mm,0mm] Normal: [1,0,0] Up: [0,0,1] }
+  E: Plane { Origin: [180mm,0mm,0mm] Normal: [1,0,0] Up: [0,0,1] }
+ }
+ Construction Plane FA { Trace: Stations.A }
+ Construction Plane FB { Trace: Stations.B }
+ Construction Plane FC { Trace: Stations.C }
+ Construction Plane FD { Trace: Stations.D }
+ Construction Plane FE { Trace: Stations.E }
+ RoundedRect2 Root { Center: [0mm,0mm] Size: [48mm,52mm] Radius: 12mm }
+ RoundedRect2 Belly { Center: [0mm,0mm] Size: [50mm,56mm] Radius: 12mm }
+ RoundedRect2 Waist { Center: [0mm,0mm] Size: [34mm,34mm] Radius: 10mm }
+ RoundedRect2 Tip { Center: [0mm,0mm] Size: [32mm,36mm] Radius: 10mm }
+ Profile PRoot { Loop Outer { Root |> TraceLoop } }
+ Profile PBelly { Loop Outer { Belly |> TraceLoop } }
+ Profile PWaist { Loop Outer { Waist |> TraceLoop } }
+ Profile PTip { Loop Outer { Tip |> TraceLoop } }
+ SectionChain Housing {
+  Continuity: G1
+  ApproximationTolerance: 0.0001mm
+  Section A {
+   Frame: FA
+   Profile: PRoot
+   Seam: Bottom
+  }
+  Section B {
+   Frame: FB
+   Profile: PBelly
+   Seam: Bottom
+  }
+  Section C {
+   Frame: FC
+   Profile: PWaist
+   Seam: Bottom
+  }
+  Section D {
+   Frame: FD
+   Profile: PTip
+   Seam: Bottom
+  }
+  Section E {
+   Frame: FE
+   Profile: PTip
+   Seam: Bottom
+  }
+  Start: Cap
+  End: Cap
+ }
+}

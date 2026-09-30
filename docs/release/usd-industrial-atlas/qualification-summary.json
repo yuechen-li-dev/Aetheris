@@ -1,0 +1,86 @@
+{
+  "verdict": "Success",
+  "source": "fixtures/Canonical/AssemblyInterfaces/IndustrialAtlas/atlas-industrial.firmament",
+  "engineering": {
+    "definitions": 24,
+    "occurrences": 64,
+    "partOccurrences": 60,
+    "joints": 59,
+    "samples": 97,
+    "trianglesAcrossDefinitions": 20396,
+    "stepReimport": {
+      "definitions": 24,
+      "partBodies": 60,
+      "nestedSubassemblies": 3,
+      "repeatedInstances": 36
+    }
+  },
+  "usd": {
+    "tool": "NVIDIA-distributed OpenUSD usdview / Hydra Storm",
+    "version": "25.08",
+    "checker": "Success",
+    "units": "mm",
+    "metersPerUnit": 0.001,
+    "upAxis": "Z",
+    "handedness": "rightHanded",
+    "maxWorldTransformError": 8.881784197001252e-16,
+    "bboxErrorMm": 1.7695030152253821e-06,
+    "authoredPosesChecked": 98,
+    "unmatchedEdges": 0
+  },
+  "performance": {
+    "meshMilliseconds": 352.0137,
+    "serializationMilliseconds": 142.239,
+    "bytes": 2900033,
+    "externalLoadMilliseconds": 101.25059995334595
+  },
+  "render": {
+    "tool": "Blender",
+    "version": "5.2.2 LTS",
+    "engine": "Cycles",
+    "device": "GPU",
+    "devices": [
+      "NVIDIA GeForce RTX 3070"
+    ],
+    "loadSeconds": 0.19978020002599806,
+    "renderSeconds": 96.1011558000464,
+    "resolution": [
+      2560,
+      1440
+    ],
+    "samples": 192
+  },
+  "motion": {
+    "renderSeconds": 76.99994489992969,
+    "resolution": [
+      1280,
+      720
+    ],
+    "samples": 24,
+    "renderedPoses": 25,
+    "encodedFrames": 100,
+    "durationSeconds": 4.166667,
+    "bytes": 352126
+  },
+  "tests": {
+    "build": "passed; 7 existing WASM/SQLite warnings",
+    "fastPassed": 1005,
+    "fullPassed": 4010,
+    "fullFailed": 0,
+    "firstFullAttempt": {
+      "passed": 4008,
+      "failed": 2,
+      "condition": "concurrent Cycles rendering",
+      "failures": [
+        "TwoLocalHoles_ShareOneTrimmedHostAndRoundTrip: bounded tessellation timeout after 12541 ms",
+        "DisplayPrepare_Ftc07_ReturnsPartialDisplayInsteadOfWholeBodyFailure: no face patches within 5 s budget"
+      ]
+    },
+    "isolation": "Both passed together in 2 s after rendering ended; same full command passed without code/test-budget changes"
+  },
+  "limits": [
+    "Original two-link demo, no six-axis control or dynamics",
+    "Printed maker texture and studio assets are presentation-only",
+    "Omniverse/Isaac simulation validation remains pending"
+  ]
+}

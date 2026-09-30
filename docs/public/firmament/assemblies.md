@@ -2,6 +2,8 @@
 
 Firmament assemblies have two independent structures: the product tree owns definition/occurrence identity, while the Interface graph owns mechanical relationships. Tree nesting never implies a Mate.
 
+Executable assemblies can also [export to OpenUSD](openusd.md), preserving nested hierarchy, shared display geometry, occurrence placement, and the accepted frame-based Fixed/Revolute/Prismatic contracts. STEP remains the engineering/manufacturing interchange output.
+
 `Concept<T>` describes truths that make one semantic object valid. `Interface<T>` describes truths that make several objects valid together. `Subassembly` is a reusable, locally solved Assembly definition. `Expose` names the small public semantic contract visible to a parent.
 
 ## Compiler-owned interface families

@@ -1,0 +1,28 @@
+// Production geometry for the canonical Interface-only arm witness.
+Template<R: Length> Struct ArmBase {
+ Circle2 Outside { Center: [0mm,0mm] Radius: R }
+ Profile Section { Loop Outer { Outside |> TraceLoop } }
+ Extrude Body { Profile: Section From: -4mm To: 0mm }
+}
+Template<L: Length> Struct ArmLink {
+ Rect2 Stock { Center: [10mm,0mm] Size: [L,5mm] }
+ Profile Section { Loop Outer { Stock.Bottom |> Stock.Right |> Stock.Top |> Stock.Left |> Close } }
+ Extrude Body { Profile: Section From: 0mm To: 3mm }
+}
+Assembly TwoLinkArm {
+  <Assembly TwoLinkArm>
+    <Part Base = ArmBase<R: 8mm>>
+      Semantic Hinge { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+    </Part>
+    <Part Link1 = ArmLink<L: 20mm>>
+      Semantic Input { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+      Semantic Output { DatumFrame Frame = [20,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+    </Part>
+    <Part Link2 = ArmLink<L: 20mm>>
+      Semantic Input { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+    </Part>
+  </Assembly>
+  Anchor: TwoLinkArm.Base.Hinge;
+  Interface<Revolute> Shoulder { A: TwoLinkArm.Base.Hinge; B: TwoLinkArm.Link1.Input; }
+  Interface<Revolute> Elbow { A: TwoLinkArm.Link1.Output; B: TwoLinkArm.Link2.Input; }
+}

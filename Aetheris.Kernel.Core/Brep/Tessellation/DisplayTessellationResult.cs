@@ -14,6 +14,7 @@ public enum DisplayMeshPipeline
 {
     LegacyTessellator,
     SurfaceMeshIr,
+    StructuredSpline,
 }
 
 public enum DisplayFaceMeshSource

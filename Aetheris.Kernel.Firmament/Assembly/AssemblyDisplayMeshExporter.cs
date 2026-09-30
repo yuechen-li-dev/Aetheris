@@ -55,7 +55,11 @@ public static class AssemblyDisplayMeshExporter
             var useSurfaceMeshIr = body.Topology.Faces.All(face =>
                 body.TryGetFaceSurfaceGeometry(face.Id, out var surface)
                 && surface?.Kind is SurfaceGeometryKind.Plane or SurfaceGeometryKind.Cylinder);
-            var tessellation = useSurfaceMeshIr
+            var structuredSpline = !useSurfaceMeshIr && RectangularSplineDisplayTessellator.TryTessellate(body, effectiveOptions, out var splineMesh)
+                ? splineMesh : null;
+            var tessellation = structuredSpline is not null
+                ? Aetheris.Kernel.Core.Results.KernelResult<DisplayTessellationResult>.Success(structuredSpline)
+                : useSurfaceMeshIr
                 ? BrepDisplayTessellator.TessellateSurfaceMeshIr(body, effectiveOptions)
                 : BrepDisplayTessellator.TessellateBounded(body, effectiveOptions);
             if (!tessellation.IsSuccess || tessellation.Value.FacePatches.Count != body.Topology.Faces.Count())

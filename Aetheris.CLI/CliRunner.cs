@@ -3731,6 +3731,8 @@ Model CanonicalPanel {
             return RunAsmImportStep(args.Skip(1).ToArray(), stdout, stderr);
         if (string.Equals(args[0], "export-ap242", StringComparison.Ordinal))
             return RunAsmExportAp242(args.Skip(1).ToArray(), stdout, stderr);
+        if (string.Equals(args[0], "export-usd", StringComparison.Ordinal))
+            return AssemblyUsdCommand.Run(args.Skip(1).ToArray(), stdout, stderr);
 
         stderr.WriteLine($"Unknown asm subcommand '{args[0]}'.");
         stderr.WriteLine(AsmExecUsage);
@@ -5403,6 +5405,7 @@ Model CanonicalPanel {
         stdout.WriteLine($"   or: {AsmInspectUsage[7..]}");
         stdout.WriteLine($"   or: {AsmImportStepUsage[7..]}");
         stdout.WriteLine($"   or: {AsmExportAp242Usage[7..]}");
+        stdout.WriteLine($"   or: {AssemblyUsdCommand.Usage}");
         stdout.WriteLine();
         stdout.WriteLine("Options:");
         stdout.WriteLine("  --out <path>   Required for 'asm export'; output directory for package artifacts.");

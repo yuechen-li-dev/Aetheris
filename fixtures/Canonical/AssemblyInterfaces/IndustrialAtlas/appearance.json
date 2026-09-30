@@ -1,0 +1,170 @@
+{
+  "Drum<R:55mm,H:70mm>": {
+    "red": 0.026,
+    "green": 0.031,
+    "blue": 0.039,
+    "metallic": 0.55,
+    "roughness": 0.3
+  },
+  "Panel<L:150mm,W:130mm,H:8mm,R:14mm>": {
+    "red": 0.026,
+    "green": 0.031,
+    "blue": 0.039,
+    "metallic": 0.55,
+    "roughness": 0.3
+  },
+  "Drum<R:57mm,H:8mm>": {
+    "red": 0.6,
+    "green": 0.64,
+    "blue": 0.7,
+    "metallic": 0.9,
+    "roughness": 0.23
+  },
+  "Drum<R:44mm,H:27mm>": {
+    "red": 0.95,
+    "green": 0.21,
+    "blue": 0.012,
+    "metallic": 0.12,
+    "roughness": 0.27
+  },
+  "Drum<R:4mm,H:5mm>": {
+    "red": 0.6,
+    "green": 0.64,
+    "blue": 0.7,
+    "metallic": 0.9,
+    "roughness": 0.23
+  },
+  "SectionChainFile<\"upper-housing.firmament\">": {
+    "red": 0.95,
+    "green": 0.21,
+    "blue": 0.012,
+    "metallic": 0.12,
+    "roughness": 0.27
+  },
+  "SectionChainFile<\"fore-housing.firmament\">": {
+    "red": 0.95,
+    "green": 0.21,
+    "blue": 0.012,
+    "metallic": 0.12,
+    "roughness": 0.27
+  },
+  "Drum<R:44mm,H:76mm>": {
+    "red": 0.95,
+    "green": 0.21,
+    "blue": 0.012,
+    "metallic": 0.12,
+    "roughness": 0.27
+  },
+  "Ring<R:44mm,Bore:38mm,H:4mm>": {
+    "red": 0.6,
+    "green": 0.64,
+    "blue": 0.7,
+    "metallic": 0.9,
+    "roughness": 0.23
+  },
+  "Drum<R:39mm,H:5mm>": {
+    "red": 0.026,
+    "green": 0.031,
+    "blue": 0.039,
+    "metallic": 0.55,
+    "roughness": 0.3
+  },
+  "Drum<R:2.2mm,H:2mm>": {
+    "red": 0.6,
+    "green": 0.64,
+    "blue": 0.7,
+    "metallic": 0.9,
+    "roughness": 0.23
+  },
+  "Drum<R:35mm,H:62mm>": {
+    "red": 0.95,
+    "green": 0.21,
+    "blue": 0.012,
+    "metallic": 0.12,
+    "roughness": 0.27
+  },
+  "Ring<R:35mm,Bore:29mm,H:4mm>": {
+    "red": 0.6,
+    "green": 0.64,
+    "blue": 0.7,
+    "metallic": 0.9,
+    "roughness": 0.23
+  },
+  "Drum<R:30mm,H:5mm>": {
+    "red": 0.026,
+    "green": 0.031,
+    "blue": 0.039,
+    "metallic": 0.55,
+    "roughness": 0.3
+  },
+  "Drum<R:24mm,H:44mm>": {
+    "red": 0.95,
+    "green": 0.21,
+    "blue": 0.012,
+    "metallic": 0.12,
+    "roughness": 0.27
+  },
+  "Ring<R:24mm,Bore:18mm,H:4mm>": {
+    "red": 0.6,
+    "green": 0.64,
+    "blue": 0.7,
+    "metallic": 0.9,
+    "roughness": 0.23
+  },
+  "Drum<R:19mm,H:5mm>": {
+    "red": 0.026,
+    "green": 0.031,
+    "blue": 0.039,
+    "metallic": 0.55,
+    "roughness": 0.3
+  },
+  "Panel<L:92mm,W:27mm,H:2mm,R:6mm>": {
+    "red": 0.026,
+    "green": 0.031,
+    "blue": 0.039,
+    "metallic": 0.55,
+    "roughness": 0.3
+  },
+  "Panel<L:84mm,W:18mm,H:2mm,R:3mm>": {
+    "red": 0.6,
+    "green": 0.64,
+    "blue": 0.7,
+    "metallic": 0.9,
+    "roughness": 0.23
+  },
+  "Drum<R:2.5mm,H:15mm>": {
+    "red": 0.6,
+    "green": 0.64,
+    "blue": 0.7,
+    "metallic": 0.9,
+    "roughness": 0.23
+  },
+  "Drum<R:1.5mm,H:1.5mm>": {
+    "red": 0.6,
+    "green": 0.64,
+    "blue": 0.7,
+    "metallic": 0.9,
+    "roughness": 0.23
+  },
+  "Panel<L:30mm,W:50mm,H:28mm,R:7mm>": {
+    "red": 0.026,
+    "green": 0.031,
+    "blue": 0.039,
+    "metallic": 0.55,
+    "roughness": 0.3
+  },
+  "Panel<L:56mm,W:7mm,H:10mm,R:3mm>": {
+    "red": 0.6,
+    "green": 0.64,
+    "blue": 0.7,
+    "metallic": 0.9,
+    "roughness": 0.23
+  },
+  "Panel<L:10mm,W:7mm,H:2mm,R:2mm>": {
+    "red": 0.026,
+    "green": 0.031,
+    "blue": 0.039,
+    "metallic": 0.55,
+    "roughness": 0.3
+  }
+}

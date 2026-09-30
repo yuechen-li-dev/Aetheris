@@ -1,0 +1,8 @@
+{
+  "Pedestal<R: 50mm, H: 60mm>": { "red": 0.12, "green": 0.15, "blue": 0.21, "metallic": 0.8, "roughness": 0.24 },
+  "GuardLink<L: 160mm, W: 44mm, H: 22mm>": { "red": 0.54, "green": 0.61, "blue": 0.72, "metallic": 0.85, "roughness": 0.22 },
+  "GuardLink<L: 130mm, W: 34mm, H: 16mm>": { "red": 0.28, "green": 0.38, "blue": 0.49, "metallic": 0.8, "roughness": 0.26 },
+  "JointRing<R: 26mm>": { "red": 0.04, "green": 0.57, "blue": 0.63, "metallic": 0.55, "roughness": 0.2 },
+  "GripperHead<W: 54mm>": { "red": 0.11, "green": 0.14, "blue": 0.2, "metallic": 0.8, "roughness": 0.25 },
+  "Finger<L: 45mm>": { "red": 0.64, "green": 0.69, "blue": 0.74, "metallic": 0.95, "roughness": 0.18 }
+}

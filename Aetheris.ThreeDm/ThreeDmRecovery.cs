@@ -6,7 +6,7 @@ using KernelPoint = Aetheris.Kernel.Core.Math.Point3D;
 
 namespace Aetheris.ThreeDm;
 
-public enum RecoveryQualification { WithinSourceTolerance, Approximate, Unresolved }
+public enum RecoveryQualification { WithinSourceTolerance, Approximate, Unresolved, WithinRecoveryTolerance }
 
 public sealed record RecoveryResidual(
     double RmsMillimetres, double P95Millimetres, double MaxMillimetres,
@@ -20,13 +20,19 @@ public sealed record RecoveryEdge(
     int EdgeIndex, bool SourceIsRational, int Degree, int ControlPointCount, int KnotCount,
     double MinimumWeight, double MaximumWeight, double RelativeWeightSpread,
     string NativeClassification, IReadOnlyList<RecoveryCandidate> Candidates,
-    string? PreferredCandidate, string Status, string TopologyStatus);
+    string? PreferredCandidate, string Status, string TopologyStatus)
+{
+    public RecoveryCandidate? GenericRecovery { get; init; }
+}
 
 public sealed record RecoveryFace(
     int FaceIndex, int SurfaceIndex, bool SourceIsRational, int DegreeU, int DegreeV,
     int ControlPointCountU, int ControlPointCountV, int KnotCountU, int KnotCountV,
     int LoopCount, int TrimCount, string NativeClassification, RecoveryCandidate? Candidate,
-    string Status, string TopologyStatus);
+    string Status, string TopologyStatus)
+{
+    public RecoveryCandidate? GenericRecovery { get; init; }
+}
 
 public sealed record RecoveryBody(
     int ObjectIndex, Guid SourceId, int LayerIndex, bool SourceIsSolid, bool SourceIsManifold,
@@ -47,7 +53,18 @@ public sealed record ThreeDmRecoveryReport(
     int SourceRationalSurfaceCount, int QualifiedAnalyticRationalSurfaceCount,
     int UnresolvedRationalSurfaceCount,
     IReadOnlyList<RecoveryDimensionHypothesis> RepeatedDimensions,
-    string ProductionStatus, IReadOnlyList<string> Diagnostics);
+    string ProductionStatus, IReadOnlyList<string> Diagnostics)
+{
+    public double RecoveryToleranceMillimetres { get; init; }
+    public int RecoveredCurveCount => Bodies.Sum(body => body.Edges.Count(edge =>
+        edge.GenericRecovery?.Qualification == RecoveryQualification.WithinRecoveryTolerance));
+    public int RecoveredSurfaceCount => Bodies.Sum(body => body.Faces.Count(face =>
+        face.GenericRecovery?.Qualification == RecoveryQualification.WithinRecoveryTolerance));
+    public int UnrecoveredCurveCount => Bodies.Sum(body => body.Edges.Count(edge =>
+        edge.GenericRecovery is { Qualification: RecoveryQualification.Unresolved }));
+    public int UnrecoveredSurfaceCount => Bodies.Sum(body => body.Faces.Count(face =>
+        face.GenericRecovery is { Qualification: RecoveryQualification.Unresolved }));
+}
 
 /// <summary>
 /// Deterministic, read-only geometry recovery evidence. Candidates are support-geometry
@@ -55,9 +72,11 @@ public sealed record ThreeDmRecoveryReport(
 /// </summary>
 public static class ThreeDmRecovery
 {
-    public static ThreeDmRecoveryReport Analyze(string path)
+    public static ThreeDmRecoveryReport Analyze(string path, double recoveryToleranceMillimetres = 0.1d)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        if (!double.IsFinite(recoveryToleranceMillimetres) || recoveryToleranceMillimetres <= 0d)
+            throw new ArgumentOutOfRangeException(nameof(recoveryToleranceMillimetres), "Recovery tolerance must be positive and finite.");
         using var file = File3dm.Read(Path.GetFullPath(path)) ?? throw new InvalidDataException("OpenNURBS could not read the 3DM file.");
         var unit = file.Settings.ModelUnitSystem.ToString();
         var factor = unit switch
@@ -84,10 +103,10 @@ public static class ThreeDmRecovery
             }
             var edges = new List<RecoveryEdge>(brep.Edges.Count);
             foreach (var edge in brep.Edges)
-                edges.Add(RecoverEdge(edge, factor, tolerance, angleToleranceDegrees));
+                edges.Add(RecoverEdge(edge, factor, tolerance, angleToleranceDegrees, recoveryToleranceMillimetres));
             var faces = new List<RecoveryFace>(brep.Faces.Count);
             foreach (var face in brep.Faces)
-                faces.Add(RecoverFace(face, brep.Surfaces[face.SurfaceIndex], factor, tolerance, angleToleranceDegrees));
+                faces.Add(RecoverFace(face, brep.Surfaces[face.SurfaceIndex], factor, tolerance, angleToleranceDegrees, recoveryToleranceMillimetres));
             var box = ThreeDmBoundsSampler.Sample(brep);
             bodies.Add(new RecoveryBody(objectIndex, item.Attributes.ObjectId, item.Attributes.LayerIndex,
                 brep.IsSolid, brep.IsManifold, brep.Faces.Count, brep.Loops.Count, brep.Trims.Count,
@@ -116,10 +135,11 @@ public static class ThreeDmRecovery
             allFaces.Count(f => f.SourceIsRational && f.Status == "Qualified support candidate; topology pending"),
             allFaces.Count(f => f.SourceIsRational && f.Status == "Unresolved"),
             RepeatedDimensions(bodies, tolerance),
-            "No canonical BRep or production STEP is emitted. All candidates require trim/topology qualification.", diagnostics);
+            "No canonical BRep or production STEP is emitted. All candidates require trim/topology qualification.", diagnostics)
+        { RecoveryToleranceMillimetres = recoveryToleranceMillimetres };
     }
 
-    private static RecoveryEdge RecoverEdge(BrepEdge edge, double factor, double toleranceMm, double angleToleranceDegrees)
+    private static RecoveryEdge RecoverEdge(BrepEdge edge, double factor, double toleranceMm, double angleToleranceDegrees, double recoveryToleranceMm)
     {
         var source = edge.EdgeCurve;
         var nurbs = source.ToNurbsCurve();
@@ -206,10 +226,11 @@ public static class ThreeDmRecovery
         return new RecoveryEdge(edge.EdgeIndex, true, nurbs.Degree, nurbs.Points.Count, nurbs.Knots.Count,
             minimumWeight, maximumWeight, relativeWeightSpread, "Unclassified", candidates, preferred,
             preferred is null ? "Unresolved" : "Qualified support candidate; topology pending",
-            "Original edge and trims retained as source evidence; no canonical edge built.");
+            "Original edge and trims retained as source evidence; no canonical edge built.")
+        { GenericRecovery = ThreeDmSplineRecovery.RecoverCurve(nurbs, factor, recoveryToleranceMm) };
     }
 
-    private static RecoveryFace RecoverFace(BrepFace face, Surface surface, double factor, double toleranceMm, double angleToleranceDegrees)
+    private static RecoveryFace RecoverFace(BrepFace face, Surface surface, double factor, double toleranceMm, double angleToleranceDegrees, double recoveryToleranceMm)
     {
         var nurbs = surface.ToNurbsSurface();
         var kind = "Unclassified";
@@ -312,7 +333,9 @@ public static class ThreeDmRecovery
             nurbs.KnotsU.Count, nurbs.KnotsV.Count, face.Loops.Count,
             face.Loops.Sum(loop => loop.Trims.Count), kind, candidate,
             qualified ? "Qualified support candidate; topology pending" : "Unresolved",
-            "Source loops/trims are inventory only; no canonical face or pcurve built.");
+            "Source loops/trims are inventory only; no canonical face or pcurve built.")
+        { GenericRecovery = nurbs.IsRational && !qualified
+            ? ThreeDmSplineRecovery.RecoverSurface(nurbs, factor, recoveryToleranceMm) : null };
     }
 
     private static IReadOnlyList<Point3d> SampleEdge(BrepEdge edge, int count)

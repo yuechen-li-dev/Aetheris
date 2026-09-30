@@ -1,5 +1,6 @@
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Core.Topology;
 
 namespace Aetheris.Kernel.Core.Brep;
 
@@ -17,10 +18,16 @@ public sealed record BrepPcurveEvidence(
     public double RootMeanSquareReconstructionDeviation { get; init; }
 }
 
+/// <summary>Source-local topology evidence for collapsed trim vertices; omitted by authored callers.</summary>
+public sealed record BrepPcurveTopologyEvidence(
+    IReadOnlyDictionary<VertexId, double> VertexTolerancesMillimetres,
+    IReadOnlySet<(CoedgeId Current, CoedgeId Next)> CollapsedSingularTransitions);
+
 /// <summary>Independently samples face-local pcurves against their shared 3D edge geometry.</summary>
 public static class BrepPcurveValidator
 {
-    public static BrepPcurveEvidence Validate(BrepBody body, double tolerance = 1e-6, bool requireEveryCoedge = false, int samples = 67)
+    public static BrepPcurveEvidence Validate(BrepBody body, double tolerance = 1e-6, bool requireEveryCoedge = false, int samples = 67,
+        BrepPcurveTopologyEvidence? sourceTopology = null)
     {
         ArgumentNullException.ThrowIfNull(body);
         if (!double.IsFinite(tolerance) || tolerance <= 0d) throw new ArgumentOutOfRangeException(nameof(tolerance));
@@ -91,12 +98,14 @@ public static class BrepPcurveValidator
             if (coedgeMaximum > bindingTolerance)
                 diagnostics.Add($"surf-pcurve-invalid:coedge={coedge.Id.Value}:face={face.Id.Value}:surface={surface.Kind}:curve={curve.Kind}:pcurve={binding.Pcurve.Kind}:deviation={coedgeMaximum:R}:tolerance={bindingTolerance:R}");
 
-            if (body.TryGetVertexPoint(coedge.IsReversed ? body.Topology.GetEdge(coedge.EdgeId).EndVertexId : body.Topology.GetEdge(coedge.EdgeId).StartVertexId, out var start))
+            var startVertexId = coedge.IsReversed ? body.Topology.GetEdge(coedge.EdgeId).EndVertexId : body.Topology.GetEdge(coedge.EdgeId).StartVertexId;
+            if (body.TryGetVertexPoint(startVertexId, out var start))
             {
                 var parameter = coedge.IsReversed ? interval.End : interval.Start;
                 var uv = binding.Pcurve.Evaluate(binding.SameSense ? parameter : interval.End - (parameter - interval.Start));
                 var reconstructed = Evaluate(surface, uv);
-                if (reconstructed is null || (reconstructed.Value - start).Length > bindingTolerance)
+                var vertexTolerance = sourceTopology?.VertexTolerancesMillimetres.GetValueOrDefault(startVertexId) ?? 0d;
+                if (reconstructed is null || (reconstructed.Value - start).Length > double.Max(bindingTolerance, vertexTolerance))
                 {
                     orientationValid = false;
                     diagnostics.Add($"surf-pcurve-invalid:coedge={coedge.Id.Value}:orientation");
@@ -110,7 +119,8 @@ public static class BrepPcurveValidator
                 var parameter = coedge.IsReversed ? interval.Start : interval.End;
                 var uv = binding.Pcurve.Evaluate(binding.SameSense ? parameter : interval.End - (parameter - interval.Start));
                 var reconstructed = Evaluate(surface, uv);
-                if (reconstructed is null || (reconstructed.Value - endPoint).Length > bindingTolerance)
+                var vertexTolerance = sourceTopology?.VertexTolerancesMillimetres.GetValueOrDefault(endVertex) ?? 0d;
+                if (reconstructed is null || (reconstructed.Value - endPoint).Length > double.Max(bindingTolerance, vertexTolerance))
                 {
                     orientationValid = false;
                     diagnostics.Add($"surf-pcurve-invalid:coedge={coedge.Id.Value}:end-orientation");
@@ -130,7 +140,23 @@ public static class BrepPcurveValidator
                 maximumUvClosure = double.Max(maximumUvClosure, closure);
                 var closureTolerance = double.Max(bindingTolerance,
                     nextBinding.Qualification?.QualificationToleranceMillimetres ?? tolerance);
-                if (closure > closureTolerance)
+                if (sourceTopology?.CollapsedSingularTransitions.Contains((coedge.Id, next.Id)) == true)
+                {
+                    // The omitted Rhino singular trim crosses UV while lifting to one vertex.
+                    // Check its two lifted endpoints in model space against that source vertex.
+                    var currentLift = Evaluate(surface, currentUv);
+                    var nextLift = Evaluate(surface, nextUv);
+                    var vertex = coedge.IsReversed ? edge.StartVertexId : edge.EndVertexId;
+                    var sourceLimit = sourceTopology.VertexTolerancesMillimetres.GetValueOrDefault(vertex);
+                    if (currentLift is null || nextLift is null || !body.TryGetVertexPoint(vertex, out var vertexPoint)
+                        || (currentLift.Value - vertexPoint).Length > double.Max(closureTolerance, sourceLimit)
+                        || (nextLift.Value - vertexPoint).Length > double.Max(closureTolerance, sourceLimit))
+                    {
+                        loopClosureValid = false;
+                        diagnostics.Add($"surf-pcurve-invalid:coedge={coedge.Id.Value}:collapsed-singular-lift");
+                    }
+                }
+                else if (closure > closureTolerance)
                 {
                     loopClosureValid = false;
                     diagnostics.Add($"surf-pcurve-invalid:coedge={coedge.Id.Value}:uv-loop-closure={closure:R}:tolerance={closureTolerance:R}");

@@ -56,6 +56,7 @@ internal sealed class StepSourceConnector : ISourceConnector
             return Step242ImportSharedUtilities.NotImplementedFailure<IParsedSourceDocument>(
                 "PcurveQualificationToleranceMillimetres must be a positive finite distance.", "Importer.PcurveQualificationTolerance");
         parseResult.Value.PcurveQualificationToleranceMillimetres = double.Min(pcurveTolerance, tolerance);
+        parseResult.Value.AllowBoundedNearCoincidentInnerLoop = request.Policy?.AllowBoundedNearCoincidentInnerLoop == true;
         return KernelResult<IParsedSourceDocument>.Success(new StepParsedSourceDocument(parseResult.Value));
     }
 }

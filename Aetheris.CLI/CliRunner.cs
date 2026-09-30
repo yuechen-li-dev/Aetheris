@@ -4824,7 +4824,7 @@ Model CanonicalPanel {
         stdout.WriteLine("  view       Build/open a model in Cadmata.");
         stdout.WriteLine("  inspect    Inspect Firmament semantics or STEP topology.");
         stdout.WriteLine("  inspect-3dm Inventory local Rhino 3DM geometry and import blockers.");
-        stdout.WriteLine("  recover-3dm Measure analytic recovery candidates from Rhino 3DM geometry.");
+        stdout.WriteLine("  recover-3dm Measure Rhino recovery candidates or bind qualified BReps to STEP.");
         stdout.WriteLine("  analyze    Analyze STEP topology and analytic surfaces.");
         stdout.WriteLine("  fea        Compile and solve a Firmament linear-elastic analysis and export Abaqus verification input.");
         stdout.WriteLine("  drawing    Compile production drawings or inspect/highlight PDFs with source-linked Drawing Notes.");

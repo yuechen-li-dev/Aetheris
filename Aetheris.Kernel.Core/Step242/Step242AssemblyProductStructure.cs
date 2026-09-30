@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Import;
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Results;
 
@@ -189,11 +190,20 @@ public static class Step242AssemblyExporter
 
 public static class Step242AssemblyImporter
 {
-    public static KernelResult<Step242ProductStructure> Import(string stepText)
+    public static KernelResult<Step242ProductStructure> Import(string stepText, ImportPolicy? policy = null)
     {
         var parsed = Step242SubsetParser.Parse(stepText);
         if (!parsed.IsSuccess) return KernelResult<Step242ProductStructure>.Failure(parsed.Diagnostics);
         var document = parsed.Value;
+        if (policy is not null)
+        {
+            if (!double.IsFinite(policy.RecoveryToleranceMillimetres) || policy.RecoveryToleranceMillimetres <= 0d)
+                throw new ArgumentOutOfRangeException(nameof(policy));
+            document.RecoveryToleranceMillimetres = policy.RecoveryToleranceMillimetres;
+            document.PcurveQualificationToleranceMillimetres = double.Min(policy.PcurveQualificationToleranceMillimetres,
+                policy.RecoveryToleranceMillimetres);
+            document.AllowBoundedNearCoincidentInnerLoop = policy.AllowBoundedNearCoincidentInnerLoop;
+        }
         var products = document.Entities.Where(entity => entity.Name == "PRODUCT").ToDictionary(entity => entity.Id);
         var formations = document.Entities.Where(entity => entity.Name == "PRODUCT_DEFINITION_FORMATION").ToDictionary(entity => entity.Id);
         var definitionsByEntity = document.Entities.Where(entity => entity.Name == "PRODUCT_DEFINITION").ToDictionary(entity => entity.Id);

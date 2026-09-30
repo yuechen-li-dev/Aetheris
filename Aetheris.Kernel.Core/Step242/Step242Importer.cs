@@ -52,6 +52,7 @@ public static class Step242Importer
     private const double AngleUnwrapEps = 1e-8d;
     private const double ContainmentEps = 1e-8d;
     private const string PlanarCrossingInsideRecoveryCandidate = "planar_crossing_inside_recover_as_inner";
+    private const string PlanarNearCoincidentRecoveryCandidate = "planar_near_coincident_declared_inner";
     private const string PlanarCrossingInsideRejectCandidate = "planar_crossing_inside_reject";
     private static readonly AsyncLocal<ICollection<LoopRoleCircularSamplingDiagnostic>?> CircularSamplingDiagnosticsSink = new();
     private static readonly AsyncLocal<ICollection<LoopRoleCoedgeGapDiagnostic>?> CoedgeGapDiagnosticsSink = new();
@@ -517,7 +518,8 @@ public static class Step242Importer
                 loopData.Add(new LoopBuildData(loopId, loopCoedges, loopSamples, hasDisconnectedCoedgeGap, isDeclaredOuter, boundEntity.Id, loopPcurveCandidates));
             }
 
-            var classifyResult = ClassifyAndNormalizeFaceLoops(faceEntity.Id, loopData, bindSurfaceResult.Value.SurfaceGeometry);
+            var classifyResult = ClassifyAndNormalizeFaceLoops(faceEntity.Id, loopData, bindSurfaceResult.Value.SurfaceGeometry,
+                document.AllowBoundedNearCoincidentInnerLoop ? document.RecoveryToleranceMillimetres : 0d);
             if (!classifyResult.IsSuccess)
             {
                 return KernelResult<BrepBody>.Failure(classifyResult.Diagnostics);
@@ -1944,7 +1946,8 @@ public static class Step242Importer
     private static KernelResult<IReadOnlyList<LoopBuildData>> ClassifyAndNormalizeFaceLoops(
         int faceEntityId,
         IReadOnlyList<LoopBuildData> loops,
-        SurfaceGeometry surface)
+        SurfaceGeometry surface,
+        double nearCoincidentTolerance)
     {
         if (loops.Count <= 1)
         {
@@ -1977,7 +1980,7 @@ public static class Step242Importer
             // import must not silently reorder or reverse STEP evidence.
             var validation = surface.Kind switch
             {
-                SurfaceGeometryKind.Plane => ClassifyAndNormalizePlanarLoops(loops, surface.Plane!.Value),
+                SurfaceGeometryKind.Plane => ClassifyAndNormalizePlanarLoops(loops, surface.Plane!.Value, nearCoincidentTolerance),
                 SurfaceGeometryKind.Cylinder => ClassifyAndNormalizeCylindricalLoops(faceEntityId, loops, surface.Cylinder!.Value),
                 SurfaceGeometryKind.Torus => ClassifyAndNormalizeToroidalLoops(faceEntityId, loops, surface.Torus!.Value),
                 SurfaceGeometryKind.Cone => ClassifyAndNormalizeConicalLoops(faceEntityId, loops, surface.Cone!.Value),
@@ -2003,7 +2006,7 @@ public static class Step242Importer
 
         return surface.Kind switch
         {
-            SurfaceGeometryKind.Plane => ClassifyAndNormalizePlanarLoops(loops, surface.Plane!.Value),
+            SurfaceGeometryKind.Plane => ClassifyAndNormalizePlanarLoops(loops, surface.Plane!.Value, nearCoincidentTolerance),
             SurfaceGeometryKind.Cylinder => ClassifyAndNormalizeCylindricalLoops(faceEntityId, loops, surface.Cylinder!.Value),
             SurfaceGeometryKind.Torus => ClassifyAndNormalizeToroidalLoops(faceEntityId, loops, surface.Torus!.Value),
             SurfaceGeometryKind.Cone => ClassifyAndNormalizeConicalLoops(faceEntityId, loops, surface.Cone!.Value),
@@ -2018,7 +2021,8 @@ public static class Step242Importer
 
     private static KernelResult<IReadOnlyList<LoopBuildData>> ClassifyAndNormalizePlanarLoops(
         IReadOnlyList<LoopBuildData> loops,
-        PlaneSurface plane)
+        PlaneSurface plane,
+        double nearCoincidentTolerance)
     {
         var infos = new List<PlanarLoopInfo>(loops.Count);
         foreach (var loop in loops)
@@ -2098,8 +2102,8 @@ public static class Step242Importer
             }
 
             if (intersectsOuter
-                && containment.OutsideCount == 0
-                && TryRecoverPlanarCrossingInnerWithJudgmentEngine(candidate.Info, outer.Info, containment, intersectionCount, containmentTolerance, loops.Count, declaredOuterCount))
+                && TryRecoverPlanarCrossingInnerWithJudgmentEngine(candidate.Info, outer.Info, containment, intersectionCount,
+                    containmentTolerance, loops.Count, declaredOuterCount, nearCoincidentTolerance))
             {
                 containedInners.Add(candidate.Info);
                 continue;
@@ -2725,7 +2729,7 @@ public static class Step242Importer
 
         var message = source == "Importer.LoopRole.DisconnectedCoedges"
             ? $"Planar loop contains disconnected consecutive coedges and cannot be normalized safely. innerLoopId={inner.Loop.LoopId.Value}, outerLoopId={outer.Loop.LoopId.Value}, outsideVertices={containment.OutsideCount}/{containment.VertexCount}, nearestOuterDistance={containment.MinDistanceToOuter:E6}, areaRatio={areaRatio:E6}, intersections={intersectionCount}."
-            : $"Inner loop could not be normalized: {reason}. innerLoopId={inner.Loop.LoopId.Value}, outerLoopId={outer.Loop.LoopId.Value}, outsideVertices={containment.OutsideCount}/{containment.VertexCount}, nearestOuterDistance={containment.MinDistanceToOuter:E6}, areaRatio={areaRatio:E6}, intersections={intersectionCount}.";
+            : $"Inner loop could not be normalized: {reason}. innerLoopId={inner.Loop.LoopId.Value}, outerLoopId={outer.Loop.LoopId.Value}, outsideVertices={containment.OutsideCount}/{containment.VertexCount}, nearestOuterDistance={containment.MinDistanceToOuter:E6}, maximumOutsideDistance={containment.MaxOutsideDistanceToOuter:E6}, areaRatio={areaRatio:E6}, intersections={intersectionCount}.";
         return new ContainmentFailure(message, source);
     }
 
@@ -2736,9 +2740,11 @@ public static class Step242Importer
         int intersectionCount,
         double containmentTolerance,
         int loopCount,
-        int declaredOuterCount)
+        int declaredOuterCount,
+        double nearCoincidentTolerance)
     {
-        var context = BuildPlanarCrossingInsideRecoveryContext(inner, outer, containment, intersectionCount, containmentTolerance, loopCount, declaredOuterCount);
+        var context = BuildPlanarCrossingInsideRecoveryContext(inner, outer, containment, intersectionCount,
+            containmentTolerance, loopCount, declaredOuterCount, nearCoincidentTolerance);
         var engine = new JudgmentEngine<PlanarCrossingInsideRecoveryContext>();
         var result = engine.Evaluate(context, BuildPlanarCrossingInsideRecoveryCandidates());
         var selected = result.Selection?.Candidate.Name ?? PlanarCrossingInsideRejectCandidate;
@@ -2758,7 +2764,7 @@ public static class Step242Importer
             SelectedCandidate: selected,
             CandidateRejections: string.Join(" | ", result.Rejections.Select(rejection => $"{rejection.CandidateName}:{rejection.Reason}"))));
 
-        return string.Equals(selected, PlanarCrossingInsideRecoveryCandidate, StringComparison.Ordinal);
+        return selected is PlanarCrossingInsideRecoveryCandidate or PlanarNearCoincidentRecoveryCandidate;
     }
 
     private static PlanarCrossingInsideRecoveryContext BuildPlanarCrossingInsideRecoveryContext(
@@ -2768,7 +2774,8 @@ public static class Step242Importer
         int intersectionCount,
         double containmentTolerance,
         int loopCount,
-        int declaredOuterCount)
+        int declaredOuterCount,
+        double nearCoincidentTolerance)
     {
         var outerArea = double.Abs(outer.SignedArea);
         var innerArea = double.Abs(inner.SignedArea);
@@ -2787,7 +2794,9 @@ public static class Step242Importer
             MinDistanceToOuter: containment.MinDistanceToOuter,
             HasDisconnectedCoedgeGap: hasDisconnectedCoedgeGap,
             HasSingleDeclaredOuterLoop: declaredOuterCount == 1,
-            IsNearBoundaryContact: containment.MinDistanceToOuter <= containmentTolerance * 8d);
+            IsNearBoundaryContact: containment.MinDistanceToOuter <= containmentTolerance * 8d,
+            MaximumOutsideDistance: containment.MaxOutsideDistanceToOuter,
+            NearCoincidentTolerance: nearCoincidentTolerance);
     }
 
     private static IReadOnlyList<JudgmentCandidate<PlanarCrossingInsideRecoveryContext>> BuildPlanarCrossingInsideRecoveryCandidates()
@@ -2808,11 +2817,24 @@ public static class Step242Importer
                     $"requires bounded planar crossing-all-inside recovery facts (loopCount={context.LoopCount}, intersections={context.IntersectionCount}, contained={context.ContainedVertexCount}/{context.VertexCount}, disconnected={context.HasDisconnectedCoedgeGap}, areaRatio={context.AreaRatio:E6}, nearBoundary={context.IsNearBoundaryContact}, singleDeclaredOuter={context.HasSingleDeclaredOuterLoop})",
                 TieBreakerPriority: 0),
             new JudgmentCandidate<PlanarCrossingInsideRecoveryContext>(
+                Name: PlanarNearCoincidentRecoveryCandidate,
+                IsAdmissible: When.All<PlanarCrossingInsideRecoveryContext>(
+                    context => context.NearCoincidentTolerance > 0d,
+                    context => context.LoopCount == 2 && context.IntersectionCount > 0,
+                    context => context.ContainedVertexCount < context.VertexCount,
+                    context => context.HasSingleDeclaredOuterLoop && !context.HasDisconnectedCoedgeGap,
+                    context => context.AreaRatio > 0d && context.AreaRatio < 1d,
+                    context => context.MaximumOutsideDistance <= context.NearCoincidentTolerance),
+                Score: context => 50d - context.MaximumOutsideDistance / context.NearCoincidentTolerance,
+                RejectionReason: context =>
+                    $"requires explicit bounded near-coincident inner-loop policy (outside={context.MaximumOutsideDistance:E6}, limit={context.NearCoincidentTolerance:E6}, areaRatio={context.AreaRatio:E6}, intersections={context.IntersectionCount})",
+                TieBreakerPriority: 1),
+            new JudgmentCandidate<PlanarCrossingInsideRecoveryContext>(
                 Name: PlanarCrossingInsideRejectCandidate,
                 IsAdmissible: _ => true,
                 Score: _ => -1d,
                 RejectionReason: _ => "bounded planar crossing-all-inside recovery candidate is not admissible",
-                TieBreakerPriority: 1)
+                TieBreakerPriority: 2)
         ];
     }
 
@@ -2824,6 +2846,7 @@ public static class Step242Importer
         var outsideCount = 0;
         var vertexCount = 0;
         var minDistanceToOuter = double.MaxValue;
+        var maxOutsideDistanceToOuter = 0d;
 
         for (var i = 0; i < inner.Count - 1; i++)
         {
@@ -2833,6 +2856,7 @@ public static class Step242Importer
             if (!IsPointInPolygon(point, outer, containmentTolerance))
             {
                 outsideCount++;
+                maxOutsideDistanceToOuter = double.Max(maxOutsideDistanceToOuter, DistancePointToPolygon(point, outer));
             }
         }
 
@@ -2841,7 +2865,7 @@ public static class Step242Importer
             minDistanceToOuter = 0d;
         }
 
-        return new ContainmentEvaluation(outsideCount, vertexCount, minDistanceToOuter);
+        return new ContainmentEvaluation(outsideCount, vertexCount, minDistanceToOuter, maxOutsideDistanceToOuter);
     }
 
     private static bool IsLoopContainedByOuter(
@@ -4333,7 +4357,8 @@ public static class Step242Importer
 
     private sealed record CylindricalLoopInfo(LoopBuildData Loop, IReadOnlyList<UvPoint> ProjectedPoints, double SignedArea, UvPoint Centroid);
 
-    private sealed record ContainmentEvaluation(int OutsideCount, int VertexCount, double MinDistanceToOuter);
+    private sealed record ContainmentEvaluation(int OutsideCount, int VertexCount, double MinDistanceToOuter,
+        double MaxOutsideDistanceToOuter);
 
     private sealed record ContainmentFailure(string Message, string Source);
 
@@ -4350,7 +4375,9 @@ public static class Step242Importer
         double MinDistanceToOuter,
         bool HasDisconnectedCoedgeGap,
         bool HasSingleDeclaredOuterLoop,
-        bool IsNearBoundaryContact);
+        bool IsNearBoundaryContact,
+        double MaximumOutsideDistance,
+        double NearCoincidentTolerance);
 
     private readonly record struct UvPoint(double X, double Y)
     {

@@ -18,7 +18,7 @@ namespace Aetheris.Kernel.Core.Geometry.Surfaces;
 /// pcurves stay meaningful rather than merely landing somewhere on the new surface.
 /// </para>
 /// </summary>
-internal static class BSplineSurfaceRationalReduction
+public static class BSplineSurfaceRationalReduction
 {
     /// <summary>Fraction of the source file's declared accuracy the reduction is required to stay inside.</summary>
     private const double DeclaredAccuracyFraction = 0.1d;
@@ -33,6 +33,8 @@ internal static class BSplineSurfaceRationalReduction
     /// cap keeps a pathological surface from growing an enormous control net instead of failing honestly.
     /// </summary>
     private const int MaximumSpanSubdivision = 32;
+    private const int MaximumControlPointsPerAxis = 256;
+    private const int MaximumControlPoints = 8192;
 
     private const int DeviationSamplesPerSpan = 3;
     private const int MinimumDeviationSamples = 24;
@@ -74,11 +76,20 @@ internal static class BSplineSurfaceRationalReduction
         }
 
         var best = double.PositiveInfinity;
+        var controlLimitReached = false;
 
         BSplineSurfaceWithKnots? Attempt(int subdivisionU, int subdivisionV)
         {
             var refinedU = Subdivide(surface.KnotValuesU, surface.KnotMultiplicitiesU, subdivisionU);
             var refinedV = Subdivide(surface.KnotValuesV, surface.KnotMultiplicitiesV, subdivisionV);
+            var countU = refinedU.Multiplicities.Sum() - surface.DegreeU - 1;
+            var countV = refinedV.Multiplicities.Sum() - surface.DegreeV - 1;
+            if (countU > MaximumControlPointsPerAxis || countV > MaximumControlPointsPerAxis ||
+                (long)countU * countV > MaximumControlPoints)
+            {
+                controlLimitReached = true;
+                return null;
+            }
             if (!TryInterpolate(surface, refinedU, refinedV, out var attempt) || attempt is null)
             {
                 return null;
@@ -105,7 +116,8 @@ internal static class BSplineSurfaceRationalReduction
         if (uniform == 0)
         {
             deviation = best;
-            reason = $"no refinement up to {MaximumSpanSubdivision} spans per knot interval followed the rational surface to {tolerance:G4} mm (closest {best:G4} mm)";
+            reason = $"no refinement up to {MaximumSpanSubdivision} spans per knot interval followed the rational surface to {tolerance:G4} mm (closest {best:G4} mm)" +
+                (controlLimitReached ? $"; control-net cap {MaximumControlPointsPerAxis} per axis/{MaximumControlPoints} total reached" : string.Empty);
             return false;
         }
 
@@ -182,7 +194,9 @@ internal static class BSplineSurfaceRationalReduction
         var knotsV = Expand(refinedV.Values, refinedV.Multiplicities);
         var countU = knotsU.Length - surface.DegreeU - 1;
         var countV = knotsV.Length - surface.DegreeV - 1;
-        if (countU < surface.DegreeU + 1 || countV < surface.DegreeV + 1)
+        if (countU < surface.DegreeU + 1 || countV < surface.DegreeV + 1 ||
+            countU > MaximumControlPointsPerAxis || countV > MaximumControlPointsPerAxis ||
+            (long)countU * countV > MaximumControlPoints)
         {
             return false;
         }

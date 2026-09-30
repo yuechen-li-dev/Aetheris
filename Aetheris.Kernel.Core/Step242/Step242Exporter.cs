@@ -41,7 +41,8 @@ public static class Step242Exporter
 
         var preflight = options.BrepExportPreflightMode == BrepExportPreflightMode.Disabled
             ? null
-            : BrepExportPreflight.Validate(body);
+            : BrepExportPreflight.Validate(body, options.ImportedRecoveryToleranceMillimetres,
+                options.ImportedSourceVertexTolerancesMillimetres);
         if (preflight is { IsValid: false } && options.BrepExportPreflightMode == BrepExportPreflightMode.Enforce)
         {
             return KernelResult<string>.Failure(ToKernelDiagnostics(preflight, errorsAsWarnings: false));
@@ -86,7 +87,7 @@ public static class Step242Exporter
         var surfaceIds = new Dictionary<SurfaceGeometryId, string>();
         var advancedFaceIds = new Dictionary<FaceId, string>();
         // Keep source pcurves, but do not publish a partial recovered trim set.
-        var pcurveContextId = body.Bindings.PcurveBindings.Any(binding =>
+        var pcurveContextId = options.EmitQualifiedPcurves && body.Bindings.PcurveBindings.Any(binding =>
             body.PcurveRecoveryReport is not { IsSuccess: false }
             || binding.SourceStepPcurveEntityId is not null)
             ? writer.AddEntity("REPRESENTATION_CONTEXT", Step242TextWriter.String("2D"), Step242TextWriter.String("parameter space"))

@@ -8,4 +8,5 @@ public sealed record SplineRecoveryProvenance(
     double MeasuredMaxDeviationMillimetres,
     bool AnalyticRecognitionAttempted,
     string AnalyticRecognitionResult,
-    bool RationalSourceRetained = false);
+    bool RationalSourceRetained = false,
+    string? SourceEntityIdentity = null);

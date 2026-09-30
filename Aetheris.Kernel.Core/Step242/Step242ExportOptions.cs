@@ -1,5 +1,7 @@
 namespace Aetheris.Kernel.Core.Step242;
 
+using Aetheris.Kernel.Core.Topology;
+
 /// <summary>Controls whether export preflight findings are only reported or block serialization.</summary>
 public enum BrepExportPreflightMode
 {
@@ -41,8 +43,17 @@ public sealed class Step242ExportOptions
     /// </summary>
     public BrepExportPreflightPolicy BrepExportPreflightPolicy { get; init; } = BrepExportPreflightPolicy.LegacyRoute;
 
+    /// <summary>Explicit import-only geometric consistency budget; authored export uses kernel tolerance.</summary>
+    public double? ImportedRecoveryToleranceMillimetres { get; init; }
+
+    /// <summary>Source-declared vertex tolerances for an imported topology, capped by its binder.</summary>
+    public IReadOnlyDictionary<VertexId, double>? ImportedSourceVertexTolerancesMillimetres { get; init; }
+
     /// <summary>Preserve a full circular edge's declared parameter interval as TRIMMED_CURVE.</summary>
     public bool EmitFullCircleTrimmedCurves { get; init; }
+
+    /// <summary>Emit qualified coedge pcurves; false leaves STEP trim binding to the importer.</summary>
+    public bool EmitQualifiedPcurves { get; init; } = true;
 
     public static Step242ExportOptions FromSourceMetadata(Step242SourceMetadata metadata)
     {

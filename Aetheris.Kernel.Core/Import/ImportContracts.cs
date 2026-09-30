@@ -27,7 +27,8 @@ public sealed record ImportRequest(string SourceText, ImportPolicy? Policy = nul
 public sealed record ImportPolicy(
     ImportLaneKind PreferredLane = ImportLaneKind.Auto,
     double RecoveryToleranceMillimetres = 0.1d,
-    double PcurveQualificationToleranceMillimetres = 1e-3d);
+    double PcurveQualificationToleranceMillimetres = 1e-3d,
+    bool AllowBoundedNearCoincidentInnerLoop = false);
 
 public sealed record ImportResult(
     KernelResult<BrepBody> BodyResult,

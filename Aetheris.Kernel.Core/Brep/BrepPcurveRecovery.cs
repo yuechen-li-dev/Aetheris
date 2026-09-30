@@ -181,10 +181,15 @@ public static class BrepPcurveRecovery
             if (residual.Length <= 1e-8d) return (true, best, residual.Length);
             var hu = double.Max((spline.DomainEndU - spline.DomainStartU) * 1e-4d, 1e-7d);
             var hv = double.Max((spline.DomainEndV - spline.DomainStartV) * 1e-4d, 1e-7d);
-            var du = (spline.Evaluate(double.Min(best.U + hu, spline.DomainEndU), best.V) - spline.Evaluate(double.Max(best.U - hu, spline.DomainStartU), best.V))
-                / (double.Min(best.U + hu, spline.DomainEndU) - double.Max(best.U - hu, spline.DomainStartU));
-            var dv = (spline.Evaluate(best.U, double.Min(best.V + hv, spline.DomainEndV)) - spline.Evaluate(best.U, double.Max(best.V - hv, spline.DomainStartV)))
-                / (double.Min(best.V + hv, spline.DomainEndV) - double.Max(best.V - hv, spline.DomainStartV));
+            var uLow = double.Max(best.U - hu, spline.DomainStartU);
+            var uHigh = double.Min(best.U + hu, spline.DomainEndU);
+            var vLow = double.Max(best.V - hv, spline.DomainStartV);
+            var vHigh = double.Min(best.V + hv, spline.DomainEndV);
+            // These are parameter spans, not model-space distances. Avoid the
+            // Vector3D division operator's world-space near-zero threshold.
+            if (uHigh - uLow <= 1e-15d || vHigh - vLow <= 1e-15d) break;
+            var du = (spline.Evaluate(uHigh, best.V) - spline.Evaluate(uLow, best.V)) * (1d / (uHigh - uLow));
+            var dv = (spline.Evaluate(best.U, vHigh) - spline.Evaluate(best.U, vLow)) * (1d / (vHigh - vLow));
             var a = du.Dot(du); var b = du.Dot(dv); var c = dv.Dot(dv);
             var r1 = du.Dot(residual); var r2 = dv.Dot(residual);
             var determinant = (a * c) - (b * b);

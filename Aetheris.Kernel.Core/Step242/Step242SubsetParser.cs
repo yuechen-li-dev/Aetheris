@@ -611,6 +611,9 @@ internal sealed class Step242ParsedDocument
     /// <summary>Base edge-to-lift budget, separately configurable from geometry recovery.</summary>
     public double PcurveQualificationToleranceMillimetres { get; set; } = 1e-3d;
 
+    /// <summary>Explicit compatibility policy for bounded crossings of a declared planar inner loop.</summary>
+    public bool AllowBoundedNearCoincidentInnerLoop { get; set; }
+
     public KernelResult<Step242ParsedEntity> TryGetEntity(int id, string? expectedName = null)
     {
         if (!_entitiesById.TryGetValue(id, out var entity))

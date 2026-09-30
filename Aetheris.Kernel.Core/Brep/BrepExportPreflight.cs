@@ -59,9 +59,14 @@ public static class BrepExportPreflight
 {
     private static readonly ToleranceContext Tolerances = ToleranceContext.Default;
 
-    public static BrepExportPreflightResult Validate(BrepBody body)
+    public static BrepExportPreflightResult Validate(BrepBody body, double? importedRecoveryToleranceMillimetres = null,
+        IReadOnlyDictionary<VertexId, double>? importedSourceVertexTolerancesMillimetres = null)
     {
         ArgumentNullException.ThrowIfNull(body);
+        if (importedRecoveryToleranceMillimetres is double importedTolerance &&
+            (!double.IsFinite(importedTolerance) || importedTolerance <= 0d || importedTolerance > 1d))
+            throw new ArgumentOutOfRangeException(nameof(importedRecoveryToleranceMillimetres));
+        var geometricTolerance = importedRecoveryToleranceMillimetres ?? Tolerances.Linear;
         var diagnostics = new List<BrepExportPreflightDiagnostic>();
         var model = body.Topology;
         int? bodyId = model.Bodies.Count() == 1 ? model.Bodies.Single().Id.Value : null;
@@ -191,7 +196,11 @@ public static class BrepExportPreflight
                 AddError("brep-preflight-missing-curve", "edge", "Edge is missing a bound curve or trim interval.", edgeId: edge.Id.Value);
                 return;
             }
-            if (edge.StartVertexId == edge.EndVertexId && curve.Kind is not CurveGeometryKind.Circle3 and not CurveGeometryKind.Ellipse3)
+            var isClosedSpline = curve.BSpline3 is { } closedSpline && closedSpline.ClosedCurve &&
+                (closedSpline.Evaluate(binding.TrimInterval.Value.Start) -
+                 closedSpline.Evaluate(binding.TrimInterval.Value.End)).Length <= Tolerances.Linear;
+            if (edge.StartVertexId == edge.EndVertexId &&
+                curve.Kind is not CurveGeometryKind.Circle3 and not CurveGeometryKind.Ellipse3 && !isClosedSpline)
                 AddError("brep-preflight-edge-degenerate", "edge", "Non-periodic edge uses the same topology vertex at both endpoints.", edgeId: edge.Id.Value);
             var a = Evaluate(curve, binding.TrimInterval.Value.Start);
             var b = Evaluate(curve, binding.TrimInterval.Value.End);
@@ -205,11 +214,24 @@ public static class BrepExportPreflight
                 var expectedEnd = binding.OrientedEdgeSense ? endPoint : startPoint;
                 var startDeviation = Distance(a.Value, expectedStart);
                 var endDeviation = Distance(b.Value, expectedEnd);
-                if (startDeviation > Tolerances.Linear || endDeviation > Tolerances.Linear)
-                    AddError("brep-preflight-edge-curve-endpoint-mismatch", "edge", "Edge curve trim endpoints do not match the topology edge endpoints.", edgeId: edge.Id.Value, deviation: double.Max(startDeviation, endDeviation));
+                var startAllowed = EndpointTolerance(edge.StartVertexId);
+                var endAllowed = EndpointTolerance(edge.EndVertexId);
+                if (startDeviation > startAllowed || endDeviation > endAllowed)
+                    AddError("brep-preflight-edge-curve-endpoint-mismatch", "edge", "Edge curve trim endpoints do not match the topology edge endpoints.", edgeId: edge.Id.Value,
+                        deviation: double.Max(startDeviation, endDeviation), allowedTolerance: double.Max(startAllowed, endAllowed));
             }
             if (a is not null && b is not null && curve.Kind is CurveGeometryKind.Line3 && Distance(a.Value, b.Value) <= Tolerances.Linear)
                 AddError("brep-preflight-edge-degenerate", "edge", "Line edge has zero geometric length.", edgeId: edge.Id.Value, deviation: Distance(a.Value, b.Value));
+        }
+
+        double EndpointTolerance(VertexId vertexId)
+        {
+            if (importedSourceVertexTolerancesMillimetres is null ||
+                !importedSourceVertexTolerancesMillimetres.TryGetValue(vertexId, out var sourceTolerance))
+                return geometricTolerance;
+            if (!double.IsFinite(sourceTolerance) || sourceTolerance < 0d || sourceTolerance > 1d)
+                throw new ArgumentOutOfRangeException(nameof(importedSourceVertexTolerancesMillimetres));
+            return double.Max(geometricTolerance, sourceTolerance);
         }
 
         void ValidateTrimOnSurface(FaceId faceId, LoopId loopId, EdgeId edgeId, Edge edge, SurfaceGeometry surface)
@@ -226,13 +248,13 @@ public static class BrepExportPreflight
                     AddWarning("brep-preflight-check-unsupported", "trim-surface", $"Containment check is not implemented for {surface.Kind}.", faceId.Value, loopId.Value, edgeId: edgeId.Value, surface: surface.Kind.ToString());
                     return;
                 }
-                if (deviation > Tolerances.Linear)
-                    AddError("brep-preflight-trim-off-surface", "trim-surface", $"Trim point does not lie on {surface.Kind}; deviation {deviation:G6} exceeds tolerance {Tolerances.Linear:G6}.", faceId.Value, loopId.Value, edgeId: edgeId.Value, surface: surface.Kind.ToString(), deviation: deviation);
+                if (deviation > geometricTolerance)
+                    AddError("brep-preflight-trim-off-surface", "trim-surface", $"Trim point does not lie on {surface.Kind}; deviation {deviation:G6} exceeds tolerance {geometricTolerance:G6}.", faceId.Value, loopId.Value, edgeId: edgeId.Value, surface: surface.Kind.ToString(), deviation: deviation, allowedTolerance: geometricTolerance);
             }
         }
 
-        void AddError(string code, string stage, string message, int? faceId = null, int? loopId = null, int? coedgeIndex = null, int? edgeId = null, string? surface = null, double? deviation = null) =>
-            diagnostics.Add(new(code, BrepExportPreflightSeverity.Error, stage, message, bodyId, faceId, loopId, coedgeIndex, edgeId, surface, deviation, deviation is null ? null : Tolerances.Linear, ClassificationFor(code, stage)));
+        void AddError(string code, string stage, string message, int? faceId = null, int? loopId = null, int? coedgeIndex = null, int? edgeId = null, string? surface = null, double? deviation = null, double? allowedTolerance = null) =>
+            diagnostics.Add(new(code, BrepExportPreflightSeverity.Error, stage, message, bodyId, faceId, loopId, coedgeIndex, edgeId, surface, deviation, deviation is null ? null : allowedTolerance ?? Tolerances.Linear, ClassificationFor(code, stage)));
         void AddWarning(string code, string stage, string message, int? faceId = null, int? loopId = null, int? coedgeIndex = null, int? edgeId = null, string? surface = null, double? deviation = null) =>
             diagnostics.Add(new(code, BrepExportPreflightSeverity.Warning, stage, message, bodyId, faceId, loopId, coedgeIndex, edgeId, surface, deviation, deviation is null ? null : Tolerances.Linear, ClassificationFor(code, stage)));
     }

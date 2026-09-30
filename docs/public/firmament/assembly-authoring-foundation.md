@@ -66,10 +66,10 @@ Expose { Semantic NutMount { DatumFrame Frame = Neck.Section.S5.Frame; } }
 ```
 
 The chain and section must exist. This aliases the section's exact frame rather
-than a tessellation sample. Publication occurs during M1 materialization;
-reusable assemblies still solve internal graphs earlier in M0. Ports needed
-during that local solve currently require inline authoring; early automatic
-publication of geometry-template ports remains a boundary.
+than a tessellation sample. Concrete authored part ports are now published before
+M0 reusable local solving, through typed template specialization and the existing
+SectionChain binder without body materialization. M1 still owns exact geometry.
+See [the multi-file guitar](../demos/guitar-subassemblies.md) for the motivating case.
 
 ## Keyed finite patterns
 
@@ -141,7 +141,7 @@ needed to take that step. Appearance remains downstream Cycles shading.
 Ground truth:
 
 ```powershell
-dotnet Aetheris.CLI/bin/Release/net10.0/aetheris.dll asm inspect fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar-x0.firmament --json --profile
+dotnet Aetheris.CLI/bin/Release/net10.0/aetheris.dll asm inspect fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar.firmasm --json --profile
 ./scripts/qualify-guitar-x0.ps1 -OutDir artifacts/local/guitar-foundation -Render -Viewport
 ```
 

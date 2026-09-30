@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using Aetheris.Kernel.Firmament.Assembly;
 
-var source = args.Length > 0 ? args[0] : "fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar-x0.firmament";
+var source = args.Length > 0 ? args[0] : "fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar.firmasm";
 var output = args.Length > 1 ? args[1] : "artifacts/local/guitar-x0/timings.json";
 var runs = new List<object>();
 for (var i = 0; i < 2; i++)

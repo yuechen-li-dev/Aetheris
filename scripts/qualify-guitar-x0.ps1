@@ -19,7 +19,7 @@ try {
     $out = [IO.Path]::GetFullPath($OutDir)
     New-Item -ItemType Directory -Force -Path $out | Out-Null
     $fixture = 'fixtures/Canonical/AssemblyInterfaces/GuitarX0'
-    $source = "$fixture/guitar-x0.firmament"
+    $source = "$fixture/guitar.firmasm"
     $cli = 'Aetheris.CLI/bin/Release/net10.0/aetheris.dll'
     Invoke-Logged 'dotnet' @('build','Aetheris.slnx','-c','Release','-m:1','--nologo','-v:q') "$out/build.log"
     Invoke-Logged 'dotnet' @('run','--project','demos/GuitarSurfacingX0','-c','Release','--',$source,"$out/timings.json") "$out/benchmark.log"

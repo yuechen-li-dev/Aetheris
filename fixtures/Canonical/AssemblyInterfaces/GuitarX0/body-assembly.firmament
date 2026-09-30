@@ -1,0 +1,16 @@
+
+Subassembly GuitarBody {
+ <Assembly GuitarBody>
+  <Part MahoganyBack = SectionChainFile<"MahoganyBack.firmament">>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,0mm,0mm]; }
+  </Part>
+  <Part IvoryBinding = SectionChainFile<"IvoryBinding.firmament">>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,0mm,0mm]; }
+  </Part>
+  <Part CarvedMaple = SectionChainFile<"CarvedMaple.firmament">>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,0mm,0mm]; }
+  </Part>
+ </Assembly>
+
+ Anchor: GuitarBody;
+}

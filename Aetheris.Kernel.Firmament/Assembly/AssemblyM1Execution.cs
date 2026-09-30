@@ -409,7 +409,9 @@ public sealed class AssemblyM1Pipeline
         return member with
         {
             Children = member.Children.Select(child => Enrich(child, definitions)).ToArray(),
-            ExposedSemantics = [.. member.ExposedSemantics, .. generated],
+            ExposedSemantics = [.. member.ExposedSemantics.Where(value =>
+                !(value.Provenance.Any(p => p.Stage == "definition-port-publication")
+                  && generated.Any(g => g.ExposedName == value.ExposedName))), .. generated],
             Provenance = provenance
         };
     }

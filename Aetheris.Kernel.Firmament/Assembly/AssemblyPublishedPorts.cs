@@ -2,12 +2,74 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using Aetheris.Semantics;
 using Aetheris.Surfacing;
+using Aetheris.Kernel.Firmament.FirmamentV2;
 
 namespace Aetheris.Kernel.Firmament.Assembly;
 
 /// <summary>Definition-owned publication, evaluated after typed template specialization.</summary>
 internal static class AssemblyPublishedPorts
 {
+    // Publish semantic intent before a reusable assembly's local solve. This
+    // reads authored frames and uses the existing typed specialization/binder;
+    // it never materializes a body or imports STEP.
+    internal static IReadOnlyList<SemanticValue> BindAuthored(string identity, string declarations,
+        string sourceIdentity, List<AssemblyDiagnostic> diagnostics, FirmamentProjectSnapshot? project,
+        List<AssemblySourceDependencyIr> dependencies)
+    {
+        var file = Regex.Match(identity, "^(?:SectionChainFile|LoftFile)<\\\"(?<path>[^\\\"]+)\\\">$");
+        if (file.Success)
+        {
+            var requested = file.Groups["path"].Value;
+            string path, source;
+            if (project is not null)
+            {
+                try { path = FirmamentProjectSnapshot.NormalizePath(requested); }
+                catch (ArgumentException)
+                { diagnostics.Add(new("assembly-profile-invalid-resource-path", $"Invalid port source path '{requested}'.")); return []; }
+                if (!path.EndsWith(".firmament", StringComparison.OrdinalIgnoreCase))
+                { diagnostics.Add(new("assembly-profile-resource-kind-invalid", "Port sources must be .firmament documents.")); return []; }
+                if (!project.TryResolve(path, out source!))
+                { diagnostics.Add(new("assembly-profile-unresolved-resource", $"Port source '{path}' was not found in the project snapshot.")); return []; }
+            }
+            else
+            {
+                path = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(sourceIdentity))!, requested));
+                if (!File.Exists(path))
+                { diagnostics.Add(new("assembly-profile-unresolved-resource", $"Port source '{requested}' was not found at '{path}'.")); return []; }
+                source = File.ReadAllText(path);
+            }
+            if (!dependencies.Any(d => d.Path == path))
+                dependencies.Add(new(path, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(source))), false));
+            if (!Regex.IsMatch(source, @"\bExpose\s*\{\s*Semantic\b")) return [];
+            var chain = SectionChainAuthoringParser.Compile(Strip(source, diagnostics), materialize: false);
+            if (!chain.IsSuccess || chain.Chain is null)
+            {
+                foreach (var error in chain.Diagnostics) diagnostics.Add(new("assembly-port-section-binding-failed", error));
+                return [];
+            }
+            var owner = Regex.Match(source, @"\bModel\s+(?<name>[A-Za-z_]\w*)\s*\{").Groups["name"].Value;
+            return Read(source, owner, identity, path, diagnostics, chain.Chain);
+        }
+        if (!identity.Contains('<')) return [];
+        var templateName = identity[..identity.IndexOf('<')].Trim();
+        var header = Regex.Match(declarations, $@"\b(?:Struct|Model)\s+{Regex.Escape(templateName)}(?:\s*:\s*[A-Za-z_]\w*)?\s*\{{");
+        if (!header.Success) return [];
+        var body = AssemblyM0Parser.BalancedBody(declarations, header.Index + header.Length - 1, diagnostics, "port definition");
+        if (body is null || !Regex.IsMatch(body, @"\bExpose\s*\{\s*Semantic\b")) return [];
+        var inspectionDiagnostics = new List<string>();
+        var kind = FirmamentV2TemplateExpansion.Inspect(declarations, inspectionDiagnostics)
+            .SingleOrDefault(t => t.Name == templateName)?.TargetKind ?? "Struct";
+        var application = $"{kind} __AssemblyPart = {identity}\n";
+        var module = kind == "Model" ? declarations + "\n" + application
+            : "Model __AssemblyDefinition {\n Units: mm\n" + declarations + "\n" + application + "}\n";
+        var expansion = FirmamentTemplateSourceCompiler.Expand(module, out var errors);
+        if (expansion is null || errors.Count > 0)
+        {
+            foreach (var error in errors) diagnostics.Add(new("assembly-port-specialization-failed", error));
+            return [];
+        }
+        return Read(expansion.ExpandedSource, "__AssemblyPart", identity, sourceIdentity, diagnostics);
+    }
     internal static string Strip(string source, List<AssemblyDiagnostic> diagnostics)
     {
         var chars = source.ToCharArray();
@@ -49,7 +111,9 @@ internal static class AssemblyPublishedPorts
             {
                 if (value.ExposedMembers.Count == 0)
                     diagnostics.Add(new("assembly-port-empty-or-unresolved",$"Published Semantic '{value.ExposedName}' has no resolved supported members."));
-                result.Add(value);
+                result.Add(new SemanticValue(value.StableIdentity, value.Type, value.Capabilities.Values, value.Bindings,
+                    value.ExposedMembers.Values, [.. value.Provenance, new("definition-port-publication", identity, value.ExposedName ?? "", SemanticSourceSpan.Generated(sourceIdentity))],
+                    value.AuthoredSourceSpan, value.GeneratedSourceSpan, value.ExposedName));
             }
             if (!Regex.IsMatch(ports,@"\bSemantic\s+[A-Za-z_]\w*\s*\{"))
                 diagnostics.Add(new("assembly-port-invalid-publication","Part Expose requires named Semantic blocks."));

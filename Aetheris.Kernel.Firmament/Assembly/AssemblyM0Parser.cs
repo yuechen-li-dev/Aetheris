@@ -23,7 +23,7 @@ public sealed class AssemblyM0Parser
         if (source is null) return new(null, loadDiagnostics, 0);
         var parsed = Parse(source, fullPath);
         var diagnostics = loadDiagnostics.Concat(parsed.Diagnostics).ToArray();
-        return new(parsed.Source is null ? null : parsed.Source with { SourceDependencies = dependencies }, diagnostics, parsed.ElapsedMilliseconds);
+        return new(parsed.Source is null ? null : parsed.Source with { SourceDependencies = dependencies.Concat(parsed.Source.SourceDependencies ?? []).DistinctBy(d => d.Path).ToArray() }, diagnostics, parsed.ElapsedMilliseconds);
     }
 
     public ParseResult ParseProject(FirmamentProjectSnapshot project)
@@ -33,8 +33,8 @@ public sealed class AssemblyM0Parser
         var dependencies = new List<AssemblySourceDependencyIr>();
         var source = LoadProjectSource(project.RootDocument, project, [], dependencies, diagnostics);
         if (source is null) return new(null, diagnostics, 0);
-        var parsed = Parse(source, project.RootDocument);
-        return new(parsed.Source is null ? null : parsed.Source with { SourceDependencies = dependencies },
+        var parsed = Parse(source, project.RootDocument, project);
+        return new(parsed.Source is null ? null : parsed.Source with { SourceDependencies = dependencies.Concat(parsed.Source.SourceDependencies ?? []).DistinctBy(d => d.Path).ToArray() },
             [.. diagnostics, .. parsed.Diagnostics], parsed.ElapsedMilliseconds);
     }
 
@@ -92,7 +92,7 @@ public sealed class AssemblyM0Parser
         return Path.GetDirectoryName(path)!;
     }
 
-    public ParseResult Parse(string input, string sourceIdentity = "<memory>")
+    public ParseResult Parse(string input, string sourceIdentity = "<memory>", FirmamentProjectSnapshot? project = null)
     {
         var watch = Stopwatch.StartNew();
         var diagnostics = new List<AssemblyDiagnostic>();
@@ -114,8 +114,23 @@ public sealed class AssemblyM0Parser
             diagnostics.Add(new("assembly-" + diagnostic.Split(':')[0], diagnostic));
         var concepts = ParseAssemblyConcepts(source, sourceIdentity, diagnostics);
         var interfaces = ParseInterfaces(source, sourceIdentity, diagnostics);
+        var declarationChars = source.ToCharArray();
+        foreach (Match header in Regex.Matches(source, @"\b(?:Template\s*<[^>]+>\s*Assembly|Assembly|Interface(?:\s*<[^>]+>)?)\s+[A-Za-z_]\w*(?:\s*:\s*[A-Za-z_]\w*)?\s*\{"))
+        {
+            var block = BalancedBody(source, header.Index + header.Length - 1, diagnostics, "assembly declaration");
+            if (block is not null) Array.Fill(declarationChars, ' ', header.Index, header.Length + block.Length + 1);
+        }
+        var definitionSource = new string(declarationChars).Trim();
+        var portDependencies = new List<AssemblySourceDependencyIr>();
+        var portCache = new Dictionary<string, IReadOnlyList<SemanticValue>>(StringComparer.Ordinal);
+        IReadOnlyList<SemanticValue> Ports(string identity)
+        {
+            if (!portCache.TryGetValue(identity, out var ports))
+                portCache[identity] = ports = AssemblyPublishedPorts.BindAuthored(identity, definitionSource, sourceIdentity, diagnostics, project, portDependencies);
+            return ports;
+        }
         var templateRanges = new List<(int Start, int Length)>();
-        var assemblyDefinitions = ParseAssemblyDefinitions(source, sourceIdentity, interfaces, concepts, gearAuthorities, diagnostics, templateRanges);
+        var assemblyDefinitions = ParseAssemblyDefinitions(source, sourceIdentity, interfaces, concepts, gearAuthorities, diagnostics, templateRanges, Ports);
         // Template-produced Assembly bodies are declarations, not exported roots.
         // Blank them without changing offsets, then locate the single root Assembly.
         var rootSearch = source.ToCharArray();
@@ -127,25 +142,15 @@ public sealed class AssemblyM0Parser
         var body = BalancedBody(source, assemblyHeader.Index + assemblyHeader.Length - 1, diagnostics, "Assembly");
         if (body is null) return Done(null);
         var specializationCache = new Dictionary<string, AssemblyMemberSource>(StringComparer.Ordinal);
-        var tree = ParseTree(body, sourceIdentity, diagnostics, assemblyDefinitions, interfaces, specializationCache, gearAuthorities);
+        var tree = ParseTree(body, sourceIdentity, diagnostics, assemblyDefinitions, interfaces, specializationCache, gearAuthorities, Ports);
         if (tree is null) return Done(null);
         var mates = ParseMates(body, sourceIdentity, diagnostics);
         var relations = ParseRelations(body, diagnostics);
         var asserts = ParseAsserts(body, sourceIdentity, diagnostics);
         var anchorMatch = Regex.Match(RemoveBlocks(body, "Mate", @"Assert\s+ToleranceStackup"), @"\bAnchor\s*:\s*(?<path>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*;", RegexOptions.CultureInvariant);
         var anchor = anchorMatch.Success ? AssemblyPath.Parse(anchorMatch.Groups["path"].Value) : new AssemblyPath([tree.Name]);
-        var definitionBoundary = new[]
-        {
-            Regex.Match(source, @"^[ \t]*Interface(?:\s*<[^>]+>)?\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant | RegexOptions.Multiline),
-            Regex.Match(source, @"^[ \t]*Template\s*<[^>]+>\s*Assembly\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant | RegexOptions.Multiline),
-            Regex.Match(source, @"^[ \t]*Assembly\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant | RegexOptions.Multiline)
-        }.Where(match => match.Success).Select(match => match.Index).DefaultIfEmpty(0).Min();
-        var declarationChars = source.ToCharArray();
-        foreach (var range in templateRanges) Array.Fill(declarationChars, ' ', range.Start, range.Length);
-        var declarations = new string(declarationChars);
-        var definitionSource = definitionBoundary > 0 ? declarations[..definitionBoundary].Trim() : null;
         var frames = ParseFrameTransforms(body, sourceIdentity, diagnostics);
-        var result = new AssemblySource(assemblyHeader.Groups["name"].Value, tree, interfaces, mates, anchor, relations, asserts, sourceIdentity, definitionSource, assemblyDefinitions, FrameTransforms: frames, Patterns: expandedPatterns.Document?.Patterns);
+        var result = new AssemblySource(assemblyHeader.Groups["name"].Value, tree, interfaces, mates, anchor, relations, asserts, sourceIdentity, definitionSource, assemblyDefinitions, SourceDependencies: portDependencies, FrameTransforms: frames, Patterns: expandedPatterns.Document?.Patterns);
         return Done(result);
 
         ParseResult Done(AssemblySource? value) { watch.Stop(); return new(value, diagnostics, watch.Elapsed.TotalMilliseconds); }
@@ -355,7 +360,8 @@ public sealed class AssemblyM0Parser
     private static IReadOnlyList<AssemblyDefinitionSource> ParseAssemblyDefinitions(string source, string sourceIdentity,
         IReadOnlyList<InterfaceDefinition> interfaces, IReadOnlyList<AssemblyConceptDefinition> concepts,
         IReadOnlyDictionary<string, GearAir> gearAuthorities,
-        List<AssemblyDiagnostic> diagnostics, List<(int Start, int Length)> ranges)
+        List<AssemblyDiagnostic> diagnostics, List<(int Start, int Length)> ranges,
+        Func<string, IReadOnlyList<SemanticValue>>? publishedPorts = null)
     {
         var result = new List<AssemblyDefinitionSource>();
         foreach (Match template in Regex.Matches(source,
@@ -366,7 +372,7 @@ public sealed class AssemblyM0Parser
             if (body is null) continue;
             var close = template.Index + template.Length + body.Length + 1;
             ranges.Add((template.Index, close - template.Index));
-            var root = ParseTree(body, sourceIdentity, diagnostics, result, interfaces, new Dictionary<string, AssemblyMemberSource>(StringComparer.Ordinal), gearAuthorities);
+            var root = ParseTree(body, sourceIdentity, diagnostics, result, interfaces, new Dictionary<string, AssemblyMemberSource>(StringComparer.Ordinal), gearAuthorities, publishedPorts);
             if (root is null) continue;
             var exposed = ParseAssemblyExposes(body, root, sourceIdentity, diagnostics);
             root = root with { ExposedSemantics = exposed, IsEncapsulatedDefinition = true };
@@ -612,7 +618,8 @@ public sealed class AssemblyM0Parser
     private static AssemblyMemberSource? ParseTree(string body, string sourceIdentity, List<AssemblyDiagnostic> diagnostics,
         IReadOnlyList<AssemblyDefinitionSource>? definitions = null, IReadOnlyList<InterfaceDefinition>? interfaces = null,
         IDictionary<string, AssemblyMemberSource>? specializationCache = null,
-        IReadOnlyDictionary<string, GearAir>? gearAuthorities = null)
+        IReadOnlyDictionary<string, GearAir>? gearAuthorities = null,
+        Func<string, IReadOnlyList<SemanticValue>>? publishedPorts = null)
     {
         // One bounded generic argument list is admitted in a Part definition. The
         // inner '>' belongs to the Firmament Template application, not the XML-like tag.
@@ -661,6 +668,8 @@ public sealed class AssemblyM0Parser
                 if (open.node.Kind is AssemblyInstanceKind.Part or AssemblyInstanceKind.Panel)
                 {
                     open.node.Semantics.AddRange(ParseSemantics(nodeBody, open.node.Definition, sourceIdentity, diagnostics));
+                    if (open.node.Kind == AssemblyInstanceKind.Part && publishedPorts is not null)
+                        open.node.Semantics.AddRange(publishedPorts(open.node.Definition));
                     if (open.node.Kind == AssemblyInstanceKind.Part && gearAuthorities?.GetValueOrDefault(open.node.Definition) is { } gear)
                     {
                         var endpoint = GearEndpoint(gear, sourceIdentity);

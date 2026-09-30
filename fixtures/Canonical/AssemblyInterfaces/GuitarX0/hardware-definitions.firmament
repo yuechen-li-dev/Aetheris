@@ -1,0 +1,52 @@
+Template<L: Length, W: Length, H: Length, R: Length> Struct Panel {
+ RoundedRect2 Outline { Center: [0mm,0mm] Size: [L,W] Radius: R }
+ Profile P { Loop Outer { Outline |> TraceLoop } }
+ Extrude Body { Profile: P From: 0mm To: H }
+}
+Template<R: Length,H: Length> Struct Drum {
+ Circle2 Outline { Center: [0mm,0mm] Radius: R }
+ Profile P { Loop Outer { Outline |> TraceLoop } }
+ Extrude Body { Profile: P From: 0mm To: H }
+}
+Template<L: Length,W: Length,H: Length> Struct Surround {
+ RoundedRect2 Outer { Center: [0mm,0mm] Size: [L,W] Radius: 4mm }
+ // Solid decorative seat; the black bobbins sit on it. No routed opening claim.
+ Profile P { Loop Outer { Outer |> TraceLoop } }
+ Extrude Body { Profile: P From: 0mm To: H }
+}
+Template<H: Length> Struct Board {
+ Point2 RightNut { Position: [21.5mm,660mm] }
+ Point2 LeftNut { Position: [-21.5mm,660mm] }
+ Concept Path Outline { Start: Point2(-28mm,120mm) Heading: 0deg
+  Line End { Length: 56mm }
+  Line Right { To: RightNut }
+  Line Nut { To: LeftNut }
+  Close Left
+ }
+ Profile P From Outline
+ Extrude Body { Profile: P From: 0mm To: H }
+}
+Template<H: Length> Struct Head {
+ Expose { Semantic Base { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+  Semantic Front { DatumFrame Frame = [0mm,0mm,H] x [1,0,0] y [0,1,0] z [0,0,1]; } }
+ Point2 RFlare { Position: [34mm,40mm] }
+ Point2 RSide { Position: [39mm,154mm] }
+ Point2 RCrown { Position: [12mm,160mm] }
+ Point2 LCrown { Position: [-12mm,160mm] }
+ Point2 LSide { Position: [-39mm,154mm] }
+ Point2 LFlare { Position: [-34mm,40mm] }
+ Concept Path Outline { Start: Point2(-21.5mm,0mm) Heading: 0deg
+  Line Base { Length: 43mm }
+  Line FlareR { To: RFlare }
+  Line SideR { To: RSide }
+  Line CrownR { To: RCrown }
+  Line Crown { To: LCrown }
+  Line CrownL { To: LSide }
+  Line SideL { To: LFlare }
+  Close FlareL
+ }
+ Profile P From Outline
+ Extrude Body { Profile: P From: 0mm To: H }
+}
+
+Record HardwareSite { X: Length; Y: Length; Z: Length }

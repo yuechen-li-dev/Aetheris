@@ -6,20 +6,45 @@ namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 public sealed class GuitarSurfacingWitnessTests
 {
     [Fact]
+    public void MultiFileProjectCompilesWithoutFilesystemResolutionAndKeepsPublicNeckPorts()
+    {
+        var root = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar.firmasm");
+        var documents = Directory.GetFiles(Path.GetDirectoryName(root)!, "*.firmament")
+            .Append(root).Select(path => new KeyValuePair<string, string>(Path.GetFileName(path), File.ReadAllText(path))).ToArray();
+        var result = new AssemblyM1Pipeline().CompileProject(new FirmamentProjectSnapshot("guitar.firmasm", documents));
+        Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics));
+        Assert.Equal(55, result.Geometry!.DefinitionBodies.Count);
+        Assert.Equal(107, result.Geometry.InstanceBodies.Count);
+        Assert.Equal(7, result.Ir!.AssemblyDefinitions!.Count);
+        var neck = result.Ir.Instances.Single(i => i.Path.ToString() == "GuitarX0.Neck");
+        Assert.True(neck.IsEncapsulatedDefinition);
+        Assert.True(neck.SemanticRoot.ExposedMembers.ContainsKey("NutMount"));
+        var nut = Assert.IsType<Aetheris.Semantics.ExactDatumFrameBinding>(AssemblyWorldQuery.Resolve(result.Ir,
+            neck.SemanticRoot.ExposedMembers["NutMount"].StableIdentity));
+        Assert.Equal(660, nut.OriginY, 6);
+        Assert.Equal(55, nut.OriginZ, 6);
+        Assert.DoesNotContain("Headstock", neck.SemanticRoot.ExposedMembers.Keys);
+        Assert.Equal(13, result.Ir.SourceDependencies!.Count);
+        Assert.Contains(result.Ir.SourceDependencies, d => d.Path == "tuners-assembly.firmament");
+    }
+    [Fact]
     public void SingleCutCarveAndBackExportClosedOrientedMeshesThroughOrdinaryAssembly()
     {
         var path = FirmamentCorpusHarness.ResolveFixtureFullPath(
-            "fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar-x0.firmament");
+            "fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar.firmasm");
         var compiled = new AssemblyM1Pipeline().CompileFile(path);
         Assert.True(compiled.IsSuccess, string.Join("\n", compiled.Diagnostics.Select(d => d.Message)));
         var mesh = AssemblyDisplayMeshExporter.Export(compiled);
         Assert.Equal(107, mesh.Occurrences.Count(o => o.DefinitionId is not null));
         Assert.Equal(7, compiled.Ir!.Patterns!.Count);
-        Assert.Single(compiled.Ir.Joints!);
+        Assert.Empty(compiled.Ir.Joints!);
+        Assert.Equal(7, compiled.Ir.AssemblyDefinitions!.Count);
+        Assert.Single(compiled.Ir.AssemblyDefinitions.Single(d => d.DefinitionIdentity == "GuitarNeck").LocalMates,
+            mate => mate.Name == "VeneerSeat");
         Assert.DoesNotContain(File.ReadAllText(path), "LegacyExplicit");
-        Assert.Contains(compiled.Ir.Instances, i => i.Path.ToString() == "GuitarX0.TunerPosts.TunerPost00.TunerPost"
+        Assert.Contains(compiled.Ir.Instances, i => i.Path.ToString() == "GuitarX0.Neck.Tuners.TunerPosts.TunerPost00.TunerPost"
             && i.Provenance.Any(p => p.Stage == "assembly-pattern"));
-        var head = compiled.Ir.Instances.Single(i => i.Path.ToString() == "GuitarX0.Headstock");
+        var head = compiled.Ir.Instances.Single(i => i.Path.ToString() == "GuitarX0.Neck.Headstock");
         Assert.Equal(660, head.ResolvedTransform!.Matrix[13], 6);
         Assert.Equal(48, head.ResolvedTransform.Matrix[14], 6);
         Assert.Equal(6, mesh.Definitions.Count(d => d.Identity.StartsWith("GuitarString<", StringComparison.Ordinal)));

@@ -1,0 +1,25 @@
+Static SaddlesSites: Set<HardwareSite> {
+ Saddle0 => HardwareSite { X: -25.5mm; Y: -35mm; Z: 63mm }
+ Saddle1 => HardwareSite { X: -15.3mm; Y: -35mm; Z: 63mm }
+ Saddle2 => HardwareSite { X: -5.1mm; Y: -35mm; Z: 63mm }
+ Saddle3 => HardwareSite { X: 5.1mm; Y: -35mm; Z: 63mm }
+ Saddle4 => HardwareSite { X: 15.3mm; Y: -35mm; Z: 63mm }
+ Saddle5 => HardwareSite { X: 25.5mm; Y: -35mm; Z: 63mm }
+}
+Subassembly GuitarBridge {
+ <Assembly GuitarBridge>
+  <Part Bridge = Panel<L:82mm,W:12mm,H:6mm,R:5mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,-35mm,57mm]; }
+  </Part>
+  <Part Tailpiece = Panel<L:88mm,W:15mm,H:7mm,R:6mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,-75mm,53mm]; }
+  </Part>
+  Pattern Saddles Over SaddlesSites {
+   site => <Part Saddle = Panel<L:7mm,W:9mm,H:2mm,R:1mm>>
+    Placement { From: Origin; To: World; TranslateLocal: [site.X,site.Y,site.Z]; }
+   </Part>
+  }
+ </Assembly>
+
+ Anchor: GuitarBridge;
+}

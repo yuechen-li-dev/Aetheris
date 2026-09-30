@@ -7,6 +7,7 @@ from pathlib import Path
 import math
 import json
 import re
+from textwrap import dedent, indent
 
 ROOT = Path('fixtures/Canonical/AssemblyInterfaces/GuitarX0')
 ROOT.mkdir(parents=True, exist_ok=True)
@@ -243,7 +244,7 @@ for side in [-1,1]:
         formed_string(f'String{string_index}',((string_index-2.5)*10.2,-75,65),((string_index-2.5)*7.2,658,65),(side*27,y,z+5),.28+string_index*.08)
 # Finite keyed occurrence families. Values remain ordinary checked Firmament
 # Records; the compiler owns expansion, identities, and definition sharing.
-catalog=['Record HardwareSite { X: Length; Y: Length; Z: Length }']
+catalog=[]
 for family,matcher in [
     ('PickupSeats',r'(?:Neck|Bridge)PickupCream'),
     ('PickupCoils',r'(?:Neck|Bridge)PickupCoil[01]'),
@@ -269,14 +270,67 @@ for family,matcher in [
   Placement {{ From: Origin; To: World; TranslateLocal: [site.X,site.Y,site.Z]; }}
  </Part>
 }}''')
-assembly=templates+'\n'.join(catalog)+'\nAssembly GuitarX0 {\n <Assembly GuitarX0>\n'+'\n'.join(parts)+'''\n </Assembly>
- FrameTransform NutWorld { From: GuitarX0.Neck.NutMount.Frame; Normal: [0,1,0]; Up: [0,0,1]; TranslateLocal: [0mm,-7mm,0mm]; }
+def write_module(filename, name, members, rows=(), includes=(), relations='', exposes=''):
+    prefix=''.join(f'Include "{item}";\n' for item in includes)
+    text=prefix+'\n'.join(rows)+f'\nSubassembly {name} {{\n <Assembly {name}>\n'
+    text+='\n'.join(indent(dedent(member).strip(),'  ') for member in members)+f'\n </Assembly>\n{relations}\n Anchor: {name};\n'
+    if exposes:text+=' Expose { '+exposes+' }\n'
+    text+='}\n'
+    (ROOT/filename).write_text(text)
+
+groups={name:[] for name in ('Body','Neck','Tuners','Pickups','Electronics','Bridge','Strings')}
+for declaration in parts:
+    name=re.search(r'(?:<Part|Pattern)\s+(\w+)',declaration)[1]
+    if name in ('MahoganyBack','IvoryBinding','CarvedMaple'): group='Body'
+    elif name.startswith('Tuner'):group='Tuners'
+    elif name.startswith('Pickup'):group='Pickups'
+    elif name in ('Bridge','Tailpiece','Saddles'):group='Bridge'
+    elif name.startswith('String'):group='Strings'
+    elif name.startswith(('Knob','AmberKnob','Selector','ControlCover')):group='Electronics'
+    else:group='Neck'
+    groups[group].append(declaration)
+
+def occurrence(name,definition):
+    return f'<Assembly {name} = {definition}>\n Placement {{ From: Origin; To: World; }}\n</Assembly>'
+
+def rows_for(prefixes):
+    return [row for row in catalog if any(row.startswith('Static '+prefix) for prefix in prefixes)]
+
+# Common geometry definitions are separate from product containment. The string
+# definition belongs to its route module rather than the common hardware catalog.
+string_end=templates.index('Template<L: Length')
+string_template=templates[:string_end]
+(ROOT/'hardware-definitions.firmament').write_text(templates[string_end:]+'\nRecord HardwareSite { X: Length; Y: Length; Z: Length }\n')
+write_module('body-assembly.firmament','GuitarBody',groups['Body'])
+write_module('tuners-assembly.firmament','GuitarTuners',groups['Tuners'],rows_for(('Tuner',)))
+neck_relations=''' FrameTransform NutWorld { From: GuitarNeck.Neck.NutMount.Frame; Normal: [0,1,0]; Up: [0,0,1]; TranslateLocal: [0mm,-7mm,0mm]; }
  FrameTransform HeadTilt { From: NutWorld.Frame; RotateLocal: { Axis: X; Angle: -13deg } }
- Interface<Fixed> VeneerSeat { A: GuitarX0.Headstock.Front.Frame; B: GuitarX0.HeadVeneer.Base.Frame; Gap: 0mm; Clocking: 0deg; }
+ Interface<Fixed> VeneerSeat { A: GuitarNeck.Headstock.Front.Frame; B: GuitarNeck.HeadVeneer.Base.Frame; Gap: 0mm; Clocking: 0deg; }'''
+write_module('neck-assembly.firmament','GuitarNeck',groups['Neck']+[occurrence('Tuners','GuitarTuners')],
+             includes=('tuners-assembly.firmament',),relations=neck_relations,
+             exposes='DatumFrame NutMount = Neck.NutMount.Frame; DatumFrame HeelMount = Neck.HeelMount.Frame; DatumFrame HeadFront = Headstock.Front.Frame;')
+write_module('pickups-assembly.firmament','GuitarPickups',groups['Pickups'],rows_for(('Pickup',)))
+write_module('electronics-assembly.firmament','GuitarElectronics',groups['Electronics']+[occurrence('Pickups','GuitarPickups')],
+             includes=('pickups-assembly.firmament',))
+write_module('bridge-assembly.firmament','GuitarBridge',groups['Bridge'],rows_for(('Saddles',)))
+write_module('strings-assembly.firmament','GuitarStrings',groups['Strings'],rows=(string_template,))
+assembly='''// GUITAR-SURFACING-X0: composition root. Geometry and local layout live in modules.
+Include "hardware-definitions.firmament";
+Include "body-assembly.firmament";
+Include "neck-assembly.firmament";
+Include "electronics-assembly.firmament";
+Include "bridge-assembly.firmament";
+Include "strings-assembly.firmament";
+Assembly GuitarX0 {
+ <Assembly GuitarX0>
+'''+ '\n'.join(indent(occurrence(name,'Guitar'+name),'  ') for name in ('Body','Neck','Electronics','Bridge','Strings'))+'''
+ </Assembly>
  Anchor: GuitarX0;
 }
 '''
-(ROOT/'guitar-x0.firmament').write_text(assembly)
+(ROOT/'guitar.firmasm').write_text(assembly)
+# Retain the old fixture entry as a tiny source-compatible composition root.
+(ROOT/'guitar-x0.firmament').write_text('// Compatibility entry; prefer guitar.firmasm.\n'+assembly)
 looks={
  'SectionChainFile<"CarvedMaple.firmament">':(.65,.28,.035,0,.35),
  'SectionChainFile<"MahoganyBack.firmament">':(.15,.025,.012,0,.4),

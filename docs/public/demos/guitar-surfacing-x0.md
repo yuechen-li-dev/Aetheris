@@ -4,7 +4,7 @@
 
 GUITAR-SURFACING-X0 is an original single-cut guitar presentation witness inspired by the Les Paul family. The supplied photographs guided proportions and finish; no photograph, logo, downloaded guitar model, or external product mesh is bundled. Aetheris constructs every guitar part. Blender imports the actual OpenUSD export and adds downstream appearance, studio lighting, floor, and camera.
 
-The [authored assembly](../../../fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar-x0.firmament) has a cubic single-cut outline, mahogany back, cream edge band, a five-section carved maple top with a 13 mm rise, a six-section D-profile G1 neck, tapered fretboard, tilted headstock, 22 frets, inlays, two pickups, bridge, stop tailpiece, four controls, selector, tuner placeholders, and six continuous formed strings.
+The [authored assembly](../../../fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar.firmasm) has a cubic single-cut outline, mahogany back, cream edge band, a five-section carved maple top with a 13 mm rise, a six-section D-profile G1 neck, tapered fretboard, tilted headstock, 22 frets, inlays, two pickups, bridge, stop tailpiece, four controls, selector, tuner placeholders, and six continuous formed strings. See [the multi-file subassembly layout](guitar-subassemblies.md) for the current source organization.
 
 ## Reproduce
 

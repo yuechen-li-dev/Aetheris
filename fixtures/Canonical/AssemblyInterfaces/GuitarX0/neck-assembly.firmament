@@ -1,0 +1,124 @@
+Include "tuners-assembly.firmament";
+
+Subassembly GuitarNeck {
+ <Assembly GuitarNeck>
+  <Part Neck = SectionChainFile<"Neck.firmament">>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,0mm,0mm]; }
+  </Part>
+  <Part BoardBinding = Board<H:5mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,0mm,55mm]; }
+  </Part>
+  <Part Rosewood = Board<H:2mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,0mm,60mm]; }
+  </Part>
+  <Part Headstock = Head<H:14mm>>
+   Placement { From: Base.Frame; To: HeadTilt.Frame; }
+  </Part>
+  <Part HeadVeneer = Head<H:1mm>>
+  </Part>
+  <Part Nut = Panel<L:44mm,W:4mm,H:3mm,R:1mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,658mm,62mm]; }
+  </Part>
+  <Part Fret1 = Panel<L:42.896685mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,622.753068mm,62mm]; }
+  </Part>
+  <Part Fret2 = Panel<L:43.697598mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,589.484395mm,62mm]; }
+  </Part>
+  <Part Fret3 = Panel<L:44.453559mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,558.082949mm,62mm]; }
+  </Part>
+  <Part PearlInlay3 = Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,573.783672mm,62mm]; }
+  </Part>
+  <Part Fret4 = Panel<L:45.167091mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,528.44393mm,62mm]; }
+  </Part>
+  <Part Fret5 = Panel<L:45.840575mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,500.468422mm,62mm]; }
+  </Part>
+  <Part PearlInlay5 = Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,514.456176mm,62mm]; }
+  </Part>
+  <Part Fret6 = Panel<L:46.47626mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,474.063059mm,62mm]; }
+  </Part>
+  <Part Fret7 = Panel<L:47.076266mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,449.139714mm,62mm]; }
+  </Part>
+  <Part PearlInlay7 = Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,461.601386mm,62mm]; }
+  </Part>
+  <Part Fret8 = Panel<L:47.642597mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,425.61521mm,62mm]; }
+  </Part>
+  <Part Fret9 = Panel<L:48.177142mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,403.411034mm,62mm]; }
+  </Part>
+  <Part PearlInlay9 = Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,414.513122mm,62mm]; }
+  </Part>
+  <Part Fret10 = Panel<L:48.681685mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,382.453083mm,62mm]; }
+  </Part>
+  <Part Fret11 = Panel<L:49.15791mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,362.671412mm,62mm]; }
+  </Part>
+  <Part Fret12 = Panel<L:49.607407mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,344mm,62mm]; }
+  </Part>
+  <Part PearlInlay12 = Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,353.335706mm,62mm]; }
+  </Part>
+  <Part Fret13 = Panel<L:50.031676mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,326.376534mm,62mm]; }
+  </Part>
+  <Part Fret14 = Panel<L:50.432132mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,309.742197mm,62mm]; }
+  </Part>
+  <Part Fret15 = Panel<L:50.810113mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,294.041474mm,62mm]; }
+  </Part>
+  <Part PearlInlay15 = Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,301.891836mm,62mm]; }
+  </Part>
+  <Part Fret16 = Panel<L:51.166879mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,279.221965mm,62mm]; }
+  </Part>
+  <Part Fret17 = Panel<L:51.503621mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,265.234211mm,62mm]; }
+  </Part>
+  <Part PearlInlay17 = Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,272.228088mm,62mm]; }
+  </Part>
+  <Part Fret18 = Panel<L:51.821463mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,252.031529mm,62mm]; }
+  </Part>
+  <Part Fret19 = Panel<L:52.121466mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,239.569857mm,62mm]; }
+  </Part>
+  <Part PearlInlay19 = Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,245.800693mm,62mm]; }
+  </Part>
+  <Part Fret20 = Panel<L:52.404632mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,227.807605mm,62mm]; }
+  </Part>
+  <Part Fret21 = Panel<L:52.671904mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,216.705517mm,62mm]; }
+  </Part>
+  <Part PearlInlay21 = Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,222.256561mm,62mm]; }
+  </Part>
+  <Part Fret22 = Panel<L:52.924176mm,W:1.2mm,H:1mm,R:0.5mm>>
+   Placement { From: Origin; To: World; TranslateLocal: [0mm,206.226542mm,62mm]; }
+  </Part>
+  <Assembly Tuners = GuitarTuners>
+   Placement { From: Origin; To: World; }
+  </Assembly>
+ </Assembly>
+ FrameTransform NutWorld { From: GuitarNeck.Neck.NutMount.Frame; Normal: [0,1,0]; Up: [0,0,1]; TranslateLocal: [0mm,-7mm,0mm]; }
+ FrameTransform HeadTilt { From: NutWorld.Frame; RotateLocal: { Axis: X; Angle: -13deg } }
+ Interface<Fixed> VeneerSeat { A: GuitarNeck.Headstock.Front.Frame; B: GuitarNeck.HeadVeneer.Base.Frame; Gap: 0mm; Clocking: 0deg; }
+ Anchor: GuitarNeck;
+ Expose { DatumFrame NutMount = Neck.NutMount.Frame; DatumFrame HeelMount = Neck.HeelMount.Frame; DatumFrame HeadFront = Headstock.Front.Frame; }
+}

@@ -1,10 +1,83 @@
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Step242;
+using System.Text.RegularExpressions;
 
 namespace Aetheris.Kernel.Core.Tests.Step242;
 
 public sealed class Step242AssemblyProductStructureTests
 {
+    [Fact]
+    public void ProductWithTwoRigidRoots_PromotesBodiesUnderEachRepeatedOccurrence()
+    {
+        var body = BrepPrimitives.CreateBox(2, 3, 4).Value;
+        double[] identity = [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
+        double[] moved = [1,0,0,0, 0,1,0,0, 0,0,1,0, 20,0,0,1];
+        var exported = Step242AssemblyExporter.Export(new("Root", "root", [new("multi", "Multi", body)], [
+            new("root", "Root", null, null, identity),
+            new("first", "First", "root", "multi", identity),
+            new("second", "Second", "root", "multi", moved)
+        ])).Value;
+        var rigidRoot = Regex.Match(exported, @"#(?<id>\d+)=MANIFOLD_SOLID_BREP\('[^']*',#(?<shell>\d+)\);");
+        Assert.True(rigidRoot.Success);
+        var maxId = Regex.Matches(exported, @"#(?<id>\d+)=").Select(match => int.Parse(match.Groups["id"].Value)).Max();
+        var representation = Regex.Match(exported, $@"#\d+=SHAPE_REPRESENTATION\([^\r\n]*\(#{rigidRoot.Groups["id"].Value}\)[^\r\n]*;");
+        Assert.True(representation.Success);
+        exported = exported.Replace(representation.Value,
+            representation.Value.Replace($"(#{rigidRoot.Groups["id"].Value})", $"(#{rigidRoot.Groups["id"].Value},#{maxId + 1})", StringComparison.Ordinal), StringComparison.Ordinal);
+        exported = exported.Insert(exported.LastIndexOf("ENDSEC;", StringComparison.Ordinal),
+            $"#{maxId + 1}=MANIFOLD_SOLID_BREP('Additional',#{rigidRoot.Groups["shell"].Value});\r\n");
+
+        var imported = Step242AssemblyImporter.Import(exported);
+
+        Assert.True(imported.IsSuccess, string.Join("; ", imported.Diagnostics.Select(item => item.Message)));
+        Assert.Equal(2, imported.Value.Definitions.Count(item => item.Geometry is not null));
+        Assert.Equal(4, imported.Value.Occurrences.Count(item => item.DefinitionStableId.StartsWith("multi/body:", StringComparison.Ordinal)));
+        Assert.Equal(2, imported.Value.Occurrences.Count(item => item.DefinitionStableId == "multi"));
+        Assert.All(imported.Value.Occurrences.Where(item => item.DefinitionStableId.StartsWith("multi/body:", StringComparison.Ordinal)),
+            occurrence => Assert.Contains(imported.Value.Occurrences, parent => parent.StableId == occurrence.ParentStableId));
+        Assert.Equal(2, imported.Value.Occurrences.Where(item => item.DefinitionStableId.StartsWith("multi/body:", StringComparison.Ordinal))
+            .Select(item => item.DefinitionStableId).Distinct().Count());
+    }
+
+    [Fact]
+    public void FlatMultipleRigidRoots_RecoversSyntheticAssemblyWithoutUnion()
+    {
+        var step = Step242Exporter.ExportBody(BrepPrimitives.CreateBox(2, 3, 4).Value).Value;
+        var root = Regex.Match(step, @"MANIFOLD_SOLID_BREP\('[^']*',#(?<shell>\d+)\)");
+        Assert.True(root.Success);
+        var maxId = Regex.Matches(step, @"#(?<id>\d+)=").Select(match => int.Parse(match.Groups["id"].Value)).Max();
+        var second = $"#{maxId + 1}=MANIFOLD_SOLID_BREP('Second',#{root.Groups["shell"].Value});\r\n";
+        step = step.Insert(step.LastIndexOf("ENDSEC;", StringComparison.Ordinal), second);
+
+        var imported = Step242AssemblyImporter.Import(step);
+
+        Assert.True(imported.IsSuccess, string.Join("; ", imported.Diagnostics.Select(item => item.Message)));
+        Assert.Equal("RecoveredMultiBodyAssembly", imported.Value.Provenance);
+        Assert.Equal(2, imported.Value.Definitions.Count);
+        Assert.Equal(2, imported.Value.Occurrences.Count);
+        Assert.Contains(imported.Value.Definitions, definition => definition.Name == "Second");
+        Assert.All(imported.Value.Definitions, definition => Assert.NotNull(definition.Geometry));
+        Assert.All(imported.Value.Definitions, definition => Assert.Single(definition.Geometry!.Topology.Bodies));
+        Assert.False(Step242Importer.ImportBody(step).IsSuccess);
+    }
+
+    [Fact]
+    public void MissingOccurrenceTransform_FailsWithIdentifiedOccurrence()
+    {
+        var body = BrepPrimitives.CreateBox(1, 1, 1).Value;
+        double[] identity = [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
+        var exported = Step242AssemblyExporter.Export(new("Root", "root", [new("part", "Part", body)], [
+            new("root", "Root", null, null, identity), new("child", "Child", "root", "part", identity)
+        ])).Value;
+        var broken = exported.Replace("CONTEXT_DEPENDENT_SHAPE_REPRESENTATION(", "UNSUPPORTED_CONTEXT_SHAPE(", StringComparison.Ordinal);
+
+        var imported = Step242AssemblyImporter.Import(broken);
+
+        Assert.False(imported.IsSuccess);
+        Assert.Contains(imported.Diagnostics, diagnostic => diagnostic.Source == "Importer.Assembly.MissingOccurrenceTransform"
+            && diagnostic.Message.Contains("child", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void RepeatedDefinition_RoundTripsOccurrencesTransformsAndExactGeometry()
     {

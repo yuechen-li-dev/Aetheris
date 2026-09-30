@@ -50,7 +50,8 @@ public sealed record StepImportResponseDto(
     Guid OccurrenceId,
     string? Name,
     IReadOnlyList<DiagnosticDto> Diagnostics,
-    CadmataVisualizationArtifactDto? SemanticPresentation = null);
+    CadmataVisualizationArtifactDto? SemanticPresentation = null,
+    AssemblyDisplayPacketDto? AssemblyPresentation = null);
 
 public sealed record ExtrudeRequestDto(
     IReadOnlyList<ProfilePoint2Dto> Profile,

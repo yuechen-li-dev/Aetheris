@@ -260,6 +260,17 @@ public static class KernelEndpoints
                     return ApiMappings.BadRequestFromMessage("StepText must be provided.", "documents.import.step");
                 }
 
+                var assemblyResult = Step242AssemblyImporter.Import(request.StepText);
+                if (assemblyResult.IsSuccess)
+                {
+                    if (!AssemblyDisplayService.TryBuildStep(assemblyResult.Value, out var assemblyPacket, out var displayError))
+                        return ApiMappings.BadRequestFromMessage(displayError, "documents.import.step.assembly.display");
+                    return ApiMappings.Ok(new StepImportResponseDto(documentId, Guid.Empty, Guid.Empty,
+                        assemblyPacket!.Name, [], AssemblyPresentation: assemblyPacket));
+                }
+                if (assemblyResult.Diagnostics.All(diagnostic => diagnostic.Source != "Importer.Assembly.ProductStructure"))
+                    return ApiMappings.KernelFailure(assemblyResult.Diagnostics);
+
                 var importResult = Step242Importer.ImportBody(request.StepText);
                 if (!importResult.IsSuccess)
                 {

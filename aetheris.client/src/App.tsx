@@ -19,7 +19,6 @@ import {
 	exportDefinitionStep,
 	getDocumentSummary,
 	importStep,
-	loadCadmataFixture,
 	maximizePaperclips,
 	pickBody,
 	prepareBodyDisplay,
@@ -553,6 +552,23 @@ function App() {
 				}
 
 				const imported = await importStep(documentId, stepText, fileName);
+				if (imported.assemblyPresentation) {
+					setAssemblyPacket(imported.assemblyPresentation);
+					setSelectedAssemblyOccurrenceId(imported.assemblyPresentation.rootOccurrenceStableId);
+					setDisplayPreparation(null);
+					setBodyIds([]);
+					setOccurrences([]);
+					setActiveBodyId(null);
+					setCadmataArtifact(null);
+					setStepCanonicalHash(null);
+					setStatus("success");
+					setStatusMessage(`Assembly loaded: ${imported.assemblyPresentation.name}`);
+					setImportStatus("success");
+					setImportStatusMessage(`Assembly ready: ${imported.assemblyPresentation.occurrences.length - 1} occurrences, ${imported.assemblyPresentation.definitions.length} definitions.`);
+					dispatchDocumentEvent({ type: "LoadSucceeded", documentId });
+					return;
+				}
+				setAssemblyPacket(null);
 				const semanticPresentation = imported.semanticPresentation
 					? parseCadmataVisualizationArtifact(imported.semanticPresentation)
 					: null;
@@ -832,23 +848,6 @@ function App() {
 			}
 		},
 		[activeBodyId, cadmataArtifact, documentId],
-	);
-
-	const handleLoadCadmataFixture = useCallback(
-		async (fixtureId: string) => {
-			if (!documentId) return;
-			await runAction(`Load Cadmata ${fixtureId}`, async () => {
-				const loaded = await loadCadmataFixture(documentId, fixtureId);
-				const artifact = parseCadmataVisualizationArtifact(loaded.visualization);
-				setCadmataArtifact(artifact);
-				setSelectedCadmataId(artifact.entities[0]?.stableId ?? null);
-				await refreshSummaryAndActiveTessellation(loaded.bodyId);
-				setStatusMessage(
-					`Cadmata fixture '${fixtureId}' loaded with compiler-published correspondence.`,
-				);
-			});
-		},
-		[documentId, refreshSummaryAndActiveTessellation, runAction],
 	);
 
 	const displayScene = useMemo(
@@ -1278,29 +1277,6 @@ function App() {
 										) : null}
 									</>
 								) : null}
-								<div className="stack-row">
-									{[
-										"direct-profile",
-										"split-compose-chamfer",
-										"semantic-shaft-hole",
-										"construction-plane-blind-drillpoint",
-										"ctc-01-x3",
-										"ctc-01-x4",
-										"profile-compose-l-bracket-counterbore-pmi",
-										"pmi-projected-hole-diameter",
-										"hexbolt-m1",
-									].map((fixtureId) => (
-										<Button
-											key={fixtureId}
-											type="button"
-											variant="outline"
-											onClick={() => void handleLoadCadmataFixture(fixtureId)}
-											disabled={!documentId || status === "loading"}
-										>
-											{fixtureId}
-										</Button>
-									))}
-								</div>
 								{cadmataArtifact ? (
 									<>
 										<SemanticInspector
@@ -1360,13 +1336,13 @@ function App() {
 												})()
 											: null}
 									</>
-								) : (
+								) : !assemblyPacket ? (
 									<SemanticInspector
 										artifact={cadmataArtifact}
 										selectedId={selectedCadmataId}
 										onSelect={setSelectedCadmataId}
 									/>
-								)}
+								) : null}
 							</section>
 							<section className="tool-section tool-section--import">
 								<h2 className="section-title">Step Import</h2>

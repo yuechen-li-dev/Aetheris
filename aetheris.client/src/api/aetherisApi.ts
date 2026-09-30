@@ -64,6 +64,7 @@ export interface StepImportResponseDto {
 	name: string | null;
 	diagnostics: DiagnosticDto[];
 	semanticPresentation?: unknown | null;
+	assemblyPresentation?: AssemblyDisplayPacketDto | null;
 }
 
 export interface PaperclipDemoRequestDto {

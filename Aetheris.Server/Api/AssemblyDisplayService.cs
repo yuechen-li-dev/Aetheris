@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using Aetheris.Kernel.Core.Brep.Tessellation;
+using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament.Assembly;
 using Aetheris.Server.Contracts;
 
@@ -7,6 +9,67 @@ namespace Aetheris.Server.Api;
 
 public static class AssemblyDisplayService
 {
+    public static bool TryBuildStep(Step242ProductStructure structure, out AssemblyDisplayPacketDto? packet, out string error)
+    {
+        packet = null; error = string.Empty;
+        var watch = Stopwatch.StartNew();
+        var definitions = new List<AssemblyDisplayDefinitionDto>();
+        foreach (var definition in structure.Definitions.Where(item => item.Geometry is not null).OrderBy(item => item.StableId, StringComparer.Ordinal))
+        {
+            var mesh = BrepDisplayTessellator.TessellateBounded(definition.Geometry!);
+            if (!mesh.IsSuccess)
+            {
+                error = $"STEP definition '{definition.Name}' (#{definition.ProductDefinitionEntityId}) could not be prepared for display: "
+                    + string.Join("; ", mesh.Diagnostics.Select(item => item.Message));
+                return false;
+            }
+            definitions.Add(new(definition.StableId, definition.Name, ApiMappings.ToTessellationResponse(mesh.Value).FacePatches));
+        }
+        var byDefinition = structure.Definitions.ToDictionary(item => item.StableId, StringComparer.Ordinal);
+        var byOccurrence = structure.Occurrences.ToDictionary(item => item.StableId, StringComparer.Ordinal);
+        var rootId = "step-root:" + structure.RootDefinitionStableId;
+        var world = new Dictionary<string, Transform3D>(StringComparer.Ordinal);
+        Transform3D World(Step242ImportedProductOccurrence occurrence)
+        {
+            if (world.TryGetValue(occurrence.StableId, out var cached)) return cached;
+            var local = Transform3D.FromRowMajor(occurrence.LocalTransform);
+            return world[occurrence.StableId] = occurrence.ParentStableId is null ? local : local * World(byOccurrence[occurrence.ParentStableId]);
+        }
+        var occurrences = new List<AssemblyDisplayOccurrenceDto>
+        {
+            new(rootId, byDefinition.GetValueOrDefault(structure.RootDefinitionStableId)?.Name ?? "ImportedAssembly", rootId,
+                null, null, "Assembly", Transform3D.Identity.ToRowMajor(), "ImportedOccurrence")
+        };
+        var points = new List<Point3D>();
+        foreach (var occurrence in structure.Occurrences)
+        {
+            if (!byDefinition.TryGetValue(occurrence.DefinitionStableId, out var definition))
+            {
+                error = $"STEP occurrence '{occurrence.Name}' refers to missing definition '{occurrence.DefinitionStableId}'.";
+                return false;
+            }
+            var transform = World(occurrence);
+            occurrences.Add(new(occurrence.StableId, occurrence.Name, occurrence.StableId,
+                occurrence.ParentStableId ?? rootId, occurrence.DefinitionStableId,
+                definition.Geometry is null ? "Assembly" : "Part", transform.ToRowMajor(), "ImportedOccurrence"));
+            if (definition.Geometry is null) continue;
+            foreach (var vertex in definition.Geometry.Topology.Vertices)
+                if (definition.Geometry.TryGetVertexPoint(vertex.Id, out var point)) points.Add(transform.Apply(point));
+        }
+        var minimum = points.Count == 0 ? new[] { 0d, 0d, 0d } : new[] { points.Min(p => p.X), points.Min(p => p.Y), points.Min(p => p.Z) };
+        var maximum = points.Count == 0 ? new[] { 0d, 0d, 0d } : new[] { points.Max(p => p.X), points.Max(p => p.Y), points.Max(p => p.Z) };
+        watch.Stop();
+        var performance = new Dictionary<string, double>(structure.Performance ?? new Dictionary<string, double>(), StringComparer.Ordinal)
+        {
+            ["displayPreparationMilliseconds"] = watch.Elapsed.TotalMilliseconds,
+            ["definitionCount"] = definitions.Count,
+            ["occurrenceCount"] = occurrences.Count - 1
+        };
+        packet = new("aetheris/cadmata-assembly-display/m3", occurrences[0].Name, rootId, definitions, occurrences,
+            [], [], new(minimum, maximum), [], performance);
+        return true;
+    }
+
     public static bool TryBuild(string path, out AssemblyDisplayPacketDto? packet, out string error)
     {
         packet = null; error = string.Empty;

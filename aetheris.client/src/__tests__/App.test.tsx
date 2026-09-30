@@ -106,6 +106,8 @@ describe("App STEP file upload flow", () => {
 		expect(screen.getByRole("button", { name: "GRID" }).getAttribute("aria-pressed")).toBe("true");
 		expect(screen.getByRole("button", { name: "COORD" }).getAttribute("aria-pressed")).toBe("true");
 		expect(screen.queryByText("Create Box")).toBeNull();
+		expect(screen.queryByRole("button", { name: "direct-profile" })).toBeNull();
+		expect(screen.queryByRole("button", { name: "hexbolt-m1" })).toBeNull();
 
 		fireEvent.click(screen.getByRole("tab", { name: /Modeling Demo/i }));
 

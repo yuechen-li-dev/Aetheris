@@ -147,6 +147,7 @@ public static class CliRunner
     private const string AnalyzeVolumeUsage = "Usage: aetheris analyze volume <file.step> [--approximate --resolution <N>] [--json]";
     private const string AnalyzeCompareUsage = "Usage: aetheris analyze compare <reference.step> <candidate.step> [--approximate-volume --resolution <N>] [--json]";
     private const string AnalyzeCompoundUsage = "Usage: aetheris analyze compound <file.step> [--json]";
+    private const string AnalyzeAssemblyUsage = "Usage: aetheris analyze assembly <file.step> [--json]";
     private const string SectionsUsage = "Usage: aetheris sections <artifact.step> --axis Z --levels <z,...> [--epsilon <mm>] --json";
     private const string VerifyUsage = "Usage: aetheris verify <file.firmament|file.step> [--expected-volume <value>] [--cad-assistant] [--cad-assistant-path <path>] [--timeout <seconds>] [--evidence-dir <path>] [--require-external] [--json]";
     private const string InspectUsage = "Usage: aetheris inspect <file.firmament|file.step> [--json]";
@@ -2872,6 +2873,7 @@ Model CanonicalPanel {
             stderr.WriteLine($"   or: {AnalyzeVolumeUsage[7..]}");
             stderr.WriteLine($"   or: {AnalyzeCompareUsage[7..]}");
             stderr.WriteLine($"   or: {AnalyzeCompoundUsage[7..]}");
+            stderr.WriteLine($"   or: {AnalyzeAssemblyUsage[7..]}");
             stderr.WriteLine("Run 'aetheris analyze --help' for examples.");
             return 1;
         }
@@ -2899,6 +2901,10 @@ Model CanonicalPanel {
         if (string.Equals(args[0], "compound", StringComparison.Ordinal))
         {
             return RunAnalyzeCompound(args.Skip(1).ToArray(), stdout, stderr);
+        }
+        if (string.Equals(args[0], "assembly", StringComparison.Ordinal))
+        {
+            return RunAnalyzeAssembly(args.Skip(1).ToArray(), stdout, stderr);
         }
         if (string.Equals(args[0], "compare", StringComparison.Ordinal))
         {
@@ -4724,6 +4730,69 @@ Model CanonicalPanel {
         return 1;
     }
 
+    private static int RunAnalyzeAssembly(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        if (args.Length == 0 || IsHelpFlag(args[0])) { (args.Length == 0 ? stderr : stdout).WriteLine(AnalyzeAssemblyUsage); return args.Length == 0 ? 1 : 0; }
+        if (args.Length > 2 || args.Length == 2 && args[1] != "--json" || !File.Exists(args[0]))
+        {
+            stderr.WriteLine(AnalyzeAssemblyUsage);
+            return 1;
+        }
+        var imported = Step242AssemblyImporter.Import(File.ReadAllText(args[0]));
+        if (!imported.IsSuccess)
+        {
+            foreach (var diagnostic in imported.Diagnostics) stderr.WriteLine($"{diagnostic.Source}: {diagnostic.Message}");
+            return 1;
+        }
+        var structure = imported.Value;
+        var definitions = structure.Definitions.ToDictionary(item => item.StableId, StringComparer.Ordinal);
+        var occurrences = structure.Occurrences.ToDictionary(item => item.StableId, StringComparer.Ordinal);
+        var world = new Dictionary<string, Transform3D>(StringComparer.Ordinal);
+        var depths = new Dictionary<string, int>(StringComparer.Ordinal);
+        Transform3D World(Step242ImportedProductOccurrence occurrence)
+        {
+            if (world.TryGetValue(occurrence.StableId, out var cached)) return cached;
+            var local = Transform3D.FromRowMajor(occurrence.LocalTransform);
+            return world[occurrence.StableId] = occurrence.ParentStableId is null ? local : local * World(occurrences[occurrence.ParentStableId]);
+        }
+        int Depth(Step242ImportedProductOccurrence occurrence)
+        {
+            if (depths.TryGetValue(occurrence.StableId, out var cached)) return cached;
+            return depths[occurrence.StableId] = occurrence.ParentStableId is null ? 1 : 1 + Depth(occurrences[occurrence.ParentStableId]);
+        }
+        var points = new List<Point3D>();
+        foreach (var occurrence in structure.Occurrences)
+        {
+            var body = definitions[occurrence.DefinitionStableId].Geometry;
+            if (body is null) continue;
+            var placement = World(occurrence);
+            foreach (var vertex in body.Topology.Vertices)
+                if (body.TryGetVertexPoint(vertex.Id, out var point)) points.Add(placement.Apply(point));
+        }
+        var assemblyName = definitions.GetValueOrDefault(structure.RootDefinitionStableId)?.Name ?? "RecoveredMultiBodyAssembly";
+        var report = new {
+            command = "analyze assembly", success = true, assemblyName, provenance = structure.Provenance,
+            definitionCount = structure.Definitions.Count(item => item.Geometry is not null),
+            occurrenceCount = structure.Occurrences.Count,
+            subassemblyCount = structure.Occurrences.Count(item => definitions[item.DefinitionStableId].Geometry is null),
+            bodyCount = structure.Occurrences.Count(item => definitions[item.DefinitionStableId].Geometry is not null),
+            repeatedInstanceCount = structure.Occurrences.Where(item => definitions[item.DefinitionStableId].Geometry is not null)
+                .GroupBy(item => item.DefinitionStableId).Sum(group => Math.Max(0, group.Count() - 1)),
+            maxHierarchyDepth = structure.Occurrences.Count == 0 ? 0 : structure.Occurrences.Max(Depth),
+            assemblyBoundingBox = points.Count == 0 ? null : new {
+                minimum = new[] { points.Min(p => p.X), points.Min(p => p.Y), points.Min(p => p.Z) },
+                maximum = new[] { points.Max(p => p.X), points.Max(p => p.Y), points.Max(p => p.Z) }
+            },
+            performance = structure.Performance,
+            definitions = structure.Definitions.Select(item => new { item.StableId, item.Name, hasGeometry = item.Geometry is not null, item.ProductDefinitionEntityId }).ToArray(),
+            occurrences = structure.Occurrences.Select(item => new { item.StableId, item.Name, item.ParentStableId, item.DefinitionStableId,
+                item.LocalTransform, worldTransform = World(item).ToRowMajor(), item.StepEntityId }).ToArray()
+        };
+        stdout.WriteLine(args.Length == 2 ? JsonSerializer.Serialize(report, JsonOptions)
+            : $"Assembly '{assemblyName}': {report.definitionCount} definitions, {report.occurrenceCount} occurrences, {report.subassemblyCount} subassemblies, {report.repeatedInstanceCount} repeated instances; bbox {string.Join(",", report.assemblyBoundingBox?.minimum ?? [])} to {string.Join(",", report.assemblyBoundingBox?.maximum ?? [])}.");
+        return 0;
+    }
+
     private static int RunAsmImportStep(string[] args, TextWriter stdout, TextWriter stderr)
     {
         if (args.Length == 0 || IsHelpFlag(args[0])) { (args.Length == 0 ? stderr : stdout).WriteLine(AsmImportStepUsage); return args.Length == 0 ? 1 : 0; }
@@ -4732,8 +4801,53 @@ Model CanonicalPanel {
         if (output is null || !File.Exists(args[0])) { stderr.WriteLine(AsmImportStepUsage); return 1; }
         var result = Step242FirmasmPackageImporter.Import(args[0], output);
         if (!result.IsSuccess) { foreach (var diagnostic in result.Diagnostics) stderr.WriteLine($"{diagnostic.Source}: {diagnostic.Message}"); return 1; }
-        var report = new { success = true, result.Value.FirmasmPath, result.Value.ManifestPath, definitionCount = result.Value.Components.Count, occurrenceCount = result.Value.ProductStructure.Occurrences.Count, result.Value.FirmasmSha256 };
-        stdout.WriteLine(json ? JsonSerializer.Serialize(report, JsonOptions) : $"Imported AP242 assembly to {result.Value.FirmasmPath} ({result.Value.Components.Count} definitions, {result.Value.ProductStructure.Occurrences.Count} occurrences).");
+        var structure = result.Value.ProductStructure;
+        var definitions = structure.Definitions.ToDictionary(item => item.StableId, StringComparer.Ordinal);
+        var occurrences = structure.Occurrences.ToDictionary(item => item.StableId, StringComparer.Ordinal);
+        var world = new Dictionary<string, Transform3D>(StringComparer.Ordinal);
+        var depths = new Dictionary<string, int>(StringComparer.Ordinal);
+        Transform3D World(Step242ImportedProductOccurrence occurrence)
+        {
+            if (world.TryGetValue(occurrence.StableId, out var cached)) return cached;
+            var local = Transform3D.FromRowMajor(occurrence.LocalTransform);
+            return world[occurrence.StableId] = occurrence.ParentStableId is null ? local : local * World(occurrences[occurrence.ParentStableId]);
+        }
+        int Depth(Step242ImportedProductOccurrence occurrence)
+        {
+            if (depths.TryGetValue(occurrence.StableId, out var cached)) return cached;
+            return depths[occurrence.StableId] = occurrence.ParentStableId is null ? 1 : 1 + Depth(occurrences[occurrence.ParentStableId]);
+        }
+        var points = new List<Point3D>();
+        foreach (var occurrence in structure.Occurrences)
+        {
+            var body = definitions[occurrence.DefinitionStableId].Geometry;
+            if (body is null) continue;
+            var placement = World(occurrence);
+            foreach (var vertex in body.Topology.Vertices)
+                if (body.TryGetVertexPoint(vertex.Id, out var point)) points.Add(placement.Apply(point));
+        }
+        var assemblyName = definitions.GetValueOrDefault(structure.RootDefinitionStableId)?.Name ?? "ImportedAssembly";
+        var report = new {
+            success = true, result.Value.FirmasmPath, result.Value.ManifestPath, assemblyName,
+            provenance = structure.Provenance,
+            definitionCount = structure.Definitions.Count(item => item.Geometry is not null),
+            occurrenceCount = structure.Occurrences.Count,
+            subassemblyCount = structure.Occurrences.Count(item => definitions[item.DefinitionStableId].Geometry is null),
+            bodyCount = structure.Occurrences.Count(item => definitions[item.DefinitionStableId].Geometry is not null),
+            repeatedInstanceCount = structure.Occurrences.Where(item => definitions[item.DefinitionStableId].Geometry is not null)
+                .GroupBy(item => item.DefinitionStableId).Sum(group => Math.Max(0, group.Count() - 1)),
+            maxHierarchyDepth = structure.Occurrences.Count == 0 ? 0 : structure.Occurrences.Max(Depth),
+            assemblyBoundingBox = points.Count == 0 ? null : new {
+                minimum = new[] { points.Min(p => p.X), points.Min(p => p.Y), points.Min(p => p.Z) },
+                maximum = new[] { points.Max(p => p.X), points.Max(p => p.Y), points.Max(p => p.Z) }
+            },
+            performance = structure.Performance,
+            definitions = structure.Definitions.Select(item => new { item.StableId, item.Name, hasGeometry = item.Geometry is not null, item.ProductDefinitionEntityId }).ToArray(),
+            occurrences = structure.Occurrences.Select(item => new { item.StableId, item.Name, item.ParentStableId, item.DefinitionStableId,
+                item.LocalTransform, worldTransform = World(item).ToRowMajor(), item.StepEntityId }).ToArray(),
+            result.Value.FirmasmSha256
+        };
+        stdout.WriteLine(json ? JsonSerializer.Serialize(report, JsonOptions) : $"Imported AP242 assembly '{assemblyName}' to {result.Value.FirmasmPath} ({report.definitionCount} definitions, {report.occurrenceCount} occurrences, {report.subassemblyCount} subassemblies; bbox {string.Join(",", report.assemblyBoundingBox?.minimum ?? [])} to {string.Join(",", report.assemblyBoundingBox?.maximum ?? [])}).");
         return 0;
     }
 
@@ -5013,7 +5127,8 @@ Model CanonicalPanel {
         stdout.WriteLine("  - Use 'aetheris analyze map --help' for orthographic map options.");
         stdout.WriteLine("  - Use 'aetheris analyze section --help' for section options.");
         stdout.WriteLine("  - Use 'aetheris analyze volume --help' for volume options.");
-        stdout.WriteLine("  - Summary mode remains single-part; use 'analyze compound' to inspect every multi-root solid without assigning product semantics.");
+        stdout.WriteLine("  - Summary mode remains single-part; use 'analyze assembly' for product structure, transforms, and world bounds.");
+        stdout.WriteLine("  - Use 'analyze compound' to inspect multi-root solids without assigning product semantics.");
         stdout.WriteLine();
         stdout.WriteLine("Examples:");
         stdout.WriteLine("  aetheris analyze part.step");
@@ -5023,6 +5138,7 @@ Model CanonicalPanel {
         stdout.WriteLine("  aetheris analyze map part.step --right --rows 20 --cols 30 --json");
         stdout.WriteLine("  aetheris analyze section part.step --yz --offset 1.25 --json");
         stdout.WriteLine("  aetheris analyze compound multi-solid.step --json");
+        stdout.WriteLine("  aetheris analyze assembly machine.step --json");
     }
 
     private static void WriteAnalyzeMapHelp(TextWriter stdout)

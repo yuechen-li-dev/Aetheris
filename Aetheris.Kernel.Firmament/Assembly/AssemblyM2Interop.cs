@@ -54,7 +54,7 @@ public static class Step242FirmasmPackageImporter
         var definitions = structure.Definitions.ToDictionary(item => item.StableId, StringComparer.Ordinal);
         var occurrences = structure.Occurrences.ToDictionary(item => item.StableId, StringComparer.Ordinal);
         var children = structure.Occurrences.GroupBy(item => item.ParentStableId).ToDictionary(group => group.Key ?? string.Empty, group => group.OrderBy(item => item.StableId, StringComparer.Ordinal).ToArray(), StringComparer.Ordinal);
-        var rootName = "ImportedAssembly";
+        var rootName = Identifier(definitions.GetValueOrDefault(structure.RootDefinitionStableId)?.Name ?? "ImportedAssembly");
         var builder = new StringBuilder();
         builder.AppendLine($"// Imported from {provenance}; occurrence transforms are interchange evidence, not semantic Mates.");
         builder.AppendLine("// Multiplicity without trustworthy foreign hierarchy is intentionally normalized to a flat Assembly.");

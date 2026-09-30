@@ -5,6 +5,24 @@ namespace Aetheris.CLI.Tests;
 public sealed class AssemblyM0CliTests
 {
     [Fact]
+    public void AnalyzeAssembly_ReportsSourceHierarchyWithoutWritingPackage()
+    {
+        var source = Path.Combine(FindRepoRoot(), "testdata", "step242", "OCCT", "as1.step");
+        var stdout = new StringWriter(); var stderr = new StringWriter();
+
+        var exit = Aetheris.CLI.CliRunner.Run(["analyze", "assembly", source, "--json"], stdout, stderr);
+
+        Assert.Equal(0, exit);
+        using var json = JsonDocument.Parse(stdout.ToString());
+        Assert.Equal("SourceAssembly", json.RootElement.GetProperty("provenance").GetString());
+        Assert.Equal(5, json.RootElement.GetProperty("definitionCount").GetInt32());
+        Assert.Equal(27, json.RootElement.GetProperty("occurrenceCount").GetInt32());
+        Assert.NotEqual(JsonValueKind.Null, json.RootElement.GetProperty("assemblyBoundingBox").ValueKind);
+        Assert.Equal(27, json.RootElement.GetProperty("occurrences").GetArrayLength());
+        Assert.Empty(stderr.ToString());
+    }
+
+    [Fact]
     public void AsmInspect_EmitsMachineReadableAssemblyIr()
     {
         var root = FindRepoRoot();

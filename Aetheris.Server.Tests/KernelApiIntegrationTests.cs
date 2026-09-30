@@ -3,12 +3,43 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using Aetheris.Server.Contracts;
+using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Step242;
 using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Aetheris.Server.Tests;
 
 public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 {
+    [Fact]
+    public async Task StepImport_ExportedAssembly_ReturnsCadmataInstanceScene()
+    {
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        double[] identity = [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
+        double[] moved = [1,0,0,0, 0,1,0,0, 0,0,1,0, 25,0,0,1];
+        var model = new Step242AssemblyExportModel("Two instances", "root", [
+            new("shared", "Shared box", BrepPrimitives.CreateBox(2, 3, 4).Value)
+        ], [
+            new("root", "Two instances", null, null, identity),
+            new("one", "First", "root", "shared", identity),
+            new("two", "Second", "root", "shared", moved)
+        ]);
+        var exported = Step242AssemblyExporter.Export(model);
+        Assert.True(exported.IsSuccess);
+
+        var response = await _client.PostAsJsonAsync($"/api/v1/documents/{document.Data!.DocumentId}/import/step",
+            new StepImportRequestDto(exported.Value, "two.step"));
+        response.EnsureSuccessStatusCode();
+        var imported = await response.Content.ReadFromJsonAsync<ApiResponseDto<StepImportResponseDto>>();
+        Assert.True(imported!.Success);
+        var scene = Assert.IsType<AssemblyDisplayPacketDto>(imported.Data!.AssemblyPresentation);
+        Assert.Single(scene.Definitions);
+        Assert.Equal(3, scene.Occurrences.Count);
+        Assert.Equal("shared", scene.Occurrences.Single(item => item.StableId == "two").DefinitionStableId);
+        Assert.Equal(25, scene.Occurrences.Single(item => item.StableId == "two").WorldTransform[12]);
+        Assert.NotEmpty(scene.Definitions[0].FacePatches);
+    }
+
     private readonly HttpClient _client;
 
     public KernelApiIntegrationTests(WebApplicationFactory<Program> factory)

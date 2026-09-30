@@ -1,10 +1,12 @@
 using System.Globalization;
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Import;
 using Aetheris.Kernel.Core.Diagnostics;
+using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Results;
 
 namespace Aetheris.Kernel.Core.Step242;
@@ -44,7 +46,9 @@ public sealed record Step242ImportedProductOccurrence(
 public sealed record Step242ProductStructure(
     string RootDefinitionStableId,
     IReadOnlyList<Step242ImportedProductDefinition> Definitions,
-    IReadOnlyList<Step242ImportedProductOccurrence> Occurrences);
+    IReadOnlyList<Step242ImportedProductOccurrence> Occurrences,
+    string Provenance = "SourceAssembly",
+    IReadOnlyDictionary<string, double>? Performance = null);
 
 /// <summary>Bounded AP242 product-structure lowering: product definitions, NAUO occurrences, rigid transforms, and shared shape representations.</summary>
 public static class Step242AssemblyExporter
@@ -192,8 +196,10 @@ public static class Step242AssemblyImporter
 {
     public static KernelResult<Step242ProductStructure> Import(string stepText, ImportPolicy? policy = null)
     {
+        var started = Stopwatch.GetTimestamp();
         var parsed = Step242SubsetParser.Parse(stepText);
         if (!parsed.IsSuccess) return KernelResult<Step242ProductStructure>.Failure(parsed.Diagnostics);
+        var parsedAt = Stopwatch.GetTimestamp();
         var document = parsed.Value;
         if (policy is not null)
         {
@@ -203,6 +209,31 @@ public static class Step242AssemblyImporter
             document.PcurveQualificationToleranceMillimetres = double.Min(policy.PcurveQualificationToleranceMillimetres,
                 policy.RecoveryToleranceMillimetres);
             document.AllowBoundedNearCoincidentInnerLoop = policy.AllowBoundedNearCoincidentInnerLoop;
+        }
+        if (!document.Entities.Any(entity => entity.Name == "NEXT_ASSEMBLY_USAGE_OCCURRENCE")
+            && document.Entities.Count(entity => entity.Name == "PRODUCT_DEFINITION") <= 1)
+        {
+            var roots = Step242RigidRootClassifier.Classify(document).RigidRoots.OrderBy(entity => entity.Id).ToArray();
+            if (roots.Length > 1)
+            {
+                var flatDefinitions = new List<Step242ImportedProductDefinition>();
+                var flatOccurrences = new List<Step242ImportedProductOccurrence>();
+                foreach (var (root, index) in roots.Select((root, index) => (root, index)))
+                {
+                    var imported = Step242Importer.ImportExactBrepCore(document, root.Id);
+                    if (!imported.IsSuccess)
+                        return KernelResult<Step242ProductStructure>.Failure(imported.Diagnostics.Prepend(new(KernelDiagnosticCode.ValidationFailed,
+                            KernelDiagnosticSeverity.Error, $"Multibody component at STEP #{root.Id} could not import.", "Importer.Assembly.MultiBodyComponent")).ToArray());
+                    var stableId = $"step-rigid-root:{root.Id}";
+                    var sourceName = Text(root, 0);
+                    var name = string.IsNullOrWhiteSpace(sourceName) ? $"Body {index + 1}" : sourceName;
+                    flatDefinitions.Add(new(stableId, name, root.Id, null, root.Id, imported.Value, null));
+                    flatOccurrences.Add(new($"step-occurrence:{root.Id}", name, null, stableId, Identity(), root.Id));
+                }
+                var importedAt = Stopwatch.GetTimestamp();
+                return KernelResult<Step242ProductStructure>.Success(new("aetheris:recovered-multibody-assembly", flatDefinitions,
+                    flatOccurrences, "RecoveredMultiBodyAssembly", Timing(started, parsedAt, importedAt, importedAt)));
+            }
         }
         var products = document.Entities.Where(entity => entity.Name == "PRODUCT").ToDictionary(entity => entity.Id);
         var formations = document.Entities.Where(entity => entity.Name == "PRODUCT_DEFINITION_FORMATION").ToDictionary(entity => entity.Id);
@@ -217,6 +248,7 @@ public static class Step242AssemblyImporter
 
         var importedDefinitions = new List<Step242ImportedProductDefinition>();
         var stableByPd = new Dictionary<int, string>();
+        var splitDefinitionsByPd = new Dictionary<int, Step242ImportedProductDefinition[]>();
         foreach (var definition in definitionsByEntity.Values.OrderBy(entity => entity.Id))
         {
             var formationId = Ref(definition, 2); if (formationId is null || !formations.TryGetValue(formationId.Value, out var formation)) continue;
@@ -228,9 +260,29 @@ public static class Step242AssemblyImporter
                 ? repIds.FirstOrDefault(repId => document.TryGetEntity(repId).Value.Arguments.ElementAtOrDefault(1) is Step242ListValue items
                     && items.Items.OfType<Step242EntityReference>().Any(item => document.TryGetEntity(item.TargetId).Value.Name is "MANIFOLD_SOLID_BREP" or "BREP_WITH_VOIDS")) is var selected && selected != 0 ? selected : repIds.FirstOrDefault()
                 : null;
-            int? rigidRoot = null;
+            int[] rigidRoots = [];
             if (representationId is not null && document.TryGetEntity(representationId.Value).Value is { } representation && representation.Arguments.ElementAtOrDefault(1) is Step242ListValue items)
-                rigidRoot = items.Items.OfType<Step242EntityReference>().Select(item => item.TargetId).FirstOrDefault(id => document.TryGetEntity(id).Value.Name is "MANIFOLD_SOLID_BREP" or "BREP_WITH_VOIDS") is var candidate && candidate != 0 ? candidate : null;
+                rigidRoots = items.Items.OfType<Step242EntityReference>().Select(item => item.TargetId)
+                    .Where(id => document.TryGetEntity(id).Value.Name is "MANIFOLD_SOLID_BREP" or "BREP_WITH_VOIDS").Distinct().ToArray();
+            if (rigidRoots.Length > 1)
+            {
+                var components = new List<Step242ImportedProductDefinition>();
+                foreach (var (rootId, index) in rigidRoots.Select((rootId, index) => (rootId, index)))
+                {
+                    var geometry = Step242Importer.ImportExactBrepCore(document, rootId);
+                    if (!geometry.IsSuccess)
+                        return KernelResult<Step242ProductStructure>.Failure(geometry.Diagnostics.Prepend(new(KernelDiagnosticCode.ValidationFailed,
+                            KernelDiagnosticSeverity.Error, $"Product '{name}' component #{rootId} could not import.", "Importer.Assembly.MultiBodyComponent")).ToArray());
+                    var componentName = Text(document.TryGetEntity(rootId).Value, 0);
+                    components.Add(new($"{stableId}/body:{rootId}", string.IsNullOrWhiteSpace(componentName) ? $"{name} Body {index + 1}" : componentName,
+                        definition.Id, representationId, rootId, geometry.Value, null));
+                }
+                splitDefinitionsByPd[definition.Id] = components.ToArray();
+                importedDefinitions.Add(new(stableId, name, definition.Id, representationId, null, null, null));
+                importedDefinitions.AddRange(components);
+                continue;
+            }
+            int? rigidRoot = rigidRoots.Length == 1 ? rigidRoots[0] : null;
             BrepBody? body = null; string? hash = null;
             if (rigidRoot is not null)
             {
@@ -241,6 +293,7 @@ public static class Step242AssemblyImporter
             }
             importedDefinitions.Add(new(stableId, name, definition.Id, representationId, rigidRoot, body, hash));
         }
+        var geometryAt = Stopwatch.GetTimestamp();
 
         var usages = document.Entities.Where(entity => entity.Name == "NEXT_ASSEMBLY_USAGE_OCCURRENCE").OrderBy(entity => entity.Id).ToArray();
         if (usages.Length == 0)
@@ -250,7 +303,8 @@ public static class Step242AssemblyImporter
                 return KernelResult<Step242ProductStructure>.Failure([new(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Error, "STEP contains neither an admitted AP242 occurrence hierarchy nor ambiguous multipart multiplicity; retain the ordinary single-part import path.", "Importer.Assembly.ProductStructure")]);
             var flat = geometricDefinitions.Select((definition, index) => new Step242ImportedProductOccurrence(
                 $"normalized-occurrence:{index + 1:D4}", definition.Name, null, definition.StableId, Identity(), definition.RigidRootEntityId ?? definition.ProductDefinitionEntityId)).ToArray();
-            return KernelResult<Step242ProductStructure>.Success(new("aetheris:normalized-multipart-assembly", importedDefinitions, flat), [
+            return KernelResult<Step242ProductStructure>.Success(new("aetheris:normalized-multipart-assembly", importedDefinitions, flat,
+                "RecoveredMultiBodyAssembly", Timing(started, parsedAt, geometryAt, Stopwatch.GetTimestamp())), [
                 new(KernelDiagnosticCode.NotImplemented, KernelDiagnosticSeverity.Info,
                     "Incoming STEP provides multiple independent rigid products without trustworthy hierarchy; Aetheris normalized multiplicity to a flat Assembly.", "Importer.Assembly.MultiplicityNormalization")]);
         }
@@ -270,12 +324,40 @@ public static class Step242AssemblyImporter
             var transform = document.TryGetEntity(transformId.Value).Value;
             var placementId = Ref(transform, 3); if (placementId is not null) transformByUsage[usageId] = Placement(document, placementId.Value);
         }
+        foreach (var usage in usages)
+            if (!transformByUsage.ContainsKey(usage.Id))
+                return KernelResult<Step242ProductStructure>.Failure([new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error,
+                    $"Occurrence '{occurrenceStableByUsage[usage.Id]}' (STEP #{usage.Id}) has no supported rigid placement relationship.", "Importer.Assembly.MissingOccurrenceTransform")]);
+        foreach (var (usageId, matrix) in transformByUsage)
+        {
+            try { Transform3D.FromRowMajor(matrix); }
+            catch (ArgumentException exception)
+            {
+                return KernelResult<Step242ProductStructure>.Failure([new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error,
+                    $"STEP occurrence #{usageId} has unsupported non-rigid placement: {exception.Message}", "Importer.Assembly.NonRigidTransform")]);
+            }
+        }
         var childPds = usages.Select(usage => Ref(usage, 4)!.Value).ToHashSet();
         var rootPd = usages.Select(usage => Ref(usage, 3)!.Value).First(id => !childPds.Contains(id));
         var usagesByParentDefinition = usages.GroupBy(usage => Ref(usage, 3)!.Value).ToDictionary(group => group.Key, group => group.OrderBy(item => item.Id).ToArray());
         var occurrences = new List<Step242ImportedProductOccurrence>();
         var usedOccurrenceStableIds = new HashSet<string>(StringComparer.Ordinal);
         foreach (var usage in usagesByParentDefinition.GetValueOrDefault(rootPd, [])) Expand(usage, null, 0);
+        if (splitDefinitionsByPd.TryGetValue(rootPd, out var rootComponents))
+            foreach (var component in rootComponents)
+                occurrences.Add(new($"root-solid:{component.RigidRootEntityId}", component.Name, null, component.StableId,
+                    Identity(), component.RigidRootEntityId!.Value));
+        if (usages.Any(usage => occurrences.All(occurrence => occurrence.StepEntityId != usage.Id)))
+            return KernelResult<Step242ProductStructure>.Failure([new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error,
+                "One or more STEP occurrence relationships were not reachable from the root product.", "Importer.Assembly.DisconnectedOccurrences")]);
+        foreach (var occurrence in occurrences)
+        {
+            var definition = importedDefinitions.Single(item => item.StableId == occurrence.DefinitionStableId);
+            if (definition.Geometry is null && occurrences.All(item => item.ParentStableId != occurrence.StableId))
+                return KernelResult<Step242ProductStructure>.Failure([new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error,
+                    $"STEP occurrence '{occurrence.Name}' (#{occurrence.StepEntityId}) has no imported body and no child occurrences; product definition #{definition.ProductDefinitionEntityId} cannot be represented without dropping a component.",
+                    "Importer.Assembly.MissingComponentGeometry")]);
+        }
         void Expand(Step242ParsedEntity usage, string? parentStableId, int depth)
         {
             if (depth > usages.Length) throw new InvalidOperationException("AP242 assembly definition hierarchy is cyclic.");
@@ -285,10 +367,23 @@ public static class Step242AssemblyImporter
             var childPd = Ref(usage, 4)!.Value;
             occurrences.Add(new(stableId, Text(usage, 1) ?? baseStableId, parentStableId, stableByPd[childPd],
                 transformByUsage.TryGetValue(usage.Id, out var matrix) ? matrix : Identity(), usage.Id));
+            if (splitDefinitionsByPd.TryGetValue(childPd, out var components))
+                foreach (var component in components)
+                    occurrences.Add(new($"{stableId}/solid:{component.RigidRootEntityId}", component.Name, stableId,
+                        component.StableId, Identity(), component.RigidRootEntityId!.Value));
             foreach (var childUsage in usagesByParentDefinition.GetValueOrDefault(childPd, [])) Expand(childUsage, stableId, depth + 1);
         }
-        return KernelResult<Step242ProductStructure>.Success(new(stableByPd[rootPd], importedDefinitions, occurrences));
+        return KernelResult<Step242ProductStructure>.Success(new(stableByPd[rootPd], importedDefinitions, occurrences,
+            "SourceAssembly", Timing(started, parsedAt, geometryAt, Stopwatch.GetTimestamp())));
     }
+
+    private static IReadOnlyDictionary<string, double> Timing(long started, long parsedAt, long geometryAt, long completed) =>
+        new Dictionary<string, double>
+        {
+            ["stepParseMilliseconds"] = Stopwatch.GetElapsedTime(started, parsedAt).TotalMilliseconds,
+            ["uniqueDefinitionImportMilliseconds"] = Stopwatch.GetElapsedTime(parsedAt, geometryAt).TotalMilliseconds,
+            ["assemblyGraphMilliseconds"] = Stopwatch.GetElapsedTime(geometryAt, completed).TotalMilliseconds
+        };
 
     private static int? Ref(Step242ParsedEntity entity, int index) => entity.Arguments.ElementAtOrDefault(index) is Step242EntityReference reference ? reference.TargetId : null;
     private static string? Text(Step242ParsedEntity entity, int index) => entity.Arguments.ElementAtOrDefault(index) is Step242StringValue text ? text.Value : null;

@@ -216,6 +216,10 @@ For X1, Feature is supported by the `Mechanical` frontend. `WireForm`, `Sweep`, 
 
 ## Finite Profile and Path composition
 
+Named single-loop Profiles can be placed through Concept Curve2 values before
+being traced into a new Profile. See [Concept derivation](concept-derivation.md)
+for From/On/Translate/Rotate and bounded uniform Scale/Pivot syntax.
+
 `|>` composes compatible semantic geometry in a finite authoring pipeline. In a Profile loop, each source span is traced in authored order and automatically oriented to continue from the preceding endpoint:
 
 ```firmament

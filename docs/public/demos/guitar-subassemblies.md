@@ -14,6 +14,7 @@ guitar.firmasm
 ├─ hardware-definitions.firmament   shared exact part templates and HardwareSite
 ├─ body-assembly.firmament          back, binding and carved top
 │  └─ MahoganyBack / IvoryBinding / CarvedMaple.firmament  SectionChain sources
+│     └─ body-outline.firmament  Shared boundary for nine Concept placements
 ├─ neck-assembly.firmament          neck, board, frets, inlays, nut and headstock
 │  ├─ Neck.firmament                exact six-section neck and published ports
 │  └─ tuners-assembly.firmament     keyed tuner posts, washers and buttons

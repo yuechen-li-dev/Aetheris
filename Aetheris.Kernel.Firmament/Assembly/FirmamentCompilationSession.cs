@@ -137,6 +137,15 @@ internal sealed class AssemblyDefinitionCache(int capacity)
                 if (!File.Exists(path)) return null;
                 inputs = File.ReadAllText(path);
             }
+            if (!identity.StartsWith("ExternalStep", StringComparison.Ordinal))
+            {
+                var resourcePath = project is not null ? requested
+                    : Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(sourceIdentity))!, requested));
+                var errors = new List<AssemblyDiagnostic>();
+                var loaded = AssemblyM0Parser.LoadResource(resourcePath, project, [], errors);
+                if (loaded is null || errors.Count != 0) return null;
+                inputs = loaded;
+            }
         }
         else
         {

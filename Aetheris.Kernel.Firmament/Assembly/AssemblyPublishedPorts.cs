@@ -38,6 +38,12 @@ internal static class AssemblyPublishedPorts
                 { diagnostics.Add(new("assembly-profile-unresolved-resource", $"Port source '{requested}' was not found at '{path}'.")); return []; }
                 source = File.ReadAllText(path);
             }
+            var resourceDependencies = new List<AssemblySourceDependencyIr>();
+            var loaded = AssemblyM0Parser.LoadResource(path, project, resourceDependencies, diagnostics);
+            if (loaded is null) return [];
+            source = loaded;
+            dependencies.AddRange(resourceDependencies.Where(d => !dependencies.Any(existing => existing.Path == d.Path))
+                .Select(d => d with { IsRoot = false }));
             if (!dependencies.Any(d => d.Path == path))
                 dependencies.Add(new(path, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(source))), false));
             if (!Regex.IsMatch(source, @"\bExpose\s*\{\s*Semantic\b")) return [];

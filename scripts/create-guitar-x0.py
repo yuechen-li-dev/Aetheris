@@ -40,22 +40,27 @@ def profile(name, pts):
     return '\n'.join(rows)
 
 def body_chain(name, stations, continuity):
-    rows=[f'Model {name} {{', ' Units: mm', ' Concept Struct Frames {']
+    rows=['Include "body-outline.firmament";', f'Model {name} {{', ' Units: mm', ' Concept Struct Frames {']
     for i,(z,scale) in enumerate(stations):
         rows.append(f'  S{i}: Plane {{ Origin: [0mm,0mm,{z}mm]; Normal: [0,0,1]; Up: [0,1,0] }}')
     rows.append(' }')
+    rows.append(' Concept Struct SectionLayout {')
+    for i,(z,scale) in enumerate(stations):
+        rows.append(f'  Curve2 Outline{i} {{ From: BodyOutline; On: XY; Scale: {number(scale)}; Pivot: [0mm,-25mm]; Translate: [0mm,0mm]; Rotate: 0deg }}')
+    rows.append(' }')
     for i,(z,scale) in enumerate(stations):
         rows.append(f' Construction Plane F{i} {{ Trace: Frames.S{i} }}')
-        rows.append(profile(f'P{i}',[(x*scale,(y+25)*scale-25) for x,y in OUTLINE]))
+        rows.append(f' Profile P{i} Using SectionLayout {{ Loop Outer {{ Outline{i} |> TraceLoop }} }}')
     rows.append(f' SectionChain {name} {{ Continuity: {continuity}')
     for i in range(len(stations)):
         rows.append(f'  Section S{i} {{ Frame: F{i}\n   Profile: P{i}\n   Seam: Edge0 }}')
     rows.extend(['  Start: Cap', '  End: Cap', ' }'])
     if name == 'CarvedMaple':
-        rows.append(' Expose { Semantic TopSeat { DatumFrame Frame = [0mm,0mm,53mm] x [1,0,0] y [0,1,0] z [0,0,1]; } }')
+        rows.append(' Expose { Semantic TopSeat { DatumFrame Frame = CarvedMaple.Section.S4.Frame; } }')
     rows.append('}')
     (ROOT/f'{name}.firmament').write_text('\n'.join(rows)+'\n')
 
+(ROOT/'body-outline.firmament').write_text('// Shared authored single-cut boundary; Concept placements derive each section.\n'+profile('BodyOutline',OUTLINE)+'\n')
 body_chain('MahoganyBack',[(0,1),(38,1)],'G0')
 body_chain('IvoryBinding',[(38,1),(40,1)],'G0')
 body_chain('CarvedMaple',[(40,.992),(43,.955),(48,.84),(52,.76),(53,.72)],'G1')
@@ -298,7 +303,7 @@ string_template=templates[:string_end]
 (ROOT/'hardware-definitions.firmament').write_text(templates[string_end:]+'\nRecord HardwareSite { X: Length; Y: Length; Z: Length }\n')
 # Concept layout is authored once and shared by each owning subassembly.
 (ROOT/'hardware-layout.firmament').write_text('''Concept Struct GuitarLayout {
- Plane HardwareDeck { Origin: [0mm,0mm,53mm]; Normal: [0,0,1]; Up: [0,1,0] }
+ Plane HardwareDeck { From: SectionChainFile<"CarvedMaple.firmament">.TopSeat.Frame; Offset: 0mm; Clocking: 0deg }
  DatumFrame BodySeat { On: HardwareDeck; At: [0mm,0mm]; X: [1,0] }
  DatumFrame NeckPickupSeat { On: HardwareDeck; At: [0mm,98mm]; X: [1,0] }
  DatumFrame BridgePickupSeat { On: HardwareDeck; At: [0mm,0mm]; X: [1,0] }

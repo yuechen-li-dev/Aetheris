@@ -24,7 +24,7 @@ public sealed class GuitarSurfacingWitnessTests
         Assert.Equal(660, nut.OriginY, 6);
         Assert.Equal(55, nut.OriginZ, 6);
         Assert.DoesNotContain("Headstock", neck.SemanticRoot.ExposedMembers.Keys);
-        Assert.Equal(15, result.Ir.SourceDependencies!.Count);
+        Assert.Equal(16, result.Ir.SourceDependencies!.Count);
         Assert.Contains(result.Ir.SourceDependencies, d => d.Path == "tuners-assembly.firmament");
     }
     [Fact]

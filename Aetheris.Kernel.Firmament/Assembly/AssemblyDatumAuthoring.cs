@@ -28,13 +28,30 @@ internal static class AssemblyDatumAuthoring
                 var fields = AssemblyM0Parser.BalancedBody(body, member.Index + member.Length - 1, diagnostics, "layout plane")!;
                 if (fields is null) continue;
                 var name = member.Groups["name"].Value;
-                var origin = Vector(fields, "Origin", 3, true, diagnostics);
-                var normal = Vector(fields, "Normal", 3, false, diagnostics);
-                var up = Vector(fields, "Up", 3, false, diagnostics);
-                CheckFields(fields, ["Origin", "Normal", "Up"], diagnostics);
-                var transform = new AssemblyFrameTransformSource(owner + "_" + name, "World", origin, "Z", 0, normal, up,
-                    new(sourceIdentity, header.Index + member.Index, member.Length + fields.Length + 1));
-                AssemblyFrameAuthoring.Compose(Transform3D.Identity, transform, diagnostics);
+                AssemblyFrameTransformSource transform;
+                var span = new SemanticSourceSpan(sourceIdentity, header.Index + member.Index, member.Length + fields.Length + 1);
+                if (Regex.IsMatch(fields, @"\bFrom\s*:"))
+                {
+                    var from = Regex.Match(fields, @"\bFrom\s*:\s*(?<v>(?:SectionChainFile|LoftFile)<""[^""]+"">(?:\.\w+)+|\w+(?:\.\w+)+)\s*;?");
+                    if (!from.Success || Regex.Matches(fields, @"\bFrom\s*:").Count != 1)
+                        diagnostics.Add(new("assembly-datum-source-invalid", "From requires one published frame or Concept plane."));
+                    var offset = Measure(fields, "Offset", "mm", diagnostics);
+                    var clocking = Measure(fields, "Clocking", "deg", diagnostics);
+                    var planeRemaining = from.Success ? fields.Remove(from.Index, from.Length) : fields;
+                    planeRemaining = Regex.Replace(planeRemaining, @"\b(?:Offset|Clocking)\s*:\s*[-+0-9.eE]+(?:mm|deg)\s*;?", "");
+                    if (!string.IsNullOrWhiteSpace(planeRemaining.Replace(";", "")))
+                        diagnostics.Add(new("assembly-datum-fields-invalid", "Derived Plane admits From, Offset and Clocking only."));
+                    transform = new(owner + "_" + name, from.Groups["v"].Value, [0,0,offset], "Z", clocking, SourceSpan: span);
+                }
+                else
+                {
+                    var origin = Vector(fields, "Origin", 3, true, diagnostics);
+                    var normal = Vector(fields, "Normal", 3, false, diagnostics);
+                    var up = Vector(fields, "Up", 3, false, diagnostics);
+                    CheckFields(fields, ["Origin", "Normal", "Up"], diagnostics);
+                    transform = new(owner + "_" + name, "World", origin, "Z", 0, normal, up, span);
+                    AssemblyFrameAuthoring.Compose(Transform3D.Identity, transform, diagnostics);
+                }
                 if (!planes.TryAdd(name, transform)) diagnostics.Add(new("assembly-datum-duplicate", $"Duplicate plane '{owner}.{name}'."));
                 result.Add(new(owner + "." + name, owner + "." + name, transform));
                 remaining = remaining.Replace(member.Value + fields + "}", "", StringComparison.Ordinal);
@@ -52,12 +69,8 @@ internal static class AssemblyDatumAuthoring
                 if (Math.Sqrt(x[0]*x[0] + x[1]*x[1]) < 1e-12)
                     diagnostics.Add(new("assembly-datum-invalid-direction", "DatumFrame X must be nonzero."));
                 var angle = Math.Atan2(x[1], x[0]) * 180 / Math.PI;
-                var basis = AssemblyFrameAuthoring.Compose(Transform3D.Identity, plane, diagnostics);
-                var matrix = (Transform3D.CreateRotationZ(angle * Math.PI / 180)
-                    * Transform3D.CreateTranslation(new(at[0], at[1], 0)) * basis).ToRowMajor();
                 var name = member.Groups["name"].Value;
-                var frame = new AssemblyFrameTransformSource(owner + "_" + name, "World", [matrix[12], matrix[13], matrix[14]], "Z", 0,
-                    [matrix[8], matrix[9], matrix[10]], [matrix[4], matrix[5], matrix[6]], plane.SourceSpan);
+                var frame = new AssemblyFrameTransformSource(owner + "_" + name, owner + "." + planeName, [at[0], at[1], 0], "Z", angle, SourceSpan: plane.SourceSpan);
                 result.Add(new(owner + "." + name, owner + "." + planeName, frame));
                 remaining = remaining.Replace(member.Value + fields + "}", "", StringComparison.Ordinal);
             }
@@ -67,6 +80,17 @@ internal static class AssemblyDatumAuthoring
         }
         if (result.Select(d => d.Identity).Distinct(StringComparer.Ordinal).Count() != result.Count)
             diagnostics.Add(new("assembly-datum-duplicate", "Concept layout datum identities must be unique."));
+        foreach (var value in result)
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            var current = value;
+            while (current is not null)
+            {
+                if (!seen.Add(current.Identity))
+                { diagnostics.Add(new("assembly-datum-dependency-cycle", $"Concept datum cycle at '{current.Identity}'.")); break; }
+                current = result.FirstOrDefault(d => d.Identity == current.Transform.From);
+            }
+        }
         declarations = new string(masked);
         return result;
     }
@@ -86,10 +110,77 @@ internal static class AssemblyDatumAuthoring
 
     internal static AssemblyMemberSource Bind(string body, AssemblyMemberSource root,
         IReadOnlyList<AssemblyLayoutDatum> layout, IReadOnlyList<InterfaceDefinition> interfaces,
-        List<AssemblyDiagnostic> diagnostics, out IReadOnlyList<AssemblyFrameTransformSource> frames)
+        List<AssemblyDiagnostic> diagnostics, out IReadOnlyList<AssemblyFrameTransformSource> frames,
+        Func<string, IReadOnlyList<SemanticValue>>? publishedPorts = null)
     {
         var usedFrames = new Dictionary<string, AssemblyFrameTransformSource>(StringComparer.Ordinal);
         var seats = new Dictionary<string, (AssemblyDatumSeat Seat, AssemblyFramePlacementSource Placement)>(StringComparer.Ordinal);
+        var resolved = new Dictionary<string, AssemblyLayoutDatum>(StringComparer.Ordinal);
+        var active = new HashSet<string>(StringComparer.Ordinal);
+        AssemblyLayoutDatum? Resolve(AssemblyLayoutDatum value)
+        {
+            if (resolved.TryGetValue(value.Identity, out var cached)) return cached;
+            if (!active.Add(value.Identity))
+            { diagnostics.Add(new("assembly-datum-dependency-cycle", $"Concept datum cycle at '{value.Identity}'.")); return null; }
+            var from = value.Transform.From;
+            Transform3D basis = Transform3D.Identity;
+            if (layout.FirstOrDefault(d => d.Identity == from) is { } parent)
+            {
+                var r = Resolve(parent);
+                if (r is null) { active.Remove(value.Identity); return null; }
+                basis = AssemblyFrameAuthoring.Compose(Transform3D.Identity, r.Transform, diagnostics);
+            }
+            else if (from != "World")
+            {
+                var file = Regex.Match(from, @"^(?<id>(?:SectionChainFile|LoftFile)<""[^""]+"">)\.(?<port>\w+)\.Frame$");
+                IReadOnlyList<SemanticValue>? ports = null;
+                string port = "";
+                Transform3D placement = Transform3D.Identity;
+                if (file.Success)
+                { ports = publishedPorts?.Invoke(file.Groups["id"].Value); port = file.Groups["port"].Value; }
+                else
+                {
+                    var path = from.Split('.');
+                    if (path.Length == 4 && path[0] == root.Name && path[3] == "Frame"
+                        && root.Children.FirstOrDefault(c => c.Name == path[1] && c.Kind == AssemblyInstanceKind.Part) is { } child)
+                    {
+                        // A source must already have an independent placement. Never
+                        // evaluate the very occurrence that this datum will place.
+                        if ((child.ExplicitTransform is null && child.FramePlacement?.Target.From != "World") || Regex.IsMatch(body,
+                            $@"\bMember\s*:\s*{Regex.Escape(root.Name + "." + child.Name)}\."))
+                        { diagnostics.Add(new("assembly-datum-source-placement-dependent", $"'{from}' requires an independently placed direct Part.")); active.Remove(value.Identity); return null; }
+                        ports = child.ExposedSemantics; port = path[2];
+                        if (child.ExplicitTransform is { } explicitPlacement) placement = Transform3D.FromRowMajor(explicitPlacement.Matrix);
+                        else
+                        {
+                            var authored = child.FramePlacement!;
+                            var local = Transform3D.Identity;
+                            if (authored.From != "Origin")
+                            {
+                                var pieces = authored.From.Split('.');
+                                var sourcePort = ports.FirstOrDefault(p => p.ExposedName == pieces[0]);
+                                if (pieces.Length != 2 || pieces[1] != "Frame" ||
+                                    sourcePort is null || !sourcePort.ExposedMembers.TryGetValue("Frame", out var sourceFrame) ||
+                                    !sourceFrame.TryBinding<ExactDatumFrameBinding>(out var exactSource))
+                                { diagnostics.Add(new("assembly-datum-source-unresolved", $"Cannot resolve source Placement '{authored.From}'.")); active.Remove(value.Identity); return null; }
+                                local = AssemblyFrameAuthoring.Matrix(exactSource);
+                            }
+                            placement = local.Inverse() * AssemblyFrameAuthoring.Compose(Transform3D.Identity, authored.Target, diagnostics);
+                        }
+                    }
+                }
+                var semantic = ports?.FirstOrDefault(p => p.ExposedName == port);
+                if (semantic is null || !semantic.ExposedMembers.TryGetValue("Frame", out var member) || !member.TryBinding<ExactDatumFrameBinding>(out var frame))
+                { diagnostics.Add(new("assembly-datum-source-unresolved", $"Cannot resolve published frame '{from}' in '{root.Name}'.")); active.Remove(value.Identity); return null; }
+                basis = AssemblyFrameAuthoring.Matrix(frame) * placement;
+            }
+            var m = AssemblyFrameAuthoring.Compose(basis, value.Transform, diagnostics).ToRowMajor();
+            var result = value with { Transform = value.Transform with { From = "World", Translation = [m[12],m[13],m[14]], RotationDegrees = 0,
+                Normal = [m[8],m[9],m[10]], Up = [m[4],m[5],m[6]] } };
+            active.Remove(value.Identity);
+            resolved[value.Identity] = result;
+            return result;
+        }
         foreach (Match header in Regex.Matches(body, @"\bMate\s+(?<name>\w+)\s*:\s*(?<type>\w+)\s*\{"))
         {
             var fields = AssemblyM0Parser.BalancedBody(body, header.Index + header.Length - 1, diagnostics, "datum Mate")!;
@@ -110,8 +201,10 @@ internal static class AssemblyDatumAuthoring
                 diagnostics.Add(new("assembly-datum-support-invalid", "Support requires true or false."));
             if (!contract.Members.Contains(member, StringComparer.Ordinal))
                 diagnostics.Add(new("assembly-datum-member-outside-contract", $"'{member}' is not a member of '{header.Groups["type"].Value}'."));
-            var datum = layout.FirstOrDefault(d => d.Identity == contract.Datum && d.Plane == d.Identity);
-            var target = layout.FirstOrDefault(d => d.Identity == at);
+            var datumSource = layout.FirstOrDefault(d => d.Identity == contract.Datum && d.Plane == d.Identity);
+            var targetSource = layout.FirstOrDefault(d => d.Identity == at);
+            var datum = datumSource is null ? null : Resolve(datumSource);
+            var target = targetSource is null ? null : Resolve(targetSource);
             if (datum is null || target is null || target.Identity == target.Plane || target.Plane != contract.Datum)
             { diagnostics.Add(new("assembly-datum-target-invalid", $"'{at}' must be a frame on Concept plane '{contract.Datum}'.")); continue; }
             if (orientation is not ("SameDirection" or "OpposedDirection"))
@@ -148,10 +241,21 @@ internal static class AssemblyDatumAuthoring
                 diagnostics.Add(new("assembly-placement-authority-conflict", $"'{root.Name}.{child.Name}' has authored Placement and datum Mate."));
             return child with { FramePlacement = seating.Placement, DatumSeat = seating.Seat,
                 PlacementAuthority = PlacementAuthority.AuthoredFrame,
-                Provenance = [.. child.Provenance ?? [], new("concept-datum-seating", seating.Seat.Datum, seating.Seat.Interface)] };
+                Provenance = [.. child.Provenance ?? [], new("concept-datum-seating", seating.Seat.Datum, seating.Seat.Interface),
+                    new("concept-datum-derivation", layout.First(d => d.Identity == seating.Seat.Datum).Transform.From, seating.Seat.Datum)] };
         }).ToArray();
         frames = usedFrames.Values.ToArray();
         return root with { Children = children };
+    }
+
+    private static double Measure(string fields, string name, string unit, List<AssemblyDiagnostic> diagnostics)
+    {
+        var matches = Regex.Matches(fields, $@"\b{name}\s*:\s*(?<v>[-+0-9.eE]+){unit}\s*;?");
+        if (!Regex.IsMatch(fields, $@"\b{name}\s*:")) return 0;
+        if (matches.Count != 1 || Regex.Matches(fields, $@"\b{name}\s*:").Count != 1
+            || !double.TryParse(matches[0].Groups["v"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var result) || !double.IsFinite(result))
+        { diagnostics.Add(new("assembly-datum-measure-invalid", $"'{name}' requires one finite value in {unit}.")); return 0; }
+        return result;
     }
 
     private static string Field(string fields, string name, List<AssemblyDiagnostic> diagnostics)

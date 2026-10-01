@@ -9,7 +9,11 @@ public sealed record SectionChainAuthoringResult(
     SectionChain? Chain,
     SectionChainMaterializationResult? Materialization,
     IReadOnlyList<string> Diagnostics,
-    LoftAuthoredBinding? LoftBinding = null);
+    LoftAuthoredBinding? LoftBinding = null,
+    IReadOnlyList<SectionChainProfileDerivation>? ProfileDerivations = null);
+
+public sealed record SectionChainProfileDerivation(string Section, string Profile, string ConceptCurve,
+    string SourceSegment, string Transform, string Plane);
 
 public sealed record LoftAuthoredBinding(string Name, string RearProfile, string RearFrame,
     string FrontProfile, string FrontFrame, IReadOnlyList<double> Reference, double TwistDegrees,
@@ -22,6 +26,13 @@ public sealed record LoftAuthoredBinding(string Name, string RearProfile, string
 /// </summary>
 public static class SectionChainAuthoringParser
 {
+    public static SectionChainAuthoringResult CompileFile(string path, bool materialize = true)
+    {
+        var errors = new List<Assembly.AssemblyDiagnostic>();
+        var source = Assembly.AssemblyM0Parser.LoadResource(path, null, [], errors);
+        return source is null || errors.Count != 0 ? new(false, null, null, errors.Select(d => d.Code + ":" + d.Message).ToArray())
+            : Compile(source, materialize);
+    }
     public static bool IsSectionChainSource(string source) =>
         Regex.IsMatch(source, @"\bSectionChain\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant)
         || LoftAuthoringParser.IsLoftSource(source);
@@ -56,6 +67,7 @@ public static class SectionChainAuthoringParser
             diagnostics.Add($"section-chain-termination-invalid:End:{endText}");
 
         var sections = new List<Section>();
+        var derivations = new List<SectionChainProfileDerivation>();
         foreach (var authored in Blocks(declaration.Body, "Section"))
         {
             var frameName = Field(authored.Body, "Frame");
@@ -74,6 +86,10 @@ public static class SectionChainAuthoringParser
             if (frameName is not null && plane is null) diagnostics.Add($"section-chain-frame-unresolved:{authored.Name}:{frameName}");
             if (plane is null || profile is null) continue;
             var outer = profile.Loops.Single(loop => loop.IsOuter);
+            if (outer.Segments.FirstOrDefault()?.Provenance is { } provenance
+                && provenance.ConceptStableId.StartsWith("concept-curve:", StringComparison.Ordinal))
+                derivations.Add(new(authored.Name, profile.Name, provenance.ConceptStableId,
+                    provenance.TracedFrom ?? "", provenance.Derivation, profile.PlaneFrame));
             if (profile.Loops.Count != 1) diagnostics.Add($"section-chain-profile-loop-count-invalid:{authored.Name}");
             var spans = outer.Segments.Select(segment => Convert(segment, diagnostics, authored.Name)).Where(item => item is not null).Cast<SectionProfileSpan>().ToArray();
             var seamId = seam ?? spans.FirstOrDefault()?.SpanId ?? string.Empty;
@@ -99,11 +115,11 @@ public static class SectionChainAuthoringParser
             diagnostics.Add("section-chain-normalization-tolerance-invalid:positive-length-required");
         if (diagnostics.Count != 0) return Fail(diagnostics);
         var chain = new SectionChain(declaration.Name, sections, correspondence, transition, start, end, continuity, ProfileApproximationTolerance: tolerance);
-        if (!materialize) return new(true, chain, null, []);
+        if (!materialize) return new(true, chain, null, [], ProfileDerivations: derivations);
         var result = SectionChainMaterializer.Materialize(chain);
         if (!result.IsSuccess)
             diagnostics.AddRange(result.Diagnostics.Select(item => $"{item.Code}:{item.Message}"));
-        return new(result.IsSuccess, chain, result, diagnostics);
+        return new(result.IsSuccess, chain, result, diagnostics, ProfileDerivations: derivations);
 
         SectionChainAuthoringResult Fail(IEnumerable<string> items) => new(false, null, null, items.Distinct(StringComparer.Ordinal).ToArray());
     }

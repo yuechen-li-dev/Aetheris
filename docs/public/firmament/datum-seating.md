@@ -41,6 +41,10 @@ Each member must be realized once. Members are direct part ports within their
 owning assembly; direct traversal through private subassembly children is not
 admitted. Concept structures inside part definitions remain part-owned.
 
+Planes can also derive from published frames with Offset/Clocking; see
+[derived Concept frames and boundaries](concept-derivation.md) for supported
+sources, dependency rules and the guitar's current shared-outline authoring.
+
 Reusable subassemblies can share the same layout declaration, with scoped seating
 contracts for their own parts. Frames are interpreted in the owning assembly's
 coordinates, following the existing local-definition model. The guitar's owning
@@ -66,7 +70,8 @@ or screw engagement. Existing mate residual and solid-interference checks remain
 ## Guitar migration
 
 [`hardware-layout.firmament`](../../../fixtures/Canonical/AssemblyInterfaces/GuitarX0/hardware-layout.firmament)
-owns the single 53mm HardwareDeck and the body, pickup and bridge target frames.
+owns HardwareDeck and the body, pickup and bridge target frames. HardwareDeck now
+derives from CarvedMaple's published top-section frame, whose authored height is 53mm.
 Body, pickup and bridge subassemblies reference that plane through scoped Fixed
 contracts. Their seating ports are published by the part definitions.
 
@@ -89,8 +94,8 @@ passing with zero plane residual. Moving only the Concept deck in the regression
 reuses the two part geometry definitions and recomputes their assembly placement.
 
 AP242 export and CLI reimport succeeded with 126 occurrences excluding the root.
-Export reports 60 definitions; reimport reports 53 geometry definitions and seven
-subassemblies.
+Export reports 60 definitions (53 geometry and seven assembly definitions);
+reimport reports 53 geometry definitions and 35 subassembly occurrences.
 USD export and Blender Cycles rendering also succeeded. The refreshed hero and
 close side image were visually inspected; the side image shows bridge contact
 with the body. This change did not repeat browser camera-interaction qualification.

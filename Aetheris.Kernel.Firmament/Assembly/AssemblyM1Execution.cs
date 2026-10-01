@@ -107,6 +107,9 @@ internal static class AssemblyDefinitionMaterializer
                     }
                     sectionSource = File.ReadAllText(sectionPath);
                 }
+                var loaded = AssemblyM0Parser.LoadResource(sectionPath, project, [], diagnostics);
+                if (loaded is null) return null;
+                sectionSource = loaded;
                 var section = SectionChainAuthoringParser.Compile(AssemblyPublishedPorts.Strip(sectionSource, diagnostics));
                 if (!section.IsSuccess || section.Materialization?.Body is not { } sectionBody ||
                     section.Materialization.StructureKind != SectionChainStructureKind.ClosedSolid)
@@ -133,7 +136,9 @@ internal static class AssemblyDefinitionMaterializer
                 }
                 var sectionHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sectionStep.Value)));
                 var sectionStableId = "assembly-definition:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(definitionIdentity)))[..16];
-                var sectionProvenance = new[] { new SemanticProvenance("section-chain-source", sectionPath, section.Chain!.StableId, SemanticSourceSpan.Generated(sourceIdentity)) };
+                var sectionProvenance = new[] { new SemanticProvenance("section-chain-source", sectionPath, section.Chain!.StableId, SemanticSourceSpan.Generated(sourceIdentity)) }
+                    .Concat((section.ProfileDerivations ?? []).Select(d => new SemanticProvenance("concept-boundary-placement",
+                        d.ConceptCurve, d.Profile + ":" + d.Transform, SemanticSourceSpan.Generated(sectionPath)))).ToArray();
                 var ports = AssemblyPublishedPorts.Read(sectionSource,section.Chain.StableId,definitionIdentity,sectionPath,diagnostics,section.Chain);
                 return new(definitionIdentity, "section-chain:" + sectionHash[..16], sectionImport.Value, ports,
                     new(sectionStableId, definitionIdentity, "section-chain:" + sectionHash[..16], sectionHash, Metrics(sectionImport.Value), sectionProvenance), sectionStep.Value);

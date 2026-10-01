@@ -575,9 +575,10 @@ public static class CliRunner
         }
         SectionChainMaterializationResult materialized;
         SectionChain chain;
+        IReadOnlyList<SectionChainProfileDerivation>? profileDerivations = null;
         if (File.Exists(witness))
         {
-            var authored = SectionChainAuthoringParser.Compile(File.ReadAllText(witness));
+            var authored = SectionChainAuthoringParser.CompileFile(witness);
             if (!authored.IsSuccess || authored.Chain is null || authored.Materialization is null)
             {
                 var failure = new { command = $"section-chain {operation}", success = false, input = Path.GetFullPath(witness), diagnostics = authored.Diagnostics };
@@ -585,6 +586,7 @@ public static class CliRunner
                 return 1;
             }
             chain = authored.Chain; materialized = authored.Materialization;
+            profileDerivations = authored.ProfileDerivations;
         }
         else
         {
@@ -611,6 +613,7 @@ public static class CliRunner
             var inspection = new
             {
                 command = $"section-chain {operation}", success = true, chain.StableId,
+                profileDerivations,
                 sections = chain.Sections.Select(section => new { section.SectionId, section.Frame, profile = section.Profile.StableId, spans = section.Profile.Spans.Select(span => span.SpanId), seam = section.Profile.SeamSpanId }),
                 chain.Correspondence,
                 resolvedCorrespondence = Enumerable.Range(0, chain.Sections.Count - 1).Select(index => new
@@ -1427,7 +1430,7 @@ Model CanonicalPanel {
         }
         if (frontend.Schema == FirmamentFrontendSchema.SectionChain)
         {
-            var section = SectionChainAuthoringParser.Compile(source);
+            var section = SectionChainAuthoringParser.CompileFile(fullPath);
             if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "inspect", success = section.IsSuccess, input = fullPath, domain = "SectionChain", sectionChain = section.Chain?.StableId, diagnostics = section.Diagnostics }, JsonOptions));
             else if (section.IsSuccess) stdout.WriteLine($"SectionChain {section.Chain!.StableId}: {section.Chain.Sections.Count} sections");
             else foreach (var diagnostic in section.Diagnostics) stderr.WriteLine("error: " + diagnostic);
@@ -2325,7 +2328,7 @@ Model CanonicalPanel {
         }
         if (frontend.Schema == FirmamentFrontendSchema.SectionChain)
         {
-            var section = SectionChainAuthoringParser.Compile(validationSource);
+            var section = SectionChainAuthoringParser.CompileFile(sourcePath);
             var payload = new { source = sourcePath, status = section.IsSuccess ? "valid" : "invalid", domain = "SectionChain", summary = new { fatalDiagnosticCount = section.Diagnostics.Count, warningDiagnosticCount = 0, sections = section.Chain?.Sections.Count ?? 0 }, diagnostics = section.Diagnostics };
             if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
             else stdout.WriteLine($"Firmament V2 SectionChain validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");

@@ -45,13 +45,23 @@ public static class ProfileAuthoringParser
 
     /// <summary>Resolves one named Profile without requiring an Extrude consumer.</summary>
     public static ResolvedProfile2D? ResolveNamedProfile(string source, string profileName, out IReadOnlyList<string> reportedDiagnostics)
+        => ResolveNamedProfileCore(source, profileName, new(StringComparer.Ordinal), out reportedDiagnostics);
+
+    internal static ResolvedProfile2D? ResolveNamedProfileCore(string source, string profileName, HashSet<string> visiting, out IReadOnlyList<string> reportedDiagnostics)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentException.ThrowIfNullOrWhiteSpace(profileName);
         var diagnostics = new List<string>();
+        if (!visiting.Add(profileName)) { reportedDiagnostics = [$"concept-profile-dependency-cycle:{profileName}"]; return null; }
         source = ExpandBuiltInPolygons(source, diagnostics);
         var expansion = FirmamentV2TemplateExpansion.Expand(source, diagnostics);
         if (expansion is not null) source = expansion.Source;
+        if (ConceptProfileDerivation.TryResolve(source, profileName, visiting, diagnostics, out var derived))
+        {
+            visiting.Remove(profileName);
+            reportedDiagnostics = diagnostics.Distinct(StringComparer.Ordinal).ToArray();
+            return diagnostics.Count == 0 ? derived : null;
+        }
         var declaration = FindProfiles(source).FirstOrDefault(profile => profile.Name == profileName);
         if (declaration is null) { reportedDiagnostics = [$"profile-source-missing-profile:{profileName}"]; return null; }
         var points = new Dictionary<string, (double X, double Y)>(StringComparer.Ordinal);
@@ -68,6 +78,7 @@ public static class ProfileAuthoringParser
             if (!validation.IsValid) profile = null;
         }
         reportedDiagnostics = diagnostics.Distinct(StringComparer.Ordinal).ToArray();
+        visiting.Remove(profileName);
         return profile;
     }
 
@@ -164,6 +175,12 @@ public static class ProfileAuthoringParser
         if (profile is null)
             return (null, 0, ["profile-source-missing-profile"]);
 
+        if (ConceptProfileDerivation.TryResolve(source, profile.Name, new(StringComparer.Ordinal) { profile.Name }, diagnostics, out var conceptProfile))
+        {
+            var depths = ResolveExtrude(source, profile.Name, diagnostics);
+            return (conceptProfile is null ? null : conceptProfile with { LocalStartDepth = depths.Start, LocalEndDepth = depths.End }, depths.Height, diagnostics);
+        }
+
         var points = new Dictionary<string, (double X, double Y)>(StringComparer.Ordinal);
         var guides = new Dictionary<string, LineArcProfileCurve2D>(StringComparer.Ordinal);
         AddOrdinaryGuides(source, points, guides, diagnostics);
@@ -197,6 +214,11 @@ public static class ProfileAuthoringParser
         var profiles = new Dictionary<string, ResolvedProfile2D>(StringComparer.Ordinal);
         foreach (var profile in authoredProfiles)
         {
+            if (ConceptProfileDerivation.TryResolve(source, profile.Name, new(StringComparer.Ordinal) { profile.Name }, diagnostics, out var derived))
+            {
+                if (derived is not null && !profiles.TryAdd(profile.Name, derived)) diagnostics.Add($"profile-duplicate:{profile.Name}");
+                continue;
+            }
             var plane = ResolveConstructionPlane(source, profile.Frame, diagnostics);
             var loops = BindProfileLoops(profile, paths, points, guides, diagnostics);
             if (plane is null || loops.Count == 0) continue;

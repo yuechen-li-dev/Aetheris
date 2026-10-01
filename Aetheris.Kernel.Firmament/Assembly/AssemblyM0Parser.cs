@@ -92,6 +92,11 @@ public sealed class AssemblyM0Parser
         return Path.GetDirectoryName(path)!;
     }
 
+    internal static string? LoadResource(string path, FirmamentProjectSnapshot? project,
+        List<AssemblySourceDependencyIr> dependencies, List<AssemblyDiagnostic> diagnostics)
+        => project is not null ? LoadProjectSource(path, project, [], dependencies, diagnostics)
+            : LoadSourceGraph(Path.GetFullPath(path), FindAllowedSourceRoot(Path.GetFullPath(path)), [], dependencies, diagnostics);
+
     public ParseResult Parse(string input, string sourceIdentity = "<memory>", FirmamentProjectSnapshot? project = null)
     {
         var watch = Stopwatch.StartNew();
@@ -154,7 +159,7 @@ public sealed class AssemblyM0Parser
         var anchorMatch = Regex.Match(RemoveBlocks(body, "Mate", @"Assert\s+ToleranceStackup"), @"\bAnchor\s*:\s*(?<path>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*;", RegexOptions.CultureInvariant);
         var anchor = anchorMatch.Success ? AssemblyPath.Parse(anchorMatch.Groups["path"].Value) : new AssemblyPath([tree.Name]);
         var frames = ParseFrameTransforms(body, sourceIdentity, diagnostics);
-        tree = AssemblyDatumAuthoring.Bind(body, tree, layout, interfaces, diagnostics, out var datumFrames);
+        tree = AssemblyDatumAuthoring.Bind(body, tree, layout, interfaces, diagnostics, out var datumFrames, Ports);
         frames = frames.Concat(datumFrames).ToArray();
         var result = new AssemblySource(assemblyHeader.Groups["name"].Value, tree, interfaces, mates, anchor, relations, asserts, sourceIdentity, definitionSource, assemblyDefinitions, SourceDependencies: portDependencies, FrameTransforms: frames, Patterns: expandedPatterns.Document?.Patterns);
         return Done(result);
@@ -390,7 +395,7 @@ public sealed class AssemblyM0Parser
             ranges.Add((template.Index, close - template.Index));
             var root = ParseTree(body, sourceIdentity, diagnostics, result, interfaces, new Dictionary<string, AssemblyMemberSource>(StringComparer.Ordinal), gearAuthorities, publishedPorts);
             if (root is null) continue;
-            root = AssemblyDatumAuthoring.Bind(body, root, layout ?? [], interfaces, diagnostics, out var datumFrames);
+            root = AssemblyDatumAuthoring.Bind(body, root, layout ?? [], interfaces, diagnostics, out var datumFrames, publishedPorts);
             var exposed = ParseAssemblyExposes(body, root, sourceIdentity, diagnostics);
             root = root with { ExposedSemantics = exposed, IsEncapsulatedDefinition = true };
             var name = template.Groups["name"].Value;

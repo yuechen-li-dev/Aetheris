@@ -6,30 +6,30 @@ Template<D: Length, Lead: Length, Tail: Length, Deflection: Angle> Struct Guitar
   Material: Standard.Materials.StainlessSteel.304_Annealed
   StartFrame { Origin: [0mm,0mm,0mm]; Tangent: [0,0,1]; Up: [1,0,0] }
   Straight SpeakingLength { Length: Lead }
-  Bend NutBreak { Radius: 3mm; Angle: Deflection; Plane: Up }
+  Bend NutBreak { Radius: 4mm; Angle: Deflection; Plane: Up }
   Straight TunerLead { Length: Tail }
  }
 }
 
 Subassembly GuitarStrings {
  <Assembly GuitarStrings>
-  <Part String0 = GuitarString<D:0.28mm,Lead:732.679593mm,Tail:59.754816mm,Deflection:13.639458deg>>
-   Placement { From: Origin; To: World; TranslateLocal: [-25.5mm,-75mm,65mm]; Normal: [0.0102313880420824,0.999947657979523,0]; Up: [0.677063937819737,-0.00692766648519513,0.735891589530075]; }
+  <Part String0 = GuitarString<D:0.28mm,Lead:732.589494mm,Tail:64.073073mm,Deflection:12.805738deg>>
+   Placement { From: Origin; To: World; TranslateLocal: [-25.5mm,-75mm,65mm]; Normal: [0.0102313880420824,0.999947657979523,0]; Up: [0.674337565008175,-0.00689977044687765,0.738390981517668]; }
   </Part>
-  <Part String1 = GuitarString<D:0.36mm,Lead:732.619706mm,Tail:96.378981mm,Deflection:14.968066deg>>
-   Placement { From: Origin; To: World; TranslateLocal: [-15.3mm,-75mm,65mm]; Normal: [0.00613903847430546,0.999981155925756,0]; Up: [0.67110198271469,-0.00411999852962634,0.741353596071758]; }
+  <Part String1 = GuitarString<D:0.36mm,Lead:732.509486mm,Tail:100.649868mm,Deflection:14.372058deg>>
+   Placement { From: Origin; To: World; TranslateLocal: [-15.3mm,-75mm,65mm]; Normal: [0.00613903847430546,0.999981155925756,0]; Up: [0.669164958053743,-0.00410810683661916,0.743102538261814]; }
   </Part>
-  <Part String2 = GuitarString<D:0.44mm,Lead:732.593764mm,Tail:133.054198mm,Deflection:15.480813deg>>
-   Placement { From: Origin; To: World; TranslateLocal: [-5.1mm,-75mm,65mm]; Normal: [0.00204638043552803,0.999997906161364,0]; Up: [0.664265923957594,-0.001359343637021,0.747495106641937]; }
+  <Part String2 = GuitarString<D:0.44mm,Lead:732.474127mm,Tail:137.301981mm,Deflection:15.022472deg>>
+   Placement { From: Origin; To: World; TranslateLocal: [-5.1mm,-75mm,65mm]; Normal: [0.00204638043552803,0.999997906161364,0]; Up: [0.662627199851135,-0.00135599017704871,0.748948165968837]; }
   </Part>
-  <Part String5 = GuitarString<D:0.68mm,Lead:732.679593mm,Tail:59.754816mm,Deflection:13.639458deg>>
-   Placement { From: Origin; To: World; TranslateLocal: [25.5mm,-75mm,65mm]; Normal: [-0.0102313880420824,0.999947657979523,0]; Up: [-0.677063937819737,-0.00692766648519513,0.735891589530075]; }
+  <Part String5 = GuitarString<D:0.68mm,Lead:732.589494mm,Tail:64.073073mm,Deflection:12.805738deg>>
+   Placement { From: Origin; To: World; TranslateLocal: [25.5mm,-75mm,65mm]; Normal: [-0.0102313880420824,0.999947657979523,0]; Up: [-0.674337565008175,-0.00689977044687765,0.738390981517668]; }
   </Part>
-  <Part String4 = GuitarString<D:0.6mm,Lead:732.619706mm,Tail:96.378981mm,Deflection:14.968066deg>>
-   Placement { From: Origin; To: World; TranslateLocal: [15.3mm,-75mm,65mm]; Normal: [-0.00613903847430546,0.999981155925756,0]; Up: [-0.67110198271469,-0.00411999852962634,0.741353596071758]; }
+  <Part String4 = GuitarString<D:0.6mm,Lead:732.509486mm,Tail:100.649868mm,Deflection:14.372058deg>>
+   Placement { From: Origin; To: World; TranslateLocal: [15.3mm,-75mm,65mm]; Normal: [-0.00613903847430546,0.999981155925756,0]; Up: [-0.669164958053743,-0.00410810683661916,0.743102538261814]; }
   </Part>
-  <Part String3 = GuitarString<D:0.52mm,Lead:732.593764mm,Tail:133.054198mm,Deflection:15.480813deg>>
-   Placement { From: Origin; To: World; TranslateLocal: [5.1mm,-75mm,65mm]; Normal: [-0.00204638043552803,0.999997906161364,0]; Up: [-0.664265923957594,-0.001359343637021,0.747495106641937]; }
+  <Part String3 = GuitarString<D:0.52mm,Lead:732.474127mm,Tail:137.301981mm,Deflection:15.022472deg>>
+   Placement { From: Origin; To: World; TranslateLocal: [5.1mm,-75mm,65mm]; Normal: [-0.00204638043552803,0.999997906161364,0]; Up: [-0.662627199851135,-0.00135599017704871,0.748948165968837]; }
   </Part>
  </Assembly>
 

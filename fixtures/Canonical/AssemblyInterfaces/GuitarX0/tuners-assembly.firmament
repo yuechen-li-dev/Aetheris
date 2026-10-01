@@ -1,45 +1,26 @@
-Static TunerPostsSites: Set<HardwareSite> {
- TunerPost00 => HardwareSite { X: -27mm; Y: 716.513464mm; Z: 49.56839mm }
- TunerPost01 => HardwareSite { X: -27mm; Y: 751.590786mm; Z: 41.470152mm }
- TunerPost02 => HardwareSite { X: -27mm; Y: 786.668108mm; Z: 33.371914mm }
- TunerPost20 => HardwareSite { X: 27mm; Y: 716.513464mm; Z: 49.56839mm }
- TunerPost21 => HardwareSite { X: 27mm; Y: 751.590786mm; Z: 41.470152mm }
- TunerPost22 => HardwareSite { X: 27mm; Y: 786.668108mm; Z: 33.371914mm }
+Include "tuner.firmament";
+
+// Mounting sites are expressed in the headstock-front coordinate system.
+Linear Sites BassTunerSites {
+ Keys: [Low, Middle, High];
+ Start: [-27mm,58mm,0mm];
+ Step: [0mm,36mm,0mm];
 }
-Static TunerWashersSites: Set<HardwareSite> {
- TunerWasher00 => HardwareSite { X: -27mm; Y: 716.513464mm; Z: 49.56839mm }
- TunerWasher01 => HardwareSite { X: -27mm; Y: 751.590786mm; Z: 41.470152mm }
- TunerWasher02 => HardwareSite { X: -27mm; Y: 786.668108mm; Z: 33.371914mm }
- TunerWasher20 => HardwareSite { X: 27mm; Y: 716.513464mm; Z: 49.56839mm }
- TunerWasher21 => HardwareSite { X: 27mm; Y: 751.590786mm; Z: 41.470152mm }
- TunerWasher22 => HardwareSite { X: 27mm; Y: 786.668108mm; Z: 33.371914mm }
-}
-Static TunerButtonsSites: Set<HardwareSite> {
- TunerButton00 => HardwareSite { X: -49mm; Y: 716.513464mm; Z: 42.56839mm }
- TunerButton01 => HardwareSite { X: -49mm; Y: 751.590786mm; Z: 34.470152mm }
- TunerButton02 => HardwareSite { X: -49mm; Y: 786.668108mm; Z: 26.371914mm }
- TunerButton20 => HardwareSite { X: 49mm; Y: 716.513464mm; Z: 42.56839mm }
- TunerButton21 => HardwareSite { X: 49mm; Y: 751.590786mm; Z: 34.470152mm }
- TunerButton22 => HardwareSite { X: 49mm; Y: 786.668108mm; Z: 26.371914mm }
-}
+Mirrored Sites TrebleTunerSites From BassTunerSites { Across: YZ; }
+
 Subassembly GuitarTuners {
  <Assembly GuitarTuners>
-  Pattern TunerPosts Over TunerPostsSites {
-   site => <Part TunerPost = Drum<R:4mm,H:8mm>>
-    Placement { From: Origin; To: World; TranslateLocal: [site.X,site.Y,site.Z]; }
-   </Part>
+  Pattern BassRow Over BassTunerSites {
+   site => <Assembly Tuner = GuitarTuner>
+    Placement { From: Mount; To: World; TranslateLocal: [site.X,site.Y,site.Z]; }
+   </Assembly>
   }
-  Pattern TunerWashers Over TunerWashersSites {
-   site => <Part TunerWasher = Drum<R:7mm,H:1.5mm>>
-    Placement { From: Origin; To: World; TranslateLocal: [site.X,site.Y,site.Z]; }
-   </Part>
-  }
-  Pattern TunerButtons Over TunerButtonsSites {
-   site => <Part TunerButton = Panel<L:15mm,W:19mm,H:6mm,R:5mm>>
-    Placement { From: Origin; To: World; TranslateLocal: [site.X,site.Y,site.Z]; }
-   </Part>
+  Pattern TrebleRow Over TrebleTunerSites {
+   site => <Assembly Tuner = GuitarTuner>
+    Placement { From: Mount; To: World; TranslateLocal: [site.X,site.Y,site.Z];
+                RotateLocal: { Axis: Z; Angle: 180deg } }
+   </Assembly>
   }
  </Assembly>
-
  Anchor: GuitarTuners;
 }

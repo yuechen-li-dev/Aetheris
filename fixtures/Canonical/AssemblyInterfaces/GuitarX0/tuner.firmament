@@ -1,0 +1,17 @@
+// One complete tuner placeholder. The button projects along local -X.
+// The opposite row clocks this same component 180deg about its mounting normal.
+Subassembly GuitarTuner {
+ <Assembly GuitarTuner>
+  <Part TunerWasher = Drum<R:7mm,H:1.5mm>>
+   Placement { From: BottomSeat.Frame; To: World; }
+  </Part>
+  <Part TunerPost = Drum<R:4mm,H:8mm>>
+   Placement { From: BottomSeat.Frame; To: World; }
+  </Part>
+  <Part TunerButton = Panel<L:15mm,W:19mm,H:6mm,R:5mm>>
+   Placement { From: BottomSeat.Frame; To: World; TranslateLocal: [-22mm,0mm,-7mm]; }
+  </Part>
+ </Assembly>
+ Anchor: GuitarTuner;
+ Expose { DatumFrame Mount = TunerWasher.BottomSeat.Frame; }
+}

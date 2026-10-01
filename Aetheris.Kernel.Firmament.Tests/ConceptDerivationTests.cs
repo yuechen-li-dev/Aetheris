@@ -126,7 +126,7 @@ public sealed class ConceptDerivationTests
         var documents = Directory.GetFiles(Path.GetDirectoryName(path)!,"*.firmament").Append(path).ToDictionary(p => Path.GetFileName(p),File.ReadAllText);
         using var session = new FirmamentCompilationSession();
         var first = session.CompileProject(new("guitar.firmasm",documents));
-        Assert.True(first.IsSuccess, string.Join("\n",first.Diagnostics)); Assert.Equal(16, first.Ir!.SourceDependencies!.Count);
+        Assert.True(first.IsSuccess, string.Join("\n",first.Diagnostics)); Assert.Equal(19, first.Ir!.SourceDependencies!.Count);
         Assert.Single(first.Ir.SourceDependencies, d => d.IsRoot);
         Assert.Equal(9, first.Geometry!.Artifact.Definitions.Sum(d => d.Provenance.Count(p => p.Stage == "concept-boundary-placement")));
         documents["body-outline.firmament"] = documents["body-outline.firmament"].Replace("115mm,-195mm", "115.1mm,-195mm");

@@ -286,7 +286,7 @@ public sealed record FirmamentV2StaticRecordDecl(string Name, string RecordType,
 /// <summary>Columnar compile-time table evidence. Rows are created only on static lookup and never enter AIR.</summary>
 public sealed record FirmamentV2StaticTableDecl(string Name, string RowType, string? KeyField, IReadOnlyDictionary<string, IReadOnlyList<string>> Columns, int RowCount, FirmamentV2SourceSpan SourceSpan);
 public sealed record FirmamentV2CanonicalTemplateDecl(string Name, string ParameterType, string ParameterName, string Body, FirmamentV2SourceSpan SourceSpan);
-public sealed record FirmamentV2CanonicalPatternDecl(string Name, string Source, string Template, int GeneratedCount, IReadOnlyList<string> GeneratedIds, FirmamentV2SourceSpan SourceSpan, IReadOnlyList<FirmamentV2PatternAssociation>? Associations = null);
+public sealed record FirmamentV2CanonicalPatternDecl(string Name, string Source, string Template, int GeneratedCount, IReadOnlyList<string> GeneratedIds, FirmamentV2SourceSpan SourceSpan, IReadOnlyList<FirmamentV2PatternAssociation>? Associations = null, IReadOnlyList<string>? SiteRecipe = null);
 public sealed record FirmamentV2PatternAssociation(string GeneratedId, string SourceSet, string SourceEntry, string SourceValue, int ExpansionOrdinal, FirmamentV2SourceSpan Provenance);
 public sealed record FirmamentV2MirrorDerivation(string Destination, string Kind, string Source, string AcrossPlane, string HandednessCorrection, IReadOnlyList<FirmamentV2MirrorMemberProvenance> Members, FirmamentV2SourceSpan SourceSpan, IReadOnlyList<string> Provenance);
 public sealed record FirmamentV2MirrorMemberProvenance(string DerivedIdentity, string SourceIdentity, string Transform, string SourceSpan);

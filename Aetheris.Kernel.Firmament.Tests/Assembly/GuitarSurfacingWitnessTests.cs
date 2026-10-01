@@ -15,7 +15,7 @@ public sealed class GuitarSurfacingWitnessTests
         Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics));
         Assert.Equal(53, result.Geometry!.DefinitionBodies.Count);
         Assert.Equal(91, result.Geometry.InstanceBodies.Count);
-        Assert.Equal(7, result.Ir!.AssemblyDefinitions!.Count);
+        Assert.Equal(10, result.Ir!.AssemblyDefinitions!.Count);
         var neck = result.Ir.Instances.Single(i => i.Path.ToString() == "GuitarX0.Neck");
         Assert.True(neck.IsEncapsulatedDefinition);
         Assert.True(neck.SemanticRoot.ExposedMembers.ContainsKey("NutMount"));
@@ -24,7 +24,7 @@ public sealed class GuitarSurfacingWitnessTests
         Assert.Equal(660, nut.OriginY, 6);
         Assert.Equal(55, nut.OriginZ, 6);
         Assert.DoesNotContain("Headstock", neck.SemanticRoot.ExposedMembers.Keys);
-        Assert.Equal(16, result.Ir.SourceDependencies!.Count);
+        Assert.Equal(19, result.Ir.SourceDependencies!.Count);
         Assert.Contains(result.Ir.SourceDependencies, d => d.Path == "tuners-assembly.firmament");
     }
     [Fact]
@@ -38,12 +38,17 @@ public sealed class GuitarSurfacingWitnessTests
         Assert.Equal(91, mesh.Occurrences.Count(o => o.DefinitionId is not null));
         Assert.Equal(4, compiled.Ir!.Patterns!.Count);
         Assert.Empty(compiled.Ir.Joints!);
-        Assert.Equal(7, compiled.Ir.AssemblyDefinitions!.Count);
+        Assert.Equal(10, compiled.Ir.AssemblyDefinitions!.Count);
         Assert.Single(compiled.Ir.AssemblyDefinitions.Single(d => d.DefinitionIdentity == "GuitarNeck").LocalMates,
             mate => mate.Name == "VeneerSeat");
         Assert.DoesNotContain(File.ReadAllText(path), "LegacyExplicit");
-        Assert.Contains(compiled.Ir.Instances, i => i.Path.ToString() == "GuitarX0.Neck.Tuners.TunerPosts.TunerPost00.TunerPost"
+        Assert.Contains(compiled.Ir.Instances, i => i.Path.ToString() == "GuitarX0.Neck.Tuners.BassRow.Low.Tuner.TunerPost"
             && i.Provenance.Any(p => p.Stage == "assembly-pattern"));
+        var tunerUnits = compiled.Ir.Instances.Where(i => i.DefinitionIdentity == "GuitarTuner").ToArray();
+        Assert.Equal(6, tunerUnits.Length);
+        Assert.All(tunerUnits, t => Assert.True(t.SemanticRoot.ExposedMembers.ContainsKey("Mount")));
+        Assert.Equal(4, compiled.Ir.Instances.Count(i => i.DefinitionIdentity == "ControlKnob"));
+        Assert.Single(compiled.Ir.Instances, i => i.DefinitionIdentity == "PickupSelector");
         var pickups = compiled.Ir.Instances.Where(i => i.DefinitionIdentity.StartsWith("Humbucker<", StringComparison.Ordinal)).ToArray();
         Assert.Equal(2, pickups.Length);
         Assert.All(pickups, p => Assert.Equal(53, p.ResolvedTransform!.Matrix[14], 6));
@@ -52,6 +57,16 @@ public sealed class GuitarSurfacingWitnessTests
         var head = compiled.Ir.Instances.Single(i => i.Path.ToString() == "GuitarX0.Neck.Headstock");
         Assert.Equal(660, head.ResolvedTransform!.Matrix[13], 6);
         Assert.Equal(48, head.ResolvedTransform.Matrix[14], 6);
+        foreach (var tuner in tunerUnits)
+        {
+            var m = tuner.ResolvedTransform!.Matrix;
+            // Washer underside lies on the actual veneer top: head-local z = 15mm.
+            var dy = m[13] - head.ResolvedTransform.Matrix[13];
+            var dz = m[14] - head.ResolvedTransform.Matrix[14];
+            Assert.Equal(15, dy * head.ResolvedTransform.Matrix[9] + dz * head.ResolvedTransform.Matrix[10], 7);
+            Assert.Equal(head.ResolvedTransform.Matrix[9], m[9], 8);
+            Assert.Equal(head.ResolvedTransform.Matrix[10], m[10], 8);
+        }
         Assert.Equal(6, mesh.Definitions.Count(d => d.Identity.StartsWith("GuitarString<", StringComparison.Ordinal)));
         var surfaced = mesh.Definitions.Where(d => d.Identity.StartsWith("SectionChainFile", StringComparison.Ordinal)).ToArray();
         Assert.Equal(4, surfaced.Length);
@@ -111,5 +126,12 @@ public sealed class GuitarSurfacingWitnessTests
                     "Centerline samples must lie on the straight back or flat seat.");
         }
         Assert.Contains("subdivisionScheme = \"none\"", AssemblyUsdExporter.Serialize(compiled.Ir!, mesh));
+        var exported = AssemblyIrAp242Exporter.Export(compiled);
+        Assert.True(exported.IsSuccess, string.Join("\n", exported.Diagnostics));
+        var imported = Aetheris.Kernel.Core.Step242.Step242AssemblyImporter.Import(exported.Value);
+        Assert.True(imported.IsSuccess, string.Join("\n", imported.Diagnostics));
+        var geometryIds = imported.Value.Definitions.Where(d => d.Geometry is not null).Select(d => d.StableId).ToHashSet();
+        Assert.Equal(53, geometryIds.Count);
+        Assert.Equal(91, imported.Value.Occurrences.Count(o => geometryIds.Contains(o.DefinitionStableId!)));
     }
 }

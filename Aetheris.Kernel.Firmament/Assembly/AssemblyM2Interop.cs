@@ -111,11 +111,33 @@ public static class AssemblyIrAp242Exporter
             .OrderBy(definition => definition.StableId, StringComparer.Ordinal).ToArray();
         var byId = ir.Instances.ToDictionary(item => item.StableId, StringComparer.Ordinal);
         var assemblyDefinitionByIdentity = (ir.AssemblyDefinitions ?? []).ToDictionary(item => item.DefinitionIdentity, item => item.StableId, StringComparer.Ordinal);
+        // A reusable product owns its child usages. Recovering these from each
+        // posed world occurrence introduces roundoff-dependent duplicate STEP
+        // usages. Read the already-solved local definition once instead.
+        var definitionChildTransforms = new Dictionary<(string Definition, string Child), IReadOnlyList<double>>();
+        foreach (var definition in ir.AssemblyDefinitions ?? [])
+        {
+            var root = definition.LocalInstances.Single(item => item.ParentStableId is null);
+            if (root.ResolvedTransform is null) return Failure($"Assembly definition '{definition.DefinitionIdentity}' has no solved local root.");
+            var rootInverse = Transform3D.FromRowMajor(root.ResolvedTransform.Matrix).Inverse();
+            foreach (var child in definition.LocalInstances.Where(item => item.ParentStableId == root.StableId))
+            {
+                if (child.ResolvedTransform is null) return Failure($"Assembly definition '{definition.DefinitionIdentity}' has an unsolved child '{child.Path}'.");
+                definitionChildTransforms.Add((definition.DefinitionIdentity, child.Path.Segments.Last()),
+                    (Transform3D.FromRowMajor(child.ResolvedTransform.Matrix) * rootInverse).ToRowMajor());
+            }
+        }
+        foreach (var instance in ir.Instances.Where(item => item.ParentStableId is not null))
+            if (byId[instance.ParentStableId!].IsEncapsulatedDefinition &&
+                !definitionChildTransforms.ContainsKey((byId[instance.ParentStableId!].DefinitionIdentity, instance.Path.Segments.Last())))
+                return Failure($"Occurrence '{instance.Path}' has no definition-owned local child transform.");
         var occurrences = ir.Instances.OrderBy(item => item.Path.Segments.Count).ThenBy(item => item.StableId, StringComparer.Ordinal).Select(instance =>
         {
             var world = instance.ResolvedTransform ?? AssemblyTransform.Identity;
             IReadOnlyList<double> local = world.Matrix;
-            if (instance.ParentStableId is not null && byId[instance.ParentStableId].ResolvedTransform is { } parentWorld)
+            if (instance.ParentStableId is not null && byId[instance.ParentStableId].IsEncapsulatedDefinition)
+                local = definitionChildTransforms[(byId[instance.ParentStableId].DefinitionIdentity, instance.Path.Segments.Last())];
+            else if (instance.ParentStableId is not null && byId[instance.ParentStableId].ResolvedTransform is { } parentWorld)
             {
                 var parent = Transform3D.FromRowMajor(parentWorld.Matrix);
                 local = (Transform3D.FromRowMajor(world.Matrix) * parent.Inverse()).ToRowMajor();

@@ -1,0 +1,16 @@
+// A complete decorative control knob. All dimensions are local to its mounting seat.
+Subassembly ControlKnob {
+ <Assembly ControlKnob>
+  <Part KnobSkirt = Drum<R:12mm,H:3mm>>
+   Placement { From: BottomSeat.Frame; To: World; }
+  </Part>
+  <Part AmberKnob = Drum<R:9mm,H:9mm>>
+   Placement { From: BottomSeat.Frame; To: World; TranslateLocal: [0mm,0mm,3mm]; }
+  </Part>
+  <Part KnobCap = Drum<R:5mm,H:1mm>>
+   Placement { From: BottomSeat.Frame; To: World; TranslateLocal: [0mm,0mm,12mm]; }
+  </Part>
+ </Assembly>
+ Anchor: ControlKnob;
+ Expose { DatumFrame Mount = KnobSkirt.BottomSeat.Frame; }
+}

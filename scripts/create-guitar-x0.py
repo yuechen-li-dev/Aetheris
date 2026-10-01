@@ -141,7 +141,7 @@ Template<D: Length, Lead: Length, Tail: Length, Deflection: Angle> Struct Guitar
   Material: Standard.Materials.StainlessSteel.304_Annealed
   StartFrame { Origin: [0mm,0mm,0mm]; Tangent: [0,0,1]; Up: [1,0,0] }
   Straight SpeakingLength { Length: Lead }
-  Bend NutBreak { Radius: 3mm; Angle: Deflection; Plane: Up }
+  Bend NutBreak { Radius: 4mm; Angle: Deflection; Plane: Up }
   Straight TunerLead { Length: Tail }
  }
 }
@@ -152,6 +152,7 @@ Template<L: Length, W: Length, H: Length, R: Length> Struct Panel {
  Extrude Body { Profile: P From: 0mm To: H }
 }
 Template<R: Length,H: Length> Struct Drum {
+ Expose { Semantic BottomSeat { DatumFrame Frame = [0mm,0mm,0mm] x [1,0,0] y [0,1,0] z [0,0,1]; } }
  Circle2 Outline { Center: [0mm,0mm] Radius: R }
  Profile P { Loop Outer { Outline |> TraceLoop } }
  Extrude Body { Profile: P From: 0mm To: H }
@@ -213,7 +214,8 @@ def formed_string(name, start, nut, end, diameter):
     xaxis=[v/length(normal) for v in normal]
     yaxis=[zaxis[1]*xaxis[2]-zaxis[2]*xaxis[1],zaxis[2]*xaxis[0]-zaxis[0]*xaxis[2],zaxis[0]*xaxis[1]-zaxis[1]*xaxis[0]]
     angle=math.acos(sum(a*b for a,b in zip(zaxis,target)))
-    setback=3*math.tan(angle/2)
+    # A 4mm nut bend keeps the revised post leads clear at every string gauge.
+    setback=4*math.tan(angle/2)
     definition=f'GuitarString<D:{number(diameter)}mm,Lead:{number(lead_length-setback)}mm,Tail:{number(tail_length-setback)}mm,Deflection:{number(math.degrees(angle))}deg>'
     vector=lambda vs:','.join(f'{v:.15g}' for v in vs)
     parts.append(f'  <Part {name} = {definition}>\n   Placement {{ From: Origin; To: World; TranslateLocal: [{",".join(number(v)+"mm" for v in start)}]; Normal: [{vector(zaxis)}]; Up: [{vector(yaxis)}]; }}\n  </Part>')
@@ -228,7 +230,7 @@ Model GuitarLowE {{
   Material: Standard.Materials.StainlessSteel.304_Annealed
   StartFrame {{ Origin: [{','.join(number(v)+'mm' for v in start)}]; Tangent: [{vector(zaxis)}]; Up: [{vector(xaxis)}] }}
   Straight SpeakingLength {{ Length: {number(lead_length-setback)}mm }}
-  Bend NutBreak {{ Radius: 3mm; Angle: {number(math.degrees(angle))}deg; Plane: Up }}
+  Bend NutBreak {{ Radius: 4mm; Angle: {number(math.degrees(angle))}deg; Plane: Up }}
   Straight TunerLead {{ Length: {number(tail_length-setback)}mm }}
  }}
 }}
@@ -249,15 +251,6 @@ part('Tailpiece','Panel<L:88mm,W:15mm,H:7mm,R:6mm>',y=-75,z=53)
 for i in range(6):
     x=(i-2.5)*10.2
     part(f'Saddle{i}','Panel<L:7mm,W:9mm,H:2mm,R:1mm>',x=x,y=-35,z=63)
-for i,(x,y,z) in enumerate([(79,-95,50),(123,-70,45),(75,-156,47),(121,-131,43)]):
-    part(f'KnobSkirt{i}','Drum<R:12mm,H:3mm>',x,y,z)
-    part(f'AmberKnob{i}','Drum<R:9mm,H:9mm>',x,y,z+3)
-    part(f'KnobCap{i}','Drum<R:5mm,H:1mm>',x,y,z+12)
-part('SelectorRing','Drum<R:16mm,H:1.5mm>',x=-73,y=137,z=43)
-part('SelectorStem','Drum<R:2.5mm,H:12mm>',x=-73,y=137,z=44.5)
-part('SelectorTip','Drum<R:4mm,H:7mm>',x=-73,y=137,z=54)
-part('ControlCover','Panel<L:63mm,W:93mm,H:1mm,R:15mm>',x=85,y=-115,z=-1)
-part('SelectorCover','Drum<R:24mm,H:1mm>',x=-73,y=137,z=-1)
 for i in range(1,23):
     y=658-628*(1-2**(-i/12))
     width=43+(660-y)/540*13
@@ -268,21 +261,15 @@ for i in range(1,23):
 for side in [-1,1]:
     for i in range(3):
         yy=58+i*36
-        y=660+yy*math.cos(math.radians(13))
-        z=48-yy*math.sin(math.radians(13))+15*math.cos(math.radians(13))
-        part(f'TunerPost{side+1}{i}','Drum<R:4mm,H:8mm>',x=side*27,y=y,z=z)
-        part(f'TunerWasher{side+1}{i}','Drum<R:7mm,H:1.5mm>',x=side*27,y=y,z=z)
-        part(f'TunerButton{side+1}{i}','Panel<L:15mm,W:19mm,H:6mm,R:5mm>',x=side*49,y=y,z=z-7)
+        y=660+yy*math.cos(math.radians(13))+20*math.sin(math.radians(13))
+        z=48-yy*math.sin(math.radians(13))+20*math.cos(math.radians(13))
         string_index=i if side==-1 else 5-i
-        formed_string(f'String{string_index}',((string_index-2.5)*10.2,-75,65),((string_index-2.5)*7.2,658,65),(side*27,y,z+5),.28+string_index*.08)
+        formed_string(f'String{string_index}',((string_index-2.5)*10.2,-75,65),((string_index-2.5)*7.2,658,65),(side*27,y,z),.28+string_index*.08)
 # Finite keyed occurrence families. Values remain ordinary checked Firmament
 # Records; the compiler owns expansion, identities, and definition sharing.
 catalog=[]
 for family,matcher in [
-    ('Saddles',r'Saddle[0-5]'),
-    ('TunerPosts',r'TunerPost[02][0-2]'),
-    ('TunerWashers',r'TunerWasher[02][0-2]'),
-    ('TunerButtons',r'TunerButton[02][0-2]')]:
+    ('Saddles',r'Saddle[0-5]')]:
     selected=[]
     for declaration in parts:
         match=re.fullmatch(r'\s*<Part (\w+) = (.+)>\n\s*Placement \{ From: Origin; To: World; TranslateLocal: \[([^,]+),([^,]+),([^]]+)\]; \}\n\s*</Part>',declaration)
@@ -308,15 +295,12 @@ def write_module(filename, name, members, rows=(), includes=(), relations='', ex
     text+='}\n'
     (ROOT/filename).write_text(text)
 
-groups={name:[] for name in ('Body','Neck','Tuners','Pickups','Electronics','Bridge','Strings')}
+groups={name:[] for name in ('Body','Neck','Bridge','Strings')}
 for declaration in parts:
     name=re.search(r'(?:<Part|Pattern)\s+(\w+)',declaration)[1]
     if name in ('MahoganyBack','IvoryBinding','CarvedMaple'): group='Body'
-    elif name.startswith('Tuner'):group='Tuners'
-    elif name.startswith('Pickup'):group='Pickups'
     elif name in ('Bridge','Tailpiece','Saddles'):group='Bridge'
     elif name.startswith('String'):group='Strings'
-    elif name.startswith(('Knob','AmberKnob','Selector','ControlCover')):group='Electronics'
     else:group='Neck'
     groups[group].append(declaration)
 
@@ -345,11 +329,15 @@ write_module('body-assembly.firmament','GuitarBody',groups['Body'],includes=('ha
  Interface<Fixed> BodyDeckSeat { Datum: GuitarLayout.HardwareDeck; Members: [GuitarBody.CarvedMaple.TopSeat] }
  Mate BodyOnDeck: BodyDeckSeat { Member: GuitarBody.CarvedMaple.TopSeat; At: GuitarLayout.BodySeat; Orientation: SameDirection; Support: true; }
 ''')
-write_module('tuners-assembly.firmament','GuitarTuners',groups['Tuners'],rows_for(('Tuner',)))
+# Tuner, knob and selector modules are directly authored Firmament components.
+# Preserve their site recipes and local mounting ports rather than generating coordinates.
 neck_relations=''' FrameTransform NutWorld { From: GuitarNeck.Neck.NutMount.Frame; Normal: [0,1,0]; Up: [0,0,1]; TranslateLocal: [0mm,-7mm,0mm]; }
  FrameTransform HeadTilt { From: NutWorld.Frame; RotateLocal: { Axis: X; Angle: -13deg } }
  Interface<Fixed> VeneerSeat { A: GuitarNeck.Headstock.Front.Frame; B: GuitarNeck.HeadVeneer.Base.Frame; Gap: 0mm; Clocking: 0deg; }'''
-write_module('neck-assembly.firmament','GuitarNeck',groups['Neck']+[occurrence('Tuners','GuitarTuners')],
+write_module('neck-assembly.firmament','GuitarNeck',groups['Neck']+['''<Assembly Tuners = GuitarTuners>
+ // Front includes the 14mm headstock; 1mm seats on its veneer.
+ Placement { From: Origin; To: GuitarNeck.Headstock.Front.Frame; TranslateLocal: [0mm,0mm,1mm]; }
+</Assembly>'''],
              includes=('tuners-assembly.firmament',),relations=neck_relations,
              exposes='DatumFrame NutMount = Neck.NutMount.Frame; DatumFrame HeelMount = Neck.HeelMount.Frame; DatumFrame HeadFront = Headstock.Front.Frame;')
 # Pickup construction is authored in Firmament, not generated pole/coil coordinates.
@@ -364,8 +352,7 @@ write_module('pickups-assembly.firmament','GuitarPickups',[
 pickup_source=(ROOT/'pickup.firmament').read_text()
 pickup_source=re.sub(r' Expose \{ Semantic Mount \{[^\n]+\n','',pickup_source)
 (ROOT.parents[1]/'Feature'/'pickup-functional.firmament').write_text('schema Mechanical\nModel PickupFunctional {\n Units: mm\n'+pickup_source+'\n Struct Product = Humbucker<Spec: StandardPickup>\n}\n')
-write_module('electronics-assembly.firmament','GuitarElectronics',groups['Electronics']+[occurrence('Pickups','GuitarPickups')],
-             includes=('pickups-assembly.firmament',))
+# electronics-assembly.firmament owns the named control seats and component occurrences.
 groups['Bridge']=[re.sub(r'\s*Placement\s*\{[^}]*\}', '', p) if '<Part Bridge ' in p else p for p in groups['Bridge']]
 write_module('bridge-assembly.firmament','GuitarBridge',groups['Bridge'],rows_for(('Saddles',)),includes=('hardware-layout.firmament',),relations='''
  Interface<Fixed> BridgeDeckSeat { Datum: GuitarLayout.HardwareDeck; Members: [GuitarBridge.Bridge.BottomSeat] }

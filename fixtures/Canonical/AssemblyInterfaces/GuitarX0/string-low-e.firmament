@@ -4,9 +4,9 @@ Model GuitarLowE {
  WireForm String {
   Diameter: 0.68mm
   Material: Standard.Materials.StainlessSteel.304_Annealed
-  StartFrame { Origin: [25.5mm,-75mm,65mm]; Tangent: [-0.0102313880420824,0.999947657979523,0]; Up: [-0.735853071477427,-0.00752919240938704,-0.677099378569276] }
-  Straight SpeakingLength { Length: 732.679593mm }
-  Bend NutBreak { Radius: 3mm; Angle: 13.639458deg; Plane: Up }
-  Straight TunerLead { Length: 59.754816mm }
+  StartFrame { Origin: [25.5mm,-75mm,65mm]; Tangent: [-0.0102313880420824,0.999947657979523,0]; Up: [-0.738352332641793,-0.00755476465868138,-0.674372863046382] }
+  Straight SpeakingLength { Length: 732.589494mm }
+  Bend NutBreak { Radius: 4mm; Angle: 12.805738deg; Plane: Up }
+  Straight TunerLead { Length: 64.073073mm }
  }
 }

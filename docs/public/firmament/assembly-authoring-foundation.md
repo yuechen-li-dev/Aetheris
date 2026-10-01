@@ -5,6 +5,9 @@ keyed finite occurrence patterns, and Fixed seating. These extend the existing
 semantic binder, finite Record/Set frontend, exact materializer, and frame solver.
 No user-defined Lower language or second placement solver is introduced.
 
+For complete-component ownership and finite linear/reflected mounting rows, see
+[Components and mounting sites](assembly-components-and-sites.md).
+
 ## Readable placement
 
 ```firmament

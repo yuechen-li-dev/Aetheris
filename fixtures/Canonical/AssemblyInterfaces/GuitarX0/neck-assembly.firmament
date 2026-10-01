@@ -113,7 +113,8 @@ Subassembly GuitarNeck {
    Placement { From: Origin; To: World; TranslateLocal: [0mm,206.226542mm,62mm]; }
   </Part>
   <Assembly Tuners = GuitarTuners>
-   Placement { From: Origin; To: World; }
+   // Front includes the 14mm headstock; 1mm seats on its veneer.
+   Placement { From: Origin; To: GuitarNeck.Headstock.Front.Frame; TranslateLocal: [0mm,0mm,1mm]; }
   </Assembly>
  </Assembly>
  FrameTransform NutWorld { From: GuitarNeck.Neck.NutMount.Frame; Normal: [0,1,0]; Up: [0,0,1]; TranslateLocal: [0mm,-7mm,0mm]; }

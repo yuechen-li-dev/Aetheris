@@ -15,6 +15,9 @@ internal static class CanonicalStaticAuthoring
     /// <summary>Assembly consumes the same checked Record/Set values, but yields product-tree declarations.</summary>
     internal static Result? ExpandAssemblyPatterns(string source, List<string> diagnostics)
     {
+        var sites = AssemblySiteAuthoring.Expand(source, diagnostics);
+        if (sites is null) return null;
+        source = sites.Source;
         var headers = Regex.Matches(source,@"\bPattern\s+(?<name>[A-Za-z_]\w*)\s+Over\s+(?<set>[A-Za-z_]\w*)\s*\{").Cast<Match>()
             .Where(h => Regex.IsMatch(source[(h.Index+h.Length)..],@"^\s*[A-Za-z_]\w*\s*=>\s*<(?:Part|Assembly)\b")).ToArray();
         if (headers.Length == 0) return new(source,null);
@@ -52,7 +55,8 @@ internal static class CanonicalStaticAuthoring
                 associations.Add(new(name+"."+entry.Name,set.Name,entry.Name,entry.Value,entry.SourceOrder,entry.Provenance));
             }
             changes.Add((header.Index,close-header.Index+1,$"<Assembly {name}> {identity}\n{string.Join(Environment.NewLine,output)}\n</Assembly>"));
-            patterns.Add(new(name,set.Name,"Assembly",set.Entries.Count,associations.Select(a=>a.GeneratedId).ToArray(),new(header.Index,close-header.Index+1),associations));
+            patterns.Add(new(name,set.Name,"Assembly",set.Entries.Count,associations.Select(a=>a.GeneratedId).ToArray(),new(header.Index,close-header.Index+1),associations,
+                sites.Recipes.GetValueOrDefault(set.Name)));
         }
         foreach (var change in changes.OrderByDescending(c=>c.Start)) source=source.Remove(change.Start,change.Length).Insert(change.Start,change.Text);
         return new(source,data.Document with { Patterns=patterns });

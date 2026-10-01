@@ -21,3 +21,6 @@ For source-traceable PDF markup and LLM handoff before CAD reconstruction, see [
 
 For closed-shape authoring with named tabs and smooth replacements, see
 [Immutable Profile boundary edits](firmament/profile-boundary-edits.md).
+
+For reusable knobs, selectors, tuners and keyed mounting rows, see
+[Assembly components and mounting sites](firmament/assembly-components-and-sites.md).

@@ -1,5 +1,9 @@
 # Components and mounting sites
 
+The knob stack now seats three rigid children on one Concept spindle at stations
+0, 3 and 12mm. See [Concept-directed coaxial mating](concept-axis-mating-proposal.md)
+for its Fixed contract and the complete-knob Revolute example.
+
 Organize an assembly around complete components: a knob, selector or tuner owns
 its children, local dimensions and published mounting frame. Pattern component
 occurrences rather than separate categories of their constituent parts.

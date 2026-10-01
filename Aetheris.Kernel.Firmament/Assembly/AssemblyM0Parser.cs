@@ -122,7 +122,7 @@ public sealed class AssemblyM0Parser
         var layout = AssemblyDatumAuthoring.ParseLayouts(source, sourceIdentity, diagnostics, out var partDeclarations);
         foreach (var contract in interfaces.Where(i => i.DatumContract is not null))
             if (!layout.Any(d => d.Identity == contract.DatumContract!.Datum && d.Plane == d.Identity))
-                diagnostics.Add(new("assembly-datum-plane-unresolved", $"Interface '{contract.Name}' requires a declared Concept plane '{contract.DatumContract!.Datum}'."));
+                diagnostics.Add(new("assembly-datum-plane-unresolved", $"Interface '{contract.Name}' requires a declared Concept plane or Axis '{contract.DatumContract!.Datum}'."));
         var declarationChars = partDeclarations.ToCharArray();
         foreach (Match header in Regex.Matches(source, @"\b(?:Template\s*<[^>]+>\s*Assembly|Assembly|Interface(?:\s*<[^>]+>)?)\s+[A-Za-z_]\w*(?:\s*:\s*[A-Za-z_]\w*)?\s*\{"))
         {
@@ -240,10 +240,13 @@ public sealed class AssemblyM0Parser
             var name = header.Groups["name"].Value;
             if (Regex.IsMatch(body, @"\bDatum\s*:"))
             {
-                if (header.Groups["family"].Value != "Fixed") diagnostics.Add(new("assembly-datum-family-invalid", "Datum contracts require Interface<Fixed>."));
+                var datumFamily = header.Groups["family"].Value == "Revolute" ? MechanicalInterfaceFamily.Revolute : MechanicalInterfaceFamily.Fixed;
+                if (header.Groups["family"].Value is not ("Fixed" or "Revolute")) diagnostics.Add(new("assembly-datum-family-invalid", "Datum contracts require Interface<Fixed> or Interface<Revolute>."));
                 var contract = AssemblyDatumAuthoring.ParseContract(body, diagnostics);
+                if (datumFamily == MechanicalInterfaceFamily.Revolute && contract.Members.Count != 1)
+                    diagnostics.Add(new("assembly-axis-revolute-member-count", "A datum Revolute contract requires exactly one moving occurrence."));
                 if (result.Any(i => i.Name == name)) diagnostics.Add(new("assembly-interface-duplicate-name", $"Interface '{name}' is duplicated."));
-                else result.Add(new("interface:" + name, name, [], [], Family: MechanicalInterfaceFamily.Fixed, DatumContract: contract));
+                else result.Add(new("interface:" + name, name, [], [], Family: datumFamily, DatumContract: contract));
                 continue;
             }
             var family = header.Groups["family"].Success ? Enum.Parse<MechanicalInterfaceFamily>(header.Groups["family"].Value) : MechanicalInterfaceFamily.Custom;
@@ -396,6 +399,8 @@ public sealed class AssemblyM0Parser
             var root = ParseTree(body, sourceIdentity, diagnostics, result, interfaces, new Dictionary<string, AssemblyMemberSource>(StringComparer.Ordinal), gearAuthorities, publishedPorts);
             if (root is null) continue;
             root = AssemblyDatumAuthoring.Bind(body, root, layout ?? [], interfaces, diagnostics, out var datumFrames, publishedPorts);
+            if (root.Children.Any(c => c.FramePlacement?.JointFamily == MechanicalInterfaceFamily.Revolute))
+                diagnostics.Add(new("assembly-axis-internal-motion-unsupported", "Reusable definitions have rigid solved children. Declare a Revolute mate on the complete occurrence in its owning root assembly."));
             var exposed = ParseAssemblyExposes(body, root, sourceIdentity, diagnostics);
             root = root with { ExposedSemantics = exposed, IsEncapsulatedDefinition = true };
             var name = template.Groups["name"].Value;
@@ -563,7 +568,7 @@ public sealed class AssemblyM0Parser
             [.. definition.Provenance, new("assembly-template-specialization", definition.Name, specializationIdentity, SemanticSourceSpan.Generated(sourceIdentity))],
             local.Ir.Instances, local.Ir.Mates, local.Ir.Placements, local.Ir.DimensionalRelations, local.Ir.ToleranceStackups,
             publicSemantics, publicRelations, watch.Elapsed.TotalMilliseconds,
-            local.Ir.PlacementConstraints, local.Ir.Datums, local.Ir.DatumMateSolutions, local.Ir.FitResults);
+            local.Ir.PlacementConstraints, local.Ir.Datums, local.Ir.DatumMateSolutions, local.Ir.FitResults, local.Ir.AxisSeats);
         specializedRoot = specializedRoot with { ExposedSemantics = publicSemantics, IsEncapsulatedDefinition = true, SolvedAssemblyDefinition = definitionIr, DefinitionIdentity = specializationIdentity };
         specializationCache[specializationIdentity] = specializedRoot;
         return RenameOccurrence(specializedRoot, occurrenceName);
@@ -583,8 +588,23 @@ public sealed class AssemblyM0Parser
             bindings.Add(gear with { RelativeOccurrencePath = [.. owner.Path.Segments.Skip(1), .. gear.RelativeOccurrencePath ?? []] });
         }
         try { bindings.Add(AssemblyWorldQuery.Resolve(localIr, reference!.Value.StableIdentity)); } catch (InvalidOperationException) { }
-        return new(exposed.StableIdentity, exposed.Type, exposed.Capabilities.Values, bindings, exposed.ExposedMembers.Values, exposed.Provenance,
+        return new(exposed.StableIdentity, exposed.Type, exposed.Capabilities.Values, bindings,
+            exposed.ExposedMembers.Values.Select(member => reference!.Value.ExposedMembers.TryGetValue(member.ExposedName!, out var local)
+                ? BindMember(member, local) : member), exposed.Provenance,
             exposed.AuthoredSourceSpan, SemanticSourceSpan.Generated(sourceIdentity), exposed.ExposedName);
+
+        SemanticValue BindMember(SemanticValue member, SemanticValue local)
+        {
+            // Typed endpoints (notably Gear) can synthesize public members that
+            // are not source children. Their typed authority retains ownership;
+            // ordinary published composites rebase only corresponding children.
+            var transformed = member.Bindings.Where(binding => binding is not (ExactAxisBinding or ExactPlaneBinding or ExactDatumFrameBinding or ExactPointBinding)).ToList();
+            try { transformed.Add(AssemblyWorldQuery.Resolve(localIr, local.StableIdentity)); } catch (InvalidOperationException) { }
+            return new(member.StableIdentity, member.Type, member.Capabilities.Values, transformed,
+                member.ExposedMembers.Values.Select(child => local.ExposedMembers.TryGetValue(child.ExposedName!, out var value)
+                    ? BindMember(child, value) : child),
+                member.Provenance, member.AuthoredSourceSpan, member.GeneratedSourceSpan, member.ExposedName);
+        }
 
         static IEnumerable<SemanticValue> Flatten(SemanticValue value)
         {

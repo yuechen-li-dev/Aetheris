@@ -81,6 +81,7 @@ public sealed class AssemblyM0Compiler
         var ir = new AssemblyIr("aetheris/assembly-ir/m0", $"assembly:{source.Name}", source.Name,
             instances.Single(x => x.ParentStableId is null).StableId, instances, source.Interfaces, mates,
             constraints, placements, relations, stackups, fits, diagnostics, assemblyDefinitions, panelMateEvidence, datums, datumSolutions, source.SourceDependencies, joints, source.Patterns);
+        ir = ir with { AxisSeats = AssemblyDatumAuthoring.ValidateAxisSeats(source, ir, diagnostics) };
         return new(ir, diagnostics, perf);
 
         static string SemanticPath(AssemblyInstanceIr instance, SemanticValue value)

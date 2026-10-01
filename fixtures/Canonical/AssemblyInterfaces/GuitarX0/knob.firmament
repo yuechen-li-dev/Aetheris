@@ -1,16 +1,23 @@
-// A complete decorative control knob. All dimensions are local to its mounting seat.
+// A rigid knob stack seated by station on one Concept spindle.
+Concept Struct KnobLayout {
+ Axis Spindle { Origin: [0mm,0mm,0mm]; Direction: [0,0,1]; Reference: [1,0,0]; }
+}
 Subassembly ControlKnob {
  <Assembly ControlKnob>
-  <Part KnobSkirt = Drum<R:12mm,H:3mm>>
-   Placement { From: BottomSeat.Frame; To: World; }
-  </Part>
-  <Part AmberKnob = Drum<R:9mm,H:9mm>>
-   Placement { From: BottomSeat.Frame; To: World; TranslateLocal: [0mm,0mm,3mm]; }
-  </Part>
-  <Part KnobCap = Drum<R:5mm,H:1mm>>
-   Placement { From: BottomSeat.Frame; To: World; TranslateLocal: [0mm,0mm,12mm]; }
-  </Part>
+  <Part KnobSkirt = Drum<R:12mm,H:3mm>></Part>
+  <Part AmberKnob = Drum<R:9mm,H:9mm>></Part>
+  <Part KnobCap = Drum<R:5mm,H:1mm>></Part>
  </Assembly>
+ Interface<Fixed> CoaxialStack {
+  Datum: KnobLayout.Spindle;
+  Members: [ControlKnob.KnobSkirt.SpindleSeat,ControlKnob.AmberKnob.SpindleSeat,ControlKnob.KnobCap.SpindleSeat];
+ }
+ Mate SkirtOnSpindle: CoaxialStack { Member: ControlKnob.KnobSkirt.SpindleSeat; At: 0mm; Clocking: 0deg; }
+ Mate GripOnSpindle: CoaxialStack { Member: ControlKnob.AmberKnob.SpindleSeat; At: 3mm; Clocking: 0deg; }
+ Mate CapOnSpindle: CoaxialStack { Member: ControlKnob.KnobCap.SpindleSeat; At: 12mm; Clocking: 0deg; }
  Anchor: ControlKnob;
- Expose { DatumFrame Mount = KnobSkirt.BottomSeat.Frame; }
+ Expose {
+  DatumFrame Mount = KnobSkirt.SpindleSeat.Frame;
+  Semantic Spindle = KnobSkirt.SpindleSeat;
+ }
 }

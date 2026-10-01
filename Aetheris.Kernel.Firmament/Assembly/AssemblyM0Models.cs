@@ -71,7 +71,13 @@ public sealed record AssemblyMemberSource(
 public sealed record AssemblyFrameTransformSource(string Name, string From, double[] Translation,
     string RotationAxis, double RotationDegrees, double[]? Normal = null, double[]? Up = null,
     SemanticSourceSpan? SourceSpan = null);
-public sealed record AssemblyFramePlacementSource(string From, AssemblyFrameTransformSource Target);
+public sealed record AssemblyFramePlacementSource(string From, AssemblyFrameTransformSource Target,
+    MechanicalInterfaceFamily? JointFamily = null, string? MateName = null, AssemblyAxisSeatSource? AxisSeat = null);
+public sealed record AssemblyAxisSeatSource(string Interface, string Datum, string Member,
+    double StationMm, double ClockingDegrees, DatumOrientationRelation Orientation);
+public sealed record AssemblyAxisSeatEvidence(string Mate, string InstanceStableId, AssemblyAxisSeatSource Seating,
+    int DegreesOfFreedom, double AxisResidualMm, double StationResidualMm, double AngularResidualRadians,
+    bool Passed, string Evidence = "exact published axis/frame against Concept target; no material-carrier inference");
 
 /// <summary>A reusable, locally-authored Assembly product definition.  Its children
 /// remain product-visible, while only <see cref="AssemblyMemberSource.ExposedSemantics"/>
@@ -192,7 +198,8 @@ public sealed record AssemblyDefinitionIr(
     IReadOnlyList<PlacementConstraintIr>? LocalPlacementConstraints = null,
     IReadOnlyList<AssemblyDatumIr>? LocalDatums = null,
     IReadOnlyList<DatumMateSolutionIr>? LocalDatumMateSolutions = null,
-    IReadOnlyList<InterfaceFitResultIr>? LocalFitResults = null);
+    IReadOnlyList<InterfaceFitResultIr>? LocalFitResults = null,
+    IReadOnlyList<AssemblyAxisSeatEvidence>? LocalAxisSeats = null);
 
 public sealed record AssemblyPerformanceIr(double ParseMilliseconds, double BindMilliseconds, double MateValidationMilliseconds, double PlacementMilliseconds, double DimensionalGraphMilliseconds, double ToleranceAnalysisMilliseconds, double DefinitionMaterializationMilliseconds = 0, double GeometryExecutionMilliseconds = 0);
 public sealed record AssemblyGeometryMetricsIr(int Bodies, int Faces, int Edges, int Vertices, double[] Minimum, double[] Maximum);
@@ -215,7 +222,8 @@ public sealed record AssemblyIr(
     IReadOnlyList<DatumMateSolutionIr>? DatumMateSolutions = null,
     IReadOnlyList<AssemblySourceDependencyIr>? SourceDependencies = null,
     IReadOnlyList<AssemblyJointIr>? Joints = null,
-    IReadOnlyList<FirmamentV2CanonicalPatternDecl>? Patterns = null);
+    IReadOnlyList<FirmamentV2CanonicalPatternDecl>? Patterns = null,
+    IReadOnlyList<AssemblyAxisSeatEvidence>? AxisSeats = null);
 
 public sealed record AssemblyCompilationResult(AssemblyIr? Ir, IReadOnlyList<AssemblyDiagnostic> Diagnostics, AssemblyPerformanceIr? Performance = null)
 {

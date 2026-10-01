@@ -5,7 +5,7 @@ using Aetheris.Semantics;
 
 namespace Aetheris.Kernel.Firmament.Assembly;
 
-internal sealed record AssemblyLayoutDatum(string Identity, string Plane, AssemblyFrameTransformSource Transform);
+internal sealed record AssemblyLayoutDatum(string Identity, string Plane, AssemblyFrameTransformSource Transform, bool IsAxis = false);
 
 /// <summary>Bounded datum-directed Fixed seating. No constraint search or synthetic parts.</summary>
 internal static class AssemblyDatumAuthoring
@@ -19,10 +19,34 @@ internal static class AssemblyDatumAuthoring
         {
             if (!IsTopLevel(source, header.Index)) continue;
             var body = AssemblyM0Parser.BalancedBody(source, header.Index + header.Length - 1, diagnostics, "Concept layout");
-            if (body is null || !Regex.IsMatch(body, @"\bPlane\s+\w+\s*\{")) continue;
+            if (body is null || !Regex.IsMatch(body, @"\b(?:Plane|Axis)\s+\w+\s*\{")) continue;
             var owner = header.Groups["name"].Value;
             var remaining = body;
             var planes = new Dictionary<string, AssemblyFrameTransformSource>(StringComparer.Ordinal);
+            foreach (Match member in Regex.Matches(body, @"\bAxis\s+(?<name>\w+)\s*\{"))
+            {
+                var fields = AssemblyM0Parser.BalancedBody(body, member.Index + member.Length - 1, diagnostics, "layout axis");
+                if (fields is null) continue;
+                var name = member.Groups["name"].Value;
+                var errorsBefore = diagnostics.Count;
+                var origin = Vector(fields, "Origin", 3, true, diagnostics);
+                var direction = Vector(fields, "Direction", 3, false, diagnostics);
+                var reference = Vector(fields, "Reference", 3, false, diagnostics);
+                CheckFields(fields, ["Origin", "Direction", "Reference"], diagnostics);
+                if (diagnostics.Count != errorsBefore) continue;
+                var z = new Vector3D(direction[0], direction[1], direction[2]);
+                var radial = new Vector3D(reference[0], reference[1], reference[2]);
+                if (!TryUnit(z, out z) || !TryUnit(radial, out radial) || !TryUnit(radial - z * radial.Dot(z), out var x))
+                {
+                    diagnostics.Add(new("assembly-axis-invalid-basis", $"Axis '{owner}.{name}' requires a nonzero Direction and a nonparallel Reference."));
+                    continue;
+                }
+                var y = z.Cross(x);
+                var transform = new AssemblyFrameTransformSource(owner + "_" + name, "World", origin, "Z", 0,
+                    [z.X,z.Y,z.Z], [y.X,y.Y,y.Z], new(sourceIdentity, header.Index + member.Index, member.Length + fields.Length + 1));
+                result.Add(new(owner + "." + name, owner + "." + name, transform, IsAxis: true));
+                remaining = remaining.Replace(member.Value + fields + "}", "", StringComparison.Ordinal);
+            }
             foreach (Match member in Regex.Matches(body, @"\bPlane\s+(?<name>\w+)\s*\{"))
             {
                 var fields = AssemblyM0Parser.BalancedBody(body, member.Index + member.Length - 1, diagnostics, "layout plane")!;
@@ -115,8 +139,10 @@ internal static class AssemblyDatumAuthoring
     {
         var usedFrames = new Dictionary<string, AssemblyFrameTransformSource>(StringComparer.Ordinal);
         var seats = new Dictionary<string, (AssemblyDatumSeat Seat, AssemblyFramePlacementSource Placement)>(StringComparer.Ordinal);
+        var axisSeats = new Dictionary<string, (string Member, string Interface, string Datum, AssemblyFramePlacementSource Placement)>(StringComparer.Ordinal);
         var resolved = new Dictionary<string, AssemblyLayoutDatum>(StringComparer.Ordinal);
         var active = new HashSet<string>(StringComparer.Ordinal);
+        var mateNames = new HashSet<string>(StringComparer.Ordinal);
         AssemblyLayoutDatum? Resolve(AssemblyLayoutDatum value)
         {
             if (resolved.TryGetValue(value.Identity, out var cached)) return cached;
@@ -185,13 +211,51 @@ internal static class AssemblyDatumAuthoring
         {
             var fields = AssemblyM0Parser.BalancedBody(body, header.Index + header.Length - 1, diagnostics, "datum Mate")!;
             if (fields is null) continue;
-            var contract = interfaces.FirstOrDefault(i => i.Name == header.Groups["type"].Value)?.DatumContract;
+            var definition = interfaces.FirstOrDefault(i => i.Name == header.Groups["type"].Value);
+            var contract = definition?.DatumContract;
             if (contract is null)
             {
                 if (Regex.IsMatch(fields, @"\bMember\s*:")) diagnostics.Add(new("assembly-datum-interface-unresolved", "Member/At Mate requires a datum-directed Fixed Interface."));
                 continue;
             }
             var member = Field(fields, "Member", diagnostics);
+            if (!mateNames.Add(header.Groups["name"].Value))
+            { diagnostics.Add(new("assembly-datum-mate-duplicate", $"Datum Mate '{header.Groups["name"].Value}' is duplicated in '{root.Name}'.")); continue; }
+            if (layout.FirstOrDefault(d => d.Identity == contract.Datum) is { IsAxis: true } axis)
+            {
+                if (!contract.Members.Contains(member, StringComparer.Ordinal))
+                    diagnostics.Add(new("assembly-datum-member-outside-contract", $"'{member}' is not a member of '{definition!.Name}'."));
+                var axisParts = member.Split('.');
+                var child = axisParts.Length == 3 && axisParts[0] == root.Name ? root.Children.FirstOrDefault(c => c.Name == axisParts[1]) : null;
+                if (child is null)
+                { diagnostics.Add(new("assembly-datum-member-scope", "Axis seating requires a direct occurrence's published semantic port.")); continue; }
+                var port = child.ExposedSemantics.FirstOrDefault(p => p.ExposedName == axisParts[2]);
+                if (!ValidAxisPort(port))
+                { diagnostics.Add(new("assembly-axis-port-invalid", $"'{member}' requires an exact Axis and an aligned seating Frame with origin on the axis.")); continue; }
+                if (!Regex.IsMatch(fields, @"\bAt\s*:")) diagnostics.Add(new("assembly-axis-station-missing", "Axis seating requires At in mm."));
+                var station = Measure(fields, "At", "mm", diagnostics);
+                var clocking = Measure(fields, "Clocking", "deg", diagnostics);
+                var axisOrientation = Regex.IsMatch(fields, @"\bOrientation\s*:") ? Field(fields, "Orientation", diagnostics) : "SameDirection";
+                if (axisOrientation is not ("SameDirection" or "OpposedDirection"))
+                    diagnostics.Add(new("assembly-datum-orientation-invalid", "Orientation requires SameDirection or OpposedDirection."));
+                CheckFields(fields, ["Member", "At", "Clocking", "Orientation"], diagnostics);
+                var resolvedAxis = Resolve(axis);
+                if (resolvedAxis is null) continue;
+                var basis = AssemblyFrameAuthoring.Compose(Transform3D.Identity, resolvedAxis.Transform, diagnostics);
+                var axisTarget = AssemblyFrameAuthoring.Compose(basis, new("AxisStation", "World", [0,0,station], "Z", clocking), diagnostics).ToRowMajor();
+                var sign = axisOrientation == "OpposedDirection" ? -1 : 1;
+                var name = resolvedAxis.Transform.Name + "__" + header.Groups["name"].Value;
+                usedFrames[name] = new(name, "World", [axisTarget[12],axisTarget[13],axisTarget[14]], "Z", 0,
+                    [sign*axisTarget[8],sign*axisTarget[9],sign*axisTarget[10]], [sign*axisTarget[4],sign*axisTarget[5],sign*axisTarget[6]], axis.Transform.SourceSpan);
+                var placement = new AssemblyFramePlacementSource(axisParts[2] + ".Frame", new(name, name + ".Frame", [0,0,0], "Z", 0), definition!.Family, header.Groups["name"].Value,
+                    new(definition.Name, contract.Datum, member, station, clocking, Enum.TryParse<DatumOrientationRelation>(axisOrientation, out var relation) ? relation : DatumOrientationRelation.SameDirection));
+                var axisOccurrence = root.Name + "." + child.Name;
+                if (seats.ContainsKey(axisOccurrence) || !axisSeats.TryAdd(axisOccurrence, (member, definition.Name, contract.Datum, placement)))
+                    diagnostics.Add(new("assembly-placement-authority-conflict", $"'{axisOccurrence}' has multiple datum Mates."));
+                continue;
+            }
+            if (definition!.Family != MechanicalInterfaceFamily.Fixed)
+            { diagnostics.Add(new("assembly-datum-family-invalid", "A plane datum requires Interface<Fixed>; Revolute requires a Concept Axis.")); continue; }
             var at = Field(fields, "At", diagnostics);
             var orientation = Field(fields, "Orientation", diagnostics);
             var support = Regex.IsMatch(fields, @"\bSupport\s*:\s*true\b");
@@ -225,17 +289,26 @@ internal static class AssemblyDatumAuthoring
             usedFrames[targetSpec.Name] = targetSpec;
             var seat = new AssemblyDatumSeat(header.Groups["type"].Value, contract.Datum, parts[2] + ".Frame",
                 datum.Transform.Translation.ToArray(), datum.Transform.Normal!.ToArray(), support);
-            if (!seats.TryAdd(occurrence, (seat, new(parts[2] + ".Frame", new(header.Groups["name"].Value,
+            if (axisSeats.ContainsKey(occurrence) || !seats.TryAdd(occurrence, (seat, new(parts[2] + ".Frame", new(header.Groups["name"].Value,
                 targetSpec.Name + ".Frame", [0,0,0], "Z", 0)))))
                 diagnostics.Add(new("assembly-placement-authority-conflict", $"'{occurrence}' has multiple datum-directed Mates."));
         }
         // Each member of a contract declared in this scope must be realized once.
         foreach (var definition in interfaces.Where(i => i.DatumContract is not null))
         foreach (var member in definition.DatumContract!.Members.Where(p => p.StartsWith(root.Name + ".", StringComparison.Ordinal)))
-            if (!seats.Any(p => p.Value.Seat.Interface == definition.Name && p.Key + "." + p.Value.Seat.Port[..^6] == member))
+            if (!seats.Any(p => p.Value.Seat.Interface == definition.Name && p.Key + "." + p.Value.Seat.Port[..^6] == member)
+                && !axisSeats.Any(p => p.Value.Interface == definition.Name && p.Value.Member == member))
                 diagnostics.Add(new("assembly-datum-member-unseated", $"Contract member '{member}' requires one datum Mate."));
         var children = root.Children.Select(child =>
         {
+            if (axisSeats.TryGetValue(root.Name + "." + child.Name, out var axisSeating))
+            {
+                if (child.FramePlacement is not null || child.ExplicitTransform is not null)
+                    diagnostics.Add(new("assembly-placement-authority-conflict", $"'{root.Name}.{child.Name}' has authored Placement and axis Mate."));
+                return child with { FramePlacement = axisSeating.Placement, PlacementAuthority = PlacementAuthority.MateDerived,
+                    Provenance = [.. child.Provenance ?? [], new("concept-axis-seating", axisSeating.Datum, axisSeating.Interface),
+                        new("concept-axis-member", axisSeating.Member, axisSeating.Placement.MateName!)] };
+            }
             if (!seats.TryGetValue(root.Name + "." + child.Name, out var seating)) return child;
             if (child.FramePlacement is not null || child.ExplicitTransform is not null)
                 diagnostics.Add(new("assembly-placement-authority-conflict", $"'{root.Name}.{child.Name}' has authored Placement and datum Mate."));
@@ -246,6 +319,55 @@ internal static class AssemblyDatumAuthoring
         }).ToArray();
         frames = usedFrames.Values.ToArray();
         return root with { Children = children };
+    }
+
+    internal static IReadOnlyList<AssemblyAxisSeatEvidence> ValidateAxisSeats(AssemblySource source, AssemblyIr ir,
+        List<AssemblyDiagnostic> diagnostics)
+    {
+        var result = new List<AssemblyAxisSeatEvidence>();
+        foreach (var child in source.Root.Children.Where(c => c.FramePlacement?.AxisSeat is not null))
+        {
+            var placement = child.FramePlacement!;
+            var seat = placement.AxisSeat!;
+            var instance = ir.Instances.Single(i => i.Path.ToString() == source.Root.Name + "." + child.Name);
+            var joint = ir.Joints?.SingleOrDefault(j => j.Name == placement.MateName);
+            if (joint is null || instance.ResolvedTransform is null) continue; // Existing placement diagnostics own unresolved input.
+            if (!AssemblyM0Compiler.TryResolve(AssemblyPath.Parse(seat.Member + ".Axis"), ir.Instances, out var axisReference)) continue;
+            var axis = (ExactAxisBinding)AssemblyWorldQuery.Resolve(ir, axisReference!.Value.StableIdentity);
+            var target = (ExactDatumFrameBinding)AssemblyWorldQuery.Resolve(ir, joint.ParentFrameSemanticId);
+            var frame = (ExactDatumFrameBinding)AssemblyWorldQuery.Resolve(ir, joint.ChildFrameSemanticId);
+            var direction = new Vector3D(axis.DirectionX,axis.DirectionY,axis.DirectionZ);
+            direction.TryNormalize(out direction);
+            var z = new Vector3D(target.ZAxisX,target.ZAxisY,target.ZAxisZ);
+            var delta = new Vector3D(axis.OriginX-target.OriginX,axis.OriginY-target.OriginY,axis.OriginZ-target.OriginZ);
+            var axisResidual = delta.Cross(z).Length;
+            var stationResidual = new Vector3D(frame.OriginX-target.OriginX,frame.OriginY-target.OriginY,frame.OriginZ-target.OriginZ).Length;
+            var x = new Vector3D(frame.XAxisX,frame.XAxisY,frame.XAxisZ);
+            var targetX = new Vector3D(target.XAxisX,target.XAxisY,target.XAxisZ);
+            var angle = Math.Max(Math.Atan2(direction.Cross(z).Length, direction.Dot(z)), Math.Atan2(x.Cross(targetX).Length, x.Dot(targetX)));
+            var passed = axisResidual <= 1e-6 && stationResidual <= 1e-6 && angle <= 1e-6;
+            result.Add(new(placement.MateName!, instance.StableId, seat, joint.DegreesOfFreedom, axisResidual, stationResidual, angle, passed));
+            if (!passed) diagnostics.Add(new("assembly-axis-residual-failed", $"Axis Mate '{placement.MateName}' failed exact datum residual validation."));
+        }
+        return result;
+    }
+
+    private static bool ValidAxisPort(SemanticValue? port)
+    {
+        if (port is null || !port.ExposedMembers.TryGetValue("Axis", out var a) || !a.TryBinding<ExactAxisBinding>(out var axis)
+            || !port.ExposedMembers.TryGetValue("Frame", out var f) || !f.TryBinding<ExactDatumFrameBinding>(out var frame)) return false;
+        var direction = new Vector3D(axis.DirectionX,axis.DirectionY,axis.DirectionZ);
+        var z = new Vector3D(frame.ZAxisX,frame.ZAxisY,frame.ZAxisZ);
+        var delta = new Vector3D(frame.OriginX-axis.OriginX,frame.OriginY-axis.OriginY,frame.OriginZ-axis.OriginZ);
+        return TryUnit(direction, out direction) && TryUnit(z, out z)
+            && (direction - z).Length <= 1e-6 && delta.Cross(direction).Length <= 1e-6;
+    }
+
+    private static bool TryUnit(Vector3D value, out Vector3D unit)
+    {
+        var scale = Math.Max(Math.Abs(value.X), Math.Max(Math.Abs(value.Y), Math.Abs(value.Z)));
+        unit = Vector3D.Zero;
+        return double.IsFinite(scale) && scale > 1e-12 && (value / scale).TryNormalize(out unit);
     }
 
     private static double Measure(string fields, string name, string unit, List<AssemblyDiagnostic> diagnostics)
@@ -297,7 +419,7 @@ internal static class AssemblyDatumAuthoring
 
     private static void CheckFields(string fields, string[] names, List<AssemblyDiagnostic> diagnostics)
     {
-        var remaining = Regex.Replace(fields, $@"\b(?:{string.Join('|', names)})\s*:\s*(?:\[[^]]*\]|[A-Za-z_]\w*(?:\.\w+)*)\s*;?", "");
+        var remaining = Regex.Replace(fields, $@"\b(?:{string.Join('|', names)})\s*:\s*(?:\[[^]]*\]|[-+0-9.eE]+(?:mm|deg)|[A-Za-z_]\w*(?:\.\w+)*)\s*;?", "");
         if (!string.IsNullOrWhiteSpace(remaining.Replace(";", ""))) diagnostics.Add(new("assembly-datum-fields-invalid", $"Unknown or malformed datum fields: {remaining.Trim()}"));
     }
 }

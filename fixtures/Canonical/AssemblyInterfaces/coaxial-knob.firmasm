@@ -1,0 +1,12 @@
+Include "GuitarX0/hardware-definitions.firmament";
+Include "GuitarX0/knob.firmament";
+// One Concept spindle drives the complete rigid knob, along world X.
+Concept Struct ControlLayout {
+ Axis VolumeAxis { Origin: [3mm,4mm,5mm]; Direction: [2,0,0]; Reference: [0,3,1]; }
+}
+Assembly Controls {
+ <Assembly Controls><Assembly VolumeKnob = ControlKnob></Assembly></Assembly>
+ Anchor: Controls;
+ Interface<Revolute> VolumeControl { Datum: ControlLayout.VolumeAxis; Members: [Controls.VolumeKnob.Spindle]; }
+ Mate VolumeRotation: VolumeControl { Member: Controls.VolumeKnob.Spindle; At: 7mm; Clocking: 30deg; }
+}

@@ -152,7 +152,9 @@ Template<L: Length, W: Length, H: Length, R: Length> Struct Panel {
  Extrude Body { Profile: P From: 0mm To: H }
 }
 Template<R: Length,H: Length> Struct Drum {
- Expose { Semantic BottomSeat { DatumFrame Frame = [0mm,0mm,0mm] x [1,0,0] y [0,1,0] z [0,0,1]; } }
+ Expose { Semantic BottomSeat { DatumFrame Frame = [0mm,0mm,0mm] x [1,0,0] y [0,1,0] z [0,0,1]; }
+  Semantic SpindleSeat { Axis Axis = [0mm,0mm,0mm] -> [0,0,1];
+   DatumFrame Frame = [0mm,0mm,0mm] x [1,0,0] y [0,1,0] z [0,0,1]; } }
  Circle2 Outline { Center: [0mm,0mm] Radius: R }
  Profile P { Loop Outer { Outline |> TraceLoop } }
  Extrude Body { Profile: P From: 0mm To: H }

@@ -147,9 +147,20 @@ internal static class AssemblyFrameAuthoring
             var a = Publish(owner, "__LayoutSource" + suffix, from.Value.Frame, layout.From);
             var b = Publish(to.Value.Owner, "__LayoutTarget" + suffix, Compose(to.Value.Frame, layout.Target, diagnostics), layout.Target.From);
             var name = "__Layout" + suffix;
-            interfaces.Add(new("interface:" + name, name, [new("Moving", ["DatumFrameCapable"]),new("Target", ["DatumFrameCapable"])],
-                [new(PlacementConstraintKind.FrameCoincident,"Moving",".","Target",".")], SourceSpan: layout.Target.SourceSpan));
-            mates.Add(new(name,name,[new("Moving",a),new("Target",b)],layout.Target.SourceSpan));
+            if (layout.JointFamily is { } family)
+            {
+                interfaces.Add(new("interface:" + name, name, [new("A", ["DatumFrameCapable"]),new("B", ["DatumFrameCapable"])],
+                    [new(PlacementConstraintKind.FrameCoincident,"A",".","B",".")],
+                    AdmittedFreeMotions: family == MechanicalInterfaceFamily.Revolute ? ["rotation:about-axis"] : [],
+                    Family: family, SourceSpan: layout.Target.SourceSpan));
+                mates.Add(new(layout.MateName!,name,[new("A",b),new("B",a)],layout.Target.SourceSpan));
+            }
+            else
+            {
+                interfaces.Add(new("interface:" + name, name, [new("Moving", ["DatumFrameCapable"]),new("Target", ["DatumFrameCapable"])],
+                    [new(PlacementConstraintKind.FrameCoincident,"Moving",".","Target",".")], SourceSpan: layout.Target.SourceSpan));
+                mates.Add(new(name,name,[new("Moving",a),new("Target",b)],layout.Target.SourceSpan));
+            }
         }
         // Validate unused named transforms too: a malformed/cyclic declaration must not disappear.
         foreach (var name in named.Keys) Resolve(name + ".Frame", root.Path.ToString(), []);

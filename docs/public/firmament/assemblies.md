@@ -1,5 +1,8 @@
 # Typed interfaces and reusable subassemblies
 
+For common-axis placement and whole-component rotation, see
+[Concept-directed coaxial mating](concept-axis-mating-proposal.md).
+
 For layout-first placement against authored Concept planes, see
 [Concept-directed Fixed seating](datum-seating.md).
 

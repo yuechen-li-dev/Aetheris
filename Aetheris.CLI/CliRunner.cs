@@ -576,6 +576,7 @@ public static class CliRunner
         SectionChainMaterializationResult materialized;
         SectionChain chain;
         IReadOnlyList<SectionChainProfileDerivation>? profileDerivations = null;
+        IReadOnlyList<SectionChainBoundaryEditInspection>? boundaryEdits = null;
         if (File.Exists(witness))
         {
             var authored = SectionChainAuthoringParser.CompileFile(witness);
@@ -587,6 +588,7 @@ public static class CliRunner
             }
             chain = authored.Chain; materialized = authored.Materialization;
             profileDerivations = authored.ProfileDerivations;
+            boundaryEdits = authored.BoundaryEdits;
         }
         else
         {
@@ -614,6 +616,7 @@ public static class CliRunner
             {
                 command = $"section-chain {operation}", success = true, chain.StableId,
                 profileDerivations,
+                boundaryEdits,
                 sections = chain.Sections.Select(section => new { section.SectionId, section.Frame, profile = section.Profile.StableId, spans = section.Profile.Spans.Select(span => span.SpanId), seam = section.Profile.SeamSpanId }),
                 chain.Correspondence,
                 resolvedCorrespondence = Enumerable.Range(0, chain.Sections.Count - 1).Select(index => new

@@ -53,14 +53,44 @@ def body_chain(name, stations, continuity):
         rows.append(f' Profile P{i} Using SectionLayout {{ Loop Outer {{ Outline{i} |> TraceLoop }} }}')
     rows.append(f' SectionChain {name} {{ Continuity: {continuity}')
     for i in range(len(stations)):
-        rows.append(f'  Section S{i} {{ Frame: F{i}\n   Profile: P{i}\n   Seam: Edge0 }}')
+        rows.append(f'  Section S{i} {{ Frame: F{i}\n   Profile: P{i}\n   Seam: LowerTreble_Span0 }}')
     rows.extend(['  Start: Cap', '  End: Cap', ' }'])
     if name == 'CarvedMaple':
         rows.append(' Expose { Semantic TopSeat { DatumFrame Frame = CarvedMaple.Section.S4.Frame; } }')
     rows.append('}')
     (ROOT/f'{name}.firmament').write_text('\n'.join(rows)+'\n')
 
-(ROOT/'body-outline.firmament').write_text('// Shared authored single-cut boundary; Concept placements derive each section.\n'+profile('BodyOutline',OUTLINE)+'\n')
+def body_outline():
+    # Named Concept chords are the closed seed. Pure Profile edits inherit their
+    # endpoints; explicit Hermite derivatives preserve the existing silhouette.
+    groups = [('Tail', 'LowerTreble', 0), ('TrebleWaist', 'HornRise', 4),
+              ('Horn', 'Cutaway', 7), ('NeckSeat', 'Shoulder', 10),
+              ('BassShoulder', 'UpperBass', 12), ('BassWaist', 'LowerBass', 14)]
+    vector = lambda p: '[' + ','.join(number(v)+'mm' for v in p) + ']'
+    rows = ['// Shared named body boundary; no authored spline control cage.',
+            'Static Landmarks: Set<Point2> {']
+    for landmark, _, index in groups:
+        x,y = OUTLINE[index]
+        rows.append(f' {landmark} => Point2({number(x)}mm,{number(y)}mm)')
+    rows.extend(['}', 'Concept Struct BodyLayout {',
+                 ' Polygon2<Explicit> Scaffold { Vertices: Landmarks }', '}',
+                 'Profile BodyOutline Using BodyLayout {', ' From: Scaffold'])
+    for k,(landmark,edit,start) in enumerate(groups):
+        next_landmark,_,end = groups[(k+1)%len(groups)]
+        if end <= start: end += len(OUTLINE)
+        knots = list(range(start,end+1))
+        through = ', '.join(vector(OUTLINE[i%len(OUTLINE)]) for i in knots[1:-1])
+        derivatives = []
+        for i in knots:
+            before,after = OUTLINE[(i-1)%len(OUTLINE)],OUTLINE[(i+1)%len(OUTLINE)]
+            derivatives.append(((after[0]-before[0])/2,(after[1]-before[1])/2))
+        rows.extend([f' Replace {edit} {{', f'  On: Scaffold.{landmark}_{next_landmark}',
+                     f'  Through: [{through}]',
+                     '  Derivatives: ['+', '.join(vector(d) for d in derivatives)+']', ' }'])
+    rows.append('}')
+    return '\n'.join(rows)+'\n'
+
+(ROOT/'body-outline.firmament').write_text(body_outline())
 body_chain('MahoganyBack',[(0,1),(38,1)],'G0')
 body_chain('IvoryBinding',[(38,1),(40,1)],'G0')
 body_chain('CarvedMaple',[(40,.992),(43,.955),(48,.84),(52,.76),(53,.72)],'G1')

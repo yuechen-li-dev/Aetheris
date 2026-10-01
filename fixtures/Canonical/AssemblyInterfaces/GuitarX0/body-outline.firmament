@@ -1,93 +1,45 @@
-// Shared authored single-cut boundary; Concept placements derive each section.
- Point2 BodyOutlineP0 { Position: [0mm,-220mm] }
- Point2 BodyOutlineA0 { Position: [38.333333mm,-220mm] }
- Point2 BodyOutlineB0 { Position: [-38.333333mm,-220mm] }
- Point2 BodyOutlineP1 { Position: [115mm,-195mm] }
- Point2 BodyOutlineA1 { Position: [143mm,-177.5mm] }
- Point2 BodyOutlineB1 { Position: [87mm,-212.5mm] }
- Point2 BodyOutlineP2 { Position: [168mm,-115mm] }
- Point2 BodyOutlineA2 { Position: [173.5mm,-88.333333mm] }
- Point2 BodyOutlineB2 { Position: [162.5mm,-141.666667mm] }
- Point2 BodyOutlineP3 { Position: [148mm,-35mm] }
- Point2 BodyOutlineA3 { Position: [137.5mm,-11.166667mm] }
- Point2 BodyOutlineB3 { Position: [158.5mm,-58.833333mm] }
- Point2 BodyOutlineP4 { Position: [105mm,28mm] }
- Point2 BodyOutlineA4 { Position: [100mm,49.666667mm] }
- Point2 BodyOutlineB4 { Position: [110mm,6.333333mm] }
- Point2 BodyOutlineP5 { Position: [118mm,95mm] }
- Point2 BodyOutlineA5 { Position: [121.166667mm,113.666667mm] }
- Point2 BodyOutlineB5 { Position: [114.833333mm,76.333333mm] }
- Point2 BodyOutlineP6 { Position: [124mm,140mm] }
- Point2 BodyOutlineA6 { Position: [123.166667mm,150.833333mm] }
- Point2 BodyOutlineB6 { Position: [124.833333mm,129.166667mm] }
- Point2 BodyOutlineP7 { Position: [113mm,160mm] }
- Point2 BodyOutlineA7 { Position: [107.5mm,160.333333mm] }
- Point2 BodyOutlineB7 { Position: [118.5mm,159.666667mm] }
- Point2 BodyOutlineP8 { Position: [91mm,142mm] }
- Point2 BodyOutlineA8 { Position: [80.166667mm,138.166667mm] }
- Point2 BodyOutlineB8 { Position: [101.833333mm,145.833333mm] }
- Point2 BodyOutlineP9 { Position: [48mm,137mm] }
- Point2 BodyOutlineA9 { Position: [37.5mm,147.333333mm] }
- Point2 BodyOutlineB9 { Position: [58.5mm,126.666667mm] }
- Point2 BodyOutlineP10 { Position: [28mm,204mm] }
- Point2 BodyOutlineA10 { Position: [13mm,215.333333mm] }
- Point2 BodyOutlineB10 { Position: [43mm,192.666667mm] }
- Point2 BodyOutlineP11 { Position: [-42mm,205mm] }
- Point2 BodyOutlineA11 { Position: [-65.166667mm,200mm] }
- Point2 BodyOutlineB11 { Position: [-18.833333mm,210mm] }
- Point2 BodyOutlineP12 { Position: [-111mm,174mm] }
- Point2 BodyOutlineA12 { Position: [-123.833333mm,159mm] }
- Point2 BodyOutlineB12 { Position: [-98.166667mm,189mm] }
- Point2 BodyOutlineP13 { Position: [-119mm,115mm] }
- Point2 BodyOutlineA13 { Position: [-116.333333mm,92.666667mm] }
- Point2 BodyOutlineB13 { Position: [-121.666667mm,137.333333mm] }
- Point2 BodyOutlineP14 { Position: [-95mm,40mm] }
- Point2 BodyOutlineA14 { Position: [-98mm,15.5mm] }
- Point2 BodyOutlineB14 { Position: [-92mm,64.5mm] }
- Point2 BodyOutlineP15 { Position: [-137mm,-32mm] }
- Point2 BodyOutlineA15 { Position: [-149.166667mm,-57.833333mm] }
- Point2 BodyOutlineB15 { Position: [-124.833333mm,-6.166667mm] }
- Point2 BodyOutlineP16 { Position: [-168mm,-115mm] }
- Point2 BodyOutlineA16 { Position: [-164.333333mm,-142.166667mm] }
- Point2 BodyOutlineB16 { Position: [-171.666667mm,-87.833333mm] }
- Point2 BodyOutlineP17 { Position: [-115mm,-195mm] }
- Point2 BodyOutlineA17 { Position: [-87mm,-212.5mm] }
- Point2 BodyOutlineB17 { Position: [-143mm,-177.5mm] }
- CubicBezier2 BodyOutlineC0 { From: BodyOutlineP0; Control1: BodyOutlineA0; Control2: BodyOutlineB1; To: BodyOutlineP1 }
- CubicBezier2 BodyOutlineC1 { From: BodyOutlineP1; Control1: BodyOutlineA1; Control2: BodyOutlineB2; To: BodyOutlineP2 }
- CubicBezier2 BodyOutlineC2 { From: BodyOutlineP2; Control1: BodyOutlineA2; Control2: BodyOutlineB3; To: BodyOutlineP3 }
- CubicBezier2 BodyOutlineC3 { From: BodyOutlineP3; Control1: BodyOutlineA3; Control2: BodyOutlineB4; To: BodyOutlineP4 }
- CubicBezier2 BodyOutlineC4 { From: BodyOutlineP4; Control1: BodyOutlineA4; Control2: BodyOutlineB5; To: BodyOutlineP5 }
- CubicBezier2 BodyOutlineC5 { From: BodyOutlineP5; Control1: BodyOutlineA5; Control2: BodyOutlineB6; To: BodyOutlineP6 }
- CubicBezier2 BodyOutlineC6 { From: BodyOutlineP6; Control1: BodyOutlineA6; Control2: BodyOutlineB7; To: BodyOutlineP7 }
- CubicBezier2 BodyOutlineC7 { From: BodyOutlineP7; Control1: BodyOutlineA7; Control2: BodyOutlineB8; To: BodyOutlineP8 }
- CubicBezier2 BodyOutlineC8 { From: BodyOutlineP8; Control1: BodyOutlineA8; Control2: BodyOutlineB9; To: BodyOutlineP9 }
- CubicBezier2 BodyOutlineC9 { From: BodyOutlineP9; Control1: BodyOutlineA9; Control2: BodyOutlineB10; To: BodyOutlineP10 }
- CubicBezier2 BodyOutlineC10 { From: BodyOutlineP10; Control1: BodyOutlineA10; Control2: BodyOutlineB11; To: BodyOutlineP11 }
- CubicBezier2 BodyOutlineC11 { From: BodyOutlineP11; Control1: BodyOutlineA11; Control2: BodyOutlineB12; To: BodyOutlineP12 }
- CubicBezier2 BodyOutlineC12 { From: BodyOutlineP12; Control1: BodyOutlineA12; Control2: BodyOutlineB13; To: BodyOutlineP13 }
- CubicBezier2 BodyOutlineC13 { From: BodyOutlineP13; Control1: BodyOutlineA13; Control2: BodyOutlineB14; To: BodyOutlineP14 }
- CubicBezier2 BodyOutlineC14 { From: BodyOutlineP14; Control1: BodyOutlineA14; Control2: BodyOutlineB15; To: BodyOutlineP15 }
- CubicBezier2 BodyOutlineC15 { From: BodyOutlineP15; Control1: BodyOutlineA15; Control2: BodyOutlineB16; To: BodyOutlineP16 }
- CubicBezier2 BodyOutlineC16 { From: BodyOutlineP16; Control1: BodyOutlineA16; Control2: BodyOutlineB17; To: BodyOutlineP17 }
- CubicBezier2 BodyOutlineC17 { From: BodyOutlineP17; Control1: BodyOutlineA17; Control2: BodyOutlineB0; To: BodyOutlineP0 }
- Profile BodyOutline { Loop Outer {
-  Segment Edge0 { Trace: BodyOutlineC0; From: BodyOutlineP0; To: BodyOutlineP1 }
-  Segment Edge1 { Trace: BodyOutlineC1; From: BodyOutlineP1; To: BodyOutlineP2 }
-  Segment Edge2 { Trace: BodyOutlineC2; From: BodyOutlineP2; To: BodyOutlineP3 }
-  Segment Edge3 { Trace: BodyOutlineC3; From: BodyOutlineP3; To: BodyOutlineP4 }
-  Segment Edge4 { Trace: BodyOutlineC4; From: BodyOutlineP4; To: BodyOutlineP5 }
-  Segment Edge5 { Trace: BodyOutlineC5; From: BodyOutlineP5; To: BodyOutlineP6 }
-  Segment Edge6 { Trace: BodyOutlineC6; From: BodyOutlineP6; To: BodyOutlineP7 }
-  Segment Edge7 { Trace: BodyOutlineC7; From: BodyOutlineP7; To: BodyOutlineP8 }
-  Segment Edge8 { Trace: BodyOutlineC8; From: BodyOutlineP8; To: BodyOutlineP9 }
-  Segment Edge9 { Trace: BodyOutlineC9; From: BodyOutlineP9; To: BodyOutlineP10 }
-  Segment Edge10 { Trace: BodyOutlineC10; From: BodyOutlineP10; To: BodyOutlineP11 }
-  Segment Edge11 { Trace: BodyOutlineC11; From: BodyOutlineP11; To: BodyOutlineP12 }
-  Segment Edge12 { Trace: BodyOutlineC12; From: BodyOutlineP12; To: BodyOutlineP13 }
-  Segment Edge13 { Trace: BodyOutlineC13; From: BodyOutlineP13; To: BodyOutlineP14 }
-  Segment Edge14 { Trace: BodyOutlineC14; From: BodyOutlineP14; To: BodyOutlineP15 }
-  Segment Edge15 { Trace: BodyOutlineC15; From: BodyOutlineP15; To: BodyOutlineP16 }
-  Segment Edge16 { Trace: BodyOutlineC16; From: BodyOutlineP16; To: BodyOutlineP17 }
-  Segment Edge17 { Trace: BodyOutlineC17; From: BodyOutlineP17; To: BodyOutlineP0 }
- } }
+// Shared named body boundary; no authored spline control cage.
+Static Landmarks: Set<Point2> {
+ Tail => Point2(0mm,-220mm)
+ TrebleWaist => Point2(105mm,28mm)
+ Horn => Point2(113mm,160mm)
+ NeckSeat => Point2(28mm,204mm)
+ BassShoulder => Point2(-111mm,174mm)
+ BassWaist => Point2(-95mm,40mm)
+}
+Concept Struct BodyLayout {
+ Polygon2<Explicit> Scaffold { Vertices: Landmarks }
+}
+Profile BodyOutline Using BodyLayout {
+ From: Scaffold
+ Replace LowerTreble {
+  On: Scaffold.Tail_TrebleWaist
+  Through: [[115mm,-195mm], [168mm,-115mm], [148mm,-35mm]]
+  Derivatives: [[115mm,0mm], [84mm,52.5mm], [16.5mm,80mm], [-31.5mm,71.5mm], [-15mm,65mm]]
+ }
+ Replace HornRise {
+  On: Scaffold.TrebleWaist_Horn
+  Through: [[118mm,95mm], [124mm,140mm]]
+  Derivatives: [[-15mm,65mm], [9.5mm,56mm], [-2.5mm,32.5mm], [-16.5mm,1mm]]
+ }
+ Replace Cutaway {
+  On: Scaffold.Horn_NeckSeat
+  Through: [[91mm,142mm], [48mm,137mm]]
+  Derivatives: [[-16.5mm,1mm], [-32.5mm,-11.5mm], [-31.5mm,31mm], [-45mm,34mm]]
+ }
+ Replace Shoulder {
+  On: Scaffold.NeckSeat_BassShoulder
+  Through: [[-42mm,205mm]]
+  Derivatives: [[-45mm,34mm], [-69.5mm,-15mm], [-38.5mm,-45mm]]
+ }
+ Replace UpperBass {
+  On: Scaffold.BassShoulder_BassWaist
+  Through: [[-119mm,115mm]]
+  Derivatives: [[-38.5mm,-45mm], [8mm,-67mm], [-9mm,-73.5mm]]
+ }
+ Replace LowerBass {
+  On: Scaffold.BassWaist_Tail
+  Through: [[-137mm,-32mm], [-168mm,-115mm], [-115mm,-195mm]]
+  Derivatives: [[-9mm,-73.5mm], [-36.5mm,-77.5mm], [11mm,-81.5mm], [84mm,-52.5mm], [115mm,0mm]]
+ }
+}

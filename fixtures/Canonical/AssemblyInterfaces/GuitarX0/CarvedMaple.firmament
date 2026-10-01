@@ -28,19 +28,19 @@ Model CarvedMaple {
  SectionChain CarvedMaple { Continuity: G1
   Section S0 { Frame: F0
    Profile: P0
-   Seam: Edge0 }
+   Seam: LowerTreble_Span0 }
   Section S1 { Frame: F1
    Profile: P1
-   Seam: Edge0 }
+   Seam: LowerTreble_Span0 }
   Section S2 { Frame: F2
    Profile: P2
-   Seam: Edge0 }
+   Seam: LowerTreble_Span0 }
   Section S3 { Frame: F3
    Profile: P3
-   Seam: Edge0 }
+   Seam: LowerTreble_Span0 }
   Section S4 { Frame: F4
    Profile: P4
-   Seam: Edge0 }
+   Seam: LowerTreble_Span0 }
   Start: Cap
   End: Cap
  }

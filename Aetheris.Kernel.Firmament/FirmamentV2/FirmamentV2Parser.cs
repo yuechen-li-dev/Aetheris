@@ -307,8 +307,7 @@ public static class FirmamentV2Parser
         FirmamentV2ForgeConceptCatalog? conceptCatalog)
     {
         ArgumentNullException.ThrowIfNull(sourceText);
-        if(Regex.IsMatch(sourceText,@"\bUse\s+Profile\.Modifications\s*;",RegexOptions.CultureInvariant))
-            sourceText=ProfileModificationTemplateLibrary.Source+Environment.NewLine+Regex.Replace(sourceText,@"\bUse\s+Profile\.Modifications\s*;",string.Empty,RegexOptions.CultureInvariant);
+        sourceText = ProfileModificationTemplateLibrary.ResolveImports(sourceText);
         var diagnostics = new List<string> { "firmament-v2-parser-invoked" };
         var source = StripLineComments(sourceText);
         var polygonExpansion = ClosedBoundary2Authoring.Expand(source, diagnostics);

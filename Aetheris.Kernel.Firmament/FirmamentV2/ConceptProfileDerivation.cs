@@ -86,7 +86,7 @@ internal static class ConceptProfileDerivation
                 SourceSpan = $"offset:{profile.Index}", Derivation = FormattableString.Invariant($"ConceptBoundaryPlacement:source={from};translate={translate[0]:R},{translate[1]:R};rotate={rotate:R};scale={scale:R};pivot={pivot[0]:R},{pivot[1]:R}"),
                 SourceFrame = planeName, TracedFrom = segment.Provenance.StableId }));
         }
-        result = new(name, planeName, [new("Outer", true, segments)], plane);
+        result = new(name, planeName, [new("Outer", true, segments)], plane, BoundaryEdits: inherited.BoundaryEdits);
         var validation = ResolvedProfile2DValidator.Validate(result);
         diagnostics.AddRange(validation.Diagnostics);
         if (diagnostics.Count != 0) result = null;

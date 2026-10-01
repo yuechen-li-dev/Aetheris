@@ -288,6 +288,7 @@ public static class FirmamentBuildAndExport
         // parser admission alone is insufficient because the profile/composition
         // materializers read source declarations directly.
         var staticDiagnostics = new List<string>();
+        sourceText = ProfileModificationTemplateLibrary.ResolveImports(sourceText);
         var boundaryExpansion = ClosedBoundary2Authoring.Expand(sourceText, staticDiagnostics);
         if (boundaryExpansion is null)
         {

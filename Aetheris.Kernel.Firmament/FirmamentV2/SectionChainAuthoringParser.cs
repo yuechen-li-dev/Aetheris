@@ -10,7 +10,11 @@ public sealed record SectionChainAuthoringResult(
     SectionChainMaterializationResult? Materialization,
     IReadOnlyList<string> Diagnostics,
     LoftAuthoredBinding? LoftBinding = null,
-    IReadOnlyList<SectionChainProfileDerivation>? ProfileDerivations = null);
+    IReadOnlyList<SectionChainProfileDerivation>? ProfileDerivations = null,
+    IReadOnlyList<SectionChainBoundaryEditInspection>? BoundaryEdits = null);
+
+public sealed record SectionChainBoundaryEditInspection(string Section, string Profile,
+    IReadOnlyList<ProfileBoundaryEditEvidence> Edits);
 
 public sealed record SectionChainProfileDerivation(string Section, string Profile, string ConceptCurve,
     string SourceSegment, string Transform, string Plane);
@@ -68,6 +72,7 @@ public static class SectionChainAuthoringParser
 
         var sections = new List<Section>();
         var derivations = new List<SectionChainProfileDerivation>();
+        var boundaryEdits = new List<SectionChainBoundaryEditInspection>();
         foreach (var authored in Blocks(declaration.Body, "Section"))
         {
             var frameName = Field(authored.Body, "Frame");
@@ -86,6 +91,7 @@ public static class SectionChainAuthoringParser
             if (frameName is not null && plane is null) diagnostics.Add($"section-chain-frame-unresolved:{authored.Name}:{frameName}");
             if (plane is null || profile is null) continue;
             var outer = profile.Loops.Single(loop => loop.IsOuter);
+            if (profile.BoundaryEdits is { Count: > 0 }) boundaryEdits.Add(new(authored.Name, profile.Name, profile.BoundaryEdits));
             if (outer.Segments.FirstOrDefault()?.Provenance is { } provenance
                 && provenance.ConceptStableId.StartsWith("concept-curve:", StringComparison.Ordinal))
                 derivations.Add(new(authored.Name, profile.Name, provenance.ConceptStableId,
@@ -115,11 +121,11 @@ public static class SectionChainAuthoringParser
             diagnostics.Add("section-chain-normalization-tolerance-invalid:positive-length-required");
         if (diagnostics.Count != 0) return Fail(diagnostics);
         var chain = new SectionChain(declaration.Name, sections, correspondence, transition, start, end, continuity, ProfileApproximationTolerance: tolerance);
-        if (!materialize) return new(true, chain, null, [], ProfileDerivations: derivations);
+        if (!materialize) return new(true, chain, null, [], ProfileDerivations: derivations, BoundaryEdits: boundaryEdits);
         var result = SectionChainMaterializer.Materialize(chain);
         if (!result.IsSuccess)
             diagnostics.AddRange(result.Diagnostics.Select(item => $"{item.Code}:{item.Message}"));
-        return new(result.IsSuccess, chain, result, diagnostics, ProfileDerivations: derivations);
+        return new(result.IsSuccess, chain, result, diagnostics, ProfileDerivations: derivations, BoundaryEdits: boundaryEdits);
 
         SectionChainAuthoringResult Fail(IEnumerable<string> items) => new(false, null, null, items.Distinct(StringComparer.Ordinal).ToArray());
     }

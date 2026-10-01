@@ -53,10 +53,12 @@ public static class ProfileAuthoringParser
         ArgumentException.ThrowIfNullOrWhiteSpace(profileName);
         var diagnostics = new List<string>();
         if (!visiting.Add(profileName)) { reportedDiagnostics = [$"concept-profile-dependency-cycle:{profileName}"]; return null; }
+        source = ProfileModificationTemplateLibrary.ResolveImports(source);
         source = ExpandBuiltInPolygons(source, diagnostics);
         var expansion = FirmamentV2TemplateExpansion.Expand(source, diagnostics);
         if (expansion is not null) source = expansion.Source;
-        if (ConceptProfileDerivation.TryResolve(source, profileName, visiting, diagnostics, out var derived))
+        if (ProfileBoundaryAuthoring.TryResolve(source, profileName, visiting, diagnostics, out var derived)
+            || ConceptProfileDerivation.TryResolve(source, profileName, visiting, diagnostics, out derived))
         {
             visiting.Remove(profileName);
             reportedDiagnostics = diagnostics.Distinct(StringComparer.Ordinal).ToArray();
@@ -175,7 +177,8 @@ public static class ProfileAuthoringParser
         if (profile is null)
             return (null, 0, ["profile-source-missing-profile"]);
 
-        if (ConceptProfileDerivation.TryResolve(source, profile.Name, new(StringComparer.Ordinal) { profile.Name }, diagnostics, out var conceptProfile))
+        if (ProfileBoundaryAuthoring.TryResolve(source, profile.Name, new(StringComparer.Ordinal) { profile.Name }, diagnostics, out var conceptProfile)
+            || ConceptProfileDerivation.TryResolve(source, profile.Name, new(StringComparer.Ordinal) { profile.Name }, diagnostics, out conceptProfile))
         {
             var depths = ResolveExtrude(source, profile.Name, diagnostics);
             return (conceptProfile is null ? null : conceptProfile with { LocalStartDepth = depths.Start, LocalEndDepth = depths.End }, depths.Height, diagnostics);
@@ -204,8 +207,11 @@ public static class ProfileAuthoringParser
     {
         // This is the canonical semantic-profile adapter used by Compose and SectionChain.
         // Its historical name remains source-compatible; pipeline syntax is erased here too.
+        source = ProfileModificationTemplateLibrary.ResolveImports(source);
         source = ExpandBuiltInPolygons(source, diagnostics);
-        var authoredProfiles = FindProfiles(source).Where(candidate => candidate.FromPath is not null || candidate.Body?.Contains("|>", StringComparison.Ordinal) == true).ToArray();
+        var templates = FirmamentV2TemplateExpansion.Expand(source, diagnostics);
+        if (templates is not null) source = templates.Source;
+        var authoredProfiles = FindProfiles(source).Where(candidate => candidate.FromPath is not null || candidate.Body?.Contains("|>", StringComparison.Ordinal) == true || ProfileBoundaryAuthoring.IsDerived(candidate.Body)).ToArray();
         if (authoredProfiles.Length == 0) return new Dictionary<string, ResolvedProfile2D>();
         var points = new Dictionary<string, (double X, double Y)>(StringComparer.Ordinal);
         var guides = new Dictionary<string, LineArcProfileCurve2D>(StringComparer.Ordinal);
@@ -214,7 +220,8 @@ public static class ProfileAuthoringParser
         var profiles = new Dictionary<string, ResolvedProfile2D>(StringComparer.Ordinal);
         foreach (var profile in authoredProfiles)
         {
-            if (ConceptProfileDerivation.TryResolve(source, profile.Name, new(StringComparer.Ordinal) { profile.Name }, diagnostics, out var derived))
+            if (ProfileBoundaryAuthoring.TryResolve(source, profile.Name, new(StringComparer.Ordinal) { profile.Name }, diagnostics, out var derived)
+                || ConceptProfileDerivation.TryResolve(source, profile.Name, new(StringComparer.Ordinal) { profile.Name }, diagnostics, out derived))
             {
                 if (derived is not null && !profiles.TryAdd(profile.Name, derived)) diagnostics.Add($"profile-duplicate:{profile.Name}");
                 continue;

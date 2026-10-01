@@ -16,10 +16,10 @@ Model MahoganyBack {
  SectionChain MahoganyBack { Continuity: G0
   Section S0 { Frame: F0
    Profile: P0
-   Seam: Edge0 }
+   Seam: LowerTreble_Span0 }
   Section S1 { Frame: F1
    Profile: P1
-   Seam: Edge0 }
+   Seam: LowerTreble_Span0 }
   Start: Cap
   End: Cap
  }

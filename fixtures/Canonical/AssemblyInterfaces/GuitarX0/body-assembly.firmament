@@ -1,3 +1,4 @@
+Include "hardware-layout.firmament";
 
 Subassembly GuitarBody {
  <Assembly GuitarBody>
@@ -8,9 +9,11 @@ Subassembly GuitarBody {
    Placement { From: Origin; To: World; TranslateLocal: [0mm,0mm,0mm]; }
   </Part>
   <Part CarvedMaple = SectionChainFile<"CarvedMaple.firmament">>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,0mm,0mm]; }
   </Part>
  </Assembly>
+
+ Interface<Fixed> BodyDeckSeat { Datum: GuitarLayout.HardwareDeck; Members: [GuitarBody.CarvedMaple.TopSeat] }
+ Mate BodyOnDeck: BodyDeckSeat { Member: GuitarBody.CarvedMaple.TopSeat; At: GuitarLayout.BodySeat; Orientation: SameDirection; Support: true; }
 
  Anchor: GuitarBody;
 }

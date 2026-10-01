@@ -9,6 +9,7 @@ import hashlib
 import json
 import math
 import sys
+import re
 import time
 from pathlib import Path
 from mathutils import Vector, Matrix
@@ -16,6 +17,7 @@ from mathutils import Vector, Matrix
 args=sys.argv[sys.argv.index('--')+1:]
 source,root=map(lambda p:Path(p).resolve(),args[:2])
 preview='--preview' in args
+selected_view=next((arg.split('=',1)[1] for arg in args if arg.startswith('--view=')),None)
 root.mkdir(parents=True,exist_ok=True)
 bpy.ops.wm.read_factory_settings(use_empty=True)
 started=time.perf_counter()
@@ -24,7 +26,7 @@ bpy.ops.wm.usd_import(filepath=str(source),support_scene_instancing=False,
 load_seconds=time.perf_counter()-started
 scene=bpy.context.scene
 products=[o for o in scene.objects if o.type=='MESH']
-assert len(products)==107, len(products)
+assert len(products) in (91,107), len(products)
 
 def material(name,color,metal=0,rough=.25,coat=.35):
     m=bpy.data.materials.new(name);m.use_nodes=True
@@ -86,6 +88,7 @@ def signature():
     return h.hexdigest()
 original_signature=signature()
 
+pickup_shaded=0
 for obj in products:
     name=obj.parent.name if obj.parent else obj.name
     if 'CarvedMaple' in name:
@@ -99,6 +102,17 @@ for obj in products:
         for start in range(0,len(pts),256):
             distances=np.sqrt(((pts[start:start+256,None,:2]-edge[None,:,:])**2).sum(axis=2)).min(axis=1)
             for i,d in enumerate(distances,start):attr.data[i].value=min(1,float(d)/.065)
+    elif re.search(r'(?:^|_)(?:NeckPickup|BridgePickup)(?:_\d+)?$',name.split('.')[0]):
+        # Appearance only: exact feature-built pickup geometry is imported intact.
+        # Default witness axial levels are base 0..4, coils 4..9, poles 9..10 mm.
+        obj.data.materials.clear()
+        for look in (cream,black,chrome):obj.data.materials.append(look)
+        zs=[v.co.z for v in obj.data.vertices];low,high=min(zs),max(zs)
+        for poly in obj.data.polygons:
+            level=(sum(obj.data.vertices[i].co.z for i in poly.vertices)/len(poly.vertices)-low)/(high-low)
+            poly.material_index=2 if level>.900001 else 1 if level>.400001 else 0
+        pickup_shaded+=1
+        continue
     elif any(s in name for s in ['MahoganyBack','Headstock','Neck_']):m=wood
     elif 'Rosewood' in name:m=rose
     elif 'HeadVeneer' in name:m=ebony
@@ -111,6 +125,7 @@ for obj in products:
     obj.data.materials.clear();obj.data.materials.append(m)
 
 assert signature()==original_signature, 'Shading must not alter imported product topology'
+assert len(products)!=91 or pickup_shaded==2, f'Expected two feature-built pickup appearance assignments; found {pickup_shaded}'
 
 floor=material('Studio charcoal',(.014,.018,.024),.12,.32,0)
 bpy.ops.mesh.primitive_plane_add(size=200,location=(0,.3,-.004))
@@ -152,10 +167,14 @@ scene.render.image_settings.file_format='PNG';scene.render.film_transparent=Fals
 scene.render.resolution_percentage=100
 
 views=[('hero',(.73,-.18,1.6),(0,.30,.04),1.23,1800,2200),
+       ('deck-side',(.65,.015,.060),(0,.015,.053),.27,1800,1800),
        ('carve-detail',(.45,-.48,.62),(0,-.005,.047),.60,2200,1600),
        ('shaded-isometric',(.9,-.5,1.05),(0,.30,.04),1.28,1800,2200),
        ('neck-side',(.65,.48,.045),(0,.48,.045),.66,1600,2200),
        ('neck-back',(.25,.49,-.7),(0,.49,.035),.70,1600,2200)]
+if selected_view:
+    views=[v for v in views if v[0]==selected_view]
+    assert views, f'Unknown view: {selected_view}'
 renders=[]
 print('GUITAR_SCENE_READY',scene.cycles.device, 'samples',scene.cycles.samples,flush=True)
 for name,location,target,scale,w,h in sorted(views,key=lambda v:not v[0].startswith('neck-')):
@@ -182,5 +201,5 @@ bpy.ops.wm.save_as_mainfile(filepath=str(root/'guitar-studio.blend'))
     usdSha256=hashlib.sha256(source.read_bytes()).hexdigest(),
     devices=[device.name for device in prefs.devices if device.use],
     productMeshObjects=len(products),productTopologyHash=original_signature,
-    productTopologyUnchanged=signature()==original_signature,renders=renders),indent=2)+'\n')
+    productTopologyUnchanged=signature()==original_signature,pickupAppearance='Default feature axial height bands; shading only',pickupObjectsStyled=pickup_shaded,renders=renders),indent=2)+'\n')
 print('GUITAR_RENDER_COMPLETE',json.dumps(renders))

@@ -131,7 +131,7 @@ public sealed class AssemblyM0Compiler
             diagnostics.Add(new("assembly-instance-path-collision", "Assembly contains duplicate deterministic instance paths."));
         return flat.Select(x => new AssemblyInstanceIr(x.id, x.path, x.member.Kind, x.member.DefinitionIdentity, x.parent,
             flat.Where(c => c.parent == x.id).Select(c => c.id).Order(StringComparer.Ordinal).ToArray(), x.semantic,
-            x.member.ExplicitTransform, null, [.. x.member.Provenance ?? [], .. PatternProvenance(x.path)], x.member.PlacementAuthority, x.member.IsEncapsulatedDefinition)).ToArray();
+            x.member.ExplicitTransform, null, [.. x.member.Provenance ?? [], .. PatternProvenance(x.path)], x.member.PlacementAuthority, x.member.IsEncapsulatedDefinition, x.member.DatumSeat)).ToArray();
 
         IEnumerable<SemanticProvenance> PatternProvenance(AssemblyPath path)
         {

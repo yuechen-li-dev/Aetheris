@@ -347,11 +347,14 @@ public static class PrismaticProfileCompositionParser
                 if (!profiles.TryGetValue(profileName, out var bossProfile)) { diagnostics.Add($"firmament-boss-invalid-profile:{name}:profile={profileName}"); continue; }
                 if (!double.IsFinite(height) || height <= 0d) { diagnostics.Add($"firmament-boss-height-must-be-positive:{name}:height={height:R}mm"); continue; }
                 surfaceSpans.TryGetValue(face, out var supportSpan);
-                if (supportSpan is null && !IsTopSelector(face)) { diagnostics.Add($"firmament-boss-invalid-target:{name}:On={face}:supported=Top-or-<feature>.Top-or-Span<Plane>"); continue; }
+                var authoredPlane = Regex.Match(source, $@"\bPlane\s+{Regex.Escape(face)}\s*\{{\s*Origin\s*:\s*\[(?<origin>[^]]+)\]\s*;?\s*Normal\s*:\s*\[(?<normal>[^]]+)\](?:\s*;?\s*Up\s*:\s*\[(?<up>[^]]+)\])?", RegexOptions.CultureInvariant);
+                if (supportSpan is null && !IsTopSelector(face) && !authoredPlane.Success) { diagnostics.Add($"firmament-boss-invalid-target:{name}:On={face}:supported=Top-or-<feature>.Top-or-Span<Plane>"); continue; }
                 if (supportSpan is not null && !IsProfileFootprintInsideSpan(supportSpan, bossProfile, profiles))
                 { diagnostics.Add($"firmament-feature-footprint-outside-span:{name}:{face}:profile={profileName}"); continue; }
                 var candidates = supportSpan is null
-                    ? ResolveTopSupports(face, stock, operations, bossProfile, profiles)
+                    ? authoredPlane.Success
+                        ? ResolvePlaneTopSupports(authoredPlane, name, operations, bossProfile, profiles, diagnostics)
+                        : ResolveTopSupports(face, stock, operations, bossProfile, profiles)
                     : ResolveSpanTopSupports(supportSpan, operations, bossProfile, profiles);
                 if (candidates.Count == 0) { diagnostics.Add(face.EndsWith(".Top", StringComparison.Ordinal)
                     ? $"feature-support-not-found:{name}:{face}:host={compose.Groups["n"].Value}:profile={profileName}"
@@ -813,6 +816,27 @@ public static class PrismaticProfileCompositionParser
             : new Dictionary<string, ResolvedProfile2D>(profiles, StringComparer.Ordinal) { [span.Boundary.Name] = span.Boundary };
         var support = new PrismaticProfileOperation("SpanSupport", PrismaticProfileIntent.Base, span.Boundary.Name, 0d, 1d, "SpanSupport", span.Provenance);
         return IsPocketFootprintInsideStock(support, footprint, available);
+    }
+
+    // Bounded +Z prismatic support: a plane names an axial level, never an
+    // arbitrary topology face or permission to add disconnected material.
+    private static IReadOnlyList<PrismaticProfileOperation> ResolvePlaneTopSupports(Match plane, string feature,
+        IReadOnlyList<PrismaticProfileOperation> operations, ResolvedProfile2D footprint,
+        IReadOnlyDictionary<string, ResolvedProfile2D> profiles, List<string> diagnostics)
+    {
+        var origin = plane.Groups["origin"].Value.Split(',');
+        var normal = plane.Groups["normal"].Value.Split(',');
+        var up = plane.Groups["up"].Success ? plane.Groups["up"].Value.Split(',').Select(v => v.Trim()).ToArray() : new[] { "0", "1", "0" };
+        if (!up.SequenceEqual(new[] { "0", "1", "0" }) || origin.Length != 3 || normal.Length != 3
+            || !FirmamentV2FeatureExpansion.TryEvaluateScalar(origin[0], out var x, out var xu) || xu != "mm" || Math.Abs(x) > 1e-9
+            || !FirmamentV2FeatureExpansion.TryEvaluateScalar(origin[1], out var y, out var yu) || yu != "mm" || Math.Abs(y) > 1e-9
+            || !FirmamentV2FeatureExpansion.TryEvaluateScalar(origin[2], out var z, out var zu) || zu != "mm"
+            || !double.TryParse(normal[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var nx) || nx != 0
+            || !double.TryParse(normal[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var ny) || ny != 0
+            || !double.TryParse(normal[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var nz) || nz != 1)
+        { diagnostics.Add($"feature-support-plane-not-qualified:{feature}:qualified=origin-[0,0,z]-normal-+Z"); return []; }
+        return operations.Where(o => o.Intent != PrismaticProfileIntent.Remove && Math.Abs(o.To - z) < 1e-9
+            && profiles.TryGetValue(o.ProfileReference, out var profile) && HasConnectedBossSupport(o, footprint, profiles)).ToArray();
     }
 
     private static IReadOnlyList<PrismaticProfileOperation> ResolveTopSupports(

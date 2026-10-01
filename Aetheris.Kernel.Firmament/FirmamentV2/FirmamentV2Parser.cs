@@ -332,19 +332,6 @@ public static class FirmamentV2Parser
         var v2AdmissionCandidate = IsV2AdmissionCandidate(source);
         conceptCatalog ??= FirmamentV2ForgeConceptRegistry.Catalog;
 
-        // Feature is Firmament's bounded function-like abstraction. It is expanded once,
-        // before Template/static specialization, so every downstream command consumes the
-        // same concrete semantic declarations and no geometry callback can bypass AIR.
-        var featureExpansion = FirmamentV2FeatureExpansion.Expand(source, diagnostics);
-        if (featureExpansion is null)
-        {
-            diagnostics.Add("firmament-v2-parse-failed");
-            return FirmamentV2ParseResult.Failure(
-                diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray(),
-                FirmamentV2ParseDisposition.RecognizedInvalid);
-        }
-        source = featureExpansion.Source;
-
         // Modern Template specialization owns typed Record binding.  Run it while
         // Record and scalar Static declarations still exist, then let canonical
         // static authoring erase those compile-time declarations before AIR.
@@ -357,6 +344,21 @@ public static class FirmamentV2Parser
                 v2AdmissionCandidate ? FirmamentV2ParseDisposition.RecognizedInvalid : FirmamentV2ParseDisposition.NotRecognized);
         }
         source = templateExpansion.Source;
+
+        // Feature is Firmament's bounded function-like abstraction. It is expanded once,
+        // after typed Template specialization and before static pattern lowering, so every command consumes the
+        // same concrete semantic declarations and no geometry callback can bypass AIR.
+        var featureExpansion = FirmamentV2FeatureExpansion.Expand(source, diagnostics);
+        if (featureExpansion is null)
+        {
+            diagnostics.Add("firmament-v2-parse-failed");
+            return FirmamentV2ParseResult.Failure(
+                diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray(),
+                FirmamentV2ParseDisposition.RecognizedInvalid);
+        }
+        source = featureExpansion.Source;
+
+
 
         var specializedBoundaries = ClosedBoundary2Authoring.Expand(source, diagnostics);
         if (specializedBoundaries is null)
@@ -983,7 +985,7 @@ public static class FirmamentV2Parser
 
         var known = new HashSet<string>(StringComparer.Ordinal)
         {
-            "Box", "Cylinder", "Cone", "Sphere", "Torus", "RoundedBox", "Frustum", "StandardPart", "ExactCoaxialPart", "Point2", "Line2", "Rect2", "Circle2", "Ellipse2Guide", "SmoothRoundedRect2", "Plateau", "Concept", "Struct", "Construction", "Profile", "Span", "Compose", "Boss", "Pocket", "AddOffset", "RemoveOffset", "EdgeFinish",
+            "Box", "Cylinder", "Cone", "Sphere", "Torus", "RoundedBox", "Frustum", "StandardPart", "ExactCoaxialPart", "Plane", "Axis2", "Point2", "Line2", "Rect2", "Circle2", "Ellipse2Guide", "SmoothRoundedRect2", "Plateau", "Concept", "Struct", "Construction", "Profile", "Span", "Compose", "Boss", "Pocket", "AddOffset", "RemoveOffset", "EdgeFinish",
             "Record", "Static", "Template", "template", "ProfileDelta", "Selection", "InlineStep", "Recognize", "Replace", "Pmi", "Modify", "Match", "Require", "Assert", "Thread"
         };
         var compatibilityOnly = new HashSet<string>(StringComparer.Ordinal)

@@ -108,11 +108,11 @@ public static class RevolveAuthoringParser
         // resolved before the profile binder, just as they are for actual materialization.
         var boundaries = ClosedBoundary2Authoring.Expand(source, diagnostics);
         if (boundaries is null) return null;
-        var features = FirmamentV2FeatureExpansion.Expand(boundaries.Source, diagnostics);
-        if (features is null) return null;
-        var templates = FirmamentV2TemplateExpansion.Expand(features.Source, diagnostics);
+        var templates = FirmamentV2TemplateExpansion.Expand(boundaries.Source, diagnostics);
         if (templates is null) return null;
-        var specializedBoundaries = ClosedBoundary2Authoring.Expand(templates.Source, diagnostics);
+        var features = FirmamentV2FeatureExpansion.Expand(templates.Source, diagnostics);
+        if (features is null) return null;
+        var specializedBoundaries = ClosedBoundary2Authoring.Expand(features.Source, diagnostics);
         if (specializedBoundaries is null) return null;
         var staticAuthoring = CanonicalStaticAuthoring.Expand(specializedBoundaries.Source, diagnostics);
         return staticAuthoring?.Source;

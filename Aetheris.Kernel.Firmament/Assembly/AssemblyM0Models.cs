@@ -44,7 +44,11 @@ public sealed record InterfaceDefinition(
     bool CompilerOwnedExpansion = false,
     IReadOnlyList<InterfacePredicateRequirementDefinition>? PredicateRequirements = null,
     GearInterfaceOptions? GearOptions = null,
-    FixedSeatingOptions? Seating = null);
+    FixedSeatingOptions? Seating = null,
+    AssemblyDatumContract? DatumContract = null);
+
+public sealed record AssemblyDatumContract(string Datum, IReadOnlyList<string> Members);
+public sealed record AssemblyDatumSeat(string Interface, string Datum, string Port, double[] Origin, double[] Normal, bool Support);
 
 public sealed record FixedSeatingOptions(double GapMm, double ClockingDegrees, DatumOrientationRelation Orientation);
 
@@ -61,7 +65,8 @@ public sealed record AssemblyMemberSource(
     bool IsEncapsulatedDefinition = false,
     AssemblyDefinitionIr? SolvedAssemblyDefinition = null,
     SemanticValue? TypedEndpoint = null,
-    AssemblyFramePlacementSource? FramePlacement = null);
+    AssemblyFramePlacementSource? FramePlacement = null,
+    AssemblyDatumSeat? DatumSeat = null);
 
 public sealed record AssemblyFrameTransformSource(string Name, string From, double[] Translation,
     string RotationAxis, double RotationDegrees, double[]? Normal = null, double[]? Up = null,
@@ -114,7 +119,8 @@ public sealed record AssemblyInstanceIr(
     SemanticValue SemanticRoot, AssemblyTransform? LocalTransform, AssemblyTransform? ResolvedTransform,
     IReadOnlyList<SemanticProvenance> Provenance,
     PlacementAuthority PlacementAuthority = PlacementAuthority.MateDerived,
-    bool IsEncapsulatedDefinition = false);
+    bool IsEncapsulatedDefinition = false,
+    AssemblyDatumSeat? DatumSeat = null);
 
 public sealed record MateEndpointIr(string Role, AssemblyPath ParticipantPath, string ParticipantSemanticValueId, IReadOnlyList<string> RequiredCapabilities);
 public sealed record InterfaceRequirementResultIr(string Name, string Expression, string Status);
@@ -193,7 +199,9 @@ public sealed record AssemblyGeometryMetricsIr(int Bodies, int Faces, int Edges,
 public sealed record AssemblyDefinitionArtifactIr(string StableId, string DefinitionIdentity, string SpecializationIdentity, string StepSha256, AssemblyGeometryMetricsIr Metrics, IReadOnlyList<SemanticProvenance> Provenance);
 public sealed record AssemblyInstanceGeometryIr(string InstanceStableId, string DefinitionArtifactStableId, AssemblyTransform WorldTransform, AssemblyGeometryMetricsIr Metrics);
 public sealed record AssemblyMateResidualIr(string ConstraintStableId, PlacementConstraintKind Kind, double PositionResidualMm, double AngularResidualRadians, bool Passed, string Evidence);
-public sealed record AssemblyGeometryArtifactIr(string Schema, IReadOnlyList<AssemblyDefinitionArtifactIr> Definitions, IReadOnlyList<AssemblyInstanceGeometryIr> Instances, IReadOnlyList<AssemblyMateResidualIr> MateResiduals, string DeterministicSha256);
+public sealed record AssemblyDatumSeatEvidence(string InstanceStableId, string Interface, string Datum, double PlaneResidualMm, IReadOnlyList<string> MaterialFaces, bool Support, bool Passed);
+public sealed record AssemblyGeometryArtifactIr(string Schema, IReadOnlyList<AssemblyDefinitionArtifactIr> Definitions, IReadOnlyList<AssemblyInstanceGeometryIr> Instances, IReadOnlyList<AssemblyMateResidualIr> MateResiduals, string DeterministicSha256,
+    IReadOnlyList<AssemblyDatumSeatEvidence>? DatumSeats = null);
 public sealed record AssemblyIr(
     string Schema, string StableId, string Name, string RootInstanceStableId,
     IReadOnlyList<AssemblyInstanceIr> Instances, IReadOnlyList<InterfaceDefinition> Interfaces,

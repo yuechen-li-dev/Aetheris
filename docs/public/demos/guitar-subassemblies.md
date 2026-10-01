@@ -1,5 +1,10 @@
 # Guitar as a multi-file assembly
 
+The body crown, pickups and bridge now use [Concept-directed Fixed seating](../firmament/datum-seating.md)
+against the shared `hardware-layout.firmament` deck. The bridge's former 4mm gap is removed.
+
+The pickup construction has since been consolidated into [one functional part](../firmament/functional-pickup.md), placed twice. The qualification table below records the earlier organization-only snapshot; current counts are 91 visible parts and 53 geometry definitions.
+
 The preferred entry is [guitar.firmasm](../../../fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar.firmasm).
 It contains only Include declarations and five top-level subassembly occurrences.
 The old guitar-x0.firmament entry is a small compatibility composition root.
@@ -13,7 +18,8 @@ guitar.firmasm
 │  ├─ Neck.firmament                exact six-section neck and published ports
 │  └─ tuners-assembly.firmament     keyed tuner posts, washers and buttons
 ├─ electronics-assembly.firmament   knobs, selector and decorative covers
-│  └─ pickups-assembly.firmament    keyed seats, coils and poles
+│  └─ pickups-assembly.firmament    two complete pickup occurrences
+│     └─ pickup.firmament          housing, coil functions and pole feature pattern
 ├─ bridge-assembly.firmament        bridge, stop tailpiece and keyed saddles
 └─ strings-assembly.firmament       WireForm template and six formed routes
 ```

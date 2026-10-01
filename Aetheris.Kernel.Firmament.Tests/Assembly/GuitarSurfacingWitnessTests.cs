@@ -13,8 +13,8 @@ public sealed class GuitarSurfacingWitnessTests
             .Append(root).Select(path => new KeyValuePair<string, string>(Path.GetFileName(path), File.ReadAllText(path))).ToArray();
         var result = new AssemblyM1Pipeline().CompileProject(new FirmamentProjectSnapshot("guitar.firmasm", documents));
         Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics));
-        Assert.Equal(55, result.Geometry!.DefinitionBodies.Count);
-        Assert.Equal(107, result.Geometry.InstanceBodies.Count);
+        Assert.Equal(53, result.Geometry!.DefinitionBodies.Count);
+        Assert.Equal(91, result.Geometry.InstanceBodies.Count);
         Assert.Equal(7, result.Ir!.AssemblyDefinitions!.Count);
         var neck = result.Ir.Instances.Single(i => i.Path.ToString() == "GuitarX0.Neck");
         Assert.True(neck.IsEncapsulatedDefinition);
@@ -24,7 +24,7 @@ public sealed class GuitarSurfacingWitnessTests
         Assert.Equal(660, nut.OriginY, 6);
         Assert.Equal(55, nut.OriginZ, 6);
         Assert.DoesNotContain("Headstock", neck.SemanticRoot.ExposedMembers.Keys);
-        Assert.Equal(13, result.Ir.SourceDependencies!.Count);
+        Assert.Equal(15, result.Ir.SourceDependencies!.Count);
         Assert.Contains(result.Ir.SourceDependencies, d => d.Path == "tuners-assembly.firmament");
     }
     [Fact]
@@ -35,8 +35,8 @@ public sealed class GuitarSurfacingWitnessTests
         var compiled = new AssemblyM1Pipeline().CompileFile(path);
         Assert.True(compiled.IsSuccess, string.Join("\n", compiled.Diagnostics.Select(d => d.Message)));
         var mesh = AssemblyDisplayMeshExporter.Export(compiled);
-        Assert.Equal(107, mesh.Occurrences.Count(o => o.DefinitionId is not null));
-        Assert.Equal(7, compiled.Ir!.Patterns!.Count);
+        Assert.Equal(91, mesh.Occurrences.Count(o => o.DefinitionId is not null));
+        Assert.Equal(4, compiled.Ir!.Patterns!.Count);
         Assert.Empty(compiled.Ir.Joints!);
         Assert.Equal(7, compiled.Ir.AssemblyDefinitions!.Count);
         Assert.Single(compiled.Ir.AssemblyDefinitions.Single(d => d.DefinitionIdentity == "GuitarNeck").LocalMates,
@@ -44,6 +44,11 @@ public sealed class GuitarSurfacingWitnessTests
         Assert.DoesNotContain(File.ReadAllText(path), "LegacyExplicit");
         Assert.Contains(compiled.Ir.Instances, i => i.Path.ToString() == "GuitarX0.Neck.Tuners.TunerPosts.TunerPost00.TunerPost"
             && i.Provenance.Any(p => p.Stage == "assembly-pattern"));
+        var pickups = compiled.Ir.Instances.Where(i => i.DefinitionIdentity.StartsWith("Humbucker<", StringComparison.Ordinal)).ToArray();
+        Assert.Equal(2, pickups.Length);
+        Assert.All(pickups, p => Assert.Equal(53, p.ResolvedTransform!.Matrix[14], 6));
+        Assert.Contains(pickups, p => p.Path.ToString() == "GuitarX0.Electronics.Pickups.NeckPickup" && Math.Abs(p.ResolvedTransform!.Matrix[13] - 98) < 1e-9);
+        Assert.Single(mesh.Definitions, d => d.Identity.StartsWith("Humbucker<", StringComparison.Ordinal));
         var head = compiled.Ir.Instances.Single(i => i.Path.ToString() == "GuitarX0.Neck.Headstock");
         Assert.Equal(660, head.ResolvedTransform!.Matrix[13], 6);
         Assert.Equal(48, head.ResolvedTransform.Matrix[14], 6);

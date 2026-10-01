@@ -1,0 +1,50 @@
+// One exact pickup part; all construction coordinates are local to its Mount.
+Record PickupSpec {
+ Width: Length; Depth: Length; BaseHeight: Length
+ CoilWidth: Length; CoilDepth: Length; CoilHeight: Length
+ CoilOffset: Length; PolePitch: Length
+}
+Static StandardPickup: PickupSpec {
+ Width: 88mm; Depth: 46mm; BaseHeight: 4mm
+ CoilWidth: 70mm; CoilDepth: 17mm; CoilHeight: 5mm
+ CoilOffset: 10mm; PolePitch: 10.2mm
+}
+Static BridgePickupSpec = StandardPickup with { PolePitch: 10.2mm }
+
+Feature Coil(Center: Point2, Width: Length, Depth: Length, Height: Length, Support: Plane) -> Boss {
+ RoundedRect2 Outline { Center: Center; Size: [Width,Depth]; Radius: 3mm }
+ Profile Section { Loop Outer { Outline |> TraceLoop } }
+ return Boss { On: Support; Profile: Section; Height: Height }
+}
+Feature Pole(Center: Point2, Support: Plane) -> Boss {
+ Circle2 Outline { Center: Center; Radius: 2.2mm }
+ Profile Section { Loop Outer { Outline |> TraceLoop } }
+ return Boss { On: Support; Profile: Section; Height: 1mm }
+}
+
+Template<Spec: PickupSpec> Struct Humbucker {
+ Concept Struct Layout On XY {
+  Point2 UpperCenter { Position: [0mm,Spec.CoilOffset] }
+  Point2 LowerCenter { Position: [0mm,-Spec.CoilOffset] }
+  Axis2 Longitudinal { Origin: [0mm,0mm]; Direction: [1,0] }
+  Axis2 Transverse { Origin: [0mm,0mm]; Direction: [0,1] }
+  Point2 FirstPole { Position: [-2.5 * Spec.PolePitch,Spec.CoilOffset] }
+  RoundedRect2 BaseOutline { Center: [0mm,0mm]; Size: [Spec.Width,Spec.Depth]; Radius: 4mm }
+ }
+ Profile BaseProfile Using Layout { Loop Outer { BaseOutline |> TraceLoop } }
+ Plane BaseTop { Origin: [0mm,0mm,Spec.BaseHeight]; Normal: [0,0,1]; Up: [0,1,0] }
+ Plane CoilTop { Origin: [0mm,0mm,Spec.BaseHeight + Spec.CoilHeight]; Normal: [0,0,1]; Up: [0,1,0] }
+ Compose Body {
+  Base Housing { Profile: BaseProfile; From: 0mm; To: Spec.BaseHeight; Role: Stock }
+  Feature UpperCoil = Coil(Center: Layout.UpperCenter, Width: Spec.CoilWidth, Depth: Spec.CoilDepth, Height: Spec.CoilHeight, Support: BaseTop)
+  Feature LowerCoil = Coil(Center: Layout.LowerCenter, Width: Spec.CoilWidth, Depth: Spec.CoilDepth, Height: Spec.CoilHeight, Support: BaseTop)
+  Feature PoleSeed = Pole(Center: Layout.FirstPole, Support: CoilTop)
+  Linear Pattern Poles {
+   Source: PoleSeed
+   Direction: Layout.Longitudinal.Direction
+   Count: 6
+   Spacing: Spec.PolePitch
+  }
+ }
+ Expose { Semantic Mount { DatumFrame Frame = [0mm,0mm,0mm] x [1,0,0] y [0,1,0] z [0,0,1]; } }
+}

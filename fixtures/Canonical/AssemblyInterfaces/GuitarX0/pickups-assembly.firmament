@@ -1,45 +1,15 @@
-Static PickupSeatsSites: Set<HardwareSite> {
- NeckPickupCream => HardwareSite { X: 0mm; Y: 98mm; Z: 53mm }
- BridgePickupCream => HardwareSite { X: 0mm; Y: 0mm; Z: 53mm }
-}
-Static PickupCoilsSites: Set<HardwareSite> {
- NeckPickupCoil0 => HardwareSite { X: 0mm; Y: 88mm; Z: 57mm }
- NeckPickupCoil1 => HardwareSite { X: 0mm; Y: 108mm; Z: 57mm }
- BridgePickupCoil0 => HardwareSite { X: 0mm; Y: -10mm; Z: 57mm }
- BridgePickupCoil1 => HardwareSite { X: 0mm; Y: 10mm; Z: 57mm }
-}
-Static PickupPolesSites: Set<HardwareSite> {
- NeckPickupPole0 => HardwareSite { X: -25.5mm; Y: 108mm; Z: 62mm }
- NeckPickupPole1 => HardwareSite { X: -15.3mm; Y: 108mm; Z: 62mm }
- NeckPickupPole2 => HardwareSite { X: -5.1mm; Y: 108mm; Z: 62mm }
- NeckPickupPole3 => HardwareSite { X: 5.1mm; Y: 108mm; Z: 62mm }
- NeckPickupPole4 => HardwareSite { X: 15.3mm; Y: 108mm; Z: 62mm }
- NeckPickupPole5 => HardwareSite { X: 25.5mm; Y: 108mm; Z: 62mm }
- BridgePickupPole0 => HardwareSite { X: -25.5mm; Y: 10mm; Z: 62mm }
- BridgePickupPole1 => HardwareSite { X: -15.3mm; Y: 10mm; Z: 62mm }
- BridgePickupPole2 => HardwareSite { X: -5.1mm; Y: 10mm; Z: 62mm }
- BridgePickupPole3 => HardwareSite { X: 5.1mm; Y: 10mm; Z: 62mm }
- BridgePickupPole4 => HardwareSite { X: 15.3mm; Y: 10mm; Z: 62mm }
- BridgePickupPole5 => HardwareSite { X: 25.5mm; Y: 10mm; Z: 62mm }
-}
+Include "pickup.firmament";
+Include "hardware-layout.firmament";
+
 Subassembly GuitarPickups {
  <Assembly GuitarPickups>
-  Pattern PickupSeats Over PickupSeatsSites {
-   site => <Part PickupCream = Surround<L:88mm,W:46mm,H:4mm>>
-    Placement { From: Origin; To: World; TranslateLocal: [site.X,site.Y,site.Z]; }
-   </Part>
-  }
-  Pattern PickupCoils Over PickupCoilsSites {
-   site => <Part PickupCoil = Panel<L:70mm,W:17mm,H:5mm,R:3mm>>
-    Placement { From: Origin; To: World; TranslateLocal: [site.X,site.Y,site.Z]; }
-   </Part>
-  }
-  Pattern PickupPoles Over PickupPolesSites {
-   site => <Part PickupPole = Drum<R:2.2mm,H:1mm>>
-    Placement { From: Origin; To: World; TranslateLocal: [site.X,site.Y,site.Z]; }
-   </Part>
-  }
+  <Part NeckPickup = Humbucker<Spec: StandardPickup>></Part>
+  <Part BridgePickup = Humbucker<Spec: StandardPickup>></Part>
  </Assembly>
+
+ Interface<Fixed> PickupsDeckSeat { Datum: GuitarLayout.HardwareDeck; Members: [GuitarPickups.NeckPickup.Mount,GuitarPickups.BridgePickup.Mount] }
+ Mate NeckPickupOnDeck: PickupsDeckSeat { Member: GuitarPickups.NeckPickup.Mount; At: GuitarLayout.NeckPickupSeat; Orientation: SameDirection; }
+ Mate BridgePickupOnDeck: PickupsDeckSeat { Member: GuitarPickups.BridgePickup.Mount; At: GuitarLayout.BridgePickupSeat; Orientation: SameDirection; }
 
  Anchor: GuitarPickups;
 }

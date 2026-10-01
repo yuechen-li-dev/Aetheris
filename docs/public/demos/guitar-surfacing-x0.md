@@ -1,10 +1,13 @@
 # Single-cut carved electric guitar
 
+The current source also qualifies [Concept-directed Fixed seating](../firmament/datum-seating.md):
+the planar body crown, pickups and bridge conform to one authored 53mm hardware deck.
+
 **Verdict: accepted for GUITAR-SURFACING-X0.** This is good enough as a presentation/dunk witness: a coherent surfaced guitar built from code, exact STEP export, a clean compiled USD display path and slide-ready Cycles images. The result demonstrates Aetheris's pipeline; the comparison does not claim a measured speed ratio against Zoo.
 
 GUITAR-SURFACING-X0 is an original single-cut guitar presentation witness inspired by the Les Paul family. The supplied photographs guided proportions and finish; no photograph, logo, downloaded guitar model, or external product mesh is bundled. Aetheris constructs every guitar part. Blender imports the actual OpenUSD export and adds downstream appearance, studio lighting, floor, and camera.
 
-The [authored assembly](../../../fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar.firmasm) has a cubic single-cut outline, mahogany back, cream edge band, a five-section carved maple top with a 13 mm rise, a six-section D-profile G1 neck, tapered fretboard, tilted headstock, 22 frets, inlays, two pickups, bridge, stop tailpiece, four controls, selector, tuner placeholders, and six continuous formed strings. See [the multi-file subassembly layout](guitar-subassemblies.md) for the current source organization.
+The [authored assembly](../../../fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar.firmasm) has a cubic single-cut outline, mahogany back, cream edge band, a five-section carved maple top with a 13 mm rise, a six-section D-profile G1 neck, tapered fretboard, tilted headstock, 22 frets, inlays, two pickups, bridge, stop tailpiece, four controls, selector, tuner placeholders, and six continuous formed strings. See [the multi-file subassembly layout](guitar-subassemblies.md) and [functional pickup construction](../firmament/functional-pickup.md) for the current source. Pickup consolidation changes current counts to 91 visible parts and 53 definitions; performance and render evidence below describe the earlier witness snapshots.
 
 ## Reproduce
 

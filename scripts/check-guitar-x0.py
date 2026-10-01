@@ -8,7 +8,7 @@ root=Path(sys.argv[1] if len(sys.argv)>1 else 'artifacts/local/guitar-x0')
 document=json.loads((root/'display.json').read_text())
 results=[]
 for definition in document['mesh']['definitions']:
-    if 'File<' not in definition['identity'] and not definition['identity'].startswith('GuitarString<'):
+    if 'File<' not in definition['identity'] and not definition['identity'].startswith(('GuitarString<','Humbucker<')):
         continue
     raw=definition['positions']
     points=[tuple(round(v,6) for v in raw[i:i+3]) for i in range(0,len(raw),3)]

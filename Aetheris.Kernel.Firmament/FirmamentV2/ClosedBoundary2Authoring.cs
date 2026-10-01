@@ -32,7 +32,12 @@ internal static class ClosedBoundary2Authoring
     {
         // Template bodies have local names and unbound dimensions. Their selected
         // specializations pass through this lowering after ordinary template binding.
-        var templates = FirmamentV2TemplateExpansion.DeclarationSpans(source, diagnostics);
+        var templates = FirmamentV2TemplateExpansion.DeclarationSpans(source, diagnostics).ToList();
+        foreach (Match feature in Regex.Matches(source, @"\bFeature\s+[A-Za-z_]\w*\s*\([^()]*\)\s*->[^{}]+\{"))
+        {
+            var close = Matching(source, source.IndexOf('{', feature.Index));
+            if (close >= 0) templates.Add(new(feature.Index, close - feature.Index + 1));
+        }
         bool InTemplate(int offset) => templates.Any(span => offset >= span.Start && offset < span.Start + span.Length);
         var shapes = new List<Shape>(); var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (Match header in Header.Matches(source))
@@ -186,7 +191,12 @@ internal static class ClosedBoundary2Authoring
     internal static IReadOnlyDictionary<string, LineArcProfileCurve2D> SmoothGuides(string source, List<string> diagnostics)
     {
         var guides = new Dictionary<string, LineArcProfileCurve2D>();
-        var templates = FirmamentV2TemplateExpansion.DeclarationSpans(source, diagnostics);
+        var templates = FirmamentV2TemplateExpansion.DeclarationSpans(source, diagnostics).ToList();
+        foreach (Match feature in Regex.Matches(source, @"\bFeature\s+[A-Za-z_]\w*\s*\([^()]*\)\s*->[^{}]+\{"))
+        {
+            var close = Matching(source, source.IndexOf('{', feature.Index));
+            if (close >= 0) templates.Add(new(feature.Index, close - feature.Index + 1));
+        }
         foreach (Match header in Header.Matches(source))
         {
             if (templates.Any(span => header.Index >= span.Start && header.Index < span.Start + span.Length)) continue;

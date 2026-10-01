@@ -1668,6 +1668,8 @@ Model CanonicalPanel {
                 pattern.Distribution,
                 instanceTransforms = pattern.Instances
             }).ToArray() ?? [],
+            linearPatterns = document?.StaticAuthoring?.LinearPatterns ?? [],
+            planarAxes = document?.StaticAuthoring?.PlanarAxes ?? [],
             templateInstances = (document?.TemplateInstantiations ?? document?.ConceptIr?.TemplateInstantiations)?.Select(instance => new
             {
                 instance.Template,
@@ -1697,6 +1699,7 @@ Model CanonicalPanel {
                 invocation.ReturnType,
                 invocation.ExpandedSemanticKind,
                 invocation.GeneratedByFeature,
+                invocation.ResultIdentity,
                 invocation.Status
             }).ToArray() ?? [],
             featureExpansion = document?.FeatureExpansion,

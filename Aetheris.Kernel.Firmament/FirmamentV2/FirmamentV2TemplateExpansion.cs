@@ -573,9 +573,9 @@ internal static class FirmamentV2TemplateExpansion
         IReadOnlyDictionary<string, ImmutableHashSet<string>> enums, IReadOnlyDictionary<string, TemplateStaticTableIr> tables, List<string> diagnostics)
     {
         var result = new Dictionary<string, TemplateStaticRecordIr>(StringComparer.Ordinal);
-        foreach (Match header in Regex.Matches(source, @"\bStatic\s+(?<name>[A-Za-z_]\w*)\s*:\s*(?<type>[A-Za-z_]\w*)\s*=\s*(?<literal>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant))
+        foreach (Match header in Regex.Matches(source, @"\bStatic\s+(?<name>[A-Za-z_]\w*)\s*:\s*(?<type>[A-Za-z_]\w*)(?:\s*=\s*(?<literal>[A-Za-z_]\w*))?\s*\{", RegexOptions.CultureInvariant))
         {
-            var name = header.Groups["name"].Value; var typeName = header.Groups["type"].Value; var literalType = header.Groups["literal"].Value;
+            var name = header.Groups["name"].Value; var typeName = header.Groups["type"].Value; var literalType = header.Groups["literal"].Success ? header.Groups["literal"].Value : typeName;
             var open = source.IndexOf('{', header.Index); var close = Matching(source, open, '{', '}');
             if (close < 0 || !recordTypes.TryGetValue(typeName, out var recordType)) continue;
             if (!string.Equals(typeName, literalType, StringComparison.Ordinal)) { diagnostics.Add(WrongRecordType + $":{name}:expected-{typeName}:actual-{literalType}"); continue; }

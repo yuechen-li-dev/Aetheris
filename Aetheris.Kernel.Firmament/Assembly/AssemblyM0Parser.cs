@@ -114,7 +114,11 @@ public sealed class AssemblyM0Parser
             diagnostics.Add(new("assembly-" + diagnostic.Split(':')[0], diagnostic));
         var concepts = ParseAssemblyConcepts(source, sourceIdentity, diagnostics);
         var interfaces = ParseInterfaces(source, sourceIdentity, diagnostics);
-        var declarationChars = source.ToCharArray();
+        var layout = AssemblyDatumAuthoring.ParseLayouts(source, sourceIdentity, diagnostics, out var partDeclarations);
+        foreach (var contract in interfaces.Where(i => i.DatumContract is not null))
+            if (!layout.Any(d => d.Identity == contract.DatumContract!.Datum && d.Plane == d.Identity))
+                diagnostics.Add(new("assembly-datum-plane-unresolved", $"Interface '{contract.Name}' requires a declared Concept plane '{contract.DatumContract!.Datum}'."));
+        var declarationChars = partDeclarations.ToCharArray();
         foreach (Match header in Regex.Matches(source, @"\b(?:Template\s*<[^>]+>\s*Assembly|Assembly|Interface(?:\s*<[^>]+>)?)\s+[A-Za-z_]\w*(?:\s*:\s*[A-Za-z_]\w*)?\s*\{"))
         {
             var block = BalancedBody(source, header.Index + header.Length - 1, diagnostics, "assembly declaration");
@@ -130,7 +134,7 @@ public sealed class AssemblyM0Parser
             return ports;
         }
         var templateRanges = new List<(int Start, int Length)>();
-        var assemblyDefinitions = ParseAssemblyDefinitions(source, sourceIdentity, interfaces, concepts, gearAuthorities, diagnostics, templateRanges, Ports);
+        var assemblyDefinitions = ParseAssemblyDefinitions(source, sourceIdentity, interfaces, concepts, gearAuthorities, diagnostics, templateRanges, Ports, layout);
         // Template-produced Assembly bodies are declarations, not exported roots.
         // Blank them without changing offsets, then locate the single root Assembly.
         var rootSearch = source.ToCharArray();
@@ -150,6 +154,8 @@ public sealed class AssemblyM0Parser
         var anchorMatch = Regex.Match(RemoveBlocks(body, "Mate", @"Assert\s+ToleranceStackup"), @"\bAnchor\s*:\s*(?<path>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*;", RegexOptions.CultureInvariant);
         var anchor = anchorMatch.Success ? AssemblyPath.Parse(anchorMatch.Groups["path"].Value) : new AssemblyPath([tree.Name]);
         var frames = ParseFrameTransforms(body, sourceIdentity, diagnostics);
+        tree = AssemblyDatumAuthoring.Bind(body, tree, layout, interfaces, diagnostics, out var datumFrames);
+        frames = frames.Concat(datumFrames).ToArray();
         var result = new AssemblySource(assemblyHeader.Groups["name"].Value, tree, interfaces, mates, anchor, relations, asserts, sourceIdentity, definitionSource, assemblyDefinitions, SourceDependencies: portDependencies, FrameTransforms: frames, Patterns: expandedPatterns.Document?.Patterns);
         return Done(result);
 
@@ -227,6 +233,14 @@ public sealed class AssemblyM0Parser
             var body = BalancedBody(source, header.Index + header.Length - 1, diagnostics, "Interface");
             if (body is null) continue;
             var name = header.Groups["name"].Value;
+            if (Regex.IsMatch(body, @"\bDatum\s*:"))
+            {
+                if (header.Groups["family"].Value != "Fixed") diagnostics.Add(new("assembly-datum-family-invalid", "Datum contracts require Interface<Fixed>."));
+                var contract = AssemblyDatumAuthoring.ParseContract(body, diagnostics);
+                if (result.Any(i => i.Name == name)) diagnostics.Add(new("assembly-interface-duplicate-name", $"Interface '{name}' is duplicated."));
+                else result.Add(new("interface:" + name, name, [], [], Family: MechanicalInterfaceFamily.Fixed, DatumContract: contract));
+                continue;
+            }
             var family = header.Groups["family"].Success ? Enum.Parse<MechanicalInterfaceFamily>(header.Groups["family"].Value) : MechanicalInterfaceFamily.Custom;
             var roles = Regex.Matches(body, @"\bRole\s+(?<name>[A-Za-z_]\w*)\s+requires\s+(?<caps>[A-Za-z, ]+)\s*;", RegexOptions.CultureInvariant)
                 .Select(m => new InterfaceRoleDefinition(m.Groups["name"].Value,
@@ -355,13 +369,15 @@ public sealed class AssemblyM0Parser
         public AssemblyDefinitionIr? SolvedAssemblyDefinition { get; set; }
         public SemanticValue? TypedEndpoint { get; set; }
         public AssemblyFramePlacementSource? FramePlacement { get; set; }
+        public AssemblyDatumSeat? DatumSeat { get; set; }
     }
 
     private static IReadOnlyList<AssemblyDefinitionSource> ParseAssemblyDefinitions(string source, string sourceIdentity,
         IReadOnlyList<InterfaceDefinition> interfaces, IReadOnlyList<AssemblyConceptDefinition> concepts,
         IReadOnlyDictionary<string, GearAir> gearAuthorities,
         List<AssemblyDiagnostic> diagnostics, List<(int Start, int Length)> ranges,
-        Func<string, IReadOnlyList<SemanticValue>>? publishedPorts = null)
+        Func<string, IReadOnlyList<SemanticValue>>? publishedPorts = null,
+        IReadOnlyList<AssemblyLayoutDatum>? layout = null)
     {
         var result = new List<AssemblyDefinitionSource>();
         foreach (Match template in Regex.Matches(source,
@@ -374,6 +390,7 @@ public sealed class AssemblyM0Parser
             ranges.Add((template.Index, close - template.Index));
             var root = ParseTree(body, sourceIdentity, diagnostics, result, interfaces, new Dictionary<string, AssemblyMemberSource>(StringComparer.Ordinal), gearAuthorities, publishedPorts);
             if (root is null) continue;
+            root = AssemblyDatumAuthoring.Bind(body, root, layout ?? [], interfaces, diagnostics, out var datumFrames);
             var exposed = ParseAssemblyExposes(body, root, sourceIdentity, diagnostics);
             root = root with { ExposedSemantics = exposed, IsEncapsulatedDefinition = true };
             var name = template.Groups["name"].Value;
@@ -401,7 +418,7 @@ public sealed class AssemblyM0Parser
                  .. claimedConcept is null ? [] : new[] { new SemanticProvenance("assembly-concept-satisfaction", claimedConcept, name, SemanticSourceSpan.Generated(sourceIdentity)) },
                  .. staticProvenance],
                 anchor, localMates, ParseRelations(body, diagnostics), ParseAsserts(body, sourceIdentity, diagnostics), exposedRelations, claimedConcept,
-                ParseFrameTransforms(body, sourceIdentity, diagnostics)));
+                ParseFrameTransforms(body, sourceIdentity, diagnostics).Concat(datumFrames).ToArray()));
         }
         return result;
     }
@@ -716,12 +733,12 @@ public sealed class AssemblyM0Parser
         if (root is null) diagnostics.Add(new("assembly-tree-missing", "Assembly body requires a nested <Assembly Name> product tree."));
         AssemblyMemberSource Freeze(MutableNode node) => new(node.Name, node.Kind, node.Definition,
             node.Children.Select(Freeze).ToArray(), node.Semantics, [], [new("assembly-source", node.Name, node.Definition, SemanticSourceSpan.Generated(sourceIdentity))],
-            node.ExplicitTransform, node.PlacementAuthority, node.IsEncapsulatedDefinition, node.SolvedAssemblyDefinition, node.TypedEndpoint, node.FramePlacement);
+            node.ExplicitTransform, node.PlacementAuthority, node.IsEncapsulatedDefinition, node.SolvedAssemblyDefinition, node.TypedEndpoint, node.FramePlacement, node.DatumSeat);
         return root is null ? null : Freeze(root);
 
         MutableNode ToMutable(AssemblyMemberSource source)
         {
-            var mutable = new MutableNode(source.Name, source.Kind, source.DefinitionIdentity) { ExplicitTransform = source.ExplicitTransform, PlacementAuthority = source.PlacementAuthority, IsEncapsulatedDefinition = source.IsEncapsulatedDefinition, SolvedAssemblyDefinition = source.SolvedAssemblyDefinition, TypedEndpoint = source.TypedEndpoint, FramePlacement = source.FramePlacement };
+            var mutable = new MutableNode(source.Name, source.Kind, source.DefinitionIdentity) { ExplicitTransform = source.ExplicitTransform, PlacementAuthority = source.PlacementAuthority, IsEncapsulatedDefinition = source.IsEncapsulatedDefinition, SolvedAssemblyDefinition = source.SolvedAssemblyDefinition, TypedEndpoint = source.TypedEndpoint, FramePlacement = source.FramePlacement, DatumSeat = source.DatumSeat };
             mutable.Semantics.AddRange(source.ExposedSemantics);
             mutable.Children.AddRange(source.Children.Select(ToMutable));
             return mutable;
@@ -826,6 +843,7 @@ public sealed class AssemblyM0Parser
         foreach (Match header in Regex.Matches(body, @"\bMate\s+(?<name>[A-Za-z_]\w*)\s*:\s*(?<interface>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant))
         {
             var block = BalancedBody(body, header.Index + header.Length - 1, diagnostics, "Mate"); if (block is null) continue;
+            if (Regex.IsMatch(block, @"\bMember\s*:")) continue;
             var roles = Regex.Matches(block, @"\b(?<role>[A-Za-z_]\w*)\s*:\s*(?<path>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*;", RegexOptions.CultureInvariant)
                 .Select(m => new MateRoleAssignment(m.Groups["role"].Value, AssemblyPath.Parse(m.Groups["path"].Value))).ToArray();
             result.Add(new(header.Groups["name"].Value, header.Groups["interface"].Value, roles, SemanticSourceSpan.Generated(sourceIdentity)));

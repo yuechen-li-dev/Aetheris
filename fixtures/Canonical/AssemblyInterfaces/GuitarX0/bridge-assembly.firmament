@@ -1,3 +1,4 @@
+Include "hardware-layout.firmament";
 Static SaddlesSites: Set<HardwareSite> {
  Saddle0 => HardwareSite { X: -25.5mm; Y: -35mm; Z: 63mm }
  Saddle1 => HardwareSite { X: -15.3mm; Y: -35mm; Z: 63mm }
@@ -8,8 +9,7 @@ Static SaddlesSites: Set<HardwareSite> {
 }
 Subassembly GuitarBridge {
  <Assembly GuitarBridge>
-  <Part Bridge = Panel<L:82mm,W:12mm,H:6mm,R:5mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,-35mm,57mm]; }
+  <Part Bridge = Panel<L:82mm,W:12mm,H:10mm,R:5mm>>
   </Part>
   <Part Tailpiece = Panel<L:88mm,W:15mm,H:7mm,R:6mm>>
    Placement { From: Origin; To: World; TranslateLocal: [0mm,-75mm,53mm]; }
@@ -20,6 +20,9 @@ Subassembly GuitarBridge {
    </Part>
   }
  </Assembly>
+
+ Interface<Fixed> BridgeDeckSeat { Datum: GuitarLayout.HardwareDeck; Members: [GuitarBridge.Bridge.BottomSeat] }
+ Mate BridgeOnDeck: BridgeDeckSeat { Member: GuitarBridge.Bridge.BottomSeat; At: GuitarLayout.BridgeSeat; Orientation: SameDirection; }
 
  Anchor: GuitarBridge;
 }

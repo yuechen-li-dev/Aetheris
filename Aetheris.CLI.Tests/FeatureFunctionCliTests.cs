@@ -24,6 +24,24 @@ public sealed class FeatureFunctionCliTests
     }
 
     [Fact]
+    public void InspectPickupPublishesNamedResultsAxesAndLinearPatternProvenance()
+    {
+        var output = new StringWriter(); var error = new StringWriter();
+        var exit = CliRunner.Run(["inspect", Fixture("Canonical/Feature/pickup-functional.firmament"), "--json"], output, error);
+        Assert.Equal(0, exit);
+        Assert.Equal(string.Empty, error.ToString());
+        using var json = JsonDocument.Parse(output.ToString());
+        var root = json.RootElement;
+        Assert.Equal("UpperCoil", root.GetProperty("featureInvocations")[0].GetProperty("resultIdentity").GetString());
+        Assert.Equal(2, root.GetProperty("planarAxes").GetArrayLength());
+        var pattern = Assert.Single(root.GetProperty("linearPatterns").EnumerateArray());
+        Assert.Equal("PoleSeed", pattern.GetProperty("source").GetString());
+        Assert.Equal("Layout.Longitudinal.Direction", pattern.GetProperty("direction").GetString());
+        Assert.Equal(10.2, pattern.GetProperty("spacing").GetDouble());
+        Assert.Equal(6, pattern.GetProperty("generatedFeatures").GetArrayLength());
+    }
+
+    [Fact]
     public void Validate_ReturnsFailureAndFatalTypedFeatureDiagnostic()
     {
         var output = new StringWriter(); var error = new StringWriter();

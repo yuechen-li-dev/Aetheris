@@ -50,12 +50,15 @@ def body_chain(name, stations, continuity):
     rows.append(f' SectionChain {name} {{ Continuity: {continuity}')
     for i in range(len(stations)):
         rows.append(f'  Section S{i} {{ Frame: F{i}\n   Profile: P{i}\n   Seam: Edge0 }}')
-    rows.extend(['  Start: Cap', '  End: Cap', ' }','}'])
+    rows.extend(['  Start: Cap', '  End: Cap', ' }'])
+    if name == 'CarvedMaple':
+        rows.append(' Expose { Semantic TopSeat { DatumFrame Frame = [0mm,0mm,53mm] x [1,0,0] y [0,1,0] z [0,0,1]; } }')
+    rows.append('}')
     (ROOT/f'{name}.firmament').write_text('\n'.join(rows)+'\n')
 
 body_chain('MahoganyBack',[(0,1),(38,1)],'G0')
 body_chain('IvoryBinding',[(38,1),(40,1)],'G0')
-body_chain('CarvedMaple',[(40,.992),(43,.955),(48,.84),(52,.64),(53,.38)],'G1')
+body_chain('CarvedMaple',[(40,.992),(43,.955),(48,.84),(52,.76),(53,.72)],'G1')
 
 # A closed D-section neck: flat fretboard seat, elliptical back, shaped heel and
 # a shallow nut transition that actually meets the tilted headstock base.
@@ -108,6 +111,7 @@ Template<D: Length, Lead: Length, Tail: Length, Deflection: Angle> Struct Guitar
  }
 }
 Template<L: Length, W: Length, H: Length, R: Length> Struct Panel {
+ Expose { Semantic BottomSeat { DatumFrame Frame = [0mm,0mm,0mm] x [1,0,0] y [0,1,0] z [0,0,1]; } }
  RoundedRect2 Outline { Center: [0mm,0mm] Size: [L,W] Radius: R }
  Profile P { Loop Outer { Outline |> TraceLoop } }
  Extrude Body { Profile: P From: 0mm To: H }
@@ -205,13 +209,7 @@ parts.append('''<Part Headstock = Head<H:14mm>>
 <Part HeadVeneer = Head<H:1mm>>
 </Part>''')
 part('Nut','Panel<L:44mm,W:4mm,H:3mm,R:1mm>',y=658,z=62)
-for name,y in [('NeckPickup',98),('BridgePickup',0)]:
-    part(name+'Cream','Surround<L:88mm,W:46mm,H:4mm>',y=y,z=53)
-    for j,dy in enumerate([-10,10]):
-        part(name+f'Coil{j}','Panel<L:70mm,W:17mm,H:5mm,R:3mm>',y=y+dy,z=57)
-    for i in range(6):
-        part(name+f'Pole{i}','Drum<R:2.2mm,H:1mm>',x=(i-2.5)*10.2,y=y+10,z=62)
-part('Bridge','Panel<L:82mm,W:12mm,H:6mm,R:5mm>',y=-35,z=57)
+part('Bridge','Panel<L:82mm,W:12mm,H:10mm,R:5mm>',y=-35,z=53)
 part('Tailpiece','Panel<L:88mm,W:15mm,H:7mm,R:6mm>',y=-75,z=53)
 for i in range(6):
     x=(i-2.5)*10.2
@@ -246,9 +244,6 @@ for side in [-1,1]:
 # Records; the compiler owns expansion, identities, and definition sharing.
 catalog=[]
 for family,matcher in [
-    ('PickupSeats',r'(?:Neck|Bridge)PickupCream'),
-    ('PickupCoils',r'(?:Neck|Bridge)PickupCoil[01]'),
-    ('PickupPoles',r'(?:Neck|Bridge)PickupPole[0-5]'),
     ('Saddles',r'Saddle[0-5]'),
     ('TunerPosts',r'TunerPost[02][0-2]'),
     ('TunerWashers',r'TunerWasher[02][0-2]'),
@@ -264,7 +259,7 @@ for family,matcher in [
     catalog.append(f'Static {family}Sites: Set<HardwareSite> {{\n'+ '\n'.join(
         f' {m[1]} => HardwareSite {{ X: {m[3]}; Y: {m[4]}; Z: {m[5]} }}' for _,m in selected)+'\n}')
     for declaration,_ in selected: parts.remove(declaration)
-    leaf='PickupCream' if family=='PickupSeats' else family.removesuffix('s')
+    leaf=family.removesuffix('s')
     parts.append(f'''Pattern {family} Over {family}Sites {{
  site => <Part {leaf} = {next(iter(definitions))}>
   Placement {{ From: Origin; To: World; TranslateLocal: [site.X,site.Y,site.Z]; }}
@@ -301,7 +296,20 @@ def rows_for(prefixes):
 string_end=templates.index('Template<L: Length')
 string_template=templates[:string_end]
 (ROOT/'hardware-definitions.firmament').write_text(templates[string_end:]+'\nRecord HardwareSite { X: Length; Y: Length; Z: Length }\n')
-write_module('body-assembly.firmament','GuitarBody',groups['Body'])
+# Concept layout is authored once and shared by each owning subassembly.
+(ROOT/'hardware-layout.firmament').write_text('''Concept Struct GuitarLayout {
+ Plane HardwareDeck { Origin: [0mm,0mm,53mm]; Normal: [0,0,1]; Up: [0,1,0] }
+ DatumFrame BodySeat { On: HardwareDeck; At: [0mm,0mm]; X: [1,0] }
+ DatumFrame NeckPickupSeat { On: HardwareDeck; At: [0mm,98mm]; X: [1,0] }
+ DatumFrame BridgePickupSeat { On: HardwareDeck; At: [0mm,0mm]; X: [1,0] }
+ DatumFrame BridgeSeat { On: HardwareDeck; At: [0mm,-35mm]; X: [1,0] }
+}
+''')
+groups['Body']=[re.sub(r'\s*Placement\s*\{[^}]*\}', '', p) if '<Part CarvedMaple ' in p else p for p in groups['Body']]
+write_module('body-assembly.firmament','GuitarBody',groups['Body'],includes=('hardware-layout.firmament',),relations='''
+ Interface<Fixed> BodyDeckSeat { Datum: GuitarLayout.HardwareDeck; Members: [GuitarBody.CarvedMaple.TopSeat] }
+ Mate BodyOnDeck: BodyDeckSeat { Member: GuitarBody.CarvedMaple.TopSeat; At: GuitarLayout.BodySeat; Orientation: SameDirection; Support: true; }
+''')
 write_module('tuners-assembly.firmament','GuitarTuners',groups['Tuners'],rows_for(('Tuner',)))
 neck_relations=''' FrameTransform NutWorld { From: GuitarNeck.Neck.NutMount.Frame; Normal: [0,1,0]; Up: [0,0,1]; TranslateLocal: [0mm,-7mm,0mm]; }
  FrameTransform HeadTilt { From: NutWorld.Frame; RotateLocal: { Axis: X; Angle: -13deg } }
@@ -309,10 +317,25 @@ neck_relations=''' FrameTransform NutWorld { From: GuitarNeck.Neck.NutMount.Fram
 write_module('neck-assembly.firmament','GuitarNeck',groups['Neck']+[occurrence('Tuners','GuitarTuners')],
              includes=('tuners-assembly.firmament',),relations=neck_relations,
              exposes='DatumFrame NutMount = Neck.NutMount.Frame; DatumFrame HeelMount = Neck.HeelMount.Frame; DatumFrame HeadFront = Headstock.Front.Frame;')
-write_module('pickups-assembly.firmament','GuitarPickups',groups['Pickups'],rows_for(('Pickup',)))
+# Pickup construction is authored in Firmament, not generated pole/coil coordinates.
+write_module('pickups-assembly.firmament','GuitarPickups',[
+    '<Part NeckPickup = Humbucker<Spec: StandardPickup>></Part>',
+    '<Part BridgePickup = Humbucker<Spec: StandardPickup>></Part>'],
+    includes=('pickup.firmament','hardware-layout.firmament'), relations="""
+ Interface<Fixed> PickupsDeckSeat { Datum: GuitarLayout.HardwareDeck; Members: [GuitarPickups.NeckPickup.Mount,GuitarPickups.BridgePickup.Mount] }
+ Mate NeckPickupOnDeck: PickupsDeckSeat { Member: GuitarPickups.NeckPickup.Mount; At: GuitarLayout.NeckPickupSeat; Orientation: SameDirection; }
+ Mate BridgePickupOnDeck: PickupsDeckSeat { Member: GuitarPickups.BridgePickup.Mount; At: GuitarLayout.BridgePickupSeat; Orientation: SameDirection; }
+""")
+pickup_source=(ROOT/'pickup.firmament').read_text()
+pickup_source=re.sub(r' Expose \{ Semantic Mount \{[^\n]+\n','',pickup_source)
+(ROOT.parents[1]/'Feature'/'pickup-functional.firmament').write_text('schema Mechanical\nModel PickupFunctional {\n Units: mm\n'+pickup_source+'\n Struct Product = Humbucker<Spec: StandardPickup>\n}\n')
 write_module('electronics-assembly.firmament','GuitarElectronics',groups['Electronics']+[occurrence('Pickups','GuitarPickups')],
              includes=('pickups-assembly.firmament',))
-write_module('bridge-assembly.firmament','GuitarBridge',groups['Bridge'],rows_for(('Saddles',)))
+groups['Bridge']=[re.sub(r'\s*Placement\s*\{[^}]*\}', '', p) if '<Part Bridge ' in p else p for p in groups['Bridge']]
+write_module('bridge-assembly.firmament','GuitarBridge',groups['Bridge'],rows_for(('Saddles',)),includes=('hardware-layout.firmament',),relations='''
+ Interface<Fixed> BridgeDeckSeat { Datum: GuitarLayout.HardwareDeck; Members: [GuitarBridge.Bridge.BottomSeat] }
+ Mate BridgeOnDeck: BridgeDeckSeat { Member: GuitarBridge.Bridge.BottomSeat; At: GuitarLayout.BridgeSeat; Orientation: SameDirection; }
+''')
 write_module('strings-assembly.firmament','GuitarStrings',groups['Strings'],rows=(string_template,))
 assembly='''// GUITAR-SURFACING-X0: composition root. Geometry and local layout live in modules.
 Include "hardware-definitions.firmament";
@@ -340,10 +363,9 @@ looks={
  'Board<H:2mm>':(.055,.017,.008,0,.4),
  'Head<H:1mm>':(.008,.008,.008,0,.4),
  'Head<H:14mm>':(.15,.025,.012,0,.4),
- 'Panel<L:70mm,W:17mm,H:5mm,R:3mm>':(.009,.007,.006,0,.4),
- 'Surround<L:88mm,W:46mm,H:4mm>':(.72,.59,.36,0,.4),
+ 'Humbucker<Spec: StandardPickup>':(.025,.025,.025,.15,.3),
  'Drum<R:9mm,H:9mm>':(.38,.13,.013,.2,.3),
  'Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>':(.74,.73,.62,.1,.3),
 }
 (ROOT/'preview-materials.json').write_text(json.dumps({k:dict(zip(['red','green','blue','metallic','roughness'],v)) for k,v in looks.items()},indent=2)+'\n')
-print(f'Authored guitar with seven keyed hardware patterns in {ROOT}; inspect via Aetheris.CLI for expanded occurrence counts.')
+print(f'Authored guitar with four keyed hardware patterns and two feature-built pickups in {ROOT}; inspect via Aetheris.CLI for expanded occurrence counts.')

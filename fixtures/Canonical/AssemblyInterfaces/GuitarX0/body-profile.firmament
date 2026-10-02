@@ -1,0 +1,7 @@
+include "body-outline.firmament";
+Template<Ratio: Float> Profile BodySection {
+ Concept Struct Local {
+  Curve2 Outline { from: BodyOutline; on: XY; scale: Ratio; pivot: [0mm,-25mm]; translate: [0mm,0mm]; rotate: 0deg }
+ }
+ Loop Outer { Local.Outline |> TraceLoop }
+}

@@ -66,7 +66,9 @@ public sealed record AssemblyMemberSource(
     AssemblyDefinitionIr? SolvedAssemblyDefinition = null,
     SemanticValue? TypedEndpoint = null,
     AssemblyFramePlacementSource? FramePlacement = null,
-    AssemblyDatumSeat? DatumSeat = null);
+    AssemblyDatumSeat? DatumSeat = null,
+    AssemblyMaterialSelection? MaterialSelection = null,
+    IReadOnlyList<AssemblyRouteInput>? RouteInputs = null);
 
 public sealed record AssemblyFrameTransformSource(string Name, string From, double[] Translation,
     string RotationAxis, double RotationDegrees, double[]? Normal = null, double[]? Up = null,
@@ -110,7 +112,10 @@ public sealed record AssemblySource(
     IReadOnlyList<AssemblyDefinitionSource>? AssemblyDefinitions = null,
     IReadOnlyList<AssemblySourceDependencyIr>? SourceDependencies = null,
     IReadOnlyList<AssemblyFrameTransformSource>? FrameTransforms = null,
-    IReadOnlyList<FirmamentV2CanonicalPatternDecl>? Patterns = null);
+    IReadOnlyList<FirmamentV2CanonicalPatternDecl>? Patterns = null,
+    IReadOnlyList<ConceptIrKeyedPointSetValue>? ConceptPoints = null,
+    AssemblyAppearanceCatalog? AppearanceCatalog = null,
+    AssemblyAnnotations? Annotations = null);
 
 public sealed record AssemblySourceDependencyIr(string Path, string Sha256, bool IsRoot);
 
@@ -126,7 +131,9 @@ public sealed record AssemblyInstanceIr(
     IReadOnlyList<SemanticProvenance> Provenance,
     PlacementAuthority PlacementAuthority = PlacementAuthority.MateDerived,
     bool IsEncapsulatedDefinition = false,
-    AssemblyDatumSeat? DatumSeat = null);
+    AssemblyDatumSeat? DatumSeat = null,
+    AssemblyMaterialSelection? MaterialSelection = null,
+    AssemblyAppearanceBinding? Appearance = null);
 
 public sealed record MateEndpointIr(string Role, AssemblyPath ParticipantPath, string ParticipantSemanticValueId, IReadOnlyList<string> RequiredCapabilities);
 public sealed record InterfaceRequirementResultIr(string Name, string Expression, string Status);
@@ -201,7 +208,7 @@ public sealed record AssemblyDefinitionIr(
     IReadOnlyList<InterfaceFitResultIr>? LocalFitResults = null,
     IReadOnlyList<AssemblyAxisSeatEvidence>? LocalAxisSeats = null);
 
-public sealed record AssemblyPerformanceIr(double ParseMilliseconds, double BindMilliseconds, double MateValidationMilliseconds, double PlacementMilliseconds, double DimensionalGraphMilliseconds, double ToleranceAnalysisMilliseconds, double DefinitionMaterializationMilliseconds = 0, double GeometryExecutionMilliseconds = 0);
+public sealed record AssemblyPerformanceIr(double ParseMilliseconds, double BindMilliseconds, double MateValidationMilliseconds, double PlacementMilliseconds, double DimensionalGraphMilliseconds, double ToleranceAnalysisMilliseconds, double DefinitionMaterializationMilliseconds = 0, double GeometryExecutionMilliseconds = 0, double RouteBindingMilliseconds = 0);
 public sealed record AssemblyGeometryMetricsIr(int Bodies, int Faces, int Edges, int Vertices, double[] Minimum, double[] Maximum);
 public sealed record AssemblyDefinitionArtifactIr(string StableId, string DefinitionIdentity, string SpecializationIdentity, string StepSha256, AssemblyGeometryMetricsIr Metrics, IReadOnlyList<SemanticProvenance> Provenance);
 public sealed record AssemblyInstanceGeometryIr(string InstanceStableId, string DefinitionArtifactStableId, AssemblyTransform WorldTransform, AssemblyGeometryMetricsIr Metrics);
@@ -223,7 +230,10 @@ public sealed record AssemblyIr(
     IReadOnlyList<AssemblySourceDependencyIr>? SourceDependencies = null,
     IReadOnlyList<AssemblyJointIr>? Joints = null,
     IReadOnlyList<FirmamentV2CanonicalPatternDecl>? Patterns = null,
-    IReadOnlyList<AssemblyAxisSeatEvidence>? AxisSeats = null);
+    IReadOnlyList<AssemblyAxisSeatEvidence>? AxisSeats = null,
+    IReadOnlyList<ConceptIrKeyedPointSetValue>? ConceptPoints = null,
+    IReadOnlyList<AssemblyRouteBindingEvidence>? RouteBindings = null,
+    AssemblyAnnotations? Annotations = null);
 
 public sealed record AssemblyCompilationResult(AssemblyIr? Ir, IReadOnlyList<AssemblyDiagnostic> Diagnostics, AssemblyPerformanceIr? Performance = null)
 {

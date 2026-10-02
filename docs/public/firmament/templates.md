@@ -20,7 +20,7 @@ Struct StandardPlate = MountingPlate<Width: 80mm, Height: 50mm, Thickness: 8mm>
 
 The complete build-qualified version is [`generic-mounting-plate.firmament`](../../../fixtures/Canonical/Templates/generic-mounting-plate.firmament).
 
-The explicit output keyword is significant: current Templates specialize `Struct`, `Model`, `Concept Struct`, `Panel`, `SheetMetal`, or `ProfileDelta` declarations. It is not inferred from the body.
+The explicit output keyword is significant: current Templates specialize `Struct`, `Model`, `Concept Struct`, `Panel`, `SheetMetal`, `Profile`, or `ProfileDelta` declarations. It is not inferred from the body.
 
 A finite feature Template used by `Pattern ... Over` has the same generic visual form:
 
@@ -134,7 +134,7 @@ Firmament has no `Select`, `Where`, `GroupBy`, joins, query comprehensions, SQL 
 
 ## Output boundary
 
-The modern generic specializer admits `Struct`, `Model`, `Concept Struct`, `Panel`, `SheetMetal`, and `ProfileDelta` output declarations. Finite feature Templates admit the currently documented `Hole<Shaft>`, capsule/rounded-rectangle `Slot`, `Profile`, and `StandardPart` outputs. Templates can thereby influence existing geometry, Sheet Metal, semantic PMI inputs, and an Analysis contained in an admitted concrete model, but Preview 3 has no separate generic FEA or Drawing output contract and no new PMI feature kinds.
+The modern generic specializer admits `Struct`, `Model`, `Concept Struct`, `Panel`, `SheetMetal`, `Profile`, and `ProfileDelta` output declarations. Finite feature Templates admit the currently documented `Hole<Shaft>`, capsule/rounded-rectangle `Slot`, `Profile`, and `StandardPart` outputs. Templates can thereby influence existing geometry, Sheet Metal, semantic PMI inputs, and an Analysis contained in an admitted concrete model, but Preview 3 has no separate generic FEA or Drawing output contract and no new PMI feature kinds.
 
 `Struct`, `Compose`, and `Modify` keep their ordinary meanings after specialization: `Struct` owns construction intent, `Compose` creates an admitted profile-based body, and `Modify` applies admitted post-construction semantic features. Template is not a geometry subsystem.
 
@@ -143,3 +143,5 @@ The modern generic specializer admits `Struct`, `Model`, `Concept Struct`, `Pane
 Protocol v1 keeps stable IDs such as `Standard.SheetMetal.ElectronicsEnclosure` separate from display signatures such as `ElectronicsEnclosure<Spec: EnclosureSpec>`. `ListTemplates` discovers stable IDs. `DescribeTemplate` exposes the signature, output kind, parameter category, units/dimensions, required/default state, enum cases, nested Record fields, named `Require` constraints, documentation, and artifacts. `InvokeTemplate` binds language-neutral values and returns deterministic artifacts and specialization identity; it never exposes compiler AST nodes.
 
 Syntax cleanup therefore does not rename a public Template. See [Template engineering examples](template-examples.md) and the [Forge Host guide](../forge/interop.md).
+
+Generic Profile output and bounded Point3 parameters are demonstrated in [source-owned guitar authoring](source-owned-guitar-authoring.md). Local guide names are specialization-owned; semantic Loop spans are preserved. Profiles are not higher-order Template arguments.

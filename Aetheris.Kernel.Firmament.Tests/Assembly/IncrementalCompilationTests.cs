@@ -136,13 +136,14 @@ public sealed class IncrementalCompilationTests
         FirmamentProjectSnapshot Project() => new("guitar.firmasm", documents);
         var first = Good(session.CompileProject(Project()));
         var repeated = Good(session.CompileProject(Project()));
-        Assert.Equal(53, repeated.Reuse!.ReusedDefinitions);
+        Assert.Equal(56, repeated.Reuse!.ReusedDefinitions);
         Assert.Equal(AssemblyUsdExporter.Serialize(first.Ir!, AssemblyDisplayMeshExporter.Export(first)),
             AssemblyUsdExporter.Serialize(repeated.Ir!, AssemblyDisplayMeshExporter.Export(repeated)));
         var neckFile = documents.Keys.Single(k => k == "Neck.firmament");
-        documents[neckFile] = documents[neckFile].Replace("-40mm", "-39.8mm");
+        Assert.Contains("Depth: 40mm", documents[neckFile], StringComparison.Ordinal);
+        documents[neckFile] = documents[neckFile].Replace("Depth: 40mm", "Depth: 39.8mm");
         var edited = Good(session.CompileProject(Project()));
-        Assert.Equal(52, edited.Reuse!.ReusedDefinitions);
+        Assert.Equal(55, edited.Reuse!.ReusedDefinitions);
         Assert.Equal(1, edited.Reuse.RebuiltDefinitions);
         Assert.Contains(edited.Reuse.Definitions, d => !d.Reused && d.DefinitionIdentity.Contains("Neck.firmament", StringComparison.Ordinal));
         Assert.NotEqual(first.Geometry!.Artifact.Definitions.Single(d => d.DefinitionIdentity.Contains("Neck.firmament", StringComparison.Ordinal)).StepSha256,

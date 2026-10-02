@@ -90,3 +90,7 @@ Recorded evidence is under ignored `artifacts/local/pickup-features/`:
 `incremental-final-timings.json`, `incremental-final-focused.log`,
 `incremental-final-build.log`, `incremental-final-fast.log` and
 `incremental-final-full.log`.
+
+## Owl authoring update
+
+Canonical assembly inspect --repeat 2 retains a session and reports per-build elapsed time and reuse/rebuild reasons. Appearance catalogs are excluded from geometry definition inputs; length-changing look-only edits reuse geometry. Placed route Point3 bindings are part of specialization identity, so endpoint placement changes invalidate the affected route. See [source-owned guitar authoring](source-owned-guitar-authoring.md).

@@ -8,7 +8,7 @@ public sealed class FirmamentSemanticSchemaTests
     public void GeneratedRegistry_IsStableOptInAndCoversFirstConstructs()
     {
         Assert.Equal("firmament-semantic-schema/1", FirmamentSemanticSchemas.Version);
-        Assert.Equal(["FrameTransform", "Placement", "Box", "Concept", "Helix", "Hole", "Interface<Fixed>", "Interface<Prismatic>", "Interface<Revolute>", "Loft", "Perforation", "Thread"], FirmamentSemanticSchemas.All.Select(s => s.Name));
+        Assert.Equal(["Appearance", "FrameTransform", "Placement", "Pmi", "Note", "Provenance", "Box", "Concept", "Points", "Helix", "Hole", "Interface<Fixed>", "Interface<Prismatic>", "Interface<Revolute>", "Loft", "Perforation", "Material", "Linear", "Series", "Section", "Thread", "Follow", "WireRoute"], FirmamentSemanticSchemas.All.Select(s => s.Name));
         var hole = Assert.IsType<FirmamentConstructSchema>(FirmamentSemanticSchemas.Get("Hole"));
         var diameter = Assert.Single(hole.Fields, f => f.Name == "Diameter");
         Assert.Equal("Hole.Diameter", diameter.Id.Value);
@@ -57,16 +57,21 @@ public sealed class FirmamentSemanticSchemaTests
         var entry = Assert.Single(completion.Entries!);
         Assert.Equal(name, entry.Name);
         Assert.Contains(requiredContext, entry.Source);
-        Assert.Equal(FirmamentSemanticSchemas.Get(name)!.Entry, entry.Source);
+        Assert.Equal(FirmamentSourceSpelling.Prefer(FirmamentSemanticSchemas.Get(name)!.Entry!), entry.Source);
     }
 
     [Theory]
     [InlineData("Helix")]
     [InlineData("Loft")]
+    [InlineData("WireRoute")]
     public void GeneratedEntryIsBuildable(string name)
     {
-        var result = FirmamentBuildAndExport.CompileSource(FirmamentSemanticSchemas.Get(name)!.Entry!);
-        Assert.True(result.IsSuccess, string.Join("; ", result.Diagnostics.Select(item => item.Message)));
+        var source = FirmamentSemanticSchemas.Get(name)!.Entry!;
+        foreach (var spelling in new[] { source, FirmamentSourceSpelling.Prefer(source) })
+        {
+            var result = FirmamentBuildAndExport.CompileSource(spelling);
+            Assert.True(result.IsSuccess, string.Join("; ", result.Diagnostics.Select(item => item.Message)));
+        }
     }
 
     private static FirmamentLanguageCompletion LoftOrHelixCompletion(string source, string expected)

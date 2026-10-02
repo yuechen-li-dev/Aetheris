@@ -1,3 +1,4 @@
+Include "GuitarX0/materials.firmament";
 Include "GuitarX0/hardware-definitions.firmament";
 Include "GuitarX0/knob.firmament";
 // One Concept spindle drives the complete rigid knob, along world X.

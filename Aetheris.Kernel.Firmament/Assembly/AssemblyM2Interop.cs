@@ -146,7 +146,14 @@ public static class AssemblyIrAp242Exporter
                 instance.Kind == AssemblyInstanceKind.Part ? artifactByIdentity[instance.DefinitionIdentity]
                     : instance.IsEncapsulatedDefinition ? assemblyDefinitionByIdentity[instance.DefinitionIdentity] : null, local);
         }).ToArray();
-        return Step242AssemblyExporter.Export(new(ir.Name, ir.RootInstanceStableId, definitions, occurrences));
+        var notes = (ir.Annotations?.Notes ?? []).Select(note => new Step242AssemblyNote(
+            ir.Instances.Single(i => i.Path.ToString() == note.Target).StableId,
+            new(note.Name, note.Target, note.Text))).ToList();
+        if (ir.Annotations?.Release is { } release)
+            foreach (var field in release.Fields.OrderBy(p => p.Key, StringComparer.Ordinal))
+                notes.Add(new(ir.RootInstanceStableId, new($"{release.Name}.{field.Key}", ir.Name, field.Value)));
+        return Step242AssemblyExporter.Export(new(ir.Name, ir.RootInstanceStableId, definitions, occurrences,
+            AssemblyPmiAuthoring.Header(ir.Annotations?.Release, ir.Name), notes));
     }
 
     private static KernelResult<string> Failure(string message) => KernelResult<string>.Failure([

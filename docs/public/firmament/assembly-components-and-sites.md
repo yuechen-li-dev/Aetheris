@@ -121,8 +121,9 @@ carved body remain visible engineering data. They share `ControlKnob`; the
 selector is one `PickupSelector` occurrence. Internal component offsets occur
 only in their defining modules.
 
-The guitar generator preserves these directly authored modules. It still computes
-fret spacing and WireForm routes; string endpoints follow the corrected tuner
+The guitar generator preserves these directly authored modules. The neck now authors fret spacing with `Function` and a bounded Concept point
+series (see [Concept points and Functions](concept-points-and-functions.md)).
+The generator still computes WireForm routes; string endpoints follow the corrected tuner
 post seats. The nut bend radius is 4mm, with matching tangent setbacks, so the
 revised leads pass the existing WireForm clearance checks at every string gauge.
 Those route calculations are not an assembly placement authority.
@@ -132,3 +133,7 @@ Ground truth:
 ```powershell
 dotnet Aetheris.CLI/bin/Release/net10.0/aetheris.dll asm inspect fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar.firmasm --json --profile
 ```
+
+## Owl authoring update
+
+Expose forwarding may traverse definition-owned structural pattern groups to a public component port. Encapsulated component privacy remains enforced; this does not grant arbitrary descendant access. The guitar tuners forward six StringEntry ports for fixed route binding.

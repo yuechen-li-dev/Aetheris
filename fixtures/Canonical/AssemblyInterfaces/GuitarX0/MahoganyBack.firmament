@@ -1,26 +1,21 @@
-Include "body-outline.firmament";
+include "body-profile.firmament";
 Model MahoganyBack {
- Units: mm
- Concept Struct Frames {
-  S0: Plane { Origin: [0mm,0mm,0mm]; Normal: [0,0,1]; Up: [0,1,0] }
-  S1: Plane { Origin: [0mm,0mm,38mm]; Normal: [0,0,1]; Up: [0,1,0] }
+ units: mm
+ Record BodyStation { Height: Length; Scale: Float }
+ Static Stations: Set<BodyStation> {
+  S0 => BodyStation { Height: 0mm; Scale: 1 }
+  S1 => BodyStation { Height: 38mm; Scale: 1 }
  }
- Concept Struct SectionLayout {
-  Curve2 Outline0 { From: BodyOutline; On: XY; Scale: 1; Pivot: [0mm,-25mm]; Translate: [0mm,0mm]; Rotate: 0deg }
-  Curve2 Outline1 { From: BodyOutline; On: XY; Scale: 1; Pivot: [0mm,-25mm]; Translate: [0mm,0mm]; Rotate: 0deg }
- }
- Construction Plane F0 { Trace: Frames.S0 }
- Profile P0 Using SectionLayout { Loop Outer { Outline0 |> TraceLoop } }
- Construction Plane F1 { Trace: Frames.S1 }
- Profile P1 Using SectionLayout { Loop Outer { Outline1 |> TraceLoop } }
- SectionChain MahoganyBack { Continuity: G0
-  Section S0 { Frame: F0
-   Profile: P0
-   Seam: LowerTreble_Span0 }
-  Section S1 { Frame: F1
-   Profile: P1
-   Seam: LowerTreble_Span0 }
-  Start: Cap
-  End: Cap
+ SectionChain MahoganyBack {
+  continuity: G0
+  Pattern Sections over Stations {
+   s => Section Station {
+    frame: Plane { origin: [0mm,0mm,s.Height]; normal: [0,0,1]; up: [0,1,0] }
+    profile: BodySection<Ratio: s.Scale>
+    seam: LowerTreble_Span0
+   }
+  }
+  start: Cap
+  end: Cap
  }
 }

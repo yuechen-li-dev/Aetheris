@@ -378,12 +378,21 @@ internal static class FirmamentV2FeatureExpansion
         var parser = new ScalarParser(expression); return parser.TryParse(out value, out unit);
     }
 
-    private sealed class ScalarParser(string text)
+    internal static bool TryEvaluateScalar(string expression, IReadOnlyDictionary<string, (double Value, string Unit)> variables,
+        Func<string, IReadOnlyList<(double Value, string Unit)>, (double Value, string Unit)> functions,
+        bool typeOnly, out double value, out string unit)
+        => new ScalarParser(expression, variables, functions, typeOnly).TryParse(out value, out unit);
+
+    private sealed class ScalarParser(string text,
+        IReadOnlyDictionary<string, (double Value, string Unit)>? variables = null,
+        Func<string, IReadOnlyList<(double Value, string Unit)>, (double Value, string Unit)>? functions = null,
+        bool typeOnly = false)
     {
         private int _at;
+        private int _depth;
         public bool TryParse(out double value, out string unit)
         {
-            try { var result = Add(); White(); if (_at != text.Length || !double.IsFinite(result.Value)) throw new FormatException(); value = result.Value; unit = result.Unit; return true; }
+            try { if (text.Length > 8192) throw new FormatException(); var result = Add(); White(); if (_at != text.Length || (!typeOnly && !double.IsFinite(result.Value))) throw new FormatException(); value = result.Value; unit = result.Unit; return true; }
             catch { value = 0; unit = string.Empty; return false; }
         }
         private (double Value, string Unit) Add()
@@ -398,14 +407,39 @@ internal static class FirmamentV2FeatureExpansion
             {
                 White(); if (!Take('*') && !Take('/')) return left; var op = text[_at - 1]; var right = Atom();
                 if (op == '*') { if (left.Unit.Length > 0 && right.Unit.Length > 0) throw new FormatException(); left = (left.Value * right.Value, left.Unit.Length > 0 ? left.Unit : right.Unit); }
-                else { if (right.Value == 0 || right.Unit.Length > 0) throw new FormatException(); left = (left.Value / right.Value, left.Unit); }
+                else { if ((!typeOnly && right.Value == 0) || (right.Unit.Length > 0 && right.Unit != left.Unit)) throw new FormatException(); left = (typeOnly ? 1 : left.Value / right.Value, right.Unit.Length > 0 ? string.Empty : left.Unit); }
             }
         }
         private (double Value, string Unit) Atom()
         {
-            White(); if (Take('(')) { var value = Add(); White(); if (!Take(')')) throw new FormatException(); return value; }
-            var start = _at; if (_at < text.Length && (text[_at] == '+' || text[_at] == '-')) _at++;
+            if (++_depth > 128) throw new FormatException();
+            try { return AtomCore(); }
+            finally { _depth--; }
+        }
+        private (double Value, string Unit) AtomCore()
+        {
+            White(); if (Take('+')) return Atom(); if (Take('-')) { var negative = Atom(); return (-negative.Value, negative.Unit); }
+            if (Take('(')) { var value = Add(); White(); if (!Take(')')) throw new FormatException(); return value; }
+            if (_at < text.Length && (char.IsLetter(text[_at]) || text[_at] == '_'))
+            {
+                var begin = _at++;
+                while (_at < text.Length && (char.IsLetterOrDigit(text[_at]) || text[_at] == '_')) _at++;
+                var name = text[begin.._at]; White();
+                if (!Take('(')) return variables is not null && variables.TryGetValue(name, out var variable) ? variable : throw new FormatException();
+                var arguments = new List<(double Value, string Unit)>(); White();
+                if (!Take(')'))
+                {
+                    do { arguments.Add(Add()); White(); } while (Take(','));
+                    if (!Take(')')) throw new FormatException();
+                }
+                if (name == "Pow" && arguments.Count == 2 && arguments.All(a => a.Unit.Length == 0))
+                    return (typeOnly ? 1 : Math.Pow(arguments[0].Value, arguments[1].Value), string.Empty);
+                return functions?.Invoke(name, arguments) ?? throw new FormatException();
+            }
+            var start = _at;
             while (_at < text.Length && (char.IsDigit(text[_at]) || text[_at] == '.')) _at++;
+            if (_at < text.Length && text[_at] is 'e' or 'E')
+            { _at++; if (_at < text.Length && text[_at] is '+' or '-') _at++; while (_at < text.Length && char.IsDigit(text[_at])) _at++; }
             if (start == _at || !double.TryParse(text[start.._at], NumberStyles.Float, CultureInfo.InvariantCulture, out var number)) throw new FormatException();
             var unit = text.AsSpan(_at).StartsWith("mm") ? "mm" : text.AsSpan(_at).StartsWith("deg") ? "deg" : string.Empty; _at += unit.Length; return (number, unit);
         }

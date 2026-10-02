@@ -1,0 +1,12 @@
+schema WireForm
+Model PointRoute {
+ WireRoute Lead {
+  Diameter: 1mm;
+  MinimumBendRadius: 4mm;
+  Path {
+   Start { At: Point3(0mm,0mm,0mm); }
+   Corner Bend { At: Point3(0mm,30mm,0mm); Radius: 4mm; }
+   End { At: Point3(20mm,30mm,20mm); }
+  }
+ }
+}

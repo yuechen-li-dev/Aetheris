@@ -373,6 +373,11 @@ public sealed class AssemblyM1Pipeline
     {
         if (!parsed.IsSuccess || parsed.Source is null) return new(null, null, parsed.Diagnostics);
         var diagnostics = parsed.Diagnostics.ToList();
+        var routeWatch = Stopwatch.StartNew();
+        var routeSource = AssemblyRouteBindings.Resolve(parsed.Source, diagnostics, out var routeBindings);
+        if (routeSource is null) return new(null, null, diagnostics);
+        parsed = parsed with { Source = routeSource };
+        routeWatch.Stop();
         var materializationWatch = Stopwatch.StartNew();
         var definitions = parsed.Source.Root.Flatten().Where(member => member.Kind == AssemblyInstanceKind.Part)
             .Select(member => member.DefinitionIdentity).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)
@@ -392,9 +397,10 @@ public sealed class AssemblyM1Pipeline
         var performance = compiled.Performance is null ? null : compiled.Performance with
         {
             DefinitionMaterializationMilliseconds = materializationWatch.Elapsed.TotalMilliseconds,
-            GeometryExecutionMilliseconds = geometryWatch.Elapsed.TotalMilliseconds
+            GeometryExecutionMilliseconds = geometryWatch.Elapsed.TotalMilliseconds,
+            RouteBindingMilliseconds = routeWatch.Elapsed.TotalMilliseconds
         };
-        return new(validatedIr, geometry, diagnostics, performance);
+        return new(validatedIr with { RouteBindings = routeBindings }, geometry, diagnostics, performance);
     }
 
     private static MaterializedAssemblyDefinition? Materialize(string identity, string? declarations, string sourceIdentity,

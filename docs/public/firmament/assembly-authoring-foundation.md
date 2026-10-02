@@ -130,16 +130,20 @@ nonfinite values, duplicate fields and invalid orientation fail diagnostically.
 
 The fixture has zero authored LegacyExplicit matrices. Neck NutMount/HeelMount
 publish section ports; NutWorld/HeadTilt place the headstock; VeneerSeat seats the
-veneer. Seven keyed patterns cover pickup seats/coils/poles, saddles and tuner
-posts/washers/buttons. Hardware positions preserve the previous witness, with
-107 visible parts, 55 shared definitions, six WireForms and four SectionChains.
+veneer. Six keyed assembly patterns now cover saddles, tuner rows, controls,
+frets and inlays; the two pickups share a functional part definition with feature patterns.
+The current witness has 91 visible parts, 53 shared definitions, six WireForms
+and four SectionChains.
 
-Python still generates spline controls/sections, computes fret spacing, and
-derives WireForm lengths, bend angles and bases from endpoints. Decorative
-hardware still uses absolute coordinates where mounting ports are unauthored.
-Profile-valued templates, section patterns and point-driven routes are the next
-useful authoring slice, deferred pending review. No surfacing-kernel change is
-needed to take that step. Appearance remains downstream Cycles shading.
+Python now only reproduces CLI artifacts without changing authored source. Body and neck profiles and section recipes live in Firmament. Fret spacing and widths live in pure
+`Function` declarations and a bounded Concept point series, with placement local
+to the nut's published frame. See [Concept points and Functions](concept-points-and-functions.md).
+The six strings now use [point-driven routes](wire-point-routes.md); Firmament
+derives their lengths, angles and forming frames. Pearl inlays use explicit linear
+stations seated on the board's published MarkerOrigin. Physical Material selects
+its default Appearance, with explicit with finish overrides; procedural Cycles
+shading remains downstream. See [source-owned guitar authoring](source-owned-guitar-authoring.md)
+and the [updated checkpoint](authoring-composition-proposal.md).
 
 Ground truth:
 
@@ -153,8 +157,9 @@ Generated reports, STEP/USD and Cycles artifacts go under ignored artifacts/loca
 ## Qualification on 2026-09-30
 
 Verdict: **success for this bounded foundation slice**. The motivating guitar
-now uses the implemented constructs through M1, exact STEP export, shared USD
-prototypes and downstream rendering. Authoring D has not been started.
+used the implemented constructs through M1, exact STEP export, shared USD
+prototypes and downstream rendering. This is the original foundation qualification;
+subsequent authoring slices are recorded in the session checkpoint above.
 
 - Release solution build: passed (existing WebAssembly interop warnings).
 - Core fast lane: 1005 passed; serial full solution gate: 4034 passed.

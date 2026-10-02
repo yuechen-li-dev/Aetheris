@@ -7,9 +7,10 @@ namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 public sealed class CoaxialDatumTests
 {
     private const string Fixture = "fixtures/Canonical/AssemblyInterfaces/coaxial-knob.firmasm";
-    private static string Source => File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/AssemblyInterfaces/GuitarX0/hardware-definitions.firmament"))
+    private static string Source => FirmamentV2.FirmamentSourceSpelling.Normalize(File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/AssemblyInterfaces/GuitarX0/materials.firmament"))
+        + File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/AssemblyInterfaces/GuitarX0/hardware-definitions.firmament"))
         + File.ReadAllText(FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/AssemblyInterfaces/GuitarX0/knob.firmament"))
-        + string.Join('\n', File.ReadAllLines(FirmamentCorpusHarness.ResolveFixtureFullPath(Fixture)).Where(l => !l.StartsWith("Include")));
+        + string.Join('\n', File.ReadAllLines(FirmamentCorpusHarness.ResolveFixtureFullPath(Fixture)).Where(l => !l.StartsWith("Include"))));
 
     [Fact]
     public void CompleteKnobRotatesAsOneRigidOccurrenceWithNoGeometryRebuild()
@@ -67,6 +68,7 @@ public sealed class CoaxialDatumTests
     public void CompositePublicAxisAndFrameFollowSolvedLocalChildPlacement()
     {
         var source = Source.Replace("At: 0mm; Clocking: 0deg;","At: 2mm; Clocking: 0deg;");
+        Assert.NotEqual(Source, source);
         var result = new AssemblyM0Compiler().Compile(new AssemblyM0Parser().Parse(source).Source!);
         Assert.True(result.IsSuccess,Evidence(result.Diagnostics));
         var knob = Instance(result.Ir!.Instances,"Controls.VolumeKnob");
@@ -124,6 +126,7 @@ public sealed class CoaxialDatumTests
     [InlineData("Interface<Fixed> CoaxialStack","Interface<Revolute> CoaxialStack","assembly-axis-internal-motion-unsupported")]
     public void InvalidAxisContractsFailClosed(string from,string to,string code)
     {
+        Assert.Contains(from, Source);
         var result = new AssemblyM0Parser().Parse(Source.Replace(from,to));
         Assert.False(result.IsSuccess);
         Assert.Contains(result.Diagnostics,d=>d.Code==code);
@@ -140,8 +143,8 @@ public sealed class CoaxialDatumTests
         var definition=Assert.Single(ir.AssemblyDefinitions!,d=>d.DefinitionIdentity=="ControlKnob");
         Assert.Equal(new double[]{0,3,12},definition.LocalAxisSeats!.Select(e=>e.Seating.StationMm).Order());
         Assert.All(definition.LocalAxisSeats!,e=>Assert.True(e.Passed));
-        Assert.Equal(91,compiled.Geometry!.Artifact.Instances.Count);
-        Assert.Equal(53,compiled.Geometry.Artifact.Definitions.Count);
+        Assert.Equal(99,compiled.Geometry!.Artifact.Instances.Count);
+        Assert.Equal(56,compiled.Geometry.Artifact.Definitions.Count);
     }
 
     private static AssemblyInstanceIr Instance(IReadOnlyList<AssemblyInstanceIr> instances,string path)=>instances.Single(i=>i.Path.ToString()==path);

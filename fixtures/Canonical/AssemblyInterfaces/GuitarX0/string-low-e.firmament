@@ -1,12 +1,16 @@
 schema WireForm
 Model GuitarLowE {
- Units: mm
- WireForm String {
-  Diameter: 0.68mm
-  Material: Standard.Materials.StainlessSteel.304_Annealed
-  StartFrame { Origin: [25.5mm,-75mm,65mm]; Tangent: [-0.0102313880420824,0.999947657979523,0]; Up: [-0.738352332641793,-0.00755476465868138,-0.674372863046382] }
-  Straight SpeakingLength { Length: 732.589494mm }
-  Bend NutBreak { Radius: 4mm; Angle: 12.805738deg; Plane: Up }
-  Straight TunerLead { Length: 64.073073mm }
+ WireRoute String {
+  diameter: 0.68mm;
+  material: Standard.Materials.StainlessSteel.304_Annealed;
+  minimumBendRadius: 4mm;
+  Path {
+   Start { at: Point3(25.5mm,-75mm,65mm); }
+   Corner NutBreak { at: Point3(18mm,658mm,65mm); radius: 4mm; }
+   End {
+    at: Point3(27mm,58mm,20mm);
+    On { From: World; TranslateLocal: [0mm,660mm,48mm]; RotateLocal: { axis: X; angle: -13deg } }
+   }
+  }
  }
 }

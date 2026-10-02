@@ -36,6 +36,10 @@ public static class AssemblyUsdExporter
             throw new InvalidOperationException("assembly-usd-document-mismatch");
         var occurrences = mesh.Occurrences.ToDictionary(o => o.Id, StringComparer.Ordinal);
         var definitions = mesh.Definitions.OrderBy(d => d.Id, StringComparer.Ordinal).ToArray();
+        var authoredLooks = ir.Instances.Where(i => i.Appearance is not null).Select(i => i.Appearance!)
+            .DistinctBy(a => a.Appearance).OrderBy(a => a.Appearance, StringComparer.Ordinal).ToArray();
+        var lookPaths = authoredLooks.Select((look, index) => (look.Appearance, Path: "/Looks/Authored_" + index))
+            .ToDictionary(p => p.Appearance, p => p.Path, StringComparer.Ordinal);
         var declaredPose = AssemblyKinematics.Evaluate(ir, evaluatedState ?? options.State ?? new Dictionary<string, double>());
         if (!declaredPose.IsSuccess || declaredPose.Instances.Any(instance => instance.ResolvedTransform is null
             || occurrences[instance.StableId].Transform.Length != 16
@@ -99,6 +103,18 @@ public static class AssemblyUsdExporter
             Line($"            float inputs:metallic = {F(m.Metallic)}"); Line($"            float inputs:roughness = {F(m.Roughness)}");
             Line("            token outputs:surface"); Line("        }"); Line("    }");
         }
+        foreach (var look in authoredLooks)
+        {
+            var path = lookPaths[look.Appearance]; var m = look.Preview;
+            ValidateMaterial(m);
+            Line($"    def Material {Q(path.Split('/').Last())} {{");
+            Line($"        custom string aetheris:appearanceIdentity = {Q(look.Appearance)}");
+            Line($"        token outputs:surface.connect = <{path}/Shader.outputs:surface>");
+            Line("        def Shader \"Shader\" {"); Line("            uniform token info:id = \"UsdPreviewSurface\"");
+            Line($"            color3f inputs:diffuseColor = ({F(m.Red)}, {F(m.Green)}, {F(m.Blue)})");
+            Line($"            float inputs:metallic = {F(m.Metallic)}"); Line($"            float inputs:roughness = {F(m.Roughness)}");
+            Line("            token outputs:surface"); Line("        }"); Line("    }");
+        }
         Line("}");
         var joints = ir.Joints ?? [];
         var bodies = joints.SelectMany(j => new[] { j.ParentOccurrenceId, j.ChildOccurrenceId }).ToHashSet();
@@ -113,7 +129,18 @@ public static class AssemblyUsdExporter
             Line($"{indent}    custom string aetheris:sourcePath = {Q(o.Path)}");
             Line($"{indent}    custom string aetheris:definitionIdentity = {Q(ir.Instances.Single(i => i.StableId == id).DefinitionIdentity)}");
             if (bodies.Contains(id)) { Line($"{indent}    bool physics:rigidBodyEnabled = true"); Line($"{indent}    bool physics:kinematicEnabled = true"); }
-            if (id == ir.RootInstanceStableId) Line($"{indent}    custom string aetheris:sourceName = {Q(ir.Name)}");
+            if (id == ir.RootInstanceStableId)
+            {
+                Line($"{indent}    custom string aetheris:sourceName = {Q(ir.Name)}");
+                if (ir.Annotations?.Release is { } release)
+                    foreach (var field in release.Fields.OrderBy(p => p.Key, StringComparer.Ordinal))
+                        Line($"{indent}    custom string aetheris:provenance:{field.Key} = {Q(field.Value)}");
+                foreach (var note in ir.Annotations?.Notes ?? [])
+                {
+                    Line($"{indent}    custom string aetheris:pmi:{note.Name}:target = {Q(note.Target)}");
+                    Line($"{indent}    custom string aetheris:pmi:{note.Name}:text = {Q(note.Text)}");
+                }
+            }
             double[] Local(double[] world, double[]? parent) => parent is null ? world :
                 (Transform3D.FromRowMajor(world) * Transform3D.FromRowMajor(parent).Inverse()).ToRowMajor();
             var local = Local(o.Transform, o.ParentId is null ? null : occurrences[o.ParentId].Transform);
@@ -138,7 +165,20 @@ public static class AssemblyUsdExporter
             }
             if (o.DefinitionId is not null)
             {
-                Line($"{indent}    def Xform \"Geometry\" (prepend references = <{definitionPaths[o.DefinitionId]}>; instanceable = true) {{}}");
+                var look = ir.Instances.Single(i => i.StableId == id).Appearance;
+                Line($"{indent}    def Xform \"Geometry\" (prepend references = <{definitionPaths[o.DefinitionId]}>; instanceable = true" +
+                    (look is null ? "" : "; prepend apiSchemas = [\"MaterialBindingAPI\"]") + ") {");
+                if (look is not null)
+                {
+                    Line($"{indent}        custom string userProperties:aetheris_material = {Q(look.PhysicalIdentity)}");
+                    Line($"{indent}        custom string userProperties:aetheris_appearance = {Q(look.Appearance)}");
+                    Line($"{indent}        rel material:binding = <{lookPaths[look.Appearance]}> (bindMaterialAs = \"strongerThanDescendants\")");
+                    Line($"{indent}        over \"Mesh\" {{");
+                    Line($"{indent}            custom string userProperties:aetheris_material = {Q(look.PhysicalIdentity)}");
+                    Line($"{indent}            custom string userProperties:aetheris_appearance = {Q(look.Appearance)}");
+                    Line($"{indent}        }}");
+                }
+                Line($"{indent}    }}");
             }
             foreach (var child in mesh.Occurrences.Where(c => c.ParentId == id).OrderBy(c => c.Path, StringComparer.Ordinal)) WriteOccurrence(child.Id, depth + 1);
             Line(indent + "}");

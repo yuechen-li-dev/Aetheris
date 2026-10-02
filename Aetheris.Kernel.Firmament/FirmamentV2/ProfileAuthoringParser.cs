@@ -13,7 +13,7 @@ public static class ProfileAuthoringParser
 {
     public const string SegmentEndpointMustReferenceNamedPoint = "ProfileSegmentEndpointMustReferenceNamedPoint";
     private const double Tolerance = 1e-9;
-    private static readonly Regex Point = new(@"\bPoint2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*Position\s*:\s*(?:\[|Point2\s*\()\s*(?<x>[-+.\deE]+)mm\s*,\s*(?<y>[-+.\deE]+)mm\s*(?:\]|\))", RegexOptions.Singleline | RegexOptions.CultureInvariant);
+    private static readonly Regex Point = new(@"\bPoint2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*Position\s*:\s*(?:\[(?<xy>[^\[\]\r\n]+)\]|Point2\s*\((?<xy>[^()\r\n]+)\))", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex Line = new(@"\bLine2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*From\s*:\s*(?<a>[\w.]+)\s*;?\s*To\s*:\s*(?<b>[\w.]+)", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex CubicBezier = new(@"\bCubicBezier2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*From\s*:\s*(?<a>[\w.]+)\s*;?\s*Control1\s*:\s*(?<c1>[\w.]+)\s*;?\s*Control2\s*:\s*(?<c2>[\w.]+)\s*;?\s*To\s*:\s*(?<b>[\w.]+)", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex Circle = new(@"(?:\bConcept\s+)?\bCircle2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*Center\s*:\s*(?<c>[\w.]+)\s*;?\s*Radius\s*:\s*(?<r>[-+.\deE]+)mm", RegexOptions.Singleline | RegexOptions.CultureInvariant);
@@ -247,8 +247,15 @@ public static class ProfileAuthoringParser
     private static void AddOrdinaryGuides(string source, Dictionary<string, (double X, double Y)> points, Dictionary<string, LineArcProfileCurve2D> guides, List<string> diagnostics, bool applySpans = true)
     {
         foreach (Match match in Point.Matches(source))
-            if (TryNumber(match.Groups["x"].Value, out var x) && TryNumber(match.Groups["y"].Value, out var y))
+        {
+            // Profile Templates substitute dimensions before this binder. Reuse the
+            // bounded, unit-checked scalar evaluator for authored control arithmetic.
+            var xy = match.Groups["xy"].Value.Split(',');
+            if (xy.Length == 2 && FirmamentV2FeatureExpansion.TryEvaluateScalar(xy[0], out var x, out var xu) && xu == "mm"
+                && FirmamentV2FeatureExpansion.TryEvaluateScalar(xy[1], out var y, out var yu) && yu == "mm")
                 points[match.Groups["n"].Value] = (x, y);
+            else diagnostics.Add($"profile-layout-point-invalid:{match.Groups["n"].Value}:expected-two-finite-lengths");
+        }
         foreach (Match match in Rect.Matches(source))
         {
             var name = match.Groups["n"].Value;

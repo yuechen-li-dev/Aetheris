@@ -1,48 +1,25 @@
-Include "body-outline.firmament";
+include "body-profile.firmament";
 Model CarvedMaple {
- Units: mm
- Concept Struct Frames {
-  S0: Plane { Origin: [0mm,0mm,40mm]; Normal: [0,0,1]; Up: [0,1,0] }
-  S1: Plane { Origin: [0mm,0mm,43mm]; Normal: [0,0,1]; Up: [0,1,0] }
-  S2: Plane { Origin: [0mm,0mm,48mm]; Normal: [0,0,1]; Up: [0,1,0] }
-  S3: Plane { Origin: [0mm,0mm,52mm]; Normal: [0,0,1]; Up: [0,1,0] }
-  S4: Plane { Origin: [0mm,0mm,53mm]; Normal: [0,0,1]; Up: [0,1,0] }
+ units: mm
+ Record BodyStation { Height: Length; Scale: Float }
+ Static Stations: Set<BodyStation> {
+  S0 => BodyStation { Height: 40mm; Scale: 0.992 }
+  S1 => BodyStation { Height: 43mm; Scale: 0.955 }
+  S2 => BodyStation { Height: 48mm; Scale: 0.84 }
+  S3 => BodyStation { Height: 52mm; Scale: 0.76 }
+  S4 => BodyStation { Height: 53mm; Scale: 0.72 }
  }
- Concept Struct SectionLayout {
-  Curve2 Outline0 { From: BodyOutline; On: XY; Scale: 0.992; Pivot: [0mm,-25mm]; Translate: [0mm,0mm]; Rotate: 0deg }
-  Curve2 Outline1 { From: BodyOutline; On: XY; Scale: 0.955; Pivot: [0mm,-25mm]; Translate: [0mm,0mm]; Rotate: 0deg }
-  Curve2 Outline2 { From: BodyOutline; On: XY; Scale: 0.84; Pivot: [0mm,-25mm]; Translate: [0mm,0mm]; Rotate: 0deg }
-  Curve2 Outline3 { From: BodyOutline; On: XY; Scale: 0.76; Pivot: [0mm,-25mm]; Translate: [0mm,0mm]; Rotate: 0deg }
-  Curve2 Outline4 { From: BodyOutline; On: XY; Scale: 0.72; Pivot: [0mm,-25mm]; Translate: [0mm,0mm]; Rotate: 0deg }
+ SectionChain CarvedMaple {
+  continuity: G1
+  Pattern Sections over Stations {
+   s => Section Station {
+    frame: Plane { origin: [0mm,0mm,s.Height]; normal: [0,0,1]; up: [0,1,0] }
+    profile: BodySection<Ratio: s.Scale>
+    seam: LowerTreble_Span0
+   }
+  }
+  start: Cap
+  end: Cap
  }
- Construction Plane F0 { Trace: Frames.S0 }
- Profile P0 Using SectionLayout { Loop Outer { Outline0 |> TraceLoop } }
- Construction Plane F1 { Trace: Frames.S1 }
- Profile P1 Using SectionLayout { Loop Outer { Outline1 |> TraceLoop } }
- Construction Plane F2 { Trace: Frames.S2 }
- Profile P2 Using SectionLayout { Loop Outer { Outline2 |> TraceLoop } }
- Construction Plane F3 { Trace: Frames.S3 }
- Profile P3 Using SectionLayout { Loop Outer { Outline3 |> TraceLoop } }
- Construction Plane F4 { Trace: Frames.S4 }
- Profile P4 Using SectionLayout { Loop Outer { Outline4 |> TraceLoop } }
- SectionChain CarvedMaple { Continuity: G1
-  Section S0 { Frame: F0
-   Profile: P0
-   Seam: LowerTreble_Span0 }
-  Section S1 { Frame: F1
-   Profile: P1
-   Seam: LowerTreble_Span0 }
-  Section S2 { Frame: F2
-   Profile: P2
-   Seam: LowerTreble_Span0 }
-  Section S3 { Frame: F3
-   Profile: P3
-   Seam: LowerTreble_Span0 }
-  Section S4 { Frame: F4
-   Profile: P4
-   Seam: LowerTreble_Span0 }
-  Start: Cap
-  End: Cap
- }
- Expose { Semantic TopSeat { DatumFrame Frame = CarvedMaple.Section.S4.Frame; } }
+ expose { Semantic TopSeat { DatumFrame Frame = CarvedMaple.Section.Sections_S4.Frame; } }
 }

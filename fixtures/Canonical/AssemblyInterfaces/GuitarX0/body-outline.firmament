@@ -1,45 +1,45 @@
 // Shared named body boundary; no authored spline control cage.
-Static Landmarks: Set<Point2> {
- Tail => Point2(0mm,-220mm)
- TrebleWaist => Point2(105mm,28mm)
- Horn => Point2(113mm,160mm)
- NeckSeat => Point2(28mm,204mm)
- BassShoulder => Point2(-111mm,174mm)
- BassWaist => Point2(-95mm,40mm)
+Static landmarks: Set<Point2> {
+  Tail => Point2(0mm, -220mm)
+  TrebleWaist => Point2(105mm, 28mm)
+  Horn => Point2(113mm, 160mm)
+  NeckSeat => Point2(28mm, 204mm)
+  BassShoulder => Point2(-111mm, 174mm)
+  BassWaist => Point2(-95mm, 40mm)
 }
-Concept Struct BodyLayout {
- Polygon2<Explicit> Scaffold { Vertices: Landmarks }
+Concept Struct bodyLayout {
+  Polygon2<Explicit> scaffold { vertices: landmarks }
 }
-Profile BodyOutline Using BodyLayout {
- From: Scaffold
- Replace LowerTreble {
-  On: Scaffold.Tail_TrebleWaist
-  Through: [[115mm,-195mm], [168mm,-115mm], [148mm,-35mm]]
-  Derivatives: [[115mm,0mm], [84mm,52.5mm], [16.5mm,80mm], [-31.5mm,71.5mm], [-15mm,65mm]]
- }
- Replace HornRise {
-  On: Scaffold.TrebleWaist_Horn
-  Through: [[118mm,95mm], [124mm,140mm]]
-  Derivatives: [[-15mm,65mm], [9.5mm,56mm], [-2.5mm,32.5mm], [-16.5mm,1mm]]
- }
- Replace Cutaway {
-  On: Scaffold.Horn_NeckSeat
-  Through: [[91mm,142mm], [48mm,137mm]]
-  Derivatives: [[-16.5mm,1mm], [-32.5mm,-11.5mm], [-31.5mm,31mm], [-45mm,34mm]]
- }
- Replace Shoulder {
-  On: Scaffold.NeckSeat_BassShoulder
-  Through: [[-42mm,205mm]]
-  Derivatives: [[-45mm,34mm], [-69.5mm,-15mm], [-38.5mm,-45mm]]
- }
- Replace UpperBass {
-  On: Scaffold.BassShoulder_BassWaist
-  Through: [[-119mm,115mm]]
-  Derivatives: [[-38.5mm,-45mm], [8mm,-67mm], [-9mm,-73.5mm]]
- }
- Replace LowerBass {
-  On: Scaffold.BassWaist_Tail
-  Through: [[-137mm,-32mm], [-168mm,-115mm], [-115mm,-195mm]]
-  Derivatives: [[-9mm,-73.5mm], [-36.5mm,-77.5mm], [11mm,-81.5mm], [84mm,-52.5mm], [115mm,0mm]]
- }
+Profile BodyOutline using bodyLayout {
+  from: scaffold
+  Replace LowerTreble {
+    on: scaffold.Tail_TrebleWaist
+    through: [[115mm, -195mm], [168mm, -115mm], [148mm, -35mm]]
+    derivatives: Periodic
+  }
+  Replace HornRise {
+    on: scaffold.TrebleWaist_Horn
+    through: [[118mm, 95mm], [124mm, 140mm]]
+    derivatives: Periodic
+  }
+  Replace Cutaway {
+    on: scaffold.Horn_NeckSeat
+    through: [[91mm, 142mm], [48mm, 137mm]]
+    derivatives: Periodic
+  }
+  Replace Shoulder {
+    on: scaffold.NeckSeat_BassShoulder
+    through: [[-42mm, 205mm]]
+    derivatives: Periodic
+  }
+  Replace UpperBass {
+    on: scaffold.BassShoulder_BassWaist
+    through: [[-119mm, 115mm]]
+    derivatives: Periodic
+  }
+  Replace LowerBass {
+    on: scaffold.BassWaist_Tail
+    through: [[-137mm, -32mm], [-168mm, -115mm], [-115mm, -195mm]]
+    derivatives: Periodic
+  }
 }

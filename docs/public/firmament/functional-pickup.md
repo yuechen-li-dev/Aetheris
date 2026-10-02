@@ -130,3 +130,7 @@ Generated evidence is under ignored `artifacts/local/pickup-features/`:
 - `guitar/step-analysis.json`, `guitar/mesh-check.json`, `guitar/timings.json`,
   `guitar/render.json`: hierarchy, mesh, timing and shading evidence.
 - `solution-build.log`, `fast.log`, `closeout-full.log`: build and test validation logs.
+
+## Owl authoring update
+
+The create-guitar-x0.py command is now a read-only CLI reproduction harness. It no longer generates or rewrites pickup, body, neck or assembly source. Appearance is assigned semantically through Material and with, while pickup axial feature shading remains an honest downstream placeholder.

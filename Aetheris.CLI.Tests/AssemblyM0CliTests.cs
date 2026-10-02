@@ -5,6 +5,36 @@ namespace Aetheris.CLI.Tests;
 public sealed class AssemblyM0CliTests
 {
     [Fact]
+    public void BuildAndAnalyzeAssemblyRecoverSourceAuthoredReleaseAndPmiNotes()
+    {
+        var repo = FindRepoRoot();
+        var fixture = Path.Combine(repo, "fixtures/Canonical/AssemblyInterfaces/AuthoringFoundation/product-notes.firmasm");
+        var directory = Path.Combine(repo, "artifacts/local/assembly-pmi-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var step = Path.Combine(directory, "product.step");
+            var stdout = new StringWriter(); var stderr = new StringWriter();
+            Assert.Equal(0, Aetheris.CLI.CliRunner.Run(["build", fixture, "--output", step, "--json"], stdout, stderr));
+            Assert.Empty(stderr.ToString());
+            stdout = new();
+            Assert.Equal(0, Aetheris.CLI.CliRunner.Run(["analyze", "assembly", step, "--json"], stdout, stderr));
+            using var json = JsonDocument.Parse(stdout.ToString());
+            var report = json.RootElement;
+            Assert.Equal(1, report.GetProperty("definitionCount").GetInt32());
+            Assert.Equal(2, report.GetProperty("bodyCount").GetInt32());
+            var pmi = report.GetProperty("semanticPmi");
+            Assert.True(pmi.GetProperty("success").GetBoolean());
+            Assert.Equal(7, pmi.GetProperty("annotationCount").GetInt32());
+            var notes = pmi.GetProperty("items").EnumerateArray().ToArray();
+            Assert.Equal("GPT 6.1 Sol Codex", notes.Single(n => n.GetProperty("name").GetString() == "Release.Author").GetProperty("text").GetString());
+            Assert.Equal("Product.A", notes.Single(n => n.GetProperty("name").GetString() == "Finish").GetProperty("target").GetString());
+            Assert.Empty(stderr.ToString());
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
     public void AnalyzeAssembly_ReportsSourceHierarchyWithoutWritingPackage()
     {
         var source = Path.Combine(FindRepoRoot(), "testdata", "step242", "OCCT", "as1.step");

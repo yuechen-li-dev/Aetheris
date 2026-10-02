@@ -1,0 +1,26 @@
+// Nominal physical identities, not certified material grades or analysis properties.
+// Appearance changes do not alter physical identity or exact geometry.
+Appearance PolishedSteel { color: [0.65,0.69,0.73]; metallic: 1; roughness: 0.16; }
+Appearance WarmIvory { color: [0.72,0.59,0.36]; metallic: 0; roughness: 0.23; }
+Appearance BlackPolymer { color: [0.009,0.007,0.006]; metallic: 0; roughness: 0.21; }
+Appearance EbonyLacquer { color: [0.008,0.01,0.013]; metallic: 0; roughness: 0.18; }
+Appearance Pearl { color: [0.74,0.73,0.62]; metallic: 0.2; roughness: 0.22; }
+Appearance Amber { color: [0.38,0.13,0.013]; metallic: 0.25; roughness: 0.21; }
+Appearance Brass { color: [0.48,0.27,0.06]; metallic: 0.7; roughness: 0.24; }
+Appearance CherryMahogany { color: [0.1,0.017,0.007]; metallic: 0; roughness: 0.24; }
+Appearance Rosewood { color: [0.035,0.012,0.006]; metallic: 0; roughness: 0.36; }
+Appearance GoldenMaple { color: [0.85,0.48,0.065]; metallic: 0; roughness: 0.24; }
+Appearance Sunburst { color: [0.85,0.48,0.065]; metallic: 0; roughness: 0.24; }
+Appearance PickupComposite { color: [0.009,0.007,0.006]; metallic: 0; roughness: 0.21; }
+Appearance PolishedNickel { color: [0.65,0.69,0.73]; metallic: 1; roughness: 0.16; }
+Material Steel { identity: "steel"; appearance: PolishedSteel; }
+Material IvoryPolymer { identity: "ivory-colored polymer"; appearance: WarmIvory; }
+Material BlackPolymer { identity: "black polymer"; appearance: BlackPolymer; }
+Material Ebony { identity: "ebony veneer"; appearance: EbonyLacquer; }
+Material MotherOfPearl { identity: "mother of pearl"; appearance: Pearl; }
+Material AmberPolymer { identity: "amber polymer"; appearance: Amber; }
+Material Brass { identity: "brass"; appearance: Brass; }
+Material Mahogany { identity: "mahogany"; appearance: CherryMahogany; }
+Material Rosewood { identity: "rosewood"; appearance: Rosewood; }
+Material Maple { identity: "maple"; appearance: GoldenMaple; }
+Material PickupComposite { identity: "decorative pickup composite"; appearance: PickupComposite; }

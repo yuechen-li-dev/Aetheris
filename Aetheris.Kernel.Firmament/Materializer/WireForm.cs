@@ -135,11 +135,13 @@ public static class WireFormAuthoring
         return false;
     }
 
-    public static bool IsWireFormSource(string source) => Declaration.IsMatch(source);
+    public static bool IsWireFormSource(string source) => Declaration.IsMatch(source) || WireRouteAuthoring.IsSource(source);
 
     public static KernelResult<WireFormFeatureAir> Parse(string source)
     {
         ArgumentNullException.ThrowIfNull(source);
+        source = FirmamentV2.FirmamentSourceSpelling.Normalize(source);
+        if (WireRouteAuthoring.IsSource(source)) return WireRouteAuthoring.Parse(source);
         var declaration = Declaration.Match(source);
         if (!declaration.Success) return Fail("wireform-declaration-missing", "No WireForm declaration was found.");
         var open = source.IndexOf('{', declaration.Index);
@@ -282,7 +284,7 @@ public static class WireFormAuthoring
         try { direction = Direction3D.Create(vector); return true; }
         catch (ArgumentException) { direction = default; return false; }
     }
-    private static int MatchingBrace(string source, int open) { var depth = 0; for (var i = open; i >= 0 && i < source.Length; i++) { if (source[i] == '{') depth++; else if (source[i] == '}' && --depth == 0) return i; } return -1; }
+    internal static int MatchingBrace(string source, int open) { var depth = 0; for (var i = open; i >= 0 && i < source.Length; i++) { if (source[i] == '{') depth++; else if (source[i] == '}' && --depth == 0) return i; } return -1; }
     private static Vector3D Rotate(Vector3D vector, Vector3D axis, double angle) => vector * Math.Cos(angle) + Cross(axis, vector) * Math.Sin(angle) + axis * (Dot(axis, vector) * (1d - Math.Cos(angle)));
     internal static Vector3D Cross(Vector3D a, Vector3D b) => new(a.Y * b.Z - a.Z * b.Y, a.Z * b.X - a.X * b.Z, a.X * b.Y - a.Y * b.X);
     internal static double Dot(Vector3D a, Vector3D b) => a.X * b.X + a.Y * b.Y + a.Z * b.Z;

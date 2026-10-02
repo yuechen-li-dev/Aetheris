@@ -1,125 +1,103 @@
-Include "tuners-assembly.firmament";
+include "tuners-assembly.firmament";
+
+// All Functions evaluate during compilation; lengths remain dimension checked.
+Function fretDistance(n: Int, scale: Length) -> Length =
+ scale * (1.0 - Pow(2.0, -n / 12.0));
+Function fretWidth(distance: Length) -> Length =
+ 42mm + 13mm * ((distance + 2mm) / 540mm);
+
+Concept Struct NutLayout {
+ Points<Point2> Crossings {
+  keys: [String0, String1, String2, String3, String4, String5];
+  Linear { start: Point2(-18mm, 0mm); step: [7.2mm, 0mm]; }
+ }
+}
+Concept Struct FretboardLayout {
+ Points<Point2> Positions {
+  Series {
+   index: n; first: 1; count: 22; keyPrefix: Fret;
+   position: Point2(0mm, -fretDistance(n, 628mm));
+  }
+ }
+ // Authored marker stations use 0.1mm resolution; compiler math stays precise.
+ Points<Point2> InlayPositions {
+  Linear {
+   start: Point2(0mm,0mm);
+   direction: [0,-1];
+   Stations {
+    Fret3: 84.2mm;
+    Fret5: 143.5mm;
+    Fret7: 196.4mm;
+    Fret9: 243.5mm;
+    Fret12: 304.7mm;
+    Fret15: 356.1mm;
+    Fret17: 385.8mm;
+    Fret19: 412.2mm;
+    Fret21: 435.7mm;
+   }
+  }
+ }
+
+}
 
 Subassembly GuitarNeck {
  <Assembly GuitarNeck>
   <Part Neck = SectionChainFile<"Neck.firmament">>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,0mm,0mm]; }
+   material: Mahogany;
+   Placement { from: Origin; to: World; translateLocal: [0mm,0mm,0mm]; }
   </Part>
   <Part BoardBinding = Board<H:5mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,0mm,55mm]; }
+   material: IvoryPolymer;
+   Placement { from: Origin; to: World; translateLocal: [0mm,0mm,55mm]; }
   </Part>
   <Part Rosewood = Board<H:2mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,0mm,60mm]; }
+   material: Rosewood;
+   Placement { from: Origin; to: World; translateLocal: [0mm,0mm,60mm]; }
   </Part>
-  <Part Headstock = Head<H:14mm>>
-   Placement { From: Base.Frame; To: HeadTilt.Frame; }
+  // Neck's section chain fills the first 16mm; the slab starts inside that loft.
+  <Part Headstock = Head<H:14mm,RootStart:16mm,RootHalfWidth:26.5mm,RootWidth:53mm>>
+   material: Mahogany;
+   Placement { from: Base.Frame; to: HeadTilt.Frame; }
   </Part>
   <Part HeadVeneer = Head<H:1mm>>
+   material: Ebony;
+  </Part>
+  <Part NutScarf = HeadstockScarf<L:43mm>>
+   material: Mahogany;
+   Placement { from: Mount.Frame; to: GuitarNeck.Headstock.Base.Frame; }
   </Part>
   <Part Nut = Panel<L:44mm,W:4mm,H:3mm,R:1mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,658mm,62mm]; }
+   material: IvoryPolymer;
+   Placement { from: Origin; to: World; translateLocal: [0mm,658mm,62mm]; }
   </Part>
-  <Part Fret1 = Panel<L:42.896685mm,W:1.2mm,H:1mm,R:0.5mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,622.753068mm,62mm]; }
-  </Part>
-  <Part Fret2 = Panel<L:43.697598mm,W:1.2mm,H:1mm,R:0.5mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,589.484395mm,62mm]; }
-  </Part>
-  <Part Fret3 = Panel<L:44.453559mm,W:1.2mm,H:1mm,R:0.5mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,558.082949mm,62mm]; }
-  </Part>
-  <Part PearlInlay3 = Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,573.783672mm,62mm]; }
-  </Part>
-  <Part Fret4 = Panel<L:45.167091mm,W:1.2mm,H:1mm,R:0.5mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,528.44393mm,62mm]; }
-  </Part>
-  <Part Fret5 = Panel<L:45.840575mm,W:1.2mm,H:1mm,R:0.5mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,500.468422mm,62mm]; }
-  </Part>
-  <Part PearlInlay5 = Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,514.456176mm,62mm]; }
-  </Part>
-  <Part Fret6 = Panel<L:46.47626mm,W:1.2mm,H:1mm,R:0.5mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,474.063059mm,62mm]; }
-  </Part>
-  <Part Fret7 = Panel<L:47.076266mm,W:1.2mm,H:1mm,R:0.5mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,449.139714mm,62mm]; }
-  </Part>
-  <Part PearlInlay7 = Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,461.601386mm,62mm]; }
-  </Part>
-  <Part Fret8 = Panel<L:47.642597mm,W:1.2mm,H:1mm,R:0.5mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,425.61521mm,62mm]; }
-  </Part>
-  <Part Fret9 = Panel<L:48.177142mm,W:1.2mm,H:1mm,R:0.5mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,403.411034mm,62mm]; }
-  </Part>
-  <Part PearlInlay9 = Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,414.513122mm,62mm]; }
-  </Part>
-  <Part Fret10 = Panel<L:48.681685mm,W:1.2mm,H:1mm,R:0.5mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,382.453083mm,62mm]; }
-  </Part>
-  <Part Fret11 = Panel<L:49.15791mm,W:1.2mm,H:1mm,R:0.5mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,362.671412mm,62mm]; }
-  </Part>
-  <Part Fret12 = Panel<L:49.607407mm,W:1.2mm,H:1mm,R:0.5mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,344mm,62mm]; }
-  </Part>
-  <Part PearlInlay12 = Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,353.335706mm,62mm]; }
-  </Part>
-  <Part Fret13 = Panel<L:50.031676mm,W:1.2mm,H:1mm,R:0.5mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,326.376534mm,62mm]; }
-  </Part>
-  <Part Fret14 = Panel<L:50.432132mm,W:1.2mm,H:1mm,R:0.5mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,309.742197mm,62mm]; }
-  </Part>
-  <Part Fret15 = Panel<L:50.810113mm,W:1.2mm,H:1mm,R:0.5mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,294.041474mm,62mm]; }
-  </Part>
-  <Part PearlInlay15 = Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,301.891836mm,62mm]; }
-  </Part>
-  <Part Fret16 = Panel<L:51.166879mm,W:1.2mm,H:1mm,R:0.5mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,279.221965mm,62mm]; }
-  </Part>
-  <Part Fret17 = Panel<L:51.503621mm,W:1.2mm,H:1mm,R:0.5mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,265.234211mm,62mm]; }
-  </Part>
-  <Part PearlInlay17 = Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,272.228088mm,62mm]; }
-  </Part>
-  <Part Fret18 = Panel<L:51.821463mm,W:1.2mm,H:1mm,R:0.5mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,252.031529mm,62mm]; }
-  </Part>
-  <Part Fret19 = Panel<L:52.121466mm,W:1.2mm,H:1mm,R:0.5mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,239.569857mm,62mm]; }
-  </Part>
-  <Part PearlInlay19 = Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,245.800693mm,62mm]; }
-  </Part>
-  <Part Fret20 = Panel<L:52.404632mm,W:1.2mm,H:1mm,R:0.5mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,227.807605mm,62mm]; }
-  </Part>
-  <Part Fret21 = Panel<L:52.671904mm,W:1.2mm,H:1mm,R:0.5mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,216.705517mm,62mm]; }
-  </Part>
-  <Part PearlInlay21 = Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,222.256561mm,62mm]; }
-  </Part>
-  <Part Fret22 = Panel<L:52.924176mm,W:1.2mm,H:1mm,R:0.5mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,206.226542mm,62mm]; }
-  </Part>
+  Pattern Frets over FretboardLayout.Positions {
+   point => <Part Fret = Panel<L:fretWidth(-point.Position.Y),W:1.2mm,H:1mm,R:0.5mm>>
+   material: Steel with { appearance: PolishedNickel; };
+    Placement {
+     from: BottomSeat.Frame; to: FretboardDatum.Frame;
+     translateLocal: [point.Position.X, point.Position.Y, 0mm];
+    }
+   </Part>
+  }
+  Pattern PearlInlays over FretboardLayout.InlayPositions {
+   point => <Part Inlay = Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>>
+   material: MotherOfPearl;
+    Placement {
+     from: BottomSeat.Frame; to: InlayDatum.Frame;
+     translateLocal: [point.Position.X, point.Position.Y, 0mm];
+    }
+   </Part>
+  }
   <Assembly Tuners = GuitarTuners>
    // Front includes the 14mm headstock; 1mm seats on its veneer.
-   Placement { From: Origin; To: GuitarNeck.Headstock.Front.Frame; TranslateLocal: [0mm,0mm,1mm]; }
+   Placement { from: Origin; to: GuitarNeck.Headstock.Front.Frame; translateLocal: [0mm,0mm,1mm]; }
   </Assembly>
  </Assembly>
- FrameTransform NutWorld { From: GuitarNeck.Neck.NutMount.Frame; Normal: [0,1,0]; Up: [0,0,1]; TranslateLocal: [0mm,-7mm,0mm]; }
- FrameTransform HeadTilt { From: NutWorld.Frame; RotateLocal: { Axis: X; Angle: -13deg } }
- Interface<Fixed> VeneerSeat { A: GuitarNeck.Headstock.Front.Frame; B: GuitarNeck.HeadVeneer.Base.Frame; Gap: 0mm; Clocking: 0deg; }
- Anchor: GuitarNeck;
- Expose { DatumFrame NutMount = Neck.NutMount.Frame; DatumFrame HeelMount = Neck.HeelMount.Frame; DatumFrame HeadFront = Headstock.Front.Frame; }
+ FrameTransform InlayDatum { from: GuitarNeck.Rosewood.MarkerOrigin.Frame; }
+ FrameTransform FretboardDatum { from: GuitarNeck.Nut.BottomSeat.Frame; }
+ FrameTransform NutWorld { from: GuitarNeck.Neck.NutMount.Frame; normal: [0,1,0]; up: [0,0,1]; translateLocal: [0mm,-7mm,0mm]; }
+ FrameTransform HeadTilt { from: NutWorld.Frame; rotateLocal: { axis: X; angle: -13deg } }
+ Interface<Fixed> VeneerSeat { a: GuitarNeck.Headstock.Front.Frame; b: GuitarNeck.HeadVeneer.Base.Frame; gap: 0mm; clocking: 0deg; }
+ anchor: GuitarNeck;
+ expose { DatumFrame NutMount = Neck.NutMount.Frame; DatumFrame HeelMount = Neck.HeelMount.Frame; DatumFrame HeadFront = Headstock.Front.Frame; DatumFrame StringPlane = Nut.TopSeat.Frame; DatumFrame StringLowE = Tuners.StringLowE; DatumFrame StringA = Tuners.StringA; DatumFrame StringD = Tuners.StringD; DatumFrame StringG = Tuners.StringG; DatumFrame StringB = Tuners.StringB; DatumFrame StringHighE = Tuners.StringHighE; }
 }

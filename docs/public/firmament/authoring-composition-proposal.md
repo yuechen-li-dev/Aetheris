@@ -1,19 +1,121 @@
 # Firmament authoring and composition: proposals from GUITAR-SURFACING-X0
 
-Status: **roadmap; Foundations A–C now have a bounded implementation.**
-See [the implemented assembly authoring foundation](assembly-authoring-foundation.md)
-for supported syntax, limits, and the guitar reassessment. Remaining sketches
-below retain their proposed status; Authoring D is deferred for review.
+Status: **bounded owl implemented on 2026-10-01; advanced contracts remain explicit follow-ons.**
+The checklist below distinguishes shipped bounded capabilities from remaining
+contracts. The original numbered proposals remain for traceability; their sketches
+are superseded wherever a linked implementation guide specifies different syntax.
 
 The guitar demonstrated that the existing exact geometry and display paths can produce a convincing designed object. It also required a Python source generator to assemble 107 occurrences, calculate transforms, expand repeated hardware, generate spline controls, calculate fret spacing, and construct string routes. That generator emits ordinary Firmament; it does not replace the kernel. Nevertheless, too much design intent lives outside the language.
 
 The objective is to move those responsibilities into typed, finite Firmament authoring and existing compiler owners. This is a proposal for several bounded milestones, not a request for a general scripting language, universal constraint solver, or new surfacing kernel.
 
-All code blocks below are **proposed syntax**, including blocks that reuse existing constructs. They are design sketches, not compile-ready fixtures. Names such as `Body.Top`, `Neck.Nut` and `Pickup.Seat` denote proposed published ports; they are not currently emitted by the guitar fixtures. Implementations must publish those ports before the examples can resolve.
+Code blocks in the original numbered proposals are historical **design sketches**,
+not compile-ready fixtures. Use the linked implementation guides and current
+guitar modules for supported syntax and published port names.
+
+## Session checkpoint: original friction checklist
+
+**Addressed** means the first bounded slice works through the real compiler and
+guitar witness. It does not mean every extension described in the original
+proposal is implemented. **Partial** means useful functionality shipped but a
+named part of the original contract remains. **Open** means the proposed
+source-level capability has not shipped.
+
+| Original item | Status | What works now | Remaining friction / boundary |
+| --- | --- | --- | --- |
+| 1. Assembly Patterns | **Addressed, bounded** | Keyed finite occurrence families, shared definitions, stable identities and expanded provenance. Six guitar patterns cover saddle, tuner, control, fret and inlay families. | No nested assembly patterns, arbitrary relationship-pattern bodies or patterned Expose collections. Pickup poles correctly use feature repetition inside one part instead. |
+| 2. Readable frames and placement | **Addressed, bounded** | FrameTransform, local translation/rotation, published-frame alignment and single placement authority. Headstock/tuners and point-route forming no longer require Python transform math; fixed placed endpoints use public-frame Bind. | General frame-valued expressions and dynamic endpoint scopes remain follow-ons. |
+| 3. Definition-owned semantic ports | **Addressed, bounded** | Ordinary part and SectionChain publications; nested forwarding/privacy; body deck, neck terminals, component mounts and board MarkerOrigin. | No general stable face/curve selector or arbitrary surface port publication. Not every geometric face is source-addressable. |
+| 4. Interface depth | **Partial; core seating shipped** | Fixed Gap/Clocking, role/member checks, Concept-plane-directed seating with material evidence, Concept-axis Fixed stacks and complete-component Revolute placement. | Rich reusable dimension/fit predicates and arbitrary cross-scope datum targeting remain limited. Generalized user-defined Lower is superseded, not unfinished work to implement. |
+| 5. Profile/section families | **Addressed for the guitar** | Generic Profile outputs with local-guide hygiene, keyed Section Patterns, inline Concept frames, periodic boundary derivatives. Body and flat neck recipes are now source-owned. | Higher-order Profile arguments and general InterpolatingLoop2 remain outside this slice. |
+| 6. Straight/fair surfacing intent | **Partial: witness fixed, language contract open** | Approved flat-ish neck, isolated heel stations, existing G1 SectionChain path and side-profile regression checks. | No explicit per-transition Law/endpoint tangent authoring or declarative StraightBack envelope contract. The present fix is an authored station recipe, not a new global straightness proof. |
+| 7. Non-planar attachment | **Partial; datum-first model clarified** | Concept planes derive from published physical construction frames with offset/clocking; consumers seat on that scaffold. The guitar deck no longer needs an independent bridge-height guess. | Tangent-frame evaluation on analytic/SectionChain surfaces, explicit location/trim/seam rules and curved-base footprint support are not implemented by frame derivation alone. |
+| 8. Engineering expressions and finite sites | **Addressed, bounded** | Pure scalar Function arithmetic and Pow, equation-driven 22-fret series, keyed nut crossings, explicit linear inlay stations, ordinary Linear/Mirrored component sites. | Angle trigonometry, typed vector/frame operations, geometry-valued arguments/results and equation-defined curves remain bounded follow-ons. Functions already run during compilation; no Comptime keyword is needed. |
+| 9. Point-driven WireForm | **Addressed, bounded** | Six strings bind final public tailpiece/nut/tuner frames; typed Point3 specialization and placement-aware cache inputs. First finite Concept Line3 Follow guide lowers to exact WireForm. | Fixed assemblies only; tangent exits. Exact Via, multiple corners, circular/spline guides, route outputs and obstacle search remain deferred. |
+| 10. Semantic appearance binding | **Addressed, bounded** | Physical Material owns its default Appearance; occurrence with overrides the finish. USD and Cycles consume authored identities. Look-only edits reuse exact geometry. | Physical aliases do not certify engineering properties; procedural sunburst/pearl and pickup shading remain downstream. |
+| 11. Unified compilation and diagnostics | **Addressed front door; deeper tooling partial** | Root-aware build/inspect delegates to existing owners; repeat inspection exposes cache reasons/timings. Section keys, bound endpoint provenance, new schema fields and snapshot cross-file navigation are covered. | Aggregate project diagnostic locations, full generated-span mapping, every draft grammar and client integration remain follow-ons. |
+
+Implementation references: [assembly foundation](assembly-authoring-foundation.md),
+[published-frame and boundary derivation](concept-derivation.md),
+[datum seating](datum-seating.md), [coaxial mating](concept-axis-mating-proposal.md),
+[profile boundary edits](profile-boundary-edits.md),
+[Functions and point collections](concept-points-and-functions.md), and
+[point wire routes](wire-point-routes.md).
+
+### Additional wins beyond the original eleven items
+
+- [x] **Component-oriented containment:** guitar.firmasm composes multiple modules;
+  knobs, selectors and tuners are complete reusable components, rather than
+  assemblies collecting unrelated categories of features.
+- [x] **Functional part construction:** two pickups instantiate one feature-built
+  Humbucker definition. Housing, coils and repeated poles are part features.
+  [Functional pickup construction](functional-pickup.md) records the qualified subset.
+- [x] **Basic incremental compilation:** a retained
+  [FirmamentCompilationSession](incremental-compilation.md) reuses successful exact
+  definition materializations with source/dependency-aware invalidation. Placement,
+  validation, tessellation and export still run. Ordinary declaration edits may
+  invalidate many parts conservatively; this is not a minimal dependency graph or
+  a cross-process CLI cache.
+- [x] **Human-authored station convention:** pearl distances are written at 0.1mm
+  resolution; the largest migration shift is 0.044mm, inside the stated 0.1mm
+  physical tolerance. Compiler intermediates and kernel tolerances stay precise.
+
+### Bounded owl delivered
+
+- [x] **Source-owned profile/section families:** shared generic body and neck
+  recipes, keyed section rows, stable spans, periodic derivatives, approved flat
+  shaft retained. Python is now a read-only reproduction harness.
+- [x] **Authoring front door:** root-aware build/inspect, retained-session timing
+  and cache reasons, section associations and route endpoint provenance; schema
+  help and snapshot navigation for the added syntax.
+- [x] **Placed endpoints and first guide:** fixed public-frame Bind inputs and one
+  finite Concept Line3 Follow interval with exact entry fillet and tangent exit.
+- [x] **Semantic appearance:** Material default plus with finish override; authored
+  identities replace renderer name matching and leave geometry buffers unchanged.
+- [x] **Reassess further surface/Interface work against a real case:** guitar deck
+  seating already has physical evidence. No new arbitrary curved-attachment case
+  was needed; tangent/trim/seam/footprint and richer dimension predicates remain
+  named follow-ons, rather than speculative scope added to this milestone.
+
+[Implemented syntax and limits](source-owned-guitar-authoring.md) supersede the
+historical sketches below. Procedural rendering remains downstream; no geometry
+recipes are generated in Python. Editor coverage is bounded, not a claim of full
+source-map or all-client completion support.
+
+### Owl closeout evidence
+
+Release solution build passed; 95 focused Firmament and 27 CLI tests passed.
+Fast Core passed 1,004; the full serial solution gate passed **4,225**, with zero
+failures and seven existing skips across 21 projects. Fresh STEP/USD and six
+full-resolution Cycles views are in ignored artifacts/local/owl, with a short
+report, inspection/provenance, timing, mesh checks and input-hash evidence.
+Cached/uncached USD is identical. Cold/warm/cached compile times were 11.105s,
+5.108s and 0.887s; all 53 definitions reused in the cached lane. Camera changes
+in the compiled Cycles scene preserve product topology and invoke no Firmament
+build; no refreshed native Storm orbit or measured Zoo ratio is claimed.
+
+### Prior checkpoint evidence
+
+The current root is [guitar.firmasm](../../../fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar.firmasm).
+Prior checkpoint code qualification (before the owl slice): Release solution build, 47 focused tests,
+1,004 fast core tests, and 4,192 full serial solution tests passed, with 7 existing
+skips. The current witness has 91 visible parts, 53 geometry definitions, 10
+reusable assembly definitions and six assembly patterns. USD has 163 occurrence
+nodes including its root; STEP has 162 occurrences and 63 definitions.
+
+The prior inlay migration preserves every definition's geometry buffers and all
+non-inlay transforms. Cycles verifies nine pearl assignments, two pickup treatments
+and unchanged imported product topology. These are current model/export/render
+checks, not a new camera-orbit or Zoo timing comparison. Earlier build/performance
+numbers in linked milestone guides are explicitly historical snapshots.
+
+Reproducible local evidence is under ignored `artifacts/local/linear-stations/`:
+report.md/json, inspection, comparison, STEP/USD, full-gate TRX and the Cycles
+preview/scene. This checkpoint also refreshes CLI inspection of the current root.
 
 ## Evidence and current baseline
 
-The motivating source is [the guitar generator](../../../scripts/create-guitar-x0.py), its [authored fixtures](../../../fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar-x0.firmament), and the [witness report](../demos/guitar-surfacing-x0.md).
+The motivating source is [the guitar generator](../../../scripts/create-guitar-x0.py), its [current composition root](../../../fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar.firmasm), and the [witness report](../demos/guitar-surfacing-x0.md).
 
 Current capabilities should be extended, not accidentally proposed a second time:
 
@@ -34,13 +136,13 @@ During this audit, `aetheris asm inspect fixtures/Canonical/AssemblyInterfaces/t
 | 2. Frame composition and placement | P0 | Rigid local offsets/rotations and named frame alignment | Existing datum-frame and placement IR |
 | 3. Definition-owned semantic ports | P0 | Authored frames and SectionChain terminal frames | Existing semantic values and Expose |
 | 4. Deeper Interface contracts | P0 | Frame member requirements, seating gap and clocking | 2–3 |
-| 5. Section/profile family authoring | P1 | Parameterized profiles and finite section sets | Existing Templates, Patterns and SectionChain |
+| 5. Profile/section families | **Addressed for the guitar** | Generic Profile outputs with local-guide hygiene, keyed Section Patterns, inline Concept frames, periodic boundary derivatives. Body and flat neck recipes are now source-owned. | Higher-order Profile arguments and general InterpolatingLoop2 remain outside this slice. |
 | 6. Explicit straight/fair transition intent | P1 | Endpoint tangent constraints and named transition laws | Existing SectionChain tangent/materializer path |
 | 7. Placement on curved supports | P1 | Named analytic support, explicit location and clocking | 2–4; surface evaluator |
 | 8. Dimensioned engineering expressions | P1 | Pure scalar arithmetic, small math set and finite sampling | Existing compile-time value evaluator |
-| 9. Point-driven WireForm routes | P1 | Three points, one explicit bend radius | 2–3, existing WireForm |
-| 10. Semantic appearance binding | P2 | Named simple looks bound to definitions/occurrences | Existing USD appearance path |
-| 11. Unified build and source diagnostics | P0 alongside each slice | Dispatch, generated-source provenance and dependency reports | Existing CLI, schema and language analysis |
+| 9. Point-driven WireForm | **Addressed, bounded** | Six strings bind final public tailpiece/nut/tuner frames; typed Point3 specialization and placement-aware cache inputs. First finite Concept Line3 Follow guide lowers to exact WireForm. | Fixed assemblies only; tangent exits. Exact Via, multiple corners, circular/spline guides, route outputs and obstacle search remain deferred. |
+| 10. Semantic appearance binding | **Addressed, bounded** | Physical Material owns its default Appearance; occurrence with overrides the finish. USD and Cycles consume authored identities. Look-only edits reuse exact geometry. | Physical aliases do not certify engineering properties; procedural sunburst/pearl and pickup shading remain downstream. |
+| 11. Unified compilation and diagnostics | **Addressed front door; deeper tooling partial** | Root-aware build/inspect delegates to existing owners; repeat inspection exposes cache reasons/timings. Section keys, bound endpoint provenance, new schema fields and snapshot cross-file navigation are covered. | Aggregate project diagnostic locations, full generated-span mapping, every draft grammar and client integration remain follow-ons. |
 
 Ship 2–3 first as a small foundation, then 1 and the first part of 4. Do not require curved-support placement or a material language before making ordinary assemblies pleasant to author.
 
@@ -157,33 +259,42 @@ Interface<Fixed> VeneerSeat {
 
 Define `Gap` along A's outward local Z, and `Clocking` about that axis. `OpposedDirection` must have a documented right-handed mapping, including its X reference; flipping only Z is invalid. The result is a fixed offset, not a hidden translational/rotational DOF. Absence of these new fields preserves current zero-coincident behavior.
 
-Then deepen reusable named Interfaces without inventing a new compiler-owned generic family for every product:
+**Review correction: the general Lower-language sketch is superseded.**
+The chosen model declares Concept layout geometry first, then realizes published
+material ports relative to that scaffold. It does not ask Firmament to reconcile
+multiple material-to-material constraints or introduce a user-defined constraint
+lowering language.
+
+The implemented [Concept-directed seating](datum-seating.md) form separates a
+shared datum contract from per-member realization:
 
 ```firmament
-Interface MountedHardware {
-    Parameter Gap: Length = 0mm
-    Role Support requires {
-        Frame: DatumFrame
-        AvailableWidth: Length
-    }
-    Role Hardware requires {
-        Frame: DatumFrame
-        RequiredWidth: Length
-    }
-    Lower FrameCoincident Support.Frame Hardware.Frame OpposedDirection
-    Lower OffsetAlongAxis Support.Frame.Z Hardware.Frame.Origin Gap
-    Require WidthFits => Hardware.RequiredWidth <= Support.AvailableWidth
+Concept Struct Layout {
+ Plane Deck { Origin: [0mm,0mm,53mm]; Normal: [0,0,1]; Up: [0,1,0] }
+ DatumFrame BridgeSeat { On: Deck; At: [0mm,-35mm]; X: [1,0] }
 }
-
-Mate BridgeSeat: MountedHardware<Gap: 2mm> {
-    Support: Guitar.Body.BridgeSeat
-    Hardware: Guitar.Bridge.Mount
+Interface<Fixed> DeckSeat {
+ Datum: Layout.Deck
+ Members: [Hardware.Bridge.BottomSeat]
+}
+Mate BridgeOnDeck: DeckSeat {
+ Member: Hardware.Bridge.BottomSeat
+ At: Layout.BridgeSeat
+ Orientation: SameDirection
 }
 ```
 
-The two `Lower` lines illustrate intent. The implementation must normalize them into **one seated-frame relation** before solving, rather than demand zero frame coincidence and a nonzero offset simultaneously. Prefer exposing that normalized relation directly if the combined spelling is misleading during syntax review.
+The same design extends to [Concept axes](concept-axis-mating-proposal.md), with
+station and clocking. Shared scaffolding is erased; existing placement and
+kinematic machinery own the resulting physical realization. Published-frame
+[derivation](concept-derivation.md) supplies explicit offsets/clocking when the
+scaffold should follow a physical construction reference.
 
-Role member requirements are checked before lowering, with exact member/type diagnostics. Parameters are finite typed values. `Require` reads resolved semantic dimensions, not arbitrary mesh measurements. A `WidthFits` check is a width contract, not proof that a curved mounting footprint is collision-free.
+Role/member capability checks, membership, privacy and placement authority are
+implemented. Rich reusable dimension predicates remain separate work: a width
+comparison may eventually read published dimensions, but it is not yet the
+complete WidthFits contract in the original sketch and never proves curved
+footprint contact. No new generic Lower language is needed to add such checks.
 
 Reuse current fits, tolerance and capability semantics. Inspection should distinguish fully located, deliberately movable, unresolved and contradictory relationships, name the owning driver, and report meaningful residuals. Do not add generic loop closure, nonlinear contact solving or arbitrary equation solving in this milestone.
 
@@ -307,6 +418,11 @@ This locates a point/frame. It does **not** prove that a wide flat hardware base
 
 ## 8. Pure engineering expressions and finite sample sets
 
+Implemented bounded slice: [`Function` and `Points<Point2|Point3>`](concept-points-and-functions.md).
+The guitar uses a keyed `Series` for its 22 frets. The `SampleSet` spelling below
+is the original proposal, superseded by the implemented Concept geometry syntax.
+Angle trigonometry and vector intrinsics remain deferred.
+
 **Friction:** fret positions require `ScaleLength * (1 - 2^(-n/12))`; the Python generator also handles taper interpolation and geometry-vector calculations. A finite value calculation should not force source generation.
 
 ```firmament
@@ -329,7 +445,12 @@ Extend the existing typed value evaluator rather than inventing an assembly-only
 
 ## 9. Point-driven WireForm routes
 
-**Friction:** each guitar string currently needs Python to calculate directions, bend angle, tangent setbacks and its placement basis. WireForm already owns the exact straight/bend construction.
+Extended design: [Wire routing and Concept guides](wire-routing-and-guides-proposal.md)
+adds hard Via points, locked arc-length guide intervals and bounded connector
+planning. The [three-point guitar migration](wire-point-routes.md) is implemented; guided
+routing now has a bounded Line3 guide and placed-port binding; obstacle search remains deferred.
+
+**Original friction (three-point slice resolved):** each guitar string needed Python to calculate directions, bend angle, tangent setbacks and its placement basis. WireForm already owns the exact straight/bend construction.
 
 ```firmament
 WireRoute LowE {
@@ -393,9 +514,26 @@ Generate schema/completion/hover data with each new construct, and maintain brow
 
 ## Review decisions and boundaries
 
-The highest-value initial decision is the composition model: should direct frame placement be an explicit layout authority alongside Interfaces, or syntax that lowers to a fixed Interface? This draft prefers the former, with one driver per occurrence and a common transform owner. Mechanical contracts remain visible when the author declares them.
+The composition model is settled for the implemented lane:
 
-Review the seated-frame syntax before implementation. A combined relation is clearer than contradictory primitive relations with a hidden precedence rule. Also settle named pattern identity, the coordinate space of frame references, and definition-level port publication before introducing surface attachment syntax.
+- Concept geometry supplies the design scaffold; physical ports realize a declared
+  relationship to it. Direct readable Placement remains an explicit layout option.
+- Each occurrence has one placement authority. Fixed seating and coaxial mating
+  delegate to existing frame/kinematic owners rather than introducing general
+  simultaneous constraint solving.
+- Definition-owned semantic publication and explicit subassembly forwarding
+  preserve privacy and local/world coordinate meaning.
+- A part owns its features; an assembly contains complete reusable components.
+  Keyed Pattern expansion preserves identity independently of specialization.
+- Functions evaluate during compilation. Finite point recipes, profile edits and
+  routing lower to existing typed IR and materializers; no runtime language is added.
+- Explicit scalar placements use conventional 0.1mm authoring resolution unless
+  a more specific physical tolerance is stated. Numeric computation stays precise.
+
+Future proposals should extend these decisions. The old Lower language,
+material-to-material constraint network and a mandatory universal SurfaceAttachment
+constructor are not prerequisites. Surface-driven placement should derive an
+explicit Concept frame under a qualified support/location contract.
 
 Each milestone should include one valid guitar-sized fixture, targeted invalid cases, CLI inspection, schema/language-analysis coverage, and the full existing solution test lane. Geometry changes require exact topology/pcurve/STEP qualification; appearance-only changes require binding and unchanged-geometry evidence. Generated artifacts stay under ignored `artifacts/local/`; durable examples belong under `fixtures/`.
 

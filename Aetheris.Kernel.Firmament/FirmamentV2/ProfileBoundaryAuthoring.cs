@@ -68,6 +68,31 @@ internal static class ProfileBoundaryAuthoring
         if (seed is null) return true;
         if (seed.Loops.Count != 1) { diagnostics.Add($"profile-edit-loop-count-invalid:{name}"); return true; }
         var segments = seed.Loops[0].Segments;
+        var periodic = new Dictionary<int, IReadOnlyList<(double X, double Y)>>();
+        if (replacements.Any(b => Regex.IsMatch(b.Body, @"\bDerivatives\s*:\s*Periodic\b")))
+        {
+            var knots = new List<(double X, double Y)>(); var starts = new List<int>();
+            for (var i = 0; i < segments.Count; i++)
+            {
+                if (segments[i].Geometry is not LineArcLineSegment2D carrier)
+                { diagnostics.Add($"profile-edit-periodic-carrier-invalid:{name}"); return true; }
+                starts.Add(knots.Count); knots.Add(carrier.Start);
+                foreach (var replacement in replacements)
+                {
+                    var replacementFields = Fields(replacement.Body, ["On", "Range", "Through", "Derivatives", "Join", "StartTangent", "EndTangent"], diagnostics, replacement.Name);
+                    if (!replacementFields.TryGetValue("On", out var target) || FindMember(segments, target, owner, localFrom) != i) continue;
+                    if (replacementFields.ContainsKey("Range")) diagnostics.Add($"profile-edit-periodic-range-not-qualified:{replacement.Name}");
+                    if (replacementFields.TryGetValue("Through", out var value)) knots.AddRange(Vectors(value, "mm", diagnostics, replacement.Name));
+                }
+            }
+            if (knots.Count > 1024) { diagnostics.Add($"profile-edit-boundary-limit:{name}:maximum=1024"); return true; }
+            for (var i = 0; i < segments.Count; i++)
+            {
+                var finish = i + 1 < starts.Count ? starts[i + 1] : knots.Count;
+                periodic[i] = Enumerable.Range(starts[i], finish - starts[i] + 1).Select(index =>
+                    Scale(Subtract(knots[(index + 1) % knots.Count], knots[(index + knots.Count - 1) % knots.Count]), .5)).ToArray();
+            }
+        }
         var edits = new List<Edit>();
         var ids = new HashSet<string>(StringComparer.Ordinal);
         foreach (var block in replacements)
@@ -84,7 +109,8 @@ internal static class ProfileBoundaryAuthoring
             if (!ValidRange(range, length)) { diagnostics.Add($"profile-edit-range-invalid:{block.Name}"); continue; }
             if (!fields.TryGetValue("Through", out var through)) { diagnostics.Add($"profile-edit-construction-required:{block.Name}:Through"); continue; }
             var points = Vectors(through, "mm", diagnostics, block.Name);
-            var derivatives = fields.TryGetValue("Derivatives", out var derivativeText) ? Vectors(derivativeText, "mm", diagnostics, block.Name) : null;
+            var derivatives = fields.TryGetValue("Derivatives", out var derivativeText)
+                ? derivativeText == "Periodic" ? periodic.GetValueOrDefault(index) : Vectors(derivativeText, "mm", diagnostics, block.Name) : null;
             var join = fields.GetValueOrDefault("Join", "Position");
             if (join is not ("Position" or "Tangent")) diagnostics.Add($"profile-edit-join-invalid:{block.Name}:{join}");
             (double X, double Y)? startTangent = fields.TryGetValue("StartTangent", out var startText) ? Vector(startText, "", diagnostics, block.Name) : null;
@@ -95,7 +121,7 @@ internal static class ProfileBoundaryAuthoring
             var curves = Construct(line, range, construction, diagnostics, block.Name);
             edits.Add(new(block.Name, index, range.Item1 / length, range.Item2 / length,
                 curves.Select((c, i) => ($"{block.Name}_Span{i}", (LineArcProfileCurve2D)c)).ToArray(),
-                derivatives is null ? "ChordHermite" : "ExplicitHermite", $"profile:{name}/Replace:{block.Name}", construction.MatchTangent));
+                derivatives is null ? "ChordHermite" : derivativeText == "Periodic" ? "PeriodicHermite" : "ExplicitHermite", $"profile:{name}/Replace:{block.Name}", construction.MatchTangent));
         }
         foreach (var apply in applies)
         {

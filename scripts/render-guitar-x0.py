@@ -9,7 +9,6 @@ import hashlib
 import json
 import math
 import sys
-import re
 import time
 from pathlib import Path
 from mathutils import Vector, Matrix
@@ -26,7 +25,7 @@ bpy.ops.wm.usd_import(filepath=str(source),support_scene_instancing=False,
 load_seconds=time.perf_counter()-started
 scene=bpy.context.scene
 products=[o for o in scene.objects if o.type=='MESH']
-assert len(products) in (91,107), len(products)
+assert len(products) in (91,99,107), len(products)
 
 def material(name,color,metal=0,rough=.25,coat=.35):
     m=bpy.data.materials.new(name);m.use_nodes=True
@@ -89,9 +88,21 @@ def signature():
 original_signature=signature()
 
 pickup_shaded=0
+pearl_shaded=0
+def semantic_appearance(obj):
+    while obj is not None:
+        if 'aetheris_appearance' in obj:
+            return obj['aetheris_appearance']
+        obj = obj.parent
+    raise RuntimeError('USD product has no authored appearance metadata')
+
+looks={'PolishedSteel':chrome,'PolishedNickel':chrome,'WarmIvory':cream,
+       'BlackPolymer':black,'EbonyLacquer':ebony,'Pearl':pearl,'Amber':amber,
+       'Brass':gold,'CherryMahogany':wood,'Rosewood':rose,'GoldenMaple':wood}
+
 for obj in products:
-    name=obj.parent.name if obj.parent else obj.name
-    if 'CarvedMaple' in name:
+    look=semantic_appearance(obj)
+    if look=='Sunburst':
         m=burst
         import numpy as np
         pts=np.array([tuple(obj.matrix_world @ v.co) for v in obj.data.vertices])
@@ -102,7 +113,7 @@ for obj in products:
         for start in range(0,len(pts),256):
             distances=np.sqrt(((pts[start:start+256,None,:2]-edge[None,:,:])**2).sum(axis=2)).min(axis=1)
             for i,d in enumerate(distances,start):attr.data[i].value=min(1,float(d)/.065)
-    elif re.search(r'(?:^|_)(?:NeckPickup|BridgePickup)(?:_\d+)?$',name.split('.')[0]):
+    elif look=='PickupComposite':
         # Appearance only: exact feature-built pickup geometry is imported intact.
         # Default witness axial levels are base 0..4, coils 4..9, poles 9..10 mm.
         obj.data.materials.clear()
@@ -113,19 +124,14 @@ for obj in products:
             poly.material_index=2 if level>.900001 else 1 if level>.400001 else 0
         pickup_shaded+=1
         continue
-    elif any(s in name for s in ['MahoganyBack','Headstock','Neck_']):m=wood
-    elif 'Rosewood' in name:m=rose
-    elif 'HeadVeneer' in name:m=ebony
-    elif any(s in name for s in ['IvoryBinding','BoardBinding','Cream','Nut_','TunerButton','SelectorTip','SelectorRing']):m=cream
-    elif 'PearlInlay' in name:m=pearl
-    elif 'AmberKnob' in name:m=amber
-    elif 'KnobCap' in name or 'KnobSkirt' in name:m=gold
-    elif 'Coil' in name or 'Cover' in name:m=black
-    else:m=chrome
+    else:
+        m=looks[look]
+        if look=='Pearl':pearl_shaded+=1
     obj.data.materials.clear();obj.data.materials.append(m)
 
 assert signature()==original_signature, 'Shading must not alter imported product topology'
-assert len(products)!=91 or pickup_shaded==2, f'Expected two feature-built pickup appearance assignments; found {pickup_shaded}'
+assert len(products)==107 or pickup_shaded==2, f'Expected two feature-built pickup appearance assignments; found {pickup_shaded}'
+assert len(products)==107 or pearl_shaded==9, f'Expected nine pearl inlay appearance assignments; found {pearl_shaded}'
 
 floor=material('Studio charcoal',(.014,.018,.024),.12,.32,0)
 bpy.ops.mesh.primitive_plane_add(size=200,location=(0,.3,-.004))
@@ -171,15 +177,18 @@ views=[('hero',(.73,-.18,1.6),(0,.30,.04),1.23,1800,2200),
        ('carve-detail',(.45,-.48,.62),(0,-.005,.047),.60,2200,1600),
        ('shaded-isometric',(.9,-.5,1.05),(0,.30,.04),1.28,1800,2200),
        ('neck-side',(.65,.48,.045),(0,.48,.045),.66,1600,2200),
-       ('neck-back',(.25,.49,-.7),(0,.49,.035),.70,1600,2200)]
+       ('neck-back',(.25,.49,-.7),(0,.49,.035),.70,1600,2200),
+       ('head-detail',(.15,.69,.34),(0,.722,.039),.21,1800,2000),
+       ('head-join-side',(.5,.67,.050),(0,.67,.050),.11,1600,1800),
+       ('head-back',(.12,.73,-.5),(0,.71,.035),.20,1800,2000)]
 if selected_view:
     views=[v for v in views if v[0]==selected_view]
     assert views, f'Unknown view: {selected_view}'
 renders=[]
 print('GUITAR_SCENE_READY',scene.cycles.device, 'samples',scene.cycles.samples,flush=True)
 for name,location,target,scale,w,h in sorted(views,key=lambda v:not v[0].startswith('neck-')):
-    stage.hide_render=name.startswith('neck-')
-    rear.hide_render=not name.startswith('neck-')
+    stage.hide_render=name.startswith(('neck-','head-'))
+    rear.hide_render=not name.startswith(('neck-','head-'))
     camera.location=location;aim(camera,target);d.ortho_scale=scale
     scene.render.resolution_x=w//2 if preview else w;scene.render.resolution_y=h//2 if preview else h
     if name=='shaded-isometric':
@@ -201,5 +210,5 @@ bpy.ops.wm.save_as_mainfile(filepath=str(root/'guitar-studio.blend'))
     usdSha256=hashlib.sha256(source.read_bytes()).hexdigest(),
     devices=[device.name for device in prefs.devices if device.use],
     productMeshObjects=len(products),productTopologyHash=original_signature,
-    productTopologyUnchanged=signature()==original_signature,pickupAppearance='Default feature axial height bands; shading only',pickupObjectsStyled=pickup_shaded,renders=renders),indent=2)+'\n')
+    productTopologyUnchanged=signature()==original_signature,pickupAppearance='Default feature axial height bands; shading only',pickupObjectsStyled=pickup_shaded,pearlObjectsStyled=pearl_shaded,renders=renders),indent=2)+'\n')
 print('GUITAR_RENDER_COMPLETE',json.dumps(renders))

@@ -1,6 +1,6 @@
-Include "pickups-assembly.firmament";
-Include "knob.firmament";
-Include "selector.firmament";
+include "pickups-assembly.firmament";
+include "knob.firmament";
+include "selector.firmament";
 
 // Named controls retain explicit seat heights on the carved body.
 Static KnobSeats: Set<HardwareSite> {
@@ -11,23 +11,25 @@ Static KnobSeats: Set<HardwareSite> {
 }
 Subassembly GuitarElectronics {
  <Assembly GuitarElectronics>
-  Pattern Controls Over KnobSeats {
+  Pattern Controls over KnobSeats {
    seat => <Assembly Knob = ControlKnob>
-    Placement { From: Mount; To: World; TranslateLocal: [seat.X,seat.Y,seat.Z]; }
+    Placement { from: Mount; to: World; translateLocal: [seat.X,seat.Y,seat.Z]; }
    </Assembly>
   }
   <Assembly Selector = PickupSelector>
-   Placement { From: Mount; To: World; TranslateLocal: [-73mm,137mm,43mm]; }
+   Placement { from: Mount; to: World; translateLocal: [-73mm,137mm,43mm]; }
   </Assembly>
   <Part ControlCover = Panel<L:63mm,W:93mm,H:1mm,R:15mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [85mm,-115mm,-1mm]; }
+   material: BlackPolymer;
+   Placement { from: Origin; to: World; translateLocal: [85mm,-115mm,-1mm]; }
   </Part>
   <Part SelectorCover = Drum<R:24mm,H:1mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [-73mm,137mm,-1mm]; }
+   material: BlackPolymer;
+   Placement { from: Origin; to: World; translateLocal: [-73mm,137mm,-1mm]; }
   </Part>
   <Assembly Pickups = GuitarPickups>
-   Placement { From: Origin; To: World; }
+   Placement { from: Origin; to: World; }
   </Assembly>
  </Assembly>
- Anchor: GuitarElectronics;
+ anchor: GuitarElectronics;
 }

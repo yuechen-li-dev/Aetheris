@@ -207,3 +207,7 @@ an approximant must not be reported as an exact representation of the equation.
 After equation binding, the ordinary boundary-edit validity checks still apply.
 See the [larger design proposal](programmable-profile-loops-proposal.md) for
 deferred periodic intervals, Curve2 payloads, inner loops and Profile-valued Features.
+
+## Owl authoring update
+
+The body witness now uses Derivatives: Periodic to derive cyclic Hermite tangents from ordered replacement knots. Straight seed carriers and full replacements only; ranges and non-straight carriers are rejected. Existing exact loop validation remains authoritative. See [source-owned guitar authoring](source-owned-guitar-authoring.md).

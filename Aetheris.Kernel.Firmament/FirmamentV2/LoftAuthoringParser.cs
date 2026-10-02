@@ -42,6 +42,7 @@ public static class LoftAuthoringParser
     public static SectionChainAuthoringResult Compile(string source, bool materialize = true)
     {
         ArgumentNullException.ThrowIfNull(source);
+        source = FirmamentSourceSpelling.Normalize(source);
         var diagnostics = new List<string>();
         if (!Regex.IsMatch(source, @"\bUnits\s*:\s*mm\b", RegexOptions.CultureInvariant))
             diagnostics.Add("loft-units-invalid:millimetres-required");

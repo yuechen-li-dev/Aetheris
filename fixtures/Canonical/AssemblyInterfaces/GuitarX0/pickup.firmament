@@ -1,50 +1,50 @@
 // One exact pickup part; all construction coordinates are local to its Mount.
 Record PickupSpec {
- Width: Length; Depth: Length; BaseHeight: Length
- CoilWidth: Length; CoilDepth: Length; CoilHeight: Length
- CoilOffset: Length; PolePitch: Length
+  width: Length; depth: Length; baseHeight: Length
+  coilWidth: Length; coilDepth: Length; coilHeight: Length
+  coilOffset: Length; polePitch: Length
 }
 Static StandardPickup: PickupSpec {
- Width: 88mm; Depth: 46mm; BaseHeight: 4mm
- CoilWidth: 70mm; CoilDepth: 17mm; CoilHeight: 5mm
- CoilOffset: 10mm; PolePitch: 10.2mm
+  width: 88mm; depth: 46mm; baseHeight: 4mm
+  coilWidth: 70mm; coilDepth: 17mm; coilHeight: 5mm
+  coilOffset: 10mm; polePitch: 10.2mm
 }
-Static BridgePickupSpec = StandardPickup with { PolePitch: 10.2mm }
+Static BridgePickupSpec = StandardPickup with { polePitch: 10.2mm }
 
-Feature Coil(Center: Point2, Width: Length, Depth: Length, Height: Length, Support: Plane) -> Boss {
- RoundedRect2 Outline { Center: Center; Size: [Width,Depth]; Radius: 3mm }
- Profile Section { Loop Outer { Outline |> TraceLoop } }
- return Boss { On: Support; Profile: Section; Height: Height }
+Feature Coil(center: Point2, width: Length, depth: Length, height: Length, support: Plane) -> Boss {
+  RoundedRect2 outline { center: center; size: [width, depth]; radius: 3mm }
+  Profile section { Loop Outer { outline |> TraceLoop } }
+  return Boss { on: support; profile: section; height: height }
 }
-Feature Pole(Center: Point2, Support: Plane) -> Boss {
- Circle2 Outline { Center: Center; Radius: 2.2mm }
- Profile Section { Loop Outer { Outline |> TraceLoop } }
- return Boss { On: Support; Profile: Section; Height: 1mm }
+Feature Pole(center: Point2, support: Plane) -> Boss {
+  Circle2 outline { center: center; radius: 2.2mm }
+  Profile section { Loop Outer { outline |> TraceLoop } }
+  return Boss { on: support; profile: section; height: 1mm }
 }
 
 Template<Spec: PickupSpec> Struct Humbucker {
- Concept Struct Layout On XY {
-  Point2 UpperCenter { Position: [0mm,Spec.CoilOffset] }
-  Point2 LowerCenter { Position: [0mm,-Spec.CoilOffset] }
-  Axis2 Longitudinal { Origin: [0mm,0mm]; Direction: [1,0] }
-  Axis2 Transverse { Origin: [0mm,0mm]; Direction: [0,1] }
-  Point2 FirstPole { Position: [-2.5 * Spec.PolePitch,Spec.CoilOffset] }
-  RoundedRect2 BaseOutline { Center: [0mm,0mm]; Size: [Spec.Width,Spec.Depth]; Radius: 4mm }
- }
- Profile BaseProfile Using Layout { Loop Outer { BaseOutline |> TraceLoop } }
- Plane BaseTop { Origin: [0mm,0mm,Spec.BaseHeight]; Normal: [0,0,1]; Up: [0,1,0] }
- Plane CoilTop { Origin: [0mm,0mm,Spec.BaseHeight + Spec.CoilHeight]; Normal: [0,0,1]; Up: [0,1,0] }
- Compose Body {
-  Base Housing { Profile: BaseProfile; From: 0mm; To: Spec.BaseHeight; Role: Stock }
-  Feature UpperCoil = Coil(Center: Layout.UpperCenter, Width: Spec.CoilWidth, Depth: Spec.CoilDepth, Height: Spec.CoilHeight, Support: BaseTop)
-  Feature LowerCoil = Coil(Center: Layout.LowerCenter, Width: Spec.CoilWidth, Depth: Spec.CoilDepth, Height: Spec.CoilHeight, Support: BaseTop)
-  Feature PoleSeed = Pole(Center: Layout.FirstPole, Support: CoilTop)
-  Linear Pattern Poles {
-   Source: PoleSeed
-   Direction: Layout.Longitudinal.Direction
-   Count: 6
-   Spacing: Spec.PolePitch
+  Concept Struct layout on XY {
+    Point2 upperCenter { position: [0mm, Spec.coilOffset] }
+    Point2 lowerCenter { position: [0mm, -Spec.coilOffset] }
+    Axis2 longitudinal { origin: [0mm, 0mm]; direction: [1, 0] }
+    Axis2 transverse { origin: [0mm, 0mm]; direction: [0, 1] }
+    Point2 firstPole { position: [-2.5 * Spec.polePitch, Spec.coilOffset] }
+    RoundedRect2 baseOutline { center: [0mm, 0mm]; size: [Spec.width, Spec.depth]; radius: 4mm }
   }
- }
- Expose { Semantic Mount { DatumFrame Frame = [0mm,0mm,0mm] x [1,0,0] y [0,1,0] z [0,0,1]; } }
+  Profile baseProfile using layout { Loop Outer { baseOutline |> TraceLoop } }
+  Plane baseTop { origin: [0mm, 0mm, Spec.baseHeight]; normal: [0, 0, 1]; up: [0, 1, 0] }
+  Plane coilTop { origin: [0mm, 0mm, Spec.baseHeight + Spec.coilHeight]; normal: [0, 0, 1]; up: [0, 1, 0] }
+  Compose Body {
+    Base housing { profile: baseProfile; from: 0mm; to: Spec.baseHeight; role: Stock }
+    Feature upperCoil = Coil(center: layout.upperCenter, width: Spec.coilWidth, depth: Spec.coilDepth, height: Spec.coilHeight, support: baseTop)
+    Feature lowerCoil = Coil(center: layout.lowerCenter, width: Spec.coilWidth, depth: Spec.coilDepth, height: Spec.coilHeight, support: baseTop)
+    Feature poleSeed = Pole(center: layout.firstPole, support: coilTop)
+    Linear Pattern poles {
+      source: poleSeed
+      direction: layout.longitudinal.Direction
+      count: 6
+      spacing: Spec.polePitch
+    }
+  }
+  expose { Semantic Mount { DatumFrame Frame = [0mm, 0mm, 0mm] x [1, 0, 0] y [0, 1, 0] z [0, 0, 1]; } }
 }

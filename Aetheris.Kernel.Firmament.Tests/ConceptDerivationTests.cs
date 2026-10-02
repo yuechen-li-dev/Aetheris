@@ -126,13 +126,18 @@ public sealed class ConceptDerivationTests
         var documents = Directory.GetFiles(Path.GetDirectoryName(path)!,"*.firmament").Append(path).ToDictionary(p => Path.GetFileName(p),File.ReadAllText);
         using var session = new FirmamentCompilationSession();
         var first = session.CompileProject(new("guitar.firmasm",documents));
-        Assert.True(first.IsSuccess, string.Join("\n",first.Diagnostics)); Assert.Equal(19, first.Ir!.SourceDependencies!.Count);
+        Assert.True(first.IsSuccess, string.Join("\n",first.Diagnostics)); Assert.Equal(22, first.Ir!.SourceDependencies!.Count);
         Assert.Single(first.Ir.SourceDependencies, d => d.IsRoot);
         Assert.Equal(9, first.Geometry!.Artifact.Definitions.Sum(d => d.Provenance.Count(p => p.Stage == "concept-boundary-placement")));
-        documents["body-outline.firmament"] = documents["body-outline.firmament"].Replace("115mm,-195mm", "115.1mm,-195mm");
+        var outline = documents["body-outline.firmament"];
+        const string edit = @"(?<![\w-])115mm\s*,\s*-195mm\b";
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(outline, edit).Cast<System.Text.RegularExpressions.Match>());
+        documents["body-outline.firmament"] = System.Text.RegularExpressions.Regex.Replace(outline, edit, "115.1mm, -195mm");
+        Assert.NotEqual(outline, documents["body-outline.firmament"]);
         var edited = session.CompileProject(new("guitar.firmasm",documents));
         Assert.True(edited.IsSuccess, string.Join("\n",edited.Diagnostics));
-        Assert.Equal(3, edited.Reuse!.RebuiltDefinitions); Assert.Equal(50, edited.Reuse.ReusedDefinitions);
+        Assert.Equal(3, edited.Reuse!.RebuiltDefinitions);
+        Assert.Equal(first.Geometry.Artifact.Definitions.Count - 3, edited.Reuse.ReusedDefinitions);
         Assert.All(edited.Geometry!.Artifact.DatumSeats!, s => Assert.True(s.Passed));
         foreach (var identity in new[] { "CarvedMaple", "MahoganyBack", "IvoryBinding" })
             Assert.NotEqual(first.Geometry!.Artifact.Definitions.Single(d => d.DefinitionIdentity.Contains(identity)).StepSha256,

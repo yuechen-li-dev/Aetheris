@@ -78,10 +78,12 @@ public sealed class AssemblyM0Compiler
                     constraint.Orientation, 6, placements.Any(placement => placement.ConstraintIds.Contains(constraint.StableId) && placement.Status == PlacementStatus.Overconstrained) ? "conflicting" : "resolved",
                     placements.FirstOrDefault(placement => placement.ConstraintIds.Contains(constraint.StableId) && placement.Authority == PlacementAuthority.MateDerived)?.Transform)))
             .OrderBy(solution => solution.MateStableId, StringComparer.Ordinal).ToArray();
+        AssemblyPmiAuthoring.Validate(source.Annotations, instances, diagnostics);
         var ir = new AssemblyIr("aetheris/assembly-ir/m0", $"assembly:{source.Name}", source.Name,
             instances.Single(x => x.ParentStableId is null).StableId, instances, source.Interfaces, mates,
-            constraints, placements, relations, stackups, fits, diagnostics, assemblyDefinitions, panelMateEvidence, datums, datumSolutions, source.SourceDependencies, joints, source.Patterns);
+            constraints, placements, relations, stackups, fits, diagnostics, assemblyDefinitions, panelMateEvidence, datums, datumSolutions, source.SourceDependencies, joints, source.Patterns, ConceptPoints: source.ConceptPoints, Annotations: source.Annotations);
         ir = ir with { AxisSeats = AssemblyDatumAuthoring.ValidateAxisSeats(source, ir, diagnostics) };
+        ir = AssemblyAppearanceAuthoring.Bind(ir, source.AppearanceCatalog, diagnostics);
         return new(ir, diagnostics, perf);
 
         static string SemanticPath(AssemblyInstanceIr instance, SemanticValue value)
@@ -132,7 +134,7 @@ public sealed class AssemblyM0Compiler
             diagnostics.Add(new("assembly-instance-path-collision", "Assembly contains duplicate deterministic instance paths."));
         return flat.Select(x => new AssemblyInstanceIr(x.id, x.path, x.member.Kind, x.member.DefinitionIdentity, x.parent,
             flat.Where(c => c.parent == x.id).Select(c => c.id).Order(StringComparer.Ordinal).ToArray(), x.semantic,
-            x.member.ExplicitTransform, null, [.. x.member.Provenance ?? [], .. PatternProvenance(x.path)], x.member.PlacementAuthority, x.member.IsEncapsulatedDefinition, x.member.DatumSeat)).ToArray();
+            x.member.ExplicitTransform, null, [.. x.member.Provenance ?? [], .. PatternProvenance(x.path)], x.member.PlacementAuthority, x.member.IsEncapsulatedDefinition, x.member.DatumSeat, x.member.MaterialSelection)).ToArray();
 
         IEnumerable<SemanticProvenance> PatternProvenance(AssemblyPath path)
         {

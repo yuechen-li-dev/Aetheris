@@ -467,7 +467,7 @@ public static class Step242Exporter
                     EmitDimensionSemanticPmi(writer, shapeId, repContextId, lengthUnitId, dimension);
                     break;
                 case Step242SemanticPmiNote note:
-                    EmitNoteSemanticPmi(writer, shapeId, note);
+                    EmitNoteSemanticPmi(writer.AddEntity, Step242TextWriter.Ref(shapeId), note);
                     break;
                 case Step242SemanticPmiGeometricTolerance tolerance:
                     EmitGeometricToleranceSemanticPmi(writer, shapeId, lengthUnitId, tolerance, datumEntities);
@@ -642,10 +642,10 @@ public static class Step242Exporter
         EmitQuantitySemanticPmi(writer, targetAspectId, tolerance.FeatureId, tolerance.Quantity);
     }
 
-    private static void EmitNoteSemanticPmi(Step242TextWriter writer, string shapeId, Step242SemanticPmiNote note)
+    internal static void EmitNoteSemanticPmi(Func<string, string[], string> addEntity, string shapeReference, Step242SemanticPmiNote note)
     {
-        var aspectId = writer.AddEntity("SHAPE_ASPECT", Step242TextWriter.String($"firmament-note:{note.FeatureId}"), Step242TextWriter.String($"semantic note target={note.Target}"), Step242TextWriter.Ref(shapeId), Step242TextWriter.BooleanLogical(false));
-        writer.AddEntity("PROPERTY_DEFINITION", Step242TextWriter.String($"note:{note.FeatureId}"), Step242TextWriter.String(note.Text), Step242TextWriter.Ref(aspectId));
+        var aspectId = addEntity("SHAPE_ASPECT", [Step242TextWriter.String($"firmament-note:{note.FeatureId}"), Step242TextWriter.String($"semantic note target={note.Target}"), shapeReference, Step242TextWriter.BooleanLogical(false)]);
+        addEntity("PROPERTY_DEFINITION", [Step242TextWriter.String($"note:{note.FeatureId}"), Step242TextWriter.String(note.Text), Step242TextWriter.Ref(aspectId)]);
     }
 
     private static string BuildPlane(Step242TextWriter writer, PlaneSurface plane)

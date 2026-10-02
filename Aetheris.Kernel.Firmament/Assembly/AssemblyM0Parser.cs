@@ -61,7 +61,7 @@ public sealed class AssemblyM0Parser
         var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(text)));
         dependencies.Add(new(path, hash, stack.Count == 0));
         var declarations = new List<string>();
-        foreach (Match include in Regex.Matches(text, @"^[ \t]*Include\s+""(?<path>[^""]+)""\s*;", RegexOptions.CultureInvariant | RegexOptions.Multiline))
+        foreach (Match include in Regex.Matches(text, @"^[ \t]*(?:Include|include)\s+""(?<path>[^""]+)""\s*;", RegexOptions.CultureInvariant | RegexOptions.Multiline))
         {
             string childPath;
             try
@@ -77,7 +77,7 @@ public sealed class AssemblyM0Parser
             if (child is null) return null;
             declarations.Add(child);
         }
-        declarations.Add(Regex.Replace(text, @"^[ \t]*Include\s+""[^""]+""\s*;[ \t]*(?:\r?\n)?", string.Empty, RegexOptions.CultureInvariant | RegexOptions.Multiline));
+        declarations.Add(Regex.Replace(text, @"^[ \t]*(?:Include|include)\s+""[^""]+""\s*;[ \t]*(?:\r?\n)?", string.Empty, RegexOptions.CultureInvariant | RegexOptions.Multiline));
         return string.Join(Environment.NewLine, declarations);
     }
 
@@ -99,9 +99,12 @@ public sealed class AssemblyM0Parser
 
     public ParseResult Parse(string input, string sourceIdentity = "<memory>", FirmamentProjectSnapshot? project = null)
     {
+        input = FirmamentSourceSpelling.Normalize(input);
         var watch = Stopwatch.StartNew();
         var diagnostics = new List<AssemblyDiagnostic>();
-        var source = Regex.Replace(input, @"//[^\r\n]*", m => new string(' ',m.Length));
+        var source = Regex.Replace(input, "\"(?:\\\\.|[^\"\\\\])*\"|//[^\\r\\n]*", m => m.Value.StartsWith('"') ? m.Value : new string(' ',m.Length));
+        var annotations = AssemblyPmiAuthoring.Parse(ref source, sourceIdentity, diagnostics);
+        if (diagnostics.Count > 0) return new(null, diagnostics, watch.Elapsed.TotalMilliseconds);
         var patternDiagnostics = new List<string>();
         var expandedPatterns = CanonicalStaticAuthoring.ExpandAssemblyPatterns(source,patternDiagnostics);
         foreach (var error in patternDiagnostics) diagnostics.Add(new("assembly-pattern-invalid",error));
@@ -111,6 +114,7 @@ public sealed class AssemblyM0Parser
         // lowers through the existing, locally solved definition authority.
         source = Regex.Replace(source, @"\bSubassembly\s+(?<name>[A-Za-z_]\w*)\s*\{",
             "Template < __Unit: __Unit > Assembly ${name} {", RegexOptions.CultureInvariant);
+        var appearanceCatalog = AssemblyAppearanceAuthoring.Parse(ref source, diagnostics, out var appearanceSpans);
         var gearDocument = GearAuthoring.HasGearDefinitions(source)
             ? GearAuthoring.ParseDefinitions(source)
             : new GearAuthoringDocument("GearModel", [], [], []);
@@ -124,12 +128,14 @@ public sealed class AssemblyM0Parser
             if (!layout.Any(d => d.Identity == contract.DatumContract!.Datum && d.Plane == d.Identity))
                 diagnostics.Add(new("assembly-datum-plane-unresolved", $"Interface '{contract.Name}' requires a declared Concept plane or Axis '{contract.DatumContract!.Datum}'."));
         var declarationChars = partDeclarations.ToCharArray();
-        foreach (Match header in Regex.Matches(source, @"\b(?:Template\s*<[^>]+>\s*Assembly|Assembly|Interface(?:\s*<[^>]+>)?)\s+[A-Za-z_]\w*(?:\s*:\s*[A-Za-z_]\w*)?\s*\{"))
+        foreach (Match header in Regex.Matches(source, @"\b(?:Template\s*<[^>]+>\s*Assembly|Assembly|Interface(?:\s*<[^>]*>)?)\s+[A-Za-z_]\w*(?:\s*:\s*[A-Za-z_]\w*)?\s*\{"))
         {
             var block = BalancedBody(source, header.Index + header.Length - 1, diagnostics, "assembly declaration");
             if (block is not null) Array.Fill(declarationChars, ' ', header.Index, header.Length + block.Length + 1);
         }
-        var definitionSource = new string(declarationChars).Trim();
+        var definitionSource = new string(declarationChars);
+        foreach (var span in appearanceSpans.OrderByDescending(s => s.Start)) definitionSource = definitionSource.Remove(span.Start, span.Length);
+        definitionSource = definitionSource.Trim();
         var portDependencies = new List<AssemblySourceDependencyIr>();
         var portCache = new Dictionary<string, IReadOnlyList<SemanticValue>>(StringComparer.Ordinal);
         IReadOnlyList<SemanticValue> Ports(string identity)
@@ -161,7 +167,7 @@ public sealed class AssemblyM0Parser
         var frames = ParseFrameTransforms(body, sourceIdentity, diagnostics);
         tree = AssemblyDatumAuthoring.Bind(body, tree, layout, interfaces, diagnostics, out var datumFrames, Ports);
         frames = frames.Concat(datumFrames).ToArray();
-        var result = new AssemblySource(assemblyHeader.Groups["name"].Value, tree, interfaces, mates, anchor, relations, asserts, sourceIdentity, definitionSource, assemblyDefinitions, SourceDependencies: portDependencies, FrameTransforms: frames, Patterns: expandedPatterns.Document?.Patterns);
+        var result = new AssemblySource(assemblyHeader.Groups["name"].Value, tree, interfaces, mates, anchor, relations, asserts, sourceIdentity, definitionSource, assemblyDefinitions, SourceDependencies: portDependencies, FrameTransforms: frames, Patterns: expandedPatterns.Document?.Patterns, ConceptPoints: expandedPatterns.Document?.ConceptPoints, AppearanceCatalog: appearanceCatalog, Annotations: annotations);
         return Done(result);
 
         ParseResult Done(AssemblySource? value) { watch.Stop(); return new(value, diagnostics, watch.Elapsed.TotalMilliseconds); }
@@ -202,7 +208,7 @@ public sealed class AssemblyM0Parser
         if (dependencies.Any(item => string.Equals(item.Path, fullPath, StringComparison.OrdinalIgnoreCase))) return string.Empty;
         dependencies.Add(new(fullPath, hash, stack.Count == 0));
         var declarations = new List<string>();
-        foreach (Match include in Regex.Matches(text, @"^[ \t]*Include\s+""(?<path>[^""]+)""\s*;", RegexOptions.CultureInvariant | RegexOptions.Multiline))
+        foreach (Match include in Regex.Matches(text, @"^[ \t]*(?:Include|include)\s+""(?<path>[^""]+)""\s*;", RegexOptions.CultureInvariant | RegexOptions.Multiline))
         {
             var relative = include.Groups["path"].Value;
             var childPath = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(fullPath)!, relative));
@@ -210,7 +216,7 @@ public sealed class AssemblyM0Parser
             if (child is null) return null;
             declarations.Add(child);
         }
-        var local = Regex.Replace(text, @"^[ \t]*Include\s+""[^""]+""\s*;[ \t]*(?:\r?\n)?", string.Empty, RegexOptions.CultureInvariant | RegexOptions.Multiline);
+        var local = Regex.Replace(text, @"^[ \t]*(?:Include|include)\s+""[^""]+""\s*;[ \t]*(?:\r?\n)?", string.Empty, RegexOptions.CultureInvariant | RegexOptions.Multiline);
         declarations.Add(local);
         return string.Join(Environment.NewLine, declarations);
     }
@@ -378,6 +384,8 @@ public sealed class AssemblyM0Parser
         public SemanticValue? TypedEndpoint { get; set; }
         public AssemblyFramePlacementSource? FramePlacement { get; set; }
         public AssemblyDatumSeat? DatumSeat { get; set; }
+        public AssemblyMaterialSelection? MaterialSelection { get; set; }
+        public IReadOnlyList<AssemblyRouteInput>? RouteInputs { get; set; }
     }
 
     private static IReadOnlyList<AssemblyDefinitionSource> ParseAssemblyDefinitions(string source, string sourceIdentity,
@@ -481,8 +489,15 @@ public sealed class AssemblyM0Parser
             if (result.Any(value => value.ExposedName == alias)) { diagnostics.Add(new("assembly-expose-duplicate-name", $"Assembly Expose declares '{alias}' more than once.")); continue; }
             var segments = expose.Groups["path"].Value.Split('.');
             var child = root.Children.SingleOrDefault(item => item.Name == segments[0]);
-            SemanticValue? value = child is null ? null : segments.Length == 1 ? child.TypedEndpoint : child.ExposedSemantics.SingleOrDefault(item => item.ExposedName == segments[1]);
-            for (var i = 2; value is not null && i < segments.Length; i++) value = value.ExposedMembers.GetValueOrDefault(segments[i]);
+            var memberIndex = 1;
+            // Structural pattern groups are owned by this definition. Traverse
+            // those groups, but stop at reusable component privacy boundaries.
+            while (child is not null && !child.IsEncapsulatedDefinition && memberIndex < segments.Length
+                && child.Children.SingleOrDefault(item => item.Name == segments[memberIndex]) is { } nested)
+            { child = nested; memberIndex++; }
+            SemanticValue? value = child is null ? null : segments.Length == memberIndex ? child.TypedEndpoint
+                : child.ExposedSemantics.SingleOrDefault(item => item.ExposedName == segments[memberIndex]);
+            for (var i = memberIndex + 1; value is not null && i < segments.Length; i++) value = value.ExposedMembers.GetValueOrDefault(segments[i]);
             if (value is null)
             {
                 diagnostics.Add(new("assembly-expose-unresolved-path", $"Assembly Expose '{alias}' references nonexistent internal path '{expose.Groups["path"].Value}'."));
@@ -677,8 +692,8 @@ public sealed class AssemblyM0Parser
             {
                 var rest = tag.Groups["rest"].Value.Trim();
                 var nodeMatch = kind == "Assembly"
-                    ? Regex.Match(rest, @"^(?<name>[A-Za-z_]\w*)(?:\s*=\s*(?<definition>[A-Za-z_]\w*(?:\s*<[^>]+>)?))?$")
-                    : Regex.Match(rest, @"^(?<name>[A-Za-z_]\w*)\s*=\s*(?<definition>[A-Za-z_]\w*(?:\s*<[^>]+>)?)$");
+                    ? Regex.Match(rest, @"^(?<name>[A-Za-z_]\w*)(?:\s*=\s*(?<definition>[A-Za-z_]\w*(?:\s*<[^>]*>)?))?$")
+                    : Regex.Match(rest, @"^(?<name>[A-Za-z_]\w*)\s*=\s*(?<definition>[A-Za-z_]\w*(?:\s*<[^>]*>)?)$");
                 if (!nodeMatch.Success) { diagnostics.Add(new("assembly-tree-invalid-tag", $"Invalid <{kind}> tree tag '{tag.Value}'.")); continue; }
                 var node = new MutableNode(nodeMatch.Groups["name"].Value, kind == "Assembly" ? AssemblyInstanceKind.Assembly : kind == "Panel" ? AssemblyInstanceKind.Panel : AssemblyInstanceKind.Part,
                     kind == "Assembly" ? (nodeMatch.Groups["definition"].Success ? NormalizeIdentity(nodeMatch.Groups["definition"].Value) : nodeMatch.Groups["name"].Value) : nodeMatch.Groups["definition"].Value);
@@ -709,6 +724,8 @@ public sealed class AssemblyM0Parser
                 var nodeBody = body[open.bodyStart..tag.Index];
                 if (open.node.Kind is AssemblyInstanceKind.Part or AssemblyInstanceKind.Panel)
                 {
+                    open.node.MaterialSelection = AssemblyAppearanceAuthoring.Selection(nodeBody, diagnostics);
+                    open.node.RouteInputs = AssemblyRouteBindings.Parse(nodeBody, diagnostics);
                     open.node.Semantics.AddRange(ParseSemantics(nodeBody, open.node.Definition, sourceIdentity, diagnostics));
                     if (open.node.Kind == AssemblyInstanceKind.Part && publishedPorts is not null)
                         open.node.Semantics.AddRange(publishedPorts(open.node.Definition));
@@ -758,12 +775,12 @@ public sealed class AssemblyM0Parser
         if (root is null) diagnostics.Add(new("assembly-tree-missing", "Assembly body requires a nested <Assembly Name> product tree."));
         AssemblyMemberSource Freeze(MutableNode node) => new(node.Name, node.Kind, node.Definition,
             node.Children.Select(Freeze).ToArray(), node.Semantics, [], [new("assembly-source", node.Name, node.Definition, SemanticSourceSpan.Generated(sourceIdentity))],
-            node.ExplicitTransform, node.PlacementAuthority, node.IsEncapsulatedDefinition, node.SolvedAssemblyDefinition, node.TypedEndpoint, node.FramePlacement, node.DatumSeat);
+            node.ExplicitTransform, node.PlacementAuthority, node.IsEncapsulatedDefinition, node.SolvedAssemblyDefinition, node.TypedEndpoint, node.FramePlacement, node.DatumSeat, node.MaterialSelection, RouteInputs: node.RouteInputs);
         return root is null ? null : Freeze(root);
 
         MutableNode ToMutable(AssemblyMemberSource source)
         {
-            var mutable = new MutableNode(source.Name, source.Kind, source.DefinitionIdentity) { ExplicitTransform = source.ExplicitTransform, PlacementAuthority = source.PlacementAuthority, IsEncapsulatedDefinition = source.IsEncapsulatedDefinition, SolvedAssemblyDefinition = source.SolvedAssemblyDefinition, TypedEndpoint = source.TypedEndpoint, FramePlacement = source.FramePlacement, DatumSeat = source.DatumSeat };
+            var mutable = new MutableNode(source.Name, source.Kind, source.DefinitionIdentity) { ExplicitTransform = source.ExplicitTransform, PlacementAuthority = source.PlacementAuthority, IsEncapsulatedDefinition = source.IsEncapsulatedDefinition, SolvedAssemblyDefinition = source.SolvedAssemblyDefinition, TypedEndpoint = source.TypedEndpoint, FramePlacement = source.FramePlacement, DatumSeat = source.DatumSeat, MaterialSelection = source.MaterialSelection, RouteInputs = source.RouteInputs };
             mutable.Semantics.AddRange(source.ExposedSemantics);
             mutable.Children.AddRange(source.Children.Select(ToMutable));
             return mutable;

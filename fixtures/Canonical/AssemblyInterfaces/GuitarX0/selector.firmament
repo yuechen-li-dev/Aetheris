@@ -1,16 +1,19 @@
 // A complete decorative pickup selector, seated at the underside of its ring.
 Subassembly PickupSelector {
- <Assembly PickupSelector>
-  <Part SelectorRing = Drum<R:16mm,H:1.5mm>>
-   Placement { From: BottomSeat.Frame; To: World; }
-  </Part>
-  <Part SelectorStem = Drum<R:2.5mm,H:12mm>>
-   Placement { From: BottomSeat.Frame; To: World; TranslateLocal: [0mm,0mm,1.5mm]; }
-  </Part>
-  <Part SelectorTip = Drum<R:4mm,H:7mm>>
-   Placement { From: BottomSeat.Frame; To: World; TranslateLocal: [0mm,0mm,11mm]; }
-  </Part>
- </Assembly>
- Anchor: PickupSelector;
- Expose { DatumFrame Mount = SelectorRing.BottomSeat.Frame; }
+  <Assembly PickupSelector>
+    <Part SelectorRing = Drum<R:16mm,H:1.5mm>>
+      material: IvoryPolymer;
+      Placement { from: BottomSeat.Frame; to: World; }
+    </Part>
+    <Part SelectorStem = Drum<R:2.5mm,H:12mm>>
+      material: Steel;
+      Placement { from: BottomSeat.Frame; to: World; translateLocal: [0mm, 0mm, 1.5mm]; }
+    </Part>
+    <Part SelectorTip = Drum<R:4mm,H:7mm>>
+      material: IvoryPolymer;
+      Placement { from: BottomSeat.Frame; to: World; translateLocal: [0mm, 0mm, 11mm]; }
+    </Part>
+  </Assembly>
+  anchor: PickupSelector;
+  expose { DatumFrame Mount = SelectorRing.BottomSeat.Frame; }
 }

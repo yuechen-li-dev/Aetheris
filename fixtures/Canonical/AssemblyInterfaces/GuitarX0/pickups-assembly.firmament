@@ -1,15 +1,17 @@
-Include "pickup.firmament";
-Include "hardware-layout.firmament";
+include "pickup.firmament";
+include "hardware-layout.firmament";
 
 Subassembly GuitarPickups {
  <Assembly GuitarPickups>
-  <Part NeckPickup = Humbucker<Spec: StandardPickup>></Part>
-  <Part BridgePickup = Humbucker<Spec: StandardPickup>></Part>
+  <Part NeckPickup = Humbucker<Spec: StandardPickup>>
+   material: PickupComposite;</Part>
+  <Part BridgePickup = Humbucker<Spec: StandardPickup>>
+   material: PickupComposite;</Part>
  </Assembly>
 
- Interface<Fixed> PickupsDeckSeat { Datum: GuitarLayout.HardwareDeck; Members: [GuitarPickups.NeckPickup.Mount,GuitarPickups.BridgePickup.Mount] }
- Mate NeckPickupOnDeck: PickupsDeckSeat { Member: GuitarPickups.NeckPickup.Mount; At: GuitarLayout.NeckPickupSeat; Orientation: SameDirection; }
- Mate BridgePickupOnDeck: PickupsDeckSeat { Member: GuitarPickups.BridgePickup.Mount; At: GuitarLayout.BridgePickupSeat; Orientation: SameDirection; }
+ Interface<Fixed> PickupsDeckSeat { datum: GuitarLayout.HardwareDeck; members: [GuitarPickups.NeckPickup.Mount,GuitarPickups.BridgePickup.Mount] }
+ Mate NeckPickupOnDeck: PickupsDeckSeat { member: GuitarPickups.NeckPickup.Mount; at: GuitarLayout.NeckPickupSeat; orientation: SameDirection; }
+ Mate BridgePickupOnDeck: PickupsDeckSeat { member: GuitarPickups.BridgePickup.Mount; at: GuitarLayout.BridgePickupSeat; orientation: SameDirection; }
 
- Anchor: GuitarPickups;
+ anchor: GuitarPickups;
 }

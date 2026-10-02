@@ -13,8 +13,8 @@ public sealed class GuitarSurfacingWitnessTests
             .Append(root).Select(path => new KeyValuePair<string, string>(Path.GetFileName(path), File.ReadAllText(path))).ToArray();
         var result = new AssemblyM1Pipeline().CompileProject(new FirmamentProjectSnapshot("guitar.firmasm", documents));
         Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics));
-        Assert.Equal(53, result.Geometry!.DefinitionBodies.Count);
-        Assert.Equal(91, result.Geometry.InstanceBodies.Count);
+        Assert.Equal(56, result.Geometry!.DefinitionBodies.Count);
+        Assert.Equal(99, result.Geometry.InstanceBodies.Count);
         Assert.Equal(10, result.Ir!.AssemblyDefinitions!.Count);
         var neck = result.Ir.Instances.Single(i => i.Path.ToString() == "GuitarX0.Neck");
         Assert.True(neck.IsEncapsulatedDefinition);
@@ -24,7 +24,9 @@ public sealed class GuitarSurfacingWitnessTests
         Assert.Equal(660, nut.OriginY, 6);
         Assert.Equal(55, nut.OriginZ, 6);
         Assert.DoesNotContain("Headstock", neck.SemanticRoot.ExposedMembers.Keys);
-        Assert.Equal(19, result.Ir.SourceDependencies!.Count);
+        Assert.Equal(22, result.Ir.SourceDependencies!.Count);
+        Assert.Contains(result.Ir.SourceDependencies, d => d.Path == "neck-profile.firmament");
+        Assert.Contains(result.Ir.SourceDependencies, d => d.Path == "materials.firmament");
         Assert.Contains(result.Ir.SourceDependencies, d => d.Path == "tuners-assembly.firmament");
     }
     [Fact]
@@ -35,8 +37,15 @@ public sealed class GuitarSurfacingWitnessTests
         var compiled = new AssemblyM1Pipeline().CompileFile(path);
         Assert.True(compiled.IsSuccess, string.Join("\n", compiled.Diagnostics.Select(d => d.Message)));
         var mesh = AssemblyDisplayMeshExporter.Export(compiled);
-        Assert.Equal(91, mesh.Occurrences.Count(o => o.DefinitionId is not null));
-        Assert.Equal(4, compiled.Ir!.Patterns!.Count);
+        Assert.Equal(99, mesh.Occurrences.Count(o => o.DefinitionId is not null));
+        Assert.Equal(6, compiled.Ir!.Patterns!.Count);
+        var inlays = compiled.Ir.Instances.Where(i => i.Path.ToString().StartsWith("GuitarX0.Neck.PearlInlays.", StringComparison.Ordinal)
+            && i.Path.ToString().EndsWith(".Inlay", StringComparison.Ordinal)).ToArray();
+        Assert.Equal(9, inlays.Length);
+        Assert.Single(inlays.Select(i => i.DefinitionIdentity).Distinct());
+        Assert.All(inlays, i => Assert.Equal(62, i.ResolvedTransform!.Matrix[14], 10));
+        var inlay3 = Assert.Single(inlays, i => i.Path.ToString() == "GuitarX0.Neck.PearlInlays.Fret3.Inlay");
+        Assert.Equal(573.8, inlay3.ResolvedTransform!.Matrix[13], 10);
         Assert.Empty(compiled.Ir.Joints!);
         Assert.Equal(10, compiled.Ir.AssemblyDefinitions!.Count);
         Assert.Single(compiled.Ir.AssemblyDefinitions.Single(d => d.DefinitionIdentity == "GuitarNeck").LocalMates,
@@ -66,13 +75,38 @@ public sealed class GuitarSurfacingWitnessTests
             Assert.Equal(15, dy * head.ResolvedTransform.Matrix[9] + dz * head.ResolvedTransform.Matrix[10], 7);
             Assert.Equal(head.ResolvedTransform.Matrix[9], m[9], 8);
             Assert.Equal(head.ResolvedTransform.Matrix[10], m[10], 8);
+            var stem = compiled.Ir.Instances.Single(i => i.Path.ToString() == tuner.Path + ".ButtonStem");
+            var local = Transform3D.FromRowMajor(stem.ResolvedTransform!.Matrix)
+                * Transform3D.FromRowMajor(m).Inverse();
+            var buttonEnd = local.Apply(new Point3D(0, 0, 0));
+            var headEnd = local.Apply(new Point3D(0, 0, 16));
+            // Stem overlaps the button's inner edge (-14.5mm) and reaches the post axis.
+            Assert.InRange(buttonEnd.X, -29.5, -14.5);
+            Assert.Equal(0, headEnd.X, 7);
+            Assert.Equal(0, buttonEnd.Y, 7);
+            Assert.Equal(-4, buttonEnd.Z, 7);
+            Assert.Equal(-4, headEnd.Z, 7);
         }
+        Assert.Single(mesh.Definitions, d => d.Identity == "Drum<R:2.5mm,H:16mm>");
+        var rail = compiled.Ir.Instances.Single(i => i.Path.ToString() == "GuitarX0.Bridge.StringRail");
+        var railTransform = Transform3D.FromRowMajor(rail.ResolvedTransform!.Matrix);
+        // Extruded semicircle: diameter rests on the tailpiece at z=60; crown at z=65.
+        Assert.Equal(60, railTransform.Apply(new Point3D(0, 0, 0)).Z, 7);
+        Assert.Equal(65, railTransform.Apply(new Point3D(5, 0, 0)).Z, 7);
+        var bridgeUnit = compiled.Ir.Instances.Single(i => i.Path.ToString() == "GuitarX0.Bridge");
+        var crown = Assert.IsType<Aetheris.Semantics.ExactDatumFrameBinding>(AssemblyWorldQuery.Resolve(compiled.Ir,
+            bridgeUnit.SemanticRoot.ExposedMembers["TailStringPlane"].StableIdentity));
+        Assert.Equal(-75, crown.OriginY, 7);
+        Assert.Equal(65, crown.OriginZ, 7);
         Assert.Equal(6, mesh.Definitions.Count(d => d.Identity.StartsWith("GuitarString<", StringComparison.Ordinal)));
         var surfaced = mesh.Definitions.Where(d => d.Identity.StartsWith("SectionChainFile", StringComparison.Ordinal)).ToArray();
         Assert.Equal(4, surfaced.Length);
         var strings = mesh.Definitions.Where(d => d.Identity.StartsWith("GuitarString<", StringComparison.Ordinal)).ToArray();
         Assert.All(strings, d => Assert.Equal("SurfaceMeshIr", d.MeshPipeline));
-        foreach (var definition in surfaced.Concat(strings))
+        var joinDetails = mesh.Definitions.Where(d => d.Identity.StartsWith("TailpieceRail<", StringComparison.Ordinal)
+            || d.Identity.StartsWith("HeadstockScarf<", StringComparison.Ordinal) || d.Identity == "Drum<R:2.5mm,H:16mm>").ToArray();
+        Assert.Equal(3, joinDetails.Length);
+        foreach (var definition in surfaced.Concat(strings).Concat(joinDetails))
         {
             if (definition.Identity.StartsWith("SectionChainFile", StringComparison.Ordinal))
                 Assert.Equal("StructuredSpline", definition.MeshPipeline);
@@ -110,13 +144,13 @@ public sealed class GuitarSurfacingWitnessTests
         var neck = Assert.Single(surfaced.Where(d => d.Identity.Contains("Neck.firmament", StringComparison.Ordinal)));
         var neckPoints = Enumerable.Range(0, neck.Positions.Length / 3)
             .Select(i => new Point3D(neck.Positions[i * 3], neck.Positions[i * 3 + 1], neck.Positions[i * 3 + 2])).ToArray();
-        Assert.All(neckPoints, p => Assert.True(p.Z <= 55.000001, "Neck must stay below the flat fretboard seat."));
+        Assert.All(neckPoints.Where(p => p.Y <= 630), p => Assert.True(p.Z <= 55.000001, "Main neck must stay below the flat fretboard seat."));
         var nutPoints = neckPoints.Where(p => System.Math.Abs(p.Y - 660) < 0.000001).ToArray();
         Assert.NotEmpty(nutPoints);
         Assert.Equal(48, nutPoints.Min(p => p.Z), 6);
         Assert.Equal(55, nutPoints.Max(p => p.Z), 6);
         Assert.True(neckPoints.Any(p => p.Y < 200 && p.Z < 20), "The rounded heel must extend into the body back.");
-        foreach (var p in neckPoints.Where(p => p.Y >= 240))
+        foreach (var p in neckPoints.Where(p => p.Y >= 240 && p.Y <= 630))
         {
             var straightBack = 42 + (p.Y - 240) / 70;
             Assert.True(p.Z >= straightBack - 0.002, "The main neck must not bulge behind its straight tapered back.");
@@ -125,13 +159,22 @@ public sealed class GuitarSurfacingWitnessTests
                 Assert.True(System.Math.Abs(p.Z - straightBack) < 0.002 || System.Math.Abs(p.Z - 55) < 0.002,
                     "Centerline samples must lie on the straight back or flat seat.");
         }
+        // End cap is inside the headstock's solid, rather than exposed at the nut.
+        var headInverse = Transform3D.FromRowMajor(head.ResolvedTransform.Matrix).Inverse();
+        var merge = neckPoints.Select(headInverse.Apply).Where(p => System.Math.Abs(p.Y - 18) < 0.000001).ToArray();
+        Assert.NotEmpty(merge);
+        Assert.All(merge, p => {
+            Assert.InRange(p.Z, -0.000001, 14.000001);
+            var halfWidth = 21.5 + 12.5 * p.Y / 40;
+            Assert.True(System.Math.Abs(p.X) <= halfWidth + 0.000001, "Neck transition cap must be buried inside headstock outline.");
+        });
         Assert.Contains("subdivisionScheme = \"none\"", AssemblyUsdExporter.Serialize(compiled.Ir!, mesh));
         var exported = AssemblyIrAp242Exporter.Export(compiled);
         Assert.True(exported.IsSuccess, string.Join("\n", exported.Diagnostics));
         var imported = Aetheris.Kernel.Core.Step242.Step242AssemblyImporter.Import(exported.Value);
         Assert.True(imported.IsSuccess, string.Join("\n", imported.Diagnostics));
         var geometryIds = imported.Value.Definitions.Where(d => d.Geometry is not null).Select(d => d.StableId).ToHashSet();
-        Assert.Equal(53, geometryIds.Count);
-        Assert.Equal(91, imported.Value.Occurrences.Count(o => geometryIds.Contains(o.DefinitionStableId!)));
+        Assert.Equal(56, geometryIds.Count);
+        Assert.Equal(99, imported.Value.Occurrences.Count(o => geometryIds.Contains(o.DefinitionStableId!)));
     }
 }

@@ -28,3 +28,72 @@ aetheris analyze artifacts/pmi.step --json
 The build's `pmiExportEvidence` and the analyzer's `semanticPmi` are independent public evidence surfaces. Supported validate records and inspected AP242 records must agree at the semantic-record level; one record may lower to several STEP entities.
 
 Pattern-generated geometry may coexist with PMI, but Preview 3 does not publish a stable selector for individual generated pattern instances or quantity/repeated-feature PMI authoring.
+
+## Assembly release records and design notes
+
+The assembly lane supports root-owned product annotations and a selected typed
+release Record. These lower through the existing semantic PMI note emitter to
+AP242 `SHAPE_ASPECT` and `PROPERTY_DEFINITION` entities, and are recovered by
+`aetheris analyze assembly guitar.step --json` under `semanticPmi`. They are semantic notes, not rendered
+dimension labels or newly qualified manufacturing requirements.
+
+```firmament
+Record ReleaseInfo {
+    Author: String
+    Date: Date
+    Version: Version
+    Description: String
+    AuthoringTolerance: Length
+}
+Static Release: ReleaseInfo {
+    Author: "GPT 6.1 Sol Codex"
+    Date: 2026-10-01
+    Version: 0.1.0
+    Description: "Carved-top guitar presentation witness"
+    AuthoringTolerance: 0.1mm
+}
+Assembly GuitarX0 {
+    Provenance: Release;
+    Pmi {
+        Note DesignIntent {
+            Target: GuitarX0;
+            Text: "Presentation demonstrator; not released for manufacture.";
+        }
+    }
+    // Ordinary XML-like occurrence tree and placement declarations follow.
+}
+```
+
+`Provenance` selects one ordinary `Static` Record. The common Record binder checks
+its fields, including real calendar dates, three-component semantic versions, and
+dimensioned lengths. `Author: String`, `Date: Date`, `Version: Version`, and
+`Description: String` are required. Optional fields are flat `String`, `Date`,
+`Version`, `Length`, `Angle`, `Int`, `Float`, or `Bool` data; `Organization: String`
+sets the STEP organization when present. Field values are exported as annotations
+named `Release.Field`, in stable field-name order. The selected date supplies a
+deterministic midnight STEP header timestamp; it is the authored release date,
+not the time of export. There is no implicit wall-clock mutation.
+
+`Pmi` and `Provenance` belong directly to the root Assembly. `Note` takes
+`Target` then `Text`, with explicit semicolon terminators. A target must resolve
+to a complete occurrence path, including the root, such as `GuitarX0.Bridge`;
+unknown targets, duplicate note names, malformed text, and unsupported PMI kinds
+stop compilation. Text supports JSON string escapes and preserves apostrophes,
+braces, semicolons, and literal `//` without interpreting them as geometry or
+comments. Control characters are rejected.
+
+Notes are associated with the target's AP242 product-definition shape. For a
+shared definition the explicit occurrence path remains in the semantic target;
+this does not invent an occurrence-specific BRep face association. Face-targeted
+assembly tolerances, assembly GD&T, nested reusable-definition annotation
+authoring, and graphical PMI presentation remain outside this bounded lane.
+Existing Model PMI contracts above retain their separate selector rules.
+Assembly package reconstruction does not yet reauthor these annotations; inspect
+the original STEP directly rather than assuming package import/re-export
+preserves release metadata.
+
+The assembly IR preserves the release data and note source spans. USD also
+carries them as root `aetheris:provenance:*` and `aetheris:pmi:*` custom attributes.
+Editing metadata refreshes these outputs while reusing unchanged geometry.
+The complete guitar example is
+[`guitar.firmasm`](../../../fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar.firmasm).

@@ -1,5 +1,14 @@
 # Typed interfaces and reusable subassemblies
 
+For common-axis placement and whole-component rotation, see
+[Concept-directed coaxial mating](concept-axis-mating-proposal.md).
+
+For layout-first placement against authored Concept planes, see
+[Concept-directed Fixed seating](datum-seating.md).
+
+For reusing unchanged exact parts across builds, see
+[incremental compilation sessions](incremental-compilation.md).
+
 For readable placement, named FrameTransform composition, definition-owned ports,
 keyed occurrence patterns and Fixed Gap/Clocking seating, see the
 [assembly authoring foundation](assembly-authoring-foundation.md).

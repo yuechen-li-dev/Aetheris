@@ -1,52 +1,76 @@
 Template<L: Length, W: Length, H: Length, R: Length> Struct Panel {
- RoundedRect2 Outline { Center: [0mm,0mm] Size: [L,W] Radius: R }
+ expose { Semantic BottomSeat { DatumFrame Frame = [0mm,0mm,0mm] x [1,0,0] y [0,1,0] z [0,0,1]; } Semantic TopSeat { DatumFrame Frame = [0mm,0mm,H] x [1,0,0] y [0,1,0] z [0,0,1]; } }
+ RoundedRect2 Outline { center: [0mm,0mm] size: [L,W] radius: R }
  Profile P { Loop Outer { Outline |> TraceLoop } }
- Extrude Body { Profile: P From: 0mm To: H }
+ Extrude Body { profile: P from: 0mm to: H }
 }
-Template<R: Length,H: Length> Struct Drum {
- Circle2 Outline { Center: [0mm,0mm] Radius: R }
+Template<R: Length,H: Length,EntryHeight: Length = 0mm> Struct Drum {
+ expose { Semantic BottomSeat { DatumFrame Frame = [0mm,0mm,0mm] x [1,0,0] y [0,1,0] z [0,0,1]; }
+  Semantic StringEntry { DatumFrame Frame = [0mm,0mm,EntryHeight] x [1,0,0] y [0,1,0] z [0,0,1]; }
+  Semantic SpindleSeat { Axis Axis = [0mm,0mm,0mm] -> [0,0,1];
+   DatumFrame Frame = [0mm,0mm,0mm] x [1,0,0] y [0,1,0] z [0,0,1]; } }
+ Circle2 Outline { center: [0mm,0mm] radius: R }
  Profile P { Loop Outer { Outline |> TraceLoop } }
- Extrude Body { Profile: P From: 0mm To: H }
+ Extrude Body { profile: P from: 0mm to: H }
 }
 Template<L: Length,W: Length,H: Length> Struct Surround {
- RoundedRect2 Outer { Center: [0mm,0mm] Size: [L,W] Radius: 4mm }
+ RoundedRect2 Outer { center: [0mm,0mm] size: [L,W] radius: 4mm }
  // Solid decorative seat; the black bobbins sit on it. No routed opening claim.
  Profile P { Loop Outer { Outer |> TraceLoop } }
- Extrude Body { Profile: P From: 0mm To: H }
+ Extrude Body { profile: P from: 0mm to: H }
 }
 Template<H: Length> Struct Board {
- Point2 RightNut { Position: [21.5mm,660mm] }
- Point2 LeftNut { Position: [-21.5mm,660mm] }
- Concept Path Outline { Start: Point2(-28mm,120mm) Heading: 0deg
-  Line End { Length: 56mm }
-  Line Right { To: RightNut }
-  Line Nut { To: LeftNut }
+ expose { Semantic MarkerOrigin { DatumFrame Frame = [0mm,658mm,H] x [1,0,0] y [0,1,0] z [0,0,1]; } }
+ Point2 RightNut { position: [21.5mm,660mm] }
+ Point2 LeftNut { position: [-21.5mm,660mm] }
+ Concept Path Outline { start: Point2(-28mm,120mm) heading: 0deg
+  Line End { length: 56mm }
+  Line Right { to: RightNut }
+  Line Nut { to: LeftNut }
   Close Left
  }
  Profile P From Outline
- Extrude Body { Profile: P From: 0mm To: H }
+ Extrude Body { profile: P from: 0mm to: H }
 }
-Template<H: Length> Struct Head {
- Expose { Semantic Base { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
+// Short solid scarf under the veneer, behind the nut. The rounded back is
+// supplied by Neck's section chain; this closes the front of the angled join.
+Template<L: Length> Struct HeadstockScarf {
+ Concept Path Side {
+  start: Point2(-1.5mm,6.8mm); heading: 0deg
+  Line Back { to: BackEnd }
+  Line Shoulder { to: FrontEnd }
+  Line Front { to: NutCorner }
+  Close NutBack
+ }
+ Point2 NutCorner { position: [-3.1mm,14mm] }
+ Point2 FrontEnd { position: [8mm,14mm] }
+ Point2 BackEnd { position: [8mm,7mm] }
+ Profile P From Side
+ Extrude Body { profile: P; from: -L / 2; to: L / 2 }
+ expose { Semantic Mount { DatumFrame Frame = [0mm,0mm,0mm] x [0,0,1] y [1,0,0] z [0,1,0]; } }
+}
+
+Template<H: Length, RootStart: Length = 0mm, RootHalfWidth: Length = 21.5mm, RootWidth: Length = 43mm> Struct Head {
+ expose { Semantic Base { DatumFrame Frame = [0,0,0] x [1,0,0] y [0,1,0] z [0,0,1]; }
   Semantic Front { DatumFrame Frame = [0mm,0mm,H] x [1,0,0] y [0,1,0] z [0,0,1]; } }
- Point2 RFlare { Position: [34mm,40mm] }
- Point2 RSide { Position: [39mm,154mm] }
- Point2 RCrown { Position: [12mm,160mm] }
- Point2 LCrown { Position: [-12mm,160mm] }
- Point2 LSide { Position: [-39mm,154mm] }
- Point2 LFlare { Position: [-34mm,40mm] }
- Concept Path Outline { Start: Point2(-21.5mm,0mm) Heading: 0deg
-  Line Base { Length: 43mm }
-  Line FlareR { To: RFlare }
-  Line SideR { To: RSide }
-  Line CrownR { To: RCrown }
-  Line Crown { To: LCrown }
-  Line CrownL { To: LSide }
-  Line SideL { To: LFlare }
+ Point2 RFlare { position: [34mm,40mm] }
+ Point2 RSide { position: [39mm,154mm] }
+ Point2 RCrown { position: [12mm,160mm] }
+ Point2 LCrown { position: [-12mm,160mm] }
+ Point2 LSide { position: [-39mm,154mm] }
+ Point2 LFlare { position: [-34mm,40mm] }
+ Concept Path Outline { start: Point2(-RootHalfWidth,RootStart) heading: 0deg
+  Line Base { length: RootWidth }
+  Line FlareR { to: RFlare }
+  Line SideR { to: RSide }
+  Line CrownR { to: RCrown }
+  Line Crown { to: LCrown }
+  Line CrownL { to: LSide }
+  Line SideL { to: LFlare }
   Close FlareL
  }
  Profile P From Outline
- Extrude Body { Profile: P From: 0mm To: H }
+ Extrude Body { profile: P from: 0mm to: H }
 }
 
 Record HardwareSite { X: Length; Y: Length; Z: Length }

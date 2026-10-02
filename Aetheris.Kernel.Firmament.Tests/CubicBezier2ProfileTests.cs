@@ -6,6 +6,34 @@ namespace Aetheris.Kernel.Firmament.Tests;
 public sealed class CubicBezier2ProfileTests
 {
     [Fact]
+    public void TemplateControlArithmeticKeepsExactPolynomialGeometry()
+    {
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/Profiles/template-control-arithmetic.firmament");
+        var source = File.ReadAllText(path);
+        var profile = ProfileAuthoringParser.ResolveNamedProfile(source, "P", out var diagnostics);
+        Assert.Empty(diagnostics);
+        Assert.NotNull(profile);
+        var bottom = Assert.IsType<LineArcCubicBezier2D>(profile.Loops.Single().Segments[0].Geometry);
+        Assert.Equal((-20d, -10d), bottom.Start);
+        Assert.Equal((20d, -10d), bottom.End);
+        var build = FirmamentBuildAndExport.CompileSource(source);
+        Assert.True(build.IsSuccess, string.Join("\n", build.Diagnostics.Select(d => d.Message)));
+        Assert.DoesNotContain("RATIONAL_B_SPLINE", build.Value.StepText);
+    }
+
+    [Theory]
+    [InlineData("W / H")]
+    [InlineData("W / 0")]
+    [InlineData("5deg")]
+    public void ProfileControlArithmeticRejectsWrongUnitsAndNonfiniteValues(string expression)
+    {
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/Profiles/template-control-arithmetic.firmament");
+        var source = File.ReadAllText(path).Replace("-W / 6", expression);
+        Assert.Null(ProfileAuthoringParser.ResolveNamedProfile(source, "P", out var diagnostics));
+        Assert.Contains(diagnostics, d => d.StartsWith("profile-layout-point-invalid:", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void LampBaseUsesTwoDirectPolynomialFlanksAndExportsWithoutRationalGeometry()
     {
         var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/ThreeDm/lamp-base-intent.firmament");

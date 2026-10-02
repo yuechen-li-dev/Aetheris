@@ -1,3 +1,19 @@
+include "hardware-layout.firmament";
+// Exact semicircular extrusion. The published seat is its flat diameter face;
+// the crown datum keeps string endpoints on the rail instead of a free offset.
+Template<L: Length,R: Length> Struct TailpieceRail {
+ Concept Path Section {
+  start: Point2(0mm,-R); heading: 0deg
+  Arc Crown { Radius: R; Turn: 180deg }
+  Close Diameter
+ }
+ Profile RailSection From Section
+ Extrude Body { profile: RailSection; from: -L / 2; to: L / 2 }
+ expose {
+  Semantic BottomSeat { DatumFrame Frame = [0mm,0mm,0mm] x [0,0,-1] y [0,1,0] z [1,0,0]; }
+  Semantic StringCrown { DatumFrame Frame = [R,0mm,0mm] x [0,0,-1] y [0,1,0] z [1,0,0]; }
+ }
+}
 Static SaddlesSites: Set<HardwareSite> {
  Saddle0 => HardwareSite { X: -25.5mm; Y: -35mm; Z: 63mm }
  Saddle1 => HardwareSite { X: -15.3mm; Y: -35mm; Z: 63mm }
@@ -8,18 +24,28 @@ Static SaddlesSites: Set<HardwareSite> {
 }
 Subassembly GuitarBridge {
  <Assembly GuitarBridge>
-  <Part Bridge = Panel<L:82mm,W:12mm,H:6mm,R:5mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,-35mm,57mm]; }
+  <Part Bridge = Panel<L:82mm,W:12mm,H:10mm,R:5mm>>
+   material: Steel with { appearance: PolishedNickel; };
   </Part>
   <Part Tailpiece = Panel<L:88mm,W:15mm,H:7mm,R:6mm>>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,-75mm,53mm]; }
+   material: Steel with { appearance: PolishedNickel; };
+   Placement { from: Origin; to: World; translateLocal: [0mm,-75mm,53mm]; }
   </Part>
-  Pattern Saddles Over SaddlesSites {
+  <Part StringRail = TailpieceRail<L:76mm,R:5mm>>
+   material: Steel with { appearance: PolishedNickel; };
+   Placement { from: BottomSeat.Frame; to: GuitarBridge.Tailpiece.TopSeat.Frame; }
+  </Part>
+  Pattern Saddles over SaddlesSites {
    site => <Part Saddle = Panel<L:7mm,W:9mm,H:2mm,R:1mm>>
-    Placement { From: Origin; To: World; TranslateLocal: [site.X,site.Y,site.Z]; }
+   material: Steel;
+    Placement { from: Origin; to: World; translateLocal: [site.X,site.Y,site.Z]; }
    </Part>
   }
  </Assembly>
 
- Anchor: GuitarBridge;
+ Interface<Fixed> BridgeDeckSeat { datum: GuitarLayout.HardwareDeck; members: [GuitarBridge.Bridge.BottomSeat] }
+ Mate BridgeOnDeck: BridgeDeckSeat { member: GuitarBridge.Bridge.BottomSeat; at: GuitarLayout.BridgeSeat; orientation: SameDirection; }
+
+ anchor: GuitarBridge;
+ expose { DatumFrame TailStringPlane = StringRail.StringCrown.Frame; }
 }

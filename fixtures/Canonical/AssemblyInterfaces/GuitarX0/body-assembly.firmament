@@ -1,16 +1,22 @@
+include "hardware-layout.firmament";
 
 Subassembly GuitarBody {
  <Assembly GuitarBody>
   <Part MahoganyBack = SectionChainFile<"MahoganyBack.firmament">>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,0mm,0mm]; }
+   material: Mahogany;
+   Placement { from: Origin; to: World; translateLocal: [0mm,0mm,0mm]; }
   </Part>
   <Part IvoryBinding = SectionChainFile<"IvoryBinding.firmament">>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,0mm,0mm]; }
+   material: IvoryPolymer;
+   Placement { from: Origin; to: World; translateLocal: [0mm,0mm,0mm]; }
   </Part>
   <Part CarvedMaple = SectionChainFile<"CarvedMaple.firmament">>
-   Placement { From: Origin; To: World; TranslateLocal: [0mm,0mm,0mm]; }
+   material: Maple with { appearance: Sunburst; };
   </Part>
  </Assembly>
 
- Anchor: GuitarBody;
+ Interface<Fixed> BodyDeckSeat { datum: GuitarLayout.HardwareDeck; members: [GuitarBody.CarvedMaple.TopSeat] }
+ Mate BodyOnDeck: BodyDeckSeat { member: GuitarBody.CarvedMaple.TopSeat; at: GuitarLayout.BodySeat; orientation: SameDirection; support: true; }
+
+ anchor: GuitarBody;
 }

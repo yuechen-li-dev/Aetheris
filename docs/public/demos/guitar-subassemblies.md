@@ -1,5 +1,10 @@
 # Guitar as a multi-file assembly
 
+The body crown, pickups and bridge now use [Concept-directed Fixed seating](../firmament/datum-seating.md)
+against the shared `hardware-layout.firmament` deck. The bridge's former 4mm gap is removed.
+
+The pickup construction has since been consolidated into [one functional part](../firmament/functional-pickup.md), placed twice. The qualification table below records the earlier organization-only snapshot; current counts are 91 visible parts and 53 geometry definitions.
+
 The preferred entry is [guitar.firmasm](../../../fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar.firmasm).
 It contains only Include declarations and five top-level subassembly occurrences.
 The old guitar-x0.firmament entry is a small compatibility composition root.
@@ -9,11 +14,16 @@ guitar.firmasm
 ├─ hardware-definitions.firmament   shared exact part templates and HardwareSite
 ├─ body-assembly.firmament          back, binding and carved top
 │  └─ MahoganyBack / IvoryBinding / CarvedMaple.firmament  SectionChain sources
+│     └─ body-outline.firmament  Shared boundary for nine Concept placements
 ├─ neck-assembly.firmament          neck, board, frets, inlays, nut and headstock
 │  ├─ Neck.firmament                exact six-section neck and published ports
-│  └─ tuners-assembly.firmament     keyed tuner posts, washers and buttons
+│  └─ tuners-assembly.firmament     local bass row and mirrored treble row
+│     └─ tuner.firmament           complete washer/post/button component
 ├─ electronics-assembly.firmament   knobs, selector and decorative covers
-│  └─ pickups-assembly.firmament    keyed seats, coils and poles
+│  ├─ knob.firmament               reusable complete control knob
+│  ├─ selector.firmament           reusable complete pickup selector
+│  └─ pickups-assembly.firmament    two complete pickup occurrences
+│     └─ pickup.firmament          housing, coil functions and pole feature pattern
 ├─ bridge-assembly.firmament        bridge, stop tailpiece and keyed saddles
 └─ strings-assembly.firmament       WireForm template and six formed routes
 ```
@@ -22,8 +32,11 @@ These are real reusable `Subassembly` definitions, not text fragments or importe
 STEP packages. Tuners are a nested occurrence under Neck; Pickups nest under
 Electronics. The root retains five readable placements. Each module owns its
 local layout; moving a root occurrence moves its already-solved children.
-Existing absolute coordinates now describe module-local layout. Replacing all
-of those with new mounting ports is a separate refinement.
+Knobs, selector and tuners now publish component Mount frames. Tuners use
+headstock-local linear/reflected site recipes and one shared component definition;
+the group seats on the headstock front plus veneer thickness. See
+[Components and mounting sites](../firmament/assembly-components-and-sites.md).
+Remaining explicit control seat coordinates describe module-local layout.
 
 Neck exposes only NutMount, HeelMount and HeadFront. Its NutWorld/HeadTilt frames
 and Fixed VeneerSeat remain private to that definition. The parent cannot reach
@@ -40,7 +53,7 @@ all included modules, rather than stopping at the first subassembly declaration.
 
 The immutable project-snapshot path resolves included modules and the four
 SectionChain resources from supplied documents. Its dependency report includes
-13 used source documents, each with a hash. Existing include checks and private
+19 used source documents, each with a hash. Existing include checks and private
 semantic boundaries remain in force. Source-row offsets still refer to the
 expanded source; this change does not add per-file editor source maps.
 
@@ -52,12 +65,53 @@ dotnet Aetheris.CLI/bin/Release/net10.0/aetheris.dll asm inspect fixtures/Canoni
 ./scripts/qualify-guitar-x0.ps1 -OutDir artifacts/local/guitar-subassemblies -Viewport
 ```
 
-The existing generator writes the modules reproducibly. Profile interpolation,
+The existing generator preserves the directly authored component and electronics/
+tuner modules and writes the remaining generated modules reproducibly. Profile interpolation,
 fret formulas and string-route calculations remain its current responsibilities;
 Authoring D is not part of this reorganization. Downstream sunburst shading also
 remains unchanged. Generated exports and evidence belong under artifacts/local.
 
-## Qualification
+## Component ownership refinement
+
+The current model has 10 reusable assembly definitions, four named knobs, one
+selector, and six occurrences of one tuner definition. The tuners form a 36mm
+bass-side row and a reflected treble-side row, both seated on the headstock
+veneer through its published frame. The treble row clocks the same tuner 180deg
+to turn its button outward. See the [implemented site syntax](../firmament/assembly-components-and-sites.md).
+
+The controls preserve their previous placements within numerical roundoff; all
+52 other parts with unchanged identities, excluding updated strings, preserve
+their world-transform matrices exactly. Surface, pickup and WireForm display
+checks have no unmatched edges or inward normal triangles. The fresh Cycles hero
+uses the exported 91 product meshes without changing their topology.
+
+This dogfood case also exposed an AP242 shared-child bug: reconstructing local
+transforms independently from posed world occurrences produced tiny numerical
+differences, and STEP reimport expanded 197 bodies instead of 91. The exporter
+now consumes the existing solved definition-local transforms. The corrected
+reimport has 53 geometry definitions, 91 bodies, 38 subassembly occurrences,
+129 total occurrences and hierarchy depth 6. Both the mounting-row fixture and
+the guitar have regression assertions for exact part occurrence counts.
+
+Current artifacts are under ignored `artifacts/local/component-authoring/`:
+`guitar.step`, `guitar.usda`, `beauty/hero.png`, `beauty/guitar-studio.blend`,
+`after.json`, `placement-check.json`, `mesh-check.json`, `generator-check.json`
+and `step-reimport-final.log`. Earlier failing STEP evidence is retained under
+explicit before-fix names/logs. Camera interaction was not remeasured in this
+refinement; the original viewer evidence below remains historical.
+
+Release solution build passed. The core fast lane passed 1,004 tests; 36 focused
+foundation/site/guitar tests and 20 focused site/guitar/AP242 tests passed. The
+final full solution gate, with projects and xUnit collections serialized, passed
+4,108 tests with seven existing skips across 20 projects. The first default full
+run had one unchanged core tessellation deadline failure and one old dependency
+count assertion (16 versus the new 19 files). The count assertion was corrected;
+the core test passed in isolation and both controlled full runs passed. No
+tessellation budget or assertion was relaxed. See `full.log`,
+`core-timeout-isolated.log`, `full-final-serial.log` and `test-summary.json` in
+the artifact directory for the distinct results.
+
+## Original modularization qualification (historical)
 
 The modular witness was qualified through the real CLI, immutable project
 snapshot, AP242 exporter/importer and OpenUSD viewer:

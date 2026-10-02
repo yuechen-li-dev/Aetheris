@@ -1,0 +1,60 @@
+// D-section split at the cubic midpoints (de Casteljau, no shape change).
+// Six named spans also correspond to the rectangular headstock root.
+Template<HalfWidth: Length, WidthHandle: Length, Depth: Length, DepthHandle: Length, SeatHandle: Length>
+Profile NeckBack {
+ Point2 Left { position: [-HalfWidth,0mm] }
+ Point2 LeftA { position: [-HalfWidth,-DepthHandle / 2] }
+ Point2 LeftB { position: [-0.75 * HalfWidth - 0.25 * WidthHandle,-0.5 * DepthHandle - 0.25 * Depth] }
+ Point2 LeftMid { position: [-0.5 * HalfWidth - 0.375 * WidthHandle,-0.375 * DepthHandle - 0.5 * Depth] }
+ Point2 LeftC { position: [-0.25 * HalfWidth - 0.5 * WidthHandle,-0.25 * DepthHandle - 0.75 * Depth] }
+ Point2 LeftD { position: [-WidthHandle / 2,-Depth] }
+ Point2 Back { position: [0mm,-Depth] }
+ Point2 RightD { position: [WidthHandle / 2,-Depth] }
+ Point2 RightC { position: [0.25 * HalfWidth + 0.5 * WidthHandle,-0.25 * DepthHandle - 0.75 * Depth] }
+ Point2 RightMid { position: [0.5 * HalfWidth + 0.375 * WidthHandle,-0.375 * DepthHandle - 0.5 * Depth] }
+ Point2 RightB { position: [0.75 * HalfWidth + 0.25 * WidthHandle,-0.5 * DepthHandle - 0.25 * Depth] }
+ Point2 RightA { position: [HalfWidth,-DepthHandle / 2] }
+ Point2 Right { position: [HalfWidth,0mm] }
+ Point2 SeatA { position: [SeatHandle,0mm] }
+ Point2 SeatB { position: [-SeatHandle,0mm] }
+ Point2 SeatRight { position: [2 * SeatHandle,0mm] }
+ Point2 SeatLeft { position: [-2 * SeatHandle,0mm] }
+ Point2 SeatMiddle { position: [0mm,0mm] }
+ CubicBezier2 BassShoulder { from: Left; control1: LeftA; control2: LeftB; to: LeftMid }
+ CubicBezier2 BassBack { from: LeftMid; control1: LeftC; control2: LeftD; to: Back }
+ CubicBezier2 TrebleBack { from: Back; control1: RightD; control2: RightC; to: RightMid }
+ CubicBezier2 TrebleShoulder { from: RightMid; control1: RightB; control2: RightA; to: Right }
+ CubicBezier2 SeatTreble { from: Right; control1: SeatRight; control2: SeatA; to: SeatMiddle }
+ CubicBezier2 SeatBass { from: SeatMiddle; control1: SeatB; control2: SeatLeft; to: Left }
+ Loop Outer {
+  Segment Edge0 { Trace: BassShoulder; From: Left; To: LeftMid }
+  Segment Edge1 { Trace: BassBack; From: LeftMid; To: Back }
+  Segment Edge2 { Trace: TrebleBack; From: Back; To: RightMid }
+  Segment Edge3 { Trace: TrebleShoulder; From: RightMid; To: Right }
+  Segment Edge4 { Trace: SeatTreble; From: Right; To: SeatMiddle }
+  Segment Edge5 { Trace: SeatBass; From: SeatMiddle; To: Left }
+ }
+}
+
+Template<HalfWidth: Length, Depth: Length> Profile HeadRoot {
+ Point2 LeftTop { position: [-HalfWidth,0mm] }
+ Point2 LeftBottom { position: [-HalfWidth,-Depth] }
+ Point2 Back { position: [0mm,-Depth] }
+ Point2 RightBottom { position: [HalfWidth,-Depth] }
+ Point2 RightTop { position: [HalfWidth,0mm] }
+ Point2 Seat { position: [0mm,0mm] }
+ Line2 Left { From: LeftTop; To: LeftBottom }
+ Line2 BassBack { From: LeftBottom; To: Back }
+ Line2 TrebleBack { From: Back; To: RightBottom }
+ Line2 Right { From: RightBottom; To: RightTop }
+ Line2 TrebleSeat { From: RightTop; To: Seat }
+ Line2 BassSeat { From: Seat; To: LeftTop }
+ Loop Outer {
+  Segment Edge0 { Trace: Left; From: LeftTop; To: LeftBottom }
+  Segment Edge1 { Trace: BassBack; From: LeftBottom; To: Back }
+  Segment Edge2 { Trace: TrebleBack; From: Back; To: RightBottom }
+  Segment Edge3 { Trace: Right; From: RightBottom; To: RightTop }
+  Segment Edge4 { Trace: TrebleSeat; From: RightTop; To: Seat }
+  Segment Edge5 { Trace: BassSeat; From: Seat; To: LeftTop }
+ }
+}

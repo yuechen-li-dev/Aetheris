@@ -15,9 +15,19 @@ internal static class CanonicalStaticAuthoring
     /// <summary>Assembly consumes the same checked Record/Set values, but yields product-tree declarations.</summary>
     internal static Result? ExpandAssemblyPatterns(string source, List<string> diagnostics)
     {
+        var points = ConceptPointAuthoring.Expand(source, diagnostics);
+        if (points is null) return null;
+        source = points.Source;
+        var sites = AssemblySiteAuthoring.Expand(source, diagnostics);
+        if (sites is null) return null;
+        source = sites.Source;
         var headers = Regex.Matches(source,@"\bPattern\s+(?<name>[A-Za-z_]\w*)\s+Over\s+(?<set>[A-Za-z_]\w*)\s*\{").Cast<Match>()
             .Where(h => Regex.IsMatch(source[(h.Index+h.Length)..],@"^\s*[A-Za-z_]\w*\s*=>\s*<(?:Part|Assembly)\b")).ToArray();
-        if (headers.Length == 0) return new(source,null);
+        if (headers.Length == 0)
+        {
+            source = points.Math.Normalize(source, diagnostics);
+            return diagnostics.Count > 0 ? null : new(source, points.Points.Count == 0 ? null : new([],[],[],[],[], ConceptPoints: points.Points));
+        }
         var catalog = source.Select(c => c is '\r' or '\n' ? c : ' ').ToArray();
         foreach (Match header in Regex.Matches(source,@"\b(?:Record\s+[A-Za-z_]\w*|Static\s+[A-Za-z_]\w*\s*:\s*Set\s*<\s*[A-Za-z_]\w*\s*>)\s*\{"))
         {
@@ -52,10 +62,15 @@ internal static class CanonicalStaticAuthoring
                 associations.Add(new(name+"."+entry.Name,set.Name,entry.Name,entry.Value,entry.SourceOrder,entry.Provenance));
             }
             changes.Add((header.Index,close-header.Index+1,$"<Assembly {name}> {identity}\n{string.Join(Environment.NewLine,output)}\n</Assembly>"));
-            patterns.Add(new(name,set.Name,"Assembly",set.Entries.Count,associations.Select(a=>a.GeneratedId).ToArray(),new(header.Index,close-header.Index+1),associations));
+            patterns.Add(new(name,set.Name,"Assembly",set.Entries.Count,associations.Select(a=>a.GeneratedId).ToArray(),new(header.Index,close-header.Index+1),associations,
+                sites.Recipes.GetValueOrDefault(set.Name)));
         }
         foreach (var change in changes.OrderByDescending(c=>c.Start)) source=source.Remove(change.Start,change.Length).Insert(change.Start,change.Text);
-        return new(source,data.Document with { Patterns=patterns });
+        source = points.Math.Normalize(source, diagnostics);
+        var conceptualSets = points.Points.ToDictionary(p => ConceptPointAuthoring.SetName(p.Name), p => p);
+        patterns = patterns.Select(pattern => conceptualSets.TryGetValue(pattern.Source, out var collection)
+            ? pattern with { Source = collection.Name, Associations = pattern.Associations?.Select(a => a with { SourceSet = collection.Name }).ToArray() } : pattern).ToList();
+        return diagnostics.Count > 0 ? null : new(source,data.Document with { Patterns=patterns, ConceptPoints=points.Points });
     }
 
     private static string SubstituteSetMapping(string mapping,string binder,FirmamentV2StaticSetEntry entry)
@@ -63,19 +78,39 @@ internal static class CanonicalStaticAuthoring
         if (entry.RecordFields is not null)
             foreach (var field in entry.RecordFields)
                 mapping=Regex.Replace(mapping,$@"\b{Regex.Escape(binder)}\s*\.\s*{Regex.Escape(field.Key)}\b",field.Value,RegexOptions.CultureInvariant);
-        else mapping=Regex.Replace(mapping,$@"\b{Regex.Escape(binder)}\b",entry.Value,RegexOptions.CultureInvariant);
+        else
+        {
+            var point = Regex.Match(entry.Value, @"^Point(?<dim>[23])\((?<values>[^()]+)\)$");
+            if (point.Success)
+            {
+                var coordinates = point.Groups["values"].Value.Split(',', StringSplitOptions.TrimEntries);
+                for (var i = 0; i < coordinates.Length; i++)
+                    mapping = Regex.Replace(mapping, $@"\b{Regex.Escape(binder)}(?:\s*\.\s*Position)?\s*\.\s*{"XYZ"[i]}\b", coordinates[i]);
+                mapping = Regex.Replace(mapping, $@"\b{Regex.Escape(binder)}\s*\.\s*Position\b", entry.Value);
+            }
+            mapping=Regex.Replace(mapping,$@"\b{Regex.Escape(binder)}\b",entry.Value,RegexOptions.CultureInvariant);
+        }
         return mapping;
     }
 
     public static Result? Expand(string source, List<string> diagnostics)
     {
+        var points = ConceptPointAuthoring.Expand(source, diagnostics);
+        if (points is null) return null;
+        source = points.Source;
+        var linear = LinearFeatureAuthoring.Expand(source, diagnostics);
+        if (linear is null) return null;
+        source = linear.Source;
         var symmetry = SemanticSymmetryAuthoring.Expand(source, diagnostics);
         if (symmetry is null) return null;
         source = symmetry.Source;
         var canonicalRoot = Regex.IsMatch(source, @"^\s*Model\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant);
         var staticDeclaration = Regex.IsMatch(source, @"\b(?:Record|Static|Template\s*(?:<|[A-Za-z_]\w*\s*\()|Pattern\s+\w+\s+Over)\b", RegexOptions.CultureInvariant)
-            || symmetry.Mirrors.Count > 0 || symmetry.RadialPatterns.Count > 0;
-        if (!staticDeclaration && !(canonicalRoot && Regex.IsMatch(source, @"\b(?:Require\s+[A-Za-z_]\w*\s*(?:=>|\{)|Pmi\s*\{[\s\S]*?\bFrom\s*:)", RegexOptions.CultureInvariant))) return new(source, null);
+            || symmetry.Mirrors.Count > 0 || symmetry.RadialPatterns.Count > 0 || linear.Patterns.Count > 0 || linear.Axes.Count > 0;
+        if (!staticDeclaration && !(canonicalRoot && Regex.IsMatch(source, @"\b(?:Require\s+[A-Za-z_]\w*\s*(?:=>|\{)|Pmi\s*\{[\s\S]*?\bFrom\s*:)", RegexOptions.CultureInvariant))) {
+            source = points.Math.Normalize(source, diagnostics);
+            return diagnostics.Any(d => d.StartsWith(ConceptPointAuthoring.Prefix, StringComparison.Ordinal)) ? null : new(source, null);
+        }
         var changes = new List<(int Start, int Length, string Text)>();
         var names = new HashSet<string>(StringComparer.Ordinal);
         var recordTypes = new List<FirmamentV2RecordTypeDecl>();
@@ -139,10 +174,10 @@ internal static class CanonicalStaticAuthoring
             changes.Add((header.Index, close - header.Index + 1, string.Empty));
         }
 
-        foreach (Match header in Regex.Matches(source, @"\bStatic\s+(?<name>[A-Za-z_]\w*)\s*:\s*(?<type>[A-Za-z_]\w*)\s*=\s*(?<literal>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant))
+        foreach (Match header in Regex.Matches(source, @"\bStatic\s+(?<name>[A-Za-z_]\w*)\s*:\s*(?<type>[A-Za-z_]\w*)(?:\s*=\s*(?<literal>[A-Za-z_]\w*))?\s*\{", RegexOptions.CultureInvariant))
         {
             var open = source.IndexOf('{', header.Index); var close = MatchPair(source, open, '{', '}');
-            var name = header.Groups["name"].Value; var type = header.Groups["type"].Value; var literalType = header.Groups["literal"].Value;
+            var name = header.Groups["name"].Value; var type = header.Groups["type"].Value; var literalType = header.Groups["literal"].Success ? header.Groups["literal"].Value : type;
             if (close < 0 || !recordByName.TryGetValue(type, out var record)) { diagnostics.Add(Prefix + "record-type-invalid:" + name); continue; }
             if (!string.Equals(type, literalType, StringComparison.Ordinal)) { diagnostics.Add(Prefix + "record-literal-type-mismatch:" + name); continue; }
             if (!names.Add(name)) { diagnostics.Add(FirmamentV2Parser.DuplicateName + ":Static:" + name); continue; }
@@ -328,7 +363,9 @@ internal static class CanonicalStaticAuthoring
             .Where(change => !erasures.Any(erase => erase.Start < change.Start && change.Start < erase.Start + erase.Length))
             .OrderByDescending(change => change.Start))
             source = source.Remove(change.Start, change.Length).Insert(change.Start, change.Text);
-        return new(source, new(recordTypes, arrays, templates.Select(t => new FirmamentV2CanonicalTemplateDecl(t.Name, t.Type, t.Parameter, t.Body, t.Span)).ToArray(), patterns, requires, semanticConstraints, projections, staticRecords, tables, sets, symmetry.Mirrors, symmetry.RadialPatterns));
+        source = points.Math.Normalize(source, diagnostics);
+        if (diagnostics.Any(d => d.StartsWith(ConceptPointAuthoring.Prefix, StringComparison.Ordinal))) return null;
+        return new(source, new(recordTypes, arrays, templates.Select(t => new FirmamentV2CanonicalTemplateDecl(t.Name, t.Type, t.Parameter, t.Body, t.Span)).ToArray(), patterns, requires, semanticConstraints, projections, staticRecords, tables, sets, symmetry.Mirrors, symmetry.RadialPatterns, linear.Patterns, linear.Axes, points.Points));
     }
 
     private static IReadOnlyList<FirmamentV2StaticSetEntry> ParseSetEntries(string source, int start, int end, string setName, string elementType,
@@ -388,6 +425,18 @@ internal static class CanonicalStaticAuthoring
             {
                 declaration = mapping;
                 declaration = SubstituteSetMapping(declaration,binder,entry);
+                if (Regex.IsMatch(declaration, @"^Section\s+[A-Za-z_]\w*\s*\{"))
+                {
+                    var sectionOpen = declaration.IndexOf('{');
+                    var sectionClose = MatchPair(declaration, sectionOpen, '{', '}');
+                    if (sectionClose != declaration.Length - 1 || Regex.Matches(declaration, @"\b(?:Pattern|Section)\s+", RegexOptions.CultureInvariant).Count != 1)
+                    { diagnostics.Add(Prefix + "pattern-body-invalid:" + patternName); return; }
+                    var sectionName = Regex.Match(declaration, @"^Section\s+(?<name>[A-Za-z_]\w*)").Groups["name"];
+                    declaration = declaration.Remove(sectionName.Index, sectionName.Length).Insert(sectionName.Index, materializedId);
+                    output.Add(declaration); generated.Add(semanticId);
+                    associations.Add(new(semanticId, set.Name, entry.Name, entry.Value, entry.SourceOrder, entry.Provenance));
+                    continue;
+                }
                 var construction = Regex.Match(declaration, @"\b(?:Hole\s*<\s*(?:Shaft|Counterbore|Countersink)\s*>|Slot\s*<\s*(?:Capsule|RoundedRectangle)\s*>|Boss|Pocket|EdgeFinish)\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
                 if (!construction.Success) { diagnostics.Add(Prefix + "pattern-body-invalid:" + patternName); return; }
                 declaration = declaration.Remove(construction.Groups["name"].Index, construction.Groups["name"].Length).Insert(construction.Groups["name"].Index, materializedId);

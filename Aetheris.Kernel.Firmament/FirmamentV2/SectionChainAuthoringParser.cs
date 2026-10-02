@@ -9,7 +9,16 @@ public sealed record SectionChainAuthoringResult(
     SectionChain? Chain,
     SectionChainMaterializationResult? Materialization,
     IReadOnlyList<string> Diagnostics,
-    LoftAuthoredBinding? LoftBinding = null);
+    LoftAuthoredBinding? LoftBinding = null,
+    IReadOnlyList<SectionChainProfileDerivation>? ProfileDerivations = null,
+    IReadOnlyList<SectionChainBoundaryEditInspection>? BoundaryEdits = null,
+    IReadOnlyList<FirmamentV2CanonicalPatternDecl>? Patterns = null);
+
+public sealed record SectionChainBoundaryEditInspection(string Section, string Profile,
+    IReadOnlyList<ProfileBoundaryEditEvidence> Edits);
+
+public sealed record SectionChainProfileDerivation(string Section, string Profile, string ConceptCurve,
+    string SourceSegment, string Transform, string Plane);
 
 public sealed record LoftAuthoredBinding(string Name, string RearProfile, string RearFrame,
     string FrontProfile, string FrontFrame, IReadOnlyList<double> Reference, double TwistDegrees,
@@ -22,6 +31,13 @@ public sealed record LoftAuthoredBinding(string Name, string RearProfile, string
 /// </summary>
 public static class SectionChainAuthoringParser
 {
+    public static SectionChainAuthoringResult CompileFile(string path, bool materialize = true)
+    {
+        var errors = new List<Assembly.AssemblyDiagnostic>();
+        var source = Assembly.AssemblyM0Parser.LoadResource(path, null, [], errors);
+        return source is null || errors.Count != 0 ? new(false, null, null, errors.Select(d => d.Code + ":" + d.Message).ToArray())
+            : Compile(source, materialize);
+    }
     public static bool IsSectionChainSource(string source) =>
         Regex.IsMatch(source, @"\bSectionChain\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant)
         || LoftAuthoringParser.IsLoftSource(source);
@@ -29,9 +45,19 @@ public static class SectionChainAuthoringParser
     public static SectionChainAuthoringResult Compile(string source, bool materialize = true)
     {
         ArgumentNullException.ThrowIfNull(source);
+        source = FirmamentSourceSpelling.Normalize(source);
         if (LoftAuthoringParser.IsLoftSource(source))
             return LoftAuthoringParser.Compile(source, materialize);
         var diagnostics = new List<string>();
+        var boundaries = ClosedBoundary2Authoring.Expand(source, diagnostics);
+        if (boundaries is null || diagnostics.Count > 0) return new(false, null, null, diagnostics);
+        source = boundaries.Source;
+        var staticSource = CanonicalStaticAuthoring.Expand(source, diagnostics);
+        if (staticSource is null || diagnostics.Count > 0) return new(false, null, null, diagnostics);
+        source = ExpandSectionValues(staticSource.Source, diagnostics);
+        var templates = FirmamentV2TemplateExpansion.Expand(source, diagnostics);
+        if (templates is null || diagnostics.Count > 0) return new(false, null, null, diagnostics);
+        source = templates.Source;
         if (!Regex.IsMatch(source, @"\bUnits\s*:\s*mm\b", RegexOptions.CultureInvariant))
             diagnostics.Add("section-chain-units-invalid:millimetres-required");
         var declarations = Blocks(source, "SectionChain").ToArray();
@@ -56,6 +82,8 @@ public static class SectionChainAuthoringParser
             diagnostics.Add($"section-chain-termination-invalid:End:{endText}");
 
         var sections = new List<Section>();
+        var derivations = new List<SectionChainProfileDerivation>();
+        var boundaryEdits = new List<SectionChainBoundaryEditInspection>();
         foreach (var authored in Blocks(declaration.Body, "Section"))
         {
             var frameName = Field(authored.Body, "Frame");
@@ -74,6 +102,11 @@ public static class SectionChainAuthoringParser
             if (frameName is not null && plane is null) diagnostics.Add($"section-chain-frame-unresolved:{authored.Name}:{frameName}");
             if (plane is null || profile is null) continue;
             var outer = profile.Loops.Single(loop => loop.IsOuter);
+            if (profile.BoundaryEdits is { Count: > 0 }) boundaryEdits.Add(new(authored.Name, profile.Name, profile.BoundaryEdits));
+            if (outer.Segments.FirstOrDefault()?.Provenance is { } provenance
+                && provenance.ConceptStableId.StartsWith("concept-curve:", StringComparison.Ordinal))
+                derivations.Add(new(authored.Name, profile.Name, provenance.ConceptStableId,
+                    provenance.TracedFrom ?? "", provenance.Derivation, profile.PlaneFrame));
             if (profile.Loops.Count != 1) diagnostics.Add($"section-chain-profile-loop-count-invalid:{authored.Name}");
             var spans = outer.Segments.Select(segment => Convert(segment, diagnostics, authored.Name)).Where(item => item is not null).Cast<SectionProfileSpan>().ToArray();
             var seamId = seam ?? spans.FirstOrDefault()?.SpanId ?? string.Empty;
@@ -99,13 +132,44 @@ public static class SectionChainAuthoringParser
             diagnostics.Add("section-chain-normalization-tolerance-invalid:positive-length-required");
         if (diagnostics.Count != 0) return Fail(diagnostics);
         var chain = new SectionChain(declaration.Name, sections, correspondence, transition, start, end, continuity, ProfileApproximationTolerance: tolerance);
-        if (!materialize) return new(true, chain, null, []);
+        if (!materialize) return new(true, chain, null, [], ProfileDerivations: derivations, BoundaryEdits: boundaryEdits, Patterns: staticSource.Document?.Patterns);
         var result = SectionChainMaterializer.Materialize(chain);
         if (!result.IsSuccess)
             diagnostics.AddRange(result.Diagnostics.Select(item => $"{item.Code}:{item.Message}"));
-        return new(result.IsSuccess, chain, result, diagnostics);
+        return new(result.IsSuccess, chain, result, diagnostics, ProfileDerivations: derivations, BoundaryEdits: boundaryEdits, Patterns: staticSource.Document?.Patterns);
 
         SectionChainAuthoringResult Fail(IEnumerable<string> items) => new(false, null, null, items.Distinct(StringComparer.Ordinal).ToArray());
+    }
+
+    private static string ExpandSectionValues(string source, List<string> diagnostics)
+    {
+        var changes = new List<(int Start, int Length, string Text)>();
+        foreach (Match header in Regex.Matches(source, @"\bSection\s+(?<name>[A-Za-z_]\w*)\s*\{"))
+        {
+            var open = source.IndexOf('{', header.Index); var close = MatchingBrace(source, open);
+            if (close < 0) { diagnostics.Add("section-chain-section-malformed"); continue; }
+            var body = source[(open + 1)..close]; var name = header.Groups["name"].Value;
+            var prelude = "";
+            var frame = Regex.Match(body, @"\bFrame\s*:\s*Plane\s*\{");
+            if (frame.Success)
+            {
+                var frameOpen = body.IndexOf('{', frame.Index); var frameClose = MatchingBrace(body, frameOpen);
+                if (frameClose < 0) { diagnostics.Add("section-chain-inline-frame-invalid:" + name); continue; }
+                var concept = "__SectionDatum_" + name; var construction = "__SectionFrame_" + name;
+                prelude += $"Concept Struct {concept} {{ Support: Plane {{{body[(frameOpen + 1)..frameClose]}}} }}\nConstruction Plane {construction} {{ Trace: {concept}.Support }}\n";
+                body = body.Remove(frame.Index, frameClose - frame.Index + 1).Insert(frame.Index, "Frame: " + construction + "\n");
+            }
+            var profile = Regex.Match(body, @"\bProfile\s*:\s*(?<call>[A-Za-z_]\w*\s*<[^<>]+>)");
+            if (profile.Success)
+            {
+                var profileName = "__SectionProfile_" + name;
+                prelude += $"Profile {profileName} = {profile.Groups["call"].Value}\n";
+                body = body.Remove(profile.Index, profile.Length).Insert(profile.Index, "Profile: " + profileName + "\n");
+            }
+            if (prelude.Length > 0) changes.Add((header.Index, close - header.Index + 1, prelude + $"Section {name} {{{body}}}"));
+        }
+        foreach (var change in changes.OrderByDescending(c => c.Start)) source = source.Remove(change.Start, change.Length).Insert(change.Start, change.Text);
+        return source;
     }
 
     private static SectionProfileSpan? Convert(ResolvedProfileSegment2D segment, List<string> diagnostics, string section) => segment.Geometry switch

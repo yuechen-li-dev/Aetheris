@@ -38,8 +38,15 @@ internal static class AssemblyPublishedPorts
                 { diagnostics.Add(new("assembly-profile-unresolved-resource", $"Port source '{requested}' was not found at '{path}'.")); return []; }
                 source = File.ReadAllText(path);
             }
+            var resourceDependencies = new List<AssemblySourceDependencyIr>();
+            var loaded = AssemblyM0Parser.LoadResource(path, project, resourceDependencies, diagnostics);
+            if (loaded is null) return [];
+            source = loaded;
+            dependencies.AddRange(resourceDependencies.Where(d => !dependencies.Any(existing => existing.Path == d.Path))
+                .Select(d => d with { IsRoot = false }));
             if (!dependencies.Any(d => d.Path == path))
                 dependencies.Add(new(path, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(source))), false));
+            source = FirmamentSourceSpelling.Normalize(source);
             if (!Regex.IsMatch(source, @"\bExpose\s*\{\s*Semantic\b")) return [];
             var chain = SectionChainAuthoringParser.Compile(Strip(source, diagnostics), materialize: false);
             if (!chain.IsSuccess || chain.Chain is null)
@@ -72,6 +79,7 @@ internal static class AssemblyPublishedPorts
     }
     internal static string Strip(string source, List<AssemblyDiagnostic> diagnostics)
     {
+        source = FirmamentSourceSpelling.Normalize(source);
         var chars = source.ToCharArray();
         foreach (Match expose in Regex.Matches(source,@"\bExpose\s*\{"))
         {
@@ -85,6 +93,7 @@ internal static class AssemblyPublishedPorts
     internal static IReadOnlyList<SemanticValue> Read(string source,string owner,string identity,
         string sourceIdentity,List<AssemblyDiagnostic> diagnostics,SectionChain? chain = null)
     {
+        source = FirmamentSourceSpelling.Normalize(source);
         var header = Regex.Match(source,$@"\b(?:Struct|Model)\s+{Regex.Escape(owner)}\s*\{{");
         if (!header.Success) return [];
         var body = AssemblyM0Parser.BalancedBody(source,header.Index+header.Length-1,diagnostics,"published part");

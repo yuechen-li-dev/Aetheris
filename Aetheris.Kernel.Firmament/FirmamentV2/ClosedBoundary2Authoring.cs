@@ -32,7 +32,12 @@ internal static class ClosedBoundary2Authoring
     {
         // Template bodies have local names and unbound dimensions. Their selected
         // specializations pass through this lowering after ordinary template binding.
-        var templates = FirmamentV2TemplateExpansion.DeclarationSpans(source, diagnostics);
+        var templates = FirmamentV2TemplateExpansion.DeclarationSpans(source, diagnostics).ToList();
+        foreach (Match feature in Regex.Matches(source, @"\bFeature\s+[A-Za-z_]\w*\s*\([^()]*\)\s*->[^{}]+\{"))
+        {
+            var close = Matching(source, source.IndexOf('{', feature.Index));
+            if (close >= 0) templates.Add(new(feature.Index, close - feature.Index + 1));
+        }
         bool InTemplate(int offset) => templates.Any(span => offset >= span.Start && offset < span.Start + span.Length);
         var shapes = new List<Shape>(); var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (Match header in Header.Matches(source))
@@ -54,6 +59,23 @@ internal static class ClosedBoundary2Authoring
         foreach (var shape in shapes)
         {
             if (shape.LoweredSource is not null) changes.Add((shape.Start, shape.Length, shape.LoweredSource));
+            // Preserve a closed boundary value for immutable Profile derivation
+            // before the primitive declaration is erased to its ordinary guides.
+            var seedUses = Regex.Matches(source,
+                $@"\bProfile\s+\w+(?:\s+Using\s+\w+)?\s*\{{\s*From\s*:\s*(?:\w+\.)?(?<seed>{Regex.Escape(shape.Declaration.Name)})\b");
+            if (seedUses.Count > 0)
+            {
+                var valueName = "__Boundary2Value_" + shape.Declaration.Name;
+                if (Regex.IsMatch(source, $@"\bProfile\s+{Regex.Escape(valueName)}\b"))
+                    diagnostics.Add(Prefix + "reserved-value-name:" + valueName);
+                foreach (Match use in seedUses)
+                {
+                    // Include the optional Concept owner qualifier in replacement.
+                    var field = Regex.Match(use.Value, @"From\s*:\s*(?<value>\w+(?:\.\w+)?)$");
+                    changes.Add((use.Index + field.Groups["value"].Index, field.Groups["value"].Length, valueName));
+                }
+                changes.Add((source.Length, 0, $"\nProfile {valueName} {{ Loop Outer {{ {shape.TraceExpression} }} }}\n"));
+            }
             foreach (Match trace in Regex.Matches(source, $@"\b{Regex.Escape(shape.Declaration.Name)}(?:\s+As\s+(?<alias>[A-Za-z_]\w*))?\s*\|>\s*TraceLoop\b", RegexOptions.CultureInvariant))
             {
                 if (Inside(trace.Index, shapes) || InTemplate(trace.Index)) continue;
@@ -66,6 +88,7 @@ internal static class ClosedBoundary2Authoring
                 foreach (Match reference in Regex.Matches(source, $@"\b{Regex.Escape(shape.Declaration.Name)}\s*\.\s*{Regex.Escape(member.Key)}\b", RegexOptions.CultureInvariant))
                     if (!Inside(reference.Index, shapes) && !InTemplate(reference.Index)) changes.Add((reference.Index, reference.Length, member.Value));
         }
+        if (diagnostics.Any(x => x.StartsWith(Prefix, StringComparison.Ordinal))) return null;
         foreach (var change in changes.OrderByDescending(x => x.Start)) source = source.Remove(change.Start, change.Length).Insert(change.Start, change.Text);
         return new(source, shapes.Select(x => x.Declaration).ToArray());
     }
@@ -140,7 +163,7 @@ internal static class ClosedBoundary2Authoring
         var hasRadius = Length(body, "Radius", out var radius); var hasDiameter = Length(body, "Diameter", out var diameter);
         if (hasRadius == hasDiameter || (radius = hasRadius ? radius : diameter / 2) <= 0) return Invalid(name, "invalid-dimensions", diagnostics);
         var lowered = inline || hasDiameter ? $"Point2 {name}_Center {{ Position: [{N(c.X)}, {N(c.Y)}] }}\nConcept Circle2 {name}_Curve {{ Center: {name}_Center; Radius: {N(radius)} }}" : null;
-        var guide = lowered is null ? name : name + "_Curve"; var map = new Dictionary<string, string>(StringComparer.Ordinal) { ["Center"] = inline || hasDiameter ? name + "_Center" : centerRef! };
+        var guide = lowered is null ? name : name + "_Curve"; var map = new Dictionary<string, string>(StringComparer.Ordinal) { ["Center"] = inline || hasDiameter ? name + "_Center" : centerRef!, ["Boundary"] = guide };
         return Make(name, "Circle2", null, c, rotation, new Dictionary<string, double> { ["Radius"] = radius, ["Diameter"] = 2 * radius }, ["Center"], ["Boundary"], "Circle", span, lowered, map, guide + " |> TraceLoop", Math.PI * radius * radius, 2 * Math.PI * radius);
     }
 
@@ -186,7 +209,12 @@ internal static class ClosedBoundary2Authoring
     internal static IReadOnlyDictionary<string, LineArcProfileCurve2D> SmoothGuides(string source, List<string> diagnostics)
     {
         var guides = new Dictionary<string, LineArcProfileCurve2D>();
-        var templates = FirmamentV2TemplateExpansion.DeclarationSpans(source, diagnostics);
+        var templates = FirmamentV2TemplateExpansion.DeclarationSpans(source, diagnostics).ToList();
+        foreach (Match feature in Regex.Matches(source, @"\bFeature\s+[A-Za-z_]\w*\s*\([^()]*\)\s*->[^{}]+\{"))
+        {
+            var close = Matching(source, source.IndexOf('{', feature.Index));
+            if (close >= 0) templates.Add(new(feature.Index, close - feature.Index + 1));
+        }
         foreach (Match header in Header.Matches(source))
         {
             if (templates.Any(span => header.Index >= span.Start && header.Index < span.Start + span.Length)) continue;

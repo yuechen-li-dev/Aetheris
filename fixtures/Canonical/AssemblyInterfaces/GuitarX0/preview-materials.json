@@ -55,19 +55,12 @@
     "metallic": 0,
     "roughness": 0.4
   },
-  "Panel<L:70mm,W:17mm,H:5mm,R:3mm>": {
-    "red": 0.009,
-    "green": 0.007,
-    "blue": 0.006,
-    "metallic": 0,
-    "roughness": 0.4
-  },
-  "Surround<L:88mm,W:46mm,H:4mm>": {
-    "red": 0.72,
-    "green": 0.59,
-    "blue": 0.36,
-    "metallic": 0,
-    "roughness": 0.4
+  "Humbucker<Spec: StandardPickup>": {
+    "red": 0.025,
+    "green": 0.025,
+    "blue": 0.025,
+    "metallic": 0.15,
+    "roughness": 0.3
   },
   "Drum<R:9mm,H:9mm>": {
     "red": 0.38,

@@ -1,4 +1,5 @@
 using System.Text;
+using Aetheris.Kernel.Firmament.Assembly;
 
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
@@ -17,8 +18,9 @@ public sealed record FirmamentLanguageFormat(string Document, string Revision, s
 /// </summary>
 public static class FirmamentLanguageAnalysisService
 {
-    private sealed record Lexeme(int Start, int Length, string Text, string Shape);
-    private static readonly HashSet<string> Keywords = ["Model", "Units", "Modify", "WireForm", "Construction", "Use", "schema", "Let", "Static", "With", "Expose"];
+    internal sealed record Lexeme(int Start, int Length, string Text, string Shape);
+    private static readonly HashSet<string> Keywords = ["Model", "Units", "Modify", "WireForm", "Construction", "Use", "schema", "Let", "Static", "With", "with", "Expose", "Include", "Subassembly", "Assembly", "Part", "Template", "Function", "Record", "Pattern", "Over", "Using", "Output"];
+    private static readonly HashSet<string> DeclarationKinds = ["Model", "Struct", "Subassembly", "Assembly", "Template", "Profile", "Static", "Record", "Function", "Pattern", "Section", "SectionChain", "FrameTransform", "Points"];
     private static readonly HashSet<string> Types = ["Length", "Angle", "Float", "Int", "Bool", "Box3", "Plane", "Point2", "Point3"];
     private static readonly HashSet<string> Choices = FirmamentSemanticSchemas.All
         .SelectMany(construct => construct.Fields).SelectMany(field => field.Choices).ToHashSet(StringComparer.Ordinal);
@@ -26,9 +28,30 @@ public static class FirmamentLanguageAnalysisService
     public static FirmamentLanguageAnalysis Analyze(string source, string document, string revision)
     {
         ArgumentNullException.ThrowIfNull(source);
-        var lexemes = Lex(source);
+        var lexemes = Lex(FirmamentSourceSpelling.Normalize(source));
         var tokens = lexemes.Select((lexeme, index) => new FirmamentLanguageToken(
             lexeme.Start, lexeme.Length, Classify(lexemes, index))).ToArray();
+        // Imported authoring modules need project context. Do not feed them into
+        // the unrelated concrete-part parser and manufacture syntax errors.
+        if (lexemes.Any(t => t.Text == "Include" && t.Shape == "identifier"))
+            return new(document, revision, tokens, [new("information", "firmament-language-project-context-required", "Imported declarations require project-aware analysis.", 0, 0)]);
+        if (HasAssemblyRoot(source))
+        {
+            var assembly = new AssemblyM0Parser().Parse(source, document);
+            return new(document, revision, tokens, assembly.Diagnostics.Select(d => new FirmamentLanguageDiagnostic(d.Severity == AssemblyDiagnosticSeverity.Error ? "error" : "information", d.Code, d.Message, 0, 0)).ToArray());
+        }
+        if (SectionChainAuthoringParser.IsSectionChainSource(source))
+        {
+            var section = SectionChainAuthoringParser.Compile(source, materialize: false);
+            return new(document, revision, tokens, section.Diagnostics.Select(d => LocateDiagnostic(source, lexemes, d)).ToArray());
+        }
+        if (Materializer.WireRouteAuthoring.IsSource(source) && !lexemes.Any(t => t.Shape == "identifier" && t.Text == "Template"))
+        {
+            var route = Materializer.WireFormAuthoring.Parse(source);
+            return new(document, revision, tokens, route.Diagnostics.Select(d => new FirmamentLanguageDiagnostic("error", d.Source, d.Message, 0, 0)).ToArray());
+        }
+        if (lexemes.Any(t => t.Shape == "identifier" && t.Text is "Template" or "Subassembly" or "Appearance" or "Material"))
+            return new(document, revision, tokens, [new("information", "firmament-language-project-context-required", "Declaration modules are validated in their consuming project.", 0, 0)]);
         var parse = FirmamentV2Parser.Parse(source);
         var failures = parse.Diagnostics.Where(item => FirmamentV2Parser.IsFatalDiagnosticCode(item) ||
             item == "firmament-v2-parse-failed").Distinct(StringComparer.Ordinal).ToArray();
@@ -39,7 +62,7 @@ public static class FirmamentLanguageAnalysisService
 
     public static FirmamentLanguageHover? Hover(string source, string document, string revision, int offset)
     {
-        var lexemes = Lex(source);
+        var lexemes = Lex(FirmamentSourceSpelling.Normalize(source));
         var index = lexemes.FindIndex(item => item.Start <= offset && offset <= item.Start + item.Length && item.Shape == "identifier");
         if (index < 0) return null;
         var token = lexemes[index];
@@ -55,29 +78,87 @@ public static class FirmamentLanguageAnalysisService
 
     public static FirmamentLanguageLocation? Definition(string source, string document, int offset)
     {
-        var tokens = Lex(source);
+        var tokens = Lex(FirmamentSourceSpelling.Normalize(source));
         var selected = tokens.FirstOrDefault(item => item.Shape == "identifier" && item.Start <= offset && offset <= item.Start + item.Length);
         if (selected is null) return null;
-        var declarations = tokens.Select((token, index) => (token, index))
-            .Where(pair => pair.index > 0 && pair.token.Text == selected.Text && pair.token.Shape == "identifier" &&
-                FirmamentSemanticSchemas.All.Any(schema => schema.Name == tokens[pair.index - 1].Text) &&
-                pair.index + 1 < tokens.Count && tokens[pair.index + 1].Text == "{")
-            .Select(pair => pair.token).ToArray();
+        var declarations = Declarations(tokens, selected.Text, ReferenceKind(tokens, selected)).ToArray();
         return declarations.Length == 1 ? new(document, declarations[0].Start, declarations[0].Length) : null;
+    }
+
+    /// <summary>Lexical source navigation only; never grants access to a private placement port.</summary>
+    public static FirmamentLanguageLocation? Definition(FirmamentProjectSnapshot project, string document, int offset)
+    {
+        if (!project.TryResolve(document, out var source)) return null;
+        var local = Definition(source, document, offset);
+        if (local is not null) return local;
+        var tokens = Lex(FirmamentSourceSpelling.Normalize(source));
+        var selected = tokens.FirstOrDefault(t => t.Shape == "identifier" && t.Start <= offset && offset < t.Start + t.Length);
+        if (selected is null) return null;
+        var matches = project.Documents.SelectMany(d => Declarations(Lex(d.Value), selected.Text, ReferenceKind(tokens, selected))
+            .Select(t => new FirmamentLanguageLocation(d.Key, t.Start, t.Length))).ToArray();
+        return matches.Length == 1 ? matches[0] : null;
+    }
+
+    public static FirmamentLanguageAnalysis Analyze(FirmamentProjectSnapshot project, string document, string revision)
+    {
+        if (!project.TryResolve(document, out var source)) throw new ArgumentException("Document is absent from the snapshot.", nameof(document));
+        var tokens = Lex(FirmamentSourceSpelling.Normalize(source));
+        var parsed = new AssemblyM0Parser().ParseProject(project);
+        return new(document, revision, tokens.Select((t, i) => new FirmamentLanguageToken(t.Start, t.Length, Classify(tokens, i))).ToArray(),
+            parsed.Diagnostics.Select(d => new FirmamentLanguageDiagnostic(d.Severity == AssemblyDiagnosticSeverity.Error ? "error" : "information", d.Code, d.Message, 0, 0)).ToArray());
+    }
+
+    public static bool HasAssemblyRoot(string source)
+    {
+        var tokens = Lex(source).Where(t => t.Shape != "comment").ToArray();
+        var depth = 0;
+        for (var i = 0; i + 1 < tokens.Length; i++)
+        {
+            if (tokens[i].Text == "{") depth++;
+            else if (tokens[i].Text == "}") depth--;
+            if (depth == 0 && tokens[i].Text == "<" && tokens[i + 1].Text == "Assembly") return true;
+            if (depth == 0 && tokens[i].Text == "Assembly" && tokens[i + 1].Shape == "identifier" && (i == 0 || tokens[i - 1].Text != "/")) return true;
+        }
+        return false;
+    }
+
+    private static string? ReferenceKind(IReadOnlyList<Lexeme> tokens, Lexeme selected)
+    {
+        var at = tokens.ToList().FindIndex(t => t.Start == selected.Start);
+        return at >= 2 && tokens[at - 1].Text == ":" && tokens[at - 2].Text is "Material" or "Appearance" or "Profile"
+            ? tokens[at - 2].Text : null;
+    }
+
+    private static IEnumerable<Lexeme> Declarations(IReadOnlyList<Lexeme> tokens, string name, string? kind = null)
+    {
+        for (var i = 1; i + 1 < tokens.Count; i++)
+        {
+            if (tokens[i].Shape != "identifier" || tokens[i].Text != name) continue;
+            var previous = i - 1;
+            if (tokens[previous].Text == ">")
+            {
+                while (previous >= 0 && tokens[previous].Text != "<") previous--;
+                previous--;
+            }
+            if (previous < 0 || !(DeclarationKinds.Contains(tokens[previous].Text) || FirmamentSemanticSchemas.All.Any(s => s.Name == tokens[previous].Text))) continue;
+            if (kind is not null && tokens[previous].Text != kind) continue;
+            if (tokens[i + 1].Text is "{" or "=" or ":" or "(" or "<") yield return tokens[i];
+        }
     }
 
     public static FirmamentLanguageFormat Format(string source, string document, string revision)
     {
         if (!FirmamentV2Parser.Parse(source).IsSuccess)
             throw new InvalidOperationException("Format Document requires valid Firmament source. Fix syntax errors first.");
-        var lexemes = Lex(source);
+        var preferred = FirmamentSourceSpelling.Prefer(source);
+        var lexemes = Lex(preferred);
         var output = new StringBuilder(source.Length + 64);
         var indent = 0;
         var lineStart = true;
         Lexeme? previous = null;
         foreach (var token in lexemes)
         {
-            var gap = previous is null ? string.Empty : source[(previous.Start + previous.Length)..token.Start];
+            var gap = previous is null ? string.Empty : preferred[(previous.Start + previous.Length)..token.Start];
             if (token.Text == "}")
             {
                 indent = Math.Max(0, indent - 1);
@@ -96,6 +177,9 @@ public static class FirmamentLanguageAnalysisService
             previous = token;
         }
         var formatted = output.ToString().TrimEnd() + "\n";
+        if (!Lex(FirmamentSourceSpelling.Normalize(source)).Select(t => (t.Text, t.Shape))
+            .SequenceEqual(Lex(FirmamentSourceSpelling.Normalize(formatted)).Select(t => (t.Text, t.Shape))))
+            throw new InvalidOperationException("Canonical layout was refused because it changed source tokens.");
         if (!FirmamentV2Parser.Parse(formatted).IsSuccess)
             throw new InvalidOperationException("Canonical layout was refused because it changed parser admission.");
         return new(document, revision, formatted, formatted != source);
@@ -104,6 +188,19 @@ public static class FirmamentLanguageAnalysisService
         {
             if (!lineStart) { output.Append('\n'); lineStart = true; }
         }
+    }
+
+    /// <summary>
+    /// Conservative project/module pass: only admitted vocabulary spellings change.
+    /// Layout, literals, comments, and authored identities remain byte-for-byte intact.
+    /// This is not standalone or project validation; use the consuming compiler for that.
+    /// </summary>
+    public static FirmamentLanguageFormat FormatConventions(string source, string document, string revision)
+    {
+        var text = FirmamentSourceSpelling.Prefer(source);
+        if (FirmamentSourceSpelling.Normalize(text) != FirmamentSourceSpelling.Normalize(source))
+            throw new InvalidOperationException("Convention formatting changed canonical source.");
+        return new(document, revision, text, text != source);
     }
 
     private static bool NeedsSpace(string? previous, string current)
@@ -139,7 +236,7 @@ public static class FirmamentLanguageAnalysisService
         return new("error", code, diagnostic.Replace('-', ' '), start, length);
     }
 
-    private static List<Lexeme> Lex(string source)
+    internal static List<Lexeme> Lex(string source)
     {
         var result = new List<Lexeme>();
         for (var at = 0; at < source.Length;)
@@ -153,13 +250,19 @@ public static class FirmamentLanguageAnalysisService
                 while (at < source.Length && source[at] != '\n') at++;
                 shape = "comment";
             }
+            else if (at + 1 < source.Length && source[at] == '/' && source[at + 1] == '*')
+            {
+                var end = source.IndexOf("*/", at + 2, StringComparison.Ordinal);
+                at = end < 0 ? source.Length : end + 2;
+                shape = "comment";
+            }
             else if (source[at] == '"')
             {
                 at++;
                 while (at < source.Length)
                 {
+                    if (source[at] == '\\' && at + 1 < source.Length) { at += 2; continue; }
                     if (source[at++] != '"') continue;
-                    if (at >= 2 && source[at - 2] == '\\') continue;
                     break;
                 }
                 shape = "string";

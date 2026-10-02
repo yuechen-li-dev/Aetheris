@@ -18,3 +18,14 @@ The Windows ZIP begins with the tested [release-bundle walkthrough](release-bund
 All linked example source files are exercised by the public-example qualification tests. Preview 3's reliability rule is simple: a supported requested semantic operation is produced, and an unsupported operation fails with a named diagnostic; successful builds must not silently discard engineering intent.
 
 For source-traceable PDF markup and LLM handoff before CAD reconstruction, see [Reading engineering drawings with Drawing Notes](drawing-notes.md).
+
+For closed-shape authoring with named tabs and smooth replacements, see
+[Immutable Profile boundary edits](firmament/profile-boundary-edits.md).
+
+For reusable knobs, selectors, tuners and keyed mounting rows, see
+[Assembly components and mounting sites](firmament/assembly-components-and-sites.md).
+
+For transferable CAD authoring guidance for LLMs, see the
+[Firmament modeling strategy skill](skills/firmament-modeling-strategy/SKILL.md).
+It covers construction choices, Concept scaffolding, physical coherence and
+reporting compiler gaps; current language guides remain the syntax authority.

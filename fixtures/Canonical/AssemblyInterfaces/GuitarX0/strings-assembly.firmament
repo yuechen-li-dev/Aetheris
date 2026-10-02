@@ -1,37 +1,72 @@
-// GUITAR-SURFACING-X0. Original design inspired by the single-cut family.
-// Every visible product part is compiled Firmament geometry. Finish is downstream.
-Template<D: Length, Lead: Length, Tail: Length, Deflection: Angle> Struct GuitarString {
- WireForm String {
-  Diameter: D
-  Material: Standard.Materials.StainlessSteel.304_Annealed
-  StartFrame { Origin: [0mm,0mm,0mm]; Tangent: [0,0,1]; Up: [1,0,0] }
-  Straight SpeakingLength { Length: Lead }
-  Bend NutBreak { Radius: 3mm; Angle: Deflection; Plane: Up }
-  Straight TunerLead { Length: Tail }
+// Definition-local points are bound after the fixed assembly has been placed.
+Template<D: Length,Tail: Point3,Nut: Point3,Post: Point3> Struct GuitarString {
+ WireRoute String {
+  diameter: D;
+  material: Standard.Materials.StainlessSteel.304_Annealed;
+  minimumBendRadius: 4mm;
+  Path {
+   Start { at: Tail; }
+   Corner NutBreak { at: Nut; radius: 4mm; }
+   End { at: Post; }
+  }
  }
 }
-
 Subassembly GuitarStrings {
  <Assembly GuitarStrings>
-  <Part String0 = GuitarString<D:0.28mm,Lead:732.679593mm,Tail:59.754816mm,Deflection:13.639458deg>>
-   Placement { From: Origin; To: World; TranslateLocal: [-25.5mm,-75mm,65mm]; Normal: [0.0102313880420824,0.999947657979523,0]; Up: [0.677063937819737,-0.00692766648519513,0.735891589530075]; }
+  <Part String0 = GuitarString<D:0.28mm>>
+   material: Steel;
+   Placement { from: Origin; to: World; }
+   bind {
+    Tail { At: Point3(-25.5mm,0mm,0mm); On: GuitarX0.Bridge.TailStringPlane; }
+    Nut { At: Point2(NutLayout.Crossings.String0.X,0mm); On: GuitarX0.Neck.StringPlane; }
+    Post { At: Point3(0mm,0mm,0mm); On: GuitarX0.Neck.StringLowE; }
+   }
   </Part>
-  <Part String1 = GuitarString<D:0.36mm,Lead:732.619706mm,Tail:96.378981mm,Deflection:14.968066deg>>
-   Placement { From: Origin; To: World; TranslateLocal: [-15.3mm,-75mm,65mm]; Normal: [0.00613903847430546,0.999981155925756,0]; Up: [0.67110198271469,-0.00411999852962634,0.741353596071758]; }
+  <Part String1 = GuitarString<D:0.36mm>>
+   material: Steel;
+   Placement { from: Origin; to: World; }
+   bind {
+    Tail { At: Point3(-15.3mm,0mm,0mm); On: GuitarX0.Bridge.TailStringPlane; }
+    Nut { At: Point2(NutLayout.Crossings.String1.X,0mm); On: GuitarX0.Neck.StringPlane; }
+    Post { At: Point3(0mm,0mm,0mm); On: GuitarX0.Neck.StringA; }
+   }
   </Part>
-  <Part String2 = GuitarString<D:0.44mm,Lead:732.593764mm,Tail:133.054198mm,Deflection:15.480813deg>>
-   Placement { From: Origin; To: World; TranslateLocal: [-5.1mm,-75mm,65mm]; Normal: [0.00204638043552803,0.999997906161364,0]; Up: [0.664265923957594,-0.001359343637021,0.747495106641937]; }
+  <Part String2 = GuitarString<D:0.44mm>>
+   material: Steel;
+   Placement { from: Origin; to: World; }
+   bind {
+    Tail { At: Point3(-5.1mm,0mm,0mm); On: GuitarX0.Bridge.TailStringPlane; }
+    Nut { At: Point2(NutLayout.Crossings.String2.X,0mm); On: GuitarX0.Neck.StringPlane; }
+    Post { At: Point3(0mm,0mm,0mm); On: GuitarX0.Neck.StringD; }
+   }
   </Part>
-  <Part String5 = GuitarString<D:0.68mm,Lead:732.679593mm,Tail:59.754816mm,Deflection:13.639458deg>>
-   Placement { From: Origin; To: World; TranslateLocal: [25.5mm,-75mm,65mm]; Normal: [-0.0102313880420824,0.999947657979523,0]; Up: [-0.677063937819737,-0.00692766648519513,0.735891589530075]; }
+  <Part String3 = GuitarString<D:0.52mm>>
+   material: Steel;
+   Placement { from: Origin; to: World; }
+   bind {
+    Tail { At: Point3(5.1mm,0mm,0mm); On: GuitarX0.Bridge.TailStringPlane; }
+    Nut { At: Point2(NutLayout.Crossings.String3.X,0mm); On: GuitarX0.Neck.StringPlane; }
+    Post { At: Point3(0mm,0mm,0mm); On: GuitarX0.Neck.StringG; }
+   }
   </Part>
-  <Part String4 = GuitarString<D:0.6mm,Lead:732.619706mm,Tail:96.378981mm,Deflection:14.968066deg>>
-   Placement { From: Origin; To: World; TranslateLocal: [15.3mm,-75mm,65mm]; Normal: [-0.00613903847430546,0.999981155925756,0]; Up: [-0.67110198271469,-0.00411999852962634,0.741353596071758]; }
+  <Part String4 = GuitarString<D:0.6mm>>
+   material: Steel;
+   Placement { from: Origin; to: World; }
+   bind {
+    Tail { At: Point3(15.3mm,0mm,0mm); On: GuitarX0.Bridge.TailStringPlane; }
+    Nut { At: Point2(NutLayout.Crossings.String4.X,0mm); On: GuitarX0.Neck.StringPlane; }
+    Post { At: Point3(0mm,0mm,0mm); On: GuitarX0.Neck.StringB; }
+   }
   </Part>
-  <Part String3 = GuitarString<D:0.52mm,Lead:732.593764mm,Tail:133.054198mm,Deflection:15.480813deg>>
-   Placement { From: Origin; To: World; TranslateLocal: [5.1mm,-75mm,65mm]; Normal: [-0.00204638043552803,0.999997906161364,0]; Up: [-0.664265923957594,-0.001359343637021,0.747495106641937]; }
+  <Part String5 = GuitarString<D:0.68mm>>
+   material: Steel;
+   Placement { from: Origin; to: World; }
+   bind {
+    Tail { At: Point3(25.5mm,0mm,0mm); On: GuitarX0.Bridge.TailStringPlane; }
+    Nut { At: Point2(NutLayout.Crossings.String5.X,0mm); On: GuitarX0.Neck.StringPlane; }
+    Post { At: Point3(0mm,0mm,0mm); On: GuitarX0.Neck.StringHighE; }
+   }
   </Part>
  </Assembly>
-
- Anchor: GuitarStrings;
+ anchor: GuitarStrings;
 }

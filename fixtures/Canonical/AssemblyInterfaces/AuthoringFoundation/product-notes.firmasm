@@ -1,0 +1,25 @@
+Record ReleaseInfo { Author: String Date: Date Version: Version Description: String AuthoringTolerance: Length }
+Static Release: ReleaseInfo {
+ Author: "GPT 6.1 Sol Codex"
+ Date: 2026-10-01
+ Version: 0.1.0
+ Description: "AI-authored assembly annotation witness"
+ AuthoringTolerance: 0.1mm
+}
+Template<H: Length> Struct Pad {
+ Rect2 R { Center: [0mm,0mm]; Size: [10mm,10mm] }
+ Profile P { Loop Outer { R |> TraceLoop } }
+ Extrude Body { Profile: P From: 0mm To: H }
+}
+Assembly Product {
+ Provenance: Release;
+ Pmi {
+  Note DesignIntent { Target: Product; Text: "Presentation geometry; authoring convention 0.1 mm, not a certified manufacturing tolerance."; }
+  Note Finish { Target: Product.A; Text: "Designer's note: {illustrative} #17; https://example.test/a // literal text"; }
+ }
+ <Assembly Product>
+  <Part A = Pad<H:2mm>> Placement { From: Origin; To: World; } </Part>
+  <Part B = Pad<H:2mm>> Placement { From: Origin; To: World; TranslateLocal: [20mm,0mm,0mm]; } </Part>
+ </Assembly>
+ Anchor: Product;
+}

@@ -1,0 +1,9 @@
+Model CrossingEdit {
+ Units: mm
+ Rect2 Blank { Center: [0mm,0mm]; Size: [120mm,80mm] }
+ Profile Panel {
+  From: Blank
+  Replace Grip { On: Blank.Right; Range: [20mm,60mm]; Through: [[-100mm,0mm]] }
+ }
+ Extrude Body { Profile: Panel From: 0mm To: 3mm }
+}

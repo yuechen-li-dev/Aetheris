@@ -142,7 +142,7 @@ public sealed record FirmamentV2FeatureDefinition(string Name, IReadOnlyList<Fir
     string ReturnType, FirmamentV2SourceSpan SourceSpan, string Scope, string Evaluation);
 public sealed record FirmamentV2FeatureInvocation(string Feature, int Ordinal, string ReturnType,
     IReadOnlyDictionary<string, string> Arguments, FirmamentV2SourceSpan SourceSpan,
-    string ExpandedSemanticKind, string Status)
+    string ExpandedSemanticKind, string Status, string? ResultIdentity = null)
 {
     public string GeneratedByFeature => Feature;
 }
@@ -276,7 +276,7 @@ public sealed record FirmamentV2BossDecl(string Name, string Host, string On, st
 public sealed record FirmamentV2PocketDecl(string Name, string Host, string On, string Profile, double Depth, double HostThickness, double RemainingFloor, double MinimumFloorThickness, string MinimumFloorPolicySource, string StableId, FirmamentV2SourceSpan SourceSpan);
 public sealed record FirmamentV2SelectionDecl(string Name, string Target, string Source, string Requirement, FirmamentV2SourceSpan SourceSpan);
 /// <summary>Normalized, erased-before-materialization evidence for canonical static authoring.</summary>
-public sealed record FirmamentV2StaticAuthoringDocument(IReadOnlyList<FirmamentV2RecordTypeDecl> RecordTypes, IReadOnlyList<FirmamentV2StaticArrayDecl> Arrays, IReadOnlyList<FirmamentV2CanonicalTemplateDecl> Templates, IReadOnlyList<FirmamentV2CanonicalPatternDecl> Patterns, IReadOnlyList<FirmamentV2RequireDecl> Requires, IReadOnlyList<FirmamentV2SemanticConstraint>? SemanticConstraints = null, IReadOnlyDictionary<string, FirmamentV2PmiProjection>? PmiProjections = null, IReadOnlyList<FirmamentV2StaticRecordDecl>? StaticRecords = null, IReadOnlyList<FirmamentV2StaticTableDecl>? Tables = null, IReadOnlyList<FirmamentV2StaticSetDecl>? Sets = null, IReadOnlyList<FirmamentV2MirrorDerivation>? Mirrors = null, IReadOnlyList<FirmamentV2RadialPatternDecl>? RadialPatterns = null);
+public sealed record FirmamentV2StaticAuthoringDocument(IReadOnlyList<FirmamentV2RecordTypeDecl> RecordTypes, IReadOnlyList<FirmamentV2StaticArrayDecl> Arrays, IReadOnlyList<FirmamentV2CanonicalTemplateDecl> Templates, IReadOnlyList<FirmamentV2CanonicalPatternDecl> Patterns, IReadOnlyList<FirmamentV2RequireDecl> Requires, IReadOnlyList<FirmamentV2SemanticConstraint>? SemanticConstraints = null, IReadOnlyDictionary<string, FirmamentV2PmiProjection>? PmiProjections = null, IReadOnlyList<FirmamentV2StaticRecordDecl>? StaticRecords = null, IReadOnlyList<FirmamentV2StaticTableDecl>? Tables = null, IReadOnlyList<FirmamentV2StaticSetDecl>? Sets = null, IReadOnlyList<FirmamentV2MirrorDerivation>? Mirrors = null, IReadOnlyList<FirmamentV2RadialPatternDecl>? RadialPatterns = null, IReadOnlyList<FirmamentV2LinearPatternDecl>? LinearPatterns = null, IReadOnlyList<FirmamentV2Axis2Decl>? PlanarAxes = null, IReadOnlyList<ConceptIrKeyedPointSetValue>? ConceptPoints = null);
 public sealed record FirmamentV2RecordTypeDecl(string Name, IReadOnlyDictionary<string, string> Fields, FirmamentV2SourceSpan SourceSpan);
 public sealed record FirmamentV2StaticArrayDecl(string Name, string ElementType, IReadOnlyList<IReadOnlyDictionary<string, string>> Elements, FirmamentV2SourceSpan SourceSpan);
 /// <summary>A finite immutable source-ordered collection whose entry names are semantic identity.</summary>
@@ -286,7 +286,7 @@ public sealed record FirmamentV2StaticRecordDecl(string Name, string RecordType,
 /// <summary>Columnar compile-time table evidence. Rows are created only on static lookup and never enter AIR.</summary>
 public sealed record FirmamentV2StaticTableDecl(string Name, string RowType, string? KeyField, IReadOnlyDictionary<string, IReadOnlyList<string>> Columns, int RowCount, FirmamentV2SourceSpan SourceSpan);
 public sealed record FirmamentV2CanonicalTemplateDecl(string Name, string ParameterType, string ParameterName, string Body, FirmamentV2SourceSpan SourceSpan);
-public sealed record FirmamentV2CanonicalPatternDecl(string Name, string Source, string Template, int GeneratedCount, IReadOnlyList<string> GeneratedIds, FirmamentV2SourceSpan SourceSpan, IReadOnlyList<FirmamentV2PatternAssociation>? Associations = null);
+public sealed record FirmamentV2CanonicalPatternDecl(string Name, string Source, string Template, int GeneratedCount, IReadOnlyList<string> GeneratedIds, FirmamentV2SourceSpan SourceSpan, IReadOnlyList<FirmamentV2PatternAssociation>? Associations = null, IReadOnlyList<string>? SiteRecipe = null);
 public sealed record FirmamentV2PatternAssociation(string GeneratedId, string SourceSet, string SourceEntry, string SourceValue, int ExpansionOrdinal, FirmamentV2SourceSpan Provenance);
 public sealed record FirmamentV2MirrorDerivation(string Destination, string Kind, string Source, string AcrossPlane, string HandednessCorrection, IReadOnlyList<FirmamentV2MirrorMemberProvenance> Members, FirmamentV2SourceSpan SourceSpan, IReadOnlyList<string> Provenance);
 public sealed record FirmamentV2MirrorMemberProvenance(string DerivedIdentity, string SourceIdentity, string Transform, string SourceSpan);
@@ -321,3 +321,7 @@ public sealed record FirmamentV2ParseResult(
     public static FirmamentV2ParseResult Success(FirmamentV2Document document, IReadOnlyList<string> diagnostics) => new(true, document, diagnostics, FirmamentV2ParseDisposition.RecognizedValid);
     public static FirmamentV2ParseResult Failure(IReadOnlyList<string> diagnostics, FirmamentV2ParseDisposition disposition = FirmamentV2ParseDisposition.RecognizedInvalid) => new(false, null, diagnostics, disposition);
 }
+
+public sealed record FirmamentV2LinearPatternDecl(string Name, string Source, string Direction, int Count, double Spacing, double DirectionX, double DirectionY, IReadOnlyList<string> GeneratedFeatures, FirmamentV2SourceSpan SourceSpan);
+
+public sealed record FirmamentV2Axis2Decl(string Identity, double OriginX, double OriginY, double DirectionX, double DirectionY, FirmamentV2SourceSpan SourceSpan);

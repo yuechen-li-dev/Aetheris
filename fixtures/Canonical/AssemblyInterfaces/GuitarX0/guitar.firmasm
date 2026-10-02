@@ -1,27 +1,88 @@
+include "materials.firmament";
 // GUITAR-SURFACING-X0: composition root. Geometry and local layout live in modules.
-Include "hardware-definitions.firmament";
-Include "body-assembly.firmament";
-Include "neck-assembly.firmament";
-Include "electronics-assembly.firmament";
-Include "bridge-assembly.firmament";
-Include "strings-assembly.firmament";
+include "hardware-definitions.firmament";
+include "body-assembly.firmament";
+include "neck-assembly.firmament";
+include "electronics-assembly.firmament";
+include "bridge-assembly.firmament";
+include "strings-assembly.firmament";
+
+Record GuitarReleaseInfo {
+  Author: String
+  CreatorKind: String
+  Date: Date
+  Version: Version
+  Milestone: String
+  Description: String
+  Organization: String
+  Units: String
+  AuthoringTolerance: Length
+  Status: String
+}
+Static GuitarRelease: GuitarReleaseInfo {
+  Author: "GPT 6.1 Sol Codex"
+  CreatorKind: "AI agent; human-directed design and review"
+  Date: 2026-10-01
+  Version: 0.1.0
+  Milestone: "GUITAR-SURFACING-X0"
+  Description: "Aetheris single-cut carved-top electric guitar presentation witness"
+  Organization: "Aetheris"
+  Units: "mm"
+  AuthoringTolerance: 0.1mm
+  Status: "Presentation demonstrator; not released for manufacture"
+}
 Assembly GuitarX0 {
- <Assembly GuitarX0>
-  <Assembly Body = GuitarBody>
-   Placement { From: Origin; To: World; }
+  provenance: GuitarRelease;
+  Pmi {
+    Note DesignIntent {
+      target: GuitarX0;
+      text: "Single-cut carved-top electric guitar inspired by the Les Paul silhouette; original demo proportions, no trademark-faithful reproduction or branding.";
+    }
+    Note AuthoringTolerance {
+      target: GuitarX0;
+      text: "Nominal authoring tolerance: 0.1 mm. Round authored engineering locations to this resolution where practical; preserve derived surface controls and mathematical evaluations. This convention is not a manufacturing acceptance limit, kernel tolerance, or tessellation setting.";
+    }
+    Note CarvedBody {
+      target: GuitarX0.Body;
+      text: "Carved maple top and mahogany back use source-owned profiles and exact admitted section-chain surfaces. The top is not globally planar; hardware seats on explicit Concept datums. Binding is decorative.";
+    }
+    Note NeckJoint {
+      target: GuitarX0.Neck;
+      text: "The neck has a nearly straight shaft back and an exact section-chain transition into a tilted headstock. Neck, scarf, and headstock are separate solids with intentional contact/overlap; globally fused G2 joinery and manufacturing fit are not qualified.";
+    }
+    Note Electronics {
+      target: GuitarX0.Electronics;
+      text: "Pickups, poles, knobs, and selector are presentation geometry with reusable definitions and datum-based placement. Coil winding, wiring, switches, and electrical function are not modeled.";
+    }
+    Note BridgeHardware {
+      target: GuitarX0.Bridge;
+      text: "Bridge, six saddles, and a semicircular stop-tailpiece rail support the visible string route. Anchor holes, adjustment mechanisms, and structural or intonation qualification are omitted.";
+    }
+    Note StringsAndTuners {
+      target: GuitarX0.Strings;
+      text: "Six point-driven WireForm strings follow nut, bridge, tailpiece, and tuner entry datums. Tension, vibration, winding, and tuner internals are decorative simplifications; tuner buttons have physical connector stems.";
+    }
+    Note Finish {
+      target: GuitarX0;
+      text: "Firmament assigns nominal physical materials and semantic appearance overrides. USD carries preview appearances; the glossy amber-to-dark-edge sunburst and studio lighting are realized downstream in Blender Cycles, not encoded as STEP texture or extra geometry.";
+    }
+  }
+  <Assembly GuitarX0>
+    <Assembly Body = GuitarBody>
+      Placement { from: Origin; to: World; }
+    </Assembly>
+    <Assembly Neck = GuitarNeck>
+      Placement { from: Origin; to: World; }
+    </Assembly>
+    <Assembly Electronics = GuitarElectronics>
+      Placement { from: Origin; to: World; }
+    </Assembly>
+    <Assembly Bridge = GuitarBridge>
+      Placement { from: Origin; to: World; }
+    </Assembly>
+    <Assembly Strings = GuitarStrings>
+      Placement { from: Origin; to: World; }
+    </Assembly>
   </Assembly>
-  <Assembly Neck = GuitarNeck>
-   Placement { From: Origin; To: World; }
-  </Assembly>
-  <Assembly Electronics = GuitarElectronics>
-   Placement { From: Origin; To: World; }
-  </Assembly>
-  <Assembly Bridge = GuitarBridge>
-   Placement { From: Origin; To: World; }
-  </Assembly>
-  <Assembly Strings = GuitarStrings>
-   Placement { From: Origin; To: World; }
-  </Assembly>
- </Assembly>
- Anchor: GuitarX0;
+  anchor: GuitarX0;
 }

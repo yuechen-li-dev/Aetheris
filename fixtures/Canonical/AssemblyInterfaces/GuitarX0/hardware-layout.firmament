@@ -1,0 +1,7 @@
+Concept Struct GuitarLayout {
+ Plane HardwareDeck { from: SectionChainFile<"CarvedMaple.firmament">.TopSeat.Frame; offset: 0mm; clocking: 0deg }
+ DatumFrame BodySeat { on: HardwareDeck; at: [0mm,0mm]; x: [1,0] }
+ DatumFrame NeckPickupSeat { on: HardwareDeck; at: [0mm,98mm]; x: [1,0] }
+ DatumFrame BridgePickupSeat { on: HardwareDeck; at: [0mm,0mm]; x: [1,0] }
+ DatumFrame BridgeSeat { on: HardwareDeck; at: [0mm,-35mm]; x: [1,0] }
+}

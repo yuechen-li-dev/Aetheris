@@ -72,12 +72,14 @@ public static class LoftSemanticDeclaration { }
 [FirmamentConstruct("Concept", "Concept", Context = "Document", Entry = "Concept MountingFrame { Bounds: Box3; TopPlane: Plane }", Description = "Named semantic requirements; member names and types are authored per Concept.")]
 public static class ConceptSemanticDeclaration { }
 
-[FirmamentConstruct("InterfaceFixed", "Interface<Fixed>", Context = "Assembly", Entry = "Interface<Fixed> Mount { A: Assembly.Base.Mount; B: Assembly.Link.Socket; }", Description = "Two semantic datum frames define one zero-DOF rigid relationship.")]
+[FirmamentConstruct("InterfaceFixed", "Interface<Fixed>", Context = "Assembly", Entry = "Interface<Fixed> Mount { A: Assembly.Base.Mount; B: Assembly.Link.Socket; }", Description = "Two semantic frames, or members seated on a shared Concept datum, define a rigid relationship.")]
 [FirmamentField("A", "A", FirmamentSchemaValueKind.ConstructReference, Required = true, Description = "Parent occurrence's source-addressable DatumFrame-capable semantic port.")]
 [FirmamentField("B", "B", FirmamentSchemaValueKind.ConstructReference, Required = true, Description = "Child occurrence's source-addressable DatumFrame-capable semantic port.")]
 [FirmamentField("Gap", "Gap", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Default = "0mm", Description = "Seat translation along A's positive Z.")]
 [FirmamentField("Clocking", "Clocking", FirmamentSchemaValueKind.Angle, Unit = FirmamentUnitKind.Angle, Default = "0deg", Description = "Right-handed rotation about A's positive Z.")]
 [FirmamentField("Orientation", "Orientation", FirmamentSchemaValueKind.Choice, Default = "SameDirection", Choices = ["SameDirection", "OpposedDirection"])]
+[FirmamentField("Datum", "Datum", FirmamentSchemaValueKind.ConstructReference, Description = "Shared Concept plane or axis instead of A/B.")]
+[FirmamentField("Members", "Members", FirmamentSchemaValueKind.Vector, Description = "Checked published member seats on the common Datum.")]
 public static class FixedInterfaceSemanticDeclaration { }
 
 [FirmamentConstruct("AssemblyPlacement", "Placement", Context = "Assembly", Entry = "Placement { From: Origin; To: World; TranslateLocal: [0mm,0mm,0mm]; }", Description = "One authored rigid layout authority; lowered through the existing frame solver.")]

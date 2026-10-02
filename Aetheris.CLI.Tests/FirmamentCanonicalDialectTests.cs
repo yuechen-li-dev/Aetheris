@@ -5,7 +5,9 @@ namespace Aetheris.CLI.Tests;
 public sealed class FirmamentCanonicalDialectTests
 {
     private static readonly Regex NonCanonicalVocabulary = new(
-        @"(?m)^\s*(?:model|units|solid|modify|analysis|fixed|force|pmi)\b|\b(?:size|radius|height|body|material|region|components|vector|results|lattice|target|value|tolerance|datumrefs)\s*:",
+        // Artifact/declaration vocabulary still distinguishes these samples
+        // from the legacy grammar. Property casing is a convention, not a gate.
+        @"(?m)^\s*(?:model|solid|modify|analysis|fixed|force|pmi)\b|^\s*units\s+(?!:)",
         RegexOptions.CultureInvariant);
 
     private static readonly Regex FirmamentFence = new(
@@ -17,7 +19,7 @@ public sealed class FirmamentCanonicalDialectTests
         RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
     [Fact]
-    public void CanonicalFixtures_UseOnlyCanonicalOwnedVocabulary()
+    public void CanonicalFixtures_UseArtifactFirstVocabulary()
     {
         var root = FindRoot();
         var files = Directory.GetFiles(Path.Combine(root, "fixtures", "Canonical"), "*.firmament", SearchOption.AllDirectories);
@@ -27,7 +29,7 @@ public sealed class FirmamentCanonicalDialectTests
     }
 
     [Fact]
-    public void PublicFirmamentExamplesAndSnippets_UseOnlyCanonicalOwnedVocabulary()
+    public void PublicFirmamentExamplesAndSnippets_UseArtifactFirstVocabulary()
     {
         var root = FindRoot();
         var examples = Directory.GetFiles(Path.Combine(root, "docs", "public"), "*.md", SearchOption.AllDirectories)

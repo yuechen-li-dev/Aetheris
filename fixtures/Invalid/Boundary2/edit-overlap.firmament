@@ -1,0 +1,10 @@
+Model OverlappingEdits {
+ Units: mm
+ Rect2 Blank { Center: [0mm,0mm]; Size: [120mm,80mm] }
+ Profile Panel {
+  From: Blank
+  Replace First { On: Blank.Right; Range: [20mm,60mm]; Through: [[48mm,0mm]] }
+  Replace Second { On: Blank.Right; Range: [30mm,70mm]; Through: [[50mm,0mm]] }
+ }
+ Extrude Body { Profile: Panel From: 0mm To: 3mm }
+}

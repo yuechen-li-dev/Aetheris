@@ -1,0 +1,5 @@
+Model ScalarPart {
+ Units: mm
+ Function Height(n: Int) -> Length = 2mm * n;
+ Box Body { Size: [2mm,3mm,Height(4)] }
+}

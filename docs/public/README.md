@@ -24,3 +24,8 @@ For closed-shape authoring with named tabs and smooth replacements, see
 
 For reusable knobs, selectors, tuners and keyed mounting rows, see
 [Assembly components and mounting sites](firmament/assembly-components-and-sites.md).
+
+For transferable CAD authoring guidance for LLMs, see the
+[Firmament modeling strategy skill](skills/firmament-modeling-strategy/SKILL.md).
+It covers construction choices, Concept scaffolding, physical coherence and
+reporting compiler gaps; current language guides remain the syntax authority.

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Firmament Modeling Strategy"
+  short_description: "CAD strategy, stable references, and honest gap reports"
+  default_prompt: "Use $firmament-modeling-strategy to plan and build a coherent Firmament model, verify its geometry, and report tooling gaps with recommended permanent fixes."

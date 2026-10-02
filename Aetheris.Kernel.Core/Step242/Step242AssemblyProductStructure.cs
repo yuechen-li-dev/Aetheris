@@ -24,7 +24,12 @@ public sealed record Step242AssemblyExportModel(
     string Name,
     string RootOccurrenceStableId,
     IReadOnlyList<Step242AssemblyDefinition> Definitions,
-    IReadOnlyList<Step242AssemblyOccurrence> Occurrences);
+    IReadOnlyList<Step242AssemblyOccurrence> Occurrences,
+    Step242HeaderMetadata? HeaderMetadata = null,
+    IReadOnlyList<Step242AssemblyNote>? Notes = null);
+
+/// <summary>A semantic annotation scoped to an assembly product, with an explicit occurrence path in its target.</summary>
+public sealed record Step242AssemblyNote(string OccurrenceStableId, Step242SemanticPmiNote Note);
 
 public sealed record Step242ImportedProductDefinition(
     string StableId,
@@ -60,6 +65,7 @@ public static class Step242AssemblyExporter
 
         var entities = new List<string>();
         var definitionRefs = new Dictionary<string, (int ProductDefinition, int Representation)>(StringComparer.Ordinal);
+        var productShapes = new Dictionary<int, int>();
         foreach (var definition in model.Definitions.Where(item => item.Body is not null).OrderBy(item => item.StableId, StringComparer.Ordinal))
         {
             var exported = Step242Exporter.ExportBody(definition.Body!, options: new Step242ExportOptions
@@ -76,6 +82,7 @@ public static class Step242AssemblyExporter
             var representation = FindEntityId(block, "SHAPE_REPRESENTATION") + offset;
             entities.AddRange(remapped);
             definitionRefs[definition.StableId] = (productDefinition, representation);
+            productShapes[productDefinition] = FindEntityId(block, "PRODUCT_DEFINITION_SHAPE") + offset;
         }
 
         int Add(string name, params string[] args)
@@ -108,6 +115,7 @@ public static class Step242AssemblyExporter
             var formation = Add("PRODUCT_DEFINITION_FORMATION", Str(""), Str(""), Ref(product));
             var productDefinition = Add("PRODUCT_DEFINITION", Str(definition.StableId), Str(""), Ref(formation), Ref(definitionContext));
             var shape = Add("PRODUCT_DEFINITION_SHAPE", Str(""), Str(""), Ref(productDefinition));
+            productShapes[productDefinition] = shape;
             var representation = Add("SHAPE_REPRESENTATION", Str(definition.Name), "()", Ref(representationContext));
             Add("SHAPE_DEFINITION_REPRESENTATION", Ref(shape), Ref(representation));
             definitionRefs[definition.StableId] = (productDefinition, representation);
@@ -120,6 +128,7 @@ public static class Step242AssemblyExporter
             var formation = Add("PRODUCT_DEFINITION_FORMATION", Str(""), Str(""), Ref(product));
             var definition = Add("PRODUCT_DEFINITION", Str(occurrence.StableId), Str(""), Ref(formation), Ref(definitionContext));
             var shape = Add("PRODUCT_DEFINITION_SHAPE", Str(""), Str(""), Ref(definition));
+            productShapes[definition] = shape;
             var representation = Add("SHAPE_REPRESENTATION", Str(occurrence.Name), "()", Ref(representationContext));
             Add("SHAPE_DEFINITION_REPRESENTATION", Ref(shape), Ref(representation));
             assemblyRefs[occurrence.StableId] = (definition, representation);
@@ -153,11 +162,20 @@ public static class Step242AssemblyExporter
             Add("CONTEXT_DEPENDENT_SHAPE_REPRESENTATION", Ref(relationship), Ref(usageShape));
         }
 
+        foreach (var annotation in model.Notes ?? [])
+        {
+            var owner = model.Occurrences.Single(item => item.StableId == annotation.OccurrenceStableId);
+            var product = owner.DefinitionStableId is null ? assemblyRefs[owner.StableId] : definitionRefs[owner.DefinitionStableId];
+            Step242Exporter.EmitNoteSemanticPmi((name, args) => Ref(Add(name, args)), Ref(productShapes[product.ProductDefinition]), annotation.Note);
+        }
+
+        var header = model.HeaderMetadata ?? Step242HeaderMetadata.Deterministic with
+        { FileName = "aetheris_assembly.step", Description = "Aetheris AP242 assembly product structure" };
         var builder = new StringBuilder();
         Step242TextWriter.AppendCanonicalLine(builder, "ISO-10303-21;");
         Step242TextWriter.AppendCanonicalLine(builder, "HEADER;");
-        Step242TextWriter.AppendCanonicalLine(builder, "FILE_DESCRIPTION(('Aetheris AP242 assembly product structure'),'2;1');");
-        Step242TextWriter.AppendCanonicalLine(builder, "FILE_NAME('aetheris_assembly.step','1970-01-01T00:00:00',('Aetheris'),('Aetheris'),'Aetheris.Kernel','Aetheris.Kernel','');");
+        Step242TextWriter.AppendCanonicalLine(builder, $"FILE_DESCRIPTION(({Str(header.Description)}),'2;1');");
+        Step242TextWriter.AppendCanonicalLine(builder, $"FILE_NAME({Str(header.FileName)},{Str(header.CreationTimestamp)},({Str(header.Author)}),({Str(header.Organization)}),{Str(header.PreprocessorVersion)},{Str(header.OriginatingSystem)},{Str(header.Authorization)});");
         Step242TextWriter.AppendCanonicalLine(builder, "FILE_SCHEMA(('AP242_MANAGED_MODEL_BASED_3D_ENGINEERING_MIM_LF'));");
         Step242TextWriter.AppendCanonicalLine(builder, "ENDSEC;");
         Step242TextWriter.AppendCanonicalLine(builder, "DATA;");
@@ -174,6 +192,11 @@ public static class Step242AssemblyExporter
         var definitions = model.Definitions.Select(item => item.StableId).ToHashSet(StringComparer.Ordinal);
         if (!occurrences.TryGetValue(model.RootOccurrenceStableId, out var root) || root.ParentStableId is not null || root.DefinitionStableId is not null)
             diagnostics.Add(Diagnostic("AP242 assembly root must identify a root assembly occurrence.", "Exporter.Assembly.Root"));
+        foreach (var note in model.Notes ?? [])
+            if (!occurrences.ContainsKey(note.OccurrenceStableId) || string.IsNullOrWhiteSpace(note.Note.FeatureId)
+                || string.IsNullOrWhiteSpace(note.Note.Target) || string.IsNullOrWhiteSpace(note.Note.Text)
+                || note.Note.GeometricFaceIds.Count != 0)
+                diagnostics.Add(Diagnostic("Assembly notes require a known occurrence and non-empty semantic identity, target and text; face associations are not admitted.", "Exporter.Assembly.Note"));
         foreach (var occurrence in model.Occurrences)
         {
             if (occurrence.ParentStableId is not null && !occurrences.ContainsKey(occurrence.ParentStableId)) diagnostics.Add(Diagnostic($"Occurrence '{occurrence.StableId}' has missing parent '{occurrence.ParentStableId}'.", "Exporter.Assembly.UnresolvedParent"));

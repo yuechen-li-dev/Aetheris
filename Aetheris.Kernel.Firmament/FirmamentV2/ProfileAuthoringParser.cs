@@ -13,7 +13,7 @@ public static class ProfileAuthoringParser
 {
     public const string SegmentEndpointMustReferenceNamedPoint = "ProfileSegmentEndpointMustReferenceNamedPoint";
     private const double Tolerance = 1e-9;
-    private static readonly Regex Point = new(@"\bPoint2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*Position\s*:\s*(?:\[|Point2\s*\()\s*(?<x>[-+.\deE]+)mm\s*,\s*(?<y>[-+.\deE]+)mm\s*(?:\]|\))", RegexOptions.Singleline | RegexOptions.CultureInvariant);
+    private static readonly Regex Point = new(@"\bPoint2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*Position\s*:\s*(?:\[(?<xy>[^\[\]\r\n]+)\]|Point2\s*\((?<xy>[^()\r\n]+)\))", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex Line = new(@"\bLine2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*From\s*:\s*(?<a>[\w.]+)\s*;?\s*To\s*:\s*(?<b>[\w.]+)", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex CubicBezier = new(@"\bCubicBezier2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*From\s*:\s*(?<a>[\w.]+)\s*;?\s*Control1\s*:\s*(?<c1>[\w.]+)\s*;?\s*Control2\s*:\s*(?<c2>[\w.]+)\s*;?\s*To\s*:\s*(?<b>[\w.]+)", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex Circle = new(@"(?:\bConcept\s+)?\bCircle2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*Center\s*:\s*(?<c>[\w.]+)\s*;?\s*Radius\s*:\s*(?<r>[-+.\deE]+)mm", RegexOptions.Singleline | RegexOptions.CultureInvariant);
@@ -45,13 +45,25 @@ public static class ProfileAuthoringParser
 
     /// <summary>Resolves one named Profile without requiring an Extrude consumer.</summary>
     public static ResolvedProfile2D? ResolveNamedProfile(string source, string profileName, out IReadOnlyList<string> reportedDiagnostics)
+        => ResolveNamedProfileCore(source, profileName, new(StringComparer.Ordinal), out reportedDiagnostics);
+
+    internal static ResolvedProfile2D? ResolveNamedProfileCore(string source, string profileName, HashSet<string> visiting, out IReadOnlyList<string> reportedDiagnostics)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentException.ThrowIfNullOrWhiteSpace(profileName);
         var diagnostics = new List<string>();
+        if (!visiting.Add(profileName)) { reportedDiagnostics = [$"concept-profile-dependency-cycle:{profileName}"]; return null; }
+        source = ProfileModificationTemplateLibrary.ResolveImports(source);
         source = ExpandBuiltInPolygons(source, diagnostics);
         var expansion = FirmamentV2TemplateExpansion.Expand(source, diagnostics);
         if (expansion is not null) source = expansion.Source;
+        if (ProfileBoundaryAuthoring.TryResolve(source, profileName, visiting, diagnostics, out var derived)
+            || ConceptProfileDerivation.TryResolve(source, profileName, visiting, diagnostics, out derived))
+        {
+            visiting.Remove(profileName);
+            reportedDiagnostics = diagnostics.Distinct(StringComparer.Ordinal).ToArray();
+            return diagnostics.Count == 0 ? derived : null;
+        }
         var declaration = FindProfiles(source).FirstOrDefault(profile => profile.Name == profileName);
         if (declaration is null) { reportedDiagnostics = [$"profile-source-missing-profile:{profileName}"]; return null; }
         var points = new Dictionary<string, (double X, double Y)>(StringComparer.Ordinal);
@@ -68,6 +80,7 @@ public static class ProfileAuthoringParser
             if (!validation.IsValid) profile = null;
         }
         reportedDiagnostics = diagnostics.Distinct(StringComparer.Ordinal).ToArray();
+        visiting.Remove(profileName);
         return profile;
     }
 
@@ -164,6 +177,13 @@ public static class ProfileAuthoringParser
         if (profile is null)
             return (null, 0, ["profile-source-missing-profile"]);
 
+        if (ProfileBoundaryAuthoring.TryResolve(source, profile.Name, new(StringComparer.Ordinal) { profile.Name }, diagnostics, out var conceptProfile)
+            || ConceptProfileDerivation.TryResolve(source, profile.Name, new(StringComparer.Ordinal) { profile.Name }, diagnostics, out conceptProfile))
+        {
+            var depths = ResolveExtrude(source, profile.Name, diagnostics);
+            return (conceptProfile is null ? null : conceptProfile with { LocalStartDepth = depths.Start, LocalEndDepth = depths.End }, depths.Height, diagnostics);
+        }
+
         var points = new Dictionary<string, (double X, double Y)>(StringComparer.Ordinal);
         var guides = new Dictionary<string, LineArcProfileCurve2D>(StringComparer.Ordinal);
         AddOrdinaryGuides(source, points, guides, diagnostics);
@@ -187,8 +207,11 @@ public static class ProfileAuthoringParser
     {
         // This is the canonical semantic-profile adapter used by Compose and SectionChain.
         // Its historical name remains source-compatible; pipeline syntax is erased here too.
+        source = ProfileModificationTemplateLibrary.ResolveImports(source);
         source = ExpandBuiltInPolygons(source, diagnostics);
-        var authoredProfiles = FindProfiles(source).Where(candidate => candidate.FromPath is not null || candidate.Body?.Contains("|>", StringComparison.Ordinal) == true).ToArray();
+        var templates = FirmamentV2TemplateExpansion.Expand(source, diagnostics);
+        if (templates is not null) source = templates.Source;
+        var authoredProfiles = FindProfiles(source).Where(candidate => candidate.FromPath is not null || candidate.Body?.Contains("|>", StringComparison.Ordinal) == true || ProfileBoundaryAuthoring.IsDerived(candidate.Body)).ToArray();
         if (authoredProfiles.Length == 0) return new Dictionary<string, ResolvedProfile2D>();
         var points = new Dictionary<string, (double X, double Y)>(StringComparer.Ordinal);
         var guides = new Dictionary<string, LineArcProfileCurve2D>(StringComparer.Ordinal);
@@ -197,6 +220,12 @@ public static class ProfileAuthoringParser
         var profiles = new Dictionary<string, ResolvedProfile2D>(StringComparer.Ordinal);
         foreach (var profile in authoredProfiles)
         {
+            if (ProfileBoundaryAuthoring.TryResolve(source, profile.Name, new(StringComparer.Ordinal) { profile.Name }, diagnostics, out var derived)
+                || ConceptProfileDerivation.TryResolve(source, profile.Name, new(StringComparer.Ordinal) { profile.Name }, diagnostics, out derived))
+            {
+                if (derived is not null && !profiles.TryAdd(profile.Name, derived)) diagnostics.Add($"profile-duplicate:{profile.Name}");
+                continue;
+            }
             var plane = ResolveConstructionPlane(source, profile.Frame, diagnostics);
             var loops = BindProfileLoops(profile, paths, points, guides, diagnostics);
             if (plane is null || loops.Count == 0) continue;
@@ -218,8 +247,15 @@ public static class ProfileAuthoringParser
     private static void AddOrdinaryGuides(string source, Dictionary<string, (double X, double Y)> points, Dictionary<string, LineArcProfileCurve2D> guides, List<string> diagnostics, bool applySpans = true)
     {
         foreach (Match match in Point.Matches(source))
-            if (TryNumber(match.Groups["x"].Value, out var x) && TryNumber(match.Groups["y"].Value, out var y))
+        {
+            // Profile Templates substitute dimensions before this binder. Reuse the
+            // bounded, unit-checked scalar evaluator for authored control arithmetic.
+            var xy = match.Groups["xy"].Value.Split(',');
+            if (xy.Length == 2 && FirmamentV2FeatureExpansion.TryEvaluateScalar(xy[0], out var x, out var xu) && xu == "mm"
+                && FirmamentV2FeatureExpansion.TryEvaluateScalar(xy[1], out var y, out var yu) && yu == "mm")
                 points[match.Groups["n"].Value] = (x, y);
+            else diagnostics.Add($"profile-layout-point-invalid:{match.Groups["n"].Value}:expected-two-finite-lengths");
+        }
         foreach (Match match in Rect.Matches(source))
         {
             var name = match.Groups["n"].Value;

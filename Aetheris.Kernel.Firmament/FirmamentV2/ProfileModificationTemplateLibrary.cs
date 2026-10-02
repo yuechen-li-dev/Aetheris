@@ -1,10 +1,13 @@
 using System.Reflection;
+using System.Text.RegularExpressions;
 
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
 public static class ProfileModificationTemplateLibrary
 {
     private const string ResourceName="Aetheris.Kernel.Firmament.Resources.ProfileModifications.firmament";
+    public static string ResolveImports(string source) => Regex.IsMatch(source, @"\bUse\s+Profile\.Modifications\s*;")
+        ? Source + Environment.NewLine + Regex.Replace(source, @"\bUse\s+Profile\.Modifications\s*;", "") : source;
     public static string Source
     {
         get

@@ -1,0 +1,28 @@
+// One complete tuner placeholder. The button projects along local -X.
+// The opposite row clocks this same component 180deg about its mounting normal.
+Subassembly GuitarTuner {
+  <Assembly GuitarTuner>
+    <Part TunerWasher = Drum<R:7mm,H:1.5mm>>
+      material: Steel;
+      Placement { from: BottomSeat.Frame; to: World; }
+    </Part>
+    <Part TunerPost = Drum<R:4mm,H:8mm,EntryHeight:5mm>>
+      material: Steel;
+      Placement { from: BottomSeat.Frame; to: World; }
+    </Part>
+    <Part TunerButton = Panel<L:15mm,W:19mm,H:6mm,R:5mm>>
+      material: IvoryPolymer;
+      Placement { from: BottomSeat.Frame; to: World; translateLocal: [-22mm, 0mm, -7mm]; }
+    </Part>
+    // Lateral spindle joins the button to the head, below the veneer surface.
+    // It belongs to the reusable tuner, so both patterned rows share this solid.
+    <Part ButtonStem = Drum<R:2.5mm,H:16mm>>
+      material: Steel with { appearance: PolishedNickel; };
+      Placement { from: BottomSeat.Frame; to: World;
+        translateLocal: [-16mm, 0mm, -4mm];
+        rotateLocal: { axis: Y; angle: 90deg } }
+    </Part>
+  </Assembly>
+  anchor: GuitarTuner;
+  expose { DatumFrame Mount = TunerWasher.BottomSeat.Frame; DatumFrame StringEntry = TunerPost.StringEntry.Frame; }
+}

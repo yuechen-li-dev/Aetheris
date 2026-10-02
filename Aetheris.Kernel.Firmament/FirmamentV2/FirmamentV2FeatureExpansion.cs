@@ -6,7 +6,7 @@ namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
 /// <summary>
 /// Bounded, pure expansion for Firmament's function-like Feature declarations.
-/// Feature bodies are deliberately expression-only: immutable local derivations and one
+/// Feature bodies contain immutable local derivations/construction declarations and one
 /// terminal return. Expansion produces ordinary semantic declarations before Feature AIR.
 /// </summary>
 internal static class FirmamentV2FeatureExpansion
@@ -31,7 +31,7 @@ internal static class FirmamentV2FeatureExpansion
 
     private sealed record Parameter(string Name, string Type, string? DefaultExpression, FirmamentV2SourceSpan Span);
     private sealed record Declaration(string Name, ImmutableArray<Parameter> Parameters, string ReturnTypeName,
-        string ReturnExpression, ImmutableArray<Local> Locals, FirmamentV2SourceSpan Span);
+        string ReturnExpression, ImmutableArray<Local> Locals, string Construction, ImmutableArray<string> ConstructionNames, FirmamentV2SourceSpan Span);
     private sealed record Local(string Name, string Type, string Expression);
 
     internal sealed record Result(
@@ -59,9 +59,9 @@ internal static class FirmamentV2FeatureExpansion
         var invocations = new List<FirmamentV2FeatureInvocation>();
         var ordinal = 0;
         string ExpandCall(Declaration declaration, string argumentText, FirmamentV2SourceSpan span,
-            IReadOnlyList<string> stack, bool patternContext)
+            IReadOnlyList<string> stack, bool patternContext, string? resultName = null)
         {
-            var bound = Bind(declaration, argumentText, span.Start, diagnostics);
+            var bound = Bind(declaration, argumentText, span.Start, diagnostics, source);
             if (bound is null) return string.Empty;
             var invocationOrdinal = ordinal++;
             var environment = new Dictionary<string, string>(bound, StringComparer.Ordinal);
@@ -81,7 +81,16 @@ internal static class FirmamentV2FeatureExpansion
                 environment[local.Name] = NormalizeExpression(expression, local.Type);
             }
 
+            var construction = Substitute(declaration.Construction, environment);
             var returned = Substitute(declaration.ReturnExpression, environment).Trim();
+            var prefix = resultName is null ? declaration.Name + "__" + invocationOrdinal.ToString(CultureInfo.InvariantCulture)
+                : stack.Count == 1 ? resultName : resultName + "__Call" + invocationOrdinal.ToString(CultureInfo.InvariantCulture);
+            foreach (var localName in declaration.ConstructionNames)
+            {
+                var generated = prefix + "__" + localName;
+                construction = Regex.Replace(construction, $@"\b{Regex.Escape(localName)}\b(?!\s*:)", generated);
+                returned = Regex.Replace(returned, $@"\b{Regex.Escape(localName)}\b(?!\s*:)", generated);
+            }
             var nested = Regex.Match(returned, @"^(?<name>[A-Za-z_]\w*)\s*\((?<args>[\s\S]*)\)$", RegexOptions.CultureInvariant);
             string expanded;
             string expandedKind;
@@ -98,7 +107,7 @@ internal static class FirmamentV2FeatureExpansion
                     return string.Empty;
                 }
                 expanded = ExpandCall(nestedDeclaration, nested.Groups["args"].Value, span,
-                    stack.Append(nestedDeclaration.Name).ToArray(), patternContext);
+                    stack.Append(nestedDeclaration.Name).ToArray(), patternContext, resultName);
                 expandedKind = nestedDeclaration.ReturnTypeName;
             }
             else
@@ -124,15 +133,15 @@ internal static class FirmamentV2FeatureExpansion
                     diagnostics.Add(ReturnType + $":{declaration.Name}:expected-{declaration.ReturnTypeName}:actual-{expandedKind}");
                     return string.Empty;
                 }
-                var generatedName = patternContext
+                var generatedName = resultName ?? (patternContext
                     ? PatternItemName(returned, declaration.Name, invocationOrdinal)
-                    : declaration.Name + "__" + invocationOrdinal.ToString(CultureInfo.InvariantCulture);
+                    : declaration.Name + "__" + invocationOrdinal.ToString(CultureInfo.InvariantCulture));
                 expanded = returned.Insert(constructor.Index + constructor.Length - 1, " " + generatedName + " ");
             }
 
             invocations.Add(new(declaration.Name, invocationOrdinal, declaration.ReturnTypeName,
-                bound, span, expandedKind, "ExpandedBeforeFeatureAir"));
-            return expanded;
+                bound, span, expandedKind, "ExpandedBeforeFeatureAir", resultName));
+            return construction + "\n" + expanded;
         }
 
         var changes = declarations.Select(item => (item.Span.Start, item.Span.Length, Text: string.Empty)).ToList();
@@ -148,9 +157,10 @@ internal static class FirmamentV2FeatureExpansion
             var open = source.IndexOf('(', site.Call.Index); var close = Matching(source, open, '(', ')');
             if (close < 0) { diagnostics.Add(ArgumentCount + ":" + site.Declaration.Name); continue; }
             var span = new FirmamentV2SourceSpan(site.Call.Index, close - site.Call.Index + 1);
+            var named = Regex.Match(source[..site.Call.Index], @"\bFeature\s+(?<name>[A-Za-z_]\w*)\s*=\s*$");
             var patternContext = IsInsideBlock(source, site.Call.Index, "Pattern");
-            var expansion = ExpandCall(site.Declaration, source[(open + 1)..close], span, [site.Declaration.Name], patternContext);
-            if (expansion.Length > 0) changes.Add((span.Start, span.Length, expansion));
+            var expansion = ExpandCall(site.Declaration, source[(open + 1)..close], span, [site.Declaration.Name], patternContext, named.Success ? named.Groups["name"].Value : null);
+            if (expansion.Length > 0) changes.Add((named.Success ? named.Index : span.Start, close - (named.Success ? named.Index : span.Start) + 1, expansion));
         }
         if (HasErrors(diagnostics)) return null;
         foreach (var change in changes.OrderByDescending(item => item.Start))
@@ -204,11 +214,24 @@ internal static class FirmamentV2FeatureExpansion
                 locals.Add(new(local.Groups["name"].Value, local.Groups["type"].Value, local.Groups["expression"].Value.Trim()));
                 consumed.Add((local.Index, local.Length));
             }
+            var constructionNames = ImmutableArray.CreateBuilder<string>();
+            var constructions = new List<string>();
+            foreach (Match local in Regex.Matches(beforeReturn, @"\b(?:Point2|Circle2|RoundedRect2|Rect2|Profile)\s+(?<name>[A-Za-z_]\w*)\s*\{"))
+            {
+                var localClose = Matching(beforeReturn, beforeReturn.IndexOf('{', local.Index), '{', '}');
+                if (localClose < 0) { diagnostics.Add(UnsupportedBody + ":" + name); continue; }
+                var localName = local.Groups["name"].Value;
+                if (constructionNames.Contains(localName) || parameters.Any(p => p.Name == localName) || locals.Any(l => l.Name == localName))
+                    diagnostics.Add(LocalDuplicate + $":{name}:{localName}");
+                constructionNames.Add(localName);
+                constructions.Add(beforeReturn[local.Index..(localClose + 1)]);
+                consumed.Add((local.Index, localClose - local.Index + 1));
+            }
             var residue = beforeReturn;
             foreach (var item in consumed.OrderByDescending(item => item.Start)) residue = residue.Remove(item.Start, item.Length);
             if (!string.IsNullOrWhiteSpace(residue)) diagnostics.Add(UnsupportedBody + ":" + name);
             result.Add(new(name, parameters, NormalizeType(header.Groups["return"].Value),
-                returnExpression, locals.ToImmutable(), new(header.Index, close - header.Index + 1)));
+                returnExpression, locals.ToImmutable(), string.Join("\n", constructions), constructionNames.ToImmutable(), new(header.Index, close - header.Index + 1)));
         }
         return result.ToImmutable();
     }
@@ -229,7 +252,7 @@ internal static class FirmamentV2FeatureExpansion
         return result.ToImmutable();
     }
 
-    private static ImmutableDictionary<string, string>? Bind(Declaration declaration, string argumentText, int offset, List<string> diagnostics)
+    private static ImmutableDictionary<string, string>? Bind(Declaration declaration, string argumentText, int offset, List<string> diagnostics, string source)
     {
         var supplied = new Dictionary<string, string>(StringComparer.Ordinal); var position = 0;
         foreach (var (raw, _) in SplitTopLevel(argumentText))
@@ -253,11 +276,32 @@ internal static class FirmamentV2FeatureExpansion
         foreach (var parameter in declaration.Parameters)
             if (supplied.TryGetValue(parameter.Name, out var expression))
             {
+                if (parameter.Type == "Point2") expression = ResolvePointArgument(source, expression);
                 if (!TypeMatches(expression, parameter.Type))
                     diagnostics.Add(ArgumentType + $":{declaration.Name}:{parameter.Name}:expected-{parameter.Type}:actual-{DescribeType(expression)}:at-{offset}");
                 else supplied[parameter.Name] = NormalizeExpression(expression, parameter.Type);
             }
         return HasErrors(diagnostics) ? null : supplied.ToImmutableDictionary(StringComparer.Ordinal);
+    }
+
+    private static string ResolvePointArgument(string source, string expression)
+    {
+        var reference = expression.Trim().Split('.');
+        if (reference.Length is < 1 or > 2 || reference.Any(r => !Regex.IsMatch(r, @"^[A-Za-z_]\w*$"))) return expression;
+        var scope = source;
+        if (reference.Length == 2)
+        {
+            var owner = Regex.Match(source, $@"\bConcept\s+Struct\s+{Regex.Escape(reference[0])}\s+On\s+XY\s*\{{");
+            var close = owner.Success ? Matching(source, source.IndexOf('{', owner.Index), '{', '}') : -1;
+            if (close < 0) return expression;
+            scope = source[owner.Index..(close + 1)];
+        }
+        var point = Regex.Match(scope, $@"\bPoint2\s+{Regex.Escape(reference[^1])}\s*\{{\s*Position\s*:\s*\[(?<value>[^]]+)\]");
+        if (!point.Success) return expression;
+        var values = point.Groups["value"].Value.Split(',');
+        if (values.Length != 2 || !TryEvaluateScalar(values[0], out var x, out var xu) || xu != "mm"
+            || !TryEvaluateScalar(values[1], out var y, out var yu) || yu != "mm") return expression;
+        return $"Point2({x.ToString("R", CultureInfo.InvariantCulture)}mm,{y.ToString("R", CultureInfo.InvariantCulture)}mm)";
     }
 
     private static void DetectCycles(IEnumerable<Declaration> declarations, IReadOnlyDictionary<string, Declaration> byName, List<string> diagnostics)
@@ -329,17 +373,26 @@ internal static class FirmamentV2FeatureExpansion
         return expression.Trim();
     }
 
-    private static bool TryEvaluateScalar(string expression, out double value, out string unit)
+    internal static bool TryEvaluateScalar(string expression, out double value, out string unit)
     {
         var parser = new ScalarParser(expression); return parser.TryParse(out value, out unit);
     }
 
-    private sealed class ScalarParser(string text)
+    internal static bool TryEvaluateScalar(string expression, IReadOnlyDictionary<string, (double Value, string Unit)> variables,
+        Func<string, IReadOnlyList<(double Value, string Unit)>, (double Value, string Unit)> functions,
+        bool typeOnly, out double value, out string unit)
+        => new ScalarParser(expression, variables, functions, typeOnly).TryParse(out value, out unit);
+
+    private sealed class ScalarParser(string text,
+        IReadOnlyDictionary<string, (double Value, string Unit)>? variables = null,
+        Func<string, IReadOnlyList<(double Value, string Unit)>, (double Value, string Unit)>? functions = null,
+        bool typeOnly = false)
     {
         private int _at;
+        private int _depth;
         public bool TryParse(out double value, out string unit)
         {
-            try { var result = Add(); White(); if (_at != text.Length || !double.IsFinite(result.Value)) throw new FormatException(); value = result.Value; unit = result.Unit; return true; }
+            try { if (text.Length > 8192) throw new FormatException(); var result = Add(); White(); if (_at != text.Length || (!typeOnly && !double.IsFinite(result.Value))) throw new FormatException(); value = result.Value; unit = result.Unit; return true; }
             catch { value = 0; unit = string.Empty; return false; }
         }
         private (double Value, string Unit) Add()
@@ -354,14 +407,39 @@ internal static class FirmamentV2FeatureExpansion
             {
                 White(); if (!Take('*') && !Take('/')) return left; var op = text[_at - 1]; var right = Atom();
                 if (op == '*') { if (left.Unit.Length > 0 && right.Unit.Length > 0) throw new FormatException(); left = (left.Value * right.Value, left.Unit.Length > 0 ? left.Unit : right.Unit); }
-                else { if (right.Value == 0 || right.Unit.Length > 0) throw new FormatException(); left = (left.Value / right.Value, left.Unit); }
+                else { if ((!typeOnly && right.Value == 0) || (right.Unit.Length > 0 && right.Unit != left.Unit)) throw new FormatException(); left = (typeOnly ? 1 : left.Value / right.Value, right.Unit.Length > 0 ? string.Empty : left.Unit); }
             }
         }
         private (double Value, string Unit) Atom()
         {
-            White(); if (Take('(')) { var value = Add(); White(); if (!Take(')')) throw new FormatException(); return value; }
-            var start = _at; if (_at < text.Length && (text[_at] == '+' || text[_at] == '-')) _at++;
+            if (++_depth > 128) throw new FormatException();
+            try { return AtomCore(); }
+            finally { _depth--; }
+        }
+        private (double Value, string Unit) AtomCore()
+        {
+            White(); if (Take('+')) return Atom(); if (Take('-')) { var negative = Atom(); return (-negative.Value, negative.Unit); }
+            if (Take('(')) { var value = Add(); White(); if (!Take(')')) throw new FormatException(); return value; }
+            if (_at < text.Length && (char.IsLetter(text[_at]) || text[_at] == '_'))
+            {
+                var begin = _at++;
+                while (_at < text.Length && (char.IsLetterOrDigit(text[_at]) || text[_at] == '_')) _at++;
+                var name = text[begin.._at]; White();
+                if (!Take('(')) return variables is not null && variables.TryGetValue(name, out var variable) ? variable : throw new FormatException();
+                var arguments = new List<(double Value, string Unit)>(); White();
+                if (!Take(')'))
+                {
+                    do { arguments.Add(Add()); White(); } while (Take(','));
+                    if (!Take(')')) throw new FormatException();
+                }
+                if (name == "Pow" && arguments.Count == 2 && arguments.All(a => a.Unit.Length == 0))
+                    return (typeOnly ? 1 : Math.Pow(arguments[0].Value, arguments[1].Value), string.Empty);
+                return functions?.Invoke(name, arguments) ?? throw new FormatException();
+            }
+            var start = _at;
             while (_at < text.Length && (char.IsDigit(text[_at]) || text[_at] == '.')) _at++;
+            if (_at < text.Length && text[_at] is 'e' or 'E')
+            { _at++; if (_at < text.Length && text[_at] is '+' or '-') _at++; while (_at < text.Length && char.IsDigit(text[_at])) _at++; }
             if (start == _at || !double.TryParse(text[start.._at], NumberStyles.Float, CultureInfo.InvariantCulture, out var number)) throw new FormatException();
             var unit = text.AsSpan(_at).StartsWith("mm") ? "mm" : text.AsSpan(_at).StartsWith("deg") ? "deg" : string.Empty; _at += unit.Length; return (number, unit);
         }

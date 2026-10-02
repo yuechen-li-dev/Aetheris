@@ -92,6 +92,7 @@ public static partial class Program
         var session = new WebModelSession(id, request.Source, request.SourceName ?? "model.firmament");
         var result = session.Rebuild();
         if (result.Success) Sessions[id] = session;
+        else session.Dispose();
         return result;
     }
 
@@ -201,12 +202,13 @@ public static partial class Program
 
     private static object DisposeSession(WebRequest request)
     {
-        if (request.SessionId is not null) Sessions.Remove(request.SessionId);
+        if (request.SessionId is not null && Sessions.Remove(request.SessionId, out var session)) session.Dispose();
         return new { disposed = true };
     }
 
     private static object DisposeRuntime()
     {
+        foreach (var session in Sessions.Values) session.Dispose();
         Sessions.Clear();
         return new { disposed = true };
     }
@@ -226,10 +228,13 @@ public static partial class Program
         public string Code { get; } = code;
     }
 
-    private sealed class WebModelSession(string id, string source, string sourceName)
+    private sealed class WebModelSession(string id, string source, string sourceName) : IDisposable
     {
         private string _source = source;
         private string _sourceName = sourceName;
+        private readonly FirmamentCompilationSession _compilationSession = new();
+        private AssemblyCompilationReuse? _lastReuse;
+        public void Dispose() => _compilationSession.Dispose();
         private IReadOnlyList<WebProperty> _properties = [];
         private IReadOnlyList<FirmamentConstructProjection> _projections = [];
         private readonly Dictionary<string, WebPropertyValue> _overrides = new(StringComparer.Ordinal);
@@ -308,6 +313,7 @@ public static partial class Program
             var sourceProperties = ParameterInspector.Inspect(Id, _sourceName, _source);
             inspectPhase.Dispose();
             var effective = ApplyOverrides(_source, sourceProperties, _overrides);
+            _lastReuse = null;
             var nextProperties = sourceProperties;
             foreach (var (propertyId, value) in _overrides)
             {
@@ -333,7 +339,7 @@ public static partial class Program
             };
             var perf = BuildPerfTrace.Snapshot();
             var timings = new { compileMilliseconds = compiled.CompileMilliseconds, meshMilliseconds = compiled.MeshMilliseconds,
-                totalBeforeSnapshotMilliseconds = totalWatch.Elapsed.TotalMilliseconds,
+                totalBeforeSnapshotMilliseconds = totalWatch.Elapsed.TotalMilliseconds, reuse = _lastReuse,
                 profile = new { phases = perf.Phases.Select(sample => new { sample.Name, sample.InclusiveMilliseconds,
                     sample.ExclusiveMilliseconds, sample.AllocatedBytes }).ToArray(), counts = perf.Counts,
                     gc0 = perf.Gc0, gc1 = perf.Gc1, gc2 = perf.Gc2 } };
@@ -421,7 +427,8 @@ public static partial class Program
         private WebBuildResult CompileAssembly(string effective, List<WebProperty> properties)
         {
             var watch = System.Diagnostics.Stopwatch.StartNew();
-            var compilation = new AssemblyM1Pipeline().Compile(effective, _sourceName);
+            var compilation = _compilationSession.Compile(effective, _sourceName);
+            _lastReuse = compilation.Reuse;
             var compileMs = watch.Elapsed.TotalMilliseconds;
             if (!compilation.IsSuccess || compilation.Ir is null || compilation.Geometry is null)
                 return WebBuildResult.Failed(compilation.Diagnostics.Select(d => new WebDiagnostic(d.Severity == AssemblyDiagnosticSeverity.Error ? "error" : "warning", d.Code, d.Message, SourceRef(_sourceName, 0, effective.Length))).ToArray(), compileMs);

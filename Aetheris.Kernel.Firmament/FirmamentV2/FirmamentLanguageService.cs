@@ -18,6 +18,7 @@ public static class FirmamentLanguageService
     {
         ArgumentNullException.ThrowIfNull(source);
         if (offset < 0 || offset > source.Length) throw new ArgumentOutOfRangeException(nameof(offset));
+        source = FirmamentSourceSpelling.Normalize(source);
         var prefixStart = offset;
         while (prefixStart > 0 && (char.IsLetterOrDigit(source[prefixStart - 1]) || source[prefixStart - 1] == '_')) prefixStart--;
         var prefix = source[prefixStart..offset];
@@ -26,7 +27,13 @@ public static class FirmamentLanguageService
         IReadOnlyList<FirmamentAuthoringField> fields;
         string context;
         var interfaceFamily = ActiveFrameInterface(source, offset);
-        if (interfaceFamily is not null)
+        var composition = ActiveCompositionConstruct(source, offset);
+        if (composition is not null)
+        {
+            fields = FirmamentSchemaAuthoringFields.For(composition.Value.Name);
+            context = composition.Value.Name;
+        }
+        else if (interfaceFamily is not null)
         {
             fields = FirmamentSchemaAuthoringFields.For($"Interface<{interfaceFamily}>");
             context = $"Interface<{interfaceFamily}>";
@@ -59,7 +66,7 @@ public static class FirmamentLanguageService
                      || beforePrefix.EndsWith("Interface<", StringComparison.Ordinal)
                      && item.Name.StartsWith("Interface<" + prefix, StringComparison.OrdinalIgnoreCase)) &&
                     (!inModify || item.Context?.StartsWith("Modify", StringComparison.Ordinal) == true))
-                .Select(item => new FirmamentLanguageEntry(item.Id.Value, item.Name, item.Context ?? string.Empty, item.Entry!)).ToArray();
+                .Select(item => new FirmamentLanguageEntry(item.Id.Value, item.Name, item.Context ?? string.Empty, FirmamentSourceSpelling.Prefer(item.Entry!))).ToArray();
             return new(document, revision, entries.Length > 0 ? "ConstructEntry" : "Unsupported",
                 prefixStart, prefix.Length, [], [], entries);
         }
@@ -73,12 +80,18 @@ public static class FirmamentLanguageService
         }
         if (beforePrefix.Contains(':')) return new(document, revision, "Value", prefixStart, prefix.Length, [], []);
 
-        var open = source.LastIndexOf('{', Math.Max(0, offset - 1));
+        var open = composition?.Open ?? source.LastIndexOf('{', Math.Max(0, offset - 1));
         var body = open >= 0 ? source[(open + 1)..offset] : string.Empty;
         var present = fields.Where(field => Regex.IsMatch(body, $@"\b{Regex.Escape(field.Name)}\s*:", RegexOptions.CultureInvariant))
             .Select(field => field.Name).ToHashSet(StringComparer.Ordinal);
-        var candidates = fields.Where(field => !present.Contains(field.Name) && field.Name.StartsWith(prefix, StringComparison.Ordinal)).ToArray();
+        var candidates = fields.Where(field => !present.Contains(field.Name) && field.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)).ToArray();
         var missing = fields.Where(field => field.Required && !present.Contains(field.Name)).Select(field => field.Name).ToList();
+        if (context == "Interface<Fixed>" && present.Contains("Datum"))
+        {
+            candidates = candidates.Where(f => f.Name is not ("A" or "B")).ToArray();
+            missing.RemoveAll(name => name is "A" or "B");
+            if (!present.Contains("Members")) missing.Add("Members");
+        }
         if (context == "Helix" && !present.Contains("Pitch") && !present.Contains("Height")) missing.Add("Pitch or Height");
         return new(document, revision, context, prefixStart, prefix.Length, candidates, missing);
     }
@@ -112,5 +125,25 @@ public static class FirmamentLanguageService
         var header = Regex.Matches(prefix, $@"\b{Regex.Escape(construct)}(?:\s*<[^>]+>)?\s+[A-Za-z_]\w*\s*\{{", RegexOptions.CultureInvariant)
             .Cast<Match>().LastOrDefault();
         return header is not null && !prefix[(header.Index + header.Length)..].Contains('}');
+    }
+
+    private static (string Name, int Open)? ActiveCompositionConstruct(string source, int offset)
+    {
+        // Ignore comments/strings and balance nested blocks in incomplete drafts.
+        var prefix = Regex.Replace(source[..offset], @"//[^\r\n]*|/\*[\s\S]*?\*/|""(?:\\.|[^""\\])*""", m => new string(' ', m.Length));
+        var names = "WireRoute|Follow|Section|Points|Linear|Series|Appearance|Material|Placement|FrameTransform";
+        var matches = Regex.Matches(prefix, $@"\b(?<kind>{names})(?:\s*<[^>]+>)?(?:\s+[A-Za-z_]\w*)?\s*\{{");
+        foreach (Match header in matches.Cast<Match>().Reverse())
+        {
+            var depth = 1;
+            foreach (var c in prefix[(header.Index + header.Length)..])
+            {
+                if (c == '{') depth++;
+                else if (c == '}') depth--;
+                if (depth == 0) break;
+            }
+            if (depth > 0) return (header.Groups["kind"].Value, header.Index + header.Length - 1);
+        }
+        return null;
     }
 }

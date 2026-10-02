@@ -13,7 +13,8 @@ public sealed record ProfileSegmentProvenance(
     string? InvocationSourceRange = null);
 public sealed record ResolvedProfileSegment2D(string Name, LineArcProfileCurve2D Geometry, ProfileSegmentProvenance Provenance);
 public sealed record ResolvedProfileLoop2D(string Name, bool IsOuter, IReadOnlyList<ResolvedProfileSegment2D> Segments);
-public sealed record ResolvedProfile2D(string Name, string PlaneFrame, IReadOnlyList<ResolvedProfileLoop2D> Loops, ConstructionPlane? ConstructionPlane = null, double? LocalStartDepth = null, double? LocalEndDepth = null)
+public sealed record ResolvedProfile2D(string Name, string PlaneFrame, IReadOnlyList<ResolvedProfileLoop2D> Loops, ConstructionPlane? ConstructionPlane = null, double? LocalStartDepth = null, double? LocalEndDepth = null,
+    IReadOnlyList<FirmamentV2.ProfileBoundaryEditEvidence>? BoundaryEdits = null)
 {
     public ConstructionPlane EffectiveConstructionPlane => ConstructionPlane ?? Materializer.ConstructionPlane.WorldXY;
 }

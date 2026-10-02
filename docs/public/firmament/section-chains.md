@@ -131,3 +131,7 @@ The positional bound is `sqrt(2) * radius * abs(segmentSweep)^6 / (720 * 64)`, p
 `G2WithinSampledTolerance` is an inspection result at the reported samples, not a new G2 construction guarantee. The samples include endpoints, 33 regular parameters, and applicable spline knots. The rounded-section fixture measures zero position/normal mismatch but a 0.125/mm curvature jump at its R8 line/arc seams. Those joins are G1. Arc normalization does not smooth away source curvature jumps. `Continuity: G2` remains rejected for SectionChain.
 
 Editing a section normally retains the existing bounded G1 derivative neighborhood. If an edit changes the common normalization segment count, all transitions on that chain must be regenerated; the edit delta truthfully reports this wider dependency and does not claim the terminations are preserved. Source semantic span identities remain stable. See the [SURF-G2-X1 progression report](../../release/SURF-G2-X1.md) for the remaining G2 boundary-condition work.
+
+## Owl authoring update
+
+Generic Profile recipes and keyed Section Patterns now lower inline Concept frame/Profile values through this same binder. Generated section keys and associations appear in root-aware inspection. See [source-owned guitar authoring](source-owned-guitar-authoring.md).

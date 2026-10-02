@@ -1,0 +1,7 @@
+Model PointsPart {
+ Units: mm
+ Concept Struct Layout {
+  Points<Point2> Sizes { Small: Point2(2mm,3mm); Large: Point2(4mm,6mm); }
+ }
+ Box Body { Size: [Layout.Sizes.Large.X,Layout.Sizes.Small.Y,1mm] }
+}

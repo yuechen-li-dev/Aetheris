@@ -134,7 +134,7 @@ public static class CliRunner
         string? Classification = null,
         int? RigidRootCount = null);
     private const string TopLevelUsage = "Usage: aetheris <command> [options]";
-    private const string BuildUsage = "Usage: aetheris build <file.firmament> [--output <path>] [--json]";
+    private const string BuildUsage = "Usage: aetheris build <file.firmament|file.firmasm> [--output <path>] [--json]";
     private const string MeshUsage = "Usage: aetheris mesh <file.firmament|file.firmfixture|file.firmasm|file.step> [--format stl|obj|assembly-json] [--output <path>] [--debug-ir <path>] [--json]";
     private const string ValidateUsage = "Usage: aetheris validate <file.firmament|file.firmfixture> [--forge-pack <path>] [--json]";
     private const string InspectProfileUsage = "Usage: aetheris inspect-profile <file.firmament> [--json]";
@@ -150,14 +150,14 @@ public static class CliRunner
     private const string AnalyzeAssemblyUsage = "Usage: aetheris analyze assembly <file.step> [--json]";
     private const string SectionsUsage = "Usage: aetheris sections <artifact.step> --axis Z --levels <z,...> [--epsilon <mm>] --json";
     private const string VerifyUsage = "Usage: aetheris verify <file.firmament|file.step> [--expected-volume <value>] [--cad-assistant] [--cad-assistant-path <path>] [--timeout <seconds>] [--evidence-dir <path>] [--require-external] [--json]";
-    private const string InspectUsage = "Usage: aetheris inspect <file.firmament|file.step> [--json]";
+    private const string InspectUsage = "Usage: aetheris inspect <file.firmament|file.firmasm|file.step> [--json] [assembly: --profile --repeat <1..16>]";
     private const string ViewUsage = "Usage: aetheris view <file.firmament|file.step> [--cadmata-path <path>] [--json]";
     private const string MatchUsage = "Usage: aetheris match <file.step> <concept.firmament> [--linear-tolerance <mm>] [--angular-tolerance <deg>] [--json]";
     private const string TraceUsage = "Usage: aetheris trace (--case <name>|--fixture <path>) [--out-dir <dir>] [--json]";
     private const string CanonUsage = "Usage: aetheris canon <file.step> --out <canonical.step> [--mode deterministic|production] [--json]";
     private const string AsmExecUsage = "Usage: aetheris asm exec <file.firmasm> [--json]";
     private const string AsmExportUsage = "Usage: aetheris asm export <file.firmasm> --out <directory> [--json]";
-    private const string AsmInspectUsage = "Usage: aetheris asm inspect <assembly.firmament|assembly.firmasm> [--json] [--profile] [--out <report.json>]";
+    private const string AsmInspectUsage = "Usage: aetheris asm inspect <assembly.firmament|assembly.firmasm> [--json] [--profile] [--repeat <1..16>] [--out <report.json>]";
     private const string AsmImportStepUsage = "Usage: aetheris asm import-step <assembly.step> --out <directory> [--json]";
     private const string AsmExportAp242Usage = "Usage: aetheris asm export-ap242 <assembly.firmament|assembly.firmasm> --out <assembly.step> [--json]";
     private const string ExperimentalUsage = "Usage: aetheris experimental <airchamfer-cube|airchamfer-corpus|prismatic-corpus|prismatic-map|loop-chamfer-corpus|heightfield-art> [options]";
@@ -218,6 +218,7 @@ public static class CliRunner
                 "build" => RunBuild(args.Skip(1).ToArray(), stdout, stderr),
                 "mesh" => RunMesh(args.Skip(1).ToArray(), stdout, stderr),
                 "validate" => RunValidate(args.Skip(1).ToArray(), stdout, stderr),
+                "format" => RunFormat(args.Skip(1).ToArray(), stdout, stderr),
                 "inspect" => RunInspect(args.Skip(1).ToArray(), stdout, stderr),
                 "inspect-3dm" => ThreeDmCli.Run(args.Skip(1).ToArray(), stdout, stderr, JsonOptions),
                 "recover-3dm" => ThreeDmCli.Recover(args.Skip(1).ToArray(), stdout, stderr, JsonOptions),
@@ -251,6 +252,30 @@ public static class CliRunner
             stderr.WriteLine(ex.Message);
             return 1;
         }
+    }
+
+    private static int RunFormat(string[] args, TextWriter stdout, TextWriter stderr)
+    {
+        const string usage = "Usage: aetheris format <file.firmament|file.firmasm>... [--write] [--json] (convention spellings; preserves layout and authored identities)";
+        if (args.Length == 0 || IsHelpFlag(args[0])) { stdout.WriteLine(usage); return args.Length == 0 ? 1 : 0; }
+        var write = args.Contains("--write", StringComparer.Ordinal);
+        var json = args.Contains("--json", StringComparer.Ordinal);
+        var paths = args.Where(a => a is not ("--write" or "--json")).ToArray();
+        if (paths.Length == 0 || paths.Any(p => p.StartsWith('-') || Path.GetExtension(p) is not (".firmament" or ".firmasm")))
+        { stderr.WriteLine(usage); return 1; }
+        // Prepare the entire batch before writing; a missing input cannot leave a partial sweep.
+        var formats = paths.Distinct(StringComparer.OrdinalIgnoreCase).Select(path =>
+        {
+            var fullPath = Path.GetFullPath(path);
+            return FirmamentLanguageAnalysisService.FormatConventions(File.ReadAllText(fullPath), fullPath, "cli");
+        }).ToArray();
+        if (write)
+            foreach (var format in formats.Where(f => f.Changed)) File.WriteAllText(format.Document, format.Text, new System.Text.UTF8Encoding(false));
+        if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "format", mode = "conventions", written = write,
+            validation = "spelling equivalence; validate the consuming project separately", files = formats.Select(f => new { path = f.Document, changed = f.Changed }) }, JsonOptions));
+        else foreach (var format in formats)
+            stdout.WriteLine(write ? $"{format.Document}: {(format.Changed ? "formatted" : "unchanged")}" : format.Text);
+        return 0;
     }
 
     private static int RunVerify(string[] args, TextWriter stdout, TextWriter stderr)
@@ -459,6 +484,14 @@ public static class CliRunner
             }
         }
 
+        if (File.Exists(sourcePath))
+        {
+            var source = File.ReadAllText(sourcePath);
+            if (Path.GetExtension(sourcePath).Equals(".firmasm", StringComparison.OrdinalIgnoreCase) || FirmamentLanguageAnalysisService.HasAssemblyRoot(source))
+                return RunAsmExportAp242([sourcePath, "--out", outPath ?? Path.GetFullPath(Path.Combine("artifacts", "local", "build", Path.GetFileNameWithoutExtension(sourcePath) + ".step")), .. (json ? new[] { "--json" } : [])], stdout, stderr);
+            if (SectionChainAuthoringParser.IsSectionChainSource(source))
+                return RunSectionChain(["build", sourcePath, .. (outPath is null ? Array.Empty<string>() : ["--out", outPath]), .. (json ? new[] { "--json" } : [])], stdout, stderr);
+        }
         if (File.Exists(sourcePath) && PlasticShellFirmament.LooksLikePlasticShell(File.ReadAllText(sourcePath)))
             return RunPlasticShellBuild(sourcePath, outPath, json, stdout, stderr);
         if (File.Exists(sourcePath) && SheetMetalFirmament.LooksLikeSheetMetal(File.ReadAllText(sourcePath)))
@@ -575,9 +608,12 @@ public static class CliRunner
         }
         SectionChainMaterializationResult materialized;
         SectionChain chain;
+        IReadOnlyList<SectionChainProfileDerivation>? profileDerivations = null;
+        IReadOnlyList<SectionChainBoundaryEditInspection>? boundaryEdits = null;
+        IReadOnlyList<FirmamentV2CanonicalPatternDecl>? patterns = null;
         if (File.Exists(witness))
         {
-            var authored = SectionChainAuthoringParser.Compile(File.ReadAllText(witness));
+            var authored = SectionChainAuthoringParser.CompileFile(witness);
             if (!authored.IsSuccess || authored.Chain is null || authored.Materialization is null)
             {
                 var failure = new { command = $"section-chain {operation}", success = false, input = Path.GetFullPath(witness), diagnostics = authored.Diagnostics };
@@ -585,6 +621,9 @@ public static class CliRunner
                 return 1;
             }
             chain = authored.Chain; materialized = authored.Materialization;
+            profileDerivations = authored.ProfileDerivations;
+            boundaryEdits = authored.BoundaryEdits;
+            patterns = authored.Patterns;
         }
         else
         {
@@ -611,6 +650,9 @@ public static class CliRunner
             var inspection = new
             {
                 command = $"section-chain {operation}", success = true, chain.StableId,
+                profileDerivations,
+                boundaryEdits,
+                patterns,
                 sections = chain.Sections.Select(section => new { section.SectionId, section.Frame, profile = section.Profile.StableId, spans = section.Profile.Spans.Select(span => span.SpanId), seam = section.Profile.SeamSpanId }),
                 chain.Correspondence,
                 resolvedCorrespondence = Enumerable.Range(0, chain.Sections.Count - 1).Select(index => new
@@ -1358,6 +1400,8 @@ Model CanonicalPanel {
         }
 
         var input = args[0];
+        if (File.Exists(input) && (Path.GetExtension(input).Equals(".firmasm", StringComparison.OrdinalIgnoreCase) || FirmamentLanguageAnalysisService.HasAssemblyRoot(File.ReadAllText(input))))
+            return RunAsmInspect(args, stdout, stderr);
         var json = args.Skip(1).SequenceEqual(["--json"]);
         if (!json && args.Length > 1) { stderr.WriteLine($"Unknown inspect option '{args[1]}'."); stderr.WriteLine(InspectUsage); return 1; }
         if (!File.Exists(input)) { stderr.WriteLine($"Inspect input was not found: {input}"); return 1; }
@@ -1373,6 +1417,8 @@ Model CanonicalPanel {
         }
 
         var source = File.ReadAllText(fullPath);
+        if (SectionChainAuthoringParser.IsSectionChainSource(source))
+            return RunSectionChain(["inspect", fullPath, .. args.Skip(1)], stdout, stderr);
         var frontend = FirmamentFrontendSchemas.Select(source);
         if (!frontend.IsSuccess)
         {
@@ -1427,11 +1473,7 @@ Model CanonicalPanel {
         }
         if (frontend.Schema == FirmamentFrontendSchema.SectionChain)
         {
-            var section = SectionChainAuthoringParser.Compile(source);
-            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { command = "inspect", success = section.IsSuccess, input = fullPath, domain = "SectionChain", sectionChain = section.Chain?.StableId, diagnostics = section.Diagnostics }, JsonOptions));
-            else if (section.IsSuccess) stdout.WriteLine($"SectionChain {section.Chain!.StableId}: {section.Chain.Sections.Count} sections");
-            else foreach (var diagnostic in section.Diagnostics) stderr.WriteLine("error: " + diagnostic);
-            return section.IsSuccess ? 0 : 1;
+            return RunSectionChain(["inspect", fullPath, .. args.Skip(1)], stdout, stderr);
         }
         if (PlateauAuthoring.IsSource(source) && !System.Text.RegularExpressions.Regex.IsMatch(source, @"\bAssembly\s+"))
         {
@@ -1668,6 +1710,8 @@ Model CanonicalPanel {
                 pattern.Distribution,
                 instanceTransforms = pattern.Instances
             }).ToArray() ?? [],
+            linearPatterns = document?.StaticAuthoring?.LinearPatterns ?? [],
+            planarAxes = document?.StaticAuthoring?.PlanarAxes ?? [],
             templateInstances = (document?.TemplateInstantiations ?? document?.ConceptIr?.TemplateInstantiations)?.Select(instance => new
             {
                 instance.Template,
@@ -1697,6 +1741,7 @@ Model CanonicalPanel {
                 invocation.ReturnType,
                 invocation.ExpandedSemanticKind,
                 invocation.GeneratedByFeature,
+                invocation.ResultIdentity,
                 invocation.Status
             }).ToArray() ?? [],
             featureExpansion = document?.FeatureExpansion,
@@ -2322,7 +2367,7 @@ Model CanonicalPanel {
         }
         if (frontend.Schema == FirmamentFrontendSchema.SectionChain)
         {
-            var section = SectionChainAuthoringParser.Compile(validationSource);
+            var section = SectionChainAuthoringParser.CompileFile(sourcePath);
             var payload = new { source = sourcePath, status = section.IsSuccess ? "valid" : "invalid", domain = "SectionChain", summary = new { fatalDiagnosticCount = section.Diagnostics.Count, warningDiagnosticCount = 0, sections = section.Chain?.Sections.Count ?? 0 }, diagnostics = section.Diagnostics };
             if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
             else stdout.WriteLine($"Firmament V2 SectionChain validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");
@@ -3870,17 +3915,24 @@ Model CanonicalPanel {
         var path = args[0];
         var json = false;
         var profile = false;
+        var repeat = 1;
+        var repeatRequested = false;
         string? outputPath = null;
         for (var i = 1; i < args.Length; i++)
         {
             if (args[i] == "--json") json = true;
             else if (args[i] == "--profile") profile = true;
+            else if (args[i] == "--repeat" && i + 1 < args.Length && int.TryParse(args[++i], out var count) && count is >= 1 and <= 16) { repeat = count; repeatRequested = true; }
             else if (args[i] == "--out" && i + 1 < args.Length) outputPath = args[++i];
             else { stderr.WriteLine(AsmInspectUsage); return 1; }
         }
         if (!File.Exists(path)) { stderr.WriteLine($"Assembly source '{path}' was not found."); return 1; }
         var sourceText = File.ReadAllText(path);
         var usesTemplateInstances = Regex.IsMatch(sourceText, @"<Part\s+[A-Za-z_]\w*\s*=\s*[A-Za-z_]\w*\s*<", RegexOptions.CultureInvariant);
+        if (!usesTemplateInstances && !Path.GetExtension(path).Equals(".firmasm", StringComparison.OrdinalIgnoreCase) && FirmamentSourceSpelling.Normalize(sourceText).Contains("Include", StringComparison.Ordinal))
+            usesTemplateInstances = new AssemblyM0Parser().ParseFile(path).Source is { } imported && NeedsMaterialization(imported.Root);
+        static bool NeedsMaterialization(AssemblyMemberSource member) => member.Kind == AssemblyInstanceKind.Part && member.DefinitionIdentity.Contains('<')
+            || member.Children.Any(NeedsMaterialization);
         var usesGearParts = GearAuthoring.ParseDefinitions(sourceText).Gears.Count > 0;
         var usesSheetMetalParts = sourceText.Contains("Use SheetMetal.ProductFamilies", StringComparison.Ordinal);
         AssemblyIr? assemblyIr;
@@ -3888,7 +3940,24 @@ Model CanonicalPanel {
         IReadOnlyList<AssemblyDiagnostic> assemblyDiagnostics;
         AssemblyPerformanceIr? assemblyPerformance;
         bool success;
-        if (string.Equals(Path.GetExtension(path), ".firmasm", StringComparison.OrdinalIgnoreCase) && !usesSheetMetalParts)
+        var builds = new List<object>();
+        if (repeatRequested)
+        {
+            if (!FirmamentLanguageAnalysisService.HasAssemblyRoot(sourceText) || usesSheetMetalParts)
+            { stderr.WriteLine("--repeat requires a canonical authored assembly using the ordinary M1 materializer."); return 1; }
+            using var session = new FirmamentCompilationSession();
+            AssemblyM1CompilationResult? last = null;
+            for (var index = 0; index < repeat; index++)
+            {
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+                last = session.CompileFile(path);
+                builds.Add(new { index, elapsedMilliseconds = watch.Elapsed.TotalMilliseconds, success = last.IsSuccess, reuse = last.Reuse, performance = profile ? last.Performance : null });
+                if (!last.IsSuccess) break;
+            }
+            assemblyIr = last!.Ir; geometryArtifact = last.Geometry?.Artifact; assemblyDiagnostics = last.Diagnostics;
+            assemblyPerformance = last.Performance; success = last.IsSuccess;
+        }
+        else if (string.Equals(Path.GetExtension(path), ".firmasm", StringComparison.OrdinalIgnoreCase) && !usesSheetMetalParts)
         {
             var document = new FirmamentAssemblyDocumentCompiler().CompileFile(path);
             assemblyIr = document.Compilation.Ir;
@@ -3915,7 +3984,7 @@ Model CanonicalPanel {
             assemblyPerformance = m0.Performance;
             success = m0.IsSuccess;
         }
-        var reportJson = JsonSerializer.Serialize(new { success, assemblyIr, geometryArtifact, diagnostics = assemblyDiagnostics, performance = profile ? assemblyPerformance : null }, JsonOptions);
+        var reportJson = JsonSerializer.Serialize(new { success, assemblyIr, geometryArtifact, diagnostics = assemblyDiagnostics, performance = profile ? assemblyPerformance : null, builds }, JsonOptions);
         if (outputPath is not null)
         {
             var fullOutputPath = Path.GetFullPath(outputPath);
@@ -4744,7 +4813,8 @@ Model CanonicalPanel {
             stderr.WriteLine(AnalyzeAssemblyUsage);
             return 1;
         }
-        var imported = Step242AssemblyImporter.Import(File.ReadAllText(args[0]));
+        var stepText = File.ReadAllText(args[0]);
+        var imported = Step242AssemblyImporter.Import(stepText);
         if (!imported.IsSuccess)
         {
             foreach (var diagnostic in imported.Diagnostics) stderr.WriteLine($"{diagnostic.Source}: {diagnostic.Message}");
@@ -4790,6 +4860,7 @@ Model CanonicalPanel {
                 maximum = new[] { points.Max(p => p.X), points.Max(p => p.Y), points.Max(p => p.Z) }
             },
             performance = structure.Performance,
+            semanticPmi = Step242SemanticPmiInspector.Inspect(stepText),
             definitions = structure.Definitions.Select(item => new { item.StableId, item.Name, hasGeometry = item.Geometry is not null, item.ProductDefinitionEntityId }).ToArray(),
             occurrences = structure.Occurrences.Select(item => new { item.StableId, item.Name, item.ParentStableId, item.DefinitionStableId,
                 item.LocalTransform, worldTransform = World(item).ToRowMajor(), item.StepEntityId }).ToArray()
@@ -4939,6 +5010,7 @@ Model CanonicalPanel {
         stdout.WriteLine();
         stdout.WriteLine("Commands:");
         stdout.WriteLine("  validate   Check Firmament source without materializing geometry.");
+        stdout.WriteLine("  format     Prefer mixed-case vocabulary spellings; preserve layout and authored names.");
         stdout.WriteLine("  build      Compile Firmament to exact STEP AP242.");
         stdout.WriteLine("  mesh       Export a supported exact B-rep as STL or topology-preserving OBJ.");
         stdout.WriteLine("  view       Build/open a model in Cadmata.");

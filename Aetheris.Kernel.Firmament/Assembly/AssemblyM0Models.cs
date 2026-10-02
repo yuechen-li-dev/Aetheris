@@ -44,7 +44,11 @@ public sealed record InterfaceDefinition(
     bool CompilerOwnedExpansion = false,
     IReadOnlyList<InterfacePredicateRequirementDefinition>? PredicateRequirements = null,
     GearInterfaceOptions? GearOptions = null,
-    FixedSeatingOptions? Seating = null);
+    FixedSeatingOptions? Seating = null,
+    AssemblyDatumContract? DatumContract = null);
+
+public sealed record AssemblyDatumContract(string Datum, IReadOnlyList<string> Members);
+public sealed record AssemblyDatumSeat(string Interface, string Datum, string Port, double[] Origin, double[] Normal, bool Support);
 
 public sealed record FixedSeatingOptions(double GapMm, double ClockingDegrees, DatumOrientationRelation Orientation);
 
@@ -61,12 +65,21 @@ public sealed record AssemblyMemberSource(
     bool IsEncapsulatedDefinition = false,
     AssemblyDefinitionIr? SolvedAssemblyDefinition = null,
     SemanticValue? TypedEndpoint = null,
-    AssemblyFramePlacementSource? FramePlacement = null);
+    AssemblyFramePlacementSource? FramePlacement = null,
+    AssemblyDatumSeat? DatumSeat = null,
+    AssemblyMaterialSelection? MaterialSelection = null,
+    IReadOnlyList<AssemblyRouteInput>? RouteInputs = null);
 
 public sealed record AssemblyFrameTransformSource(string Name, string From, double[] Translation,
     string RotationAxis, double RotationDegrees, double[]? Normal = null, double[]? Up = null,
     SemanticSourceSpan? SourceSpan = null);
-public sealed record AssemblyFramePlacementSource(string From, AssemblyFrameTransformSource Target);
+public sealed record AssemblyFramePlacementSource(string From, AssemblyFrameTransformSource Target,
+    MechanicalInterfaceFamily? JointFamily = null, string? MateName = null, AssemblyAxisSeatSource? AxisSeat = null);
+public sealed record AssemblyAxisSeatSource(string Interface, string Datum, string Member,
+    double StationMm, double ClockingDegrees, DatumOrientationRelation Orientation);
+public sealed record AssemblyAxisSeatEvidence(string Mate, string InstanceStableId, AssemblyAxisSeatSource Seating,
+    int DegreesOfFreedom, double AxisResidualMm, double StationResidualMm, double AngularResidualRadians,
+    bool Passed, string Evidence = "exact published axis/frame against Concept target; no material-carrier inference");
 
 /// <summary>A reusable, locally-authored Assembly product definition.  Its children
 /// remain product-visible, while only <see cref="AssemblyMemberSource.ExposedSemantics"/>
@@ -99,7 +112,10 @@ public sealed record AssemblySource(
     IReadOnlyList<AssemblyDefinitionSource>? AssemblyDefinitions = null,
     IReadOnlyList<AssemblySourceDependencyIr>? SourceDependencies = null,
     IReadOnlyList<AssemblyFrameTransformSource>? FrameTransforms = null,
-    IReadOnlyList<FirmamentV2CanonicalPatternDecl>? Patterns = null);
+    IReadOnlyList<FirmamentV2CanonicalPatternDecl>? Patterns = null,
+    IReadOnlyList<ConceptIrKeyedPointSetValue>? ConceptPoints = null,
+    AssemblyAppearanceCatalog? AppearanceCatalog = null,
+    AssemblyAnnotations? Annotations = null);
 
 public sealed record AssemblySourceDependencyIr(string Path, string Sha256, bool IsRoot);
 
@@ -114,7 +130,10 @@ public sealed record AssemblyInstanceIr(
     SemanticValue SemanticRoot, AssemblyTransform? LocalTransform, AssemblyTransform? ResolvedTransform,
     IReadOnlyList<SemanticProvenance> Provenance,
     PlacementAuthority PlacementAuthority = PlacementAuthority.MateDerived,
-    bool IsEncapsulatedDefinition = false);
+    bool IsEncapsulatedDefinition = false,
+    AssemblyDatumSeat? DatumSeat = null,
+    AssemblyMaterialSelection? MaterialSelection = null,
+    AssemblyAppearanceBinding? Appearance = null);
 
 public sealed record MateEndpointIr(string Role, AssemblyPath ParticipantPath, string ParticipantSemanticValueId, IReadOnlyList<string> RequiredCapabilities);
 public sealed record InterfaceRequirementResultIr(string Name, string Expression, string Status);
@@ -186,14 +205,17 @@ public sealed record AssemblyDefinitionIr(
     IReadOnlyList<PlacementConstraintIr>? LocalPlacementConstraints = null,
     IReadOnlyList<AssemblyDatumIr>? LocalDatums = null,
     IReadOnlyList<DatumMateSolutionIr>? LocalDatumMateSolutions = null,
-    IReadOnlyList<InterfaceFitResultIr>? LocalFitResults = null);
+    IReadOnlyList<InterfaceFitResultIr>? LocalFitResults = null,
+    IReadOnlyList<AssemblyAxisSeatEvidence>? LocalAxisSeats = null);
 
-public sealed record AssemblyPerformanceIr(double ParseMilliseconds, double BindMilliseconds, double MateValidationMilliseconds, double PlacementMilliseconds, double DimensionalGraphMilliseconds, double ToleranceAnalysisMilliseconds, double DefinitionMaterializationMilliseconds = 0, double GeometryExecutionMilliseconds = 0);
+public sealed record AssemblyPerformanceIr(double ParseMilliseconds, double BindMilliseconds, double MateValidationMilliseconds, double PlacementMilliseconds, double DimensionalGraphMilliseconds, double ToleranceAnalysisMilliseconds, double DefinitionMaterializationMilliseconds = 0, double GeometryExecutionMilliseconds = 0, double RouteBindingMilliseconds = 0);
 public sealed record AssemblyGeometryMetricsIr(int Bodies, int Faces, int Edges, int Vertices, double[] Minimum, double[] Maximum);
 public sealed record AssemblyDefinitionArtifactIr(string StableId, string DefinitionIdentity, string SpecializationIdentity, string StepSha256, AssemblyGeometryMetricsIr Metrics, IReadOnlyList<SemanticProvenance> Provenance);
 public sealed record AssemblyInstanceGeometryIr(string InstanceStableId, string DefinitionArtifactStableId, AssemblyTransform WorldTransform, AssemblyGeometryMetricsIr Metrics);
 public sealed record AssemblyMateResidualIr(string ConstraintStableId, PlacementConstraintKind Kind, double PositionResidualMm, double AngularResidualRadians, bool Passed, string Evidence);
-public sealed record AssemblyGeometryArtifactIr(string Schema, IReadOnlyList<AssemblyDefinitionArtifactIr> Definitions, IReadOnlyList<AssemblyInstanceGeometryIr> Instances, IReadOnlyList<AssemblyMateResidualIr> MateResiduals, string DeterministicSha256);
+public sealed record AssemblyDatumSeatEvidence(string InstanceStableId, string Interface, string Datum, double PlaneResidualMm, IReadOnlyList<string> MaterialFaces, bool Support, bool Passed);
+public sealed record AssemblyGeometryArtifactIr(string Schema, IReadOnlyList<AssemblyDefinitionArtifactIr> Definitions, IReadOnlyList<AssemblyInstanceGeometryIr> Instances, IReadOnlyList<AssemblyMateResidualIr> MateResiduals, string DeterministicSha256,
+    IReadOnlyList<AssemblyDatumSeatEvidence>? DatumSeats = null);
 public sealed record AssemblyIr(
     string Schema, string StableId, string Name, string RootInstanceStableId,
     IReadOnlyList<AssemblyInstanceIr> Instances, IReadOnlyList<InterfaceDefinition> Interfaces,
@@ -207,7 +229,11 @@ public sealed record AssemblyIr(
     IReadOnlyList<DatumMateSolutionIr>? DatumMateSolutions = null,
     IReadOnlyList<AssemblySourceDependencyIr>? SourceDependencies = null,
     IReadOnlyList<AssemblyJointIr>? Joints = null,
-    IReadOnlyList<FirmamentV2CanonicalPatternDecl>? Patterns = null);
+    IReadOnlyList<FirmamentV2CanonicalPatternDecl>? Patterns = null,
+    IReadOnlyList<AssemblyAxisSeatEvidence>? AxisSeats = null,
+    IReadOnlyList<ConceptIrKeyedPointSetValue>? ConceptPoints = null,
+    IReadOnlyList<AssemblyRouteBindingEvidence>? RouteBindings = null,
+    AssemblyAnnotations? Annotations = null);
 
 public sealed record AssemblyCompilationResult(AssemblyIr? Ir, IReadOnlyList<AssemblyDiagnostic> Diagnostics, AssemblyPerformanceIr? Performance = null)
 {

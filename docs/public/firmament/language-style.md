@@ -1,14 +1,90 @@
 # Firmament V2 language style
 
-Firmament-owned vocabulary is canonically PascalCase. This includes document and declaration constructs, semantic features, built-in primitive and value names, and built-in fields. Canonical source therefore uses `Model`, `Units`, `Sphere`, `Modify`, `Analysis`, `Body`, `Region`, and `ThroughAll`.
+Firmament uses mixed casing to make artifact definitions stand out from their
+descriptions. This is a naming convention, not a rule enforced by the compiler.
+The [design proposal](casing-and-layout-proposal.md) records the reasoning.
 
-User-defined identifiers are case-preserving and stylistically free. `beam`, `Beam`, `mainDeck`, and `MAIN_DECK` may all be names when the owning construct admits an identifier. External identifiers preserve their engineering or source spelling, including material designations, standards, imported identities, and part numbers such as `5052_H32`.
+| Role | Convention | Examples |
+| --- | --- | --- |
+| Artifact, declaration, construction form | PascalCase | `Model`, `Assembly`, `Concept Struct`, `Profile`, `Feature`, `Placement`, `Mate` |
+| Type and reusable recipe | PascalCase | `Length`, `PickupSpec`, `Humbucker`, `ControlKnob` |
+| Concrete value, local geometry, occurrence, parameter, port | camelCase | `layout`, `outline`, `neckPickup`, `bottomSeat`, `width` |
+| Built-in property label | camelCase | `units`, `size`, `from`, `translateLocal`, `minimumBendRadius` |
+| Linking and scope word | lowercase | `using`, `on`, `over`, `with`, `return`, `include`, `expose`, `bind` |
+| Scalar function | camelCase | `fretDistance`, `halfWidth` |
+| Engineering symbol, enum, external identity | Preserve domain spelling | `XY`, `+Z`, `Fixed`, `Periodic`, `Stock`, `mm`, `304_Annealed` |
 
-Lowercase and historical aliases may remain accepted for compatibility when unambiguous. They receive no style warning and must not select different semantics. Documentation, snippets, generated examples, and `fixtures/Canonical/` use the canonical spelling.
+The root product may keep its definition name: `Assembly GuitarX0` and
+`<Assembly GuitarX0>`. Feature constructors such as `Coil` remain PascalCase.
+Use two-space indentation, spaces after list commas, blank lines between major
+definitions, and separate closing tags for multiline occurrences. Preserve
+numbers and units; formatting must not round derived surface controls.
 
-Semicolons are optional wherever newline/block structure already delimits a field. Use them when they improve readability in dense one-line Records, Tables, or `ProfileDelta` members; their presence must not select a different language path.
+User-defined identifiers and published members remain case-sensitive.
+`beam`, `Beam`, `mainDeck`, and `MAIN_DECK` remain valid wherever an identifier
+is admitted. Case alone does not assign a semantic type. Material designations,
+standards, imported identities and part numbers retain their source spelling.
+Existing PascalCase properties and supported historical aliases remain accepted,
+without style warnings. Older examples need not be rewritten wholesale.
 
-Casing is not a type-system distinction unless a domain explicitly says otherwise. A field uses `Name: Value`; braces delimit declarations, brackets delimit lists, and semicolons are optional where the owning grammar is unambiguous.
+```firmament
+Feature Coil(center: Point2, width: Length, depth: Length,
+             height: Length, support: Plane) -> Boss {
+  RoundedRect2 outline { center: center; size: [width, depth]; radius: 3mm }
+  Profile section { Loop Outer { outline |> TraceLoop } }
+  return Boss { on: support; profile: section; height: height }
+}
+```
+
+## Safe formatting and bounded compatibility
+
+`aetheris format <file.firmament|file.firmasm>...` prints preferred vocabulary
+spellings; add `--write` to update the explicitly named files, or `--json` for a
+change summary. This conservative pass preserves layout, comments, strings,
+numeric literals, user names and occurrence identities. It prepares every input
+before writing and refuses a rewrite that changes normalized source text.
+It is **not validation**: validate/build the consuming assembly after a sweep.
+
+The same pass is available as
+`FirmamentLanguageAnalysisService.FormatConventions`. The existing standalone
+V2 `Format` API also prefers these spellings while arranging layout, and checks
+both token equivalence and parser admission. Imported modules use the conservative
+pass and their consuming project's compiler; they are not standalone parts.
+
+Compatibility is scoped to schema-owned properties plus the bounded profile,
+frame, assembly, point and wire vocabularies used by the guitar. The parser maps
+these aliases back to existing semantic identities. Unknown blocks, Record and
+Static data, explicit station keys, named template/Feature arguments and dotted
+members are not guessed or renamed by the formatter. Property completion accepts
+either prefix spelling; generated entry snippets prefer the new spelling, while
+schema/field identities in inspection APIs remain stable.
+
+Historical lowercase `model`/`solid` scopes retain their existing grammar and
+are left untouched by the spelling pass; they are not migrated to native V2.
+
+Authored names require a manual, binding-aware edit. For example, `.Frame`,
+`.BottomSeat`, `Spec`, `R` and `H` can be authored public contracts; their casing
+must change together with every declaration and use. The guitar sweep deliberately
+retains its established public ports, template argument names, occurrence paths
+and generated span keys. Its private pickup geometry, record fields and scalar
+functions demonstrate the quieter convention. Remaining casing stragglers are
+acceptable. An exhaustive migration or symbol rename service is outside this pass.
+
+Current assembly definition identities can retain whitespace in specialization
+arguments. Preserve those argument spellings when preserving identities; this
+formatter does so. General whitespace canonicalization of definition keys is a
+separate compiler concern.
+
+Semicolons are optional wherever the owning grammar already admits newline/block structure as a field delimiter.
+The bounded `Function` expressions and `Points` recipes currently require explicit
+semicolon terminators; see [Concept points and Functions](concept-points-and-functions.md).
+Root assembly `provenance` selections and `Pmi Note` fields also require explicit
+semicolons; see [PMI](pmi.md). Use semicolons when they improve readability in dense one-line Records, Tables, or `ProfileDelta` members; their presence must not select a different language path where optional.
+
+Built-in aliases exist only where the owning grammar admits them.
+A field uses `name: value`; braces delimit
+declarations, brackets delimit lists, and semicolons are optional where the
+owning grammar is unambiguous.
 
 Different target grammars are intentional. Native Model geometry uses axis faces and semantic selectors; Sheet Metal uses named planar regions and paths; native and imported Analysis use body-qualified faces; Assembly uses typed roles, ports, interfaces, and DatumFrame references. Similar engineering ideas do not make these value types interchangeable.
 
@@ -16,4 +92,6 @@ Firmament V1 is compatibility history, not canonical V2 authoring. Speculative o
 
 ## Preview 3 migration note
 
-Preview 3 documents one visual dialect. Existing supported lowercase and `solid name: Primitive` inputs remain accepted where documented, without casing warnings. New source should use PascalCase Firmament vocabulary, direct named primitive declarations, and `Units: mm`.
+Preview 3 originally documented PascalCase vocabulary and fields. Its supported
+lowercase and `solid name: Primitive` inputs remain accepted where documented.
+New examples prefer mixed casing and direct named primitives with `units: mm`.

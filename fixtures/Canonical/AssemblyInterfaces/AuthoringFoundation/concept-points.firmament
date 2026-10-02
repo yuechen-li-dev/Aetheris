@@ -1,0 +1,40 @@
+Function Distance(n: Int, scale: Length) -> Length = scale * (1.0 - Pow(2.0, -n / 12.0));
+Function PadHeight(h: Length) -> Length = h + 1mm;
+Concept Struct Nut {
+ Points<Point2> Crossings {
+  Keys: [Bass, Middle, Treble];
+  Linear { Start: Point2(-18mm,0mm); Step: [18mm,0mm]; }
+ }
+ Points<Point3> Supports {
+  Left: Point3(-18mm,0mm,2mm);
+  Right: Point3(18mm,0mm,2mm);
+ }
+}
+Concept Struct Board {
+ Points<Point2> Frets {
+  Series { Index: n; First: 1; Count: 12; KeyPrefix: Fret;
+   Position: Point2(0mm, -Distance(n,628mm)); }
+ }
+}
+Template<H: Length> Struct Pad {
+ Rect2 Outline { Center: [0mm,0mm]; Size: [4mm,2mm] }
+ Profile P { Loop Outer { Outline |> TraceLoop } }
+ Extrude Body { Profile: P; From: 0mm; To: H }
+ Expose { Semantic Bottom { DatumFrame Frame = [0mm,0mm,0mm] x [1,0,0] y [0,1,0] z [0,0,1]; } }
+}
+Assembly PointWitness {
+ <Assembly PointWitness>
+  Pattern Frets Over Board.Frets {
+   point => <Part Fret = Pad<H:PadHeight(1mm)>>
+    Placement { From: Bottom.Frame; To: BoardSeat.Frame;
+     TranslateLocal: [point.Position.X,point.Position.Y,0mm]; }
+   </Part>
+  }
+  <Part Bass = Pad<H:1mm>>
+   Placement { From: Bottom.Frame; To: World;
+    TranslateLocal: [Nut.Crossings.Bass.X,Nut.Crossings.Bass.Y,Nut.Supports.Left.Z]; }
+  </Part>
+ </Assembly>
+ FrameTransform BoardSeat { From: World; TranslateLocal: [0mm,658mm,62mm]; }
+ Anchor: PointWitness;
+}

@@ -1,0 +1,29 @@
+// A rigid knob stack seated by station on one Concept spindle.
+Concept Struct KnobLayout {
+  Axis Spindle { origin: [0mm, 0mm, 0mm]; direction: [0, 0, 1]; reference: [1, 0, 0]; }
+}
+Subassembly ControlKnob {
+  <Assembly ControlKnob>
+    <Part KnobSkirt = Drum<R:12mm,H:3mm>>
+      material: Brass;
+    </Part>
+    <Part AmberKnob = Drum<R:9mm,H:9mm>>
+      material: AmberPolymer;
+    </Part>
+    <Part KnobCap = Drum<R:5mm,H:1mm>>
+      material: Brass;
+    </Part>
+  </Assembly>
+  Interface<Fixed> CoaxialStack {
+    datum: KnobLayout.Spindle;
+    members: [ControlKnob.KnobSkirt.SpindleSeat, ControlKnob.AmberKnob.SpindleSeat, ControlKnob.KnobCap.SpindleSeat];
+  }
+  Mate SkirtOnSpindle: CoaxialStack { member: ControlKnob.KnobSkirt.SpindleSeat; at: 0mm; clocking: 0deg; }
+  Mate GripOnSpindle: CoaxialStack { member: ControlKnob.AmberKnob.SpindleSeat; at: 3mm; clocking: 0deg; }
+  Mate CapOnSpindle: CoaxialStack { member: ControlKnob.KnobCap.SpindleSeat; at: 12mm; clocking: 0deg; }
+  anchor: ControlKnob;
+  expose {
+    DatumFrame Mount = KnobSkirt.SpindleSeat.Frame;
+    Semantic Spindle = KnobSkirt.SpindleSeat;
+  }
+}

@@ -264,7 +264,7 @@ internal static class FirmamentV2TemplateExpansion
                 Start: declaration.SourceSpan.Start,
                 Length: declaration.SourceSpan.Length,
                 Text: string.Equals(declaration.Name, template.Name, StringComparison.Ordinal)
-                    ? $"{template.TargetKind} {instanceName}{template.HeaderTail} {{{body}}}{liftedPmi}"
+                    ? RenderOutput(template.TargetKind, instanceName, template.HeaderTail, body) + liftedPmi
                     : string.Empty))
             .OrderByDescending(change => change.Start)
             .ToArray();
@@ -340,7 +340,7 @@ internal static class FirmamentV2TemplateExpansion
             body = ExpandNestedApplications(body, byName, source, enums, recordTypes, staticRecords,
                 diagnostics, instantiations, [template.Name]);
             var liftedPmi = LiftPmi(body, out body);
-            changes.Add((application.SourceSpan.Start, application.SourceSpan.Length, $"{template.TargetKind} {application.InstanceName}{template.HeaderTail} {{{body}}}{liftedPmi}"));
+            changes.Add((application.SourceSpan.Start, application.SourceSpan.Length, RenderOutput(template.TargetKind, application.InstanceName, template.HeaderTail, body) + liftedPmi));
         }
         if (HasErrors(diagnostics)) return null;
         foreach (var change in changes.OrderByDescending(c => c.Start)) source = source.Remove(change.Start, change.Length).Insert(change.Start, change.Text);
@@ -356,7 +356,7 @@ internal static class FirmamentV2TemplateExpansion
         foreach (Match start in Regex.Matches(source, @"\bTemplate\s*<", RegexOptions.CultureInvariant))
         {
             var open = source.IndexOf('<', start.Index); var close = Matching(source, open, '<', '>');
-            var header = close < 0 ? Match.Empty : Regex.Match(source[(close + 1)..], @"^\s*(?<kind>Concept\s+Struct|Struct|Model|Panel|SheetMetal|ProfileDelta)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)(?<tail>\s*:\s*[A-Za-z_][A-Za-z0-9_]*)?\s*\{", RegexOptions.CultureInvariant);
+            var header = close < 0 ? Match.Empty : Regex.Match(source[(close + 1)..], @"^\s*(?<kind>Concept\s+Struct|Struct|Model|Panel|SheetMetal|ProfileDelta|Profile)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)(?<tail>\s*:\s*[A-Za-z_][A-Za-z0-9_]*)?\s*\{", RegexOptions.CultureInvariant);
             if (close >= 0 && !header.Success
                 && Regex.IsMatch(source[(close + 1)..], @"^\s*[A-Za-z_][A-Za-z0-9_]*\s*\{", RegexOptions.CultureInvariant))
                 continue; // finite feature Template; CanonicalStaticAuthoring owns this bounded form.
@@ -369,6 +369,32 @@ internal static class FirmamentV2TemplateExpansion
             result.Add(new(name, header.Groups["kind"].Value, header.Groups["tail"].Value, parameters, source[(brace + 1)..end], new(start.Index, end - start.Index + 1)));
         }
         return result.ToImmutable();
+    }
+
+    private static string RenderOutput(string kind, string instance, string tail, string body)
+    {
+        // Profile guides belong to each specialization; span identities stay shared.
+        if (kind == "Profile")
+        {
+            var names = Regex.Matches(body, @"\b(?:Concept\s+Struct|Curve2|Point2|Line2|CubicBezier2|Circle2|Arc2|Rect2|RoundedRect2|Ellipse2|Path2)\s+(?<name>[A-Za-z_]\w*)\s*\{")
+                .Select(m => m.Groups["name"].Value).Distinct(StringComparer.Ordinal).ToArray();
+            foreach (var name in names)
+                body = Regex.Replace(body, $@"\b{Regex.Escape(name)}\b", instance + "_" + name);
+        }
+        var prelude = "";
+        if (kind == "Profile")
+        {
+            for (var offset = 0; offset < body.Length;)
+            {
+                var match = Regex.Match(body[offset..], @"\b(?:Concept\s+Struct|Point2|Line2|CubicBezier2|Circle2|Arc2|Rect2|RoundedRect2|Ellipse2|Path2)\s+[A-Za-z_]\w*\s*\{");
+                if (!match.Success) break;
+                var start = offset + match.Index; var open = body.IndexOf('{', start); var close = Matching(body, open, '{', '}');
+                if (close < 0) break;
+                prelude += body[start..(close + 1)] + "\n";
+                body = body.Remove(start, close - start + 1); offset = start;
+            }
+        }
+        return prelude + $"{kind} {instance}{tail} {{{body}}}";
     }
 
     private static ImmutableArray<TemplateParameterIr> ParseParameters(string text, int offset, List<string> diagnostics)
@@ -391,13 +417,13 @@ internal static class FirmamentV2TemplateExpansion
     private static ImmutableArray<TemplateApplicationIr> ParseApplications(string source, IReadOnlyDictionary<string, TemplateDeclarationIr> templates, List<string> diagnostics)
     {
         var result = ImmutableArray.CreateBuilder<TemplateApplicationIr>();
-        foreach (Match start in Regex.Matches(source, @"\b(?<kind>Concept\s+Struct|Struct|Model|Panel|SheetMetal|ProfileDelta)\s+(?<instance>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*(?<template>[A-Za-z_][A-Za-z0-9_]*)\s*<", RegexOptions.CultureInvariant))
+        foreach (Match start in Regex.Matches(source, @"\b(?<kind>Concept\s+Struct|Struct|Model|Panel|SheetMetal|ProfileDelta|Profile)\s+(?<instance>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*(?<template>[A-Za-z_][A-Za-z0-9_]*)\s*<", RegexOptions.CultureInvariant))
         {
             if (!templates.ContainsKey(start.Groups["template"].Value)) continue;
             var open = source.IndexOf('<', start.Index); var close = Matching(source, open, '<', '>');
             if (close < 0) { diagnostics.Add(MissingArgument); continue; }
             var args = ImmutableArray.CreateBuilder<TemplateArgumentIr>(); var seen = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var raw in source[(open + 1)..close].Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+            foreach (var raw in ConceptPointAuthoring.Components(source[(open + 1)..close]).Select(value => value.Trim()).Where(value => value.Length > 0))
             {
                 var parsed = Regex.Match(raw, @"^(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?<value>.+)$", RegexOptions.CultureInvariant);
                 if (!parsed.Success) { diagnostics.Add(UnknownArgument + ":" + raw); continue; }
@@ -500,6 +526,7 @@ internal static class FirmamentV2TemplateExpansion
     private static bool TypeMatches(string value, string type, IReadOnlyDictionary<string, ImmutableHashSet<string>> enums,
         IReadOnlyDictionary<string, TemplateRecordTypeIr>? recordTypes = null, IReadOnlyDictionary<string, TemplateStaticRecordIr>? staticRecords = null) => type switch
     {
+        "Point3" => Regex.IsMatch(value, @"^Point3\(\s*[-+]?\d+(?:\.\d+)?mm\s*,\s*[-+]?\d+(?:\.\d+)?mm\s*,\s*[-+]?\d+(?:\.\d+)?mm\s*\)$"),
         "Length" => Regex.IsMatch(value, @"^[-+]?[0-9]+(?:\.[0-9]+)?mm$", RegexOptions.CultureInvariant),
         "Angle" => Regex.IsMatch(value, @"^[-+]?[0-9]+(?:\.[0-9]+)?deg$", RegexOptions.CultureInvariant),
         "String" => Regex.IsMatch(value, "^\"[^\"]*\"$", RegexOptions.CultureInvariant),
@@ -515,7 +542,7 @@ internal static class FirmamentV2TemplateExpansion
         _ => false
     };
     private static bool IsBuiltInValueType(string type, IReadOnlyDictionary<string, ImmutableHashSet<string>> enums) =>
-        type is "Length" or "Angle" or "String" or "Version" or "Date" or "ImportedStep" or "ProfilePath" or "Int" or "Float" or "Bool" or "int" or "float" or "bool" || enums.ContainsKey(type);
+        type is "Point3" or "Length" or "Angle" or "String" or "Version" or "Date" or "ImportedStep" or "ProfilePath" or "Int" or "Float" or "Bool" or "int" or "float" or "bool" || enums.ContainsKey(type);
 
     private static IReadOnlyDictionary<string, TemplateRecordTypeIr> ParseRecordTypes(string source, List<string> diagnostics)
     {
@@ -573,9 +600,9 @@ internal static class FirmamentV2TemplateExpansion
         IReadOnlyDictionary<string, ImmutableHashSet<string>> enums, IReadOnlyDictionary<string, TemplateStaticTableIr> tables, List<string> diagnostics)
     {
         var result = new Dictionary<string, TemplateStaticRecordIr>(StringComparer.Ordinal);
-        foreach (Match header in Regex.Matches(source, @"\bStatic\s+(?<name>[A-Za-z_]\w*)\s*:\s*(?<type>[A-Za-z_]\w*)\s*=\s*(?<literal>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant))
+        foreach (Match header in Regex.Matches(source, @"\bStatic\s+(?<name>[A-Za-z_]\w*)\s*:\s*(?<type>[A-Za-z_]\w*)(?:\s*=\s*(?<literal>[A-Za-z_]\w*))?\s*\{", RegexOptions.CultureInvariant))
         {
-            var name = header.Groups["name"].Value; var typeName = header.Groups["type"].Value; var literalType = header.Groups["literal"].Value;
+            var name = header.Groups["name"].Value; var typeName = header.Groups["type"].Value; var literalType = header.Groups["literal"].Success ? header.Groups["literal"].Value : typeName;
             var open = source.IndexOf('{', header.Index); var close = Matching(source, open, '{', '}');
             if (close < 0 || !recordTypes.TryGetValue(typeName, out var recordType)) continue;
             if (!string.Equals(typeName, literalType, StringComparison.Ordinal)) { diagnostics.Add(WrongRecordType + $":{name}:expected-{typeName}:actual-{literalType}"); continue; }
@@ -864,7 +891,7 @@ internal static class FirmamentV2TemplateExpansion
             // Feature AIR. The instantiation record above preserves the semantic boundary;
             // material grammar receives concrete declarations without unsupported nested Structs.
             changes.Add((application.SourceSpan.Start, application.SourceSpan.Length,
-                specializedBody + liftedPmi));
+                (template.TargetKind == "Profile" ? RenderOutput("Profile", application.InstanceName, template.HeaderTail, specializedBody) : specializedBody) + liftedPmi));
         }
         foreach (var change in changes.OrderByDescending(change => change.Start))
             body = body.Remove(change.Start, change.Length).Insert(change.Start, change.Text);

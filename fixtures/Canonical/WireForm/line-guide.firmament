@@ -1,0 +1,16 @@
+Model GuidedLead {
+ Units: mm
+ Concept Struct HarnessLayout {
+  Line3 Groove { From: Point3(0mm,0mm,0mm); To: Point3(100mm,0mm,0mm); }
+ }
+ WireRoute Signal {
+  Diameter: 2mm;
+  Material: Standard.Materials.StainlessSteel.304_Annealed;
+  MinimumBendRadius: 10mm;
+  Path {
+   Start { At: Point3(0mm,-40mm,0mm); }
+   Follow MainGroove { Curve: HarnessLayout.Groove; From: 20mm; Distance: 60mm; Direction: Forward; }
+   End { At: Point3(120mm,0mm,0mm); }
+  }
+ }
+}

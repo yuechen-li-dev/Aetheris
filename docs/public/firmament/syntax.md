@@ -65,7 +65,7 @@ Modify Plate {
 }
 ```
 
-Parameters are strongly typed and calls may use positional or named arguments. Defaults are optional. A body contains immutable typed `let` derivations followed by one terminal `return`. A Feature may return `Hole<Shaft>`, `Hole<Counterbore>`, `Hole<Countersink>`, `Boss`, `Pocket`, or `EdgeFinish`, and may call another Feature with the same return type. Direct and indirect recursion are rejected. Feature names occupy the callable namespace, separate from typed construction declarations such as `Profile`.
+Parameters are strongly typed and calls may use positional or named arguments. Defaults are optional. A body contains immutable typed `let` derivations and optional private `Point2`, `Rect2`, `RoundedRect2`, `Circle2`, and `Profile` construction declarations followed by one terminal `return`. Local construction names are qualified separately for each invocation. Product Templates specialize before Feature argument binding; Feature results then lower before patterns and Feature AIR. A Feature may return `Hole<Shaft>`, `Hole<Counterbore>`, `Hole<Countersink>`, `Boss`, `Pocket`, or `EdgeFinish`, and may call another Feature with the same return type. Direct and indirect recursion are rejected. Feature names occupy the callable namespace, separate from typed construction declarations such as `Profile`. Named results use `Feature Name = Function(...)`; the name becomes the returned feature identity and appears in invocation inspection. See [functional pickup construction](functional-pickup.md) for a qualified part example.
 
 Firmament intentionally does not provide general runtime control flow. `if`/`else`, conditional expressions, `match` inside Feature, mutable variables, exceptions, and `for`/`while` loops are rejected. A Firmament program describes one deterministic engineering construction, not a runtime family of topologically unrelated outputs.
 
@@ -215,6 +215,10 @@ Structurally different edge finishes should be separate Features in X1—for exa
 For X1, Feature is supported by the `Mechanical` frontend. `WireForm`, `Sweep`, and `SectionChain` reject Feature declarations explicitly; shared cross-schema Feature IR and module/library packaging are deferred.
 
 ## Finite Profile and Path composition
+
+Named single-loop Profiles can be placed through Concept Curve2 values before
+being traced into a new Profile. See [Concept derivation](concept-derivation.md)
+for From/On/Translate/Rotate and bounded uniform Scale/Pivot syntax.
 
 `|>` composes compatible semantic geometry in a finite authoring pipeline. In a Profile loop, each source span is traced in authored order and automatically oriented to continue from the preceding endpoint:
 

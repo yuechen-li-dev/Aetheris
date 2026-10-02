@@ -1,0 +1,32 @@
+Concept Struct Markers {
+ Points<Point2> Seats {
+  Linear {
+   Start: Point2(0mm,0mm);
+   Direction: [0,-2];
+   Stations { First: 10mm; Second: 23.5mm; Third: -4mm; }
+  }
+ }
+}
+Template<H: Length> Struct Pad {
+ Rect2 Outline { Center: [0mm,0mm]; Size: [4mm,2mm] }
+ Profile P { Loop Outer { Outline |> TraceLoop } }
+ Extrude Body { Profile: P; From: 0mm; To: H }
+ Expose {
+  Semantic Bottom { DatumFrame Frame = [0mm,0mm,0mm] x [1,0,0] y [0,1,0] z [0,0,1]; }
+  Semantic MarkerOrigin { DatumFrame Frame = [0mm,0mm,H] x [1,0,0] y [0,1,0] z [0,0,1]; }
+ }
+}
+Assembly StationWitness {
+ <Assembly StationWitness>
+  <Part Board = Pad<H:2mm>>
+   Placement { From: Bottom.Frame; To: World; TranslateLocal: [10mm,20mm,30mm]; RotateLocal: { Axis: X; Angle: 90deg } }
+  </Part>
+  Pattern Markers Over Markers.Seats {
+   point => <Part Inlay = Pad<H:0.3mm>>
+    Placement { From: Bottom.Frame; To: MarkerDatum.Frame; TranslateLocal: [point.Position.X,point.Position.Y,0mm]; }
+   </Part>
+  }
+ </Assembly>
+ FrameTransform MarkerDatum { From: StationWitness.Board.MarkerOrigin.Frame; }
+ Anchor: StationWitness;
+}

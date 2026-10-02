@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Verification;
+using Aetheris.Kernel.Core.Brep.Queries;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
@@ -22,7 +23,8 @@ public sealed record AssemblyM1CompilationResult(
     AssemblyIr? Ir,
     AssemblyExecutedGeometry? Geometry,
     IReadOnlyList<AssemblyDiagnostic> Diagnostics,
-    AssemblyPerformanceIr? Performance = null)
+    AssemblyPerformanceIr? Performance = null,
+    AssemblyCompilationReuse? Reuse = null)
 {
     public bool IsSuccess => Ir is not null && Geometry is not null && Diagnostics.All(diagnostic => diagnostic.Severity != AssemblyDiagnosticSeverity.Error);
 }
@@ -50,7 +52,8 @@ internal sealed record MaterializedAssemblyDefinition(
     string SpecializationIdentity,
     BrepBody Body,
     IReadOnlyList<SemanticValue> Semantics,
-    AssemblyDefinitionArtifactIr Artifact);
+    AssemblyDefinitionArtifactIr Artifact,
+    string? CanonicalStep = null);
 
 /// <summary>
 /// M1's definition seam: specialize through the ordinary Firmament compiler, then
@@ -104,6 +107,9 @@ internal static class AssemblyDefinitionMaterializer
                     }
                     sectionSource = File.ReadAllText(sectionPath);
                 }
+                var loaded = AssemblyM0Parser.LoadResource(sectionPath, project, [], diagnostics);
+                if (loaded is null) return null;
+                sectionSource = loaded;
                 var section = SectionChainAuthoringParser.Compile(AssemblyPublishedPorts.Strip(sectionSource, diagnostics));
                 if (!section.IsSuccess || section.Materialization?.Body is not { } sectionBody ||
                     section.Materialization.StructureKind != SectionChainStructureKind.ClosedSolid)
@@ -130,10 +136,12 @@ internal static class AssemblyDefinitionMaterializer
                 }
                 var sectionHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sectionStep.Value)));
                 var sectionStableId = "assembly-definition:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(definitionIdentity)))[..16];
-                var sectionProvenance = new[] { new SemanticProvenance("section-chain-source", sectionPath, section.Chain!.StableId, SemanticSourceSpan.Generated(sourceIdentity)) };
+                var sectionProvenance = new[] { new SemanticProvenance("section-chain-source", sectionPath, section.Chain!.StableId, SemanticSourceSpan.Generated(sourceIdentity)) }
+                    .Concat((section.ProfileDerivations ?? []).Select(d => new SemanticProvenance("concept-boundary-placement",
+                        d.ConceptCurve, d.Profile + ":" + d.Transform, SemanticSourceSpan.Generated(sectionPath)))).ToArray();
                 var ports = AssemblyPublishedPorts.Read(sectionSource,section.Chain.StableId,definitionIdentity,sectionPath,diagnostics,section.Chain);
                 return new(definitionIdentity, "section-chain:" + sectionHash[..16], sectionImport.Value, ports,
-                    new(sectionStableId, definitionIdentity, "section-chain:" + sectionHash[..16], sectionHash, Metrics(sectionImport.Value), sectionProvenance));
+                    new(sectionStableId, definitionIdentity, "section-chain:" + sectionHash[..16], sectionHash, Metrics(sectionImport.Value), sectionProvenance), sectionStep.Value);
             }
             var gearDocument = GearAuthoring.ParseDefinitions(definitionSource);
             var gear = gearDocument.Gears.SingleOrDefault(candidate => string.Equals(candidate.Name, definitionIdentity, StringComparison.Ordinal));
@@ -195,7 +203,7 @@ internal static class AssemblyDefinitionMaterializer
             var externalStableId = "assembly-definition:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(definitionIdentity)))[..16];
             var externalProvenance = new[] { new SemanticProvenance("imported-step-definition", resolvedPath, externalHash, SemanticSourceSpan.Generated(sourceIdentity)) };
             return new(definitionIdentity, "external-step:" + externalHash[..16], externalImport.Value, [],
-                new(externalStableId, definitionIdentity, "external-step:" + externalHash[..16], externalHash, Metrics(externalImport.Value), externalProvenance));
+                new(externalStableId, definitionIdentity, "external-step:" + externalHash[..16], externalHash, Metrics(externalImport.Value), externalProvenance), stepText);
         }
         if (string.IsNullOrWhiteSpace(definitionSource) || !definitionIdentity.Contains('<', StringComparison.Ordinal)) return null;
         // Assembly files keep reusable declarations beside relational assembly syntax.
@@ -255,7 +263,7 @@ internal static class AssemblyDefinitionMaterializer
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(build.Value.StepText)));
         var stableId = "assembly-definition:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(definitionIdentity)))[..16];
         var artifact = new AssemblyDefinitionArtifactIr(stableId, definitionIdentity, specialization, hash, Metrics(import.Value), provenance);
-        return new(definitionIdentity, specialization, import.Value, semantics, artifact);
+        return new(definitionIdentity, specialization, import.Value, semantics, artifact, build.Value.StepText);
     }
 
     private static IEnumerable<SemanticValue> WindingSemantics(FirmamentWireFormReport? wire,
@@ -330,6 +338,9 @@ internal static class AssemblyDefinitionMaterializer
 
 public sealed class AssemblyM1Pipeline
 {
+    private readonly AssemblyDefinitionCache? cache;
+    public AssemblyM1Pipeline() { }
+    internal AssemblyM1Pipeline(AssemblyDefinitionCache cache) => this.cache = cache;
     public AssemblyM1CompilationResult CompileFile(string path, AssemblyPartMaterializer? domainMaterializer = null)
     {
         var parsed = new AssemblyM0Parser().ParseFile(path);
@@ -358,14 +369,22 @@ public sealed class AssemblyM1Pipeline
         return CompileParsed(parsed, null, project);
     }
 
-    private static AssemblyM1CompilationResult CompileParsed(AssemblyM0Parser.ParseResult parsed, AssemblyPartMaterializer? domainMaterializer, FirmamentProjectSnapshot? project = null)
+    private AssemblyM1CompilationResult CompileParsed(AssemblyM0Parser.ParseResult parsed, AssemblyPartMaterializer? domainMaterializer, FirmamentProjectSnapshot? project = null)
     {
         if (!parsed.IsSuccess || parsed.Source is null) return new(null, null, parsed.Diagnostics);
         var diagnostics = parsed.Diagnostics.ToList();
+        var routeWatch = Stopwatch.StartNew();
+        var routeSource = AssemblyRouteBindings.Resolve(parsed.Source, diagnostics, out var routeBindings);
+        if (routeSource is null) return new(null, null, diagnostics);
+        parsed = parsed with { Source = routeSource };
+        routeWatch.Stop();
         var materializationWatch = Stopwatch.StartNew();
         var definitions = parsed.Source.Root.Flatten().Where(member => member.Kind == AssemblyInstanceKind.Part)
             .Select(member => member.DefinitionIdentity).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)
-            .Select(identity => Materialize(identity, parsed.Source.DefinitionSource, parsed.Source.SourceIdentity, diagnostics, domainMaterializer, project))
+            .Select(identity => cache is null
+                ? Materialize(identity, parsed.Source.DefinitionSource, parsed.Source.SourceIdentity, diagnostics, domainMaterializer, project)
+                : cache.Materialize(identity, parsed.Source.DefinitionSource, parsed.Source.SourceIdentity, diagnostics, project,
+                    () => Materialize(identity, parsed.Source.DefinitionSource, parsed.Source.SourceIdentity, diagnostics, domainMaterializer, project)))
             .Where(definition => definition is not null).Cast<MaterializedAssemblyDefinition>().ToDictionary(definition => definition.DefinitionIdentity, StringComparer.Ordinal);
         materializationWatch.Stop();
         var enriched = parsed.Source with { Root = Enrich(parsed.Source.Root, definitions) };
@@ -378,9 +397,10 @@ public sealed class AssemblyM1Pipeline
         var performance = compiled.Performance is null ? null : compiled.Performance with
         {
             DefinitionMaterializationMilliseconds = materializationWatch.Elapsed.TotalMilliseconds,
-            GeometryExecutionMilliseconds = geometryWatch.Elapsed.TotalMilliseconds
+            GeometryExecutionMilliseconds = geometryWatch.Elapsed.TotalMilliseconds,
+            RouteBindingMilliseconds = routeWatch.Elapsed.TotalMilliseconds
         };
-        return new(validatedIr, geometry, diagnostics, performance);
+        return new(validatedIr with { RouteBindings = routeBindings }, geometry, diagnostics, performance);
     }
 
     private static MaterializedAssemblyDefinition? Materialize(string identity, string? declarations, string sourceIdentity,
@@ -447,11 +467,12 @@ public sealed class AssemblyM1Pipeline
         foreach (var residual in residuals.Where(item => !item.Passed))
             diagnostics.Add(new("assembly-mate-geometry-residual", $"Constraint '{residual.ConstraintStableId}' residual position={residual.PositionResidualMm:G6}mm angle={residual.AngularResidualRadians:G6}rad."));
         ValidateSolidInterference(ir, instances, diagnostics);
+        var datumSeats = ValidateDatumSeats(ir, instances, diagnostics);
         validatedIr = ir with { Schema = "aetheris/assembly-ir/m1", PlacementConstraints = constraints, Diagnostics = diagnostics };
         var definitionsIr = definitions.Values.Select(definition => definition.Artifact).OrderBy(definition => definition.StableId, StringComparer.Ordinal).ToArray();
         var canonical = JsonSerializer.Serialize(new { definitions = definitionsIr, instances = instanceArtifacts, residuals });
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
-        var artifact = new AssemblyGeometryArtifactIr("aetheris/assembly-geometry/m1", definitionsIr, instanceArtifacts, residuals, hash);
+        var artifact = new AssemblyGeometryArtifactIr("aetheris/assembly-geometry/m1", definitionsIr, instanceArtifacts, residuals, hash, datumSeats);
         return new(artifact, definitions.ToDictionary(pair => pair.Key, pair => pair.Value.Body, StringComparer.Ordinal), instances);
     }
 
@@ -470,6 +491,50 @@ public sealed class AssemblyM1Pipeline
                 + $"The assembly is physically invalid and cannot be materialized (proof={result.Evidence}; penetration witness={result.PenetrationWitnessMm:G6}mm; "
                 + $"contained tetrahedron={result.WitnessTetrahedronVolumeMm3:G6}mm^3). Face/edge contact is allowed, but positive-volume overlap is not."));
         }
+    }
+
+    private static IReadOnlyList<AssemblyDatumSeatEvidence> ValidateDatumSeats(AssemblyIr ir,
+        IReadOnlyDictionary<string, BrepBody> bodies, List<AssemblyDiagnostic> diagnostics)
+    {
+        var evidence = new List<AssemblyDatumSeatEvidence>();
+        var queries = bodies.ToDictionary(p => p.Key, p => new BrepPlanarSeatQuery(p.Value), StringComparer.Ordinal);
+        var points = new List<(AssemblyInstanceIr Instance, Point3D Point, Vector3D Normal)>();
+        foreach (var instance in ir.Instances.Where(i => i.DatumSeat is not null))
+        {
+            var seat = instance.DatumSeat!;
+            var value = instance.SemanticRoot;
+            foreach (var segment in seat.Port.Split('.'))
+            {
+                if (!value.ExposedMembers.TryGetValue(segment, out var next)) { value = null!; break; }
+                value = next;
+            }
+            if (value is null || !value.TryBinding<ExactDatumFrameBinding>(out var frame) ||
+                instance.ResolvedTransform is null || !bodies.TryGetValue(instance.StableId, out var body))
+            { diagnostics.Add(new("assembly-datum-port-invalid", $"'{instance.Path}' requires a published seating Frame and material body.")); continue; }
+            var world = Transform3D.FromRowMajor(instance.ResolvedTransform.Matrix);
+            var point = world.Apply(new Point3D(frame.OriginX, frame.OriginY, frame.OriginZ));
+            var parent = ir.Instances.Single(i => i.StableId == instance.ParentStableId);
+            var parentWorld = Transform3D.FromRowMajor(parent.ResolvedTransform!.Matrix);
+            var origin = parentWorld.Apply(new Point3D(seat.Origin[0], seat.Origin[1], seat.Origin[2]));
+            var normal = parentWorld.Apply(new Vector3D(seat.Normal[0], seat.Normal[1], seat.Normal[2]));
+            normal.TryNormalize(out normal);
+            var residual = Math.Abs((point - origin).Dot(normal));
+            var faces = queries[instance.StableId].FindFaces(point, normal);
+            var passed = residual <= 1e-7 && faces.Count > 0;
+            evidence.Add(new(instance.StableId, seat.Interface, seat.Datum, residual,
+                faces.Select(f => f.ToString()).ToArray(), seat.Support, passed));
+            if (!passed) diagnostics.Add(new("assembly-datum-material-seat-missing", $"'{instance.Path}' has no admitted planar material face at its seating point on '{seat.Datum}' (residual={residual:G6}mm)."));
+            points.Add((instance, point, normal));
+        }
+        foreach (var support in points.Where(p => p.Instance.DatumSeat!.Support))
+        foreach (var seated in points.Where(p => !p.Instance.DatumSeat!.Support && p.Instance.DatumSeat.Datum == support.Instance.DatumSeat!.Datum))
+        {
+            if (queries[support.Instance.StableId].FindFaces(seated.Point, seated.Normal).Count > 0) continue;
+            diagnostics.Add(new("assembly-datum-support-contact-missing", $"'{seated.Instance.Path}' seating point does not contact the planar support of '{support.Instance.Path}'."));
+            var index = evidence.FindIndex(e => e.InstanceStableId == seated.Instance.StableId);
+            if (index >= 0) evidence[index] = evidence[index] with { Passed = false };
+        }
+        return evidence;
     }
 }
 

@@ -288,27 +288,28 @@ public static class FirmamentBuildAndExport
         // parser admission alone is insufficient because the profile/composition
         // materializers read source declarations directly.
         var staticDiagnostics = new List<string>();
+        sourceText = ProfileModificationTemplateLibrary.ResolveImports(sourceText);
         var boundaryExpansion = ClosedBoundary2Authoring.Expand(sourceText, staticDiagnostics);
         if (boundaryExpansion is null)
         {
             return KernelResult<FirmamentStepExportResult>.Failure(staticDiagnostics.Select(diagnostic => new Kernel.Core.Diagnostics.KernelDiagnostic(
                 Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, diagnostic, "FirmamentV2.ClosedBoundary2")).ToArray());
         }
-        var featureExpansion = FirmamentV2FeatureExpansion.Expand(boundaryExpansion.Source, staticDiagnostics);
-        if (featureExpansion is null)
-        {
-            return KernelResult<FirmamentStepExportResult>.Failure(staticDiagnostics.Select(diagnostic => new Kernel.Core.Diagnostics.KernelDiagnostic(
-                Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, diagnostic, "FirmamentV2.FeatureExpansion")).ToArray());
-        }
         var templateBindWatch = System.Diagnostics.Stopwatch.StartNew();
-        var templateExpansion = FirmamentV2TemplateExpansion.Expand(featureExpansion.Source, staticDiagnostics);
+        var templateExpansion = FirmamentV2TemplateExpansion.Expand(boundaryExpansion.Source, staticDiagnostics);
         templateBindWatch.Stop();
         if (templateExpansion is null)
         {
             return KernelResult<FirmamentStepExportResult>.Failure(staticDiagnostics.Select(diagnostic => new Kernel.Core.Diagnostics.KernelDiagnostic(
                 Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, diagnostic, "FirmamentV2.TemplateExpansion")).ToArray());
         }
-        var specializedBoundaries = ClosedBoundary2Authoring.Expand(templateExpansion.Source, staticDiagnostics);
+        var featureExpansion = FirmamentV2FeatureExpansion.Expand(templateExpansion.Source, staticDiagnostics);
+        if (featureExpansion is null)
+        {
+            return KernelResult<FirmamentStepExportResult>.Failure(staticDiagnostics.Select(diagnostic => new Kernel.Core.Diagnostics.KernelDiagnostic(
+                Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, diagnostic, "FirmamentV2.FeatureExpansion")).ToArray());
+        }
+        var specializedBoundaries = ClosedBoundary2Authoring.Expand(featureExpansion.Source, staticDiagnostics);
         if (specializedBoundaries is null)
             return KernelResult<FirmamentStepExportResult>.Failure(staticDiagnostics.Select(SchemaDiagnostic).ToArray());
         var staticExpansion = CanonicalStaticAuthoring.Expand(specializedBoundaries.Source, staticDiagnostics);

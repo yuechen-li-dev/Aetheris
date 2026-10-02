@@ -1,10 +1,13 @@
 # Single-cut carved electric guitar
 
+The current source also qualifies [Concept-directed Fixed seating](../firmament/datum-seating.md):
+the planar body crown, pickups and bridge conform to one authored 53mm hardware deck.
+
 **Verdict: accepted for GUITAR-SURFACING-X0.** This is good enough as a presentation/dunk witness: a coherent surfaced guitar built from code, exact STEP export, a clean compiled USD display path and slide-ready Cycles images. The result demonstrates Aetheris's pipeline; the comparison does not claim a measured speed ratio against Zoo.
 
 GUITAR-SURFACING-X0 is an original single-cut guitar presentation witness inspired by the Les Paul family. The supplied photographs guided proportions and finish; no photograph, logo, downloaded guitar model, or external product mesh is bundled. Aetheris constructs every guitar part. Blender imports the actual OpenUSD export and adds downstream appearance, studio lighting, floor, and camera.
 
-The [authored assembly](../../../fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar.firmasm) has a cubic single-cut outline, mahogany back, cream edge band, a five-section carved maple top with a 13 mm rise, a six-section D-profile G1 neck, tapered fretboard, tilted headstock, 22 frets, inlays, two pickups, bridge, stop tailpiece, four controls, selector, tuner placeholders, and six continuous formed strings. See [the multi-file subassembly layout](guitar-subassemblies.md) for the current source organization.
+The [authored assembly](../../../fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar.firmasm) has a cubic single-cut outline, mahogany back, cream edge band, a five-section carved maple top with a 13 mm rise, a six-section D-profile G1 neck, tapered fretboard, tilted headstock, 22 frets, inlays, two pickups, bridge, stop tailpiece, four controls, selector, tuner placeholders, and six continuous formed strings. See [the multi-file subassembly layout](guitar-subassemblies.md) and [functional pickup construction](../firmament/functional-pickup.md) for the current source. Pickup consolidation changes current counts to 91 visible parts and 53 definitions; performance and render evidence below describe the earlier witness snapshots.
 
 ## Reproduce
 
@@ -16,7 +19,13 @@ pwsh -File scripts/qualify-guitar-x0.ps1 -Render -Viewport
 
 `-Render` requires Blender with Cycles; `-Blender` supplies another executable. `-Viewport` uses the locally installed OpenUSD 25.08 SDK from the existing USD qualification workflow; `-UsdRoot` supplies its directory. Neither dependency is installed by this script. Without those flags, it builds, benchmarks, exports geometry and checks display mesh closure. Output defaults to ignored `artifacts/local/guitar-x0/`.
 
-The fixtures are ordinary authored Firmament. `python scripts/create-guitar-x0.py` reproducibly regenerates them from a small original silhouette and a finite part layout. SectionChain source is built with `aetheris section-chain build`, while the assembly uses `aetheris asm export-ap242` and `aetheris asm export-usd`.
+The fixtures are ordinary authored Firmament. `python scripts/create-guitar-x0.py`
+is now a read-only CLI reproduction harness: it exports artifacts and verifies
+that source hashes did not change. Body/neck Profile recipes, keyed sections,
+endpoint bindings and physical-material appearance defaults are source-owned.
+Root-aware `aetheris build` and `inspect` delegate to the existing geometry and
+assembly owners; `asm export-usd` remains the presentation export command. See
+[the qualified owl authoring slice](../firmament/source-owned-guitar-authoring.md).
 
 For source changes, run both test lanes after the solution build:
 
@@ -92,3 +101,128 @@ Stabilization validation: Release solution build passed with zero errors; the fo
 The follow-up side review requested a flatter lengthwise back. Shaft stations now lie on one straight taper from back z=42 mm at y=240 mm to z=48 mm at the nut (y=660 mm). An extra station before the shaft isolates the heel fairing from the shaft tangent; the rounded D cross-section remains. This removes the visible longitudinal belly without changing the fretboard, headstock or other product parts. A regression checks that shaft samples never protrude behind the straight taper and that centerline samples remain on the back or flat seat. The rear studio light is enabled only for neck inspection views, preserving the front studio lighting.
 
 Straight shaft validation: Release solution build and focused geometry regression passed; Core fast lane passed 1,005 tests; serial full solution lane passed 4,012 tests with zero failures or skips. STEP reimport, OpenUSD validation, closed outward-oriented meshes and unchanged viewport geometry pass. Logs use the `straight-neck-` prefix under local output; `straight-neck-test-summary.json` records the totals.
+
+## Source-authoring owl closeout, 2026-10-01
+
+The [updated checklist](../firmament/authoring-composition-proposal.md) and
+[implemented syntax](../firmament/source-owned-guitar-authoring.md) record this slice.
+Profile/section recipes are source-owned; fixed public endpoints drive strings;
+physical Material supplies Appearance defaults with explicit with overrides.
+Rendering consumes authored identities instead of matching occurrence names.
+
+Release solution build passed. Focused qualification passed 95 Firmament and 27
+CLI tests; fast Core passed 1,004. The full serial gate passed 4,225 tests with
+zero failures and seven existing skips across 21 projects. Cold compilation was
+11.105s, warm uncached 5.108s, and retained-session 0.887s with all 53 definitions
+reused. Display preparation was 0.218–0.398s; these local measurements include
+first-use JIT in cold, exclude process startup/build, and are not a Zoo speed ratio.
+Current cached/uncached USD serializations match.
+
+Fresh outputs are under ignored artifacts/local/owl: guitar.step, guitar.usda,
+report.md/report.json, inspect.json, timings.json, display.json and render/.
+Six full-resolution Cycles images and guitar-studio.blend use the final USD hash,
+with 91 imported meshes, nine pearl assignments and two pickup treatments;
+shading/camera changes preserve product topology. Blender import took 0.198s;
+hero took 42.79s and shaded isometric 41.72s at 1800x2200, GPU/OptiX, 64 samples.
+Earlier native Storm orbit measurements above remain historical; this slice
+qualifies the compiled Cycles scene and does not claim a refreshed native orbit run.
+
+## Connection-detail polish, 2026-10-01
+
+The reusable tuner now includes one lateral steel stem joining its button to the
+headstock, automatically shared by all six patterned occurrences. An exact
+semicircular rail sits on the tailpiece's top face. Its crown supplies the public
+string datum at z=65mm, replacing the previous 5mm free offset above the flat
+tailpiece. The six existing string routes retain their actual geometry.
+
+The neck uses ten G1 sections, with the existing straight shaft taper isolated
+from the short headstock transition. Its D-shaped cross-section is split exactly
+into six corresponding spans, then blends into the rectangular headstock root.
+The slab begins 16mm behind its original base datum; the transition's terminal cap
+is buried inside it at 18mm. A small solid scarf under the veneer closes the front
+of the angled join. This is a presentation assembly of separate exact solids;
+it does not claim fused joinery, a continuous G2 interface to the slab, tuner
+internals, string holes or mechanically functional string retention.
+
+The control arithmetic needed for splitting the cubic profile exposed a narrow
+authoring omission: Point2 controls accepted only literals after Template
+substitution. The profile binder now delegates finite Length arithmetic to the
+existing bounded scalar evaluator. The regression fixture checks real exact
+extrusion and rejects wrong units and nonfinite coordinates. No new compiler or
+geometry engine was introduced.
+
+Compared with the preceding owl export, all 91 existing part placements remain
+unchanged and 89 keep identical display geometry within 1e-9. Only the neck and
+headstock solid change; eight added occurrences provide six stems, the rail and
+the scarf. The result has 99 visible parts and 56 shared geometry definitions.
+Reproduction, comparison, mesh checks and fresh presentation outputs live under
+ignored `artifacts/local/guitar-polish/`. The renderer adds front, rear and side
+headstock close-ups so the three repairs can be inspected directly.
+
+The standalone neck CLI build and STEP reimport pass: one closed shell, 56 exact
+faces (54 polynomial spline faces and two planar caps), zero rational product
+surfaces and zero faceted fallback. Pcurve reconstruction deviation is below
+0.000000007mm; loop closure and orientation checks pass. The admitted triangle
+proxy self-intersection check passes; it is validation evidence, not a global
+analytic intersection proof.
+
+Fresh local benchmark: cold compile 12.848s, warm uncached compile 6.324s,
+retained-session compile 0.993s with all 56 definitions reused. Mesh preparation
+takes 0.224–0.437s and USD serialization 0.075–0.109s. All three serialized scenes
+match. As before, cold includes first-use JIT, process startup/build are excluded,
+and the measurements do not establish a numerical speedup over Zoo.
+
+Polish validation: Release solution build passes with zero errors and four
+existing WASM interop warnings. Core fast lane passes 1,004 tests. Final full serial
+gate passes 4,229 tests with zero failures and seven existing local-data skips
+across 21 projects. The first full run caught three stale fixture assertions for
+the section/span layout and shared-definition reuse count; their updated checks
+pass in the final run. Both logs and all TRX results remain in local output.
+
+Nine full-resolution Cycles views and the saved studio scene use the final USD
+hash. The 1800x2200 hero takes 11.81s and isometric 11.21s at 64 GPU/OptiX samples;
+USD import takes 0.142s. All 99 product meshes survive shading and camera changes
+without topology edits or compiler invocation. Closed-edge/outward-normal checks
+pass for the four surfaced parts, six strings, pickup and three new shared detail
+definitions. `report.md`/`report.json` link source, STEP, USD, Blender scene,
+images, timings, comparisons and test evidence. **This is ready as a presentation
+witness**; hardware internals and fused manufacturing joinery remain simplified.
+
+## Authored provenance and PMI, 2026-10-01
+
+The composition root now declares a typed `GuitarReleaseInfo` Record and immutable
+`GuitarRelease` value, selected by `Provenance: GuitarRelease;`. Version **0.1.0**
+credits **GPT 6.1 Sol Codex**, explicitly identifies the creator as an AI agent
+working under human direction, and records the release date, milestone, nominal
+units, authoring tolerance, and presentation-only status.
+
+Eight named product notes cover design intent, the 0.1 mm authoring convention,
+carved body, neck/head joint, electronics, bridge, strings/tuners, and finish.
+Together with ten release fields they export as **18 semantic AP242 annotations**.
+The STEP header also carries the author, date, description, and version. These
+notes are design information; they do not claim measured acceptance, newly
+qualified GD&T, or a manufactured instrument. The authored release date becomes
+a fixed midnight timestamp, independent of when the exporter runs.
+
+Reinspect with the assembly-aware route:
+
+```powershell
+dotnet Aetheris.CLI/bin/Release/net10.0/aetheris.dll build fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar.firmasm --output artifacts/local/guitar-provenance/guitar.step --json
+dotnet Aetheris.CLI/bin/Release/net10.0/aetheris.dll analyze assembly artifacts/local/guitar-provenance/guitar.step --json
+dotnet Aetheris.CLI/bin/Release/net10.0/aetheris.dll asm export-usd fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar.firmasm artifacts/local/guitar-provenance/guitar.usda --evidence artifacts/local/guitar-provenance/display.json --json
+```
+
+The real STEP reinspection recovers all 18 annotations with their intended
+occurrence targets. All existing STEP geometry/product/placement entities are
+byte-identical to the connection-polish baseline; only the header and 36 note
+entities are added. The 99 body occurrences and 56 shared geometry definitions
+are preserved. USD carries the same release fields and notes as custom
+attributes, with unchanged meshes and transforms; the existing beauty images
+continue to represent the current geometry. Metadata edits reuse geometry, as
+qualified through a retained compilation session regression.
+
+Current outputs and detailed evidence live in `artifacts/local/guitar-provenance/`.
+Provenance closeout: Release build and repository layout/diff checks pass; the
+Core fast lane passes 1,004 tests and the full serial gate passes **4,243 tests**
+with zero failures and seven existing local-data skips across 21 projects.
+See [assembly PMI syntax and limits](../firmament/pmi.md#assembly-release-records-and-design-notes).

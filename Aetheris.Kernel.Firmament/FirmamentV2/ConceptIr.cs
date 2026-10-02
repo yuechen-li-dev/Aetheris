@@ -26,6 +26,7 @@ public sealed record ConceptIrVector3(double X, double Y, double Z);
 [JsonDerivedType(typeof(ConceptIrRegion2Value), "Region2")]
 [JsonDerivedType(typeof(ConceptIrPoint3Value), "Point3")]
 [JsonDerivedType(typeof(ConceptIrPointSetValue), "PointSet")]
+[JsonDerivedType(typeof(ConceptIrKeyedPointSetValue), "KeyedPointSet")]
 [JsonDerivedType(typeof(ConceptIrLengthValue), "Length")]
 [JsonDerivedType(typeof(ConceptIrAngleValue), "Angle")]
 [JsonDerivedType(typeof(ConceptIrBoolValue), "Bool")]
@@ -63,6 +64,13 @@ public sealed record ConceptIrRegion2Value(string StableId, ConceptIrPoint3 Cent
 public sealed record ConceptIrPoint3Value(string StableId, ConceptIrPoint3 Point, string Provenance, int? Ordinal = null)
     : ConceptIrValue(StableId, ConceptIrValueKind.Point3, Provenance);
 public sealed record ConceptIrPointSetValue(string StableId, IReadOnlyList<ConceptIrPoint3Value> Points, string Provenance)
+    : ConceptIrValue(StableId, ConceptIrValueKind.PointSet, Provenance);
+
+/// <summary>Finite local points; ElementType preserves dimensionality without an implicit 2D-to-3D lift.</summary>
+public sealed record ConceptIrKeyedPointValue(string StableId, string Key, int Ordinal, string ElementType,
+    IReadOnlyList<double> Coordinates, string Provenance);
+public sealed record ConceptIrKeyedPointSetValue(string StableId, string Name, string ElementType,
+    IReadOnlyList<ConceptIrKeyedPointValue> Points, string Recipe, string Provenance)
     : ConceptIrValue(StableId, ConceptIrValueKind.PointSet, Provenance);
 
 public enum ConceptIrSemanticPhase { ConceptIr, FeatureAir }

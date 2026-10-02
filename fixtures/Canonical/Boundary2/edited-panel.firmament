@@ -1,0 +1,20 @@
+Use Profile.Modifications;
+Model EditedPanel {
+ Units: mm
+ Concept Struct Layout {
+  Rect2 Blank { Center: [0mm,0mm]; Size: [120mm,80mm] }
+ }
+ Static ServiceTab: ProfileTabSpec { Center: 60mm; Width: 24mm; Extension: 8mm }
+ ProfileDelta ServiceTabEdit = Tab<P: ServiceTab, Owner: Layout.Blank.Top>
+ Profile Panel Using Layout {
+  From: Blank
+  Apply ServiceTabEdit
+  Replace Grip {
+   On: Blank.Right
+   Range: [20mm,60mm]
+   Through: [[48mm,-10mm], [48mm,10mm]]
+   Join: Tangent
+  }
+ }
+ Extrude Body { Profile: Panel From: 0mm To: 3mm }
+}

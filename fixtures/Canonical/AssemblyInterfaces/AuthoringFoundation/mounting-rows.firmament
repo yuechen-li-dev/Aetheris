@@ -1,0 +1,36 @@
+Template<H: Length> Struct Post {
+ Circle2 Outline { Center: [0mm,0mm]; Radius: 2mm }
+ Profile P { Loop Outer { Outline |> TraceLoop } }
+ Extrude Body { Profile: P; From: 0mm; To: H }
+ Expose { Semantic Bottom { DatumFrame Frame = [0mm,0mm,0mm] x [1,0,0] y [0,1,0] z [0,0,1]; } }
+}
+Subassembly Tuner {
+ <Assembly Tuner>
+  <Part Post = Post<H:8mm>> Placement { From: Bottom.Frame; To: World; } </Part>
+  <Part Button = Post<H:3mm>> Placement { From: Bottom.Frame; To: World; TranslateLocal: [-5mm,0mm,0mm]; } </Part>
+ </Assembly>
+ Anchor: Tuner;
+ Expose { DatumFrame Mount = Post.Bottom.Frame; }
+}
+Linear Sites BassSites {
+ Keys: [Low, Middle, High];
+ Start: [-10mm,20mm,0mm];
+ Step: [0mm,30mm,0mm];
+}
+Mirrored Sites TrebleSites From BassSites { Across: YZ; }
+Assembly MountingRows {
+ <Assembly MountingRows>
+  Pattern BassRow Over BassSites {
+   site => <Assembly Unit = Tuner>
+    Placement { From: Mount; To: Tilt.Frame; TranslateLocal: [site.X,site.Y,site.Z]; }
+   </Assembly>
+  }
+  Pattern TrebleRow Over TrebleSites {
+   site => <Assembly Unit = Tuner>
+    Placement { From: Mount; To: Tilt.Frame; TranslateLocal: [site.X,site.Y,site.Z]; RotateLocal: { Axis: Z; Angle: 180deg } }
+   </Assembly>
+  }
+ </Assembly>
+ FrameTransform Tilt { From: World; TranslateLocal: [0mm,0mm,7mm]; RotateLocal: { Axis: X; Angle: -13deg } }
+ Anchor: MountingRows;
+}

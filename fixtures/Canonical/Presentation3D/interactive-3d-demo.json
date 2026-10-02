@@ -1,0 +1,34 @@
+{
+  "title": "Aetheris interactive 3D",
+  "slides": [
+    {
+      "title": "The Engineering Runtime for Physical AI",
+      "subtitle": "Exact engineering geometry → STEP for manufacturing → OpenUSD and GLB for simulation and presentation",
+      "caption": "ATLAS is an independent Aetheris demo robot. Aetheris is not affiliated with, endorsed by, or associated with Boston Dynamics. The shared name is coincidental.",
+      "models": [{
+        "name": "ATLAS independent Aetheris robot",
+        "source": "../../../artifacts/local/presentation-3d-x0/atlas.glb",
+        "preview": "../../../artifacts/local/presentation-3d-x0/atlas-fallback.png",
+        "x": 114, "y": 60, "width": 110, "height": 110,
+        "camera": {
+          "centerXMetres": -0.01646425575, "centerYMetres": 0.16238697665, "centerZMetres": 0,
+          "presentationScale": 2.934496, "rotationXDegrees": 23.25575, "rotationYDegrees": 41.32525, "rotationZDegrees": 15.84267
+        }
+      }]
+    },
+    {
+      "title": "Code-native 3D design beyond primitive CAD",
+      "subtitle": "Exact authored geometry. A polished sunburst finish. The actual model in the slide.",
+      "models": [{
+        "name": "GUITAR-SURFACING-X0",
+        "source": "../../../artifacts/local/presentation-3d-x0/guitar.glb",
+        "preview": "../../../artifacts/local/presentation-3d-x0/guitar-fallback.png",
+        "x": 114, "y": 60, "width": 110, "height": 110,
+        "camera": {
+          "centerXMetres": 0.00038237805, "centerYMetres": 0.03224023158, "centerZMetres": -0.29963669926,
+          "presentationScale": 0.962210, "rotationXDegrees": 65, "rotationYDegrees": 25, "rotationZDegrees": -25
+        }
+      }]
+    }
+  ]
+}

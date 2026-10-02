@@ -1,0 +1,108 @@
+<mc:AlternateContent xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:am3d="http://schemas.microsoft.com/office/drawing/2017/model3d" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <mc:Choice Requires="am3d">
+    <p:graphicFrame>
+      <p:nvGraphicFramePr>
+        <p:cNvPr id="5" name="Content Placeholder 4" />
+        <p:cNvGraphicFramePr>
+          <a:graphicFrameLocks noGrp="1" noChangeAspect="1" />
+        </p:cNvGraphicFramePr>
+        <p:nvPr>
+          <p:ph idx="1" />
+        </p:nvPr>
+      </p:nvGraphicFramePr>
+      <p:xfrm>
+        <a:off x="1134746" y="1690688" />
+        <a:ext cx="3851645" cy="4907741" />
+      </p:xfrm>
+      <a:graphic>
+        <a:graphicData uri="http://schemas.microsoft.com/office/drawing/2017/model3d">
+          <am3d:model3d r:embed="rId2">
+            <am3d:spPr>
+              <a:xfrm>
+                <a:off x="0" y="0" />
+                <a:ext cx="3851645" cy="4907741" />
+              </a:xfrm>
+              <a:prstGeom prst="rect">
+                <a:avLst />
+              </a:prstGeom>
+            </am3d:spPr>
+            <am3d:camera>
+              <am3d:pos x="0" y="0" z="64748452" />
+              <am3d:up dx="0" dy="36000000" dz="0" />
+              <am3d:lookAt x="0" y="0" z="0" />
+              <am3d:perspective fov="2700000" />
+            </am3d:camera>
+            <am3d:trans>
+              <am3d:meterPerModelUnit n="2934496" d="1000000" />
+              <am3d:preTrans dx="1739315" dy="-17154862" dz="0" />
+              <am3d:scale>
+                <am3d:sx n="1000000" d="1000000" />
+                <am3d:sy n="1000000" d="1000000" />
+                <am3d:sz n="1000000" d="1000000" />
+              </am3d:scale>
+              <am3d:rot ax="1395345" ay="2479515" az="950560" />
+              <am3d:postTrans dx="0" dy="0" dz="0" />
+            </am3d:trans>
+            <am3d:raster rName="Office3DRenderer" rVer="16.0.8326">
+              <am3d:blip r:embed="rId3" />
+            </am3d:raster>
+            <am3d:objViewport viewportSz="6258321" />
+            <am3d:ambientLight>
+              <am3d:clr>
+                <a:scrgbClr r="50000" g="50000" b="50000" />
+              </am3d:clr>
+              <am3d:illuminance n="500000" d="1000000" />
+            </am3d:ambientLight>
+            <am3d:ptLight rad="0">
+              <am3d:clr>
+                <a:scrgbClr r="100000" g="75000" b="50000" />
+              </am3d:clr>
+              <am3d:intensity n="9765625" d="1000000" />
+              <am3d:pos x="21959998" y="70920001" z="16344003" />
+            </am3d:ptLight>
+            <am3d:ptLight rad="0">
+              <am3d:clr>
+                <a:scrgbClr r="40000" g="60000" b="95000" />
+              </am3d:clr>
+              <am3d:intensity n="12250000" d="1000000" />
+              <am3d:pos x="-37964106" y="51130435" z="57631972" />
+            </am3d:ptLight>
+            <am3d:ptLight rad="0">
+              <am3d:clr>
+                <a:scrgbClr r="86837" g="72700" b="100000" />
+              </am3d:clr>
+              <am3d:intensity n="3125000" d="1000000" />
+              <am3d:pos x="-37739122" y="58056624" z="-34769649" />
+            </am3d:ptLight>
+          </am3d:model3d>
+        </a:graphicData>
+      </a:graphic>
+    </p:graphicFrame>
+  </mc:Choice>
+  <mc:Fallback>
+    <p:pic>
+      <p:nvPicPr>
+        <p:cNvPr id="5" name="Content Placeholder 4" />
+        <p:cNvPicPr>
+          <a:picLocks noGrp="1" noRot="1" noChangeAspect="1" noMove="1" noResize="1" noEditPoints="1" noAdjustHandles="1" noChangeArrowheads="1" noChangeShapeType="1" noCrop="1" />
+        </p:cNvPicPr>
+        <p:nvPr />
+      </p:nvPicPr>
+      <p:blipFill>
+        <a:blip r:embed="rId3" />
+        <a:stretch>
+          <a:fillRect />
+        </a:stretch>
+      </p:blipFill>
+      <p:spPr>
+        <a:xfrm>
+          <a:off x="1134746" y="1690688" />
+          <a:ext cx="3851645" cy="4907741" />
+        </a:xfrm>
+        <a:prstGeom prst="rect">
+          <a:avLst />
+        </a:prstGeom>
+      </p:spPr>
+    </p:pic>
+  </mc:Fallback>
+</mc:AlternateContent>

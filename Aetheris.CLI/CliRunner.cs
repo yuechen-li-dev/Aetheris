@@ -229,6 +229,7 @@ public static class CliRunner
                 "analyze" => RunAnalyze(args.Skip(1).ToArray(), stdout, stderr),
                 "fea" => RunFea(args.Skip(1).ToArray(), stdout, stderr),
                 "drawing" => RunDrawing(args.Skip(1).ToArray(), stdout, stderr),
+                "presentation" => Presentation3DCommand.Run(args.Skip(1).ToArray(), stdout, stderr),
                 "verify" => RunVerify(args.Skip(1).ToArray(), stdout, stderr),
                 "view" => RunView(args.Skip(1).ToArray(), stdout, stderr, cadmataLauncher, cliBaseDirectory),
                 "match" => RunMatch(args.Skip(1).ToArray(), stdout, stderr),
@@ -3733,6 +3734,8 @@ Model CanonicalPanel {
             return RunAsmExportAp242(args.Skip(1).ToArray(), stdout, stderr);
         if (string.Equals(args[0], "export-usd", StringComparison.Ordinal))
             return AssemblyUsdCommand.Run(args.Skip(1).ToArray(), stdout, stderr);
+        if (string.Equals(args[0], "export-glb", StringComparison.Ordinal))
+            return AssemblyGlbCommand.Run(args.Skip(1).ToArray(), stdout, stderr);
 
         stderr.WriteLine($"Unknown asm subcommand '{args[0]}'.");
         stderr.WriteLine(AsmExecUsage);
@@ -5406,6 +5409,8 @@ Model CanonicalPanel {
         stdout.WriteLine($"   or: {AsmImportStepUsage[7..]}");
         stdout.WriteLine($"   or: {AsmExportAp242Usage[7..]}");
         stdout.WriteLine($"   or: {AssemblyUsdCommand.Usage}");
+        stdout.WriteLine($"   or: {AssemblyGlbCommand.Usage}");
+        stdout.WriteLine($"   or: {Presentation3DCommand.Usage}");
         stdout.WriteLine();
         stdout.WriteLine("Options:");
         stdout.WriteLine("  --out <path>   Required for 'asm export'; output directory for package artifacts.");

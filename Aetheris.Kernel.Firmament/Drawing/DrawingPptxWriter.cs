@@ -8,7 +8,7 @@ using Aetheris.Collaboration;
 namespace Aetheris.Kernel.Firmament.Drawing;
 
 /// <summary>Deterministic, offline OPC/Open XML lowering from authoritative DrawingIR to native PowerPoint objects.</summary>
-public static class DrawingPptxWriter
+public static partial class DrawingPptxWriter
 {
     private const long EmuPerMillimetre = 36_000;
     private static readonly DateTimeOffset PackageTime = new(2000, 1, 1, 0, 0, 0, TimeSpan.Zero);
@@ -197,7 +197,7 @@ public static class DrawingPptxWriter
     private static string X(string value) => SecurityElement.Escape(value) ?? string.Empty;
     private static string Safe(string value) => Regex.Replace(value, @"[^A-Za-z0-9_.-]", "_");
 
-    private sealed class SlideBuilder
+    private sealed partial class SlideBuilder
     {
         private readonly double width, height; private readonly StringBuilder shapes = new(); private uint id = 2;
         public SlideBuilder(double width, double height) { this.width = width; this.height = height; }

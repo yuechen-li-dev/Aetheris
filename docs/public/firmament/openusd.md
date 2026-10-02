@@ -58,6 +58,8 @@ pwsh -File scripts/qualify-usd-export-x0.ps1 -CaptureMotion
 
 ATLAS uses exact Aetheris pedestal, perforated housings, shared collars, and a two-finger gripper. The separate studio USD layer adds lights, camera, stage, and a reflective sphere; those are presentation-only. See [the milestone evidence report](../../release/USD-EXPORT-X0.md) for the pinned tool, source provenance, screenshots, physical-scale checks, and limits.
 
+ATLAS is an independent Aetheris demo robot. Aetheris is not affiliated with, endorsed by, or associated with Boston Dynamics. The shared name is coincidental.
+
 The refined industrial ATLAS witness is authored in `fixtures/Canonical/AssemblyInterfaces/IndustrialAtlas/atlas-industrial.firmament`. Its tapered G1 housings use `SectionChainFile` definitions, alongside ordinary exact drums, rings, rounded panels and parallel jaws. Native shared instances retain the repeated fasteners. The assembly display exporter has a bounded structured tessellation lane for natural rectangular spline patches with simple planar caps: adjacent faces share sampled BRep edges, and sharp cap normals remain separate. Convex caps retain the centroid fan; concave single-loop caps use the existing simple-polygon triangulator over the same edge samples. General trimmed spline remeshing and caps with holes are outside that lane. The [single-cut guitar witness](../demos/guitar-surfacing-x0.md) exercises concave caps, carved G1 surfaces, formed strings, STEP, USD, and Cycles presentation.
 
 After the solution build and installation above, reproduce its external validation and slide render with:

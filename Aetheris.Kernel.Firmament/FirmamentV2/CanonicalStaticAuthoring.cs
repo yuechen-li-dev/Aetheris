@@ -13,7 +13,7 @@ internal static class CanonicalStaticAuthoring
     private sealed record Template(string Name, string Type, string Parameter, string Body, FirmamentV2SourceSpan Span);
 
     /// <summary>Assembly consumes the same checked Record/Set values, but yields product-tree declarations.</summary>
-    internal static Result? ExpandAssemblyPatterns(string source, List<string> diagnostics)
+    internal static Result? ExpandAssemblyPatterns(string source, List<string> diagnostics, bool spatial = false)
     {
         var points = ConceptPointAuthoring.Expand(source, diagnostics);
         if (points is null) return null;
@@ -35,7 +35,19 @@ internal static class CanonicalStaticAuthoring
             if (close<0) { diagnostics.Add(Prefix+"assembly-pattern-catalog-malformed"); return null; }
             source.CopyTo(header.Index,catalog,header.Index,close-header.Index+1);
         }
-        var data=Expand(new string(catalog),diagnostics);
+        var catalogSource = new string(catalog);
+        if (spatial)
+        {
+            // Scene-scale Set data normalizes to the existing typed mm catalog.
+            // Strings and authored identifiers are never unit-converted.
+            var tokens = FirmamentLanguageAnalysisService.Lex(catalogSource);
+            for (var i = tokens.Count - 2; i >= 0; i--)
+                if (tokens[i].Shape == "number" && tokens[i+1].Text == "m" && tokens[i].Start+tokens[i].Length == tokens[i+1].Start
+                    && double.TryParse(tokens[i].Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var metres))
+                    catalogSource = catalogSource.Remove(tokens[i].Start,tokens[i].Length+1)
+                        .Insert(tokens[i].Start,(metres*1000).ToString("R",CultureInfo.InvariantCulture)+"mm");
+        }
+        var data=Expand(catalogSource,diagnostics);
         if (data?.Document is null || diagnostics.Count>0) return null;
         var sets=(data.Document.Sets ?? []).ToDictionary(s=>s.Name,StringComparer.Ordinal);
         var changes=new List<(int Start,int Length,string Text)>();
@@ -58,10 +70,10 @@ internal static class CanonicalStaticAuthoring
                 var mapping=SubstituteSetMapping(arrow.Groups["mapping"].Value,arrow.Groups["binder"].Value,entry);
                 if (Regex.IsMatch(mapping,$@"\b{Regex.Escape(arrow.Groups["binder"].Value)}\."))
                 { diagnostics.Add(Prefix+"assembly-pattern-member-unresolved:"+name+"."+entry.Name); continue; }
-                output.Add($"<Assembly {entry.Name}> {identity}\n{mapping}\n</Assembly>");
+                output.Add(spatial ? $"<Group {entry.Name}>\n{mapping}\n</Group>" : $"<Assembly {entry.Name}> {identity}\n{mapping}\n</Assembly>");
                 associations.Add(new(name+"."+entry.Name,set.Name,entry.Name,entry.Value,entry.SourceOrder,entry.Provenance));
             }
-            changes.Add((header.Index,close-header.Index+1,$"<Assembly {name}> {identity}\n{string.Join(Environment.NewLine,output)}\n</Assembly>"));
+            changes.Add((header.Index,close-header.Index+1,spatial ? $"<Group {name}>\n{string.Join(Environment.NewLine,output)}\n</Group>" : $"<Assembly {name}> {identity}\n{string.Join(Environment.NewLine,output)}\n</Assembly>"));
             patterns.Add(new(name,set.Name,"Assembly",set.Entries.Count,associations.Select(a=>a.GeneratedId).ToArray(),new(header.Index,close-header.Index+1),associations,
                 sites.Recipes.GetValueOrDefault(set.Name)));
         }

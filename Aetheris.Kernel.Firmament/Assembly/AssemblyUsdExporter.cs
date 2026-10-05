@@ -13,6 +13,12 @@ public sealed record AssemblyUsdOptions(IReadOnlyDictionary<string, double>? Sta
     IReadOnlyList<AssemblyUsdSample>? Samples = null,
     IReadOnlyDictionary<string, AssemblyUsdMaterial>? DefinitionMaterials = null);
 
+public sealed record DisplayCamera(string Name, double[] Transform, double FovDegrees);
+public sealed record SpatialUsdMetadata(IReadOnlyDictionary<string,string> DefinitionIdentities,
+    IReadOnlyDictionary<string,AssemblyAppearanceBinding> Appearances,
+    IReadOnlyDictionary<string,IReadOnlyDictionary<string,string>> Properties,
+    IReadOnlyList<DisplayCamera> Cameras);
+
 /// <summary>Bounded USDA lowering of the accepted assembly and production display mesh.
 /// STEP/BRep and the Interface compiler remain authoritative. No USD dependency or solver.</summary>
 public static class AssemblyUsdExporter
@@ -34,17 +40,35 @@ public static class AssemblyUsdExporter
         if (mesh.Units != "mm" || mesh.Occurrences.Count != ir.Instances.Count
             || !mesh.Occurrences.Select(o => o.Id).ToHashSet(StringComparer.Ordinal).SetEquals(ir.Instances.Select(i => i.StableId)))
             throw new InvalidOperationException("assembly-usd-document-mismatch");
+        return SerializeCore(ir, mesh, options, evaluatedState, null);
+    }
+
+    /// <summary>Spatial display projection. No assembly IR, mechanical solving or inferred joints.</summary>
+    public static string SerializeSpatial(AssemblyDisplayMeshDocument mesh, SpatialUsdMetadata metadata,
+        AssemblyUsdOptions? options = null)
+    {
+        if (mesh.Units != "mm" || mesh.Occurrences.Count(o => o.ParentId is null) != 1
+            || mesh.Occurrences.Any(o => o.Transform.Length != 16 || o.Transform.Any(v => !double.IsFinite(v))))
+            throw new InvalidOperationException("spatial-usd-invalid-document");
+        return SerializeCore(null, mesh, options ?? new(), null, metadata);
+    }
+
+    private static string SerializeCore(AssemblyIr? ir, AssemblyDisplayMeshDocument mesh, AssemblyUsdOptions options,
+        IReadOnlyDictionary<string, double>? evaluatedState, SpatialUsdMetadata? spatial)
+    {
+        var rootId = ir?.RootInstanceStableId ?? mesh.Occurrences.Single(o => o.ParentId is null).Id;
+        var rootPrim = spatial is null ? "Assembly" : "Scene";
         var occurrences = mesh.Occurrences.ToDictionary(o => o.Id, StringComparer.Ordinal);
         var definitions = mesh.Definitions.OrderBy(d => d.Id, StringComparer.Ordinal).ToArray();
-        var authoredLooks = ir.Instances.Where(i => i.Appearance is not null).Select(i => i.Appearance!)
+        var authoredLooks = (ir is null ? spatial!.Appearances.Values : ir.Instances.Where(i => i.Appearance is not null).Select(i => i.Appearance!))
             .DistinctBy(a => a.Appearance).OrderBy(a => a.Appearance, StringComparer.Ordinal).ToArray();
         var lookPaths = authoredLooks.Select((look, index) => (look.Appearance, Path: "/Looks/Authored_" + index))
             .ToDictionary(p => p.Appearance, p => p.Path, StringComparer.Ordinal);
-        var declaredPose = AssemblyKinematics.Evaluate(ir, evaluatedState ?? options.State ?? new Dictionary<string, double>());
-        if (!declaredPose.IsSuccess || declaredPose.Instances.Any(instance => instance.ResolvedTransform is null
+        var declaredPose = ir is null ? null : AssemblyKinematics.Evaluate(ir, evaluatedState ?? options.State ?? new Dictionary<string, double>());
+        if (declaredPose is not null && (!declaredPose.IsSuccess || declaredPose.Instances.Any(instance => instance.ResolvedTransform is null
             || occurrences[instance.StableId].Transform.Length != 16
             || occurrences[instance.StableId].Transform.Any(value => !double.IsFinite(value))
-            || occurrences[instance.StableId].Transform.Zip(instance.ResolvedTransform.Matrix, (a,b) => Math.Abs(a-b)).Any(delta => delta > 1e-9)))
+            || occurrences[instance.StableId].Transform.Zip(instance.ResolvedTransform.Matrix, (a,b) => Math.Abs(a-b)).Any(delta => delta > 1e-9))))
             throw new InvalidOperationException("assembly-usd-mesh-state-mismatch");
         if (options.DefinitionMaterials is not null && options.DefinitionMaterials.Keys.Any(identity => !definitions.Any(d => d.Identity == identity)))
             throw new InvalidOperationException("assembly-usd-material-definition-unknown");
@@ -56,18 +80,18 @@ public static class AssemblyUsdExporter
             var children = mesh.Occurrences.Where(o => o.ParentId == id).OrderBy(o => o.Path, StringComparer.Ordinal).ToArray();
             for (var i = 0; i < children.Length; i++) Assign(children[i].Id, path + "/" + Identifier(children[i].Path.Split('.').Last()) + "_" + i);
         }
-        Assign(ir.RootInstanceStableId, "/Assembly");
+        Assign(rootId, "/" + rootPrim);
         if (paths.Count != occurrences.Count) throw new InvalidOperationException("assembly-usd-invalid-hierarchy");
         var definitionPaths = definitions.Select((d, i) => (d.Id, Path: "/Definitions/D_" + i)).ToDictionary(p => p.Id, p => p.Path);
         var samples = (options.Samples ?? []).OrderBy(s => s.Time).ToArray();
         if (samples.Any(s => !double.IsFinite(s.Time)) || samples.Select(s => s.Time).Distinct().Count() != samples.Length)
             throw new InvalidOperationException("assembly-usd-invalid-sample-time");
-        var poses = samples.Select(s => (s.Time, Pose: AssemblyKinematics.Evaluate(ir, s.State))).ToArray();
+        var poses = ir is null ? [] : samples.Select(s => (s.Time, Pose: AssemblyKinematics.Evaluate(ir, s.State))).ToArray();
         if (poses.Any(p => !p.Pose.IsSuccess)) throw new InvalidOperationException("assembly-usd-invalid-sample-state");
         var text = new StringBuilder();
         void Line(string value = "") => text.Append(value).Append('\n');
         Line("#usda 1.0");
-        Line("("); Line("    defaultPrim = \"Assembly\""); Line("    metersPerUnit = 0.001"); Line("    upAxis = \"Z\"");
+        Line("("); Line($"    defaultPrim = {Q(rootPrim)}"); Line("    metersPerUnit = 0.001"); Line("    upAxis = \"Z\"");
         if (samples.Length > 0)
         { Line($"    startTimeCode = {F(samples[0].Time)}"); Line($"    endTimeCode = {F(samples[^1].Time)}"); Line("    timeCodesPerSecond = 24"); }
         Line(")");
@@ -116,26 +140,28 @@ public static class AssemblyUsdExporter
             Line("            token outputs:surface"); Line("        }"); Line("    }");
         }
         Line("}");
-        var joints = ir.Joints ?? [];
+        var joints = ir?.Joints ?? [];
         var bodies = joints.SelectMany(j => new[] { j.ParentOccurrenceId, j.ChildOccurrenceId }).ToHashSet();
         void WriteOccurrence(string id, int depth)
         {
             var o = occurrences[id]; var indent = new string(' ', depth * 4);
             var api = new List<string>();
-            if (id == ir.RootInstanceStableId && joints.Count > 0) api.Add("PhysicsArticulationRootAPI");
+            if (id == rootId && joints.Count > 0) api.Add("PhysicsArticulationRootAPI");
             if (bodies.Contains(id)) api.Add("PhysicsRigidBodyAPI");
             Line($"{indent}def Xform {Q(paths[id].Split('/').Last())}" + (api.Count == 0 ? "" : $" (prepend apiSchemas = [{string.Join(", ", api.Select(Q))}])") + " {");
             Line($"{indent}    custom string aetheris:occurrenceIdentity = {Q(id)}");
             Line($"{indent}    custom string aetheris:sourcePath = {Q(o.Path)}");
-            Line($"{indent}    custom string aetheris:definitionIdentity = {Q(ir.Instances.Single(i => i.StableId == id).DefinitionIdentity)}");
+            Line($"{indent}    custom string aetheris:definitionIdentity = {Q(ir?.Instances.Single(i => i.StableId == id).DefinitionIdentity ?? spatial!.DefinitionIdentities.GetValueOrDefault(id, ""))}");
+            foreach (var field in spatial?.Properties.GetValueOrDefault(id) ?? new Dictionary<string,string>())
+                Line($"{indent}    custom string aetheris:{Identifier(field.Key)} = {Q(field.Value)}");
             if (bodies.Contains(id)) { Line($"{indent}    bool physics:rigidBodyEnabled = true"); Line($"{indent}    bool physics:kinematicEnabled = true"); }
-            if (id == ir.RootInstanceStableId)
+            if (id == rootId)
             {
-                Line($"{indent}    custom string aetheris:sourceName = {Q(ir.Name)}");
-                if (ir.Annotations?.Release is { } release)
+                Line($"{indent}    custom string aetheris:sourceName = {Q(ir?.Name ?? mesh.Name)}");
+                if (ir?.Annotations?.Release is { } release)
                     foreach (var field in release.Fields.OrderBy(p => p.Key, StringComparer.Ordinal))
                         Line($"{indent}    custom string aetheris:provenance:{field.Key} = {Q(field.Value)}");
-                foreach (var note in ir.Annotations?.Notes ?? [])
+                foreach (var note in ir?.Annotations?.Notes ?? [])
                 {
                     Line($"{indent}    custom string aetheris:pmi:{note.Name}:target = {Q(note.Target)}");
                     Line($"{indent}    custom string aetheris:pmi:{note.Name}:text = {Q(note.Text)}");
@@ -165,7 +191,7 @@ public static class AssemblyUsdExporter
             }
             if (o.DefinitionId is not null)
             {
-                var look = ir.Instances.Single(i => i.StableId == id).Appearance;
+                var look = ir?.Instances.Single(i => i.StableId == id).Appearance ?? spatial?.Appearances.GetValueOrDefault(id);
                 Line($"{indent}    def Xform \"Geometry\" (prepend references = <{definitionPaths[o.DefinitionId]}>; instanceable = true" +
                     (look is null ? "" : "; prepend apiSchemas = [\"MaterialBindingAPI\"]") + ") {");
                 if (look is not null)
@@ -181,9 +207,21 @@ public static class AssemblyUsdExporter
                 Line($"{indent}    }}");
             }
             foreach (var child in mesh.Occurrences.Where(c => c.ParentId == id).OrderBy(c => c.Path, StringComparer.Ordinal)) WriteOccurrence(child.Id, depth + 1);
+            if (id == rootId)
+                foreach (var (camera, index) in (spatial?.Cameras ?? []).Select((c, i) => (c, i)))
+                {
+                    Line($"{indent}    def Camera {Q(Identifier(camera.Name) + "_" + index)} {{");
+                    Line($"{indent}        matrix4d xformOp:transform = {Matrix(camera.Transform)}");
+                    Line($"{indent}        uniform token[] xformOpOrder = [\"xformOp:transform\"]");
+                    Line($"{indent}        float verticalAperture = 20.955");
+                    Line($"{indent}        float horizontalAperture = 20.955");
+                    Line($"{indent}        float focalLength = {F(20.955 / (2 * Math.Tan(camera.FovDegrees * Math.PI / 360)))}");
+                    Line($"{indent}        float2 clippingRange = (1, 100000000)");
+                    Line($"{indent}    }}");
+                }
             Line(indent + "}");
         }
-        WriteOccurrence(ir.RootInstanceStableId, 0);
+        WriteOccurrence(rootId, 0);
         Line("def Scope \"Joints\" {");
         foreach (var (j, i) in joints.OrderBy(j => j.Name, StringComparer.Ordinal).Select((j, i) => (j, i)))
         {

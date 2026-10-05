@@ -1,4 +1,5 @@
 using System.Text;
+using Aetheris.Kernel.Firmament.Scene;
 using Aetheris.Kernel.Firmament.Assembly;
 
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
@@ -31,6 +32,12 @@ public static class FirmamentLanguageAnalysisService
         var lexemes = Lex(FirmamentSourceSpelling.Normalize(source));
         var tokens = lexemes.Select((lexeme, index) => new FirmamentLanguageToken(
             lexeme.Start, lexeme.Length, Classify(lexemes, index))).ToArray();
+        if (SceneAuthoring.HasRoot(source))
+        {
+            var scene = SceneAuthoring.Parse(source, document);
+            return new(document, revision, tokens, scene.Diagnostics.Select(d => new FirmamentLanguageDiagnostic(
+                "error", d.Code, d.Message, 0, 0)).ToArray());
+        }
         // Imported authoring modules need project context. Do not feed them into
         // the unrelated concrete-part parser and manufacture syntax errors.
         if (lexemes.Any(t => t.Text == "Include" && t.Shape == "identifier"))
@@ -102,6 +109,7 @@ public static class FirmamentLanguageAnalysisService
     public static FirmamentLanguageAnalysis Analyze(FirmamentProjectSnapshot project, string document, string revision)
     {
         if (!project.TryResolve(document, out var source)) throw new ArgumentException("Document is absent from the snapshot.", nameof(document));
+        if (SceneAuthoring.HasRoot(source)) return Analyze(source,document,revision);
         var tokens = Lex(FirmamentSourceSpelling.Normalize(source));
         var parsed = new AssemblyM0Parser().ParseProject(project);
         return new(document, revision, tokens.Select((t, i) => new FirmamentLanguageToken(t.Start, t.Length, Classify(tokens, i))).ToArray(),
@@ -148,6 +156,16 @@ public static class FirmamentLanguageAnalysisService
 
     public static FirmamentLanguageFormat Format(string source, string document, string revision)
     {
+        if (SceneAuthoring.HasRoot(source))
+        {
+            if (!SceneAuthoring.Parse(source,document).IsSuccess)
+                throw new InvalidOperationException("Format Document requires valid Scene source. Fix syntax errors first.");
+            // Preserve generic specialization text, authored ports and pattern keys.
+            var scene = FormatConventions(source,document,revision);
+            if (!SceneAuthoring.Parse(scene.Text,document).IsSuccess)
+                throw new InvalidOperationException("Scene formatting changed parser admission.");
+            return scene;
+        }
         if (!FirmamentV2Parser.Parse(source).IsSuccess)
             throw new InvalidOperationException("Format Document requires valid Firmament source. Fix syntax errors first.");
         var preferred = FirmamentSourceSpelling.Prefer(source);

@@ -182,7 +182,8 @@ public static class FirmamentSourceSpelling
         }
         // Bounded owner vocabularies not yet projected through generated schema.
         Add("Model", "Units Material");
-        Add("Assembly Subassembly", "Anchor Provenance");
+        Add("Scene", "Units");
+        Add("Assembly Subassembly", "Anchor Provenance Appearance");
         Add("Part Occurrence", "Material Appearance");
         Add("Plane DatumPlane", "Origin Normal Up From Offset RotateLocal Clocking");
         Add("DatumFrame", "On At X");

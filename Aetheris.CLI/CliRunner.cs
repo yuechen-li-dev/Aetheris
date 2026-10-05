@@ -237,6 +237,7 @@ public static class CliRunner
                 "trace" => RunTrace(args.Skip(1).ToArray(), stdout, stderr),
                 "canon" => RunCanon(args.Skip(1).ToArray(), stdout, stderr),
                 "asm" => RunAsm(args.Skip(1).ToArray(), stdout, stderr),
+                "scene" => SceneCommand.Run(args.Skip(1).ToArray(), stdout, stderr),
                 "experimental" => RunExperimental(args.Skip(1).ToArray(), stdout, stderr),
                 "modules" => RunModules(args.Skip(1).ToArray(), stdout, stderr),
                 "sheetmetal" => RunSheetMetal(args.Skip(1).ToArray(), stdout, stderr),
@@ -488,6 +489,8 @@ public static class CliRunner
         if (File.Exists(sourcePath))
         {
             var source = File.ReadAllText(sourcePath);
+            if (Aetheris.Kernel.Firmament.Scene.SceneAuthoring.HasRoot(source))
+            { stderr.WriteLine("scene-step-export-unsupported: Scene is a spatial product; use scene export-usd or scene export-glb."); return 1; }
             if (Path.GetExtension(sourcePath).Equals(".firmasm", StringComparison.OrdinalIgnoreCase) || FirmamentLanguageAnalysisService.HasAssemblyRoot(source))
                 return RunAsmExportAp242([sourcePath, "--out", outPath ?? Path.GetFullPath(Path.Combine("artifacts", "local", "build", Path.GetFileNameWithoutExtension(sourcePath) + ".step")), .. (json ? new[] { "--json" } : [])], stdout, stderr);
             if (SectionChainAuthoringParser.IsSectionChainSource(source))
@@ -1401,6 +1404,8 @@ Model CanonicalPanel {
         }
 
         var input = args[0];
+        if (File.Exists(input) && Aetheris.Kernel.Firmament.Scene.SceneAuthoring.HasRoot(File.ReadAllText(input)))
+            return SceneCommand.Run(["inspect", .. args], stdout, stderr);
         if (File.Exists(input) && (Path.GetExtension(input).Equals(".firmasm", StringComparison.OrdinalIgnoreCase) || FirmamentLanguageAnalysisService.HasAssemblyRoot(File.ReadAllText(input))))
             return RunAsmInspect(args, stdout, stderr);
         var json = args.Skip(1).SequenceEqual(["--json"]);
@@ -2318,6 +2323,14 @@ Model CanonicalPanel {
         }
 
         var validationSource=File.ReadAllText(sourcePath);
+        if (Aetheris.Kernel.Firmament.Scene.SceneAuthoring.HasRoot(validationSource))
+        {
+            var scene = Aetheris.Kernel.Firmament.Scene.SceneAuthoring.Parse(validationSource,Path.GetFullPath(sourcePath));
+            var payload = new { success=scene.IsSuccess, domain="Scene", diagnostics=scene.Diagnostics };
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(payload,JsonOptions));
+            else { stdout.WriteLine(scene.IsSuccess ? "Scene source valid; engineering definitions are checked by scene inspect/export." : "Scene source invalid."); foreach(var d in scene.Diagnostics) stderr.WriteLine(d.Code+": "+d.Message); }
+            return scene.IsSuccess ? 0 : 1;
+        }
         var frontend = FirmamentFrontendSchemas.Select(validationSource);
         if (!frontend.IsSuccess)
         {
@@ -5024,6 +5037,7 @@ Model CanonicalPanel {
         stdout.WriteLine("  fea        Compile and solve a Firmament linear-elastic analysis and export Abaqus verification input.");
         stdout.WriteLine("  drawing    Compile production drawings or inspect/highlight PDFs with source-linked Drawing Notes.");
         stdout.WriteLine("  asm        Inspect, execute, import, and export Firmament V2 assemblies.");
+        stdout.WriteLine("  scene      Inspect spatial scenes and export OpenUSD or GLB.");
         stdout.WriteLine("  modules    Inspect built-in engineering Modules and capabilities.");
         stdout.WriteLine("  sheetmetal Inspect/recover sheet semantics and generate manufacturing flat-pattern SVG.");
         stdout.WriteLine("  sculpture  Build bounded non-manufacturing virtual sculpture artifacts.");

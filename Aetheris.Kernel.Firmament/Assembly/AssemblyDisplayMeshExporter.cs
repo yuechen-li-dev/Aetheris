@@ -48,6 +48,21 @@ public static class AssemblyDisplayMeshExporter
         var definitions = new List<AssemblyDisplayMeshDefinition>();
         foreach (var (identity, body) in geometry.DefinitionBodies.OrderBy(p => p.Key, StringComparer.Ordinal))
         {
+            definitions.Add(PrepareDefinition(ids[identity], identity, body, options));
+        }
+        var occurrences = (pose?.Instances ?? compilation.Ir.Instances).OrderBy(i => i.Path.ToString(), StringComparer.Ordinal).Select(instance =>
+        {
+            var id = instance.Kind == AssemblyInstanceKind.Part
+                ? ids.GetValueOrDefault(instance.DefinitionIdentity) ?? throw new InvalidOperationException($"assembly-mesh-missing-definition:{instance.Path}") : null;
+            if (instance.ResolvedTransform is null || instance.ResolvedTransform.Matrix.Length != 16 || instance.ResolvedTransform.Matrix.Any(v => !double.IsFinite(v)))
+                throw new InvalidOperationException($"assembly-mesh-unresolved-transform:{instance.Path}");
+            return new AssemblyDisplayMeshOccurrence(instance.StableId, instance.Path.ToString(), instance.ParentStableId, id, instance.ResolvedTransform.Matrix.ToArray(), instance.StableId);
+        }).ToArray();
+        return new("aetheris/assembly-display-mesh/1", compilation.Ir.Name, "mm", definitions, occurrences);
+    }
+
+    internal static AssemblyDisplayMeshDefinition PrepareDefinition(string id, string identity, Aetheris.Kernel.Core.Brep.BrepBody body, DisplayTessellationOptions? options = null)
+    {
             var effectiveOptions = options ?? new DisplayTessellationOptions(double.Pi / 16, .3, 6, 64);
             // Reuse the OBJ export's shared-boundary mesher for planar/cylindrical
             // and formed-wire torus parts. A failure on this admitted family must remain visible; do not
@@ -79,22 +94,12 @@ public static class AssemblyDisplayMeshExporter
                 positions.AddRange(face.Positions.SelectMany(p => new[] { p.X, p.Y, p.Z }));
                 normals.AddRange(face.Normals.SelectMany(p => new[] { p.X, p.Y, p.Z }));
                 indices.AddRange(face.TriangleIndices.Select(i => i + offset));
-                ranges.Add(new(startTriangle, face.TriangleIndices.Count / 3, $"face:{face.FaceId.Value}", ids[identity]));
+                ranges.Add(new(startTriangle, face.TriangleIndices.Count / 3, $"face:{face.FaceId.Value}", id));
             }
             if (positions.Concat(normals).Any(v => !double.IsFinite(v)))
                 throw new InvalidOperationException($"assembly-mesh-nonfinite:{identity}");
-            definitions.Add(new(ids[identity], identity, positions.ToArray(), normals.ToArray(), indices.ToArray(),
-                tessellation.Value.MeshPipeline.ToString(), ranges));
-        }
-        var occurrences = (pose?.Instances ?? compilation.Ir.Instances).OrderBy(i => i.Path.ToString(), StringComparer.Ordinal).Select(instance =>
-        {
-            var id = instance.Kind == AssemblyInstanceKind.Part
-                ? ids.GetValueOrDefault(instance.DefinitionIdentity) ?? throw new InvalidOperationException($"assembly-mesh-missing-definition:{instance.Path}") : null;
-            if (instance.ResolvedTransform is null || instance.ResolvedTransform.Matrix.Length != 16 || instance.ResolvedTransform.Matrix.Any(v => !double.IsFinite(v)))
-                throw new InvalidOperationException($"assembly-mesh-unresolved-transform:{instance.Path}");
-            return new AssemblyDisplayMeshOccurrence(instance.StableId, instance.Path.ToString(), instance.ParentStableId, id, instance.ResolvedTransform.Matrix.ToArray(), instance.StableId);
-        }).ToArray();
-        return new("aetheris/assembly-display-mesh/1", compilation.Ir.Name, "mm", definitions, occurrences);
+            return new(id, identity, positions.ToArray(), normals.ToArray(), indices.ToArray(),
+                tessellation.Value.MeshPipeline.ToString(), ranges);
     }
 
     public static string Serialize(AssemblyDisplayMeshDocument document)

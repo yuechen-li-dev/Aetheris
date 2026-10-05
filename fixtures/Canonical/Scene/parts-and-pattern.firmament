@@ -1,0 +1,19 @@
+Template<R: Length, H: Length> Struct Package {
+  RoundedRect2 outline { center: [0mm, 0mm]; size: [R, R]; radius: 1mm; }
+  Profile section { Loop Outer { outline |> TraceLoop } }
+  Extrude body { profile: section; from: 0mm; to: H; }
+}
+Record Site { x: Length; }
+Static sites: Set<Site> {
+  first => Site { x: 1m; }
+  second => Site { x: 2m; }
+}
+Scene Packages {
+  units: m;
+  Pattern packages over sites {
+    site => <Part package = Package<R:100mm,H:200mm>>
+      Placement { from: Origin; to: World; translateLocal: [site.x, 0mm, 0mm]; }
+    </Part>
+  }
+  Camera hero { position: [3m, -2m, 1m]; lookAt: [1m, 0mm, 0mm]; fov: 45deg; }
+}

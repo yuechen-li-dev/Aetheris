@@ -68,7 +68,7 @@ public sealed class ProfileBoundaryAuthoringTests
         Assert.Contains(errors, e => e.StartsWith("profile-edit-overlap:"));
         const string disjoint = "Replace LeftGrip { On: Blank.Left; Through: [[-50mm,0mm]] }";
         var a = ProfileAuthoringParser.ResolveNamedProfile(Panel.Replace("From: Blank", "From: Blank\n" + disjoint), "Panel", out var ae);
-        var b = ProfileAuthoringParser.ResolveNamedProfile(Panel.Replace("Join: Tangent\n    }", "Join: Tangent\n    }\n" + disjoint), "Panel", out var be);
+        var b = ProfileAuthoringParser.ResolveNamedProfile(Panel.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("Join: Tangent\n    }", "Join: Tangent\n    }\n" + disjoint), "Panel", out var be);
         Assert.Empty(ae); Assert.Empty(be);
         Assert.Equal(a!.Loops[0].Segments.Select(s => s.Geometry), b!.Loops[0].Segments.Select(s => s.Geometry));
     }

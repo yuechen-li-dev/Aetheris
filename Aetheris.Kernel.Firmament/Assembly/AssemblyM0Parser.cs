@@ -81,7 +81,7 @@ public sealed class AssemblyM0Parser
         return string.Join(Environment.NewLine, declarations);
     }
 
-    private static string FindAllowedSourceRoot(string path)
+    internal static string FindAllowedSourceRoot(string path)
     {
         var directory = new DirectoryInfo(Path.GetDirectoryName(path)!);
         while (directory is not null)

@@ -23,7 +23,9 @@ public static class AssemblyGlbExporter
     }
 
     public static byte[] Serialize(AssemblyDisplayMeshDocument display,
-        IReadOnlyDictionary<string, AssemblyGlbAppearance>? appearances = null)
+        IReadOnlyDictionary<string, AssemblyGlbAppearance>? appearances = null,
+        IReadOnlyDictionary<string, AssemblyAppearanceBinding>? occurrenceLooks = null,
+        IReadOnlyList<DisplayCamera>? cameras = null)
     {
         if (display.Units != "mm" || display.Definitions.Count == 0 || display.Occurrences.Count == 0)
             throw new InvalidOperationException("assembly-glb-invalid-document");
@@ -53,6 +55,7 @@ public static class AssemblyGlbExporter
         using var writer = new BinaryWriter(binary);
         var views = new List<object>(); var accessors = new List<object>();
         var meshes = new List<object>(); var materials = new List<object>();
+        var primitiveTemplates = new List<(Dictionary<string,object> Attributes,int Indices)>();
         var images = new List<object>(); var textures = new List<object>();
         int AddView(Action write, int? target = null)
         {
@@ -112,7 +115,9 @@ public static class AssemblyGlbExporter
             var indexAccessor = accessors.Count;
             accessors.Add(new { bufferView = indexView, componentType = 5125, count = d.Indices.Length, type = "SCALAR" });
             meshes.Add(new { name = d.Identity, primitives = new[] { new { attributes, indices = indexAccessor, material = materials.Count - 1 } }, extras = new { definitionIdentity = d.Identity, meshPipeline = d.MeshPipeline } });
+            primitiveTemplates.Add((attributes,indexAccessor));
         }
+        var variants = new Dictionary<(string, AssemblyUsdMaterial), int>();
         var nodes = new List<object>();
         foreach (var o in occurrences)
         {
@@ -121,14 +126,41 @@ public static class AssemblyGlbExporter
             var local = Transform3D.FromRowMajor(o.Transform);
             if (o.ParentId is not null) local *= Transform3D.FromRowMajor(occurrences[occurrenceIds[o.ParentId]].Transform).Inverse();
             var node = new Dictionary<string, object> { ["name"] = o.Path, ["matrix"] = local.ToRowMajor(), ["extras"] = new { occurrenceIdentity = o.Id } };
-            if (o.DefinitionId is not null) node["mesh"] = definitionIds[o.DefinitionId];
+            if (o.DefinitionId is not null)
+            {
+                var meshIndex = definitionIds[o.DefinitionId];
+                if (occurrenceLooks?.GetValueOrDefault(o.Id) is { } look)
+                {
+                    var m = look.Preview;
+                    if (new[] {m.Red,m.Green,m.Blue,m.Metallic,m.Roughness}.Any(v => !double.IsFinite(v) || v < 0 || v > 1))
+                        throw new InvalidOperationException("assembly-glb-invalid-material");
+                    if (!variants.TryGetValue((o.DefinitionId,m),out var variant))
+                    {
+                        // Material variants share all accessors and buffer views.
+                        var primitive = primitiveTemplates[meshIndex];
+                        materials.Add(new {name=look.Appearance,pbrMetallicRoughness=new {baseColorFactor=new[] {m.Red,m.Green,m.Blue,1},metallicFactor=m.Metallic,roughnessFactor=m.Roughness}});
+                        meshes.Add(new {name=definitions[meshIndex].Identity,primitives=new[] {new {attributes=primitive.Attributes,indices=primitive.Indices,material=materials.Count-1}}});
+                        variants[(o.DefinitionId,m)]=variant=meshes.Count-1;
+                    }
+                    meshIndex=variant;
+                }
+                node["mesh"] = meshIndex;
+            }
             var children = occurrences.Where(c => c.ParentId == o.Id).Select(c => occurrenceIds[c.Id]).ToArray();
             if (children.Length > 0) node["children"] = children;
             nodes.Add(node);
         }
         // One explicit boundary converts Z-up millimetres to right-handed Y-up metres:
         // (x,y,z) -> .001 * (x,z,-y). All original local frames remain inspectable.
-        var roots = occurrences.Where(o => o.ParentId is null).Select(o => occurrenceIds[o.Id]).ToArray();
+        var roots = occurrences.Where(o => o.ParentId is null).Select(o => occurrenceIds[o.Id]).ToList();
+        foreach (var (camera,index) in (cameras ?? []).Select((c,i) => (c,i)))
+        {
+            ValidateTransform(camera.Transform);
+            if (!double.IsFinite(camera.FovDegrees) || camera.FovDegrees <= 0 || camera.FovDegrees >= 180)
+                throw new InvalidOperationException("display-glb-camera-invalid");
+            roots.Add(nodes.Count);
+            nodes.Add(new {name=camera.Name,matrix=camera.Transform,camera=index});
+        }
         nodes.Add(new { name = "Aetheris mm Z-up to glTF m Y-up", matrix = new double[] {.001,0,0,0, 0,0,-.001,0, 0,.001,0,0, 0,0,0,1}, children = roots });
         var document = new Dictionary<string, object>
         {
@@ -137,6 +169,7 @@ public static class AssemblyGlbExporter
             ["nodes"] = nodes, ["meshes"] = meshes, ["materials"] = materials,
             ["accessors"] = accessors, ["bufferViews"] = views, ["buffers"] = new[] { new { byteLength = checked((int)binary.Length) } }
         };
+        if (cameras?.Count > 0) document["cameras"] = cameras.Select(c => new {name=c.Name,type="perspective",perspective=new {yfov=c.FovDegrees*Math.PI/180,znear=1d}}).ToArray();
         if (images.Count > 0) { document["images"] = images; document["textures"] = textures; }
         var json = JsonSerializer.SerializeToUtf8Bytes(document);
         using var result = new MemoryStream(); using var output = new BinaryWriter(result);

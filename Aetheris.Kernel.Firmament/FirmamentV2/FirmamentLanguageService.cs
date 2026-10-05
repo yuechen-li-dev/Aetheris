@@ -30,6 +30,7 @@ public static class FirmamentLanguageService
         var composition = ActiveCompositionConstruct(source, offset);
         if (composition is not null)
         {
+            beforePrefix = source[Math.Max(lineStart,composition.Value.Open+1)..prefixStart];
             fields = FirmamentSchemaAuthoringFields.For(composition.Value.Name);
             context = composition.Value.Name;
         }
@@ -93,6 +94,13 @@ public static class FirmamentLanguageService
             if (!present.Contains("Members")) missing.Add("Members");
         }
         if (context == "Helix" && !present.Contains("Pitch") && !present.Contains("Height")) missing.Add("Pitch or Height");
+        if (context == "Scene")
+        {
+            var entries = FirmamentSemanticSchemas.All.Where(item => item.Context == "Scene" && item.Entry is not null
+                    && item.Name.StartsWith(prefix,StringComparison.OrdinalIgnoreCase))
+                .Select(item => new FirmamentLanguageEntry(item.Id.Value,item.Name,item.Context!,FirmamentSourceSpelling.Prefer(item.Entry!))).ToArray();
+            return new(document,revision,context,prefixStart,prefix.Length,candidates,missing,entries);
+        }
         return new(document, revision, context, prefixStart, prefix.Length, candidates, missing);
     }
 
@@ -131,7 +139,7 @@ public static class FirmamentLanguageService
     {
         // Ignore comments/strings and balance nested blocks in incomplete drafts.
         var prefix = Regex.Replace(source[..offset], @"//[^\r\n]*|/\*[\s\S]*?\*/|""(?:\\.|[^""\\])*""", m => new string(' ', m.Length));
-        var names = "WireRoute|Follow|Section|Points|Linear|Series|Appearance|Material|Placement|FrameTransform";
+        var names = "Scene|Room|Door|Window|Camera|WireRoute|Follow|Section|Points|Linear|Series|Appearance|Material|Placement|FrameTransform";
         var matches = Regex.Matches(prefix, $@"\b(?<kind>{names})(?:\s*<[^>]+>)?(?:\s+[A-Za-z_]\w*)?\s*\{{");
         foreach (Match header in matches.Cast<Match>().Reverse())
         {

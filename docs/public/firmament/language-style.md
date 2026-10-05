@@ -6,13 +6,13 @@ The [design proposal](casing-and-layout-proposal.md) records the reasoning.
 
 | Role | Convention | Examples |
 | --- | --- | --- |
-| Artifact, declaration, construction form | PascalCase | `Model`, `Assembly`, `Concept Struct`, `Profile`, `Feature`, `Placement`, `Mate` |
+| Artifact, declaration, construction form | PascalCase | `Model`, `Assembly`, `Scene`, `Room`, `Door`, `Window`, `Camera`, `Concept Struct`, `Profile`, `Feature`, `Placement`, `Mate` |
 | Type and reusable recipe | PascalCase | `Length`, `PickupSpec`, `Humbucker`, `ControlKnob` |
 | Concrete value, local geometry, occurrence, parameter, port | camelCase | `layout`, `outline`, `neckPickup`, `bottomSeat`, `width` |
 | Built-in property label | camelCase | `units`, `size`, `from`, `translateLocal`, `minimumBendRadius` |
 | Linking and scope word | lowercase | `using`, `on`, `over`, `with`, `return`, `include`, `expose`, `bind` |
 | Scalar function | camelCase | `fretDistance`, `halfWidth` |
-| Engineering symbol, enum, external identity | Preserve domain spelling | `XY`, `+Z`, `Fixed`, `Periodic`, `Stock`, `mm`, `304_Annealed` |
+| Engineering symbol, enum, external identity | Preserve domain spelling | `XY`, `+Z`, `Outer`, `World`, `Origin`, `Fixed`, `Periodic`, `Stock`, `mm`, `m`, `304_Annealed` |
 
 The root product may keep its definition name: `Assembly GuitarX0` and
 `<Assembly GuitarX0>`. Feature constructors such as `Coil` remain PascalCase.

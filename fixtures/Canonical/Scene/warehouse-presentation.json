@@ -1,0 +1,15 @@
+{
+  "title": "Aetheris scene authoring",
+  "slides": [{
+    "title": "Automated warehouse",
+    "subtitle": "A spatial environment authored in Firmament with shared engineered objects",
+    "caption": "ATLAS is an independent Aetheris demo robot. Aetheris is not affiliated with, endorsed by, or associated with Boston Dynamics. The shared name is coincidental.",
+    "models": [{
+      "name": "WarehouseX0",
+      "source": "../../../artifacts/local/scene/warehouse.glb",
+      "preview": "../../../artifacts/local/scene/warehouse-fallback.png",
+      "x": 76, "y": 60, "width": 176, "height": 110,
+      "camera": {"centerXMetres": 3, "centerYMetres": 1.5, "centerZMetres": -2, "presentationScale": 0.24, "rotationXDegrees": 25, "rotationYDegrees": 35, "rotationZDegrees": 0}
+    }]
+  }]
+}

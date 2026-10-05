@@ -4,7 +4,7 @@ This A5d register classifies the language seams first exposed by A5b and complet
 
 | Area | Final classification | Decision and evidence |
 |---|---|---|
-| Declaration and construct casing | ResolvedCanonical | Firmament-owned vocabulary is canonically PascalCase. Audited lowercase aliases remain only where unambiguous and select the same semantic route; no style warnings exist. |
+| Declaration and construct casing | ResolvedCanonical | Constructs and types use PascalCase; built-in properties, concrete occurrences and new ports prefer camelCase under the accepted language-style contract. Explicit legacy field aliases retain identical semantics; no global case folding or style warnings. Scene X0 dogfoods this convention. |
 | Legacy V1 document shape | LegacyQuarantined | `fixtures/Compatibility/LegacyV1/` remains untouched and is compatibility evidence, not V2 authoring authority. |
 | Legacy primitive/Boolean vocabulary | LegacyQuarantined | V1 operations remain on their versioned compiler path. Public V2 uses named declarations and semantic features. |
 | Direct versus `solid` primitive declarations | RetainedCompatibility | Direct `Box`/`Cylinder`/`Cone`/`Sphere`/`Torus` declarations are canonical. `solid name: Type` remains a compatibility adapter to the same primitive AST/lowering. |
@@ -28,7 +28,7 @@ This A5d register classifies the language seams first exposed by A5b and complet
 | `Modify` | ResolvedCanonical | Applies admitted semantic operations to an existing body after construction. |
 | historical lowercase manufacturing `template<Process>` | ResolvedCompatibility | Persisted CNC/Additive syntax is adapted to the same DFM representation. CNC/FDM/SheetMetal examples are ported to canonical typed Record/Static/`with`/Template/Concept Struct families. Canonical policy wins when both forms occur; new source uses the modern form. |
 | Boss / Pocket versus Add / Remove | RetainedCompatibility | Boss/Pocket preserve their first-class engineering contracts. Low-level Add/Remove remain bounded profile-composition compatibility, not coequal public feature design. |
-| Units and literals | ResolvedCanonical | V2 uses `Units: mm` and unit-bearing engineering literals. Lowercase V2 input, external JSON, and unitless V1 arrays are separately classified compatibility forms. |
+| Units and literals | ResolvedCanonical | Engineering geometry uses `units: mm`; Scene additionally admits `units: m` and explicit m/mm lengths normalized to mm. Unitless Scene coordinates are rejected. External JSON and unitless V1 arrays remain compatibility forms. |
 | Speculative keyword families | SpeculativeQuarantined | Future/not-implemented `.firmfixture` bodies remain untouched and do not define parser or documentation requirements. |
 | External identifiers and snake_case | IntentionalDomainDifference | Standards, material designations, part numbers, namespaces, and imported identities preserve source spelling. No global identifier-style enforcement exists. |
 

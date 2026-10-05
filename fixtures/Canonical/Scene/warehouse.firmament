@@ -1,0 +1,79 @@
+// Compact automated warehouse. Original Aetheris industrial robot design;
+// ATLAS is a demo name. No affiliation with any robot manufacturer is implied.
+Template<L: Length, W: Length, H: Length> Struct Cuboid {
+  RoundedRect2 outline { center: [L / 2, W / 2]; size: [L, W]; radius: 1mm; }
+  Profile section { Loop Outer { outline |> TraceLoop } }
+  Extrude body { profile: section; from: 0mm; to: H; }
+}
+Template<R: Length, H: Length> Struct Pedestal {
+  RoundedRect2 outline { center: [0mm, 0mm]; size: [R, R]; radius: 5mm; }
+  Profile section { Loop Outer { outline |> TraceLoop } }
+  Extrude body { profile: section; from: 0mm; to: H; }
+}
+Record Site { x: Length; y: Length; z: Length; }
+Static robotSites: Set<Site> {
+  loading => Site { x: 1000mm; y: 2000mm; z: 658mm; }
+  sorting => Site { x: 2500mm; y: 2000mm; z: 658mm; }
+  packing => Site { x: 4000mm; y: 2000mm; z: 658mm; }
+}
+Static packageSites: Set<Site> {
+  first => Site { x: 1.3m; y: 1.05m; z: .7m; }
+  second => Site { x: 1.9m; y: 1.05m; z: .7m; }
+  third => Site { x: 2.5m; y: 1.05m; z: .7m; }
+  fourth => Site { x: 3.1m; y: 1.05m; z: .7m; }
+  fifth => Site { x: 3.7m; y: 1.05m; z: .7m; }
+}
+Appearance concrete { color: [.48, .52, .56]; metallic: 0; roughness: .8; }
+Appearance safetyBlue { color: [.04, .18, .42]; metallic: .5; roughness: .35; }
+Appearance belt { color: [.035, .045, .05]; metallic: 0; roughness: .7; }
+Appearance cardboard { color: [.55, .32, .12]; metallic: 0; roughness: .9; }
+Appearance robotOrange { color: [.9, .19, .025]; metallic: .25; roughness: .35; }
+
+Scene WarehouseX0 {
+  units: m;
+  Room warehouse { size: [6m, 4m, 3m]; thickness: 100mm; appearance: concrete; }
+  Door loadingBay { on: warehouse.southWall; width: 1.5m; height: 2.4m; along: .4m; }
+  Window officeGlass { on: warehouse.eastWall; width: 1.5m; height: 1m; sill: 1.2m; along: 1m; }
+
+  <Part conveyor = Cuboid<L:3400mm,W:650mm,H:120mm>>
+    appearance: belt;
+    Placement { from: Origin; to: World; translateLocal: [1m, .9m, .58m]; }
+  </Part>
+  <Part conveyorStandA = Cuboid<L:150mm,W:500mm,H:580mm>>
+    appearance: safetyBlue;
+    Placement { from: Origin; to: World; translateLocal: [1.2m, 1m, 0mm]; }
+  </Part>
+  <Part conveyorStandB = Cuboid<L:150mm,W:500mm,H:580mm>>
+    appearance: safetyBlue;
+    Placement { from: Origin; to: World; translateLocal: [4m, 1m, 0mm]; }
+  </Part>
+  <Part rackBack = Cuboid<L:3000mm,W:100mm,H:2000mm>>
+    appearance: safetyBlue;
+    Placement { from: Origin; to: World; translateLocal: [1.5m, 3.7m, 0mm]; }
+  </Part>
+  <Part rackShelfLow = Cuboid<L:3000mm,W:600mm,H:60mm>>
+    appearance: safetyBlue;
+    Placement { from: Origin; to: World; translateLocal: [1.5m, 3.1m, .55m]; }
+  </Part>
+  <Part rackShelfHigh = Cuboid<L:3000mm,W:600mm,H:60mm>>
+    appearance: safetyBlue;
+    Placement { from: Origin; to: World; translateLocal: [1.5m, 3.1m, 1.25m]; }
+  </Part>
+  Pattern robots over robotSites {
+    site => <Assembly robot = AssemblyFile<"../AssemblyInterfaces/IndustrialAtlas/atlas-industrial.firmament">>
+      appearance: robotOrange;
+      Placement { from: Origin; to: World; translateLocal: [site.x, site.y, site.z]; }
+    </Assembly>
+    <Part pedestal = Pedestal<R:300mm,H:650mm>>
+      appearance: safetyBlue;
+      Placement { from: Origin; to: World; translateLocal: [site.x, site.y, 0mm]; }
+    </Part>
+  }
+  Pattern packages over packageSites {
+    site => <Part package = Cuboid<L:250mm,W:300mm,H:250mm>>
+      appearance: cardboard;
+      Placement { from: Origin; to: World; translateLocal: [site.x, site.y, site.z]; }
+    </Part>
+  }
+  Camera hero { position: [5.6m, .25m, 2.65m]; lookAt: [2.5m, 2.1m, .8m]; fov: 65deg; }
+}

@@ -1,0 +1,8 @@
+// A semantic room, not six authored boxes.
+Scene RoomProof {
+  units: m;
+  Room hall { size: [10m, 8m, 4m]; at: [1m, 2m, 0mm]; thickness: 100mm; }
+  Door loading { on: hall.southWall; width: 2m; height: 3m; along: 1m; }
+  Window glazing { on: hall.eastWall; width: 2m; height: 1m; sill: 1.5m; along: 3m; }
+  Camera hero { position: [9m, 3m, 3m]; lookAt: [5m, 6m, 1m]; fov: 45deg; }
+}

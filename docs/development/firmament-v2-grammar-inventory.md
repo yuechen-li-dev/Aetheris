@@ -1,6 +1,9 @@
 # Firmament V2 active grammar inventory
 
-This A5c inventory records parser and lowering ownership. Canonical forms use PascalCase; compatibility aliases are deliberately bounded rather than produced by global case folding.
+This inventory records parser and lowering ownership. Constructs and types use
+PascalCase; field labels prefer camelCase under the accepted public language
+style. Explicit compatibility aliases remain bounded; there is no global case
+folding. Older rows retain their historical spelling examples.
 
 | Construct / token | Owning parser/domain | Accepted forms | Canonical form | Compatibility policy | Lowering/runtime owner |
 |---|---|---|---|---|---|
@@ -15,6 +18,7 @@ This A5c inventory records parser and lowering ownership. Canonical forms use Pa
 | Analysis, Fixed, Force | `FirmamentAnalysisCompiler` | case-insensitive audited keywords/fields; ordinary Model Box or bounded inline STEP | PascalCase vocabulary over ordinary Model geometry | lowercase forms bind the same Analysis IR | Continuum region producer and linear-elastic solver |
 | inlineSTEP / InlineStep | FEA expression reader / canonical import declaration | bounded `inlineSTEP("path")`; `InlineStep Name { Path: ... }` | declaration form in a Model; expression spelling retained in FEA | domain-specific compatibility | STEP importer and recognized-region bridge |
 | Assembly | `FirmamentAssemblyDocumentProfile`, `AssemblyM0Parser` | V2 `Assembly Name { ... }`; deprecated JSON-shaped `.firmasm` | V2 Assembly source profile | JSON is legacy compatibility only | Assembly compiler/executor/AP242 interop |
+| Scene, Room, Door, Window, Camera | `SceneAuthoring` and compiler-owned schemas | PascalCase constructs, camelCase fields and bounded PascalCase field aliases; explicit m/mm coordinates | `Scene warehouse { units: m ... }` | no construct case folding; authored names and Room boundary paths are case-sensitive | `FirmamentSceneSession`; shared ordinary Part/Assembly compilation, spatial display/USD/GLB projection |
 | Drawing | `FirmamentDrawingCompiler` | qualified Drawing declarations | PascalCase qualified fixture form | separate domain grammar | Drawing IR and SVG/PDF/PPTX writers |
 
 ## Semantic ownership matrix
@@ -22,6 +26,7 @@ This A5c inventory records parser and lowering ownership. Canonical forms use Pa
 | Construct | Meaning and placement | Geometry effect | Owner |
 |---|---|---|---|
 | Template | typed compile-time specialization over values/Records | none directly; emits ordinary admitted source | Template expansion |
+| Scene / Room / Door / Window / Camera | spatial occurrence product, Room-owned boundary references/apertures and presentation state | derives environment display panels; composes existing engineering occurrences | Scene binder/session, shared placement and export infrastructure |
 | Record / Static / Table / `with` | immutable finite engineering data and derivation | none; erased after binding | static authoring and Template expansion |
 | Pattern / Over | finite repetition from static data | repeats an admitted feature | static authoring into the owning material grammar |
 | Struct | named construction intent or concept materialization | contains the selected construction route | concept/profile frontend |

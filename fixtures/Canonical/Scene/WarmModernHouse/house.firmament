@@ -1,0 +1,69 @@
+// ARCHVIZ-HOUSE-X0 · human design intent, Codex-authored Firmament layout.
+// Clear interior dimensions; Z-up. The Room owns its boundaries, the Concept
+// owns furniture stations, and each complete component owns its internal offsets.
+Concept Struct HouseLayout {
+  Plane mainFloor { from: main.floor; }
+  DatumFrame living { on: mainFloor; at: [2500mm, 1450mm]; x: [1, 0]; }
+  DatumFrame kitchen { on: mainFloor; at: [2600mm, 6600mm]; x: [1, 0]; }
+  DatumFrame island { on: mainFloor; at: [2900mm, 4600mm]; x: [1, 0]; }
+  DatumFrame dining { on: mainFloor; at: [6800mm, 5350mm]; x: [1, 0]; }
+  DatumFrame media { on: mainFloor; at: [8750mm, 2350mm]; x: [0, 1]; }
+  Plane entryFloor { from: hall.floor; }
+  DatumFrame entryBench { on: entryFloor; at: [1200mm, 1900mm]; x: [1, 0]; }
+}
+// Architecture palette. Furniture carries physical identity/default finishes
+// in its shared component module. These are visual finishes, not FEA properties.
+Appearance warmOak { color: [.55, .35, .18]; metallic: 0; roughness: .48; }
+Appearance plasterWhite { color: [.82, .79, .72]; metallic: 0; roughness: .88; }
+Appearance ceilingWhite { color: [.88, .86, .80]; metallic: 0; roughness: .9; }
+Appearance charcoalMetal { color: [.018, .025, .022]; metallic: .65; roughness: .32; }
+Appearance clearGlass { color: [.72, .85, .84]; metallic: 0; roughness: .08; opacity: .18; }
+
+Scene WarmModernHouse {
+  units: m;
+  Room main {
+    size: [9m, 7m, 3.1m]; thickness: 100mm;
+    appearance: plasterWhite; floorAppearance: warmOak; ceilingAppearance: ceilingWhite;
+  }
+  Room hall {
+    at: [9.2m, 4.8m, 0mm]; size: [2.4m, 2.2m, 3.1m]; thickness: 100mm;
+    appearance: plasterWhite; floorAppearance: warmOak; ceilingAppearance: ceilingWhite;
+  }
+  // Paired openings cross the two adjacent wall skins, with one clear passage.
+  Door hallPassage { on: main.eastWall; along: 4.85m; width: 1.1m; height: 2.5m; }
+  Door livingPassage { on: hall.westWall; along: .05m; width: 1.1m; height: 2.5m; }
+  Door frontDoor { on: hall.eastWall; along: .3m; width: 1m; height: 2.5m; }
+  Window gardenGlazing {
+    on: main.westWall; along: 1.1m; width: 4.4m; height: 2.6m; sill: .12m;
+    glazingAppearance: clearGlass; frameAppearance: charcoalMetal; frameWidth: 45mm;
+  }
+  Window diningGlazing {
+    on: main.northWall; along: 5.2m; width: 3.15m; height: 2.4m; sill: .3m;
+    glazingAppearance: clearGlass; frameAppearance: charcoalMetal; frameWidth: 45mm;
+  }
+  Window terraceGlazing {
+    on: main.southWall; along: .8m; width: 5.8m; height: 2.75m; sill: 0mm;
+    glazingAppearance: clearGlass; frameAppearance: charcoalMetal; frameWidth: 45mm;
+  }
+  <Assembly living = AssemblyFile<"living.firmament">>
+    Placement { from: Origin; to: HouseLayout.living; }
+  </Assembly>
+  <Assembly kitchen = AssemblyFile<"kitchen.firmament">>
+    Placement { from: Origin; to: HouseLayout.kitchen; }
+  </Assembly>
+  <Assembly island = AssemblyFile<"island.firmament">>
+    Placement { from: Origin; to: HouseLayout.island; }
+  </Assembly>
+  <Assembly dining = AssemblyFile<"dining.firmament">>
+    Placement { from: Origin; to: HouseLayout.dining; }
+  </Assembly>
+  <Assembly media = AssemblyFile<"media.firmament">>
+    Placement { from: Origin; to: HouseLayout.media; }
+  </Assembly>
+  <Assembly entryBench = AssemblyFile<"entry.firmament">>
+    Placement { from: Origin; to: HouseLayout.entryBench; }
+  </Assembly>
+  Camera Hero { position: [8.1m, .65m, 1.65m]; lookAt: [4.1m, 4.4m, 1.25m]; fov: 67deg; }
+  Camera Kitchen { position: [5.8m, 3.2m, 1.75m]; lookAt: [2.7m, 6.25m, 1.45m]; fov: 58deg; }
+  Camera Overview { position: [15m, -10m, 14m]; lookAt: [5.4m, 3.6m, .3m]; fov: 45deg; }
+}

@@ -81,6 +81,26 @@ public sealed class FirmamentSceneSession : IDisposable
             var definitionMs=watch.Elapsed.TotalMilliseconds; watch.Restart();
             if (diagnostics.Any(d => d.Severity == AssemblyDiagnosticSeverity.Error)) return new(null,diagnostics);
             var boundaries=s.Rooms.SelectMany(RoomBoundaries).ToArray();
+            var layoutFrames=s.LayoutFrames.ToDictionary(f => f.Identity,StringComparer.Ordinal);
+            var resolvedFrames=new Dictionary<string,Transform3D>(StringComparer.Ordinal);
+            Transform3D? ResolveFrame(string path,HashSet<string> active)
+            {
+                if (path == "World") return Transform3D.Identity;
+                if (boundaries.SingleOrDefault(b => b.Path == path) is { } boundary) return Transform3D.FromRowMajor(boundary.Frame);
+                if (resolvedFrames.TryGetValue(path,out var cached)) return cached;
+                if (!layoutFrames.TryGetValue(path,out var layout))
+                { Error("scene-frame-unresolved",$"Unknown Scene target frame '{path}'. Use World, a Room boundary or a Concept datum."); return null; }
+                if (!active.Add(path)) { Error("scene-frame-cycle",$"Scene Concept frame cycle at '{path}'."); return null; }
+                var basis=ResolveFrame(layout.Transform.From,active);
+                active.Remove(path);
+                if (basis is null) return null;
+                var frame=AssemblyFrameAuthoring.Compose(basis.Value,layout.Transform,diagnostics);
+                resolvedFrames[path]=frame;
+                return frame;
+            }
+            // Validate unused guides too, so invalid scaffolding cannot hide behind a
+            // placement edit. They never become display/product occurrences.
+            foreach (var layout in s.LayoutFrames) ResolveFrame(layout.Identity,[]);
             AddNode(s.Name,"Scene",s.Name,null,Transform3D.Identity.ToRowMajor(),null,new(sourceIdentity,0,source.Length));
             foreach (var room in s.Rooms)
             {
@@ -97,24 +117,32 @@ public sealed class FirmamentSceneSession : IDisposable
                         var panelPath=wallPath+".panel"+panel.Index;
                         var world=Transform3D.CreateTranslation(new(panel.At[0],panel.At[1],panel.At[2]))*transform;
                         AddNode(panelPath,"EnvironmentPanel",key,wallPath,world.ToRowMajor(),id,room.Span);
-                        ApplyLook(panelPath,room.Appearance);
+                        ApplyLook(panelPath,boundary.Kind switch { "floor" => room.FloorAppearance ?? room.Appearance, "ceiling" => room.CeilingAppearance ?? room.Appearance, _ => room.Appearance });
                     }
                     foreach (var opening in s.Openings.Where(o => o.Boundary == boundary.Path))
                     {
                         var frame=Transform3D.FromRowMajor(boundary.Frame);
                         var aperture=Transform3D.CreateTranslation(new(opening.AlongMm,opening.SillMm,0))*frame;
-                        AddNode(wallPath+"."+opening.Name,opening.Kind,opening.Name,wallPath,aperture.ToRowMajor(),null,opening.Span);
+                        var openingPath=wallPath+"."+opening.Name;
+                        AddNode(openingPath,opening.Kind,opening.Name,wallPath,aperture.ToRowMajor(),null,opening.Span);
+                        foreach (var piece in WindowPieces(opening,room.ThicknessMm,boundary.Kind))
+                        {
+                            var key="scene-box:"+string.Join(":",piece.Size.Select(F)); var id=Id(key);
+                            if (!definitions.ContainsKey(id)) definitions.Add(id,Box(id,key,piece.Size));
+                            var path=openingPath+"."+piece.Name;
+                            var world=Transform3D.CreateTranslation(new(piece.At[0],piece.At[1],piece.At[2]))*aperture;
+                            AddNode(path,"WindowFinish",key,openingPath,world.ToRowMajor(),id,opening.Span);
+                            ApplyLook(path,piece.Appearance);
+                        }
                     }
                 }
             }
             foreach (var item in s.Occurrences)
             {
                 // Existing frame composition owns rotation/basis/translation; no Mate is synthesized.
-                Transform3D target;
-                if (item.Placement.From == "World") target=Transform3D.Identity;
-                else if (boundaries.SingleOrDefault(b => b.Path == item.Placement.From) is { } boundary) target=Transform3D.FromRowMajor(boundary.Frame);
-                else { Error("scene-frame-unresolved",$"Unknown Scene target frame '{item.Placement.From}'."); continue; }
-                var world=AssemblyFrameAuthoring.Compose(target,item.Placement,diagnostics);
+                var target=ResolveFrame(item.Placement.From,[]);
+                if (target is null) continue;
+                var world=AssemblyFrameAuthoring.Compose(target.Value,item.Placement,diagnostics);
                 var segments=item.Path.Split('.');
                 for (var n=2;n<segments.Length;n++)
                 {
@@ -196,6 +224,24 @@ public sealed class FirmamentSceneSession : IDisposable
     private static string F(double value) => value.ToString("R",CultureInfo.InvariantCulture);
     private static string Id(string value) => "scene:"+Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)))[..24];
     private sealed record Panel(int Index,double[] At,double[] Size);
+    private sealed record WindowPiece(string Name,double[] At,double[] Size,string Appearance);
+    private static IEnumerable<WindowPiece> WindowPieces(SceneOpening opening,double wallThickness,string wall)
+    {
+        if (opening.Finish is not { } finish) yield break;
+        var w=opening.WidthMm; var h=opening.HeightMm; var b=finish.FrameWidthMm;
+        // Boundary chart +Z is -Y for north/south and +X for east/west.
+        var center=wall is "southWall" or "eastWall" ? wallThickness/2 : -wallThickness/2;
+        if (finish.FrameAppearance is { } frame)
+        {
+            var z=center-wallThickness/2;
+            yield return new("leftJamb",[0,0,z],[b,h,wallThickness],frame);
+            yield return new("rightJamb",[w-b,0,z],[b,h,wallThickness],frame);
+            yield return new("sill",[b,0,z],[w-2*b,b,wallThickness],frame);
+            yield return new("head",[b,h-b,z],[w-2*b,b,wallThickness],frame);
+        }
+        if (finish.GlazingAppearance is { } glass)
+            yield return new("pane",[b,b,center-finish.GlassThicknessMm/2],[w-2*b,h-2*b,finish.GlassThicknessMm],glass);
+    }
     private static IEnumerable<Panel> Panels(SceneRoom r,string wall,IReadOnlyList<SceneOpening> openings)
     {
         var w=r.SizeMm[0]; var d=r.SizeMm[1]; var h=r.SizeMm[2]; var t=r.ThicknessMm;

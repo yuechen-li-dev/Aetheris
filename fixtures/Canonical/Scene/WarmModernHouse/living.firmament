@@ -1,0 +1,104 @@
+include "components.firmament";
+// The room guide locates this complete composition. All offsets are furniture-local.
+Record Seat { x: Length; }
+Static sofaSeats: Set<Seat> {
+  left => Seat { x: -730mm; }
+  right => Seat { x: 730mm; }
+}
+Static sofaFeet: Set<Foot> {
+  frontLeft => Foot { x: -1370mm; y: 350mm; }
+  frontRight => Foot { x: 1370mm; y: 350mm; }
+  backLeft => Foot { x: -1370mm; y: -350mm; }
+  backRight => Foot { x: 1370mm; y: -350mm; }
+}
+Subassembly Sofa {
+  <Assembly Sofa>
+    Pattern feet over sofaFeet {
+      foot => <Part foot = Drum<R:40mm,H:118mm>>
+        material: Oak;
+        Placement { from: Origin; to: World; translateLocal: [foot.x, foot.y, 12mm]; }
+      </Part>
+    }
+    <Part frame = Panel<L:3100mm,W:970mm,H:210mm,R:70mm>>
+      material: Oak;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 0mm, 130mm]; }
+    </Part>
+    Pattern cushions over sofaSeats {
+      seat => <Part cushion = Panel<L:1420mm,W:830mm,H:150mm,R:100mm>>
+        material: Upholstery;
+        Placement { from: Origin; to: Sofa.frame.TopSeat.Frame; translateLocal: [seat.x, 55mm, 0mm]; }
+      </Part>
+      <Part back = Panel<L:1420mm,W:180mm,H:450mm,R:70mm>>
+        material: Upholstery;
+        Placement { from: Origin; to: Sofa.frame.TopSeat.Frame; translateLocal: [seat.x, -400mm, 0mm]; }
+      </Part>
+    }
+    <Part leftArm = Panel<L:180mm,W:970mm,H:340mm,R:70mm>>
+      material: Upholstery;
+      Placement { from: Origin; to: Sofa.frame.TopSeat.Frame; translateLocal: [-1530mm, 0mm, 0mm]; }
+    </Part>
+    <Part rightArm = Panel<L:180mm,W:970mm,H:340mm,R:70mm>>
+      material: Upholstery;
+      Placement { from: Origin; to: Sofa.frame.TopSeat.Frame; translateLocal: [1530mm, 0mm, 0mm]; }
+    </Part>
+    <Part chaiseBase = Panel<L:950mm,W:1000mm,H:328mm,R:70mm>>
+      material: Oak;
+      Placement { from: Origin; to: World; translateLocal: [1000mm, 950mm, 12mm]; }
+    </Part>
+    <Part chaiseSeat = Panel<L:950mm,W:1000mm,H:150mm,R:100mm>>
+      material: Upholstery;
+      Placement { from: Origin; to: Sofa.chaiseBase.TopSeat.Frame; }
+    </Part>
+  </Assembly>
+  anchor: Sofa;
+}
+Subassembly CoffeeTable {
+  <Assembly CoffeeTable>
+    <Part pedestal = Drum<R:270mm,H:325mm>>
+      material: Oak;
+      Placement { from: Origin; to: World; }
+    </Part>
+    <Part top = Panel<L:1300mm,W:850mm,H:55mm,R:300mm>>
+      material: Oak;
+      Placement { from: Origin; to: CoffeeTable.pedestal.TopSeat.Frame; }
+    </Part>
+    <Part tray = Drum<R:150mm,H:20mm>>
+      material: Ceramic;
+      Placement { from: Origin; to: CoffeeTable.top.TopSeat.Frame; translateLocal: [-200mm, 0mm, 0mm]; }
+    </Part>
+    <Part vase = Drum<R:65mm,H:180mm>>
+      material: Terracotta;
+      Placement { from: Origin; to: CoffeeTable.tray.TopSeat.Frame; }
+    </Part>
+  </Assembly>
+  anchor: CoffeeTable;
+}
+Subassembly SideTable {
+  <Assembly SideTable>
+    <Part base = Drum<R:180mm,H:430mm>>
+      material: PaintedWood;
+      Placement { from: Origin; to: World; }
+    </Part>
+    <Part top = Drum<R:260mm,H:35mm>>
+      material: Oak;
+      Placement { from: Origin; to: SideTable.base.TopSeat.Frame; }
+    </Part>
+  </Assembly>
+  anchor: SideTable;
+}
+Assembly Living {
+  <Assembly Living>
+    <Part rug = Panel<L:4300mm,W:3200mm,H:12mm,R:100mm>>
+      material: RugTextile;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 700mm, 0mm]; }
+    </Part>
+    <Assembly sofa = Sofa> Placement { from: Origin; to: World; } </Assembly>
+    <Assembly coffeeTable = CoffeeTable>
+      Placement { from: Origin; to: Living.rug.TopSeat.Frame; translateLocal: [-450mm, 1050mm, 0mm]; }
+    </Assembly>
+    <Assembly sideTable = SideTable>
+      Placement { from: Origin; to: Living.rug.TopSeat.Frame; translateLocal: [-1950mm, -300mm, 0mm]; }
+    </Assembly>
+  </Assembly>
+  anchor: Living;
+}

@@ -18,6 +18,13 @@ public sealed class SceneCommandTests
         stdout.GetStringBuilder().Clear();
         Assert.True(CliRunner.Run(["scene","export-glb",input,output,"--json"],stdout,stderr) == 0,stderr.ToString());
         var bytes=File.ReadAllBytes(output);
+        stdout.GetStringBuilder().Clear();
+        Assert.Equal(0,CliRunner.Run(["scene","export-glb",input,output,"--hide-boundary","hall.ceiling","--json"],stdout,stderr));
+        using(var report=JsonDocument.Parse(stdout.ToString()))
+            Assert.Equal("hall.ceiling",report.RootElement.GetProperty("hiddenBoundaries")[0].GetString());
+        bytes=File.ReadAllBytes(output);
+        Assert.NotEqual(0,CliRunner.Run(["scene","export-glb",input,output,"--hide-boundary","missing.ceiling"],stdout,stderr));
+        Assert.Equal(bytes,File.ReadAllBytes(output));
         Assert.NotEqual(0,CliRunner.Run(["scene","export-glb",input,output,"--repeat","0"],stdout,stderr));
         Assert.Equal(bytes,File.ReadAllBytes(output));
         Assert.NotEqual(0,CliRunner.Run(["build",input,"--json"],stdout,stderr));

@@ -8,6 +8,7 @@ namespace Aetheris.Kernel.Firmament.Assembly;
 [FirmamentField("Color", "Color", FirmamentSchemaValueKind.Vector, Required = true)]
 [FirmamentField("Metallic", "Metallic", FirmamentSchemaValueKind.Scalar, Required = true)]
 [FirmamentField("Roughness", "Roughness", FirmamentSchemaValueKind.Scalar, Required = true)]
+[FirmamentField("Opacity", "Opacity", FirmamentSchemaValueKind.Scalar, Default = "1")]
 public static class AssemblyAppearanceDeclaration { }
 public sealed record AssemblyAppearance(string Name, AssemblyUsdMaterial Preview);
 
@@ -39,15 +40,18 @@ internal static class AssemblyAppearanceAuthoring
             var body = source[(header.Index + header.Length)..close]; var name = header.Groups["name"].Value;
             if (body.Contains('{')) { Error("declaration-fields-invalid", name); continue; }
             var fields = Fields(body);
-            var allowed = header.Groups["kind"].Value == "Appearance" ? new[] { "Color", "Metallic", "Roughness" } : new[] { "Identity", "Appearance" };
-            if (fields.Count != allowed.Length || !allowed.All(fields.ContainsKey)) { Error("declaration-fields-invalid", name); continue; }
-            if (allowed.Length == 3)
+            var isAppearance = header.Groups["kind"].Value == "Appearance";
+            var required = isAppearance ? new[] { "Color", "Metallic", "Roughness" } : new[] { "Identity", "Appearance" };
+            var allowed = isAppearance ? required.Append("Opacity").ToArray() : required;
+            if (!required.All(fields.ContainsKey) || fields.Keys.Except(allowed).Any()) { Error("declaration-fields-invalid", name); continue; }
+            if (isAppearance)
             {
                 var color = Regex.Match(fields["Color"], @"^\[(?<v>[^]]+)\]$");
                 var rgb = color.Success ? color.Groups["v"].Value.Split(',').Select(Number).ToArray() : [];
                 var metal = Number(fields["Metallic"]); var rough = Number(fields["Roughness"]);
-                if (rgb.Length != 3 || rgb.Concat([metal, rough]).Any(v => !double.IsFinite(v) || v < 0 || v > 1)) Error("values-invalid", name);
-                else if (!appearances.TryAdd(name, new(name, new(rgb[0], rgb[1], rgb[2], metal, rough)))) Error("duplicate-appearance", name);
+                var opacity = Number(fields.GetValueOrDefault("Opacity", "1"));
+                if (rgb.Length != 3 || rgb.Concat([metal, rough, opacity]).Any(v => !double.IsFinite(v) || v < 0 || v > 1)) Error("values-invalid", name);
+                else if (!appearances.TryAdd(name, new(name, new(rgb[0], rgb[1], rgb[2], metal, rough, opacity)))) Error("duplicate-appearance", name);
             }
             else
             {

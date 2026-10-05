@@ -1,0 +1,22 @@
+include "components.firmament";
+Assembly Media {
+  <Assembly Media>
+    <Part plinth = Panel<L:2200mm,W:300mm,H:100mm>>
+      material: BlackSteel;
+      Placement { from: Origin; to: World; }
+    </Part>
+    <Part cabinet = Panel<L:2400mm,W:400mm,H:330mm,R:15mm>>
+      material: Oak;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 0mm, 100mm]; }
+    </Part>
+    <Part screen = Panel<L:1450mm,W:35mm,H:800mm,R:12mm>>
+      material: BlackSteel;
+      Placement { from: Origin; to: World; translateLocal: [0mm, -225mm, 650mm]; }
+    </Part>
+    <Part vessel = Drum<R:95mm,H:260mm>>
+      material: Ceramic;
+      Placement { from: Origin; to: World; translateLocal: [-1000mm, 0mm, 430mm]; }
+    </Part>
+  </Assembly>
+  anchor: Media;
+}

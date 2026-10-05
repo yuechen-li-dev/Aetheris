@@ -16,6 +16,8 @@ public static class SceneDeclaration { }
 [FirmamentField("At", "At", FirmamentSchemaValueKind.Vector, Unit = FirmamentUnitKind.Length)]
 [FirmamentField("Thickness", "Thickness", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Default = "100mm")]
 [FirmamentField("Appearance", "Appearance", FirmamentSchemaValueKind.ConstructReference)]
+[FirmamentField("FloorAppearance", "FloorAppearance", FirmamentSchemaValueKind.ConstructReference)]
+[FirmamentField("CeilingAppearance", "CeilingAppearance", FirmamentSchemaValueKind.ConstructReference)]
 [FirmamentOutput("floor", "floor", "SceneBoundary", SourceAddressable = true)]
 [FirmamentOutput("ceiling", "ceiling", "SceneBoundary", SourceAddressable = true)]
 [FirmamentOutput("northWall", "northWall", "SceneBoundary", SourceAddressable = true)]
@@ -31,12 +33,16 @@ public static class RoomDeclaration { }
 [FirmamentField("Along", "Along", FirmamentSchemaValueKind.Length, Required = true, Unit = FirmamentUnitKind.Length)]
 public static class DoorDeclaration { }
 
-[FirmamentConstruct("Window", "Window", Context = "Scene", Entry = "Window officeGlass { On: warehouse.eastWall; Width: 6m; Height: 2.5m; Sill: 1m; Along: 4m; }", Description = "Room-owned rectangular wall aperture; no glazing or curtain-wall system.")]
+[FirmamentConstruct("Window", "Window", Context = "Scene", Entry = "Window officeGlass { On: warehouse.eastWall; Width: 6m; Height: 2.5m; Sill: 1m; Along: 4m; }", Description = "Room-owned rectangular aperture with optional inset frame and glazing; all geometry follows the opening dimensions.")]
 [FirmamentField("On", "On", FirmamentSchemaValueKind.ConstructReference, Required = true)]
 [FirmamentField("Width", "Width", FirmamentSchemaValueKind.Length, Required = true, Unit = FirmamentUnitKind.Length)]
 [FirmamentField("Height", "Height", FirmamentSchemaValueKind.Length, Required = true, Unit = FirmamentUnitKind.Length)]
 [FirmamentField("Along", "Along", FirmamentSchemaValueKind.Length, Required = true, Unit = FirmamentUnitKind.Length)]
 [FirmamentField("Sill", "Sill", FirmamentSchemaValueKind.Length, Required = true, Unit = FirmamentUnitKind.Length)]
+[FirmamentField("GlazingAppearance", "GlazingAppearance", FirmamentSchemaValueKind.ConstructReference)]
+[FirmamentField("FrameAppearance", "FrameAppearance", FirmamentSchemaValueKind.ConstructReference)]
+[FirmamentField("FrameWidth", "FrameWidth", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Default = "40mm")]
+[FirmamentField("GlassThickness", "GlassThickness", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length, Default = "6mm")]
 public static class WindowDeclaration { }
 
 [FirmamentConstruct("SceneCamera", "Camera", Context = "Scene", Entry = "Camera hero { Position: [35m, -15m, 20m]; LookAt: [15m, 9m, 1m]; Fov: 45deg; }", Description = "Presentation state in a Z-up world; independent of engineering geometry.")]
@@ -45,8 +51,11 @@ public static class WindowDeclaration { }
 [FirmamentField("Fov", "Fov", FirmamentSchemaValueKind.Angle, Required = true, Unit = FirmamentUnitKind.Angle)]
 public static class SceneCameraDeclaration { }
 
-public sealed record SceneRoom(string Name, double[] SizeMm, double[] AtMm, double ThicknessMm, string? Appearance, SemanticSourceSpan Span);
-public sealed record SceneOpening(string Name, string Kind, string Boundary, double WidthMm, double HeightMm, double AlongMm, double SillMm, SemanticSourceSpan Span);
+public sealed record SceneRoom(string Name, double[] SizeMm, double[] AtMm, double ThicknessMm, string? Appearance, SemanticSourceSpan Span,
+    string? FloorAppearance = null, string? CeilingAppearance = null);
+public sealed record SceneWindowFinish(string? GlazingAppearance, string? FrameAppearance, double FrameWidthMm, double GlassThicknessMm);
+public sealed record SceneOpening(string Name, string Kind, string Boundary, double WidthMm, double HeightMm, double AlongMm, double SillMm, SemanticSourceSpan Span,
+    SceneWindowFinish? Finish = null);
 public sealed record SceneCamera(string Name, double[] PositionMm, double[] LookAtMm, double FovDegrees, SemanticSourceSpan Span)
 {
     public double[] WorldTransform()
@@ -60,10 +69,11 @@ public sealed record SceneCamera(string Name, double[] PositionMm, double[] Look
 }
 public sealed record SceneOccurrenceSource(string Path, string Kind, string Definition, AssemblyFrameTransformSource Placement,
     string From, string? Appearance, SemanticSourceSpan Span, string? PatternKey = null);
+public sealed record SceneLayoutFrame(string Identity, AssemblyFrameTransformSource Transform);
 public sealed record SceneSource(string Name, string Units, string DefinitionSource, string SourceIdentity,
     IReadOnlyList<SceneRoom> Rooms, IReadOnlyList<SceneOpening> Openings, IReadOnlyList<SceneCamera> Cameras,
     IReadOnlyList<SceneOccurrenceSource> Occurrences, AssemblyAppearanceCatalog Looks,
-    IReadOnlyList<FirmamentV2CanonicalPatternDecl> Patterns);
+    IReadOnlyList<FirmamentV2CanonicalPatternDecl> Patterns, IReadOnlyList<SceneLayoutFrame> LayoutFrames);
 public sealed record SceneParseResult(SceneSource? Source, IReadOnlyList<AssemblyDiagnostic> Diagnostics)
 { public bool IsSuccess => Source is not null && Diagnostics.All(d => d.Severity != AssemblyDiagnosticSeverity.Error); }
 
@@ -102,16 +112,23 @@ public static class SceneAuthoring
         var original = new Reader(text, identity);
         var definitionEnd = 0;
         var geometryDeclarations = new List<string>();
+        var conceptNames = new List<string>();
         while (!original.End && original.Peek != "Scene")
         {
             var kind = original.Peek;
-            if (kind is not ("Template" or "Record" or "Static" or "Function" or "Appearance" or "Material"))
+            if (kind is not ("Template" or "Record" or "Static" or "Function" or "Appearance" or "Material" or "Concept"))
                 Fail("scene-declaration-unsupported", $"Unsupported Scene module declaration '{kind}'. Use AssemblyFile for independently compiled assemblies.");
             var declarationStart = original.Position;
             original.SkipDeclaration(); definitionEnd = original.Position;
             var declaration = text[declarationStart..definitionEnd];
+            if (kind == "Concept")
+            {
+                var concept = Regex.Match(declaration,@"^Concept\s+Struct\s+(?<name>\w+)\s*\{");
+                if (!concept.Success) Fail("scene-concept-layout-unsupported", "Scene admits existing Concept Struct Plane/Axis/DatumFrame layout guides.");
+                conceptNames.Add(concept.Groups["name"].Value);
+            }
             // Scene keyed Sets and preview looks are composition inputs, not geometry inputs.
-            if (kind is not ("Appearance" or "Material") && !Regex.IsMatch(declaration,@"^Static\s+\w+\s*:\s*Set\s*<"))
+            if (kind is not ("Appearance" or "Material" or "Concept") && !Regex.IsMatch(declaration,@"^Static\s+\w+\s*:\s*Set\s*<"))
                 geometryDeclarations.Add(declaration);
         }
         if (original.End) Fail("scene-root-missing", "Expected one Scene root.");
@@ -119,6 +136,12 @@ public static class SceneAuthoring
         original.Block(); original.Optional(";");
         if (!original.End) Fail("scene-multiple-roots", "A Scene document requires exactly one Scene root and no trailing declarations.");
         var definitionSource = string.Join("\n",geometryDeclarations);
+        var layout = AssemblyDatumAuthoring.ParseLayouts(text,identity,diagnostics,out _);
+        // Concept layouts are erased design scaffolding. The existing datum parser owns
+        // their members, units, bases, derivation and cycle diagnostics.
+        if (diagnostics.Any(d => d.Severity == AssemblyDiagnosticSeverity.Error)) return new(null,diagnostics);
+        if (conceptNames.Any(n => !layout.Any(d => d.Identity.StartsWith(n+".",StringComparison.Ordinal))))
+            Fail("scene-concept-layout-unsupported", "Each Scene Concept Struct requires an admitted Plane or Axis and optional DatumFrame members.");
         var errors = new List<string>();
         var expanded = CanonicalStaticAuthoring.ExpandAssemblyPatterns(text, errors, spatial: true);
         foreach (var error in errors) diagnostics.Add(new("scene-pattern-invalid", error));
@@ -150,14 +173,27 @@ public static class SceneAuthoring
             switch (kind)
             {
                 case "Room":
-                    Check(f, "Size At Thickness Appearance", "Size");
+                    Check(f, "Size At Thickness Appearance FloorAppearance CeilingAppearance", "Size");
                     var size = Vector(f["Size"]); var at = Vector(f.GetValueOrDefault("At", "[0mm,0mm,0mm]"));
                     var thickness = Length(f.GetValueOrDefault("Thickness", "100mm"));
                     if (size.Any(v => v <= 0) || thickness <= 0) Fail("scene-room-size-invalid", "Room dimensions and thickness must be positive.");
-                    rooms.Add(new(id,size,at,thickness,f.GetValueOrDefault("Appearance"),span)); break;
+                    rooms.Add(new(id,size,at,thickness,f.GetValueOrDefault("Appearance"),span,
+                        f.GetValueOrDefault("FloorAppearance"),f.GetValueOrDefault("CeilingAppearance"))); break;
                 case "Door": case "Window":
-                    Check(f, kind == "Door" ? "On Width Height Along" : "On Width Height Along Sill", kind == "Door" ? "On Width Height Along" : "On Width Height Along Sill");
-                    openings.Add(new(id,kind,f["On"],Length(f["Width"]),Length(f["Height"]),Length(f["Along"]),kind == "Window" ? Length(f["Sill"]) : 0,span)); break;
+                    Check(f, kind == "Door" ? "On Width Height Along" : "On Width Height Along Sill GlazingAppearance FrameAppearance FrameWidth GlassThickness", kind == "Door" ? "On Width Height Along" : "On Width Height Along Sill");
+                    SceneWindowFinish? finish = null;
+                    if (kind == "Window" && f.Keys.Any(k => k is "GlazingAppearance" or "FrameAppearance" or "FrameWidth" or "GlassThickness"))
+                    {
+                        var glazing = f.GetValueOrDefault("GlazingAppearance"); var frame = f.GetValueOrDefault("FrameAppearance");
+                        if ((glazing is null && frame is null) || (f.ContainsKey("FrameWidth") && frame is null) || (f.ContainsKey("GlassThickness") && glazing is null))
+                            Fail("scene-window-finish-invalid", "Window finish dimensions require their corresponding glazingAppearance or frameAppearance.");
+                        var frameWidth = frame is null ? 0 : Length(f.GetValueOrDefault("FrameWidth", "40mm"));
+                        var glassThickness = Length(f.GetValueOrDefault("GlassThickness", "6mm"));
+                        if ((frame is not null && frameWidth <= 0) || glassThickness <= 0 || frameWidth * 2 >= Math.Min(Length(f["Width"]),Length(f["Height"])))
+                            Fail("scene-window-finish-invalid", "Window frame must leave a positive clear pane; frame width and glass thickness must be positive.");
+                        finish = new(glazing,frame,frameWidth,glassThickness);
+                    }
+                    openings.Add(new(id,kind,f["On"],Length(f["Width"]),Length(f["Height"]),Length(f["Along"]),kind == "Window" ? Length(f["Sill"]) : 0,span,finish)); break;
                 case "Camera":
                     Check(f,"Position LookAt Fov","Position LookAt Fov");
                     var position = Vector(f["Position"]); var target = Vector(f["LookAt"]); var fov = Angle(f["Fov"]);
@@ -177,14 +213,23 @@ public static class SceneAuthoring
             if (opening.WidthMm <= 0 || opening.HeightMm <= 0 || opening.AlongMm < 0 || opening.SillMm < 0
                 || opening.AlongMm+opening.WidthMm > extent || opening.SillMm+opening.HeightMm > room.SizeMm[2])
                 Fail("scene-opening-outside-wall", $"Opening '{opening.Name}' must lie inside its wall bounds.");
+            if (opening.Finish is { GlazingAppearance: not null } windowFinish && windowFinish.GlassThicknessMm > room.ThicknessMm)
+                Fail("scene-window-finish-invalid", "Window glass thickness must fit inside its owning wall thickness.");
             foreach (var other in openings.Where(o => o != opening && o.Boundary == opening.Boundary))
                 if (opening.AlongMm < other.AlongMm+other.WidthMm && other.AlongMm < opening.AlongMm+opening.WidthMm
                     && opening.SillMm < other.SillMm+other.HeightMm && other.SillMm < opening.SillMm+opening.HeightMm)
                     Fail("scene-openings-overlap", $"Openings '{opening.Name}' and '{other.Name}' overlap.");
         }
-        foreach (var look in rooms.Select(r => r.Appearance).Concat(occurrences.Select(o => o.Appearance)).OfType<string>())
+        foreach (var look in rooms.SelectMany(r => new[] {r.Appearance,r.FloorAppearance,r.CeilingAppearance})
+            .Concat(openings.SelectMany(o => new[] {o.Finish?.GlazingAppearance,o.Finish?.FrameAppearance}))
+            .Concat(occurrences.Select(o => o.Appearance)).OfType<string>())
             if (!looks.Appearances.ContainsKey(look)) Fail("scene-appearance-unknown", $"Unknown Appearance '{look}'.");
-        return new(new(name,units,definitionSource,identity,rooms,openings,cameras,occurrences,looks,patterns),diagnostics);
+        var frameNames = rooms.SelectMany(r => new[] {"floor","ceiling","northWall","southWall","eastWall","westWall"}.Select(b => r.Name+"."+b))
+            .Concat(layout.Select(d => d.Identity)).Append("World").ToHashSet(StringComparer.Ordinal);
+        foreach (var reference in layout.Select(d => d.Transform.From).Concat(occurrences.Select(o => o.Placement.From)))
+            if (!frameNames.Contains(reference)) Fail("scene-frame-unresolved", $"Unknown Scene frame '{reference}'. Use World, a Room boundary or a Concept datum.");
+        return new(new(name,units,definitionSource,identity,rooms,openings,cameras,occurrences,looks,patterns,
+            layout.Select(d => new SceneLayoutFrame(d.Identity,d.Transform)).ToArray()),diagnostics);
 
         void ReadOccurrence(Reader r, string parent)
         {

@@ -1,0 +1,38 @@
+include "components.firmament";
+Record ChairSite { x: Length; y: Length; angle: Angle; }
+Static chairSites: Set<ChairSite> {
+  nearLeft => ChairSite { x: -550mm; y: -850mm; angle: 0deg; }
+  nearRight => ChairSite { x: 550mm; y: -850mm; angle: 0deg; }
+  farLeft => ChairSite { x: -550mm; y: 850mm; angle: 180deg; }
+  farRight => ChairSite { x: 550mm; y: 850mm; angle: 180deg; }
+}
+Static tableFeet: Set<Foot> {
+  nearLeft => Foot { x: -780mm; y: -300mm; }
+  nearRight => Foot { x: 780mm; y: -300mm; }
+  farLeft => Foot { x: -780mm; y: 300mm; }
+  farRight => Foot { x: 780mm; y: 300mm; }
+}
+Assembly Dining {
+  <Assembly Dining>
+    <Part top = Panel<L:2000mm,W:950mm,H:65mm,R:180mm>>
+      material: Oak;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 0mm, 720mm]; }
+    </Part>
+    Pattern tableLegs over tableFeet {
+      foot => <Part leg = Drum<R:55mm,H:720mm>>
+        material: Oak;
+        Placement { from: Origin; to: World; translateLocal: [foot.x, foot.y, 0mm]; }
+      </Part>
+    }
+    Pattern chairs over chairSites {
+      site => <Assembly chair = DiningChair>
+        Placement { from: Origin; to: World; translateLocal: [site.x, site.y, 0mm]; rotateLocal: { axis: Z; angle: site.angle; } }
+      </Assembly>
+    }
+    <Part centrepiece = Drum<R:85mm,H:190mm>>
+      material: Terracotta;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 0mm, 785mm]; }
+    </Part>
+  </Assembly>
+  anchor: Dining;
+}

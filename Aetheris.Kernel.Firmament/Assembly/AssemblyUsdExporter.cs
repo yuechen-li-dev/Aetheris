@@ -7,7 +7,7 @@ namespace Aetheris.Kernel.Firmament.Assembly;
 
 /// <summary>Downstream preview appearance, never engineering material or density authority.</summary>
 public sealed record AssemblyUsdMaterial(double Red = .48, double Green = .55, double Blue = .63,
-    double Metallic = .8, double Roughness = .28);
+    double Metallic = .8, double Roughness = .28, double Opacity = 1);
 public sealed record AssemblyUsdSample(double Time, IReadOnlyDictionary<string, double> State);
 public sealed record AssemblyUsdOptions(IReadOnlyDictionary<string, double>? State = null,
     IReadOnlyList<AssemblyUsdSample>? Samples = null,
@@ -125,6 +125,7 @@ public static class AssemblyUsdExporter
             Line("        def Shader \"Shader\" {"); Line("            uniform token info:id = \"UsdPreviewSurface\"");
             Line($"            color3f inputs:diffuseColor = ({F(m.Red)}, {F(m.Green)}, {F(m.Blue)})");
             Line($"            float inputs:metallic = {F(m.Metallic)}"); Line($"            float inputs:roughness = {F(m.Roughness)}");
+            if (m.Opacity != 1) Line($"            float inputs:opacity = {F(m.Opacity)}");
             Line("            token outputs:surface"); Line("        }"); Line("    }");
         }
         foreach (var look in authoredLooks)
@@ -137,6 +138,7 @@ public static class AssemblyUsdExporter
             Line("        def Shader \"Shader\" {"); Line("            uniform token info:id = \"UsdPreviewSurface\"");
             Line($"            color3f inputs:diffuseColor = ({F(m.Red)}, {F(m.Green)}, {F(m.Blue)})");
             Line($"            float inputs:metallic = {F(m.Metallic)}"); Line($"            float inputs:roughness = {F(m.Roughness)}");
+            if (m.Opacity != 1) Line($"            float inputs:opacity = {F(m.Opacity)}");
             Line("            token outputs:surface"); Line("        }"); Line("    }");
         }
         Line("}");
@@ -253,7 +255,7 @@ public static class AssemblyUsdExporter
 
     private static void ValidateMaterial(AssemblyUsdMaterial m)
     {
-        if (new[] { m.Red, m.Green, m.Blue, m.Metallic, m.Roughness }.Any(v => !double.IsFinite(v) || v < 0 || v > 1))
+        if (new[] { m.Red, m.Green, m.Blue, m.Metallic, m.Roughness, m.Opacity }.Any(v => !double.IsFinite(v) || v < 0 || v > 1))
             throw new InvalidOperationException("assembly-usd-invalid-material");
     }
     private static string Identifier(string value) => "N_" + new string(value.Select(c => char.IsAsciiLetterOrDigit(c) || c == '_' ? c : '_').ToArray());

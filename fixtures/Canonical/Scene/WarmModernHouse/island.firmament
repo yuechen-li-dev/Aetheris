@@ -1,0 +1,53 @@
+include "components.firmament";
+Linear Sites pendantSites { keys: [left, right]; start: [-600mm, 0mm, 0mm]; step: [1200mm, 0mm, 0mm]; }
+Subassembly Pendant {
+  <Assembly Pendant>
+    <Part shade = Drum<R:150mm,H:150mm>>
+      material: Ceramic;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 0mm, 2450mm]; }
+    </Part>
+    <Part diffuser = Drum<R:135mm,H:8mm>>
+      material: Ceramic;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 0mm, 2442mm]; }
+    </Part>
+    <Part cord = Drum<R:4mm,H:470mm>>
+      material: BlackSteel;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 0mm, 2600mm]; }
+    </Part>
+    <Part canopy = Drum<R:55mm,H:30mm>>
+      material: BlackSteel;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 0mm, 3070mm]; }
+    </Part>
+  </Assembly>
+  anchor: Pendant;
+}
+Assembly Island {
+  <Assembly Island>
+    <Part plinth = Panel<L:2050mm,W:720mm,H:100mm>>
+      material: BlackSteel;
+      Placement { from: Origin; to: World; }
+    </Part>
+    <Part base = Panel<L:2200mm,W:850mm,H:700mm,R:20mm>>
+      material: PaintedWood;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 0mm, 100mm]; }
+    </Part>
+    <Part top = Panel<L:2400mm,W:1000mm,H:60mm,R:30mm>>
+      material: Stone;
+      Placement { from: Origin; to: Island.base.TopSeat.Frame; }
+    </Part>
+    Pattern pendants over pendantSites {
+      site => <Assembly light = Pendant>
+        Placement { from: Origin; to: World; translateLocal: [site.X, site.Y, site.Z]; }
+      </Assembly>
+    }
+    <Part servingBoard = Panel<L:430mm,W:260mm,H:20mm,R:50mm>>
+      material: Oak;
+      Placement { from: Origin; to: Island.top.TopSeat.Frame; translateLocal: [-700mm, 0mm, 0mm]; }
+    </Part>
+    <Part bowl = Drum<R:135mm,H:90mm>>
+      material: Ceramic;
+      Placement { from: Origin; to: Island.servingBoard.TopSeat.Frame; }
+    </Part>
+  </Assembly>
+  anchor: Island;
+}

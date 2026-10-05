@@ -1,0 +1,14 @@
+include "components.firmament";
+Assembly Entry {
+  <Assembly Entry>
+    <Part benchBase = Panel<L:1800mm,W:420mm,H:420mm,R:25mm>>
+      material: Oak;
+      Placement { from: Origin; to: World; }
+    </Part>
+    <Part benchSeat = Panel<L:1700mm,W:400mm,H:70mm,R:60mm>>
+      material: Upholstery;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 0mm, 420mm]; }
+    </Part>
+  </Assembly>
+  anchor: Entry;
+}

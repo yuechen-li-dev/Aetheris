@@ -50,16 +50,55 @@ third axis is not an inward/outward wall-normal classification.
 Door bottom is the floor. Window bottom is its `sill`. Openings must fit inside
 the selected wall and cannot overlap. They lower to actual missing wall volume
 by a deterministic rectangular partition. No authored subtraction is required.
-Windows are apertures in X0; glazing and door leaves are not synthesized.
+Windows remain apertures by default. Optional `glazingAppearance` and
+`frameAppearance` synthesize a single inset pane and four frame members from
+the aperture's owned dimensions. `frameWidth` defaults to 40mm;
+`glassThickness` defaults to 6mm. A frame must leave positive clear width/height,
+and glass must fit within the Room's wall thickness. Dimensions require the
+corresponding finish. Unknown finishes fail. Door leaves remain unsynthesized.
 The semantic hierarchy is Room → boundary → opening, even when the boundary's
 display consists of multiple panels. Panel names are derived display structure;
 the named boundary and opening retain authority.
 
 ## Placement, sharing and presentation
 
+Room `appearance` is the default wall/enclosure finish. Optional
+`floorAppearance` and `ceilingAppearance` override those two surfaces without
+adding overlay geometry or changing engineering Material. For example:
+
+```firmament
+Room main {
+  size: [9m, 7m, 3.1m];
+  appearance: plasterWhite; floorAppearance: warmOak; ceilingAppearance: ceilingWhite;
+}
+Window garden {
+  on: main.westWall; along: 1.1m; width: 4.4m; height: 2.6m; sill: .12m;
+  glazingAppearance: clearGlass; frameAppearance: charcoalMetal; frameWidth: 45mm;
+}
+```
+
+The existing top-level `Concept Struct` Plane/Axis/DatumFrame vocabulary also
+supplies Scene placement guides. The existing datum parser owns units, bases,
+derivation and cycle checks; Concept coordinates retain its **mm** contract.
+Planes may derive from a Room boundary or another same-document Concept datum.
+Published engineering-port derivation remains with Assembly. Unresolved guides
+fail during source analysis, including unused guides. Concepts produce no solids
+or product occurrences and stay outside engineering definition cache inputs.
+
+```firmament
+Concept Struct HouseLayout {
+  Plane floor { from: main.floor; }
+  DatumFrame dining { on: floor; at: [6800mm, 5350mm]; x: [1, 0]; }
+}
+// In the Scene:
+<Assembly dining = AssemblyFile<"dining.firmament">>
+  Placement { from: Origin; to: HouseLayout.dining; }
+</Assembly>
+```
+
 Scene `Placement` reuses the existing `translateLocal`, `rotateLocal`, `normal`,
-`up`, and frame composition implementation. `to` may name `World` or a Room
-boundary. `from: Origin` is available on Parts and Assemblies; Assemblies may
+`up`, and frame composition implementation. `to` may name `World`, a Room
+boundary, or a same-document Concept datum. `from: Origin` is available on Parts and Assemblies; Assemblies may
 also name an exact published DatumFrame. Rotation retains the existing form
 `rotateLocal: { axis: Z; angle: 90deg; }`. There are no authored matrices.
 Named Scene `FrameTransform` declarations and Part source-port alignment are
@@ -82,6 +121,9 @@ vertical `fov` in degrees. Export uses Z-up camera orientation. Cameras never
 modify engineering geometry. Scene `Appearance` definitions and occurrence
 `appearance` overrides reuse the existing finite preview material values.
 Physical material/density selection remains in engineering definitions.
+Appearance also admits optional `opacity` in `[0,1]`, default one. USD emits
+`UsdPreviewSurface` opacity; GLB emits alpha and `BLEND` for translucent looks.
+Opacity does not encode refraction, physical glass properties, or a shader graph.
 
 ## CLI and exports
 
@@ -90,6 +132,7 @@ aetheris validate fixtures/Canonical/Scene/warehouse.firmament --json
 aetheris inspect fixtures/Canonical/Scene/warehouse.firmament --repeat 2 --json
 aetheris scene export-usd fixtures/Canonical/Scene/warehouse.firmament --json
 aetheris scene export-glb fixtures/Canonical/Scene/warehouse.firmament --json
+aetheris scene export-glb fixtures/Canonical/Scene/WarmModernHouse/house.firmament artifacts/local/scene/house-cutaway.glb --hide-boundary main.ceiling --hide-boundary main.southWall --hide-boundary main.eastWall --json
 ```
 
 Default output is ignored `artifacts/local/scene/`. USD preserves spatial
@@ -102,6 +145,18 @@ the source assembly; X0 Scene USD does not export a combined physics articulatio
 The existing PowerPoint 3D pipeline can embed the generated GLB and a rendered
 fallback PNG. Desktop rotation/save/reopen is a separate manual qualification.
 Whole-scene manufacturing STEP is deliberately unsupported.
+
+Repeated `--hide-boundary room.boundary` options select an explicit USD/GLB
+presentation cutaway. All display geometry under those exact owned boundaries
+is omitted from the projection. The compiled Scene and complete room geometry
+stay unchanged; unknown boundary names fail before output is written. Inspection
+always describes the full Scene. This allows an interior model to be useful in
+an orbit-only viewer such as PowerPoint without deleting architecture in source.
+
+The [warm modern house](../../../fixtures/Canonical/Scene/WarmModernHouse/house.firmament)
+demonstrates top-down Concept layout, bottom-up furniture components, then Scene
+composition. Its [qualification report](../../release/ARCHVIZ-HOUSE-X0.md) records
+the exact presentation and retained-session evidence.
 
 Completion, hover and source diagnostics use compiler-owned schemas. Scene
 formatting safely prefers camelCase field labels while preserving layout,

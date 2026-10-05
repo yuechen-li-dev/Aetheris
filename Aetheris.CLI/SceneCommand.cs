@@ -7,7 +7,7 @@ namespace Aetheris.CLI;
 
 internal static class SceneCommand
 {
-    internal const string Usage="aetheris scene <inspect|export-usd|export-glb> <scene.firmament> [out.usda|out.glb] [--repeat 1..16] [--json]";
+    internal const string Usage="aetheris scene <inspect|export-usd|export-glb> <scene.firmament> [out.usda|out.glb] [--repeat 1..16] [--hide-boundary room.boundary] [--json]";
     internal static int Run(string[] args,TextWriter stdout,TextWriter stderr)
     {
         if (args.Length == 0 || args[0] is "--help" or "-h") { stdout.WriteLine(Usage); return args.Length == 0 ? 1 : 0; }
@@ -15,9 +15,11 @@ internal static class SceneCommand
         {
             if (args.Length < 2 || args[0] is not ("inspect" or "export-usd" or "export-glb")) throw new ArgumentException(Usage);
             var operation=args[0]; var path=Path.GetFullPath(args[1]); var json=false; var repeat=1; string? output=null;
+            var hiddenBoundaries=new HashSet<string>(StringComparer.Ordinal);
             for(var i=2;i<args.Length;i++)
             {
                 if(args[i] == "--json") json=true;
+                else if(args[i] == "--hide-boundary" && i+1<args.Length && operation != "inspect") hiddenBoundaries.Add(args[++i]);
                 else if(args[i] == "--repeat" && i+1<args.Length && int.TryParse(args[++i],out repeat) && repeat is >=1 and <=16) { }
                 else if(!args[i].StartsWith('-') && output is null && operation != "inspect") output=args[i];
                 else throw new ArgumentException("Unknown or incomplete Scene option: "+args[i]);
@@ -49,15 +51,15 @@ internal static class SceneCommand
                 if(scene.Source.Occurrences.Any(o => o.Definition.Contains('"') && o.Definition.Contains(Path.GetFileName(output),StringComparison.Ordinal)))
                     throw new ArgumentException("Output must differ from engineering definition inputs.");
                 Directory.CreateDirectory(Path.GetDirectoryName(output)!);
-                if(operation == "export-usd") File.WriteAllText(output,SceneExport.Usd(scene),new UTF8Encoding(false));
-                else File.WriteAllBytes(output,SceneExport.Glb(scene));
+                if(operation == "export-usd") File.WriteAllText(output,SceneExport.Usd(scene,hiddenBoundaries),new UTF8Encoding(false));
+                else File.WriteAllBytes(output,SceneExport.Glb(scene,hiddenBoundaries));
                 bytes=new FileInfo(output).Length;
             }
             var report=new {success=true,scene=scene.Source.Name,authoringUnits=scene.Source.Units,internalUnits="mm",rooms=scene.Source.Rooms.Count,
                 assemblies=scene.Source.Occurrences.Count(o => o.Kind == "Assembly"),parts=scene.Source.Occurrences.Count(o => o.Kind == "Part"),
                 definitions=scene.Display.Definitions.Count,occurrences=scene.Display.Occurrences.Count,cameras=scene.Source.Cameras.Count,
                 bounds=new {minimumMm=scene.MinimumMm,maximumMm=scene.MaximumMm},boundaries=scene.Boundaries,openings=scene.Source.Openings,
-                nodes=scene.Nodes,builds,output,bytes,exportMilliseconds=output is null ? 0 : export.Elapsed.TotalMilliseconds};
+                nodes=scene.Nodes,layoutFrames=scene.Source.LayoutFrames,builds,output,bytes,hiddenBoundaries,exportMilliseconds=output is null ? 0 : export.Elapsed.TotalMilliseconds};
             stdout.WriteLine(json ? JsonSerializer.Serialize(report,CliRunner.JsonOptions) : $"Scene {scene.Source.Name}: {scene.Source.Rooms.Count} rooms, {scene.Source.Occurrences.Count} authored placements, {scene.Display.Definitions.Count} shared display definitions"+(output is null ? "." : $"; exported {output}."));
             return 0;
         }

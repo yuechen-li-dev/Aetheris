@@ -1,0 +1,77 @@
+include "components.firmament";
+// A cabinet is a complete reusable object. The row owns spacing; the door owns its handle.
+Subassembly BaseCabinet {
+  <Assembly BaseCabinet>
+    <Part plinth = Panel<L:580mm,W:500mm,H:90mm>>
+      material: BlackSteel;
+      Placement { from: Origin; to: World; }
+    </Part>
+    <Part carcass = Panel<L:580mm,W:560mm,H:720mm>>
+      material: PaintedWood;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 0mm, 90mm]; }
+    </Part>
+    <Part door = Panel<L:580mm,W:22mm,H:720mm,R:3mm>>
+      material: PaintedWood;
+      Placement { from: Origin; to: World; translateLocal: [0mm, -291mm, 90mm]; }
+    </Part>
+    <Part handle = Panel<L:220mm,W:24mm,H:12mm,R:5mm>>
+      material: BlackSteel;
+      Placement { from: Origin; to: World; translateLocal: [0mm, -314mm, 760mm]; }
+    </Part>
+  </Assembly>
+  anchor: BaseCabinet;
+}
+Linear Sites cabinetSites { keys: [pantry, drawers, hob, prep, sink, dishes]; start: [-1500mm, 0mm, 0mm]; step: [600mm, 0mm, 0mm]; }
+Linear Sites shelfLevels { keys: [lower, upper]; start: [0mm, 220mm, 1500mm]; step: [0mm, 0mm, 450mm]; }
+Assembly Kitchen {
+  <Assembly Kitchen>
+    Pattern cabinetry over cabinetSites {
+      site => <Assembly cabinet = BaseCabinet>
+        Placement { from: Origin; to: World; translateLocal: [site.X, site.Y, site.Z]; }
+      </Assembly>
+    }
+    <Part counter = Panel<L:3600mm,W:640mm,H:60mm,R:10mm>>
+      material: Stone;
+      Placement { from: Origin; to: World; translateLocal: [0mm, -10mm, 810mm]; }
+    </Part>
+    <Part backsplash = Panel<L:3600mm,W:18mm,H:700mm,R:4mm>>
+      material: Stone;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 391mm, 870mm]; }
+    </Part>
+    Pattern openShelves over shelfLevels {
+      site => <Part shelf = Panel<L:3400mm,W:350mm,H:35mm,R:8mm>>
+        material: Oak;
+        Placement { from: Origin; to: World; translateLocal: [site.X, site.Y, site.Z]; }
+      </Part>
+    }
+    <Part cooktop = Panel<L:650mm,W:420mm,H:12mm,R:20mm>>
+      material: BlackSteel;
+      Placement { from: Origin; to: World; translateLocal: [-900mm, -35mm, 870mm]; }
+    </Part>
+    <Part sink = Panel<L:650mm,W:400mm,H:12mm,R:55mm>>
+      material: Steel;
+      Placement { from: Origin; to: World; translateLocal: [900mm, -35mm, 870mm]; }
+    </Part>
+    <Part sinkWell = Panel<L:570mm,W:320mm,H:4mm,R:45mm>>
+      material: BlackSteel;
+      Placement { from: Origin; to: World; translateLocal: [900mm, -35mm, 882mm]; }
+    </Part>
+    <Part faucetStem = Drum<R:18mm,H:250mm>>
+      material: Steel;
+      Placement { from: Origin; to: World; translateLocal: [900mm, 205mm, 870mm]; }
+    </Part>
+    <Part faucetSpout = Drum<R:18mm,H:180mm>>
+      material: Steel;
+      Placement { from: Origin; to: World; translateLocal: [900mm, 205mm, 1102mm]; rotateLocal: { axis: X; angle: 90deg; } }
+    </Part>
+    <Part bowl = Drum<R:125mm,H:70mm>>
+      material: Ceramic;
+      Placement { from: Origin; to: World; translateLocal: [1450mm, 100mm, 1535mm]; }
+    </Part>
+    <Part vessel = Drum<R:70mm,H:220mm>>
+      material: Terracotta;
+      Placement { from: Origin; to: World; translateLocal: [-1200mm, 220mm, 1535mm]; }
+    </Part>
+  </Assembly>
+  anchor: Kitchen;
+}

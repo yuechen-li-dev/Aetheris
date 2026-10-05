@@ -1,0 +1,64 @@
+// Shared analytic furniture vocabulary. Millimetres; origin at the base centre.
+// Panel corners describe the silhouette; no claim of upholstered edge fillets.
+Template<L: Length, W: Length, H: Length, R: Length = 2mm> Struct Panel {
+  expose {
+    Semantic TopSeat { DatumFrame Frame = [0mm,0mm,H] x [1,0,0] y [0,1,0] z [0,0,1]; }
+  }
+  RoundedRect2 outline { center: [0mm, 0mm]; size: [L, W]; radius: R; }
+  Profile section { Loop Outer { outline |> TraceLoop } }
+  Extrude body { profile: section; from: 0mm; to: H; }
+}
+Template<R: Length, H: Length> Struct Drum {
+  expose {
+    Semantic TopSeat { DatumFrame Frame = [0mm,0mm,H] x [1,0,0] y [0,1,0] z [0,0,1]; }
+  }
+  Circle2 outline { center: [0mm, 0mm]; radius: R; }
+  Profile section { Loop Outer { outline |> TraceLoop } }
+  Extrude body { profile: section; from: 0mm; to: H; }
+}
+Appearance warmOak { color: [.55, .35, .18]; metallic: 0; roughness: .48; }
+Appearance forestGreen { color: [.035, .075, .055]; metallic: 0; roughness: .48; }
+Appearance creamFabric { color: [.78, .71, .60]; metallic: 0; roughness: .92; }
+Appearance linenRug { color: [.57, .51, .42]; metallic: 0; roughness: .98; }
+Appearance charcoalMetal { color: [.018, .025, .022]; metallic: .65; roughness: .32; }
+Appearance limestone { color: [.73, .68, .57]; metallic: 0; roughness: .48; }
+Appearance ceramicIvory { color: [.84, .79, .67]; metallic: 0; roughness: .38; }
+Appearance clay { color: [.37, .17, .095]; metallic: 0; roughness: .76; }
+Appearance brushedSteel { color: [.42, .46, .45]; metallic: .9; roughness: .28; }
+Material Oak { identity: "wood.oak.presentation"; appearance: warmOak; }
+Material PaintedWood { identity: "wood.painted.presentation"; appearance: forestGreen; }
+Material Upholstery { identity: "upholstery.linen.presentation"; appearance: creamFabric; }
+Material RugTextile { identity: "textile.presentation"; appearance: linenRug; }
+Material BlackSteel { identity: "steel.presentation"; appearance: charcoalMetal; }
+Material Stone { identity: "stone.presentation"; appearance: limestone; }
+Material Ceramic { identity: "ceramic.presentation"; appearance: ceramicIvory; }
+Material Terracotta { identity: "ceramic.terracotta.presentation"; appearance: clay; }
+Material Steel { identity: "steel.presentation"; appearance: brushedSteel; }
+
+// Complete reusable chair; its four feet are one keyed occurrence pattern.
+Subassembly DiningChair {
+  <Assembly DiningChair>
+    Pattern legs over chairFeet {
+      foot => <Part leg = Drum<R:24mm,H:430mm>>
+        material: Oak;
+        Placement { from: Origin; to: World; translateLocal: [foot.x, foot.y, 0mm]; }
+      </Part>
+    }
+    <Part seat = Panel<L:500mm,W:480mm,H:70mm,R:75mm>>
+      material: Upholstery;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 0mm, 430mm]; }
+    </Part>
+    <Part back = Panel<L:500mm,W:55mm,H:330mm,R:20mm>>
+      material: Oak;
+      Placement { from: Origin; to: World; translateLocal: [0mm, -220mm, 500mm]; }
+    </Part>
+  </Assembly>
+  anchor: DiningChair;
+}
+Record Foot { x: Length; y: Length; }
+Static chairFeet: Set<Foot> {
+  frontLeft => Foot { x: -190mm; y: 170mm; }
+  frontRight => Foot { x: 190mm; y: 170mm; }
+  backLeft => Foot { x: -190mm; y: -170mm; }
+  backRight => Foot { x: 190mm; y: -170mm; }
+}

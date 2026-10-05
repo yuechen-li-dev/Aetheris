@@ -67,4 +67,15 @@ scene.render.filepath=str(output/(source.stem+'-fallback.png'))
 scene.view_settings.view_transform='AgX'
 bpy.ops.wm.save_as_mainfile(filepath=str(output/(source.stem+'-imported.blend')))
 bpy.ops.render.render(write_still=True)
+if source.stem == 'guitar':
+    # Evidence from the imported deliverable, not from a cached source scene.
+    for name, position, target, scale in [
+        ('bridge-detail', (.30, -.28, .22), (0, -.055, .060), .21),
+        ('head-join-detail', (.5, .67, .050), (0, .67, .050), .11),
+    ]:
+        camera.location = position
+        camera.rotation_euler = (Vector(target)-camera.location).to_track_quat('-Z','Y').to_euler()
+        camera_data.ortho_scale = scale
+        scene.render.filepath = str(output/(source.stem+'-'+name+'.png'))
+        bpy.ops.render.render(write_still=True)
 print(json.dumps({k:v for k,v in report.items() if k not in ('materials','hierarchy')}), flush=True)

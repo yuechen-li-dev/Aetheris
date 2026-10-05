@@ -32,6 +32,8 @@ presentation scenes. `scripts/export-presentation-scene.py` preserves product
 positions and polygons, embeds the ATLAS maker label, and bakes the guitar's
 existing procedural sunburst/wood base color. It does not translate general
 material graphs or alter guitar geometry. Procedural grain bump is omitted.
+The presentation qualifier regenerates the guitar USD and shaded scene from
+current Firmament source on every run; it does not reuse a cached guitar `.blend`.
 
 ATLAS is an independent Aetheris demo robot. Aetheris is not affiliated with,
 endorsed by, or associated with Boston Dynamics. The shared name is coincidental.

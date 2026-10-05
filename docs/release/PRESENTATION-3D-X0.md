@@ -1,6 +1,6 @@
 # PRESENTATION-3D-X0
 
-Status on 2026-10-02: **Meaningful progression; desktop qualification pending.**
+Status on 2026-10-04: **Meaningful progression; desktop qualification pending.**
 
 The C# GLB exporter and the existing C# slide writer now produce a two-slide PPTX
 containing physically embedded ATLAS and guitar GLBs. Independent glTF validation
@@ -31,7 +31,7 @@ are supported and embedded in the binary buffer. Paths never enter GLB metadata.
 
 The final polished witnesses use their established Aetheris USD-derived Blender
 scenes. `export-presentation-scene.py` preserves product positions and polygons,
-exports the existing ATLAS label texture, and bakes five guitar sunburst/wood
+exports the existing ATLAS label texture, and bakes guitar sunburst/wood
 base-color surfaces. This is a bounded finishing step, not a general material
 graph translator. Procedural wood-grain bump is omitted; scalar PBR and supported
 coat survive. No guitar geometry work was reopened. Studio floors, lights and
@@ -85,15 +85,15 @@ message for the existing 1024×192 label texture; direct display GLBs have
 informational default-matrix messages. Guitar has no validator issues.
 
 Blender **5.2.2 LTS** imports the polished assets independently. ATLAS has 61
-visible meshes using 25 mesh datablocks, including its printed label. Guitar has
-107 visible mesh objects and five embedded 1024×1024 images. Imported normals
+visible meshes using 25 mesh datablocks, including its printed label. The current
+guitar has 99 visible mesh objects and six embedded 1024×1024 images. Imported normals
 are unit length and transforms are positive-handed. Measured physical bounds in
 Blender's Z-up metres are approximately:
 
 | Model | X | Y | Z |
 |---|---:|---:|---:|
 | ATLAS | 0.295001 | 0.130000 | 0.340774 |
-| Guitar | 0.337550 | 1.039273 | 0.066480 |
+| Guitar | 0.337550 | 1.039273 | 0.066340 |
 
 `atlas-fallback.png` and `guitar-fallback.png` render the independently imported
 GLBs. Visual inspection confirms the industrial robot, maker mark, polished
@@ -109,11 +109,11 @@ oracle live under ignored `artifacts/local/presentation-3d-x0/`.
 | Artifact | Bytes |
 |---|---:|
 | ATLAS polished GLB | 546,680 |
-| Guitar polished GLB | 5,404,940 |
+| Guitar polished GLB, refreshed 2026-10-04 | 6,606,296 |
 | Two-slide PPTX before models | 6,526 |
-| Embedded two-slide PPTX | 4,779,099 |
+| Refreshed two-slide PPTX, 2026-10-04 | 5,870,858 |
 
-Direct .NET GLB lowering took about 60 ms for ATLAS and 96 ms for guitar after
+Original October 2 timings: direct .NET GLB lowering took about 60 ms for ATLAS and 96 ms for guitar after
 display preparation. Compilation and tessellation took about 4.29 s and 8.90 s
 respectively. Polished finishing took approximately 0.70 s and 2.09 s. C# slide
 compilation took approximately 116 ms. Desktop PowerPoint load time is unmeasured.
@@ -126,7 +126,7 @@ witnesses. CLI tests cover valid export and preservation of output after invalid
 options. Three existing/new PPTX tests pass, including Office 2019 validation,
 exact embedding, multiple model relationships, fallback, deterministic packages,
 oracle structure and existing drawing functionality. Release build succeeds;
-the fast core lane passes 1,005 tests. The complete serial solution lane passes
+the fast core lane passes 1,005 tests. The October 2 complete serial solution lane passes
 4,042 tests with zero failures (`full-tests-closeout.log`), including 1,138 core,
 1,736 Firmament and 455 CLI tests.
 
@@ -143,11 +143,52 @@ Reproduce the generated assets with:
 pwsh -File scripts/qualify-presentation-3d-x0.ps1
 ```
 
-This requires the existing qualified `.blend` scenes. If absent, run the existing
-industrial ATLAS and guitar qualification scripts with `-Render` first. The
-qualifier builds both direct GLBs, finishes both polished scenes, imports/renders
-them independently, runs pinned Khronos validation, and calls the C# deck compiler.
+This requires the existing qualified ATLAS `.blend` scene. If absent, run the
+industrial ATLAS qualification script with `-Render` first. The qualifier rebuilds
+the guitar USD from current Firmament code and invokes the existing sunburst
+renderer to recreate `guitar-source/guitar-studio.blend` on every run. It builds
+both direct GLBs, finishes both polished scenes, imports/renders them independently,
+runs pinned Khronos validation, and calls the C# deck compiler.
 It does not claim desktop acceptance.
+
+## Current-source refresh, 2026-10-04
+
+The original presentation guitar used a September 30 cached studio scene. It
+predated the source-owned semicircular tailpiece/string rail and the repaired
+headstock/neck connection. The presentation qualifier now recompiles and reshades
+the guitar before GLB finishing, so cached geometry cannot conceal those fixes.
+The material binding for the widened headstock root was also corrected to its
+current full definition identity. Guitar geometry source was not changed.
+
+The current source has 99 visible part occurrences and 56 shared display
+definitions, rather than the old scene's 107 visible parts. Refresh evidence is
+retained in `guitar-source/` and `refresh-2026-10-04.log` beneath local artifacts.
+The refreshed polished GLB imports as 99 mesh objects and 145,728 triangles;
+Khronos validation reports zero errors and zero warnings. Its embedded copy in
+`interactive-3d-demo-2026-10-04.pptx` matches the current GLB byte-for-byte. The
+dated filename avoids overwriting the original deck while it is open in Office.
+Use `-DeckName interactive-3d-demo-2026-10-04.pptx` with the qualifier to choose
+this output name. Blender invocations now use `--python-exit-code 1`, ensuring
+failed finishing cannot silently pass by retaining an old output file.
+The refresh log records the original filename's Office lock; the separate
+`deck-compile-2026-10-04.json` records successful dated compilation (136 ms).
+The dated deck's media are embedded and its relationships are all internal.
+
+`guitar-bridge-detail.png` and `guitar-head-join-detail.png` are closeups rendered
+from an independent import of the refreshed GLB. They show the authored 5 mm
+semicircular string rail and the solid scarf/neck-to-headstock transition. The
+existing engineering witness tests verify the rail diameter sits at z=60 mm
+and the string crown at z=65 mm; no presentation-only repair geometry was added.
+
+October 4 validation: the solution Release build succeeds (zero errors, nine
+warnings), and the fast core lane passes all 1,005 tests. The full serial lane
+records 4,265 passes and one failure in
+`ProfileBoundaryAuthoringTests.OverlapIsRejectedAndDisjointEditOrderDoesNotChangeGeometry`
+at line 73. It reproduces in isolation using inline rectangular-panel source,
+without referencing guitar files, appearances or presentation artifacts. No C#
+compiler code was modified in this refresh. Both the full failure and focused
+diagnostic are retained as `refresh-full-tests.log` and
+`refresh-profile-boundary-diagnostic.log`; the full suite is not claimed green.
 
 ## ATLAS disclaimer
 

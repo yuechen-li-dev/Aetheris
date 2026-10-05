@@ -48,7 +48,7 @@
     "metallic": 0,
     "roughness": 0.4
   },
-  "Head<H:14mm>": {
+  "Head<H:14mm,RootStart:16mm,RootHalfWidth:26.5mm,RootWidth:53mm>": {
     "red": 0.15,
     "green": 0.025,
     "blue": 0.012,

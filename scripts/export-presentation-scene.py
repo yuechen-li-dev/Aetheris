@@ -39,7 +39,7 @@ def object_geometry(obj):
             tuple(tuple(p.vertices) for p in obj.data.polygons))
 product_geometry = {o.name: object_geometry(o) for o in products}
 if kind == 'guitar':
-    assert len(products) == 107, len(products)
+    assert len(products) in (99, 107), len(products)
     scene.render.engine = 'CYCLES'
     scene.cycles.samples = 1
     scene.cycles.device = 'CPU'

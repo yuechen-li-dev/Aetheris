@@ -1,0 +1,33 @@
+{
+  "title": "Aetheris programmable factory environment",
+  "slides": [
+    {
+      "title": "A programmable factory environment",
+      "subtitle": "Firmament composes shared equipment into a large operational Scene",
+      "caption": "Compiled geometry for digital twin and Physical AI visualization. Static presentation witness; simulation and robotics control are unqualified.",
+      "models": [{
+        "name": "FactoryX0 interactive environment",
+        "source": "../../../../artifacts/local/factory-scene-x0/factory.glb",
+        "preview": "../../../../artifacts/local/factory-scene-x0/hero.png",
+        "x": 66.3, "y": 56, "width": 206, "height": 115.875,
+        "camera": { "centerXMetres": 21, "centerYMetres": 3.5, "centerZMetres": -14,
+          "presentationScale": 0.045, "rotationXDegrees": 28, "rotationYDegrees": 32,
+          "cameraDistanceMetres": 2.2, "fieldOfViewDegrees": 45 }
+      }]
+    },
+    {
+      "title": "Shared modules at factory scale",
+      "subtitle": "Three production lines, robot islands, packaging and material staging",
+      "caption": "Presentation cutaway hides the ceiling and front/right walls. Full enclosure, shared definitions and five cameras remain in OpenUSD.",
+      "models": [{
+        "name": "FactoryX0 floor overview",
+        "source": "../../../../artifacts/local/factory-scene-x0/factory.glb",
+        "preview": "../../../../artifacts/local/factory-scene-x0/overview.png",
+        "x": 66.3, "y": 56, "width": 206, "height": 115.875,
+        "camera": { "centerXMetres": 21, "centerYMetres": 3.5, "centerZMetres": -14,
+          "presentationScale": 0.045, "rotationXDegrees": 38, "rotationYDegrees": -28,
+          "cameraDistanceMetres": 2.2, "fieldOfViewDegrees": 45 }
+      }]
+    }
+  ]
+}

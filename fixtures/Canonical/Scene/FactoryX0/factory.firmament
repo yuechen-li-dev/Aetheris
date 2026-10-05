@@ -1,0 +1,94 @@
+// FACTORY-SCENE-X0. Original presentation environment, 42 × 28 × 7 metres.
+// Scene owns spatial organization; equipment documents own engineering geometry.
+Template<L: Length, W: Length, H: Length> Struct Marker {
+  RoundedRect2 outline { center: [0mm, 0mm]; size: [L, W]; radius: 2mm; }
+  Profile section { Loop Outer { outline |> TraceLoop } }
+  Extrude body { profile: section; from: 0mm; to: H; }
+}
+Appearance concrete { color: [.43, .49, .53]; metallic: .05; roughness: .27; }
+Appearance wallWhite { color: [.76, .81, .85]; metallic: .05; roughness: .65; }
+Appearance safetyYellow { color: [.95, .65, .025]; metallic: 0; roughness: .45; }
+Appearance pedestrianTeal { color: [.025, .24, .26]; metallic: .05; roughness: .4; }
+Appearance glass { color: [.65, .83, .9]; metallic: 0; roughness: .12; opacity: .18; }
+Appearance windowFrame { color: [.06, .085, .11]; metallic: .7; roughness: .3; }
+Concept Struct FactoryLayout {
+  Plane floor { from: hall.floor; }
+  DatumFrame production { on: floor; at: [6000mm, 6000mm]; x: [1, 0]; }
+  DatumFrame packout { on: floor; at: [25000mm, 6000mm]; x: [1, 0]; }
+  DatumFrame robotics { on: floor; at: [25500mm, 10500mm]; x: [1, 0]; }
+  DatumFrame storage { on: floor; at: [37000mm, 6000mm]; x: [0, 1]; }
+}
+// The existing finite site producer now works at Scene scale too. Recipe vectors
+// retain its mm contract; scene placements/cameras use explicit metre literals.
+Linear Sites lineSites { keys: [componentAssembly, integration, finalInspection]; start: [0mm, 0mm, 0mm]; step: [0mm, 7000mm, 0mm]; }
+Linear Sites robotSites { keys: [transfer, packAssist]; start: [0mm, 0mm, 0mm]; step: [0mm, 7000mm, 0mm]; }
+Linear Sites cartSites { keys: [infeed, workInProgress, inspection, dispatch]; start: [3000mm, 4000mm, 0mm]; step: [8500mm, 0mm, 0mm]; }
+Linear Sites rearCartSites { keys: [return01, return02, return03]; start: [9000mm, 24500mm, 0mm]; step: [8000mm, 0mm, 0mm]; }
+Linear Sites laneSites { keys: [front, aisle01, aisle02, rear]; start: [21000mm, 2300mm, 1mm]; step: [0mm, 7000mm, 0mm]; }
+Linear Sites crossingSites { keys: [s01, s02, s03, s04, s05, s06, s07, s08, s09, s10, s11, s12]; start: [33500mm, 4100mm, 2mm]; step: [0mm, 450mm, 0mm]; }
+Scene FactoryX0 {
+  units: m;
+  Room hall { size: [42m, 28m, 7m]; thickness: 180mm; appearance: wallWhite; floorAppearance: concrete; }
+  Door dispatch { on: hall.eastWall; along: 20m; width: 5m; height: 4.5m; }
+  Door personnel { on: hall.southWall; along: 1m; width: 1.4m; height: 2.5m; }
+  Window northDaylight { on: hall.northWall; along: 2m; width: 37m; height: 1.7m; sill: 4m;
+    glazingAppearance: glass; frameAppearance: windowFrame; frameWidth: 80mm; }
+  Window westDaylight { on: hall.westWall; along: 3m; width: 21m; height: 1.7m; sill: 4m;
+    glazingAppearance: glass; frameAppearance: windowFrame; frameWidth: 80mm; }
+  <Assembly structure = AssemblyFile<"hall-structure.firmament">>
+    Placement { from: Origin; to: World; }
+  </Assembly>
+  Pattern productionLines over lineSites {
+    site => <Assembly line = AssemblyFile<"production-line.firmament">>
+      Placement { from: Origin; to: FactoryLayout.production; translateLocal: [site.X, site.Y, site.Z]; }
+    </Assembly>
+  }
+  Pattern packaging over lineSites {
+    site => <Assembly packout = AssemblyFile<"packout.firmament">>
+      Placement { from: Origin; to: FactoryLayout.packout; translateLocal: [site.X, site.Y, site.Z]; }
+    </Assembly>
+  }
+  Pattern robotCells over robotSites {
+    site => <Assembly cell = AssemblyFile<"robot-island.firmament">>
+      Placement { from: Origin; to: FactoryLayout.robotics; translateLocal: [site.X, site.Y, site.Z]; }
+    </Assembly>
+  }
+  <Assembly logistics = AssemblyFile<"logistics.firmament">>
+    Placement { from: Origin; to: FactoryLayout.storage; }
+  </Assembly>
+  Pattern carts over cartSites {
+    site => <Assembly cart = AssemblyFile<"cart.firmament">>
+      Placement { from: Origin; to: World; translateLocal: [site.X, site.Y, site.Z]; }
+    </Assembly>
+  }
+  Pattern returns over rearCartSites {
+    site => <Assembly cart = AssemblyFile<"cart.firmament">>
+      Placement { from: Origin; to: World; translateLocal: [site.X, site.Y, site.Z]; rotateLocal: { axis: Z; angle: 90deg; } }
+    </Assembly>
+  }
+  Pattern pedestrianLanes over laneSites {
+    site => <Part lane = Marker<L:38000mm,W:1000mm,H:2mm>> appearance: pedestrianTeal;
+      Placement { from: Origin; to: World; translateLocal: [site.X, site.Y, site.Z]; }
+    </Part>
+    <Part nearStripe = Marker<L:38000mm,W:70mm,H:2mm>> appearance: safetyYellow;
+      Placement { from: Origin; to: World; translateLocal: [site.X, site.Y - 600mm, site.Z]; }
+    </Part>
+    <Part farStripe = Marker<L:38000mm,W:70mm,H:2mm>> appearance: safetyYellow;
+      Placement { from: Origin; to: World; translateLocal: [site.X, site.Y + 600mm, site.Z]; }
+    </Part>
+  }
+  Pattern crossing over crossingSites {
+    site => <Part stripe = Marker<L:1800mm,W:220mm,H:2mm>> appearance: safetyYellow;
+      Placement { from: Origin; to: World; translateLocal: [site.X, site.Y, site.Z]; }
+    </Part>
+  }
+  <Part logisticsLane = Marker<L:1500mm,W:22000mm,H:2mm>> appearance: pedestrianTeal;
+    Placement { from: Origin; to: World; translateLocal: [33.5m, 14m, 1mm]; }
+  </Part>
+  // Cameras are canonical authored state; exports carry all five views.
+  Camera Hero { position: [32m, 3.5m, 4.5m]; lookAt: [16m, 14m, 1.1m]; fov: 66deg; }
+  Camera Overview { position: [54m, -24m, 43m]; lookAt: [21m, 14m, .3m]; fov: 42deg; }
+  Camera Line { position: [23.5m, 3.5m, 2.4m]; lookAt: [8m, 7m, 1.2m]; fov: 59deg; }
+  Camera Robot { position: [30.4m, 7.4m, 3.2m]; lookAt: [26m, 10.5m, 1.35m]; fov: 54deg; }
+  Camera Logistics { position: [33m, 24.5m, 4m]; lookAt: [37m, 12m, 1.6m]; fov: 62deg; }
+}

@@ -116,11 +116,13 @@ public static class SceneAuthoring
         while (!original.End && original.Peek != "Scene")
         {
             var kind = original.Peek;
-            if (kind is not ("Template" or "Record" or "Static" or "Function" or "Appearance" or "Material" or "Concept"))
+            if (kind is not ("Template" or "Record" or "Static" or "Function" or "Appearance" or "Material" or "Concept" or "Linear" or "Mirrored"))
                 Fail("scene-declaration-unsupported", $"Unsupported Scene module declaration '{kind}'. Use AssemblyFile for independently compiled assemblies.");
             var declarationStart = original.Position;
             original.SkipDeclaration(); definitionEnd = original.Position;
             var declaration = text[declarationStart..definitionEnd];
+            if (kind is "Linear" or "Mirrored" && !Regex.IsMatch(declaration,@"^(?:Linear|Mirrored)\s+Sites\b"))
+                Fail("scene-declaration-unsupported", "Scene admits only the shared Linear Sites and Mirrored Sites recipes.");
             if (kind == "Concept")
             {
                 var concept = Regex.Match(declaration,@"^Concept\s+Struct\s+(?<name>\w+)\s*\{");
@@ -128,7 +130,7 @@ public static class SceneAuthoring
                 conceptNames.Add(concept.Groups["name"].Value);
             }
             // Scene keyed Sets and preview looks are composition inputs, not geometry inputs.
-            if (kind is not ("Appearance" or "Material" or "Concept") && !Regex.IsMatch(declaration,@"^Static\s+\w+\s*:\s*Set\s*<"))
+            if (kind is not ("Appearance" or "Material" or "Concept" or "Linear" or "Mirrored") && !Regex.IsMatch(declaration,@"^Static\s+\w+\s*:\s*Set\s*<"))
                 geometryDeclarations.Add(declaration);
         }
         if (original.End) Fail("scene-root-missing", "Expected one Scene root.");
@@ -310,12 +312,13 @@ public static class SceneAuthoring
     }
     internal static double Length(string value)
     {
-        var m = Regex.Match(value.Trim(),@"^(?<n>[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)(?<u>mm|m)$");
-        double n = 0;
-        if (!m.Success || !double.TryParse(m.Groups["n"].Value,NumberStyles.Float,CultureInfo.InvariantCulture,out n)
-            || !double.IsFinite(n) || !double.IsFinite(n*(m.Groups["u"].Value == "m" ? 1000 : 1)))
-            Fail("scene-length-unit-required", $"Expected a finite length with m or mm suffix, got '{value}'.");
-        return n*(m.Groups["u"].Value == "m" ? 1000 : 1);
+        // Normalize metre literals at the Scene boundary, then use the existing
+        // dimension-checked scalar evaluator. No separate Scene arithmetic engine.
+        var expression = Regex.Replace(value, @"(?<![\w.])(?<n>(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)m\b", m =>
+            (double.Parse(m.Groups["n"].Value,CultureInfo.InvariantCulture)*1000).ToString("R",CultureInfo.InvariantCulture)+"mm");
+        if (!FirmamentV2FeatureExpansion.TryEvaluateScalar(expression,out var n,out var unit) || unit != "mm" || !double.IsFinite(n))
+            Fail("scene-length-unit-required", $"Expected a finite length expression with m or mm suffix, got '{value}'.");
+        return n;
     }
     private static double Angle(string value)
     {

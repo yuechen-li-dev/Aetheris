@@ -204,7 +204,7 @@ public static class FirmamentSourceSpelling
         Add("RotateLocal", "Axis Angle");
         Add("Mate", "Interface Member At Gap Clocking Orientation Support");
         Add("Note", "Target Text");
-        Add("Appearance", "Color Metallic Roughness Opacity");
+        Add("Appearance", "Color Metallic Roughness Opacity Emissive");
         Add("Material", "Identity Appearance");
         Add("Start End Corner RouteSite", "At On Radius");
         Add("SectionChain", "Continuity Start End");

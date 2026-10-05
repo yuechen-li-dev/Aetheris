@@ -1,0 +1,27 @@
+include "kit.firmament";
+Linear Sites packSites { keys: [p01, p02, p03]; start: [0mm, 0mm, 0mm]; step: [2000mm, 0mm, 0mm]; }
+Linear Sites cartons { keys: [c01, c02, c03, c04]; start: [-600mm, 0mm, 945mm]; step: [1400mm, 0mm, 0mm]; }
+Assembly Packout {
+  <Assembly Packout>
+    Pattern conveyors over packSites {
+      site => <Assembly segment = ConveyorStraight>
+        Placement { from: Origin; to: World; translateLocal: [site.X, site.Y, site.Z]; }
+      </Assembly>
+    }
+    Pattern outputs over cartons {
+      site => <Part box = Panel<L:650mm,W:450mm,H:450mm,R:10mm>> material: Cardboard;
+        Placement { from: Origin; to: World; translateLocal: [site.X, site.Y, site.Z]; }
+      </Part>
+    }
+    <Assembly sealer = MachineBox>
+      Placement { from: Origin; to: World; translateLocal: [2000mm, 1450mm, 0mm]; }
+    </Assembly>
+    <Assembly bench = InspectionBench>
+      Placement { from: Origin; to: World; translateLocal: [0mm, -1500mm, 0mm]; }
+    </Assembly>
+    <Assembly pallet = PalletBuffer>
+      Placement { from: Origin; to: World; translateLocal: [5000mm, -1500mm, 0mm]; }
+    </Assembly>
+  </Assembly>
+  anchor: Packout;
+}

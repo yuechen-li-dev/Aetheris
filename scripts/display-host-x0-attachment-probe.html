@@ -1,0 +1,14 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>DISPLAY-HOST-X0 attachment qualification</title>
+<script type="importmap">{"imports":{"three":"/aetheris.client/node_modules/three/build/three.core.js","three/webgpu":"/aetheris.client/node_modules/three/build/three.webgpu.js","three/tsl":"/aetheris.client/node_modules/three/build/three.tsl.js"}}</script>
+<pre id="report">Running attachment qualification...</pre>
+<script type="module">
+import { probeExternalAttachments } from './display-host-x0-attachment-probe.js';
+try {
+  window.displayHostProbe = await probeExternalAttachments(new URLSearchParams(location.search).has('ownedDepth'));
+} catch (error) {
+  window.displayHostProbe = { status: 'BLOCKED', setupException: String(error) };
+}
+document.querySelector('#report').textContent = JSON.stringify(window.displayHostProbe, null, 2);
+</script>

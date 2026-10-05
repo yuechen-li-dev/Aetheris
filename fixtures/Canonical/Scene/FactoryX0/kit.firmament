@@ -1,0 +1,235 @@
+// FACTORY-SCENE-X0 reusable kit. Millimetres, Z-up, origin on the floor.
+// Simplified exact solids with separate component/material identities.
+Template<L: Length, W: Length, H: Length, R: Length = 2mm> Struct Panel {
+  RoundedRect2 outline { center: [0mm, 0mm]; size: [L, W]; radius: R; }
+  Profile section { Loop Outer { outline |> TraceLoop } }
+  Extrude body { profile: section; from: 0mm; to: H; }
+}
+Template<R: Length, H: Length> Struct Drum {
+  Circle2 outline { center: [0mm, 0mm]; radius: R; }
+  Profile section { Loop Outer { outline |> TraceLoop } }
+  Extrude body { profile: section; from: 0mm; to: H; }
+}
+// Open bins carry a bottom and four walls, rather than solid blue blocks.
+Template<L: Length, W: Length, H: Length> Struct Bin {
+  RoundedRect2 outer { center: [0mm, 0mm]; size: [L, W]; radius: 16mm; }
+  RoundedRect2 inner { center: [0mm, 0mm]; size: [L - 16mm, W - 16mm]; radius: 8mm; }
+  Profile base { Loop Outer { outer |> TraceLoop } }
+  Profile rim { Loop Outer { outer |> TraceLoop } Loop Inner { inner |> TraceLoop } }
+  Extrude bottom { profile: base; from: 0mm; to: 8mm; }
+  Extrude sides { profile: rim; from: 8mm; to: H; }
+}
+Appearance porcelain { color: [.78, .82, .85]; metallic: .25; roughness: .28; }
+Appearance graphite { color: [.035, .045, .058]; metallic: .65; roughness: .32; }
+Appearance aluminium { color: [.52, .59, .65]; metallic: .85; roughness: .26; }
+Appearance belt { color: [.022, .028, .032]; metallic: .05; roughness: .65; }
+Appearance automationOrange { color: [.95, .25, .035]; metallic: .2; roughness: .28; }
+Appearance toteBlue { color: [.035, .24, .54]; metallic: .05; roughness: .4; }
+Appearance safetyYellow { color: [.95, .65, .025]; metallic: .1; roughness: .4; }
+Appearance carton { color: [.57, .38, .19]; metallic: 0; roughness: .85; }
+Appearance screen { color: [.012, .1, .15]; metallic: .25; roughness: .18; emissive: [.025, .32, .5]; }
+Appearance ready { color: [.04, .55, .24]; metallic: .1; roughness: .25; emissive: [.04, .7, .2]; }
+Appearance diffuser { color: [.9, .94, 1]; metallic: 0; roughness: .3; emissive: [.85, .92, 1]; }
+Material PaintedSteel { identity: "steel.painted.presentation"; appearance: porcelain; }
+Material BlackSteel { identity: "steel.black.presentation"; appearance: graphite; }
+Material Aluminium { identity: "aluminium.presentation"; appearance: aluminium; }
+Material Rubber { identity: "rubber.presentation"; appearance: belt; }
+Material RobotSteel { identity: "steel.robot.presentation"; appearance: automationOrange; }
+Material Polymer { identity: "polymer.bin.presentation"; appearance: toteBlue; }
+Material SafetySteel { identity: "steel.safety.presentation"; appearance: safetyYellow; }
+Material Cardboard { identity: "cardboard.presentation"; appearance: carton; }
+Material Display { identity: "display.presentation"; appearance: screen; }
+Material Signal { identity: "indicator.presentation"; appearance: ready; }
+Material Luminaire { identity: "diffuser.presentation"; appearance: diffuser; }
+Record Foot { x: Length; y: Length; }
+Static conveyorFeet: Set<Foot> {
+  nearLeft => Foot { x: -760mm; y: -380mm; }
+  nearRight => Foot { x: -760mm; y: 380mm; }
+  farLeft => Foot { x: 760mm; y: -380mm; }
+  farRight => Foot { x: 760mm; y: 380mm; }
+}
+Linear Sites rollerSites {
+  keys: [r01, r02, r03, r04, r05, r06, r07, r08, r09, r10, r11, r12];
+  start: [-880mm, 360mm, 910mm]; step: [160mm, 0mm, 0mm];
+}
+Subassembly ConveyorStraight {
+  <Assembly ConveyorStraight>
+    <Part bed = Panel<L:1980mm,W:740mm,H:60mm>> material: Rubber;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 0mm, 820mm]; }
+    </Part>
+    Pattern feet over conveyorFeet {
+      foot => <Part leg = Panel<L:70mm,W:70mm,H:820mm>> material: Aluminium;
+        Placement { from: Origin; to: World; translateLocal: [foot.x, foot.y, 0mm]; }
+      </Part>
+      <Part pad = Panel<L:120mm,W:120mm,H:20mm,R:12mm>> material: BlackSteel;
+        Placement { from: Origin; to: World; translateLocal: [foot.x, foot.y, 0mm]; }
+      </Part>
+    }
+    Pattern rollers over rollerSites {
+      site => <Part roller = Drum<R:35mm,H:720mm>> material: Aluminium;
+        Placement { from: Origin; to: World; translateLocal: [site.X, site.Y, site.Z]; rotateLocal: { axis: X; angle: 90deg; } }
+      </Part>
+    }
+    <Part railNear = Panel<L:1980mm,W:55mm,H:140mm>> material: Aluminium;
+      Placement { from: Origin; to: World; translateLocal: [0mm, -400mm, 805mm]; }
+    </Part>
+    <Part railFar = Panel<L:1980mm,W:55mm,H:140mm>> material: Aluminium;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 400mm, 805mm]; }
+    </Part>
+  </Assembly>
+  anchor: ConveyorStraight;
+}
+Subassembly MachineBox {
+  <Assembly MachineBox>
+    <Part plinth = Panel<L:1500mm,W:1400mm,H:160mm,R:25mm>> material: BlackSteel;
+      Placement { from: Origin; to: World; }
+    </Part>
+    <Part enclosure = Panel<L:1500mm,W:1400mm,H:1840mm,R:25mm>> material: PaintedSteel;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 0mm, 160mm]; }
+    </Part>
+    <Part serviceDoor = Panel<L:1200mm,W:24mm,H:1420mm,R:10mm>> material: BlackSteel;
+      Placement { from: Origin; to: World; translateLocal: [0mm, -708mm, 380mm]; }
+    </Part>
+    <Part window = Panel<L:1040mm,W:12mm,H:900mm,R:4mm>> material: Display;
+      Placement { from: Origin; to: World; translateLocal: [0mm, -726mm, 820mm]; }
+    </Part>
+    <Part windowMullion = Panel<L:40mm,W:20mm,H:940mm>> material: Aluminium;
+      Placement { from: Origin; to: World; translateLocal: [0mm, -730mm, 800mm]; }
+    </Part>
+    <Part handle = Panel<L:25mm,W:40mm,H:220mm>> material: Aluminium;
+      Placement { from: Origin; to: World; translateLocal: [500mm, -744mm, 530mm]; }
+    </Part>
+    <Part accent = Panel<L:1500mm,W:30mm,H:100mm>> material: RobotSteel;
+      Placement { from: Origin; to: World; translateLocal: [0mm, -700mm, 250mm]; }
+    </Part>
+    <Part signalStem = Drum<R:18mm,H:160mm>> material: Aluminium;
+      Placement { from: Origin; to: World; translateLocal: [600mm, 400mm, 2000mm]; }
+    </Part>
+    <Part status = Drum<R:40mm,H:90mm>> material: Signal;
+      Placement { from: Origin; to: World; translateLocal: [600mm, 400mm, 2160mm]; }
+    </Part>
+  </Assembly>
+  anchor: MachineBox;
+}
+Subassembly InspectionBench {
+  <Assembly InspectionBench>
+    <Part cabinet = Panel<L:1100mm,W:650mm,H:860mm,R:12mm>> material: PaintedSteel;
+      Placement { from: Origin; to: World; }
+    </Part>
+    <Part worktop = Panel<L:1200mm,W:750mm,H:50mm,R:20mm>> material: Aluminium;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 0mm, 860mm]; }
+    </Part>
+    <Part monitorPost = Panel<L:60mm,W:60mm,H:450mm>> material: BlackSteel;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 240mm, 910mm]; }
+    </Part>
+    <Part monitor = Panel<L:600mm,W:40mm,H:360mm,R:12mm>> material: Display;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 220mm, 1160mm]; }
+    </Part>
+    <Part keyboard = Panel<L:450mm,W:160mm,H:25mm,R:10mm>> material: BlackSteel;
+      Placement { from: Origin; to: World; translateLocal: [0mm, -160mm, 910mm]; }
+    </Part>
+  </Assembly>
+  anchor: InspectionBench;
+}
+Static cartFeet: Set<Foot> {
+  nearLeft => Foot { x: -420mm; y: -280mm; }
+  nearRight => Foot { x: -420mm; y: 280mm; }
+  farLeft => Foot { x: 420mm; y: -280mm; }
+  farRight => Foot { x: 420mm; y: 280mm; }
+}
+Subassembly Cart {
+  <Assembly Cart>
+    Pattern casters over cartFeet {
+      foot => <Part wheel = Drum<R:90mm,H:50mm>> material: Rubber;
+        Placement { from: Origin; to: World; translateLocal: [foot.x, foot.y, 90mm]; rotateLocal: { axis: X; angle: 90deg; } }
+      </Part>
+      <Part fork = Panel<L:45mm,W:70mm,H:90mm>> material: Aluminium;
+        Placement { from: Origin; to: World; translateLocal: [foot.x, foot.y, 110mm]; }
+      </Part>
+      <Part upright = Panel<L:35mm,W:35mm,H:800mm>> material: BlackSteel;
+        Placement { from: Origin; to: World; translateLocal: [foot.x, foot.y, 180mm]; }
+      </Part>
+    }
+    <Part shelfLow = Panel<L:1000mm,W:700mm,H:35mm,R:16mm>> material: BlackSteel;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 0mm, 200mm]; }
+    </Part>
+    <Part shelfHigh = Panel<L:1000mm,W:700mm,H:35mm,R:16mm>> material: BlackSteel;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 0mm, 650mm]; }
+    </Part>
+    <Part handle = Panel<L:35mm,W:590mm,H:35mm>> material: Aluminium;
+      Placement { from: Origin; to: World; translateLocal: [-420mm, 0mm, 980mm]; }
+    </Part>
+    <Part toteLow = Bin<L:600mm,W:400mm,H:270mm>> material: Polymer;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 0mm, 235mm]; }
+    </Part>
+    <Part toteHigh = Bin<L:600mm,W:400mm,H:270mm>> material: Polymer;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 0mm, 685mm]; }
+    </Part>
+  </Assembly>
+  anchor: Cart;
+}
+Static rackFeet: Set<Foot> {
+  nearLeft => Foot { x: -1200mm; y: -550mm; }
+  nearRight => Foot { x: -1200mm; y: 550mm; }
+  farLeft => Foot { x: 1200mm; y: -550mm; }
+  farRight => Foot { x: 1200mm; y: 550mm; }
+}
+Linear Sites shelfLevels { keys: [low, middle, high]; start: [0mm, 0mm, 400mm]; step: [0mm, 0mm, 1050mm]; }
+Subassembly StorageRack {
+  <Assembly StorageRack>
+    Pattern posts over rackFeet {
+      foot => <Part post = Panel<L:80mm,W:80mm,H:3500mm>> material: BlackSteel;
+        Placement { from: Origin; to: World; translateLocal: [foot.x, foot.y, 0mm]; }
+      </Part>
+    }
+    Pattern shelves over shelfLevels {
+      site => <Part shelf = Panel<L:2480mm,W:1180mm,H:65mm>> material: Aluminium;
+        Placement { from: Origin; to: World; translateLocal: [site.X, site.Y, site.Z]; }
+      </Part>
+      <Part beam = Panel<L:2480mm,W:90mm,H:130mm>> material: RobotSteel;
+        Placement { from: Origin; to: World; translateLocal: [site.X, -550mm, site.Z]; }
+      </Part>
+      <Part leftBin = Bin<L:750mm,W:800mm,H:550mm>> material: Polymer;
+        Placement { from: Origin; to: World; translateLocal: [-720mm, 0mm, site.Z + 65mm]; }
+      </Part>
+      <Part rightBin = Bin<L:750mm,W:800mm,H:550mm>> material: Polymer;
+        Placement { from: Origin; to: World; translateLocal: [200mm, 0mm, site.Z + 65mm]; }
+      </Part>
+    }
+  </Assembly>
+  anchor: StorageRack;
+}
+Subassembly PalletBuffer {
+  <Assembly PalletBuffer>
+    <Part base = Panel<L:1200mm,W:1000mm,H:160mm,R:10mm>> material: BlackSteel;
+      Placement { from: Origin; to: World; }
+    </Part>
+    <Part lower = Panel<L:1050mm,W:850mm,H:440mm,R:12mm>> material: Cardboard;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 0mm, 160mm]; }
+    </Part>
+    <Part upper = Panel<L:1050mm,W:850mm,H:440mm,R:12mm>> material: Cardboard;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 0mm, 600mm]; }
+    </Part>
+    <Part band = Panel<L:70mm,W:870mm,H:900mm>> material: PaintedSteel;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 0mm, 155mm]; }
+    </Part>
+  </Assembly>
+  anchor: PalletBuffer;
+}
+Subassembly ControlCabinet {
+  <Assembly ControlCabinet>
+    <Part case = Panel<L:700mm,W:550mm,H:1700mm,R:15mm>> material: PaintedSteel;
+      Placement { from: Origin; to: World; }
+    </Part>
+    <Part door = Panel<L:630mm,W:18mm,H:1500mm>> material: Aluminium;
+      Placement { from: Origin; to: World; translateLocal: [0mm, -282mm, 100mm]; }
+    </Part>
+    <Part display = Panel<L:420mm,W:14mm,H:280mm,R:5mm>> material: Display;
+      Placement { from: Origin; to: World; translateLocal: [0mm, -299mm, 1180mm]; }
+    </Part>
+    <Part pull = Panel<L:25mm,W:30mm,H:160mm>> material: BlackSteel;
+      Placement { from: Origin; to: World; translateLocal: [240mm, -300mm, 710mm]; }
+    </Part>
+  </Assembly>
+  anchor: ControlCabinet;
+}

@@ -1,0 +1,33 @@
+include "kit.firmament";
+Linear Sites conveyorSites { keys: [infeed, s02, s03, s04, s05, s06, s07, outfeed]; start: [0mm, 0mm, 0mm]; step: [2000mm, 0mm, 0mm]; }
+Linear Sites machineSites { keys: [form, assemble, inspect, finish]; start: [1000mm, 1450mm, 0mm]; step: [4000mm, 0mm, 0mm]; }
+Linear Sites workSites { keys: [input, inspection, output]; start: [0mm, -1500mm, 0mm]; step: [6000mm, 0mm, 0mm]; }
+Linear Sites traySites { keys: [t01, t02, t03, t04, t05, t06, t07]; start: [0mm, 0mm, 945mm]; step: [2000mm, 0mm, 0mm]; }
+Assembly ProductionLine {
+  <Assembly ProductionLine>
+    Pattern conveyor over conveyorSites {
+      site => <Assembly segment = ConveyorStraight>
+        Placement { from: Origin; to: World; translateLocal: [site.X, site.Y, site.Z]; }
+      </Assembly>
+    }
+    Pattern machines over machineSites {
+      site => <Assembly process = MachineBox>
+        Placement { from: Origin; to: World; translateLocal: [site.X, site.Y, site.Z]; }
+      </Assembly>
+    }
+    Pattern benches over workSites {
+      site => <Assembly station = InspectionBench>
+        Placement { from: Origin; to: World; translateLocal: [site.X, site.Y, site.Z]; }
+      </Assembly>
+    }
+    Pattern trays over traySites {
+      site => <Part tote = Bin<L:550mm,W:400mm,H:160mm>> material: Polymer;
+        Placement { from: Origin; to: World; translateLocal: [site.X, site.Y, site.Z]; }
+      </Part>
+    }
+    <Assembly controls = ControlCabinet>
+      Placement { from: Origin; to: World; translateLocal: [14500mm, 1450mm, 0mm]; }
+    </Assembly>
+  </Assembly>
+  anchor: ProductionLine;
+}

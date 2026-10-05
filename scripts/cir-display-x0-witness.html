@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>CIR DISPLAY X0 — shader bridge qualification</title>
+<style>
+    body { background: #152029; color: #ecede9; font: 16px system-ui; margin: 30px; }
+    main { display: flex; flex-wrap: wrap; gap: 20px; }
+    canvas { width: 256px; height: 256px; border: 1px solid #58727f; }
+    h2 { font-size: 18px; }
+    pre { white-space: pre-wrap; font-size: 13px; }
+</style>
+<h1>CIR GPU evaluation</h1>
+<p>Authored CIR → Visual TypeScript → VD-MIR → HLSL → DXC → SPIR-V → Naga → WGSL.</p>
+<p>Bounded compiler/GPU witness. Cadmata integration and comparison witnesses remain unqualified.</p>
+<main></main>
+<pre id="status">Requesting WebGPU…</pre>
+<script type="module">
+    const status = document.querySelector('#status');
+    try {
+        if (!navigator.gpu) throw new Error('WebGPU is unavailable.');
+        const adapter = await navigator.gpu.requestAdapter();
+        if (!adapter) throw new Error('No WebGPU adapter.');
+        const device = await adapter.requestDevice();
+        const programs = await (await fetch('programs.json')).json();
+        const vertices = new Float32Array([-1, -1, 0, 1, -1, 0, -1, 1, 0, -1, 1, 0, 1, -1, 0, 1, 1, 0]);
+        const vertexBuffer = device.createBuffer({ size: vertices.byteLength, usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST });
+        device.queue.writeBuffer(vertexBuffer, 0, vertices);
+        const results = [];
+        for (const [name, program] of Object.entries(programs)) {
+            const section = document.createElement('section');
+            const heading = document.createElement('h2');
+            heading.textContent = name;
+            const canvas = document.createElement('canvas');
+            canvas.width = canvas.height = 256;
+            section.append(heading, canvas);
+            document.querySelector('main').append(section);
+            const context = canvas.getContext('webgpu');
+            const format = navigator.gpu.getPreferredCanvasFormat();
+            context.configure({ device, format, usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC });
+            const vertex = device.createShaderModule({ code: program.Vertex });
+            const fragment = device.createShaderModule({ code: program.Fragment });
+            for (const module of [vertex, fragment]) {
+                const info = await module.getCompilationInfo();
+                const errors = info.messages.filter(message => message.type === 'error');
+                if (errors.length) throw new Error(name + ': ' + errors.map(error => error.message).join('\n'));
+            }
+            device.pushErrorScope('validation');
+            const start = performance.now();
+            const pipeline = await device.createRenderPipelineAsync({
+                layout: 'auto',
+                vertex: { module: vertex, entryPoint: 'VertexMain', buffers: [{ arrayStride: 12, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }] }] },
+                fragment: { module: fragment, entryPoint: 'PixelMain', targets: [{ format }] },
+                primitive: { topology: 'triangle-list' },
+                depthStencil: { format: 'depth32float', depthWriteEnabled: true, depthCompare: 'less' },
+            });
+            const depth = device.createTexture({ size: [256, 256], format: 'depth32float', usage: GPUTextureUsage.RENDER_ATTACHMENT });
+            const target = context.getCurrentTexture();
+            const readback = device.createBuffer({ size: 256 * 256 * 4, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
+            const encoder = device.createCommandEncoder();
+            const pass = encoder.beginRenderPass({
+                colorAttachments: [{ view: target.createView(), clearValue: [0, 0, 0, 1], loadOp: 'clear', storeOp: 'store' }],
+                depthStencilAttachment: { view: depth.createView(), depthClearValue: 1, depthLoadOp: 'clear', depthStoreOp: 'store' },
+            });
+            pass.setPipeline(pipeline);
+            pass.setVertexBuffer(0, vertexBuffer);
+            pass.draw(6);
+            pass.end();
+            encoder.copyTextureToBuffer({ texture: target }, { buffer: readback, bytesPerRow: 1024 }, [256, 256]);
+            device.queue.submit([encoder.finish()]);
+            await readback.mapAsync(GPUMapMode.READ);
+            const pixels = new Uint8Array(readback.getMappedRange());
+            let hitPixels = 0;
+            for (let index = 0; index < pixels.length; index += 4) {
+                if (pixels[index] + pixels[index + 1] + pixels[index + 2] > 0) hitPixels++;
+            }
+            readback.unmap();
+            readback.destroy();
+            depth.destroy();
+            const error = await device.popErrorScope();
+            if (error) throw new Error(name + ': ' + error.message);
+            if (hitPixels < 1000 || hitPixels > 60000) throw new Error(name + ': invalid surface coverage ' + hitPixels);
+            results.push({ name, hitPixels, compileDrawReadbackMs: performance.now() - start, structuralHash: program.StructuralHash });
+        }
+        vertexBuffer.destroy();
+        const report = { status: 'PASS', browser: navigator.userAgent, gpu: { vendor: adapter.info.vendor, architecture: adapter.info.architecture, description: adapter.info.description }, results };
+        globalThis.cirQualification = report;
+        status.textContent = JSON.stringify(report, null, 2);
+    } catch (error) {
+        globalThis.cirQualification = { status: 'FAIL', error: String(error) };
+        status.textContent = JSON.stringify(globalThis.cirQualification, null, 2);
+    }
+</script>
+</html>

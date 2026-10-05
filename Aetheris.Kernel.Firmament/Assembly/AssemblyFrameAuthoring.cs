@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using Aetheris.Kernel.Core.Math;
+using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Semantics;
 
 namespace Aetheris.Kernel.Firmament.Assembly;
@@ -45,9 +46,12 @@ internal static class AssemblyFrameAuthoring
             for (var i = 0; i < 3; i++)
             {
                 var text = values[i];
-                if (lengths && !text.EndsWith("mm", StringComparison.Ordinal))
-                    diagnostics.Add(new("assembly-frame-invalid-unit", $"Frame '{name}' translation components require mm."));
-                if (lengths && text.EndsWith("mm", StringComparison.Ordinal)) text = text[..^2];
+                if (lengths)
+                {
+                    if (!FirmamentV2FeatureExpansion.TryEvaluateScalar(text,out result[i],out var unit) || unit != "mm" || !double.IsFinite(result[i]))
+                        diagnostics.Add(new("assembly-frame-invalid-unit", $"Frame '{name}' translation components require finite mm length expressions."));
+                    continue;
+                }
                 if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out result[i]) || !double.IsFinite(result[i]))
                     diagnostics.Add(new("assembly-frame-invalid-vector", $"Frame '{name}' requires finite numeric components."));
             }

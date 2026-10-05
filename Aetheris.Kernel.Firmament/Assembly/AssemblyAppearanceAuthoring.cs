@@ -9,6 +9,7 @@ namespace Aetheris.Kernel.Firmament.Assembly;
 [FirmamentField("Metallic", "Metallic", FirmamentSchemaValueKind.Scalar, Required = true)]
 [FirmamentField("Roughness", "Roughness", FirmamentSchemaValueKind.Scalar, Required = true)]
 [FirmamentField("Opacity", "Opacity", FirmamentSchemaValueKind.Scalar, Default = "1")]
+[FirmamentField("Emissive", "Emissive", FirmamentSchemaValueKind.Vector, Default = "[0,0,0]")]
 public static class AssemblyAppearanceDeclaration { }
 public sealed record AssemblyAppearance(string Name, AssemblyUsdMaterial Preview);
 
@@ -42,7 +43,7 @@ internal static class AssemblyAppearanceAuthoring
             var fields = Fields(body);
             var isAppearance = header.Groups["kind"].Value == "Appearance";
             var required = isAppearance ? new[] { "Color", "Metallic", "Roughness" } : new[] { "Identity", "Appearance" };
-            var allowed = isAppearance ? required.Append("Opacity").ToArray() : required;
+            var allowed = isAppearance ? required.Concat(["Opacity", "Emissive"]).ToArray() : required;
             if (!required.All(fields.ContainsKey) || fields.Keys.Except(allowed).Any()) { Error("declaration-fields-invalid", name); continue; }
             if (isAppearance)
             {
@@ -50,8 +51,10 @@ internal static class AssemblyAppearanceAuthoring
                 var rgb = color.Success ? color.Groups["v"].Value.Split(',').Select(Number).ToArray() : [];
                 var metal = Number(fields["Metallic"]); var rough = Number(fields["Roughness"]);
                 var opacity = Number(fields.GetValueOrDefault("Opacity", "1"));
-                if (rgb.Length != 3 || rgb.Concat([metal, rough, opacity]).Any(v => !double.IsFinite(v) || v < 0 || v > 1)) Error("values-invalid", name);
-                else if (!appearances.TryAdd(name, new(name, new(rgb[0], rgb[1], rgb[2], metal, rough, opacity)))) Error("duplicate-appearance", name);
+                var emission = Regex.Match(fields.GetValueOrDefault("Emissive", "[0,0,0]"), @"^\[(?<v>[^]]+)\]$");
+                var emissive = emission.Success ? emission.Groups["v"].Value.Split(',').Select(Number).ToArray() : [];
+                if (rgb.Length != 3 || emissive.Length != 3 || rgb.Concat(emissive).Concat([metal, rough, opacity]).Any(v => !double.IsFinite(v) || v < 0 || v > 1)) Error("values-invalid", name);
+                else if (!appearances.TryAdd(name, new(name, new(rgb[0], rgb[1], rgb[2], metal, rough, opacity, emissive[0], emissive[1], emissive[2])))) Error("duplicate-appearance", name);
             }
             else
             {

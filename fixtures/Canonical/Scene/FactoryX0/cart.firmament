@@ -1,0 +1,7 @@
+include "kit.firmament";
+Assembly WheeledCart {
+  <Assembly WheeledCart>
+    <Assembly cart = Cart> Placement { from: Origin; to: World; } </Assembly>
+  </Assembly>
+  anchor: WheeledCart;
+}

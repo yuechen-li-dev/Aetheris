@@ -32,6 +32,10 @@ length and coordinate still requires an explicit `m` or `mm` suffix. Binding
 normalizes `1m` to `1000mm`; changing `units` never rescales explicit literals.
 Kernel geometry and tolerances remain in mm. Scene Set lengths are converted
 at the existing typed pattern catalog boundary before occurrence expansion.
+Scene lengths also accept finite dimension-checked expressions such as
+`2m + 500mm` and `site.Y - 600mm`; these use the existing scalar evaluator after
+metre-literal normalization. Unitless additions, length products and division
+by zero fail. Assembly translation expressions retain the mm unit contract.
 
 A Room occupies `[0,width] × [0,depth] × [0,height]`, optionally translated by
 `at: [x,y,z]`. Its clear interior dimensions are `size`. Default enclosure
@@ -108,6 +112,11 @@ The existing `Pattern name over keyedSet` frontend expands Parts and Assemblies;
 X0 adds no Scene loop language. Pattern containers are spatial groups, not
 engineered assemblies. Names, pattern keys, declaration spans, definition
 identities and placement authority survive inspection and USD metadata.
+Scenes also admit the existing `Linear Sites` and `Mirrored Sites` recipes.
+They keep their ordered keys, derivation metadata, mm-only vectors and shared
+validation rules. For example, `Linear Sites rows { keys: [assembly, inspection];
+start: [0mm, 0mm, 0mm]; step: [0mm, 7000mm, 0mm]; }` supplies a normal keyed
+pattern. Changing pitch preserves occurrence identity without rebuilding parts.
 
 Each unique AssemblyFile compiles once per build. Repeated occurrences share its
 part display definitions. Local Part specializations use the existing immutable
@@ -124,6 +133,10 @@ Physical material/density selection remains in engineering definitions.
 Appearance also admits optional `opacity` in `[0,1]`, default one. USD emits
 `UsdPreviewSurface` opacity; GLB emits alpha and `BLEND` for translucent looks.
 Opacity does not encode refraction, physical glass properties, or a shader graph.
+Optional `emissive: [r,g,b]` is finite linear RGB in `[0,1]`, default black.
+It exports as glTF `emissiveFactor` and USD PreviewSurface `emissiveColor`.
+It represents a luminous appearance, not calibrated light intensity or a Scene
+light object. Renderers may add presentation illumination at fixture locations.
 
 ## CLI and exports
 
@@ -157,6 +170,11 @@ The [warm modern house](../../../fixtures/Canonical/Scene/WarmModernHouse/house.
 demonstrates top-down Concept layout, bottom-up furniture components, then Scene
 composition. Its [qualification report](../../release/ARCHVIZ-HOUSE-X0.md) records
 the exact presentation and retained-session evidence.
+
+The [factory witness](../../../fixtures/Canonical/Scene/FactoryX0/factory.firmament)
+composes three production lines, original robot islands and a reusable logistics
+kit in a 42 × 28 metre hall. Its [report](factory-scene-x0.md) gives reproduction
+commands, measured reuse, export checks and presentation qualification limits.
 
 Completion, hover and source diagnostics use compiler-owned schemas. Scene
 formatting safely prefers camelCase field labels while preserving layout,

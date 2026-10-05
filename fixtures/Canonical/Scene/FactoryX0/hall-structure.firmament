@@ -1,0 +1,50 @@
+include "kit.firmament";
+Linear Sites columnSites { keys: [c01, c02, c03, c04]; start: [5000mm, 900mm, 0mm]; step: [10000mm, 0mm, 0mm]; }
+Linear Sites beamSites { keys: [b01, b02, b03, b04, b05]; start: [21000mm, 3000mm, 6500mm]; step: [0mm, 5500mm, 0mm]; }
+Linear Sites lightSites { keys: [l01, l02, l03, l04, l05, l06]; start: [4000mm, 0mm, 6100mm]; step: [6500mm, 0mm, 0mm]; }
+Linear Sites lightRows { keys: [front, centre, rear]; start: [0mm, 5500mm, 0mm]; step: [0mm, 8000mm, 0mm]; }
+Subassembly LightRow {
+  <Assembly LightRow>
+    Pattern lights over lightSites {
+      site => <Part housing = Panel<L:2400mm,W:380mm,H:90mm,R:30mm>> material: BlackSteel;
+        Placement { from: Origin; to: World; translateLocal: [site.X, site.Y, site.Z]; }
+      </Part>
+      <Part diffuser = Panel<L:2300mm,W:310mm,H:15mm,R:25mm>> material: Luminaire;
+        Placement { from: Origin; to: World; translateLocal: [site.X, site.Y, site.Z - 15mm]; }
+      </Part>
+      <Part suspension = Panel<L:30mm,W:30mm,H:310mm>> material: Aluminium;
+        Placement { from: Origin; to: World; translateLocal: [site.X, site.Y, site.Z + 90mm]; }
+      </Part>
+    }
+  </Assembly>
+  anchor: LightRow;
+}
+Assembly HallStructure {
+  <Assembly HallStructure>
+    Pattern columns over columnSites {
+      site => <Part front = Panel<L:380mm,W:380mm,H:6500mm,R:12mm>> material: PaintedSteel;
+        Placement { from: Origin; to: World; translateLocal: [site.X, site.Y, 0mm]; }
+      </Part>
+      <Part rear = Panel<L:380mm,W:380mm,H:6500mm,R:12mm>> material: PaintedSteel;
+        Placement { from: Origin; to: World; translateLocal: [site.X, 27100mm, 0mm]; }
+      </Part>
+      <Part frontGuard = Panel<L:440mm,W:440mm,H:700mm,R:20mm>> material: SafetySteel;
+        Placement { from: Origin; to: World; translateLocal: [site.X, site.Y, 0mm]; }
+      </Part>
+      <Part rearGuard = Panel<L:440mm,W:440mm,H:700mm,R:20mm>> material: SafetySteel;
+        Placement { from: Origin; to: World; translateLocal: [site.X, 27100mm, 0mm]; }
+      </Part>
+    }
+    Pattern beams over beamSites {
+      site => <Part beam = Panel<L:42000mm,W:220mm,H:380mm,R:10mm>> material: Aluminium;
+        Placement { from: Origin; to: World; translateLocal: [site.X, site.Y, site.Z]; }
+      </Part>
+    }
+    Pattern illumination over lightRows {
+      site => <Assembly row = LightRow>
+        Placement { from: Origin; to: World; translateLocal: [site.X, site.Y, site.Z]; }
+      </Assembly>
+    }
+  </Assembly>
+  anchor: HallStructure;
+}

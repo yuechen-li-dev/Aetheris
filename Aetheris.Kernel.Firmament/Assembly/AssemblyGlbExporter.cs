@@ -12,10 +12,12 @@ public sealed record AssemblyGlbAppearance(AssemblyUsdMaterial? Material = null,
 /// BRep/STEP remains engineering authority. No tessellation, shading graph, or animation here.</summary>
 public static class AssemblyGlbExporter
 {
-    private static Dictionary<string,object> Material(string name,object pbr,double opacity)
+    private static Dictionary<string,object> Material(string name,object pbr,AssemblyUsdMaterial look)
     {
         var result=new Dictionary<string,object> { ["name"]=name,["pbrMetallicRoughness"]=pbr };
-        if (opacity < 1) { result["alphaMode"]="BLEND"; result["doubleSided"]=true; }
+        if (look.Opacity < 1) { result["alphaMode"]="BLEND"; result["doubleSided"]=true; }
+        if (look.EmissiveRed != 0 || look.EmissiveGreen != 0 || look.EmissiveBlue != 0)
+            result["emissiveFactor"]=new[] {look.EmissiveRed,look.EmissiveGreen,look.EmissiveBlue};
         return result;
     }
     public static byte[] Export(AssemblyM1CompilationResult compilation,
@@ -96,7 +98,7 @@ public static class AssemblyGlbExporter
                     throw new InvalidOperationException("assembly-glb-invalid-normal:" + d.Identity);
             var appearance = appearances?.GetValueOrDefault(d.Identity) ?? new();
             var m = appearance.Material ?? new();
-            if (new[] { m.Red, m.Green, m.Blue, m.Metallic, m.Roughness, m.Opacity }.Any(v => !double.IsFinite(v) || v < 0 || v > 1))
+            if (new[] { m.Red, m.Green, m.Blue, m.Metallic, m.Roughness, m.Opacity, m.EmissiveRed, m.EmissiveGreen, m.EmissiveBlue }.Any(v => !double.IsFinite(v) || v < 0 || v > 1))
                 throw new InvalidOperationException("assembly-glb-invalid-material");
             var pbr = new Dictionary<string, object> { ["baseColorFactor"] = new[] { m.Red, m.Green, m.Blue, m.Opacity }, ["metallicFactor"] = m.Metallic, ["roughnessFactor"] = m.Roughness };
             var attributes = new Dictionary<string, object> { ["POSITION"] = Floats(d.Positions, 3, true), ["NORMAL"] = Floats(d.Normals, 3) };
@@ -116,7 +118,7 @@ public static class AssemblyGlbExporter
             }
             else if (appearance.TextureCoordinates is not null || appearance.TextureMimeType is not null)
                 throw new InvalidOperationException("assembly-glb-texture-missing");
-            materials.Add(Material(d.Identity,pbr,m.Opacity));
+            materials.Add(Material(d.Identity,pbr,m));
             var indexView = AddView(() => { foreach (var index in d.Indices) writer.Write((uint)index); }, 34963);
             var indexAccessor = accessors.Count;
             accessors.Add(new { bufferView = indexView, componentType = 5125, count = d.Indices.Length, type = "SCALAR" });
@@ -138,13 +140,13 @@ public static class AssemblyGlbExporter
                 if (occurrenceLooks?.GetValueOrDefault(o.Id) is { } look)
                 {
                     var m = look.Preview;
-                    if (new[] {m.Red,m.Green,m.Blue,m.Metallic,m.Roughness,m.Opacity}.Any(v => !double.IsFinite(v) || v < 0 || v > 1))
+                    if (new[] {m.Red,m.Green,m.Blue,m.Metallic,m.Roughness,m.Opacity,m.EmissiveRed,m.EmissiveGreen,m.EmissiveBlue}.Any(v => !double.IsFinite(v) || v < 0 || v > 1))
                         throw new InvalidOperationException("assembly-glb-invalid-material");
                     if (!variants.TryGetValue((o.DefinitionId,m),out var variant))
                     {
                         // Material variants share all accessors and buffer views.
                         var primitive = primitiveTemplates[meshIndex];
-                        materials.Add(Material(look.Appearance,new {baseColorFactor=new[] {m.Red,m.Green,m.Blue,m.Opacity},metallicFactor=m.Metallic,roughnessFactor=m.Roughness},m.Opacity));
+                        materials.Add(Material(look.Appearance,new {baseColorFactor=new[] {m.Red,m.Green,m.Blue,m.Opacity},metallicFactor=m.Metallic,roughnessFactor=m.Roughness},m));
                         meshes.Add(new {name=definitions[meshIndex].Identity,primitives=new[] {new {attributes=primitive.Attributes,indices=primitive.Indices,material=materials.Count-1}}});
                         variants[(o.DefinitionId,m)]=variant=meshes.Count-1;
                     }

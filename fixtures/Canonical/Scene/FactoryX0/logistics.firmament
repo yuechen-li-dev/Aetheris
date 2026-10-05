@@ -1,0 +1,18 @@
+include "kit.firmament";
+Linear Sites rackSites { keys: [bay01, bay02, bay03, bay04, bay05]; start: [0mm, 0mm, 0mm]; step: [2700mm, 0mm, 0mm]; }
+Linear Sites stagingSites { keys: [s01, s02, s03, s04]; start: [1200mm, -2600mm, 0mm]; step: [2700mm, 0mm, 0mm]; }
+Assembly Logistics {
+  <Assembly Logistics>
+    Pattern racks over rackSites {
+      site => <Assembly rack = StorageRack>
+        Placement { from: Origin; to: World; translateLocal: [site.X, site.Y, site.Z]; }
+      </Assembly>
+    }
+    Pattern staging over stagingSites {
+      site => <Assembly pallet = PalletBuffer>
+        Placement { from: Origin; to: World; translateLocal: [site.X, site.Y, site.Z]; }
+      </Assembly>
+    }
+  </Assembly>
+  anchor: Logistics;
+}

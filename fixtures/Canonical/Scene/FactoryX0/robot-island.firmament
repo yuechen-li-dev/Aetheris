@@ -1,0 +1,64 @@
+include "kit.firmament";
+// Static original manipulator silhouette. Connected links; no control or IK claim.
+Linear Sites fencePosts { keys: [p01, p02, p03, p04]; start: [-1400mm, 1300mm, 0mm]; step: [1000mm, 0mm, 0mm]; }
+Linear Sites guardBars { keys: [b01, b02, b03, b04, b05, b06, b07, b08, b09, b10, b11, b12, b13, b14, b15, b16, b17, b18, b19, b20]; start: [-1300mm, 1300mm, 250mm]; step: [150mm, 0mm, 0mm]; }
+Assembly RobotIsland {
+  <Assembly RobotIsland>
+    <Part platform = Panel<L:3600mm,W:2800mm,H:30mm,R:30mm>> material: BlackSteel;
+      Placement { from: Origin; to: World; translateLocal: [300mm, 0mm, 0mm]; }
+    </Part>
+    <Part pedestal = Panel<L:700mm,W:650mm,H:1000mm,R:40mm>> material: PaintedSteel;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 0mm, 30mm]; }
+    </Part>
+    <Part turntable = Drum<R:270mm,H:130mm>> material: BlackSteel;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 0mm, 1030mm]; }
+    </Part>
+    <Part shoulder = Drum<R:165mm,H:360mm>> material: RobotSteel;
+      Placement { from: Origin; to: World; translateLocal: [0mm, 180mm, 1200mm]; rotateLocal: { axis: X; angle: 90deg; } }
+    </Part>
+    <Part upperArm = Panel<L:1050mm,W:230mm,H:210mm,R:55mm>> material: RobotSteel;
+      Placement { from: Origin; to: World; translateLocal: [300mm, 0mm, 1630mm]; rotateLocal: { axis: Y; angle: -55deg; } }
+    </Part>
+    <Part elbow = Drum<R:155mm,H:320mm>> material: BlackSteel;
+      Placement { from: Origin; to: World; translateLocal: [600mm, 160mm, 2060mm]; rotateLocal: { axis: X; angle: 90deg; } }
+    </Part>
+    <Part forearm = Panel<L:1000mm,W:180mm,H:160mm,R:40mm>> material: PaintedSteel;
+      Placement { from: Origin; to: World; translateLocal: [1010mm, 0mm, 1773mm]; rotateLocal: { axis: Y; angle: 35deg; } }
+    </Part>
+    <Part wrist = Drum<R:125mm,H:230mm>> material: RobotSteel;
+      Placement { from: Origin; to: World; translateLocal: [1420mm, 0mm, 1290mm]; }
+    </Part>
+    <Part gripper = Panel<L:320mm,W:260mm,H:100mm,R:25mm>> material: BlackSteel;
+      Placement { from: Origin; to: World; translateLocal: [1420mm, 0mm, 1190mm]; }
+    </Part>
+    <Part fingerNear = Panel<L:50mm,W:50mm,H:180mm>> material: Aluminium;
+      Placement { from: Origin; to: World; translateLocal: [1420mm, -105mm, 1010mm]; }
+    </Part>
+    <Part fingerFar = Panel<L:50mm,W:50mm,H:180mm>> material: Aluminium;
+      Placement { from: Origin; to: World; translateLocal: [1420mm, 105mm, 1010mm]; }
+    </Part>
+    <Assembly transfer = ConveyorStraight>
+      Placement { from: Origin; to: World; translateLocal: [1300mm, -150mm, 30mm]; rotateLocal: { axis: Z; angle: 90deg; } }
+    </Assembly>
+    Pattern guarding over fencePosts {
+      site => <Part post = Panel<L:60mm,W:60mm,H:1900mm>> material: SafetySteel;
+        Placement { from: Origin; to: World; translateLocal: [site.X, site.Y, site.Z]; }
+      </Part>
+    }
+    Pattern bars over guardBars {
+      site => <Part bar = Panel<L:14mm,W:20mm,H:1500mm>> material: BlackSteel;
+        Placement { from: Origin; to: World; translateLocal: [site.X, site.Y, site.Z]; }
+      </Part>
+    }
+    <Part guardTop = Panel<L:3060mm,W:60mm,H:60mm>> material: SafetySteel;
+      Placement { from: Origin; to: World; translateLocal: [100mm, 1300mm, 1800mm]; }
+    </Part>
+    <Part guardBottom = Panel<L:3060mm,W:60mm,H:60mm>> material: SafetySteel;
+      Placement { from: Origin; to: World; translateLocal: [100mm, 1300mm, 190mm]; }
+    </Part>
+    <Assembly controls = ControlCabinet>
+      Placement { from: Origin; to: World; translateLocal: [-1100mm, -900mm, 30mm]; }
+    </Assembly>
+  </Assembly>
+  anchor: RobotIsland;
+}

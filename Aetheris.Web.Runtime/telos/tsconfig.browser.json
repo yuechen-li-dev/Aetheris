@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "rootDir": ".", "outDir": "../../artifacts/local/three-telos/browser", "declaration": false },
+  "include": ["src/**/*.ts", "tests/browser-witness.ts"]
+}

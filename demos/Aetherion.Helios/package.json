@@ -5,27 +5,30 @@
   "type": "module",
   "scripts": {
     "sdk:install": "node scripts/install-local-sdk.mjs",
+    "sdk:install:production": "node scripts/install-local-sdk.mjs --production",
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:fast": "tsc -b && vite build --mode development",
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview"
   },
   "dependencies": {
     "@aetheris/cad": "file:../../artifacts/local/helios-sdk/aetheris-cad-2.0.0-preview.3.tgz",
+    "@aetheris/three-telos": "file:../../Aetheris.Web.Runtime/telos",
     "@vitejs/plugin-react": "latest",
-    "vite": "latest",
-    "typescript": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "three": "latest"
+    "three": "0.183.2",
+    "typescript": "latest",
+    "vite": "latest"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "latest",
     "@testing-library/react": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
-    "@types/three": "latest",
+    "@types/three": "0.183.1",
     "jsdom": "latest",
     "vitest": "latest"
   }

@@ -70,6 +70,9 @@ export default defineConfig(({ command }) => ({
 	server:
 		command === "serve"
 			? {
+					fs: env.AETHERIS_TELOS_WITNESS === "1" ? {
+						allow: [fileURLToPath(new URL(".", import.meta.url)), fileURLToPath(new URL("../fixtures/three-telos", import.meta.url))],
+					} : undefined,
 					proxy: {
 						"^/api": {
 							target,

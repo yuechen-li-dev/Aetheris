@@ -8,11 +8,12 @@ const sdk = resolve(repo, 'Aetheris.Web.Runtime', 'sdk');
 const output = resolve(repo, 'artifacts', 'local', 'helios-sdk');
 await mkdir(output, { recursive: true });
 
-run('npm', ['run', 'build'], sdk);
+run('npm', ['run', process.argv.includes('--production') ? 'build:production' : 'build'], sdk);
 run('npm', ['pack', '--pack-destination', output], sdk);
 const packages = (await readdir(output)).filter(name => name.endsWith('.tgz')).sort();
 if (!packages.length) throw new Error('The local @aetheris/cad pack did not produce a tarball.');
-run('npm', ['install'], helios);
+// A freshly packed same-version tarball must replace the cached SDK snapshot.
+run('npm', ['install', '--force', '@aetheris/cad@file:../../artifacts/local/helios-sdk/aetheris-cad-2.0.0-preview.3.tgz'], helios);
 
 function run(command, args, cwd) {
   const result = spawnSync(command, args, { cwd, stdio: 'inherit', shell: process.platform === 'win32' });

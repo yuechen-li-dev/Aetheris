@@ -1,0 +1,4 @@
+Model TelosWitness {
+    Units: mm
+    Box Body { Size: [40mm, 30mm, 8mm] }
+}

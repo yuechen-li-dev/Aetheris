@@ -29,6 +29,12 @@ type Draw<T> = {
   geometry?: GeometryBuffers;
   count: number;
 };
+const meshKey = (item: TelosMesh) =>
+  JSON.stringify([
+    item.identity.occurrenceId,
+    item.identity.overlayId,
+    item.definition.id,
+  ]);
 const emptyScene = (): TelosScene => ({ meshes: [], lines: [], fields: [] });
 const matrix = (values?: NumericArray) =>
   values ? new Matrix4().fromArray(values) : new Matrix4();
@@ -45,6 +51,65 @@ export class TelosHost {
   private meshes: Draw<TelosMesh>[] = [];
   private lines: Draw<TelosLine>[] = [];
   private fields: Draw<TelosField>[] = [];
+  private dynamicLines = new Map<string, Draw<TelosLine>>();
+  private frameListeners = new Set<() => void>();
+  /** Called with current camera matrices before drawing. No separate projection loop. */
+  beforeFrame(listener: () => void) {
+    this.frameListeners.add(listener);
+    this.invalidate();
+    return () => {
+      this.frameListeners.delete(listener);
+    };
+  }
+  /** Retained world-space lines, intended for projected leaders and interactive previews.
+   * A stable ID and segment count retain both vertex and uniform buffers. */
+  setDynamicLines(items: readonly TelosLine[]) {
+    const started = performance.now();
+    const used = new Set<string>();
+    for (const item of items) {
+      if (used.has(item.id))
+        throw new Error("telos-dynamic-line-identity-collision: " + item.id);
+      used.add(item.id);
+      const count = Math.max(0, item.points.length / 3 - 1);
+      if (!Number.isInteger(count))
+        throw new Error("telos-line-points-invalid");
+      const pipeline = telosPipeline(
+        this.owner,
+        "overlay-line",
+        undefined,
+        item.depthMode,
+      );
+      let draw = this.dynamicLines.get(item.id);
+      if (draw && (draw.count !== count || draw.pipeline !== pipeline)) {
+        this.owner.resources.release(draw.uniform);
+        this.owner.resources.release(draw.vertices!);
+        this.dynamicLines.delete(item.id);
+        draw = undefined;
+      }
+      if (!count) continue;
+      if (!draw) {
+        draw = this.draw(item, pipeline, 160, count);
+        draw.vertices = this.owner.resources.buffer(
+          new Float32Array(count * 6),
+          GPUBufferUsage.VERTEX,
+        );
+        this.dynamicLines.set(item.id, draw);
+      }
+      draw.item = item;
+      const points = new Float32Array(count * 6);
+      for (let i = 0; i < count; i++)
+        for (let j = 0; j < 6; j++) points[i * 6 + j] = item.points[i * 3 + j];
+      this.owner.device.queue.writeBuffer(draw.vertices!, 0, points);
+    }
+    for (const [id, draw] of this.dynamicLines)
+      if (!used.has(id)) {
+        this.owner.resources.release(draw.uniform);
+        this.owner.resources.release(draw.vertices!);
+        this.dynamicLines.delete(id);
+      }
+    this.picker.dynamicLines = items;
+    this.metrics.dynamicLineUpdateMs = performance.now() - started;
+  }
   private gridDraw?: Draw<TelosLine>;
   private gridKey = "";
   private raf = 0;
@@ -58,6 +123,8 @@ export class TelosHost {
     frameMs: 0,
     frames: 0,
     draws: 0,
+    overlayUpdateMs: 0,
+    dynamicLineUpdateMs: 0,
   };
   static async create(
     canvas: HTMLCanvasElement,
@@ -124,7 +191,23 @@ export class TelosHost {
     return { item, pipeline, uniform, binding, count };
   }
   setScene(scene: TelosScene) {
-    this.releaseDraws();
+    const previous = [...this.meshes, ...this.lines, ...this.fields];
+    const retained = new Set<
+      Draw<TelosMesh> | Draw<TelosLine> | Draw<TelosField>
+    >();
+    const oldMeshes = new Map(
+      this.meshes.map((draw) => [meshKey(draw.item), draw]),
+    );
+    const oldLines = new Map(this.lines.map((draw) => [draw.item.id, draw]));
+    const oldFields = new Map(
+      this.fields.map((draw) => [
+        draw.item.identity.occurrenceId + ":" + draw.item.artifact.shaderId,
+        draw,
+      ]),
+    );
+    this.meshes = [];
+    this.lines = [];
+    this.fields = [];
     this.scene = scene;
     const resources = this.owner.resources,
       used = new Set<string>();
@@ -140,7 +223,10 @@ export class TelosHost {
           geometry.definition.indices !== definition.indices ||
           geometry.definition.normals !== definition.normals)
       ) {
-        if (repeated) throw new Error('telos-definition-identity-collision: ' + definition.id);
+        if (repeated)
+          throw new Error(
+            "telos-definition-identity-collision: " + definition.id,
+          );
         this.releaseGeometry(geometry);
         this.geometry.delete(definition.id);
         geometry = undefined;
@@ -164,12 +250,21 @@ export class TelosHost {
         };
         this.geometry.set(definition.id, geometry);
       }
-      const draw = this.draw(
-        item,
-        telosPipeline(this.owner, item.overlay ? "overlay-mesh" : "mesh"),
-        224,
-        geometry.count,
+      const pipeline = telosPipeline(
+        this.owner,
+        item.overlay ? "overlay-mesh" : "mesh",
+        undefined,
+        item.depthMode,
       );
+      const old = oldMeshes.get(meshKey(item));
+      const draw =
+        old?.pipeline === pipeline
+          ? old
+          : this.draw(item, pipeline, 224, geometry.count);
+      oldMeshes.delete(meshKey(item));
+      draw.item = item;
+      draw.count = geometry.count;
+      retained.add(draw);
       draw.geometry = geometry;
       this.meshes.push(draw);
     }
@@ -185,16 +280,32 @@ export class TelosHost {
       const segments: number[] = [];
       for (let i = 3; i < item.points.length; i += 3)
         for (let j = i - 3; j < i + 3; j++) segments.push(item.points[j]);
-      const draw = this.draw(
-        item,
-        telosPipeline(this.owner, item.overlay ? "overlay-line" : "line"),
-        160,
-        segments.length / 6,
+      const pipeline = telosPipeline(
+        this.owner,
+        item.overlay ? "overlay-line" : "line",
+        undefined,
+        item.depthMode,
       );
-      draw.vertices = resources.buffer(
-        new Float32Array(segments),
-        GPUBufferUsage.VERTEX,
-      );
+      const old = oldLines.get(item.id);
+      oldLines.delete(item.id);
+      const reusable =
+        old?.pipeline === pipeline && old.count === segments.length / 6;
+      const draw = reusable
+        ? old
+        : this.draw(item, pipeline, 160, segments.length / 6);
+      if (!reusable)
+        draw.vertices = resources.buffer(
+          new Float32Array(segments),
+          GPUBufferUsage.VERTEX,
+        );
+      else if (old.item.points !== item.points)
+        this.owner.device.queue.writeBuffer(
+          draw.vertices!,
+          0,
+          new Float32Array(segments),
+        );
+      draw.item = item;
+      retained.add(draw);
       this.lines.push(draw);
     }
     this.metrics.lineUploadMs = performance.now() - lineStart;
@@ -222,25 +333,34 @@ export class TelosHost {
         Math.abs(axes[1].dot(axes[2])) > 1e-6
       )
         throw new Error("telos-field-transform-not-rigid");
-      const draw = this.draw(
-        item,
-        telosPipeline(this.owner, "mesh", item.artifact),
-        32,
-        6,
+      const pipeline = telosPipeline(this.owner, "mesh", item.artifact);
+      const old = oldFields.get(
+        item.identity.occurrenceId + ":" + item.artifact.shaderId,
       );
-      draw.vertices = resources.buffer(
-        new Float32Array(108),
-        GPUBufferUsage.VERTEX,
-      );
+      const draw =
+        old?.pipeline === pipeline ? old : this.draw(item, pipeline, 32, 6);
+      if (draw !== old)
+        draw.vertices = resources.buffer(
+          new Float32Array(108),
+          GPUBufferUsage.VERTEX,
+        );
+      draw.item = item;
+      retained.add(draw);
       this.fields.push(draw);
     }
     this.metrics.fieldPipelineMs = performance.now() - fieldStart;
+    for (const draw of previous)
+      if (!retained.has(draw)) {
+        resources.release(draw.uniform);
+        if (draw.vertices) resources.release(draw.vertices);
+      }
     this.picker.setScene(scene);
     this.invalidate();
   }
   fit() {
     const bounds = new Box3();
-    for (const item of this.scene.meshes) {
+    const modelMeshes = this.scene.meshes.filter((item) => !item.overlay);
+    for (const item of modelMeshes.length ? modelMeshes : this.scene.meshes) {
       const transform = matrix(item.transform),
         p = item.definition.positions;
       for (let i = 0; i < p.length; i += 3)
@@ -274,7 +394,10 @@ export class TelosHost {
           : [...material.baseColor.slice(0, 3), material.opacity],
       48,
     );
-    data.set([material.roughness, material.metallic, 0, 0], 52);
+    data.set(
+      [material.roughness, material.metallic, draw.item.unlit ? 1 : 0, 0],
+      52,
+    );
     this.owner.device.queue.writeBuffer(draw.uniform, 0, data);
   }
   private updateLine(draw: Draw<TelosLine>) {
@@ -294,7 +417,7 @@ export class TelosHost {
         draw.item.selected
           ? Math.max(3, draw.item.widthPixels ?? 1)
           : (draw.item.widthPixels ?? 1),
-        0,
+        draw.item.depthMode === "depth-tested" ? 0 : 0.000002,
       ],
       36,
     );
@@ -440,6 +563,9 @@ export class TelosHost {
     this.raf = 0;
     const started = performance.now();
     this.camera.update();
+    const overlayStart = performance.now();
+    for (const listener of this.frameListeners) listener();
+    this.metrics.overlayUpdateMs = performance.now() - overlayStart;
     this.updateGrid();
     this.frame.begin(this.background);
     this.metrics.draws = 0;
@@ -491,12 +617,17 @@ export class TelosHost {
     pass = this.frame.pass("Overlay");
     for (const draw of this.meshes.filter((draw) => draw.item.overlay))
       drawMesh(pass, draw);
-    for (const draw of this.lines.filter((draw) => draw.item.overlay)) {
+    for (const draw of [
+      ...this.lines.filter((draw) => draw.item.overlay),
+      ...this.dynamicLines.values(),
+    ]) {
+      if (draw.item.visible === false) continue;
       this.updateLine(draw);
       pass.setPipeline(draw.pipeline);
       pass.setBindGroup(0, draw.binding);
       pass.setVertexBuffer(0, draw.vertices!);
       pass.draw(6, draw.count);
+      this.metrics.draws++;
     }
     pass.end();
     this.frame.end();
@@ -554,6 +685,8 @@ export class TelosHost {
     this.observer?.disconnect();
     this.detach?.();
     this.picker.dispose();
+    this.setDynamicLines([]);
+    this.frameListeners.clear();
     this.releaseDraws();
     this.geometry.clear();
     this.frame.dispose();

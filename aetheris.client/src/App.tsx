@@ -44,7 +44,7 @@ import {
 	STEP_UPLOAD_LIMIT_MB,
 	formatMegabytes,
 } from "./config/stepUpload";
-import { DEFAULT_CADMATA_LAYERS, type CadmataLayerVisibility } from "./viewer/CadmataOverlay";
+import { DEFAULT_CADMATA_LAYERS, type CadmataLayerVisibility } from "./viewer/cadmataLayers";
 import {
 	parseCadmataVisualizationArtifact,
 	resolveCadmataSelection,
@@ -58,7 +58,7 @@ import {
 	loadViewportThemePreference,
 	saveViewportThemePreference,
 } from "./viewer/viewportThemePreference";
-import { DEFAULT_PMI_VISIBILITY, type PmiCategory, type PmiVisibility } from "./viewer/PmiAnnotationLayer";
+import { DEFAULT_PMI_VISIBILITY, type PmiCategory, type PmiVisibility } from "./viewer/pmiPresentation";
 
 type RequestStatus = "idle" | "loading" | "success" | "error";
 type BooleanOperationUi = "Union" | "Subtract" | "Intersect";

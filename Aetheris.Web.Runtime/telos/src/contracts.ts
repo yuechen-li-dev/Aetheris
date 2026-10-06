@@ -1,12 +1,15 @@
 export type Vec3 = readonly [number, number, number];
 export type Pixel = readonly [number, number];
 export type NumericArray = ArrayLike<number>;
+/** Coordinates are world space; line thickness and projected DOM placements use CSS pixels. */
+export type TelosDepthMode = "depth-tested" | "depth-biased" | "always-on-top";
 export interface TelosIdentity {
   occurrenceId: string;
   bodyId?: string;
   definitionId?: string;
   faceId?: string | number;
   edgeId?: string | number;
+  overlayId?: string;
 }
 export interface TelosMaterial {
   baseColor: readonly number[];
@@ -35,6 +38,8 @@ export interface TelosMesh {
   hovered?: boolean;
   overlay?: boolean;
   visible?: boolean;
+  depthMode?: TelosDepthMode;
+  unlit?: boolean;
 }
 export interface TelosLine {
   id: string;
@@ -46,6 +51,7 @@ export interface TelosLine {
   selected?: boolean;
   overlay?: boolean;
   visible?: boolean;
+  depthMode?: TelosDepthMode;
 }
 export interface TelosShaderArtifact {
   shaderId: string;

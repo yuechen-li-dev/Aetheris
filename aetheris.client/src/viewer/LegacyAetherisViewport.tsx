@@ -27,10 +27,11 @@ import {
 import type { AssemblyDisplayPacketDto } from "../api/aetherisApi";
 import { mapFacePatchToRenderFacePatch } from "./tessellationMapper";
 import { buildAdaptiveGridPlan, type GridBounds } from "./logarithmicGrid";
-import { CadmataOverlay, type CadmataLayerVisibility } from "./CadmataOverlay";
-import type { CadmataVisualizationArtifact } from "./conceptVisualization";
+import { CadmataOverlay } from "./LegacyCadmataOverlay";
+
 import { ATELIER_VIEWPORT_THEME, type ViewportTheme } from "./viewportTheme";
-import { DEFAULT_PMI_VISIBILITY, PmiAnnotationLayer, type PmiVisibility } from "./PmiAnnotationLayer";
+import { PmiAnnotationLayer } from "./LegacyPmiAnnotationLayer";
+import { DEFAULT_PMI_VISIBILITY } from "./pmiPresentation";
 import { ThemeBackground } from "./ThemeBackground";
 
 function intersectGround(origin: Vector3, direction: Vector3, y: number): Vector3 | null {
@@ -264,29 +265,8 @@ function ViewportPerformanceProbe({ resetKey }: { resetKey: unknown }) {
 	return null;
 }
 
-export interface AetherisViewportProps {
-	displayScene?: DisplayScene | null;
-	highlightedFaceId?: number | null;
-	highlightedEdgeId?: number | null;
-	highlightedFaceIds?: Set<number>;
-	highlightedEdgeIds?: Set<number>;
-	showGrid?: boolean;
-	showAxisGuide?: boolean;
-	theme?: ViewportTheme;
-	onPickRay?: (
-		origin: { x: number; y: number; z: number },
-		direction: { x: number; y: number; z: number },
-	) => void;
-	cadmataArtifact?: CadmataVisualizationArtifact | null;
-	cadmataLayers?: CadmataLayerVisibility;
-	selectedCadmataIds?: Set<string>;
-	onCadmataSelect?: (stableId: string) => void;
-	showPmi?: boolean;
-	pmiVisibility?: PmiVisibility;
-	assemblyPacket?: AssemblyDisplayPacketDto | null;
-	selectedAssemblyOccurrenceId?: string | null;
-	onAssemblyOccurrenceSelect?: (stableId: string) => void;
-}
+export type { AetherisViewportProps } from "./viewportProps";
+import type { AetherisViewportProps } from "./viewportProps";
 
 function FaceMesh({
 	positions,

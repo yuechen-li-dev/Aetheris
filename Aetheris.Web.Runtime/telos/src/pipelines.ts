@@ -1,5 +1,5 @@
 import type { TelosDevice } from "./device.js";
-import type { TelosField } from "./contracts.js";
+import type { TelosField, TelosDepthMode } from "./contracts.js";
 import { meshShader, lineShader } from "./shaders.js";
 const vertexLayout: GPUVertexBufferLayout = {
   arrayStride: 12,
@@ -11,11 +11,30 @@ export function telosPipeline(
   owner: TelosDevice,
   kind: "mesh" | "line" | "overlay-mesh" | "overlay-line",
   artifact?: TelosField["artifact"],
+  depthMode?: TelosDepthMode,
 ) {
   const format = owner.format,
     resources = owner.resources;
-  const id = artifact?.shaderId ?? "telos-" + kind + "/1";
-  const key = JSON.stringify([id, kind, format, "depth32float", 1, artifact?.vertexEntryPoint ?? 'vertex', artifact?.fragmentEntryPoint ?? 'fragment']);
+  const resolvedDepth =
+    depthMode ??
+    (kind.startsWith("overlay")
+      ? "always-on-top"
+      : kind.includes("line")
+        ? "depth-biased"
+        : "depth-tested");
+  const id =
+    artifact?.shaderId ??
+    "telos-" + (kind.includes("mesh") ? "mesh" : "line") + "/1";
+  const key = JSON.stringify([
+    id,
+    kind,
+    resolvedDepth,
+    format,
+    "depth32float",
+    1,
+    artifact?.vertexEntryPoint ?? "vertex",
+    artifact?.fragmentEntryPoint ?? "fragment",
+  ]);
   const shader = resources.module(
     id,
     artifact?.wgsl ?? (kind.includes("mesh") ? meshShader : lineShader),
@@ -90,11 +109,14 @@ export function telosPipeline(
         format: "depth32float",
         depthWriteEnabled:
           !kind.includes("line") && !kind.startsWith("overlay"),
-        depthCompare: kind.startsWith("overlay")
-          ? "always"
-          : kind.includes("line")
-            ? "less-equal"
-            : "less",
+        depthBias:
+          resolvedDepth === "depth-biased" && kind.includes("mesh") ? -1 : 0,
+        depthCompare:
+          resolvedDepth === "always-on-top"
+            ? "always"
+            : kind.includes("line")
+              ? "less-equal"
+              : "less",
       },
     }),
   );

@@ -6,7 +6,8 @@ import {
   type TelosLine,
   type NumericArray,
 } from "@aetheris/three-telos";
-import type { AetherisViewportProps } from "./LegacyAetherisViewport";
+import type { AetherisViewportProps } from "./viewportProps";
+import { cadmataOverlays } from "./cadmataOverlays";
 import { ATELIER_VIEWPORT_THEME } from "./viewportTheme";
 import {
   mapFacePatchToRenderFacePatch,
@@ -133,5 +134,6 @@ export function cadmataTelosScene(props: AetherisViewportProps): TelosScene {
         overlay: true,
       });
     }
-  return { meshes, lines, fields: [] };
+  const overlays = cadmataOverlays(props);
+  return { meshes: [...meshes, ...overlays.meshes], lines: [...lines, ...overlays.lines], fields: [] };
 }

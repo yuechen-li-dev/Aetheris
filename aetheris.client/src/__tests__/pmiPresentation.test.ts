@@ -3,7 +3,7 @@ import {
 	DEFAULT_PMI_VISIBILITY,
 	layoutPmiCallouts,
 	semanticPmiItems,
-} from "../viewer/PmiAnnotationLayer";
+} from "../viewer/pmiPresentation";
 import type { CadmataVisualizationArtifact } from "../viewer/conceptVisualization";
 
 const artifact: CadmataVisualizationArtifact = {

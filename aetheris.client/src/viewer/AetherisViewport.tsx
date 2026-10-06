@@ -1,21 +1,21 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { TelosHost, clearColor } from "@aetheris/three-telos";
-import {
-  LegacyAetherisViewport,
-  type AetherisViewportProps,
-} from "./LegacyAetherisViewport";
+import type { AetherisViewportProps } from "./viewportProps";
+import { PmiAnnotationLayer } from "./PmiAnnotationLayer";
+import { DEFAULT_PMI_VISIBILITY } from "./pmiPresentation";
+const LegacyAetherisViewport = lazy(() =>
+  import("./LegacyAetherisViewport").then((module) => ({
+    default: module.LegacyAetherisViewport,
+  })),
+);
 import { cadmataTelosScene } from "./cadmataTelos";
 import { ATELIER_VIEWPORT_THEME } from "./viewportTheme";
-export type { AetherisViewportProps } from "./LegacyAetherisViewport";
+export type { AetherisViewportProps } from "./viewportProps";
 
-/** Transitional WebGL remains for unsupported GPUs and unmigrated semantic authoring/PMI overlays. */
+/** One graphics authority; legacy rendering is loaded only for unsupported browsers. */
 export function AetherisViewport(props: AetherisViewportProps) {
   const supported = typeof navigator !== "undefined" && "gpu" in navigator;
-  const legacyReason = !supported
-    ? "WebGPU unavailable"
-    : props.cadmataArtifact
-      ? "authoring overlays / PMI migration pending"
-      : null;
+  const legacyReason = !supported ? "WebGPU unavailable" : null;
   if (legacyReason)
     return (
       <div
@@ -23,7 +23,9 @@ export function AetherisViewport(props: AetherisViewportProps) {
         data-display-host="transitional-webgl"
         data-display-reason={legacyReason}
       >
-        <LegacyAetherisViewport {...props} />
+        <Suspense fallback={<small>Loading browser fallback…</small>}>
+          <LegacyAetherisViewport {...props} />
+        </Suspense>
         <small
           style={{
             position: "absolute",
@@ -45,6 +47,7 @@ function TelosViewport(props: AetherisViewportProps) {
     host = useRef<TelosHost | null>(null);
   const latest = useRef(props);
   const [diagnostic, setDiagnostic] = useState<string | null>(null);
+  const [labelHost, setLabelHost] = useState<TelosHost | null>(null);
   const lastModel = useRef<unknown>(undefined);
   const apply = () => {
     const current = host.current;
@@ -73,13 +76,17 @@ function TelosViewport(props: AetherisViewportProps) {
           event.clientX - rect.left,
           event.clientY - rect.top,
         ];
+      const hit = current.picker.pick(pixel);
+      if (hit?.overlayId) {
+        latest.current.onCadmataSelect?.(hit.overlayId);
+        return;
+      }
       const ray = current.camera.worldRay(pixel),
         value = latest.current;
       value.onPickRay?.(
         { x: ray.origin.x, y: ray.origin.y, z: ray.origin.z },
         { x: ray.direction.x, y: ray.direction.y, z: ray.direction.z },
       );
-      const hit = current.picker.pick(pixel);
       if (value.assemblyPacket && hit)
         value.onAssemblyOccurrenceSelect?.(hit.occurrenceId);
     };
@@ -91,9 +98,11 @@ function TelosViewport(props: AetherisViewportProps) {
           return;
         }
         host.current = current;
+        setLabelHost(current);
         current.camera.mode = "orthographic";
         current.attach(container.current!);
         apply();
+        latest.current.onHostReady?.(current);
       })
       .catch((error) => {
         if (!disposed) setDiagnostic(String(error));
@@ -121,6 +130,18 @@ function TelosViewport(props: AetherisViewportProps) {
         style={{ display: "block", width: "100%", height: "100%" }}
       />
       {diagnostic && <div role="alert">{diagnostic}</div>}
+      <PmiAnnotationLayer
+        host={labelHost}
+        artifact={props.cadmataArtifact ?? null}
+        visible={props.showPmi !== false}
+        visibility={props.pmiVisibility ?? DEFAULT_PMI_VISIBILITY}
+        selectedIds={props.selectedCadmataIds ?? EMPTY_SELECTION}
+        onSelect={props.onCadmataSelect ?? NO_SELECT}
+        theme={props.theme ?? ATELIER_VIEWPORT_THEME}
+        showAxisGuide={props.showAxisGuide !== false}
+      />
     </div>
   );
 }
+const EMPTY_SELECTION = new Set<string>();
+const NO_SELECT = () => {};

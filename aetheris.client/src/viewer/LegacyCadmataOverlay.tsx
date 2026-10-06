@@ -1,31 +1,14 @@
-/* eslint-disable react-refresh/only-export-components -- layer contracts and the overlay intentionally share one small module. */
 import { Line } from "@react-three/drei";
 import { useMemo } from "react";
 import { DoubleSide, Vector3 } from "three";
 import type {
 	CadmataEntity,
-	CadmataLayer,
 	CadmataVisualizationArtifact,
 } from "./conceptVisualization";
 import type { ViewportTheme } from "./viewportTheme";
 import { SEMANTIC_PMI_KINDS } from "./semanticInspection";
 
-export type CadmataLayerVisibility = Record<CadmataLayer, boolean>;
-export const DEFAULT_CADMATA_LAYERS: CadmataLayerVisibility = {
-	material: true,
-	brepEdges: true,
-	conceptPoints: true,
-	conceptAxes: true,
-	conceptRegions: true,
-	conceptPlanes: true,
-	constructionPlanes: true,
-	profileGuides: true,
-	profileLoops: true,
-	composeRegions: true,
-	selections: true,
-	diagnostics: true,
-};
-
+import type { CadmataLayerVisibility } from "./cadmataLayers";
 function colorFor(entity: CadmataEntity, selected: boolean, theme: ViewportTheme) {
 	if (selected) return theme.overlay.selection;
 	if (entity.layer === "profileGuides" || entity.layer === "profileLoops")

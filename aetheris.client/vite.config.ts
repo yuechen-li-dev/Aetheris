@@ -71,7 +71,7 @@ export default defineConfig(({ command }) => ({
 		command === "serve"
 			? {
 					fs: env.AETHERIS_TELOS_WITNESS === "1" ? {
-						allow: [fileURLToPath(new URL(".", import.meta.url)), fileURLToPath(new URL("../fixtures/three-telos", import.meta.url))],
+						allow: [fileURLToPath(new URL(".", import.meta.url)), fileURLToPath(new URL("../fixtures/three-telos", import.meta.url)), fileURLToPath(new URL("../docs/development/milestones/modules/sheetmetal/artifacts/ctc03-manufacturing-release", import.meta.url)), fileURLToPath(new URL("../artifacts/local/three-telos/cir", import.meta.url))],
 					} : undefined,
 					proxy: {
 						"^/api": {

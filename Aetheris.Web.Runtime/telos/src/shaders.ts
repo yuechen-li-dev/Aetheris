@@ -11,7 +11,7 @@ struct Output { @builtin(position) position: vec4<f32>, @location(0) normal: vec
   let diffuse = 0.28 + 0.72 * abs(dot(n, light));
   let roughness = clamp(state.parameters.x, 0.04, 1.0); let metallic = clamp(state.parameters.y, 0.0, 1.0);
   let specular = pow(abs(dot(n, normalize(light + vec3<f32>(0,0,1)))), mix(64.0, 2.0, roughness)) * (0.05 + metallic * 0.2);
-  let linear = state.color.rgb * diffuse + vec3<f32>(specular);
+  let linear = select(state.color.rgb * diffuse + vec3<f32>(specular), state.color.rgb, state.parameters.z > 0.5);
   return vec4(pow(max(linear, vec3<f32>(0)), vec3<f32>(1.0 / 2.2)), state.color.a);
 }`;
 
@@ -30,7 +30,7 @@ struct State { vp: mat4x4<f32>, model: mat4x4<f32>, color: vec4<f32>, viewport: 
   let perpendicular = vec2(-direction.y, direction.x);
   let corners = array<vec2<f32>,6>(vec2(0,-1),vec2(1,-1),vec2(0,1),vec2(0,1),vec2(1,-1),vec2(1,1));
   let corner = corners[vertex]; var p = mix(a,b,corner.x);
-  p = vec4(p.xy + perpendicular * corner.y * state.viewport.z / state.viewport.xy * p.w, p.z - 0.000002 * p.w, p.w);
+  p = vec4(p.xy + perpendicular * corner.y * state.viewport.z / state.viewport.xy * p.w, p.z - state.viewport.w * p.w, p.w);
   return p;
 }
 @fragment fn fragment() -> @location(0) vec4<f32> { return state.color; }

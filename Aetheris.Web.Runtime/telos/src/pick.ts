@@ -25,6 +25,7 @@ export class TelosPick {
   camera: TelosCamera;
   proxies: Mesh[];
   lines: readonly TelosLine[];
+  dynamicLines: readonly TelosLine[] = [];
   raycaster: Raycaster;
   constructor(camera: TelosCamera) {
     this.camera = camera;
@@ -33,45 +34,97 @@ export class TelosPick {
     this.raycaster = new Raycaster();
   }
   setScene(scene: TelosScene) {
-    this.dispose();
+    const previous = new Map(
+      this.proxies.map((mesh) => [
+        JSON.stringify([
+          mesh.userData.item.identity.occurrenceId,
+          mesh.userData.item.identity.overlayId,
+          mesh.userData.definition.id,
+        ]),
+        mesh,
+      ]),
+    );
+    this.proxies = [];
     this.lines = scene.lines ?? [];
     for (const item of [
       ...(scene.meshes ?? []),
       ...(scene.fields ?? []).filter((field) => field.proxy),
     ]) {
       const definition = "definition" in item ? item.definition : item.proxy!;
-      const geometry = new BufferGeometry();
-      geometry.setAttribute(
-        "position",
-        new BufferAttribute(Float32Array.from(definition.positions), 3),
-      );
-      geometry.setIndex(
-        new BufferAttribute(Uint32Array.from(definition.indices), 1),
-      );
-      const mesh = new Mesh(
-        geometry,
-        new MeshBasicMaterial({ side: DoubleSide }),
-      );
+      const key = JSON.stringify([
+        item.identity.occurrenceId,
+        item.identity.overlayId,
+        definition.id,
+      ]);
+      let mesh = previous.get(key);
+      if (
+        mesh &&
+        (mesh.userData.definition.positions !== definition.positions ||
+          mesh.userData.definition.indices !== definition.indices)
+      )
+        mesh = undefined;
+      if (!mesh) {
+        const geometry = new BufferGeometry();
+        geometry.setAttribute(
+          "position",
+          new BufferAttribute(Float32Array.from(definition.positions), 3),
+        );
+        geometry.setIndex(
+          new BufferAttribute(Uint32Array.from(definition.indices), 1),
+        );
+        mesh = new Mesh(geometry, new MeshBasicMaterial({ side: DoubleSide }));
+      } else previous.delete(key);
       mesh.matrixAutoUpdate = false;
       mesh.matrix.fromArray(item.transform ?? new Matrix4().elements);
       mesh.updateMatrixWorld(true);
       mesh.userData = { item, definition };
       this.proxies.push(mesh);
     }
+    for (const mesh of previous.values()) {
+      mesh.geometry.dispose();
+      if (!Array.isArray(mesh.material)) mesh.material.dispose();
+    }
   }
   pick(pixel: Pixel, mode = "face"): TelosHit | null {
     const ray = this.camera.worldRay(pixel);
     this.raycaster.ray.set(ray.origin, ray.direction);
-    const closest = this.raycaster.intersectObjects(this.proxies, false)[0];
+    const intersections = this.raycaster.intersectObjects(
+      this.proxies.filter((mesh) => mesh.userData.item.visible !== false),
+      false,
+    );
+    // Explicit authoring surfaces take priority over model faces. Equal priority uses distance.
+    const nearestModel = intersections.find(
+      (hit) => !hit.object.userData.item.identity.overlayId,
+    );
+    const overlay = intersections.find(
+      (hit) =>
+        hit.object.userData.item.identity.overlayId &&
+        (hit.object.userData.item.depthMode === "always-on-top" ||
+          !nearestModel ||
+          hit.distance <= nearestModel.distance),
+    );
+    const closest = overlay ?? intersections[0];
     const faceHit = closest ? this.hit(closest) : null;
-    if (mode !== "edge") return faceHit;
+    if (overlay?.object.userData.item.depthMode === "always-on-top")
+      return faceHit;
     let hit: TelosHit | null = null,
-      distance = Infinity;
-    for (const line of this.lines) {
+      distance = Infinity,
+      priority = -1;
+    for (const line of [...this.dynamicLines, ...this.lines]) {
+      if (
+        line.visible === false ||
+        (mode !== "edge" && !line.identity.overlayId)
+      )
+        continue;
       const transform = new Matrix4().fromArray(
         line.transform ?? new Matrix4().elements,
       );
       const points = line.points;
+      const linePriority = this.dynamicLines.includes(line)
+        ? 2
+        : line.identity.overlayId
+          ? 1
+          : 0;
       for (let i = 3; i < points.length; i += 3) {
         const a = new Vector3(
           points[i - 3],
@@ -110,10 +163,14 @@ export class TelosPick {
           Math.max(this.camera.span / this.camera.height, d * 0.001) * 3;
         if (
           pixels <= Math.max(4, (line.widthPixels ?? 1) / 2 + 2) &&
-          d < distance &&
-          (!closest || d <= closest.distance + tolerance)
+          (linePriority > priority ||
+            (linePriority === priority && d < distance)) &&
+          (line.depthMode === "always-on-top" ||
+            !closest ||
+            d <= closest.distance + tolerance)
         ) {
           distance = d;
+          priority = linePriority;
           hit = {
             ...line.identity,
             worldPosition: onSegment.toArray(),
@@ -123,7 +180,7 @@ export class TelosPick {
         }
       }
     }
-    return hit;
+    return hit ?? (mode === "edge" ? null : faceHit);
   }
   hit(hit: Intersection): TelosHit {
     const { item, definition } = hit.object.userData as {

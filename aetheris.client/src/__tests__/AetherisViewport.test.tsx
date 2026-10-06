@@ -79,7 +79,7 @@ describe("AetherisViewport", () => {
 		).not.toThrow();
 	});
 
-	it("RendersWirePatchWithoutMeshArrays", () => {
+	it("RendersWirePatchWithoutMeshArrays", async () => {
 		const scene: DisplayScene = {
 			...baseScene,
 			renderables: [
@@ -95,10 +95,10 @@ describe("AetherisViewport", () => {
 				},
 			],
 		};
-		const { getAllByTestId } = render(
+		const { findAllByTestId } = render(
 			<AetherisViewport displayScene={scene} showGrid={false} showAxisGuide={false} />,
 		);
-		expect(getAllByTestId("line").length).toBeGreaterThan(0);
+		expect((await findAllByTestId("line")).length).toBeGreaterThan(0);
 	});
 
 	it("AcceptsDiagnosticOnlyFace", () => {

@@ -1,6 +1,5 @@
 import type { TelosDevice } from "./device.js";
 import type { TelosField, TelosDepthMode } from "./contracts.js";
-import { meshShader, lineShader } from "./shaders.js";
 const vertexLayout: GPUVertexBufferLayout = {
   arrayStride: 12,
   attributes: [{ shaderLocation: 0, offset: 0, format: "float32x3" }],
@@ -37,7 +36,7 @@ export function telosPipeline(
   ]);
   const shader = resources.module(
     id,
-    artifact?.wgsl ?? (kind.includes("mesh") ? meshShader : lineShader),
+    artifact?.wgsl ?? (kind.includes("mesh") ? owner.shaders.mesh : owner.shaders.line),
   );
   return resources.pipeline(key, () =>
     owner.device.createRenderPipeline({

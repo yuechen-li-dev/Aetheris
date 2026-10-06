@@ -2,6 +2,8 @@
 
 Cadmata's model, assembly, authoring overlays and PMI presentation share the Three Telos WebGPU host with Helios. It owns the camera, grid, mesh drawing, semantic topology lines, GPU leaders, selection projection and GPU resources. A supported browser/GPU is required for that path.
 
+The shared mesh and line shaders live in standalone `.wgsl` files, loaded through TypeScript during host initialization. Builds carry the shader assets with the package; WebGPU validates their code. CIR field shaders continue through Copeland's typed Visual TypeScript compiler.
+
 When WebGPU is unavailable, both products label their WebGL fallback. Cadmata loads that renderer only at the unsupported-browser boundary. Semantic authoring or PMI never selects it in a supported browser.
 
 PMI panels remain React DOM buttons, projected through TelosCamera in CSS pixels. They preserve semantic targets, camera-facing text, category filters, deterministic collision layout, selection and presentation-only dragging. Their leaders use retained Telos GPU buffers. Selecting a face highlights its published related PMI without broadening the face selection.

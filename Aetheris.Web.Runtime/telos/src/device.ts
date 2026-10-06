@@ -1,3 +1,5 @@
+import { loadTelosShaders, type TelosShaderSources } from "./shaderSources.js";
+
 export class TelosResources {
   device: GPUDevice;
   buffers: Set<GPUBuffer>;
@@ -57,6 +59,7 @@ export class TelosResources {
 }
 
 export class TelosDevice {
+  shaders: TelosShaderSources;
   adapter: GPUAdapter;
   device: GPUDevice;
   context: GPUCanvasContext;
@@ -78,13 +81,14 @@ export class TelosDevice {
       );
     const adapter = await navigator.gpu.requestAdapter();
     if (!adapter) throw new Error("telos-adapter-unavailable");
+    const shaders = await loadTelosShaders();
     const device = await adapter.requestDevice();
     const context = canvas.getContext("webgpu");
     if (!context) {
       device.destroy();
       throw new Error("telos-context-unavailable");
     }
-    return new TelosDevice(adapter, device, context, canvas, diagnostic);
+    return new TelosDevice(adapter, device, context, canvas, diagnostic, shaders);
   }
   constructor(
     adapter: GPUAdapter,
@@ -92,7 +96,9 @@ export class TelosDevice {
     context: GPUCanvasContext,
     canvas: HTMLCanvasElement,
     diagnostic: (message: string) => void,
+    shaders: TelosShaderSources,
   ) {
+    this.shaders = shaders;
     this.adapter = adapter;
     this.device = device;
     this.context = context;

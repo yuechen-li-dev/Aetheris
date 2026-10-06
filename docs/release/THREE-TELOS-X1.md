@@ -6,6 +6,12 @@ Cadmata's supported-browser model, assembly, construction overlays and semantic 
 
 The motivating case is the original CADMATA-PMI-X1 CTC-03 manufacturing AP242 STEP, loaded through the actual application import UI and server bridge. Its 173 published entities include 29 semantic callouts: 3 datums, 13 dimensions/diameters, 5 position controls and 8 notes. Default presentation shows 8 datum/position panels. The all-category witness preserves all 29 objects; the unchanged dense-layout policy displays 26 and hides 3 low-priority notes in the measured viewport.
 
+## Shader source follow-up
+
+Mesh and line WGSL now live in `Aetheris.Web.Runtime/telos/src/shaders/mesh.wgsl` and `line.wgsl`, rather than TypeScript template strings. `shaderSources.ts` loads static asset URLs during device initialization, before allocating a GPU device. HTTP/network failures carry `telos-shader-load` diagnostics. The TypeScript build copies source assets alongside emitted modules; native ESM and Vite use the same loader. CIR artifacts retain the existing Copeland typed compiler path. This change does not introduce another compiler or require changes to Copeland's material ABI.
+
+Follow-up validation passed the native WebGPU browser witness and a production-served CTC03 import/Datum A selection with 8 panels and zero browser errors/alerts (`artifacts/local/three-telos/shader-production.json`). The existing development browser driver's module-download fence stops on production HTML's preloaded R3F/Drei vendor chunks; this is an existing production bundling limitation, separate from renderer activation and shader loading.
+
 ## Remaining WebGL surface audit
 
 The audit found no existing transform gizmo, snap tool, dashed GPU leader or arrowhead to migrate. Whole-part notes use dashed **CSS borders**, not stippled GPU lines. New arrow/dash/font frameworks would therefore invent product behavior.

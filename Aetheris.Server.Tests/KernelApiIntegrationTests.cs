@@ -12,6 +12,22 @@ namespace Aetheris.Server.Tests;
 public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 {
     [Fact]
+    public async Task DisplayPrepare_ThreadedShowcase_ShadesEveryRequiredFace()
+    {
+        var source = await File.ReadAllTextAsync(GetRepositoryPath("fixtures/Thread/hexbolt-showcase.firmament"));
+        var built = Aetheris.Kernel.Firmament.FirmamentBuildAndExport.CompileSource(source);
+        Assert.True(built.IsSuccess, string.Join(" | ", built.Diagnostics.Select(d => d.Message)));
+        var document = await CreateDocumentAsync("/api/v1/documents");
+        var response = await _client.PostAsJsonAsync($"/api/v1/documents/{document.Data!.DocumentId}/import/step",
+            new StepImportRequestDto(built.Value.StepText, "hexbolt-showcase.step"));
+        response.EnsureSuccessStatusCode();
+        var imported = await response.Content.ReadFromJsonAsync<ApiResponseDto<StepImportResponseDto>>();
+        var prepared = await PrepareDisplayAsync(document.Data.DocumentId, imported!.Data!.OccurrenceId);
+        Assert.Equal("Complete", prepared.Data!.Status);
+        Assert.DoesNotContain(prepared.Data.Faces!, f => f.Status == "WireOnly");
+        Assert.Equal(built.Value.RuntimeBody!.Topology.Faces.Count(), prepared.Data.Faces!.Count);
+    }
+    [Fact]
     public async Task StepImport_ExportedAssembly_ReturnsCadmataInstanceScene()
     {
         var document = await CreateDocumentAsync("/api/v1/documents");

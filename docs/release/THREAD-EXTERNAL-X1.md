@@ -1,5 +1,7 @@
 # THREAD-EXTERNAL-X1 — one Firmament Thread on an existing HexBolt
 
+Historical construction and measurements below are superseded by [P4-01B1](P4-01B1-THREAD-SHOWCASE-REPAIR.md): external threads now remove a bounded groove from major-diameter stock, and the canonical engraved showcase is `fixtures/Thread/hexbolt-showcase.firmament`.
+
 **Verdict: Accepted for the bounded HexBolt case.** The existing smooth `StandardPart Bolt { Family: HexBolt }` gains one `Thread` declaration and produces one modeled, closed, consistently oriented BRep and production STEP. No generic Boolean, arbitrary sweep, mesh union, or cosmetic thread route was added.
 
 ## Authored delta

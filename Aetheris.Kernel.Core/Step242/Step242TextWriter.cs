@@ -6,13 +6,29 @@ namespace Aetheris.Kernel.Core.Step242;
 internal sealed class Step242TextWriter
 {
     private readonly List<string> _entities = [];
+    // Export-local, exact serialized equality: no tolerance matching or topology coalescing.
+    // Names and references participate in the key; child geometry is interned first.
+    private readonly Dictionary<string, string> _immutableGeometry = new(StringComparer.Ordinal);
 
     public string AddEntity(string entityName, params string[] arguments)
     {
+        var instance = $"{entityName}({string.Join(",", arguments)})";
+        var share = IsImmutableGeometry(entityName);
+        if (share && _immutableGeometry.TryGetValue(instance, out var existing)) return existing;
         var id = $"#{_entities.Count + 1}";
-        _entities.Add($"{id}={entityName}({string.Join(",", arguments)});");
+        _entities.Add($"{id}={instance};");
+        if (share) _immutableGeometry.Add(instance, id);
         return id;
     }
+
+    // PCURVE/SURFACE_CURVE and representation entities carry associations, not just support
+    // geometry. Keep them, all topology, and complex/raw entities independently authored.
+    private static bool IsImmutableGeometry(string name) => name is
+        "CARTESIAN_POINT" or "DIRECTION" or "VECTOR" or
+        "AXIS2_PLACEMENT_2D" or "AXIS2_PLACEMENT_3D" or
+        "LINE" or "CIRCLE" or "ELLIPSE" or "PLANE" or
+        "CYLINDRICAL_SURFACE" or "CONICAL_SURFACE" or "SPHERICAL_SURFACE" or "TOROIDAL_SURFACE" or
+        "B_SPLINE_CURVE_WITH_KNOTS" or "B_SPLINE_SURFACE_WITH_KNOTS";
 
     public string AddRawEntity(string entityInstance)
     {

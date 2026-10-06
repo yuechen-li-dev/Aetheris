@@ -254,13 +254,18 @@ END-ISO-10303-21;";
         var sourceSemiAngles = ExtractConicalSurfaceSemiAngles(source);
         var exportedSemiAngles = ExtractConicalSurfaceSemiAngles(export.Value);
 
-        Assert.Equal(sourceSemiAngles.Count, exportedSemiAngles.Count);
         Assert.NotEmpty(exportedSemiAngles);
-
-        for (var i = 0; i < sourceSemiAngles.Count; i++)
-        {
-            Assert.Equal(sourceSemiAngles[i] * (double.Pi / 180d), exportedSemiAngles[i], 9);
-        }
+        // Distinct faces may share an identical immutable conical support definition.
+        Assert.Equal(sourceSemiAngles.Select(angle => System.Math.Round(angle * (double.Pi / 180d), 9)).Distinct().Order(),
+            exportedSemiAngles.Select(angle => System.Math.Round(angle, 9)).Distinct().Order());
+        var reimport = Step242Importer.ImportBody(export.Value);
+        Assert.True(reimport.IsSuccess);
+        static double[] FaceAngles(BrepBody body) => body.Topology.Faces
+            .Select(face => body.Geometry.GetSurface(body.Bindings.GetFaceBinding(face.Id).SurfaceGeometryId))
+            .Where(surface => surface.Cone.HasValue)
+            .Select(surface => System.Math.Round(surface.Cone!.Value.SemiAngleRadians, 9)).Order().ToArray();
+        Assert.Equal(FaceAngles(import.Value), FaceAngles(reimport.Value));
+        Assert.Equal(import.Value.Topology.Faces.Count(), reimport.Value.Topology.Faces.Count());
     }
 
     [Fact]

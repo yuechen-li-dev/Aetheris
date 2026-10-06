@@ -6,7 +6,10 @@ using Aetheris.Kernel.Core.Results;
 
 namespace Aetheris.Kernel.Core.Geometry;
 
-/// <summary>Exact intent for one additive, right-hand, single-start rib on finite cylindrical stock.</summary>
+public enum HelicalProfileIntent { AddRib, RemoveGroove }
+
+/// <summary>Exact intent for one right-hand, single-start trapezoidal rib or groove on finite cylindrical stock.
+/// Root denotes the stock attachment and Crest the displaced profile, including for an inward groove.</summary>
 public sealed record HelicalRibParameters(
     Point3D AxisOrigin,
     Direction3D Axis,
@@ -20,7 +23,8 @@ public sealed record HelicalRibParameters(
     double AxialEndMm,
     double RootWidthMm,
     double CrestWidthMm,
-    double StartAngleRadians = 0d);
+    double StartAngleRadians = 0d,
+    HelicalProfileIntent Intent = HelicalProfileIntent.AddRib);
 
 public enum HelicalRibBoundaryRole { LeadingRoot, LeadingCrest, TrailingCrest, TrailingRoot }
 public enum HelicalRibSideRole { LeadingFlank, Crest, TrailingFlank }
@@ -48,6 +52,7 @@ public sealed class HelicalRibGeometry
     {
         ArgumentNullException.ThrowIfNull(p);
         var linear = (tolerance ?? ToleranceContext.Default).Linear;
+        if (!Enum.IsDefined(p.Intent)) return Failure("intent", "Unknown helical profile intent.");
         if (!Finite(p.SupportAxialMinMm, p.SupportAxialMaxMm, p.RootRadiusMm,
                 p.CrestRadiusMm, p.PitchMm, p.AxialStartMm, p.AxialEndMm,
                 p.RootWidthMm, p.CrestWidthMm, p.StartAngleRadians,
@@ -55,8 +60,9 @@ public sealed class HelicalRibGeometry
             return Failure("nonfinite", "All rib dimensions and placement coordinates must be finite.");
         if (p.SupportAxialMaxMm <= p.SupportAxialMinMm)
             return Failure("support-bounds", "Support axial maximum must exceed minimum.");
-        if (p.RootRadiusMm <= 0d || p.CrestRadiusMm <= p.RootRadiusMm)
-            return Failure("radii", "Crest radius must exceed a positive root/support radius.");
+        if (p.RootRadiusMm <= 0d || p.CrestRadiusMm <= 0d ||
+            (p.Intent == HelicalProfileIntent.AddRib ? p.CrestRadiusMm <= p.RootRadiusMm : p.CrestRadiusMm >= p.RootRadiusMm))
+            return Failure("radii", "Both radii must be positive; the profile must extend outward for a rib or inward for a groove.");
         if (p.PitchMm <= 0d) return Failure("pitch", "Pitch must be positive.");
         if (p.AxialEndMm <= p.AxialStartMm)
             return Failure("span", "Rib axial end must exceed start.");

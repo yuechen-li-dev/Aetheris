@@ -125,16 +125,22 @@ public sealed class HelicalRibGeometryTests
         }
     }
 
-    [Fact]
-    public void AllThreeRuledHelicalSidesRemainWithinCertifiedSurfaceBound()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AllThreeRuledHelicalSidesRemainWithinCertifiedSurfaceBound(bool inward)
     {
-        var rib = HelicalRibGeometry.Create(Witness()).Value;
+        var p = Witness();
+        if (inward) p = p with { RootRadiusMm = p.CrestRadiusMm, CrestRadiusMm = p.RootRadiusMm, Intent = HelicalProfileIntent.RemoveGroove };
+        var rib = HelicalRibGeometry.Create(p).Value;
         foreach (var role in Enum.GetValues<HelicalRibSideRole>())
         {
             var realized = HelicalRibSurfaceRealizer.Realize(rib, role);
             Assert.True(realized.IsSuccess, string.Join("; ", realized.Diagnostics));
             Assert.InRange(realized.Value.CertifiedDeviationBoundMm, 0d, 1e-6d);
             Assert.False(realized.Value.Surface.IsRational);
+            Assert.Equal(3 * realized.Value.SegmentCount + 1, realized.Value.Surface.ControlPoints.Count);
+            Assert.All(realized.Value.Surface.KnotMultiplicitiesU.Skip(1).SkipLast(1), multiplicity => Assert.Equal(3, multiplicity));
             for (var i = 0; i <= 40; i++)
             {
                 var angle = rib.Parameters.StartAngleRadians

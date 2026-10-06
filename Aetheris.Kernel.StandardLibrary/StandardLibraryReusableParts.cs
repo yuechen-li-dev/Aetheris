@@ -25,7 +25,8 @@ public static class StandardLibraryReusableParts
 
     public static KernelResult<StandardLibraryPartDefinition> TryCreate(
         string partName,
-        IReadOnlyDictionary<string, string> parameters)
+        IReadOnlyDictionary<string, string> parameters,
+        bool deferMakerMarkToCompiler = false)
     {
         if (string.Equals(partName, CubeWithCylindricalHolePartName, StringComparison.Ordinal))
         {
@@ -42,6 +43,10 @@ public static class StandardLibraryReusableParts
 
         var parsed = HexBoltParameterBinding.Bind(parameters);
         if (!parsed.IsSuccess) return KernelResult<StandardLibraryPartDefinition>.Failure(parsed.Diagnostics);
+        if (parameters.ContainsKey("MakerMark") && !deferMakerMarkToCompiler)
+            return KernelResult<StandardLibraryPartDefinition>.Failure([new KernelDiagnostic(
+                KernelDiagnosticCode.InvalidArgument, KernelDiagnosticSeverity.Error,
+                "HexBolt MakerMark requires the standalone Firmament part compiler; reusable assembly engraving is not yet supported.")]);
         var bodyStableId = parameters.TryGetValue("StableId", out var authoredId) && !string.IsNullOrWhiteSpace(authoredId)
             ? HexBoltParameterBinding.Text(authoredId)
             : "HexBolt";

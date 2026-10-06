@@ -46,7 +46,7 @@ public static class HelicalRibBoundaryRealizer
         var segmentCount = (int)segmentCountReal;
         var h = angleRange / segmentCount;
         var error = authority.RadiusMm * double.Pow(h, 4d) / 384d;
-        var controls = new List<Point3D>(4 * segmentCount);
+        var controls = new List<Point3D>(3 * segmentCount + 1);
         var knots = new List<double>(segmentCount + 1);
         var multiplicities = new List<int>(segmentCount + 1);
         knots.Add(authority.StartAngleRadians);
@@ -59,12 +59,12 @@ public static class HelicalRibBoundaryRealizer
             var width = b - a;
             var p0 = authority.Evaluate(a);
             var p3 = authority.Evaluate(b);
-            controls.Add(p0);
+            if (i == 0) controls.Add(p0);
             controls.Add(p0 + authority.Derivative(a) * (width / 3d));
             controls.Add(p3 - authority.Derivative(b) * (width / 3d));
             controls.Add(p3);
             knots.Add(b);
-            multiplicities.Add(4);
+            multiplicities.Add(i == segmentCount - 1 ? 4 : 3);
         }
         var curve = new BSpline3Curve(3, controls, multiplicities, knots,
             "UNSPECIFIED", false, false, "UNSPECIFIED");

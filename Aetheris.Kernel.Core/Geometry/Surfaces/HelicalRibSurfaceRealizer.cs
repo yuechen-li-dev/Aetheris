@@ -39,7 +39,7 @@ public static class HelicalRibSurfaceRealizer
         var second = rib.Boundary(secondRole);
         var requested = (tolerance ?? ToleranceContext.Default).Linear;
         var p = rib.Parameters;
-        var scale = double.Max(1d, double.Max(p.CrestRadiusMm,
+        var scale = double.Max(1d, double.Max(double.Max(p.CrestRadiusMm, p.RootRadiusMm),
             double.Max(double.Abs(p.SupportAxialMinMm),
                 double.Max(double.Abs(p.SupportAxialMaxMm),
                     double.Max(double.Abs(p.AxisOrigin.X),
@@ -59,7 +59,7 @@ public static class HelicalRibSurfaceRealizer
         var count = (int)countReal;
         var h = angleRange / count;
         var analyticError = maximumRadius * double.Pow(h, 4d) / 384d;
-        var rows = new List<IReadOnlyList<Point3D>>(count * 4);
+        var rows = new List<IReadOnlyList<Point3D>>(count * 3 + 1);
         var knots = new List<double>(count + 1) { p.StartAngleRadians };
         var multiplicities = new List<int>(count + 1) { 4 };
         for (var i = 0; i < count; i++)
@@ -71,14 +71,16 @@ public static class HelicalRibSurfaceRealizer
             var b0 = first.Evaluate(b);
             var a1 = second.Evaluate(a);
             var b1 = second.Evaluate(b);
-            rows.Add([a0, a1]);
+            // Adjacent Hermite spans share their endpoint. Interior multiplicity
+            // is degree (C0), not degree+1, which external CAD kernels reject.
+            if (i == 0) rows.Add([a0, a1]);
             rows.Add([a0 + first.Derivative(a) * (width / 3d),
                 a1 + second.Derivative(a) * (width / 3d)]);
             rows.Add([b0 - first.Derivative(b) * (width / 3d),
                 b1 - second.Derivative(b) * (width / 3d)]);
             rows.Add([b0, b1]);
             knots.Add(b);
-            multiplicities.Add(4);
+            multiplicities.Add(i == count - 1 ? 4 : 3);
         }
         var surface = new BSplineSurfaceWithKnots(3, 1, rows,
             "UNSPECIFIED", false, false, false,

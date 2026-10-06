@@ -17,15 +17,16 @@ public sealed record BrepHelicalRibResult(
     int SeamSplits);
 
 /// <summary>
-/// Direct known-topology construction for complete-turn, single-start ribs.
+/// Direct known-topology construction for complete-turn, single-start ribs or grooves.
 /// The cylinder skin is partitioned into N+1 exposed bands; no support face
-/// remains beneath the rib. This does not invoke a sweep or Boolean operator.
+/// remains beneath the displaced profile. An inward law removes material from
+/// stock with the same certified helical machinery, without a general Boolean.
 /// </summary>
 public static class BrepHelicalRib
 {
     private readonly record struct Use(EdgeId Edge, bool Reverse, PcurveGeometry? Pcurve = null);
 
-    public static KernelResult<BrepHelicalRibResult> Create(HelicalRibGeometry rib)
+    public static KernelResult<BrepHelicalRibResult> Create(HelicalRibGeometry rib, bool splitStockRims = false)
     {
         ArgumentNullException.ThrowIfNull(rib);
         var turnsRounded = double.Round(rib.Turns);
@@ -35,14 +36,14 @@ public static class BrepHelicalRib
         if (p.AxialStartMm - p.RootWidthMm / 2d - p.SupportAxialMinMm <= 1e-6d
             || p.SupportAxialMaxMm - p.AxialEndMm - p.RootWidthMm / 2d <= 1e-6d)
             return Failure("support-end-contact-unsupported", "X1 requires exposed support-cylinder margins before and after the rib footprint.");
-        try { return Build(rib, (int)turnsRounded); }
+        try { return Build(rib, (int)turnsRounded, splitStockRims); }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or OverflowException)
         {
             return Failure("construction-failed", ex.Message);
         }
     }
 
-    private static KernelResult<BrepHelicalRibResult> Build(HelicalRibGeometry rib, int turns)
+    private static KernelResult<BrepHelicalRibResult> Build(HelicalRibGeometry rib, int turns, bool splitStockRims)
     {
         var p = rib.Parameters;
         var builder = new TopologyBuilder();
@@ -186,24 +187,33 @@ public static class BrepHelicalRib
             gaps[k] = Straight(section[k - 1, 3], section[k, 0], $"RootGap.Seam[{k}]");
         var lowerSeam = Straight(bottom, section[0, 0], "RootLower.Seam");
         var upperSeam = Straight(section[turns, 3], top, "RootUpper.Seam");
-        var bottomCircle = Edge(bottom, bottom,
-            CurveGeometry.FromCircle(new Circle3Curve(p.AxisOrigin + p.Axis.ToVector() * p.SupportAxialMinMm,
-                p.Axis, p.RootRadiusMm, seamRadial)), new(0d, 2d * double.Pi), "Support.BottomRim");
-        var topCircle = Edge(top, top,
-            CurveGeometry.FromCircle(new Circle3Curve(p.AxisOrigin + p.Axis.ToVector() * p.SupportAxialMaxMm,
-                p.Axis, p.RootRadiusMm, seamRadial)), new(0d, 2d * double.Pi), "Support.TopRim");
         var bottomUv = PcurveGeometry.Line(new(0d, 2d * double.Pi),
             new(0d, p.SupportAxialMinMm), new(2d * double.Pi, p.SupportAxialMinMm));
         var topUv = PcurveGeometry.Line(new(0d, 2d * double.Pi),
             new(0d, p.SupportAxialMaxMm), new(2d * double.Pi, p.SupportAxialMaxMm));
 
-        Face("RootCylinderSkin.Lower", cylinderId, Reversed(
+        // A composed stock body may expose two half-circle rim edges. Preserve
+        // that topology instead of inserting artificial annular shoulders.
+        Use[] RimUses(VertexId endpoint, double axial, string role, PcurveGeometry uv)
+        {
+            var circle = new Circle3Curve(p.AxisOrigin + p.Axis.ToVector() * axial, p.Axis, p.RootRadiusMm, seamRadial);
+            if (!splitStockRims) return [new Use(Edge(endpoint, endpoint, CurveGeometry.FromCircle(circle), new(0d, 2d * double.Pi), role), false, uv)];
+            var middle = Vertex(circle.Evaluate(double.Pi));
+            var first = Edge(endpoint, middle, CurveGeometry.FromCircle(circle), new(0d, double.Pi), role + ".Half[0]");
+            var second = Edge(middle, endpoint, CurveGeometry.FromCircle(circle), new(double.Pi, 2d * double.Pi), role + ".Half[1]");
+            return [new Use(first, false, PcurveGeometry.Line(new(0d, double.Pi), uv.Evaluate(0d), uv.Evaluate(double.Pi))),
+                new Use(second, false, PcurveGeometry.Line(new(double.Pi, 2d * double.Pi), uv.Evaluate(double.Pi), uv.Evaluate(2d * double.Pi)))];
+        }
+        var bottomRim = RimUses(bottom, p.SupportAxialMinMm, "Support.BottomRim", bottomUv);
+        var topRim = RimUses(top, p.SupportAxialMaxMm, "Support.TopRim", topUv);
+
+        Face("RootCylinderSkin.Lower", cylinderId, Reversed([
             new Use(lowerSeam, false, CylinderVertical(lowerSeam, 0d)),
             new Use(helical[0, 0], false, CylinderHelix(helical[0, 0], 0, false)),
             new Use(gaps[1], true, CylinderVertical(gaps[1], 2d * double.Pi)),
             new Use(startRoot, true, CylinderVertical(startRoot, 2d * double.Pi)),
             new Use(lowerSeam, true, CylinderVertical(lowerSeam, 2d * double.Pi)),
-            new Use(bottomCircle, true, bottomUv)));
+            .. Reversed(bottomRim)]));
 
         for (var k = 1; k < turns; k++)
             Face($"RootCylinderSkin.Gap[{k}]", cylinderId, Reversed(
@@ -212,13 +222,13 @@ public static class BrepHelicalRib
                 new Use(gaps[k + 1], true, CylinderVertical(gaps[k + 1], 2d * double.Pi)),
                 new Use(helical[k - 1, 3], true, CylinderHelix(helical[k - 1, 3], k - 1, true))));
 
-        Face("RootCylinderSkin.Upper", cylinderId, Reversed(
+        Face("RootCylinderSkin.Upper", cylinderId, Reversed([
             new Use(gaps[turns], false, CylinderVertical(gaps[turns], 0d)),
             new Use(endRoot, false, CylinderVertical(endRoot, 0d)),
             new Use(upperSeam, false, CylinderVertical(upperSeam, 0d)),
-            new Use(topCircle, false, topUv),
+            .. topRim,
             new Use(upperSeam, true, CylinderVertical(upperSeam, 2d * double.Pi)),
-            new Use(helical[turns - 1, 3], true, CylinderHelix(helical[turns - 1, 3], turns - 1, true))));
+            new Use(helical[turns - 1, 3], true, CylinderHelix(helical[turns - 1, 3], turns - 1, true))]));
 
         for (var k = 0; k < turns; k++)
         {
@@ -240,7 +250,8 @@ public static class BrepHelicalRib
             }
         }
 
-        var radialNormal = Direction3D.Create(p.Axis.ToVector().Cross(seamRadial.ToVector()));
+        var radialNormal = Direction3D.Create(p.Axis.ToVector().Cross(seamRadial.ToVector())
+            * (p.Intent == HelicalProfileIntent.RemoveGroove ? -1d : 1d));
         var startPlaneId = new SurfaceGeometryId(nextSurface++);
         geometry.AddSurface(startPlaneId, SurfaceGeometry.FromPlane(new PlaneSurface(points[section[0, 0]],
             Direction3D.Create(-radialNormal.ToVector()), seamRadial)));
@@ -257,11 +268,11 @@ public static class BrepHelicalRib
         geometry.AddSurface(bottomPlaneId, SurfaceGeometry.FromPlane(new PlaneSurface(
             p.AxisOrigin + p.Axis.ToVector() * p.SupportAxialMinMm,
             Direction3D.Create(-p.Axis.ToVector()), seamRadial)));
-        Face("Support.BottomCap", bottomPlaneId, new Use(bottomCircle, true));
+        Face("Support.BottomCap", bottomPlaneId, Reversed(bottomRim.Select(use => use with { Pcurve = null }).ToArray()));
         var topPlaneId = new SurfaceGeometryId(nextSurface++);
         geometry.AddSurface(topPlaneId, SurfaceGeometry.FromPlane(new PlaneSurface(
             p.AxisOrigin + p.Axis.ToVector() * p.SupportAxialMaxMm, p.Axis, seamRadial)));
-        Face("Support.TopCap", topPlaneId, new Use(topCircle, false));
+        Face("Support.TopCap", topPlaneId, topRim.Select(use => use with { Pcurve = null }).ToArray());
 
         var shell = builder.AddShell(faces);
         builder.AddBody([shell]);

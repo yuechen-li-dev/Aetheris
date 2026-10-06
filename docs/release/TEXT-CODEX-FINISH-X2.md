@@ -1,5 +1,7 @@
 # TEXT-CODEX-FINISH-X2
 
+The historical C# showcase entry point below is deprecated. [P4-01B1](P4-01B1-THREAD-SHOWCASE-REPAIR.md) authors the same CODEX engraving through standalone HexBolt fields and preserves the existing text geometry.
+
 ## Verdict: Accepted for the bounded CODEX maker mark
 
 The normalized X outline is valid. The former rejection came from an intersection split only 0.00000004535 mm from the cubic endpoint. The split parameter differed by 5.60898e-7, but its geometric separation was below the arrangement's existing 1e-7 mm tolerance. The section arrangement now deduplicates adjacent split parameters by both parameter and geometric distance. It retains the source cubic and removes only the tolerance-equivalent split; no glyph contour or font normalizer changed.

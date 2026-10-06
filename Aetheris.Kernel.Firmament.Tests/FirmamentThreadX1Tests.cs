@@ -112,7 +112,7 @@ public sealed class FirmamentThreadX1Tests
         var source = CylinderThread().Replace("StartOffset: 1mm", "", StringComparison.Ordinal);
         var result = FirmamentBuildAndExport.CompileSource(source);
         Assert.True(result.IsSuccess, string.Join(" | ", result.Diagnostics.Select(d => d.Message)));
-        Assert.Equal(1 + 5d * 1.25d / 12d, result.Value.Thread!.StartOffsetMm, 9);
+        Assert.Equal(1 + 7d * 1.25d / 16d, result.Value.Thread!.StartOffsetMm, 9);
     }
 
     [Theory]
@@ -169,9 +169,9 @@ public sealed class FirmamentThreadX1Tests
         Assert.Equal(47.5, report.LengthMm);
         Assert.Equal(0.75, report.StartOffsetMm, 9);
         Assert.Equal(0.95, report.AxialStartMm, 9);
-        Assert.Equal(176, report.Faces);
-        Assert.Equal(355, report.Edges);
-        Assert.Equal(184, report.Vertices);
+        Assert.Equal(174, report.Faces);
+        Assert.Equal(353, report.Edges);
+        Assert.Equal(182, report.Vertices);
         var standardPart = Assert.IsType<FirmamentStandardPartReport>(result.Value.StandardPart);
         Assert.Equal("HexBolt", standardPart.Family);
         Assert.Contains(standardPart.SemanticDescendants, item => item.StableId.EndsWith(".Head.TopFlat", StringComparison.Ordinal) && item.FaceId.HasValue);

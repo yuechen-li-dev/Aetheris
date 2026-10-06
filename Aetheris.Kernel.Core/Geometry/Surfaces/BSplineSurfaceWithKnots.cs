@@ -182,11 +182,17 @@ public sealed record BSplineSurfaceWithKnots
             return net[^1][^1];
         }
 
-        var rowPoints = new Point3D[net.Count];
-        for (var i = 0; i < net.Count; i++)
+        // Tensor-product locality: de Boor in U consumes only DegreeU + 1
+        // rows. Evaluating the whole net makes long helical supports needlessly
+        // expensive, especially in the browser interpreter.
+        if (double.Abs(uClamped - DomainEndU) <= 1e-12d)
+            return EvaluateCurve(net[^1], DegreeV, FullKnotsV, DomainStartV, DomainEndV, vClamped);
+        var span = FindSpan(net.Count, DegreeU, FullKnotsU, uClamped);
+        var rowPoints = new Point3D[DegreeU + 1];
+        for (var i = 0; i <= DegreeU; i++)
         {
             rowPoints[i] = EvaluateCurve(
-                net[i],
+                net[span - DegreeU + i],
                 DegreeV,
                 FullKnotsV,
                 DomainStartV,
@@ -194,13 +200,7 @@ public sealed record BSplineSurfaceWithKnots
                 vClamped);
         }
 
-        return EvaluateCurve(
-            rowPoints,
-            DegreeU,
-            FullKnotsU,
-            DomainStartU,
-            DomainEndU,
-            uClamped);
+        return BlendActiveSpan(rowPoints, span, DegreeU, FullKnotsU, uClamped);
     }
 
     private static IReadOnlyList<double> ExpandKnots(IReadOnlyList<int> multiplicities, IReadOnlyList<double> values)
@@ -259,6 +259,12 @@ public sealed record BSplineSurfaceWithKnots
             d[j] = controlPoints[span - degree + j];
         }
 
+        return BlendActiveSpan(d, span, degree, fullKnots, u);
+    }
+
+    private static Point3D BlendActiveSpan(Point3D[] d, int span, int degree,
+        IReadOnlyList<double> fullKnots, double u)
+    {
         for (var r = 1; r <= degree; r++)
         {
             for (var j = degree; j >= r; j--)

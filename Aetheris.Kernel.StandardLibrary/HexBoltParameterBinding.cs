@@ -19,9 +19,23 @@ public static class HexBoltParameterBinding
         var missing = RequiredFields.Where(field => !fields.TryGetValue(field, out var value) || string.IsNullOrWhiteSpace(value)).ToArray();
         if (missing.Length > 0) return Failure($"Missing required HexBolt parameter(s): {string.Join(", ", missing)}.", "MissingField");
 
-        var allowed = RequiredFields.Append("StableId").ToHashSet(StringComparer.Ordinal);
+        var allowed = RequiredFields.Concat(["StableId", "MakerMark", "MakerMarkHeight", "MakerMarkDepth"]).ToHashSet(StringComparer.Ordinal);
         var unknown = fields.Keys.Where(field => !allowed.Contains(field)).ToArray();
         if (unknown.Length > 0) return Failure($"Unknown HexBolt parameter(s): {string.Join(", ", unknown)}.", "UnknownField");
+        var engraving = new[] { "MakerMark", "MakerMarkHeight", "MakerMarkDepth" };
+        if (engraving.Any(fields.ContainsKey))
+        {
+            if (!engraving.All(fields.ContainsKey) || string.IsNullOrWhiteSpace(Text(fields["MakerMark"])))
+                return Failure("MakerMark requires content, MakerMarkHeight, and MakerMarkDepth.", "InvalidMakerMark");
+            foreach (var field in engraving.Skip(1))
+            {
+                var raw = fields[field].Trim();
+                if (!raw.EndsWith("mm", StringComparison.Ordinal) ||
+                    !double.TryParse(raw[..^2], NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ||
+                    !double.IsFinite(value) || value <= 0d)
+                    return Failure($"{field} must be a finite positive length in mm.", "InvalidMakerMark");
+            }
+        }
 
         var numericNames = RequiredFields.Where(field => field is not ("ThreadDesignation" or "PropertyClass")).ToArray();
         var values = new Dictionary<string, double>(StringComparer.Ordinal);

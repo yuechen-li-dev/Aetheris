@@ -780,7 +780,7 @@ public static class FirmamentBuildAndExport
     private static KernelResult<FirmamentStepExportResult>? TryExportV2StandardPart(FirmamentV2Document document)
     {
         if (document.Solids.Count != 1 || document.Solid.StandardPart is not { } authored) return null;
-        var definition = StandardLibraryReusableParts.TryCreate(authored.Family, authored.Parameters);
+        var definition = StandardLibraryReusableParts.TryCreate(authored.Family, authored.Parameters, deferMakerMarkToCompiler: true);
         if (!definition.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(definition.Diagnostics);
         if (definition.Value.HexBolt is not { } bolt)
         {
@@ -805,14 +805,14 @@ public static class FirmamentBuildAndExport
             bolt.DeterministicSignature,
             authored.Parameters,
             semantics);
-        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(
+        return ApplyHexBoltMakerMark(new FirmamentStepExportResult(
             step.Value,
             bolt.Semantics.BodyStableId,
             0,
             "standard-part",
             authored.Family,
             ConceptIr: document.ConceptIr,
-            StandardPart: report));
+            StandardPart: report) { RuntimeBody = bolt.Body });
     }
 
     private static KernelResult<FirmamentStepExportResult>? TryExportV2ThreadBody(FirmamentV2Document document)
@@ -850,15 +850,17 @@ public static class FirmamentBuildAndExport
         var rootRadius = feature.MajorDiameterMm / 2d - depth;
         if (rootRadius <= 0d)
             return Failure("profile-self-intersection", "The 60-degree profile depth consumes the support radius.");
-        var start = feature.StartOffsetMm ?? rootWidth / 2d + 1d;
+        var grooveWidth = feature.PitchMm - crestWidth;
+        var grooveBottomWidth = feature.PitchMm - rootWidth;
+        var start = feature.StartOffsetMm ?? grooveWidth / 2d + 1d;
         var end = start + feature.LengthMm;
-        if (start - rootWidth / 2d <= 1e-6d || end + rootWidth / 2d >= support.Height - 1e-6d)
+        if (start - grooveWidth / 2d <= 1e-6d || end + grooveWidth / 2d >= support.Height - 1e-6d)
             return Failure("support-bounds", "Thread footprint requires exposed cylindrical stock before and after its finite span.");
         var buildStart = Stopwatch.GetTimestamp();
         var rib = HelicalRibGeometry.Create(new HelicalRibParameters(Point3D.Origin,
             Direction3D.Create(new Vector3D(0d, 0d, 1d)), Direction3D.Create(new Vector3D(1d, 0d, 0d)),
-            0d, support.Height, rootRadius, feature.MajorDiameterMm / 2d, feature.PitchMm,
-            start, end, rootWidth, crestWidth));
+            0d, support.Height, feature.MajorDiameterMm / 2d, rootRadius, feature.PitchMm,
+            start, end, grooveWidth, grooveBottomWidth, Intent: HelicalProfileIntent.RemoveGroove));
         if (!rib.IsSuccess) return Failure("geometry-invalid", string.Join(" | ", rib.Diagnostics.Select(d => d.Message)));
         var built = BrepHelicalRib.Create(rib.Value);
         if (!built.IsSuccess) return Failure("brep-invalid", string.Join(" | ", built.Diagnostics.Select(d => d.Message)));
@@ -878,7 +880,8 @@ public static class FirmamentBuildAndExport
             {
                 var role when role.StartsWith("LeadingFlank", StringComparison.Ordinal) => SemanticTopologyRole.ThreadLeadingFlank,
                 var role when role.StartsWith("TrailingFlank", StringComparison.Ordinal) => SemanticTopologyRole.ThreadTrailingFlank,
-                var role when role.StartsWith("Crest", StringComparison.Ordinal) => SemanticTopologyRole.ThreadCrest,
+                var role when role.StartsWith("Crest", StringComparison.Ordinal) => SemanticTopologyRole.ThreadRootFace,
+                var role when role.StartsWith("RootCylinderSkin", StringComparison.Ordinal) => SemanticTopologyRole.ThreadCrest,
                 "StartCap" => SemanticTopologyRole.ThreadStartCap,
                 "EndCap" => SemanticTopologyRole.ThreadEndCap,
                 _ => SemanticTopologyRole.ThreadRootFace
@@ -897,7 +900,8 @@ public static class FirmamentBuildAndExport
             start, start, feature.Hand, "metric-60-degree-truncated", (int)double.Round(rib.Value.Turns), built.Value.Body.Topology.Faces.Count(),
             built.Value.Body.Topology.Edges.Count(), built.Value.Body.Topology.Vertices.Count(),
             built.Value.SeamSplits, constructionMs, exportMs,
-            Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))));
+            Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))))
+        { HeadSideLandMm = start - grooveWidth / 2d, TipSideLandMm = support.Height - end - grooveWidth / 2d };
         return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(
             step.Value, featureId, 0, "thread-external", "metric-60-degree", Thread: report)
         { RuntimeBody = built.Value.Body, RuntimeCorrespondence = correspondence });
@@ -912,7 +916,7 @@ public static class FirmamentBuildAndExport
                 $"thread-{code}: {message}", "FirmamentV2.Thread")]);
         if (authoredPart.Family != "HexBolt")
             return Failure("support-not-hexbolt", "face(Bolt.Shank) is admitted only for the HexBolt standard part.");
-        var definition = StandardLibraryReusableParts.TryCreate(authoredPart.Family, authoredPart.Parameters);
+        var definition = StandardLibraryReusableParts.TryCreate(authoredPart.Family, authoredPart.Parameters, deferMakerMarkToCompiler: true);
         if (!definition.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(definition.Diagnostics);
         var bolt = definition.Value.HexBolt!;
         if (!double.IsFinite(feature.MajorDiameterMm) || feature.MajorDiameterMm <= 0d ||
@@ -932,20 +936,22 @@ public static class FirmamentBuildAndExport
             return Failure("profile-self-intersection", "The 60-degree profile depth consumes the support radius.");
         var supportStart = bolt.Spec.UnderHeadRadius;
         var supportEnd = bolt.Dimensions.TipChamferStartX;
-        var start = supportStart + (feature.StartOffsetMm ?? rootWidth / 2d + 1d);
+        var grooveWidth = feature.PitchMm - crestWidth;
+        var grooveBottomWidth = feature.PitchMm - rootWidth;
+        var start = supportStart + (feature.StartOffsetMm ?? grooveWidth / 2d + 1d);
         var end = start + feature.LengthMm;
-        if (start - rootWidth / 2d <= supportStart + 1e-6d || end + rootWidth / 2d >= supportEnd - 1e-6d)
+        if (start - grooveWidth / 2d <= supportStart + 1e-6d || end + grooveWidth / 2d >= supportEnd - 1e-6d)
             return Failure("support-bounds", "Thread footprint requires stock margins inside the HexBolt shank, before the tip chamfer.");
         var buildStart = Stopwatch.GetTimestamp();
         var rib = HelicalRibGeometry.Create(new HelicalRibParameters(Point3D.Origin,
             Direction3D.Create(new Vector3D(1d, 0d, 0d)), Direction3D.Create(new Vector3D(0d, 1d, 0d)),
-            supportStart, supportEnd, rootRadius, feature.MajorDiameterMm / 2d, feature.PitchMm,
-            start, end, rootWidth, crestWidth));
+            supportStart, supportEnd, feature.MajorDiameterMm / 2d, rootRadius, feature.PitchMm,
+            start, end, grooveWidth, grooveBottomWidth, Intent: HelicalProfileIntent.RemoveGroove));
         if (!rib.IsSuccess) return Failure("geometry-invalid", string.Join(" | ", rib.Diagnostics.Select(d => d.Message)));
-        var built = BrepHelicalRib.Create(rib.Value);
+        var built = BrepHelicalRib.Create(rib.Value, splitStockRims: true);
         if (!built.IsSuccess) return Failure("brep-invalid", string.Join(" | ", built.Diagnostics.Select(d => d.Message)));
-        HexBoltThreadStitch.Result stitched;
-        try { stitched = HexBoltThreadStitch.Create(bolt, built.Value); }
+        HexBoltThreadComposition.Result stitched;
+        try { stitched = HexBoltThreadComposition.Create(bolt, built.Value); }
         catch (InvalidOperationException ex) { return Failure("hexbolt-stitch-invalid", ex.Message); }
         var constructionMs = Stopwatch.GetElapsedTime(buildStart).TotalMilliseconds;
         var featureId = $"{document.Solid.Name}.{feature.Name}";
@@ -965,7 +971,8 @@ public static class FirmamentBuildAndExport
                 {
                     var role when role.StartsWith("LeadingFlank", StringComparison.Ordinal) => SemanticTopologyRole.ThreadLeadingFlank,
                     var role when role.StartsWith("TrailingFlank", StringComparison.Ordinal) => SemanticTopologyRole.ThreadTrailingFlank,
-                    var role when role.StartsWith("Crest", StringComparison.Ordinal) => SemanticTopologyRole.ThreadCrest,
+                    var role when role.StartsWith("Crest", StringComparison.Ordinal) => SemanticTopologyRole.ThreadRootFace,
+                    var role when role.StartsWith("RootCylinderSkin", StringComparison.Ordinal) => SemanticTopologyRole.ThreadCrest,
                     "StartCap" => SemanticTopologyRole.ThreadStartCap,
                     "EndCap" => SemanticTopologyRole.ThreadEndCap,
                     _ => SemanticTopologyRole.ThreadRootFace
@@ -977,7 +984,7 @@ public static class FirmamentBuildAndExport
                     featureId, Edge: stitched.ThreadEdges[pair.Key], ParentStableId: featureId,
                     Addressability: SemanticTopologyAddressability.DerivedStable))).ToArray();
         var correspondence = new SemanticTopologyCorrespondence(featureId, descendants,
-            ["Thread", "HelicalRib", "HexBoltThreadStitch"],
+            ["Thread", "HelicalRib", "HexBoltThreadComposition"],
             new Dictionary<string, FirmamentV2SourceSpan> { [featureId] = feature.SourceSpan });
         var boltSemantics = bolt.Semantics.Descendants
             .Where(item => !item.StableId.Contains(".ThreadRegion", StringComparison.Ordinal)
@@ -993,11 +1000,59 @@ public static class FirmamentBuildAndExport
             start - supportStart, start, feature.Hand, "metric-60-degree-truncated", (int)Math.Round(rib.Value.Turns),
             stitched.Body.Topology.Faces.Count(), stitched.Body.Topology.Edges.Count(),
             stitched.Body.Topology.Vertices.Count(), built.Value.SeamSplits, constructionMs, exportMs,
-            Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))));
-        return KernelResult<FirmamentStepExportResult>.Success(new FirmamentStepExportResult(
+            Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(step.Value))))
+        { HeadSideLandMm = start - supportStart - grooveWidth / 2d, TipSideLandMm = supportEnd - end - grooveWidth / 2d };
+        return ApplyHexBoltMakerMark(new FirmamentStepExportResult(
             step.Value, featureId, 0, "thread-external-hexbolt", "metric-60-degree",
             StandardPart: boltReport, Thread: report)
         { RuntimeBody = stitched.Body, RuntimeCorrespondence = correspondence });
+    }
+
+    private static KernelResult<FirmamentStepExportResult> ApplyHexBoltMakerMark(FirmamentStepExportResult result)
+    {
+        var part = result.StandardPart!;
+        if (!part.Parameters.TryGetValue("MakerMark", out var content))
+            return KernelResult<FirmamentStepExportResult>.Success(result);
+        try
+        {
+            var top = part.SemanticDescendants.Single(d => d.StableId.EndsWith(".Head.TopFlat", StringComparison.Ordinal)).FaceId!.Value;
+            var height = double.Parse(part.Parameters["MakerMarkHeight"].Trim()[..^2], System.Globalization.CultureInfo.InvariantCulture);
+            var depth = double.Parse(part.Parameters["MakerMarkDepth"].Trim()[..^2], System.Globalization.CultureInfo.InvariantCulture);
+            var mark = PlanarCapEngraving.Engrave(result.RuntimeBody!, new FaceId(top),
+                HexBoltParameterBinding.Text(content), height, depth);
+            var composition = mark.Composition!;
+            var semantics = part.SemanticDescendants.Select(d => d.FaceId is { } id
+                ? d with { FaceId = id == top ? composition.ReplacementCap.Value : composition.HostFaces[new FaceId(id)].Value }
+                : d).ToArray();
+            var correspondence = result.RuntimeCorrespondence;
+            if (correspondence is not null)
+                correspondence = correspondence with
+                {
+                    Descendants = correspondence.Descendants.Select(d => d with
+                    {
+                        Face = d.Face is { } face ? composition.HostFaces[face] : null,
+                        Edge = d.Edge is { } edge ? composition.HostEdges[edge] : null
+                    }).ToArray()
+                };
+            var thread = result.Thread is { } t ? t with
+            {
+                Faces = mark.Body.Topology.Faces.Count(), Edges = mark.Body.Topology.Edges.Count(),
+                Vertices = mark.Body.Topology.Vertices.Count(),
+                StepSha256 = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(mark.StepText)))
+            } : null;
+            return KernelResult<FirmamentStepExportResult>.Success(result with
+            {
+                RuntimeBody = mark.Body, RuntimeCorrespondence = correspondence, StepText = mark.StepText,
+                Thread = thread, StandardPart = part with { SemanticDescendants = semantics },
+                MakerMark = new(HexBoltParameterBinding.Text(content), height, depth, mark.Text.CounterCount)
+            });
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        {
+            return KernelResult<FirmamentStepExportResult>.Failure([new KernelDiagnostic(
+                KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error,
+                "hexbolt-maker-mark-invalid: " + ex.Message, "FirmamentV2.StandardPart")]);
+        }
     }
 
     private static KernelResult<FirmamentStepExportResult>? TryExportV2ExactCoaxialPart(FirmamentV2Document document)

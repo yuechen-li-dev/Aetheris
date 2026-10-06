@@ -42,14 +42,22 @@ public sealed record FirmamentStepExportResult(
     [JsonIgnore] public BrepBody? RuntimeBody { get; init; }
     [JsonIgnore] public SemanticTopologyCorrespondence? RuntimeCorrespondence { get; init; }
     public FirmamentCirRetention? Cir { get; init; }
+    public FirmamentMakerMarkReport? MakerMark { get; init; }
 }
+
+public sealed record FirmamentMakerMarkReport(string Content, double HeightMm, double DepthMm, int CounterCount);
 
 public sealed record FirmamentThreadReport(
     string FeatureId, string Support, double MajorDiameterMm, double RootDiameterMm,
     double PitchMm, double LeadMm, double LengthMm, double StartOffsetMm, double AxialStartMm,
     string Hand, string ProfileFamily, int Turns,
     int Faces, int Edges, int Vertices, int SeamSplits,
-    double ConstructionMilliseconds, double StepExportMilliseconds, string StepSha256);
+    double ConstructionMilliseconds, double StepExportMilliseconds, string StepSha256)
+{
+    public string Construction { get; init; } = "stock-minus-groove";
+    public double HeadSideLandMm { get; init; }
+    public double TipSideLandMm { get; init; }
+}
 
 public sealed record FirmamentPerforationReport(
     string FeatureId, string Support, string Layout, double Diameter, double Pitch,

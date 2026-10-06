@@ -10,18 +10,21 @@ using Aetheris.Kernel.StandardLibrary;
 namespace Aetheris.Kernel.Firmament.Materializer;
 
 /// <summary>
-/// Replaces exactly the two HexBolt shank skin faces with a helical root-stock skin.
-/// The original head and tip, the rib skin, and two planar annular shoulders share
-/// one shell. This bounded construction does not perform a Boolean union.
+/// Composes the ordinary HexBolt head and tip with its bounded stock-minus-groove
+/// shank. The major-radius rims are shared directly: no replacement root-stock
+/// rod, annular shoulders, or overlapping volumes are introduced.
 /// </summary>
-internal static class HexBoltThreadStitch
+internal static class HexBoltThreadComposition
 {
     internal sealed record Result(BrepBody Body, IReadOnlyDictionary<FaceId, FaceId> BoltFaces,
         IReadOnlyDictionary<FaceId, FaceId> ThreadFaces,
         IReadOnlyDictionary<EdgeId, EdgeId> ThreadEdges);
+    internal sealed record PatchResult(BrepBody Body, IReadOnlyDictionary<FaceId, FaceId> HostFaces,
+        IReadOnlyDictionary<EdgeId, EdgeId> HostEdges, IReadOnlyDictionary<FaceId, FaceId> PatchFaces,
+        FaceId ReplacementCap);
 
     /// <summary>Replaces only the planar head cap with section-stack pocket faces.</summary>
-    internal static BrepBody ImprintTop(BrepBody threaded, FaceId topCap,
+    internal static PatchResult ImprintTop(BrepBody threaded, FaceId topCap,
         BrepBody patch, IReadOnlyCollection<FaceId> patchFaces)
     {
         var retained = threaded.Topology.Faces.Where(face => face.Id != topCap).Select(face => face.Id).ToArray();
@@ -34,7 +37,7 @@ internal static class HexBoltThreadStitch
             throw new InvalidOperationException($"Maker mark rim mismatch: patch={patchRim.Length}, head={hostRim.Length}.");
         var shared = patchRim.ToDictionary(edge => edge,
             edge => copied.Edges[hostRim.Single(host => SameEdge(threaded, host, patch, edge))]);
-        shell.CopyFaces(patch, patchFaces, shared);
+        var patchCopy = shell.CopyFaces(patch, patchFaces, shared);
         var body = shell.Complete();
         var nonManifold = body.Topology.Coedges.GroupBy(x => x.EdgeId).Where(x => x.Count() != 2).ToArray();
         if (nonManifold.Length != 0)
@@ -42,7 +45,9 @@ internal static class HexBoltThreadStitch
         var mass = BrepMassProperties.Evaluate(body);
         if (!mass.IsEnclosed || !mass.IsOrientationConsistent)
             throw new InvalidOperationException("Maker mark shell is not enclosed and oriented: " + string.Join(" | ", mass.Diagnostics));
-        return body;
+        var cap = patchCopy.Faces.Values.Single(face => shared.Values.All(edge =>
+            EdgesOfFaces(body, [face]).Contains(edge)));
+        return new(body, copied.Faces, copied.Edges, patchCopy.Faces, cap);
     }
 
     private static bool SameEdge(BrepBody firstBody, EdgeId firstId, BrepBody secondBody, EdgeId secondId)
@@ -54,56 +59,59 @@ internal static class HexBoltThreadStitch
         secondBody.TryGetVertexPoint(second.StartVertexId, out var c);
         secondBody.TryGetVertexPoint(second.EndVertexId, out var d);
         static bool Near(Point3D x, Point3D y) => (x - y).Length < 1e-5d;
-        return (Near(a, c) && Near(b, d)) || (Near(a, d) && Near(b, c));
+        if (!((Near(a, c) && Near(b, d)) || (Near(a, d) && Near(b, c)))) return false;
+        var firstBinding = firstBody.Bindings.GetEdgeBinding(firstId);
+        var secondBinding = secondBody.Bindings.GetEdgeBinding(secondId);
+        var firstTrim = firstBinding.TrimInterval!.Value;
+        var secondTrim = secondBinding.TrimInterval!.Value;
+        var firstCircle = firstBody.Geometry.GetCurve(firstBinding.CurveGeometryId).Circle3;
+        var secondCircle = secondBody.Geometry.GetCurve(secondBinding.CurveGeometryId).Circle3;
+        return firstCircle is { } circleA && secondCircle is { } circleB &&
+            Near(circleA.Evaluate((firstTrim.Start + firstTrim.End) / 2d),
+                circleB.Evaluate((secondTrim.Start + secondTrim.End) / 2d));
     }
 
     internal static Result Create(HexBoltDefinition bolt, BrepHelicalRibResult rib)
     {
+        if (rib.Authority.Parameters.Intent != HelicalProfileIntent.RemoveGroove ||
+            Math.Abs(rib.Authority.Parameters.RootRadiusMm - bolt.Spec.NominalDiameter / 2d) > 1e-7d)
+            throw new InvalidOperationException("HexBolt threads require a groove cut into major-diameter stock.");
         var shank = bolt.Semantics.Descendants
             .Where(item => item.StableId.StartsWith(bolt.Semantics.BodyStableId + ".Shank.Face[", StringComparison.Ordinal)
                            && item.Face.HasValue)
             .Select(item => item.Face!.Value).ToHashSet();
-        if (shank.Count != 2) throw new InvalidOperationException("HexBolt thread stitch requires exactly two cylindrical shank faces.");
+        if (shank.Count != 2) throw new InvalidOperationException("HexBolt thread composition requires exactly two cylindrical shank faces.");
         var retainedBolt = bolt.Body.Topology.Faces.Where(face => !shank.Contains(face.Id)).Select(face => face.Id).ToArray();
         var retainedRib = rib.FaceRoles.Where(item => item.Value is not ("Support.BottomCap" or "Support.TopCap"))
             .Select(item => item.Key).ToArray();
         var shell = new ShellCopy();
         var boltCopy = shell.CopyFaces(bolt.Body, retainedBolt);
-        var ribCopy = shell.CopyFaces(rib.Body, retainedRib);
-
         var shankEdges = EdgesOfFaces(bolt.Body, shank).ToHashSet();
         var retainedEdges = EdgesOfFaces(bolt.Body, retainedBolt).ToHashSet();
         var sharedRings = shankEdges.Intersect(retainedEdges).ToArray();
         if (sharedRings.Length != 4) throw new InvalidOperationException("HexBolt shank must meet head and tip at two half-circle rings.");
-        var startX = bolt.Spec.UnderHeadRadius;
-        var endX = bolt.Dimensions.TipChamferStartX;
-        var lowerArcs = sharedRings.Where(edge => AtX(bolt.Body, edge, startX)).Select(edge => boltCopy.Edges[edge]).ToArray();
-        var upperArcs = sharedRings.Where(edge => AtX(bolt.Body, edge, endX)).Select(edge => boltCopy.Edges[edge]).ToArray();
-        if (lowerArcs.Length != 2 || upperArcs.Length != 2)
-            throw new InvalidOperationException("HexBolt shank boundary rings do not match the planned axial interval.");
-        var lowerRoot = ribCopy.Edges[AssertRole(rib, "Support.BottomRim")];
-        var upperRoot = ribCopy.Edges[AssertRole(rib, "Support.TopRim")];
-        shell.Annulus(startX, lowerArcs, lowerRoot, outwardPositive: true);
-        shell.Annulus(endX, upperArcs, upperRoot, outwardPositive: false);
+        var rims = rib.EdgeRoles.Where(pair => pair.Value.StartsWith("Support.BottomRim", StringComparison.Ordinal)
+            || pair.Value.StartsWith("Support.TopRim", StringComparison.Ordinal)).Select(pair => pair.Key).ToArray();
+        if (rims.Length != 4) throw new InvalidOperationException("Grooved stock requires split major-radius rims.");
+        var shared = rims.ToDictionary(edge => edge, edge => boltCopy.Edges[
+            sharedRings.Single(host => SameEdge(bolt.Body, host, rib.Body, edge))]);
+        var ribCopy = shell.CopyFaces(rib.Body, retainedRib, shared);
         var body = shell.Complete();
         var bindings = BrepBindingValidator.Validate(body, true);
         if (!bindings.IsSuccess)
-            throw new InvalidOperationException("HexBolt thread stitch failed geometry bindings: " + string.Join(" | ",
+            throw new InvalidOperationException("HexBolt thread composition failed geometry bindings: " + string.Join(" | ",
                 bindings.Diagnostics.Take(8).Select(item => item.Message)));
         var preflight = BrepExportPreflight.Validate(body);
         if (!preflight.IsValid)
-            throw new InvalidOperationException("HexBolt thread stitch failed BRep preflight: " + string.Join(" | ",
+            throw new InvalidOperationException("HexBolt thread composition failed BRep preflight: " + string.Join(" | ",
                 preflight.Diagnostics.Where(item => item.Severity == BrepExportPreflightSeverity.Error)
                     .Take(8).Select(item => item.Code + ": " + item.Message)));
         var mass = BrepMassProperties.Evaluate(body);
         if (!mass.IsEnclosed || !mass.IsOrientationConsistent)
-            throw new InvalidOperationException("HexBolt thread stitch did not produce an enclosed, consistently oriented body: "
+            throw new InvalidOperationException("HexBolt thread composition did not produce an enclosed, consistently oriented body: "
                 + string.Join(" | ", mass.Diagnostics));
         return new(body, boltCopy.Faces, ribCopy.Faces, ribCopy.Edges);
     }
-
-    private static EdgeId AssertRole(BrepHelicalRibResult rib, string role) =>
-        rib.EdgeRoles.Single(item => item.Value == role).Key;
 
     private static IEnumerable<EdgeId> EdgesOfFaces(BrepBody body, IEnumerable<FaceId> faces)
     {
@@ -111,14 +119,6 @@ internal static class HexBoltThreadStitch
             foreach (var loopId in body.Topology.GetFace(faceId).LoopIds)
                 foreach (var coedgeId in body.Topology.GetLoop(loopId).CoedgeIds)
                     yield return body.Topology.GetCoedge(coedgeId).EdgeId;
-    }
-
-    private static bool AtX(BrepBody body, EdgeId edgeId, double x)
-    {
-        var edge = body.Topology.GetEdge(edgeId);
-        return body.TryGetVertexPoint(edge.StartVertexId, out var a)
-            && body.TryGetVertexPoint(edge.EndVertexId, out var b)
-            && Math.Abs(a.X - x) < 1e-7d && Math.Abs(b.X - x) < 1e-7d;
     }
 
     private sealed class ShellCopy
@@ -143,10 +143,23 @@ internal static class HexBoltThreadStitch
             var surfaceMap = new Dictionary<SurfaceGeometryId, SurfaceGeometryId>();
             var faceMap = new Dictionary<FaceId, FaceId>();
 
+            // Seed shared endpoints before copying any other edge. Equal points
+            // must be the same topological vertex at a composed boundary.
+            if (sharedEdges is not null)
+                foreach (var (oldId, newId) in sharedEdges)
+                {
+                    var oldEdge = source.Topology.GetEdge(oldId);
+                    var newEdge = topology.Model.GetEdge(newId);
+                    source.TryGetVertexPoint(oldEdge.StartVertexId, out var start);
+                    var reverse = (start - points[newEdge.StartVertexId]).Length > 1e-5d;
+                    vertexMap[oldEdge.StartVertexId] = reverse ? newEdge.EndVertexId : newEdge.StartVertexId;
+                    vertexMap[oldEdge.EndVertexId] = reverse ? newEdge.StartVertexId : newEdge.EndVertexId;
+                }
+
             VertexId Vertex(VertexId old)
             {
                 if (vertexMap.TryGetValue(old, out var mapped)) return mapped;
-                if (!source.TryGetVertexPoint(old, out var point)) throw new InvalidOperationException("Unbound stitch vertex.");
+                if (!source.TryGetVertexPoint(old, out var point)) throw new InvalidOperationException("Unbound composition vertex.");
                 mapped = topology.AddVertex();
                 vertexMap.Add(old, mapped);
                 points.Add(mapped, point);
@@ -197,7 +210,7 @@ internal static class HexBoltThreadStitch
                 foreach (var oldLoop in face.LoopIds)
                 {
                     var loop = source.Topology.GetLoop(oldLoop);
-                    if (loop.Kind != LoopKind.Edge) throw new InvalidOperationException("HexBolt thread stitch requires edge loops.");
+                    if (loop.Kind != LoopKind.Edge) throw new InvalidOperationException("HexBolt thread composition requires edge loops.");
                     var loopId = topology.AllocateLoopId();
                     var coedgeIds = loop.CoedgeIds.Select(_ => topology.AllocateCoedgeId()).ToArray();
                     for (var i = 0; i < coedgeIds.Length; i++)
@@ -223,72 +236,27 @@ internal static class HexBoltThreadStitch
                         bindings.AddFaceBoundaryRoleBinding(role with { FaceId = newFace, LoopId = loop.Value });
                 foreach (var oldCoedge in oldToNewCoedges)
                     if (source.Bindings.TryGetPcurveBinding(oldCoedge.Key, out var pcurve))
+                    {
+                        var oldEdge = source.Topology.GetCoedge(oldCoedge.Key).EdgeId;
+                        if (sharedEdges is not null && sharedEdges.TryGetValue(oldEdge, out var newEdge))
+                        {
+                            if (pcurve.Pcurve.Kind != PcurveGeometryKind.Line)
+                                throw new InvalidOperationException("Shared rim requires a linear pcurve.");
+                            var uv = pcurve.Pcurve;
+                            var reverse = reversedShared.Contains(oldEdge);
+                            var trim = bindings.GetEdgeBinding(newEdge).TrimInterval!.Value;
+                            pcurve = pcurve with { Pcurve = PcurveGeometry.Line(trim,
+                                uv.Evaluate(reverse ? uv.Domain.End : uv.Domain.Start),
+                                uv.Evaluate(reverse ? uv.Domain.Start : uv.Domain.End)) };
+                        }
                         bindings.AddPcurveBinding(pcurve with { CoedgeId = oldCoedge.Value, FaceId = newFace,
                             SurfaceGeometryId = Surface(pcurve.SurfaceGeometryId) });
+                    }
                 foreach (var oldLoop in face.LoopIds)
                     if (source.Bindings.TryGetVertexLoopParameterBinding(oldLoop, out var parameter))
-                        throw new InvalidOperationException("HexBolt thread stitch does not admit vertex-loop faces.");
+                        throw new InvalidOperationException("HexBolt thread composition does not admit vertex-loop faces.");
             }
             return new(faceMap, edgeMap);
-        }
-
-        internal void Annulus(double x, IReadOnlyList<EdgeId> outerArcs, EdgeId innerCircle, bool outwardPositive)
-        {
-            var normal = Direction3D.Create(new Vector3D(outwardPositive ? 1d : -1d, 0d, 0d));
-            var radial = Direction3D.Create(new Vector3D(0d, 1d, 0d));
-            var surfaceId = new SurfaceGeometryId(nextSurface++);
-            geometry.AddSurface(surfaceId, SurfaceGeometry.FromPlane(new PlaneSurface(new Point3D(x, 0d, 0d), normal, radial)));
-            var outer = OrderOppositeUses(outerArcs);
-            var inner = OrderOppositeUses([innerCircle]);
-            var outerLoop = Loop(outer);
-            var innerLoop = Loop(inner);
-            var face = topology.AddFace([outerLoop, innerLoop]);
-            faces.Add(face);
-            bindings.AddFaceBinding(new FaceGeometryBinding(face, surfaceId));
-            bindings.AddFaceBoundaryRoleBinding(new(face, outerLoop, FaceBoundaryRole.Outer));
-            bindings.AddFaceBoundaryRoleBinding(new(face, innerLoop, FaceBoundaryRole.Inner));
-        }
-
-        private (EdgeId Edge, bool Reverse)[] OrderOppositeUses(IReadOnlyList<EdgeId> edges)
-        {
-            var uses = edges.Select(edge => (Edge: edge, Reverse: !ExistingUse(edge))).ToArray();
-            if (uses.Length == 1) return uses;
-            var first = uses[0];
-            var second = uses[1];
-            if (End(first) != Start(second)) (first, second) = (second, first);
-            if (End(first) != Start(second) || End(second) != Start(first))
-                throw new InvalidOperationException("HexBolt stitch boundary arcs do not form a closed ring.");
-            return [first, second];
-        }
-
-        private bool ExistingUse(EdgeId edge)
-        {
-            var uses = topology.Model.Coedges.Where(item => item.EdgeId == edge).ToArray();
-            if (uses.Length != 1) throw new InvalidOperationException("Stitch boundary must have one retained coedge use.");
-            return uses[0].IsReversed;
-        }
-
-        private VertexId Start((EdgeId Edge, bool Reverse) use)
-        {
-            var edge = topology.Model.GetEdge(use.Edge);
-            return use.Reverse ? edge.EndVertexId : edge.StartVertexId;
-        }
-
-        private VertexId End((EdgeId Edge, bool Reverse) use)
-        {
-            var edge = topology.Model.GetEdge(use.Edge);
-            return use.Reverse ? edge.StartVertexId : edge.EndVertexId;
-        }
-
-        private LoopId Loop(IReadOnlyList<(EdgeId Edge, bool Reverse)> uses)
-        {
-            var loopId = topology.AllocateLoopId();
-            var ids = uses.Select(_ => topology.AllocateCoedgeId()).ToArray();
-            for (var i = 0; i < ids.Length; i++)
-                topology.AddCoedge(new Coedge(ids[i], uses[i].Edge, loopId,
-                    ids[(i + 1) % ids.Length], ids[(i + ids.Length - 1) % ids.Length], uses[i].Reverse));
-            topology.AddLoop(new Loop(loopId, ids));
-            return loopId;
         }
 
         internal BrepBody Complete()

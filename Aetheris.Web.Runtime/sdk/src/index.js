@@ -101,7 +101,7 @@ export class Aetheris {
   async capabilities() { return (await this.info()).capabilities; }
   async compile(source, options = {}) {
     throwIfAborted(options.signal);
-    const result = await this.transport.request({ operation: 'compile', source, sourceName: options.sourceName, sourceRevision: options.sourceRevision, performance: options.performance });
+    const result = await this.transport.request({ operation: 'compile', source, sourceName: options.sourceName, sourceRevision: options.sourceRevision, performance: options.performance, projectDocuments: options.projectDocuments });
     this.diagnostics?.(result.diagnostics);
     return { model: result.success ? new ModelSession(this.transport, result.model) : null, diagnostics: result.diagnostics };
   }
@@ -143,7 +143,7 @@ export class ModelSession {
     return this.serial(async () => { throwIfAborted(options.signal); await this.transport.request({ operation: 'setProperty', sessionId: this.id, propertyId, value }); return this.rebuild(options); });
   }
   async setSource(source, options = {}) {
-    return this.serial(async () => { throwIfAborted(options.signal); await this.transport.request({ operation: 'setSource', sessionId: this.id, source, sourceName: options.sourceName, sourceRevision: options.sourceRevision }); return this.rebuild(options); });
+    return this.serial(async () => { throwIfAborted(options.signal); await this.transport.request({ operation: 'setSource', sessionId: this.id, source, sourceName: options.sourceName, sourceRevision: options.sourceRevision, projectDocuments: options.projectDocuments }); return this.rebuild(options); });
   }
   async describeConstruct(semanticId, options = {}) {
     throwIfAborted(options.signal);

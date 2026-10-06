@@ -126,7 +126,7 @@
 }
 
 .top-bar__wordmark::before {
-	content: "P2 / SYSTEM 02";
+	content: "ENGINEERING WORKSPACE";
 	margin-bottom: 4px;
 	color: var(--shell-text-secondary);
 	font-size: 0.58rem;
@@ -548,7 +548,7 @@ strong {
 	box-shadow: 0 2px 8px rgb(0 0 0 / 35%);
 	font-family: Inter, ui-sans-serif, system-ui, sans-serif;
 	font-size: 13px;
-	line-height: 1.1;
+	line-height: 1.25;
 	white-space: nowrap;
 	cursor: pointer;
 	text-align: left;
@@ -695,3 +695,34 @@ strong {
 .product-gallery__form {
 	grid-template-columns: repeat(2, minmax(0, 1fr));
 }
+.telos-empty {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 12px;
+	color: #cbc7ba;
+	text-align: center;
+	padding: 24px;
+	pointer-events: none;
+	font: 14px/1.5 system-ui, sans-serif;
+}
+.telos-empty strong { font-size: 20px; font-weight: 500; }
+.telos-empty small { opacity: .7; margin-top: 8px; }
+.telos-status {
+	position: absolute;
+	left: 16px;
+	bottom: 16px;
+	max-width: calc(100% - 32px);
+	padding: 10px 14px;
+	border: 1px solid #76766f;
+	border-radius: 6px;
+	color: #fff9e8;
+	background: #1b1d1bf0;
+	font: 13px/1.5 system-ui, sans-serif;
+	z-index: 100;
+}
+.telos-error { border-color: #b56c56; }
+.telos-status button { display: block; margin-top: 8px; padding: 5px 10px; cursor: pointer; }

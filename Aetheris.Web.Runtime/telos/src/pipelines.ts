@@ -11,6 +11,7 @@ export function telosPipeline(
   kind: "mesh" | "line" | "overlay-mesh" | "overlay-line",
   artifact?: TelosField["artifact"],
   depthMode?: TelosDepthMode,
+  transparent = false,
 ) {
   const format = owner.format,
     resources = owner.resources;
@@ -30,13 +31,15 @@ export function telosPipeline(
     resolvedDepth,
     format,
     "depth32float",
-    1,
+    owner.sampleCount,
+    transparent,
     artifact?.vertexEntryPoint ?? "vertex",
     artifact?.fragmentEntryPoint ?? "fragment",
   ]);
   const shader = resources.module(
     id,
-    artifact?.wgsl ?? (kind.includes("mesh") ? owner.shaders.mesh : owner.shaders.line),
+    artifact?.wgsl ??
+      (kind.includes("mesh") ? owner.shaders.mesh : owner.shaders.line),
   );
   return resources.pipeline(key, () =>
     owner.device.createRenderPipeline({
@@ -48,7 +51,11 @@ export function telosPipeline(
         buffers: artifact
           ? [
               {
-                arrayStride: 72,
+                arrayStride: artifact.capabilities.includes(
+                  "telos-field-rays/2",
+                )
+                  ? 76
+                  : 72,
                 attributes: [
                   ...[0, 1, 2].map((i) => ({
                     shaderLocation: i,
@@ -58,6 +65,15 @@ export function telosPipeline(
                   { shaderLocation: 3, offset: 36, format: "float32x4" },
                   { shaderLocation: 4, offset: 52, format: "float32x4" },
                   { shaderLocation: 5, offset: 68, format: "float32" },
+                  ...(artifact.capabilities.includes("telos-field-rays/2")
+                    ? [
+                        {
+                          shaderLocation: 6,
+                          offset: 72,
+                          format: "float32" as const,
+                        },
+                      ]
+                    : []),
                 ],
               },
             ]
@@ -104,10 +120,11 @@ export function telosPipeline(
         ],
       },
       primitive: { topology: "triangle-list", cullMode: "none" },
+      multisample: { count: owner.sampleCount },
       depthStencil: {
         format: "depth32float",
         depthWriteEnabled:
-          !kind.includes("line") && !kind.startsWith("overlay"),
+          !transparent && !kind.includes("line") && !kind.startsWith("overlay"),
         depthBias:
           resolvedDepth === "depth-biased" && kind.includes("mesh") ? -1 : 0,
         depthCompare:

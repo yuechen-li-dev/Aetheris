@@ -608,7 +608,11 @@ public static class FirmamentBuildAndExport
                     "primitive",
                     v2Parse.Document.Solid.RecordType.ToLowerInvariant(),
                     DatumInspection: v2Parse.Document.Pmi?.Where(p => p.Kind == FirmamentV2PmiKind.DatumPlane).Select(p => new FirmamentPmiInspectionDatum(p.Name, "planar", p.Target)).ToArray() ?? [],
-                    DimensionInspection: []);
+                    DimensionInspection: [])
+            {
+                RuntimeBody = executedPrimitive.Body,
+                Cir = FirmamentCirRetention.FromRoot(execution.Value.NativeGeometryState.CirMirror.RuntimeRoot, step.Value)
+            };
             if (executedPrimitive.Kind == FirmamentLoweredPrimitiveKind.Box
                 && executedPrimitive.BoxConstructionTopology is { } boxTopology
                 && v2Parse.Document.Solids.Count == 1

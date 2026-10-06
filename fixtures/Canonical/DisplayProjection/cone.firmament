@@ -1,0 +1,4 @@
+Model RetainedCone {
+    Units: mm
+    Cone Base { BottomRadius: 12mm; TopRadius: 0mm; Height: 30mm }
+}

@@ -951,6 +951,10 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         Assert.Equal(18, envelope.Data.Occurrences.Count(occurrence => occurrence.Kind == "Part"));
         Assert.All(envelope.Data.Occurrences.Where(occurrence => occurrence.Kind == "Part"), occurrence => Assert.Equal("LegacyExplicit", occurrence.PlacementAuthority));
         Assert.True(envelope.Data.Bounds.Maximum[0] > envelope.Data.Bounds.Minimum[0]);
+        Assert.NotNull(envelope.Data.Display);
+        Assert.Equal(5, envelope.Data.Display.Definitions.Count);
+        Assert.All(envelope.Data.Display.Definitions, definition => Assert.Equal("LegacyTessellator", definition.MeshPipeline));
+        Assert.Contains(envelope.Data.Display.Definitions, definition => definition.Diagnostics.Any(d => d.Code == "display-external-face-unmeshed"));
     }
 
     [Fact]
@@ -967,6 +971,8 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         Assert.Equal(18, envelope.Data.Occurrences.Count(occurrence => occurrence.Kind == "Part"));
         Assert.Equal(10, envelope.Data.Occurrences.Count(occurrence => occurrence.Kind == "Assembly"));
         Assert.Equal(27, envelope.Data.Occurrences.Count(occurrence => occurrence.PlacementAuthority == "ImportedOccurrence"));
+        Assert.NotNull(envelope.Data.Display);
+        Assert.Equal(28, envelope.Data.Display.Occurrences.Count);
         Assert.Empty(envelope.Data.Mates);
         Assert.Equal(-10, envelope.Data.Bounds.Minimum[0], 8);
         Assert.Equal(190, envelope.Data.Bounds.Maximum[0], 8);

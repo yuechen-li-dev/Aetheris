@@ -142,6 +142,9 @@ function createDisplayStatusSummary(
 			diagnosticOnlyFaceCount,
 		};
 	}
+	if (!import.meta.env.DEV) {
+		return { summary: "Import complete.", wireOnlyFaceCount, diagnosticOnlyFaceCount };
+	}
 
 	if (preparation.lane === "mixed-fallback") {
 		return {
@@ -187,6 +190,7 @@ function App() {
 	const [displayPreparation, setDisplayPreparation] =
 		useState<DisplayPreparationResponseDto | null>(null);
 	const [assemblyPacket, setAssemblyPacket] = useState<AssemblyDisplayPacketDto | null>(null);
+	const [assemblySourcePath, setAssemblySourcePath] = useState<string | null>(null);
 	const [selectedAssemblyOccurrenceId, setSelectedAssemblyOccurrenceId] = useState<string | null>(
 		null,
 	);
@@ -241,6 +245,8 @@ function App() {
 	const lifecyclePhase = documentPhase(documentLifecycleState);
 
 	const resetSessionState = useCallback(() => {
+		setAssemblySourcePath(null);
+		setAssemblyPacket(null);
 		dispatchDocumentEvent({ type: "Close" });
 		setBodyIds([]);
 		setActiveBodyId(null);
@@ -457,17 +463,24 @@ function App() {
 	}, [activeBodyId, documentId, refreshSummaryAndActiveTessellation, runAction, tx, ty, tz]);
 
 	const handleRefreshDisplay = useCallback(async () => {
-		if (!documentId || !activeBodyId) {
+		if (!assemblySourcePath && (!documentId || !activeBodyId)) {
 			return;
 		}
 
 		setIsRefreshing(true);
 		await runAction("Refresh display data", async () => {
+			if (assemblySourcePath) {
+				const packet = await prepareAssemblyDisplay(assemblySourcePath);
+				setAssemblyPacket(packet);
+				setSelectedAssemblyOccurrenceId(selected => packet.occurrences.some(o=>o.stableId===selected) ? selected : null);
+				return;
+			}
+			if (!documentId || !activeBodyId) return;
 			const preparedDisplay = await prepareBodyDisplay(documentId, activeBodyId);
 			setDisplayPreparation(preparedDisplay);
 		});
 		setIsRefreshing(false);
-	}, [activeBodyId, documentId, runAction]);
+	}, [activeBodyId, documentId, assemblySourcePath, runAction]);
 
 	const activeOccurrence = useMemo(
 		() => occurrences.find((item) => item.occurrenceId === activeBodyId) ?? null,
@@ -554,7 +567,7 @@ function App() {
 				const imported = await importStep(documentId, stepText, fileName);
 				if (imported.assemblyPresentation) {
 					setAssemblyPacket(imported.assemblyPresentation);
-					setSelectedAssemblyOccurrenceId(imported.assemblyPresentation.rootOccurrenceStableId);
+					setSelectedAssemblyOccurrenceId(null);
 					setDisplayPreparation(null);
 					setBodyIds([]);
 					setOccurrences([]);
@@ -704,13 +717,15 @@ function App() {
 					if (startupStep.kind === "assembly") {
 						const packet = await prepareAssemblyDisplay(startupStep.path);
 						setAssemblyPacket(packet);
-						setSelectedAssemblyOccurrenceId(packet.rootOccurrenceStableId);
+						setAssemblySourcePath(startupStep.path);
+						setSelectedAssemblyOccurrenceId(null);
 						setDisplayPreparation(null);
 						setStatus("success");
 						setStatusMessage(`Assembly loaded: ${packet.name}`);
 						setImportStatus("success");
 						setImportStatusMessage(
-							`Assembly ready: ${packet.occurrences.length - 1} occurrences, ${packet.definitions.length} definitions.`,
+							packet.display ? `Display ready: ${packet.display.occurrences.length} occurrences, ${packet.display.definitions.length} definitions.`
+								: `Assembly ready: ${packet.occurrences.length - 1} occurrences, ${packet.definitions.length} definitions.`,
 						);
 					} else await importStepText(startupStep.stepText, startupStep.fileName, "startup-file");
 				}
@@ -730,7 +745,7 @@ function App() {
 		setStepImportFile(selected);
 	}, []);
 
-	const handleStepFileValidationError = useCallback(() => {
+	const clearStepFileSelection = useCallback(() => {
 		setStepImportFile(null);
 	}, []);
 
@@ -929,7 +944,10 @@ function App() {
 			},
 			{ property: "Shell count", value: activeBodyId ? 1 : 0 },
 			{ property: "Viewport theme", value: viewportTheme.label },
-		],
+		].filter(
+			(row) => import.meta.env.DEV ||
+				["Definition ID", "Occurrence ID", "Display status", "Viewport theme"].includes(row.property),
+		),
 		[
 			activeBodyId,
 			activeOccurrence?.definitionId,
@@ -971,7 +989,7 @@ function App() {
 								onClick={() => void handleRefreshDisplay()}
 								disabled={
 									documentStatus !== "ready" ||
-									!activeBodyId ||
+									(!activeBodyId && !assemblySourcePath) ||
 									status === "loading" ||
 									isRefreshing
 								}
@@ -1147,6 +1165,8 @@ function App() {
 							</label>
 						</div>
 						<AetherisViewport
+							busyMessage={status === "loading" ? statusMessage : null}
+							errorMessage={status === "error" ? statusMessage : null}
 							displayScene={displayScene.displayScene}
 							highlightedFaceId={
 								cadmataSelection?.faceIds.values().next().value ?? highlightedFaceId
@@ -1347,9 +1367,10 @@ function App() {
 							<section className="tool-section tool-section--import">
 								<h2 className="section-title">Step Import</h2>
 								<StepImportDropzone
+									onSelectionStarting={clearStepFileSelection}
 									resetToken={stepDropzoneResetToken}
 									onFileAccepted={handleStepFileAccepted}
-									onValidationError={handleStepFileValidationError}
+									onValidationError={clearStepFileSelection}
 								/>
 								<Button
 									type="button"

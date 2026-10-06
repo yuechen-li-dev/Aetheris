@@ -14,7 +14,10 @@ public sealed record AssemblyUsdOptions(IReadOnlyDictionary<string, double>? Sta
     IReadOnlyList<AssemblyUsdSample>? Samples = null,
     IReadOnlyDictionary<string, AssemblyUsdMaterial>? DefinitionMaterials = null);
 
-public sealed record DisplayCamera(string Name, double[] Transform, double FovDegrees);
+public sealed record DisplayCamera(string Name, double[] Transform, double FovDegrees)
+{
+    public double[]? LookAtMm { get; init; }
+}
 public sealed record SpatialUsdMetadata(IReadOnlyDictionary<string,string> DefinitionIdentities,
     IReadOnlyDictionary<string,AssemblyAppearanceBinding> Appearances,
     IReadOnlyDictionary<string,IReadOnlyDictionary<string,string>> Properties,

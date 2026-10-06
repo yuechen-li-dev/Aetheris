@@ -18,7 +18,7 @@ File.WriteAllText(Path.Combine(args[0], "cylinder.json"), JsonSerializer.Seriali
     shaderId = program.SemanticHash, wgsl = program.Code,
     vertexEntryPoint = program.VertexEntryPoint, fragmentEntryPoint = program.FragmentEntryPoint,
     bindings = new[] { new { group = 0, binding = 0, kind = "uniform", byteSize = program.Semantics.Material!.Size } },
-    capabilities = new[] { "fragment-depth", "telos-field-rays/1", "rigid-occurrence" },
+    capabilities = new[] { "fragment-depth", "telos-field-rays/2", "rigid-occurrence" },
     sourceIdentity = lowering.Program.StructuralHash,
     compiler = WgslGraphicsBackend.CompatibilityVersion, program.SourceMappings,
 }, new JsonSerializerOptions { WriteIndented = true }));

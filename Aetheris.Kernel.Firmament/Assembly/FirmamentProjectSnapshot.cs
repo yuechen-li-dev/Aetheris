@@ -2,7 +2,7 @@ using System.Collections.Frozen;
 
 namespace Aetheris.Kernel.Firmament.Assembly;
 
-/// <summary>An immutable, project-relative source set for an assembly build.</summary>
+/// <summary>An immutable, project-relative source set for a Firmament Part, Assembly or Scene build.</summary>
 public sealed class FirmamentProjectSnapshot
 {
     private readonly IReadOnlyDictionary<string, string> documents;
@@ -14,8 +14,8 @@ public sealed class FirmamentProjectSnapshot
     {
         ArgumentNullException.ThrowIfNull(documents);
         RootDocument = NormalizePath(rootDocument);
-        if (!RootDocument.EndsWith(".firmasm", StringComparison.OrdinalIgnoreCase))
-            throw new ArgumentException("The project root must be a .firmasm document.", nameof(rootDocument));
+        if (!RootDocument.EndsWith(".firmasm", StringComparison.OrdinalIgnoreCase) && !RootDocument.EndsWith(".firmament", StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("The project root must be a Firmament document.", nameof(rootDocument));
         var normalized = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var (path, source) in documents)
         {

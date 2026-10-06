@@ -3,6 +3,7 @@ using Aetheris.Kernel.Core.Brep.Tessellation;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
 using Aetheris.Kernel.Firmament.Assembly;
+using Aetheris.Kernel.Firmament;
 using Aetheris.Server.Contracts;
 
 namespace Aetheris.Server.Api;
@@ -74,6 +75,33 @@ public static class AssemblyDisplayService
     {
         packet = null; error = string.Empty;
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) { error = $"Assembly source '{path}' was not found."; return false; }
+        var source = File.ReadAllText(path);
+        if (Aetheris.Kernel.Firmament.Scene.SceneAuthoring.HasRoot(source))
+        {
+            using var session = new Aetheris.Kernel.Firmament.Scene.FirmamentSceneSession();
+            var scene = session.CompileFile(path);
+            if (!scene.IsSuccess || scene.Scene is null) { error = string.Join(Environment.NewLine, scene.Diagnostics.Select(d => d.Code+": "+d.Message)); return false; }
+            packet = FromDisplay(DisplayProjection.Project(scene.Scene));
+            return true;
+        }
+        if (!path.EndsWith(".firmasm", StringComparison.OrdinalIgnoreCase) &&
+            !System.Text.RegularExpressions.Regex.IsMatch(source, @"(?m)^\s*Assembly\s+"))
+        {
+            var part = FirmamentBuildAndExport.CompileSource(source, Path.GetDirectoryName(Path.GetFullPath(path)));
+            if (!part.IsSuccess) { error = string.Join(Environment.NewLine, part.Diagnostics.Select(d => d.Message)); return false; }
+            var body = part.Value.RuntimeBody;
+            if (body is null)
+            {
+                var imported = Step242Importer.ImportBody(part.Value.StepText);
+                body = imported.IsSuccess ? imported.Value : null;
+            }
+            if (body is null) { error = "display-part-brep-unavailable"; return false; }
+            var id = part.Value.Cir?.DefinitionId ?? "part-definition:"+part.Value.ExportedFeatureId;
+            var definition = AssemblyDisplayMeshExporter.PrepareDefinition(id, part.Value.ExportedFeatureId, body) with { Cir = part.Value.Cir, Shader = CirShaderArtifactProvider.Resolve(part.Value.Cir), GeometryRevision = part.Value.Cir?.DefinitionId };
+            packet = FromDisplay(new("aetheris/display-mesh/1", Path.GetFileNameWithoutExtension(path), "mm", [definition],
+                [new("part", Path.GetFileNameWithoutExtension(path), null, id, Transform3D.Identity.ToRowMajor(), part.Value.ExportedFeatureId)]));
+            return true;
+        }
         var watch = Stopwatch.StartNew();
         var compilation = string.Equals(Path.GetExtension(path), ".firmasm", StringComparison.OrdinalIgnoreCase)
             ? new FirmamentAssemblyDocumentCompiler().CompileFile(path).Compilation
@@ -83,19 +111,11 @@ public static class AssemblyDisplayService
             error = string.Join(Environment.NewLine, compilation.Diagnostics.Select(diagnostic => $"{diagnostic.Code}: {diagnostic.Message}"));
             return false;
         }
-        var definitions = new List<AssemblyDisplayDefinitionDto>();
-        var diagnostics = new List<DisplayDiagnosticDto>();
+        var display = AssemblyDisplayMeshExporter.Export(compilation);
+        var definitions = display.Definitions.Select(LegacyDefinition).ToList();
+        var diagnostics = display.Definitions.SelectMany(d => d.Diagnostics.Select(w =>
+            new DisplayDiagnosticDto(w.Code, w.Message, null, null, "definition-tessellation", d.Id + ":" + w.FaceId))).ToList();
         var artifactByIdentity = compilation.Geometry.Artifact.Definitions.ToDictionary(item => item.DefinitionIdentity, item => item.StableId, StringComparer.Ordinal);
-        foreach (var definition in compilation.Geometry.DefinitionBodies.OrderBy(item => item.Key, StringComparer.Ordinal))
-        {
-            var tessellation = BrepDisplayTessellator.TessellateBounded(definition.Value);
-            if (!tessellation.IsSuccess)
-            {
-                diagnostics.Add(new("Viewer.Assembly.MissingDefinitionGeometry", $"Definition '{definition.Key}' could not be tessellated.", null, null, "definition-tessellation", "Inspect the definition diagnostic."));
-                continue;
-            }
-            definitions.Add(new(artifactByIdentity[definition.Key], definition.Key, ApiMappings.ToTessellationResponse(tessellation.Value).FacePatches));
-        }
         var occurrences = compilation.Ir.Instances.OrderBy(item => item.Path.Segments.Count).ThenBy(item => item.Path.ToString(), StringComparer.Ordinal).Select(instance => new AssemblyDisplayOccurrenceDto(
             instance.StableId, instance.Path.Segments[^1], instance.Path.ToString(), instance.ParentStableId,
             instance.Kind == AssemblyInstanceKind.Part ? artifactByIdentity.GetValueOrDefault(instance.DefinitionIdentity)
@@ -119,7 +139,42 @@ public static class AssemblyDisplayService
         var maximum = metrics.Length == 0 ? new[] { 0d,0d,0d } : new[] { metrics.Max(item => item.Maximum[0]), metrics.Max(item => item.Maximum[1]), metrics.Max(item => item.Maximum[2]) };
         watch.Stop();
         packet = new("aetheris/cadmata-assembly-display/m3", compilation.Ir.Name, compilation.Ir.RootInstanceStableId, definitions, occurrences, mates, tolerances,
-            new(minimum, maximum), diagnostics, new Dictionary<string, double> { ["packetMilliseconds"] = watch.Elapsed.TotalMilliseconds, ["definitionCount"] = definitions.Count, ["moduleDefinitionCount"] = modules.Length, ["occurrenceCount"] = occurrences.Length }, modules);
+            new(minimum, maximum), diagnostics, new Dictionary<string, double> { ["packetMilliseconds"] = watch.Elapsed.TotalMilliseconds, ["definitionCount"] = definitions.Count, ["moduleDefinitionCount"] = modules.Length, ["occurrenceCount"] = occurrences.Length }, modules,
+            display);
         return true;
+    }
+
+    private static AssemblyDisplayPacketDto FromDisplay(AssemblyDisplayMeshDocument display)
+    {
+        var vertices = display.Definitions.ToDictionary(d => d.Id, d => d.Positions, StringComparer.Ordinal);
+        var points = display.Occurrences.Where(o => o.DefinitionId is not null).SelectMany(o =>
+        {
+            var p = vertices[o.DefinitionId!]; var t = Transform3D.FromRowMajor(o.Transform);
+            return Enumerable.Range(0, p.Length/3).Select(i => t.Apply(new Point3D(p[i*3], p[i*3+1], p[i*3+2])));
+        });
+        var boundsPoints = display.MinimumMm is null || display.MaximumMm is null ? points.ToArray() : [];
+        var minimum = display.MinimumMm ?? (boundsPoints.Length == 0 ? [0d,0d,0d] : new[] { boundsPoints.Min(p=>p.X), boundsPoints.Min(p=>p.Y), boundsPoints.Min(p=>p.Z) });
+        var maximum = display.MaximumMm ?? (boundsPoints.Length == 0 ? [0d,0d,0d] : new[] { boundsPoints.Max(p=>p.X), boundsPoints.Max(p=>p.Y), boundsPoints.Max(p=>p.Z) });
+        var occurrences = display.Occurrences.Select(o => new AssemblyDisplayOccurrenceDto(o.Id, o.Path.Split('.').Last(), o.Path, o.ParentId,
+            o.DefinitionId, o.Kind ?? "Part", o.Transform, "CompiledDisplay")).ToArray();
+        return new("aetheris/cadmata-assembly-display/m3", display.Name, occurrences.Single(o=>o.ParentStableId is null).StableId,
+            display.Definitions.Select(LegacyDefinition).ToArray(), occurrences, [], [], new(minimum,maximum), [], new Dictionary<string,double>(), Display: display);
+    }
+
+    // Compatibility transport only: geometry and face ranges come from the shared projector.
+    private static AssemblyDisplayDefinitionDto LegacyDefinition(AssemblyDisplayMeshDefinition definition)
+    {
+        var ranges = definition.Ranges ?? [new(0, definition.Indices.Length/3, "face:0", definition.Id)];
+        var faces = ranges.Select(range =>
+        {
+            var indices = definition.Indices.Skip(range.StartTriangle*3).Take(range.TriangleCount*3).ToArray();
+            var vertices = indices.Distinct().Order().ToArray();
+            var local = vertices.Select((id,index)=>(id,index)).ToDictionary(v=>v.id,v=>v.index);
+            var positions = vertices.Select(i=>new Point3Dto(definition.Positions[i*3],definition.Positions[i*3+1],definition.Positions[i*3+2])).ToArray();
+            var normals = vertices.Select(i=>new Vector3Dto(definition.Normals[i*3],definition.Normals[i*3+1],definition.Normals[i*3+2])).ToArray();
+            return new FacePatchDto(int.Parse(range.FaceId.AsSpan("face:".Length), System.Globalization.CultureInfo.InvariantCulture),
+                positions,normals,indices.Select(i=>local[i]).ToArray(),definition.MeshPipeline,null);
+        }).ToArray();
+        return new(definition.Id,definition.Identity,faces);
     }
 }

@@ -31,7 +31,10 @@ public sealed class FirmamentSceneSession : IDisposable
     private readonly Dictionary<string,FirmamentCompilationSession> assemblies = new(StringComparer.OrdinalIgnoreCase);
     private bool disposed;
     public SceneCompilationResult CompileFile(string path) => Compile(File.ReadAllText(path),Path.GetFullPath(path));
-    public SceneCompilationResult Compile(string source, string sourceIdentity = "<memory>")
+    public SceneCompilationResult CompileProject(FirmamentProjectSnapshot project) => project.TryResolve(project.RootDocument, out var source)
+        ? Compile(source, project.RootDocument, project)
+        : new(null, [new("scene-project-root-missing", project.RootDocument)]);
+    public SceneCompilationResult Compile(string source, string sourceIdentity = "<memory>", FirmamentProjectSnapshot? project = null)
     {
         lock (gate)
         {
@@ -53,28 +56,32 @@ public sealed class FirmamentSceneSession : IDisposable
                 {
                     var match=Regex.Match(item.Definition,"^AssemblyFile<\\s*\"(?<path>[^\"]+)\"\\s*>$");
                     if (!match.Success) { Error("scene-assembly-definition-invalid","X0 assembly occurrences require AssemblyFile<\"relative.firmament\">; their document compiles independently."); continue; }
-                    var path=Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(sourceIdentity))!,match.Groups["path"].Value));
-                    var allowedRoot=AssemblyM0Parser.FindAllowedSourceRoot(Path.GetFullPath(sourceIdentity));
-                    var allowedPrefix=Path.TrimEndingDirectorySeparator(allowedRoot)+Path.DirectorySeparatorChar;
-                    if (!path.StartsWith(allowedPrefix,StringComparison.OrdinalIgnoreCase))
-                    { Error("scene-assembly-file-outside-root","AssemblyFile must stay inside the existing allowed source root."); continue; }
+                    var path=AssemblyPathFor(match.Groups["path"].Value);
+                    if (path is null) continue;
+                    if (project is null)
+                    {
+                        var allowedRoot=AssemblyM0Parser.FindAllowedSourceRoot(Path.GetFullPath(sourceIdentity));
+                        var allowedPrefix=Path.TrimEndingDirectorySeparator(allowedRoot)+Path.DirectorySeparatorChar;
+                        if (!path.StartsWith(allowedPrefix,StringComparison.OrdinalIgnoreCase))
+                        { Error("scene-assembly-file-outside-root","AssemblyFile must stay inside the existing allowed source root."); continue; }
+                    }
                     if (!path.EndsWith(".firmament",StringComparison.OrdinalIgnoreCase)) { Error("scene-assembly-file-invalid","AssemblyFile requires a .firmament source document."); continue; }
                     if (!compiledAssemblies.ContainsKey(path))
                     {
-                        if (!File.Exists(path)) { Error("scene-assembly-file-missing",path); continue; }
+                        if (project is null ? !File.Exists(path) : !project.TryResolve(path, out _)) { Error("scene-assembly-file-missing",path); continue; }
                         if (!assemblies.TryGetValue(path,out var session))
                         {
                             if (assemblies.Count >= 256) { Error("scene-definition-session-capacity-exceeded","The retained Scene session supports at most 256 independent Assembly sources; start a fresh session."); continue; }
                             assemblies[path]=session=new();
                         }
-                        var assembly=session.CompileFile(path); compiledAssemblies.Add(path,assembly);
+                        var assembly=project is null ? session.CompileFile(path) : session.CompileProject(new FirmamentProjectSnapshot(path, project.Documents)); compiledAssemblies.Add(path,assembly);
                         diagnostics.AddRange(assembly.Diagnostics);
                     }
                 }
                 else if (!materializedParts.ContainsKey(item.Definition))
                 {
-                    var part=parts.Materialize(item.Definition,s.DefinitionSource,sourceIdentity,diagnostics,null,
-                        () => AssemblyDefinitionMaterializer.TryMaterialize(item.Definition,s.DefinitionSource,sourceIdentity,diagnostics));
+                    var part=parts.Materialize(item.Definition,s.DefinitionSource,sourceIdentity,diagnostics,project,
+                        () => AssemblyDefinitionMaterializer.TryMaterialize(item.Definition,s.DefinitionSource,sourceIdentity,diagnostics,project));
                     if (part is not null) materializedParts.Add(item.Definition,part);
                 }
             }
@@ -155,13 +162,13 @@ public sealed class FirmamentSceneSession : IDisposable
                     if (item.From != "Origin") { Error("scene-part-source-frame-unsupported","X0 Part Scene placement starts at Origin; assembly published source frames are supported."); continue; }
                     var part=materializedParts[item.Definition]; var id=Id("part:"+item.Definition);
                     if (!definitions.ContainsKey(id))
-                    { var preparation=Stopwatch.StartNew(); definitions.Add(id,AssemblyDisplayMeshExporter.PrepareDefinition(id,item.Definition,part.Body)); displayMs+=preparation.Elapsed.TotalMilliseconds; }
+                    { var preparation=Stopwatch.StartNew(); definitions.Add(id,AssemblyDisplayMeshExporter.PrepareDefinition(id,item.Definition,part.Body, externalStep: part.Artifact.Provenance.Any(p => p.Stage == "imported-step-definition")) with { Cir = part.Cir is null ? null : part.Cir with { DefinitionId = id }, GeometryRevision = part.Artifact.StepSha256 }); displayMs+=preparation.Elapsed.TotalMilliseconds; }
                     AddNode(item.Path,"Part",item.Definition,parent,world.ToRowMajor(),id,item.Span,item.PatternKey); ApplyLook(item.Path,item.Appearance);
                 }
                 else
                 {
                     var match=Regex.Match(item.Definition,"\"(?<path>[^\"]+)\"");
-                    var path=Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(sourceIdentity))!,match.Groups["path"].Value));
+                    var path=AssemblyPathFor(match.Groups["path"].Value)!;
                     var assembly=compiledAssemblies[path];
                     if (!preparedAssemblies.TryGetValue(path,out var mesh))
                     { var preparation=Stopwatch.StartNew(); preparedAssemblies[path]=mesh=AssemblyDisplayMeshExporter.Export(assembly); displayMs+=preparation.Elapsed.TotalMilliseconds; }
@@ -177,7 +184,7 @@ public sealed class FirmamentSceneSession : IDisposable
                     foreach (var d in mesh.Definitions)
                     {
                         var id=prefix+":"+d.Id;
-                        if (!definitions.ContainsKey(id)) definitions.Add(id,d with { Id=id, Identity=path+"::"+d.Identity });
+                        if (!definitions.ContainsKey(id)) definitions.Add(id,d with { Id=id, Identity=path+"::"+d.Identity, Cir = d.Cir is null ? null : d.Cir with { DefinitionId = id } });
                     }
                     foreach (var o in mesh.Occurrences)
                     {
@@ -214,6 +221,16 @@ public sealed class FirmamentSceneSession : IDisposable
                 }
             }
             void Error(string code,string message) => diagnostics.Add(new(code,message));
+            string? AssemblyPathFor(string relative)
+            {
+                try
+                {
+                    return project is null
+                        ? Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(sourceIdentity))!, relative))
+                        : FirmamentProjectSnapshot.NormalizePath((Path.GetDirectoryName(sourceIdentity)?.Replace('\\','/') is { Length: > 0 } directory ? directory+"/" : "")+relative);
+                }
+                catch (ArgumentException exception) { Error("scene-assembly-file-outside-root", exception.Message); return null; }
+            }
             void AddNode(string path,string kind,string definition,string? parent,double[] transform,string? def,SemanticSourceSpan span,string? key=null)
             { occurrences.Add(new(Id(path),path,parent is null ? null : Id(parent),def,transform,path)); nodes.Add(new(path,kind,definition,"SceneFrame",span,key)); }
             void ApplyLook(string path,string? look)
@@ -264,7 +281,7 @@ public sealed class FirmamentSceneSession : IDisposable
         double[][] normals=[[0,0,-1],[0,0,1],[0,-1,0],[0,1,0],[-1,0,0],[1,0,0]];
         var positions=new List<double>(); var ns=new List<double>(); var indices=new List<int>();
         for(var f=0;f<6;f++) { var start=positions.Count/3; foreach(var v in faces[f]) { positions.AddRange(p[v]); ns.AddRange(normals[f]); } indices.AddRange([start,start+1,start+2,start,start+2,start+3]); }
-        return new(id,identity,positions.ToArray(),ns.ToArray(),indices.ToArray(),"SceneRectangularBoundary");
+        return new(id,identity,positions.ToArray(),ns.ToArray(),indices.ToArray(),"SceneRectangularBoundary") { GeometryRevision = identity };
     }
     private static (double[] Min,double[] Max) WorldBounds(AssemblyDisplayMeshDocument d)
     {

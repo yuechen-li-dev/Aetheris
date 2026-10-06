@@ -13,5 +13,5 @@ if (-not (Test-Path -LiteralPath $backend)) { throw 'CopelandRoot must contain t
 </Project>
 "@ | Set-Content -LiteralPath (Join-Path $output 'Qualification.csproj') -Encoding utf8
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'qualify-three-telos-cir.cs') -Destination (Join-Path $output 'Program.cs')
-dotnet run --project (Join-Path $output 'Qualification.csproj') -c Release -- $output (Join-Path $repo 'fixtures/three-telos/field-pass.v.ts')
+dotnet run --project (Join-Path $output 'Qualification.csproj') -c Release -- $output (Join-Path $repo 'Aetheris.Kernel.Firmament/Display/telos-field.v.ts')
 if ($LASTEXITCODE -ne 0) { throw 'Direct CIR WGSL compilation failed.' }

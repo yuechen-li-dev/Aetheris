@@ -1,4 +1,5 @@
 import { loadTelosShaders, type TelosShaderSources } from "./shaderSources.js";
+const contextOwners = new WeakMap<GPUCanvasContext, TelosDevice>();
 
 export class TelosResources {
   device: GPUDevice;
@@ -48,6 +49,13 @@ export class TelosResources {
     if (!this.pipelines.has(key)) this.pipelines.set(key, create());
     return this.pipelines.get(key)!;
   }
+  /** Modules/pipelines have no destroy API. Drop owned references once a semantic
+   * program leaves the model; per-draw buffers are released by the host. */
+  releaseProgram(id: string) {
+    this.modules.delete(id);
+    for (const key of this.pipelines.keys())
+      if (JSON.parse(key)[0] === id) this.pipelines.delete(key);
+  }
   dispose() {
     for (const resource of [...this.buffers, ...this.textures])
       resource.destroy();
@@ -59,6 +67,7 @@ export class TelosResources {
 }
 
 export class TelosDevice {
+  sampleCount: 1 | 4 = 4;
   shaders: TelosShaderSources;
   adapter: GPUAdapter;
   device: GPUDevice;
@@ -74,6 +83,7 @@ export class TelosDevice {
   static async create(
     canvas: HTMLCanvasElement,
     diagnostic: (message: string) => void = () => {},
+    signal?: AbortSignal,
   ) {
     if (!navigator.gpu)
       throw new Error(
@@ -85,17 +95,29 @@ export class TelosDevice {
     // Timing is optional; neither viewport nor temporal startup depends on it.
     let device: GPUDevice;
     if (adapter.features.has("timestamp-query")) {
-      device = await adapter.requestDevice({ requiredFeatures: ["timestamp-query"] })
+      device = await adapter
+        .requestDevice({ requiredFeatures: ["timestamp-query"] })
         .catch(() => adapter.requestDevice());
     } else {
       device = await adapter.requestDevice();
+    }
+    if (signal?.aborted) {
+      device.destroy();
+      throw new DOMException("Viewport initialization cancelled", "AbortError");
     }
     const context = canvas.getContext("webgpu");
     if (!context) {
       device.destroy();
       throw new Error("telos-context-unavailable");
     }
-    return new TelosDevice(adapter, device, context, canvas, diagnostic, shaders);
+    return new TelosDevice(
+      adapter,
+      device,
+      context,
+      canvas,
+      diagnostic,
+      shaders,
+    );
   }
   constructor(
     adapter: GPUAdapter,
@@ -124,10 +146,11 @@ export class TelosDevice {
       alphaMode: "opaque",
       usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
     });
+    contextOwners.set(context, this);
     device.lost.then((info) => {
+      const expected = this.stopped;
       this.stopped = true;
-      if (info.reason !== "destroyed")
-        diagnostic("telos-device-lost: " + info.message);
+      if (!expected) diagnostic("telos-device-lost: " + info.message);
       this.onLost?.();
     });
     this.onError = (event) => {
@@ -140,16 +163,21 @@ export class TelosDevice {
   dispose() {
     this.stopped = true;
     this.resources.dispose();
-    this.context.unconfigure();
+    if (contextOwners.get(this.context) === this) {
+      this.context.unconfigure();
+      contextOwners.delete(this.context);
+    }
     this.device.removeEventListener("uncapturederror", this.onError);
     this.device.destroy();
   }
 }
 
-/** Single sample, depth32float, clear=1, less; every drawing pass loads/stores this target. */
+/** One depth owner. Spatial rendering uses four samples; temporal experiments use one. */
 export class TelosFrame {
   owner: TelosDevice;
   depth: GPUTexture | null;
+  color: GPUTexture | null = null;
+  private samples = 0;
   depthView!: GPUTextureView;
   colorView!: GPUTextureView;
   target!: GPUTexture;
@@ -170,22 +198,43 @@ export class TelosFrame {
     const limit = this.owner.device.limits.maxTextureDimension2D;
     const w = Math.min(limit, Math.max(1, Math.round(width * this.dpr))),
       h = Math.min(limit, Math.max(1, Math.round(height * this.dpr)));
-    if (this.width === w && this.height === h) return;
+    if (
+      this.width === w &&
+      this.height === h &&
+      this.samples === this.owner.sampleCount
+    )
+      return;
     if (this.depth) this.owner.resources.release(this.depth);
+    if (this.color) this.owner.resources.release(this.color);
+    this.samples = this.owner.sampleCount;
     this.owner.canvas.width = this.width = w;
     this.owner.canvas.height = this.height = h;
     this.depth = this.owner.resources.texture({
       label: "Telos authoritative depth",
       size: [w, h],
       format: "depth32float",
-      usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC,
+      sampleCount: this.samples,
+      usage:
+        GPUTextureUsage.RENDER_ATTACHMENT |
+        GPUTextureUsage.TEXTURE_BINDING |
+        (this.samples === 1 ? GPUTextureUsage.COPY_SRC : 0),
     });
+    this.color =
+      this.samples === 4
+        ? this.owner.resources.texture({
+            label: "Telos spatial color",
+            size: [w, h],
+            format: this.owner.format,
+            sampleCount: 4,
+            usage: GPUTextureUsage.RENDER_ATTACHMENT,
+          })
+        : null;
     this.depthView = this.depth.createView();
     this.generation++;
   }
   begin(background: GPUColor, source?: GPUTexture) {
     this.target = this.owner.context.getCurrentTexture();
-    this.colorView = (source ?? this.target).createView();
+    this.colorView = (this.color ?? source ?? this.target).createView();
     this.encoder = this.owner.device.createCommandEncoder();
     const pass = this.pass("Background", true, background);
     pass.end();
@@ -210,10 +259,26 @@ export class TelosFrame {
     });
   }
   end() {
+    if (this.color) {
+      // Resolve once, after topology and overlays; every pass shares the same depth.
+      const pass = this.encoder.beginRenderPass({
+        colorAttachments: [
+          {
+            view: this.colorView,
+            resolveTarget: this.target.createView(),
+            loadOp: "load",
+            storeOp: "discard",
+          },
+        ],
+      });
+      pass.end();
+    }
     this.owner.device.queue.submit([this.encoder.finish()]);
   }
   dispose() {
     if (this.depth) this.owner.resources.release(this.depth);
+    if (this.color) this.owner.resources.release(this.color);
+    this.color = null;
     this.depth = null;
   }
 }

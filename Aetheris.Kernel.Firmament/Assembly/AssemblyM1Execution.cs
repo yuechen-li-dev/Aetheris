@@ -17,7 +17,10 @@ namespace Aetheris.Kernel.Firmament.Assembly;
 public sealed record AssemblyExecutedGeometry(
     AssemblyGeometryArtifactIr Artifact,
     IReadOnlyDictionary<string, BrepBody> DefinitionBodies,
-    IReadOnlyDictionary<string, BrepBody> InstanceBodies);
+    IReadOnlyDictionary<string, BrepBody> InstanceBodies)
+{
+    public IReadOnlyDictionary<string, FirmamentCirRetention> DefinitionCir { get; init; } = new Dictionary<string, FirmamentCirRetention>();
+}
 
 public sealed record AssemblyM1CompilationResult(
     AssemblyIr? Ir,
@@ -53,7 +56,8 @@ internal sealed record MaterializedAssemblyDefinition(
     BrepBody Body,
     IReadOnlyList<SemanticValue> Semantics,
     AssemblyDefinitionArtifactIr Artifact,
-    string? CanonicalStep = null);
+    string? CanonicalStep = null,
+    FirmamentCirRetention? Cir = null);
 
 /// <summary>
 /// M1's definition seam: specialize through the ordinary Firmament compiler, then
@@ -263,7 +267,7 @@ internal static class AssemblyDefinitionMaterializer
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(build.Value.StepText)));
         var stableId = "assembly-definition:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(definitionIdentity)))[..16];
         var artifact = new AssemblyDefinitionArtifactIr(stableId, definitionIdentity, specialization, hash, Metrics(import.Value), provenance);
-        return new(definitionIdentity, specialization, import.Value, semantics, artifact, build.Value.StepText);
+        return new(definitionIdentity, specialization, import.Value, semantics, artifact, build.Value.StepText, build.Value.Cir);
     }
 
     private static IEnumerable<SemanticValue> WindingSemantics(FirmamentWireFormReport? wire,
@@ -473,7 +477,11 @@ public sealed class AssemblyM1Pipeline
         var canonical = JsonSerializer.Serialize(new { definitions = definitionsIr, instances = instanceArtifacts, residuals });
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
         var artifact = new AssemblyGeometryArtifactIr("aetheris/assembly-geometry/m1", definitionsIr, instanceArtifacts, residuals, hash, datumSeats);
-        return new(artifact, definitions.ToDictionary(pair => pair.Key, pair => pair.Value.Body, StringComparer.Ordinal), instances);
+        return new(artifact, definitions.ToDictionary(pair => pair.Key, pair => pair.Value.Body, StringComparer.Ordinal), instances)
+        {
+            DefinitionCir = definitions.Where(p => p.Value.Cir is not null)
+                .ToDictionary(p => p.Key, p => p.Value.Cir! with { DefinitionId = p.Value.Artifact.StableId }, StringComparer.Ordinal)
+        };
     }
 
     private static void ValidateSolidInterference(AssemblyIr ir, IReadOnlyDictionary<string, BrepBody> instances, List<AssemblyDiagnostic> diagnostics)

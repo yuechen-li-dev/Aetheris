@@ -230,7 +230,8 @@ public sealed record AssemblyDisplayOccurrenceDto(string StableId, string Name, 
 public sealed record AssemblyDisplayMateDto(string StableId, string Name, string InterfaceStableId, IReadOnlyList<string> Participants, IReadOnlyList<string> ConstraintIds, string ValidationStatus);
 public sealed record AssemblyDisplayToleranceDto(string Name, bool Passed, double Nominal, double Minimum, double Maximum, string Unit, IReadOnlyList<string> Contributors, IReadOnlyList<string>? ExpandedContributors = null);
 public sealed record AssemblyDisplayBoundsDto(IReadOnlyList<double> Minimum, IReadOnlyList<double> Maximum);
-public sealed record AssemblyDisplayPacketDto(string Schema, string Name, string RootOccurrenceStableId, IReadOnlyList<AssemblyDisplayDefinitionDto> Definitions, IReadOnlyList<AssemblyDisplayOccurrenceDto> Occurrences, IReadOnlyList<AssemblyDisplayMateDto> Mates, IReadOnlyList<AssemblyDisplayToleranceDto> ToleranceStackups, AssemblyDisplayBoundsDto Bounds, IReadOnlyList<DisplayDiagnosticDto> Diagnostics, IReadOnlyDictionary<string, double> Performance, IReadOnlyList<AssemblyDisplayModuleDefinitionDto>? ModuleDefinitions = null);
+public sealed record AssemblyDisplayPacketDto(string Schema, string Name, string RootOccurrenceStableId, IReadOnlyList<AssemblyDisplayDefinitionDto> Definitions, IReadOnlyList<AssemblyDisplayOccurrenceDto> Occurrences, IReadOnlyList<AssemblyDisplayMateDto> Mates, IReadOnlyList<AssemblyDisplayToleranceDto> ToleranceStackups, AssemblyDisplayBoundsDto Bounds, IReadOnlyList<DisplayDiagnosticDto> Diagnostics, IReadOnlyDictionary<string, double> Performance, IReadOnlyList<AssemblyDisplayModuleDefinitionDto>? ModuleDefinitions = null,
+    Aetheris.Kernel.Firmament.Assembly.AssemblyDisplayMeshDocument? Display = null);
 
 public sealed record PickOptionsDto(bool? NearestOnly, bool? IncludeBackfaces, double? EdgeTolerance, double? SortTieTolerance, double? MaxDistance);
 

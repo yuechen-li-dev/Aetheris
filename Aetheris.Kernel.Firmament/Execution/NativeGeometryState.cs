@@ -88,7 +88,11 @@ public sealed record NativeGeometryCirMirrorSummary(
 public sealed record NativeGeometryCirMirrorState(
     CirMirrorStatus Status,
     NativeGeometryCirMirrorSummary? Summary,
-    IReadOnlyList<NativeGeometryCirMirrorDiagnostics> Diagnostics);
+    IReadOnlyList<NativeGeometryCirMirrorDiagnostics> Diagnostics)
+{
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Aetheris.Continuum.Backends.Sdf.SdfNode? RuntimeRoot { get; init; }
+}
 
 public sealed record NativeGeometryState(
     NativeGeometryExecutionMode ExecutionMode,

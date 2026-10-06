@@ -21,3 +21,48 @@ For a single, unmodified Firmament `Box`, the Web runtime tessellates the canoni
 `Aetheris.create({ worker: true })` hosts the same runtime in a dedicated module Worker. Its mesh arrays and STEP bytes cross the boundary as transferable buffers. `cad.workerTiming` and `model.workerTiming` expose the last Worker operation's execution time, message delay, and transferred buffer bytes. Terminate a wedged Worker with `cad.terminate()` and create a fresh instance; termination rejects outstanding and future requests on the old instance. The .NET 10 runtime needs a message event listener rather than an assigned `onmessage` handler during Worker initialization.
 
 The preview package is AGPL-3.0-only. Contact the Aetheris project for commercial licensing; this statement is package metadata, not legal advice.
+
+## Scene and material projection
+
+Scene source compiles through the shared Scene owner. Supply all referenced
+dependency documents explicitly, using unique project-relative paths:
+
+```ts
+const { model, diagnostics } = await cad.compile(sceneSource, {
+  sourceName: 'house.firmament',
+  projectDocuments: {
+    'components.firmament': componentSource,
+    'living.firmament': livingAssemblySource,
+  },
+});
+```
+
+Missing resources fail with a named diagnostic and never fall through to native
+disk. `model.setSource` accepts the same `projectDocuments` option for resource
+updates and otherwise retains the existing resource set. Definitions are shared
+across occurrences, with stable geometry revisions. Occurrences carry world
+transforms and resolved materials; Scene output also carries millimetre bounds,
+environment boundaries and named cameras with poses/look-at/FOV. Scene is display
+composition and does not provide a synthetic engineering STEP export.
+
+Optional definition `cir` metadata carries compiler qualification, structural
+identity, typed field source and bounds. Runtime BRep and CIR ASTs do not cross
+JSON. Display projection lazily resolves qualified definitions through the managed
+Copeland VD-MIR/direct-WGSL backend. Optional `shader` contains the deterministic
+artifact, compiler/source identities and binding state. The shared Telos adapter
+automatically creates a field with an invisible engineering picking proxy and
+visual mesh fallback until GPU validation succeeds. Generation, missing transport
+and GPU failures remain separately inspectable; imported STEP and unsupported
+geometry keep the mesh path.
+
+The native and development WASM builds use one exact managed-backend package pin.
+Before restoring a fresh checkout, run `scripts/prepare-managed-wgsl.ps1` with an
+explicit `-CopelandRoot` matching `scripts/managed-wgsl-source-pin.txt`. This packs
+the existing producer into the ignored local feed; runtime execution has no
+sibling-checkout, DXC, Naga or subprocess requirement. No package publishing is
+required. Development Vite runtime assets use `no-store` and explicit lengths;
+production preview retains its existing fingerprint cache policy.
+
+Shared Assembly/Scene face ranges carry BRep face IDs. A range without an owned
+feature semantic ID uses `semanticEntityId: null`; selection resolves through the
+picked occurrence. This does not grant a source selector to a runtime-only face.

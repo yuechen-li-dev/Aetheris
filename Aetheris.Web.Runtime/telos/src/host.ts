@@ -3,7 +3,11 @@ import { TelosCamera } from "./camera.js";
 import { TelosDevice, TelosFrame } from "./device.js";
 import { TelosPick } from "./pick.js";
 import { attachNavigation } from "./navigation.js";
-import { TelosTemporal, type TelosAAMode, type TelosAADebug } from "./temporal.js";
+import {
+  TelosTemporal,
+  type TelosAAMode,
+  type TelosAADebug,
+} from "./temporal.js";
 import { telosPipeline } from "./pipelines.js";
 import type {
   TelosScene,
@@ -11,6 +15,7 @@ import type {
   TelosLine,
   TelosField,
   TelosGeometry,
+  TelosMaterial,
   NumericArray,
 } from "./contracts.js";
 
@@ -39,6 +44,20 @@ const meshKey = (item: TelosMesh) =>
 const emptyScene = (): TelosScene => ({ meshes: [], lines: [], fields: [] });
 const matrix = (values?: NumericArray) =>
   values ? new Matrix4().fromArray(values) : new Matrix4();
+const surfaceColor = (
+  material: TelosMaterial,
+  selected?: boolean,
+  hovered?: boolean,
+) => {
+  const strength = selected ? 0.38 : hovered ? 0.16 : 0;
+  const accent = [0.8, 0.55, 0.12];
+  return [
+    ...material.baseColor
+      .slice(0, 3)
+      .map((value, axis) => value * (1 - strength) + accent[axis] * strength),
+    material.opacity,
+  ];
+};
 
 export class TelosHost {
   readonly camera = new TelosCamera();
@@ -58,13 +77,27 @@ export class TelosHost {
     if (mode !== this.aaMode) this.temporal?.reset("mode");
     this.aaMode = mode;
     this.aaDebug = debug;
+    const samples = mode === "SpatialOnly" ? 4 : 1;
+    if (this.owner.sampleCount !== samples) {
+      this.owner.sampleCount = samples;
+      this.frame.resize(this.camera.width, this.camera.height, this.frame.dpr);
+      this.gridKey = "";
+      this.setScene(this.scene);
+      this.setDynamicLines(
+        [...this.dynamicLines.values()].map((draw) => draw.item),
+      );
+    }
     this.invalidate();
   }
   private get temporalActive() {
-    return this.temporal && (this.aaMode === "TAA" || this.aaMode === "TAAUtility");
+    return (
+      this.temporal && (this.aaMode === "TAA" || this.aaMode === "TAAUtility")
+    );
   }
   private get renderProjection() {
-    return this.temporalActive ? this.temporal!.renderProjection : this.camera.viewProjection;
+    return this.temporalActive
+      ? this.temporal!.renderProjection
+      : this.camera.viewProjection;
   }
   gridPlane: "xy" | "xz" = "xz";
   readonly geometry = new Map<string, GeometryBuffers>();
@@ -108,7 +141,7 @@ export class TelosHost {
       }
       if (!count) continue;
       if (!draw) {
-        draw = this.draw(item, pipeline, 160, count);
+        draw = this.draw(item, pipeline, 176, count);
         draw.vertices = this.owner.resources.buffer(
           new Float32Array(count * 6),
           GPUBufferUsage.VERTEX,
@@ -136,10 +169,12 @@ export class TelosHost {
   private disposed = false;
   private detach?: () => void;
   private observer?: ResizeObserver;
+  private detachDpr?: () => void;
   metrics = {
     meshUploadMs: 0,
     lineUploadMs: 0,
     fieldPipelineMs: 0,
+    fieldDraws: 0,
     frameMs: 0,
     frames: 0,
     draws: 0,
@@ -149,10 +184,15 @@ export class TelosHost {
   static async create(
     canvas: HTMLCanvasElement,
     diagnostic?: (message: string) => void,
+    signal?: AbortSignal,
   ) {
-    const owner = await TelosDevice.create(canvas, diagnostic);
+    const owner = await TelosDevice.create(canvas, diagnostic, signal);
     const host = new TelosHost(owner);
     host.temporal = await TelosTemporal.create(owner);
+    if (signal?.aborted) {
+      host.dispose();
+      throw new DOMException("Viewport initialization cancelled", "AbortError");
+    }
     return host;
   }
   constructor(readonly owner: TelosDevice) {
@@ -172,6 +212,35 @@ export class TelosHost {
     );
     this.observer = new ResizeObserver(() => this.invalidate());
     this.observer.observe(container);
+    const rect = container.getBoundingClientRect();
+    this.resize(rect.width, rect.height, globalThis.devicePixelRatio || 1);
+    this.detachDpr?.();
+    let query: MediaQueryList;
+    const changed = () => {
+      query?.removeEventListener("change", changed);
+      query = matchMedia(
+        `(resolution: ${globalThis.devicePixelRatio || 1}dppx)`,
+      );
+      query.addEventListener("change", changed);
+      this.invalidate();
+    };
+    changed();
+    // Some browser/monitor transitions change DPR without a CSS resize or media event.
+    // Check only the scalar while idle; this never schedules an unchanged frame.
+    let lastDpr = globalThis.devicePixelRatio || 1;
+    const dprCheck = setInterval(() => {
+      const currentDpr = globalThis.devicePixelRatio || 1;
+      if (currentDpr !== lastDpr) {
+        lastDpr = currentDpr;
+        changed();
+      }
+    }, 500);
+    window.addEventListener("resize", changed);
+    this.detachDpr = () => {
+      clearInterval(dprCheck);
+      query.removeEventListener("change", changed);
+      window.removeEventListener("resize", changed);
+    };
     this.invalidate();
   }
   resize(width: number, height: number, dpr = 1) {
@@ -212,7 +281,145 @@ export class TelosHost {
     });
     return { item, pipeline, uniform, binding, count };
   }
+  private requestedScene: TelosScene = emptyScene();
+  private fieldStates = new Map<string, string>();
+  private fieldKey(field: TelosField) {
+    return (
+      field.artifact.shaderId +
+      ":" +
+      this.owner.sampleCount +
+      ":" +
+      (field.material.opacity < 1)
+    );
+  }
+  private async validateField(field: TelosField, key: string) {
+    try {
+      if (
+        field.artifact.bindings.length !== 1 ||
+        field.artifact.bindings[0].group !== 0 ||
+        field.artifact.bindings[0].binding !== 0 ||
+        field.artifact.bindings[0].byteSize !== 32 ||
+        !field.artifact.capabilities.some(
+          (c) => c === "telos-field-rays/1" || c === "telos-field-rays/2",
+        )
+      )
+        throw new Error("telos-field-abi-unsupported");
+      this.owner.device.pushErrorScope("validation");
+      let module: GPUShaderModule;
+      let moduleError: GPUError | null;
+      try {
+        module = this.owner.resources.module(
+          field.artifact.shaderId,
+          field.artifact.wgsl,
+        );
+      } finally {
+        moduleError = await this.owner.device.popErrorScope();
+      }
+      const info = await module.getCompilationInfo();
+      if (moduleError || info.messages.some((m) => m.type === "error"))
+        throw new Error(
+          moduleError?.message ??
+            info.messages
+              .filter((m) => m.type === "error")
+              .map((m) => m.message)
+              .join("; "),
+        );
+      this.owner.device.pushErrorScope("validation");
+      let pipelineError: GPUError | null;
+      try {
+        telosPipeline(
+          this.owner,
+          "mesh",
+          field.artifact,
+          undefined,
+          field.material.opacity < 1,
+        );
+      } finally {
+        pipelineError = await this.owner.device.popErrorScope();
+      }
+      if (pipelineError) throw new Error(pipelineError.message);
+      this.fieldStates.set(key, "shader-artifact-bound");
+    } catch (error) {
+      this.fieldStates.set(key, "shader-artifact-gpu-failed: " + String(error));
+      // Recoverable program rejection is inspectable without replacing the alive viewport.
+      console.warn(
+        "shader-artifact-gpu-failed: " +
+          field.artifact.shaderId +
+          ": " +
+          String(error),
+      );
+    }
+    if (!this.owner.stopped) this.setScene(this.requestedScene);
+  }
+  /** Developer inspection: CPU picking proxies are not visual mesh surfaces. */
+  inspectDisplay() {
+    return {
+      fields: this.fields.length,
+      meshSurfaces: this.meshes.filter((d) => !d.item.overlay).length,
+      proxies: this.requestedScene.fields.filter((f) => f.proxy).length,
+      shaders: [...this.fieldStates],
+      definitions: this.requestedScene.projectionDiagnostics,
+      occurrences: this.fields.map((d) => ({
+        identity: d.item.identity,
+        shaderId: d.item.artifact.shaderId,
+        material: d.item.material,
+      })),
+      modules: this.owner.resources.modules.size,
+      pipelines: this.owner.resources.pipelines.size,
+    };
+  }
   setScene(scene: TelosScene) {
+    this.requestedScene = scene;
+    const fields: TelosField[] = [],
+      fallback: TelosMesh[] = [];
+    for (const field of scene.fields) {
+      // Standalone substrate callers retain the synchronous contract. Product
+      // fields carry their compiler-owned mesh fallback and are validated first.
+      if (!field.fallback) {
+        fields.push(field);
+        continue;
+      }
+      const e = matrix(field.transform).elements;
+      const axes = [
+        new Vector3(e[0], e[1], e[2]),
+        new Vector3(e[4], e[5], e[6]),
+        new Vector3(e[8], e[9], e[10]),
+      ];
+      if (
+        axes.some((a) => Math.abs(a.length() - 1) > 1e-6) ||
+        Math.abs(axes[0].dot(axes[1])) > 1e-6 ||
+        Math.abs(axes[0].dot(axes[2])) > 1e-6 ||
+        Math.abs(axes[1].dot(axes[2])) > 1e-6
+      ) {
+        fallback.push({
+          ...field.fallback,
+          material: field.material,
+          selected: field.selected,
+          visible: field.visible,
+        });
+        console.warn(
+          "mesh-fallback: telos-field-transform-not-rigid: " +
+            field.identity.occurrenceId,
+        );
+        continue;
+      }
+      const key = this.fieldKey(field);
+      if (this.fieldStates.get(key) === "shader-artifact-bound")
+        fields.push(field);
+      else {
+        fallback.push({
+          ...field.fallback,
+          material: field.material,
+          selected: field.selected,
+          visible: field.visible,
+        });
+        if (!this.fieldStates.has(key)) {
+          this.fieldStates.set(key, "shader-artifact-pending");
+          void this.validateField(field, key);
+        }
+      }
+    }
+    scene = { ...scene, meshes: [...scene.meshes, ...fallback], fields };
     // No prior per-occurrence transforms are retained yet. Reset instead of assuming camera-only motion.
     this.temporal?.reset("scene/appearance/occurrence");
     const previous = [...this.meshes, ...this.lines, ...this.fields];
@@ -243,6 +450,10 @@ export class TelosHost {
       let geometry = this.geometry.get(definition.id);
       if (
         geometry &&
+        !(
+          definition.geometryRevision &&
+          definition.geometryRevision === geometry.definition.geometryRevision
+        ) &&
         (geometry.definition.positions !== definition.positions ||
           geometry.definition.indices !== definition.indices ||
           geometry.definition.normals !== definition.normals)
@@ -279,6 +490,7 @@ export class TelosHost {
         item.overlay ? "overlay-mesh" : "mesh",
         undefined,
         item.depthMode,
+        item.material.opacity < 1,
       );
       const old = oldMeshes.get(meshKey(item));
       const draw =
@@ -316,7 +528,7 @@ export class TelosHost {
         old?.pipeline === pipeline && old.count === segments.length / 6;
       const draw = reusable
         ? old
-        : this.draw(item, pipeline, 160, segments.length / 6);
+        : this.draw(item, pipeline, 176, segments.length / 6);
       if (!reusable)
         draw.vertices = resources.buffer(
           new Float32Array(segments),
@@ -340,7 +552,9 @@ export class TelosHost {
         item.artifact.bindings[0].group !== 0 ||
         item.artifact.bindings[0].binding !== 0 ||
         item.artifact.bindings[0].byteSize !== 32 ||
-        !item.artifact.capabilities.includes("telos-field-rays/1")
+        !item.artifact.capabilities.some(
+          (c) => c === "telos-field-rays/1" || c === "telos-field-rays/2",
+        )
       )
         throw new Error("telos-field-abi-unsupported");
       const model = matrix(item.transform),
@@ -357,7 +571,13 @@ export class TelosHost {
         Math.abs(axes[1].dot(axes[2])) > 1e-6
       )
         throw new Error("telos-field-transform-not-rigid");
-      const pipeline = telosPipeline(this.owner, "mesh", item.artifact);
+      const pipeline = telosPipeline(
+        this.owner,
+        "mesh",
+        item.artifact,
+        undefined,
+        item.material.opacity < 1,
+      );
       const old = oldFields.get(
         item.identity.occurrenceId + ":" + item.artifact.shaderId,
       );
@@ -365,7 +585,11 @@ export class TelosHost {
         old?.pipeline === pipeline ? old : this.draw(item, pipeline, 32, 6);
       if (draw !== old)
         draw.vertices = resources.buffer(
-          new Float32Array(108),
+          new Float32Array(
+            item.artifact.capabilities.includes("telos-field-rays/2")
+              ? 114
+              : 108,
+          ),
           GPUBufferUsage.VERTEX,
         );
       draw.item = item;
@@ -378,13 +602,29 @@ export class TelosHost {
         resources.release(draw.uniform);
         if (draw.vertices) resources.release(draw.vertices);
       }
+    const programs = new Set(
+      this.requestedScene.fields.map((f) => f.artifact.shaderId),
+    );
+    for (const key of this.fieldStates.keys()) {
+      const id = key.split(":").slice(0, -2).join(":");
+      if (!programs.has(id)) {
+        this.fieldStates.delete(key);
+        resources.releaseProgram(id);
+      }
+    }
     this.picker.setScene(scene);
     this.invalidate();
   }
-  fit() {
+  fit(occurrenceIds?: ReadonlySet<string>) {
     const bounds = new Box3();
-    const modelMeshes = this.scene.meshes.filter((item) => !item.overlay);
-    for (const item of modelMeshes.length ? modelMeshes : this.scene.meshes) {
+    const modelMeshes = this.scene.meshes.filter(
+      (item) =>
+        !item.overlay &&
+        (!occurrenceIds || occurrenceIds.has(item.identity.occurrenceId)),
+    );
+    for (const item of modelMeshes.length || occurrenceIds
+      ? modelMeshes
+      : this.scene.meshes) {
       const transform = matrix(item.transform),
         p = item.definition.positions;
       for (let i = 0; i < p.length; i += 3)
@@ -393,12 +633,13 @@ export class TelosHost {
         );
     }
     for (const field of this.scene.fields)
-      bounds.union(
-        new Box3(
-          new Vector3(...field.bounds.minimum),
-          new Vector3(...field.bounds.maximum),
-        ).applyMatrix4(matrix(field.transform)),
-      );
+      if (!occurrenceIds || occurrenceIds.has(field.identity.occurrenceId))
+        bounds.union(
+          new Box3(
+            new Vector3(...field.bounds.minimum),
+            new Vector3(...field.bounds.maximum),
+          ).applyMatrix4(matrix(field.transform)),
+        );
     if (!bounds.isEmpty())
       this.camera.fit(bounds.min.toArray(), bounds.max.toArray());
     this.invalidate();
@@ -406,18 +647,15 @@ export class TelosHost {
   private updateMesh(draw: Draw<TelosMesh>) {
     const model = matrix(draw.item.transform);
     const data = new Float32Array(56);
-    data.set(draw.item.overlay ? this.camera.viewProjection.elements : this.renderProjection.elements);
+    data.set(
+      draw.item.overlay
+        ? this.camera.viewProjection.elements
+        : this.renderProjection.elements,
+    );
     data.set(model.elements, 16);
     data.set(model.clone().invert().transpose().elements, 32);
     const material = draw.item.material;
-    data.set(
-      draw.item.selected
-        ? [0.8, 0.55, 0.12, 1]
-        : draw.item.hovered
-          ? [0.25, 0.65, 0.48, 1]
-          : [...material.baseColor.slice(0, 3), material.opacity],
-      48,
-    );
+    data.set(surfaceColor(material, draw.item.selected, draw.item.hovered), 48);
     data.set(
       [material.roughness, material.metallic, draw.item.unlit ? 1 : 0, 0],
       52,
@@ -425,7 +663,7 @@ export class TelosHost {
     this.owner.device.queue.writeBuffer(draw.uniform, 0, data);
   }
   private updateLine(draw: Draw<TelosLine>) {
-    const data = new Float32Array(40);
+    const data = new Float32Array(44);
     data.set(this.camera.viewProjection.elements);
     data.set(matrix(draw.item.transform).elements, 16);
     data.set(
@@ -445,6 +683,7 @@ export class TelosHost {
       ],
       36,
     );
+    data[40] = draw.item.fadeEnds ? 1 : 0;
     this.owner.device.queue.writeBuffer(draw.uniform, 0, data);
   }
   private updateField(draw: Draw<TelosField>) {
@@ -469,11 +708,16 @@ export class TelosHost {
     ];
     const vertices = new Float32Array(
       corners.flatMap((pixel) => {
-        const unproject = (depth: number) => new Vector3(
-          (pixel[0] / this.camera.width) * 2 - 1,
-          1 - (pixel[1] / this.camera.height) * 2,
-          depth,
-        ).applyMatrix4(this.temporalActive ? this.temporal!.inverseRenderProjection : this.camera.inverseViewProjection);
+        const unproject = (depth: number) =>
+          new Vector3(
+            (pixel[0] / this.camera.width) * 2 - 1,
+            1 - (pixel[1] / this.camera.height) * 2,
+            depth,
+          ).applyMatrix4(
+            this.temporalActive
+              ? this.temporal!.inverseRenderProjection
+              : this.camera.inverseViewProjection,
+          );
         const origin = unproject(0).applyMatrix4(inverse),
           far = unproject(1).applyMatrix4(inverse);
         return [
@@ -491,20 +735,15 @@ export class TelosHost {
           m[11],
           m[15],
           epsilon,
+          ...(draw.item.artifact.capabilities.includes("telos-field-rays/2")
+            ? [draw.item.material.metallic]
+            : []),
         ];
       }),
     );
     this.owner.device.queue.writeBuffer(draw.vertices!, 0, vertices);
     const data = new Float32Array(8);
-    data.set(
-      draw.item.selected
-        ? [0.8, 0.55, 0.12, 1]
-        : [
-            ...draw.item.material.baseColor.slice(0, 3),
-            draw.item.material.opacity,
-          ],
-      0,
-    );
+    data.set(surfaceColor(draw.item.material, draw.item.selected), 0);
     data[4] = draw.item.material.roughness;
     this.owner.device.queue.writeBuffer(draw.uniform, 0, data);
   }
@@ -512,6 +751,7 @@ export class TelosHost {
     const key = JSON.stringify([
       this.grid,
       this.gridPlane,
+      this.owner.sampleCount,
       this.camera.viewProjection.elements,
       this.camera.span,
       this.camera.width,
@@ -547,7 +787,10 @@ export class TelosHost {
       span * 20,
       Math.max(span, ...points.map((p) => p.distanceTo(this.camera.target))),
     );
-    const step = Math.pow(10, Math.floor(Math.log10(extent / 12)));
+    const desired = span / 12;
+    const decade = Math.pow(10, Math.floor(Math.log10(desired)));
+    const step =
+      decade * (desired / decade < 2 ? 2 : desired / decade < 5 ? 5 : 10);
     const centerX = Math.round(this.camera.target.x / step) * step;
     const centerY =
       Math.round(
@@ -555,7 +798,7 @@ export class TelosHost {
           ? this.camera.target.y
           : this.camera.target.z) / step,
       ) * step;
-    const count = Math.min(40, Math.ceil(extent / step));
+    const count = Math.min(32, Math.ceil(extent / step));
     const segments: number[] = [];
     const point = (x: number, y: number) =>
       this.gridPlane === "xy" ? [x, y, 0] : [x, 0, y];
@@ -572,13 +815,14 @@ export class TelosHost {
     this.gridDraw = this.draw(
       {
         id: "reference-grid",
+        fadeEnds: true,
         points: segments,
         identity: { occurrenceId: "reference-grid" },
         widthPixels: 0.7,
         color: [0.45, 0.48, 0.46, 0.18],
       },
       telosPipeline(this.owner, "line"),
-      160,
+      176,
       segments.length / 6,
     );
     this.gridDraw.vertices = this.owner.resources.buffer(
@@ -597,9 +841,15 @@ export class TelosHost {
     this.metrics.overlayUpdateMs = performance.now() - overlayStart;
     this.updateGrid();
     const temporal = this.temporalActive ? this.temporal : undefined;
-    const source = temporal?.prepare(this.frame, this.camera, this.aaMode, this.aaDebug);
+    const source = temporal?.prepare(
+      this.frame,
+      this.camera,
+      this.aaMode,
+      this.aaDebug,
+    );
     this.frame.begin(this.background, source);
     this.metrics.draws = 0;
+    this.metrics.fieldDraws = 0;
     const drawGrid = () => {
       if (!this.gridDraw) return;
       const grid = this.frame.pass("ReferenceGrid");
@@ -622,18 +872,32 @@ export class TelosHost {
       this.metrics.draws++;
     };
     let pass = this.frame.pass("MeshOpaque");
-    for (const draw of this.meshes.filter((draw) => !draw.item.overlay))
+    for (const draw of this.meshes.filter(
+      (draw) => !draw.item.overlay && draw.item.material.opacity >= 1,
+    ))
       drawMesh(pass, draw);
     pass.end();
     pass = this.frame.pass("Field");
     for (const draw of this.fields) {
+      if (draw.item.visible === false) continue;
       this.updateField(draw);
       pass.setPipeline(draw.pipeline);
       pass.setBindGroup(0, draw.binding);
       pass.setVertexBuffer(0, draw.vertices!);
       pass.draw(6);
+      this.metrics.fieldDraws++;
       this.metrics.draws++;
     }
+    pass.end();
+    pass = this.frame.pass("MeshTranslucent");
+    const distance = (draw: Draw<TelosMesh>) =>
+      new Vector3()
+        .applyMatrix4(matrix(draw.item.transform))
+        .distanceToSquared(this.camera.position);
+    for (const draw of this.meshes
+      .filter((draw) => !draw.item.overlay && draw.item.material.opacity < 1)
+      .sort((a, b) => distance(b) - distance(a)))
+      drawMesh(pass, draw);
     pass.end();
     temporal?.resolve(this.frame);
     drawGrid();
@@ -666,6 +930,10 @@ export class TelosHost {
     pass.end();
     this.frame.end();
     this.metrics.frames++;
+    this.owner.canvas.dataset.telosDisplay = JSON.stringify(
+      this.inspectDisplay(),
+    );
+    this.owner.canvas.dataset.telosFieldDraws = String(this.metrics.fieldDraws);
     this.metrics.frameMs = performance.now() - started;
     if (temporal?.needsFrame) this.invalidate();
   }
@@ -718,6 +986,7 @@ export class TelosHost {
     cancelAnimationFrame(this.raf);
     this.raf = 0;
     this.observer?.disconnect();
+    this.detachDpr?.();
     this.detach?.();
     this.picker.dispose();
     this.setDynamicLines([]);

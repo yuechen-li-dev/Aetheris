@@ -8,6 +8,25 @@ Mesh and line shaders are standalone `src/shaders/*.wgsl` source files. The Type
 
 This package owns the device, attachments, camera, ray query, raw mesh/field/line submission and lifetime. Three 0.183.2 supplies math and input adapters, never a GPU renderer. See `docs/release/THREE-TELOS-X0.md` and `docs/release/THREE-TELOS-X1.md` in the repository for qualification and product boundaries.
 
+`fromDisplayMesh` projects compiler-qualified definitions with matching generated
+shader artifacts into normal fields. It retains authoritative bounds, occurrence
+transforms, resolved material and an invisible BRep picking proxy. A visual mesh
+stays active while Telos validates the module and pipeline, and on rejection.
+Telos compiles WGSL for the GPU; it never compiles CIR or generates shader source.
+The shared typed field source lives in `Aetheris.Kernel.Firmament/Display/telos-field.v.ts`.
+
+`telos-field-rays/2` adds metallic at vertex location 6; tint/opacity and roughness
+keep the canonical 32-byte material uniform. The prior rays/1 substrate ABI remains
+supported. Field lighting is a bounded diffuse/specular approximation, rather than
+pixel-identical mesh shading or a PBR qualification. Rigid occurrences are admitted;
+non-rigid product occurrences retain their mesh fallback.
+
+`host.inspectDisplay()` and the canvas `data-telos-display`/`data-telos-field-draws`
+attributes expose definition/binding state, actual fields and mesh surfaces,
+separate picking-proxy counts, submitted fields and GPU cache counts. Shader source
+is not dumped. Obsolete field program references and draw buffers are released
+when geometry changes; unchanged occurrences/materials reuse program state.
+
 World-space meshes and lines accept explicit `depthMode`: `depth-tested`, `depth-biased`, or `always-on-top`. Overlay meshes can be unlit with alpha blending and do not write depth. Line widths are CSS pixels. Products may project DOM text with `camera.project`/`unproject`; `beforeFrame` supplies the host-owned projection cadence after camera matrices update and before GPU drawing. No React or font engine lives here.
 
 `setDynamicLines` updates a bounded set of world-space lines identified by stable IDs. An unchanged ID, segment count and depth state retain vertex and uniform buffers. Call it within `beforeFrame`, or request `invalidate()` after an external update. Removing an ID releases its resources. `setScene` similarly retains unchanged draw/proxy resources across selection and filter updates. Immutable geometry arrays remain the definition identity contract.
@@ -16,7 +35,7 @@ World-space meshes and lines accept explicit `depthMode`: `depth-tested`, `depth
 
 ## Experimental temporal AA
 
-`host.setAA("TAA")` enables a fixed-weight, depth-rejected, neighborhood-clamped baseline; `host.setAA("TAAUtility")` enables the generated Copeland utility policy. `None`/`SpatialOnly` retain local primitive/line coverage without temporal jitter or resolve. Spatial AA is still the default: X0's supersampled witness found both temporal modes worse than spatial-only at silhouettes. See `docs/release/TELOS-TAA-X0.md` for the exact bounded blocker and evidence.
+`SpatialOnly` is the production default: four-sample MSAA shares one multisampled color/depth pair across surfaces, topology and overlays, then resolves once to the canvas. Lines also retain derivative coverage. Field shaders execute their existing center-ray ABI; MSAA does not qualify analytic field silhouette coverage. `None` uses one sample. `host.setAA("TAA")` enables a single-sample fixed-weight temporal experiment; `host.setAA("TAAUtility")` enables its generated Copeland utility policy. Both remain disabled by default. See `docs/release/TELOS-TAA-X0.md` for the temporal silhouette blocker and `docs/release/VIEWPORT-FINISH-X0.md` for product qualification.
 
 Optional debug values are `policy`, `confidence`, `motion` and `depth`; seed a color view first. Debug reads frozen color history and never accumulates its visualization. The shared host owns eight bounded physical-pixel Halton samples, surface color/depth history, reprojection and invalidation. Picking, PMI and overlay projection use the logical camera. Scene/appearance/occurrence updates through `setScene` reset history; object-transform reprojection is not claimed. Topology and authoring overlays render after resolve. Temporal textures remain allocated after switching back to spatial mode until resize/disposal.
 

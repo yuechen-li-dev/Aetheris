@@ -1,0 +1,6 @@
+// Nominal straight cylindrical locating pin: diameter 6 mm, length 20 mm.
+// This bounded display specimen makes no edge-finish or manufacturing-release claim.
+Model LocatingPin {
+    Units: mm
+    Cylinder PinBody { Radius: 3mm; Height: 20mm; }
+}

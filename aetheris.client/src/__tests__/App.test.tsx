@@ -286,6 +286,47 @@ describe("App STEP file upload flow", () => {
 		expect(screen.getByText("Compatibility: Supported")).toBeTruthy();
 	});
 
+	it("disables the previous import while reading a new file and ignores stale header completion", async () => {
+		render(<App />);
+		await screen.findByText("Document: Ready");
+		const input = screen.getByTestId("step-import-file-input");
+		const first = new File(["ISO-10303-21;"], "first.step");
+		fireEvent.change(input, { target: { files: [first] } });
+		await screen.findByText("first.step");
+		const importButton = screen.getByRole("button", {
+			name: "Import STEP 242",
+		}) as HTMLButtonElement;
+		expect(importButton.disabled).toBe(false);
+
+		let finishHeader!: (value: string) => void;
+		const pendingHeader = new Promise<string>((resolve) => {
+			finishHeader = resolve;
+		});
+		const second = new File(["ISO-10303-21;"], "second.step");
+		vi.spyOn(second, "slice").mockReturnValue({
+			text: () => pendingHeader,
+		} as Blob);
+		fireEvent.change(input, { target: { files: [second] } });
+		expect(importButton.disabled).toBe(true);
+		fireEvent.click(importButton);
+		expect(apiMocks.importStep).not.toHaveBeenCalled();
+
+		const latest = new File(["ISO-10303-21;"], "latest.step");
+		fireEvent.change(input, { target: { files: [latest] } });
+		await screen.findByText("latest.step");
+		finishHeader("ISO-10303-21;");
+		await pendingHeader;
+		await waitFor(() => expect(screen.queryByText("second.step")).toBeNull());
+		fireEvent.click(importButton);
+		await waitFor(() =>
+			expect(apiMocks.importStep).toHaveBeenCalledWith(
+				"doc-1",
+				"ISO-10303-21;",
+				"latest.step",
+			),
+		);
+	});
+
 	it("shows inline validation when non-STEP file is selected", async () => {
 		render(<App />);
 		await screen.findByText("Document: Ready");

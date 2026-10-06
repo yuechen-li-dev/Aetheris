@@ -50,6 +50,28 @@ export class TelosCamera {
     this.height = Math.max(1, height);
     this.update();
   }
+  /** Apply compiler-owned Scene presentation metadata through the existing camera authority. */
+  applyDisplayCamera(value: {
+    transform: readonly number[];
+    lookAtMm?: readonly number[];
+    fovDegrees: number;
+  }) {
+    const t = value.transform;
+    if (
+      t.length !== 16 ||
+      t.some((v) => !Number.isFinite(v)) ||
+      !(value.fovDegrees > 0 && value.fovDegrees < 180)
+    )
+      throw new Error("telos-scene-camera-invalid");
+    this.position.set(t[12], t[13], t[14]);
+    this.up.set(t[4], t[5], t[6]);
+    if (value.lookAtMm)
+      this.target.set(value.lookAtMm[0], value.lookAtMm[1], value.lookAtMm[2]);
+    else this.target.copy(this.position).add(new Vector3(-t[8], -t[9], -t[10]));
+    this.mode = "perspective";
+    this.fov = value.fovDegrees;
+    this.update();
+  }
   update() {
     if (!(this.near > 0 && this.far > this.near && this.span > 0))
       throw new Error("telos-camera-clipping-invalid");
@@ -115,12 +137,21 @@ export class TelosCamera {
       return;
     this.target.copy(min).add(max).multiplyScalar(0.5);
     const radius = Math.max(max.distanceTo(min) / 2, 1e-5);
-    const distance = (radius / Math.sin((this.fov * Math.PI) / 360)) * 1.2;
+    const aspect = this.width / this.height;
+    const halfAngle = Math.atan(
+      Math.tan((this.fov * Math.PI) / 360) * Math.min(1, aspect),
+    );
+    const distance = (radius / Math.sin(halfAngle)) * 1.15;
+    // Respect each product's world-up convention instead of imposing a Y-up view.
+    const direction =
+      Math.abs(this.up.z) > 0.5
+        ? new Vector3(1, -1, 0.8)
+        : new Vector3(1, 0.8, 1);
     this.position
       .copy(this.target)
-      .add(new Vector3(1, 0.8, 1).normalize().multiplyScalar(distance));
-    this.span = radius * 2.5;
-    this.near = Math.max(radius * 1e-4, 1e-8);
+      .add(direction.normalize().multiplyScalar(distance));
+    this.span = (radius * 2.3) / Math.min(1, aspect);
+    this.near = Math.max(radius * 0.01, 1e-8);
     this.far = distance + radius * 20;
     this.update();
   }

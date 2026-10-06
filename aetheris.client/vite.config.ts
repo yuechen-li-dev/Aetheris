@@ -61,8 +61,6 @@ export default defineConfig(({ command }) => ({
 			output: {
 				manualChunks: {
 					three: ["three"],
-					"react-three-fiber": ["@react-three/fiber"],
-					"react-three-drei": ["@react-three/drei"],
 				},
 			},
 		},
@@ -70,9 +68,17 @@ export default defineConfig(({ command }) => ({
 	server:
 		command === "serve"
 			? {
-					fs: env.AETHERIS_TELOS_WITNESS === "1" ? {
-						allow: [fileURLToPath(new URL(".", import.meta.url)), fileURLToPath(new URL("../fixtures/three-telos", import.meta.url)), fileURLToPath(new URL("../docs/development/milestones/modules/sheetmetal/artifacts/ctc03-manufacturing-release", import.meta.url)), fileURLToPath(new URL("../artifacts/local/three-telos/cir", import.meta.url))],
-					} : undefined,
+					fs: {
+						allow: [
+							fileURLToPath(new URL(".", import.meta.url)),
+							fileURLToPath(new URL("../Aetheris.Web.Runtime/telos", import.meta.url)),
+							...(env.AETHERIS_TELOS_WITNESS === "1" ? [
+								"../fixtures/three-telos",
+								"../docs/development/milestones/modules/sheetmetal/artifacts/ctc03-manufacturing-release",
+								"../artifacts/local/three-telos/cir",
+							].map(value => fileURLToPath(new URL(value, import.meta.url))) : []),
+						],
+					},
 					proxy: {
 						"^/api": {
 							target,

@@ -235,6 +235,22 @@ try {
     architecture: host.owner.adapter.info.architecture,
     description: host.owner.adapter.info.description,
   };
+  const modes: Record<string, unknown> = {};
+  for (const mode of ["None", "SpatialOnly", "TAA", "TAAUtility"] as const) {
+    host.setAA(mode);
+    host.render();
+    await host.readPixels();
+    modes[mode] = {
+      active: host.aaMode,
+      samples: host.owner.sampleCount,
+      depthGeneration: host.frame.generation,
+    };
+    check(
+      host.owner.sampleCount === (mode === "SpatialOnly" ? 4 : 1),
+      "AA attachment sample count mismatch",
+    );
+  }
+  results.aaTransitions = modes;
   const resources = host.owner.resources;
   host.dispose();
   check(

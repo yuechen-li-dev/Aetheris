@@ -41,6 +41,7 @@ public sealed record FirmamentStepExportResult(
     // It is intentionally absent from CLI/JSON artifact serialization.
     [JsonIgnore] public BrepBody? RuntimeBody { get; init; }
     [JsonIgnore] public SemanticTopologyCorrespondence? RuntimeCorrespondence { get; init; }
+    public FirmamentCirRetention? Cir { get; init; }
 }
 
 public sealed record FirmamentThreadReport(

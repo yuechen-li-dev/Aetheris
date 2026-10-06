@@ -9,6 +9,7 @@ stream Input {
     @location(3) depthRow: float4;
     @location(4) wRow: float4;
     @location(5) epsilon: f32;
+    @location(6) metallic: f32;
 }
 stream Varyings {
     @builtin(position) position: ClipPosition;
@@ -17,10 +18,11 @@ stream Varyings {
     @location(2) depthRow: float4;
     @location(3) wRow: float4;
     @location(4) epsilon: f32;
+    @location(5) metallic: f32;
 }
 stream Output { @target(0) color: float4; @builtin(frag_depth) depth: f32; }
 @vertex function VertexMain(input: Input): Varyings {
-    return { position: float4(input.position, 1.0), origin: input.origin, delta: input.delta, depthRow: input.depthRow, wRow: input.wRow, epsilon: input.epsilon };
+    return { position: float4(input.position, 1.0), origin: input.origin, delta: input.delta, depthRow: input.depthRow, wRow: input.wRow, epsilon: input.epsilon, metallic: input.metallic };
 }
 @pixel function PixelMain(input: Varyings, resources: Resources): Output {
     const length: f32 = Sqrt(input.delta.x * input.delta.x + input.delta.y * input.delta.y + input.delta.z * input.delta.z);
@@ -39,10 +41,19 @@ stream Output { @target(0) color: float4; @builtin(frag_depth) depth: f32; }
             const gy: f32 = Field(x,y+h,z)-Field(x,y-h,z);
             const gz: f32 = Field(x,y,z+h)-Field(x,y,z-h);
             const n: f32 = Max(Sqrt(gx*gx+gy*gy+gz*gz),0.00000001);
-            const light: f32 = 0.28 + 0.72 * Abs((gx*0.3+gy*0.8+gz*0.6)/n);
+            const light: f32 = 0.28 + 0.72 * Abs((gx*0.287347886+gy*0.766261029+gz*0.574695772)/n);
+            const s: f32 = Min(Abs((gx*0.161+gy*0.432+gz*0.887)/n),1.0);
+            const s2: f32 = s*s;
+            const s4: f32 = s2*s2;
+            const s8: f32 = s4*s4;
+            const s16: f32 = s8*s8;
+            const s32: f32 = s16*s16;
+            const s64: f32 = s32*s32;
+            const rough: f32 = Min(Max(resources.frame.roughness,0.04),1.0);
+            const spec: f32 = (s64*(1.0-rough)+s2*rough)*(0.05+Min(Max(input.metallic,0.0),1.0)*0.2);
             const clipZ: f32 = input.depthRow.x*x+input.depthRow.y*y+input.depthRow.z*z+input.depthRow.w;
             const clipW: f32 = input.wRow.x*x+input.wRow.y*y+input.wRow.z*z+input.wRow.w;
-            return { color: float4(resources.frame.tint.x*light,resources.frame.tint.y*light,resources.frame.tint.z*light,resources.frame.tint.w), depth: clipZ/clipW };
+            return { color: float4(Sqrt(Max(resources.frame.tint.x*light+spec,0.0)),Sqrt(Max(resources.frame.tint.y*light+spec,0.0)),Sqrt(Max(resources.frame.tint.z*light+spec,0.0)),resources.frame.tint.w), depth: clipZ/clipW };
         }
         t = t + Abs(d) * 0.9;
         if (t > length) { break; }

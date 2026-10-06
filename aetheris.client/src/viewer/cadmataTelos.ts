@@ -1,5 +1,6 @@
 import {
   materialFromAppearance,
+  fromDisplayMesh,
   identityTransform,
   type TelosScene,
   type TelosMesh,
@@ -23,6 +24,27 @@ const assemblyGeometry = new WeakMap<
 
 /** Product packet interpretation only. Camera, drawing and engineering picking live in Telos. */
 export function cadmataTelosScene(props: AetherisViewportProps): TelosScene {
+  if (props.assemblyPacket?.display) {
+    const scene = fromDisplayMesh(props.assemblyPacket.display);
+    const selected = new Set(
+      props.assemblyPacket.occurrences.find(
+        (o) => o.stableId === props.selectedAssemblyOccurrenceId,
+      )?.selectionMembers ?? [props.selectedAssemblyOccurrenceId],
+    );
+    const overlays = cadmataOverlays(props);
+    return {
+      ...scene,
+      fields: scene.fields.map(f => ({ ...f, selected: selected.has(f.identity.occurrenceId) })),
+      meshes: [
+        ...scene.meshes.map((m) => ({
+          ...m,
+          selected: selected.has(m.identity.occurrenceId),
+        })),
+        ...overlays.meshes,
+      ],
+      lines: [...scene.lines, ...overlays.lines],
+    };
+  }
   const theme = props.theme ?? ATELIER_VIEWPORT_THEME;
   const meshes: TelosMesh[] = [],
     lines: TelosLine[] = [];
@@ -135,5 +157,9 @@ export function cadmataTelosScene(props: AetherisViewportProps): TelosScene {
       });
     }
   const overlays = cadmataOverlays(props);
-  return { meshes: [...meshes, ...overlays.meshes], lines: [...lines, ...overlays.lines], fields: [] };
+  return {
+    meshes: [...meshes, ...overlays.meshes],
+    lines: [...lines, ...overlays.lines],
+    fields: [],
+  };
 }

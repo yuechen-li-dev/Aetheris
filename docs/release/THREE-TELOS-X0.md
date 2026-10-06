@@ -52,7 +52,7 @@ The retained compiler qualification path is:
 ```text
 existing CIR SdfCylinderNode(0.8, 2)
   -> CirVisualTsLowerer (existing CIR tape)
-  -> Field + typed fixtures/three-telos/field-pass.v.ts
+  -> Field + typed Aetheris.Kernel.Firmament/Display/telos-field.v.ts
   -> Copeland parser/binder -> VD-MIR -> WgslGraphicsBackend
   -> artifact -> Telos Field pass -> real Edge WebGPU
 ```

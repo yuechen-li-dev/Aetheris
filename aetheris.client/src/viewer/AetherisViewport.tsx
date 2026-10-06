@@ -14,7 +14,8 @@ export type { AetherisViewportProps } from "./viewportProps";
 
 /** One graphics authority; legacy rendering is loaded only for unsupported browsers. */
 export function AetherisViewport(props: AetherisViewportProps) {
-  const supported = typeof navigator !== "undefined" && "gpu" in navigator;
+  const [generation, setGeneration] = useState(0);
+  const supported = typeof navigator !== "undefined" && !!navigator.gpu;
   const legacyReason = !supported ? "WebGPU unavailable" : null;
   if (legacyReason)
     return (
@@ -38,10 +39,16 @@ export function AetherisViewport(props: AetherisViewportProps) {
         </small>
       </div>
     );
-  return <TelosViewport {...props} />;
+  return (
+    <TelosViewport
+      key={generation}
+      {...props}
+      onRetry={() => setGeneration((value) => value + 1)}
+    />
+  );
 }
 
-function TelosViewport(props: AetherisViewportProps) {
+function TelosViewport(props: AetherisViewportProps & { onRetry(): void }) {
   const canvas = useRef<HTMLCanvasElement>(null),
     container = useRef<HTMLDivElement>(null),
     host = useRef<TelosHost | null>(null);
@@ -67,6 +74,7 @@ function TelosViewport(props: AetherisViewportProps) {
   };
   useEffect(() => {
     let disposed = false;
+    const initialization = new AbortController();
     const element = canvas.current;
     if (!element) return;
     const click = (event: MouseEvent) => {
@@ -92,7 +100,32 @@ function TelosViewport(props: AetherisViewportProps) {
         value.onAssemblyOccurrenceSelect?.(hit.occurrenceId);
     };
     element.addEventListener("click", click);
-    void TelosHost.create(element, setDiagnostic)
+    const hover = (event: PointerEvent) => {
+      const current = host.current;
+      if (!current || event.buttons) return;
+      const rect = element.getBoundingClientRect();
+      const hit =
+        event.type === "pointerleave"
+          ? null
+          : current.picker.pick([
+              event.clientX - rect.left,
+              event.clientY - rect.top,
+            ]);
+      let changed = false;
+      for (const mesh of current.scene.meshes) {
+        const hovered =
+          !!hit &&
+          !mesh.overlay &&
+          mesh.identity.occurrenceId === hit.occurrenceId &&
+          (hit.faceId === undefined || mesh.identity.faceId === hit.faceId);
+        changed ||= mesh.hovered !== hovered;
+        mesh.hovered = hovered;
+      }
+      if (changed) current.invalidate();
+    };
+    element.addEventListener("pointermove", hover);
+    element.addEventListener("pointerleave", hover);
+    void TelosHost.create(element, setDiagnostic, initialization.signal)
       .then((current) => {
         if (disposed) {
           current.dispose();
@@ -101,6 +134,8 @@ function TelosViewport(props: AetherisViewportProps) {
         host.current = current;
         setLabelHost(current);
         current.camera.mode = "orthographic";
+        current.camera.up.set(0, 0, 1);
+        current.gridPlane = "xy";
         current.attach(container.current!);
         apply();
         latest.current.onHostReady?.(current);
@@ -110,7 +145,10 @@ function TelosViewport(props: AetherisViewportProps) {
       });
     return () => {
       disposed = true;
+      initialization.abort();
       element.removeEventListener("click", click);
+      element.removeEventListener("pointermove", hover);
+      element.removeEventListener("pointerleave", hover);
       host.current?.dispose();
       host.current = null;
     };
@@ -124,13 +162,76 @@ function TelosViewport(props: AetherisViewportProps) {
       ref={container}
       style={{ width: "100%", height: "100%", position: "relative" }}
       data-display-host="three-telos"
+      aria-busy={!labelHost || !!props.busyMessage}
+      className="telos-viewport"
     >
       <canvas
         ref={canvas}
         aria-label="Engineering WebGPU viewport"
         style={{ display: "block", width: "100%", height: "100%" }}
       />
-      {diagnostic && <div role="alert">{diagnostic}</div>}
+      {!!props.assemblyPacket?.display?.cameras?.length && (
+        <select
+          aria-label="Scene camera"
+          style={{ position: "absolute", left: 12, top: 12, zIndex: 2 }}
+          defaultValue=""
+          onChange={(event) => {
+            const camera = props.assemblyPacket?.display?.cameras?.find(
+              (c) => c.name === event.target.value,
+            );
+            if (camera && host.current) {
+              host.current.camera.applyDisplayCamera(camera);
+              host.current.invalidate();
+            } else if (!event.target.value && host.current) {
+              host.current.fit();
+              host.current.invalidate();
+            }
+          }}
+        >
+          <option value="">Fit view</option>
+          {props.assemblyPacket.display.cameras.map((c) => (
+            <option key={c.name}>{c.name}</option>
+          ))}
+        </select>
+      )}
+      {!diagnostic && (!labelHost || props.busyMessage) && (
+        <div className="telos-status" role="status">
+          {props.busyMessage ?? "Preparing viewport…"}
+        </div>
+      )}
+      {labelHost &&
+        !props.busyMessage &&
+        !props.displayScene?.renderables.length &&
+        !props.assemblyPacket && (
+          <div
+            className="telos-empty"
+            style={{
+              color: (props.theme ?? ATELIER_VIEWPORT_THEME).annotation.text,
+            }}
+          >
+            <strong>Open a model to begin</strong>
+            <span>
+              Import a STEP file or choose a model from the Product Gallery.
+            </span>
+            <small>Drag to orbit · Shift-drag to pan · Scroll to zoom</small>
+          </div>
+        )}
+      {(diagnostic || props.errorMessage) && (
+        <div className="telos-status telos-error" role="alert">
+          {diagnostic
+            ? "The viewport could not render. Your model is retained."
+            : props.errorMessage}
+          {diagnostic && (
+            <>
+              <details>
+                <summary>Details</summary>
+                {diagnostic}
+              </details>
+              <button onClick={props.onRetry}>Restart viewport</button>
+            </>
+          )}
+        </div>
+      )}
       <PmiAnnotationLayer
         host={labelHost}
         artifact={props.cadmataArtifact ?? null}

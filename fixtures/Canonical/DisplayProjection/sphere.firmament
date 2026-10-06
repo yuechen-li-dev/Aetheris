@@ -1,0 +1,4 @@
+Model RetainedSphere {
+    Units: mm
+    Sphere Base { Radius: 12mm }
+}

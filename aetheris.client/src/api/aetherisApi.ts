@@ -198,6 +198,7 @@ export interface AssemblyDisplayToleranceDto {
 	expandedContributors?: string[];
 }
 export interface AssemblyDisplayPacketDto {
+    display?: import('@aetheris/three-telos').DisplayPacket & { cameras?: readonly { name: string; transform: readonly number[]; lookAtMm?: readonly number[]; fovDegrees: number }[] };
 	schema: string;
 	name: string;
 	rootOccurrenceStableId: string;

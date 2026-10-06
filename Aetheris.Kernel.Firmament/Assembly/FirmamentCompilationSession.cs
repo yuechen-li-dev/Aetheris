@@ -168,6 +168,8 @@ internal sealed class AssemblyDefinitionCache(int capacity)
 
     private static MaterializedAssemblyDefinition CopyMetadata(MaterializedAssemblyDefinition definition) => definition with
     {
+        Cir = definition.Cir is null ? null : definition.Cir with
+        { MinimumMm = definition.Cir.MinimumMm?.ToArray(), MaximumMm = definition.Cir.MaximumMm?.ToArray() },
         Semantics = definition.Semantics.Select(Copy).ToArray(),
         Artifact = definition.Artifact with
         {

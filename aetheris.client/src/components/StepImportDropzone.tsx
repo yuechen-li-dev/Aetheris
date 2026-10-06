@@ -17,6 +17,7 @@ type StepFileMetadata = {
 };
 
 type StepImportDropzoneProps = {
+	onSelectionStarting?: () => void;
 	resetToken: number;
 	onFileAccepted: (file: File) => void;
 	onValidationError: (message: string) => void;
@@ -147,6 +148,7 @@ async function readStepHeader(file: File): Promise<string> {
 }
 
 export function StepImportDropzone({
+	onSelectionStarting,
 	resetToken,
 	onFileAccepted,
 	onValidationError,
@@ -155,8 +157,10 @@ export function StepImportDropzone({
 	const [selectionMetadata, setSelectionMetadata] = useState<StepFileMetadata | null>(null);
 	const [selectionError, setSelectionError] = useState<string | null>(null);
 	const inputRef = useRef<HTMLInputElement | null>(null);
+	const selectionRevision = useRef(0);
 
 	useEffect(() => {
+		selectionRevision.current++;
 		// The parent token deliberately resets this component's local selection.
 		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setSelectionMetadata(null);
@@ -165,6 +169,10 @@ export function StepImportDropzone({
 
 	const handleFiles = useCallback(
 		async (files: File[]) => {
+			const revision = ++selectionRevision.current;
+			setSelectionMetadata(null);
+			setSelectionError(null);
+			onSelectionStarting?.();
 			const parsed = stepFileSelectionSchema.safeParse(files);
 			if (!parsed.success) {
 				const message = parsed.error.issues[0]?.message ?? "Invalid STEP file selection.";
@@ -183,6 +191,8 @@ export function StepImportDropzone({
 			} catch {
 				schemaFamily = "Unknown";
 			}
+
+			if (revision !== selectionRevision.current) return;
 
 			const metadataResult = stepFileMetadataSchema.safeParse({
 				fileName: file.name,
@@ -204,7 +214,7 @@ export function StepImportDropzone({
 			setSelectionMetadata(metadataResult.data);
 			onFileAccepted(file);
 		},
-		[onFileAccepted, onValidationError],
+		[onFileAccepted, onValidationError, onSelectionStarting],
 	);
 
 	const handleBrowseClick = useCallback(() => {

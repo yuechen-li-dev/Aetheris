@@ -4,6 +4,7 @@ using Aetheris.Server.Documents;
 using Aetheris.Server.Startup;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.AspNetCore.StaticFiles;
 using System.Diagnostics;
 
 CadmataLaunchOptions launchOptions;
@@ -66,7 +67,9 @@ app.MapPaperclipDemoApi();
 app.MapStandardProductGalleryApi();
 
 app.UseDefaultFiles();
-app.UseStaticFiles();
+var staticContentTypes = new FileExtensionContentTypeProvider();
+staticContentTypes.Mappings[".wgsl"] = "text/plain";
+app.UseStaticFiles(new StaticFileOptions { ContentTypeProvider = staticContentTypes });
 app.MapFallbackToFile("index.html");
 
 if (launchOptions.Step is null)

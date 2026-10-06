@@ -7,7 +7,7 @@ public static class SceneExport
 {
     /// <summary>A presentation projection over owned Room boundaries. Geometry and
     /// authored room validity remain unchanged; unknown boundaries fail closed.</summary>
-    private static AssemblyDisplayMeshDocument Project(CompiledScene scene,IReadOnlyCollection<string>? hiddenBoundaries)
+    public static AssemblyDisplayMeshDocument Project(CompiledScene scene,IReadOnlyCollection<string>? hiddenBoundaries = null)
     {
         if (hiddenBoundaries is null || hiddenBoundaries.Count == 0) return scene.Display;
         var known=scene.Boundaries.Select(b => b.Path).ToHashSet(StringComparer.Ordinal);

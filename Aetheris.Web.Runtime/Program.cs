@@ -12,6 +12,7 @@ using Aetheris.Kernel.Firmament;
 using Aetheris.Kernel.Firmament.Assembly;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Kernel.Firmament.Materializer;
+using Aetheris.Kernel.Firmament.Scene;
 
 namespace Aetheris.Web.Runtime;
 
@@ -89,7 +90,7 @@ public static partial class Program
         if (string.IsNullOrWhiteSpace(request.Source))
             throw new WebRuntimeException("source-required", "compile requires Firmament source text.");
         var id = $"model-{++_nextSession}";
-        var session = new WebModelSession(id, request.Source, request.SourceName ?? "model.firmament");
+        var session = new WebModelSession(id, request.Source, request.SourceName ?? "model.firmament", request.ProjectDocuments);
         var result = session.Rebuild();
         if (result.Success) Sessions[id] = session;
         else session.Dispose();
@@ -171,7 +172,7 @@ public static partial class Program
     {
         var session = Session(request);
         if (request.Source is null) throw new WebRuntimeException("source-required", "setSource requires source text.");
-        session.SetSource(request.Source, request.SourceName);
+        session.SetSource(request.Source, request.SourceName, request.ProjectDocuments);
         return new { accepted = true, revision = session.Revision, dirty = true };
     }
 
@@ -196,7 +197,7 @@ public static partial class Program
     private static object ExportStep(WebRequest request)
     {
         var session = Session(request);
-        if (session.StepText is null) throw new WebRuntimeException("model-not-built", "The model has no valid STEP artifact.");
+        if (session.StepText is null) throw new WebRuntimeException("step-export-unavailable", "The current document has no STEP product artifact.");
         return new { mediaType = "model/step", fileName = session.Name + ".step", base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(session.StepText)), revision = session.Revision };
     }
 
@@ -221,20 +222,22 @@ public static partial class Program
         string? SourceName = null, string? PropertyId = null, WebPropertyValue? Value = null,
         string? SourceRevision = null, int? Offset = null, string? ConstructSemanticId = null,
         string? FieldId = null, FirmamentProjectedValue? FieldValue = null, int? BuildRevision = null,
-        bool Performance = false);
+        bool Performance = false, IReadOnlyDictionary<string, string>? ProjectDocuments = null);
 
     private sealed class WebRuntimeException(string code, string message) : Exception(message)
     {
         public string Code { get; } = code;
     }
 
-    private sealed class WebModelSession(string id, string source, string sourceName) : IDisposable
+    private sealed class WebModelSession(string id, string source, string sourceName, IReadOnlyDictionary<string, string>? projectDocuments) : IDisposable
     {
         private string _source = source;
         private string _sourceName = sourceName;
+        private IReadOnlyDictionary<string, string>? _projectDocuments = projectDocuments;
         private readonly FirmamentCompilationSession _compilationSession = new();
+        private readonly FirmamentSceneSession _sceneSession = new();
         private AssemblyCompilationReuse? _lastReuse;
-        public void Dispose() => _compilationSession.Dispose();
+        public void Dispose() { _compilationSession.Dispose(); _sceneSession.Dispose(); }
         private IReadOnlyList<WebProperty> _properties = [];
         private IReadOnlyList<FirmamentConstructProjection> _projections = [];
         private readonly Dictionary<string, WebPropertyValue> _overrides = new(StringComparer.Ordinal);
@@ -245,8 +248,9 @@ public static partial class Program
         public string? StepText { get; private set; }
         public object Snapshot => _lastSnapshot ?? throw new WebRuntimeException("model-not-built", "The model has no valid snapshot.");
 
-        public void SetSource(string nextSource, string? nextSourceName)
+        public void SetSource(string nextSource, string? nextSourceName, IReadOnlyDictionary<string, string>? documents = null)
         {
+            if (documents is not null) _projectDocuments = documents;
             _source = nextSource;
             if (!string.IsNullOrWhiteSpace(nextSourceName)) _sourceName = nextSourceName;
             _overrides.Clear();
@@ -321,7 +325,8 @@ public static partial class Program
                 if (index >= 0) nextProperties[index] = nextProperties[index] with { Value = value.Value };
             }
             var assembly = Regex.IsMatch(effective, @"(?m)^\s*Assembly\s+", RegexOptions.CultureInvariant);
-            var compiled = assembly ? CompileAssembly(effective, nextProperties) : CompilePart(effective, nextProperties);
+            var scene = SceneAuthoring.HasRoot(effective);
+            var compiled = scene ? CompileScene(effective) : assembly ? CompileAssembly(effective, nextProperties) : CompilePart(effective, nextProperties);
             if (!compiled.Success)
                 return compiled with { Revision = Revision, RetainedPreviousGeometry = _lastSnapshot is not null };
 
@@ -408,7 +413,7 @@ public static partial class Program
             mappingPhase.Dispose();
             var meshPhase = BuildPerfTrace.Phase("web.mesh-build");
             var mesh = WebMeshBuilder.Build(Name, definitionId, entityId, displayBody,
-                build.Value.RuntimeCorrespondence, boxSource, Revision + 1, featureSources);
+                build.Value.RuntimeCorrespondence, boxSource, Revision + 1, featureSources, build.Value.Cir);
             meshPhase.Dispose();
             var meshMs = watch.Elapsed.TotalMilliseconds;
             var featureNodes = (build.Value.EngineeringFeatures ?? []).Select(feature => new WebTreeNode(feature.FeatureId, feature.Kind, feature.Name, entityId, [], true,
@@ -443,6 +448,30 @@ public static partial class Program
             var root = new WebTreeNode(compilation.Ir.RootInstanceStableId, "Assembly", compilation.Ir.Name, null, children, true, SourceRef(_sourceName, 0, effective.Length));
             var tree = new { rootId = root.Id, nodes = nodes.Prepend(root).DistinctBy(node => node.Id).ToArray() };
             return WebBuildResult.Passed(step.Value, tree, mesh, nodes.Select(node => node.Id).Prepend(root.Id).Distinct().ToArray(), compileMs, meshMs);
+        }
+
+        private WebBuildResult CompileScene(string effective)
+        {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            // A project snapshot is explicit; missing resources never fall through to browser disk.
+            var documents = new Dictionary<string, string>(_projectDocuments ?? new Dictionary<string, string>(), StringComparer.Ordinal)
+                { [_sourceName] = effective };
+            var compilation = _sceneSession.CompileProject(new FirmamentProjectSnapshot(_sourceName, documents));
+            if (!compilation.IsSuccess || compilation.Scene is null)
+                return WebBuildResult.Failed(compilation.Diagnostics.Select(d => new WebDiagnostic("error", d.Code, d.Message)).ToArray(), watch.Elapsed.TotalMilliseconds);
+            var compiledScene = compilation.Scene;
+            var mesh = DisplayProjection.Project(compiledScene);
+            var sourceNodes = compiledScene.Nodes.ToDictionary(n => n.Path, StringComparer.Ordinal);
+            WebSourceRef? SceneSource(string path)
+            {
+                if (!sourceNodes.TryGetValue(path, out var node)) return null;
+                var text = documents.GetValueOrDefault(node.Span.Source);
+                return text is null ? null : SourceRefAt(node.Span.Source, text, node.Span.Start, node.Span.Length);
+            }
+            var nodes = mesh.Occurrences.Select(o => new WebTreeNode(o.Id, o.Kind ?? "SceneNode", o.Path.Split('.').Last(), o.ParentId,
+                mesh.Occurrences.Where(c => c.ParentId == o.Id).Select(c => c.Id).ToArray(), true, SceneSource(o.Path))).ToArray();
+            var tree = new { rootId = mesh.Occurrences.Single(o => o.ParentId is null).Id, nodes };
+            return WebBuildResult.Passed(null, tree, mesh, nodes.Select(n => n.Id).ToArray(), watch.Elapsed.TotalMilliseconds, compiledScene.Performance.DisplayPreparationMilliseconds);
         }
     }
 
@@ -541,7 +570,8 @@ internal static class WebMeshBuilder
 {
     public static object Build(string name, string definitionId, string entityId, BrepBody body,
         Aetheris.Kernel.Firmament.Materializer.SemanticTopologyCorrespondence? correspondence = null,
-        WebSourceRef? source = null, int buildRevision = 0, IReadOnlyDictionary<string, WebSourceRef?>? featureSources = null)
+        WebSourceRef? source = null, int buildRevision = 0, IReadOnlyDictionary<string, WebSourceRef?>? featureSources = null,
+        FirmamentCirRetention? cir = null)
     {
         // Browser WASM has no blocking monitor wait. Use the existing synchronous
         // tessellator authority; the Worker transport supplies UI responsiveness.
@@ -575,12 +605,14 @@ internal static class WebMeshBuilder
                 source = semanticFace is null ? null : faceSource, buildRevision });
         }
         mapPhase.Dispose();
+        var shader = CirShaderArtifactProvider.Resolve(cir);
         return new
         {
             schema = "aetheris/display-mesh/1",
             name,
             units = "mm",
             definitions = new[] { new { id = definitionId, identity = entityId, positions = positions.ToArray(), normals = normals.ToArray(), indices = indices.ToArray(), ranges,
+                cir, shader, geometryRevision = definitionId, displayPath = shader.Artifact is not null ? "cir" : "mesh", fallbackReason = shader.Reason,
                 edges = tessellation.Value.EdgePolylines.Select(edge =>
                 {
                     Aetheris.Kernel.Firmament.Materializer.SemanticTopologyDescendant? semanticEdge = null;
@@ -608,5 +640,5 @@ internal sealed record WebBuildResult(bool Success, int Revision, object? Model,
     IReadOnlyList<FirmamentConstructProjection>? Projections = null, double CompileMilliseconds = 0, double MeshMilliseconds = 0)
 {
     public static WebBuildResult Failed(IReadOnlyList<WebDiagnostic> diagnostics, double compileMs) => new(false, 0, null, diagnostics, false, Timings: new { compileMilliseconds = compileMs }, CompileMilliseconds: compileMs);
-    public static WebBuildResult Passed(string step, object tree, object mesh, IReadOnlyList<string> ids, double compileMs, double meshMs) => new(true, 0, null, [], false, tree, mesh, ids, new { compileMilliseconds = compileMs, meshMilliseconds = meshMs }, StepText: step, CompileMilliseconds: compileMs, MeshMilliseconds: meshMs);
+    public static WebBuildResult Passed(string? step, object tree, object mesh, IReadOnlyList<string> ids, double compileMs, double meshMs) => new(true, 0, null, [], false, tree, mesh, ids, new { compileMilliseconds = compileMs, meshMilliseconds = meshMs }, StepText: step, CompileMilliseconds: compileMs, MeshMilliseconds: meshMs);
 }

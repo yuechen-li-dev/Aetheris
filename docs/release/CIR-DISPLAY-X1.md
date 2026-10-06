@@ -208,3 +208,22 @@ The native artifact-provider requirement above describes the earlier X0 path;
 it is no longer necessary for a browser host that adopts this direct backend.
 The existing Aetheris SDK has not yet adopted it. Shared render-host/depth ownership
 and compatible Cadmata overlays remain the X1 product integration boundary.
+
+## Subsequent Preview 4 audit
+
+The shared Three Telos host and Cadmata overlay migration subsequently landed.
+The host/material incompatibilities recorded above are historical, not the
+current reason automatic authored CIR is blocked. The initial P4-01A audit found
+that V2 discarded admitted field geometry and Scene/appearance metadata stopped
+before product transport. [P4-01A1](P4-01A1-CIR-AUTHORITY-RETENTION.md) now retains
+the existing CIR beside BRep; [P4-01A2](P4-01A2-DISPLAY-TRANSPORT-X0.md) carries
+owned Scene and resolved materials into both products. The
+[P4-01A rerun](P4-01A-DISPLAY-PROJECTION-CLOSEOUT.md) isolates the next boundary:
+qualified field metadata has no production-bound WGSL artifact. Direct managed
+WGSL is available; adopting that backend and binding/caching its artifacts
+remains necessary. No native-subprocess requirement or second renderer is proposed.
+
+That A2 snapshot is superseded by [P4-01A3](P4-01A3-CIR-SHADER-BINDING-CLOSEOUT.md):
+one compiler-owned managed provider now binds artifacts into normal product Auto.
+The remaining simple CSG qualification boundary is its historical V1 source route,
+not the shader-artifact connector.

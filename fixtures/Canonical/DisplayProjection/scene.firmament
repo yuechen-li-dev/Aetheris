@@ -1,0 +1,9 @@
+Scene FieldWorkshop {
+    units: mm;
+    <Assembly carriage = AssemblyFile<"mixed.firmament">>
+        Placement { from: Origin; to: World; translateLocal: [0mm,0mm,0mm]; }
+    </Assembly>
+    Camera Hero { position: [100mm,-160mm,120mm]; lookAt: [20mm,-20mm,15mm]; fov: 55deg; }
+    Camera Front { position: [0mm,-200mm,12.5mm]; lookAt: [0mm,0mm,12.5mm]; fov: 55deg; }
+    Camera Back { position: [0mm,200mm,12.5mm]; lookAt: [0mm,0mm,12.5mm]; fov: 55deg; }
+}

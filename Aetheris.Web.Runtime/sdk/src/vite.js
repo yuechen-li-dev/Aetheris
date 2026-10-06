@@ -29,8 +29,15 @@ export function aetherisCad() {
         const path = resolve(runtimeDirectory, relative);
         const runtimeRoot = resolve(runtimeDirectory);
         if (path !== runtimeRoot && !path.startsWith(runtimeRoot + sep)) return next();
-        if (!existsSync(path) || !(await stat(path)).isFile()) return next();
+        if (!existsSync(path)) return next();
+        const file = await stat(path);
+        if (!file.isFile()) return next();
         response.setHeader('Content-Type', mime.get(extname(path)) ?? 'application/octet-stream');
+        // Development packages are replaced at the same preview version. Avoid
+        // stale boot assets and Chromium private-context cache write failures
+        // for the larger managed compiler assemblies.
+        response.setHeader('Cache-Control', 'no-store');
+        response.setHeader('Content-Length', file.size);
         createReadStream(path).pipe(response);
       });
     },

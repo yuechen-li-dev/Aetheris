@@ -24,6 +24,8 @@ export interface MeshRange {
 }
 export interface TelosGeometry {
   id: string;
+  /** Immutable geometry content identity supplied by the compiler/projector. */
+  geometryRevision?: string | null;
   positions: NumericArray;
   normals: NumericArray;
   indices: NumericArray;
@@ -42,6 +44,8 @@ export interface TelosMesh {
   unlit?: boolean;
 }
 export interface TelosLine {
+  /** Fade finite reference-grid endpoints without changing engineering edge coverage. */
+  fadeEnds?: boolean;
   id: string;
   points: NumericArray;
   identity: TelosIdentity;
@@ -67,7 +71,8 @@ export interface TelosShaderArtifact {
   capabilities: readonly string[];
   sourceIdentity: string;
 }
-/** X0 field ABI: clip, local near/delta, depth/w rows, epsilon; canonical 32-byte tint/roughness uniform. Rigid occurrences only. */
+/** Rays/1 uses 72-byte vertices; rays/2 adds metallic at location 6 (76 bytes).
+ * Both retain the canonical 32-byte tint/roughness uniform. Rigid occurrences only. */
 export interface TelosField {
   artifact: TelosShaderArtifact;
   identity: TelosIdentity;
@@ -75,12 +80,22 @@ export interface TelosField {
   transform?: NumericArray;
   material: TelosMaterial;
   proxy?: TelosGeometry;
+  visible?: boolean;
+  /** Normal mesh fallback while executable GPU state is pending or rejected. */
+  fallback?: TelosMesh;
   selected?: boolean;
 }
 export interface TelosScene {
   meshes: readonly TelosMesh[];
   lines: readonly TelosLine[];
   fields: readonly TelosField[];
+  projectionDiagnostics?: readonly {
+    definitionId: string;
+    qualification?: string;
+    status: string;
+    shaderId?: string;
+    reason?: string | null;
+  }[];
 }
 export interface TelosHit extends TelosIdentity {
   triangleIndex?: number;
@@ -95,11 +110,23 @@ export interface DisplayPacket {
       points: readonly (readonly number[])[];
       closed: boolean;
     }[];
+    cir?: {
+      qualification: string;
+      structuralIdentity?: string | null;
+      minimumMm?: readonly number[] | null;
+      maximumMm?: readonly number[] | null;
+    } | null;
+    shader?: {
+      artifact?: TelosShaderArtifact | null;
+      status: string;
+      reason?: string | null;
+    } | null;
   })[];
   occurrences: readonly {
     id: string;
     definitionId?: string;
     semanticEntityId: string;
     transform: NumericArray;
+    material?: TelosMaterial | null;
   }[];
 }

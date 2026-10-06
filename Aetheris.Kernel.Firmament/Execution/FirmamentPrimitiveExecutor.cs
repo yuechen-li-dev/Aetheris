@@ -367,7 +367,7 @@ internal static class FirmamentPrimitiveExecutor
             analysis.Volume.Approximate,
             analysis.Volume.Resolution);
 
-        return new NativeGeometryCirMirrorState(CirMirrorStatus.Available, summary, []);
+        return new NativeGeometryCirMirrorState(CirMirrorStatus.Available, summary, []) { RuntimeRoot = lower.Value.Root };
     }
 
     private static KernelResult<NativeGeometryState> TryBuildCirOnlyFallback(

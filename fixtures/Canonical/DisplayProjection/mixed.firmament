@@ -1,0 +1,27 @@
+Template < R: Length > Model AnalyticCylinder {
+    Units: mm; Cylinder Body { Radius: R; Height: 30mm; }
+}
+Template < W: Length > Struct MeshPlate {
+    Circle2 Outer { Center: [0mm,0mm]; Radius: W; }
+    Circle2 Inner { Center: [0mm,0mm]; Radius: 4mm; }
+    Profile Ring { Loop Outer { Outer |> TraceLoop } Loop Bore { Inner As InnerBoundary |> TraceLoop } }
+    Extrude Body { Profile: Ring; From: 0mm; To: 5mm; }
+}
+Appearance CopperLook { Color: [.55,.18,.06]; Roughness: .3; Metallic: .7; }
+Material Copper { Identity: "copper"; Appearance: CopperLook; }
+Appearance BlueSteelLook { Color: [.02,.15,.5]; Roughness: .5; Metallic: .6; }
+Material BlueSteel { Identity: "steel"; Appearance: BlueSteelLook; }
+Assembly MixedDisplay {
+    <Assembly MixedDisplay>
+        <Part CylinderA = AnalyticCylinder<R:12mm>> Material: Copper;
+            Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+        </Part>
+        <Part CylinderB = AnalyticCylinder<R:12mm>>
+            Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,50,0,0,1];
+        </Part>
+        <Part Mesh = MeshPlate<W:20mm>> Material: BlueSteel;
+            Placement LegacyExplicit = [1,0,0,0,0,1,0,0,0,0,1,0,0,-60,10,1];
+        </Part>
+    </Assembly>
+    Anchor: MixedDisplay;
+}

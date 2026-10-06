@@ -23,7 +23,7 @@ export function telosPipeline(
         : "depth-tested");
   const id =
     artifact?.shaderId ??
-    "telos-" + (kind.includes("mesh") ? "mesh" : "line") + "/1";
+    "telos-" + (kind.includes("mesh") ? "mesh/1" : "line/2");
   const key = JSON.stringify([
     id,
     kind,

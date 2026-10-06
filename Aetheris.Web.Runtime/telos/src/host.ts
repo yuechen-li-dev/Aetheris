@@ -3,6 +3,7 @@ import { TelosCamera } from "./camera.js";
 import { TelosDevice, TelosFrame } from "./device.js";
 import { TelosPick } from "./pick.js";
 import { attachNavigation } from "./navigation.js";
+import { TelosTemporal, type TelosAAMode, type TelosAADebug } from "./temporal.js";
 import { telosPipeline } from "./pipelines.js";
 import type {
   TelosScene,
@@ -46,6 +47,25 @@ export class TelosHost {
   scene = emptyScene();
   background: GPUColor = [0.08, 0.1, 0.09, 1];
   grid = false;
+  temporal?: TelosTemporal;
+  aaMode: TelosAAMode = "SpatialOnly";
+  aaDebug: TelosAADebug = "color";
+  setAA(mode: TelosAAMode, debug: TelosAADebug = "color") {
+    if ((mode === "TAA" || mode === "TAAUtility") && !this.temporal) {
+      this.owner.diagnostic("telos-temporal-unavailable: retaining spatial AA");
+      mode = "SpatialOnly";
+    }
+    if (mode !== this.aaMode) this.temporal?.reset("mode");
+    this.aaMode = mode;
+    this.aaDebug = debug;
+    this.invalidate();
+  }
+  private get temporalActive() {
+    return this.temporal && (this.aaMode === "TAA" || this.aaMode === "TAAUtility");
+  }
+  private get renderProjection() {
+    return this.temporalActive ? this.temporal!.renderProjection : this.camera.viewProjection;
+  }
   gridPlane: "xy" | "xz" = "xz";
   readonly geometry = new Map<string, GeometryBuffers>();
   private meshes: Draw<TelosMesh>[] = [];
@@ -131,7 +151,9 @@ export class TelosHost {
     diagnostic?: (message: string) => void,
   ) {
     const owner = await TelosDevice.create(canvas, diagnostic);
-    return new TelosHost(owner);
+    const host = new TelosHost(owner);
+    host.temporal = await TelosTemporal.create(owner);
+    return host;
   }
   constructor(readonly owner: TelosDevice) {
     this.frame = new TelosFrame(owner);
@@ -191,6 +213,8 @@ export class TelosHost {
     return { item, pipeline, uniform, binding, count };
   }
   setScene(scene: TelosScene) {
+    // No prior per-occurrence transforms are retained yet. Reset instead of assuming camera-only motion.
+    this.temporal?.reset("scene/appearance/occurrence");
     const previous = [...this.meshes, ...this.lines, ...this.fields];
     const retained = new Set<
       Draw<TelosMesh> | Draw<TelosLine> | Draw<TelosField>
@@ -382,7 +406,7 @@ export class TelosHost {
   private updateMesh(draw: Draw<TelosMesh>) {
     const model = matrix(draw.item.transform);
     const data = new Float32Array(56);
-    data.set(this.camera.viewProjection.elements);
+    data.set(draw.item.overlay ? this.camera.viewProjection.elements : this.renderProjection.elements);
     data.set(model.elements, 16);
     data.set(model.clone().invert().transpose().elements, 32);
     const material = draw.item.material;
@@ -425,7 +449,7 @@ export class TelosHost {
   }
   private updateField(draw: Draw<TelosField>) {
     const inverse = matrix(draw.item.transform).invert(),
-      localVP = this.camera.viewProjection
+      localVP = this.renderProjection
         .clone()
         .multiply(matrix(draw.item.transform));
     const m = localVP.elements,
@@ -445,8 +469,13 @@ export class TelosHost {
     ];
     const vertices = new Float32Array(
       corners.flatMap((pixel) => {
-        const origin = this.camera.unproject(pixel, 0).applyMatrix4(inverse),
-          far = this.camera.unproject(pixel, 1).applyMatrix4(inverse);
+        const unproject = (depth: number) => new Vector3(
+          (pixel[0] / this.camera.width) * 2 - 1,
+          1 - (pixel[1] / this.camera.height) * 2,
+          depth,
+        ).applyMatrix4(this.temporalActive ? this.temporal!.inverseRenderProjection : this.camera.inverseViewProjection);
+        const origin = unproject(0).applyMatrix4(inverse),
+          far = unproject(1).applyMatrix4(inverse);
         return [
           (pixel[0] / this.camera.width) * 2 - 1,
           1 - (pixel[1] / this.camera.height) * 2,
@@ -567,9 +596,12 @@ export class TelosHost {
     for (const listener of this.frameListeners) listener();
     this.metrics.overlayUpdateMs = performance.now() - overlayStart;
     this.updateGrid();
-    this.frame.begin(this.background);
+    const temporal = this.temporalActive ? this.temporal : undefined;
+    const source = temporal?.prepare(this.frame, this.camera, this.aaMode, this.aaDebug);
+    this.frame.begin(this.background, source);
     this.metrics.draws = 0;
-    if (this.gridDraw) {
+    const drawGrid = () => {
+      if (!this.gridDraw) return;
       const grid = this.frame.pass("ReferenceGrid");
       this.updateLine(this.gridDraw);
       grid.setPipeline(this.gridDraw.pipeline);
@@ -577,7 +609,7 @@ export class TelosHost {
       grid.setVertexBuffer(0, this.gridDraw.vertices!);
       grid.draw(6, this.gridDraw.count);
       grid.end();
-    }
+    };
     const drawMesh = (pass: GPURenderPassEncoder, draw: Draw<TelosMesh>) => {
       if (draw.item.visible === false) return;
       this.updateMesh(draw);
@@ -603,6 +635,8 @@ export class TelosHost {
       this.metrics.draws++;
     }
     pass.end();
+    temporal?.resolve(this.frame);
+    drawGrid();
     pass = this.frame.pass("Topology");
     for (const draw of this.lines.filter((draw) => !draw.item.overlay)) {
       if (draw.item.visible === false) continue;
@@ -633,6 +667,7 @@ export class TelosHost {
     this.frame.end();
     this.metrics.frames++;
     this.metrics.frameMs = performance.now() - started;
+    if (temporal?.needsFrame) this.invalidate();
   }
   /** Qualification readback uses the authoritative presented texture. */
   async readPixels(): Promise<Uint8Array> {
@@ -689,6 +724,7 @@ export class TelosHost {
     this.frameListeners.clear();
     this.releaseDraws();
     this.geometry.clear();
+    this.temporal?.dispose();
     this.frame.dispose();
     this.owner.dispose();
   }

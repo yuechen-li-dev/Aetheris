@@ -54,6 +54,7 @@ function TelosViewport(props: AetherisViewportProps) {
     if (!current) return;
     const value = latest.current,
       theme = value.theme ?? ATELIER_VIEWPORT_THEME;
+    current.setAA(value.aaMode ?? "SpatialOnly", value.aaDebug ?? "color");
     current.setScene(cadmataTelosScene(value));
     current.background = clearColor(theme.sceneBackground);
     current.grid = value.showGrid !== false && theme.gridStyle.enabled;

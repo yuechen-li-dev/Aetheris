@@ -1,6 +1,7 @@
 export interface TelosShaderSources {
   mesh: string;
   line: string;
+  temporal?: string;
 }
 
 async function loadShader(url: URL): Promise<string> {
@@ -19,5 +20,10 @@ export async function loadTelosShaders(): Promise<TelosShaderSources> {
     loadShader(new URL("./shaders/mesh.wgsl", import.meta.url)),
     loadShader(new URL("./shaders/line.wgsl", import.meta.url)),
   ]);
-  return { mesh, line };
+  // Optional temporal assets never gate the existing viewport path.
+  const temporal = await Promise.all([
+    loadShader(new URL("./shaders/temporal-policy.wgsl", import.meta.url)),
+    loadShader(new URL("./shaders/temporal-resolve.wgsl", import.meta.url)),
+  ]).then(parts => parts.join("\n")).catch(() => undefined);
+  return { mesh, line, temporal };
 }

@@ -5,6 +5,9 @@ import type { CadmataLayerVisibility } from "./cadmataLayers";
 import type { PmiVisibility } from "./pmiPresentation";
 import type { ViewportTheme } from "./viewportTheme";
 export interface AetherisViewportProps {
+  /** Bounded shared Telos developer comparison controls; spatial AA remains the default. */
+  aaMode?: import("@aetheris/three-telos").TelosAAMode;
+  aaDebug?: import("@aetheris/three-telos").TelosAADebug;
   /** Optional host inspection seam for integration/qualification; does not transfer camera ownership. */
   onHostReady?: (host: import("@aetheris/three-telos").TelosHost) => void;
   displayScene?: DisplayScene | null;

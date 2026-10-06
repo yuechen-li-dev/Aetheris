@@ -82,7 +82,14 @@ export class TelosDevice {
     const adapter = await navigator.gpu.requestAdapter();
     if (!adapter) throw new Error("telos-adapter-unavailable");
     const shaders = await loadTelosShaders();
-    const device = await adapter.requestDevice();
+    // Timing is optional; neither viewport nor temporal startup depends on it.
+    let device: GPUDevice;
+    if (adapter.features.has("timestamp-query")) {
+      device = await adapter.requestDevice({ requiredFeatures: ["timestamp-query"] })
+        .catch(() => adapter.requestDevice());
+    } else {
+      device = await adapter.requestDevice();
+    }
     const context = canvas.getContext("webgpu");
     if (!context) {
       device.destroy();
@@ -171,14 +178,14 @@ export class TelosFrame {
       label: "Telos authoritative depth",
       size: [w, h],
       format: "depth32float",
-      usage: GPUTextureUsage.RENDER_ATTACHMENT,
+      usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC,
     });
     this.depthView = this.depth.createView();
     this.generation++;
   }
-  begin(background: GPUColor) {
+  begin(background: GPUColor, source?: GPUTexture) {
     this.target = this.owner.context.getCurrentTexture();
-    this.colorView = this.target.createView();
+    this.colorView = (source ?? this.target).createView();
     this.encoder = this.owner.device.createCommandEncoder();
     const pass = this.pass("Background", true, background);
     pass.end();

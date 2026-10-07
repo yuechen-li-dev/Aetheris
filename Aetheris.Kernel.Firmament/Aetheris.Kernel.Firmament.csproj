@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Copeland.TS.Backend.Wgsl" Version="0.1.0-preview.1-a3.7329cf8ff04d504a" />
+    <PackageReference Include="Copeland.TS.Backend.Wgsl" Version="0.1.0-preview.1-a3.16c0ce996358af80" />
     <PackageReference Include="Machina.Typography.OpenFont" Version="1.0.0" />
     <ProjectReference Include="..\Aetheris.Firmament.SchemaGenerator\Aetheris.Firmament.SchemaGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\Aetheris.Continuum\Aetheris.Continuum.csproj" />

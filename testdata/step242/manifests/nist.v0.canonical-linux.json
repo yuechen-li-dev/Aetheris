@@ -1,0 +1,5 @@
+{
+  "testdata/step242/nist/CTC/nist_ctc_03_asme1_ap242-e2.stp": "4020b5730a2b71e9d3678f171c46f4b5891ce3beff5c344eff7cd6dbda10e6cd",
+  "testdata/step242/nist/FTC/nist_ftc_09_asme1_ap242-e1.stp": "96dd2fa0c9e673f97c9905dbf0f7d597d3191abe5df87a160064dc9bf9d92646",
+  "testdata/step242/nist/STC/nist_stc_09_asme1_ap242-e3.stp": "0a97849ebbb96a0c7761516b769faf7425ff99e1080e74a6e9a3ec0eb704e7c5"
+}

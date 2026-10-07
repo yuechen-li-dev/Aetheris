@@ -24,6 +24,9 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      - name: Prepare managed WGSL dependency
+        uses: ./.github/actions/prepare-managed-wgsl
+
       - name: Restore server
         run: dotnet restore Aetheris.Server/Aetheris.Server.csproj
 
@@ -58,6 +61,8 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+      - name: Prepare managed WGSL dependency
+        uses: ./.github/actions/prepare-managed-wgsl
       - name: Pack public library dependency graph
         shell: pwsh
         run: ./scripts/package-public-libraries.ps1 -OutputDirectory artifacts/packages/public-libraries
@@ -170,6 +175,8 @@ jobs:
           $toolDirectory = "$source/dist"
           $toolDirectory | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
           & "$toolDirectory/tspack.exe" --version
+      - name: Prepare managed WGSL dependency
+        uses: ./.github/actions/prepare-managed-wgsl
       - name: Restore and build Preview 3 frozen baseline
         run: |
           dotnet restore Aetheris.slnx

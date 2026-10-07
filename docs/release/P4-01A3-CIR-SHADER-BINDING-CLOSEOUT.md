@@ -60,8 +60,13 @@ and occurrences reuse one artifact; appearance/placement changes do not speciali
 the program.
 
 The managed dependency uses exact package version
-`0.1.0-preview.1-a3.7329cf8ff04d504a`, with reviewed producer source hash
-`7329cf8ff04d504a062e8b5f62adcb9e12a1bbd13159c9c0af42b94576ba38d9`.
+`0.1.0-preview.1-a3.16c0ce996358af80`, with portable producer source hash
+`16c0ce996358af80d0a0812f6c93dd97cd6e48cf6bef31c12ec3bd1fcd2ba10c`.
+The producer is pinned to Copeland commit `70b6cbe742ecfb2947c9c6a31cfa8e1d3a89067b`.
+The 2026-10-07 CI repair canonicalized text line endings and UTF-8 BOMs before
+hashing. This supersedes the checkout-byte pin `7329cf8ff04d504a`; the clean
+producer checkout has the same semantic source. Every CI build job now prepares
+the feed explicitly before restore.
 `scripts/prepare-managed-wgsl.ps1 -CopelandRoot <explicit checkout>` verifies that
 source graph and packs the existing projects into an ignored local feed. This is
 a build prerequisite for a fresh checkout, not a production sibling-project

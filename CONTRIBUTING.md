@@ -46,6 +46,14 @@ merely running fewer tests. `Aetheris.Kernel.Firmament.Tests` has the trait too,
 spread evenly across real geometry work rather than concentrated in corpus I/O, so the split
 buys much less there.
 
+The NIST audit keeps strict canonical STEP byte snapshots. Three recovered-pcurve specimens
+have qualified Linux hashes in `testdata/step242/manifests/nist.v0.canonical-linux.json`:
+native math changes tiny UV values and exact geometry sharing changes entity numbering.
+The companion overrides only their expected hash on Linux; status, diagnostics, file size
+and topology counts still use the common snapshot. When refreshing these specimens,
+qualify both Windows and Linux exports and refresh the companion explicitly. All other
+specimens retain the common byte hash on both platforms.
+
 ### Importing corpus files in tests
 
 Do not call `File.ReadAllText` + `Step242Importer.ImportBody` directly in a test. Use the shared

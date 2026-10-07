@@ -8,7 +8,15 @@ Thank you for improving Aetheris. Keep changes focused, explain the engineering 
 
 ## Build and test
 
-Install the .NET SDK selected by [`global.json`](global.json), then use the canonical solution:
+Install the .NET SDK selected by [`global.json`](global.json). Firmament uses an exact managed WGSL compiler package built from a reviewed Copeland commit. A fresh checkout must prepare that ignored local feed before restoring the solution:
+
+```powershell
+git clone --no-checkout https://github.com/yuechen-li-dev/Copeland.git artifacts/local/managed-wgsl/source
+git -C artifacts/local/managed-wgsl/source checkout (Get-Content scripts/managed-wgsl-commit-pin.txt -Raw).Trim()
+./scripts/prepare-managed-wgsl.ps1 -CopelandRoot artifacts/local/managed-wgsl/source
+```
+
+The preparation script checks the transitive compiler source hash with canonical LF text and `/` paths, so Windows and Linux checkouts produce the same package version. CI performs this prerequisite through `.github/actions/prepare-managed-wgsl`. Compiler source stays outside the tracked Aetheris tree. Then use the canonical solution:
 
 ```powershell
 dotnet restore Aetheris.slnx

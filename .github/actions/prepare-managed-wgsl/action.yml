@@ -1,0 +1,22 @@
+name: Prepare managed WGSL dependency
+description: Build the reviewed Copeland source graph into Aetheris's ignored local NuGet feed.
+runs:
+  using: composite
+  steps:
+    - name: Read reviewed compiler commit
+      id: pin
+      shell: pwsh
+      run: |
+        $commit = (Get-Content scripts/managed-wgsl-commit-pin.txt -Raw).Trim()
+        if ($commit -notmatch '^[0-9a-f]{40}$') { throw 'Invalid managed WGSL commit pin.' }
+        "commit=$commit" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
+    - name: Checkout reviewed compiler
+      uses: actions/checkout@v4
+      with:
+        repository: yuechen-li-dev/Copeland
+        ref: ${{ steps.pin.outputs.commit }}
+        path: artifacts/local/managed-wgsl/source
+        persist-credentials: false
+    - name: Pack source-pinned managed compiler
+      shell: pwsh
+      run: ./scripts/prepare-managed-wgsl.ps1 -CopelandRoot artifacts/local/managed-wgsl/source

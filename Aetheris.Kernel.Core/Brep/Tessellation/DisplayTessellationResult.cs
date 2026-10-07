@@ -30,7 +30,8 @@ public sealed record DisplayFaceMeshPatch(
     IReadOnlyList<Vector3D> Normals,
     IReadOnlyList<int> TriangleIndices,
     DisplayFaceMeshSource Source = DisplayFaceMeshSource.Tessellator,
-    string? ScaffoldRejectionReason = null);
+    string? ScaffoldRejectionReason = null,
+    IReadOnlyList<SurfaceMeshCell>? Cells = null);
 
 public sealed record DisplayEdgePolyline(
     EdgeId EdgeId,

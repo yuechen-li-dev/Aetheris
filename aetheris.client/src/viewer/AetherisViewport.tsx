@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { TelosHost, clearColor } from "@aetheris/three-telos";
 import type { AetherisViewportProps } from "./viewportProps";
 import { PmiAnnotationLayer } from "./PmiAnnotationLayer";
@@ -9,6 +9,8 @@ const LegacyAetherisViewport = lazy(() =>
   })),
 );
 import { cadmataTelosScene } from "./cadmataTelos";
+import { inspectSurfaces, inspectionFaceKey, type SurfaceInspectionFace, type SurfaceInspectionMode } from "./surfaceInspection";
+import { telosPresentation } from "./telosPresentation";
 import { ATELIER_VIEWPORT_THEME } from "./viewportTheme";
 import { reportDesktopDiagnostic } from "../desktopDiagnostics";
 export type { AetherisViewportProps } from "./viewportProps";
@@ -56,6 +58,27 @@ function TelosViewport(props: AetherisViewportProps & { onRetry(): void }) {
   const latest = useRef(props);
   const [diagnostic, setDiagnostic] = useState<string | null>(null);
   const [labelHost, setLabelHost] = useState<TelosHost | null>(null);
+  const [inspectionMode, setInspectionMode] = useState<SurfaceInspectionMode>("normal");
+  const [isolatedFaceKey, setIsolatedFaceKey] = useState("");
+  const inspectionFaces = useMemo(() => {
+    const scene = cadmataTelosScene(props);
+    const faces = new Map<string, SurfaceInspectionFace>();
+    for (const item of [...scene.meshes, ...scene.fields]) {
+      if (item.identity.faceId === undefined || ("overlay" in item && item.overlay)) continue;
+      const { occurrenceId, faceId } = item.identity;
+      const occurrence = props.assemblyPacket?.occurrences.find(o => o.stableId === occurrenceId);
+      const source = props.assemblyPacket?.definitions.find(d => d.stableId === occurrence?.definitionStableId)
+        ?.faceSources?.find(f => f.faceId === faceId)
+        ?? props.displayScene?.renderables.find(f => f.faceId === faceId)?.source;
+      const key = inspectionFaceKey(occurrenceId, faceId);
+      faces.set(key, { key, occurrenceId, faceId, sourceStepEntityId: source?.sourceStepEntityId,
+        surfaceKind: source?.surfaceKind, edgeIds: source?.edgeIds });
+    }
+    return [...faces.values()];
+  }, [props]);
+  const isolatedFace = inspectionFaces.find(f => f.key === isolatedFaceKey);
+  const inspection = useRef({ mode: inspectionMode, face: isolatedFace });
+  inspection.current = { mode: inspectionMode, face: isolatedFace };
   const lastModel = useRef<unknown>(undefined);
   const apply = () => {
     const current = host.current;
@@ -63,7 +86,8 @@ function TelosViewport(props: AetherisViewportProps & { onRetry(): void }) {
     const value = latest.current,
       theme = value.theme ?? ATELIER_VIEWPORT_THEME;
     current.setAA(value.aaMode ?? "SpatialOnly", value.aaDebug ?? "color");
-    current.setScene(cadmataTelosScene(value));
+    current.setPresentation(telosPresentation(theme));
+    current.setScene(inspectSurfaces(cadmataTelosScene(value), inspection.current.mode, inspection.current.face));
     current.background = clearColor(theme.sceneBackground);
     current.grid = value.showGrid !== false && theme.gridStyle.enabled;
     const model = value.assemblyPacket ?? value.displayScene;
@@ -71,6 +95,11 @@ function TelosViewport(props: AetherisViewportProps & { onRetry(): void }) {
       lastModel.current = model;
       current.fit();
     }
+    canvas.current?.setAttribute("data-surface-inspection", JSON.stringify({ mode: inspection.current.mode,
+      isolatedFace: inspection.current.face ?? null,
+      camera: { position: current.camera.position.toArray(), target: current.camera.target.toArray(), span: current.camera.span },
+      visibleMeshes: current.scene.meshes.filter(m => !m.overlay && m.visible !== false).length,
+      visibleEdges: current.scene.lines.filter(l => l.identity.edgeId !== undefined && l.visible !== false).length }));
     current.invalidate();
   };
   useEffect(() => {
@@ -87,6 +116,9 @@ function TelosViewport(props: AetherisViewportProps & { onRetry(): void }) {
           event.clientY - rect.top,
         ];
       const hit = current.picker.pick(pixel);
+      element.setAttribute("data-surface-inspection-pick", JSON.stringify(hit ?? null));
+      if (inspection.current.mode !== "normal" && hit?.faceId !== undefined)
+        setIsolatedFaceKey(inspectionFaceKey(hit.occurrenceId, hit.faceId));
       if (hit?.overlayId) {
         latest.current.onCadmataSelect?.(hit.overlayId);
         return;
@@ -159,7 +191,8 @@ function TelosViewport(props: AetherisViewportProps & { onRetry(): void }) {
   useEffect(() => {
     latest.current = props;
     apply();
-  }, [props]);
+  }, [props, inspectionMode, isolatedFaceKey]);
+  useEffect(() => { setIsolatedFaceKey(""); }, [props.assemblyPacket, props.displayScene]);
   return (
     <div
       ref={container}
@@ -173,6 +206,32 @@ function TelosViewport(props: AetherisViewportProps & { onRetry(): void }) {
         aria-label="Engineering WebGPU viewport"
         style={{ display: "block", width: "100%", height: "100%" }}
       />
+      {inspectionFaces.length > 0 && (
+        <details style={{ position: "absolute", left: 12, bottom: 12, zIndex: 3,
+          background: (props.theme ?? ATELIER_VIEWPORT_THEME).annotation.background,
+          color: (props.theme ?? ATELIER_VIEWPORT_THEME).annotation.text, padding: 8, maxWidth: 420 }}>
+          <summary>Surface / trim inspection</summary>
+          <label>View <select aria-label="Surface inspection view" value={inspectionMode}
+            onChange={event => setInspectionMode(event.target.value as SurfaceInspectionMode)}>
+            <option value="normal">Normal</option><option value="surfaces">Surfaces only</option>
+            <option value="wire">BRep wire only</option><option value="overlay">Translucent + BRep wire</option>
+            <option value="patches">Face colors + BRep wire</option>
+          </select></label>
+          <div><label>Patch <select aria-label="Isolated display face" value={isolatedFaceKey}
+            style={{ maxWidth: 300 }} onChange={event => setIsolatedFaceKey(event.target.value)}>
+            <option value="">All faces</option>
+            {inspectionFaces.map(face => <option key={face.key} value={face.key}>
+                Face {face.faceId}{face.sourceStepEntityId ? ` / STEP #${face.sourceStepEntityId}` : ""}
+                {face.surfaceKind ? ` / ${face.surfaceKind}` : ""} / {face.occurrenceId}
+            </option>)}
+          </select></label></div>
+            {isolatedFace && <div>Face {isolatedFace.faceId} · STEP #{isolatedFace.sourceStepEntityId ?? "unknown"}
+              {` · ${isolatedFace.surfaceKind ?? "unknown support"} · ${isolatedFace.edgeIds?.length ?? 0} boundary edges`}</div>}
+          <small>{cadmataTelosScene(props).fields.length ? "Mesh / SDF display" : "BRep mesh display; no SDF field"}.
+            {inspectionMode === "overlay" || inspectionMode === "wire" ? " Red BRep edges show through surfaces." : " Red lines are BRep edges."}
+            {inspectionMode !== "normal" ? " Click a surface to isolate its patch." : ""}</small>
+        </details>
+      )}
       {!!props.assemblyPacket?.display?.cameras?.length && (
         <select
           aria-label="Scene camera"

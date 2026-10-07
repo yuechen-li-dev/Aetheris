@@ -10,6 +10,29 @@ namespace Aetheris.Kernel.Core.Tests.Step242;
 
 public sealed class Step242PcurveAndVertexLoopTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ReparameterizedPolynomialLinePcurve_PreservesExactDomainEndpointsAndUvLocus(bool rational)
+    {
+        var source = new ParameterInterval(52.4560164915884, 100.21060533511107);
+        var target = new ParameterInterval(0, 44.594180686074665);
+        var curve = new BSpline3Curve(1, [new(1, 2, 0), new(4, 7, 0)], [2, 2],
+            [source.Start, source.End], "UNSPECIFIED", false, false, "UNSPECIFIED");
+        var pcurve = rational ? PcurveGeometry.RationalPolynomial(source, curve, [1, 2]) : PcurveGeometry.Polynomial(source, curve);
+        var remapped = Step242Exporter.ReparameterizeLinePcurve(pcurve, target);
+        Assert.Equal(target.Start, remapped.PolynomialCurve!.Value.DomainStart);
+        Assert.Equal(target.End, remapped.PolynomialCurve.Value.DomainEnd);
+        Assert.Equal(pcurve.RationalWeights, remapped.RationalWeights);
+        for (var index = 0; index <= 32; index++)
+        {
+            var fraction = index / 32d;
+            var before = pcurve.Evaluate(source.Start + fraction * (source.End - source.Start));
+            var after = remapped.Evaluate(target.Start + fraction * (target.End - target.Start));
+            Assert.True(double.Abs(before.U - after.U) < 1e-12 && double.Abs(before.V - after.V) < 1e-12);
+        }
+    }
+
     [Fact]
     public void UnsupportedPcurveForm_IsDiagnosedInsteadOfDropped()
     {

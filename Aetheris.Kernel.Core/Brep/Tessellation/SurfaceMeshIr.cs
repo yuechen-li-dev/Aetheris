@@ -302,7 +302,7 @@ public static class SurfaceMeshIrTessellator
                 }
                 else
                 {
-                    if (patch.Support.Plane is { } plane && PlanarPolygonTriangulator.TryTriangulate(ids.Select(id => vertexById[id].Position).ToArray(), plane.Normal.ToVector(), out var localIndices, out _))
+                    if (TryTriangulateBoundaryCell(patch, ids, vertexById, out var localIndices))
                     {
                         for (var i = 0; i < localIndices.Count; i += 3)
                         {
@@ -312,13 +312,11 @@ public static class SurfaceMeshIrTessellator
                     }
                     else
                     {
-                        var center = new Point3D(ids.Average(id => vertexById[id].Position.X), ids.Average(id => vertexById[id].Position.Y), ids.Average(id => vertexById[id].Position.Z));
-                        var centerIndex = positions.Count; positions.Add(center); normals.Add(exactNormal(center));
-                        for (var i = 0; i < ids.Count; i++)
-                        {
-                            var a = indexById[ids[i]]; var b = indexById[ids[(i + 1) % ids.Count]];
-                            indices.AddRange([centerIndex, a, b]); normals[a] = exactNormal(positions[a]); normals[b] = exactNormal(positions[b]);
-                        }
+                        // No general centre fan: an untriangulable cell rejects this
+                        // optional IR route, allowing the caller's diagnostic fallback.
+                        mesh = new TriangleMesh(positions, normals, [], new HashSet<(int, int)>(), "");
+                        report = new(false, false, false, 0, 0, 0, 0, 0, positions.Count, 0);
+                        return false;
                     }
                 }
             }
@@ -1828,28 +1826,51 @@ public static class SurfaceMeshIrTessellator
             if (cell.Kind == SurfaceMeshCellKind.Quad)
             {
                 var a = Add(ids[0]); var b = Add(ids[1]); var c = Add(ids[2]); var d = Add(ids[3]);
-                var ac = (positions[a] - positions[c]).Length; var bd = (positions[b] - positions[d]).Length;
-                var acValid = TriangleAreaMagnitude(positions[a], positions[b], positions[c]) > Epsilon && TriangleAreaMagnitude(positions[a], positions[c], positions[d]) > Epsilon;
-                var bdValid = TriangleAreaMagnitude(positions[a], positions[b], positions[d]) > Epsilon && TriangleAreaMagnitude(positions[b], positions[c], positions[d]) > Epsilon;
-                if (acValid && (!bdValid || ac <= bd)) { indices.AddRange([a, b, c, a, c, d]); } else { indices.AddRange([a, b, d, b, c, d]); }
+                AppendQuadTriangles(positions, [a, b, c, d], indices);
             }
             else if (cell.Kind == SurfaceMeshCellKind.Triangle) indices.AddRange([Add(ids[0]), Add(ids[1]), Add(ids[2])]);
             else if (ids.Count >= 3)
             {
-                if (patch.Support.Plane is { } plane && PlanarPolygonTriangulator.TryTriangulate(ids.Select(id => vertexById[id].Position).ToArray(), plane.Normal.ToVector(), out var localIndices, out _))
+                if (TryTriangulateBoundaryCell(patch, ids, vertexById, out var localIndices))
                 {
                     for (var i = 0; i < localIndices.Count; i += 3)
                         indices.AddRange([Add(ids[localIndices[i]]), Add(ids[localIndices[i + 1]]), Add(ids[localIndices[i + 2]])]);
                 }
                 else
                 {
-                    var center = new Point3D(ids.Average(id => vertexById[id].Position.X), ids.Average(id => vertexById[id].Position.Y), ids.Average(id => vertexById[id].Position.Z));
-                    var centerIndex = positions.Count; positions.Add(center); normals.Add(normal(center));
-                    for (var i = 0; i < ids.Count; i++) indices.AddRange([centerIndex, Add(ids[i]), Add(ids[(i + 1) % ids.Count])]);
+                    throw new InvalidOperationException($"Face {patch.FaceId.Value} has an untriangulable boundary cell; no centre fan is permitted.");
                 }
             }
         }
         return new DisplayFaceMeshPatch(patch.FaceId, positions, normals, indices, DisplayFaceMeshSource.SurfaceMeshIr);
+    }
+
+    private static bool TryTriangulateBoundaryCell(SurfacePatch patch, IReadOnlyList<int> ids,
+        IReadOnlyDictionary<int, SurfaceMeshVertex> vertices, out IReadOnlyList<int> indices)
+    {
+        indices = [];
+        var points = ids.Select(id => vertices[id]).ToArray();
+        if (patch.Support.Plane is { } plane)
+            return PlanarPolygonTriangulator.TryTriangulate(points.Select(p => p.Position).ToArray(),
+                patch.IsAlignedWithSupport ? plane.Normal.ToVector() : -plane.Normal.ToVector(), out indices, out _);
+        if (points.Any(p => p.U is null || p.V is null)) return false;
+        var uv = points.Select(p => new Point3D(p.U!.Value, p.V!.Value, 0)).ToArray();
+        var area = Enumerable.Range(0, uv.Length).Sum(i => uv[i].X * uv[(i + 1) % uv.Length].Y - uv[(i + 1) % uv.Length].X * uv[i].Y);
+        // Cell order already carries resolved face orientation. Preserve it in the
+        // local chart rather than reinterpreting STEP source SAME_SENSE.
+        return PlanarPolygonTriangulator.TryTriangulate(uv, new Vector3D(0, 0, area >= 0 ? 1 : -1), out indices, out _);
+    }
+
+    // Shared final lowering for retained quad cells. Prefer the shorter valid diagonal;
+    // ties are deterministic and no vertex is introduced away from the support.
+    internal static void AppendQuadTriangles(IReadOnlyList<Point3D> positions, IReadOnlyList<int> ids, List<int> indices)
+    {
+        var a = ids[0]; var b = ids[1]; var c = ids[2]; var d = ids[3];
+        var ac = (positions[a] - positions[c]).Length; var bd = (positions[b] - positions[d]).Length;
+        var acValid = TriangleAreaMagnitude(positions[a], positions[b], positions[c]) > Epsilon && TriangleAreaMagnitude(positions[a], positions[c], positions[d]) > Epsilon;
+        var bdValid = TriangleAreaMagnitude(positions[a], positions[b], positions[d]) > Epsilon && TriangleAreaMagnitude(positions[b], positions[c], positions[d]) > Epsilon;
+        if (acValid && (!bdValid || ac <= bd)) indices.AddRange([a, b, c, a, c, d]);
+        else indices.AddRange([a, b, d, b, c, d]);
     }
 
     private static Func<Point3D, Vector3D> ResolvePatchNormal(SurfaceMeshDocument document, SurfacePatch patch, IReadOnlyDictionary<int, SurfaceMeshVertex> vertices)

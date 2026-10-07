@@ -42,6 +42,8 @@ export interface TelosMesh {
   visible?: boolean;
   depthMode?: TelosDepthMode;
   unlit?: boolean;
+  /** Draw/pick a source triangle range while sharing the complete immutable geometry. */
+  triangleRange?: { startTriangle: number; triangleCount: number };
 }
 export interface TelosLine {
   /** Fade finite reference-grid endpoints without changing engineering edge coverage. */

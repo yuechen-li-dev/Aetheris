@@ -9,6 +9,7 @@ import {
   type TelosAADebug,
 } from "./temporal.js";
 import { telosPipeline } from "./pipelines.js";
+import { presentationUniform, type TelosPresentation } from "./presentation.js";
 import type {
   TelosScene,
   TelosMesh,
@@ -40,6 +41,7 @@ const meshKey = (item: TelosMesh) =>
     item.identity.occurrenceId,
     item.identity.overlayId,
     item.definition.id,
+    item.triangleRange?.startTriangle,
   ]);
 const emptyScene = (): TelosScene => ({ meshes: [], lines: [], fields: [] });
 const matrix = (values?: NumericArray) =>
@@ -66,6 +68,19 @@ export class TelosHost {
   scene = emptyScene();
   background: GPUColor = [0.08, 0.1, 0.09, 1];
   grid = false;
+  presentation?: TelosPresentation;
+  private presentationKey = "";
+  private backdropDraw?: Draw<null>;
+  /** Presentation updates retain geometry, logical camera and source picking. */
+  setPresentation(value: TelosPresentation) {
+    const key = JSON.stringify(value);
+    if (key === this.presentationKey) return;
+    this.presentationKey = key;
+    this.presentation = value;
+    this.gridKey = "";
+    this.temporal?.reset("presentation");
+    this.invalidate();
+  }
   temporal?: TelosTemporal;
   aaMode: TelosAAMode = "SpatialOnly";
   aaDebug: TelosAADebug = "color";
@@ -163,7 +178,7 @@ export class TelosHost {
     this.picker.dynamicLines = items;
     this.metrics.dynamicLineUpdateMs = performance.now() - started;
   }
-  private gridDraw?: Draw<TelosLine>;
+  private gridDraws: Draw<TelosLine>[] = [];
   private gridKey = "";
   private raf = 0;
   private disposed = false;
@@ -356,6 +371,9 @@ export class TelosHost {
     return {
       fields: this.fields.length,
       meshSurfaces: this.meshes.filter((d) => !d.item.overlay).length,
+      topologyLines: this.lines.filter((d) => d.item.identity.edgeId !== undefined).length,
+      topologyOccurrences: [...new Set(this.lines.filter((d) => d.item.identity.edgeId !== undefined)
+        .map(d => d.item.identity.occurrenceId))],
       proxies: this.requestedScene.fields.filter((f) => f.proxy).length,
       shaders: [...this.fieldStates],
       definitions: this.requestedScene.projectionDiagnostics,
@@ -496,10 +514,10 @@ export class TelosHost {
       const draw =
         old?.pipeline === pipeline
           ? old
-          : this.draw(item, pipeline, 224, geometry.count);
+          : this.draw(item, pipeline, 384, geometry.count);
       oldMeshes.delete(meshKey(item));
       draw.item = item;
-      draw.count = geometry.count;
+      draw.count = item.triangleRange ? item.triangleRange.triangleCount * 3 : geometry.count;
       retained.add(draw);
       draw.geometry = geometry;
       this.meshes.push(draw);
@@ -646,7 +664,7 @@ export class TelosHost {
   }
   private updateMesh(draw: Draw<TelosMesh>) {
     const model = matrix(draw.item.transform);
-    const data = new Float32Array(56);
+    const data = new Float32Array(96);
     data.set(
       draw.item.overlay
         ? this.camera.viewProjection.elements
@@ -655,12 +673,27 @@ export class TelosHost {
     data.set(model.elements, 16);
     data.set(model.clone().invert().transpose().elements, 32);
     const material = draw.item.material;
-    data.set(surfaceColor(material, draw.item.selected, draw.item.hovered), 48);
+    data.set(this.themedSurfaceColor(material, draw.item.selected, draw.item.hovered), 48);
     data.set(
       [material.roughness, material.metallic, draw.item.unlit ? 1 : 0, 0],
       52,
     );
+    if (this.presentation) {
+      const l = this.presentation.lighting;
+      data.set([...this.camera.position.toArray(), 0], 56);
+      data.set([...l.key, l.keyIntensity], 60); data.set([...l.keyColor, 0], 64);
+      data.set([...l.fill, l.fillIntensity], 68); data.set([...l.fillColor, 0], 72);
+      data.set([...l.sky, l.hemisphere], 76); data.set([...l.ground, 0], 80);
+      data.set([...l.rim, l.rimIntensity], 84);
+      data.set([l.ambient, l.exposure, 0, 1], 88);
+      data.set([...this.camera.up.toArray(),0],92);
+    }
     this.owner.device.queue.writeBuffer(draw.uniform, 0, data);
+  }
+  private themedSurfaceColor(material: TelosMaterial, selected?: boolean, hovered?: boolean) {
+    if (!this.presentation || !(selected || hovered)) return surfaceColor(material, selected, hovered);
+    const strength = selected ? 0.52 : 0.16;
+    return [...material.baseColor.slice(0,3).map((c,i) => c*(1-strength)+this.presentation!.lighting.selection[i]*strength), material.opacity];
   }
   private updateLine(draw: Draw<TelosLine>) {
     const data = new Float32Array(44);
@@ -668,7 +701,7 @@ export class TelosHost {
     data.set(matrix(draw.item.transform).elements, 16);
     data.set(
       draw.item.selected
-        ? [1, 0.75, 0.2, 1]
+        ? [...(this.presentation?.lighting.selection ?? [1, 0.75, 0.2]), 1]
         : (draw.item.color ?? [0.15, 0.18, 0.16, 1]),
       32,
     );
@@ -743,7 +776,7 @@ export class TelosHost {
     );
     this.owner.device.queue.writeBuffer(draw.vertices!, 0, vertices);
     const data = new Float32Array(8);
-    data.set(surfaceColor(draw.item.material, draw.item.selected), 0);
+    data.set(this.themedSurfaceColor(draw.item.material, draw.item.selected), 0);
     data[4] = draw.item.material.roughness;
     this.owner.device.queue.writeBuffer(draw.uniform, 0, data);
   }
@@ -756,14 +789,15 @@ export class TelosHost {
       this.camera.span,
       this.camera.width,
       this.camera.height,
+      this.presentation?.grid,
     ]);
     if (key === this.gridKey) return;
     this.gridKey = key;
-    if (this.gridDraw) {
-      this.owner.resources.release(this.gridDraw.uniform);
-      this.owner.resources.release(this.gridDraw.vertices!);
-      this.gridDraw = undefined;
+    for (const draw of this.gridDraws) {
+      this.owner.resources.release(draw.uniform);
+      this.owner.resources.release(draw.vertices!);
     }
+    this.gridDraws = [];
     if (!this.grid) return;
     const axis = this.gridPlane === "xy" ? "z" : "y",
       points: Vector3[] = [];
@@ -787,7 +821,8 @@ export class TelosHost {
       span * 20,
       Math.max(span, ...points.map((p) => p.distanceTo(this.camera.target))),
     );
-    const desired = span / 12;
+    const style = this.presentation?.grid;
+    const desired = span / (style?.targetCells ?? 12);
     const decade = Math.pow(10, Math.floor(Math.log10(desired)));
     const step =
       decade * (desired / decade < 2 ? 2 : desired / decade < 5 ? 5 : 10);
@@ -798,37 +833,66 @@ export class TelosHost {
           ? this.camera.target.y
           : this.camera.target.z) / step,
       ) * step;
-    const count = Math.min(32, Math.ceil(extent / step));
-    const segments: number[] = [];
+    const count = Math.min(style?.maxLines ?? 32, Math.ceil(extent * (style?.extentScale ?? 1) / step));
+    const minor: number[] = [], major: number[] = [];
     const point = (x: number, y: number) =>
-      this.gridPlane === "xy" ? [x, y, 0] : [x, 0, y];
+      this.gridPlane === "xy" ? [x, y, style?.offset ?? 0] : [x, style?.offset ?? 0, y];
     for (let i = -count; i <= count; i++) {
-      segments.push(
+      const stepCount = style?.majorStep ?? 5;
+      const vertical = Math.round(centerX / step + i) % stepCount === 0 ? major : minor;
+      const horizontal = Math.round(centerY / step + i) % stepCount === 0 ? major : minor;
+      vertical.push(
         ...point(centerX + i * step, centerY - count * step),
         ...point(centerX + i * step, centerY + count * step),
       );
-      segments.push(
+      horizontal.push(
         ...point(centerX - count * step, centerY + i * step),
         ...point(centerX + count * step, centerY + i * step),
       );
     }
-    this.gridDraw = this.draw(
+    for (const [segments, color, opacity, width] of [
+      [minor, style?.minor ?? [0.45,0.48,0.46], style?.minorOpacity ?? 0.12, 0.65],
+      [major, style?.major ?? [0.6,0.62,0.6], style?.majorOpacity ?? 0.24, 1.05],
+    ] as [number[], readonly number[], number, number][]) {
+    if (!segments.length) continue;
+    const draw = this.draw(
       {
         id: "reference-grid",
         fadeEnds: true,
         points: segments,
         identity: { occurrenceId: "reference-grid" },
-        widthPixels: 0.7,
-        color: [0.45, 0.48, 0.46, 0.18],
+        widthPixels: width,
+        color: [...color, opacity],
       },
       telosPipeline(this.owner, "line"),
       176,
       segments.length / 6,
     );
-    this.gridDraw.vertices = this.owner.resources.buffer(
+    draw.vertices = this.owner.resources.buffer(
       new Float32Array(segments),
       GPUBufferUsage.VERTEX,
     );
+    this.gridDraws.push(draw);
+    }
+  }
+  private drawBackdrop() {
+    if (!this.presentation) return;
+    const pipeline = this.owner.resources.pipeline(JSON.stringify(["telos-backdrop/1",this.owner.format,this.owner.sampleCount]), () => {
+      const module = this.owner.resources.module("telos-backdrop/1", this.owner.shaders.background);
+      return this.owner.device.createRenderPipeline({ layout:"auto", vertex:{module,entryPoint:"vertex"},
+        fragment:{module,entryPoint:"fragment",targets:[{format:this.owner.format}]},
+        multisample:{count:this.owner.sampleCount}, primitive:{topology:"triangle-list"},
+        depthStencil:{format:"depth32float",depthWriteEnabled:false,depthCompare:"always"} });
+    });
+    if (this.backdropDraw?.pipeline !== pipeline) {
+      if (this.backdropDraw) this.owner.resources.release(this.backdropDraw.uniform);
+      this.backdropDraw = this.draw(null,pipeline,64,3);
+    }
+    this.owner.device.queue.writeBuffer(this.backdropDraw.uniform,0,presentationUniform(this.presentation,this.frame.width,this.frame.height));
+    const pass = this.frame.pass("ThemeBackdrop");
+    pass.setPipeline(pipeline); pass.setBindGroup(0,this.backdropDraw.binding); pass.draw(3); pass.end();
+    this.owner.canvas.dataset.telosPresentation = JSON.stringify({id:this.presentation.id,backdrop:this.presentation.backdrop.kind,
+      gridGroups:this.gridDraws.length, sampleCount:this.owner.sampleCount});
   }
   render() {
     if (this.owner.stopped || this.disposed) return;
@@ -848,16 +912,19 @@ export class TelosHost {
       this.aaDebug,
     );
     this.frame.begin(this.background, source);
+    this.drawBackdrop();
     this.metrics.draws = 0;
     this.metrics.fieldDraws = 0;
     const drawGrid = () => {
-      if (!this.gridDraw) return;
+      if (!this.gridDraws.length) return;
       const grid = this.frame.pass("ReferenceGrid");
-      this.updateLine(this.gridDraw);
-      grid.setPipeline(this.gridDraw.pipeline);
-      grid.setBindGroup(0, this.gridDraw.binding);
-      grid.setVertexBuffer(0, this.gridDraw.vertices!);
-      grid.draw(6, this.gridDraw.count);
+      for (const draw of this.gridDraws) {
+        this.updateLine(draw);
+        grid.setPipeline(draw.pipeline);
+        grid.setBindGroup(0,draw.binding);
+        grid.setVertexBuffer(0,draw.vertices!);
+        grid.draw(6,draw.count);
+      }
       grid.end();
     };
     const drawMesh = (pass: GPURenderPassEncoder, draw: Draw<TelosMesh>) => {
@@ -868,7 +935,7 @@ export class TelosHost {
       pass.setVertexBuffer(0, draw.geometry!.positions);
       pass.setVertexBuffer(1, draw.geometry!.normals);
       pass.setIndexBuffer(draw.geometry!.indices, "uint32");
-      pass.drawIndexed(draw.count);
+      pass.drawIndexed(draw.count, 1, (draw.item.triangleRange?.startTriangle ?? 0) * 3);
       this.metrics.draws++;
     };
     let pass = this.frame.pass("MeshOpaque");

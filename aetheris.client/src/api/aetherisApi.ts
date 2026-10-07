@@ -67,6 +67,8 @@ export interface StepImportResponseDto {
 	diagnostics: DiagnosticDto[];
 	semanticPresentation?: unknown | null;
 	assemblyPresentation?: AssemblyDisplayPacketDto | null;
+	importStatus?: "Qualified" | "Inspectable" | "Degraded" | "Failed";
+	importQualifications?: unknown[];
 }
 
 export interface PaperclipDemoRequestDto {
@@ -149,10 +151,18 @@ export interface StartupStepDto {
 	kind?: "step" | "assembly";
 }
 
+export interface DisplayFaceSourceDto {
+	faceId: number;
+	sourceStepEntityId: number | null;
+	surfaceKind: string;
+	edgeIds: number[];
+}
 export interface AssemblyDisplayDefinitionDto {
 	stableId: string;
 	definitionIdentity: string;
 	facePatches: FacePatchDto[];
+	edgePolylines?: EdgePolylineDto[];
+	faceSources?: DisplayFaceSourceDto[];
 }
 export interface AssemblyDisplayOccurrenceDto {
 	stableId: string;
@@ -321,6 +331,7 @@ export interface DisplayEdgeDto {
 }
 
 export interface DisplayFaceDto {
+	source?: DisplayFaceSourceDto | null;
 	faceId: number;
 	shellId: number | null;
 	surfaceKind: string | null;
@@ -366,6 +377,7 @@ export interface DisplayLaneDto {
 }
 
 export interface DisplayPreparationResponseDto {
+	topologyEdges?: EdgePolylineDto[] | null;
 	lane: "analytic-only" | "mixed-fallback" | "fallback-only" | string;
 	analyticPacket: AnalyticDisplayPacketDto;
 	tessellationFallback: TessellationResponseDto | null;

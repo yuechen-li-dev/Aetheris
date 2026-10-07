@@ -33,6 +33,37 @@ World-space meshes and lines accept explicit `depthMode`: `depth-tested`, `depth
 
 `overlayId` carries product-owned pick identity. DOM buttons receive their own DOM events; GPU picking prioritizes always-on-top authoring meshes, dynamic overlay leaders, construction lines/surfaces and then model geometry. Hidden or depth-occluded overlays do not steal geometry picks. This supplies graphics interaction identity, not CAD selector authority.
 
+## Native presentation
+
+`setPresentation(TelosPresentation)` supplies a static procedural backdrop,
+key/fill/hemisphere mesh lighting, roughness highlights, coloured rim light,
+selection accent and physically spaced minor/major reference-grid palettes.
+Backdrop/grid colours are display encoded; lighting colours are linear.
+`background.wgsl` and the mesh shader are real packaged source assets. One
+fullscreen triangle renders the backdrop without writing authoritative depth;
+one pipeline per sample/attachment configuration serves every preset.
+Presentation never changes camera, topology or source selection. An update
+resets optional temporal history and requests an on-demand frame. Unthemed
+callers retain the prior mesh lighting. CIR field shaders keep their existing ABI.
+No HDR bloom, shadow maps or physically simulated atmosphere are claimed.
+See `docs/public/firmament/viewport-themes.md` for the product choices.
+
+## Surface inspection
+
+`inspectSurfaces(scene, mode, isolatedFace?)` is the shared Cadmata/Helios inspection
+projection. Modes are `normal`, `surfaces`, `wire`, `overlay` and `patches`.
+`surfaceInspectionFaces(scene)` enumerates source faces from individual meshes,
+packed definition ranges and retained field proxies. Isolation keys contain both
+occurrence and face identity. Projection never modifies the camera or source scene.
+Packed faces share complete immutable geometry and GPU buffers; `triangleRange`
+restricts drawing and picking while retaining original definition triangle indices.
+
+Whole-model views keep actual fields. Per-face field inspection uses the retained
+BRep proxy explicitly; products must label that distinction. Source edge IDs stay
+authoritative. If face-edge adjacency is absent, isolated wire shows occurrence
+edges rather than guessing adjacency from triangles. See the repository's
+`docs/public/firmament/surface-inspection.md` for human controls and capture usage.
+
 ## Experimental temporal AA
 
 `SpatialOnly` is the production default: four-sample MSAA shares one multisampled color/depth pair across surfaces, topology and overlays, then resolves once to the canvas. Lines also retain derivative coverage. Field shaders execute their existing center-ray ABI; MSAA does not qualify analytic field silhouette coverage. `None` uses one sample. `host.setAA("TAA")` enables a single-sample fixed-weight temporal experiment; `host.setAA("TAAUtility")` enables its generated Copeland utility policy. Both remain disabled by default. See `docs/release/TELOS-TAA-X0.md` for the temporal silhouette blocker and `docs/release/VIEWPORT-FINISH-X0.md` for product qualification.

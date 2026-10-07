@@ -1,7 +1,9 @@
 using System.Diagnostics;
+using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Tessellation;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Step242;
+using Aetheris.Kernel.Core.Import;
 using Aetheris.Kernel.Firmament.Assembly;
 using Aetheris.Kernel.Firmament;
 using Aetheris.Server.Contracts;
@@ -10,21 +12,25 @@ namespace Aetheris.Server.Api;
 
 public static class AssemblyDisplayService
 {
+    internal static DisplayFaceSourceDto FaceSource(Aetheris.Kernel.Core.Brep.BrepBody body, Aetheris.Kernel.Core.Topology.FaceId faceId)
+        => new(faceId.Value, body.Bindings.GetFaceBinding(faceId).SourceStepEntityId, body.GetFaceSurface(faceId).Kind.ToString(),
+            body.GetLoopIds(faceId).SelectMany(body.GetCoedgeIds).Select(id => body.Topology.GetCoedge(id).EdgeId.Value).Distinct().ToArray());
+
     public static bool TryBuildStep(Step242ProductStructure structure, out AssemblyDisplayPacketDto? packet, out string error)
     {
         packet = null; error = string.Empty;
         var watch = Stopwatch.StartNew();
         var definitions = new List<AssemblyDisplayDefinitionDto>();
+        var displayDiagnostics = new List<DisplayDiagnosticDto>();
         foreach (var definition in structure.Definitions.Where(item => item.Geometry is not null).OrderBy(item => item.StableId, StringComparer.Ordinal))
         {
-            var mesh = BrepDisplayTessellator.TessellateBounded(definition.Geometry!);
-            if (!mesh.IsSuccess)
-            {
-                error = $"STEP definition '{definition.Name}' (#{definition.ProductDefinitionEntityId}) could not be prepared for display: "
-                    + string.Join("; ", mesh.Diagnostics.Select(item => item.Message));
-                return false;
-            }
-            definitions.Add(new(definition.StableId, definition.Name, ApiMappings.ToTessellationResponse(mesh.Value).FacePatches));
+            var mesh = BrepDisplayTessellator.TessellateBoundedPartial(definition.Geometry!, DisplayTessellationOptions.ForViewport(definition.Geometry!));
+            var qualification = BrepImportQualification.WithDisplay(definition.Geometry!, mesh);
+            displayDiagnostics.AddRange(qualification.Reasons.Concat(qualification.DisplayReasons).Select(reason => new DisplayDiagnosticDto(
+                reason.Code, reason.Message, reason.FaceId, null, "step-import", "Inspect definition " + definition.StableId + ", STEP entity " + reason.StepEntityId)));
+            var tessellation = ApiMappings.ToTessellationResponse(mesh);
+            definitions.Add(new(definition.StableId, definition.Name, tessellation.FacePatches, qualification, tessellation.EdgePolylines,
+                definition.Geometry!.Topology.Faces.Select(face => FaceSource(definition.Geometry!, face.Id)).ToArray()));
         }
         var byDefinition = structure.Definitions.ToDictionary(item => item.StableId, StringComparer.Ordinal);
         var byOccurrence = structure.Occurrences.ToDictionary(item => item.StableId, StringComparer.Ordinal);
@@ -67,7 +73,7 @@ public static class AssemblyDisplayService
             ["occurrenceCount"] = occurrences.Count - 1
         };
         packet = new("aetheris/cadmata-assembly-display/m3", occurrences[0].Name, rootId, definitions, occurrences,
-            [], [], new(minimum, maximum), [], performance);
+            [], [], new(minimum, maximum), displayDiagnostics, performance);
         return true;
     }
 

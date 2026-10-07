@@ -1,5 +1,6 @@
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Geometry;
+using Aetheris.Kernel.Core.Geometry.Surfaces;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Topology;
@@ -25,7 +26,9 @@ internal static class TrimmedSurfaceTessellator
         double vDomainEnd,
         Func<string, string, KernelDiagnostic> createWarning,
         DisplayTessellationExecutionBudget? executionBudget = null,
-        SurfaceGeometryKind? surfaceKind = null)
+        SurfaceGeometryKind? surfaceKind = null,
+        int? explicitOuterLoopIndex = null,
+        BSplineSurfaceWithKnots? splineSupport = null)
     {
         executionBudget?.ThrowIfExpired("TrimmedSurface.Start", faceId, surfaceKind);
         if (uvLoops.Count == 0)
@@ -49,7 +52,7 @@ internal static class TrimmedSurfaceTessellator
             normalizedLoops.Add(normalized);
         }
 
-        var outerLoopIndex = SelectOuterLoop(normalizedLoops);
+        var outerLoopIndex = explicitOuterLoopIndex ?? SelectOuterLoop(normalizedLoops);
         var trimContext = TrimEvaluationContext.Create(normalizedLoops, outerLoopIndex);
 
         var (uStartRaw, uEndRaw, vStartRaw, vEndRaw) = trimContext.OuterLoop.Bounds;
@@ -77,18 +80,55 @@ internal static class TrimmedSurfaceTessellator
         // isotropic in UV although the surface only curves in one direction (a cone or cylinder), every needed split
         // across the curved direction also forces the same number of splits along the straight one. Size the cells
         // from the surface's actual turning in each direction instead.
-        // Free-form B-spline patches can curve anywhere between the sampled iso-curves, so they keep the uniform
-        // seed grid; the estimate is only trusted for analytic surfaces whose curvature is constant per direction.
+        // Free-form B-splines use native knot spans below; sparse turning estimates are trusted only for analytic
+        // surfaces, since a spline can complete several turns between the sampled iso-curves.
         var (curvedU, curvedV) = surfaceKind == SurfaceGeometryKind.BSplineSurfaceWithKnots
             ? (uSegments, vSegments)
             : EstimateCurvatureSegments(evaluate, evaluateNormal, uStart, uEnd, vStart, vEnd, options);
+        var refineRectangle = false;
+        if (splineSupport is { } spline)
+        {
+            // A free-form surface can turn several times between uniform samples. Native knot spans
+            // bound the refinement cell size so midpoint tests do not alias a whole coil/profile period.
+            var nativeU = KnotSegments(spline.KnotValuesU, uStart, uEnd);
+            var nativeV = KnotSegments(spline.KnotValuesV, vStart, vEnd);
+            refineRectangle = nativeU > uSegments || nativeV > vSegments;
+            curvedU = System.Math.Max(curvedU, nativeU);
+            curvedV = System.Math.Max(curvedV, nativeV);
+        }
         // Sampled straight trim edges (cone generators, cylinder rulings) arrive as many UV-collinear points. They
         // add nothing but sliver triangles, so drop vertices that lie exactly on the segment between their neighbours.
         var cellUForSimplify = (uEnd - uStart) / curvedU;
         var cellVForSimplify = (vEnd - vStart) / curvedV;
         var simplifiedLoops = normalizedLoops
-            .Select(loop => RemoveCollinearVertices(loop, cellUForSimplify, cellVForSimplify))
+            .Select(loop => RemoveCollinearVertices(loop, cellUForSimplify, cellVForSimplify,
+                splineSupport is null ? null : evaluate, options.ChordTolerance * 1e-3d))
             .ToList();
+        // Keep adaptive work bounded by the existing display grid's maximum axis budget,
+        // rather than truncating a long surface midway through it. This raises no sampling
+        // density or tolerance: only failed chord/normal tests request a subdivision.
+        var maximumTriangles = (int)System.Math.Clamp((long)options.MaximumSegments * options.MaximumSegments, 12_000, 65_536);
+        if (refineRectangle && splineSupport is { } rectangleSupport && simplifiedLoops.Count == 1
+            && IsDisplayRectangle(simplifiedLoops[0]))
+        {
+            var rectangle = SplineRectangleTessellator.Tessellate(faceId, rectangleSupport,
+                uStart, uEnd, vStart, vEnd, evaluateNormal, options,
+                () => executionBudget?.ThrowIfExpired("TrimmedSurface.SplineRectangle", faceId, surfaceKind),
+                maximumTriangles, out var limited);
+            if (rectangle is not null) return KernelResult<DisplayFaceMeshPatch>.Success(rectangle, limited ? [createWarning(
+                $"Face {faceId.Value} knot-aligned display sampling reached its axis/triangle budget; retained rectangular patch covers the complete trim with limited fidelity.",
+                "Viewer.Tessellation.RefinementIncomplete")] : []);
+        }
+        if (!refineRectangle && splineSupport is not null && simplifiedLoops.Count == 1
+            && IsDisplayRectangle(simplifiedLoops[0]))
+            simplifiedLoops[0] = [(uStart, vStart), (uEnd, vStart), (uEnd, vEnd), (uStart, vEnd)];
+        (List<double> U, List<double> V)? localGrid = null;
+        var gridIncomplete = false;
+        if (refineRectangle && splineSupport is { } trimSupport)
+            localGrid = SplineRectangleTessellator.PlanGrid(trimSupport, uStart, uEnd, vStart, vEnd,
+                options, () => executionBudget?.ThrowIfExpired("TrimmedSurface.SplineGrid", faceId, surfaceKind),
+                maximumTriangles / 2, out gridIncomplete);
+        string? conformingFailure = null;
         var conformingPatch = BoundaryConformingTrimTessellator.TryTessellate(
             faceId,
             simplifiedLoops,
@@ -98,10 +138,23 @@ internal static class TrimmedSurfaceTessellator
             (uEnd - uStart) / curvedU,
             (vEnd - vStart) / curvedV,
             options,
-            () => executionBudget?.ThrowIfExpired("TrimmedSurface.Conforming", faceId, surfaceKind));
+            () => executionBudget?.ThrowIfExpired("TrimmedSurface.Conforming", faceId, surfaceKind),
+            out var refinementIncomplete,
+            refineRectangles: refineRectangle,
+            maximumTriangles: maximumTriangles,
+            perceptualNormals: splineSupport is not null,
+            grid: localGrid,
+            reportFailure: reason => conformingFailure = reason);
         if (conformingPatch is not null)
         {
-            return KernelResult<DisplayFaceMeshPatch>.Success(conformingPatch);
+            var qualityWarnings = new List<KernelDiagnostic>();
+            if (refinementIncomplete) qualityWarnings.Add(createWarning(
+                    $"Face {faceId.Value} adaptive surface refinement reached its {maximumTriangles} live-triangle budget before satisfying display chord/normal criteria; retained mesh is incomplete in fidelity.",
+                    "Viewer.Tessellation.RefinementIncomplete"));
+            if (gridIncomplete) qualityWarnings.Add(createWarning(
+                $"Face {faceId.Value} local knot-grid planning reached its axis/cell budget; the full trim remains covered with limited display chord/edge balance fidelity.",
+                "Viewer.Tessellation.RefinementIncomplete"));
+            return KernelResult<DisplayFaceMeshPatch>.Success(conformingPatch, qualityWarnings);
         }
 
         var positions = new List<Point3D>((uSegments + 1) * (vSegments + 1));
@@ -140,7 +193,47 @@ internal static class TrimmedSurfaceTessellator
             }
         }
 
-        return KernelResult<DisplayFaceMeshPatch>.Success(new DisplayFaceMeshPatch(faceId, positions, normals, indices));
+        return KernelResult<DisplayFaceMeshPatch>.Success(new DisplayFaceMeshPatch(faceId, positions, normals, indices),
+            indices.Count == 0 ? [createWarning(
+                $"Face {faceId.Value} trim triangulation rejected the loop set and native-domain clipping retained zero triangles; outer loop has {normalizedLoops[outerLoopIndex].Count} samples, signed UV area={ComputeSignedArea(normalizedLoops[outerLoopIndex]):R}, U=[{uStart:R},{uEnd:R}], V=[{vStart:R},{vEnd:R}]. No substitute surface was added.",
+                "Viewer.Tessellation.TrimEvaluationFailed")]
+                // Existing periodic/non-simple charts deliberately use native-grid masking;
+                // declining an outer-minus-holes strategy is normal dispatch there. Warn
+                // when the new knot-local spline strategy itself had to be abandoned.
+                : conformingFailure is null || localGrid is null ? [] : [createWarning(
+                    $"Face {faceId.Value} boundary-conforming trim strategy failed: {conformingFailure} Retained conservative grid clipping has limited boundary fidelity; no fan or substitute support was added.",
+                    "Viewer.Tessellation.RefinementIncomplete")]);
+
+        int KnotSegments(IReadOnlyList<double> knots, double start, double end)
+        {
+            var minimum = end - start;
+            for (var i = 1; i < knots.Count; i++)
+            {
+                var span = System.Math.Min(end, knots[i]) - System.Math.Max(start, knots[i - 1]);
+                if (span > 0d) minimum = System.Math.Min(minimum, span);
+            }
+
+            return (int)double.Clamp(double.Ceiling((end - start) / minimum), 1, options.MaximumSegments);
+        }
+
+        bool IsDisplayRectangle(IReadOnlyList<(double U, double V)> loop)
+        {
+            var area = (uEnd - uStart) * (vEnd - vStart);
+            if (area <= 0d || double.Abs(ComputeSignedArea(loop)) < area * .999d) return false;
+            foreach (var p in loop)
+            {
+                var candidates = new[] { (U: uStart, p.V), (U: uEnd, p.V), (p.U, V: vStart), (p.U, V: vEnd) };
+                var nearest = candidates.OrderBy(q => double.Abs(q.Item1 - p.U) / (uEnd - uStart)
+                    + double.Abs(q.Item2 - p.V) / (vEnd - vStart)).First();
+                if (double.Abs(nearest.Item1 - p.U) > (uEnd - uStart) * 1e-6d
+                    || double.Abs(nearest.Item2 - p.V) > (vEnd - vStart) * 1e-6d
+                    || (evaluate(p.U, p.V) - evaluate(nearest.Item1, nearest.Item2)).Length > options.ChordTolerance * .1d)
+                    return false;
+            }
+            // Numerical pcurve noise is snapped only in this disposable display
+            // rectangle; the engineering trim and native parameter map are retained.
+            return true;
+        }
 
         void TryAppendTriangle(int ia, int ib, int ic)
         {
@@ -353,7 +446,8 @@ internal static class TrimmedSurfaceTessellator
         return (Estimate(alongU: true), Estimate(alongU: false));
     }
 
-    private static List<(double U, double V)> RemoveCollinearVertices(List<(double U, double V)> loop, double cellU, double cellV)
+    private static List<(double U, double V)> RemoveCollinearVertices(List<(double U, double V)> loop, double cellU, double cellV,
+        Func<double, double, Point3D>? evaluate = null, double physicalTolerance = 0d)
     {
         if (loop.Count <= 3 || !(cellU > 0d) || !(cellV > 0d))
         {
@@ -384,7 +478,13 @@ internal static class TrimmedSurfaceTessellator
 
                 var along = ((ax * bx) + (ay * by)) / chordLengthSquared;
                 var deviation = double.Abs((ax * by) - (ay * bx)) / double.Sqrt(chordLengthSquared);
-                if (along > 0d && along < 1d && deviation <= 1e-7d)
+                var collinear = deviation <= 1e-7d;
+                // Numerical inversion leaves tiny UV noise on exact spline iso-curves. Avoid sliver seeds
+                // only when the projected segment also agrees in 3D to one thousandth of the display budget.
+                if (!collinear && evaluate is not null && deviation <= 1e-5d)
+                    collinear = (evaluate(current.U, current.V) - evaluate(
+                        previous.U + along * (next.U - previous.U), previous.V + along * (next.V - previous.V))).Length <= physicalTolerance;
+                if (along > 0d && along < 1d && collinear)
                 {
                     kept.RemoveAt(i);
                     i--;

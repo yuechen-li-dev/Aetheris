@@ -20,6 +20,17 @@ public static class Step242Exporter
         Step242ExportOptions? options = null)
     {
         options ??= new Step242ExportOptions();
+        IReadOnlyList<KernelDiagnostic> normalizationDiagnostics = [];
+        if (options.BrepExportPreflightPolicy == BrepExportPreflightPolicy.TrustedProductionRoute
+            && options.ImportedRecoveryToleranceMillimetres is { } normalizationBudget
+            && (body.Geometry.Surfaces.Any(s => s.Value.BSplineSurfaceWithKnots?.IsRational == true)
+                || body.Bindings.PcurveBindings.Any(p => p.Pcurve.RationalWeights is not null)))
+        {
+            var normalized = Step242ProductionNormalization.Prepare(body, double.Min(.1d, normalizationBudget));
+            if (!normalized.IsSuccess) return KernelResult<string>.Failure(normalized.Diagnostics);
+            body = normalized.Value;
+            normalizationDiagnostics = normalized.Diagnostics;
+        }
 
         // The legacy interchange route still supports rational evidence for
         // compatibility and debugging. Trusted production routes must first
@@ -87,9 +98,13 @@ public static class Step242Exporter
         var surfaceIds = new Dictionary<SurfaceGeometryId, string>();
         var advancedFaceIds = new Dictionary<FaceId, string>();
         // Keep source pcurves, but do not publish a partial recovered trim set.
+        // Pure exact planar projections are deterministically derivable from the
+        // emitted geometry. Preserve the compact canonical legacy normal form when
+        // no source/recovered parameter trace needs serialization.
         var pcurveContextId = options.EmitQualifiedPcurves && body.Bindings.PcurveBindings.Any(binding =>
-            body.PcurveRecoveryReport is not { IsSuccess: false }
-            || binding.SourceStepPcurveEntityId is not null)
+            binding.Qualification?.Origin != PcurveBindingOrigin.DerivedAnalytic
+            && (body.PcurveRecoveryReport is not { IsSuccess: false }
+            || binding.SourceStepPcurveEntityId is not null))
             ? writer.AddEntity("REPRESENTATION_CONTEXT", Step242TextWriter.String("2D"), Step242TextWriter.String("parameter space"))
             : null;
 
@@ -149,7 +164,7 @@ public static class Step242Exporter
 
         return KernelResult<string>.Success(
             writer.Build(options.HeaderMetadata),
-            preflight is null ? null : ToKernelDiagnostics(preflight, errorsAsWarnings: true));
+            normalizationDiagnostics.Concat(preflight is null ? [] : ToKernelDiagnostics(preflight, errorsAsWarnings: true)).ToArray());
     }
 
     private static void EmitAuxiliaryVertexPointForVertexlessAnalyticBody(Step242TextWriter writer, BrepBody body, TopologyModel model)
@@ -1009,7 +1024,13 @@ public static class Step242Exporter
             // analytic edge, rather than relying on a viewer to infer it from a wire.
             var trim = edgeBinding.TrimInterval.Value;
             var isFullCircle = double.Abs((trim.End - trim.Start) - (2d * double.Pi)) <= 1e-12d;
-            geometryCurveId = isFullCircle && !emitFullCircleTrimmedCurves
+            // A qualified pcurve is parameter-bound. Reconstructing a full-circle
+            // seam from an approximate source vertex can change its angular origin
+            // even though the circle geometry is unchanged. Keep the native interval
+            // whenever face-local bindings depend on it.
+            var hasPcurves = pcurveContextId is not null
+                && body.Bindings.PcurveBindings.Any(binding => model.GetCoedge(binding.CoedgeId).EdgeId == edgeId);
+            geometryCurveId = isFullCircle && !emitFullCircleTrimmedCurves && !hasPcurves
                 ? circleId
                 : writer.AddEntity("TRIMMED_CURVE", "$", Step242TextWriter.Ref(circleId),
                     Step242TextWriter.List($"PARAMETER_VALUE({Step242TextWriter.Number(trim.Start)})"),
@@ -1105,7 +1126,7 @@ public static class Step242Exporter
             : edgePcurveBindings
                 .Select(binding => BuildStepPcurve(writer, binding, surfaceIds, pcurveContextId,
                     curve.Kind == CurveGeometryKind.Line3 && binding.Qualification is
-                        { Origin: PcurveBindingOrigin.RecoveredAnalytic or PcurveBindingOrigin.RecoveredSpline }
+                        { Origin: PcurveBindingOrigin.RecoveredAnalytic or PcurveBindingOrigin.RecoveredSpline or PcurveBindingOrigin.DerivedAnalytic }
                         ? new ParameterInterval(0d, (endPoint - startPoint).Length) : null))
                 .Where(id => id is not null)
                 .Select(id => id!)
@@ -1139,24 +1160,7 @@ public static class Step242Exporter
             ? $"aetheris-qualified-pcurve:{Step242TextWriter.Number(qualification.QualificationToleranceMillimetres)}"
             : "pcurve";
         if (reparameterizedLineDomain is { } lineDomain)
-        {
-            var sourceDomain = binding.Pcurve.Domain;
-            if (binding.Pcurve.PolynomialCurve is { } sourcePolynomial)
-            {
-                var span = sourceDomain.End - sourceDomain.Start;
-                var knots = sourcePolynomial.KnotValues.Select(value => lineDomain.Start
-                    + (value - sourceDomain.Start) * (lineDomain.End - lineDomain.Start) / span).ToArray();
-                var remapped = new BSpline3Curve(sourcePolynomial.Degree, sourcePolynomial.ControlPoints,
-                    sourcePolynomial.KnotMultiplicities, knots, sourcePolynomial.CurveForm,
-                    sourcePolynomial.ClosedCurve, sourcePolynomial.SelfIntersect, sourcePolynomial.KnotSpec);
-                binding = binding with { Pcurve = PcurveGeometry.Polynomial(lineDomain, remapped) };
-            }
-            else if (binding.Pcurve.Kind == PcurveGeometryKind.Line)
-                binding = binding with { Pcurve = PcurveGeometry.Line(lineDomain,
-                    binding.Pcurve.Points[0], binding.Pcurve.Points[1]) };
-            else if (binding.Pcurve.Kind == PcurveGeometryKind.Polyline)
-                binding = binding with { Pcurve = PcurveGeometry.Polyline(lineDomain, binding.Pcurve.Points) };
-        }
+            binding = binding with { Pcurve = ReparameterizeLinePcurve(binding.Pcurve, lineDomain) };
         if (binding.Pcurve.PolynomialCurve is { } polynomial)
         {
             var controls = polynomial.ControlPoints.Select(p => writer.AddEntity("CARTESIAN_POINT", "$",
@@ -1252,6 +1256,30 @@ public static class Step242Exporter
         var curve2dId = writer.AddEntity("POLYLINE", "$", Step242TextWriter.List(points));
         var representationId = writer.AddEntity("DEFINITIONAL_REPRESENTATION", Step242TextWriter.String(representationName), Step242TextWriter.List(curve2dId), Step242TextWriter.Ref(contextId));
         return writer.AddEntity("PCURVE", "$", Step242TextWriter.Ref(surfaceId), Step242TextWriter.Ref(representationId));
+    }
+
+    internal static PcurveGeometry ReparameterizeLinePcurve(PcurveGeometry pcurve, ParameterInterval lineDomain)
+    {
+        if (pcurve.PolynomialCurve is { } polynomial)
+        {
+            var source = pcurve.Domain;
+            var span = source.End - source.Start;
+            // Preserve exact endpoints of the affine map. Evaluating the formula
+            // there can round one ULP outside the mapped spline's trim domain.
+            var knots = polynomial.KnotValues.Select(value => value == source.Start ? lineDomain.Start
+                : value == source.End ? lineDomain.End : lineDomain.Start
+                + (value - source.Start) * (lineDomain.End - lineDomain.Start) / span).ToArray();
+            var remapped = new BSpline3Curve(polynomial.Degree, polynomial.ControlPoints,
+                polynomial.KnotMultiplicities, knots, polynomial.CurveForm,
+                polynomial.ClosedCurve, polynomial.SelfIntersect, polynomial.KnotSpec);
+            return pcurve.RationalWeights is { } weights ? PcurveGeometry.RationalPolynomial(lineDomain, remapped, weights)
+                : PcurveGeometry.Polynomial(lineDomain, remapped);
+        }
+        return pcurve.Kind switch {
+            PcurveGeometryKind.Line => PcurveGeometry.Line(lineDomain, pcurve.Points[0], pcurve.Points[1]),
+            PcurveGeometryKind.Polyline => PcurveGeometry.Polyline(lineDomain, pcurve.Points),
+            _ => pcurve
+        };
     }
 
     private static string EnsureVertex(

@@ -26,11 +26,6 @@ public static class BrepDisplayTessellator
     private const string CylinderTrimDualSingleCoedgeClosedCircleSource = "Viewer.Tessellation.CylinderTrim.DualSingleCoedgeClosedCircle";
     private const string CurvedTopologyUnsupportedSource = "Viewer.Tessellation.CurvedTopologyUnsupported";
     private const string BSplineSurfaceTrimUnsupportedSource = "Viewer.Tessellation.BSplineSurfaceTrimUnsupported";
-    private const string SphereTrimSingleCoedgeLatitudeCapSource = "Viewer.Tessellation.SphereTrim.SingleCoedgeLatitudeCap";
-    private const string SphereTrimSingleCoedgeUnsupportedSource = "Viewer.Tessellation.SphereTrim.SingleCoedgeUnsupported";
-    private const string SphereTrimTwoCoedgeBiArcLuneSource = "Viewer.Tessellation.SphereTrim.TwoCoedgeBiArcLune";
-    private const string SphereTrimTwoCoedgeBsplineBiArcSurrogateSource = "Viewer.Tessellation.SphereTrim.TwoCoedgeBsplineBiArcSurrogate";
-    private const string SphereTrimTwoCoedgeUnsupportedSource = "Viewer.Tessellation.SphereTrim.TwoCoedgeUnsupported";
     private const string PlanarMultiLoopTriangulationSkippedSource = "Viewer.Tessellation.PlanarMultiLoopTriangulationSkipped";
     private const string TrimEvaluationFailedSource = "Viewer.Tessellation.TrimEvaluationFailed";
 
@@ -81,12 +76,6 @@ public static class BrepDisplayTessellator
                     surfaceKind,
                     executionBudget.Remaining + TimeSpan.FromMilliseconds(250));
 
-                if (faceResult.IsSuccess)
-                {
-                    facePatches.Add(faceResult.Value);
-                    continue;
-                }
-
                 foreach (var diagnostic in faceResult.Diagnostics)
                 {
                     faceDiagnostics.Add(new DisplayFaceMaterializationDiagnostic(
@@ -96,6 +85,10 @@ public static class BrepDisplayTessellator
                         diagnostic.Source ?? diagnostic.Code.ToString(),
                         diagnostic.Message));
                 }
+                // A successful partial result can be an empty patch with a trim
+                // rejection warning. Keep that warning alongside the retained mesh.
+                if (faceResult.IsSuccess)
+                    facePatches.Add(faceResult.Value);
             }
             catch (DisplayTessellationTimeoutException ex)
             {
@@ -272,10 +265,10 @@ public static class BrepDisplayTessellator
     {
         return surface.Kind switch
         {
-            SurfaceGeometryKind.Plane => TessellatePlanarFace(body, faceId, surface.Plane!.Value, options, executionBudget),
+            SurfaceGeometryKind.Plane => TessellatePlanarFaceWithSamplingRetry(body, faceId, surface.Plane!.Value, options, executionBudget),
             SurfaceGeometryKind.Cylinder => TessellateCylinderFace(body, faceId, surface.Cylinder!.Value, options, executionBudget),
             SurfaceGeometryKind.Cone => TessellateConeFace(body, faceId, surface.Cone!.Value, options, executionBudget),
-            SurfaceGeometryKind.Sphere => TessellateSphereFace(body, faceId, surface.Sphere!.Value, options),
+            SurfaceGeometryKind.Sphere => TessellateSphereFace(body, faceId, surface.Sphere!.Value, options, executionBudget),
             SurfaceGeometryKind.Torus => TessellateTorusFace(body, faceId, surface.Torus!.Value, options, executionBudget),
             SurfaceGeometryKind.BSplineSurfaceWithKnots => TessellateBSplineSurfaceFace(body, faceId, surface.BSplineSurfaceWithKnots!, options, executionBudget),
             SurfaceGeometryKind.LinearExtrusion when surface.LinearExtrusion!.Value.Directrix.BSpline3 is { } curve
@@ -286,6 +279,19 @@ public static class BrepDisplayTessellator
                     curve.KnotMultiplicities, [2, 2], curve.KnotValues, [0d, 1d], curve.KnotSpec), options, executionBudget),
             _ => KernelResult<DisplayFaceMeshPatch>.Failure([CreateNotImplemented($"Face {faceId.Value} has unsupported surface kind '{surface.Kind}'.")]),
         };
+    }
+
+    private static KernelResult<DisplayFaceMeshPatch> TessellatePlanarFaceWithSamplingRetry(BrepBody body, FaceId faceId,
+        PlaneSurface plane, DisplayTessellationOptions options, DisplayTessellationExecutionBudget? budget)
+    {
+        var patch = TessellatePlanarFace(body, faceId, plane, options, budget);
+        if (options.ChordTolerance <= DisplayTessellationOptions.Default.ChordTolerance
+            || patch.IsSuccess && patch.Value.TriangleIndices.Count > 0) return patch;
+        // Coarse display chords can cross a narrow valid trim. One bounded retry
+        // samples the same authoritative curves more finely; it does not heal loops.
+        return TessellatePlanarFace(body, faceId, plane, options with {
+            ChordTolerance = DisplayTessellationOptions.Default.ChordTolerance
+        }, budget);
     }
 
     private static KernelResult<DisplayFaceMeshPatch> TessellatePlanarFace(BrepBody body, FaceId faceId, PlaneSurface plane, DisplayTessellationOptions options, DisplayTessellationExecutionBudget? executionBudget = null)
@@ -684,10 +690,20 @@ public static class BrepDisplayTessellator
         var loopIds = body.GetLoopIds(faceId)
             .Where(loopId => body.Topology.GetLoop(loopId).Kind == LoopKind.Edge)
             .ToArray();
-        // A one-loop helical gap is a narrow diagonal strip in cylinder UV.
-        // Its bounding rectangle covers the rib footprint and is not a valid
-        // display patch. Use the authored pcurves for this bounded trim family.
-        if (loopIds.Length == 1 && body.GetCoedgeIds(loopIds[0]).Any(id =>
+        var recoveryAllowance = body.GetLoopIds(faceId).SelectMany(body.GetCoedgeIds)
+            .Select(id => body.GetEdgeCurve(body.Topology.GetCoedge(id).EdgeId).RecoveryProvenance)
+            .Where(p => p is not null)
+            .Select(p => double.Min(options.ChordTolerance,
+                double.Min(p!.RecoveryToleranceMillimetres, p.MeasuredMaxDeviationMillimetres)))
+            .DefaultIfEmpty(0d).Max();
+        // A bounded one-loop face can be a helical strip, a toothed skirt, or a
+        // narrow rectangular sector. Its bounding cylinder is not the trim.
+        // Prefer the complete bound parameter trace, retaining legacy dispatch
+        // for closed-circle/seam families without a polygonal pcurve boundary.
+        if (loopIds.Length == 1 && (body.GetCoedgeIds(loopIds[0]).Count >= 3
+            && body.GetCoedgeIds(loopIds[0]).Select(id => body.Topology.GetCoedge(id).EdgeId).Distinct().Count() == body.GetCoedgeIds(loopIds[0]).Count
+            && body.GetCoedgeIds(loopIds[0]).All(id => body.Bindings.TryGetPcurveBinding(id, out var pc) && pc.FaceId == faceId)
+            || body.GetCoedgeIds(loopIds[0]).Any(id =>
         {
             if (!body.Bindings.TryGetPcurveBinding(id, out var binding) || binding.FaceId != faceId)
                 return false;
@@ -695,10 +711,10 @@ public static class BrepDisplayTessellator
             var start = binding.Pcurve.Evaluate(domain.Start);
             var end = binding.Pcurve.Evaluate(domain.End);
             return double.Abs(end.U - start.U) > 1e-8d && double.Abs(end.V - start.V) > 1e-8d;
-        }))
+        })))
         {
             var uvLoops = TryBuildTrimmedSurfaceUvLoops(body, faceId, loopIds,
-                point => TryProjectPointToCylinderUv(cylinder, point), options, executionBudget,
+                point => TryProjectPointToCylinderUv(cylinder, point, recoveryAllowance), options, executionBudget,
                 SurfaceGeometryKind.Cylinder);
             if (!uvLoops.IsSuccess)
                 return KernelResult<DisplayFaceMeshPatch>.Failure(uvLoops.Diagnostics);
@@ -720,7 +736,7 @@ public static class BrepDisplayTessellator
 
         if (loopIds.Length > 1)
         {
-            var uvLoopsResult = TryBuildPeriodicTrimmedSurfaceUvLoops(body, faceId, loopIds, point => TryProjectPointToCylinderUv(cylinder, point), options, executionBudget, SurfaceGeometryKind.Cylinder);
+            var uvLoopsResult = TryBuildPeriodicTrimmedSurfaceUvLoops(body, faceId, loopIds, point => TryProjectPointToCylinderUv(cylinder, point, recoveryAllowance), options, executionBudget, SurfaceGeometryKind.Cylinder);
             if (!uvLoopsResult.IsSuccess)
             {
                 return KernelResult<DisplayFaceMeshPatch>.Success(
@@ -1060,26 +1076,20 @@ public static class BrepDisplayTessellator
                 surface.DomainEndV));
         }
 
-        var uvLoopsResult = TryBuildTrimmedSurfaceUvLoops(
-            body,
-            faceId,
-            loopIds,
-            new BSplineUvProjector(surface).Project,
-            options,
-            executionBudget,
-            SurfaceGeometryKind.BSplineSurfaceWithKnots);
+        var projector = new BSplineUvProjector(surface);
+        var uvLoopsResult = BuildSplineDisplayTrim(body, faceId, loopIds, projector, options, executionBudget);
         if (!uvLoopsResult.IsSuccess)
         {
             return KernelResult<DisplayFaceMeshPatch>.Success(
                 CreateEmptyPlanarPatch(faceId),
                 [CreateValidationWarning(
-                    $"Face {faceId.Value} BSpline trim evaluation failed ({string.Join(" | ", uvLoopsResult.Diagnostics.Select(diagnostic => diagnostic.Message))}); skipping face patch to avoid misleading untrimmed geometry.",
+                    $"Face {faceId.Value} BSpline trim evaluation failed ({string.Join(" | ", uvLoopsResult.Diagnostics.Select(diagnostic => diagnostic.Message))}); projection residual={projector.LastResidual:R} mm, candidate UV={projector.LastCandidate}, native domain=[{surface.DomainStartU:R},{surface.DomainEndU:R}]x[{surface.DomainStartV:R},{surface.DomainEndV:R}]; skipping face patch to avoid misleading untrimmed geometry.",
                     TrimEvaluationFailedSource)]);
         }
 
         return TrimmedSurfaceTessellator.Tessellate(
             faceId,
-            uvLoopsResult.Value,
+            NormalizeClosedSplineLoops(surface, uvLoopsResult.Value),
             (u, v) => surface.Evaluate(u, v),
             (u, v) => EvaluateBSplineNormal(surface, u, v),
             options,
@@ -1089,177 +1099,109 @@ public static class BrepDisplayTessellator
             surface.DomainEndV,
             CreateValidationWarning,
             executionBudget,
-            SurfaceGeometryKind.BSplineSurfaceWithKnots);
+            SurfaceGeometryKind.BSplineSurfaceWithKnots,
+            splineSupport: surface);
     }
 
-    /// <summary>
-    /// Projects 3D loop samples onto a B-spline surface. One instance serves all samples of a face: the coarse seed
-    /// grid is evaluated once, and consecutive samples along a trim loop are near each other, so each projection first
-    /// refines from the previous result and only falls back to the grid search when that fails.
-    /// </summary>
+    /// <summary>Display projection reuses the qualified pcurve inverter, with a separate display budget.</summary>
+    internal static KernelResult<IReadOnlyList<IReadOnlyList<(double U, double V)>>> InspectSplineTrim(BrepBody body, FaceId faceId)
+    {
+        body.TryGetFaceSurface(faceId, out var surface);
+        var support = surface?.BSplineSurfaceWithKnots
+            ?? throw new ArgumentException("Face is not spline-supported.", nameof(faceId));
+        var input = BuildSplineDisplayTrim(body, faceId,
+            body.GetLoopIds(faceId).Where(id => body.Topology.GetLoop(id).Kind == LoopKind.Edge).ToArray(),
+            new BSplineUvProjector(support), DisplayTessellationOptions.ForViewport(body), null);
+        return input.IsSuccess ? KernelResult<IReadOnlyList<IReadOnlyList<(double U, double V)>>>.Success(
+            NormalizeClosedSplineLoops(support, input.Value)) : input;
+    }
+
+    private static KernelResult<IReadOnlyList<IReadOnlyList<(double U, double V)>>> BuildSplineDisplayTrim(
+        BrepBody body, FaceId faceId, IReadOnlyList<LoopId> loopIds, BSplineUvProjector projector,
+        DisplayTessellationOptions options, DisplayTessellationExecutionBudget? executionBudget)
+    {
+        var input = TryBuildTrimmedSurfaceUvLoops(body, faceId, loopIds, projector.Project,
+            options, executionBudget, SurfaceGeometryKind.BSplineSurfaceWithKnots);
+        if (!input.IsSuccess || !input.Value.Any(IsCollapsedSplineLoop)
+            || !loopIds.SelectMany(body.GetCoedgeIds).All(id =>
+                body.Bindings.TryGetPcurveBinding(id, out var binding)
+                && binding.Qualification?.Origin == PcurveBindingOrigin.RecoveredSpline)) return input;
+        // A recovered parameter trace may flatten a feature smaller than its lift
+        // budget. Display samples the actual bounded edges onto the existing support;
+        // retained source pcurves, BRep bindings and export remain unchanged.
+        return TryBuildTrimmedSurfaceUvLoops(body, faceId, loopIds, projector.Project, options with {
+            MinimumSegments = System.Math.Min(options.MaximumSegments, System.Math.Max(64, options.MinimumSegments))
+        }, executionBudget, SurfaceGeometryKind.BSplineSurfaceWithKnots, preferBoundPcurves: false);
+    }
+
+    private static bool IsCollapsedSplineLoop(IReadOnlyList<(double U, double V)> loop)
+    {
+        if (loop.Count < 3) return true;
+        var width = loop.Max(p => p.U) - loop.Min(p => p.U);
+        var height = loop.Max(p => p.V) - loop.Min(p => p.V);
+        var origin = loop[0];
+        var twiceArea = 0d;
+        for (var i = 0; i < loop.Count; i++)
+        {
+            var a = loop[i]; var b = loop[(i + 1) % loop.Count];
+            twiceArea += (a.U - origin.U) * (b.V - origin.V) - (b.U - origin.U) * (a.V - origin.V);
+        }
+        return width <= 0d || height <= 0d || double.Abs(twiceArea) <= width * height * 1e-10d;
+    }
+
+    internal static IReadOnlyList<IReadOnlyList<(double U, double V)>> NormalizeClosedSplineLoops(
+        BSplineSurfaceWithKnots surface, IReadOnlyList<IReadOnlyList<(double U, double V)>> loops)
+    {
+        return loops.Select(loop =>
+        {
+            var points = loop.ToArray();
+            Normalize(surface.UClosed, surface.DomainStartU, surface.DomainEndU, true);
+            Normalize(surface.VClosed, surface.DomainStartV, surface.DomainEndV, false);
+            return (IReadOnlyList<(double U, double V)>)points;
+
+            void Normalize(bool closed, double start, double end, bool alongU)
+            {
+                if (!closed || points.Length == 0) return;
+                var period = end - start;
+                for (var i = 1; i < points.Length; i++)
+                {
+                    var p = points[i];
+                    points[i] = alongU
+                        ? (BrepPcurveRecovery.UnwrapNear(p.U, points[i - 1].U, period), p.V)
+                        : (p.U, BrepPcurveRecovery.UnwrapNear(p.V, points[i - 1].V, period));
+                }
+                var minimum = points.Min(p => alongU ? p.U : p.V);
+                var shift = double.Floor((minimum - start + period * 1e-8d) / period) * period;
+                for (var i = 0; i < points.Length; i++)
+                    points[i] = alongU ? (points[i].U - shift, points[i].V) : (points[i].U, points[i].V - shift);
+            }
+        }).ToArray();
+    }
+
     private sealed class BSplineUvProjector
     {
         private readonly BSplineSurfaceWithKnots _surface;
-        private readonly int _coarseSegments;
         private readonly double _tolerance;
-        private Point3D[]? _grid;
-        private (double U, double V)? _last;
+        private SurfaceParameterPoint? _last;
+        public double LastResidual { get; private set; }
+        public (double U, double V) LastCandidate { get; private set; }
 
         public BSplineUvProjector(BSplineSurfaceWithKnots surface)
         {
             _surface = surface;
-            // Coarse grid seed. Scale with the control net so long, thin or heavily curved patches
-            // (e.g. gear tooth flanks) still seed inside the correct basin.
-            var controlRows = surface.ControlPoints.Count;
-            var controlColumns = controlRows > 0 ? surface.ControlPoints[0].Count : 0;
-            _coarseSegments = System.Math.Clamp(System.Math.Max(controlRows, controlColumns) * 4, 16, 32);
             _tolerance = ComputeBSplineProjectionTolerance(surface);
         }
 
         public (double U, double V)? Project(Point3D point)
         {
-            if (_last is { } seed)
-            {
-                var warm = Refine(seed.U, seed.V, point);
-                if (warm.HasValue)
-                {
-                    _last = warm;
-                    return warm;
-                }
-            }
-
-            var cold = SeedFromGrid(point);
-            var result = Refine(cold.U, cold.V, point);
-            if (result.HasValue)
-            {
-                _last = result;
-            }
-
-            return result;
-        }
-
-        private (double U, double V) SeedFromGrid(Point3D point)
-        {
-            var surface = _surface;
-            var n = _coarseSegments;
-            var uStart = surface.DomainStartU;
-            var vStart = surface.DomainStartV;
-            var uStep = (surface.DomainEndU - uStart) / n;
-            var vStep = (surface.DomainEndV - vStart) / n;
-            if (_grid is null)
-            {
-                var grid = new Point3D[(n + 1) * (n + 1)];
-                for (var iu = 0; iu <= n; iu++)
-                {
-                    for (var iv = 0; iv <= n; iv++)
-                    {
-                        grid[(iu * (n + 1)) + iv] = surface.Evaluate(uStart + (uStep * iu), vStart + (vStep * iv));
-                    }
-                }
-
-                _grid = grid;
-            }
-
-            var bestU = uStart;
-            var bestV = vStart;
-            var bestDistanceSquared = double.PositiveInfinity;
-            for (var iu = 0; iu <= n; iu++)
-            {
-                for (var iv = 0; iv <= n; iv++)
-                {
-                    var delta = _grid[(iu * (n + 1)) + iv] - point;
-                    var distanceSquared = delta.Dot(delta);
-                    if (distanceSquared < bestDistanceSquared)
-                    {
-                        bestDistanceSquared = distanceSquared;
-                        bestU = uStart + (uStep * iu);
-                        bestV = vStart + (vStep * iv);
-                    }
-                }
-            }
-
-            return (bestU, bestV);
-        }
-
-        // Levenberg-Marquardt refinement of |S(u,v) - P|^2, clamped to the surface domain. The previous
-        // fixed 6-step pattern search only resolved ~1/640 of the domain, which left residuals above the
-        // acceptance tolerance for perfectly valid boundary samples and dropped whole faces.
-        private (double U, double V)? Refine(double startU, double startV, Point3D point)
-        {
-            var surface = _surface;
-            var uStart = surface.DomainStartU;
-            var uEnd = surface.DomainEndU;
-            var vStart = surface.DomainStartV;
-            var vEnd = surface.DomainEndV;
-            var uSpan = uEnd - uStart;
-            var vSpan = vEnd - vStart;
-            var bestU = startU;
-            var bestV = startV;
-            var startDelta = surface.Evaluate(bestU, bestV) - point;
-            var bestDistanceSquared = startDelta.Dot(startDelta);
-            var lambda = 1e-3d;
-            var done = false;
-            for (var iteration = 0; iteration < 60 && !done; iteration++)
-            {
-                var uPlus = System.Math.Min(bestU + (uSpan * 1e-6d), uEnd);
-                var uMinus = System.Math.Max(bestU - (uSpan * 1e-6d), uStart);
-                var vPlus = System.Math.Min(bestV + (vSpan * 1e-6d), vEnd);
-                var vMinus = System.Math.Max(bestV - (vSpan * 1e-6d), vStart);
-                if (uPlus - uMinus <= 0d || vPlus - vMinus <= 0d)
-                {
-                    break;
-                }
-
-                var tangentU = (surface.Evaluate(uPlus, bestV) - surface.Evaluate(uMinus, bestV)) * (1d / (uPlus - uMinus));
-                var tangentV = (surface.Evaluate(bestU, vPlus) - surface.Evaluate(bestU, vMinus)) * (1d / (vPlus - vMinus));
-                var residualVector = surface.Evaluate(bestU, bestV) - point;
-                var a11 = tangentU.Dot(tangentU);
-                var a12 = tangentU.Dot(tangentV);
-                var a22 = tangentV.Dot(tangentV);
-                var b1 = -tangentU.Dot(residualVector);
-                var b2 = -tangentV.Dot(residualVector);
-
-                var accepted = false;
-                for (var attempt = 0; attempt < 10 && !accepted; attempt++)
-                {
-                    var m11 = (a11 * (1d + lambda)) + 1e-30d;
-                    var m22 = (a22 * (1d + lambda)) + 1e-30d;
-                    var determinant = (m11 * m22) - (a12 * a12);
-                    if (!(System.Math.Abs(determinant) > 1e-300d))
-                    {
-                        lambda *= 10d;
-                        continue;
-                    }
-
-                    var stepU = ((b1 * m22) - (a12 * b2)) / determinant;
-                    var stepV = ((m11 * b2) - (a12 * b1)) / determinant;
-                    var candidateU = System.Math.Clamp(bestU + stepU, uStart, uEnd);
-                    var candidateV = System.Math.Clamp(bestV + stepV, vStart, vEnd);
-                    var candidateDelta = surface.Evaluate(candidateU, candidateV) - point;
-                    var candidateDistanceSquared = candidateDelta.Dot(candidateDelta);
-                    if (candidateDistanceSquared < bestDistanceSquared)
-                    {
-                        done = System.Math.Abs(candidateU - bestU) <= uSpan * 1e-13d
-                            && System.Math.Abs(candidateV - bestV) <= vSpan * 1e-13d;
-                        bestU = candidateU;
-                        bestV = candidateV;
-                        bestDistanceSquared = candidateDistanceSquared;
-                        lambda = System.Math.Max(lambda * 0.3d, 1e-12d);
-                        accepted = true;
-                    }
-                    else
-                    {
-                        lambda *= 10d;
-                    }
-                }
-
-                if (!accepted)
-                {
-                    break;
-                }
-            }
-
-            return System.Math.Sqrt(bestDistanceSquared) > _tolerance ? null : (bestU, bestV);
+            var result = BrepPcurveRecovery.ProjectSplinePoint(_surface, point, _last, _tolerance);
+            if (!result.Success && _last is not null)
+                result = BrepPcurveRecovery.ProjectSplinePoint(_surface, point, null, _tolerance);
+            LastResidual = result.Residual;
+            LastCandidate = (result.Uv.U, result.Uv.V);
+            if (!result.Success) return null;
+            _last = result.Uv;
+            return LastCandidate;
         }
     }
 
@@ -1634,7 +1576,7 @@ public static class BrepDisplayTessellator
     // 1e-3 mm off the analytic surface. UV projection here is for display, so accept anything below visual resolution.
     private const double AnalyticProjectionDeviationFloor = 1e-2d;
 
-    private static (double U, double V)? TryProjectPointToCylinderUv(CylinderSurface cylinder, Point3D point)
+    private static (double U, double V)? TryProjectPointToCylinderUv(CylinderSurface cylinder, Point3D point, double recoveryAllowance = 0d)
     {
         var axis = cylinder.Axis.ToVector();
         var xAxis = cylinder.XAxis.ToVector();
@@ -1643,7 +1585,10 @@ public static class BrepDisplayTessellator
         var axial = offset.Dot(axis);
         var radial = offset - (axis * axial);
         var radialLength = radial.Length;
-        var tolerance = System.Math.Max(AnalyticProjectionDeviationFloor, cylinder.Radius * 1e-4d);
+        // A measured recovered edge can depart from its exact cylindrical support by more than
+        // the analytic floor. Bound this face-local display projection by its recorded recovery
+        // deviation and the display chord budget; pcurve and kernel budgets remain independent.
+        var tolerance = System.Math.Max(recoveryAllowance, System.Math.Max(AnalyticProjectionDeviationFloor, cylinder.Radius * 1e-4d));
         if (!double.IsFinite(radialLength) || System.Math.Abs(radialLength - cylinder.Radius) > tolerance)
         {
             return null;
@@ -1697,13 +1642,14 @@ public static class BrepDisplayTessellator
         Func<Point3D, (double U, double V)?> projectPointToUv,
         DisplayTessellationOptions options,
         DisplayTessellationExecutionBudget? executionBudget = null,
-        SurfaceGeometryKind? surfaceKind = null)
+        SurfaceGeometryKind? surfaceKind = null,
+        bool preferBoundPcurves = true)
     {
         var uvLoops = new List<IReadOnlyList<(double U, double V)>>(loopIds.Count);
         foreach (var loopId in loopIds.OrderBy(id => id.Value))
         {
             executionBudget?.ThrowIfExpired("TrimLoopDispatch", faceId, surfaceKind);
-            var uvLoop = TryBuildTrimmedSurfaceUvLoop(body, faceId, loopId, projectPointToUv, options, executionBudget, surfaceKind);
+            var uvLoop = TryBuildTrimmedSurfaceUvLoop(body, faceId, loopId, projectPointToUv, options, executionBudget, surfaceKind, preferBoundPcurves);
             if (!uvLoop.IsSuccess)
             {
                 return KernelResult<IReadOnlyList<IReadOnlyList<(double U, double V)>>>.Failure(uvLoop.Diagnostics);
@@ -1722,14 +1668,15 @@ public static class BrepDisplayTessellator
         Func<Point3D, (double U, double V)?> projectPointToUv,
         DisplayTessellationOptions options,
         DisplayTessellationExecutionBudget? executionBudget = null,
-        SurfaceGeometryKind? surfaceKind = null)
+        SurfaceGeometryKind? surfaceKind = null,
+        bool preferBoundPcurves = true)
     {
         var coedges = body.GetCoedgeIds(loopId).Select(id => body.Topology.GetCoedge(id)).ToArray();
-        if (coedges.Length < 3)
+        if (coedges.Length == 0)
         {
             return KernelResult<IReadOnlyList<(double U, double V)>>.Failure([
                 CreateNotImplemented(
-                    $"Face {faceId.Value} parametric trim loop must contain at least three coedges. Observed {coedges.Length}.",
+                    $"Face {faceId.Value} parametric trim loop has no coedges.",
                     BSplineSurfaceTrimUnsupportedSource)]);
         }
 
@@ -1745,17 +1692,27 @@ public static class BrepDisplayTessellator
             executionBudget?.ThrowIfExpired("TrimLoopSampling", faceId, surfaceKind);
             // Consume the bound face-space authority when available. Numerical 3D
             // reprojection is only the legacy fallback for bodies without pcurves.
-            if (body.Bindings.TryGetPcurveBinding(coedge.Id, out var pc) && pc.FaceId == faceId)
+            if (preferBoundPcurves && body.Bindings.TryGetPcurveBinding(coedge.Id, out var pc) && pc.FaceId == faceId)
             {
                 var edge = body.Bindings.GetEdgeBinding(coedge.EdgeId);
                 var reversed = coedge.IsReversed ^ !edge.OrientedEdgeSense ^ !pc.SameSense;
-                var segments = pc.Pcurve.Kind == PcurveGeometryKind.Line ? 1 : System.Math.Max(32, options.MinimumSegments);
+                var segments = pc.Pcurve.Kind == PcurveGeometryKind.Line ? 2 : System.Math.Max(32, options.MinimumSegments);
+                // Imported analytic pcurves may use different equivalent angular
+                // charts on neighbouring edges. Translate the whole coedge by an
+                // integral turn at its join; preserve its authored sweep internally.
+                // Pointwise wrapping would erase legitimate multi-turn helices.
+                var angularOffset = 0d;
+                if (uvPoints.Count > 0 && surfaceKind is SurfaceGeometryKind.Cylinder or SurfaceGeometryKind.Cone)
+                {
+                    var first = pc.Pcurve.Evaluate(reversed ? pc.Pcurve.Domain.End : pc.Pcurve.Domain.Start);
+                    angularOffset = 2d * double.Pi * double.Round((uvPoints[^1].U - first.U) / (2d * double.Pi));
+                }
                 for (var i = 0; i <= segments; i++)
                 {
                     var fraction = (double)i / segments;
                     if (reversed) fraction = 1 - fraction;
                     var uv = pc.Pcurve.Evaluate(pc.Pcurve.Domain.Start + fraction * (pc.Pcurve.Domain.End - pc.Pcurve.Domain.Start));
-                    AppendUniqueUvPoint(uvPoints, (uv.U, uv.V));
+                    AppendUniqueUvPoint(uvPoints, (uv.U + angularOffset, uv.V));
                 }
                 continue;
             }
@@ -1903,16 +1860,52 @@ public static class BrepDisplayTessellator
         return normalized;
     }
 
-    private static KernelResult<DisplayFaceMeshPatch> TessellateSphereFace(BrepBody body, FaceId faceId, SphereSurface sphere, DisplayTessellationOptions options)
+    private static KernelResult<DisplayFaceMeshPatch> TessellateSphereFace(BrepBody body, FaceId faceId, SphereSurface sphere, DisplayTessellationOptions options, DisplayTessellationExecutionBudget? executionBudget = null)
     {
-        var trimPatchResult = TryResolveSphereTrimPatch(body, faceId, sphere);
-        if (!trimPatchResult.IsSuccess)
+        var edgeLoops = body.GetLoopIds(faceId).Where(id => body.Topology.GetLoop(id).Kind == LoopKind.Edge).ToArray();
+        if (edgeLoops.Length > 0)
         {
-            return KernelResult<DisplayFaceMeshPatch>.Failure(trimPatchResult.Diagnostics);
+            var sampledLoops = new List<(LoopId Id, IReadOnlyList<Point3D> Points)>();
+            foreach (var loopId in edgeLoops)
+            {
+                var coedges = body.GetCoedgeIds(loopId).Select(body.Topology.GetCoedge).ToArray();
+                var vertices = BuildLoopVertexPointLookup(body, coedges, faceId);
+                if (!vertices.IsSuccess) return KernelResult<DisplayFaceMeshPatch>.Failure(vertices.Diagnostics);
+                var points = new List<Point3D>();
+                foreach (var coedge in coedges)
+                {
+                    var sampled = TrySampleCoedgeForTrimEvaluation(body, faceId, coedge, vertices.Value, options, executionBudget, SurfaceGeometryKind.Sphere);
+                    if (!sampled.IsSuccess) return KernelResult<DisplayFaceMeshPatch>.Failure(sampled.Diagnostics);
+                    var boundarySamples = sampled.Value;
+                    var edge = body.Topology.GetEdge(coedge.EdgeId);
+                    if (body.Bindings.TryGetPcurveBinding(coedge.Id, out var pc) && pc.FaceId == faceId)
+                    {
+                        var binding = body.Bindings.GetEdgeBinding(edge.Id);
+                        var reversed = coedge.IsReversed ^ !binding.OrientedEdgeSense ^ !pc.SameSense;
+                        var count = System.Math.Max(32, boundarySamples.Count - 1);
+                        boundarySamples = Enumerable.Range(0, count + 1).Select(i =>
+                        {
+                            var t = reversed ? 1d - (double)i / count : (double)i / count;
+                            var uv = pc.Pcurve.Evaluate(pc.Pcurve.Domain.Start + t * (pc.Pcurve.Domain.End - pc.Pcurve.Domain.Start));
+                            return sphere.Evaluate(uv.U, uv.V);
+                        }).ToArray();
+                    }
+                    // Endpoint matching cannot determine a closed edge's direction.
+                    // The spherical chart needs directed winding to choose the cap;
+                    // consume the existing coedge/curve sense for that singular case.
+                    else if (edge.StartVertexId == edge.EndVertexId && (coedge.IsReversed ^ !body.Bindings.GetEdgeBinding(edge.Id).OrientedEdgeSense))
+                        boundarySamples = boundarySamples.Reverse().ToArray();
+                    points.AddRange(boundarySamples.Skip(points.Count > 0 ? 1 : 0));
+                }
+                sampledLoops.Add((loopId, points));
+            }
+            var outerIndex = Array.FindIndex(edgeLoops, id => body.Bindings.TryGetFaceBoundaryRoleBinding(id, out var role) && role.Role == FaceBoundaryRole.Outer);
+            return SphericalTrimTessellator.Tessellate(faceId, sphere, sampledLoops.Select(l => l.Points).ToArray(),
+                outerIndex < 0 ? 0 : outerIndex, body.Bindings.GetFaceBinding(faceId).Orientation.IsAlignedWithSurface,
+                options, executionBudget);
         }
-
-        var trimPatch = trimPatchResult.Value;
-        var angularSegments = CalculateSegmentCount(trimPatch.USpan, sphere.Radius, options);
+        // With no edge boundary, retained vertex loops are zero-dimensional punctures of the support.
+        var angularSegments = CalculateSegmentCount(2d * double.Pi, sphere.Radius, options);
         var elevationSegments = System.Math.Max(2, System.Math.Clamp(angularSegments / 2, options.MinimumSegments / 2, options.MaximumSegments));
 
         return KernelResult<DisplayFaceMeshPatch>.Success(CreateBoundedGridPatch(
@@ -1921,11 +1914,10 @@ public static class BrepDisplayTessellator
             elevationSegments,
             (u, v) => sphere.Evaluate(u, v),
             (u, v) => sphere.Normal(u, v).ToVector(),
-            trimPatch.UStart,
-            trimPatch.UStart + trimPatch.USpan,
-            trimPatch.VStart,
-            trimPatch.VEnd),
-            trimPatchResult.Diagnostics);
+            0d,
+            2d * double.Pi,
+            -double.Pi / 2d,
+            double.Pi / 2d));
     }
 
 
@@ -3072,296 +3064,6 @@ public static class BrepDisplayTessellator
         return new DisplayFaceMeshPatch(faceId, positions, normals, indices);
     }
 
-    private static KernelResult<(double UStart, double USpan, double VStart, double VEnd)> TryResolveSphereTrimPatch(
-        BrepBody body,
-        FaceId faceId,
-        SphereSurface sphere)
-    {
-        var loopIds = body.GetLoopIds(faceId)
-            .Where(loopId => body.Topology.GetLoop(loopId).Kind == LoopKind.Edge)
-            .ToArray();
-        if (loopIds.Length == 0)
-        {
-            return KernelResult<(double, double, double, double)>.Success((0d, 2d * double.Pi, -double.Pi / 2d, double.Pi / 2d));
-        }
-
-        if (loopIds.Length != 1)
-        {
-            return KernelResult<(double, double, double, double)>.Failure([
-                CreateNotImplemented($"Face {faceId.Value} sphere tessellation currently supports exactly one edge trim loop. Observed {loopIds.Length} edge loops.")]);
-        }
-
-        var coedges = body.GetCoedgeIds(loopIds[0]).Select(id => body.Topology.GetCoedge(id)).ToArray();
-        if (coedges.Length == 1)
-        {
-            var singleCoedgeResolution = TryResolveSingleCoedgeSphereTrimPatch(body, faceId, sphere, coedges[0]);
-            if (singleCoedgeResolution.IsSuccess)
-            {
-                return singleCoedgeResolution;
-            }
-
-            return KernelResult<(double, double, double, double)>.Failure(singleCoedgeResolution.Diagnostics);
-        }
-
-        if (coedges.Length == 2)
-        {
-            var twoCoedgeResolution = TryResolveTwoCoedgeSphereTrimPatch(body, faceId, sphere, coedges);
-            if (twoCoedgeResolution.IsSuccess)
-            {
-                return twoCoedgeResolution;
-            }
-
-            return KernelResult<(double, double, double, double)>.Failure(twoCoedgeResolution.Diagnostics);
-        }
-
-        if (coedges.Length < 3)
-        {
-            return KernelResult<(double, double, double, double)>.Failure([
-                CreateNotImplemented($"Face {faceId.Value} spherical trim loop must contain at least three coedges. Observed {coedges.Length}.")]);
-        }
-
-        return TryResolveGeneralSphereTrimPatch(body, faceId, sphere, coedges);
-    }
-
-    private static KernelResult<(double UStart, double USpan, double VStart, double VEnd)> TryResolveTwoCoedgeSphereTrimPatch(
-        BrepBody body,
-        FaceId faceId,
-        SphereSurface sphere,
-        IReadOnlyList<Coedge> coedges)
-    {
-        if (coedges.Count != 2)
-        {
-            return KernelResult<(double, double, double, double)>.Failure([
-                CreateNotImplemented($"Face {faceId.Value} spherical two-coedge trim resolver expected exactly two coedges. Observed {coedges.Count}.", SphereTrimTwoCoedgeUnsupportedSource)]);
-        }
-
-        var firstCurve = body.GetEdgeCurve(coedges[0].EdgeId);
-        var secondCurve = body.GetEdgeCurve(coedges[1].EdgeId);
-        var isBiArcCircleLune = firstCurve.Kind == CurveGeometryKind.Circle3 && secondCurve.Kind == CurveGeometryKind.Circle3;
-        var isBsplineBiArcSurrogate = firstCurve.Kind == CurveGeometryKind.BSpline3 && secondCurve.Kind == CurveGeometryKind.BSpline3;
-        if (!isBiArcCircleLune && !isBsplineBiArcSurrogate)
-        {
-            return KernelResult<(double, double, double, double)>.Failure([
-                CreateNotImplemented(
-                    $"Face {faceId.Value} spherical two-coedge trim classified as unsupported subfamily (requires bi-arc circle pair or bspline bi-arc surrogate pair; observed edge kinds '{firstCurve.UnsupportedKind ?? firstCurve.Kind.ToString()}' and '{secondCurve.UnsupportedKind ?? secondCurve.Kind.ToString()}').",
-                    SphereTrimTwoCoedgeUnsupportedSource)]);
-        }
-
-        if (!body.TryGetEdgeVertices(coedges[0].EdgeId, out var firstStartVertexId, out var firstEndVertexId)
-            || !body.TryGetEdgeVertices(coedges[1].EdgeId, out var secondStartVertexId, out var secondEndVertexId))
-        {
-            return KernelResult<(double, double, double, double)>.Failure([
-                CreateNotImplemented(
-                    $"Face {faceId.Value} spherical two-coedge trim classified as unsupported subfamily (missing edge vertex topology).",
-                    SphereTrimTwoCoedgeUnsupportedSource)]);
-        }
-
-        var uniqueVertexIds = new HashSet<VertexId> { firstStartVertexId, firstEndVertexId, secondStartVertexId, secondEndVertexId };
-        if (uniqueVertexIds.Count != 2)
-        {
-            return KernelResult<(double, double, double, double)>.Failure([
-                CreateNotImplemented(
-                    $"Face {faceId.Value} spherical two-coedge trim classified as unsupported subfamily (expected two shared vertices; observed {uniqueVertexIds.Count}).",
-                    SphereTrimTwoCoedgeUnsupportedSource)]);
-        }
-
-        var generalResolution = TryResolveGeneralSphereTrimPatch(body, faceId, sphere, coedges);
-        if (!generalResolution.IsSuccess)
-        {
-            return generalResolution;
-        }
-
-        if (isBiArcCircleLune)
-        {
-            return KernelResult<(double, double, double, double)>.Success(
-                generalResolution.Value,
-                [CreateClassificationInfo(
-                    $"Face {faceId.Value} spherical two-coedge trim classified as bi-arc circle lune with two shared vertices (edges {coedges[0].EdgeId.Value}/{coedges[1].EdgeId.Value}).",
-                    SphereTrimTwoCoedgeBiArcLuneSource)]);
-        }
-
-        return KernelResult<(double, double, double, double)>.Success(
-            generalResolution.Value,
-            [CreateClassificationInfo(
-                $"Face {faceId.Value} spherical two-coedge trim classified as bspline bi-arc surrogate pair with two shared vertices (edges {coedges[0].EdgeId.Value}/{coedges[1].EdgeId.Value}).",
-                SphereTrimTwoCoedgeBsplineBiArcSurrogateSource)]);
-    }
-
-    private static KernelResult<(double UStart, double USpan, double VStart, double VEnd)> TryResolveGeneralSphereTrimPatch(
-        BrepBody body,
-        FaceId faceId,
-        SphereSurface sphere,
-        IReadOnlyList<Coedge> coedges)
-    {
-        const double minAngularSpan = 1e-6d;
-        const double minElevationSpan = 1e-6d;
-
-        var vertexPointsResult = BuildLoopVertexPointLookup(body, coedges, faceId);
-        if (!vertexPointsResult.IsSuccess)
-        {
-            return KernelResult<(double, double, double, double)>.Failure(vertexPointsResult.Diagnostics);
-        }
-
-        var allAzimuths = new List<double>();
-        var allElevations = new List<double>();
-
-        foreach (var coedge in coedges)
-        {
-            var curve = body.GetEdgeCurve(coedge.EdgeId);
-            if (curve.Kind != CurveGeometryKind.Circle3
-                && curve.Kind != CurveGeometryKind.BSpline3
-                && curve.Kind != CurveGeometryKind.Ellipse3
-                && curve.Kind != CurveGeometryKind.Line3)
-            {
-                return KernelResult<(double, double, double, double)>.Failure([
-                    CreateNotImplemented($"Face {faceId.Value} spherical trim tessellation supports only line/circle/ellipse/bspline loop edges in this milestone. Observed curve kind '{curve.UnsupportedKind ?? curve.Kind.ToString()}'.")]);
-            }
-
-            var endpoints = GetEdgeEndpoints(body, coedge.EdgeId, coedge.IsReversed, vertexPointsResult.Value);
-            if (!endpoints.IsSuccess)
-            {
-                return KernelResult<(double, double, double, double)>.Failure(endpoints.Diagnostics);
-            }
-
-            AppendSphereUv(allAzimuths, allElevations, sphere, endpoints.Value.Start);
-            AppendSphereUv(allAzimuths, allElevations, sphere, endpoints.Value.End);
-
-            var edgePolyline = TessellateEdge(body, coedge.EdgeId, options: DisplayTessellationOptions.Default);
-            if (edgePolyline.IsSuccess)
-            {
-                var edgePoints = coedge.IsReversed
-                    ? edgePolyline.Value.Points.Reverse().ToArray()
-                    : edgePolyline.Value.Points;
-
-                foreach (var point in edgePoints)
-                {
-                    AppendSphereUv(allAzimuths, allElevations, sphere, point);
-                }
-            }
-        }
-
-        if (allAzimuths.Count == 0 || allElevations.Count == 0)
-        {
-            return KernelResult<(double, double, double, double)>.Failure([
-                CreateNotImplemented($"Face {faceId.Value} spherical trim tessellation could not derive loop parameter samples.")]);
-        }
-
-        var angularBounds = ResolveAngularBounds(allAzimuths);
-        if (!angularBounds.IsSuccess || angularBounds.Value.Span <= minAngularSpan)
-        {
-            return KernelResult<(double, double, double, double)>.Failure([
-                CreateNotImplemented($"Face {faceId.Value} spherical trim tessellation derived a degenerate azimuth span.")]);
-        }
-
-        var vStart = allElevations.Min();
-        var vEnd = allElevations.Max();
-        if ((vEnd - vStart) <= minElevationSpan)
-        {
-            return KernelResult<(double, double, double, double)>.Failure([
-                CreateNotImplemented($"Face {faceId.Value} spherical trim tessellation derived a degenerate elevation span.")]);
-        }
-
-        vStart = System.Math.Clamp(vStart, -double.Pi / 2d, double.Pi / 2d);
-        vEnd = System.Math.Clamp(vEnd, -double.Pi / 2d, double.Pi / 2d);
-
-        return KernelResult<(double, double, double, double)>.Success((angularBounds.Value.Start, angularBounds.Value.Span, vStart, vEnd));
-    }
-
-    private static KernelResult<(double UStart, double USpan, double VStart, double VEnd)> TryResolveSingleCoedgeSphereTrimPatch(
-        BrepBody body,
-        FaceId faceId,
-        SphereSurface sphere,
-        Coedge coedge)
-    {
-        const double fullWrapTolerance = 1e-3d;
-        const double axisAlignmentTolerance = 1e-4d;
-        const double axisOffsetTolerance = 1e-4d;
-        const double circleRadiusTolerance = 1e-4d;
-        const double minElevationSpan = 1e-6d;
-
-        var curve = body.GetEdgeCurve(coedge.EdgeId);
-        if (curve.Kind != CurveGeometryKind.Circle3)
-        {
-            return KernelResult<(double, double, double, double)>.Failure([
-                CreateNotImplemented(
-                    $"Face {faceId.Value} spherical single-coedge trim supports only closed full-circle latitude loops. Observed curve kind '{curve.UnsupportedKind ?? curve.Kind.ToString()}'.",
-                    SphereTrimSingleCoedgeUnsupportedSource)]);
-        }
-
-        if (!body.TryGetEdgeVertices(coedge.EdgeId, out var startVertexId, out var endVertexId) || startVertexId != endVertexId)
-        {
-            return KernelResult<(double, double, double, double)>.Failure([
-                CreateNotImplemented(
-                    $"Face {faceId.Value} spherical single-coedge trim expected a closed edge use. Observed edge {coedge.EdgeId.Value} with distinct vertices {startVertexId.Value}->{endVertexId.Value}.",
-                    SphereTrimSingleCoedgeUnsupportedSource)]);
-        }
-
-        if (!body.Bindings.TryGetEdgeBinding(coedge.EdgeId, out var edgeBinding)
-            || edgeBinding.TrimInterval is not ParameterInterval trimInterval
-            || !double.IsFinite(trimInterval.Start)
-            || !double.IsFinite(trimInterval.End)
-            || double.Abs((trimInterval.End - trimInterval.Start) - (2d * double.Pi)) > fullWrapTolerance)
-        {
-            return KernelResult<(double, double, double, double)>.Failure([
-                CreateNotImplemented(
-                    $"Face {faceId.Value} spherical single-coedge trim expected a full-circle edge trim interval. Observed trim [{edgeBinding.TrimInterval?.Start:R}, {edgeBinding.TrimInterval?.End:R}].",
-                    SphereTrimSingleCoedgeUnsupportedSource)]);
-        }
-
-        var circle = curve.Circle3!.Value;
-        var axisDot = circle.Normal.ToVector().Dot(sphere.Axis.ToVector());
-        if (double.Abs(double.Abs(axisDot) - 1d) > axisAlignmentTolerance)
-        {
-            return KernelResult<(double, double, double, double)>.Failure([
-                CreateNotImplemented(
-                    $"Face {faceId.Value} spherical single-coedge trim classified as unsupported subfamily (edge={coedge.EdgeId.Value}, axisAlignment={axisDot:R}); expected circle normal parallel to sphere axis.",
-                    SphereTrimSingleCoedgeUnsupportedSource)]);
-        }
-
-        var centerOffset = circle.Center - sphere.Center;
-        var axialDistance = centerOffset.Dot(sphere.Axis.ToVector());
-        var radialOffsetVector = centerOffset - (sphere.Axis.ToVector() * axialDistance);
-        var radialOffset = radialOffsetVector.Length;
-        if (radialOffset > (sphere.Radius * axisOffsetTolerance))
-        {
-            return KernelResult<(double, double, double, double)>.Failure([
-                CreateNotImplemented(
-                    $"Face {faceId.Value} spherical single-coedge trim classified as unsupported subfamily (edge={coedge.EdgeId.Value}, circle-center-axis-offset={radialOffset:R}); expected latitude circle centered on sphere axis.",
-                    SphereTrimSingleCoedgeUnsupportedSource)]);
-        }
-
-        var latitude = double.Asin(System.Math.Clamp(axialDistance / sphere.Radius, -1d, 1d));
-        var expectedCircleRadius = sphere.Radius * double.Cos(latitude);
-        var circleRadiusDelta = double.Abs(circle.Radius - expectedCircleRadius);
-        if (circleRadiusDelta > (sphere.Radius * circleRadiusTolerance))
-        {
-            return KernelResult<(double, double, double, double)>.Failure([
-                CreateNotImplemented(
-                    $"Face {faceId.Value} spherical single-coedge trim classified as unsupported subfamily (edge={coedge.EdgeId.Value}, circleRadius={circle.Radius:R}, expectedLatitudeRadius={expectedCircleRadius:R}); expected latitude circle.",
-                    SphereTrimSingleCoedgeUnsupportedSource)]);
-        }
-
-        var positivePoleDistance = double.Abs((double.Pi / 2d) - latitude);
-        var negativePoleDistance = double.Abs((-double.Pi / 2d) - latitude);
-        var pole = positivePoleDistance <= negativePoleDistance ? (double.Pi / 2d) : (-double.Pi / 2d);
-
-        var vStart = System.Math.Min(latitude, pole);
-        var vEnd = System.Math.Max(latitude, pole);
-        if ((vEnd - vStart) <= minElevationSpan)
-        {
-            return KernelResult<(double, double, double, double)>.Failure([
-                CreateNotImplemented(
-                    $"Face {faceId.Value} spherical single-coedge trim collapsed at a pole (latitude {latitude:R}).",
-                    SphereTrimSingleCoedgeUnsupportedSource)]);
-        }
-
-        return KernelResult<(double, double, double, double)>.Success(
-            (0d, 2d * double.Pi, vStart, vEnd),
-            [CreateClassificationInfo(
-                $"Face {faceId.Value} spherical single-coedge trim classified as closed full-wrap constant-latitude cap (edge {coedge.EdgeId.Value}, latitude {latitude:R}, pole {(pole > 0d ? "+pi/2" : "-pi/2")}).",
-                SphereTrimSingleCoedgeLatitudeCapSource)]);
-    }
-
     private static KernelResult<(double UStart, double UEnd, double VStart, double VEnd)> TryResolveCylinderTrimPatch(
         BrepBody body,
         FaceId faceId,
@@ -4257,23 +3959,6 @@ public static class BrepDisplayTessellator
         return normalized;
     }
 
-    private static void AppendSphereUv(List<double> azimuths, List<double> elevations, SphereSurface sphere, Point3D point)
-    {
-        var fromCenter = point - sphere.Center;
-        var radial = fromCenter.Length;
-        if (!double.IsFinite(radial) || radial <= 1e-9d)
-        {
-            return;
-        }
-
-        var normalized = fromCenter / radial;
-        var x = normalized.Dot(sphere.XAxis.ToVector());
-        var y = normalized.Dot(sphere.YAxis.ToVector());
-        var z = normalized.Dot(sphere.Axis.ToVector());
-        azimuths.Add(double.Atan2(y, x));
-        elevations.Add(System.Math.Asin(System.Math.Clamp(z, -1d, 1d)));
-    }
-
     private static int FindNextCoedgeIndex(
         IReadOnlyList<(Point3D Start, Point3D End)> endpoints,
         IReadOnlyList<bool> used,
@@ -4672,10 +4357,6 @@ public static class BrepDisplayTessellator
 
     private static KernelDiagnostic CreateValidationError(string message, string source)
         => new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, source);
-
-    // A successful, informational classification of a trim (not a skipped or degraded face): must not surface as a warning.
-    private static KernelDiagnostic CreateClassificationInfo(string message, string source)
-        => new(KernelDiagnosticCode.Unknown, KernelDiagnosticSeverity.Info, message, source);
 
     private static KernelDiagnostic CreateValidationWarning(string message, string source)
         => new(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Warning, message, source);

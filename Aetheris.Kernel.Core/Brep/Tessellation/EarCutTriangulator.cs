@@ -1,3 +1,4 @@
+// Adapted from Mapbox Earcut, ISC license. See THIRD_PARTY_NOTICES.md.
 namespace Aetheris.Kernel.Core.Brep.Tessellation;
 
 /// <summary>

@@ -61,8 +61,10 @@ public static class BrepPcurveRecovery
                         coedge.Id.Value.ToString()));
                     continue;
                 }
-                var origin = surface.BSplineSurfaceWithKnots is null
-                    ? PcurveBindingOrigin.RecoveredAnalytic : PcurveBindingOrigin.RecoveredSpline;
+                var exactPlanarProjection = surface.Plane is not null
+                    && (curve.Kind is CurveGeometryKind.Line3 or CurveGeometryKind.Circle3 || curve.BSpline3 is not null);
+                var origin = exactPlanarProjection ? PcurveBindingOrigin.DerivedAnalytic
+                    : surface.BSplineSurfaceWithKnots is null ? PcurveBindingOrigin.RecoveredAnalytic : PcurveBindingOrigin.RecoveredSpline;
                 bindings.AddPcurveBinding(new(coedge.Id, face.Id, faceBinding.SurfaceGeometryId, built.Pcurve,
                     Qualification: new(origin, liftResidual, qualificationTolerance, liftSamples,
                         built.Pcurve.Kind.ToString(), surface.Kind.ToString())));
@@ -130,8 +132,8 @@ public static class BrepPcurveRecovery
         if (surface.BSplineSurfaceWithKnots is not { } spline)
             return (null, double.PositiveInfinity, $"Surface family {surface.Kind} is outside the qualified pcurve matrix.");
 
-        var startInverse = Invert(spline, EvaluateCurve(curve, interval.Start), null, tolerance);
-        var endInverse = Invert(spline, EvaluateCurve(curve, interval.End), startInverse.Success ? startInverse.Uv : null, tolerance);
+        var startInverse = ProjectSplinePoint(spline, EvaluateCurve(curve, interval.Start), null, tolerance);
+        var endInverse = ProjectSplinePoint(spline, EvaluateCurve(curve, interval.End), startInverse.Success ? startInverse.Uv : null, tolerance);
         if (startInverse.Success && endInverse.Success)
         {
             var lineCandidate = PcurveGeometry.Line(interval, startInverse.Uv, endInverse.Uv);
@@ -148,7 +150,7 @@ public static class BrepPcurveRecovery
             for (var index = 0; index < inverseSamples; index++)
             {
                 var t = interval.Start + ((interval.End - interval.Start) * index / (inverseSamples - 1d));
-                var inverse = Invert(spline, EvaluateCurve(curve, t), seed, tolerance);
+                var inverse = ProjectSplinePoint(spline, EvaluateCurve(curve, t), seed, tolerance);
                 if (!inverse.Success)
                 {
                     bestResidual = double.Min(bestResidual, inverse.Residual);
@@ -168,7 +170,7 @@ public static class BrepPcurveRecovery
             $"Spline pcurve inversion/refinement exceeded 4097 samples; best lifted residual={bestResidual:R} mm, tolerance={tolerance:R} mm.");
     }
 
-    private static (bool Success, SurfaceParameterPoint Uv, double Residual) Invert(BSplineSurfaceWithKnots spline, Point3D target, SurfaceParameterPoint? prior, double tolerance)
+    internal static (bool Success, SurfaceParameterPoint Uv, double Residual) ProjectSplinePoint(BSplineSurfaceWithKnots spline, Point3D target, SurfaceParameterPoint? prior, double tolerance)
     {
         // Intersection traces are parameter-continuous, so the preceding inverse is
         // the deterministic seed after the first sample. Avoiding a fresh global grid
@@ -362,10 +364,10 @@ public static class BrepPcurveRecovery
         return (null, best, $"{surface.Kind} pcurve refinement could not meet {tolerance:R} mm (best sampled lift residual {best:R} mm).");
     }
 
-    private static double UnwrapNear(double value, double reference)
+    internal static double UnwrapNear(double value, double reference, double period = 2d * double.Pi)
     {
-        while (value - reference > double.Pi) value -= 2d * double.Pi;
-        while (value - reference < -double.Pi) value += 2d * double.Pi;
+        while (value - reference > period / 2d) value -= period;
+        while (value - reference < -period / 2d) value += period;
         return value;
     }
     private static void UnwrapAngles(SurfaceParameterPoint[] points, bool unwrapV)

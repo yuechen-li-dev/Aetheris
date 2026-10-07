@@ -21,7 +21,14 @@ public static class Step242SourceMetadataReader
             fileName?.OriginatingSystem,
             fileName?.Authorization,
             product?.Name,
-            product?.Description);
+            product?.Description,
+            ReadFileSchema(stepText));
+    }
+
+    private static string? ReadFileSchema(string text)
+    {
+        var match = Regex.Match(text, @"FILE_SCHEMA\s*\(\s*\((?<items>[^)]*)\)", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        return match.Success ? FirstString(match.Groups["items"].Value) : null;
     }
 
     private static FileNameMetadata? MatchFileName(string text)

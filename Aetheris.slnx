@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="test-support/Aetheris.StepLegacyCorpus/Aetheris.StepLegacyCorpus.csproj" />
   <Project Path="Aetheris.Cadmata.Desktop/Aetheris.Cadmata.Desktop.csproj" />
   <Project Path="Aetheris.Server/Aetheris.Server.csproj" />
   <Project Path="Aetheris.Drawing/Aetheris.Drawing.csproj" />

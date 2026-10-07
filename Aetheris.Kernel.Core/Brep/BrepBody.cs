@@ -54,6 +54,9 @@ public sealed class BrepBody
     /// <summary>Present when an interchange body required reconstructed trim bindings.</summary>
     public BrepPcurveRecoveryResult? PcurveRecoveryReport { get; internal set; }
 
+    /// <summary>Source BRep evidence; display completeness is assessed separately.</summary>
+    public Aetheris.Kernel.Core.Import.BrepImportQualificationReport? ImportQualification { get; internal set; }
+
     public bool TryGetVertexPoint(VertexId vertexId, out Point3D point) => _vertexPoints.TryGetValue(vertexId, out point);
 
     public bool TryGetEdgeCurveGeometry(EdgeId edgeId, out CurveGeometry? curve)

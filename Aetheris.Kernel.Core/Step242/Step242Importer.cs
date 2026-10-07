@@ -666,10 +666,12 @@ public static class Step242Importer
                 .Concat(orientation.Diagnostics));
         }
 
+        BrepPcurveEvidence? qualificationEvidence = null;
         if (orientation.Value.Bindings.PcurveBindings.Any())
         {
             var pcurveTolerance = double.Max(1e-6d, document.SourceDistanceAccuracyMillimetres ?? 0d);
             var pcurveEvidence = BrepPcurveValidator.Validate(orientation.Value, pcurveTolerance);
+            qualificationEvidence = pcurveEvidence;
             if (!pcurveEvidence.IsValid)
             {
                 return KernelResult<BrepBody>.Failure(pcurveEvidence.Diagnostics.Select(message => new KernelDiagnostic(
@@ -680,14 +682,17 @@ public static class Step242Importer
             }
         }
 
-        if (orientation.Value.Geometry.Curves.Any(curve => curve.Value.RecoveryProvenance is not null)
-            || orientation.Value.Geometry.Surfaces.Any(surface => surface.Value.RecoveryProvenance is not null))
+        // Pcurves describe face-local edge uses, including exact geometry. Geometry
+        // recovery provenance must not decide whether those bindings are populated.
+        if (orientation.Value.Topology.Coedges.Any(coedge =>
+            !orientation.Value.Bindings.TryGetPcurveBinding(coedge.Id, out _)))
         {
             var recovery = BrepPcurveRecovery.Populate(
                 orientation.Value.Topology, orientation.Value.Geometry, orientation.Value.Bindings,
                 tolerance: document.PcurveQualificationToleranceMillimetres);
             var pcurveEvidence = BrepPcurveValidator.Validate(orientation.Value,
                 document.PcurveQualificationToleranceMillimetres, requireEveryCoedge: true);
+            qualificationEvidence = pcurveEvidence;
             orientation.Value.PcurveRecoveryReport = pcurveEvidence.IsValid ? recovery : recovery with
             {
                 IsSuccess = false,
@@ -705,6 +710,8 @@ public static class Step242Importer
                 .Concat(orientation.Diagnostics));
         }
 
+        orientation.Value.ImportQualification = BrepImportQualification.Evaluate(orientation.Value, faceEntityIds.Count,
+            document.SourceDistanceAccuracyMillimetres, document.PcurveQualificationToleranceMillimetres, qualificationEvidence);
         return KernelResult<BrepBody>.Success(orientation.Value, validation.Diagnostics
             .Concat(shellRoleDiagnostics)
             .Concat(surfaceBindingDiagnostics)
@@ -2626,7 +2633,14 @@ public static class Step242Importer
                 return false;
         }
         if (!supportNormal.TryNormalize(out var normalizedSupport)) return false;
-        aligned = normalizedBoundary.Dot(normalizedSupport) > 0d;
+        var agreement = normalizedBoundary.Dot(normalizedSupport);
+        // An equatorial spherical boundary lies in a plane through the centre.
+        // Its centroid radial direction is perpendicular to the boundary normal;
+        // the sign of a near-zero dot product is rounding noise, not orientation
+        // evidence. Fall through to UV winding/the deterministic loop-role baseline
+        // so shared-edge adjacency and the shell volume solve retain authority.
+        if (surface.Kind == SurfaceGeometryKind.Sphere && double.Abs(agreement) <= 1e-8d) return false;
+        aligned = agreement > 0d;
         return true;
     }
 

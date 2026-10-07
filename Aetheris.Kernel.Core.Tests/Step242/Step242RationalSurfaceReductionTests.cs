@@ -141,6 +141,23 @@ public sealed class Step242RationalSurfaceReductionTests
         Assert.Equal(5e-4d, BSplineSurfaceRationalReduction.ResolveTolerance(rational, 5e-3d), 12);
     }
 
+    [Fact]
+    public void LowDegreeRationalDirection_RefinesAnisotropicallyWithinExistingControlNetCap()
+    {
+        var source = new BSplineSurfaceWithKnots(3, 1,
+            Enumerable.Range(0, 4).Select(i => (IReadOnlyList<Point3D>)new[] {
+                new Point3D(i / 3d, 0, i * i / 20d), new Point3D(i / 3d, 1, i * i / 20d)
+            }).ToArray(), "UNSPECIFIED", false, false, false, [4, 4], [2, 2], [0d, 1d], [0d, 1d], "UNSPECIFIED",
+            Enumerable.Range(0, 4).Select(_ => (IReadOnlyList<double>)new[] { 1d, 1.2d }).ToArray());
+        Assert.True(BSplineSurfaceRationalReduction.TryReduce(source, 1e-5, out var reduced, out var error, out var reason), reason);
+        Assert.False(reduced!.IsRational);
+        Assert.Equal(4, reduced.ControlPoints.Count);
+        Assert.InRange(reduced.ControlPoints[0].Count, 34, 256);
+        Assert.InRange(error, 0, 1e-5);
+        for (var i = 0; i <= 17; i++) for (var j = 0; j <= 257; j++)
+            Assert.InRange((source.Evaluate(i / 17d, j / 257d) - reduced.Evaluate(i / 17d, j / 257d)).Length, 0, 1e-5);
+    }
+
     private static int CountRationalSurfaces(Aetheris.Kernel.Core.Brep.BrepBody body)
         => body.Geometry.Surfaces.Count(surface => surface.Value.BSplineSurfaceWithKnots is { IsRational: true });
 

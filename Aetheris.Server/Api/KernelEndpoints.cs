@@ -241,7 +241,10 @@ public static class KernelEndpoints
                     return ApiMappings.NotFound($"Definition '{definitionId}' was not found.", "documents.definitions.export.step");
                 }
 
-                var exportResult = Step242Exporter.ExportBody(definitionBody);
+                var exportResult = Step242Exporter.ExportBody(definitionBody, new Step242ExportOptions {
+                    BrepExportPreflightPolicy = BrepExportPreflightPolicy.TrustedProductionRoute,
+                    ImportedRecoveryToleranceMillimetres = .1d
+                });
                 if (!exportResult.IsSuccess)
                 {
                     return ApiMappings.KernelFailure(exportResult.Diagnostics);
@@ -265,8 +268,11 @@ public static class KernelEndpoints
                 {
                     if (!AssemblyDisplayService.TryBuildStep(assemblyResult.Value, out var assemblyPacket, out var displayError))
                         return ApiMappings.BadRequestFromMessage(displayError, "documents.import.step.assembly.display");
+                    var qualifications = assemblyPacket!.Definitions.Select(d => d.ImportQualification!).ToArray();
+                    var status = qualifications.Length == 0 ? "Failed" : qualifications.Max(q => q.Status).ToString();
                     return ApiMappings.Ok(new StepImportResponseDto(documentId, Guid.Empty, Guid.Empty,
-                        assemblyPacket!.Name, [], AssemblyPresentation: assemblyPacket));
+                        assemblyPacket.Name, assemblyResult.Diagnostics.Select(ApiMappings.ToDiagnostic).ToArray(), AssemblyPresentation: assemblyPacket,
+                        ImportStatus: status, ImportQualifications: qualifications));
                 }
                 if (assemblyResult.Diagnostics.All(diagnostic => diagnostic.Source != "Importer.Assembly.ProductStructure"))
                     return ApiMappings.KernelFailure(assemblyResult.Diagnostics);
@@ -288,8 +294,10 @@ public static class KernelEndpoints
                     imported.DefinitionId,
                     imported.OccurrenceId,
                     occurrenceName,
-                    [],
-                    semanticPresentation));
+                    importResult.Diagnostics.Select(ApiMappings.ToDiagnostic).ToArray(),
+                    semanticPresentation,
+                    ImportStatus: importResult.Value.ImportQualification?.Status.ToString() ?? "Inspectable",
+                    ImportQualifications: importResult.Value.ImportQualification is { } qualification ? [qualification] : []));
             }));
 
         documents.MapPost("/{documentId:guid}/bodies/{bodyId:guid}/transform", (Guid documentId, Guid bodyId, TranslateBodyRequestDto request, KernelDocumentStore store) =>
@@ -341,7 +349,8 @@ public static class KernelEndpoints
 
                 if (lane is not "analytic-only" || needsTrimmedAnalyticFallback)
                 {
-                    var options = ApiMappings.BuildTessellationOptions(request?.TessellationOptions);
+                    var options = request?.TessellationOptions is null ? DisplayTessellationOptions.ForViewport(body)
+                        : ApiMappings.BuildTessellationOptions(request.TessellationOptions);
                     var completeBoundedMesh = DisplayPreparationFallbackBuilder.Build(body, options);
                     boundedMeshResult = completeBoundedMesh.IsSuccess
                         ? completeBoundedMesh.Value
@@ -415,7 +424,8 @@ public static class KernelEndpoints
                         analyticFace,
                         canUseWireFallback ? wirePatch : null,
                         materializationLane,
-                        combinedDiagnostics);
+                        combinedDiagnostics,
+                        AssemblyDisplayService.FaceSource(body, face.Id));
                 }).ToArray();
 
                 var status = faces.All(face => face.Status is "DiagnosticOnly" or "Omitted") ? "DiagnosticOnly" :
@@ -460,6 +470,17 @@ public static class KernelEndpoints
                 }
 
                 var lanes = displayLanes.Select(displayLane => displayLane.Kind).ToArray();
+                // Boundary sampling is available even when every support takes the analytic lane.
+                // Mesh fallback is not the authority for whether topology lines exist.
+                var topologyTransform = document.TryGetBodyTransform(bodyId, out var edgeTransform) ? edgeTransform : Transform3D.Identity;
+                var topologyEdges = tessellationFallback?.EdgePolylines ?? wireByFace.Values.SelectMany(wire => wire.Loops).SelectMany(loop => loop.Edges)
+                    .DistinctBy(edge => edge.EdgeId).Select(edge => {
+                        var bound = body.Topology.GetEdge(new EdgeId(edge.EdgeId));
+                        return new EdgePolylineDto(edge.EdgeId, edge.Points.Select(point => {
+                            var world = topologyTransform.Apply(new Point3D(point.X, point.Y, point.Z));
+                            return new Point3Dto(world.X, world.Y, world.Z);
+                        }).ToArray(), bound.StartVertexId == bound.EndVertexId);
+                    }).ToArray();
                 return ApiMappings.Ok(new DisplayPreparationResponseDto(
                     lane,
                     analyticDto,
@@ -470,7 +491,8 @@ public static class KernelEndpoints
                     lanes,
                     faces,
                     displayDiagnostics,
-                    displayLanes));
+                    displayLanes,
+                    topologyEdges));
             }));
 
         documents.MapPost("/{documentId:guid}/bodies/{bodyId:guid}/pick", (Guid documentId, Guid bodyId, PickRequestDto request, KernelDocumentStore store) =>

@@ -294,6 +294,11 @@ public sealed class BrepDisplayTessellatorTests
         var patch = Assert.Single(result.Value.FacePatches);
         Assert.Empty(patch.Positions);
         Assert.Empty(patch.TriangleIndices);
+
+        var partial = BrepDisplayTessellator.TessellateBoundedPartial(body);
+        Assert.Empty(Assert.Single(partial.FacePatches).TriangleIndices);
+        Assert.Contains(partial.FaceDiagnostics!, d => d.Code == "Viewer.Tessellation.TrimEvaluationFailed"
+            && d.FaceId == patch.FaceId);
     }
 
     [Fact]

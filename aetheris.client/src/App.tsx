@@ -565,6 +565,8 @@ function App() {
 				}
 
 				const imported = await importStep(documentId, stepText, fileName);
+				const qualificationStatus = imported.importStatus ?? "Inspectable";
+				setDiagnostics(imported.diagnostics);
 				if (imported.assemblyPresentation) {
 					setAssemblyPacket(imported.assemblyPresentation);
 					setSelectedAssemblyOccurrenceId(null);
@@ -577,7 +579,7 @@ function App() {
 					setStatus("success");
 					setStatusMessage(`Assembly loaded: ${imported.assemblyPresentation.name}`);
 					setImportStatus("success");
-					setImportStatusMessage(`Assembly ready: ${imported.assemblyPresentation.occurrences.length - 1} occurrences, ${imported.assemblyPresentation.definitions.length} definitions.`);
+					setImportStatusMessage(`${qualificationStatus}: ${imported.assemblyPresentation.occurrences.length - 1} occurrences, ${imported.assemblyPresentation.definitions.length} definitions. ${qualificationStatus === "Degraded" ? "Engineering checks are incomplete; see diagnostics." : qualificationStatus === "Inspectable" ? "Import qualification is incomplete." : ""}`);
 					dispatchDocumentEvent({ type: "LoadSucceeded", documentId });
 					return;
 				}
@@ -592,8 +594,12 @@ function App() {
 					imported.occurrenceId,
 					true,
 				);
-				const exported = await exportDefinitionStep(documentId, imported.definitionId);
-				setStepCanonicalHash(exported.canonicalHash);
+				setStepCanonicalHash(null);
+				const displayComplete = !displayRefresh.error && displayRefresh.preparation?.status === "Complete";
+				if (qualificationStatus === "Qualified" && displayComplete) {
+					const exported = await exportDefinitionStep(documentId, imported.definitionId);
+					setStepCanonicalHash(exported.canonicalHash);
+				}
 				setPickStatus("idle");
 				setPickMessage(`Imported occurrence ${imported.occurrenceId} is now active.`);
 				setPickDiagnostics([]);
@@ -605,15 +611,16 @@ function App() {
 					setStatusMessage(
 						`View materialization failed after import: ${displayRefresh.error.message}`,
 					);
-					setDiagnostics(displayRefresh.error.diagnostics);
+					setDiagnostics([...imported.diagnostics, ...displayRefresh.error.diagnostics]);
 					setImportStatus("success");
-					setImportStatusMessage("Import complete. View materialization failed.");
+					setImportStatusMessage("Degraded: import retained. View materialization failed.");
 				} else {
+					setDiagnostics(imported.diagnostics);
 					setStatus("success");
 					setStatusMessage("Import STEP complete.");
 					setImportStatus("success");
 					setImportStatusMessage(
-						createDisplayStatusSummary(displayRefresh.preparation)?.summary ?? "Import complete.",
+						`${displayComplete ? qualificationStatus : "Degraded"}: ${createDisplayStatusSummary(displayRefresh.preparation)?.summary ?? "Import retained."}`,
 					);
 				}
 				dispatchDocumentEvent({ type: "LoadSucceeded", documentId });

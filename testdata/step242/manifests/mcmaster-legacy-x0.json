@@ -1,0 +1,579 @@
+{
+  "milestone": "STEP-LEGACY-IMPORT-X0",
+  "redistribution": "Raw vendor CAD remains local; no redistribution permission asserted.",
+  "specimens": [
+    {
+      "id": "mcm-01",
+      "filename": "2515N333_Metal Bevel Pinion.STEP",
+      "sha256": "0e2b1cebef1d52b04ccfaf445db72c68407baa02c1be833cef0e556ac7899a88",
+      "bytes": 1224884,
+      "schema": " 'CONFIG_CONTROL_DESIGN' ",
+      "category": "Metal Bevel Pinion",
+      "vendor": "McMaster-Carr",
+      "source": "user-provided local download",
+      "qualification": "Inspectable",
+      "visualReview": "pending-human-review",
+      "faceCounts": {
+        "parsed": 211,
+        "bound": 211,
+        "displayed": 211
+      },
+      "normalization": {
+        "qualifiedBodyAttempts": 0,
+        "successfulBodies": 0,
+        "wholeSpecimen": "NotQualifiedSpecimen"
+      }
+    },
+    {
+      "id": "mcm-02",
+      "filename": "2515N337_Metal Bevel Gear.STEP",
+      "sha256": "b266a1cde5142897d9d153463b7a536f9a45d64ac7d38d4f0ad8e03d99cb4fe0",
+      "bytes": 2651882,
+      "schema": " 'CONFIG_CONTROL_DESIGN' ",
+      "category": "Metal Bevel Gear",
+      "vendor": "McMaster-Carr",
+      "source": "user-provided local download",
+      "qualification": "Inspectable",
+      "visualReview": "pending-human-review",
+      "faceCounts": {
+        "parsed": 467,
+        "bound": 467,
+        "displayed": 467
+      },
+      "normalization": {
+        "qualifiedBodyAttempts": 0,
+        "successfulBodies": 0,
+        "wholeSpecimen": "NotQualifiedSpecimen"
+      }
+    },
+    {
+      "id": "mcm-03",
+      "filename": "2590K26_Steel Taper-Lock Bushing-Bore Sprocket.STEP",
+      "sha256": "09a62cabebf1c2dba1e9e8414dca5551827199fbf98c92324977ca9707b9ee46",
+      "bytes": 10899573,
+      "schema": " 'CONFIG_CONTROL_DESIGN' ",
+      "category": "Steel Taper-Lock Bushing-Bore Sprocket",
+      "vendor": "McMaster-Carr",
+      "source": "user-provided local download",
+      "qualification": "Degraded",
+      "visualReview": "pending-human-review",
+      "faceCounts": {
+        "parsed": 667,
+        "bound": 667,
+        "displayed": 667
+      },
+      "normalization": {
+        "qualifiedBodyAttempts": 0,
+        "successfulBodies": 0,
+        "wholeSpecimen": "NotQualifiedSpecimen"
+      }
+    },
+    {
+      "id": "mcm-04",
+      "filename": "2664N313_NO THREADS_Metal Gear - 20 Degree Pressure Angle.STEP",
+      "sha256": "7ddde9c0b6cf6ed652b8ece52a3692b2823b753e21e60a451d920bff5fa1aaed",
+      "bytes": 718337,
+      "schema": " 'CONFIG_CONTROL_DESIGN' ",
+      "category": "NO THREADS_Metal Gear - 20 Degree Pressure Angle",
+      "vendor": "McMaster-Carr",
+      "source": "user-provided local download",
+      "qualification": "Degraded",
+      "visualReview": "pending-human-review",
+      "faceCounts": {
+        "parsed": 266,
+        "bound": 266,
+        "displayed": 266
+      },
+      "normalization": {
+        "qualifiedBodyAttempts": 0,
+        "successfulBodies": 0,
+        "wholeSpecimen": "NotQualifiedSpecimen"
+      }
+    },
+    {
+      "id": "mcm-05",
+      "filename": "2664N353_NO THREADS_Metal Gear - 20 Degree Pressure Angle.STEP",
+      "sha256": "025ae2ffdd47153ed793ec2bc71536bf57b00acc72a8cbef8c232c738af9e100",
+      "bytes": 893149,
+      "schema": " 'CONFIG_CONTROL_DESIGN' ",
+      "category": "NO THREADS_Metal Gear - 20 Degree Pressure Angle",
+      "vendor": "McMaster-Carr",
+      "source": "user-provided local download",
+      "qualification": "Degraded",
+      "visualReview": "pending-human-review",
+      "faceCounts": {
+        "parsed": 210,
+        "bound": 210,
+        "displayed": 208
+      },
+      "normalization": {
+        "qualifiedBodyAttempts": 0,
+        "successfulBodies": 0,
+        "wholeSpecimen": "NotQualifiedSpecimen"
+      }
+    },
+    {
+      "id": "mcm-06",
+      "filename": "2664N539_Metal Gear - 20 Degree Pressure Angle.STEP",
+      "sha256": "e7729e3e32dea7c40a97662638c15651144865aa84502e960f784676390d2572",
+      "bytes": 508673,
+      "schema": " 'CONFIG_CONTROL_DESIGN' ",
+      "category": "Metal Gear - 20 Degree Pressure Angle",
+      "vendor": "McMaster-Carr",
+      "source": "user-provided local download",
+      "qualification": "Inspectable",
+      "visualReview": "pending-human-review",
+      "faceCounts": {
+        "parsed": 185,
+        "bound": 185,
+        "displayed": 185
+      },
+      "normalization": {
+        "qualifiedBodyAttempts": 0,
+        "successfulBodies": 0,
+        "wholeSpecimen": "NotQualifiedSpecimen"
+      }
+    },
+    {
+      "id": "mcm-07",
+      "filename": "2664N545_Metal Gear - 20 Degree Pressure Angle.STEP",
+      "sha256": "feb6a9bfb5494889487f48722f053c35f16b93c831ed0d5d4bde9d64993c9ff3",
+      "bytes": 732872,
+      "schema": " 'CONFIG_CONTROL_DESIGN' ",
+      "category": "Metal Gear - 20 Degree Pressure Angle",
+      "vendor": "McMaster-Carr",
+      "source": "user-provided local download",
+      "qualification": "Inspectable",
+      "visualReview": "pending-human-review",
+      "faceCounts": {
+        "parsed": 266,
+        "bound": 266,
+        "displayed": 266
+      },
+      "normalization": {
+        "qualifiedBodyAttempts": 0,
+        "successfulBodies": 0,
+        "wholeSpecimen": "NotQualifiedSpecimen"
+      }
+    },
+    {
+      "id": "mcm-08",
+      "filename": "2696N15_Metal Internal Gear - 20 Degree Pressure Angle fusion.step",
+      "sha256": "0a34c93193dcfe67728745309913d454f851a75b7d463407815ecd58241299cc",
+      "bytes": 2803722,
+      "schema": "'AUTOMOTIVE_DESIGN { 1 0 10303 214 3 1 1 }'",
+      "category": "Metal Internal Gear - 20 Degree Pressure Angle fusion",
+      "vendor": "McMaster-Carr",
+      "source": "user-provided local download",
+      "qualification": "Inspectable",
+      "visualReview": "pending-human-review",
+      "faceCounts": {
+        "parsed": 605,
+        "bound": 605,
+        "displayed": 605
+      },
+      "normalization": {
+        "qualifiedBodyAttempts": 0,
+        "successfulBodies": 0,
+        "wholeSpecimen": "NotQualifiedSpecimen"
+      }
+    },
+    {
+      "id": "mcm-09",
+      "filename": "2696N15_Metal Internal Gear - 20 Degree Pressure Angle.STEP",
+      "sha256": "67935e3cff408145cb3d2f9ecaff699a91246d9ae61a8dc637bd24a6be713565",
+      "bytes": 3280838,
+      "schema": " 'CONFIG_CONTROL_DESIGN' ",
+      "category": "Metal Internal Gear - 20 Degree Pressure Angle",
+      "vendor": "McMaster-Carr",
+      "source": "user-provided local download",
+      "qualification": "Inspectable",
+      "visualReview": "pending-human-review",
+      "faceCounts": {
+        "parsed": 610,
+        "bound": 610,
+        "displayed": 610
+      },
+      "normalization": {
+        "qualifiedBodyAttempts": 0,
+        "successfulBodies": 0,
+        "wholeSpecimen": "NotQualifiedSpecimen"
+      }
+    },
+    {
+      "id": "mcm-10",
+      "filename": "3357K11_Clamping Two-Piece Shaft Collar.STEP",
+      "sha256": "66ca16c7075da6def62814a86e57ca51aa59a235f0ce4847699dbe80508bbc66",
+      "bytes": 4012079,
+      "schema": " 'CONFIG_CONTROL_DESIGN' ",
+      "category": "Clamping Two-Piece Shaft Collar",
+      "vendor": "McMaster-Carr",
+      "source": "user-provided local download",
+      "qualification": "Degraded",
+      "visualReview": "pending-human-review",
+      "faceCounts": {
+        "parsed": 200,
+        "bound": 200,
+        "displayed": 198
+      },
+      "normalization": {
+        "qualifiedBodyAttempts": 2,
+        "successfulBodies": 2,
+        "wholeSpecimen": "NotQualifiedSpecimen"
+      }
+    },
+    {
+      "id": "mcm-11",
+      "filename": "57545K631_Steel Worm.STEP",
+      "sha256": "9222c920192a44dbc214f10d7d869f1fc92d8b57ddb81229664f3988017520e8",
+      "bytes": 912012,
+      "schema": " 'CONFIG_CONTROL_DESIGN' ",
+      "category": "Steel Worm",
+      "vendor": "McMaster-Carr",
+      "source": "user-provided local download",
+      "qualification": "Inspectable",
+      "visualReview": "pending-human-review",
+      "faceCounts": {
+        "parsed": 45,
+        "bound": 45,
+        "displayed": 45
+      },
+      "normalization": {
+        "qualifiedBodyAttempts": 0,
+        "successfulBodies": 0,
+        "wholeSpecimen": "NotQualifiedSpecimen"
+      }
+    },
+    {
+      "id": "mcm-12",
+      "filename": "5972K94_Steel Ball Bearing.STEP",
+      "sha256": "d184e15d8e2db396df18c2732e4754caf5f24e6f36d3116eeff598ed1bd846c7",
+      "bytes": 419580,
+      "schema": " 'CONFIG_CONTROL_DESIGN' ",
+      "category": "Steel Ball Bearing",
+      "vendor": "McMaster-Carr",
+      "source": "user-provided local download",
+      "qualification": "Degraded",
+      "visualReview": "pending-human-review",
+      "faceCounts": {
+        "parsed": 166,
+        "bound": 166,
+        "displayed": 138
+      },
+      "normalization": {
+        "qualifiedBodyAttempts": 0,
+        "successfulBodies": 0,
+        "wholeSpecimen": "NotQualifiedSpecimen"
+      }
+    },
+    {
+      "id": "mcm-13",
+      "filename": "6283K72_Pawl for 6 mm Wide Face Metal Ratcheting Gear.STEP",
+      "sha256": "1af98eab618c833ff4fa246012abff0417b85edb3e133597a79d18570bed756c",
+      "bytes": 52902,
+      "schema": " 'CONFIG_CONTROL_DESIGN' ",
+      "category": "Pawl for 6 mm Wide Face Metal Ratcheting Gear",
+      "vendor": "McMaster-Carr",
+      "source": "user-provided local download",
+      "qualification": "Qualified",
+      "visualReview": "pending-human-review",
+      "faceCounts": {
+        "parsed": 22,
+        "bound": 22,
+        "displayed": 22
+      },
+      "normalization": {
+        "qualifiedBodyAttempts": 1,
+        "successfulBodies": 1,
+        "wholeSpecimen": "PassedCountsBoundsAndSampledEdges"
+      }
+    },
+    {
+      "id": "mcm-14",
+      "filename": "6283K75_Metal Ratchet Gear.STEP",
+      "sha256": "af95f5aa1f78aecf554d55355cf20d9ecdef5f8ef9e3436b424643cb7562a19b",
+      "bytes": 808841,
+      "schema": " 'CONFIG_CONTROL_DESIGN' ",
+      "category": "Metal Ratchet Gear",
+      "vendor": "McMaster-Carr",
+      "source": "user-provided local download",
+      "qualification": "Inspectable",
+      "visualReview": "pending-human-review",
+      "faceCounts": {
+        "parsed": 308,
+        "bound": 308,
+        "displayed": 308
+      },
+      "normalization": {
+        "qualifiedBodyAttempts": 0,
+        "successfulBodies": 0,
+        "wholeSpecimen": "NotQualifiedSpecimen"
+      }
+    },
+    {
+      "id": "mcm-15",
+      "filename": "6443K211_NO THREADS_Single U-Joint.STEP",
+      "sha256": "e1842bf66bef1c474263f586d2dacaec6236c8f24ee556c47287a7a9482e78ae",
+      "bytes": 1643771,
+      "schema": " 'CONFIG_CONTROL_DESIGN' ",
+      "category": "NO THREADS_Single U-Joint",
+      "vendor": "McMaster-Carr",
+      "source": "user-provided local download",
+      "qualification": "Degraded",
+      "visualReview": "pending-human-review",
+      "faceCounts": {
+        "parsed": 209,
+        "bound": 209,
+        "displayed": 206
+      },
+      "normalization": {
+        "qualifiedBodyAttempts": 0,
+        "successfulBodies": 0,
+        "wholeSpecimen": "NotQualifiedSpecimen"
+      }
+    },
+    {
+      "id": "mcm-16",
+      "filename": "6529K57_Metal Miter Gear.STEP",
+      "sha256": "c1195f67f6b78113793e40e398c561b03143af0d62b294a7807e3a01bd887d45",
+      "bytes": 589028,
+      "schema": " 'CONFIG_CONTROL_DESIGN' ",
+      "category": "Metal Miter Gear",
+      "vendor": "McMaster-Carr",
+      "source": "user-provided local download",
+      "qualification": "Inspectable",
+      "visualReview": "pending-human-review",
+      "faceCounts": {
+        "parsed": 134,
+        "bound": 134,
+        "displayed": 134
+      },
+      "normalization": {
+        "qualifiedBodyAttempts": 0,
+        "successfulBodies": 0,
+        "wholeSpecimen": "NotQualifiedSpecimen"
+      }
+    },
+    {
+      "id": "mcm-17",
+      "filename": "69295K23_Compact Push-In Signal-Power Connector.STEP",
+      "sha256": "632c75c0f07b1baceb25f4e5fe116df1186f37e25ffd8697300c207e8e23d6a8",
+      "bytes": 293780,
+      "schema": " 'CONFIG_CONTROL_DESIGN' ",
+      "category": "Compact Push-In Signal-Power Connector",
+      "vendor": "McMaster-Carr",
+      "source": "user-provided local download",
+      "qualification": "Qualified",
+      "visualReview": "pending-human-review",
+      "faceCounts": {
+        "parsed": 97,
+        "bound": 97,
+        "displayed": 97
+      },
+      "normalization": {
+        "qualifiedBodyAttempts": 1,
+        "successfulBodies": 0,
+        "wholeSpecimen": "Failed"
+      }
+    },
+    {
+      "id": "mcm-18",
+      "filename": "7835T51_Mounted Steel Ball Bearing with Cast Iron Housing.STEP",
+      "sha256": "02cba6aa7fd99cd805dba79042f23ee162514b597a7edd2d2c17ddd8121fc524",
+      "bytes": 1950971,
+      "schema": " 'CONFIG_CONTROL_DESIGN' ",
+      "category": "Mounted Steel Ball Bearing with Cast Iron Housing",
+      "vendor": "McMaster-Carr",
+      "source": "user-provided local download",
+      "qualification": "Degraded",
+      "visualReview": "pending-human-review",
+      "faceCounts": {
+        "parsed": 349,
+        "bound": 349,
+        "displayed": 345
+      },
+      "normalization": {
+        "qualifiedBodyAttempts": 1,
+        "successfulBodies": 1,
+        "wholeSpecimen": "NotQualifiedSpecimen"
+      }
+    },
+    {
+      "id": "mcm-19",
+      "filename": "90591A335_NO THREADS_Zinc-Plated Steel Hex Nut.STEP",
+      "sha256": "2f747f238e0df3cacf418257db70c1e71e794c5b4e69cd6d83b6ed253374deb7",
+      "bytes": 90652,
+      "schema": " 'CONFIG_CONTROL_DESIGN' ",
+      "category": "NO THREADS_Zinc-Plated Steel Hex Nut",
+      "vendor": "McMaster-Carr",
+      "source": "user-provided local download",
+      "qualification": "Inspectable",
+      "visualReview": "pending-human-review",
+      "faceCounts": {
+        "parsed": 32,
+        "bound": 32,
+        "displayed": 32
+      },
+      "normalization": {
+        "qualifiedBodyAttempts": 0,
+        "successfulBodies": 0,
+        "wholeSpecimen": "NotQualifiedSpecimen"
+      }
+    },
+    {
+      "id": "mcm-20",
+      "filename": "90591A335_Zinc-Plated Steel Hex Nut.STEP",
+      "sha256": "bdb13f405ba05b059f2ade03135bf288e36bc8a9abf86ce1ea775a11f4ecd685",
+      "bytes": 276678,
+      "schema": " 'CONFIG_CONTROL_DESIGN' ",
+      "category": "Zinc-Plated Steel Hex Nut",
+      "vendor": "McMaster-Carr",
+      "source": "user-provided local download",
+      "qualification": "Degraded",
+      "visualReview": "pending-human-review",
+      "faceCounts": {
+        "parsed": 44,
+        "bound": 44,
+        "displayed": 44
+      },
+      "normalization": {
+        "qualifiedBodyAttempts": 0,
+        "successfulBodies": 0,
+        "wholeSpecimen": "NotQualifiedSpecimen"
+      }
+    },
+    {
+      "id": "mcm-21",
+      "filename": "91280A546_Medium-Strength Class 8.8 Steel Hex Head Screw.STEP",
+      "sha256": "e2770630a4bcd5e2d3623725a78105fe73466738b98f0a10e199489cb6acf088",
+      "bytes": 1619930,
+      "schema": " 'CONFIG_CONTROL_DESIGN' ",
+      "category": "Medium-Strength Class 8.8 Steel Hex Head Screw",
+      "vendor": "McMaster-Carr",
+      "source": "user-provided local download",
+      "qualification": "Qualified",
+      "visualReview": "pending-human-review",
+      "faceCounts": {
+        "parsed": 147,
+        "bound": 147,
+        "displayed": 147
+      },
+      "normalization": {
+        "qualifiedBodyAttempts": 1,
+        "successfulBodies": 1,
+        "wholeSpecimen": "PassedCountsBoundsAndSampledEdges"
+      }
+    },
+    {
+      "id": "mcm-22",
+      "filename": "91280A546_NO THREADS_Medium-Strength Class 8.8 Steel Hex Head Screw.STEP",
+      "sha256": "eb3594e3fdf2b3b6ba60bfefb567bcdca30a139d2a8986eb2c89d010ce808eac",
+      "bytes": 395046,
+      "schema": " 'CONFIG_CONTROL_DESIGN' ",
+      "category": "NO THREADS_Medium-Strength Class 8.8 Steel Hex Head Screw",
+      "vendor": "McMaster-Carr",
+      "source": "user-provided local download",
+      "qualification": "Inspectable",
+      "visualReview": "pending-human-review",
+      "faceCounts": {
+        "parsed": 62,
+        "bound": 62,
+        "displayed": 62
+      },
+      "normalization": {
+        "qualifiedBodyAttempts": 0,
+        "successfulBodies": 0,
+        "wholeSpecimen": "NotQualifiedSpecimen"
+      }
+    },
+    {
+      "id": "mcm-23",
+      "filename": "9448N17_Interchangeable Point Lathe Center Point.STEP",
+      "sha256": "43f742e374150233f22c86b734183c5b97107138425068928b8db0e1302c7da9",
+      "bytes": 437757,
+      "schema": " 'CONFIG_CONTROL_DESIGN' ",
+      "category": "Interchangeable Point Lathe Center Point",
+      "vendor": "McMaster-Carr",
+      "source": "user-provided local download",
+      "qualification": "Degraded",
+      "visualReview": "pending-human-review",
+      "faceCounts": {
+        "parsed": 215,
+        "bound": 215,
+        "displayed": 215
+      },
+      "normalization": {
+        "qualifiedBodyAttempts": 0,
+        "successfulBodies": 0,
+        "wholeSpecimen": "NotQualifiedSpecimen"
+      }
+    },
+    {
+      "id": "mcm-24",
+      "filename": "9657K236_Compression Spring.STEP",
+      "sha256": "fc5d050d37caf44d786340bc94c82ec1e67b378db6c64ee248e5257b1a3b6746",
+      "bytes": 344255,
+      "schema": " 'CONFIG_CONTROL_DESIGN' ",
+      "category": "Compression Spring",
+      "vendor": "McMaster-Carr",
+      "source": "user-provided local download",
+      "qualification": "Inspectable",
+      "visualReview": "pending-human-review",
+      "faceCounts": {
+        "parsed": 4,
+        "bound": 4,
+        "displayed": 4
+      },
+      "normalization": {
+        "qualifiedBodyAttempts": 0,
+        "successfulBodies": 0,
+        "wholeSpecimen": "NotQualifiedSpecimen"
+      }
+    },
+    {
+      "id": "mcm-25",
+      "filename": "98296A015_1050-1095 Spring Steel Slotted Spring Pin.STEP",
+      "sha256": "fe487255f5bba16f77028ee4dc5679ca0c8afe79263743b8a86fdcc3ddba9d8d",
+      "bytes": 31122,
+      "schema": " 'CONFIG_CONTROL_DESIGN' ",
+      "category": "1050-1095 Spring Steel Slotted Spring Pin",
+      "vendor": "McMaster-Carr",
+      "source": "user-provided local download",
+      "qualification": "Inspectable",
+      "visualReview": "pending-human-review",
+      "faceCounts": {
+        "parsed": 12,
+        "bound": 12,
+        "displayed": 12
+      },
+      "normalization": {
+        "qualifiedBodyAttempts": 0,
+        "successfulBodies": 0,
+        "wholeSpecimen": "NotQualifiedSpecimen"
+      }
+    },
+    {
+      "id": "mcm-26",
+      "filename": "98306A316_Carbon Steel Clevis Pin.STEP",
+      "sha256": "153d11f23390b374b9c0fa5573747c0cf477f127d5eca4965ce9c4a5b1704277",
+      "bytes": 155030,
+      "schema": " 'CONFIG_CONTROL_DESIGN' ",
+      "category": "Carbon Steel Clevis Pin",
+      "vendor": "McMaster-Carr",
+      "source": "user-provided local download",
+      "qualification": "Inspectable",
+      "visualReview": "pending-human-review",
+      "faceCounts": {
+        "parsed": 19,
+        "bound": 19,
+        "displayed": 19
+      },
+      "normalization": {
+        "qualifiedBodyAttempts": 0,
+        "successfulBodies": 0,
+        "wholeSpecimen": "NotQualifiedSpecimen"
+      }
+    }
+  ],
+  "qualificationBasis": "Mechanical BRep/display checks only. Normalization and human visual fidelity gates are separate; Preview 4 legacy corpus is not accepted."
+}

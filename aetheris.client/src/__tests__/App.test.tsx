@@ -74,6 +74,7 @@ function setupDocumentApiMocks(): void {
 	apiMocks.tessellateBody.mockResolvedValue({ facePatches: [], edgePolylines: [] });
 	apiMocks.prepareBodyDisplay.mockResolvedValue({
 		lane: "fallback-only",
+		status: "Complete",
 		analyticPacket: {
 			bodyId: 1,
 			analyticFaces: [],
@@ -240,6 +241,7 @@ describe("App STEP file upload flow", () => {
 
 	it("keeps canonical hash visible from viewer inspector", async () => {
 		apiMocks.importStep.mockResolvedValue({
+			importStatus: "Qualified",
 			documentId: "doc-1",
 			definitionId: "def-2",
 			occurrenceId: "occ-2",
@@ -431,6 +433,7 @@ describe("App STEP file upload flow", () => {
 
 	it("calls importStep with file contents and refreshes canonical hash", async () => {
 		apiMocks.importStep.mockResolvedValue({
+			importStatus: "Qualified",
 			documentId: "doc-1",
 			definitionId: "def-2",
 			occurrenceId: "occ-2",
@@ -527,7 +530,8 @@ describe("App STEP file upload flow", () => {
 		await screen.findByText("ftc06.stp");
 		fireEvent.click(screen.getByRole("button", { name: "Import STEP 242" }));
 
-		await screen.findByText("Import complete. Display: mixed analytic + bounded mesh fallback.");
+		await screen.findByText("Inspectable: Import complete. Display: mixed analytic + bounded mesh fallback.");
+		expect(apiMocks.exportDefinitionStep).not.toHaveBeenCalled();
 		expect(screen.queryByText("Import failed")).toBeNull();
 	});
 
@@ -742,7 +746,9 @@ describe("App STEP file upload flow", () => {
 				)
 			).length,
 		).toBeGreaterThan(0);
-		await screen.findByText("hash-123");
+		await screen.findByText("Degraded: Import complete. Display partial: 0 wire-only face(s), 1 diagnostic-only face(s).");
+		expect(screen.queryByText("hash-123")).toBeNull();
+		expect(apiMocks.exportDefinitionStep).not.toHaveBeenCalled();
 		expect(screen.queryByText("Import failed")).toBeNull();
 	});
 
@@ -862,12 +868,13 @@ describe("App STEP file upload flow", () => {
 
 		fireEvent.click(screen.getByRole("button", { name: "Import STEP 242" }));
 
-		await screen.findByText("Import complete. View materialization failed.");
+		await screen.findByText("Degraded: import retained. View materialization failed.");
 		await screen.findByText(
 			"[Error] ValidationFailed: Display tessellation exceeded the bounded execution budget.",
 		);
 		expect(screen.queryByText("Import failed")).toBeNull();
-		await screen.findByText("hash-123");
+		expect(screen.queryByText("hash-123")).toBeNull();
+		expect(apiMocks.exportDefinitionStep).not.toHaveBeenCalled();
 	});
 
 	it("preserves ApiError diagnostics from canonical download failure", async () => {

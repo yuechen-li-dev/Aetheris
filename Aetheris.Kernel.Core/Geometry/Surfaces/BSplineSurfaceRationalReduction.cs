@@ -7,9 +7,9 @@ namespace Aetheris.Kernel.Core.Geometry.Surfaces;
 /// <para>
 /// Aetheris carries analytic geometry, and a spline face that is really a primitive is recovered as one. What is left
 /// over are genuine free-form blends: variable-radius fillets and vertex blends that no primitive describes. Those
-/// still must not enter the kernel as NURBS, because a second surface representation costs every later stage a second
-/// code path. Since a circular section is not polynomial, the reduction is an approximation by construction, and the
-/// only honest way to run it is against a budget the source file itself sets.
+/// may remain rational import/display evidence, but production export requires non-rational authority. Since a
+/// circular section is not polynomial, reduction is an approximation by construction. Its budget comes from
+/// source accuracy during import or an explicit bounded engineering allowance during production normalization.
 /// </para>
 /// <para>
 /// The reduction refines the knot vectors inside the existing domain and interpolates the rational surface at the
@@ -33,7 +33,9 @@ public static class BSplineSurfaceRationalReduction
     /// cap keeps a pathological surface from growing an enormous control net instead of failing honestly.
     /// </summary>
     private const int MaximumSpanSubdivision = 32;
-    private const int MaximumControlPointsPerAxis = 256;
+    // Long, narrow vendor nets can already contain hundreds of knots. The total bound still
+    // limits allocation; admitting those existing spans does not authorize unlimited refinement.
+    private const int MaximumControlPointsPerAxis = 1024;
     private const int MaximumControlPoints = 8192;
 
     private const int DeviationSamplesPerSpan = 3;
@@ -76,10 +78,12 @@ public static class BSplineSurfaceRationalReduction
         }
 
         var best = double.PositiveInfinity;
+        var lastDeviation = double.PositiveInfinity;
         var controlLimitReached = false;
 
         BSplineSurfaceWithKnots? Attempt(int subdivisionU, int subdivisionV)
         {
+            lastDeviation = double.PositiveInfinity;
             var refinedU = Subdivide(surface.KnotValuesU, surface.KnotMultiplicitiesU, subdivisionU);
             var refinedV = Subdivide(surface.KnotValuesV, surface.KnotMultiplicitiesV, subdivisionV);
             var countU = refinedU.Multiplicities.Sum() - surface.DegreeU - 1;
@@ -96,6 +100,7 @@ public static class BSplineSurfaceRationalReduction
             }
 
             var measured = MaximumDeviation(surface, attempt);
+            lastDeviation = measured;
             best = double.Min(best, measured);
             return measured <= tolerance ? attempt : null;
         }
@@ -104,26 +109,52 @@ public static class BSplineSurfaceRationalReduction
         // directions that actually carry the rational sections need the extra spans, and a control net refined
         // where it did not need to be costs every later evaluation and every exported point for nothing.
         var uniform = 0;
+        var lastFiniteSubdivision = 0;
+        var lastFiniteDeviation = double.PositiveInfinity;
         for (var subdivision = 1; subdivision <= MaximumSpanSubdivision; subdivision *= 2)
         {
-            if (Attempt(subdivision, subdivision) is not null)
+            var attempt = Attempt(subdivision, subdivision);
+            if (double.IsFinite(lastDeviation)) { lastFiniteSubdivision = subdivision; lastFiniteDeviation = lastDeviation; }
+            if (attempt is not null)
             {
                 uniform = subdivision;
                 break;
             }
         }
 
+        var subdivisionU = uniform;
+        var subdivisionV = uniform;
+        if (uniform == 0 && lastFiniteSubdivision > 0)
+        {
+            // Low-degree rational sections can need many spans in one direction
+            // while the other direction is already accurate. Doubling both would
+            // exhaust the control-net budget unnecessarily. Continue a bounded
+            // numerical refinement, choosing the axis that reduces measured error.
+            subdivisionU = lastFiniteSubdivision;
+            subdivisionV = lastFiniteSubdivision;
+            var currentDeviation = lastFiniteDeviation;
+            for (var step = 0; step < 4; step++)
+            {
+                var nextU = subdivisionU < 128 ? Attempt(subdivisionU * 2, subdivisionV) : null;
+                var errorU = subdivisionU < 128 ? lastDeviation : double.PositiveInfinity;
+                var nextV = subdivisionV < 128 ? Attempt(subdivisionU, subdivisionV * 2) : null;
+                var errorV = subdivisionV < 128 ? lastDeviation : double.PositiveInfinity;
+                if (double.Min(errorU, errorV) >= currentDeviation) break;
+                if (errorU <= errorV) { subdivisionU *= 2; currentDeviation = errorU; }
+                else { subdivisionV *= 2; currentDeviation = errorV; }
+                if (nextU is not null || nextV is not null) { uniform = 1; break; }
+            }
+        }
+
         if (uniform == 0)
         {
             deviation = best;
-            reason = $"no refinement up to {MaximumSpanSubdivision} spans per knot interval followed the rational surface to {tolerance:G4} mm (closest {best:G4} mm)" +
+            reason = $"bounded uniform/anisotropic refinement did not follow the rational surface to {tolerance:G4} mm (closest {best:G4} mm)" +
                 (controlLimitReached ? $"; control-net cap {MaximumControlPointsPerAxis} per axis/{MaximumControlPoints} total reached" : string.Empty);
             return false;
         }
 
-        var subdivisionU = uniform;
-        var subdivisionV = uniform;
-        for (var trial = uniform / 2; trial >= 1; trial /= 2)
+        for (var trial = subdivisionU / 2; trial >= 1; trial /= 2)
         {
             if (Attempt(trial, subdivisionV) is null)
             {
@@ -133,7 +164,7 @@ public static class BSplineSurfaceRationalReduction
             subdivisionU = trial;
         }
 
-        for (var trial = uniform / 2; trial >= 1; trial /= 2)
+        for (var trial = subdivisionV / 2; trial >= 1; trial /= 2)
         {
             if (Attempt(subdivisionU, trial) is null)
             {
@@ -261,7 +292,7 @@ public static class BSplineSurfaceRationalReduction
         }
     }
 
-    /// <summary>Largest gap between the two surfaces at the same parameters, which also bounds the parameter drift.</summary>
+    /// <summary>Largest sampled gap at matched parameters; this is measured evidence, not a rigorous supremum.</summary>
     private static double MaximumDeviation(BSplineSurfaceWithKnots surface, BSplineSurfaceWithKnots candidate)
     {
         var samplesU = SampleCount(candidate.KnotValuesU.Count);

@@ -42,7 +42,8 @@ public sealed record VolumeAnalysisResult(
         var stepText = File.ReadAllText(fullPath);
         var analysis = AnalyzeImportedBody(body, fullPath, faceId, edgeId, vertexId) with
         {
-            SemanticPmi = Step242SemanticPmiInspector.Inspect(stepText)
+            SemanticPmi = Step242SemanticPmiInspector.Inspect(stepText),
+            Schema = Step242SourceMetadataReader.Read(stepText).FileSchema
         };
         if (analysis.Face is null) return analysis;
 
@@ -75,7 +76,7 @@ public sealed record VolumeAnalysisResult(
             var exact = mass.Status != Aetheris.Kernel.Core.Brep.Verification.BrepMassPropertiesStatus.Unavailable
                 && mass.IsEnclosed && mass.IsOrientationConsistent;
             entries.Add(new(index + 1, root.StepEntityId, root.StepEntityKind, root.Body.Topology.Bodies.Count(), summary.BoundingBox,
-                exact ? mass.AbsoluteVolume : null, exact, summary.SurfaceFamilies, center, center - firstCenter.Value));
+                exact ? mass.AbsoluteVolume : null, exact, summary.SurfaceFamilies, center, center - firstCenter.Value, root.Body.ImportQualification));
             if (!exact) notes.Add($"Root #{root.StepEntityId} exact volume unavailable: {mass.Status}.");
         }
         var boxes = entries.Where(entry => entry.BoundingBox is not null).Select(entry => entry.BoundingBox!.Value).ToArray();
@@ -1771,7 +1772,7 @@ public sealed record VolumeAnalysisResult(
             new SplineRecoverySummary(analyticEntities, exactSplineEntities, recoveredCurves + recoveredSurfaces,
                 unsupportedEntities, recoveredCurves, recoveredSurfaces,
                 recoveredCurves + recoveredSurfaces == 0 ? null : worstDeviation, recoveryTolerance),
-            BuildPcurveQualificationSummary(body));
+            BuildPcurveQualificationSummary(body), body.ImportQualification);
     }
 
     private static PcurveQualificationSummary BuildPcurveQualificationSummary(BrepBody body)

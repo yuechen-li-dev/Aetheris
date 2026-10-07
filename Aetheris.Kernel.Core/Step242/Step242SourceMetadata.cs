@@ -9,7 +9,8 @@ public sealed record Step242SourceMetadata(
     string? OriginatingSystem,
     string? Authorization,
     string? ProductName,
-    string? ProductDescription)
+    string? ProductDescription,
+    string? FileSchema = null)
 {
     public static Step242SourceMetadata Empty { get; } = new(null, null, null, null, null, null, null, null, null);
 }

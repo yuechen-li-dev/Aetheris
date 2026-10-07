@@ -14,6 +14,17 @@ const diagnostic = {
 	suggestedNextAction: null,
 };
 
+it("keeps authoritative boundary lines on the analytic-only route without a mesh fallback", () => {
+	const preparation = prepWithFaces([]);
+	preparation.lane = "analytic-only";
+	preparation.topologyEdges = [{ edgeId: 7, points: [{ x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }], isClosed: false }];
+	const scene = mapDisplayPreparationToDisplayScene(preparation);
+	if (!scene) throw new Error("Preparation must produce a display scene");
+	expect(scene.topologyEdges).toHaveLength(1);
+	expect(scene.topologyEdges![0].edgeId).toBe(7);
+	expect(Array.from(scene.topologyEdges![0].points)).toEqual([0, 0, 0, 1, 0, 0]);
+});
+
 function prepWithFaces(
 	faces: DisplayPreparationResponseDto["faces"],
 ): DisplayPreparationResponseDto {

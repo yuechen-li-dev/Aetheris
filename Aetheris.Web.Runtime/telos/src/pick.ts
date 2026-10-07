@@ -34,12 +34,21 @@ export class TelosPick {
     this.raycaster = new Raycaster();
   }
   setScene(scene: TelosScene) {
+    // Per-face draw ranges require separate geometries, but not copies of an
+    // entire body's CPU buffers for every face or repeated occurrence.
+    const buffers = new Map<TelosGeometry, { position: BufferAttribute; index: BufferAttribute }>();
+    for (const mesh of this.proxies)
+      buffers.set(mesh.userData.definition, {
+        position: mesh.geometry.getAttribute("position") as BufferAttribute,
+        index: mesh.geometry.index!,
+      });
     const previous = new Map(
       this.proxies.map((mesh) => [
         JSON.stringify([
           mesh.userData.item.identity.occurrenceId,
           mesh.userData.item.identity.overlayId,
           mesh.userData.definition.id,
+          mesh.userData.item.triangleRange?.startTriangle,
         ]),
         mesh,
       ]),
@@ -55,6 +64,7 @@ export class TelosPick {
         item.identity.occurrenceId,
         item.identity.overlayId,
         definition.id,
+        "triangleRange" in item ? item.triangleRange?.startTriangle : undefined,
       ]);
       let mesh = previous.get(key);
       if (
@@ -65,16 +75,20 @@ export class TelosPick {
         mesh = undefined;
       if (!mesh) {
         const geometry = new BufferGeometry();
-        geometry.setAttribute(
-          "position",
-          new BufferAttribute(Float32Array.from(definition.positions), 3),
-        );
-        geometry.setIndex(
-          new BufferAttribute(Uint32Array.from(definition.indices), 1),
-        );
+        let shared = buffers.get(definition);
+        if (!shared) {
+          shared = { position: new BufferAttribute(Float32Array.from(definition.positions), 3),
+            index: new BufferAttribute(Uint32Array.from(definition.indices), 1) };
+          buffers.set(definition, shared);
+        }
+        geometry.setAttribute("position", shared.position);
+        geometry.setIndex(shared.index);
         mesh = new Mesh(geometry, new MeshBasicMaterial({ side: DoubleSide }));
       } else previous.delete(key);
       mesh.matrixAutoUpdate = false;
+      const range = "triangleRange" in item ? item.triangleRange : undefined;
+      mesh.geometry.setDrawRange(range ? range.startTriangle * 3 : 0,
+        range ? range.triangleCount * 3 : Infinity);
       mesh.matrix.fromArray(item.transform ?? new Matrix4().elements);
       mesh.updateMatrixWorld(true);
       mesh.userData = { item, definition };

@@ -6,6 +6,10 @@ namespace Aetheris.Kernel.Core.Geometry.Surfaces;
 /// Sphere parameterization:
 /// S(u,v) = Center + Radius * (cos(v) * cos(u) * XAxis + cos(v) * sin(u) * YAxis + sin(v) * Axis),
 /// where u is azimuth around Axis and v is elevation from the equatorial plane.
+/// U has period 2*pi; V is in [-pi/2, pi/2]. The poles are Center +/- Radius*Axis;
+/// all U values agree at a pole. XAxis is the projected reference direction and
+/// YAxis=Axis cross XAxis. The frame defines outward support normals; resolved
+/// FaceOrientation controls material-side winding independently of source SAME_SENSE.
 /// </summary>
 public readonly record struct SphereSurface
 {

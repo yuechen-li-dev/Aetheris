@@ -51,7 +51,9 @@ public sealed record StepImportResponseDto(
     string? Name,
     IReadOnlyList<DiagnosticDto> Diagnostics,
     CadmataVisualizationArtifactDto? SemanticPresentation = null,
-    AssemblyDisplayPacketDto? AssemblyPresentation = null);
+    AssemblyDisplayPacketDto? AssemblyPresentation = null,
+    string ImportStatus = "Inspectable",
+    IReadOnlyList<Aetheris.Kernel.Core.Import.BrepImportQualificationReport>? ImportQualifications = null);
 
 public sealed record ExtrudeRequestDto(
     IReadOnlyList<ProfilePoint2Dto> Profile,
@@ -171,7 +173,8 @@ public sealed record DisplayPreparationResponseDto(
     IReadOnlyList<string>? Lanes = null,
     IReadOnlyList<DisplayFaceDto>? Faces = null,
     IReadOnlyList<DisplayDiagnosticDto>? Diagnostics = null,
-    IReadOnlyList<DisplayLaneDto>? DisplayLanes = null);
+    IReadOnlyList<DisplayLaneDto>? DisplayLanes = null,
+    IReadOnlyList<EdgePolylineDto>? TopologyEdges = null);
 
 public sealed record DisplayFaceDto(
     int FaceId,
@@ -183,7 +186,8 @@ public sealed record DisplayFaceDto(
     AnalyticDisplayFaceDto? AnalyticPatch,
     DisplayWirePatchDto? WirePatch,
     string? MaterializationLane,
-    IReadOnlyList<DisplayDiagnosticDto> Diagnostics);
+    IReadOnlyList<DisplayDiagnosticDto> Diagnostics,
+    DisplayFaceSourceDto? Source = null);
 
 public sealed record DisplayWirePatchDto(
     string Kind,
@@ -223,7 +227,11 @@ public sealed record DisplayDiagnosticDto(
     string? SuggestedNextAction);
 
 public sealed record AssemblyDisplayRequestDto(string Path);
-public sealed record AssemblyDisplayDefinitionDto(string StableId, string DefinitionIdentity, IReadOnlyList<FacePatchDto> FacePatches);
+public sealed record DisplayFaceSourceDto(int FaceId, int? SourceStepEntityId, string SurfaceKind, IReadOnlyList<int> EdgeIds);
+public sealed record AssemblyDisplayDefinitionDto(string StableId, string DefinitionIdentity, IReadOnlyList<FacePatchDto> FacePatches,
+    Aetheris.Kernel.Core.Import.BrepImportQualificationReport? ImportQualification = null,
+    IReadOnlyList<EdgePolylineDto>? EdgePolylines = null,
+    IReadOnlyList<DisplayFaceSourceDto>? FaceSources = null);
 public sealed record AssemblyDisplayPublicSemanticDto(string Name, string Type, IReadOnlyList<string> Capabilities, IReadOnlyList<string> BindingKinds, string? InternalImplementationPath);
 public sealed record AssemblyDisplayModuleDefinitionDto(string StableId, string DefinitionIdentity, string TemplateName, string SpecializationIdentity, IReadOnlyList<string> Provenance, IReadOnlyList<AssemblyDisplayPublicSemanticDto> PublicSemantics, double LocalSolveMilliseconds);
 public sealed record AssemblyDisplayOccurrenceDto(string StableId, string Name, string InstancePath, string? ParentStableId, string? DefinitionStableId, string Kind, IReadOnlyList<double> WorldTransform, string PlacementAuthority, IReadOnlyList<string>? SelectionMembers = null);

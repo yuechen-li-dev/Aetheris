@@ -5,6 +5,8 @@ export const VIEWPORT_THEME_IDS = [
 	"sirius",
 	"singularity",
 	"aeons",
+	"blueprint",
+	"aurora",
 ] as const;
 
 export type ViewportThemeId = (typeof VIEWPORT_THEME_IDS)[number];
@@ -419,6 +421,25 @@ export const VIEWPORT_THEMES: readonly ViewportTheme[] = [
 	SIRIUS_VIEWPORT_THEME,
 	SINGULARITY_VIEWPORT_THEME,
 	AEONS_VIEWPORT_THEME,
+	{ ...ATELIER_VIEWPORT_THEME, id:"blueprint", label:"Blueprint",
+	  description:"Cobalt drafting desk with porcelain surfaces, white topology and a measured cyan grid.",
+	  sceneBackground:"#0c2344", background:{kind:"flat",fallback:"#0c2344",accent:"#72b9ed",intensity:1},
+	  objectMaterial:{color:"#c3dcf1",roughness:0.85,metalness:0.02},
+	  edgeStyle:{color:"#4d86b9",width:1.2,selectedColor:"#ffda7b",selectedWidth:3.2},
+	  gridStyle:{...ATELIER_VIEWPORT_THEME.gridStyle,minorColor:"#4274a0",majorColor:"#84c4ee",minorOpacity:0.13,majorOpacity:0.33},
+	  lights:{...ATELIER_VIEWPORT_THEME.lights,hemisphereSky:"#c8e4ff",hemisphereGround:"#253656",keyColor:"#eaf7ff",keyIntensity:2.0,fillColor:"#65a8dc",fillIntensity:0.65},
+	  annotation:{...ATELIER_VIEWPORT_THEME.annotation,background:"#102c4eed",text:"#e6f4ff",dimension:"#ffda7b"},
+	  axis:{x:"#ef8e83",y:"#8dd8c0",z:"#a0c9f3",label:"#d6edff"},
+	},
+	{ ...SIRIUS_VIEWPORT_THEME, id:"aurora", label:"Aurora",
+	  description:"Titanium beneath mint aurora curtains, violet fill light and a cool luminous rim.",
+	  sceneBackground:"#070d20",background:{kind:"sirius",fallback:"#070d20",accent:"#5ff0bd",intensity:1},
+	  objectMaterial:{color:"#aeb9c5",roughness:0.34,metalness:0.65},
+	  gridStyle:{...SIRIUS_VIEWPORT_THEME.gridStyle,minorColor:"#263651",majorColor:"#63b7bd",minorOpacity:0.04,majorOpacity:0.17},
+	  lights:{...SIRIUS_VIEWPORT_THEME.lights,keyColor:"#d9fff0",keyIntensity:2.8,fillColor:"#7057b5",fillIntensity:1.3,rimColor:"#53efc1",rimIntensity:1.8},
+	  annotation:{...SIRIUS_VIEWPORT_THEME.annotation,background:"#0b1728ee",datum:"#5ff0bd",dimension:"#e7cbff"},
+	  postProcess:{...SIRIUS_VIEWPORT_THEME.postProcess,vignette:0.36,bloom:0},
+	},
 ];
 
 export const VIEWPORT_THEME_REGISTRY: ReadonlyMap<ViewportThemeId, ViewportTheme> = new Map(

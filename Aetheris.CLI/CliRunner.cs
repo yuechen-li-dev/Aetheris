@@ -2769,7 +2769,8 @@ Model CanonicalPanel {
         }
 
         var exportOptions = canonMode == Aetheris.Kernel.Core.Step242.Step242CanonMode.ProductionPreserveMetadata
-            ? Aetheris.Kernel.Core.Step242.Step242ExportOptions.FromSourceMetadata(Aetheris.Kernel.Core.Step242.Step242SourceMetadataReader.Read(stepText))
+            ? Aetheris.Kernel.Core.Step242.Step242ExportOptions.FromSourceMetadata(Aetheris.Kernel.Core.Step242.Step242SourceMetadataReader.Read(stepText),
+                Aetheris.Kernel.Core.Step242.BrepExportPreflightPolicy.TrustedProductionRoute)
             : new Aetheris.Kernel.Core.Step242.Step242ExportOptions();
 
         var exportResult = Aetheris.Kernel.Core.Step242.Step242Exporter.ExportBody(importResult.Value, exportOptions);
@@ -4725,6 +4726,8 @@ Model CanonicalPanel {
         stdout.WriteLine($"Input file: {analysis.StepPath}");
         stdout.WriteLine("Success: yes");
         stdout.WriteLine($"Structural assessment: {summary.StructuralAssessment} ({summary.StructuralAssessmentBasis})");
+        if (summary.ImportQualification is { } qualification)
+            stdout.WriteLine($"Import qualification: {qualification.Status}; geometry={qualification.GeometryStatus}; display not assessed; missing pcurves={qualification.MissingPcurves}.");
         stdout.WriteLine($"Length unit: {summary.LengthUnit} ({summary.LengthUnitBasis})");
         stdout.WriteLine($"Bodies: {summary.BodyCount}");
         stdout.WriteLine($"Shells: {summary.ShellCount}");
@@ -4875,6 +4878,11 @@ Model CanonicalPanel {
                 minimum = new[] { points.Min(p => p.X), points.Min(p => p.Y), points.Min(p => p.Z) },
                 maximum = new[] { points.Max(p => p.X), points.Max(p => p.Y), points.Max(p => p.Z) }
             },
+            importStatus = structure.Definitions.Where(d => d.Geometry is not null)
+                .Select(d => d.Geometry!.ImportQualification?.Status ?? Aetheris.Kernel.Core.Import.ImportQualificationStatus.Inspectable)
+                .DefaultIfEmpty(Aetheris.Kernel.Core.Import.ImportQualificationStatus.Failed).Max().ToString(),
+            importQualifications = structure.Definitions.Where(d => d.Geometry is not null)
+                .Select(d => new { d.StableId, Qualification = d.Geometry!.ImportQualification }),
             performance = structure.Performance,
             semanticPmi = Step242SemanticPmiInspector.Inspect(stepText),
             definitions = structure.Definitions.Select(item => new { item.StableId, item.Name, hasGeometry = item.Geometry is not null, item.ProductDefinitionEntityId }).ToArray(),

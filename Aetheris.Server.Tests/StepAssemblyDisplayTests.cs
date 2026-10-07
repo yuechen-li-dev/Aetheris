@@ -30,6 +30,19 @@ public sealed class StepAssemblyDisplayTests
         Assert.True(built, error);
         Assert.NotNull(packet);
         Assert.Single(packet.Definitions);
+        var edges = Assert.Single(packet.Definitions).EdgePolylines!;
+        Assert.Equal(body.Topology.Edges.Count(), edges.Count);
+        Assert.Equal(imported.Value.Definitions.Single(d => d.Geometry is not null).Geometry!.Topology.Edges.Select(e => e.Id.Value).Order(),
+            edges.Select(e => e.EdgeId).Order());
+        var geometry = imported.Value.Definitions.Single(d => d.Geometry is not null).Geometry!;
+        Assert.Equal(geometry.Topology.Faces.Count(), packet.Definitions[0].FaceSources!.Count);
+        foreach (var sourceFace in packet.Definitions[0].FaceSources!)
+        {
+            var faceId = new Aetheris.Kernel.Core.Topology.FaceId(sourceFace.FaceId);
+            Assert.Equal(geometry.Bindings.GetFaceBinding(faceId).SourceStepEntityId, sourceFace.SourceStepEntityId);
+            Assert.Equal(geometry.GetLoopIds(faceId).SelectMany(geometry.GetCoedgeIds)
+                .Select(id => geometry.Topology.GetCoedge(id).EdgeId.Value).Distinct().Order(), sourceFace.EdgeIds.Order());
+        }
         Assert.Equal(4, packet.Occurrences.Count);
         Assert.Equal("sub", packet.Occurrences.Single(item => item.StableId == "first").ParentStableId);
         Assert.Equal("part-def", packet.Occurrences.Single(item => item.StableId == "second").DefinitionStableId);

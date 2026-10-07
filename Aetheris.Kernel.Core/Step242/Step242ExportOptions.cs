@@ -55,12 +55,15 @@ public sealed class Step242ExportOptions
     /// <summary>Emit qualified coedge pcurves; false leaves STEP trim binding to the importer.</summary>
     public bool EmitQualifiedPcurves { get; init; } = true;
 
-    public static Step242ExportOptions FromSourceMetadata(Step242SourceMetadata metadata)
+    public static Step242ExportOptions FromSourceMetadata(Step242SourceMetadata metadata,
+        BrepExportPreflightPolicy preflightPolicy = BrepExportPreflightPolicy.LegacyRoute)
     {
         static string Coalesce(string? value, string fallback) => string.IsNullOrWhiteSpace(value) ? fallback : value!;
 
         return new Step242ExportOptions
         {
+            BrepExportPreflightPolicy = preflightPolicy,
+            ImportedRecoveryToleranceMillimetres = preflightPolicy == BrepExportPreflightPolicy.TrustedProductionRoute ? .1d : null,
             ProductName = Coalesce(metadata.ProductName, "AetherisBody"),
             ProductDescription = Coalesce(metadata.ProductDescription, string.Empty),
             ApplicationName = Coalesce(metadata.Organization, "Aetheris"),

@@ -29,7 +29,8 @@ public sealed record AnalyzeSummary(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FaceOrientationSummary? FaceOrientation = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] BoundaryTopologySummary? BoundaryTopology = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SplineRecoverySummary? SplineRecovery = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] PcurveQualificationSummary? PcurveQualification = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] PcurveQualificationSummary? PcurveQualification = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Aetheris.Kernel.Core.Import.BrepImportQualificationReport? ImportQualification = null);
 
 public sealed record PcurveQualificationSummary(
     string Status,
@@ -117,7 +118,8 @@ public sealed record AnalyzeResult(
     EdgeDetail? Edge,
     VertexDetail? Vertex,
     IReadOnlyList<string> Notes,
-    Step242SemanticPmiInspectionResult? SemanticPmi = null);
+    Step242SemanticPmiInspectionResult? SemanticPmi = null,
+    string? Schema = null);
 
 public sealed record CompoundSolidInspection(
     int Ordinal,
@@ -129,7 +131,8 @@ public sealed record CompoundSolidInspection(
     bool VolumeExact,
     IReadOnlyDictionary<string, int> SurfaceFamilies,
     Point3D PlacementCenter,
-    Vector3D OffsetFromFirst);
+    Vector3D OffsetFromFirst,
+    Aetheris.Kernel.Core.Import.BrepImportQualificationReport? ImportQualification = null);
 
 public sealed record CompoundAnalysisResult(
     string StepPath,

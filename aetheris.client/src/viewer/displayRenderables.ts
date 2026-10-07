@@ -14,6 +14,7 @@ import {
 export type DisplayRenderableKind = "AnalyticPatch" | "MeshPatch" | "WirePatch" | "DiagnosticPatch";
 
 export interface DisplayRenderableBase {
+	source?: import("../api/aetherisApi").DisplayFaceSourceDto | null;
 	kind: DisplayRenderableKind;
 	faceId: number;
 	surfaceKind: string | null;
@@ -54,6 +55,8 @@ export interface DisplayScene {
 	displayAuthority: string | null;
 	lanes: DisplayLaneDto[];
 	renderables: DisplayRenderable[];
+	/** Disposable samples of authoritative kernel edges, independent of mesh triangle connectivity. */
+	topologyEdges?: RenderEdgePolyline[];
 	diagnostics: DisplayDiagnosticDto[];
 	legacyCompatibility?: {
 		source: "tessellationFallback";
@@ -64,6 +67,7 @@ export interface DisplayScene {
 
 function base(face: DisplayFaceDto): Omit<DisplayRenderableBase, "kind"> {
 	return {
+		source: face.source,
 		faceId: face.faceId,
 		surfaceKind: face.surfaceKind,
 		status: face.status,
@@ -172,5 +176,9 @@ export function mapDisplayPreparationToDisplayScene(
 			mapDisplayFaceToRenderable(face, fallbackMeshByFaceId.get(face.faceId) ?? null),
 		),
 		diagnostics: preparation.diagnostics ?? [],
+		topologyEdges: (preparation.topologyEdges ?? preparation.tessellationFallback?.edgePolylines ?? []).map(edge => ({
+			edgeId: edge.edgeId,
+			points: new Float32Array(edge.points.flatMap(p => [p.x, p.y, p.z])),
+		})),
 	};
 }

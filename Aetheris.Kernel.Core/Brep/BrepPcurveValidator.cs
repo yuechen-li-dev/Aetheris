@@ -208,7 +208,7 @@ public static class BrepPcurveValidator
         _ => null
     };
 
-    private static Point3D? Evaluate(CurveGeometry curve, double parameter) => curve.Kind switch
+    internal static Point3D? Evaluate(CurveGeometry curve, double parameter) => curve.Kind switch
     {
         CurveGeometryKind.Line3 => curve.Line3!.Value.Evaluate(parameter),
         CurveGeometryKind.Circle3 => curve.Circle3!.Value.Evaluate(parameter),

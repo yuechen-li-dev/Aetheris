@@ -54,6 +54,9 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         Assert.Equal("shared", scene.Occurrences.Single(item => item.StableId == "two").DefinitionStableId);
         Assert.Equal(25, scene.Occurrences.Single(item => item.StableId == "two").WorldTransform[12]);
         Assert.NotEmpty(scene.Definitions[0].FacePatches);
+        Assert.Equal("Qualified", imported.Data.ImportStatus);
+        Assert.NotNull(scene.Definitions[0].ImportQualification);
+        Assert.Equal(6, scene.Definitions[0].ImportQualification!.DisplayedFaces);
     }
 
     private readonly HttpClient _client;
@@ -215,6 +218,9 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         var prepared = await PrepareDisplayAsync(document.Data.DocumentId, box.Data!.BodyId);
 
         Assert.Equal("analytic-only", prepared.Data!.Lane);
+        Assert.Null(prepared.Data.TessellationFallback);
+        Assert.Equal(12, prepared.Data.TopologyEdges!.Count);
+        Assert.All(prepared.Data.Faces!, face => Assert.Equal(4, face.Source!.EdgeIds.Count));
         var planarFace = prepared.Data.AnalyticPacket.AnalyticFaces.FirstOrDefault(face =>
             face.SurfaceKind == "Plane"
             && face.PlaneGeometry is not null
@@ -692,6 +698,9 @@ public sealed class KernelApiIntegrationTests : IClassFixture<WebApplicationFact
         Assert.NotNull(imported.Data);
         Assert.NotEqual(box.Data.DefinitionId, imported.Data!.DefinitionId);
         Assert.NotEqual(box.Data.BodyId, imported.Data.OccurrenceId);
+        Assert.Equal("Qualified", imported.Data.ImportStatus);
+        Assert.NotEmpty(imported.Data.ImportQualifications!);
+        Assert.Null(imported.Data.ImportQualifications![0].DisplayedFaces);
 
         var tessellationResponse = await _client.PostAsJsonAsync(
             $"/api/v1/documents/{document.Data.DocumentId}/bodies/{imported.Data.OccurrenceId}/tessellate",

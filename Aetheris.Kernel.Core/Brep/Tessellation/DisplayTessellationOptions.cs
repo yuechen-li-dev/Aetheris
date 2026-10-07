@@ -15,6 +15,24 @@ public sealed record DisplayTessellationOptions(
         MinimumSegments: 12,
         MaximumSegments: 256);
 
+    /// <summary>Automatic static viewport quality for a fitted model, independent of STEP and mesh-export budgets.</summary>
+    public static DisplayTessellationOptions ForViewport(BrepBody body)
+    {
+        var points = body.Topology.Vertices.Select(v => body.TryGetVertexPoint(v.Id, out var p) ? (Math.Point3D?)p : null)
+            .Where(p => p.HasValue).Select(p => p!.Value)
+            .Concat(body.Geometry.Surfaces.SelectMany(s => s.Value.BSplineSurfaceWithKnots?.ControlPoints
+                .SelectMany(row => row) ?? []))
+            .Concat(body.Geometry.Curves.SelectMany(c => c.Value.BSpline3?.ControlPoints ?? []))
+            .ToArray();
+        if (points.Length < 2) return Default;
+        var diagonal = new Math.Vector3D(points.Max(p => p.X) - points.Min(p => p.X),
+            points.Max(p => p.Y) - points.Min(p => p.Y), points.Max(p => p.Z) - points.Min(p => p.Z)).Length;
+        if (!(diagonal > 0d) || !double.IsFinite(diagonal)) return Default;
+        // A bounded fitted-preview budget. Large imported
+        // models have a bounded coarser budget; small parts retain finer silhouettes.
+        return Default with { ChordTolerance = double.Clamp(diagonal / 300d, .01d, .25d), MaximumSegments = 1024 };
+    }
+
     public static KernelResult<DisplayTessellationOptions> Create(
         double angularToleranceRadians,
         double chordTolerance,

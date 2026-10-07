@@ -9,3 +9,4 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("aetheris")]
 [assembly: InternalsVisibleTo("Aetheris.Continuum")]
 [assembly: InternalsVisibleTo("Aetheris.Continuum.Tests")]
+[assembly: InternalsVisibleTo("Aetheris.StepLegacyCorpus")]

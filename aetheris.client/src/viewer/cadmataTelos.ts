@@ -13,13 +13,14 @@ import { ATELIER_VIEWPORT_THEME } from "./viewportTheme";
 import {
   mapFacePatchToRenderFacePatch,
   type RenderFacePatch,
+  type RenderEdgePolyline,
 } from "./tessellationMapper";
 import type { AssemblyDisplayPacketDto } from "../api/aetherisApi";
 
 // Definitions are immutable within a packet. Selection updates reuse both CPU arrays and GPU buffers.
 const assemblyGeometry = new WeakMap<
   AssemblyDisplayPacketDto,
-  Map<string, RenderFacePatch[]>
+  Map<string, { faces: RenderFacePatch[]; edges: RenderEdgePolyline[] }>
 >();
 
 /** Product packet interpretation only. Camera, drawing and engineering picking live in Telos. */
@@ -109,6 +110,18 @@ export function cadmataTelosScene(props: AetherisViewportProps): TelosScene {
               props.highlightedEdgeId === edge.edgeId),
         });
   }
+  const wireIds = new Set(lines.map(line => line.identity.edgeId));
+  for (const edge of props.displayScene?.topologyEdges ?? []) {
+    if (wireIds.has(edge.edgeId)) continue;
+    const selected = props.highlightedEdgeIds?.has(edge.edgeId) ?? props.highlightedEdgeId === edge.edgeId;
+    lines.push({
+      id: "edge:" + edge.edgeId, points: edge.points,
+      identity: { occurrenceId: "part", edgeId: edge.edgeId },
+      color: materialFromAppearance({ color: selected ? theme.edgeStyle.selectedColor : theme.edgeStyle.color }).baseColor.concat(1),
+      widthPixels: selected ? theme.edgeStyle.selectedWidth : theme.edgeStyle.width,
+      selected, depthMode: "depth-biased",
+    });
+  }
   const packet = props.assemblyPacket;
   if (packet) {
     let definitions = assemblyGeometry.get(packet);
@@ -116,7 +129,9 @@ export function cadmataTelosScene(props: AetherisViewportProps): TelosScene {
       definitions = new Map(
         packet.definitions.map((definition) => [
           definition.stableId,
-          definition.facePatches.map(mapFacePatchToRenderFacePatch),
+          { faces: definition.facePatches.map(mapFacePatchToRenderFacePatch),
+            edges: (definition.edgePolylines ?? []).map(edge => ({ edgeId: edge.edgeId,
+              points: new Float32Array(edge.points.flatMap(p => [p.x, p.y, p.z])) })) },
         ]),
       );
       assemblyGeometry.set(packet, definitions);
@@ -127,8 +142,8 @@ export function cadmataTelosScene(props: AetherisViewportProps): TelosScene {
       )?.selectionMembers ?? [props.selectedAssemblyOccurrenceId],
     );
     for (const occurrence of packet.occurrences)
-      if (occurrence.definitionStableId)
-        for (const patch of definitions.get(occurrence.definitionStableId) ??
+      if (occurrence.definitionStableId) {
+        for (const patch of definitions.get(occurrence.definitionStableId)?.faces ??
           []) {
           addFace(
             patch,
@@ -138,6 +153,21 @@ export function cadmataTelosScene(props: AetherisViewportProps): TelosScene {
             selection.has(occurrence.stableId),
           );
         }
+        for (const edge of definitions.get(occurrence.definitionStableId)?.edges ?? []) {
+          const selected = selection.has(occurrence.stableId)
+            || (props.highlightedEdgeIds?.has(edge.edgeId) ?? props.highlightedEdgeId === edge.edgeId);
+          lines.push({
+            id: occurrence.stableId + ":edge:" + edge.edgeId,
+            points: edge.points,
+            transform: occurrence.worldTransform,
+            identity: { occurrenceId: occurrence.stableId, edgeId: edge.edgeId },
+            color: materialFromAppearance({ color: selected ? theme.edgeStyle.selectedColor : theme.edgeStyle.color }).baseColor.concat(1),
+            widthPixels: selected ? theme.edgeStyle.selectedWidth : theme.edgeStyle.width,
+            selected,
+            depthMode: "depth-biased",
+          });
+        }
+      }
   }
   if (props.showAxisGuide !== false)
     for (const [axis, color] of [

@@ -27,7 +27,8 @@ public sealed class BrepHollowRadialCutPatternTests
         Assert.All(tori, torus => Assert.Equal(48, torus.MajorRadius, 8));
         Assert.Equal(thickness, tori.Max(t => t.MinorRadius) - tori.Min(t => t.MinorRadius), 8);
         var mass = BrepMassProperties.Evaluate(body);
-        Assert.True(mass.IsEnclosed && mass.IsOrientationConsistent && mass.SignedVolume > 0);
+        Assert.True(mass.IsEnclosed && mass.IsOrientationConsistent && mass.SignedVolume > 0,
+            $"{mass.Status}; volume={mass.SignedVolume:R}; {string.Join(" | ", mass.Diagnostics)}");
         var step = Step242Exporter.ExportBody(body);
         Assert.True(step.IsSuccess, string.Join(" | ", step.Diagnostics.Select(d => d.Message)));
         var imported = Step242Importer.ImportBody(step.Value);
@@ -73,7 +74,8 @@ public sealed class BrepHollowRadialCutPatternTests
         Assert.Equal(7, body.Topology.Faces.Count());
         Assert.Equal(4, result.Value.TopologyMap.Loops.Count);
         var mass = BrepMassProperties.Evaluate(body);
-        Assert.True(mass.IsEnclosed && mass.IsOrientationConsistent && mass.SignedVolume > 0);
+        Assert.True(mass.IsEnclosed && mass.IsOrientationConsistent && mass.SignedVolume > 0,
+            $"{mass.Status}; volume={mass.SignedVolume:R}; {string.Join(" | ", mass.Diagnostics)}");
         var step = Step242Exporter.ExportBody(body);
         Assert.True(step.IsSuccess, string.Join(" | ", step.Diagnostics.Select(d => d.Message)));
         var imported = Step242Importer.ImportBody(step.Value);

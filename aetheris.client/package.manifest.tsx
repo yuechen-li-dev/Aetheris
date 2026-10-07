@@ -5,22 +5,22 @@ import {
 	Package,
 	Policies,
 	RunTargets,
-	Security,
 	Targets,
 	Tools,
 	TsConfig,
 	VSCode,
-	Workspace,
-	define,
+	definePackage,
 	defineDeps,
 	dep,
 	npm,
+	path,
 	tool,
 	type BoundaryPolicy,
 	type TypePolicy,
 } from "tspack/manifest";
 
 const deps = defineDeps({
+	telos: dep(path("../Aetheris.Web.Runtime/telos"), { key: "@aetheris/three-telos" }),
 	react: dep(npm("react", "^19.2.0")),
 	reactDom: dep(npm("react-dom", "^19.2.0"), { key: "react-dom" }),
 	three: dep(npm("three", "^0.183.1")),
@@ -78,8 +78,7 @@ const boundaries = {
 	crossTargetImports: "error",
 } satisfies BoundaryPolicy;
 
-export default define(
-	<Workspace name="aetheris-cadmata" runtime="nodejs">
+export default definePackage(
 		<Package
 			name="aetheris.client"
 			version="2.0.0-preview.3"
@@ -87,6 +86,7 @@ export default define(
 			license="AGPL-3.0-only"
 			dependencies={{
 				values: [
+					deps.telos,
 					deps.react,
 					deps.reactDom,
 					deps.three,
@@ -134,6 +134,7 @@ export default define(
 						types: "",
 						javascriptRuntime: "browser",
 						deps: [
+							deps.telos,
 							deps.react,
 							deps.reactDom,
 							deps.three,
@@ -177,12 +178,12 @@ export default define(
 			/>
 			<RunTargets
 				rows={[
-					{ name: "dev", runtime: "node", command: ["vite"], url: "https://localhost:5173" },
-					{ name: "typecheck", runtime: "node", command: ["tsc", "-b", "--pretty", "false"] },
-					{ name: "test", runtime: "node", command: ["vitest", "run"] },
+					{ name: "dev", runtime: "node", cwd: "package", command: ["vite"], url: "https://localhost:5173" },
+					{ name: "typecheck", runtime: "node", cwd: "package", command: ["tsc", "-b", "--pretty", "false"] },
+					{ name: "test", runtime: "node", cwd: "package", command: ["vitest", "run"] },
 					{
 						name: "profile-grid",
-						runtime: "node",
+						runtime: "node", cwd: "package",
 						command: [
 							"vitest",
 							"run",
@@ -191,28 +192,14 @@ export default define(
 							"--disableConsoleIntercept",
 						],
 					},
-					{ name: "build", runtime: "node", command: ["vite", "build"] },
-					{ name: "lint", runtime: "node", command: ["eslint", "."] },
+					{ name: "build", runtime: "node", cwd: "package", command: ["vite", "build"] },
+					{ name: "lint", runtime: "node", cwd: "package", command: ["eslint", "."] },
 				]}
 			/>
-		</Package>
 		<CompatFiles>
 			<JsonFile path="tsconfig.tspack.json" value={TsConfig.manifestEditor()} />
 			<JsonFile path=".vscode/settings.json" value={VSCode.settings()} />
 			<JsonFile path=".vscode/extensions.json" value={VSCode.extensions()} />
 		</CompatFiles>
-		<Security
-			acknowledgedLifecycleCategories={[
-				{
-					category: "consumer-install",
-					reason:
-						"Vite, Biome, and renderer dependencies select platform binaries; TSPack records but does not execute lifecycle scripts.",
-				},
-				{
-					category: "maintainer-publish",
-					reason: "Cadmata is an application and is not published as an npm package.",
-				},
-			]}
-		/>
-	</Workspace>,
+		</Package>,
 );

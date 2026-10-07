@@ -12,6 +12,28 @@ namespace Aetheris.Server.Tests;
 public sealed class CadmataStartupTests
 {
     [Fact]
+    public async Task PortableHost_BindsLoopbackEphemeralPortAndRequiresSessionCookie()
+    {
+        await using var app = CadmataApplication.Create([], new(null, true, false), portable: true, sessionToken: "test-secret");
+        await app.StartAsync();
+        try
+        {
+            var address = app.Urls.Single();
+            Assert.StartsWith("http://127.0.0.1:", address);
+            Assert.DoesNotContain(":0", address);
+            using var handler = new HttpClientHandler { AllowAutoRedirect = false };
+            using var client = new HttpClient(handler) { BaseAddress = new Uri(address) };
+            Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsync("/api/v1/startup/step", null)).StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/__cadmata/session/wrong")).StatusCode);
+            var bootstrap = await client.GetAsync("/__cadmata/session/test-secret");
+            Assert.Equal(HttpStatusCode.Redirect, bootstrap.StatusCode);
+            Assert.Contains("httponly", bootstrap.Headers.GetValues("Set-Cookie").Single(), StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsync("/api/v1/startup/step", null)).StatusCode);
+        }
+        finally { await app.StopAsync(); }
+    }
+
+    [Fact]
     public void Parse_NormalizesRelativeUnicodePathWithSpaces()
     {
         var directory = Path.Combine(Path.GetTempPath(), "Cadmata startup ü " + Guid.NewGuid().ToString("N"));

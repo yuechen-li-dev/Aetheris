@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.VisualStudio.JavaScript.Sdk/1.0.4338480">
   <PropertyGroup>
-    <StartupCommand>tspack run dev</StartupCommand>
+    <StartupCommand>tspack run dev --root ..</StartupCommand>
     <ShouldRunNpmInstall>false</ShouldRunNpmInstall>
     <ShouldRunNpmAudit>false</ShouldRunNpmAudit>
     <JavaScriptTestRoot>src\</JavaScriptTestRoot>

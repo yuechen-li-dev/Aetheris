@@ -105,12 +105,12 @@ try {
     if (-not (Get-Command tspack -ErrorAction SilentlyContinue)) {
         throw 'TSPack is required to build Cadmata. Restore the repository build prerequisite; do not substitute an npm lockfile.'
     }
-    tspack sync
-    tspack check
-    tspack run typecheck
-    tspack run test
-    tspack run build
-    tspack run lint
+    tspack sync --root $repoRoot
+    tspack check --root $repoRoot
+    tspack run typecheck --root $repoRoot
+    tspack run test --root $repoRoot
+    tspack run build --root $repoRoot
+    tspack run lint --root $repoRoot
 }
 finally { Pop-Location }
 

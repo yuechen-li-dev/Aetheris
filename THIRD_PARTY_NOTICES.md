@@ -61,6 +61,17 @@ AGPL-licensed or authored by Aetheris.
 
 ## Other dependencies
 
+Cadmata's portable Windows package bundles the Microsoft WebView2 Fixed Version
+Runtime and WebView2 SDK under Microsoft's supplied terms. It preserves their
+LICENSE/NOTICE files, the .NET runtime notices, and resolved frontend/NuGet
+dependency notices under `licenses/`. The npm archive for React Three Fiber
+9.7.0 omits its MIT text; the unmodified upstream v9.7.0 license is preserved
+at `Aetheris.Cadmata.Desktop/licenses/react-three-fiber-LICENSE.txt`.
+Additional package omissions are supplied from the pinned upstream sources in
+`Aetheris.Cadmata.Desktop/licenses/supplemental-sources.json`. The portable
+package includes an explicit `licenses/AUDIT.json`; incomplete notices hold
+the candidate from public distribution.
+
 Drawing Notes uses the MIT-licensed `PDFtoImage` .NET package, which wraps the
 BSD-licensed PDFium renderer and MIT-licensed SkiaSharp graphics library. Their
 binary packages and license metadata are restored from NuGet and retain their

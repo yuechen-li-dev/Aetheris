@@ -1,3 +1,5 @@
+import { reportDesktopDiagnostic } from "../desktopDiagnostics";
+
 export interface DiagnosticDto {
 	code: string;
 	severity: string;
@@ -462,7 +464,15 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
 		},
 	});
 
-	return parseEnvelope<T>(response);
+	try {
+		const result = await parseEnvelope<T>(response);
+		if (/import\/step|export\/step|assembly/.test(path))
+			reportDesktopDiagnostic("CAD request", { path, status: response.status });
+		return result;
+	} catch (error) {
+		reportDesktopDiagnostic("CAD request failed", { path, status: response.status, message: String(error) });
+		throw error;
+	}
 }
 
 export async function createDocument(name?: string): Promise<DocumentCreateResponseDto> {

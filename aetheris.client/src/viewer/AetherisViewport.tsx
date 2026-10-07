@@ -10,6 +10,7 @@ const LegacyAetherisViewport = lazy(() =>
 );
 import { cadmataTelosScene } from "./cadmataTelos";
 import { ATELIER_VIEWPORT_THEME } from "./viewportTheme";
+import { reportDesktopDiagnostic } from "../desktopDiagnostics";
 export type { AetherisViewportProps } from "./viewportProps";
 
 /** One graphics authority; legacy rendering is loaded only for unsupported browsers. */
@@ -132,6 +133,7 @@ function TelosViewport(props: AetherisViewportProps & { onRetry(): void }) {
           return;
         }
         host.current = current;
+        reportDesktopDiagnostic("renderer", { host: "three-telos", aa: latest.current.aaMode ?? "SpatialOnly" });
         setLabelHost(current);
         current.camera.mode = "orthographic";
         current.camera.up.set(0, 0, 1);
@@ -141,6 +143,7 @@ function TelosViewport(props: AetherisViewportProps & { onRetry(): void }) {
         latest.current.onHostReady?.(current);
       })
       .catch((error) => {
+        reportDesktopDiagnostic("renderer-failure", String(error));
         if (!disposed) setDiagnostic(String(error));
       });
     return () => {

@@ -53,6 +53,7 @@ export default defineConfig(({ command }) => ({
 		},
 	},
 	build: {
+		assetsInlineLimit: (filePath) => filePath.endsWith(".wgsl") ? false : undefined,
 		// The rendering core is intentionally a single cached vendor chunk. Its
 		// measured production size is 724 KB; retain a small budget above that
 		// rather than accepting Vite's generic 500 KB advisory.

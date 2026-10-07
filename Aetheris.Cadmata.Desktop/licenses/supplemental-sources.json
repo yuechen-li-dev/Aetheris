@@ -1,0 +1,26 @@
+[
+  {
+    "sha256": "d3709b0fb4b8a94bbb1d02b8a2e484f258b0d9c5c5a01f940391f3fe662cd1a4",
+    "identity": "draco3d@1.5.7",
+    "file": "draco3d-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/google/draco/8786740086a9f4d83f44aa83badfbea4dce7a1b5/LICENSE"
+  },
+  {
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "identity": "SQLitePCLRaw.bundle_e_sqlite3/3.0.5",
+    "file": "sqlitepclraw-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/ericsink/SQLitePCL.raw/96043b8cff323f21919df86a431c136655d81b4a/LICENSE.TXT"
+  },
+  {
+    "sha256": "c87a9ab2520595bc7c31343b5250e8f3779a65c6051612118b0accd200f24d07",
+    "identity": "Swashbuckle.AspNetCore/6.6.2",
+    "file": "swashbuckle-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/domaindrivendev/Swashbuckle.AspNetCore/fe87e6d4ce56cda59474763067b929d4d92fd146/LICENSE"
+  },
+  {
+    "identity": "@react-three/fiber@9.7.0",
+    "file": "react-three-fiber-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/pmndrs/react-three-fiber/v9.7.0/LICENSE",
+    "sha256": "9c35b5de7b7493a707fffe4eb23bd2f7f449153c1911f7c6eefb4e591fd5349a"
+  }
+]

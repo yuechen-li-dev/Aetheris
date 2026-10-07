@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="Aetheris.Cadmata.Desktop/Aetheris.Cadmata.Desktop.csproj" />
   <Project Path="Aetheris.Server/Aetheris.Server.csproj" />
   <Project Path="Aetheris.Drawing/Aetheris.Drawing.csproj" />
   <Project Path="Aetheris.Drawing.Tests/Aetheris.Drawing.Tests.csproj" />

@@ -19,58 +19,7 @@ catch (CadmataLaunchException exception)
     return 2;
 }
 
-var builder = WebApplication.CreateBuilder(new WebApplicationOptions
-{
-    Args = args,
-    ContentRootPath = AppContext.BaseDirectory,
-});
-
-if (launchOptions.Step is not null && !launchOptions.HasExplicitUrls)
-{
-    builder.WebHost.UseUrls("http://127.0.0.1:0");
-}
-
-if (launchOptions.Step is not null)
-{
-    // The CLI intentionally returns after process creation. Keep the detached
-    // host from retaining noisy per-request console output in redirected pipes.
-    builder.Logging.ClearProviders();
-}
-
-var stepUploadOptions = builder.Configuration
-    .GetSection(StepUploadOptions.SectionName)
-    .Get<StepUploadOptions>()
-    ?? new StepUploadOptions();
-
-builder.WebHost.ConfigureKestrel(options =>
-{
-    options.Limits.MaxRequestBodySize = stepUploadOptions.MaxUploadSizeBytes;
-});
-
-builder.Services.AddSingleton(stepUploadOptions);
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-builder.Services.AddSingleton<KernelDocumentStore>();
-builder.Services.AddSingleton(new CadmataStartupStep(launchOptions.Step));
-
-var app = builder.Build();
-
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
-app.MapKernelApi();
-app.MapCadmataStartupApi();
-app.MapPaperclipDemoApi();
-app.MapStandardProductGalleryApi();
-
-app.UseDefaultFiles();
-var staticContentTypes = new FileExtensionContentTypeProvider();
-staticContentTypes.Mappings[".wgsl"] = "text/plain";
-app.UseStaticFiles(new StaticFileOptions { ContentTypeProvider = staticContentTypes });
-app.MapFallbackToFile("index.html");
+var app = CadmataApplication.Create(args, launchOptions);
 
 if (launchOptions.Step is null)
 {

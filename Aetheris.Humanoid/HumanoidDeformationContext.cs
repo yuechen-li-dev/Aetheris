@@ -98,6 +98,9 @@ public static class HumanoidDeformationCandidates
         if (!Enum.IsDefined(spec.Method) || !double.IsFinite(spec.WeightExponent) || spec.WeightExponent is < .5 or > 2)
             throw new ArgumentException("Bounded transition generators support exponents [0.5,2].");
         var output = new Point3D[context.Vertices.Count];
+        var palette = spec.Method == TransitionBlendMethod.DualQuaternion
+            ? context.SkinTransforms.Select(HumanoidSkinDualQuaternion.FromRigidTransform).ToArray()
+            : null;
         for (var i = 0; i < output.Length; i++)
         {
             var patch = context.Vertices[i];
@@ -113,29 +116,10 @@ public static class HumanoidDeformationCandidates
             Vector3 transformed;
             if (spec.Method == TransitionBlendMethod.Linear)
                 transformed = modified.Aggregate(Vector3.Zero, (sum, w) => sum + Vector3.Transform(source, context.SkinTransforms[w.JointIndex]) * (float)w.Weight);
-            else transformed = DualQuaternionPoint(source, modified, context.SkinTransforms);
+            else transformed = HumanoidSkinningBinding.Blend(modified, palette!).TransformPoint(source);
             output[i] = new(transformed.X, transformed.Y, transformed.Z);
         }
         return new(spec.Id, Array.AsReadOnly(output), $"{spec.Method}; normalized generated X1 weights exponent={spec.WeightExponent:R}; fixed patch boundary; no source-weight claim");
     }
 
-    private static Vector3 DualQuaternionPoint(Vector3 point, IReadOnlyList<JointWeight> weights, IReadOnlyList<Matrix4x4> transforms)
-    {
-        var real = new Quaternion(0, 0, 0, 0); var dual = real;
-        var reference = Quaternion.CreateFromRotationMatrix(transforms[weights[0].JointIndex]);
-        foreach (var w in weights)
-        {
-            var m = transforms[w.JointIndex];
-            var q = Quaternion.Normalize(Quaternion.CreateFromRotationMatrix(m));
-            var d = Quaternion.Multiply(new Quaternion(m.Translation, 0), q) * .5f;
-            var sign = Quaternion.Dot(reference, q) < 0 ? -1 : 1;
-            real += q * (float)(w.Weight * sign); dual += d * (float)(w.Weight * sign);
-        }
-        var length = real.Length();
-        if (length < 1e-8f) throw new InvalidOperationException("Degenerate dual-quaternion blend.");
-        real *= 1 / length; dual *= 1 / length;
-        dual -= real * Quaternion.Dot(real, dual);
-        var translation = Quaternion.Multiply(dual, Quaternion.Conjugate(real)) * 2;
-        return Vector3.Transform(point, real) + new Vector3(translation.X, translation.Y, translation.Z);
-    }
 }

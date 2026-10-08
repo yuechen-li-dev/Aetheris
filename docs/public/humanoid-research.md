@@ -11,6 +11,9 @@ evaluates A-pose preparation through Aetheris's normal skin evaluator. Its
 output is an `AntoniaAdoptionCandidate`, **not** a `CanonicalHumanoid`.
 Candidate loading as a canonical runtime artifact is rejected.
 
+For the separately qualified editable body, retained dual-quaternion skinning
+and C# gameplay loader, see [Antonia gameplay body](humanoid-gameplay-body.md).
+
 From the repository root:
 
 ```powershell

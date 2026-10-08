@@ -88,6 +88,27 @@ public sealed class HumanoidRestX1Tests
         Assert.InRange(Math.Abs(actual.FlexionDegrees - 120), 0, .001);
     }
 
+    [Theory]
+    [InlineData(HumanoidJointKind.LeftHip, -20)]
+    [InlineData(HumanoidJointKind.RightHip, -20)]
+    [InlineData(HumanoidJointKind.LeftShoulder, -30)]
+    [InlineData(HumanoidJointKind.RightShoulder, -30)]
+    public void ExactNegativeFlexionBoundaryRetainsItsSemanticBranch(HumanoidJointKind joint, double degrees)
+    {
+        var source = CanonicalAdultTemplate.Create();
+        var skeleton = HumanoidRestPoseNormalizer.Normalize(source).Skeleton;
+        var solved = HumanoidKinematicSolver.Solve(skeleton,
+            new("negative-boundary", skeleton.SkeletonId, skeleton.RestPoseId, 0,
+                [new(joint, FlexionDegrees: degrees)]));
+
+        Assert.True(solved.IsSolved);
+        var actual = HumanoidPoseSemantics.Measure(skeleton, solved.Pose!.GlobalTransforms, joint);
+        Assert.InRange(Math.Abs(actual.FlexionDegrees - degrees), 0, .001);
+        Assert.InRange(Math.Abs(actual.AbductionDegrees), 0, .001);
+        Assert.All(solved.Pose.SemanticResiduals,
+            residual => Assert.InRange(residual.MaximumAbsoluteDegrees, 0, .001));
+    }
+
     private static HumanoidSkeleton ArmSkeleton(double abduction)
     {
         var radians = abduction * Math.PI / 180;

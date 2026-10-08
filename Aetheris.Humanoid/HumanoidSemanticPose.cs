@@ -72,8 +72,14 @@ public static class HumanoidPoseSemantics
                 var secondFlexion = direction.Y >= 0 ? 180 - firstFlexion : -180 - firstFlexion;
                 var secondAbduction = NormalizeDegrees(firstAbduction + 180);
                 var shoulder = kind.ToString().EndsWith("Shoulder");
-                var firstValid = firstFlexion >= (shoulder ? -30 : -20) && firstFlexion <= 120 &&
-                    firstAbduction >= (shoulder ? -30 : -25) && firstAbduction <= (shoulder ? 120 : 45);
+                // Float joint centers can place an exact domain boundary a few millionths
+                // of a degree outside it. Do not select the opposite Euler branch for that
+                // roundoff; the solve's admissible domain remains unchanged.
+                const double branchToleranceDegrees = .0001;
+                var firstValid = firstFlexion >= (shoulder ? -30 : -20) - branchToleranceDegrees &&
+                    firstFlexion <= 120 + branchToleranceDegrees &&
+                    firstAbduction >= (shoulder ? -30 : -25) - branchToleranceDegrees &&
+                    firstAbduction <= (shoulder ? 120 : 45) + branchToleranceDegrees;
                 (flexion, abduction) = firstValid
                     ? (firstFlexion, firstAbduction)
                     : (secondFlexion, secondAbduction);

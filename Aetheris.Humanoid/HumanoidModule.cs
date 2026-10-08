@@ -9,7 +9,8 @@ public static class HumanoidModule
     public static AetherisModule Definition { get; } = new(Id, "Humanoid", Version,
         [
             Capability("Humanoid.CanonicalSurface", "Versioned adult organic surface with stable topology, regions, symmetry, components, and binding triangulation."),
-            Capability("Humanoid.Skeleton", "Canonical semantic skeleton, rest/bind transforms, linear blend skinning, and bounded pose evaluation."),
+            Capability("Humanoid.Skeleton",
+                "Semantic skeleton, rest/bind transforms, linear and retained dual-quaternion skinning, explicit pose correctives, and bounded pose evaluation."),
             Capability("Humanoid.Landmarks", "Typed surface, joint, measurement, and attachment landmark semantics."),
             Capability("Humanoid.Measurements", "Versioned adult measurement protocols with explicit pose and operands."),
             Capability("Humanoid.Morphs", "Bounded stature and limb proportion controls with coherent skeleton and binding updates."),

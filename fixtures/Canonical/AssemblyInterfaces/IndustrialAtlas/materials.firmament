@@ -1,0 +1,6 @@
+Appearance OrangePaint { color: [0.95,0.21,0.012]; metallic: 0.12; roughness: 0.27; }
+Appearance BlackPaint { color: [0.026,0.031,0.039]; metallic: 0.55; roughness: 0.3; }
+Appearance BareSteel { color: [0.6,0.64,0.7]; metallic: 0.9; roughness: 0.23; }
+Material Aluminium { identity: "aluminium"; appearance: OrangePaint; }
+Material Steel { identity: "steel"; appearance: BareSteel; }
+Material GripPolymer { identity: "grip-polymer"; appearance: BlackPaint; }

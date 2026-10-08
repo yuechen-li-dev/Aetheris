@@ -1,6 +1,10 @@
 // Smooth, tapered mechanical housing. Exact capped SectionChain; millimetres.
 Model AtlasForeHousing {
  Units: mm
+ expose {
+  Semantic Input { DatumFrame Frame = [0mm,0mm,0mm] x [1,0,0] y [0,0,-1] z [0,1,0]; }
+  Semantic Output { DatumFrame Frame = [180mm,0mm,0mm] x [1,0,0] y [0,1,0] z [0,0,1]; }
+ }
  Concept Struct Stations {
   A: Plane { Origin: [0mm,0mm,0mm] Normal: [1,0,0] Up: [0,0,1] }
   B: Plane { Origin: [25mm,0mm,0mm] Normal: [1,0,0] Up: [0,0,1] }

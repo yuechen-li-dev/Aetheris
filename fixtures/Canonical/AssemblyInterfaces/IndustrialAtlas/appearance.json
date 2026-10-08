@@ -1,5 +1,5 @@
 {
-  "Drum<R:55mm,H:70mm>": {
+  "Pedestal<H:70mm>": {
     "red": 0.026,
     "green": 0.031,
     "blue": 0.039,
@@ -132,7 +132,7 @@
     "metallic": 0.9,
     "roughness": 0.23
   },
-  "Drum<R:2.5mm,H:15mm>": {
+  "Drum<R:2.5mm,H:12mm>": {
     "red": 0.6,
     "green": 0.64,
     "blue": 0.7,
@@ -146,14 +146,14 @@
     "metallic": 0.9,
     "roughness": 0.23
   },
-  "Panel<L:30mm,W:50mm,H:28mm,R:7mm>": {
+  "GripperBody<H:28mm>": {
     "red": 0.026,
     "green": 0.031,
     "blue": 0.039,
     "metallic": 0.55,
     "roughness": 0.3
   },
-  "Panel<L:56mm,W:7mm,H:10mm,R:3mm>": {
+  "GripperJaw<H:10mm>": {
     "red": 0.6,
     "green": 0.64,
     "blue": 0.7,

@@ -16,5 +16,8 @@
     <!-- The JSON bridge serializes anonymous response shapes through reflection. -->
     <TrimmerRootAssembly Include="Aetheris.Web.Runtime" />
     <TrimmerRootAssembly Include="Aetheris.Kernel.Firmament" />
+    <!-- Assembly/Scene snapshots serialize semantic provenance records. Preserve
+         their constructor parameter metadata for the reflection JSON bridge. -->
+    <TrimmerRootAssembly Include="Aetheris.Semantics" />
   </ItemGroup>
 </Project>

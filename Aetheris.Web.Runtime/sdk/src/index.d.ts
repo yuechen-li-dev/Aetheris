@@ -25,7 +25,7 @@ export interface RuntimeInfo { readonly packageVersion: string; readonly runtime
 export interface WorkerTiming { readonly operation: string; readonly executionMilliseconds: number; readonly transportMilliseconds: number; readonly payloadBytes: number; readonly initialization?: { readonly moduleImportMilliseconds: number; readonly runtimeCreateMilliseconds: number; readonly assemblyExportsMilliseconds: number } | null }
 export interface OperationOptions { readonly signal?: AbortSignal; readonly sourceRevision?: string; readonly performance?: boolean }
 export interface CompileOptions extends OperationOptions { readonly sourceName?: string; readonly projectDocuments?: Readonly<Record<string, string>> }
-export interface LanguageOptions { readonly sourceName?: string; readonly sourceRevision: string }
+export interface LanguageOptions { readonly sourceName?: string; readonly sourceRevision: string; readonly projectDocuments?: Readonly<Record<string, string>>; readonly projectRoot?: string }
 export interface LanguageField { readonly name: string; readonly type: string; readonly required: boolean; readonly meaning: string; readonly default?: string | null; readonly choices?: readonly string[] | null }
 export interface LanguageEntry { readonly constructId: string; readonly name: string; readonly context: string; readonly source: string }
 export interface LanguageCompletion { readonly document: string; readonly revision: string; readonly context: string; readonly replaceStart: number; readonly replaceLength: number; readonly fields: readonly LanguageField[]; readonly missingRequiredFields: readonly string[]; readonly entries?: readonly LanguageEntry[] | null; readonly values?: readonly string[] | null }

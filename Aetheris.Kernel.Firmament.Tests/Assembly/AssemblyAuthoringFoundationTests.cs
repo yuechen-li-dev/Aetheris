@@ -4,6 +4,31 @@ namespace Aetheris.Kernel.Firmament.Tests.Assembly;
 
 public sealed class AssemblyAuthoringFoundationTests
 {
+    [Theory]
+    [InlineData("H / 2", 7)]
+    [InlineData("H + 2mm", 16)]
+    public void PublishedOriginsEvaluateLengthArithmetic(string expression, double height)
+    {
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/AssemblyInterfaces/AuthoringFoundation/published-ports.firmament");
+        var source = File.ReadAllText(path).Replace("[0mm,0mm,H]", $"[0mm,0mm,{expression}]");
+        var result = new AssemblyM1Pipeline().Compile(source, path);
+        Assert.True(result.IsSuccess, string.Join("\n", result.Diagnostics));
+        Assert.Equal(height, result.Ir!.Instances.Single(i => i.Path.ToString() == "PublishedPorts.Child").ResolvedTransform!.Matrix[14], 7);
+    }
+
+    [Theory]
+    [InlineData("H / 2mm")]
+    [InlineData("14deg")]
+    [InlineData("H / 0")]
+    public void PublishedOriginsRejectInvalidLengthExpressions(string expression)
+    {
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/AssemblyInterfaces/AuthoringFoundation/published-ports.firmament");
+        var source = File.ReadAllText(path).Replace("[0mm,0mm,H]", $"[0mm,0mm,{expression}]");
+        var result = new AssemblyM1Pipeline().Compile(source, path);
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, d => d.Code == "assembly-port-frame-origin-invalid");
+    }
+
     [Fact]
     public void ReusableAssembliesSolveNamedFramesOnceInTheirLocalScope()
     {

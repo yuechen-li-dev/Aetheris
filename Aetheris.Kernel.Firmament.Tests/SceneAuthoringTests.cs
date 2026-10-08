@@ -26,6 +26,26 @@ public sealed class SceneAuthoringTests
     }
 
     [Fact]
+    public void RoomDisplayPublishesTwelveUniqueBoundaryEdgesWithoutTriangleDiagonals()
+    {
+        var scene = Compile("room");
+        foreach (var definition in scene.Display.Definitions.Where(d => d.MeshPipeline == "SceneRectangularBoundary"))
+        {
+            Assert.Equal(12, definition.Edges.Count);
+            Assert.Equal(12, definition.Edges.Select(e => e.EdgeId).Distinct().Count());
+            foreach (var edge in definition.Edges)
+            {
+                Assert.Equal(2, edge.Points.Length);
+                Assert.Equal(1, Enumerable.Range(0, 3).Count(axis => edge.Points[0][axis] != edge.Points[1][axis]));
+                foreach (var point in edge.Points)
+                    Assert.Contains(Enumerable.Range(0, definition.Positions.Length / 3), index =>
+                        Enumerable.Range(0, 3).All(axis => definition.Positions[index * 3 + axis] == point[axis]));
+            }
+        }
+        Assert.NotEmpty(scene.Display.Definitions);
+    }
+
+    [Fact]
     public void ActualWallDisplayVolumeExcludesDoorAndWindowApertures()
     {
         var s=Compile("room"); var defs=s.Display.Definitions.ToDictionary(d => d.Id);

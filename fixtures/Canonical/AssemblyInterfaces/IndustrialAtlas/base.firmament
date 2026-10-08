@@ -1,0 +1,38 @@
+Template<H: Length> Struct Pedestal {
+ Circle2 Outline { center: [0mm,0mm]; radius: 55mm }
+ Profile Section { Loop Outer { Outline |> TraceLoop } }
+ Extrude Body { profile: Section; from: 0mm; to: H }
+ expose {
+  Semantic BottomSeat { DatumFrame Frame = [0mm,0mm,0mm] x [1,0,0] y [0,1,0] z [0,0,1]; }
+  Semantic Hinge { DatumFrame Frame = [0mm,0mm,H + 35mm] x [1,0,0] y [0,0,-1] z [0,1,0]; }
+ }
+}
+Static FootBoltSites: Set<HardwareSite> {
+ FrontLeft => HardwareSite { X: -60mm; Y: -50mm; Z: 0mm }
+ FrontRight => HardwareSite { X: 60mm; Y: -50mm; Z: 0mm }
+ BackLeft => HardwareSite { X: -60mm; Y: 50mm; Z: 0mm }
+ BackRight => HardwareSite { X: 60mm; Y: 50mm; Z: 0mm }
+}
+Subassembly AtlasBase {
+ <Assembly AtlasBase>
+  <Part Pedestal = Pedestal<H:70mm>> material: Steel with { appearance: BlackPaint; };
+   Placement { from: BottomSeat.Frame; to: World; }
+  </Part>
+  <Part Foot = Panel<L:150mm,W:130mm,H:8mm,R:14mm>> material: Steel with { appearance: BlackPaint; };
+   Placement { from: BottomSeat.Frame; to: World; translateLocal: [-75mm,0mm,-8mm]; }
+  </Part>
+  <Part Turntable = Drum<R:57mm,H:8mm>> material: Steel;
+   Placement { from: BottomSeat.Frame; to: World; translateLocal: [0mm,0mm,70mm]; }
+  </Part>
+  <Part Plinth = Drum<R:44mm,H:27mm>> material: Aluminium;
+   Placement { from: BottomSeat.Frame; to: World; translateLocal: [0mm,0mm,78mm]; }
+  </Part>
+  Pattern FootBolts over FootBoltSites {
+   site => <Part Head = Drum<R:4mm,H:5mm>> material: Steel;
+    Placement { from: BottomSeat.Frame; to: World; translateLocal: [site.X,site.Y,site.Z]; }
+   </Part>
+  }
+ </Assembly>
+ anchor: AtlasBase;
+ expose { DatumFrame Hinge = Pedestal.Hinge.Frame; }
+}

@@ -37,8 +37,8 @@ public sealed class AssemblyUsdExportTests
             Assert.True(volume > 0, "Closed product mesh must enclose positive volume.");
         }
         Assert.Equal(24, mesh.Definitions.Count);
-        Assert.Equal(64, mesh.Occurrences.Count);
-        Assert.Equal(59, compiled.Ir!.Joints!.Count);
+        Assert.Equal(60, compiled.Geometry!.InstanceBodies.Count);
+        Assert.Equal(5, compiled.Ir!.Joints!.Count);
     }
 
     [Fact]

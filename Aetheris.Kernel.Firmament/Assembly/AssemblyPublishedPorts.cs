@@ -113,7 +113,24 @@ internal static class AssemblyPublishedPorts
                 string V(double x,double y,double z) => FormattableString.Invariant($"[{x:R},{y:R},{z:R}]");
                 return $"DatumFrame {m.Groups["name"].Value} = {V(f.Origin.X,f.Origin.Y,f.Origin.Z)} x {V(f.XAxis.X,f.XAxis.Y,f.XAxis.Z)} y {V(f.YAxis.X,f.YAxis.Y,f.YAxis.Z)} z {V(f.Normal.X,f.Normal.Y,f.Normal.Z)};";
             });
-            // Origin components inherit the definition's millimetre contract.
+            // Definition-owned origins use the same dimension-checked scalar
+            // evaluator as authored placement. Template dimensions may derive
+            // mounting stations; bare legacy numbers still inherit millimetres.
+            ports = Regex.Replace(ports, @"\bDatumFrame\s+(?<name>[A-Za-z_]\w*)\s*=\s*\[(?<origin>[^]]+)\]", match =>
+            {
+                var components = match.Groups["origin"].Value.Split(',');
+                var values = new double[3];
+                if (components.Length != 3 || components.Where((component, index) =>
+                        !FirmamentV2FeatureExpansion.TryEvaluateScalar(component.Trim(), out values[index], out var unit)
+                        || (unit != "mm" && !(unit.Length == 0 && double.TryParse(component.Trim(), NumberStyles.Float,
+                            CultureInfo.InvariantCulture, out _))) || !double.IsFinite(values[index])).Any())
+                {
+                    diagnostics.Add(new("assembly-port-frame-origin-invalid", $"Published DatumFrame '{match.Groups["name"].Value}' requires three finite length components."));
+                    return match.Value;
+                }
+                return $"DatumFrame {match.Groups["name"].Value} = [{string.Join(",", values.Select(value => value.ToString("R", CultureInfo.InvariantCulture)))}]";
+            });
+            // Remaining literal vectors retain the definition's millimetre contract.
             ports = Regex.Replace(ports,@"\[[^]]+\]",m => Regex.Replace(m.Value,@"(?<number>[-+0-9.eE]+)mm\b", "${number}"));
             var values = AssemblyM0Parser.ParseSemantics(ports,identity,sourceIdentity,diagnostics).ToArray();
             foreach (var value in values)

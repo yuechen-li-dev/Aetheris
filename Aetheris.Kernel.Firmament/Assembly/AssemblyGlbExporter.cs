@@ -27,7 +27,9 @@ public static class AssemblyGlbExporter
         if (!compilation.IsSuccess || compilation.Ir is null)
             throw new InvalidOperationException("assembly-glb-invalid-compilation");
         var pose = AssemblyKinematics.Evaluate(compilation.Ir, state ?? new Dictionary<string, double>());
-        return Serialize(AssemblyDisplayMeshExporter.Export(compilation, pose: pose), appearances);
+        return Serialize(AssemblyDisplayMeshExporter.Export(compilation, pose: pose), appearances,
+            compilation.Ir.Instances.Where(instance => instance.Appearance is not null)
+                .ToDictionary(instance => instance.StableId, instance => instance.Appearance!, StringComparer.Ordinal));
     }
 
     public static byte[] Serialize(AssemblyDisplayMeshDocument display,

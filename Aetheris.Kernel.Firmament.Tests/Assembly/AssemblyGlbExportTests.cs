@@ -96,6 +96,26 @@ public sealed class AssemblyGlbExportTests
         Assert.True(display.Definitions.Count > 20); Assert.True(display.Occurrences.Count > 50);
     }
 
+    [Fact]
+    public void IndustrialExportPreservesSourceOwnedOccurrenceMaterials()
+    {
+        var compilation = Compile("IndustrialAtlas/atlas-industrial.firmament");
+        Assert.True(compilation.IsSuccess, string.Join("\n", compilation.Diagnostics));
+        var (json, _) = Read(AssemblyGlbExporter.Export(compilation));
+        using var document = json;
+        var root = document.RootElement;
+        foreach (var instance in compilation.Ir!.Instances.Where(instance => instance.Kind == AssemblyInstanceKind.Part))
+        {
+            var node = root.GetProperty("nodes").EnumerateArray().Single(node => node.GetProperty("name").GetString() == instance.Path.ToString());
+            var mesh = root.GetProperty("meshes")[node.GetProperty("mesh").GetInt32()];
+            var material = root.GetProperty("materials")[mesh.GetProperty("primitives")[0].GetProperty("material").GetInt32()];
+            var pbr = material.GetProperty("pbrMetallicRoughness");
+            Assert.Equal(instance.Appearance!.Preview.Red, pbr.GetProperty("baseColorFactor")[0].GetDouble());
+            Assert.Equal(instance.Appearance.Preview.Metallic, pbr.GetProperty("metallicFactor").GetDouble());
+            Assert.Equal(instance.Appearance.Preview.Roughness, pbr.GetProperty("roughnessFactor").GetDouble());
+        }
+    }
+
     private static AssemblyM1CompilationResult Compile(string path) => new AssemblyM1Pipeline().CompileFile(FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/AssemblyInterfaces/" + path));
     private static AssemblyDisplayMeshDocument Triangle() => new("aetheris/assembly-display-mesh/1", "Triangle", "mm",
         [new("d", "triangle", [0,0,0,10,0,0,0,10,0], [0,0,1,0,0,1,0,0,1], [0,1,2])],

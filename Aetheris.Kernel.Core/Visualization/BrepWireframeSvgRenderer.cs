@@ -9,7 +9,7 @@ using Aetheris.Kernel.Core.Topology;
 
 namespace Aetheris.Kernel.Core.Visualization;
 
-public enum WireframeView { Isometric, Front, Top, Right }
+public enum WireframeView { Isometric, Front, Top, Right, IsometricZUp }
 
 public sealed record BrepWireframeOptions(
     WireframeView View = WireframeView.Isometric,
@@ -19,7 +19,11 @@ public sealed record BrepWireframeOptions(
     int Height = 700,
     string Background = "#10151d",
     string IsoLineColor = "#79b8ff",
-    string BoundaryColor = "#dbeafe");
+    string BoundaryColor = "#dbeafe",
+    double BoundaryWidth = 1.35,
+    double IsoLineWidth = 1,
+    bool ShowLabel = true,
+    bool Center = false);
 
 public sealed record BrepWireframeEvidence(
     WireframeView View,
@@ -44,6 +48,22 @@ public sealed record BrepWireframeResult(string Svg, BrepWireframeEvidence Evide
 /// </summary>
 public static class BrepWireframeSvgRenderer
 {
+    /// <summary>Project already sampled topology edges with the same SVG view/framing owner.
+    /// Callers retain responsibility for world placement and edge provenance; no triangle edges,
+    /// surface isolines or hidden-line removal are inferred from these polylines.</summary>
+    public static string RenderEdges(IReadOnlyList<IReadOnlyList<Point3D>> edges, BrepWireframeOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(edges);
+        options ??= new();
+        if (options.Width < 320 || options.Height < 240 || !double.IsFinite(options.BoundaryWidth) || options.BoundaryWidth <= 0)
+            throw new ArgumentOutOfRangeException(nameof(options));
+        if (edges.Any(edge => edge.Count < 2 || edge.Any(p => !double.IsFinite(p.X) || !double.IsFinite(p.Y) || !double.IsFinite(p.Z))))
+            throw new ArgumentException("Topology polylines require at least two finite points.", nameof(edges));
+        var all = edges.SelectMany(edge => edge).ToArray();
+        if (all.Length == 0) throw new ArgumentException("No topology edges were supplied.", nameof(edges));
+        return ComposeSvg(all, [], edges, options);
+    }
+
     public static BrepWireframeResult Render(BrepBody body, BrepWireframeOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(body);
@@ -51,6 +71,8 @@ public static class BrepWireframeSvgRenderer
         if (options.Density is < 2 or > 32) throw new ArgumentOutOfRangeException(nameof(options), "Wireframe density must be between 2 and 32.");
         if (options.CurveSamples is < 8 or > 256) throw new ArgumentOutOfRangeException(nameof(options), "CurveSamples must be between 8 and 256.");
         if (options.Width < 320 || options.Height < 240) throw new ArgumentOutOfRangeException(nameof(options), "Wireframe dimensions are too small.");
+        if (!double.IsFinite(options.BoundaryWidth) || options.BoundaryWidth <= 0 || !double.IsFinite(options.IsoLineWidth) || options.IsoLineWidth <= 0)
+            throw new ArgumentOutOfRangeException(nameof(options), "Wireframe stroke widths must be finite and positive.");
 
         var iso = new List<IReadOnlyList<Point3D>>();
         var boundaries = new List<IReadOnlyList<Point3D>>();
@@ -173,22 +195,26 @@ public static class BrepWireframeSvgRenderer
         const double margin = 42d;
         var scale = System.Math.Min((options.Width - 2d * margin) / System.Math.Max(maxX - minX, 1e-9d),
             (options.Height - 2d * margin) / System.Math.Max(maxY - minY, 1e-9d));
+        var left = options.Center ? (options.Width - (maxX - minX) * scale) / 2 : margin;
+        var top = options.Center ? (options.Height - (maxY - minY) * scale) / 2 : margin;
         string P(Point3D point)
         {
             var p = Project(point, options.View);
-            return FormattableString.Invariant($"{margin + (p.X - minX) * scale:F2},{margin + (p.Y - minY) * scale:F2}");
+            return FormattableString.Invariant($"{left + (p.X - minX) * scale:F2},{top + (p.Y - minY) * scale:F2}");
         }
         var svg = new StringBuilder();
         svg.Append("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"").Append(options.Width).Append("\" height=\"").Append(options.Height)
             .Append("\" viewBox=\"0 0 ").Append(options.Width).Append(' ').Append(options.Height).Append("\"><rect width=\"100%\" height=\"100%\" fill=\"")
             .Append(options.Background).Append("\"/><g fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\">");
         foreach (var line in iso) svg.Append("<polyline points=\"").Append(string.Join(' ', line.Select(P))).Append("\" stroke=\"")
-            .Append(options.IsoLineColor).Append("\" stroke-width=\"1\" opacity=\".43\"/>");
+            .Append(options.IsoLineColor).Append("\" stroke-width=\"").Append(options.IsoLineWidth.ToString(System.Globalization.CultureInfo.InvariantCulture)).Append("\" opacity=\".43\"/>");
         foreach (var line in boundaries) svg.Append("<polyline points=\"").Append(string.Join(' ', line.Select(P))).Append("\" stroke=\"")
-            .Append(options.BoundaryColor).Append("\" stroke-width=\"1.35\" opacity=\".88\"/>");
-        svg.Append("</g><text x=\"24\" y=\"").Append(options.Height - 20).Append("\" fill=\"").Append(options.BoundaryColor)
+            .Append(options.BoundaryColor).Append("\" stroke-width=\"").Append(options.BoundaryWidth.ToString(System.Globalization.CultureInfo.InvariantCulture)).Append("\" opacity=\".88\"/>");
+        svg.Append("</g>");
+        if (options.ShowLabel) svg.Append("<text x=\"24\" y=\"").Append(options.Height - 20).Append("\" fill=\"").Append(options.BoundaryColor)
             .Append("\" opacity=\".78\" font-family=\"ui-monospace,monospace\" font-size=\"14\">Aetheris exact BRep wireframe · ")
-            .Append(options.View).Append(" · density ").Append(options.Density).Append("</text></svg>");
+            .Append(options.View).Append(" · density ").Append(options.Density).Append("</text>");
+        svg.Append("</svg>");
         return svg.ToString();
     }
 
@@ -197,6 +223,7 @@ public static class BrepWireframeSvgRenderer
         WireframeView.Front => (p.X, -p.Z),
         WireframeView.Top => (p.X, -p.Y),
         WireframeView.Right => (p.Y, -p.Z),
+        WireframeView.IsometricZUp => ((p.X - p.Y) / System.Math.Sqrt(2), (p.X + p.Y) / System.Math.Sqrt(6) - p.Z * System.Math.Sqrt(2d / 3)),
         _ => (p.Z + .45d * p.X, -p.Y + .28d * p.X - .18d * p.Z)
     };
 

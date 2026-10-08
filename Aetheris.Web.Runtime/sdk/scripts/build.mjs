@@ -21,6 +21,9 @@ await mkdir(dist, { recursive: true });
 await cp(join(app, '_framework'), join(dist, 'runtime', '_framework'), { recursive: true });
 if (production) {
   const published = join(repo, 'artifacts', 'local', 'helios-sdk', 'aot-publish');
+  // This generated output belongs to the SDK build. A publish into an old
+  // directory retains obsolete fingerprints and doubles the packaged runtime.
+  await rm(published, { recursive: true, force: true });
   run(['publish', project, '-c', 'Release', '-p:RunAOTCompilation=true', '-p:WasmStripILAfterAOT=false',
     '-o', published, '--nologo', '-m:1']);
   await cp(join(published, 'wwwroot', '_framework'), join(dist, 'runtime-aot', '_framework'), { recursive: true });

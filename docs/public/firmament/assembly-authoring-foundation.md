@@ -59,7 +59,11 @@ Template<H: Length> Struct Post {
 
 Ports specialize through the geometry's typed template frontend. Occurrences
 share exact definitions. Publication creates no new body and infers no arbitrary
-BRep face name. Existing DatumFrame/Axis/Plane/Point/Dimension members are admitted;
+BRep face name. Published DatumFrame origins accept finite length arithmetic after
+template specialization, for example `[0mm,0mm,H / 2]` or `[0mm,0mm,H + 2mm]`.
+Bare numeric literals retain the legacy millimetre convention. Wrong dimensions,
+division by zero, and non-finite origins reject with `assembly-port-frame-origin-invalid`.
+Existing DatumFrame/Axis/Plane/Point/Dimension members are admitted;
 malformed and duplicate members fail.
 
 SectionChain-file Models can publish their authored section frames:

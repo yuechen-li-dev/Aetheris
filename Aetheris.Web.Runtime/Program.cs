@@ -110,7 +110,14 @@ public static partial class Program
         if (request.Source is null || string.IsNullOrWhiteSpace(request.SourceRevision))
             throw new WebRuntimeException("language-input-required", "languageAnalyze requires source and sourceRevision.");
         var name = request.SourceName ?? "model.firmament";
-        var analysis = FirmamentLanguageAnalysisService.Analyze(request.Source, name, request.SourceRevision);
+        var documents = request.ProjectDocuments is { Count: > 0 }
+            ? new Dictionary<string, string>(request.ProjectDocuments, StringComparer.Ordinal) { [name] = request.Source }
+            : null;
+        var root = request.ProjectRoot ?? name;
+        var analysis = documents is not null && documents.TryGetValue(root, out var rootSource) &&
+            FirmamentLanguageAnalysisService.HasAssemblyRoot(rootSource)
+            ? FirmamentLanguageAnalysisService.Analyze(new FirmamentProjectSnapshot(root, documents), name, request.SourceRevision)
+            : FirmamentLanguageAnalysisService.Analyze(request.Source, name, request.SourceRevision);
         return new { document = name, revision = request.SourceRevision, analysis.Tokens,
             diagnostics = analysis.Diagnostics.Select(item => new WebDiagnostic(item.Severity, item.Code, item.Message,
                 SourceRefAt(name, request.Source, item.Start, item.Length))).ToArray() };
@@ -222,7 +229,7 @@ public static partial class Program
         string? SourceName = null, string? PropertyId = null, WebPropertyValue? Value = null,
         string? SourceRevision = null, int? Offset = null, string? ConstructSemanticId = null,
         string? FieldId = null, FirmamentProjectedValue? FieldValue = null, int? BuildRevision = null,
-        bool Performance = false, IReadOnlyDictionary<string, string>? ProjectDocuments = null);
+        bool Performance = false, IReadOnlyDictionary<string, string>? ProjectDocuments = null, string? ProjectRoot = null);
 
     private sealed class WebRuntimeException(string code, string message) : Exception(message)
     {
@@ -432,7 +439,13 @@ public static partial class Program
         private WebBuildResult CompileAssembly(string effective, List<WebProperty> properties)
         {
             var watch = System.Diagnostics.Stopwatch.StartNew();
-            var compilation = _compilationSession.Compile(effective, _sourceName);
+            // Browser projects are explicit source snapshots. Includes, ports and
+            // SectionChain/Loft resources must resolve through the compiler's
+            // project path, rather than falling through to the host filesystem.
+            var compilation = _projectDocuments is { Count: > 0 }
+                ? _compilationSession.CompileProject(new FirmamentProjectSnapshot(_sourceName,
+                    new Dictionary<string, string>(_projectDocuments, StringComparer.Ordinal) { [_sourceName] = effective }))
+                : _compilationSession.Compile(effective, _sourceName);
             _lastReuse = compilation.Reuse;
             var compileMs = watch.Elapsed.TotalMilliseconds;
             if (!compilation.IsSuccess || compilation.Ir is null || compilation.Geometry is null)

@@ -281,7 +281,16 @@ public sealed class FirmamentSceneSession : IDisposable
         double[][] normals=[[0,0,-1],[0,0,1],[0,-1,0],[0,1,0],[-1,0,0],[1,0,0]];
         var positions=new List<double>(); var ns=new List<double>(); var indices=new List<int>();
         for(var f=0;f<6;f++) { var start=positions.Count/3; foreach(var v in faces[f]) { positions.AddRange(p[v]); ns.AddRange(normals[f]); } indices.AddRange([start,start+1,start+2,start,start+2,start+3]); }
-        return new(id,identity,positions.ToArray(),ns.ToArray(),indices.ToArray(),"SceneRectangularBoundary") { GeometryRevision = identity };
+        // Room panels and window pieces own rectangular boundary geometry. Export its
+        // twelve real edges alongside the faces, never the triangulation diagonals.
+        var edgePairs = faces.SelectMany(face => Enumerable.Range(0, face.Length)
+            .Select(i => (A: System.Math.Min(face[i], face[(i + 1) % face.Length]),
+                          B: System.Math.Max(face[i], face[(i + 1) % face.Length]))))
+            .Distinct().OrderBy(edge => edge.A).ThenBy(edge => edge.B).ToArray();
+        return new(id,identity,positions.ToArray(),ns.ToArray(),indices.ToArray(),"SceneRectangularBoundary") {
+            GeometryRevision = identity,
+            Edges = edgePairs.Select((edge, index) => new DisplayProjectionEdge($"boundary-edge:{index}", [p[edge.A],p[edge.B]], false)).ToArray()
+        };
     }
     private static (double[] Min,double[] Max) WorldBounds(AssemblyDisplayMeshDocument d)
     {

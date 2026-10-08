@@ -1,0 +1,26 @@
+Static ForeCoverSites: Set<HardwareSite> {
+ RearLow => HardwareSite { X: 44mm; Y: -15mm; Z: -6mm }
+ FrontLow => HardwareSite { X: 120mm; Y: -15mm; Z: -6mm }
+ RearHigh => HardwareSite { X: 44mm; Y: -15mm; Z: 6mm }
+ FrontHigh => HardwareSite { X: 120mm; Y: -15mm; Z: 6mm }
+}
+Subassembly AtlasForeArm {
+ <Assembly AtlasForeArm>
+  <Part Housing = SectionChainFile<"fore-housing.firmament">> material: Aluminium;
+   Placement { from: Origin; to: World; }
+  </Part>
+  <Assembly WristDrive = WristDrive>
+   Placement { from: Mount; to: World; translateLocal: [180mm,22mm,0mm]; rotateLocal: { axis: X; angle: 90deg } }
+  </Assembly>
+  <Part MakerPlate = Panel<L:84mm,W:18mm,H:2mm,R:3mm>> material: Steel;
+   Placement { from: BottomSeat.Frame; to: World; translateLocal: [40mm,-27mm,0mm]; rotateLocal: { axis: X; angle: 90deg } }
+  </Part>
+  Pattern ForeCoverFasteners over ForeCoverSites {
+   site => <Assembly Fastener = CoverFastener>
+    Placement { from: Mount; to: World; translateLocal: [site.X,site.Y,site.Z]; rotateLocal: { axis: X; angle: 90deg } }
+   </Assembly>
+  }
+ </Assembly>
+ anchor: AtlasForeArm;
+ expose { DatumFrame Input = Housing.Input.Frame; DatumFrame Output = Housing.Output.Frame; }
+}

@@ -71,7 +71,9 @@ internal static class AssemblyGlbCommand
             var pose = AssemblyKinematics.Evaluate(compilation.Ir!, state);
             var display = AssemblyDisplayMeshExporter.Export(compilation, pose: pose);
             var meshMilliseconds = watch.Elapsed.TotalMilliseconds; watch.Restart();
-            var bytesGlb = AssemblyGlbExporter.Serialize(display, appearances);
+            var bytesGlb = AssemblyGlbExporter.Serialize(display, appearances,
+                compilation.Ir!.Instances.Where(instance => instance.Appearance is not null)
+                    .ToDictionary(instance => instance.StableId, instance => instance.Appearance!, StringComparer.Ordinal));
             var serializationMilliseconds = watch.Elapsed.TotalMilliseconds;
             Directory.CreateDirectory(Path.GetDirectoryName(output)!);
             File.WriteAllBytes(output, bytesGlb);

@@ -1,0 +1,45 @@
+Template<H: Length> Struct GripperBody {
+ RoundedRect2 Outline { center: [15mm,0mm]; size: [30mm,50mm]; radius: 7mm }
+ Profile Section { Loop Outer { Outline |> TraceLoop } }
+ Extrude Body { profile: Section; from: 0mm; to: H }
+ expose {
+  Semantic Input { DatumFrame Frame = [0mm,0mm,H / 2] x [1,0,0] y [0,1,0] z [0,0,1]; }
+  // Front-face seats replace roots formerly buried 17 mm inside the body.
+  Semantic Left { DatumFrame Frame = [30mm,16mm,H / 2] x [1,0,0] y [0,0,-1] z [0,1,0]; }
+  Semantic Right { DatumFrame Frame = [30mm,-16mm,H / 2] x [1,0,0] y [0,0,1] z [0,-1,0]; }
+ }
+}
+Template<H: Length> Struct GripperJaw {
+ RoundedRect2 Outline { center: [28mm,0mm]; size: [56mm,7mm]; radius: 3mm }
+ Profile Section { Loop Outer { Outline |> TraceLoop } }
+ Extrude Body { profile: Section; from: 0mm; to: H }
+ expose {
+  Semantic BottomSeat { DatumFrame Frame = [0mm,0mm,0mm] x [1,0,0] y [0,1,0] z [0,0,1]; }
+  Semantic LeftSlide { DatumFrame Frame = [0mm,0mm,H / 2] x [1,0,0] y [0,0,-1] z [0,1,0]; }
+  Semantic RightSlide { DatumFrame Frame = [0mm,0mm,H / 2] x [1,0,0] y [0,0,1] z [0,-1,0]; }
+ }
+}
+Subassembly AtlasLeftJaw {
+ <Assembly AtlasLeftJaw>
+  <Part Jaw = GripperJaw<H:10mm>> material: Steel;
+   Placement { from: BottomSeat.Frame; to: World; }
+  </Part>
+  <Part Pad = Panel<L:10mm,W:7mm,H:2mm,R:2mm>> material: GripPolymer;
+   Placement { from: BottomSeat.Frame; to: World; translateLocal: [42mm,-3.5mm,5mm]; rotateLocal: { axis: X; angle: 90deg } }
+  </Part>
+ </Assembly>
+ anchor: AtlasLeftJaw;
+ expose { DatumFrame Slide = Jaw.LeftSlide.Frame; }
+}
+Subassembly AtlasRightJaw {
+ <Assembly AtlasRightJaw>
+  <Part Jaw = GripperJaw<H:10mm>> material: Steel;
+   Placement { from: BottomSeat.Frame; to: World; }
+  </Part>
+  <Part Pad = Panel<L:10mm,W:7mm,H:2mm,R:2mm>> material: GripPolymer;
+   Placement { from: BottomSeat.Frame; to: World; translateLocal: [42mm,3.5mm,5mm]; rotateLocal: { axis: X; angle: -90deg } }
+  </Part>
+ </Assembly>
+ anchor: AtlasRightJaw;
+ expose { DatumFrame Slide = Jaw.RightSlide.Frame; }
+}

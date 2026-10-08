@@ -1,0 +1,30 @@
+include "joint-covers.firmament";
+Static UpperCoverSites: Set<HardwareSite> {
+ RearLow => HardwareSite { X: 58mm; Y: -20mm; Z: -6mm }
+ FrontLow => HardwareSite { X: 138mm; Y: -20mm; Z: -6mm }
+ RearHigh => HardwareSite { X: 58mm; Y: -20mm; Z: 6mm }
+ FrontHigh => HardwareSite { X: 138mm; Y: -20mm; Z: 6mm }
+}
+Subassembly AtlasUpperArm {
+ <Assembly AtlasUpperArm>
+  <Part Housing = SectionChainFile<"upper-housing.firmament">> material: Aluminium;
+   Placement { from: Origin; to: World; }
+  </Part>
+  <Assembly ShoulderDrive = ShoulderDrive>
+   Placement { from: Mount; to: World; translateLocal: [0mm,38mm,0mm]; rotateLocal: { axis: X; angle: 90deg } }
+  </Assembly>
+  <Assembly ElbowDrive = ElbowDrive>
+   Placement { from: Mount; to: World; translateLocal: [200mm,31mm,0mm]; rotateLocal: { axis: X; angle: 90deg } }
+  </Assembly>
+  <Part ServicePanel = Panel<L:92mm,W:27mm,H:2mm,R:6mm>> material: Steel with { appearance: BlackPaint; };
+   Placement { from: BottomSeat.Frame; to: World; translateLocal: [53mm,-32mm,0mm]; rotateLocal: { axis: X; angle: 90deg } }
+  </Part>
+  Pattern UpperCoverFasteners over UpperCoverSites {
+   site => <Assembly Fastener = CoverFastener>
+    Placement { from: Mount; to: World; translateLocal: [site.X,site.Y,site.Z]; rotateLocal: { axis: X; angle: 90deg } }
+   </Assembly>
+  }
+ </Assembly>
+ anchor: AtlasUpperArm;
+ expose { DatumFrame Input = Housing.Input.Frame; DatumFrame Output = Housing.Output.Frame; }
+}

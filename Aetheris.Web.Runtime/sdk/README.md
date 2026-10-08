@@ -22,9 +22,9 @@ For a single, unmodified Firmament `Box`, the Web runtime tessellates the canoni
 
 The preview package is AGPL-3.0-only. Contact the Aetheris project for commercial licensing; this statement is package metadata, not legal advice.
 
-## Scene and material projection
+## Project snapshots and material projection
 
-Scene source compiles through the shared Scene owner. Supply all referenced
+Assembly and Scene source compile through their shared project owners. Supply all referenced
 dependency documents explicitly, using unique project-relative paths:
 
 ```ts
@@ -44,6 +44,16 @@ across occurrences, with stable geometry revisions. Occurrences carry world
 transforms and resolved materials; Scene output also carries millimetre bounds,
 environment boundaries and named cameras with poses/look-at/FOV. Scene is display
 composition and does not provide a synthetic engineering STEP export.
+
+`cad.language.analyze(source, { sourceName, sourceRevision, projectRoot,
+projectDocuments })` uses the existing snapshot-aware Assembly analysis when
+the root is an Assembly. This resolves included ports without touching disk.
+Single-document analysis remains available; declaration modules without a
+project context retain the explicit context-required informational diagnostic.
+
+Production AOT preserves the semantic provenance record metadata used by the
+reflection JSON bridge. Package generation clears its owned AOT publish output
+before publishing, so obsolete fingerprints are not included in the tarball.
 
 Optional definition `cir` metadata carries compiler qualification, structural
 identity, typed field source and bounds. Runtime BRep and CIR ASTs do not cross

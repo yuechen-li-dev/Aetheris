@@ -172,7 +172,7 @@ public static class CliRunner
     private const string ExperimentalLoopChamferCorpusUsage = "Usage: aetheris experimental loop-chamfer-corpus --out-dir <dir> [--json]";
     private const string SculptureUsage = "Usage: aetheris sculpture build <sol-1.sculpture.json> [--out <sol-1.step>] [--evidence <sol-1.evidence.json>] [--preview <sol-1.preview.svg>] [--json]";
     private const string SectionChainUsage = "Usage: aetheris section-chain <build|inspect|validate> <file.firmament|flagship|flagship-g0|twist|two-profile> [--out <model.step>] [--json]";
-    private const string WireframeUsage = "Usage: aetheris wireframe <model.step> [--out <preview.svg>] [--view <iso|front|top|right>] [--density <2..32>] [--samples <8..256>] [--json]";
+    private const string WireframeUsage = "Usage: aetheris wireframe <model.step> [--out <preview.svg>] [--view <iso|iso-z|front|top|right>] [--density <2..32>] [--samples <8..256>] [--json]";
 
     internal static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -742,6 +742,7 @@ public static class CliRunner
                 view = args[++index].ToLowerInvariant() switch
                 {
                     "iso" or "isometric" => WireframeView.Isometric,
+                    "iso-z" => WireframeView.IsometricZUp,
                     "front" => WireframeView.Front,
                     "top" => WireframeView.Top,
                     "right" => WireframeView.Right,

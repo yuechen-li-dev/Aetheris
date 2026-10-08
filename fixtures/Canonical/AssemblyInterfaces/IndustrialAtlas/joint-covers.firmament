@@ -1,0 +1,86 @@
+// Three complete drive-cover variants. All offsets are drive-local: a coherent
+// drum/ring/cap stack, with a keyed six-head bolt circle on the outer cap face.
+Static ShoulderBoltSites: Set<HardwareSite> {
+ East => HardwareSite { X: 34mm; Y: 0mm; Z: 85mm }
+ NorthEast => HardwareSite { X: 17mm; Y: 29.44486mm; Z: 85mm }
+ NorthWest => HardwareSite { X: -17mm; Y: 29.44486mm; Z: 85mm }
+ West => HardwareSite { X: -34mm; Y: 0mm; Z: 85mm }
+ SouthWest => HardwareSite { X: -17mm; Y: -29.44486mm; Z: 85mm }
+ SouthEast => HardwareSite { X: 17mm; Y: -29.44486mm; Z: 85mm }
+}
+Static ElbowBoltSites: Set<HardwareSite> {
+ East => HardwareSite { X: 25mm; Y: 0mm; Z: 71mm }
+ NorthEast => HardwareSite { X: 12.5mm; Y: 21.65064mm; Z: 71mm }
+ NorthWest => HardwareSite { X: -12.5mm; Y: 21.65064mm; Z: 71mm }
+ West => HardwareSite { X: -25mm; Y: 0mm; Z: 71mm }
+ SouthWest => HardwareSite { X: -12.5mm; Y: -21.65064mm; Z: 71mm }
+ SouthEast => HardwareSite { X: 12.5mm; Y: -21.65064mm; Z: 71mm }
+}
+Static WristBoltSites: Set<HardwareSite> {
+ East => HardwareSite { X: 14mm; Y: 0mm; Z: 53mm }
+ NorthEast => HardwareSite { X: 7mm; Y: 12.12436mm; Z: 53mm }
+ NorthWest => HardwareSite { X: -7mm; Y: 12.12436mm; Z: 53mm }
+ West => HardwareSite { X: -14mm; Y: 0mm; Z: 53mm }
+ SouthWest => HardwareSite { X: -7mm; Y: -12.12436mm; Z: 53mm }
+ SouthEast => HardwareSite { X: 7mm; Y: -12.12436mm; Z: 53mm }
+}
+Subassembly ShoulderDrive {
+ <Assembly ShoulderDrive>
+  <Part Drum = Drum<R:44mm,H:76mm>> material: Aluminium;
+   Placement { from: BottomSeat.Frame; to: World; }
+  </Part>
+  <Part Ring = Ring<R:44mm,Bore:38mm,H:4mm>> material: Steel;
+   Placement { from: BottomSeat.Frame; to: World; translateLocal: [0mm,0mm,76mm]; }
+  </Part>
+  <Part Cap = Drum<R:39mm,H:5mm>> material: Steel with { appearance: BlackPaint; };
+   Placement { from: BottomSeat.Frame; to: World; translateLocal: [0mm,0mm,80mm]; }
+  </Part>
+  Pattern ShoulderBolts over ShoulderBoltSites {
+   site => <Part Head = Drum<R:2.2mm,H:2mm>> material: Steel;
+    Placement { from: BottomSeat.Frame; to: World; translateLocal: [site.X,site.Y,site.Z]; }
+   </Part>
+  }
+ </Assembly>
+ anchor: ShoulderDrive;
+ expose { DatumFrame Mount = Drum.BottomSeat.Frame; }
+}
+Subassembly ElbowDrive {
+ <Assembly ElbowDrive>
+  <Part Drum = Drum<R:35mm,H:62mm>> material: Aluminium;
+   Placement { from: BottomSeat.Frame; to: World; }
+  </Part>
+  <Part Ring = Ring<R:35mm,Bore:29mm,H:4mm>> material: Steel;
+   Placement { from: BottomSeat.Frame; to: World; translateLocal: [0mm,0mm,62mm]; }
+  </Part>
+  <Part Cap = Drum<R:30mm,H:5mm>> material: Steel with { appearance: BlackPaint; };
+   Placement { from: BottomSeat.Frame; to: World; translateLocal: [0mm,0mm,66mm]; }
+  </Part>
+  Pattern ElbowBolts over ElbowBoltSites {
+   site => <Part Head = Drum<R:2.2mm,H:2mm>> material: Steel;
+    Placement { from: BottomSeat.Frame; to: World; translateLocal: [site.X,site.Y,site.Z]; }
+   </Part>
+  }
+ </Assembly>
+ anchor: ElbowDrive;
+ expose { DatumFrame Mount = Drum.BottomSeat.Frame; }
+}
+Subassembly WristDrive {
+ <Assembly WristDrive>
+  <Part Drum = Drum<R:24mm,H:44mm>> material: Aluminium;
+   Placement { from: BottomSeat.Frame; to: World; }
+  </Part>
+  <Part Ring = Ring<R:24mm,Bore:18mm,H:4mm>> material: Steel;
+   Placement { from: BottomSeat.Frame; to: World; translateLocal: [0mm,0mm,44mm]; }
+  </Part>
+  <Part Cap = Drum<R:19mm,H:5mm>> material: Steel with { appearance: BlackPaint; };
+   Placement { from: BottomSeat.Frame; to: World; translateLocal: [0mm,0mm,48mm]; }
+  </Part>
+  Pattern WristBolts over WristBoltSites {
+   site => <Part Head = Drum<R:2.2mm,H:2mm>> material: Steel;
+    Placement { from: BottomSeat.Frame; to: World; translateLocal: [site.X,site.Y,site.Z]; }
+   </Part>
+  }
+ </Assembly>
+ anchor: WristDrive;
+ expose { DatumFrame Mount = Drum.BottomSeat.Frame; }
+}

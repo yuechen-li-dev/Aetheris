@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Description>Native analytic SDF expressions, deterministic evaluation tape, and Visual TypeScript field source lowering. No application or shader compiler dependency.</Description>
+    <PackageReadmeFile>Aetheris.Fields.README.md</PackageReadmeFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Aetheris.Kernel.Core/Aetheris.Kernel.Core.csproj" />
+    <None Include="../docs/public/fields.md" Pack="true" PackagePath="/Aetheris.Fields.README.md" />
+    <None Include="../LICENSE" Pack="true" PackagePath="licenses/" />
+  </ItemGroup>
+</Project>

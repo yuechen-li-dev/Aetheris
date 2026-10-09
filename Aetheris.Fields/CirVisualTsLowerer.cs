@@ -5,7 +5,13 @@ using Aetheris.Kernel.Core.Math;
 
 namespace Aetheris.Continuum.Backends.Sdf;
 
-public sealed record CirVisualTsProgram(string StructuralHash, string FieldSource, SdfBounds Bounds);
+public sealed record CirVisualTsProgram(string StructuralHash, string FieldSource, SdfBounds Bounds)
+{
+    // The admitted rigid primitive/Boolean family is 1-Lipschitz in source units.
+    // This is an exterior stepping bound, not a promise of exact Euclidean distance.
+    public bool ConservativeExteriorStep { get; internal init; }
+    public string SourceLicense => "AGPL-3.0-only";
+}
 
 public sealed record CirVisualTsLoweringResult(CirVisualTsProgram? Program, string? FallbackReason)
 {
@@ -15,7 +21,7 @@ public sealed record CirVisualTsLoweringResult(CirVisualTsProgram? Program, stri
 /// <summary>Specializes the existing CIR tape into Visual TypeScript source. No shader-side tape interpreter.</summary>
 public static class CirVisualTsLowerer
 {
-    public const string CompatibilityVersion = "cir-visual-ts/1";
+    public const string CompatibilityVersion = "cir-visual-ts/2";
 
     public static CirVisualTsLoweringResult Lower(SdfNode root)
     {
@@ -27,7 +33,7 @@ public static class CirVisualTsLowerer
         }
         SdfTape tape = SdfTapeLowerer.Lower(root);
         var source = new StringBuilder();
-        source.AppendLine("function Field(x: f32, y: f32, z: f32): f32 {");
+        source.AppendLine("export function Field(x: f32, y: f32, z: f32): f32 {");
         foreach (SdfTapeInstruction instruction in tape.Instructions)
         {
             string value = instruction.OpCode switch
@@ -43,7 +49,10 @@ public static class CirVisualTsLowerer
         source.AppendLine("}");
         string field = source.ToString().Replace("\r\n", "\n", StringComparison.Ordinal);
         string hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(CompatibilityVersion + "\n" + field))).ToLowerInvariant();
-        return new(new CirVisualTsProgram(hash, field, root.Bounds), null);
+        return new(new CirVisualTsProgram(hash, field, root.Bounds)
+        {
+            ConservativeExteriorStep = true,
+        }, null);
     }
 
     private static string? Validate(SdfNode node)

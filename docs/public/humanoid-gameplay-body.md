@@ -69,14 +69,18 @@ artifact as a canonical humanoid.
 
 `CreatePalette` prepares two float4 quaternions per joint in XYZW order, in
 O(joints) time. `Evaluate` is the CPU reference, including corrective application.
-An Aurelian Vulkan skinning adapter is **not implemented or qualified here**.
-It must apply pre-skin correctives and the same normalized dual-quaternion blend,
-including quaternion sign alignment. Preserve all six possible influences.
+`Correctives` exposes an immutable snapshot of the authored shape bank for
+presentation adapters. Copeland's `Aurelian.Humanoid` integration now implements
+Vulkan compute skinning with the pre-skin correctives, the same normalized
+dual-quaternion blend, quaternion sign alignment and all six possible influences.
+Its Character Lab owns GPU/runtime qualification; run `characterlab.cmd --proof`
+in Copeland and inspect its evidence. See Copeland's
+`docs/Aurelian/humanoid-animation.md` for the API and bounded animation coverage.
 
 Ordinary glTF/GLB skinning does not encode this dual-quaternion convention.
 Do not export this body and silently substitute linear-blend skinning: the
 qualification would no longer apply. Use the Blender authoring asset and typed
-body artifact until the engine's matching skinning path is available.
+body artifact with the matching Aurelian DQS adapter.
 
 ## Reproduce
 
@@ -124,5 +128,6 @@ Deep crouches and large hip flexion need further authored correction work.
 
 The body is a usable base, not a complete DAZ-grade character product: facial
 animation, hair, clothing, LODs, production texture maps, full-body retargeting,
-candidate-specific morph/attachment admission and GPU integration remain future
-work. No automatic canonical promotion is performed.
+candidate-specific morph/attachment admission remain future work. Aurelian's
+bounded GPU animation integration is separate from this body's source
+qualification. No automatic canonical promotion is performed.

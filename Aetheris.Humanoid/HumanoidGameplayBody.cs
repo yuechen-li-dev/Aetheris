@@ -47,11 +47,16 @@ public sealed class HumanoidGameplayBody
         };
         Id = artifact.Id;
         binding = new(Surface, Skeleton, correctives: artifact.Correctives);
+        Correctives = Array.AsReadOnly(artifact.Correctives.Select(corrective => corrective with
+        {
+            Vertices = Array.AsReadOnly(corrective.Vertices.ToArray()),
+        }).ToArray());
     }
 
     public string Id { get; }
     public HumanoidSurface Surface { get; }
     public HumanoidSkeleton Skeleton { get; }
+    public IReadOnlyList<HumanoidPoseCorrective> Correctives { get; }
 
     public HumanoidSolveResult Solve(string poseId, IReadOnlyList<AnatomicalJointRequest> requests)
     {

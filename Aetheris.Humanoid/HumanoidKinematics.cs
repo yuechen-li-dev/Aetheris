@@ -64,7 +64,7 @@ public sealed record HumanoidSolveResult(SolvedHumanoidPose? Pose,
 /// adopted joint's source-derived rest frame. Public angles are absolute canonical anatomical
 /// states; source-rest offsets are measured and removed inside the adapter.
 /// </summary>
-public static class HumanoidKinematicSolver
+public static partial class HumanoidKinematicSolver
 {
     public const double LinearToleranceMm = .001;
     public const string Version = "aetheris.humanoid.semantic-pose.v1";
@@ -169,6 +169,18 @@ public static class HumanoidKinematicSolver
             rotations.Add(new(input.Joint, rotation));
         }
         var state = new HumanoidPoseState(request.PoseId, rotations.AsReadOnly(), HumanoidTransform.Identity);
+        return IssuePose(skeleton, state, states, shapeRevision, diagnostics, projections);
+    }
+
+    private static HumanoidSolveResult IssuePose(HumanoidSkeleton skeleton, HumanoidPoseState state,
+        IReadOnlyList<AnatomicalJointRequest> states, long shapeRevision,
+        List<KinematicDiagnostic> diagnostics, List<JointProjection> projections)
+    {
+        HumanoidSolveResult Reject(string code, string message, HumanoidJointKind joint)
+        {
+            diagnostics.Add(new(code, message, joint));
+            return new(null, diagnostics.AsReadOnly(), projections.AsReadOnly());
+        }
         var globals = HumanoidPosing.GlobalPose(skeleton, state).ToArray();
         var residuals = new List<JointConstraintResidual>();
         for (var i = 0; i < skeleton.Joints.Count; i++)

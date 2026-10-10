@@ -135,9 +135,13 @@ try {
   }
   report.exportedStep = exportedPath;
   await page.locator('input[type="file"]').setInputFiles(exportedPath);
+  const reimportResponse = page.waitForResponse(response => response.request().method() === "POST" && response.url().includes("/import"), { timeout: 120000 });
   await page.getByRole("button", { name: "Import STEP 242", exact: true }).click();
-  await page.waitForTimeout(1500);
+  assert((await reimportResponse).ok(), "Canonical STEP reimport must succeed");
+  await page.getByText(/^(Qualified|Inspectable|Degraded): Import complete\./).waitFor({ timeout: 120000 });
+  await page.waitForFunction(() => [...document.querySelectorAll<HTMLButtonElement>("button")].some(button => button.textContent?.trim() === "Download Canonical 242" && !button.disabled), undefined, { timeout: 120000 });
   assert(await downloadButton.isEnabled());
+  report.canonicalStepReimport = true;
   // An invalid file must retain the last usable model and visible error.
   await page.locator('input[type="file"]').setInputFiles({ name: "invalid.step", mimeType: "application/step", buffer: Buffer.from("invalid STEP") });
   await page.getByRole("button", { name: "Import STEP 242", exact: true }).click();

@@ -132,6 +132,12 @@ isolated failing test passed. Original and subsequent complete-run logs are
 retained, with outcomes recorded in the release qualification asset. No
 production display budget is relaxed.
 
+The complete serial solution rerun passed 4,415 tests across 20 suites with
+no failures or skips. The packaged replay waits for the canonical STEP
+reimport response and completed UI state rather than a fixed 1.5-second delay;
+the fixed-delay assertion raced the real import. The complete replay then
+passed, including invalid-file preservation and native title-bar shutdown.
+
 Two pre-existing frontend lint errors were corrected locally: inspection refs
 now synchronize in the effect, and a changed model resets its patch selection
 before commit rather than triggering a second render from an effect. The GPU

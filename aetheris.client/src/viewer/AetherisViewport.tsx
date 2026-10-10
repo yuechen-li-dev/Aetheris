@@ -60,6 +60,14 @@ function TelosViewport(props: AetherisViewportProps & { onRetry(): void }) {
   const [labelHost, setLabelHost] = useState<TelosHost | null>(null);
   const [inspectionMode, setInspectionMode] = useState<SurfaceInspectionMode>("normal");
   const [isolatedFaceKey, setIsolatedFaceKey] = useState("");
+  const [inspectionModel, setInspectionModel] = useState({
+    assemblyPacket: props.assemblyPacket, displayScene: props.displayScene,
+  });
+  // Reset patch selection before committing a different model; keep the GPU host.
+  if (inspectionModel.assemblyPacket !== props.assemblyPacket || inspectionModel.displayScene !== props.displayScene) {
+    setInspectionModel({ assemblyPacket: props.assemblyPacket, displayScene: props.displayScene });
+    setIsolatedFaceKey("");
+  }
   const inspectionFaces = useMemo(() => {
     const scene = cadmataTelosScene(props);
     const faces = new Map<string, SurfaceInspectionFace>();
@@ -78,7 +86,6 @@ function TelosViewport(props: AetherisViewportProps & { onRetry(): void }) {
   }, [props]);
   const isolatedFace = inspectionFaces.find(f => f.key === isolatedFaceKey);
   const inspection = useRef({ mode: inspectionMode, face: isolatedFace });
-  inspection.current = { mode: inspectionMode, face: isolatedFace };
   const lastModel = useRef<unknown>(undefined);
   const apply = () => {
     const current = host.current;
@@ -190,9 +197,9 @@ function TelosViewport(props: AetherisViewportProps & { onRetry(): void }) {
   }, []);
   useEffect(() => {
     latest.current = props;
+    inspection.current = { mode: inspectionMode, face: isolatedFace };
     apply();
-  }, [props, inspectionMode, isolatedFaceKey]);
-  useEffect(() => { setIsolatedFaceKey(""); }, [props.assemblyPacket, props.displayScene]);
+  }, [props, inspectionMode, isolatedFaceKey, isolatedFace]);
   return (
     <div
       ref={container}

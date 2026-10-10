@@ -129,6 +129,12 @@ isolated failing test passed. Original and subsequent complete-run logs are
 retained, with outcomes recorded in the release qualification asset. No
 production display budget is relaxed.
 
+Two pre-existing frontend lint errors were corrected locally: inspection refs
+now synchronize in the effect, and a changed model resets its patch selection
+before commit rather than triggering a second render from an effect. The GPU
+host and inspection behavior are retained. Frontend lint/typecheck and 89 tests
+in 19 files pass after this correction.
+
 ```powershell
 dotnet build Aetheris.slnx -c Release -m:1
 dotnet test Aetheris.Kernel.Core.Tests -c Release --no-build --filter "Category!=SlowCorpus"

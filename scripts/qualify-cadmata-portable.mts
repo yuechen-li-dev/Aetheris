@@ -112,7 +112,7 @@ try {
   report.navigationAndSelection = true;
   await page.locator('input[type="file"]').setInputFiles(stepFile);
   await page.getByRole("button", { name: "Import STEP 242", exact: true }).click();
-  await page.getByText("Import complete.", { exact: true }).waitFor({ timeout: 120000 });
+  await page.getByText("Qualified: Import complete.", { exact: true }).waitFor({ timeout: 120000 });
   const downloadButton = page.getByRole("button", { name: "Download Canonical 242", exact: true });
   await downloadButton.waitFor({ timeout: 120000 });
   await page.waitForFunction(() => {

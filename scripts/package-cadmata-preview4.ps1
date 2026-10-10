@@ -2,7 +2,8 @@
 param(
     [string]$OutputDirectory = 'artifacts/local/cadmata-distribution/release',
     [string]$WebViewCab,
-    [string]$SourceRevision
+    [string]$SourceRevision,
+    [switch]$Release
 )
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
@@ -17,8 +18,15 @@ if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -F
 New-Item -ItemType Directory -Force $stage | Out-Null
 if (-not $SourceRevision) { $SourceRevision = (git -C $repoRoot rev-parse HEAD).Trim() }
 $dirty = if (Test-Path (Join-Path $repoRoot '.git')) { [bool](git -C $repoRoot status --porcelain) } else { $true }
+if ($Release -and ($dirty -or $SourceRevision -ne (git -C $repoRoot rev-parse HEAD).Trim())) {
+    throw 'Release packaging requires a clean checkout and its actual HEAD source revision.'
+}
 $version = '2.0.0-preview.4'
 $identity = "$version+$SourceRevision" + $(if ($dirty) { '.modified' } else { '' })
+
+# Restore the reviewed compiler from public corresponding source. This also
+# verifies the source hash before producing the local NuGet dependency feed.
+& (Join-Path $PSScriptRoot 'restore-managed-wgsl.ps1')
 
 # Fixed distribution: no runtime detection, installed Edge dependency or bootstrap.
 $runtimeVersion = '153.0.4234.48'
@@ -85,6 +93,23 @@ Copy-Item -LiteralPath (Join-Path $repoRoot 'fixtures/Canonical/Basics/cylinder.
 Copy-Item -LiteralPath (Join-Path $repoRoot 'docs/public/cadmata/portable-windows.md') -Destination (Join-Path $stage 'README.md')
 Copy-Item -LiteralPath (Join-Path $repoRoot 'LICENSE') -Destination $stage
 Copy-Item -LiteralPath (Join-Path $repoRoot 'THIRD_PARTY_NOTICES.md') -Destination $stage
+$compilerCommit = (Get-Content (Join-Path $PSScriptRoot 'managed-wgsl-commit-pin.txt') -Raw).Trim()
+@"
+# Corresponding source
+
+Aetheris / Cadmata (AGPL-3.0-only):
+https://github.com/yuechen-li-dev/Aetheris/tree/$SourceRevision
+https://github.com/yuechen-li-dev/Aetheris/archive/$SourceRevision.zip
+
+Copeland managed WGSL compiler (GPL-3.0):
+https://github.com/yuechen-li-dev/Copeland/tree/$compilerCommit
+https://github.com/yuechen-li-dev/Copeland/archive/$compilerCommit.zip
+
+Build scripts and exact compiler source pins are in the Aetheris revision above.
+The GPL compiler is combined with AGPL Aetheris under GPLv3 / AGPLv3 section 13;
+the separate projects retain their licenses. No compiler executable is required
+on the user's PATH. Full original notices are under licenses/.
+"@ | Set-Content (Join-Path $stage 'CORRESPONDING-SOURCE.md') -Encoding utf8
 node (Join-Path $repoRoot 'scripts/collect-cadmata-licenses.mts') $repoRoot $stage (Join-Path $output 'build/obj/Aetheris.Cadmata.Desktop/project.assets.json')
 
 if (-not (Test-Path (Join-Path $stage 'wwwroot/index.html'))) { throw 'Production frontend missing.' }
@@ -97,7 +122,7 @@ $files = @(Get-ChildItem $stage -Recurse -File | Sort-Object FullName | ForEach-
     $relative = [IO.Path]::GetRelativePath($stage, $_.FullName).Replace('\','/')
     $purpose = if ($relative.StartsWith('webview2/')) { 'Fixed WebView2 browser runtime' }
         elseif ($relative.StartsWith('wwwroot/')) { 'Production frontend and shader assets' }
-        elseif ($relative.StartsWith('licenses/') -or $relative -match 'LICENSE|NOTICES|README') { 'Redistribution notice or release instructions' }
+        elseif ($relative.StartsWith('licenses/') -or $relative -match 'LICENSE|NOTICES|README|CORRESPONDING-SOURCE') { 'Redistribution notice or release instructions' }
         elseif ($relative.StartsWith('samples/')) { 'Bundled authored sample' }
         elseif ($relative -like 'Aetheris*' -or $relative -like 'Cadmata*') { 'Cadmata and existing CAD backend' }
         else { 'Self-contained .NET/ASP.NET/WindowsDesktop runtime or dependency' }
@@ -105,7 +130,8 @@ $files = @(Get-ChildItem $stage -Recurse -File | Sort-Object FullName | ForEach-
 })
 $licenseAudit = Get-Content (Join-Path $stage 'licenses/AUDIT.json') -Raw | ConvertFrom-Json
 $metadata = [ordered]@{ version=$version; identity=$identity; sourceRevision=$SourceRevision; modifiedSource=$dirty
-    qualificationStatus='Local candidate; acceptance requires packaged qualification and complete redistribution audit'
+    qualificationStatus=$(if ($Release) { 'Clean-source release build; packaged qualification is recorded with release assets' }
+        else { 'Local candidate; acceptance requires packaged qualification and complete redistribution audit' })
     redistributionNoticesComplete=$licenseAudit.redistributionNoticesComplete
     source="https://github.com/yuechen-li-dev/Aetheris/tree/$SourceRevision"; webviewVersion=$runtimeVersion
     webviewCabUrl=$runtimeUrl; webviewCabSha256=$runtimeHash; inventoryBytes=($files | Measure-Object bytes -Sum).Sum; files=$files }

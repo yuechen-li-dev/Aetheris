@@ -153,6 +153,12 @@ try {
   // Integration-test WM_CLOSE on the owning form, including a window hidden
   // by the CI launcher. CloseMainWindow excludes hidden windows. This exercises
   // FormClosed cleanup, but is not the required human title-bar interaction.
+  if (process.env.CADMATA_QUALIFICATION_MANUAL_CLOSE === "1") {
+    await writeFile(join(outputDirectory, "ready-for-native-close.json"), JSON.stringify({ pid: app.pid, address }));
+    const closeDeadline = Date.now() + 120000;
+    while (!closed && Date.now() < closeDeadline) await new Promise(resolve => setTimeout(resolve, 250));
+    report.closeMethod = "native UI close by external qualification operator";
+  } else {
   const closeCommand = `
 Add-Type -TypeDefinition @'
 using System;
@@ -184,12 +190,13 @@ $closedWindowCount
     ["-NoProfile", "-Command", closeCommand], { windowsHide: true });
   report.closeWindowCount = Number(close.stdout.trim());
   assert(Number(report.closeWindowCount) > 0, "Owning native window must receive WM_CLOSE");
+  report.closeMethod = "automated native WM_CLOSE, not a human title-bar click";
+  }
   for (let attempt = 0; !closed && attempt < 80; attempt++) await new Promise(resolve => setTimeout(resolve, 100));
   assert(closed, "Closing the window must terminate the application");
   try { await fetch(address); throw new Error("Local CAD service survived closing the window"); }
   catch (error) { if (String(error).includes("survived")) throw error; }
   report.closeStoppedServer = true;
-  report.closeMethod = "automated native WM_CLOSE, not a human title-bar click";
 } catch (error) {
   report.failure = String(error);
   if (browser) {

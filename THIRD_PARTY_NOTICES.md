@@ -84,6 +84,22 @@ AGPL-licensed or authored by Aetheris.
 
 ## Other dependencies
 
+Cadmata's managed WGSL compilation graph includes Copeland.Markdown,
+Copeland.Profile, Copeland.SpanAllocation, Copeland.TS, Copeland.TS.Mir,
+Copeland.TS.Workspace and Copeland.TS.Backend.Wgsl, licensed under GPLv3 by the
+original project. The pinned source is
+https://github.com/yuechen-li-dev/Copeland/tree/70b6cbe742ecfb2947c9c6a31cfa8e1d3a89067b.
+The unmodified GPL text is checked in at
+`Aetheris.Cadmata.Desktop/licenses/copeland-GPL-3.0.txt` and included for each
+distributed package. `CORRESPONDING-SOURCE.md` in the portable ZIP provides
+revision-specific source and archive links for both projects. GPLv3 and AGPLv3
+section 13 permit this combination while each project retains its license.
+
+Frontend notices are selected from the emitted production chunks, including
+the lazy WebGL fallback. `wwwroot/bundled-packages.json` records their package
+identities and retained modules. Installed packages whose code is absent from
+the distributed chunks are listed separately in `licenses/AUDIT.json`.
+
 Cadmata's portable Windows package bundles the Microsoft WebView2 Fixed Version
 Runtime and WebView2 SDK under Microsoft's supplied terms. It preserves their
 LICENSE/NOTICE files, the .NET runtime notices, and resolved frontend/NuGet

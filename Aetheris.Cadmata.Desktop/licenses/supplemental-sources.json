@@ -22,5 +22,47 @@
     "file": "react-three-fiber-LICENSE.txt",
     "url": "https://raw.githubusercontent.com/pmndrs/react-three-fiber/v9.7.0/LICENSE",
     "sha256": "9c35b5de7b7493a707fffe4eb23bd2f7f449153c1911f7c6eefb4e591fd5349a"
+  },
+  {
+    "identity": "Copeland.Markdown/0.1.0-preview.1-a3.16c0ce996358af80",
+    "file": "copeland-GPL-3.0.txt",
+    "url": "https://raw.githubusercontent.com/yuechen-li-dev/Copeland/70b6cbe742ecfb2947c9c6a31cfa8e1d3a89067b/LICENSE",
+    "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+  },
+  {
+    "identity": "Copeland.Profile/0.1.0-preview.1-a3.16c0ce996358af80",
+    "file": "copeland-GPL-3.0.txt",
+    "url": "https://raw.githubusercontent.com/yuechen-li-dev/Copeland/70b6cbe742ecfb2947c9c6a31cfa8e1d3a89067b/LICENSE",
+    "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+  },
+  {
+    "identity": "Copeland.SpanAllocation/0.1.0-preview.1-a3.16c0ce996358af80",
+    "file": "copeland-GPL-3.0.txt",
+    "url": "https://raw.githubusercontent.com/yuechen-li-dev/Copeland/70b6cbe742ecfb2947c9c6a31cfa8e1d3a89067b/LICENSE",
+    "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+  },
+  {
+    "identity": "Copeland.TS/0.1.0-preview.1-a3.16c0ce996358af80",
+    "file": "copeland-GPL-3.0.txt",
+    "url": "https://raw.githubusercontent.com/yuechen-li-dev/Copeland/70b6cbe742ecfb2947c9c6a31cfa8e1d3a89067b/LICENSE",
+    "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+  },
+  {
+    "identity": "Copeland.TS.Backend.Wgsl/0.1.0-preview.1-a3.16c0ce996358af80",
+    "file": "copeland-GPL-3.0.txt",
+    "url": "https://raw.githubusercontent.com/yuechen-li-dev/Copeland/70b6cbe742ecfb2947c9c6a31cfa8e1d3a89067b/LICENSE",
+    "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+  },
+  {
+    "identity": "Copeland.TS.Mir/0.1.0-preview.1-a3.16c0ce996358af80",
+    "file": "copeland-GPL-3.0.txt",
+    "url": "https://raw.githubusercontent.com/yuechen-li-dev/Copeland/70b6cbe742ecfb2947c9c6a31cfa8e1d3a89067b/LICENSE",
+    "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+  },
+  {
+    "identity": "Copeland.TS.Workspace/0.1.0-preview.1-a3.16c0ce996358af80",
+    "file": "copeland-GPL-3.0.txt",
+    "url": "https://raw.githubusercontent.com/yuechen-li-dev/Copeland/70b6cbe742ecfb2947c9c6a31cfa8e1d3a89067b/LICENSE",
+    "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
   }
 ]

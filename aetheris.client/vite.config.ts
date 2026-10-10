@@ -1,11 +1,49 @@
 import { fileURLToPath, URL } from "node:url";
 
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import plugin from "@vitejs/plugin-react";
 import fs from "fs";
 import path from "path";
 import child_process from "child_process";
 import { env } from "process";
+
+// Audit emitted code, including the lazy WebGL fallback, rather than treating
+// every installed optional peer as a redistributed dependency.
+function bundledPackageInventory(): Plugin {
+	return {
+		name: "cadmata-bundled-package-inventory",
+		generateBundle(_options, bundle) {
+			const packages = new Map<string, { name: string; version: string; modules: string[] }>();
+			for (const output of Object.values(bundle)) {
+				if (output.type !== "chunk") continue;
+				for (const [id, module] of Object.entries(output.modules)) {
+					if (!module.renderedLength || !id.includes("node_modules")) continue;
+					let directory = path.dirname(id.split("?")[0]);
+					while (directory !== path.dirname(directory)) {
+						const file = path.join(directory, "package.json");
+						if (fs.existsSync(file)) {
+							const metadata = JSON.parse(fs.readFileSync(file, "utf8"));
+							if (metadata.name && metadata.version) {
+								const identity = `${metadata.name}@${metadata.version}`;
+								const entry = packages.get(identity) ?? { name: metadata.name, version: metadata.version, modules: [] as string[] };
+								entry.modules.push(path.relative(directory, id.split("?")[0]).replaceAll("\\", "/"));
+								packages.set(identity, entry);
+								break;
+							}
+						}
+						directory = path.dirname(directory);
+					}
+				}
+			}
+			this.emitFile({ type: "asset", fileName: "bundled-packages.json", source: JSON.stringify({
+				basis: "Rollup emitted chunks; modules with nonzero renderedLength, including lazy chunks",
+				packages: [...packages.values()].sort((a, b) => a.name.localeCompare(b.name)).map(entry => ({
+					...entry, modules: [...new Set(entry.modules)].sort(),
+				})),
+			}, null, 2) });
+		},
+	};
+}
 
 function ensureCertificates() {
 	const baseFolder =
@@ -46,7 +84,7 @@ const target = env.ASPNETCORE_HTTPS_PORT
 		: "https://localhost:7145";
 
 export default defineConfig(({ command }) => ({
-	plugins: [plugin()],
+	plugins: [plugin(), bundledPackageInventory()],
 	resolve: {
 		alias: {
 			"@": fileURLToPath(new URL("./src", import.meta.url)),

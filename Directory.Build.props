@@ -1,10 +1,10 @@
 <Project>
   <PropertyGroup>
     <RestoreAdditionalProjectSources Condition="Exists('$(MSBuildThisFileDirectory)artifacts/local/cir-artifact-binding/packages')">$(RestoreAdditionalProjectSources);$(MSBuildThisFileDirectory)artifacts/local/cir-artifact-binding/packages</RestoreAdditionalProjectSources>
-    <Version>2.0.0-preview.3</Version>
+    <Version>2.0.0-preview.4</Version>
     <AssemblyVersion>2.0.0.0</AssemblyVersion>
     <FileVersion>2.0.0.0</FileVersion>
-    <InformationalVersion>2.0.0-preview.3</InformationalVersion>
+    <InformationalVersion>2.0.0-preview.4</InformationalVersion>
     <PathMap>$(MSBuildThisFileDirectory)=/_/Aetheris/</PathMap>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <Nullable>enable</Nullable>
@@ -17,7 +17,7 @@
     <RepositoryUrl Condition="'$(RepositoryUrl)' == ''">https://github.com/yuechen-li-dev/Aetheris</RepositoryUrl>
     <RepositoryType Condition="'$(RepositoryType)' == ''">git</RepositoryType>
     <PackageTags Condition="'$(PackageTags)' == ''">cad;firmament;step;ap242;geometry;engineering</PackageTags>
-    <PackageReleaseNotes Condition="'$(PackageReleaseNotes)' == ''">Aetheris 2.0.0-preview.3 public library package.</PackageReleaseNotes>
+    <PackageReleaseNotes Condition="'$(PackageReleaseNotes)' == ''">Aetheris 2.0.0-preview.4 public library package.</PackageReleaseNotes>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <PackageReadmeFile Condition="'$(PackageReadmeFile)' == '' and '$(MSBuildProjectName)' != 'Aetheris.CLI'">Aetheris.Libraries.README.md</PackageReadmeFile>

@@ -73,5 +73,8 @@ testdata/step242/**/*.json text eol=lf
 *.stp  text eol=lf
 *.step text eol=lf
 
+# Pinned supplemental notice hashes must survive Windows clean checkouts.
+Aetheris.Cadmata.Desktop/licenses/*.txt text eol=lf
+
 # Keep the canonical Bunny showcase byte-stable without rendering a 71k-line text diff.
 docs/development/milestones/geometry/artifacts/bunny-m4/bunny-fast-structured-remesh.obj text eol=lf -diff

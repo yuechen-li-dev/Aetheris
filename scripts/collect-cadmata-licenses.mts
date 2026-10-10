@@ -8,6 +8,11 @@ await mkdir(output, { recursive: true });
 const notices: string[] = [];
 const unresolved: string[] = [];
 const fetched = new Map<string, string>();
+const bundle = JSON.parse(await readFile(join(stage, "wwwroot/bundled-packages.json"), "utf8")) as
+  { packages: { name: string; version: string }[] };
+const bundled = new Set(bundle.packages.map(pkg => `${pkg.name}@${pkg.version}`));
+const excludedInstalledPackages: string[] = [];
+const auditedFrontend = new Set<string>();
 const supplements = JSON.parse(await readFile(join(root, "Aetheris.Cadmata.Desktop/licenses/supplemental-sources.json"), "utf8")) as
   { identity: string; file: string; url: string; sha256: string }[];
 async function supplemental(identity: string, target: string): Promise<boolean> {
@@ -22,6 +27,7 @@ async function supplemental(identity: string, target: string): Promise<boolean> 
   return true;
 }
 async function collect(directory: string, identity: string) {
+  auditedFrontend.add(identity);
   const files = await readdir(directory);
   const matches = files.filter((name) => /^(license|licence|copying|notice|third.?party.?notices)([.-]|$)/i.test(name));
   const target = join(output, identity.replace(/[^\w.-]/g, "_"));
@@ -45,7 +51,11 @@ async function visit(directory: string, includeOwnNotice = true) {
   if (seen.has(canonical)) return;
   seen.add(canonical);
   const metadata = JSON.parse(await readFile(join(directory, "package.json"), "utf8"));
-  if (includeOwnNotice) await collect(directory, `${metadata.name}@${metadata.version}`);
+  const identity = `${metadata.name}@${metadata.version}`;
+  if (includeOwnNotice) {
+    if (bundled.has(identity) || metadata.name.startsWith("@aetheris/")) await collect(directory, identity);
+    else excludedInstalledPackages.push(identity);
+  }
   const resolver = createRequire(join(directory, "package.json"));
   for (const name of Object.keys({ ...metadata.dependencies, ...metadata.peerDependencies }).sort()) {
     for (const modules of resolver.resolve.paths(name) ?? []) {
@@ -59,6 +69,10 @@ async function visit(directory: string, includeOwnNotice = true) {
 }
 await visit(join(root, "aetheris.client"), false);
 await visit(join(root, "Aetheris.Web.Runtime/telos"));
+for (const identity of bundled) {
+  if (!auditedFrontend.has(identity) && !identity.startsWith("@aetheris/"))
+    unresolved.push(identity + ": emitted frontend package was not found in the notice dependency graph");
+}
 const assets = JSON.parse(await readFile(assetsPath, "utf8"));
 for (const [identity, library] of Object.entries(assets.libraries) as [string, { type: string; path: string }][]) {
   if (library.type !== "package") continue;
@@ -93,5 +107,6 @@ for (const [identity, library] of Object.entries(assets.libraries) as [string, {
   }
 }
 await writeFile(join(output, "INDEX.txt"), notices.sort().join("\n"));
-await writeFile(join(output, "AUDIT.json"), JSON.stringify({ redistributionNoticesComplete: unresolved.length === 0, unresolved }, null, 2));
-if (unresolved.length) process.stderr.write("Release notice audit incomplete:\n" + unresolved.join("\n") + "\n");
+await writeFile(join(output, "AUDIT.json"), JSON.stringify({ redistributionNoticesComplete: unresolved.length === 0,
+  frontendInventory: "../wwwroot/bundled-packages.json", excludedInstalledPackages: [...new Set(excludedInstalledPackages)].sort(), unresolved }, null, 2));
+if (unresolved.length) throw new Error("Release notice audit incomplete:\n" + unresolved.join("\n"));

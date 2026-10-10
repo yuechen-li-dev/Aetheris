@@ -5,6 +5,9 @@ extracted-app UI session has been recorded. The user authorized publishing
 Preview 4. The final clean-source ZIP, checksum, metadata and artifact-specific
 qualification record accompany [v2.0.0-preview.4](https://github.com/yuechen-li-dev/Aetheris/releases/tag/v2.0.0-preview.4).
 The October 6 held candidate is superseded, not reused as the release binary.
+The frozen Preview 3 tag publication lane is restricted to its own tag: it
+hardcodes Preview 3 packages/notes and must not overwrite Preview 4 publication.
+Normal build/test CI remains enabled for Preview 4.
 
 ## Architecture
 

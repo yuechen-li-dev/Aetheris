@@ -1,9 +1,16 @@
 # P4-02 — CADMATA-DISTRIBUTION-X0
 
-Release preflight, 2026-10-10: redistribution notices are complete and a native
+Published, 2026-10-10: redistribution notices are complete and a native
 extracted-app UI session has been recorded. The user authorized publishing
 Preview 4. The final clean-source ZIP, checksum, metadata and artifact-specific
 qualification record accompany [v2.0.0-preview.4](https://github.com/yuechen-li-dev/Aetheris/releases/tag/v2.0.0-preview.4).
+The public prerelease targets `b0b068b1f788d312c58dbdd9d8b2668490eb754e`.
+Its ZIP is 399,733,598 bytes with SHA-256
+`157890cba15449b079a3fc7a37791f2c22cee735798d6a36155b0bc4b0c2d35f`.
+An unauthenticated download matched this exact hash. Eight assets provide the
+binary, checksum, build metadata, license audit, corresponding-source links,
+qualification record and two screenshots of the actual packaged application.
+Native UI checks were agent-driven, not a human operator acceptance session.
 The October 6 held candidate is superseded, not reused as the release binary.
 The frozen Preview 3 tag publication lane is restricted to its own tag: it
 hardcodes Preview 3 packages/notes and must not overwrite Preview 4 publication.

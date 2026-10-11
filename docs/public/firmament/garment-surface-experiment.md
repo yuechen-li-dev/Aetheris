@@ -109,8 +109,10 @@ Animated legs, quad self-contact, inversion prevention, friction and calibrated
 material response need separate qualification. Degenerate runtime hinges skip
 their bending update; there is no barrier preventing collapsed/inverted cells.
 The bend diagnostic is a sum of squared angular residuals, not physical energy.
-The next bounded authoring step is explicit surface cuts and flattening with
-distortion reports, followed by animated-body validation. A Firmament Surface
+The [spline tube-top follow-up](garment-spline-experiment.md) adds retained
+editable supports and fit feedback before quad lowering. Explicit surface cuts,
+flattening with distortion reports and animated-body validation remain future
+experiments. A Firmament Surface
 declaration should be designed around these proven typed contracts rather than
 silently treating fitted rest as flat fabric.
 

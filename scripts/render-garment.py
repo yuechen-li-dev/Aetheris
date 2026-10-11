@@ -42,12 +42,38 @@ def load_obj(path, surface):
     return result
 
 
+def load_control_cage(path):
+    """Present the retained control positions; these lines do not modify the garment."""
+    vertices = []
+    lines = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("v "):
+            vertices.append(tuple(float(value) for value in line.split()[1:4]))
+        elif line.startswith("l "):
+            lines.append([int(value) - 1 for value in line.split()[1:]])
+    curve = bpy.data.curves.new("retained control cage", "CURVE")
+    curve.dimensions = "3D"
+    curve.bevel_depth = .0012
+    curve.bevel_resolution = 2
+    for indices in lines:
+        spline = curve.splines.new("POLY")
+        spline.points.add(len(indices) - 1)
+        for point, index in zip(spline.points, indices):
+            point.co = (*vertices[index], 1)
+    obj = bpy.data.objects.new("retained control cage", curve)
+    bpy.context.collection.objects.link(obj)
+    curve.materials.append(material("control cage orange", (.95, .35, .03), .7))
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--bottom", choices=("shorts", "skirt", "flared-skirt"), default="skirt")
     parser.add_argument("--garment", help="Render one garment instead of composing a tunic and bottom.")
     parser.add_argument("--input-dir", type=Path, help="Directory containing the actual garment.obj and body.obj exports.")
+    parser.add_argument("--control-cage", type=Path, help="Optional retained OBJ polylines for source inspection.")
+    parser.add_argument("--torso", action="store_true", help="Frame the fitted upper garment for inspection.")
+    parser.add_argument("--initial", action="store_true", help="Render the exported rest mesh before simulation.")
     parser.add_argument("--samples", type=int, default=32)
     parser.add_argument("--engine", choices=("cycles", "workbench"), default="cycles",
                         help="Workbench gives a quick neutral geometry diagnostic; Cycles remains the default.")
@@ -59,6 +85,10 @@ def main():
         if not options.garment:
             parser.error("--frame requires --garment")
         output = output / options.frame
+    if options.initial:
+        output = output / "initial"
+    if options.control_cage:
+        output = output / "cage"
     output.mkdir(parents=True, exist_ok=True)
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete(use_global=False)
@@ -67,6 +97,10 @@ def main():
         prefix = options.frame + "-" if options.frame else ""
         body_path = inputs / (prefix + "body.obj")
         garment_path = inputs / (prefix + "garment.obj")
+        if options.initial:
+            if options.frame:
+                parser.error("--initial and --frame select different checkpoints")
+            garment_path = inputs / "initial-garment.obj"
         garment_inputs = [body_path, garment_path]
     else:
         body_path = source / options.bottom / "body.obj"
@@ -79,6 +113,9 @@ def main():
     else:
         load_obj(tunic_path, material("untextured tunic", (.08, .24, .31), .8))
         load_obj(bottom_path, material("untextured bottom", (.11, .14, .22), .8))
+    if options.control_cage:
+        load_control_cage(options.control_cage)
+        garment_inputs.append(options.control_cage)
     bpy.ops.mesh.primitive_plane_add(size=200, location=(0, 0, -.005))
     bpy.context.object.data.materials.append(material("floor", (.24, .26, .29), .9))
     scene = bpy.context.scene
@@ -119,6 +156,10 @@ def main():
     bpy.context.collection.objects.link(camera)
     camera.data.type = "ORTHO"
     camera.data.ortho_scale = 2.05
+    target = Vector((0, -.035, .9))
+    if options.torso:
+        camera.data.ortho_scale = .68
+        target = Vector((0, -.035, 1.31))
     scene.camera = camera
     for name, location in (
         ("front", (0, 4, 1.2)),
@@ -126,7 +167,7 @@ def main():
         ("back", (0, -4, 1.2)),
     ):
         camera.location = location
-        camera.rotation_euler = (Vector((0, -.035, .9)) - camera.location).to_track_quat("-Z", "Y").to_euler()
+        camera.rotation_euler = (target - camera.location).to_track_quat("-Z", "Y").to_euler()
         scene.render.filepath = str(output / (name + ".png"))
         bpy.ops.render.render(write_still=True)
     bpy.ops.wm.save_as_mainfile(filepath=str(output / "garment-preview.blend"))
@@ -135,6 +176,8 @@ def main():
         "inputs": {str(path): hashlib.sha256(path.read_bytes()).hexdigest() for path in garment_inputs},
         "garment": options.garment or options.bottom,
         "frame": options.frame,
+        "initial": options.initial,
+        "controlCage": str(options.control_cage) if options.control_cage else None,
         "textures": False,
         "renderer": options.engine,
     }

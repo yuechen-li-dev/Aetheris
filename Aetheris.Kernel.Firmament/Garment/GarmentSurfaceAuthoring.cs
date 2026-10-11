@@ -124,7 +124,7 @@ public static class GarmentSurfaceAuthoring
         return new(source, figure, hash, definition.Compile(), waist, hem);
     }
 
-    private static double Radius(IReadOnlyList<Point3D> contour, Point3D center, double angle)
+    internal static double Radius(IReadOnlyList<Point3D> contour, Point3D center, double angle)
     {
         double dx = Math.Cos(angle);
         double dy = Math.Sin(angle);

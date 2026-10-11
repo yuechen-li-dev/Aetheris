@@ -467,3 +467,8 @@ typed body-contour authoring, explicit flat/fitted rest conventions and the
 shared CPU/Vulkan quad material path. The stationary skirt is qualified
 separately from the earlier panel dress; flattening and animated-body fit remain
 future experiments.
+
+See [the body-fitted spline tube-top experiment](garment-spline-experiment.md)
+for retained editable bicubic supports, exact open-sheet BRep inspection,
+control-cage and clearance feedback, quad lowering and actual Aurelian/Vulkan
+artifact consumption.

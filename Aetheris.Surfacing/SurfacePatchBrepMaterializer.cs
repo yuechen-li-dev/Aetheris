@@ -8,9 +8,58 @@ using Aetheris.Kernel.Core.Topology;
 
 namespace Aetheris.Surfacing;
 
-/// <summary>Builds a thin closed panel whose authoritative lower face is a bounded rectangular non-rational support.</summary>
+/// <summary>Materializes bounded polynomial supports as open midsurfaces or thin closed CAD panels.</summary>
 public static class SurfacePatchBrepMaterializer
 {
+    /// <summary>One open, exactly bound midsurface face. This is not a closed solid or
+    /// a qualified STEP solid export. Clamped full-domain polynomial supports only.</summary>
+    public static BrepBody MaterializeSheet(BSplineSurfaceWithKnots spline)
+    {
+        if (spline.IsRational || spline.KnotMultiplicitiesU[0] != spline.DegreeU + 1
+            || spline.KnotMultiplicitiesU[^1] != spline.DegreeU + 1
+            || spline.KnotMultiplicitiesV[0] != spline.DegreeV + 1
+            || spline.KnotMultiplicitiesV[^1] != spline.DegreeV + 1)
+        {
+            throw new ArgumentException("spline-sheet-support: Require a clamped polynomial support.");
+        }
+        var builder = new TopologyBuilder();
+        var corners = new[] { spline.Evaluate(spline.DomainStartU, spline.DomainStartV),
+            spline.Evaluate(spline.DomainEndU, spline.DomainStartV),
+            spline.Evaluate(spline.DomainEndU, spline.DomainEndV),
+            spline.Evaluate(spline.DomainStartU, spline.DomainEndV) };
+        var vertices = corners.Select(_ => builder.AddVertex()).ToArray();
+        var edges = Enumerable.Range(0, 4).Select(index => builder.AddEdge(vertices[index], vertices[(index + 1) % 4])).ToArray();
+        var loop = builder.AllocateLoopId();
+        var uses = Enumerable.Range(0, 4).Select(_ => builder.AllocateCoedgeId()).ToArray();
+        for (int index = 0; index < 4; index++)
+        {
+            builder.AddCoedge(new(uses[index], edges[index], loop, uses[(index + 1) % 4], uses[(index + 3) % 4], false));
+        }
+        builder.AddLoop(new Loop(loop, uses));
+        var face = builder.AddFace([loop]);
+        builder.AddBody([builder.AddShell([face])]);
+        var geometry = new BrepGeometryStore();
+        var bindings = new BrepBindingModel();
+        var supportId = new SurfaceGeometryId(1);
+        geometry.AddSurface(supportId, SurfaceGeometry.FromBSplineSurfaceWithKnots(spline));
+        bindings.AddFaceBinding(new(face, supportId));
+        var curves = Boundaries(spline);
+        var uv = new SurfaceParameterPoint[] { new(spline.DomainStartU, spline.DomainStartV), new(spline.DomainEndU, spline.DomainStartV),
+            new(spline.DomainEndU, spline.DomainEndV), new(spline.DomainStartU, spline.DomainEndV) };
+        for (int index = 0; index < 4; index++)
+        {
+            var curve = curves[index];
+            var id = new CurveGeometryId(index + 1);
+            var interval = new ParameterInterval(curve.DomainStart, curve.DomainEnd);
+            geometry.AddCurve(id, CurveGeometry.FromBSpline(curve));
+            bindings.AddEdgeBinding(new(edges[index], id, interval));
+            bindings.AddPcurveBinding(new(uses[index], face, supportId,
+                PcurveGeometry.Line(interval, uv[index], uv[(index + 1) % 4])));
+        }
+        return new(builder.Model, geometry, bindings, vertices.Select((id, index) => (id, index))
+            .ToDictionary(pair => pair.id, pair => corners[pair.index]));
+    }
+
     public static (BrepBody? Body,IReadOnlyList<SurfacingDiagnostic> Diagnostics) Materialize(
         SurfaceGeometry support,Func<double,double,Point3D> evaluate,double thickness=1d)
     {

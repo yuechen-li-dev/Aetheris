@@ -5,6 +5,7 @@ namespace Aetheris.Humanoid;
 
 public sealed record HumanoidFitSection(double HeightMm, double CircumferenceMm,
     double MinimumX, double MaximumX, double MinimumY, double MaximumY, int Segments);
+public sealed record HumanoidFitContour(HumanoidFitSection Measurements, IReadOnlyList<Point3D> Points);
 public sealed record HumanoidFigureFit(string BodyId, string TopologyHash, string SkeletonId, string RestPoseId,
     Point3D LeftShoulder, Point3D RightShoulder, Point3D Neck, HumanoidFitSection Chest, HumanoidFitSection Hip,
     string RestSurfaceHash)
@@ -71,6 +72,22 @@ public static class HumanoidFigureFitting
     }
 
     private static HumanoidFitSection Section(HumanoidSurface surface, IReadOnlyList<Point3D> positions,
+        double heightMm, Point3D torsoProbe)
+    {
+        return Contour(surface, positions, heightMm, torsoProbe).Measurements;
+    }
+
+    public static HumanoidFitContour Contour(HumanoidGameplayBody body, double heightMm,
+        Point3D torsoProbe, SolvedHumanoidPose? pose = null)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        var positions = pose is null
+            ? body.Surface.Vertices.Select(vertex => vertex.Position).ToArray()
+            : body.EvaluatePositions(pose);
+        return Contour(body.Surface, positions, heightMm, torsoProbe);
+    }
+
+    private static HumanoidFitContour Contour(HumanoidSurface surface, IReadOnlyList<Point3D> positions,
         double heightMm, Point3D torsoProbe)
     {
         if (!double.IsFinite(heightMm))
@@ -172,8 +189,9 @@ public static class HumanoidFigureFitting
         {
             circumference += (contour[(index + 1) % contour.Count] - contour[index]).Length;
         }
-        return new(heightMm, circumference, contour.Min(point => point.X), contour.Max(point => point.X),
-            contour.Min(point => point.Y), contour.Max(point => point.Y), contour.Count);
+        var measurements = new HumanoidFitSection(heightMm, circumference, contour.Min(point => point.X),
+            contour.Max(point => point.X), contour.Min(point => point.Y), contour.Max(point => point.Y), contour.Count);
+        return new(measurements, contour.ToArray());
 
         int PointId(Point3D point)
         {

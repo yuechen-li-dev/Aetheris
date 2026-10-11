@@ -1,4 +1,5 @@
 using System.Numerics;
+using Aetheris.Cloth3D;
 
 namespace Aetheris.Kernel.Firmament.Garment;
 
@@ -10,6 +11,34 @@ public sealed record GarmentMeshQuality(int UniqueEdges, double MinimumEdgeLengt
 
 public static class GarmentMeshInspection
 {
+    public static IReadOnlyList<GarmentStretchOutlier> StretchOutliers(CompiledGarment garment,
+        ClothSnapshot3D snapshot, int count = 8)
+    {
+        ClothState3D.ValidateSnapshot(garment.Cloth, snapshot);
+        if (count is < 1 or > 64)
+        {
+            throw new ArgumentOutOfRangeException(nameof(count));
+        }
+        return garment.Cloth.Constraints.Where(constraint => constraint.Vertices.Length == 2
+            && constraint.Weights.IsEmpty).Select(constraint =>
+        {
+            int a = constraint.Vertices[0];
+            int b = constraint.Vertices[1];
+            Vector3 materialA = garment.Cloth.Definition.Positions[a];
+            Vector3 materialB = garment.Cloth.Definition.Positions[b];
+            return new GarmentStretchOutlier(a, b,
+                Vector3.Distance(snapshot.Positions[a], snapshot.Positions[b]) / constraint.RestLength - 1,
+                constraint.RestLength)
+            {
+                Panel = garment.Panels.Single(panel => a >= panel.VertexStart
+                    && a < panel.VertexStart + panel.VertexCount).Identity,
+                Kind = constraint.Kind.ToString(),
+                MaterialA = [materialA.X, materialA.Y],
+                MaterialB = [materialB.X, materialB.Y],
+            };
+        }).OrderByDescending(item => item.Stretch).Take(count).ToArray();
+    }
+
     public static GarmentMeshQuality Measure(CompiledGarment garment)
     {
         ArgumentNullException.ThrowIfNull(garment);

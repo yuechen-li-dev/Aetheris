@@ -452,3 +452,18 @@ diagnostic specimen.
 See [GarmentCode import and templates](garmentcode.md) for the MIT-credited
 shirt/dress reference, editable Firmament import, native hem customization and
 separate pattern-versus-drape qualification.
+
+## Fit, resolution and presentation experiments
+
+See [the controlled fit/resolution round](garment-fit-resolution-experiment.md)
+for named checkpoint strain diagnostics, opt-in presentation bindings and typed
+regional compliance. The canonical cut and acceptance limits remain unchanged;
+the complete garment dressing sequence is still unqualified.
+
+## Body-referenced quad surfaces
+
+See [the surface-first skirt experiment](garment-surface-experiment.md) for
+typed body-contour authoring, explicit flat/fitted rest conventions and the
+shared CPU/Vulkan quad material path. The stationary skirt is qualified
+separately from the earlier panel dress; flattening and animated-body fit remain
+future experiments.

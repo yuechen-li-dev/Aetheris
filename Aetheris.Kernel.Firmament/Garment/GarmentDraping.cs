@@ -67,7 +67,10 @@ public sealed record GarmentDrapeResult(ClothSnapshot3D Snapshot, ClothMetrics3D
 
 public sealed record GarmentDrapeFrame(string Name, double MotionSeconds, ClothSnapshot3D Snapshot,
     IReadOnlyList<Point3D> BodyPositions, ClothMetrics3D Metrics, float MaximumSeamGap,
-    ConstrainedSurfaceEvidence BodyEvidence, IReadOnlyList<AnatomicalJointRequest> Joints);
+    ConstrainedSurfaceEvidence BodyEvidence, IReadOnlyList<AnatomicalJointRequest> Joints)
+{
+    public IReadOnlyList<GarmentStretchOutlier> StretchOutliers { get; init; } = [];
+}
 
 public sealed record GarmentContactOutlier(int Vertex, string Panel, bool Pinned, float Penetration, float[] Position);
 public sealed record GarmentStretchOutlier(int A, int B, float Stretch, float RestLength)
@@ -282,16 +285,7 @@ public static class GarmentDraping
             pins.Contains(index), garment.Cloth.Definition.Material.Thickness * .5f + contacts.BodyClearance - contacts.BodySurface!.Query(position).SignedDistance,
             [position.X, position.Y, position.Z])).Where(item => item.Penetration > .001f)
             .OrderByDescending(item => item.Penetration).Take(8).ToArray();
-        var stretchOutliers = garment.Cloth.Constraints.Where(constraint => constraint.Vertices.Length == 2
-            && constraint.Weights.IsEmpty).Select(constraint => new GarmentStretchOutlier(constraint.Vertices[0], constraint.Vertices[1],
-                Vector3.Distance(final.Positions[constraint.Vertices[0]], final.Positions[constraint.Vertices[1]]) / constraint.RestLength - 1,
-                constraint.RestLength)
-            {
-                Panel = PanelOfVertex(constraint.Vertices[0]),
-                Kind = constraint.Kind.ToString(),
-                MaterialA = MaterialPoint(constraint.Vertices[0]),
-                MaterialB = MaterialPoint(constraint.Vertices[1]),
-            }).OrderByDescending(item => item.Stretch).Take(8).ToArray();
+        var stretchOutliers = GarmentMeshInspection.StretchOutliers(garment, final);
         var surfaceOutliers = new List<GarmentSurfaceContactOutlier>();
         var indices = garment.Cloth.Definition.Indices;
         for (int face = 0; face < indices.Length; face += 3)
@@ -348,17 +342,15 @@ public static class GarmentDraping
         {
             var snapshot = solver.Capture();
             frames.Add(new(name, seconds, snapshot, motion!.Positions.ToArray(), ClothState3D.Measure(garment.Cloth, snapshot, contacts),
-                garment.MaximumSeamGap(snapshot), motion.Inspect(), motion.CurrentPose.Joints));
+                garment.MaximumSeamGap(snapshot), motion.Inspect(), motion.CurrentPose.Joints)
+            {
+                StretchOutliers = GarmentMeshInspection.StretchOutliers(garment, snapshot),
+            });
         }
 
         string PanelOfVertex(int vertex)
         {
             return garment.Panels.Single(panel => vertex >= panel.VertexStart && vertex < panel.VertexStart + panel.VertexCount).Identity;
-        }
-        float[] MaterialPoint(int vertex)
-        {
-            var point = garment.Cloth.Definition.Positions[vertex];
-            return [point.X, point.Y];
         }
     }
 

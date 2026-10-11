@@ -15,6 +15,7 @@ from mathutils import Vector
 
 def material(name, color, roughness):
     result = bpy.data.materials.new(name)
+    result.diffuse_color = (*color, 1)
     result.use_nodes = True
     shader = result.node_tree.nodes.get("Principled BSDF")
     shader.inputs["Base Color"].default_value = (*color, 1)
@@ -48,6 +49,8 @@ def main():
     parser.add_argument("--garment", help="Render one garment instead of composing a tunic and bottom.")
     parser.add_argument("--input-dir", type=Path, help="Directory containing the actual garment.obj and body.obj exports.")
     parser.add_argument("--samples", type=int, default=32)
+    parser.add_argument("--engine", choices=("cycles", "workbench"), default="cycles",
+                        help="Workbench gives a quick neutral geometry diagnostic; Cycles remains the default.")
     parser.add_argument("--frame", choices=("guided", "fitting", "midway", "wearing"), help="Render a retained solver checkpoint.")
     options = parser.parse_args(sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else [])
     source = options.root / "artifacts/local/garment"
@@ -79,9 +82,20 @@ def main():
     bpy.ops.mesh.primitive_plane_add(size=200, location=(0, 0, -.005))
     bpy.context.object.data.materials.append(material("floor", (.24, .26, .29), .9))
     scene = bpy.context.scene
-    scene.render.engine = "CYCLES"
-    scene.cycles.samples = options.samples
-    scene.cycles.use_denoising = True
+    if options.engine == "workbench":
+        scene.render.engine = "BLENDER_WORKBENCH"
+        scene.display.render_aa = "32"
+        shading = scene.display.shading
+        shading.light = "STUDIO"
+        shading.color_type = "MATERIAL"
+        shading.show_shadows = False
+        shading.show_cavity = False
+        shading.background_type = "WORLD"
+        scene.world.color = (.24, .26, .29)
+    else:
+        scene.render.engine = "CYCLES"
+        scene.cycles.samples = options.samples
+        scene.cycles.use_denoising = True
     scene.render.resolution_x = 800
     scene.render.resolution_y = 1000
     scene.render.resolution_percentage = 100
@@ -122,6 +136,7 @@ def main():
         "garment": options.garment or options.bottom,
         "frame": options.frame,
         "textures": False,
+        "renderer": options.engine,
     }
     (output / "render-evidence.json").write_text(json.dumps(evidence, indent=2), encoding="utf-8")
 

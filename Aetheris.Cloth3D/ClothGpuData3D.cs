@@ -21,7 +21,9 @@ public enum ClothPhase3D
 public readonly record struct ClothDispatch3D(ClothPhase3D Phase, int Start, int Count, bool ResetLambda = false);
 
 /// <summary>Version 2 scalar storage ABI: 16 floats/vertex, then 3 multiplier floats/constraint;
-/// 12-float stencil headers plus variable vertex/weight pairs; 32 floats/dispatch header.</summary>
+/// 12-float stencil headers plus variable vertex/weight pairs; 32 floats/dispatch header.
+/// Header word 8 optionally points to transverse material weights for quad membrane stencils;
+/// legacy stencils retain zero in this previously reserved word.</summary>
 public sealed class ClothGpuData3D
 {
     public CompiledCloth3D Plan { get; }
@@ -40,7 +42,8 @@ public sealed class ClothGpuData3D
     {
         Plan = plan;
         int stencilOffset = (plan.Constraints.Length + plan.Definition.Indices.Length / 3) * 12;
-        Source = new float[stencilOffset + plan.Constraints.Sum(constraint => constraint.Vertices.Length * 2)];
+        Source = new float[stencilOffset + plan.Constraints.Sum(constraint =>
+            constraint.Vertices.Length * 2 + constraint.TransverseWeights.Length)];
         var constraints = ImmutableArray.CreateBuilder<ClothDispatch3D>();
         var triangles = ImmutableArray.CreateBuilder<ClothDispatch3D>();
         int index = 0;
@@ -64,6 +67,14 @@ public sealed class ClothGpuData3D
                 {
                     Source[stencilOffset++] = constraint.Vertices[local];
                     Source[stencilOffset++] = constraint.Weights.IsEmpty ? 0 : constraint.Weights[local];
+                }
+                if (!constraint.TransverseWeights.IsEmpty)
+                {
+                    Source[offset + 8] = stencilOffset;
+                    foreach (float weight in constraint.TransverseWeights)
+                    {
+                        Source[stencilOffset++] = weight;
+                    }
                 }
             }
         }

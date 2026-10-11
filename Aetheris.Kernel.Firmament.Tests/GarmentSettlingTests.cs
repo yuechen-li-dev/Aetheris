@@ -39,6 +39,9 @@ public sealed class GarmentSettlingTests
         Assert.Equal(40, result.CompletedSettlingTicks);
         Assert.Equal("FrameBudget", result.StopReason);
         Assert.InRange(result.Metrics.MaximumStretch, .99f, 1.01f);
+        Assert.Equal(result.Metrics.MaximumStretch, result.StretchOutliers[0].Stretch);
+        Assert.Equal("sheet", result.StretchOutliers[0].Panel);
+        Assert.Equal(2, result.StretchOutliers[0].MaterialA.Length);
         Assert.False(GarmentDrapeLimits.Accept(result.Metrics, result.MaximumSeamGap));
         Assert.All(result.Samples, sample =>
         {

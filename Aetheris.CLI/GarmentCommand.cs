@@ -259,6 +259,7 @@ internal static class GarmentCommand
                         tick = frame.Snapshot.Tick,
                         frame.Metrics,
                         frame.MaximumSeamGap,
+                        frame.StretchOutliers,
                         frame.BodyEvidence,
                         frame.Joints,
                     }),

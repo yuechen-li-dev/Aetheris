@@ -105,6 +105,7 @@ public sealed record ClothMetrics3D(float MaximumStretch, float MaximumPinError,
     float MaximumSurfacePenetration, float BendEnergy, bool Finite)
 {
     public ClothOffsetMetrics3D? OffsetContact { get; init; }
+    public float MaximumMaterialShear { get; init; }
 }
 
 public sealed record ClothOffsetMetrics3D(float MinimumFeatureClearance,
@@ -324,6 +325,28 @@ public sealed class ClothSolver3D : IClothSolver3D
         float compliance = constraint.Kind == ClothConstraintKind3D.Stitch
             ? constraint.Compliance * stitchComplianceScale : constraint.Compliance;
         float alpha = compliance / (h * h);
+        if (ClothSurfaceMechanics3D.IsSurface(constraint.Kind))
+        {
+            Span<Vector3> gradients = stackalloc Vector3[6];
+            float residual = ClothSurfaceMechanics3D.Evaluate(constraint, positions, gradients);
+            float surfaceMovable = 0;
+            for (int local = 0; local < constraint.Vertices.Length; local++)
+            {
+                surfaceMovable += Plan.InverseMasses[constraint.Vertices[local]] * gradients[local].LengthSquared();
+            }
+            if (surfaceMovable <= 1e-20f)
+            {
+                return;
+            }
+            float delta = (-residual - alpha * lambda[index].X) / (surfaceMovable + alpha);
+            lambda[index].X += delta;
+            for (int local = 0; local < constraint.Vertices.Length; local++)
+            {
+                int vertex = constraint.Vertices[local];
+                Move(vertex, gradients[local] * (Plan.InverseMasses[vertex] * delta));
+            }
+            return;
+        }
         if (constraint.Kind is not (ClothConstraintKind3D.FlatBend or ClothConstraintKind3D.VertexBend or ClothConstraintKind3D.Stitch))
         {
             int a = constraint.Vertices[0];
@@ -563,8 +586,27 @@ public static class ClothState3D
         var positions = snapshot.Positions;
         float stretch = 0;
         float bending = 0;
+        float shear = 0;
+        Span<Vector3> surfaceGradients = stackalloc Vector3[6];
         foreach (var constraint in plan.Constraints)
         {
+            if (ClothSurfaceMechanics3D.IsSurface(constraint.Kind))
+            {
+                float residual = ClothSurfaceMechanics3D.Evaluate(constraint, positions.AsSpan(), surfaceGradients);
+                if (constraint.Kind == ClothConstraintKind3D.SurfaceBend)
+                {
+                    bending += .5f * residual * residual;
+                }
+                else if (constraint.Kind == ClothConstraintKind3D.SurfaceShear)
+                {
+                    shear = MathF.Max(shear, MathF.Abs(residual));
+                }
+                else
+                {
+                    stretch = MathF.Max(stretch, MathF.Sqrt(MathF.Max(0, 1 + 2 * residual)) - 1);
+                }
+                continue;
+            }
             if (constraint.Kind is not (ClothConstraintKind3D.FlatBend or ClothConstraintKind3D.VertexBend or ClothConstraintKind3D.Stitch))
             {
                 float length = Vector3.Distance(positions[constraint.Vertices[0]], positions[constraint.Vertices[1]]);
@@ -647,6 +689,10 @@ public static class ClothState3D
             offsetMetrics = new(clearance, overlap, active);
         }
         return new(stretch, pinError, penetration, bending,
-            float.IsFinite(stretch) && float.IsFinite(bending)) { OffsetContact = offsetMetrics };
+            float.IsFinite(stretch) && float.IsFinite(bending) && float.IsFinite(shear))
+        {
+            OffsetContact = offsetMetrics,
+            MaximumMaterialShear = shear,
+        };
     }
 }

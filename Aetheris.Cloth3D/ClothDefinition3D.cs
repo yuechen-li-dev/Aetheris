@@ -31,6 +31,12 @@ public sealed record ClothDefinition3D(string Id, ImmutableArray<Vector3> Positi
     /// <summary>Weighted equality constraints between material boundary samples.</summary>
     public ImmutableArray<ClothStitch3D> Stitches { get; init; } = [];
     public ClothMaterial3D Material { get; init; } = new();
+    /// <summary>Optional authoritative quad cells and explicit material rest convention.
+    /// Indices is then a rendering/contact triangulation, not the membrane topology.</summary>
+    public ClothQuadSurface3D? Surface { get; init; }
+    /// <summary>Optional disjoint vertex regions. Only wholly contained structural stencils
+    /// receive the declared compliance scales; seam compliance and masses remain unchanged.</summary>
+    public ImmutableArray<ClothMaterialRegion3D> MaterialRegions { get; init; } = [];
     public ImmutableArray<int> Pins { get; init; } = [];
     public ClothBendingModel3D BendingModel { get; init; } = ClothBendingModel3D.BoundaryCorrectedVertex;
     /// <summary>Opt-in exhaustive offset self-contact foundation. The discrete control stays available.</summary>
@@ -70,10 +76,20 @@ public sealed record ClothDefinition3D(string Id, ImmutableArray<Vector3> Positi
 public sealed record ClothStitch3D(string Id, ImmutableArray<int> Vertices,
     ImmutableArray<float> Weights, float Compliance = .00000001f);
 
-public enum ClothConstraintKind3D { Warp, Weft, Diagonal, FlatBend, VertexBend, Stitch }
+public sealed record ClothMaterialRegion3D(string Id, ImmutableArray<int> Vertices,
+    float StretchComplianceScale = 1, float BendComplianceScale = 1);
+
+public enum ClothConstraintKind3D
+{
+    Warp, Weft, Diagonal, FlatBend, VertexBend, Stitch,
+    SurfaceWarp, SurfaceWeft, SurfaceShear, SurfaceBend,
+}
 
 public sealed record ClothConstraint3D(ClothConstraintKind3D Kind, ImmutableArray<int> Vertices,
-    ImmutableArray<float> Weights, float RestLength, float Compliance);
+    ImmutableArray<float> Weights, float RestLength, float Compliance)
+{
+    public ImmutableArray<float> TransverseWeights { get; init; } = [];
+}
 
 /// <summary>Immutable topology and conflict-free schedules. A color contains disjoint vertex writes.</summary>
 public sealed class CompiledCloth3D
@@ -173,6 +189,7 @@ internal static class ClothCompiler3D
         {
             throw new ArgumentException("Invalid or repeated cloth pin.");
         }
+        int[] regionOfVertex = ClothMaterialRegions3D.Validate(definition);
         float[] masses = new float[positions.Length];
         var edges = new SortedDictionary<(int A, int B), List<int>>();
         var uniqueTriangles = new HashSet<(int, int, int)>();
@@ -219,43 +236,51 @@ internal static class ClothCompiler3D
             throw new ArgumentException("Cloth has unused or numerically massless vertices.");
         }
         var constraints = new List<ClothConstraint3D>();
-        foreach (var (edge, opposite) in edges)
+        if (definition.Surface is not null)
         {
-            Vector2 direction = definition.Coordinates[edge.B] - definition.Coordinates[edge.A];
-            if (direction.LengthSquared() < 1e-14f)
+            constraints.AddRange(ClothQuadCompiler3D.Compile(definition, masses));
+        }
+        else
+        {
+            foreach (var (edge, opposite) in edges)
             {
-                throw new ArgumentException("Coincident material coordinates on cloth edge.");
-            }
-            ClothConstraintKind3D kind = ClothConstraintKind3D.Diagonal;
-            float compliance = material.DiagonalCompliance;
-            if (MathF.Abs(direction.Y) <= 1e-6f * direction.Length())
-            {
-                kind = ClothConstraintKind3D.Warp;
-                compliance = material.WarpCompliance;
-            }
-            else if (MathF.Abs(direction.X) <= 1e-6f * direction.Length())
-            {
-                kind = ClothConstraintKind3D.Weft;
-                compliance = material.WeftCompliance;
-            }
-            constraints.Add(new(kind, [edge.A, edge.B], [], Vector3.Distance(positions[edge.A], positions[edge.B]), compliance));
-            if (opposite.Count == 2)
-            {
-                var hinge = Bend(edge.A, edge.B, opposite[0], opposite[1]);
-                if (definition.BendingModel == ClothBendingModel3D.QuadraticHinge)
+                Vector2 direction = definition.Coordinates[edge.B] - definition.Coordinates[edge.A];
+                if (direction.LengthSquared() < 1e-14f)
                 {
-                    constraints.Add(hinge);
+                    throw new ArgumentException("Coincident material coordinates on cloth edge.");
+                }
+                ClothConstraintKind3D kind = ClothConstraintKind3D.Diagonal;
+                float compliance = material.DiagonalCompliance;
+                if (MathF.Abs(direction.Y) <= 1e-6f * direction.Length())
+                {
+                    kind = ClothConstraintKind3D.Warp;
+                    compliance = material.WarpCompliance;
+                }
+                else if (MathF.Abs(direction.X) <= 1e-6f * direction.Length())
+                {
+                    kind = ClothConstraintKind3D.Weft;
+                    compliance = material.WeftCompliance;
+                }
+                constraints.Add(new(kind, [edge.A, edge.B], [], Vector3.Distance(positions[edge.A], positions[edge.B]), compliance));
+                if (opposite.Count == 2)
+                {
+                    var hinge = Bend(edge.A, edge.B, opposite[0], opposite[1]);
+                    if (definition.BendingModel == ClothBendingModel3D.QuadraticHinge)
+                    {
+                        constraints.Add(hinge);
+                    }
                 }
             }
-        }
-        if (definition.BendingModel == ClothBendingModel3D.BoundaryCorrectedVertex)
-        {
-            constraints.AddRange(ClothVertexBending3D.Compile(definition));
+            if (definition.BendingModel == ClothBendingModel3D.BoundaryCorrectedVertex)
+            {
+                constraints.AddRange(ClothVertexBending3D.Compile(definition));
+            }
         }
         foreach (var stitch in definition.Stitches)
         {
             constraints.Add(new(ClothConstraintKind3D.Stitch, stitch.Vertices, stitch.Weights, 0, stitch.Compliance));
         }
+        ClothMaterialRegions3D.Apply(definition.MaterialRegions, regionOfVertex, constraints);
         var pinned = definition.Pins.ToHashSet();
         var inverseMasses = masses.Select((mass, index) => pinned.Contains(index) ? 0 : 1 / mass).ToImmutableArray();
         string key = Identity();
@@ -366,6 +391,27 @@ internal static class ClothCompiler3D
             writer.Write(material.WeftCompliance);
             writer.Write(material.DiagonalCompliance);
             writer.Write(material.BendCompliance);
+            if (definition.Surface is not null)
+            {
+                ClothQuadCompiler3D.WriteIdentity(writer, definition.Surface);
+            }
+            // Preserve the established keys for definitions without regional tuning.
+            if (!definition.MaterialRegions.IsEmpty)
+            {
+                writer.Write("cloth/material-regions/v1");
+                writer.Write(definition.MaterialRegions.Length);
+                foreach (var region in definition.MaterialRegions)
+                {
+                    writer.Write(region.Id);
+                    writer.Write(region.StretchComplianceScale);
+                    writer.Write(region.BendComplianceScale);
+                    writer.Write(region.Vertices.Length);
+                    foreach (int vertex in region.Vertices)
+                    {
+                        writer.Write(vertex);
+                    }
+                }
+            }
             writer.Flush();
             return Convert.ToHexString(SHA256.HashData(bytes.ToArray()));
         }

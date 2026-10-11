@@ -5,6 +5,51 @@ namespace Aetheris.Kernel.Firmament.Tests;
 
 public sealed class ProfileBoundaryAuthoringTests
 {
+    [Fact]
+    public void LinearThroughKeepsAuthoredNamesAndBuildsThroughTheOrdinaryKernel()
+    {
+        const string source = """
+            Model Tab {
+              Units: mm
+              Rect2 Blank { Center: [0mm,0mm]; Size: [120mm,80mm] }
+              Profile Cut {
+                From: Blank
+                Replace Tab {
+                  On: Blank.Right
+                  Range: [20mm,60mm]
+                  Through: [[80mm,-20mm], [80mm,20mm]]
+                  Interpolation: Linear
+                  SpanNames: [lower, end, upper]
+                }
+              }
+              Extrude Body { Profile: Cut From: 0mm To: 3mm }
+            }
+            """;
+        var profile = ProfileAuthoringParser.ResolveNamedProfile(source, "Cut", out var diagnostics);
+        Assert.Empty(diagnostics);
+        Assert.NotNull(profile);
+        Assert.Equal(["lower", "end", "upper"], profile.BoundaryEdits![0].Descendants);
+        Assert.All(profile.Loops[0].Segments, segment => Assert.IsType<LineArcLineSegment2D>(segment.Geometry));
+        Assert.Equal(10400, ResolvedProfile2DValidator.Validate(profile).SignedArea, 7);
+        var build = FirmamentBuildAndExport.CompileSource(source);
+        Assert.True(build.IsSuccess, string.Join("; ", build.Diagnostics));
+        string retainedSource = source + "\nProfile More { From: Cut; Replace Hem { On: Cut.Bottom; Through: [[0mm,-45mm]] } }";
+        var retained = ProfileAuthoringParser.ResolveNamedProfile(retainedSource, "More", out diagnostics);
+        Assert.Empty(diagnostics);
+        Assert.Equal(["Tab", "Hem"], retained!.BoundaryEdits!.Select(edit => edit.Name));
+        string consumedSource = retainedSource + "\nProfile Final { From: More; Replace Lift { On: More.lower; Through: [[70mm,-15mm]] } }";
+        var consumed = ProfileAuthoringParser.ResolveNamedProfile(consumedSource, "Final", out diagnostics);
+        Assert.Empty(diagnostics);
+        Assert.DoesNotContain(consumed!.BoundaryEdits!, edit => edit.Name == "Tab");
+        Assert.Contains(consumed.BoundaryEdits!, edit => edit.Name == "Hem");
+        var wrongNames = source.Replace("[lower, end, upper]", "[lower, lower]");
+        Assert.Null(ProfileAuthoringParser.ResolveNamedProfile(wrongNames, "Cut", out diagnostics));
+        Assert.Contains(diagnostics, diagnostic => diagnostic.StartsWith("profile-edit-span-names-invalid"));
+        var conflicting = source.Replace("Interpolation: Linear", "Interpolation: Linear; Join: Tangent");
+        Assert.Null(ProfileAuthoringParser.ResolveNamedProfile(conflicting, "Cut", out diagnostics));
+        Assert.Contains(diagnostics, diagnostic => diagnostic.StartsWith("profile-edit-construction-conflict"));
+    }
+
     private const string Panel = """
         Model Test {
           Units: mm

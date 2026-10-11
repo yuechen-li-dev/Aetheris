@@ -1,0 +1,20 @@
+schema Garment
+// Construction geometry has no material mesh or runtime scene occurrence.
+Concept Struct guides {
+  collarFloor: Plane {
+    origin: [0mm, 0mm, 1000mm]
+    normal: [0, 0, 1]
+  }
+}
+Rect2 blank { center: [0mm, 0mm]; size: [100mm, 100mm]; }
+Profile cut { from: blank; }
+Garment FittingWitness {
+  Fabric cotton { thickness: 2mm; arealDensity: 0.2; }
+  Panel sheet { profile: cut; origin: [0mm, 0mm, 1000mm]; v: [0, 1, 0]; }
+  Fitting collar {
+    on: guides.collarFloor;
+    edges: [sheet.edges.Left, sheet.edges.Right, sheet.edges.Top, sheet.edges.Bottom];
+    compliance: 0;
+    releaseAfter: 5;
+  }
+}

@@ -160,6 +160,28 @@ public static class FirmamentLanguageAnalysisService
         }
     }
 
+    private static bool SameFittingGuides(Garment.CompiledGarment before, Garment.CompiledGarment after)
+    {
+        if (before.FittingGuides.Length != after.FittingGuides.Length)
+        {
+            return false;
+        }
+        for (int index = 0; index < before.FittingGuides.Length; index++)
+        {
+            var original = before.FittingGuides[index];
+            var formatted = after.FittingGuides[index];
+            if (original.ConceptPlane != formatted.ConceptPlane || original.ReleaseAfter != formatted.ReleaseAfter
+                || original.Constraint.Id != formatted.Constraint.Id || original.Constraint.Normal != formatted.Constraint.Normal
+                || original.Constraint.Offset != formatted.Constraint.Offset
+                || original.Constraint.Compliance != formatted.Constraint.Compliance
+                || !original.Constraint.Vertices.SequenceEqual(formatted.Constraint.Vertices))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public static FirmamentLanguageFormat Format(string source, string document, string revision)
     {
         if (Garment.GarmentAuthoring.HasRoot(source))
@@ -171,7 +193,8 @@ public static class FirmamentLanguageAnalysisService
             }
             var garmentFormat = FormatConventions(source, document, revision);
             var after = Garment.GarmentCompiler.Compile(garmentFormat.Text, document);
-            if (!after.IsSuccess || before.Garment!.Cloth.ContentKey != after.Garment!.Cloth.ContentKey)
+            if (!after.IsSuccess || before.Garment!.Cloth.ContentKey != after.Garment!.Cloth.ContentKey
+                || !SameFittingGuides(before.Garment, after.Garment))
             {
                 throw new InvalidOperationException("Garment formatting changed compilation.");
             }

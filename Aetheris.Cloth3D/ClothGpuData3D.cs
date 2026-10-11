@@ -188,6 +188,10 @@ public sealed class ClothGpuData3D
 
     public float[] Header(ClothStepOptions3D options, ClothContacts3D contacts, ClothDispatch3D dispatch, float fraction)
     {
+        if (!contacts.Guides.IsEmpty)
+        {
+            throw new NotSupportedException("AUR-CLOTH-005: Temporary fitting guides currently require the CPU solver.");
+        }
         float h = options.DeltaSeconds / options.Substeps;
         float[] header = new float[32];
         if (!Enum.IsDefined(dispatch.Phase))

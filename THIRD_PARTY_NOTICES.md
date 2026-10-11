@@ -82,6 +82,34 @@ Institute of Standards and Technology. NIST does not endorse Aetheris, no NIST
 code is represented as part of Aetheris, and the models are not represented as
 AGPL-licensed or authored by Aetheris.
 
+## GarmentCode sewing-pattern reference and interchange
+
+The GarmentCode curve-coordinate and stitch conventions used by
+`Aetheris.Kernel.Firmament/Garment/GarmentCodeImport.cs`, and the generated
+shirt/dress reference patterns under `fixtures/Canonical/Garment/GarmentCode/`,
+derive from Maria Korosteleva's MIT-licensed GarmentCode:
+https://github.com/maria-korosteleva/GarmentCode/tree/d449629979028123a5c4dc9e732a2ec19b7fce31.
+Copyright (c) 2024 Maria Korosteleva. The complete unmodified MIT license is
+preserved in `fixtures/Canonical/Garment/GarmentCode/LICENSE.txt` and must
+accompany copies or substantial portions of these derivatives.
+
+Reference recipes: `assets/garment_programs/bodice.py` (`Shirt`, non-fitted),
+`tee.py`, `sleeves.py`, `collars.py`; conventions: `pygarment/pattern/utils.py`
+and `pygarment/meshgen/boxmeshgen.py`. `provenance.json`, design presets and
+body measurements identify the exact upstream experiment. The two Firmament
+dress fixtures are Aetheris translations/adaptations of this reference, not
+independently invented sewing patterns.
+
+Credit the research: Maria Korosteleva and Olga Sorkine-Hornung,
+*GarmentCode: Programming Parametric Sewing Patterns*, SIGGRAPH Asia 2023.
+https://igl.ethz.ch/projects/garmentcode/.
+
+No upstream simulator, Python runtime, body mesh, SMPL/CAESAR data or
+GarmentCodeData dataset is bundled by this adoption. The upstream body README
+describes body-asset provenance separately; dataset/body terms are not
+replaced by the code's MIT license. External body meshes used for local
+research remain external inputs and their original terms still apply.
+
 ## Other dependencies
 
 Cadmata's managed WGSL compilation graph includes Copeland.Markdown,

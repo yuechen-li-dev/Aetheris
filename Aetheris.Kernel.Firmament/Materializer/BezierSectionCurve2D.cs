@@ -107,7 +107,7 @@ internal static class BezierSectionCurve2D
         _ => throw new NotSupportedException($"Unsupported section boundary: {c.GetType().Name}")
     };
 
-    private static (double MinX,double MaxX,double MinY,double MaxY) Bounds(LineArcProfileCurve2D c,double from,double to)
+    internal static (double MinX,double MaxX,double MinY,double MaxY) Bounds(LineArcProfileCurve2D c,double from,double to)
     {
         (double X,double Y)[] points;
         if (c is LineArcCubicBezier2D b)

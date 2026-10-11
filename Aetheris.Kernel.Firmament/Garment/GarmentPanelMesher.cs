@@ -17,6 +17,18 @@ internal static class GarmentPanelMesher
 {
     public static PanelMesh Mesh(GarmentPanel panel, float meshSize)
     {
+        try
+        {
+            return MeshCore(panel, meshSize);
+        }
+        catch (InvalidOperationException exception) when (exception.Message.StartsWith("planar-mesh-", StringComparison.Ordinal))
+        {
+            throw new GarmentAuthoringException("garment-mesh-budget", panel.Name + ": " + exception.Message);
+        }
+    }
+
+    private static PanelMesh MeshCore(GarmentPanel panel, float meshSize)
+    {
         if (panel.Profile.Loops.Count != 1)
         {
             GarmentAuthoring.Fail("garment-profile-holes-unsupported", "This panel mesher currently requires one outer loop; cutouts must meet the outer boundary.");
@@ -29,6 +41,10 @@ internal static class GarmentPanelMesher
             var boundary = new List<int>();
             for (int sample = 0; sample < sampled.Count - 1; sample++)
             {
+                if (points.Count >= 8192)
+                {
+                    GarmentAuthoring.Fail("garment-mesh-budget", panel.Name + " exceeds 8192 boundary vertices; increase meshSize.");
+                }
                 boundary.Add(points.Count);
                 points.Add(sampled[sample]);
             }
@@ -44,6 +60,7 @@ internal static class GarmentPanelMesher
             }
         }
         var polygon = points.Select(point => new Point3D(point.X * 1000d, point.Y * 1000d, 0)).ToArray();
+        PlanarMeshQuality.ValidateFillBudget(polygon, meshSize * 800d);
         if (!PlanarPolygonTriangulator.TryTriangulate(polygon, new Vector3D(0, 0, 1), out var seed, out var failure))
         {
             GarmentAuthoring.Fail("garment-triangulation-failed", panel.Name + ": " + failure);
@@ -58,6 +75,9 @@ internal static class GarmentPanelMesher
                 InsertBoundaryPoint(point, points, indices);
             }
         }
+        var filled = PlanarMeshQuality.FillInterior(polygon, indices, meshSize * 800d);
+        points = filled.Points.Select(point => new Vector2((float)(point.X * .001), (float)(point.Y * .001))).ToList();
+        indices = filled.Indices.ToList();
         for (int pass = 0; pass < 12; pass++)
         {
             indices = PlanarMeshQuality.Improve(points.Select(point =>
@@ -71,6 +91,23 @@ internal static class GarmentPanelMesher
             }
             if (split.Count == 0)
             {
+                foreach (var edit in panel.Profile.BoundaryEdits ?? [])
+                {
+                    var boundary = new List<int>();
+                    foreach (string descendant in edit.Descendants)
+                    {
+                        var next = edges[descendant];
+                        if (boundary.Count > 0 && boundary[^1] != next[0])
+                        {
+                            GarmentAuthoring.Fail("garment-boundary-disconnected", panel.Identity + ".edges." + edit.Name);
+                        }
+                        boundary.AddRange(boundary.Count == 0 ? next : next.Skip(1));
+                    }
+                    if (!edges.TryAdd(edit.Name, boundary) && !edges[edit.Name].SequenceEqual(boundary))
+                    {
+                        GarmentAuthoring.Fail("garment-boundary-name-ambiguous", panel.Identity + ".edges." + edit.Name);
+                    }
+                }
                 return new(points, indices, edges);
             }
             if (points.Count > 8192)
@@ -149,6 +186,10 @@ internal static class GarmentPanelMesher
                 var key = Key(a, b);
                 if (!split.ContainsKey(key) && Vector2.Distance(points[a], points[b]) > meshSize * 1.001f)
                 {
+                    if (points.Count >= 8192)
+                    {
+                        GarmentAuthoring.Fail("garment-mesh-budget", panel.Name + " exceeds 8192 vertices; increase meshSize.");
+                    }
                     split.Add(key, points.Count);
                     points.Add((points[a] + points[b]) * .5f);
                 }
@@ -164,10 +205,16 @@ internal static class GarmentPanelMesher
         switch (curve)
         {
             case LineArcLineSegment2D line:
-                return [Point(line.Start), Point(line.End)];
+            {
+                int count = SegmentCount(GarmentPatternInspection.CurveLength(line) / (meshSize * 800d));
+                return Enumerable.Range(0, count + 1).Select(i => Vector2.Lerp(Point(line.Start), Point(line.End), (float)i / count)).ToList();
+            }
             case LineArcCircularArc2D arc:
             {
-                int count = Math.Clamp((int)Math.Ceiling(Math.Abs(arc.SweepAngleRadians) * arc.Radius / (meshSize * 1000)), 4, 128);
+                double tolerance = Math.Min(1, meshSize * 20d);
+                double maximumAngle = 2 * Math.Acos(Math.Clamp(1 - tolerance / arc.Radius, -1, 1));
+                int count = SegmentCount(Math.Max(Math.Abs(arc.SweepAngleRadians) * arc.Radius / (meshSize * 800),
+                    Math.Abs(arc.SweepAngleRadians) / maximumAngle));
                 return Enumerable.Range(0, count + 1).Select(i =>
                 {
                     double angle = arc.StartAngleRadians + arc.SweepAngleRadians * i / count;
@@ -176,22 +223,58 @@ internal static class GarmentPanelMesher
             }
             case LineArcCubicBezier2D cubic:
             {
-                float length = Vector2.Distance(Point(cubic.Start), Point(cubic.Control1))
-                    + Vector2.Distance(Point(cubic.Control1), Point(cubic.Control2))
-                    + Vector2.Distance(Point(cubic.Control2), Point(cubic.End));
-                int count = Math.Clamp((int)Math.Ceiling(length / meshSize), 8, 128);
-                return Enumerable.Range(0, count + 1).Select(i =>
+                var sampled = new List<Vector2> { Point(cubic.Start) };
+                Subdivide(cubic, 0);
+                return sampled;
+
+                void Subdivide(LineArcCubicBezier2D section, int depth)
                 {
-                    float t = (float)i / count;
-                    float u = 1 - t;
-                    return Point(cubic.Start) * (u * u * u) + Point(cubic.Control1) * (3 * u * u * t)
-                        + Point(cubic.Control2) * (3 * u * t * t) + Point(cubic.End) * (t * t * t);
-                }).ToList();
+                    Vector2 start = Point(section.Start);
+                    Vector2 end = Point(section.End);
+                    Vector2 direction = end - start;
+                    float length = direction.Length();
+                    float deviation = Math.Max(DistanceToChord(Point(section.Control1)), DistanceToChord(Point(section.Control2)));
+                    if (length <= meshSize * .8f && deviation <= Math.Min(.001f, meshSize * .02f))
+                    {
+                        if (sampled.Count >= 4097)
+                        {
+                            GarmentAuthoring.Fail("garment-curve-sampling-budget", "Cubic sampling exceeds 4096 segments.");
+                        }
+                        sampled.Add(end);
+                        return;
+                    }
+                    if (depth == 16)
+                    {
+                        GarmentAuthoring.Fail("garment-curve-sampling-budget", "Cubic sampling did not converge within its bounded error/size budget.");
+                    }
+                    Subdivide(BezierSectionCurve2D.Trim(section, 0, .5), depth + 1);
+                    Subdivide(BezierSectionCurve2D.Trim(section, .5, 1), depth + 1);
+
+                    float DistanceToChord(Vector2 point)
+                    {
+                        if (length < 1e-10f)
+                        {
+                            return Vector2.Distance(point, start);
+                        }
+                        float t = Math.Clamp(Vector2.Dot(point - start, direction) / (length * length), 0, 1);
+                        return Vector2.Distance(point, start + direction * t);
+                    }
+                }
             }
             default:
                 GarmentAuthoring.Fail("garment-curve-unsupported", "Panels currently admit directed lines, circular arcs and cubic Beziers.");
                 return null!;
         }
+    }
+
+    private static int SegmentCount(double required)
+    {
+        double count = Math.Max(1, Math.Ceiling(required));
+        if (!double.IsFinite(count) || count > 4096)
+        {
+            GarmentAuthoring.Fail("garment-curve-sampling-budget", "Boundary sampling exceeds 4096 segments; increase meshSize.");
+        }
+        return (int)count;
     }
 
     private static void InsertBoundaryPoint(int vertex, List<Vector2> points, List<int> indices)

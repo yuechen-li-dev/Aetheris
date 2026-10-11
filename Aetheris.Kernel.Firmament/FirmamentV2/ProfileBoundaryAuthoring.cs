@@ -25,6 +25,26 @@ internal static class ProfileBoundaryAuthoring
         bool RequireTangentJoin = false);
 
     private static string WithoutComments(string text) => Regex.Replace(text, @"/\*.*?\*/|//[^\r\n]*", "", RegexOptions.Singleline);
+    private static string[] SpanNames(Dictionary<string, string> fields, string edit, int count, List<string> diagnostics)
+    {
+        var defaults = Enumerable.Range(0, count).Select(index => $"{edit}_Span{index}").ToArray();
+        if (!fields.TryGetValue("SpanNames", out string? text))
+        {
+            return defaults;
+        }
+        if (!Regex.IsMatch(text, @"^\[\s*[A-Za-z_]\w*(?:\s*,\s*[A-Za-z_]\w*)*\s*\]$"))
+        {
+            diagnostics.Add($"profile-edit-span-names-invalid:{edit}");
+            return defaults;
+        }
+        var names = text[1..^1].Split(',', StringSplitOptions.TrimEntries);
+        if (names.Length != count || names.Distinct(StringComparer.Ordinal).Count() != count)
+        {
+            diagnostics.Add($"profile-edit-span-names-invalid:{edit}:expected-{count}");
+            return defaults;
+        }
+        return names;
+    }
     internal static bool IsDerived(string? body) => body is not null && Regex.IsMatch(WithoutComments(body), @"^\s*From\s*:");
 
     internal static bool TryResolve(string source, string name, HashSet<string> visiting,
@@ -79,7 +99,7 @@ internal static class ProfileBoundaryAuthoring
                 starts.Add(knots.Count); knots.Add(carrier.Start);
                 foreach (var replacement in replacements)
                 {
-                    var replacementFields = Fields(replacement.Body, ["On", "Range", "Through", "Derivatives", "Join", "StartTangent", "EndTangent"], diagnostics, replacement.Name);
+                    var replacementFields = Fields(replacement.Body, ["On", "Range", "Through", "Derivatives", "Join", "StartTangent", "EndTangent", "Interpolation", "SpanNames"], diagnostics, replacement.Name);
                     if (!replacementFields.TryGetValue("On", out var target) || FindMember(segments, target, owner, localFrom) != i) continue;
                     if (replacementFields.ContainsKey("Range")) diagnostics.Add($"profile-edit-periodic-range-not-qualified:{replacement.Name}");
                     if (replacementFields.TryGetValue("Through", out var value)) knots.AddRange(Vectors(value, "mm", diagnostics, replacement.Name));
@@ -98,7 +118,7 @@ internal static class ProfileBoundaryAuthoring
         foreach (var block in replacements)
         {
             if (!ids.Add(block.Name)) { diagnostics.Add($"profile-edit-duplicate-name:{name}.{block.Name}"); continue; }
-            var fields = Fields(block.Body, ["On", "Range", "Through", "Derivatives", "Join", "StartTangent", "EndTangent"], diagnostics, name + "." + block.Name);
+            var fields = Fields(block.Body, ["On", "Range", "Through", "Derivatives", "Join", "StartTangent", "EndTangent", "Interpolation", "SpanNames"], diagnostics, name + "." + block.Name);
             if (!fields.TryGetValue("On", out var on)) { diagnostics.Add($"profile-edit-target-missing:{block.Name}"); continue; }
             var index = FindMember(segments, on, owner, localFrom);
             if (index < 0) { diagnostics.Add($"profile-edit-target-missing:{block.Name}:{on}"); continue; }
@@ -109,6 +129,37 @@ internal static class ProfileBoundaryAuthoring
             if (!ValidRange(range, length)) { diagnostics.Add($"profile-edit-range-invalid:{block.Name}"); continue; }
             if (!fields.TryGetValue("Through", out var through)) { diagnostics.Add($"profile-edit-construction-required:{block.Name}:Through"); continue; }
             var points = Vectors(through, "mm", diagnostics, block.Name);
+            string interpolation = fields.GetValueOrDefault("Interpolation", "Hermite");
+            if (interpolation is not ("Hermite" or "Linear"))
+            {
+                diagnostics.Add($"profile-edit-interpolation-invalid:{block.Name}:{interpolation}");
+                continue;
+            }
+            if (interpolation == "Linear")
+            {
+                if (fields.Keys.Any(key => key is "Derivatives" or "StartTangent" or "EndTangent")
+                    || fields.GetValueOrDefault("Join", "Position") != "Position")
+                {
+                    diagnostics.Add($"profile-edit-construction-conflict:{block.Name}:Linear-and-tangents");
+                    continue;
+                }
+                var direction = Subtract(line.End, line.Start);
+                var knots = new[] { Add(line.Start, Scale(direction, range.Item1 / length)) }
+                    .Concat(points).Append(Add(line.Start, Scale(direction, range.Item2 / length))).ToArray();
+                var linearCurves = new List<(string Name, LineArcProfileCurve2D Curve)>();
+                var names = SpanNames(fields, block.Name, knots.Length - 1, diagnostics);
+                for (int knot = 0; knot + 1 < knots.Length; knot++)
+                {
+                    if (Distance(knots[knot], knots[knot + 1]) <= Tol)
+                    {
+                        diagnostics.Add($"profile-edit-repeated-point:{block.Name}");
+                    }
+                    linearCurves.Add((names[knot], new LineArcLineSegment2D(knots[knot], knots[knot + 1])));
+                }
+                edits.Add(new(block.Name, index, range.Item1 / length, range.Item2 / length,
+                    linearCurves, "LinearThrough", $"profile:{name}/Replace:{block.Name}"));
+                continue;
+            }
             var derivatives = fields.TryGetValue("Derivatives", out var derivativeText)
                 ? derivativeText == "Periodic" ? periodic.GetValueOrDefault(index) : Vectors(derivativeText, "mm", diagnostics, block.Name) : null;
             var join = fields.GetValueOrDefault("Join", "Position");
@@ -119,8 +170,9 @@ internal static class ProfileBoundaryAuthoring
                 diagnostics.Add($"profile-edit-construction-conflict:{block.Name}:Derivatives-and-tangents");
             var construction = new ProfileThroughConstruction(points, derivatives, startTangent, endTangent, join == "Tangent");
             var curves = Construct(line, range, construction, diagnostics, block.Name);
+            var curveNames = SpanNames(fields, block.Name, curves.Count, diagnostics);
             edits.Add(new(block.Name, index, range.Item1 / length, range.Item2 / length,
-                curves.Select((c, i) => ($"{block.Name}_Span{i}", (LineArcProfileCurve2D)c)).ToArray(),
+                curves.Select((c, i) => (curveNames[i], (LineArcProfileCurve2D)c)).ToArray(),
                 derivatives is null ? "ChordHermite" : derivativeText == "Periodic" ? "PeriodicHermite" : "ExplicitHermite", $"profile:{name}/Replace:{block.Name}", construction.MatchTangent));
         }
         foreach (var apply in applies)
@@ -174,9 +226,20 @@ internal static class ProfileBoundaryAuthoring
                     Derivation = FormattableString.Invariant($"RetainedBoundary:{a:R}..{b:R}") }));
             }
         }
-        result = new(name, seed.PlaneFrame, [new("Outer", true, output)], seed.ConstructionPlane,
-            BoundaryEdits: edits.Select(e => new ProfileBoundaryEditEvidence(e.Name, segments[e.Segment].Name, e.From, e.To,
-                e.Construction, e.Curves.Select(c => c.Name).ToArray(), e.SourceSpan)).ToArray());
+        if (output.Select(segment => segment.Name).Distinct(StringComparer.Ordinal).Count() != output.Count)
+        {
+            diagnostics.Add($"profile-edit-span-name-duplicate:{name}");
+            return true;
+        }
+        var retainedEdits = (seed.BoundaryEdits ?? []).Where(edit => edit.Descendants.All(descendant => output.Any(segment => segment.Name == descendant)));
+        var boundaryEdits = retainedEdits.Concat(edits.Select(e => new ProfileBoundaryEditEvidence(e.Name, segments[e.Segment].Name, e.From, e.To,
+            e.Construction, e.Curves.Select(c => c.Name).ToArray(), e.SourceSpan))).ToArray();
+        if (boundaryEdits.Select(edit => edit.Name).Distinct(StringComparer.Ordinal).Count() != boundaryEdits.Length)
+        {
+            diagnostics.Add($"profile-edit-duplicate-name:{name}:retained-edit-name");
+            return true;
+        }
+        result = new(name, seed.PlaneFrame, [new("Outer", true, output)], seed.ConstructionPlane, BoundaryEdits: boundaryEdits);
         diagnostics.AddRange(ResolvedProfile2DValidator.Validate(result).Diagnostics);
         if (edits.Count > 0) ValidateSimple(output, diagnostics, name);
         foreach (var edit in edits.Where(e => e.RequireTangentJoin))

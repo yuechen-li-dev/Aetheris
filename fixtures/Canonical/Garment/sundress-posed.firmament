@@ -1,0 +1,79 @@
+schema Garment
+
+Pose fitting { figure: Anatolia; from: TPose; }
+Pose wearing { figure: Anatolia; from: APose; }
+PoseTransition lowerArms {
+  from: fitting;
+  to: wearing;
+  duration: 0.5s;
+  easing: SmoothStep;
+}
+
+
+// A single loose dress. Armholes stay open; there is no sleeve threading or layering.
+Concept Struct dressLayout {
+  FigureFit body { figure: Anatolia; pose: Rest; chestHeight: 1280mm; hipHeight: 960mm; }
+  Points<Point3> arrangement {
+    front: Point3(0mm, dressLayout.body.centerY, 650mm);
+    back: Point3(0mm, dressLayout.body.centerY, 650mm);
+  }
+}
+
+Feature SundressPanel(bodyWidth: Length, shoulderWidth: Length,
+    height: Length = 880mm, necklineWidth: Length = 210mm, necklineDepth: Length = 80mm) -> Profile {
+  let halfShoulder: Length = shoulderWidth / 2;
+  let halfBody: Length = bodyWidth / 2;
+  let halfHeight: Length = height / 2;
+  let pitHeight: Length = height - 240mm;
+  let shoulderRise: Length = height - 120mm;
+  let halfNeck: Length = necklineWidth / 2;
+  let neckStart: Length = halfShoulder - halfNeck;
+  let neckEnd: Length = halfShoulder + halfNeck;
+  let neckBottom: Length = height - necklineDepth;
+  Rect2 blank { center: [0mm, halfHeight]; size: [shoulderWidth, height] }
+  return Profile {
+    from: blank;
+    Replace rightCut {
+      on: blank.Right;
+      through: [[halfBody, 0mm], [halfBody, pitHeight], [halfShoulder, shoulderRise]];
+      interpolation: Linear;
+      spanNames: [rightHem, rightSide, rightArmholeLower, rightArmholeUpper];
+    }
+    Replace leftCut {
+      on: blank.Left;
+      through: [[-halfShoulder, shoulderRise], [-halfBody, pitHeight], [-halfBody, 0mm]];
+      interpolation: Linear;
+      spanNames: [leftArmholeUpper, leftArmholeLower, leftSide, leftHem];
+    }
+    Replace neckline {
+      on: blank.Top; range: [neckStart, neckEnd]; through: [[0mm, neckBottom]];
+    }
+  }
+}
+Feature frontCut = SundressPanel(bodyWidth: dressLayout.body.torsoCircumference / 2 + 160mm,
+    shoulderWidth: dressLayout.body.shoulderWidth + 30mm);
+Feature backCut = SundressPanel(bodyWidth: dressLayout.body.torsoCircumference / 2 + 160mm,
+    shoulderWidth: dressLayout.body.shoulderWidth + 30mm, necklineDepth: 40mm);
+
+Garment Sundress {
+  meshSize: 65mm;
+  Fabric cotton {
+    thickness: 2mm; arealDensity: 0.2;
+    warpCompliance: 0.00000001; weftCompliance: 0.00000001; diagonalCompliance: 0.00000004;
+  }
+  Panel front {
+    profile: frontCut; origin: dressLayout.arrangement.front;
+    u: [1, 0, 0]; v: [0, 0, 1]; grain: [0, 1];
+    wrapRadius: (dressLayout.body.torsoCircumference / 2 + 160mm) / 3.141592653589793;
+  }
+  Panel back {
+    profile: backCut; origin: dressLayout.arrangement.back;
+    u: [-1, 0, 0]; v: [0, 0, 1]; grain: [0, 1];
+    wrapRadius: (dressLayout.body.torsoCircumference / 2 + 160mm) / 3.141592653589793;
+  }
+  Interface<Stitch> rightSide { a: front.edges.rightSide; b: back.edges.leftSide; orientation: Reversed; }
+  Interface<Stitch> leftSide { a: front.edges.leftSide; b: back.edges.rightSide; orientation: Reversed; }
+  Interface<Stitch> rightShoulder { a: front.edges.Top_Between_Start_neckline; b: back.edges.Top_Between_neckline_End; orientation: Reversed; }
+  Interface<Stitch> leftShoulder { a: front.edges.Top_Between_neckline_End; b: back.edges.Top_Between_Start_neckline; orientation: Reversed; }
+  Drape { figure: Anatolia; pose: fitting; transition: lowerArms; clearance: 4mm; }
+}

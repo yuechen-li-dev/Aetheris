@@ -37,8 +37,23 @@ public static class GarmentStitchDeclaration { }
 [FirmamentField("BendCompliance", "BendCompliance", FirmamentSchemaValueKind.Scalar)]
 public static class GarmentFabricDeclaration { }
 
-[FirmamentConstruct("Drape", "Drape", Context = "Garment", Entry = "Drape { figure: Anatolia; pose: Rest; clearance: 4mm; }", Description = "A named figure binding supplied by the host. The first lane sews and settles on the loaded static Rest-pose body.")]
+[FirmamentConstruct("Drape", "Drape", Context = "Garment", Entry = "Drape { figure: Anatolia; pose: Rest; clearance: 4mm; }", Description = "A figure and authored pose binding, with an optional finite transition sampled during cloth simulation.")]
 [FirmamentField("Figure", "Figure", FirmamentSchemaValueKind.ConstructReference, Required = true)]
-[FirmamentField("Pose", "Pose", FirmamentSchemaValueKind.Choice, Choices = ["Rest"])]
+[FirmamentField("Pose", "Pose", FirmamentSchemaValueKind.ConstructReference, Default = "Rest")]
 [FirmamentField("Clearance", "Clearance", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length)]
+[FirmamentField("Transition", "Transition", FirmamentSchemaValueKind.ConstructReference)]
 public static class GarmentDrapeDeclaration { }
+
+[FirmamentConstruct("FigureFit", "FigureFit", Context = "Concept Struct", Entry = "FigureFit body { figure: Anatolia; pose: Rest; }", Description = "Checked surface sections and joint guides of an explicitly supplied gameplay body and measurement pose. Publishes Length values for ordinary Features and Concept placement.")]
+[FirmamentField("Figure", "Figure", FirmamentSchemaValueKind.ConstructReference, Required = true)]
+[FirmamentField("Pose", "Pose", FirmamentSchemaValueKind.ConstructReference, Default = "Rest")]
+[FirmamentField("ChestHeight", "ChestHeight", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length)]
+[FirmamentField("HipHeight", "HipHeight", FirmamentSchemaValueKind.Length, Unit = FirmamentUnitKind.Length)]
+public static class GarmentFigureFitDeclaration { }
+
+[FirmamentConstruct("Fitting", "Fitting", Context = "Garment", Entry = "Fitting collar { on: guides.collarFloor; edges: [front.edges.collar]; compliance: 0.000001; releaseAfter: 20; }", Description = "Temporary named-edge half-space constraints compiled from an erased Concept plane. Released after the declared number of settling frames, with at least 15 unsupported frames before qualification.")]
+[FirmamentField("On", "On", FirmamentSchemaValueKind.ConstructReference, Required = true)]
+[FirmamentField("Edges", "Edges", FirmamentSchemaValueKind.ConstructReference, Required = true)]
+[FirmamentField("Compliance", "Compliance", FirmamentSchemaValueKind.Scalar, Default = "0.000001")]
+[FirmamentField("ReleaseAfter", "ReleaseAfter", FirmamentSchemaValueKind.Scalar, Required = true)]
+public static class GarmentFittingDeclaration { }

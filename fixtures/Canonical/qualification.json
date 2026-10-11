@@ -1,6 +1,10 @@
 {
   "schemaVersion": 1,
   "expectedDiagnostics": [
+    { "path": "Garment/garmentcode-dress-guided.firmament", "codes": ["garment-fit-body-required"] },
+    { "path": "Garment/tshirt-dress.firmament", "codes": ["garment-fit-body-required"] },
+    { "path": "Garment/sundress.firmament", "codes": ["garment-fit-body-required"] },
+    { "path": "Garment/sundress-posed.firmament", "codes": ["garment-fit-body-required"] },
     { "path": "PlasticShell/plastic-shell-autorib-materialized.firmament", "codes": ["plastic-shell-constant-section-feature-zero-draft"] },
     { "path": "PlasticShell/plastic-shell-enclosure.firmament", "codes": ["plastic-shell-constant-section-feature-zero-draft"] },
     { "path": "PlasticShell/plastic-shell-materialized-enclosure.firmament", "codes": ["plastic-shell-constant-section-feature-zero-draft"] },

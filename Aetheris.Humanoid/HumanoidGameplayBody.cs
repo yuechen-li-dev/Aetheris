@@ -71,6 +71,13 @@ public sealed class HumanoidGameplayBody
         return new(positions, evidence);
     }
 
+    /// <summary>Evaluate the admitted skinning pose without a repeated surface screen.
+    /// Authoring checkpoints use Evaluate to retain deformation diagnostics.</summary>
+    public IReadOnlyList<Aetheris.Kernel.Core.Math.Point3D> EvaluatePositions(SolvedHumanoidPose pose)
+    {
+        return binding.Evaluate(pose);
+    }
+
     public IReadOnlyList<HumanoidSkinDualQuaternion> CreatePalette(SolvedHumanoidPose pose) =>
         binding.CreatePalette(pose);
 

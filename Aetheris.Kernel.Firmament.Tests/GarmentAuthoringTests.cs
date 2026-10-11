@@ -8,6 +8,25 @@ namespace Aetheris.Kernel.Firmament.Tests;
 
 public sealed class GarmentAuthoringTests
 {
+    [Fact]
+    public void ExcessivePanelFillReturnsAnOwnedBudgetDiagnostic()
+    {
+        const string source = """
+            schema Garment
+            Rect2 blank { center: [0mm, 0mm]; size: [20000mm, 20000mm]; }
+            Profile cut { from: blank; }
+            Garment test {
+              meshSize: 20mm;
+              Fabric cotton { thickness: 2mm; arealDensity: 0.2; }
+              Panel sheet { profile: cut; origin: [0mm, 0mm, 0mm]; }
+            }
+            """;
+        var result = GarmentCompiler.Compile(source, "budget.firmament");
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "garment-mesh-budget"
+            && diagnostic.SourceIdentity == "budget.firmament");
+    }
+
     [Theory]
     [InlineData("tunic", 2, 4)]
     [InlineData("shorts", 4, 8)]
@@ -58,7 +77,7 @@ public sealed class GarmentAuthoringTests
     [InlineData("grain: [0, 1]", "grain: [0, 2]", "garment-grain-invalid")]
     [InlineData("v: [0, 0, 1]", "v: [0, 0, 2]", "garment-panel-frame-invalid")]
     [InlineData("meshSize: 65mm", "meshSize: 1mm", "garment-mesh-budget")]
-    [InlineData("pose: Rest", "pose: Walk", "garment-pose-unsupported")]
+    [InlineData("pose: Rest", "pose: Walk", "humanoid-pose-reference")]
     [InlineData("front => SidePlacement", "front: SidePlacement", "firmament-v2-static-set-entry")]
     public void InvalidAuthoringStopsWithAnOwnedDiagnostic(string before, string after, string code)
     {

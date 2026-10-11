@@ -114,6 +114,31 @@ Repeated adjacent points, zero derivatives/tangents, cubic cusps and individual
 cubic self-crossings are rejected. There are at most 1,024 knots per replacement
 and 1,024 resulting segments in an edited loop.
 
+## Straight cuts and authored span names
+
+`Interpolation: Linear` joins the inherited endpoints and Through-points with
+exact line segments. The default remains `Hermite`. Linear construction cannot
+also request derivatives, endpoint tangents or `Join: Tangent`.
+
+```firmament
+Replace Sleeve {
+    On: Blank.Right
+    Through: [[280mm,640mm], [400mm,660mm], [400mm,825mm]]
+    Interpolation: Linear
+    SpanNames: [side, sleeveLower, sleeveOpening, sleeveUpper]
+}
+```
+
+`SpanNames` is optional for either interpolation. It supplies one unique authored
+identifier per resulting line/cubic. Count mismatches and collisions with other
+result spans fail. Without it, existing `Sleeve_Span0` names remain unchanged.
+This is ordinary Profile construction, also usable by extrusion and Sheet Metal;
+it does not encode textile or simulation behavior.
+
+Unchanged edit groups retain their ordered descendant evidence through another
+Profile derivation. If any descendant is consumed, its old group is no longer a
+complete boundary view and is not silently rebound to the replacement.
+
 ## Validation, identities and inspection
 
 Validation checks closure, winding, coincident overlap, inter-span crossings
@@ -206,7 +231,8 @@ and reported error bound before they can be materialized. Exact BRep geometry of
 an approximant must not be reported as an exact representation of the equation.
 After equation binding, the ordinary boundary-edit validity checks still apply.
 See the [larger design proposal](programmable-profile-loops-proposal.md) for
-deferred periodic intervals, Curve2 payloads, inner loops and Profile-valued Features.
+deferred periodic intervals, Curve2 payloads and inner loops. Profile-valued
+Features are supported by the current [garment authoring workflow](garments.md).
 
 ## Owl authoring update
 

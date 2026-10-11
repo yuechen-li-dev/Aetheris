@@ -187,7 +187,12 @@ public static class FirmamentSourceSpelling
         Add("Panel", "Profile Origin U V Grain Pin PatternIdentity WrapRadius WrapAngle WrapTopRadius WrapTopOrigin WrapTopAngle");
         Add("Fabric", "ArealDensity Thickness WarpCompliance WeftCompliance DiagonalCompliance BendCompliance");
         Add("Interface", "A B Orientation Ease Compliance");
-        Add("Drape", "Figure Pose Clearance");
+        Add("Drape", "Figure Pose Clearance Transition");
+        Add("Fitting", "On Edges Compliance ReleaseAfter");
+        Add("Pose", "Figure From");
+        Add("Joint", "Flexion Abduction Twist");
+        Add("PoseTransition", "From To Duration Easing");
+        Add("FigureFit", "Figure Pose ChestHeight HipHeight");
         Add("Assembly Subassembly", "Anchor Provenance Appearance");
         Add("Part Occurrence", "Material Appearance");
         Add("Plane DatumPlane", "Origin Normal Up From Offset RotateLocal Clocking");
@@ -201,7 +206,8 @@ public static class FirmamentSourceSpelling
         Add("CubicBezier2", "From Control1 Control2 To");
         Add("Line2", "From To");
         Add("Profile", "From");
-        Add("Replace", "On Through Derivatives");
+        Add("Segment", "Trace From To Sweep");
+        Add("Replace", "On Range Through Derivatives Join StartTangent EndTangent Interpolation SpanNames");
         Add("Path", "Start Heading");
         Add("Line", "Length To");
         Add("Extrude Base", "Profile From To Role");

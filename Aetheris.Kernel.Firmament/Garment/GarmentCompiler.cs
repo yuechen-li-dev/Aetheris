@@ -6,6 +6,7 @@ namespace Aetheris.Kernel.Firmament.Garment;
 
 public sealed record CompiledGarment(GarmentSource Source, CompiledCloth3D Cloth, ImmutableArray<GarmentMeshPanel> Panels)
 {
+    public ImmutableArray<CompiledGarmentFittingGuide> FittingGuides { get; init; } = [];
     public float MaximumSeamGap(ClothSnapshot3D snapshot)
     {
         ClothState3D.ValidateSnapshot(Cloth, snapshot);
@@ -23,6 +24,8 @@ public sealed record CompiledGarment(GarmentSource Source, CompiledCloth3D Cloth
     }
 }
 
+public sealed record CompiledGarmentFittingGuide(string ConceptPlane, ClothHalfSpaceGuide3D Constraint, int ReleaseAfter);
+
 public sealed record GarmentCompilationResult(CompiledGarment? Garment, IReadOnlyList<GarmentDiagnostic> Diagnostics)
 {
     public bool IsSuccess => Garment is not null && Diagnostics.Count == 0;
@@ -30,9 +33,9 @@ public sealed record GarmentCompilationResult(CompiledGarment? Garment, IReadOnl
 
 public static class GarmentCompiler
 {
-    public static GarmentCompilationResult Compile(string source, string sourceIdentity = "<memory>")
+    public static GarmentCompilationResult Compile(string source, string sourceIdentity = "<memory>", GarmentFigureBinding? figureBinding = null)
     {
-        var parsed = GarmentAuthoring.Parse(source, sourceIdentity);
+        var parsed = GarmentAuthoring.Parse(source, sourceIdentity, figureBinding);
         if (!parsed.IsSuccess)
         {
             return new(null, parsed.Diagnostics);
@@ -53,6 +56,7 @@ public static class GarmentCompiler
 
     private static CompiledGarment Compile(GarmentSource source)
     {
+        _ = GarmentPatternInspection.Inspect(source);
         var rest = new List<Vector3>();
         var initial = new List<Vector3>();
         var coordinates = new List<Vector2>();
@@ -113,11 +117,9 @@ public static class GarmentCompiler
             float[] distancesB = Distances(b);
             float lengthA = distancesA[^1];
             float lengthB = distancesB[^1];
-            float mismatch = MathF.Abs(lengthA - lengthB) / MathF.Max(lengthA, lengthB);
-            if (mismatch > seam.Ease + .001f)
-            {
-                GarmentAuthoring.Fail("garment-stitch-length-mismatch", seam.Name + $": edge lengths {lengthA:R}m and {lengthB:R}m require explicit ease >= {mismatch:R}.");
-            }
+            // PatternInspection already validates the analytic cut lengths and authored ease.
+            // Different curved edges acquire different chord errors during meshing; those
+            // errors must not redefine the sewing pattern's physical ease allowance.
             var samples = distancesA.Select(distance => distance / lengthA)
                 .Concat(distancesB.Select(distance => seam.Reversed ? 1 - distance / lengthB : distance / lengthB))
                 .Order().Aggregate(new List<float>(), (list, value) =>
@@ -145,24 +147,29 @@ public static class GarmentCompiler
             Pins = pins.Order().ToImmutableArray(),
             Material = source.Fabric,
         };
-        return new(source, definition.Compile(), compiledPanels);
+        var guides = source.FittingGuides.Select(guide => new CompiledGarmentFittingGuide(guide.ConceptPlane,
+            new(guide.Name, guide.Edges.SelectMany(reference => Boundary(reference, false)).Distinct().Order().ToImmutableArray(),
+                guide.Normal, guide.Offset, guide.Compliance), guide.ReleaseAfter)).ToImmutableArray();
+        var cloth = definition.Compile();
+        ClothState3D.ValidateStep(cloth, new(), new() { Guides = guides.Select(guide => guide.Constraint).ToImmutableArray() });
+        return new(source, cloth, compiledPanels) { FittingGuides = guides };
 
-        ImmutableArray<int> Boundary(string reference)
+        ImmutableArray<int> Boundary(string reference, bool seam = true)
         {
             int separator = reference.IndexOf(".edges.", StringComparison.Ordinal);
             if (separator < 1)
             {
-                GarmentAuthoring.Fail("garment-stitch-reference", "Use panel.edges.namedSpan: " + reference);
+                GarmentAuthoring.Fail(seam ? "garment-stitch-reference" : "garment-fitting-reference", "Use panel.edges.namedSpan: " + reference);
             }
             string panelName = reference[..separator];
             string edgeName = reference[(separator + 7)..];
             var panel = compiledPanels.SingleOrDefault(panel => panel.Name == panelName || panel.Identity == panelName);
             if (panel is null || !panel.Edges.ContainsKey(edgeName))
             {
-                GarmentAuthoring.Fail("garment-stitch-edge-unknown", reference);
+                GarmentAuthoring.Fail(seam ? "garment-stitch-edge-unknown" : "garment-fitting-edge-unknown", reference);
             }
             string canonical = panel!.Identity + ".edges." + edgeName;
-            if (!usedEdges.Add(canonical))
+            if (seam && !usedEdges.Add(canonical))
             {
                 GarmentAuthoring.Fail("garment-stitch-edge-reused", canonical + " already has a seam.");
             }

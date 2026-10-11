@@ -11,7 +11,15 @@ public interface IClothBodySurface3D
     ClothBodySample3D Query(Vector3 position);
 }
 
-/// <summary>Immutable pose snapshot with a nearest-triangle BVH. Outward triangle winding
+/// <summary>Externally authored motion sampled at an explicit absolute time.
+/// Replay requires the same BodyTimeSeconds input alongside the cloth snapshot.</summary>
+public interface IClothKinematicBodySurface3D : IClothBodySurface3D
+{
+    void Sample(double seconds);
+}
+
+/// <summary>Topology-owned pose snapshot with a nearest-triangle BVH. Refit is an explicit,
+/// externally synchronized operation between solver substeps. Outward triangle winding
 /// is a caller contract. This is a discrete oriented surface query, not a watertight SDF or CCD.</summary>
 public sealed class ClothTriangleBody3D : IClothBodySurface3D
 {
@@ -60,6 +68,67 @@ public sealed class ClothTriangleBody3D : IClothBodySurface3D
         }
         triangles = Enumerable.Range(0, indices.Length / 3).ToArray();
         Build(0, triangles.Length);
+    }
+
+    public void Refit(IReadOnlyList<Vector3> updatedPositions)
+    {
+        if (updatedPositions.Count != positions.Length)
+        {
+            throw new ArgumentException("Body refit must preserve vertex count and triangle topology.");
+        }
+        var updatedNormals = new Vector3[positions.Length];
+        foreach (var position in updatedPositions)
+        {
+            ClothValidation3D.Finite(position);
+        }
+        for (int face = 0; face < indices.Length; face += 3)
+        {
+            int a = indices[face];
+            int b = indices[face + 1];
+            int c = indices[face + 2];
+            var normal = Vector3.Cross(updatedPositions[b] - updatedPositions[a], updatedPositions[c] - updatedPositions[a]);
+            if (normal.LengthSquared() <= 1e-20f)
+            {
+                throw new ArgumentException("Body refit has a degenerate triangle.");
+            }
+            updatedNormals[a] += normal;
+            updatedNormals[b] += normal;
+            updatedNormals[c] += normal;
+        }
+        for (int vertex = 0; vertex < positions.Length; vertex++)
+        {
+            positions[vertex] = updatedPositions[vertex];
+            normals[vertex] = updatedNormals[vertex];
+            if (normals[vertex].LengthSquared() > 1e-20f)
+            {
+                normals[vertex] = Vector3.Normalize(normals[vertex]);
+            }
+        }
+        // Build records parents before children, so the reverse traversal refits leaves first.
+        for (int index = nodes.Count - 1; index >= 0; index--)
+        {
+            var node = nodes[index];
+            Vector3 minimum = new(float.PositiveInfinity);
+            Vector3 maximum = new(float.NegativeInfinity);
+            if (node.Count == 0)
+            {
+                minimum = Vector3.Min(nodes[node.Left].Minimum, nodes[node.Right].Minimum);
+                maximum = Vector3.Max(nodes[node.Left].Maximum, nodes[node.Right].Maximum);
+            }
+            else
+            {
+                for (int triangle = node.Start; triangle < node.Start + node.Count; triangle++)
+                {
+                    for (int corner = 0; corner < 3; corner++)
+                    {
+                        var point = positions[indices[triangles[triangle] * 3 + corner]];
+                        minimum = Vector3.Min(minimum, point);
+                        maximum = Vector3.Max(maximum, point);
+                    }
+                }
+            }
+            nodes[index] = node with { Minimum = minimum, Maximum = maximum };
+        }
     }
 
     public ClothBodySample3D Query(Vector3 position)

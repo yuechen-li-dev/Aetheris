@@ -45,19 +45,37 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--bottom", choices=("shorts", "skirt", "flared-skirt"), default="skirt")
+    parser.add_argument("--garment", help="Render one garment instead of composing a tunic and bottom.")
+    parser.add_argument("--input-dir", type=Path, help="Directory containing the actual garment.obj and body.obj exports.")
     parser.add_argument("--samples", type=int, default=32)
+    parser.add_argument("--frame", choices=("guided", "fitting", "midway", "wearing"), help="Render a retained solver checkpoint.")
     options = parser.parse_args(sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else [])
     source = options.root / "artifacts/local/garment"
-    output = source / "renders" / options.bottom
+    output = source / "renders" / (options.garment or options.bottom)
+    if options.frame:
+        if not options.garment:
+            parser.error("--frame requires --garment")
+        output = output / options.frame
     output.mkdir(parents=True, exist_ok=True)
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete(use_global=False)
-    body_path = source / options.bottom / "body.obj"
-    tunic_path = source / "tunic/garment.obj"
-    bottom_path = source / options.bottom / "garment.obj"
+    if options.garment:
+        inputs = options.input_dir or source / options.garment
+        prefix = options.frame + "-" if options.frame else ""
+        body_path = inputs / (prefix + "body.obj")
+        garment_path = inputs / (prefix + "garment.obj")
+        garment_inputs = [body_path, garment_path]
+    else:
+        body_path = source / options.bottom / "body.obj"
+        tunic_path = source / "tunic/garment.obj"
+        bottom_path = source / options.bottom / "garment.obj"
+        garment_inputs = [body_path, tunic_path, bottom_path]
     load_obj(body_path, material("neutral mannequin", (.48, .47, .43), .65))
-    load_obj(tunic_path, material("untextured tunic", (.08, .24, .31), .8))
-    load_obj(bottom_path, material("untextured bottom", (.11, .14, .22), .8))
+    if options.garment:
+        load_obj(garment_path, material("untextured dress", (.035, .19, .18), .8))
+    else:
+        load_obj(tunic_path, material("untextured tunic", (.08, .24, .31), .8))
+        load_obj(bottom_path, material("untextured bottom", (.11, .14, .22), .8))
     bpy.ops.mesh.primitive_plane_add(size=200, location=(0, 0, -.005))
     bpy.context.object.data.materials.append(material("floor", (.24, .26, .29), .9))
     scene = bpy.context.scene
@@ -89,9 +107,9 @@ def main():
     camera.data.ortho_scale = 2.05
     scene.camera = camera
     for name, location in (
-        ("front", (2.6, 4, 2)),
-        ("side", (4, .3, 1.8)),
-        ("back", (2.6, -4, 2)),
+        ("front", (0, 4, 1.2)),
+        ("side", (4, -.035, 1.2)),
+        ("back", (0, -4, 1.2)),
     ):
         camera.location = location
         camera.rotation_euler = (Vector((0, -.035, .9)) - camera.location).to_track_quat("-Z", "Y").to_euler()
@@ -99,9 +117,10 @@ def main():
         bpy.ops.render.render(write_still=True)
     bpy.ops.wm.save_as_mainfile(filepath=str(output / "garment-preview.blend"))
     evidence = {
-        "geometryAuthority": "Aetheris.CLI garment drape; Blender only presents retained OBJ meshes",
-        "inputs": {str(path): hashlib.sha256(path.read_bytes()).hexdigest() for path in (body_path, tunic_path, bottom_path)},
-        "bottom": options.bottom,
+        "geometryAuthority": "Aetheris garment runtime exports; Blender only presents retained OBJ meshes",
+        "inputs": {str(path): hashlib.sha256(path.read_bytes()).hexdigest() for path in garment_inputs},
+        "garment": options.garment or options.bottom,
+        "frame": options.frame,
         "textures": False,
     }
     (output / "render-evidence.json").write_text(json.dumps(evidence, indent=2), encoding="utf-8")

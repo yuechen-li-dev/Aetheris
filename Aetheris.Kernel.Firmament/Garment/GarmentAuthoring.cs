@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using Aetheris.Cloth3D;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Kernel.Firmament.Materializer;
+using Aetheris.Kernel.Firmament.Humanoid;
 
 namespace Aetheris.Kernel.Firmament.Garment;
 
@@ -15,11 +16,19 @@ public sealed record GarmentPanel(string Name, string Identity, ResolvedProfile2
     Vector3 Origin, Vector3 U, Vector3 V, Vector2 Grain, ImmutableArray<string> Pins,
     float? WrapRadius, float WrapAngle, float? WrapTopRadius, Vector3? WrapTopOrigin, float WrapTopAngle);
 public sealed record GarmentStitch(string Name, string A, string B, bool Reversed, float Ease, float Compliance);
+public sealed record GarmentFittingGuide(string Name, string ConceptPlane, ImmutableArray<string> Edges,
+    Vector3 Normal, float Offset, float Compliance, int ReleaseAfter);
 public sealed record GarmentSource(string Name, string SourceIdentity, string SourceHash,
     ClothMaterial3D Fabric, float MeshSize, ImmutableArray<GarmentPanel> Panels,
     ImmutableArray<GarmentStitch> Stitches, string? Figure, string? Pose,
     IReadOnlyList<FirmamentV2FeatureInvocation> Features,
-    IReadOnlyList<FirmamentV2CanonicalPatternDecl> Patterns, float BodyClearance);
+    IReadOnlyList<FirmamentV2CanonicalPatternDecl> Patterns, float BodyClearance)
+{
+    public IReadOnlyList<GarmentFigureFitEvidence> FigureFits { get; init; } = [];
+    public FirmamentPoseDocument? Posing { get; init; }
+    public string? Transition { get; init; }
+    public ImmutableArray<GarmentFittingGuide> FittingGuides { get; init; } = [];
+}
 public sealed record GarmentParseResult(GarmentSource? Source, IReadOnlyList<GarmentDiagnostic> Diagnostics)
 {
     public bool IsSuccess => Source is not null && Diagnostics.Count == 0;
@@ -51,15 +60,19 @@ public static class GarmentAuthoring
         return false;
     }
 
-    public static GarmentParseResult Parse(string source, string sourceIdentity = "<memory>")
+    public static GarmentParseResult Parse(string source, string sourceIdentity = "<memory>", GarmentFigureBinding? figureBinding = null)
     {
         try
         {
-            return ParseCore(source, sourceIdentity);
+            return ParseCore(source, sourceIdentity, figureBinding);
         }
         catch (GarmentAuthoringException exception)
         {
             return new(null, [new(exception.Code, exception.Message, sourceIdentity)]);
+        }
+        catch (InvalidDataException exception)
+        {
+            return new(null, [new(exception.Message.Split(':')[0], exception.Message, sourceIdentity)]);
         }
         catch (Exception exception) when (exception is FormatException or OverflowException or ArgumentException)
         {
@@ -67,7 +80,7 @@ public static class GarmentAuthoring
         }
     }
 
-    private static GarmentParseResult ParseCore(string original, string identity)
+    private static GarmentParseResult ParseCore(string original, string identity, GarmentFigureBinding? figureBinding)
     {
         var selection = FirmamentFrontendSchemas.Select(original);
         if (!selection.IsSuccess)
@@ -86,6 +99,10 @@ public static class GarmentAuthoring
             Array.Fill(characters, ' ', token.Start, token.Length);
         }
         source = new string(characters);
+        var posing = HumanoidPoseAuthoring.Parse(source);
+        source = posing.RemainingSource;
+        var figureFits = new List<GarmentFigureFitEvidence>();
+        source = GarmentFigureAuthoring.Expand(source, figureBinding, figureFits, posing);
         var expansionDiagnostics = new List<string>();
         var features = FirmamentV2FeatureExpansion.Expand(source, expansionDiagnostics);
         if (features is null || expansionDiagnostics.Count > 0)
@@ -98,11 +115,37 @@ public static class GarmentAuthoring
             return ExpansionFailure(expansionDiagnostics, identity);
         }
         source = patterns.Source;
-        var reader = new Reader(source);
+        var reader = new FirmamentBlockReader(source, Fail);
         while (!reader.End && reader.Peek != "Garment")
         {
             if (reader.Optional(";"))
             {
+                continue;
+            }
+            if (reader.Peek == "Concept")
+            {
+                reader.Expect("Concept");
+                reader.Expect("Struct");
+                reader.SkipDeclaration();
+                continue;
+            }
+            if (reader.Peek is "Use" or "ProfileDelta")
+            {
+                string kind = reader.Take();
+                if (kind == "ProfileDelta")
+                {
+                    reader.Identifier();
+                    if (reader.Peek == "{")
+                    {
+                        reader.Block();
+                        reader.Optional(";");
+                        continue;
+                    }
+                }
+                while (!reader.End && !reader.Optional(";"))
+                {
+                    reader.Take();
+                }
                 continue;
             }
             if (reader.Peek is not ("Point2" or "Line2" or "CubicBezier2" or "Circle2" or "Rect2"
@@ -120,15 +163,17 @@ public static class GarmentAuthoring
         {
             Fail("garment-multiple-roots", "One Garment root is required, with geometry recipes before it.");
         }
-        var body = new Reader(bodyText);
+        var body = new FirmamentBlockReader(bodyText, Fail);
         var panels = ImmutableArray.CreateBuilder<GarmentPanel>();
         var stitches = ImmutableArray.CreateBuilder<GarmentStitch>();
+        var guides = ImmutableArray.CreateBuilder<GarmentFittingGuide>();
         var names = new HashSet<string>(StringComparer.Ordinal);
         ClothMaterial3D? fabric = null;
         float meshSize = .06f;
         bool hasMeshSize = false;
         string? figure = null;
         string? pose = null;
+        string? transition = null;
         float bodyClearance = .004f;
         while (!body.End)
         {
@@ -158,7 +203,7 @@ public static class GarmentAuthoring
                 {
                     Fail("garment-duplicate-drape", "Declare only one Drape binding.");
                 }
-                var fields = Fields(body.Block(), ["Figure", "Pose", "Clearance"]);
+                var fields = Fields(body.Block(), ["Figure", "Pose", "Clearance", "Transition"]);
                 figure = Required(fields, "Figure");
                 pose = fields.GetValueOrDefault("Pose", "Rest");
                 bodyClearance = Length(fields.GetValueOrDefault("Clearance", "4mm"));
@@ -166,9 +211,12 @@ public static class GarmentAuthoring
                 {
                     Fail("garment-body-clearance", "clearance must be between 0mm and 30mm.");
                 }
-                if (pose != "Rest")
+                posing.Resolve(pose, figure);
+                transition = fields.GetValueOrDefault("Transition");
+                if (transition is not null && (!posing.Transitions.TryGetValue(transition, out var motion)
+                    || motion.From != pose || posing.Resolve(motion.To, figure).Figure != figure))
                 {
-                    Fail("garment-pose-unsupported", "This drape milestone admits the loaded figure's Rest pose only.");
+                    Fail("garment-pose-transition-binding", "Drape transition must start at its named pose and use the same figure.");
                 }
                 continue;
             }
@@ -186,6 +234,30 @@ public static class GarmentAuthoring
             string declarationBody = body.Block();
             switch (kind)
             {
+                case "Fitting":
+                {
+                    var fields = Fields(declarationBody, ["On", "Edges", "Compliance", "ReleaseAfter"]);
+                    string reference = Required(fields, "On");
+                    if (!ConceptIrResolver.TryResolvePlane(source, reference, out var plane, out var diagnostic))
+                    {
+                        Fail("garment-fitting-plane", diagnostic ?? reference);
+                    }
+                    Vector3 normal = new((float)plane!.Normal.X, (float)plane.Normal.Y, (float)plane.Normal.Z);
+                    Vector3 origin = new((float)plane.Origin.X * .001f, (float)plane.Origin.Y * .001f, (float)plane.Origin.Z * .001f);
+                    float compliance = Scalar(fields.GetValueOrDefault("Compliance", "0.000001"));
+                    float release = Scalar(Required(fields, "ReleaseAfter"));
+                    var edges = List(Required(fields, "Edges")).ToImmutableArray();
+                    float offset = Vector3.Dot(normal, origin);
+                    if (guides.Count >= 32 || edges.IsEmpty || edges.Length > 64
+                        || edges.Distinct().Count() != edges.Length || !float.IsFinite(normal.LengthSquared())
+                        || MathF.Abs(normal.LengthSquared() - 1) > .0001f || !float.IsFinite(offset)
+                        || compliance < 0 || release is < 0 or > 585 || release != MathF.Floor(release))
+                    {
+                        Fail("garment-fitting-properties", "Fitting requires a unit Concept plane, unique edges, nonnegative compliance and an integer releaseAfter of 0..585 settling frames.");
+                    }
+                    guides.Add(new(declarationName, reference, edges, normal, offset, compliance, (int)release));
+                    break;
+                }
                 case "Fabric":
                 {
                     if (fabric is not null)
@@ -284,8 +356,20 @@ public static class GarmentAuthoring
             Fail("garment-fabric-missing", "Declare one Fabric with explicit authoring properties.");
         }
         string hash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(original)));
-        return new(new(name, identity, hash, fabric!, meshSize, panels.ToImmutable(), stitches.ToImmutable(),
-            figure, pose, features.Invocations, patterns.Document?.Patterns ?? [], bodyClearance), []);
+        var garment = new GarmentSource(name, identity, hash, fabric!, meshSize, panels.ToImmutable(), stitches.ToImmutable(),
+            figure, pose, features.Invocations, patterns.Document?.Patterns ?? [], bodyClearance)
+        {
+            FigureFits = figureFits,
+            Posing = posing,
+            Transition = transition,
+            FittingGuides = guides.ToImmutable(),
+        };
+        if (figureFits.Any(fit => fit.Figure != figure))
+        {
+            Fail("garment-fit-binding-mismatch", "FigureFit and Drape must refer to the same figure.");
+        }
+        _ = GarmentPatternInspection.Inspect(garment);
+        return new(garment, []);
     }
 
     private static GarmentParseResult ExpansionFailure(IEnumerable<string> diagnostics, string identity)
@@ -293,10 +377,10 @@ public static class GarmentAuthoring
         return new(null, diagnostics.Select(message => new GarmentDiagnostic(message.Split(':')[0], message, identity)).ToArray());
     }
 
-    private static Dictionary<string, string> Fields(string text, string[] admitted)
+    internal static Dictionary<string, string> Fields(string text, string[] admitted)
     {
         var result = new Dictionary<string, string>(StringComparer.Ordinal);
-        var reader = new Reader(text);
+        var reader = new FirmamentBlockReader(text, Fail);
         while (!reader.End)
         {
             if (reader.Optional(";"))
@@ -328,7 +412,11 @@ public static class GarmentAuthoring
 
     private static float Scalar(string value)
     {
-        float result = float.Parse(value, NumberStyles.Float, CultureInfo.InvariantCulture);
+        if (!FirmamentV2FeatureExpansion.TryEvaluateScalar(value, out double evaluated, out string unit) || unit.Length != 0)
+        {
+            Fail("garment-scalar-invalid", "Expected a dimensionless scalar: " + value);
+        }
+        float result = (float)evaluated;
         if (!float.IsFinite(result))
         {
             Fail("garment-nonfinite", "All garment values must be finite.");
@@ -338,6 +426,14 @@ public static class GarmentAuthoring
 
     private static float Length(string value)
     {
+        if (FirmamentV2FeatureExpansion.TryEvaluateScalar(value, out double evaluated, out string unit) && unit == "mm")
+        {
+            if (!double.IsFinite(evaluated) || !float.IsFinite((float)evaluated))
+            {
+                Fail("garment-nonfinite", "All garment values must be finite.");
+            }
+            return (float)evaluated * .001f;
+        }
         var match = Regex.Match(value, @"^\s*(?<number>[-+\d.eE]+)\s*(?<unit>mm|m)\s*$", RegexOptions.CultureInvariant);
         if (!match.Success)
         {
@@ -380,129 +476,7 @@ public static class GarmentAuthoring
 
     internal static void Fail(string code, string message) => throw new GarmentAuthoringException(code, message);
 
-    private sealed class Reader
-    {
-        private readonly string source;
-        private readonly (string Text, string Shape, int Start, int Length)[] tokens;
-        private int position;
 
-        public Reader(string source)
-        {
-            this.source = source;
-            tokens = FirmamentLanguageAnalysisService.Lex(source).Where(token => token.Shape != "comment")
-                .Select(token => (token.Text, token.Shape, token.Start, token.Length)).ToArray();
-        }
-
-        public bool End => position >= tokens.Length;
-        public string Peek => End ? "<end>" : tokens[position].Text;
-        public string Take()
-        {
-            if (End)
-            {
-                Fail("garment-syntax", "Unexpected end of garment document.");
-            }
-            return tokens[position++].Text;
-        }
-        public bool Optional(string text)
-        {
-            if (Peek != text)
-            {
-                return false;
-            }
-            position++;
-            return true;
-        }
-        public void Expect(string text)
-        {
-            if (!Optional(text))
-            {
-                Fail("garment-syntax", "Expected '" + text + "', found '" + Peek + "'.");
-            }
-        }
-        public string Identifier()
-        {
-            if (End || tokens[position].Shape != "identifier")
-            {
-                Fail("garment-syntax", "Expected an identifier, found " + Peek);
-            }
-            return Take();
-        }
-        public string Block()
-        {
-            Expect("{");
-            int start = tokens[position - 1].Start + 1;
-            int depth = 1;
-            while (!End)
-            {
-                var token = tokens[position++];
-                if (token.Text == "{")
-                {
-                    depth++;
-                }
-                if (token.Text == "}")
-                {
-                    depth--;
-                }
-                if (depth == 0)
-                {
-                    return source[start..token.Start];
-                }
-            }
-            Fail("garment-syntax", "Unclosed garment block.");
-            return "";
-        }
-        public void SkipDeclaration()
-        {
-            while (!End && Peek != "{")
-            {
-                Take();
-            }
-            Block();
-            Optional(";");
-        }
-        public string Value()
-        {
-            if (End)
-            {
-                Fail("garment-syntax", "Missing field value.");
-            }
-            int start = tokens[position].Start;
-            int end = start;
-            int depth = 0;
-            while (!End)
-            {
-                var token = tokens[position];
-                if (depth == 0 && (token.Text == ";" || (position + 1 < tokens.Length && tokens[position + 1].Text == ":")))
-                {
-                    break;
-                }
-                if (depth == 0 && end > start && token.Text is "Panel" or "Fabric" or "Interface" or "Drape")
-                {
-                    break;
-                }
-                if (token.Text is "[" or "(")
-                {
-                    depth++;
-                }
-                if (token.Text is "]" or ")")
-                {
-                    depth--;
-                }
-                if (depth < 0)
-                {
-                    Fail("garment-syntax", "Unbalanced field value.");
-                }
-                end = token.Start + token.Length;
-                position++;
-            }
-            if (depth != 0 || end == start)
-            {
-                Fail("garment-syntax", "Missing or unbalanced field value.");
-            }
-            Optional(";");
-            return source[start..end].Trim();
-        }
-    }
 }
 
 internal sealed class GarmentAuthoringException(string code, string message) : Exception(message)

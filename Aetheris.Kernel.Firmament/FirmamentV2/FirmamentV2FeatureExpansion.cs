@@ -466,7 +466,7 @@ internal static class FirmamentV2FeatureExpansion
         for (var i = 0; i < text.Length; i++) { switch (text[i]) { case '(': round++; break; case ')': round--; break; case '[': square++; break; case ']': square--; break; case '{': curly++; break; case '}': curly--; break; case ':' when round == 0 && square == 0 && curly == 0: return i; } }
         return -1;
     }
-    private static List<(string Text, int Start)> SplitTopLevel(string text)
+    internal static List<(string Text, int Start)> SplitTopLevel(string text)
     {
         var result = new List<(string, int)>(); var start = 0; var round = 0; var square = 0; var curly = 0;
         for (var i = 0; i < text.Length; i++)

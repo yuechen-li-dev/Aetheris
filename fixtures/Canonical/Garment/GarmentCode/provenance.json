@@ -1,0 +1,28 @@
+{
+  "upstream": "https://github.com/maria-korosteleva/GarmentCode",
+  "revision": "d449629979028123a5c4dc9e732a2ec19b7fce31",
+  "template": "assets/garment_programs/bodice.py:Shirt (fitted=False)",
+  "bodyMeasurements": "assets/bodies/mean_all.yaml",
+  "designPreset": "assets/design_params/t-shirt.yaml",
+  "license": "MIT; copyright (c) 2024 Maria Korosteleva",
+  "bodyMeshCopied": false,
+  "simulated": false,
+  "witnesses": [
+    {
+      "name": "shirt",
+      "panels": 8,
+      "stitches": 16,
+      "lengthMultiplier": 1.2,
+      "sleeveless": false,
+      "sourceSha256": "9567ad25d9d356c9a14dbdcf782391c50980afb5db882acc45236a7d8f63c1f7"
+    },
+    {
+      "name": "dress",
+      "panels": 4,
+      "stitches": 6,
+      "lengthMultiplier": 2.2,
+      "sleeveless": true,
+      "sourceSha256": "f70b61d286c1dcb4d38a0bf6585c95a6b54dbbceed66b8630a9908f14f416731"
+    }
+  ]
+}

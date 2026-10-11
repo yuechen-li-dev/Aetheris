@@ -1,0 +1,84 @@
+schema Garment
+
+// A loose single garment with two panels and integrated short sleeves.
+// Figure facts come from the supplied gameplay body; ease is a design choice.
+Concept Struct dressLayout {
+  FigureFit body {
+    figure: Anatolia;
+    pose: Rest;
+    chestHeight: 1280mm;
+    hipHeight: 960mm;
+  }
+  Points<Point3> arrangement {
+    front: Point3(0mm, dressLayout.body.centerY, 650mm);
+    back: Point3(0mm, dressLayout.body.centerY, 650mm);
+  }
+}
+
+Feature DressPanel(width: Length, height: Length = 880mm,
+    sleeveLength: Length = 120mm, necklineDepth: Length = 65mm) -> Profile {
+  let halfWidth: Length = width / 2;
+  let halfHeight: Length = height / 2;
+  let sleeveX: Length = halfWidth + sleeveLength;
+  let pitHeight: Length = height - 240mm;
+  let cuffLow: Length = pitHeight + 20mm;
+  let cuffHigh: Length = height - 55mm;
+  let neckStart: Length = halfWidth - 90mm;
+  let neckEnd: Length = halfWidth + 90mm;
+  let neckBottom: Length = height - necklineDepth;
+  Rect2 blank { center: [0mm, halfHeight]; size: [width, height] }
+  return Profile {
+    from: blank;
+    Replace rightCut {
+      on: blank.Right;
+      through: [[halfWidth, pitHeight], [sleeveX, cuffLow], [sleeveX, cuffHigh]];
+      interpolation: Linear;
+      spanNames: [rightSide, rightSleeveLower, rightSleeveOpening, rightSleeveUpper];
+    }
+    Replace leftCut {
+      on: blank.Left;
+      through: [[-sleeveX, cuffHigh], [-sleeveX, cuffLow], [-halfWidth, pitHeight]];
+      interpolation: Linear;
+      spanNames: [leftSleeveUpper, leftSleeveOpening, leftSleeveLower, leftSide];
+    }
+    Replace neckline {
+      on: blank.Top;
+      range: [neckStart, neckEnd];
+      through: [[0mm, neckBottom]];
+    }
+  }
+}
+Feature frontCut = DressPanel(width: dressLayout.body.torsoCircumference / 2 + 160mm);
+Feature backCut = DressPanel(width: dressLayout.body.torsoCircumference / 2 + 160mm, necklineDepth: 25mm);
+
+Garment TshirtDress {
+  meshSize: 55mm;
+  Fabric cotton {
+    thickness: 2mm;
+    arealDensity: 0.2;
+    warpCompliance: 0.00000001;
+    weftCompliance: 0.00000001;
+    diagonalCompliance: 0.00000004;
+  }
+  Panel front {
+    profile: frontCut;
+    origin: dressLayout.arrangement.front;
+    u: [1, 0, 0]; v: [0, 0, 1]; grain: [0, 1];
+    wrapRadius: (dressLayout.body.torsoCircumference / 2 + 160mm) / 3.141592653589793;
+  }
+  Panel back {
+    profile: backCut;
+    origin: dressLayout.arrangement.back;
+    u: [-1, 0, 0]; v: [0, 0, 1]; grain: [0, 1];
+    wrapRadius: (dressLayout.body.torsoCircumference / 2 + 160mm) / 3.141592653589793;
+  }
+  Interface<Stitch> rightSide { a: front.edges.rightSide; b: back.edges.leftSide; orientation: Reversed; }
+  Interface<Stitch> leftSide { a: front.edges.leftSide; b: back.edges.rightSide; orientation: Reversed; }
+  Interface<Stitch> rightSleeveLower { a: front.edges.rightSleeveLower; b: back.edges.leftSleeveLower; orientation: Reversed; }
+  Interface<Stitch> leftSleeveLower { a: front.edges.leftSleeveLower; b: back.edges.rightSleeveLower; orientation: Reversed; }
+  Interface<Stitch> rightSleeveUpper { a: front.edges.rightSleeveUpper; b: back.edges.leftSleeveUpper; orientation: Reversed; }
+  Interface<Stitch> leftSleeveUpper { a: front.edges.leftSleeveUpper; b: back.edges.rightSleeveUpper; orientation: Reversed; }
+  Interface<Stitch> rightShoulder { a: front.edges.Top_Between_Start_neckline; b: back.edges.Top_Between_neckline_End; orientation: Reversed; }
+  Interface<Stitch> leftShoulder { a: front.edges.Top_Between_neckline_End; b: back.edges.Top_Between_Start_neckline; orientation: Reversed; }
+  Drape { figure: Anatolia; pose: Rest; clearance: 4mm; }
+}

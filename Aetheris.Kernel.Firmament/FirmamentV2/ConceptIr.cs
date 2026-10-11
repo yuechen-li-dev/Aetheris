@@ -353,7 +353,16 @@ internal static class ConceptIrResolver
             if (close < 0) { diagnostic = InvalidSpatialDerivation; return false; }
             var name = declaration.Groups["name"].Value;
             var body = source[(open + 1)..close];
-            instances[name] = new(name, [], ResolveMembers(name, body, open + 1, "", ParseEnums(source, diagnostics), selections, diagnostics), false, "CompileTimeOnlyErased", new(declaration.Index, close - declaration.Index + 1));
+            var resolvedInstance = new ConceptIrStructInstance(name, [], ResolveMembers(name, body, open + 1, "", ParseEnums(source, diagnostics), selections, diagnostics), false, "CompileTimeOnlyErased", new(declaration.Index, close - declaration.Index + 1));
+            if (!instances.TryAdd(name, resolvedInstance))
+            {
+                diagnostics.Add(DuplicateDeclaration);
+            }
+        }
+        if (diagnostics.Count > 0)
+        {
+            diagnostic = string.Join("; ", diagnostics);
+            return false;
         }
         if (!instances.TryGetValue(match.Groups["instance"].Value, out var instance) || !instance.Members.TryGetValue(match.Groups["member"].Value, out var value))
         { diagnostic = "ConceptPlaneNotFound: " + reference; return false; }
@@ -847,9 +856,28 @@ internal static class ConceptIrResolver
 
         private static bool TryVectorField(string body, string name, out (double X, double Y, double Z) vector)
         {
-            var match = Regex.Match(body, $@"\b{Regex.Escape(name)}\s*:\s*\[(?<x>[-+.\d]+)(?:mm)?\s*,\s*(?<y>[-+.\d]+)(?:mm)?\s*,\s*(?<z>[-+.\d]+)(?:mm)?\s*\]", RegexOptions.CultureInvariant);
-            if (match.Success && double.TryParse(match.Groups["x"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var x) && double.TryParse(match.Groups["y"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var y) && double.TryParse(match.Groups["z"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var z) && double.IsFinite(x) && double.IsFinite(y) && double.IsFinite(z)) { vector = (x, y, z); return true; }
-            vector = default; return false;
+            vector = default;
+            var match = Regex.Match(body, $@"\b{Regex.Escape(name)}\s*:\s*\[(?<values>[^\]]+)\]", RegexOptions.CultureInvariant);
+            if (!match.Success)
+            {
+                return false;
+            }
+            var components = FirmamentV2FeatureExpansion.SplitTopLevel(match.Groups["values"].Value);
+            if (components.Count != 3)
+            {
+                return false;
+            }
+            var values = new double[3];
+            for (int index = 0; index < components.Count; index++)
+            {
+                if (!FirmamentV2FeatureExpansion.TryEvaluateScalar(components[index].Text, out values[index], out string unit)
+                    || !double.IsFinite(values[index]) || (unit != "" && (name != "Origin" || unit != "mm")))
+                {
+                    return false;
+                }
+            }
+            vector = (values[0], values[1], values[2]);
+            return true;
         }
 
         private ConceptIrValue? EvaluateMatch(string expression, ParsedConceptMember target)

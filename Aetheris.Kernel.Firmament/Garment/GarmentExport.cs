@@ -29,6 +29,9 @@ public static class GarmentExport
             upAxis = "Z",
             sourceHash = garment.Source.SourceHash,
             sourceIdentity = garment.Source.SourceIdentity,
+            figureFits = garment.Source.FigureFits,
+            posing = garment.Source.Posing,
+            transition = garment.Source.Transition,
             contentKey = garment.Cloth.ContentKey,
             definition = garment.Cloth.Definition,
             panels = garment.Panels,
@@ -67,12 +70,12 @@ public static class GarmentExport
         return result.ToString();
     }
 
-    public static string BodyObj(HumanoidGameplayBody body)
+    public static string BodyObj(HumanoidGameplayBody body,
+        IReadOnlyList<Aetheris.Kernel.Core.Math.Point3D>? positions = null)
     {
         var result = new StringBuilder("# Antonia gameplay body; metres; Z up. Preserve its source attribution.\n");
-        foreach (var vertex in body.Surface.Vertices)
+        foreach (var point in positions ?? body.Surface.Vertices.Select(vertex => vertex.Position).ToArray())
         {
-            var point = vertex.Position;
             result.AppendLine(FormattableString.Invariant($"v {point.X / 1000:R} {point.Y / 1000:R} {point.Z / 1000:R}"));
         }
         foreach (var face in body.Surface.Faces)
@@ -84,40 +87,7 @@ public static class GarmentExport
 
     public static string PatternsSvg(CompiledGarment garment)
     {
-        var result = new StringBuilder("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1200\" height=\"900\" viewBox=\"0 0 1200 900\">\n");
-        result.AppendLine("<rect width=\"1200\" height=\"900\" fill=\"#f5f3ee\"/><g font-family=\"sans-serif\" fill=\"#24344c\">");
-        result.AppendLine("<text x=\"24\" y=\"36\" font-size=\"24\">" + Escape(garment.Source.Name) + " — material patterns (mm)</text>");
-        result.AppendLine("<text x=\"24\" y=\"64\" font-size=\"14\">Blue: open edge · orange: stitch · green: explicit support. Cut boundary; no seam allowance added.</text>");
-        int panelNumber = 0;
-        foreach (var panel in garment.Panels)
-        {
-            var points = garment.Cloth.Definition.Positions.Skip(panel.VertexStart).Take(panel.VertexCount).ToArray();
-            float minX = points.Min(point => point.X);
-            float minY = points.Min(point => point.Y);
-            float width = points.Max(point => point.X) - minX;
-            float height = points.Max(point => point.Y) - minY;
-            float scale = MathF.Min(490 / width, 300 / height);
-            float originX = 40 + panelNumber % 2 * 590;
-            float originY = 140 + panelNumber / 2 * 370;
-            panelNumber++;
-            result.AppendLine(FormattableString.Invariant($"<text x=\"{originX}\" y=\"{originY - 30}\" font-size=\"18\">{Escape(panel.Identity)}</text>"));
-            foreach (var edge in panel.Edges)
-            {
-                string reference = panel.Identity + ".edges." + edge.Key;
-                var seam = garment.Source.Stitches.FirstOrDefault(stitch => stitch.A == reference || stitch.B == reference
-                    || stitch.A == panel.Name + ".edges." + edge.Key || stitch.B == panel.Name + ".edges." + edge.Key);
-                bool pinned = garment.Source.Panels.Single(source => source.Name == panel.Name).Pins.Contains(edge.Key);
-                string color = pinned ? "#16835b" : seam is null ? "#3274a0" : "#c76925";
-                var line = edge.Value.Select(index => garment.Cloth.Definition.Positions[index]).ToArray();
-                string coordinates = string.Join(" ", line.Select(point => FormattableString.Invariant($"{originX + (point.X - minX) * scale},{originY + (height - point.Y + minY) * scale}")));
-                result.AppendLine($"<polyline points=\"{coordinates}\" fill=\"none\" stroke=\"{color}\" stroke-width=\"2\"/>");
-                var middle = line[line.Length / 2];
-                string label = edge.Key + (seam is null ? "" : " / " + seam.Name);
-                result.AppendLine(FormattableString.Invariant($"<text x=\"{originX + (middle.X - minX) * scale + 3}\" y=\"{originY + (height - middle.Y + minY) * scale - 4}\" font-size=\"10\">{Escape(label)}</text>"));
-            }
-        }
-        result.AppendLine("</g></svg>");
-        return result.ToString();
+        return GarmentPatternPreview.Svg(garment.Source);
     }
 
     public static string Usd(CompiledGarment garment, ClothSnapshot3D? settled = null)

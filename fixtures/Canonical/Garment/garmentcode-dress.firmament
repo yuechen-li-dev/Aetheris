@@ -1,0 +1,202 @@
+schema Garment
+// Imported from GarmentCode; MIT, copyright (c) 2024 Maria Korosteleva.
+// Keep the source specification and its applicable license with this derivative.
+// Input SHA-256: f70b61d286c1dcb4d38a0bf6585c95a6b54dbbceed66b8630a9908f14f416731
+// Local XY remains the flat rest pattern. Placement maps upstream Y-up to Aetheris Z-up.
+
+Feature left_btorsoPattern() -> Profile {
+  Point2 vertex0 { position: [0mm, 0mm] }
+  Point2 vertex1 { position: [0mm, 811.608601383663mm] }
+  Point2 vertex2 { position: [108.188mm, 868.097585456578mm] }
+  Point2 vertex3 { position: [172.284mm, 842.619575355104mm] }
+  Point2 vertex4 { position: [250.299525mm, 658.204775355104mm] }
+  Point2 vertex5 { position: [250.299525mm, 0mm] }
+  Line2 edge5Guide { from: vertex0; to: vertex5 }
+  Line2 edge4Guide { from: vertex5; to: vertex4 }
+  Point2 edge3_left_armholeControl1 { position: [170.15124mm, 667.782301605104mm] }
+  Point2 edge3_left_armholeControl2 { position: [174.4088025mm, 734.809070355104mm] }
+  CubicBezier2 edge3_left_armholeGuide { from: vertex4; control1: edge3_left_armholeControl1; control2: edge3_left_armholeControl2; to: vertex3 }
+  Line2 edge2Guide { from: vertex3; to: vertex2 }
+  Point2 edge1_left_collarCenter { position: [-0mm, 943.454207301827mm] }
+  Circle2 edge1_left_collarGuide { center: edge1_left_collarCenter; radius: 131.845605918164mm }
+  Line2 edge0Guide { from: vertex1; to: vertex0 }
+  return Profile {
+    Loop Outer {
+      Segment edge5 { trace: edge5Guide; from: vertex0; to: vertex5 }
+      Segment edge4 { trace: edge4Guide; from: vertex5; to: vertex4 }
+      Segment edge3_left_armhole { trace: edge3_left_armholeGuide; from: vertex4; to: vertex3 }
+      Segment edge2 { trace: edge2Guide; from: vertex3; to: vertex2 }
+      Segment edge1_left_collar { trace: edge1_left_collarGuide; from: vertex2; to: vertex1; sweep: Clockwise }
+      Segment edge0 { trace: edge0Guide; from: vertex1; to: vertex0 }
+    }
+  }
+}
+Feature left_btorsoCut = left_btorsoPattern();
+
+Feature left_ftorsoPattern() -> Profile {
+  Point2 vertex0 { position: [0mm, 0mm] }
+  Point2 vertex1 { position: [273.86415mm, 0mm] }
+  Point2 vertex2 { position: [273.86415mm, 658.650827790934mm] }
+  Point2 vertex3 { position: [172.284mm, 843.065627790934mm] }
+  Point2 vertex4 { position: [108.188mm, 868.543624411852mm] }
+  Point2 vertex5 { position: [0mm, 712.05802612589mm] }
+  Line2 edge0Guide { from: vertex0; to: vertex1 }
+  Line2 edge1Guide { from: vertex1; to: vertex2 }
+  Point2 edge2_left_armholeControl1 { position: [189.00294mm, 659.980735290934mm] }
+  Point2 edge2_left_armholeControl2 { position: [186.191115mm, 730.542197790934mm] }
+  CubicBezier2 edge2_left_armholeGuide { from: vertex2; control1: edge2_left_armholeControl1; control2: edge2_left_armholeControl2; to: vertex3 }
+  Line2 edge3Guide { from: vertex3; to: vertex4 }
+  Point2 edge4_left_collarCenter { position: [0mm, 827.699293473629mm] }
+  Circle2 edge4_left_collarGuide { center: edge4_left_collarCenter; radius: 115.641267347738mm }
+  Line2 edge5Guide { from: vertex5; to: vertex0 }
+  return Profile {
+    Loop Outer {
+      Segment edge0 { trace: edge0Guide; from: vertex0; to: vertex1 }
+      Segment edge1 { trace: edge1Guide; from: vertex1; to: vertex2 }
+      Segment edge2_left_armhole { trace: edge2_left_armholeGuide; from: vertex2; to: vertex3 }
+      Segment edge3 { trace: edge3Guide; from: vertex3; to: vertex4 }
+      Segment edge4_left_collar { trace: edge4_left_collarGuide; from: vertex4; to: vertex5; sweep: Clockwise }
+      Segment edge5 { trace: edge5Guide; from: vertex5; to: vertex0 }
+    }
+  }
+}
+Feature left_ftorsoCut = left_ftorsoPattern();
+
+Feature right_btorsoPattern() -> Profile {
+  Point2 vertex0 { position: [0mm, 0mm] }
+  Point2 vertex1 { position: [-250.299525mm, 0mm] }
+  Point2 vertex2 { position: [-250.299525mm, 658.204775355104mm] }
+  Point2 vertex3 { position: [-172.284mm, 842.619575355104mm] }
+  Point2 vertex4 { position: [-108.188mm, 868.097585456578mm] }
+  Point2 vertex5 { position: [0mm, 811.608601383663mm] }
+  Line2 edge5Guide { from: vertex0; to: vertex5 }
+  Point2 edge4_right_collarCenter { position: [0mm, 943.454207301827mm] }
+  Circle2 edge4_right_collarGuide { center: edge4_right_collarCenter; radius: 131.845605918164mm }
+  Line2 edge3Guide { from: vertex4; to: vertex3 }
+  Point2 edge2_right_armholeControl1 { position: [-174.4088025mm, 734.809070355104mm] }
+  Point2 edge2_right_armholeControl2 { position: [-170.15124mm, 667.782301605104mm] }
+  CubicBezier2 edge2_right_armholeGuide { from: vertex3; control1: edge2_right_armholeControl1; control2: edge2_right_armholeControl2; to: vertex2 }
+  Line2 edge1Guide { from: vertex2; to: vertex1 }
+  Line2 edge0Guide { from: vertex1; to: vertex0 }
+  return Profile {
+    Loop Outer {
+      Segment edge5 { trace: edge5Guide; from: vertex0; to: vertex5 }
+      Segment edge4_right_collar { trace: edge4_right_collarGuide; from: vertex5; to: vertex4; sweep: Clockwise }
+      Segment edge3 { trace: edge3Guide; from: vertex4; to: vertex3 }
+      Segment edge2_right_armhole { trace: edge2_right_armholeGuide; from: vertex3; to: vertex2 }
+      Segment edge1 { trace: edge1Guide; from: vertex2; to: vertex1 }
+      Segment edge0 { trace: edge0Guide; from: vertex1; to: vertex0 }
+    }
+  }
+}
+Feature right_btorsoCut = right_btorsoPattern();
+
+Feature right_ftorsoPattern() -> Profile {
+  Point2 vertex0 { position: [0mm, 0mm] }
+  Point2 vertex1 { position: [0mm, 712.05802612589mm] }
+  Point2 vertex2 { position: [-108.188mm, 868.543624411852mm] }
+  Point2 vertex3 { position: [-172.284mm, 843.065627790934mm] }
+  Point2 vertex4 { position: [-273.86415mm, 658.650827790934mm] }
+  Point2 vertex5 { position: [-273.86415mm, 0mm] }
+  Line2 edge0Guide { from: vertex0; to: vertex1 }
+  Point2 edge1_right_collarCenter { position: [-0mm, 827.699293473629mm] }
+  Circle2 edge1_right_collarGuide { center: edge1_right_collarCenter; radius: 115.641267347738mm }
+  Line2 edge2Guide { from: vertex2; to: vertex3 }
+  Point2 edge3_right_armholeControl1 { position: [-186.191115mm, 730.542197790934mm] }
+  Point2 edge3_right_armholeControl2 { position: [-189.00294mm, 659.980735290934mm] }
+  CubicBezier2 edge3_right_armholeGuide { from: vertex3; control1: edge3_right_armholeControl1; control2: edge3_right_armholeControl2; to: vertex4 }
+  Line2 edge4Guide { from: vertex4; to: vertex5 }
+  Line2 edge5Guide { from: vertex5; to: vertex0 }
+  return Profile {
+    Loop Outer {
+      Segment edge0 { trace: edge0Guide; from: vertex0; to: vertex1 }
+      Segment edge1_right_collar { trace: edge1_right_collarGuide; from: vertex1; to: vertex2; sweep: Clockwise }
+      Segment edge2 { trace: edge2Guide; from: vertex2; to: vertex3 }
+      Segment edge3_right_armhole { trace: edge3_right_armholeGuide; from: vertex3; to: vertex4 }
+      Segment edge4 { trace: edge4Guide; from: vertex4; to: vertex5 }
+      Segment edge5 { trace: edge5Guide; from: vertex5; to: vertex0 }
+    }
+  }
+}
+Feature right_ftorsoCut = right_ftorsoPattern();
+Garment ImportedGarment {
+  meshSize: 60mm;
+  // Aetheris cotton defaults; upstream JSON does not specify fabric physics.
+  Fabric cotton {
+    thickness: 2mm;
+    arealDensity: 0.2;
+    warpCompliance: 0.00000001;
+    weftCompliance: 0.00000001;
+    diagonalCompliance: 0.00000004;
+  }
+  Panel left_btorso {
+    profile: left_btorsoCut;
+    origin: [0mm, -250mm, 545.535950181744mm];
+    u: [1, 0, 0];
+    v: [0, 0, 1];
+    grain: [0, 1];
+  }
+  Panel left_ftorso {
+    profile: left_ftorsoCut;
+    origin: [0mm, 300mm, 545.089908235091mm];
+    u: [1, 0, 0];
+    v: [0, 0, 1];
+    grain: [0, 1];
+  }
+  Panel right_btorso {
+    profile: right_btorsoCut;
+    origin: [0mm, -250mm, 545.535950181744mm];
+    u: [1, 0, 0];
+    v: [0, 0, 1];
+    grain: [0, 1];
+  }
+  Panel right_ftorso {
+    profile: right_ftorsoCut;
+    origin: [0mm, 300mm, 545.089908235091mm];
+    u: [1, 0, 0];
+    v: [0, 0, 1];
+    grain: [0, 1];
+  }
+  Interface<Stitch> seam0 {
+    a: right_ftorso.edges.edge0;
+    b: left_ftorso.edges.edge5;
+    orientation: Reversed;
+    // Measured mismatch in the upstream pattern, explicitly retained as ease.
+    ease: 0;
+  }
+  Interface<Stitch> seam1 {
+    a: left_ftorso.edges.edge1;
+    b: left_btorso.edges.edge4;
+    orientation: Same;
+    // Measured mismatch in the upstream pattern, explicitly retained as ease.
+    ease: 0.0006772214;
+  }
+  Interface<Stitch> seam2 {
+    a: right_ftorso.edges.edge2;
+    b: right_btorso.edges.edge3;
+    orientation: Same;
+    // Measured mismatch in the upstream pattern, explicitly retained as ease.
+    ease: 0.000000072194;
+  }
+  Interface<Stitch> seam3 {
+    a: left_ftorso.edges.edge3;
+    b: left_btorso.edges.edge2;
+    orientation: Same;
+    // Measured mismatch in the upstream pattern, explicitly retained as ease.
+    ease: 0.000000072194;
+  }
+  Interface<Stitch> seam4 {
+    a: right_ftorso.edges.edge4;
+    b: right_btorso.edges.edge1;
+    orientation: Same;
+    // Measured mismatch in the upstream pattern, explicitly retained as ease.
+    ease: 0.0006772214;
+  }
+  Interface<Stitch> seam5 {
+    a: right_btorso.edges.edge5;
+    b: left_btorso.edges.edge0;
+    orientation: Reversed;
+    // Measured mismatch in the upstream pattern, explicitly retained as ease.
+    ease: 0;
+  }
+}

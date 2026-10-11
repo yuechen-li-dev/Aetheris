@@ -35,7 +35,9 @@ public sealed record ClothStepOptions3D
 /// sphere contact covers vertices AND triangle interiors. No CCD or self-contact claim.</summary>
 public sealed record ClothContacts3D
 {
+    public ImmutableArray<ClothHalfSpaceGuide3D> Guides { get; init; } = [];
     public IClothBodySurface3D? BodySurface { get; init; }
+    public double BodyTimeSeconds { get; init; }
     public float BodyClearance { get; init; }
     public Vector3? PlaneNormal { get; init; }
     public float PlaneOffset { get; init; }
@@ -44,6 +46,26 @@ public sealed record ClothContacts3D
 
     public void Validate()
     {
+        if (Guides.IsDefault || Guides.Length > 32 || Guides.Sum(guide => (long)guide.Vertices.Length) > 32768)
+        {
+            throw new ArgumentException("Cloth fitting guides exceed the bounded guide budget.");
+        }
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var guide in Guides)
+        {
+            ClothValidation3D.Finite(guide.Normal);
+            if (string.IsNullOrWhiteSpace(guide.Id) || !names.Add(guide.Id)
+                || guide.Vertices.IsDefaultOrEmpty || guide.Vertices.Distinct().Count() != guide.Vertices.Length
+                || MathF.Abs(guide.Normal.LengthSquared() - 1) > .0001f
+                || !float.IsFinite(guide.Offset) || !float.IsFinite(guide.Compliance) || guide.Compliance < 0)
+            {
+                throw new ArgumentException("Invalid cloth fitting guide identity, vertices, plane or compliance.");
+            }
+        }
+        if (!double.IsFinite(BodyTimeSeconds) || BodyTimeSeconds < 0)
+        {
+            throw new ArgumentException("Body sample time must be finite and nonnegative.");
+        }
         if (PlaneNormal is { } normal)
         {
             ClothValidation3D.Finite(normal);
@@ -70,6 +92,11 @@ public sealed record ClothContacts3D
         }
     }
 }
+
+/// <summary>Temporary vertex subset constraint: dot(normal, position) >= offset.
+/// Construction geometry is compiled away; this is an explicit solver command.</summary>
+public sealed record ClothHalfSpaceGuide3D(string Id, ImmutableArray<int> Vertices,
+    Vector3 Normal, float Offset, float Compliance);
 
 public sealed record ClothSnapshot3D(string ContentKey, long Tick, ImmutableArray<Vector3> Positions,
     ImmutableArray<Vector3> Velocities, ImmutableArray<Vector3> PinTargets);
@@ -134,17 +161,30 @@ public sealed class ClothSolver3D : IClothSolver3D
     public void Step(ClothStepOptions3D options, ClothContacts3D contacts)
     {
         ClothState3D.ValidateStep(Plan, options, contacts);
+        if (contacts.BodySurface is IClothKinematicBodySurface3D initialBody)
+        {
+            initialBody.Sample(contacts.BodyTimeSeconds);
+        }
         if (Plan.ContactTopology is not null)
         {
             ClothOffsetContact3D.ValidateInitial(Plan, Capture(), contacts);
         }
         float h = options.DeltaSeconds / options.Substeps;
+        var guideMultipliers = contacts.Guides.Select(guide => new float[guide.Vertices.Length]).ToArray();
         float damping = MathF.Exp(-options.VelocityDamping * h);
         positions.CopyTo(pinStarts, 0);
         for (int substep = 0; substep < options.Substeps; substep++)
         {
+            if (contacts.BodySurface is IClothKinematicBodySurface3D movingBody)
+            {
+                movingBody.Sample(contacts.BodyTimeSeconds + (substep + 1d) * h);
+            }
             Array.Clear(lambda);
             Array.Clear(contactLambda);
+            foreach (var multipliers in guideMultipliers)
+            {
+                Array.Clear(multipliers);
+            }
             RefreshBounds(options, contacts);
             float fraction = (substep + 1f) / options.Substeps;
             for (int vertex = 0; vertex < positions.Length; vertex++)
@@ -173,6 +213,7 @@ public sealed class ClothSolver3D : IClothSolver3D
                 }
                 for (int contact = 0; contact < options.ContactIterations; contact++)
                 {
+                    ProjectGuides(contacts.Guides, guideMultipliers, h);
                     ProjectContacts(contacts);
                     ProjectOffsetContacts(options, h);
                 }
@@ -183,6 +224,29 @@ public sealed class ClothSolver3D : IClothSolver3D
             }
         }
         Tick++;
+    }
+
+    private void ProjectGuides(ImmutableArray<ClothHalfSpaceGuide3D> guides, float[][] multipliers, float h)
+    {
+        for (int index = 0; index < guides.Length; index++)
+        {
+            var guide = guides[index];
+            float alpha = guide.Compliance / (h * h);
+            for (int local = 0; local < guide.Vertices.Length; local++)
+            {
+                int vertex = guide.Vertices[local];
+                float weight = Plan.InverseMasses[vertex];
+                if (weight == 0)
+                {
+                    continue;
+                }
+                float distance = Vector3.Dot(guide.Normal, positions[vertex]) - guide.Offset;
+                float previousLambda = multipliers[index][local];
+                float nextLambda = MathF.Max(0, previousLambda + (-distance - alpha * previousLambda) / (weight + alpha));
+                multipliers[index][local] = nextLambda;
+                Move(vertex, guide.Normal * (weight * (nextLambda - previousLambda)));
+            }
+        }
     }
 
     private void RefreshBounds(ClothStepOptions3D options, ClothContacts3D contacts)
@@ -439,6 +503,14 @@ public static class ClothState3D
         options.Validate();
         contacts.Validate();
         float h = options.DeltaSeconds / options.Substeps;
+        foreach (var guide in contacts.Guides)
+        {
+            if (guide.Vertices.Any(vertex => vertex < 0 || vertex >= plan.InverseMasses.Length)
+                || !float.IsFinite(guide.Compliance / (h * h)))
+            {
+                throw new ArgumentException("Cloth fitting guide vertices or timestep are invalid.");
+            }
+        }
         if (plan.Constraints.Any(constraint => !float.IsFinite(constraint.Compliance / (h * h))))
         {
             throw new ArgumentException("Cloth compliance and timestep exceed finite solver arithmetic.");

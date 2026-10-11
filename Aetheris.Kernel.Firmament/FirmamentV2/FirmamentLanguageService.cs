@@ -94,9 +94,9 @@ public static class FirmamentLanguageService
             if (!present.Contains("Members")) missing.Add("Members");
         }
         if (context == "Helix" && !present.Contains("Pitch") && !present.Contains("Height")) missing.Add("Pitch or Height");
-        if (context == "Scene")
+        if (context is "Scene" or "Garment")
         {
-            var entries = FirmamentSemanticSchemas.All.Where(item => item.Context == "Scene" && item.Entry is not null
+            var entries = FirmamentSemanticSchemas.All.Where(item => item.Context == context && item.Entry is not null
                     && item.Name.StartsWith(prefix,StringComparison.OrdinalIgnoreCase))
                 .Select(item => new FirmamentLanguageEntry(item.Id.Value,item.Name,item.Context!,FirmamentSourceSpelling.Prefer(item.Entry!))).ToArray();
             return new(document,revision,context,prefixStart,prefix.Length,candidates,missing,entries);
@@ -139,8 +139,8 @@ public static class FirmamentLanguageService
     {
         // Ignore comments/strings and balance nested blocks in incomplete drafts.
         var prefix = Regex.Replace(source[..offset], @"//[^\r\n]*|/\*[\s\S]*?\*/|""(?:\\.|[^""\\])*""", m => new string(' ', m.Length));
-        var names = "Scene|Room|Door|Window|Camera|WireRoute|Follow|Section|Points|Linear|Series|Appearance|Material|Placement|FrameTransform";
-        var matches = Regex.Matches(prefix, $@"\b(?<kind>{names})(?:\s*<[^>]+>)?(?:\s+[A-Za-z_]\w*)?\s*\{{");
+        var names = "Scene|Room|Door|Window|Camera|WireRoute|Follow|Section|Points|Linear|Series|Appearance|Material|Placement|FrameTransform|Garment|Panel|Fabric|Drape|Interface";
+        var matches = Regex.Matches(prefix, $@"\b(?<kind>{names})(?:\s*<(?<family>[^>]+)>)?(?:\s+[A-Za-z_]\w*)?\s*\{{");
         foreach (Match header in matches.Cast<Match>().Reverse())
         {
             var depth = 1;
@@ -150,7 +150,12 @@ public static class FirmamentLanguageService
                 else if (c == '}') depth--;
                 if (depth == 0) break;
             }
-            if (depth > 0) return (header.Groups["kind"].Value, header.Index + header.Length - 1);
+            if (depth > 0)
+            {
+                string name = header.Groups["kind"].Value;
+                if (name == "Interface") name += "<" + header.Groups["family"].Value.Trim() + ">";
+                return (name, header.Index + header.Length - 1);
+            }
         }
         return null;
     }

@@ -6,7 +6,7 @@ namespace Aetheris.Kernel.Firmament;
 
 /// <summary>Program-level selection of an existing Firmament frontend.  This is deliberately
 /// not a second parser or semantic IR: it only makes the current parser boundary explicit.</summary>
-public enum FirmamentFrontendSchema { Mechanical, WireForm, Sweep, SectionChain }
+public enum FirmamentFrontendSchema { Mechanical, WireForm, Sweep, SectionChain, Garment }
 
 public sealed record FirmamentFrontendSelection(FirmamentFrontendSchema? Schema, string Source, IReadOnlyList<string> Diagnostics)
 {
@@ -17,7 +17,7 @@ public sealed record FirmamentFrontendSelection(FirmamentFrontendSchema? Schema,
 public static class FirmamentFrontendSchemas
 {
     private static readonly Regex Declaration = new(@"(?m)^\s*schema\s+(?<name>[A-Za-z_]\w*)\s*;?\s*$", RegexOptions.CultureInvariant);
-    public static readonly IReadOnlyList<string> Names = ["Mechanical", "WireForm", "Sweep", "SectionChain"];
+    public static readonly IReadOnlyList<string> Names = ["Mechanical", "WireForm", "Sweep", "SectionChain", "Garment"];
 
     public static FirmamentFrontendSelection Select(string source)
     {
@@ -33,7 +33,7 @@ public static class FirmamentFrontendSchemas
         if (!Enum.TryParse<FirmamentFrontendSchema>(name, false, out var schema))
             return new(null, source, [$"firmament-schema-unknown:{name}:available={string.Join(',', Names)}"]);
         var normalized = source.Remove(declaration.Index, declaration.Length);
-        if (schema != FirmamentFrontendSchema.Mechanical
+        if (schema != FirmamentFrontendSchema.Mechanical && schema != FirmamentFrontendSchema.Garment
             && Regex.IsMatch(normalized, @"\bFeature\s+[A-Za-z_]\w*\s*\(", RegexOptions.CultureInvariant))
             return new(schema, normalized, [$"firmament-feature-schema-unsupported:{schema}"]);
         var detected = DetectDistinctFrontend(normalized);
@@ -43,6 +43,7 @@ public static class FirmamentFrontendSchemas
     }
 
     private static FirmamentFrontendSchema? DetectDistinctFrontend(string source) =>
+        Garment.GarmentAuthoring.HasRoot(source) ? FirmamentFrontendSchema.Garment :
         WireFormAuthoring.IsWireFormSource(source) ? FirmamentFrontendSchema.WireForm :
         CircularSweepAuthoring.IsSweepSource(source) ? FirmamentFrontendSchema.Sweep :
         SectionChainAuthoringParser.IsSectionChainSource(source) ? FirmamentFrontendSchema.SectionChain : null;

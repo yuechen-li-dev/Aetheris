@@ -113,7 +113,7 @@ internal static class FirmamentV2FeatureExpansion
             else
             {
                 var constructor = Regex.Match(returned,
-                    @"^(?<kind>Hole\s*<\s*(?:Shaft|Counterbore|Countersink)\s*>|Boss|Pocket|EdgeFinish)\s*\{",
+                    @"^(?<kind>Hole\s*<\s*(?:Shaft|Counterbore|Countersink)\s*>|Boss|Pocket|EdgeFinish|Profile)\s*\{",
                     RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
                 if (!constructor.Success)
                 {
@@ -183,11 +183,11 @@ internal static class FirmamentV2FeatureExpansion
                      RegexOptions.CultureInvariant))
         {
             var returnType = NormalizeType(header.Groups["return"].Value);
-            if (!Regex.IsMatch(returnType, @"^(?:Hole<(?:Shaft|Counterbore|Countersink)>|Boss|Pocket|EdgeFinish)$", RegexOptions.CultureInvariant))
+            if (!Regex.IsMatch(returnType, @"^(?:Hole<(?:Shaft|Counterbore|Countersink)>|Boss|Pocket|EdgeFinish|Profile)$", RegexOptions.CultureInvariant))
                 diagnostics.Add(ReturnType + $":{header.Groups["name"].Value}:unsupported-{returnType}");
         }
         foreach (Match header in Regex.Matches(source,
-                     @"\bFeature\s+(?<name>[A-Za-z_]\w*)\s*\((?<parameters>[^()]*)\)\s*->\s*(?<return>Hole\s*<\s*[A-Za-z_]\w*\s*>|Boss|Pocket|EdgeFinish)\s*\{",
+                     @"\bFeature\s+(?<name>[A-Za-z_]\w*)\s*\((?<parameters>[^()]*)\)\s*->\s*(?<return>Hole\s*<\s*[A-Za-z_]\w*\s*>|Boss|Pocket|EdgeFinish|Profile)\s*\{",
                      RegexOptions.CultureInvariant))
         {
             var open = source.IndexOf('{', header.Index); var close = Matching(source, open, '{', '}');
@@ -216,7 +216,7 @@ internal static class FirmamentV2FeatureExpansion
             }
             var constructionNames = ImmutableArray.CreateBuilder<string>();
             var constructions = new List<string>();
-            foreach (Match local in Regex.Matches(beforeReturn, @"\b(?:Point2|Circle2|RoundedRect2|Rect2|Profile)\s+(?<name>[A-Za-z_]\w*)\s*\{"))
+            foreach (Match local in Regex.Matches(beforeReturn, @"\b(?:Point2|Line2|CubicBezier2|Circle2|RoundedRect2|Rect2|Profile)\s+(?<name>[A-Za-z_]\w*)\s*\{"))
             {
                 var localClose = Matching(beforeReturn, beforeReturn.IndexOf('{', local.Index), '{', '}');
                 if (localClose < 0) { diagnostics.Add(UnsupportedBody + ":" + name); continue; }

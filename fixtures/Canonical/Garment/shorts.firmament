@@ -1,0 +1,126 @@
+schema Garment
+
+// Four cut panels; center-rise seams connect the two leg assemblies.
+Feature ShortsPanel(length: Length = 400mm) -> Profile {
+  let crotchHeight: Length = length - 290mm;
+  let hipHeight: Length = length - 50mm;
+  Point2 hemInner { position: [-125mm, 0mm] }
+  Point2 hemOuter { position: [175mm, 0mm] }
+  Point2 hipOuter { position: [175mm, hipHeight] }
+  Point2 waistOuter { position: [153.15264mm, length] }
+  Point2 waistInner { position: [-153.15264mm, length] }
+  Point2 crotch { position: [-175mm, crotchHeight] }
+  Line2 hemGuide { from: hemInner; to: hemOuter }
+  Line2 outerLegGuide { from: hemOuter; to: hipOuter }
+  Line2 outerHipGuide { from: hipOuter; to: waistOuter }
+  Line2 waistGuide { from: waistOuter; to: waistInner }
+  Line2 riseGuide { from: waistInner; to: crotch }
+  Line2 innerLegGuide { from: crotch; to: hemInner }
+  return Profile {
+    Loop Outer {
+      Segment hem { Trace: hemGuide; From: hemInner; To: hemOuter }
+      Segment outerLeg { Trace: outerLegGuide; From: hemOuter; To: hipOuter }
+      Segment outerHip { Trace: outerHipGuide; From: hipOuter; To: waistOuter }
+      Segment waist { Trace: waistGuide; From: waistOuter; To: waistInner }
+      Segment rise { Trace: riseGuide; From: waistInner; To: crotch }
+      Segment innerLeg { Trace: innerLegGuide; From: crotch; To: hemInner }
+    }
+  }
+}
+Feature frontCut = ShortsPanel();
+Plane center { origin: [0mm, 0mm, 0mm]; normal: [1, 0, 0]; up: [0, 0, 1] }
+Mirrored Profile backCut From frontCut { Across: center }
+
+Garment BasicShorts {
+  meshSize: 60mm;
+  Fabric cotton { thickness: 2mm; arealDensity: 0.2; }
+  Panel rightFront {
+    profile: frontCut;
+    origin: [90mm, -40mm, 700mm];
+    u: [1, 0, 0];
+    v: [0, 0, 1];
+    wrapRadius: 110mm;
+    wrapTopRadius: 195mm;
+    wrapTopOrigin: [0mm, -35mm, 1100mm];
+    wrapTopAngle: 45deg;
+    grain: [0, 1];
+    pin: [waist];
+  }
+  Panel rightBack {
+    profile: backCut;
+    origin: [90mm, -40mm, 700mm];
+    u: [-1, 0, 0];
+    v: [0, 0, 1];
+    wrapRadius: 110mm;
+    wrapTopRadius: 195mm;
+    wrapTopOrigin: [0mm, -35mm, 1100mm];
+    wrapTopAngle: -45deg;
+    grain: [0, 1];
+    pin: [waist];
+  }
+  Panel leftFront {
+    profile: backCut;
+    origin: [-90mm, -40mm, 700mm];
+    u: [1, 0, 0];
+    v: [0, 0, 1];
+    wrapRadius: 110mm;
+    wrapTopRadius: 195mm;
+    wrapTopOrigin: [0mm, -35mm, 1100mm];
+    wrapTopAngle: -45deg;
+    grain: [0, 1];
+    pin: [waist];
+  }
+  Panel leftBack {
+    profile: frontCut;
+    origin: [-90mm, -40mm, 700mm];
+    u: [-1, 0, 0];
+    v: [0, 0, 1];
+    wrapRadius: 110mm;
+    wrapTopRadius: 195mm;
+    wrapTopOrigin: [0mm, -35mm, 1100mm];
+    wrapTopAngle: 45deg;
+    grain: [0, 1];
+    pin: [waist];
+  }
+  Interface<Stitch> rightOuterLeg {
+    a: rightFront.edges.outerLeg;
+    b: rightBack.edges.outerLeg;
+    orientation: Reversed;
+  }
+  Interface<Stitch> rightOuterHip {
+    a: rightFront.edges.outerHip;
+    b: rightBack.edges.outerHip;
+    orientation: Reversed;
+  }
+  Interface<Stitch> rightInnerLeg {
+    a: rightFront.edges.innerLeg;
+    b: rightBack.edges.innerLeg;
+    orientation: Reversed;
+  }
+  Interface<Stitch> leftOuterLeg {
+    a: leftFront.edges.outerLeg;
+    b: leftBack.edges.outerLeg;
+    orientation: Reversed;
+  }
+  Interface<Stitch> leftOuterHip {
+    a: leftFront.edges.outerHip;
+    b: leftBack.edges.outerHip;
+    orientation: Reversed;
+  }
+  Interface<Stitch> leftInnerLeg {
+    a: leftFront.edges.innerLeg;
+    b: leftBack.edges.innerLeg;
+    orientation: Reversed;
+  }
+  Interface<Stitch> centerFront {
+    a: rightFront.edges.rise;
+    b: leftFront.edges.rise;
+    orientation: Reversed;
+  }
+  Interface<Stitch> centerBack {
+    a: rightBack.edges.rise;
+    b: leftBack.edges.rise;
+    orientation: Reversed;
+  }
+  Drape { figure: Anatolia; pose: Rest; }
+}

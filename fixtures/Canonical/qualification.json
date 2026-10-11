@@ -9,6 +9,7 @@
     { "path": "PlasticShell/plastic-shell-rib-standoff-junction.firmament", "codes": ["plastic-shell-constant-section-feature-zero-draft"] }
   ],
   "actions": [
+    { "path": "Garment", "operation": "validate" },
     { "path": "Assembly", "operation": "assembly-inspect" },
     { "path": "AssemblyInterfaces", "operation": "assembly-inspect" },
     { "path": "Drawings", "operation": "drawing-compile" },

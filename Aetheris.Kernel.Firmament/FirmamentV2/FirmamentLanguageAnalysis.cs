@@ -32,6 +32,12 @@ public static class FirmamentLanguageAnalysisService
         var lexemes = Lex(FirmamentSourceSpelling.Normalize(source));
         var tokens = lexemes.Select((lexeme, index) => new FirmamentLanguageToken(
             lexeme.Start, lexeme.Length, Classify(lexemes, index))).ToArray();
+        if (Garment.GarmentAuthoring.HasRoot(source))
+        {
+            var garment = Garment.GarmentCompiler.Compile(source, document);
+            return new(document, revision, tokens, garment.Diagnostics.Select(diagnostic =>
+                new FirmamentLanguageDiagnostic("error", diagnostic.Code, diagnostic.Message, 0, 0)).ToArray());
+        }
         if (SceneAuthoring.HasRoot(source))
         {
             var scene = SceneAuthoring.Parse(source, document);
@@ -109,7 +115,7 @@ public static class FirmamentLanguageAnalysisService
     public static FirmamentLanguageAnalysis Analyze(FirmamentProjectSnapshot project, string document, string revision)
     {
         if (!project.TryResolve(document, out var source)) throw new ArgumentException("Document is absent from the snapshot.", nameof(document));
-        if (SceneAuthoring.HasRoot(source)) return Analyze(source,document,revision);
+        if (SceneAuthoring.HasRoot(source) || Garment.GarmentAuthoring.HasRoot(source)) return Analyze(source,document,revision);
         var tokens = Lex(FirmamentSourceSpelling.Normalize(source));
         var parsed = new AssemblyM0Parser().ParseProject(project);
         return new(document, revision, tokens.Select((t, i) => new FirmamentLanguageToken(t.Start, t.Length, Classify(tokens, i))).ToArray(),
@@ -156,6 +162,21 @@ public static class FirmamentLanguageAnalysisService
 
     public static FirmamentLanguageFormat Format(string source, string document, string revision)
     {
+        if (Garment.GarmentAuthoring.HasRoot(source))
+        {
+            var before = Garment.GarmentCompiler.Compile(source, document);
+            if (!before.IsSuccess)
+            {
+                throw new InvalidOperationException("Format Document requires valid Garment source. Fix syntax errors first.");
+            }
+            var garmentFormat = FormatConventions(source, document, revision);
+            var after = Garment.GarmentCompiler.Compile(garmentFormat.Text, document);
+            if (!after.IsSuccess || before.Garment!.Cloth.ContentKey != after.Garment!.Cloth.ContentKey)
+            {
+                throw new InvalidOperationException("Garment formatting changed compilation.");
+            }
+            return garmentFormat;
+        }
         if (SceneAuthoring.HasRoot(source))
         {
             if (!SceneAuthoring.Parse(source,document).IsSuccess)

@@ -1,0 +1,51 @@
+schema Garment
+
+// A straight two-panel skirt. Pattern width equals a half-cylinder circumference.
+Feature SkirtPanel(width: Length = 612.61057mm, height: Length = 450mm) -> Profile {
+  let halfHeight: Length = height / 2;
+  Rect2 cut { center: [0mm, halfHeight]; size: [width, height] }
+  return Profile { Loop Outer { cut |> TraceLoop } }
+}
+Feature skirtCut = SkirtPanel();
+
+Record SidePlacement { origin: Point3; direction: Float; }
+Static sides: Set<SidePlacement> {
+  front => SidePlacement { origin: Point3(0mm, -35mm, 650mm); direction: 1; }
+  back => SidePlacement { origin: Point3(0mm, -35mm, 650mm); direction: -1; }
+}
+
+Garment BasicSkirt {
+  meshSize: 65mm;
+  Fabric cotton {
+    arealDensity: 0.2;
+    thickness: 2mm;
+    warpCompliance: 0.000001;
+    weftCompliance: 0.000001;
+    diagonalCompliance: 0.000004;
+    bendCompliance: 1000;
+  }
+
+  Pattern panels over sides {
+    side => Panel sheet {
+      profile: skirtCut;
+      origin: side.origin;
+      u: [side.direction, 0, 0];
+      v: [0, 0, 1];
+      wrapRadius: 195mm;
+      grain: [0, 1];
+      pin: [Top];
+    }
+  }
+
+  Interface<Stitch> leftSide {
+    a: panels.front.edges.Left;
+    b: panels.back.edges.Right;
+    orientation: Reversed;
+  }
+  Interface<Stitch> rightSide {
+    a: panels.front.edges.Right;
+    b: panels.back.edges.Left;
+    orientation: Reversed;
+  }
+  Drape { figure: Anatolia; pose: Rest; }
+}

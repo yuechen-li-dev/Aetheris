@@ -12,6 +12,8 @@
     <PackageReference Include="Copeland.TS.Backend.Wgsl" Version="0.1.0-preview.1-a3.16c0ce996358af80" />
     <PackageReference Include="Machina.Typography.OpenFont" Version="1.0.0" />
     <ProjectReference Include="..\Aetheris.Firmament.SchemaGenerator\Aetheris.Firmament.SchemaGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../Aetheris.Cloth3D/Aetheris.Cloth3D.csproj" />
+    <ProjectReference Include="../Aetheris.Humanoid/Aetheris.Humanoid.csproj" />
     <ProjectReference Include="..\Aetheris.Continuum\Aetheris.Continuum.csproj" />
     <ProjectReference Include="..\Aetheris.Kernel.Core\Aetheris.Kernel.Core.csproj" />
     <ProjectReference Include="..\Aetheris.Semantics\Aetheris.Semantics.csproj" />

@@ -1,0 +1,92 @@
+schema Garment
+
+Feature TunicPanel(height: Length = 560mm) -> Profile {
+  let pitHeight: Length = height - 160mm;
+  let innerPitHeight: Length = height - 120mm;
+  let neckHeight: Length = height - 60mm;
+  Point2 hemLeft { position: [-260mm, 0mm] }
+  Point2 hemRight { position: [260mm, 0mm] }
+  Point2 pitRight { position: [260mm, pitHeight] }
+  Point2 innerPitRight { position: [180mm, innerPitHeight] }
+  Point2 shoulderRight { position: [160mm, height] }
+  Point2 neckRightPoint { position: [70mm, height] }
+  Point2 neckBottom { position: [0mm, neckHeight] }
+  Point2 neckLeftPoint { position: [-70mm, height] }
+  Point2 shoulderLeft { position: [-160mm, height] }
+  Point2 innerPitLeft { position: [-180mm, innerPitHeight] }
+  Point2 pitLeft { position: [-260mm, pitHeight] }
+  Line2 hemGuide { from: hemLeft; to: hemRight }
+  Line2 rightSideGuide { from: hemRight; to: pitRight }
+  Line2 rightArmLowerGuide { from: pitRight; to: innerPitRight }
+  Line2 rightArmUpperGuide { from: innerPitRight; to: shoulderRight }
+  Line2 rightShoulderGuide { from: shoulderRight; to: neckRightPoint }
+  Line2 neckRightGuide { from: neckRightPoint; to: neckBottom }
+  Line2 neckLeftGuide { from: neckBottom; to: neckLeftPoint }
+  Line2 leftShoulderGuide { from: neckLeftPoint; to: shoulderLeft }
+  Line2 leftArmUpperGuide { from: shoulderLeft; to: innerPitLeft }
+  Line2 leftArmLowerGuide { from: innerPitLeft; to: pitLeft }
+  Line2 leftSideGuide { from: pitLeft; to: hemLeft }
+  return Profile {
+    Loop Outer {
+      Segment hem { Trace: hemGuide; From: hemLeft; To: hemRight }
+      Segment rightSide { Trace: rightSideGuide; From: hemRight; To: pitRight }
+      Segment rightArmLower { Trace: rightArmLowerGuide; From: pitRight; To: innerPitRight }
+      Segment rightArmUpper { Trace: rightArmUpperGuide; From: innerPitRight; To: shoulderRight }
+      Segment rightShoulder { Trace: rightShoulderGuide; From: shoulderRight; To: neckRightPoint }
+      Segment neckRight { Trace: neckRightGuide; From: neckRightPoint; To: neckBottom }
+      Segment neckLeft { Trace: neckLeftGuide; From: neckBottom; To: neckLeftPoint }
+      Segment leftShoulder { Trace: leftShoulderGuide; From: neckLeftPoint; To: shoulderLeft }
+      Segment leftArmUpper { Trace: leftArmUpperGuide; From: shoulderLeft; To: innerPitLeft }
+      Segment leftArmLower { Trace: leftArmLowerGuide; From: innerPitLeft; To: pitLeft }
+      Segment leftSide { Trace: leftSideGuide; From: pitLeft; To: hemLeft }
+    }
+  }
+}
+Feature tunicCut = TunicPanel();
+
+Record SidePlacement { origin: Point3; direction: Float; }
+Static sides: Set<SidePlacement> {
+  front => SidePlacement { origin: Point3(0mm, 160mm, 1000mm); direction: 1; }
+  back => SidePlacement { origin: Point3(0mm, -190mm, 1000mm); direction: -1; }
+}
+
+Garment SleevelessTunic {
+  meshSize: 60mm;
+  Fabric cotton {
+    thickness: 2mm;
+    arealDensity: 0.2;
+    warpCompliance: 0.00000001;
+    weftCompliance: 0.00000001;
+    diagonalCompliance: 0.00000004;
+  }
+  Pattern panels over sides {
+    side => Panel sheet {
+      profile: tunicCut;
+      origin: side.origin;
+      u: [side.direction, 0, 0];
+      v: [0, 0, 1];
+      grain: [0, 1];
+    }
+  }
+  Interface<Stitch> leftSide {
+    a: panels.front.edges.leftSide;
+    b: panels.back.edges.rightSide;
+    orientation: Reversed;
+  }
+  Interface<Stitch> rightSide {
+    a: panels.front.edges.rightSide;
+    b: panels.back.edges.leftSide;
+    orientation: Reversed;
+  }
+  Interface<Stitch> leftShoulder {
+    a: panels.front.edges.leftShoulder;
+    b: panels.back.edges.rightShoulder;
+    orientation: Reversed;
+  }
+  Interface<Stitch> rightShoulder {
+    a: panels.front.edges.rightShoulder;
+    b: panels.back.edges.leftShoulder;
+    orientation: Reversed;
+  }
+  Drape { figure: Anatolia; pose: Rest; }
+}

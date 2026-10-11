@@ -183,6 +183,11 @@ public static class FirmamentSourceSpelling
         // Bounded owner vocabularies not yet projected through generated schema.
         Add("Model", "Units Material");
         Add("Scene", "Units");
+        Add("Garment", "Fabric MeshSize");
+        Add("Panel", "Profile Origin U V Grain Pin PatternIdentity WrapRadius WrapAngle WrapTopRadius WrapTopOrigin WrapTopAngle");
+        Add("Fabric", "ArealDensity Thickness WarpCompliance WeftCompliance DiagonalCompliance BendCompliance");
+        Add("Interface", "A B Orientation Ease Compliance");
+        Add("Drape", "Figure Pose Clearance");
         Add("Assembly Subassembly", "Anchor Provenance Appearance");
         Add("Part Occurrence", "Material Appearance");
         Add("Plane DatumPlane", "Origin Normal Up From Offset RotateLocal Clocking");
@@ -194,6 +199,7 @@ public static class FirmamentSourceSpelling
         Add("Polygon2", "Vertices");
         Add("Curve2", "From On Scale Pivot Translate Rotate");
         Add("CubicBezier2", "From Control1 Control2 To");
+        Add("Line2", "From To");
         Add("Profile", "From");
         Add("Replace", "On Through Derivatives");
         Add("Path", "Start Heading");

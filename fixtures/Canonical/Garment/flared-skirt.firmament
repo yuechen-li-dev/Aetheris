@@ -1,0 +1,68 @@
+schema Garment
+
+// Two matching trapezoid panels. The flat cut remains the material rest surface.
+Feature SkirtPanel(topWidth: Length = 502.654825mm, bottomWidth: Length = 738.274274mm, height: Length = 450mm) -> Profile {
+  let halfTop: Length = topWidth / 2;
+  let halfBottom: Length = bottomWidth / 2;
+  Point2 lowerLeft { position: [-halfBottom, 0mm] }
+  Point2 lowerRight { position: [halfBottom, 0mm] }
+  Point2 upperRight { position: [halfTop, height] }
+  Point2 upperLeft { position: [-halfTop, height] }
+  Line2 hemGuide { from: lowerLeft; to: lowerRight }
+  Line2 rightGuide { from: lowerRight; to: upperRight }
+  Line2 waistGuide { from: upperRight; to: upperLeft }
+  Line2 leftGuide { from: upperLeft; to: lowerLeft }
+  return Profile {
+    Loop Outer {
+      Segment Bottom { Trace: hemGuide; From: lowerLeft; To: lowerRight }
+      Segment Right { Trace: rightGuide; From: lowerRight; To: upperRight }
+      Segment Top { Trace: waistGuide; From: upperRight; To: upperLeft }
+      Segment Left { Trace: leftGuide; From: upperLeft; To: lowerLeft }
+    }
+  }
+}
+Feature skirtCut = SkirtPanel();
+
+Record SidePlacement { origin: Point3; direction: Float; }
+Static sides: Set<SidePlacement> {
+  front => SidePlacement { origin: Point3(0mm, -35mm, 650mm); direction: 1; }
+  back => SidePlacement { origin: Point3(0mm, -35mm, 650mm); direction: -1; }
+}
+
+Garment FlaredSkirt {
+  meshSize: 65mm;
+  Fabric cotton {
+    arealDensity: 0.2;
+    thickness: 2mm;
+    warpCompliance: 0.000001;
+    weftCompliance: 0.000001;
+    diagonalCompliance: 0.000004;
+    bendCompliance: 1000;
+  }
+
+  Pattern panels over sides {
+    side => Panel sheet {
+      profile: skirtCut;
+      origin: side.origin;
+      u: [side.direction, 0, 0];
+      v: [0, 0, 1];
+      wrapRadius: 235mm;
+      wrapTopRadius: 160mm;
+      wrapTopOrigin: [0mm, -35mm, 1100mm];
+      grain: [0, 1];
+      pin: [Top];
+    }
+  }
+
+  Interface<Stitch> leftSide {
+    a: panels.front.edges.Left;
+    b: panels.back.edges.Right;
+    orientation: Reversed;
+  }
+  Interface<Stitch> rightSide {
+    a: panels.front.edges.Right;
+    b: panels.back.edges.Left;
+    orientation: Reversed;
+  }
+  Drape { figure: Anatolia; pose: Rest; }
+}

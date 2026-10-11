@@ -385,6 +385,11 @@ internal static class CanonicalStaticAuthoring
     {
         var body = source[start..end];
         var headers = Regex.Matches(body, @"(?<![A-Za-z0-9_])(?<name>[A-Za-z_]\w*)\s*=>", RegexOptions.CultureInvariant).Cast<Match>().ToArray();
+        if (FirmamentLanguageAnalysisService.Lex(headers.Length == 0 ? body : body[..headers[0].Index])
+            .Any(token => token.Shape != "comment"))
+        {
+            diagnostics.Add(Prefix + "set-entry-malformed:" + setName + ":use-name-arrow-value");
+        }
         var result = new List<FirmamentV2StaticSetEntry>(); var names = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < headers.Length; index++)
         {
@@ -449,7 +454,7 @@ internal static class CanonicalStaticAuthoring
                     associations.Add(new(semanticId, set.Name, entry.Name, entry.Value, entry.SourceOrder, entry.Provenance));
                     continue;
                 }
-                var construction = Regex.Match(declaration, @"\b(?:Hole\s*<\s*(?:Shaft|Counterbore|Countersink)\s*>|Slot\s*<\s*(?:Capsule|RoundedRectangle)\s*>|Boss|Pocket|EdgeFinish)\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
+                var construction = Regex.Match(declaration, @"\b(?:Hole\s*<\s*(?:Shaft|Counterbore|Countersink)\s*>|Slot\s*<\s*(?:Capsule|RoundedRectangle)\s*>|Boss|Pocket|EdgeFinish|Panel)\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
                 if (!construction.Success) { diagnostics.Add(Prefix + "pattern-body-invalid:" + patternName); return; }
                 declaration = declaration.Remove(construction.Groups["name"].Index, construction.Groups["name"].Length).Insert(construction.Groups["name"].Index, materializedId);
                 var openingBrace = declaration.IndexOf('{', construction.Index);
@@ -543,7 +548,7 @@ internal static class CanonicalStaticAuthoring
             : id.Replace("[", "_", StringComparison.Ordinal).Replace("]", string.Empty, StringComparison.Ordinal);
         return $"{kind} {outputName}{declaration.Groups["tail"].Value} {{{body}}}";
     }
-    private static Dictionary<string, string> Fields(string body) => Regex.Matches(body, "\\b(?<name>[A-Za-z_]\\w*)\\s*:\\s*(?<value>\"[^\"]*\"|(?:Point2|Vector2|PlusMinus)\\s*\\([^)]*\\)|\\d+\\.\\d+\\.\\d+|\\d{4}-\\d{2}-\\d{2}|[A-Za-z_]\\w*|[-+]?\\d+(?:\\.\\d+)?(?:mm|deg)?)", RegexOptions.CultureInvariant)
+    private static Dictionary<string, string> Fields(string body) => Regex.Matches(body, "\\b(?<name>[A-Za-z_]\\w*)\\s*:\\s*(?<value>\"[^\"]*\"|(?:Point2|Point3|Vector2|PlusMinus)\\s*\\([^)]*\\)|\\d+\\.\\d+\\.\\d+|\\d{4}-\\d{2}-\\d{2}|[A-Za-z_]\\w*|[-+]?\\d+(?:\\.\\d+)?(?:mm|deg)?)", RegexOptions.CultureInvariant)
         .Cast<Match>().ToDictionary(m => m.Groups["name"].Value, m => m.Groups["value"].Value, StringComparer.Ordinal);
     private static IReadOnlyDictionary<string, IReadOnlyList<string>> TableColumns(string source, int start, int end)
     {

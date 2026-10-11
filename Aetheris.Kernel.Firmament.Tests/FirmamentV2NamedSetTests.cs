@@ -4,6 +4,20 @@ namespace Aetheris.Kernel.Firmament.Tests;
 
 public sealed class FirmamentV2NamedSetTests
 {
+    [Theory]
+    [InlineData("// No entries yet\n", true)]
+    [InlineData("broken: Point2(0mm, 0mm)\nvalid => Point2(1mm, 1mm)", false)]
+    public void SetPrefixAdmitsCommentsButDoesNotSilentlyDropMalformedEntries(string body, bool accepted)
+    {
+        var diagnostics = new List<string>();
+        var expanded = CanonicalStaticAuthoring.Expand("Static Points: Set<Point2> { " + body + " }", diagnostics);
+        Assert.Equal(accepted, expanded is not null && diagnostics.Count == 0);
+        if (!accepted)
+        {
+            Assert.Contains(diagnostics, diagnostic => diagnostic.StartsWith("firmament-v2-static-set-entry-malformed", StringComparison.Ordinal));
+        }
+    }
+
     [Fact]
     public void PointSet_PreservesNamesOrderValuesAndNamedAccess()
     {

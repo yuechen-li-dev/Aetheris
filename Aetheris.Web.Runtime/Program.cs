@@ -204,8 +204,9 @@ public static partial class Program
     private static object ExportStep(WebRequest request)
     {
         var session = Session(request);
-        if (session.StepText is null) throw new WebRuntimeException("step-export-unavailable", "The current document has no STEP product artifact.");
-        return new { mediaType = "model/step", fileName = session.Name + ".step", base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(session.StepText)), revision = session.Revision };
+        var stepText = session.StepText;
+        if (stepText is null) throw new WebRuntimeException("step-export-unavailable", "The current document has no STEP product artifact.");
+        return new { mediaType = "model/step", fileName = session.Name + ".step", base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(stepText)), revision = session.Revision };
     }
 
     private static object DisposeSession(WebRequest request)
@@ -252,7 +253,23 @@ public static partial class Program
         public string Id { get; } = id;
         public string Name => Path.GetFileNameWithoutExtension(_sourceName);
         public int Revision { get; private set; }
-        public string? StepText { get; private set; }
+        private string? _stepText;
+        private Func<string>? _stepWriter;
+        /// <summary>STEP of the current build. Assemblies write it on first request (BUILD-PERF-M1);
+        /// their structural export checks still run during the build.</summary>
+        public string? StepText
+        {
+            get
+            {
+                if (_stepText is null && _stepWriter is { } writer)
+                {
+                    using var phase = BuildPerfTrace.Phase("web.assembly-step-export");
+                    _stepText = writer();
+                    _stepWriter = null;
+                }
+                return _stepText;
+            }
+        }
         public object Snapshot => _lastSnapshot ?? throw new WebRuntimeException("model-not-built", "The model has no valid snapshot.");
 
         public void SetSource(string nextSource, string? nextSourceName, IReadOnlyDictionary<string, string>? documents = null)
@@ -340,7 +357,8 @@ public static partial class Program
             Revision++;
             _properties = nextProperties;
             _projections = compiled.Projections ?? [];
-            StepText = compiled.StepText;
+            _stepText = compiled.StepText;
+            _stepWriter = compiled.StepWriter;
             var changes = new
             {
                 changedEntityIds = compiled.EntityIds,
@@ -361,7 +379,7 @@ public static partial class Program
                 tree = compiled.Tree, properties = _properties, mesh = compiled.Mesh,
                 diagnostics = compiled.Diagnostics, changes, timings
             };
-            return compiled with { Revision = Revision, Model = _lastSnapshot, Changes = changes, StepText = null };
+            return compiled with { Revision = Revision, Model = _lastSnapshot, Changes = changes, StepText = null, StepWriter = null };
         }
 
         private WebBuildResult CompilePart(string effective, List<WebProperty> properties)
@@ -442,25 +460,38 @@ public static partial class Program
             // Browser projects are explicit source snapshots. Includes, ports and
             // SectionChain/Loft resources must resolve through the compiler's
             // project path, rather than falling through to the host filesystem.
+            var assemblyCompilePhase = BuildPerfTrace.Phase("web.assembly-compile");
             var compilation = _projectDocuments is { Count: > 0 }
                 ? _compilationSession.CompileProject(new FirmamentProjectSnapshot(_sourceName,
                     new Dictionary<string, string>(_projectDocuments, StringComparer.Ordinal) { [_sourceName] = effective }))
                 : _compilationSession.Compile(effective, _sourceName);
+            assemblyCompilePhase.Dispose();
             _lastReuse = compilation.Reuse;
             var compileMs = watch.Elapsed.TotalMilliseconds;
             if (!compilation.IsSuccess || compilation.Ir is null || compilation.Geometry is null)
                 return WebBuildResult.Failed(compilation.Diagnostics.Select(d => new WebDiagnostic(d.Severity == AssemblyDiagnosticSeverity.Error ? "error" : "warning", d.Code, d.Message, SourceRef(_sourceName, 0, effective.Length))).ToArray(), compileMs);
-            var step = AssemblyIrAp242Exporter.Export(compilation);
+            var assemblyStepPhase = BuildPerfTrace.Phase("web.assembly-step-prepare");
+            var step = AssemblyIrAp242Exporter.PrepareExport(compilation);
+            assemblyStepPhase.Dispose();
             if (!step.IsSuccess) return WebBuildResult.Failed(Diagnostics(step.Diagnostics, _sourceName), compileMs);
+            var writeStep = step.Value;
+            string StepWriter()
+            {
+                var written = writeStep();
+                return written.IsSuccess ? written.Value
+                    : throw new WebRuntimeException("step-export-failed", string.Join("; ", written.Diagnostics.Select(diagnostic => diagnostic.Message)));
+            }
             watch.Restart();
-            var mesh = AssemblyDisplayMeshExporter.Export(compilation);
+            var assemblyMeshPhase = BuildPerfTrace.Phase("web.assembly-display-mesh");
+            var mesh = _compilationSession.ExportDisplayMesh(compilation);
+            assemblyMeshPhase.Dispose();
             var meshMs = watch.Elapsed.TotalMilliseconds;
             var nodes = compilation.Ir.Instances.OrderBy(instance => instance.Path.Segments.Count).Select(instance =>
                 new WebTreeNode(instance.StableId, instance.Kind.ToString(), instance.Path.Segments.Last(), instance.ParentStableId, instance.ChildrenStableIds, true, null)).ToArray();
             var children = nodes.Where(node => node.ParentId == compilation.Ir.RootInstanceStableId).Select(node => node.Id).ToArray();
             var root = new WebTreeNode(compilation.Ir.RootInstanceStableId, "Assembly", compilation.Ir.Name, null, children, true, SourceRef(_sourceName, 0, effective.Length));
             var tree = new { rootId = root.Id, nodes = nodes.Prepend(root).DistinctBy(node => node.Id).ToArray() };
-            return WebBuildResult.Passed(step.Value, tree, mesh, nodes.Select(node => node.Id).Prepend(root.Id).Distinct().ToArray(), compileMs, meshMs);
+            return WebBuildResult.Passed(null, tree, mesh, nodes.Select(node => node.Id).Prepend(root.Id).Distinct().ToArray(), compileMs, meshMs) with { StepWriter = StepWriter };
         }
 
         private WebBuildResult CompileScene(string effective)
@@ -469,11 +500,15 @@ public static partial class Program
             // A project snapshot is explicit; missing resources never fall through to browser disk.
             var documents = new Dictionary<string, string>(_projectDocuments ?? new Dictionary<string, string>(), StringComparer.Ordinal)
                 { [_sourceName] = effective };
+            var scenePhase = BuildPerfTrace.Phase("web.scene-compile");
             var compilation = _sceneSession.CompileProject(new FirmamentProjectSnapshot(_sourceName, documents));
+            scenePhase.Dispose();
             if (!compilation.IsSuccess || compilation.Scene is null)
                 return WebBuildResult.Failed(compilation.Diagnostics.Select(d => new WebDiagnostic("error", d.Code, d.Message)).ToArray(), watch.Elapsed.TotalMilliseconds);
             var compiledScene = compilation.Scene;
+            var sceneMeshPhase = BuildPerfTrace.Phase("web.scene-display-projection");
             var mesh = DisplayProjection.Project(compiledScene);
+            sceneMeshPhase.Dispose();
             var sourceNodes = compiledScene.Nodes.ToDictionary(n => n.Path, StringComparer.Ordinal);
             WebSourceRef? SceneSource(string path)
             {
@@ -652,6 +687,8 @@ internal sealed record WebBuildResult(bool Success, int Revision, object? Model,
     object? Tree = null, object? Mesh = null, IReadOnlyList<string>? EntityIds = null, object? Timings = null, object? Changes = null, string? StepText = null,
     IReadOnlyList<FirmamentConstructProjection>? Projections = null, double CompileMilliseconds = 0, double MeshMilliseconds = 0)
 {
+    /// <summary>Writes the STEP text on first request; never serialized.</summary>
+    [System.Text.Json.Serialization.JsonIgnore] public Func<string>? StepWriter { get; init; }
     public static WebBuildResult Failed(IReadOnlyList<WebDiagnostic> diagnostics, double compileMs) => new(false, 0, null, diagnostics, false, Timings: new { compileMilliseconds = compileMs }, CompileMilliseconds: compileMs);
     public static WebBuildResult Passed(string? step, object tree, object mesh, IReadOnlyList<string> ids, double compileMs, double meshMs) => new(true, 0, null, [], false, tree, mesh, ids, new { compileMilliseconds = compileMs, meshMilliseconds = meshMs }, StepText: step, CompileMilliseconds: compileMs, MeshMilliseconds: meshMs);
 }

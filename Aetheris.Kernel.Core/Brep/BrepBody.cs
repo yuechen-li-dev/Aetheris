@@ -57,6 +57,18 @@ public sealed class BrepBody
     /// <summary>Source BRep evidence; display completeness is assessed separately.</summary>
     public Aetheris.Kernel.Core.Import.BrepImportQualificationReport? ImportQualification { get; internal set; }
 
+    /// <summary>
+    /// An independent body: its topology, geometry and binding stores are copies, so adding to them
+    /// (pcurve recovery, for example) cannot affect this body. Entities, geometry objects and reports
+    /// are immutable and shared. Enumeration order is preserved, so downstream output is identical.
+    /// </summary>
+    public BrepBody Clone() => new(Topology.Clone(), Geometry.Clone(), Bindings.Clone(),
+        new Dictionary<VertexId, Point3D>(_vertexPoints), SafeBooleanComposition, ShellRepresentation, FaceOrientationReport)
+    {
+        PcurveRecoveryReport = PcurveRecoveryReport,
+        ImportQualification = ImportQualification,
+    };
+
     public bool TryGetVertexPoint(VertexId vertexId, out Point3D point) => _vertexPoints.TryGetValue(vertexId, out point);
 
     public bool TryGetEdgeCurveGeometry(EdgeId edgeId, out CurveGeometry? curve)

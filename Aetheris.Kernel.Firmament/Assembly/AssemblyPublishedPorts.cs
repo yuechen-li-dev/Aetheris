@@ -14,7 +14,7 @@ internal static class AssemblyPublishedPorts
     // it never materializes a body or imports STEP.
     internal static IReadOnlyList<SemanticValue> BindAuthored(string identity, string declarations,
         string sourceIdentity, List<AssemblyDiagnostic> diagnostics, FirmamentProjectSnapshot? project,
-        List<AssemblySourceDependencyIr> dependencies)
+        List<AssemblySourceDependencyIr> dependencies, DerivedValueCache<PublishedPortBinding>? cache = null)
     {
         var file = Regex.Match(identity, "^(?:SectionChainFile|LoftFile)<\\\"(?<path>[^\\\"]+)\\\">$");
         if (file.Success)
@@ -46,18 +46,30 @@ internal static class AssemblyPublishedPorts
                 .Select(d => d with { IsRoot = false }));
             if (!dependencies.Any(d => d.Path == path))
                 dependencies.Add(new(path, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(source))), false));
-            source = FirmamentSourceSpelling.Normalize(source);
-            if (!Regex.IsMatch(source, @"\bExpose\s*\{\s*Semantic\b")) return [];
-            var chain = SectionChainAuthoringParser.Compile(Strip(source, diagnostics), materialize: false);
-            if (!chain.IsSuccess || chain.Chain is null)
+            // Everything below is a function of the identity, the resource path and its loaded text.
+            return Memo(cache, "file\0" + identity + "\0" + path + "\0" + Hash(source), diagnostics, diagnostics =>
             {
-                foreach (var error in chain.Diagnostics) diagnostics.Add(new("assembly-port-section-binding-failed", error));
-                return [];
-            }
-            var owner = Regex.Match(source, @"\bModel\s+(?<name>[A-Za-z_]\w*)\s*\{").Groups["name"].Value;
-            return Read(source, owner, identity, path, diagnostics, chain.Chain);
+                source = FirmamentSourceSpelling.Normalize(source);
+                if (!Regex.IsMatch(source, @"\bExpose\s*\{\s*Semantic\b")) return [];
+                var chain = SectionChainAuthoringParser.Compile(Strip(source, diagnostics), materialize: false);
+                if (!chain.IsSuccess || chain.Chain is null)
+                {
+                    foreach (var error in chain.Diagnostics) diagnostics.Add(new("assembly-port-section-binding-failed", error));
+                    return [];
+                }
+                var owner = Regex.Match(source, @"\bModel\s+(?<name>[A-Za-z_]\w*)\s*\{").Groups["name"].Value;
+                return Read(source, owner, identity, path, diagnostics, chain.Chain);
+            });
         }
         if (!identity.Contains('<')) return [];
+        // A specialization's ports are a function of the identity, the declarations and the source name.
+        return Memo(cache, "template\0" + identity + "\0" + sourceIdentity + "\0" + Hash(declarations), diagnostics,
+            diagnostics => BindTemplate(identity, declarations, sourceIdentity, diagnostics));
+    }
+
+    private static IReadOnlyList<SemanticValue> BindTemplate(string identity, string declarations, string sourceIdentity,
+        List<AssemblyDiagnostic> diagnostics)
+    {
         var templateName = identity[..identity.IndexOf('<')].Trim();
         var header = Regex.Match(declarations, $@"\b(?:Struct|Model)\s+{Regex.Escape(templateName)}(?:\s*:\s*[A-Za-z_]\w*)?\s*\{{");
         if (!header.Success) return [];
@@ -77,6 +89,34 @@ internal static class AssemblyPublishedPorts
         }
         return Read(expansion.ExpandedSource, "__AssemblyPart", identity, sourceIdentity, diagnostics);
     }
+    /// <summary>Reuse a binding from an earlier build of the session when its inputs are identical,
+    /// replaying its diagnostics. Only bindings the definition cache can copy are kept, and every
+    /// reuse returns copies.</summary>
+    private static IReadOnlyList<SemanticValue> Memo(DerivedValueCache<PublishedPortBinding>? cache, string key,
+        List<AssemblyDiagnostic> diagnostics, Func<List<AssemblyDiagnostic>, IReadOnlyList<SemanticValue>> bind)
+    {
+        if (cache is null) return bind(diagnostics);
+        var computed = false;
+        var binding = cache.GetOrAdd(key, () =>
+        {
+            computed = true;
+            var reported = new List<AssemblyDiagnostic>();
+            var ports = bind(reported);
+            return new(ports, reported);
+        });
+        diagnostics.AddRange(binding.Diagnostics);
+        if (!binding.Ports.All(AssemblyDefinitionCache.CanCopy))
+        {
+            // Not shareable: keep this build's values and do not offer them to the next build.
+            if (computed) { cache.Forget(key); return binding.Ports; }
+            var reported = new List<AssemblyDiagnostic>();
+            return bind(reported);
+        }
+        return binding.Ports.Select(AssemblyDefinitionCache.Copy).ToArray();
+    }
+
+    private static string Hash(string text) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(text)));
+
     internal static string Strip(string source, List<AssemblyDiagnostic> diagnostics)
     {
         source = FirmamentSourceSpelling.Normalize(source);

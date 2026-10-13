@@ -10,6 +10,8 @@ namespace Aetheris.Kernel.Firmament.Assembly;
 /// <summary>Bounded parser for the M0 relational assembly lane. XML-like tags are used only for product-tree containment.</summary>
 public sealed class AssemblyM0Parser
 {
+    /// <summary>Published-port bindings reused across a session's builds (BUILD-PERF-M1).</summary>
+    internal DerivedValueCache<PublishedPortBinding>? PortCache { get; init; }
     public sealed record ParseResult(AssemblySource? Source, IReadOnlyList<AssemblyDiagnostic> Diagnostics, double ElapsedMilliseconds)
     { public bool IsSuccess => Source is not null && Diagnostics.All(x => x.Severity != AssemblyDiagnosticSeverity.Error); }
 
@@ -141,7 +143,7 @@ public sealed class AssemblyM0Parser
         IReadOnlyList<SemanticValue> Ports(string identity)
         {
             if (!portCache.TryGetValue(identity, out var ports))
-                portCache[identity] = ports = AssemblyPublishedPorts.BindAuthored(identity, definitionSource, sourceIdentity, diagnostics, project, portDependencies);
+                portCache[identity] = ports = AssemblyPublishedPorts.BindAuthored(identity, definitionSource, sourceIdentity, diagnostics, project, portDependencies, PortCache);
             return ports;
         }
         var templateRanges = new List<(int Start, int Length)>();

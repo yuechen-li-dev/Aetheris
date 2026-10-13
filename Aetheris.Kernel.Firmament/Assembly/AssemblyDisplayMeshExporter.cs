@@ -56,7 +56,12 @@ public static class AssemblyDisplayMeshExporter
     }
 
     public static AssemblyDisplayMeshDocument Export(AssemblyM1CompilationResult compilation, DisplayTessellationOptions? options = null,
-        AssemblyPoseResult? pose = null)
+        AssemblyPoseResult? pose = null) => ExportCore(compilation, options, pose, (prepare, _) => prepare());
+
+    /// <summary>Export with a hook around each definition's preparation (identity → prepared mesh),
+    /// used by a compilation session to reuse unchanged definitions.</summary>
+    internal static AssemblyDisplayMeshDocument ExportCore(AssemblyM1CompilationResult compilation, DisplayTessellationOptions? options,
+        AssemblyPoseResult? pose, Func<Func<AssemblyDisplayMeshDefinition>, string, AssemblyDisplayMeshDefinition> definition)
     {
         if (!compilation.IsSuccess || compilation.Ir is null || compilation.Geometry is null)
             throw new InvalidOperationException("assembly-mesh-invalid-compilation");
@@ -72,8 +77,8 @@ public static class AssemblyDisplayMeshExporter
         {
             var artifact = geometry.Artifact.Definitions.Single(d => d.DefinitionIdentity == identity);
             var externalStep = artifact.Provenance.Any(p => p.Stage == "imported-step-definition");
-            definitions.Add(PrepareDefinition(ids[identity], identity, body, options, externalStep) with
-            { Cir = geometry.DefinitionCir.GetValueOrDefault(identity), Shader = CirShaderArtifactProvider.Resolve(geometry.DefinitionCir.GetValueOrDefault(identity)), GeometryRevision = artifact.StepSha256 });
+            definitions.Add(definition(() => PrepareDefinition(ids[identity], identity, body, options, externalStep) with
+            { Cir = geometry.DefinitionCir.GetValueOrDefault(identity), Shader = CirShaderArtifactProvider.Resolve(geometry.DefinitionCir.GetValueOrDefault(identity)), GeometryRevision = artifact.StepSha256 }, identity));
         }
         var occurrences = (pose?.Instances ?? compilation.Ir.Instances).OrderBy(i => i.Path.ToString(), StringComparer.Ordinal).Select(instance =>
         {

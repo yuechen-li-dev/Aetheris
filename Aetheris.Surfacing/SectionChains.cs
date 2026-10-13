@@ -213,6 +213,7 @@ public static class SectionChainMaterializer
 
     public static SectionChainMaterializationResult Materialize(SectionChain chain)
     {
+        using var buildPerfPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("sectionchain.materialize");
         ArgumentNullException.ThrowIfNull(chain);
         var profileStarted = Stopwatch.GetTimestamp();
         PreparedSection[] prepared;
@@ -454,6 +455,7 @@ public static class SectionChainMaterializer
         IReadOnlyList<PreparedSection> sections,
         IReadOnlyList<(PreparedTransition Transition, ISectionChainTransitionPatch[] Patches)> transitions)
     {
+        using var buildPerfPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("sectionchain.build-body");
         var builder = new TopologyBuilder(); var geometry = new BrepGeometryStore(); var bindings = new BrepBindingModel();
         var points = new Dictionary<VertexId, Point3D>(); var nextCurve = 1; var nextSurface = 1;
         var vertices = new VertexId[sections.Count][]; var profileEdges = new EdgeId[sections.Count][];

@@ -1,3 +1,6 @@
+using Aetheris.Kernel.Core.Diagnostics;
+using Aetheris.Kernel.Core.Brep;
+using Aetheris.Kernel.Core.Brep.Queries;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -33,6 +36,20 @@ public sealed class FirmamentCompilationSession : IDisposable
     public AssemblyM1CompilationResult Compile(string source, string sourceIdentity = "<memory>") => Run(() => pipeline.Compile(source, sourceIdentity));
     public AssemblyM1CompilationResult CompileProject(FirmamentProjectSnapshot project) => Run(() => pipeline.CompileProject(project));
 
+    /// <summary>The display mesh of a compilation from this session. Definitions whose input key is
+    /// unchanged since the previous build reuse their prepared mesh instead of tessellating again.</summary>
+    public AssemblyDisplayMeshDocument ExportDisplayMesh(AssemblyM1CompilationResult compilation)
+    {
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            return AssemblyDisplayMeshExporter.ExportCore(compilation, null, null, (prepare, identity) =>
+                compilation.DefinitionInputKeys?.GetValueOrDefault(identity) is { } inputKey
+                    ? cache.DisplayDefinitions.GetOrAdd(inputKey + "|" + identity, prepare)
+                    : prepare());
+        }
+    }
+
     public void Clear()
     {
         lock (gate) { ObjectDisposedException.ThrowIf(disposed, this); cache.Clear(); }
@@ -54,37 +71,61 @@ public sealed class FirmamentCompilationSession : IDisposable
     }
 }
 
+/// <summary>Values derived from cached definitions, kept for one build: entries a build does not
+/// use are dropped when the next build begins, so the working set stays bounded.</summary>
+internal sealed class DerivedValueCache<T>
+{
+    private Dictionary<string, T> current = new(StringComparer.Ordinal);
+    private Dictionary<string, T> previous = new(StringComparer.Ordinal);
+    internal void BeginBuild() { previous = current; current = new(StringComparer.Ordinal); }
+    internal void Clear() { current.Clear(); previous.Clear(); }
+    internal void Forget(string key) { current.Remove(key); previous.Remove(key); }
+    internal T GetOrAdd(string key, Func<T> create)
+    {
+        if (current.TryGetValue(key, out var value)) return value;
+        if (!previous.Remove(key, out value!)) value = create();
+        current[key] = value;
+        return value;
+    }
+}
+
+/// <summary>A published-port binding and the diagnostics it reported, replayed on reuse.</summary>
+internal sealed record PublishedPortBinding(IReadOnlyList<SemanticValue> Ports, IReadOnlyList<AssemblyDiagnostic> Diagnostics);
+
 internal sealed class AssemblyDefinitionCache(int capacity)
 {
-    // STEP text is the immutable cache payload. A hit reimports a fresh body so
-    // public mutable topology/geometry stores can never corrupt a later build.
-    private sealed record Entry(string Key, string Step, MaterializedAssemblyDefinition Metadata,
+    // The materialized body is the cache payload. The cache keeps a private clone and every hit
+    // returns a fresh clone, so the public mutable topology/geometry stores can never corrupt a
+    // later build, and a rebuild sees the same body as the build that populated the cache.
+    // (BUILD-PERF-M1: previously STEP text, re-imported on every hit.)
+    private sealed record Entry(string Key, MaterializedAssemblyDefinition Metadata,
         IReadOnlyList<AssemblyDiagnostic> Diagnostics);
     private readonly Dictionary<string, Entry> entries = new(StringComparer.Ordinal);
     private readonly Queue<string> insertionOrder = new();
     internal List<AssemblyDefinitionReuse> Evidence { get; } = [];
-    internal void BeginBuild() => Evidence.Clear();
-    internal void Clear() { entries.Clear(); insertionOrder.Clear(); Evidence.Clear(); }
+    internal DerivedValueCache<BrepPlanarSeatQuery> SeatQueries { get; } = new();
+    internal DerivedValueCache<AssemblyDisplayMeshDefinition> DisplayDefinitions { get; } = new();
+    internal DerivedValueCache<PublishedPortBinding> PublishedPorts { get; } = new();
+    internal void BeginBuild() { Evidence.Clear(); SeatQueries.BeginBuild(); DisplayDefinitions.BeginBuild(); PublishedPorts.BeginBuild(); }
+    internal void Clear() { entries.Clear(); insertionOrder.Clear(); Evidence.Clear(); SeatQueries.Clear(); DisplayDefinitions.Clear(); PublishedPorts.Clear(); }
 
     internal MaterializedAssemblyDefinition? Materialize(string identity, string? declarations, string sourceIdentity,
         List<AssemblyDiagnostic> diagnostics, FirmamentProjectSnapshot? project,
         Func<MaterializedAssemblyDefinition?> build)
     {
-        var key = Key(identity, declarations, sourceIdentity, project);
+        string? key;
+        using (BuildPerfTrace.Phase("assembly.cache-key")) key = Key(identity, declarations, sourceIdentity, project);
         var reason = key is null ? "unsupported-resource-dependency" : "first-build-or-evicted";
         if (key is not null && entries.TryGetValue(identity, out var entry))
         {
             reason = "definition-inputs-changed";
             if (entry.Key == key)
             {
-                var import = Step242Importer.ImportBody(entry.Step);
-                if (import.IsSuccess && import.Value is not null)
-                {
-                    diagnostics.AddRange(entry.Diagnostics);
-                    Evidence.Add(new(identity, true, "unchanged-definition-inputs"));
-                    return CopyMetadata(entry.Metadata) with { Body = import.Value };
-                }
-                reason = "cached-step-reimport-failed";
+                BrepBody body;
+                using (BuildPerfTrace.Phase("assembly.cache-hit-clone")) body = entry.Metadata.Body.Clone();
+                diagnostics.AddRange(entry.Diagnostics);
+                Evidence.Add(new(identity, true, "unchanged-definition-inputs"));
+                return CopyMetadata(entry.Metadata) with { Body = body, InputKey = key };
             }
         }
         var diagnosticStart = diagnostics.Count;
@@ -92,30 +133,30 @@ internal sealed class AssemblyDefinitionCache(int capacity)
         Evidence.Add(new(identity, false, result is null ? "materialization-failed" : reason));
         if (key is null || result is null || diagnostics.Skip(diagnosticStart).Any(d => d.Severity == AssemblyDiagnosticSeverity.Error))
             return result;
-        if (Key(identity, declarations, sourceIdentity, project) != key)
+        string? keyAfterBuild;
+        using (BuildPerfTrace.Phase("assembly.cache-key")) keyAfterBuild = Key(identity, declarations, sourceIdentity, project);
+        if (keyAfterBuild != key)
         {
             Evidence[^1] = new(identity, false, "resource-changed-during-build");
             return result;
         }
         // This bounded cache only admits immutable scalar/datum semantic bindings.
         // Domain materializers and geometry-valued ports stay on the uncached path.
-        if (!result.Semantics.All(CanCopy) || result.CanonicalStep is not { } step)
+        if (!result.Semantics.All(CanCopy) || result.CanonicalStep is null)
         {
             Evidence[^1] = new(identity, false, "producer-or-semantics-not-cacheable");
             return result;
         }
-        var metadata = CopyMetadata(result);
-        // The private body is never exposed; fresh imports supply returned bodies.
-        var privateImport = Step242Importer.ImportBody(step);
-        if (!privateImport.IsSuccess || privateImport.Value is null) return result;
-        metadata = metadata with { Body = privateImport.Value };
+        // The private body is never exposed; hits return clones of it.
+        MaterializedAssemblyDefinition metadata;
+        using (BuildPerfTrace.Phase("assembly.cache-store-clone")) metadata = CopyMetadata(result) with { Body = result.Body.Clone() };
         if (!entries.ContainsKey(identity))
         {
             while (entries.Count >= capacity) entries.Remove(insertionOrder.Dequeue());
             insertionOrder.Enqueue(identity);
         }
-        entries[identity] = new(key, step, metadata, diagnostics.Skip(diagnosticStart).ToArray());
-        return result;
+        entries[identity] = new(key, metadata, diagnostics.Skip(diagnosticStart).ToArray());
+        return result with { InputKey = key };
     }
 
     private static string? Key(string identity, string? declarations, string sourceIdentity, FirmamentProjectSnapshot? project)
@@ -158,11 +199,11 @@ internal sealed class AssemblyDefinitionCache(int capacity)
             "assembly-definition-cache-v1\0" + sourceIdentity + "\0" + identity + "\0" + inputs)));
     }
 
-    private static bool CanCopy(SemanticValue value) => value.Bindings.All(b => b is
+    internal static bool CanCopy(SemanticValue value) => value.Bindings.All(b => b is
         ExactAxisBinding or ExactPlaneBinding or ExactPointBinding or ExactDatumFrameBinding or TolerancedDimensionBinding)
         && value.ExposedMembers.Values.All(CanCopy);
 
-    private static SemanticValue Copy(SemanticValue value) => new(value.StableIdentity, value.Type,
+    internal static SemanticValue Copy(SemanticValue value) => new(value.StableIdentity, value.Type,
         value.Capabilities.Values, value.Bindings, value.ExposedMembers.Values.Select(Copy), value.Provenance.ToArray(),
         value.AuthoredSourceSpan, value.GeneratedSourceSpan, value.ExposedName);
 

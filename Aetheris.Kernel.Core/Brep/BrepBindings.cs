@@ -241,6 +241,18 @@ public sealed class BrepBindingModel
     public IEnumerable<FaceBoundaryRoleBinding> FaceBoundaryRoleBindings => _faceBoundaryRoleBindings.Values;
     public IEnumerable<VertexLoopParameterBinding> VertexLoopParameterBindings => _vertexLoopParameterBindings.Values;
 
+    /// <summary>An independent binding model with the same (immutable) bindings in the same order.</summary>
+    public BrepBindingModel Clone()
+    {
+        var copy = new BrepBindingModel();
+        foreach (var (id, binding) in _edgeBindings) copy._edgeBindings.Add(id, binding);
+        foreach (var (id, binding) in _faceBindings) copy._faceBindings.Add(id, binding);
+        foreach (var (id, binding) in _pcurveBindings) copy._pcurveBindings.Add(id, binding);
+        foreach (var (id, binding) in _faceBoundaryRoleBindings) copy._faceBoundaryRoleBindings.Add(id, binding);
+        foreach (var (id, binding) in _vertexLoopParameterBindings) copy._vertexLoopParameterBindings.Add(id, binding);
+        return copy;
+    }
+
     public void AddEdgeBinding(EdgeGeometryBinding binding) => _edgeBindings.Add(binding.EdgeId, binding);
 
     public void AddFaceBinding(FaceGeometryBinding binding) => _faceBindings.Add(binding.FaceId, binding);

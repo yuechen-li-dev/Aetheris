@@ -18,6 +18,21 @@ public sealed class TopologyModel
     public IEnumerable<Shell> Shells => _shells.Values;
     public IEnumerable<Body> Bodies => _bodies.Values;
 
+    /// <summary>An independent model with the same entities in the same insertion order. Entities
+    /// are immutable records, so only the containers are copied.</summary>
+    public TopologyModel Clone()
+    {
+        var copy = new TopologyModel();
+        foreach (var (id, item) in _vertices) copy._vertices.Add(id, item);
+        foreach (var (id, item) in _edges) copy._edges.Add(id, item);
+        foreach (var (id, item) in _coedges) copy._coedges.Add(id, item);
+        foreach (var (id, item) in _loops) copy._loops.Add(id, item);
+        foreach (var (id, item) in _faces) copy._faces.Add(id, item);
+        foreach (var (id, item) in _shells) copy._shells.Add(id, item);
+        foreach (var (id, item) in _bodies) copy._bodies.Add(id, item);
+        return copy;
+    }
+
     public void AddVertex(Vertex vertex) => _vertices.Add(vertex.Id, vertex);
 
     public void AddEdge(Edge edge) => _edges.Add(edge.Id, edge);

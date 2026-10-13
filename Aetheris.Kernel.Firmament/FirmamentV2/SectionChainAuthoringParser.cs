@@ -44,6 +44,7 @@ public static class SectionChainAuthoringParser
 
     public static SectionChainAuthoringResult Compile(string source, bool materialize = true)
     {
+        using var buildPerfPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("sectionchain.authoring-compile");
         ArgumentNullException.ThrowIfNull(source);
         source = FirmamentSourceSpelling.Normalize(source);
         if (LoftAuthoringParser.IsLoftSource(source))

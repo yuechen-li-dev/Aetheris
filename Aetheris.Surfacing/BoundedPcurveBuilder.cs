@@ -12,6 +12,7 @@ public static class BoundedPcurveBuilder
     public static PcurveBuildResult Populate(TopologyModel topology, BrepGeometryStore geometry, BrepBindingModel bindings,
         double tolerance = 1e-5, int sampleCount = 129)
     {
+        using var buildPerfPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("pcurve.bounded-build");
         var result = BrepPcurveRecovery.Populate(topology, geometry, bindings, tolerance, sampleCount);
         return new PcurveBuildResult(result.IsSuccess, result.Count, result.MaximumResidual,
             result.Diagnostics.Select(d => new SculptDiagnostic(d.Code, d.Message, d.Entity)).ToArray());

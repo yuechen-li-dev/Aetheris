@@ -114,6 +114,7 @@ public static class Step242Importer
 
     public static KernelResult<BrepBody> ImportBody(string stepText, ImportPolicy? policy = null)
     {
+        using var buildPerfPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("step.import-body");
         var orchestrator = ImportOrchestrator.CreateDefault();
         var result = orchestrator.Import(new ImportRequest(stepText, policy));
         return result.BodyResult;

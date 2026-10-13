@@ -14,6 +14,15 @@ public sealed class BrepGeometryStore
 
     public IEnumerable<KeyValuePair<SurfaceGeometryId, SurfaceGeometry>> Surfaces => _surfaces;
 
+    /// <summary>An independent store sharing the immutable curve and surface objects, in the same order.</summary>
+    public BrepGeometryStore Clone()
+    {
+        var copy = new BrepGeometryStore();
+        foreach (var (id, curve) in _curves) copy._curves.Add(id, curve);
+        foreach (var (id, surface) in _surfaces) copy._surfaces.Add(id, surface);
+        return copy;
+    }
+
     public void AddCurve(CurveGeometryId id, CurveGeometry curve) => _curves.Add(id, curve);
 
     public void AddSurface(SurfaceGeometryId id, SurfaceGeometry surface) => _surfaces.Add(id, surface);

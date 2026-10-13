@@ -306,6 +306,7 @@ public static class FirmamentV2Parser
         string? sourceDirectory,
         FirmamentV2ForgeConceptCatalog? conceptCatalog)
     {
+        using var buildPerfPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("firmament.v2-parse");
         ArgumentNullException.ThrowIfNull(sourceText);
         sourceText = FirmamentSourceSpelling.Normalize(sourceText);
         sourceText = ProfileModificationTemplateLibrary.ResolveImports(sourceText);

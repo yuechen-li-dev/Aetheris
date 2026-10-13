@@ -34,10 +34,12 @@ public static class BuildPerfTrace
     private static bool _enabled;
     private static readonly List<Sample> Samples = [];
     private static readonly Dictionary<string, long> Counts = new(StringComparer.Ordinal);
+    private static int _gc0, _gc1, _gc2;
 
     public static void Start()
     {
         Samples.Clear(); Counts.Clear(); _current = null; _enabled = true;
+        _gc0 = GC.CollectionCount(0); _gc1 = GC.CollectionCount(1); _gc2 = GC.CollectionCount(2);
     }
 
     public static void Stop() { _enabled = false; _current = null; }
@@ -55,6 +57,7 @@ public static class BuildPerfTrace
         if (_enabled) Counts[name] = value;
     }
 
+    /// <summary>Phases closed so far and the collections since <see cref="Start"/>.</summary>
     public static BuildPerfSnapshot Snapshot() => new(Samples.ToArray(), Counts.ToDictionary(),
-        GC.CollectionCount(0), GC.CollectionCount(1), GC.CollectionCount(2));
+        GC.CollectionCount(0) - _gc0, GC.CollectionCount(1) - _gc1, GC.CollectionCount(2) - _gc2);
 }

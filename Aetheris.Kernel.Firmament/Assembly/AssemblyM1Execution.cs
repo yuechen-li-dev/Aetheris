@@ -1,3 +1,4 @@
+using Aetheris.Kernel.Core.Diagnostics;
 using System.Security.Cryptography;
 using System.Diagnostics;
 using System.Text;
@@ -29,6 +30,9 @@ public sealed record AssemblyM1CompilationResult(
     AssemblyPerformanceIr? Performance = null,
     AssemblyCompilationReuse? Reuse = null)
 {
+    /// <summary>Input key of each definition that came from (or entered) a session's definition
+    /// cache. Values derived only from such a definition can be reused while its key is unchanged.</summary>
+    public IReadOnlyDictionary<string, string>? DefinitionInputKeys { get; init; }
     public bool IsSuccess => Ir is not null && Geometry is not null && Diagnostics.All(diagnostic => diagnostic.Severity != AssemblyDiagnosticSeverity.Error);
 }
 
@@ -57,7 +61,8 @@ internal sealed record MaterializedAssemblyDefinition(
     IReadOnlyList<SemanticValue> Semantics,
     AssemblyDefinitionArtifactIr Artifact,
     string? CanonicalStep = null,
-    FirmamentCirRetention? Cir = null);
+    FirmamentCirRetention? Cir = null,
+    string? InputKey = null);
 
 /// <summary>
 /// M1's definition seam: specialize through the ordinary Firmament compiler, then
@@ -347,13 +352,13 @@ public sealed class AssemblyM1Pipeline
     internal AssemblyM1Pipeline(AssemblyDefinitionCache cache) => this.cache = cache;
     public AssemblyM1CompilationResult CompileFile(string path, AssemblyPartMaterializer? domainMaterializer = null)
     {
-        var parsed = new AssemblyM0Parser().ParseFile(path);
+        var parsed = new AssemblyM0Parser { PortCache = cache?.PublishedPorts }.ParseFile(path);
         return CompileParsed(parsed, domainMaterializer);
     }
 
     public AssemblyM1CompilationResult Compile(string source, string sourceIdentity = "<memory>", AssemblyPartMaterializer? domainMaterializer = null)
     {
-        var parsed = new AssemblyM0Parser().Parse(source, sourceIdentity);
+        var parsed = new AssemblyM0Parser { PortCache = cache?.PublishedPorts }.Parse(source, sourceIdentity);
         return CompileParsed(parsed, domainMaterializer);
     }
 
@@ -365,7 +370,8 @@ public sealed class AssemblyM1Pipeline
             : [];
         if (profile.Any(diagnostic => diagnostic.Severity == AssemblyDiagnosticSeverity.Error))
             return new(null, null, profile);
-        var parsed = new AssemblyM0Parser().ParseProject(project);
+        AssemblyM0Parser.ParseResult parsed;
+        using (BuildPerfTrace.Phase("assembly.parse-project")) parsed = new AssemblyM0Parser { PortCache = cache?.PublishedPorts }.ParseProject(project);
         if (parsed.Source?.DefinitionSource is { } declarations &&
             System.Text.RegularExpressions.Regex.IsMatch(declarations, @"\bInlineStep\b", System.Text.RegularExpressions.RegexOptions.CultureInvariant))
             return new(null, null, [new AssemblyDiagnostic("assembly-profile-external-resource-unsupported",
@@ -378,25 +384,28 @@ public sealed class AssemblyM1Pipeline
         if (!parsed.IsSuccess || parsed.Source is null) return new(null, null, parsed.Diagnostics);
         var diagnostics = parsed.Diagnostics.ToList();
         var routeWatch = Stopwatch.StartNew();
-        var routeSource = AssemblyRouteBindings.Resolve(parsed.Source, diagnostics, out var routeBindings);
+        AssemblySource? routeSource; IReadOnlyList<AssemblyRouteBindingEvidence> routeBindings;
+        using (BuildPerfTrace.Phase("assembly.route-bindings")) routeSource = AssemblyRouteBindings.Resolve(parsed.Source, diagnostics, out routeBindings);
         if (routeSource is null) return new(null, null, diagnostics);
         parsed = parsed with { Source = routeSource };
         routeWatch.Stop();
         var materializationWatch = Stopwatch.StartNew();
         var definitions = parsed.Source.Root.Flatten().Where(member => member.Kind == AssemblyInstanceKind.Part)
             .Select(member => member.DefinitionIdentity).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)
-            .Select(identity => cache is null
+            .Select(identity => { using var definitionPhase = BuildPerfTrace.Phase("assembly.definition"); return cache is null
                 ? Materialize(identity, parsed.Source.DefinitionSource, parsed.Source.SourceIdentity, diagnostics, domainMaterializer, project)
                 : cache.Materialize(identity, parsed.Source.DefinitionSource, parsed.Source.SourceIdentity, diagnostics, project,
-                    () => Materialize(identity, parsed.Source.DefinitionSource, parsed.Source.SourceIdentity, diagnostics, domainMaterializer, project)))
+                    () => Materialize(identity, parsed.Source.DefinitionSource, parsed.Source.SourceIdentity, diagnostics, domainMaterializer, project)); })
             .Where(definition => definition is not null).Cast<MaterializedAssemblyDefinition>().ToDictionary(definition => definition.DefinitionIdentity, StringComparer.Ordinal);
         materializationWatch.Stop();
         var enriched = parsed.Source with { Root = Enrich(parsed.Source.Root, definitions) };
-        var compiled = new AssemblyM0Compiler().Compile(enriched, parsed.ElapsedMilliseconds);
+        AssemblyCompilationResult compiled;
+        using (BuildPerfTrace.Phase("assembly.m0-compile")) compiled = new AssemblyM0Compiler().Compile(enriched, parsed.ElapsedMilliseconds);
         diagnostics.AddRange(compiled.Diagnostics);
         if (compiled.Ir is null) return new(null, null, diagnostics, compiled.Performance);
         var geometryWatch = Stopwatch.StartNew();
-        var geometry = Execute(compiled.Ir, definitions, diagnostics, out var validatedIr);
+        AssemblyExecutedGeometry? geometry; AssemblyIr validatedIr;
+        using (BuildPerfTrace.Phase("assembly.execute")) geometry = Execute(compiled.Ir, definitions, diagnostics, out validatedIr, cache);
         geometryWatch.Stop();
         var performance = compiled.Performance is null ? null : compiled.Performance with
         {
@@ -404,7 +413,11 @@ public sealed class AssemblyM1Pipeline
             GeometryExecutionMilliseconds = geometryWatch.Elapsed.TotalMilliseconds,
             RouteBindingMilliseconds = routeWatch.Elapsed.TotalMilliseconds
         };
-        return new(validatedIr with { RouteBindings = routeBindings }, geometry, diagnostics, performance);
+        return new(validatedIr with { RouteBindings = routeBindings }, geometry, diagnostics, performance)
+        {
+            DefinitionInputKeys = definitions.Values.Where(definition => definition.InputKey is not null)
+                .ToDictionary(definition => definition.DefinitionIdentity, definition => definition.InputKey!, StringComparer.Ordinal)
+        };
     }
 
     private static MaterializedAssemblyDefinition? Materialize(string identity, string? declarations, string sourceIdentity,
@@ -421,6 +434,7 @@ public sealed class AssemblyM1Pipeline
                 AssemblyDefinitionMaterializer.Metrics(supplied.Body), supplied.Provenance);
             return new(identity, supplied.SpecializationIdentity, supplied.Body, supplied.Semantics ?? [], artifact);
         }
+        using var materializePhase = BuildPerfTrace.Phase("assembly.definition-materialize");
         return AssemblyDefinitionMaterializer.TryMaterialize(identity, declarations, sourceIdentity, diagnostics, project);
     }
 
@@ -440,9 +454,12 @@ public sealed class AssemblyM1Pipeline
         };
     }
 
-    private static AssemblyExecutedGeometry? Execute(AssemblyIr ir, IReadOnlyDictionary<string, MaterializedAssemblyDefinition> definitions, List<AssemblyDiagnostic> diagnostics, out AssemblyIr validatedIr)
+    private static AssemblyExecutedGeometry? Execute(AssemblyIr ir, IReadOnlyDictionary<string, MaterializedAssemblyDefinition> definitions, List<AssemblyDiagnostic> diagnostics, out AssemblyIr validatedIr,
+        AssemblyDefinitionCache? cache = null)
     {
         var instances = new Dictionary<string, BrepBody>(StringComparer.Ordinal);
+        // A world body is determined by its definition's input key and its exact transform.
+        var worldKeys = new Dictionary<string, string>(StringComparer.Ordinal);
         var instanceArtifacts = new List<AssemblyInstanceGeometryIr>();
         foreach (var instance in ir.Instances.Where(item => item.Kind == AssemblyInstanceKind.Part).OrderBy(item => item.StableId, StringComparer.Ordinal))
         {
@@ -455,6 +472,8 @@ public sealed class AssemblyM1Pipeline
             var transform = Transform3D.FromRowMajor(instance.ResolvedTransform.Matrix);
             var body = FirmasmAssemblyExecutor.TransformBody(definition.Body, transform);
             instances[instance.StableId] = body;
+            if (definition.InputKey is { } inputKey)
+                worldKeys[instance.StableId] = inputKey + "|" + string.Join(',', instance.ResolvedTransform.Matrix.Select(value => BitConverter.DoubleToInt64Bits(value).ToString(System.Globalization.CultureInfo.InvariantCulture)));
             instanceArtifacts.Add(new(instance.StableId, definition.Artifact.StableId, instance.ResolvedTransform, AssemblyDefinitionMaterializer.Metrics(body)));
         }
         if (definitions.Count == 0 || instanceArtifacts.Count == 0)
@@ -463,15 +482,17 @@ public sealed class AssemblyM1Pipeline
             diagnostics.Add(new("assembly-geometry-no-materialized-definitions", "No Template-specialized part definitions were available for executable Assembly geometry."));
             return null;
         }
-        var residuals = AssemblyWorldQuery.ValidateResiduals(ir, instances.Keys.ToHashSet(StringComparer.Ordinal));
+        IReadOnlyList<AssemblyMateResidualIr> residuals;
+        using (BuildPerfTrace.Phase("assembly.validate-residuals")) residuals = AssemblyWorldQuery.ValidateResiduals(ir, instances.Keys.ToHashSet(StringComparer.Ordinal));
         var byConstraint = residuals.ToDictionary(residual => residual.ConstraintStableId, StringComparer.Ordinal);
         var constraints = ir.PlacementConstraints.Select(constraint => byConstraint.TryGetValue(constraint.StableId, out var residual)
             ? constraint with { Residual = Math.Max(residual.PositionResidualMm, residual.AngularResidualRadians), Status = residual.Passed ? "geometry-validated" : "geometry-residual-failed" }
             : constraint).ToArray();
         foreach (var residual in residuals.Where(item => !item.Passed))
             diagnostics.Add(new("assembly-mate-geometry-residual", $"Constraint '{residual.ConstraintStableId}' residual position={residual.PositionResidualMm:G6}mm angle={residual.AngularResidualRadians:G6}rad."));
-        ValidateSolidInterference(ir, instances, diagnostics);
-        var datumSeats = ValidateDatumSeats(ir, instances, diagnostics);
+        using (BuildPerfTrace.Phase("assembly.validate-interference")) ValidateSolidInterference(ir, instances, diagnostics);
+        IReadOnlyList<AssemblyDatumSeatEvidence> datumSeats;
+        using (BuildPerfTrace.Phase("assembly.validate-datum-seats")) datumSeats = ValidateDatumSeats(ir, instances, diagnostics, worldKeys, cache);
         validatedIr = ir with { Schema = "aetheris/assembly-ir/m1", PlacementConstraints = constraints, Diagnostics = diagnostics };
         var definitionsIr = definitions.Values.Select(definition => definition.Artifact).OrderBy(definition => definition.StableId, StringComparer.Ordinal).ToArray();
         var canonical = JsonSerializer.Serialize(new { definitions = definitionsIr, instances = instanceArtifacts, residuals });
@@ -502,10 +523,15 @@ public sealed class AssemblyM1Pipeline
     }
 
     private static IReadOnlyList<AssemblyDatumSeatEvidence> ValidateDatumSeats(AssemblyIr ir,
-        IReadOnlyDictionary<string, BrepBody> bodies, List<AssemblyDiagnostic> diagnostics)
+        IReadOnlyDictionary<string, BrepBody> bodies, List<AssemblyDiagnostic> diagnostics,
+        IReadOnlyDictionary<string, string>? worldKeys = null, AssemblyDefinitionCache? cache = null)
     {
         var evidence = new List<AssemblyDatumSeatEvidence>();
-        var queries = bodies.ToDictionary(p => p.Key, p => new BrepPlanarSeatQuery(p.Value), StringComparer.Ordinal);
+        // A seat query tessellates its body lazily; an identical world body (same definition input
+        // key, same transform) reuses the query from an earlier build in this session.
+        var queries = bodies.ToDictionary(p => p.Key, p => cache is not null && worldKeys?.GetValueOrDefault(p.Key) is { } worldKey
+            ? cache.SeatQueries.GetOrAdd(worldKey, () => new BrepPlanarSeatQuery(p.Value))
+            : new BrepPlanarSeatQuery(p.Value), StringComparer.Ordinal);
         var points = new List<(AssemblyInstanceIr Instance, Point3D Point, Vector3D Normal)>();
         foreach (var instance in ir.Instances.Where(i => i.DatumSeat is not null))
         {

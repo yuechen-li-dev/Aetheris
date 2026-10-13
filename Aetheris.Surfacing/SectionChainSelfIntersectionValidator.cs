@@ -19,6 +19,7 @@ internal static class SectionChainSelfIntersectionValidator
 
     public static SectionChainSelfIntersectionValidationResult Validate(SectionChain chain, IReadOnlyList<SectionChainValidationPatch> patches)
     {
+        using var buildPerfPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("sectionchain.self-intersection-validate");
         var proxies = patches.SelectMany(Triangulate).ToList();
         if (chain.StartTermination == SectionTermination.Cap) proxies.AddRange(Cap(chain.Sections[0], -1, "StartTermination"));
         if (chain.EndTermination == SectionTermination.Cap) proxies.AddRange(Cap(chain.Sections[^1], chain.Sections.Count - 1, "EndTermination"));

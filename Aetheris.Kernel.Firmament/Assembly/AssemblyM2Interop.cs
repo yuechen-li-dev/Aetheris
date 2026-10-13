@@ -101,6 +101,19 @@ public static class AssemblyIrAp242Exporter
 {
     public static KernelResult<string> Export(AssemblyM1CompilationResult compilation)
     {
+        var prepared = PrepareExport(compilation);
+        return prepared.IsSuccess ? prepared.Value() : KernelResult<string>.Failure(prepared.Diagnostics);
+    }
+
+    /// <summary>
+    /// Every structural check of <see cref="Export"/> (solved roots and child transforms,
+    /// definition-owned usages), returning the AP242 writer to run when STEP is requested.
+    /// The writer produces exactly the text <see cref="Export"/> would.
+    /// </summary>
+    public static KernelResult<Func<KernelResult<string>>> PrepareExport(AssemblyM1CompilationResult compilation)
+    {
+        static KernelResult<Func<KernelResult<string>>> Failure(string message) =>
+            KernelResult<Func<KernelResult<string>>>.Failure(AssemblyIrAp242Exporter.Failure(message).Diagnostics);
         if (!compilation.IsSuccess || compilation.Ir is null || compilation.Geometry is null)
             return Failure("AssemblyIR must be successfully materialized before AP242 product-structure export.");
         var ir = compilation.Ir;
@@ -152,8 +165,9 @@ public static class AssemblyIrAp242Exporter
         if (ir.Annotations?.Release is { } release)
             foreach (var field in release.Fields.OrderBy(p => p.Key, StringComparer.Ordinal))
                 notes.Add(new(ir.RootInstanceStableId, new($"{release.Name}.{field.Key}", ir.Name, field.Value)));
-        return Step242AssemblyExporter.Export(new(ir.Name, ir.RootInstanceStableId, definitions, occurrences,
-            AssemblyPmiAuthoring.Header(ir.Annotations?.Release, ir.Name), notes));
+        var request = new Step242AssemblyExportModel(ir.Name, ir.RootInstanceStableId, definitions, occurrences,
+            AssemblyPmiAuthoring.Header(ir.Annotations?.Release, ir.Name), notes);
+        return KernelResult<Func<KernelResult<string>>>.Success(() => Step242AssemblyExporter.Export(request));
     }
 
     private static KernelResult<string> Failure(string message) => KernelResult<string>.Failure([

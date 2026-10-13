@@ -46,6 +46,36 @@ public sealed class IncrementalCompilationTests
     }
 
     [Fact]
+    public void SessionDisplayMeshOfReusedDefinitionMatchesAFreshExport()
+    {
+        using var session = new FirmamentCompilationSession();
+        var first = Good(session.Compile(Source()));
+        var firstMesh = AssemblyDisplayMeshExporter.Serialize(session.ExportDisplayMesh(first));
+        var second = Good(session.Compile(Source()));
+        Assert.Equal(1, second.Reuse!.ReusedDefinitions);
+        var baseline = Good(new AssemblyM1Pipeline().Compile(Source()));
+        var expected = AssemblyDisplayMeshExporter.Serialize(AssemblyDisplayMeshExporter.Export(baseline));
+        Assert.Equal(expected, firstMesh);
+        Assert.Equal(expected, AssemblyDisplayMeshExporter.Serialize(session.ExportDisplayMesh(second)));
+    }
+
+    [Fact]
+    public void MutatingAReusedBodyCannotLeakIntoTheNextBuild()
+    {
+        using var session = new FirmamentCompilationSession();
+        Good(session.Compile(Source()));
+        var reused = Good(session.Compile(Source()));
+        var body = reused.Geometry!.DefinitionBodies.Values.Single();
+        body.Topology.AddVertex(new Vertex(new VertexId(1_000_000)));
+        var next = Good(session.Compile(Source()));
+        var baseline = Good(new AssemblyM1Pipeline().Compile(Source()));
+        Assert.Equal(1, next.Reuse!.ReusedDefinitions);
+        Assert.Equal(AssemblyIrAp242Exporter.Export(baseline).Value, AssemblyIrAp242Exporter.Export(next).Value);
+        Assert.Equal(baseline.Geometry!.DefinitionBodies.Values.Single().Topology.Vertices.Count(),
+            next.Geometry!.DefinitionBodies.Values.Single().Topology.Vertices.Count());
+    }
+
+    [Fact]
     public void PlacementEditReusesGeometryButRevalidatesInterference()
     {
         using var session = new FirmamentCompilationSession();

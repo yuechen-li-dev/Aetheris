@@ -1,0 +1,169 @@
+{
+  "schema": "aetheris/build-perf-budgets/m0",
+  "note": "Machine-independent fields always gate; *Milliseconds fields gate only with --check-time on the recorded machine.",
+  "recordedOn": "vm \u00b7 2 CPU \u00b7 Unix 6.18.44.114",
+  "recordedCommit": "2b3abbbf893a + BUILD-PERF-M0/M1 working tree",
+  "projects": {
+    "bracket": {
+      "stepDataSha256": "c3323aa5717fbd198c6148ab082623f0f5920c42487c6dd5f398da4abd2d4170",
+      "meshSha256": "b0ec1fb0d1d40af0e6b13fe9fa1ddd38167ebde5f3f3fd946eeaac4ba97509f9",
+      "rebuildMatchesCold": true,
+      "cold": {
+        "invokeMilliseconds": 679.6,
+        "responseBytes": 51765,
+        "allocatedBytes": 6383736
+      },
+      "warm": {
+        "invokeMilliseconds": 34.4,
+        "responseBytes": 51746,
+        "allocatedBytes": 3639336
+      },
+      "noChangeRebuild": {
+        "invokeMilliseconds": 32.2,
+        "responseBytes": 51668,
+        "allocatedBytes": 3538208
+      },
+      "rootCommentEdit": {
+        "invokeMilliseconds": 32.8,
+        "responseBytes": 51703,
+        "allocatedBytes": 3540192
+      }
+    },
+    "bolt": {
+      "stepDataSha256": "b29a01bd60933b8394a7cbb754c4d4894d9d537b8a56e313b80bf0263ab0349c",
+      "meshSha256": "aa9262734e2c79801a33b60f318d646b7a81aebda0b2bea9c0e711b775f835a6",
+      "rebuildMatchesCold": true,
+      "cold": {
+        "invokeMilliseconds": 6059.3,
+        "responseBytes": 13899860,
+        "allocatedBytes": 1935725472
+      },
+      "warm": {
+        "invokeMilliseconds": 3634.7,
+        "responseBytes": 13899844,
+        "allocatedBytes": 1884732616
+      },
+      "noChangeRebuild": {
+        "invokeMilliseconds": 3391.7,
+        "responseBytes": 13899795,
+        "allocatedBytes": 1882444560
+      },
+      "leafCommentEdit": {
+        "invokeMilliseconds": 3052.2,
+        "responseBytes": 13899791,
+        "allocatedBytes": 1882094152
+      },
+      "rootCommentEdit": {
+        "invokeMilliseconds": 3152.8,
+        "responseBytes": 13899824,
+        "allocatedBytes": 1882099592
+      }
+    },
+    "atlas": {
+      "stepDataSha256": "9509cba94c0b98b2a3f8ae2b037626f0bde11667c7c1297cbf5670c9f67b28af",
+      "meshSha256": "49fe7e6ef3adce069b21582e99cb1f16876aa10d8da9b13b4b4e029a8b6c2c0b",
+      "rebuildMatchesCold": true,
+      "cold": {
+        "invokeMilliseconds": 9150.4,
+        "responseBytes": 3469581,
+        "allocatedBytes": 3406553272,
+        "reusedDefinitions": 0
+      },
+      "warm": {
+        "invokeMilliseconds": 3846.3,
+        "responseBytes": 3469453,
+        "allocatedBytes": 3386982160,
+        "reusedDefinitions": 0
+      },
+      "noChangeRebuild": {
+        "invokeMilliseconds": 90,
+        "responseBytes": 3426152,
+        "allocatedBytes": 37745824,
+        "reusedDefinitions": 24
+      },
+      "leafCommentEdit": {
+        "invokeMilliseconds": 1073.6,
+        "responseBytes": 3450508,
+        "allocatedBytes": 479328584,
+        "reusedDefinitions": 2
+      },
+      "rootCommentEdit": {
+        "invokeMilliseconds": 100.1,
+        "responseBytes": 3426184,
+        "allocatedBytes": 37359912,
+        "reusedDefinitions": 24
+      }
+    },
+    "guitar": {
+      "stepDataSha256": "51c8f8fed659bfb09a64317e276cca448c30c5bfe387cccbd8687e25cdb5d3aa",
+      "meshSha256": "700ae75e20a1c49685e3d6478b4ff7e714cb28bd36491caf786c63c591a6a2c6",
+      "rebuildMatchesCold": true,
+      "cold": {
+        "invokeMilliseconds": 23141.1,
+        "responseBytes": 18058270,
+        "allocatedBytes": 9646906056,
+        "reusedDefinitions": 0
+      },
+      "warm": {
+        "invokeMilliseconds": 13030.1,
+        "responseBytes": 18057812,
+        "allocatedBytes": 9543507448,
+        "reusedDefinitions": 0
+      },
+      "noChangeRebuild": {
+        "invokeMilliseconds": 292.4,
+        "responseBytes": 17969484,
+        "allocatedBytes": 152488328,
+        "reusedDefinitions": 56
+      },
+      "leafValueEdit": {
+        "invokeMilliseconds": 3713.6,
+        "responseBytes": 18033417,
+        "allocatedBytes": 2351724208,
+        "reusedDefinitions": 4
+      },
+      "leafCommentEdit": {
+        "invokeMilliseconds": 5833,
+        "responseBytes": 17970980,
+        "allocatedBytes": 4286504152,
+        "reusedDefinitions": 55
+      },
+      "rootCommentEdit": {
+        "invokeMilliseconds": 353.2,
+        "responseBytes": 17969518,
+        "allocatedBytes": 152070432,
+        "reusedDefinitions": 56
+      }
+    },
+    "house": {
+      "stepDataSha256": null,
+      "meshSha256": "ce00e129709c10a86151b4bea6f000947cf1c51e0bb4a226b67aea8f3d54a15a",
+      "rebuildMatchesCold": true,
+      "cold": {
+        "invokeMilliseconds": 5324.4,
+        "responseBytes": 5288284,
+        "allocatedBytes": 675499016
+      },
+      "warm": {
+        "invokeMilliseconds": 3133.1,
+        "responseBytes": 5288246,
+        "allocatedBytes": 648470768
+      },
+      "noChangeRebuild": {
+        "invokeMilliseconds": 755.4,
+        "responseBytes": 5217160,
+        "allocatedBytes": 186496320
+      },
+      "leafCommentEdit": {
+        "invokeMilliseconds": 1536.3,
+        "responseBytes": 5264742,
+        "allocatedBytes": 592901384
+      },
+      "rootCommentEdit": {
+        "invokeMilliseconds": 441.6,
+        "responseBytes": 5217187,
+        "allocatedBytes": 185895752
+      }
+    }
+  }
+}

@@ -113,6 +113,16 @@ parse and the Scene path move to M2.
 Exit: the knob edit reuses ≥ 52 / 56 definitions and costs only the definitions it owns.
 Diagnostics, source maps and STEP match a clean build exactly.
 
+**Result** ([BUILD-PERF-M2](../../../release/BUILD-PERF-M2.md)): success. Definitions (and their
+published ports) compile from their declaration closure with a whole-catalog fallback; derived
+meshes and seat queries follow definition content; Scenes use the session caches. Knob edit 54/56
+reused, 3.57 s → ~0.4 s native; every incremental rebuild proven equal to a fresh build
+(`verify-incremental`); hashes unchanged. Agreed semantic change: an unrelated broken declaration
+no longer fails every part. First production AOT browser numbers: root and include edits 70–220 ms
+for ATLAS, house and guitar; an edit to a SectionChain body (guitar `CarvedMaple`, 10.7 s) is
+kernel time → M4. Exact kernel fixes found via the test lane (pcurve seeds, B-spline evaluation,
+import replay) cut spline-tube imports ~3–4× and the lane's two largest projects by ~40%.
+
 ### M3 — Binary bridge
 
 - Display meshes cross the JS boundary as typed arrays (`JSExport` memory views → transferable

@@ -159,6 +159,13 @@ profile memo. Guitar `CarvedMaple` edit 5.7 → 1.14 s, warm 7.6 → 5.3 s (targ
 bolt edit 3.1 → 1.6 s. Remaining share is the 8193-sample bounded-pcurve qualification (policy
 decision) and the bolt's two mass-property enclosure checks.
 
+**Result** ([BUILD-PERF-M4](../../../release/BUILD-PERF-M4.md)): success. Second pass: SectionChain
+trims constructed with their patches (`ConstructedBoundary`: each edge is an isoparametric boundary
+of its own patch) instead of recovered and qualified at 8193 samples; the old density is now a test
+oracle. Guitar warm 3.9 s (target ≤ 5 s), `CarvedMaple` edit 0.64 s; STEP for guitar/ATLAS changes
+by its trims only (compare-step: 3.2e-12 relative), rebaselined deliberately. Next authoring-time
+candidate: face orientation on reimport of our own STEP.
+
 ### M5 — First paint
 
 - Showcase projects ship a precomputed binary display mesh keyed by source hash; the editor shows

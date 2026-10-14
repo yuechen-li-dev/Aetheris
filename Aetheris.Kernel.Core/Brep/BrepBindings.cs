@@ -190,7 +190,10 @@ public readonly record struct CoedgePcurveBinding(
     int? SourceStepSurfaceEntityId = null,
     PcurveQualification? Qualification = null);
 
-public enum PcurveBindingOrigin { SourceValidated, RecoveredAnalytic, RecoveredSpline, DerivedAnalytic }
+/// <summary>Where a face-local trim came from. <see cref="ConstructedBoundary"/>: the edge is, by
+/// construction, an isoparametric boundary of the face's own surface, so the trim is the matching
+/// straight line of its parameter rectangle (BUILD-PERF-M4: no inverse projection or dense lift).</summary>
+public enum PcurveBindingOrigin { SourceValidated, RecoveredAnalytic, RecoveredSpline, DerivedAnalytic, ConstructedBoundary }
 
 /// <summary>Measured edge-to-surface-lift evidence for one face-local trim.</summary>
 public sealed record PcurveQualification(

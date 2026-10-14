@@ -1126,7 +1126,7 @@ public static class Step242Exporter
             : edgePcurveBindings
                 .Select(binding => BuildStepPcurve(writer, binding, surfaceIds, pcurveContextId,
                     curve.Kind == CurveGeometryKind.Line3 && binding.Qualification is
-                        { Origin: PcurveBindingOrigin.RecoveredAnalytic or PcurveBindingOrigin.RecoveredSpline or PcurveBindingOrigin.DerivedAnalytic }
+                        { Origin: PcurveBindingOrigin.RecoveredAnalytic or PcurveBindingOrigin.RecoveredSpline or PcurveBindingOrigin.DerivedAnalytic or PcurveBindingOrigin.ConstructedBoundary }
                         ? new ParameterInterval(0d, (endPoint - startPoint).Length) : null))
                 .Where(id => id is not null)
                 .Select(id => id!)

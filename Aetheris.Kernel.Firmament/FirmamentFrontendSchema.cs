@@ -32,7 +32,9 @@ public static class FirmamentFrontendSchemas
         var name = declaration.Groups["name"].Value;
         if (!Enum.TryParse<FirmamentFrontendSchema>(name, false, out var schema))
             return new(null, source, [$"firmament-schema-unknown:{name}:available={string.Join(',', Names)}"]);
-        var normalized = source.Remove(declaration.Index, declaration.Length);
+        // Erase the selector without moving author-source diagnostic offsets.
+        var erased = new string(declaration.Value.Select(character => character is '\r' or '\n' ? character : ' ').ToArray());
+        var normalized = source.Remove(declaration.Index, declaration.Length).Insert(declaration.Index, erased);
         if (schema != FirmamentFrontendSchema.Mechanical && schema != FirmamentFrontendSchema.Garment
             && Regex.IsMatch(normalized, @"\bFeature\s+[A-Za-z_]\w*\s*\(", RegexOptions.CultureInvariant))
             return new(schema, normalized, [$"firmament-feature-schema-unsupported:{schema}"]);

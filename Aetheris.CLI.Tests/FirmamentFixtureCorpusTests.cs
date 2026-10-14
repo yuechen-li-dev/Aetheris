@@ -153,7 +153,7 @@ public sealed class FirmamentFixtureCorpusTests
                 var validationStatus = validation.GetProperty("status").GetString();
                 if (metadata["expected"] == "valid")
                 {
-                    Assert.Contains(validationStatus, new[] { "valid", "valid-with-deferred-export" });
+                    Assert.Contains(validationStatus, new[] { "parsed-not-built" });
                 }
                 else
                 {
@@ -487,7 +487,7 @@ public sealed class FirmamentFixtureCorpusTests
     private static JsonDocument Validate(string fixturePath)
     {
         var stdout = new StringWriter(); var stderr = new StringWriter();
-        var exit = Aetheris.CLI.CliRunner.Run(["validate", fixturePath, "--json"], stdout, stderr);
+        var exit = Aetheris.CLI.CliRunner.Run(["validate", fixturePath, "--parse-only", "--json"], stdout, stderr);
         var metadata = LoadMetadata(fixturePath);
         Assert.Equal(metadata["expected"] == "valid" ? 0 : 1, exit);
         Assert.Equal(string.Empty, stderr.ToString());

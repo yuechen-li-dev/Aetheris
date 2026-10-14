@@ -396,7 +396,7 @@ public static class PrismaticProfileCompositionParser
                 }
                 if (remaining <= 1e-7d)
                 {
-                    diagnostics.Add($"firmament-pocket-through-depth:{name}:host={compose.Groups["n"].Value}:depth={depth:R}mm:hostThickness={hostThickness:R}mm:remainingFloor={remaining:R}mm:requiredFloor={minimumFloor:R}mm");
+                    diagnostics.Add($"firmament-pocket-through-depth:{name}:host={compose.Groups["n"].Value}:depth={depth:R}mm:hostThickness={hostThickness:R}mm:remainingFloor={remaining:R}mm:requiredFloor={minimumFloor:R}mm:Use Remove with Role: ThroughCut for a through cut; Pocket requires a remaining floor.");
                     continue;
                 }
                 if (remaining + 1e-7d < minimumFloor)

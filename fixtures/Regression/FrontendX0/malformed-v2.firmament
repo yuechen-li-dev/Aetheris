@@ -1,0 +1,4 @@
+Model Broken {
+    units: mm
+    Box Body { size: [40mm, 20mm] }
+}

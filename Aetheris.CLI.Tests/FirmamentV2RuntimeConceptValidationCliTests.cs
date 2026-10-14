@@ -128,7 +128,8 @@ public sealed class FirmamentV2RuntimeConceptValidationCliTests
 
         using var document = JsonDocument.Parse(stdout.ToString());
         var validation = document.RootElement.GetProperty("firmamentV2Validation");
-        Assert.Equal("valid", validation.GetProperty("status").GetString());
+        Assert.Equal("parsed-not-built", validation.GetProperty("status").GetString());
+        Assert.Equal("ParsedNotBuilt", validation.GetProperty("validationLevel").GetString());
         Assert.Contains(
             validation.GetProperty("diagnostics").EnumerateArray(),
             diagnostic => diagnostic.GetProperty("code").GetString() == "testforge.boss-hole.seen"

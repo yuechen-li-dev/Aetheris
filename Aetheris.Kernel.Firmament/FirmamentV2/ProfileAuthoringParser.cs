@@ -1088,7 +1088,21 @@ public static class ProfileAuthoringParser
     {
         if (frame is null) return ConstructionPlane.WorldXY;
         var plane = ConstructionPlaneDeclaration.Matches(source).Cast<Match>().SingleOrDefault(x => x.Groups["name"].Value == frame);
-        if (plane is null) return ConstructionPlane.WorldXY;
+        if (plane is null)
+        {
+            if (frame == "XY") return ConstructionPlane.WorldXY;
+            var tokens = FirmamentLanguageAnalysisService.Lex(source).Where(token => token.Shape != "comment").ToArray();
+            for (var index = 0; index + 3 < tokens.Length; index++)
+            {
+                if (tokens[index].Text != "Concept" || tokens[index + 1].Text != "Struct" || tokens[index + 2].Text != frame) continue;
+                if (tokens[index + 3].Text is not ("On" or "on")) return ConstructionPlane.WorldXY;
+                if (index + 4 < tokens.Length && tokens[index + 4].Text == "XY") return ConstructionPlane.WorldXY;
+                diagnostics.Add($"profile-layout-placement-unsupported:{frame}:{(index + 4 < tokens.Length ? tokens[index + 4].Text : "missing")}:Concept Struct layouts currently require On XY; use a traced Construction Plane for oriented profiles.");
+                return null;
+            }
+            diagnostics.Add($"profile-frame-unresolved:{frame}:Using must name a declared Concept Struct or Construction Plane.");
+            return null;
+        }
         if (!ConceptIrResolver.TryResolvePlane(source, plane.Groups["trace"].Value, out var conceptPlane, out var traceDiagnostic) || conceptPlane is null) { diagnostics.Add(traceDiagnostic ?? "ConstructionPlaneTraceMissing"); return null; }
         if (!ConstructionPlane.TryTrace("construction:" + frame, conceptPlane, $"offset:{plane.Index}", out var result, out var frameDiagnostic)) diagnostics.Add(frameDiagnostic ?? "ConstructionPlaneFrameInvalid");
         return result;

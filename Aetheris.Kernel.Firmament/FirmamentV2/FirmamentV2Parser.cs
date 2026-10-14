@@ -94,9 +94,6 @@ public static class FirmamentV2Parser
     public const string LetDuplicateName = "firmament-v2-let-duplicate-name";
     public const string LetUnknownType = "firmament-v2-let-unknown-type";
     public const string LetTypeMismatch = "firmament-v2-let-type-mismatch";
-    // Alias retained inside the compact fatal-diagnostic switch below; both
-    // spellings denote the same public diagnostic.
-    private const string LetMismatch = LetTypeMismatch;
     public const string LetInvalidLiteral = "firmament-v2-let-invalid-literal";
     public const string LetUnitMismatch = "firmament-v2-let-unit-mismatch";
     public const string LetLiteralOnly = "firmament-v2-let-literal-only";
@@ -313,7 +310,7 @@ public static class FirmamentV2Parser
         // immutable records, except InlineStep, which reads a STEP file; those, and parses with a
         // concept catalog, always run.
         if (conceptCatalog is not null || sourceText.Contains("InlineStep", StringComparison.OrdinalIgnoreCase))
-            return ParseUncached(sourceText, sourceDirectory, conceptCatalog);
+            return CompleteAdmission(ParseUncached(sourceText, sourceDirectory, conceptCatalog), sourceText);
         var key = (sourceDirectory ?? string.Empty) + "\0" + sourceText;
         lock (RecentParses)
         {
@@ -326,7 +323,7 @@ public static class FirmamentV2Parser
                 return hit.Result;
             }
         }
-        var result = ParseUncached(sourceText, sourceDirectory, conceptCatalog);
+        var result = CompleteAdmission(ParseUncached(sourceText, sourceDirectory, conceptCatalog), sourceText);
         lock (RecentParses)
         {
             RecentParses.Add((key, result));
@@ -338,11 +335,30 @@ public static class FirmamentV2Parser
     private const int RecentParseCapacity = 8;
     private static readonly List<(string Key, FirmamentV2ParseResult Result)> RecentParses = [];
 
+    private static FirmamentV2ParseResult CompleteAdmission(FirmamentV2ParseResult result, string originalSource)
+    {
+        var hasErrors = result.Diagnostics.Any(IsFatalDiagnosticCode);
+        return result with
+        {
+            OriginalSource = originalSource,
+            IsSuccess = result.IsSuccess && !hasErrors,
+            Disposition = hasErrors && result.Disposition != FirmamentV2ParseDisposition.NotRecognized
+                ? FirmamentV2ParseDisposition.RecognizedInvalid : result.Disposition
+        };
+    }
+
     private static FirmamentV2ParseResult ParseUncached(
         string sourceText,
         string? sourceDirectory,
         FirmamentV2ForgeConceptCatalog? conceptCatalog)
     {
+        // Serialization roots belong to the historical reader, which still must
+        // prove explicit version 1 before execution. Their data values may be V2
+        // keywords; those values must not turn a legacy document into V2 source.
+        var leading = FirmamentLanguageAnalysisService.Lex(sourceText).Where(token => token.Shape != "comment").Take(2).ToArray();
+        if (leading.Length == 2 && (leading[0].Text is "firmament" or "model" && leading[1].Text == ":"
+            || leading[0].Text == "{" && leading[1].Shape == "string"))
+            return FirmamentV2ParseResult.Failure([], FirmamentV2ParseDisposition.NotRecognized) with { ParserRoute = "LegacySerialization" };
         sourceText = FirmamentSourceSpelling.Normalize(sourceText);
         sourceText = ProfileModificationTemplateLibrary.ResolveImports(sourceText);
         var diagnostics = new List<string> { "firmament-v2-parser-invoked" };
@@ -422,12 +438,12 @@ public static class FirmamentV2Parser
             diagnostics.AddRange(panelCompilation.Diagnostics);
             diagnostics.Add(panelCompilation.IsSuccess ? "firmament-v2-parse-succeeded" : "firmament-v2-parse-failed");
             if (!panelCompilation.IsSuccess)
-                return FirmamentV2ParseResult.Failure(diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray());
+                return FirmamentV2ParseResult.Failure(diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray()) with { ParserRoute = "Panel" };
             var panelDocument = new FirmamentV2Document(panelCompilation.ModelName, "mm", [],
                 TemplateInstantiations: templateExpansion.Instantiations, Panels: panelCompilation.Panels,
                 FeatureDefinitions: featureExpansion.Definitions, FeatureInvocations: featureExpansion.Invocations,
                 FeatureExpansion: featureExpansion.Metrics, Polygons: polygonExpansion.Polygons, Boundaries: polygonExpansion.Boundaries);
-            return FirmamentV2ParseResult.Success(panelDocument, diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray());
+            return FirmamentV2ParseResult.Success(panelDocument, diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray()) with { ParserRoute = "Panel" };
         }
 
         // Canonical V2 is parsed as one document, before compatibility adapters.  The
@@ -439,39 +455,40 @@ public static class FirmamentV2Parser
             if (declarationDiagnostics.Count > 0)
             {
                 diagnostics.AddRange(declarationDiagnostics);
-                return Recognized(CanonicalFailure(diagnostics, CanonicalDocumentMalformed));
+                return Recognized(CanonicalFailure(diagnostics, CanonicalDocumentMalformed)) with { ParserRoute = "Canonical" };
             }
             var parsed = Recognized(ContainsCanonicalAdvancedDeclaration(source)
                 ? ParseCanonicalAdvancedDocument(source, diagnostics, templateExpansion.Instantiations)
                 : ParseCanonicalDocument(source, diagnostics, sourceDirectory));
+            parsed = parsed with { ParserRoute = ContainsCanonicalAdvancedDeclaration(source) ? "CanonicalAdvanced" : "Canonical" };
             if (parsed.Document is null) return parsed;
 
             return WithFeatureMetadata(
                 AttachVolumeAssertionsAndSymbols(WithPolygonMetadata(parsed, polygonExpansion), source, canonicalStaticExpansion.Document, diagnostics),
-                featureExpansion);
+                featureExpansion) with { ParserRoute = parsed.ParserRoute };
         }
 
         if (Regex.IsMatch(source, @"\b(?:RoundedBox|Frustum|Cylinder|Box)\s*<\s*[A-Za-z_][A-Za-z0-9_]*\s*>\s+[A-Za-z_]", RegexOptions.CultureInvariant))
-            return Recognized(ParsePrimitiveConstructionPolicyDocument(source, diagnostics));
+            return Recognized(ParsePrimitiveConstructionPolicyDocument(source, diagnostics)) with { ParserRoute = "PrimitiveConstructionPolicy" };
 
         if (Regex.IsMatch(source, @"\bRoundedBox\s+[A-Za-z_]", RegexOptions.CultureInvariant))
-            return Recognized(ParseRoundedBoxModelingDocument(source, diagnostics));
+            return Recognized(ParseRoundedBoxModelingDocument(source, diagnostics)) with { ParserRoute = "RoundedBox" };
 
         // Standalone Profile documents predate the canonical Model wrapper. Keep that
         // bounded document form usable when its body uses the preferred pipeline surface,
         // including inline guide declarations, instead of falling into an unrelated
         // historical modeling parser merely because a Construction Plane has a Concept owner.
         if (ProfileAuthoringParser.IsProfileSource(source) && Regex.IsMatch(source, @"\bExtrude\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant))
-            return Recognized(ParseStandaloneProfileDocument(source, diagnostics));
+            return Recognized(ParseStandaloneProfileDocument(source, diagnostics)) with { ParserRoute = "StandaloneProfile" };
 
         if (Regex.IsMatch(source, @"\bConcept\s+(?:Struct\s+)?[A-Za-z_]", RegexOptions.CultureInvariant)
             || Regex.IsMatch(source, @"\b(?:Struct|Model)\s+[A-Za-z_][A-Za-z0-9_]*\s*(?::\s*[A-Za-z_][A-Za-z0-9_]*)?\s*\{", RegexOptions.CultureInvariant))
             return Recognized(WithFeatureMetadata(
                 AttachVolumeAssertionsAndSymbols(WithPolygonMetadata(ParseConceptModelingDocument(RemoveCanonicalVolumeAssertions(source), diagnostics, templateExpansion.Instantiations), polygonExpansion), source, canonicalStaticExpansion.Document, diagnostics),
-                featureExpansion));
+                featureExpansion)) with { ParserRoute = "ConceptModeling" };
 
         if (Regex.IsMatch(source, @"^\s*Model\b", RegexOptions.CultureInvariant))
-            return Recognized(ParsePhase3ModelingDocument(source, diagnostics));
+            return Recognized(ParsePhase3ModelingDocument(source, diagnostics)) with { ParserRoute = "Phase3" };
 
         if (ContainsRawBackendId(source)) diagnostics.Add(RawBackendIdReferenceForbidden);
         if (ContainsUnsupportedConstruct(source)) diagnostics.Add(UnsupportedConstruct);
@@ -536,12 +553,12 @@ public static class FirmamentV2Parser
             return FirmamentV2ParseResult.Failure(diagnostics, FirmamentV2ParseDisposition.NotRecognized);
 
         return document is null
-            ? FirmamentV2ParseResult.Failure(diagnostics)
+            ? FirmamentV2ParseResult.Failure(diagnostics) with { ParserRoute = "LegacyLowercase" }
             : new FirmamentV2ParseResult(
                 !hasFatalDiagnostics,
                 document,
                 diagnostics,
-                hasFatalDiagnostics ? FirmamentV2ParseDisposition.RecognizedInvalid : FirmamentV2ParseDisposition.RecognizedValid);
+                hasFatalDiagnostics ? FirmamentV2ParseDisposition.RecognizedInvalid : FirmamentV2ParseDisposition.RecognizedValid) { ParserRoute = "LegacyLowercase" };
     }
 
     private static FirmamentV2ParseResult Recognized(FirmamentV2ParseResult result) =>
@@ -574,15 +591,17 @@ public static class FirmamentV2Parser
             ? result
             : result with { Document = result.Document with { Polygons = expansion.Polygons, Boundaries = expansion.Boundaries } };
 
-    private static bool IsV2AdmissionCandidate(string source) =>
-        ModelRegex.IsMatch(source)
-        || Regex.IsMatch(source, @"^\s*model\s+[A-Za-z_][A-Za-z0-9_]*\b", RegexOptions.CultureInvariant)
-        || TemplateHeaderRegex.IsMatch(source)
-        || Regex.IsMatch(source, @"\b(?:RoundedBox|Frustum|Cylinder|Box)\s*<\s*[A-Za-z_][A-Za-z0-9_]*\s*>\s+[A-Za-z_]", RegexOptions.CultureInvariant)
-        || Regex.IsMatch(source, @"\bRoundedBox\s+[A-Za-z_]", RegexOptions.CultureInvariant)
-        || Regex.IsMatch(source, @"\bConcept\s+(?:Struct\s+)?[A-Za-z_]", RegexOptions.CultureInvariant)
-        || Regex.IsMatch(source, @"\b(?:Struct|Model)\s+[A-Za-z_][A-Za-z0-9_]*\s*(?::\s*[A-Za-z_][A-Za-z0-9_]*)?\s*\{", RegexOptions.CultureInvariant)
-        || Regex.IsMatch(source, @"^\s*Model\b", RegexOptions.CultureInvariant);
+    private static bool IsV2AdmissionCandidate(string source)
+    {
+        // Classification is independent of whether a declaration is well formed.
+        // Serialization-shaped V1 uses `model:` / `firmament:` instead.
+        var tokens = FirmamentLanguageAnalysisService.Lex(source).Where(token => token.Shape != "comment").ToArray();
+        for (var index = 0; index < tokens.Length; index++)
+            if (tokens[index].Shape == "identifier"
+                && tokens[index].Text is "Model" or "model" or "Struct" or "Assembly" or "Scene" or "Concept" or "Interface" or "Template" or "template" or "Pattern" or "Profile" or "Panel"
+                && (index + 1 == tokens.Length || tokens[index + 1].Text != ":")) return true;
+        return false;
+    }
 
     private static IReadOnlyList<FirmamentV2LetRecordDeclaration> ParseLetRecords(string source, IEnumerable<string> topLevelNames, List<string> diagnostics)
     {
@@ -1021,22 +1040,40 @@ public static class FirmamentV2Parser
 
         var known = new HashSet<string>(StringComparer.Ordinal)
         {
-            "Box", "Cylinder", "Cone", "Sphere", "Torus", "RoundedBox", "Frustum", "StandardPart", "ExactCoaxialPart", "Plane", "Axis2", "Point2", "Line2", "Rect2", "Circle2", "Ellipse2Guide", "SmoothRoundedRect2", "Plateau", "Concept", "Struct", "Construction", "Profile", "Span", "Compose", "Boss", "Pocket", "AddOffset", "RemoveOffset", "EdgeFinish",
-            "Record", "Static", "Template", "template", "ProfileDelta", "Selection", "InlineStep", "Recognize", "Replace", "Pmi", "Modify", "Match", "Require", "Assert", "Thread"
+            "Box", "Cylinder", "Cone", "Sphere", "Torus", "RoundedBox", "Frustum", "StandardPart", "ExactCoaxialPart", "Plane", "Axis2", "Point2", "Line2", "CubicBezier2", "Rect2", "Circle2", "Ellipse2Guide", "SmoothRoundedRect2", "Plateau", "Concept", "Struct", "Construction", "Profile", "Span", "Compose", "Boss", "Pocket", "AddOffset", "RemoveOffset", "EdgeFinish",
+            "Extrude", "Record", "Static", "Template", "template", "ProfileDelta", "Selection", "InlineStep", "Recognize", "Replace", "Pmi", "Modify", "Match", "Require", "Assert", "Thread"
         };
         var compatibilityOnly = new HashSet<string>(StringComparer.Ordinal)
         {
             "Solid", "Let", "Fill", "Manufacturing", "Feature", "Expose"
         };
         var diagnostics = new List<string>();
-        var header = new Regex(@"(?m)^\s*(?<keyword>[A-Za-z_][A-Za-z0-9_]*)(?:\s*<[^{}>]+>)?(?:\s+[A-Za-z_][A-Za-z0-9_]*){0,4}\s*\{", RegexOptions.CultureInvariant);
-        foreach (Match candidate in header.Matches(source[(rootOpen + 1)..rootClose]))
+        var tokens = FirmamentLanguageAnalysisService.Lex(source[(rootOpen + 1)..rootClose])
+            .Where(token => token.Shape != "comment").ToArray();
+        for (var index = 0; index < tokens.Length;)
         {
-            var absolute = rootOpen + 1 + candidate.Index;
-            if (BraceDepth(source, rootOpen + 1, absolute) != 0) continue;
-            var keyword = candidate.Groups["keyword"].Value;
-            if (known.Contains(keyword)) continue;
-            diagnostics.Add((compatibilityOnly.Contains(keyword) ? CanonicalConstructNotYetSupported : CanonicalDeclarationUnknown) + ":" + keyword);
+            if (tokens[index].Text == ";") { index++; continue; }
+            var keyword = tokens[index].Text;
+            if (keyword is "Units" or "units" && index + 2 < tokens.Length && tokens[index + 1].Text == ":")
+            { index += 3; continue; }
+            if (!known.Contains(keyword))
+            {
+                if (!compatibilityOnly.Contains(keyword)) diagnostics.Add(CanonicalDeclarationUnrecognized);
+                diagnostics.Add((compatibilityOnly.Contains(keyword) ? CanonicalConstructNotYetSupported : CanonicalDeclarationUnknown) + ":" + keyword);
+            }
+            // The admitted unbraced Profile form has four tokens and no executable body.
+            if (keyword == "Profile" && index + 3 < tokens.Length && tokens[index + 2].Text == "From")
+            { index += 4; continue; }
+            while (index < tokens.Length && tokens[index].Text != "{") index++;
+            if (index == tokens.Length) { diagnostics.Add(CanonicalDocumentMalformed); break; }
+            var depth = 0;
+            do
+            {
+                if (tokens[index].Text == "{") depth++;
+                else if (tokens[index].Text == "}") depth--;
+                index++;
+            } while (index < tokens.Length && depth > 0);
+            if (depth != 0) diagnostics.Add(CanonicalDocumentMalformed);
         }
         return diagnostics.Distinct(StringComparer.Ordinal).ToArray();
     }
@@ -1540,6 +1577,8 @@ public static class FirmamentV2Parser
             var close = FindMatchingBrace(body, open);
             if (close < 0) return CanonicalFailure(diagnostics, CanonicalModifyMalformed);
             var modifyBody = body[(open + 1)..close];
+            diagnostics.AddRange(ValidateCanonicalModifyStatements(modifyBody));
+            if (diagnostics.Any(IsFatalDiagnosticCode)) return CanonicalFailure(diagnostics, CanonicalModifyMalformed);
             if (solid.Box is null && !CanonicalPerforationHeaderRegex.IsMatch(modifyBody)) return CanonicalFailure(diagnostics, ModifyTargetNotSolid);
             var holes = ParseCanonicalHoles(modifyBody, solid, rootOpen + 1 + open + 1, diagnostics);
             var perforations = ParseCanonicalPerforations(modifyBody, rootOpen + 1 + open + 1, diagnostics);
@@ -1681,6 +1720,15 @@ public static class FirmamentV2Parser
 
     private static FirmamentV2PrimitiveRecord? ParseCanonicalPrimitive(string type, string body, List<string> diagnostics)
     {
+        // Product recipes have separately owned, family-dependent schemas.
+        if (type is not ("StandardPart" or "ExactCoaxialPart") && FirmamentSemanticSchemas.Get(type) is { } schema)
+        {
+            var unknown = ReadAuthoredFields(body, 0)
+                .Where(field => !schema.Fields.Any(known => known.Name == field.Name
+                    || FirmamentSourceSpelling.PreferredField(known.Name) == field.Name)).ToArray();
+            foreach (var field in unknown) diagnostics.Add($"{CanonicalFieldUnknown}:{type}:{field.Name}");
+            if (unknown.Length > 0) return null;
+        }
         double Number(string field, bool allowZero = false)
         {
             var match = Regex.Match(body, $@"\b{field}\s*:\s*(?<value>[-+0-9.eE]+)mm\b", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
@@ -1725,6 +1773,34 @@ public static class FirmamentV2Parser
             "ExactCoaxialPart" => ExactCoaxialPart(),
             _ => null
         };
+    }
+
+    private static IReadOnlyList<string> ValidateCanonicalModifyStatements(string body)
+    {
+        var tokens = FirmamentLanguageAnalysisService.Lex(body).Where(token => token.Shape != "comment").ToArray();
+        var diagnostics = new List<string>();
+        for (var index = 0; index < tokens.Length;)
+        {
+            if (tokens[index].Text == ";") { index++; continue; }
+            var keyword = tokens[index].Text;
+            var admitted = keyword is "Hole" or "EdgeFinish" or "Perforation"
+                || keyword is "Radial" or "Linear" && index + 1 < tokens.Length && tokens[index + 1].Text == "Pattern"
+                || keyword == "Mirrored" && index + 1 < tokens.Length && tokens[index + 1].Text == "Feature";
+            if (!admitted) diagnostics.Add($"{CanonicalDeclarationUnknown}:Modify:{keyword}");
+            // Existing feature parsers own headers and fields. Consume exactly one
+            // balanced statement block here, so unowned neighbours cannot disappear.
+            while (index < tokens.Length && tokens[index].Text != "{") index++;
+            if (index == tokens.Length) { diagnostics.Add(CanonicalModifyMalformed); break; }
+            var depth = 0;
+            do
+            {
+                if (tokens[index].Text == "{") depth++;
+                else if (tokens[index].Text == "}") depth--;
+                index++;
+            } while (index < tokens.Length && depth > 0);
+            if (depth != 0) diagnostics.Add(CanonicalModifyMalformed);
+        }
+        return diagnostics;
     }
 
     private static IReadOnlyList<FirmamentV2PerforationDecl> ParseCanonicalPerforations(string body, int bodyOffset, List<string> diagnostics)
@@ -1859,9 +1935,7 @@ public static class FirmamentV2Parser
     }
 
     private static bool CanonicalBodyHasUnknownField(string body, IReadOnlyCollection<string> knownFields) =>
-        Regex.Matches(body, @"(?m)^\s*(?<field>[A-Za-z_][A-Za-z0-9_]*)\s*:", RegexOptions.CultureInvariant)
-            .Cast<Match>()
-            .Any(match => !knownFields.Contains(match.Groups["field"].Value, StringComparer.Ordinal));
+        ReadAuthoredFields(body, 0).Any(field => !knownFields.Contains(field.Name, StringComparer.Ordinal));
 
     // Canonical semantic STEP declarations bind directly to the normalized V2 nodes
     // used by the compatibility parser.  FaceRefs deliberately remain STEP entities
@@ -2291,7 +2365,7 @@ public static class FirmamentV2Parser
     private static FirmamentV2ParseResult ParseConceptModelingDocument(string source, List<string> diagnostics, IReadOnlyList<ConceptIrTemplateInstantiation>? templateInstantiations = null)
     {
         var resolution = ConceptIrResolver.Resolve(source, diagnostics);
-        if (resolution is null || diagnostics.Any(IsConceptFatalDiagnostic))
+        if (resolution is null || diagnostics.Any(IsFatalDiagnosticCode))
         {
             diagnostics.Add("firmament-v2-parse-failed");
             diagnostics.Sort(StringComparer.Ordinal);
@@ -2326,27 +2400,9 @@ public static class FirmamentV2Parser
         return double.TryParse(source[..^2], NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? value : double.NaN;
     }
 
-    internal static bool IsConceptFatalDiagnostic(string code) =>
-        code is HoleConstructionPlaneNotFound or HolePlacementMixed or HolePlacementDuplicate or HoleConstructionPlaneCenterMissing or HoleConstructionPlaneExtentUnsupported or HoleConstructionPlaneHostUnsupported or HoleBlindDepthMissing or HoleBlindDepthInvalid or HoleDrillPointAngleInvalid or HoleTerminationConflictsWithExtent
-        ||
-        code.StartsWith(ConceptIrResolver.MissingMember, StringComparison.Ordinal)
-        || code.StartsWith(ConceptIrResolver.UnknownMember, StringComparison.Ordinal)
-        || code.StartsWith(ConceptIrResolver.TypeMismatch, StringComparison.Ordinal)
-        || code.StartsWith(ConceptIrResolver.InvalidSpatialDerivation, StringComparison.Ordinal)
-        || code.StartsWith(ConceptIrResolver.IndexOutOfRange, StringComparison.Ordinal)
-        || code.StartsWith(ConceptIrResolver.CircularDependency, StringComparison.Ordinal)
-        || code.StartsWith(ConceptIrResolver.MaterializedPhaseReference, StringComparison.Ordinal)
-        || code.StartsWith(ConceptIrResolver.DuplicateDeclaration, StringComparison.Ordinal)
-        || code.StartsWith(ConceptIrResolver.DuplicateExposedMember, StringComparison.Ordinal)
-        || code.StartsWith(ConceptIrResolver.InvalidMaterializedReference, StringComparison.Ordinal)
-        || code.StartsWith(ConceptIrResolver.ExposedMemberUnrepresentable, StringComparison.Ordinal)
-        || code.StartsWith(ConceptIrResolver.CircularExposureDependency, StringComparison.Ordinal)
-        || code.StartsWith(ConceptIrResolver.PointNotOnPlacementPlane, StringComparison.Ordinal)
-        || code.StartsWith(ConceptIrResolver.PointOutsidePlacementFace, StringComparison.Ordinal)
-        || code.StartsWith(ConceptIrResolver.PointProjectionUnsupported, StringComparison.Ordinal)
-        || code.StartsWith("firmament-static-", StringComparison.Ordinal);
-
-    public static bool IsFatalDiagnosticCode(string code) => code.StartsWith("firmament-v2-thread-", StringComparison.Ordinal) || code.StartsWith("perforation-", StringComparison.Ordinal) || code.StartsWith("firmament-v2-hole-wall-", StringComparison.Ordinal) || code.StartsWith(RevolveAuthoringParser.Prefix, StringComparison.Ordinal) || code.StartsWith(FirmamentV2FeatureExpansion.Prefix, StringComparison.Ordinal) || code.StartsWith("firmament-pipeline-", StringComparison.Ordinal) || code.StartsWith("firmament-profile-pipeline-", StringComparison.Ordinal) || code.StartsWith("firmament-profile-traceloop-", StringComparison.Ordinal) || code.StartsWith("firmament-profile-segment-", StringComparison.Ordinal) || code.StartsWith("firmament-boss-", StringComparison.Ordinal) || code.StartsWith("firmament-pocket-", StringComparison.Ordinal) || code.StartsWith("feature-support-", StringComparison.Ordinal) || code.StartsWith("compose-role-cardinality:", StringComparison.Ordinal) || code.StartsWith(ModifyTargetNotBoundToActiveCompose, StringComparison.Ordinal) || code.StartsWith("firmament-v2-assert-volume-", StringComparison.Ordinal) || code.StartsWith(SemanticConstraintMalformed, StringComparison.Ordinal) || code.StartsWith(SemanticConstraintUnsupported, StringComparison.Ordinal) || code.StartsWith(SemanticConstraintDimensionMismatch, StringComparison.Ordinal) || code.StartsWith(SemanticConstraintValidationFailed, StringComparison.Ordinal) || code.StartsWith(PmiProjectionUnknownRequire, StringComparison.Ordinal) || code.StartsWith(PmiProjectionUnsupportedKind, StringComparison.Ordinal) || code.StartsWith(PmiProjectedFieldMustNotOverrideSourceConstraint, StringComparison.Ordinal) || code.StartsWith(AssertVolumeKindUnsupported, StringComparison.Ordinal) || code.StartsWith(CanonicalDeclarationUnknown + ":", StringComparison.Ordinal) || code.StartsWith(CanonicalConstructNotYetSupported + ":", StringComparison.Ordinal) || code.StartsWith(EdgeFinishProfileComposeBoundaryUnsupported, StringComparison.Ordinal) || IsConceptFatalDiagnostic(code) || code is UnknownConstructionPolicy or PrimitiveDoesNotSatisfyHollowConstructible or WallThicknessRequired or WallThicknessMustBePositive or UnsupportedOpening or MultipleOpeningsNotSupported or Phase3EdgeFinishSyntaxInvalid or PrimitiveFieldMissing or PrimitiveFieldUnknown or PrimitiveFieldInvalid or MissingModel or MissingUnits or MissingSolid or UnsupportedConstruct or UnknownRecordType or BoxMissingSize or BoxSizeArity or DegenerateDimension or NameUnresolved or DuplicateName or WithRequiresRecord or WithRequiresBoxRecord or WithFieldNotFound or WithFieldTypeMismatch or WithForwardReference or WithDerivedRecordInvalid or ExposeBlockUnsupported or ExposeRequiresBoxRecord or ExposeAliasDuplicate or ExposeAliasInvalid or SelectorUnsupported or SelectorAxisInvalid or SelectorSubselectorUnsupported or FatArrowOutsideExpose or RawBackendIdReferenceForbidden or ModifyTargetUnresolved or ModifyTargetNotSolid or RegionUnsupported or RegionAttachmentSelectorUnsupported or CutUnsupported or CutToolUnsupported or CylinderRadiusMissing or CylinderRadiusInvalid or CylinderRadiusNotFinite or ThroughSelectorUnsupported or AliasUnresolved or AliasRefTypeUnsupported or SideHoleAliasMustResolveToFace or SideHoleAliasResolvesToUnsupportedFace or SideHoleOnlyPlusXMinusXSupported or SideHoleRouteUnsupported or SideHoleSameFaceUnsupported or SideHoleAxisNotYetSupported or SideHoleRadiusExceedsClearance or CylinderCenterInvalid or CylinderCenterArityInvalid or CylinderCenterNotFinite or SideHoleCenterExceedsClearance or HoleVariantUnknown or HoleEntryFaceMissing or HoleCenterMissing or HoleShaftMissing or HoleEndMissing or HoleDiameterInvalid or HoleDepthInvalid or HoleCounterboreInvalid or HoleCountersinkInvalid or PmiKindUnknown or PmiTargetMissing or PmiTargetUnresolved or PmiDiameterInvalid or PmiDuplicateName or InlineStepUnknownBody or InlineStepUnknownFace or PmiImportedTargetNotFace or PmiImportedTargetRequiresCanonicalStep or PmiInvalidImportedTarget or InlineStepPathMissing or InlineStepPathInvalid or InlineStepFileMissing or InlineStepRequiresCanonical or UnknownRecognitionBody or UnknownRecognitionFace or DuplicateRegion or UnknownRecognitionRegion or InvalidRecognitionKind or InvalidRecognitionConfidence or PmiRecognizedRegionKindMismatch or UnknownReplacementBody or UnknownReplacementRegion or ReplacementKindMismatch or ReplacementFaceUnresolved or ReplacementUnsupportedKind or ReplacementVerificationFailed or ReplacementRadiusInvalid or ReplacementEndUnsupported or LetDuplicateName or LetUnknownType or LetMismatch or LetInvalidLiteral or LetUnitMismatch or LetLiteralOnly or LetRecordDuplicateName or LetRecordDuplicateField or LetReferenceUnknownRecord or LetReferenceUnknownField or LetReferenceNonRecord or LetReferenceRecordUsedAsValue or ExpressionUnknownSymbol or ExpressionUnknownRecord or ExpressionUnknownField or ExpressionRecordUsedAsValue or ExpressionScalarUsedAsRecord or ExpressionTypeMismatch or ExpressionInvalidOperator or ExpressionDivisionByZero or ExpressionCycle or ExpressionUnsupported or ToleranceInvalidType or ToleranceUnitMismatch or ToleranceInvalidLiteral or ToleranceNegativeBilateral or ToleranceMissingMinus or ToleranceMissingPlus or ToleranceUnsupported or RecognitionEvidenceRadiusInvalid or RecognitionEvidenceSurfaceFamilyUnknown or RecognitionEvidenceAxisInvalid or SemanticProposalKindMismatch or SemanticProposalRadiusInvalid or SemanticProposalTargetUnresolved or SemanticProposalEndUnsupported or ConceptUnknownFamily or ConceptUnknownConcept or ConceptMissingRequiredField or ConceptUnknownField or ConceptDuplicateField or ConceptFieldTypeMismatch or ConceptInvalidTarget or ConceptDescriptorUnavailable or PmiDuplicateBlock or PmiDuplicateRecord or PmiDuplicateDatum or PmiUnknownRecordKind or PmiMissingRequiredField or PmiUnknownField or PmiDuplicateField or PmiInvalidTarget or PmiUnknownDatum or PmiDimensionTypeMismatch or PmiDimensionMissingTolerance or PmiToleranceTypeMismatch or StandaloneFillRegionRequired or UnsupportedStandaloneFillPattern or InvalidCellCount or CellSizeMustBePositive or StrutRadiusMustBePositive or NodeRadiusMustBePositive or MaterialBoundsMismatch or StandaloneFillMultipleUnsupported;
+    public static bool IsFatalDiagnosticCode(string code) =>
+        FirmamentInterop.FirmamentV2DiagnosticAdapter.ParserSeverity(code)
+            == Aetheris.Forge.Abstractions.FirmamentInterop.FirmamentDiagnosticSeverity.Fatal;
 
     private static IReadOnlyList<FirmamentV2Exposure> ParseExposures(string body, List<string> diagnostics)
     {

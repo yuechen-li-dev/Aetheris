@@ -151,8 +151,10 @@ internal static class FirmamentV2CanonicalSymbolBinder
     }
 
     private static bool CanShareName(FirmamentV2CanonicalSymbolKind left, FirmamentV2CanonicalSymbolKind right) =>
-        (left == FirmamentV2CanonicalSymbolKind.Profile && right is FirmamentV2CanonicalSymbolKind.Boss or FirmamentV2CanonicalSymbolKind.Pocket)
-        || (right == FirmamentV2CanonicalSymbolKind.Profile && left is FirmamentV2CanonicalSymbolKind.Boss or FirmamentV2CanonicalSymbolKind.Pocket);
+        (left is FirmamentV2CanonicalSymbolKind.Profile or FirmamentV2CanonicalSymbolKind.ClosedBoundary2 or FirmamentV2CanonicalSymbolKind.Polygon2
+            && right is FirmamentV2CanonicalSymbolKind.Boss or FirmamentV2CanonicalSymbolKind.Pocket)
+        || (right is FirmamentV2CanonicalSymbolKind.Profile or FirmamentV2CanonicalSymbolKind.ClosedBoundary2 or FirmamentV2CanonicalSymbolKind.Polygon2
+            && left is FirmamentV2CanonicalSymbolKind.Boss or FirmamentV2CanonicalSymbolKind.Pocket);
 
     private static (string Name, FirmamentV2CanonicalSymbolKind Kind)? ParseSelectionReference(string source)
     {

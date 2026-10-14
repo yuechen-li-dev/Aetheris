@@ -9,7 +9,6 @@
 | `Mechanical` | Ordinary V2 mechanical parts and features. |
 | `WireForm` | Formed wire, bends, coils, and knots. |
 | `Sweep` | Circular-section Concept Path sweeps. |
-| `Revolve` | Bounded Profile revolution about an explicit coplanar Axis. |
 | `SectionChain` | Standalone ruled/G1 section-chain bodies. |
 | `Garment` | Profile panels, stitch interfaces, figure measurements and declarative fitting poses. See [garment authoring](garments.md). |
 
@@ -29,19 +28,11 @@ Model Plate {
 }
 ```
 
-Firmament-owned vocabulary is canonically PascalCase: declarations, semantic features, built-in values, and field names such as `Size`, `Body`, and `Region`. User-defined identifiers are case-preserving and stylistically unrestricted. External engineering identifiers such as `Standard.Materials.Aluminum.5052_H32`, standards, imported identities, and part numbers preserve their source spelling. New Firmament-owned V2 vocabulary does not use snake_case.
+Constructs and types use PascalCase; built-in fields prefer camelCase under the [language-style contract](language-style.md). Existing owner-specific PascalCase field aliases remain compatible, and many examples below retain those aliases. User-defined identifiers and external domain symbols preserve their spelling. There is no global case folding; unsupported casing must be diagnosed by its owner rather than silently ignored.
 
-Accepted lowercase or historical spellings remain compatibility inputs where they are cheap and unambiguous. They select the same semantic route and produce no style warning. Canonical documentation, snippets, and fixtures use only the preferred spelling; casing is not a type-system distinction.
+`Revolve` is a construct under `schema Mechanical`; `schema Revolve` is not an available frontend selector.
 
-Canonical fields use a colon between name and value. Braces delimit declarations, brackets delimit lists, and semicolons are optional where the owning line/block grammar is unambiguous. `Model`, `SheetMetal`, `Analysis`/import, and Assembly retain domain-appropriate target grammars; the [target reference](../reference/targets.md) records the intentional distinctions. Assembly definitions may use compile-time `Include`, first-class `Subassembly`, typed `Interface<T>`, atomic `Mate`, and explicit `Expose`; see [typed interfaces and reusable subassemblies](assemblies.md).
-
-Firmament V1 is compatibility history rather than canonical V2 authoring. Bodies embedded in `.firmfixture` entries marked future, not implemented, or invalid are corpus evidence and do not define the public language.
-
-An untransformed `Box` stock is centered in X/Y with `Bottom` at Z=0 and `Top` at Z=`Height`. Its local feature coordinates use that same stock frame: adding holes or edge finishes does not translate the stock.
-
-Firmament admits declarations through typed semantic namespaces. Construction `Profile` names may coincide with `Boss` or `Pocket` feature names because feature `Profile:` references are explicitly typed; these identities remain distinct in structured inspection. Names may not otherwise shadow another declaration in the same semantic namespace.
-
-Use `aetheris validate file.firmament --json` before building. Diagnostics are codes intended for automation plus short corrective messages. See [diagnostics](../reference/diagnostics.md).
+Use `aetheris validate file.firmament --json` before building. Generic mechanical validation runs engineering compilation in memory; `--parse-only` reports `parsed-not-built`. This X0 qualification is incomplete for advanced Compose/boundary source consumption; see the [qualification report](../../release/FIRMAMENT-FRONTEND-X0.md). See [diagnostics](../reference/diagnostics.md) for the diagnostic representation.
 
 ## Reusable semantic construction with Feature
 

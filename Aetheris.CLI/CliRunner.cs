@@ -136,7 +136,7 @@ public static class CliRunner
     private const string TopLevelUsage = "Usage: aetheris <command> [options]";
     private const string BuildUsage = "Usage: aetheris build <file.firmament|file.firmasm> [--output <path>] [--json]";
     private const string MeshUsage = "Usage: aetheris mesh <file.firmament|file.firmfixture|file.firmasm|file.step> [--format stl|obj|assembly-json] [--output <path>] [--debug-ir <path>] [--json]";
-    private const string ValidateUsage = "Usage: aetheris validate <file.firmament|file.firmfixture> [--forge-pack <path>] [--json]";
+    private const string ValidateUsage = "Usage: aetheris validate <file.firmament|file.firmfixture> [--forge-pack <path>] [--parse-only] [--explain] [--json]";
     private const string InspectProfileUsage = "Usage: aetheris inspect-profile <file.firmament> [--json]";
     private const string InspectSpansUsage = "Usage: aetheris inspect-spans <file.firmament> --json";
     private const string InspectComposeUsage = "Usage: aetheris inspect-compose <file.firmament> --json [--materialize]";
@@ -507,6 +507,7 @@ public static class CliRunner
             return RunSculptingBuild(sourcePath, outPath, json, stdout, stderr);
 
         var build = FirmamentBuildAndExport.Run(sourcePath, outPath);
+        var diagnosticSource = File.ReadAllText(sourcePath);
         if (!build.IsSuccess)
         {
             if (json)
@@ -516,7 +517,7 @@ public static class CliRunner
                     command = "build",
                     success = false,
                     input = Path.GetFullPath(sourcePath),
-                    diagnostics = build.Diagnostics.Select(d => new { d.Source, d.Message, severity = d.Severity.ToString() })
+                    diagnostics = build.Diagnostics.Select(d => FirmamentBuildAdmissionValidation.Present(d, sourcePath, diagnosticSource))
                 }, JsonOptions));
             }
             else
@@ -524,7 +525,8 @@ public static class CliRunner
                 stderr.WriteLine("Build failed:");
                 foreach (var diagnostic in build.Diagnostics)
                 {
-                    stderr.WriteLine($"- [{diagnostic.Severity}] {diagnostic.Source}: {diagnostic.Message}");
+                    var presented = FirmamentBuildAdmissionValidation.Present(diagnostic, sourcePath, diagnosticSource);
+                    stderr.WriteLine($"{sourcePath}({presented.Line},{presented.Column}): {presented.Severity} {presented.Code}: {presented.Message}");
                 }
             }
 
@@ -541,6 +543,7 @@ public static class CliRunner
                 output = build.Value.OutputPath,
                 sourcePath = build.Value.SourcePath,
                 outputPath = build.Value.OutputPath,
+                model = build.Value.Export.DocumentName ?? build.Value.Export.ExportedFeatureId,
                 conceptIr = build.Value.Export.ConceptIr,
                 air = build.Value.Export.Air,
                 plateau = build.Value.Export.Plateau,
@@ -563,7 +566,7 @@ public static class CliRunner
                 featureCount = (build.Value.Export.Features?.Count ?? 0) + (build.Value.Export.EngineeringFeatures?.Count ?? 0) + (build.Value.Export.Perforation is null ? 0 : 1),
                 inlineStepMigration = build.Value.Export.InlineStepMigration,
                 inlineStepReplacementAssist = build.Value.Export.InlineStepReplacementAssist,
-                diagnostics = build.Diagnostics.Select(d => new { d.Source, d.Message, severity = d.Severity.ToString() }),
+                diagnostics = build.Diagnostics.Select(d => FirmamentBuildAdmissionValidation.Present(d, sourcePath, diagnosticSource)),
                 pmiExportEvidence = new
                 {
                     datum = (build.Value.Export.DatumInspection ?? []).Select(d => new { kind = "datum", name = d.Label, exportSupport = "supported", exportEvidence = "found", target = d.Target }),
@@ -575,7 +578,7 @@ public static class CliRunner
         {
             stdout.WriteLine($"Built {Path.GetFileName(build.Value.SourcePath)}");
             stdout.WriteLine($"STEP: {build.Value.OutputPath}");
-            stdout.WriteLine($"Model: {build.Value.Export.ExportedFeatureId}");
+            stdout.WriteLine($"Model: {build.Value.Export.DocumentName ?? build.Value.Export.ExportedFeatureId}");
             if (build.Value.Export.StandardPart is { } standardPart)
                 stdout.WriteLine($"Standard part: {standardPart.Family} via {standardPart.Template ?? "direct record"} ({standardPart.SemanticDescendants.Count} semantic descendants)");
             if (build.Value.Export.WireForm is { } wireForm)
@@ -2296,6 +2299,8 @@ Model CanonicalPanel {
 
         var sourcePath = args[0];
         var json = false;
+        var explain = false;
+        var parseOnly = false;
         var forgePackPaths = new List<string>();
         for (var i = 1; i < args.Length; i++)
         {
@@ -2308,6 +2313,12 @@ Model CanonicalPanel {
                     stderr.WriteLine("Validate option --forge-pack requires a local assembly path.");
                     stderr.WriteLine(ValidateUsage);
                     return 1;
+                case "--explain":
+                    explain = true;
+                    break;
+                case "--parse-only":
+                    parseOnly = true;
+                    break;
                 case "--json":
                     json = true;
                     break;
@@ -2479,9 +2490,20 @@ Model CanonicalPanel {
             Path.GetDirectoryName(Path.GetFullPath(sourcePath)),
             runtimeConfiguration.Catalog);
         var runtimeValidation = FirmamentV2RuntimeConceptValidation.Validate(parse.Document, runtimeConfiguration);
-        var report = FirmamentV2ValidationReportBuilder.Build(parse, sourcePath, runtimeValidation, runtimeConfiguration.Catalog);
+        var report = FirmamentV2ValidationReportBuilder.Build(parse, sourcePath, runtimeValidation, runtimeConfiguration.Catalog, validationSource);
+        if (parseOnly || forgePackPaths.Count > 0)
+        {
+            if (report.Status != "invalid") report = report with { Status = "parsed-not-built" };
+        }
+        else report = FirmamentBuildAdmissionValidation.Admit(report, validationSource, Path.GetDirectoryName(Path.GetFullPath(sourcePath)));
         if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = report }, JsonOptions));
         else stdout.WriteLine($"Firmament V2 validation: {report.Status} ({report.Summary.FatalDiagnosticCount} fatal, {report.Summary.WarningDiagnosticCount} warning)");
+        if (!json)
+        {
+            if (explain) stdout.WriteLine($"Language: {report.LanguageVersion}; parser route: {report.ParserRoute ?? "Expansion/Unselected"}; admission: {report.ValidationLevel}; templates: {parse.Document?.TemplateInstantiations?.Count ?? 0}; solids: {parse.Document?.Solids.Count ?? 0}");
+            foreach (var diagnostic in report.Diagnostics)
+                stderr.WriteLine($"{sourcePath}({diagnostic.Line},{diagnostic.Column}): {diagnostic.Severity} {diagnostic.Code}: {diagnostic.Message}");
+        }
         return report.Status == "invalid" ? 1 : 0;
     }
 
@@ -5132,11 +5154,13 @@ Model CanonicalPanel {
 
     private static void WriteValidateHelp(TextWriter stdout)
     {
-        stdout.WriteLine("Check syntax, binding, dimensions, and static semantics without materializing geometry.");
-        stdout.WriteLine("Use build for materialization, STEP generation, and build-time assertions.");
+        stdout.WriteLine("Check V2 syntax and binding, then run engineering compilation to verify build admission.");
+        stdout.WriteLine("Generic V2 validation includes in-memory geometry/STEP preflight and writes no output file. Domain-specific reports retain their stated validation scope.");
         stdout.WriteLine();
         stdout.WriteLine(ValidateUsage);
-        stdout.WriteLine("  --json                Emit Firmament V2 validation report JSON.");
+        stdout.WriteLine("  --json                Emit Firmament V2 validation report JSON, including validation level and parser route.");
+        stdout.WriteLine("  --explain             Show V2 parser route, admission level and available instance counts.");
+        stdout.WriteLine("  --parse-only          Check static semantics only; success is labelled parsed-not-built.");
         stdout.WriteLine("  --forge-pack <path>   Load a trusted local .NET assembly containing IForgeConceptPack implementations. This executes local code; Aetheris does not sandbox external packs. Do not load untrusted packs.");
     }
 

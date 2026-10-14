@@ -322,7 +322,7 @@ internal static class ConceptIrResolver
         holes = holes.Concat(patternHoles).ToArray();
         if (holes.Count == 0 && finishes.Count == 0)
         {
-            if (!diagnostics.Any(FirmamentV2Parser.IsConceptFatalDiagnostic)) diagnostics.Add(FirmamentV2Parser.Phase3EdgeFinishSyntaxInvalid);
+            if (!diagnostics.Any(FirmamentV2Parser.IsFatalDiagnosticCode)) diagnostics.Add(FirmamentV2Parser.Phase3EdgeFinishSyntaxInvalid);
             return null;
         }
 

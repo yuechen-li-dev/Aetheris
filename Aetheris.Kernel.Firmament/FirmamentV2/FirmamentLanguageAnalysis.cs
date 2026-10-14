@@ -289,13 +289,10 @@ public static class FirmamentLanguageAnalysisService
 
     private static FirmamentLanguageDiagnostic LocateDiagnostic(string source, IReadOnlyList<Lexeme> tokens, string diagnostic)
     {
-        var separator = diagnostic.LastIndexOf(':');
-        var code = separator > 0 ? diagnostic[..separator] : diagnostic;
-        var subject = separator > 0 ? diagnostic[(separator + 1)..] : string.Empty;
-        var match = tokens.FirstOrDefault(token => token.Text == subject);
-        var start = match?.Start ?? Math.Max(0, source.Length - 1);
-        var length = match?.Length ?? (source.Length == 0 ? 0 : 1);
-        return new("error", code, diagnostic.Replace('-', ' '), start, length);
+        var presented = FirmamentBuildAdmissionValidation.Locate(
+            new(diagnostic, "fatal", FirmamentInterop.FirmamentV2DiagnosticAdapter.MessageFor(diagnostic)), source, "inline");
+        var message = presented.LocationNote is null ? presented.Message : presented.Message + " " + presented.LocationNote;
+        return new("error", diagnostic, message, presented.SourceSpan?.Start ?? 0, presented.SourceSpan?.Length ?? 0);
     }
 
     internal static List<Lexeme> Lex(string source)

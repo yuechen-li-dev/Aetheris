@@ -1,0 +1,18 @@
+Concept Struct Layout On XZ {
+    Point2 A { Position: [0mm, 0mm] }
+    Point2 B { Position: [60mm, 0mm] }
+    Point2 C { Position: [60mm, 5mm] }
+    Point2 D { Position: [5mm, 5mm] }
+    Point2 E { Position: [5mm, 30mm] }
+    Point2 F { Position: [0mm, 30mm] }
+    Line2 AB { From: A; To: B }
+    Line2 BC { From: B; To: C }
+    Line2 CD { From: C; To: D }
+    Line2 DE { From: D; To: E }
+    Line2 EF { From: E; To: F }
+    Line2 FA { From: F; To: A }
+}
+Profile Outline Using Layout {
+    Loop Outer { AB |> BC |> CD |> DE |> EF |> FA |> Close }
+}
+Struct Bracket { Extrude Body { Profile: Outline; From: 0mm; To: 3mm } }

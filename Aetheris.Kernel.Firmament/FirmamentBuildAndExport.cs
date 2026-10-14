@@ -170,6 +170,7 @@ public static class FirmamentBuildAndExport
     {
         var parsed = ParseSemanticSource(source, sourceDirectory);
         if (!parsed.IsSuccess || parsed.Document is null) return export;
+        export = export with { DocumentName = parsed.Document.ModelName };
 
         var edgeFinishes = (parsed.Document.ModifyBlocks ?? [])
             .SelectMany(modification => (modification.EdgeFinishes ?? []).Select(finish => new FirmamentEngineeringFeatureReport(
@@ -447,6 +448,10 @@ public static class FirmamentBuildAndExport
                     authored.Value.Path.StableId, "Circle", authored.Value.Diameter, "Diameter", "Add", PolicySource: "CircularSweepFeatureAir", MaterializationRoute: "CircularSweepBRepPlan")]),
                 []);
         }
+        // Profile/Compose adapters still own additional admitted syntax (junction
+        // selections and derived profiles) absent from the generic V2 document.
+        // A blanket V2 gate here breaks established engineering fixtures. X0 keeps
+        // this boundary explicit pending consumed-source admission (see release report).
         if (PrismaticProfileCompositionParser.IsCompositionSource(materializerSource))
         {
             var parsed = PrismaticProfileCompositionParser.Parse(materializerSource);
@@ -644,15 +649,8 @@ public static class FirmamentBuildAndExport
                 "FirmamentV2.InlineStep")).ToArray());
         }
 
-        var fatalV2Diagnostics = v2Parse.Diagnostics.Where(FirmamentV2Parser.IsFatalDiagnosticCode).Distinct(StringComparer.Ordinal).ToArray();
-        if (v2Parse.Disposition == FirmamentV2ParseDisposition.RecognizedInvalid && fatalV2Diagnostics.Length > 0)
-        {
-            return KernelResult<FirmamentStepExportResult>.Failure(fatalV2Diagnostics.Select(code => new Kernel.Core.Diagnostics.KernelDiagnostic(
-                Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed,
-                Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
-                code,
-                "FirmamentV2.Parse")).ToArray());
-        }
+        if (v2Parse.Disposition == FirmamentV2ParseDisposition.RecognizedInvalid)
+            return V2ParseFailure(v2Parse);
 
         if (!allowV1Compatibility)
         {
@@ -740,6 +738,14 @@ public static class FirmamentBuildAndExport
             Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
             message,
             "FirmamentV2.LibraryResolution")).ToArray();
+
+    private static KernelResult<FirmamentStepExportResult> V2ParseFailure(FirmamentV2ParseResult parse)
+    {
+        var errors = parse.Diagnostics.Where(FirmamentV2Parser.IsFatalDiagnosticCode).Distinct(StringComparer.Ordinal).ToArray();
+        if (errors.Length == 0) errors = ["firmament-v2-parse-failed"];
+        return KernelResult<FirmamentStepExportResult>.Failure(errors.Select(code => new KernelDiagnostic(
+            KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, code, "FirmamentV2.Parse")).ToArray());
+    }
 
     private static KernelResult<FirmamentStepExportResult> V2SourceRequired(FirmamentV2ParseResult parse)
     {
@@ -1146,7 +1152,8 @@ public static class FirmamentBuildAndExport
         var selections = SemanticSelectionSourceParser.Parse(source, parsed.Profiles.Values.First(), stack.Feature.Name, out var diagnostics);
         if (diagnostics.Count != 0 || selections.Count != 1) return Fail(diagnostics.FirstOrDefault() ?? "SemanticSourceNotFound");
         var selection = SemanticTopologySelectionResolver.Resolve(emitted.Body, emitted.Correspondence, selections[0]);
-        if (!selection.Succeeded || !selection.IsClosed || selection.Request.Require != SemanticSelectionRequirement.ClosedLoop) return Fail(selection.Failure == SemanticSelectionFailure.None ? "SelectionConsumerMismatch" : selection.Failure.ToString());
+        if (!selection.Succeeded) return Fail(string.Join("; ", selection.Diagnostics.Select(diagnostic => $"{diagnostic.Code}: {diagnostic.Message}")));
+        if (!selection.IsClosed || selection.Request.Require != SemanticSelectionRequirement.ClosedLoop) return Fail("SelectionConsumerMismatch: EdgeFinish requires a closed semantic boundary loop.");
         var finish = Regex.Match(source, @"\bEdgeFinish\s+(?<name>\w+)\s*\{\s*Target\s*:\s*(?<target>\w+)\s*;?\s*Kind\s*:\s*(?<kind>Chamfer)\s*;?\s*Distance\s*:\s*(?<amount>[-+.\d]+)mm", RegexOptions.Singleline | RegexOptions.CultureInvariant);
         if (!finish.Success || finish.Groups["target"].Value != selection.Request.Label) return Fail("SelectionConsumerMismatch");
         var topSlab = stack.Slabs.MaxBy(s => s.To)!;
@@ -1231,7 +1238,7 @@ public static class FirmamentBuildAndExport
         var selections = SemanticSelectionSourceParser.Parse(source, profile, profile.Name, out var selectionDiagnostics);
         if (selectionDiagnostics.Count > 0 || selections.Count != 1) return Fail(selectionDiagnostics.FirstOrDefault() ?? "SemanticSourceNotFound");
         var selection = SemanticTopologySelectionResolver.Resolve(emitted.Body, emitted.Correspondence, selections[0]);
-        if (!selection.Succeeded) return Fail(selection.Failure.ToString());
+        if (!selection.Succeeded) return Fail(string.Join("; ", selection.Diagnostics.Select(diagnostic => $"{diagnostic.Code}: {diagnostic.Message}")));
         var finish = Regex.Match(source, @"\bEdgeFinish\s+(?<name>\w+)\s*\{\s*Target\s*:\s*(?<target>\w+)\s*;?\s*Kind\s*:\s*(?<kind>Chamfer|Fillet)\s*;?\s*(?:Distance|Radius)\s*:\s*(?<amount>[-+.\d]+)mm", RegexOptions.Singleline | RegexOptions.CultureInvariant);
         if (!finish.Success || !string.Equals(finish.Groups["target"].Value, selection.Request.Label, StringComparison.Ordinal)) return Fail("SelectionConsumerMismatch");
         if (!string.Equals(finish.Groups["kind"].Value, "Chamfer", StringComparison.Ordinal) || selection.Request.Require != SemanticSelectionRequirement.ClosedLoop || !selection.IsClosed) return Fail("SelectionConsumerMismatch");

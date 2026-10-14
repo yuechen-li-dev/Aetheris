@@ -318,6 +318,10 @@ public sealed record FirmamentV2ParseResult(
     IReadOnlyList<string> Diagnostics,
     FirmamentV2ParseDisposition Disposition = FirmamentV2ParseDisposition.NotRecognized)
 {
+    /// <summary>Debug metadata, assigned where the existing parser route is selected.</summary>
+    public string? ParserRoute { get; init; }
+    internal string? OriginalSource { get; init; }
+
     public static FirmamentV2ParseResult Success(FirmamentV2Document document, IReadOnlyList<string> diagnostics) => new(true, document, diagnostics, FirmamentV2ParseDisposition.RecognizedValid);
     public static FirmamentV2ParseResult Failure(IReadOnlyList<string> diagnostics, FirmamentV2ParseDisposition disposition = FirmamentV2ParseDisposition.RecognizedInvalid) => new(false, null, diagnostics, disposition);
 }

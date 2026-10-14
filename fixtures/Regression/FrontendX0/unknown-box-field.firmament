@@ -1,0 +1,4 @@
+Model UnknownDimension {
+    units: mm
+    Box Body { size: [40mm, 20mm, 6mm]; heigth: 12mm }
+}

@@ -1,5 +1,9 @@
 # Diagnostics and failure recovery
 
+Generic V2 build/validation errors use structured objects with `code`, `severity`, `message`, `sourceFile`, optional `sourceSpan`, `line`, `column`, and `locationNote`. The existing `fatal` spelling means an error that prevents admission; `warning` remains nonfatal. Parser route metadata is for debugging. An enclosing-declaration span is explicitly labelled when the legacy producer supplied no precise original-source provenance. Monaco consumes the same compiler presentation. Specialized domain commands are not yet all migrated to this representation.
+
+Unknown canonical statements and Box fields are errors. `profile-layout-placement-unsupported` rejects unsupported Concept Struct layout planes instead of substituting XY. Use a traced Construction Plane for supported oriented profile workflows. `SemanticSourceNotFound` preserves the missing source and the provenance explanation. A through-depth Pocket diagnostic points to `Remove` with `Role: ThroughCut`; X0 does not add through-Pocket or combined Fillet/Hole capabilities.
+
 ## Circular Sweep (X0)
 
 - `firmament-sweep-section-invalid`: circular diameter is missing, non-finite, or non-positive.

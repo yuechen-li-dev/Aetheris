@@ -13,10 +13,24 @@ public sealed record FirmamentV2ValidationReport(
     IReadOnlyList<FirmamentV2ValidationConceptPmiObligation> ConceptPmiObligations,
     FirmamentV2ValidationExportSupport ExportSupport,
     IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics,
-    FirmamentV2ValidationSummary Summary);
+    FirmamentV2ValidationSummary Summary)
+{
+    public string ValidationLevel { get; init; } = "ParsedNotBuilt";
+    public string? ParserRoute { get; init; }
+    public string LanguageVersion { get; init; } = "V2";
+}
 
 public sealed record FirmamentV2ValidationSummary(int LetCount, int TolerancedLetCount, int ConceptCount, int ValidConceptCount, int PmiRecordCount, int ExportSupportedPmiCount, int ExportDeferredPmiCount, int PmiObligationCount, int SatisfiedPmiObligationCount, int MissingPmiObligationCount, int FatalDiagnosticCount, int WarningDiagnosticCount);
-public sealed record FirmamentV2ValidationDiagnostic(string Code, string Severity, string Message, string? FieldName = null, string? Target = null);
+public sealed record FirmamentV2ValidationDiagnostic(string Code, string Severity, string Message, string? FieldName = null, string? Target = null)
+{
+    public string? SourceFile { get; init; }
+    public FirmamentV2SourceSpan? SourceSpan { get; init; }
+    public string? LocationNote { get; init; }
+    public string? Stage { get; init; }
+    public string? Source { get; init; }
+    public int? Line { get; init; }
+    public int? Column { get; init; }
+}
 public sealed record FirmamentV2ValidationExportSupport(int SupportedPmiCount, int DeferredPmiCount, IReadOnlyDictionary<string, string> Matrix);
 public sealed record FirmamentV2ValidationLet(string Name, string Type, string Nominal, FirmamentV2ValidationTolerance? Tolerance, string Source, IReadOnlyList<string> Dependencies, IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics);
 public sealed record FirmamentV2ValidationTolerance(string Kind, string Plus, string Minus);
@@ -33,7 +47,8 @@ public static class FirmamentV2ValidationReportBuilder
         FirmamentV2ParseResult parse,
         string source = "inline",
         FirmamentV2RuntimeConceptValidationResult? runtimeValidation = null,
-        FirmamentV2ForgeConceptCatalog? conceptCatalog = null)
+        FirmamentV2ForgeConceptCatalog? conceptCatalog = null,
+        string? sourceText = null)
     {
         runtimeValidation ??= FirmamentV2RuntimeConceptValidation.Validate(parse.Document);
         conceptCatalog ??= FirmamentV2ForgeConceptRegistry.Catalog;
@@ -44,6 +59,9 @@ public static class FirmamentV2ValidationReportBuilder
             .Concat(runtimeValidation.Diagnostics.Select(ToRuntimeDiagnostic))
             .Distinct()
             .ToArray();
+
+        if (!parse.IsSuccess && diagnostics.All(diagnostic => diagnostic.Severity != "fatal"))
+            diagnostics = [.. diagnostics, ToParserDiagnostic("firmament-v2-parse-failed")];
 
         var fatalCount = diagnostics.Count(diagnostic => diagnostic.Severity == "fatal");
         var warningCount = diagnostics.Count(diagnostic => diagnostic.Severity == "warning");
@@ -57,12 +75,13 @@ public static class FirmamentV2ValidationReportBuilder
         diagnostics = diagnostics
             .Concat(conceptPmiEvaluation.Diagnostics)
             .Distinct()
+            .Select(diagnostic => FirmamentBuildAdmissionValidation.Locate(diagnostic, sourceText ?? parse.OriginalSource, source))
             .ToArray();
         fatalCount = diagnostics.Count(diagnostic => diagnostic.Severity == "fatal");
         warningCount = diagnostics.Count(diagnostic => diagnostic.Severity == "warning");
         var supported = pmi.Count(record => record.ExportSupport is "supported" or "supported-when-target-resolves");
         var deferred = pmi.Count(record => record.ExportSupport == "deferred");
-        var status = fatalCount > 0 ? "invalid" : deferred > 0 ? "valid-with-deferred-export" : "valid";
+        var status = !parse.IsSuccess || fatalCount > 0 ? "invalid" : deferred > 0 ? "valid-with-deferred-export" : "valid";
         var summary = new FirmamentV2ValidationSummary(
             lets.Count,
             lets.Count(row => row.Tolerance is not null),
@@ -87,7 +106,11 @@ public static class FirmamentV2ValidationReportBuilder
             conceptPmiEvaluation.Obligations,
             new FirmamentV2ValidationExportSupport(supported, deferred, ExportMatrix),
             diagnostics,
-            summary);
+            summary)
+        {
+            ParserRoute = parse.ParserRoute,
+            LanguageVersion = parse.Disposition == FirmamentV2ParseDisposition.NotRecognized ? "Unrecognized" : "V2"
+        };
     }
 
     private static IReadOnlyList<FirmamentV2ValidationLet> BuildLets(FirmamentV2Document document)
@@ -306,18 +329,10 @@ public static class FirmamentV2ValidationReportBuilder
     private static FirmamentV2ValidationDiagnostic ToParserDiagnostic(string code) =>
         new(code, IsFatal(code) ? "fatal" : "warning", Message(code));
 
-    private static bool IsFatal(string code) =>
-        code.StartsWith("offset-", StringComparison.Ordinal)
-        || code.StartsWith(SemanticSymmetryAuthoring.Prefix, StringComparison.Ordinal)
-        || code.StartsWith("firmament-span-", StringComparison.Ordinal)
-        || code.StartsWith("firmament-feature-footprint-outside-span:", StringComparison.Ordinal)
-        || FirmamentV2Parser.IsFatalDiagnosticCode(code);
+    private static bool IsFatal(string code) => FirmamentV2Parser.IsFatalDiagnosticCode(code);
 
     private static bool IsParserTraceDiagnostic(string code) =>
-        code is "firmament-v2-parser-invoked" or "firmament-v2-parse-succeeded"
-        || code.EndsWith("-parsed", StringComparison.Ordinal)
-        || code.EndsWith("-adapted", StringComparison.Ordinal)
-        || code.EndsWith("-symbols-bound", StringComparison.Ordinal);
+        FirmamentInterop.FirmamentV2DiagnosticAdapter.ParserSeverity(code) == FirmamentDiagnosticSeverity.Info;
 
     private static FirmamentV2ValidationDiagnostic ToRuntimeDiagnostic(FirmamentDiagnostic diagnostic) =>
         new(
@@ -332,14 +347,7 @@ public static class FirmamentV2ValidationReportBuilder
             diagnostic.FieldName,
             diagnostic.Target);
 
-    private static string Message(string code) => code switch
-    {
-        FirmamentV2Parser.PmiDimensionMissingTolerance => "PMI dimension resolves to a value without tolerance evidence.",
-        FirmamentV2Parser.ConceptMissingRequiredField => "Forge concept application is missing a required descriptor field.",
-        FirmamentV2Parser.PmiUnknownDatum => "PMI relation references an unknown datum.",
-        FirmamentV2Parser.ToleranceDroppedThroughArithmetic => "A toleranced value was used in arithmetic and only the nominal value was preserved.",
-        _ => code
-    };
+    private static string Message(string code) => FirmamentInterop.FirmamentV2DiagnosticAdapter.MessageFor(code);
 
     private static FirmamentV2ValidationTolerance? ToTolerance(FirmamentV2Tolerance? tolerance) =>
         tolerance is null

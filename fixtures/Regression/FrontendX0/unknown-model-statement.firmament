@@ -1,0 +1,5 @@
+Model UnknownIntent {
+    units: mm
+    Box Body { size: [40mm, 20mm, 6mm] }
+    Fillet corners { radius: 1mm }
+}

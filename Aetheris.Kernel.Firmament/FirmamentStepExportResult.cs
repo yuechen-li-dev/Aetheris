@@ -37,6 +37,7 @@ public sealed record FirmamentStepExportResult(
     FirmamentPerforationReport? Perforation = null,
     FirmamentThreadReport? Thread = null)
 {
+    public string? DocumentName { get; init; }
     // In-process display can use the exact body that was exported to STEP.
     // It is intentionally absent from CLI/JSON artifact serialization.
     [JsonIgnore] public BrepBody? RuntimeBody { get; init; }

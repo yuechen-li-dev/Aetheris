@@ -1,13 +1,14 @@
 Rect2 BaseGuide { Center: [0mm, 0mm]; Size: [20mm, 10mm] }
 Rect2 ExtensionGuide { Center: [5mm, 0mm]; Size: [20mm, 10mm] }
-Profile BaseProfile Using ComposeGuide { Loop Outer {
+// Explicit world frame; the historical undeclared ComposeGuide defaulted to XY.
+Profile BaseProfile Using XY { Loop Outer {
      BaseGuide.Bottom As South
      |> BaseGuide.Right As East
      |> BaseGuide.Top As North
      |> BaseGuide.Left As West
      |> Close
  } }
-Profile ExtensionProfile Using ComposeGuide { Loop Outer {
+Profile ExtensionProfile Using XY { Loop Outer {
      ExtensionGuide.Bottom As South
      |> ExtensionGuide.Right As East
      |> ExtensionGuide.Top As North

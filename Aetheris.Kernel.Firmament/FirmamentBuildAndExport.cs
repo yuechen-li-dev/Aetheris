@@ -282,59 +282,62 @@ public static class FirmamentBuildAndExport
                 ? KernelResult<FirmamentStepExportResult>.Success(new(step.Value, authored.Chain!.StableId, 0, "section-chain", "section-chain"))
                 : KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
         }
-        // The V2 parser owns canonical-root admission.  Profile/composition
-        // materializers consume only the extracted normalized declaration body,
-        // so their historical top-level spelling is no longer author-visible.
-        // Static authoring is intentionally erased before this boundary, too:
-        // parser admission alone is insufficient because the profile/composition
-        // materializers read source declarations directly.
-        var staticDiagnostics = new List<string>();
+        // Production mechanical execution consumes the result of AST admission.
+        // Its expansion pipeline runs once in the frontend. Other domain owners keep
+        // their existing expansion boundary until their own mechanical migration.
         sourceText = ProfileModificationTemplateLibrary.ResolveImports(sourceText);
-        var boundaryExpansion = ClosedBoundary2Authoring.Expand(sourceText, staticDiagnostics);
-        if (boundaryExpansion is null)
-        {
-            return KernelResult<FirmamentStepExportResult>.Failure(staticDiagnostics.Select(diagnostic => new Kernel.Core.Diagnostics.KernelDiagnostic(
-                Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, diagnostic, "FirmamentV2.ClosedBoundary2")).ToArray());
-        }
-        var templateBindWatch = System.Diagnostics.Stopwatch.StartNew();
-        var templateExpansion = FirmamentV2TemplateExpansion.Expand(boundaryExpansion.Source, staticDiagnostics);
-        templateBindWatch.Stop();
-        if (templateExpansion is null)
-        {
-            return KernelResult<FirmamentStepExportResult>.Failure(staticDiagnostics.Select(diagnostic => new Kernel.Core.Diagnostics.KernelDiagnostic(
-                Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, diagnostic, "FirmamentV2.TemplateExpansion")).ToArray());
-        }
-        var featureExpansion = FirmamentV2FeatureExpansion.Expand(templateExpansion.Source, staticDiagnostics);
-        if (featureExpansion is null)
-        {
-            return KernelResult<FirmamentStepExportResult>.Failure(staticDiagnostics.Select(diagnostic => new Kernel.Core.Diagnostics.KernelDiagnostic(
-                Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, diagnostic, "FirmamentV2.FeatureExpansion")).ToArray());
-        }
-        var specializedBoundaries = ClosedBoundary2Authoring.Expand(featureExpansion.Source, staticDiagnostics);
-        if (specializedBoundaries is null)
-            return KernelResult<FirmamentStepExportResult>.Failure(staticDiagnostics.Select(SchemaDiagnostic).ToArray());
-        var staticExpansion = CanonicalStaticAuthoring.Expand(specializedBoundaries.Source, staticDiagnostics);
-        if (staticExpansion is null)
-        {
-            return KernelResult<FirmamentStepExportResult>.Failure(staticDiagnostics
-                .Distinct(StringComparer.Ordinal)
-                .Order(StringComparer.Ordinal)
-                .Select(diagnostic => new Kernel.Core.Diagnostics.KernelDiagnostic(
-                    Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed,
-                    Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
-                    diagnostic,
-                    "FirmamentV2.StaticAuthoring"))
-                .ToArray());
-        }
-        var materializerInput = staticExpansion.Source;
-        // Parse the canonical document before selecting the materializer.  Advanced
-        // Profile/Compose hosts still use their bounded section-stack materializer,
-        // but their normalized PMI records must follow the same AP242 route.
         var canonicalParseWatch = System.Diagnostics.Stopwatch.StartNew();
         var v2Parse = FirmamentV2Parser.Parse(sourceText, sourceDirectory);
         canonicalParseWatch.Stop();
-        var canonicalAdvanced = FirmamentV2Parser.TryGetCanonicalAdvancedBody(materializerInput, out var canonicalBody);
-        var materializerSource = canonicalAdvanced ? canonicalBody : materializerInput;
+        var templateBindWatch = new System.Diagnostics.Stopwatch();
+        string materializerSource;
+        if (v2Parse.ParserRoute == "UnifiedMechanical")
+        {
+            if (!v2Parse.IsSuccess) return V2ParseFailure(v2Parse);
+            materializerSource = v2Parse.BoundSource!;
+        }
+        else
+        {
+            var staticDiagnostics = new List<string>();
+            var boundaryExpansion = ClosedBoundary2Authoring.Expand(sourceText, staticDiagnostics);
+            if (boundaryExpansion is null)
+            {
+                return KernelResult<FirmamentStepExportResult>.Failure(staticDiagnostics.Select(diagnostic => new Kernel.Core.Diagnostics.KernelDiagnostic(
+                    Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, diagnostic, "FirmamentV2.ClosedBoundary2")).ToArray());
+            }
+            templateBindWatch.Start();
+            var templateExpansion = FirmamentV2TemplateExpansion.Expand(boundaryExpansion.Source, staticDiagnostics);
+            templateBindWatch.Stop();
+            if (templateExpansion is null)
+            {
+                return KernelResult<FirmamentStepExportResult>.Failure(staticDiagnostics.Select(diagnostic => new Kernel.Core.Diagnostics.KernelDiagnostic(
+                    Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, diagnostic, "FirmamentV2.TemplateExpansion")).ToArray());
+            }
+            var featureExpansion = FirmamentV2FeatureExpansion.Expand(templateExpansion.Source, staticDiagnostics);
+            if (featureExpansion is null)
+            {
+                return KernelResult<FirmamentStepExportResult>.Failure(staticDiagnostics.Select(diagnostic => new Kernel.Core.Diagnostics.KernelDiagnostic(
+                    Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, diagnostic, "FirmamentV2.FeatureExpansion")).ToArray());
+            }
+            var specializedBoundaries = ClosedBoundary2Authoring.Expand(featureExpansion.Source, staticDiagnostics);
+            if (specializedBoundaries is null)
+                return KernelResult<FirmamentStepExportResult>.Failure(staticDiagnostics.Select(SchemaDiagnostic).ToArray());
+            var staticExpansion = CanonicalStaticAuthoring.Expand(specializedBoundaries.Source, staticDiagnostics);
+            if (staticExpansion is null)
+            {
+                return KernelResult<FirmamentStepExportResult>.Failure(staticDiagnostics
+                    .Distinct(StringComparer.Ordinal)
+                    .Order(StringComparer.Ordinal)
+                    .Select(diagnostic => new Kernel.Core.Diagnostics.KernelDiagnostic(
+                        Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed,
+                        Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,
+                        diagnostic,
+                        "FirmamentV2.StaticAuthoring"))
+                    .ToArray());
+            }
+            var materializerInput = staticExpansion.Source;
+            materializerSource = FirmamentV2Parser.TryGetCanonicalAdvancedBody(materializerInput, out var canonicalBody) ? canonicalBody : materializerInput;
+        }
         if (PlateauAuthoring.IsSource(materializerSource))
         {
             if (!v2Parse.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(v2Parse.Diagnostics.Select(SchemaDiagnostic).ToArray());
@@ -448,13 +451,9 @@ public static class FirmamentBuildAndExport
                     authored.Value.Path.StableId, "Circle", authored.Value.Diameter, "Diameter", "Add", PolicySource: "CircularSweepFeatureAir", MaterializationRoute: "CircularSweepBRepPlan")]),
                 []);
         }
-        // Profile/Compose adapters still own additional admitted syntax (junction
-        // selections and derived profiles) absent from the generic V2 document.
-        // A blanket V2 gate here breaks established engineering fixtures. X0 keeps
-        // this boundary explicit pending consumed-source admission (see release report).
-        if (PrismaticProfileCompositionParser.IsCompositionSource(materializerSource))
+        if (v2Parse.BoundComposition is not null || (v2Parse.ParserRoute != "UnifiedMechanical" && PrismaticProfileCompositionParser.IsCompositionSource(materializerSource)))
         {
-            var parsed = PrismaticProfileCompositionParser.Parse(materializerSource);
+            var parsed = v2Parse.BoundComposition ?? PrismaticProfileCompositionParser.Parse(materializerSource);
             var stack = PrismaticSectionStackCompiler.Normalize(parsed, out var diagnostics);
             if (stack is null)
                 return KernelResult<FirmamentStepExportResult>.Failure(diagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.ProfileComposition")).ToArray());
@@ -495,9 +494,11 @@ public static class FirmamentBuildAndExport
                 Features: CompositionHoleReports(stack.Feature),
                 EngineeringFeatures: EngineeringFeatureReports(stack.Feature)));
         }
-        if (ProfileAuthoringParser.IsProfileSource(materializerSource))
+        if (v2Parse.BoundProfile is not null || (v2Parse.ParserRoute != "UnifiedMechanical" && ProfileAuthoringParser.IsProfileSource(materializerSource)))
         {
-            var parsed = ProfileAuthoringParser.Parse(materializerSource);
+            var parsed = v2Parse.BoundProfile is { } boundProfile
+                ? (Profile: (ResolvedProfile2D?)boundProfile, Height: v2Parse.ExtrusionHeight, Diagnostics: (IReadOnlyList<string>)[])
+                : ProfileAuthoringParser.Parse(materializerSource);
             if (parsed.Profile is null) return KernelResult<FirmamentStepExportResult>.Failure(parsed.Diagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.Profile")).ToArray());
             var emitted = ResolvedProfile2DValidator.Extrude(parsed.Profile, parsed.Height);
             if (emitted.Status != LineArcProfileExtrudeStatus.Succeeded || emitted.Body is null) return KernelResult<FirmamentStepExportResult>.Failure(emitted.Diagnostics.Select(x => new Kernel.Core.Diagnostics.KernelDiagnostic(Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, x, "FirmamentV2.Profile")).ToArray());
@@ -741,7 +742,9 @@ public static class FirmamentBuildAndExport
 
     private static KernelResult<FirmamentStepExportResult> V2ParseFailure(FirmamentV2ParseResult parse)
     {
-        var errors = parse.Diagnostics.Where(FirmamentV2Parser.IsFatalDiagnosticCode).Distinct(StringComparer.Ordinal).ToArray();
+        var syntaxCodes = parse.SyntaxDiagnostics.Select(d => d.Code).ToHashSet(StringComparer.Ordinal);
+        var errors = parse.Diagnostics.Where(FirmamentV2Parser.IsFatalDiagnosticCode).Where(code => !syntaxCodes.Contains(code))
+            .Concat(parse.SyntaxDiagnostics.Select(d => d.Code + ": " + d.Message)).Distinct(StringComparer.Ordinal).ToArray();
         if (errors.Length == 0) errors = ["firmament-v2-parse-failed"];
         return KernelResult<FirmamentStepExportResult>.Failure(errors.Select(code => new KernelDiagnostic(
             KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, code, "FirmamentV2.Parse")).ToArray());

@@ -274,7 +274,7 @@ public sealed record FirmamentV2ProfileDecl(string Name, string Frame, double Fr
 public sealed record FirmamentV2ComposeDecl(string Name, IReadOnlyList<string> Operations, FirmamentV2SourceSpan SourceSpan);
 public sealed record FirmamentV2BossDecl(string Name, string Host, string On, string Profile, double Height, string StableId, FirmamentV2SourceSpan SourceSpan);
 public sealed record FirmamentV2PocketDecl(string Name, string Host, string On, string Profile, double Depth, double HostThickness, double RemainingFloor, double MinimumFloorThickness, string MinimumFloorPolicySource, string StableId, FirmamentV2SourceSpan SourceSpan);
-public sealed record FirmamentV2SelectionDecl(string Name, string Target, string Source, string Requirement, FirmamentV2SourceSpan SourceSpan);
+public sealed record FirmamentV2SelectionDecl(string Name, string Target, string Source, string Requirement, FirmamentV2SourceSpan SourceSpan) { public IReadOnlyList<string>? Sources { get; init; } }
 /// <summary>Normalized, erased-before-materialization evidence for canonical static authoring.</summary>
 public sealed record FirmamentV2StaticAuthoringDocument(IReadOnlyList<FirmamentV2RecordTypeDecl> RecordTypes, IReadOnlyList<FirmamentV2StaticArrayDecl> Arrays, IReadOnlyList<FirmamentV2CanonicalTemplateDecl> Templates, IReadOnlyList<FirmamentV2CanonicalPatternDecl> Patterns, IReadOnlyList<FirmamentV2RequireDecl> Requires, IReadOnlyList<FirmamentV2SemanticConstraint>? SemanticConstraints = null, IReadOnlyDictionary<string, FirmamentV2PmiProjection>? PmiProjections = null, IReadOnlyList<FirmamentV2StaticRecordDecl>? StaticRecords = null, IReadOnlyList<FirmamentV2StaticTableDecl>? Tables = null, IReadOnlyList<FirmamentV2StaticSetDecl>? Sets = null, IReadOnlyList<FirmamentV2MirrorDerivation>? Mirrors = null, IReadOnlyList<FirmamentV2RadialPatternDecl>? RadialPatterns = null, IReadOnlyList<FirmamentV2LinearPatternDecl>? LinearPatterns = null, IReadOnlyList<FirmamentV2Axis2Decl>? PlanarAxes = null, IReadOnlyList<ConceptIrKeyedPointSetValue>? ConceptPoints = null);
 public sealed record FirmamentV2RecordTypeDecl(string Name, IReadOnlyDictionary<string, string> Fields, FirmamentV2SourceSpan SourceSpan);
@@ -320,7 +320,14 @@ public sealed record FirmamentV2ParseResult(
 {
     /// <summary>Debug metadata, assigned where the existing parser route is selected.</summary>
     public string? ParserRoute { get; init; }
+    public IReadOnlyList<FirmamentV2ValidationDiagnostic> SyntaxDiagnostics { get; init; } = [];
     internal string? OriginalSource { get; init; }
+    // Bound engineering inputs are retained for execution; a successful AST admission
+    // cannot be replaced by a different whole-document parser in the build path.
+    internal PrismaticProfileCompositionParseResult? BoundComposition { get; init; }
+    internal ResolvedProfile2D? BoundProfile { get; init; }
+    internal double ExtrusionHeight { get; init; }
+    internal string? BoundSource { get; init; }
 
     public static FirmamentV2ParseResult Success(FirmamentV2Document document, IReadOnlyList<string> diagnostics) => new(true, document, diagnostics, FirmamentV2ParseDisposition.RecognizedValid);
     public static FirmamentV2ParseResult Failure(IReadOnlyList<string> diagnostics, FirmamentV2ParseDisposition disposition = FirmamentV2ParseDisposition.RecognizedInvalid) => new(false, null, diagnostics, disposition);

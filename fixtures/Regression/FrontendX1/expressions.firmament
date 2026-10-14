@@ -1,0 +1,4 @@
+Static precedence: Float = 1 + 2 * 3 ^ 4;
+Static location: Point2 = Point2(Layout.Points[0].x + 2mm, -3mm);
+Static copy = Spec with { width: 8mm; };
+Static predicate: Bool = Count >= 2 && Count != 4 || false;

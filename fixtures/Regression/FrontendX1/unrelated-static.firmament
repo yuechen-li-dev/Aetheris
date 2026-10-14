@@ -1,0 +1,2 @@
+Record Position { point: Point2 }
+Static sites: Set<Position> { first => Position { point: Point2(1mm, 2mm) } }

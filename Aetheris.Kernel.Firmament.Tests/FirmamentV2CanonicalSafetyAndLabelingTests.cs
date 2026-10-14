@@ -59,7 +59,7 @@ public sealed class FirmamentV2CanonicalSafetyAndLabelingTests
             """);
 
         Assert.False(parse.IsSuccess);
-        Assert.Contains(FirmamentV2Parser.CanonicalFieldUnknown, parse.Diagnostics);
+        Assert.Contains(parse.Diagnostics, d => d.StartsWith(FirmamentV2Parser.CanonicalFieldUnknown + ":Hole:", StringComparison.Ordinal));
     }
 
     [Fact]

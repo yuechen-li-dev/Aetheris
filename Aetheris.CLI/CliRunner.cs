@@ -136,7 +136,7 @@ public static class CliRunner
     private const string TopLevelUsage = "Usage: aetheris <command> [options]";
     private const string BuildUsage = "Usage: aetheris build <file.firmament|file.firmasm> [--output <path>] [--json]";
     private const string MeshUsage = "Usage: aetheris mesh <file.firmament|file.firmfixture|file.firmasm|file.step> [--format stl|obj|assembly-json] [--output <path>] [--debug-ir <path>] [--json]";
-    private const string ValidateUsage = "Usage: aetheris validate <file.firmament|file.firmfixture> [--forge-pack <path>] [--parse-only] [--explain] [--json]";
+    private const string ValidateUsage = "Usage: aetheris validate <file.firmament|file.firmfixture> [--forge-pack <path>] [--parse-only] [--explain] [--shadow [--ast]] [--json]";
     private const string InspectProfileUsage = "Usage: aetheris inspect-profile <file.firmament> [--json]";
     private const string InspectSpansUsage = "Usage: aetheris inspect-spans <file.firmament> --json";
     private const string InspectComposeUsage = "Usage: aetheris inspect-compose <file.firmament> --json [--materialize]";
@@ -218,6 +218,7 @@ public static class CliRunner
                 "build" => RunBuild(args.Skip(1).ToArray(), stdout, stderr),
                 "mesh" => RunMesh(args.Skip(1).ToArray(), stdout, stderr),
                 "validate" => RunValidate(args.Skip(1).ToArray(), stdout, stderr),
+                "frontend-shadow" => FrontendShadowCommand.Run(args.Skip(1).ToArray(), stdout, stderr),
                 "format" => RunFormat(args.Skip(1).ToArray(), stdout, stderr),
                 "inspect" => RunInspect(args.Skip(1).ToArray(), stdout, stderr),
                 "inspect-3dm" => ThreeDmCli.Run(args.Skip(1).ToArray(), stdout, stderr, JsonOptions),
@@ -2301,6 +2302,8 @@ Model CanonicalPanel {
         var json = false;
         var explain = false;
         var parseOnly = false;
+        var shadow = false;
+        var shadowAst = false;
         var forgePackPaths = new List<string>();
         for (var i = 1; i < args.Length; i++)
         {
@@ -2315,6 +2318,12 @@ Model CanonicalPanel {
                     return 1;
                 case "--explain":
                     explain = true;
+                    break;
+                case "--shadow":
+                    shadow = true;
+                    break;
+                case "--ast":
+                    shadowAst = true;
                     break;
                 case "--parse-only":
                     parseOnly = true;
@@ -2339,6 +2348,12 @@ Model CanonicalPanel {
             return 1;
         }
 
+        if (shadowAst && !shadow) { stderr.WriteLine("--ast requires --shadow."); return 1; }
+        if (shadow)
+        {
+            if (forgePackPaths.Count > 0 || parseOnly) { stderr.WriteLine("--shadow uses normal production validation; --forge-pack/--parse-only are not supported together with it."); return 1; }
+            return FrontendShadowCommand.Run([sourcePath, "--validate", .. (json ? new[] { "--json" } : []), .. (shadowAst ? new[] { "--ast" } : [])], stdout, stderr);
+        }
         var validationSource=File.ReadAllText(sourcePath);
         if (Aetheris.Kernel.Firmament.Garment.GarmentAuthoring.HasRoot(validationSource)
             || FirmamentFrontendSchemas.Select(validationSource).Schema == FirmamentFrontendSchema.Garment)
@@ -5160,6 +5175,8 @@ Model CanonicalPanel {
         stdout.WriteLine(ValidateUsage);
         stdout.WriteLine("  --json                Emit Firmament V2 validation report JSON, including validation level and parser route.");
         stdout.WriteLine("  --explain             Show V2 parser route, admission level and available instance counts.");
+        stdout.WriteLine("  --shadow              Developer report with separate original-source AST, bounded comparison and normal production validation.");
+        stdout.WriteLine("  --ast                 Include the detailed AST with --shadow. Structural parsing does not establish semantic admission.");
         stdout.WriteLine("  --parse-only          Check static semantics only; success is labelled parsed-not-built.");
         stdout.WriteLine("  --forge-pack <path>   Load a trusted local .NET assembly containing IForgeConceptPack implementations. This executes local code; Aetheris does not sandbox external packs. Do not load untrusted packs.");
     }

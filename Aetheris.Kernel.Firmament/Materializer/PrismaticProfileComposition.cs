@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Firmament.FirmamentV2;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using Aetheris.Semantics;
 
 namespace Aetheris.Kernel.Firmament.Materializer;
@@ -177,12 +178,7 @@ public static class PrismaticProfileCompositionParser
     private static readonly Regex Rect = new(@"\bRect2\s+(?<n>\w+)\s*\{\s*Center\s*:\s*(?:\[|Point2\s*\()\s*(?<x>[-+.\d]+)mm\s*,\s*(?<y>[-+.\d]+)mm\s*(?:\]|\))\s*;?\s*Size\s*:\s*\[(?<w>[-+.\d]+)mm\s*,\s*(?<h>[-+.\d]+)mm\]", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex ProfileHead = new(@"\bProfile\s+(?<n>\w+)\s+Using\s+(?<layout>\w+)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex Segment = new(@"\bSegment\s+(?<n>\w+)\s*\{\s*Trace\s*:\s*(?<trace>[\w.]+)\s*;?\s*From\s*:\s*(?<from>[\w.]+)\s*;?\s*To\s*:\s*(?<to>[\w.]+)(?:\s*;?\s*Sweep\s*:\s*(?<sweep>Clockwise|CounterClockwise))?", RegexOptions.Singleline | RegexOptions.CultureInvariant);
-    private static readonly Regex ComposeHead = new(@"\bCompose\s+(?<n>\w+)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex ModifyHead = new(@"\bModify\s+(?<target>\w+)\s*\{", RegexOptions.CultureInvariant);
-    private static readonly Regex Placement = new(@"\bPlacement\s+(?<n>\w+)\s*\{\s*Anchor\s*:\s*\[(?<x>[-+.\d]+)mm\s*,\s*(?<y>[-+.\d]+)mm\s*,\s*(?<z>[-+.\d]+)mm\]\s*;?\s*ProfilePlane\s*:\s*(?<plane>\w+)\s*;?\s*Axis\s*:\s*(?<axis>[+-][XYZ])\s*;?\s*ReferenceDirection\s*:\s*(?<reference>[+-][XYZ])", RegexOptions.Singleline | RegexOptions.CultureInvariant);
-    private static readonly Regex Operation = new(@"\b(?<intent>Base|Add|Remove)\s+(?<n>\w+)\s*\{\s*Profile\s*:\s*(?<profile>\w+)\s*;?\s*From\s*:\s*(?<from>[-+.\d]+)mm\s*;?\s*To\s*:\s*(?<to>[-+.\d]+)mm(?:\s*;?\s*Role\s*:\s*(?<role>\w+))?", RegexOptions.Singleline | RegexOptions.CultureInvariant);
-    private static readonly Regex BossHeader = new(@"\bBoss\s+(?<n>\w+)\s*\{", RegexOptions.CultureInvariant);
-    private static readonly Regex PocketHeader = new(@"\bPocket\s+(?<n>\w+)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex OffsetHeader = new(@"\b(?<intent>AddOffset|RemoveOffset)\s*<\s*(?<tool>[A-Za-z_]\w*)\s*>\s+(?<n>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex OffsetTarget = new(@"\bTarget\s*:\s*(?<value>[A-Za-z_]\w*)", RegexOptions.CultureInvariant);
     private static readonly Regex OffsetDirection = new(@"\b(?:Along|Axis|Direction)\s*:\s*(?<value>[+-][XYZ])", RegexOptions.CultureInvariant);
@@ -214,7 +210,7 @@ public static class PrismaticProfileCompositionParser
     private static readonly Regex SlotCornerRadius = new(@"\bCornerRadius\s*:\s*(?<v>[-+.\d]+)mm", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex SlotExtent = new(@"\bExtent\s*:\s*(?<v>ThroughAll|Between\s*\(\s*(?<from>[-+.\d]+)mm\s*,\s*(?<to>[-+.\d]+)mm\s*\))", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
-    public static bool IsCompositionSource(string source) => ComposeHead.IsMatch(source);
+    public static bool IsCompositionSource(string source) => FirmamentSyntaxEvidence.Declarations(FirmamentSyntaxParser.Parse(source).Document).Any(d => d.Type.Name.Text == "Compose");
 
     public static PrismaticProfileCompositionParseResult Parse(string source)
     {
@@ -296,33 +292,59 @@ public static class PrismaticProfileCompositionParser
                 diagnostics.Add($"compose-profile-duplicate:{consumed.Value.Name}");
         }
 
-        var compose = ComposeHead.Match(source);
-        if (!compose.Success) return new(null, profiles, diagnostics.Append("compose-source-missing-compose").ToArray());
-        var composeBody = Block(source, compose.Index + compose.Length - 1);
-        if (composeBody is null) return new(null, profiles, diagnostics.Append("compose-source-unclosed-compose").ToArray());
-        composeBody = BindExternalModifyFeatures(source, compose.Groups["n"].Value, composeBody, diagnostics);
+        var syntax = FirmamentSyntaxParser.Parse(source);
+        var compose = FirmamentSyntaxEvidence.Declarations(syntax.Document).FirstOrDefault(d => d.Type.Name.Text == "Compose");
+        if (compose?.Body is null || compose.Name is null) return new(null, profiles, diagnostics.Append("compose-source-missing-compose").ToArray());
+        if (compose.Clauses.Count > 0 || compose.Type.Arguments.Count > 0)
+            return new(null, profiles, diagnostics.Append("compose-header-unsupported: Declare a supported Placement block inside Compose.").ToArray());
+        var composeBody = source.Substring(compose.Body.Span.Start + 1, compose.Body.Span.Length - 2);
+        composeBody = BindExternalModifyFeatures(source, compose.Name.Text, composeBody, diagnostics);
+        var beforeAdmission = diagnostics.Count;
+        var operationsSyntax = FirmamentSyntaxParser.Parse(composeBody);
+        diagnostics.AddRange(operationsSyntax.Diagnostics.Select(d => d.Code + ":" + d.Message));
+        foreach (var declaration in operationsSyntax.Document.Statements.OfType<DeclarationSyntax>())
+            foreach (var repeated in (declaration.Body?.Statements.OfType<FieldSyntax>() ?? []).GroupBy(f => FirmamentSourceSpelling.PreferredField(f.Name.Text), StringComparer.Ordinal).Where(g => g.Count() > 1))
+                diagnostics.Add($"firmament-v2-field-duplicate:{declaration.Type.Name.Text}:{repeated.Key}");
+        foreach (var statement in operationsSyntax.Document.Statements)
+        {
+            if (statement is DeclarationSyntax declared && declared.Type.Name.Text is
+                "Base" or "Add" or "Remove" or "Boss" or "Pocket" or "AddOffset" or "RemoveOffset" or "Hole" or "Slot" or "EdgeFinish" or "Placement" or "Point2" or "Line2" or "Circle2" or "Path" or "Profile" or "Rect2" or "Axis2" or "Plane") continue;
+            diagnostics.Add($"{FirmamentV2Parser.CanonicalDeclarationUnknown}:Compose:{(statement as DeclarationSyntax)?.Type.Name.Text ?? "expression"}");
+        }
+        if (diagnostics.Count > beforeAdmission) return new(null, profiles, diagnostics);
         var spanInspection = ProfileAuthoringParser.InspectGeometricSpans(source);
         diagnostics.AddRange(spanInspection.Diagnostics);
         var surfaceSpans = spanInspection.Spans.Where(span => span.SpanType == "Plane").ToDictionary(span => span.SpanId, StringComparer.Ordinal);
-        var placementMatch = Placement.Match(composeBody);
+        var placements = operationsSyntax.Document.Statements.OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text == "Placement").ToArray();
         var placement = new PrismaticProfilePlacement("LegacyImplicitWorldXY", 0d, 0d, 0d, "XY", "+Z", "+X", false);
-        if (placementMatch.Success)
+        if (placements.Length > 1) diagnostics.Add("compose-placement-multiple-unsupported");
+        if (placements.FirstOrDefault() is { } authoredPlacement)
         {
-            placement = new(placementMatch.Groups["n"].Value, N(placementMatch, "x"), N(placementMatch, "y"), N(placementMatch, "z"), placementMatch.Groups["plane"].Value, placementMatch.Groups["axis"].Value, placementMatch.Groups["reference"].Value, true);
-            if (!placement.TryResolveConstructionPlane(out _, out var placementDiagnostic))
-                diagnostics.Add(placementDiagnostic!);
+            var fields = new FirmamentSyntaxFields(authoredPlacement, diagnostics);
+            var anchorValid = fields.Vector("Anchor", "mm", out var anchor) && anchor.Length == 3;
+            var plane = fields.Word("ProfilePlane"); var axis = fields.Word("Axis"); var reference = fields.Word("ReferenceDirection");
+            fields.Complete();
+            if (!anchorValid || plane is null || axis is null || reference is null) diagnostics.Add("compose-placement-fields-invalid");
+            else
+            {
+                placement = new(authoredPlacement.Name?.Text ?? "", anchor[0], anchor[1], anchor[2], plane, axis, reference, true);
+                if (!placement.TryResolveConstructionPlane(out _, out var placementDiagnostic)) diagnostics.Add(placementDiagnostic!);
+            }
         }
         var operations = new List<PrismaticProfileOperation>();
         var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach (Match match in Operation.Matches(composeBody))
+        foreach (var declaration in operationsSyntax.Document.Statements.OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text is "Base" or "Add" or "Remove"))
         {
-            var name = match.Groups["n"].Value;
-            var profile = match.Groups["profile"].Value;
-            var from = N(match, "from"); var to = N(match, "to");
+            var fields = new FirmamentSyntaxFields(declaration, diagnostics);
+            var name = declaration.Name?.Text ?? "";
+            var profile = fields.Word("Profile") ?? "";
+            var from = fields.Number("From", "mm"); var to = fields.Number("To", "mm");
+            var role = fields.Word("Role") ?? declaration.Type.Name.Text;
+            fields.Complete();
             if (!names.Add(name)) diagnostics.Add($"compose-duplicate-operation:{name}");
             if (!profiles.ContainsKey(profile)) diagnostics.Add($"ConceptPathProfileNotAdmittedByCompose:{name}:{profile}");
             if (!double.IsFinite(from) || !double.IsFinite(to) || from >= to) diagnostics.Add($"compose-invalid-interval:{name}:{from:R}:{to:R}");
-            operations.Add(new(name, Enum.Parse<PrismaticProfileIntent>(match.Groups["intent"].Value), profile, from, to, match.Groups["role"].Success ? match.Groups["role"].Value : match.Groups["intent"].Value, $"offset:{match.Index}"));
+            operations.Add(new(name, Enum.Parse<PrismaticProfileIntent>(declaration.Type.Name.Text), profile, from, to, role, $"offset:{declaration.Span.Start}"));
         }
         var baseOperations = operations.Where(o => o.Intent == PrismaticProfileIntent.Base).ToArray();
         if (baseOperations.Length != 1)
@@ -335,14 +357,13 @@ public static class PrismaticProfileCompositionParser
         var stock = baseOperations.Length == 1 ? baseOperations[0] : null;
         if (stock is not null)
         {
-            foreach (Match header in BossHeader.Matches(composeBody))
+            foreach (var declaration in operationsSyntax.Document.Statements.OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text == "Boss"))
             {
-                var name = header.Groups["n"].Value;
-                var body = Block(composeBody, header.Index + header.Length - 1);
-                if (body is null) { diagnostics.Add($"firmament-boss-malformed:{name}:unclosed"); continue; }
-                var profileMatch = SemanticProfile.Match(body); var support = SemanticSupport.Match(body); var heightMatch = BossHeight.Match(body);
-                if (!profileMatch.Success || !support.Success || !heightMatch.Success) { diagnostics.Add($"firmament-boss-missing-required-field:{name}:required=On,Profile,Height"); continue; }
-                var profileName = profileMatch.Groups["profile"].Value; var face = support.Groups["face"].Value; var height = N(heightMatch, "value");
+                var name = declaration.Name?.Text ?? "";
+                var fields = new FirmamentSyntaxFields(declaration, diagnostics);
+                var profileName = fields.Word("Profile"); var face = fields.Word("On"); var height = fields.Number("Height", "mm");
+                fields.Complete();
+                if (profileName is null || face is null || !double.IsFinite(height)) { diagnostics.Add($"firmament-boss-missing-required-field:{name}:required=On,Profile,Height"); continue; }
                 if (!names.Add(name)) { diagnostics.Add($"compose-duplicate-operation:{name}"); continue; }
                 if (!profiles.TryGetValue(profileName, out var bossProfile)) { diagnostics.Add($"firmament-boss-invalid-profile:{name}:profile={profileName}"); continue; }
                 if (!double.IsFinite(height) || height <= 0d) { diagnostics.Add($"firmament-boss-height-must-be-positive:{name}:height={height:R}mm"); continue; }
@@ -357,23 +378,24 @@ public static class PrismaticProfileCompositionParser
                         : ResolveTopSupports(face, stock, operations, bossProfile, profiles)
                     : ResolveSpanTopSupports(supportSpan, operations, bossProfile, profiles);
                 if (candidates.Count == 0) { diagnostics.Add(face.EndsWith(".Top", StringComparison.Ordinal)
-                    ? $"feature-support-not-found:{name}:{face}:host={compose.Groups["n"].Value}:profile={profileName}"
-                    : $"firmament-boss-disconnected-from-host:{name}:host={compose.Groups["n"].Value}:profile={profileName}:support=Top"); continue; }
+                    ? $"feature-support-not-found:{name}:{face}:host={compose.Name.Text}:profile={profileName}"
+                    : $"firmament-boss-disconnected-from-host:{name}:host={compose.Name.Text}:profile={profileName}:support=Top"); continue; }
                 if (candidates.Count > 1) { diagnostics.Add($"feature-support-ambiguous:Top:feature={name}:candidates={string.Join(",", candidates.Select(x => x.Name).Order(StringComparer.Ordinal))}"); continue; }
                 var selectedSupport = candidates[0];
-                var stableId = $"boss:{compose.Groups["n"].Value}.{name}"; var sourceSpan = $"offset:{header.Index}";
-                bosses.Add(new(name, stableId, compose.Groups["n"].Value, face, profileName, height, selectedSupport.To, selectedSupport.To + height, sourceSpan, supportSpan?.SpanId, supportSpan?.ParentId));
+                var stableId = $"boss:{compose.Name.Text}.{name}"; var sourceSpan = $"offset:{declaration.Span.Start}";
+                bosses.Add(new(name, stableId, compose.Name.Text, face, profileName, height, selectedSupport.To, selectedSupport.To + height, sourceSpan, supportSpan?.SpanId, supportSpan?.ParentId));
                 operations.Add(new(name, PrismaticProfileIntent.Add, profileName, selectedSupport.To, selectedSupport.To + height, "Boss", sourceSpan, stableId, "Boss"));
             }
 
-            foreach (Match header in PocketHeader.Matches(composeBody))
+            foreach (var declaration in operationsSyntax.Document.Statements.OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text == "Pocket"))
             {
-                var name = header.Groups["n"].Value;
-                var body = Block(composeBody, header.Index + header.Length - 1);
-                if (body is null) { diagnostics.Add($"firmament-pocket-malformed:{name}:unclosed"); continue; }
-                var profileMatch = SemanticProfile.Match(body); var support = SemanticSupport.Match(body); var depthMatch = PocketDepth.Match(body);
-                if (!profileMatch.Success || !support.Success || !depthMatch.Success) { diagnostics.Add($"firmament-pocket-missing-required-field:{name}:required=On,Profile,Depth"); continue; }
-                var profileName = profileMatch.Groups["profile"].Value; var face = support.Groups["face"].Value; var depth = N(depthMatch, "value");
+                var name = declaration.Name?.Text ?? "";
+                var fields = new FirmamentSyntaxFields(declaration, diagnostics);
+                var profileName = fields.Word("Profile"); var face = fields.Word("On"); var depth = fields.Number("Depth", "mm");
+                fields.Take("MinimumFloorThickness");
+                fields.Complete();
+                if (profileName is null || face is null || !double.IsFinite(depth)) { diagnostics.Add($"firmament-pocket-missing-required-field:{name}:required=On,Profile,Depth"); continue; }
+                var body = composeBody.Substring(declaration.Body!.Span.Start + 1, declaration.Body.Span.Length - 2);
                 if (!names.Add(name)) { diagnostics.Add($"compose-duplicate-operation:{name}"); continue; }
                 if (!profiles.TryGetValue(profileName, out var pocketProfile)) { diagnostics.Add($"firmament-pocket-invalid-profile:{name}:profile={profileName}"); continue; }
                 if (!double.IsFinite(depth) || depth <= 0d) { diagnostics.Add($"firmament-pocket-depth-must-be-positive:{name}:depth={depth:R}mm"); continue; }
@@ -396,16 +418,16 @@ public static class PrismaticProfileCompositionParser
                 }
                 if (remaining <= 1e-7d)
                 {
-                    diagnostics.Add($"firmament-pocket-through-depth:{name}:host={compose.Groups["n"].Value}:depth={depth:R}mm:hostThickness={hostThickness:R}mm:remainingFloor={remaining:R}mm:requiredFloor={minimumFloor:R}mm:Use Remove with Role: ThroughCut for a through cut; Pocket requires a remaining floor.");
+                    diagnostics.Add($"firmament-pocket-through-depth:{name}:host={compose.Name.Text}:depth={depth:R}mm:hostThickness={hostThickness:R}mm:remainingFloor={remaining:R}mm:requiredFloor={minimumFloor:R}mm:Use Remove with Role: ThroughCut for a through cut; Pocket requires a remaining floor.");
                     continue;
                 }
                 if (remaining + 1e-7d < minimumFloor)
                 {
-                    diagnostics.Add($"firmament-pocket-minimum-floor-thickness:{name}:host={compose.Groups["n"].Value}:depth={depth:R}mm:hostThickness={hostThickness:R}mm:remainingFloor={remaining:R}mm:requiredFloor={minimumFloor:R}mm:policy={policySource}");
+                    diagnostics.Add($"firmament-pocket-minimum-floor-thickness:{name}:host={compose.Name.Text}:depth={depth:R}mm:hostThickness={hostThickness:R}mm:remainingFloor={remaining:R}mm:requiredFloor={minimumFloor:R}mm:policy={policySource}");
                     continue;
                 }
-                var stableId = $"pocket:{compose.Groups["n"].Value}.{name}"; var sourceSpan = $"offset:{header.Index}";
-                pockets.Add(new(name, stableId, compose.Groups["n"].Value, face, profileName, depth, hostThickness, remaining, minimumFloor, policySource, selectedSupport.To - depth, selectedSupport.To, sourceSpan, supportSpan?.SpanId, supportSpan?.ParentId));
+                var stableId = $"pocket:{compose.Name.Text}.{name}"; var sourceSpan = $"offset:{declaration.Span.Start}";
+                pockets.Add(new(name, stableId, compose.Name.Text, face, profileName, depth, hostThickness, remaining, minimumFloor, policySource, selectedSupport.To - depth, selectedSupport.To, sourceSpan, supportSpan?.SpanId, supportSpan?.ParentId));
                 operations.Add(new(name, PrismaticProfileIntent.Remove, profileName, selectedSupport.To - depth, selectedSupport.To, "Pocket", sourceSpan, stableId, "Pocket"));
             }
 
@@ -433,8 +455,8 @@ public static class PrismaticProfileCompositionParser
                 var profileName = profileMatch.Groups["profile"].Value;
                 var support = supportMatch.Groups["face"].Value;
                 var direction = directionMatch.Success ? directionMatch.Groups["value"].Value : "+Z";
-                if (!string.Equals(target, compose.Groups["n"].Value, StringComparison.Ordinal))
-                { diagnostics.Add($"offset-target-not-found:{name}:target={target}:active={compose.Groups["n"].Value}"); continue; }
+                if (!string.Equals(target, compose.Name.Text, StringComparison.Ordinal))
+                { diagnostics.Add($"offset-target-not-found:{name}:target={target}:active={compose.Name.Text}"); continue; }
                 if (!string.Equals(direction, "+Z", StringComparison.Ordinal))
                 { diagnostics.Add($"offset-axis-invalid:{name}:axis={direction}:qualified=+Z-prismatic-compose"); continue; }
                 if (!names.Add(name)) { diagnostics.Add($"compose-duplicate-operation:{name}"); continue; }
@@ -522,7 +544,7 @@ public static class PrismaticProfileCompositionParser
                 }
 
                 var bounds = ProfileBounds(offsetProfile);
-                var stableId = $"offset:{compose.Groups["n"].Value}.{name}";
+                var stableId = $"offset:{compose.Name.Text}.{name}";
                 var sourceSpan = $"offset:{header.Index}";
                 materialOffsets.Add(new(name, stableId, intent, "Prism", target, support, profileName, direction,
                     termination, from, to, extent, sourceSpan,
@@ -537,20 +559,23 @@ public static class PrismaticProfileCompositionParser
         var roundedRectangleSlots = new List<PrismaticRoundedRectangleSlotFeature>();
         var materialFrom = operations.Count == 0 ? 0d : operations.Min(x => x.From);
         var materialTo = operations.Count == 0 ? 0d : operations.Max(x => x.To);
-        foreach (Match header in HoleHeader.Matches(composeBody))
+        foreach (var declaration in operationsSyntax.Document.Statements.OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text == "Hole"))
         {
-            var name = header.Groups["n"].Value;
-            var body = Block(composeBody, header.Index + header.Length - 1);
+            var name = declaration.Name?.Text ?? "";
+            var fields = new FirmamentSyntaxFields(declaration, diagnostics);
+            var body = declaration.Body is null ? null : composeBody.Substring(declaration.Body.Span.Start + 1, declaration.Body.Span.Length - 2);
             if (body is null) { diagnostics.Add($"compose-hole-unclosed:{name}"); continue; }
+            fields.Take("PatternIdentity");
             var patternIdentityMatch = Regex.Match(body, @"\bPatternIdentity\s*:\s*(?<id>[A-Za-z_]\w*\.[A-Za-z_]\w*)", RegexOptions.CultureInvariant);
             var diagnosticName = patternIdentityMatch.Success ? patternIdentityMatch.Groups["id"].Value : name;
-            var center = HoleCenter.Match(body); if (!center.Success) center = HolePoint2Center.Match(body);
-            var diameter = HoleDiameter.Match(body); var end = HoleEnd.Match(body); var role = HoleRole.Match(body);
-            var counterboreDiameter = HoleCounterboreDiameter.Match(body); var counterboreDepth = HoleCounterboreDepth.Match(body); var on = HoleOn.Match(body);
-            var from = HoleFrom.Match(body); var depthEnd = HoleDepthEnd.Match(body); var termination = HoleTermination.Match(body);
+            var center = ReadFeatureField(fields, composeBody, HoleCenter, "Center"); if (!center.Success) center = ReadFeatureField(fields, composeBody, HolePoint2Center, "Center");
+            var diameter = ReadFeatureField(fields, composeBody, HoleDiameter, "Diameter"); var end = ReadFeatureField(fields, composeBody, HoleEnd, "End"); var role = ReadFeatureField(fields, composeBody, HoleRole, "Role");
+            var counterboreDiameter = ReadFeatureField(fields, composeBody, HoleCounterboreDiameter, "CounterboreDiameter"); var counterboreDepth = ReadFeatureField(fields, composeBody, HoleCounterboreDepth, "CounterboreDepth"); var on = ReadFeatureField(fields, composeBody, HoleOn, "On");
+            var from = ReadFeatureField(fields, composeBody, HoleFrom, "From"); var depthEnd = ReadFeatureField(fields, composeBody, HoleDepthEnd, "End"); var termination = ReadFeatureField(fields, composeBody, HoleTermination, "Termination");
+            fields.Complete();
             if (from.Success)
             {
-                if (!string.Equals(header.Groups["variant"].Value, "Shaft", StringComparison.OrdinalIgnoreCase)
+                if (!string.Equals((FirmamentSyntaxValues.Reference(declaration.Type.Arguments.FirstOrDefault()?.Value) ?? ""), "Shaft", StringComparison.OrdinalIgnoreCase)
                     || !depthEnd.Success || !termination.Success)
                 { diagnostics.Add($"compose-construction-plane-blind-hole-invalid-contract:{name}"); continue; }
                 if (!center.Success || !diameter.Success) { diagnostics.Add($"compose-construction-plane-blind-hole-missing-center-or-diameter:{name}"); continue; }
@@ -558,20 +583,20 @@ public static class PrismaticProfileCompositionParser
                 string? planeDiagnostic = null; string? frameDiagnostic = null;
                 if (trace is null || !ConceptIrResolver.TryResolvePlane(source, trace, out var conceptPlane, out planeDiagnostic)
                     || conceptPlane is null
-                    || !ConstructionPlane.TryTrace($"construction:{from.Groups["plane"].Value}", conceptPlane, $"offset:{header.Index}", out var plane, out frameDiagnostic))
+                    || !ConstructionPlane.TryTrace($"construction:{from.Groups["plane"].Value}", conceptPlane, $"offset:{declaration.Span.Start}", out var plane, out frameDiagnostic))
                 { diagnostics.Add(planeDiagnostic ?? frameDiagnostic ?? $"compose-construction-plane-not-found:{from.Groups["plane"].Value}"); continue; }
                 var localX = N(center, "x"); var localY = N(center, "y"); var localDiameter = N(diameter, "d"); var declaredDepth = N(depthEnd, "depth");
                 var angle = termination.Groups["angle"].Success ? N(termination, "angle") : 118d;
                 if (!double.IsFinite(localX) || !double.IsFinite(localY) || !double.IsFinite(localDiameter) || localDiameter <= 0d || !double.IsFinite(declaredDepth) || declaredDepth < 0d || !double.IsFinite(angle) || angle <= 0d || angle >= 180d)
                 { diagnostics.Add($"compose-construction-plane-blind-hole-invalid-geometry:{name}"); continue; }
                 if (!names.Add(name)) { diagnostics.Add($"compose-duplicate-operation:{name}"); continue; }
-                var blindStableId = $"hole:{compose.Groups["n"].Value}.{name}";
+                var blindStableId = $"hole:{compose.Name.Text}.{name}";
                 constructionPlaneBlindDrills.Add(new(name, blindStableId, plane!.StableId, plane.SourceConceptId, plane.Origin, plane.AxisX, plane.AxisY, plane.AxisZ,
                     localX, localY, localDiameter, declaredDepth, string.Equals(depthEnd.Groups["kind"].Value, "TotalDepth", StringComparison.OrdinalIgnoreCase), angle,
-                    role.Success ? role.Groups["role"].Value : "BlindDrillPoint", $"offset:{header.Index}", plane.Provenance));
+                    role.Success ? role.Groups["role"].Value : "BlindDrillPoint", $"offset:{declaration.Span.Start}", plane.Provenance));
                 continue;
             }
-            var variant = header.Groups["variant"].Value;
+            var variant = (FirmamentSyntaxValues.Reference(declaration.Type.Arguments.FirstOrDefault()?.Value) ?? "");
             if (string.Equals(variant, "Counterbore", StringComparison.OrdinalIgnoreCase))
             {
                 if (!end.Success || !string.Equals(end.Groups["end"].Value, "ThroughAll", StringComparison.OrdinalIgnoreCase))
@@ -589,7 +614,7 @@ public static class PrismaticProfileCompositionParser
                 if (boreDepth > hostDepth + 1e-8d)
                 { diagnostics.Add($"ComposeCounterboreDepthExceedsHost:{name}:depth={boreDepth:R}:hostDepth={hostDepth:R}"); continue; }
                 if (!names.Add(name)) { diagnostics.Add($"compose-duplicate-operation:{name}"); continue; }
-                var counterboreStableId = $"hole:{compose.Groups["n"].Value}.{name}";
+                var counterboreStableId = $"hole:{compose.Name.Text}.{name}";
                 if (!CircleContainedInBaseProfile(operations, profiles, counterboreX, counterboreY, boreDiameter / 2d))
                 { diagnostics.Add($"ComposeCounterboreFootprintLeavesProfileMaterial:{name}:radius={boreDiameter / 2d:R}"); continue; }
                 double? supportMargin = null;
@@ -607,9 +632,9 @@ public static class PrismaticProfileCompositionParser
                 { diagnostics.Add($"ComposeCounterboreIntersectsExistingCavity:{name}"); continue; }
                 var shaftProfile = $"{name}ShaftProfile"; var boreProfile = $"{name}CounterboreProfile";
                 if (profiles.ContainsKey(shaftProfile) || profiles.ContainsKey(boreProfile)) { diagnostics.Add($"compose-hole-profile-name-collision:{name}"); continue; }
-                profiles.Add(shaftProfile, CircleProfile(shaftProfile, counterboreX, counterboreY, shaftDiameter / 2d, counterboreStableId, $"offset:{header.Index}"));
-                profiles.Add(boreProfile, CircleProfile(boreProfile, counterboreX, counterboreY, boreDiameter / 2d, counterboreStableId, $"offset:{header.Index}"));
-                var counterboreSourceSpan = $"offset:{header.Index}"; var counterboreSemanticRole = role.Success ? role.Groups["role"].Value : "CounterboreHole";
+                profiles.Add(shaftProfile, CircleProfile(shaftProfile, counterboreX, counterboreY, shaftDiameter / 2d, counterboreStableId, $"offset:{declaration.Span.Start}"));
+                profiles.Add(boreProfile, CircleProfile(boreProfile, counterboreX, counterboreY, boreDiameter / 2d, counterboreStableId, $"offset:{declaration.Span.Start}"));
+                var counterboreSourceSpan = $"offset:{declaration.Span.Start}"; var counterboreSemanticRole = role.Success ? role.Groups["role"].Value : "CounterboreHole";
                 counterboreHoles.Add(new(name, counterboreStableId, shaftProfile, boreProfile, counterboreX, counterboreY, shaftDiameter, boreDiameter, boreDepth, materialFrom, materialTo, counterboreSemanticRole, counterboreSourceSpan, supportSpan?.SpanId, supportSpan?.ParentId, supportMargin));
                 operations.Add(new($"{name}Shaft", PrismaticProfileIntent.Remove, shaftProfile, materialFrom, materialTo, counterboreSemanticRole, counterboreSourceSpan, counterboreStableId, "Hole<Counterbore>", shaftDiameter));
                 operations.Add(new($"{name}Counterbore", PrismaticProfileIntent.Remove, boreProfile, materialTo - boreDepth, materialTo, counterboreSemanticRole, counterboreSourceSpan, counterboreStableId, "Hole<Counterbore>", boreDiameter));
@@ -624,7 +649,7 @@ public static class PrismaticProfileCompositionParser
             if (!names.Add(name)) { diagnostics.Add($"compose-duplicate-operation:{name}"); continue; }
             var profileName = $"{name}ShaftProfile";
             if (profiles.ContainsKey(profileName)) { diagnostics.Add($"compose-hole-profile-name-collision:{name}:{profileName}"); continue; }
-            var stableId = $"hole:{compose.Groups["n"].Value}.{name}";
+            var stableId = $"hole:{compose.Name.Text}.{name}";
             GeometricSpanView? shaftSupport = null; double? shaftSupportMargin = null;
             if (on.Success && !string.Equals(on.Groups["face"].Value, "+Z", StringComparison.OrdinalIgnoreCase))
             {
@@ -638,13 +663,13 @@ public static class PrismaticProfileCompositionParser
                 { diagnostics.Add($"firmament-feature-footprint-outside-span:{diagnosticName}:{shaftSupport.SpanId}:center=[{x:R},{y:R}]:radius={d / 2d:R}:margin={margin:R}"); continue; }
                 shaftSupportMargin = margin;
             }
-            var holeProfile = CircleProfile(profileName, x, y, d / 2d, stableId, $"offset:{header.Index}");
+            var holeProfile = CircleProfile(profileName, x, y, d / 2d, stableId, $"offset:{declaration.Span.Start}");
             var validation = ResolvedProfile2DValidator.Validate(holeProfile);
             diagnostics.AddRange(validation.Diagnostics);
             if (!validation.IsValid) continue;
             profiles.Add(profileName, holeProfile);
             var semanticRole = role.Success ? role.Groups["role"].Value : "ShaftHole";
-            var sourceSpan = $"offset:{header.Index}";
+            var sourceSpan = $"offset:{declaration.Span.Start}";
             shaftHoles.Add(new(name, stableId, profileName, x, y, d, materialFrom, materialTo, semanticRole, sourceSpan, shaftSupport?.SpanId, shaftSupport?.ParentId, shaftSupportMargin));
             operations.Add(new(name, PrismaticProfileIntent.Remove, profileName, materialFrom, materialTo, semanticRole, sourceSpan, stableId, "Hole<Shaft>", d));
         }
@@ -656,12 +681,15 @@ public static class PrismaticProfileCompositionParser
         foreach (var counterbore in counterboreHoles)
             if (CirclesTouchOrOverlap(shaft.CenterX, shaft.CenterY, shaft.Diameter / 2d, counterbore.CenterX, counterbore.CenterY, counterbore.CounterboreDiameter / 2d))
                 diagnostics.Add($"ComposeCounterboreIntersectsExistingCavity:{counterbore.Name}:shaft={shaft.Name}");
-        foreach (Match header in SlotHeader.Matches(composeBody))
+        foreach (var declaration in operationsSyntax.Document.Statements.OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text == "Slot"))
         {
-            var name = header.Groups["n"].Value; var body = Block(composeBody, header.Index + header.Length - 1);
+            var name = declaration.Name?.Text ?? "";
+            var fields = new FirmamentSyntaxFields(declaration, diagnostics); var body = declaration.Body is null ? null : composeBody.Substring(declaration.Body.Span.Start + 1, declaration.Body.Span.Length - 2);
             if (body is null) { diagnostics.Add($"SlotProfileDegenerate:{name}:unclosed"); continue; }
-            var center = SlotCenter.Match(body); var direction = SlotDirection.Match(body); var length = SlotLength.Match(body); var width = SlotWidth.Match(body); var extent = SlotExtent.Match(body); var role = HoleRole.Match(body);
-            var variant=header.Groups["variant"].Value;
+            var center = ReadFeatureField(fields, composeBody, SlotCenter, "Center"); var direction = ReadFeatureField(fields, composeBody, SlotDirection, "Direction"); var length = ReadFeatureField(fields, composeBody, SlotLength, "Length"); var width = ReadFeatureField(fields, composeBody, SlotWidth, "Width"); var extent = ReadFeatureField(fields, composeBody, SlotExtent, "Extent"); var role = ReadFeatureField(fields, composeBody, HoleRole, "Role");
+            var corner = ReadFeatureField(fields, composeBody, SlotCornerRadius, "CornerRadius");
+            fields.Complete();
+            var variant=(FirmamentSyntaxValues.Reference(declaration.Type.Arguments.FirstOrDefault()?.Value) ?? "");
             if (!string.Equals(variant,"Capsule",StringComparison.OrdinalIgnoreCase) && !string.Equals(variant,"RoundedRectangle",StringComparison.OrdinalIgnoreCase)) { diagnostics.Add($"UnsupportedSlotHostTopology:{name}:supported variants are Capsule and RoundedRectangle"); continue; }
             if (!center.Success || !direction.Success || !length.Success || !width.Success || !extent.Success) { diagnostics.Add($"SlotProfileDegenerate:{name}:missing Center, Direction, Length, Width, or Extent"); continue; }
             var x=N(center,"x"); var y=N(center,"y"); var dx=N(direction,"x"); var dy=N(direction,"y"); var l=N(length,"v"); var w=N(width,"v");
@@ -673,7 +701,7 @@ public static class PrismaticProfileCompositionParser
             if (!names.Add(name)) { diagnostics.Add($"compose-duplicate-operation:{name}"); continue; }
             var from=materialFrom; var to=materialTo; var extentText=extent.Groups["v"].Value;
             if (!string.Equals(extentText, "ThroughAll", StringComparison.OrdinalIgnoreCase)) { from=N(extent,"from"); to=N(extent,"to"); if (from >= to) { diagnostics.Add($"SlotExtentInvalid:{name}:entry={from:R}:exit={to:R}"); continue; } if (to <= materialFrom || from >= materialTo) { diagnostics.Add($"SlotDoesNotIntersectMaterial:{name}:host=[{materialFrom:R},{materialTo:R}]"); continue; } from=Math.Max(from,materialFrom); to=Math.Min(to,materialTo); }
-            dx/=norm; dy/=norm; var stableId=$"slot:{compose.Groups["n"].Value}.{name}"; var sourceSpan=$"offset:{header.Index}"; var semanticRole=role.Success ? role.Groups["role"].Value : $"{variant}Slot";
+            dx/=norm; dy/=norm; var stableId=$"slot:{compose.Name.Text}.{name}"; var sourceSpan=$"offset:{declaration.Span.Start}"; var semanticRole=role.Success ? role.Groups["role"].Value : $"{variant}Slot";
             if (string.Equals(variant,"Capsule",StringComparison.OrdinalIgnoreCase))
             {
                 var profileName=$"{name}CapsuleProfile"; var profile=CapsuleProfile(profileName,x,y,dx,dy,l,w,stableId,sourceSpan); var validation=ResolvedProfile2DValidator.Validate(profile); diagnostics.AddRange(validation.Diagnostics); if (!validation.IsValid) { diagnostics.Add($"SlotProfileDegenerate:{name}"); continue; }
@@ -681,15 +709,32 @@ public static class PrismaticProfileCompositionParser
             }
             else
             {
-                var corner=SlotCornerRadius.Match(body); if (!corner.Success) { diagnostics.Add($"SlotProfileDegenerate:{name}:RoundedRectangle requires CornerRadius"); continue; }
+                if (!corner.Success) { diagnostics.Add($"SlotProfileDegenerate:{name}:RoundedRectangle requires CornerRadius"); continue; }
                 var r=N(corner,"v"); if (!double.IsFinite(r) || r <= 0 || 2*r > Math.Min(l,w)) { diagnostics.Add($"SlotProfileDegenerate:{name}:CornerRadius={r:R} must be positive and no greater than min(Length,Width)/2"); continue; }
                 var profileName=$"{name}RoundedRectangleProfile"; var profile=RoundedRectangleProfile(profileName,x,y,dx,dy,l,w,r,stableId,sourceSpan); var validation=ResolvedProfile2DValidator.Validate(profile); diagnostics.AddRange(validation.Diagnostics); if (!validation.IsValid) { diagnostics.Add($"SlotProfileDegenerate:{name}"); continue; }
                 profiles.Add(profileName,profile); roundedRectangleSlots.Add(new(name,stableId,profileName,x,y,dx,dy,l,w,r,from,to,extentText,semanticRole,sourceSpan)); operations.Add(new(name,PrismaticProfileIntent.Remove,profileName,from,to,semanticRole,sourceSpan,stableId,"Slot<RoundedRectangle>"));
             }
         }
         var levels = operations.SelectMany(o => new[] { o.From, o.To }).Distinct().Order().ToArray();
-        var feature = diagnostics.Count == 0 ? new PrismaticProfileCompositionFeature(compose.Groups["n"].Value, placement.ProfilePlane, placement.Axis, placement, operations, levels, "parser-backed-scaffold-profile-composition", shaftHoles, capsuleSlots, roundedRectangleSlots, constructionPlaneBlindDrills, counterboreHoles, bosses, pockets, materialOffsets) : null;
+        var feature = diagnostics.Count == 0 ? new PrismaticProfileCompositionFeature(compose.Name.Text, placement.ProfilePlane, placement.Axis, placement, operations, levels, "parser-backed-scaffold-profile-composition", shaftHoles, capsuleSlots, roundedRectangleSlots, constructionPlaneBlindDrills, counterboreHoles, bosses, pockets, materialOffsets) : null;
         return new(feature, profiles, diagnostics.Distinct().ToArray(), expansion.Evidence);
+    }
+
+    // Transitional engineering value readers operate on one AST field, never on
+    // arbitrary surrounding source. Field consumption and statement boundaries are
+    // owned by the recursive-descent frontend; existing domain checks stay here.
+    private static Match ReadFeatureField(FirmamentSyntaxFields fields, string source, Regex reader, string name)
+    {
+        var nodes = fields.TakeAll(name);
+        if (nodes.Count == 0) return Match.Empty;
+        if (nodes.Count > 1) return Match.Empty; // duplicate is rejected by the owner below
+        var fieldSource = source.Substring(nodes[0].Span.Start, nodes[0].Span.Length);
+        var match = reader.Match(fieldSource);
+        // An engineering value reader must consume the entire AST field. A
+        // recognized prefix cannot discard an operator, placement or suffix.
+        if (match.Success && (match.Index != 0 || !string.IsNullOrWhiteSpace(fieldSource[(match.Index + match.Length)..]))) match = Match.Empty;
+        if (!match.Success && name is not ("Center" or "End")) fields.Invalid(name);
+        return match;
     }
 
     private static bool IsTopSelector(string selector) => selector is "Top" or "+Z" || selector.EndsWith(".Top", StringComparison.Ordinal);

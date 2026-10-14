@@ -1,4 +1,5 @@
 using System.Globalization;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using System.Text.RegularExpressions;
 using Aetheris.Kernel.Firmament.Materializer;
 
@@ -13,12 +14,6 @@ public static class ProfileAuthoringParser
 {
     public const string SegmentEndpointMustReferenceNamedPoint = "ProfileSegmentEndpointMustReferenceNamedPoint";
     private const double Tolerance = 1e-9;
-    private static readonly Regex Point = new(@"\bPoint2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*Position\s*:\s*(?:\[(?<xy>[^\[\]\r\n]+)\]|Point2\s*\((?<xy>[^()\r\n]+)\))", RegexOptions.Singleline | RegexOptions.CultureInvariant);
-    private static readonly Regex Line = new(@"\bLine2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*From\s*:\s*(?<a>[\w.]+)\s*;?\s*To\s*:\s*(?<b>[\w.]+)", RegexOptions.Singleline | RegexOptions.CultureInvariant);
-    private static readonly Regex CubicBezier = new(@"\bCubicBezier2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*From\s*:\s*(?<a>[\w.]+)\s*;?\s*Control1\s*:\s*(?<c1>[\w.]+)\s*;?\s*Control2\s*:\s*(?<c2>[\w.]+)\s*;?\s*To\s*:\s*(?<b>[\w.]+)", RegexOptions.Singleline | RegexOptions.CultureInvariant);
-    private static readonly Regex Circle = new(@"(?:\bConcept\s+)?\bCircle2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*Center\s*:\s*(?<c>[\w.]+)\s*;?\s*Radius\s*:\s*(?<r>[-+.\deE]+)mm", RegexOptions.Singleline | RegexOptions.CultureInvariant);
-    private static readonly Regex EllipseGuide = new(@"\bEllipse2Guide\s+(?<n>[A-Za-z_]\w*)\s*\{\s*Center\s*:\s*(?<c>[\w.]+)\s*;?\s*SemiAxes\s*:\s*\[\s*(?<a>[-+.\deE]+)mm\s*,\s*(?<b>[-+.\deE]+)mm\s*\]\s*;?\s*Rotation\s*:\s*(?<r>[-+.\deE]+)deg", RegexOptions.Singleline | RegexOptions.CultureInvariant);
-    private static readonly Regex Rect = new(@"\bRect2\s+(?<n>[A-Za-z_]\w*)\s*\{\s*Center\s*:\s*(?:\[|Point2\s*\()\s*(?<x>[-+.\deE]+)mm\s*,\s*(?<y>[-+.\deE]+)mm\s*(?:\]|\))\s*;?\s*Size\s*:\s*\[(?<w>[-+.\deE]+)mm\s*,\s*(?<h>[-+.\deE]+)mm\]", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex ConstructionPlaneDeclaration = new(@"\bConstruction\s+Plane\s+(?<name>\w+)\s*\{\s*Trace\s*:\s*(?<trace>[\w.]+)\s*;?\s*\}", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex Segment = new(@"\bSegment\s+(?<n>\w+)\s*\{\s*Trace\s*:\s*(?<trace>[\w.]+)\s*;?\s*From\s*:\s*(?<from>[\w.]+)\s*;?\s*To\s*:\s*(?<to>[\w.]+)(?:\s*;?\s*Sweep\s*:\s*(?<sweep>Clockwise|CounterClockwise))?", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex SpanHeader = new(@"\bSpan\s*<\s*(?<type>[A-Za-z_]\w*)\s*>\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
@@ -246,65 +241,77 @@ public static class ProfileAuthoringParser
 
     private static void AddOrdinaryGuides(string source, Dictionary<string, (double X, double Y)> points, Dictionary<string, LineArcProfileCurve2D> guides, List<string> diagnostics, bool applySpans = true)
     {
-        foreach (Match match in Point.Matches(source))
+        var declarations = SourceDeclarations(FirmamentSyntaxParser.Parse(source).Document.Statements).Where(d => d.Name is not null && d.Body is not null).ToArray();
+        foreach (var d in declarations.Where(d => d.Type.Name.Text == "Point2"))
         {
-            // Profile Templates substitute dimensions before this binder. Reuse the
-            // bounded, unit-checked scalar evaluator for authored control arithmetic.
-            var xy = match.Groups["xy"].Value.Split(',');
-            if (xy.Length == 2 && FirmamentV2FeatureExpansion.TryEvaluateScalar(xy[0], out var x, out var xu) && xu == "mm"
-                && FirmamentV2FeatureExpansion.TryEvaluateScalar(xy[1], out var y, out var yu) && yu == "mm")
-                points[match.Groups["n"].Value] = (x, y);
-            else diagnostics.Add($"profile-layout-point-invalid:{match.Groups["n"].Value}:expected-two-finite-lengths");
+            var fields = new FirmamentSyntaxFields(d, diagnostics);
+            if (fields.Vector("Position", "mm", out var xy) && xy.Length == 2) points[d.Name!.Text] = (xy[0], xy[1]);
+            else diagnostics.Add($"profile-layout-point-invalid:{d.Name!.Text}:expected-two-finite-lengths");
+            fields.Complete();
         }
-        foreach (Match match in Rect.Matches(source))
+        foreach (var d in declarations.Where(d => d.Type.Name.Text == "Rect2"))
         {
-            var name = match.Groups["n"].Value;
-            if (!TryNumber(match.Groups["w"].Value, out var width) || !TryNumber(match.Groups["h"].Value, out var height) || !TryNumber(match.Groups["x"].Value, out var x) || !TryNumber(match.Groups["y"].Value, out var y) || width <= 0 || height <= 0)
+            var fields = new FirmamentSyntaxFields(d, diagnostics); var name = d.Name!.Text;
+            fields.Word("Role");
+            if (!fields.Vector("Center", "mm", out var center) || center.Length != 2 || !fields.Vector("Size", "mm", out var size) || size.Length != 2 || size.Any(n => n <= 0))
             { diagnostics.Add($"rect2-invalid-size:{name}"); continue; }
+            fields.Complete();
+            var x = center[0]; var y = center[1]; var width = size[0]; var height = size[1];
             points[$"{name}.BottomLeft"] = (x - width / 2, y - height / 2);
             points[$"{name}.BottomRight"] = (x + width / 2, y - height / 2);
             points[$"{name}.TopRight"] = (x + width / 2, y + height / 2);
             points[$"{name}.TopLeft"] = (x - width / 2, y + height / 2);
+            var bl = points[$"{name}.BottomLeft"]; var br = points[$"{name}.BottomRight"]; var tr = points[$"{name}.TopRight"]; var tl = points[$"{name}.TopLeft"];
+            guides[$"{name}.Bottom"] = new LineArcLineSegment2D(bl, br); guides[$"{name}.Right"] = new LineArcLineSegment2D(br, tr);
+            guides[$"{name}.Top"] = new LineArcLineSegment2D(tr, tl); guides[$"{name}.Left"] = new LineArcLineSegment2D(tl, bl);
         }
-        foreach (Match match in Line.Matches(source))
+        foreach (var d in declarations.Where(d => d.Type.Name.Text is "Line2" or "CubicBezier2"))
         {
-            var name = match.Groups["n"].Value;
-            if (!points.TryGetValue(match.Groups["a"].Value, out var from) || !points.TryGetValue(match.Groups["b"].Value, out var to)) diagnostics.Add($"profile-layout-unresolved-line:{name}");
-            else guides[name] = new LineArcLineSegment2D(from, to);
+            var fields = new FirmamentSyntaxFields(d, diagnostics); var name = d.Name!.Text;
+            var a = fields.Word("From"); var b = fields.Word("To");
+            var c1 = d.Type.Name.Text == "CubicBezier2" ? fields.Word("Control1") : null;
+            var c2 = d.Type.Name.Text == "CubicBezier2" ? fields.Word("Control2") : null;
+            fields.Complete();
+            if (a is null || b is null || !points.TryGetValue(a, out var from) || !points.TryGetValue(b, out var to))
+            { diagnostics.Add($"profile-layout-unresolved-line:{name}"); continue; }
+            if (d.Type.Name.Text == "Line2") guides[name] = new LineArcLineSegment2D(from, to);
+            else if (c1 is not null && c2 is not null && points.TryGetValue(c1, out var control1) && points.TryGetValue(c2, out var control2))
+                guides[name] = new LineArcCubicBezier2D(from, control1, control2, to);
+            else diagnostics.Add($"profile-layout-unresolved-cubic-bezier:{name}");
         }
-        foreach (Match match in CubicBezier.Matches(source))
+        foreach (var d in declarations.Where(d => d.Type.Name.Text is "Circle2" or "Ellipse2Guide"))
         {
-            var name = match.Groups["n"].Value;
-            if (!points.TryGetValue(match.Groups["a"].Value, out var from) ||
-                !points.TryGetValue(match.Groups["c1"].Value, out var control1) ||
-                !points.TryGetValue(match.Groups["c2"].Value, out var control2) ||
-                !points.TryGetValue(match.Groups["b"].Value, out var to))
-                diagnostics.Add($"profile-layout-unresolved-cubic-bezier:{name}");
-            else guides[name] = new LineArcCubicBezier2D(from, control1, control2, to);
-        }
-        foreach (Match match in Rect.Matches(source))
-        {
-            var name = match.Groups["n"].Value;
-            if (points.TryGetValue($"{name}.BottomLeft", out var bl) && points.TryGetValue($"{name}.BottomRight", out var br) && points.TryGetValue($"{name}.TopRight", out var tr) && points.TryGetValue($"{name}.TopLeft", out var tl))
+            var fields = new FirmamentSyntaxFields(d, diagnostics); var name = d.Name!.Text;
+            var centerName = fields.Word("Center");
+            if (centerName is null || !points.TryGetValue(centerName, out var center)) { diagnostics.Add($"profile-layout-unresolved-circle:{name}"); continue; }
+            if (d.Type.Name.Text == "Circle2")
             {
-                guides[$"{name}.Bottom"] = new LineArcLineSegment2D(bl, br); guides[$"{name}.Right"] = new LineArcLineSegment2D(br, tr);
-                guides[$"{name}.Top"] = new LineArcLineSegment2D(tr, tl); guides[$"{name}.Left"] = new LineArcLineSegment2D(tl, bl);
+                var radius = fields.Number("Radius", "mm");
+                if (radius > 0) guides[name] = new LineArcFullCircle2D(center, radius);
+                else diagnostics.Add($"profile-layout-unresolved-circle:{name}");
             }
-        }
-        foreach (Match match in Circle.Matches(source))
-        {
-            if (!points.TryGetValue(match.Groups["c"].Value, out var center) || !TryNumber(match.Groups["r"].Value, out var radius) || radius <= 0) { diagnostics.Add($"profile-layout-unresolved-circle:{match.Groups["n"].Value}"); continue; }
-            // A circle remains a guide; segments choose its directed arc below.
-            guides[match.Groups["n"].Value] = new LineArcFullCircle2D(center, radius);
-        }
-        foreach (Match match in EllipseGuide.Matches(source))
-        {
-            if (!points.TryGetValue(match.Groups["c"].Value, out var center) || !TryNumber(match.Groups["a"].Value, out var major) || !TryNumber(match.Groups["b"].Value, out var minor) || !TryNumber(match.Groups["r"].Value, out var rotation) || major <= 0 || minor <= 0 || minor > major)
-            { diagnostics.Add($"profile-layout-unresolved-ellipse:{match.Groups["n"].Value}"); continue; }
-            guides[match.Groups["n"].Value] = new LineArcFullEllipse2D(center, major, minor, rotation * Math.PI / 180d);
+            else
+            {
+                var rotation = fields.Number("Rotation", "deg");
+                if (fields.Vector("SemiAxes", "mm", out var axes) && axes.Length == 2 && axes[0] >= axes[1] && axes[1] > 0 && double.IsFinite(rotation))
+                    guides[name] = new LineArcFullEllipse2D(center, axes[0], axes[1], rotation * Math.PI / 180d);
+                else diagnostics.Add($"profile-layout-unresolved-ellipse:{name}");
+            }
+            fields.Complete();
         }
         foreach (var guide in ClosedBoundary2Authoring.SmoothGuides(source, diagnostics)) guides[guide.Key] = guide.Value;
         if (applySpans) ApplyGeometricSpans(source, points, guides, diagnostics, addGuides: true);
+    }
+
+    private static IEnumerable<DeclarationSyntax> SourceDeclarations(IEnumerable<StatementSyntax> statements)
+    {
+        foreach (var d in statements.OfType<DeclarationSyntax>())
+        {
+            if (d.Type.Name.Text == "Template" || d.Modifiers.Any(m => m.Name.Text == "Template")) continue;
+            yield return d;
+            if (d.Body is not null)
+                foreach (var child in SourceDeclarations(d.Body.Statements)) yield return child;
+        }
     }
 
     private static IReadOnlyList<GeometricSpanView> ApplyGeometricSpans(
@@ -470,14 +477,15 @@ public static class ProfileAuthoringParser
         var parsedDeltas=SemanticProfileDeltaParser.Parse(source);
         diagnostics.AddRange(parsedDeltas.Diagnostics);
         var cornerPrograms = FindBlocks(source, @"\bCornerProfile\s+(?<owner>[A-Za-z_]\w*)\.(?<corner>[A-Za-z_]\w*)\s*\{").ToArray();
-        foreach (Match rectangle in Rect.Matches(source))
+        foreach (var rectangle in SourceDeclarations(FirmamentSyntaxParser.Parse(source).Document.Statements).Where(d => d.Type.Name.Text == "Rect2" && d.Name is not null))
         {
-            var name = rectangle.Groups["n"].Value;
+            var name = rectangle.Name!.Text;
             var isProfileSource = Regex.IsMatch(source, $@"\bProfile\s+[A-Za-z_]\w*\s+From\s+{Regex.Escape(name)}\b", RegexOptions.CultureInvariant);
             if (!isProfileSource && !programs.Any(x => x.Match.Groups["owner"].Value == name) && !cornerPrograms.Any(x => x.Match.Groups["owner"].Value == name)
                 &&!parsedDeltas.Deltas.Any(delta=>delta.OwnerPath.StartsWith(name+".",StringComparison.Ordinal))) continue;
-            if (!TryNumber(rectangle.Groups["w"].Value, out var width) || !TryNumber(rectangle.Groups["h"].Value, out var height) ||
-                !TryNumber(rectangle.Groups["x"].Value, out var cx) || !TryNumber(rectangle.Groups["y"].Value, out var cy)) continue;
+            var fields = new FirmamentSyntaxFields(rectangle, diagnostics);
+            if (!fields.Vector("Size", "mm", out var size) || size.Length != 2 || !fields.Vector("Center", "mm", out var center) || center.Length != 2) continue;
+            var width = size[0]; var height = size[1]; var cx = center[0]; var cy = center[1];
             if (result.ContainsKey(name)) { diagnostics.Add($"profile-edge-owner-name-collision:{name}"); continue; }
             var bl = (X: cx - width / 2, Y: cy - height / 2); var br = (X: cx + width / 2, Y: cy - height / 2);
             var tr = (X: cx + width / 2, Y: cy + height / 2); var tl = (X: cx - width / 2, Y: cy + height / 2);
@@ -1110,18 +1118,27 @@ public static class ProfileAuthoringParser
 
     private static (double Start, double End, double Height) ResolveExtrude(string source, string profileName, List<string> diagnostics)
     {
-        var block = FindBlocks(source, @"\bExtrude\s+\w+\s*\{")
-            .FirstOrDefault(x => Property(x.Body, "Profile") == profileName);
-        if (block is null || !TryMeasure(Property(block.Body, "From") ?? "", "mm", out var start)
-            || !TryMeasure(Property(block.Body, "To") ?? "", "mm", out var end))
-        { diagnostics.Add("profile-extrude-missing-or-mismatched"); return default; }
-        return (start, end, Math.Abs(end - start));
+        foreach (var d in SourceDeclarations(FirmamentSyntaxParser.Parse(source).Document.Statements).Where(d => d.Type.Name.Text == "Extrude"))
+        {
+            var fields = new FirmamentSyntaxFields(d, diagnostics);
+            if (fields.Word("Profile") != profileName) continue;
+            var start = fields.Number("From", "mm"); var end = fields.Number("To", "mm");
+            fields.Complete();
+            if (!double.IsFinite(start) || !double.IsFinite(end)) break;
+            return (start, end, Math.Abs(end - start));
+        }
+        diagnostics.Add("profile-extrude-missing-or-mismatched"); return default;
     }
 
     private static IEnumerable<ProfileBlock> FindProfiles(string source)
     {
-        foreach (var block in FindBlocks(source, @"\bProfile\s+(?<name>[A-Za-z_]\w*)(?:\s+Using\s+(?<frame>[A-Za-z_]\w*))?\s*\{")) yield return new(block.Match.Groups["name"].Value, block.Match.Groups["frame"].Success ? block.Match.Groups["frame"].Value : null, null, block.Body, $"source:{block.Match.Index}");
-        foreach (Match match in Regex.Matches(source, @"\bProfile\s+(?<name>[A-Za-z_]\w*)\s+From\s+(?<path>[A-Za-z_]\w*)\b", RegexOptions.CultureInvariant)) yield return new(match.Groups["name"].Value, null, match.Groups["path"].Value, null, $"source:{match.Index}");
+        foreach (var d in SourceDeclarations(FirmamentSyntaxParser.Parse(source).Document.Statements).Where(d => d.Type.Name.Text == "Profile" && d.Name is not null))
+        {
+            var frame = FirmamentSyntaxValues.Reference(d.Clauses.FirstOrDefault(c => c.Kind == ClauseKind.Using)?.Value);
+            var path = FirmamentSyntaxValues.Reference(d.Clauses.FirstOrDefault(c => c.Kind == ClauseKind.From)?.Value);
+            var body = d.Body is null ? null : source.Substring(d.Body.Span.Start + 1, d.Body.Span.Length - 2);
+            yield return new(d.Name!.Text, frame, path, body, $"source:{d.Span.Start}");
+        }
     }
 
     private static IEnumerable<Block> FindBlocks(string source, string headerPattern)
@@ -1162,8 +1179,8 @@ public static class ProfileAuthoringParser
     }
     internal static bool TryMeasure(string text, string unit, out double value)
     {
-        var parser = new BoundedMeasureExpression(text, unit);
-        return parser.TryEvaluate(out value);
+        var parsed = FirmamentSyntaxParser.ParseExpression(text);
+        return FirmamentSyntaxValues.TryMeasure(parsed.Diagnostics.Count == 0 ? parsed.Expression : null, unit, out value);
     }
     private static bool TryNumber(string text, out double value) => double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) && double.IsFinite(value);
     private static (double X, double Y) Advance((double X, double Y) point, double heading, double length) { var radians = DegreesToRadians(heading); return (point.X + length * Math.Cos(radians), point.Y + length * Math.Sin(radians)); }
@@ -1183,53 +1200,4 @@ public static class ProfileAuthoringParser
     private enum PipelineStageKind { Trace, Close, TraceLoop, Invalid }
     private sealed record PipelineStage(PipelineStageKind Kind, string? Reference, string? Alias, bool Reverse, int Offset, string? From = null, string? To = null);
 
-    /// <summary>Small deterministic dimensional expression evaluator used after Template specialization.</summary>
-    /// <remarks>Admits only numeric literals, one requested unit, parentheses, and + - * /.</remarks>
-    private sealed class BoundedMeasureExpression(string source, string unit)
-    {
-        private int index;
-        public bool TryEvaluate(out double value)
-        {
-            value = default; index = 0;
-            if (!Expression(out var result) || result.Dimension != 1) return false;
-            Space();
-            if (index != source.Length || !double.IsFinite(result.Value)) return false;
-            value = result.Value; return true;
-        }
-        private bool Expression(out Quantity result)
-        {
-            if (!Term(out result)) return false;
-            while (true)
-            {
-                Space(); if (index >= source.Length || source[index] is not ('+' or '-')) return true;
-                var operation = source[index++]; if (!Term(out var right) || result.Dimension != right.Dimension) return false;
-                result = new(operation == '+' ? result.Value + right.Value : result.Value - right.Value, result.Dimension);
-            }
-        }
-        private bool Term(out Quantity result)
-        {
-            if (!Factor(out result)) return false;
-            while (true)
-            {
-                Space(); if (index >= source.Length || source[index] is not ('*' or '/')) return true;
-                var operation = source[index++]; if (!Factor(out var right)) return false;
-                var dimension = operation == '*' ? result.Dimension + right.Dimension : result.Dimension - right.Dimension;
-                if (dimension is < 0 or > 1 || operation == '/' && Math.Abs(right.Value) <= double.Epsilon) return false;
-                result = new(operation == '*' ? result.Value * right.Value : result.Value / right.Value, dimension);
-            }
-        }
-        private bool Factor(out Quantity result)
-        {
-            Space(); result = default; if (index >= source.Length) return false;
-            if (source[index] == '(') { index++; if (!Expression(out result)) return false; Space(); return index < source.Length && source[index++] == ')'; }
-            var sign = 1d; if (source[index] is '+' or '-') sign = source[index++] == '-' ? -1d : 1d;
-            Space(); var start = index;
-            while (index < source.Length && (char.IsDigit(source[index]) || source[index] is '.' or 'e' or 'E' || source[index] is '+' or '-' && index > start && source[index - 1] is 'e' or 'E')) index++;
-            if (start == index || !TryNumber(source[start..index], out var number)) return false;
-            var dimension = 0; if (source.AsSpan(index).StartsWith(unit, StringComparison.Ordinal)) { index += unit.Length; dimension = 1; }
-            result = new(sign * number, dimension); return true;
-        }
-        private void Space() { while (index < source.Length && char.IsWhiteSpace(source[index])) index++; }
-        private readonly record struct Quantity(double Value, int Dimension);
-    }
 }

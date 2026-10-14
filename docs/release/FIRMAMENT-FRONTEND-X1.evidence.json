@@ -1,0 +1,333 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-14",
+  "verdict": "Meaningful progression",
+  "productionFamiliesMigrated": [],
+  "reproductionCommand": "./scripts/qualify-firmament-frontend-x1.ps1",
+  "inventory": {
+    "extensions": [
+      ".firmament",
+      ".firmfixture",
+      ".firmasm"
+    ],
+    "sources": 1232,
+    "sourceManifestSha256": "276e45a7f0cf6b1b8fb906021d6a4e43dcd28e75117a9336c4acf27146a2d596",
+    "parsed": 741,
+    "rejected": 491,
+    "groups": {
+      "Canonical": {
+        "sources": 323,
+        "parsed": 300,
+        "rejected": 23
+      },
+      "Compatibility": {
+        "sources": 417,
+        "parsed": 42,
+        "rejected": 375
+      },
+      "Other": {
+        "sources": 233,
+        "parsed": 211,
+        "rejected": 22
+      },
+      "Regression": {
+        "sources": 214,
+        "parsed": 164,
+        "rejected": 50
+      },
+      "Speculative": {
+        "sources": 45,
+        "parsed": 24,
+        "rejected": 21
+      }
+    }
+  },
+  "comparison": {
+    "qualified": false,
+    "factsCompared": 465,
+    "differences": 121,
+    "productionAcceptedShadowRejected": 57,
+    "uncomparedDeclarations": 9267,
+    "uncomparedFields": 19102,
+    "scope": "Generic production projection only; complete semantic, field-consumption and domain-admission parity unqualified."
+  },
+  "reproductions": [
+    {
+      "source": "fixtures/Regression/CanonicalGeometry/profile-chamfer-reflex-junction-top.firmament",
+      "structuralStatus": "Parsed",
+      "productionRoute": "CanonicalAdvanced",
+      "genericProductionParseAccepted": false,
+      "normalValidateExit": 1,
+      "normalBuildAccepted": true,
+      "differenceCodes": []
+    },
+    {
+      "source": "fixtures/Regression/ProfileComposition/valid/semantic-split-compose-chamfer.firmament",
+      "structuralStatus": "Parsed",
+      "productionRoute": "LegacyLowercase",
+      "genericProductionParseAccepted": false,
+      "normalValidateExit": 1,
+      "normalBuildAccepted": false,
+      "differenceCodes": []
+    },
+    {
+      "source": "fixtures/Regression/FrontendX1/slot-route-perturbation.firmament",
+      "structuralStatus": "Parsed",
+      "productionRoute": "CanonicalAdvanced",
+      "genericProductionParseAccepted": false,
+      "normalValidateExit": 1,
+      "normalBuildAccepted": false,
+      "differenceCodes": []
+    },
+    {
+      "source": "fixtures/Regression/FrontendX0/unknown-boundary-field.firmament",
+      "structuralStatus": "Parsed",
+      "productionRoute": "CanonicalAdvanced",
+      "genericProductionParseAccepted": true,
+      "normalValidateExit": 0,
+      "normalBuildAccepted": true,
+      "differenceCodes": []
+    },
+    {
+      "source": "fixtures/Regression/FrontendX0/unknown-compose-statement.firmament",
+      "structuralStatus": "Parsed",
+      "productionRoute": "CanonicalAdvanced",
+      "genericProductionParseAccepted": true,
+      "normalValidateExit": 0,
+      "normalBuildAccepted": true,
+      "differenceCodes": [
+        "compose-operation-without-receipt"
+      ]
+    }
+  ],
+  "tests": {
+    "releaseBuildErrors": 0,
+    "releaseBuildWarnings": 7,
+    "focusedParserPassed": 27,
+    "focusedCliPassed": 3,
+    "fastCorePassed": 1068,
+    "fullRegression": {
+      "command": "dotnet test Aetheris.slnx -c Release --no-build -m:1 -- RunConfiguration.MaxCpuCount=1",
+      "projects": 20,
+      "passed": 4652,
+      "failed": 0,
+      "skipped": 0,
+      "qualification": "Final source, including repaired evidence link. Earlier missing-link failure retained in raw logs."
+    },
+    "layoutGuard": "Passed for 5144 tracked paths; new paths reviewed against the same content policy.",
+    "diffWhitespaceCheck": "Passed"
+  },
+  "showcases": [
+    {
+      "name": "threaded-bolt",
+      "exitCode": 0,
+      "command": "build fixtures/Thread/hexbolt-threaded.firmament --output artifacts/local/frontend-x1/showcase-bolt.step --json"
+    },
+    {
+      "name": "pmi",
+      "exitCode": 0,
+      "command": "build fixtures/Canonical/PMI/counterbore-shaft-diameter.firmament --output artifacts/local/frontend-x1/showcase-pmi.step --json"
+    },
+    {
+      "name": "sheet-metal",
+      "exitCode": 0,
+      "command": "build fixtures/Canonical/SheetMetal/four-wall-tray-template.firmament --output artifacts/local/frontend-x1/showcase-sheet.step --json"
+    },
+    {
+      "name": "templates",
+      "exitCode": 0,
+      "command": "build fixtures/Canonical/Templates/nested-template-pmi.firmament --output artifacts/local/frontend-x1/showcase-template.step --json"
+    },
+    {
+      "name": "radial-pattern",
+      "exitCode": 0,
+      "command": "build fixtures/Canonical/Symmetry/radial-bolt-circle.firmament --output artifacts/local/frontend-x1/showcase-pattern.step --json"
+    },
+    {
+      "name": "guitar",
+      "exitCode": 0,
+      "command": "asm inspect fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar-x0.firmament --json"
+    },
+    {
+      "name": "industrial-atlas",
+      "exitCode": 0,
+      "command": "asm inspect fixtures/Canonical/AssemblyInterfaces/IndustrialAtlas/atlas-industrial.firmament --json"
+    },
+    {
+      "name": "warm-modern-house",
+      "exitCode": 0,
+      "command": "scene inspect fixtures/Canonical/Scene/WarmModernHouse/house.firmament --json"
+    },
+    {
+      "name": "warehouse",
+      "exitCode": 0,
+      "command": "scene inspect fixtures/Canonical/Scene/warehouse.firmament --json"
+    },
+    {
+      "name": "factory",
+      "exitCode": 0,
+      "command": "scene inspect fixtures/Canonical/Scene/FactoryX0/factory.firmament --json"
+    }
+  ],
+  "stepHashComparisons": [
+    {
+      "case": "unknown-compose-statement",
+      "baseline": "same-checkout before X1 implementation",
+      "before": "c1b68c96ce8b082c60b8380c0886aa93d094a717888f962cc3d3e907ff6abce3",
+      "after": "c1b68c96ce8b082c60b8380c0886aa93d094a717888f962cc3d3e907ff6abce3",
+      "equal": true
+    },
+    {
+      "case": "unknown-boundary-field",
+      "baseline": "same-checkout before X1 implementation",
+      "before": "c1b68c96ce8b082c60b8380c0886aa93d094a717888f962cc3d3e907ff6abce3",
+      "after": "c1b68c96ce8b082c60b8380c0886aa93d094a717888f962cc3d3e907ff6abce3",
+      "equal": true
+    },
+    {
+      "case": "bolt",
+      "baseline": "historical X0 qualification",
+      "before": "b9dee30ff017af95a3d2c073b582c0301928a094ecc1bfe56e3caf3fd8508c3a",
+      "after": "b9dee30ff017af95a3d2c073b582c0301928a094ecc1bfe56e3caf3fd8508c3a",
+      "equal": true
+    },
+    {
+      "case": "pmi",
+      "baseline": "historical X0 qualification",
+      "before": "d1b6f8c60f1b4d4bc97c43fc9fe7591f77dd13511f44e4d375326fc7e541e0ed",
+      "after": "d1b6f8c60f1b4d4bc97c43fc9fe7591f77dd13511f44e4d375326fc7e541e0ed",
+      "equal": true
+    },
+    {
+      "case": "sheet",
+      "baseline": "historical X0 qualification",
+      "before": "940ba27513ac59ec8b2d4a13063085b3af20d0d5c3c55b4e2dba725d591352a4",
+      "after": "940ba27513ac59ec8b2d4a13063085b3af20d0d5c3c55b4e2dba725d591352a4",
+      "equal": true
+    },
+    {
+      "case": "template",
+      "baseline": "historical X0 qualification",
+      "before": "d51106507342d65828cfb81540c3ddf6edc899fde895fe3d069a92903cd2b736",
+      "after": "d51106507342d65828cfb81540c3ddf6edc899fde895fe3d069a92903cd2b736",
+      "equal": true
+    },
+    {
+      "case": "pattern",
+      "baseline": "historical X0 qualification",
+      "before": "4b4f8fd69d10e73bb403f1538c6fc13995f895e4c1c17e0605a3e4a008e5356e",
+      "after": "4b4f8fd69d10e73bb403f1538c6fc13995f895e4c1c17e0605a3e4a008e5356e",
+      "equal": true
+    }
+  ],
+  "benchmarks": [
+    {
+      "source": "fixtures/Canonical/Basics/box.firmament",
+      "shadowStatus": "Parsed",
+      "benchmark": {
+        "iterations": 20,
+        "sourceCharacters": 206,
+        "medianMilliseconds": 0.0142,
+        "p95Milliseconds": 0.0174,
+        "medianAllocatedBytes": 17264
+      }
+    },
+    {
+      "source": "fixtures/Regression/FrontendX0/unknown-compose-statement.firmament",
+      "shadowStatus": "Parsed",
+      "benchmark": {
+        "iterations": 20,
+        "sourceCharacters": 942,
+        "medianMilliseconds": 0.0553,
+        "p95Milliseconds": 0.07,
+        "medianAllocatedBytes": 69360
+      }
+    },
+    {
+      "source": "fixtures/Canonical/Templates/nested-template-pmi.firmament",
+      "shadowStatus": "Parsed",
+      "benchmark": {
+        "iterations": 20,
+        "sourceCharacters": 1268,
+        "medianMilliseconds": 0.0619,
+        "p95Milliseconds": 0.0705,
+        "medianAllocatedBytes": 76368
+      }
+    },
+    {
+      "source": "fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar-x0.firmament",
+      "shadowStatus": "Parsed",
+      "benchmark": {
+        "iterations": 20,
+        "sourceCharacters": 955,
+        "medianMilliseconds": 0.039,
+        "p95Milliseconds": 0.0434,
+        "medianAllocatedBytes": 50512
+      }
+    },
+    {
+      "source": "fixtures/Canonical/Scene/WarmModernHouse/house.firmament",
+      "shadowStatus": "Parsed",
+      "benchmark": {
+        "iterations": 20,
+        "sourceCharacters": 3654,
+        "medianMilliseconds": 0.2168,
+        "p95Milliseconds": 4.2788,
+        "medianAllocatedBytes": 288768
+      }
+    },
+    {
+      "source": "fixtures/Canonical/Scene/FactoryX0/kit.firmament",
+      "shadowStatus": "Parsed",
+      "benchmark": {
+        "iterations": 20,
+        "sourceCharacters": 11757,
+        "medianMilliseconds": 0.8195,
+        "p95Milliseconds": 2.1082,
+        "medianAllocatedBytes": 1123520
+      }
+    }
+  ],
+  "limitations": [
+    "No production family migrated.",
+    "Legacy serialization and unsupported domain syntax remain in the inventoried rejection counts.",
+    "No complete AST-to-AIR adapter, scoped expansion, semantic parity or new geometry capability.",
+    "Benchmarks are per-file warm syntax parsing, excluding transitive includes and production compilation.",
+    "No native Helios interaction or remote CI qualification."
+  ],
+  "canonicalShadowRejectedSources": [
+    "Canonical/AssemblyInterfaces/AuthoringFoundation/product-notes.firmasm",
+    "Canonical/AssemblyInterfaces/GuitarX0/guitar.firmasm",
+    "Canonical/AssemblyInterfaces/executable-machine.firmament",
+    "Canonical/AssemblyInterfaces/register.firmament",
+    "Canonical/Assembly/bearing-module.firmament",
+    "Canonical/Assembly/coil-on-stem.firmament",
+    "Canonical/Assembly/template-block-pair.firmament",
+    "Canonical/Drawings/bearing-block-production-drawing.firmament",
+    "Canonical/FEA/inline-step-cantilever.firmament",
+    "Canonical/Features/Holes/blind-hole.firmament",
+    "Canonical/Integration/inline-step-recognize-replace.firmament",
+    "Canonical/Sculpting/sculpt-branch-variants.firmament",
+    "Canonical/Sculpting/sculpt-offset-region.firmament",
+    "Canonical/Sculpting/sculpt-preserve-interface.firmament",
+    "Canonical/Sculpting/sculpted-housing.firmament",
+    "Canonical/Sculpting/surf-x1-freeform-housing.firmament",
+    "Canonical/Sculpting/surf-x1a-trimmed-freeform-housing.firmament",
+    "Canonical/Sculpting/surf-x2-g1-blend.firmament",
+    "Canonical/Sculpting/surf-x2-judged-housing.firmament",
+    "Canonical/Sculpting/surf-x2-manual-candidate.firmament",
+    "Canonical/SheetMetal/network-appliance-enclosure.firmament",
+    "Canonical/SheetMetal/power-supply-enclosure.firmament",
+    "Canonical/SheetMetal/profiledelta-remove-area.firmament"
+  ],
+  "slotPerturbationControl": {
+    "derivedFrom": "fixtures/Regression/FrontendX1/slot-route-perturbation.firmament",
+    "transformation": "Remove exactly the AST span of the Slot2 sibling; retain all other source.",
+    "normalCliBuildExit": 0,
+    "normalCliBuildSuccess": true,
+    "withSlotNormalCliBuildSuccess": false,
+    "baselineProductionRoute": "Canonical",
+    "withSlotProductionRoute": "CanonicalAdvanced",
+    "originalSubtreeEquality": "Asserted by focused regression test."
+  }
+}

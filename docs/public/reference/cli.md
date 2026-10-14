@@ -4,7 +4,8 @@ Primary public commands:
 
 | Command | Purpose |
 |---|---|
-| `validate <file> [--json]` | Parse, bind, check units/targets/static semantics without geometry |
+| `validate <file> [--json]` | Check admission; generic mechanical validation includes in-memory geometry preflight |
+| `frontend-shadow <file> [--json] [--ast] [--validate] [--benchmark]` | Developer-only original-source structural evidence and bounded production comparison |
 | `build <file> [--output path] [--json]` | Materialize and export exact STEP AP242 |
 | `inspect <firmament-or-step> [--json]` | Inspect source semantics or route STEP to analysis |
 | `inspect-3dm <file.3dm> [--json]` | Inventory Rhino/OpenNURBS metadata, units, BRep topology, and unsupported objects |
@@ -22,7 +23,24 @@ Primary public commands:
 
 Generic mechanical `validate` now runs the existing engineering compilation in memory, including selection binding, capability checks and geometry/STEP preflight. It writes no output file. Its report includes `validationLevel` (`Built`, `BuildRejected`, or `ParsedNotBuilt`) and developer-only `parserRoute` metadata. `--explain` prints the route, admission level and available instance counts. `--parse-only` explicitly requests static analysis and reports `parsed-not-built` on success. External `--forge-pack` validation is also labelled `parsed-not-built`: those descriptor providers are not installed into normal build. Domain-specific validators retain their separate scope; inspect their reports. This is not a promise that unchanged source can never encounter a later environment or kernel failure.
 
-X0 remains partially qualified: the advanced Compose/boundary route still lacks complete statement/field consumption checking. Successful compilation alone does not close that known source-intent gap; see the [X0 qualification report](../../release/FIRMAMENT-FRONTEND-X0.md).
+Mechanical Model and material-bearing Struct documents now use the unified lexer/AST admission path (`UnifiedMechanical`). The ignored Compose Fillet, erased Rect2 field and unused Slot2 route-perturbation cases are repaired. Profile/Compose build execution consumes admitted engineering inputs. Other dedicated domains retain their existing owners; see the [production migration qualification](../../release/FIRMAMENT-MECHANICAL-FRONTEND-MIGRATION.md) for its scope and evidence.
+
+`validate file.firmament --shadow --explain --json` opts into the X1 developer
+envelope: `shadow` contains original-source syntax status, AST summary, original
+diagnostics and a bounded comparison against the generic production projection;
+`productionValidation` contains the ordinary validation command's unchanged
+report. `Parsed` means `StructuralOnlyUnbound`, not engineering validity. The
+comparison explicitly reports unqualified declarations and fields. `--ast` adds
+the detailed source tree and trivia only when requested. `frontend-shadow`
+without `--validate` collects syntax/projection evidence without geometry.
+
+`frontend-shadow --corpus fixtures` writes JSON and Markdown under ignored
+`artifacts/local/frontend-x1/corpus` by default. It includes invalid, legacy and
+speculative sources; exit zero means collection completed, while `qualified:
+false` remains explicit. Per-file exit one means structural rejection or, with
+`--validate`, production rejection. Normal mechanical compilation uses the same syntax parser through its production
+AST binder; the developer comparison does not control admission. `--benchmark` measures twenty warm structural parses and current
+thread allocations, excluding file IO, production parsing, comparison and geometry.
 
 Run `aetheris <command> --help` for exact options. JSON is a public automation surface, but its root is command-specific: process exit status is authoritative, `validate` reports `firmamentV2Validation.status`, and materializing/analysis commands report `success` where documented. Diagnostics are structured; artifact paths are explicit; wireframe reports trim/pcurve coverage and a deterministic SVG hash; Sheet Metal reports regions, bends, and lowered features separately; FEA reports requested/result artifacts; sculpting builds report every `BodyState`, `GeometricDelta`, validation evidence, surface-family inventory, and the sibling `.delta.json` path; other builds report emitted features and PMI export evidence. Counts describe semantic items at the stated layer, not arbitrary STEP entity counts.
 

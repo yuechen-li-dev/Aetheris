@@ -1,0 +1,4 @@
+Model Broken {
+  Box Body { size: ; }
+  Box Retained { size: [8mm, 7mm, 6mm] }
+}

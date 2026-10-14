@@ -19,7 +19,7 @@ public sealed record FirmamentLanguageFormat(string Document, string Revision, s
 /// </summary>
 public static class FirmamentLanguageAnalysisService
 {
-    internal sealed record Lexeme(int Start, int Length, string Text, string Shape);
+    internal sealed record Lexeme(int Start, int Length, string Text, string Shape, string? Error = null);
     private static readonly HashSet<string> Keywords = ["Model", "Units", "Modify", "WireForm", "Construction", "Use", "schema", "Let", "Static", "With", "with", "Expose", "Include", "Subassembly", "Assembly", "Part", "Template", "Function", "Record", "Pattern", "Over", "Using", "Output"];
     private static readonly HashSet<string> DeclarationKinds = ["Model", "Struct", "Subassembly", "Assembly", "Template", "Profile", "Static", "Record", "Function", "Pattern", "Section", "SectionChain", "FrameTransform", "Points"];
     private static readonly HashSet<string> Types = ["Length", "Angle", "Float", "Int", "Bool", "Box3", "Plane", "Point2", "Point3"];
@@ -295,15 +295,21 @@ public static class FirmamentLanguageAnalysisService
         return new("error", diagnostic, message, presented.SourceSpan?.Start ?? 0, presented.SourceSpan?.Length ?? 0);
     }
 
-    internal static List<Lexeme> Lex(string source)
+    internal static List<Lexeme> Lex(string source, bool lossless = false)
     {
         var result = new List<Lexeme>();
         for (var at = 0; at < source.Length;)
         {
-            if (char.IsWhiteSpace(source[at])) { at++; continue; }
             var start = at;
             string shape;
-            if (at + 1 < source.Length && source[at] == '/' && source[at + 1] == '/')
+            string? error = null;
+            if (char.IsWhiteSpace(source[at]))
+            {
+                while (at < source.Length && char.IsWhiteSpace(source[at])) at++;
+                if (!lossless) continue;
+                shape = "whitespace";
+            }
+            else if (at + 1 < source.Length && source[at] == '/' && source[at + 1] == '/')
             {
                 at += 2;
                 while (at < source.Length && source[at] != '\n') at++;
@@ -314,17 +320,21 @@ public static class FirmamentLanguageAnalysisService
                 var end = source.IndexOf("*/", at + 2, StringComparison.Ordinal);
                 at = end < 0 ? source.Length : end + 2;
                 shape = "comment";
+                if (end < 0) error = "Unterminated block comment; expected '*/'.";
             }
             else if (source[at] == '"')
             {
                 at++;
+                var closed = false;
                 while (at < source.Length)
                 {
                     if (source[at] == '\\' && at + 1 < source.Length) { at += 2; continue; }
                     if (source[at++] != '"') continue;
+                    closed = true;
                     break;
                 }
                 shape = "string";
+                if (!closed) error = "Unterminated string literal; expected a closing quote.";
             }
             else if (char.IsLetter(source[at]) || source[at] == '_')
             {
@@ -332,15 +342,45 @@ public static class FirmamentLanguageAnalysisService
                 while (at < source.Length && (char.IsLetterOrDigit(source[at]) || source[at] == '_')) at++;
                 shape = "identifier";
             }
+            else if (source[at] == '.' && result.Count > 0 && result[^1].Shape == "identifier"
+                && result[^1].Start + result[^1].Length == at)
+            {
+                at++;
+                shape = "punctuation";
+            }
+            else if (char.IsDigit(source[at]) && result.Count > 1 && result[^1].Text == "."
+                && result[^2].Shape == "identifier" && result[^1].Start + 1 == at)
+            {
+                // External domain symbols such as StainlessSteel.304_Annealed.
+                at++;
+                while (at < source.Length && (char.IsLetterOrDigit(source[at]) || source[at] == '_')) at++;
+                shape = "identifier";
+            }
             else if (char.IsDigit(source[at]) || source[at] == '.' && at + 1 < source.Length && char.IsDigit(source[at + 1]))
             {
                 at++;
-                while (at < source.Length && (char.IsDigit(source[at]) || source[at] == '.')) at++;
+                while (at < source.Length && char.IsDigit(source[at])) at++;
+                if (source[start] != '.' && at + 1 < source.Length && source[at] == '.' && char.IsDigit(source[at + 1]))
+                {
+                    at++;
+                    while (at < source.Length && char.IsDigit(source[at])) at++;
+                }
+                if (at < source.Length && source[at] is 'e' or 'E')
+                {
+                    var exponent = at + 1;
+                    if (exponent < source.Length && source[exponent] is '+' or '-') exponent++;
+                    if (exponent < source.Length && char.IsDigit(source[exponent]))
+                    {
+                        at = exponent + 1;
+                        while (at < source.Length && char.IsDigit(source[at])) at++;
+                    }
+                }
                 shape = "number";
             }
             else { at++; shape = "punctuation"; }
-            result.Add(new(start, at - start, source[start..at], shape));
+            result.Add(new(start, at - start, source[start..at], shape, error));
         }
+        if (lossless) result.Add(new(source.Length, 0, "", "end"));
         return result;
     }
 }

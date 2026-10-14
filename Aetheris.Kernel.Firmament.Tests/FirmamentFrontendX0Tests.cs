@@ -8,11 +8,11 @@ namespace Aetheris.Kernel.Firmament.Tests;
 public sealed class FirmamentFrontendX0Tests
 {
     [Theory]
-    [InlineData("malformed-v2", "Canonical")]
-    [InlineData("unknown-model-statement", "Canonical")]
-    [InlineData("unknown-modify-statement", "Canonical")]
-    [InlineData("unknown-box-field", "Canonical")]
-    [InlineData("unsupported-xz-layout", "StandaloneProfile")]
+    [InlineData("malformed-v2", "UnifiedMechanical")]
+    [InlineData("unknown-model-statement", "UnifiedMechanical")]
+    [InlineData("unknown-modify-statement", "UnifiedMechanical")]
+    [InlineData("unknown-box-field", "UnifiedMechanical")]
+    [InlineData("unsupported-xz-layout", "UnifiedMechanical")]
     public void InvalidSource_IsRejectedByParserReportAndEngineeringCompiler(string fixture, string route)
     {
         var source = Read(fixture);

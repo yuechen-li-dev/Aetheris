@@ -55,13 +55,15 @@ public sealed class HoleRuntimeCorrespondenceTests
     }
 
     [Fact]
-    public void ExistingAdvancedHoleSelectionDeclarationIsNotAcceptedInSimpleHoleSource()
+    public void HoleSelectionDeclaration_BindsWithoutChangingPrimitiveGeometry()
     {
         var source = Source(6);
         source = source[..^1] + " Selection WallH { Target: HoleWall Source: Hole(H) Require: NonEmptyFaceSet } }";
         var build = FirmamentBuildAndExport.CompileSource(source);
-        Assert.False(build.IsSuccess);
-        Assert.Contains(build.Diagnostics, d => d.Message.Contains("firmament-v2-phase3-edge-finish-syntax-invalid", StringComparison.Ordinal));
+        Assert.True(build.IsSuccess, string.Join("; ", build.Diagnostics.Select(d => d.Message)));
+        var parsed = FirmamentV2.FirmamentV2Parser.Parse(source);
+        Assert.Equal("WallH", Assert.Single(parsed.Document!.Selections!).Name);
+        Assert.Equal(FirmamentBuildAndExport.CompileSource(Source(6)).Value.StepText, build.Value.StepText);
     }
 
     [Fact]

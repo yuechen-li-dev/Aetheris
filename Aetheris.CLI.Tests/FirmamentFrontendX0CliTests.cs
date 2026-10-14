@@ -9,6 +9,8 @@ public sealed class FirmamentFrontendX0CliTests
     [InlineData("unknown-model-statement")]
     [InlineData("unknown-modify-statement")]
     [InlineData("unknown-box-field")]
+    [InlineData("unknown-compose-statement")]
+    [InlineData("unknown-boundary-field")]
     [InlineData("unsupported-xz-layout")]
     [InlineData("combined-fillet-hole")]
     [InlineData("unresolved-semantic-source")]
@@ -40,7 +42,7 @@ public sealed class FirmamentFrontendX0CliTests
         var stdout = new StringWriter();
         Assert.Equal(0, CliRunner.Run(["validate", Fixture("combined-fillet-hole"), "--parse-only", "--explain"], stdout, new StringWriter()));
         Assert.Contains("parsed-not-built", stdout.ToString(), StringComparison.Ordinal);
-        Assert.Contains("Canonical", stdout.ToString(), StringComparison.Ordinal);
+        Assert.Contains("UnifiedMechanical", stdout.ToString(), StringComparison.Ordinal);
         Assert.Contains("ParsedNotBuilt", stdout.ToString(), StringComparison.Ordinal);
     }
 

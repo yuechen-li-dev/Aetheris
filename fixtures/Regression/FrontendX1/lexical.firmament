@@ -1,0 +1,4 @@
+/* A lossless source witness. */
+Static tiny: Length = 1e-3mm;
+Static label: String = "escaped \"quote\" and // not a comment";
+Static values: Float[] = [.5, 2.75, 3e+2]; // trailing trivia

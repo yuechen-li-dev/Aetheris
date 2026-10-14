@@ -35,7 +35,7 @@ public static class ConceptStepMatcher
         tolerances ??= new ConceptStepTolerance();
         var source = File.ReadAllText(conceptPath);
         var roles = ParseRoles(source);
-        var parse = FirmamentV2Parser.Parse(StripMatchBlocks(source));
+        var parse = FirmamentV2Parser.Parse(source);
         if (!parse.IsSuccess || parse.Document?.ConceptIr is null)
             return new(ConceptStepOverallStatus.InvalidConcept, "<unresolved>", "body-0", tolerances, new { }, [], parse.Diagnostics);
 
@@ -146,8 +146,6 @@ public static class ConceptStepMatcher
         }
         return roles;
     }
-    private static string StripMatchBlocks(string source) { var result = source; foreach (Match m in Regex.Matches(source, @"\bMatch\s*\{")) { var open = source.IndexOf('{', m.Index); var close = BraceClose(source, open); if (close >= 0) result = result.Remove(open, close - open + 1).Insert(open, new string(' ', close - open + 1)); } return result; }
-    private static int BraceClose(string text, int open) { var d = 0; for (var i = open; i < text.Length; i++) { if (text[i] == '{') d++; else if (text[i] == '}' && --d == 0) return i; } return -1; }
     private static ConceptIrVector3 Axis(string value) => value switch { "+X" => new(1, 0, 0), "-X" => new(-1, 0, 0), "+Y" => new(0, 1, 0), "-Y" => new(0, -1, 0), "+Z" => new(0, 0, 1), _ => new(0, 0, -1) };
     private static Point3D ToPoint(ConceptIrPoint3 p) => new(p.X, p.Y, p.Z);
     private static Vector3D Normalize(ConceptIrVector3 v) => Normalize(new Vector3D(v.X, v.Y, v.Z));

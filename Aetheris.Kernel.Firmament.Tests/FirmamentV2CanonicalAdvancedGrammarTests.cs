@@ -408,8 +408,7 @@ public sealed class FirmamentV2CanonicalAdvancedGrammarTests
             Assert.Contains(FirmamentV2Parser.EdgeFinishProfileComposeBoundaryUnsupported, parse.Diagnostics);
             var build = FirmamentBuildAndExport.Run(path, output);
             Assert.False(build.IsSuccess);
-            var diagnostic = Assert.Single(build.Diagnostics);
-            Assert.Contains(FirmamentBuildAndExport.EdgeFinishProfileComposeBoundaryUnsupported, diagnostic.Message, StringComparison.Ordinal);
+            var diagnostic = Assert.Single(build.Diagnostics.Where(d => d.Message.StartsWith(FirmamentBuildAndExport.EdgeFinishProfileComposeBoundaryUnsupported + ":", StringComparison.Ordinal)));
             Assert.DoesNotContain("SemanticSourceNotFound", diagnostic.Message, StringComparison.Ordinal);
         }
         finally

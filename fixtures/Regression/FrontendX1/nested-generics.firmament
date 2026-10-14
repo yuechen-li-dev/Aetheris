@@ -1,0 +1,7 @@
+// Structural evidence only: semantic admission of nested Set is intentionally X2.
+Template<T: Set<Set<Point2>>, D: Length = 3mm> Struct Family {
+  Static sites: Set<Set<Point2>> {
+    first => Point2(1mm, 2mm)
+  }
+  Struct Child = Product<Spec: Config<Points: T>, Depth: D>
+}

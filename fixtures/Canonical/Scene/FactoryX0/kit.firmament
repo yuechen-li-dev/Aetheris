@@ -15,7 +15,21 @@ Template<L: Length, W: Length, H: Length> Struct Bin {
   RoundedRect2 outer { center: [0mm, 0mm]; size: [L, W]; radius: 16mm; }
   RoundedRect2 inner { center: [0mm, 0mm]; size: [L - 16mm, W - 16mm]; radius: 8mm; }
   Profile base { Loop Outer { outer |> TraceLoop } }
-  Profile rim { Loop Outer { outer |> TraceLoop } Loop Inner { inner |> TraceLoop } }
+  // The inner loop has distinct semantic segment identities from the outer wall.
+  Profile rim {
+    Loop Outer { outer |> TraceLoop }
+    Loop Inner {
+      Reverse inner.Bottom As InnerBottom
+        |> Reverse inner.BottomLeftCorner As InnerBottomLeftCorner
+        |> Reverse inner.Left As InnerLeft
+        |> Reverse inner.TopLeftCorner As InnerTopLeftCorner
+        |> Reverse inner.Top As InnerTop
+        |> Reverse inner.TopRightCorner As InnerTopRightCorner
+        |> Reverse inner.Right As InnerRight
+        |> Reverse inner.BottomRightCorner As InnerBottomRightCorner
+        |> Close
+    }
+  }
   Extrude bottom { profile: base; from: 0mm; to: 8mm; }
   Extrude sides { profile: rim; from: 8mm; to: H; }
 }

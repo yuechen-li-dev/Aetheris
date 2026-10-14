@@ -1,4 +1,5 @@
 using System.Globalization;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using Aetheris.Kernel.Core.Air;
@@ -251,6 +252,17 @@ internal static class ConceptIrResolver
 
         var allInstances = instanceList.ToDictionary(i => i.Name, StringComparer.Ordinal);
         var boxBody = source[(boxOpen + 1)..boxClose];
+        var syntaxDeclarations = FirmamentSyntaxEvidence.Declarations(FirmamentSyntaxParser.Parse(source).Document).ToArray();
+        var boxSyntax = syntaxDeclarations.FirstOrDefault(d => d.Type.Name.Text == "Box" && d.Body?.Span.Start == boxOpen);
+        if (boxSyntax is null) { diagnostics.Add(FirmamentV2Parser.CanonicalPrimitiveMalformed); return null; }
+        var boxFields = new FirmamentSyntaxFields(boxSyntax, diagnostics);
+        var boundsExpression = boxFields.Take("Bounds"); var sizeExpression = boxFields.Take("Size");
+        if (boundsExpression is not null && sizeExpression is not null) diagnostics.Add("firmament-v2-field-conflict:Box:Bounds:Size");
+        boxFields.Complete();
+        var modifySyntax = syntaxDeclarations.FirstOrDefault(d => d.Type.Name.Text == "Modify" && d.Body?.Span.Start == modifyOpen);
+        foreach (var statement in modifySyntax?.Body?.Statements ?? [])
+            if (statement is not DeclarationSyntax feature || !(feature.Type.Name.Text.Equals("Hole", StringComparison.OrdinalIgnoreCase) || feature.Type.Name.Text is "Pattern" or "EdgeFinish"))
+                diagnostics.Add($"{FirmamentV2Parser.CanonicalDeclarationUnknown}:Modify:{(statement as DeclarationSyntax)?.Type.Name.Text ?? "expression"}");
         IReadOnlyList<double>? size = null;
         ConceptIrBox3Value? resolvedBounds = null;
         string boundsProvenance;
@@ -263,9 +275,7 @@ internal static class ConceptIrResolver
         }
         else
         {
-            var sizeMatch = Regex.Match(boxBody, @"\bSize\s*:\s*\[(?<values>[^\]]+)\]", RegexOptions.CultureInvariant);
-            var values = sizeMatch.Success ? sizeMatch.Groups["values"].Value.Split(',').Select(ParseLength).ToArray() : [];
-            size = values.Length == 3 && values.All(v => double.IsFinite(v) && v > 0) ? values : null;
+            size = FirmamentSyntaxValues.Vector(sizeExpression, "mm", out var values) && values.Length == 3 && values.All(v => v > 0) ? values : null;
             boundsProvenance = $"{materialized.Groups["name"].Value}.{box.Groups["name"].Value}.Size";
         }
 

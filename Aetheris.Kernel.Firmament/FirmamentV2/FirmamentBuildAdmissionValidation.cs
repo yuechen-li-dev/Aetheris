@@ -34,6 +34,11 @@ public static class FirmamentBuildAdmissionValidation
             ? diagnostic.Message[..separator]
             : diagnostic.Message.All(character => char.IsLetterOrDigit(character) || character is '-' or '_' or '.')
                 ? diagnostic.Message : diagnostic.Code.ToString();
+        if (source is not null && code.StartsWith("firmament-syntax-", StringComparison.Ordinal))
+        {
+            var candidates = Syntax.FirmamentSyntaxParser.Parse(source, sourceFile).Diagnostics.Where(d => d.Code == code).ToArray();
+            if (candidates.Length == 1) return candidates[0] with { Source = diagnostic.Source, Stage = "Syntax" };
+        }
         return Locate(new(diagnostic.Message, diagnostic.Severity switch
         {
             KernelDiagnosticSeverity.Error => "fatal",
@@ -51,6 +56,7 @@ public static class FirmamentBuildAdmissionValidation
     public static FirmamentV2ValidationDiagnostic Locate(
         FirmamentV2ValidationDiagnostic diagnostic, string? source, string sourceFile)
     {
+        if (diagnostic.SourceSpan is not null) return diagnostic with { SourceFile = sourceFile };
         if (source is null) return diagnostic with { SourceFile = sourceFile, LocationNote = "Original source is unavailable." };
         var tokens = FirmamentLanguageAnalysisService.Lex(source).Where(token => token.Shape != "comment").ToArray();
         // Only these parser-owned diagnostics identify a specific original token.

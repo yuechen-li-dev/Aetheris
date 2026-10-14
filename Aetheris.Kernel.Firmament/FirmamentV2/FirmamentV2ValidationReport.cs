@@ -55,7 +55,9 @@ public static class FirmamentV2ValidationReportBuilder
         var diagnostics = parse.Diagnostics
             .Distinct(StringComparer.Ordinal)
             .Where(code => !IsParserTraceDiagnostic(code))
+            .Where(code => !parse.SyntaxDiagnostics.Any(d => d.Code == code))
             .Select(ToParserDiagnostic)
+            .Concat(parse.SyntaxDiagnostics)
             .Concat(runtimeValidation.Diagnostics.Select(ToRuntimeDiagnostic))
             .Distinct()
             .ToArray();

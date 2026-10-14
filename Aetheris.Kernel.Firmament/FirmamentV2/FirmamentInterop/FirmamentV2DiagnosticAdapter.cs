@@ -55,16 +55,23 @@ public static class FirmamentV2DiagnosticAdapter
     public static string MessageFor(string diagnosticCode) => diagnosticCode switch
     {
         FirmamentV2Parser.CanonicalPrimitiveMalformed => "Malformed primitive: check the required dimension fields and their length units.",
+        FirmamentV2Parser.CanonicalModifyMalformed => "Malformed Modify feature. Check the target, feature variant, required fields and termination.",
+        FirmamentV2Parser.CanonicalUnitsInvalid => "This mechanical document requires Units: mm; conflicting unit declarations are not admitted.",
+        FirmamentV2Parser.HoleVariantUnknown => "Unknown Hole variant. Use an admitted Hole<Shaft>, Hole<Counterbore> or Hole<Countersink> contract.",
         FirmamentV2Parser.CanonicalDocumentMalformed => "Malformed Model document. Check its declarations and closing braces.",
         "firmament-v2-parse-failed" => "Firmament V2 parsing or binding failed; the program has not been admitted for compilation.",
         FirmamentV2Parser.PmiDimensionMissingTolerance => "PMI dimension resolves to a value without tolerance evidence.",
         FirmamentV2Parser.ConceptMissingRequiredField => "Forge concept application is missing a required descriptor field.",
         FirmamentV2Parser.PmiUnknownDatum => "PMI relation references an unknown datum.",
         FirmamentV2Parser.ToleranceDroppedThroughArithmetic => "A toleranced value was used in arithmetic and only the nominal value was preserved.",
+        _ when diagnosticCode.StartsWith("firmament-v2-field-duplicate:", StringComparison.Ordinal)
+            => $"Field '{diagnosticCode.Split(':')[^1]}' is specified more than once in {diagnosticCode.Split(':')[1]}. Keep one value.",
+        _ when diagnosticCode.StartsWith("firmament-v2-field-value-invalid:", StringComparison.Ordinal)
+            => $"Invalid value for field '{diagnosticCode.Split(':')[^1]}' in {diagnosticCode.Split(':')[1]}. Check the value type, units and admitted vocabulary.",
         _ when diagnosticCode.StartsWith(FirmamentV2Parser.CanonicalFieldUnknown + ":", StringComparison.Ordinal)
             => $"Unknown field '{diagnosticCode.Split(':')[^1]}' in {diagnosticCode.Split(':')[1]}. Check this construct's documented fields.",
         _ when diagnosticCode.StartsWith(FirmamentV2Parser.CanonicalDeclarationUnknown + ":", StringComparison.Ordinal)
-            => $"Unknown statement '{diagnosticCode.Split(':')[^1]}'. Use an admitted construct in this context.",
+            => $"Unknown statement '{diagnosticCode.Split(':')[^1]}'{(diagnosticCode.Split(':').Length > 2 ? " in " + diagnosticCode.Split(':')[1] : "")}. Use an admitted construct in this context.",
         _ => diagnosticCode
     };
 }

@@ -1,0 +1,85 @@
+using System.Text.Json.Serialization;
+
+namespace Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
+
+public enum SyntaxTokenKind { Identifier, Number, String, Punctuation, Whitespace, Comment, End }
+public sealed record SyntaxToken(SyntaxTokenKind Kind, string Text, FirmamentV2SourceSpan Span);
+public enum DirectiveKind { Schema, Include, Use }
+public enum ClauseKind { On, Using, Over, From, Key }
+public enum LiteralKind { Number, String, Boolean }
+public enum SequenceKind { List, Tuple }
+public enum UnaryOperator { Positive, Negative, Not, Reverse }
+public enum BinaryOperator { Pipeline, Direction, Or, And, Equal, NotEqual, Less, LessEqual, Greater, GreaterEqual, Add, Subtract, Multiply, Divide, Remainder, Power }
+
+// This is source syntax, not engineering AIR. Open type names and fields are retained
+// for their semantic owners to admit; structural success is never called validity.
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "node")]
+[JsonDerivedType(typeof(DeclarationSyntax), "declaration")]
+[JsonDerivedType(typeof(FieldSyntax), "field")]
+[JsonDerivedType(typeof(DirectiveSyntax), "directive")]
+[JsonDerivedType(typeof(ExpressionStatementSyntax), "expressionStatement")]
+[JsonDerivedType(typeof(ReturnSyntax), "return")]
+[JsonDerivedType(typeof(MappingSyntax), "mapping")]
+public abstract record StatementSyntax(FirmamentV2SourceSpan Span);
+public sealed record IdentifierSyntax(string Text, FirmamentV2SourceSpan Span);
+public sealed record ArgumentSyntax(IdentifierSyntax? Name, ExpressionSyntax Value, ExpressionSyntax? Default, FirmamentV2SourceSpan Span);
+public sealed record TypeSyntax(IdentifierSyntax Name, IReadOnlyList<ArgumentSyntax> Arguments, FirmamentV2SourceSpan Span);
+public sealed record ClauseSyntax(ClauseKind Kind, ExpressionSyntax Value, FirmamentV2SourceSpan Span);
+public sealed record BlockSyntax(IReadOnlyList<StatementSyntax> Statements, FirmamentV2SourceSpan Span);
+public sealed record DeclarationSyntax(TypeSyntax Type, IdentifierSyntax? Name, IReadOnlyList<TypeSyntax> Modifiers,
+    IReadOnlyList<ArgumentSyntax> Parameters, ExpressionSyntax? Annotation, ExpressionSyntax? ResultType,
+    IReadOnlyList<ClauseSyntax> Clauses, ExpressionSyntax? Initializer, BlockSyntax? Body, bool Occurrence,
+    FirmamentV2SourceSpan Span) : StatementSyntax(Span);
+public sealed record FieldSyntax(IdentifierSyntax Name, ExpressionSyntax Value, FirmamentV2SourceSpan Span) : StatementSyntax(Span);
+public sealed record DirectiveSyntax(DirectiveKind Kind, ExpressionSyntax Value, FirmamentV2SourceSpan Span) : StatementSyntax(Span);
+public sealed record ExpressionStatementSyntax(ExpressionSyntax Value, FirmamentV2SourceSpan Span) : StatementSyntax(Span);
+public sealed record ReturnSyntax(ExpressionSyntax Value, FirmamentV2SourceSpan Span) : StatementSyntax(Span);
+public sealed record MappingSyntax(IdentifierSyntax Key, StatementSyntax Value, FirmamentV2SourceSpan Span) : StatementSyntax(Span);
+
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "node")]
+[JsonDerivedType(typeof(ReferenceSyntax), "reference")]
+[JsonDerivedType(typeof(LiteralSyntax), "literal")]
+[JsonDerivedType(typeof(UnarySyntax), "unary")]
+[JsonDerivedType(typeof(BinarySyntax), "binary")]
+[JsonDerivedType(typeof(SequenceSyntax), "sequence")]
+[JsonDerivedType(typeof(MemberSyntax), "member")]
+[JsonDerivedType(typeof(IndexSyntax), "index")]
+[JsonDerivedType(typeof(CallSyntax), "call")]
+[JsonDerivedType(typeof(SpecializationSyntax), "specialization")]
+[JsonDerivedType(typeof(ObjectSyntax), "object")]
+[JsonDerivedType(typeof(WithSyntax), "with")]
+[JsonDerivedType(typeof(QuantitySyntax), "quantity")]
+[JsonDerivedType(typeof(FrameSyntax), "frame")]
+[JsonDerivedType(typeof(AliasSyntax), "alias")]
+[JsonDerivedType(typeof(TraceSyntax), "trace")]
+[JsonDerivedType(typeof(MemberSetSyntax), "memberSet")]
+[JsonDerivedType(typeof(TypedValueSyntax), "typedValue")]
+[JsonDerivedType(typeof(MatchSyntax), "match")]
+public abstract record ExpressionSyntax(FirmamentV2SourceSpan Span);
+public sealed record ReferenceSyntax(IdentifierSyntax Name, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
+public sealed record LiteralSyntax(LiteralKind Kind, string Raw, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
+public sealed record QuantitySyntax(ExpressionSyntax Value, IdentifierSyntax Unit, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
+public sealed record UnarySyntax(UnaryOperator Operator, ExpressionSyntax Operand, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
+public sealed record BinarySyntax(ExpressionSyntax Left, BinaryOperator Operator, ExpressionSyntax Right, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
+public sealed record SequenceSyntax(SequenceKind Kind, IReadOnlyList<ArgumentSyntax> Items, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
+public sealed record MemberSyntax(ExpressionSyntax Target, IdentifierSyntax Member, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
+public sealed record IndexSyntax(ExpressionSyntax Target, ExpressionSyntax? Index, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
+public sealed record CallSyntax(ExpressionSyntax Target, IReadOnlyList<ArgumentSyntax> Arguments, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
+public sealed record SpecializationSyntax(ExpressionSyntax Target, IReadOnlyList<ArgumentSyntax> Arguments, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
+public sealed record ObjectSyntax(ExpressionSyntax? Type, BlockSyntax Body, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
+public sealed record WithSyntax(ExpressionSyntax Target, BlockSyntax Body, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
+public sealed record FrameSyntax(ExpressionSyntax Origin, IReadOnlyList<ArgumentSyntax> Axes, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
+public sealed record AliasSyntax(ExpressionSyntax Value, IdentifierSyntax Name, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
+public sealed record TraceSyntax(ExpressionSyntax Source, ExpressionSyntax? From, ExpressionSyntax? To, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
+public sealed record MemberSetSyntax(ExpressionSyntax Target, IReadOnlyList<ArgumentSyntax> Members, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
+public sealed record TypedValueSyntax(ExpressionSyntax Type, ExpressionSyntax Value, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
+public sealed record MatchArmSyntax(ExpressionSyntax Pattern, ExpressionSyntax Value, FirmamentV2SourceSpan Span);
+public sealed record MatchSyntax(ExpressionSyntax Scrutinee, IReadOnlyList<MatchArmSyntax> Arms, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
+public sealed record DocumentSyntax(string SourceFile, IReadOnlyList<StatementSyntax> Statements,
+    IReadOnlyList<SyntaxToken> Tokens, FirmamentV2SourceSpan Span);
+public sealed record SyntaxParseResult(DocumentSyntax Document, IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics)
+{
+    public bool IsSuccess => Diagnostics.All(d => d.Severity is not ("fatal" or "error"));
+    public string ValidationLevel => "StructuralOnlyUnbound";
+}
+public sealed record SyntaxExpressionParseResult(ExpressionSyntax? Expression, IReadOnlyList<FirmamentV2ValidationDiagnostic> Diagnostics);

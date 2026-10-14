@@ -1,4 +1,5 @@
 using Aetheris.Kernel.Firmament.Materializer;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -13,10 +14,6 @@ internal static class ClosedBoundary2Authoring
 {
     internal const string Prefix = "firmament-boundary2-";
     private const double Tol = 1e-9;
-    private static readonly Regex Header = new(
-        @"\b(?:(?<plain>Rect2|Square2|Circle2|Ellipse2|Slot2|RoundedRect2|SmoothRoundedRect2)|(?<family>Triangle2|Polygon2)\s*<\s*(?<variant>[A-Za-z_]\w*)\s*>|RegularPolygon2\s*<\s*(?<count>[-+]?\d+)\s*>)\s+(?<name>[A-Za-z_]\w*)\s*\{",
-        RegexOptions.CultureInvariant);
-
     internal sealed record Result(string Source, IReadOnlyList<FirmamentV2ClosedBoundary2Decl> Boundaries)
     {
         public IReadOnlyList<FirmamentV2Polygon2Decl> Polygons => Boundaries.Where(x => x.ShapeType == "Polygon2")
@@ -40,21 +37,28 @@ internal static class ClosedBoundary2Authoring
         }
         bool InTemplate(int offset) => templates.Any(span => offset >= span.Start && offset < span.Start + span.Length);
         var shapes = new List<Shape>(); var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach (Match header in Header.Matches(source))
+        var syntax = FirmamentSyntaxParser.Parse(source);
+        foreach (var declaration in BoundaryDeclarations(syntax.Document))
         {
-            // `Concept Circle2 Name { ... }` is a concise reusable curve concept, not a
-            // closed material boundary declaration. Its Circle2 payload is consumed by
-            // the ordinary profile-guide binder and must not be rewritten here.
-            var prefix = source[..header.Index].TrimEnd();
-            if (prefix.EndsWith("Concept", StringComparison.Ordinal) && (prefix.Length == 7 || !char.IsLetterOrDigit(prefix[^8]) && prefix[^8] != '_')) continue;
-            if (InTemplate(header.Index)) continue;
-            var open = source.IndexOf('{', header.Index); var close = Matching(source, open); var name = header.Groups["name"].Value;
-            if (close < 0) { diagnostics.Add(Prefix + "malformed:" + name); continue; }
+            if (InTemplate(declaration.Span.Start)) continue;
+            var syntaxErrors = syntax.Diagnostics.Where(d => d.SourceSpan is { } span && span.Start >= declaration.Span.Start && span.Start < declaration.Span.Start + declaration.Span.Length).ToArray();
+            if (syntaxErrors.Length > 0)
+            {
+                diagnostics.AddRange(syntaxErrors.Select(d => d.Code + ": " + d.Message));
+                continue;
+            }
+            var name = declaration.Name!.Text;
             if (!names.Add(name)) { diagnostics.Add(Prefix + "duplicate-name:" + name); continue; }
-            var shape = Bind(source, header, source[(open + 1)..close], close, diagnostics);
-            if (shape is not null) shapes.Add(shape);
+            var fields = new FirmamentSyntaxFields(declaration, diagnostics);
+            // ProfileGuide is an established authoring annotation emitted by the
+            // static geometry expander; it does not request a material operation.
+            fields.Word("Role");
+            var shape = Bind(source, declaration, fields, diagnostics);
+            // Unbound template/record expressions remain with their specialization
+            // owner. Successful shape binding must consume every authored field.
+            if (shape is not null) { fields.Complete(); shapes.Add(shape); }
         }
-        if (diagnostics.Any(x => x.StartsWith(Prefix, StringComparison.Ordinal) || x.StartsWith("firmament-polygon2-", StringComparison.Ordinal))) return null;
+        if (diagnostics.Any(FirmamentV2Parser.IsFatalDiagnosticCode)) return null;
         var changes = new List<(int Start, int Length, string Text)>();
         foreach (var shape in shapes)
         {
@@ -93,13 +97,21 @@ internal static class ClosedBoundary2Authoring
         return new(source, shapes.Select(x => x.Declaration).ToArray());
     }
 
-    private static Shape? Bind(string source, Match header, string body, int close, List<string> diagnostics)
+    private static IEnumerable<DeclarationSyntax> BoundaryDeclarations(DocumentSyntax syntax) =>
+        FirmamentSyntaxEvidence.Declarations(syntax)
+            .Where(d => d.Name is not null && d.Body is not null && !d.Modifiers.Any(m => m.Name.Text == "Concept")
+                && d.Type.Name.Text is "Rect2" or "Square2" or "Circle2" or "Ellipse2" or "Slot2" or "RoundedRect2" or "SmoothRoundedRect2" or "Triangle2" or "Polygon2" or "RegularPolygon2");
+
+    private static Shape? Bind(string source, DeclarationSyntax declaration, FirmamentSyntaxFields body, List<string> diagnostics)
     {
-        var name = header.Groups["name"].Value;
-        var type = header.Groups["plain"].Success ? header.Groups["plain"].Value : header.Groups["family"].Success ? header.Groups["family"].Value : "RegularPolygon2";
-        var variant = header.Groups["variant"].Success ? header.Groups["variant"].Value : header.Groups["count"].Success ? header.Groups["count"].Value : null;
+        var name = declaration.Name!.Text;
+        var type = declaration.Type.Name.Text;
+        if (declaration.Type.Arguments.Count > 1 || declaration.Type.Arguments.Count > 0 && type is not ("Triangle2" or "Polygon2" or "RegularPolygon2"))
+            return Invalid(name, "variant-unsupported", diagnostics);
+        var variant = declaration.Type.Arguments.FirstOrDefault()?.Value is { } argument
+            ? FirmamentSyntaxValues.Reference(argument) ?? (argument as LiteralSyntax)?.Raw : null;
         var rotation = Angle(body, "Rotation", 0d, out var rotationOk); if (!rotationOk) return Invalid(name, "invalid-rotation", diagnostics);
-        var span = new FirmamentV2SourceSpan(header.Index, close - header.Index + 1);
+        var span = declaration.Span;
         if (type == "Rect2")
         {
             if (!Point(body, "Center", out var c) || !Vector(body, "Size", out var size)) return null; // legacy/template Rect2 is bound after static specialization
@@ -132,7 +144,7 @@ internal static class ClosedBoundary2Authoring
         return Make(name, "Rect2", null, c, 0, new Dictionary<string, double> { ["Width"] = w, ["Height"] = h }, points, edges, "Line", span, null, map, string.Join(" |> ", edges.Select(x => name + "." + x)) + " |> Close", w * h, 2 * (w + h));
     }
 
-    private static Shape? Triangle(string name, string variant, string body, double rotation, FirmamentV2SourceSpan span, List<string> diagnostics)
+    private static Shape? Triangle(string name, string variant, FirmamentSyntaxFields body, double rotation, FirmamentV2SourceSpan span, List<string> diagnostics)
     {
         (double X, double Y) c; IReadOnlyList<(double X, double Y)> vertices; var dimensions = new Dictionary<string, double>();
         switch (variant)
@@ -156,7 +168,7 @@ internal static class ClosedBoundary2Authoring
         return Linear(name, "Triangle2", variant, c, rotation, vertices, ["A", "B", "C"], ["AB", "BC", "CA"], span, dimensions);
     }
 
-    private static Shape? Circle(string source, string name, string body, double rotation, FirmamentV2SourceSpan span, List<string> diagnostics)
+    private static Shape? Circle(string source, string name, FirmamentSyntaxFields body, double rotation, FirmamentV2SourceSpan span, List<string> diagnostics)
     {
         var inline = Point(body, "Center", out var c); var centerRef = Identifier(body, "Center");
         if (!inline && (centerRef is null || !ResolvePoint(source, centerRef, out c))) return null; // legacy/template Circle2 remains on its existing binder path
@@ -167,7 +179,7 @@ internal static class ClosedBoundary2Authoring
         return Make(name, "Circle2", null, c, rotation, new Dictionary<string, double> { ["Radius"] = radius, ["Diameter"] = 2 * radius }, ["Center"], ["Boundary"], "Circle", span, lowered, map, guide + " |> TraceLoop", Math.PI * radius * radius, 2 * Math.PI * radius);
     }
 
-    private static Shape? Ellipse(string name, string body, double rotation, FirmamentV2SourceSpan span, List<string> diagnostics)
+    private static Shape? Ellipse(string name, FirmamentSyntaxFields body, double rotation, FirmamentV2SourceSpan span, List<string> diagnostics)
     {
         if (!Point(body, "Center", out var c) || !(Vector(body, "AxisLengths", out var axes) || Vector(body, "Axes", out axes)) || !Positive(axes.X, axes.Y)) return Invalid(name, "invalid-dimensions", diagnostics);
         var major = Math.Max(axes.X, axes.Y) / 2; var minor = Math.Min(axes.X, axes.Y) / 2; if (axes.Y > axes.X) rotation += 90;
@@ -178,7 +190,7 @@ internal static class ClosedBoundary2Authoring
             new Dictionary<string, string> { ["Center"] = name + "_Center", ["MajorPositive"] = name + "_MajorPositive", ["MajorNegative"] = name + "_MajorNegative", ["MinorPositive"] = name + "_MinorPositive", ["MinorNegative"] = name + "_MinorNegative", ["Boundary"] = name + "_Curve" }, name + "_Curve |> TraceLoop", Math.PI * major * minor, EllipsePerimeter(major, minor));
     }
 
-    private static Shape? Slot(string name, string body, double rotation, FirmamentV2SourceSpan span, List<string> diagnostics)
+    private static Shape? Slot(string name, FirmamentSyntaxFields body, double rotation, FirmamentV2SourceSpan span, List<string> diagnostics)
     {
         if (!Point(body, "Center", out var c) || !Length(body, "Length", out var length) || !Length(body, "Width", out var width) || width <= 0 || length < width) return Invalid(name, "invalid-dimensions", diagnostics);
         var straight = length - width; var r = width / 2; var start = Rotate((c.X - straight / 2, c.Y - r), c, rotation);
@@ -193,7 +205,7 @@ internal static class ClosedBoundary2Authoring
         return Make(name, "Slot2", null, c, rotation, new Dictionary<string, double> { ["OverallLength"] = length, ["Width"] = width }, [], guides, "Line+Circle", span, path, map, name + "_Path |> TraceLoop", width * straight + Math.PI * r * r, 2 * straight + 2 * Math.PI * r);
     }
 
-    private static Shape? RoundedRect(string name, string body, double rotation, FirmamentV2SourceSpan span, List<string> diagnostics)
+    private static Shape? RoundedRect(string name, FirmamentSyntaxFields body, double rotation, FirmamentV2SourceSpan span, List<string> diagnostics)
     {
         if (!Point(body, "Center", out var c) || !Vector(body, "Size", out var size) || !Length(body, "Radius", out var r) || !Positive(size.X, size.Y) || r < 0 || r > Math.Min(size.X, size.Y) / 2) return Invalid(name, "invalid-dimensions", diagnostics);
         if (r <= Tol) return Linear(name, "RoundedRect2", null, c, rotation, Rectangle(c, size.X, size.Y, rotation), ["BottomLeft", "BottomRight", "TopRight", "TopLeft"], ["Bottom", "Right", "Top", "Left"], span, new Dictionary<string, double> { ["Width"] = size.X, ["Height"] = size.Y, ["Radius"] = 0 });
@@ -215,24 +227,21 @@ internal static class ClosedBoundary2Authoring
             var close = Matching(source, source.IndexOf('{', feature.Index));
             if (close >= 0) templates.Add(new(feature.Index, close - feature.Index + 1));
         }
-        foreach (Match header in Header.Matches(source))
+        foreach (var declaration in BoundaryDeclarations(FirmamentSyntaxParser.Parse(source).Document).Where(d => d.Type.Name.Text == "SmoothRoundedRect2"))
         {
-            if (templates.Any(span => header.Index >= span.Start && header.Index < span.Start + span.Length)) continue;
-            if (header.Groups["plain"].Value != "SmoothRoundedRect2") continue;
-            var open = source.IndexOf('{', header.Index); var close = Matching(source, open);
-            if (close < 0) continue;
-            var body = source[(open + 1)..close];
+            if (templates.Any(span => declaration.Span.Start >= span.Start && declaration.Span.Start < span.Start + span.Length)) continue;
+            var body = new FirmamentSyntaxFields(declaration, diagnostics);
             var rotation = Angle(body, "Rotation", 0d, out _);
-            var shape = SmoothRoundedRect(header.Groups["name"].Value, body, rotation,
-                new(header.Index, close - header.Index + 1), diagnostics);
+            var shape = SmoothRoundedRect(declaration.Name!.Text, body, rotation, declaration.Span, diagnostics);
             if (shape is null) continue;
             Point(body, "Center", out var center); Vector(body, "Size", out var size); Length(body, "CornerExtent", out var extent);
-            foreach (var curve in SmoothCurves(center, size, extent, rotation)) guides.TryAdd(shape.Declaration.Name + "." + curve.Key, curve.Value);
+            foreach (var guide in SmoothCurves(center, size, extent, rotation))
+                guides.TryAdd(declaration.Name.Text + "." + guide.Key, guide.Value);
         }
         return guides;
     }
 
-    private static Shape? SmoothRoundedRect(string name, string body, double rotation, FirmamentV2SourceSpan span, List<string> diagnostics)
+    private static Shape? SmoothRoundedRect(string name, FirmamentSyntaxFields body, double rotation, FirmamentV2SourceSpan span, List<string> diagnostics)
     {
         if (!Point(body, "Center", out var c) || !Vector(body, "Size", out var size) ||
             !Length(body, "CornerExtent", out var r) || !Positive(size.X, size.Y, r) || r >= Math.Min(size.X, size.Y) / 2)
@@ -281,7 +290,7 @@ internal static class ClosedBoundary2Authoring
         return (Speed(0) + Speed(1) + Enumerable.Range(1, n - 1).Sum(i => (i % 2 == 0 ? 2 : 4) * Speed((double)i / n))) / (3 * n);
     }
 
-    private static Shape? Polygon(string source, string name, string variant, string body, double rotation, FirmamentV2SourceSpan span, List<string> diagnostics)
+    private static Shape? Polygon(string source, string name, string variant, FirmamentSyntaxFields body, double rotation, FirmamentV2SourceSpan span, List<string> diagnostics)
     {
         IReadOnlyList<(double X, double Y)> vertices; IReadOnlyList<string> pointNames; Dictionary<string, double> dimensions = []; (double X, double Y) c;
         switch (variant)
@@ -307,7 +316,7 @@ internal static class ClosedBoundary2Authoring
         return Linear(name, "Polygon2", variant, c, rotation, vertices, pointNames, edgeNames, span, dimensions);
     }
 
-    private static Shape? RegularPolygon(string name, string countText, string body, double rotation, FirmamentV2SourceSpan span, List<string> diagnostics)
+    private static Shape? RegularPolygon(string name, string countText, FirmamentSyntaxFields body, double rotation, FirmamentV2SourceSpan span, List<string> diagnostics)
     {
         if (!int.TryParse(countText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var count) || count is < 3 or > 1024) return Invalid(name, "regular-count-out-of-range", diagnostics);
         if (!Point(body, "Center", out var c)) return Invalid(name, "invalid-center", diagnostics); double radius; var dimensions = new Dictionary<string, double> { ["VertexCount"] = count };
@@ -344,24 +353,21 @@ internal static class ClosedBoundary2Authoring
     private static double Cross((double X, double Y) a, (double X, double Y) b, (double X, double Y) c) => (b.X - a.X) * (c.Y - a.Y) - (b.Y - a.Y) * (c.X - a.X);
     private static double Distance((double X, double Y) a, (double X, double Y) b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
     private static double EllipsePerimeter(double a, double b) => Math.PI * (3 * (a + b) - Math.Sqrt((3 * a + b) * (a + 3 * b)));
-    private static bool Point(string body, string field, out (double X, double Y) value)
+    private static bool Point(FirmamentSyntaxFields body, string field, out (double X, double Y) value)
     {
         value = default;
-        var expression = ProfileAuthoringParser.Property(body, field)?.Trim();
-        if (expression is null) return false;
-        string components;
-        if (expression.StartsWith("[") && expression.EndsWith("]")) components = expression[1..^1];
-        else if (expression.StartsWith("Point2(") && expression.EndsWith(")")) components = expression[7..^1];
-        else return false;
-        var items = components.Split(',');
-        return items.Length == 2 && ProfileAuthoringParser.TryMeasure(items[0], "mm", out value.X)
-            && ProfileAuthoringParser.TryMeasure(items[1], "mm", out value.Y);
+        if (!body.Vector(field, "mm", out var items) || items.Length != 2) return false;
+        value = (items[0], items[1]); return true;
     }
-    private static bool Vector(string body, string field, out (double X, double Y) value) => Point(body, field, out value);
-    private static bool Length(string body, string field, out double value) =>
-        ProfileAuthoringParser.TryMeasure(ProfileAuthoringParser.Property(body, field) ?? "", "mm", out value);
-    private static double Angle(string body, string field, double fallback, out bool valid) { var m = Regex.Match(body, $@"\b{field}\s*:\s*(?<v>[-+.\deE]+)deg\b", RegexOptions.CultureInvariant); if (!m.Success) { valid = true; return fallback; } valid = Number(m.Groups["v"].Value, out var value); return value; }
-    private static string? Identifier(string body, string field) { var m = Regex.Match(body, $@"\b{field}\s*:\s*(?<v>[A-Za-z_]\w*)\b", RegexOptions.CultureInvariant); return m.Success ? m.Groups["v"].Value : null; }
+    private static bool Vector(FirmamentSyntaxFields body, string field, out (double X, double Y) value) => Point(body, field, out value);
+    private static bool Length(FirmamentSyntaxFields body, string field, out double value) => body.Measure(field, "mm", out value);
+    private static double Angle(FirmamentSyntaxFields body, string field, double fallback, out bool valid)
+    {
+        var expression = body.Take(field);
+        valid = expression is null || FirmamentSyntaxValues.TryMeasure(expression, "deg", out _);
+        return expression is null ? fallback : FirmamentSyntaxValues.TryMeasure(expression, "deg", out var value) ? value : double.NaN;
+    }
+    private static string? Identifier(FirmamentSyntaxFields body, string field) => body.Word(field);
     private static bool ResolvePoint(string source, string name, out (double X, double Y) p) { var m = Regex.Match(source, $@"\bPoint2\s+{Regex.Escape(name)}\s*\{{\s*Position\s*:\s*(?:\[|Point2\s*\()\s*(?<x>[-+.\deE]+)mm\s*,\s*(?<y>[-+.\deE]+)mm", RegexOptions.CultureInvariant); p = default; return m.Success && Number(m.Groups["x"].Value, out p.X) && Number(m.Groups["y"].Value, out p.Y); }
     private static bool PointSet(string source, string name, out IReadOnlyList<string> names, out IReadOnlyList<(double X, double Y)> points) { names = []; points = []; var h = Regex.Match(source, $@"\bStatic\s+{Regex.Escape(name)}\s*:\s*Set\s*<\s*Point2\s*>\s*\{{", RegexOptions.CultureInvariant); if (!h.Success) return false; var open = source.IndexOf('{', h.Index); var close = Matching(source, open); if (close < 0) return false; var ns = new List<string>(); var ps = new List<(double, double)>(); foreach (Match e in Regex.Matches(source[(open + 1)..close], @"\b(?<n>[A-Za-z_]\w*)\s*=>\s*Point2\s*\(\s*(?<x>[-+.\deE]+)mm\s*,\s*(?<y>[-+.\deE]+)mm\s*\)", RegexOptions.CultureInvariant)) if (Number(e.Groups["x"].Value, out var x) && Number(e.Groups["y"].Value, out var y)) { ns.Add(e.Groups["n"].Value); ps.Add((x, y)); } names = ns; points = ps; return true; }
     private static bool Number(string text, out double value) => double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) && double.IsFinite(value);

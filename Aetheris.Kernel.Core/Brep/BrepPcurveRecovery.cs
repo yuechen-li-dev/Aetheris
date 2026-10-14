@@ -235,35 +235,48 @@ public static class BrepPcurveRecovery
 
     private static SurfaceParameterPoint GridSeed(BSplineSurfaceWithKnots spline, Point3D target)
     {
+        // BUILD-PERF-M2: the seed samples depend only on the surface, so they are evaluated once per
+        // surface and scanned per target. Same samples, same order, same strict comparison: the
+        // result is identical to evaluating them for every target (which was ~9300 surface
+        // evaluations per seed and dominated spline-tube imports).
+        var samples = SeedSamples.GetValue(spline, BuildSeedSamples);
         var best = new SurfaceParameterPoint(spline.DomainStartU, spline.DomainStartV);
         var distance = double.PositiveInfinity;
+        for (var i = 0; i < samples.Length; i++)
+        {
+            var d = (samples[i].Point - target).LengthSquared;
+            if (d < distance) { distance = d; best = samples[i].Uv; }
+        }
+        return best;
+    }
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<BSplineSurfaceWithKnots, (SurfaceParameterPoint Uv, Point3D Point)[]> SeedSamples = new();
+
+    private static (SurfaceParameterPoint Uv, Point3D Point)[] BuildSeedSamples(BSplineSurfaceWithKnots spline)
+    {
         const int divisions = 32;
+        // Trim endpoints commonly lie on a support-domain boundary. A narrow patch can
+        // be missed by a two-dimensional grid even when its boundary is easy to sample.
+        const int boundaryDivisions = 2048;
+        var samples = new List<(SurfaceParameterPoint, Point3D)>(((divisions + 1) * (divisions + 1)) + (4 * (boundaryDivisions + 1)));
         for (var i = 0; i <= divisions; i++) for (var j = 0; j <= divisions; j++)
         {
             var u = spline.DomainStartU + ((spline.DomainEndU - spline.DomainStartU) * i / divisions);
             var v = spline.DomainStartV + ((spline.DomainEndV - spline.DomainStartV) * j / divisions);
-            var d = (spline.Evaluate(u, v) - target).LengthSquared;
-            if (d < distance) { distance = d; best = new(u, v); }
+            Add(u, v);
         }
-        // Trim endpoints commonly lie on a support-domain boundary. A narrow patch can
-        // be missed by a two-dimensional grid even when its boundary is easy to sample.
-        const int boundaryDivisions = 2048;
         for (var i = 0; i <= boundaryDivisions; i++)
         {
             var u = spline.DomainStartU + (spline.DomainEndU - spline.DomainStartU) * i / boundaryDivisions;
             var v = spline.DomainStartV + (spline.DomainEndV - spline.DomainStartV) * i / boundaryDivisions;
-            Check(u, spline.DomainStartV);
-            Check(u, spline.DomainEndV);
-            Check(spline.DomainStartU, v);
-            Check(spline.DomainEndU, v);
+            Add(u, spline.DomainStartV);
+            Add(u, spline.DomainEndV);
+            Add(spline.DomainStartU, v);
+            Add(spline.DomainEndU, v);
         }
-        return best;
+        return samples.ToArray();
 
-        void Check(double u, double v)
-        {
-            var d = (spline.Evaluate(u, v) - target).LengthSquared;
-            if (d < distance) { distance = d; best = new(u, v); }
-        }
+        void Add(double u, double v) => samples.Add((new SurfaceParameterPoint(u, v), spline.Evaluate(u, v)));
     }
 
     private static Point3D EvaluateCurve(CurveGeometry curve, double parameter) => curve.Kind switch

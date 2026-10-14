@@ -165,42 +165,126 @@ public sealed record BSplineSurfaceWithKnots
         var uClamped = ClampToDomain(u, DomainStartU, DomainEndU);
         var vClamped = ClampToDomain(v, DomainStartV, DomainEndV);
 
-        if (_weightedNet is not null && _weightNet is not null)
+        // BUILD-PERF-M2: evaluation runs on flat arrays of the same data (no interface dispatch, no
+        // heap scratch). The arithmetic and its order are unchanged, so results are bit-identical.
+        var arrays = EvaluationArrays.GetValue(this, static surface => new Arrays(surface));
+        if (arrays.WeightedNet is not null && arrays.WeightNet is not null)
         {
-            var numerator = EvaluateNet(_weightedNet, uClamped, vClamped);
-            var weight = EvaluateNet(_weightNet, uClamped, vClamped).X;
+            var numerator = EvaluateNet(arrays.WeightedNet, arrays, uClamped, vClamped);
+            var weight = EvaluateNet(arrays.WeightNet, arrays, uClamped, vClamped).X;
             return new Point3D(numerator.X / weight, numerator.Y / weight, numerator.Z / weight);
         }
 
-        return EvaluateNet(ControlPoints, uClamped, vClamped);
+        return EvaluateNet(arrays.Net, arrays, uClamped, vClamped);
     }
 
-    private Point3D EvaluateNet(IReadOnlyList<IReadOnlyList<Point3D>> net, double uClamped, double vClamped)
+    // Kept beside the record, not in it: record equality and `with` copies stay as they were.
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<BSplineSurfaceWithKnots, Arrays> EvaluationArrays = new();
+
+    private sealed class Arrays
     {
-        if (double.Abs(uClamped - DomainEndU) <= 1e-12d && double.Abs(vClamped - DomainEndV) <= 1e-12d)
+        public Arrays(BSplineSurfaceWithKnots surface)
+        {
+            Net = surface.ControlPoints.Select(row => row.ToArray()).ToArray();
+            WeightedNet = surface._weightedNet?.Select(row => row.ToArray()).ToArray();
+            WeightNet = surface._weightNet?.Select(row => row.ToArray()).ToArray();
+            KnotsU = surface.FullKnotsU.ToArray();
+            KnotsV = surface.FullKnotsV.ToArray();
+            DegreeU = surface.DegreeU;
+            DegreeV = surface.DegreeV;
+            DomainStartV = surface.DomainStartV;
+            DomainEndU = surface.DomainEndU;
+            DomainEndV = surface.DomainEndV;
+        }
+
+        public readonly Point3D[][] Net;
+        public readonly Point3D[][]? WeightedNet;
+        public readonly Point3D[][]? WeightNet;
+        public readonly double[] KnotsU;
+        public readonly double[] KnotsV;
+        public readonly int DegreeU;
+        public readonly int DegreeV;
+        public readonly double DomainStartV;
+        public readonly double DomainEndU;
+        public readonly double DomainEndV;
+    }
+
+    private static Point3D EvaluateNet(Point3D[][] net, Arrays a, double uClamped, double vClamped)
+    {
+        if (double.Abs(uClamped - a.DomainEndU) <= 1e-12d && double.Abs(vClamped - a.DomainEndV) <= 1e-12d)
         {
             return net[^1][^1];
         }
 
-        // Tensor-product locality: de Boor in U consumes only DegreeU + 1
-        // rows. Evaluating the whole net makes long helical supports needlessly
-        // expensive, especially in the browser interpreter.
-        if (double.Abs(uClamped - DomainEndU) <= 1e-12d)
-            return EvaluateCurve(net[^1], DegreeV, FullKnotsV, DomainStartV, DomainEndV, vClamped);
-        var span = FindSpan(net.Count, DegreeU, FullKnotsU, uClamped);
-        var rowPoints = new Point3D[DegreeU + 1];
-        for (var i = 0; i <= DegreeU; i++)
+        if (double.Abs(uClamped - a.DomainEndU) <= 1e-12d)
+            return EvaluateCurve(net[^1], a.DegreeV, a.KnotsV, a.DomainStartV, a.DomainEndV, vClamped);
+        var span = FindSpan(net.Length, a.DegreeU, a.KnotsU, uClamped);
+        Span<Point3D> rowPoints = a.DegreeU < 32 ? stackalloc Point3D[a.DegreeU + 1] : new Point3D[a.DegreeU + 1];
+        for (var i = 0; i <= a.DegreeU; i++)
         {
-            rowPoints[i] = EvaluateCurve(
-                net[span - DegreeU + i],
-                DegreeV,
-                FullKnotsV,
-                DomainStartV,
-                DomainEndV,
-                vClamped);
+            rowPoints[i] = EvaluateCurve(net[span - a.DegreeU + i], a.DegreeV, a.KnotsV, a.DomainStartV, a.DomainEndV, vClamped);
         }
 
-        return BlendActiveSpan(rowPoints, span, DegreeU, FullKnotsU, uClamped);
+        return BlendActiveSpan(rowPoints, span, a.DegreeU, a.KnotsU, uClamped);
+    }
+
+    private static Point3D EvaluateCurve(Point3D[] controlPoints, int degree, double[] fullKnots, double domainStart, double domainEnd, double parameter)
+    {
+        var u = ClampToDomain(parameter, domainStart, domainEnd);
+        if (double.Abs(u - domainEnd) <= 1e-12d)
+        {
+            return controlPoints[^1];
+        }
+
+        var span = FindSpan(controlPoints.Length, degree, fullKnots, u);
+        Span<Point3D> d = degree < 32 ? stackalloc Point3D[degree + 1] : new Point3D[degree + 1];
+        controlPoints.AsSpan(span - degree, degree + 1).CopyTo(d);
+        return BlendActiveSpan(d, span, degree, fullKnots, u);
+    }
+
+    private static Point3D BlendActiveSpan(Span<Point3D> d, int span, int degree, double[] fullKnots, double u)
+    {
+        for (var r = 1; r <= degree; r++)
+        {
+            for (var j = degree; j >= r; j--)
+            {
+                var leftKnot = fullKnots[span - degree + j];
+                var rightKnot = fullKnots[span + 1 + j - r];
+                var denominator = rightKnot - leftKnot;
+                var alpha = double.Abs(denominator) <= 1e-15d ? 0d : (u - leftKnot) / denominator;
+                d[j] = Lerp(d[j - 1], d[j], alpha);
+            }
+        }
+
+        return d[degree];
+    }
+
+    private static int FindSpan(int controlPointCount, int degree, double[] fullKnots, double parameter)
+    {
+        var n = controlPointCount - 1;
+        if (parameter >= fullKnots[n + 1])
+        {
+            return n;
+        }
+
+        var low = degree;
+        var high = n + 1;
+        var mid = (low + high) / 2;
+        while (parameter < fullKnots[mid] || parameter >= fullKnots[mid + 1])
+        {
+            if (parameter < fullKnots[mid])
+            {
+                high = mid;
+            }
+            else
+            {
+                low = mid;
+            }
+
+            mid = (low + high) / 2;
+        }
+
+        return mid;
     }
 
     private static IReadOnlyList<double> ExpandKnots(IReadOnlyList<int> multiplicities, IReadOnlyList<double> values)
@@ -236,76 +320,6 @@ public sealed record BSplineSurfaceWithKnots
                 throw new ArgumentException($"Expanded {dimension} knot vector must be non-decreasing.");
             }
         }
-    }
-
-    private static Point3D EvaluateCurve(
-        IReadOnlyList<Point3D> controlPoints,
-        int degree,
-        IReadOnlyList<double> fullKnots,
-        double domainStart,
-        double domainEnd,
-        double parameter)
-    {
-        var u = ClampToDomain(parameter, domainStart, domainEnd);
-        if (double.Abs(u - domainEnd) <= 1e-12d)
-        {
-            return controlPoints[^1];
-        }
-
-        var span = FindSpan(controlPoints.Count, degree, fullKnots, u);
-        var d = new Point3D[degree + 1];
-        for (var j = 0; j <= degree; j++)
-        {
-            d[j] = controlPoints[span - degree + j];
-        }
-
-        return BlendActiveSpan(d, span, degree, fullKnots, u);
-    }
-
-    private static Point3D BlendActiveSpan(Point3D[] d, int span, int degree,
-        IReadOnlyList<double> fullKnots, double u)
-    {
-        for (var r = 1; r <= degree; r++)
-        {
-            for (var j = degree; j >= r; j--)
-            {
-                var leftKnot = fullKnots[span - degree + j];
-                var rightKnot = fullKnots[span + 1 + j - r];
-                var denominator = rightKnot - leftKnot;
-                var alpha = double.Abs(denominator) <= 1e-15d ? 0d : (u - leftKnot) / denominator;
-                d[j] = Lerp(d[j - 1], d[j], alpha);
-            }
-        }
-
-        return d[degree];
-    }
-
-    private static int FindSpan(int controlPointCount, int degree, IReadOnlyList<double> fullKnots, double parameter)
-    {
-        var n = controlPointCount - 1;
-        if (parameter >= fullKnots[n + 1])
-        {
-            return n;
-        }
-
-        var low = degree;
-        var high = n + 1;
-        var mid = (low + high) / 2;
-        while (parameter < fullKnots[mid] || parameter >= fullKnots[mid + 1])
-        {
-            if (parameter < fullKnots[mid])
-            {
-                high = mid;
-            }
-            else
-            {
-                low = mid;
-            }
-
-            mid = (low + high) / 2;
-        }
-
-        return mid;
     }
 
     private static double ClampToDomain(double parameter, double start, double end)

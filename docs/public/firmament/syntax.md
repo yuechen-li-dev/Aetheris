@@ -1,17 +1,25 @@
-# Firmament V2 syntax
+# Writing Firmament
 
-## Definitions, values and construction
+Firmament describes finite engineering artifacts at compile time. Start with a
+`Model`, describe its construction, then validate and build it. Geometry is
+materialized from that description; the source has no runtime objects or
+interactive program loops.
 
-Firmament describes a finite engineering artifact at compile time. `Model` is the
-class-like owner of an artifact, `Struct` groups reusable construction, `Feature`
-is a typed function-like recipe, and `Pattern` performs bounded repetition.
-These analogies explain organization; they do not introduce runtime objects,
-inheritance, mutable state or arbitrary loops.
+This page teaches common mechanical authoring, then points to other domains.
+**Complete files** can be saved and built on their own. **Fragments** require
+the stated enclosing declarations. A form being legal in one domain does not
+make it legal in every other domain.
+
+## A first part
+
+**Complete file — a plate with a through hole:**
 
 ```firmament
 Model Plate {
   units: mm
+
   Box stock { size: [80mm, 50mm, 8mm] }
+
   Modify stock {
     Hole<Shaft> mount {
       on: +Z
@@ -23,336 +31,457 @@ Model Plate {
 }
 ```
 
-A declaration has a PascalCase construct or type, an optional `<Variant>`, a
-case-sensitive name and a brace-delimited body. Fields use `camelCase: value`.
-Lists use brackets; calls use parentheses. Separate adjacent fields with a newline
-or semicolon; dense one-line bodies may also use the owning grammar's established
-field boundaries. Required terminators in specialized grammars are documented in
-their guides.
+`stock` names the body. `Modify stock` applies the hole to it. `Hole<Shaft>`
+selects a built-in variant; `ThroughAll` specifies termination. This Box is
+centered in X/Y and bottom-anchored in Z: its height runs from 0 to 8mm. Adding
+this hole does not change the stock's placement.
 
-| Source role | Preferred spelling |
+Save it as `plate.firmament`, then run:
+
+```sh
+aetheris validate plate.firmament --json
+aetheris build plate.firmament --output artifacts/local/plate.step
+```
+
+Normal mechanical validation performs engineering compilation in memory.
+`--parse-only` reports `ParsedNotBuilt`; it does not prove the part can be built.
+`--explain` adds developer information about admission and the chosen frontend.
+See [diagnostics](../reference/diagnostics.md) for interpreting failures.
+
+## How to read the language
+
+The useful organizing analogy is `Model` as a class-like artifact owner, `Struct`
+as reusable construction, `Feature` as a typed function-like recipe, and `Pattern`
+as a finite loop. These analogies do not promise inheritance, runtime methods,
+mutation or general-purpose computation.
+
+| Construct | What it describes |
 | --- | --- |
-| Constructs and types | `Model`, `Struct`, `Box`, `Profile`, `Feature`, `Length` |
-| Built-in fields | `units`, `size`, `center`, `counterboreDepth` |
-| Linking words | `using`, `as`, `on`, `over`, `with`, `include`, `expose`, `bind` |
-| Local values and parameters | `stock`, `outline`, `mountPoint`, `depth` |
-| Engineering symbols and enum values | `XY`, `+Z`, `Outer`, `ThroughAll`, `World`, `mm` |
+| `Model` | An enclosing engineering artifact and its construction. |
+| `Struct` | Named construction that may be specialized and used by a consuming artifact. |
+| `Concept Struct` | Non-materialized construction data: points, guides, frames and semantic members. |
+| `Concept` | A semantic contract, or a domain-qualified construction value such as `Concept Path`. |
+| `Profile` | Named planar boundaries consumed by an extrusion or another feature. |
+| `Feature` | A reusable recipe returning one typed semantic result. |
+| `Template` | Typed compile-time specialization of a declared product or bounded feature recipe. |
+| `Record` / `Static` | A data shape / an immutable compile-time binding. A Record is not a body. |
+| `Pattern` | Finite repetition of admitted construction over a declared source. |
+| `Assembly` / `Scene` | Product occurrences and relations / spatial presentation. |
 
-`Profile outline using layout` selects its construction frame/context;
-`guide.Bottom as south` gives traced geometry an explicit identity. `Using` and
-`As` remain admitted aliases at those grammar positions. A field such as
-`on: +Z` is distinct from a header clause such as `Concept Struct layout on XY`.
-See [language style](language-style.md) for formatting and compatibility rules.
+Use `Model` for an ordinary standalone part. A Struct, Template library, Profile
+module or Assembly has its own entry and consumption rules; it is not simply a
+Model with a different keyword.
 
-Built-in PascalCase field aliases remain admitted by their owners. User names,
-named recipe arguments and published members preserve their authored spelling;
-`Spec.Width` is not automatically renamed to `spec.width`. Unknown statements or
-fields are errors in migrated AST scopes, regardless of whether the remaining
-geometry could build.
+### Declarations, fields and names
 
-## Frontend schema and validation
+These are notation sketches, not executable files:
 
-An optional `schema <Name>` header selects a specialized frontend. Put it before
-`Model`, after any leading comments. Explicit selection is authoritative: rejection
-does not retry another frontend. `Revolve` belongs to `Mechanical`; it is not a
-schema name.
+```text
+Construct name { field: value }
+Construct<Variant> name { field: value }
+Feature Recipe(parameter: Type = defaultValue) -> ResultType { ... }
+Struct instance = ProductFamily<parameter: value>
+```
 
-| Schema | Authoring guide |
-| --- | --- |
-| `Mechanical` | Ordinary parts, profiles and semantic features; the example above. |
-| `WireForm` | [Formed wire](wire-form.md), bends and coils. |
-| `Sweep` | Circular-section Concept Path sweeps. |
-| `SectionChain` | [Section chains](section-chains.md) and ruled/G1 bodies. |
-| `Garment` | [Garments](garments.md), panels, stitch interfaces and fitting poses. |
+Braces delimit bodies, brackets delimit lists, parentheses delimit calls, and
+`name.member` selects a published member. A colon labels a field, parameter or
+declared type according to its context. Declaration bodies, typed values and
+Template specializations are distinct forms, not interchangeable object literals.
 
-Use `aetheris validate file.firmament --json` before building. Normal mechanical
-validation performs engineering compilation in memory. `--parse-only` reports
-`ParsedNotBuilt`, rather than claiming geometry construction has succeeded.
-`--explain` exposes the chosen parser route as developer metadata. See
-[diagnostics](../reference/diagnostics.md) for the structured diagnostic contract.
+Identifiers and published member names are case-sensitive. Preserve library
+names, including named call arguments. `spec.Width` does not become `spec.width`
+because the preferred local name is camelCase.
 
-Normal mechanical construction, Revolve, Gear, Panel, Plateau, SectionChain and
-Loft bind their admitted inputs from the shared recursive-descent AST. Lowercase
-primitive solids, derived Box records, exposure aliases, Hole modifications and region/cut operations now
-use that AST too; their remaining legacy semantic extensions have separate owners.
-See [migration status](../../release/FIRMAMENT-LOWERCASE-AST-MIGRATION.md) for the
-qualified boundary. Specialized frontend coverage is not a promise of a single
-whole-language AST binder yet.
+### Capitalization
 
-## Compatibility spelling
+| Role | Preferred spelling | Examples |
+| --- | --- | --- |
+| Constructs and types | PascalCase | `Model`, `Box`, `Feature`, `Length`, `Point2` |
+| Built-in fields | camelCase | `units`, `size`, `counterboreDepth` |
+| Local geometry, values and parameters | camelCase | `stock`, `outline`, `mountPoint`, `depth` |
+| Linking words in their admitted positions | lowercase | `using`, `as`, `on`, `over`, `with`, `include`, `expose`, `bind` |
+| Engineering symbols and enum values | Preserve domain spelling | `XY`, `+Z`, `Outer`, `ThroughAll`, `World`, `mm` |
 
-New source uses `Model`, `units: mm` and direct named primitives, as above.
-Historical `model`, `units mm`, `solid name: Box`, `modify` and `hole<shaft>` are
-bounded compatibility spellings. Inside that historical primitive grammar only,
-bare length values inherit the model's millimetres. Native fields retain explicit
-dimensional values: write `size: [30mm, 24mm, 12mm]`.
+`Profile outline using layout` selects a construction context;
+`boundary.Bottom as south` assigns an output identity. `Using` and `As` remain
+accepted aliases at those positions. A header clause such as
+`Concept Struct layout on XY` differs from a field such as `on: +Z`.
 
-`solid tall: stock with { size: [30, 24, 20] }` retains immutable Box derivation:
-the original `stock` is unchanged. `expose { face(+Z) as top }` names a face;
-the historical `face(+Z) => top` association remains compatible. Neither form
-requests an extra geometric operation.
+This convention is not global case-insensitive parsing. Owners admit many
+PascalCase field aliases, but some still **require** particular spellings.
+Use `From`, `To`, `Reverse`, `Close` and `TraceLoop` in Profile pipelines.
+Symmetry currently requires `From`, `Across`, `Source`, `About`, `Count` and
+`Angle` in the forms below. Do not lowercase them merely to match the style table.
+See [language style](language-style.md) for formatter behavior.
 
-These aliases preserve legitimate existing intent; they do not establish a second
-preferred language. The convention formatter does not mechanically convert old
-solid grammar into native declarations. Serialization-shaped V1 `model:` and
-`firmament:` documents have an explicit compatibility boundary and are not native
-V2 examples. Unknown casing is never a request for arbitrary case-insensitive
-interpretation.
+### Whitespace, comments and terminators
 
-## Reusable semantic construction with Feature
+Use two-space indentation. Put ordinary fields on separate lines, or separate
+them with semicolons in a short body. Separate list elements and call arguments
+with commas. Do not rely on the parser guessing dense adjacent field boundaries.
 
-`Feature` is Firmament's function-like abstraction for reusable semantic construction. It accepts typed inputs and returns exactly one typed semantic output. Feature evaluation is pure, deterministic, file-local, and expanded before Feature AIR; a definition does not materialize geometry until it is invoked.
+Use `//` for comments, including before an optional `schema` header. The shared
+lexer also recognizes `/* ... */`, but the schema selector currently rejects a
+block comment before that header. `#` is not a general comment marker.
+
+Some specialized forms **require** semicolons: scalar Function expressions,
+point-recipe fields, PMI Note fields and Assembly root-provenance statements.
+Follow the consuming guide; there is no uniform statement-termination rule yet.
+
+### Values and units
+
+Write dimensions explicitly in new mechanical source: `8mm`, `90deg`,
+`Point2(12mm, -4mm)`. Use bare numbers for dimensionless counts and vector
+components. `units: mm` belongs in an ordinary mechanical Model; it does not
+make dimensions optional in every native field.
+
+Points and lists overlap without being universal aliases. The direct Hole above
+requires `Point2(...)`; a Rect2's `center` accepts `[x, y]`. A semantic Grid may
+publish Point3 values in its own frame. Use the field owner's documented type
+and spelling rather than replacing all point forms mechanically.
+
+Arithmetic is available in admitted value positions, with dimensional checks.
+Expression support is not uniform across every field, Template argument and
+domain. `Static` and Feature-local `let` are scoped compile-time facilities;
+there is no general `let`-anywhere rule. Scalar `Function` recipes are described
+in [points and functions](concept-points-and-functions.md).
+
+## Constructing from a layout
+
+Use a `Concept Struct` for design geometry, trace its named guides into a
+`Profile`, then consume that Profile. The layout itself creates no material.
+
+**Complete file — a profile extruded from Z = 0 to 12mm:**
 
 ```firmament
-Feature M8Counterbore(center: Point2, depth: Length = 4mm) -> Hole<Counterbore> {
-    let counterboreDiameter: Length = 8.5mm + 5.5mm
-    return Hole<Counterbore> {
-        on: +Z
-        center: center
-        diameter: 8.5mm
-        counterboreDiameter: counterboreDiameter
-        counterboreDepth: depth
-        end: ThroughAll
-    }
-}
+Model ProfilePlate {
+  units: mm
 
-Modify Plate {
-    M8Counterbore(center: Point2(-20mm, 0mm))
-    M8Counterbore(center: Point2(20mm, 0mm), depth: 5mm)
+  Concept Struct layout on XY {
+    Rect2 boundary { center: [0mm, 0mm]; size: [30mm, 24mm] }
+  }
+
+  Profile outline using layout {
+    Loop Outer {
+      boundary.Bottom as south
+      |> boundary.Right as east
+      |> boundary.Top as north
+      |> boundary.Left as west
+      |> Close
+    }
+  }
+
+  Extrude stock { profile: outline; from: 0mm; to: 12mm }
 }
 ```
 
-Parameters are strongly typed and calls may use positional or named arguments. Defaults are optional. A body contains immutable typed `let` derivations and optional private `Point2`, `Line2`, `CubicBezier2`, `Rect2`, `RoundedRect2`, `Circle2`, and `Profile` construction declarations followed by one terminal `return`. Local construction names are qualified separately for each invocation. Product Templates specialize before Feature argument binding; Feature results then lower before patterns and Feature AIR. A Feature may return `Hole<Shaft>`, `Hole<Counterbore>`, `Hole<Countersink>`, `Boss`, `Pocket`, `EdgeFinish`, or `Profile`, and may call another Feature with the same return type. Direct and indirect recursion are rejected. Feature names occupy the callable namespace, separate from typed construction declarations such as `Profile`. Named results use `Feature Name = Function(...)`; the name becomes the returned feature identity and appears in invocation inspection. See [functional pickup construction](functional-pickup.md) for a qualified part example and [garment authoring](garments.md) for reusable Profile recipes.
+`|>` traces finite compatible geometry in source order. The first stage chooses
+its source direction; later stages orient themselves to the current endpoint.
+A disconnected or ambiguous continuation fails. `Reverse` prefers reversed
+orientation, falling back to a connectable direction after the opening stage.
+`Close` verifies closure; it never supplies a missing line.
 
-Firmament intentionally does not provide general runtime control flow. `if`/`else`, conditional expressions, `match` inside Feature, mutable variables, exceptions, and `for`/`while` loops are rejected. A Firmament program describes one deterministic engineering construction, not a runtime family of topologically unrelated outputs.
+`boundary |> TraceLoop` copies a whole closed guide and normalizes winding for
+the target loop. Supported families include Rect2, Square2, RoundedRect2,
+Polygon2, RegularPolygon2, closed Concept Paths, Circle2 and Ellipse2. A full
+circle or ellipse retains a single boundary segment; its traced identity derives
+from the guide name, allowing distinct inner/outer guides.
 
-Use each abstraction for its single role:
+Segment identities are Profile-wide. Loops do not silently namespace duplicate
+edge names. Use `as` to disambiguate repeated leaf identities, or rename a manual
+Segment. Manual `Segment` construction remains available for low-level control;
+ordinary profiles can use pipelines.
 
-| Construct | Role |
-| --- | --- |
-| `Feature` | Function-like reusable semantic construction. |
-| `Pattern` | Bounded finite geometric repetition; it is the loop substitute. |
-| `Template` | Compile-time product/configuration specialization; it is the structural branch substitute. |
-| `|>` | Finite semantic composition of compatible Profile/Path geometry. |
-| `Concept` | Semantic contract or capability. |
-| `Record` / `Struct` | Typed data and semantic structure. |
-| `Set<T>` | Finite immutable source-ordered data whose entries have stable names. |
-
-Feature composes with an existing bounded Pattern without exposing its internals:
+**Fragment — endpoint selection inside a Profile pipeline, with the named guide
+and points already declared:**
 
 ```firmament
-Feature MountHole(center: Point3, diameter: Length = 6mm) -> Hole<Shaft> {
+guide From startPoint To endPoint as selectedEdge
+```
+
+After the opening stage, `guide To endPoint` uses the preceding endpoint as its
+start. Endpoints must be named points on the guide. Circular spans use the same
+form; `Reverse` selects the opposite traversal. `|>` is not a general map, filter,
+arithmetic or function-composition operator. A Concept Path may remain open;
+a material Profile must satisfy its boundary rules.
+
+Closed boundaries should express their engineering shape. Use Rect2 for a
+rectangle, Triangle2 for a triangle, or a named Polygon2 variant. Current Polygon2
+variants include `Rhombus`, `Parallelogram`, `Trapezoid` and `Explicit`. Explicit
+references a named point set; it does not introduce inline arbitrary vertex-array
+syntax. `RegularPolygon2<N>` uses a bounded vertex count. These are built-in
+shape parameters, not user-extensible generic types.
+
+**Fragment — layout and Profile declarations inside a Model:**
+
+```firmament
+Concept Struct layout on XY {
+  Polygon2<Rhombus> diamond {
+    center: [0mm, 0mm]
+    diagonals: [90mm, 64mm]
+  }
+}
+Profile outline using layout { Loop Outer { diamond |> TraceLoop } }
+```
+
+The diagonals are full positive lengths, giving vertices at the south, east,
+north and west half-diagonal offsets. This still needs a material consumer such
+as Extrude. For a circular span and full material consumer, see the complete
+[semicircular Revolve example](revolve.md#a-semicircular-meridian).
+
+See [geometry](geometry.md), [spans](spans.md), [Concept derivation](concept-derivation.md)
+and [boundary edits](profile-boundary-edits.md) for detailed construction forms.
+
+## Adding and removing material
+
+`Modify` targets an existing body. `Compose` creates a profile-based body with a
+base material interval and admitted operations inside it. Compose does not
+reopen a separately declared Box, and neither construct admits arbitrary Boolean
+or feature combinations.
+
+| Intent | Current vocabulary | Placement / termination |
+| --- | --- | --- |
+| Drill a hole | `Hole<Shaft>`, `Hole<Counterbore>`, `Hole<Countersink>` | `on`, `center`, `end: ThroughAll` or a bounded blind end. |
+| Add a profile boss | `Boss` in profile-based Compose | Top support, a Profile and positive `height`. |
+| Remove a finite-depth recess | `Pocket` in profile-based Compose | Profile and positive `depth`; must leave the admitted floor. |
+| Cut through a profile-based body | Admitted `Remove` with `Role: ThroughCut` | Use the through-cut form rather than a through-depth Pocket. |
+| Make a capsule slot | `Slot<Capsule>` in its admitted composition | `length`, `width`, `direction`, `extent` and `role`. |
+| Finish selected edges | `EdgeFinish` with `kind: Chamfer` or `kind: Fillet` | Selector and capability depend on the target body. |
+
+For a primitive boundary chamfer, the selector is `face: +Z` plus
+`target: Boundary`; a profile-composed finish names its Profile boundary and
+support instead. `EdgeFinish<Chamfer>` is not the direct primitive spelling.
+A bare `Fillet corners { ... }` is not an alternative EdgeFinish declaration.
+
+Read the [feature support and examples](geometry.md) before combining operations.
+A feature's existence does not imply that every combination is admitted.
+Unknown syntax, unresolved selections and unsupported operations must be
+diagnosed; plausible remaining geometry is not evidence that all intent ran.
+
+### Frames and selectors
+
+`XY`, `XZ`, an axis such as `+Z`, a Plane, a datum frame and a published face are
+different reference types. `on` appears in several contexts; it is not one
+universal placement operation. A profile context, Hole support, section frame
+and Assembly attachment each have their own type and admission rules.
+
+Use only a plane or frame admitted by that consumer. Do not assume replacing
+`on XY` with `on XZ` rotates every downstream feature. Follow
+[Concept derivation](concept-derivation.md) and the consuming guide; unsupported
+placement must reject rather than substitute XY.
+
+Native named faces, signed primitive faces and imported `#face` references are
+also distinct. Assembly occurrence identity does not by itself define a mate.
+See [STEP import](step-import.md), [assembly foundations](assembly-authoring-foundation.md)
+and [datum seating](datum-seating.md).
+
+## Reusing construction
+
+### Feature: a typed recipe
+
+A Feature definition describes one result. Calling it materializes that result
+in an admitted consuming scope. Parameters may be positional or named, with
+defaults. A body may contain typed immutable `let` derivations and admitted
+private construction, followed by one terminal `return`. Calls may delegate to
+another Feature with the same result type; recursion is rejected.
+
+Return kinds include Hole variants, Boss, Pocket, EdgeFinish and Profile. A
+definition does not grant those results new support in an unsupported consumer.
+Feature-local Profile construction is also used by Garment; WireForm, Sweep and
+SectionChain reject Feature declarations.
+
+### Pattern: finite repetition
+
+**Complete file — two named points mapped to two holes:**
+
+```firmament
+Model MountingPlate {
+  units: mm
+
+  Feature Drill(center: Point2, diameter: Length = 6mm) -> Hole<Shaft> {
     return Hole<Shaft> {
-        on: Base.Top
-        center: center
-        diameter: diameter
-        end: ThroughAll
+      on: +Z
+      center: center
+      diameter: diameter
+      end: ThroughAll
     }
-}
+  }
 
-Concept Struct Design {
-    Bounds: Box3 { Size: [60mm, 40mm, 10mm] }
-    Points: Grid {
-        Within: Bounds.Face(+Z).Inset(8mm)
-        Columns: 2
-        Rows: 2
+  Static mountPoints: Set<Point2> {
+    left => Point2(-12mm, 0mm)
+    right => Point2(12mm, 0mm)
+  }
+
+  Box stock { size: [50mm, 30mm, 8mm] }
+  Modify stock {
+    Pattern mounts over mountPoints {
+      point => Drill(center: point)
     }
-}
-
-Pattern Mounts {
-    Source: Design.Points
-    MountHole(center: Item)
+  }
 }
 ```
 
-The two-column, two-row Grid is the explicit four-hole rectangular distribution. This semantic PointSet Pattern uses `Item`. The older `Pattern Name over Records { Template<Current> }` form remains the record-array composition syntax for finite feature Templates; `Current` is the selected record. Feature functions do not replace that compatibility form.
+The Pattern belongs **inside the target Modify**, not at the root of this file.
+Each Set entry has a unique stable name; equal values are allowed and source
+order is authoritative. `mountPoints.left` selects that value. An empty typed
+Set yields zero mapped instances. Arrays provide anonymous ordered data; Sets
+provide named ordered data. Pattern has a 1,024-instance safety bound.
 
-A Feature may return a call to another Feature with the same declared result type:
+`=>` in a Set associates a name with a value; in this Pattern it binds the element
+name for finite mapping. It is not a general lambda syntax. Other owners still
+have different Pattern forms:
+
+| Pattern source | Binding form |
+| --- | --- |
+| Named Set mapped to a Feature | `Pattern name over values { value => Recipe(value) }` |
+| Semantic PointSet / Grid | `Pattern name { Source: layout.Points ... Item ... }` |
+| Record array with finite feature Template | `Pattern name over records { Recipe<Current> }` |
+| Radial feature symmetry | `Radial Pattern name { Source: seed About: axis Count: n Angle: full }` |
+
+These are context-specific forms, not interchangeable spellings of one loop.
+`Item`, `Current` and an explicit element name are not global aliases. See
+[Templates and finite data](templates.md) and the [functional pickup](functional-pickup.md).
+A named Feature invocation may use `Feature result = Recipe(...)`; it differs
+from a Feature definition and from a Pattern.
+
+### Template: specialize a product
+
+**Complete file — one sized member of a product family:**
 
 ```firmament
-Feature CoreCounterbore(center: Point2, depth: Length) -> Hole<Counterbore> {
-    return Hole<Counterbore> {
-        on: +Z
-        center: center
-        diameter: 8.5mm
-        counterboreDiameter: 14mm
-        counterboreDepth: depth
-        end: ThroughAll
-    }
+Template<width: Length, height: Length, thickness: Length>
+Struct PlateFamily {
+  Require positive => width > 0mm && height > 0mm && thickness > 0mm
+  Box stock { size: [width, height, thickness] }
 }
 
-Feature M8Counterbore(center: Point2) -> Hole<Counterbore> {
-    return CoreCounterbore(center: center, depth: 4mm)
-}
+Struct standardPlate = PlateFamily<width: 80mm, height: 50mm, thickness: 8mm>
 ```
 
-Structurally different edge finishes should be separate Features —for example, `StandardChamfer` and `StandardFillet`. A caller may instead select a specialized product with Template where that owning Template grammar admits the returned construction. Feature itself cannot branch between them.
+The output declaration is explicit. Product Templates specialize Struct, Model,
+Concept Struct, Panel, SheetMetal, Profile or ProfileDelta. `Require` checks
+specialization admissibility. Typed Record values may carry a configuration;
+`Static` binds them and `with` derives checked immutable values. A separate
+finite feature-Template form is used by record-array Patterns.
 
-Feature is supported by the `Mechanical` frontend. `WireForm`, `Sweep`, and `SectionChain` reject Feature declarations explicitly; shared cross-schema Feature IR and module/library packaging are deferred.
+`<...>` therefore means several things: a built-in Hole variant, a Set element
+type, or Template parameters/arguments. It does not make every construct a
+general generic. See [Templates](templates.md) for constraints, finite Tables,
+supported argument types and compatibility forms.
 
-
-## Finite named sets and mapping
-
-`Set<T>` is a finite immutable collection of named typed values. Use it when entries have semantic identity and should be addressable by name; use `T[]` for an anonymous ordered sequence.
-
-```firmament
-Static MountPoints: Set<Point2> {
-    LowerLeft  => Point2(-16mm, -9mm)
-    LowerRight => Point2(16mm, -9mm)
-    UpperLeft  => Point2(-16mm, 9mm)
-    UpperRight => Point2(16mm, 9mm)
-}
-
-Pattern Mounts over MountPoints {
-    point => M8Counterbore(center: point)
-}
-```
-
-`MountPoints.LowerLeft` has type `Point2`; Record-valued entries compose naturally, for example `MountSpecs.Left.Center`. Set entry names are unique, values may be equal, and authored order is authoritative. An empty typed Set is valid and a Pattern over it produces zero instances. Inspection exposes the element type, cardinality, entries, source order, provenance, and generated associations.
-
-Inside a Set, `Name => Value` is a named association. Inside Pattern, `value => construction` maps every member of that finite Set to one semantic construction. Neither spelling is conditional control flow. Set has no mutation, indexing, filtering, sorting, `Map`, `Fold`, arbitrary keys, or runtime collection API, and Pattern retains the existing 1,024-instance safety bound.
-
-Choose among the closed data forms by meaning: a `Record` is one structured value; an `Enum` is one-of-N alternatives; `T[]` is anonymous ordered data; `Set<T>` is a dataset in which all N named entries exist simultaneously. Pattern performs finite construction mapping, Feature supplies a reusable semantic transformation, and `|>` composes finite compatible geometry. Match is unchanged.
+Feature, Template and Pattern describe deterministic finite construction. They
+do not add mutable state, exceptions, arbitrary recursion, `for`/`while`, or
+general `if`/`else` control flow. Use domain-specific forms only where admitted.
 
 ## Mirror and radial symmetry
 
-Mirror and radial Pattern are resolved before geometry materialization. They transform semantic construction intent, not finished BRep topology.
+Symmetry transforms semantic construction before materialization. It does not
+mirror a finished STEP/BRep. These fragments use the **currently required**
+PascalCase symmetry fields, despite the general camelCase field convention.
 
-An explicitly named destination derives from an existing Profile or concrete feature and an existing Plane:
-
-```firmament
-Plane CenterPlane { origin: [0mm,0mm,0mm]; normal: [1,0,0]; up: [0,0,1] }
-Hole<Shaft> LeftMount { on: +Z; center: Point2(24mm,0mm); diameter: 6mm; end: ThroughAll }
-Mirrored Feature RightMount From LeftMount { Across: CenterPlane }
-```
-
-Profiles may use either that direct Plane spelling or a `Construction Plane` traced from a `Concept Struct` Plane. Reflection analytically transforms points and curves, reverses arc traversal, then restores the Profile's canonical outer/inner winding. Frames use reflected origin/X/Z followed by canonical right-handed Y reconstruction; negative-determinant frames never reach a consumer. Mirroring an already-materialized STEP/BRep is not safe authoring and is not provided by this syntax.
-
-Keep the source Profile semantic too. For example, an arbitrary triangular source should be authored as `Triangle2<Explicit> LeftBoundary { A: [...] B: [...] C: [...] }` and consumed with `LeftBoundary |> TraceLoop`; an axis-aligned four-sided section should use `Rect2`. Use `Polygon2<Explicit>` only when the linear boundary is genuinely an otherwise-unconstrained polygon. Closed boundaries lower to ordinary named Profile guides before Mirror resolves them.
-
-A radial feature Pattern uses an existing Axis and includes the source construction as instance zero:
+**Fragment — inside Modify, with a concrete `leftMount` Hole and a model-level
+`centerPlane` already declared:**
 
 ```firmament
-Axis MainAxis { origin: [0mm,0mm,0mm]; direction: [0,0,1] }
-Hole<Shaft> BoltSeed { on: +Z; center: Point2(26mm,0mm); diameter: 6mm; end: ThroughAll }
-Radial Pattern BoltCircle { Source: BoltSeed About: MainAxis Count: 6 Angle: full }
+Mirrored Feature rightMount From leftMount { Across: centerPlane }
+Feature largerMount = rightMount with { Diameter: 8mm }
 ```
 
-`Count` is in `1..1024`; one is a valid trivial Pattern. `full` uses `theta[i] = i * 2*pi/Count` and omits the full-angle duplicate endpoint. Partial angles use inclusive endpoints, `theta[i] = i * Angle/(Count-1)`. Angles reuse Revolve spellings (`radians`, `deg`, `quarter`, `half`, `full`). Current radial feature lowering is deliberately bounded to planar Point2-centered Hole semantics about the support-normal Axis. Profile radial Pattern, whole Model/Struct derivation, arbitrary selector rebinding, Boss/Pocket radial derivation, and assembly occurrence symmetry remain explicit future qualifications.
+`Mirrored Profile result From source { Across: plane }` derives a Profile.
+Reflection transforms curves, restores loop winding and reconstructs a
+right-handed frame. Construction Planes traced from Concept Planes are admitted
+in the Profile form. Material, scalar magnitudes and enum tags are invariant;
+`Mirrored Material` is not an admitted operation.
 
-Intentional asymmetry uses immutable `with`, not a mirror-exception mini-language:
+`with` derives a new feature with source/mirror/override provenance. A Profile
+on its reflection line may remain an equivalent named derivation. A concrete
+feature with an unchanged center rejects as a redundant coincident feature.
+
+**Fragment — inside Modify, with `boltSeed` and a model-level `mainAxis`:**
 
 ```firmament
-Mirrored Feature RightMount From LeftMount { Across: CenterPlane }
-Feature RightMountCustom = RightMount with { Diameter: 8mm }
+Radial Pattern boltCircle { Source: boltSeed About: mainAxis Count: 6 Angle: full }
 ```
 
-The derived feature retains the source/mirror/override provenance chain in `inspect --json`. Material, scalar magnitudes, and enum tags are invariant values; meaningless declarations such as `Mirrored Material` fail typed.
+The source is instance zero. `Count` is 1..1024. A full circle uses
+`theta[i] = i * 2*pi/Count`, without a duplicate endpoint. A partial angle includes
+both endpoints: `theta[i] = i * Angle/(Count-1)` when Count exceeds one. Angles
+accept the Revolve spellings `radians`, `deg`, `quarter`, `half`, `full`.
+Support is bounded to planar Point2-centered Holes about their support-normal
+Axis. It does not imply Profile, Boss/Pocket, whole Struct or Assembly symmetry.
 
-A Profile exactly on its reflection line may be retained as an equivalent named semantic derivation because it has not yet created material. A concrete feature whose center is unchanged is rejected as `firmament-symmetry-redundant-feature-mirror` so a Compose/Modify cannot silently create coincident duplicate material.
+Complete sources: [mirrored hole](../../../fixtures/Canonical/Symmetry/mirrored-hole.firmament),
+[mirror override](../../../fixtures/Canonical/Symmetry/mirrored-feature-with-override.firmament),
+[radial bolt circle](../../../fixtures/Canonical/Symmetry/radial-bolt-circle.firmament).
 
-### Built-in closed polygons
+## Choosing a domain and organizing files
 
-`Polygon2<Rhombus>` is the first bounded closed-polygon authoring form. A rhombus is specified by its center and full horizontal/vertical diagonal lengths:
+An optional `schema Name` header selects one of these frontends. Put it on its
+own line before declarations, preceded only by blank lines or `//` comments.
+Do not put a trailing comment on the selector line: selection can currently be
+bypassed by that formatting. Names are case-sensitive. A recognized explicit
+selection is authoritative; rejection does not retry another frontend.
+Revolve is an operation in Mechanical, not a schema.
 
-```firmament
-Concept Struct Layout on XY {
-    Polygon2<Rhombus> MountBoundaryShape {
-        center: [0mm, 0mm]
-        diagonals: [90mm, 64mm]
-    }
-}
+| Schema | Guide |
+| --- | --- |
+| `Mechanical` | [Geometry](geometry.md), [Revolve](revolve.md), [gears](gears.md). |
+| `WireForm` | [Formed wire](wire-form.md). |
+| `Sweep` | [Circular-section sweeps](sweep.md). |
+| `SectionChain` | [Framed section chains](section-chains.md). |
+| `Garment` | [Panels, stitch interfaces and fitting](garments.md). |
 
-Profile MountBoundary using Layout {
-    Loop Outer { MountBoundaryShape |> TraceLoop }
-}
-```
+This selector does not list every Firmament root or product domain. Assembly,
+Scene, SheetMetal, structural and piping sources have their own entry forms.
+Do not invent `schema Assembly` or wrap arbitrary domain declarations in a Model.
 
-This produces vertices at south, east, north, and west half-diagonal offsets and a counter-clockwise closed boundary. It lowers before pipeline validation to the ordinary typed `Point2`, `Line2`, and Profile path, so closure, orientation, Span containment, materialization, and STEP export keep their existing owners.
+| Authoring task | Start here |
+| --- | --- |
+| Parts, ports, constraints and product occurrences | [Assemblies](assemblies.md), [components and sites](assembly-components-and-sites.md). |
+| Spatial layout and presentation | [Scenes](scenes.md). |
+| Sheet manufacturing, regions and bends | [Sheet metal](sheet-metal.md). |
+| Structural / piping domains | [Structural](structural.md), [piping](piping.md). |
+| Engineering annotations | [PMI](pmi.md). |
+| File-backed modules and source-only projects | [Project snapshots](project-snapshots.md), [Concept derivation](concept-derivation.md). |
 
-The angle-bracket argument is a closed built-in shape variant, not a general generic or user-defined type. The admitted variant is `Rhombus`; both diagonals must be finite positive lengths. It intentionally does not add arbitrary vertex arrays, `Connect`, a scene graph, or a second polygon materializer. Use `Rect2` when the four sides are axis-aligned; unequal horizontal and vertical rhombus diagonals do not describe that rectangle.
+Assembly occurrence trees use `<Assembly>` / `<Part>` tags as well as brace
+bodies. Tree nesting does not create a Mate. Inclusion is owned by the consuming
+project/domain; `include` is **not** a universal mechanical preprocessor.
+A bare include before an ordinary mechanical Model can currently be ignored,
+even when its file is missing. Use a documented include consumer; the review
+below preserves this reproduction.
 
-## Finite Profile and Path composition
+## Reading older source
 
-Named single-loop Profiles can be placed through Concept Curve2 values before
-being traced into a new Profile. See [Concept derivation](concept-derivation.md)
-for From/On/Translate/Rotate and bounded uniform Scale/Pivot syntax.
+New ordinary parts should use the forms at the top of this page. Historical
+`model`, `units mm`, `solid name: Box`, `modify` and `hole<shaft>` are bounded
+compatibility forms. Bare lengths inherit millimetres only in the historical
+primitive grammar that admits them. This is not a second preferred style.
 
-`|>` composes compatible semantic geometry in a finite authoring pipeline. In a Profile loop, each source span is traced in authored order and automatically oriented to continue from the preceding endpoint:
+Historical immutable Box derivation uses
+`solid tall: stock with { size: [30, 24, 20] }`. Exposure uses
+`expose { face(+Z) as top }`, with `=> top` also retained there. These forms do
+not make `with`, `as` or `=>` universally interchangeable. Serialization-shaped
+V1 `model:` and `firmament:` documents have an explicit compatibility path.
 
-```firmament
-Profile BaseProfile using Layout {
-    Loop Outer {
-        Stock.Bottom
-        |> Stock.Right
-        |> Stock.Top
-        |> Stock.Left
-        |> Close
-    }
-}
-```
+The formatter preserves names, published members and numeric values. It does
+not migrate solid grammar into native declarations or prove a program builds.
+Validate the consuming artifact after formatting.
 
-The first stage uses its source direction. Later stages match the current endpoint against the candidate span's endpoints. A unique end match reverses the traced geometry automatically; no match reports `firmament-profile-pipeline-disconnected`, and a degenerate two-way match reports `firmament-profile-pipeline-orientation-ambiguous`. `Reverse Stock.Left` prefers reversed orientation first and then falls back to the normal connectable orientation; on the opening stage it selects the initial direction. `Stock.Bottom as MountingEdge` changes the output segment identity while retaining source provenance.
+## Current language seams
 
-To trace only part of a guide, use `Guide To Point`. The current pipeline endpoint is the implicit start. On the opening stage, use `Guide From Start To End`; `Guide To End` may omit `From` when the guide's natural start is intended. Endpoints must be named points on the guide. This is bounded selection, not a general slicing expression:
+The preferred style is more consistent than the grammar enforced by every
+owner. Author-visible differences remain in casing, points/lists, Pattern
+binders, terminators, root/scope rules, frame/selector types, and meanings of
+angle brackets and `with`. Some are legitimate domain distinctions; others are
+compatibility debt or bugs.
 
-```firmament
-Profile Bracket using Layout {
-    Horizontal.Bottom as South
-        |> Horizontal.Right as East
-        |> Horizontal.Top To Notch as Inner
-        |> Vertical.Right To Vertical.TopRight as Upright
-        |> Vertical.Top as North
-        |> Vertical.Left To Horizontal.BottomLeft as West
-        |> Close
-}
-```
+The [October syntax review](../../development/FIRMAMENT-SYNTAX-REVIEW-2026-10.md)
+records witnesses, current behavior, ownership and open decisions. It includes
+the ignored mechanical include and schema-comment failures. It describes the
+language as it exists, not unimplemented syntax. The [decision register](../../development/FIRMAMENT-LANGUAGE-DECISIONS-2026-10.md)
+preserves the original authoring audit and later migration dispositions.
 
-The same form traces partial circular arcs. Endpoint order chooses the normal counter-clockwise circle span; `Reverse` selects the clockwise span. No pipeline `Sweep` keyword is needed.
-
-A half-circle revolve meridian uses the same syntax through the ordinary Mechanical schema:
-
-```firmament
-schema Mechanical
-
-Model RevolvedSphere {
-    units: mm
-    Axis MainAxis { origin: [0mm, 0mm, 0mm]; direction: [0, 1, 0] }
-    Point2 South { position: [0mm, -20mm] }
-    Point2 North { position: [0mm, 20mm] }
-    Point2 Center { position: [0mm, 0mm] }
-    Concept Circle2 Meridian { center: Center; radius: 20mm }
-    Line2 Diameter { from: North; to: South }
-    Profile SphereSection {
-        Meridian From South To North as Arc
-            |> Diameter as AxisClosure
-            |> Close
-    }
-    Revolve Ball { profile: SphereSection; about: MainAxis; angle: full }
-}
-```
-
-`|> Close` validates that the authored chain already closes. It never invents a missing line. Any admitted closed ordered guide family may be copied with `Outline |> TraceLoop`, including `Rect2`, `Square2`, `RoundedRect2`, `Polygon2`, `RegularPolygon2`, a closed `Concept Path`, `Circle2`, and `Ellipse2`. The resulting identities are the family's ordinary named edges; full circles and ellipses retain the single `Boundary` identity. `TraceLoop` normalizes winding for the target outer or inner loop when required.
-
-Recognized guide declarations may appear at the start of an implicit-loop Profile body, followed by exactly one pipeline expression:
-
-```firmament
-Profile SideProfile using PositiveXWorkplane {
-    Rect2 Outline { center: [0mm, 0mm]; size: [20mm, 10mm] }
-    Outline |> TraceLoop
-}
-```
-
-Segment names are Profile-wide identities. Manual `Segment` and pipeline stages both preserve their authored or inherited leaf names; loops do not silently qualify them. A traced full `Circle2` or `Ellipse2` derives its segment identity from the guide name, so `Outside |> TraceLoop` and `Inside |> TraceLoop` have distinct identities. If two loops would introduce the same name, binding reports `firmament-profile-segment-identity-collision`. Resolve the collision explicitly with `as` on the pipeline stages (for example, `Cutout.Bottom as CutoutBottom`) or by renaming a manual Segment.
-
-A `Concept Path` may also compose existing named spans and remain open:
-
-```firmament
-Concept Path Guide {
-    Stock.Bottom
-    |> Stock.Right
-    |> Stock.Top as Return
-}
-```
-
-Pipeline source order is semantic order. Stages are limited to geometry references (qualified or unqualified), bounded `From`/`To` named endpoints, optional `Reverse`, optional `as`, `Close`, and `TraceLoop` in their admitted contexts. The operator has lower binding precedence than member access and does not admit arithmetic stages, calls, lambdas, conditionals, filtering, mutation, runtime execution, or repetition. Use Feature for a reusable semantic transformation, Pattern for bounded repetition, Template for specialization, and `|>` for finite semantic composition. Manual `Segment { Trace/From/To }` remains supported for compatibility and deliberate low-level parity tests; ordinary canonical Profile authoring does not require it.
+Use [supported features](../reference/supported-features.md) for capability
+boundaries and the linked domain guides for detailed syntax. Proposals and
+migration reports explain design/history; they do not grant source admission.

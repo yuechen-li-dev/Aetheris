@@ -28,6 +28,13 @@ standards, imported identities and part numbers retain their source spelling.
 Existing PascalCase properties and supported historical aliases remain accepted,
 without style warnings. Older examples need not be rewritten wholesale.
 
+The table describes preferred style, not universal case folding. Some owners
+still require PascalCase built-ins: Profile pipeline `From`/`To`, `Reverse`,
+`Close`, `TraceLoop`, mirror `From`/`Across`, and radial `Source`/`About`/`Count`/`Angle`.
+Use those admitted forms today. The [syntax review](../../development/FIRMAMENT-SYNTAX-REVIEW-2026-10.md)
+tracks these gaps; the formatter must not be treated as proof that every owner
+admits a lowercased spelling.
+
 ```firmament
 Feature Coil(center: Point2, width: Length, depth: Length,
              height: Length, support: Plane) -> Boss {

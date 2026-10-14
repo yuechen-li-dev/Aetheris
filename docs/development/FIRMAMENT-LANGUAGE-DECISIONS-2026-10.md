@@ -1,5 +1,12 @@
 # October 2026 Firmament language decision register
 
+The October 14 [syntax review](FIRMAMENT-SYNTAX-REVIEW-2026-10.md) supplements
+this register with twenty current language/teaching seams and exact execution
+witnesses. Its ignored-include and schema-formatting findings remain open;
+documentation repair does not implement recommendations #1–#4, #7 or #23.
+All 24 original recommendations and their historical dispositions are preserved
+below. Later production amendments supersede only the scopes they qualify.
+
 Source: [Claude's original authoring audit](firmament-authoring-pass-2026-10.md).
 This register preserves its 24 recommendations and their rationale. A future
 milestone assignment is a disposition, not an implemented feature. X0 remains

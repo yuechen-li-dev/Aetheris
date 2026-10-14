@@ -12,7 +12,13 @@ A face-local `Hole<Shaft>` or `Hole<Counterbore>` on a `Box` may cross the edge 
 
 ## Boss
 
-Known placement inconsistency: a plain direct `Box` currently exports from Z = 0 to its height, while the direct semantic Hole route without Concept IR centers the stock about Z = 0. Adding a hole can therefore change world placement even when dimensions are unchanged. Inspect STEP bounds when composing these parts; the [LANG-BURN-X1 report](../../release/LANG-BURN-X1-FIRMAMENT-BURN-IN.md) preserves the repro and proposed compatibility-aware repair. Explicit Profile/Compose `From`/`To` intervals avoid this route-dependent placement.
+Direct Box stock and its semantic Hole host use the same bottom-anchored frame:
+X/Y are centered and Z runs from 0 to height. Adding a direct Hole does not
+recenter the stock. The earlier discrepancy in the
+[LANG-BURN-X1 report](../../release/LANG-BURN-X1-FIRMAMENT-BURN-IN.md) is historical;
+the [stock-frame regression](../../../Aetheris.Kernel.Firmament.Tests/FirmamentV2SemanticHoleTests.cs)
+checks host and materialized bounds. Profile/Compose construction uses its
+explicit `from`/`to` interval.
 
 `Boss` is the first-class finite profile feature for adding connected material. In Preview 3 it is declared inside the active profile-based `Compose` body, targets that body's top support (`On: Top`), consumes an already-admitted line/arc `Profile`, and extrudes outward along `+Z` by a positive `Height`. A `Compose` does not reopen or augment a separately declared direct `Box`; use a rectangular Base Profile when the stock is box-shaped.
 
@@ -127,7 +133,7 @@ The canonical [Boss + Pocket block](../../../fixtures/Canonical/Features/Boss/bo
 
 For readable local geometry, start with the [line/arc Concept Path](../../../fixtures/Canonical/Profiles/concept-path-line-arc-profile.firmament). The [profile-delta recess](../../../fixtures/Canonical/Profiles/profile-delta-recess-extrusion.firmament) then shows that semantic `ProfileDelta` programming is not Sheet-Metal-specific: a Table row, `with` override, and typed Template modify an ordinary extruded profile.
 
-For geometry that already exposes named spans, prefer the finite [Profile pipeline flagship](../../../fixtures/Canonical/Pipeline/profile-pipeline-flagship.firmament). `Stock.Bottom |> Stock.Right |> Stock.Top |> Stock.Left |> Close` inherits segment identities and derives endpoint continuity and orientation from the named source geometry. The [mixed line/arc witness](../../../fixtures/Canonical/Pipeline/line-arc-profile.firmament), [inner-loop witness](../../../fixtures/Canonical/Pipeline/profile-with-inner-loop.firmament), [open Concept Path](../../../fixtures/Canonical/Pipeline/open-path.firmament), and [whole-loop trace](../../../fixtures/Canonical/Pipeline/traceloop-profile.firmament) exercise the same resolved Profile/Path boundary. Use manual `Segment` declarations when bespoke endpoints, circle-arc sweep selection, or debugging requires explicit low-level control.
+For geometry that already exposes named spans, prefer the finite [Profile pipeline flagship](../../../fixtures/Canonical/Pipeline/profile-pipeline-flagship.firmament). `Stock.Bottom |> Stock.Right |> Stock.Top |> Stock.Left |> Close` inherits segment identities and derives endpoint continuity and orientation from the named source geometry. The [mixed line/arc witness](../../../fixtures/Canonical/Pipeline/line-arc-profile.firmament), [inner-loop witness](../../../fixtures/Canonical/Pipeline/profile-with-inner-loop.firmament), [open Concept Path](../../../fixtures/Canonical/Pipeline/open-path.firmament), and [whole-loop trace](../../../fixtures/Canonical/Pipeline/traceloop-profile.firmament) exercise the same resolved Profile/Path boundary. Pipelines also support named endpoint selection with `From`/`To` and arc traversal with `Reverse`; see [syntax](syntax.md#constructing-from-a-layout). Use manual `Segment` declarations when deliberate low-level control or debugging requires them.
 
 Sheet Metal has its own `Hole Name` syntax for planar circular openings; countersink and counterbore forms are Model-domain features and deliberately fail in Sheet Metal rather than being ignored.
 

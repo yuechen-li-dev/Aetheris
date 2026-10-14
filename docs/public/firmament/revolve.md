@@ -20,6 +20,35 @@ Revolve Ring {
 
 The axis must preexist, have a finite nonzero direction, and lie in the Profile construction plane. The Profile frame fixes the zero-angle radial direction; partial revolutions do not use a hidden world-axis orientation. Arbitrary 3D axes are supported when they are coplanar with the Profile.
 
+## A semicircular meridian
+
+**Complete file:** this example selects a circular span with named endpoints,
+closes it along the axis, and revolves that Profile into a sphere. It uses the
+ordinary Mechanical schema; there is no `schema Revolve`.
+
+```firmament
+schema Mechanical
+
+Model RevolvedSphere {
+  units: mm
+  Axis mainAxis { origin: [0mm, 0mm, 0mm]; direction: [0, 1, 0] }
+  Point2 south { position: [0mm, -20mm] }
+  Point2 north { position: [0mm, 20mm] }
+  Point2 center { position: [0mm, 0mm] }
+  Concept Circle2 meridian { center: center; radius: 20mm }
+  Line2 diameter { from: north; to: south }
+  Profile sphereSection {
+    meridian From south To north as arc
+    |> diameter as axisClosure
+    |> Close
+  }
+  Revolve ball { profile: sphereSection; about: mainAxis; angle: full }
+}
+```
+
+Pipeline endpoint words currently use `From`/`To`; fields such as `from:` use
+camelCase. See [Writing Firmament](syntax.md) for the distinction and conventions.
+
 ## Angles
 
 Radians are dimensionless numeric values. Degree literals use `deg`. The lowercase semantic aliases `quarter`, `half`, and `full` mean π/2, π, and 2π. All forms lower through one angle path.

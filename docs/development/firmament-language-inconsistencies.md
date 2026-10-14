@@ -1,5 +1,11 @@
 # Firmament language reconciliation register
 
+October 14 documentation review: the [current syntax review](FIRMAMENT-SYNTAX-REVIEW-2026-10.md)
+records twenty author-visible seams, including reproduced ignored mechanical
+includes, schema-formatting admission gaps and symmetry casing failures.
+Historical classifications below remain preserved; they do not close those
+current findings or assert a uniform whole-language grammar.
+
 October 2026 qualification: historical resolved classifications below do not close the route-dependent correctness gaps in the [October decision register](FIRMAMENT-LANGUAGE-DECISIONS-2026-10.md) and [frontend X0 report](../release/FIRMAMENT-FRONTEND-X0.md). In particular, root admission and consumed-source integrity remain incomplete.
 
 This A5d register classifies the language seams first exposed by A5b and completes the Template reconciliation begun in A5c. The public dialect is defined by [`docs/public/firmament`](../public/firmament/overview.md), especially the [language-style contract](../public/firmament/language-style.md) and [Templates guide](../public/firmament/templates.md). Parser/lowering ownership is recorded in the [active grammar inventory](firmament-v2-grammar-inventory.md).

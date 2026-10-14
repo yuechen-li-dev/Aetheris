@@ -63,7 +63,8 @@ internal sealed record MaterializedAssemblyDefinition(
     AssemblyDefinitionArtifactIr Artifact,
     string? CanonicalStep = null,
     FirmamentCirRetention? Cir = null,
-    string? InputKey = null);
+    string? InputKey = null,
+    string? DeclarationScope = null);
 
 /// <summary>
 /// M1's definition seam: specialize through the ordinary Firmament compiler, then
@@ -181,14 +182,7 @@ internal static class AssemblyDefinitionMaterializer
             // the standalone build route would otherwise select the Gear profile and
             // successfully return that gear for every shaft, support and wheel.
             // Use producer-owned declaration spans; retain offsets for diagnostics.
-            if (gearDocument.Gears.Count > 0)
-            {
-                var ordinaryDeclarations = definitionSource.ToCharArray();
-                foreach (var sibling in gearDocument.Gears)
-                    for (var i = sibling.SourceSpan.Start; i < sibling.SourceSpan.Start + sibling.SourceSpan.Length; i++)
-                        if (ordinaryDeclarations[i] is not ('\r' or '\n')) ordinaryDeclarations[i] = ' ';
-                definitionSource = new string(ordinaryDeclarations);
-            }
+            definitionSource = WithoutGears(definitionSource, gearDocument);
         }
         var externalStep = System.Text.RegularExpressions.Regex.Match(definitionIdentity, "^ExternalStep<\\\"(?<path>[^\\\"]+)\\\">$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
         if (externalStep.Success)
@@ -220,10 +214,56 @@ internal static class AssemblyDefinitionMaterializer
                 new(externalStableId, definitionIdentity, "external-step:" + externalHash[..16], externalHash, Metrics(externalImport.Value), externalProvenance), stepText);
         }
         if (string.IsNullOrWhiteSpace(definitionSource) || !definitionIdentity.Contains('<', StringComparison.Ordinal)) return null;
-        // Assembly files keep reusable declarations beside relational assembly syntax.
+        // BUILD-PERF-M2: compile from the declarations this definition depends on. If that closure
+        // does not compile on its own (the scope analysis is conservative, but not a full binder),
+        // the definition compiles against the whole catalog exactly as before.
+        if (ScopeDeclarations && AssemblyDeclarationScope.Closure(definitionSource, TemplateName(definitionIdentity)) is { } scoped
+            && !ReferenceEquals(scoped, definitionSource))
+        {
+            var attempt = new List<AssemblyDiagnostic>();
+            MaterializedAssemblyDefinition? scopedResult = null;
+            try { scopedResult = MaterializeOrdinary(definitionIdentity, scoped, sourceIdentity, attempt, importBody); }
+            catch (Exception exception) when (exception is not OutOfMemoryException) { scopedResult = null; }
+            if (scopedResult is not null && attempt.All(diagnostic => diagnostic.Severity != AssemblyDiagnosticSeverity.Error))
+            {
+                diagnostics.AddRange(attempt);
+                return scopedResult with { DeclarationScope = scoped };
+            }
+        }
+        return MaterializeOrdinary(definitionIdentity, definitionSource, sourceIdentity, diagnostics, importBody);
+    }
+
+    /// <summary>Compiles scoped declarations instead of the whole catalog. Tests switch it off for
+    /// one execution flow to compare both; it is flow-local so parallel tests are unaffected.</summary>
+    internal static bool ScopeDeclarations { get => !WholeCatalog.Value; set => WholeCatalog.Value = !value; }
+    private static readonly AsyncLocal<bool> WholeCatalog = new();
+
+    internal static string TemplateName(string definitionIdentity) => definitionIdentity[..definitionIdentity.IndexOf('<')];
+
+    /// <summary>The declarations an ordinary (non-Gear) definition compiles against: Gear roots are
+    /// blanked (offsets kept), so a template specialization never selects a sibling Gear profile.</summary>
+    internal static string OrdinaryDeclarations(string declarations)
+    {
+        if (!GearAuthoring.HasGearDefinitions(declarations)) return declarations;
+        return WithoutGears(declarations, GearAuthoring.ParseDefinitions(declarations));
+    }
+
+    private static string WithoutGears(string declarations, GearAuthoringDocument gearDocument)
+    {
+        if (gearDocument.Gears.Count == 0) return declarations;
+        var ordinaryDeclarations = declarations.ToCharArray();
+        foreach (var sibling in gearDocument.Gears)
+            for (var i = sibling.SourceSpan.Start; i < sibling.SourceSpan.Start + sibling.SourceSpan.Length; i++)
+                if (ordinaryDeclarations[i] is not ('\r' or '\n')) ordinaryDeclarations[i] = ' ';
+        return new string(ordinaryDeclarations);
+    }
+
+    private static MaterializedAssemblyDefinition? MaterializeOrdinary(string definitionIdentity, string definitionSource, string sourceIdentity,
+        List<AssemblyDiagnostic> diagnostics, Func<string, KernelResult<BrepBody>> importBody)
+    {        // Assembly files keep reusable declarations beside relational assembly syntax.
         // Wrap that declaration catalog in the ordinary V2 Model root for the exact
         // same compiler/build path used by standalone Firmament parts.
-        var templateName = definitionIdentity[..definitionIdentity.IndexOf('<')];
+        var templateName = TemplateName(definitionIdentity);
         var inspectionDiagnostics = new List<string>();
         var targetKind = FirmamentV2TemplateExpansion.Inspect(definitionSource, inspectionDiagnostics)
             .SingleOrDefault(template => string.Equals(template.Name, templateName, StringComparison.Ordinal))?.TargetKind

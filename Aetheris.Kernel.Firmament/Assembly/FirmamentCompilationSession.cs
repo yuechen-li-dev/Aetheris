@@ -119,13 +119,22 @@ internal sealed class AssemblyDefinitionCache(int capacity)
         List<AssemblyDiagnostic> diagnostics, FirmamentProjectSnapshot? project,
         Func<MaterializedAssemblyDefinition?> build)
     {
-        string? key;
-        using (BuildPerfTrace.Phase("assembly.cache-key")) key = Key(identity, declarations, sourceIdentity, project);
+        // BUILD-PERF-M2: a template definition compiles from its declaration closure when that closure
+        // compiles alone, otherwise from the whole catalog (see AssemblyDefinitionMaterializer). The
+        // build is deterministic, so an entry stored under the closure key (closure compiled) or under
+        // the whole-catalog key (closure failed for exactly that catalog) is what a fresh build of the
+        // current declarations would produce.
+        string? key, scopedKey;
+        using (BuildPerfTrace.Phase("assembly.cache-key"))
+        {
+            key = Key(identity, declarations, sourceIdentity, project);
+            scopedKey = key is null ? null : ScopedKey(identity, declarations, sourceIdentity);
+        }
         var reason = key is null ? "unsupported-resource-dependency" : "first-build-or-evicted";
         if (key is not null && entries.TryGetValue(identity, out var entry))
         {
             reason = "definition-inputs-changed";
-            if (entry.Key == key)
+            if (entry.Key == key || (scopedKey is not null && entry.Key == scopedKey))
             {
                 BrepBody body;
                 using (BuildPerfTrace.Phase("assembly.cache-hit-clone")) body = entry.Metadata.Body.Clone();
@@ -141,7 +150,18 @@ internal sealed class AssemblyDefinitionCache(int capacity)
             return result;
         string? keyAfterBuild;
         using (BuildPerfTrace.Phase("assembly.cache-key")) keyAfterBuild = Key(identity, declarations, sourceIdentity, project);
-        if (keyAfterBuild != key)
+        if (result.DeclarationScope is not null)
+        {
+            // Stored under the closure the build compiled; a scoped key that disagrees means the
+            // materializer and the cache computed different closures: keep it out of the cache.
+            if (scopedKey is null || scopedKey != Hash(sourceIdentity, identity, "scoped\0" + result.DeclarationScope))
+            {
+                Evidence[^1] = new(identity, false, "declaration-scope-mismatch");
+                return result;
+            }
+            key = scopedKey;
+        }
+        else if (keyAfterBuild != key)
         {
             Evidence[^1] = new(identity, false, "resource-changed-during-build");
             return result;
@@ -183,6 +203,20 @@ internal sealed class AssemblyDefinitionCache(int capacity)
             }
         return Step242Importer.ImportBody(stepText);
     }
+
+    private static string? ScopedKey(string identity, string? declarations, string sourceIdentity)
+    {
+        if (declarations is null || !AssemblyDefinitionMaterializer.ScopeDeclarations || !identity.Contains('<', StringComparison.Ordinal)
+            || Regex.IsMatch(identity, "^(?:SectionChainFile|LoftFile|ExternalStep)<", RegexOptions.CultureInvariant)
+            || Regex.IsMatch(declarations, @"\bInlineStep\b", RegexOptions.CultureInvariant)) return null;
+        var ordinary = AssemblyDefinitionMaterializer.OrdinaryDeclarations(declarations);
+        return AssemblyDeclarationScope.Closure(ordinary, AssemblyDefinitionMaterializer.TemplateName(identity)) is { } scoped && !ReferenceEquals(scoped, ordinary)
+            ? Hash(sourceIdentity, identity, "scoped\0" + scoped) : null;
+    }
+
+    private static string Hash(string sourceIdentity, string identity, string inputs) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+            "assembly-definition-cache-v1\0" + sourceIdentity + "\0" + identity + "\0" + inputs)));
 
     private static string? Key(string identity, string? declarations, string sourceIdentity, FirmamentProjectSnapshot? project)
     {

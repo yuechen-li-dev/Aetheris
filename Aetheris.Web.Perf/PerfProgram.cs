@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Aetheris.Web.Perf;
 
@@ -12,6 +13,7 @@ public static class PerfProgram
         if (args.Length > 0 && args[0] == "compare-step") return CompareStep.Run(args[1..]);
         if (args.Length > 0 && args[0] == "verify-bridge") return VerifyBridge.Run(args[1..]);
         if (args.Length > 0 && args[0] == "verify-incremental") return VerifyIncremental.Run(args[1..]);
+        if (args.Length > 0 && args[0] == "profile") return ProfileOne(args[1..]);
         if (args.Length != 1) { Console.Error.WriteLine("Usage: Aetheris.Web.Perf <helix-fixture> | Aetheris.Web.Perf showcase --help | Aetheris.Web.Perf compare-step <a.step> <b.step>"); return 2; }
         var source = File.ReadAllText(args[0]);
         var variants = new[] { ("helix-1", source), ("helix-2", source.Replace("Turns: 1", "Turns: 2", StringComparison.Ordinal)),
@@ -55,6 +57,35 @@ public static class PerfProgram
                 Aetheris.Web.Runtime.Program.Invoke(JsonSerializer.Serialize(new { operation = "disposeSession", sessionId = model.GetProperty("id").GetString() }));
             }
         }
+        return 0;
+    }
+
+    /// <summary>One build of one document through the runtime entry point, with its top phases:
+    /// <c>profile &lt;file&gt; [--project]</c> (--project sends the file's directory as project documents).</summary>
+    private static int ProfileOne(string[] args)
+    {
+        if (args.Length < 1) { Console.Error.WriteLine("Usage: Aetheris.Web.Perf profile <file> [--project]"); return 2; }
+        var path = Path.GetFullPath(args[0]);
+        var root = Path.GetFileName(path);
+        Dictionary<string, string>? documents = null;
+        if (args.Contains("--project"))
+            documents = Directory.GetFiles(Path.GetDirectoryName(path)!).Where(f => f.EndsWith(".firmament", StringComparison.Ordinal) || f.EndsWith(".firmasm", StringComparison.Ordinal))
+                .ToDictionary(Path.GetFileName, f => File.ReadAllText(f).Replace("\r\n", "\n"), StringComparer.Ordinal)!;
+        var started = Stopwatch.GetTimestamp();
+        var response = JsonNode.Parse(Aetheris.Web.Runtime.Program.Invoke(JsonSerializer.Serialize(new
+        {
+            operation = "compile", source = File.ReadAllText(path).Replace("\r\n", "\n"), sourceName = documents is null ? path : root,
+            projectDocuments = documents, performance = true
+        })))!;
+        var elapsed = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+        var model = response["result"]?["model"];
+        Console.WriteLine($"{root}: {elapsed:0} ms, success={response["result"]?["success"]}");
+        foreach (var phase in (model?["timings"]?["profile"]?["phases"]?.AsArray() ?? [])
+                     .GroupBy(p => p!["name"]!.GetValue<string>())
+                     .Select(g => (Name: g.Key, Count: g.Count(), Ms: g.Sum(p => p!["exclusiveMilliseconds"]!.GetValue<double>())))
+                     .OrderByDescending(p => p.Ms).Take(20))
+            Console.WriteLine($"  {phase.Ms,9:0.0} ms  {phase.Count,5}x  {phase.Name}");
+        if (model is null) Console.WriteLine(response.ToJsonString()[..Math.Min(2000, response.ToJsonString().Length)]);
         return 0;
     }
 }

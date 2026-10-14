@@ -152,6 +152,13 @@ In order of measured share, re-profiled after M1–M3:
 Exit: guitar warm native build target set from M0 data (working target ≤ 5 s from 13.9 s); full
 `Aetheris.slnx` test lane green; STEP unchanged or justified.
 
+**First pass** ([BUILD-PERF-M4](../../../release/BUILD-PERF-M4.md)): meaningful progression, all
+bit-exact. SectionChain self-intersection validation via an X sweep (same verdict, pair and
+counts), MaximumOvershoot bounding box hoisted, lazy preview SVG, B-spline V-span reuse, text
+profile memo. Guitar `CarvedMaple` edit 5.7 → 1.14 s, warm 7.6 → 5.3 s (target ≤ 5 s: at the line),
+bolt edit 3.1 → 1.6 s. Remaining share is the 8193-sample bounded-pcurve qualification (policy
+decision) and the bolt's two mass-property enclosure checks.
+
 ### M5 — First paint
 
 - Showcase projects ship a precomputed binary display mesh keyed by source hash; the editor shows

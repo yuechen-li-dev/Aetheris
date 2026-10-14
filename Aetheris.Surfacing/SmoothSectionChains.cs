@@ -173,14 +173,17 @@ internal static class SmoothSectionChainBuilder
             SectionProfileCurve.PolynomialBSpline spline => spline.ControlPoints.Select(section.Frame.Transform),
             _ => Array.Empty<Point3D>()
         })).ToArray();
-        var diagonal = new Vector3D(points.Max(p => p.X) - points.Min(p => p.X), points.Max(p => p.Y) - points.Min(p => p.Y), points.Max(p => p.Z) - points.Min(p => p.Z)).Length;
+        // The bounding box is loop-invariant (it was re-scanned six times per sample); same values.
+        double minX = points.Min(p => p.X), maxX = points.Max(p => p.X), minY = points.Min(p => p.Y),
+            maxY = points.Max(p => p.Y), minZ = points.Min(p => p.Z), maxZ = points.Max(p => p.Z);
+        var diagonal = new Vector3D(maxX - minX, maxY - minY, maxZ - minZ).Length;
         var max = 0d;
         foreach (var patch in patches) for (var u = 0; u <= 8; u++) for (var v = 0; v <= 8; v++)
         {
             var p = patch.Evaluate(u / 8d, v / 8d);
-            var outside = Math.Max(0, points.Min(x => x.X) - p.X) + Math.Max(0, p.X - points.Max(x => x.X))
-                + Math.Max(0, points.Min(x => x.Y) - p.Y) + Math.Max(0, p.Y - points.Max(x => x.Y))
-                + Math.Max(0, points.Min(x => x.Z) - p.Z) + Math.Max(0, p.Z - points.Max(x => x.Z));
+            var outside = Math.Max(0, minX - p.X) + Math.Max(0, p.X - maxX)
+                + Math.Max(0, minY - p.Y) + Math.Max(0, p.Y - maxY)
+                + Math.Max(0, minZ - p.Z) + Math.Max(0, p.Z - maxZ);
             max = Math.Max(max, outside / Math.Max(diagonal, 1e-9));
         }
         return max;

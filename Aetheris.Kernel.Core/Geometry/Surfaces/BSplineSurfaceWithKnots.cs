@@ -167,7 +167,7 @@ public sealed record BSplineSurfaceWithKnots
 
         // BUILD-PERF-M2: evaluation runs on flat arrays of the same data (no interface dispatch, no
         // heap scratch). The arithmetic and its order are unchanged, so results are bit-identical.
-        var arrays = EvaluationArrays.GetValue(this, static surface => new Arrays(surface));
+        var arrays = ReferenceEquals(lastSurface, this) ? lastArrays! : Remember(this);
         if (arrays.WeightedNet is not null && arrays.WeightNet is not null)
         {
             var numerator = EvaluateNet(arrays.WeightedNet, arrays, uClamped, vClamped);
@@ -180,6 +180,17 @@ public sealed record BSplineSurfaceWithKnots
 
     // Kept beside the record, not in it: record equality and `with` copies stay as they were.
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<BSplineSurfaceWithKnots, Arrays> EvaluationArrays = new();
+    // Evaluations come in long runs on one surface; skip the table lookup for those (BUILD-PERF-M4).
+    [ThreadStatic] private static BSplineSurfaceWithKnots? lastSurface;
+    [ThreadStatic] private static Arrays? lastArrays;
+
+    private static Arrays Remember(BSplineSurfaceWithKnots surface)
+    {
+        var arrays = EvaluationArrays.GetValue(surface, static item => new Arrays(item));
+        lastArrays = arrays;
+        lastSurface = surface;
+        return arrays;
+    }
 
     private sealed class Arrays
     {
@@ -195,7 +206,13 @@ public sealed record BSplineSurfaceWithKnots
             DomainStartV = surface.DomainStartV;
             DomainEndU = surface.DomainEndU;
             DomainEndV = surface.DomainEndV;
+            var length = Net.Length > 0 ? Net[0].Length : -1;
+            RowLength = new[] { Net, WeightedNet, WeightNet }.All(net => net is null || (net.Length == Net.Length && net.All(row => row.Length == length)))
+                ? length : -1;
         }
+
+        /// <summary>The common row length of a rectangular net (every net shares it), or -1.</summary>
+        public readonly int RowLength;
 
         public readonly Point3D[][] Net;
         public readonly Point3D[][]? WeightedNet;
@@ -220,6 +237,19 @@ public sealed record BSplineSurfaceWithKnots
             return EvaluateCurve(net[^1], a.DegreeV, a.KnotsV, a.DomainStartV, a.DomainEndV, vClamped);
         var span = FindSpan(net.Length, a.DegreeU, a.KnotsU, uClamped);
         Span<Point3D> rowPoints = a.DegreeU < 32 ? stackalloc Point3D[a.DegreeU + 1] : new Point3D[a.DegreeU + 1];
+        var v = ClampToDomain(vClamped, a.DomainStartV, a.DomainEndV);
+        if (a.RowLength > 0 && !(double.Abs(v - a.DomainEndV) <= 1e-12d))
+        {
+            // Every row of a rectangular net has the same V span: find it once, not once per row.
+            var vSpan = FindSpan(a.RowLength, a.DegreeV, a.KnotsV, v);
+            Span<Point3D> d = a.DegreeV < 32 ? stackalloc Point3D[a.DegreeV + 1] : new Point3D[a.DegreeV + 1];
+            for (var i = 0; i <= a.DegreeU; i++)
+            {
+                net[span - a.DegreeU + i].AsSpan(vSpan - a.DegreeV, a.DegreeV + 1).CopyTo(d);
+                rowPoints[i] = BlendActiveSpan(d, vSpan, a.DegreeV, a.KnotsV, v);
+            }
+            return BlendActiveSpan(rowPoints, span, a.DegreeU, a.KnotsU, uClamped);
+        }
         for (var i = 0; i <= a.DegreeU; i++)
         {
             rowPoints[i] = EvaluateCurve(net[span - a.DegreeU + i], a.DegreeV, a.KnotsV, a.DomainStartV, a.DomainEndV, vClamped);

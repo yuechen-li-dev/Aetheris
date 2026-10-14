@@ -28,6 +28,30 @@ public static class PlanarTextProfiles
         PlanarTextAlignment alignment = PlanarTextAlignment.Left,
         ConstructionPlane? supportFrame = null, string featureId = "Text")
     {
+        // BUILD-PERF-M4: outline conversion and glyph normalization are a pure function of these
+        // arguments (one font, immutable records) and cost ~1.3 s per bolt rebuild; recent results
+        // are reused. Only frame-free requests are memoized.
+        if (supportFrame is not null || content is null) return BuildUncached(content!, height, alignment, supportFrame, featureId);
+        var key = (content, BitConverter.DoubleToInt64Bits(height), alignment, featureId);
+        lock (RecentBuilds)
+        {
+            var hit = RecentBuilds.FindIndex(entry => entry.Key == key);
+            if (hit >= 0) return RecentBuilds[hit].Result;
+        }
+        var result = BuildUncached(content, height, alignment, null, featureId);
+        lock (RecentBuilds)
+        {
+            RecentBuilds.Add((key, result));
+            if (RecentBuilds.Count > 16) RecentBuilds.RemoveAt(0);
+        }
+        return result;
+    }
+
+    private static readonly List<((string, long, PlanarTextAlignment, string) Key, PlanarTextProfileResult Result)> RecentBuilds = [];
+
+    private static PlanarTextProfileResult BuildUncached(string content, double height,
+        PlanarTextAlignment alignment, ConstructionPlane? supportFrame, string featureId)
+    {
         var diagnostics = new List<string>();
         if (string.IsNullOrEmpty(content)) diagnostics.Add("text-content-empty");
         if (!double.IsFinite(height) || height <= 0) diagnostics.Add("text-height-must-be-positive");

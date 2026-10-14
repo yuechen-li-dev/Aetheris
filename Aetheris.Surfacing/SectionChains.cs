@@ -142,7 +142,11 @@ public sealed record SectionChainMaterializationResult(
     public SectionChainSelfIntersectionEvidence? SelfIntersection { get; init; }
     public SectionChainContinuityEvidence? ContinuityEvidence { get; init; }
     public SectionChainSmoothSelectionEvidence? SmoothSelection { get; init; }
-    public string? PreviewSvg { get; init; }
+    /// <summary>Wireframe preview of the body. Rendered on first read (BUILD-PERF-M4: only the CLI
+    /// reads it, and rendering was ~7% of a guitar build) from a snapshot taken at materialization.</summary>
+    public string? PreviewSvg { get => previewSvg?.Value; init => previewSvg = new(() => value); }
+    private Lazy<string?>? previewSvg;
+    internal BrepBody? PreviewSource { init => previewSvg = value is null ? null : new(() => BrepWireframeSvgRenderer.Render(value).Svg); }
 }
 
 public sealed record SectionChainBoundaryContinuityEvidence(string SectionId, double MaximumPositionError,
@@ -361,7 +365,7 @@ public static class SectionChainMaterializer
         return new(authoredChain, body, Structure(chain), evidence, diagnostics,
             new(profileMs, correspondenceMs, transitionMs, stitchMs, validationMs))
         { GeometricJoins = geometricJoins, ProfileNormalization = normalization, Pcurves = pcurveEvidence, SelfIntersection = selfIntersection.Evidence, ContinuityEvidence = continuityEvidence,
-            SmoothSelection = smoothSelection, PreviewSvg = body is null ? null : BrepWireframeSvgRenderer.Render(body).Svg };
+            SmoothSelection = smoothSelection, PreviewSource = body?.Clone() };
     }
 
     private static IReadOnlyList<SurfacingDiagnostic> Validate(SectionChain chain, IReadOnlyList<PreparedSection> sections)

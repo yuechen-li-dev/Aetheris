@@ -328,12 +328,27 @@ public sealed class AssemblyM0Compiler
         List<AssemblyDiagnostic> diagnostics)
     {
         var result = new List<PlacementConstraintIr>();
+        // BUILD-PERF-M2: instances do not change while constraints lower; index their semantic values
+        // once (first occurrence wins, as FirstOrDefault did; the unique index throws on a duplicate
+        // exactly where ToDictionary did) instead of flattening every instance per role and requirement.
+        Dictionary<string, SemanticValue>? firstById = null, uniqueById = null;
+        SemanticValue? FirstById(string id)
+        {
+            if (firstById is null)
+            {
+                firstById = new(StringComparer.Ordinal);
+                foreach (var value in Flatten(instances.Select(instance => instance.SemanticRoot))) firstById.TryAdd(value.StableIdentity, value);
+            }
+            return firstById.GetValueOrDefault(id);
+        }
+        Dictionary<string, SemanticValue> UniqueById() =>
+            uniqueById ??= Flatten(instances.Select(instance => instance.SemanticRoot)).ToDictionary(value => value.StableIdentity, StringComparer.Ordinal);
         foreach (var mate in mates)
         {
             var definition = interfaces.Values.Single(x => x.StableId == mate.InterfaceStableId);
             var frameRevolute = definition.Family == MechanicalInterfaceFamily.Revolute && mate.Roles.Count == 2
-                && mate.Roles.All(role => Flatten(instances.Select(instance => instance.SemanticRoot))
-                    .FirstOrDefault(value => value.StableIdentity == role.ParticipantSemanticValueId)?
+                && mate.Roles.All(role => (role.ParticipantSemanticValueId is { } participant ? FirstById(participant)
+                    : Flatten(instances.Select(instance => instance.SemanticRoot)).FirstOrDefault(value => value.StableIdentity == role.ParticipantSemanticValueId))?
                     .TryBinding<ExactDatumFrameBinding>(out _) == true);
             var authoredFrame = definition.Requirements.Count == 1
                 && definition.Requirements[0].Kind == PlacementConstraintKind.FrameCoincident;
@@ -361,7 +376,7 @@ public sealed class AssemblyM0Compiler
                 { diagnostics.Add(new(InvalidParticipant, $"Interface '{definition.Name}' requirement '{requirement.Kind}' cannot resolve exposed members '{requirement.FirstMember}'/'{requirement.SecondMember}'.")); continue; }
                 if (requirement.Kind == PlacementConstraintKind.FrameCoincident)
                 {
-                    var values = Flatten(instances.Select(instance => instance.SemanticRoot)).ToDictionary(value => value.StableIdentity, StringComparer.Ordinal);
+                    var values = UniqueById();
                     if (!values[firstId].TryBinding<ExactDatumFrameBinding>(out var firstFrame) || !values[secondId].TryBinding<ExactDatumFrameBinding>(out var secondFrame))
                     {
                         diagnostics.Add(new("assembly-interface-missing-frame", $"Interface '{definition.Name}' Mate '{mate.Name}' requires an exact DatumFrame on both participants."));
@@ -489,6 +504,9 @@ public sealed class AssemblyM0Compiler
         if (anchor is null) diagnostics.Add(new("assembly-anchor-invalid", $"Anchor '{source.Anchor}' is outside the Assembly tree."));
         var known = new Dictionary<string, AssemblyTransform>(StringComparer.Ordinal);
         var overconstrained = new HashSet<string>(StringComparer.Ordinal);
+        Dictionary<string, SemanticValue>? valueIndex = null;
+        IReadOnlyDictionary<string, SemanticValue> ValueIndex() =>
+            valueIndex ??= Flatten(instances.Select(x => x.SemanticRoot)).ToDictionary(x => x.StableIdentity, StringComparer.Ordinal);
         var root = instances.Single(instance => instance.ParentStableId is null);
         known[root.StableId] = AssemblyTransform.Identity;
         if (anchor is not null) known[anchor.StableId] = AssemblyTransform.Identity;
@@ -527,7 +545,7 @@ public sealed class AssemblyM0Compiler
                     {
                         var target = owners.Single(x => x.StableId != moving.StableId);
                         var oriented = Orient(mateConstraints, moving, instances);
-                        var candidate = CandidateTransform(oriented, instances, known[target.StableId]);
+                        var candidate = CandidateTransform(oriented, ValueIndex, known[target.StableId]);
                         if (TransformDistance(candidate, known[moving.StableId]) > 1e-7 && overconstrained.Add(moving.StableId))
                             diagnostics.Add(new(Overconstrained, $"Instance '{moving.Path}' receives a conflicting placement from Mate '{mate.Name}'; transform residual exceeds 1e-7."));
                     }
@@ -537,7 +555,7 @@ public sealed class AssemblyM0Compiler
                 var targetInstance = firstKnown ? owners[0] : owners[1];
                 var orientedConstraints = Orient(mateConstraints, movingInstance, instances);
                 var frameCandidates = orientedConstraints.Where(x => x.Kind == PlacementConstraintKind.FrameCoincident)
-                    .Select(x => CandidateTransform([x], instances, known[targetInstance.StableId])).ToArray();
+                    .Select(x => CandidateTransform([x], ValueIndex, known[targetInstance.StableId])).ToArray();
                 if (frameCandidates.Length > 1 && frameCandidates.Skip(1).Any(x => TransformDistance(frameCandidates[0], x) > 1e-7))
                 {
                     overconstrained.Add(movingInstance.StableId);
@@ -545,14 +563,14 @@ public sealed class AssemblyM0Compiler
                     continue;
                 }
                 var axisCandidates = orientedConstraints.Where(x => x.Kind == PlacementConstraintKind.AxisCoincident)
-                    .Select(x => CandidateTransform([x], instances, known[targetInstance.StableId])).ToArray();
+                    .Select(x => CandidateTransform([x], ValueIndex, known[targetInstance.StableId])).ToArray();
                 if (axisCandidates.Length > 1 && axisCandidates.Skip(1).Any(x => TransformDistance(axisCandidates[0], x) > 1e-7))
                 {
                     overconstrained.Add(movingInstance.StableId);
                     diagnostics.Add(new(Overconstrained, $"Instance '{movingInstance.Path}' receives incompatible constraints from Mate '{mate.Name}'; transform residual exceeds 1e-7."));
                     continue;
                 }
-                known[movingInstance.StableId] = CandidateTransform(orientedConstraints, instances, known[targetInstance.StableId]);
+                known[movingInstance.StableId] = CandidateTransform(orientedConstraints, ValueIndex, known[targetInstance.StableId]);
                 progress = true;
             }
         }
@@ -626,9 +644,11 @@ public sealed class AssemblyM0Compiler
         return Math.Sqrt(Enumerable.Range(0, 16).Sum(i => Math.Pow(a.Matrix[i] - b.Matrix[i], 2)));
     }
 
-    private static AssemblyTransform CandidateTransform(IReadOnlyList<PlacementConstraintIr> constraints, IReadOnlyList<AssemblyInstanceIr> instances, AssemblyTransform? targetWorld = null)
+    // BUILD-PERF-M2: the caller supplies the semantic-value index of its (unchanging) instances, built
+    // once per placement solve instead of once per candidate (it was rebuilt for every constraint).
+    private static AssemblyTransform CandidateTransform(IReadOnlyList<PlacementConstraintIr> constraints, Func<IReadOnlyDictionary<string, SemanticValue>> valueIndex, AssemblyTransform? targetWorld = null)
     {
-        var values = Flatten(instances.Select(x => x.SemanticRoot)).ToDictionary(x => x.StableIdentity, StringComparer.Ordinal);
+        var values = valueIndex();
         var frameConstraint = constraints.FirstOrDefault(x => x.Kind == PlacementConstraintKind.FrameCoincident);
         if (frameConstraint is not null
             && values[frameConstraint.FirstSemanticValueId].TryBinding<ExactDatumFrameBinding>(out var sourceFrame)

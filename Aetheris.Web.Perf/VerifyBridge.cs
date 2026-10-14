@@ -6,7 +6,7 @@ namespace Aetheris.Web.Perf;
 /// <summary>
 /// BUILD-PERF-M3: the bridge (binary arrays + retained definitions) must deliver exactly what the
 /// legacy JSON response delivers. A legacy session and a bridged session build the same project
-/// through cold build, no-change rebuild and root-comment edit; each bridged model is
+/// through cold build, no-change rebuild, root-comment edit and (for projects) an include-comment edit; each bridged model is
 /// reconstructed the way the SDK does it and compared with the legacy model.
 /// </summary>
 internal static class VerifyBridge
@@ -25,12 +25,16 @@ internal static class VerifyBridge
             ("no-change rebuild", _ => new { operation = "rebuild" }),
             ("root comment edit", _ => new { operation = "rebuild" }),
         };
+        // BUILD-PERF-M2: an included document's comment changes definition input keys but no geometry;
+        // content-keyed display definitions must still be retained, and still equal legacy.
+        var include = documents.Keys.Where(key => key != root).Order(StringComparer.Ordinal).FirstOrDefault();
+        if (include is not null) steps = [.. steps, ("include comment edit", _ => new { operation = "rebuild" })];
         var current = new Dictionary<string, string>(documents, StringComparer.Ordinal);
         foreach (var (name, request) in steps)
         {
-            if (name == "root comment edit")
+            if (name is "root comment edit" or "include comment edit")
             {
-                current[root] += "\n// verify-bridge\n";
+                current[name == "root comment edit" ? root : include!] += "\n// verify-bridge\n";
                 foreach (var session in new[] { legacySession, bridgedSession })
                     Call(new { operation = "setSource", sessionId = session!.GetValue<string>(), source = current[root], sourceName = root, projectDocuments = current.Count > 1 ? current : null }, bridged: false);
             }
@@ -41,7 +45,7 @@ internal static class VerifyBridge
             bridgedSession ??= bridged["result"]!["model"]!["id"]!.DeepClone();
             var expected = Comparable(legacy); var actual = Comparable(bridged);
             var equal = JsonNode.DeepEquals(expected, actual);
-            Console.WriteLine($"{name,-18} legacy {Size(legacy.ToJsonString())} · bridged {Size(bridgedRaw.ToJsonString())} JSON + {Size(binary.Length)} binary · " +
+            Console.WriteLine($"{name,-20} legacy {Size(legacy.ToJsonString())} · bridged {Size(bridgedRaw.ToJsonString())} JSON + {Size(binary.Length)} binary · " +
                 $"{binaryArrays} binary arrays · {retained} retained definitions · {(equal ? "identical" : "DIFFERENT")}");
             if (!equal) { failures++; Report(expected, actual, "model"); }
             previousBridged = bridged["result"]!["model"]!.AsObject();

@@ -1,3 +1,5 @@
+using Aetheris.Kernel.Core.Results;
+using System.Text.Json;
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Brep.Queries;
@@ -98,8 +100,12 @@ internal sealed class AssemblyDefinitionCache(int capacity)
     // returns a fresh clone, so the public mutable topology/geometry stores can never corrupt a
     // later build, and a rebuild sees the same body as the build that populated the cache.
     // (BUILD-PERF-M1: previously STEP text, re-imported on every hit.)
+    // BUILD-PERF-M2: an entry also carries the definition's content key (identity, canonical STEP,
+    // retained CIR). Everything derived downstream (display mesh, seat queries) is a function of
+    // exactly those, so a definition rebuilt from changed source text but producing the same
+    // geometry reuses them; an input-key change alone no longer re-tessellates.
     private sealed record Entry(string Key, MaterializedAssemblyDefinition Metadata,
-        IReadOnlyList<AssemblyDiagnostic> Diagnostics);
+        IReadOnlyList<AssemblyDiagnostic> Diagnostics, string ContentKey);
     private readonly Dictionary<string, Entry> entries = new(StringComparer.Ordinal);
     private readonly Queue<string> insertionOrder = new();
     internal List<AssemblyDefinitionReuse> Evidence { get; } = [];
@@ -125,7 +131,7 @@ internal sealed class AssemblyDefinitionCache(int capacity)
                 using (BuildPerfTrace.Phase("assembly.cache-hit-clone")) body = entry.Metadata.Body.Clone();
                 diagnostics.AddRange(entry.Diagnostics);
                 Evidence.Add(new(identity, true, "unchanged-definition-inputs"));
-                return CopyMetadata(entry.Metadata) with { Body = body, InputKey = key };
+                return CopyMetadata(entry.Metadata) with { Body = body, InputKey = entry.ContentKey };
             }
         }
         var diagnosticStart = diagnostics.Count;
@@ -155,8 +161,27 @@ internal sealed class AssemblyDefinitionCache(int capacity)
             while (entries.Count >= capacity) entries.Remove(insertionOrder.Dequeue());
             insertionOrder.Enqueue(identity);
         }
-        entries[identity] = new(key, metadata, diagnostics.Skip(diagnosticStart).ToArray());
-        return result with { InputKey = key };
+        var contentKey = ContentKey(result);
+        entries[identity] = new(key, metadata, diagnostics.Skip(diagnosticStart).ToArray(), contentKey);
+        return result with { InputKey = contentKey };
+    }
+
+    private static string ContentKey(MaterializedAssemblyDefinition definition) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("assembly-definition-content-v1\0"
+            + definition.DefinitionIdentity + "\0" + definition.CanonicalStep + "\0"
+            + (definition.Cir is null ? "" : JsonSerializer.Serialize(definition.Cir)))));
+
+    /// <summary>The body of canonical STEP text: a clone of a cached definition imported from the
+    /// identical text, otherwise a fresh import. The importer is deterministic, so both are equal.</summary>
+    internal KernelResult<BrepBody> ImportCanonical(string stepText)
+    {
+        foreach (var entry in entries.Values)
+            if (entry.Metadata.CanonicalStep is { } step && step.Length == stepText.Length && string.Equals(step, stepText, StringComparison.Ordinal))
+            {
+                using (BuildPerfTrace.Phase("assembly.cache-import-clone"))
+                    return KernelResult<BrepBody>.Success(entry.Metadata.Body.Clone());
+            }
+        return Step242Importer.ImportBody(stepText);
     }
 
     private static string? Key(string identity, string? declarations, string sourceIdentity, FirmamentProjectSnapshot? project)

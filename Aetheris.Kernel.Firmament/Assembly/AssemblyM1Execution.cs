@@ -1,3 +1,4 @@
+using Aetheris.Kernel.Core.Results;
 using Aetheris.Kernel.Core.Diagnostics;
 using System.Security.Cryptography;
 using System.Diagnostics;
@@ -70,8 +71,12 @@ internal sealed record MaterializedAssemblyDefinition(
 /// </summary>
 internal static class AssemblyDefinitionMaterializer
 {
-    public static MaterializedAssemblyDefinition? TryMaterialize(string definitionIdentity, string? definitionSource, string sourceIdentity, List<AssemblyDiagnostic> diagnostics, FirmamentProjectSnapshot? project = null)
+    public static MaterializedAssemblyDefinition? TryMaterialize(string definitionIdentity, string? definitionSource, string sourceIdentity, List<AssemblyDiagnostic> diagnostics, FirmamentProjectSnapshot? project = null,
+        Func<string, KernelResult<BrepBody>>? importBody = null)
     {
+        // BUILD-PERF-M2: a session supplies an importer that returns a clone of a body it already
+        // imported from the identical canonical STEP text (the importer is deterministic).
+        importBody ??= stepText => Step242Importer.ImportBody(stepText);
         if (!string.IsNullOrWhiteSpace(definitionSource))
         {
             // Keep the authored SectionChain in its own source document so sibling
@@ -136,7 +141,7 @@ internal static class AssemblyDefinitionMaterializer
                         diagnostics.Add(new("assembly-definition-materialization-failed", $"SectionChain source '{sectionPath}' STEP export failed: {diagnostic.Message}"));
                     return null;
                 }
-                var sectionImport = Step242Importer.ImportBody(sectionStep.Value);
+                var sectionImport = importBody(sectionStep.Value);
                 if (!sectionImport.IsSuccess || sectionImport.Value is null)
                 {
                     foreach (var diagnostic in sectionImport.Diagnostics)
@@ -250,7 +255,7 @@ internal static class AssemblyDefinitionMaterializer
                 diagnostics.Add(new("assembly-definition-materialization-failed", $"Definition '{definitionIdentity}' failed ordinary Firmament materialization: {diagnostic.Message}"));
             return null;
         }
-        var import = Step242Importer.ImportBody(build.Value.StepText);
+        var import = importBody(build.Value.StepText);
         if (!import.IsSuccess || import.Value is null)
         {
             foreach (var diagnostic in import.Diagnostics)
@@ -395,7 +400,7 @@ public sealed class AssemblyM1Pipeline
             .Select(identity => { using var definitionPhase = BuildPerfTrace.Phase("assembly.definition"); return cache is null
                 ? Materialize(identity, parsed.Source.DefinitionSource, parsed.Source.SourceIdentity, diagnostics, domainMaterializer, project)
                 : cache.Materialize(identity, parsed.Source.DefinitionSource, parsed.Source.SourceIdentity, diagnostics, project,
-                    () => Materialize(identity, parsed.Source.DefinitionSource, parsed.Source.SourceIdentity, diagnostics, domainMaterializer, project)); })
+                    () => Materialize(identity, parsed.Source.DefinitionSource, parsed.Source.SourceIdentity, diagnostics, domainMaterializer, project, cache.ImportCanonical)); })
             .Where(definition => definition is not null).Cast<MaterializedAssemblyDefinition>().ToDictionary(definition => definition.DefinitionIdentity, StringComparer.Ordinal);
         materializationWatch.Stop();
         var enriched = parsed.Source with { Root = Enrich(parsed.Source.Root, definitions) };
@@ -421,7 +426,8 @@ public sealed class AssemblyM1Pipeline
     }
 
     private static MaterializedAssemblyDefinition? Materialize(string identity, string? declarations, string sourceIdentity,
-        List<AssemblyDiagnostic> diagnostics, AssemblyPartMaterializer? domainMaterializer, FirmamentProjectSnapshot? project)
+        List<AssemblyDiagnostic> diagnostics, AssemblyPartMaterializer? domainMaterializer, FirmamentProjectSnapshot? project,
+        Func<string, KernelResult<BrepBody>>? importBody = null)
     {
         if (domainMaterializer?.Invoke(identity, declarations, sourceIdentity, diagnostics) is { } supplied)
         {
@@ -435,7 +441,7 @@ public sealed class AssemblyM1Pipeline
             return new(identity, supplied.SpecializationIdentity, supplied.Body, supplied.Semantics ?? [], artifact);
         }
         using var materializePhase = BuildPerfTrace.Phase("assembly.definition-materialize");
-        return AssemblyDefinitionMaterializer.TryMaterialize(identity, declarations, sourceIdentity, diagnostics, project);
+        return AssemblyDefinitionMaterializer.TryMaterialize(identity, declarations, sourceIdentity, diagnostics, project, importBody);
     }
 
     private static AssemblyMemberSource Enrich(AssemblyMemberSource member, IReadOnlyDictionary<string, MaterializedAssemblyDefinition> definitions)

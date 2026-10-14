@@ -18,7 +18,9 @@ public static class DisplayProjection
         var nodes = scene.Nodes.ToDictionary(n => n.Path, StringComparer.Ordinal);
         return display with
         {
-            Definitions = display.Definitions.Select(d => d with { Shader = d.Shader ?? CirShaderArtifactProvider.Resolve(d.Cir) }).ToArray(),
+            // A definition that already carries its shader is passed through as the same object (BUILD-PERF-M2:
+            // the web runtime retains unchanged definitions by reference identity).
+            Definitions = display.Definitions.Select(d => d.Shader is null ? d with { Shader = CirShaderArtifactProvider.Resolve(d.Cir) } : d).ToArray(),
             Occurrences = display.Occurrences.Select(o => o with
             {
                 Material = Material(scene.Appearances.GetValueOrDefault(o.Id)) ?? o.Material,

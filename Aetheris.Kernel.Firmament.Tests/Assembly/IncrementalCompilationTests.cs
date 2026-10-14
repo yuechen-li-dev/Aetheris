@@ -60,6 +60,42 @@ public sealed class IncrementalCompilationTests
     }
 
     [Fact]
+    public void SourceOnlyEditRebuildsTheDefinitionButReusesItsUnchangedDisplayMesh()
+    {
+        // BUILD-PERF-M2: derived values are keyed by definition content (identity, canonical STEP,
+        // retained CIR), not by source text, so a comment in the declarations re-materializes the
+        // definition but keeps the prepared mesh object (the web runtime retains it by reference).
+        using var session = new FirmamentCompilationSession();
+        var first = Good(session.Compile(Source()));
+        var firstMesh = session.ExportDisplayMesh(first);
+        var commented = Source().Replace("Struct Pad {", "Struct Pad {\n  // declarations comment", StringComparison.Ordinal);
+        var second = Good(session.Compile(commented));
+        Assert.Equal(1, second.Reuse!.RebuiltDefinitions);
+        var secondMesh = session.ExportDisplayMesh(second);
+        Assert.Same(firstMesh.Definitions.Single(), secondMesh.Definitions.Single());
+        var baseline = Good(new AssemblyM1Pipeline().Compile(commented));
+        Assert.Equal(AssemblyDisplayMeshExporter.Serialize(AssemblyDisplayMeshExporter.Export(baseline)), AssemblyDisplayMeshExporter.Serialize(secondMesh));
+        var taller = Good(session.Compile(Source(height: "3mm")));
+        Assert.NotSame(firstMesh.Definitions.Single(), session.ExportDisplayMesh(taller).Definitions.Single());
+    }
+
+    [Fact]
+    public void SceneRebuildReusesItsDisplayDefinitions()
+    {
+        var path = FirmamentCorpusHarness.ResolveFixtureFullPath("fixtures/Canonical/Scene/WarmModernHouse/house.firmament");
+        using var session = new Aetheris.Kernel.Firmament.Scene.FirmamentSceneSession();
+        var first = session.CompileFile(path);
+        Assert.True(first.IsSuccess, string.Join("\n", first.Diagnostics.Select(d => d.Message)));
+        var second = session.CompileFile(path);
+        Assert.True(second.IsSuccess);
+        var fresh = new Aetheris.Kernel.Firmament.Scene.FirmamentSceneSession().CompileFile(path);
+        Assert.Equal(first.Scene!.Display.Definitions.Count, second.Scene!.Display.Definitions.Count);
+        Assert.All(first.Scene.Display.Definitions.Zip(second.Scene.Display.Definitions), pair => Assert.Same(pair.First, pair.Second));
+        Assert.All(DisplayProjection.Project(first.Scene).Definitions.Zip(DisplayProjection.Project(second.Scene).Definitions), pair => Assert.Same(pair.First, pair.Second));
+        Assert.Equal(AssemblyDisplayMeshExporter.Serialize(DisplayProjection.Project(fresh.Scene!)), AssemblyDisplayMeshExporter.Serialize(DisplayProjection.Project(second.Scene)));
+    }
+
+    [Fact]
     public void MutatingAReusedBodyCannotLeakIntoTheNextBuild()
     {
         using var session = new FirmamentCompilationSession();

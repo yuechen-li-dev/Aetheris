@@ -308,6 +308,41 @@ public static class FirmamentV2Parser
     {
         using var buildPerfPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("firmament.v2-parse");
         ArgumentNullException.ThrowIfNull(sourceText);
+        // BUILD-PERF-M2: one compilation parses the same text several times (an assembly definition
+        // four times). The parser is a pure function of its text and directory, and its result is
+        // immutable records, except InlineStep, which reads a STEP file; those, and parses with a
+        // concept catalog, always run.
+        if (conceptCatalog is not null || sourceText.Contains("InlineStep", StringComparison.OrdinalIgnoreCase))
+            return ParseUncached(sourceText, sourceDirectory, conceptCatalog);
+        var key = (sourceDirectory ?? string.Empty) + "\0" + sourceText;
+        lock (RecentParses)
+        {
+            var index = RecentParses.FindIndex(entry => string.Equals(entry.Key, key, StringComparison.Ordinal));
+            if (index >= 0)
+            {
+                var hit = RecentParses[index];
+                RecentParses.RemoveAt(index);
+                RecentParses.Add(hit);
+                return hit.Result;
+            }
+        }
+        var result = ParseUncached(sourceText, sourceDirectory, conceptCatalog);
+        lock (RecentParses)
+        {
+            RecentParses.Add((key, result));
+            if (RecentParses.Count > RecentParseCapacity) RecentParses.RemoveAt(0);
+        }
+        return result;
+    }
+
+    private const int RecentParseCapacity = 8;
+    private static readonly List<(string Key, FirmamentV2ParseResult Result)> RecentParses = [];
+
+    private static FirmamentV2ParseResult ParseUncached(
+        string sourceText,
+        string? sourceDirectory,
+        FirmamentV2ForgeConceptCatalog? conceptCatalog)
+    {
         sourceText = FirmamentSourceSpelling.Normalize(sourceText);
         sourceText = ProfileModificationTemplateLibrary.ResolveImports(sourceText);
         var diagnostics = new List<string> { "firmament-v2-parser-invoked" };

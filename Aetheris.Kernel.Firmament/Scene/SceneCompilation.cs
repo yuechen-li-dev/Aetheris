@@ -29,6 +29,12 @@ public sealed class FirmamentSceneSession : IDisposable
     private readonly object gate = new();
     private readonly AssemblyDefinitionCache parts = new(256);
     private readonly Dictionary<string,FirmamentCompilationSession> assemblies = new(StringComparer.OrdinalIgnoreCase);
+    // BUILD-PERF-M2: display definitions are pure functions of their inputs (a box of its key; a
+    // part of its content key and id; an assembly-derived definition of the assembly session's
+    // prepared definition and its scene id), so a rebuild reuses the same objects. Reference
+    // identity is what lets the web runtime send unchanged definitions as retained stubs.
+    private readonly DerivedValueCache<AssemblyDisplayMeshDefinition> sceneDefinitions = new();
+    private readonly DerivedValueCache<(AssemblyDisplayMeshDefinition Source,AssemblyDisplayMeshDefinition Derived)> assemblyDefinitions = new();
     private bool disposed;
     public SceneCompilationResult CompileFile(string path) => Compile(File.ReadAllText(path),Path.GetFullPath(path));
     public SceneCompilationResult CompileProject(FirmamentProjectSnapshot project) => project.TryResolve(project.RootDocument, out var source)
@@ -41,7 +47,7 @@ public sealed class FirmamentSceneSession : IDisposable
             ObjectDisposedException.ThrowIf(disposed,this);
             var watch = Stopwatch.StartNew(); var parsed = SceneAuthoring.Parse(source,sourceIdentity);
             if (!parsed.IsSuccess) return new(null,parsed.Diagnostics);
-            var bindMs=watch.Elapsed.TotalMilliseconds; watch.Restart(); parts.BeginBuild();
+            var bindMs=watch.Elapsed.TotalMilliseconds; watch.Restart(); parts.BeginBuild(); sceneDefinitions.BeginBuild(); assemblyDefinitions.BeginBuild();
             var s=parsed.Source!; var diagnostics=parsed.Diagnostics.ToList();
             var definitions=new Dictionary<string,AssemblyDisplayMeshDefinition>(StringComparer.Ordinal);
             var occurrences=new List<AssemblyDisplayMeshOccurrence>(); var nodes=new List<SceneNode>();
@@ -120,7 +126,7 @@ public sealed class FirmamentSceneSession : IDisposable
                     foreach (var panel in Panels(room,boundary.Kind,s.Openings.Where(o => o.Boundary == boundary.Path).ToArray()))
                     {
                         var key="scene-box:"+string.Join(":",panel.Size.Select(F)); var id=Id(key);
-                        if (!definitions.ContainsKey(id)) definitions.Add(id,Box(id,key,panel.Size));
+                        if (!definitions.ContainsKey(id)) definitions.Add(id,sceneDefinitions.GetOrAdd(id,() => WithShader(Box(id,key,panel.Size))));
                         var panelPath=wallPath+".panel"+panel.Index;
                         var world=Transform3D.CreateTranslation(new(panel.At[0],panel.At[1],panel.At[2]))*transform;
                         AddNode(panelPath,"EnvironmentPanel",key,wallPath,world.ToRowMajor(),id,room.Span);
@@ -135,7 +141,7 @@ public sealed class FirmamentSceneSession : IDisposable
                         foreach (var piece in WindowPieces(opening,room.ThicknessMm,boundary.Kind))
                         {
                             var key="scene-box:"+string.Join(":",piece.Size.Select(F)); var id=Id(key);
-                            if (!definitions.ContainsKey(id)) definitions.Add(id,Box(id,key,piece.Size));
+                            if (!definitions.ContainsKey(id)) definitions.Add(id,sceneDefinitions.GetOrAdd(id,() => WithShader(Box(id,key,piece.Size))));
                             var path=openingPath+"."+piece.Name;
                             var world=Transform3D.CreateTranslation(new(piece.At[0],piece.At[1],piece.At[2]))*aperture;
                             AddNode(path,"WindowFinish",key,openingPath,world.ToRowMajor(),id,opening.Span);
@@ -162,7 +168,12 @@ public sealed class FirmamentSceneSession : IDisposable
                     if (item.From != "Origin") { Error("scene-part-source-frame-unsupported","X0 Part Scene placement starts at Origin; assembly published source frames are supported."); continue; }
                     var part=materializedParts[item.Definition]; var id=Id("part:"+item.Definition);
                     if (!definitions.ContainsKey(id))
-                    { var preparation=Stopwatch.StartNew(); definitions.Add(id,AssemblyDisplayMeshExporter.PrepareDefinition(id,item.Definition,part.Body, externalStep: part.Artifact.Provenance.Any(p => p.Stage == "imported-step-definition")) with { Cir = part.Cir is null ? null : part.Cir with { DefinitionId = id }, GeometryRevision = part.Artifact.StepSha256 }); displayMs+=preparation.Elapsed.TotalMilliseconds; }
+                    {
+                        var preparation=Stopwatch.StartNew();
+                        AssemblyDisplayMeshDefinition Prepare() => AssemblyDisplayMeshExporter.PrepareDefinition(id,item.Definition,part.Body, externalStep: part.Artifact.Provenance.Any(p => p.Stage == "imported-step-definition")) with { Cir = part.Cir is null ? null : part.Cir with { DefinitionId = id }, GeometryRevision = part.Artifact.StepSha256 };
+                        definitions.Add(id,part.InputKey is { } contentKey ? sceneDefinitions.GetOrAdd("part|"+contentKey+"|"+id,() => WithShader(Prepare())) : Prepare());
+                        displayMs+=preparation.Elapsed.TotalMilliseconds;
+                    }
                     AddNode(item.Path,"Part",item.Definition,parent,world.ToRowMajor(),id,item.Span,item.PatternKey); ApplyLook(item.Path,item.Appearance);
                 }
                 else
@@ -171,7 +182,7 @@ public sealed class FirmamentSceneSession : IDisposable
                     var path=AssemblyPathFor(match.Groups["path"].Value)!;
                     var assembly=compiledAssemblies[path];
                     if (!preparedAssemblies.TryGetValue(path,out var mesh))
-                    { var preparation=Stopwatch.StartNew(); preparedAssemblies[path]=mesh=AssemblyDisplayMeshExporter.Export(assembly); displayMs+=preparation.Elapsed.TotalMilliseconds; }
+                    { var preparation=Stopwatch.StartNew(); preparedAssemblies[path]=mesh=assemblies[path].ExportDisplayMesh(assembly); displayMs+=preparation.Elapsed.TotalMilliseconds; }
                     if (item.From != "Origin")
                     {
                         var root=assembly.Ir!.Instances.Single(i => i.ParentStableId is null);
@@ -184,7 +195,10 @@ public sealed class FirmamentSceneSession : IDisposable
                     foreach (var d in mesh.Definitions)
                     {
                         var id=prefix+":"+d.Id;
-                        if (!definitions.ContainsKey(id)) definitions.Add(id,d with { Id=id, Identity=path+"::"+d.Identity, Cir = d.Cir is null ? null : d.Cir with { DefinitionId = id } });
+                        if (definitions.ContainsKey(id)) continue;
+                        var derived=assemblyDefinitions.GetOrAdd(id,() => (d,Derive(d,id,path)));
+                        if (!ReferenceEquals(derived.Source,d)) { assemblyDefinitions.Forget(id); derived=assemblyDefinitions.GetOrAdd(id,() => (d,Derive(d,id,path))); }
+                        definitions.Add(id,derived.Derived);
                     }
                     foreach (var o in mesh.Occurrences)
                     {
@@ -220,6 +234,8 @@ public sealed class FirmamentSceneSession : IDisposable
                     yield return new(path,room.Name,kind,world.ToRowMajor(),width,height,s.Openings.Where(o => o.Boundary == path).Select(o => o.Name).ToArray());
                 }
             }
+            AssemblyDisplayMeshDefinition Derive(AssemblyDisplayMeshDefinition d,string id,string path) =>
+                d with { Id=id, Identity=path+"::"+d.Identity, Cir = d.Cir is null ? null : d.Cir with { DefinitionId = id } };
             void Error(string code,string message) => diagnostics.Add(new(code,message));
             string? AssemblyPathFor(string relative)
             {
@@ -237,7 +253,10 @@ public sealed class FirmamentSceneSession : IDisposable
             { if (look is not null) looks[Id(path)]=new("","",look,s.Looks.Appearances[look].Preview,"scene-appearance"); }
         }
     }
-    public void Dispose() { lock(gate) { foreach (var session in assemblies.Values) session.Dispose(); assemblies.Clear(); parts.Clear(); disposed=true; } }
+    public void Dispose() { lock(gate) { foreach (var session in assemblies.Values) session.Dispose(); assemblies.Clear(); parts.Clear(); sceneDefinitions.Clear(); assemblyDefinitions.Clear(); disposed=true; } }
+    // The shader DisplayProjection would attach; attached once here so the cached object is final.
+    private static AssemblyDisplayMeshDefinition WithShader(AssemblyDisplayMeshDefinition d) =>
+        d.Shader is null ? d with { Shader = CirShaderArtifactProvider.Resolve(d.Cir) } : d;
     private static string F(double value) => value.ToString("R",CultureInfo.InvariantCulture);
     private static string Id(string value) => "scene:"+Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)))[..24];
     private sealed record Panel(int Index,double[] At,double[] Size);

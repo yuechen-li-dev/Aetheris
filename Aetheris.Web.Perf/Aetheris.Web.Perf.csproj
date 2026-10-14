@@ -16,5 +16,6 @@
     <Compile Include="ShowcasePerf.cs" />
     <Compile Include="CompareStep.cs" />
     <Compile Include="VerifyBridge.cs" />
+    <Compile Include="VerifyIncremental.cs" />
   </ItemGroup>
 </Project>

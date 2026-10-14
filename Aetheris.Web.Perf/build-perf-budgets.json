@@ -2,30 +2,30 @@
   "schema": "aetheris/build-perf-budgets/m0",
   "note": "Machine-independent fields always gate; *Milliseconds fields gate only with --check-time on the recorded machine.",
   "recordedOn": "vm \u00B7 2 CPU \u00B7 Unix 6.18.44.114",
-  "recordedCommit": "c85f61bbec71",
+  "recordedCommit": "73c2be2b40a8",
   "projects": {
     "bracket": {
       "stepDataSha256": "c3323aa5717fbd198c6148ab082623f0f5920c42487c6dd5f398da4abd2d4170",
       "meshSha256": "b0ec1fb0d1d40af0e6b13fe9fa1ddd38167ebde5f3f3fd946eeaac4ba97509f9",
       "rebuildMatchesCold": true,
       "cold": {
-        "invokeMilliseconds": 687.1,
-        "responseBytes": 29422,
-        "allocatedBytes": 4874664
+        "invokeMilliseconds": 804,
+        "responseBytes": 29420,
+        "allocatedBytes": 4968608
       },
       "warm": {
-        "invokeMilliseconds": 5,
-        "responseBytes": 29142,
-        "allocatedBytes": 679256
+        "invokeMilliseconds": 4.9,
+        "responseBytes": 29141,
+        "allocatedBytes": 580896
       },
       "noChangeRebuild": {
-        "invokeMilliseconds": 4.8,
-        "responseBytes": 29066,
-        "allocatedBytes": 577656
+        "invokeMilliseconds": 3.5,
+        "responseBytes": 29070,
+        "allocatedBytes": 577664
       },
       "rootCommentEdit": {
-        "invokeMilliseconds": 5,
-        "responseBytes": 29101,
+        "invokeMilliseconds": 4.3,
+        "responseBytes": 29098,
         "allocatedBytes": 630768
       }
     },
@@ -34,29 +34,29 @@
       "meshSha256": "aa9262734e2c79801a33b60f318d646b7a81aebda0b2bea9c0e711b775f835a6",
       "rebuildMatchesCold": true,
       "cold": {
-        "invokeMilliseconds": 5423.4,
-        "responseBytes": 6952201,
-        "allocatedBytes": 962555120
+        "invokeMilliseconds": 4847.9,
+        "responseBytes": 6951685,
+        "allocatedBytes": 698835440
       },
       "warm": {
-        "invokeMilliseconds": 1974.9,
-        "responseBytes": 6952173,
-        "allocatedBytes": 885422368
+        "invokeMilliseconds": 1997,
+        "responseBytes": 6951673,
+        "allocatedBytes": 631247616
       },
       "noChangeRebuild": {
-        "invokeMilliseconds": 1849.8,
-        "responseBytes": 6952121,
-        "allocatedBytes": 885176208
+        "invokeMilliseconds": 1611.8,
+        "responseBytes": 6951611,
+        "allocatedBytes": 630995008
       },
       "leafCommentEdit": {
-        "invokeMilliseconds": 1539.7,
-        "responseBytes": 6952121,
-        "allocatedBytes": 882143264
+        "invokeMilliseconds": 1347.4,
+        "responseBytes": 6951612,
+        "allocatedBytes": 630797280
       },
       "rootCommentEdit": {
-        "invokeMilliseconds": 1590.5,
-        "responseBytes": 6952154,
-        "allocatedBytes": 882245952
+        "invokeMilliseconds": 1049,
+        "responseBytes": 6951636,
+        "allocatedBytes": 627991888
       }
     },
     "atlas": {
@@ -64,33 +64,33 @@
       "meshSha256": "027b4e5076983ac736cad3aa72543127150ef1fd5d78d78a841842ff4afd179b",
       "rebuildMatchesCold": true,
       "cold": {
-        "invokeMilliseconds": 4496.6,
-        "responseBytes": 1771510,
-        "allocatedBytes": 361823128,
+        "invokeMilliseconds": 4756.7,
+        "responseBytes": 1771496,
+        "allocatedBytes": 360284960,
         "reusedDefinitions": 0
       },
       "warm": {
-        "invokeMilliseconds": 2184.1,
-        "responseBytes": 1771425,
-        "allocatedBytes": 350792672,
+        "invokeMilliseconds": 1810.5,
+        "responseBytes": 1771445,
+        "allocatedBytes": 350275160,
         "reusedDefinitions": 0
       },
       "noChangeRebuild": {
-        "invokeMilliseconds": 61.1,
-        "responseBytes": 1728469,
-        "allocatedBytes": 25563688,
+        "invokeMilliseconds": 75.6,
+        "responseBytes": 1728477,
+        "allocatedBytes": 25538104,
         "reusedDefinitions": 24
       },
       "leafCommentEdit": {
-        "invokeMilliseconds": 146.3,
-        "responseBytes": 1728487,
-        "allocatedBytes": 25787352,
+        "invokeMilliseconds": 170.4,
+        "responseBytes": 1728490,
+        "allocatedBytes": 25761736,
         "reusedDefinitions": 24
       },
       "rootCommentEdit": {
-        "invokeMilliseconds": 62.5,
-        "responseBytes": 1728513,
-        "allocatedBytes": 25583552,
+        "invokeMilliseconds": 77.2,
+        "responseBytes": 1728511,
+        "allocatedBytes": 25516192,
         "reusedDefinitions": 24
       }
     },
@@ -99,39 +99,39 @@
       "meshSha256": "6758e0452b56318e0c7e40071cb0579f143edf2215c104e182fa9c055f59e867",
       "rebuildMatchesCold": true,
       "cold": {
-        "invokeMilliseconds": 9816,
-        "responseBytes": 9100194,
-        "allocatedBytes": 1230367672,
+        "invokeMilliseconds": 11380.1,
+        "responseBytes": 9100211,
+        "allocatedBytes": 1246967784,
         "reusedDefinitions": 0
       },
       "warm": {
-        "invokeMilliseconds": 3882.5,
-        "responseBytes": 9099938,
-        "allocatedBytes": 1170225960,
+        "invokeMilliseconds": 3787,
+        "responseBytes": 9099966,
+        "allocatedBytes": 1191341192,
         "reusedDefinitions": 0
       },
       "noChangeRebuild": {
-        "invokeMilliseconds": 337,
-        "responseBytes": 9014029,
-        "allocatedBytes": 91973440,
+        "invokeMilliseconds": 261.2,
+        "responseBytes": 9014023,
+        "allocatedBytes": 91972704,
         "reusedDefinitions": 56
       },
       "leafValueEdit": {
-        "invokeMilliseconds": 349.5,
-        "responseBytes": 9016050,
-        "allocatedBytes": 123110832,
+        "invokeMilliseconds": 377.1,
+        "responseBytes": 9016047,
+        "allocatedBytes": 123101944,
         "reusedDefinitions": 54
       },
       "leafCommentEdit": {
-        "invokeMilliseconds": 636.6,
+        "invokeMilliseconds": 513.6,
         "responseBytes": 9015234,
-        "allocatedBytes": 238374320,
+        "allocatedBytes": 241161824,
         "reusedDefinitions": 55
       },
       "rootCommentEdit": {
-        "invokeMilliseconds": 250.6,
+        "invokeMilliseconds": 200.4,
         "responseBytes": 9014054,
-        "allocatedBytes": 91630288,
+        "allocatedBytes": 91629360,
         "reusedDefinitions": 56
       }
     },
@@ -140,29 +140,29 @@
       "meshSha256": "ce00e129709c10a86151b4bea6f000947cf1c51e0bb4a226b67aea8f3d54a15a",
       "rebuildMatchesCold": true,
       "cold": {
-        "invokeMilliseconds": 2723.2,
-        "responseBytes": 2711177,
-        "allocatedBytes": 332010280
+        "invokeMilliseconds": 3457,
+        "responseBytes": 2711207,
+        "allocatedBytes": 337892440
       },
       "warm": {
-        "invokeMilliseconds": 1488.3,
-        "responseBytes": 2711090,
-        "allocatedBytes": 324710896
+        "invokeMilliseconds": 1561.9,
+        "responseBytes": 2711110,
+        "allocatedBytes": 324725520
       },
       "noChangeRebuild": {
-        "invokeMilliseconds": 163.8,
-        "responseBytes": 2640585,
-        "allocatedBytes": 38407000
+        "invokeMilliseconds": 148.8,
+        "responseBytes": 2640566,
+        "allocatedBytes": 38404256
       },
       "leafCommentEdit": {
-        "invokeMilliseconds": 139,
-        "responseBytes": 2640576,
-        "allocatedBytes": 38410992
+        "invokeMilliseconds": 142.3,
+        "responseBytes": 2640573,
+        "allocatedBytes": 38407336
       },
       "rootCommentEdit": {
-        "invokeMilliseconds": 162,
-        "responseBytes": 2640598,
-        "allocatedBytes": 38391040
+        "invokeMilliseconds": 169.8,
+        "responseBytes": 2640625,
+        "allocatedBytes": 38322960
       }
     }
   }

@@ -42,7 +42,7 @@ internal static class HexBoltThreadComposition
         var nonManifold = body.Topology.Coedges.GroupBy(x => x.EdgeId).Where(x => x.Count() != 2).ToArray();
         if (nonManifold.Length != 0)
             throw new InvalidOperationException($"Maker mark shell has {nonManifold.Length} non-manifold edges.");
-        var mass = BrepMassProperties.Evaluate(body);
+        var mass = BrepMassProperties.EvaluateEnclosure(body);
         if (!mass.IsEnclosed || !mass.IsOrientationConsistent)
             throw new InvalidOperationException("Maker mark shell is not enclosed and oriented: " + string.Join(" | ", mass.Diagnostics));
         var cap = patchCopy.Faces.Values.Single(face => shared.Values.All(edge =>
@@ -106,7 +106,7 @@ internal static class HexBoltThreadComposition
             throw new InvalidOperationException("HexBolt thread composition failed BRep preflight: " + string.Join(" | ",
                 preflight.Diagnostics.Where(item => item.Severity == BrepExportPreflightSeverity.Error)
                     .Take(8).Select(item => item.Code + ": " + item.Message)));
-        var mass = BrepMassProperties.Evaluate(body);
+        var mass = BrepMassProperties.EvaluateEnclosure(body);
         if (!mass.IsEnclosed || !mass.IsOrientationConsistent)
             throw new InvalidOperationException("HexBolt thread composition did not produce an enclosed, consistently oriented body: "
                 + string.Join(" | ", mass.Diagnostics));

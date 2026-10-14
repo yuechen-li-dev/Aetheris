@@ -70,13 +70,39 @@ second one deliberately takes the new guitar/ATLAS hashes). Full lane 4585/4585.
 (guitar, all ATLAS documents) and `verify-bridge` pass. AOT browser numbers to be re-measured on the
 author's machine.
 
+## Third pass: the two checks named at the end of pass 2
+
+6. **Reimport orientation: trim containment index (bit-exact).** Reimport resolves face orientation
+   with a signed volume from a display tessellation, and that tessellation spent most of its time
+   classifying candidate triangles against the trim loop. Each point-in-polygon test scanned every
+   segment of a densely sampled loop. A per-loop index now buckets segments by V range, widened by
+   the on-segment tolerance margin. A point visits only the segments that can flip its crossing
+   parity or report it on-segment, using the original expressions, so answers are identical
+   (`TrimContainmentIndexTests` compares both on vertices, midpoints, near-edge offsets inside and
+   outside the tolerance, and 4,000 random points, including a zero-length segment). This helps every
+   trimmed-face tessellation, display included. Reimporting CarvedMaple's tessellation halves.
+   The orientation step itself is kept. The importer's rule, that source `same_sense` is evidence and
+   never authority, still holds even for our own files.
+7. **Bolt enclosure checks (verdict-only evaluation).** `HexBoltThreadComposition` called
+   `BrepMassProperties.Evaluate` twice, which integrates the whole threaded body at two resolutions,
+   and used only `IsEnclosed` and `IsOrientationConsistent`. Both are topological, apart from a
+   "volume is not degenerate" guard. The new `BrepMassProperties.EvaluateEnclosure` computes exactly
+   the verdict: topology, the exact recognizers, and one coarse boundary integral for the
+   non-degeneracy guard. It can disagree with `Evaluate` only for a body whose coarse and refined
+   volumes straddle (linear tolerance)³; such a body is degenerate either way. Bolt root edit
+   1.57 → 1.05 s; output hashes unchanged.
+
+Native after pass 3 (median of 3): guitar warm 3.79 s, `CarvedMaple` edit 0.51 s, bolt root edit
+1.05 s, bolt cold 4.85 s. Full lane 4589/4589; showcase hashes unchanged by pass 3; baseline rewritten.
+
 ## What remains, with evidence
 
-- **Reimport orientation check.** Reimporting our own canonical STEP still resolves face
-  orientation by tessellating the body (580 of 667 ms for CarvedMaple). Like the trims, the exporter
-  already knows the orientation. The next authoring-time candidate.
+- **Reimport orientation, authority question.** Skipping the orientation solve for our own
+  canonical STEP would mean trusting the source's face senses. The importer deliberately does not
+  (doctrine: source `same_sense` is cross-check evidence only). Pass 3 made the solve cheaper instead.
+  Removing it is a doctrine decision, not an optimization.
 - **Other recovered trims**: analytic surfaces (cylinders, cones, tori via `BuildPeriodicAnalytic`)
   and approximated ruled patches still go through recovery. They were not hot in the showcase.
-- **Bolt**: two `BrepMassProperties.Evaluate` enclosure checks (thread composition and maker-mark
-  imprint, ~2.3 s together, tessellation-based) are now the bulk of every bolt rebuild.
+- **Bolt**: the rest of a rebuild is the thread/head composition and display tessellation; a single
+  part is still one definition, so any edit rebuilds it.
 - **Datum-seat validation** on cold builds (guitar 1.2 s): tessellates every placed body once.

@@ -179,6 +179,38 @@ public static class BrepMassProperties
             diagnostics);
     }
 
+    /// <summary>
+    /// BUILD-PERF-M4: the closure verdict only (<see cref="BrepMassPropertiesResult.IsEnclosed"/> and
+    /// <see cref="BrepMassPropertiesResult.IsOrientationConsistent"/>), for construction checks that do
+    /// not use volume, area or centroid. Enclosure and face-sense consistency are topological; the only
+    /// geometric part of the verdict is "the enclosed volume is not degenerate" (|V| above the linear
+    /// tolerance cubed), which one coarse boundary integration answers. <see cref="Evaluate"/> integrates
+    /// at two resolutions to bound volume and centroid; the verdict differs only for a body whose
+    /// coarse and refined volumes fall on opposite sides of that degeneracy threshold. Volume fields
+    /// of the result are the coarse estimate and must not be used as measurements.
+    /// </summary>
+    public static BrepMassPropertiesResult EvaluateEnclosure(BrepBody body, BrepMassPropertiesOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        var effective = options ?? BrepMassPropertiesOptions.Default;
+        var topology = ValidateTopology(body);
+        if (!topology.IsEnclosed)
+            return Unavailable(effective, topology, "Mass properties require a closed, orientable material boundary.");
+        if (TryEvaluateExactSphereCylinderSeamBody(body, effective, topology, out var exact)
+            || TryEvaluateExactVerticalLineArcPrism(body, effective, topology, out exact)
+            || TryEvaluateExactAxisAlignedBoxQuarterCylinderFillet(body, effective, topology, out exact))
+            return exact;
+        var coarse = EvaluateAtResolution(body, effective, refinement: 1);
+        if (coarse.Error is not null) return Unavailable(effective, topology, coarse.Error);
+        var tolerance = effective.LinearTolerance;
+        var orientationConsistent = topology.IsOrientationConsistent && System.Math.Abs(coarse.SignedVolume) > tolerance * tolerance * tolerance;
+        var diagnostics = new List<string>(topology.Messages) { $"Enclosure check only; coarseVolume={coarse.SignedVolume:G17} (not a measurement)." };
+        if (!orientationConsistent) diagnostics.Add("Face senses or signed enclosure orientation are inconsistent; absolute volume remains a magnitude only.");
+        return new BrepMassPropertiesResult(BrepMassPropertiesStatus.NumericalWithBound, coarse.SignedVolume, System.Math.Abs(coarse.SignedVolume),
+            coarse.SurfaceArea, null, topology.IsEnclosed, orientationConsistent, coarse.Contributions, "EnclosureCheckCoarseBoundaryIntegral",
+            null, effective, topology with { IsOrientationConsistent = orientationConsistent }, diagnostics);
+    }
+
     private static BrepMassPropertiesResult Unavailable(BrepMassPropertiesOptions options, BrepMassPropertiesTopologyDiagnostics topology, string reason)
         => new(BrepMassPropertiesStatus.Unavailable, 0d, 0d, 0d, null, topology.IsEnclosed, topology.IsOrientationConsistent, [], "DeterministicTrimmedFaceTriangulationBoundaryIntegral", null, options, topology, topology.Messages.Append(reason).ToArray());
 

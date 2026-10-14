@@ -111,7 +111,7 @@ Feature M8Counterbore(center: Point2, depth: Length = 4mm) -> Hole<Counterbore> 
         center: center
         diameter: 8.5mm
         counterboreDiameter: counterboreDiameter
-        CounterboreDepth: depth
+        counterboreDepth: depth
         end: ThroughAll
     }
 }
@@ -176,7 +176,7 @@ Feature CoreCounterbore(center: Point2, depth: Length) -> Hole<Counterbore> {
         center: center
         diameter: 8.5mm
         counterboreDiameter: 14mm
-        CounterboreDepth: depth
+        counterboreDepth: depth
         end: ThroughAll
     }
 }
@@ -258,8 +258,8 @@ A Profile exactly on its reflection line may be retained as an equivalent named 
 ```firmament
 Concept Struct Layout on XY {
     Polygon2<Rhombus> MountBoundaryShape {
-        Center: [0mm, 0mm]
-        Diagonals: [90mm, 64mm]
+        center: [0mm, 0mm]
+        diagonals: [90mm, 64mm]
     }
 }
 
@@ -328,7 +328,7 @@ Model RevolvedSphere {
             |> Diameter as AxisClosure
             |> Close
     }
-    Revolve Ball { Profile: SphereSection; About: MainAxis; Angle: full }
+    Revolve Ball { profile: SphereSection; about: MainAxis; angle: full }
 }
 ```
 

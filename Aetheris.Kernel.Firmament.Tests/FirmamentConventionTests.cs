@@ -109,7 +109,7 @@ public sealed class FirmamentConventionTests
     }
 
     [Fact]
-    public void LegacyModelGrammarRemainsWithItsExistingOwner()
+    public void CompatibilitySpellingRemainsStableWhileItsSolidsBindFromAst()
     {
         const string source = """
             model Legacy {
@@ -127,6 +127,16 @@ public sealed class FirmamentConventionTests
         Assert.Equal(source, FirmamentSourceSpelling.Prefer(source));
         var parsed = FirmamentV2Parser.Parse(source);
         Assert.True(parsed.IsSuccess, string.Join("\n", parsed.Diagnostics));
+    }
+
+    [Fact]
+    public void HoleVariantFields_UseTheirGeneratedMetadataForPreferredSpelling()
+    {
+        const string source = "Hole<Counterbore> bore { CounterboreDiameter: 12mm; CounterboreDepth: 4mm; }";
+        var preferred = FirmamentSourceSpelling.Prefer(source);
+        Assert.Contains("counterboreDiameter: 12mm; counterboreDepth: 4mm", preferred);
+        Assert.Equal(source, FirmamentSourceSpelling.Normalize(preferred));
+        Assert.Contains(FirmamentSchemaAuthoringFields.For("Hole"), f => f.Name == "CounterboreDepth");
     }
 
     [Fact]

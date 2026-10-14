@@ -1,6 +1,6 @@
 {
   "milestone": "Lowercase compatibility AST and spelling reconciliation",
-  "baseline": "Built with the domain-migrated frontend before lowercase ownership changes on 2026-10-14",
+  "baseline": "Per-family production baselines captured on 2026-10-14 before the primitive and region/cut binding cutovers respectively.",
   "geometry": [
     {
       "source": "fixtures/Regression/Primitive/valid/box-v2.valid.firmfixture",
@@ -281,6 +281,207 @@
       "artifact": "region-15.step",
       "expectedExitCode": 1,
       "beforeSha256": null
+    }
+  ],
+  "qualification": {
+    "build": {
+      "configuration": "Release",
+      "errors": 0,
+      "warnings": 19,
+      "maxBuildNodes": 1,
+      "nodeReuse": false,
+      "sharedCompilation": false
+    },
+    "focusedCompiler": 274,
+    "focusedCli": 39,
+    "fastCore": 1068,
+    "fullSolution": {
+      "projectCount": 21,
+      "nonemptyProjects": 20,
+      "total": 4745,
+      "passed": 4745,
+      "failed": 0,
+      "notExecuted": 0,
+      "error": 0,
+      "timeout": 0,
+      "aborted": 0
+    },
+    "geometry": {
+      "lowercaseOutcomes": 40,
+      "lowercaseIdenticalAcceptedStepHashes": 32,
+      "lowercasePreservedRejections": 8,
+      "earlierDomainOutcomes": 37,
+      "earlierDomainIdenticalAcceptedStepHashes": 35,
+      "earlierDomainPreservedRejections": 2,
+      "mechanicalIdenticalStepHashes": 29,
+      "totalIdenticalAcceptedStepHashes": 96
+    },
+    "cliAdmission": [
+      {
+        "source": "fixtures/Regression/FrontendMigration/lowercase-compatibility.firmament",
+        "validateExit": 0,
+        "buildExit": 0,
+        "status": "valid",
+        "level": "Built",
+        "route": "UnifiedCompatibility",
+        "matched": true
+      },
+      {
+        "source": "fixtures/Regression/FrontendMigration/preferred-profile-links.firmament",
+        "validateExit": 0,
+        "buildExit": 0,
+        "status": "valid",
+        "level": "Built",
+        "route": "UnifiedMechanical",
+        "matched": true
+      },
+      {
+        "source": "fixtures/Regression/FrontendMigration/lowercase-unknown-field.firmament",
+        "validateExit": 1,
+        "buildExit": 1,
+        "status": "invalid",
+        "level": "ParsedNotBuilt",
+        "route": "UnifiedCompatibility",
+        "matched": true
+      },
+      {
+        "source": "fixtures/Regression/FrontendMigration/lowercase-ignored-fillet.firmament",
+        "validateExit": 1,
+        "buildExit": 1,
+        "status": "invalid",
+        "level": "ParsedNotBuilt",
+        "route": "UnifiedCompatibility",
+        "matched": true
+      }
+    ],
+    "showcases": [
+      {
+        "command": "asm inspect",
+        "source": "fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar-x0.firmament",
+        "exitCode": 0
+      },
+      {
+        "command": "asm inspect",
+        "source": "fixtures/Canonical/AssemblyInterfaces/IndustrialAtlas/atlas-industrial.firmament",
+        "exitCode": 0
+      },
+      {
+        "command": "scene inspect",
+        "source": "fixtures/Canonical/Scene/WarmModernHouse/house.firmament",
+        "exitCode": 0
+      },
+      {
+        "command": "scene inspect",
+        "source": "fixtures/Canonical/Scene/warehouse.firmament",
+        "exitCode": 0
+      },
+      {
+        "command": "scene inspect",
+        "source": "fixtures/Canonical/Scene/FactoryX0/factory.firmament",
+        "exitCode": 0
+      },
+      {
+        "command": "asm inspect",
+        "source": "fixtures/Canonical/AssemblyInterfaces/executable-machine.firmament",
+        "exitCode": 0
+      }
+    ],
+    "wholeLanguageMigrationComplete": false,
+    "runtimeCloseout": {
+      "time": "2026-10-14T14:41:53.8229655-07:00",
+      "freeRamGB": 18.67,
+      "freeDiskGB": 109.72,
+      "remainingRuntimeHosts": []
+    }
+  },
+  "preservedRejectionDiagnostics": [
+    {
+      "source": "fixtures/Regression/Region/valid/side-hole-aliases-reverse-x-v2.valid.firmfixture",
+      "diagnostics": [
+        {
+          "code": "ValidationFailed",
+          "message": "Firmament V2 build/export currently admits only a single primitive solid with no modify blocks.",
+          "stage": "firmament"
+        }
+      ],
+      "matched": true
+    },
+    {
+      "source": "fixtures/Regression/Region/valid/side-hole-aliases-y-axis-v2.valid.firmfixture",
+      "diagnostics": [
+        {
+          "code": "ValidationFailed",
+          "message": "Firmament V2 build/export currently admits only a single primitive solid with no modify blocks.",
+          "stage": "firmament"
+        }
+      ],
+      "matched": true
+    },
+    {
+      "source": "fixtures/Regression/Region/valid/side-hole-aliases-z-axis-v2.valid.firmfixture",
+      "diagnostics": [
+        {
+          "code": "ValidationFailed",
+          "message": "Firmament V2 build/export currently admits only a single primitive solid with no modify blocks.",
+          "stage": "firmament"
+        }
+      ],
+      "matched": true
+    },
+    {
+      "source": "fixtures/Regression/Region/valid/side-hole-reverse-x-v2.valid.firmfixture",
+      "diagnostics": [
+        {
+          "code": "ValidationFailed",
+          "message": "Firmament V2 build/export currently admits only a single primitive solid with no modify blocks.",
+          "stage": "firmament"
+        }
+      ],
+      "matched": true
+    },
+    {
+      "source": "fixtures/Regression/Region/valid/side-hole-reverse-y-v2.valid.firmfixture",
+      "diagnostics": [
+        {
+          "code": "ValidationFailed",
+          "message": "Firmament V2 build/export currently admits only a single primitive solid with no modify blocks.",
+          "stage": "firmament"
+        }
+      ],
+      "matched": true
+    },
+    {
+      "source": "fixtures/Regression/Region/valid/side-hole-reverse-z-v2.valid.firmfixture",
+      "diagnostics": [
+        {
+          "code": "ValidationFailed",
+          "message": "Firmament V2 build/export currently admits only a single primitive solid with no modify blocks.",
+          "stage": "firmament"
+        }
+      ],
+      "matched": true
+    },
+    {
+      "source": "fixtures/Regression/Region/valid/side-hole-y-axis-v2.valid.firmfixture",
+      "diagnostics": [
+        {
+          "code": "ValidationFailed",
+          "message": "Firmament V2 build/export currently admits only a single primitive solid with no modify blocks.",
+          "stage": "firmament"
+        }
+      ],
+      "matched": true
+    },
+    {
+      "source": "fixtures/Regression/Region/valid/side-hole-z-axis-v2.valid.firmfixture",
+      "diagnostics": [
+        {
+          "code": "ValidationFailed",
+          "message": "Firmament V2 build/export currently admits only a single primitive solid with no modify blocks.",
+          "stage": "firmament"
+        }
+      ],
+      "matched": true
     }
   ]
 }

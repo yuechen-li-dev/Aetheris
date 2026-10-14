@@ -1,8 +1,9 @@
 # Firmament V2 language style
 
 Firmament uses mixed casing to make artifact definitions stand out from their
-descriptions. This is a naming convention, not a rule enforced by the compiler.
-The [design proposal](casing-and-layout-proposal.md) records the reasoning.
+descriptions. Preferred casing does not rename authored identifiers; admitted
+built-in spellings and aliases are defined by their compiler owners, without
+global case folding. The [design proposal](casing-and-layout-proposal.md) records the reasoning.
 
 | Role | Convention | Examples |
 | --- | --- | --- |

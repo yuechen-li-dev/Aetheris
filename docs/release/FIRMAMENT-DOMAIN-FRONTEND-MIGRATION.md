@@ -137,7 +137,7 @@ Loft blocks; they do not claim interactive Helios qualification.
 
 | Owner | Actual remaining dependency before deletion |
 | --- | --- |
-| Lowercase V2 | The [next production cutover](FIRMAMENT-LOWERCASE-AST-MIGRATION.md) migrates primitive solids, Box derivation, exposure aliases and Hole modifications to AST binding. Region/cut, imported-face recognition/replacement, let/PMI/concept applications and lattice fill still retain semantic adapters. This is distinct from explicit version-1 serialization. |
+| Lowercase V2 | The [next production cutover](FIRMAMENT-LOWERCASE-AST-MIGRATION.md) migrates primitive solids, Box derivation, exposure aliases, Hole modifications and region/cut to AST binding. Imported-face recognition/replacement, let/PMI/concept applications and lattice fill still retain semantic adapters. This is distinct from explicit version-1 serialization. |
 | Concept / Interface / profile derivation | Existing semantic resolution and several pipeline/path/Span readers remain source-based. Migrated record boundaries do not imply these evaluators have been consolidated. |
 | Template / Feature / Pattern | Existing finite specialization and expansion still produce source. Replacing them requires scoped AST substitution with identity/provenance parity, rather than removing their current owner behind an AST gate. |
 | Wire / Sweep | WireForm, WireRoute, coils, knots and circular sweeps retain their existing source binders and state replay. |

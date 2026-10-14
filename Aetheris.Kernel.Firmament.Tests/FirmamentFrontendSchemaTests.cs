@@ -33,4 +33,19 @@ public sealed class FirmamentFrontendSchemaTests
         Assert.True(selection.IsSuccess);
         Assert.False(selection.IsExplicit);
     }
+
+    [Theory]
+    [InlineData("schema ;", "firmament-schema-malformed")]
+    [InlineData("schema \"Mechanical\"", "firmament-schema-malformed")]
+    [InlineData("schema Mechanical\nschema Mechanical", "firmament-schema-duplicate")]
+    [InlineData("Model X { schema Mechanical }", "firmament-schema-late")]
+    [InlineData("Model X { schema ; }", "firmament-schema-malformed")]
+    [InlineData("schema Sweep\nFeature MissingResult() { }", "firmament-feature-schema-unsupported")]
+    public void DirectivesHaveStructuralPlacementAndValueRules(string source, string code)
+    {
+        var selected = FirmamentFrontendSchemas.Select(source);
+        Assert.False(selected.IsSuccess);
+        Assert.Contains(selected.Diagnostics, d => d.StartsWith(code, StringComparison.Ordinal));
+        Assert.All(selected.LocatedDiagnostics, d => Assert.NotNull(d.SourceSpan));
+    }
 }

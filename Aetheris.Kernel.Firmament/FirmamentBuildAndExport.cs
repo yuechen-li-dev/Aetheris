@@ -43,7 +43,7 @@ public static class FirmamentBuildAndExport
         var fullSourcePath = Path.GetFullPath(sourcePath);
         var sourceText = NormalizeLf(File.ReadAllText(fullSourcePath, Encoding.UTF8));
         var frontend = FirmamentFrontendSchemas.Select(sourceText);
-        if (!frontend.IsSuccess) return KernelResult<FirmamentBuildAndExportResult>.Failure(frontend.Diagnostics.Select(SchemaDiagnostic).ToArray());
+        if (!frontend.IsSuccess) return KernelResult<FirmamentBuildAndExportResult>.Failure(frontend.LocatedDiagnostics.Select(d => SchemaDiagnostic(d.Code + ": " + d.Message)).ToArray());
         sourceText = frontend.Source;
         if (PipingAuthoring.IsPipingSource(sourceText))
         {
@@ -127,7 +127,7 @@ public static class FirmamentBuildAndExport
         ArgumentNullException.ThrowIfNull(sourceText);
         var normalized = NormalizeLf(sourceText);
         var frontend = FirmamentFrontendSchemas.Select(normalized);
-        if (!frontend.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(frontend.Diagnostics.Select(SchemaDiagnostic).ToArray());
+        if (!frontend.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(frontend.LocatedDiagnostics.Select(d => SchemaDiagnostic(d.Code + ": " + d.Message)).ToArray());
         normalized = frontend.Source;
         if (PipingAuthoring.IsPipingSource(normalized))
         {
@@ -273,7 +273,7 @@ public static class FirmamentBuildAndExport
         // retain their existing expansion boundary until their own cutover.
         sourceText = ProfileModificationTemplateLibrary.ResolveImports(sourceText);
         var canonicalParseWatch = System.Diagnostics.Stopwatch.StartNew();
-        var v2Parse = FirmamentV2Parser.Parse(sourceText, sourceDirectory);
+        var v2Parse = FirmamentV2Parser.Parse(sourceText, sourceDirectory, null, explicitSchema);
         canonicalParseWatch.Stop();
         var templateBindWatch = new System.Diagnostics.Stopwatch();
         string materializerSource;
@@ -324,6 +324,8 @@ public static class FirmamentBuildAndExport
             var materializerInput = staticExpansion.Source;
             materializerSource = FirmamentV2Parser.TryGetCanonicalAdvancedBody(materializerInput, out var canonicalBody) ? canonicalBody : materializerInput;
         }
+        if (explicitSchema is { } declaredSchema && FirmamentFrontendSchemas.DomainMismatch(declaredSchema, materializerSource, admittedSchema: v2Parse.BoundSchema) is { } mismatch)
+            return KernelResult<FirmamentStepExportResult>.Failure([SchemaDiagnostic(mismatch.Code + ": " + mismatch.Message)]);
         if (v2Parse.BoundSectionChain?.Chain is { } chain)
         {
             var materialized = Aetheris.Surfacing.SectionChainMaterializer.Materialize(chain);

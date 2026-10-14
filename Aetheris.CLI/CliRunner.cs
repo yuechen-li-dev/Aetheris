@@ -491,6 +491,8 @@ public static class CliRunner
         if (File.Exists(sourcePath))
         {
             var source = File.ReadAllText(sourcePath);
+            var frontend = FirmamentFrontendSchemas.Select(source);
+            if (!frontend.IsSuccess) return WriteFrontendRejection(frontend, source, sourcePath, "build", json, stdout, stderr);
             if (Aetheris.Kernel.Firmament.Garment.GarmentAuthoring.HasRoot(source))
             { stderr.WriteLine("garment-step-export-unsupported: Fabric is a material-space surface; use garment build or garment drape."); return 1; }
             if (Aetheris.Kernel.Firmament.Scene.SceneAuthoring.HasRoot(source))
@@ -2355,8 +2357,11 @@ Model CanonicalPanel {
             return FrontendShadowCommand.Run([sourcePath, "--validate", .. (json ? new[] { "--json" } : []), .. (shadowAst ? new[] { "--ast" } : [])], stdout, stderr);
         }
         var validationSource=File.ReadAllText(sourcePath);
+        var authoredValidationSource = validationSource;
+        var frontend = FirmamentFrontendSchemas.Select(validationSource);
+        if (!frontend.IsSuccess) return WriteFrontendRejection(frontend, validationSource, sourcePath, "validate", json, stdout, stderr);
         if (Aetheris.Kernel.Firmament.Garment.GarmentAuthoring.HasRoot(validationSource)
-            || FirmamentFrontendSchemas.Select(validationSource).Schema == FirmamentFrontendSchema.Garment)
+            || frontend.Schema == FirmamentFrontendSchema.Garment)
             return GarmentCommand.Run(["inspect", sourcePath, .. (json ? new[] { "--json" } : Array.Empty<string>())], stdout, stderr);
         if (Aetheris.Kernel.Firmament.Scene.SceneAuthoring.HasRoot(validationSource))
         {
@@ -2365,13 +2370,6 @@ Model CanonicalPanel {
             if (json) stdout.WriteLine(JsonSerializer.Serialize(payload,JsonOptions));
             else { stdout.WriteLine(scene.IsSuccess ? "Scene source valid; engineering definitions are checked by scene inspect/export." : "Scene source invalid."); foreach(var d in scene.Diagnostics) stderr.WriteLine(d.Code+": "+d.Message); }
             return scene.IsSuccess ? 0 : 1;
-        }
-        var frontend = FirmamentFrontendSchemas.Select(validationSource);
-        if (!frontend.IsSuccess)
-        {
-            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = new { source = sourcePath, status = "invalid", diagnostics = frontend.Diagnostics } }, JsonOptions));
-            else foreach (var diagnostic in frontend.Diagnostics) stderr.WriteLine("error: " + diagnostic);
-            return 1;
         }
         validationSource = frontend.Source;
         if (PlasticShellFirmament.LooksLikePlasticShell(validationSource))
@@ -2485,14 +2483,14 @@ Model CanonicalPanel {
         var parse = FirmamentV2Parser.Parse(
             library.Source,
             Path.GetDirectoryName(Path.GetFullPath(sourcePath)),
-            runtimeConfiguration.Catalog);
+            runtimeConfiguration.Catalog, frontend.Schema);
         var runtimeValidation = FirmamentV2RuntimeConceptValidation.Validate(parse.Document, runtimeConfiguration);
         var report = FirmamentV2ValidationReportBuilder.Build(parse, sourcePath, runtimeValidation, runtimeConfiguration.Catalog, validationSource);
         if (parseOnly || forgePackPaths.Count > 0)
         {
             if (report.Status != "invalid") report = report with { Status = "parsed-not-built" };
         }
-        else report = FirmamentBuildAdmissionValidation.Admit(report, validationSource, Path.GetDirectoryName(Path.GetFullPath(sourcePath)));
+        else report = FirmamentBuildAdmissionValidation.Admit(report, authoredValidationSource, Path.GetDirectoryName(Path.GetFullPath(sourcePath)));
         if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = report }, JsonOptions));
         else stdout.WriteLine($"Firmament V2 validation: {report.Status} ({report.Summary.FatalDiagnosticCount} fatal, {report.Summary.WarningDiagnosticCount} warning)");
         if (!json)
@@ -2502,6 +2500,19 @@ Model CanonicalPanel {
                 stderr.WriteLine($"{sourcePath}({diagnostic.Line},{diagnostic.Column}): {diagnostic.Severity} {diagnostic.Code}: {diagnostic.Message}");
         }
         return report.Status == "invalid" ? 1 : 0;
+    }
+
+    private static int WriteFrontendRejection(FirmamentFrontendSelection selection, string source, string path,
+        string command, bool json, TextWriter stdout, TextWriter stderr)
+    {
+        var report = FirmamentV2ValidationReportBuilder.Build(selection.Failure(source), path);
+        if (json)
+        {
+            if (command == "validate") stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = report }, JsonOptions));
+            else stdout.WriteLine(JsonSerializer.Serialize(new { command, success = false, input = path, diagnostics = report.Diagnostics }, JsonOptions));
+        }
+        else foreach (var d in report.Diagnostics) stderr.WriteLine($"{path}({d.Line},{d.Column}): {d.Severity} {d.Code}: {d.Message}");
+        return 1;
     }
 
     private static FirmamentV2ForgeRuntimeConfiguration CreateValidateForgeRuntimeConfiguration(IReadOnlyList<string> forgePackPaths)

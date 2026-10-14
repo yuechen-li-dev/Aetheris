@@ -1,0 +1,6 @@
+/* A leading comment must not change the language. */
+schema Mechanical // a trailing comment is also trivia
+Model Example {
+  units: mm
+  Box stock { size: [30mm, 20mm, 6mm] }
+}

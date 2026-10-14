@@ -1,0 +1,18 @@
+schema WireForm
+
+Template<>
+Model SphereFamily {
+  units: mm
+  Axis mainAxis { origin: [0mm, 0mm, 0mm]; direction: [0, 1, 0] }
+  Point2 south { position: [0mm, -20mm] }
+  Point2 north { position: [0mm, 20mm] }
+  Point2 center { position: [0mm, 0mm] }
+  Concept Circle2 meridian { center: center; radius: 20mm }
+  Line2 diameter { from: north; to: south }
+  Profile section {
+    meridian from south to north as arc |> diameter as closure |> Close
+  }
+  Revolve ball { profile: section; about: mainAxis; angle: full }
+}
+
+Model Example = SphereFamily<>

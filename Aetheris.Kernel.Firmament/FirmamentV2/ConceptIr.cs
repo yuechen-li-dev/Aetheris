@@ -352,6 +352,7 @@ internal static class ConceptIrResolver
     /// <summary>Resolves a compile-time Concept plane for a Construction Plane trace without materializing a BRep feature.</summary>
     public static bool TryResolvePlane(string source, string reference, out ConceptIrPlaneValue? plane, out string? diagnostic)
     {
+        source = FirmamentSourceSpelling.Normalize(source);
         plane = null; diagnostic = null;
         var match = Regex.Match(reference, @"^(?<instance>[A-Za-z_][A-Za-z0-9_]*)\.(?<member>[A-Za-z_][A-Za-z0-9_]*)$", RegexOptions.CultureInvariant);
         if (!match.Success) { diagnostic = "ConstructionPlaneTraceMissing: Trace must name ConceptStruct.Plane"; return false; }

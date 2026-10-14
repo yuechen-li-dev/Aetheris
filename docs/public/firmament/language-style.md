@@ -11,7 +11,7 @@ global case folding. The [design proposal](casing-and-layout-proposal.md) record
 | Type and reusable recipe | PascalCase | `Length`, `PickupSpec`, `Humbucker`, `ControlKnob` |
 | Concrete value, local geometry, occurrence, parameter, port | camelCase | `layout`, `outline`, `neckPickup`, `bottomSeat`, `width` |
 | Built-in property label | camelCase | `units`, `size`, `from`, `translateLocal`, `minimumBendRadius` |
-| Linking and scope word | lowercase | `using`, `as`, `on`, `over`, `with`, `return`, `include`, `expose`, `bind` |
+| Linking and scope word | lowercase | `using`, `as`, `from`, `to`, `on`, `over`, `with`, `return`, `include`, `expose`, `bind` |
 | Scalar function | camelCase | `fretDistance`, `halfWidth` |
 | Engineering symbol, enum, external identity | Preserve domain spelling | `XY`, `+Z`, `Outer`, `World`, `Origin`, `Fixed`, `Periodic`, `Stock`, `mm`, `m`, `304_Annealed` |
 
@@ -28,12 +28,15 @@ standards, imported identities and part numbers retain their source spelling.
 Existing PascalCase properties and supported historical aliases remain accepted,
 without style warnings. Older examples need not be rewritten wholesale.
 
-The table describes preferred style, not universal case folding. Some owners
-still require PascalCase built-ins: Profile pipeline `From`/`To`, `Reverse`,
-`Close`, `TraceLoop`, mirror `From`/`Across`, and radial `Source`/`About`/`Count`/`Angle`.
-Use those admitted forms today. The [syntax review](../../development/FIRMAMENT-SYNTAX-REVIEW-2026-10.md)
-tracks these gaps; the formatter must not be treated as proof that every owner
-admits a lowercased spelling.
+The table describes preferred style, not universal case folding. Profile endpoint
+and mirror-header links prefer `from`/`to`, with `From`/`To` retained as aliases.
+Mirror/radial fields prefer `across`, `source`, `about`, `count`, `angle`; their
+PascalCase aliases bind to the same AST fields. Unknown and duplicate fields
+reject. `Reverse`, `Close` and `TraceLoop` remain PascalCase geometry operations.
+The formatter recognizes these linking/field positions structurally and preserves
+authored identifiers. It does not impose this grammar on unrelated domain owners;
+the [syntax review](../../development/FIRMAMENT-SYNTAX-REVIEW-2026-10.md) tracks the
+remaining differences. Formatting is still not proof of successful compilation.
 
 ```firmament
 Feature Coil(center: Point2, width: Length, depth: Length,
@@ -59,8 +62,9 @@ V2 `Format` API also prefers these spellings while arranging layout, and checks
 both token equivalence and parser admission. Imported modules use the conservative
 pass and their consuming project's compiler; they are not standalone parts.
 
-Compatibility is scoped to schema-owned properties plus the bounded profile,
-frame, assembly, point and wire vocabularies used by the guitar. The parser maps
+Compatibility is scoped to schema-owned properties, AST-position Profile links
+and symmetry fields, plus the bounded frame, assembly, point and wire
+vocabularies used by the guitar. The parser maps
 these aliases back to existing semantic identities. Unknown blocks, Record and
 Static data, explicit station keys, named template/Feature arguments and dotted
 members are not guessed or renamed by the formatter. Property completion accepts

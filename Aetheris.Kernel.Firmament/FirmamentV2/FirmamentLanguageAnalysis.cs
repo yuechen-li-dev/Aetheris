@@ -46,7 +46,8 @@ public static class FirmamentLanguageAnalysisService
         }
         // Imported authoring modules need project context. Do not feed them into
         // the unrelated concrete-part parser and manufacture syntax errors.
-        if (lexemes.Any(t => t.Text == "Include" && t.Shape == "identifier"))
+        if (lexemes.Any(t => t.Text == "Include" && t.Shape == "identifier")
+            && !Syntax.FirmamentSyntaxParser.Parse(source).Document.Statements.OfType<Syntax.DeclarationSyntax>().Any(d => d.Type.Name.Text is "Model" or "model"))
             return new(document, revision, tokens, [new("information", "firmament-language-project-context-required", "Imported declarations require project-aware analysis.", 0, 0)]);
         if (HasAssemblyRoot(source))
         {
@@ -69,7 +70,9 @@ public static class FirmamentLanguageAnalysisService
         var failures = parse.Diagnostics.Where(item => FirmamentV2Parser.IsFatalDiagnosticCode(item) ||
             item == "firmament-v2-parse-failed").Distinct(StringComparer.Ordinal).ToArray();
         if (failures.Length > 1) failures = failures.Where(item => item != "firmament-v2-parse-failed").ToArray();
-        var diagnostics = failures.Select(item => LocateDiagnostic(source, lexemes, item)).ToArray();
+        var diagnostics = failures.Select(item => parse.SyntaxDiagnostics.FirstOrDefault(d => d.Code == item) is { SourceSpan: { } span } located
+            ? new FirmamentLanguageDiagnostic("error", located.Code, located.Message, span.Start, span.Length)
+            : LocateDiagnostic(source, lexemes, item)).ToArray();
         return new(document, revision, tokens, diagnostics);
     }
 

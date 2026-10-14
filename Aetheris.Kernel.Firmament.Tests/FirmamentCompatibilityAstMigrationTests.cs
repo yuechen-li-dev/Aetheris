@@ -38,10 +38,12 @@ public sealed class FirmamentCompatibilityAstMigrationTests
         var source = "model Witness { units mm " + body + " }";
         var parsed = FirmamentV2Parser.Parse(source);
         Assert.False(parsed.IsSuccess);
-        Assert.Equal("UnifiedCompatibility", parsed.ParserRoute);
+        Assert.Equal(token == "Use" ? "UnifiedDirectives" : "UnifiedCompatibility", parsed.ParserRoute);
         var report = FirmamentBuildAdmissionValidation.Admit(FirmamentV2ValidationReportBuilder.Build(parsed, "compat.firmament"), source);
         Assert.Equal("invalid", report.Status);
-        Assert.Contains(report.Diagnostics, d => d.SourceSpan is { } span && source.Substring(span.Start, span.Length) == token);
+        Assert.Contains(report.Diagnostics, d => d.SourceSpan is { } span && (token == "Use"
+            ? source.Substring(span.Start, span.Length) == "Use Ignored.Module" && d.Code == "firmament-v2-directive-unconsumed"
+            : source.Substring(span.Start, span.Length) == token));
         Assert.False(FirmamentBuildAndExport.CompileSource(source).IsSuccess);
     }
 

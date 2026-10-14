@@ -1,5 +1,11 @@
 # Firmament language reconciliation register
 
+The subsequent [directive/casing implementation](../release/FIRMAMENT-DIRECTIVES-AND-CASING.md)
+repairs the review's mechanical include/schema witnesses, symmetry casing and
+Profile endpoint links. Wider source-consumption and language-design questions
+remain scoped in the current review; the historical classifications below do
+not imply whole-language completion.
+
 October 14 documentation review: the [current syntax review](FIRMAMENT-SYNTAX-REVIEW-2026-10.md)
 records twenty author-visible seams, including reproduced ignored mechanical
 includes, schema-formatting admission gaps and symmetry casing failures.

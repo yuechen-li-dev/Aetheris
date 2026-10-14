@@ -99,7 +99,7 @@ because the preferred local name is camelCase.
 | Constructs and types | PascalCase | `Model`, `Box`, `Feature`, `Length`, `Point2` |
 | Built-in fields | camelCase | `units`, `size`, `counterboreDepth` |
 | Local geometry, values and parameters | camelCase | `stock`, `outline`, `mountPoint`, `depth` |
-| Linking words in their admitted positions | lowercase | `using`, `as`, `on`, `over`, `with`, `include`, `expose`, `bind` |
+| Linking words in their admitted positions | lowercase | `using`, `as`, `from`, `to`, `on`, `over`, `with`, `include`, `expose`, `bind` |
 | Engineering symbols and enum values | Preserve domain spelling | `XY`, `+Z`, `Outer`, `ThroughAll`, `World`, `mm` |
 
 `Profile outline using layout` selects a construction context;
@@ -107,12 +107,13 @@ because the preferred local name is camelCase.
 accepted aliases at those positions. A header clause such as
 `Concept Struct layout on XY` differs from a field such as `on: +Z`.
 
-This convention is not global case-insensitive parsing. Owners admit many
-PascalCase field aliases, but some still **require** particular spellings.
-Use `From`, `To`, `Reverse`, `Close` and `TraceLoop` in Profile pipelines.
-Symmetry currently requires `From`, `Across`, `Source`, `About`, `Count` and
-`Angle` in the forms below. Do not lowercase them merely to match the style table.
-See [language style](language-style.md) for formatter behavior.
+This convention is not global case-insensitive parsing. Profile endpoint links
+use `from`/`to`; `From`/`To` remain accepted aliases. Mirror headers use `from`.
+Symmetry fields use `across`, `source`, `about`, `count` and `angle`, with their
+PascalCase aliases retained. These positions bind through the shared AST, which
+keeps authored names and members unchanged. Geometry operations `Reverse`,
+`Close` and `TraceLoop` remain PascalCase, like other constructs. See
+[language style](language-style.md) for formatter behavior and domain scope.
 
 ### Whitespace, comments and terminators
 
@@ -120,9 +121,9 @@ Use two-space indentation. Put ordinary fields on separate lines, or separate
 them with semicolons in a short body. Separate list elements and call arguments
 with commas. Do not rely on the parser guessing dense adjacent field boundaries.
 
-Use `//` for comments, including before an optional `schema` header. The shared
-lexer also recognizes `/* ... */`, but the schema selector currently rejects a
-block comment before that header. `#` is not a general comment marker.
+Use `//` or `/* ... */` for comments, including before an optional `schema`
+header or after its name. Comments do not disable schema selection. `#` is not
+a general comment marker.
 
 Some specialized forms **require** semicolons: scalar Function expressions,
 point-recipe fields, PMI Note fields and Assembly root-provenance statements.
@@ -196,10 +197,10 @@ ordinary profiles can use pipelines.
 and points already declared:**
 
 ```firmament
-guide From startPoint To endPoint as selectedEdge
+guide from startPoint to endPoint as selectedEdge
 ```
 
-After the opening stage, `guide To endPoint` uses the preceding endpoint as its
+After the opening stage, `guide to endPoint` uses the preceding endpoint as its
 start. Endpoints must be named points on the guide. Circular spans use the same
 form; `Reverse` selects the opposite traversal. `|>` is not a general map, filter,
 arithmetic or function-composition operator. A Concept Path may remain open;
@@ -336,7 +337,7 @@ have different Pattern forms:
 | Named Set mapped to a Feature | `Pattern name over values { value => Recipe(value) }` |
 | Semantic PointSet / Grid | `Pattern name { Source: layout.Points ... Item ... }` |
 | Record array with finite feature Template | `Pattern name over records { Recipe<Current> }` |
-| Radial feature symmetry | `Radial Pattern name { Source: seed About: axis Count: n Angle: full }` |
+| Radial feature symmetry | `Radial Pattern name { source: seed; about: axis; count: n; angle: full }` |
 
 These are context-specific forms, not interchangeable spellings of one loop.
 `Item`, `Current` and an explicit element name are not global aliases. See
@@ -376,18 +377,18 @@ general `if`/`else` control flow. Use domain-specific forms only where admitted.
 ## Mirror and radial symmetry
 
 Symmetry transforms semantic construction before materialization. It does not
-mirror a finished STEP/BRep. These fragments use the **currently required**
-PascalCase symmetry fields, despite the general camelCase field convention.
+mirror a finished STEP/BRep. Its headers and fields follow the same lowercase
+link / camelCase field conventions as ordinary mechanical construction.
 
 **Fragment — inside Modify, with a concrete `leftMount` Hole and a model-level
 `centerPlane` already declared:**
 
 ```firmament
-Mirrored Feature rightMount From leftMount { Across: centerPlane }
-Feature largerMount = rightMount with { Diameter: 8mm }
+Mirrored Feature rightMount from leftMount { across: centerPlane }
+Feature largerMount = rightMount with { diameter: 8mm }
 ```
 
-`Mirrored Profile result From source { Across: plane }` derives a Profile.
+`Mirrored Profile result from source { across: plane }` derives a Profile.
 Reflection transforms curves, restores loop winding and reconstructs a
 right-handed frame. Construction Planes traced from Concept Planes are admitted
 in the Profile form. Material, scalar magnitudes and enum tags are invariant;
@@ -400,10 +401,10 @@ feature with an unchanged center rejects as a redundant coincident feature.
 **Fragment — inside Modify, with `boltSeed` and a model-level `mainAxis`:**
 
 ```firmament
-Radial Pattern boltCircle { Source: boltSeed About: mainAxis Count: 6 Angle: full }
+Radial Pattern boltCircle { source: boltSeed; about: mainAxis; count: 6; angle: full }
 ```
 
-The source is instance zero. `Count` is 1..1024. A full circle uses
+The source is instance zero. `count` is 1..1024. A full circle uses
 `theta[i] = i * 2*pi/Count`, without a duplicate endpoint. A partial angle includes
 both endpoints: `theta[i] = i * Angle/(Count-1)` when Count exceeds one. Angles
 accept the Revolve spellings `radians`, `deg`, `quarter`, `half`, `full`.
@@ -416,12 +417,13 @@ Complete sources: [mirrored hole](../../../fixtures/Canonical/Symmetry/mirrored-
 
 ## Choosing a domain and organizing files
 
-An optional `schema Name` header selects one of these frontends. Put it on its
-own line before declarations, preceded only by blank lines or `//` comments.
-Do not put a trailing comment on the selector line: selection can currently be
-bypassed by that formatting. Names are case-sensitive. A recognized explicit
-selection is authoritative; rejection does not retry another frontend.
-Revolve is an operation in Mechanical, not a schema.
+An optional `schema Name` header selects one of these frontends. Declare it once,
+before other directives or declarations. Prefer a separate line for readability;
+inline declarations and leading/trailing comments also retain schema selection.
+Names are case-sensitive. Unknown names, duplicate or nested/late headers and
+mismatched domains reject; rejection does not retry another frontend. Revolve
+is an operation in Mechanical, not a schema. Template specialization must also
+remain within the selected domain; it cannot change the schema after admission.
 
 | Schema | Guide |
 | --- | --- |
@@ -447,9 +449,10 @@ Do not invent `schema Assembly` or wrap arbitrary domain declarations in a Model
 Assembly occurrence trees use `<Assembly>` / `<Part>` tags as well as brace
 bodies. Tree nesting does not create a Mate. Inclusion is owned by the consuming
 project/domain; `include` is **not** a universal mechanical preprocessor.
-A bare include before an ordinary mechanical Model can currently be ignored,
-even when its file is missing. Use a documented include consumer; the review
-below preserves this reproduction.
+Standalone part compilation rejects an unresolved include explicitly, even if
+the named file exists. Use a documented Assembly/project loader to resolve file
+dependencies before part compilation. The shipped `Use Profile.Modifications`
+import retains its existing library owner. Other unconsumed directives reject.
 
 ## Reading older source
 
@@ -477,9 +480,10 @@ angle brackets and `with`. Some are legitimate domain distinctions; others are
 compatibility debt or bugs.
 
 The [October syntax review](../../development/FIRMAMENT-SYNTAX-REVIEW-2026-10.md)
-records witnesses, current behavior, ownership and open decisions. It includes
-the ignored mechanical include and schema-comment failures. It describes the
-language as it exists, not unimplemented syntax. The [decision register](../../development/FIRMAMENT-LANGUAGE-DECISIONS-2026-10.md)
+records the original witnesses and their subsequent repair status, ownership
+and open decisions. The include, schema-header and symmetry casing repairs are
+described in the [implementation report](../../release/FIRMAMENT-DIRECTIVES-AND-CASING.md).
+The [decision register](../../development/FIRMAMENT-LANGUAGE-DECISIONS-2026-10.md)
 preserves the original authoring audit and later migration dispositions.
 
 Use [supported features](../reference/supported-features.md) for capability

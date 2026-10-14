@@ -34,6 +34,11 @@ public static class FirmamentBuildAdmissionValidation
             ? diagnostic.Message[..separator]
             : diagnostic.Message.All(character => char.IsLetterOrDigit(character) || character is '-' or '_' or '.')
                 ? diagnostic.Message : diagnostic.Code.ToString();
+        if (source is not null && (code.StartsWith("firmament-schema-", StringComparison.Ordinal) || code.StartsWith("firmament-v2-directive-", StringComparison.Ordinal)))
+        {
+            var original = FirmamentV2Parser.Parse(source).SyntaxDiagnostics.FirstOrDefault(d => d.Code == code || d.Code.StartsWith(code + ":", StringComparison.Ordinal));
+            if (original is not null) return original with { SourceFile = sourceFile };
+        }
         if (source is not null && code.StartsWith("firmament-syntax-", StringComparison.Ordinal))
         {
             var candidates = Syntax.FirmamentSyntaxParser.Parse(source, sourceFile).Diagnostics.Where(d => d.Code == code).ToArray();

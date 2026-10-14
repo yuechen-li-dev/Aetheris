@@ -1,9 +1,17 @@
 # October 2026 Firmament language decision register
 
+Directive/casing follow-up: [implementation and qualification](../release/FIRMAMENT-DIRECTIVES-AND-CASING.md)
+closes the syntax review's ignored-include and schema-formatting witnesses.
+Recommendations #1–#4 gain directive admission and located structured CLI errors;
+#17 gains AST-bound symmetry field aliases and lowercase from/to links. The
+24 original recommendations and broader deferred scopes remain preserved below.
+This does not claim a universal module system or completed syntax reconciliation.
+
 The October 14 [syntax review](FIRMAMENT-SYNTAX-REVIEW-2026-10.md) supplements
-this register with twenty current language/teaching seams and exact execution
-witnesses. Its ignored-include and schema-formatting findings remain open;
-documentation repair does not implement recommendations #1–#4, #7 or #23.
+this register with twenty language/teaching seams and exact execution witnesses.
+Its initial documentation-only pass left include/schema findings open; the
+implementation follow-up above supersedes that status. Documentation changes
+alone did not implement recommendations #1–#4, #7 or #23.
 All 24 original recommendations and their historical dispositions are preserved
 below. Later production amendments supersede only the scopes they qualify.
 

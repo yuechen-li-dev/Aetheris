@@ -45,6 +45,9 @@ public static class SectionChainAuthoringParser
     {
         using var buildPerfPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("sectionchain.authoring-compile");
         ArgumentNullException.ThrowIfNull(source);
+        var frontend = FirmamentFrontendSchemas.Select(source);
+        if (!frontend.IsSuccess) return new(false, null, null, frontend.Diagnostics);
+        source = frontend.Source;
         source = FirmamentSourceSpelling.Normalize(source);
         if (LoftAuthoringParser.IsLoftSource(source))
             return LoftAuthoringParser.Compile(source, materialize);

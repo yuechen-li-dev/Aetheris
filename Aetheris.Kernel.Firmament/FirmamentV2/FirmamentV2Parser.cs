@@ -286,6 +286,12 @@ public static partial class FirmamentV2Parser
         string sourceText,
         string? sourceDirectory,
         FirmamentV2ForgeConceptCatalog? conceptCatalog)
+        => Parse(sourceText, sourceDirectory, conceptCatalog, null);
+
+    /// <summary>Carries a selected schema through library/specialization processing;
+    /// it cannot override a conflicting authored schema.</summary>
+    public static FirmamentV2ParseResult Parse(string sourceText, string? sourceDirectory,
+        FirmamentV2ForgeConceptCatalog? conceptCatalog, FirmamentFrontendSchema? expectedSchema)
     {
         using var buildPerfPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("firmament.v2-parse");
         ArgumentNullException.ThrowIfNull(sourceText);
@@ -294,8 +300,8 @@ public static partial class FirmamentV2Parser
         // immutable records, except InlineStep, which reads a STEP file; those, and parses with a
         // concept catalog, always run.
         if (conceptCatalog is not null || sourceText.Contains("InlineStep", StringComparison.OrdinalIgnoreCase))
-            return CompleteAdmission(ParseUncached(sourceText, sourceDirectory, conceptCatalog), sourceText);
-        var key = (sourceDirectory ?? string.Empty) + "\0" + sourceText;
+            return ParseWithDirectives(sourceText, sourceDirectory, conceptCatalog, expectedSchema);
+        var key = expectedSchema + "\0" + (sourceDirectory ?? string.Empty) + "\0" + sourceText;
         lock (RecentParses)
         {
             var index = RecentParses.FindIndex(entry => string.Equals(entry.Key, key, StringComparison.Ordinal));
@@ -307,7 +313,7 @@ public static partial class FirmamentV2Parser
                 return hit.Result;
             }
         }
-        var result = CompleteAdmission(ParseUncached(sourceText, sourceDirectory, conceptCatalog), sourceText);
+        var result = ParseWithDirectives(sourceText, sourceDirectory, conceptCatalog, expectedSchema);
         lock (RecentParses)
         {
             RecentParses.Add((key, result));
@@ -319,8 +325,40 @@ public static partial class FirmamentV2Parser
     private const int RecentParseCapacity = 8;
     private static readonly List<(string Key, FirmamentV2ParseResult Result)> RecentParses = [];
 
+    private static FirmamentV2ParseResult ParseWithDirectives(string source, string? directory, FirmamentV2ForgeConceptCatalog? catalog,
+        FirmamentFrontendSchema? expectedSchema)
+    {
+        var frontend = FirmamentFrontendSchemas.Select(source);
+        if (!frontend.IsSuccess) return frontend.Failure(source);
+        if (frontend.Schema is { } authored && expectedSchema is { } expected && authored != expected)
+            return FirmamentV2ParseResult.Failure(["firmament-schema-context-conflict"]) with { OriginalSource = source,
+                SyntaxDiagnostics = [FirmamentFrontendSchemas.Located(source, "firmament-schema-context-conflict", $"The authored schema {authored} conflicts with the caller's {expected} compilation context.", frontend.DirectiveSpan!)],
+                ParserRoute = "UnifiedDirectives", OwnsUnifiedAdmission = true };
+        var syntax = FirmamentSyntaxParser.Parse(frontend.Source);
+        var pending = FirmamentSyntaxTraversal.Statements(syntax.Document).OfType<DirectiveSyntax>()
+            .Where(d => !syntax.Document.Statements.Contains(d) || !ProfileModificationTemplateLibrary.IsImport(d)).ToArray();
+        var malformed = syntax.Diagnostics.Where(d => d.Code == "firmament-v2-directive-malformed").ToArray();
+        if (pending.Length > 0 || malformed.Length > 0)
+        {
+            var reported = pending.Select(d => FirmamentFrontendSchemas.Located(source,
+                "firmament-v2-directive-unconsumed", $"The {d.Kind.ToString().ToLowerInvariant()} directive '{FirmamentSyntaxValues.Reference(d.Value) ?? source.Substring(d.Value.Span.Start, d.Value.Span.Length)}' is not supported by standalone part compilation. Resolve file includes through the documented Assembly/project loader, or use the registered owner of a shipped library import.", d.Span)).Concat(malformed).ToArray();
+            return FirmamentV2ParseResult.Failure(reported.Select(d => d.Code).ToArray()) with
+            { OriginalSource = source, SyntaxDiagnostics = reported, ParserRoute = "UnifiedDirectives", OwnsUnifiedAdmission = true };
+        }
+        var parsed = ParseUncached(frontend.Source, directory, catalog);
+        if (parsed.IsSuccess && (frontend.Schema ?? expectedSchema) is { } schema
+            && FirmamentFrontendSchemas.DomainMismatch(schema, parsed.BoundSource ?? frontend.Source, admittedSchema: parsed.BoundSchema) is { } mismatch)
+            return (frontend with { Diagnostics = [mismatch.Code], LocatedDiagnostics =
+                [frontend.DirectiveSpan is { } span ? FirmamentFrontendSchemas.Located(source, mismatch.Code, mismatch.Message, span)
+                    : mismatch with { LocationNote = "The schema was supplied by the caller; its original header span is unavailable." }] }).Failure(source);
+        return CompleteAdmission(parsed, source);
+    }
+
     private static FirmamentV2ParseResult CompleteAdmission(FirmamentV2ParseResult result, string originalSource)
     {
+        if (result.IsSuccess && result.OwnsUnifiedAdmission && result.BoundSchema is null)
+            result = result with { IsSuccess = false, Disposition = FirmamentV2ParseDisposition.RecognizedInvalid,
+                Diagnostics = [.. result.Diagnostics, "firmament-v2-admission-domain-missing: The engineering binder did not identify its admitted frontend schema."] };
         if (result.SyntaxDiagnostics.Count > 0)
         {
             var original = FirmamentSyntaxParser.Parse(originalSource);
@@ -365,7 +403,7 @@ public static partial class FirmamentV2Parser
                 ?? section.Chain?.StableId ?? "SectionChain";
             return section.IsSuccess
                 ? FirmamentV2ParseResult.Success(new(owner, "mm", []), diagnostics.Append("firmament-v2-parse-succeeded").ToArray())
-                    with { ParserRoute = "UnifiedSectionChain", OwnsUnifiedAdmission = true, BoundSectionChain = section, BoundSource = source }
+                    with { ParserRoute = "UnifiedSectionChain", OwnsUnifiedAdmission = true, BoundSchema = FirmamentFrontendSchema.SectionChain, BoundSectionChain = section, BoundSource = source }
                 : FirmamentV2ParseResult.Failure(diagnostics.Append("firmament-v2-parse-failed").ToArray())
                     with { ParserRoute = "UnifiedSectionChain", OwnsUnifiedAdmission = true, SyntaxDiagnostics = authoredSyntax.Diagnostics };
         }
@@ -446,7 +484,7 @@ public static partial class FirmamentV2Parser
             diagnostics.AddRange(gear.Diagnostics);
             return gear.IsSuccess
                 ? FirmamentV2ParseResult.Success(new(gear.ModelName, "mm", []), diagnostics.Append("firmament-v2-parse-succeeded").ToArray())
-                    with { ParserRoute = "UnifiedGear", OwnsUnifiedAdmission = true, BoundGear = gear, BoundSource = source, SyntaxDiagnostics = syntax.Diagnostics }
+                    with { ParserRoute = "UnifiedGear", OwnsUnifiedAdmission = true, BoundSchema = FirmamentFrontendSchema.Mechanical, BoundGear = gear, BoundSource = source, SyntaxDiagnostics = syntax.Diagnostics }
                 : FirmamentV2ParseResult.Failure(diagnostics.Append("firmament-v2-parse-failed").ToArray())
                     with { ParserRoute = "UnifiedGear", OwnsUnifiedAdmission = true, SyntaxDiagnostics = syntax.Diagnostics };
         }
@@ -463,7 +501,7 @@ public static partial class FirmamentV2Parser
                 FeatureDefinitions: featureExpansion.Definitions, FeatureInvocations: featureExpansion.Invocations,
                 FeatureExpansion: featureExpansion.Metrics, Polygons: polygonExpansion.Polygons, Boundaries: polygonExpansion.Boundaries);
             return FirmamentV2ParseResult.Success(panelDocument, diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray())
-                with { ParserRoute = "UnifiedPanel", OwnsUnifiedAdmission = true, BoundSource = source };
+                with { ParserRoute = "UnifiedPanel", OwnsUnifiedAdmission = true, BoundSchema = FirmamentFrontendSchema.Mechanical, BoundSource = source };
         }
 
         // Canonical V2 is parsed as one document, before compatibility adapters.  The
@@ -499,7 +537,7 @@ public static partial class FirmamentV2Parser
             if (revolve is null || diagnostics.Any(IsFatalDiagnosticCode))
                 return FirmamentV2ParseResult.Failure(diagnostics.Append("firmament-v2-parse-failed").ToArray()) with { ParserRoute = "UnifiedRevolve", OwnsUnifiedAdmission = true };
             return FirmamentV2ParseResult.Success(new(modelSyntax?.Name?.Text ?? revolve.Name, "mm", []), diagnostics.Append("firmament-v2-parse-succeeded").ToArray())
-                with { ParserRoute = "UnifiedRevolve", OwnsUnifiedAdmission = true, BoundRevolve = revolve, BoundSource = source };
+                with { ParserRoute = "UnifiedRevolve", OwnsUnifiedAdmission = true, BoundSchema = FirmamentFrontendSchema.Mechanical, BoundRevolve = revolve, BoundSource = source };
         }
         if (modelSyntax is not null && (hasMechanicalMaterial || !dedicatedMaterialDomain))
         {
@@ -519,7 +557,7 @@ public static partial class FirmamentV2Parser
             if (standaloneConstruction) parsed = parsed with { Document = parsed.Document with { ModelName = parsed.BoundProfile?.Name ?? parsed.BoundComposition?.Feature?.Name ?? parsed.Document.ModelName } };
             return WithFeatureMetadata(
                 AttachVolumeAssertionsAndSymbols(WithPolygonMetadata(parsed, polygonExpansion), source, canonicalStaticExpansion.Document, diagnostics),
-                featureExpansion) with { ParserRoute = "UnifiedMechanical", OwnsUnifiedAdmission = true, BoundSource = parsed.BoundSource ?? source };
+                featureExpansion) with { ParserRoute = "UnifiedMechanical", OwnsUnifiedAdmission = true, BoundSchema = FirmamentFrontendSchema.Mechanical, BoundSource = parsed.BoundSource ?? source };
         }
 
         if (syntax.Document.Statements.OfType<DeclarationSyntax>().Any(d => d.Type.Name.Text is "Model" or "Struct" or "Concept"
@@ -576,7 +614,7 @@ public static partial class FirmamentV2Parser
                 !hasFatalDiagnostics,
                 document,
                 diagnostics,
-                hasFatalDiagnostics ? FirmamentV2ParseDisposition.RecognizedInvalid : FirmamentV2ParseDisposition.RecognizedValid) { ParserRoute = compatibilityCore ? "UnifiedCompatibility" : "CompatibilityExtensions", OwnsUnifiedAdmission = compatibilityCore, SyntaxDiagnostics = compatibilityCore ? syntax.Diagnostics : [] };
+                hasFatalDiagnostics ? FirmamentV2ParseDisposition.RecognizedInvalid : FirmamentV2ParseDisposition.RecognizedValid) { ParserRoute = compatibilityCore ? "UnifiedCompatibility" : "CompatibilityExtensions", OwnsUnifiedAdmission = compatibilityCore, BoundSchema = compatibilityCore ? FirmamentFrontendSchema.Mechanical : null, SyntaxDiagnostics = compatibilityCore ? syntax.Diagnostics : [] };
     }
 
     private static FirmamentV2ParseResult Recognized(FirmamentV2ParseResult result) =>

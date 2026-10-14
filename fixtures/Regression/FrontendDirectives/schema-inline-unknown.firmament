@@ -1,0 +1,4 @@
+schema DoesNotExist Model Example {
+  units: mm
+  Box stock { size: [30mm, 20mm, 6mm] }
+}

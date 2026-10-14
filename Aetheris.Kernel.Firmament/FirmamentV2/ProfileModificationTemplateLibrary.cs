@@ -1,13 +1,27 @@
 using System.Reflection;
-using System.Text.RegularExpressions;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
 public static class ProfileModificationTemplateLibrary
 {
     private const string ResourceName="Aetheris.Kernel.Firmament.Resources.ProfileModifications.firmament";
-    public static string ResolveImports(string source) => Regex.IsMatch(source, @"\bUse\s+Profile\.Modifications\s*;")
-        ? Source + Environment.NewLine + Regex.Replace(source, @"\bUse\s+Profile\.Modifications\s*;", "") : source;
+    internal static bool IsImport(DirectiveSyntax directive) => directive.Kind == DirectiveKind.Use
+        && FirmamentSyntaxValues.Reference(directive.Value) == "Profile.Modifications";
+    public static string ResolveImports(string source)
+    {
+        if (!source.Contains("Use", StringComparison.Ordinal)) return source;
+        var syntax = FirmamentSyntaxParser.Parse(source);
+        var imports = syntax.Document.Statements.OfType<DirectiveSyntax>().Where(IsImport).ToArray();
+        if (imports.Length == 0) return source;
+        foreach (var import in imports.OrderByDescending(d => d.Span.Start))
+        {
+            var length = import.Span.Length;
+            if (import.Span.Start + length < source.Length && source[import.Span.Start + length] == ';') length++;
+            source = source.Remove(import.Span.Start, length);
+        }
+        return Source + Environment.NewLine + source;
+    }
     public static string Source
     {
         get

@@ -38,7 +38,7 @@ Model RevolvedSphere {
   Concept Circle2 meridian { center: center; radius: 20mm }
   Line2 diameter { from: north; to: south }
   Profile sphereSection {
-    meridian From south To north as arc
+    meridian from south to north as arc
     |> diameter as axisClosure
     |> Close
   }
@@ -46,8 +46,8 @@ Model RevolvedSphere {
 }
 ```
 
-Pipeline endpoint words currently use `From`/`To`; fields such as `from:` use
-camelCase. See [Writing Firmament](syntax.md) for the distinction and conventions.
+Pipeline endpoint links prefer `from`/`to`, with `From`/`To` retained as aliases.
+See [Writing Firmament](syntax.md) for the distinction from fields such as `from:`.
 
 ## Angles
 

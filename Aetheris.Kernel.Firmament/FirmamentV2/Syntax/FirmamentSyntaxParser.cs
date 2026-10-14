@@ -109,11 +109,21 @@ public static class FirmamentSyntaxParser
                 if (Is("schema") || Is("include") || Is("Include") || Is("Use"))
                 {
                     var kind = Current.Text switch { "schema" => DirectiveKind.Schema, "Use" => DirectiveKind.Use, _ => DirectiveKind.Include };
-                    at++; return new DirectiveSyntax(kind, Expression(allowObject: false), Span(start));
+                    at++;
+                    try { return new DirectiveSyntax(kind, Expression(allowObject: false), Span(start)); }
+                    catch (ParseFailure)
+                    {
+                        Error(kind == DirectiveKind.Schema ? "firmament-schema-malformed" : "firmament-v2-directive-malformed",
+                            $"Expected a valid value for the {kind.ToString().ToLowerInvariant()} directive.", Span(start));
+                        throw;
+                    }
                 }
                 // A call or a pipeline is an expression statement. A bare name in an
                 // Enum/Loop is also syntax, never implicitly an admitted declaration.
-                if (Is("Reverse") || Peek(1).Text == "-" && Peek(2).Text == ">" || Peek(1).Text is "(" or "." or "|" or "[" or "As" or "as" or "From" or "To" || Peek(1).Text is ";" or "}" || Peek(1).Kind == SyntaxTokenKind.End)
+                if (Is("Reverse") || Peek(1).Text == "-" && Peek(2).Text == ">" || Peek(1).Text is "(" or "." or "|" or "[" or "As" or "as"
+                    || Peek(1).Text is "From" or "from" or "To" or "to" && Peek(2).Kind == SyntaxTokenKind.Identifier
+                        && (Peek(3).Text is "." or "To" or "to" or "As" or "as" or "|" or ";" or "}" || Peek(3).Kind == SyntaxTokenKind.End)
+                    || Peek(1).Text is ";" or "}" || Peek(1).Kind == SyntaxTokenKind.End)
                     {
                     var expression = Expression();
                     // Selector aliases historically used =>; retain it as the
@@ -151,7 +161,9 @@ public static class FirmamentSyntaxParser
                 modifiers.Add(type); type = Type();
             }
             IdentifierSyntax? name = null;
-            if (Current.Kind == SyntaxTokenKind.Identifier && !LineBreak && !IsClause(Current.Text)) name = Identifier();
+            // Lowercase from was already a legal authored name. It becomes a link
+            // only after the declaration name, never a newly reserved identifier.
+            if (Current.Kind == SyntaxTokenKind.Identifier && !LineBreak && (Current.Text == "from" || !IsClause(Current.Text))) name = Identifier();
             // Historical `Model Name mm` is a unit-bearing header. Admit it in
             // this grammar and bind its implicit file body, rather than selecting
             // an EdgeFinish-specific whole-document parser.
@@ -314,11 +326,11 @@ public static class FirmamentSyntaxParser
                 {
                     if (++suffixCount > MaxDepth) throw Fail("firmament-syntax-depth", $"Expression chain exceeds the bounded parser limit of {MaxDepth}.");
                     if (Take("As") || Take("as")) { left = new AliasSyntax(left, Identifier(), Span(start)); continue; }
-                    if (Current.Text is "From" or "To" && Peek(1).Text != ":")
+                    if (Current.Text is "From" or "from" or "To" or "to" && Peek(1).Text != ":")
                     {
                         ExpressionSyntax? from = null, to = null;
-                        if (Take("From")) from = EndpointReference();
-                        if (Take("To")) to = EndpointReference();
+                        if (Take("From") || Take("from")) from = EndpointReference();
+                        if (Take("To") || Take("to")) to = EndpointReference();
                         left = new TraceSyntax(left, from, to, Span(start)); continue;
                     }
                     if (left is SequenceSyntax && Current.Text is "x" or "y" or "z" or "normal" && Peek(1).Text == "[")
@@ -424,7 +436,7 @@ public static class FirmamentSyntaxParser
         private static bool TryClause(string text, out ClauseKind kind)
         {
             kind = text switch { "On" or "on" => ClauseKind.On, "Using" or "using" => ClauseKind.Using,
-                "Over" or "over" => ClauseKind.Over, "From" => ClauseKind.From, "Key" => ClauseKind.Key, _ => (ClauseKind)(-1) };
+                "Over" or "over" => ClauseKind.Over, "From" or "from" => ClauseKind.From, "Key" => ClauseKind.Key, _ => (ClauseKind)(-1) };
             return (int)kind >= 0;
         }
         private IdentifierSyntax Identifier()

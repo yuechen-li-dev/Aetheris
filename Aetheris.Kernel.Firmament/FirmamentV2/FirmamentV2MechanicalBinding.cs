@@ -16,7 +16,7 @@ public static partial class FirmamentV2Parser
         }
     }
 
-    private static bool IsPrimitiveDeclaration(DeclarationSyntax d) => d.Type.Name.Text is
+    internal static bool IsPrimitiveDeclaration(DeclarationSyntax d) => d.Type.Name.Text is
         "Box" or "Cylinder" or "Cone" or "Sphere" or "Torus" or "RoundedBox" or "Frustum" or "StandardPart" or "ExactCoaxialPart";
 
     /// <summary>Mechanical syntax has one owner. Selection of a material lowerer
@@ -358,7 +358,11 @@ public static partial class FirmamentV2Parser
     {
         foreach (var statement in statements)
         {
-            if (statement is DirectiveSyntax) continue;
+            if (statement is DirectiveSyntax directive)
+            {
+                diagnostics.Add($"firmament-v2-directive-unconsumed:{directive.Kind}: Every directive must be consumed before mechanical binding.");
+                continue;
+            }
             if (statement is DeclarationSyntax definition && definition.Modifiers.Any(m => m.Name.Text == "Template")) continue;
             if (statement is FieldSyntax field)
             {

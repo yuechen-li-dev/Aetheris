@@ -1,5 +1,10 @@
 # Firmament syntax review — 2026-10-14
 
+Implementation follow-up: the [directive/casing pass](../release/FIRMAMENT-DIRECTIVES-AND-CASING.md)
+repairs S01 (symmetry fields), S02 (Profile/mirror links), S14 and S15.
+It also repairs S13's dense mirror/override witness; specialized semicolon rules
+elsewhere are unchanged. Original observations below remain pre-repair evidence.
+
 ## Purpose and boundary
 
 This review accompanies the rewrite of [Writing Firmament](../public/firmament/syntax.md).

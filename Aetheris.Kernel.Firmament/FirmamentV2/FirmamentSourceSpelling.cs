@@ -14,7 +14,7 @@ public static class FirmamentSourceSpelling
     private static readonly Dictionary<string, string> Links = new(StringComparer.Ordinal)
     {
         ["As"] = "as", ["Using"] = "using", ["On"] = "on", ["Over"] = "over",
-        ["Include"] = "include", ["Expose"] = "expose", ["Bind"] = "bind"
+        ["Include"] = "include", ["Expose"] = "expose", ["Bind"] = "bind", ["From"] = "from", ["To"] = "to"
     };
 
     public static string PreferredField(string name) => name.Length == 0 ? name : char.ToLowerInvariant(name[0]) + name[1..];
@@ -25,6 +25,27 @@ public static class FirmamentSourceSpelling
     {
         ArgumentNullException.ThrowIfNull(source);
         var tokens = FirmamentLanguageAnalysisService.Lex(source).Where(t => t.Shape != "comment").ToArray();
+        var syntax = FirmamentSyntaxParser.Parse(source).Document;
+        var endpointPositions = new Dictionary<int, string>();
+        foreach (var trace in FirmamentSyntaxTraversal.Expressions(syntax).OfType<TraceSyntax>())
+        {
+            Endpoint(trace.From, "From"); Endpoint(trace.To, "To");
+            void Endpoint(ExpressionSyntax? endpoint, string canonical)
+            {
+                if (endpoint is null) return;
+                var token = tokens.LastOrDefault(t => t.Start >= trace.Source.Span.Start + trace.Source.Span.Length && t.Start < endpoint.Span.Start
+                    && (t.Text == canonical || t.Text == Links[canonical]));
+                if (token is not null) endpointPositions[token.Start] = canonical;
+            }
+        }
+        var symmetryFields = new Dictionary<int, string>();
+        foreach (var declaration in FirmamentSyntaxTraversal.Declarations(syntax))
+        {
+            foreach (var clause in declaration.Clauses.Where(c => c.Kind == ClauseKind.From)) endpointPositions[clause.Span.Start] = "From";
+            foreach (var field in declaration.Body?.Statements.OfType<FieldSyntax>() ?? [])
+                if (SemanticSymmetryAuthoring.FieldsFor(declaration).FirstOrDefault(name => FirmamentSyntaxFields.SameField(field.Name.Text, name)) is { } canonical)
+                    symmetryFields[field.Name.Span.Start] = canonical;
+        }
         var aliasPositions = tokens.Any(t => t.Text is "As" or "as") ? FirmamentSyntaxTraversal
             .Expressions(FirmamentSyntaxParser.Parse(source).Document)
             .OfType<AliasSyntax>()
@@ -79,7 +100,9 @@ public static class FirmamentSourceSpelling
             if (t.Shape != "identifier" || scopes.Any(s => s.AuthoredData)) continue;
             var fieldPosition = i + 1 < tokens.Length && tokens[i + 1].Text == ":";
             string? canonical = null;
-            if (fieldPosition && scopes.TryPeek(out var scope) && parentheses == scope.Parentheses && angles == scope.Angles
+            if (fieldPosition && symmetryFields.TryGetValue(t.Start, out var symmetryField)) canonical = symmetryField;
+            else if (!fieldPosition && endpointPositions.TryGetValue(t.Start, out var endpointWord)) canonical = endpointWord;
+            else if (fieldPosition && scopes.TryPeek(out var scope) && parentheses == scope.Parentheses && angles == scope.Angles
                 && Fields.TryGetValue(scope.Owner, out var fields))
                 canonical = fields.FirstOrDefault(f => t.Text == f || t.Text == PreferredField(f));
             else if (!fieldPosition && (i == 0 || tokens[i - 1].Text != "."))

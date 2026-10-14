@@ -37,6 +37,9 @@ public static class LoftAuthoringParser
     public static SectionChainAuthoringResult Compile(string source, bool materialize = true)
     {
         ArgumentNullException.ThrowIfNull(source);
+        var frontend = FirmamentFrontendSchemas.Select(source);
+        if (!frontend.IsSuccess) return new(false, null, null, frontend.Diagnostics);
+        source = frontend.Source;
         source = FirmamentSourceSpelling.Normalize(source);
         var diagnostics = new List<string>();
         var syntax = FirmamentSyntaxParser.Parse(source);

@@ -333,6 +333,8 @@ public sealed record FirmamentV2ParseResult(
     internal ResolvedProfile2D? BoundProfile { get; init; }
     internal double ExtrusionHeight { get; init; }
     internal string? BoundSource { get; init; }
+    // Set by the engineering binder, never inferred from debug parser-route names.
+    internal FirmamentFrontendSchema? BoundSchema { get; init; }
 
     public static FirmamentV2ParseResult Success(FirmamentV2Document document, IReadOnlyList<string> diagnostics) => new(true, document, diagnostics, FirmamentV2ParseDisposition.RecognizedValid);
     public static FirmamentV2ParseResult Failure(IReadOnlyList<string> diagnostics, FirmamentV2ParseDisposition disposition = FirmamentV2ParseDisposition.RecognizedInvalid) => new(false, null, diagnostics, disposition);

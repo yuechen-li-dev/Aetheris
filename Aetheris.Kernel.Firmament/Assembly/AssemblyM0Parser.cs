@@ -104,11 +104,17 @@ public sealed class AssemblyM0Parser
         input = FirmamentSourceSpelling.Normalize(input);
         var watch = Stopwatch.StartNew();
         var diagnostics = new List<AssemblyDiagnostic>();
+        var blankcommentsPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("m0.blank-comments");
         var source = Regex.Replace(input, "\"(?:\\\\.|[^\"\\\\])*\"|//[^\\r\\n]*", m => m.Value.StartsWith('"') ? m.Value : new string(' ',m.Length));
+        blankcommentsPhase.Dispose();
+        var pmiPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("m0.pmi");
         var annotations = AssemblyPmiAuthoring.Parse(ref source, sourceIdentity, diagnostics);
+        pmiPhase.Dispose();
         if (diagnostics.Count > 0) return new(null, diagnostics, watch.Elapsed.TotalMilliseconds);
         var patternDiagnostics = new List<string>();
+        var patternsPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("m0.patterns");
         var expandedPatterns = CanonicalStaticAuthoring.ExpandAssemblyPatterns(source,patternDiagnostics);
+        patternsPhase.Dispose();
         foreach (var error in patternDiagnostics) diagnostics.Add(new("assembly-pattern-invalid",error));
         if (expandedPatterns is null || patternDiagnostics.Count>0) return new(null,diagnostics,watch.Elapsed.TotalMilliseconds);
         source = expandedPatterns.Source;
@@ -116,16 +122,24 @@ public sealed class AssemblyM0Parser
         // lowers through the existing, locally solved definition authority.
         source = Regex.Replace(source, @"\bSubassembly\s+(?<name>[A-Za-z_]\w*)\s*\{",
             "Template < __Unit: __Unit > Assembly ${name} {", RegexOptions.CultureInvariant);
+        var appearancePhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("m0.appearance");
         var appearanceCatalog = AssemblyAppearanceAuthoring.Parse(ref source, diagnostics, out var appearanceSpans);
+        appearancePhase.Dispose();
         var gearDocument = GearAuthoring.HasGearDefinitions(source)
             ? GearAuthoring.ParseDefinitions(source)
             : new GearAuthoringDocument("GearModel", [], [], []);
         var gearAuthorities = gearDocument.Gears.ToDictionary(gear => gear.Name, StringComparer.Ordinal);
         foreach (var diagnostic in gearDocument.Diagnostics.Where(item => item != GearAuthoring.Prefix + "declaration-missing"))
             diagnostics.Add(new("assembly-" + diagnostic.Split(':')[0], diagnostic));
+        var conceptsPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("m0.concepts");
         var concepts = ParseAssemblyConcepts(source, sourceIdentity, diagnostics);
+        conceptsPhase.Dispose();
+        var interfacesPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("m0.interfaces");
         var interfaces = ParseInterfaces(source, sourceIdentity, diagnostics);
+        interfacesPhase.Dispose();
+        var layoutsPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("m0.layouts");
         var layout = AssemblyDatumAuthoring.ParseLayouts(source, sourceIdentity, diagnostics, out var partDeclarations);
+        layoutsPhase.Dispose();
         foreach (var contract in interfaces.Where(i => i.DatumContract is not null))
             if (!layout.Any(d => d.Identity == contract.DatumContract!.Datum && d.Plane == d.Identity))
                 diagnostics.Add(new("assembly-datum-plane-unresolved", $"Interface '{contract.Name}' requires a declared Concept plane or Axis '{contract.DatumContract!.Datum}'."));
@@ -143,11 +157,13 @@ public sealed class AssemblyM0Parser
         IReadOnlyList<SemanticValue> Ports(string identity)
         {
             if (!portCache.TryGetValue(identity, out var ports))
-                portCache[identity] = ports = AssemblyPublishedPorts.BindAuthored(identity, definitionSource, sourceIdentity, diagnostics, project, portDependencies, PortCache);
+                using (var portsPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("m0.ports")) portCache[identity] = ports = AssemblyPublishedPorts.BindAuthored(identity, definitionSource, sourceIdentity, diagnostics, project, portDependencies, PortCache);
             return ports;
         }
         var templateRanges = new List<(int Start, int Length)>();
+        var assemblydefinitionsPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("m0.assembly-definitions");
         var assemblyDefinitions = ParseAssemblyDefinitions(source, sourceIdentity, interfaces, concepts, gearAuthorities, diagnostics, templateRanges, Ports, layout);
+        assemblydefinitionsPhase.Dispose();
         // Template-produced Assembly bodies are declarations, not exported roots.
         // Blank them without changing offsets, then locate the single root Assembly.
         var rootSearch = source.ToCharArray();
@@ -159,7 +175,9 @@ public sealed class AssemblyM0Parser
         var body = BalancedBody(source, assemblyHeader.Index + assemblyHeader.Length - 1, diagnostics, "Assembly");
         if (body is null) return Done(null);
         var specializationCache = new Dictionary<string, AssemblyMemberSource>(StringComparer.Ordinal);
+        var treePhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("m0.tree");
         var tree = ParseTree(body, sourceIdentity, diagnostics, assemblyDefinitions, interfaces, specializationCache, gearAuthorities, Ports);
+        treePhase.Dispose();
         if (tree is null) return Done(null);
         var mates = ParseMates(body, sourceIdentity, diagnostics);
         var relations = ParseRelations(body, diagnostics);
@@ -167,7 +185,9 @@ public sealed class AssemblyM0Parser
         var anchorMatch = Regex.Match(RemoveBlocks(body, "Mate", @"Assert\s+ToleranceStackup"), @"\bAnchor\s*:\s*(?<path>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*;", RegexOptions.CultureInvariant);
         var anchor = anchorMatch.Success ? AssemblyPath.Parse(anchorMatch.Groups["path"].Value) : new AssemblyPath([tree.Name]);
         var frames = ParseFrameTransforms(body, sourceIdentity, diagnostics);
+        var datumbindPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("m0.datum-bind");
         tree = AssemblyDatumAuthoring.Bind(body, tree, layout, interfaces, diagnostics, out var datumFrames, Ports);
+        datumbindPhase.Dispose();
         frames = frames.Concat(datumFrames).ToArray();
         var result = new AssemblySource(assemblyHeader.Groups["name"].Value, tree, interfaces, mates, anchor, relations, asserts, sourceIdentity, definitionSource, assemblyDefinitions, SourceDependencies: portDependencies, FrameTransforms: frames, Patterns: expandedPatterns.Document?.Patterns, ConceptPoints: expandedPatterns.Document?.ConceptPoints, AppearanceCatalog: appearanceCatalog, Annotations: annotations);
         return Done(result);

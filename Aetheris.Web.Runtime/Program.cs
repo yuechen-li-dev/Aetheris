@@ -18,6 +18,11 @@ namespace Aetheris.Web.Runtime;
 
 public static partial class Program
 {
+    // BUILD-PERF-M2: the compiler calls static Regex methods from ~860 sites. The runtime caches the
+    // constructed patterns, 15 by default, so a build re-parsed most patterns on every call; in the
+    // interpreted browser runtime that is a large share of every rebuild. Matching is unchanged.
+    static Program() => System.Text.RegularExpressions.Regex.CacheSize = Math.Max(System.Text.RegularExpressions.Regex.CacheSize, 1024);
+
     private const string ContractVersion = "aetheris/web-editor-contract/1";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly JsonSerializerOptions BridgeOptions = WebResponseBridge.Options(JsonOptions);

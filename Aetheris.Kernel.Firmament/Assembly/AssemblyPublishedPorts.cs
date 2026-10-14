@@ -63,8 +63,31 @@ internal static class AssemblyPublishedPorts
         }
         if (!identity.Contains('<')) return [];
         // A specialization's ports are a function of the identity, the declarations and the source name.
-        return Memo(cache, "template\0" + identity + "\0" + sourceIdentity + "\0" + Hash(declarations), diagnostics,
-            diagnostics => BindTemplate(identity, declarations, sourceIdentity, diagnostics));
+        var wholeKey = "template\0" + identity + "\0" + sourceIdentity + "\0" + DeclarationTextFacts.Of(declarations).Hash;
+        // BUILD-PERF-M2: like its definition, a specialization binds its ports from its declaration
+        // closure when that expands on its own, otherwise from the whole catalog. Keys follow the
+        // text actually bound (closure, or whole catalog after a failed closure), so a reused binding
+        // is always the one a fresh build would make.
+        if (AssemblyDefinitionMaterializer.ScopeDeclarations
+            && AssemblyDeclarationScope.Closure(declarations, AssemblyDefinitionMaterializer.TemplateName(identity).Trim()) is { } scoped
+            && !ReferenceEquals(scoped, declarations))
+        {
+            var fallbackKey = "template-scope-fallback\0" + wholeKey;
+            if (cache is null || !cache.Contains(fallbackKey))
+            {
+                var scopedKey = "template-scoped\0" + identity + "\0" + sourceIdentity + "\0" + Hash(scoped);
+                var attempt = new List<AssemblyDiagnostic>();
+                var ports = Memo(cache, scopedKey, attempt, diagnostics => BindTemplate(identity, scoped, sourceIdentity, diagnostics));
+                if (attempt.All(d => d.Severity != AssemblyDiagnosticSeverity.Error))
+                {
+                    diagnostics.AddRange(attempt);
+                    return ports;
+                }
+                cache?.Forget(scopedKey);
+            }
+            return Memo(cache, fallbackKey, diagnostics, diagnostics => BindTemplate(identity, declarations, sourceIdentity, diagnostics));
+        }
+        return Memo(cache, wholeKey, diagnostics, diagnostics => BindTemplate(identity, declarations, sourceIdentity, diagnostics));
     }
 
     private static IReadOnlyList<SemanticValue> BindTemplate(string identity, string declarations, string sourceIdentity,

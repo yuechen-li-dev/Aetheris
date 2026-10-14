@@ -82,6 +82,7 @@ internal sealed class DerivedValueCache<T>
     internal void BeginBuild() { previous = current; current = new(StringComparer.Ordinal); }
     internal void Clear() { current.Clear(); previous.Clear(); }
     internal void Forget(string key) { current.Remove(key); previous.Remove(key); }
+    internal bool Contains(string key) => current.ContainsKey(key) || previous.ContainsKey(key);
     internal T GetOrAdd(string key, Func<T> create)
     {
         if (current.TryGetValue(key, out var value)) return value;
@@ -122,19 +123,20 @@ internal sealed class AssemblyDefinitionCache(int capacity)
         // BUILD-PERF-M2: a template definition compiles from its declaration closure when that closure
         // compiles alone, otherwise from the whole catalog (see AssemblyDefinitionMaterializer). The
         // build is deterministic, so an entry stored under the closure key (closure compiled) or under
-        // the whole-catalog key (closure failed for exactly that catalog) is what a fresh build of the
-        // current declarations would produce.
-        string? key, scopedKey;
+        // the fallback key (closure failed for exactly this catalog) is what a fresh build of the
+        // current declarations would produce. Without a closure the whole-catalog key applies.
+        string? key, scopedKey, fallbackKey;
         using (BuildPerfTrace.Phase("assembly.cache-key"))
         {
             key = Key(identity, declarations, sourceIdentity, project);
             scopedKey = key is null ? null : ScopedKey(identity, declarations, sourceIdentity);
+            fallbackKey = scopedKey is null ? key : Hash(sourceIdentity, identity, "scope-fallback\0" + key);
         }
         var reason = key is null ? "unsupported-resource-dependency" : "first-build-or-evicted";
         if (key is not null && entries.TryGetValue(identity, out var entry))
         {
             reason = "definition-inputs-changed";
-            if (entry.Key == key || (scopedKey is not null && entry.Key == scopedKey))
+            if (entry.Key == fallbackKey || (scopedKey is not null && entry.Key == scopedKey))
             {
                 BrepBody body;
                 using (BuildPerfTrace.Phase("assembly.cache-hit-clone")) body = entry.Metadata.Body.Clone();
@@ -166,6 +168,7 @@ internal sealed class AssemblyDefinitionCache(int capacity)
             Evidence[^1] = new(identity, false, "resource-changed-during-build");
             return result;
         }
+        else key = fallbackKey;
         // This bounded cache only admits immutable scalar/datum semantic bindings.
         // Domain materializers and geometry-valued ports stay on the uncached path.
         if (!result.Semantics.All(CanCopy) || result.CanonicalStep is null)
@@ -207,9 +210,10 @@ internal sealed class AssemblyDefinitionCache(int capacity)
     private static string? ScopedKey(string identity, string? declarations, string sourceIdentity)
     {
         if (declarations is null || !AssemblyDefinitionMaterializer.ScopeDeclarations || !identity.Contains('<', StringComparison.Ordinal)
-            || Regex.IsMatch(identity, "^(?:SectionChainFile|LoftFile|ExternalStep)<", RegexOptions.CultureInvariant)
-            || Regex.IsMatch(declarations, @"\bInlineStep\b", RegexOptions.CultureInvariant)) return null;
-        var ordinary = AssemblyDefinitionMaterializer.OrdinaryDeclarations(declarations);
+            || Regex.IsMatch(identity, "^(?:SectionChainFile|LoftFile|ExternalStep)<", RegexOptions.CultureInvariant)) return null;
+        var facts = DeclarationTextFacts.Of(declarations);
+        if (facts.HasInlineStep) return null;
+        var ordinary = facts.Ordinary;
         return AssemblyDeclarationScope.Closure(ordinary, AssemblyDefinitionMaterializer.TemplateName(identity)) is { } scoped && !ReferenceEquals(scoped, ordinary)
             ? Hash(sourceIdentity, identity, "scoped\0" + scoped) : null;
     }
@@ -249,10 +253,13 @@ internal sealed class AssemblyDefinitionCache(int capacity)
         }
         else
         {
-            if (declarations is null || Regex.IsMatch(declarations, @"\bInlineStep\b", RegexOptions.CultureInvariant)) return null;
+            if (declarations is null) return null;
+            var facts = DeclarationTextFacts.Of(declarations);
+            if (facts.HasInlineStep) return null;
             // Keep exact text, including offsets, because cached semantic evidence
-            // carries source spans. The parser already excludes assembly bodies.
-            inputs = declarations;
+            // carries source spans. The parser already excludes assembly bodies. The
+            // catalog is shared by every definition of a build: hash it once.
+            return Hash(sourceIdentity, identity, "declarations-sha256\0" + facts.Hash);
         }
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
             "assembly-definition-cache-v1\0" + sourceIdentity + "\0" + identity + "\0" + inputs)));

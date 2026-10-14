@@ -149,3 +149,42 @@ internal static class AssemblyDeclarationScope
         }).ToArray();
     }
 }
+
+/// <summary>
+/// BUILD-PERF-M2: facts about one declaration catalog that every definition of a build needs
+/// (InlineStep presence, Gear-blanked text, content hash). They were recomputed per definition,
+/// which in the interpreted browser runtime cost hundreds of milliseconds per rebuild.
+/// </summary>
+internal sealed class DeclarationTextFacts
+{
+    private static readonly object Gate = new();
+    private static DeclarationTextFacts? last;
+
+    private readonly Lazy<bool> hasInlineStep;
+    private readonly Lazy<string> ordinary;
+    private readonly Lazy<string> hash;
+
+    private DeclarationTextFacts(string text)
+    {
+        Text = text;
+        hasInlineStep = new(() => System.Text.RegularExpressions.Regex.IsMatch(text, @"\bInlineStep\b", System.Text.RegularExpressions.RegexOptions.CultureInvariant));
+        ordinary = new(() => AssemblyDefinitionMaterializer.OrdinaryDeclarations(text));
+        hash = new(() => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(text))));
+    }
+
+    public string Text { get; }
+    public bool HasInlineStep => hasInlineStep.Value;
+    /// <summary>The catalog with Gear roots blanked, as ordinary definitions compile it.</summary>
+    public string Ordinary => ordinary.Value;
+    /// <summary>SHA-256 (hex) of the UTF-8 text.</summary>
+    public string Hash => hash.Value;
+
+    public static DeclarationTextFacts Of(string text)
+    {
+        lock (Gate)
+        {
+            if (last is not null && (ReferenceEquals(last.Text, text) || string.Equals(last.Text, text, StringComparison.Ordinal))) return last;
+            return last = new DeclarationTextFacts(text);
+        }
+    }
+}

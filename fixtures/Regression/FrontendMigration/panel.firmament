@@ -1,0 +1,5 @@
+Model PanelModel { Units: mm;
+  Panel P { Surface: HyperbolicParaboloid { Width: 40mm; Depth: 30mm; Rise: 6mm; }
+    // intent
+  }
+}

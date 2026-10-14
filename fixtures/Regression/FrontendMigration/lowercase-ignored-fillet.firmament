@@ -1,0 +1,6 @@
+// Must reject instead of silently omitting the requested fillet.
+model IgnoredFillet {
+  units mm
+  solid stock: Box { size: [30, 24, 12] }
+  modify stock { Fillet corners { radius: 1 } }
+}

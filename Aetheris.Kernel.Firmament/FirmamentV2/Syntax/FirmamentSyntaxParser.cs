@@ -99,6 +99,12 @@ public static class FirmamentSyntaxParser
                     var key = Identifier(); Expect("="); Expect(">");
                     return new MappingSyntax(key, Statement(), Span(start));
                 }
+                // The historical unit header has the same field meaning as units: mm.
+                if (Is("units") && Peek(1).Kind == SyntaxTokenKind.Identifier)
+                {
+                    var name = Identifier();
+                    return new FieldSyntax(name, Expression(allowObject: false), Span(start));
+                }
                 if (Is("return")) { at++; return new ReturnSyntax(Expression(), Span(start)); }
                 if (Is("schema") || Is("include") || Is("Include") || Is("Use"))
                 {
@@ -107,8 +113,14 @@ public static class FirmamentSyntaxParser
                 }
                 // A call or a pipeline is an expression statement. A bare name in an
                 // Enum/Loop is also syntax, never implicitly an admitted declaration.
-                if (Is("Reverse") || Peek(1).Text is "(" or "." or "|" or "[" or "As" or "From" or "To" || Peek(1).Text is ";" or "}" || Peek(1).Kind == SyntaxTokenKind.End)
-                    return new ExpressionStatementSyntax(Expression(), Span(start));
+                if (Is("Reverse") || Peek(1).Text == "-" && Peek(2).Text == ">" || Peek(1).Text is "(" or "." or "|" or "[" or "As" or "as" or "From" or "To" || Peek(1).Text is ";" or "}" || Peek(1).Kind == SyntaxTokenKind.End)
+                    {
+                    var expression = Expression();
+                    // Selector aliases historically used =>; retain it as the
+                    // same alias node, with admission owned by expose.
+                    if (Pair("=", ">")) { at += 2; expression = new AliasSyntax(expression, Identifier(), Span(start)); }
+                    return new ExpressionStatementSyntax(expression, Span(start));
+                }
                 var declaration = Declaration(occurrence: false);
                 if (declaration.Name is null && declaration.Body is null && declaration.Initializer is null
                     && declaration.Annotation is null && declaration.ResultType is null && declaration.Modifiers.Count == 0
@@ -140,6 +152,12 @@ public static class FirmamentSyntaxParser
             }
             IdentifierSyntax? name = null;
             if (Current.Kind == SyntaxTokenKind.Identifier && !LineBreak && !IsClause(Current.Text)) name = Identifier();
+            // Historical `Model Name mm` is a unit-bearing header. Admit it in
+            // this grammar and bind its implicit file body, rather than selecting
+            // an EdgeFinish-specific whole-document parser.
+            IdentifierSyntax? headerUnit = null;
+            if (type.Name.Text is "Model" or "Struct" && name is not null && Current.Kind == SyntaxTokenKind.Identifier
+                && !LineBreak && !IsClause(Current.Text)) headerUnit = Identifier();
             var parameters = Take("(") ? Arguments(")") : [];
             if (type.Name.Text == "Replace" && Take("."))
             {
@@ -164,6 +182,11 @@ public static class FirmamentSyntaxParser
                 if (Current.Kind == SyntaxTokenKind.Identifier) initializer = new ReferenceSyntax(Identifier(), Previous.Span);
             }
             BlockSyntax? body = null;
+            if (type.Name.Text == "solid" && Take("with"))
+            {
+                body = Block(context: $"solid {name?.Text}");
+                if (annotation is not null) annotation = new WithSyntax(annotation, body, Span(annotation.Span.Start));
+            }
             if (occurrence)
             {
                 Expect(">");
@@ -183,9 +206,21 @@ public static class FirmamentSyntaxParser
                 if (closeName.Text != type.Name.Text) Error("firmament-syntax-tag-mismatch", $"Expected closing tag for {type.Name.Text}, found {closeName.Text}.", closeName.Span);
                 Expect(">"); body = new(statements.ToArray(), new(bodyStart, bodyEnd - bodyStart));
             }
+            else if (body is not null) { /* Compatibility with body already consumed. */ }
             else if (Is("{")) body = Block(type.Name.Text == "Enum", $"{type.Name.Text} {name?.Text}".TrimEnd());
+            else if (headerUnit is not null && contexts.Count == 0)
+            {
+                var bodyStart = Current.Span.Start;
+                body = new(Statements(null), new(bodyStart, source.Length - bodyStart)) { Delimited = false };
+            }
             else if (initializer is null && !End && !LineBreak && !Is(";") && !Is("}"))
                 throw Fail("firmament-syntax-declaration-tail", $"Unexpected '{Current.Text}' after {type.Name.Text} {name?.Text}; expected a body, initializer or separator.");
+            if (headerUnit is not null)
+            {
+                var unit = new ReferenceSyntax(headerUnit, headerUnit.Span);
+                var field = new FieldSyntax(new("Units", headerUnit.Span), unit, headerUnit.Span);
+                body = body is null ? new([field], headerUnit.Span) : body with { Statements = new StatementSyntax[] { field }.Concat(body.Statements).ToArray() };
+            }
             return new(type, name, modifiers.ToArray(), parameters, annotation, result, clauses.ToArray(), initializer, body, occurrence, Span(start));
         }
 
@@ -216,8 +251,9 @@ public static class FirmamentSyntaxParser
                     statements = values.ToArray();
                 }
                 else statements = Statements("}");
-                Expect("}");
-                return new(statements, Span(start));
+                var closed = Take("}");
+                if (!closed) Error("firmament-syntax-expected-token", $"Expected '}}'; found '{(End ? "end of file" : Current.Text)}'.", Current.Span);
+                return new(statements, closed ? Span(start) : new(start, Current.Span.Start - start)) { IsClosed = closed };
             }
             finally { if (context is not null) contexts.Pop(); depth--; }
         }
@@ -258,7 +294,8 @@ public static class FirmamentSyntaxParser
                 else if (Current.Kind == SyntaxTokenKind.Identifier)
                 {
                     var name = Identifier(); left = new ReferenceSyntax(name, name.Span);
-                    if (name.Text is "Blind" or "CenteredAt" && !Is("(") && !Is(">") && !Is(",") && !LineBreak)
+                    var compatibilityDepthEnd = name.Text == "depth" && at >= 3 && tokens[at - 2].Text == ":" && tokens[at - 3].Text is "end" or "End";
+                    if ((name.Text is "Blind" or "CenteredAt" || compatibilityDepthEnd) && !Is("(") && !Is(">") && !Is(",") && !LineBreak)
                     {
                         var argument = Expression(80, allowObject, stopGreater);
                         left = new CallSyntax(left, [new(null, argument, null, argument.Span)], Span(start));
@@ -276,7 +313,7 @@ public static class FirmamentSyntaxParser
                 while (!End)
                 {
                     if (++suffixCount > MaxDepth) throw Fail("firmament-syntax-depth", $"Expression chain exceeds the bounded parser limit of {MaxDepth}.");
-                    if (Take("As")) { left = new AliasSyntax(left, Identifier(), Span(start)); continue; }
+                    if (Take("As") || Take("as")) { left = new AliasSyntax(left, Identifier(), Span(start)); continue; }
                     if (Current.Text is "From" or "To" && Peek(1).Text != ":")
                     {
                         ExpressionSyntax? from = null, to = null;
@@ -314,6 +351,14 @@ public static class FirmamentSyntaxParser
                     {
                         at++; left = new SpecializationSyntax(left, Arguments(">"), Span(start)); continue;
                     }
+                    // Existing surface section lists contain named object values, e.g.
+                    // Line S0 { ... }. Preserve the identity as syntax; its owner binds it.
+                    if (allowObject && left is ReferenceSyntax or SpecializationSyntax && Current.Kind == SyntaxTokenKind.Identifier
+                        && !LineBreak && Current.Text != "with" && Peek(1).Text == "{")
+                    {
+                        var objectName = Identifier();
+                        left = new ObjectSyntax(left, Block(), Span(start)) { Name = objectName }; continue;
+                    }
                     if (allowObject && Is("{") && left is ReferenceSyntax or SpecializationSyntax or AliasSyntax)
                     { left = new ObjectSyntax(left, Block(), Span(start)); continue; }
                     if (allowObject && Take("with")) { left = new WithSyntax(left, Block(), Span(start)); continue; }
@@ -342,7 +387,7 @@ public static class FirmamentSyntaxParser
                 var value = Expression(stopGreater: close == ">");
                 ExpressionSyntax? fallback = Take("=") ? Expression(stopGreater: close == ">") : null;
                 args.Add(new(name, value, fallback, Span(start)));
-                if (!Take(",") && !(close == "]" && LineBreak && !Is(close))) break;
+                if (!Take(",") && !(close == "]" && !Is(close) && (LineBreak || value is ObjectSyntax { Name: not null }))) break;
             }
             Expect(close); return args.ToArray();
         }

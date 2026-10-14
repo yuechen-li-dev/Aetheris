@@ -17,7 +17,7 @@ public static class ProfileAuthoringParser
     private static readonly Regex ConstructionPlaneDeclaration = new(@"\bConstruction\s+Plane\s+(?<name>\w+)\s*\{\s*Trace\s*:\s*(?<trace>[\w.]+)\s*;?\s*\}", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex Segment = new(@"\bSegment\s+(?<n>\w+)\s*\{\s*Trace\s*:\s*(?<trace>[\w.]+)\s*;?\s*From\s*:\s*(?<from>[\w.]+)\s*;?\s*To\s*:\s*(?<to>[\w.]+)(?:\s*;?\s*Sweep\s*:\s*(?<sweep>Clockwise|CounterClockwise))?", RegexOptions.Singleline | RegexOptions.CultureInvariant);
     private static readonly Regex SpanHeader = new(@"\bSpan\s*<\s*(?<type>[A-Za-z_]\w*)\s*>\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
-    private static readonly Regex Pipeline = new(@"(?<expression>(?:Reverse\s+)?[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*(?:\s+From\s+[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)?(?:\s+To\s+[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)?(?:\s+As\s+[A-Za-z_]\w*)?\s*(?:\|>\s*(?:(?:Reverse\s+)?[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*(?:\s+From\s+[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)?(?:\s+To\s+[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)?(?:\s+As\s+[A-Za-z_]\w*)?|Close|TraceLoop)\s*)+)", RegexOptions.CultureInvariant);
+    private static readonly Regex Pipeline = new(@"(?<expression>(?:Reverse\s+)?[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*(?:\s+From\s+[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)?(?:\s+To\s+[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)?(?:\s+(?:As|as)\s+[A-Za-z_]\w*)?\s*(?:\|>\s*(?:(?:Reverse\s+)?[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*(?:\s+From\s+[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)?(?:\s+To\s+[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)?(?:\s+(?:As|as)\s+[A-Za-z_]\w*)?|Close|TraceLoop)\s*)+)", RegexOptions.CultureInvariant);
 
     public static bool IsProfileSource(string source) => Regex.IsMatch(source, @"\bProfile\s+[A-Za-z_]\w*", RegexOptions.CultureInvariant);
 
@@ -81,7 +81,7 @@ public static class ProfileAuthoringParser
 
     internal static IReadOnlyList<string> ValidatePipelineContexts(string source)
     {
-        var allowed = FindBlocks(source, @"\b(?:Profile\s+[A-Za-z_]\w*(?:\s+Using\s+[A-Za-z_]\w*)?|Concept\s+Path\s+[A-Za-z_]\w*)\s*\{").ToArray();
+        var allowed = FindBlocks(source, @"\b(?:Profile\s+[A-Za-z_]\w*(?:\s+(?:Using|using)\s+[A-Za-z_]\w*)?|Concept\s+Path\s+[A-Za-z_]\w*)\s*\{").ToArray();
         return Pipeline.Matches(source).Cast<Match>()
             .Where(pipeline => !allowed.Any(block => pipeline.Index >= block.Match.Index && pipeline.Index < block.EndIndex))
             .Select(pipeline => $"firmament-pipeline-context-type:{ParsePipelineStages(pipeline.Groups["expression"].Value)[0].Reference}")
@@ -735,7 +735,7 @@ public static class ProfileAuthoringParser
                      .GroupBy(entry => entry.Segment, StringComparer.Ordinal).Where(group => group.Select(entry => entry.Loop).Distinct(StringComparer.Ordinal).Count() > 1))
         {
             var loopNames = collision.Select(entry => entry.Loop).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal);
-            diagnostics.Add($"firmament-profile-segment-identity-collision:{collision.Key}:loops={string.Join(',', loopNames)}:use As alias or rename source guide/stage");
+            diagnostics.Add($"firmament-profile-segment-identity-collision:{collision.Key}:loops={string.Join(',', loopNames)}:use as alias or rename source guide/stage");
         }
         return loops;
     }
@@ -1020,7 +1020,7 @@ public static class ProfileAuthoringParser
             else if (raw == "TraceLoop") stages.Add(new(PipelineStageKind.TraceLoop, null, null, false, localOffset));
             else
             {
-                var parsed = Regex.Match(raw, @"^(?<reverse>Reverse\s+)?(?<reference>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)(?:\s+From\s+(?<from>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*))?(?:\s+To\s+(?<to>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*))?(?:\s+As\s+(?<alias>[A-Za-z_]\w*))?$", RegexOptions.CultureInvariant);
+                var parsed = Regex.Match(raw, @"^(?<reverse>Reverse\s+)?(?<reference>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)(?:\s+From\s+(?<from>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*))?(?:\s+To\s+(?<to>[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*))?(?:\s+(?:As|as)\s+(?<alias>[A-Za-z_]\w*))?$", RegexOptions.CultureInvariant);
                 stages.Add(parsed.Success && (!parsed.Groups["from"].Success || parsed.Groups["to"].Success)
                     ? new(PipelineStageKind.Trace, parsed.Groups["reference"].Value, parsed.Groups["alias"].Success ? parsed.Groups["alias"].Value : null, parsed.Groups["reverse"].Success, localOffset,
                         parsed.Groups["from"].Success ? parsed.Groups["from"].Value : null, parsed.Groups["to"].Success ? parsed.Groups["to"].Value : null)
@@ -1108,7 +1108,7 @@ public static class ProfileAuthoringParser
                 diagnostics.Add($"profile-layout-placement-unsupported:{frame}:{(index + 4 < tokens.Length ? tokens[index + 4].Text : "missing")}:Concept Struct layouts currently require On XY; use a traced Construction Plane for oriented profiles.");
                 return null;
             }
-            diagnostics.Add($"profile-frame-unresolved:{frame}:Using must name a declared Concept Struct or Construction Plane.");
+            diagnostics.Add($"profile-frame-unresolved:{frame}:using must name a declared Concept Struct or Construction Plane.");
             return null;
         }
         if (!ConceptIrResolver.TryResolvePlane(source, plane.Groups["trace"].Value, out var conceptPlane, out var traceDiagnostic) || conceptPlane is null) { diagnostics.Add(traceDiagnostic ?? "ConstructionPlaneTraceMissing"); return null; }

@@ -5,13 +5,13 @@ namespace Aetheris.Kernel.Firmament.FirmamentV2;
 
 public static partial class FirmamentV2Parser
 {
-    private static IEnumerable<DeclarationSyntax> MechanicalDeclarations(IEnumerable<StatementSyntax> statements)
+    internal static IEnumerable<DeclarationSyntax> MechanicalDeclarations(IEnumerable<StatementSyntax> statements)
     {
         foreach (var declaration in statements.OfType<DeclarationSyntax>())
         {
             if (declaration.Modifiers.Any(m => m.Name.Text == "Template") || declaration.Type.Name.Text == "Template") continue;
             yield return declaration;
-            if (declaration.Type.Name.Text == "Struct" && !declaration.Modifiers.Any(m => m.Name.Text == "Concept"))
+            if (declaration.Type.Name.Text is "Model" or "Struct" && !declaration.Modifiers.Any(m => m.Name.Text == "Concept"))
                 foreach (var child in MechanicalDeclarations(declaration.Body?.Statements ?? [])) yield return child;
         }
     }
@@ -199,7 +199,13 @@ public static partial class FirmamentV2Parser
     {
         var type = f.Declaration.Type.Name.Text;
         double Length(string name) => f.Number(name, "mm");
-        double[]? Size() => f.Vector("Size", "mm", out var values) && values.Length == 3 && values.All(v => v > 0) ? values : null;
+        double[]? Size()
+        {
+            if (!f.Vector("Size", "mm", out var values)) return null;
+            if (values.Length != 3) { diagnostics.Add(BoxSizeArity); return null; }
+            if (values.Any(v => v <= 0)) { diagnostics.Add(DegenerateDimension); return null; }
+            return values;
+        }
         switch (type)
         {
             case "Box": return Size() is { } box ? new FirmamentV2BoxRecord(box, []) : null;
@@ -247,26 +253,51 @@ public static partial class FirmamentV2Parser
         return result;
     }
 
-    private static FirmamentV2SemanticHoleDecl? BindMechanicalHole(FirmamentSyntaxFields f, List<string> diagnostics)
+    private static FirmamentV2SemanticHoleDecl? BindMechanicalHole(FirmamentSyntaxFields f, List<string> diagnostics, FirmamentV2SolidBinding? compatibilityStock = null)
     {
         var d = f.Declaration;
+        if (d.Modifiers.Count > 0 || d.Type.Arguments.Any(a => a.Name is not null || a.Default is not null))
+        { diagnostics.Add(HoleVariantUnknown); return null; }
         var variantName = d.Type.Arguments.Count == 1 ? FirmamentSyntaxValues.Reference(d.Type.Arguments[0].Value) : null;
-        if (!Enum.TryParse<FirmamentV2SemanticHoleVariant>(variantName, out var variant)) { diagnostics.Add(HoleVariantUnknown); return null; }
-        var axis = f.Word("On"); var point = f.Take("Center"); var diameter = f.Number("Diameter", "mm");
+        if (!Enum.TryParse<FirmamentV2SemanticHoleVariant>(variantName, compatibilityStock is not null, out var variant)) { diagnostics.Add(HoleVariantUnknown); return null; }
+        var on = f.Take("On"); var axis = FirmamentSyntaxValues.Reference(on);
+        FirmamentV2FaceTarget? face = null;
+        if (compatibilityStock is not null)
+        {
+            face = BindCompatibilityFace(on, compatibilityStock, HoleEntryFaceMissing, diagnostics);
+            axis = face?.Axis;
+        }
+        var point = f.Take("Center");
+        double Diameter(string canonical, string? legacyStem = null)
+        {
+            if (compatibilityStock is null) return f.Number(canonical, "mm");
+            var names = legacyStem is null ? new[] { canonical } : new[] { canonical, legacyStem + "Diameter", legacyStem + "Radius" };
+            if (canonical == "Diameter") names = ["Diameter", "ShaftDiameter", "Radius", "ShaftRadius"];
+            var authored = names.Distinct().Select(name => (Name: name, Value: f.Take(name))).Where(pair => pair.Value is not null).ToArray();
+            if (authored.Length != 1 || !FirmamentSyntaxValues.TryMeasure(authored.FirstOrDefault().Value, "mm", out var value, "mm"))
+            { f.Invalid(canonical); return double.NaN; }
+            return authored[0].Name.EndsWith("Radius", StringComparison.Ordinal) ? value * 2 : value;
+        }
+        var diameter = Diameter("Diameter");
         var endExpression = f.Take("End"); var end = FirmamentSyntaxValues.Reference(endExpression);
         f.Take("PatternIdentity");
-        FirmamentV2SemanticHoleEnd? termination = end == "ThroughAll" ? new(FirmamentV2SemanticHoleEndKind.ThroughAll) : null;
-        if (endExpression is CallSyntax { Target: ReferenceSyntax { Name.Text: "Blind" }, Arguments.Count: 1 } blind
-            && FirmamentSyntaxValues.TryMeasure(blind.Arguments[0].Value, "mm", out var depth) && depth > 0) termination = new(FirmamentV2SemanticHoleEndKind.Depth, depth);
+        FirmamentV2SemanticHoleEnd? termination = (end == "ThroughAll" || compatibilityStock is not null && end == "throughAll") ? new(FirmamentV2SemanticHoleEndKind.ThroughAll) : null;
+        if (endExpression is CallSyntax { Target: ReferenceSyntax { Name.Text: "Blind" or "depth" }, Arguments.Count: 1 } blind
+            && (compatibilityStock is not null || blind.Target is ReferenceSyntax { Name.Text: "Blind" })
+            && FirmamentSyntaxValues.TryMeasure(blind.Arguments[0].Value, "mm", out var depth, compatibilityStock is null ? null : "mm") && depth > 0) termination = new(FirmamentV2SemanticHoleEndKind.Depth, depth);
+        if (compatibilityStock is not null && termination is null)
+            diagnostics.Add(endExpression is CallSyntax { Target: ReferenceSyntax { Name.Text: "depth" } } ? HoleDepthInvalid : HoleEndMissing);
         double? cbDiameter = null, cbDepth = null, csDiameter = null, csAngle = null;
-        if (variant == FirmamentV2SemanticHoleVariant.Counterbore) { cbDiameter = f.Number("CounterboreDiameter", "mm"); cbDepth = f.Number("CounterboreDepth", "mm"); }
-        if (variant == FirmamentV2SemanticHoleVariant.Countersink) { csDiameter = f.Number("CountersinkDiameter", "mm"); csAngle = f.Number("CountersinkAngle", "deg"); }
-        if (point is not CallSyntax { Target: ReferenceSyntax { Name.Text: "Point2" } } || !FirmamentSyntaxValues.Vector(point, "mm", out var center) || center.Length != 2) { diagnostics.Add(CanonicalPoint2Invalid); return null; }
+        if (variant == FirmamentV2SemanticHoleVariant.Counterbore) { cbDiameter = Diameter("CounterboreDiameter", "Counterbore"); cbDepth = f.Number("CounterboreDepth", "mm"); }
+        if (variant == FirmamentV2SemanticHoleVariant.Countersink) { csDiameter = Diameter("CountersinkDiameter", "Countersink");
+            var angle = f.Take("CountersinkAngle");
+            csAngle = FirmamentSyntaxValues.TryMeasure(angle, "deg", out var degrees, compatibilityStock is null ? null : "deg") ? degrees : double.NaN; }
+        if (compatibilityStock is null && point is not CallSyntax { Target: ReferenceSyntax { Name.Text: "Point2" } } || !FirmamentSyntaxValues.Vector(point, "mm", out var center, compatibilityStock is null ? null : "mm") || center.Length != 2) { diagnostics.Add(CanonicalPoint2Invalid); return null; }
         if (axis is not ("+X" or "-X" or "+Y" or "-Y" or "+Z" or "-Z") || termination is null || d.Name is null) { diagnostics.Add(CanonicalModifyMalformed); return null; }
         if (!(diameter > 0)) { diagnostics.Add(HoleDiameterInvalid); return null; }
         if (cbDiameter is not null && (!(cbDiameter > diameter) || !(cbDepth > 0))) { diagnostics.Add(HoleCounterboreInvalid); return null; }
         if (csDiameter is not null && (!(csDiameter > diameter) || !(csAngle > 0 && csAngle < 180))) { diagnostics.Add(HoleCountersinkInvalid); return null; }
-        var face = FirmamentV2FaceTarget.Direct(axis);
+        face ??= FirmamentV2FaceTarget.Direct(axis);
         return new(d.Name.Text, variant, face, new(center[0], center[1], FirmamentV2FaceLocalPoint2D.ConventionFor(axis)), diameter, termination,
             cbDiameter, cbDepth, csDiameter, csAngle, SourceSpan: d.Span, AuthoredFields: f.AuthoredFields);
     }
@@ -277,8 +308,10 @@ public static partial class FirmamentV2Parser
         var axis = f.Word("Face"); var target = f.Word("Target"); var kind = f.Word("Kind");
         var distance = f.Take("Distance"); var radius = f.Take("Radius");
         if ((distance is not null && radius is not null) || f.Declaration.Name is null || axis is null || target is null || kind is null
-            || !FirmamentSyntaxValues.TryMeasure(distance ?? radius, "mm", out var value) || value <= 0)
+            || !FirmamentSyntaxValues.TryMeasure(distance ?? radius, "mm", out var value))
         { diagnostics.Add(CanonicalModifyMalformed); return null; }
+        // The selected feature admission owner diagnoses nonpositive distances and
+        // radii with its existing capability-specific explanation during preflight.
         return new(f.Declaration.Name.Text, axis, target, kind, value, f.Declaration.Span);
     }
 
@@ -294,6 +327,31 @@ public static partial class FirmamentV2Parser
         { diagnostics.Add("perforation-field-invalid"); return null; }
         return new(f.Declaration.Name.Text, on, layout, diameter, pitch, margin, ligament, offsetX, offsetY, f.Declaration.Span,
             double.IsNaN(circumferential) ? null : circumferential, double.IsNaN(top) ? null : top, double.IsNaN(bottom) ? null : bottom, angle);
+    }
+
+    /// <summary>Dedicated material binders reuse construction-scope recognition and
+    /// reject material operations that their engineering lowerer cannot consume.</summary>
+    internal static void BindMaterialDomainScope(DocumentSyntax syntax, string materialKind, List<string> diagnostics)
+    {
+        void Bind(IReadOnlyList<StatementSyntax> statements)
+        {
+            foreach (var wrapper in statements.OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text is "Model" or "Struct"
+                && !d.Modifiers.Any(m => m.Name.Text is "Concept" or "Template") && d.Annotation is null))
+            {
+                if (wrapper.Type.Arguments.Count > 0 || wrapper.Clauses.Count > 0 || wrapper.Parameters.Count > 0 || wrapper.Initializer is not null)
+                    diagnostics.Add($"firmament-v2-domain-root-header-unsupported:{materialKind}:{wrapper.Name?.Text}");
+                var units = wrapper.Body?.Statements.OfType<FieldSyntax>().Where(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Units")).ToArray() ?? [];
+                if (wrapper.Type.Name.Text == "Model" && units.Length == 0 || units.Any(f => FirmamentSyntaxValues.Reference(f.Value) != "mm")) diagnostics.Add(CanonicalUnitsInvalid);
+                Bind(wrapper.Body?.Statements ?? []);
+            }
+            var owned = statements.Where(s => s is not DeclarationSyntax d || !(d.Type.Name.Text == materialKind
+                || d.Type.Name.Text is "Model" or "Struct" && !d.Modifiers.Any(m => m.Name.Text is "Concept" or "Template") && d.Annotation is null)).ToArray();
+            BindMechanicalScope(owned, diagnostics);
+            foreach (var declaration in owned.OfType<DeclarationSyntax>().Where(d => IsPrimitiveDeclaration(d)
+                || d.Type.Name.Text is "Compose" or "Extrude" or "Revolve" or "WireForm" or "WireRoute" or "Sweep" or "SectionChain" or "Loft" or "Modify" or "Thread" or "EdgeFinish"))
+                diagnostics.Add($"firmament-v2-domain-material-combination-unsupported:{materialKind}:{declaration.Type.Name.Text}: This material owner cannot consume the additional operation; use Assembly for separate parts.");
+        }
+        Bind(syntax.Statements);
     }
 
     private static void BindMechanicalScope(IReadOnlyList<StatementSyntax> statements, List<string> diagnostics)

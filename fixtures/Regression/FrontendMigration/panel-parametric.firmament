@@ -1,0 +1,15 @@
+Model Equations {
+    Units: mm
+    Panel Saddle {
+        Surface: ParametricSurface {
+            DomainU: [-1, 1]
+            DomainV: [-1, 1]
+            X: 20mm * u
+            Y: 15mm * v
+            Z: 6mm * u * v
+        }
+        Orientation: Back
+        Thickness: 1.2mm
+        Material: "Aluminum"
+    }
+}

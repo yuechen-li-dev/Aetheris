@@ -1,5 +1,4 @@
-using System.Globalization;
-using System.Text.RegularExpressions;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Geometry;
 using Aetheris.Kernel.Core.Geometry.Curves;
@@ -103,89 +102,119 @@ public static class GearAuthoring
 {
     public const string Prefix = "firmament-gear-";
     private const double Tol = 1e-9;
-    private static readonly Regex Header = new(
-        @"\b(?<family>SpurGear|InternalSpurGear|BevelGear|MiterGear|RatchetGear|Pawl)\s+(?<name>[A-Za-z_]\w*)\s*\{",
-        RegexOptions.CultureInvariant);
-    private static readonly Regex InterfaceHeader = new(
-        @"\bInterface\s*<\s*Gear\s*>\s+(?<name>[A-Za-z_]\w*)\s*\{",
-        RegexOptions.CultureInvariant);
+    private static bool IsGear(DeclarationSyntax declaration) => Enum.TryParse<GearFamily>(declaration.Type.Name.Text, out _);
+    private static bool IsGearInterface(DeclarationSyntax declaration) => declaration.Type.Name.Text == "Interface"
+        && declaration.Type.Arguments.Count == 1 && declaration.Type.Arguments[0].Name is null && declaration.Type.Arguments[0].Default is null
+        && FirmamentSyntaxValues.Reference(declaration.Type.Arguments[0].Value) == "Gear";
 
-    public static bool IsGearSource(string source) => Header.IsMatch(source) || InterfaceHeader.IsMatch(source);
-    public static bool HasGearDefinitions(string source) => Header.IsMatch(source);
+    public static bool IsGearSource(string source) => FirmamentV2Parser.MechanicalDeclarations(FirmamentSyntaxParser.Parse(source).Document.Statements)
+        .Any(d => IsGear(d) || IsGearInterface(d));
+    public static bool HasGearDefinitions(string source) => FirmamentV2Parser.MechanicalDeclarations(FirmamentSyntaxParser.Parse(source).Document.Statements).Any(IsGear);
 
-    /// <summary>Parses only the compiler-owned Gear declarations in a mixed-domain source.</summary>
-    public static GearAuthoringDocument ParseDefinitions(string source)
+    /// <summary>Binds compiler-owned gear definitions within a mixed-domain document.</summary>
+    public static GearAuthoringDocument ParseDefinitions(string source) => Bind(FirmamentSyntaxParser.Parse(source), definitionsOnly: true);
+    public static GearAuthoringDocument Parse(string source) => Bind(FirmamentSyntaxParser.Parse(source));
+
+    internal static GearAuthoringDocument Bind(SyntaxParseResult syntax, bool definitionsOnly = false)
     {
-        ArgumentNullException.ThrowIfNull(source);
-        var diagnostics = new List<string>();
-        var modelMatch = Regex.Match(source, @"\bModel\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
-        var modelName = modelMatch.Success ? modelMatch.Groups["name"].Value : "GearModel";
-        if (!Regex.IsMatch(source, @"\bUnits\s*:\s*mm\b", RegexOptions.CultureInvariant))
+        var declarations = FirmamentV2Parser.MechanicalDeclarations(syntax.Document.Statements).ToArray();
+        // Definition extraction is an extension point of Assembly, not admission
+        // of the enclosing document. Only syntax inside the gear definitions is
+        // owned here; the Assembly frontend owns its requirements and mate syntax.
+        var ownedSyntax = definitionsOnly ? syntax.Diagnostics.Where(d => d.SourceSpan is { } span && declarations.Where(IsGear)
+            .Any(gear => span.Start >= gear.Span.Start && span.Start <= gear.Span.Start + gear.Span.Length)) : syntax.Diagnostics;
+        var diagnostics = ownedSyntax.Select(d => d.Code + ": " + d.Message).ToList();
+        var roots = syntax.Document.Statements.OfType<DeclarationSyntax>().Where(d => !d.Modifiers.Any(m => m.Name.Text is "Template" or "Concept")).ToArray();
+        var model = roots.FirstOrDefault(d => d.Type.Name.Text == "Model") ?? roots.FirstOrDefault(d => d.Type.Name.Text == "Struct"
+            && FirmamentV2Parser.MechanicalDeclarations(d.Body?.Statements ?? []).Any(IsGear));
+        var modelName = model?.Name?.Text ?? "GearModel";
+        var units = (model?.Body?.Statements ?? syntax.Document.Statements).OfType<FieldSyntax>()
+            .Where(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Units")).ToArray();
+        if (units.Length == 0 || units.Any(f => FirmamentSyntaxValues.Reference(f.Value) != "mm"))
             diagnostics.Add(Prefix + "units-invalid:mm-required");
-        var gears = ParseGearDeclarations(source, diagnostics);
-        if (gears.Count == 0) diagnostics.Add(Prefix + "declaration-missing");
-        return new(modelName, gears, [], diagnostics.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray());
-    }
-
-    public static GearAuthoringDocument Parse(string source)
-    {
-        ArgumentNullException.ThrowIfNull(source);
-        var diagnostics = new List<string>();
-        var modelMatch = Regex.Match(source, @"\bModel\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
-        var modelName = modelMatch.Success ? modelMatch.Groups["name"].Value : "GearModel";
-        if (!Regex.IsMatch(source, @"\bUnits\s*:\s*mm\b", RegexOptions.CultureInvariant))
-            diagnostics.Add(Prefix + "units-invalid:mm-required");
-
-        var gears = ParseGearDeclarations(source, diagnostics);
-
-        var interfaces = new List<InterfaceAir<GearAir>>();
-        foreach (Match header in InterfaceHeader.Matches(source))
+        if (!definitionsOnly) CloseScope(syntax.Document.Statements, diagnostics);
+        var gears = new List<GearAir>();
+        foreach (var declaration in declarations.Where(IsGear))
         {
-            var open = source.IndexOf('{', header.Index); var close = MatchingBrace(source, open);
-            if (close < 0) { diagnostics.Add(Prefix + "interface-unclosed:" + header.Groups["name"].Value); continue; }
-            var body = source[(open + 1)..close]; var aName = Identifier(body, "A"); var bName = Identifier(body, "B");
-            if (aName is null || bName is null) { diagnostics.Add(Prefix + "interface-endpoint-missing:" + header.Groups["name"].Value); continue; }
-            var a = gears.SingleOrDefault(gear => gear.Name == aName); var b = gears.SingleOrDefault(gear => gear.Name == bName);
-            if (a is null || b is null) { diagnostics.Add(Prefix + "interface-endpoint-unresolved:" + header.Groups["name"].Value); continue; }
-            interfaces.Add(EvaluateInterface(header.Groups["name"].Value, a, b,
-                Angle(body, "ShaftAngle"), Angle(body, "EngagementPhase"), Identifier(body, "AllowedDirection"),
-                new(header.Index, close - header.Index + 1)));
+            var family = Enum.Parse<GearFamily>(declaration.Type.Name.Text);
+            var name = declaration.Name?.Text ?? "";
+            var fields = new FirmamentSyntaxFields(declaration, diagnostics);
+            double? Length(string field) => OptionalNumber(fields, field, "mm");
+            double? Angle(string field) => OptionalNumber(fields, field, "deg");
+            var teethValue = OptionalNumber(fields, "Teeth", "");
+            int? teeth = null;
+            if (teethValue is { } count)
+            {
+                if (double.IsFinite(count) && count == Math.Truncate(count) && count is >= int.MinValue and <= int.MaxValue) teeth = (int)count;
+                else fields.Invalid("Teeth");
+            }
+            var axisExpression = fields.Take("Axis");
+            var axis = new[] { 0d, 0d, 1d };
+            if (axisExpression is not null && (!FirmamentSyntaxValues.Vector(axisExpression, "", out axis) || axis.Length != 3))
+            { fields.Invalid("Axis"); axis = [0d, 0d, 1d]; }
+            var gear = new GearAir(name, family, Length("Module"), teeth, Angle("PressureAngle"),
+                Length(family == GearFamily.Pawl ? "Thickness" : "FaceWidth") ?? 0d,
+                Length("BoreDiameter") ?? 0d, Angle("Phase") ?? 0d, Length("Backlash") ?? 0d,
+                Length("OutsideDiameter"), Angle("PitchConeAngle"), Length("HubDiameter"), Length("HubLength"),
+                Length("Width"), Length("Length"), Length("PivotDiameter"), Length("NoseLength"),
+                Angle("EngagementAngle"), Angle("DriveFaceAngle"), axis, declaration.Span);
+            fields.Complete();
+            if (declaration.Type.Arguments.Count > 0 || declaration.Modifiers.Count > 0 || name.Length == 0)
+                diagnostics.Add(Prefix + "declaration-header-invalid:" + name);
+            Validate(gear, diagnostics);
+            gears.Add(gear);
         }
-        diagnostics.AddRange(interfaces.Where(item => !item.Compatible).SelectMany(item => item.RejectionReasons.Select(reason => $"{Prefix}interface-incompatible:{item.Name}:{reason}")));
+        foreach (var duplicate in gears.GroupBy(g => g.Name, StringComparer.Ordinal).Where(g => g.Count() > 1))
+            diagnostics.Add(Prefix + "duplicate-identity:" + duplicate.Key);
+        var interfaces = new List<InterfaceAir<GearAir>>();
+        if (!definitionsOnly) foreach (var declaration in declarations.Where(IsGearInterface))
+        {
+            var fields = new FirmamentSyntaxFields(declaration, diagnostics);
+            var name = declaration.Name?.Text ?? "";
+            var aName = fields.Word("A"); var bName = fields.Word("B");
+            var shaft = OptionalNumber(fields, "ShaftAngle", "deg");
+            var phase = OptionalNumber(fields, "EngagementPhase", "deg");
+            var directionExpression = fields.Take("AllowedDirection");
+            var direction = FirmamentSyntaxValues.Reference(directionExpression);
+            if (directionExpression is not null && direction is null) fields.Invalid("AllowedDirection");
+            fields.Complete();
+            var a = gears.FirstOrDefault(g => g.Name == aName); var b = gears.FirstOrDefault(g => g.Name == bName);
+            if (aName is null || bName is null) diagnostics.Add(Prefix + "interface-endpoint-missing:" + name);
+            else if (a is null || b is null) diagnostics.Add(Prefix + "interface-endpoint-unresolved:" + name);
+            else interfaces.Add(EvaluateInterface(name, a, b, shaft, phase, direction, declaration.Span));
+        }
+        diagnostics.AddRange(interfaces.Where(i => !i.Compatible).SelectMany(i => i.RejectionReasons.Select(r => $"{Prefix}interface-incompatible:{i.Name}:{r}")));
         if (gears.Count == 0) diagnostics.Add(Prefix + "declaration-missing");
         return new(modelName, gears, interfaces, diagnostics.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray());
     }
 
-    private static List<GearAir> ParseGearDeclarations(string source, List<string> diagnostics)
+    private static double? OptionalNumber(FirmamentSyntaxFields fields, string name, string unit)
     {
-        var gears = new List<GearAir>();
-        foreach (Match header in Header.Matches(source))
+        var expression = fields.Take(name);
+        if (expression is null) return null;
+        if (FirmamentSyntaxValues.TryMeasure(expression, unit, out var value)) return value;
+        fields.Invalid(name); return null;
+    }
+
+    private static void CloseScope(IEnumerable<StatementSyntax> statements, List<string> diagnostics)
+    {
+        foreach (var statement in statements)
         {
-            var open = source.IndexOf('{', header.Index);
-            var close = MatchingBrace(source, open);
-            if (close < 0) { diagnostics.Add(Prefix + "declaration-unclosed:" + header.Groups["name"].Value); continue; }
-            var family = Enum.Parse<GearFamily>(header.Groups["family"].Value);
-            var name = header.Groups["name"].Value;
-            var body = source[(open + 1)..close];
-            double? module = Length(body, "Module");
-            int? teeth = Integer(body, "Teeth");
-            double? pressure = Angle(body, "PressureAngle");
-            var face = Length(body, family == GearFamily.Pawl ? "Thickness" : "FaceWidth") ?? 0d;
-            var bore = Length(body, "BoreDiameter") ?? 0d;
-            var gear = new GearAir(name, family, module, teeth, pressure, face, bore,
-                Angle(body, "Phase") ?? 0d, Length(body, "Backlash") ?? 0d,
-                Length(body, "OutsideDiameter"), Angle(body, "PitchConeAngle"),
-                Length(body, "HubDiameter"), Length(body, "HubLength"),
-                Length(body, "Width"), Length(body, "Length"), Length(body, "PivotDiameter"),
-                Length(body, "NoseLength"), Angle(body, "EngagementAngle"), Angle(body, "DriveFaceAngle"),
-                Vector3(body, "Axis") ?? [0d, 0d, 1d],
-                new(header.Index, close - header.Index + 1));
-            Validate(gear, diagnostics);
-            gears.Add(gear);
+            if (statement is DirectiveSyntax) continue;
+            if (statement is FieldSyntax field && FirmamentSyntaxFields.SameField(field.Name.Text, "Units")) continue;
+            if (statement is DeclarationSyntax declaration)
+            {
+                if (IsGear(declaration) || IsGearInterface(declaration)) continue;
+                if (declaration.Modifiers.Any(m => m.Name.Text is "Concept" or "Template")) continue;
+                if (declaration.Type.Name.Text is "Model" or "Struct" && declaration.Body is not null)
+                {
+                    if (declaration.Type.Arguments.Count > 0 || declaration.Parameters.Count > 0 || declaration.Clauses.Count > 0 || declaration.Annotation is not null || declaration.Initializer is not null)
+                        diagnostics.Add($"firmament-v2-domain-root-header-unsupported:{declaration.Type.Name.Text}:{declaration.Name?.Text}");
+                    CloseScope(declaration.Body.Statements, diagnostics); continue;
+                }
+            }
+            diagnostics.Add($"{FirmamentV2Parser.CanonicalDeclarationUnknown}:Gear:{(statement as DeclarationSyntax)?.Type.Name.Text ?? (statement as FieldSyntax)?.Name.Text ?? "expression"}");
         }
-        foreach (var duplicate in gears.GroupBy(gear => gear.Name, StringComparer.Ordinal).Where(group => group.Count() > 1))
-            diagnostics.Add(Prefix + "duplicate-identity:" + duplicate.Key);
-        return gears;
     }
 
     public static GearMaterialization? Materialize(GearAir gear, out IReadOnlyList<string> diagnostics)
@@ -444,22 +473,7 @@ public static class GearAuthoring
     private static (double X, double Y) Bezier(LineArcCubicBezier2D curve, double t)
     { var s = 1d - t; return (s*s*s*curve.Start.X + 3*s*s*t*curve.Control1.X + 3*s*t*t*curve.Control2.X + t*t*t*curve.End.X, s*s*s*curve.Start.Y + 3*s*s*t*curve.Control1.Y + 3*s*t*t*curve.Control2.Y + t*t*t*curve.End.Y); }
     private static double Distance((double X, double Y) a, (double X, double Y) b) => Math.Sqrt((a.X-b.X)*(a.X-b.X)+(a.Y-b.Y)*(a.Y-b.Y));
-    private static double? Length(string body, string field) => NumberField(body, field, "mm");
-    private static double? Angle(string body, string field) => NumberField(body, field, "deg");
-    private static double? NumberField(string body, string field, string unit)
-    { var match = Regex.Match(body, $@"\b{Regex.Escape(field)}\s*:\s*(?<value>[-+.\deE]+)\s*{unit}\b", RegexOptions.CultureInvariant); return match.Success && double.TryParse(match.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? value : null; }
-    private static int? Integer(string body, string field)
-    { var match = Regex.Match(body, $@"\b{Regex.Escape(field)}\s*:\s*(?<value>[-+]?\d+)\b", RegexOptions.CultureInvariant); return match.Success && int.TryParse(match.Groups["value"].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : null; }
-    private static string? Identifier(string body, string field)
-    { var match = Regex.Match(body, $@"\b{Regex.Escape(field)}\s*:\s*(?<value>[A-Za-z_]\w*)\b", RegexOptions.CultureInvariant); return match.Success ? match.Groups["value"].Value : null; }
-    private static IReadOnlyList<double>? Vector3(string body, string field)
-    {
-        var match = Regex.Match(body, $@"\b{Regex.Escape(field)}\s*:\s*\[\s*(?<x>[-+.\deE]+)\s*,\s*(?<y>[-+.\deE]+)\s*,\s*(?<z>[-+.\deE]+)\s*\]", RegexOptions.CultureInvariant);
-        return match.Success ? [Number(match.Groups["x"].Value), Number(match.Groups["y"].Value), Number(match.Groups["z"].Value)] : null;
-    }
-    private static double Number(string value) => double.Parse(value, NumberStyles.Float, CultureInfo.InvariantCulture);
-    private static int MatchingBrace(string source, int open)
-    { var depth = 0; for (var index = open; index >= 0 && index < source.Length; index++) { if (source[index] == '{') depth++; else if (source[index] == '}' && --depth == 0) return index; } return -1; }
+
 }
 
 internal sealed record GearBevelMaterializationResult(GearMaterialization? Materialization, IReadOnlyList<string> Diagnostics);

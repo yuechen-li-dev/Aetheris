@@ -268,30 +268,16 @@ public static class FirmamentBuildAndExport
         bool allowV1Compatibility = false,
         FirmamentFrontendSchema? explicitSchema = null)
     {
-        if (GearAuthoring.IsGearSource(sourceText))
-        {
-            return ExportGearSource(sourceText);
-        }
-        if (explicitSchema == FirmamentFrontendSchema.SectionChain)
-        {
-            var authored = SectionChainAuthoringParser.Compile(sourceText);
-            if (!authored.IsSuccess || authored.Materialization?.Body is null)
-                return KernelResult<FirmamentStepExportResult>.Failure(authored.Diagnostics.Select(SchemaDiagnostic).ToArray());
-            var step = Step242Exporter.ExportBody(authored.Materialization.Body, new Step242ExportOptions { ProductName = authored.Chain!.StableId });
-            return step.IsSuccess
-                ? KernelResult<FirmamentStepExportResult>.Success(new(step.Value, authored.Chain!.StableId, 0, "section-chain", "section-chain"))
-                : KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
-        }
         // Production mechanical execution consumes the result of AST admission.
-        // Its expansion pipeline runs once in the frontend. Other domain owners keep
-        // their existing expansion boundary until their own mechanical migration.
+        // Its expansion pipeline runs once in the frontend. Unmigrated domain owners
+        // retain their existing expansion boundary until their own cutover.
         sourceText = ProfileModificationTemplateLibrary.ResolveImports(sourceText);
         var canonicalParseWatch = System.Diagnostics.Stopwatch.StartNew();
         var v2Parse = FirmamentV2Parser.Parse(sourceText, sourceDirectory);
         canonicalParseWatch.Stop();
         var templateBindWatch = new System.Diagnostics.Stopwatch();
         string materializerSource;
-        if (v2Parse.ParserRoute == "UnifiedMechanical")
+        if (v2Parse.OwnsUnifiedAdmission)
         {
             if (!v2Parse.IsSuccess) return V2ParseFailure(v2Parse);
             materializerSource = v2Parse.BoundSource!;
@@ -338,17 +324,25 @@ public static class FirmamentBuildAndExport
             var materializerInput = staticExpansion.Source;
             materializerSource = FirmamentV2Parser.TryGetCanonicalAdvancedBody(materializerInput, out var canonicalBody) ? canonicalBody : materializerInput;
         }
-        if (PlateauAuthoring.IsSource(materializerSource))
+        if (v2Parse.BoundSectionChain?.Chain is { } chain)
+        {
+            var materialized = Aetheris.Surfacing.SectionChainMaterializer.Materialize(chain);
+            if (!materialized.IsSuccess || materialized.Body is null)
+                return KernelResult<FirmamentStepExportResult>.Failure(materialized.Diagnostics.Select(d => SchemaDiagnostic(d.Code + ":" + d.Message)).ToArray());
+            var step = Step242Exporter.ExportBody(materialized.Body, new Step242ExportOptions { ProductName = chain.StableId });
+            return step.IsSuccess
+                ? KernelResult<FirmamentStepExportResult>.Success(new(step.Value, chain.StableId, 0, "section-chain", "section-chain"))
+                : KernelResult<FirmamentStepExportResult>.Failure(step.Diagnostics);
+        }
+        if (v2Parse.BoundGear is { } gear) return ExportGear(gear);
+        if (v2Parse.BoundPlateau is not null || !v2Parse.OwnsUnifiedAdmission && PlateauAuthoring.IsSource(materializerSource))
         {
             if (!v2Parse.IsSuccess) return KernelResult<FirmamentStepExportResult>.Failure(v2Parse.Diagnostics.Select(SchemaDiagnostic).ToArray());
-            return PlateauAuthoring.Compile(materializerSource);
+            return PlateauAuthoring.Compile(materializerSource, v2Parse.BoundPlateau, v2Parse.BoundProfile, v2Parse.ExtrusionHeight);
         }
-        if (RevolveAuthoringParser.IsRevolveSource(materializerSource))
+        if (v2Parse.BoundRevolve is { } boundRevolve)
         {
-            var authored = RevolveAuthoringParser.Parse(materializerSource, out var revolveDiagnostics);
-            if (authored is null)
-                return KernelResult<FirmamentStepExportResult>.Failure(revolveDiagnostics.Select(message => new Kernel.Core.Diagnostics.KernelDiagnostic(
-                    Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error, message, "FirmamentV2.Revolve")).ToArray());
+            var authored = boundRevolve;
             var built = ResolvedProfileRevolveEmitter.TryEmit(authored);
             if (!built.Succeeded || built.Body is null || built.Plan is null)
                 return KernelResult<FirmamentStepExportResult>.Failure(built.Diagnostics.Select(message => new Kernel.Core.Diagnostics.KernelDiagnostic(
@@ -376,7 +370,7 @@ public static class FirmamentBuildAndExport
                 EngineeringFeatures: [new(authored.Name, "Revolve", authored.StableId, authored.Name, authored.Axis.StableId, authored.Profile.Name,
                     authored.SweepRadians, "SweepRadians", "Base", PolicySource: "ResolvedProfileRevolveEmitter", MaterializationRoute: "RevolveBRepPlan")]));
         }
-        if (explicitSchema == FirmamentFrontendSchema.WireForm || WireFormAuthoring.IsWireFormSource(materializerSource))
+        if (explicitSchema == FirmamentFrontendSchema.WireForm || !v2Parse.OwnsUnifiedAdmission && WireFormAuthoring.IsWireFormSource(materializerSource))
         {
             var parsePhase = BuildPerfTrace.Phase("firmament.wire-parse-and-bind");
             var authored = WireFormAuthoring.Parse(materializerSource);
@@ -410,7 +404,7 @@ public static class FirmamentBuildAndExport
                     PolicySource: "WireFormFeatureAir", MaterializationRoute: "WireFormCenterlineAir->CircularSweepBRepPlan")).ToArray())
                 { RuntimeBody = reimport.Value }, []);
         }
-        if (explicitSchema == FirmamentFrontendSchema.Sweep || CircularSweepAuthoring.IsSweepSource(materializerSource))
+        if (explicitSchema == FirmamentFrontendSchema.Sweep || !v2Parse.OwnsUnifiedAdmission && CircularSweepAuthoring.IsSweepSource(materializerSource))
         {
             var airWatch = System.Diagnostics.Stopwatch.StartNew();
             var authored = CircularSweepAuthoring.Parse(materializerSource);
@@ -451,7 +445,7 @@ public static class FirmamentBuildAndExport
                     authored.Value.Path.StableId, "Circle", authored.Value.Diameter, "Diameter", "Add", PolicySource: "CircularSweepFeatureAir", MaterializationRoute: "CircularSweepBRepPlan")]),
                 []);
         }
-        if (v2Parse.BoundComposition is not null || (v2Parse.ParserRoute != "UnifiedMechanical" && PrismaticProfileCompositionParser.IsCompositionSource(materializerSource)))
+        if (v2Parse.BoundComposition is not null || (!v2Parse.OwnsUnifiedAdmission && PrismaticProfileCompositionParser.IsCompositionSource(materializerSource)))
         {
             var parsed = v2Parse.BoundComposition ?? PrismaticProfileCompositionParser.Parse(materializerSource);
             var stack = PrismaticSectionStackCompiler.Normalize(parsed, out var diagnostics);
@@ -494,7 +488,7 @@ public static class FirmamentBuildAndExport
                 Features: CompositionHoleReports(stack.Feature),
                 EngineeringFeatures: EngineeringFeatureReports(stack.Feature)));
         }
-        if (v2Parse.BoundProfile is not null || (v2Parse.ParserRoute != "UnifiedMechanical" && ProfileAuthoringParser.IsProfileSource(materializerSource)))
+        if (v2Parse.BoundProfile is not null || (!v2Parse.OwnsUnifiedAdmission && ProfileAuthoringParser.IsProfileSource(materializerSource)))
         {
             var parsed = v2Parse.BoundProfile is { } boundProfile
                 ? (Profile: (ResolvedProfile2D?)boundProfile, Height: v2Parse.ExtrusionHeight, Diagnostics: (IReadOnlyList<string>)[])
@@ -675,9 +669,8 @@ public static class FirmamentBuildAndExport
         return ExportV1CompatibilitySource(sourceText);
     }
 
-    private static KernelResult<FirmamentStepExportResult> ExportGearSource(string sourceText)
+    private static KernelResult<FirmamentStepExportResult> ExportGear(GearAuthoringDocument authored)
     {
-        var authored = GearAuthoring.Parse(sourceText);
         if (!authored.IsSuccess)
             return KernelResult<FirmamentStepExportResult>.Failure(authored.Diagnostics.Select(message => new Kernel.Core.Diagnostics.KernelDiagnostic(
                 Kernel.Core.Diagnostics.KernelDiagnosticCode.ValidationFailed, Kernel.Core.Diagnostics.KernelDiagnosticSeverity.Error,

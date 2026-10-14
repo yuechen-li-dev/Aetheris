@@ -21,56 +21,9 @@ public static class FirmamentSyntaxEvidence
     public static string Fingerprint(DocumentSyntax document) => Convert.ToHexString(SHA256.HashData(
         Encoding.UTF8.GetBytes(string.Join("\n", document.Statements.Select(Normalize)))));
 
-    public static IEnumerable<DeclarationSyntax> Declarations(DocumentSyntax document) =>
-        Statements(document).OfType<DeclarationSyntax>();
-
-    public static IEnumerable<StatementSyntax> Statements(DocumentSyntax document) => document.Statements.SelectMany(Descendants);
-
-    private static IEnumerable<StatementSyntax> Descendants(StatementSyntax statement)
-    {
-        yield return statement;
-        foreach (var child in ChildStatements(statement))
-            foreach (var descendant in Descendants(child)) yield return descendant;
-    }
-
-    public static IEnumerable<DeclarationSyntax> Declarations(StatementSyntax statement)
-    {
-        if (statement is DeclarationSyntax declaration) yield return declaration;
-        foreach (var child in ChildStatements(statement))
-            foreach (var nested in Declarations(child)) yield return nested;
-    }
-
-    private static IEnumerable<StatementSyntax> ChildStatements(StatementSyntax statement) => statement switch
-    {
-        DeclarationSyntax d => (d.Body?.Statements ?? []).Concat(d.Initializer is null ? [] : ExpressionBodies(d.Initializer))
-            .Concat(d.Annotation is null ? [] : ExpressionBodies(d.Annotation)),
-        FieldSyntax f => ExpressionBodies(f.Value),
-        ExpressionStatementSyntax e => ExpressionBodies(e.Value),
-        ReturnSyntax r => ExpressionBodies(r.Value),
-        MappingSyntax m => [m.Value],
-        _ => []
-    };
-
-    private static IEnumerable<StatementSyntax> ExpressionBodies(ExpressionSyntax expression) => expression switch
-    {
-        ObjectSyntax o => o.Body.Statements.Concat(o.Type is null ? [] : ExpressionBodies(o.Type)),
-        WithSyntax w => w.Body.Statements.Concat(ExpressionBodies(w.Target)),
-        SequenceSyntax s => s.Items.SelectMany(a => ExpressionBodies(a.Value)),
-        CallSyntax c => ExpressionBodies(c.Target).Concat(c.Arguments.SelectMany(a => ExpressionBodies(a.Value))),
-        SpecializationSyntax s => ExpressionBodies(s.Target).Concat(s.Arguments.SelectMany(a => ExpressionBodies(a.Value))),
-        BinarySyntax b => ExpressionBodies(b.Left).Concat(ExpressionBodies(b.Right)),
-        UnarySyntax u => ExpressionBodies(u.Operand),
-        MemberSyntax m => ExpressionBodies(m.Target),
-        IndexSyntax i => ExpressionBodies(i.Target).Concat(i.Index is null ? [] : ExpressionBodies(i.Index)),
-        QuantitySyntax q => ExpressionBodies(q.Value),
-        FrameSyntax f => ExpressionBodies(f.Origin).Concat(f.Axes.SelectMany(a => ExpressionBodies(a.Value))),
-        AliasSyntax a => ExpressionBodies(a.Value),
-        TraceSyntax t => ExpressionBodies(t.Source).Concat(t.From is null ? [] : ExpressionBodies(t.From)).Concat(t.To is null ? [] : ExpressionBodies(t.To)),
-        TypedValueSyntax t => ExpressionBodies(t.Type).Concat(ExpressionBodies(t.Value)),
-        MatchSyntax m => ExpressionBodies(m.Scrutinee).Concat(m.Arms.SelectMany(a => ExpressionBodies(a.Pattern).Concat(ExpressionBodies(a.Value)))),
-        MemberSetSyntax m => ExpressionBodies(m.Target).Concat(m.Members.SelectMany(a => ExpressionBodies(a.Value))),
-        _ => []
-    };
+    public static IEnumerable<DeclarationSyntax> Declarations(DocumentSyntax document) => FirmamentSyntaxTraversal.Declarations(document);
+    public static IEnumerable<DeclarationSyntax> Declarations(StatementSyntax statement) => FirmamentSyntaxTraversal.Declarations(statement);
+    public static IEnumerable<StatementSyntax> Statements(DocumentSyntax document) => FirmamentSyntaxTraversal.Statements(document);
 
     private static void RemoveSpans(JsonNode? node)
     {

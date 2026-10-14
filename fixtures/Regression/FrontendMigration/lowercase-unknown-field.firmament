@@ -1,0 +1,5 @@
+// Must reject instead of silently building the unaffected stock.
+model UnknownField {
+  units mm
+  solid stock: Box { size: [30, 24, 12]; heigth: 20 }
+}

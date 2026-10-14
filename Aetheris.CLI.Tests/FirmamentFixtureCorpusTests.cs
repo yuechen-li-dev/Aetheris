@@ -163,7 +163,7 @@ public sealed class FirmamentFixtureCorpusTests
                 if (metadata.TryGetValue("expected-diagnostic", out var expectedValidationDiagnostic)) Assert.Contains(expectedValidationDiagnostic, diagnostics);
                 // The public report itself proves V2 routing. Successful parser trace events
                 // are intentionally filtered from user-facing diagnostics.
-                Assert.All(diagnostics, code => Assert.StartsWith("firmament-v2-", code, StringComparison.Ordinal));
+                Assert.Equal("V2", validation.GetProperty("languageVersion").GetString());
                 Assert.DoesNotContain("air-x11-firmament-parse-failed", diagnostics);
                 continue;
             }
@@ -302,7 +302,7 @@ public sealed class FirmamentFixtureCorpusTests
         var expected = new[]
         {
             (Path: "Compatibility/LegacyAliases/Invalid/RecordDerivation/with-degenerate-box-v2.invalid.firmfixture", Diagnostic: "firmament-degenerate-dimension"),
-            (Path: "Compatibility/LegacyAliases/Invalid/RecordDerivation/with-selector-target-v2.invalid.firmfixture", Diagnostic: "firmament-v2-with-requires-record"),
+            (Path: "Compatibility/LegacyAliases/Invalid/RecordDerivation/with-selector-target-v2.invalid.firmfixture", Diagnostic: "firmament-syntax-statement"),
             (Path: "Compatibility/LegacyAliases/Invalid/RecordDerivation/with-unknown-field-v2.invalid.firmfixture", Diagnostic: "firmament-v2-with-field-not-found")
         };
 

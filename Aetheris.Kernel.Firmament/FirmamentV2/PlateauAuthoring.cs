@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using System.Text.RegularExpressions;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using Aetheris.Kernel.Core.Brep;
 using Aetheris.Kernel.Core.Diagnostics;
 using Aetheris.Kernel.Core.Results;
@@ -15,39 +15,60 @@ public sealed record FirmamentPlateauReport(PlanarPlateauContactPlan Contacts,
     double ContactGenerationMs, double TrimAndBrepGenerationMs, double TotalGenerationMs,
     string WidthLaw = "ExactHomotheticShortAxisInset");
 
+internal sealed record FirmamentPlateauRequest(string Name, string Base, string Footprint, double Height, double Width, string? Seam);
+
 /// <summary>One bounded semantic Plateau on an existing extruded planar support.</summary>
 public static class PlateauAuthoring
 {
-    private static readonly Regex Header = new(@"\bPlateau\s+(?<name>[A-Za-z_]\w*)\s*\{(?<body>[^{}]*)\}", RegexOptions.CultureInvariant);
-    public static bool IsSource(string source) => Regex.IsMatch(source, @"\bPlateau\s+[A-Za-z_]\w*\s*\{");
+    public static bool IsSource(string source) => FirmamentV2Parser.MechanicalDeclarations(FirmamentSyntaxParser.Parse(source).Document.Statements).Any(d => d.Type.Name.Text == "Plateau");
 
-    internal static KernelResult<FirmamentStepExportResult> Compile(string source)
+    internal static FirmamentPlateauRequest? Bind(string source, List<string> diagnostics)
+    {
+        var syntax = FirmamentSyntaxParser.Parse(source);
+        diagnostics.AddRange(syntax.Diagnostics.Select(d => d.Code + ": " + d.Message));
+        var declarations = FirmamentV2Parser.MechanicalDeclarations(syntax.Document.Statements).ToArray();
+        var plateaus = declarations.Where(d => d.Type.Name.Text == "Plateau").ToArray();
+        if (plateaus.Length != 1) { diagnostics.Add("plateau-count-invalid"); return null; }
+        var declaration = plateaus[0];
+        var fields = new FirmamentSyntaxFields(declaration, diagnostics);
+        var name = declaration.Name?.Text;
+        var baseName = fields.Reference("Base"); var footprint = fields.Reference("Footprint");
+        var height = fields.Number("Height", "mm"); var width = fields.Number("Width", "mm");
+        var seam = fields.Reference("Seam");
+        if (fields.Reference("Continuity") != "G2" || fields.Reference("Inset") != "Homothetic")
+            diagnostics.Add("plateau-requires-G2-and-Homothetic-inset");
+        var extrusions = declarations.Where(d => d.Type.Name.Text == "Extrude").ToArray();
+        if (extrusions.Length != 1 || baseName != extrusions[0].Name?.Text || declarations.Any(d => d.Type.Name.Text is "Modify" or "Compose" or "Boss" or "Pocket" or "Revolve" or "EdgeFinish"))
+            diagnostics.Add("plateau-base-requires-one-unmodified-extrusion");
+        if (!double.IsFinite(height) || !double.IsFinite(width)) diagnostics.Add("plateau-dimensions-invalid");
+        if (name is null || footprint is null || declaration.Type.Arguments.Count > 0 || declaration.Modifiers.Count > 0) diagnostics.Add("plateau-header-or-footprint-invalid");
+        fields.Complete();
+        return diagnostics.Count == 0 ? new(name!, baseName!, footprint!, height, width, seam) : null;
+    }
+
+    internal static KernelResult<FirmamentStepExportResult> Compile(string source, FirmamentPlateauRequest? admitted = null, ResolvedProfile2D? admittedBase = null, double admittedHeight = 0)
     {
         KernelResult<FirmamentStepExportResult> Fail(IEnumerable<string> messages) => KernelResult<FirmamentStepExportResult>.Failure(
             messages.Select(m => new KernelDiagnostic(KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, m, "FirmamentV2.Plateau")).ToArray());
-        var watch = Stopwatch.StartNew(); var declarations = Header.Matches(source).Cast<Match>().ToArray();
-        if (declarations.Length != 1) return Fail(["plateau-count-invalid"]);
-        var declaration = declarations[0]; var name = declaration.Groups["name"].Value; var body = declaration.Groups["body"].Value;
-        var fields = Regex.Matches(body, @"\b(?<key>[A-Za-z_]\w*)\s*:").Select(m => m.Groups["key"].Value).ToArray();
-        var allowed = new[] { "Base", "Footprint", "Height", "Width", "Inset", "Continuity", "Seam" };
-        if (fields.Any(f => !allowed.Contains(f)) || fields.Distinct().Count() != fields.Length)
-            return Fail(["plateau-unknown-or-duplicate-property"]);
-        string? Field(string field) => ProfileAuthoringParser.Property(body, field);
-        if (Field("Continuity") != "G2" || Field("Inset") != "Homothetic") return Fail(["plateau-requires-G2-and-Homothetic-inset"]);
-        var extrusions = Regex.Matches(source, @"\bExtrude\s+(?<name>[A-Za-z_]\w*)\s*\{");
-        if (extrusions.Count != 1 || Field("Base") != extrusions[0].Groups["name"].Value ||
-            Regex.IsMatch(source, @"\b(?:Modify|Compose|Boss|Pocket|Revolve|EdgeFinish)\s+")) return Fail(["plateau-base-requires-one-unmodified-extrusion"]);
-        if (!ProfileAuthoringParser.TryMeasure(Field("Height") ?? "", "mm", out var height) ||
-            !ProfileAuthoringParser.TryMeasure(Field("Width") ?? "", "mm", out var width)) return Fail(["plateau-dimensions-invalid"]);
-        var parsed = ProfileAuthoringParser.Parse(source);
-        if (parsed.Profile is null || parsed.Diagnostics.Count != 0) return Fail(parsed.Diagnostics);
-        var footprint = ProfileAuthoringParser.ResolveNamedProfile(source, Field("Footprint") ?? "", out var diagnostics);
+        var watch = Stopwatch.StartNew();
+        var bindingDiagnostics = new List<string>();
+        var request = admitted ?? Bind(source, bindingDiagnostics);
+        if (request is null) return Fail(bindingDiagnostics);
+        var name = request.Name; var height = request.Height; var width = request.Width;
+        var baseProfile = admittedBase; var extrusionHeight = admittedHeight;
+        if (baseProfile is null)
+        {
+            var parsed = ProfileAuthoringParser.Parse(source);
+            if (parsed.Profile is null || parsed.Diagnostics.Count != 0) return Fail(parsed.Diagnostics);
+            baseProfile = parsed.Profile; extrusionHeight = parsed.Height;
+        }
+        var footprint = ProfileAuthoringParser.ResolveNamedProfile(source, request.Footprint, out var diagnostics);
         if (footprint is null || diagnostics.Count != 0) return Fail(diagnostics);
-        if (footprint.Loops.Count != 1 || footprint.PlaneFrame != parsed.Profile.PlaneFrame) return Fail(["plateau-footprint-frame-or-loops-unsupported"]);
-        var baseBody = LineArcProfileExtrudeEmitter.TryEmit(parsed.Profile, parsed.Height);
+        if (footprint.Loops.Count != 1 || footprint.PlaneFrame != baseProfile.PlaneFrame) return Fail(["plateau-footprint-frame-or-loops-unsupported"]);
+        var baseBody = LineArcProfileExtrudeEmitter.TryEmit(baseProfile, extrusionHeight);
         if (baseBody.Body is null) return Fail(baseBody.Diagnostics);
-        var frame = parsed.Profile.EffectiveConstructionPlane;
-        var origin = frame.Origin + frame.AxisZ.ToVector() * (parsed.Profile.LocalEndDepth ?? parsed.Height);
+        var frame = baseProfile.EffectiveConstructionPlane;
+        var origin = frame.Origin + frame.AxisZ.ToVector() * (baseProfile.LocalEndDepth ?? extrusionHeight);
         var candidates = baseBody.Body.Bindings.FaceBindings.Where(b => b.Orientation.IsAlignedWithSurface && baseBody.Body.Geometry.GetSurface(b.SurfaceGeometryId).Plane is { } p &&
             (p.Normal.ToVector() - frame.AxisZ.ToVector()).Length < 1e-10 && Math.Abs((p.Origin - origin).Dot(frame.AxisZ.ToVector())) < 1e-8).ToArray();
         if (candidates.Length != 1) return Fail(["plateau-base-face-unresolved"]);
@@ -64,10 +85,10 @@ public static class PlateauAuthoring
             if (curve is null) return Fail(["plateau-footprint-curve-unsupported:" + segment.Name]);
             spans.Add(new(segment.Name, curve));
         }
-        var seam = Field("Seam") ?? spans.FirstOrDefault(s => s.Curve is SectionProfileCurve.Line)?.SpanId ?? spans[0].SpanId;
+        var seam = request.Seam ?? spans.FirstOrDefault(s => s.Curve is SectionProfileCurve.Line)?.SpanId ?? spans[0].SpanId;
         var contactWatch = Stopwatch.StartNew();
         var contacts = PlanarPlateauContacts.Build(name, new(footprint.Name, spans, seam), new(origin, frame.AxisX, frame.AxisY, frame.AxisZ),
-            height, width, Field("Base") + ".Top", name + ".Top");
+            height, width, request.Base + ".Top", name + ".Top");
         contactWatch.Stop();
         if (!contacts.IsSuccess) return Fail(contacts.Diagnostics);
         var trimWatch = Stopwatch.StartNew();

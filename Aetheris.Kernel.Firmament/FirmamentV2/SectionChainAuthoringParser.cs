@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using Aetheris.Kernel.Firmament.Materializer;
 using Aetheris.Surfacing;
 
@@ -38,9 +38,8 @@ public static class SectionChainAuthoringParser
         return source is null || errors.Count != 0 ? new(false, null, null, errors.Select(d => d.Code + ":" + d.Message).ToArray())
             : Compile(source, materialize);
     }
-    public static bool IsSectionChainSource(string source) =>
-        Regex.IsMatch(source, @"\bSectionChain\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant)
-        || LoftAuthoringParser.IsLoftSource(source);
+    public static bool IsSectionChainSource(string source) => FirmamentV2Parser.MechanicalDeclarations(FirmamentSyntaxParser.Parse(source).Document.Statements)
+        .Any(d => d.Type.Name.Text is "SectionChain" or "Loft");
 
     public static SectionChainAuthoringResult Compile(string source, bool materialize = true)
     {
@@ -59,38 +58,41 @@ public static class SectionChainAuthoringParser
         var templates = FirmamentV2TemplateExpansion.Expand(source, diagnostics);
         if (templates is null || diagnostics.Count > 0) return new(false, null, null, diagnostics);
         source = templates.Source;
-        if (!Regex.IsMatch(source, @"\bUnits\s*:\s*mm\b", RegexOptions.CultureInvariant))
+        var syntax = FirmamentSyntaxParser.Parse(source);
+        FirmamentV2Parser.BindMaterialDomainScope(syntax.Document, "SectionChain", diagnostics);
+        diagnostics.AddRange(syntax.Diagnostics.Select(d => d.Code + ": " + d.Message));
+        if (!FirmamentSyntaxTraversal.Statements(syntax.Document).OfType<FieldSyntax>().Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Units") && FirmamentSyntaxValues.Reference(f.Value) == "mm"))
             diagnostics.Add("section-chain-units-invalid:millimetres-required");
-        var declarations = Blocks(source, "SectionChain").ToArray();
-        if (declarations.Length != 1)
-            return Fail(diagnostics.Append($"section-chain-count-invalid:expected=1:actual={declarations.Length}"));
-
+        var declarations = FirmamentV2Parser.MechanicalDeclarations(syntax.Document.Statements).Where(d => d.Type.Name.Text == "SectionChain").ToArray();
+        if (declarations.Length != 1) return Fail(diagnostics.Append($"section-chain-count-invalid:expected=1:actual={declarations.Length}"));
         var declaration = declarations[0];
+        var constructionStatements = declaration.Body?.Statements.OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text is not ("Section" or "Correspond")).Cast<StatementSyntax>().ToArray() ?? [];
+        FirmamentV2Parser.BindMaterialDomainScope(syntax.Document with { Statements = constructionStatements }, "SectionChain", diagnostics);
+        var fields = new FirmamentSyntaxFields(declaration with { Body = declaration.Body is null ? null : declaration.Body with
+            { Statements = declaration.Body.Statements.Where(s => s is not DeclarationSyntax).ToArray() } }, diagnostics);
         var profiles = ProfileAuthoringParser.BindPathDerivedProfiles(source, diagnostics);
-        var authoredTransition = Field(declaration.Body, "Transition");
-        var continuityText = Field(declaration.Body, "Continuity") ?? (authoredTransition == "Ruled" ? "G0" : "G1");
-        if (!Enum.TryParse<SectionChainContinuity>(continuityText, false, out var continuity))
-            diagnostics.Add($"section-chain-continuity-invalid:{continuityText}");
-        var transitionText = authoredTransition
-            ?? (continuity == SectionChainContinuity.G0 ? "Ruled" : "SmoothPolynomial");
-        if (!Enum.TryParse<SectionTransitionPolicy>(transitionText, false, out var transition))
-            diagnostics.Add($"section-chain-transition-policy-invalid:{transitionText}");
-        var startText = Field(declaration.Body, "Start") ?? "Open";
-        var endText = Field(declaration.Body, "End") ?? "Open";
-        if (!Enum.TryParse<SectionTermination>(startText, false, out var start))
-            diagnostics.Add($"section-chain-termination-invalid:Start:{startText}");
-        if (!Enum.TryParse<SectionTermination>(endText, false, out var end))
-            diagnostics.Add($"section-chain-termination-invalid:End:{endText}");
+        var authoredTransition = fields.Reference("Transition");
+        var continuityText = fields.Reference("Continuity") ?? (authoredTransition == "Ruled" ? "G0" : "G1");
+        if (!Enum.TryParse<SectionChainContinuity>(continuityText, false, out var continuity)) diagnostics.Add($"section-chain-continuity-invalid:{continuityText}");
+        var transitionText = authoredTransition ?? (continuity == SectionChainContinuity.G0 ? "Ruled" : "SmoothPolynomial");
+        if (!Enum.TryParse<SectionTransitionPolicy>(transitionText, false, out var transition)) diagnostics.Add($"section-chain-transition-policy-invalid:{transitionText}");
+        var startText = fields.Reference("Start") ?? "Open"; var endText = fields.Reference("End") ?? "Open";
+        if (!Enum.TryParse<SectionTermination>(startText, false, out var start)) diagnostics.Add($"section-chain-termination-invalid:Start:{startText}");
+        if (!Enum.TryParse<SectionTermination>(endText, false, out var end)) diagnostics.Add($"section-chain-termination-invalid:End:{endText}");
 
         var sections = new List<Section>();
         var derivations = new List<SectionChainProfileDerivation>();
         var boundaryEdits = new List<SectionChainBoundaryEditInspection>();
-        foreach (var authored in Blocks(declaration.Body, "Section"))
+        foreach (var authored in declaration.Body?.Statements.OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text == "Section") ?? [])
         {
-            var frameName = Field(authored.Body, "Frame");
-            var profileName = Field(authored.Body, "Profile");
-            var seam = Field(authored.Body, "Seam");
-            if (frameName is null) diagnostics.Add($"section-chain-frame-missing:{authored.Name}");
+            if (authored.Name is null || authored.Type.Arguments.Count > 0 || authored.Modifiers.Count > 0)
+            { diagnostics.Add("section-chain-section-header-invalid"); continue; }
+            var sectionFields = new FirmamentSyntaxFields(authored, diagnostics);
+            var frameName = sectionFields.Reference("Frame");
+            var profileName = sectionFields.Reference("Profile");
+            var seam = sectionFields.Reference("Seam");
+            sectionFields.Complete();
+            if (frameName is null) diagnostics.Add($"section-chain-frame-missing:{authored.Name!.Text}");
             ResolvedProfile2D? profile = null;
             if (profileName is not null && !profiles.TryGetValue(profileName, out profile))
             {
@@ -98,41 +100,51 @@ public static class SectionChainAuthoringParser
                 if (profile is null) diagnostics.AddRange(profileDiagnostics);
             }
             if (profile is null)
-                diagnostics.Add($"section-chain-profile-unresolved:{authored.Name}:{profileName ?? "<missing>"}");
+                diagnostics.Add($"section-chain-profile-unresolved:{authored.Name!.Text}:{profileName ?? "<missing>"}");
             var plane = frameName is null ? null : ProfileAuthoringParser.ResolveNamedConstructionPlane(source, frameName, diagnostics);
-            if (frameName is not null && plane is null) diagnostics.Add($"section-chain-frame-unresolved:{authored.Name}:{frameName}");
+            if (frameName is not null && plane is null) diagnostics.Add($"section-chain-frame-unresolved:{authored.Name!.Text}:{frameName}");
             if (plane is null || profile is null) continue;
             var outer = profile.Loops.Single(loop => loop.IsOuter);
-            if (profile.BoundaryEdits is { Count: > 0 }) boundaryEdits.Add(new(authored.Name, profile.Name, profile.BoundaryEdits));
+            if (profile.BoundaryEdits is { Count: > 0 }) boundaryEdits.Add(new(authored.Name!.Text, profile.Name, profile.BoundaryEdits));
             if (outer.Segments.FirstOrDefault()?.Provenance is { } provenance
                 && provenance.ConceptStableId.StartsWith("concept-curve:", StringComparison.Ordinal))
-                derivations.Add(new(authored.Name, profile.Name, provenance.ConceptStableId,
+                derivations.Add(new(authored.Name!.Text, profile.Name, provenance.ConceptStableId,
                     provenance.TracedFrom ?? "", provenance.Derivation, profile.PlaneFrame));
-            if (profile.Loops.Count != 1) diagnostics.Add($"section-chain-profile-loop-count-invalid:{authored.Name}");
-            var spans = outer.Segments.Select(segment => Convert(segment, diagnostics, authored.Name)).Where(item => item is not null).Cast<SectionProfileSpan>().ToArray();
+            if (profile.Loops.Count != 1) diagnostics.Add($"section-chain-profile-loop-count-invalid:{authored.Name!.Text}");
+            var spans = outer.Segments.Select(segment => Convert(segment, diagnostics, authored.Name!.Text)).Where(item => item is not null).Cast<SectionProfileSpan>().ToArray();
             var seamId = seam ?? spans.FirstOrDefault()?.SpanId ?? string.Empty;
-            sections.Add(new(authored.Name, new(plane.Origin, plane.AxisX, plane.AxisY, plane.AxisZ), new(profile.Name, spans, seamId)));
+            sections.Add(new(authored.Name!.Text, new(plane.Origin, plane.AxisX, plane.AxisY, plane.AxisZ), new(profile.Name, spans, seamId)));
         }
         if (sections.Count < 2) diagnostics.Add("section-chain-section-count-invalid:minimum=2");
 
         var correspondence = new List<AdjacentSectionCorrespondence>();
-        foreach (var authored in Blocks(declaration.Body, "Correspond"))
+        foreach (var authored in declaration.Body?.Statements.OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text == "Correspond") ?? [])
         {
-            var from = Field(authored.Body, "From"); var to = Field(authored.Body, "To");
-            if (from is null || to is null) { diagnostics.Add($"section-chain-correspondence-endpoint-missing:{authored.Name}"); continue; }
-            var mappings = Regex.Matches(authored.Body, @"(?m)^\s*(?<a>[A-Za-z_]\w*)\s*->\s*(?<b>[A-Za-z_]\w*)\s*;?\s*$", RegexOptions.CultureInvariant)
-                .Cast<Match>().Select(match => new SectionSpanCorrespondence(match.Groups["a"].Value, match.Groups["b"].Value)).ToArray();
-            foreach (var duplicate in mappings.GroupBy(item => item.TargetSpanId, StringComparer.Ordinal).Where(group => group.Count() > 1))
+            if (authored.Type.Arguments.Count > 0 || authored.Modifiers.Count > 0) diagnostics.Add("section-chain-correspondence-header-invalid");
+            var mappingStatements = authored.Body?.Statements.OfType<ExpressionStatementSyntax>().ToArray() ?? [];
+            var mappingFields = new FirmamentSyntaxFields(authored with { Body = authored.Body is null ? null : authored.Body with
+                { Statements = authored.Body.Statements.Where(s => s is not ExpressionStatementSyntax).ToArray() } }, diagnostics);
+            var from = mappingFields.Reference("From"); var to = mappingFields.Reference("To");
+            mappingFields.Complete();
+            if (from is null || to is null) { diagnostics.Add($"section-chain-correspondence-endpoint-missing:{authored.Name?.Text}"); continue; }
+            var mappings = new List<SectionSpanCorrespondence>();
+            foreach (var mapping in mappingStatements)
+            {
+                if (mapping.Value is BinarySyntax { Operator: BinaryOperator.Direction, Left: ReferenceSyntax left, Right: ReferenceSyntax right })
+                    mappings.Add(new(left.Name.Text, right.Name.Text));
+                else diagnostics.Add($"section-chain-correspondence-invalid:{authored.Name?.Text}");
+            }
+            foreach (var duplicate in mappings.GroupBy(item => item.TargetSpanId, StringComparer.Ordinal).Where(g => g.Count() > 1))
                 diagnostics.Add($"section-chain-correspondence-duplicate:{from}:{to}:{duplicate.Key}");
             correspondence.Add(new(from, to, mappings));
         }
-
-        var tolerance = 1e-5;
-        var toleranceText = ProfileAuthoringParser.Property(declaration.Body, "ApproximationTolerance");
-        if (toleranceText is not null && (!ProfileAuthoringParser.TryMeasure(toleranceText, "mm", out tolerance) || tolerance <= 0))
-            diagnostics.Add("section-chain-normalization-tolerance-invalid:positive-length-required");
+        var tolerance = fields.Number("ApproximationTolerance", "mm", 1e-5);
+        if (!(tolerance > 0)) diagnostics.Add("section-chain-normalization-tolerance-invalid:positive-length-required");
+        fields.Complete();
+        if (declaration.Type.Arguments.Count > 0 || declaration.Modifiers.Count > 0 || declaration.Name is null)
+            diagnostics.Add("section-chain-header-invalid");
         if (diagnostics.Count != 0) return Fail(diagnostics);
-        var chain = new SectionChain(declaration.Name, sections, correspondence, transition, start, end, continuity, ProfileApproximationTolerance: tolerance);
+        var chain = new SectionChain(declaration.Name!.Text, sections, correspondence, transition, start, end, continuity, ProfileApproximationTolerance: tolerance);
         if (!materialize) return new(true, chain, null, [], ProfileDerivations: derivations, BoundaryEdits: boundaryEdits, Patterns: staticSource.Document?.Patterns);
         var result = SectionChainMaterializer.Materialize(chain);
         if (!result.IsSuccess)
@@ -144,33 +156,36 @@ public static class SectionChainAuthoringParser
 
     private static string ExpandSectionValues(string source, List<string> diagnostics)
     {
+        // Retain the existing inline-value lowering and its identities. Syntax owns
+        // exact declaration/field boundaries, so no field suffix or sibling is lost.
+        var syntax = FirmamentSyntaxParser.Parse(source);
+        diagnostics.AddRange(syntax.Diagnostics.Select(d => d.Code + ": " + d.Message));
         var changes = new List<(int Start, int Length, string Text)>();
-        foreach (Match header in Regex.Matches(source, @"\bSection\s+(?<name>[A-Za-z_]\w*)\s*\{"))
+        foreach (var section in FirmamentSyntaxTraversal.Declarations(syntax.Document).Where(d => d.Type.Name.Text == "Section"))
         {
-            var open = source.IndexOf('{', header.Index); var close = MatchingBrace(source, open);
-            if (close < 0) { diagnostics.Add("section-chain-section-malformed"); continue; }
-            var body = source[(open + 1)..close]; var name = header.Groups["name"].Value;
+            if (section.Name is null) { diagnostics.Add("section-chain-section-malformed"); continue; }
+            var name = section.Name.Text;
             var prelude = "";
-            var frame = Regex.Match(body, @"\bFrame\s*:\s*Plane\s*\{");
-            if (frame.Success)
+            foreach (var field in section.Body?.Statements.OfType<FieldSyntax>() ?? [])
             {
-                var frameOpen = body.IndexOf('{', frame.Index); var frameClose = MatchingBrace(body, frameOpen);
-                if (frameClose < 0) { diagnostics.Add("section-chain-inline-frame-invalid:" + name); continue; }
-                var concept = "__SectionDatum_" + name; var construction = "__SectionFrame_" + name;
-                prelude += $"Concept Struct {concept} {{ Support: Plane {{{body[(frameOpen + 1)..frameClose]}}} }}\nConstruction Plane {construction} {{ Trace: {concept}.Support }}\n";
-                body = body.Remove(frame.Index, frameClose - frame.Index + 1).Insert(frame.Index, "Frame: " + construction + "\n");
+                if (FirmamentSyntaxFields.SameField(field.Name.Text, "Frame") && field.Value is ObjectSyntax { Type: ReferenceSyntax { Name.Text: "Plane" } } plane)
+                {
+                    var concept = "__SectionDatum_" + name; var construction = "__SectionFrame_" + name;
+                    prelude += $"Concept Struct {concept} {{ Support: Plane {Slice(plane.Body.Span)} }}\nConstruction Plane {construction} {{ Trace: {concept}.Support }}\n";
+                    changes.Add((field.Value.Span.Start, field.Value.Span.Length, construction));
+                }
+                else if (FirmamentSyntaxFields.SameField(field.Name.Text, "Profile") && field.Value is SpecializationSyntax profile)
+                {
+                    var profileName = "__SectionProfile_" + name;
+                    prelude += $"Profile {profileName} = {Slice(profile.Span)}\n";
+                    changes.Add((field.Value.Span.Start, field.Value.Span.Length, profileName));
+                }
             }
-            var profile = Regex.Match(body, @"\bProfile\s*:\s*(?<call>[A-Za-z_]\w*\s*<[^<>]+>)");
-            if (profile.Success)
-            {
-                var profileName = "__SectionProfile_" + name;
-                prelude += $"Profile {profileName} = {profile.Groups["call"].Value}\n";
-                body = body.Remove(profile.Index, profile.Length).Insert(profile.Index, "Profile: " + profileName + "\n");
-            }
-            if (prelude.Length > 0) changes.Add((header.Index, close - header.Index + 1, prelude + $"Section {name} {{{body}}}"));
+            if (prelude.Length > 0) changes.Add((section.Span.Start, 0, prelude));
         }
         foreach (var change in changes.OrderByDescending(c => c.Start)) source = source.Remove(change.Start, change.Length).Insert(change.Start, change.Text);
         return source;
+        string Slice(FirmamentV2SourceSpan span) => source.Substring(span.Start, span.Length);
     }
 
     private static SectionProfileSpan? Convert(ResolvedProfileSegment2D segment, List<string> diagnostics, string section) => segment.Geometry switch
@@ -181,43 +196,10 @@ public static class SectionChainAuthoringParser
         _ => Unsupported(segment, diagnostics, section)
     };
 
-    private static IEnumerable<Block> Blocks(string source, string keyword)
-    {
-        var regex = new Regex($@"\b{Regex.Escape(keyword)}(?:\s+(?<name>[A-Za-z_]\w*))?\s*\{{", RegexOptions.CultureInvariant);
-        for (var offset = 0; offset < source.Length;)
-        {
-            var match = regex.Match(source, offset); if (!match.Success) yield break;
-            var open = source.IndexOf('{', match.Index + match.Length - 1); var close = MatchingBrace(source, open);
-            if (close < 0) yield break;
-            yield return new(match.Groups["name"].Success ? match.Groups["name"].Value : keyword, source[(open + 1)..close]);
-            offset = close + 1;
-        }
-    }
-
-    private static int MatchingBrace(string source, int open)
-    {
-        var depth = 0; var quoted = false;
-        for (var index = open; index < source.Length; index++)
-        {
-            if (source[index] == '"' && (index == 0 || source[index - 1] != '\\')) quoted = !quoted;
-            if (quoted) continue;
-            if (source[index] == '{') depth++;
-            else if (source[index] == '}' && --depth == 0) return index;
-        }
-        return -1;
-    }
-
-    private static string? Field(string body, string name)
-    {
-        var match = Regex.Match(body, $@"(?m)^\s*{Regex.Escape(name)}\s*:\s*(?<value>[A-Za-z_]\w*)\s*;?\s*$", RegexOptions.CultureInvariant);
-        return match.Success ? match.Groups["value"].Value : null;
-    }
-
     private static SectionProfileSpan? Unsupported(ResolvedProfileSegment2D segment, List<string> diagnostics, string section)
     {
         diagnostics.Add($"section-chain-profile-curve-unsupported:{section}:{segment.Name}:{segment.Geometry.GetType().Name}");
         return null;
     }
 
-    private sealed record Block(string Name, string Body);
 }

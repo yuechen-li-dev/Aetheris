@@ -1,0 +1,5 @@
+Model BoxOnly {
+    Units: mm
+    Box Body { Size: [10mm, 20mm, 30mm] }
+}
+/* $domain Ghost { */

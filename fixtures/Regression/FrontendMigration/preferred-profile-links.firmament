@@ -1,0 +1,16 @@
+Model PreferredLinks {
+  units: mm
+  Concept Struct layout on XY {
+    Rect2 boundary { center: [0mm, 0mm]; size: [30mm, 24mm] }
+  }
+  Profile outline using layout {
+    Loop Outer {
+      boundary.Bottom as south
+      |> boundary.Right as east
+      |> boundary.Top as north
+      |> boundary.Left as west
+      |> Close
+    }
+  }
+  Extrude stock { profile: outline; from: 0mm; to: 12mm }
+}

@@ -16,10 +16,10 @@ internal static class FirmamentSyntaxValues
         _ => null
     };
 
-    public static bool TryMeasure(ExpressionSyntax? expression, string unit, out double value)
+    public static bool TryMeasure(ExpressionSyntax? expression, string unit, out double value, string? implicitUnit = null)
     {
         value = double.NaN;
-        if (!Evaluate(expression, unit, out var result, out var dimension) || dimension != (unit.Length == 0 ? 0 : 1)) return false;
+        if (!Evaluate(expression, unit, out var result, out var dimension) || dimension != (unit.Length == 0 ? 0 : 1) && !(dimension == 0 && unit == implicitUnit)) return false;
         value = result; return double.IsFinite(value);
     }
 
@@ -56,7 +56,7 @@ internal static class FirmamentSyntaxValues
         }
     }
 
-    public static bool Vector(ExpressionSyntax? expression, string unit, out double[] values)
+    public static bool Vector(ExpressionSyntax? expression, string unit, out double[] values, string? implicitUnit = null)
     {
         values = [];
         var sharedUnit = expression as QuantitySyntax;
@@ -67,13 +67,13 @@ internal static class FirmamentSyntaxValues
             CallSyntax { Target: ReferenceSyntax { Name.Text: "Point2" or "Point3" or "Vector2" or "Vector3" } } call => call.Arguments,
             _ => null
         };
-        if (items is null) return false;
+        if (items is null || items.Any(item => item.Name is not null || item.Default is not null)) return false;
         var result = new double[items.Count];
         for (var i = 0; i < items.Count; i++)
         {
             var item = items[i].Value;
             if (sharedUnit is not null) item = new QuantitySyntax(item, sharedUnit.Unit, item.Span);
-            if (!TryMeasure(item, unit, out result[i])) return false;
+            if (!TryMeasure(item, unit, out result[i], implicitUnit)) return false;
         }
         values = result; return true;
     }
@@ -81,7 +81,7 @@ internal static class FirmamentSyntaxValues
 
 /// <summary>Each semantic owner consumes its actual fields, then closes its scope.
 /// No second field schema or spelling allowlist is maintained here.</summary>
-internal sealed class FirmamentSyntaxFields(DeclarationSyntax declaration, List<string> diagnostics)
+internal sealed class FirmamentSyntaxFields(DeclarationSyntax declaration, List<string> diagnostics, string? implicitUnit = null)
 {
     private readonly HashSet<FieldSyntax> consumed = [];
     public DeclarationSyntax Declaration => declaration;
@@ -92,12 +92,12 @@ internal sealed class FirmamentSyntaxFields(DeclarationSyntax declaration, List<
         if (fields.Length > 1) diagnostics.Add($"firmament-v2-field-duplicate:{declaration.Type.Name.Text}:{name}");
         return fields.Length == 1 ? fields[0].Value : null;
     }
-    public bool Measure(string name, string unit, out double value) => FirmamentSyntaxValues.TryMeasure(Take(name), unit, out value);
+    public bool Measure(string name, string unit, out double value) => FirmamentSyntaxValues.TryMeasure(Take(name), unit, out value, implicitUnit);
     public double Number(string name, string unit, double fallback = double.NaN)
     {
         var expression = Take(name);
         if (expression is null) return fallback;
-        if (FirmamentSyntaxValues.TryMeasure(expression, unit, out var value)) return value;
+        if (FirmamentSyntaxValues.TryMeasure(expression, unit, out var value, implicitUnit)) return value;
         Invalid(name); return double.NaN;
     }
     public IReadOnlyList<FieldSyntax> TakeAll(string name)
@@ -110,10 +110,18 @@ internal sealed class FirmamentSyntaxFields(DeclarationSyntax declaration, List<
     // Some owners intentionally try a reference and then an inline vector. A
     // conversion probe is not an error; the owner decides which forms it admits.
     public string? Word(string name) => FirmamentSyntaxValues.Reference(Take(name));
-    public bool Vector(string name, string unit, out double[] values) => FirmamentSyntaxValues.Vector(Take(name), unit, out values);
+    public string? Reference(string name, string? fallback = null)
+    {
+        var expression = Take(name);
+        if (expression is null) return fallback;
+        var value = FirmamentSyntaxValues.Reference(expression);
+        if (value is null) Invalid(name);
+        return value;
+    }
+    public bool Vector(string name, string unit, out double[] values) => FirmamentSyntaxValues.Vector(Take(name), unit, out values, implicitUnit);
     public void Complete()
     {
-        if (declaration.Parameters.Count > 0 || declaration.Annotation is not null || declaration.Initializer is not null)
+        if (declaration.Occurrence || declaration.Parameters.Count > 0 || declaration.Annotation is not null || declaration.ResultType is not null || declaration.Initializer is not null)
             diagnostics.Add($"{FirmamentV2Parser.CanonicalDeclarationUnknown}:{declaration.Type.Name.Text}:header");
         if (declaration.Clauses.Count > 0)
             diagnostics.Add($"firmament-v2-placement-unsupported:{declaration.Type.Name.Text}:{declaration.Name?.Text}: This field-based construct does not admit header placement clauses; use its documented fields.");
@@ -121,6 +129,14 @@ internal sealed class FirmamentSyntaxFields(DeclarationSyntax declaration, List<
             if (!consumed.Contains(field)) diagnostics.Add($"{FirmamentV2Parser.CanonicalFieldUnknown}:{declaration.Type.Name.Text}:{field.Name.Text}");
         foreach (var statement in declaration.Body?.Statements.Where(s => s is not FieldSyntax) ?? [])
             diagnostics.Add($"{FirmamentV2Parser.CanonicalDeclarationUnknown}:{declaration.Type.Name.Text}:{(statement as DeclarationSyntax)?.Type.Name.Text ?? "expression"}");
+    }
+    public static FirmamentSyntaxFields Object(ObjectSyntax value, string? name, List<string> diagnostics)
+    {
+        var type = value.Type as ReferenceSyntax;
+        var typeName = type?.Name ?? new IdentifierSyntax("object", value.Span);
+        if (type is null) diagnostics.Add($"{FirmamentV2Parser.CanonicalDeclarationUnknown}:object:header");
+        return new(new(new(typeName, [], typeName.Span), value.Name ?? (name is null ? null : new(name, value.Span)),
+            [], [], null, null, [], null, value.Body, false, value.Span), diagnostics);
     }
     public static bool SameField(string authored, string canonical) => authored == canonical || authored == FirmamentSourceSpelling.PreferredField(canonical);
     public IReadOnlyList<FirmamentV2AuthoredField> AuthoredFields => (declaration.Body?.Statements.OfType<FieldSyntax>() ?? [])

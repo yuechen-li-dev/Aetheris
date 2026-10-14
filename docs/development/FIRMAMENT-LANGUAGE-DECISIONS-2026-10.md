@@ -80,3 +80,36 @@ production-status statements:
 | #22 | Production route visibility plus optional evidence tooling | Normal explain reports UnifiedMechanical. Developer AST/comparison tooling is retained without controlling engineering admission. |
 | #23 | Remaining X1 coverage prerequisite | The production mechanical AST does not yet define every other domain's grammar. |
 | #5, #6, #10, #11, #13, #15-#21, #24 | Original dispositions retained | No new frame/kernel capability or global syntax reconciliation is claimed by the mechanical migration. |
+
+
+## Continuing production domain migration (2026-10-14)
+
+The [domain migration report](../release/FIRMAMENT-DOMAIN-FRONTEND-MIGRATION.md)
+extends production ownership; it is not another shadow-only milestone. Original
+recommendations and rationale above remain preserved. Whole-language completion
+is withheld until the remaining domain consumers have actually migrated.
+
+| Recommendations | Current change | Remaining qualification / ownership |
+| --- | --- | --- |
+| #1, #2, #3, #4 | Gear/Revolve validation uses common build preflight and structured diagnostics. Gear, Revolve/Axis, Panel, Plateau, Loft and SectionChain record fields bind from AST and close their scopes. | Source-based Concept/profile adapters, lowercase V2 and other domain consumers remain. No universal claim for unknown intent in those owners. |
+| #7, #14 | Legacy unit-bearing headers and wrapper-free profile construction share mechanical AST binding. Phase3, RoundedBox, primitive-policy and standalone-profile document parsers are deleted. | Lowercase V2, Assembly/Scene, Wire/Sweep and the other domain compilers retain their existing owners pending migration. Explicit V1 serialization remains deliberate compatibility. |
+| #9 | Panel surface equations and Revolve angle aliases use shared expression syntax. | Existing semantic algebras/lowerers retain their domain-specific dimensional and geometry contracts. |
+| #8, #12 | SectionChain inline frame/profile extraction uses AST spans and preserves existing generated identities. | Scoped AST specialization/substitution with expansion provenance remains required before deleting Template/Feature/Pattern source expansion. |
+| #22, #23 | Migrated domain routes are inspectable; incomplete blocks remain in AST for language-service context while compilation fails. | A complete grammar/reference must await remaining domain coverage; developer comparison tooling grants no admission. |
+| All other recommendations | Prior dispositions retained. | This change introduces no kernel capability, runtime execution model, general Let, inheritance or new value/reference semantics. |
+
+
+## Lowercase compatibility and preferred spelling (2026-10-14)
+
+The [lowercase production cutover](../release/FIRMAMENT-LOWERCASE-AST-MIGRATION.md)
+continues direct migration. Historical spellings are compatibility input, not a
+second preferred syntax. Recommendations and their original rationale above
+remain intact; this amendment records only implemented changes.
+
+| Recommendations | Implemented disposition | Remaining ownership |
+| --- | --- | --- |
+| #1-#4, #7, #14 | Primitive solids, immutable Box derivation, exposure aliases and Hole modifications in lowercase V2 now consume shared AST nodes and reuse native primitive/Hole binding. Unknown intent in these scopes rejects; old solid/field/Modify/Hole regex readers are removed. | Explicit CompatibilityExtensions owners retain region/cut, typed lets/tolerances, PMI, manufacturing concepts, process Templates, recognition/replacement and lattice grammars. No claim of universal AST admission. |
+| #22, #23 | Explain identifies UnifiedCompatibility versus remaining CompatibilityExtensions ownership. | Assembly/Scene, Wire/Sweep, expansion and other domain consumers still require direct migration and geometry qualification. |
+| Casing / syntax reconciliation | Prefer PascalCase constructs/types, camelCase built-in fields, lowercase using/as links and preserved engineering symbols. Shared parsing, Profile binding, formatting and language-service token classification admit as. The syntax reference is reorganized and examples updated in place. | User-defined names and published members are not globally folded or renamed. Legacy aliases remain only as bounded compatibility; this is not a promise to perpetuate every V1-to-V2 grammar detail. |
+| Invalid selector override fixture | Still invalid, now with a precise firmament-syntax-statement at @ rather than a later record-binding error. | Original failing source remains unchanged; fixture diagnostic metadata follows its migrated owner. |
+| All other recommendations | Prior disposition retained. | No kernel, units doctrine, runtime model, general computation or new shadow-only milestone is introduced. |

@@ -25,7 +25,12 @@ public sealed record IdentifierSyntax(string Text, FirmamentV2SourceSpan Span);
 public sealed record ArgumentSyntax(IdentifierSyntax? Name, ExpressionSyntax Value, ExpressionSyntax? Default, FirmamentV2SourceSpan Span);
 public sealed record TypeSyntax(IdentifierSyntax Name, IReadOnlyList<ArgumentSyntax> Arguments, FirmamentV2SourceSpan Span);
 public sealed record ClauseSyntax(ClauseKind Kind, ExpressionSyntax Value, FirmamentV2SourceSpan Span);
-public sealed record BlockSyntax(IReadOnlyList<StatementSyntax> Statements, FirmamentV2SourceSpan Span);
+public sealed record BlockSyntax(IReadOnlyList<StatementSyntax> Statements, FirmamentV2SourceSpan Span)
+{
+    [JsonIgnore] public bool Delimited { get; init; } = true;
+    [JsonIgnore] public bool IsClosed { get; init; } = true;
+    [JsonIgnore] public FirmamentV2SourceSpan ContentSpan => Delimited ? new(Span.Start + 1, Math.Max(0, Span.Length - (IsClosed ? 2 : 1))) : Span;
+}
 public sealed record DeclarationSyntax(TypeSyntax Type, IdentifierSyntax? Name, IReadOnlyList<TypeSyntax> Modifiers,
     IReadOnlyList<ArgumentSyntax> Parameters, ExpressionSyntax? Annotation, ExpressionSyntax? ResultType,
     IReadOnlyList<ClauseSyntax> Clauses, ExpressionSyntax? Initializer, BlockSyntax? Body, bool Occurrence,
@@ -66,7 +71,11 @@ public sealed record MemberSyntax(ExpressionSyntax Target, IdentifierSyntax Memb
 public sealed record IndexSyntax(ExpressionSyntax Target, ExpressionSyntax? Index, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
 public sealed record CallSyntax(ExpressionSyntax Target, IReadOnlyList<ArgumentSyntax> Arguments, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
 public sealed record SpecializationSyntax(ExpressionSyntax Target, IReadOnlyList<ArgumentSyntax> Arguments, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
-public sealed record ObjectSyntax(ExpressionSyntax? Type, BlockSyntax Body, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
+public sealed record ObjectSyntax(ExpressionSyntax? Type, BlockSyntax Body, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IdentifierSyntax? Name { get; init; }
+}
 public sealed record WithSyntax(ExpressionSyntax Target, BlockSyntax Body, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
 public sealed record FrameSyntax(ExpressionSyntax Origin, IReadOnlyList<ArgumentSyntax> Axes, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);
 public sealed record AliasSyntax(ExpressionSyntax Value, IdentifierSyntax Name, FirmamentV2SourceSpan Span) : ExpressionSyntax(Span);

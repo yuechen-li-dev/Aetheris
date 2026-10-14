@@ -325,6 +325,11 @@ public sealed record FirmamentV2ParseResult(
     // Bound engineering inputs are retained for execution; a successful AST admission
     // cannot be replaced by a different whole-document parser in the build path.
     internal PrismaticProfileCompositionParseResult? BoundComposition { get; init; }
+    internal FirmamentPlateauRequest? BoundPlateau { get; init; }
+    internal bool OwnsUnifiedAdmission { get; init; }
+    internal SectionChainAuthoringResult? BoundSectionChain { get; init; }
+    internal GearAuthoringDocument? BoundGear { get; init; }
+    internal ResolvedRevolve? BoundRevolve { get; init; }
     internal ResolvedProfile2D? BoundProfile { get; init; }
     internal double ExtrusionHeight { get; init; }
     internal string? BoundSource { get; init; }

@@ -1,3 +1,4 @@
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using System.Text;
 
 namespace Aetheris.Kernel.Firmament.FirmamentV2;
@@ -12,7 +13,7 @@ public static class FirmamentSourceSpelling
     private static readonly Dictionary<string, HashSet<string>> Fields = CreateFields();
     private static readonly Dictionary<string, string> Links = new(StringComparer.Ordinal)
     {
-        ["Using"] = "using", ["On"] = "on", ["Over"] = "over",
+        ["As"] = "as", ["Using"] = "using", ["On"] = "on", ["Over"] = "over",
         ["Include"] = "include", ["Expose"] = "expose", ["Bind"] = "bind"
     };
 
@@ -24,6 +25,11 @@ public static class FirmamentSourceSpelling
     {
         ArgumentNullException.ThrowIfNull(source);
         var tokens = FirmamentLanguageAnalysisService.Lex(source).Where(t => t.Shape != "comment").ToArray();
+        var aliasPositions = tokens.Any(t => t.Text is "As" or "as") ? FirmamentSyntaxTraversal
+            .Expressions(FirmamentSyntaxParser.Parse(source).Document)
+            .OfType<AliasSyntax>()
+            .Select(alias => tokens.LastOrDefault(t => t.Start < alias.Name.Span.Start && t.Start >= alias.Value.Span.Start + alias.Value.Span.Length && t.Text is "As" or "as")?.Start)
+            .Where(position => position.HasValue).Select(position => position!.Value).ToHashSet() : [];
         var output = new StringBuilder(source);
         var scopes = new Stack<Scope>();
         var parentheses = 0;
@@ -80,7 +86,7 @@ public static class FirmamentSourceSpelling
             {
                 // Positive linking positions only; never convert a value/reference.
                 canonical = Links.FirstOrDefault(pair => (t.Text == pair.Key || t.Text == pair.Value) &&
-                    IsLink(tokens, i, pair.Key)).Key;
+                    (pair.Key == "As" ? aliasPositions.Contains(t.Start) : IsLink(tokens, i, pair.Key))).Key;
             }
             if (canonical is null) continue;
             var spelling = preferred ? Links.GetValueOrDefault(canonical) ?? PreferredField(canonical) : canonical;

@@ -1,5 +1,4 @@
-using System.Globalization;
-using System.Text.RegularExpressions;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Firmament.Materializer;
 
@@ -19,32 +18,41 @@ public static class RevolveAuthoringParser
 {
     public const string Prefix = "firmament-revolve-";
     private const double Tol = 1e-9;
-    private static readonly Regex Revolve = new(@"\bRevolve\s+(?<name>[A-Za-z_]\w*)\s*\{(?<body>[\s\S]*?)\}", RegexOptions.CultureInvariant);
-    private static readonly Regex Axis = new(@"\bAxis\s+(?<name>[A-Za-z_]\w*)\s*\{\s*Origin\s*:\s*\[\s*(?<x>[-+.\deE]+)mm\s*,\s*(?<y>[-+.\deE]+)mm\s*,\s*(?<z>[-+.\deE]+)mm\s*\]\s*;?\s*Direction\s*:\s*\[\s*(?<dx>[-+.\deE]+)\s*,\s*(?<dy>[-+.\deE]+)\s*,\s*(?<dz>[-+.\deE]+)\s*\]", RegexOptions.CultureInvariant);
+    public static bool IsRevolveSource(string source) => FirmamentV2Parser.MechanicalDeclarations(FirmamentSyntaxParser.Parse(source).Document.Statements)
+        .Any(d => d.Type.Name.Text == "Revolve");
 
-    public static bool IsRevolveSource(string source) => Revolve.IsMatch(source);
-
-    public static ResolvedRevolve? Parse(string source, out IReadOnlyList<string> reportedDiagnostics)
+    public static ResolvedRevolve? Parse(string source, out IReadOnlyList<string> reportedDiagnostics) => Bind(source, out reportedDiagnostics, expand: true);
+    internal static ResolvedRevolve? BindExpanded(string source, SyntaxParseResult syntax, out IReadOnlyList<string> reportedDiagnostics) => Bind(source, out reportedDiagnostics, expand: false, syntax);
+    private static ResolvedRevolve? Bind(string source, out IReadOnlyList<string> reportedDiagnostics, bool expand, SyntaxParseResult? parsedSyntax = null)
     {
         ArgumentNullException.ThrowIfNull(source);
         var diagnostics = new List<string>();
-        var normalized = NormalizeSemanticSource(source, diagnostics);
+        var normalized = expand ? NormalizeSemanticSource(source, diagnostics) : source;
         if (normalized is null)
         {
             reportedDiagnostics = diagnostics.Distinct(StringComparer.Ordinal).ToArray();
             return null;
         }
         source = normalized;
-        var feature = Revolve.Match(source);
-        if (!feature.Success) { reportedDiagnostics = [Prefix + "missing"]; return null; }
-        var name = feature.Groups["name"].Value;
-        var body = feature.Groups["body"].Value;
-        var profileName = Field(body, "Profile");
-        var axisName = Field(body, "About");
-        var angleText = Field(body, "Angle");
+        var syntax = parsedSyntax ?? FirmamentSyntaxParser.Parse(source);
+        FirmamentV2Parser.BindMaterialDomainScope(syntax.Document, "Revolve", diagnostics);
+        diagnostics.AddRange(syntax.Diagnostics.Select(d => d.Code + ": " + d.Message));
+        var declarations = FirmamentV2Parser.MechanicalDeclarations(syntax.Document.Statements).ToArray();
+        var features = declarations.Where(d => d.Type.Name.Text == "Revolve").ToArray();
+        if (features.Length != 1)
+        { reportedDiagnostics = diagnostics.Append(Prefix + (features.Length == 0 ? "missing" : "multiple-material-features-unsupported")).ToArray(); return null; }
+        var feature = features[0];
+        var name = feature.Name?.Text ?? "";
+        var fields = new FirmamentSyntaxFields(feature, diagnostics);
+        var profileName = fields.Word("Profile");
+        var axisName = fields.Word("About");
+        var angleExpression = fields.Take("Angle");
+        fields.Complete();
+        if (feature.Type.Arguments.Count > 0 || feature.Modifiers.Count > 0 || name.Length == 0)
+            diagnostics.Add(Prefix + "header-invalid:" + name);
         if (profileName is null) diagnostics.Add(Prefix + "profile-not-found:" + name);
         if (axisName is null) diagnostics.Add(Prefix + "axis-not-found:" + name);
-        if (angleText is null) diagnostics.Add(Prefix + "angle-missing:" + name);
+        if (angleExpression is null) diagnostics.Add(Prefix + "angle-missing:" + name);
 
         IReadOnlyList<string> profileDiagnostics = [];
         var profile = profileName is null ? null : ProfileAuthoringParser.ResolveNamedProfile(source, profileName, out profileDiagnostics);
@@ -62,25 +70,33 @@ public static class RevolveAuthoringParser
         ConceptIrAxisValue? axis = null;
         if (axisName is not null)
         {
-            var axisMatch = Axis.Matches(source).Cast<Match>().FirstOrDefault(match => match.Groups["name"].Value == axisName);
-            if (axisMatch is null) diagnostics.Add(Prefix + "axis-not-found:" + name);
-            else if (!Numbers(axisMatch, ["x", "y", "z", "dx", "dy", "dz"], out var values)) diagnostics.Add(Prefix + "axis-invalid:" + name);
+            var axes = declarations.Where(d => d.Type.Name.Text == "Axis" && d.Name?.Text == axisName).ToArray();
+            if (axes.Length == 0) diagnostics.Add(Prefix + "axis-not-found:" + name);
+            else if (axes.Length > 1) diagnostics.Add(Prefix + "axis-duplicate:" + axisName);
             else
             {
-                var direction = new Vector3D(values[3], values[4], values[5]);
-                if (!direction.TryNormalize(out _)) diagnostics.Add(Prefix + "axis-zero-direction:" + name);
-                else axis = new("axis:" + axisName,
-                    new(values[0], values[1], values[2]),
-                    new(direction.X, direction.Y, direction.Z),
-                    "Axis:" + axisName);
+                if (axes[0].Type.Arguments.Count > 0 || axes[0].Modifiers.Count > 0) diagnostics.Add(Prefix + "axis-header-invalid:" + axisName);
+                var axisFields = new FirmamentSyntaxFields(axes[0], diagnostics);
+                var originValid = axisFields.Vector("Origin", "mm", out var origin);
+                var directionValid = axisFields.Vector("Direction", "", out var components);
+                axisFields.Complete();
+                if (!originValid || origin.Length != 3 || !directionValid || components.Length != 3)
+                    diagnostics.Add(Prefix + "axis-invalid:" + name);
+                else
+                {
+                    var direction = new Vector3D(components[0], components[1], components[2]);
+                    if (!direction.TryNormalize(out _)) diagnostics.Add(Prefix + "axis-zero-direction:" + name);
+                    else axis = new("axis:" + axisName, new(origin[0], origin[1], origin[2]),
+                        new(direction.X, direction.Y, direction.Z), "Axis:" + axisName);
+                }
             }
         }
 
         var sweep = 0d;
         string? alias = null;
-        if (angleText is not null && !TryAngle(angleText, out sweep, out alias)) diagnostics.Add(Prefix + "angle-invalid:" + name);
-        else if (angleText is not null && Math.Abs(sweep) <= Tol) diagnostics.Add(Prefix + "zero-angle:" + name);
-        else if (angleText is not null && Math.Abs(sweep) > 2d * Math.PI + Tol) diagnostics.Add(Prefix + "angle-out-of-range:" + name);
+        if (angleExpression is not null && !TryAngle(angleExpression, out sweep, out alias)) diagnostics.Add(Prefix + "angle-invalid:" + name);
+        else if (angleExpression is not null && Math.Abs(sweep) <= Tol) diagnostics.Add(Prefix + "zero-angle:" + name);
+        else if (angleExpression is not null && Math.Abs(sweep) > 2d * Math.PI + Tol) diagnostics.Add(Prefix + "angle-out-of-range:" + name);
 
         if (profile is not null && axis is not null)
         {
@@ -118,36 +134,25 @@ public static class RevolveAuthoringParser
         return staticAuthoring?.Source;
     }
 
-    private static string? Field(string body, string name)
+    private static bool TryAngle(ExpressionSyntax expression, out double radians, out string? alias)
     {
-        var match = Regex.Match(body, $@"\b{Regex.Escape(name)}\s*:\s*(?<value>[^;\r\n}}]+)", RegexOptions.CultureInvariant);
-        return match.Success ? match.Groups["value"].Value.Trim() : null;
-    }
-
-    private static bool Numbers(Match match, IReadOnlyList<string> groups, out double[] values)
-    {
-        values = new double[groups.Count];
-        for (var i = 0; i < groups.Count; i++)
-            if (!double.TryParse(match.Groups[groups[i]].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out values[i]) || !double.IsFinite(values[i])) return false;
-        return true;
+        var sign = 1d;
+        while (expression is UnarySyntax { Operator: UnaryOperator.Positive or UnaryOperator.Negative } unary)
+        { if (unary.Operator == UnaryOperator.Negative) sign = -sign; expression = unary.Operand; }
+        alias = FirmamentSyntaxValues.Reference(expression)?.ToLowerInvariant();
+        radians = sign * (alias switch { "quarter" => Math.PI / 2d, "half" => Math.PI, "full" => 2d * Math.PI, _ => double.NaN });
+        if (double.IsFinite(radians)) return true;
+        alias = null;
+        if (FirmamentSyntaxValues.TryMeasure(expression, "deg", out var degrees)) radians = sign * degrees * Math.PI / 180d;
+        else if (FirmamentSyntaxValues.TryMeasure(expression, "", out var numeric)) radians = sign * numeric;
+        return double.IsFinite(radians);
     }
 
     internal static bool TryAngle(string text, out double radians, out string? alias)
     {
-        radians = 0d; alias = null;
-        var normalized = text.Trim().ToLowerInvariant();
-        var sign = 1d;
-        if (normalized.StartsWith('+')) normalized = normalized[1..].Trim();
-        else if (normalized.StartsWith('-')) { sign = -1d; normalized = normalized[1..].Trim(); }
-        var factor = normalized switch { "quarter" => Math.PI / 2d, "half" => Math.PI, "full" => 2d * Math.PI, _ => double.NaN };
-        if (double.IsFinite(factor)) { radians = sign * factor; alias = normalized; return true; }
-        if (normalized.EndsWith("deg", StringComparison.Ordinal))
-        {
-            if (!double.TryParse(normalized[..^3], NumberStyles.Float, CultureInfo.InvariantCulture, out var degrees) || !double.IsFinite(degrees)) return false;
-            radians = sign * degrees * Math.PI / 180d; return true;
-        }
-        if (!double.TryParse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture, out var numeric) || !double.IsFinite(numeric)) return false;
-        radians = sign * numeric; return true;
+        var syntax = FirmamentSyntaxParser.ParseExpression(text);
+        radians = double.NaN; alias = null;
+        return syntax.Diagnostics.Count == 0 && syntax.Expression is not null && TryAngle(syntax.Expression, out radians, out alias);
     }
 
     private static bool CrossesAxis(ResolvedProfile2D profile, (double X, double Y, double Z) axisOrigin, Vector3D worldDirection, ConstructionPlane frame)

@@ -1,0 +1,16 @@
+// Historical spellings retain the same engineering records and geometry.
+model CompatibilityPlate {
+  units mm
+  solid stock: Box {
+    size: [30, 24, 12]
+    expose { face(+Z) as top }
+  }
+  modify stock {
+    hole<shaft> bore {
+      on: top
+      center: [0, 0]
+      diameter: 4
+      end: throughAll
+    }
+  }
+}

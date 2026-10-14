@@ -98,7 +98,7 @@ internal static class ClosedBoundary2Authoring
     }
 
     private static IEnumerable<DeclarationSyntax> BoundaryDeclarations(DocumentSyntax syntax) =>
-        FirmamentSyntaxEvidence.Declarations(syntax)
+        FirmamentSyntaxTraversal.Declarations(syntax)
             .Where(d => d.Name is not null && d.Body is not null && !d.Modifiers.Any(m => m.Name.Text == "Concept")
                 && d.Type.Name.Text is "Rect2" or "Square2" or "Circle2" or "Ellipse2" or "Slot2" or "RoundedRect2" or "SmoothRoundedRect2" or "Triangle2" or "Polygon2" or "RegularPolygon2");
 

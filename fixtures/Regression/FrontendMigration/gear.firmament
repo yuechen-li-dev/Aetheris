@@ -1,0 +1,5 @@
+Model GearModel { Units: mm;
+  SpurGear Drive { Module: 2mm; Teeth: 24; PressureAngle: 20deg; FaceWidth: 10mm; BoreDiameter: 8mm; Axis: [0,0,1];
+    // intent
+  }
+}

@@ -1,0 +1,3 @@
+Model Old mm
+Box Base { Size: [10mm,8mm,6mm] }
+Modify Base { EdgeFinish E { Face: +Z; Target: Boundary; Kind: Chamfer; Distance: 1mm } }

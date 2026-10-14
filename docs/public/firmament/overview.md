@@ -2,6 +2,15 @@
 
 Firmament is a semantic engineering authoring language. It expresses named bodies, dimensions and units, manufacturable features, reusable typed Templates, engineering requirements, Sheet Metal intent, and analyses. Aetheris is the compiler, kernel, and runtime that validates that intent and lowers supported constructions into artifacts such as STEP AP242, flat STEP, SVG, and FEA results.
 
+The useful programming analogy is compile-time object construction. A `Model` is
+class-like: it names the enclosing engineering object. A `Struct` is struct-like:
+it groups reusable construction or component data. A `Feature` is function-like:
+it binds typed inputs to a semantic construction result. A `Pattern` is loop-like:
+it expands a finite collection into named, deterministic instances. Aetheris
+compiles these declarations into static artifacts; they do not create runtime
+objects, mutable execution state, or runtime loops. These analogies do not add
+inheritance, heap allocation, or new copy/reference semantics to the language.
+
 A Template is compile-time typed engineering reuse. It accepts values or Records, checks its requirements, specializes deterministically, and then uses the ordinary Firmament lowering path. It is not a text macro or a hidden C# geometry generator.
 
 Units are part of values and types. Lengths such as `8mm`, forces such as `500N`, and angles such as `90deg` are checked by the binder. Static Records, arrays, Tables, `with` derivation, and patterns organize finite engineering data and are erased after specialization.

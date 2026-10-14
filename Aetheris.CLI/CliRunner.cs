@@ -2416,33 +2416,15 @@ Model CanonicalPanel {
         }
         if (frontend.Schema == FirmamentFrontendSchema.SectionChain)
         {
-            var section = SectionChainAuthoringParser.CompileFile(sourcePath);
-            var payload = new { source = sourcePath, status = section.IsSuccess ? "valid" : "invalid", domain = "SectionChain", summary = new { fatalDiagnosticCount = section.Diagnostics.Count, warningDiagnosticCount = 0, sections = section.Chain?.Sections.Count ?? 0 }, diagnostics = section.Diagnostics };
+            var section = SectionChainAuthoringParser.CompileFile(sourcePath, materialize: !parseOnly);
+            var diagnostics = section.Diagnostics.Select(message => FirmamentBuildAdmissionValidation.Present(new KernelDiagnostic(
+                KernelDiagnosticCode.ValidationFailed, KernelDiagnosticSeverity.Error, message, "Firmament.SectionChain"), sourcePath, validationSource)).ToArray();
+            var payload = new { source = sourcePath, status = section.IsSuccess ? (parseOnly ? "parsed-not-built" : "valid") : "invalid", domain = "SectionChain",
+                validationLevel = section.IsSuccess ? (parseOnly ? "ParsedNotBuilt" : "Built") : "BuildRejected", parserRoute = "UnifiedSectionChain",
+                summary = new { fatalDiagnosticCount = diagnostics.Length, warningDiagnosticCount = 0, sections = section.Chain?.Sections.Count ?? 0 }, diagnostics };
             if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
             else stdout.WriteLine($"Firmament V2 SectionChain validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");
             return section.IsSuccess ? 0 : 1;
-        }
-        if (GearAuthoring.IsGearSource(validationSource))
-        {
-            var gear = GearAuthoring.Parse(validationSource);
-            var payload = new { source = sourcePath, status = gear.IsSuccess ? "valid" : "invalid", domain = "GearLibrary",
-                summary = new { fatalDiagnosticCount = gear.Diagnostics.Count, warningDiagnosticCount = 0, gears = gear.Gears.Count, interfaces = gear.Interfaces.Count },
-                gears = gear.Gears, interfaces = gear.Interfaces, diagnostics = gear.Diagnostics };
-            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
-            else stdout.WriteLine($"Firmament Gear validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");
-            return gear.IsSuccess ? 0 : 1;
-        }
-        if (RevolveAuthoringParser.IsRevolveSource(validationSource))
-        {
-            var revolve = RevolveAuthoringParser.Parse(validationSource, out var bindDiagnostics);
-            var materializationDiagnostics = revolve is null ? [] : ResolvedProfileRevolveEmitter.TryEmit(revolve).Diagnostics;
-            var diagnostics = bindDiagnostics.Concat(materializationDiagnostics.Where(message => message.StartsWith(RevolveAuthoringParser.Prefix, StringComparison.Ordinal))).Distinct(StringComparer.Ordinal).ToArray();
-            var valid = revolve is not null && diagnostics.Length == 0;
-            var payload = new { source = sourcePath, status = valid ? "valid" : "invalid", domain = "Revolve",
-                summary = new { fatalDiagnosticCount = diagnostics.Length, warningDiagnosticCount = 0 }, diagnostics };
-            if (json) stdout.WriteLine(JsonSerializer.Serialize(new { firmamentV2Validation = payload }, JsonOptions));
-            else stdout.WriteLine($"Firmament V2 Revolve validation: {payload.status} ({payload.summary.fatalDiagnosticCount} fatal, 0 warning)");
-            return valid ? 0 : 1;
         }
         if (WireFormAuthoring.IsWireFormSource(validationSource))
         {

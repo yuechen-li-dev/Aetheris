@@ -1,5 +1,4 @@
-using System.Globalization;
-using System.Text.RegularExpressions;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Firmament.Materializer;
 using Aetheris.Surfacing;
@@ -14,8 +13,6 @@ namespace Aetheris.Kernel.Firmament.FirmamentV2;
 /// </summary>
 public static class LoftAuthoringParser
 {
-    private static readonly Regex Header = new(@"\bLoft(?:\s*<\s*(?<kind>Hollow)\s*>)?\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
-
     public static readonly IReadOnlyList<FirmamentAuthoringField> SolidFields = FirmamentSchemaAuthoringFields.For("Loft");
     public static readonly IReadOnlyList<FirmamentAuthoringField> HollowFields =
     [.. SolidFields,
@@ -25,74 +22,58 @@ public static class LoftAuthoringParser
     public static bool TryGetAuthoringFields(string source, int offset, out IReadOnlyList<FirmamentAuthoringField> fields)
     {
         fields = [];
-        foreach (Match match in Header.Matches(source))
+        foreach (var declaration in FirmamentV2Parser.MechanicalDeclarations(FirmamentSyntaxParser.Parse(source).Document.Statements).Where(d => d.Type.Name.Text == "Loft"))
         {
-            var open = match.Index + match.Length - 1;
-            if (offset <= open) continue;
-            var close = MatchingBrace(source, open);
-            if (close >= 0 && offset > close) continue;
-            fields = match.Groups["kind"].Success ? HollowFields : SolidFields;
+            var span = declaration.Body?.Span ?? declaration.Span;
+            if (offset <= span.Start || offset > span.Start + span.Length) continue;
+            fields = declaration.Type.Arguments.Count > 0 ? HollowFields : SolidFields;
             return true;
         }
         return false;
     }
 
-    public static bool IsLoftSource(string source) => Header.IsMatch(source);
+    public static bool IsLoftSource(string source) => FirmamentV2Parser.MechanicalDeclarations(FirmamentSyntaxParser.Parse(source).Document.Statements).Any(d => d.Type.Name.Text == "Loft");
 
     public static SectionChainAuthoringResult Compile(string source, bool materialize = true)
     {
         ArgumentNullException.ThrowIfNull(source);
         source = FirmamentSourceSpelling.Normalize(source);
         var diagnostics = new List<string>();
-        if (!Regex.IsMatch(source, @"\bUnits\s*:\s*mm\b", RegexOptions.CultureInvariant))
+        var syntax = FirmamentSyntaxParser.Parse(source);
+        FirmamentV2Parser.BindMaterialDomainScope(syntax.Document, "Loft", diagnostics);
+        diagnostics.AddRange(syntax.Diagnostics.Select(d => d.Code + ": " + d.Message));
+        if (!FirmamentSyntaxTraversal.Statements(syntax.Document).OfType<FieldSyntax>().Any(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Units") && FirmamentSyntaxValues.Reference(f.Value) == "mm"))
             diagnostics.Add("loft-units-invalid:millimetres-required");
-        var declarations = Header.Matches(source).Cast<Match>().ToArray();
-        if (declarations.Length != 1)
-            return Fail($"loft-count-invalid:expected=1:actual={declarations.Length}");
-        if (Regex.IsMatch(source, @"\bSectionChain\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant))
-            return Fail("loft-section-chain-ambiguous:one-surfacing-root-required");
-
+        var allDeclarations = FirmamentV2Parser.MechanicalDeclarations(syntax.Document.Statements).ToArray();
+        var declarations = allDeclarations.Where(d => d.Type.Name.Text == "Loft").ToArray();
+        if (declarations.Length != 1) return Fail($"loft-count-invalid:expected=1:actual={declarations.Length}");
+        if (allDeclarations.Any(d => d.Type.Name.Text == "SectionChain")) return Fail("loft-section-chain-ambiguous:one-surfacing-root-required");
         var declaration = declarations[0];
-        var open = source.IndexOf('{', declaration.Index + declaration.Length - 1);
-        var close = MatchingBrace(source, open);
-        if (close < 0) return Fail("loft-block-unclosed");
-        var body = source[(open + 1)..close];
-        var name = declaration.Groups["name"].Value;
-        var hollow = declaration.Groups["kind"].Success;
-        var allowed = (hollow ? HollowFields : SolidFields).Select(field => field.Name).ToHashSet(StringComparer.Ordinal);
-        var fields = Regex.Matches(body, @"(?m)^\s*(?<key>[A-Za-z_]\w*)\s*:", RegexOptions.CultureInvariant)
-            .Cast<Match>().Select(match => match.Groups["key"].Value).ToArray();
-        foreach (var field in fields.Where(field => !allowed.Contains(field)))
-            diagnostics.Add($"loft-field-unknown:{field}");
-        foreach (var field in fields.GroupBy(field => field, StringComparer.Ordinal).Where(group => group.Count() > 1))
-            diagnostics.Add($"loft-field-duplicate:{field.Key}");
-        var rearProfileName = Field(body, "RearProfile");
-        var frontProfileName = Field(body, "FrontProfile");
-        var rearFrameName = Field(body, "RearFrame");
-        var frontFrameName = Field(body, "FrontFrame");
-        var rule = Field(body, "Rule");
-        var correspondence = Field(body, "Correspondence");
+        var name = declaration.Name?.Text ?? "";
+        var hollow = declaration.Type.Arguments.Count > 0;
+        if (name.Length == 0 || declaration.Modifiers.Count > 0) diagnostics.Add("loft-header-invalid");
+        if (hollow && (declaration.Type.Arguments.Count != 1 || declaration.Type.Arguments[0].Name is not null || declaration.Type.Arguments[0].Default is not null
+            || FirmamentSyntaxValues.Reference(declaration.Type.Arguments[0].Value) != "Hollow"))
+            diagnostics.Add("loft-construction-policy-unsupported");
+        var fields = new FirmamentSyntaxFields(declaration, diagnostics);
+        var rearProfileName = fields.Word("RearProfile"); var frontProfileName = fields.Word("FrontProfile");
+        var rearFrameName = fields.Word("RearFrame"); var frontFrameName = fields.Word("FrontFrame");
+        var rule = fields.Word("Rule"); var correspondence = fields.Word("Correspondence");
         if (rule != "Ruled") diagnostics.Add($"loft-rule-unsupported:{rule ?? "<missing>"}:expected=Ruled");
         if (correspondence != "CommonRay") diagnostics.Add($"loft-correspondence-unsupported:{correspondence ?? "<missing>"}:expected=CommonRay");
         if (rearProfileName is null || frontProfileName is null || rearFrameName is null || frontFrameName is null)
             diagnostics.Add("loft-section-input-missing:RearProfile,FrontProfile,RearFrame,FrontFrame-required");
 
-        var thickness = 0d;
-        var thicknessText = Scalar(body, "Thickness");
-        if (hollow && (thicknessText is null || !ProfileAuthoringParser.TryMeasure(thicknessText, "mm", out thickness) || thickness <= 0))
-            diagnostics.Add("loft-thickness-invalid:positive-length-required");
-        var seamDegrees = 0.1d;
-        var seamText = RawField(body, "SeamGap");
-        if (seamText is not null && (!TryDegrees(seamText, out seamDegrees) || seamDegrees < 0.01 || seamDegrees > 5))
-            diagnostics.Add("loft-seam-gap-invalid:range=0.01..5deg");
-        var twistDegrees = 0d;
-        var twistText = RawField(body, "Twist");
-        if (twistText is not null && (!TryDegrees(twistText, out twistDegrees) || Math.Abs(twistDegrees) > 180))
-            diagnostics.Add("loft-twist-invalid:range=-180..180deg");
-        var referenceText = Regex.Match(body, @"(?m)^\s*Reference\s*:\s*\[\s*(?<x>[-+.\deE]+)\s*,\s*(?<y>[-+.\deE]+)\s*,\s*(?<z>[-+.\deE]+)\s*\]\s*;?\s*$", RegexOptions.CultureInvariant);
+        var thickness = hollow ? fields.Number("Thickness", "mm") : 0d;
+        if (hollow && !(thickness > 0)) diagnostics.Add("loft-thickness-invalid:positive-length-required");
+        var seamDegrees = hollow ? fields.Number("SeamGap", "deg", 0.1d) : 0.1d;
+        if (!double.IsFinite(seamDegrees) || seamDegrees < 0.01 || seamDegrees > 5) diagnostics.Add("loft-seam-gap-invalid:range=0.01..5deg");
+        var twistDegrees = fields.Number("Twist", "deg", 0d);
+        if (!double.IsFinite(twistDegrees) || Math.Abs(twistDegrees) > 180) diagnostics.Add("loft-twist-invalid:range=-180..180deg");
         Vector3D reference = default;
-        if (!referenceText.Success || !TryVector(referenceText, out reference) || reference.Length < 1e-8)
+        if (!fields.Vector("Reference", "", out var coordinates) || coordinates.Length != 3 || (reference = new(coordinates[0], coordinates[1], coordinates[2])).Length < 1e-8)
             diagnostics.Add("loft-reference-invalid:nonzero-world-direction-required");
+        fields.Complete();
         if (diagnostics.Count > 0) return Fail(diagnostics.ToArray());
 
         var rear = ProfileAuthoringParser.ResolveNamedProfile(source, rearProfileName!, out var rearDiagnostics);
@@ -120,8 +101,7 @@ public static class LoftAuthoringParser
             [], SectionTransitionPolicy.Ruled, SectionTermination.Cap, SectionTermination.Cap, SectionChainContinuity.G0);
         var binding = new LoftAuthoredBinding(name, rearProfileName!, rearFrameName!, frontProfileName!, frontFrameName!,
             [reference.X, reference.Y, reference.Z], twistDegrees,
-            new FirmamentV2SourceSpan(declaration.Index, close - declaration.Index + 1),
-            FirmamentV2Parser.ReadAuthoredFields(body, open + 1));
+            declaration.Span, fields.AuthoredFields);
         if (!materialize) return new(true, chain, null, [], binding);
         var result = SectionChainMaterializer.Materialize(chain);
         if (!result.IsSuccess) diagnostics.AddRange(result.Diagnostics.Select(item => $"{item.Code}:{item.Message}"));
@@ -223,51 +203,4 @@ public static class LoftAuthoringParser
         return new(c*x-s*y, s*x+c*y);
     }
 
-    private static string? Field(string body, string key)
-    {
-        var match = Regex.Match(body, $@"(?m)^\s*{Regex.Escape(key)}\s*:\s*(?<value>[A-Za-z_]\w*)\s*;?\s*$", RegexOptions.CultureInvariant);
-        return match.Success ? match.Groups["value"].Value : null;
-    }
-
-    private static string? Scalar(string body, string key)
-    {
-        var match = Regex.Match(body, $@"(?m)^\s*{Regex.Escape(key)}\s*:\s*(?<value>[-+.\deE]+(?:mm|deg))\s*;?\s*$", RegexOptions.CultureInvariant);
-        return match.Success ? match.Groups["value"].Value : null;
-    }
-
-    private static string? RawField(string body, string key)
-    {
-        var match = Regex.Match(body, $@"(?m)^\s*{Regex.Escape(key)}\s*:\s*(?<value>[^\r\n;]+)\s*;?\s*$", RegexOptions.CultureInvariant);
-        return match.Success ? match.Groups["value"].Value.Trim() : null;
-    }
-
-    private static bool TryDegrees(string text, out double degrees)
-    {
-        degrees = 0;
-        return text.EndsWith("deg", StringComparison.Ordinal)
-            && double.TryParse(text[..^3], NumberStyles.Float, CultureInfo.InvariantCulture, out degrees)
-            && double.IsFinite(degrees);
-    }
-
-    private static bool TryVector(Match match, out Vector3D vector)
-    {
-        vector = default;
-        if (!double.TryParse(match.Groups["x"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var x) ||
-            !double.TryParse(match.Groups["y"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var y) ||
-            !double.TryParse(match.Groups["z"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var z) ||
-            !double.IsFinite(x) || !double.IsFinite(y) || !double.IsFinite(z)) return false;
-        vector = new(x,y,z);
-        return true;
-    }
-
-    private static int MatchingBrace(string source, int open)
-    {
-        var depth = 0;
-        for (var i = open; i < source.Length; i++)
-        {
-            if (source[i] == '{') depth++;
-            else if (source[i] == '}' && --depth == 0) return i;
-        }
-        return -1;
-    }
 }

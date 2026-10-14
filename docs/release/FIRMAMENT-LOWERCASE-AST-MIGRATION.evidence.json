@@ -1,0 +1,286 @@
+{
+  "milestone": "Lowercase compatibility AST and spelling reconciliation",
+  "baseline": "Built with the domain-migrated frontend before lowercase ownership changes on 2026-10-14",
+  "geometry": [
+    {
+      "source": "fixtures/Regression/Primitive/valid/box-v2.valid.firmfixture",
+      "command": "build",
+      "artifact": "0.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "9c6fb751251809f32a53e549750c49f4922ba796ecb8deac0daae667659cca4e"
+    },
+    {
+      "source": "fixtures/Regression/Primitive/valid/pipeline-v2-box-step-verified.valid.firmfixture",
+      "command": "build",
+      "artifact": "1.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "9c6fb751251809f32a53e549750c49f4922ba796ecb8deac0daae667659cca4e"
+    },
+    {
+      "source": "fixtures/Regression/Primitive/valid/primitive-v2-cone-step-verified.valid.firmfixture",
+      "command": "build",
+      "artifact": "2.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "5e30962b3121ced41cfb805c9bd2926fca77bda3696cac4d8e93b9377e9541d1"
+    },
+    {
+      "source": "fixtures/Regression/Primitive/valid/primitive-v2-cylinder-step-verified.valid.firmfixture",
+      "command": "build",
+      "artifact": "3.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "69107f183e38a264a998f80147eaa42689b3438658a816c508601b6b81d22781"
+    },
+    {
+      "source": "fixtures/Regression/Primitive/valid/primitive-v2-sphere-step-verified.valid.firmfixture",
+      "command": "build",
+      "artifact": "4.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "3802387cb2bea96cb74f57208f35b960218823efa0f7dfeafc720c337b26e03d"
+    },
+    {
+      "source": "fixtures/Regression/Primitive/valid/primitive-v2-torus-step-verified.valid.firmfixture",
+      "command": "build",
+      "artifact": "5.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "f2837235b0d83eaeddb69cb68deb6c80b53e70ee2d7786178a685f7dab34d9a4"
+    },
+    {
+      "source": "fixtures/Regression/RecordDerivation/valid/box-with-size-variant-v2.valid.firmfixture",
+      "command": "build",
+      "artifact": "6.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "69a07c4dd76f139722a8f3c9a4eef8f937cb2e4c949099c30de116da8b6e26cd"
+    },
+    {
+      "source": "fixtures/Regression/RecordDerivation/valid/derivation-v2-with-chained-twice-step-verified.valid.firmfixture",
+      "command": "build",
+      "artifact": "7.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "663a4e2e5f536fab6df4f7a3d64467d9c72ddf2cb883ff7eaae4ebe2f08657a1"
+    },
+    {
+      "source": "fixtures/Regression/RecordDerivation/valid/derivation-v2-with-size-override-step-verified.valid.firmfixture",
+      "command": "build",
+      "artifact": "8.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "297432bf79ec25b71fa60a631452a196a23b82b4e6e5923ce6a02d0f4debfab7"
+    },
+    {
+      "source": "fixtures/Regression/SemanticRefs/valid/named-box-faces-v2.valid.firmfixture",
+      "command": "build",
+      "artifact": "9.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "9c6fb751251809f32a53e549750c49f4922ba796ecb8deac0daae667659cca4e"
+    },
+    {
+      "source": "fixtures/Regression/SemanticRefs/valid/semanticref-v2-expose-face-alias-resolves-in-step.valid.firmfixture",
+      "command": "build",
+      "artifact": "10.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "38e9eeee4296158ecafab3dd7d9b0617a47b812aa7e9a30748f7254c80cafdab"
+    },
+    {
+      "source": "fixtures/Regression/Composite/valid/composite-v2-adjacent-non-overlapping-holes-step-verified.valid.firmfixture",
+      "command": "build",
+      "artifact": "11.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "65db9629caaed20c9ab1c266d60f9d893b205dd387bef7ae320360ac12f3a24b"
+    },
+    {
+      "source": "fixtures/Regression/Composite/valid/composite-v2-hole-plus-derived-variant-step-verified.valid.firmfixture",
+      "command": "build",
+      "artifact": "12.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "0afb5417d71b818654263e5dee21bc4131682dbf359260e09be28d5d9dba8791"
+    },
+    {
+      "source": "fixtures/Regression/Composite/valid/composite-v2-two-independent-holes-step-verified.valid.firmfixture",
+      "command": "build",
+      "artifact": "13.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "c0a8da0252d96fee313a57e4d837f2a3c8602ee71ca8a19cf3d9b3e927151cc8"
+    },
+    {
+      "source": "fixtures/Regression/Hole/valid/feature-v2-counterbore-step-verified.valid.firmfixture",
+      "command": "build",
+      "artifact": "14.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "0631e966e51bf059a6a8fc4e3b970053740efd30e50c87f82bdd6826ae752a41"
+    },
+    {
+      "source": "fixtures/Regression/Hole/valid/feature-v2-countersink-step-verified.valid.firmfixture",
+      "command": "build",
+      "artifact": "15.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "1a4a9167bb5a370348a4ae13ef71cdac9fbc83c68f5fc885268145d011b87a55"
+    },
+    {
+      "source": "fixtures/Regression/Hole/valid/feature-v2-shaft-hole-blind-step-verified.valid.firmfixture",
+      "command": "build",
+      "artifact": "16.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "b45deb18a09cfba0e4087f1ac69b4f17f61b67543ed52d89e36246b2bca20206"
+    },
+    {
+      "source": "fixtures/Regression/Hole/valid/feature-v2-shaft-hole-through-step-verified.valid.firmfixture",
+      "command": "build",
+      "artifact": "17.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "38e9eeee4296158ecafab3dd7d9b0617a47b812aa7e9a30748f7254c80cafdab"
+    },
+    {
+      "source": "fixtures/Regression/Hole/valid/hole-x4-counterbore-through.valid.firmfixture",
+      "command": "build",
+      "artifact": "18.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "c23e744dee53070cd4129d694dca3e95bb33e3b40dc41fdf7822110a2f347bf2"
+    },
+    {
+      "source": "fixtures/Regression/Hole/valid/hole-x4-countersink-depth.valid.firmfixture",
+      "command": "build",
+      "artifact": "19.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "25b00ec5f9df4ed62cdf0a01ebb5ab91bc5353f4b054db18f7b705f142aa2980"
+    },
+    {
+      "source": "fixtures/Regression/Hole/valid/hole-x4-shaft-through.valid.firmfixture",
+      "command": "build",
+      "artifact": "20.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "7adb97a6ddf065bb697a2a9903b15b20d295087a6e992687dd329e109f7e84ec"
+    },
+    {
+      "source": "fixtures/Regression/Hole/valid/semantic-shaft-selection.firmament",
+      "command": "build",
+      "artifact": "21.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "20773af900c7c88c675fcf2c6e55d8432272b84a87bc919207a5836d11d4b076"
+    },
+    {
+      "source": "fixtures/Regression/Chamfer/valid/air-hole-entry-chamfer-variant.valid.firmament",
+      "command": "build",
+      "artifact": "22.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "449ef7a6d4b8891960664a7f110fc767afd18a3c356b15654db8149f2a5a61fc"
+    },
+    {
+      "source": "fixtures/Regression/Chamfer/valid/air-hole-entry-chamfer.valid.firmament",
+      "command": "build",
+      "artifact": "23.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "cdf161f54a7745b0053f23df2d19c3bf1f3630a44adc35910ef5bd917aa4fddd"
+    },
+    {
+      "source": "fixtures/Regression/Region/valid/feature-v2-side-hole-step-verified.valid.firmfixture",
+      "command": "build",
+      "artifact": "region-0.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "a344f7f45cbefe1dd77cde2d8400c970632107179164ecee21d0cc363d04ccb3"
+    },
+    {
+      "source": "fixtures/Regression/Region/valid/side-hole-aliases-reverse-x-v2.valid.firmfixture",
+      "command": "build",
+      "artifact": "region-1.step",
+      "expectedExitCode": 1,
+      "beforeSha256": null
+    },
+    {
+      "source": "fixtures/Regression/Region/valid/side-hole-aliases-v2.valid.firmfixture",
+      "command": "build",
+      "artifact": "region-2.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "09c731871d463ff98953fcea5b7eec951fa32fe5d0d3a7410555c91fc6c7fbb8"
+    },
+    {
+      "source": "fixtures/Regression/Region/valid/side-hole-aliases-y-axis-v2.valid.firmfixture",
+      "command": "build",
+      "artifact": "region-3.step",
+      "expectedExitCode": 1,
+      "beforeSha256": null
+    },
+    {
+      "source": "fixtures/Regression/Region/valid/side-hole-aliases-z-axis-v2.valid.firmfixture",
+      "command": "build",
+      "artifact": "region-4.step",
+      "expectedExitCode": 1,
+      "beforeSha256": null
+    },
+    {
+      "source": "fixtures/Regression/Region/valid/side-hole-center-y1-v2.valid.firmfixture",
+      "command": "build",
+      "artifact": "region-5.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "09c731871d463ff98953fcea5b7eec951fa32fe5d0d3a7410555c91fc6c7fbb8"
+    },
+    {
+      "source": "fixtures/Regression/Region/valid/side-hole-center-y1-z1-v2.valid.firmfixture",
+      "command": "build",
+      "artifact": "region-6.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "cc5933f4cfe43d488efc9f52f600b09b13864ce17526493b995910299fedcd1c"
+    },
+    {
+      "source": "fixtures/Regression/Region/valid/side-hole-center-z1-v2.valid.firmfixture",
+      "command": "build",
+      "artifact": "region-7.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "37cb59539e95c5b55ba0f079b986cd56788548903affdd2e37bc52f63540a311"
+    },
+    {
+      "source": "fixtures/Regression/Region/valid/side-hole-radius-0_5-v2.valid.firmfixture",
+      "command": "build",
+      "artifact": "region-8.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "12ac593c13304f95e36f2358e554dbed5126787debbdd87707d965690fc078e1"
+    },
+    {
+      "source": "fixtures/Regression/Region/valid/side-hole-radius-1_5-v2.valid.firmfixture",
+      "command": "build",
+      "artifact": "region-9.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "b8b866976eeb8c8d5fbf0948cc1c5d3e86cc6ef75c20069d359b035c4d280af1"
+    },
+    {
+      "source": "fixtures/Regression/Region/valid/side-hole-reverse-x-v2.valid.firmfixture",
+      "command": "build",
+      "artifact": "region-10.step",
+      "expectedExitCode": 1,
+      "beforeSha256": null
+    },
+    {
+      "source": "fixtures/Regression/Region/valid/side-hole-reverse-y-v2.valid.firmfixture",
+      "command": "build",
+      "artifact": "region-11.step",
+      "expectedExitCode": 1,
+      "beforeSha256": null
+    },
+    {
+      "source": "fixtures/Regression/Region/valid/side-hole-reverse-z-v2.valid.firmfixture",
+      "command": "build",
+      "artifact": "region-12.step",
+      "expectedExitCode": 1,
+      "beforeSha256": null
+    },
+    {
+      "source": "fixtures/Regression/Region/valid/side-hole-v2.valid.firmfixture",
+      "command": "build",
+      "artifact": "region-13.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "a344f7f45cbefe1dd77cde2d8400c970632107179164ecee21d0cc363d04ccb3"
+    },
+    {
+      "source": "fixtures/Regression/Region/valid/side-hole-y-axis-v2.valid.firmfixture",
+      "command": "build",
+      "artifact": "region-14.step",
+      "expectedExitCode": 1,
+      "beforeSha256": null
+    },
+    {
+      "source": "fixtures/Regression/Region/valid/side-hole-z-axis-v2.valid.firmfixture",
+      "command": "build",
+      "artifact": "region-15.step",
+      "expectedExitCode": 1,
+      "beforeSha256": null
+    }
+  ]
+}

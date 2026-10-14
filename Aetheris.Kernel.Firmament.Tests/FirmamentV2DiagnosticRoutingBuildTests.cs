@@ -27,7 +27,7 @@ model Broken {
 Model Broken mm
 Box Base { Size: [10mm, 10mm] }
 Modify Base { EdgeFinish Break { Face: +Z Target: Boundary Kind: Chamfer Distance: 1mm } }
-""", FirmamentV2Parser.Phase3EdgeFinishSyntaxInvalid)]
+""", FirmamentV2Parser.CanonicalPrimitiveMalformed)]
     public void Build_RecognizedMalformedLowercaseAndPascalCaseModel_ReturnsV2Diagnostics(string source, string expectedDiagnostic)
     {
         var path = Path.Combine(Path.GetTempPath(), $"aetheris-v2-diagnostic-routing-{Guid.NewGuid():N}.firmament");

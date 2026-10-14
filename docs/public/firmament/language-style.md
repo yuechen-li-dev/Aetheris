@@ -10,7 +10,7 @@ The [design proposal](casing-and-layout-proposal.md) records the reasoning.
 | Type and reusable recipe | PascalCase | `Length`, `PickupSpec`, `Humbucker`, `ControlKnob` |
 | Concrete value, local geometry, occurrence, parameter, port | camelCase | `layout`, `outline`, `neckPickup`, `bottomSeat`, `width` |
 | Built-in property label | camelCase | `units`, `size`, `from`, `translateLocal`, `minimumBendRadius` |
-| Linking and scope word | lowercase | `using`, `on`, `over`, `with`, `return`, `include`, `expose`, `bind` |
+| Linking and scope word | lowercase | `using`, `as`, `on`, `over`, `with`, `return`, `include`, `expose`, `bind` |
 | Scalar function | camelCase | `fretDistance`, `halfWidth` |
 | Engineering symbol, enum, external identity | Preserve domain spelling | `XY`, `+Z`, `Outer`, `World`, `Origin`, `Fixed`, `Periodic`, `Stock`, `mm`, `m`, `304_Annealed` |
 
@@ -59,8 +59,17 @@ members are not guessed or renamed by the formatter. Property completion accepts
 either prefix spelling; generated entry snippets prefer the new spelling, while
 schema/field identities in inspection APIs remain stable.
 
-Historical lowercase `model`/`solid` scopes retain their existing grammar and
-are left untouched by the spelling pass; they are not migrated to native V2.
+Historical lowercase `model`/`solid` scopes are compatibility syntax, not the
+preferred style. Their primitive solids, immutable Box derivations, exposure
+aliases and Hole modifications now bind through the shared AST and existing
+engineering owners. The spelling pass leaves this grammar untouched: converting
+`solid stock: Box` to `Box stock` also requires making inherited length units
+explicit. Remaining PMI, lattice and manufacturing scopes retain their semantic
+owners; see the [migration boundary](../../release/FIRMAMENT-LOWERCASE-AST-MIGRATION.md).
+
+Use lowercase `using` and `as` in Profile headers and pipelines. `Using` and `As`
+remain grammar-position aliases, and convention formatting prefers lowercase.
+This does not rename a user-defined member or identifier named `As`.
 
 Authored names require a manual, binding-aware edit. For example, `.Frame`,
 `.BottomSeat`, `Spec`, `R` and `H` can be authored public contracts; their casing

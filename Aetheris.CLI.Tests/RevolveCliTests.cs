@@ -31,7 +31,7 @@ public sealed class RevolveCliTests
         using var json = JsonDocument.Parse(output.ToString());
         var validation = json.RootElement.GetProperty("firmamentV2Validation");
         Assert.Equal("invalid", validation.GetProperty("status").GetString());
-        Assert.Contains(validation.GetProperty("diagnostics").EnumerateArray(), item => item.GetString() == "firmament-revolve-zero-angle:Bad");
+        Assert.Contains(validation.GetProperty("diagnostics").EnumerateArray(), item => item.GetProperty("code").GetString() == "firmament-revolve-zero-angle:Bad");
     }
 
     private static string Fixture(string relative) => Path.Combine(Repo, "fixtures", relative.Replace('/', Path.DirectorySeparatorChar));

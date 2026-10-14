@@ -229,28 +229,15 @@ public static partial class FirmamentV2Parser
     public const string SemanticProposalTargetUnresolved = "firmament-inline-step-semantic-proposal-target-unresolved";
     public const string SemanticProposalEndUnsupported = "firmament-inline-step-semantic-proposal-end-unsupported";
 
-    private static readonly Regex ModelRegex = new(@"\bmodel\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
-    private static readonly Regex UnitsRegex = new(@"\bunits\s+(?<units>[A-Za-z_][A-Za-z0-9_]*)\b", RegexOptions.CultureInvariant);
     private static readonly HashSet<string> ReservedWords = new(StringComparer.Ordinal) { "let", "model", "units", "solid", "modify", "region", "cut", "template", "concept", "pmi", "recognize", "replace", "with", "manufacturing", "process", "feature", "true", "false", "int", "float", "length", "angle", "string", "bool", "tol" };
     private static readonly Regex LetRegex = new(@"\blet\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?<type>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*(?<literal>[^\r\n{}]+)", RegexOptions.CultureInvariant);
     private static readonly Regex LetRecordHeaderRegex = new(@"^\s*let\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant | RegexOptions.Multiline);
     private static readonly Regex LetRecordFieldRegex = new(@"^\s*(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?<type>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*(?<literal>.+?)\s*$", RegexOptions.CultureInvariant);
     private static readonly Regex DottedReferenceRegex = new(@"^(?<record>[A-Za-z_][A-Za-z0-9_]*)\.(?<field>[A-Za-z_][A-Za-z0-9_]*)$", RegexOptions.CultureInvariant);
-    private static readonly Regex SolidHeaderRegex = new(@"\bsolid\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?<target>[A-Za-z_][A-Za-z0-9_]*)(?<with>\s+with)?\s*\{", RegexOptions.CultureInvariant);
-    private static readonly Regex LegacyEqualsSolidRegex = new(@"\bsolid\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*(?<target>[A-Za-z_][A-Za-z0-9_]*)(?<with>\s+with)?\s*\{(?<body>.*?)\}", RegexOptions.CultureInvariant | RegexOptions.Singleline);
     private static readonly Regex SizeRegex = new(@"\bsize\s*:\s*\[(?<values>[^\]]*)\]", RegexOptions.CultureInvariant | RegexOptions.Singleline);
-    private static readonly Regex ScalarFieldRegex = new(@"\b(?<field>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?<value>[-+0-9.eE]+(?:mm)?)", RegexOptions.CultureInvariant);
     private static readonly Regex FieldRegex = new(@"(?<field>@[A-Za-z_][A-Za-z0-9_]*|[A-Za-z_][A-Za-z0-9_\.]*)\s*:", RegexOptions.CultureInvariant);
-    private static readonly Regex ExposeRegex = new(@"\bexpose\s*\{(?<body>.*?)\}", RegexOptions.CultureInvariant | RegexOptions.Singleline);
-    private static readonly Regex ExposureLineRegex = new(@"^\s*(?<selector>.+?)\s*=>\s*(?<alias>[A-Za-z_][A-Za-z0-9_]*)\s*$", RegexOptions.CultureInvariant);
     private static readonly Regex FaceSelectorRegex = new(@"^face\((?<axis>[+-][XYZ])\)(?<sub>\.[A-Za-z_][A-Za-z0-9_]*)?$", RegexOptions.CultureInvariant);
-    private static readonly Regex ModifyHeaderRegex = new(@"\bmodify\s+(?<target>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
-    private static readonly Regex RegionHeaderRegex = new(@"\bregion\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s+on\s+(?<target>face\([^)]*\)|[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
-    private static readonly Regex CutHeaderRegex = new(@"\bcut\s+(?<tool>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
-    private static readonly Regex RadiusRegex = new(@"\bradius\s*:\s*(?<value>[^\s}]+)", RegexOptions.CultureInvariant);
-    private static readonly Regex ThroughRegex = new(@"\bthrough\s*:\s*(?<target>face\([^)]*\)|[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
     private static readonly Regex CenterRegex = new(@"\bcenter\s*:\s*\[(?<values>[^\]]*)\]", RegexOptions.CultureInvariant | RegexOptions.Singleline);
-    private static readonly Regex SemanticHoleHeaderRegex = new(@"\bhole\s*<\s*(?<variant>[A-Za-z_][A-Za-z0-9_]*)\s*>\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex RecognizeHeaderRegex = new(@"\brecognize\s+(?<body>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex RecognitionRegionHeaderRegex = new(@"\bregion\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
     private static readonly Regex KindRegex = new("\\bkind\\s*:\\s*(?<kind>\"[^\"]+\"|[A-Za-z_][A-Za-z0-9_]*(?:\\s*<\\s*[A-Za-z_][A-Za-z0-9_]*\\s*>)?)", RegexOptions.CultureInvariant);
@@ -367,6 +354,21 @@ public static partial class FirmamentV2Parser
         sourceText = ProfileModificationTemplateLibrary.ResolveImports(sourceText);
         var diagnostics = new List<string> { "firmament-v2-parser-invoked" };
         var source = StripLineComments(sourceText);
+        var authoredSyntax = FirmamentSyntaxParser.Parse(source);
+        if (MechanicalDeclarations(authoredSyntax.Document.Statements).Any(d => d.Type.Name.Text is "SectionChain" or "Loft"
+            && !d.Modifiers.Any(m => m.Name.Text == "Template")))
+        {
+            var section = SectionChainAuthoringParser.Compile(source, materialize: false);
+            diagnostics.AddRange(section.Diagnostics);
+            var owner = authoredSyntax.Document.Statements.OfType<DeclarationSyntax>().FirstOrDefault(d => d.Type.Name.Text is "Model" or "Struct"
+                && !d.Modifiers.Any(m => m.Name.Text is "Concept" or "Template"))?.Name?.Text
+                ?? section.Chain?.StableId ?? "SectionChain";
+            return section.IsSuccess
+                ? FirmamentV2ParseResult.Success(new(owner, "mm", []), diagnostics.Append("firmament-v2-parse-succeeded").ToArray())
+                    with { ParserRoute = "UnifiedSectionChain", OwnsUnifiedAdmission = true, BoundSectionChain = section, BoundSource = source }
+                : FirmamentV2ParseResult.Failure(diagnostics.Append("firmament-v2-parse-failed").ToArray())
+                    with { ParserRoute = "UnifiedSectionChain", OwnsUnifiedAdmission = true, SyntaxDiagnostics = authoredSyntax.Diagnostics };
+        }
         var polygonExpansion = ClosedBoundary2Authoring.Expand(source, diagnostics);
         if (polygonExpansion is null)
         {
@@ -436,111 +438,120 @@ public static partial class FirmamentV2Parser
         source = canonicalStaticExpansion.Source;
         v2AdmissionCandidate |= IsV2AdmissionCandidate(source);
 
-        if (Regex.IsMatch(source, @"\bPanel\s+[A-Za-z_][A-Za-z0-9_]*\s*\{", RegexOptions.CultureInvariant))
+        var syntax = FirmamentSyntaxParser.Parse(source);
+        var domainDeclarations = MechanicalDeclarations(syntax.Document.Statements).ToArray();
+        if (domainDeclarations.Any(d => Enum.TryParse<GearFamily>(d.Type.Name.Text, out _)))
         {
-            var panelCompilation = FirmamentPanelCompiler.Compile(source, templateExpansion.Instantiations);
+            var gear = GearAuthoring.Bind(syntax);
+            diagnostics.AddRange(gear.Diagnostics);
+            return gear.IsSuccess
+                ? FirmamentV2ParseResult.Success(new(gear.ModelName, "mm", []), diagnostics.Append("firmament-v2-parse-succeeded").ToArray())
+                    with { ParserRoute = "UnifiedGear", OwnsUnifiedAdmission = true, BoundGear = gear, BoundSource = source, SyntaxDiagnostics = syntax.Diagnostics }
+                : FirmamentV2ParseResult.Failure(diagnostics.Append("firmament-v2-parse-failed").ToArray())
+                    with { ParserRoute = "UnifiedGear", OwnsUnifiedAdmission = true, SyntaxDiagnostics = syntax.Diagnostics };
+        }
+        if (domainDeclarations.Any(d => d.Type.Name.Text == "Panel" && !d.Modifiers.Any(m => m.Name.Text == "Template")))
+        {
+            var panelCompilation = FirmamentPanelCompiler.Bind(syntax, templateExpansion.Instantiations);
             diagnostics.AddRange(panelCompilation.Diagnostics);
             diagnostics.Add(panelCompilation.IsSuccess ? "firmament-v2-parse-succeeded" : "firmament-v2-parse-failed");
             if (!panelCompilation.IsSuccess)
-                return FirmamentV2ParseResult.Failure(diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray()) with { ParserRoute = "Panel" };
+                return FirmamentV2ParseResult.Failure(diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray())
+                    with { ParserRoute = "UnifiedPanel", OwnsUnifiedAdmission = true, SyntaxDiagnostics = syntax.Diagnostics };
             var panelDocument = new FirmamentV2Document(panelCompilation.ModelName, "mm", [],
                 TemplateInstantiations: templateExpansion.Instantiations, Panels: panelCompilation.Panels,
                 FeatureDefinitions: featureExpansion.Definitions, FeatureInvocations: featureExpansion.Invocations,
                 FeatureExpansion: featureExpansion.Metrics, Polygons: polygonExpansion.Polygons, Boundaries: polygonExpansion.Boundaries);
-            return FirmamentV2ParseResult.Success(panelDocument, diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray()) with { ParserRoute = "Panel" };
+            return FirmamentV2ParseResult.Success(panelDocument, diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray())
+                with { ParserRoute = "UnifiedPanel", OwnsUnifiedAdmission = true, BoundSource = source };
         }
 
         // Canonical V2 is parsed as one document, before compatibility adapters.  The
         // adapters below remain only for old fixtures and no longer define the language
         // an author must select for ordinary mechanical work.
-        var syntax = FirmamentSyntaxParser.Parse(source);
         var modelSyntax = syntax.Document.Statements.OfType<DeclarationSyntax>().FirstOrDefault(d =>
             d.Type.Name.Text is "Model" or "Struct" && !d.Modifiers.Any(m => m.Name.Text is "Template" or "Concept") && d.Body is not null
-            && (d.Type.Name.Text == "Model" || MechanicalDeclarations(d.Body.Statements).Any(n => IsPrimitiveDeclaration(n) || n.Type.Name.Text is "Compose" or "Extrude")));
+            && (d.Type.Name.Text == "Model" || MechanicalDeclarations(d.Body.Statements).Any(n => IsPrimitiveDeclaration(n) || n.Type.Name.Text is "Compose" or "Extrude" or "Revolve" or "WireForm" or "WireRoute" or "Sweep" or "SectionChain")));
+        var standaloneConstruction = modelSyntax is null && domainDeclarations.Any(d => d.Type.Name.Text is "Extrude" or "Compose");
+        if (standaloneConstruction)
+        {
+            // A wrapper-free construction is the same lexical scope with implicit
+            // millimetres. Project the existing statements; do not rewrite source.
+            var owner = domainDeclarations.FirstOrDefault(d => d.Type.Name.Text is "Profile" or "Compose")?.Name
+                ?? new IdentifierSyntax("StandaloneConstruction", syntax.Document.Span);
+            modelSyntax = new(new(new("Struct", owner.Span), [], owner.Span), owner, [], [], null, null, [], null,
+                new(syntax.Document.Statements, syntax.Document.Span) { Delimited = false }, false, syntax.Document.Span);
+            syntax = syntax with { Document = syntax.Document with { Statements = [modelSyntax] } };
+        }
         // Dedicated material domains retain their established semantic owners.
         // This is a decision over material declaration nodes, never a keyword
         // search that lets an unused guide choose the mechanical grammar.
         var rootMaterials = modelSyntax?.Body is null ? [] : MechanicalDeclarations(modelSyntax.Body.Statements).ToArray();
         var hasMechanicalMaterial = rootMaterials.Any(d => IsPrimitiveDeclaration(d) || d.Type.Name.Text is "Compose" or "Extrude");
         var dedicatedMaterialDomain = rootMaterials.Any(d => d.Type.Name.Text is "Revolve" or "WireForm" or "WireRoute" or "Sweep" or "SectionChain");
+        if (domainDeclarations.Any(d => d.Type.Name.Text == "Revolve"))
+        {
+            if (!syntax.IsSuccess)
+                return FirmamentV2ParseResult.Failure(diagnostics.Concat(syntax.Diagnostics.Select(d => d.Code)).ToArray())
+                    with { ParserRoute = "UnifiedRevolve", OwnsUnifiedAdmission = true, SyntaxDiagnostics = syntax.Diagnostics };
+            var revolve = RevolveAuthoringParser.BindExpanded(source, syntax, out var revolveDiagnostics);
+            diagnostics.AddRange(revolveDiagnostics);
+            if (revolve is null || diagnostics.Any(IsFatalDiagnosticCode))
+                return FirmamentV2ParseResult.Failure(diagnostics.Append("firmament-v2-parse-failed").ToArray()) with { ParserRoute = "UnifiedRevolve", OwnsUnifiedAdmission = true };
+            return FirmamentV2ParseResult.Success(new(modelSyntax?.Name?.Text ?? revolve.Name, "mm", []), diagnostics.Append("firmament-v2-parse-succeeded").ToArray())
+                with { ParserRoute = "UnifiedRevolve", OwnsUnifiedAdmission = true, BoundRevolve = revolve, BoundSource = source };
+        }
         if (modelSyntax is not null && (hasMechanicalMaterial || !dedicatedMaterialDomain))
         {
             if (!syntax.IsSuccess)
                 return FirmamentV2ParseResult.Failure(diagnostics.Concat(syntax.Diagnostics.Select(d => d.Code)).ToArray(), FirmamentV2ParseDisposition.RecognizedInvalid)
-                    with { ParserRoute = "UnifiedMechanical", SyntaxDiagnostics = syntax.Diagnostics };
+                    with { ParserRoute = "UnifiedMechanical", OwnsUnifiedAdmission = true, SyntaxDiagnostics = syntax.Diagnostics };
             var parsed = Recognized(BindMechanicalModel(syntax.Document, modelSyntax, source, diagnostics, sourceDirectory, templateExpansion.Instantiations));
-            if (parsed.Document is null) return parsed with { ParserRoute = "UnifiedMechanical" };
+            if (parsed.Document is null) return parsed with { ParserRoute = "UnifiedMechanical", OwnsUnifiedAdmission = true };
+            if (domainDeclarations.Any(d => d.Type.Name.Text == "Plateau"))
+            {
+                var plateauDiagnostics = new List<string>();
+                var plateau = PlateauAuthoring.Bind(source, plateauDiagnostics);
+                if (plateau is null) return FirmamentV2ParseResult.Failure(diagnostics.Concat(plateauDiagnostics).Append("firmament-v2-parse-failed").ToArray())
+                    with { ParserRoute = "UnifiedMechanical", OwnsUnifiedAdmission = true };
+                parsed = parsed with { BoundPlateau = plateau };
+            }
+            if (standaloneConstruction) parsed = parsed with { Document = parsed.Document with { ModelName = parsed.BoundProfile?.Name ?? parsed.BoundComposition?.Feature?.Name ?? parsed.Document.ModelName } };
             return WithFeatureMetadata(
                 AttachVolumeAssertionsAndSymbols(WithPolygonMetadata(parsed, polygonExpansion), source, canonicalStaticExpansion.Document, diagnostics),
-                featureExpansion) with { ParserRoute = "UnifiedMechanical", BoundSource = parsed.BoundSource ?? source };
+                featureExpansion) with { ParserRoute = "UnifiedMechanical", OwnsUnifiedAdmission = true, BoundSource = parsed.BoundSource ?? source };
         }
 
-        if (Regex.IsMatch(source, @"\b(?:RoundedBox|Frustum|Cylinder|Box)\s*<\s*[A-Za-z_][A-Za-z0-9_]*\s*>\s+[A-Za-z_]", RegexOptions.CultureInvariant))
-            return Recognized(ParsePrimitiveConstructionPolicyDocument(source, diagnostics)) with { ParserRoute = "PrimitiveConstructionPolicy" };
-
-        if (Regex.IsMatch(source, @"\bRoundedBox\s+[A-Za-z_]", RegexOptions.CultureInvariant))
-            return Recognized(ParseRoundedBoxModelingDocument(source, diagnostics)) with { ParserRoute = "RoundedBox" };
-
-        // Standalone Profile documents predate the canonical Model wrapper. Keep that
-        // bounded document form usable when its body uses the preferred pipeline surface,
-        // including inline guide declarations, instead of falling into an unrelated
-        // historical modeling parser merely because a Construction Plane has a Concept owner.
-        if (ProfileAuthoringParser.IsProfileSource(source) && Regex.IsMatch(source, @"\bExtrude\s+[A-Za-z_]\w*\s*\{", RegexOptions.CultureInvariant))
-            return Recognized(ParseStandaloneProfileDocument(source, diagnostics)) with { ParserRoute = "StandaloneProfile" };
-
-        if (Regex.IsMatch(source, @"\bConcept\s+(?:Struct\s+)?[A-Za-z_]", RegexOptions.CultureInvariant)
-            || Regex.IsMatch(source, @"\b(?:Struct|Model)\s+[A-Za-z_][A-Za-z0-9_]*\s*(?::\s*[A-Za-z_][A-Za-z0-9_]*)?\s*\{", RegexOptions.CultureInvariant))
+        if (syntax.Document.Statements.OfType<DeclarationSyntax>().Any(d => d.Type.Name.Text is "Model" or "Struct" or "Concept"
+            || d.Modifiers.Any(m => m.Name.Text == "Concept")))
             return Recognized(WithFeatureMetadata(
                 AttachVolumeAssertionsAndSymbols(WithPolygonMetadata(ParseConceptModelingDocument(RemoveCanonicalVolumeAssertions(source), diagnostics, templateExpansion.Instantiations), polygonExpansion), source, canonicalStaticExpansion.Document, diagnostics),
                 featureExpansion)) with { ParserRoute = "ConceptModeling" };
 
-        if (Regex.IsMatch(source, @"^\s*Model\b", RegexOptions.CultureInvariant))
-            return Recognized(ParsePhase3ModelingDocument(source, diagnostics)) with { ParserRoute = "Phase3" };
-
         if (ContainsRawBackendId(source)) diagnostics.Add(RawBackendIdReferenceForbidden);
         if (ContainsUnsupportedConstruct(source)) diagnostics.Add(UnsupportedConstruct);
 
-        var modelMatch = ModelRegex.Match(source);
-        if (!modelMatch.Success) diagnostics.Add(MissingModel);
+        var compatibilityModels = syntax.Document.Statements.OfType<DeclarationSyntax>().Where(d => d.Type.Name.Text == "model").ToArray();
+        var compatibilityModel = compatibilityModels.FirstOrDefault();
+        if (compatibilityModel?.Body is null) diagnostics.Add(MissingModel);
+        if (compatibilityModels.Length > 1) diagnostics.Add(DuplicateName);
+        var units = compatibilityModel?.Body?.Statements.OfType<FieldSyntax>().Where(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Units")).ToArray() ?? [];
+        if (units.Length == 0) diagnostics.Add(MissingUnits);
+        else if (units.Length != 1 || FirmamentSyntaxValues.Reference(units[0].Value) != "mm") diagnostics.Add(CanonicalUnitsInvalid);
+        var compatibilityCore = BindCompatibilityScope(syntax.Document, compatibilityModel, diagnostics);
+        if (compatibilityCore) diagnostics.AddRange(syntax.Diagnostics.Select(d => d.Code));
 
-        var unitsMatch = UnitsRegex.Match(source);
-        if (!unitsMatch.Success) diagnostics.Add(MissingUnits);
-        else if (!string.Equals(unitsMatch.Groups["units"].Value, "mm", StringComparison.Ordinal)) diagnostics.Add(UnsupportedConstruct);
-
-        var solidMatches = FindSolids(source).ToArray();
-        if (solidMatches.Length == 0 && LegacyEqualsSolidRegex.IsMatch(source)) diagnostics.Add(UnsupportedConstruct);
-        var appearsStandaloneLattice = Regex.IsMatch(source, @"\bfill\s+[A-Za-z_][A-Za-z0-9_]*\s*\{[\s\S]*?\bpattern\s*:\s*CubicTruss\b", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
-        if (solidMatches.Length == 0 && !appearsStandaloneLattice) diagnostics.Add(MissingSolid);
-
-        var solids = new List<FirmamentV2SolidBinding>();
-        var byName = new Dictionary<string, FirmamentV2SolidBinding>(StringComparer.Ordinal);
-        if (modelMatch.Success && unitsMatch.Success)
-        {
-            foreach (var solid in solidMatches)
-            {
-                var name = solid.Name;
-                var target = solid.Target;
-                var body = solid.Body;
-                var isWith = solid.IsWith;
-                if (byName.ContainsKey(name)) { diagnostics.Add(DuplicateName); continue; }
-
-                FirmamentV2SolidBinding? binding = isWith
-                    ? ParseDerived(name, target, body, byName, diagnostics)
-                    : ParseDirect(name, target, body, diagnostics, sourceDirectory);
-                if (binding is not null)
-                {
-                    solids.Add(binding);
-                    byName.Add(name, binding);
-                }
-            }
-        }
+        var byName = BindCompatibilitySolids(syntax, compatibilityModel, source, sourceDirectory, diagnostics);
+        var solids = byName.Values.ToList();
+        var appearsStandaloneLattice = compatibilityModel?.Body?.Statements.OfType<DeclarationSyntax>().Any(d => d.Type.Name.Text == "fill") == true;
+        if (solids.Count == 0 && !appearsStandaloneLattice) diagnostics.Add(MissingSolid);
 
         var letRecords = ParseLetRecords(source, byName.Keys, diagnostics);
         var lets = ParseLets(source, byName.Keys.Concat(letRecords.Select(r => r.Name)), diagnostics);
         var boundLetRecords = BindLetRecords(letRecords);
         var boundLets = BindLets(lets, boundLetRecords, byName.Keys, diagnostics);
 
-        var modifyBlocks = ParseModifyBlocks(source, byName, diagnostics);
+        var modifyBlocks = BindCompatibilityModifies(syntax, compatibilityModel, byName, diagnostics);
         var templates = ParseTemplates(source, diagnostics);
         var latticeFills = ParseLatticeFills(source, byName, diagnostics);
         var standaloneLatticeFills = ParseStandaloneLatticeFills(source, diagnostics);
@@ -550,8 +561,8 @@ public static partial class FirmamentV2Parser
         var (manufacturingConcepts, featureConcepts) = ParseConceptApplications(source, boundLets, boundLetRecords, conceptCatalog, diagnostics);
 
         FirmamentV2Document? document = null;
-        if (modelMatch.Success && unitsMatch.Success && (solids.Count > 0 || standaloneLatticeFills.Count > 0) && !diagnostics.Any(d => d.StartsWith("firmament-v2-fill-", StringComparison.Ordinal)))
-            document = new FirmamentV2Document(modelMatch.Groups["name"].Value, unitsMatch.Groups["units"].Value, solids, modifyBlocks, templates, pmi, recognizedRegions, replacements, lets, boundLets, letRecords, boundLetRecords, manufacturingConcepts, featureConcepts, pmiBlock, boundPmi, null, latticeFills, standaloneLatticeFills);
+        if (compatibilityModel?.Name is not null && units.Length == 1 && (solids.Count > 0 || standaloneLatticeFills.Count > 0) && !diagnostics.Any(d => d.StartsWith("firmament-v2-fill-", StringComparison.Ordinal)))
+            document = new FirmamentV2Document(compatibilityModel.Name.Text, "mm", solids, modifyBlocks, templates, pmi, recognizedRegions, replacements, lets, boundLets, letRecords, boundLetRecords, manufacturingConcepts, featureConcepts, pmiBlock, boundPmi, null, latticeFills, standaloneLatticeFills);
 
         var hasFatalDiagnostics = diagnostics.Any(IsFatalDiagnosticCode);
         diagnostics.Add(document is null || hasFatalDiagnostics ? "firmament-v2-parse-failed" : "firmament-v2-parse-succeeded");
@@ -560,12 +571,12 @@ public static partial class FirmamentV2Parser
             return FirmamentV2ParseResult.Failure(diagnostics, FirmamentV2ParseDisposition.NotRecognized);
 
         return document is null
-            ? FirmamentV2ParseResult.Failure(diagnostics) with { ParserRoute = "LegacyLowercase" }
+            ? FirmamentV2ParseResult.Failure(diagnostics) with { ParserRoute = compatibilityCore ? "UnifiedCompatibility" : "CompatibilityExtensions", OwnsUnifiedAdmission = compatibilityCore, SyntaxDiagnostics = compatibilityCore ? syntax.Diagnostics : [] }
             : new FirmamentV2ParseResult(
                 !hasFatalDiagnostics,
                 document,
                 diagnostics,
-                hasFatalDiagnostics ? FirmamentV2ParseDisposition.RecognizedInvalid : FirmamentV2ParseDisposition.RecognizedValid) { ParserRoute = "LegacyLowercase" };
+                hasFatalDiagnostics ? FirmamentV2ParseDisposition.RecognizedInvalid : FirmamentV2ParseDisposition.RecognizedValid) { ParserRoute = compatibilityCore ? "UnifiedCompatibility" : "CompatibilityExtensions", OwnsUnifiedAdmission = compatibilityCore, SyntaxDiagnostics = compatibilityCore ? syntax.Diagnostics : [] };
     }
 
     private static FirmamentV2ParseResult Recognized(FirmamentV2ParseResult result) =>
@@ -918,38 +929,6 @@ public static partial class FirmamentV2Parser
         }
     }
 
-    private static FirmamentV2SolidBinding? ParseDirect(string name, string recordType, string body, List<string> diagnostics, string? sourceDirectory)
-    {
-        if (string.Equals(recordType, "Box", StringComparison.Ordinal))
-        {
-            var values = ParseSizeField(body, diagnostics, BoxMissingSize);
-            var exposures = ParseExposures(body, diagnostics);
-            return values is null ? null : new(name, "Box", new FirmamentV2BoxRecord(values, exposures));
-        }
-
-        if (string.Equals(recordType, "InlineStep", StringComparison.Ordinal))
-        {
-            return ParseInlineStep(name, body, diagnostics, sourceDirectory);
-        }
-
-        if (recordType is not ("Cylinder" or "Cone" or "Sphere" or "Torus")) { diagnostics.Add(UnknownRecordType); return null; }
-
-        var scalars = ParseScalarFields(body, diagnostics);
-        FirmamentV2PrimitiveRecord? primitive = recordType switch
-        {
-            "Cylinder" => RequireFields(scalars, diagnostics, "radius", "height") is null ? null : new FirmamentV2CylinderRecord(scalars["radius"], scalars["height"]),
-            "Cone" => RequireFields(scalars, diagnostics, "bottomRadius", "topRadius", "height") is null ? null : new FirmamentV2ConeRecord(scalars["bottomRadius"], scalars["topRadius"], scalars["height"]),
-            "Sphere" => RequireFields(scalars, diagnostics, "radius") is null ? null : new FirmamentV2SphereRecord(scalars["radius"]),
-            "Torus" => RequireFields(scalars, diagnostics, "majorRadius", "minorRadius") is null ? null : new FirmamentV2TorusRecord(scalars["majorRadius"], scalars["minorRadius"]),
-            _ => null
-        };
-        if (primitive is null) { return null; }
-        ValidatePrimitive(recordType, scalars, diagnostics);
-        return diagnostics.Contains(DegenerateDimension) || diagnostics.Contains(PrimitiveFieldInvalid) || diagnostics.Contains(PrimitiveFieldUnknown) || diagnostics.Contains(PrimitiveFieldMissing)
-            ? null
-            : new(name, recordType, primitive);
-    }
-
     private static FirmamentV2SolidBinding? ParseInlineStep(string name, string body, List<string> diagnostics, string? sourceDirectory)
     {
         var match = Regex.Match(body, "\\b(?:path|Path)\\s*:\\s*\\\"(?<path>[^\\\"]+)\\\"", RegexOptions.CultureInvariant);
@@ -1011,20 +990,6 @@ public static partial class FirmamentV2Parser
         return false;
     }
 
-    private static FirmamentV2SolidBinding? ParseDerived(string name, string baseName, string body, Dictionary<string, FirmamentV2SolidBinding> byName, List<string> diagnostics)
-    {
-        if (!byName.TryGetValue(baseName, out var baseSolid)) { diagnostics.Add(NameUnresolved); if (Regex.IsMatch(body, @"\bsize\s*:", RegexOptions.CultureInvariant)) diagnostics.Add(WithForwardReference); return null; }
-        if (!string.Equals(baseSolid.RecordType, "Box", StringComparison.Ordinal)) { diagnostics.Add(WithRequiresBoxRecord); return null; }
-        var fields = FieldRegex.Matches(body).Select(m => m.Groups["field"].Value).ToArray();
-        if (fields.Length == 0) { diagnostics.Add(WithFieldNotFound); return null; }
-        if (fields.Any(f => f.StartsWith('@'))) { diagnostics.Add(WithRequiresRecord); return null; }
-        if (ExposeRegex.IsMatch(body)) { diagnostics.Add(ExposeBlockUnsupported); return null; }
-        if (fields.Any(f => !string.Equals(f, "size", StringComparison.Ordinal))) { diagnostics.Add(WithFieldNotFound); return null; }
-        var values = ParseSizeField(body, diagnostics, WithFieldTypeMismatch);
-        if (values is null) { diagnostics.Add(WithDerivedRecordInvalid); return null; }
-        return new(name, "Box", new FirmamentV2BoxRecord(values, []), baseName, new Dictionary<string, IReadOnlyList<double>>(StringComparer.Ordinal) { ["size"] = values });
-    }
-
     /// <summary>
     /// Brace-depth extraction retained by legacy semantic adapters. Mechanical
     /// document and statement admission is owned by the unified syntax tree.
@@ -1050,8 +1015,8 @@ public static partial class FirmamentV2Parser
     /// </summary>
     private static FirmamentV2ParseResult BindMechanicalConstruction(string source, DeclarationSyntax model, List<string> diagnostics, IReadOnlyList<ConceptIrTemplateInstantiation>? templateInstantiations)
     {
-        var rootOpen = model.Body!.Span.Start;
-        var body = source.Substring(rootOpen + 1, model.Body.Span.Length - 2);
+        var bodySpan = model.Body!.ContentSpan;
+        var body = source.Substring(bodySpan.Start, bodySpan.Length);
         var units = model.Body.Statements.OfType<FieldSyntax>().Where(f => FirmamentSyntaxFields.SameField(f.Name.Text, "Units")).ToArray();
         if (units.Length == 0 && model.Type.Name.Text != "Struct" || units.Any(f => FirmamentSyntaxValues.Reference(f.Value) != "mm"))
             return CanonicalFailure(diagnostics, CanonicalUnitsInvalid);
@@ -1070,7 +1035,7 @@ public static partial class FirmamentV2Parser
             }
             var feature = composition.Feature;
             var compositionSelectionDiagnostics = new List<string>();
-            var compositionSelections = ParseCanonicalSelections(body, rootOpen + 1, compositionSelectionDiagnostics);
+            var compositionSelections = ParseCanonicalSelections(body, bodySpan.Start, compositionSelectionDiagnostics);
             ValidateCanonicalSelectionSources(body, compositionSelections, composition.Profiles.Keys, compositionSelectionDiagnostics);
             if (compositionSelectionDiagnostics.Count > 0)
             {
@@ -1122,7 +1087,7 @@ public static partial class FirmamentV2Parser
             }
             var resolved = profile.Profile;
             var profileSelectionDiagnostics = new List<string>();
-            var profileSelections = ParseCanonicalSelections(body, rootOpen + 1, profileSelectionDiagnostics);
+            var profileSelections = ParseCanonicalSelections(body, bodySpan.Start, profileSelectionDiagnostics);
             ValidateCanonicalSelectionSources(body, profileSelections, [resolved.Name], profileSelectionDiagnostics);
             if (profileSelectionDiagnostics.Count > 0)
             {
@@ -1172,7 +1137,7 @@ public static partial class FirmamentV2Parser
             diagnostics);
         if (diagnostics.Any(IsFatalDiagnosticCode)) return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
         var conceptSelectionDiagnostics = new List<string>();
-        var conceptSelections = ParseCanonicalSelections(body, rootOpen + 1, conceptSelectionDiagnostics);
+        var conceptSelections = ParseCanonicalSelections(body, bodySpan.Start, conceptSelectionDiagnostics);
         ValidateCanonicalSelectionSources(body, conceptSelections, [], conceptSelectionDiagnostics);
         if (conceptSelectionDiagnostics.Count > 0)
         {
@@ -1250,7 +1215,7 @@ public static partial class FirmamentV2Parser
         var selections = new List<FirmamentV2SelectionDecl>();
         var names = new HashSet<string>(StringComparer.Ordinal);
         var syntax = FirmamentSyntaxParser.Parse(body);
-        foreach (var declaration in FirmamentSyntaxEvidence.Declarations(syntax.Document).Where(d => d.Type.Name.Text == "Selection"))
+        foreach (var declaration in FirmamentSyntaxTraversal.Declarations(syntax.Document).Where(d => d.Type.Name.Text == "Selection"))
         {
             var name = declaration.Name?.Text ?? "";
             if (!names.Add(name)) { diagnostics.Add($"{SelectionDuplicateName}:{name}"); continue; }
@@ -1407,7 +1372,7 @@ public static partial class FirmamentV2Parser
         IEnumerable<string> profileNames, List<string> diagnostics)
     {
         var profiles = profileNames.ToHashSet(StringComparer.Ordinal);
-        var declarations = FirmamentSyntaxEvidence.Declarations(FirmamentSyntaxParser.Parse(body).Document).ToArray();
+        var declarations = FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(body).Document).ToArray();
         foreach (var selection in selections)
         {
             // Result categories retain the existing semantic contract. Source syntax
@@ -1438,7 +1403,7 @@ public static partial class FirmamentV2Parser
     {
         var syntax = FirmamentSyntaxParser.Parse(source);
         var model = syntax.Document.Statements.OfType<DeclarationSyntax>().FirstOrDefault(d => d.Type.Name.Text == "Model" && !d.Modifiers.Any(m => m.Name.Text == "Template") && d.Body is not null);
-        body = model?.Body is { } block ? source[..model.Span.Start] + source.Substring(block.Span.Start + 1, block.Span.Length - 2) + source[(model.Span.Start + model.Span.Length)..] : string.Empty;
+        body = model?.Body is { } block ? source[..model.Span.Start] + source.Substring(block.ContentSpan.Start, block.ContentSpan.Length) + source[(model.Span.Start + model.Span.Length)..] : string.Empty;
         return model?.Body is not null;
     }
 
@@ -1751,279 +1716,6 @@ public static partial class FirmamentV2Parser
         return FirmamentV2ParseResult.Failure(diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray());
     }
 
-    private static FirmamentV2ParseResult ParseStandaloneProfileDocument(string source, List<string> diagnostics)
-    {
-        var parsed = ProfileAuthoringParser.Parse(source);
-        diagnostics.AddRange(parsed.Diagnostics);
-        if (parsed.Profile is null || diagnostics.Any(IsFatalDiagnosticCode))
-            return CanonicalFailure(diagnostics, CanonicalDocumentMalformed);
-
-        var profile = parsed.Profile;
-        var extrude = Regex.Match(source, @"\bExtrude\s+(?<name>[A-Za-z_]\w*)\s*\{", RegexOptions.CultureInvariant);
-        var solidName = extrude.Success ? extrude.Groups["name"].Value : profile.Name;
-        var document = new FirmamentV2Document(
-            profile.Name,
-            "mm",
-            [new FirmamentV2SolidBinding(solidName, "Profile", new FirmamentV2AdvancedMaterialRecord("Profile"))],
-            Profiles: [new FirmamentV2ProfileDecl(profile.Name, profile.EffectiveConstructionPlane.StableId, profile.LocalStartDepth ?? 0d, profile.LocalEndDepth ?? parsed.Height, new(0, source.Length))]);
-        diagnostics.Add("firmament-v2-standalone-profile-parsed");
-        diagnostics.Add("firmament-v2-parse-succeeded");
-        return FirmamentV2ParseResult.Success(document, diagnostics.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray());
-    }
-
-    private static FirmamentV2ParseResult ParsePhase3ModelingDocument(string source, List<string> diagnostics)
-    {
-        var model = Regex.Match(source, @"^\s*Model\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s+(?<units>[A-Za-z_][A-Za-z0-9_]*)\b", RegexOptions.CultureInvariant);
-        var primitive = Regex.Match(source, @"\b(?<type>Box|Cylinder)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
-        var modify = Regex.Match(source, @"\bModify\s+(?<target>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
-        var edges = Regex.Matches(source, @"\bEdgeFinish\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant).Cast<Match>().ToArray();
-        var edge = edges.FirstOrDefault() ?? Match.Empty;
-        if (!model.Success || !primitive.Success || !modify.Success || !edge.Success || model.Groups["units"].Value != "mm"
-            || Regex.Matches(source, @"\b(?:Box|Cylinder)\s+[A-Za-z_]", RegexOptions.CultureInvariant).Count != 1
-            || Regex.Matches(source, @"\bModify\s+[A-Za-z_]", RegexOptions.CultureInvariant).Count != 1
-            || edges.Length is < 1 or > 3)
-            diagnostics.Add(Phase3EdgeFinishSyntaxInvalid);
-
-        if (diagnostics.Contains(Phase3EdgeFinishSyntaxInvalid))
-            return FirmamentV2ParseResult.Failure(diagnostics.Append("firmament-v2-parse-failed").Order().ToArray());
-
-        var primitiveOpen = source.IndexOf('{', primitive.Index);
-        var primitiveClose = FindMatchingBrace(source, primitiveOpen);
-        var modifyOpen = source.IndexOf('{', modify.Index);
-        var modifyClose = FindMatchingBrace(source, modifyOpen);
-        var edgeOpen = source.IndexOf('{', edge.Index);
-        var edgeClose = FindMatchingBrace(source, edgeOpen);
-        if (primitiveClose < 0 || modifyClose < 0 || edgeClose < 0 || edge.Index < modifyOpen || edgeClose > modifyClose)
-        {
-            diagnostics.Add(Phase3EdgeFinishSyntaxInvalid);
-            return FirmamentV2ParseResult.Failure(diagnostics.Append("firmament-v2-parse-failed").Order().ToArray());
-        }
-
-        var primitiveBody = source[(primitiveOpen + 1)..primitiveClose];
-        var sizeMatch = Regex.Match(primitiveBody, @"\bSize\s*:\s*\[(?<values>[^\]]+)\]", RegexOptions.CultureInvariant);
-        var values = sizeMatch.Success ? sizeMatch.Groups["values"].Value.Split(',').Select(ParsePhase3Length).ToArray() : [];
-        var radiusMatch = Regex.Match(primitiveBody, @"\bRadius\s*:\s*(?<value>[-+0-9.eE]+mm)\b", RegexOptions.CultureInvariant);
-        var heightMatch = Regex.Match(primitiveBody, @"\bHeight\s*:\s*(?<value>[-+0-9.eE]+mm)\b", RegexOptions.CultureInvariant);
-        var radiusValue = radiusMatch.Success ? ParsePhase3Length(radiusMatch.Groups["value"].Value) : double.NaN;
-        var heightValue = heightMatch.Success ? ParsePhase3Length(heightMatch.Groups["value"].Value) : double.NaN;
-        var edgeBody = source[(edgeOpen + 1)..edgeClose];
-        var face = Regex.Match(edgeBody, @"\bFace\s*:\s*(?<value>[+-][XYZ])", RegexOptions.CultureInvariant);
-        var target = Regex.Match(edgeBody, @"\bTarget\s*:\s*(?<value>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
-        var kind = Regex.Match(edgeBody, @"\bKind\s*:\s*(?<value>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
-        var distance = Regex.Match(edgeBody, @"\bDistance\s*:\s*(?<value>[-+0-9.eE]+)mm\b", RegexOptions.CultureInvariant);
-        var primitiveValid = primitive.Groups["type"].Value == "Box"
-            ? values.Length == 3 && values.All(v => double.IsFinite(v) && v > 0d)
-            : double.IsFinite(radiusValue) && radiusValue > 0d && double.IsFinite(heightValue) && heightValue > 0d;
-        if (!primitiveValid || !face.Success || !target.Success || !kind.Success || !distance.Success
-            || !double.TryParse(distance.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var distanceValue) || !double.IsFinite(distanceValue)
-            || primitive.Groups["name"].Value != modify.Groups["target"].Value)
-        {
-            diagnostics.Add(Phase3EdgeFinishSyntaxInvalid);
-            return FirmamentV2ParseResult.Failure(diagnostics.Append("firmament-v2-parse-failed").Order().ToArray());
-        }
-
-        FirmamentV2PrimitiveRecord primitiveRecord = primitive.Groups["type"].Value == "Box"
-            ? new FirmamentV2BoxRecord(values, [])
-            : new FirmamentV2CylinderRecord(radiusValue, heightValue);
-        var solid = new FirmamentV2SolidBinding(primitive.Groups["name"].Value, primitive.Groups["type"].Value, primitiveRecord);
-        var finishes = new List<FirmamentV2EdgeFinishDecl> { new(edge.Groups["name"].Value, face.Groups["value"].Value, target.Groups["value"].Value, kind.Groups["value"].Value, distanceValue, new FirmamentV2SourceSpan(edge.Index, edgeClose - edge.Index + 1)) };
-        foreach (var additionalEdge in edges.Skip(1))
-        {
-            var additionalOpen = source.IndexOf('{', additionalEdge.Index);
-            var additionalClose = FindMatchingBrace(source, additionalOpen);
-            var additionalBody = additionalClose < 0 ? string.Empty : source[(additionalOpen + 1)..additionalClose];
-            var additionalFace = Regex.Match(additionalBody, @"\bFace\s*:\s*(?<value>[+-][XYZ])", RegexOptions.CultureInvariant);
-            var additionalTarget = Regex.Match(additionalBody, @"\bTarget\s*:\s*(?<value>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
-            var additionalKind = Regex.Match(additionalBody, @"\bKind\s*:\s*(?<value>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
-            var additionalDistance = Regex.Match(additionalBody, @"\bDistance\s*:\s*(?<value>[-+0-9.eE]+)mm\b", RegexOptions.CultureInvariant);
-            if (additionalClose < 0 || !additionalFace.Success || !additionalTarget.Success || !additionalKind.Success
-                || !additionalDistance.Success || !double.TryParse(additionalDistance.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var additionalDistanceValue) || !double.IsFinite(additionalDistanceValue))
-            {
-                diagnostics.Add(Phase3EdgeFinishSyntaxInvalid);
-                return FirmamentV2ParseResult.Failure(diagnostics.Append("firmament-v2-parse-failed").Order().ToArray());
-            }
-            finishes.Add(new(additionalEdge.Groups["name"].Value, additionalFace.Groups["value"].Value, additionalTarget.Groups["value"].Value, additionalKind.Groups["value"].Value, additionalDistanceValue, new FirmamentV2SourceSpan(additionalEdge.Index, additionalClose - additionalEdge.Index + 1)));
-        }
-        var document = new FirmamentV2Document(model.Groups["name"].Value, "mm", [solid], [new FirmamentV2ModifyBlock(solid.Name, [], [], finishes)]);
-        diagnostics.Add("firmament-v2-phase3-edge-finish-parsed");
-        diagnostics.Add("firmament-v2-parse-succeeded");
-        diagnostics.Sort(StringComparer.Ordinal);
-        return FirmamentV2ParseResult.Success(document, diagnostics);
-    }
-
-    /// <summary>Bounded direct syntax for AIR-ROUNDED-BOX-M6.  It intentionally
-    /// accepts only one history-known rounded box and its single complete +Z boundary finish.</summary>
-    private static FirmamentV2ParseResult ParseRoundedBoxModelingDocument(string source, List<string> diagnostics)
-    {
-        var model = Regex.Match(source, @"^\s*(?:Model|Struct)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)(?:\s+(?<units>[A-Za-z_][A-Za-z0-9_]*))?\s*\{?", RegexOptions.CultureInvariant);
-        var primitive = Regex.Match(source, @"\bRoundedBox\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
-        if (!model.Success || !primitive.Success || Regex.Matches(source, @"\bRoundedBox\s+[A-Za-z_]", RegexOptions.CultureInvariant).Count != 1)
-            return RoundedBoxParseFailure(diagnostics);
-        if (model.Groups["units"].Success && model.Groups["units"].Value != "mm") return RoundedBoxParseFailure(diagnostics);
-        var open = source.IndexOf('{', primitive.Index); var close = FindMatchingBrace(source, open);
-        if (close < 0) return RoundedBoxParseFailure(diagnostics);
-        var body = source[(open + 1)..close];
-        var size = Regex.Match(body, @"\bSize\s*:\s*\[(?<values>[^\]]+)\]", RegexOptions.CultureInvariant);
-        var corner = Regex.Match(body, @"\bCornerRadius\s*:\s*(?<value>[-+0-9.eE]+)mm\b", RegexOptions.CultureInvariant);
-        var values = size.Success ? size.Groups["values"].Value.Split(',').Select(ParsePhase3Length).ToArray() : [];
-        if (values.Length != 3 || values.Any(v => !double.IsFinite(v) || v <= 0d) || !corner.Success || !double.TryParse(corner.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var rc) || !double.IsFinite(rc) || rc <= 0d || rc >= double.Min(values[0], values[1]) / 2d)
-            return RoundedBoxParseFailure(diagnostics);
-
-        var solid = new FirmamentV2SolidBinding(primitive.Groups["name"].Value, "RoundedBox", new FirmamentV2RoundedBoxRecord(values, rc));
-        var modifies = Regex.Matches(source, @"\bModify\s+(?<target>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant).Cast<Match>().ToArray();
-        if (modifies.Length > 1 || (modifies.Length == 1 && modifies[0].Groups["target"].Value != solid.Name)) return RoundedBoxParseFailure(diagnostics);
-        var blocks = new List<FirmamentV2ModifyBlock>();
-        if (modifies.Length == 1)
-        {
-            var modify = modifies[0]; var modifyOpen = source.IndexOf('{', modify.Index); var modifyClose = FindMatchingBrace(source, modifyOpen);
-            var finishes = Regex.Matches(source, @"\bEdgeFinish\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant).Cast<Match>().ToArray();
-            if (modifyClose < 0 || finishes.Length != 1) return RoundedBoxParseFailure(diagnostics);
-            var edge = finishes[0]; var edgeOpen = source.IndexOf('{', edge.Index); var edgeClose = FindMatchingBrace(source, edgeOpen);
-            if (edgeClose < 0 || edge.Index < modifyOpen || edgeClose > modifyClose) return RoundedBoxParseFailure(diagnostics);
-            var edgeBody = source[(edgeOpen + 1)..edgeClose];
-            var face = Regex.Match(edgeBody, @"\bFace\s*:\s*(?<value>[+-][XYZ])", RegexOptions.CultureInvariant);
-            var target = Regex.Match(edgeBody, @"\bTarget\s*:\s*(?<value>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
-            var kind = Regex.Match(edgeBody, @"\bKind\s*:\s*(?<value>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
-            var radius = Regex.Match(edgeBody, @"\bRadius\s*:\s*(?<value>[-+0-9.eE]+)mm\b", RegexOptions.CultureInvariant);
-            if (!face.Success || !target.Success || !kind.Success || !radius.Success || !double.TryParse(radius.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var rf) || !double.IsFinite(rf)) return RoundedBoxParseFailure(diagnostics);
-            blocks.Add(new FirmamentV2ModifyBlock(solid.Name, [], [], [new FirmamentV2EdgeFinishDecl(edge.Groups["name"].Value, face.Groups["value"].Value, target.Groups["value"].Value, kind.Groups["value"].Value, rf, new FirmamentV2SourceSpan(edge.Index, edgeClose - edge.Index + 1))]));
-        }
-        diagnostics.Add("firmament-v2-rounded-box-parsed"); diagnostics.Add("firmament-v2-parse-succeeded"); diagnostics.Sort(StringComparer.Ordinal);
-        return FirmamentV2ParseResult.Success(new FirmamentV2Document(model.Groups["name"].Value, "mm", [solid], blocks), diagnostics.Distinct(StringComparer.Ordinal).ToArray());
-    }
-
-    private static FirmamentV2ParseResult RoundedBoxParseFailure(List<string> diagnostics)
-    {
-        diagnostics.Add(Phase3EdgeFinishSyntaxInvalid); diagnostics.Add("firmament-v2-parse-failed");
-        return FirmamentV2ParseResult.Failure(diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray());
-    }
-
-    /// <summary>
-    /// Bounded generic primitive construction syntax.  Angle brackets are not a general type-argument escape hatch:
-    /// this parser accepts only the named construction policies and witnesses admitted by the production compiler.
-    /// </summary>
-    private static FirmamentV2ParseResult ParsePrimitiveConstructionPolicyDocument(string source, List<string> diagnostics)
-    {
-        var model = Regex.Match(source, @"^\s*(?:Struct|Model)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
-        var primitive = Regex.Match(source, @"\b(?<type>[A-Za-z_][A-Za-z0-9_]*)\s*<\s*(?<policy>[A-Za-z_][A-Za-z0-9_]*)\s*>\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
-        if (!model.Success || !primitive.Success || Regex.Matches(source, @"\b(?:RoundedBox|Frustum|Cylinder|Box)\s*<\s*[A-Za-z_][A-Za-z0-9_]*\s*>\s+[A-Za-z_]", RegexOptions.CultureInvariant).Count != 1)
-            return ConstructionPolicyParseFailure(diagnostics);
-
-        var type = primitive.Groups["type"].Value;
-        var policy = primitive.Groups["policy"].Value;
-        if (policy != "Hollow") { diagnostics.Add(UnknownConstructionPolicy); return ConstructionPolicyParseFailure(diagnostics); }
-        if (type is not ("RoundedBox" or "Frustum" or "Cylinder")) { diagnostics.Add(PrimitiveDoesNotSatisfyHollowConstructible); return ConstructionPolicyParseFailure(diagnostics); }
-        var open = source.IndexOf('{', primitive.Index); var close = FindMatchingBrace(source, open);
-        if (close < 0) return ConstructionPolicyParseFailure(diagnostics);
-        FirmamentV2ModifyBlock? modification = null;
-        var modify = Regex.Match(source[(close + 1)..], @"\bModify\s+(?<target>[A-Za-z_][A-Za-z0-9_]*)\s*\{", RegexOptions.CultureInvariant);
-        if (modify.Success)
-        {
-            var absoluteOpen = close + 1 + modify.Index + modify.Length - 1;
-            var modifyClose = FindMatchingBrace(source, absoluteOpen);
-            if (type != "Cylinder" || modify.Groups["target"].Value != primitive.Groups["name"].Value || modifyClose < 0 ||
-                Regex.Matches(source[(close + 1)..], @"\bModify\s+[A-Za-z_]", RegexOptions.CultureInvariant).Count != 1)
-            {
-                diagnostics.Add("firmament-v2-hollow-modify-unsupported");
-                return ConstructionPolicyParseFailure(diagnostics);
-            }
-            var modifyBody = source[(absoluteOpen + 1)..modifyClose];
-            var perforationHeader = CanonicalPerforationHeaderRegex.Match(modifyBody);
-            var perforationOpen = perforationHeader.Success ? modifyBody.IndexOf('{', perforationHeader.Index) : -1;
-            var perforationClose = perforationOpen >= 0 ? FindMatchingBrace(modifyBody, perforationOpen) : -1;
-            var outsidePerforation = perforationClose < 0 ? modifyBody :
-                modifyBody[..perforationHeader.Index] + modifyBody[(perforationClose + 1)..];
-            var perforations = ParseCanonicalPerforations(modifyBody, absoluteOpen + 1, diagnostics);
-            if (perforations.Count != 1 || perforations[0].SupportFace != "OuterWall" ||
-                perforations[0].Layout is not ("CylindricalGrid" or "CylindricalStaggered") ||
-                CanonicalPerforationHeaderRegex.Matches(modifyBody).Count != 1 ||
-                outsidePerforation.Trim(' ', '\t', '\r', '\n', ';').Length != 0 ||
-                Regex.IsMatch(modifyBody, @"\b(?:Hole|Region|EdgeFinish|Fillet|Chamfer)\b", RegexOptions.CultureInvariant) ||
-                diagnostics.Any(IsFatalDiagnosticCode))
-            {
-                diagnostics.Add("firmament-v2-hollow-modify-unsupported");
-                return ConstructionPolicyParseFailure(diagnostics);
-            }
-            modification = new FirmamentV2ModifyBlock(primitive.Groups["name"].Value, [], [], Perforations: perforations);
-        }
-        var body = source[(open + 1)..close];
-        var thickness = Regex.Match(body, @"\bWallThickness\s*:\s*(?<value>[-+0-9.eE]+)mm\b", RegexOptions.CultureInvariant);
-        if (!thickness.Success) { diagnostics.Add(WallThicknessRequired); return ConstructionPolicyParseFailure(diagnostics); }
-        if (!double.TryParse(thickness.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var wall) || !double.IsFinite(wall) || wall <= 0d)
-        { diagnostics.Add(WallThicknessMustBePositive); return ConstructionPolicyParseFailure(diagnostics); }
-        var openings = Regex.Match(body, @"\bOpenings\s*:\s*\[(?<items>[^\]]*)\]", RegexOptions.CultureInvariant);
-        var openingItems = openings.Success ? openings.Groups["items"].Value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries) : [];
-        if (openingItems.Length != 1 || openingItems[0] != "Top")
-        {
-            diagnostics.Add(openingItems.Length > 1 ? MultipleOpeningsNotSupported : UnsupportedOpening);
-            return ConstructionPolicyParseFailure(diagnostics);
-        }
-
-        FirmamentV2PrimitiveRecord? record = null;
-        if (type == "RoundedBox")
-        {
-            var size = Regex.Match(body, @"\bSize\s*:\s*\[(?<values>[^\]]+)\]", RegexOptions.CultureInvariant);
-            var corner = Regex.Match(body, @"\bCornerRadius\s*:\s*(?<value>[-+0-9.eE]+)mm\b", RegexOptions.CultureInvariant);
-            var values = size.Success ? size.Groups["values"].Value.Split(',').Select(ParsePhase3Length).ToArray() : [];
-            if (values.Length != 3 || values.Any(v => !double.IsFinite(v) || v <= 0d) || !corner.Success || !double.TryParse(corner.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var radius) || !double.IsFinite(radius) || radius <= 0d)
-                return ConstructionPolicyParseFailure(diagnostics);
-            record = new FirmamentV2RoundedBoxRecord(values, radius);
-        }
-        else if (type == "Cylinder")
-        {
-            double Read(string field)
-            {
-                var m = Regex.Match(body, $@"\b{field}\s*:\s*(?<value>[-+0-9.eE]+)mm\b", RegexOptions.CultureInvariant);
-                return m.Success && double.TryParse(m.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? value : double.NaN;
-            }
-            var radius = Read("Radius"); var height = Read("Height");
-            if (!double.IsFinite(radius) || !double.IsFinite(height) || radius <= 0d || height <= 0d)
-                return ConstructionPolicyParseFailure(diagnostics);
-            record = new FirmamentV2CylinderRecord(radius, height);
-        }
-        else
-        {
-            double Read(string field)
-            {
-                var m = Regex.Match(body, $@"\b{field}\s*:\s*(?<value>[-+0-9.eE]+)mm\b", RegexOptions.CultureInvariant);
-                return m.Success && double.TryParse(m.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? value : double.NaN;
-            }
-            var bottom = Read("BottomRadius"); var top = Read("TopRadius"); var height = Read("Height");
-            if (!double.IsFinite(bottom) || !double.IsFinite(top) || !double.IsFinite(height) || bottom <= 0d || top <= 0d || height <= 0d || double.Abs(top - bottom) <= 1e-12d)
-                return ConstructionPolicyParseFailure(diagnostics);
-            record = new FirmamentV2FrustumRecord(bottom, top, height);
-        }
-
-        var bottomBlend = Regex.Match(body, @"\bBottomBlendRadius\s*:\s*(?<value>[-+0-9.eE]+)mm\b", RegexOptions.CultureInvariant);
-        var bottomBlendRadius = 0d;
-        if (!bottomBlend.Success && Regex.IsMatch(body, @"\bBottomBlendRadius\b", RegexOptions.CultureInvariant))
-        {
-            diagnostics.Add("firmament-v2-hollow-bottom-blend-invalid");
-            return ConstructionPolicyParseFailure(diagnostics);
-        }
-        if (bottomBlend.Success)
-        {
-            if (type != "Cylinder" || !double.TryParse(bottomBlend.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out bottomBlendRadius) ||
-                !double.IsFinite(bottomBlendRadius) || bottomBlendRadius <= wall || record is not FirmamentV2CylinderRecord cylinder ||
-                bottomBlendRadius >= cylinder.Radius || bottomBlendRadius >= cylinder.Height)
-            {
-                diagnostics.Add("firmament-v2-hollow-bottom-blend-invalid");
-                return ConstructionPolicyParseFailure(diagnostics);
-            }
-        }
-        var hollow = new FirmamentV2HollowIntent(wall, ["Top"], new FirmamentV2SourceSpan(primitive.Index, close - primitive.Index + 1), bottomBlendRadius);
-        var solid = new FirmamentV2SolidBinding(primitive.Groups["name"].Value, type, record, ConstructionPolicy: FirmamentV2ConstructionPolicy.Hollow, Hollow: hollow);
-        diagnostics.Add("firmament-v2-hollow-policy-parsed"); diagnostics.Add("firmament-v2-parse-succeeded"); diagnostics.Sort(StringComparer.Ordinal);
-        return FirmamentV2ParseResult.Success(new FirmamentV2Document(model.Groups["name"].Value, "mm", [solid],
-            modification is null ? null : [modification]), diagnostics.Distinct(StringComparer.Ordinal).ToArray());
-    }
-
-    private static FirmamentV2ParseResult ConstructionPolicyParseFailure(List<string> diagnostics)
-    {
-        diagnostics.Add("firmament-v2-parse-failed");
-        return FirmamentV2ParseResult.Failure(diagnostics.Distinct(StringComparer.Ordinal).Order().ToArray());
-    }
-
     private static FirmamentV2ParseResult ParseConceptModelingDocument(string source, List<string> diagnostics, IReadOnlyList<ConceptIrTemplateInstantiation>? templateInstantiations = null)
     {
         var resolution = ConceptIrResolver.Resolve(source, diagnostics);
@@ -2066,49 +1758,6 @@ public static partial class FirmamentV2Parser
         FirmamentInterop.FirmamentV2DiagnosticAdapter.ParserSeverity(code)
             == Aetheris.Forge.Abstractions.FirmamentInterop.FirmamentDiagnosticSeverity.Fatal;
 
-    private static IReadOnlyList<FirmamentV2Exposure> ParseExposures(string body, List<string> diagnostics)
-    {
-        var match = ExposeRegex.Match(body);
-        if (!match.Success)
-        {
-            if (body.Contains("=>", StringComparison.Ordinal)) diagnostics.Add(FatArrowOutsideExpose);
-            return [];
-        }
-
-        var exposures = new List<FirmamentV2Exposure>();
-        var aliases = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var rawLine in match.Groups["body"].Value.Split('\n'))
-        {
-            var line = rawLine.Trim();
-            if (line.Length == 0) continue;
-            var binding = ExposureLineRegex.Match(line);
-            if (!binding.Success) { diagnostics.Add(SelectorUnsupported); continue; }
-            var alias = binding.Groups["alias"].Value;
-            if (!aliases.Add(alias)) { diagnostics.Add(ExposeAliasDuplicate); continue; }
-            var selector = binding.Groups["selector"].Value.Trim();
-            if (selector.StartsWith("edge(", StringComparison.Ordinal) || selector.StartsWith("vertex(", StringComparison.Ordinal)) { diagnostics.Add(SelectorUnsupported); continue; }
-            var face = FaceSelectorRegex.Match(selector);
-            if (!face.Success)
-            {
-                if (selector.StartsWith("face(", StringComparison.Ordinal)) diagnostics.Add(SelectorAxisInvalid);
-                else diagnostics.Add(SelectorUnsupported);
-                continue;
-            }
-            var axis = face.Groups["axis"].Value;
-            var sub = face.Groups["sub"].Success ? face.Groups["sub"].Value[1..] : null;
-            if (sub is not null && !string.Equals(sub, "outerLoop", StringComparison.Ordinal)) { diagnostics.Add(SelectorSubselectorUnsupported); continue; }
-            exposures.Add(new(alias, "face", selector, sub is null ? "FaceRef" : "LoopRef", axis, sub));
-        }
-        return exposures;
-    }
-
-    private static IReadOnlyList<double>? ParseSizeField(string body, List<string> diagnostics, string missingDiagnostic)
-    {
-        var sizeMatch = SizeRegex.Match(body);
-        if (!sizeMatch.Success) { diagnostics.Add(missingDiagnostic); return null; }
-        return ParseSizeValues(sizeMatch.Groups["values"].Value, diagnostics);
-    }
-
     private static IReadOnlyList<double>? ParseSizeValues(string raw, List<string> diagnostics)
     {
         var parts = raw.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
@@ -2121,130 +1770,6 @@ public static partial class FirmamentV2Parser
             values.Add(value);
         }
         return diagnostics.Contains(DegenerateDimension) ? null : values;
-    }
-
-    private static Dictionary<string, double> ParseScalarFields(string body, List<string> diagnostics)
-    {
-        var fields = FieldRegex.Matches(body).Select(m => m.Groups["field"].Value).Where(f => !f.StartsWith('@')).ToHashSet(StringComparer.Ordinal);
-        var values = new Dictionary<string, double>(StringComparer.Ordinal);
-        foreach (Match match in ScalarFieldRegex.Matches(body))
-        {
-            var raw = match.Groups["value"].Value;
-            if (!double.TryParse(raw.EndsWith("mm", StringComparison.Ordinal) ? raw[..^2] : raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) || !double.IsFinite(value))
-            {
-                diagnostics.Add(PrimitiveFieldInvalid);
-                continue;
-            }
-            values[match.Groups["field"].Value] = value;
-        }
-        foreach (var field in fields)
-            if (!values.ContainsKey(field)) diagnostics.Add(PrimitiveFieldInvalid);
-        return values;
-    }
-
-    private static object? RequireFields(Dictionary<string, double> values, List<string> diagnostics, params string[] required)
-    {
-        foreach (var requiredField in required)
-            if (!values.ContainsKey(requiredField)) diagnostics.Add(PrimitiveFieldMissing);
-        foreach (var field in values.Keys)
-            if (!required.Contains(field, StringComparer.Ordinal)) diagnostics.Add(PrimitiveFieldUnknown);
-        return diagnostics.Contains(PrimitiveFieldMissing) || diagnostics.Contains(PrimitiveFieldUnknown) ? null : new object();
-    }
-
-    private static void ValidatePrimitive(string recordType, Dictionary<string, double> values, List<string> diagnostics)
-    {
-        foreach (var (field, value) in values)
-        {
-            if (recordType == "Cone" && field == "topRadius" && value == 0d) continue;
-            if (value <= 0d) diagnostics.Add(DegenerateDimension);
-        }
-        if (recordType == "Cone" && values.TryGetValue("bottomRadius", out var bottom) && bottom <= 0d) diagnostics.Add(DegenerateDimension);
-        if (recordType == "Torus" && values.TryGetValue("majorRadius", out var major) && values.TryGetValue("minorRadius", out var minor) && major <= minor) diagnostics.Add(PrimitiveFieldInvalid);
-    }
-
-    private static IReadOnlyList<FirmamentV2ModifyBlock> ParseModifyBlocks(string source, Dictionary<string, FirmamentV2SolidBinding> byName, List<string> diagnostics)
-    {
-        var blocks = new List<FirmamentV2ModifyBlock>();
-        foreach (Match match in ModifyHeaderRegex.Matches(source))
-        {
-            var target = match.Groups["target"].Value;
-            if (!byName.TryGetValue(target, out var solid)) { diagnostics.Add(ModifyTargetUnresolved); continue; }
-            if (!string.Equals(solid.RecordType, "Box", StringComparison.Ordinal)) { diagnostics.Add(ModifyTargetNotSolid); continue; }
-            var open = source.IndexOf('{', match.Index);
-            var close = FindMatchingBrace(source, open);
-            if (close < 0) { diagnostics.Add(RegionUnsupported); continue; }
-            var body = source[(open + 1)..close];
-            var regions = new List<FirmamentV2RegionDecl>();
-            var region = ParseRegion(body, solid, diagnostics);
-            if (region is not null) regions.Add(region);
-            var holes = ParseSemanticHoles(body, solid, diagnostics);
-            if (regions.Count > 0 || holes.Count > 0) blocks.Add(new(target, regions, holes));
-        }
-        return blocks;
-    }
-
-    private static FirmamentV2RegionDecl? ParseRegion(string body, FirmamentV2SolidBinding solid, List<string> diagnostics)
-    {
-        var regions = RegionHeaderRegex.Matches(body);
-        if (regions.Count == 0) return null;
-        if (regions.Count != 1) { diagnostics.Add(RegionUnsupported); return null; }
-        var rm = regions[0];
-        if (!string.Equals(rm.Groups["name"].Value, "sideHole", StringComparison.Ordinal)) { diagnostics.Add(RegionUnsupported); return null; }
-        var attach = ResolveFaceTarget(rm.Groups["target"].Value, solid, RegionAttachmentSelectorUnsupported, diagnostics);
-        var open = body.IndexOf('{', rm.Index);
-        var close = FindMatchingBrace(body, open);
-        if (close < 0) { diagnostics.Add(RegionUnsupported); return null; }
-        var cut = ParseCut(body[(open + 1)..close], solid, diagnostics);
-        if (attach is null || cut is null) return null;
-        var centerU = cut.Tool.Center?.U ?? 0;
-        var centerV = cut.Tool.Center?.V ?? 0;
-        var route = FirmamentV2SideHoleRoutePolicy.Resolve(attach.Axis, cut.Tool.Through.Axis, solid.Box!.Size, cut.Tool.Radius, centerU, centerV);
-        if (!route.IsSupported)
-        {
-            diagnostics.Add(route.Diagnostic!);
-            if (route.Diagnostic is SideHoleRouteUnsupported && (attach.Kind == "Alias" || cut.Tool.Through.Kind == "Alias")) diagnostics.Add(SideHoleAliasResolvesToUnsupportedFace);
-            diagnostics.Add(SideHoleOnlyPlusXMinusXSupported);
-        }
-        return diagnostics.Any(IsFatalDiagnosticCode) ? null : new(rm.Groups["name"].Value, "FaceAttachedRegion", attach, cut);
-    }
-
-    private static IReadOnlyList<FirmamentV2SemanticHoleDecl> ParseSemanticHoles(string body, FirmamentV2SolidBinding solid, List<string> diagnostics)
-    {
-        var holes = new List<FirmamentV2SemanticHoleDecl>();
-        foreach (Match hm in SemanticHoleHeaderRegex.Matches(body))
-        {
-            if (!Enum.TryParse<FirmamentV2SemanticHoleVariant>(hm.Groups["variant"].Value, true, out var variant)) { diagnostics.Add(HoleVariantUnknown); continue; }
-            var open = body.IndexOf('{', hm.Index);
-            var close = FindMatchingBrace(body, open);
-            if (close < 0) { diagnostics.Add(RegionUnsupported); continue; }
-            var hb = body[(open + 1)..close];
-            var on = Regex.Match(hb, @"\bon\s*:\s*(?<target>face\([^)]*\)|[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.CultureInvariant);
-            var face = on.Success ? ResolveFaceTarget(on.Groups["target"].Value, solid, HoleEntryFaceMissing, diagnostics) : null;
-            if (face is null) diagnostics.Add(HoleEntryFaceMissing);
-            var center = CenterRegex.IsMatch(hb) ? ParseCenter(hb, diagnostics) : null;
-            if (center is null) diagnostics.Add(HoleCenterMissing);
-            var hasShaftDiameter = ReadPositive(hb, ["shaftDiameter", "diameter"], out var shaftDiameter);
-            double shaftRadius = 0d;
-            var hasShaftRadius = !hasShaftDiameter && ReadPositive(hb, ["shaftRadius", "radius"], out shaftRadius);
-            var shaft = hasShaftDiameter || hasShaftRadius;
-            var shaftDia = hasShaftDiameter ? shaftDiameter : (hasShaftRadius ? shaftRadius * 2d : 0d);
-            if (!shaft) diagnostics.Add(HoleShaftMissing);
-            var end = ParseEnd(hb, diagnostics);
-            double? cbDia = null, cbDepth = null, csDia = null, csAngle = null;
-            if (variant == FirmamentV2SemanticHoleVariant.Counterbore)
-            {
-                if (!(ReadPositive(hb, ["counterboreDiameter"], out var d) || (ReadPositive(hb, ["counterboreRadius"], out var r) && (d = r * 2d) > 0)) || d <= shaftDia) diagnostics.Add(HoleCounterboreInvalid); else cbDia = d;
-                if (!ReadPositive(hb, ["counterboreDepth"], out var depth)) diagnostics.Add(HoleCounterboreInvalid); else cbDepth = depth;
-            }
-            if (variant == FirmamentV2SemanticHoleVariant.Countersink)
-            {
-                if (!(ReadPositive(hb, ["countersinkDiameter"], out var d) || (ReadPositive(hb, ["countersinkRadius"], out var r) && (d = r * 2d) > 0)) || d <= shaftDia) diagnostics.Add(HoleCountersinkInvalid); else csDia = d;
-                if (!ReadPositive(hb, ["countersinkAngle"], out var angle) || angle <= 0 || angle >= 180) diagnostics.Add(HoleCountersinkInvalid); else csAngle = angle;
-            }
-            if (face is not null && center is not null && shaft && end is not null && !diagnostics.Any(IsFatalDiagnosticCode))
-                holes.Add(new(hm.Groups["name"].Value, variant, face, center with { Convention = FirmamentV2FaceLocalPoint2D.ConventionFor(face.Axis) }, shaftDia, end, cbDia, cbDepth, csDia, csAngle));
-        }
-        return holes;
     }
 
     private static FirmamentV2SemanticHoleEnd? ParseEnd(string body, List<string> diagnostics)
@@ -2269,28 +1794,6 @@ public static partial class FirmamentV2Parser
         }
         value = 0;
         return false;
-    }
-
-    private static FirmamentV2CutOperation? ParseCut(string body, FirmamentV2SolidBinding solid, List<string> diagnostics)
-    {
-        var cuts = CutHeaderRegex.Matches(body);
-        if (cuts.Count != 1) { diagnostics.Add(CutUnsupported); return null; }
-        var cm = cuts[0];
-        if (!string.Equals(cm.Groups["tool"].Value, "Cylinder", StringComparison.Ordinal) && !string.Equals(cm.Groups["tool"].Value, "cylinder", StringComparison.Ordinal)) { diagnostics.Add(CutToolUnsupported); return null; }
-        var open = body.IndexOf('{', cm.Index);
-        var close = FindMatchingBrace(body, open);
-        if (close < 0) { diagnostics.Add(CutUnsupported); return null; }
-        var toolBody = body[(open + 1)..close];
-        var radiusMatch = RadiusRegex.Match(toolBody);
-        if (!radiusMatch.Success) { diagnostics.Add(CylinderRadiusMissing); return null; }
-        if (!double.TryParse(radiusMatch.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var radius)) { diagnostics.Add(CylinderRadiusInvalid); return null; }
-        if (!double.IsFinite(radius)) { diagnostics.Add(CylinderRadiusNotFinite); return null; }
-        if (radius <= 0) { diagnostics.Add(CylinderRadiusInvalid); return null; }
-        var center = ParseCenter(toolBody, diagnostics);
-        var throughMatch = ThroughRegex.Match(toolBody);
-        var through = throughMatch.Success ? ResolveFaceTarget(throughMatch.Groups["target"].Value, solid, ThroughSelectorUnsupported, diagnostics) : null;
-        if (through is null) { diagnostics.Add(ThroughSelectorUnsupported); return null; }
-        return new("Cut", new("Cylinder", radius, center, through));
     }
 
     private static FirmamentV2FaceLocalPoint2D? ParseCenter(string toolBody, List<string> diagnostics)
@@ -3034,19 +2537,6 @@ public static partial class FirmamentV2Parser
 
     private static bool ContainsRawBackendId(string source) =>
         Regex.IsMatch(source, @"\b(brep|backend|coedge)\s*\.|STEP\s*#", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
-
-    private sealed record SolidMatch(string Name, string Target, bool IsWith, string Body);
-
-    private static IEnumerable<SolidMatch> FindSolids(string source)
-    {
-        foreach (Match match in SolidHeaderRegex.Matches(source))
-        {
-            var open = source.IndexOf('{', match.Index);
-            var close = FindMatchingBrace(source, open);
-            if (close < 0) continue;
-            yield return new(match.Groups["name"].Value, match.Groups["target"].Value, match.Groups["with"].Success, source[(open + 1)..close]);
-        }
-    }
 
     private static int FindMatchingBrace(string source, int open)
     {

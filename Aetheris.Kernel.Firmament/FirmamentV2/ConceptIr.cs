@@ -252,7 +252,7 @@ internal static class ConceptIrResolver
 
         var allInstances = instanceList.ToDictionary(i => i.Name, StringComparer.Ordinal);
         var boxBody = source[(boxOpen + 1)..boxClose];
-        var syntaxDeclarations = FirmamentSyntaxEvidence.Declarations(FirmamentSyntaxParser.Parse(source).Document).ToArray();
+        var syntaxDeclarations = FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document).ToArray();
         var boxSyntax = syntaxDeclarations.FirstOrDefault(d => d.Type.Name.Text == "Box" && d.Body?.Span.Start == boxOpen);
         if (boxSyntax is null) { diagnostics.Add(FirmamentV2Parser.CanonicalPrimitiveMalformed); return null; }
         var boxFields = new FirmamentSyntaxFields(boxSyntax, diagnostics);

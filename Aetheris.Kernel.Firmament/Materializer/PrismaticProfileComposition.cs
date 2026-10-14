@@ -210,7 +210,7 @@ public static class PrismaticProfileCompositionParser
     private static readonly Regex SlotCornerRadius = new(@"\bCornerRadius\s*:\s*(?<v>[-+.\d]+)mm", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     private static readonly Regex SlotExtent = new(@"\bExtent\s*:\s*(?<v>ThroughAll|Between\s*\(\s*(?<from>[-+.\d]+)mm\s*,\s*(?<to>[-+.\d]+)mm\s*\))", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
-    public static bool IsCompositionSource(string source) => FirmamentSyntaxEvidence.Declarations(FirmamentSyntaxParser.Parse(source).Document).Any(d => d.Type.Name.Text == "Compose");
+    public static bool IsCompositionSource(string source) => FirmamentSyntaxTraversal.Declarations(FirmamentSyntaxParser.Parse(source).Document).Any(d => d.Type.Name.Text == "Compose");
 
     public static PrismaticProfileCompositionParseResult Parse(string source)
     {
@@ -293,7 +293,7 @@ public static class PrismaticProfileCompositionParser
         }
 
         var syntax = FirmamentSyntaxParser.Parse(source);
-        var compose = FirmamentSyntaxEvidence.Declarations(syntax.Document).FirstOrDefault(d => d.Type.Name.Text == "Compose");
+        var compose = FirmamentSyntaxTraversal.Declarations(syntax.Document).FirstOrDefault(d => d.Type.Name.Text == "Compose");
         if (compose?.Body is null || compose.Name is null) return new(null, profiles, diagnostics.Append("compose-source-missing-compose").ToArray());
         if (compose.Clauses.Count > 0 || compose.Type.Arguments.Count > 0)
             return new(null, profiles, diagnostics.Append("compose-header-unsupported: Declare a supported Placement block inside Compose.").ToArray());

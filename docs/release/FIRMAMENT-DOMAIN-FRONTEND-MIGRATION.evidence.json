@@ -1,0 +1,472 @@
+{
+  "baselineCommit": "83855e91",
+  "geometry": [
+    {
+      "source": "fixtures/Canonical/Gears/bevel-basic.firmament",
+      "command": "build",
+      "artifact": "before-000.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "42d432cec557bf52da34c7543ae87d6f267893fbc878f67ac51a4ea7ea1231e6",
+      "afterSha256": "42d432cec557bf52da34c7543ae87d6f267893fbc878f67ac51a4ea7ea1231e6",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Canonical/Gears/bevel-pair-gear.firmament",
+      "command": "build",
+      "artifact": "before-001.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "bceb43b217b5411b6329da026b20907eaebbf3d2ccb80eaab2f35c4f4eed569f",
+      "afterSha256": "bceb43b217b5411b6329da026b20907eaebbf3d2ccb80eaab2f35c4f4eed569f",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Canonical/Gears/bevel-pair-pinion.firmament",
+      "command": "build",
+      "artifact": "before-002.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "647a2646434d7abacbfe864660f134d0b971d5532626f732b092a2d872898de6",
+      "afterSha256": "647a2646434d7abacbfe864660f134d0b971d5532626f732b092a2d872898de6",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Canonical/Gears/internal-spur-basic.firmament",
+      "command": "build",
+      "artifact": "before-003.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "91da8edb7c4569b988dc2fd48dba2bb1d97e246d75fa959f39963e072f4f924b",
+      "afterSha256": "91da8edb7c4569b988dc2fd48dba2bb1d97e246d75fa959f39963e072f4f924b",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Canonical/Gears/miter-basic.firmament",
+      "command": "build",
+      "artifact": "before-004.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "3cec7390e3feb1fa0a253aa23838bb6919196e62e52465340b77fc10f99aa1ac",
+      "afterSha256": "3cec7390e3feb1fa0a253aa23838bb6919196e62e52465340b77fc10f99aa1ac",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Canonical/Gears/pawl-basic.firmament",
+      "command": "build",
+      "artifact": "before-005.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "632261bdb3a31aa42383105737d685f3bb6f3dfc5620277683b417de5a4a59d5",
+      "afterSha256": "632261bdb3a31aa42383105737d685f3bb6f3dfc5620277683b417de5a4a59d5",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Canonical/Gears/ratchet-basic.firmament",
+      "command": "build",
+      "artifact": "before-006.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "7aff0eeb85662c432d1626deccdef0f8df79ba0f040730ceb65364885c52da82",
+      "afterSha256": "7aff0eeb85662c432d1626deccdef0f8df79ba0f040730ceb65364885c52da82",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Canonical/Gears/spur-basic.firmament",
+      "command": "build",
+      "artifact": "before-007.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "ee6d1883e020c1c148423b1b7cb42dff2f1d5f9eb31256c62c379f082325dfce",
+      "afterSha256": "ee6d1883e020c1c148423b1b7cb42dff2f1d5f9eb31256c62c379f082325dfce",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Canonical/Gears/spur-driven-48.firmament",
+      "command": "build",
+      "artifact": "before-008.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "12d0e33a6e4d01e2d14ca369846b162f091ae7e329f0ad301034d2d6346262e8",
+      "afterSha256": "12d0e33a6e4d01e2d14ca369846b162f091ae7e329f0ad301034d2d6346262e8",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Canonical/Gears/spur-high-tooth.firmament",
+      "command": "build",
+      "artifact": "before-009.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "f32c8d2159f266a1b0bdd9704715fec764b1c2f56080ac0a81348ac0c4fff448",
+      "afterSha256": "f32c8d2159f266a1b0bdd9704715fec764b1c2f56080ac0a81348ac0c4fff448",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Canonical/Revolve/arbitrary-axis.firmament",
+      "command": "build",
+      "artifact": "before-010.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "8cd408bc2a221267724c3c342dd184a0ef1c24045b3650c57b5fca60bebe2fd2",
+      "afterSha256": "8cd408bc2a221267724c3c342dd184a0ef1c24045b3650c57b5fca60bebe2fd2",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Canonical/Revolve/knob.firmament",
+      "command": "build",
+      "artifact": "before-011.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "9cf92939b4b39d9848a8d4a913321d322857d4dc89159978ea013d4d13570a67",
+      "afterSha256": "9cf92939b4b39d9848a8d4a913321d322857d4dc89159978ea013d4d13570a67",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Canonical/Revolve/partial-quarter.firmament",
+      "command": "build",
+      "artifact": "before-012.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "451976bd3245a189dc22a95196d3987f67b5ca15987484cacc7d3918cc666386",
+      "afterSha256": "451976bd3245a189dc22a95196d3987f67b5ca15987484cacc7d3918cc666386",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Canonical/Revolve/sphere.firmament",
+      "command": "build",
+      "artifact": "before-013.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "d60833130cda91d4846e0a96cba74fb5c5a184448ecabd1b0462584e866db1da",
+      "afterSha256": "d60833130cda91d4846e0a96cba74fb5c5a184448ecabd1b0462584e866db1da",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Canonical/Revolve/stepped-shaft.firmament",
+      "command": "build",
+      "artifact": "before-014.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "f42ce8a891f446177fa875d6419a4ac0c4dbde1699f8397514a7058b294d1b1e",
+      "afterSha256": "f42ce8a891f446177fa875d6419a4ac0c4dbde1699f8397514a7058b294d1b1e",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Canonical/SectionChain/eight-section-ergonomic.firmament",
+      "command": "section-chain",
+      "artifact": "section-before-000.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "0c5d6e741f86bfaae69f7c3a89b88a787d6716cdf0853d20acb8999b2b445608",
+      "afterSha256": "0c5d6e741f86bfaae69f7c3a89b88a787d6716cdf0853d20acb8999b2b445608",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Canonical/SectionChain/explicit-sketch-ruled.firmament",
+      "command": "section-chain",
+      "artifact": "section-before-001.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "9db84419023660b1d63163141e840140bbebf79557954f000c13e55143e3d298",
+      "afterSha256": "9db84419023660b1d63163141e840140bbebf79557954f000c13e55143e3d298",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Canonical/SectionChain/g0-explicit-ruled.firmament",
+      "command": "section-chain",
+      "artifact": "section-before-002.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "d420bcc2915f890a26d1e2958aab96103a615044db9ade356d55d9e3077cc09b",
+      "afterSha256": "d420bcc2915f890a26d1e2958aab96103a615044db9ade356d55d9e3077cc09b",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Canonical/SectionChain/g1-two-transition.firmament",
+      "command": "section-chain",
+      "artifact": "section-before-003.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "890881a31a2f7779e1ffa3e7ae2d07e70dd4894ed9b77c1f636954c4bf91c2c8",
+      "afterSha256": "890881a31a2f7779e1ffa3e7ae2d07e70dd4894ed9b77c1f636954c4bf91c2c8",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Canonical/SectionChain/hollow-loft-twist.firmament",
+      "command": "section-chain",
+      "artifact": "section-before-004.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "208fb0ccef3c309f2b0376d2e27200a88209ff5f9d8cb14da4ebc0dab4481bd1",
+      "afterSha256": "208fb0ccef3c309f2b0376d2e27200a88209ff5f9d8cb14da4ebc0dab4481bd1",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Canonical/SectionChain/normalized-rounded-sections.firmament",
+      "command": "section-chain",
+      "artifact": "section-before-005.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "bad0c4fc8ad571e14d837e25880251e0592ea9319d73b23356eefc86a7dc564e",
+      "afterSha256": "bad0c4fc8ad571e14d837e25880251e0592ea9319d73b23356eefc86a7dc564e",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Canonical/SectionChain/open-chain.firmament",
+      "command": "section-chain",
+      "artifact": "section-before-006.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "56d0000dac6523f3528e6a2671d643a5403bf6b665f5b16e9fde39008cfc52f4",
+      "afterSha256": "56d0000dac6523f3528e6a2671d643a5403bf6b665f5b16e9fde39008cfc52f4",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Canonical/SectionChain/six-section-ergonomic.firmament",
+      "command": "section-chain",
+      "artifact": "section-before-007.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "97dccd26fcf8aac02804cf793af57cb76496677bef28fea4fb6c4ef5e3495b89",
+      "afterSha256": "97dccd26fcf8aac02804cf793af57cb76496677bef28fea4fb6c4ef5e3495b89",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Canonical/SectionChain/smooth-corner-sections.firmament",
+      "command": "section-chain",
+      "artifact": "section-before-008.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "d3ea843dd9f5fb695459d7488853d36b74c5b7b2d4273eaabd9f2d2623522356",
+      "afterSha256": "d3ea843dd9f5fb695459d7488853d36b74c5b7b2d4273eaabd9f2d2623522356",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Canonical/SectionChain/solid-loft-common-ray.firmament",
+      "command": "section-chain",
+      "artifact": "section-before-009.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "10d5fe263138f9a9bf33715aa0623d405e3af0a4b889dc60f2fbba4bc6af550c",
+      "afterSha256": "10d5fe263138f9a9bf33715aa0623d405e3af0a4b889dc60f2fbba4bc6af550c",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Canonical/SectionChain/two-section-ruled.firmament",
+      "command": "section-chain",
+      "artifact": "section-before-010.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "4dc0d3fc84e37cd87b9631923500095cea9d5aa8f8865622cb4e5986bd6e709c",
+      "afterSha256": "4dc0d3fc84e37cd87b9631923500095cea9d5aa8f8865622cb4e5986bd6e709c",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Compatibility/LegacyV1/Experiments/air-fillet-junction-m4a/canonical-r1.firmament",
+      "command": "build",
+      "artifact": "header-before-000.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "55fef3c2bca4df7cc246619524149a3de934362cc51e544f56b7211ec5ddc650",
+      "afterSha256": "55fef3c2bca4df7cc246619524149a3de934362cc51e544f56b7211ec5ddc650",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Compatibility/LegacyV1/Experiments/air-fillet-junction-m4a/larger-r2.firmament",
+      "command": "build",
+      "artifact": "header-before-001.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "9dcc7ca557a7b5df256a5685bc10860b58ebb6063e2298432177ee07b9571846",
+      "afterSha256": "9dcc7ca557a7b5df256a5685bc10860b58ebb6063e2298432177ee07b9571846",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Compatibility/LegacyV1/Experiments/air-fillet-junction-m4a/nonsquare-r1.firmament",
+      "command": "build",
+      "artifact": "header-before-002.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "9a1c02e58856dfd4de0b7c79aaadace9d95cb8cbc0bc0e113a7dcf1736edc21e",
+      "afterSha256": "9a1c02e58856dfd4de0b7c79aaadace9d95cb8cbc0bc0e113a7dcf1736edc21e",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Invalid/Chamfer/air-cylinder-top-rim-oversized.invalid.firmament",
+      "command": "build",
+      "artifact": "header-before-003.step",
+      "expectedExitCode": 1,
+      "beforeSha256": null,
+      "afterSha256": null,
+      "actualExitCode": 1,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Invalid/Chamfer/air-cylinder-top-rim-zero.invalid.firmament",
+      "command": "build",
+      "artifact": "header-before-004.step",
+      "expectedExitCode": 1,
+      "beforeSha256": null,
+      "afterSha256": null,
+      "actualExitCode": 1,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Regression/Chamfer/valid/air-cylinder-top-rim-chamfer.valid.firmament",
+      "command": "build",
+      "artifact": "header-before-005.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "f5916b29365988f6112a4cbc3d2fe487f2f1ebc4c591f5e34e32d6db64fee997",
+      "afterSha256": "f5916b29365988f6112a4cbc3d2fe487f2f1ebc4c591f5e34e32d6db64fee997",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Regression/Chamfer/valid/air-cylinder-top-rim-variant.valid.firmament",
+      "command": "build",
+      "artifact": "header-before-006.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "fd37ca186dce6995b0205a04e2f1ee7399c714a5dea9ce237acb172b26526191",
+      "afterSha256": "fd37ca186dce6995b0205a04e2f1ee7399c714a5dea9ce237acb172b26526191",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Regression/Chamfer/valid/air-top-boundary-chamfer-distance-2.valid.firmament",
+      "command": "build",
+      "artifact": "header-before-007.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "89273fbfeb1bd7697e54c539830d189213226cc6e9b2ce2bf864ec6188567864",
+      "afterSha256": "89273fbfeb1bd7697e54c539830d189213226cc6e9b2ce2bf864ec6188567864",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Regression/Chamfer/valid/air-top-boundary-chamfer-non-square.valid.firmament",
+      "command": "build",
+      "artifact": "header-before-008.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "b82bfb8a03cffbedeb9f8051d79a5798c7b9d79f7f5cec666cc24a9bb64c6d9b",
+      "afterSha256": "b82bfb8a03cffbedeb9f8051d79a5798c7b9d79f7f5cec666cc24a9bb64c6d9b",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Regression/Chamfer/valid/air-top-boundary-chamfer.valid.firmament",
+      "command": "build",
+      "artifact": "header-before-009.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "677d6b2f0ee902e528310348370b651b663bbbef2aeef1e7a0ca8910f81f7d95",
+      "afterSha256": "677d6b2f0ee902e528310348370b651b663bbbef2aeef1e7a0ca8910f81f7d95",
+      "actualExitCode": 0,
+      "matched": true
+    },
+    {
+      "source": "fixtures/Canonical/Surfacing/g2-planar-plateau.firmament",
+      "command": "build",
+      "artifact": "plateau.step",
+      "expectedExitCode": 0,
+      "beforeSha256": "c14bda427b7e335e9bedce983b2d6b94c18fcb8e7f90b6c2dc00a602f54b8535",
+      "baselineNote": "Captured before Plateau AST field migration with the existing field parser and restored declaration recognition.",
+      "afterSha256": "c14bda427b7e335e9bedce983b2d6b94c18fcb8e7f90b6c2dc00a602f54b8535",
+      "actualExitCode": 0,
+      "matched": true
+    }
+  ],
+  "qualification": "Meaningful progression: named production families qualified; whole-language migration incomplete.",
+  "geometryQualification": {
+    "matched": 37,
+    "witnesses": 37,
+    "acceptedStepHashes": 35,
+    "rejectedBeforeAndAfter": 2
+  },
+  "focusedTests": {
+    "domainAndPlateau": {
+      "passed": 60,
+      "failed": 0
+    },
+    "cli": {
+      "passed": 50,
+      "failed": 0
+    },
+    "coreFastLane": {
+      "passed": 1068,
+      "failed": 0
+    }
+  },
+  "build": {
+    "configuration": "Release",
+    "sdk": "net10.0",
+    "errors": 0,
+    "warnings": 9,
+    "command": "dotnet build Aetheris.slnx -c Release -m:1 --no-restore"
+  },
+  "remainingAssemblyBoundary": {
+    "source": "fixtures/Canonical/AssemblyInterfaces/executable-machine.firmament",
+    "line": 3,
+    "construct": "Role A/B requires AxisCapable",
+    "sharedSyntaxCode": "firmament-syntax-declaration-tail",
+    "columns": [
+      39,
+      68
+    ],
+    "legacyInspection": "asm inspect exit 0; shared AST reports syntax errors at both requires tokens.",
+    "requiredOwnerMigration": [
+      "AssemblyM0Parser.ParseInterfaces",
+      "AssemblyM0Parser.ParseMates",
+      "InterfaceDefinition",
+      "MateSource"
+    ]
+  },
+  "showcases": [
+    {
+      "command": "asm inspect",
+      "source": "fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar-x0.firmament",
+      "exitCode": 0
+    },
+    {
+      "command": "asm inspect",
+      "source": "fixtures/Canonical/AssemblyInterfaces/IndustrialAtlas/atlas-industrial.firmament",
+      "exitCode": 0
+    },
+    {
+      "command": "scene inspect",
+      "source": "fixtures/Canonical/Scene/WarmModernHouse/house.firmament",
+      "exitCode": 0
+    },
+    {
+      "command": "scene inspect",
+      "source": "fixtures/Canonical/Scene/warehouse.firmament",
+      "exitCode": 0
+    },
+    {
+      "command": "scene inspect",
+      "source": "fixtures/Canonical/Scene/FactoryX0/factory.firmament",
+      "exitCode": 0
+    },
+    {
+      "command": "asm inspect",
+      "source": "fixtures/Canonical/AssemblyInterfaces/executable-machine.firmament",
+      "exitCode": 0
+    }
+  ],
+  "mechanicalQualification": {
+    "unchangedStepHashes": 29,
+    "validateBuildWitnessesAgreed": 4
+  },
+  "fullRegression": {
+    "command": "dotnet test Aetheris.slnx -c Release --no-build -m:1 --settings artifacts/local/mechanical-frontend-migration/serial.runsettings -- RunConfiguration.MaxCpuCount=1",
+    "xunitAssemblyParallelism": false,
+    "xunitCollectionParallelism": false,
+    "maxParallelThreads": 1,
+    "total": 4721,
+    "passed": 4721,
+    "failed": 0,
+    "notExecuted": 0,
+    "error": 0,
+    "timeout": 0,
+    "aborted": 0,
+    "projectResults": 21,
+    "nonemptyProjects": 20
+  }
+}

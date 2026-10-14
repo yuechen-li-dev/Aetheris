@@ -113,6 +113,16 @@ parse and the Scene path move to M2.
 Exit: the knob edit reuses ≥ 52 / 56 definitions and costs only the definitions it owns.
 Diagnostics, source maps and STEP match a clean build exactly.
 
+**Result** ([BUILD-PERF-M2](../../../release/BUILD-PERF-M2.md)): success. Definitions (and their
+published ports) compile from their declaration closure with a whole-catalog fallback; derived
+meshes and seat queries follow definition content; Scenes use the session caches. Knob edit 54/56
+reused, 3.57 s → ~0.4 s native; every incremental rebuild proven equal to a fresh build
+(`verify-incremental`); hashes unchanged. Agreed semantic change: an unrelated broken declaration
+no longer fails every part. First production AOT browser numbers: root and include edits 70–220 ms
+for ATLAS, house and guitar; an edit to a SectionChain body (guitar `CarvedMaple`, 10.7 s) is
+kernel time → M4. Exact kernel fixes found via the test lane (pcurve seeds, B-spline evaluation,
+import replay) cut spline-tube imports ~3–4× and the lane's two largest projects by ~40%.
+
 ### M3 — Binary bridge
 
 - Display meshes cross the JS boundary as typed arrays (`JSExport` memory views → transferable
@@ -141,6 +151,20 @@ In order of measured share, re-profiled after M1–M3:
 
 Exit: guitar warm native build target set from M0 data (working target ≤ 5 s from 13.9 s); full
 `Aetheris.slnx` test lane green; STEP unchanged or justified.
+
+**First pass** ([BUILD-PERF-M4](../../../release/BUILD-PERF-M4.md)): meaningful progression, all
+bit-exact. SectionChain self-intersection validation via an X sweep (same verdict, pair and
+counts), MaximumOvershoot bounding box hoisted, lazy preview SVG, B-spline V-span reuse, text
+profile memo. Guitar `CarvedMaple` edit 5.7 → 1.14 s, warm 7.6 → 5.3 s (target ≤ 5 s: at the line),
+bolt edit 3.1 → 1.6 s. Remaining share is the 8193-sample bounded-pcurve qualification (policy
+decision) and the bolt's two mass-property enclosure checks.
+
+**Result** ([BUILD-PERF-M4](../../../release/BUILD-PERF-M4.md)): success. Second pass: SectionChain
+trims constructed with their patches (`ConstructedBoundary`: each edge is an isoparametric boundary
+of its own patch) instead of recovered and qualified at 8193 samples; the old density is now a test
+oracle. Guitar warm 3.9 s (target ≤ 5 s), `CarvedMaple` edit 0.64 s; STEP for guitar/ATLAS changes
+by its trims only (compare-step: 3.2e-12 relative), rebaselined deliberately. Next authoring-time
+candidate: face orientation on reimport of our own STEP.
 
 ### M5 — First paint
 

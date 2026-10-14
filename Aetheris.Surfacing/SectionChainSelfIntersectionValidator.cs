@@ -24,11 +24,14 @@ internal static class SectionChainSelfIntersectionValidator
         if (chain.StartTermination == SectionTermination.Cap) proxies.AddRange(Cap(chain.Sections[0], -1, "StartTermination"));
         if (chain.EndTermination == SectionTermination.Cap) proxies.AddRange(Cap(chain.Sections[^1], chain.Sections.Count - 1, "EndTermination"));
         var candidates = 0; var qualified = 0;
-        for (var left = 0; left < proxies.Count; left++) for (var right = left + 1; right < proxies.Count; right++)
+        // BUILD-PERF-M4: the candidate pairs (non-neighbours whose tolerance-expanded bounds
+        // intersect) come from a sweep over X instead of testing every pair. They are then visited in
+        // the same (left, right) order as the all-pairs loop, so the verdict, the reported pair and
+        // the candidate/qualified counts are identical.
+        foreach (var (left, right) in CandidatePairs(proxies))
         {
             var a = proxies[left]; var b = proxies[right];
             if (SameOrAuthorizedNeighbor(a, b)) continue;
-            if (!a.Bounds.Expanded(Tolerance).Intersects(b.Bounds.Expanded(Tolerance))) continue;
             candidates++;
             if (!TrianglesIntersect(a, b, Tolerance)) { qualified++; continue; }
             var detail = $"{a.Owner}:{a.Span} intersects {b.Owner}:{b.Span}; validation-only proxy={UDivisions}x{VDivisions}, tolerance={Tolerance:R}.";
@@ -47,6 +50,29 @@ internal static class SectionChainSelfIntersectionValidator
             }
             return Math.Abs(a.TransitionIndex - b.TransitionIndex) <= 1;
         }
+    }
+
+    /// <summary>Every pair (left &lt; right) whose expanded bounds intersect, in (left, right) order.</summary>
+    private static List<(int Left, int Right)> CandidatePairs(List<Triangle> proxies)
+    {
+        var expanded = proxies.Select(triangle => triangle.Bounds.Expanded(Tolerance)).ToArray();
+        var order = Enumerable.Range(0, expanded.Length).ToArray();
+        var keys = expanded.Select(bounds => bounds.MinX).ToArray();
+        Array.Sort(keys, order);
+        var pairs = new List<(int, int)>();
+        for (var i = 0; i < order.Length; i++)
+        {
+            var first = expanded[order[i]];
+            // Bounds whose MinX exceeds this MaxX cannot overlap it in X, nor can any later one.
+            for (var j = i + 1; j < order.Length && keys[j] <= first.MaxX; j++)
+            {
+                if (!first.Intersects(expanded[order[j]])) continue;
+                var (left, right) = order[i] < order[j] ? (order[i], order[j]) : (order[j], order[i]);
+                pairs.Add((left, right));
+            }
+        }
+        pairs.Sort();
+        return pairs;
     }
 
     private static SectionChainSelfIntersectionValidationResult Result(bool passed, int candidates, int qualified, string detail) =>

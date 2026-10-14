@@ -142,7 +142,11 @@ public sealed record SectionChainMaterializationResult(
     public SectionChainSelfIntersectionEvidence? SelfIntersection { get; init; }
     public SectionChainContinuityEvidence? ContinuityEvidence { get; init; }
     public SectionChainSmoothSelectionEvidence? SmoothSelection { get; init; }
-    public string? PreviewSvg { get; init; }
+    /// <summary>Wireframe preview of the body. Rendered on first read (BUILD-PERF-M4: only the CLI
+    /// reads it, and rendering was ~7% of a guitar build) from a snapshot taken at materialization.</summary>
+    public string? PreviewSvg { get => previewSvg?.Value; init => previewSvg = new(() => value); }
+    private Lazy<string?>? previewSvg;
+    internal BrepBody? PreviewSource { init => previewSvg = value is null ? null : new(() => BrepWireframeSvgRenderer.Render(value).Svg); }
 }
 
 public sealed record SectionChainBoundaryContinuityEvidence(string SectionId, double MaximumPositionError,
@@ -361,7 +365,7 @@ public static class SectionChainMaterializer
         return new(authoredChain, body, Structure(chain), evidence, diagnostics,
             new(profileMs, correspondenceMs, transitionMs, stitchMs, validationMs))
         { GeometricJoins = geometricJoins, ProfileNormalization = normalization, Pcurves = pcurveEvidence, SelfIntersection = selfIntersection.Evidence, ContinuityEvidence = continuityEvidence,
-            SmoothSelection = smoothSelection, PreviewSvg = body is null ? null : BrepWireframeSvgRenderer.Render(body).Svg };
+            SmoothSelection = smoothSelection, PreviewSource = body?.Clone() };
     }
 
     private static IReadOnlyList<SurfacingDiagnostic> Validate(SectionChain chain, IReadOnlyList<PreparedSection> sections)
@@ -497,6 +501,11 @@ public static class SectionChainMaterializer
                 var surfaceId = new SurfaceGeometryId(nextSurface++);
                 geometry.AddSurface(surfaceId, entry.Patches[span].ExactSurface);
                 bindings.AddFaceBinding(new(face, surfaceId)); faces.Add(face);
+                // Exact polynomial patches (smooth G1 and ruled lanes) are tensor-product splines whose
+                // u runs along the profile span and v from source to target section.
+                if (entry.Patches[span].MaterializationKind == SurfaceMaterializationKind.ExactPolynomialBSpline
+                    && entry.Patches[span].ExactSurface.BSplineSurfaceWithKnots is { } patchSpline)
+                    BindConstructedPcurves(face, surfaceId, patchSpline);
                 surfaces.Add(new(transition.Source.Section.Profile.Spans[span].SpanId,
                     transition.Source.Boundaries[span].StableId, transition.Target.Boundaries[transition.Map[span]].StableId,
                     entry.Patches[span].ExactSurface.Kind, entry.Patches[span].MaterializationKind));
@@ -523,11 +532,55 @@ public static class SectionChainMaterializer
             bindings.AddFaceBinding(new(face, surfaceId)); faces.Add(face);
         }
         var shell = builder.AddShell(faces); builder.AddBody([shell]);
+        // Constructed trims are re-checked here (129-sample lift); only the remaining coedges (caps,
+        // ruled transitions, any constructed trim that was declined) are recovered.
         var pcurves = BoundedPcurveBuilder.Populate(builder.Model, geometry, bindings, 1e-5d);
         if (!pcurves.IsSuccess)
             throw new InvalidOperationException("SectionChain face-local pcurve construction failed: "
                 + string.Join(" | ", pcurves.Diagnostics.Select(item => $"{item.Code}:{item.Entity}:{item.Message}")));
         return (new BrepBody(builder.Model, geometry, bindings, points), transitionEvidence);
+
+        // BUILD-PERF-M4: an exact transition face is bounded by four isoparametric curves of its own
+        // patch: the source profile (v = start), the target profile (v = end) and the two longitudinal
+        // boundaries (u = start, u = end: spline rows in the smooth lane, straight rulings in the ruled
+        // lane), each bound with a parameter affine to the patch's there (profile knots, or [0, length]
+        // for a line, which the patch carries as a [0, 1] span). The trim
+        // of each coedge is therefore the matching straight side of the parameter rectangle. A short
+        // lift check guards the construction; a trim it declines is left to recovery.
+        void BindConstructedPcurves(FaceId face, SurfaceGeometryId surfaceId, BSplineSurfaceWithKnots spline)
+        {
+            var coedges = builder.Model.GetLoop(builder.Model.GetFace(face).LoopIds[0]).CoedgeIds;
+            double u0 = spline.DomainStartU, u1 = spline.DomainEndU, v0 = spline.DomainStartV, v1 = spline.DomainEndV;
+            // AddFace order: source profile, end-side longitudinal, target profile, start-side longitudinal.
+            (SurfaceParameterPoint Start, SurfaceParameterPoint End)[] sides =
+                [(new(u0, v0), new(u1, v0)), (new(u1, v0), new(u1, v1)), (new(u0, v1), new(u1, v1)), (new(u0, v0), new(u0, v1))];
+            for (var index = 0; index < coedges.Count && index < sides.Length; index++)
+            {
+                var coedge = builder.Model.GetCoedge(coedges[index]);
+                var binding = bindings.GetEdgeBinding(coedge.EdgeId);
+                if (binding.TrimInterval is not { } interval || !geometry.TryGetCurve(binding.CurveGeometryId, out var curve) || curve is null) continue;
+                var pcurve = PcurveGeometry.Line(interval, sides[index].Start, sides[index].End);
+                const int samples = 33;
+                var deviation = 0d;
+                for (var sample = 0; sample < samples; sample++)
+                {
+                    var t = interval.Start + (interval.End - interval.Start) * sample / (samples - 1d);
+                    Point3D? onEdge = curve.Kind switch
+                    {
+                        CurveGeometryKind.Line3 => curve.Line3!.Value.Evaluate(t),
+                        CurveGeometryKind.BSpline3 => curve.BSpline3!.Value.Evaluate(t),
+                        _ => null
+                    };
+                    if (onEdge is null) { deviation = double.PositiveInfinity; break; }
+                    var uv = pcurve.Evaluate(t);
+                    deviation = double.Max(deviation, (spline.Evaluate(uv.U, uv.V) - onEdge.Value).Length);
+                }
+                if (!(deviation <= ConstructedTrimTolerance)) continue;
+                bindings.AddPcurveBinding(new(coedge.Id, face, surfaceId, pcurve,
+                    Qualification: new(PcurveBindingOrigin.ConstructedBoundary, deviation, ConstructedTrimTolerance, samples,
+                        "IsoparametricBoundary", nameof(SurfaceGeometryKind.BSplineSurfaceWithKnots))));
+            }
+        }
 
         void BindBoundary(EdgeId edge, RuledBoundary boundary)
         {
@@ -732,6 +785,9 @@ public static class SectionChainMaterializer
 
     private static SectionPoint2D Lerp(SectionPoint2D a, SectionPoint2D b, double t) =>
         new(a.X + (b.X - a.X) * t, a.Y + (b.Y - a.Y) * t);
+
+    /// <summary>A constructed trim must reproduce its edge far inside the 1e-5 mm qualification tolerance.</summary>
+    private const double ConstructedTrimTolerance = 1e-7d;
 
     private static FaceId AddFace(TopologyBuilder builder, IReadOnlyList<(EdgeId Edge, bool Reversed)> uses)
     {

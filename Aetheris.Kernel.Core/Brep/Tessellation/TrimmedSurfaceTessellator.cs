@@ -528,6 +528,10 @@ internal static class TrimmedSurfaceTessellator
         return inside;
     }
 
+    /// <summary>Test hook: the indexed containment answer and the reference loop's, for one point.</summary>
+    internal static (bool Indexed, bool Reference) ContainsPointBothWays(IReadOnlyList<(double U, double V)> polygon, (double U, double V) point)
+        => (PolygonIndex.Create(polygon) is { } index ? index.Contains(point) : ContainsPoint(polygon, point), ContainsPoint(polygon, point));
+
     private static bool IsPointOnSegment((double U, double V) point, (double U, double V) a, (double U, double V) b)
     {
         var cross = ((point.U - a.U) * (b.V - a.V)) - ((point.V - a.V) * (b.U - a.U));
@@ -606,7 +610,7 @@ internal static class TrimmedSurfaceTessellator
             {
                 var polygon = loops[i];
                 var bounds = ComputeBounds(polygon);
-                loopData.Add(new TrimLoopData(i == outerLoopIndex, polygon, bounds));
+                loopData.Add(new TrimLoopData(i == outerLoopIndex, polygon, bounds, PolygonIndex.Create(polygon)));
             }
 
             var outer = loopData[outerLoopIndex];
@@ -654,7 +658,91 @@ internal static class TrimmedSurfaceTessellator
     private readonly record struct TrimLoopData(
         bool IsOuterLoop,
         IReadOnlyList<(double U, double V)> Polygon,
-        (double UMin, double UMax, double VMin, double VMax) Bounds);
+        (double UMin, double UMax, double VMin, double VMax) Bounds,
+        PolygonIndex? Index = null);
+
+    /// <summary>
+    /// BUILD-PERF-M4: answers <see cref="ContainsPoint(IReadOnlyList{ValueTuple{double, double}}, ValueTuple{double, double})"/>
+    /// exactly, visiting only the segments that can matter for a point. A segment can flip the
+    /// crossing parity only if the point's V lies in its V range, and can report the point "on
+    /// segment" only if the point lies within tol/length of it (|cross| = distance·length ≤ tol); every
+    /// other segment contributes nothing. Segments are bucketed by their V range widened by that
+    /// margin (×4, plus an absolute epsilon, for rounding), and a candidate is tested with the
+    /// original expressions, so the answer is identical. A zero-length segment makes every point
+    /// "on segment" in the original loop; such polygons, and polygons with non-finite coordinates,
+    /// answer the way the loop would without an index.
+    /// </summary>
+    private sealed class PolygonIndex
+    {
+        private readonly IReadOnlyList<(double U, double V)> polygon;
+        private readonly int[][] buckets;
+        private readonly double origin;
+        private readonly double width;
+        private readonly bool everyPointOnSegment;
+
+        private PolygonIndex(IReadOnlyList<(double U, double V)> polygon, int[][] buckets, double origin, double width, bool everyPointOnSegment)
+        {
+            this.polygon = polygon;
+            this.buckets = buckets;
+            this.origin = origin;
+            this.width = width;
+            this.everyPointOnSegment = everyPointOnSegment;
+        }
+
+        public static PolygonIndex? Create(IReadOnlyList<(double U, double V)> polygon)
+        {
+            var count = polygon.Count;
+            if (count < 32) return null;
+            var low = new double[count]; var high = new double[count];
+            var everyPointOnSegment = false;
+            for (var i = 0; i < count; i++)
+            {
+                var a = polygon[i]; var b = polygon[(i + 1) % count];
+                if (!double.IsFinite(a.U) || !double.IsFinite(a.V)) return null;
+                var du = b.U - a.U; var dv = b.V - a.V;
+                if (du == 0d && dv == 0d) everyPointOnSegment = true;
+                var length = double.Sqrt((du * du) + (dv * dv));
+                var margin = 4d * PointOnSegmentTolerance / double.Max(length, 1e-300) + 1e-12 * (1d + double.Abs(a.V) + double.Abs(b.V));
+                if (!double.IsFinite(margin)) margin = double.MaxValue;
+                low[i] = double.Min(a.V, b.V) - margin;
+                high[i] = double.Max(a.V, b.V) + margin;
+            }
+            var origin = low.Min(); var top = high.Max();
+            if (!double.IsFinite(origin) || !double.IsFinite(top) || top <= origin) return null;
+            var bucketCount = System.Math.Max(1, count / 4);
+            var width = (top - origin) / bucketCount;
+            if (!(width > 0d)) return null;
+            var lists = new List<int>[bucketCount];
+            for (var b = 0; b < bucketCount; b++) lists[b] = [];
+            for (var i = 0; i < count; i++)
+                for (var b = BucketOf(low[i], origin, width, bucketCount); b <= BucketOf(high[i], origin, width, bucketCount); b++) lists[b].Add(i);
+            return new(polygon, lists.Select(list => list.ToArray()).ToArray(), origin, width, everyPointOnSegment);
+        }
+
+        // Monotone in v (IEEE subtraction and division by a positive constant are), so a value inside
+        // a segment's range always falls in a bucket between its range's end buckets.
+        private static int BucketOf(double v, double origin, double width, int bucketCount) =>
+            (int)System.Math.Clamp(double.Floor((v - origin) / width), 0d, bucketCount - 1d);
+
+        private int Bucket(double v) => BucketOf(v, origin, width, buckets.Length);
+
+        public bool Contains((double U, double V) point)
+        {
+            if (everyPointOnSegment || !double.IsFinite(point.U) || !double.IsFinite(point.V)) return ContainsPoint(polygon, point);
+            var candidates = buckets[Bucket(point.V)];
+            var inside = false;
+            foreach (var i in candidates)
+            {
+                var a = polygon[i];
+                var b = polygon[(i + 1) % polygon.Count];
+                if (IsPointOnSegment(point, a, b)) return true;
+                var crosses = ((a.V > point.V) != (b.V > point.V))
+                    && (point.U < (((b.U - a.U) * (point.V - a.V)) / (b.V - a.V)) + a.U);
+                if (crosses) inside = !inside;
+            }
+            return inside;
+        }
+    }
 
     private readonly record struct UvPointCacheKey(ulong UBits, ulong VBits)
     {
@@ -675,7 +763,7 @@ internal static class TrimmedSurfaceTessellator
         }
 
         metrics?.IncrementContainsPointEvaluations();
-        return ContainsPoint(loop.Polygon, point);
+        return loop.Index is { } index ? index.Contains(point) : ContainsPoint(loop.Polygon, point);
     }
 
     private static bool IsWithinBounds((double UMin, double UMax, double VMin, double VMax) bounds, (double U, double V) point)

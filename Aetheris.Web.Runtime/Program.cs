@@ -20,6 +20,17 @@ public static partial class Program
 {
     private const string ContractVersion = "aetheris/web-editor-contract/1";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions BridgeOptions = WebResponseBridge.Options(JsonOptions);
+    private static byte[] _pendingBinary = [];
+
+    /// <summary>The binary payload of the last bridge-mode response (empty when none); taken once.</summary>
+    [JSExport]
+    public static byte[] TakeBinary()
+    {
+        var binary = _pendingBinary;
+        _pendingBinary = [];
+        return binary;
+    }
     private static readonly Dictionary<string, WebModelSession> Sessions = new(StringComparer.Ordinal);
     private static int _nextSession;
 
@@ -32,6 +43,7 @@ public static partial class Program
         {
             var request = JsonSerializer.Deserialize<WebRequest>(requestJson, JsonOptions)
                 ?? throw new WebRuntimeException("invalid-request", "The runtime request was empty.");
+            _pendingBinary = [];
             if (request.Performance) BuildPerfTrace.Start();
             object? result = request.Operation switch
             {
@@ -54,7 +66,7 @@ public static partial class Program
                 "disposeRuntime" => DisposeRuntime(),
                 _ => throw new WebRuntimeException("unknown-operation", $"Unknown runtime operation '{request.Operation}'.")
             };
-            var response = JsonSerializer.Serialize(new { ok = true, result }, JsonOptions);
+            var response = request.Bridge >= 1 ? SerializeBridged(request, result) : JsonSerializer.Serialize(new { ok = true, result }, JsonOptions);
             BuildPerfTrace.Stop();
             return response;
         }
@@ -230,7 +242,26 @@ public static partial class Program
         string? SourceName = null, string? PropertyId = null, WebPropertyValue? Value = null,
         string? SourceRevision = null, int? Offset = null, string? ConstructSemanticId = null,
         string? FieldId = null, FirmamentProjectedValue? FieldValue = null, int? BuildRevision = null,
-        bool Performance = false, IReadOnlyDictionary<string, string>? ProjectDocuments = null, string? ProjectRoot = null);
+        bool Performance = false, IReadOnlyDictionary<string, string>? ProjectDocuments = null, string? ProjectRoot = null,
+        int? Bridge = null);
+
+    /// <summary>
+    /// BUILD-PERF-M3 response bridge (request <c>bridge: 1</c>, sent by the SDK). Large numeric arrays
+    /// leave as one binary buffer (<see cref="TakeBinary"/>); a rebuild references mesh definitions the
+    /// session's previous response already delivered instead of serializing them again.
+    /// </summary>
+    private static string SerializeBridged(WebRequest request, object? result)
+    {
+        var owner = (result as WebBuildResult) is { Success: true, Owner: WebModelSession session } ? session : null;
+        var bridge = new WebResponseBridge(request.Operation == "rebuild" && owner is not null ? owner.SentDefinitions : null);
+        WebResponseBridge.Current = bridge;
+        string response;
+        try { response = JsonSerializer.Serialize(new { ok = true, result }, BridgeOptions); }
+        finally { WebResponseBridge.Current = null; }
+        _pendingBinary = bridge.ToArray();
+        owner?.MarkDelivered();
+        return response;
+    }
 
     private sealed class WebRuntimeException(string code, string message) : Exception(message)
     {
@@ -253,6 +284,10 @@ public static partial class Program
         public string Id { get; } = id;
         public string Name => Path.GetFileNameWithoutExtension(_sourceName);
         public int Revision { get; private set; }
+        private object[] _currentDefinitions = [];
+        /// <summary>Definitions of the last snapshot a bridged response delivered to the client.</summary>
+        internal HashSet<object> SentDefinitions { get; private set; } = new(ReferenceEqualityComparer.Instance);
+        internal void MarkDelivered() => SentDefinitions = new(_currentDefinitions, ReferenceEqualityComparer.Instance);
         private string? _stepText;
         private Func<string>? _stepWriter;
         /// <summary>STEP of the current build. Assemblies write it on first request (BUILD-PERF-M1);
@@ -379,7 +414,10 @@ public static partial class Program
                 tree = compiled.Tree, properties = _properties, mesh = compiled.Mesh,
                 diagnostics = compiled.Diagnostics, changes, timings
             };
-            return compiled with { Revision = Revision, Model = _lastSnapshot, Changes = changes, StepText = null, StepWriter = null };
+            _currentDefinitions = compiled.Mesh is AssemblyDisplayMeshDocument document ? document.Definitions.Cast<object>().ToArray() : [];
+            // The snapshot carries tree, mesh and entity ids; the response does not repeat them.
+            return compiled with { Revision = Revision, Model = _lastSnapshot, Changes = changes, StepText = null, StepWriter = null,
+                Tree = null, Mesh = null, EntityIds = null, Owner = this };
         }
 
         private WebBuildResult CompilePart(string effective, List<WebProperty> properties)
@@ -687,6 +725,8 @@ internal sealed record WebBuildResult(bool Success, int Revision, object? Model,
     object? Tree = null, object? Mesh = null, IReadOnlyList<string>? EntityIds = null, object? Timings = null, object? Changes = null, string? StepText = null,
     IReadOnlyList<FirmamentConstructProjection>? Projections = null, double CompileMilliseconds = 0, double MeshMilliseconds = 0)
 {
+    /// <summary>The session that produced this build; never serialized.</summary>
+    [System.Text.Json.Serialization.JsonIgnore] public object? Owner { get; init; }
     /// <summary>Writes the STEP text on first request; never serialized.</summary>
     [System.Text.Json.Serialization.JsonIgnore] public Func<string>? StepWriter { get; init; }
     public static WebBuildResult Failed(IReadOnlyList<WebDiagnostic> diagnostics, double compileMs) => new(false, 0, null, diagnostics, false, Timings: new { compileMilliseconds = compileMs }, CompileMilliseconds: compileMs);

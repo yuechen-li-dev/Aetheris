@@ -121,6 +121,12 @@ Diagnostics, source maps and STEP match a clean build exactly.
 Exit: guitar JSON response < 1 MB; mesh content hash identical; browser time between "build done
 in C#" and "mesh on GPU" measured and reported.
 
+**Result** ([BUILD-PERF-M3](../../../release/BUILD-PERF-M3.md)): success. Duplicate top-level mesh
+removed (responses halved), binary arrays (`bridge: 1`, `TakeBinary`) and retained definitions.
+Guitar cold response 942 KB JSON + 4.8 MB binary; a root-comment edit 165 KB with 56/56 definitions
+retained; every bridged model proven identical to the legacy model (`verify-bridge`). Browser dev
+runtime: ATLAS root-comment edit 5.66 → 1.53 s, with 0.07 s outside the kernel. Next: M2.
+
 ### M4 — Kernel hotspots
 
 In order of measured share, re-profiled after M1–M3:

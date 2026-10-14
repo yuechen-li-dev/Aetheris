@@ -110,10 +110,25 @@ export class Aetheris {
   get workerTiming() { return this.transport.lastTiming ?? null; }
 }
 
+/** BUILD-PERF-M3: a rebuild references definitions this session already holds instead of
+ * resending them; substitute them by id. */
+function resolveRetained(snapshot, previous) {
+  const definitions = snapshot?.mesh?.definitions;
+  if (!definitions?.some(definition => definition.retained)) return;
+  const held = new Map((previous?.definitions ?? []).map(definition => [definition.id, definition]));
+  snapshot.mesh.definitions = definitions.map(definition => {
+    if (!definition.retained) return definition;
+    const kept = held.get(definition.id);
+    if (!kept) throw new AetherisError('retained-definition-missing', `Display definition '${definition.id}' was retained but is not held by this session.`);
+    return kept;
+  });
+}
+
 export class ModelSession {
   constructor(transport, snapshot) { this.transport = transport; this.apply(snapshot); this.queue = Promise.resolve(); }
   get workerTiming() { return this.transport.lastTiming ?? null; }
   apply(snapshot) {
+    resolveRetained(snapshot, this.mesh);
     Object.assign(this, snapshot);
     this._rangesBySemantic = new Map();
     this._rangesBySource = new Map();

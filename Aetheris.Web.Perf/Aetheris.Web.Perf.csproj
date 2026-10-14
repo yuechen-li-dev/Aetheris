@@ -11,8 +11,10 @@
   <ItemGroup>
     <ProjectReference Include="..\Aetheris.Kernel.Firmament\Aetheris.Kernel.Firmament.csproj" />
     <Compile Include="..\Aetheris.Web.Runtime\Program.cs" Link="WebProgram.cs" />
+    <Compile Include="..\Aetheris.Web.Runtime\WebResponseBridge.cs" Link="WebResponseBridge.cs" />
     <Compile Include="PerfProgram.cs" />
     <Compile Include="ShowcasePerf.cs" />
     <Compile Include="CompareStep.cs" />
+    <Compile Include="VerifyBridge.cs" />
   </ItemGroup>
 </Project>

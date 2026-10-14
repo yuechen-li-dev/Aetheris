@@ -21,8 +21,7 @@ public sealed class Step242LinearExtrusionSurfaceProductionTests
         Assert.Contains("ELLIPSE", export.Value, StringComparison.Ordinal);
         Assert.DoesNotContain("B_SPLINE_SURFACE_WITH_KNOTS", export.Value, StringComparison.Ordinal);
 
-        var artifactPath = WriteArtifact(export.Value);
-        Assert.True(File.Exists(artifactPath));
+        AssertCheckedInArtifactCurrent(export.Value);
 
         var reimport = Step242Importer.ImportBody(export.Value);
         Assert.True(reimport.IsSuccess, string.Join(Environment.NewLine, reimport.Diagnostics.Select(d => d.Message)));
@@ -106,11 +105,19 @@ public sealed class Step242LinearExtrusionSurfaceProductionTests
         return new BrepBody(builder.Model, geometry, bindings, vertexPoints);
     }
 
-    private static string WriteArtifact(string stepText)
+    // The checked-in STEP file is a fixture other suites (CLI baselines, ruled probe) read. The test
+    // used to rewrite it on every run, dirtying the working tree and making those suites depend on
+    // test order. It now asserts the fixture is current; set AETHERIS_REFRESH_FIXTURES=1 to rewrite it.
+    private static void AssertCheckedInArtifactCurrent(string stepText)
     {
         var path = Path.Combine(Step242CorpusManifestRunner.RepoRoot(), "testdata", "step242", "generated", "ruled-a2", "ellipse-linear-extrusion-production.step");
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, stepText);
-        return path;
+        if (Environment.GetEnvironmentVariable("AETHERIS_REFRESH_FIXTURES") == "1")
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, stepText);
+            return;
+        }
+        Assert.True(File.Exists(path), $"Missing fixture {path}; run with AETHERIS_REFRESH_FIXTURES=1.");
+        Assert.Equal(stepText.Replace("\r\n", "\n"), File.ReadAllText(path).Replace("\r\n", "\n"));
     }
 }

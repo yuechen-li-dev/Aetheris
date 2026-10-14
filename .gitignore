@@ -433,3 +433,8 @@ FodyWeavers.xsd
 /testdata/step214/handcrafted/baseline/stair.STEP
 /Aetheris.Kernel.Core.Tests/TessellationHoleDiagnosticsTests.cs
 /Aetheris.Kernel.Core/Brep/Boolean/Aetheris Boolean Gemini Action Packet.zip
+
+# The MSBuild JavaScript project SDK (aetheris.client.esproj) writes Windows-style intermediate
+# paths as literal directory names on Linux/macOS, e.g. "obj\Release/".
+obj\\*
+bin\\*

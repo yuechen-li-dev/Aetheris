@@ -81,7 +81,7 @@ public sealed class AssemblyM0Compiler
         AssemblyPmiAuthoring.Validate(source.Annotations, instances, diagnostics);
         var ir = new AssemblyIr("aetheris/assembly-ir/m0", $"assembly:{source.Name}", source.Name,
             instances.Single(x => x.ParentStableId is null).StableId, instances, source.Interfaces, mates,
-            constraints, placements, relations, stackups, fits, diagnostics, assemblyDefinitions, panelMateEvidence, datums, datumSolutions, source.SourceDependencies, joints, source.Patterns, ConceptPoints: source.ConceptPoints, Annotations: source.Annotations);
+            constraints, placements, relations, stackups, fits, diagnostics, assemblyDefinitions, panelMateEvidence, datums, datumSolutions, source.SourceDependencies, joints, source.Patterns, ConceptPoints: source.ConceptPoints, Annotations: source.Annotations) { InventoryBindings = source.ModuleGraph?.InventoryBindings.ToArray() ?? [] };
         ir = ir with { AxisSeats = AssemblyDatumAuthoring.ValidateAxisSeats(source, ir, diagnostics) };
         ir = AssemblyAppearanceAuthoring.Bind(ir, source.AppearanceCatalog, diagnostics);
         return new(ir, diagnostics, perf);

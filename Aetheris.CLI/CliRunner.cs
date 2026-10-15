@@ -2367,13 +2367,27 @@ Model CanonicalPanel {
         if (Aetheris.Kernel.Firmament.Garment.GarmentAuthoring.HasRoot(validationSource)
             || frontend.Schema == FirmamentFrontendSchema.Garment)
             return GarmentCommand.Run(["inspect", sourcePath, .. (json ? new[] { "--json" } : Array.Empty<string>())], stdout, stderr);
+        if (FirmamentLanguageAnalysisService.HasAssemblyRoot(validationSource))
+        {
+            var parsedAssembly = parseOnly ? new AssemblyM0Parser().ParseFile(sourcePath) : null;
+            var builtAssembly = parseOnly ? null : new AssemblyM1Pipeline().CompileFile(sourcePath);
+            var validAssembly = parsedAssembly?.IsSuccess ?? builtAssembly!.IsSuccess;
+            var payload = new { success=validAssembly, domain="Assembly", validationLevel=!validAssembly ? "BuildRejected" : parseOnly ? "ParsedNotBuilt" : "Built",
+                diagnostics=parsedAssembly?.Diagnostics ?? builtAssembly!.Diagnostics };
+            if (json) stdout.WriteLine(JsonSerializer.Serialize(payload,JsonOptions));
+            else { stdout.WriteLine(validAssembly ? "Assembly admitted." : "Assembly rejected."); foreach(var d in payload.diagnostics) stderr.WriteLine(d.Code+": "+d.Message); }
+            return validAssembly ? 0 : 1;
+        }
         if (Aetheris.Kernel.Firmament.Scene.SceneAuthoring.HasRoot(validationSource))
         {
-            var scene = Aetheris.Kernel.Firmament.Scene.SceneAuthoring.Parse(validationSource,Path.GetFullPath(sourcePath));
-            var payload = new { success=scene.IsSuccess, domain="Scene", diagnostics=scene.Diagnostics };
+            using var sceneSession = new Aetheris.Kernel.Firmament.Scene.FirmamentSceneSession();
+            var parsedScene = parseOnly ? Aetheris.Kernel.Firmament.Scene.SceneAuthoring.Parse(validationSource,Path.GetFullPath(sourcePath)) : null;
+            var scene = parseOnly ? null : sceneSession.CompileFile(sourcePath);
+            var sceneValid=parsedScene?.IsSuccess ?? scene!.IsSuccess;
+            var payload = new { success=sceneValid, domain="Scene", validationLevel=!sceneValid ? "BuildRejected" : parseOnly ? "ParsedNotBuilt" : "Built", diagnostics=parsedScene?.Diagnostics ?? scene!.Diagnostics };
             if (json) stdout.WriteLine(JsonSerializer.Serialize(payload,JsonOptions));
-            else { stdout.WriteLine(scene.IsSuccess ? "Scene source valid; engineering definitions are checked by scene inspect/export." : "Scene source invalid."); foreach(var d in scene.Diagnostics) stderr.WriteLine(d.Code+": "+d.Message); }
-            return scene.IsSuccess ? 0 : 1;
+            else { stdout.WriteLine(sceneValid ? "Scene admitted." : "Scene rejected."); foreach(var d in payload.diagnostics) stderr.WriteLine(d.Code+": "+d.Message); }
+            return sceneValid ? 0 : 1;
         }
         validationSource = frontend.Source;
         if (PlasticShellFirmament.LooksLikePlasticShell(validationSource))
@@ -4038,8 +4052,8 @@ Model CanonicalPanel {
         if (!File.Exists(path)) { stderr.WriteLine($"Assembly source '{path}' was not found."); return 1; }
         var sourceText = File.ReadAllText(path);
         var usesTemplateInstances = Regex.IsMatch(sourceText, @"<Part\s+[A-Za-z_]\w*\s*=\s*[A-Za-z_]\w*\s*<", RegexOptions.CultureInvariant);
-        if (!usesTemplateInstances && !Path.GetExtension(path).Equals(".firmasm", StringComparison.OrdinalIgnoreCase) && FirmamentSourceSpelling.Normalize(sourceText).Contains("Include", StringComparison.Ordinal))
-            usesTemplateInstances = new AssemblyM0Parser().ParseFile(path).Source is { } imported && NeedsMaterialization(imported.Root);
+        if (!usesTemplateInstances && !Path.GetExtension(path).Equals(".firmasm", StringComparison.OrdinalIgnoreCase) && (FirmamentSourceSpelling.Normalize(sourceText).Contains("Include", StringComparison.Ordinal) || sourceText.Contains("Inventory", StringComparison.Ordinal)))
+            usesTemplateInstances = new AssemblyM0Parser().ParseFile(path).Source is { } imported && (imported.HasModuleBindings || NeedsMaterialization(imported.Root));
         static bool NeedsMaterialization(AssemblyMemberSource member) => member.Kind == AssemblyInstanceKind.Part && member.DefinitionIdentity.Contains('<')
             || member.Children.Any(NeedsMaterialization);
         var usesGearParts = GearAuthoring.ParseDefinitions(sourceText).Gears.Count > 0;

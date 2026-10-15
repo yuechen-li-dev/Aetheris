@@ -289,3 +289,26 @@ Complete include-file/module provenance and remaining collection/domain source
 adapters remain X2 work. No general Let, runtime scripting, new units doctrine or
 geometry capability was introduced. All 24 original recommendations and rationale
 remain in the register above; no syntax policy decision is awaiting the user.
+
+
+### Inventory and module graph continuation
+
+[Inventory Records](../public/firmament/inventory.md) bind typed references to
+concrete Part, Subassembly, Assembly and Scene exports. PascalCase catalogs and
+camelCase members retain the current casing policy. Adapter-typed locators normally
+omit extensions; ambiguous matches reject, with explicit extensions as the repair.
+`include` remains available for short unqualified compositions; no size threshold
+is enforced. Both forms use the AST-owned dependency graph.
+
+Inventory imports remain separate source modules. Existing include composition
+uses a mapped compatibility projection. Resource, Inventory and original syntax
+errors carry declaring-file spans; downstream generated/native errors still disclose
+an enclosing-export limitation where precise producer locations are unavailable.
+Definition identities use project-relative resource paths, not machine directories.
+Source-only snapshots reject STEP dependencies explicitly. Templates specialize in
+the defining module before Inventory export; general cross-module value arguments
+are deferred to the remaining typed module contract, without implicit capture.
+
+Recommendations 3, 4, 8, 15, 19, 22 and 23 advance. The full X2 domain/value/source-map
+migration is still open; no new parser route, geometry engine or runtime module
+system is introduced. Qualification is recorded in the Inventory release report.

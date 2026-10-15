@@ -1,0 +1,10 @@
+Inventory Record Parts {
+  bracket: Part = Firmament("parts/bracket").Bracket
+}
+Subassembly Drive {
+  <Assembly Drive>
+    <Part Left = Parts.bracket> Placement { from: Origin; to: World; } </Part>
+    <Part Right = Parts.bracket> Placement { from: Origin; to: World; translateLocal: [50mm, 0mm, 0mm]; } </Part>
+  </Assembly>
+  Anchor: Drive;
+}

@@ -1,0 +1,9 @@
+include "parts/bracket";
+include "parts/bolt";
+Assembly Fastener {
+  <Assembly Fastener>
+    <Part Bracket = Bracket> Placement { from: Origin; to: World; } </Part>
+    <Part Bolt = Bolt<length: 8mm>> Placement { from: Origin; to: World; translateLocal: [30mm, 0mm, 0mm]; } </Part>
+  </Assembly>
+  Anchor: Fastener;
+}

@@ -4,7 +4,12 @@ Date: 2026-10-15. Base: `e6468b03c6bd4a6b2bfd40329de1381c16968512`.
 
 **Verdict: Meaningful progression. X2 is not Accepted.**
 
-Latest continuation: Record, Static and Table names now bind through lexical
+The later [Inventory module pass](FIRMAMENT-INVENTORY-MODULES.md) replaces regex
+include discovery with the AST-owned dependency graph, adds typed module imports
+and retains original imported syntax locations. Its fresh gates are recorded in
+that report. The data-pass measurements below remain their original evidence.
+
+Previous qualified continuation: Record, Static and Table names now bind through lexical
 production AST identities and a shared typed data catalog. The Spec schema-capture
 witness builds its intended 30 × 20 × 6 mm geometry. Final gates: **5,018 tests**,
 **1,276 classified sources**, **26/26 byte-identical STEP baselines**. Complete
@@ -153,8 +158,10 @@ Malformed Template prefixes cannot disappear if syntax recovery fails to produce
 a declaration node: the existing lexer/token stream retains the failed prefix.
 
 Complete provenance and value scoping still have concrete blockers.
-`AssemblyM0Parser.LoadProjectSource` and `LoadSourceGraph` return concatenated
-strings without per-declaration file identity. Template bodies still cross the
+The previous `AssemblyM0Parser.LoadProjectSource` and `LoadSourceGraph` returned
+concatenated strings without per-declaration file identity. The Inventory pass
+removes those readers in favor of the module graph. Legacy include transport now
+has source segments; typed imports keep their defining modules separate. Template bodies still cross the
 existing Match/PMI and domain lowerers as source slices. No claim is made
 that the Template body substitution or every domain reader has migrated.
 
@@ -188,9 +195,9 @@ document and single-Model container compatibility. Public Record/type names rema
 authored names; nested host Record markers resolve the selected nominal schema.
 Unambiguous existing engineering identities remain unchanged.
 
-The next X2 boundary is complete module/original-file provenance and the remaining
-collection, expansion and domain source adapters. Included documents are still
-concatenated by the Assembly source loader. Record/data lexical lookup no longer
+The remaining X2 boundary is complete generated-source provenance and the
+collection, expansion and domain source adapters. Inventory now owns module lookup;
+legacy includes retain an explicit mapped declaration-composition adapter. Record/data lexical lookup no longer
 requires that handoff to be flattened into an unqualified registry, but this pass
 does not claim that all original include locations or domain bodies have migrated.
 
@@ -208,7 +215,7 @@ all downstream semantics.
 | Mechanical / unified binders | AST admission with bounded semantic adapters | Profile, Compose, selection/PMI and compatibility readers remain in parts of the lowerer chain. |
 | Panel, Plateau, Revolve, Loft/SectionChain | AST admission with bounded semantic adapters | Profile resolution, preprocessing and specialized source projections remain. |
 | Assembly contracts / `AssemblyInterfaceSyntax` | AST-owned migrated contracts/mates | Existing engineering placement and relationship lowerers preserved. |
-| Assembly tree / `AssemblyM0Parser` | Legacy source reader still authoritative after structural admission | Includes, product tree, parts, frames, appearances, ports and source specialization. |
+| Assembly tree / `AssemblyM0Parser` | AST module graph and structural admission; existing product lowerers retained | Product tree, frames, appearances, ports and remaining source specialization. Includes use the module graph's mapped compatibility projection. |
 | Scene / `SceneAuthoring.Reader` | Legacy source reader still authoritative | Room/opening/camera/placement binding and module interpretation; numeric service and occurrence mapping now shared. |
 | SheetMetal / SheetMetalFirmament, AuthoredSheetMetalCompiler | Legacy source reader still authoritative after structural admission | Manufacturing source fields and expansion remain to migrate. |
 | WireForm / `WireFormAuthoring` | Legacy source reader still authoritative | Field/route interpretation and source-based specialization remain. |
@@ -486,7 +493,8 @@ use production AST identities and the common typed catalog. The schema-capture
 witness builds its intended geometry, inaccessible/incorrect data rejects, and
 scoped tolerance requirements project through the real AP242 path.
 
-X2 remains open for complete include-file/module provenance and remaining
-collection, expansion and domain readers. No language-policy decision is awaiting
+X2 remains open for complete generated-source provenance and remaining collection,
+expansion and domain readers. The later Inventory module report records the new
+module-binding and original syntax-location qualification. No language-policy decision is awaiting
 the user. The next work is the module syntax/provenance handoff and removal of
 those remaining source owners as each family is qualified.

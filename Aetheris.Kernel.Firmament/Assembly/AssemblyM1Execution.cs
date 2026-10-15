@@ -70,7 +70,7 @@ internal sealed record MaterializedAssemblyDefinition(
 /// M1's definition seam: specialize through the ordinary Firmament compiler, then
 /// reimport its canonical AP242 exact body. Assembly has no second part generator.
 /// </summary>
-internal static class AssemblyDefinitionMaterializer
+internal static partial class AssemblyDefinitionMaterializer
 {
     public static MaterializedAssemblyDefinition? TryMaterialize(string definitionIdentity, string? definitionSource, string sourceIdentity, List<AssemblyDiagnostic> diagnostics, FirmamentProjectSnapshot? project = null,
         Func<string, KernelResult<BrepBody>>? importBody = null)
@@ -407,6 +407,10 @@ public sealed class AssemblyM1Pipeline
         return CompileParsed(parsed, domainMaterializer);
     }
 
+    internal AssemblyM1CompilationResult CompileModule(Aetheris.Kernel.Firmament.Modules.FirmamentModuleGraph graph,
+        Aetheris.Kernel.Firmament.Modules.FirmamentModuleGraph.Reference reference)
+        => CompileParsed(graph.ParseAssembly(reference), null, graph.Project);
+
     public AssemblyM1CompilationResult CompileProject(FirmamentProjectSnapshot project)
     {
         ArgumentNullException.ThrowIfNull(project);
@@ -437,7 +441,10 @@ public sealed class AssemblyM1Pipeline
         var materializationWatch = Stopwatch.StartNew();
         var definitions = parsed.Source.Root.Flatten().Where(member => member.Kind == AssemblyInstanceKind.Part)
             .Select(member => member.DefinitionIdentity).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)
-            .Select(identity => { using var definitionPhase = BuildPerfTrace.Phase("assembly.definition"); return cache is null
+            .Select(identity => { using var definitionPhase = BuildPerfTrace.Phase("assembly.definition");
+                if (parsed.Source.ModuleGraph?.TryReference(identity, out var imported) == true)
+                    return AssemblyDefinitionMaterializer.MaterializeModule(parsed.Source.ModuleGraph, imported, identity, diagnostics, cache);
+                return cache is null
                 ? Materialize(identity, parsed.Source.DefinitionSource, parsed.Source.SourceIdentity, diagnostics, domainMaterializer, project)
                 : cache.Materialize(identity, parsed.Source.DefinitionSource, parsed.Source.SourceIdentity, diagnostics, project,
                     () => Materialize(identity, parsed.Source.DefinitionSource, parsed.Source.SourceIdentity, diagnostics, domainMaterializer, project, cache.ImportCanonical)); })

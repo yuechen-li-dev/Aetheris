@@ -74,7 +74,11 @@ public sealed record SceneLayoutFrame(string Identity, AssemblyFrameTransformSou
 public sealed record SceneSource(string Name, string Units, string DefinitionSource, string SourceIdentity,
     IReadOnlyList<SceneRoom> Rooms, IReadOnlyList<SceneOpening> Openings, IReadOnlyList<SceneCamera> Cameras,
     IReadOnlyList<SceneOccurrenceSource> Occurrences, AssemblyAppearanceCatalog Looks,
-    IReadOnlyList<FirmamentV2CanonicalPatternDecl> Patterns, IReadOnlyList<SceneLayoutFrame> LayoutFrames);
+    IReadOnlyList<FirmamentV2CanonicalPatternDecl> Patterns, IReadOnlyList<SceneLayoutFrame> LayoutFrames)
+{
+    public IReadOnlyList<Aetheris.Kernel.Firmament.Modules.FirmamentInventoryBinding> InventoryBindings { get; init; } = [];
+    public IReadOnlyList<AssemblySourceDependencyIr> SourceDependencies { get; init; } = [];
+}
 public sealed record SceneParseResult(SceneSource? Source, IReadOnlyList<AssemblyDiagnostic> Diagnostics)
 { public bool IsSuccess => Source is not null && Diagnostics.All(d => d.Severity != AssemblyDiagnosticSeverity.Error); }
 
@@ -96,8 +100,39 @@ public static class SceneAuthoring
     public static SceneParseResult Parse(string input, string sourceIdentity = "<memory>")
     {
         var diagnostics = new List<AssemblyDiagnostic>();
-        try { return ParseCore(input, sourceIdentity, diagnostics); }
+        try
+        {
+            if (Aetheris.Kernel.Firmament.Modules.FirmamentModuleGraph.HasImports(input))
+            {
+                var graph=Aetheris.Kernel.Firmament.Modules.FirmamentModuleGraph.Load(input,sourceIdentity);
+                if (graph.Diagnostics.Count > 0) return new(null,graph.Diagnostics);
+                var projection=graph.ProjectSource(graph.Root);
+                var parsed=ParseCore(projection.Text,sourceIdentity,diagnostics);
+                return ApplyModuleContext(parsed,graph,projection);
+            }
+            return ParseCore(input, sourceIdentity, diagnostics);
+        }
         catch (SceneSyntaxException ex) { diagnostics.Add(new(ex.Code, ex.Message)); return new(null, diagnostics); }
+    }
+
+    internal static SceneParseResult ApplyModuleContext(SceneParseResult parsed,
+        Aetheris.Kernel.Firmament.Modules.FirmamentModuleGraph graph,
+        Aetheris.Kernel.Firmament.Modules.FirmamentModuleGraph.Projection projection)
+    {
+        SemanticSourceSpan Original(SemanticSourceSpan span) => span.Source == projection.SourceIdentity
+            ? projection.Original(new(span.Start,span.Length)) ?? span : span;
+        return parsed with
+        {
+            Diagnostics=parsed.Diagnostics.Select(projection.Map).ToArray(),
+            Source=parsed.Source is not { } source ? null : source with
+            {
+                InventoryBindings=graph.InventoryBindings.ToArray(), SourceDependencies=graph.Dependencies,
+                Occurrences=source.Occurrences.Select(o => o with { Span=Original(o.Span) }).ToArray(),
+                Rooms=source.Rooms.Select(o => o with { Span=Original(o.Span) }).ToArray(),
+                Openings=source.Openings.Select(o => o with { Span=Original(o.Span) }).ToArray(),
+                Cameras=source.Cameras.Select(o => o with { Span=Original(o.Span) }).ToArray()
+            }
+        };
     }
 
     private static SceneParseResult ParseCore(string input, string identity, List<AssemblyDiagnostic> diagnostics)
@@ -243,7 +278,7 @@ public static class SceneAuthoring
                 while (!(r.Peek == "<" && r.Next == "/")) ReadOccurrence(r,group);
                 r.Expect("<"); r.Expect("/"); r.Expect("Group"); r.Expect(">"); return;
             }
-            if (kind is not ("Part" or "Assembly")) Fail("scene-occurrence-kind-invalid", "Scene occurrences are Part or Assembly.");
+            if (kind is not ("Part" or "Assembly" or "Scene")) Fail("scene-occurrence-kind-invalid", "Scene occurrences are Part, Assembly or Scene.");
             r.Expect("="); var definition = r.UntilTagEnd(); var content = r.UntilClosing(kind);
             var prefix=$"<{kind} {id}>"; var suffix=$"</{kind}>";
             var occurrenceBody=FirmamentSourceSpelling.Normalize(prefix+content.Text+suffix)[prefix.Length..^suffix.Length];

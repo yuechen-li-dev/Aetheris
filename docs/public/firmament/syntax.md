@@ -745,6 +745,32 @@ Do not invent `schema Assembly` or wrap arbitrary domain declarations in a Model
 | Engineering annotations | [PMI](pmi.md). |
 | File-backed modules and source-only projects | [Project snapshots](project-snapshots.md), [Concept derivation](concept-derivation.md). |
 
+### Inventory: organize module dependencies
+
+Use a short `include "parts/bolt";` when shared declarations are convenient. For
+larger compositions, give Part, Subassembly, Assembly and Scene dependencies typed
+names in an Inventory Record:
+
+```firmament
+Inventory Record Components {
+  bracket: Part = Firmament("parts/bracket").Bracket
+  drive: Subassembly = Firmament("assemblies/drive").Drive
+  bearing: Part = Step("vendor/bearing")
+}
+```
+
+This fragment requires the named resources. Locators normally omit the extension;
+ambiguous matches reject. Place `Components.bracket` through a Part occurrence,
+`Components.drive` through an Assembly occurrence, or a Scene entry through a
+Scene occurrence. The catalog makes definitions available; occurrences determine
+quantity and placement. Entries reference concrete modules; specialize Templates
+in the defining module before exporting their results.
+
+Inventory follows lexical scope and retains imported file identity. Existing
+`include` remains the concise, unqualified composition form. See
+[Inventory Records](inventory.md) for complete projects, source snapshots, STEP
+boundaries and extension resolution.
+
 Assembly occurrence trees use `<Assembly>` / `<Part>` tags as well as brace
 bodies. Tree nesting does not create a Mate. Inclusion is owned by the consuming
 project/domain; `include` is **not** a universal mechanical preprocessor.

@@ -10,7 +10,7 @@ public sealed class AssemblyUnifiedFrontendTests
     private static string Source => Read("Regression/FrontendX1/assembly-modern-contract.firmament");
 
     [Fact]
-    public void IncludedSyntaxErrorsDiscloseTheExpandedScopeInsteadOfInventingRootFileOffsets()
+    public void IncludedSyntaxErrorsRetainTheOriginalDocumentAndPreciseOffset()
     {
         var project = new FirmamentProjectSnapshot("root.firmasm", new Dictionary<string, string>
         {
@@ -20,8 +20,9 @@ public sealed class AssemblyUnifiedFrontendTests
         var result = new AssemblyM0Parser().ParseProject(project);
         Assert.False(result.IsSuccess);
         var diagnostic = Assert.Single(result.Diagnostics);
-        Assert.EndsWith("#expanded-includes", diagnostic.SourceSpan!.Source);
-        Assert.Contains("original included-file mapping", diagnostic.LocationNote);
+        Assert.Equal("bad.firmament", diagnostic.SourceSpan!.Source);
+        Assert.Equal(project.Documents["bad.firmament"].IndexOf(';'), diagnostic.SourceSpan.Start);
+        Assert.Null(diagnostic.LocationNote);
         Assert.Contains("identifier", diagnostic.Message);
     }
 

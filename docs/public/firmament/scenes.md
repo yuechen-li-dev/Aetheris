@@ -185,3 +185,18 @@ resources from a virtual/browser project is deferred.
 
 Nested Scenes, BIM/IFC, general walls, zones, lights, logistics, collision
 avoidance, path planning, physics and robotics control are outside X0.
+
+## Inventory module composition
+
+[Inventory Records](inventory.md) organize typed dependencies without injecting
+imported definitions into the Scene's source namespace. Use extensionless locators
+such as `Firmament("machine").Machine` and place the member as an ordinary Assembly
+occurrence. Part and Subassembly entries use their existing engineering owners.
+A Scene entry can be placed with `<Scene cell = Library.cell> ... </Scene>`.
+
+Nested Scenes retain their units, geometry, occurrence hierarchy, appearances and
+source anchors. Their world transforms compose with the parent's Placement exactly
+once. Place them from `Origin`; child cameras remain local to the child Scene.
+The compiled Scene source model retains Inventory binding and source-dependency
+receipts; CLI inspection exposes the composed nodes and their source anchors. A complete
+multi-file witness is [the Inventory factory](../../../fixtures/Regression/Inventory/factory.firmament).

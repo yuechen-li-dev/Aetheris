@@ -1,0 +1,3 @@
+Template<length: Length = 8mm> Struct Bolt {
+  Box stock { size: [4mm, 4mm, length] }
+}

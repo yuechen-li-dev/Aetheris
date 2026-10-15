@@ -87,7 +87,8 @@ Interface<Custom> CarryLink {
 
 ## Multi-file subassemblies
 
-`Include` is compile-time semantic composition. Paths resolve relative to the including file and must remain under the repository source root (or, outside a checkout, the root document directory). Missing files and include cycles are typed errors. Duplicate Interface or Subassembly definitions are rejected; aliasing is not admitted in X1.
+For organized, qualified dependencies, prefer [Inventory Records](inventory.md).
+`include` remains compile-time semantic composition for concise shared declarations. Paths resolve relative to the including file and must remain under the repository source root (or, outside a checkout, the root document directory). Missing files and include cycles are typed errors. Duplicate Interface or Subassembly definitions in one include-composed module reject. Inventory members bind checked aliases to named exports without pooling imported definitions into that namespace.
 
 ```firmament
 Include "digit-module.firmament";

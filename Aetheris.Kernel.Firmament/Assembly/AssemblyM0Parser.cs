@@ -5,6 +5,7 @@ using System.Numerics;
 using Aetheris.Kernel.Firmament.FirmamentV2;
 using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 using Aetheris.Semantics;
+using Aetheris.Kernel.Firmament.Modules;
 
 namespace Aetheris.Kernel.Firmament.Assembly;
 
@@ -19,74 +20,26 @@ public sealed class AssemblyM0Parser
     public ParseResult ParseFile(string path)
     {
         var fullPath = Path.GetFullPath(path);
-        var loadDiagnostics = new List<AssemblyDiagnostic>();
-        var dependencies = new List<AssemblySourceDependencyIr>();
-        var allowedRoot = FindAllowedSourceRoot(fullPath);
-        var source = LoadSourceGraph(fullPath, allowedRoot, [], dependencies, loadDiagnostics);
-        if (source is null) return new(null, loadDiagnostics, 0);
-        var parsed = Parse(source, fullPath);
-        var diagnostics = loadDiagnostics.Concat(GraphDiagnostics(parsed.Diagnostics, fullPath, dependencies.Count)).ToArray();
-        return new(parsed.Source is null ? null : parsed.Source with { SourceDependencies = dependencies.Concat(parsed.Source.SourceDependencies ?? []).DistinctBy(d => d.Path).ToArray() }, diagnostics, parsed.ElapsedMilliseconds);
+        if (!File.Exists(fullPath)) return new(null, [new("assembly-include-file-not-found", $"Module '{fullPath}' was not found.")], 0);
+        var graph = FirmamentModuleGraph.Load(File.ReadAllText(fullPath), fullPath);
+        return ParseGraph(graph);
     }
 
     public ParseResult ParseProject(FirmamentProjectSnapshot project)
     {
         ArgumentNullException.ThrowIfNull(project);
-        var diagnostics = new List<AssemblyDiagnostic>();
-        var dependencies = new List<AssemblySourceDependencyIr>();
-        var source = LoadProjectSource(project.RootDocument, project, [], dependencies, diagnostics);
-        if (source is null) return new(null, diagnostics, 0);
-        var parsed = Parse(source, project.RootDocument, project);
-        return new(parsed.Source is null ? null : parsed.Source with { SourceDependencies = dependencies.Concat(parsed.Source.SourceDependencies ?? []).DistinctBy(d => d.Path).ToArray() },
-            [.. diagnostics, .. GraphDiagnostics(parsed.Diagnostics, project.RootDocument, dependencies.Count)], parsed.ElapsedMilliseconds);
+        if (!project.TryResolve(project.RootDocument, out var text))
+            return new(null, [new("assembly-include-file-not-found", $"Project document '{project.RootDocument}' was not found.")], 0);
+        return ParseGraph(FirmamentModuleGraph.Load(text, project.RootDocument, project));
     }
 
-    private static IEnumerable<AssemblyDiagnostic> GraphDiagnostics(IEnumerable<AssemblyDiagnostic> diagnostics, string root, int documents)
-        => documents <= 1 ? diagnostics : diagnostics.Select(d => d.SourceSpan is { } span && span.Source == root
-            ? d with { SourceSpan = span with { Source = root + "#expanded-includes" },
-                LocationNote = "Location is in the expanded include graph; original included-file mapping is unavailable." } : d);
-
-    private static string? LoadProjectSource(string path, FirmamentProjectSnapshot project,
-        IReadOnlyList<string> stack, List<AssemblySourceDependencyIr> dependencies, List<AssemblyDiagnostic> diagnostics)
+    private ParseResult ParseGraph(FirmamentModuleGraph graph)
     {
-        var cycleAt = stack.ToList().FindIndex(item => string.Equals(item, path, StringComparison.Ordinal));
-        if (cycleAt >= 0)
-        {
-            diagnostics.Add(new("assembly-include-cycle", $"Compile-time Include cycle: {string.Join(" -> ", stack.Skip(cycleAt).Append(path))}."));
-            return null;
-        }
-        if (!project.TryResolve(path, out var text))
-        {
-            diagnostics.Add(new("assembly-include-file-not-found", $"Project document '{path}' was not found."));
-            return null;
-        }
-        if (stack.Count > 0 && !path.EndsWith(".firmament", StringComparison.OrdinalIgnoreCase))
-        {
-            diagnostics.Add(new("assembly-include-extension-invalid", $"Compile-time Include '{path}' must reference a .firmament semantic source file."));
-            return null;
-        }
-        if (dependencies.Any(item => string.Equals(item.Path, path, StringComparison.Ordinal))) return string.Empty;
-        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(text)));
-        dependencies.Add(new(path, hash, stack.Count == 0));
-        var declarations = new List<string>();
-        foreach (Match include in Regex.Matches(text, @"^[ \t]*(?:Include|include)\s+""(?<path>[^""]+)""\s*;", RegexOptions.CultureInvariant | RegexOptions.Multiline))
-        {
-            string childPath;
-            try
-            {
-                childPath = FirmamentProjectSnapshot.NormalizePath(include.Groups["path"].Value);
-            }
-            catch (ArgumentException)
-            {
-                diagnostics.Add(new("assembly-include-outside-root", $"Include '{include.Groups["path"].Value}' in '{path}' escapes the project root or uses an invalid path."));
-                return null;
-            }
-            var child = LoadProjectSource(childPath, project, [.. stack, path], dependencies, diagnostics);
-            if (child is null) return null;
-            declarations.Add(child);
-        }
-        declarations.Add(Regex.Replace(text, @"^[ \t]*(?:Include|include)\s+""[^""]+""\s*;[ \t]*(?:\r?\n)?", string.Empty, RegexOptions.CultureInvariant | RegexOptions.Multiline));
-        return string.Join(Environment.NewLine, declarations);
+        if (graph.Diagnostics.Count > 0) return new(null, graph.Diagnostics, 0);
+        var projection = graph.ProjectSource(graph.Root);
+        var parsed = ParseBound(projection.Text, graph.Root.Path, graph, graph.Root, projection);
+        return parsed with { Source = parsed.Source is null ? null : parsed.Source with
+            { SourceDependencies = graph.Dependencies.Concat(parsed.Source.SourceDependencies ?? []).DistinctBy(d => d.Path).ToArray() } };
     }
 
     internal static string FindAllowedSourceRoot(string path)
@@ -102,11 +55,34 @@ public sealed class AssemblyM0Parser
 
     internal static string? LoadResource(string path, FirmamentProjectSnapshot? project,
         List<AssemblySourceDependencyIr> dependencies, List<AssemblyDiagnostic> diagnostics)
-        => project is not null ? LoadProjectSource(path, project, [], dependencies, diagnostics)
-            : LoadSourceGraph(Path.GetFullPath(path), FindAllowedSourceRoot(Path.GetFullPath(path)), [], dependencies, diagnostics);
+    {
+        string text;
+        if (project is not null)
+        {
+            if (!project.TryResolve(path, out text!)) { diagnostics.Add(new("assembly-include-file-not-found", path)); return null; }
+        }
+        else
+        {
+            if (!File.Exists(path)) { diagnostics.Add(new("assembly-include-file-not-found", $"Module '{path}' was not found.")); return null; }
+            text = File.ReadAllText(path);
+        }
+        var graph = FirmamentModuleGraph.Load(text, path, project);
+        diagnostics.AddRange(graph.Diagnostics);
+        if (graph.Diagnostics.Count > 0) return null;
+        dependencies.AddRange(graph.Dependencies);
+        return graph.ProjectSource(graph.Root).Text;
+    }
 
     public ParseResult Parse(string input, string sourceIdentity = "<memory>", FirmamentProjectSnapshot? project = null)
     {
+        if (FirmamentModuleGraph.HasImports(input)) return ParseGraph(FirmamentModuleGraph.Load(input, sourceIdentity, project));
+        return ParseBound(input, sourceIdentity, null, null, null, projectContext: project);
+    }
+
+    internal ParseResult ParseBound(string input, string sourceIdentity, FirmamentModuleGraph? graph,
+        FirmamentModuleGraph.Module? module, FirmamentModuleGraph.Projection? projection, DeclarationSyntax? exported = null, FirmamentProjectSnapshot? projectContext = null)
+    {
+        var project = graph?.Project ?? projectContext;
         var watch = Stopwatch.StartNew();
         var diagnostics = new List<AssemblyDiagnostic>();
         var syntax = FirmamentSyntaxParser.Parse(input, sourceIdentity);
@@ -166,13 +142,15 @@ public sealed class AssemblyM0Parser
         var portCache = new Dictionary<string, IReadOnlyList<SemanticValue>>(StringComparer.Ordinal);
         IReadOnlyList<SemanticValue> Ports(string identity)
         {
+            if (graph?.TryReference(identity, out var imported) == true)
+                return graph.Ports(imported, identity, diagnostics, PortCache);
             if (!portCache.TryGetValue(identity, out var ports))
                 using (var portsPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("m0.ports")) portCache[identity] = ports = AssemblyPublishedPorts.BindAuthored(identity, definitionSource, sourceIdentity, diagnostics, project, portDependencies, PortCache);
             return ports;
         }
         var templateRanges = new List<(int Start, int Length)>();
         var assemblydefinitionsPhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("m0.assembly-definitions");
-        var assemblyDefinitions = ParseAssemblyDefinitions(source, sourceIdentity, interfaces, concepts, gearAuthorities, diagnostics, templateRanges, Ports, layout);
+        var assemblyDefinitions = ParseAssemblyDefinitions(source, sourceIdentity, interfaces, concepts, gearAuthorities, diagnostics, templateRanges, Ports, layout, graph);
         assemblydefinitionsPhase.Dispose();
         // Template-produced Assembly bodies are declarations, not exported roots.
         // Blank them without changing offsets, then locate the single root Assembly.
@@ -186,9 +164,14 @@ public sealed class AssemblyM0Parser
         if (body is null) return Done(null);
         var specializationCache = new Dictionary<string, AssemblyMemberSource>(StringComparer.Ordinal);
         var treePhase = Aetheris.Kernel.Core.Diagnostics.BuildPerfTrace.Phase("m0.tree");
-        var tree = ParseTree(body, sourceIdentity, diagnostics, assemblyDefinitions, interfaces, specializationCache, gearAuthorities, Ports);
+        var tree = ParseTree(body, sourceIdentity, diagnostics, assemblyDefinitions, interfaces, specializationCache, gearAuthorities, Ports, graph);
         treePhase.Dispose();
         if (tree is null) return Done(null);
+        if (exported is not null)
+        {
+            tree = tree with { ExposedSemantics = ParseAssemblyExposes(body, tree, sourceIdentity, diagnostics) };
+            tree = graph!.QualifyParts(module!, tree);
+        }
         var mates = ParseMates(body, sourceIdentity, diagnostics);
         var relations = ParseRelations(body, diagnostics);
         var asserts = ParseAsserts(body, sourceIdentity, diagnostics);
@@ -199,10 +182,11 @@ public sealed class AssemblyM0Parser
         tree = AssemblyDatumAuthoring.Bind(body, tree, layout, interfaces, diagnostics, out var datumFrames, Ports);
         datumbindPhase.Dispose();
         frames = frames.Concat(datumFrames).ToArray();
-        var result = new AssemblySource(assemblyHeader.Groups["name"].Value, tree, interfaces, mates, anchor, relations, asserts, sourceIdentity, definitionSource, assemblyDefinitions, SourceDependencies: portDependencies, FrameTransforms: frames, Patterns: expandedPatterns.Document?.Patterns, ConceptPoints: expandedPatterns.Document?.ConceptPoints, AppearanceCatalog: appearanceCatalog, Annotations: annotations);
+        var result = new AssemblySource(assemblyHeader.Groups["name"].Value, tree, interfaces, mates, anchor, relations, asserts, sourceIdentity, definitionSource, assemblyDefinitions, SourceDependencies: portDependencies, FrameTransforms: frames, Patterns: expandedPatterns.Document?.Patterns, ConceptPoints: expandedPatterns.Document?.ConceptPoints, AppearanceCatalog: appearanceCatalog, Annotations: annotations) { ModuleGraph = graph };
         return Done(result);
 
-        ParseResult Done(AssemblySource? value) { watch.Stop(); return new(value, diagnostics, watch.Elapsed.TotalMilliseconds); }
+        ParseResult Done(AssemblySource? value) { watch.Stop(); return new(value,
+            projection is null ? diagnostics : diagnostics.Select(projection.Map).ToArray(), watch.Elapsed.TotalMilliseconds); }
     }
 
     private static IReadOnlyList<AssemblyFrameTransformSource> ParseFrameTransforms(string body, string sourceIdentity, List<AssemblyDiagnostic> diagnostics)
@@ -215,42 +199,6 @@ public sealed class AssemblyM0Parser
                 frames.Add(frame);
         }
         return frames;
-    }
-
-    private static string? LoadSourceGraph(string path, string allowedRoot, IReadOnlyList<string> stack,
-        List<AssemblySourceDependencyIr> dependencies, List<AssemblyDiagnostic> diagnostics)
-    {
-        var fullPath = Path.GetFullPath(path);
-        var rootPrefix = Path.TrimEndingDirectorySeparator(Path.GetFullPath(allowedRoot)) + Path.DirectorySeparatorChar;
-        if (!fullPath.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase) && !string.Equals(fullPath, Path.TrimEndingDirectorySeparator(Path.GetFullPath(allowedRoot)), StringComparison.OrdinalIgnoreCase))
-        { diagnostics.Add(new("assembly-include-outside-root", $"Include '{path}' resolves outside allowed root '{allowedRoot}'.")); return null; }
-        var cycleAt = stack.ToList().FindIndex(item => string.Equals(item, fullPath, StringComparison.OrdinalIgnoreCase));
-        if (cycleAt >= 0)
-        {
-            var cycle = stack.Skip(cycleAt).Append(fullPath).Select(Path.GetFileName);
-            diagnostics.Add(new("assembly-include-cycle", $"Compile-time Include cycle: {string.Join(" -> ", cycle)}."));
-            return null;
-        }
-        if (!File.Exists(fullPath))
-        { diagnostics.Add(new("assembly-include-file-not-found", $"Included Firmament source '{fullPath}' was not found.")); return null; }
-        if (stack.Count > 0 && !string.Equals(Path.GetExtension(fullPath), ".firmament", StringComparison.OrdinalIgnoreCase))
-        { diagnostics.Add(new("assembly-include-extension-invalid", $"Compile-time Include '{fullPath}' must reference a .firmament semantic source file.")); return null; }
-        var text = File.ReadAllText(fullPath);
-        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(text)));
-        if (dependencies.Any(item => string.Equals(item.Path, fullPath, StringComparison.OrdinalIgnoreCase))) return string.Empty;
-        dependencies.Add(new(fullPath, hash, stack.Count == 0));
-        var declarations = new List<string>();
-        foreach (Match include in Regex.Matches(text, @"^[ \t]*(?:Include|include)\s+""(?<path>[^""]+)""\s*;", RegexOptions.CultureInvariant | RegexOptions.Multiline))
-        {
-            var relative = include.Groups["path"].Value;
-            var childPath = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(fullPath)!, relative));
-            var child = LoadSourceGraph(childPath, allowedRoot, [.. stack, fullPath], dependencies, diagnostics);
-            if (child is null) return null;
-            declarations.Add(child);
-        }
-        var local = Regex.Replace(text, @"^[ \t]*(?:Include|include)\s+""[^""]+""\s*;[ \t]*(?:\r?\n)?", string.Empty, RegexOptions.CultureInvariant | RegexOptions.Multiline);
-        declarations.Add(local);
-        return string.Join(Environment.NewLine, declarations);
     }
 
     private static IReadOnlyList<AssemblyConceptDefinition> ParseAssemblyConcepts(string source, string sourceIdentity, List<AssemblyDiagnostic> diagnostics)
@@ -379,7 +327,7 @@ public sealed class AssemblyM0Parser
         IReadOnlyDictionary<string, GearAir> gearAuthorities,
         List<AssemblyDiagnostic> diagnostics, List<(int Start, int Length)> ranges,
         Func<string, IReadOnlyList<SemanticValue>>? publishedPorts = null,
-        IReadOnlyList<AssemblyLayoutDatum>? layout = null)
+        IReadOnlyList<AssemblyLayoutDatum>? layout = null, FirmamentModuleGraph? graph = null)
     {
         var result = new List<AssemblyDefinitionSource>();
         foreach (Match template in Regex.Matches(source,
@@ -390,7 +338,7 @@ public sealed class AssemblyM0Parser
             if (body is null) continue;
             var close = template.Index + template.Length + body.Length + 1;
             ranges.Add((template.Index, close - template.Index));
-            var root = ParseTree(body, sourceIdentity, diagnostics, result, interfaces, new Dictionary<string, AssemblyMemberSource>(StringComparer.Ordinal), gearAuthorities, publishedPorts);
+            var root = ParseTree(body, sourceIdentity, diagnostics, result, interfaces, new Dictionary<string, AssemblyMemberSource>(StringComparer.Ordinal), gearAuthorities, publishedPorts, graph);
             if (root is null) continue;
             root = AssemblyDatumAuthoring.Bind(body, root, layout ?? [], interfaces, diagnostics, out var datumFrames, publishedPorts);
             if (root.Children.Any(c => c.FramePlacement?.JointFamily == MechanicalInterfaceFamily.Revolute))
@@ -530,7 +478,7 @@ public sealed class AssemblyM0Parser
             IsEncapsulatedDefinition = item.IsEncapsulatedDefinition
         };
         var specializedRoot = Replace(definition.LocalRoot) with { IsEncapsulatedDefinition = false };
-        var localSource = new AssemblySource(definition.Name, specializedRoot, interfaces, definition.LocalMates ?? [], definition.LocalAnchor ?? new([definition.Name]),
+        var localSource = new AssemblySource(definition.Name, specializedRoot, definition.LocalInterfaces ?? interfaces, definition.LocalMates ?? [], definition.LocalAnchor ?? new([definition.Name]),
             definition.LocalDimensionalRelations ?? [], definition.LocalStackupAsserts ?? [], sourceIdentity, FrameTransforms: definition.FrameTransforms);
         var watch = Stopwatch.StartNew();
         var local = new AssemblyM0Compiler().Compile(localSource);
@@ -662,7 +610,7 @@ public sealed class AssemblyM0Parser
         IReadOnlyList<AssemblyDefinitionSource>? definitions = null, IReadOnlyList<InterfaceDefinition>? interfaces = null,
         IDictionary<string, AssemblyMemberSource>? specializationCache = null,
         IReadOnlyDictionary<string, GearAir>? gearAuthorities = null,
-        Func<string, IReadOnlyList<SemanticValue>>? publishedPorts = null)
+        Func<string, IReadOnlyList<SemanticValue>>? publishedPorts = null, FirmamentModuleGraph? graph = null)
     {
         // One bounded generic argument list is admitted in a Part definition. The
         // inner '>' belongs to the Firmament Template application, not the XML-like tag.
@@ -685,7 +633,23 @@ public sealed class AssemblyM0Parser
                     kind == "Assembly" ? (nodeMatch.Groups["definition"].Success ? NormalizeIdentity(nodeMatch.Groups["definition"].Value) : nodeMatch.Groups["name"].Value) : nodeMatch.Groups["definition"].Value);
                 if (kind == "Assembly" && nodeMatch.Groups["definition"].Success)
                 {
-                    var instantiated = InstantiateAssemblyDefinition(node.Name, node.Definition, definitions ?? [], interfaces ?? [], specializationCache ?? new Dictionary<string, AssemblyMemberSource>(StringComparer.Ordinal), sourceIdentity, diagnostics);
+                    AssemblyMemberSource? instantiated;
+                    if (graph?.TryReference(node.Definition, out var imported) == true)
+                    {
+                        var external = graph.ParseAssembly(imported);
+                        diagnostics.AddRange(external.Diagnostics);
+                        if (external.Source is { } unit && external.IsSuccess)
+                        {
+                            var definition = new AssemblyDefinitionSource(imported.Identity, "__Unit", "__Unit", unit.Root,
+                                imported.Identity, [new("inventory-module", imported.Path, imported.Definition, imported.Origin)],
+                                unit.Anchor, unit.Mates, unit.DimensionalRelations, unit.StackupAsserts, FrameTransforms: unit.FrameTransforms)
+                                { LocalInterfaces = unit.Interfaces };
+                            instantiated = InstantiateAssemblyDefinition(node.Name, imported.Identity, [definition], unit.Interfaces,
+                                specializationCache ?? new Dictionary<string, AssemblyMemberSource>(StringComparer.Ordinal), imported.Path, diagnostics);
+                        }
+                        else instantiated = null;
+                    }
+                    else instantiated = InstantiateAssemblyDefinition(node.Name, node.Definition, definitions ?? [], interfaces ?? [], specializationCache ?? new Dictionary<string, AssemblyMemberSource>(StringComparer.Ordinal), sourceIdentity, diagnostics);
                     if (instantiated is not null)
                     {
                         node.Children.AddRange(instantiated.Children.Select(ToMutable));

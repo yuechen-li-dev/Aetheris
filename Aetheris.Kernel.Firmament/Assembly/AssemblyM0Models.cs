@@ -97,7 +97,10 @@ public sealed record AssemblyDefinitionSource(
     IReadOnlyList<ToleranceStackupAssertSource>? LocalStackupAsserts = null,
     IReadOnlyList<AssemblyExposedRelationSource>? ExposedRelations = null,
     string? ClaimedConcept = null,
-    IReadOnlyList<AssemblyFrameTransformSource>? FrameTransforms = null);
+    IReadOnlyList<AssemblyFrameTransformSource>? FrameTransforms = null)
+{
+    internal IReadOnlyList<InterfaceDefinition>? LocalInterfaces { get; init; }
+}
 
 public sealed record AssemblyExposedRelationSource(
     string Name, string PublicFrom, string PublicTo, AssemblyPath InternalFrom, AssemblyPath InternalTo);
@@ -119,7 +122,11 @@ public sealed record AssemblySource(
     IReadOnlyList<FirmamentV2CanonicalPatternDecl>? Patterns = null,
     IReadOnlyList<ConceptIrKeyedPointSetValue>? ConceptPoints = null,
     AssemblyAppearanceCatalog? AppearanceCatalog = null,
-    AssemblyAnnotations? Annotations = null);
+    AssemblyAnnotations? Annotations = null)
+{
+    internal Aetheris.Kernel.Firmament.Modules.FirmamentModuleGraph? ModuleGraph { get; init; }
+    public bool HasModuleBindings => ModuleGraph?.HasModuleBindings == true;
+}
 
 public sealed record AssemblySourceDependencyIr(string Path, string Sha256, bool IsRoot);
 
@@ -237,7 +244,10 @@ public sealed record AssemblyIr(
     IReadOnlyList<AssemblyAxisSeatEvidence>? AxisSeats = null,
     IReadOnlyList<ConceptIrKeyedPointSetValue>? ConceptPoints = null,
     IReadOnlyList<AssemblyRouteBindingEvidence>? RouteBindings = null,
-    AssemblyAnnotations? Annotations = null);
+    AssemblyAnnotations? Annotations = null)
+{
+    public IReadOnlyList<Aetheris.Kernel.Firmament.Modules.FirmamentInventoryBinding> InventoryBindings { get; init; } = [];
+}
 
 public sealed record AssemblyCompilationResult(AssemblyIr? Ir, IReadOnlyList<AssemblyDiagnostic> Diagnostics, AssemblyPerformanceIr? Performance = null)
 {

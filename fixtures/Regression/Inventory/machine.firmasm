@@ -1,0 +1,13 @@
+Inventory Record Components {
+  bracket: Part = Firmament("parts/bracket").Bracket
+  wideBracket: Part = Firmament("parts/wide-bracket").Bracket
+  drive: Subassembly = Firmament("drive").Drive
+}
+Assembly Machine {
+  <Assembly Machine>
+    <Part Stock = Components.bracket> Placement { from: Origin; to: World; } </Part>
+    <Part Wide = Components.wideBracket> Placement { from: Origin; to: World; translateLocal: [50mm, 0mm, 0mm]; } </Part>
+    <Assembly Drive = Components.drive> Placement { from: Origin; to: World; translateLocal: [90mm, 0mm, 0mm]; } </Assembly>
+  </Assembly>
+  Anchor: Machine;
+}

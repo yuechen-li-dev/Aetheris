@@ -13,7 +13,7 @@ public sealed class FirmamentSemanticSchemaTests
             "Appearance", "FrameTransform", "Placement", "Pmi", "Note", "Provenance",
             "Box", "Concept", "Points", "Door", "Drape", "Fabric", "FigureFit", "Fitting", "Garment",
             "Helix", "Hole", "Interface<Fixed>", "Interface<Prismatic>", "Interface<Revolute>",
-            "Interface<Stitch>", "Joint", "Loft", "Panel", "Perforation", "Material", "Linear", "Series", "Pose", "PoseTransition",
+            "Interface<Stitch>", "Inventory", "Joint", "Loft", "Panel", "Perforation", "Material", "Linear", "Series", "Pose", "PoseTransition",
             "Room", "Scene", "Camera", "Section", "Thread", "Window", "Follow", "WireRoute",
         ];
         Assert.Equal(expectedNames, FirmamentSemanticSchemas.All.Select(schema => schema.Name));

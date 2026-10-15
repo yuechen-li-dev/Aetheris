@@ -35,6 +35,8 @@ public sealed class FirmamentCompilationSession : IDisposable
     }
 
     public AssemblyM1CompilationResult CompileFile(string path) => Run(() => pipeline.CompileFile(path));
+    internal AssemblyM1CompilationResult CompileModule(Aetheris.Kernel.Firmament.Modules.FirmamentModuleGraph graph,
+        Aetheris.Kernel.Firmament.Modules.FirmamentModuleGraph.Reference reference) => Run(() => pipeline.CompileModule(graph, reference));
     public AssemblyM1CompilationResult Compile(string source, string sourceIdentity = "<memory>") => Run(() => pipeline.Compile(source, sourceIdentity));
     public AssemblyM1CompilationResult CompileProject(FirmamentProjectSnapshot project) => Run(() => pipeline.CompileProject(project));
 

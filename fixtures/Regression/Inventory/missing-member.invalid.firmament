@@ -1,0 +1,7 @@
+Inventory Record Parts {
+  bracket: Part = Firmament("parts/bracket").Bracket
+}
+Assembly Broken {
+  <Assembly Broken><Part Stock = Parts.braket></Part></Assembly>
+  Anchor: Broken.Stock;
+}

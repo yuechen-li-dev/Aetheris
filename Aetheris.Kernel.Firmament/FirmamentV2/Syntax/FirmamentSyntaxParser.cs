@@ -168,6 +168,7 @@ public static class FirmamentSyntaxParser
             while ((type.Name.Text is "Template" or "Concept" or "Construction" or "Radial" or "Linear" or "Mirror" or "Mirrored" or "Semantic"
                 && Current.Kind == SyntaxTokenKind.Identifier && (Peek(1).Kind == SyntaxTokenKind.Identifier || Peek(1).Text == "<"))
                 || type.Name.Text == "Static" && Is("Table")
+                || type.Name.Text == "Inventory" && Is("Record")
                 || type.Name.Text is "Assert" or "Analysis" or "analysis" or "Construct" or "Extend" or "Comptime" or "proposes" or "manufacturing" && Current.Kind == SyntaxTokenKind.Identifier)
             {
                 modifiers.Add(type); type = Type(qualified: type.Name.Text == "Construct");
@@ -485,6 +486,10 @@ public static class FirmamentSyntaxParser
                             || left is LiteralSyntax { Kind: LiteralKind.Number } && Current.Span.Start == left.Span.Start + left.Span.Length)
                         && left is LiteralSyntax or SequenceSyntax or ReferenceSyntax)
                     { left = new QuantitySyntax(left, Identifier(), Span(start)); continue; }
+                    // A product-tree tag starts the next statement, including after
+                    // a newline-terminated field such as units: mm. It is not '<'
+                    // arithmetic or a generic argument list on the preceding value.
+                    if (Pair("<", "/") || Is("<") && Peek(1).Kind == SyntaxTokenKind.Identifier && Peek(2).Kind == SyntaxTokenKind.Identifier) break;
                     if (!Operator(out var binary, out var precedence, out var width) || precedence < minimum || stopGreater && Is(">")) break;
                     at += width;
                     left = new BinarySyntax(left, binary, Expression(precedence + (binary == BinaryOperator.Power ? 0 : 1), allowObject, stopGreater), Span(start));

@@ -1,0 +1,1372 @@
+{
+  "schemaVersion": 1,
+  "implementationBase": "263f0128",
+  "verdict": "Success for the Inventory module first pass; X2 remains open",
+  "tests": {
+    "failed": 0,
+    "passed": 5051,
+    "skipped": 0,
+    "total": 5051,
+    "executingAssemblies": 20
+  },
+  "focusedCompiler": {
+    "failed": 0,
+    "passed": 76,
+    "skipped": 0,
+    "total": 76,
+    "executingAssemblies": 1
+  },
+  "focusedCli": {
+    "failed": 0,
+    "passed": 4,
+    "skipped": 0,
+    "total": 4,
+    "executingAssemblies": 1
+  },
+  "fastLane": {
+    "failed": 0,
+    "passed": 1068,
+    "skipped": 0,
+    "total": 1068,
+    "executingAssemblies": 1
+  },
+  "documentationTests": {
+    "failed": 0,
+    "passed": 13,
+    "skipped": 0,
+    "total": 13,
+    "executingAssemblies": 1
+  },
+  "buildWarnings": 10,
+  "corpus": {
+    "schemaVersion": 1,
+    "sourceCount": 1285,
+    "canonicalSourceCount": 327,
+    "canonicalStructurallyParsed": 327,
+    "structurallyParsed": 921,
+    "standaloneProductionAccepted": 516,
+    "inventorySha256": "8F76A0EE96B4912DA5CD6DE8AAA11358DF2378800DFCCF1A7CE8CB00A327925F",
+    "unresolvedMismatchCount": 0,
+    "universalSemanticParityQualified": false,
+    "classifications": {
+      "Admitted": 499,
+      "AdmittedGeometryWithDfmFindings": 1,
+      "AdmittedInConsumerContext": 36,
+      "DeclarationModuleRequiresConsumer": 5,
+      "ExpectedNegativeRejection": 286,
+      "ExperimentalAdmitted": 9,
+      "ExperimentalRejected": 31,
+      "LegacySerializationAdmitted": 5,
+      "LegacySerializationRejected": 324,
+      "MalformedOrUnsupportedSourceRejected": 6,
+      "MisfiledPositiveFixture": 1,
+      "RejectedAtSolveStage": 1,
+      "SourceAdmissionRejected": 81
+    },
+    "canonicalClassifications": {
+      "Admitted": 285,
+      "AdmittedInConsumerContext": 33,
+      "SourceAdmissionRejected": 9
+    }
+  },
+  "previousCorpus": {
+    "path": "docs/release/FIRMAMENT-FRONTEND-X2.evidence.json",
+    "sha256": "A89C8456036ED1DA3F7B53F86867BE465EBD980E9DE9A84B93A483AC19DB4CB6",
+    "sourcesCompared": 1276,
+    "differences": []
+  },
+  "newSources": [
+    {
+      "source": "Regression/Inventory/cell.firmament",
+      "sha256": "B0CFC003461261C4D1C901099C426B5BC453EEB9503A289708C879B5459DED9E",
+      "structuralSuccess": true,
+      "syntaxFingerprint": "760AAA1773B82874BC363A42C6902F6B3C703B1085F52371D730504F0C203AE2",
+      "syntaxDiagnosticCodes": [],
+      "owner": "Scene",
+      "productionLevel": "SceneCompiled",
+      "standaloneProductionExit": 0,
+      "productionDiagnosticCodes": [],
+      "productionDiagnosticMessages": [],
+      "sourceIntent": "Unspecified",
+      "classification": "Admitted",
+      "reason": "Structural parse and domain production owner both succeed at the recorded production level.",
+      "consumerContexts": [],
+      "downstreamEvidence": null
+    },
+    {
+      "source": "Regression/Inventory/drive.firmament",
+      "sha256": "DF1A495641F61331997B500BB4B8B10937C1B84D86F9AEED90CC8E438176E74F",
+      "structuralSuccess": true,
+      "syntaxFingerprint": "EA7865CC745C67950BF0DFD44F3FF1374AF4385018300DA9EA927D5C7CCB6A22",
+      "syntaxDiagnosticCodes": [],
+      "owner": "ValidateDomainDispatch",
+      "productionLevel": "OwnerReported",
+      "standaloneProductionExit": 1,
+      "productionDiagnosticCodes": [
+        "firmament-module-context-required",
+        "firmament-v2-parse-failed"
+      ],
+      "productionDiagnosticMessages": [],
+      "sourceIntent": "Unspecified",
+      "classification": "AdmittedInConsumerContext",
+      "reason": "Successful production dependency receipts match this exact source hash. The standalone outcome is retained; no claim about every possible Template specialization.",
+      "consumerContexts": [
+        {
+          "consumer": "Regression/Inventory/machine.firmasm",
+          "owner": "Assembly",
+          "level": "AssemblyInspected"
+        }
+      ],
+      "downstreamEvidence": null
+    },
+    {
+      "source": "Regression/Inventory/factory.firmament",
+      "sha256": "487B8E15635DA818A390046F0B6169753F19FF3D4EFBE01E2FF69565E5328702",
+      "structuralSuccess": true,
+      "syntaxFingerprint": "86A814CED1C546039C29F41C762D49A96D3271838F79E7CE298AF3A7E00FD8BE",
+      "syntaxDiagnosticCodes": [],
+      "owner": "Scene",
+      "productionLevel": "SceneCompiled",
+      "standaloneProductionExit": 0,
+      "productionDiagnosticCodes": [],
+      "productionDiagnosticMessages": [],
+      "sourceIntent": "Unspecified",
+      "classification": "Admitted",
+      "reason": "Structural parse and domain production owner both succeed at the recorded production level.",
+      "consumerContexts": [],
+      "downstreamEvidence": null
+    },
+    {
+      "source": "Regression/Inventory/include-simple.firmament",
+      "sha256": "20D4B8F0E784112382BE7047F357821E0C0077E05E0E0CD84E1DD82B9EAC573B",
+      "structuralSuccess": true,
+      "syntaxFingerprint": "3867A3DED4350B3DC9BCFB9F4C8A3A38CB8E35FF6A4BA2B6353606A735CCEC98",
+      "syntaxDiagnosticCodes": [],
+      "owner": "Assembly",
+      "productionLevel": "AssemblyInspected",
+      "standaloneProductionExit": 0,
+      "productionDiagnosticCodes": [],
+      "productionDiagnosticMessages": [],
+      "sourceIntent": "Unspecified",
+      "classification": "Admitted",
+      "reason": "Structural parse and domain production owner both succeed at the recorded production level.",
+      "consumerContexts": [],
+      "downstreamEvidence": null
+    },
+    {
+      "source": "Regression/Inventory/machine.firmasm",
+      "sha256": "CEC185D445B0327794D69FA59AAE17EAF460340C0A2F510C20D98C7C83007E1B",
+      "structuralSuccess": true,
+      "syntaxFingerprint": "C2195180C744B61FCA2C603FBC07C9FCD82AC29258B601DA575A885595F5A463",
+      "syntaxDiagnosticCodes": [],
+      "owner": "Assembly",
+      "productionLevel": "AssemblyInspected",
+      "standaloneProductionExit": 0,
+      "productionDiagnosticCodes": [],
+      "productionDiagnosticMessages": [],
+      "sourceIntent": "Unspecified",
+      "classification": "Admitted",
+      "reason": "Structural parse and domain production owner both succeed at the recorded production level.",
+      "consumerContexts": [],
+      "downstreamEvidence": null
+    },
+    {
+      "source": "Regression/Inventory/missing-member.invalid.firmament",
+      "sha256": "312CCEB6BB1A1DB4985F70A11A8AD9EB017375B7CA13311F50D04C1F8785FADA",
+      "structuralSuccess": true,
+      "syntaxFingerprint": "AC939F13F1D4B4A10E4AC1587242537722154AA38EBFD2F8196B533DFEEAEF09",
+      "syntaxDiagnosticCodes": [],
+      "owner": "Assembly",
+      "productionLevel": "AssemblyInspected",
+      "standaloneProductionExit": 1,
+      "productionDiagnosticCodes": [
+        "firmament-inventory-member-unresolved"
+      ],
+      "productionDiagnosticMessages": [],
+      "sourceIntent": "Negative",
+      "classification": "ExpectedNegativeRejection",
+      "reason": "Negative fixture intent is explicit in its path; acceptance requires review rather than being silently counted as success. Owner diagnostic: Inventory 'Parts' has no member 'braket'.",
+      "consumerContexts": [],
+      "downstreamEvidence": null
+    },
+    {
+      "source": "Regression/Inventory/parts/bolt.firmament",
+      "sha256": "8E8B53E38D76328E5BF5BEE4F072446289F523BC7B086445A45E8E33AD96F5BF",
+      "structuralSuccess": true,
+      "syntaxFingerprint": "54EB1A7D75FDE53232DE3583335BDC2067B8D41A340FF79C19C9175CF2E5C2EA",
+      "syntaxDiagnosticCodes": [],
+      "owner": "ValidateDomainDispatch",
+      "productionLevel": "OwnerReported",
+      "standaloneProductionExit": 1,
+      "productionDiagnosticCodes": [
+        "firmament-v2-missing-model",
+        "firmament-v2-missing-solid",
+        "firmament-v2-missing-units",
+        "firmament-v2-parse-failed"
+      ],
+      "productionDiagnosticMessages": [],
+      "sourceIntent": "Unspecified",
+      "classification": "AdmittedInConsumerContext",
+      "reason": "Successful production dependency receipts match this exact source hash. The standalone outcome is retained; no claim about every possible Template specialization.",
+      "consumerContexts": [
+        {
+          "consumer": "Regression/Inventory/include-simple.firmament",
+          "owner": "Assembly",
+          "level": "AssemblyInspected"
+        }
+      ],
+      "downstreamEvidence": null
+    },
+    {
+      "source": "Regression/Inventory/parts/bracket.firmament",
+      "sha256": "D6778E69948710530427045863A10C2507B48606D7988668188BA6A6B47DF1A9",
+      "structuralSuccess": true,
+      "syntaxFingerprint": "704C8D3318748455C75CB6DB689ED07EEB1CEF0FE8FD5BD3ADB8F01513B1D303",
+      "syntaxDiagnosticCodes": [],
+      "owner": "ValidateDomainDispatch",
+      "productionLevel": "OwnerReported",
+      "standaloneProductionExit": 0,
+      "productionDiagnosticCodes": [],
+      "productionDiagnosticMessages": [],
+      "sourceIntent": "Unspecified",
+      "classification": "Admitted",
+      "reason": "Structural parse and domain production owner both succeed at the recorded production level.",
+      "consumerContexts": [
+        {
+          "consumer": "Regression/Inventory/include-simple.firmament",
+          "owner": "Assembly",
+          "level": "AssemblyInspected"
+        },
+        {
+          "consumer": "Regression/Inventory/machine.firmasm",
+          "owner": "Assembly",
+          "level": "AssemblyInspected"
+        }
+      ],
+      "downstreamEvidence": null
+    },
+    {
+      "source": "Regression/Inventory/parts/wide-bracket.firmament",
+      "sha256": "D512765667C283C3FC2F0D7AF004D1DBC61D535682325C39A65414199C45E7DF",
+      "structuralSuccess": true,
+      "syntaxFingerprint": "EAB36751FDF02831B625A60882E4FEB8F2375F25E4A6C2C3B139D329089B5D53",
+      "syntaxDiagnosticCodes": [],
+      "owner": "ValidateDomainDispatch",
+      "productionLevel": "OwnerReported",
+      "standaloneProductionExit": 0,
+      "productionDiagnosticCodes": [],
+      "productionDiagnosticMessages": [],
+      "sourceIntent": "Unspecified",
+      "classification": "Admitted",
+      "reason": "Structural parse and domain production owner both succeed at the recorded production level.",
+      "consumerContexts": [
+        {
+          "consumer": "Regression/Inventory/machine.firmasm",
+          "owner": "Assembly",
+          "level": "AssemblyInspected"
+        }
+      ],
+      "downstreamEvidence": null
+    }
+  ],
+  "geometryParity": [
+    {
+      "source": "fixtures/Canonical/Symmetry/radial-bolt-circle.firmament",
+      "sourceSha256": "19DAA47DC20CA092A6DDA1CC49AF0B74E7E016F5E4A143AA4C00B7230B81C3CE",
+      "expectedSha256": "4B4F8FD69D10E73BB403F1538C6FC13995F895E4C1C17E0605A3E4A008E5356E",
+      "actualSha256": "4B4F8FD69D10E73BB403F1538C6FC13995F895E4C1C17E0605A3E4A008E5356E",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Symmetry/partial-radial-pattern.firmament",
+      "sourceSha256": "258427029AA0882653801833109AD9FE04542C7448DE1D126291215FC016DE7D",
+      "expectedSha256": "7D708B30209B6A03010D9C647F762E453C705BC8F656882BE4F18785B2F08D87",
+      "actualSha256": "7D708B30209B6A03010D9C647F762E453C705BC8F656882BE4F18785B2F08D87",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Symmetry/mirrored-revolve.firmament",
+      "sourceSha256": "B955033028F838A3A3D7D265BD4EB04A9AAD89E83D95D5EA1C640ECB0953FA6C",
+      "expectedSha256": "C44AE2A5B6CFC978AFB24041F0B5C43A4554161FE5880FC6E2D59ADB1B7CAB4A",
+      "actualSha256": "C44AE2A5B6CFC978AFB24041F0B5C43A4554161FE5880FC6E2D59ADB1B7CAB4A",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Symmetry/mirrored-profile.firmament",
+      "sourceSha256": "1F41E7EBE426306205E01226C36410261798418C385E5E284BD0A4216CAF98BF",
+      "expectedSha256": "30D1F927A7295A5B553453BA2D6E936564140839E4497B0C5B46A1682A18F6A1",
+      "actualSha256": "30D1F927A7295A5B553453BA2D6E936564140839E4497B0C5B46A1682A18F6A1",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Symmetry/mirrored-hole.firmament",
+      "sourceSha256": "39B62FB47C0C42BDF7CD3DE7FCA2E78E785BCD693412FC052628F470F3261EB0",
+      "expectedSha256": "4A0DA2E67DA153B38DD7E6389CB329B4BBB6939FEC88541936DF705F49BE62FE",
+      "actualSha256": "4A0DA2E67DA153B38DD7E6389CB329B4BBB6939FEC88541936DF705F49BE62FE",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Symmetry/mirrored-feature-with-override.firmament",
+      "sourceSha256": "DEBDCE6974743DCBCED725B9FF6B8ED833EF64DBE69A4B94256515E6CDF24B4E",
+      "expectedSha256": "052F9FC96919130FA11D2FDE5BEF302BCBE42BA6441A61F7164D43E25EAF8FBB",
+      "actualSha256": "052F9FC96919130FA11D2FDE5BEF302BCBE42BA6441A61F7164D43E25EAF8FBB",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Regression/FrontendMigration/preferred-profile-links.firmament",
+      "sourceSha256": "41ACDC508CDB714BC0409C864708FD968BB812A83E4FD406B7AA0818670C6C4B",
+      "expectedSha256": "E43449262ECDD3DD05EFB73DB821D2E09226637EC1FB1EAF73E07821CD46AA57",
+      "actualSha256": "E43449262ECDD3DD05EFB73DB821D2E09226637EC1FB1EAF73E07821CD46AA57",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Features/Holes/through-hole.firmament",
+      "sourceSha256": "38E8188DB1BB7C75406570BBCEC9A09DAFA9D4D33A0EDEB746A6C04A973B265C",
+      "expectedSha256": "5999F127E5A1477E5825AFA656DCEB7F89241D8F85312B0E6BCD793639A0F548",
+      "actualSha256": "5999F127E5A1477E5825AFA656DCEB7F89241D8F85312B0E6BCD793639A0F548",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Templates/generic-mounting-plate.firmament",
+      "sourceSha256": "91B69697F5E777438F688FA2D1F0330FEF5C430D064FCA0A7FFF886252567C92",
+      "expectedSha256": "B0FF1D05D82135A3630C5E165C09B6C2C467B3FAF98A0825A9AF86B2E1CE76A3",
+      "actualSha256": "B0FF1D05D82135A3630C5E165C09B6C2C467B3FAF98A0825A9AF86B2E1CE76A3",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Set/pattern-feature-map.firmament",
+      "sourceSha256": "7BF1BA1E508CAE2548EC429724A895F2E50FFDAD057084F17B506C4362A34E40",
+      "expectedSha256": "08D4EA1F1336C06A380E30806C02AEE3F08535CAD1592929470EBD64B9882FC2",
+      "actualSha256": "08D4EA1F1336C06A380E30806C02AEE3F08535CAD1592929470EBD64B9882FC2",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/PMI/hole-diameter-and-datum.firmament",
+      "sourceSha256": "B105A5535F53189938CBA6C9E8644FC9D8C6683F8BB97B04167FA48C411ABBFD",
+      "expectedSha256": "9F2F24975267BF425D16A2ECDF863F4A94C0FAD172C932F9868BBB836BD46F5D",
+      "actualSha256": "9F2F24975267BF425D16A2ECDF863F4A94C0FAD172C932F9868BBB836BD46F5D",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/PMI/typed-tolerance.firmament",
+      "sourceSha256": "7C928F862D443904E87EAD137DB7D55E4D69E03A12F918F3319ECED947245EC9",
+      "expectedSha256": "098B515124D46220AAB85F6DBE1568E6B5969FEB55B537BA91AD3DDA587509A5",
+      "actualSha256": "098B515124D46220AAB85F6DBE1568E6B5969FEB55B537BA91AD3DDA587509A5",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/PMI/record-template-feature-tolerance.firmament",
+      "sourceSha256": "6F88543F7E0D544F460709EE85521620101DCB053CF3C5C7C90F05A96CA63B8D",
+      "expectedSha256": "300023D4A6CC156F9224F4937F990926523372C8BF0AB11D8C15851FA256BB18",
+      "actualSha256": "300023D4A6CC156F9224F4937F990926523372C8BF0AB11D8C15851FA256BB18",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/AssemblyInterfaces/executable-machine.firmament",
+      "sourceSha256": "9CEDEDC63C8EEF28A51F58E0E1E0D85E70104C9014C94508C44F1E9320B42F72",
+      "expectedSha256": "912FCCCDF607E0EB9437423BEA0D2E6EB74D9BEDE4D4758D9DF6BF5364C66391",
+      "actualSha256": "912FCCCDF607E0EB9437423BEA0D2E6EB74D9BEDE4D4758D9DF6BF5364C66391",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Assembly/template-block-pair.firmament",
+      "sourceSha256": "3530A14F1156C588EA5747EE65B338162AEC803243FBBB379D7C11D5265EF211",
+      "expectedSha256": "17E1DABEA787334BE13DA18E9771B69927CE46D754CA35783693C2FD76847B24",
+      "actualSha256": "17E1DABEA787334BE13DA18E9771B69927CE46D754CA35783693C2FD76847B24",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Assembly/coil-on-stem.firmament",
+      "sourceSha256": "056E6354C85B0E54AC6B4E1B79C1E9ED5CBE7A97648748F1C55923B76C85E485",
+      "expectedSha256": "9C21BE66AA885DF21DE349169C4E3D14282C2384E661372EC4034E627A5E0A1A",
+      "actualSha256": "9C21BE66AA885DF21DE349169C4E3D14282C2384E661372EC4034E627A5E0A1A",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/AssemblyInterfaces/GuitarX0/guitar.firmasm",
+      "sourceSha256": "10C11DD2FA4361C87D14E22D318348CE18BE0925119496184E846A603B1CA2DB",
+      "expectedSha256": "469E42D07EC1BB3FFDB88D5B0149DA50C21F39631EDC7441C2B3DCF11C41681C",
+      "actualSha256": "469E42D07EC1BB3FFDB88D5B0149DA50C21F39631EDC7441C2B3DCF11C41681C",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/sculpt-branch-variants.firmament",
+      "sourceSha256": "CEFCA8936656C4947A5D434FD75EF6AA23B94D8A3DBB808B340DD376842B9240",
+      "expectedSha256": "DDC7B5C388058035E1B6A5FC8D5AC6701FBA3057508448EF00351312D766EF07",
+      "actualSha256": "DDC7B5C388058035E1B6A5FC8D5AC6701FBA3057508448EF00351312D766EF07",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/sculpt-offset-region.firmament",
+      "sourceSha256": "2FB5300A60902B01916B7D2D0C72A83156E365674BA0A5F249BC5D0B7EF00EE7",
+      "expectedSha256": "EB310460850C1153C5C1813F2863DCD16595755359E8545558140BBA5F632F05",
+      "actualSha256": "EB310460850C1153C5C1813F2863DCD16595755359E8545558140BBA5F632F05",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/sculpt-preserve-interface.firmament",
+      "sourceSha256": "C2310DAB5E3F591E1260EDA82852F53EE7842B284914D030231C15DA72D50AF4",
+      "expectedSha256": "67D5F7D6316FA53F63CEE95C08F45AFEC71E2AA2B89060A41F7F88D29319AD79",
+      "actualSha256": "67D5F7D6316FA53F63CEE95C08F45AFEC71E2AA2B89060A41F7F88D29319AD79",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/sculpted-housing.firmament",
+      "sourceSha256": "CD6647031A073A140C93CE7DBC14C08D801B84C24F0C15816D3C446464CF1D48",
+      "expectedSha256": "27136BC65CACE501B84E6EC81BCC186F1F48262ABB2CC9F76D2208951092396F",
+      "actualSha256": "27136BC65CACE501B84E6EC81BCC186F1F48262ABB2CC9F76D2208951092396F",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/surf-x1-freeform-housing.firmament",
+      "sourceSha256": "36CCD4855AC3F8574854AA2499CB7B5BFFE4A892852AE9DDC452714962457B38",
+      "expectedSha256": "F509AA95D3B223F876790A755DF0052900E07598A1CB8266D63EA2408EF2DB07",
+      "actualSha256": "F509AA95D3B223F876790A755DF0052900E07598A1CB8266D63EA2408EF2DB07",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/surf-x1a-trimmed-freeform-housing.firmament",
+      "sourceSha256": "990DC7389DBCB4E330B2A316AF4946297B5CA8F13C5BD9A693497792852ABD46",
+      "expectedSha256": "5717FD937D9FE93EACF3B49190BB967028C574121AE8850F2D82EA8FC7C1B9B4",
+      "actualSha256": "5717FD937D9FE93EACF3B49190BB967028C574121AE8850F2D82EA8FC7C1B9B4",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/surf-x2-g1-blend.firmament",
+      "sourceSha256": "1BB2EE58823B87D5CF65D227CC7163D36D92E670B43D33B8D6A9DCDB9F6288F9",
+      "expectedSha256": "73C2D486D3CED015EBEFA984C41063C54D86BF81E5A575179CA9098EBE23EF22",
+      "actualSha256": "73C2D486D3CED015EBEFA984C41063C54D86BF81E5A575179CA9098EBE23EF22",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/surf-x2-judged-housing.firmament",
+      "sourceSha256": "96BEDCA540DD454F27DA530E9B58E3E4C3DA21F4AEE0CA5422E56372D32EDE8C",
+      "expectedSha256": "0BC71E45EE37D7B523063A59E5060610048FBE7DAC227D82CB24B4A8186FDB2A",
+      "actualSha256": "0BC71E45EE37D7B523063A59E5060610048FBE7DAC227D82CB24B4A8186FDB2A",
+      "exitCode": 0,
+      "byteIdentical": true
+    },
+    {
+      "source": "fixtures/Canonical/Sculpting/surf-x2-manual-candidate.firmament",
+      "sourceSha256": "CFBA24141D578B8049C61FA491B5978D40E873DA149373D287F5DB5488F40056",
+      "expectedSha256": "1B32DB8AFF518EAA86ADBEC212047641B48C5CCD9F57736F9C807D897AFA70B2",
+      "actualSha256": "1B32DB8AFF518EAA86ADBEC212047641B48C5CCD9F57736F9C807D897AFA70B2",
+      "exitCode": 0,
+      "byteIdentical": true
+    }
+  ],
+  "moduleReplay": [
+    {
+      "source": "fixtures/Regression/Inventory/machine.firmasm",
+      "expectedAccepted": true,
+      "validationExit": 0,
+      "buildExit": 0,
+      "sha256": "8D3D79045B5181394162D52BA1744CB38778D0906427425974FC2CF680BCBC76",
+      "sourceSha256": "CEC185D445B0327794D69FA59AAE17EAF460340C0A2F510C20D98C7C83007E1B",
+      "physicalWitness": {
+        "assemblyName": "Machine",
+        "definitionCount": 2,
+        "occurrenceCount": 5,
+        "subassemblyCount": 1,
+        "bodyCount": 4,
+        "maxHierarchyDepth": 2,
+        "assemblyBoundingBox": {
+          "minimum": [
+            -15,
+            -10,
+            0
+          ],
+          "maximum": [
+            155,
+            10,
+            9
+          ]
+        },
+        "lengthUnit": "mm"
+      },
+      "nativeInstanceTopology": {
+        "bodies": 4,
+        "faces": 24,
+        "edges": 48,
+        "vertices": 32
+      },
+      "inventoryBindings": [
+        {
+          "name": "Components.bracket",
+          "kind": "Part",
+          "export": "Bracket",
+          "definitionIdentity": "__Module_941122D9F9C1C27BBD62"
+        },
+        {
+          "name": "Components.wideBracket",
+          "kind": "Part",
+          "export": "Bracket",
+          "definitionIdentity": "__Module_6686FAF072AB5D457FE9"
+        },
+        {
+          "name": "Parts.bracket",
+          "kind": "Part",
+          "export": "Bracket",
+          "definitionIdentity": "__Module_941122D9F9C1C27BBD62"
+        },
+        {
+          "name": "Components.drive",
+          "kind": "Subassembly",
+          "export": "Drive",
+          "definitionIdentity": "__Module_7CC766621641D26E8501"
+        }
+      ],
+      "retainedReuse": {
+        "definitions": [
+          {
+            "definitionIdentity": "__Module_6686FAF072AB5D457FE9",
+            "reused": true,
+            "reason": "unchanged-definition-inputs"
+          },
+          {
+            "definitionIdentity": "__Module_941122D9F9C1C27BBD62",
+            "reused": true,
+            "reason": "unchanged-definition-inputs"
+          }
+        ],
+        "reusedDefinitions": 2,
+        "rebuiltDefinitions": 0
+      }
+    },
+    {
+      "source": "fixtures/Regression/Inventory/include-simple.firmament",
+      "expectedAccepted": true,
+      "validationExit": 0,
+      "buildExit": 0,
+      "sha256": "25656CB962143A0333316A273AAE984E48FB6F08729FA9BB2DE6A0BE714AFB8D",
+      "sourceSha256": "20D4B8F0E784112382BE7047F357821E0C0077E05E0E0CD84E1DD82B9EAC573B",
+      "physicalWitness": {
+        "assemblyName": "Fastener",
+        "definitionCount": 2,
+        "occurrenceCount": 2,
+        "subassemblyCount": 0,
+        "bodyCount": 2,
+        "maxHierarchyDepth": 1,
+        "assemblyBoundingBox": {
+          "minimum": [
+            -15,
+            -10,
+            0
+          ],
+          "maximum": [
+            32,
+            10,
+            8
+          ]
+        },
+        "lengthUnit": "mm"
+      },
+      "nativeInstanceTopology": {
+        "bodies": 2,
+        "faces": 12,
+        "edges": 24,
+        "vertices": 16
+      },
+      "inventoryBindings": [],
+      "retainedReuse": {
+        "definitions": [
+          {
+            "definitionIdentity": "Bolt<length: 8mm>",
+            "reused": true,
+            "reason": "unchanged-definition-inputs"
+          },
+          {
+            "definitionIdentity": "__Module_4438AB2077743E373C6A",
+            "reused": true,
+            "reason": "unchanged-definition-inputs"
+          }
+        ],
+        "reusedDefinitions": 2,
+        "rebuiltDefinitions": 0
+      }
+    },
+    {
+      "source": "fixtures/Regression/Inventory/factory.firmament",
+      "expectedAccepted": true,
+      "validationExit": 0,
+      "sceneExportExit": 0,
+      "sha256": "53D63BC647E0EC608495BCA5B884AE977B79ACEA36771AA522A4EC3005E6663A",
+      "sourceSha256": "487B8E15635DA818A390046F0B6169753F19FF3D4EFBE01E2FF69565E5328702",
+      "physicalWitness": {
+        "scene": "Factory",
+        "internalUnits": "mm",
+        "definitions": 4,
+        "occurrences": 10,
+        "bounds": {
+          "minimumMm": [
+            -15,
+            -10,
+            0
+          ],
+          "maximumMm": [
+            515,
+            10,
+            9
+          ]
+        }
+      },
+      "glbBytes": 8260,
+      "retainedPerformance": {
+        "bindMilliseconds": 0.6589,
+        "definitionCompilationMilliseconds": 3.0397,
+        "compositionMilliseconds": 0.09440000000000001,
+        "uniqueEngineeringDefinitions": 3,
+        "reusedEngineeringDefinitions": 3,
+        "rebuiltEngineeringDefinitions": 0,
+        "displayPreparationMilliseconds": 0.023999999999999997
+      }
+    },
+    {
+      "source": "fixtures/Regression/Inventory/cell.firmament",
+      "expectedAccepted": true,
+      "validationExit": 0,
+      "sceneExportExit": 0,
+      "sha256": "CCC4131D0BD32382B5BBA447E3E798B6BBDA8ADFA499F6FD68B82F3A5A732E94",
+      "sourceSha256": "B0CFC003461261C4D1C901099C426B5BC453EEB9503A289708C879B5459DED9E",
+      "physicalWitness": {
+        "scene": "Workcell",
+        "internalUnits": "mm",
+        "definitions": 1,
+        "occurrences": 2,
+        "bounds": {
+          "minimumMm": [
+            5,
+            -10,
+            0
+          ],
+          "maximumMm": [
+            35,
+            10,
+            6
+          ]
+        }
+      },
+      "glbBytes": 2256,
+      "retainedPerformance": {
+        "bindMilliseconds": 0.5192,
+        "definitionCompilationMilliseconds": 0.1809,
+        "compositionMilliseconds": 0.0724,
+        "uniqueEngineeringDefinitions": 1,
+        "reusedEngineeringDefinitions": 1,
+        "rebuiltEngineeringDefinitions": 0,
+        "displayPreparationMilliseconds": 0.0067
+      }
+    },
+    {
+      "source": "fixtures/Regression/Inventory/missing-member.invalid.firmament",
+      "expectedAccepted": false,
+      "validationExit": 1,
+      "buildExit": 1,
+      "artifactExists": false,
+      "sourceSha256": "312CCEB6BB1A1DB4985F70A11A8AD9EB017375B7CA13311F50D04C1F8785FADA"
+    }
+  ],
+  "retainedGuitar": {
+    "builds": [
+      {
+        "index": 0,
+        "elapsedMilliseconds": 10241.4298,
+        "success": true,
+        "reuse": {
+          "definitions": [
+            {
+              "definitionIdentity": "Board<H:2mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Board<H:5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Drum<R:12mm,H:3mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Drum<R:16mm,H:1.5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Drum<R:2.5mm,H:12mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Drum<R:2.5mm,H:16mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Drum<R:24mm,H:1mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Drum<R:4mm,H:7mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Drum<R:4mm,H:8mm,EntryHeight:5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Drum<R:5mm,H:1mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Drum<R:7mm,H:1.5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Drum<R:9mm,H:9mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "GuitarString<D:0.28mm,Tail:Point3(-25.5mm,-75mm,65mm),Nut:Point3(-18mm,658mm,65mm),Post:Point3(-27mm,721.012484844421mm,54.4402401437605mm)>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "GuitarString<D:0.36mm,Tail:Point3(-15.3mm,-75mm,65mm),Nut:Point3(-10.8mm,658mm,65mm),Post:Point3(-27mm,756.089807176689mm,46.3420021873814mm)>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "GuitarString<D:0.44mm,Tail:Point3(-5.1mm,-75mm,65mm),Nut:Point3(-3.6mm,658mm,65mm),Post:Point3(-27mm,791.167129508958mm,38.2437642310023mm)>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "GuitarString<D:0.52mm,Tail:Point3(5.1mm,-75mm,65mm),Nut:Point3(3.6mm,658mm,65mm),Post:Point3(27mm,791.167129508958mm,38.2437642310023mm)>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "GuitarString<D:0.68mm,Tail:Point3(25.5mm,-75mm,65mm),Nut:Point3(18mm,658mm,65mm),Post:Point3(27mm,721.012484844421mm,54.4402401437605mm)>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "GuitarString<D:0.6mm,Tail:Point3(15.3mm,-75mm,65mm),Nut:Point3(10.8mm,658mm,65mm),Post:Point3(27mm,756.089807176689mm,46.3420021873814mm)>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Head<H:14mm,RootStart:16mm,RootHalfWidth:26.5mm,RootWidth:53mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Head<H:1mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "HeadstockScarf<L:43mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Humbucker<Spec: StandardPickup>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:15mm,W:19mm,H:6mm,R:5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:42.89668539123454mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:43.697597898337534mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:44.45355864049755mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:44mm,W:4mm,H:3mm,R:1mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:45.16709056641817mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:45.840575022572935mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:46.47625970072782mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:47.07626613940356mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:47.6425968043132mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:48.17714177140536mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:48.68168503481692mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:49.1579104607877mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:49.60740740740741mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:50.031676028950606mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:50.4321322825021mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:50.81011265358211mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:51.16687861654242mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:51.5036208446198mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:51.82146318369725mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:52.121466403035114mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:52.40463173548993mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:52.67190421903601mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:52.9241758507418mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:63mm,W:93mm,H:1mm,R:15mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:7mm,W:9mm,H:2mm,R:1mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:82mm,W:12mm,H:10mm,R:5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "Panel<L:88mm,W:15mm,H:7mm,R:6mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "SectionChainFile<\"CarvedMaple.firmament\">",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "SectionChainFile<\"IvoryBinding.firmament\">",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "SectionChainFile<\"MahoganyBack.firmament\">",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "SectionChainFile<\"Neck.firmament\">",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            },
+            {
+              "definitionIdentity": "TailpieceRail<L:76mm,R:5mm>",
+              "reused": false,
+              "reason": "first-build-or-evicted"
+            }
+          ],
+          "reusedDefinitions": 0,
+          "rebuiltDefinitions": 56
+        }
+      },
+      {
+        "index": 1,
+        "elapsedMilliseconds": 137.6584,
+        "success": true,
+        "reuse": {
+          "definitions": [
+            {
+              "definitionIdentity": "Board<H:2mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Board<H:5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Drum<R:12mm,H:3mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Drum<R:16mm,H:1.5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Drum<R:2.5mm,H:12mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Drum<R:2.5mm,H:16mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Drum<R:24mm,H:1mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Drum<R:4mm,H:7mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Drum<R:4mm,H:8mm,EntryHeight:5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Drum<R:5mm,H:1mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Drum<R:7mm,H:1.5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Drum<R:9mm,H:9mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "GuitarString<D:0.28mm,Tail:Point3(-25.5mm,-75mm,65mm),Nut:Point3(-18mm,658mm,65mm),Post:Point3(-27mm,721.012484844421mm,54.4402401437605mm)>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "GuitarString<D:0.36mm,Tail:Point3(-15.3mm,-75mm,65mm),Nut:Point3(-10.8mm,658mm,65mm),Post:Point3(-27mm,756.089807176689mm,46.3420021873814mm)>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "GuitarString<D:0.44mm,Tail:Point3(-5.1mm,-75mm,65mm),Nut:Point3(-3.6mm,658mm,65mm),Post:Point3(-27mm,791.167129508958mm,38.2437642310023mm)>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "GuitarString<D:0.52mm,Tail:Point3(5.1mm,-75mm,65mm),Nut:Point3(3.6mm,658mm,65mm),Post:Point3(27mm,791.167129508958mm,38.2437642310023mm)>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "GuitarString<D:0.68mm,Tail:Point3(25.5mm,-75mm,65mm),Nut:Point3(18mm,658mm,65mm),Post:Point3(27mm,721.012484844421mm,54.4402401437605mm)>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "GuitarString<D:0.6mm,Tail:Point3(15.3mm,-75mm,65mm),Nut:Point3(10.8mm,658mm,65mm),Post:Point3(27mm,756.089807176689mm,46.3420021873814mm)>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Head<H:14mm,RootStart:16mm,RootHalfWidth:26.5mm,RootWidth:53mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Head<H:1mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "HeadstockScarf<L:43mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Humbucker<Spec: StandardPickup>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:15mm,W:19mm,H:6mm,R:5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:25mm,W:12mm,H:0.3mm,R:1mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:42.89668539123454mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:43.697597898337534mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:44.45355864049755mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:44mm,W:4mm,H:3mm,R:1mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:45.16709056641817mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:45.840575022572935mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:46.47625970072782mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:47.07626613940356mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:47.6425968043132mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:48.17714177140536mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:48.68168503481692mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:49.1579104607877mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:49.60740740740741mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:50.031676028950606mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:50.4321322825021mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:50.81011265358211mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:51.16687861654242mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:51.5036208446198mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:51.82146318369725mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:52.121466403035114mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:52.40463173548993mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:52.67190421903601mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:52.9241758507418mm,W:1.2mm,H:1mm,R:0.5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:63mm,W:93mm,H:1mm,R:15mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:7mm,W:9mm,H:2mm,R:1mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:82mm,W:12mm,H:10mm,R:5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "Panel<L:88mm,W:15mm,H:7mm,R:6mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "SectionChainFile<\"CarvedMaple.firmament\">",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "SectionChainFile<\"IvoryBinding.firmament\">",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "SectionChainFile<\"MahoganyBack.firmament\">",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "SectionChainFile<\"Neck.firmament\">",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            },
+            {
+              "definitionIdentity": "TailpieceRail<L:76mm,R:5mm>",
+              "reused": true,
+              "reason": "unchanged-definition-inputs"
+            }
+          ],
+          "reusedDefinitions": 56,
+          "rebuiltDefinitions": 0
+        }
+      }
+    ]
+  },
+  "runtimeSnapshot": {
+    "capturedUtc": "2026-10-15T18:09:43.4416386Z",
+    "remainingHosts": 0,
+    "taskOwnedHostsReaped": 0,
+    "freePhysicalMemoryGiB": 11.031,
+    "freeDiskGiB": 91.933,
+    "qualification": "Post-run snapshot, not a sustained leak test"
+  },
+  "sourceAndBinaryHashes": [
+    {
+      "path": "Aetheris.CLI.Tests/FirmamentInventoryCliTests.cs",
+      "sha256": "5406E719DC0B3A3B3316EDA89B6F3A72BC4A5E4016FD2973D7DE55412A5C5865"
+    },
+    {
+      "path": "Aetheris.CLI/CliRunner.cs",
+      "sha256": "3699D11CBB9125787E8B68249C60B8A473FF16C06A54C0652C8372916D8C3A1E"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament.Tests/Assembly/AssemblyUnifiedFrontendTests.cs",
+      "sha256": "D6E3F9B04B11496E5B782D644CFBC83FAB0A90C44CA7D7935DC7868E069E49BA"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament.Tests/FirmamentInventoryTests.cs",
+      "sha256": "848E39261EA549A1670B7B54B1827239B45046569080D0516D04B5F122AD5E87"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament.Tests/FirmamentSemanticSchemaTests.cs",
+      "sha256": "FA423228F308C7B57173CE6227A347CAA4B599FA59627F6F7DD792BE53D4B888"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/Assembly/AssemblyM0Compiler.cs",
+      "sha256": "D677EDD45657B50D61FCBFE92774C740CFBC9CBF1861E52F3EAB261C782EDFD9"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/Assembly/AssemblyM0Models.cs",
+      "sha256": "836878BE48643C03BAAC65CC9D9D7866E8CB478B8BF4055D6F05B0E5223CAC6E"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/Assembly/AssemblyM0Parser.cs",
+      "sha256": "8E98A5A2138BB79310726D85D85DFA5AC4AABEA596C81BD10042EE226232508D"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/Assembly/AssemblyM1Execution.cs",
+      "sha256": "D5E68C08A1CA10E4656E769B01C8ED10B2FFB4326F800F114C85DB3000C72CFE"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/Assembly/AssemblyModuleMaterialization.cs",
+      "sha256": "7826AF618F2B03F9B51022C423707481A08B7E3ABA9A865AFF2798EFDCEBD712"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/Assembly/FirmamentAssemblyDocumentProfile.cs",
+      "sha256": "BCBD43F8B74D51FC517404AAADF58345C8E1E7815B4074690367CAAC80A046A5"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/Assembly/FirmamentCompilationSession.cs",
+      "sha256": "E92AF2803DCA2843ADCA17223DF7519F274F3965087CFC91DFFB1CEDB86863B9"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/FirmamentV2/Syntax/FirmamentDataBinding.cs",
+      "sha256": "B742BFEDC1416ABD4D7FA50F3107D300241116FFFF8DA342788892D5DE87604E"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/FirmamentV2/Syntax/FirmamentSyntaxParser.cs",
+      "sha256": "19735311FEF57EB38D6D95500E9137113F40E60A96F1C85A26B58870B4F73B72"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/Modules/FirmamentModuleGraph.cs",
+      "sha256": "70DED5D8D2D8B20A6F0C50D972F71235961301A46F165E4337BE7B49110EC979"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/Scene/SceneAuthoring.cs",
+      "sha256": "BEF6F5ACDE0CCC38A9B07525FC885EF79FB7D8989DDF2DD52957E697B0ADD8DE"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/Scene/SceneCompilation.cs",
+      "sha256": "D09E7CA2760F856F9A5388962B320E409F488FC5C7C60C19D4B03A1495C2CBB9"
+    },
+    {
+      "path": "Aetheris.CLI/bin/Release/net10.0/aetheris.dll",
+      "sha256": "FE1A395CC58028F480C05C4758BE6929808E77810F6ED8F13074BCDB25B96A61"
+    },
+    {
+      "path": "Aetheris.Kernel.Firmament/bin/Release/net10.0/Aetheris.Kernel.Firmament.dll",
+      "sha256": "5ABE723289A6580A959DFFB449F69D7191BCFA828BC7C451FE7C86270CD26334"
+    }
+  ],
+  "remainingBoundaries": [
+    "Concrete modules only; specialize Templates in their defining module before export.",
+    "Source snapshots contain source documents, not STEP assets; concrete Part file-resource adapters without snapshot context reject explicitly.",
+    "Legacy include composition and engineering domain lowerers retain mapped/bounded source transport; complete generated-source maps remain X2 work.",
+    "Scene source-model binding/dependency receipts are retained in the compiler API; CLI Scene inspection currently projects nodes and original anchors.",
+    "No new live Helios or browser interaction qualification is claimed."
+  ]
+}

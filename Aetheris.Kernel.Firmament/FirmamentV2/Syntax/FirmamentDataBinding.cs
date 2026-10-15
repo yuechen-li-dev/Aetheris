@@ -77,6 +77,11 @@ internal sealed class FirmamentDataBinding
             {
                 scopes[statement] = scope;
                 if (statement is not DeclarationSyntax { Name: { } name } d) continue;
+                if (d.Type.Name.Text == "Record" && d.Modifiers.Any(m => m.Name.Text == "Inventory"))
+                {
+                    Error("firmament-module-context-required", $"Inventory Record '{name.Text}' requires an Assembly or Scene project loader. Reference this module from a consuming project; it is not an ordinary data Record.", d.Span, name.Text, "Module binding");
+                    continue;
+                }
                 var space = d.Type.Name.Text is "Record" or "Enum" ? "type"
                     : d.Type.Name.Text == "Static" || d.Type.Name.Text == "Table" && d.Modifiers.Any(m => m.Name.Text == "Static") ? "value" : null;
                 if (space is null) { scope.Values.Add(name.Text); continue; }
@@ -198,8 +203,8 @@ internal sealed class FirmamentDataBinding
         {
             if (name.Text != text && !edits.Any(e => e.Span == name.Span)) edits.Add(new(name.Span, text));
         }
-        void Error(string code, string message, FirmamentV2SourceSpan span, string name) => errors.Add(new(code, "fatal", message, Target: name)
-            { SourceSpan = span, IsOriginalSource = true, Stage = "Data binding" });
+        void Error(string code, string message, FirmamentV2SourceSpan span, string name, string stage = "Data binding") => errors.Add(new(code, "fatal", message, Target: name)
+            { SourceSpan = span, IsOriginalSource = true, Stage = stage });
     }
 
     internal string DisplayName(string identity) => identities.TryGetValue(identity, out var symbol) ? symbol.Name : identity;

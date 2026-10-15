@@ -1,0 +1,6 @@
+Record Spec { width: Length thickness: Length }
+Static spec: Spec = Spec { width: 40mm thickness: 9mm }
+Model Bracket {
+  units: mm
+  Box stock { size: [spec.width, 20mm, spec.thickness] }
+}

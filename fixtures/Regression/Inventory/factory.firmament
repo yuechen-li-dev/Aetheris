@@ -1,0 +1,17 @@
+Inventory Record Library {
+  machine: Assembly = Firmament("machine").Machine
+  cell: Scene = Firmament("cell").Workcell
+  bracket: Part = Firmament("parts/bracket").Bracket
+}
+Scene Factory {
+  units: mm
+  <Assembly machine = Library.machine>
+    Placement { from: Origin; to: World; }
+  </Assembly>
+  <Scene cell = Library.cell>
+    Placement { from: Origin; to: World; translateLocal: [300mm, 0mm, 0mm]; }
+  </Scene>
+  <Part stock = Library.bracket>
+    Placement { from: Origin; to: World; translateLocal: [500mm, 0mm, 0mm]; }
+  </Part>
+}

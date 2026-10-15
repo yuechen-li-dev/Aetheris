@@ -6,6 +6,8 @@ using System.Text.RegularExpressions;
 using Aetheris.Kernel.Core.Math;
 using Aetheris.Kernel.Firmament.Assembly;
 using Aetheris.Semantics;
+using Aetheris.Kernel.Firmament.Modules;
+using Aetheris.Kernel.Firmament.FirmamentV2.Syntax;
 
 namespace Aetheris.Kernel.Firmament.Scene;
 
@@ -35,6 +37,7 @@ public sealed class FirmamentSceneSession : IDisposable
     // identity is what lets the web runtime send unchanged definitions as retained stubs.
     private readonly DerivedValueCache<AssemblyDisplayMeshDefinition> sceneDefinitions = new();
     private readonly DerivedValueCache<(AssemblyDisplayMeshDefinition Source,AssemblyDisplayMeshDefinition Derived)> assemblyDefinitions = new();
+    private readonly Dictionary<string,FirmamentSceneSession> nestedScenes = new(StringComparer.Ordinal);
     private bool disposed;
     public SceneCompilationResult CompileFile(string path) => Compile(File.ReadAllText(path),Path.GetFullPath(path));
     public SceneCompilationResult CompileProject(FirmamentProjectSnapshot project) => project.TryResolve(project.RootDocument, out var source)
@@ -42,23 +45,63 @@ public sealed class FirmamentSceneSession : IDisposable
         : new(null, [new("scene-project-root-missing", project.RootDocument)]);
     public SceneCompilationResult Compile(string source, string sourceIdentity = "<memory>", FirmamentProjectSnapshot? project = null)
     {
+        FirmamentModuleGraph? graph = null;
+        if (FirmamentModuleGraph.HasImports(source))
+        {
+            graph = FirmamentModuleGraph.Load(source, sourceIdentity, project);
+            if (graph.Diagnostics.Count > 0) return new(null,graph.Diagnostics);
+        }
+        return CompileBound(source,sourceIdentity,project,graph,graph?.Root);
+    }
+    private SceneCompilationResult CompileBound(string source,string sourceIdentity,FirmamentProjectSnapshot? project,
+        FirmamentModuleGraph? graph,FirmamentModuleGraph.Module? module,DeclarationSyntax? selected = null)
+    {
+        var projection = graph is null ? null : graph.ProjectSource(module!,selected);
+        source = projection?.Text ?? source;
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(disposed,this);
             var watch = Stopwatch.StartNew(); var parsed = SceneAuthoring.Parse(source,sourceIdentity);
+            if (projection is not null) parsed=SceneAuthoring.ApplyModuleContext(parsed,graph!,projection);
             if (!parsed.IsSuccess) return new(null,parsed.Diagnostics);
             var bindMs=watch.Elapsed.TotalMilliseconds; watch.Restart(); parts.BeginBuild(); sceneDefinitions.BeginBuild(); assemblyDefinitions.BeginBuild();
             var s=parsed.Source!; var diagnostics=parsed.Diagnostics.ToList();
             var definitions=new Dictionary<string,AssemblyDisplayMeshDefinition>(StringComparer.Ordinal);
             var occurrences=new List<AssemblyDisplayMeshOccurrence>(); var nodes=new List<SceneNode>();
             var looks=new Dictionary<string,AssemblyAppearanceBinding>(StringComparer.Ordinal);
+            var compiledScenes=new Dictionary<string,CompiledScene>(StringComparer.Ordinal);
             var compiledAssemblies=new Dictionary<string,AssemblyM1CompilationResult>(StringComparer.OrdinalIgnoreCase);
             var preparedAssemblies=new Dictionary<string,AssemblyDisplayMeshDocument>(StringComparer.OrdinalIgnoreCase);
             double displayMs=0;
             var materializedParts=new Dictionary<string,MaterializedAssemblyDefinition>(StringComparer.Ordinal);
             foreach (var item in s.Occurrences)
             {
-                if (item.Kind == "Assembly")
+                if (graph?.TryReference(item.Definition,out var imported) == true && item.Kind == "Scene")
+                {
+                    if (!nestedScenes.TryGetValue(imported.Identity,out var session))
+                    {
+                        if (nestedScenes.Count >= 256) { Error("scene-definition-session-capacity-exceeded","At most 256 imported Scene definitions can be retained."); continue; }
+                        nestedScenes[imported.Identity]=session=new();
+                    }
+                    var child=session.CompileBound(imported.Module!.Text,imported.Path,project,graph,imported.Module,imported.Export);
+                    diagnostics.AddRange(child.Diagnostics);
+                    if (child.Scene is not null) compiledScenes[imported.Identity]=child.Scene;
+                }
+                else if (graph?.TryReference(item.Definition,out imported) == true && item.Kind == "Assembly")
+                {
+                    if (!assemblies.TryGetValue(imported.Identity,out var session))
+                    {
+                        if (assemblies.Count >= 256) { Error("scene-definition-session-capacity-exceeded","At most 256 imported Assembly definitions can be retained."); continue; }
+                        assemblies[imported.Identity]=session=new();
+                    }
+                    if (!compiledAssemblies.ContainsKey(imported.Identity))
+                    {
+                        var child=session.CompileModule(graph,imported);
+                        compiledAssemblies[imported.Identity]=child;
+                        diagnostics.AddRange(child.Diagnostics);
+                    }
+                }
+                else if (item.Kind == "Assembly")
                 {
                     var match=Regex.Match(item.Definition,"^AssemblyFile<\\s*\"(?<path>[^\"]+)\"\\s*>$");
                     if (!match.Success) { Error("scene-assembly-definition-invalid","X0 assembly occurrences require AssemblyFile<\"relative.firmament\">; their document compiles independently."); continue; }
@@ -84,10 +127,14 @@ public sealed class FirmamentSceneSession : IDisposable
                         diagnostics.AddRange(assembly.Diagnostics);
                     }
                 }
+                else if (item.Kind == "Scene")
+                    Error("scene-definition-unresolved", "A Scene occurrence requires a bound Inventory Scene entry.");
                 else if (!materializedParts.ContainsKey(item.Definition))
                 {
-                    var part=parts.Materialize(item.Definition,s.DefinitionSource,sourceIdentity,diagnostics,project,
-                        () => AssemblyDefinitionMaterializer.TryMaterialize(item.Definition,s.DefinitionSource,sourceIdentity,diagnostics,project));
+                    var part=graph?.TryReference(item.Definition,out var importedPart) == true
+                        ? AssemblyDefinitionMaterializer.MaterializeModule(graph,importedPart,item.Definition,diagnostics,parts)
+                        : parts.Materialize(item.Definition,s.DefinitionSource,sourceIdentity,diagnostics,project,
+                            () => AssemblyDefinitionMaterializer.TryMaterialize(item.Definition,s.DefinitionSource,sourceIdentity,diagnostics,project));
                     if (part is not null) materializedParts.Add(item.Definition,part);
                 }
             }
@@ -176,10 +223,34 @@ public sealed class FirmamentSceneSession : IDisposable
                     }
                     AddNode(item.Path,"Part",item.Definition,parent,world.ToRowMajor(),id,item.Span,item.PatternKey); ApplyLook(item.Path,item.Appearance);
                 }
+                else if (item.Kind == "Scene")
+                {
+                    if (item.From != "Origin") { Error("scene-source-frame-unresolved","An imported Scene is placed from Origin."); continue; }
+                    if (!compiledScenes.TryGetValue(item.Definition,out var child)) { Error("scene-definition-unresolved",item.Definition); continue; }
+                    var prefix=Id(item.Definition);
+                    foreach (var d in child.Display.Definitions)
+                    {
+                        var id=prefix+":"+d.Id;
+                        definitions.TryAdd(id,Derive(d,id,item.Definition));
+                    }
+                    var childRoot=child.Source.Name;
+                    foreach (var o in child.Display.Occurrences)
+                    {
+                        var scenePath=item.Path+o.Path[childRoot.Length..];
+                        var parentPath=o.ParentId is null ? parent : item.Path+child.Display.Occurrences.Single(p => p.Id == o.ParentId).Path[childRoot.Length..];
+                        var childNode=child.Nodes.Single(n => n.Path == o.Path);
+                        AddNode(scenePath,childNode.Kind,childNode.DefinitionIdentity,parentPath,
+                            (Transform3D.FromRowMajor(o.Transform)*world).ToRowMajor(),o.DefinitionId is null ? null : prefix+":"+o.DefinitionId,childNode.Span,item.PatternKey);
+                        if (child.Appearances.TryGetValue(o.Id,out var look)) looks[Id(scenePath)]=look;
+                        ApplyLook(scenePath,item.Appearance);
+                    }
+                    boundaries=boundaries.Concat(child.Boundaries.Select(b => b with { Path=item.Path+"."+b.Path,Room=item.Path+"."+b.Room,
+                        Frame=(Transform3D.FromRowMajor(b.Frame)*world).ToRowMajor(),Openings=b.Openings.Select(o => item.Path+"."+o).ToArray() })).ToArray();
+                }
                 else
                 {
                     var match=Regex.Match(item.Definition,"\"(?<path>[^\"]+)\"");
-                    var path=AssemblyPathFor(match.Groups["path"].Value)!;
+                    var path=graph?.TryReference(item.Definition,out _) == true ? item.Definition : AssemblyPathFor(match.Groups["path"].Value)!;
                     var assembly=compiledAssemblies[path];
                     if (!preparedAssemblies.TryGetValue(path,out var mesh))
                     { var preparation=Stopwatch.StartNew(); preparedAssemblies[path]=mesh=assemblies[path].ExportDisplayMesh(assembly); displayMs+=preparation.Elapsed.TotalMilliseconds; }
@@ -253,7 +324,7 @@ public sealed class FirmamentSceneSession : IDisposable
             { if (look is not null) looks[Id(path)]=new("","",look,s.Looks.Appearances[look].Preview,"scene-appearance"); }
         }
     }
-    public void Dispose() { lock(gate) { foreach (var session in assemblies.Values) session.Dispose(); assemblies.Clear(); parts.Clear(); sceneDefinitions.Clear(); assemblyDefinitions.Clear(); disposed=true; } }
+    public void Dispose() { lock(gate) { foreach (var session in assemblies.Values) session.Dispose(); assemblies.Clear(); foreach(var child in nestedScenes.Values) child.Dispose(); nestedScenes.Clear(); parts.Clear(); sceneDefinitions.Clear(); assemblyDefinitions.Clear(); disposed=true; } }
     // The shader DisplayProjection would attach; attached once here so the cached object is final.
     private static AssemblyDisplayMeshDefinition WithShader(AssemblyDisplayMeshDefinition d) =>
         d.Shader is null ? d with { Shader = CirShaderArtifactProvider.Resolve(d.Cir) } : d;
